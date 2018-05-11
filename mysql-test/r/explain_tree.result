@@ -108,6 +108,20 @@ EXPLAIN
                 -> Table scan on t3
 
 DROP TABLE t1, t2, t3;
+CREATE TABLE t1 ( f1 INT PRIMARY KEY );
+INSERT INTO t1 VALUES ( 1 );
+INSERT INTO t1 VALUES ( 2 );
+INSERT INTO t1 VALUES ( 3 );
+CREATE TABLE t2 AS SELECT * FROM t1;
+EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 USING (f1) WHERE t2.f1 IS NULL;
+EXPLAIN
+-> Filter: isnull(t2.f1)
+    -> Nested loop anti-join
+        -> Index scan on t1 using PRIMARY
+        -> Filter: (t2.f1 = t1.f1)
+            -> Table scan on t2
+
+DROP TABLE t1, t2;
 CREATE TABLE t1 ( f1 INT );
 INSERT INTO t1 VALUES ( 1 );
 INSERT INTO t1 VALUES ( 2 );

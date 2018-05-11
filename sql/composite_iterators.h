@@ -258,7 +258,7 @@ class PrecomputedAggregateIterator final : public RowIterator {
   JOIN *m_join = nullptr;
 };
 
-enum class JoinType { INNER, OUTER };
+enum class JoinType { INNER, OUTER, ANTI };
 
 /**
   A simple nested loop join, taking in two iterators (left/outer and
@@ -287,6 +287,10 @@ class NestedLoopIterator final : public RowIterator {
         m_pfs_batch_mode(pfs_batch_mode) {
     DBUG_ASSERT(m_source_outer != nullptr);
     DBUG_ASSERT(m_source_inner != nullptr);
+
+    // Batch mode makes no sense for anti-joins, since they should only
+    // be reading one row.
+    DBUG_ASSERT(!(pfs_batch_mode && join_type == JoinType::ANTI));
   }
 
   bool Init() override;

@@ -343,8 +343,9 @@ int NestedLoopIterator::Read() {
       // Out of inner rows for this outer row. If we are an outer join
       // and never found any inner rows, return a null-complemented row.
       // If not, skip that and go straight to reading a new outer row.
-      if (m_join_type == JoinType::OUTER &&
-          m_state == READING_FIRST_INNER_ROW) {
+      if ((m_join_type == JoinType::OUTER &&
+           m_state == READING_FIRST_INNER_ROW) ||
+          m_join_type == JoinType::ANTI) {
         m_source_inner->SetNullRowFlag(true);
         m_state = NEEDS_OUTER_ROW;
         return 0;
@@ -352,6 +353,14 @@ int NestedLoopIterator::Read() {
         m_state = NEEDS_OUTER_ROW;
         continue;
       }
+    }
+
+    // An inner row has been found.
+
+    if (m_join_type == JoinType::ANTI) {
+      // Anti-joins should stop scanning the inner side as soon as we see a row.
+      m_state = NEEDS_OUTER_ROW;
+      continue;
     }
 
     // We have a new row.
@@ -366,6 +375,8 @@ string NestedLoopIterator::DebugString() const {
       return "Nested loop inner join";
     case JoinType::OUTER:
       return "Nested loop left join";
+    case JoinType::ANTI:
+      return "Nested loop anti-join";
     default:
       DBUG_ASSERT(false);
       return "Nested loop <error>";

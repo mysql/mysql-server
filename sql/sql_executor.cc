@@ -1279,9 +1279,21 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
                                         thd, &subtree_pending_conditions);
       }
 
-      const bool pfs_batch_mode = qep_tab->pfs_batch_update(qep_tab->join());
+      JoinType join_type;
+      if (qep_tab->table()->reginfo.not_exists_optimize) {
+        // Similar to the comment below (see case #3), we can only enable
+        // anti-join optimizations if we are not already on the right (inner)
+        // side of another outer join. Otherwise, we would cause the higher-up
+        // outer join to create NULL rows where there should be none.
+        join_type =
+            (pending_conditions == nullptr) ? JoinType::ANTI : JoinType::OUTER;
+      } else {
+        join_type = JoinType::OUTER;
+      }
+      const bool pfs_batch_mode = qep_tab->pfs_batch_update(qep_tab->join()) &&
+                                  join_type != JoinType::ANTI;
       iterator.reset(new (thd->mem_root) NestedLoopIterator(
-          thd, move(iterator), move(subtree_iterator), JoinType::OUTER,
+          thd, move(iterator), move(subtree_iterator), join_type,
           pfs_batch_mode));
 
       iterator = PossiblyAttachFilterIterator(move(iterator),
@@ -1396,7 +1408,7 @@ void JOIN::create_iterators() {
   DBUG_ASSERT(m_root_iterator == nullptr);
 
   // The new executor engine can't do materialized tables, CTEs,
-  // semijoins, loose scan, BNL/BKA or anti-joins.
+  // semijoins, loose scan or BNL/BKA.
   // Revert to the old one if they show up.
   for (unsigned table_idx = const_tables; table_idx < tables; ++table_idx) {
     QEP_TAB *qep_tab = &this->qep_tab[table_idx];
@@ -1412,7 +1424,6 @@ void JOIN::create_iterators() {
         qep_tab->do_firstmatch() || qep_tab->do_loosescan() ||
         qep_tab->starts_weedout() || qep_tab->finishes_weedout() ||
         qep_tab->next_select == sub_select_op ||
-        qep_tab->table()->reginfo.not_exists_optimize ||
         qep_tab->needs_duplicate_removal) {
       return;
     }
