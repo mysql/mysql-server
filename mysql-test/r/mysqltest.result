@@ -1469,6 +1469,9 @@ inf
 # Division by 0, result will be an infinite value and MTR will print 'inf' keyword.
 expr $res= 10 / 0
 inf
+# 0.0 / 0.0, result will be NaN and MTR will print 'nan' keyword.
+expr $res= 0 / 0
+nan
 # Invalid mathematical expressions
 expr
 mysqltest: At line 1: Missing arguments to expr command.

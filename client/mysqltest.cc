@@ -36,6 +36,7 @@
 #include <algorithm>
 #include <cmath>  // std::isinf
 #include <functional>
+#include <limits>
 #include <new>
 #include <string>
 #ifdef _WIN32
@@ -4944,9 +4945,15 @@ static void do_expr(struct st_command *command) {
     result = operand1 - operand2;
   else if (!std::strcmp(math_operator, "*"))
     result = operand1 * operand2;
-  else if (!std::strcmp(math_operator, "/"))
-    result = operand1 / operand2;
-  else if (!std::strcmp(math_operator, "%"))
+  else if (!std::strcmp(math_operator, "/")) {
+    if (operand2 == 0.0) {
+      if (operand1 == 0.0)
+        result = std::numeric_limits<double>::quiet_NaN();
+      else
+        result = std::numeric_limits<double>::infinity();
+    } else
+      result = operand1 / operand2;
+  } else if (!std::strcmp(math_operator, "%"))
     result = (int)operand1 % (int)operand2;
   // Logical Operators
   else if (!std::strcmp(math_operator, "&&"))
@@ -4970,7 +4977,10 @@ static void do_expr(struct st_command *command) {
   char buf[128];
   size_t result_len;
   // Check if result is an infinite value
-  if (!std::isinf(result)) {
+  if (std::isnan(result)) {
+    // Print 'nan' if result is Not a Number
+    result_len = snprintf(buf, sizeof(buf), "%s", "nan");
+  } else if (!std::isinf(result)) {
     const char *format = (result < 1e10 && result > -1e10) ? "%f" : "%g";
     result_len = snprintf(buf, sizeof(buf), format, result);
   } else

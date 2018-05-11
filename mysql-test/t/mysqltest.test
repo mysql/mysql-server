@@ -3680,6 +3680,11 @@ EOF
 --expr $res= $var1 / $var8
 --echo $res
 
+--echo # 0.0 / 0.0, result will be NaN and MTR will print 'nan' keyword.
+--echo expr \$res= $var8 / $var8
+--expr $res= $var8 / $var8
+--echo $res
+
 --echo # Invalid mathematical expressions
 --echo expr
 --error 1

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,8 +29,10 @@
 */
 
 #include <float.h>
+#include <limits.h>
 #include <stdbool.h>  // IWYU pragma: keep
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -48,7 +50,7 @@
 
 /*
   my_str_malloc(), my_str_realloc() and my_str_free() are assigned to
-  implementations in strings/alloc.c, but can be overridden in
+  implementations in strings/alloc.cc, but can be overridden in
   the calling program.
  */
 extern void *(*my_str_malloc)(size_t);
@@ -322,6 +324,32 @@ static inline const uchar *skip_trailing_space(const uchar *ptr, size_t len) {
   }
   while (end > ptr && end[-1] == 0x20) end--;
   return (end);
+}
+
+/*
+  Format a double (representing number of bytes) into a human-readable string.
+
+  @param buf     Buffer used for printing
+  @param buf_len Length of buffer
+  @param dbl_val Value to be formatted
+
+  @note
+    Sample output format: 42 1K 234M 2G
+    If we exceed ULLONG_MAX YiB we give up, and convert to "+INF".
+
+  @todo Consider writing KiB GiB etc, since we use 1024 rather than 1000
+ */
+static inline void human_readable_num_bytes(char *buf, int buf_len,
+                                            double dbl_val) {
+  const char size[] = {'\0', 'K', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y'};
+  unsigned int i;
+  for (i = 0; dbl_val > 1024 && i < sizeof(size) - 1; i++) dbl_val /= 1024;
+  const char mult = size[i];
+  // 18446744073709551615 Yottabytes should be enough for most ...
+  if (dbl_val > ULLONG_MAX)
+    snprintf(buf, buf_len, "+INF");
+  else
+    snprintf(buf, buf_len, "%llu%c", (unsigned long long)dbl_val, mult);
 }
 
 static inline void lex_string_set(LEX_STRING *lex_str, const char *c_str) {

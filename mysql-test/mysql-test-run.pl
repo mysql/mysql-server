@@ -2852,8 +2852,8 @@ sub environment_setup {
   # for test cases
   $ENV{'VALGRIND_SERVER_TEST'} = $opt_valgrind_mysqld;
 
-  # Ask UBSAN to print stack traces
-  $ENV{'UBSAN_OPTIONS'} = "print_stacktrace=1" if $opt_sanitize;
+  # Ask UBSAN to print stack traces, and to be fail-fast.
+  $ENV{'UBSAN_OPTIONS'} = "print_stacktrace=1,halt_on_error=1" if $opt_sanitize;
 
   # Make sure LeakSanitizer exits if leaks are found
   $ENV{'LSAN_OPTIONS'} = "exitcode=42" if $opt_sanitize;

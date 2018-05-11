@@ -309,8 +309,9 @@ static buf_buddy_free_t *buf_buddy_alloc_zip(buf_pool_t *buf_pool, ulint i) {
     buf = buf_buddy_alloc_zip(buf_pool, i + 1);
 
     if (buf) {
+      byte *allocated_block = buf->stamp.bytes;
       buf_buddy_free_t *buddy = reinterpret_cast<buf_buddy_free_t *>(
-          buf->stamp.bytes + (BUF_BUDDY_LOW << i));
+          allocated_block + (BUF_BUDDY_LOW << i));
 
       mutex_enter(&buf_pool->zip_free_mutex);
       ut_ad(!buf_pool_contains_zip(buf_pool, buddy));

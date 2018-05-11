@@ -1761,7 +1761,8 @@ static void make_traverse_code_tree(HUFF_TREE *huff_tree, HUFF_ELEMENT *element,
   if (!element->a.leaf.null) {
     chr = element->a.leaf.element_nr;
     huff_tree->code_len[chr] = (uchar)(8 * sizeof(ulonglong) - size);
-    huff_tree->code[chr] = (code >> size);
+    // >> 64 is undefined (platform specific)
+    huff_tree->code[chr] = size >= 64 ? 0 : (code >> size);
     if (huff_tree->height < 8 * sizeof(ulonglong) - size)
       huff_tree->height = 8 * sizeof(ulonglong) - size;
   } else {
@@ -2653,7 +2654,8 @@ static void flush_bits(void) {
   ulonglong bit_buffer;
 
   bits = file_buffer.bits & ~7;
-  bit_buffer = file_buffer.bitbucket >> bits;
+  // >> 64 is undefined (platform specific)
+  bit_buffer = bits >= 64 ? 0 : file_buffer.bitbucket >> bits;
   bits = BITS_SAVED - bits;
   while (bits > 0) {
     bits -= 8;

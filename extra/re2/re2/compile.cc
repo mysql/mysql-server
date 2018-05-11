@@ -265,7 +265,8 @@ int Compiler::AllocInst(int n) {
     while (inst_len_ + n > inst_cap_)
       inst_cap_ *= 2;
     Prog::Inst* ip = new Prog::Inst[inst_cap_];
-    memmove(ip, inst_, inst_len_ * sizeof ip[0]);
+    if (inst_len_ > 0)
+      memmove(ip, inst_, inst_len_ * sizeof ip[0]);
     memset(ip + inst_len_, 0, (inst_cap_ - inst_len_) * sizeof ip[0]);
     delete[] inst_;
     inst_ = ip;

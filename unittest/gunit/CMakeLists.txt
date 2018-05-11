@@ -296,6 +296,7 @@ SET(TESTS
   inplace_vector
   key
   like_range
+  m_string
   mdl
   my_bitmap
   my_error
