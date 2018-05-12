@@ -1559,7 +1559,6 @@ private:
   void execSCAN_NEXTREQ(Signal* signal);
   void execSCAN_PROCREQ(Signal* signal);
   void execSCAN_PROCCONF(Signal* signal);
-  void execTAKE_OVERTCREQ(Signal* signal);
   void execTAKE_OVERTCCONF(Signal* signal);
   void execLQHKEYREF(Signal* signal);
   void execTRANSID_AI_R(Signal* signal);
@@ -1997,6 +1996,7 @@ private:
   void packLqhkeyreq040Lab(Signal* signal,
                            BlockReference TBRef);
   void returnFromQueuedDeliveryLab(Signal* signal);
+  void insert_take_over_failed_node(Signal*, Uint32 failedNodeId);
   void startTakeOverLab(Signal* signal,
                         Uint32 instanceId,
                         Uint32 failedNodeId);

@@ -2362,10 +2362,13 @@ Pgman::fswritereq(Signal* signal, Ptr<Page_entry> ptr)
     {
       Tup_page* tup_page_v2 = (Tup_page*)gptr.p;
       tup_page_v2->m_ndb_version = NDB_DISK_V2;
-      tup_page_v2->unused_ph[0] = 0;
-      tup_page_v2->unused_ph[1] = 0;
-      tup_page_v2->unused_ph[2] = 0;
-      tup_page_v2->unused_ph[3] = 0;
+      tup_page_v2->unused_cluster_page[0] = 0;
+      tup_page_v2->unused_cluster_page[1] = 0;
+      tup_page_v2->unused_cluster_page[2] = 0;
+      tup_page_v2->m_change_map[0] = 0;
+      tup_page_v2->m_change_map[1] = 0;
+      tup_page_v2->m_change_map[2] = 0;
+      tup_page_v2->m_change_map[3] = 0;
     }
     else if (page_header->m_page_type == File_formats::PT_Extent_page)
     {

@@ -746,6 +746,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL) },
 
   {
+    CFG_DB_WATCHDOG_IMMEDIATE_KILL,
+    "WatchDogImmediateKill",
+    DB_TOKEN,
+    "Kill threads immediately at watchdog issue",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_BOOL,
+    "false",
+    "false",
+    "true"},
+
+  {
     CFG_DB_STOP_ON_ERROR,
     "StopOnError",
     DB_TOKEN,
@@ -2257,6 +2269,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
   },
 
   {
+    CFG_DB_ENABLE_REDO_CONTROL,
+    "EnableRedoControl",
+    DB_TOKEN,
+    "Enable adaptive speed of checkpointing to control REDO log usage",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_BOOL,
+    "true",
+    "false",
+    "true"
+  },
+
+  {
     CFG_DB_ENABLE_PARTIAL_LCP,
     "EnablePartialLcp",
     DB_TOKEN,
@@ -2270,6 +2295,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "false",
     "true"
   },
+
   {
     CFG_DB_RECOVERY_WORK,
     "RecoveryWork",
@@ -2280,9 +2306,26 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     0,
     ConfigInfo::CI_INT,
-    "50",
+    "60",
     "25",
     "100"
+  },
+
+  {
+    CFG_DB_INSERT_RECOVERY_WORK,
+    "InsertRecoveryWork",
+    DB_TOKEN,
+    "Percentage of RecoveryWork used for inserted rows, setting this high"
+    " increases the writes during LCPs and decreases the total LCP size, "
+    "setting it lower means we are writing less during LCPs but will "
+    "eventually have a larger LCP size and thus also longer recovery"
+    " for a period of time.",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_INT,
+    "40",
+    "0",
+    "70"
   },
 
   {

@@ -765,6 +765,10 @@ int runSystemRestartLCP_1(NDBT_Context *ctx, NDBT_Step *step)
                                  row_step) == 0);
     if (result == NDBT_FAILED)
       return result;
+    CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
+    CHECK(count == 0);
+    CHECK(hugoTrans.scanReadRecords(pNdb,0,0,64,
+                                    NdbOperation::LM_Read,0,1) == 0);
   }
   return NDBT_OK;
 }

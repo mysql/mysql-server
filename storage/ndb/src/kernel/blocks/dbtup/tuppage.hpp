@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,8 @@
 
 #include <ndb_types.h>
 #include "../diskpage.hpp"
+#include <Bitmask.hpp>
+#include <portlib/ndb_prefetch.h>
 #define JAM_FILE_ID 419
 
 
@@ -44,15 +46,17 @@ struct Tup_page
     Uint32 prev_page;
     Uint32 prevList;
   };
-  Uint32 first_cluster_page;
-  Uint32 last_cluster_page;
-  Uint32 next_cluster_page;
-  Uint32 prev_cluster_page;
+  Uint32 unused_cluster_page[3];
+  Uint32 m_gci;
   Uint32 frag_page_id;
   Uint32 physical_page_id;
   Uint32 free_space;
   Uint32 next_free_index;
-  Uint32 list_index; // free space in page bits/list, 0x8000 means not in free
+  /**
+   * list_index used by disk pages and varsized pages.
+   * free space in page bits/list, 0x8000 means not in free
+   */
+  Uint32 list_index;
   Uint32 uncommitted_used_space;
   Uint32 m_page_no;
   Uint32 m_file_no;
@@ -65,7 +69,7 @@ struct Tup_page
   Uint32 m_flags; /* Currently only LCP_SKIP flag in bit 0 */
   Uint32 m_ndb_version;
   Uint32 m_create_table_version;
-  Uint32 unused_ph[4];
+  Uint32 m_change_map[4];
 
   STATIC_CONST( HEADER_WORDS = 32 );
   STATIC_CONST( DATA_WORDS = File_formats::NDB_PAGE_SIZE_WORDS -
@@ -106,10 +110,8 @@ struct Tup_fixsize_page
     Uint32 prev_page;
     Uint32 prevList;
   };
-  Uint32 first_cluster_page;
-  Uint32 last_cluster_page;
-  Uint32 next_cluster_page;
-  Uint32 prev_cluster_page;
+  Uint32 unused_cluster_page[3];
+  Uint32 m_gci;
   Uint32 frag_page_id;
   Uint32 physical_page_id;
   Uint32 free_space;
@@ -123,11 +125,15 @@ struct Tup_fixsize_page
   Uint32 m_extent_no;
   Uint32 m_extent_info_ptr;
   Uint32 unused_high_index; // size of index + 1
-  Uint32 unushed_insert_pos;
-  Uint32 m_flags; /* Currently only LCP_SKIP flag in bit 0 */
+  Uint32 unused_insert_pos;
+  /**
+   * Currently LCP_SKIP flag in bit 0 and
+   * change map bits in bits 24-31 (4 kB per bit)
+   */
+  Uint32 m_flags;
   Uint32 m_ndb_version;
   Uint32 m_schema_version;
-  Uint32 unused_ph[4];
+  Uint32 m_change_map[4];
 
   /**
    * Don't set/reset LCP_SKIP/LCP_DELETE flags
@@ -143,11 +149,176 @@ struct Tup_fixsize_page
   
   Uint32 m_data[DATA_WORDS];
   
-  Uint32* get_ptr(Uint32 page_idx, Uint32 rec_size){
+  Uint32* get_ptr(Uint32 page_idx, Uint32 rec_size)
+  {
     require(page_idx + rec_size <= DATA_WORDS);
     return m_data + page_idx;
   }
-  
+  Uint32 get_next_large_idx(Uint32 idx, Uint32 size)
+  {
+    /* First move idx to next 1024 word boundary */ 
+    Uint32 new_idx = ((idx + 1024) / 1024) * 1024;
+    /* Next move idx forward to size word boundary */
+    new_idx = ((new_idx + size - 1) / size) * size;
+    return new_idx;
+  }
+  Uint32 get_next_small_idx(Uint32 idx, Uint32 size)
+  {
+    /* First move idx to next 64 word boundary */ 
+    Uint32 new_idx = ((idx + 64) / 64) * 64;
+    /* Next move idx forward to size word boundary */
+    new_idx = ((new_idx + size - 1) / size) * size;
+    return new_idx;
+  }
+  void prefetch_change_map()
+  {
+    NDB_PREFETCH_WRITE(&frag_page_id);
+    NDB_PREFETCH_WRITE(&m_flags);
+  }
+  void clear_small_change_map()
+  {
+    m_change_map[0] = 0;
+    m_change_map[1] = 0;
+    m_change_map[2] = 0;
+    m_change_map[3] = 0;
+  }
+  void clear_large_change_map()
+  {
+    Uint32 map_val = m_flags;
+    map_val <<= 8;
+    map_val >>= 8;
+    m_flags = map_val;
+  }
+  void set_change_map(Uint32 page_index)
+  {
+    assert(page_index < Tup_fixsize_page::DATA_WORDS);
+    Uint32 *map_ptr = &m_change_map[0];
+    /**
+     * Each bit maps a 64 word region, the starting word is
+     * used as the word to calculate the map index based on.
+     */
+    Uint32 map_id = page_index / 64;
+    Uint32 idx = map_id / 32;
+    Uint32 bit_pos = map_id & 31;
+    assert(idx < 4);
+    Uint32 map_val = map_ptr[idx];
+    Uint32 map_set_val = 1 << bit_pos;
+    map_val |= map_set_val;
+    map_ptr[idx] = map_val;
+    /**
+     * Also set the change map with only 8 bits, one bit per
+     * 4 kB.
+     */
+    Uint32 large_map_idx = 24 + (page_index >> 10);
+    assert(large_map_idx <= 31);
+    map_set_val = 1 << large_map_idx;
+    m_flags |= map_set_val;
+  }
+  bool get_and_clear_large_change_map(Uint32 page_index)
+  {
+    assert(page_index < Tup_fixsize_page::DATA_WORDS);
+    Uint32 map_val = m_flags;
+    Uint32 bit_pos = 24 + (page_index >> 10);
+    assert(bit_pos <= 31);
+    Uint32 map_get_val = 1 << bit_pos;
+    Uint32 map_clear_val = ~map_get_val;
+    Uint32 map_new_val = map_val & map_clear_val;
+    m_flags = map_new_val;
+    return ((map_val & map_get_val) != 0);
+  }
+  bool get_and_clear_small_change_map(Uint32 page_index)
+  {
+    assert(page_index < Tup_fixsize_page::DATA_WORDS);
+    Uint32 *map_ptr = &m_change_map[0];
+    Uint32 map_id = page_index / 64;
+    Uint32 idx = map_id / 32;
+    assert(idx < 4);
+    Uint32 bit_pos = map_id & 31;
+    Uint32 map_val = map_ptr[idx];
+    Uint32 map_get_val = 1 << bit_pos;
+    Uint32 map_clear_val = ~map_get_val;
+    Uint32 map_new_val = map_val & map_clear_val;
+    map_ptr[idx] = map_new_val;
+    return ((map_get_val & map_val) != 0);
+  }
+  bool get_any_changes()
+  {
+    Uint32 map_val = m_flags;
+    map_val >>= 24;
+#ifdef VM_TRACE
+    if (map_val == 0)
+    {
+      Uint32 sum_small_maps =
+        m_change_map[0] + m_change_map[1] + m_change_map[2] + m_change_map[3];
+      assert(sum_small_maps == 0);
+    }
+#endif
+    return (map_val != 0);
+  }
+  bool verify_change_maps()
+  {
+    for (Uint32 i = 0; i < 4; i++)
+    {
+      Uint32 small_map = m_change_map[i];
+      Uint32 bit_pos = 2 * i + 24;
+      Uint32 bit_val = m_flags & (1 << bit_pos);
+      if (bit_val != 0)
+      {
+        Uint32 small_bit_map = small_map & 0xFFFF;
+        if (small_bit_map == 0)
+          return false;
+      }
+      else
+      {
+        Uint32 small_bit_map = small_map & 0xFFFF;
+        if (small_bit_map != 0)
+          return false;
+      }
+      bit_pos = 2 * i + 24 + 1;
+      bit_val = m_flags & (1 << bit_pos);
+      if (bit_val != 0)
+      {
+        Uint32 small_bit_map = small_map >> 16;
+        if (small_bit_map == 0)
+          return false;
+      }
+      else
+      {
+        Uint32 small_bit_map = small_map >> 16;
+        if (small_bit_map != 0)
+          return false;
+      }
+    }
+    return true;
+  }
+  Uint32 get_num_changes()
+  {
+    Uint32 bit_count = 0;
+    Uint32 map_val;
+    map_val = m_change_map[0];
+    bit_count += BitmaskImpl::count_bits(map_val);
+    map_val = m_change_map[1];
+    bit_count += BitmaskImpl::count_bits(map_val);
+    map_val = m_change_map[2];
+    bit_count += BitmaskImpl::count_bits(map_val);
+    map_val = m_change_map[3];
+    bit_count += BitmaskImpl::count_bits(map_val);
+    return bit_count;
+  }
+  void clear_max_gci()
+  {
+    m_gci = 0;
+  }
+  Uint32 get_max_gci()
+  {
+    return m_gci;
+  }
+  void set_max_gci(Uint32 gci)
+  {
+    if (gci > m_gci)
+      m_gci = gci;
+  }
+
   /**
    * Alloc record from page
    *   return page_idx
@@ -171,10 +342,8 @@ struct Tup_varsize_page
     Uint32 prev_page;
     Uint32 prevList;
   };
-  Uint32 first_cluster_page;
-  Uint32 last_cluster_page;
-  Uint32 next_cluster_page;
-  Uint32 prev_cluster_page;
+  Uint32 unused_cluster_page[3];
+  Uint32 m_gci;
   Uint32 frag_page_id;
   Uint32 physical_page_id;
   Uint32 free_space;
@@ -192,7 +361,7 @@ struct Tup_varsize_page
   Uint32 m_flags; /* Currently only LCP_SKIP flag in bit 0 */
   Uint32 m_ndb_version;
   Uint32 m_schema_version;
-  Uint32 unused_ph[4];
+  Uint32 m_change_map[4];
   
   STATIC_CONST( HEADER_WORDS = 32 );
   STATIC_CONST( DATA_WORDS = File_formats::NDB_PAGE_SIZE_WORDS -
