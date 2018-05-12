@@ -43,8 +43,8 @@
 //#define DEBUG_LCP_FILTER 1
 //#define DEBUG_LCP_SKIP 1
 //#define DEBUG_LCP_DEL 1
+//#define DEBUG_LCP_DELAY 1
 #endif
-#define DEBUG_LCP_DELAY 1
 
 #ifdef DEBUG_LCP_DELAY
 #define DEB_LCP_DELAY(arglist) do { g_eventLogger->info arglist ; } while (0)

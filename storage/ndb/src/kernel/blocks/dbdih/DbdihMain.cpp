@@ -96,7 +96,7 @@ static const Uint32 WaitTableStateChangeMillis = 10;
 extern EventLogger * g_eventLogger;
 
 #ifdef VM_TRACE
-#define DEBUG_REDO_CONTROL 1
+//#define DEBUG_REDO_CONTROL 1
 //#define DEBUG_LCP 1
 //#define DEBUG_LCP_COMP 1
 #endif

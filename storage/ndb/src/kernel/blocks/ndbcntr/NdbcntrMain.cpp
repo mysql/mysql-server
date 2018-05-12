@@ -83,8 +83,8 @@ extern EventLogger * g_eventLogger;
 //#define DEBUG_LOCAL_SYSFILE 1
 //#define DEBUG_LCP 1
 //#define DEBUG_UNDO 1
+//#define DEBUG_REDO_CONTROL 1
 #endif
-#define DEBUG_REDO_CONTROL 1
 
 #ifdef DEBUG_REDO_CONTROL
 #define DEB_REDO_CONTROL(arglist) do { g_eventLogger->info arglist ; } while (0)

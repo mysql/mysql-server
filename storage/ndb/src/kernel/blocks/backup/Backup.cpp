@@ -87,11 +87,11 @@ static NDB_TICKS startTime;
 //#define DEBUG_LCP_DEL_FILES 1
 //#define DEBUG_LCP_DEL 1
 //#define DEBUG_EXTRA_LCP 1
+//#define DEBUG_LCP_STAT 1
+//#define DEBUG_EXTENDED_LCP_STAT 1
+//#define DEBUG_REDO_CONTROL 1
+//#define DEBUG_REDO_CONTROL_DETAIL 1
 #endif
-#define DEBUG_LCP_STAT 1
-#define DEBUG_EXTENDED_LCP_STAT 1
-#define DEBUG_REDO_CONTROL 1
-#define DEBUG_REDO_CONTROL_DETAIL 1
 
 #ifdef DEBUG_REDO_CONTROL
 #define DEB_REDO_CONTROL(arglist) do { g_eventLogger->info arglist ; } while (0)
@@ -9284,7 +9284,7 @@ Backup::check_pause_lcp_backup(BackupRecordPtr ptr,
                                   max_words_to_scan);
   max_bytes_to_write = MAX(max_bytes_to_write,
                            (4 * ZMAX_WORDS_PER_SCAN_BATCH_LOW_PRIO));
-//#ifdef VM_TRACE
+#ifdef VM_TRACE
   if (is_send_scan_next_req ||
       (bytes_written_since_last_delay >= max_bytes_to_write))
   {
@@ -9308,7 +9308,7 @@ Backup::check_pause_lcp_backup(BackupRecordPtr ptr,
                         ptr.p->m_row_scan_counter));
     }
   }
-//#endif
+#endif
   return (bytes_written_since_last_delay >= max_bytes_to_write);
 }
 
@@ -9325,7 +9325,7 @@ Backup::pausing_lcp(Uint32 place, Uint32 val)
   ptr.p->m_last_delay_scan_timer = now;
   ptr.p->m_pause_counter = 0;
   ptr.p->m_num_scan_req_on_prioa = 0;
-//#ifdef VM_TRACE
+#ifdef VM_TRACE
   if (m_debug_redo_log_count > 1000000)
   {
     DEB_REDO_CONTROL(("(%u)pausing_lcp from place: %u, val: %u",
@@ -9333,7 +9333,7 @@ Backup::pausing_lcp(Uint32 place, Uint32 val)
                       place,
                       val));
   }
-//#endif
+#endif
 }
 
 void
