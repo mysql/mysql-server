@@ -54,8 +54,8 @@ extern EventLogger * g_eventLogger;
 #ifdef VM_TRACE
 //#define DEBUG_TUP_META 1
 //#define DEBUG_TUP_META_EXTRA 1
+//#define DEBUG_DROP_TAB 1
 #endif
-#define DEBUG_DROP_TAB 1
 
 #ifdef DEBUG_DROP_TAB
 #define DEB_DROP_TAB(arglist) do { g_eventLogger->info arglist ; } while (0)
@@ -2820,7 +2820,7 @@ Dbtup::handle_ctl_info(TablerecPtr tabPtr,
     (BackupFormat::LCPCtlFile*)&m_read_ctl_file_data[0];
   ndbassert(bytesRead == BackupFormat::NDB_LCP_CTL_FILE_SIZE_SMALL ||
             bytesRead == BackupFormat::NDB_LCP_CTL_FILE_SIZE_BIG);
-#ifdef DEB_DROP_TAB
+#ifdef DEBUG_DROP_TAB
   Uint32 createTableVersion = lcpCtlFilePtr->CreateTableVersion;
   DEB_DROP_TAB(("(%u)tab(%u,%u)handle_ctl_info table_version: %u",
                 instance(),

@@ -115,12 +115,12 @@ extern EventLogger * g_eventLogger;
 //#define EVENT_PH2_DEBUG
 //#define EVENT_PH3_DEBUG
 //#define EVENT_DEBUG
-#define DEBUG_API_FAIL
+//#define DEBUG_API_FAIL
 
 #ifdef DEBUG_API_FAIL
 #define DEB_API_FAIL(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
-#define DEB_API_FAIL (arglist) do { } while (0)
+#define DEB_API_FAIL(arglist) do { } while (0)
 #endif
 
 
