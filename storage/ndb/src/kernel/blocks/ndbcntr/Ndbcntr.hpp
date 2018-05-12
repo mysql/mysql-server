@@ -29,6 +29,7 @@
 #include <pc.hpp>
 #include <SimulatedBlock.hpp>
 #include <ndb_limits.h>
+#include <signaldata/RedoStateRep.hpp>
 #include <signaldata/StopReq.hpp>
 #include <signaldata/ResumeReq.hpp>
 #include <signaldata/DictTabInfo.hpp>
@@ -261,6 +262,8 @@ private:
   
   void execWAIT_GCP_REF(Signal* signal);
   void execWAIT_GCP_CONF(Signal* signal);
+
+  void execREDO_STATE_REP(Signal* signal);
 
   void execSTOP_REQ(Signal* signal);
   void execSTOP_CONF(Signal* signal);
@@ -511,6 +514,7 @@ private:
   bool m_local_lcp_completed;
   bool m_full_local_lcp_started;
   bool m_distributed_lcp_started;
+  bool m_first_distributed_lcp_started;
   bool m_ready_to_cut_log_tail;
   bool m_wait_cut_undo_log_tail;
   bool m_copy_fragment_in_progress;
@@ -524,8 +528,13 @@ private:
 
   Uint32 m_lcp_id;
   Uint32 m_local_lcp_id;
+  RedoStateRep::RedoAlertState m_global_redo_alert_state;
+  RedoStateRep::RedoAlertState m_node_redo_alert_state;
+  RedoStateRep::RedoAlertState m_redo_alert_state[MAX_NDBMT_LQH_THREADS];
 
+  RedoStateRep::RedoAlertState get_node_redo_alert_state();
   Uint32 send_to_all_lqh(Signal*, Uint32 gsn, Uint32 sig_len);
+  Uint32 send_to_all_backup(Signal*, Uint32 gsn, Uint32 sig_len);
   void send_cut_log_tail(Signal*);
   void check_cut_log_tail_completed(Signal*);
   bool is_ready_to_cut_log_tail();

@@ -43,6 +43,7 @@
 #include <Array.hpp>
 #include <Mutex.hpp>
 
+#include <signaldata/RedoStateRep.hpp>
 #include "../dblqh/Dblqh.hpp"
 
 #define JAM_FILE_ID 474
@@ -76,6 +77,7 @@ public:
 protected:
 
   void execSTTOR(Signal* signal);
+  void execREDO_STATE_REP(Signal*);
   void execREAD_CONFIG_REQ(Signal* signal);
   void execDUMP_STATE_ORD(Signal* signal);
   void execREAD_NODESCONF(Signal* signal);
@@ -224,12 +226,19 @@ public:
   {
     return m_enable_partial_lcp != 0;
   }
+  bool is_redo_control_enabled()
+  {
+    return m_enable_redo_control != 0;
+  }
 
   Uint32 get_recovery_work()
   {
     return m_recovery_work;
   }
-
+  Uint32 get_insert_recovery_work()
+  {
+    return m_insert_recovery_work;
+  }
   void init_extended_lcp_stat();
   void print_extended_lcp_stat();
   void alloc_page_after_lcp_start(Uint32 page_no);
@@ -237,6 +246,7 @@ public:
   void dropped_page_after_lcp_start(bool is_change_page,
                                     bool is_last_lcp_state_A);
   void skip_page_lcp_scanned_bit();
+  void skip_no_change_page();
   void skip_empty_page_lcp();
   void record_dropped_empty_page_lcp();
   void record_late_alloc_page_lcp();
@@ -306,10 +316,11 @@ public:
   DeleteLcpFile_list::Head m_delete_lcp_file_head;
 
   Uint32 m_newestRestorableGci;
-  Uint32 m_lcp_ptr_i;
   bool m_delete_lcp_files_ongoing;
+  Uint32 m_enable_redo_control;
   Uint32 m_enable_partial_lcp;
   Uint32 m_recovery_work;
+  Uint32 m_insert_recovery_work;
 
   struct Table {
     Table(Fragment_pool &);
@@ -453,8 +464,6 @@ public:
     Uint32 errorCode;
     BackupFormat::FileType fileType;
     OperationRecord operation;
-    Uint32 m_sent_words_in_scan_batch;
-    Uint32 m_num_scan_req_on_prioa;
 
     Uint64 m_lcp_inserts;
     Uint64 m_lcp_writes;
@@ -650,6 +659,7 @@ public:
      * Handle later, LCP processing.
      */
     Uint64 m_row_count;
+    Uint64 m_prev_row_count;
     Uint64 m_row_change_count;
     Uint64 m_memory_used_in_bytes;
     bool   m_empty_lcp;
@@ -682,6 +692,7 @@ public:
     Uint32 m_all_page_dropped_A_after_start;
     Uint32 m_change_page_dropped_D_after_start;
     Uint32 m_all_page_dropped_D_after_start;
+    Uint32 m_skip_change_page_no_change;
     Uint32 m_skip_change_page_lcp_scanned_bit;
     Uint32 m_skip_all_page_lcp_scanned_bit;
     Uint32 m_skip_empty_change_page;
@@ -697,6 +708,15 @@ public:
     Uint64 m_lcp_keep_delete_row_all_pages;
     Uint32 m_lcp_keep_delete_change_pages;
     Uint32 m_lcp_keep_delete_all_pages;
+
+    Uint64 m_last_recorded_bytes_written;
+    Uint64 m_pause_counter;
+    Uint64 m_row_scan_counter;
+    NDB_TICKS m_last_delay_scan_timer;
+    NDB_TICKS m_scan_start_timer;
+
+    Uint32 m_num_scan_req_on_prioa;
+
     bool m_any_lcp_page_ops;
 
     BackupFormat::PartPair m_part_info[BackupFormat::NDB_MAX_LCP_PARTS];
@@ -759,6 +779,9 @@ public:
      */
     Uint64 noOfBytes;
     Uint64 noOfRecords;
+    /* m_bytes_written is used for scheduling of LCP and Backups */
+    Uint64 m_bytes_written;
+
     /**
      * Statistical variables for backups.
      */
@@ -880,6 +903,10 @@ public:
                                 MAX_ATTRIBUTES_IN_TABLE +    \
                                 128))
 
+#define MAX_BUFFER_USED_WITHOUT_REDO_ALERT (512 * 1024)
+#define BACKUP_DEFAULT_WRITE_SIZE (256 * 1024)
+#define BACKUP_DEFAULT_BUFFER_SIZE (2 * 1024 * 1024)
+
   struct Config {
     Uint32 m_dataBufferSize;
     Uint32 m_logBufferSize;
@@ -924,13 +951,91 @@ public:
   bool m_node_restart_check_sent;
   bool m_our_node_started;
   Uint64 m_curr_disk_write_speed;
+  Uint64 m_curr_backup_disk_write_speed;
   Uint64 m_words_written_this_period;
+  Uint64 m_backup_words_written_this_period;
   Uint64 m_overflow_disk_write;
+  Uint64 m_backup_overflow_disk_write;
   Uint32 m_reset_delay_used;
   NDB_TICKS m_reset_disk_speed_time;
 
-  Uint64 m_acc_memory_in_bytes;
-  Uint64 m_redo_size_in_bytes;
+//#ifdef VM_TRACE
+  Uint64 m_debug_redo_log_count;
+//#endif
+
+  RedoStateRep::RedoAlertState m_redo_alert_state;
+  RedoStateRep::RedoAlertState m_local_redo_alert_state;
+  RedoStateRep::RedoAlertState m_global_redo_alert_state;
+  Uint32 m_redo_alert_factor;
+  BackupRecordPtr m_lcp_ptr;
+
+  NDB_TICKS m_lcp_start_time;
+  NDB_TICKS m_prev_lcp_start_time;
+  NDB_TICKS m_lcp_current_cut_point;
+  Uint64 m_last_redo_used_in_bytes;
+  Uint64 m_last_lcp_exec_time_in_ms;
+  Uint64 m_max_redo_speed_per_sec;
+  Uint64 m_update_size_lcp[2];
+  Uint64 m_update_size_lcp_last;
+  Uint64 m_insert_size_lcp[2];
+  Uint64 m_insert_size_lcp_last;
+  Uint64 m_delete_size_lcp[2];
+  Uint64 m_delete_size_lcp_last;
+  Uint64 m_proposed_disk_write_speed;
+  Uint64 m_lcp_change_rate;
+  Uint64 m_lcp_timing_factor;
+  Int64 m_lcp_lag[2];
+  Uint32 m_lcp_timing_counter;
+  bool m_first_lcp_started;
+
+  void init_lcp_timers(Uint64);
+  void calculate_seconds_since_lcp_cut(Uint64& seconds_since_lcp_cut);
+  Uint64 init_change_size(Uint64 update_size,
+                          Uint64 insert_size,
+                          Uint64 delete_size,
+                          Uint64 total_memory);
+  Uint64 modify_change_size(Uint64 update_size,
+                            Uint64 insert_size,
+                            Uint64 delete_size,
+                            Uint64 total_size,
+                            Uint64 change_size);
+  Uint32 calculate_parts(Uint64 total_size,
+                         Uint64 total_memory);
+  Uint64 calculate_change_rate(Uint64 change_size,
+                               Uint64& seconds_since_lcp_cut);
+  Uint64 calculate_checkpoint_rate(Uint64 update_size,
+                                   Uint64 insert_size,
+                                   Uint64 delete_size,
+                                   Uint64 total_memory,
+                                   Uint64& seconds_since_lcp_cut);
+  void calculate_redo_parameters(Uint64 redo_usage,
+                                 Uint64 redo_size,
+                                 Uint64 redo_written_since_last_call,
+                                 Uint64 millis_since_last_call,
+                                 Uint64& redo_percentage,
+                                 Uint64& max_redo_used_before_cut,
+                                 Uint64& mean_redo_used_before_cut,
+                                 Uint64& mean_redo_speed_per_sec,
+                                 Uint64& current_redo_speed_per_sec,
+                                 Uint64& redo_available);
+  void change_alert_state_redo_percent(Uint64 redo_percentage);
+  void change_alert_state_redo_usage(Uint64 max_redo_used_before_cut,
+                                     Uint64 mean_redo_used_before_cut,
+                                     Uint64 redo_available);
+  void handle_global_alert_state(Signal *signal,
+    RedoStateRep::RedoAlertState save_redo_alert_state);
+  void set_redo_alert_factor(Uint64 redo_percentage);
+  void set_lcp_timing_factors(Uint64 seconds_since_lcp_cut);
+  void reset_lcp_timing_factors();
+  void set_proposed_disk_write_speed(Uint64 current_redo_speed_per_sec,
+                                     Uint64 mean_redo_speed_per_sec,
+                                     Uint64 seconds_since_lcp_cut);
+  void measure_change_speed(Signal*, Uint64 millis_since_last_call);
+  void debug_report_redo_control(Uint32);
+  void lcp_start_point();
+  void lcp_end_point();
+  Uint64 calculate_proposed_disk_write_speed();
+
   Uint32 m_curr_lcp_id;
 
   /**
@@ -942,6 +1047,7 @@ public:
   static const int CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS = 40;
   
   Uint64 m_monitor_words_written;
+  Uint64 m_backup_monitor_words_written;
   Uint32 m_periods_passed_in_monitor_period;
   NDB_TICKS m_monitor_snapshot_start;
 
@@ -951,7 +1057,9 @@ public:
    */
   Uint64 slowdowns_due_to_io_lag;
   Uint64 slowdowns_due_to_high_cpu;
+  Uint64 slowdown_backups_due_to_high_cpu;
   Uint64 disk_write_speed_set_to_min;
+  Uint64 backup_disk_write_speed_set_to_min;
 
   /**
    * Variables used to keep stats on disk write speeds for
@@ -981,8 +1089,10 @@ public:
   struct DiskWriteSpeedReport
   {
     Uint64 backup_lcp_bytes_written;
+    Uint64 backup_bytes_written;
     Uint64 redo_bytes_written;
     Uint64 target_disk_write_speed;
+    Uint64 target_backup_disk_write_speed;
     Uint64 millis_passed;
   };
   DiskWriteSpeedReport disk_write_speed_rep[DISK_WRITE_SPEED_REPORT_SIZE];
@@ -992,13 +1102,22 @@ public:
   /**
    * Methods used in control of checkpoint speed
    */
-  void handle_overflow(void);
+  void handle_overflow(Uint64& overflow_disk_write,
+                       Uint64& words_written_this_period,
+                       Uint64& curr_disk_write_speed);
   void calculate_next_delay(const NDB_TICKS curr_time);
   void monitor_disk_write_speed(const NDB_TICKS curr_time,
                                 const Uint64 millisPassed);
-  void calculate_current_speed_bounds(Uint64& max_speed, Uint64& min_speed);
-  void adjust_disk_write_speed_down(Uint64 min_speed, int adjust_speed);
-  void adjust_disk_write_speed_up(Uint64 max_speed, int adjust_speed);
+  void calculate_current_speed_bounds(Uint64& max_speed,
+                                      Uint64& max_backup_speed,
+                                      Uint64& min_speed);
+  void adjust_disk_write_speed_down(Uint64& curr_disk_write_speed,
+                                    Uint64& disk_speed_set_to_min,
+                                    Uint64 min_speed,
+                                    int adjust_speed);
+  void adjust_disk_write_speed_up(Uint64& curr_disk_write_speed,
+                                  Uint64 max_speed,
+                                  int adjust_speed);
   void calculate_disk_write_speed(Signal *signal);
   void send_next_reset_disk_speed_counter(Signal *signal);
 
@@ -1011,18 +1130,23 @@ public:
    * Methods used in ndbinfo reporting of checkpoint speed.
    */
   void report_disk_write_speed_report(Uint64 bytes_written_this_period,
+                                      Uint64 backup_bytes_written_this_period,
                                       Uint64 millis_passed);
   Uint32 get_disk_write_speed_record(Uint32 start_index);
   Uint64 calculate_millis_since_finished(Uint32 start_index);
   void calculate_disk_write_speed_seconds_back(Uint32 seconds_back,
                                        Uint64 & millis_passed,
                                        Uint64 & backup_lcp_bytes_written,
-                                       Uint64 & redo_bytes_written);
+                                       Uint64 & backup_bytes_written,
+                                       Uint64 & redo_bytes_written,
+                                       bool at_least_one = false);
   void calculate_std_disk_write_speed_seconds_back(Uint32 seconds_back,
                              Uint64 millis_passed_total,
                              Uint64 backup_lcp_bytes_written_total,
+                             Uint64 backup_bytes_written_total,
                              Uint64 redo_bytes_written_total,
                              Uint64 & std_dev_backup_lcp_in_bytes_per_sec,
+                             Uint64 & std_dev_backup_in_bytes_per_sec,
                              Uint64 & std_dev_redo_in_bytes_per_sec);
 
 
@@ -1048,8 +1172,8 @@ public:
   ArrayPool<DeleteLcpFile> c_deleteLcpFilePool;
 
   void checkFile(Signal*, BackupFilePtr);
-  void checkScan(Signal*, BackupRecordPtr, BackupFilePtr);
-  bool check_new_scan(BackupRecordPtr ptr, OperationRecord &op);
+  void checkScan(Signal*, BackupRecordPtr, BackupFilePtr, bool);
+  bool check_new_scan(BackupRecordPtr ptr, OperationRecord &op, bool);
   bool check_min_buf_size(BackupRecordPtr ptr, OperationRecord &op);
   bool check_frag_complete(BackupRecordPtr ptr, BackupFilePtr filePtr);
   bool check_error(BackupRecordPtr ptr, BackupFilePtr filePtr);
@@ -1181,6 +1305,8 @@ public:
   bool convert_ctl_page_to_host(struct BackupFormat::LCPCtlFile*);
   void convert_ctl_page_to_network(Uint32*, Uint32 file_size);
   void handle_idle_lcp(Signal*, BackupRecordPtr);
+  Uint64 get_total_memory();
+  Uint64 calculate_row_change_count(BackupRecordPtr);
   Uint32 calculate_min_parts(Uint64 row_count,
                              Uint64 row_change_count,
                              Uint64 mem_used,
@@ -1235,7 +1361,7 @@ public:
   void lcp_write_undo_log(Signal *signal, BackupRecordPtr);
 
   void check_wait_end_lcp(Signal*, BackupRecordPtr ptr);
-  void delete_lcp_file_processing(Signal*, Uint32 ptrI);
+  void delete_lcp_file_processing(Signal*);
   void finished_removing_files(Signal*, BackupRecordPtr);
   void sendEND_LCPCONF(Signal*, BackupRecordPtr);
   void sendINFORM_BACKUP_DROP_TAB_CONF(Signal*, BackupRecordPtr);
@@ -1262,7 +1388,11 @@ public:
                        DeleteLcpFilePtr);
   void lcp_remove_file_conf(Signal*, BackupRecordPtr ptr);
 
-  bool ready_to_write(bool ready, Uint32 sz, bool eof, BackupFile *fileP);
+  bool ready_to_write(bool ready,
+                      Uint32 sz,
+                      bool eof,
+                      BackupFile *fileP,
+                      BackupRecord* ptrP);
 
   void afterGetTabinfoLockTab(Signal *signal,
                               BackupRecordPtr ptr, TablePtr tabPtr);
@@ -1306,8 +1436,17 @@ public:
 
   void setRestorableGci(Uint32);
   Uint32 getRestorableGci();
+
+  bool check_pause_lcp_backup(BackupRecordPtr ptr,
+                              bool is_lcp,
+                              bool is_send_scan_next_req);
+  bool check_pause_lcp_backup(BackupRecordPtr ptr);
+  bool check_pause_lcp();
+  void update_pause_lcp_counter(Uint32 loop_count);
+  void pausing_lcp(Uint32 place, Uint32 val);
 public:
   bool is_change_part_state(Uint32 page_id);
+  Uint32 get_max_words_per_scan_batch(Uint32, Uint32&, Uint32, Uint32);
 };
 
 inline
@@ -1341,6 +1480,44 @@ Backup::OperationRecord::finished(Uint32 len)
   noOfRecords++;
 }
 
+ 
+#define ZMAX_WORDS_PER_SCAN_BATCH_LOW_PRIO 1600
+#define ZMAX_WORDS_PER_SCAN_BATCH_HIGH_PRIO 8000
+inline
+bool
+Backup::check_pause_lcp()
+{
+  return check_pause_lcp_backup(m_lcp_ptr, true, false);
+}
+
+inline
+bool
+Backup::check_pause_lcp_backup(BackupRecordPtr ptr)
+{
+  return check_pause_lcp_backup(ptr, ptr.p->is_lcp(), true);
+}
+
+inline
+Uint32
+Backup::get_max_words_per_scan_batch(Uint32 prioAFlag,
+                                     Uint32 & wordsWritten,
+                                     Uint32 is_lcp,
+                                     Uint32 ptrI)
+{
+  if (prioAFlag == 0)
+    return (wordsWritten >= ZMAX_WORDS_PER_SCAN_BATCH_LOW_PRIO);
+  else
+  {
+    bool ret_val;
+    if (is_lcp)
+      ret_val = check_pause_lcp();
+    else
+      ret_val = (wordsWritten >= ZMAX_WORDS_PER_SCAN_BATCH_HIGH_PRIO);
+    if (ret_val)
+      wordsWritten = 0;
+    return ret_val;
+  }
+}
 
 #undef JAM_FILE_ID
 

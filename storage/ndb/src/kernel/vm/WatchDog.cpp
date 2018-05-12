@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -142,13 +142,23 @@ WatchDog::setKillSwitch(bool kill)
 }
 
 static
-const char *get_action(Uint32 IPValue)
+const char *get_action(char *buf, Uint32 IPValue)
 {
   const char *action;
-  switch (IPValue) {
+  Uint32 place = IPValue & 255;
+  switch (place) {
   case 1:
-    action = "Job Handling";
+  {
+    Uint32 bno = (IPValue >> 8) & 1023;
+    Uint32 gsn = IPValue >> 20;
+    BaseString::snprintf(buf,
+                         128,
+                         "JobHandling in block: %u, gsn: %u",
+                         bno,
+                         gsn);
+    action = buf;
     break;
+  }
   case 2:
     action = "Scanning Timers";
     break;
@@ -175,6 +185,36 @@ const char *get_action(Uint32 IPValue)
     break;
   case 11:
     action = "Packing Send Buffers";
+    break;
+  case 12:
+    action = "Looking for next job to execute";
+    break;
+  case 13:
+    action = "Looking for next non-empty job buffer";
+    break;
+  case 14:
+    action = "Scanning zero time queue";
+    break;
+  case 15:
+    action = "Send packed signals";
+    break;
+  case 16:
+    action = "Update scheduler configuration";
+    break;
+  case 17:
+    action = "Check for input from NDBFS";
+    break;
+  case 18:
+    action = "Yielding to OS";
+    break;
+  case 19:
+    action = "Send thread main loop";
+    break;
+  case 20:
+    action = "Returned from do_send";
+    break;
+  case 21:
+    action = "Initial value in mt_job_thread_main";
     break;
   default:
     action = NULL;
@@ -367,7 +407,8 @@ WatchDog::run()
       */
       if (oldCounterValue[i] != 9 || elapsed[i] >= theIntervalCheck[i])
       {
-        const char *last_stuck_action = get_action(oldCounterValue[i]);
+        char buf[128];
+        const char *last_stuck_action = get_action(buf, oldCounterValue[i]);
         if (last_stuck_action != NULL)
         {
           g_eventLogger->warning("Ndb kernel thread %u is stuck in: %s "

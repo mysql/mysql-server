@@ -339,9 +339,11 @@ Dbtup::dealloc_tuple(Signal* signal,
                      Ptr<GlobalPage> pagePtr)
 {
   Uint32 lcpScan_ptr_i= regFragPtr->m_lcp_scan_op;
+  Uint32 average_row_size = regFragPtr->m_average_row_size;
 
   Uint32 bits = ptr->m_header_bits;
   Uint32 extra_bits = Tuple_header::FREE;
+  c_lqh->add_delete_size(average_row_size);
   if (bits & Tuple_header::DISK_PART)
   {
     jam();
@@ -470,6 +472,9 @@ Dbtup::dealloc_tuple(Signal* signal,
     jam();
     regFragPtr->m_lcp_changed_rows++;
   }
+  Tup_fixsize_page *fix_page = (Tup_fixsize_page*)page;
+  fix_page->set_change_map(regOperPtr->m_tuple_location.m_page_idx);
+  fix_page->set_max_gci(gci_hi);
   setInvalidChecksum(ptr, regTabPtr);
   if (regOperPtr->op_struct.bit_field.m_tuple_existed_at_start)
   {
@@ -479,14 +484,16 @@ Dbtup::dealloc_tuple(Signal* signal,
     Local_key rowid = regOperPtr->m_tuple_location;
     rowid.m_page_no = page->frag_page_id;
     g_eventLogger->info("(%u) tab(%u,%u) Deleted row(%u,%u)"
-                        ", bits: %x, row_count = %llu",
+                        ", bits: %x, row_count = %llu"
+                        ", tuple_header_ptr: %p",
                         instance(),
                         regFragPtr->fragTableId,
                         regFragPtr->fragmentId,
                         rowid.m_page_no,
                         rowid.m_page_idx,
                         ptr->m_header_bits,
-                        regFragPtr->m_row_count);
+                        regFragPtr->m_row_count,
+                        ptr);
 #endif
   }
 }
@@ -1004,6 +1011,10 @@ Dbtup::commit_operation(Signal* signal,
   tuple_ptr->m_header_bits= copy_bits | lcp_bits;
   tuple_ptr->m_operation_ptr_i= save;
 
+  Tup_fixsize_page *fix_page = (Tup_fixsize_page*)pagePtr.p;
+  fix_page->set_change_map(regOperPtr->m_tuple_location.m_page_idx);
+  fix_page->set_max_gci(gci_hi);
+
   if (regTabPtr->m_bits & Tablerec::TR_RowGCI &&
       update_gci_at_commit)
   {
@@ -1030,9 +1041,11 @@ Dbtup::commit_operation(Signal* signal,
     regFragPtr->m_lcp_changed_rows++;
   }
   setChecksum(tuple_ptr, regTabPtr);
+  Uint32 average_row_size = regFragPtr->m_average_row_size;
   if (!regOperPtr->op_struct.bit_field.m_tuple_existed_at_start)
   {
     regFragPtr->m_row_count++;
+    c_lqh->add_insert_size(average_row_size);
 #ifdef DEBUG_ROW_COUNT_INS
     Local_key rowid = regOperPtr->m_tuple_location;
     rowid.m_page_no = pagePtr.p->frag_page_id;
@@ -1046,6 +1059,10 @@ Dbtup::commit_operation(Signal* signal,
                         tuple_ptr->m_header_bits,
                         regFragPtr->m_row_count);
 #endif
+  }
+  else
+  {
+    c_lqh->add_update_size(average_row_size);
   }
 }
 
@@ -1284,6 +1301,15 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
   req_struct.m_reorg = regOperPtr.p->op_struct.bit_field.m_reorg;
   regOperPtr.p->m_commit_disk_callback_page = tupCommitReq->diskpage;
 
+  ptrCheckGuard(regTabPtr, no_of_tablerec, tablerec);
+  PagePtr page;
+  Tuple_header* tuple_ptr= (Tuple_header*)
+    get_ptr(&page, &regOperPtr.p->m_tuple_location, regTabPtr.p);
+
+  Tup_fixsize_page *fix_page = (Tup_fixsize_page*)page.p;
+  fix_page->prefetch_change_map();
+  NDB_PREFETCH_WRITE(tuple_ptr);
+
   if (diskPagePtr.i == RNIL)
   {
     jam();
@@ -1296,12 +1322,6 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
     m_global_page_pool.getPtr(diskPagePtr, diskPagePtr.i);
   }
   
-  ptrCheckGuard(regTabPtr, no_of_tablerec, tablerec);
-
-  PagePtr page;
-  Tuple_header* tuple_ptr= (Tuple_header*)
-    get_ptr(&page, &regOperPtr.p->m_tuple_location, regTabPtr.p);
-
   /**
    * NOTE: This has to be run before potential time-slice when
    *       waiting for disk, as otherwise the "other-ops" in a multi-op

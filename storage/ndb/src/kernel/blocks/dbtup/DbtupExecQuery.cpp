@@ -51,6 +51,7 @@
 //#define DEBUG_LCP_LGMAN 1
 //#define DEBUG_LCP_SKIP_DELETE 1
 #endif
+
 #ifdef DEBUG_LCP
 #define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
@@ -262,9 +263,21 @@ Dbtup::corruptedTupleDetected(KeyReqStruct *req_struct, Tablerec *regTabPtr)
 {
   Uint32 checksum = calculateChecksum(req_struct->m_tuple_ptr, regTabPtr);
   Uint32 header_bits = req_struct->m_tuple_ptr->m_header_bits;
+  Uint32 tableId = req_struct->fragPtrP->fragTableId;
+  Uint32 fragId = req_struct->fragPtrP->fragmentId;
+  Uint32 page_id = prepare_frag_page_id;
+  Uint32 page_idx = prepare_page_idx;
+
   ndbout_c("Tuple corruption detected, checksum: 0x%x, header_bits: 0x%x"
-           ", checksum word: 0x%x",
-           checksum, header_bits, req_struct->m_tuple_ptr->m_checksum); 
+           ", checksum word: 0x%x"
+           ", tab(%u,%u), page(%u,%u)",
+           checksum,
+           header_bits,
+           req_struct->m_tuple_ptr->m_checksum,
+           tableId,
+           fragId,
+           page_id,
+           page_idx);
   if (c_crashOnCorruptedTuple && !ERROR_INSERTED(4036))
   {
     ndbout_c(" Exiting."); 
@@ -684,6 +697,7 @@ void Dbtup::prepareTUPKEYREQ(Uint32 page_id,
   {
     Uint32 fixed_part_size_in_words =
       tabptr.p->m_offsets[MM].m_fix_header_size;
+    prepare_frag_page_id = page_id;
     page_id = getRealpid(fragptr.p, page_id);
     key.m_page_no = page_id;
     key.m_page_idx = page_idx;
@@ -692,6 +706,7 @@ void Dbtup::prepareTUPKEYREQ(Uint32 page_id,
                                          tabptr.p);
     jamDebug();
     prepare_pageptr = pagePtr;
+    prepare_page_idx = page_idx;
     prepare_tuple_ptr = tuple_ptr;
     prepare_page_no = page_id;
     for (Uint32 i = 0; i < fixed_part_size_in_words; i+= 16)

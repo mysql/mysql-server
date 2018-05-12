@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -88,6 +88,11 @@ void Dbdih::initData()
   c_start_node_lcp_req_outstanding = false;
 
   c_lcpTabDefWritesControl.init(MAX_CONCURRENT_LCP_TAB_DEF_FLUSHES);
+  for (Uint32 i = 0; i < MAX_NDB_NODES; i++)
+  {
+    m_node_redo_alert_state[i] = RedoStateRep::NO_REDO_ALERT;
+  }
+  m_global_redo_alert_state = RedoStateRep::NO_REDO_ALERT;
 }//Dbdih::initData()
 
 void Dbdih::initRecords()
@@ -319,6 +324,8 @@ Dbdih::Dbdih(Block_context& ctx):
   addRecSignal(GSN_WAIT_GCP_REQ, &Dbdih::execWAIT_GCP_REQ);
   addRecSignal(GSN_WAIT_GCP_REF, &Dbdih::execWAIT_GCP_REF);
   addRecSignal(GSN_WAIT_GCP_CONF, &Dbdih::execWAIT_GCP_CONF);
+
+  addRecSignal(GSN_REDO_STATE_REP, &Dbdih::execREDO_STATE_REP);
 
   addRecSignal(GSN_PREP_DROP_TAB_REQ, &Dbdih::execPREP_DROP_TAB_REQ);
   addRecSignal(GSN_DROP_TAB_REQ, &Dbdih::execDROP_TAB_REQ);
