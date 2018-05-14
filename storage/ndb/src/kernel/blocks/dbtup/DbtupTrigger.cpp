@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,13 +44,13 @@
 /* ---------------------------------------------------------------- */
 /* **************************************************************** */
 
-DLList<Dbtup::TupTriggerData>*
+DLFifoList<Dbtup::TupTriggerData>*
 Dbtup::findTriggerList(Tablerec* table,
                        TriggerType::Value ttype,
                        TriggerActionTime::Value ttime,
                        TriggerEvent::Value tevent)
 {
-  DLList<TupTriggerData>* tlist = NULL;
+  DLFifoList<TupTriggerData>* tlist = NULL;
   switch (ttype) {
   case TriggerType::SUBSCRIPTION:
   case TriggerType::SUBSCRIPTION_BEFORE:
@@ -346,7 +346,7 @@ Dbtup::createTrigger(Tablerec* table,
   int cnt;
   struct {
     TriggerEvent::Value event;
-    DLList<TupTriggerData> * list;
+    DLFifoList<TupTriggerData> * list;
     TriggerPtr ptr;
   } tmp[3];
 
@@ -388,7 +388,19 @@ Dbtup::createTrigger(Tablerec* table,
     ndbrequire(tmp[i].list != NULL);
 
     TriggerPtr tptr;
-    if (!tmp[i].list->seizeFirst(tptr))
+    bool inserted;
+    /**
+     * FK constraints has to be checked after any SECONDARY_INDEX triggers
+     * which updates the indexes possible referred by the constraints. So
+     * we always insert the FK-constraint last in the list of triggers.
+     */
+    if (ttype == TriggerType::FK_CHILD ||
+        ttype == TriggerType::FK_PARENT)
+      inserted = tmp[i].list->seizeLast(tptr);
+    else
+      inserted = tmp[i].list->seizeFirst(tptr);
+
+    if (!inserted)
     {
       jam();
       goto err;
@@ -507,7 +519,7 @@ Dbtup::dropTrigger(Tablerec* table, const DropTrigImplReq* req, BlockNumber rece
   int cnt;
   struct {
     TriggerEvent::Value event;
-    DLList<TupTriggerData> * list;
+    DLFifoList<TupTriggerData> * list;
     TriggerPtr ptr;
   } tmp[3];
 
@@ -796,7 +808,7 @@ Dbtup::checkImmediateTriggersAfterDelete(KeyReqStruct *req_struct,
 
 void
 Dbtup::checkDeferredTriggersDuringPrepare(KeyReqStruct *req_struct,
-                                          DLList<TupTriggerData>& triggerList,
+                                          DLFifoList<TupTriggerData>& triggerList,
                                           Operationrec* const regOperPtr,
                                           bool disk)
 {
@@ -851,8 +863,8 @@ void Dbtup::checkDeferredTriggers(KeyReqStruct *req_struct,
   jam();
   Uint32 save_type = regOperPtr->op_type;
   Tuple_header *save_ptr = req_struct->m_tuple_ptr;
-  DLList<TupTriggerData> * deferred_list = 0;
-  DLList<TupTriggerData> * constraint_list = 0;
+  DLFifoList<TupTriggerData> * deferred_list = 0;
+  DLFifoList<TupTriggerData> * constraint_list = 0;
 
   switch (save_type) {
   case ZUPDATE:
@@ -909,8 +921,7 @@ void Dbtup::checkDeferredTriggers(KeyReqStruct *req_struct,
     break;
   }
 
-  if (deferred_list->isEmpty() &&
-      (constraint_list == 0 || constraint_list->isEmpty()))
+  if (deferred_list->isEmpty() && constraint_list->isEmpty())
   {
     jam();
     goto end;
@@ -926,7 +937,7 @@ void Dbtup::checkDeferredTriggers(KeyReqStruct *req_struct,
     fireDeferredTriggers(req_struct, * deferred_list, regOperPtr, disk);
   }
 
-  if (constraint_list && !constraint_list->isEmpty())
+  if (!constraint_list->isEmpty())
   {
     jam();
     fireDeferredConstraints(req_struct, * constraint_list, regOperPtr, disk);
@@ -1084,7 +1095,7 @@ is_constraint(const Dbtup::TupTriggerData * trigPtr)
 
 void 
 Dbtup::fireImmediateTriggers(KeyReqStruct *req_struct,
-                             DLList<TupTriggerData>& triggerList, 
+                             DLFifoList<TupTriggerData>& triggerList,
                              Operationrec* const regOperPtr,
                              bool disk)
 {
@@ -1126,7 +1137,7 @@ Dbtup::fireImmediateTriggers(KeyReqStruct *req_struct,
 
 void
 Dbtup::fireDeferredConstraints(KeyReqStruct *req_struct,
-                               DLList<TupTriggerData>& triggerList,
+                               DLFifoList<TupTriggerData>& triggerList,
                                Operationrec* const regOperPtr,
                                bool disk)
 {
@@ -1174,7 +1185,7 @@ Dbtup::fireDeferredConstraints(KeyReqStruct *req_struct,
 
 void
 Dbtup::fireDeferredTriggers(KeyReqStruct *req_struct,
-                            DLList<TupTriggerData>& triggerList,
+                            DLFifoList<TupTriggerData>& triggerList,
                             Operationrec* const regOperPtr,
                             bool disk)
 {
@@ -1196,7 +1207,7 @@ Dbtup::fireDeferredTriggers(KeyReqStruct *req_struct,
 
 void 
 Dbtup::fireDetachedTriggers(KeyReqStruct *req_struct,
-                            DLList<TupTriggerData>& triggerList, 
+                            DLFifoList<TupTriggerData>& triggerList,
                             Operationrec* const regOperPtr,
                             bool disk,
                             Uint32 diskPagePtrI)
@@ -2159,7 +2170,7 @@ Dbtup::addTuxEntries(Signal* signal,
     return -1;
   }
   TuxMaintReq* const req = (TuxMaintReq*)signal->getDataPtrSend();
-  const DLList<TupTriggerData>& triggerList = regTabPtr->tuxCustomTriggers;
+  const DLFifoList<TupTriggerData>& triggerList = regTabPtr->tuxCustomTriggers;
   TriggerPtr triggerPtr;
   Uint32 failPtrI;
   triggerList.first(triggerPtr);
@@ -2295,7 +2306,7 @@ Dbtup::removeTuxEntries(Signal* signal,
                         Tablerec* regTabPtr)
 {
   TuxMaintReq* const req = (TuxMaintReq*)signal->getDataPtrSend();
-  const DLList<TupTriggerData>& triggerList = regTabPtr->tuxCustomTriggers;
+  const DLFifoList<TupTriggerData>& triggerList = regTabPtr->tuxCustomTriggers;
   TriggerPtr triggerPtr;
   triggerList.first(triggerPtr);
   while (triggerPtr.i != RNIL) {
