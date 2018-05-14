@@ -347,7 +347,7 @@ class Item_func_reverse : public Item_str_func {
 class Item_func_replace : public Item_str_func {
   String tmp_value, tmp_value2;
   /// Holds result in case we need to allocate our own result buffer.
-  String tmp_value_res;
+  String tmp_value_res{"", 0, &my_charset_bin};
 
  public:
   Item_func_replace(const POS &pos, Item *org, Item *find, Item *replace)
