@@ -101,13 +101,27 @@ class Bounded_queue {
     @param element        The element to be pushed.
    */
   void push(Element_type element) {
+    /*
+      Add one extra byte to each key, so that sort-key generating functions
+      won't be returning out-of-space. Since we know there's always room
+      given a "m_element_size"-sized buffer even in the worst case (by
+      definition), we could in principle make a special mode flag in
+      Sort_param::make_sortkey() instead for the case of fixed-length records,
+      but this is much simpler.
+     */
+    DBUG_ASSERT(m_element_size < 0xFFFFFFFF);
+    const uint element_size = m_element_size + 1;
+
     if (m_queue.size() == m_queue.capacity()) {
       const Key_type &pq_top = m_queue.top();
-      m_sort_param->make_sortkey(pq_top, m_element_size, element);
+      const uint MY_ATTRIBUTE((unused)) rec_sz =
+          m_sort_param->make_sortkey(pq_top, element_size, element);
+      DBUG_ASSERT(rec_sz <= m_element_size);
       m_queue.update_top();
     } else {
-      m_sort_param->make_sortkey(m_sort_keys[m_queue.size()], m_element_size,
-                                 element);
+      const uint MY_ATTRIBUTE((unused)) rec_sz = m_sort_param->make_sortkey(
+          m_sort_keys[m_queue.size()], element_size, element);
+      DBUG_ASSERT(rec_sz <= m_element_size);
       m_queue.push(m_sort_keys[m_queue.size()]);
     }
   }

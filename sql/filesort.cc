@@ -1580,9 +1580,9 @@ uint Sort_param::make_sortkey(Bounds_checked_array<uchar> dst,
         if (addonf->null_bit && field->is_null()) {
           nulls[addonf->null_offset] |= addonf->null_bit;
         } else {
-          uchar *ptr = field->pack(to, field->ptr, to_end - to,
-                                   field->table->s->db_low_byte_first);
-          if (ptr >= to_end) return UINT_MAX;
+          uchar *ptr MY_ATTRIBUTE((unused)) = field->pack(
+              to, field->ptr, to_end - to, field->table->s->db_low_byte_first);
+          DBUG_ASSERT(ptr <= to + addonf->max_length);
         }
         to += addonf->max_length;
       }
