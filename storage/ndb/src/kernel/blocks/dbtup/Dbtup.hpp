@@ -984,7 +984,7 @@ struct TupTriggerData {
 
 typedef Ptr<TupTriggerData> TriggerPtr;
 typedef ArrayPool<TupTriggerData> TupTriggerData_pool;
-typedef DLList<TupTriggerData_pool> TupTriggerData_list;
+typedef DLFifoList<TupTriggerData_pool> TupTriggerData_list;
 
 /**
  * Pool of trigger data record

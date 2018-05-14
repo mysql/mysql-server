@@ -397,8 +397,7 @@ match(const NdbDictionary::Index * parent,
 
   for (unsigned i = 0; i < parent->getNoOfColumns(); i++)
   {
-    if (strcmp(parent->getColumn(i)->getName(),
-               childCandidate->getColumn(i)->getName()) != 0)
+    if (parent->getColumn(i)->getType() != childCandidate->getColumn(i)->getType())
       return false;
   }
 
@@ -782,24 +781,6 @@ createFK(NdbDictionary::Dictionary * dict,
   case 4:
     ndbfk.setOnDeleteAction(NdbDictionary::ForeignKey::SetDefault);
     break;
-  }
-
-  if (strcmp(pParent->getName(), pChild->getName()) == 0 &&
-      strcmp(parentIdx->getName(), PKNAME) != 0)
-  {
-    /**
-     * BUG => WORK-AROUND (using another BUG!)
-     *
-     * self referencing FK's doesnt work properly if parent-index is UK
-     *   this is a bug...
-     *
-     * by accident I (in fact Tomas U) discovered that it does work
-     *   if setting on update to NO ACTION.
-     *   It is a bug in it self that on update has any affect...
-     *   but right now it does
-     */
-    ndbfk.setOnUpdateAction(NdbDictionary::ForeignKey::NoAction);
-    ndbfk.setOnDeleteAction(NdbDictionary::ForeignKey::NoAction);
   }
 
   if (dict->createForeignKey(ndbfk) == 0)
