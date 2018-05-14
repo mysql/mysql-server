@@ -456,6 +456,30 @@ class binlog_cache_data {
 
   bool has_incident(void) const { return flags.incident; }
 
+  /**
+    Sets the binlog_cache_data::Flags::flush_error flag if there
+    is an error while flushing cache to the file.
+
+    @param thd  The client thread that is executing the transaction.
+  */
+  void set_flush_error(THD *thd) {
+    flags.flush_error = true;
+    if (is_trx_cache()) {
+      /*
+         If the cache is a transactional cache and if the write
+         has failed due to ENOSPC, then my_write() would have
+         set EE_WRITE error, so clear the error and create an
+         equivalent server error.
+      */
+      if (thd->is_error()) thd->clear_error();
+      char errbuf[MYSYS_STRERROR_SIZE];
+      my_error(ER_ERROR_ON_WRITE, MYF(MY_WME), my_filename(cache_log.file),
+               errno, my_strerror(errbuf, sizeof(errbuf), errno));
+    }
+  }
+
+  bool get_flush_error(void) const { return flags.flush_error; }
+
   bool has_xid() const {
     // There should only be an XID event if we are transactional
     DBUG_ASSERT((flags.transactional && flags.with_xid) || !flags.with_xid);
@@ -535,6 +559,8 @@ class binlog_cache_data {
     flags.with_start = false;
     flags.with_end = false;
     flags.with_content = false;
+    flags.flush_error = false;
+
     /*
       The truncate function calls reinit_io_cache that calls my_b_flush_io_cache
       which may increase disk_writes. This breaks the disk_writes use by the
@@ -675,7 +701,13 @@ class binlog_cache_data {
   void truncate(my_off_t pos) {
     DBUG_PRINT("info", ("truncating to position %lu", (ulong)pos));
     remove_pending_event();
-    reinit_io_cache(&cache_log, WRITE_CACHE, pos, 0, 0);
+    /*
+      Whenever there is an error while flushing cache to file,
+      the local cache will not be in a normal state and the same
+      cache cannot be used without facing an assert.
+      So, clear the cache if there is a flush error.
+    */
+    reinit_io_cache(&cache_log, WRITE_CACHE, pos, 0, get_flush_error());
     cache_log.end_of_file = saved_max_binlog_cache_size;
   }
 
@@ -760,6 +792,12 @@ class binlog_cache_data {
       This indicates that the cache contain content other than START/END.
     */
     bool with_content : 1;
+
+    /*
+      This flag is set to 'true' when there is an error while flushing the
+      I/O cache to file.
+    */
+    bool flush_error : 1;
   } flags;
 
  private:
@@ -1294,12 +1332,19 @@ static int binlog_close_connection(handlerton *, THD *thd) {
   DBUG_RETURN(0);
 }
 
-int binlog_cache_data::write_event(THD *, Log_event *ev) {
+int binlog_cache_data::write_event(THD *thd, Log_event *ev) {
   DBUG_ENTER("binlog_cache_data::write_event");
 
   if (ev != NULL) {
     DBUG_EXECUTE_IF("simulate_disk_full_at_flush_pending",
                     { DBUG_SET("+d,simulate_file_write_error"); });
+
+    DBUG_EXECUTE_IF("simulate_tmpdir_partition_full", {
+      static int count = -1;
+      count++;
+      if (count % 4 == 3 && ev->get_type_code() == binary_log::WRITE_ROWS_EVENT)
+        DBUG_SET("+d,simulate_temp_file_write_error");
+    });
     if (ev->write(&cache_log) != 0) {
       DBUG_EXECUTE_IF("simulate_disk_full_at_flush_pending", {
         DBUG_SET("-d,simulate_file_write_error");
@@ -1313,6 +1358,16 @@ int binlog_cache_data::write_event(THD *, Log_event *ev) {
         */
         DBUG_SET("+d,simulate_do_write_cache_failure");
       });
+
+      DBUG_EXECUTE_IF("simulate_temp_file_write_error",
+                      { DBUG_SET("-d,simulate_temp_file_write_error"); });
+      /*
+        If the flush has failed due to ENOSPC error, set the
+        flush_error flag.
+      */
+      if (thd->is_error() && my_errno() == ENOSPC) {
+        set_flush_error(thd);
+      }
       DBUG_RETURN(1);
     }
     if (ev->get_type_code() == binary_log::XID_EVENT) flags.with_xid = true;
@@ -7126,7 +7181,14 @@ bool MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache,
   uint64 expected_total_len = my_b_tell(cache);
 #endif
 
-  if (reinit_io_cache(cache, READ_CACHE, 0, 0, 0)) DBUG_RETURN(true);
+  DBUG_EXECUTE_IF("simulate_tmpdir_partition_full",
+                  { DBUG_SET("+d,simulate_file_write_error"); });
+
+  if (reinit_io_cache(cache, READ_CACHE, 0, 0, 0)) {
+    DBUG_EXECUTE_IF("simulate_tmpdir_partition_full",
+                    { DBUG_SET("-d,simulate_file_write_error"); });
+    DBUG_RETURN(true);
+  }
 
   uchar *buf = cache->read_pos;
   uint32 buf_len = my_b_bytes_in_cache(cache);
@@ -7436,6 +7498,13 @@ err:
     write_error = true;
     LogErr(ERROR_LEVEL, ER_FAILED_TO_WRITE_TO_FILE, name, errno,
            my_strerror(errbuf, sizeof(errbuf), errno));
+  }
+
+  /*
+    If the flush has failed due to ENOSPC, set the flush_error flag.
+  */
+  if (cache->error && thd->is_error() && my_errno() == ENOSPC) {
+    cache_data->set_flush_error(thd);
   }
   thd->commit_error = THD::CE_FLUSH_ERROR;
 
@@ -8616,6 +8685,13 @@ void MYSQL_BIN_LOG::handle_binlog_flush_or_sync_error(THD *thd,
     }
     close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT, false /*need_lock_log=false*/,
           true /*need_lock_index=true*/);
+    /*
+      If there is a write error (flush/sync stage) and if
+      binlog_error_action=IGNORE_ERROR, clear the error
+      and allow the commit to happen in storage engine.
+    */
+    if (check_write_error(thd)) thd->clear_error();
+
     if (need_lock_log) mysql_mutex_unlock(&LOCK_log);
     DEBUG_SYNC(thd, "after_binlog_closed_due_to_error");
   }
