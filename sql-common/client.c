@@ -1130,6 +1130,7 @@ static int add_init_command(struct st_mysql_options *options, const char *cmd)
     } while(0)
 #endif
 
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
 static char *set_ssl_option_unpack_path(struct st_mysql_options *options,
                                         const char *arg)
 {
@@ -1144,6 +1145,7 @@ static char *set_ssl_option_unpack_path(struct st_mysql_options *options,
   }
   return opt_var;
 }
+#endif
 
 
 void mysql_read_default_options(struct st_mysql_options *options,
@@ -1967,6 +1969,36 @@ error:
 }
 
 #endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
+
+
+/**
+  Checks if any SSL option is set for libmysqld embedded server.
+
+  @param  mysql   the connection handle
+  @retval 0       success
+  @retval 1       failure
+*/
+#ifdef EMBEDDED_LIBRARY
+int embedded_ssl_check(MYSQL *mysql)
+{
+  if (mysql->options.ssl_key || mysql->options.ssl_cert ||
+      mysql->options.ssl_ca || mysql->options.ssl_capath ||
+      mysql->options.ssl_cipher ||
+      mysql->options.client_flag & CLIENT_SSL_VERIFY_SERVER_CERT ||
+      (mysql->options.extension &&
+       (mysql->options.extension->ssl_crl ||
+        mysql->options.extension->ssl_crlpath ||
+        mysql->options.extension->ssl_mode == SSL_MODE_REQUIRED)))
+  {
+     set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate,
+                              ER(CR_SSL_CONNECTION_ERROR),
+                              "Embedded server libmysqld library doesn't support "
+                              "SSL connections");
+     return 1;
+  }
+  return 0;
+}
+#endif
 
 
 /*
@@ -3841,6 +3873,11 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 
   mysql->client_flag= client_flag;
 
+#ifdef EMBEDDED_LIBRARY
+  if (embedded_ssl_check(mysql))
+    goto error;
+#endif
+
   /*
     Part 2: invoke the plugin to send the authentication data to the server
   */
@@ -4529,10 +4566,14 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
     mysql->options.ci.bind_address= my_strdup(arg, MYF(MY_WME));
     break;
   case MYSQL_OPT_SSL_VERIFY_SERVER_CERT:
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
     if (*(my_bool*) arg)
       mysql->options.client_flag|= CLIENT_SSL_VERIFY_SERVER_CERT;
     else
       mysql->options.client_flag&= ~CLIENT_SSL_VERIFY_SERVER_CERT;
+#elif defined(EMBEDDED_LIBRARY)
+    DBUG_RETURN(1);
+#endif
     break;
   case MYSQL_PLUGIN_DIR:
     EXTENSION_SET_STRING(&mysql->options, plugin_dir, arg);
@@ -4541,41 +4582,71 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
     EXTENSION_SET_STRING(&mysql->options, default_auth, arg);
     break;
   case MYSQL_OPT_SSL_KEY:
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
     if (mysql->options.ssl_key)
       my_free(mysql->options.ssl_key);
     mysql->options.ssl_key= set_ssl_option_unpack_path(&mysql->options, arg);
+#elif defined(EMBEDDED_LIBRARY)
+    DBUG_RETURN(1);
+#endif
     break;
   case MYSQL_OPT_SSL_CERT:
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
     if (mysql->options.ssl_cert)
       my_free(mysql->options.ssl_cert);
     mysql->options.ssl_cert= set_ssl_option_unpack_path(&mysql->options, arg);
+#elif defined(EMBEDDED_LIBRARY)
+    DBUG_RETURN(1);
+#endif
     break;
   case MYSQL_OPT_SSL_CA:
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
     if (mysql->options.ssl_ca)
       my_free(mysql->options.ssl_ca);
     mysql->options.ssl_ca= set_ssl_option_unpack_path(&mysql->options, arg);
+#elif defined(EMBEDDED_LIBRARY)
+    DBUG_RETURN(1);
+#endif
     break;
   case MYSQL_OPT_SSL_CAPATH:
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
     if (mysql->options.ssl_capath)
       my_free(mysql->options.ssl_capath);
     mysql->options.ssl_capath= set_ssl_option_unpack_path(&mysql->options, arg);
+#elif defined(EMBEDDED_LIBRARY)
+    DBUG_RETURN(1);
+#endif
     break;
-  case MYSQL_OPT_SSL_CIPHER:   SET_SSL_OPTION(ssl_cipher, arg);  break;
+  case MYSQL_OPT_SSL_CIPHER:
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+    SET_SSL_OPTION(ssl_cipher, arg);
+#elif defined(EMBEDDED_LIBRARY)
+    DBUG_RETURN(1);
+#endif
+    break;
   case MYSQL_OPT_SSL_CRL:
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
     if (mysql->options.extension)
       my_free(mysql->options.extension->ssl_crl);
     else
       ALLOCATE_EXTENSIONS(&mysql->options);
     mysql->options.extension->ssl_crl=
                    set_ssl_option_unpack_path(&mysql->options, arg);
+#elif defined(EMBEDDED_LIBRARY)
+    DBUG_RETURN(1);
+#endif
     break;
   case MYSQL_OPT_SSL_CRLPATH:
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
     if (mysql->options.extension)
       my_free(mysql->options.extension->ssl_crlpath);
     else
       ALLOCATE_EXTENSIONS(&mysql->options);
     mysql->options.extension->ssl_crlpath=
                    set_ssl_option_unpack_path(&mysql->options, arg);
+#elif defined(EMBEDDED_LIBRARY)
+    DBUG_RETURN(1);
+#endif
     break;
   case MYSQL_SERVER_PUBLIC_KEY:
     EXTENSION_SET_STRING(&mysql->options, server_public_key_path, arg);
@@ -4630,11 +4701,15 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
       mysql->options.client_flag&= ~CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS;
     break;
   case MYSQL_OPT_SSL_MODE:
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
     if (*(uint *) arg == SSL_MODE_REQUIRED)
     {
       ENSURE_EXTENSIONS_PRESENT(&mysql->options);
       mysql->options.extension->ssl_mode= SSL_MODE_REQUIRED;
     }
+#elif defined(EMBEDDED_LIBRARY)
+    DBUG_RETURN(1);
+#endif
     break;
 
   default:
