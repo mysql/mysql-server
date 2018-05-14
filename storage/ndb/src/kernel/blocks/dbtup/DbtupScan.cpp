@@ -1549,6 +1549,7 @@ Dbtup::move_to_next_change_page_row(ScanOp & scan,
   jamLineDebug(Uint16(key.m_page_idx));
   Uint32 map_val = (fix_page->m_change_map[3] >> 16);
   jamLineDebug(Uint16(map_val));
+  (void)map_val;
   return ZSCAN_FOUND_TUPLE;
 }
 
