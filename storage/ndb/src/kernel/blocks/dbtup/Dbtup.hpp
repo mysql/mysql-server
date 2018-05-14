@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1082,19 +1082,19 @@ ArrayPool<TupTriggerData> c_triggerPool;
     } m_attributes[2];
     
     // Lists of trigger data for active triggers
-    DLList<TupTriggerData> afterInsertTriggers;
-    DLList<TupTriggerData> afterDeleteTriggers;
-    DLList<TupTriggerData> afterUpdateTriggers;
-    DLList<TupTriggerData> subscriptionInsertTriggers;
-    DLList<TupTriggerData> subscriptionDeleteTriggers;
-    DLList<TupTriggerData> subscriptionUpdateTriggers;
-    DLList<TupTriggerData> constraintUpdateTriggers;
-    DLList<TupTriggerData> deferredInsertTriggers;
-    DLList<TupTriggerData> deferredUpdateTriggers;
-    DLList<TupTriggerData> deferredDeleteTriggers;
+    DLFifoList<TupTriggerData> afterInsertTriggers;
+    DLFifoList<TupTriggerData> afterDeleteTriggers;
+    DLFifoList<TupTriggerData> afterUpdateTriggers;
+    DLFifoList<TupTriggerData> subscriptionInsertTriggers;
+    DLFifoList<TupTriggerData> subscriptionDeleteTriggers;
+    DLFifoList<TupTriggerData> subscriptionUpdateTriggers;
+    DLFifoList<TupTriggerData> constraintUpdateTriggers;
+    DLFifoList<TupTriggerData> deferredInsertTriggers;
+    DLFifoList<TupTriggerData> deferredUpdateTriggers;
+    DLFifoList<TupTriggerData> deferredDeleteTriggers;
 
     // List of ordered indexes
-    DLList<TupTriggerData> tuxCustomTriggers;
+    DLFifoList<TupTriggerData> tuxCustomTriggers;
     
     Uint32 fragid[MAX_FRAG_PER_LQH];
     Uint32 fragrec[MAX_FRAG_PER_LQH];
@@ -2629,7 +2629,7 @@ private:
 //------------------------------------------------------------------
 // Trigger handling routines
 //------------------------------------------------------------------
-  DLList<TupTriggerData>*
+  DLFifoList<TupTriggerData>*
   findTriggerList(Tablerec* table,
                   TriggerType::Value ttype,
                   TriggerActionTime::Value ttime,
@@ -2673,26 +2673,26 @@ private:
                              Uint32 diskPagePtrI);
 
   void fireImmediateTriggers(KeyReqStruct *req_struct,
-                             DLList<TupTriggerData>& triggerList, 
+                             DLFifoList<TupTriggerData>& triggerList,
                              Operationrec* regOperPtr,
                              bool disk);
 
   void checkDeferredTriggersDuringPrepare(KeyReqStruct *req_struct,
-                                          DLList<TupTriggerData>& triggerList,
+                                          DLFifoList<TupTriggerData>& triggerList,
                                           Operationrec* const regOperPtr,
                                           bool disk);
   void fireDeferredTriggers(KeyReqStruct *req_struct,
-                            DLList<TupTriggerData>& triggerList,
+                            DLFifoList<TupTriggerData>& triggerList,
                             Operationrec* const regOperPtr,
                             bool disk);
 
   void fireDeferredConstraints(KeyReqStruct *req_struct,
-                               DLList<TupTriggerData>& triggerList,
+                               DLFifoList<TupTriggerData>& triggerList,
                                Operationrec* const regOperPtr,
                                bool disk);
 
   void fireDetachedTriggers(KeyReqStruct *req_struct,
-                            DLList<TupTriggerData>& triggerList,
+                            DLFifoList<TupTriggerData>& triggerList,
                             Operationrec* regOperPtr,
                             bool disk,
                             Uint32 diskPagePtrI);

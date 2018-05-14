@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -472,7 +472,7 @@ Dbtup::execBUILD_INDX_IMPL_REQ(Signal* signal)
        tablePtr.p->m_attributes[MM].m_no_of_dynamic) > 0;
     if (DictTabInfo::isOrderedIndex(buildReq->indexType)) {
       jam();
-      const DLList<TupTriggerData>& triggerList = 
+      const DLFifoList<TupTriggerData>& triggerList =
 	tablePtr.p->tuxCustomTriggers;
 
       TriggerPtr triggerPtr;
