@@ -1421,9 +1421,7 @@ Dbtup::disk_page_alloc(Signal* signal,
 {
   jam();
   Uint32 logfile_group_id= fragPtrP->m_logfile_group_id;
-#if defined(VM_TRACE) || defined(ERROR_INSERT)
   Disk_alloc_info& alloc= fragPtrP->m_disk_alloc_info;
-#endif
 
   Uint64 lsn;
   if (tabPtrP->m_attributes[DD].m_no_of_varsize == 0)
@@ -1498,9 +1496,7 @@ Dbtup::disk_page_free(Signal *signal,
   jamLine(Uint16(key->m_page_idx));
   Uint32 logfile_group_id= fragPtrP->m_logfile_group_id;
   Disk_alloc_info& alloc= fragPtrP->m_disk_alloc_info;
-#if defined(VM_TRACE) || defined(ERROR_INSERT)
   Uint32 old_free= pagePtr.p->free_space;
-#endif
 
   Uint32 sz;
   Uint64 lsn;
