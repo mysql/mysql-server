@@ -2047,6 +2047,14 @@ static const uint32 HTON_FKS_WITH_SUPPORTING_HASH_KEYS = (1 << 1);
 
 static const uint32 HTON_FKS_WITH_ANY_PREFIX_SUPPORTING_KEYS = (1 << 2);
 
+/**
+  Storage engine does not support using the same key for both parent
+  and supporting key, but requires the two to be different.
+*/
+
+static const uint32 HTON_FKS_NEED_DIFFERENT_PARENT_AND_SUPPORTING_KEYS =
+    (1 << 3);
+
 enum enum_tx_isolation : int {
   ISO_READ_UNCOMMITTED,
   ISO_READ_COMMITTED,

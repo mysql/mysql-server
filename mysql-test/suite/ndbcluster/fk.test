@@ -1,0 +1,63 @@
+--source include/have_ndb.inc
+
+--echo #
+--echo # This file contains basic tests of the SQL layer handling of
+--echo # foreign keys in the NDB storage engine.
+--echo #
+
+USE test;
+
+--echo # A non-unique index cannot serve as parent index.
+--error ER_FK_NO_INDEX_PARENT
+CREATE TABLE self_ref(pk INT PRIMARY KEY, i INT, j INT,
+                      INDEX ix(i),
+                      FOREIGN KEY (j) REFERENCES self_ref(i)) ENGINE=NDB;
+
+--echo # But a unique index is fine.
+CREATE TABLE self_ref(pk INT PRIMARY KEY, i INT, j INT,
+                      UNIQUE INDEX ix(i),
+                      FOREIGN KEY (j) REFERENCES self_ref(i)) ENGINE=NDB;
+SHOW CREATE TABLE self_ref;
+DROP TABLE self_ref;
+
+--echo # A self referencing FK can use the supporting index as parent index
+--echo # if it is unique.
+CREATE TABLE self_ref(pk INT PRIMARY KEY, i INT,
+                      UNIQUE INDEX ix(i),
+                      FOREIGN KEY (i) REFERENCES self_ref(i)) ENGINE=NDB;
+SHOW CREATE TABLE self_ref;
+DROP TABLE self_ref;
+
+--echo # But not if it's not unique.
+--error ER_FK_NO_INDEX_PARENT
+CREATE TABLE self_ref(pk INT PRIMARY KEY, i INT,
+                      INDEX ix(i),
+                      FOREIGN KEY (i) REFERENCES self_ref(i)) ENGINE=NDB;
+
+--echo # If there is an index with the same columns as the referenced ones,
+--echo # but in different order, the index may be used as parent index. This
+--echo # index may also serve as supporting index.
+CREATE TABLE self_ref(pk INT PRIMARY KEY, i INT, j INT,
+                      UNIQUE INDEX ijx(i, j),
+                      FOREIGN KEY (i, j) REFERENCES self_ref(j, i)) ENGINE=NDB;
+SHOW CREATE TABLE self_ref;
+
+CREATE TABLE self_ref_hash(pk INT PRIMARY KEY, i INT, j INT,
+                           UNIQUE INDEX ijx(i, j) USING HASH,
+                           FOREIGN KEY (i, j) REFERENCES self_ref_hash(j, i)) ENGINE=NDB;
+SHOW CREATE TABLE self_ref_hash;
+
+CREATE TABLE self_ref_btree(pk INT PRIMARY KEY, i INT, j INT,
+                            UNIQUE INDEX ijx(i, j) USING BTREE,
+                            FOREIGN KEY (i, j) REFERENCES self_ref_btree(j, i)) ENGINE=NDB;
+SHOW CREATE TABLE self_ref_btree;
+DROP TABLES self_ref, self_ref_hash, self_ref_btree;
+
+--echo # If there is an index with the same columns as the FK, but in
+--echo # different order, a supporting key will be created.
+CREATE TABLE self_ref(pk INT PRIMARY KEY, i INT, j INT,
+                      UNIQUE INDEX ijx(j, i),
+                      FOREIGN KEY (i, j) REFERENCES self_ref(j, i)) ENGINE=NDB;
+SHOW CREATE TABLE self_ref;
+DROP TABLE self_ref;
+

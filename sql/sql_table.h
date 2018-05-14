@@ -311,6 +311,7 @@ bool adjust_fks_for_rename_table(THD *thd, const char *db,
   @param  old_parent_table_def  Object describing old version of parent table.
                                 nullptr indicates that this is not ALTER TABLE
                                 operation. Used for error reporting.
+  @param  is_self_referencing_fk If the parent and child is the same table.
   @param  fk[in,out]            Object describing the foreign key,
                                 its unique_constraint_name member
                                 will be updated if matching parent
@@ -321,7 +322,7 @@ bool adjust_fks_for_rename_table(THD *thd, const char *db,
 bool prepare_fk_parent_key(handlerton *hton, const dd::Table *parent_table_def,
                            const dd::Table *old_parent_table_def,
                            const dd::Table *old_child_table_def,
-                           dd::Foreign_key *fk)
+                           bool is_self_referencing_fk, dd::Foreign_key *fk)
     MY_ATTRIBUTE((warn_unused_result));
 
 /**
