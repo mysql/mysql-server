@@ -4479,6 +4479,9 @@ void Dbtc::attrinfoDihReceivedLab(Signal* signal, CacheRecordPtr cachePtr, ApiCo
     unlinkReadyTcCon(signal, apiConnectptr.p);
     clearCommitAckMarker(regApiPtr, regTcPtr);
     releaseTcCon();
+    checkPoolShrinkNeed(signal,
+                        DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
+                        tcConnectRecord);
 
     if (trigOp != RNIL)
     {
@@ -4931,6 +4934,9 @@ void Dbtc::releaseDirtyRead(Signal* signal,
   
   unlinkReadyTcCon(signal, apiConnectptr.p);
   releaseTcCon();
+  checkPoolShrinkNeed(signal,
+                      DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
+                      tcConnectRecord);
 
   /**
    * No LQHKEYCONF in Simple/Dirty read
@@ -4997,10 +5003,6 @@ void Dbtc::releaseTcCon()
 
   tcConnectRecord.release(tcConnectptr);
   c_counters.cconcurrentOp--;
-  Signal signal[1];
-  checkPoolShrinkNeed(signal,
-                      DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
-                      tcConnectRecord);
 }//Dbtc::releaseTcCon()
 
 void Dbtc::execPACKED_SIGNAL(Signal* signal) 
@@ -5585,6 +5587,9 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     /* Ok, all checks passed, release the original locking op */
     unlinkReadyTcCon(signal, apiConnectptr.p);
     releaseTcCon();
+    checkPoolShrinkNeed(signal,
+                        DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
+                        tcConnectRecord);
 
     /* Remove record of original locking op's LQHKEYREQ/CONF
      * etc.
@@ -5707,6 +5712,9 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
   {
     tcConnectptr = save_tcConnectptr;
     releaseTcCon();
+    checkPoolShrinkNeed(signal,
+                        DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
+                        tcConnectRecord);
   }
 }//Dbtc::execLQHKEYCONF()
  
@@ -7699,6 +7707,9 @@ void Dbtc::releaseTransResources(Signal* signal, ApiConnectRecordPtr const apiCo
     jam();
     releaseTcCon();
   }
+  checkPoolShrinkNeed(signal,
+                      DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
+                      tcConnectRecord);
   handleGcp(signal, apiConnectptr);
   releaseFiredTriggerData(&apiConnectptr.p->theFiredTriggers);
   releaseAllSeizedIndexOperations(apiConnectptr.p);
@@ -7755,6 +7766,9 @@ void Dbtc::releaseDirtyWrite(Signal* signal, ApiConnectRecordPtr const apiConnec
   clearCommitAckMarker(apiConnectptr.p, tcConnectptr.p);
   unlinkReadyTcCon(signal, apiConnectptr.p);
   releaseTcCon();
+  checkPoolShrinkNeed(signal,
+                      DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
+                      tcConnectRecord);
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
   if (regApiPtr->apiConnectstate == CS_START_COMMITTING) {
     if (regApiPtr->tcConnect.isEmpty())
@@ -7981,6 +7995,9 @@ void Dbtc::execLQHKEYREF(Signal* signal)
 
         unlinkReadyTcCon(signal, apiConnectptr.p);
         releaseTcCon();
+        checkPoolShrinkNeed(signal,
+                            DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
+                            tcConnectRecord);
 
         trigger_op_finished(signal, apiConnectptr, RNIL, opPtr.p, 0);
 
@@ -8026,6 +8043,9 @@ void Dbtc::execLQHKEYREF(Signal* signal)
       Uint32 clientData = regTcPtr->clientData;
       unlinkReadyTcCon(signal, apiConnectptr.p);   /* LINK TC CONNECT RECORD OUT OF  */
       releaseTcCon();       /* RELEASE THE TC CONNECT RECORD  */
+      checkPoolShrinkNeed(signal,
+                          DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
+                          tcConnectRecord);
       setApiConTimer(apiConnectptr, ctcTimer, __LINE__);
       if (isIndexOp) {
         jam();
@@ -9291,7 +9311,9 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
 	<< " code: " << errCode
         << " lqhkeyreqrec: " << apiConnectptr.p->lqhkeyreqrec
         << " lqhkeyconfrec: " << apiConnectptr.p->lqhkeyconfrec
-        << " pendingTriggers: " << apiConnectptr.p->pendingTriggers
+        << (apiConnectptr.p->apiConnectstate == CS_START_SCAN
+            ? " buddyPtr: "
+            : " pendingTriggers: ") << apiConnectptr.p->pendingTriggers
         << " outstanding_fire_trig_req: "
         << apiConnectptr.p->m_outstanding_fire_trig_req
         << " cascading_scans = " << apiConnectptr.p->cascading_scans_count
@@ -12390,6 +12412,9 @@ void Dbtc::releaseTakeOver(Signal* signal, ApiConnectRecordPtr const apiConnectp
     jam();
     releaseTcConnectFail(signal);
   }
+  checkPoolShrinkNeed(signal,
+                      DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
+                      tcConnectRecord);
   releaseApiConnectFail(signal, apiConnectptr);
 }//Dbtc::releaseTakeOver()
 
@@ -15502,6 +15527,9 @@ void Dbtc::releaseAbortResources(Signal* signal, ApiConnectRecordPtr const apiCo
     clearCommitAckMarker(apiConnectptr.p, tcConnectptr.p);
     releaseTcCon();
   }//while
+  checkPoolShrinkNeed(signal,
+                      DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
+                      tcConnectRecord);
 
   ndbrequire(apiConnectptr.p->num_commit_ack_markers == 0);
   releaseMarker(apiConnectptr.p);
@@ -20372,6 +20400,9 @@ Dbtc::fk_scanFromChildTable(Signal* signal,
     ndbrequire(terrorCode != ZOK);
     abortTransFromTrigger(signal, *transPtr, terrorCode);
     releaseTcCon();
+    checkPoolShrinkNeed(signal,
+                        DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
+                        tcConnectRecord);
     return;
   }
 
@@ -20515,6 +20546,9 @@ oom:
   }
   tcConnectptr = tcPtr;
   releaseTcCon();
+  checkPoolShrinkNeed(signal,
+                      DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
+                      tcConnectRecord);
   releaseApiCon(signal, scanApiConnectPtr.i);
   abortTransFromTrigger(signal, *transPtr, errorCode);
   return;
@@ -20939,6 +20973,9 @@ Dbtc::fk_scanFromChildTable_done(Signal* signal, TcConnectRecordPtr tcPtr)
   }
   tcConnectptr = tcPtr;
   releaseTcCon();
+  checkPoolShrinkNeed(signal,
+                      DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
+                      tcConnectRecord);
   releaseApiCon(signal, scanApiConnectPtr.i);
 
   ApiConnectRecordPtr orgApiConnectPtr;
