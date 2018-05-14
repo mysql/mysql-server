@@ -3244,8 +3244,7 @@ String *Item_char_typecast::val_str(String *str) {
         ER_THD(thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
         cast_cs == &my_charset_bin ? "cast_as_binary" : func_name(),
         thd->variables.max_allowed_packet);
-    null_value = true;
-    return nullptr;
+    return error_str();
   }
 
   String *res = args[0]->val_str(str);
