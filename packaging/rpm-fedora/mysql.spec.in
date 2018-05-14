@@ -713,12 +713,6 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/version_token.so
 
-%attr(644, root, root) %{_datadir}/mysql-*/fill_help_tables.sql
-%attr(644, root, root) %{_datadir}/mysql-*/mysql_sys_schema.sql
-%attr(644, root, root) %{_datadir}/mysql-*/mysql_system_tables.sql
-%attr(644, root, root) %{_datadir}/mysql-*/mysql_system_tables_data.sql
-%attr(644, root, root) %{_datadir}/mysql-*/mysql_system_users.sql
-%attr(644, root, root) %{_datadir}/mysql-*/mysql_test_data_timezone.sql
 %attr(644, root, root) %{_datadir}/mysql-*/mysql-log-rotate
 %attr(644, root, root) %{_datadir}/mysql-*/dictionary.txt
 %attr(644, root, root) %{_datadir}/mysql-*/innodb_memcached_config.sql

@@ -3712,18 +3712,9 @@ sub mysql_install_db {
                   $mysqld->name(), $bootstrap_sql_file);
   }
 
-  my $path_sql = my_find_file($install_basedir,
-                              [ "mysql", "share/mysql",
-                                "share/mysql-" . $mysql_base_version,
-                                "share", "scripts"
-                              ],
-                              "mysql_system_tables.sql",
-                              NOT_REQUIRED);
-
-  if (-f $path_sql && -f "include/mtr_test_data_timezone.sql") {
+  if (-f "include/mtr_test_data_timezone.sql") {
     # Add the offical mysql system tables for a production system.
     mtr_tofile($bootstrap_sql_file, "use mysql;\n");
-    mtr_appendfile_to_file($path_sql, $bootstrap_sql_file);
 
     # Add test data for timezone - this is just a subset, on a real
     # system these tables will be populated either by mysql_tzinfo_to_sql

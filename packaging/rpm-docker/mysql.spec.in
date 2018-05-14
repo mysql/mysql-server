@@ -382,12 +382,6 @@ rm -r $(readlink var) var
 %{_datadir}/mysql-*/swedish/
 %{_datadir}/mysql-*/ukrainian/
 %attr(644, root, root) %{_datadir}/mysql-*/errmsg-utf8.txt
-%attr(644, root, root) %{_datadir}/mysql-*/fill_help_tables.sql
-%attr(644, root, root) %{_datadir}/mysql-*/mysql_system_tables.sql
-%attr(644, root, root) %{_datadir}/mysql-*/mysql_system_tables_data.sql
-%attr(644, root, root) %{_datadir}/mysql-*/mysql_system_users.sql
-%attr(644, root, root) %{_datadir}/mysql-*/mysql_sys_schema.sql
-%attr(644, root, root) %{_datadir}/mysql-*/mysql_test_data_timezone.sql
 %attr(644, root, root) %{_datadir}/mysql-*/dictionary.txt
 %attr(644, root, root) %{_datadir}/mysql-*/innodb_memcached_config.sql
 %attr(644, root, root) %{_datadir}/mysql-*/install_rewriter.sql
