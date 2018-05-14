@@ -8729,17 +8729,17 @@ type_conversion_status
 Field_geom::store_internal(const char *from, size_t length,
                            const CHARSET_INFO *cs)
 {
-  DBUG_ASSERT(length > 0);
-
   // Check that the given WKB
-  // 1. isn't marked as bad geometry data
-  // 2. isn't shorter than empty geometrycollection
-  // 3. is a valid geometry type
-  // 4. is well formed
-  if (from == Geometry::bad_geometry_data.ptr() ||                    // 1
-      length < SRID_SIZE + WKB_HEADER_SIZE + sizeof(uint32) ||        // 2
-      !Geometry::is_valid_geotype(uint4korr(from + SRID_SIZE + 1)) || // 3
-      !Geometry::is_well_formed(from, length,                         // 4
+  // 1. is at least 13 bytes long (length of GEOMETRYCOLLECTION EMPTY)
+  // 2. isn't marked as bad geometry data
+  // 3. isn't shorter than empty geometrycollection
+  // 4. is a valid geometry type
+  // 5. is well formed
+  if (length < 13 ||                                                  // 1
+      from == Geometry::bad_geometry_data.ptr() ||                    // 2
+      length < SRID_SIZE + WKB_HEADER_SIZE + sizeof(uint32) ||        // 3
+      !Geometry::is_valid_geotype(uint4korr(from + SRID_SIZE + 1)) || // 4
+      !Geometry::is_well_formed(from, length,                         // 5
                                 geometry_type_to_wkb_type(geom_type),
                                 Geometry::wkb_ndr))
   {
