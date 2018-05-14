@@ -10,11 +10,14 @@
 
 let $debug_test = 0;
 
-let $n_conn = 16;
+let $n_conn = 10;
 
 let $i = $n_conn;
 while ($i) {
-  eval CREATE TABLE t$i (a INT PRIMARY KEY, b VARCHAR(10000)) ENGINE = InnoDB;
+  # If a row is less than half a page long, all of it is stored locally
+  # within the page. The minimum page size is 4kB, so we should use row
+  # with size < 2048 bytes.
+  eval CREATE TABLE t$i (a INT PRIMARY KEY, b VARCHAR(1800)) ENGINE = InnoDB;
   eval INSERT INTO t$i (a, b) VALUES (0, '');
   dec $i;
 }
@@ -50,7 +53,7 @@ CREATE PROCEDURE mtr_noredo_generate_single()
   BEGIN
   DECLARE max_a INT;
   SELECT MAX(a)+1 FROM tmp_t INTO @max_a;
-  INSERT INTO tmp_t (a, b) VALUES (@max_a, REPEAT('y', 10000));
+  INSERT INTO tmp_t (a, b) VALUES (@max_a, REPEAT('y', 1800));
 END|
 
 CREATE PROCEDURE mtr_noredo_generate_multi(IN n INT)
@@ -64,7 +67,7 @@ END|
 
 CREATE PROCEDURE mtr_noredo_update_all()
 BEGIN
-  UPDATE tmp_t SET b = REPEAT('z', 10000);
+  UPDATE tmp_t SET b = REPEAT('z', 1800);
 END|
 
 DELIMITER ;|
@@ -194,6 +197,7 @@ let $freeze_background_mtr = 0;
 --echo #
 --echo # CLEANUP
 --echo #
+
 
 --disable_query_log
 DROP PROCEDURE mtr_redo_generate_single;

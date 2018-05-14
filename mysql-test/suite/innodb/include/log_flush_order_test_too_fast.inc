@@ -1,6 +1,12 @@
 # Scenario "too_fast" - no-redo dirtied page inserted too quickly.
 #
 
+let $i = $n_conn;
+while ($i > 0) {
+  connect(con$i, localhost, root,,);
+  dec $i;
+}
+
 --echo #
 --echo # 0. Block log.recent_closed.tail() from advancing by stopping single mtr
 --echo #    just before it inserts its dirty pages to flush list.
@@ -20,6 +26,9 @@ if ($debug_test) {
 --echo # 1. Optionally modify no-redo dirtied page (then it is later remodified).
 --echo #
 
+BEGIN;
+DELETE FROM tmp_t WHERE a < 0;
+
 if ($noredo_remodify) {
   CALL mtr_noredo_generate_single();
   CALL mtr_noredo_generate_single();
@@ -34,14 +43,18 @@ let $init_lsn = $current_lsn;
 
 let $i = $n_conn;
 while ($i > 0) {
-  --echo Connection $i starts inserting rows...
+  --connection con$i
+  BEGIN;
+  eval DELETE FROM t$i WHERE a < 0;
+  dec $i;
+}
 
-  connect(con$i, localhost, root,,);
-
-  eval SET @q = CONCAT("CALL mtr_redo_generate_multi(", $i, ", 10000, 16)");
+let $i = $n_conn;
+while ($i > 0) {
+  --connection con$i
+  eval SET @q = CONCAT("CALL mtr_redo_generate_multi(", $i, ", 1800, 120)");
   PREPARE stmt FROM @q;
   --send EXECUTE stmt;
-
   dec $i;
 }
 --connection default
@@ -95,22 +108,24 @@ if ($noredo_remodify == 0) {
 --source ../include/log_recent_closed_unfreeze.inc
 
 --echo #
---echo # 6. Finish pending insertions.
+--echo # 6. Disconnect pending connections.
 --echo #
 
+COMMIT;
 let $i = $n_conn;
 while ($i > 0) {
   --connection con$i
   reap;
+  COMMIT;
   disconnect con$i;
   dec $i;
 }
 --connection default
 
-
 --echo #
 --echo # 7. Perform standard mtrs, just to ensure all is fine.
 --echo #
 
-CALL mtr_redo_generate_single(1, 10000);
-CALL mtr_redo_generate_single(2, 10000);
+CALL mtr_redo_generate_single(1, 1000);
+CALL mtr_noredo_generate_single();
+CALL mtr_redo_generate_single(2, 1000);

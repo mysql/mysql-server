@@ -60,6 +60,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "btr0btr.h"
 #include "btr0sea.h"
 #include "buf0lru.h"
+#ifdef UNIV_DEBUG
+#include "current_thd.h"
+#include "debug_sync.h"
+#endif /* UNIV_DEBUG */
 #include "ibuf0ibuf.h"
 #include "lob0lob.h"
 #include "lock0lock.h"
@@ -2825,6 +2829,22 @@ dberr_t btr_cur_optimistic_insert(
       if (err != DB_SUCCESS) {
         goto fail_err;
       }
+
+      DBUG_EXECUTE_IF(
+          "btr_ins_pause_on_mtr_redo_before_add_dirty_blocks",
+          ut_ad(!debug_sync_set_action(
+              current_thd, STRING_WITH_LEN("mtr_redo_before_add_dirty_blocks "
+                                           "SIGNAL btr_ins_paused "
+                                           "WAIT_FOR btr_ins_resume "
+                                           "NO_CLEAR_EVENT"))););
+
+      DBUG_EXECUTE_IF(
+          "btr_ins_pause_on_mtr_noredo_before_add_dirty_blocks",
+          ut_ad(!debug_sync_set_action(
+              current_thd, STRING_WITH_LEN("mtr_noredo_before_add_dirty_blocks "
+                                           "SIGNAL btr_ins_paused "
+                                           "WAIT_FOR btr_ins_resume "
+                                           "NO_CLEAR_EVENT"))););
 
       *rec = page_cur_tuple_insert(page_cursor, entry, index, offsets, heap,
                                    n_ext, mtr);
