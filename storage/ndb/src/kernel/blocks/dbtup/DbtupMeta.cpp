@@ -3056,11 +3056,11 @@ Dbtup::execFSREMOVEREF(Signal* signal)
   jamEntry();
   FsRef* ref = (FsRef*)signal->getDataPtr();
   TablerecPtr tabPtr; 
-  FragrecordPtr fragPtr;
 
   const Uint32 userPointer = ref->userPointer;
-#ifdef DEBUG_DROP_TAB
   tabPtr.i = userPointer;
+#ifdef DEBUG_DROP_TAB
+  FragrecordPtr fragPtr;
   ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
   fragPtr.i = tabPtr.p->m_dropTable.m_fragPtrI;
   ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
