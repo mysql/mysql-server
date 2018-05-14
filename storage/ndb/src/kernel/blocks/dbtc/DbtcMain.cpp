@@ -494,6 +494,25 @@ void Dbtc::execCONTINUEB(Signal* signal)
     break;
   }
 #endif
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+  case TcContinueB::ZTRANSIENT_POOL_STAT:
+  {
+    for (Uint32 pool_index = 0; pool_index < c_transient_pool_count; pool_index++)
+    {
+      g_eventLogger->info(
+        "DBTC %u: Transient slot pool %u: Entry size %u: Free %u: Used %u: Used high %u: For shrink %u",
+        instance(),
+        pool_index,
+        c_transient_pools[pool_index]->getEntrySize(),
+        c_transient_pools[pool_index]->getNoOfFree(),
+        c_transient_pools[pool_index]->getUsed(),
+        c_transient_pools[pool_index]->getUsedHi(),
+        c_transient_pools_shrinking.get(pool_index));
+    }
+    sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 5000, 1);
+    break;
+  }
+#endif
   case TcContinueB::ZSHRINK_TRANSIENT_POOLS:
   {
     if (signal->getLength() != 2)
@@ -1131,6 +1150,13 @@ void Dbtc::execNDB_STTOR(Signal* signal)
     const Uint32 len = c_counters.build_continueB(signal);
     signal->theData[0] = TcContinueB::ZTRANS_EVENT_REP;
     sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 10, len);
+
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+    /* Start reporting statistics for transient pools */
+    signal->theData[0] = TcContinueB::ZTRANSIENT_POOL_STAT;
+    sendSignal(reference(), GSN_CONTINUEB, signal, 1, JBB);
+#endif
+
     return;
   }
   case ZINTSPH6:

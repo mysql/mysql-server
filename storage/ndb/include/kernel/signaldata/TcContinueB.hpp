@@ -63,7 +63,8 @@ private:
     ,ZDEBUG_DELAY_TCROLLBACKREP            = 24
 #endif
     ,ZSCAN_FOR_READ_BACKUP                 = 25
-    ,ZSHRINK_TRANSIENT_POOLS               = 26
+    ,ZTRANSIENT_POOL_STAT                  = 26
+    ,ZSHRINK_TRANSIENT_POOLS               = 27
   };
 };
 
