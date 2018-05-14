@@ -11796,7 +11796,7 @@ void Dblqh::scanNextLoopLab(Signal* signal,
   /**
    * At this point we don't call send_next_NEXT_SCANREQ since we
    * want to unwind the call stack before entering this function.
-   * scanPtr->in_send_next_scan equal to 1 indicates that we are
+   * m_in_send_next_scan equal to 1 indicates that we are
    * executing this function already and that we will check the
    * result of this function when we return to send_next_NEXT_SCANREQ
    * after unwinding the stack.
@@ -11809,7 +11809,7 @@ void Dblqh::scanNextLoopLab(Signal* signal,
    * We indicate that we have another signal to process by setting
    * m_in_send_next_scan to 2.
    */
-  ndbassert(m_in_send_next_scan == 1);
+  ndbassert(in_send_next_scan == 1);
   m_in_send_next_scan = 2;
 }//Dblqh::scanNextLoopLab()
 
@@ -12977,12 +12977,13 @@ void Dblqh::storedProcConfScanLab(Signal* signal,
     const Uint32 sig0 = scanPtr->scanAccPtr;
     SimulatedBlock *block = scanPtr->scanBlock;
     ExecFunction f = scanPtr->scanFunction_NEXT_SCANREQ;
+    Uint32 in_send_next_scan = m_in_send_next_scan;
     signal->theData[1] = RNIL;
     signal->theData[2] = NextScanReq::ZSCAN_NEXT;
     signal->theData[0] = sig0;
     scanPtr->scanState = ScanRecord::WAIT_NEXT_SCAN;
     scanPtr->scan_lastSeen = __LINE__;
-    if (m_in_send_next_scan == 0)
+    if (likely(in_send_next_scan == 0))
     {
       send_next_NEXT_SCANREQ(signal,
                              block,
@@ -12991,7 +12992,7 @@ void Dblqh::storedProcConfScanLab(Signal* signal,
                              tcConnectptr.p->clientConnectrec);
       return;
     }
-    ndbassert(m_in_send_next_scan == 1);
+    ndbassert(in_send_next_scan == 1);
     m_in_send_next_scan = 2;
     return;
   }
@@ -14768,21 +14769,21 @@ void Dblqh::send_next_NEXT_SCANREQ(Signal* signal,
 #define ZABS_MAX_SCAN_DIRECT_COUNT 128
 #define ZMICROS_TO_WAIT_IN_JBB_WITH_MARGIN 500
 #define ZROWS_PER_MICRO 2
+
   Uint32 prioAFlag = scanPtr->prioAFlag;
   Uint32 cnf_max_scan_direct_count = c_max_scan_direct_count;
-  Uint32 scan_direct_count = 0; // TODO RONM
   Uint32 max_scan_direct_count = scanPtr->m_reserved == 1 ?
-                                 (prioAFlag ? (ZRESERVED_SCAN_BATCH_SIZE + 1) :
-                                  ZMAX_SCAN_DIRECT_COUNT) :
-                                 cnf_max_scan_direct_count;
-  bool max_words_reached =
-    c_backup->get_max_words_per_scan_batch(prioAFlag,
+                (prioAFlag ? ((2 * ZRESERVED_SCAN_BATCH_SIZE) + 2) :
+                   ZMAX_SCAN_DIRECT_COUNT) :
+                cnf_max_scan_direct_count;
+  do
+  {
+    Uint32 scan_direct_count = m_scan_direct_count;
+    bool max_words_reached =
+      c_backup->get_max_words_per_scan_batch(prioAFlag,
                                  scanPtr->m_exec_direct_batch_size_words,
                                  scanPtr->lcpScan,
                                  clientPtrI);
-
-  do
-  {
     if (scan_direct_count >= max_scan_direct_count ||
         max_words_reached)
     {
@@ -14820,15 +14821,13 @@ void Dblqh::send_next_NEXT_SCANREQ(Signal* signal,
       Uint32 tot_scan_direct_count = m_tot_scan_direct_count +
                                        scan_direct_count;
       Uint32 tot_scan_limit = ZABS_MAX_SCAN_DIRECT_COUNT;
-      if (jbb_level > 4)
+      if (jbb_level >= 8)
       {
         jamDebug();
         tot_scan_limit = (ZMICROS_TO_WAIT_IN_JBB_WITH_MARGIN *
                           ZROWS_PER_MICRO) / jbb_level;
       }
-      Uint32 exec_direct_batch_size_words = 0; //TODO RONM
-      if (exec_direct_batch_size_words <
-          ZMAX_WORDS_PER_SCAN_BATCH_HIGH_PRIO &&
+      if (!max_words_reached &&
           tot_scan_direct_count < tot_scan_limit)
       {
         scan_direct_count = 1;
@@ -14854,14 +14853,6 @@ void Dblqh::send_next_NEXT_SCANREQ(Signal* signal,
           sendSignal(reference(), GSN_ACC_CHECK_SCAN, signal, 4, JBB);
           return;
         }
-        if (exec_direct_batch_size_words > ZMAX_WORDS_PER_SCAN_BATCH_HIGH_PRIO)
-        {
-          /**
-           * See Backup.cpp for explanation of this limit and how it is derived
-           */
-          jamDebug();
-          prioAFlag = false;
-        }
         scanPtr->m_exec_direct_batch_size_words = 0;
         if (prioAFlag)
         {
@@ -14871,17 +14862,12 @@ void Dblqh::send_next_NEXT_SCANREQ(Signal* signal,
           {
             c_backup->pausing_lcp(4, scan_direct_count);
           }
-          sendSignal(reference(), GSN_ACC_CHECK_SCAN, signal, 4, JBA);
-          return;
         }
-        else
-        {
-          /* Prioritised scan operation */
-          jamDebug();
-          sendSignalWithDelay(reference(), GSN_ACC_CHECK_SCAN,
-                              signal, BOUNDED_DELAY, 4);
-          return;
-        }
+        /* Prioritised scan operation */
+        jamDebug();
+        sendSignalWithDelay(reference(), GSN_ACC_CHECK_SCAN,
+                            signal, BOUNDED_DELAY, 4);
+        return;
       }
     }
     jamDebug();
@@ -14950,7 +14936,6 @@ void Dblqh::sendScanFragConf(Signal* signal,
     scanPtr->m_curr_batch_size_rows = 0;
     scanPtr->m_curr_batch_size_bytes= 0;
   }
-  //scanPtr->scan_direct_count = 1; TODO RONM
   scanPtr->m_stop_batch = 0;
   ScanFragConf * conf = (ScanFragConf*)&signal->theData[0];
 #ifdef NOT_USED
@@ -16010,6 +15995,7 @@ void Dblqh::nextRecordCopy(Signal* signal,
   SimulatedBlock *block = scanPtr->scanBlock;
   ExecFunction f = scanPtr->scanFunction_NEXT_SCANREQ;
   const Uint32 sig0 = scanPtr->scanAccPtr;
+  Uint32 in_send_next_scan = m_in_send_next_scan;
 
   /**
    * Here I can assign theData[1] through acc_op_ptr in the case of
@@ -16026,7 +16012,7 @@ void Dblqh::nextRecordCopy(Signal* signal,
    */
   scanPtr->scanState = ScanRecord::WAIT_NEXT_SCAN_COPY;
   scanPtr->scan_lastSeen = __LINE__;
-  if (m_in_send_next_scan == 0)
+  if (unlikely(in_send_next_scan == 0))
   {
     send_next_NEXT_SCANREQ(signal,
                            block,
@@ -16035,7 +16021,7 @@ void Dblqh::nextRecordCopy(Signal* signal,
                            regTcPtr->clientConnectrec);
     return;
   }
-  ndbassert(m_in_send_next_scan == 1);
+  ndbassert(in_send_next_scan == 1);
   m_in_send_next_scan = 2;
   /**
    * See explanation in scanNextLoopLab(...)
