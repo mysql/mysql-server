@@ -915,3 +915,29 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 #Drop tables
 drop table t2, t1;
+#
+# Bug#27930382 : FOREIGN KEY CONSTRAINT VIOLATIONS INCORRECTLY REPORTED
+
+create table t1 (
+kol1 int primary key,
+kol2 int not null,
+kol3 int not null,
+kol4 int not null,
+kol5 int not null,
+unique key uq1(kol2),
+foreign key fk1(kol3) references t1(kol2) on update restrict on delete restrict
+) engine = ndb;
+insert into t1 values (1,1,1,1,1);
+delete from t1 where kol1=1;
+drop table t1;
+create table t1 (
+kol1 int primary key,
+kol2 int not null,
+kol3 int not null,
+kol4 int not null,
+kol5 int not null,
+foreign key fk1(kol3) references t1(kol1) on update restrict on delete restrict
+) engine = ndb;
+insert into t1 values (1,1,1,1,1);
+delete from t1 where kol1=1;
+drop table t1;

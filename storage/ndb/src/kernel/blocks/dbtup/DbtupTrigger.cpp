@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -388,7 +388,19 @@ Dbtup::createTrigger(Tablerec* table,
     ndbrequire(tmp[i].list != NULL);
 
     TriggerPtr tptr;
-    if (!tmp[i].list->seizeFirst(tptr))
+    bool inserted;
+    /**
+     * FK constraints has to be checked after any SECONDARY_INDEX triggers
+     * which updates the indexes possible referred by the constraints. So
+     * we always insert the FK-constraint last in the list of triggers.
+     */
+    if (ttype == TriggerType::FK_CHILD ||
+        ttype == TriggerType::FK_PARENT)
+      inserted = tmp[i].list->seizeLast(tptr);
+    else
+      inserted = tmp[i].list->seizeFirst(tptr);
+
+    if (!inserted)
     {
       jam();
       goto err;
@@ -909,8 +921,7 @@ void Dbtup::checkDeferredTriggers(KeyReqStruct *req_struct,
     break;
   }
 
-  if (deferred_list->isEmpty() &&
-      (constraint_list == 0 || constraint_list->isEmpty()))
+  if (deferred_list->isEmpty() && constraint_list->isEmpty())
   {
     jam();
     goto end;
@@ -926,7 +937,7 @@ void Dbtup::checkDeferredTriggers(KeyReqStruct *req_struct,
     fireDeferredTriggers(req_struct, * deferred_list, regOperPtr, disk);
   }
 
-  if (constraint_list && !constraint_list->isEmpty())
+  if (!constraint_list->isEmpty())
   {
     jam();
     fireDeferredConstraints(req_struct, * constraint_list, regOperPtr, disk);
