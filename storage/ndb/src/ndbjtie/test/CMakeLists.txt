@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -112,17 +112,20 @@ ADD_TEST(
 
 SET(UNLOAD_TEST "com.mysql.jtie.test.MyLoadUnloadTest")
 
-ADD_TEST(
-  NAME test_ndbjtie_unload_mutils
-  COMMAND
-  ${Java_JAVA_EXECUTABLE_PATH} ${Java_JAVA_ARCH_OPT} "-ea" "-Xcheck:jni"
-  "-classpath" "${TEST_JAR}:${NDBJTIE_JAR}:${UNLOAD_TEST_JAR}"
-  "-Djava.library.path=${NDBCLIENT_DIR}:${BIN_DIR}"
-  "-D${UNLOAD_TEST}.target_package_prefixes=test.,com.mysql.ndbjtie."
-  "-D${UNLOAD_TEST}.target_class_name=test.MySqlUtilsTest"
-  "-D${UNLOAD_TEST}.target_method_name=test"
-  "test.MyLoadUnloadTest"
-)
+# Disable the test, while we wait for Bug#27869124 to be fixed.
+
+#ADD_TEST(
+#  NAME test_ndbjtie_unload_mutils
+#  COMMAND
+#  ${Java_JAVA_EXECUTABLE_PATH} ${Java_JAVA_ARCH_OPT} "-ea" "-Xcheck:jni"
+#  "-classpath" "${TEST_JAR}:${NDBJTIE_JAR}:${UNLOAD_TEST_JAR}"
+#  "-Djava.library.path=${NDBCLIENT_DIR}:${BIN_DIR}"
+#  "-D${UNLOAD_TEST}.target_package_prefixes=test.,com.mysql.ndbjtie."
+#  "-D${UNLOAD_TEST}.target_class_name=test.MySqlUtilsTest"
+#  "-D${UNLOAD_TEST}.target_method_name=test"
+#  "test.MyLoadUnloadTest"
+#)
+
 
 ADD_TEST(
   NAME test_ndbjtie_unload_constants
