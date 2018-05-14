@@ -11135,7 +11135,7 @@ Uint32 Dblqh::rt_break_is_scan_prioritised(Uint32 scan_ptr_i)
   ScanRecordPtr scanPtr;
   scanPtr.i = scan_ptr_i;
   c_scanRecordPool.getPtr(scanPtr);
-  scanPtr.p->scan_direct_count = 1; /* Initialise before rt break */
+  m_scan_direct_count = 1; /* Initialise before rt break */
   return is_prioritised_scan(scanPtr.p->scanApiBlockref);
 }
 
@@ -11198,14 +11198,6 @@ void Dblqh::execNEXT_SCANREF(Signal* signal)
  *  signal[8] and call accScanConf{Scan|Copy}Lab()
  *  directly if OK.
  */
-Uint32 Dblqh::get_is_scan_prioritised(Uint32 scan_ptr_i)
-{
-  ScanRecordPtr scanPtr;
-  scanPtr.i = scan_ptr_i;
-  c_scanRecordPool.getPtr(scanPtr);
-  return is_prioritised_scan(scanPtr.p->scanApiBlockref);
-}
-
 Uint32
 Dblqh::get_scan_api_op_ptr(Uint32 scan_api_ptr_i)
 {
@@ -14778,7 +14770,7 @@ void Dblqh::send_next_NEXT_SCANREQ(Signal* signal,
 #define ZROWS_PER_MICRO 2
   Uint32 prioAFlag = scanPtr->prioAFlag;
   Uint32 cnf_max_scan_direct_count = c_max_scan_direct_count;
-  const Uint32 scan_direct_count = scanPtr->scan_direct_count;
+  Uint32 scan_direct_count = 0; // TODO RONM
   Uint32 max_scan_direct_count = scanPtr->m_reserved == 1 ?
                                  (prioAFlag ? (ZRESERVED_SCAN_BATCH_SIZE + 1) :
                                   ZMAX_SCAN_DIRECT_COUNT) :
@@ -14834,6 +14826,7 @@ void Dblqh::send_next_NEXT_SCANREQ(Signal* signal,
         tot_scan_limit = (ZMICROS_TO_WAIT_IN_JBB_WITH_MARGIN *
                           ZROWS_PER_MICRO) / jbb_level;
       }
+      Uint32 exec_direct_batch_size_words = 0; //TODO RONM
       if (exec_direct_batch_size_words <
           ZMAX_WORDS_PER_SCAN_BATCH_HIGH_PRIO &&
           tot_scan_direct_count < tot_scan_limit)
@@ -14957,7 +14950,7 @@ void Dblqh::sendScanFragConf(Signal* signal,
     scanPtr->m_curr_batch_size_rows = 0;
     scanPtr->m_curr_batch_size_bytes= 0;
   }
-  scanPtr->scan_direct_count = 1;
+  //scanPtr->scan_direct_count = 1; TODO RONM
   scanPtr->m_stop_batch = 0;
   ScanFragConf * conf = (ScanFragConf*)&signal->theData[0];
 #ifdef NOT_USED

@@ -1326,9 +1326,6 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
 
   prepare_fragptr = regFragPtr;
   prepare_tabptr = regTabPtr;
-  PagePtr page;
-  Tuple_header* tuple_ptr= (Tuple_header*)
-    get_ptr(&page, &regOperPtr.p->m_tuple_location, regTabPtr.p);
 
   /**
    * NOTE: This has to be run before potential time-slice when
