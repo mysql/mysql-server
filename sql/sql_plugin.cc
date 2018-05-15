@@ -2741,6 +2741,10 @@ static bool *mysql_sys_var_bool(THD *thd, int offset) {
   return (bool *)intern_sys_var_ptr(thd, offset, true);
 }
 
+static int *mysql_sys_var_int(THD *thd, int offset) {
+  return (int *)intern_sys_var_ptr(thd, offset, true);
+}
+
 static unsigned int *mysql_sys_var_uint(THD *thd, int offset) {
   return (unsigned int *)intern_sys_var_ptr(thd, offset, true);
 }
@@ -3043,7 +3047,13 @@ static int construct_options(MEM_ROOT *mem_root, st_plugin_int *tmp,
       case PLUGIN_VAR_INT:
         // All PLUGIN_VAR_INT variables are actually uint,
         // see struct System_variables
-        ((thdvar_uint_t *)opt)->resolve = mysql_sys_var_uint;
+        // Except: plugin variables declared with MYSQL_THDVAR_INT,
+        // which may actually be signed.
+        if (((thdvar_int_t *)opt)->offset == -1 &&
+            !(opt->flags & PLUGIN_VAR_UNSIGNED))
+          ((thdvar_int_t *)opt)->resolve = mysql_sys_var_int;
+        else
+          ((thdvar_uint_t *)opt)->resolve = mysql_sys_var_uint;
         break;
       case PLUGIN_VAR_LONG:
         // All PLUGIN_VAR_LONG variables are actually ulong,
