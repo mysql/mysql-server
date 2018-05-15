@@ -55,6 +55,11 @@ struct data_page_t : public basic_page_t {
   @param[in]	block	the buffer block.*/
   data_page_t(buf_block_t *block) : basic_page_t(block, nullptr, nullptr) {}
 
+  /** Allocate an LOB data page.
+   * @param[in] alloc_mtr	the mini transaction to be used for
+   *                            allocation of LOB page.
+   * @param[in] is_bulk		true if bulk operation.
+   * @return allocated buffer block or nullptr */
   buf_block_t *alloc(mtr_t *alloc_mtr, bool is_bulk);
 
   buf_block_t *load_x(page_no_t page_no);

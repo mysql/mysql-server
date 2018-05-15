@@ -447,6 +447,8 @@ dberr_t btr_store_big_rec_extern_fields(trx_t *trx, btr_pcur_t *pcur,
               break;
             case DB_FAIL:
               break;
+            case DB_OUT_OF_FILE_SPACE:
+              break;
             default:
               ut_error;
           }
