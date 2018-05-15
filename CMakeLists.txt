@@ -315,6 +315,7 @@ INCLUDE(install_layout)
 INCLUDE(mysql_add_executable)
 INCLUDE(mysqlgcs)
 INCLUDE(curl)
+INCLUDE(rapidjson)
 
 OPTION(DISABLE_SHARED 
  "Don't build shared libraries, compile code as position-dependent" OFF)
@@ -713,7 +714,6 @@ INCLUDE(configure.cmake)
 # Common defines and includes
 ADD_DEFINITIONS(-DHAVE_CONFIG_H)
 ADD_DEFINITIONS(-DHAVE_OPENSSL)            # TODO: remove #ifdef from C++ code
-ADD_DEFINITIONS(-DRAPIDJSON_NO_SIZETYPEDEFINE)
 ADD_DEFINITIONS(-D__STDC_LIMIT_MACROS)     # Enable C99 limit macros
 ADD_DEFINITIONS(-D__STDC_FORMAT_MACROS)    # Enable C99 printf format macros
 ADD_DEFINITIONS(-D_USE_MATH_DEFINES)       # Get access to M_PI, M_E, etc. in math.h
@@ -742,6 +742,7 @@ SET(SYSTEM_LIBRARIES
   LZ4
 # LZMA     use bundled by default here
   PROTOBUF
+  RAPIDJSON
   RE2
   SSL
   ZLIB
@@ -808,8 +809,7 @@ ENDIF()
 # Try and set CURL_LIBRARY
 MYSQL_CHECK_CURL()
 # Add RapidJSON library.
-# TODO: Support -DWITH_RAPIDJSON=system.
-INCLUDE_DIRECTORIES(SYSTEM ${CMAKE_SOURCE_DIR}/extra/rapidjson/include)
+MYSQL_CHECK_RAPIDJSON()
 
 IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
   # Check for pthread_setname_np

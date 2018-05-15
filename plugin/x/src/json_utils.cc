@@ -26,13 +26,14 @@
 
 #include <cctype>
 
+#include "my_rapidjson_size_t.h"  // IWYU pragma: keep
+
+#include <rapidjson/document.h>
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/writer.h>
 #include "include/my_dbug.h"
-#include "include/my_rapidjson_size_t.h"
 #include "plugin/x/src/xpl_error.h"
 #include "plugin/x/src/xpl_regex.h"
-#include "rapidjson/document.h"
-#include "rapidjson/stringbuffer.h"
-#include "rapidjson/writer.h"
 
 namespace xpl {
 

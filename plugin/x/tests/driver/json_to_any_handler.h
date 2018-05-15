@@ -29,10 +29,11 @@
 #include <stack>
 
 #include "my_rapidjson_size_t.h"  // IWYU pragma: keep
+
+#include <rapidjson/document.h>
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/writer.h>
 #include "plugin/x/client/mysqlxclient/xmessage.h"
-#include "rapidjson/document.h"
-#include "rapidjson/stringbuffer.h"
-#include "rapidjson/writer.h"
 
 class Json_to_any_handler
     : public rapidjson::BaseReaderHandler<rapidjson::UTF8<>,
