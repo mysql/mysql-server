@@ -37,7 +37,6 @@ SET (DEB_RULES_DEBUG_CMAKE
 		-DINSTALL_SBINDIR=sbin \\
 		-DSYSCONFDIR=/etc/mysql \\
 		-DMYSQL_UNIX_ADDR=/var/run/mysqld/mysqld.sock \\
-		-DWITH_SSL=bundled \\
 		-DWITH_INNODB_MEMCACHED=1 \\
 		-DWITH_MECAB=system \\
 		-DWITH_NUMA=ON \\
