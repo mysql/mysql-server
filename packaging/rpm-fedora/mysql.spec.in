@@ -26,9 +26,6 @@
 %global mysql_vendor Oracle and/or its affiliates
 %global mysqldatadir /var/lib/mysql
 
-# By default, a build will include the bundeled "yaSSL" library for SSL.
-%{?with_ssl: %global ssl_option -DWITH_SSL=%{with_ssl}}
-
 # Regression tests may take a long time, override the default to skip them
 %{!?runselftest:%global runselftest 1}
 
@@ -471,7 +468,6 @@ mkdir debug
            -DMYSQLX_UNIX_ADDR="/var/run/mysqld/mysqlx.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DWITH_NUMA=ON \
-           %{?ssl_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
            -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
   echo BEGIN_DEBUG_CONFIG ; egrep '^#define' include/config.h ; echo END_DEBUG_CONFIG
@@ -511,7 +507,6 @@ mkdir release
            -DMYSQLX_UNIX_ADDR="/var/run/mysqld/mysqlx.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DWITH_NUMA=ON \
-           %{?ssl_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
            -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
   echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
