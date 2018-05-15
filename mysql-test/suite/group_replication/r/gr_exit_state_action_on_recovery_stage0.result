@@ -13,6 +13,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 SET sql_log_bin = 0;
 call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': Error 'Table 't1'*");
 call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': Worker [0-9] failed executing transaction*");
+call mtr.add_suppression("Error writing relay log configuration.");
 call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': ... The slave coordinator and worker threads are stopped,*");
 call mtr.add_suppression("Slave: Table 't1' already exists Error_code:*");
 call mtr.add_suppression("The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.");
