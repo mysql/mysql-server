@@ -29,9 +29,6 @@
 # Pass --define 'with_cluster 1' to build with cluster support
 %{?with_cluster: %global cluster 1}
 
-# Pass on choice of SSL to build with
-%{?with_ssl: %global ssl_option -DWITH_SSL=%{with_ssl}}
-
 # Pass path to mecab lib
 %{?with_mecab: %global mecab_option -DWITH_MECAB=%{with_mecab}}
 %{?with_mecab: %global mecab 1}
@@ -714,7 +711,6 @@ mkdir debug
 %if 0%{?rhel} > 5
            -DWITH_NUMA=ON \
 %endif
-           %{?ssl_option} \
            %{?mecab_option} \
            %{?aws_sdk_option} \
            %{?curl_lib_option} \
@@ -756,7 +752,6 @@ mkdir release
 %if 0%{?rhel} > 5
            -DWITH_NUMA=ON \
 %endif
-           %{?ssl_option} \
            %{?mecab_option} \
            %{?aws_sdk_option} \
            %{?curl_lib_option} \

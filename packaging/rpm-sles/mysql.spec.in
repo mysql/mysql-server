@@ -26,9 +26,6 @@
 # Pass --define 'with_cluster 1' to build with cluster support
 %{?with_cluster: %global cluster 1}
 
-# By default, a build will include the bundeled "yaSSL" library for SSL.
-%{?with_ssl: %global ssl_option -DWITH_SSL=%{with_ssl}}
-
 # Pass path to mecab lib
 %{?with_mecab: %global mecab_option -DWITH_MECAB=%{with_mecab}}
 %{?with_mecab: %global mecab 1}
@@ -566,7 +563,6 @@ mkdir debug
            -DMYSQLX_UNIX_ADDR="/var/run/mysql/mysqlx.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DWITH_NUMA=ON \
-           %{?ssl_option} \
            %{?mecab_option} \
            %{?aws_sdk_option} \
            %{?curl_lib_option} \
@@ -610,7 +606,6 @@ mkdir release
            -DMYSQLX_UNIX_ADDR="/var/run/mysql/mysqlx.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DWITH_NUMA=ON \
-           %{?ssl_option} \
            %{?mecab_option} \
            %{?aws_sdk_option} \
            %{?curl_lib_option} \
