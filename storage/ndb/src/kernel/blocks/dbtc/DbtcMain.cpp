@@ -9804,28 +9804,7 @@ void Dbtc::timeOutLoopStartFragLab(Signal* signal, Uint32 TscanConPtr)
       return;
     }//if
   }//while
-  while (TscanConPtr != RNIL)
-  {
-    jam();
-    if ((c_scan_frag_pool.getUncheckedPtrs(&TscanConPtr, timeOutPtr, 1) == 0) ||
-        (!Magic::match(timeOutPtr[0].p->m_magic, ScanFragRec::TYPE_ID)))
-    {
-      continue;
-    }
-    if (timeOutPtr[0].p->scanFragTimer != 0) {
-      texpiredTime[0] = ctcTimer - timeOutPtr[0].p->scanFragTimer;
-      if (texpiredTime[0] > ctimeOutValue) {
-        jam();
-	DEBUG("Fragment timeout found:"<<
-	      " ctimeOutValue=" <<ctimeOutValue
-	      <<", texpiredTime="<<texpiredTime[0]<<endl
-		<<"      tfragTimer="<<tfragTimer[0]
-		<<", ctcTimer="<<ctcTimer);
-        timeOutFoundFragLab(signal, timeOutPtr[0].i);
-        return;
-      }//if
-    }//if
-  }//for  
+  ndbrequire(TscanConPtr == RNIL);
   ctimeOutCheckFragActive = TOCS_FALSE;
 
   return;
@@ -13316,13 +13295,9 @@ Dbtc::initScanrec(ScanRecordPtr scanptr,
 errout:
   {
     ScanFragRecPtr ptr;
-    bool found = list.first(ptr);
-    while (found)
+    while (list.removeFirst(ptr))
     {
-      ScanFragRecPtr old_ptr = ptr;
-      ptr.p->scanFragState = ScanFragRec::COMPLETED;
-      found = list.next(ptr);
-      list.release(old_ptr);
+      c_scan_frag_pool.release(ptr);
     }
   }
   Signal signal[1];
@@ -13783,23 +13758,13 @@ void Dbtc::releaseScanResources(Signal* signal,
     Local_ScanFragRec_dllist run(c_scan_frag_pool, scanPtr.p->m_running_scan_frags);
     Local_ScanFragRec_dllist queue(c_scan_frag_pool, scanPtr.p->m_queued_scan_frags);
     ScanFragRecPtr ptr;
-    bool found = run.first(ptr);
-    while (found)
+    while (run.removeFirst(ptr))
     {
-      ScanFragRecPtr old_ptr = ptr;
-      ptr.p->scanFragState = ScanFragRec::COMPLETED;
-      found = run.next(ptr);
-      run.remove(old_ptr);
-      c_scan_frag_pool.release(old_ptr);
+      c_scan_frag_pool.release(ptr);
     }
-    found = queue.first(ptr);
-    while (found)
+    while (queue.removeFirst(ptr))
     {
-      ScanFragRecPtr old_ptr = ptr;
-      ptr.p->scanFragState = ScanFragRec::COMPLETED;
-      found = queue.next(ptr);
-      queue.remove(old_ptr);
-      c_scan_frag_pool.release(old_ptr);
+      c_scan_frag_pool.release(ptr);
     }
     checkPoolShrinkNeed(signal,
                         DBTC_SCAN_FRAGMENT_TRANSIENT_POOL_INDEX,
