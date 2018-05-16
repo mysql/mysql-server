@@ -366,12 +366,14 @@ dberr_t z_insert_chunk(dict_index_t *index, z_first_page_t &first, trx_t *trx,
                       bulk, z_page_no, z_frag_id);
 
   if (err != DB_SUCCESS) {
+    deflateEnd(&strm);
     return (err);
   }
 
   z_index_entry_t entry = first.alloc_index_entry(bulk);
 
   if (entry.is_null()) {
+    deflateEnd(&strm);
     return (DB_OUT_OF_FILE_SPACE);
   }
 
