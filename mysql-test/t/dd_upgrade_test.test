@@ -408,15 +408,7 @@ optimize table sakila.film_text;
 
 --echo # Check if .ibds have SDI after upgrade
 
-# Extract saved JSON to tmp dir
---let $SRC_DIR=$MYSQL_TMP_DIR/sdi_src
---error 0,1
---force-rmdir $SRC_DIR
---mkdir $SRC_DIR
---copy_file $MYSQLTEST_VARDIR/std_data/dd_upgrade_test_jsons.zip $SRC_DIR/dd_upgrade_test_jsons.zip
-
-# Unzip the JSONs zip file
---exec unzip -qo $SRC_DIR/dd_upgrade_test_jsons.zip -d $SRC_DIR
+--let $SRC_DIR=$MYSQL_TEST_DIR/std_data/dd/sdi/upgrade
 
 # Create a directory to store json generated
 --let $DEST_DIR=$MYSQL_TMP_DIR/sdi_dest/
@@ -680,17 +672,14 @@ if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/test_tablespace_2.json $JSON_FILE_PATH
 }
 
---force-rmdir $SRC_DIR
-
-if ($MTR_RECORD == 0) {
---force-rmdir $DEST_DIR
+# If --record is used, save the json files created in the $DEST_DIR
+# back to the $SRC_DIR.
+if ($RECORD == 1) {
+--copy_files_wildcard $DEST_DIR $SRC_DIR *.json
 }
 
-if ($MTR_RECORD == 1) {
---exec zip -r -j $MYSQL_TMP_DIR/sdi.zip $DEST_DIR 2>&1 > /dev/null
---move_file $MYSQL_TMP_DIR/sdi.zip $MYSQL_TEST_DIR/std_data/dd_upgrade_test_jsons.zip
+--echo # Remove json files
 --force-rmdir $DEST_DIR
-}
 
 --echo # Remove copied files
 --force-rmdir $MYSQL_TMP_DIR/data57

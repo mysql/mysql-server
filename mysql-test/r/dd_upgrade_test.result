@@ -822,6 +822,7 @@ sakila.film_text	optimize	status	OK
 # Check SDI from ibdata1
 # Check SDI from test_tablespace_3.ibd
 # Check SDI from test_tablespace_2.ibd
+# Remove json files
 # Remove copied files
 #
 # Bug#26944731 : UPGRADE TO 8.0 FAILS: DUPLICATE SET VALUES IN TABLE FROM A PERMISSIVE SQL_MODE..

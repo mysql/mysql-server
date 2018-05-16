@@ -23,6 +23,7 @@ t1	CREATE TABLE `t1` (
 # Check SDI from sys_config.ibd
 # Check SDI from t1#P#p1.ibd
 # Check SDI from t1#P#p0.ibd
+# Remove json files
 # Remove copied files
 # Restart the server with default options.
 # restart

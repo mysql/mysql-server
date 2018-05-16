@@ -6,11 +6,11 @@
 	"object":
 		{
     "mysqld_version_id": X,
-    "dd_version": 1,
+    "dd_version": X,
     "sdi_version": 1,
     "dd_object_type": "Table",
     "dd_object": {
-        "name": "sys_config",
+        "name": "t14",
         "mysql_version_id": X,
         "created": NNN,
         "last_altered": NNN,
@@ -18,16 +18,52 @@
         "options": "avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;stats_auto_recalc=0;stats_sample_pages=0;",
         "columns": [
             {
-                "name": "variable",
+                "name": "i",
+                "type": 4,
+                "is_nullable": false,
+                "is_zerofill": false,
+                "is_unsigned": true,
+                "is_auto_increment": true,
+                "is_virtual": false,
+                "hidden": 1,
+                "ordinal_position": 1,
+                "char_length": 10,
+                "numeric_precision": 10,
+                "numeric_scale": 0,
+                "numeric_scale_null": false,
+                "datetime_precision": 0,
+                "datetime_precision_null": 1,
+                "has_no_default": false,
+                "default_value_null": false,
+                "srs_id_null": true,
+                "srs_id": 0,
+                "default_value": "",
+                "default_value_utf8_null": true,
+                "default_value_utf8": "",
+                "default_option": "",
+                "update_option": "",
+                "comment": "",
+                "generation_expression": "",
+                "generation_expression_utf8": "",
+                "options": "interval_count=0;",
+                "se_private_data": "table_id=X",
+                "column_key": 2,
+                "column_type_utf8": "int(10) unsigned",
+                "elements": [],
+                "collation_id": 255,
+                "is_explicit_collation": false
+            },
+            {
+                "name": "a",
                 "type": 16,
                 "is_nullable": false,
                 "is_zerofill": false,
                 "is_unsigned": false,
                 "is_auto_increment": false,
                 "is_virtual": false,
-                "hidden": false,
-                "ordinal_position": 1,
-                "char_length": 384,
+                "hidden": 1,
+                "ordinal_position": 2,
+                "char_length": 1020,
                 "numeric_precision": 0,
                 "numeric_scale": 0,
                 "numeric_scale_null": true,
@@ -46,93 +82,24 @@
                 "generation_expression": "",
                 "generation_expression_utf8": "",
                 "options": "interval_count=0;",
-                "se_private_data": "",
-                "column_key": 2,
-                "column_type_utf8": "varchar(128)",
+                "se_private_data": "table_id=X",
+                "column_key": 4,
+                "column_type_utf8": "varchar(255)",
                 "elements": [],
-                "collation_id": 33
+                "collation_id": 255,
+                "is_explicit_collation": false
             },
             {
-                "name": "value",
-                "type": 16,
-                "is_nullable": true,
-                "is_zerofill": false,
-                "is_unsigned": false,
-                "is_auto_increment": false,
-                "is_virtual": false,
-                "hidden": false,
-                "ordinal_position": 2,
-                "char_length": 384,
-                "numeric_precision": 0,
-                "numeric_scale": 0,
-                "numeric_scale_null": true,
-                "datetime_precision": 0,
-                "datetime_precision_null": 1,
-                "has_no_default": false,
-                "default_value_null": true,
-                "srs_id_null": true,
-                "srs_id": 0,
-                "default_value": "",
-                "default_value_utf8_null": true,
-                "default_value_utf8": "",
-                "default_option": "",
-                "update_option": "",
-                "comment": "",
-                "generation_expression": "",
-                "generation_expression_utf8": "",
-                "options": "interval_count=0;",
-                "se_private_data": "",
-                "column_key": 1,
-                "column_type_utf8": "varchar(128)",
-                "elements": [],
-                "collation_id": 33
-            },
-            {
-                "name": "set_time",
-                "type": 18,
+                "name": "FTS_DOC_ID",
+                "type": 9,
                 "is_nullable": false,
                 "is_zerofill": false,
-                "is_unsigned": false,
+                "is_unsigned": true,
                 "is_auto_increment": false,
                 "is_virtual": false,
-                "hidden": false,
+                "hidden": 2,
                 "ordinal_position": 3,
-                "char_length": 19,
-                "numeric_precision": 0,
-                "numeric_scale": 0,
-                "numeric_scale_null": true,
-                "datetime_precision": 0,
-                "datetime_precision_null": 0,
-                "has_no_default": false,
-                "default_value_null": false,
-                "srs_id_null": true,
-                "srs_id": 0,
-                "default_value": "",
-                "default_value_utf8_null": false,
-                "default_value_utf8": "CURRENT_TIMESTAMP",
-                "default_option": "CURRENT_TIMESTAMP",
-                "update_option": "CURRENT_TIMESTAMP",
-                "comment": "",
-                "generation_expression": "",
-                "generation_expression_utf8": "",
-                "options": "interval_count=0;",
-                "se_private_data": "",
-                "column_key": 1,
-                "column_type_utf8": "timestamp",
-                "elements": [],
-                "collation_id": 8
-            },
-            {
-                "name": "set_by",
-                "type": 16,
-                "is_nullable": true,
-                "is_zerofill": false,
-                "is_unsigned": false,
-                "is_auto_increment": false,
-                "is_virtual": false,
-                "hidden": false,
-                "ordinal_position": 4,
-                "char_length": 384,
+                "char_length": 0,
                 "numeric_precision": 0,
                 "numeric_scale": 0,
                 "numeric_scale_null": true,
@@ -150,12 +117,13 @@
                 "comment": "",
                 "generation_expression": "",
                 "generation_expression_utf8": "",
-                "options": "interval_count=0;",
-                "se_private_data": "",
+                "options": "",
+                "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "varchar(128)",
+                "column_type_utf8": "",
                 "elements": [],
-                "collation_id": 33
+                "collation_id": 1,
+                "is_explicit_collation": false
             },
             {
                 "name": "DB_TRX_ID",
@@ -165,8 +133,8 @@
                 "is_unsigned": false,
                 "is_auto_increment": false,
                 "is_virtual": false,
-                "hidden": true,
-                "ordinal_position": 5,
+                "hidden": 2,
+                "ordinal_position": 4,
                 "char_length": 6,
                 "numeric_precision": 0,
                 "numeric_scale": 0,
@@ -186,11 +154,12 @@
                 "generation_expression": "",
                 "generation_expression_utf8": "",
                 "options": "",
-                "se_private_data": "",
+                "se_private_data": "table_id=X",
                 "column_key": 1,
                 "column_type_utf8": "",
                 "elements": [],
-                "collation_id": 63
+                "collation_id": 63,
+                "is_explicit_collation": false
             },
             {
                 "name": "DB_ROLL_PTR",
@@ -200,8 +169,8 @@
                 "is_unsigned": false,
                 "is_auto_increment": false,
                 "is_virtual": false,
-                "hidden": true,
-                "ordinal_position": 6,
+                "hidden": 2,
+                "ordinal_position": 5,
                 "char_length": 7,
                 "numeric_precision": 0,
                 "numeric_scale": 0,
@@ -221,18 +190,19 @@
                 "generation_expression": "",
                 "generation_expression_utf8": "",
                 "options": "",
-                "se_private_data": "",
+                "se_private_data": "table_id=X",
                 "column_key": 1,
                 "column_type_utf8": "",
                 "elements": [],
-                "collation_id": 63
+                "collation_id": 63,
+                "is_explicit_collation": false
             }
         ],
-        "schema_ref": "sys",
+        "schema_ref": "test",
         "se_private_id":NNN,
         "engine": "InnoDB",
         "comment": "",
-        "se_private_data": "",
+        "se_private_data": "autoinc=0;version=0;",
         "row_format": 2,
         "partition_type": 0,
         "partition_expression": "",
@@ -249,7 +219,7 @@
                 "is_generated": false,
                 "ordinal_position": 1,
                 "comment": "",
-                "options": "flags=32;",
+                "options": "flags=0;",
                 "se_private_data": "id=A;root=B;space_id=C;table_id=D;trx_id=E",
                 "type": 1,
                 "algorithm": 2,
@@ -259,7 +229,7 @@
                 "elements": [
                     {
                         "ordinal_position": 1,
-                        "length": 384,
+                        "length": 4,
                         "order": 2,
                         "column_opx": 0
                     },
@@ -267,39 +237,85 @@
                         "ordinal_position": 2,
                         "length": 4294967295,
                         "order": 2,
-                        "column_opx": 4
+                        "column_opx": 3
                     },
                     {
                         "ordinal_position": 3,
                         "length": 4294967295,
                         "order": 2,
-                        "column_opx": 5
+                        "column_opx": 4
                     },
                     {
                         "ordinal_position": 4,
                         "length": 4294967295,
                         "order": 2,
                         "column_opx": 1
+                    }
+                ],
+                "tablespace_ref": "test/t14"
+            },
+            {
+                "name": "a",
+                "hidden": false,
+                "is_generated": false,
+                "ordinal_position": 2,
+                "comment": "",
+                "options": "flags=32;",
+                "se_private_data": "id=A;root=B;space_id=C;table_id=D;trx_id=E",
+                "type": 4,
+                "algorithm": 5,
+                "is_algorithm_explicit": false,
+                "is_visible": true,
+                "engine": "InnoDB",
+                "elements": [
+                    {
+                        "ordinal_position": 1,
+                        "length": 1020,
+                        "order": 1,
+                        "column_opx": 1
                     },
                     {
-                        "ordinal_position": 5,
+                        "ordinal_position": 2,
+                        "length": 4294967295,
+                        "order": 2,
+                        "column_opx": 0
+                    }
+                ],
+                "tablespace_ref": "test/t14"
+            },
+            {
+                "name": "FTS_DOC_ID_INDEX",
+                "hidden": true,
+                "is_generated": false,
+                "ordinal_position": 3,
+                "comment": "",
+                "options": "",
+                "se_private_data": "id=A;root=B;space_id=C;table_id=D;trx_id=E",
+                "type": 2,
+                "algorithm": 2,
+                "is_algorithm_explicit": false,
+                "is_visible": true,
+                "engine": "InnoDB",
+                "elements": [
+                    {
+                        "ordinal_position": 1,
                         "length": 4294967295,
                         "order": 2,
                         "column_opx": 2
                     },
                     {
-                        "ordinal_position": 6,
+                        "ordinal_position": 2,
                         "length": 4294967295,
                         "order": 2,
-                        "column_opx": 3
+                        "column_opx": 0
                     }
                 ],
-                "tablespace_ref": "sys/sys_config"
+                "tablespace_ref": "test/t14"
             }
         ],
         "foreign_keys": [],
         "partitions": [],
-        "collation_id": 33
+        "collation_id": 255
     }
 }
 }
@@ -310,20 +326,20 @@
 	"object":
 		{
     "mysqld_version_id": X,
-    "dd_version": 1,
+    "dd_version": X,
     "sdi_version": 1,
     "dd_object_type": "Tablespace",
     "dd_object": {
-        "name": "sys/sys_config",
+        "name": "test/t14",
         "comment": "",
         "options": "",
-        "se_private_data": "flags=X;id=Y;",
+        "se_private_data": "flags=X;id=Y;server_version=Z;space_version=M;",
         "engine": "InnoDB",
         "files": [
             {
                 "ordinal_position": 1,
-                "filename": "./sys/sys_config.ibd",
-                "se_private_data": ""
+                "filename": "./test/t14.ibd",
+                "se_private_data": "id=X"
             }
         ]
     }

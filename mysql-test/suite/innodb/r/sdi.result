@@ -138,6 +138,7 @@ DROP TABLE t20;
 # Drop virtual column of t11, verify SDI doesn't show clumn 'm'
 # Check SDI from t11.ibd
 # Create and drop tables in general tablespace. Shouldn't show t19, t20
+# Remove json and other test files
 # restart
 #
 # Bug#27151163 - INNODB: ASSERTION FAILURE: DICT0SDI.CC:.*

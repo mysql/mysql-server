@@ -105,6 +105,7 @@ t1	CREATE TABLE `t1` (
 SET DEBUG_SYNC='RESET';
 # SDI output shouldn't show new column "k4" because
 # ALTER failed
+# Remove json files
 # restart
 drop table t1;
 drop table t480;

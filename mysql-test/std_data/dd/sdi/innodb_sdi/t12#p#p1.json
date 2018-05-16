@@ -1,0 +1,28 @@
+["ibd2sdi"
+,
+{
+	"type": 2,
+	"id": X,
+	"object":
+		{
+    "mysqld_version_id": X,
+    "dd_version": X,
+    "sdi_version": 1,
+    "dd_object_type": "Tablespace",
+    "dd_object": {
+        "name": "test/t12#p#p1",
+        "comment": "",
+        "options": "",
+        "se_private_data": "flags=X;id=Y;server_version=Z;space_version=M;",
+        "engine": "InnoDB",
+        "files": [
+            {
+                "ordinal_position": 1,
+                "filename": "./test/t12#p#p1.ibd",
+                "se_private_data": "id=X"
+            }
+        ]
+    }
+}
+}
+]

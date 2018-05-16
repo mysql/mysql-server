@@ -14,14 +14,7 @@
 #  then run the test with --record option.
 #########################
 
-# Extract saved JSON to tmp dir
---let $SRC_DIR=$MYSQL_TMP_DIR/sdi_src
---error 0,1
---force-rmdir $SRC_DIR
---mkdir $SRC_DIR
---copy_file $MYSQLTEST_VARDIR/std_data/innodb_sdi_jsons.zip $SRC_DIR/innodb_sdi_jsons.zip
-# Unzip the JSONs zip file
---exec unzip -qo $SRC_DIR/innodb_sdi_jsons.zip -d $SRC_DIR
+--let $SRC_DIR=$MYSQL_TEST_DIR/std_data/dd/sdi/innodb_sdi
 
 # Create a directory to store json generated
 --let $DEST_DIR=$MYSQL_TMP_DIR/sdi_dest/
@@ -408,17 +401,14 @@ if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/ts1_altered.json $JSON_FILE_PATH
 }
 
-if ($MTR_RECORD == 0) {
---force-rmdir $DEST_DIR
-}
-
+# If --record is used, save the json files created in the $DEST_DIR
+# back to the $SRC_DIR.
 if ($MTR_RECORD == 1) {
---exec zip -r -j $MYSQL_TMP_DIR/sdi.zip $DEST_DIR 2>&1 > /dev/null
---move_file $MYSQL_TMP_DIR/sdi.zip $MYSQL_TEST_DIR/std_data/innodb_sdi_jsons.zip
---force-rmdir $DEST_DIR
+--copy_files_wildcard $DEST_DIR $SRC_DIR *.json
 }
 
---force-rmdir $SRC_DIR
+--echo # Remove json and other test files
+--force-rmdir $DEST_DIR
 --force-rmdir $MYSQLD_DATADIR
 --remove_file $BOOTSTRAP_SQL
 --remove_file $MYSQLTEST_VARDIR/tmp/bootstrap.log
