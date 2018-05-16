@@ -2862,6 +2862,36 @@ int RefOrNullIterator::Read() {
   }
 }
 
+AlternativeIterator::AlternativeIterator(
+    THD *thd, TABLE *table, QEP_TAB *qep_tab, Item *pushed_condition,
+    ha_rows *examined_rows, unique_ptr_destroy_only<RowIterator> source,
+    TABLE_REF *ref)
+    : RowIterator(thd, source->table()),
+      m_ref(ref),
+      m_source_iterator(std::move(source)),
+      m_table_scan_iterator(thd, table, qep_tab, pushed_condition,
+                            examined_rows) {
+  for (unsigned key_part_idx = 0; key_part_idx < ref->key_parts;
+       ++key_part_idx) {
+    bool *cond_guard = ref->cond_guards[key_part_idx];
+    if (cond_guard != nullptr) {
+      m_applicable_cond_guards.push_back(cond_guard);
+    }
+  }
+  DBUG_ASSERT(!m_applicable_cond_guards.empty());
+}
+
+bool AlternativeIterator::Init() {
+  m_iterator = m_source_iterator.get();
+  for (bool *cond_guard : m_applicable_cond_guards) {
+    if (!*cond_guard) {
+      m_iterator = &m_table_scan_iterator;
+      break;
+    }
+  }
+  return m_iterator->Init();
+}
+
 /**
   Pick the appropriate access method functions
 
@@ -2878,6 +2908,8 @@ void QEP_TAB::pick_table_access_method(const JOIN_TAB *join_tab) {
   DBUG_ASSERT(!join_tab->reversed_access || type() == JT_REF ||
               type() == JT_INDEX_SCAN);
   using_dynamic_range = false;
+  TABLE_REF *used_ref = nullptr;
+
   switch (type()) {
     case JT_REF:
       if (join_tab->reversed_access) {
@@ -2891,6 +2923,7 @@ void QEP_TAB::pick_table_access_method(const JOIN_TAB *join_tab) {
                 RefIterator<false>(join()->thd, table(), &ref(), use_order(),
                                    this, &join()->examined_rows));
       }
+      used_ref = &ref();
       break;
 
     case JT_REF_OR_NULL:
@@ -2898,6 +2931,7 @@ void QEP_TAB::pick_table_access_method(const JOIN_TAB *join_tab) {
           new (&read_record.iterator_holder.ref_or_null)
               RefOrNullIterator(join()->thd, table(), &ref(), use_order(), this,
                                 &join()->examined_rows));
+      used_ref = &ref();
       break;
 
     case JT_CONST:
@@ -2911,6 +2945,7 @@ void QEP_TAB::pick_table_access_method(const JOIN_TAB *join_tab) {
           new (&read_record.iterator_holder.eq_ref)
               EQRefIterator(join()->thd, table(), &ref(), use_order(),
                             &join()->examined_rows));
+      used_ref = &ref();
       break;
 
     case JT_FT:
@@ -2918,6 +2953,7 @@ void QEP_TAB::pick_table_access_method(const JOIN_TAB *join_tab) {
           new (&read_record.iterator_holder.fts)
               FullTextSearchIterator(join()->thd, table(), &ref(), use_order(),
                                      &join()->examined_rows));
+      used_ref = &ref();
       break;
 
     case JT_INDEX_SCAN:
@@ -2952,6 +2988,55 @@ void QEP_TAB::pick_table_access_method(const JOIN_TAB *join_tab) {
     default:
       DBUG_ASSERT(0);
       break;
+  }
+
+  /*
+    If we have an item like <expr> IN ( SELECT f2 FROM t2 ), and we were not
+    able to rewrite it into a semijoin, the optimizer may rewrite it into
+    EXISTS ( SELECT 1 FROM t2 WHERE f2=<expr> LIMIT 1 ) (ie., pushing down the
+    value into the subquery), using a REF or REF_OR_NULL scan on t2 if possible.
+    This happens in Item_in_subselect::select_in_like_transformer() and the
+    functions it calls.
+
+    However, if <expr> evaluates to NULL, this transformation is incorrect,
+    and the transformation used should instead be to
+
+      EXISTS ( SELECT 1 FROM t2 LIMIT 1 ) ? NULL : FALSE.
+
+    Thus, in the case of nullable <expr>, the rewriter inserts so-called
+    “condition guards” (pointers to bool saying whether <expr> was NULL or not,
+    for each part of <expr> if it contains multiple columns). These condition
+    guards do two things:
+
+      1. They disable the pushed-down WHERE clauses.
+      2. They change the REF/REF_OR_NULL accesses to table scans.
+
+    We don't need to worry about #1 here, but #2 needs to be dealt with,
+    as it changes the plan. We solve it by inserting an AlternativeIterator
+    that chooses between two sub-iterators at execution time, based on the
+    condition guard in question.
+
+    Note that ideally, we'd plan a completely separate plan for the NULL case,
+    as there might be e.g. a different index we could scan on, or even a
+    different optimal join order. (Note, however, that for the case of multiple
+    columns in the expression, we could get 2^N different plans.) However, given
+    that most cases are now handled by semijoins and not in2exists at all,
+    we don't need to jump through every possible hoop to optimize these cases.
+   */
+  if (used_ref != nullptr) {
+    for (unsigned key_part_idx = 0; key_part_idx < used_ref->key_parts;
+         ++key_part_idx) {
+      if (used_ref->cond_guards[key_part_idx] != nullptr) {
+        // At least one condition guard is relevant, so we need to use
+        // the AlternativeIterator.
+        unique_ptr_destroy_only<RowIterator> alternative(
+            new (&read_record.alternative_holder) AlternativeIterator(
+                join()->thd, table(), this, condition(), &join()->examined_rows,
+                move(read_record.iterator), used_ref));
+        read_record.iterator = move(alternative);
+        break;
+      }
+    }
   }
 }
 

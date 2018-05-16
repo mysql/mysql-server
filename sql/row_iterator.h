@@ -107,6 +107,8 @@ class RowIterator {
  private:
   THD *const m_thd;
   TABLE *const m_table;
+
+  friend class AlternativeIterator;
 };
 
 #endif  // SQL_ROW_ITERATOR_H_

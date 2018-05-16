@@ -586,14 +586,6 @@ class QEP_TAB : public QEP_shared_owner {
   bool using_dynamic_range = false;
   Next_select_func next_select;
   READ_RECORD read_record;
-  /*
-    The following two fields are used for a [NOT] IN subquery if it is
-    executed by an alternative full table scan when the left operand of
-    the subquery predicate is evaluated to NULL.
-  */
-  unique_ptr_destroy_only<RowIterator>
-      save_row_iterator;         /* to save read_record.iterator */
-  bool save_using_dynamic_range; /* to save using_dynamic_range */
 
   // join-cache-related members
   bool used_null_fields;

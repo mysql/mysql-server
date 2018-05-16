@@ -71,6 +71,9 @@ struct READ_RECORD {
   // responsible for destroying the inner object, but the memory will still be
   // held in iterator_holder, so we can't put this in the union.
   char sort_holder[sizeof(SortingIterator)];
+
+  // Same technique as sort_holder, when we have an AlternativeIterator.
+  char alternative_holder[sizeof(AlternativeIterator)];
 };
 
 void setup_read_record(READ_RECORD *info, THD *thd, TABLE *table,

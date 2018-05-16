@@ -219,4 +219,46 @@ class PushedJoinRefIterator final : public RowIterator {
   ha_rows *const m_examined_rows;
 };
 
+/**
+  An iterator that switches between another iterator (typically a RefIterator
+  or similar) and a TableScanIterator.
+
+  This is used when predicates have been pushed down into an IN subquery
+  and then created ref accesses, but said predicates should not be checked for
+  a NULL value (so we need to revert to table scans). See
+  QEP_TAB::pick_table_access_method() for a more thorough explanation.
+ */
+class AlternativeIterator final : public RowIterator {
+ public:
+  // Takes ownership of "source", and is responsible for
+  // calling Init() on it, but does not hold the memory.
+  AlternativeIterator(THD *thd, TABLE *table, QEP_TAB *qep_tab,
+                      Item *pushed_condition, ha_rows *examined_rows,
+                      unique_ptr_destroy_only<RowIterator> source,
+                      TABLE_REF *ref);
+
+  bool Init() override;
+
+  int Read() override { return m_iterator->Read(); }
+
+ private:
+  // The reference value with condition guards that we are switching on.
+  TABLE_REF *m_ref;
+
+  // If any of these are false during Init(), we are having a NULL IN ( ... ),
+  // and need to fall back to table scan. Extracted from m_ref.
+  std::vector<bool *> m_applicable_cond_guards;
+
+  // Points to either m_source_iterator or m_table_scan_iterator,
+  // depending on the value of applicable_cond_guards. Set up during Init().
+  RowIterator *m_iterator = nullptr;
+
+  // The iterator we are normally reading records from (a RefIterator or
+  // similar).
+  unique_ptr_destroy_only<RowIterator> m_source_iterator;
+
+  // Our fallback iterator.
+  TableScanIterator m_table_scan_iterator;
+};
+
 #endif  // SQL_REF_ROW_ITERATORS_H

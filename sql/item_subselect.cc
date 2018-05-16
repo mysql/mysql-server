@@ -2902,68 +2902,10 @@ bool subselect_single_select_engine::exec() {
   }
   if (!unit->is_executed()) {
     item->reset_value_registration();
-    QEP_TAB *changed_tabs[MAX_TABLES];
-    QEP_TAB **last_changed_tab = changed_tabs;
 
     if (unit->set_limit(thd, unit->global_parameters()))
       DBUG_RETURN(true); /* purecov: inspected */
-
-    if (item->have_guarded_conds()) {
-      /*
-        For at least one of the pushed predicates the following is true:
-        We should not apply optimizations based on the condition that was
-        pushed down into the subquery. Those optimizations are ref[_or_null]
-        acceses. Change them to be full table scans.
-      */
-      for (uint j = join->const_tables; j < join->tables; j++) {
-        QEP_TAB *tab = join->qep_tab + j;
-        if (tab->ref().key_parts) {
-          for (uint i = 0; i < tab->ref().key_parts; i++) {
-            bool *cond_guard = tab->ref().cond_guards[i];
-            if (cond_guard && !*cond_guard) {
-              /*
-                Can't use BKA if switching from ref to "full scan on
-                NULL key"
-
-                @see Item_in_optimizer::val_int()
-                @see TABLE_REF::cond_guards
-                @see push_index_cond()
-                @see setup_join_buffering()
-              */
-              DBUG_ASSERT(
-                  !(tab->op && tab->op->type() == QEP_operation::OT_CACHE &&
-                    static_cast<JOIN_CACHE *>(tab->op)->is_key_access()));
-
-              TABLE *table = tab->table();
-              /* Change the access method to full table scan */
-              tab->save_using_dynamic_range = tab->using_dynamic_range;
-              tab->save_row_iterator = move(tab->read_record.iterator);
-              tab->read_record.iterator.reset(
-                  new TableScanIterator(join->thd, table, tab, tab->condition(),
-                                        &join->examined_rows));
-              tab->using_dynamic_range = false;
-              *(last_changed_tab++) = tab;
-              break;
-            }
-          }
-        }
-      }
-    }
-
     join->exec();
-
-    /* Enable the optimizations back */
-    for (QEP_TAB **ptab = changed_tabs; ptab != last_changed_tab; ptab++) {
-      QEP_TAB *const tab = *ptab;
-      if (tab->save_row_iterator != nullptr) {
-        // This was created with a heap allocation above, and "iterator" is a
-        // unique_ptr_destroy_only, so we need to delete it explicitly here.
-        delete tab->read_record.iterator.release();
-
-        tab->read_record.iterator = move(tab->save_row_iterator);
-        tab->using_dynamic_range = tab->save_using_dynamic_range;
-      }
-    }
     unit->set_executed();
 
     rc = join->error || thd->is_fatal_error;
