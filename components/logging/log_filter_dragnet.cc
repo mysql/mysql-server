@@ -65,7 +65,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #define LOG_FILTER_DUMP_BUFF_SIZE 8192
 #define LOG_FILTER_LANGUAGE_NAME "dragnet"
-#define LOG_FILTER_VARIABLE_NAME "log_error_filter_rules"
+#define LOG_FILTER_SYSVAR_NAME "log_error_filter_rules"
+#define LOG_FILTER_STATUS_NAME "Status"
 #define LOG_FILTER_DEFAULT_RULES        \
   "IF prio>=INFORMATION THEN drop. IF " \
   "EXISTS source_line THEN unset source_line."
@@ -76,6 +77,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/service_implementation.h>
 
+#include <mysql/components/services/component_status_var_service.h>
 #include <mysql/components/services/component_sys_var_service.h>
 #include <mysql/plugin.h>
 
@@ -83,10 +85,19 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_register);
 REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_unregister);
+REQUIRES_SERVICE_PLACEHOLDER(status_variable_registration);
 
 STR_CHECK_ARG(str) sys_var_filter_rules;  ///< limits and default for sysvar
 
 static char *log_error_filter_rules = nullptr;  ///< sysvar containing rules
+
+static char log_error_filter_decompile[LOG_FILTER_DUMP_BUFF_SIZE] = "";
+
+static SHOW_VAR show_var_filter_rules_decompile[] = {
+    {LOG_FILTER_LANGUAGE_NAME "." LOG_FILTER_STATUS_NAME,
+     (char *)&log_error_filter_decompile, SHOW_CHAR, SHOW_SCOPE_GLOBAL},
+    {0, 0, SHOW_UNDEF, SHOW_SCOPE_UNDEF}  // null terminator required
+};
 
 /*
   Accessors for log items etc.
@@ -388,6 +399,9 @@ static void log_filter_append_item_value(char *out_buf, size_t out_siz,
           len = log_bs->substitute(out_writepos, out_left, "%lld",
                                    li->data.data_integer);
       }
+    } else if (li->type == LOG_ITEM_SQL_ERRCODE) {
+      len = log_bs->substitute(out_writepos, out_left, "MY-%06lld",
+                               li->data.data_integer);
     } else {
       len = log_bs->substitute(out_writepos, out_left, "%lld",
                                li->data.data_integer);
@@ -759,6 +773,7 @@ static set_arg_result log_filter_set_arg(const char **token, const size_t *len,
                                          log_item *li, const char **state) {
   char *val;
   size_t val_len;
+  bool is_symbol = false;
 
   // sanity check
   DBUG_ASSERT(!(li->alloc & LOG_ITEM_FREE_VALUE));
@@ -771,19 +786,24 @@ static set_arg_result log_filter_set_arg(const char **token, const size_t *len,
   *state = "Setting argument ...";
 
   // ER_* -- convenience: we convert symbol(ER_STARTUP) -> int(1234)
-  if (log_bs->compare(*token, "ER_", 3, false) == 0) {
+  if ((is_symbol = (log_bs->compare(*token, "ER_", 3, false) == 0)) ||
+      (log_bs->compare(*token, "MY-", 3, true) == 0)) {
     char *sym = log_bs->strndup(*token, *len);
     longlong errcode = 0;
 
-    *state = "Resolving ER_symbol ...";
+    *state = is_symbol ? "Resolving ER_symbol ..." : "Resolving MY-code ...";
 
     if (sym == nullptr) return SET_ARG_OOM; /* purecov: inspected */
 
-    errcode = log_bi->errcode_by_errsymbol(sym);
+    if (is_symbol)
+      errcode = log_bi->errcode_by_errsymbol(sym);
+    else
+      errcode = atoll(&sym[3]);
+
     log_bs->free(sym);
 
-    if (errcode < 0) {
-      *state = "unknown ER_code";
+    if (errcode < 1) {
+      *state = is_symbol ? "unknown ER_code" : "invalid MY-code";
       return SET_ARG_MALFORMED_VALUE;
     }
 
@@ -796,7 +816,7 @@ static set_arg_result log_filter_set_arg(const char **token, const size_t *len,
     else if (li->type != LOG_ITEM_SQL_ERRCODE) {
       *state =
           "\'err_code\' is the only built-in field-type "
-          "we will resolve ER_symbols for";
+          "we will resolve ER_symbols and MY-codes for";
       return SET_ARG_UNWANTED_NUMERIC;
     }
 
@@ -1494,21 +1514,24 @@ static int check_var_filter_rules(MYSQL_THD thd MY_ATTRIBUTE((unused)),
         "\"%s\" (state: %s) ...",
         LOG_FILTER_LANGUAGE_NAME, &proposed_rules[ret - 1], state);
   else if (ret == 0) {
-    char dump_buff[LOG_FILTER_DUMP_BUFF_SIZE];  ///< buffer
-    log_filter_result dump_result;              ///< result code from dump
+    log_filter_result dump_result;  ///< result code from dump
 
     *static_cast<const char **>(save) = proposed_rules;
 
-    dump_result = log_filter_ruleset_dump(log_filter_temp_rules, dump_buff,
-                                          sizeof(dump_buff));
+    dump_result = log_filter_ruleset_dump(log_filter_temp_rules,
+                                          log_error_filter_decompile,
+                                          LOG_FILTER_DUMP_BUFF_SIZE - 1);
 
-    if (dump_result == LOG_FILTER_LANGUAGE_OK) {
+    if (dump_result != LOG_FILTER_LANGUAGE_OK) {
       log_bt->notify_client(
           thd, Sql_condition::SL_NOTE, ER_COMPONENT_FILTER_DIAGNOSTICS,
           notify_buffer, sizeof(notify_buffer) - 1,
-          "filter configuration accepted: "
-          "SET @@global.%s.%s='%s';",
-          LOG_FILTER_LANGUAGE_NAME, LOG_FILTER_VARIABLE_NAME, dump_buff);
+          "The log-filter component \"%s\" updated its configuration from "
+          "its system variable \"%s.%s\", but could not update its status "
+          "variable \"%s.%s\" to reflect the decompiled rule-set.",
+          LOG_FILTER_LANGUAGE_NAME, LOG_FILTER_LANGUAGE_NAME,
+          LOG_FILTER_SYSVAR_NAME, LOG_FILTER_LANGUAGE_NAME,
+          LOG_FILTER_STATUS_NAME);
     }
   }
 
@@ -1646,7 +1669,10 @@ DEFINE_METHOD(int, log_service_imp::flush,
 mysql_service_status_t log_filter_exit() {
   if (inited) {
     mysql_service_component_sys_variable_unregister->unregister_variable(
-        LOG_FILTER_LANGUAGE_NAME, LOG_FILTER_VARIABLE_NAME);
+        LOG_FILTER_LANGUAGE_NAME, LOG_FILTER_SYSVAR_NAME);
+
+    mysql_service_status_variable_registration->unregister_variable(
+        (SHOW_VAR *)&show_var_filter_rules_decompile);
 
     log_bf->filter_ruleset_lock(log_filter_dragnet_rules,
                                 LOG_BUILTINS_LOCK_EXCLUSIVE);
@@ -1689,15 +1715,17 @@ mysql_service_status_t log_filter_init() {
   if (((log_filter_dragnet_rules =
             log_bf->filter_ruleset_new(&rule_tag_dragnet, 0)) == nullptr) ||
       mysql_service_component_sys_variable_register->register_variable(
-          LOG_FILTER_LANGUAGE_NAME, LOG_FILTER_VARIABLE_NAME,
+          LOG_FILTER_LANGUAGE_NAME, LOG_FILTER_SYSVAR_NAME,
           PLUGIN_VAR_STR | PLUGIN_VAR_MEMALLOC,
           "Error log filter rules (for the dragnet filter "
           "configuration language)",
           check_var_filter_rules, update_var_filter_rules,
           (void *)&sys_var_filter_rules, (void *)&log_error_filter_rules) ||
+      mysql_service_status_variable_registration->register_variable(
+          (SHOW_VAR *)&show_var_filter_rules_decompile) ||
       mysql_service_component_sys_variable_register->get_variable(
-          LOG_FILTER_LANGUAGE_NAME, LOG_FILTER_VARIABLE_NAME,
-          (void **)&var_value, &var_len) ||
+          LOG_FILTER_LANGUAGE_NAME, LOG_FILTER_SYSVAR_NAME, (void **)&var_value,
+          &var_len) ||
       ((rr = log_filter_dragnet_set(log_filter_dragnet_rules, var_value,
                                     &state)) != 0)) {
     /*
@@ -1710,7 +1738,7 @@ mysql_service_status_t log_filter_init() {
       if (var_value[rr] == '\0') rr = 0;
 
       LogErr(ERROR_LEVEL, ER_COMPONENT_FILTER_WRONG_VALUE,
-             LOG_FILTER_LANGUAGE_NAME "." LOG_FILTER_VARIABLE_NAME,
+             LOG_FILTER_LANGUAGE_NAME "." LOG_FILTER_SYSVAR_NAME,
              (var_value == nullptr) ? "<NULL>" : (const char *)var_value);
 
       if (var_value != nullptr)
@@ -1735,7 +1763,7 @@ mysql_service_status_t log_filter_init() {
       }
 
       LogErr(ERROR_LEVEL, ER_COMPONENT_FILTER_WRONG_VALUE,
-             LOG_FILTER_LANGUAGE_NAME "." LOG_FILTER_VARIABLE_NAME, "DEFAULT");
+             LOG_FILTER_LANGUAGE_NAME "." LOG_FILTER_SYSVAR_NAME, "DEFAULT");
     }
 
     delete[] var_value; /* purecov: begin inspected */
@@ -1763,6 +1791,7 @@ PROVIDES_SERVICE(log_filter_dragnet, log_service), END_COMPONENT_PROVIDES();
 BEGIN_COMPONENT_REQUIRES(log_filter_dragnet)
 REQUIRES_SERVICE(component_sys_variable_register),
     REQUIRES_SERVICE(component_sys_variable_unregister),
+    REQUIRES_SERVICE(status_variable_registration),
     REQUIRES_SERVICE(log_builtins), REQUIRES_SERVICE(log_builtins_string),
     REQUIRES_SERVICE(log_builtins_filter), REQUIRES_SERVICE(log_builtins_tmp),
     END_COMPONENT_REQUIRES();
