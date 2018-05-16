@@ -13296,8 +13296,8 @@ Dbtc::initScanrec(ScanRecordPtr scanptr,
   for (Uint32 i = 0; i < scanParallel; i++) {
     jamDebug();
     ScanFragRecPtr ptr;
-    if (unlikely((c_scan_frag_pool.seize(ptr) == false) ||
-                 ERROR_INSERTED(8093)))
+    if (ERROR_INSERTED(8093) ||
+        unlikely(!c_scan_frag_pool.seize(ptr)))
     {
       jam();
       goto errout;
