@@ -2652,7 +2652,7 @@ private:
   CommitAckMarker_hash m_commitAckMarkerHash;
   RSS_AP_SNAPSHOT(m_commitAckMarkerPool);
   
-  static const int c_transient_pool_count = 13;
+  static const Uint32 c_transient_pool_count = 13;
   TransientFastSlotPool* c_transient_pools[c_transient_pool_count];
   Bitmask<1> c_transient_pools_shrinking;
 
