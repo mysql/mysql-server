@@ -6349,9 +6349,20 @@ dict_table_schema_check(
 		/* check length for exact match */
 		if (req_schema->columns[i].len != table->cols[j].len) {
 
-			CREATE_TYPES_NAMES();
+			if(!strcmp(req_schema->table_name, TABLE_STATS_NAME)
+			   || !strcmp(req_schema->table_name, INDEX_STATS_NAME)) {
+				ut_ad(table->cols[j].len <
+					req_schema->columns[i].len);
+				ib::warn() << "Table " << req_schema->table_name
+					   << " has length mismatch in the"
+					   << " column name "
+					   << req_schema->columns[i].name
+					   << ".  Please run mysql_upgrade";
+			} else {
 
-			ut_snprintf(errstr, errstr_sz,
+				CREATE_TYPES_NAMES();
+
+				ut_snprintf(errstr, errstr_sz,
 				    "Column %s in table %s is %s"
 				    " but should be %s (length mismatch).",
 				    req_schema->columns[i].name,
@@ -6359,7 +6370,8 @@ dict_table_schema_check(
 						   buf, sizeof(buf)),
 				    actual_type, req_type);
 
-			return(DB_ERROR);
+				return(DB_ERROR);
+			}
 		}
 
 		/* check mtype for exact match */

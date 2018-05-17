@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -52,6 +52,7 @@ Created Nov 22, 2013 Mattias Jonsson */
 #include "ha_innopart.h"
 #include "partition_info.h"
 #include "key.h"
+#include "dict0priv.h"
 
 #define INSIDE_HA_INNOPART_CC
 
@@ -2721,6 +2722,8 @@ ha_innopart::create(
 	char		tablespace_name[NAME_LEN + 1];
 	char*		table_name_end;
 	size_t		table_name_len;
+	size_t		db_name_length;
+	ulint		stat_table_name_length;
 	char*		partition_name_start;
 	char		table_data_file_name[FN_REFLEN];
 	char		table_level_tablespace_name[NAME_LEN + 1];
@@ -2759,6 +2762,7 @@ ha_innopart::create(
 		DBUG_RETURN(error);
 	}
 	ut_ad(temp_path[0] == '\0');
+	db_name_length = strchr(table_name,'/') - table_name;
 	strcpy(partition_name, table_name);
 	partition_name_start = partition_name + strlen(partition_name);
 	table_name_len = strlen(table_name);
@@ -2793,6 +2797,33 @@ ha_innopart::create(
 
 	row_mysql_lock_data_dictionary(info.trx());
 
+	/* Mismatch can occur in the length of the column "table_name" in
+	mysql.innodb_table_stats and mysql.innodb_index_stats after the
+	fix to increase the column length of table_name column to accomdate
+	partition_names, so we first need to determine the length of the
+	"table_name" column and accordingly we can decide the length
+	of partition name .*/
+
+	dict_table_t *table = dict_table_get_low(TABLE_STATS_NAME);
+	if (table != NULL) {
+		ulint col_no = dict_table_has_column(table,"table_name",0);
+		ut_ad (col_no != table->n_def);
+		stat_table_name_length =  table->cols[col_no].len;
+		if (stat_table_name_length > NAME_LEN) {
+			/* The maximum allowed length is 597 bytes
+			,but the file name length cannot cross
+			FN_LEN */
+			stat_table_name_length = FN_LEN;
+		} else {
+			stat_table_name_length = NAME_LEN;
+		}
+
+	} else {
+		/* set the old length of 192 bytes in case of failure */
+		stat_table_name_length = NAME_LEN;
+		ib::warn() << TABLE_STATS_NAME << " doesnt exist.";
+	}
+
 	/* TODO: use the new DD tables instead to decrease duplicate info. */
 	List_iterator_fast <partition_element>
 		part_it(form->part_info->partitions);
@@ -2808,7 +2839,18 @@ ha_innopart::create(
 		exceeds maximum path length. */
 		if ((table_name_len + len + sizeof "/") >= FN_REFLEN) {
 			error = HA_ERR_INTERNAL_ERROR;
-			my_error(ER_PATH_LENGTH, MYF(0), partition_name);
+			my_error(ER_IDENT_CAUSES_TOO_LONG_PATH, MYF(0), FN_REFLEN,
+				partition_name);
+			goto cleanup;
+		}
+
+		/* Report error if table name with partition name exceeds
+		maximum file name length */
+		if ((len + table_name_len - db_name_length - 1)
+		     > stat_table_name_length) {
+			error = HA_ERR_INTERNAL_ERROR;
+			my_error(ER_PATH_LENGTH, MYF(0),
+				 partition_name + db_name_length + 1 );
 			goto cleanup;
 		}
 
@@ -2850,9 +2892,22 @@ ha_innopart::create(
 				exceeds maximum path length. */
 				if ((len + part_name_len + sizeof "/") >= FN_REFLEN) {
 					error = HA_ERR_INTERNAL_ERROR;
-					my_error(ER_PATH_LENGTH, MYF(0), partition_name);
+					my_error(ER_IDENT_CAUSES_TOO_LONG_PATH, MYF(0),
+						 FN_REFLEN,
+						 partition_name);
 					goto cleanup;
 				}
+
+				/* Report error if table name with partition
+				name exceeds maximum file name length */
+				if ((len + part_name_len - db_name_length -1)
+				     > stat_table_name_length ) {
+					error = HA_ERR_INTERNAL_ERROR;;
+					my_error(ER_PATH_LENGTH, MYF(0),
+					partition_name + db_name_length + 1);
+					goto cleanup;
+				}
+
 				/* Override part level DATA/INDEX DIRECTORY. */
 				set_create_info_dir(sub_elem, create_info);
 
@@ -2907,14 +2962,6 @@ ha_innopart::create(
 				part_sep,
 				FN_REFLEN - table_name_len);
 
-		/* Report error if table name with partition name exceeds
-		maximum length */
-		if ((len + table_name_len) >= NAME_LEN) {
-			my_error(ER_PATH_LENGTH, MYF(0), table_name);
-			error = HA_ERR_INTERNAL_ERROR;
-			goto end;
-		}
-
 		if (!form->part_info->is_sub_partitioned()) {
 			error = info.create_table_update_dict();
 			if (error != 0) {
@@ -2934,14 +2981,6 @@ ha_innopart::create(
 						sub_sep,
 						FN_REFLEN - table_name_len
 						- part_name_len);
-				/* Report error if table name with partition
-				name exceeds maximum length */
-				if ((len + table_name_len +
-					part_name_len) >= NAME_LEN) {
-					my_error(ER_PATH_LENGTH, MYF(0), table_name);
-					error = HA_ERR_INTERNAL_ERROR;
-					goto end;
-				}
 
 				error = info.create_table_update_dict();
 				if (error != 0) {

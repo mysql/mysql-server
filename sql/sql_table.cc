@@ -4481,7 +4481,8 @@ mysql_prepare_create_table(THD *thd, const char *error_schema_name,
     if (key_length > max_key_length && key->type != KEYTYPE_FULLTEXT)
     {
       my_error(ER_TOO_LONG_KEY,MYF(0),max_key_length);
-      DBUG_RETURN(TRUE);
+      if (thd->is_error())  // May be silenced - see Bug#20629014
+        DBUG_RETURN(true);
     }
     if (validate_comment_length(thd, key->key_create_info.comment.str,
                                 &key->key_create_info.comment.length,
@@ -4846,6 +4847,10 @@ bool create_table_impl(THD *thd,
   uint		db_options;
   handler	*file;
   bool		error= TRUE;
+  bool		is_whitelisted_table;
+  bool		prepare_error;
+  Key_length_error_handler error_handler;
+
   DBUG_ENTER("create_table_impl");
   DBUG_PRINT("enter", ("db: '%s'  table: '%s'  tmp: %d",
                        db, table_name, internal_tmp_table));
@@ -5163,13 +5168,28 @@ bool create_table_impl(THD *thd,
     }
   }
 
-  if (mysql_prepare_create_table(thd, db, error_table_name,
-                                 create_info, alter_info,
-                                 internal_tmp_table,
-                                 &db_options, file,
-                                 key_info, key_count,
-                                 select_field_count))
-    goto err;
+  /*
+    System tables residing in mysql database and created
+    by innodb engine could be created with any supported
+    innodb page size ( 4k,8k,16K).  We have a index size
+    limit depending upon the page size, but for system
+    tables which are whitelisted we can skip this check,
+    since the innodb engine ensures that the index size
+    will be supported.
+  */
+  is_whitelisted_table = (file->ht->db_type == DB_TYPE_INNODB) ?
+    ha_is_supported_system_table(file->ht, db, error_table_name) : false;
+  if (is_whitelisted_table) thd->push_internal_handler(&error_handler);
+
+  prepare_error= mysql_prepare_create_table(thd, db, error_table_name,
+					    create_info, alter_info,
+					    internal_tmp_table,
+					    &db_options, file,
+					    key_info, key_count,
+					    select_field_count);
+
+  if (is_whitelisted_table) thd->pop_internal_handler();
+  if (prepare_error) goto err;
 
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
     create_info->table_options|=HA_CREATE_DELAY_KEY_WRITE;
@@ -10727,11 +10747,11 @@ static bool check_engine(THD *thd, const char *db_name,
   }
 
   /*
-    Check, if the given table name is system table, and if the storage engine 
+    Check, if the given table name is system table, and if the storage engine
     does supports it.
   */
   if ((create_info->used_fields & HA_CREATE_USED_ENGINE) &&
-      !ha_check_if_supported_system_table(*new_engine, db_name, table_name))
+      !ha_is_valid_system_or_user_table(*new_engine, db_name, table_name))
   {
     my_error(ER_UNSUPPORTED_ENGINE, MYF(0),
              ha_resolve_storage_engine_name(*new_engine), db_name, table_name);

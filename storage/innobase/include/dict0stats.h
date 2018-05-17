@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2009, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2009, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -30,6 +30,9 @@ Created Jan 06, 2010 Vasil Dimov
 
 #include "dict0types.h"
 #include "trx0types.h"
+
+#define TABLE_STATS_NAME        "mysql/innodb_table_stats"
+#define INDEX_STATS_NAME        "mysql/innodb_index_stats"
 
 enum dict_stats_upd_option_t {
 	DICT_STATS_RECALC_PERSISTENT,/* (re) calculate the

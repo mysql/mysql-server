@@ -1192,6 +1192,14 @@ public:
   }
 };
 
+class Key_length_error_handler : public Internal_error_handler {
+ public:
+  virtual bool handle_condition(THD *, uint sql_errno, const char *,
+                                Sql_condition::enum_severity_level *,
+                                const char *) {
+    return (sql_errno == ER_TOO_LONG_KEY);
+  }
+};
 
 /**
   This class is an internal error handler implementation for

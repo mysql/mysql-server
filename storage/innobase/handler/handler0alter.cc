@@ -8827,7 +8827,8 @@ foreign_fail:
 				DBUG_SET("+d,innodb_report_deadlock");
 			);
 
-			if (dict_stats_drop_table(
+			if (dict_stats_is_persistent_enabled(ctx->new_table) &&
+				dict_stats_drop_table(
 				    ctx->new_table->name.m_name,
 				    errstr, sizeof(errstr))
 			    != DB_SUCCESS) {

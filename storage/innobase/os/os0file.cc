@@ -3120,7 +3120,8 @@ os_file_status_posix(
 	if (!ret) {
 		/* file exists, everything OK */
 
-	} else if (errno == ENOENT || errno == ENOTDIR) {
+	} else if (errno == ENOENT || errno == ENOTDIR
+		   || errno == ENAMETOOLONG) {
 		/* file does not exist */
 		return(true);
 
@@ -4150,7 +4151,8 @@ os_file_status_win32(
 	if (!ret) {
 		/* file exists, everything OK */
 
-	} else if (errno == ENOENT || errno == ENOTDIR) {
+	} else if (errno == ENOENT || errno == ENOTDIR
+		  || errno == ENAMETOOLONG) {
 		/* file does not exist */
 		return(true);
 

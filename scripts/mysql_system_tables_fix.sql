@@ -1041,3 +1041,11 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 FLUSH PRIVILEGES;
+
+--
+-- Update the column length of 'table_name' column for stats tables.
+--
+
+alter table mysql.innodb_table_stats modify table_name varchar(199);
+alter table mysql.innodb_index_stats modify table_name varchar(199);
+
