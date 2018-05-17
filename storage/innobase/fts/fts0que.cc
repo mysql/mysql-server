@@ -4114,6 +4114,7 @@ fts_query(
 			&query, &will_be_ignored);
 		if (query.error == DB_INTERRUPTED) {
 			error = DB_INTERRUPTED;
+			ut_free(lc_query_str);
 			goto func_exit;
 		}
 
@@ -4144,6 +4145,10 @@ fts_query(
 
 	if (trx_is_interrupted(trx)) {
 		error = DB_INTERRUPTED;
+		ut_free(lc_query_str);
+		if (result != NULL) {
+			fts_query_free_result(*result);
+		}
 		goto func_exit;
 	}
 
