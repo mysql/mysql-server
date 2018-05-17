@@ -47,6 +47,22 @@
 //#define DEBUG_NR_SCAN 1
 //#define DEBUG_NR_SCAN_EXTRA 1
 //#define DEBUG_LCP_SCANNED_BIT 1
+//#define DEBUG_LCP_FILTER 1
+//#define DEBUG_LCP_SKIP 1
+//#define DEBUG_LCP_DEL 1
+//#define DEBUG_LCP_DELAY 1
+#endif
+
+#ifdef DEBUG_LCP_DELAY
+#define DEB_LCP_DELAY(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LCP_DELAY(arglist) do { } while (0)
+#endif
+
+#ifdef DEBUG_LCP_FILTER
+#define DEB_LCP_FILTER(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LCP_FILTER(arglist) do { } while (0)
 #endif
 
 #ifdef DEBUG_LCP
@@ -824,6 +840,719 @@ Dbtup::scanFirst(Signal*, ScanOpPtr scanPtr)
   scan.m_state = ScanOp::Next;
 }
 
+#define ZSCAN_FOUND_TUPLE 1
+#define ZSCAN_FOUND_DELETED_ROWID 2
+#define ZSCAN_FOUND_PAGE_END 3
+#define ZSCAN_FOUND_DROPPED_CHANGE_PAGE 4
+#define ZSCAN_FOUND_NEXT_ROW 5
+/**
+ * Start a scan of a page in LCP scan
+ * ----------------------------------
+ * We have seven options here for LCP scans:
+ * 1) The page entry is empty and was empty at start of
+ * LCP. In this case there is no flag set in the page
+ * map indicating that page was dropped since last it
+ * was dropped.
+ * 1a) The page was belonging to the CHANGED ROWS pages and the
+ * last LCP state was A. In this case we need to record a
+ * DELETE by PAGEID in the LCP.
+ *
+ * 1b) The page belonged to the CHANGED ROWS pages and the last
+ * LCP state was D. In this case we can ignore the page.
+ *
+ * 1c) The page was belonging to the ALL ROWS category.
+ * We can ignore it since we only record rows existing at start of
+ * the LCP.
+ * Then we continue with the next page.
+ *
+ * 2) The page entry is empty and it was recorded as being
+ * dropped since the LCP started. In this case the LCP scan
+ * have already taken care of this page, the needed information
+ * was sent to the LCP scan through the LCP keep list.
+ * 3) The page entry was not empty but the page map indicates
+ * that the page was dropped after the LCP scan started. In this
+ * tricky case the LCP scan started, the page was dropped, the
+ * page was resurrected again and finally now we come here to
+ * handle the page. Again in this case we can move on since the
+ * page was handled at the time the page was dropped.
+ *
+ * 2) and 3) are found through either the LCP_SCANNED_BIT being
+ * set in the page map, or by the page_to_skip_lcp bit being set
+ * on the page object.
+ *
+ * 4) The page entry is non-empty. This is the normal page
+ * handling where we scan one row at a time.
+ *
+ * Finally the case 4) can have four distinct options as well.
+ * 4a) The page existed before the LCP started and had rows
+ * in it that need to checked one by one. This is the normal
+ * case and by far the most commonly executed.
+ *
+ * 4b) The page did not exist before the LCP scan was started, but
+ * it was allocated after the LCP scan started and before we scanned
+ * it (thus got the LCP skip bit set on the page). It belonged to
+ * the ALL ROWS pages and thus the page will be skipped.
+ *
+ * Discovered either by LCP_SCANNED_BIT or by page_to_skip_lcp bit
+ * being set on the page.
+ *
+ * 4c) Same as 4b) except that it belongs to the CHANGED ROWS pages.
+ * Also the last LCP state was D. Page is ignored.
+ *
+ * 4d) Same as 4c) except that last LCP state was A. In this we
+ * record the page as a DELETE by PAGEID in the LCP.
+ */
+Uint32
+Dbtup::prepare_lcp_scan_page(ScanOp& scan,
+                             Local_key& key,
+                             Uint32 *next_ptr,
+                             Uint32 *prev_ptr)
+{
+  ScanPos& pos = scan.m_scanPos;
+  bool lcp_page_already_scanned = get_lcp_scanned_bit(next_ptr);
+  if (lcp_page_already_scanned)
+  {
+    jam();
+    /* Coverage tested */
+#ifdef DEBUG_LCP_SCANNED_BIT
+    if (next_ptr)
+    {
+      g_eventLogger->info("(%u)tab(%u,%u).%u"
+                          " reset_lcp_scanned_bit(2)",
+                          instance(),
+                          m_curr_fragptr.p->fragTableId,
+                          m_curr_fragptr.p->fragmentId,
+                          key.m_page_no);
+    }
+#endif
+    reset_lcp_scanned_bit(next_ptr);
+    c_backup->skip_page_lcp_scanned_bit();
+    /* Either 2) or 3) as described above */
+    /**
+     * No state in page map to update, the page hasn't been
+     * defined yet, so the position in page map is empty.
+     */
+    pos.m_get = ScanPos::Get_next_page_mm;
+    scan.m_last_seen = __LINE__;
+    return ZSCAN_FOUND_PAGE_END; // incr loop count
+  }
+  else if (unlikely(pos.m_realpid_mm == RNIL))
+  {
+    bool is_last_lcp_state_A = !get_last_lcp_state(prev_ptr);
+    bool need_record_dropped_change =
+      pos.m_lcp_scan_changed_rows_page && is_last_lcp_state_A;
+    /**
+     * Case 1) from above
+     * If we come here without having LCP_SCANNED_BIT set then
+     * we haven't released the page during LCP scan. Thus the
+     * new last LCP state is D. Ensure that LAST_LCP_FREE_BIT
+    * is set to indicate that LCP state is D for this LCP.
+     */
+    DEB_LCP_DEL2(("(%u)tab(%u,%u) page(%u),"
+                  " is_last_lcp_state_A: %u, CHANGED: %u",
+                  instance(),
+                  m_curr_fragptr.p->fragTableId,
+                  m_curr_fragptr.p->fragmentId,
+                  key.m_page_no,
+                  is_last_lcp_state_A,
+                  pos.m_lcp_scan_changed_rows_page));
+
+    set_last_lcp_state(prev_ptr, true);
+    if (!need_record_dropped_change)
+    {
+      jam();
+      /* Coverage tested */
+      /* LCP case 1b) and 1c) above goes this way */
+      scan.m_last_seen = __LINE__;
+      pos.m_get = ScanPos::Get_next_page_mm;
+      c_backup->skip_empty_page_lcp();
+      return ZSCAN_FOUND_PAGE_END; // incr loop count
+    }
+    else
+    {
+      jam();
+      /* Coverage tested */
+      /* 1a) as described above */
+      scan.m_last_seen = __LINE__;
+      pos.m_get = ScanPos::Get_next_page_mm;
+      c_backup->record_dropped_empty_page_lcp();
+      return ZSCAN_FOUND_DROPPED_CHANGE_PAGE;
+    }
+  }
+  else
+  {
+    jam();
+    /**
+     * Case 4) above, we need to set the last LCP state flag
+     * on the pos object to ensure that we know when a row
+     * needs to be DELETE by ROWID or if it needs to be ignored.
+     */
+    pos.m_is_last_lcp_state_D = get_last_lcp_state(prev_ptr);
+    scan.m_last_seen = __LINE__;
+  }
+  return ZSCAN_FOUND_TUPLE;
+}
+
+Uint32
+Dbtup::handle_lcp_skip_page(ScanOp& scan,
+                            Local_key key,
+                            Page* page)
+{
+  ScanPos& pos = scan.m_scanPos;
+  /**
+   * The page was allocated after the LCP started, so it can only
+   * contain rows that was allocated after start of LCP and should
+   * thus not be part of LCP. It is case 4b), 4c) or 4d). We need to
+   * clear the skip bit on the page. We need to get the old lcp state
+   * to be able to decide if it is 4c) or 4d). We also need to set
+   * the last LCP* state to D.
+   */
+  DEB_LCP_SKIP(("(%u)Clear LCP_SKIP on tab(%u,%u), page(%u), change: %u, D: %u",
+                instance(),
+                m_curr_fragptr.p->fragTableId,
+                m_curr_fragptr.p->fragmentId,
+                key.m_page_no,
+                pos.m_lcp_scan_changed_rows_page,
+                pos.m_is_last_lcp_state_D));
+
+  page->clear_page_to_skip_lcp();
+  set_last_lcp_state(m_curr_fragptr.p,
+                     key.m_page_no,
+                     true /* Set state to D */);
+
+  if (pos.m_lcp_scan_changed_rows_page && !pos.m_is_last_lcp_state_D)
+  {
+    jam();
+    /* Coverage tested */
+    /**
+     * Case 4d) from above
+     * At start of LCP the page was dropped, we have information that
+     * the page was dropped after the previous LCP. Thus we need to
+     * record the entire page as DELETE by PAGEID.
+     */
+    scan.m_last_seen = __LINE__;
+    pos.m_get = ScanPos::Get_next_page_mm;
+    c_backup->record_late_alloc_page_lcp();
+    return ZSCAN_FOUND_DROPPED_CHANGE_PAGE;
+  }
+  jam();
+  /* Coverage tested */
+  /**
+   * Case 4b) and 4c) from above
+   * For ALL ROWS pages the rows should be skipped for LCP, we clear
+   * the LCP skip flag on page in this case to speed up skipping.
+   *
+   * We need to keep track of the state Get_next_page_mm when checking
+   * if a rowid is part of the remaining lcp set. If we do a real-time
+   * break right after setting Get_next_page_mm we need to move the
+   * page number forward one step since we have actually completed the
+   * current page number.
+   */
+  scan.m_last_seen = __LINE__;
+  pos.m_get = ScanPos::Get_next_page_mm;
+  c_backup->page_to_skip_lcp(!pos.m_is_last_lcp_state_D);
+  return ZSCAN_FOUND_PAGE_END; //incr loop count
+}
+
+Uint32
+Dbtup::handle_scan_change_page_rows(ScanOp& scan,
+                                    Fix_page *fix_page,
+                                    Tuple_header *tuple_header_ptr,
+                                    Uint32 & foundGCI)
+{
+  ScanPos& pos = scan.m_scanPos;
+  Local_key& key = pos.m_key;
+  /**
+   * Coming here means that the following condition is true.
+   * bits & ScanOp::SCAN_LCP && pos.m_lcp_changed_page
+   *
+   * We have 3 cases here,
+   * foundGCI == 0:
+   *   This means that the row has not been committed yet
+   *   and it has not had any previous rows in this row
+   *   id either. However the previous LCP might still have
+   *   had a row in this position since we could have
+   *   deallocated a page and allocated it again between
+   *   2 LCPs. In this case we have to ensure that the
+   *   row id is deleted as part of the restore.
+   *
+   * foundGCI > scanGCI
+   * Record has changed since last LCP
+   *   if header says tuple is free then the row is a deleted
+   *   row and we record it
+   *   otherwise it is a normal row to be recorded in normal
+   *   manner for LCPs.
+   *
+   * We record deleted rowid's only if scanGCI which indicates
+   * that we are recording only changes from this row. We need
+   * not record deleted rowids for those parts where we record
+   * all rows.
+   */
+  Uint32 thbits = tuple_header_ptr->m_header_bits;
+  if ((foundGCI = *tuple_header_ptr->get_mm_gci(m_curr_tabptr.p)) >
+       scan.m_scanGCI)
+  {
+    if (unlikely(thbits & Tuple_header::LCP_DELETE))
+    {
+      jam();
+      /* Ensure that LCP_DELETE bit is clear before we move on */
+      /* Coverage tested */
+      tuple_header_ptr->m_header_bits =
+        thbits & (~Tuple_header::LCP_DELETE);
+      updateChecksum(tuple_header_ptr,
+                     m_curr_tabptr.p,
+                     thbits,
+                     tuple_header_ptr->m_header_bits);
+      fix_page->set_change_map(key.m_page_idx);
+      jamDebug();
+      jamLineDebug((Uint16)key.m_page_idx);
+      ndbassert(!(thbits & Tuple_header::LCP_SKIP));
+      DEB_LCP_DEL(("(%u)Reset LCP_DELETE on tab(%u,%u),"
+                   " row(%u,%u), header: %x",
+                   instance(),
+                   m_curr_fragptr.p->fragTableId,
+                   m_curr_fragptr.p->fragmentId,
+                   key.m_page_no,
+                   key.m_page_idx,
+                   thbits));
+      scan.m_last_seen = __LINE__;
+      return ZSCAN_FOUND_DELETED_ROWID;
+    }
+    else if (! (thbits & Tuple_header::FREE ||
+                thbits & Tuple_header::ALLOC))
+    {
+      jam();
+      /**
+       * Tuple has changed since last LCP, we need to record
+       * the row as a changed row unless the LCP_SKIP bit is
+       * set on the rowid which means that the row was inserted
+       * after starting the LCP.
+       */
+      scan.m_last_seen = __LINE__;
+      return ZSCAN_FOUND_TUPLE;
+    }
+    else if (scan.m_scanGCI > 0 &&
+             !(thbits & Tuple_header::LCP_SKIP))
+    {
+      jam();
+      /**
+       * We have found a row which is free, we are however scanning
+       * CHANGED ROWS pages and thus we need to insert a DELETE by
+       * ROWID in LCP since the page was deleted since the last
+       * LCP was executed. We check that LCP_SKIP bit isn't set, if
+       * LCP_SKIP bit is set it means that the tuple was deleted
+       * since the LCP started and we have already recorded the
+       * row present at start of LCP when the tuple was deleted.
+       *
+       * If we delete it after LCP start we will certainly set
+       * the GCI on the record > scanGCI, so it is an important
+       * check for LCP_SKIP bit set.
+       */
+      scan.m_last_seen = __LINE__;
+      return ZSCAN_FOUND_DELETED_ROWID;
+    }
+    else if (unlikely(thbits & Tuple_header::LCP_SKIP))
+    {
+      /* Ensure that LCP_SKIP bit is clear before we move on */
+      jam();
+      /* Coverage tested */
+      tuple_header_ptr->m_header_bits =
+        thbits & (~Tuple_header::LCP_SKIP);
+      DEB_LCP_SKIP(("(%u) 2 Reset LCP_SKIP on tab(%u,%u), row(%u,%u)"
+                    ", header: %x",
+                    instance(),
+                    m_curr_fragptr.p->fragTableId,
+                    m_curr_fragptr.p->fragmentId,
+                    key.m_page_no,
+                    key.m_page_idx,
+                    thbits));
+      updateChecksum(tuple_header_ptr,
+                     m_curr_tabptr.p,
+                     thbits,
+                     tuple_header_ptr->m_header_bits);
+      fix_page->set_change_map(key.m_page_idx);
+      jamDebug();
+      jamLineDebug((Uint16)key.m_page_idx);
+    }
+    else
+    {
+      jamDebug();
+      ndbassert(!(thbits & Tuple_header::LCP_SKIP));
+      DEB_LCP_SKIP_EXTRA(("(%u)Skipped tab(%u,%u), row(%u,%u),"
+                    " foundGCI: %u, scanGCI: %u, header: %x",
+                    instance(),
+                    m_curr_fragptr.p->fragTableId,
+                    m_curr_fragptr.p->fragmentId,
+                    key.m_page_no,
+                    key.m_page_idx,
+                    foundGCI,
+                    scan.m_scanGCI,
+                    thbits));
+      /* Coverage tested */
+    }
+    jam();
+    scan.m_last_seen = __LINE__;
+    /* Continue with next row */
+    return ZSCAN_FOUND_NEXT_ROW;
+  }
+  else
+  {
+    /**
+     * When setting LCP_DELETE flag we must also have deleted the
+     * row and set rowGCI > scanGCI. So can't be set if we arrive
+     * here. Same goes for LCP_SKIP flag.
+     */
+    ndbassert(!(thbits & Tuple_header::LCP_DELETE));
+    if (foundGCI == 0 && scan.m_scanGCI > 0)
+    {
+      jam();
+      /* Coverage tested */
+      /* Cannot have LCP_SKIP bit set on rowid's not yet used */
+      ndbrequire(!(thbits & Tuple_header::LCP_SKIP));
+      scan.m_last_seen = __LINE__;
+      return ZSCAN_FOUND_DELETED_ROWID;
+    }
+    else
+    {
+      jam();
+      /* Coverage tested */
+      ndbassert(!(thbits & Tuple_header::LCP_SKIP));
+      DEB_LCP_SKIP_EXTRA(("(%u)Skipped tab(%u,%u), row(%u,%u),"
+                    " foundGCI: %u, scanGCI: %u, header: %x",
+                    instance(),
+                    m_curr_fragptr.p->fragTableId,
+                    m_curr_fragptr.p->fragmentId,
+                    key.m_page_no,
+                    key.m_page_idx,
+                    foundGCI,
+                    scan.m_scanGCI,
+                    thbits));
+    }
+  }
+  scan.m_last_seen = __LINE__;
+  return ZSCAN_FOUND_NEXT_ROW;
+  /* Continue LCP scan, no need to handle this row in this LCP */
+}
+
+ /**
+ * LCP scanning of CHANGE ROW pages:
+ * ---------------------------------
+ * The below description is implemented by the setup_change_page_for_scan and
+ * handle_scan_change_page_rows methods.
+ *
+ * When scanning changed pages we only need to record those rows that actually
+ * changed. There are two things that we need to ensure here. The first is
+ * that we need to ensure that we restore the correct data. The second is that
+ * we ensure that each checkpoint maintains structural consistency.
+ *
+ * To prove that we will restore the correct data we notice that the last
+ * change to restore is in a previous checkpoint.
+ *
+ * In the previous checkpoint we wrote all rows that changed in the first GCI
+ * that wasn't completed before we started the GCI or in any later GCI.
+ * From this follows that we will definitely have written all changes since
+ * the last checkpoint and even more than that.
+ *
+ * Given that we restore using multiple LCPs there could be a risk that we cut
+ * away the LCP part where the changed row was recorded. This is not possible
+ * for the following reason:
+ * Restore of a page always start at a LCP where the page was fully written.
+ * If this happened after the change we know that the record is there.
+ * If the change happened after the LCP where ALL changes were recorded we
+ * know that the LCP part is part of the restore AND we know that our change is
+ * in this LCP part.
+ *
+ * From this it follows that we will restore the correct data since no changes
+ * will be missing from the restored data.
+ *
+ * Next we need to verify that maintain structural consistency.This means that
+ * we must restore exactly the set of rows that was present at the start of
+ * the LCP that we are restoring.
+ *
+ * To maintain this we need to ensure that any INSERTs that happened after
+ * start of the previous LCP but before we scanned this row is not missed due
+ * to that no changes occurred in this page since we last scanned it. To ensure
+ * that we don't miss those rows we will notice that those rows will always
+ * be marked with an LCP_DELETE flag for CHANGE pages. This means that when we
+ * encounter a row with this flag we need to set the bit in the change map to
+ * ensure that this row is recorded in the next LCP.
+ *
+ * Next we need to handle DELETEs that occur after the LCP started but before
+ * we scanned the page. All these rows have the LCP_SKIP bit set. This means
+ * that when we encounter the LCP_SKIP for CHANGE pages we should ensure that
+ * the row is checked also in the next LCP by setting the change map to
+ * indicate this.
+ *
+ * Finally if there are so many deletes that the state on the page is deleted
+ * since the page is dropped, this we need not worry about since this is
+ * handled in the same manner as the original partial LCP solution. So the
+ * proof of this applies.
+ *
+ * Finally UPDATEs that occur after the LCP start but before we scan the row
+ * will be recorded in the previous LCP and will not require setting any bits
+ * in the change map. This is in line with normal behaviour of the LCPs, the
+ * LCP is structurally consistent with the start of the LCP (the exact same
+ * set of rows exists that existed at start of LCP). The data is however not
+ * necessarily consistent since we rely o* the REDO log to bring data
+ * consistency.
+ *
+ * The major benefit of these change map pages comes when an entire page can
+ * be skipped. In this case we can change scanning hundreds of rows to a
+ * simple check of a small bitmap on the page. To handle very large databases
+ * well we implement the bitmaps using a sort of BLOOM filter.
+ *
+ * We have 8 bits that indicate changes in 4 kB of the page. If this bit isn't
+ * set we can skip an entire 4 kB part of page that could easily contain up to
+ * a bit more than * one hundred rows.
+ *
+ * Finally we have a bitmap consisting of 128 bits that each means we can skip
+ * 256 bytes at a time when a bit isn't set.
+ *
+ * One problem with scanning using those bitmaps is that there is a cost
+ * attached to skipping rows since it is harder to prefetch data. Thus we will
+ * ignore the small area change bitmap when we have enough bits set and simply
+ * scan all rows, we will still check the large area change bitmap though
+ * also in this case.
+ */
+Uint32
+Dbtup::setup_change_page_for_scan(ScanOp& scan,
+                                  Fix_page *fix_page,
+                                  Local_key& key,
+                                  Uint32 size)
+{
+  ScanPos& pos = scan.m_scanPos;
+  /**
+   * This is the first row of the page, we need to decide how
+   * to scan this page or possibly even that we don't need to
+   * scan it at all since no changes exist on the page. No need
+   * to check this once we started scanning the page.
+   */
+  if (!fix_page->get_any_changes())
+  {
+    /**
+     * We only check this condition for the first row in the page.
+     * If we passed this point we will start clearing the bits on
+     * the page piece by piece, thus this check is only ok at the
+     * first row of the page.
+     *
+     * No one has touched the page since the start of the
+     * previous LCP. It is possible that some updates occurred
+     * after the start of the LCP but before the previous LCP
+     * scanned this page. These updates will have been recorded
+     * in the previous LCP and thus as proved above will be part
+     * of the previous LCP that will be part of the recovery
+     * processing.
+     */
+#ifdef VM_TRACE
+    Uint32 debug_idx = key.m_page_idx;
+    do
+    {
+      Tuple_header* tuple_header_ptr;
+      tuple_header_ptr = (Tuple_header*)&fix_page->m_data[debug_idx];
+      Uint32 thbits = tuple_header_ptr->m_header_bits;
+      if (thbits & Tuple_header::LCP_DELETE ||
+          thbits & Tuple_header::LCP_SKIP)
+      {
+        g_eventLogger->info("(%u)LCP_DELETE on page with no"
+                            " changes tab(%u,%u), page(%u,%u)"
+                            ", thbits: %x",
+                            instance(),
+                            m_curr_fragptr.p->fragTableId,
+                            m_curr_fragptr.p->fragmentId,
+                            key.m_page_no,
+                            key.m_page_idx,
+                            thbits);
+
+      }
+      ndbassert(!(thbits & Tuple_header::LCP_DELETE));
+      ndbassert(!(thbits & Tuple_header::LCP_SKIP));
+      debug_idx += size;
+    } while ((debug_idx + size) <= Fix_page::DATA_WORDS);
+#endif
+    DEB_LCP_FILTER(("(%u) tab(%u,%u) page(%u) filtered out",
+                    instance(),
+                    m_curr_fragptr.p->fragTableId,
+                    m_curr_fragptr.p->fragmentId,
+                    fix_page->frag_page_id));
+    scan.m_last_seen = __LINE__;
+    pos.m_get = ScanPos::Get_next_page_mm;
+    c_backup->skip_no_change_page();
+    return ZSCAN_FOUND_PAGE_END;
+  }
+  Uint32 num_changes = fix_page->get_num_changes();
+  if (num_changes <= 15)
+  {
+    jam();
+    /**
+     * We will check every individual small area and also
+     * check the large areas. There are only a few areas
+     * that actually contain changes.
+     * In this case we will not use any prefetches since
+     * it is hard to predict which cache lines we will
+     * actually read.
+     *
+     * When NDB is used with very large data sizes this
+     * will be the most common code path since this only
+     * looks at one individual page. If there is
+     * 1 TB of data memory this means that we have
+     * 32M of 32kB pages and thus the update frequency
+     * must be at least 500M updates per LCP for the
+     * number of changes to exceed 15 on most pages.
+     * This is clearly not going to be the common case.
+     *
+     * For smaller databases with say 1 GB of data memory
+     * there will be only 32k pages and thus around
+     * 500k updates per LCP will be sufficient to exceed
+     * 15 updates per page in the common case. Thus much
+     * more likely.
+     *
+     * We keep the bits here until we have passed them with
+     * the scan. Exactly the same proof that this works on
+     * a page level now applies on the row level.
+     *
+     * Thus when we check the large area bit and find that no
+     * changes have occurred we also know that no small area
+     * bits are set, so no need to reset those. We know that
+     * no one has touched those pages since the start of the
+     * last LCP apart possibly from updates that doesn't change
+     * structural consistency of the LCP.
+     *
+     * We initialise both the small area check index and the
+     * large area check index to 0 to ensure that we check
+     * already at the first row both of those areas.
+     */
+    pos.m_all_rows = false;
+    pos.m_next_small_area_check_idx = 0;
+    pos.m_next_large_area_check_idx = 0;
+  }
+  else
+  {
+    jam();
+    /**
+     * There are more than 15 parts that have changed.
+     * In this case we expect to gain more from checking
+     * all rows since this means that we can prefetch
+     * memory to the CPU caches when we scan in linear
+     * order.
+     *
+     * In this case we can clear the small area change map and
+     * the large area change map already here since we won't
+     * clear any bits during the page scan.
+     *
+     * With 15 changes or more the likelihhod is very high that all
+     * 8 large areas are also set. So we will ignore checking these
+     * to avoid extra costs attached to checking this on
+     * each row.
+     *
+     * We set area check indexes to an impossible value to ensure
+     * that we don't use those by mistake.
+     */
+    pos.m_all_rows = true;
+    fix_page->clear_small_change_map();
+    fix_page->clear_large_change_map();
+    pos.m_next_small_area_check_idx = RNIL;
+    pos.m_next_large_area_check_idx = RNIL;
+  }
+  return ZSCAN_FOUND_TUPLE;
+}
+
+Uint32
+Dbtup::move_to_next_change_page_row(ScanOp & scan,
+                                    Fix_page *fix_page,
+                                    Tuple_header **tuple_header_ptr,
+                                    Uint32 & loop_count,
+                                    Uint32 size)
+{
+  ScanPos& pos = scan.m_scanPos;
+  Local_key& key = pos.m_key;
+  jam();
+  ndbrequire(pos.m_next_large_area_check_idx != RNIL &&
+             pos.m_next_small_area_check_idx != RNIL);
+  do
+  {
+    loop_count++;
+    if (pos.m_next_large_area_check_idx == key.m_page_idx)
+    {
+      jamDebug();
+      jamLineDebug(Uint16(key.m_page_idx));
+      pos.m_next_large_area_check_idx =
+        fix_page->get_next_large_idx(key.m_page_idx, size);
+      if (!fix_page->get_and_clear_large_change_map(key.m_page_idx))
+      {
+        jamDebug();
+        DEB_LCP_FILTER(("(%u) tab(%u,%u) page(%u) large area filtered"
+                        ", start_idx: %u",
+                        instance(),
+                        m_curr_fragptr.p->fragTableId,
+                        m_curr_fragptr.p->fragmentId,
+                        fix_page->frag_page_id,
+                        key.m_page_idx));
+
+        if (unlikely((pos.m_next_large_area_check_idx + size) >
+                      Fix_page::DATA_WORDS))
+        {
+          jamDebug();
+          ndbassert(fix_page->verify_change_maps());
+          return ZSCAN_FOUND_PAGE_END;
+        }
+        jamDebug();
+        /**
+         * We have moved forward to a new large area. We assume that all
+         * small areas we move past don't have their bits set.
+         * It is important to start checking immediately the small area
+         * since we have no idea if the first small area is to be checked
+         * or not.
+         */
+        Uint32 next_to_check = pos.m_next_large_area_check_idx;
+        key.m_page_idx = next_to_check;
+        pos.m_next_small_area_check_idx = next_to_check;
+        continue;
+      }
+    }
+    if (pos.m_next_small_area_check_idx == key.m_page_idx)
+    {
+      jamDebug();
+      jamLineDebug(Uint16(key.m_page_idx));
+      pos.m_next_small_area_check_idx =
+        fix_page->get_next_small_idx(key.m_page_idx, size);
+      if (!fix_page->get_and_clear_small_change_map(key.m_page_idx))
+      {
+        jamDebug();
+        DEB_LCP_FILTER(("(%u) tab(%u,%u) page(%u) small area filtered"
+                        ", start_idx: %u",
+                        instance(),
+                        m_curr_fragptr.p->fragTableId,
+                        m_curr_fragptr.p->fragmentId,
+                        fix_page->frag_page_id,
+                        key.m_page_idx));
+        if (unlikely((pos.m_next_small_area_check_idx + size) >
+                      Fix_page::DATA_WORDS))
+        {
+          jamDebug();
+          ndbassert(fix_page->verify_change_maps());
+          return ZSCAN_FOUND_PAGE_END;
+        }
+        jamDebug();
+        /**
+         * Since 1024 is a multiple of 64 there is no risk that we move
+         * ourselves past the next large area check.
+         */
+        key.m_page_idx = pos.m_next_small_area_check_idx;
+        ndbassert(key.m_page_idx <= pos.m_next_large_area_check_idx);
+        continue;
+      }
+    }
+    break;
+  } while (1);
+  (*tuple_header_ptr) = (Tuple_header*)&fix_page->m_data[key.m_page_idx];
+  jamDebug();
+  jamLineDebug(Uint16(key.m_page_idx));
+  Uint32 map_val = (fix_page->m_change_map[3] >> 16);
+  jamLineDebug(Uint16(map_val));
+  (void)map_val;
+  return ZSCAN_FOUND_TUPLE;
+}
+
 /**
  * Handling heavy insert and delete activity during LCP scans
  * ----------------------------------------------------------
@@ -872,11 +1601,13 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
   tablePtr.i = scan.m_tableId;
   ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
   Tablerec& table = *tablePtr.p;
+  m_curr_tabptr = tablePtr;
   // fragment
   FragrecordPtr fragPtr;
   fragPtr.i = scan.m_fragPtrI;
   ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
   Fragrecord& frag = *fragPtr.p;
+  m_curr_fragptr = fragPtr;
   // tuple found
   Tuple_header* tuple_header_ptr = 0;
   Uint32 thbits = 0;
@@ -1068,6 +1799,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
       // get TUP real page
       {
         PagePtr pagePtr;
+        loop_count+= 4;
         if (pos.m_realpid_mm == RNIL)
         {
           Uint32 *next_ptr, *prev_ptr;
@@ -1075,145 +1807,18 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                                             key.m_page_no,
                                             &next_ptr,
                                             &prev_ptr);
-          /**
-           * We have seven options here for LCP scans:
-           * 1) The page entry is empty and was empty at start of
-           * LCP. In this case there is no flag set in the page
-           * map indicating that page was dropped since last it
-           * was dropped.
-           * 1a) The page was belonging to the CHANGED ROWS pages and the
-           * last LCP state was A. In this case we need to record a
-           * DELETE by PAGEID in the LCP.
-           *
-           * 1b) The page belonged to the CHANGED ROWS pages and the last
-           * LCP state was D. In this case we can ignore the page.
-           *
-           * 1c) The page was belonging to the ALL ROWS category.
-           * We can ignore it since we only record rows existing at start of
-           * the LCP.
-           * Then we continue with the next page.
-           *
-           * 2) The page entry is empty and it was recorded as being
-           * dropped since the LCP started. In this case the LCP scan
-           * have already taken care of this page, the needed information
-           * was sent to the LCP scan through the LCP keep list.
-           * 3) The page entry was not empty but the page map indicates
-           * that the page was dropped after the LCP scan started. In this
-           * tricky case the LCP scan started, the page was dropped, the
-           * page was resurrected again and finally now we come here to
-           * handle the page. Again in this case we can move on since the
-           * page was handled at the time the page was dropped.
-           *
-           * 2) and 3) are found through either the LCP_SCANNED_BIT being
-           * set in the page map, or by the page_to_skip_lcp bit being set
-           * on the page object.
-           *
-           * 4) The page entry is non-empty. This is the normal page
-           * handling where we scan one row at a time.
-           *
-           * Finally the case 4) can have four distinct options as well.
-           * 4a) The page existed before the LCP started and had rows
-           * in it that need to checked one by one. This is the normal
-           * case and by far the most commonly executed.
-           *
-           * 4b) The page did not exist before the LCP scan was started, but
-           * it was allocated after the LCP scan started and before we scanned
-           * it (thus got the LCP skip bit set on the page). It belonged to
-           * the ALL ROWS pages and thus the page will be skipped.
-           *
-           * Discovered either by LCP_SCANNED_BIT or by page_to_skip_lcp bit
-           * being set on the page.
-           *
-           * 4c) Same as 4b) except that it belongs to the CHANGED ROWS pages.
-           * Also the last LCP state was D. Page is ignored.
-           *
-           * 4d) Same as 4c) except that last LCP state was A. In this we
-           * record the page as a DELETE by PAGEID in the LCP.
-           */
           if (bits & ScanOp::SCAN_LCP)
           {
             jam();
-            bool lcp_page_already_scanned = get_lcp_scanned_bit(next_ptr);
-            if (lcp_page_already_scanned)
-            {
-              jam();
-              /* Coverage tested */
-#ifdef DEBUG_LCP_SCANNED_BIT
-              if (next_ptr)
-              {
-                g_eventLogger->info("(%u)tab(%u,%u).%u"
-                                    " reset_lcp_scanned_bit(2)",
-                                    instance(),
-                                    fragPtr.p->fragTableId,
-                                    fragPtr.p->fragmentId,
-                                    key.m_page_no);
-              }
-#endif
-              reset_lcp_scanned_bit(next_ptr);
-              c_backup->skip_page_lcp_scanned_bit();
-              /* Either 2) or 3) as described above */
-              /**
-               * No state in page map to update, the page hasn't been
-               * defined yet, so the position in page map is empty.
-               */
-              pos.m_get = ScanPos::Get_next_page_mm;
-              scan.m_last_seen = __LINE__;
-              break; // incr loop count
-            }
-            else if (unlikely(pos.m_realpid_mm == RNIL))
-            {
-              bool is_last_lcp_state_A = !get_last_lcp_state(prev_ptr);
-              bool need_record_dropped_change =
-                pos.m_lcp_scan_changed_rows_page && is_last_lcp_state_A;
-              /**
-               * Case 1) from above
-               * If we come here without having LCP_SCANNED_BIT set then
-               * we haven't released the page during LCP scan. Thus the
-               * new last LCP state is D. Ensure that LAST_LCP_FREE_BIT
-               * is set to indicate that LCP state is D for this LCP.
-               */
-              DEB_LCP_DEL2(("(%u)tab(%u,%u) page(%u),"
-                            " is_last_lcp_state_A: %u, CHANGED: %u",
-                            instance(),
-                            fragPtr.p->fragTableId,
-                            fragPtr.p->fragmentId,
-                            key.m_page_no,
-                            is_last_lcp_state_A,
-                            pos.m_lcp_scan_changed_rows_page));
-
-              set_last_lcp_state(prev_ptr, true);
-              if (!need_record_dropped_change)
-              {
-                jam();
-                /* Coverage tested */
-                /* LCP case 1b) and 1c) above goes this way */
-                scan.m_last_seen = __LINE__;
-                pos.m_get = ScanPos::Get_next_page_mm;
-                c_backup->skip_empty_page_lcp();
-                break; // incr loop count
-              }
-              else
-              {
-                jam();
-                /* Coverage tested */
-                /* 1a) as described above */
-                scan.m_last_seen = __LINE__;
-                pos.m_get = ScanPos::Get_next_page_mm;
-                c_backup->record_dropped_empty_page_lcp();
-                goto record_dropped_change_page;
-              }
-            }
-            else
-            {
-              jam();
-              /**
-               * Case 4) above, we need to set the last LCP state flag
-               * on the pos object to ensure that we know when a row
-               * needs to be DELETE by ROWID or if it needs to be ignored.
-               */
-              pos.m_is_last_lcp_state_D = get_last_lcp_state(prev_ptr);
-              scan.m_last_seen = __LINE__;
-            }
+            Uint32 ret_val = prepare_lcp_scan_page(scan,
+                                                   key,
+                                                   next_ptr,
+                                                   prev_ptr);
+            if (ret_val == ZSCAN_FOUND_PAGE_END)
+              break;
+            else if (ret_val == ZSCAN_FOUND_DROPPED_CHANGE_PAGE)
+             goto record_dropped_change_page;
+            /* else continue */
           }
           else if (unlikely(pos.m_realpid_mm == RNIL))
           {
@@ -1264,62 +1869,60 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
           NDB_PREFETCH_READ(page_ptr->get_ptr(key.m_page_idx + (size * 2),
                                               size));
         }
-        if (unlikely((bits & ScanOp::SCAN_LCP) &&
-                     (pagePtr.p->is_page_to_skip_lcp())))
+        if (bits & ScanOp::SCAN_LCP)
         {
-          /**
-           * The page was allocated after the LCP started, so it can only
-           * contain rows that was allocated after start of LCP and should
-           * thus not be part of LCP. It is case 4b), 4c) or 4d). We need to
-           * clear the skip bit on the page. We need to get the old lcp state
-           * to be able to decide if it is 4c) or 4d). We also need to set
-           * the last LCP* state to D.
-           */
-          DEB_LCP_SKIP(("(%u)Clear LCP_SKIP on tab(%u,%u), page(%u)",
-                        instance(),
-                        fragPtr.p->fragTableId,
-                        fragPtr.p->fragmentId,
-                        key.m_page_no));
-
-          pagePtr.p->clear_page_to_skip_lcp();
-          set_last_lcp_state(fragPtr.p,
-                             key.m_page_no,
-                             true /* Set state to D */);
-
-          if (pos.m_lcp_scan_changed_rows_page && !pos.m_is_last_lcp_state_D)
+          if (pagePtr.p->is_page_to_skip_lcp())
           {
-            jam();
-            /* Coverage tested */
-            /**
-             * Case 4d) from above
-             * At start of LCP the page was dropped, we have information that
-             * the page was dropped after the previous LCP. Thus we need to
-             * record the entire page as DELETE by PAGEID.
-             */
-            scan.m_last_seen = __LINE__;
-            pos.m_get = ScanPos::Get_next_page_mm;
-            c_backup->record_late_alloc_page_lcp();
-            goto record_dropped_change_page;
+            Uint32 ret_val = handle_lcp_skip_page(scan,
+                                                  key,
+                                                  pagePtr.p);
+            if (ret_val == ZSCAN_FOUND_PAGE_END)
+            {
+              jamDebug();
+              break;
+            }
+            else
+            {
+              jamDebug();
+              assert(ret_val == ZSCAN_FOUND_DROPPED_CHANGE_PAGE);
+              goto record_dropped_change_page;
+            }
+          }
+          else if (pos.m_lcp_scan_changed_rows_page)
+          {
+            /* CHANGE page is accessed */
+            if (key.m_page_idx == 0)
+            {
+              jamDebug();
+              /* First access of a CHANGE page */
+              Uint32 ret_val = setup_change_page_for_scan(scan,
+                                                          (Fix_page*)pagePtr.p,
+                                                          key,
+                                                          size);
+              if (ret_val == ZSCAN_FOUND_PAGE_END)
+              {
+                jamDebug();
+                /* No changes found on page level bitmaps */
+                break;
+              }
+              else
+              {
+                ndbassert(ret_val == ZSCAN_FOUND_TUPLE);
+              }
+            }
           }
           else
           {
-            jam();
-            /* Coverage tested */
+            /* LCP ALL page is accessed */
+            jamDebug();
             /**
-             * Case 4b) and 4c) from above
-             * For ALL ROWS pages the rows should be skipped for LCP, we clear
-             * the LCP skip flag on page in this case to speed up skipping.
-             *
-             * We need to keep track of the state Get_next_page_mm when checking
-             * if a rowid is part of the remaining lcp set. If we do a real-time
-             * break right after setting Get_next_page_mm we need to move the
-             * page number forward one step since we have actually completed the
-             * current page number.
+             * Make sure those values have defined values if we were to enter
+             * the wrong path for some reason. These values will lead to a
+             * crash if we try to run the CHANGE page code for an ALL page.
              */
-            scan.m_last_seen = __LINE__;
-            pos.m_get = ScanPos::Get_next_page_mm;
-            c_backup->page_to_skip_lcp(!pos.m_is_last_lcp_state_D);
-            break; // incr loop count
+            pos.m_all_rows = false;
+            pos.m_next_small_area_check_idx = RNIL;
+            pos.m_next_large_area_check_idx = RNIL;
           }
         }
         /* LCP normal case 4a) above goes here */
@@ -1590,13 +2193,17 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
               tuple_header_ptr->m_header_bits =
                 thbits & (~Tuple_header::LCP_SKIP);
               DEB_LCP_SKIP(("(%u)Reset LCP_SKIP on tab(%u,%u), row(%u,%u)"
-                            ", header: %x",
+                            ", header: %x"
+                            ", new header: %x"
+                            ", tuple_header_ptr: %p",
                             instance(),
                             fragPtr.p->fragTableId,
                             fragPtr.p->fragmentId,
                             key.m_page_no,
                             key.m_page_idx,
-                            thbits));
+                            thbits,
+                            tuple_header_ptr->m_header_bits,
+                            tuple_header_ptr));
               updateChecksum(tuple_header_ptr,
                              tablePtr.p,
                              thbits,
@@ -1648,169 +2255,45 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
 	  }
           else
           {
-            /**
-             * Coming here means that the following condition is true.
-             * bits & ScanOp::SCAN_LCP && pos.m_lcp_changed_page
-             *
-             * We have 3 cases here,
-             * foundGCI == 0:
-             *   This means that the row has not been committed yet
-             *   and it has not had any previous rows in this row
-             *   id either. However the previous LCP might still have
-             *   had a row in this position since we could have
-             *   deallocated a page and allocated it again between
-             *   2 LCPs. In this case we have to ensure that the
-             *   row id is deleted as part of the restore.
-             *
-             * foundGCI > scanGCI
-             * Record has changed since last LCP
-             *   if header says tuple is free then the row is a deleted
-             *   row and we record it
-             *   otherwise it is a normal row to be recorded in normal
-             *   manner for LCPs.
-             *
-             * We record deleted rowid's only if scanGCI which indicates
-             * that we are recording only changes from this row. We need
-             * not record deleted rowids for those parts where we record
-             * all rows.
-             */
             ndbassert(c_backup->is_partial_lcp_enabled());
             ndbassert((bits & ScanOp::SCAN_LCP) &&
                        pos.m_lcp_scan_changed_rows_page);
-            thbits = tuple_header_ptr->m_header_bits;
-            if ((foundGCI = *tuple_header_ptr->get_mm_gci(tablePtr.p)) >
-                 scan.m_scanGCI)
+            Uint32 ret_val;
+            if (!pos.m_all_rows)
             {
-              if (unlikely(thbits & Tuple_header::LCP_DELETE))
+              ret_val = move_to_next_change_page_row(scan,
+                                                     page,
+                                                     &tuple_header_ptr,
+                                                     loop_count,
+                                                     size);
+              if (ret_val == ZSCAN_FOUND_PAGE_END)
               {
-                jam();
-                /* Ensure that LCP_DELETE bit is clear before we move on */
-                /* Coverage tested */
-                tuple_header_ptr->m_header_bits =
-                  thbits & (~Tuple_header::LCP_DELETE);
-                updateChecksum(tuple_header_ptr,
-                               tablePtr.p,
-                               thbits,
-                               tuple_header_ptr->m_header_bits);
-                ndbassert(!(thbits & Tuple_header::LCP_SKIP));
-                DEB_LCP_DEL(("(%u)Reset LCP_DELETE on tab(%u,%u),"
-                             " row(%u,%u), header: %x",
-                             instance(),
-                             fragPtr.p->fragTableId,
-                             fragPtr.p->fragmentId,
-                             key.m_page_no,
-                             key.m_page_idx,
-                             thbits));
-                scan.m_last_seen = __LINE__;
-                goto found_deleted_rowid;
-              }
-	      else if (! (thbits & Tuple_header::FREE ||
-                          thbits & Tuple_header::ALLOC))
-              {
-                jam();
                 /**
-                 * Tuple has changed since last LCP, we need to record
-                 * the row as a changed row unless the LCP_SKIP bit is
-                 * set on the rowid which means that the row was inserted
-                 * after starting the LCP.
+                 * We've finished scanning a page that was using filtering using
+                 * the bitmaps on the page. We are ready to set the last LCP
+                 * state to A.
                  */
-                scan.m_last_seen = __LINE__;
-                goto found_tuple;
-              }
-              else if (scan.m_scanGCI > 0 &&
-                       !(thbits & Tuple_header::LCP_SKIP))
-              {
-                jam();
-                /**
-                 * We have found a row which is free, we are however scanning
-                 * CHANGED ROWS pages and thus we need to insert a DELETE by
-                 * ROWID in LCP since the page was deleted since the last
-                 * LCP was executed. We check that LCP_SKIP bit isn't set, if
-                 * LCP_SKIP bit is set it means that the tuple was deleted
-                 * since the LCP started and we have already recorded the
-                 * row present at start of LCP when the tuple was deleted.
-                 *
-                 * If we delete it after LCP start we will certainly set
-                 * the GCI on the record > scanGCI, so it is an important
-                 * check for LCP_SKIP bit set.
-                 */
-                scan.m_last_seen = __LINE__;
-                goto found_deleted_rowid;
-              }
-              else if (unlikely(thbits & Tuple_header::LCP_SKIP))
-              {
-                /* Ensure that LCP_SKIP bit is clear before we move on */
-                jam();
                 /* Coverage tested */
-                tuple_header_ptr->m_header_bits =
-                  thbits & (~Tuple_header::LCP_SKIP);
-                DEB_LCP_SKIP(("(%u) 2 Reset LCP_SKIP on tab(%u,%u), row(%u,%u)"
-                              ", header: %x",
-                              instance(),
-                              fragPtr.p->fragTableId,
-                              fragPtr.p->fragmentId,
-                              key.m_page_no,
-                              key.m_page_idx,
-                              thbits));
-                updateChecksum(tuple_header_ptr,
-                               tablePtr.p,
-                               thbits,
-                               tuple_header_ptr->m_header_bits);
-              }
-              else
-              {
-                DEB_LCP_SKIP_EXTRA(("(%u)Skipped tab(%u,%u), row(%u,%u),"
-                              " foundGCI: %u, scanGCI: %u, header: %x",
-                              instance(),
-                              fragPtr.p->fragTableId,
-                              fragPtr.p->fragmentId,
-                              key.m_page_no,
-                              key.m_page_idx,
-                              foundGCI,
-                              scan.m_scanGCI,
-                              thbits));
-                //ndbassert(false); //COVERAGE_TEST
-              }
-              jam();
-              scan.m_last_seen = __LINE__;
-              /* Continue with next row */
-            }
-            else
-            {
-              /**
-               * When setting LCP_DELETE flag we must also have deleted the
-               * row and set rowGCI > scanGCI. So can't be set if we arrive
-               * here. Same goes for LCP_SKIP flag.
-               */
-              ndbassert(!(thbits & Tuple_header::LCP_DELETE));
-              if (foundGCI == 0 && scan.m_scanGCI > 0)
-              {
-                jam();
-                /* Coverage tested */
-                /* Cannot have LCP_SKIP bit set on rowid's not yet used */
-                ndbrequire(!(thbits & Tuple_header::LCP_SKIP));
+                set_last_lcp_state(fragPtr.p,
+                                   key.m_page_no,
+                                   false /* Set state to A */);
                 scan.m_last_seen = __LINE__;
-                goto found_deleted_rowid;
-              }
-              else
-              {
-                jam();
-                /* Coverage tested */
-                ndbassert(!(thbits & Tuple_header::LCP_SKIP));
-                DEB_LCP_SKIP_EXTRA(("(%u)Skipped tab(%u,%u), row(%u,%u),"
-                              " foundGCI: %u, scanGCI: %u, header: %x",
-                              instance(),
-                              fragPtr.p->fragTableId,
-                              fragPtr.p->fragmentId,
-                              key.m_page_no,
-                              key.m_page_idx,
-                              foundGCI,
-                              scan.m_scanGCI,
-                              thbits));
+                pos.m_get = ScanPos::Get_next_page;
+                break;
               }
             }
-            scan.m_last_seen = __LINE__;
-            /* Continue LCP scan, no need to handle this row in this LCP */
+            ret_val = handle_scan_change_page_rows(scan,
+                                                   page,
+                                                   tuple_header_ptr,
+                                                   foundGCI);
+            if (likely(ret_val == ZSCAN_FOUND_TUPLE))
+            {
+              thbits = tuple_header_ptr->m_header_bits;
+              goto found_tuple;
+            }
+            else if (ret_val == ZSCAN_FOUND_DELETED_ROWID)
+              goto found_deleted_rowid;
+            ndbassert(ret_val == ZSCAN_FOUND_NEXT_ROW);
           }
         }
         else
@@ -1827,6 +2310,10 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
             set_last_lcp_state(fragPtr.p,
                                key.m_page_no,
                                false /* Set state to A */);
+            if (!pos.m_all_rows)
+            {
+              ndbassert(page->verify_change_maps());
+            }
             scan.m_last_seen = __LINE__;
           }
           // no more tuples on this page
@@ -1862,13 +2349,18 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
       jam();
       {
         // caller has already set pos.m_get to next tuple
-        if (! (bits & ScanOp::SCAN_LCP && thbits & Tuple_header::LCP_SKIP))
+        if (likely(! (bits & ScanOp::SCAN_LCP &&
+                      thbits & Tuple_header::LCP_SKIP)))
         {
           Local_key& key_mm = pos.m_key_mm;
-          if (! (bits & ScanOp::SCAN_DD))
+          if (likely(! (bits & ScanOp::SCAN_DD)))
           {
             key_mm = pos.m_key;
             // real page id is already set
+            if (bits & ScanOp::SCAN_LCP)
+            {
+              c_backup->update_pause_lcp_counter(loop_count);
+            }
           }
           else
           {
@@ -1908,6 +2400,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
   record_dropped_change_page:
       {
         ndbassert(c_backup->is_partial_lcp_enabled());
+        c_backup->update_pause_lcp_counter(loop_count);
         record_delete_by_pageid(signal,
                                 frag.fragTableId,
                                 frag.fragmentId,
@@ -1953,6 +2446,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                scan.m_scanGCI ||
               foundGCI == 0)
           {
+            thbits = tuple_header_ptr->m_header_bits;
             if (! (thbits & Tuple_header::FREE))
             {
               jam();
@@ -1968,6 +2462,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
          *
          * This code is also used by LCPs to record deleted row ids.
          */
+        c_backup->update_pause_lcp_counter(loop_count);
         record_delete_by_rowid(signal,
                                frag.fragTableId,
                                frag.fragmentId,
@@ -1983,15 +2478,30 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
     default:
       ndbabort();
     }
-    if (++loop_count >= 32)
+    loop_count+= 4;
+    if (loop_count >= 512)
+    {
+      jam();
+      if (bits & ScanOp::SCAN_LCP)
+      {
+        jam();
+        c_backup->update_pause_lcp_counter(loop_count);
+        if (!c_backup->check_pause_lcp())
+        {
+          loop_count = 0;
+          continue;
+        }
+        c_backup->pausing_lcp(5,loop_count);
+      }
       break;
+    }
   }
   // TODO: at drop table we have to flush and terminate these
   jam();
   scan.m_last_seen = __LINE__;
   signal->theData[0] = ZTUP_SCAN;
   signal->theData[1] = scanPtr.i;
-  if (!c_lqh->get_is_scan_prioritised(scan.m_userPtr))
+  if (!c_lqh->rt_break_is_scan_prioritised(scan.m_userPtr))
   {
     jam();
     sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
@@ -2006,10 +2516,16 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
      * than 100 signals.
      */
     jam();
+//#ifdef VM_TRACE
+    c_debug_count++;
+    if (c_debug_count % 10000 == 0)
+    {
+      DEB_LCP_DELAY(("(%u)TupScan delayed 10000 times", instance()));
+    }
+//#endif
     sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, BOUNDED_DELAY, 2);
   }
   return false;
-
 }
 
 void

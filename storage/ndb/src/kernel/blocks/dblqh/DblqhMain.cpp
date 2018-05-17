@@ -114,6 +114,7 @@ extern EventLogger * g_eventLogger;
 //#define DEBUG_LOCAL_LCP 1
 //#define DEBUG_LOCAL_LCP_EXTRA
 //#define DEBUG_REDO_FLAG
+//#define DEBUG_TRANSACTION_TIMEOUT
 #endif
 
 #ifdef DEBUG_EXTRA_LCP
@@ -202,13 +203,14 @@ operator<<(NdbOut& out, Dblqh::ScanRecord::ScanState state){
   return out;
 }
 
+#ifdef DEB_TRANSACTION_TIMEOUT
 static
 NdbOut &
 operator<<(NdbOut& out, Dblqh::LogFileOperationRecord::LfoState state){
   out << (int)state;
   return out;
 }
-
+#endif
 static
 NdbOut &
 operator<<(NdbOut& out, Dblqh::ScanRecord::ScanType state){
@@ -473,7 +475,7 @@ void Dblqh::execCONTINUEB(Signal* signal)
       break;
     case TcConnectionrec::LOG_ABORT_QUEUED:
       jam();
-      writeAbortLog(signal, tcConnectptr.p);
+      writeAbortLog(signal, tcConnectptr.p, logPartPtr.p);
       removeLogTcrec(signal, tcConnectptr);
       continueAfterLogAbortWriteLab(signal, tcConnectptr);
       break;
@@ -2254,6 +2256,8 @@ void Dblqh::execLQHFRAGREQ(Signal* signal)
     }
   }
 
+  c_num_fragments_created_since_restart++;
+
   LqhFragReq copy = *(LqhFragReq*)signal->getDataPtr();
   LqhFragReq * req = &copy;
 
@@ -3542,6 +3546,7 @@ void Dblqh::timer_handling(Signal *signal)
   }//if
 
   cLqhTimeOutCheckCount = 0;
+#ifdef DEBUG_TRANSACTION_TIMEOUT
 #ifdef VM_TRACE
   TcConnectionrecPtr tTcConptr;
   
@@ -3582,7 +3587,7 @@ void Dblqh::timer_handling(Signal *signal)
   }//for
 
 #endif
-
+#endif
 #if 0
   LcpRecordPtr TlcpPtr;
   // Print information about the current local checkpoint
@@ -5119,6 +5124,7 @@ void Dblqh::seizeTcrec(TcConnectionrecPtr& tcConnectptr)
   locTcConnectptr.p->clientBlockref = RNIL;
   locTcConnectptr.p->tableref = RNIL;
   locTcConnectptr.p->hashIndex = RNIL;
+  locTcConnectptr.p->m_committed_log_space = 0;
 
   ctcNumFree = numFree - 1;
   cfirstfreeTcConrec = nextTc;
@@ -7760,6 +7766,8 @@ queueop:
     return;
   }//if
 
+  increment_committed_mbytes(regLogPartPtr,
+                             regTcPtr);
   logFilePtr.i = regLogPartPtr->currentLogfile;
   ptrCheckGuard(logFilePtr, clogFileFileSize, logFileRecord);
 /* -------------------------------------------------- */
@@ -7805,7 +7813,7 @@ queueop:
 /* -------------------------------------------------- */
 /*       WRITE THE LOG HEADER OF THIS OPERATION.      */
 /* -------------------------------------------------- */
-  writeLogHeader(signal, tcConnectptr.p);
+  writeLogHeader(signal, tcConnectptr.p, regLogPartPtr);
 /* -------------------------------------------------- */
 /*       WRITE THE TUPLE KEY OF THIS OPERATION.       */
 /* -------------------------------------------------- */
@@ -8388,15 +8396,17 @@ void Dblqh::checkNewMbyte(Signal* signal, const TcConnectionrec* regTcPtr)
  *       SUBROUTINE SHORT NAME: WLH
  * ------------------------------------------------------------------------- */
 void Dblqh::writeLogHeader(Signal* signal,
-                           const TcConnectionrec* regTcPtr)
+                           const TcConnectionrec* regTcPtr,
+                           LogPartRecord* regLogPartPtr)
 {
-  Uint32 logPos = logPagePtr.p->logPageWord[ZCURR_PAGE_INDEX];
-  Uint32 hashValue = regTcPtr->hashValue;
-  Uint32 operation = regTcPtr->operation;
   Uint32 keyLen = regTcPtr->primKeyLen;
   Uint32 aiLen = regTcPtr->currTupAiLen;
   Local_key rowid = regTcPtr->m_row_id;
   Uint32 totLogLen = ZLOG_HEAD_SIZE + aiLen + keyLen;
+  Uint32 logPos = logPagePtr.p->logPageWord[ZCURR_PAGE_INDEX];
+  Uint32 hashValue = regTcPtr->hashValue;
+  Uint32 operation = regTcPtr->operation;
+  regLogPartPtr->m_total_written_words += totLogLen;
   
   if ((logPos + ZLOG_HEAD_SIZE) < ZPAGE_SIZE) {
     Uint32* dataPtr = &logPagePtr.p->logPageWord[logPos];
@@ -9802,6 +9812,7 @@ void Dblqh::releaseTcrec(Signal* signal, TcConnectionrecPtr locTcConnectptr)
   ctcNumFree = numFree + 1;
 
   ndbassert(locTcConnectptr.p->tcScanRec == RNIL);
+  ndbassert(locTcConnectptr.p->m_committed_log_space == 0);
 
   TablerecPtr tabPtr;
   tabPtr.i = locTcConnectptr.p->tableref;
@@ -10469,7 +10480,7 @@ void Dblqh::continueAbortLab(Signal* signal,
       regTcPtr->transactionState = TcConnectionrec::LOG_ABORT_QUEUED;
       return;
     }//if
-    writeAbortLog(signal, tcConnectptr.p);
+    writeAbortLog(signal, tcConnectptr.p, logPartPtr.p);
     removeLogTcrec(signal, tcConnectptr);
   } else if (regTcPtr->logWriteState == TcConnectionrec::NOT_STARTED) {
     jam();
@@ -11107,11 +11118,12 @@ Dblqh::scanMarkers(Signal* signal,
  *  directly if OK.
  */
 
-Uint32 Dblqh::get_is_scan_prioritised(Uint32 scan_ptr_i)
+Uint32 Dblqh::rt_break_is_scan_prioritised(Uint32 scan_ptr_i)
 {
   ScanRecordPtr scanPtr;
   scanPtr.i = scan_ptr_i;
   c_scanRecordPool.getPtr(scanPtr);
+  scanPtr.p->scan_direct_count = 1; /* Initialise before rt break */
   return is_prioritised_scan(scanPtr.p->scanApiBlockref);
 }
 
@@ -11455,7 +11467,7 @@ void Dblqh::continueScanNextReqLab(Signal* signal,
   regTcPtr->tcTimer = cLqhTimeOutCount;
   init_acc_ptr_list(scanPtr);
   scanPtr->scanFlag = NextScanReq::ZSCAN_NEXT;
-  scanNextLoopLab(signal);
+  scanNextLoopLab(signal, regTcPtr->clientConnectrec);
 }//Dblqh::continueScanNextReqLab()
 
 void Dblqh::scanLockReleasedLab(Signal* signal,
@@ -12770,7 +12782,11 @@ void Dblqh::storedProcConfScanLab(Signal* signal,
     signal->theData[0] = sig0;
     scanPtr->scanState = ScanRecord::WAIT_NEXT_SCAN;
     scanPtr->scan_lastSeen = __LINE__;
-    send_next_NEXT_SCANREQ(signal, block, f, scanPtr);
+    send_next_NEXT_SCANREQ(signal,
+                           block,
+                           f,
+                           scanPtr,
+                           tcConnectptr.p->clientConnectrec);
     return;
   }
   else
@@ -12940,7 +12956,7 @@ void Dblqh::nextScanConfScanLab(Signal* signal,
       if (!scanPtr->check_scan_batch_completed())
       {
         jam();
-        scanNextLoopLab(signal);
+        scanNextLoopLab(signal, regTcPtr->clientConnectrec);
       }
       else
       {
@@ -13349,10 +13365,10 @@ void Dblqh::scanTupkeyConfLab(Signal* signal,
       scanPtr->scanFlag = NextScanReq::ZSCAN_NEXT_COMMIT;
     }
   }
-  scanNextLoopLab(signal);
+  scanNextLoopLab(signal, regTcPtr->clientConnectrec);
 }//Dblqh::scanTupkeyConfLab()
 
-void Dblqh::scanNextLoopLab(Signal* signal) 
+void Dblqh::scanNextLoopLab(Signal* signal, Uint32 clientPtrI) 
 {
   Uint32 accOpPtr;
   ScanRecord * const scanPtr = scanptr.p;
@@ -13384,7 +13400,7 @@ void Dblqh::scanNextLoopLab(Signal* signal)
   ndbrequire(is_scan_ok(scanPtr, fragstatus));
   scanPtr->scanState = ScanRecord::WAIT_NEXT_SCAN;
   scanPtr->scan_lastSeen = __LINE__;
-  send_next_NEXT_SCANREQ(signal, block, f, scanPtr);
+  send_next_NEXT_SCANREQ(signal, block, f, scanPtr, clientPtrI);
 }//Dblqh::scanNextLoopLab()
 
 /* -------------------------------------------------------------------------
@@ -13486,7 +13502,7 @@ void Dblqh::scanTupkeyRefLab(Signal* signal,
   }
 
   scanPtr->scanFlag = NextScanReq::ZSCAN_NEXT_ABORT;
-  scanNextLoopLab(signal);
+  scanNextLoopLab(signal, tcConnectptr.p->clientConnectrec);
 }//Dblqh::scanTupkeyRefLab()
 
 /* -------------------------------------------------------------------------
@@ -14283,8 +14299,10 @@ Uint32 Dblqh::sendKeyinfo20(Signal* signal,
 void Dblqh::send_next_NEXT_SCANREQ(Signal* signal,
                                    SimulatedBlock* block,
                                    ExecFunction f,
-                                   ScanRecord * const scanPtr)
+                                   ScanRecord * const scanPtr,
+                                   Uint32 clientPtrI)
 {
+  (void)clientPtrI;
   /**
    * We have a number of different cases here. There are normal
    * scan operations, these always execute at B-level such that
@@ -14337,23 +14355,21 @@ void Dblqh::send_next_NEXT_SCANREQ(Signal* signal,
    * those values and when we start allowing more computations due to
    * higher CPU throughput also in signals part of user transactions.
    */
-#define ZMAX_WORDS_PER_SCAN_BATCH_LOW_PRIO 500
-#define ZMAX_WORDS_PER_SCAN_BATCH_HIGH_PRIO 4000
-
-  Uint32 max_scan_direct_count = scanPtr->m_reserved == 1 ?
-                                 ZMAX_SCAN_DIRECT_COUNT :
-                                 c_max_scan_direct_count;
-
   Uint32 prioAFlag = scanPtr->prioAFlag;
+  Uint32 cnf_max_scan_direct_count = c_max_scan_direct_count;
   const Uint32 scan_direct_count = scanPtr->scan_direct_count;
-  const Uint32 exec_direct_batch_size_words =
-              scanPtr->m_exec_direct_batch_size_words;
-  const Uint32 exec_direct_limit = prioAFlag ?
-                            ZMAX_WORDS_PER_SCAN_BATCH_HIGH_PRIO :
-                            ZMAX_WORDS_PER_SCAN_BATCH_LOW_PRIO;
+  Uint32 max_scan_direct_count = scanPtr->m_reserved == 1 ?
+                                 (prioAFlag ? (ZRESERVED_SCAN_BATCH_SIZE + 1) :
+                                  ZMAX_SCAN_DIRECT_COUNT) :
+                                 cnf_max_scan_direct_count;
+  bool max_words_reached =
+    c_backup->get_max_words_per_scan_batch(prioAFlag,
+                                 scanPtr->m_exec_direct_batch_size_words,
+                                 scanPtr->lcpScan,
+                                 clientPtrI);
 
   if (scan_direct_count >= max_scan_direct_count ||
-      exec_direct_batch_size_words > exec_direct_limit)
+      max_words_reached)
   {
     BlockReference blockRef = scanPtr->scanBlockref;
     BlockReference resultRef = scanPtr->scanApiBlockref;
@@ -14366,29 +14382,19 @@ void Dblqh::send_next_NEXT_SCANREQ(Signal* signal,
       sendSignal(blockRef, GSN_NEXT_SCANREQ, signal, 3, JBB);
       return;
     }
-    if (exec_direct_batch_size_words > ZMAX_WORDS_PER_SCAN_BATCH_HIGH_PRIO)
-    {
-      /**
-       * See Backup.cpp for explanation of this limit and how it is derived */
-      jam();
-      prioAFlag = false;
-    }
-    scanPtr->m_exec_direct_batch_size_words = 0;
     if (prioAFlag)
     {
-      /* Prioritised scan at high load situation */
-      jam();
-      sendSignal(blockRef, GSN_NEXT_SCANREQ, signal, 3, JBA);
-      return;
+      if (scanPtr->lcpScan)
+      {
+        c_backup->pausing_lcp(4,scan_direct_count);
+      }
     }
-    else
-    {
-      /* Prioritised scan operation */
-      jam();
-      sendSignalWithDelay(blockRef, GSN_NEXT_SCANREQ,
-                          signal, BOUNDED_DELAY, 3);
-      return;
-    }
+    scanPtr->m_exec_direct_batch_size_words = 0;
+    /* Prioritised scan operation */
+    jam();
+    sendSignalWithDelay(blockRef, GSN_NEXT_SCANREQ,
+                        signal, BOUNDED_DELAY, 3);
+    return;
   }
   else
   {
@@ -14444,7 +14450,7 @@ void Dblqh::sendScanFragConf(Signal* signal,
     scanPtr->m_curr_batch_size_rows = 0;
     scanPtr->m_curr_batch_size_bytes= 0;
   }
-
+  scanPtr->scan_direct_count = 1;
   scanPtr->m_stop_batch = 0;
   ScanFragConf * conf = (ScanFragConf*)&signal->theData[0];
 #ifdef NOT_USED
@@ -14991,7 +14997,11 @@ void Dblqh::accScanConfCopyLab(Signal* signal)
     signal->theData[0] = sig0;
     scanPtr->scanState = ScanRecord::WAIT_NEXT_SCAN_COPY;
     scanPtr->scan_lastSeen = __LINE__;
-    send_next_NEXT_SCANREQ(signal, block, f, scanPtr);
+    send_next_NEXT_SCANREQ(signal,
+                           block,
+                           f,
+                           scanPtr,
+                           regTcPtr->clientConnectrec);
   }
 }//Dblqh::accScanConfCopyLab()
 
@@ -15496,7 +15506,11 @@ void Dblqh::nextRecordCopy(Signal* signal,
    */
   scanPtr->scanState = ScanRecord::WAIT_NEXT_SCAN_COPY;
   scanPtr->scan_lastSeen = __LINE__;
-  send_next_NEXT_SCANREQ(signal, block, f, scanPtr);
+  send_next_NEXT_SCANREQ(signal,
+                         block,
+                         f,
+                         scanPtr,
+                         regTcPtr->clientConnectrec);
 }//Dblqh::nextRecordCopy()
 
 void Dblqh::copyLqhKeyRefLab(Signal* signal,
@@ -16000,8 +16014,15 @@ void Dblqh::execCOPY_ACTIVEREQ(Signal* signal)
 void Dblqh::execCOPY_FRAG_NOT_IN_PROGRESS_REP(Signal *signal)
 {
   jamEntry();
-  ndbrequire(c_copy_fragment_in_progress);
+  ndbrequire(c_copy_fragment_in_progress ||
+             c_num_fragments_created_since_restart == 0);
   c_copy_fragment_in_progress = false;
+  if (c_num_fragments_created_since_restart == 0)
+  {
+    jam();
+    /* No need to do anything here. */
+    return;
+  }
   /**
    * We are now sure that no more local LCPs can be started,
    * we still need to wait until the current one (if a current
@@ -16187,7 +16208,13 @@ void Dblqh::start_local_lcp(Signal *signal,
 void
 Dblqh::execSTART_LOCAL_LCP_ORD(Signal *signal)
 {
-  ndbrequire(c_copy_fragment_in_progress);
+  if (c_num_fragments_created_since_restart == 0)
+  {
+    jam();
+    c_local_lcp_sent_wait_all_complete_lcp_req = true;
+    sendSignal(NDBCNTR_REF, GSN_WAIT_ALL_COMPLETE_LCP_REQ, signal, 1, JBB);
+    return;
+  }
   Uint32 lcpId = signal->theData[0];
   Uint32 localLcpId = signal->theData[1];
   start_local_lcp(signal, lcpId, localLcpId);
@@ -16195,13 +16222,13 @@ Dblqh::execSTART_LOCAL_LCP_ORD(Signal *signal)
 
 void Dblqh::execSTART_FULL_LOCAL_LCP_ORD(Signal *signal)
 {
-  ndbrequire(c_copy_fragment_in_progress);
   Uint32 lcpId = signal->theData[0];
   Uint32 localLcpId = signal->theData[1];
 
   c_full_local_lcp_started = true;
-  if (c_local_lcp_started &&
-      c_localLcpId == 0)
+  if ((c_local_lcp_started &&
+       c_localLcpId == 0) ||
+       c_num_fragments_created_since_restart == 0)
   {
     /**
      * We have started a local LCP already. If we haven't
@@ -16315,25 +16342,28 @@ void Dblqh::execWAIT_COMPLETE_LCP_REQ(Signal *signal)
    */
   c_local_lcp_sent_wait_complete_conf = false;
   c_local_lcp_sent_wait_all_complete_lcp_req = true;
-  if (!m_node_restart_first_local_lcp_started)
+  if (c_num_fragments_created_since_restart > 0)
   {
-    jam();
-    c_saveLcpId = c_lcpId;
-    complete_local_lcp(signal);
-    return;
-  }
-  if (!c_full_local_lcp_started)
-  {
-    jam();
-    /**
-     * Normal path, no LCP was started due to UNDO log overload.
-     * We still started a LCP and now that all fragments have
-     * completed synchronisation we can complete the
-     * local LCP and as soon as this is done we can continue
-     * the restart processing.
-     */
-    send_lastLCP_FRAG_ORD(signal);
-    return;
+    if (!m_node_restart_first_local_lcp_started)
+    {
+      jam();
+      c_saveLcpId = c_lcpId;
+      complete_local_lcp(signal);
+      return;
+    }
+    if (!c_full_local_lcp_started)
+    {
+      jam();
+      /**
+       * Normal path, no LCP was started due to UNDO log overload.
+       * We still started a LCP and now that all fragments have
+       * completed synchronisation we can complete the
+       * local LCP and as soon as this is done we can continue
+       * the restart processing.
+       */
+      send_lastLCP_FRAG_ORD(signal);
+      return;
+    }
   }
   if (c_localLcpId == 0)
   {
@@ -16356,6 +16386,7 @@ void Dblqh::execWAIT_COMPLETE_LCP_REQ(Signal *signal)
                WaitCompleteLcpConf::SignalLength, JBB);
     return;
   }
+  ndbrequire(c_num_fragments_created_since_restart > 0);
   /**
    * A local LCP was ordered due to UNDO log overload, this haven't
    * completed yet. So we need to wait until it is completed until
@@ -17252,6 +17283,7 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
 
     lcpPtr.p->firstFragmentFlag= true;
     c_max_gci_in_lcp = 0;
+    c_fragments_in_lcp = 0;
 
 #ifdef ERROR_INSERT
     if (check_ndb_versions())
@@ -17364,6 +17396,7 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
     return;
   }//if
 
+  c_fragments_in_lcp++;
   tabptr.i = lcpFragOrd->tableId;
   ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
   
@@ -17707,6 +17740,7 @@ Dblqh::get_current_local_lcp_id(void)
 
 void
 Dblqh::get_lcp_frag_stats(Uint64 & row_count,
+                          Uint64 & prev_row_count,
                           Uint64 & row_change_count,
                           Uint64 & memory_used_in_bytes,
                           Uint32 & max_page_cnt)
@@ -17788,6 +17822,7 @@ Dblqh::get_lcp_frag_stats(Uint64 & row_count,
                             fragptr.p->newestGci,
                             max_page_cnt,
                             row_count,
+                            prev_row_count,
                             row_change_count,
                             memory_used_in_bytes,
                             true);
@@ -18126,6 +18161,15 @@ restart:
  * ------------------------------------------------------------------------- */
 void Dblqh::completeLcpRoundLab(Signal* signal, Uint32 lcpId)
 {
+  if (c_fragments_in_lcp == 0)
+  {
+    jam();
+    lcpPtr.i = 0;
+    ptrAss(lcpPtr, lcpRecord);
+    sendLCP_COMPLETE_REP(signal,
+                         lcpPtr.p->currentPrepareFragment.lcpFragOrd.lcpId);
+    return;
+  }
   startLcpFragWatchdog(signal);
   DEB_LCP(("(%u)Start complete LCP %u", instance(), lcpId));
   clcpCompletedState = LCP_CLOSE_STARTED;
@@ -18193,6 +18237,7 @@ void Dblqh::sendLCP_COMPLETE_REP(Signal* signal, Uint32 lcpId)
   lcpPtr.p->m_no_of_bytes = 0;
   cnoOfFragsCheckpointed = 0;
   clcpCompletedState = LCP_IDLE;
+  c_fragments_in_lcp = 0;
 
   if (c_localLcpId != 0)
   {
@@ -18213,7 +18258,8 @@ void Dblqh::sendLCP_COMPLETE_REP(Signal* signal, Uint32 lcpId)
    *
    * This coordination happens in NDBCNTR.
    */
-  ndbrequire(c_keep_gci_for_lcp <= c_max_keep_gci_in_lcp);
+  ndbrequire(c_keep_gci_for_lcp <= c_max_keep_gci_in_lcp ||
+             c_num_fragments_created_since_restart == 0);
   LcpAllCompleteReq* req = (LcpAllCompleteReq*)signal->getDataPtrSend();
   req->senderRef = reference();
   req->lcpId = lcpId;
@@ -18404,7 +18450,7 @@ retry:
       LogPosition head = { tmpfile.p->fileNo, tmpfile.p->currentMbyte };
       LogPosition tail = { sltLogPartPtr.p->logTailFileNo,
                            sltLogPartPtr.p->logTailMbyte};
-      Uint64 mb = free_log(head, tail, sltLogPartPtr.p->noLogFiles,
+      Uint64 free_mb = free_log(head, tail, sltLogPartPtr.p->noLogFiles,
                            clogFileSize);
 
 #ifdef DEBUG_CUT_REDO
@@ -18431,25 +18477,27 @@ retry:
                       ToldTailMByte,
                       fileNo,
                       mbyte,
-                      mb));
+                      free_mb));
       }
 #endif
 
-      if (mb <= c_free_mb_force_lcp_limit)
+      if (free_mb <= c_free_mb_force_lcp_limit)
       {
         /**
          * Force a new LCP
          */
         force_lcp(signal);
       }
-
-      if (tailmoved && mb > c_free_mb_tail_problem_limit)
+      Uint32 committed_mbytes = get_committed_mbytes(sltLogPartPtr.p);
+      if (tailmoved &&
+          (free_mb >
+           (c_free_mb_tail_problem_limit + committed_mbytes)))
       {
         jam();
         update_log_problem(signal, sltLogPartPtr,
                            LogPartRecord::P_TAIL_PROBLEM, false);
       }
-      else if (!tailmoved && mb <= c_free_mb_force_lcp_limit)
+      else if (!tailmoved && free_mb <= c_free_mb_force_lcp_limit)
       {
         jam();
         /**
@@ -18457,10 +18505,10 @@ retry:
          *   This could be as currentMb, contains backreferences making it
          *   Check if changing mb forward will help situation
          */
-        if (mb < 2)
+        if ((free_mb + committed_mbytes) < 4)
         {
           /**
-           * 0 or 1 mb free, no point in trying to changeMbyte forward...
+           * Less than 4 mb free, no point in trying to changeMbyte forward...
            */
           jam();
           goto next;
@@ -21655,6 +21703,24 @@ void Dblqh::execRESTORE_LCP_CONF(Signal* signal)
   Uint32 afterRestore = conf->afterRestore;
   c_fragment_pool.getPtr(fragptr);
 
+  {
+    /**
+     * Calculate average row size after restore.
+     */
+    Uint32 max_page_cnt;
+    Uint64 row_count;
+    Uint64 prev_row_count;
+    Uint64 row_change_count;
+    Uint64 memory_used_in_bytes;
+    c_tup->get_lcp_frag_stats(fragptr.p->tupFragptr,
+                              0, /* Ignored when reset flag is false */
+                              max_page_cnt,
+                              row_count,
+                              prev_row_count,
+                              row_change_count,
+                              memory_used_in_bytes,
+                              false);
+  }
   c_lcp_restoring_fragments.remove(fragptr);
   c_lcp_complete_fragments.addLast(fragptr);
 
@@ -22180,8 +22246,13 @@ Dblqh::rebuildOrderedIndexes(Signal* signal, Uint32 tableId)
       LogPosition head = { logFile.p->fileNo, logFile.p->currentMbyte };
       LogPosition tail = { logPartPtr.p->logTailFileNo, 
                            logPartPtr.p->logTailMbyte};
-      Uint64 mb = free_log(head, tail, logPartPtr.p->noLogFiles, clogFileSize);
-      if (mb <= c_free_mb_tail_problem_limit)
+      Uint64 free_mb = free_log(head,
+                                tail,
+                                logPartPtr.p->noLogFiles,
+                                clogFileSize);
+      Uint32 committed_mbytes = get_committed_mbytes(logPartPtr.p);
+      if (free_mb <=
+          (c_free_mb_tail_problem_limit + committed_mbytes))
       {
         jam();
         update_log_problem(signal, logPartPtr,
@@ -26162,6 +26233,8 @@ void Dblqh::initGciInLogFileRec(Signal* signal, Uint32 noFdDescriptors)
  * ========================================================================= */
 void Dblqh::initLogpart(Signal* signal) 
 {
+  logPartPtr.p->m_total_written_words = Uint64(0);
+  logPartPtr.p->m_last_total_written_words = Uint64(0);
   logPartPtr.p->execSrLogPage = RNIL;
   logPartPtr.p->execSrLogPageIndex = ZNIL;
   logPartPtr.p->execSrExecuteIndex = 0;
@@ -26191,6 +26264,7 @@ void Dblqh::initLogpart(Signal* signal)
   logPartPtr.p->m_io_tracker.init(logPartPtr.p->logPartNo);
   logPartPtr.p->m_log_prepare_queue.init();
   logPartPtr.p->m_log_complete_queue.init();
+  logPartPtr.p->m_committed_words = 0;
 }//Dblqh::initLogpart()
 
 /* ========================================================================== 
@@ -27205,18 +27279,23 @@ void Dblqh::stepAhead(Signal* signal, Uint32 stepAheadWords)
  *
  *       SUBROUTINE SHORT NAME: WAL
  * ------------------------------------------------------------------------- */
-void Dblqh::writeAbortLog(Signal* signal, const TcConnectionrec* regTcPtr)
+void Dblqh::writeAbortLog(Signal* signal,
+                          TcConnectionrec* regTcPtr,
+                          LogPartRecord *regLogPartPtr)
 {
   if ((ZABORT_LOG_SIZE + ZNEXT_LOG_SIZE) > 
       logFilePtr.p->remainingWordsInMbyte) {
     jam();
     changeMbyte(signal);
   }//if
+  regLogPartPtr->m_total_written_words += ZABORT_LOG_SIZE;
   logFilePtr.p->remainingWordsInMbyte = 
     logFilePtr.p->remainingWordsInMbyte - ZABORT_LOG_SIZE;
   writeLogWord(signal, ZABORT_TYPE);
   writeLogWord(signal, regTcPtr->transid[0]);
   writeLogWord(signal, regTcPtr->transid[1]);
+  decrement_committed_mbytes(regLogPartPtr,
+                             regTcPtr);
 }//Dblqh::writeAbortLog()
 
 /* --------------------------------------------------------------------------
@@ -27226,7 +27305,7 @@ void Dblqh::writeAbortLog(Signal* signal, const TcConnectionrec* regTcPtr)
  * ------------------------------------------------------------------------- */
 void Dblqh::writeCommitLog(Signal* signal,
                            LogPartRecordPtr regLogPartPtr,
-                           const TcConnectionrec* regTcPtr)
+                           TcConnectionrec* regTcPtr)
 {
   LogFileRecordPtr regLogFilePtr;
   LogPageRecordPtr regLogPagePtr;
@@ -27253,6 +27332,7 @@ void Dblqh::writeCommitLog(Signal* signal,
   Uint32 pageIndex = regTcPtr->logStartPageIndex;
   Uint32 stopPageNo = regTcPtr->logStopPageNo;
   Uint32 gci = regTcPtr->gci_hi;
+  regLogPartPtr.p->m_total_written_words += ZCOMMIT_LOG_SIZE;
   logFilePtr.p->remainingWordsInMbyte = twclTmp - ZCOMMIT_LOG_SIZE;
 
   if ((twclLogPos + ZCOMMIT_LOG_SIZE) >= ZPAGE_SIZE) {
@@ -27278,6 +27358,8 @@ void Dblqh::writeCommitLog(Signal* signal,
     dataPtr[7] = stopPageNo;
     dataPtr[8] = gci;
   }//if
+  decrement_committed_mbytes(regLogPartPtr.p,
+                             regTcPtr);
   TcConnectionrecPtr rloTcNextConnectptr;
   TcConnectionrecPtr rloTcPrevConnectptr;
   rloTcPrevConnectptr.i = regTcPtr->prevLogTcrec;
@@ -27335,6 +27417,7 @@ void Dblqh::writeCompletedGciLog(Signal* signal)
 
   writeLogWord(signal, ZCOMPLETED_GCI_TYPE);
   writeLogWord(signal, cnewestCompletedGci);
+  logPartPtr.p->m_total_written_words += ZCOMPLETED_GCI_LOG_SIZE;
   logPartPtr.p->logPartNewestCompletedGCI = cnewestCompletedGci;
 }//Dblqh::writeCompletedGciLog()
 
@@ -27644,10 +27727,14 @@ void Dblqh::writeNextLog(Signal* signal)
     force_lcp(signal);
   }
 
-  if (free_mb <= c_free_mb_tail_problem_limit)
+  if (free_mb <=
+      (c_free_mb_tail_problem_limit + get_committed_mbytes(logPartPtr.p)))
   {
     jam();
-    update_log_problem(signal, logPartPtr, LogPartRecord::P_TAIL_PROBLEM, true);
+    update_log_problem(signal,
+                       logPartPtr,
+                       LogPartRecord::P_TAIL_PROBLEM,
+                       true);
   }
 
   if (ERROR_INSERTED(5058) &&
@@ -28956,9 +29043,25 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
   }
 }//Dblqh::execDUMP_STATE_ORD()
 
-void Dblqh::get_redo_size(Uint64 & size_in_bytes)
+void Dblqh::get_redo_stats(Uint64 &usage_in_mbytes,
+                           Uint64 &size_in_mbytes,
+                           Uint64 &written_since_last_in_bytes,
+                           Uint64& update_size,
+                           Uint64& insert_size,
+                           Uint64& delete_size)
 {
-  size_in_bytes = 0;
+  /**
+   * This method assumes that all log parts have the same size.
+   * It reports the total written number of bytes in all parts.
+   * It reports the size of one part and it reports the usage
+   * level on the part with most Mbytes used.
+   */
+  size_in_mbytes = 0;
+  usage_in_mbytes = 0;
+  written_since_last_in_bytes = 0;
+  update_size = m_update_size;
+  insert_size = m_insert_size;
+  delete_size = m_delete_size;
   for (Uint32 logpart = 0;
        logpart < clogPartFileSize;
        logpart++)
@@ -28968,22 +29071,9 @@ void Dblqh::get_redo_size(Uint64 & size_in_bytes)
     ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
 
     Uint64 total_mbyte = Uint64(logPartPtr.p->noLogFiles) *
-                         Uint64(clogFileSize);
+                           Uint64(clogFileSize);
     jamLine(total_mbyte);
-    size_in_bytes += total_mbyte * Uint64(1024) * Uint64(1024);
-  }
-}
-
-void Dblqh::get_redo_usage(Uint64 & used_in_bytes)
-{
-  used_in_bytes = 0;
-  for (Uint32 logpart = 0;
-       logpart < clogPartFileSize;
-       logpart++)
-  {
-    jam();
-    logPartPtr.i = logpart;
-    ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
+    size_in_mbytes = total_mbyte;
 
     LogFileRecordPtr logFilePtr;
     logFilePtr.i = logPartPtr.p->currentLogfile;
@@ -28992,15 +29082,22 @@ void Dblqh::get_redo_usage(Uint64 & used_in_bytes)
     LogPosition head = { logFilePtr.p->fileNo, logFilePtr.p->currentMbyte };
     LogPosition tail = { logPartPtr.p->logTailFileNo,
                        logPartPtr.p->logTailMbyte };
-    Uint64 total_mbyte = Uint64(logPartPtr.p->noLogFiles) *
-                         Uint64(clogFileSize);
     Uint64 mbyte_free = free_log(head,
                                  tail,
                                  logPartPtr.p->noLogFiles,
                                  clogFileSize);
     ndbrequire(total_mbyte >= mbyte_free);
     Uint64 mbyte_used = total_mbyte - mbyte_free;
-    used_in_bytes = mbyte_used * Uint64(1024) * Uint64(1024);
+    Uint64 last_written = logPartPtr.p->m_last_total_written_words;
+    Uint64 current_written = logPartPtr.p->m_total_written_words;
+    logPartPtr.p->m_last_total_written_words = current_written;
+    Uint64 written_in_bytes = 4 * (current_written - last_written);
+    written_since_last_in_bytes += written_in_bytes;
+    if (mbyte_used > usage_in_mbytes)
+    {
+      jam();
+      usage_in_mbytes = mbyte_used;
+    }
   }
 }
 
@@ -30389,7 +30486,7 @@ Dblqh::handle_check_system_scans(Signal *signal)
         else if (i == ZBACKUP_CHECK_INDEX)
         {
           jam();
-          g_eventLogger->info("Backup Scan have stalled for %u seconds, last"
+          g_eventLogger->info("Backup Scan have stalled for %u seconds, "
                               "last seen on line %u, check_lcp_stop_count: %u",
                               time_stalled,
                               c_check_scanptr_save_line[i],
@@ -30410,8 +30507,15 @@ Dblqh::handle_check_system_scans(Signal *signal)
         signal->theData[0] = DumpStateOrd::LqhDumpOneScanRec;
         signal->theData[1] = loc_scanptr.i;
         EXECUTE_DIRECT(DBLQH, GSN_DUMP_STATE_ORD, signal, 2);
-        if (time_stalled >= 120)
+        if (time_stalled >= 120 &&
+            (i != ZCOPY_FRAGREQ_CHECK_INDEX))
         {
+          /**
+           * LCP and Backup scans proceed even in the presence of locks,
+           * COPY_FRAGREQ scans can be held up on locks without any
+           * real limits since transactions have no specified maximum
+           * time.
+           */
           jam();
           abort();
         }
@@ -30765,4 +30869,29 @@ Dblqh::is_ldm_instance_io_lagging()
   }
   c_is_io_lag_reported = io_lag_now;
   return change_and_get_io_laggers(change) == 0 ? false : true;
+}
+
+
+Uint32 Dblqh::get_committed_mbytes(LogPartRecord* logPartPtrP)
+{
+  Uint64 committed_words = logPartPtrP->m_committed_words;
+  Uint64 committed_mbytes = committed_words >> 18;
+  committed_mbytes += 1;
+  return (Uint32)committed_mbytes;
+}
+
+void Dblqh::increment_committed_mbytes(LogPartRecord* logPartPtrP,
+                                       TcConnectionrec* regTcPtr)
+{
+  logPartPtrP->m_committed_words += (ZCOMMIT_LOG_SIZE + 1);
+  regTcPtr->m_committed_log_space = 1;
+}
+
+void Dblqh::decrement_committed_mbytes(LogPartRecord* logPartPtrP,
+                                       TcConnectionrec* regTcPtr)
+{
+  ndbassert(logPartPtrP->m_committed_words >= (ZCOMMIT_LOG_SIZE + 1));
+  logPartPtrP->m_committed_words -= (ZCOMMIT_LOG_SIZE + 1);
+  ndbassert(regTcPtr->m_committed_log_space == 1);
+  regTcPtr->m_committed_log_space = 0;
 }

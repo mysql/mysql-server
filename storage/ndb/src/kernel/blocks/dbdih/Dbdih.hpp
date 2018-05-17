@@ -31,6 +31,7 @@
 #include "Sysfile.hpp"
 #include <SignalCounter.hpp>
 
+#include <signaldata/RedoStateRep.hpp>
 #include <signaldata/MasterLCP.hpp>
 #include <signaldata/CopyGCIReq.hpp>
 #include <blocks/mutexes.hpp>
@@ -1298,6 +1299,7 @@ private:
   void execWAIT_GCP_REQ(Signal* signal);
   void execWAIT_GCP_REF(Signal* signal);
   void execWAIT_GCP_CONF(Signal* signal);
+  void execREDO_STATE_REP(Signal* signal);
 
   void execPREP_DROP_TAB_REQ(Signal* signal);
   void execDROP_TAB_REQ(Signal* signal);
@@ -2752,6 +2754,11 @@ private:
 
   bool handle_master_take_over_copy_gci(Signal *signal,
                                         NodeId newMasterNodeId);
+
+  RedoStateRep::RedoAlertState m_node_redo_alert_state[MAX_NDB_NODES];
+  RedoStateRep::RedoAlertState m_global_redo_alert_state;
+  RedoStateRep::RedoAlertState get_global_redo_alert_state();
+  void sendREDO_STATE_REP_to_all(Signal*, Uint32 block, bool send_to_all);
 };
 
 #if (DIH_CDATA_SIZE < _SYSFILE_SIZE32)

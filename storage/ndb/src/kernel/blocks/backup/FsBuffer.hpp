@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -80,6 +80,7 @@ public:
   Uint32 getBufferSize() const;
   Uint32 getUsableSize() const; 
   Uint32 * getStart() const;
+  Uint32 getSizeUsed() const;
   
   /**
    * getReadPtr - Get pointer and size of data to send to FS
@@ -264,6 +265,13 @@ inline
 Uint32 *
 FsBuffer::getStart() const {
   return m_start;
+}
+
+inline
+Uint32
+FsBuffer::getSizeUsed() const
+{
+  return (m_size - m_free);
 }
 
 inline

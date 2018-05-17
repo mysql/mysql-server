@@ -200,6 +200,7 @@ Dbtup::dump_disk_alloc(Dbtup::Disk_alloc_info & alloc)
   }
 }
 
+#define ddrequire(x) do { if(unlikely(!(x))) { dump_disk_alloc(alloc); ndbrequire(false); } } while(0)
 #if defined(VM_TRACE) || defined(ERROR_INSERT)
 #define ddassert(x) do { if(unlikely(!(x))) { dump_disk_alloc(alloc); ndbabort(); } } while(0)
 #else
@@ -316,7 +317,7 @@ Dbtup::update_extent_pos(EmulatedJamBuffer* jamBuf,
   {
     thrjam(jamBuf);
     Uint32 sub = Uint32(- delta);
-    ddassert(extentPtr.p->m_free_space >= sub);
+    ddrequire(extentPtr.p->m_free_space >= sub);
     extentPtr.p->m_free_space -= sub;
   }
   else
@@ -336,19 +337,20 @@ Dbtup::update_extent_pos(EmulatedJamBuffer* jamBuf,
   }
   if (extentPtr.p->m_free_page_count[0] == cnt)
   {
-    ddassert(extentPtr.p->m_free_space == cnt*alloc.m_page_free_bits_map[0]);
+    ddrequire(extentPtr.p->m_free_space == cnt*alloc.m_page_free_bits_map[0]);
   }
   else
   {
-    ddassert(extentPtr.p->m_free_space < cnt*alloc.m_page_free_bits_map[0]);
+    ddrequire(extentPtr.p->m_free_space < cnt*alloc.m_page_free_bits_map[0]);
   }
-  ddassert(extentPtr.p->m_free_space >= sum);
-  ddassert(extentPtr.p->m_free_space <= cnt*alloc.m_page_free_bits_map[0]);
+  ddrequire(extentPtr.p->m_free_space >= sum);
+  ddrequire(extentPtr.p->m_free_space <= cnt*alloc.m_page_free_bits_map[0]);
 #endif
   
   Uint32 old = extentPtr.p->m_free_matrix_pos;
   if (old != RNIL)
   {
+    thrjam(jamBuf);
     Uint32 pos = alloc.calc_extent_pos(extentPtr.p);
     if (old != pos)
     {
@@ -362,7 +364,7 @@ Dbtup::update_extent_pos(EmulatedJamBuffer* jamBuf,
   }
   else
   {
-    ddassert(alloc.m_curr_extent_info_ptr_i == extentPtr.i);
+    ddrequire(alloc.m_curr_extent_info_ptr_i == extentPtr.i);
   }
 }
 
@@ -508,7 +510,7 @@ Dbtup::restart_setup_page(Ptr<Fragrecord> fragPtr,
   }
 #endif
 
-  ddassert(real_free >= estimated);
+  ddrequire(real_free >= estimated);
 
   if (real_free != estimated)
   {
@@ -558,6 +560,8 @@ Dbtup::disk_page_prealloc(Signal* signal,
   {
     if (!alloc.m_dirty_pages[i].isEmpty())
     {
+      jam();
+      jamLine(i);
       ptrI= alloc.m_dirty_pages[i].getFirst();
       Ptr<GlobalPage> gpage;
       m_global_page_pool.getPtr(gpage, ptrI);
@@ -582,6 +586,8 @@ Dbtup::disk_page_prealloc(Signal* signal,
   {
     if (!alloc.m_page_requests[i].isEmpty())
     {
+      jam();
+      jamLine(i);
       ptrI= alloc.m_page_requests[i].getFirst();
       Ptr<Page_request> req;
       c_page_request_pool.getPtr(req, ptrI);
@@ -711,7 +717,7 @@ Dbtup::disk_page_prealloc(Signal* signal,
     ext.p->m_free_matrix_pos= RNIL;
     pageBits= tsman.alloc_page_from_extent(&ext.p->m_key, bits);
     jamEntry();
-    ddassert(pageBits >= 0);
+    ddrequire(pageBits >= 0);
   }
   
   /**
@@ -726,7 +732,7 @@ Dbtup::disk_page_prealloc(Signal* signal,
    */
   Uint32 size= alloc.calc_page_free_space((Uint32)pageBits);
   
-  ddassert(size >= sz);
+  ddrequire(size >= sz);
   req.p->m_original_estimated_free_space = size;
 
   Uint32 new_size = size - sz;   // Subtract alloc rec
@@ -750,7 +756,7 @@ Dbtup::disk_page_prealloc(Signal* signal,
                      newPageBits,
                      ext.p->m_free_page_count[pageBits],
                      ext.p->m_free_page_count[newPageBits]));
-    ddassert(ext.p->m_free_page_count[pageBits] > 0);
+    ddrequire(ext.p->m_free_page_count[pageBits] > 0);
     ext.p->m_free_page_count[pageBits]--;
     ext.p->m_free_page_count[newPageBits]++;
 
@@ -759,6 +765,7 @@ Dbtup::disk_page_prealloc(Signal* signal,
 
   // And put page request in correct free list
   idx= alloc.calc_page_free_bits(new_size);
+  jamLine(idx);
   {
     Local_page_request_list list(c_page_request_pool, 
 				 alloc.m_page_requests[idx]);
@@ -837,13 +844,13 @@ Dbtup::disk_page_prealloc_dirty_page(Disk_alloc_info & alloc,
 {
   jam();
   jamLine(pagePtr.i);
-  ddassert(pagePtr.p->list_index == old_idx);
+  ddrequire(pagePtr.p->list_index == old_idx);
 
   Uint32 free= pagePtr.p->free_space;
   Uint32 used= pagePtr.p->uncommitted_used_space + sz;
   Uint32 ext= pagePtr.p->m_extent_info_ptr;
   
-  ddassert(free >= used);
+  ddrequire(free >= used);
   Ptr<Extent_info> extentPtr;
   c_extent_pool.getPtr(extentPtr, ext);
 
@@ -871,7 +878,7 @@ Dbtup::disk_page_prealloc_transit_page(Disk_alloc_info& alloc,
 				       Uint32 old_idx, Uint32 sz)
 {
   jam();
-  ddassert(req.p->m_list_index == old_idx);
+  ddrequire(req.p->m_list_index == old_idx);
 
   Uint32 free= req.p->m_original_estimated_free_space;
   Uint32 used= req.p->m_uncommitted_used_space + sz;
@@ -880,7 +887,7 @@ Dbtup::disk_page_prealloc_transit_page(Disk_alloc_info& alloc,
   Ptr<Extent_info> extentPtr;
   c_extent_pool.getPtr(extentPtr, ext);
 
-  ddassert(free >= used);
+  ddrequire(free >= used);
   Uint32 new_idx= alloc.calc_page_free_bits(free - used);
   
   if (old_idx != new_idx)
@@ -954,7 +961,7 @@ Dbtup::disk_page_prealloc_callback(Signal* signal,
   c_extent_pool.getPtr(extentPtr, req.p->m_extent_info_ptr);
 
   pagePtr.p->uncommitted_used_space += req.p->m_uncommitted_used_space;
-  ddassert(pagePtr.p->free_space >= pagePtr.p->uncommitted_used_space);
+  ddrequire(pagePtr.p->free_space >= pagePtr.p->uncommitted_used_space);
 
   Uint32 free = pagePtr.p->free_space - pagePtr.p->uncommitted_used_space;
   Uint32 idx = req.p->m_list_index;
@@ -979,7 +986,7 @@ Dbtup::disk_page_prealloc_callback(Signal* signal,
       extentPtr.p->m_free_page_count[idx],
       extentPtr.p->m_free_page_count[real_idx]));
 
-    ddassert(extentPtr.p->m_free_page_count[idx] > 0);
+    ddrequire(extentPtr.p->m_free_page_count[idx] > 0);
     extentPtr.p->m_free_page_count[idx]--;
     extentPtr.p->m_free_page_count[real_idx]++;
     update_extent_pos(jamBuffer(), alloc, extentPtr, 0);
@@ -1024,10 +1031,11 @@ Dbtup::disk_page_move_dirty_page(Disk_alloc_info& alloc,
                    extentPtr.p->m_free_page_count[old_idx],
                    extentPtr.p->m_free_page_count[new_idx]));
 
-  ddassert(extentPtr.p->m_free_page_count[old_idx] > 0);
+  ddrequire(extentPtr.p->m_free_page_count[old_idx] > 0);
   extentPtr.p->m_free_page_count[old_idx]--;
   extentPtr.p->m_free_page_count[new_idx]++;
 
+  jam();
   Page_pool *pool= (Page_pool*)&m_global_page_pool;
   Local_Page_list new_list(*pool, alloc.m_dirty_pages[new_idx]);
   Local_Page_list old_list(*pool, alloc.m_dirty_pages[old_idx]);
@@ -1043,6 +1051,7 @@ Dbtup::disk_page_move_page_request(Disk_alloc_info& alloc,
                                    Ptr<Page_request> req,
                                    Uint32 old_idx, Uint32 new_idx)
 {
+  jam();
   Page_request_list::Head *lists = alloc.m_page_requests;
   Local_page_request_list old_list(c_page_request_pool, lists[old_idx]);
   Local_page_request_list new_list(c_page_request_pool, lists[new_idx]);
@@ -1060,7 +1069,7 @@ Dbtup::disk_page_move_page_request(Disk_alloc_info& alloc,
                    extentPtr.p->m_free_page_count[old_idx],
                    extentPtr.p->m_free_page_count[new_idx]));
 
-  ddassert(extentPtr.p->m_free_page_count[old_idx] > 0);
+  ddrequire(extentPtr.p->m_free_page_count[old_idx] > 0);
   extentPtr.p->m_free_page_count[old_idx]--;
   extentPtr.p->m_free_page_count[new_idx]++;
   req.p->m_list_index= new_idx;
@@ -1153,8 +1162,8 @@ Dbtup::disk_page_prealloc_initial_callback(Signal*signal,
 #if defined(VM_TRACE) || defined(ERROR_INSERT)
   {
     Uint32 free = pagePtr.p->free_space - pagePtr.p->uncommitted_used_space;
-    ddassert(idx == alloc.calc_page_free_bits(free));
-    ddassert(pagePtr.p->free_space == req.p->m_original_estimated_free_space);
+    ddrequire(idx == alloc.calc_page_free_bits(free));
+    ddrequire(pagePtr.p->free_space == req.p->m_original_estimated_free_space);
   }
 #endif
 
@@ -1217,7 +1226,7 @@ Dbtup::disk_page_set_dirty(PagePtr pagePtr)
     jam();
     D(V(pagePtr.p->m_restart_seq) << V(globalData.m_restart_seq));
     restart_setup_page(fragPtr, alloc, pagePtr, -1);
-    ndbassert(free == pagePtr.p->free_space);
+    ndbrequire(free == pagePtr.p->free_space);
     free = pagePtr.p->free_space;
     idx = alloc.calc_page_free_bits(free);
     used = 0;
@@ -1233,10 +1242,10 @@ Dbtup::disk_page_set_dirty(PagePtr pagePtr)
                      pagePtr.p->m_page_no,
                      pagePtr.i,
                      idx));
-    ddassert(idx == alloc.calc_page_free_bits(free - used));
+    ddrequire(idx == alloc.calc_page_free_bits(free - used));
   }
   
-  ddassert(free >= used);
+  ddrequire(free >= used);
   
   D("Tablespace_client - disk_page_set_dirty");
   Tablespace_client tsman(0, this, c_tsman,
@@ -1333,13 +1342,11 @@ Dbtup::disk_page_unmap_callback(Uint32 when,
       key.m_page_no = pagePtr.p->m_page_no;
       key.m_file_no = pagePtr.p->m_file_no;
       
-#if defined(VM_TRACE) || defined(ERROR_INSERT)
       Uint32 free = pagePtr.p->free_space;
       Uint32 used = pagePtr.p->uncommitted_used_space;
-      ddassert(free >= used);
-      ddassert(alloc.calc_page_free_bits(free - used) == idx);
-#endif
-
+      ddrequire(free >= used);
+      ddrequire(alloc.calc_page_free_bits(free - used) == idx);
+      
       D("Tablespace_client - disk_page_unmap_callback");
       Tablespace_client tsman(0, this, c_tsman,
                     fragPtr.p->fragTableId,
@@ -1414,9 +1421,7 @@ Dbtup::disk_page_alloc(Signal* signal,
 {
   jam();
   Uint32 logfile_group_id= fragPtrP->m_logfile_group_id;
-#if defined(VM_TRACE) || defined(ERROR_INSERT)
   Disk_alloc_info& alloc= fragPtrP->m_disk_alloc_info;
-#endif
 
   Uint64 lsn;
   if (tabPtrP->m_attributes[DD].m_no_of_varsize == 0)
@@ -1436,7 +1441,7 @@ Dbtup::disk_page_alloc(Signal* signal,
                 gci,
                 row_id->m_page_no,
                 row_id->m_page_idx));
-    ddassert(pagePtr.p->uncommitted_used_space > 0);
+    ddrequire(pagePtr.p->uncommitted_used_space > 0);
     pagePtr.p->uncommitted_used_space--;
     key->m_page_idx= ((Fix_page*)pagePtr.p)->alloc_record();
     jamLine(Uint16(key->m_page_idx));
@@ -1458,7 +1463,7 @@ Dbtup::disk_page_alloc(Signal* signal,
   {
     jam();
     Uint32 sz= key->m_page_idx;
-    ddassert(pagePtr.p->uncommitted_used_space >= sz);
+    ddrequire(pagePtr.p->uncommitted_used_space >= sz);
     pagePtr.p->uncommitted_used_space -= sz;
     key->m_page_idx= ((Var_page*)pagePtr.p)->
       alloc_record(sz, (Var_page*)ctemp_page, 0);
@@ -1491,9 +1496,7 @@ Dbtup::disk_page_free(Signal *signal,
   jamLine(Uint16(key->m_page_idx));
   Uint32 logfile_group_id= fragPtrP->m_logfile_group_id;
   Disk_alloc_info& alloc= fragPtrP->m_disk_alloc_info;
-#if defined(VM_TRACE) || defined(ERROR_INSERT)
   Uint32 old_free= pagePtr.p->free_space;
-#endif
 
   Uint32 sz;
   Uint64 lsn;
@@ -1550,6 +1553,7 @@ Dbtup::disk_page_free(Signal *signal,
   }
   else
   {
+    jam();
     const Uint32 *src= ((Var_page*)pagePtr.p)->get_ptr(page_idx);
     sz= ((Var_page*)pagePtr.p)->get_entry_len(page_idx);
     lsn= disk_page_undo_free(signal,
@@ -1569,13 +1573,13 @@ Dbtup::disk_page_free(Signal *signal,
   Uint32 ext = pagePtr.p->m_extent_info_ptr;
   Uint32 used = pagePtr.p->uncommitted_used_space;
   Uint32 old_idx = pagePtr.p->list_index;
-  ddassert(old_free >= used);
-  ddassert(new_free >= used);
-  ddassert(new_free >= old_free);
-  ddassert((old_idx & 0x8000) == 0);
+  ddrequire(old_free >= used);
+  ddrequire(new_free >= used);
+  ddrequire(new_free >= old_free);
+  ddrequire((old_idx & 0x8000) == 0);
 
   Uint32 new_idx = alloc.calc_page_free_bits(new_free - used);
-  ddassert(alloc.calc_page_free_bits(old_free - used) == old_idx);
+  ddrequire(alloc.calc_page_free_bits(old_free - used) == old_idx);
   
   Ptr<Extent_info> extentPtr;
   c_extent_pool.getPtr(extentPtr, ext);
@@ -1672,9 +1676,9 @@ Dbtup::disk_page_abort_prealloc_callback_1(Signal* signal,
   Uint32 used = pagePtr.p->uncommitted_used_space;
   Uint32 free = pagePtr.p->free_space;
 
-  ddassert(free >= used);
-  ddassert(used >= sz);
-  ddassert(alloc.calc_page_free_bits(free - used) == idx);
+  ddrequire(free >= used);
+  ddrequire(used >= sz);
+  ddrequire(alloc.calc_page_free_bits(free - used) == idx);
 
   pagePtr.p->uncommitted_used_space = used - sz;
 
@@ -2048,10 +2052,12 @@ Dbtup::disk_restart_undo(Signal* signal,
 
   if (isNdbMtLqh())
   {
+    jam();
     Pending_undo_page key(preq.m_page.m_file_no, preq.m_page.m_page_no);
 
     if (c_pending_undo_page_hash.find(cur_undo_record_page, key))
     {
+      jam();
       /**
        *  Page of the current undo record being processed already has a pending
        *  request.
@@ -2123,6 +2129,7 @@ Dbtup::disk_restart_undo(Signal* signal,
                         f_undo.m_lsn));
     if (isNdbMtLqh())
     {
+      jam();
       c_pending_undo_page_pool.release(cur_undo_record_page);
       // no page stored in hash, so i = RNIL
       preq.m_callback.m_callbackData = RNIL;
@@ -2238,6 +2245,7 @@ Dbtup::disk_restart_undo_lcp(Uint32 tableId,
          * was created. This is not always inserted, but we don't perform
          * any UNDO operations after this operation have been seen.
          */
+        jam();
 	fragPtr.p->m_undo_complete = Fragrecord::UC_CREATE;
 	return;
       case Fragrecord::UC_LCP:
@@ -2293,6 +2301,7 @@ Dbtup::release_undo_record(Ptr<Apply_undo>& undo_record, bool pending)
 {
   if (pending)
   {
+    jam();
     c_apply_undo_pool.release(undo_record);
   }
 }
@@ -2327,6 +2336,7 @@ Dbtup::disk_restart_undo_callback(Signal* signal,
 
   if (isNdbMtLqh())
   {
+    jam();
     pending = (page_i != RNIL);
 
     if (pending)
@@ -2438,6 +2448,7 @@ Dbtup::disk_restart_undo_callback(Signal* signal,
     Ptr<Apply_undo> pending_undo;
     if (pending)
     {
+      jam();
       //Remove, process, release all Apply_undo from the list.
       LocalApply_undo_list undoList(c_apply_undo_pool,
                                     pendingPage->m_apply_undo_head);
@@ -2646,6 +2657,7 @@ Dbtup::disk_restart_undo_callback(Signal* signal,
   ndbassert(count_pending != 0);
   if (isNdbMtLqh() && pending)
   {
+    jam();
     LocalApply_undo_list undoList(c_apply_undo_pool,
                                   pendingPage->m_apply_undo_head);
     DEB_UNDO(("LDM(%u) Page:%u CheckCount:%u Applied:%u", instance(),

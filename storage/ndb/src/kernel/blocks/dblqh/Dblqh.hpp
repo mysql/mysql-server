@@ -1375,6 +1375,17 @@ public:
       LES_EXEC_LOG_INVALIDATE = 10
     };
 
+    Uint64 m_total_written_words;
+    Uint64 m_last_total_written_words;
+
+    /**
+     * Keep track of number of words that will eventually have to
+     * be written to the REDO log as COMMIT log messages and
+     * ABORT log messages. This ensures that we won't run out
+     * of REDO log in COMMIT and ABORT processing.
+     */
+    Uint64 m_committed_words;
+
     /**
      *       Is a CONTINUEB(ZLOG_LQHKEYREQ) signal sent and
      *       outstanding. We do not want several instances of this
@@ -2364,6 +2375,7 @@ public:
     Uint8 m_use_rowid;
     Uint8 m_dealloc;
     Uint8 m_fire_trig_pass;
+    Uint8 m_committed_log_space;
     enum op_flags {
       OP_ISLONGREQ              = 0x1,
       OP_SAVEATTRINFO           = 0x2,
@@ -2452,12 +2464,23 @@ public:
   void execTUPKEYCONF(Signal* signal);
   Uint32 get_scan_api_op_ptr(Uint32 scan_ptr_i);
 
-  Uint32 get_is_scan_prioritised(Uint32 scan_ptr_i);
+  Uint32 rt_break_is_scan_prioritised(Uint32 scan_ptr_i);
   Uint32 getCreateSchemaVersion(Uint32 tableId);
+
 private:
 
   BLOCK_DEFINES(Dblqh);
 
+  bool is_scan_from_backup_block(BlockReference resultRef)
+  {
+    NodeId nodeId = refToNode(resultRef);
+    Uint32 block = refToMain(resultRef);
+    if (nodeId != getOwnNodeId())
+      return false;
+    if (block == BACKUP)
+      return true;
+    return false;
+  }
   bool is_prioritised_scan(BlockReference resultRef)
   {
     /**
@@ -2695,7 +2718,8 @@ private:
   void send_next_NEXT_SCANREQ(Signal* signal,
                               SimulatedBlock* block,
                               ExecFunction f,
-                              ScanRecord * const scanPtr);
+                              ScanRecord * const scanPtr,
+                              Uint32 clientPtrI);
 
   void initCopyrec(Signal* signal);
   void initCopyTc(Signal* signal, Operation_t, TcConnectionrec*);
@@ -2835,16 +2859,20 @@ private:
   void startTimeSupervision(Signal* signal);
   void stepAhead(Signal* signal, Uint32 stepAheadWords);
   void systemError(Signal* signal, int line);
-  void writeAbortLog(Signal* signal, const TcConnectionrec*);
+  void writeAbortLog(Signal* signal,
+                     TcConnectionrec*,
+                     LogPartRecord*);
   void writeCommitLog(Signal* signal,
                       LogPartRecordPtr regLogPartPtr,
-                      const TcConnectionrec*);
+                      TcConnectionrec*);
   void writeCompletedGciLog(Signal* signal);
   void writeDbgInfoPageHeader(LogPageRecordPtr logPagePtr, Uint32 place,
                               Uint32 pageNo, Uint32 wordWritten);
   void writeDirty(Signal* signal, Uint32 place);
   void writeKey(Signal* signal, const TcConnectionrec*);
-  void writeLogHeader(Signal* signal, const TcConnectionrec*);
+  void writeLogHeader(Signal* signal,
+                      const TcConnectionrec*,
+                      LogPartRecord*);
   void writeLogWord(Signal* signal, Uint32 data);
   void writeLogWords(Signal* signal, const Uint32* data, Uint32 len);
   void writeNextLog(Signal* signal);
@@ -2952,7 +2980,7 @@ private:
   void moreconnectionsLab(Signal* signal, TcConnectionrecPtr);
   void scanReleaseLocksLab(Signal* signal, TcConnectionrec*);
   void closeScanLab(Signal* signal, TcConnectionrec*);
-  void scanNextLoopLab(Signal* signal);
+  void scanNextLoopLab(Signal* signal, Uint32 clientPtrI);
   void commitReqLab(Signal* signal,
                     Uint32 gci_hi,
                     Uint32 gci_lo,
@@ -3061,13 +3089,18 @@ public:
                              Uint32 restorable_gci);
   void lcp_complete_scan(Uint32 & newestGci);
   Uint32 get_lcp_newest_gci(void);
-  void get_lcp_frag_stats(Uint64 & commit_count,
-                          Uint64 & row_count,
+  void get_lcp_frag_stats(Uint64 & row_count,
+                          Uint64 & prev_row_count,
+                          Uint64 & row_change_count,
                           Uint64 & memory_used_in_bytes,
                           Uint32 & max_page_cnt);
   Uint32 get_current_local_lcp_id(void);
-  void get_redo_size(Uint64 &size_in_bytes);
-  void get_redo_usage(Uint64 &used_in_bytes);
+  void get_redo_stats(Uint64 &used_in_mbytes,
+                      Uint64 &size_in_mbytes,
+                      Uint64 &written_since_last_in_mbytes,
+                      Uint64 &updates,
+                      Uint64 &inserts,
+                      Uint64 &deletes);
 
 private:
   bool validate_filter(Signal*);
@@ -3184,6 +3217,21 @@ public:
   };
   void get_nr_op_info(Nr_op_info*, Uint32 page_id = RNIL);
   void nr_delete_complete(Signal*, Nr_op_info*);
+  Uint64 m_update_size;
+  Uint64 m_insert_size;
+  Uint64 m_delete_size;
+  void add_update_size(Uint64 average_row_size)
+  {
+    m_update_size += average_row_size;
+  }
+  void add_insert_size(Uint64 average_row_size)
+  {
+    m_insert_size += average_row_size;
+  }
+  void add_delete_size(Uint64 average_row_size)
+  {
+    m_delete_size += average_row_size;
+  }
   
 public:
   void acckeyconf_load_diskpage_callback(Signal*, Uint32, Uint32);
@@ -3928,7 +3976,12 @@ public:
   AlterTabReq c_keep_alter_tab_req;
   Uint32 c_keep_alter_tab_req_len;
   Uint32 c_executing_redo_log;
+  Uint32 c_num_fragments_created_since_restart;
+  Uint32 c_fragments_in_lcp;
   bool c_wait_lcp_surfacing;
+  Uint32 get_committed_mbytes(LogPartRecord*);
+  void increment_committed_mbytes(LogPartRecord*, TcConnectionrec*);
+  void decrement_committed_mbytes(LogPartRecord*, TcConnectionrec*);
 #endif
 };
 

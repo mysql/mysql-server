@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,7 +52,7 @@ extern class SignalLoggerManager globalSignalLoggers;
 // Keep jam buffer small for optimized build to improve locality of reference.
 #define EMULATED_JAM_SIZE 1024
 #else
-#define EMULATED_JAM_SIZE 4096
+#define EMULATED_JAM_SIZE 32768
 #endif
 #define JAM_MASK (EMULATED_JAM_SIZE - 1)
 

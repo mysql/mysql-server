@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,7 @@
 
 #include <Properties.hpp>
 #include <Configuration.hpp>
-
+#include <signaldata/RedoStateRep.hpp>
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
 
@@ -128,6 +128,8 @@ Backup::Backup(Block_context& ctx, Uint32 instanceNumber) :
   addRecSignal(GSN_UTIL_SEQUENCE_REF, &Backup::execUTIL_SEQUENCE_REF);
   addRecSignal(GSN_UTIL_SEQUENCE_CONF, &Backup::execUTIL_SEQUENCE_CONF);
 
+  addRecSignal(GSN_REDO_STATE_REP, &Backup::execREDO_STATE_REP);
+
   addRecSignal(GSN_WAIT_GCP_REF, &Backup::execWAIT_GCP_REF);
   addRecSignal(GSN_WAIT_GCP_CONF, &Backup::execWAIT_GCP_CONF);
   addRecSignal(GSN_BACKUP_LOCK_TAB_CONF, &Backup::execBACKUP_LOCK_TAB_CONF);
@@ -175,6 +177,30 @@ Backup::Backup(Block_context& ctx, Uint32 instanceNumber) :
     ct.m_entry = m_callbackEntry;
     m_callbackTableAddr = &ct;
   }
+  m_redo_alert_state = RedoStateRep::NO_REDO_ALERT;
+  m_local_redo_alert_state = RedoStateRep::NO_REDO_ALERT;
+  m_global_redo_alert_state = RedoStateRep::NO_REDO_ALERT;
+  m_max_redo_speed_per_sec = Uint64(0);
+  NdbTick_Invalidate(&m_lcp_start_time);
+  NdbTick_Invalidate(&m_prev_lcp_start_time);
+  NdbTick_Invalidate(&m_lcp_current_cut_point);
+  m_last_redo_used_in_bytes = Uint64(0);
+  m_last_lcp_exec_time_in_ms = Uint64(0);
+  m_update_size_lcp[0] = Uint64(0);
+  m_update_size_lcp[1] = Uint64(0);
+  m_update_size_lcp_last = Uint64(0);
+  m_insert_size_lcp[0] = Uint64(0);
+  m_insert_size_lcp[1] = Uint64(0);
+  m_insert_size_lcp_last = Uint64(0);
+  m_delete_size_lcp[0] = Uint64(0);
+  m_delete_size_lcp[1] = Uint64(0);
+  m_delete_size_lcp_last = Uint64(0);
+  m_proposed_disk_write_speed = Uint64(0);
+  m_lcp_lag[0] = Int64(0);
+  m_lcp_lag[1] = Int64(0);
+  m_lcp_timing_counter = Uint64(0);
+  m_lcp_change_rate = Uint64(0);
+  m_lcp_timing_factor = Uint64(100);
 }
   
 Backup::~Backup()
@@ -235,8 +261,17 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   ndb_mgm_get_int_parameter(p, CFG_DB_ENABLE_PARTIAL_LCP,
                             &m_enable_partial_lcp);
 
-  m_recovery_work = 50; /* Default to 50% */
+  m_enable_redo_control = 1; /* Default to enabled */
+  ndb_mgm_get_int_parameter(p, CFG_DB_ENABLE_REDO_CONTROL,
+                            &m_enable_redo_control);
+
+  m_recovery_work = 60; /* Default to 60% */
   ndb_mgm_get_int_parameter(p, CFG_DB_RECOVERY_WORK, &m_recovery_work);
+
+  m_insert_recovery_work = 40; /* Default to 40% */
+  ndb_mgm_get_int_parameter(p,
+                            CFG_DB_INSERT_RECOVERY_WORK,
+                            &m_insert_recovery_work);
 
   calculate_real_disk_write_speed_parameters();
 
@@ -285,16 +320,37 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
 
   jam();
 
-  const Uint32 DEFAULT_WRITE_SIZE = (256 * 1024);
-  const Uint32 DEFAULT_MAX_WRITE_SIZE = (512 * 1024);
-  const Uint32 DEFAULT_BUFFER_SIZE = (512 * 1024);
-
-  Uint32 szDataBuf = DEFAULT_BUFFER_SIZE;
-  Uint32 szLogBuf = DEFAULT_BUFFER_SIZE;
-  Uint32 szWrite = DEFAULT_WRITE_SIZE;
-  Uint32 maxWriteSize = DEFAULT_MAX_WRITE_SIZE;
+  Uint32 szLogBuf = BACKUP_DEFAULT_BUFFER_SIZE;
+  Uint32 szWrite = BACKUP_DEFAULT_WRITE_SIZE;
+  Uint32 szDataBuf = BACKUP_DEFAULT_BUFFER_SIZE;
+  Uint32 maxWriteSize = szDataBuf;
 
   /**
+   * We set the backup data buffer size to 2M as hard coded. We add new code
+   * to ensure that we use as little as possible when performing LCP scans.
+   * This means that we continue the LCP scan until at least one file is
+   * ready to write. But if one file is ready to write and we have written
+   * more than 512 kB we will not continue the scan. We will however start
+   * a new LCP scan after a wait even if the buffer is full up to 512k.
+   * We ignore this check for LCP scans when the REDO log is at alert level.
+   * In this case we will continue writing until buffer is full.
+   *
+   * This behaviour ensures that we sustain optimal predictable latency as
+   * long as the REDO log is we are not at risk of running out of REDO log
+   * space. The higher buffer space is required to be able to keep up with
+   * loading massive amounts of data into NDB even with a very limited REDO
+   * log size.
+   *
+   * The minimum write size specifies the minimum size needed to collect
+   * in order to even consider writing the buffer to disk. It is also used
+   * when deciding to collect checkpoint data at priority A-level. If we
+   * reached the minimum write size we will only collect more checkpoint
+   * data at A-level if the REDO log is at any form of alert level.
+   *
+   * The maximum write size is the maximum size sent in one write to the
+   * file system. This is set to the same as the data buffer size. No need
+   * to make this configurable.
+   *
    * We make the backup data buffer, write size and max write size hard coded.
    * The sizes are large enough to provide enough bandwidth on hard drives.
    * On SSD the defaults will be just fine. By limiting the backup data buffer
@@ -305,8 +361,6 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
    * ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_WRITE_SIZE, &szWrite);
    * ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_MAX_WRITE_SIZE, &maxWriteSize);
    */
-
-  ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_LOG_BUFFER_MEM, &szLogBuf);
   if (maxWriteSize < szWrite)
   {
     /**
