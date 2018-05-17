@@ -2199,6 +2199,7 @@ Dbtup::drop_fragment_unmap_pages(Signal *signal,
     {
     case 0:
       jam();
+      break;
     case -1:
       jam();
       break;
