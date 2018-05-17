@@ -572,7 +572,6 @@ i	k
 1	1
 2	2
 drop table t1, t2;
-drop function if exists bug5893;
 create table t1 (col1 int, col2 int);
 insert into t1 values (1, 2);
 create function bug5893 () returns int return 5;
@@ -641,7 +640,6 @@ create trigger t1_ai after insert on t1 for each row flush tables;
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
 create trigger t1_ai after insert on t1 for each row flush privileges;
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
-drop procedure if exists p1;
 create trigger t1_ai after insert on t1 for each row call p1();
 create procedure p1() flush tables;
 insert into t1 values (0);
@@ -710,7 +708,6 @@ c1	c2
 1	NULL
 2	NULL
 3	NULL
-drop procedure if exists bug11587;
 create procedure bug11587(x char(16))
 begin
 select "hello";
@@ -986,7 +983,6 @@ select * from t2;
 i	n
 1	150.00
 drop tables t1, t2;
-DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (
 conn_id INT,
 trigger_conn_id INT
@@ -999,7 +995,6 @@ SELECT * FROM t1 WHERE conn_id != trigger_conn_id;
 conn_id	trigger_conn_id
 DROP TRIGGER t1_bi;
 DROP TABLE t1;
-DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (i1 INT);
 SET @save_sql_mode=@@sql_mode;
 SET SQL_MODE='';
@@ -1162,7 +1157,6 @@ drop table t1;
 drop table t2;
 drop table t3;
 drop table t4;
-drop table if exists t1;
 create table t1 (i int, j int key);
 insert into t1 values (1,1), (2,2), (3,3);
 create trigger t1_bu before update on t1 for each row
@@ -1214,7 +1208,6 @@ select @a;
 20
 drop table t1;
 drop function f1;
-drop table if exists t1;
 create table t1(a int, b varchar(50));
 drop trigger not_a_trigger;
 ERROR HY000: Trigger does not exist
@@ -1350,7 +1343,6 @@ id	val
 DROP TRIGGER trg27006_a_insert;
 DROP TRIGGER trg27006_a_update;
 drop table t1,t2;
-drop table if exists t1, t2, t3;
 create table t1 (i int);
 create trigger t1_bi before insert on t1 for each row set new.i = 7;
 create trigger t1_ai after insert on t1 for each row set @a := 7;
@@ -1921,10 +1913,8 @@ select * from table_25411_a;
 a
 drop table table_25411_a;
 drop table table_25411_b;
-DROP TRIGGER IF EXISTS trg;
 SHOW CREATE TRIGGER trg;
 ERROR HY000: Trigger does not exist
-drop table if exists t1;
 create table t1 (i int, j int);
 create trigger t1_bi before insert on t1 for each row begin end;
 create trigger t1_bi before insert on t1 for each row begin end;
@@ -2165,7 +2155,6 @@ drop table t1;
 #
 # Bug #12362125: SP INOUT HANDLING IS BROKEN FOR TEXT TYPE.
 #
-DROP TABLE IF EXISTS t1;
 CREATE TABLE t1(c TEXT);
 CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
 BEGIN

@@ -19,9 +19,6 @@ if (`SELECT @@global.log_bin AND @@global.binlog_format = 'ROW'`)
 # Test of refering to old values
 #
 
---disable_warnings
-drop table if exists t1,t2,t3;
---enable_warnings
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1 (a int not null);
 insert into t1 values (1);
@@ -96,9 +93,6 @@ drop table t1,t2;
 # Test of mysqld crash with fully qualified column names
 #
 
---disable_warnings
-drop database if exists mysqltest;
---enable_warnings
 create database mysqltest;
 use mysqltest;
 create table t1 (c int);
@@ -413,10 +407,6 @@ DROP TABLE t1, t2;
 --echo # mysql_info() is correct.
 --echo #
 
---disable_warnings
-drop table if exists t1;
---enable_warnings
-
 create table t1 (data varchar(4) not null);
 
 --echo #
@@ -447,10 +437,6 @@ drop table t1;
 --echo # Bug#54106 assert in Protocol::end_statement,
 --echo #           INSERT IGNORE ... SELECT ... UNION SELECT ...
 --echo #
-
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
 
 CREATE TABLE t1 (a INT);
 
@@ -732,7 +718,6 @@ INSERT INTO t1 VALUES(0);
 INSERT INTO t2 VALUES(0);
 
 --echo # Without fix, an error is reported.
---enable_warnings
 INSERT IGNORE INTO t2 VALUES(1);
 UPDATE IGNORE t2 SET fld2=20 WHERE fld2=0;
 UPDATE IGNORE t1 SET fld1=20 WHERE fld1=0;
@@ -740,7 +725,6 @@ UPDATE IGNORE t1 SET fld1=20 WHERE fld1=0;
 --echo # Test for multi update.
 UPDATE IGNORE t1, t2 SET t2.fld2= t2.fld2 + 3;
 UPDATE IGNORE t1, t2 SET t1.fld1= t1.fld1 + 3;
---disable_warnings
 
 --echo # Reports an error since IGNORE is not used.
 --error ER_NO_REFERENCED_ROW_2
@@ -776,9 +760,7 @@ INSERT INTO t2 VALUES('abc', 2) ON DUPLICATE KEY UPDATE fld1= 'def';
 --error ER_NO_REFERENCED_ROW_2
 REPLACE INTO t2 VALUES('abc', 2);
 
---enable_warnings
 INSERT IGNORE INTO t2 VALUES('abc', 2) ON DUPLICATE KEY UPDATE fld1= 'def';
---disable_warnings
 
 DROP TABLE t2, t1;
 

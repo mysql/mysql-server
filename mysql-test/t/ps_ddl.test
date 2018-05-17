@@ -1557,8 +1557,6 @@ deallocate prepare stmt_sp;
 --echo # SQLCOM_SELECT
 --echo #
 
---disable_warnings ONCE
-drop table if exists t1;
 create table t1 (a int);
 prepare stmt from "select 1 as res from dual where (1) in (select * from t1)";
 drop table t1;
@@ -1713,8 +1711,6 @@ deallocate prepare stmt;
 --echo # SQLCOM_UPDATE
 --echo #
 
---disable_warnings ONCE
-drop table if exists t1, t2;
 create table t1 (a int);
 create table t2 (a int);
 prepare stmt from "update t2 set a=a+1 where (1) in (select * from t1)";
@@ -1729,8 +1725,6 @@ deallocate prepare stmt;
 --echo # SQLCOM_INSERT
 --echo #
 
---disable_warnings ONCE
-drop table if exists t1, t2;
 create table t1 (a int);
 create table t2 (a int);
 prepare stmt from "insert into t2 set a=((1) in (select * from t1))";
@@ -1746,8 +1740,6 @@ deallocate prepare stmt;
 --echo # SQLCOM_INSERT_SELECT
 --echo #
 
---disable_warnings ONCE
-drop table if exists t1, t2;
 create table t1 (a int);
 create table t2 (a int);
 prepare stmt from "insert into t2 select * from t1";
@@ -1762,8 +1754,6 @@ deallocate prepare stmt;
 --echo # SQLCOM_REPLACE
 --echo #
 
---disable_warnings ONCE
-drop table if exists t1, t2;
 create table t1 (a int);
 create table t2 (a int);
 prepare stmt from "replace t2 set a=((1) in (select * from t1))";
@@ -1778,8 +1768,6 @@ deallocate prepare stmt;
 --echo # SQLCOM_REPLACE_SELECT
 --echo #
 
---disable_warnings ONCE
-drop table if exists t1, t2;
 create table t1 (a int);
 create table t2 (a int);
 prepare stmt from "replace t2 select * from t1";
@@ -1794,8 +1782,6 @@ deallocate prepare stmt;
 --echo # SQLCOM_DELETE
 --echo #
 
---disable_warnings ONCE
-drop table if exists t1, t2;
 create table t1 (a int);
 create table t2 (a int);
 prepare stmt from "delete from t2 where (1) in (select * from t1)";
@@ -1810,8 +1796,6 @@ deallocate prepare stmt;
 --echo # SQLCOM_DELETE_MULTI
 --echo #
 
---disable_warnings ONCE
-drop table if exists t1, t2, t3;
 create table t1 (a int);
 create table t2 (a int);
 create table t3 (a int);
@@ -1827,8 +1811,6 @@ deallocate prepare stmt;
 --echo # SQLCOM_UPDATE_MULTI
 --echo #
 
---disable_warnings ONCE
-drop table if exists t1, t2, t3;
 create table t1 (a int);
 create table t2 (a int);
 create table t3 (a int);
@@ -1845,8 +1827,6 @@ call p_verify_reprepare_count(8);
 --echo # SQLCOM_LOAD
 --echo #
 
---disable_warnings ONCE
-drop table if exists t1;
 create table t1 (a varchar(20));
 --error ER_UNSUPPORTED_PS
 prepare stmt from "load data infile '../std_data_ln/words.dat' into table t1";
@@ -1856,8 +1836,6 @@ drop table t1;
 --echo # SQLCOM_SHOW_DATABASES
 --echo #
 
---disable_warnings ONCE
-drop table if exists t1;
 create table t1 (a int);
 prepare stmt from "show databases where (1) in (select * from t1)";
 execute stmt;
@@ -1872,8 +1850,6 @@ deallocate prepare stmt;
 --echo # SQLCOM_SHOW_TABLES
 --echo #
 
---disable_warnings ONCE
-drop table if exists t1;
 create table t1 (a int);
 prepare stmt from "show tables where (1) in (select * from t1)";
 execute stmt;
@@ -1887,8 +1863,6 @@ deallocate prepare stmt;
 --echo # SQLCOM_SHOW_FIELDS
 --echo #
 
---disable_warnings ONCE
-drop table if exists t1;
 create table t1 (a int);
 prepare stmt from "show fields from t1 where (1) in (select * from t1)";
 execute stmt;
@@ -1902,8 +1876,6 @@ deallocate prepare stmt;
 --echo # SQLCOM_SHOW_KEYS
 --echo #
 
---disable_warnings ONCE
-drop table if exists t1;
 create table t1 (a int);
 prepare stmt from "show keys from t1 where (1) in (select * from t1)";
 execute stmt;
@@ -1917,15 +1889,12 @@ deallocate prepare stmt;
 --echo # SQLCOM_SHOW_VARIABLES
 --echo #
 
---disable_warnings ONCE
-drop table if exists t1;
 create table t1 (a int);
 # The gtid_executed session variable was deprecated on MySQL 5.7 and
 # only in MySQL 5.7 with GTID support (for example) a
 # "SHOW VARIABLES" statement will throw a warning about the deprecation.
 prepare stmt from "show variables where (1) in (select * from t1)";
 # We disable the warnings only for the "execute stmt;"
---disable_warnings ONCE
 execute stmt;
 # We check for other warnings than ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT
 --let $assert_no_warnings_exception= convert_error(ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT)
@@ -1933,7 +1902,6 @@ execute stmt;
 drop table t1;
 create table t1 (x int);
 # We disable the warnings only for the "execute stmt;"
---disable_warnings ONCE
 execute stmt;
 # We check for other warnings than ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT
 --source include/assert_no_warnings.inc
@@ -1944,8 +1912,6 @@ deallocate prepare stmt;
 --echo # SQLCOM_SHOW_STATUS
 --echo #
 
---disable_warnings ONCE
-drop table if exists t1;
 create table t1 (a int);
 prepare stmt from "show status where (1) in (select * from t1)";
 execute stmt;
@@ -1963,8 +1929,6 @@ deallocate prepare stmt;
 --echo # Currently can not have a where clause, need to be covered
 --echo # with tests
 
---disable_warnings ONCE
-drop table if exists t1;
 create table t1 (a int);
 --error ER_PARSE_ERROR
 prepare stmt from "show engine all status where (1) in (select * from t1)";
@@ -1980,8 +1944,6 @@ drop table t1;
 --echo # SQLCOM_SHOW_CHARSETS
 --echo #
 
---disable_warnings ONCE
-drop table if exists t1;
 create table t1 (a int);
 prepare stmt from "show charset where (1) in (select * from t1)";
 execute stmt;
@@ -1995,8 +1957,6 @@ deallocate prepare stmt;
 --echo # SQLCOM_SHOW_COLLATIONS
 --echo #
 
---disable_warnings ONCE
-drop table if exists t1;
 create table t1 (a int);
 prepare stmt from "show collation where (1) in (select * from t1)";
 execute stmt;
@@ -2010,8 +1970,6 @@ deallocate prepare stmt;
 --echo # SQLCOM_SHOW_TABLE_STATUS
 --echo #
 
---disable_warnings ONCE
-drop table if exists t1;
 create table t1 (a int);
 prepare stmt from "show table status where (1) in (select * from t1)";
 execute stmt;
@@ -2025,8 +1983,6 @@ deallocate prepare stmt;
 --echo # SQLCOM_SHOW_TRIGGERS
 --echo #
 
---disable_warnings ONCE
-drop table if exists t1;
 create table t1 (a int);
 prepare stmt from "show triggers where (1) in (select * from t1)";
 execute stmt;
@@ -2040,8 +1996,6 @@ deallocate prepare stmt;
 --echo # SQLCOM_SHOW_OPEN_TABLES
 --echo #
 
---disable_warnings ONCE
-drop table if exists t1;
 create table t1 (a int);
 prepare stmt from "show open tables where (1) in (select * from t1)";
 execute stmt;
@@ -2055,8 +2009,6 @@ deallocate prepare stmt;
 --echo # SQLCOM_SHOW_STATUS_PROC
 --echo #
 
---disable_warnings ONCE
-drop table if exists t1;
 create table t1 (a int);
 prepare stmt from "show procedure status where (1) in (select * from t1)";
 execute stmt;
@@ -2070,8 +2022,6 @@ deallocate prepare stmt;
 --echo # SQLCOM_SHOW_STATUS_FUNC
 --echo #
 
---disable_warnings ONCE
-drop table if exists t1;
 create table t1 (a int);
 prepare stmt from "show function status where (1) in (select * from t1)";
 execute stmt;
@@ -2088,8 +2038,6 @@ deallocate prepare stmt;
 --echo # Bug#27430 Crash in subquery code when in PS and table DDL changed
 --echo # after PREPARE
 --echo #
---disable_warnings ONCE
-drop table if exists t1;
 create table t1 (a int);
 prepare stmt from "show events where (1) in (select * from t1)";
 execute stmt;
@@ -2103,8 +2051,6 @@ deallocate prepare stmt;
 --echo # SQLCOM_SET_OPTION
 --echo #
 
---disable_warnings ONCE
-drop table if exists t1;
 create table t1 (a int);
 prepare stmt from "set @a=((1) in (select * from t1))";
 execute stmt;
@@ -2118,8 +2064,6 @@ deallocate prepare stmt;
 --echo # SQLCOM_DO
 --echo #
 
---disable_warnings ONCE
-drop table if exists t1;
 create table t1 (a int);
 prepare stmt from "do ((1) in (select * from t1))";
 execute stmt;
@@ -2174,8 +2118,6 @@ call p_verify_reprepare_count(17);
 --echo # SQLCOM_ALTER_VIEW
 --echo #
 
---disable_warnings ONCE
-drop view if exists v1;
 create view v1 as select 1;
 --error ER_UNSUPPORTED_PS
 prepare stmt from "alter view v1 as select 2";
@@ -2201,8 +2143,6 @@ drop view if exists v1, v2;
 --echo # Check that we don't try to pre-open temporary tables for the elements
 --echo # from prelocking list, as this can lead to unwarranted ER_CANT_REOPEN
 --echo # errors.
---disable_warnings ONCE
-DROP TABLE IF EXISTS t1, tm;
 CREATE TABLE t1 (a INT);
 CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
   SET @a:= (SELECT COUNT(*) FROM t1);

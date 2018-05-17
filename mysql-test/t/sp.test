@@ -50,7 +50,7 @@ create table t2 (
 
 
 # Single statement, no params.
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists foo42;
 create procedure foo42()
   insert into test.t1 values ("foo", 42);
@@ -62,7 +62,7 @@ drop procedure foo42;
 
 
 # Single statement, two IN params.
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bar;
 create procedure bar(x char(16), y int)
   insert into test.t1 values (x, y);
@@ -77,7 +77,7 @@ delete from t1;
 delimiter |;
 
 # Empty statement
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists `empty`|
 create procedure `empty`()
 begin
@@ -88,7 +88,7 @@ drop procedure `empty`|
 
 # Scope test. This is legal (warnings might be possible in the future,
 # but for the time being, we just accept it).
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists scope|
 create procedure scope(a int, b float)
 begin
@@ -103,7 +103,7 @@ end|
 drop procedure scope|
 
 # Two statements.
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists two|
 create procedure two(x1 char(16), x2 char(16), y int)
 begin
@@ -118,7 +118,7 @@ drop procedure two|
 
 
 # Simple test of local variables and SET.
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists locset|
 create procedure locset(x char(16), y int)
 begin
@@ -136,7 +136,7 @@ drop procedure locset|
 
 # In some contexts local variables are not recognized
 # (and in some, you have to qualify the identifier).
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists setcontext|
 create procedure setcontext()
 begin
@@ -156,7 +156,7 @@ drop procedure setcontext|
 # Set things to null
 create table t3 ( d date, i int, f double, s varchar(32) )|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists nullset|
 create procedure nullset()
 begin
@@ -183,7 +183,7 @@ drop procedure nullset|
 
 
 # The peculiar (non-standard) mixture of variables types in SET.
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists mixset|
 create procedure mixset(x char(16), y int)
 begin
@@ -201,7 +201,7 @@ drop procedure mixset|
 
 
 # Multiple CALL statements, one with OUT parameter.
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists zip|
 create procedure zip(x char(16), y int)
 begin
@@ -211,7 +211,7 @@ begin
 end|
 
 # SET local variables and OUT parameter.
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists zap|
 create procedure zap(x int, out y int)
 begin
@@ -233,19 +233,19 @@ drop procedure zap|
 
 
 # "Deep" calls...
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists c1|
 create procedure c1(x int)
   call c2("c", x)|
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists c2|
 create procedure c2(s char(16), x int)
   call c3(x, s)|
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists c3|
 create procedure c3(x int, s char(16))
   call c4("level", x, s)|
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists c4|
 create procedure c4(l char(8), x int, s char(16))
   insert into t1 values (concat(l,s), x)|
@@ -259,7 +259,7 @@ drop procedure c3|
 drop procedure c4|
 
 # INOUT test
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists iotest|
 create procedure iotest(x1 char(16), x2 char(16), y int)
 begin
@@ -267,7 +267,7 @@ begin
   insert into test.t1 values (x1, y);
 end|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists inc2|
 create procedure inc2(x char(16), y int)
 begin
@@ -275,7 +275,7 @@ begin
   insert into test.t1 values (x, y);
 end|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists inc|
 create procedure inc(inout io int)
   set io = io + 1|
@@ -287,7 +287,7 @@ drop procedure iotest|
 drop procedure inc2|
 
 # Propagating top-level @-vars
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists incr|
 create procedure incr(inout x int)
   call inc(x)|
@@ -305,7 +305,7 @@ drop procedure incr|
 #  The expected result is:
 #    ("cbv2", 4)
 #    ("cbv1", 4711)
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists cbv1|
 create procedure cbv1()
 begin
@@ -315,7 +315,7 @@ begin
   insert into test.t1 values ("cbv1", y);
 end|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists cbv2|
 create procedure cbv2(y1 int, inout y2 int)
 begin
@@ -334,12 +334,12 @@ drop procedure cbv2|
 
 insert into t2 values ("a", 1, 1.1), ("b", 2, 1.2), ("c", 3, 1.3)|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists sub1|
 create procedure sub1(id char(16), x int)
   insert into test.t1 values (id, x)|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists sub2|
 create procedure sub2(id char(16))
 begin
@@ -348,7 +348,7 @@ begin
   insert into test.t1 values (id, x);
 end|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists sub3|
 create function sub3(i int) returns int deterministic
   return i+1|
@@ -370,7 +370,7 @@ delete from t2|
 # Basic tests of the flow control constructs
 
 # Just test on 'x'...
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists a0|
 create procedure a0(x int)
 while x do
@@ -385,7 +385,7 @@ drop procedure a0|
 
 
 # The same, but with a more traditional test.
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists a|
 create procedure a(x int)
 while x > 0 do
@@ -400,7 +400,7 @@ drop procedure a|
 
 
 # REPEAT
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists b|
 create procedure b(x int)
 repeat
@@ -415,7 +415,7 @@ drop procedure b|
 
 
 # Check that repeat isn't parsed the wrong way
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists b2|
 create procedure b2(x int)
 repeat
@@ -429,7 +429,7 @@ drop procedure b2|
 
 
 # Labelled WHILE with ITERATE (pointless really)
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists c|
 create procedure c(x int)
 hmm: while x > 0 do
@@ -446,7 +446,7 @@ drop procedure c|
 
 
 # Labelled WHILE with LEAVE
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists d|
 create procedure d(x int)
 hmm: while x > 0 do
@@ -463,7 +463,7 @@ drop procedure d|
 
 
 # LOOP, with simple IF statement
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists e|
 create procedure e(x int)
 foo: loop
@@ -481,7 +481,7 @@ drop procedure e|
 
 
 # A full IF statement
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists f|
 create procedure f(x int)
 if x < 0 then
@@ -501,7 +501,7 @@ drop procedure f|
 
 
 # This form of CASE is really just syntactic sugar for IF-ELSEIF-...
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists g|
 create procedure g(x int)
 case
@@ -522,7 +522,7 @@ drop procedure g|
 
 
 # The "simple CASE"
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists h|
 create procedure h(x int)
 case x
@@ -543,7 +543,7 @@ drop procedure h|
 
 
 # It's actually possible to LEAVE a BEGIN-END block
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists i|
 create procedure i(x int)
 foo:
@@ -565,7 +565,7 @@ drop procedure i|
 insert into t1 values ("foo", 3), ("bar", 19)|
 insert into t2 values ("x", 9, 4.1), ("y", -1, 19.2), ("z", 3, 2.2)|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists sel1|
 create procedure sel1()
 begin
@@ -575,7 +575,7 @@ end|
 call sel1()|
 drop procedure sel1|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists sel2|
 create procedure sel2()
 begin
@@ -589,7 +589,7 @@ delete from t1|
 delete from t2|
 
 # SELECT INTO local variables
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists into_test|
 create procedure into_test(x char(16), y int)
 begin
@@ -605,7 +605,7 @@ drop procedure into_test|
 
 
 # SELECT INTO with a mix of local and global variables
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists into_tes2|
 create procedure into_test2(x char(16), y int)
 begin
@@ -621,7 +621,7 @@ drop procedure into_test2|
 
 
 # SELECT * INTO ... (bug test)
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists into_test3|
 create procedure into_test3()
 begin
@@ -644,7 +644,7 @@ drop procedure into_test3|
 
 # SELECT INTO with no data is a warning ("no data", which we will
 # not see normally). When not caught, execution proceeds.
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists into_test4|
 create procedure into_test4()
 begin
@@ -668,7 +668,7 @@ drop procedure into_test4|
 
 # These two (and the two procedures above) caused an assert() to fail in
 # sql_base.cc:lock_tables() at some point.
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists into_outfile|
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval create procedure into_outfile(x char(16), y int)
@@ -686,7 +686,7 @@ call into_outfile("ofile", 1)|
 delete from t1|
 drop procedure into_outfile|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists into_dumpfile|
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval create procedure into_dumpfile(x char(16), y int)
@@ -704,7 +704,7 @@ call into_dumpfile("dfile", 1)|
 delete from t1|
 drop procedure into_dumpfile|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists create_select|
 create procedure create_select(x char(16), y int)
 begin
@@ -721,7 +721,7 @@ drop procedure create_select|
 
 
 # A minimal, constant FUNCTION.
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop function if exists e|
 create function e() returns double
   return 2.7182818284590452354|
@@ -730,7 +730,7 @@ set @e = e()|
 select e(), @e|
 
 # A minimal function with one argument
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop function if exists inc|
 create function inc(i int) returns int
   return i+1|
@@ -738,7 +738,7 @@ create function inc(i int) returns int
 select inc(1), inc(99), inc(-71)|
 
 # A minimal function with two arguments
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop function if exists mul|
 create function mul(x int, y int) returns int
   return x*y|
@@ -746,7 +746,7 @@ create function mul(x int, y int) returns int
 select mul(1,1), mul(3,5), mul(4711, 666)|
 
 # A minimal string function
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop function if exists append|
 create function append(s1 char(8), s2 char(8)) returns char(16)
   return concat(s1, s2)|
@@ -754,7 +754,7 @@ create function append(s1 char(8), s2 char(8)) returns char(16)
 select append("foo", "bar")|
 
 # A function with flow control
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop function if exists fac|
 create function fac(n int unsigned) returns bigint unsigned
 begin
@@ -770,7 +770,7 @@ end|
 select fac(1), fac(2), fac(5), fac(10)|
 
 # Nested calls
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop function if exists fun|
 create function fun(d double, i int, u int unsigned) returns double
   return mul(inc(i), fac(u)) / e()|
@@ -803,7 +803,7 @@ drop function fun|
 # CONDITIONs and HANDLERs
 #
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists hndlr1|
 create procedure hndlr1(val int)
 begin
@@ -824,7 +824,7 @@ select * from t1|
 delete from t1|
 drop procedure hndlr1|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists hndlr2|
 create procedure hndlr2(val int)
 begin
@@ -845,7 +845,7 @@ delete from t1|
 drop procedure hndlr2|
 
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists hndlr3|
 create procedure hndlr3(val int)
 begin
@@ -882,7 +882,7 @@ drop procedure hndlr3|
 #  not in this case.)
 create table t3 ( id   char(16), data int )|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists hndlr4|
 create procedure hndlr4()
 begin
@@ -904,7 +904,7 @@ drop procedure hndlr4|
 #
 # Cursors
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists cur1|
 create procedure cur1()
 begin
@@ -932,7 +932,7 @@ drop procedure cur1|
 
 create table t3 ( s char(16), i int )|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists cur2|
 create procedure cur2()
 begin
@@ -972,7 +972,7 @@ drop procedure cur2|
 
 
 # The few characteristics we parse
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists chistics|
 create procedure chistics()
     language sql
@@ -991,7 +991,7 @@ alter procedure chistics sql security invoker|
 show create procedure chistics|
 drop procedure chistics|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop function if exists chistics|
 create function chistics() returns int
     language sql
@@ -1015,7 +1015,7 @@ insert into t1 values ("foo", 1), ("bar", 2), ("zip", 3)|
 
 set @@sql_mode = 'ANSI'|
 delimiter $|
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists modes$
 create procedure modes(out c1 int, out c2 int)
 begin
@@ -1065,7 +1065,7 @@ drop database sp_db2|
 # And yet again, with just a procedure.
 create database sp_db3|
 use sp_db3|
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists dummy|
 create procedure dummy(out x int)
   set x = 42|
@@ -1076,7 +1076,7 @@ select routine_type, routine_schema, routine_name from information_schema.routin
 
 # ROW_COUNT() function after a CALL
 # We test the other cases here too, although it's not strictly SP specific
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists rc|
 create procedure rc()
 begin
@@ -1363,11 +1363,11 @@ drop table t4|
 
 # fac
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop table if exists t3|
 create table t3 (n int unsigned not null primary key, f bigint unsigned)|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists ifac|
 create procedure ifac(n int unsigned)
 begin
@@ -1397,7 +1397,7 @@ show function status like '%fac'|
 
 # primes
 
---disable_warnings ONCE
+--disable_warnings ER_BAD_TABLE_ERROR ONCE
 drop table if exists t3|
 
 create table t3 (
@@ -1416,7 +1416,7 @@ insert into t3 values
  (35, 157), (36, 163), (37, 167), (38, 173), (39, 179),
  (40, 181), (41, 191), (42, 193), (43, 197), (44, 199)|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists opp|
 create procedure opp(n bigint unsigned, out pp bool)
 begin
@@ -1448,7 +1448,7 @@ begin
   end loop;
 end|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists ip|
 create procedure ip(m int unsigned)
 begin
@@ -1497,7 +1497,7 @@ show procedure status where name like '%p%' and db='test'|
 # Comment & suid
 #
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bar|
 create procedure bar(x char(16), y int)
  comment "111111111111" sql security invoker
@@ -1515,7 +1515,7 @@ drop procedure bar|
 #
 # rexecution
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists p1|
 create procedure p1 ()
   select (select s1 from t3) from t3|
@@ -1531,7 +1531,7 @@ drop table t3|
 #
 # backticks
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop function if exists foo|
 create function `foo` () returns int
   return 5|
@@ -1542,7 +1542,7 @@ drop function `foo`|
 # Implicit LOCK/UNLOCK TABLES for table access in functions
 #
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop function if exists t1max|
 create function t1max() returns int
 begin
@@ -1978,7 +1978,7 @@ drop procedure h_xx|
 #
 # BUG#822
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug822|
 create procedure bug822(a_id char(16), a_data int)
 begin
@@ -2000,7 +2000,7 @@ drop procedure bug822|
 #
 # BUG#1495
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug1495|
 create procedure bug1495()
 begin
@@ -2027,7 +2027,7 @@ drop procedure bug1495|
 #
 # BUG#1547
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug1547|
 create procedure bug1547(s char(16))
 begin
@@ -2051,12 +2051,12 @@ drop procedure bug1547|
 #
 # BUG#1656
 #
---disable_warnings ONCE
+--disable_warnings ER_BAD_TABLE_ERROR ONCE
 drop table if exists t70|
 create table t70 (s1 int,s2 int)|
 insert into t70 values (1,2)|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug1656|
 create procedure bug1656(out p1 int, out p2 int)
   select * into p1, p1 from t70|
@@ -2071,7 +2071,7 @@ drop procedure bug1656|
 #
 create table t3(a int)|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug1862|
 create procedure bug1862()
 begin
@@ -2089,7 +2089,7 @@ drop procedure bug1862|
 #
 # BUG#1874
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug1874|
 create procedure bug1874()
 begin
@@ -2115,7 +2115,7 @@ drop procedure bug1874|
 #
 # BUG#2260
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug2260|
 create procedure bug2260()
 begin
@@ -2136,21 +2136,21 @@ drop procedure bug2260|
 #
 # BUG#2267 "Lost connect if stored procedure has SHOW FUNCTION STATUS"
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug2267_1|
 create procedure bug2267_1()
 begin
   show procedure status where db='test';
 end|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug2267_2|
 create procedure bug2267_2()
 begin
   show function status where db='test';
 end|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug2267_3|
 create procedure bug2267_3()
 begin
@@ -2183,7 +2183,7 @@ drop function bug2267_4|
 #
 # BUG#2227
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug2227|
 create procedure bug2227(x int)
 begin
@@ -2200,7 +2200,7 @@ drop procedure bug2227|
 # BUG#2614 "Stored procedure with INSERT ... SELECT that does not
 #           contain any tables crashes server"
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug2614|
 create procedure bug2614()
 begin
@@ -2210,7 +2210,7 @@ begin
   insert into t3 select * from t3;
 end|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 call bug2614()|
 call bug2614()|
 drop table t3|
@@ -2219,7 +2219,7 @@ drop procedure bug2614|
 #
 # BUG#2674
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop function if exists bug2674|
 create function bug2674() returns int
   return @@sort_buffer_size|
@@ -2233,13 +2233,13 @@ set @@sort_buffer_size = @osbs|
 #
 # BUG#3259
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug3259_1 |
 create procedure bug3259_1 () begin end|
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists BUG3259_2 |
 create procedure BUG3259_2 () begin end|
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists Bug3259_3 |
 create procedure Bug3259_3 () begin end|
 
@@ -2257,7 +2257,7 @@ drop procedure BUG3259_3|
 #
 # BUG#2772
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop function if exists bug2772|
 create function bug2772() returns char(10) character set latin2
   return 'a'|
@@ -2272,7 +2272,7 @@ create table t3 (s1 smallint)|
 
 insert into t3 values (123456789012)|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug2780|
 create procedure bug2780()
 begin
@@ -2298,7 +2298,7 @@ insert into t3 values ("test1")|
 insert into t3 values ("test2")|
 create table t4 (f1 int, rc int, t3 int)|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug1863|
 create procedure bug1863(in1 int)
 begin 
@@ -2358,7 +2358,7 @@ insert t3 (OrderID,MarketID) values (2,2)|
 insert t4 (MarketID,Market,Status) values (1,"MarketID One","A")|
 insert t4 (MarketID,Market,Status) values (2,"MarketID Two","A")|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug2656_1|
 create procedure bug2656_1()
 begin 
@@ -2368,7 +2368,7 @@ begin
         ON o.MarketID != 1 and o.MarketID = m.MarketID;
 end |
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug2656_2|
 create procedure bug2656_2()
 begin 
@@ -2393,7 +2393,7 @@ drop table t3, t4|
 #
 # BUG#3426
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug3426|
 create procedure bug3426(in_time int unsigned, out x int)
 begin
@@ -2440,7 +2440,7 @@ insert into t3 (title,body) values
   ('MySQL vs. YourSQL','In the following database comparison ...'),
   ('MySQL Security','When configured properly, MySQL ...')|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug3734 |
 create procedure bug3734 (param1 varchar(100))
   select * from t3 where match (title,body) against (param1)|
@@ -2454,7 +2454,7 @@ drop table t3|
 #
 # BUG#3863
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug3863|
 create procedure bug3863()
 begin
@@ -2483,7 +2483,7 @@ create table t3 (
   unique key rid (rid, id)
 )|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug2460_1|
 create procedure bug2460_1(in v int)
 begin
@@ -2502,7 +2502,7 @@ insert into t3 values (1, 1, 'foo'), (2, 1, 'bar'), (3, 1, 'zip zap')|
 call bug2460_1(2)|
 call bug2460_1(2)|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug2460_2|
 create procedure bug2460_2()
 begin
@@ -2524,27 +2524,27 @@ drop table t3|
 # BUG#2564
 #
 set @@sql_mode = ''|
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug2564_1|
 create procedure bug2564_1()
     comment 'Joe''s procedure'
   insert into `t1` values ("foo", 1)|
 
 set @@sql_mode = 'ANSI_QUOTES'|
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug2564_2|
 create procedure bug2564_2()
   insert into "t1" values ('foo', 1)|
 
 delimiter $|
 set @@sql_mode = ''$
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop function if exists bug2564_3$
 create function bug2564_3(x int, y int) returns int
   return x || y$
 
 set @@sql_mode = 'ANSI'$
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop function if exists bug2564_4$
 create function bug2564_4(x int, y int) returns int
   return x || y$
@@ -2564,7 +2564,7 @@ drop function bug2564_4|
 #
 # BUG#3132
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop function if exists bug3132|
 create function bug3132(s char(20)) returns char(50)
   return concat('Hello, ', s, '!')|
@@ -2575,7 +2575,7 @@ drop function bug3132|
 #
 # BUG#3843
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug3843|
 create procedure bug3843()
   analyze table t1|
@@ -2593,7 +2593,7 @@ drop procedure bug3843|
 create table t3 ( s1 char(10) )|
 insert into t3 values ('a'), ('b')|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug3368|
 create procedure bug3368(v char(10))
 begin
@@ -2611,7 +2611,7 @@ drop table t3|
 create table t3 (f1 int, f2 int)|
 insert into t3 values (1,1)|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug4579_1|
 create procedure bug4579_1 ()
 begin
@@ -2622,7 +2622,7 @@ begin
   call bug4579_2();
 end|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug4579_2|
 create procedure bug4579_2 ()
 begin
@@ -2639,7 +2639,7 @@ drop table t3|
 #
 # BUG#2773: Function's data type ignored in stored procedures
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug2773|
 
 create function bug2773() returns int return null|
@@ -2651,7 +2651,7 @@ drop function bug2773|
 #
 # BUG#3788: Stored procedure packet error
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug3788|
 
 create function bug3788() returns date return cast("2005-03-04" as date)|
@@ -2669,7 +2669,7 @@ drop function bug3788|
 create table t3 (f1 int, f2 int, f3 int)|
 insert into t3 values (1,1,1)|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug4726|
 create procedure bug4726()
 begin
@@ -2700,7 +2700,7 @@ drop table t3|
 create table t3 (s1 int)|
 insert into t3 values (3), (4)|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug4318|
 create procedure bug4318()
   handler t3 read next|
@@ -2726,7 +2726,7 @@ drop table t3|
 #       It's possible that some of these are not deterministic across
 #       platforms. If so, just remove the offending command.
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug4902|
 # The below flag is set in order to allow larger results
 # from SELECT's from SHOW statements in procedure bug4902.
@@ -2766,7 +2766,7 @@ drop procedure bug4902|
 #
 # BUG#4904
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug4904|
 create procedure bug4904()
 begin
@@ -2782,7 +2782,7 @@ drop procedure bug4904|
 
 create table t3 (s1 char character set latin1, s2 char character set latin2)|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug4904|
 create procedure bug4904 ()
 begin
@@ -2799,7 +2799,7 @@ drop table t3|
 #
 # BUG#336
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug336|
 create procedure bug336(out y int)
 begin
@@ -2817,7 +2817,7 @@ drop procedure bug336|
 #
 # BUG#3157
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug3157|
 create procedure bug3157()
 begin
@@ -2839,7 +2839,7 @@ drop procedure bug3157|
 #
 # BUG#5251: mysql changes creation time of a procedure/function when altering
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug5251|
 create procedure bug5251()
 begin
@@ -2857,7 +2857,7 @@ drop procedure bug5251|
 #
 # BUG#5279: Stored procedure packets out of order if CHECKSUM TABLE
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug5251|
 create procedure bug5251()
   checksum table t1|
@@ -2869,7 +2869,7 @@ drop procedure bug5251|
 #
 # BUG#5287: Stored procedure crash if leave outside loop
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug5287|
 create procedure bug5287(param1 int)
 label1:
@@ -2889,7 +2889,7 @@ drop procedure bug5287|
 #
 # BUG#5307: Stored procedure allows statement after BEGIN ... END
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug5307|
 create procedure bug5307()
 begin
@@ -2902,13 +2902,13 @@ drop procedure bug5307|
 #
 # BUG#5258: Stored procedure modified date is 0000-00-00
 # (This was a design flaw)
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug5258|
 create procedure bug5258()
 begin
 end|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug5258_aux|
 create procedure bug5258_aux()
 begin
@@ -2930,7 +2930,7 @@ drop procedure bug5258_aux|
 #
 # BUG#4487: Stored procedure connection aborted if uninitialized char
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop function if exists bug4487|
 create function bug4487() returns char
 begin
@@ -2967,12 +2967,12 @@ drop procedure bug4941|
 #
 # BUG#4905: Stored procedure doesn't clear for "Rows affected"
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug4905|
 
 create table t3 (s1 int,primary key (s1))|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug4905|
 create procedure bug4905()
 begin
@@ -2999,11 +2999,6 @@ drop table t3|
 
 # Until we implement support for recursive stored functions.
 --disable_testcase BUG#0000
---disable_warnings ONCE
-drop function if exists bug6022|
-
---disable_warnings ONCE
-drop function if exists bug6022|
 create function bug6022(x int) returns int
 begin
   if x < 0 then
@@ -3020,10 +3015,10 @@ drop function bug6022|
 #
 # BUG#6029: Stored procedure specific handlers should have priority
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug6029|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug6029|
 create procedure bug6029()
 begin
@@ -3047,7 +3042,7 @@ drop table t3|
 #
 # BUG#8540: Local variable overrides an alias
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug8540|
 
 create procedure bug8540()
@@ -3064,7 +3059,7 @@ drop procedure bug8540|
 #
 create table t3 (s1 int)|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug6642|
 
 create procedure bug6642()
@@ -3078,7 +3073,7 @@ drop procedure bug6642|
 # BUG#7013: Stored procedure crash if group by ... with rollup
 #
 insert into t3 values (0),(1)|
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug7013|
 create procedure bug7013()
   select s1,count(s1) from t3 group by s1 with rollup|
@@ -3089,7 +3084,7 @@ drop procedure bug7013|
 #
 # BUG#7743: 'Lost connection to MySQL server during query' on Stored Procedure
 #
---disable_warnings ONCE
+--disable_warnings ER_BAD_TABLE_ERROR ONCE
 drop table if exists t4|
 create table t4 (
   a mediumint(8) unsigned not null auto_increment,
@@ -3100,7 +3095,7 @@ create table t4 (
 insert into t4 values (1, 2, 'oneword')|
 insert into t4 values (2, 2, 'anotherword')|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug7743|
 create procedure bug7743 ( searchstring char(28) )
 begin
@@ -3148,7 +3143,7 @@ drop table t3|
 #
 create table t3 (  userid bigint(20) not null default 0 )|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug8116|
 create procedure bug8116(in _userid int)
    select * from t3 where userid = _userid|
@@ -3184,7 +3179,7 @@ drop procedure bug6857|
 #
 # BUG#8757: Stored Procedures: Scope of Begin and End Statements do not
 #           work properly.
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug8757|
 create procedure bug8757()
 begin
@@ -3221,7 +3216,7 @@ drop procedure bug8757|
 #
 # BUG#8762: Stored Procedures: Inconsistent behavior
 #           of DROP PROCEDURE IF EXISTS statement.
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug8762|
 # Doesn't exist
 drop procedure if exists bug8762; create procedure bug8762() begin end|
@@ -3233,7 +3228,7 @@ drop procedure bug8762|
 #
 # BUG#5240: Stored procedure crash if function has cursor declaration
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop function if exists bug5240|
 create function bug5240 () returns int
 begin
@@ -3254,7 +3249,7 @@ drop function bug5240|
 #
 # BUG#7992: rolling back temporary Item tree changes in SP
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists p1|
 create table t3(id int)|
 insert into t3 values(1)|
@@ -3296,7 +3291,7 @@ create table t5 (
   primary key  (lbsiid,ltradingareaid)
 )|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug8849|
 create procedure bug8849()
 begin
@@ -3325,7 +3320,7 @@ drop tables t3,t4,t5|
 #
 # BUG#8937: Stored Procedure: AVG() works as SUM() in SELECT ... INTO statement
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug8937|
 create procedure bug8937()
 begin
@@ -3431,7 +3426,7 @@ drop table t3|
 #
 # BUG#7185: Stored procedure crash if identifier is AVG
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists avg|
 create procedure avg ()
 begin
@@ -3444,7 +3439,7 @@ drop procedure avg|
 #
 # BUG#6129: Stored procedure won't display @@sql_mode value
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug6129|
 set @old_mode= @@sql_mode;
 set @@sql_mode= "ERROR_FOR_DIVISION_BY_ZERO";
@@ -3463,7 +3458,7 @@ drop procedure bug6129|
 #
 # BUG#9856: Stored procedures: crash if handler for sqlexception, not found
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug9856|
 create procedure bug9856()
 begin
@@ -3551,7 +3546,7 @@ drop procedure bug9598_2|
 #
 # BUG#9102: Stored proccedures: function which returns blob causes crash
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop function if exists bug9102|
 create function bug9102() returns blob return 'a'|
 select bug9102()|
@@ -3561,7 +3556,7 @@ drop function bug9102|
 #
 # BUG#7648: Stored procedure crash when invoking a function that returns a bit
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop function if exists bug7648|
 create function bug7648() returns bit(8) return 'a'|
 select bug7648()|
@@ -3571,7 +3566,7 @@ drop function bug7648|
 #
 # BUG#9775: crash if create function that returns enum or set
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop function if exists bug9775|
 create function bug9775(v1 char(1)) returns enum('a','b') return v1|
 select bug9775('a'),bug9775('b'),bug9775('c')|
@@ -3591,7 +3586,7 @@ drop function bug9775|
 #
 # BUG#8861: If Return is a YEAR data type, value is not shown in year format
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop function if exists bug8861|
 create function bug8861(v1 int) returns year return v1|
 select bug8861(05)|
@@ -3626,7 +3621,7 @@ drop procedure bug9004_2|
 #
 # BUG#7293: Stored procedure crash with soundex
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug7293|
 insert into t1 values ('secret', 0)| 
 create procedure bug7293(p1 varchar(100))
@@ -3662,7 +3657,7 @@ drop procedure bug9841|
 #
 # BUG#5963 subqueries in SET/IF
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug5963|
 
 create procedure bug5963_1 () begin declare v int; set v = (select s1 from t3); select v; end;|
@@ -3692,7 +3687,7 @@ drop table t3|
 # BUG#9559: Functions: Numeric Operations using -ve value gives incorrect
 #           results.
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop function if exists bug9559|
 create function bug9559()
   returns int
@@ -3709,7 +3704,7 @@ drop function bug9559|
 #
 # BUG#10961: Stored procedures: crash if select * from dual
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug10961|
 # "select * from dual" results in an error, so the cursor will not open
 create procedure bug10961()
@@ -3736,7 +3731,7 @@ drop procedure bug10961|
 # BUG #6866: Second call of a stored procedure using a view with on expressions
 #
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 DROP PROCEDURE IF EXISTS bug6866|
 
 DROP VIEW IF EXISTS tv|
@@ -3779,7 +3774,7 @@ DROP TABLE tt1, tt2, tt3|
 #
 # BUG#10136: items cleunup
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 DROP PROCEDURE IF EXISTS bug10136|
 create table t3 ( name char(5) not null primary key, val float not null)|
 insert into t3 values ('aaaaa', 1), ('bbbbb', 2), ('ccccc', 3)|
@@ -3802,7 +3797,7 @@ drop table t3|
 #
 # BUG#11529: crash server after use stored procedure
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug11529|
 create procedure bug11529()
 begin
@@ -3901,7 +3896,7 @@ drop procedure bug9565|
 # BUG#9538: SProc: Creation fails if we try to SET system variable
 #           using @@var_name in proc
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug9538|
 create procedure bug9538()
   set @@sort_buffer_size = 1000000|
@@ -3919,7 +3914,7 @@ drop procedure bug9538|
 #
 # BUG#8692: Cursor fetch of empty string
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug8692|
 create table t3 (c1 varchar(5), c2 char(5), c3 enum('one','two'), c4 text, c5 blob, c6 char(5), c7 varchar(5))|
 insert into t3 values ('', '', '', '', '', '', NULL)|
@@ -3947,7 +3942,7 @@ drop table t3|
 # Bug#10055 "Using stored function with information_schema causes empty
 #            result set"
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop function if exists bug10055|
 create function bug10055(v char(255)) returns char(255) return lower(v)|
 # This select should not crash server and should return all fields in t1
@@ -3964,7 +3959,7 @@ drop function bug10055|
 # consumption by passing large input parameter.
 #
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug12297|
 
 create procedure bug12297(lim int)
@@ -4113,7 +4108,7 @@ drop table t3|
 #
 # BUG#9048: Creating a function with char binary IN parameter fails
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop function if exists bug9048|
 create function bug9048(f1 char binary) returns char
 begin
@@ -4137,7 +4132,7 @@ end|
 # 'INOUT' parameter
 #
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug12849_1|
 create procedure bug12849_1(inout x char) select x into x|
 set @var='a'|
@@ -4145,7 +4140,7 @@ call bug12849_1(@var)|
 select @var|
 drop procedure bug12849_1|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug12849_2|
 create procedure bug12849_2(inout foo varchar(15))
 begin
@@ -4264,7 +4259,7 @@ drop table t3|
 # Bug #13124    Stored Procedure using SELECT INTO crashes server
 #
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug13124|
 create procedure bug13124()
 begin
@@ -4280,7 +4275,7 @@ drop procedure  bug13124|
 
 # check NULL inout parameters processing
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug12979_1|
 create procedure bug12979_1(inout d decimal(5)) set d = d / 2|
 set @bug12979_user_var = NULL|
@@ -4289,7 +4284,7 @@ drop procedure bug12979_1|
 
 # check NULL local variables processing
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug12979_2|
 create procedure bug12979_2()
 begin
@@ -4881,7 +4876,7 @@ drop table t3, t4|
 #
 # BUG#14376: MySQL crash on scoped variable (re)initialization
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug14376|
 
 create procedure bug14376()
@@ -5272,7 +5267,7 @@ drop procedure bug15231_6|
 #
 # BUG#15011: error handler in nested block not activated
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug15011|
 
 create table t3 (c1 int primary key)|
@@ -5303,7 +5298,7 @@ drop table t3|
 # BUG#17476: Stored procedure not returning data when it is called first
 #            time per connection
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug17476|
 
 create table t3 ( d date )|
@@ -5398,7 +5393,7 @@ end|
 # 
 # BUG#14945: Truncate table doesn't reset the auto_increment counter
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug14945|
 create table t3 (id int not null auto_increment primary key)|
 create procedure bug14945() deterministic truncate t3|
@@ -5455,7 +5450,7 @@ drop table t3|
 # BUG#18787: Server crashed when calling a stored procedure containing
 #            a misnamed function
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug18787|
 create procedure bug18787()
 begin
@@ -5504,7 +5499,7 @@ select routine_name,routine_schema from information_schema.routines where
 # BUG#12472/BUG#15137 'CREATE TABLE ... SELECT ... which explicitly or
 # implicitly uses stored function gives "Table not locked" error'.
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop function if exists bug12472|
 create function bug12472() returns int return (select count(*) from t1)|
 # Check case when function is used directly
@@ -5696,7 +5691,7 @@ drop procedure bug15217|
 # This is a performance and memory leak test.  Run with large number
 # passed to bug21013() procedure.
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 DROP PROCEDURE IF EXISTS bug21013 |
 
 CREATE PROCEDURE bug21013(IN lim INT)
@@ -5825,9 +5820,6 @@ DROP DATABASE mysqltest2|
 #
 
 # Prepare: create database with fixed, pre-defined character set.
-
---disable_warnings ONCE
-DROP DATABASE IF EXISTS mysqltest1|
 
 CREATE DATABASE mysqltest1 DEFAULT CHARACTER SET utf8|
 
@@ -5971,7 +5963,7 @@ drop table t4|
 #
 # BUG#19862: Sort with filesort by function evaluates function twice
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug19862|
 CREATE TABLE t11 (a INT)|
 CREATE TABLE t12 (a INT)|
@@ -6038,7 +6030,7 @@ END|
 #
 # BUG#21416: SP: Recursion level higher than zero needed for non-recursive call
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists bug21416|
 create procedure bug21416() show create procedure bug21416|
 call bug21416()|
@@ -6048,7 +6040,7 @@ drop procedure bug21416|
 #
 # BUG#21414: SP: Procedure undroppable, to some extent
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 DROP PROCEDURE IF EXISTS bug21414|
 
 CREATE PROCEDURE bug21414() SELECT 1|
@@ -6108,7 +6100,7 @@ INSERT INTO t4(Member_ID, Action, Action_Date, Track) VALUES
   ('666666', 'Enrolled', '2006-05-12', 'CHF' ),
   ('666666', 'Disenrolled', '2006-06-01', 'CAD' )|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 DROP FUNCTION IF EXISTS bug21493|
 
 CREATE FUNCTION bug21493(paramMember VARCHAR(15)) RETURNS varchar(45)
@@ -6371,7 +6363,7 @@ DROP TABLE t3, t4|
 
 delimiter ;|
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop function if exists pi;
 
 create function pi() returns varchar(50)
@@ -6384,7 +6376,7 @@ SET SQL_MODE='IGNORE_SPACE';
 select pi(), pi ();
 
 # Non deterministic warnings from db_load_routine
---disable_warnings ONCE
+--disable_warnings ER_NATIVE_FCT_NAME_COLLISION ONCE
 select test.pi(), test.pi ();
 
 SET SQL_MODE='';
@@ -6392,7 +6384,6 @@ SET SQL_MODE='';
 select pi(), pi ();
 
 # Non deterministic warnings from db_load_routine
---disable_warnings ONCE
 select test.pi(), test.pi ();
 
 SET @@sql_mode=@save_sql_mode;
@@ -6899,7 +6890,7 @@ DROP FUNCTION bug5274_f2|
 #
 # Bug#21513 (SP having body starting with quoted label rendered unusable)
 #
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists proc_21513|
 
 create procedure proc_21513()`my_label`:BEGIN END|
@@ -6913,7 +6904,7 @@ drop procedure proc_21513|
 #
 # BUG#NNNN: New bug synopsis
 #
-#--disable_warnings ONCE
+#--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 #drop procedure if exists bugNNNN|
 ##create procedure bugNNNN...
 #
@@ -7045,8 +7036,6 @@ DROP TABLE t1;
 # Bug#28551 "The warning 'No database selected' is reported when calling
 # stored procedures"
 #
---disable_warnings ONCE
-drop database if exists mysqltest_db1;
 create database mysqltest_db1;
 create procedure mysqltest_db1.sp_bug28551() begin end;
 call mysqltest_db1.sp_bug28551();
@@ -7166,7 +7155,7 @@ drop procedure proc_25411_c;
 # Bug#26302 (MySQL server cuts off trailing "*/" from comments in SP/func)
 #
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists proc_26302;
 
 create procedure proc_26302()
@@ -7699,7 +7688,7 @@ drop procedure proc_33618;
 --echo # Bug#30787: Stored function ignores user defined alias.
 --echo #
 use test;
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop function if exists func30787;
 create table t1(f1 int);
 insert into t1 values(1),(2);
@@ -7759,7 +7748,7 @@ drop table t1;
 # Bug#38469 invalid memory read and/or crash with utf8 text field, stored procedure, uservar 
 #
 delimiter $;
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists `p2` $
 create procedure `p2`(in `a` text charset utf8)
 begin
@@ -7892,7 +7881,7 @@ DROP VIEW v2;
 
 --echo
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 DROP FUNCTION IF EXISTS f1;
 
 --echo
@@ -7956,7 +7945,7 @@ DROP FUNCTION f1;
 # mysql.routines table.
 #
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 drop procedure if exists p;
 set @old_mode= @@sql_mode;
 set @@sql_mode= cast(pow(2,33)-1 as unsigned integer) & ~0x1003ff00;
@@ -8108,8 +8097,6 @@ DROP PROCEDURE p5;
 --echo # The string "versiondata" seems
 --echo # to be 'leaking' into the schema name space
 --echo #
---disable_warnings ONCE
-DROP DATABASE IF EXISTS mixedCaseDbName;
 CREATE DATABASE mixedCaseDbName;
 DELIMITER |;
 CREATE PROCEDURE mixedCaseDbName.tryMyProc() begin end|
@@ -8184,7 +8171,7 @@ DROP TABLE t1;
 # Bug#36649: Condition area is not properly cleaned up after stored routine invocation
 #
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 DROP PROCEDURE IF EXISTS p1;
 
 delimiter |;
@@ -8209,7 +8196,7 @@ DROP PROCEDURE p1;
 # Ensure that rules for message list clean up are being respected.
 #
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 DROP PROCEDURE IF EXISTS p1;
 
 delimiter |;
@@ -8294,7 +8281,7 @@ DROP TABLE t1;
 --echo #            strict SQL mode
 --echo #
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 DROP PROCEDURE IF EXISTS p1;
 
 CREATE PROCEDURE p1 ()
@@ -8779,7 +8766,7 @@ DROP PROCEDURE p1;
 --echo # Bug#12663165 SP DEAD CODE REMOVAL DOESN'T UNDERSTAND CONTINUE HANDLERS
 --echo #
 
---disable_warnings ONCE
+--disable_warnings ER_SP_DOES_NOT_EXIST ONCE
 DROP FUNCTION IF EXISTS f1;
 
 delimiter $;

@@ -378,7 +378,6 @@ COLLATION_NAME	varchar(64)	YES		NULL
 DTD_IDENTIFIER	mediumtext	NO		NULL	
 ROUTINE_TYPE	enum('FUNCTION','PROCEDURE')	NO		NULL	
 # ========== parameters.2 ==========
-DROP DATABASE IF EXISTS i_s_parameters_test;
 CREATE DATABASE i_s_parameters_test;
 USE i_s_parameters_test;
 CREATE FUNCTION test_func1 (s char(20) RETURNS CHAR(50)

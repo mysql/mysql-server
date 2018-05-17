@@ -1118,7 +1118,6 @@ EXECUTE stmt USING @a;
 0	0
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
-DROP TABLE IF EXISTS t1, t2;
 CREATE TABLE t1 (i INT);
 PREPARE st_19182
 FROM "CREATE TABLE t2 (i INT, j INT, KEY (i), KEY(j)) SELECT i FROM t1";
@@ -1590,7 +1589,6 @@ ERROR 3D000: No database selected
 create temporary table t1 (i int);
 ERROR 3D000: No database selected
 use test;
-DROP TABLE IF EXISTS t1, t2, t3;
 CREATE TABLE t1 (i BIGINT, j BIGINT);
 CREATE TABLE t2 (i BIGINT);
 CREATE TABLE t3 (i BIGINT, j BIGINT);
@@ -1604,7 +1602,6 @@ EXECUTE stmt USING @a;
 i	j	i	i	j
 DEALLOCATE PREPARE stmt;
 DROP TABLE IF EXISTS t1, t2, t3;
-DROP TABLE IF EXISTS t1, t2;
 CREATE TABLE t1 (i INT KEY);
 CREATE TABLE t2 (i INT);
 INSERT INTO t1 VALUES (1), (2);
@@ -1643,7 +1640,6 @@ i
 DEALLOCATE PREPARE stmt;
 DROP VIEW v1;
 DROP TABLE t1;
-DROP PROCEDURE IF EXISTS p1;
 CREATE TABLE t1 (a int);
 INSERT INTO t1 VALUES (1), (2);
 CREATE TABLE t2 (b int);
@@ -1666,14 +1662,12 @@ a
 2
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1,t2;
-drop table if exists t1;
 create table t1 (s1 char(20));
 prepare stmt from "alter table t1 modify s1 int";
 execute stmt;
 execute stmt;
 drop table t1;
 deallocate prepare stmt;
-drop table if exists t1;
 create table t1 (a int, b int);
 prepare s_6895 from "alter table t1 drop column b";
 execute s_6895;
@@ -1734,7 +1728,6 @@ mysqltest_1	CREATE DATABASE `mysqltest_1` /*!40100 DEFAULT CHARACTER SET utf8 */
 drop database mysqltest_1;
 deallocate prepare stmt;
 set @@character_set_server= @old_character_set_server;
-drop tables if exists t1;
 create table t1 (id int primary key auto_increment, value varchar(10));
 insert into t1 (id, value) values (1, 'FIRST'), (2, 'SECOND'), (3, 'THIRD');
 prepare stmt from "insert into t1 (id, value) select * from (select 4 as i, 'FOURTH' as v) as y on duplicate key update v = 'DUP'";
@@ -1751,7 +1744,6 @@ t1	CREATE TABLE `t1` (
   `?` decimal(2,1) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
-drop table if exists t1;
 create table t1 (a bigint unsigned, b bigint(20) unsigned);
 prepare stmt from "insert into t1 values (?,?)";
 set @a= 9999999999999999;
@@ -2351,7 +2343,6 @@ Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	E
 execute abc;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
 deallocate prepare abc;
-drop procedure if exists a;
 create procedure a() select 42;
 create procedure proc_1(a char(2)) show create procedure a;
 call proc_1("bb");
@@ -2388,7 +2379,6 @@ a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_
 select 42	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 deallocate prepare abc;
 drop procedure a;
-drop function if exists a;
 create function a() returns int return 42+13;
 create procedure proc_1(a char(2)) show create function a;
 call proc_1("bb");
@@ -2425,7 +2415,6 @@ a	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_
 return 42+13	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 deallocate prepare abc;
 drop function a;
-drop table if exists tab1;
 create table tab1(a int, b char(1), primary key(a,b));
 create procedure proc_1() show create table tab1;
 call proc_1();
@@ -2556,7 +2545,6 @@ ERROR 42000: PLUGIN my_plug does not exist
 execute abc;
 ERROR 42000: PLUGIN my_plug does not exist
 deallocate prepare abc;
-drop database if exists mysqltest_xyz;
 create procedure proc_1() create database mysqltest_xyz;
 call proc_1();
 drop database if exists mysqltest_xyz;
@@ -2583,7 +2571,6 @@ drop database if exists mysqltest_xyz;
 execute abc;
 drop database if exists mysqltest_xyz;
 deallocate prepare abc;
-drop table if exists t1;
 create table t1 (a int, b char(5));
 insert into t1 values (1, "one"), (2, "two"), (3, "three");
 create procedure proc_1() checksum table xyz;
@@ -2646,7 +2633,6 @@ drop user pstest_xyz@localhost;
 execute abc;
 drop user pstest_xyz@localhost;
 deallocate prepare abc;
-drop event if exists xyz;
 create function func_1() returns int begin create event xyz on schedule at now() do select 123; return 1; end|
 ERROR HY000: Recursion of EVENT DDL statements is forbidden when body is present
 select func_1(), func_1(), func_1() from dual;
@@ -2820,7 +2806,6 @@ execute stmt2 using @to_format, @dec;
 format(?, ?)
 10,000.00
 deallocate prepare stmt2;
-DROP TABLE IF EXISTS t1, t2;
 CREATE TABLE t1 (i INT);
 INSERT INTO t1 VALUES (1);
 CREATE TABLE t2 (i INT);
@@ -2879,7 +2864,6 @@ t1	CREATE TABLE `t1` (
   KEY `c` (`c`(10))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
-drop table if exists t1, t2;
 create table t1 (a int, b int);
 create table t2 like t1;
 insert into t1 (a, b) values (1,1), (1,2), (1,3), (1,4), (1,5),
@@ -3621,7 +3605,6 @@ DROP PROCEDURE p1;
 #
 # WL#4284: Transactional DDL locking
 #
-DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (a INT);
 BEGIN;
 SELECT * FROM t1;
@@ -3637,7 +3620,6 @@ DROP TABLE t1;
 #
 # Test that metadata locks taken during prepare are released.
 #
-DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (a INT);
 BEGIN;
 PREPARE stmt1 FROM "SELECT * FROM t1";

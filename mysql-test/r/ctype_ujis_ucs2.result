@@ -1140,7 +1140,6 @@ update t1 set name='User defined range #2' where ujis >= 0x8FF5A1 and ujis <= 0x
 update t1 set name='UNASSIGNED' where name='';
 SET @@session.max_error_count = 0;
 update ignore t1 set ucs2=ujis, ujis2=ucs2;
-Warnings:
 SET @@session.max_error_count = DEFAULT;
 Characters with safe Unicode round trip
 select hex(ujis), hex(ucs2), hex(ujis2), name from t1 where ujis=ujis2 order by ujis;

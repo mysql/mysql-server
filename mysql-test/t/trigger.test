@@ -602,8 +602,6 @@ drop table t1, t2;
 # Appropriate error should be reported instead of crash.
 # Also test for bug #11889 "Server crashes when dropping trigger
 # using stored routine".
---disable_warnings ONCE
-drop function if exists bug5893;
 create table t1 (col1 int, col2 int); 
 insert into t1 values (1, 2);
 create function bug5893 () returns int return 5;
@@ -669,8 +667,6 @@ create trigger t1_ai after insert on t1 for each row flush user_resources;
 create trigger t1_ai after insert on t1 for each row flush tables;
 --error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 create trigger t1_ai after insert on t1 for each row flush privileges;
---disable_warnings ONCE
-drop procedure if exists p1;
 
 create trigger t1_ai after insert on t1 for each row call p1();
 create procedure p1() flush tables;
@@ -764,9 +760,6 @@ delimiter ;|
 
 insert into t1 (c1) values (1),(2),(3);
 select * from t1;
-
---disable_warnings ONCE
-drop procedure if exists bug11587;
 
 delimiter |;
 create procedure bug11587(x char(16))
@@ -1164,9 +1157,6 @@ drop tables t1, t2;
 #
 # Test for Bug #16461 connection_id() does not work properly inside trigger
 #
---disable_warnings ONCE
-DROP TABLE IF EXISTS t1;
-
 CREATE TABLE t1 (
     conn_id INT,
     trigger_conn_id INT
@@ -1190,8 +1180,6 @@ DROP TABLE t1;
 #
 # Bug#6951: Triggers/Traditional: SET @ result wrong
 #
---disable_warnings ONCE
-DROP TABLE IF EXISTS t1;
 
 CREATE TABLE t1 (i1 INT);
 
@@ -1423,8 +1411,6 @@ drop table t4;
 #            this key does not stop"
 #
 
---disable_warnings ONCE
-drop table if exists t1;
 create table t1 (i int, j int key);
 insert into t1 values (1,1), (2,2), (3,3);
 create trigger t1_bu before update on t1 for each row
@@ -1484,9 +1470,6 @@ drop function f1;
 #
 # Bug#23703: DROP TRIGGER needs an IF EXISTS
 #
-
---disable_warnings ONCE
-drop table if exists t1;
 
 create table t1(a int, b varchar(50));
 
@@ -1670,8 +1653,6 @@ drop table t1,t2;
 # Bug #20903 "Crash when using CREATE TABLE .. SELECT and triggers"
 #
 
---disable_warnings ONCE
-drop table if exists t1, t2, t3;
 create table t1 (i int);
 create trigger t1_bi before insert on t1 for each row set new.i = 7;
 create trigger t1_ai after insert on t1 for each row set @a := 7;
@@ -2211,9 +2192,6 @@ drop table table_25411_b;
 # Bug #31866: MySQL Server crashes on SHOW CREATE TRIGGER statement
 #
 
---disable_warnings ONCE
-DROP TRIGGER IF EXISTS trg;
-
 --error ER_TRG_DOES_NOT_EXIST
 SHOW CREATE TRIGGER trg;
 
@@ -2222,9 +2200,6 @@ SHOW CREATE TRIGGER trg;
 #
 # Test of trigger creation and removal under LOCK TABLES
 #
-
---disable_warnings ONCE
-drop table if exists t1;
 
 create table t1 (i int, j int);
 
@@ -2518,9 +2493,6 @@ drop table t1;
 --echo #
 --echo # Bug #12362125: SP INOUT HANDLING IS BROKEN FOR TEXT TYPE.
 --echo #
-
---disable_warnings ONCE
-DROP TABLE IF EXISTS t1;
 
 CREATE TABLE t1(c TEXT);
 

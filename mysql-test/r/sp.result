@@ -5056,7 +5056,6 @@ koi8r
 use test|
 DROP DATABASE mysqltest1|
 DROP DATABASE mysqltest2|
-DROP DATABASE IF EXISTS mysqltest1|
 CREATE DATABASE mysqltest1 DEFAULT CHARACTER SET utf8|
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -6170,7 +6169,6 @@ DROP PROCEDURE p2;
 DROP FUNCTION f1;
 DROP VIEW v1;
 DROP TABLE t1;
-drop database if exists mysqltest_db1;
 create database mysqltest_db1;
 create procedure mysqltest_db1.sp_bug28551() begin end;
 call mysqltest_db1.sp_bug28551();
@@ -6999,7 +6997,6 @@ DROP PROCEDURE p5;
 # The string "versiondata" seems
 # to be 'leaking' into the schema name space
 #
-DROP DATABASE IF EXISTS mixedCaseDbName;
 CREATE DATABASE mixedCaseDbName;
 CREATE PROCEDURE mixedCaseDbName.tryMyProc() begin end|
 CREATE FUNCTION mixedCaseDbName.tryMyFunc() returns text begin return 'IT WORKS'; end

@@ -723,7 +723,6 @@ CHARACTER_SET_CLIENT	varchar(64)	NO		NULL
 COLLATION_CONNECTION	varchar(64)	NO		NULL	
 DATABASE_COLLATION	varchar(64)	NO		NULL	
 # ========== routines.2 ==========
-DROP DATABASE IF EXISTS i_s_routines_test;
 CREATE DATABASE i_s_routines_test;
 USE i_s_routines_test;
 CREATE FUNCTION test_func1 (s char(20) RETURNS CHAR(50)

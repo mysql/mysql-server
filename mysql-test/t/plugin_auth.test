@@ -22,7 +22,8 @@ CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
 SELECT plugin,authentication_string FROM mysql.user WHERE User='plug';
 --echo ## test plugin auth
 --disable_query_log
---error ER_ACCESS_DENIED_ERROR : this should fail : no grant
+# This should fail, no grant
+--error ER_ACCESS_DENIED_ERROR
 connect(plug_con,localhost,plug,plug_dest);
 --enable_query_log
 
@@ -115,11 +116,13 @@ CREATE USER grant_plug_dest2 IDENTIFIED BY 'grant_plug_dest_passwd2';
 --echo # ALL PRIVILEGES doesn't include PROXY
 GRANT ALL PRIVILEGES ON *.* TO grant_plug;
 --disable_query_log
---error ER_ACCESS_DENIED_ERROR : this should fail : no grant
+# This should fail, no grant
+--error ER_ACCESS_DENIED_ERROR
 connect(grant_plug_con,localhost,grant_plug,grant_plug_dest);
 --enable_query_log
 
---error ER_PARSE_ERROR : this should fail : can't combine PROXY
+# This should fail, can't combine PROXY
+--error ER_PARSE_ERROR
 GRANT ALL PRIVILEGES,PROXY ON grant_plug_dest TO grant_plug;
 
 --echo this should fail : can't combine PROXY
@@ -354,7 +357,8 @@ CREATE USER uplain@localhost IDENTIFIED WITH 'cleartext_plugin_server'
 
 --echo ## test plugin auth
 --disable_query_log
---error ER_ACCESS_DENIED_ERROR : this should fail : no grant
+# This should fail, no grant
+--error ER_ACCESS_DENIED_ERROR
 connect(cleartext_fail_con,localhost,uplain,cleartext_test2,,,,CLEARTEXT);
 --enable_query_log
 
@@ -628,7 +632,8 @@ CREATE USER user_name_len_22_0dest IDENTIFIED BY 'plug_dest_passwd';
 SELECT plugin,authentication_string FROM mysql.user WHERE User='plug';
 --echo ## test plugin auth
 --disable_query_log
---error ER_ACCESS_DENIED_ERROR : this should fail : no grant
+# This should fail, no grant
+--error ER_ACCESS_DENIED_ERROR
 connect(plug_user22,localhost,user_name_len_22_01234,user_name_len_22_0dest);
 --enable_query_log
 
@@ -654,7 +659,8 @@ CREATE USER очень_очень_очень_длинный_дест__ IDENTIFIE
 SELECT plugin,authentication_string FROM mysql.user WHERE User='plug';
 --echo ## test plugin auth
 --disable_query_log
---error ER_ACCESS_DENIED_ERROR : this should fail : no grant
+# This should fail, no grant
+--error ER_ACCESS_DENIED_ERROR
 connect(plug_user32,localhost,очень_очень_очень_длинный_юзер__,очень_очень_очень_длинный_дест__);
 --enable_query_log
 

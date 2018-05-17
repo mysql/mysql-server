@@ -213,7 +213,6 @@ password_lifetime,account_locked FROM mysql.user WHERE USER='u3';
 --connect(con1, localhost, u3,,,,,SSL)
 --error ER_MUST_CHANGE_PASSWORD
 SELECT USER();
---enable_warnings
 SET PASSWORD = 'def';
 --disable_warnings
 connection default;

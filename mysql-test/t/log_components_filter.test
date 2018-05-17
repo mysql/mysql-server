@@ -682,6 +682,7 @@ perl;
 EOF
 
 SET @@global.log_error_verbosity=@old_log_error_verbosity;
+--enable_warnings
 
 --echo
 --echo ###

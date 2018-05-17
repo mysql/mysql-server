@@ -3,10 +3,6 @@
 #
 # Test of alter table
 #
---disable_warnings
-drop table if exists t1,t2;
-drop database if exists mysqltest;
---enable_warnings
 
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 
@@ -383,9 +379,6 @@ drop table t1;
 # This problem happens if the data change is compatible.
 # Changing to the same type is compatible for example.
 #
---disable_warnings
-drop table if exists t1;
---enable_warnings
 create table t1 (a int, key(a)) engine=myisam;
 show indexes from t1;
 --echo "this used not to disable the index"
@@ -521,10 +514,6 @@ DROP TABLE t1;
 # Disable/Enable keys supported by Myisam only
 # Bug#24219 - ALTER TABLE ... RENAME TO ... , DISABLE KEYS leads to crash
 #
---disable_warnings
-DROP TABLE IF EXISTS bug24219;
-DROP TABLE IF EXISTS bug24219_2;
---enable_warnings
 
 CREATE TABLE bug24219 (a INT, INDEX(a)) ENGINE=MyISAM;
 
@@ -539,10 +528,6 @@ DROP TABLE bug24219_2;
 #
 # Bug#24562 (ALTER TABLE ... ORDER BY ... with complex expression asserts)
 #
-
---disable_warnings
-drop table if exists table_24562;
---enable_warnings
 
 create table table_24562(
   section int,
@@ -781,9 +766,6 @@ drop table t1;
 # See also innodb_mysql.test.
 # See alter_table-big.test for extended full ALTER TABLE RENAME coverage.
 #
---disable_warnings
-drop table if exists t1, t2, t3;
---enable_warnings
 create table t1 (i int);
 create table t3 (j int);
 insert into t1 values ();
@@ -828,9 +810,6 @@ drop tables t1, t3;
 # Bug#18775 - Temporary table from alter table visible to other threads
 #
 # Check if special characters work and duplicates are detected.
---disable_warnings
-DROP TABLE IF EXISTS `t+1`, `t+2`;
---enable_warnings
 CREATE TABLE `t+1` (c1 INT);
 ALTER TABLE  `t+1` RENAME `t+2`;
 CREATE TABLE `t+1` (c1 INT);
@@ -881,9 +860,6 @@ DROP TABLE `#sql2`, `@0023sql1`;
 # This problem happens if the data change is compatible.
 # Changing to the same type is compatible for example.
 #
---disable_warnings
-DROP TABLE IF EXISTS t1;
-DROP TABLE IF EXISTS t2;
 --enable_warnings
 CREATE TABLE t1 (
   int_field INTEGER UNSIGNED NOT NULL,
@@ -939,9 +915,6 @@ drop table t1;
 # Bug#33873: Fast ALTER TABLE doesn't work with multibyte character sets
 #
 
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
 CREATE TABLE t1 (id int, c int) character set latin1;
 INSERT INTO t1 VALUES (1,1);
 --enable_info
@@ -953,9 +926,6 @@ ALTER TABLE t1 CHANGE d c varchar(10);
 --disable_info
 DROP TABLE t1;
 
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
 CREATE TABLE t1 (id int, c int) character set utf8;
 INSERT INTO t1 VALUES (1,1);
 --enable_info
@@ -1011,10 +981,6 @@ DROP TABLE t1;
 --echo #
 --echo # Bug#45567: Fast ALTER TABLE broken for enum and set
 --echo #
-
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
 
 CREATE TABLE t1 (a ENUM('a1','a2'));
 INSERT INTO t1 VALUES ('a1'),('a2');
@@ -1085,9 +1051,6 @@ DROP TABLE t1;
 --echo # Test for bug #12652385 - "61493: REORDERING COLUMNS TO POSITION
 --echo #                           FIRST CAN CAUSE DATA TO BE CORRUPTED".
 --echo #
---disable_warnings
-drop table if exists t1;
---enable_warnings
 --echo # Use MyISAM engine as the fact that InnoDB doesn't support
 --echo # in-place ALTER TABLE in cases when columns are being renamed
 --echo # hides some bugs.
@@ -1168,9 +1131,6 @@ DROP TABLE t1;
 --echo # Test for bug #53820 "ALTER a MEDIUMINT column table causes full
 --echo #                      table copy".
 --echo #
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
 CREATE TABLE t1 (a INT, b MEDIUMINT);
 INSERT INTO t1 VALUES (1, 1), (2, 2);
 --echo # The below ALTER should not copy table and so no rows should
@@ -1184,10 +1144,6 @@ DROP TABLE t1;
 --echo #
 --echo # Bug#11754461 CANNOT ALTER TABLE WHEN KEY PREFIX TOO LONG
 --echo #
-
---disable_warnings
-DROP DATABASE IF EXISTS db1;
---enable_warnings
 
 CREATE DATABASE db1 CHARACTER SET utf8;
 --error ER_TOO_LONG_KEY
@@ -1204,10 +1160,6 @@ DROP DATABASE db1;
 --echo #
 --echo # At some point the below test case failed on assertion.
 
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
-
 CREATE TEMPORARY TABLE t1 (i int) ENGINE=MyISAM;
 
 --error ER_ILLEGAL_HA
@@ -1220,9 +1172,6 @@ DROP TABLE t1;
 --echo # Bug#11938039 RE-EXECUTION OF FRM-ONLY ALTER TABLE WITH RENAME
 --echo #              CLAUSE FAILS OR ABORTS SERVER.
 --echo #
---disable_warnings
-drop table if exists t1;
---enable_warnings
 create table t1 (a int);
 prepare stmt1 from 'alter table t1 alter column a set default 1, rename to t2';
 execute stmt1;
@@ -1250,10 +1199,6 @@ DROP TABLE t1;
 
 --echo # Single thread tests.
 --echo # See innodb_mysql_sync.test for multi thread tests.
-
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
 
 CREATE TABLE t1(a INT PRIMARY KEY, b INT) engine=InnoDB;
 CREATE TABLE m1(a INT PRIMARY KEY, b INT) engine=MyISAM;
@@ -1406,10 +1351,6 @@ DROP TABLE t1;
 --echo # --enable_info allows us to see how many rows were updated
 --echo # by ALTER TABLE. in-place will show 0 rows, while copy > 0.
 --echo #
-
---disable_warnings
-DROP TABLE IF EXISTS ti1, ti2, ti3, tm1, tm2, tm3;
---enable_warnings
 
 --echo # Single operation tests
 
@@ -3117,7 +3058,6 @@ ROW_FORMAT=COMPACT;
 --error ER_TOO_LONG_KEY
 CREATE TABLE t5(fld1 VARCHAR(3073), UNIQUE KEY(fld1)) ENGINE= InnoDB;
 
---disable_warnings
 DROP TABLE t1, t2, t3, t4;
 
 SET sql_mode= @orig_sql_mode;

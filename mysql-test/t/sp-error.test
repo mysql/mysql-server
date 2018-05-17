@@ -5,9 +5,6 @@
 # ER_STACK_OVERRUN_NEED_MORE does not currenly work well with TSan
 --source include/not_tsan.inc
 
---disable_warnings ONCE
-drop table if exists t1, t2;
-
 delimiter |;
 
 # This should give three syntax errors (sometimes crashed; bug #643)
@@ -29,8 +26,6 @@ create procedure syntaxerror(t int)|
 #create function foo returns real soname "foo.so"|
 
 
---disable_warnings ONCE
-drop table if exists t3|
 create table t3 ( x int )|
 insert into t3 values (2), (3)|
 
@@ -222,8 +217,6 @@ begin
   close c;
 end|
 
---disable_warnings ONCE
-drop table if exists t1|
 create table t1 (val int)|
 
 create procedure p()
@@ -255,8 +248,6 @@ alter procedure bar3 sql security invoker|
 
 drop table t1|
 
---disable_warnings ONCE
-drop table if exists t1|
 create table t1 (val int, x float)|
 insert into t1 values (42, 3.1), (19, 1.2)|
 
@@ -358,8 +349,6 @@ begin
 end|
 
 # Check in and inout arguments.
---disable_warnings ONCE
-drop procedure if exists p|
 create procedure p(in x int, inout y int, out z int)
 begin
   set y = x+y;
@@ -396,8 +385,6 @@ drop procedure p|
 # Check that in functions we don't allow to update tables which
 # are used by statements which invoke these functions.
 #
---disable_warnings ONCE
-drop function if exists f1|
 create function f1(i int) returns int
 begin
   insert into t1 (val) values (i);
@@ -443,8 +430,6 @@ select 1 into a|
 #
 # BUG#1653
 #
---disable_warnings ONCE
-drop table if exists t3|
 create table t3 (column_1_0 int)|
 
 create procedure bug1653()
@@ -546,8 +531,6 @@ drop procedure bug3287|
 #
 # BUG#3297
 #
---disable_warnings ONCE
-drop table if exists t3|
 create table t3 (s1 int, primary key (s1))|
 insert into t3 values (5),(6)|
 
@@ -612,8 +595,6 @@ create procedure bug4344() drop function bug4344|
 #
 # BUG#3294: Stored procedure crash if table dropped before use
 # (Actually, when an error occurs within an error handler.)
---disable_warnings ONCE
-drop procedure if exists bug3294|
 create procedure bug3294()
 begin
   declare continue handler for sqlexception drop table t5;
@@ -685,8 +666,6 @@ create procedure bug6600()
 #
 # BUG#7299: Stored procedures: exception handler catches not-found conditions
 #
---disable_warnings ONCE
-drop procedure if exists bug7299|
 create procedure bug7299()
 begin
   declare v int;
@@ -736,8 +715,6 @@ begin
 end|
 
 # This should still work.
---disable_warnings ONCE
-drop procedure if exists bug9073|
 create procedure bug9073()
 begin
   declare condname1 condition for sqlstate '42000';
@@ -832,8 +809,6 @@ truncate table t1|
 # BUG#10537: Server crashes while loading data file into table through
 #            procedure.
 # Disable load until it's PS and SP safe
---disable_warnings ONCE
-drop procedure if exists bug10537|
 --error ER_SP_BADSTATEMENT
 create procedure bug10537()
   load data local infile '/tmp/somefile' into table t1|
@@ -842,8 +817,6 @@ create procedure bug10537()
 #
 # BUG#8409: Stored procedure crash if function contains FLUSH
 #
---disable_warnings ONCE
-drop function if exists bug8409|
 --error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 create function bug8409()
   returns int
@@ -891,8 +864,6 @@ create procedure bug9529_9012345678901234567890123456789012345678901234567890123
 begin
 end|
 
---disable_warnings ONCE
-drop procedure if exists bug17015_0123456789012345678901234567890123456789012345678901234|
 # Check the upper limit, just to make sure.
 create procedure bug17015_0123456789012345678901234567890123456789012345678901234()
 begin
@@ -906,8 +877,6 @@ drop procedure bug17015_0123456789012345678901234567890123456789012345678901234|
 #
 # BUG#10969: Stored procedures: crash if default() function
 #
---disable_warnings ONCE
-drop procedure if exists bug10969|
 --error ER_WRONG_COLUMN_NAME
 create procedure bug10969()
 begin
@@ -1065,8 +1034,6 @@ drop function bug11834_2;
 # Bug#12953 "Stored procedures: crash if OPTIMIZE TABLE in function"
 #
 delimiter |;
---disable_warnings ONCE
-DROP FUNCTION IF EXISTS bug12953|
 --error ER_SP_NO_RETSET
 CREATE FUNCTION bug12953() RETURNS INT
 BEGIN
@@ -1079,8 +1046,6 @@ delimiter ;|
 # Bug##12995 "Inside function "Table 't4' was not locked with LOCK TABLES"
 #
 delimiter |;
---disable_warnings ONCE
-DROP FUNCTION IF EXISTS bug12995|
 --error ER_SP_BADSTATEMENT
 CREATE FUNCTION bug12995() RETURNS INT
 BEGIN
@@ -1164,8 +1129,6 @@ create trigger bug12712
 # BUG#9367: Stored procedures: client hang after "show warnings"
 #
 --disable_testcase BUG#0000
---disable_warnings ONCE
-drop procedure if exists bug9367;
 create table t1 (s1 int);
 select s1 from t1;
 delimiter |;
@@ -1246,8 +1209,6 @@ drop procedure bug13510_4|
 # containing such statement should produce error (includes test for
 # bug #13627).
 #
---disable_warnings ONCE
-drop function if exists bug_13627_f|
 
 CREATE TABLE t1 (a int)|
 -- error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
@@ -1390,7 +1351,6 @@ delimiter ;|
 # BUG#12329: "Bogus error msg when executing PS with stored procedure after
 # SP was re-created". See also test for related bug#13399 in trigger.test
 drop function if exists bug12329;
---enable_warnings
 create table t1 as select 1 a;
 create table t2 as select 1 a;
 create function bug12329() returns int return (select a from t1);
@@ -1496,8 +1456,6 @@ use test;
 # Bug#13012 "SP: REPAIR/BACKUP/RESTORE TABLE crashes the server"
 #
 delimiter |;
---disable_warnings ONCE
-DROP FUNCTION IF EXISTS bug13012|
 --error ER_SP_NO_RETSET
 CREATE FUNCTION bug13012() RETURNS INT
 BEGIN
@@ -1585,8 +1543,6 @@ drop view v1;
 #
 # BUG#15658: Server crashes after creating function as empty string
 #
---disable_warnings ONCE
-drop procedure if exists ` bug15658`;
 
 --error ER_SP_WRONG_NAME
 create procedure ``() select 1;
@@ -1640,8 +1596,6 @@ drop table t1;
 # BUG#15091: Sp Returns Unknown error in order clause....and 
 #            there is no order by clause
 #
---disable_warnings ONCE
-drop procedure if exists bug15091;
 
 delimiter |;
 create procedure bug15091()
@@ -1669,8 +1623,6 @@ drop procedure bug15091;
 #
 # BUG#16896: Stored function: unused AGGREGATE-clause in CREATE FUNCTION
 #
---disable_warnings ONCE
-drop function if exists bug16896;
 
 --error ER_PARSE_ERROR
 create aggregate function bug16896() returns int return 1;
@@ -1683,8 +1635,6 @@ create aggregate function bug16896() returns int return 1;
 # Misleading error message was given when IF NOT EXISTS was used in
 # CREATE PROCEDURE.
 #
---disable_warnings ONCE
-DROP PROCEDURE IF EXISTS bug14702;
 
 --error ER_PARSE_ERROR
 CREATE IF NOT EXISTS PROCEDURE bug14702()
@@ -1703,8 +1653,6 @@ END;
 #
 # See test case for what syntax is forbidden in a view.
 #
---disable_warnings ONCE
-DROP TABLE IF EXISTS t1;
 
 CREATE TABLE t1 (i INT);
 
@@ -1952,8 +1900,6 @@ drop function func_25345_b;
 #
 # BUG#20701: BINARY keyword should be forbidden in stored routines
 #
---disable_warnings ONCE
-drop function if exists bug20701;
 #
 # This was disabled in 5.1.12. See bug #20701
 # When collation support in SP is implemented, then this test should
@@ -2037,8 +1983,6 @@ delimiter ;//
 # Bug#29223 declare cursor c for SHOW .....
 #
 
---disable_warnings ONCE
-DROP PROCEDURE IF EXISTS p1;
 --delimiter |
 --error ER_PARSE_ERROR
 CREATE PROCEDURE p1()
@@ -2057,8 +2001,6 @@ END|
 # Bug#29816 Syntactically wrong query fails with misleading error message
 #
 
---disable_warnings ONCE
-DROP DATABASE IF EXISTS mysqltest;
 CREATE DATABASE mysqltest;
 USE mysqltest;
 DROP DATABASE mysqltest;
@@ -2238,8 +2180,6 @@ delimiter ;|
 # Bug#21801: SQL exception handlers and warnings
 #
 
---disable_warnings ONCE
-drop procedure if exists p1;
 delimiter |;
 create procedure p1()
 begin
@@ -2254,9 +2194,6 @@ drop procedure p1;
 #
 # Bug#8759 (Stored Procedures: SQLSTATE '00000' should be illegal)
 #
-
---disable_warnings ONCE
-drop procedure if exists proc_8759;
 
 delimiter $$;
 
@@ -2278,9 +2215,6 @@ delimiter ;$$
 #
 # Bug#36510 (Stored Procedures: mysql_error_code 0 should be illegal)
 #
-
---disable_warnings ONCE
-drop procedure if exists proc_36510;
 
 delimiter $$;
 
@@ -2315,8 +2249,6 @@ delimiter ;$$
 # Bug#15192: "fatal errors" are caught by handlers in stored procedures
 #
 
---disable_warnings ONCE
-drop procedure if exists p1;
 set @old_recursion_depth = @@max_sp_recursion_depth;
 set @@max_sp_recursion_depth = 255;
 delimiter |;
@@ -2473,9 +2405,6 @@ DROP PROCEDURE p2;
 --echo # - Case 2
 --echo
 
---disable_warnings ONCE
-DROP TABLE IF EXISTS t1;
-
 CREATE TABLE t1(a INT);
 
 delimiter |;
@@ -2561,9 +2490,6 @@ SET sql_mode = default;
 --echo
 --echo # - Case 3: check that "Exception trumps No Data".
 --echo
-
---disable_warnings ONCE
-DROP TABLE IF EXISTS t1;
 
 CREATE TABLE t1(a INT);
 INSERT INTO t1 VALUES (1), (2), (3);

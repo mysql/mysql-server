@@ -1,4 +1,3 @@
-drop table if exists t1,t2,t3;
 CREATE TABLE t1 (  `id` int(11) NOT NULL default '0', `id2` int(11) NOT NULL default '0', `id3` int(11) NOT NULL default '0', `dummy1` char(30) default NULL, PRIMARY KEY  (`id`,`id2`), KEY `index_id3` (`id3`)) ENGINE=MyISAM;
 insert into t1 (id,id2) values (1,1),(1,2),(1,3);
 LOCK TABLE t1 WRITE;
@@ -76,14 +75,12 @@ ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
 unlock tables;
 drop table t2,t1;
 End of 4.1 tests.
-drop table if exists t1;
 create table t1 (a int);
 lock table t1 write;
 flush tables with read lock;
 ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 unlock tables;
 drop table t1;
-DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (i INT);
 LOCK TABLES mysql.time_zone READ, mysql.time_zone_name READ, t1 READ;
 UNLOCK TABLES;
@@ -185,7 +182,6 @@ drop table t2, t3;
 #
 # Bug#39843 DELETE requires write access to table in subquery in where clause
 #
-DROP TABLE IF EXISTS t1,t2;
 CREATE TABLE t1 (
 table1_rowid SMALLINT NOT NULL
 );
@@ -214,7 +210,6 @@ End of 5.1 tests.
 # Ensure that FLUSH TABLES doesn't substitute a base locked table
 # with a temporary one.
 #
-drop table if exists t1, t2;
 create table t1 (a int);
 create table t2 (a int);
 lock table t1 write, t2 write;
@@ -228,7 +223,6 @@ drop table t1, t2;
 #
 # Ensure that REPAIR .. USE_FRM works under LOCK TABLES.
 #
-drop table if exists t1, t2;
 create table t1 (a int) engine=myisam;
 create table t2 (a int) engine=myisam;
 lock table t1 write, t2 write;
@@ -273,7 +267,6 @@ drop view v1;
 #
 # WL#4284: Transactional DDL locking
 #
-drop table if exists t1;
 create table t1 (a int);
 set autocommit= 0;
 insert into t1 values (1);
@@ -283,7 +276,6 @@ lock table t1 write;
 # transaction (autocommit=off) in conjunction with lock tables.
 drop table t1;
 # Same problem but now for BEGIN
-drop table if exists t1;
 create table t1 (a int);
 begin;
 insert into t1 values (1);
@@ -356,7 +348,6 @@ drop tables t1;
 # that would lead to a lock conflict. 
 # Check that taking all locks at once works.
 #
-drop table if exists t1;
 create table t1 (i int);
 lock tables t1 write, t1 as a read, t1 as b read;
 alter table t1 add column j int;
@@ -376,7 +367,6 @@ drop table t1;
 #
 # Bug #43272 HANDLER SQL command does not work under LOCK TABLES
 #
-DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (a INT);
 LOCK TABLE t1 WRITE;
 # HANDLER commands are not allowed in LOCK TABLES mode
@@ -392,7 +382,6 @@ DROP TABLE t1;
 # Bug#45066 FLUSH TABLES WITH READ LOCK deadlocks against 
 #           LOCK TABLE 
 #
-DROP TABLE IF EXISTS t1;
 CREATE TABLE t1(a INT);
 LOCK TABLE t1 READ;
 FLUSH TABLES;
@@ -414,7 +403,6 @@ DROP TABLE t1;
 # Simplified test for bug #48538 "Assertion in thr_lock() on LOAD DATA
 # CONCURRENT INFILE".
 #
-DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (f1 INT, f2 INT) ENGINE = MEMORY;
 CREATE TRIGGER t1_ai AFTER INSERT ON t1 FOR EACH ROW 
 UPDATE LOW_PRIORITY t1 SET f2 = 7;
@@ -426,7 +414,6 @@ DROP TABLE t1;
 #
 # Bug#43685 Lock table affects other non-related tables
 #
-DROP TABLE IF EXISTS t1, t2;
 CREATE TABLE t1 (id INT);
 CREATE TABLE t2 (id INT);
 # Connection default

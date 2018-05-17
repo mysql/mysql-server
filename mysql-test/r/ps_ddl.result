@@ -1870,7 +1870,6 @@ SQL statement where it is needed.
 #
 # SQLCOM_SELECT
 #
-drop table if exists t1;
 create table t1 (a int);
 prepare stmt from "select 1 as res from dual where (1) in (select * from t1)";
 drop table t1;
@@ -2077,7 +2076,6 @@ deallocate prepare stmt;
 #
 # SQLCOM_UPDATE
 #
-drop table if exists t1, t2;
 create table t1 (a int);
 create table t2 (a int);
 prepare stmt from "update t2 set a=a+1 where (1) in (select * from t1)";
@@ -2090,7 +2088,6 @@ deallocate prepare stmt;
 #
 # SQLCOM_INSERT
 #
-drop table if exists t1, t2;
 create table t1 (a int);
 create table t2 (a int);
 prepare stmt from "insert into t2 set a=((1) in (select * from t1))";
@@ -2103,7 +2100,6 @@ deallocate prepare stmt;
 #
 # SQLCOM_INSERT_SELECT
 #
-drop table if exists t1, t2;
 create table t1 (a int);
 create table t2 (a int);
 prepare stmt from "insert into t2 select * from t1";
@@ -2116,7 +2112,6 @@ deallocate prepare stmt;
 #
 # SQLCOM_REPLACE
 #
-drop table if exists t1, t2;
 create table t1 (a int);
 create table t2 (a int);
 prepare stmt from "replace t2 set a=((1) in (select * from t1))";
@@ -2129,7 +2124,6 @@ deallocate prepare stmt;
 #
 # SQLCOM_REPLACE_SELECT
 #
-drop table if exists t1, t2;
 create table t1 (a int);
 create table t2 (a int);
 prepare stmt from "replace t2 select * from t1";
@@ -2142,7 +2136,6 @@ deallocate prepare stmt;
 #
 # SQLCOM_DELETE
 #
-drop table if exists t1, t2;
 create table t1 (a int);
 create table t2 (a int);
 prepare stmt from "delete from t2 where (1) in (select * from t1)";
@@ -2155,7 +2148,6 @@ deallocate prepare stmt;
 #
 # SQLCOM_DELETE_MULTI
 #
-drop table if exists t1, t2, t3;
 create table t1 (a int);
 create table t2 (a int);
 create table t3 (a int);
@@ -2169,7 +2161,6 @@ deallocate prepare stmt;
 #
 # SQLCOM_UPDATE_MULTI
 #
-drop table if exists t1, t2, t3;
 create table t1 (a int);
 create table t2 (a int);
 create table t3 (a int);
@@ -2186,7 +2177,6 @@ SUCCESS
 #
 # SQLCOM_LOAD
 #
-drop table if exists t1;
 create table t1 (a varchar(20));
 prepare stmt from "load data infile '../std_data_ln/words.dat' into table t1";
 ERROR HY000: This command is not supported in the prepared statement protocol yet
@@ -2194,7 +2184,6 @@ drop table t1;
 #
 # SQLCOM_SHOW_DATABASES
 #
-drop table if exists t1;
 create table t1 (a int);
 prepare stmt from "show databases where (1) in (select * from t1)";
 execute stmt;
@@ -2208,7 +2197,6 @@ deallocate prepare stmt;
 #
 # SQLCOM_SHOW_TABLES
 #
-drop table if exists t1;
 create table t1 (a int);
 prepare stmt from "show tables where (1) in (select * from t1)";
 execute stmt;
@@ -2222,7 +2210,6 @@ deallocate prepare stmt;
 #
 # SQLCOM_SHOW_FIELDS
 #
-drop table if exists t1;
 create table t1 (a int);
 prepare stmt from "show fields from t1 where (1) in (select * from t1)";
 execute stmt;
@@ -2236,7 +2223,6 @@ deallocate prepare stmt;
 #
 # SQLCOM_SHOW_KEYS
 #
-drop table if exists t1;
 create table t1 (a int);
 prepare stmt from "show keys from t1 where (1) in (select * from t1)";
 execute stmt;
@@ -2250,7 +2236,6 @@ deallocate prepare stmt;
 #
 # SQLCOM_SHOW_VARIABLES
 #
-drop table if exists t1;
 create table t1 (a int);
 prepare stmt from "show variables where (1) in (select * from t1)";
 execute stmt;
@@ -2264,7 +2249,6 @@ deallocate prepare stmt;
 #
 # SQLCOM_SHOW_STATUS
 #
-drop table if exists t1;
 create table t1 (a int);
 prepare stmt from "show status where (1) in (select * from t1)";
 execute stmt;
@@ -2281,7 +2265,6 @@ deallocate prepare stmt;
 #
 # Currently can not have a where clause, need to be covered
 # with tests
-drop table if exists t1;
 create table t1 (a int);
 prepare stmt from "show engine all status where (1) in (select * from t1)";
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'where (1) in (select * from t1)' at line 1
@@ -2295,7 +2278,6 @@ drop table t1;
 #
 # SQLCOM_SHOW_CHARSETS
 #
-drop table if exists t1;
 create table t1 (a int);
 prepare stmt from "show charset where (1) in (select * from t1)";
 execute stmt;
@@ -2309,7 +2291,6 @@ deallocate prepare stmt;
 #
 # SQLCOM_SHOW_COLLATIONS
 #
-drop table if exists t1;
 create table t1 (a int);
 prepare stmt from "show collation where (1) in (select * from t1)";
 execute stmt;
@@ -2323,7 +2304,6 @@ deallocate prepare stmt;
 #
 # SQLCOM_SHOW_TABLE_STATUS
 #
-drop table if exists t1;
 create table t1 (a int);
 prepare stmt from "show table status where (1) in (select * from t1)";
 execute stmt;
@@ -2337,7 +2317,6 @@ deallocate prepare stmt;
 #
 # SQLCOM_SHOW_TRIGGERS
 #
-drop table if exists t1;
 create table t1 (a int);
 prepare stmt from "show triggers where (1) in (select * from t1)";
 execute stmt;
@@ -2351,7 +2330,6 @@ deallocate prepare stmt;
 #
 # SQLCOM_SHOW_OPEN_TABLES
 #
-drop table if exists t1;
 create table t1 (a int);
 prepare stmt from "show open tables where (1) in (select * from t1)";
 execute stmt;
@@ -2365,7 +2343,6 @@ deallocate prepare stmt;
 #
 # SQLCOM_SHOW_STATUS_PROC
 #
-drop table if exists t1;
 create table t1 (a int);
 prepare stmt from "show procedure status where (1) in (select * from t1)";
 execute stmt;
@@ -2379,7 +2356,6 @@ deallocate prepare stmt;
 #
 # SQLCOM_SHOW_STATUS_FUNC
 #
-drop table if exists t1;
 create table t1 (a int);
 prepare stmt from "show function status where (1) in (select * from t1)";
 execute stmt;
@@ -2397,7 +2373,6 @@ deallocate prepare stmt;
 # Bug#27430 Crash in subquery code when in PS and table DDL changed
 # after PREPARE
 #
-drop table if exists t1;
 create table t1 (a int);
 prepare stmt from "show events where (1) in (select * from t1)";
 execute stmt;
@@ -2411,7 +2386,6 @@ deallocate prepare stmt;
 #
 # SQLCOM_SET_OPTION
 #
-drop table if exists t1;
 create table t1 (a int);
 prepare stmt from "set @a=((1) in (select * from t1))";
 execute stmt;
@@ -2423,7 +2397,6 @@ deallocate prepare stmt;
 #
 # SQLCOM_DO
 #
-drop table if exists t1;
 create table t1 (a int);
 prepare stmt from "do ((1) in (select * from t1))";
 execute stmt;
@@ -2470,7 +2443,6 @@ Expected: 17, actual: 18
 #
 # SQLCOM_ALTER_VIEW
 #
-drop view if exists v1;
 create view v1 as select 1;
 prepare stmt from "alter view v1 as select 2";
 ERROR HY000: This command is not supported in the prepared statement protocol yet
@@ -2491,7 +2463,6 @@ drop view if exists v1, v2;
 # Check that we don't try to pre-open temporary tables for the elements
 # from prelocking list, as this can lead to unwarranted ER_CANT_REOPEN
 # errors.
-DROP TABLE IF EXISTS t1, tm;
 CREATE TABLE t1 (a INT);
 CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
 SET @a:= (SELECT COUNT(*) FROM t1);

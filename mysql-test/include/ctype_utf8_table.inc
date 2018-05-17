@@ -44,6 +44,6 @@ AND (tail BETWEEN '80' AND 'BF')
 AND NOT (head='E0' AND middle BETWEEN '80' AND '9F')
 AND NOT (head='ED' AND middle BETWEEN 'A0' AND 'BF')
 ORDER BY head, middle, tail;
---disable_warnings
+--enable_warnings
 
 SELECT count(*) FROM t1;
