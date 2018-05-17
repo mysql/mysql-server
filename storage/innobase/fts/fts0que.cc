@@ -3760,6 +3760,10 @@ dberr_t fts_query(trx_t *trx, dict_index_t *index, uint flags,
       *result = fts_query_get_result(&query, *result);
     }
     if (trx_is_interrupted(trx)) {
+      ut_free(lc_query_str);
+      if (result != nullptr) {
+        fts_query_free_result(*result);
+      }
       error = DB_INTERRUPTED;
       goto func_exit;
     }
