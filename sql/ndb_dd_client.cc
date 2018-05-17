@@ -146,6 +146,10 @@ Ndb_dd_client::mdl_lock_logfile_group(const char* logfile_group_name)
   MDL_request_list mdl_requests;
   MDL_request logfile_group_request;
   MDL_request backup_lock_request;
+  MDL_request grl_request;
+
+  // If protection against GRL can't be acquired, err out early.
+  if (m_thd->global_read_lock.can_acquire_protection()) return false;
 
   MDL_REQUEST_INIT(&logfile_group_request,
                    MDL_key::TABLESPACE, "", logfile_group_name,
@@ -153,9 +157,12 @@ Ndb_dd_client::mdl_lock_logfile_group(const char* logfile_group_name)
   MDL_REQUEST_INIT(&backup_lock_request,
                    MDL_key::BACKUP_LOCK, "", "", MDL_INTENTION_EXCLUSIVE,
                    MDL_EXPLICIT);
+  MDL_REQUEST_INIT(&grl_request, MDL_key::GLOBAL, "", "",
+                   MDL_INTENTION_EXCLUSIVE, MDL_EXPLICIT);
 
   mdl_requests.push_front(&logfile_group_request);
   mdl_requests.push_front(&backup_lock_request);
+  mdl_requests.push_front(&grl_request);
 
   if (m_thd->mdl_context.acquire_locks(&mdl_requests,
                                        m_thd->variables.lock_wait_timeout))
@@ -166,6 +173,7 @@ Ndb_dd_client::mdl_lock_logfile_group(const char* logfile_group_name)
   // Remember tickets of the acquired mdl locks
   m_acquired_mdl_tickets.push_back(logfile_group_request.ticket);
   m_acquired_mdl_tickets.push_back(backup_lock_request.ticket);
+  m_acquired_mdl_tickets.push_back(grl_request.ticket);
 
   return true;
 }
@@ -181,7 +189,7 @@ Ndb_dd_client::mdl_locks_acquire_exclusive(const char* schema_name,
   MDL_request grl_request;
 
   // If we cannot acquire protection against GRL, err out early.
-  if (m_thd->global_read_lock.can_acquire_protection()) return true;
+  if (m_thd->global_read_lock.can_acquire_protection()) return false;
 
   MDL_REQUEST_INIT(&schema_request,
                    MDL_key::SCHEMA, schema_name, "", MDL_INTENTION_EXCLUSIVE,
