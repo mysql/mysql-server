@@ -107,7 +107,8 @@ SELECT COUNT(@@GLOBAL.binlog_row_metadata);
 ################################################################################
 #   Check if binlog_row_metadata can handle invalid values correctly           #
 ################################################################################
---error 1231 # Cannot set the value
+# Cannot set the value
+--error 1231
 SET GLOBAL binlog_row_metadata = full1;
 
 --error 1231

@@ -3619,7 +3619,6 @@ database.
 --------------------------------------------------------------------------------
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-DROP DATABASE IF EXISTS db_storedproc_3122;
 CREATE DATABASE db_storedproc_3122;
 USE db_storedproc;
 SET @x = NULL;
@@ -3740,7 +3739,6 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 USE db_storedproc;
 set @x=null;
 set @y=null;
-DROP DATABASE IF EXISTS db1;
 CREATE DATABASE db1;
 DROP PROCEDURE IF EXISTS sp1;
 Warnings:
@@ -16588,7 +16586,6 @@ Testcase 4.4.4:
 --------------------------------------------------------------------------------
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-DROP DATABASE IF EXISTS d1;
 CREATE DATABASE d1;
 USE d1;
 CREATE PROCEDURE sp3()
@@ -16605,7 +16602,6 @@ Testcase 4.4.5:
 --------------------------------------------------------------------------------
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-DROP DATABASE IF EXISTS d1;
 CREATE DATABASE d1;
 USE d1;
 create table t43(a char(5), b char(10));
@@ -16745,7 +16741,6 @@ Functions with all data types
 --------------------------------------------------------------------------------
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-DROP DATABASE IF EXISTS d1;
 CREATE DATABASE d1;
 USE d1;
 DROP FUNCTION IF EXISTS fn1;
@@ -17745,7 +17740,6 @@ fn107(20050510080451)
 returned
 USE db_storedproc;
 DROP DATABASE d1;
-DROP DATABASE IF EXISTS db1;
 CREATE DATABASE db1;
 USE db1;
 DROP PROCEDURE IF EXISTS sp1;
@@ -18783,7 +18777,6 @@ Warnings:
 returned	1265	Data truncated for column 'f1' at row 1
 USE db_storedproc;
 DROP DATABASE db1;
-DROP DATABASE IF EXISTS db1;
 CREATE DATABASE db1;
 USE db1;
 DROP PROCEDURE IF EXISTS sp1;

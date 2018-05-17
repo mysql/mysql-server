@@ -107,7 +107,6 @@ SELECT @@session.max_error_count;
 @@session.max_error_count
 0
 SET @@session.max_error_count = 65536;
-Warnings:
 SELECT @@session.max_error_count;
 @@session.max_error_count
 65535
@@ -118,14 +117,12 @@ SELECT @@session.max_error_count;
 @@session.max_error_count
 0
 SET @@session.max_error_count = -1024;
-Warnings:
 SELECT @@session.max_error_count;
 @@session.max_error_count
 0
 SET @@session.max_error_count = 65530.34;
 ERROR 42000: Incorrect argument type to variable 'max_error_count'
 SET @@session.max_error_count = 10737418241;
-Warnings:
 SELECT @@session.max_error_count;
 @@session.max_error_count
 65535

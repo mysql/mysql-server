@@ -1,5 +1,4 @@
 --disable_ps_protocol
---disable_warnings
 
 call mtr.add_suppression("keyring_file_data cannot be set to new value as the keyring file cannot be created/accessed in the provided path");
 call mtr.add_suppression("Error while loading keyring content. The keyring might be malformed");

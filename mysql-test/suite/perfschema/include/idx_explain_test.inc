@@ -280,7 +280,8 @@ IF ($column_count == 3)
     and $col3 = $col3_act;
   
   --echo ############# Explain End #########################################
-  
+  --enable_warnings
+
   flush status;
   let $count1 = query_get_value(show session status like "handler_read_key", Value, 1);
   
@@ -471,7 +472,8 @@ IF ($column_count == 4)
     and $col4 = $col4_act;
   
   --echo ############# Explain End #########################################
-  
+  --enable_warnings
+
   flush status;
   let $count1 = query_get_value(show session status like "handler_read_key", Value, 1);
   

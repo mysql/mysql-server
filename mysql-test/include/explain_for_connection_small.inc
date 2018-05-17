@@ -549,6 +549,7 @@ let $query=SELECT DISTINCT alias2.pk AS field1, alias2.pk AS field2, alias2.pk A
 
 --source include/explain_for_connection.inc
 
+--enable_warnings
 drop table t1;
 drop table t2;
 

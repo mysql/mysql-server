@@ -32,8 +32,6 @@ UNINSTALL PLUGIN test_services_threaded;
 # Restore log_error_verbosity
 SET @@global.log_error_verbosity= @orig_log_error_verbosity;
 
---disable_warnings
-
 --echo ------ Service: LogPluginErr ----------------------------
 CREATE TABLE t1 (c1 varchar(30), c2 TEXT, c3 TEXT, c4 TEXT);
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR

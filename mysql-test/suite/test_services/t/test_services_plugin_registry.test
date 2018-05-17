@@ -15,12 +15,12 @@ SELECT PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS
 --echo ------ Stop plugin -----------------------------------------------
 UNINSTALL PLUGIN test_services_plugin_registry;
 
---disable_warnings
-
 CREATE TABLE t1 (c1 varchar(30), c2 TEXT, c3 TEXT, c4 TEXT);
+--disable_warnings ER_WARN_TOO_FEW_RECORDS,ER_WARN_TOO_MANY_RECORDS,WARN_DATA_TRUNCATED
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval LOAD DATA LOCAL INFILE '$server_log' INTO TABLE t1
      FIELDS TERMINATED BY ' [';
+--enable_warnings ER_WARN_TOO_FEW_RECORDS,ER_WARN_TOO_MANY_RECORDS,WARN_DATA_TRUNCATED
 SELECT replace(concat('[',c2,' [',c3,' [',c4),'\r','') AS msg FROM t1 WHERE c4 LIKE '%test_services_plugin_registry %';
 DROP TABLE IF EXISTS t1;
 FLUSH ERROR LOGS;
