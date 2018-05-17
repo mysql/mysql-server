@@ -116,7 +116,7 @@ insert into t1(col1,col2,col3) values (2, 3, 'abcdefghijkl');
 insert into t2(col1,col2,col3) values (1, 2, 'abcdefghijkl');
 # Attempt to drop col1, should give error
 ALTER TABLE t1 DROP COLUMN col1;
-ERROR HY000: Cannot drop column 'col1': needed in a foreign key constraint 'fk1' of table 't1'
+ERROR HY000: Cannot drop column 'col1': needed in a foreign key constraint 'fk1' of table 't2'
 # Attempt to modify col1, should give error
 ALTER TABLE t1 MODIFY COLUMN col1 bigint;
 ERROR HY000: Cannot change column 'col1': used in a foreign key constraint 'fk1' of table 'test.t2'
@@ -142,7 +142,7 @@ insert into t1(col1,col2,col3) values (2, 3, 'abcdefghijkl');
 insert into t2(col1,col2,col3) values (1, 2, 'abcdefghijkl');
 # Attempt to drop col1, should give error
 ALTER TABLE t1 DROP COLUMN col1;
-ERROR HY000: Cannot drop column 'col1': needed in a foreign key constraint 'fk1' of table 't1'
+ERROR HY000: Cannot drop column 'col1': needed in a foreign key constraint 'fk1' of table 't2'
 # Attempt to modify col1, should give error
 ALTER TABLE t1 MODIFY COLUMN col1 bigint;
 ERROR HY000: Cannot change column 'col1': used in a foreign key constraint 'fk1' of table 'test.t2'
