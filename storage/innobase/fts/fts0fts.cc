@@ -834,7 +834,8 @@ fts_drop_index(
 
 			err = fts_drop_index_tables(trx, index);
 
-			while (index->index_fts_syncing) {
+			while (index->index_fts_syncing
+				&& !trx_is_interrupted(trx)) {
 				DICT_BG_YIELD(trx);
 			}
 
@@ -843,7 +844,8 @@ fts_drop_index(
 			return(err);
 		}
 
-		while (index->index_fts_syncing) {
+		while (index->index_fts_syncing
+			&& !trx_is_interrupted(trx)) {
 			DICT_BG_YIELD(trx);
 		}
 
@@ -864,7 +866,8 @@ fts_drop_index(
 		index_cache = fts_find_index_cache(cache, index);
 
 		if (index_cache != NULL) {
-			while (index->index_fts_syncing) {
+			while (index->index_fts_syncing
+				&& !trx_is_interrupted(trx)) {
 				DICT_BG_YIELD(trx);
 			}
 
