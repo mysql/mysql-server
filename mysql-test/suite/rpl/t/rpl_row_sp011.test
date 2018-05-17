@@ -19,17 +19,6 @@ call mtr.add_suppression("option 'thread_stack':");
 
 # Begin clean up test section
 connection master;
---disable_warnings
-DROP PROCEDURE IF EXISTS test.p1;
-DROP PROCEDURE IF EXISTS test.p2;
-DROP PROCEDURE IF EXISTS test.p3;
-DROP PROCEDURE IF EXISTS test.p4;
-DROP PROCEDURE IF EXISTS test.p5;
-DROP PROCEDURE IF EXISTS test.p6;
-DROP PROCEDURE IF EXISTS test.p7;
-DROP TABLE IF EXISTS test.t1;
-DROP TABLE IF EXISTS test.t2;
-
 
 # Begin test section 1 
 CREATE TABLE test.t1 (a int, PRIMARY KEY(a));
@@ -98,7 +87,9 @@ DROP PROCEDURE IF EXISTS test.p4;
 DROP PROCEDURE IF EXISTS test.p5;
 DROP PROCEDURE IF EXISTS test.p6;
 DROP PROCEDURE IF EXISTS test.p7;
+--disable_warnings ER_BAD_TABLE_ERROR
 DROP TABLE IF EXISTS test.t1;
+--enable_warnings ER_BAD_TABLE_ERROR
 DROP TABLE IF EXISTS test.t2;
 --source include/sync_slave_sql_with_master.inc
 

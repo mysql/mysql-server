@@ -28,16 +28,15 @@
 source include/have_binlog_format_statement.inc;
 source include/master-slave.inc;
 
-disable_warnings;
-
-DROP DATABASE IF EXISTS mysqltest;
-
+--disable_warnings ER_TABLE_EXISTS_ERROR
 CREATE TEMPORARY TABLE IF NOT EXISTS tmp(c1 int);
 CREATE TEMPORARY TABLE IF NOT EXISTS tmp(c1 int);
 CREATE TEMPORARY TABLE IF NOT EXISTS tmp1 LIKE tmp;
 CREATE TEMPORARY TABLE IF NOT EXISTS tmp1 LIKE tmp;
 CREATE TEMPORARY TABLE IF NOT EXISTS tmp2 SELECT * FROM tmp;
 CREATE TEMPORARY TABLE IF NOT EXISTS tmp2 SELECT * FROM tmp;
+--enable_warnings ER_TABLE_EXISTS_ERROR
+
 source include/show_binlog_events.inc;
 
 DROP TEMPORARY TABLE IF EXISTS tmp;

@@ -50,8 +50,8 @@ CREATE TEMPORARY TABLE db2.t_temp (a int) engine=innodb;
 # CREATE-SELECT is logged as two consecutive groups with ROW format,
 # common commit parent can't be simulated.
 SET GLOBAL DEBUG ='-d,set_commit_parent_100';
--- connection m3
--- disable_warnings ONCE
+--connection m3
+--disable_warnings ER_BINLOG_UNSAFE_STATEMENT ONCE
 CREATE TABLE db3.t engine=innodb select 100*RAND() as a;
 CREATE TEMPORARY TABLE db3.t_temp (a int) engine=innodb;
 

@@ -52,7 +52,7 @@ create table t2(b int auto_increment, c int, primary key(b));
 insert into t1 values (10);
 insert into t1 values (null),(null),(null);
 insert into t2 values (5,0);
---disable_warnings ONCE
+--disable_warnings ER_BINLOG_UNSAFE_STATEMENT ONCE
 insert into t2 (c) select * from t1 ORDER BY a;
 select * from t2 ORDER BY b;
 --source include/sync_slave_sql_with_master.inc

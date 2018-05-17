@@ -28,7 +28,8 @@ show grants for rpl_ignore_grant@localhost;
 save_master_pos;
 connection slave;
 sync_with_master;
---error 1141 #("no such grant for user")
+# No such grant for user
+--error 1141
 show grants for rpl_ignore_grant@localhost;
 # check it another way
 select count(*) from mysql.user where user=_binary'rpl_ignore_grant';

@@ -56,10 +56,6 @@ connection master;
 --disable_query_log ONCE
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 
-disable_warnings ONCE;
-DROP TABLE IF EXISTS t1;
-enable_warnings;
-
 CREATE TEMPORARY TABLE t1 (a char(1));
 INSERT INTO t1 VALUES ('a');
 --source include/sync_slave_sql_with_master.inc
@@ -82,9 +78,7 @@ INSERT INTO t1 VALUES ('b');
 
 connection master;
 
-disable_warnings ONCE;
-DROP TABLE IF EXISTS t1;
-enable_warnings;
+DROP TABLE t1;
 CREATE TEMPORARY TABLE `t1`(`a` tinyint,`b` char(1))engine=myisam;
 INSERT IGNORE INTO `t1` set `a`=128,`b`='128';
 
@@ -142,9 +136,6 @@ SET @@session.sql_log_bin=1;
 connection con3;
 let $VERSION=`select version()`;
 
---disable_warnings ONCE
-drop table if exists t1,t2;
-
 create table t1(f int);
 create table t2(f int);
 insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
@@ -153,7 +144,6 @@ SELECT COUNT(*) FROM t1;
 
 connection con1;
 create temporary table t3(f int);
---disable_warnings ONCE
 insert into t3 select * from t1 where f<6;
 let $wait_condition= SELECT COUNT(*) = 5 FROM t3;
 --source include/wait_condition_or_abort.inc
@@ -162,13 +152,11 @@ connection con2;
 create temporary table t3(f int);
 
 connection con1;
---disable_warnings ONCE
 insert into t2 select count(*) from t3;
 let $wait_condition= SELECT COUNT(*) = 1 FROM t2;
 --source include/wait_condition_or_abort.inc
 
 connection con2;
---disable_warnings ONCE
 insert into t3 select * from t1 where f>=4;
 let $wait_condition= SELECT COUNT(*) = 7 FROM t3;
 --source include/wait_condition_or_abort.inc
@@ -177,7 +165,6 @@ connection con1;
 drop temporary table t3;
 
 connection con2;
---disable_warnings ONCE
 insert into t2 select count(*) from t3;
 drop temporary table t3;
 
@@ -203,25 +190,21 @@ SET @@session.pseudo_thread_id=1;
 create temporary table t3(f int);
 SET TIMESTAMP=1040323952;
 SET @@session.pseudo_thread_id=1;
---disable_warnings ONCE
 insert into t3 select * from t1 where f<6;
 SET TIMESTAMP=1040324145;
 SET @@session.pseudo_thread_id=2;
 create temporary table t3(f int);
 SET TIMESTAMP=1040324186;
 SET @@session.pseudo_thread_id=1;
---disable_warnings ONCE
 insert into t2 select count(*) from t3;
 SET TIMESTAMP=1040324200;
 SET @@session.pseudo_thread_id=2;
---disable_warnings ONCE
 insert into t3 select * from t1 where f>=4;
 SET TIMESTAMP=1040324211;
 SET @@session.pseudo_thread_id=1;
 drop temporary table t3;
 SET TIMESTAMP=1040324219;
 SET @@session.pseudo_thread_id=2;
---disable_warnings ONCE
 insert into t2 select count(*) from t3;
 SET TIMESTAMP=1040324224;
 SET @@session.pseudo_thread_id=2;
@@ -257,7 +240,6 @@ stop slave;  # to prepare for reconnecting w/o waiting for timeout
 --enable_warnings
 
 connection master;
---disable_warnings ONCE
 insert into t5 select * from t4;
 save_master_pos;
 

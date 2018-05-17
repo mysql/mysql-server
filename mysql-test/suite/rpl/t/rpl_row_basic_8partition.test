@@ -12,8 +12,6 @@
 --source include/not_ndb_default.inc
 --source include/master-slave.inc
 connection master;
---disable_warnings
-DROP TABLE IF EXISTS t1;
 
 let $maybe_ro_var = @@BINLOG_FORMAT;
 let $val4var = ROW;

@@ -3,16 +3,7 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-create database if not exists mysqltest1;
-DROP VIEW IF EXISTS mysqltest1.v1;
-DROP VIEW IF EXISTS mysqltest1.v2;
-DROP VIEW IF EXISTS mysqltest1.v3;
-DROP VIEW IF EXISTS mysqltest1.v4;
-DROP TABLE IF EXISTS mysqltest1.t3;
-DROP TABLE IF EXISTS mysqltest1.t1;
-DROP TABLE IF EXISTS mysqltest1.t2;
-DROP TABLE IF EXISTS mysqltest1.t4;
-DROP TABLE IF EXISTS mysqltest1.t10;
+create database mysqltest1;
 CREATE TABLE mysqltest1.t1 (a INT, c CHAR(6),PRIMARY KEY(a));
 CREATE TABLE mysqltest1.t2 (a INT, c CHAR(6),PRIMARY KEY(a));
 CREATE TABLE mysqltest1.t3 (a INT, c CHAR(6), c2 CHAR(6), PRIMARY KEY(a));
