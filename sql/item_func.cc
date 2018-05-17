@@ -6942,15 +6942,11 @@ bool Item_func_sp::itemize(Parse_context *pc, Item **res) {
   context = lex->current_context();
   lex->safe_to_cache_query = false;
 
-  if (m_name->m_db.str == NULL)  // use the default database name
-  {
-    /* Cannot match the function since no database is selected */
-    if (thd->db().str == NULL) {
+  if (m_name->m_db.str == NULL) {
+    if (thd->lex->copy_db_to(&m_name->m_db.str, &m_name->m_db.length)) {
       my_error(ER_NO_DB_ERROR, MYF(0));
       return true;
     }
-    m_name->m_db = thd->db();
-    m_name->m_db.str = thd->strmake(m_name->m_db.str, m_name->m_db.length);
   }
 
   m_name->init_qname(thd);
