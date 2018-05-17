@@ -2898,3 +2898,26 @@ ERROR HY000: Invalid utf8 character string: 'F09D8C'
 ERROR HY000: Invalid utf8 character string: 'F09D8C'
 ERROR HY000: Invalid utf8 character string: 'F09D8C'
 # Cleanup
+#
+# Bug #24357244: CANNOT CREATE A STORED FUNCTION IF A DATABASE IS NOT
+#                SELECTED
+#
+CREATE DATABASE mysqltest;
+USE mysqltest;
+DROP DATABASE mysqltest;
+SELECT DATABASE();
+DATABASE()
+NULL
+CREATE DATABASE mysqltest;
+CREATE FUNCTION mysqltest.f1() RETURNS INT RETURN 0;
+CREATE FUNCTION mysqltest.f2() RETURNS INT RETURN f1();
+USE mysqltest;
+SELECT f1();
+f1()
+0
+SELECT f2();
+f2()
+0
+DROP FUNCTION IF EXISTS f2;
+DROP FUNCTION IF EXISTS f1;
+DROP DATABASE mysqltest;
