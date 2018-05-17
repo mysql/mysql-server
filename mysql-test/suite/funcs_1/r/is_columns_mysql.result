@@ -96,13 +96,13 @@ def	mysql	innodb_index_stats	sample_size	7	NULL	YES	bigint	NULL	NULL	20	0	NULL	N
 def	mysql	innodb_index_stats	stat_description	8	NULL	NO	varchar	1024	3072	NULL	NULL	NULL	utf8	utf8_bin	varchar(1024)			select,insert,update,references		
 def	mysql	innodb_index_stats	stat_name	5	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)	PRI		select,insert,update,references		
 def	mysql	innodb_index_stats	stat_value	6	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
-def	mysql	innodb_index_stats	table_name	2	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)	PRI		select,insert,update,references		
+def	mysql	innodb_index_stats	table_name	2	NULL	NO	varchar	199	597	NULL	NULL	NULL	utf8	utf8_bin	varchar(199)	PRI		select,insert,update,references		
 def	mysql	innodb_table_stats	clustered_index_size	5	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
 def	mysql	innodb_table_stats	database_name	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)	PRI		select,insert,update,references		
 def	mysql	innodb_table_stats	last_update	3	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references		
 def	mysql	innodb_table_stats	n_rows	4	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
 def	mysql	innodb_table_stats	sum_of_other_index_sizes	6	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references		
-def	mysql	innodb_table_stats	table_name	2	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)	PRI		select,insert,update,references		
+def	mysql	innodb_table_stats	table_name	2	NULL	NO	varchar	199	597	NULL	NULL	NULL	utf8	utf8_bin	varchar(199)	PRI		select,insert,update,references		
 def	mysql	ndb_binlog_index	deletes	6	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references		
 def	mysql	ndb_binlog_index	epoch	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	PRI		select,insert,update,references		
 def	mysql	ndb_binlog_index	File	2	NULL	NO	varchar	255	255	NULL	NULL	NULL	latin1	latin1_swedish_ci	varchar(255)			select,insert,update,references		
@@ -448,7 +448,7 @@ NULL	mysql	help_topic	help_category_id	smallint	NULL	NULL	NULL	NULL	smallint(5) 
 1.0000	mysql	help_topic	example	text	65535	65535	utf8	utf8_general_ci	text
 1.0000	mysql	help_topic	url	text	65535	65535	utf8	utf8_general_ci	text
 3.0000	mysql	innodb_index_stats	database_name	varchar	64	192	utf8	utf8_bin	varchar(64)
-3.0000	mysql	innodb_index_stats	table_name	varchar	64	192	utf8	utf8_bin	varchar(64)
+3.0000	mysql	innodb_index_stats	table_name	varchar	199	597	utf8	utf8_bin	varchar(199)
 3.0000	mysql	innodb_index_stats	index_name	varchar	64	192	utf8	utf8_bin	varchar(64)
 NULL	mysql	innodb_index_stats	last_update	timestamp	NULL	NULL	NULL	NULL	timestamp
 3.0000	mysql	innodb_index_stats	stat_name	varchar	64	192	utf8	utf8_bin	varchar(64)
@@ -456,7 +456,7 @@ NULL	mysql	innodb_index_stats	stat_value	bigint	NULL	NULL	NULL	NULL	bigint(20) u
 NULL	mysql	innodb_index_stats	sample_size	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
 3.0000	mysql	innodb_index_stats	stat_description	varchar	1024	3072	utf8	utf8_bin	varchar(1024)
 3.0000	mysql	innodb_table_stats	database_name	varchar	64	192	utf8	utf8_bin	varchar(64)
-3.0000	mysql	innodb_table_stats	table_name	varchar	64	192	utf8	utf8_bin	varchar(64)
+3.0000	mysql	innodb_table_stats	table_name	varchar	199	597	utf8	utf8_bin	varchar(199)
 NULL	mysql	innodb_table_stats	last_update	timestamp	NULL	NULL	NULL	NULL	timestamp
 NULL	mysql	innodb_table_stats	n_rows	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
 NULL	mysql	innodb_table_stats	clustered_index_size	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned

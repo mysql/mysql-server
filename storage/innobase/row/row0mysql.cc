@@ -4337,11 +4337,12 @@ row_drop_table_for_mysql(
 		persistent storage if it exists and if there are stats for this
 		table in there. This function creates its own trx and commits
 		it. */
-		char	errstr[1024];
-		err = dict_stats_drop_table(name, errstr, sizeof(errstr));
-
-		if (err != DB_SUCCESS) {
-			ib::warn() << errstr;
+		if (dict_stats_is_persistent_enabled(table)) {
+			char	errstr[1024];
+			err = dict_stats_drop_table(name, errstr, sizeof(errstr));
+			if (err != DB_SUCCESS) {
+				ib::warn() << errstr;
+			}
 		}
 	}
 
@@ -5255,7 +5256,17 @@ row_rename_table_for_mysql(
 		ib::error() << "Trying to create a MySQL system table "
 			<< new_name << " of type InnoDB. MySQL system tables"
 			" must be of the MyISAM type!";
+		goto funct_exit;
+	}
 
+	/* Check the table identifier length here. It is possible that when we
+	are renaming a temporary table back to original name (after alter)
+	the table identifier length can exceed the maximum file name limit */
+
+	if (strlen(strchr(new_name,'/') + 1) > FN_LEN ) {
+		my_error(ER_PATH_LENGTH, MYF(0),
+			 strchr(new_name,'/')+1);
+		err = DB_IDENTIFIER_TOO_LONG;
 		goto funct_exit;
 	}
 

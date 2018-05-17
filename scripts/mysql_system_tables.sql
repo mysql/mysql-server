@@ -1,4 +1,4 @@
--- Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -92,7 +92,7 @@ SET SESSION sql_mode='NO_ENGINE_SUBSTITUTION';
 
 SET @create_innodb_table_stats="CREATE TABLE IF NOT EXISTS innodb_table_stats (
 	database_name			VARCHAR(64) NOT NULL,
-	table_name			VARCHAR(64) NOT NULL,
+	table_name			VARCHAR(199) NOT NULL,
 	last_update			TIMESTAMP NOT NULL NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 	n_rows				BIGINT UNSIGNED NOT NULL,
 	clustered_index_size		BIGINT UNSIGNED NOT NULL,
@@ -102,7 +102,7 @@ SET @create_innodb_table_stats="CREATE TABLE IF NOT EXISTS innodb_table_stats (
 
 SET @create_innodb_index_stats="CREATE TABLE IF NOT EXISTS innodb_index_stats (
 	database_name			VARCHAR(64) NOT NULL,
-	table_name			VARCHAR(64) NOT NULL,
+	table_name			VARCHAR(199) NOT NULL,
 	index_name			VARCHAR(64) NOT NULL,
 	last_update			TIMESTAMP NOT NULL NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 	/* there are at least:

@@ -4040,8 +4040,10 @@ int ha_discover(THD* thd, const char* dbname, const char* name,
 int ha_find_files(THD *thd,const char *db,const char *path,
                   const char *wild, bool dir, List<LEX_STRING>* files);
 int ha_table_exists_in_engine(THD* thd, const char* db, const char* name);
-bool ha_check_if_supported_system_table(handlerton *hton, const char* db, 
-                                        const char* table_name);
+bool ha_is_supported_system_table(handlerton *hton, const char *db,
+                                  const char *table_name);
+bool ha_is_valid_system_or_user_table(handlerton *hton, const char *db,
+                                      const char *table_name);
 
 /* key cache */
 extern "C" int ha_init_key_cache(const char *name, KEY_CACHE *key_cache);

@@ -1,0 +1,134 @@
+#
+# Bug26390736 THE FIELD TABLE_NAME (VARCHAR(64)) FROM MYSQL.INNODB_TABLE_STATS CAN OVERFLOW
+#
+show create table mysql.innodb_index_stats;
+Table	Create Table
+innodb_index_stats	CREATE TABLE `innodb_index_stats` (
+  `database_name` varchar(64) COLLATE utf8_bin NOT NULL,
+  `table_name` varchar(199) COLLATE utf8_bin NOT NULL,
+  `index_name` varchar(64) COLLATE utf8_bin NOT NULL,
+  `last_update` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `stat_name` varchar(64) COLLATE utf8_bin NOT NULL,
+  `stat_value` bigint(20) unsigned NOT NULL,
+  `sample_size` bigint(20) unsigned DEFAULT NULL,
+  `stat_description` varchar(1024) COLLATE utf8_bin NOT NULL,
+  PRIMARY KEY (`database_name`,`table_name`,`index_name`,`stat_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0
+show create table mysql.innodb_table_stats;
+Table	Create Table
+innodb_table_stats	CREATE TABLE `innodb_table_stats` (
+  `database_name` varchar(64) COLLATE utf8_bin NOT NULL,
+  `table_name` varchar(199) COLLATE utf8_bin NOT NULL,
+  `last_update` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `n_rows` bigint(20) unsigned NOT NULL,
+  `clustered_index_size` bigint(20) unsigned NOT NULL,
+  `sum_of_other_index_sizes` bigint(20) unsigned NOT NULL,
+  PRIMARY KEY (`database_name`,`table_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0
+create table abcdefghijklmnopqrstuvwxyz_abcdefghijklmnopqrstuvwxyz_abcdefghij (id int) engine=innodb
+partition by range (id)
+subpartition by hash(id) (
+partition pbcdefghijklmnopqrstuvwxyz_abcdefghijklmnopqrstuvwxyz_abcdefghij values less than (10) (
+subpartition subdefghijklmnopqrstuvwxyz_abcdefghijklmnopqrstuvwxyz_abcdefghij,
+subpartition s02
+),
+partition pmax VALUES LESS THAN MAXVALUE (
+subpartition pmax_sub1,
+subpartition pmax_sub2
+)
+);
+select table_name,LENGTH(table_name) from mysql.innodb_table_stats where LENGTH(table_name) = 199;
+table_name	LENGTH(table_name)
+abcdefghijklmnopqrstuvwxyz_abcdefghijklmnopqrstuvwxyz_abcdefghij#p#pbcdefghijklmnopqrstuvwxyz_abcdefghijklmnopqrstuvwxyz_abcdefghij#sp#subdefghijklmnopqrstuvwxyz_abcdefghijklmnopqrstuvwxyz_abcdefghij	199
+select table_name,LENGTH(table_name) from mysql.innodb_index_stats where LENGTH(table_name) = 199;
+table_name	LENGTH(table_name)
+abcdefghijklmnopqrstuvwxyz_abcdefghijklmnopqrstuvwxyz_abcdefghij#p#pbcdefghijklmnopqrstuvwxyz_abcdefghijklmnopqrstuvwxyz_abcdefghij#sp#subdefghijklmnopqrstuvwxyz_abcdefghijklmnopqrstuvwxyz_abcdefghij	199
+abcdefghijklmnopqrstuvwxyz_abcdefghijklmnopqrstuvwxyz_abcdefghij#p#pbcdefghijklmnopqrstuvwxyz_abcdefghijklmnopqrstuvwxyz_abcdefghij#sp#subdefghijklmnopqrstuvwxyz_abcdefghijklmnopqrstuvwxyz_abcdefghij	199
+abcdefghijklmnopqrstuvwxyz_abcdefghijklmnopqrstuvwxyz_abcdefghij#p#pbcdefghijklmnopqrstuvwxyz_abcdefghijklmnopqrstuvwxyz_abcdefghij#sp#subdefghijklmnopqrstuvwxyz_abcdefghijklmnopqrstuvwxyz_abcdefghij	199
+drop table abcdefghijklmnopqrstuvwxyz_abcdefghijklmnopqrstuvwxyz_abcdefghij;
+CALL mtr.add_suppression("Table mysql/innodb_table_stats has length mismatch in the column name table_name.  Please run mysql_upgrade");
+CALL mtr.add_suppression("Table mysql/innodb_index_stats has length mismatch in the column name table_name.  Please run mysql_upgrade");
+alter table mysql.innodb_table_stats modify table_name varchar(64);
+alter table mysql.innodb_index_stats modify table_name varchar(64);
+show create table mysql.innodb_index_stats;
+Table	Create Table
+innodb_index_stats	CREATE TABLE `innodb_index_stats` (
+  `database_name` varchar(64) COLLATE utf8_bin NOT NULL,
+  `table_name` varchar(64) COLLATE utf8_bin NOT NULL,
+  `index_name` varchar(64) COLLATE utf8_bin NOT NULL,
+  `last_update` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `stat_name` varchar(64) COLLATE utf8_bin NOT NULL,
+  `stat_value` bigint(20) unsigned NOT NULL,
+  `sample_size` bigint(20) unsigned DEFAULT NULL,
+  `stat_description` varchar(1024) COLLATE utf8_bin NOT NULL,
+  PRIMARY KEY (`database_name`,`table_name`,`index_name`,`stat_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0
+show create table mysql.innodb_table_stats;
+Table	Create Table
+innodb_table_stats	CREATE TABLE `innodb_table_stats` (
+  `database_name` varchar(64) COLLATE utf8_bin NOT NULL,
+  `table_name` varchar(64) COLLATE utf8_bin NOT NULL,
+  `last_update` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `n_rows` bigint(20) unsigned NOT NULL,
+  `clustered_index_size` bigint(20) unsigned NOT NULL,
+  `sum_of_other_index_sizes` bigint(20) unsigned NOT NULL,
+  PRIMARY KEY (`database_name`,`table_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0
+mysql.columns_priv                                 OK
+mysql.db                                           OK
+mysql.engine_cost                                  OK
+mysql.event                                        OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.ndb_binlog_index                             OK
+mysql.plugin                                       OK
+mysql.proc                                         OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+sys.sys_config                                     OK
+show create table mysql.innodb_index_stats;
+Table	Create Table
+innodb_index_stats	CREATE TABLE `innodb_index_stats` (
+  `database_name` varchar(64) COLLATE utf8_bin NOT NULL,
+  `table_name` varchar(199) COLLATE utf8_bin NOT NULL,
+  `index_name` varchar(64) COLLATE utf8_bin NOT NULL,
+  `last_update` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `stat_name` varchar(64) COLLATE utf8_bin NOT NULL,
+  `stat_value` bigint(20) unsigned NOT NULL,
+  `sample_size` bigint(20) unsigned DEFAULT NULL,
+  `stat_description` varchar(1024) COLLATE utf8_bin NOT NULL,
+  PRIMARY KEY (`database_name`,`table_name`,`index_name`,`stat_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0
+show create table mysql.innodb_table_stats;
+Table	Create Table
+innodb_table_stats	CREATE TABLE `innodb_table_stats` (
+  `database_name` varchar(64) COLLATE utf8_bin NOT NULL,
+  `table_name` varchar(199) COLLATE utf8_bin NOT NULL,
+  `last_update` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `n_rows` bigint(20) unsigned NOT NULL,
+  `clustered_index_size` bigint(20) unsigned NOT NULL,
+  `sum_of_other_index_sizes` bigint(20) unsigned NOT NULL,
+  PRIMARY KEY (`database_name`,`table_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0
