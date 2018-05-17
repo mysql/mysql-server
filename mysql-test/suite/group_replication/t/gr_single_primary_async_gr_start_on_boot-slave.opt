@@ -1,1 +1,1 @@
---no-console --log_error=$MYSQLTEST_VARDIR/tmp/gr_single_primary_async_gr_start_on_boot.err
+--log_error=$MYSQLTEST_VARDIR/tmp/gr_single_primary_async_gr_start_on_boot.err

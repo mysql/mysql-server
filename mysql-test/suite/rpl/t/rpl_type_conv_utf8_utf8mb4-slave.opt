@@ -1,1 +1,1 @@
---no-console --log-error=$MYSQLTEST_VARDIR/tmp/slave.err
+--log-error=$MYSQLTEST_VARDIR/tmp/slave.err

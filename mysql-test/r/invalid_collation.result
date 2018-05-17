@@ -62,4 +62,4 @@ ERROR HY000: invalid collation id 352 for table t1, column i
 # Check behavior of DROP TABLE (succeed):
 DROP TABLE t1;
 DROP TABLE t2;
-SET @@global.log_error_verbosity= 2;
+SET @@global.log_error_verbosity= 3;

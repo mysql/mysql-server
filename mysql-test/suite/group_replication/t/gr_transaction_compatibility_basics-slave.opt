@@ -1,1 +1,1 @@
---no-console --log_error=$MYSQLTEST_VARDIR/tmp/group_replication_transaction_compatibility_basics.err
+--log_error=$MYSQLTEST_VARDIR/tmp/group_replication_transaction_compatibility_basics.err

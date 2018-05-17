@@ -113,6 +113,11 @@ SELECT GROUP_CONCAT(DISTINCT t1.a) a FROM t1 WHERE t1.a =
 (SELECT a FROM t1) GROUP BY b;
 ERROR 21000: Subquery returns more than 1 row
 DROP TABLE t1;
+DATE_TIME [Note] [MY-010930] [Server] Sort aborted, host: localhost, user: root, thread: #, error: Out of memory (Needed N bytes), query: SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 1
+DATE_TIME [Note] [MY-010930] [Server] Sort aborted, host: localhost, user: root, thread: #, error: Out of sort memory, consider increasing server sort buffer size, query: SELECT * FROM t1 ORDER BY f1 ASC, f0
+DATE_TIME [Note] [MY-010930] [Server] Sort aborted, host: localhost, user: root, thread: #, error: Query execution was interrupted, query: SELECT * FROM t1 ORDER BY f1 ASC, f0
+DATE_TIME [Note] [MY-010930] [Server] Sort aborted, host: localhost, user: root, thread: #, error: Out of sort memory, consider increasing server sort buffer size, query: DELETE IGNORE FROM t1 ORDER BY c26,c7,c23,c4,c25,c5,c20,
+DATE_TIME [Note] [MY-010930] [Server] Sort aborted, host: localhost, user: root, thread: #, error: Out of sort memory, consider increasing server sort buffer size, query: DELETE FROM t1 ORDER BY c26,c7,c23,c4,c25,c5,c20,
 #
 # Bug#21611270 ASSERTION IN FILESORT::MAKE_SORTORDER()
 #

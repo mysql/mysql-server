@@ -1,1 +1,1 @@
---no-console --log-error-verbosity=3 --replicate-do-table=test.t1 --log_error=$MYSQLTEST_VARDIR/tmp/slave.err
+--replicate-do-table=test.t1 --log_error=$MYSQLTEST_VARDIR/tmp/slave.err

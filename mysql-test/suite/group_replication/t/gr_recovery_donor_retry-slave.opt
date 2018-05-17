@@ -1,3 +1,2 @@
 --no-console
 --log-error=$MYSQLTEST_VARDIR/tmp/group_replication_recovery_donor_retry.err
---log-error-verbosity=3

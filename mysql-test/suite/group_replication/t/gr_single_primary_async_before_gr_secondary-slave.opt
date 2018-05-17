@@ -1,1 +1,1 @@
---no-console --log_error=$MYSQLTEST_VARDIR/tmp/gr_secondary_scenario2.err
+--log_error=$MYSQLTEST_VARDIR/tmp/gr_secondary_scenario2.err

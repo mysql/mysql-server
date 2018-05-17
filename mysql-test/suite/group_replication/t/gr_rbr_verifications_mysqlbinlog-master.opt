@@ -1,1 +1,1 @@
---no-console --log_error=$MYSQLTEST_VARDIR/tmp/gr_rbr_verifications_mysqlbinlog.err
+--log_error=$MYSQLTEST_VARDIR/tmp/gr_rbr_verifications_mysqlbinlog.err
