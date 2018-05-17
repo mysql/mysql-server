@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4159,7 +4159,11 @@ protected:
 Item*
 Create_qfunc::create_func(THD *thd, LEX_STRING name, PT_item_list *item_list)
 {
-  return create(thd, NULL_STR, name, false, item_list);
+  LEX_STRING db= NULL_STR;
+  if (thd->lex->copy_db_to(&db.str, &db.length))
+    return NULL;
+
+  return create(thd, db, name, false, item_list);
 }
 
 
