@@ -4,16 +4,26 @@
 # and make the result consistent.
 #
 
-#temp variable for masking mgm version
+#
+# Build strings for masking ndb_mgm output
+#
+
+#echo MYSQL_SERVER_VERSION: $MYSQL_SERVER_VERSION;
+
+# extract X.X.X for MySQL
 let $mysql_version=
   `select SUBSTRING_INDEX('$MYSQL_SERVER_VERSION','-', 1)`;
+# Remove any trailing a in the X.X.X string(ugly but works)
 let $mysql_version=
   `select TRIM(TRAILING 'a' FROM '$mysql_version')`;
 let $mysql_version = mysql-$mysql_version;
+# echo mysql_version: $mysql_version;
+
+# load ndb-X.X.X from the "ndb_version_string" variable, trim off
+# the version status indicator i.e -dmr etc.
 let $ndb_version=
-  `select VARIABLE_VALUE
-     from performance_schema.global_variables
-       where VARIABLE_NAME='ndb_version_string'`;
+  `select REGEXP_SUBSTR(@@ndb_version_string, "^ndb-[0-9]*[.][0-9]*[.][0-9]*")`;
+# echo ndb_version: $ndb_version;
 
 #masking mgm version and id
 --disable_query_log

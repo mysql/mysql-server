@@ -23,11 +23,10 @@ let $mysql_version=
 let $mysql_version = mysql-$mysql_version;
 # echo mysql_version: $mysql_version;
 
-# load ndb-X.X.X from the "ndb_version_string" vaioable
+# load ndb-X.X.X from the "ndb_version_string" variable, trim off
+# the version status indicator i.e -dmr etc.
 let $ndb_version=
-  `select VARIABLE_VALUE
-     from performance_schema.global_variables
-       where VARIABLE_NAME='ndb_version_string'`;
+  `select REGEXP_SUBSTR(@@ndb_version_string, "^ndb-[0-9]*[.][0-9]*[.][0-9]*")`;
 # echo ndb_version: $ndb_version;
 
 #
