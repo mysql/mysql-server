@@ -454,13 +454,13 @@ while($i <= 110)
 
 ## Validate diff of table
 --let $wait_timeout= 150
---let $wait_condition= SELECT COUNT(*)=1 from performance_schema.replication_group_member_stats where member_id='$server1_uuid' and (transactions_committed_all_members like '%:1-5:1000002-1000011' or transactions_committed_all_members like '%:1-15') and count_transactions_rows_validating=0;
+--let $wait_condition= SELECT COUNT(*)=1 from performance_schema.replication_group_member_stats where member_id='$server1_uuid' and (transactions_committed_all_members like '%:1-5:1000002-1000011' or transactions_committed_all_members like '%:1-15') and count_transactions_rows_validating=1;
 --source include/wait_condition.inc
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 --let $wait_timeout= 150
---let $wait_condition= SELECT COUNT(*)=1 from performance_schema.replication_group_member_stats where member_id='$server2_uuid' and (transactions_committed_all_members like '%:1-5:1000002-1000011' or transactions_committed_all_members like '%:1-15') and count_transactions_rows_validating=0;
+--let $wait_condition= SELECT COUNT(*)=1 from performance_schema.replication_group_member_stats where member_id='$server2_uuid' and (transactions_committed_all_members like '%:1-5:1000002-1000011' or transactions_committed_all_members like '%:1-15') and count_transactions_rows_validating=1;
 --source include/wait_condition.inc
 
 --let $diff_tables= server1:performance_schema.replication_group_member_stats, server2:performance_schema.replication_group_member_stats

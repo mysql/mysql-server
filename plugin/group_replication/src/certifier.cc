@@ -1118,7 +1118,7 @@ void Certifier::garbage_collect() {
   Certification_info::iterator it = certification_info.begin();
   stable_gtid_set_lock->wrlock();
   while (it != certification_info.end()) {
-    if (it->second->is_subset(stable_gtid_set)) {
+    if (it->second->is_subset_not_equals(stable_gtid_set)) {
       if (it->second->unlink() == 0) delete it->second;
       certification_info.erase(it++);
     } else

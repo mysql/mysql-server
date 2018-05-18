@@ -168,8 +168,8 @@ INSERT INTO t2 VALUES (3);
 --connection server1
 
 --let $count_transactions_validating= query_get_value(SELECT Count_transactions_rows_validating from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Count_transactions_rows_validating, 1)
---let $assert_text= 'Count_transactions_rows_validating must be 0'
---let $assert_cond= $count_transactions_validating = 0
+--let $assert_text= 'Count_transactions_rows_validating must be 1'
+--let $assert_cond= $count_transactions_validating = 1
 --source include/assert.inc
 
 --let $transactions_committed_all_members= query_get_value(SELECT Transactions_committed_all_members from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Transactions_committed_all_members, 1)
@@ -186,8 +186,8 @@ INSERT INTO t2 VALUES (3);
 --connection server2
 
 --let $count_transactions_validating= query_get_value(SELECT Count_transactions_rows_validating from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Count_transactions_rows_validating, 1)
---let $assert_text= 'Count_transactions_rows_validating must be 0'
---let $assert_cond= $count_transactions_validating = 0
+--let $assert_text= 'Count_transactions_rows_validating must be 1'
+--let $assert_cond= $count_transactions_validating = 1
 --source include/assert.inc
 
 --let $transactions_committed_all_members= query_get_value(SELECT Transactions_committed_all_members from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Transactions_committed_all_members, 1)
