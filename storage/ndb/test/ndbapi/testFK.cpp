@@ -1562,7 +1562,7 @@ TESTCASE("CreateDropError",
   INITIALIZER(runCreateDropError);
 }
 TESTCASE("Basic1",
-	 "Create random FK and run transactions")
+	 "Create random FK and run a single transaction")
 {
   INITIALIZER(runTransSnapshot);
   INITIALIZER(runRSSsnapshot);
@@ -1574,7 +1574,7 @@ TESTCASE("Basic1",
   VERIFIER(runTransSnapshotCheck);
 }
 TESTCASE("Basic5",
-	 "Create random FK and run transactions")
+	 "Create random FK and run 5 transactions")
 {
   TC_PROPERTY("concurrent", 1);
   INITIALIZER(runTransSnapshot);
@@ -1587,7 +1587,7 @@ TESTCASE("Basic5",
   VERIFIER(runTransSnapshotCheck);
 }
 TESTCASE("Basic55",
-	 "Create random FK and run transactions")
+	 "Create random FK and run a mix of transactions")
 {
   TC_PROPERTY("concurrent", 1);
   INITIALIZER(runTransSnapshot);

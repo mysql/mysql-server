@@ -4015,10 +4015,12 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
   {
     Uint8 TopSimple = regTcPtr->opSimple;
     Uint8 TopDirty = regTcPtr->dirtyOp;
+    bool checkingFKConstraint = Tspecial_op_flags & TcConnectRecord::SOF_TRIGGER;
 
     regTcPtr->m_special_op_flags &= ~TcConnectRecord::SOF_REORG_MOVING;
     /**
-     * Allow reading from backup replica...if
+     * As an optimization, we may read from a local backup replica
+     * instead of from the remote primary replica...if:
      * 1) Simple-read, since this will wait in lock queue for any pending
      *    commit/complete
      * 2) Simple/CommittedRead if TreadBackup-table property is set
@@ -4027,10 +4029,17 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
      * 3) Locking reads that have signalled that they have had their locks
      *    upgraded due to being read of a base table of BLOB table or
      *    reads of unique key for Committed reads.
+     *
+     * Note that if the operation is part of verifying a FK-constraint,
+     * the primary replica has to be used in order to avoid races where
+     * an update of the primary replica has not reached backup replicas
+     * when the constraint is verified.
      */
-    if ((TopSimple != 0 && TopDirty == 0) ||
-        (TreadBackup != 0 && (TopSimple != 0 || TopDirty != 0)) ||
-        (TreadBackup != 0 && regCachePtr->m_read_committed_base))
+    if (regTcPtr->tcNodedata[0] != cownNodeid &&  // Primary replica is remote, and
+        !checkingFKConstraint &&                  // Not verifying a FK-constraint.
+        ((TopSimple != 0 && TopDirty == 0) ||                        // 1)
+         (TreadBackup != 0 && (TopSimple != 0 || TopDirty != 0)) ||  // 2)
+         (TreadBackup != 0 && regCachePtr->m_read_committed_base)))  // 3)
     {
       jam();
       /*-------------------------------------------------------------*/
@@ -19557,7 +19566,7 @@ Dbtc::executeFKParentTrigger(Signal* signal,
    * If neither a primary index nor a unique index is present
    * then an ordered index is used in which case the
    * bit FK_CHILD_OI is set. If neither an ordered index is present
-   * then the foreign key creation wil fail, so here this cannot
+   * then the foreign key creation will fail, so here this cannot
    * happen.
    *
    * The index is on the foreign key child table, that is it is
