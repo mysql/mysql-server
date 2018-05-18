@@ -978,7 +978,7 @@ set foreign_key_checks=1;
 ALTER TABLE address ALGORITHM=copy,
 ADD CONSTRAINT `ca_fk2` FOREIGN KEY(`customer_id`) REFERENCES `customer` (`id`)
 ON DELETE CASCADE ON UPDATE RESTRICT;
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`#sql-temporary`, CONSTRAINT `ca_fk1` FOREIGN KEY (`customer_id`) REFERENCES `customer` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`#sql-temporary`, CONSTRAINT `ca_fk2` FOREIGN KEY (`customer_id`) REFERENCES `customer` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT)
 set foreign_key_checks=0;
 ALTER TABLE address ALGORITHM=copy,
 ADD CONSTRAINT `ca_fk2` FOREIGN KEY(`customer_id`) REFERENCES `customer` (`id`)
@@ -990,7 +990,7 @@ ADD COLUMN b int not null;
 # Check DML with foreign_key_checks on
 set foreign_key_checks=1;
 update address set customer_id = 3 where no = 1;
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`address`, CONSTRAINT `ca_fk2` FOREIGN KEY (`customer_id`) REFERENCES `customer` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`address`, CONSTRAINT `ca_fk1` FOREIGN KEY (`customer_id`) REFERENCES `customer` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT)
 update address set customer_id = 1 where no = 2;
 delete from customer where id = 1;
 select count(*) from address;
