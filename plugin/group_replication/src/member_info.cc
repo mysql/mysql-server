@@ -92,7 +92,8 @@ Group_member_info::Group_member_info(const uchar *data, size_t len)
     : Plugin_gcs_message(CT_MEMBER_INFO_MESSAGE),
       gcs_member_id(NULL),
       member_version(NULL),
-      unreachable(false) {
+      unreachable(false),
+      lower_case_table_names(DEFAULT_NOT_RECEIVED_LOWER_CASE_TABLE_NAMES) {
   decode(data, len);
 }
 
@@ -158,8 +159,11 @@ void Group_member_info::encode_payload(
 
   uint16 lower_case_table_names_aux =
       static_cast<uint16>(lower_case_table_names);
-  encode_payload_item_int2(buffer, PIT_LOWER_CASE_TABLE_NAME,
-                           lower_case_table_names_aux);
+#ifndef DBUG_OFF
+  if (lower_case_table_names != SKIP_ENCODING_LOWER_CASE_TABLE_NAMES)
+#endif
+    encode_payload_item_int2(buffer, PIT_LOWER_CASE_TABLE_NAME,
+                             lower_case_table_names_aux);
 
   DBUG_VOID_RETURN;
 }
