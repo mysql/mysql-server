@@ -724,4 +724,14 @@ SELECT regexp_replace( ' F' , '^ ', '[,$' );
 --error ER_REGEXP_INVALID_FLAG
 SELECT regexp_instr( 'abc', '(?-' );
 
+--echo #
+--echo # Bug#27992118: REGEXP_REPLACE ACCUMULATING RESULT
+--echo #
+
+CREATE TABLE t1 ( a VARCHAR(10) );
+INSERT INTO t1 VALUES ('a a a'), ('b b b'), ('c c c');
+SELECT regexp_replace(a, '^([[:alpha:]]+)[[:space:]].*$', '$1') FROM t1;
+DROP TABLE t1;
+
+
 --source ../mysql-test/include/cleanup_icu_utils.inc

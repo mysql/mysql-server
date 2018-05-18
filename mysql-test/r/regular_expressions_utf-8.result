@@ -844,3 +844,14 @@ ERROR HY000: A capture group has an invalid name.
 #
 SELECT regexp_instr( 'abc', '(?-' );
 ERROR HY000: Invalid match mode flag in regular expression.
+#
+# Bug#27992118: REGEXP_REPLACE ACCUMULATING RESULT
+#
+CREATE TABLE t1 ( a VARCHAR(10) );
+INSERT INTO t1 VALUES ('a a a'), ('b b b'), ('c c c');
+SELECT regexp_replace(a, '^([[:alpha:]]+)[[:space:]].*$', '$1') FROM t1;
+regexp_replace(a, '^([[:alpha:]]+)[[:space:]].*$', '$1')
+a
+b
+c
+DROP TABLE t1;

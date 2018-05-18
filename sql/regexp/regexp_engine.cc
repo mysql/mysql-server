@@ -49,6 +49,8 @@ void Regexp_engine::Reset(const std::u16string &subject) {
   uregex_setText(m_re, pointer_cast<const UChar *>(usubject), length,
                  &m_error_code);
   m_current_subject = subject;
+  m_replace_buffer.clear();
+  m_replace_buffer_pos = 0;
 }
 
 bool Regexp_engine::Matches(int start, int occurrence) {

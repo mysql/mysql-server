@@ -116,8 +116,11 @@ class Regexp_engine {
   }
 
   /**
-    Resets the engine with a new subject string.
-    @param subject The new string to match the regular expression against.
+    Resets the engine with a new subject string. This also clears the
+    replacement buffer, see Replace().
+
+    @param subject The new string to match the regular
+    expression against.
   */
   void Reset(const std::u16string &subject);
 
