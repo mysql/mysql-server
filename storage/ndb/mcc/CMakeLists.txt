@@ -1,4 +1,4 @@
-# Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2018 Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -52,7 +52,6 @@ set(MCC_INSTALL_BINDIR "${INSTALL_BINDIR}")
 set(MCC_INSTALL_SUBDIR "${INSTALL_MYSQLSHAREDIR}/mcc")
 set(MCC_INSTALL_FRONTENDDIR "${MCC_INSTALL_SUBDIR}/frontend")
 
-ADD_SUBDIRECTORY(host_info)
 ADD_SUBDIRECTORY(frontend)
 
 if(WIN32 AND MCC_PYTHON_TO_BUNDLE)
@@ -111,9 +110,6 @@ if(WIN32 AND MCC_PYTHON_TO_BUNDLE)
 
 endif()
 
-CONFIGURE_FILE("${CMAKE_CURRENT_SOURCE_DIR}/post-install.py.in"
-        "${CMAKE_CURRENT_BINARY_DIR}/post-install.py")
-
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/mcc_config.py.in" "${CMAKE_CURRENT_BINARY_DIR}/mcc_config_for_install.py")
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/mcc_config_for_install.py"  
   DESTINATION "${MCC_INSTALL_BINDIR}"
@@ -125,7 +121,7 @@ install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/${MCC_SCRIPT_NAME}"
   COMPONENT ClusterTools)
 
 install(FILES clusterhost.py remote_clusterhost.py request_handler.py 
-  util.py config_parser.py cfg.pem ${CMAKE_CURRENT_BINARY_DIR}/post-install.py DESTINATION "${MCC_INSTALL_SUBDIR}"
+  util.py config_parser.py cfg.pem DESTINATION "${MCC_INSTALL_SUBDIR}"
   COMPONENT ClusterTools)
 
 install(DIRECTORY tst DESTINATION "${MCC_INSTALL_SUBDIR}"  
@@ -148,7 +144,6 @@ IF (WITH_MCC_DEV)
 	${CMAKE_COMMAND} "-DCMAKE_INSTALL_CONFIG_NAME=${CMAKE_INSTALL_CONFIG_NAME}" "-DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}" 
 	-P "${CMAKE_CURRENT_BINARY_DIR}/cmake_install.cmake" 
 	VERBATIM)
-  ADD_DEPENDENCIES(mcc_install host_info)
 
   # Convenience target for mcc development which runs the mcc tests on installed files
   add_custom_target(mcc_run
