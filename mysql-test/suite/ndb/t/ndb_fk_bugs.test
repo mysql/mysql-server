@@ -1044,3 +1044,40 @@ insert into t1 values (1,1,1,1,1);
 delete from t1 where kol1=1;
 drop table t1;
 
+#
+# There were also a race condition due to local backup replicas
+# being read when verifying that there were no references to
+# a deleted row. This allowed the read to race the delete of the
+# index row, such that the deleted row appered to still being referred.
+# FIX: Always read primary replicas when verifying a constraint.
+create table t1 (
+  kol1 int primary key,
+  kol2 int not null,
+  kol3 int not null,
+  kol4 int not null,
+  kol5 int not null,
+  unique key uq1(kol2),
+  unique key uq2(kol3),
+  foreign key fk1(kol3) references t1(kol2) on update restrict on delete restrict
+) engine = ndb;
+
+insert into t1 values (1,1,1,1,1);
+delete from t1 where kol1=1;
+
+insert into t1 values (2,1,1,1,1);
+delete from t1 where kol1=2;
+
+insert into t1 values (3,1,1,1,1);
+delete from t1 where kol1=3;
+
+insert into t1 values (4,1,1,1,1);
+delete from t1 where kol1=4;
+
+
+insert into t1 values (1,0,0,0,0);
+insert into t1 values (2,1,1,1,1);
+insert into t1 values (3,2,2,2,2);
+insert into t1 values (4,3,3,3,3);
+delete from t1;
+
+drop table t1;
