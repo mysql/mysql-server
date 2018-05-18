@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3653,13 +3653,15 @@ static int fail_hlink(HASH_LINK *hlink) {
 }
 
 static int cache_empty(KEY_CACHE *keycache) {
+  char buf[512];
   int errcnt = 0;
   int idx;
   if (keycache->disk_blocks <= 0) return 1;
   for (idx = 0; idx < keycache->disk_blocks; idx++) {
     BLOCK_LINK *block = keycache->block_root + idx;
     if (block->status || block->requests || block->hash_link) {
-      my_message_local(INFORMATION_LEVEL, "block index: %u", idx);
+      snprintf(buf, sizeof(buf) - 1, "block index: %u", idx);
+      my_message_local(INFORMATION_LEVEL, EE_DEBUG_INFO, buf);
       fail_block(block);
       errcnt++;
     }
@@ -3667,16 +3669,19 @@ static int cache_empty(KEY_CACHE *keycache) {
   for (idx = 0; idx < keycache->hash_links; idx++) {
     HASH_LINK *hash_link = keycache->hash_link_root + idx;
     if (hash_link->requests || hash_link->block) {
-      my_message_local(INFORMATION_LEVEL, "hash_link index: %u", idx);
+      snprintf(buf, sizeof(buf) - 1, "hash_link index: %u", idx);
+      my_message_local(INFORMATION_LEVEL, EE_DEBUG_INFO, buf);
       fail_hlink(hash_link);
       errcnt++;
     }
   }
   if (errcnt) {
-    my_message_local(INFORMATION_LEVEL, "blocks: %d  used: %lu",
-                     keycache->disk_blocks, keycache->blocks_used);
-    my_message_local(INFORMATION_LEVEL, "hash_links: %d  used: %d",
-                     keycache->hash_links, keycache->hash_links_used);
+    snprintf(buf, sizeof(buf) - 1, "blocks: %d  used: %lu",
+             keycache->disk_blocks, keycache->blocks_used);
+    my_message_local(INFORMATION_LEVEL, EE_DEBUG_INFO, buf);
+    snprintf(buf, sizeof(buf) - 1, "hash_links: %d  used: %d",
+             keycache->hash_links, keycache->hash_links_used);
+    my_message_local(INFORMATION_LEVEL, EE_DEBUG_INFO, buf);
   }
   return !errcnt;
 }

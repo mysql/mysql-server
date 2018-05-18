@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,6 +44,7 @@
 #if defined(_WIN32)
 #include "mysys/my_static.h"
 #endif
+#include "mysys_err.h"
 
 #if defined(_WIN32)
 typedef VOID(WINAPI *time_fn)(_Out_ LPFILETIME);
@@ -66,9 +67,7 @@ bool win_init_get_system_time_as_file_time() {
   }
 
   DWORD error = GetLastError();
-  my_message_local(
-      ERROR_LEVEL,
-      "LoadLibrary(\"kernel32.dll\") failed: GetLastError returns %lu", error);
+  my_message_local(ERROR_LEVEL, EE_WIN_LIBRARY_LOAD_FAILED, error);
 
   return true;
 }

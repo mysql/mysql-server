@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -57,6 +57,7 @@
 #include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
+#include "mysys_err.h"
 #include "strings/mb_wc.h"
 #include "strings/str_uca_type.h"
 #include "strings/uca900_data.h"
@@ -3330,8 +3331,9 @@ static int my_coll_rule_parse(MY_COLL_RULES *rules, const char *str,
   my_coll_parser_init(&p, rules, str, str_end);
 
   if (!my_coll_parser_exec(&p)) {
-    my_coll_lexem_print_error(my_coll_parser_curr(&p), rules->loader->error,
-                              sizeof(rules->loader->error) - 1, p.errstr,
+    rules->loader->errcode = EE_COLLATION_PARSER_ERROR;
+    my_coll_lexem_print_error(my_coll_parser_curr(&p), rules->loader->errarg,
+                              sizeof(rules->loader->errarg) - 1, p.errstr,
                               col_name);
     return 1;
   }
@@ -3702,10 +3704,8 @@ static bool apply_primary_shift_900(MY_CHARSET_LOADER *loader,
       last_weight_ptr[0] += 0x1000;
     }
   } else {
-    snprintf(loader->error, sizeof(loader->error),
-             "Can't reset before "
-             "a primary ignorable character U+%04lX",
-             r->base[0]);
+    loader->errcode = EE_FAILED_TO_RESET_BEFORE_PRIMARY_IGNORABLE_CHAR;
+    snprintf(loader->errarg, sizeof(loader->errarg), "U+%04lX", r->base[0]);
     return true;
   }
   return false;
@@ -3736,10 +3736,8 @@ static bool apply_tertiary_shift_900(MY_CHARSET_LOADER *loader,
       last_weight_ptr[to_stride * 2] += 0x10;
     }
   } else {
-    snprintf(loader->error, sizeof(loader->error),
-             "Can't reset before "
-             "a tertiary ignorable character U+%04lX",
-             r->base[0]);
+    loader->errcode = EE_FAILED_TO_RESET_BEFORE_TERTIARY_IGNORABLE_CHAR;
+    snprintf(loader->errarg, sizeof(loader->errarg), "U+%04lX", r->base[0]);
     return true;
   }
   return false;
@@ -3799,10 +3797,8 @@ static bool apply_shift(MY_CHARSET_LOADER *loader, MY_COLL_RULES *rules,
           to[nweights - 1] += 0x1000;
         }
       } else {
-        snprintf(loader->error, sizeof(loader->error),
-                 "Can't reset before "
-                 "a primary ignorable character U+%04lX",
-                 r->base[0]);
+        loader->errcode = EE_FAILED_TO_RESET_BEFORE_PRIMARY_IGNORABLE_CHAR;
+        snprintf(loader->errarg, sizeof(loader->errarg), "U+%04lX", r->base[0]);
         return true;
       }
     }
@@ -3920,12 +3916,14 @@ static int check_rules(MY_CHARSET_LOADER *loader, const MY_COLL_RULES *rules,
   const MY_COLL_RULE *r, *rlast;
   for (r = rules->rule, rlast = rules->rule + rules->nrules; r < rlast; r++) {
     if (r->curr[0] > dst->maxchar) {
-      snprintf(loader->error, sizeof(loader->error),
-               "Shift character out of range: u%04X", (uint)r->curr[0]);
+      loader->errcode = EE_SHIFT_CHAR_OUT_OF_RANGE;
+      snprintf(loader->errarg, sizeof(loader->errarg), "u%04X",
+               (uint)r->curr[0]);
       return true;
     } else if (r->base[0] > src->maxchar) {
-      snprintf(loader->error, sizeof(loader->error),
-               "Reset character out of range: u%04X", (uint)r->base[0]);
+      loader->errcode = EE_RESET_CHAR_OUT_OF_RANGE;
+      snprintf(loader->errarg, sizeof(loader->errarg), "u%04X",
+               (uint)r->base[0]);
       return true;
     }
   }
@@ -4447,7 +4445,8 @@ static bool create_tailoring(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader) {
   size_t npages;
   bool lengths_are_temporary;
 
-  *loader->error = '\0';
+  loader->errcode = 0;
+  *loader->errarg = '\0';
 
   memset(&rules, 0, sizeof(rules));
   rules.loader = loader;
@@ -4513,9 +4512,9 @@ static bool create_tailoring(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader) {
 
 ex:
   (loader->mem_free)(rules.rule);
-  if (rc != 0 && loader->error[0]) {
+  if (rc != 0 && loader->errcode) {
     if (new_uca.contraction_nodes) delete new_uca.contraction_nodes;
-    loader->reporter(ERROR_LEVEL, "%s", loader->error);
+    loader->reporter(ERROR_LEVEL, loader->errcode, loader->errarg);
   }
   return rc;
 }

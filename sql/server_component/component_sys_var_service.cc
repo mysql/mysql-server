@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -98,8 +98,7 @@ int mysql_add_sysvar(sys_var *first) {
   /* this fails if there is a conflicting variable name. see HASH_UNIQUE */
   mysql_rwlock_wrlock(&LOCK_system_variables_hash);
   if (!get_system_variable_hash()->emplace(to_string(var->name), var).second) {
-    my_message_local(ERROR_LEVEL, "duplicate variable name '%s'!?",
-                     var->name.str);
+    LogErr(ERROR_LEVEL, ER_DUPLICATE_SYS_VAR, var->name.str);
     mysql_rwlock_unlock(&LOCK_system_variables_hash);
     return 1;
   }
@@ -457,8 +456,7 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::unregister_variable,
                                to_string(com_sys_var_name));
     }
     if (sysvar == nullptr) {
-      my_message_local(ERROR_LEVEL, "variable name '%s' not found",
-                       com_sys_var_name.c_ptr());
+      LogErr(ERROR_LEVEL, ER_SYS_VAR_NOT_FOUND, com_sys_var_name.c_ptr());
       mysql_rwlock_unlock(&LOCK_system_variables_hash);
       return true;
     }

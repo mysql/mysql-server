@@ -297,7 +297,7 @@ int handle_rtc_failure(int err_type, const char *file, int line,
   vsnprintf(buff + len, sizeof(buff) - len, format, args);
   va_end(args);
 
-  my_message_local(ERROR_LEVEL, buff);
+  my_message_local(ERROR_LEVEL, EE_WIN_RUN_TIME_ERROR_CHECK, buff);
 
   return 0; /* Error is handled */
 }

@@ -43,6 +43,7 @@
 #include "errmsg.h"
 #include "m_ctype.h"
 #include "mysql/client_authentication.h"
+#include "mysys_err.h"
 #include "sql_common.h"
 #include "sql_string.h"
 #if defined(_WIN32) && !defined(_OPENSSL_Applink) && \
@@ -106,7 +107,7 @@ static RSA *rsa_init(MYSQL *mysql) {
       If a key path was submitted but no key located then we print an error
       message. Else we just report that there is no public key.
     */
-    my_message_local(WARNING_LEVEL, "Can't locate server public key '%s'",
+    my_message_local(WARNING_LEVEL, EE_FAILED_TO_LOCATE_SERVER_PUBLIC_KEY,
                      mysql->options.extension->server_public_key_path);
 
     return 0;
@@ -120,7 +121,7 @@ static RSA *rsa_init(MYSQL *mysql) {
 #if !defined(HAVE_WOLFSSL)
     ERR_clear_error();
 #endif
-    my_message_local(WARNING_LEVEL, "Public key is not in PEM format: '%s'",
+    my_message_local(WARNING_LEVEL, EE_PUBLIC_KEY_NOT_IN_PEM_FORMAT,
                      mysql->options.extension->server_public_key_path);
     return 0;
   }

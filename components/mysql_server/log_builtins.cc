@@ -34,6 +34,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
                                // connection_events_loop_aborted()
 
 #include "my_dir.h"
+#include "mysys_err.h"
 
 #include <mysql/components/services/log_service.h>
 #include <mysql/components/services/log_shared.h>  // data types
@@ -1538,7 +1539,8 @@ int log_line_submit(log_line *ll) {
 
 #if !defined(DBUG_OFF)
     /*
-      Assert that we're not given anything but server error-log codes.
+      Assert that we're not given anything but server error-log codes
+      or global error codes (shared between MySQL server and clients).
       If your code bombs out here, check whether you're trying to log
       using an error-code in the range intended for messages that are
       sent to the client, not the error-log, (< ER_SERVER_RANGE_START).
@@ -1547,7 +1549,8 @@ int log_line_submit(log_line *ll) {
       int n = log_line_index_by_type(ll, LOG_ITEM_SQL_ERRCODE);
       if (n >= 0) {
         int ec = (int)ll->item[n].data.data_integer;
-        DBUG_ASSERT((ec < 1) || (ec >= ER_SERVER_RANGE_START));
+        DBUG_ASSERT((ec < 1) || (ec >= EE_ERROR_FIRST && ec <= EE_ERROR_LAST) ||
+                    (ec >= ER_SERVER_RANGE_START));
       }
     }
 #endif

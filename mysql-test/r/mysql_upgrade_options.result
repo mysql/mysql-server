@@ -193,7 +193,7 @@ mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 sys.sys_config                                     OK
 # Running mysql_upgrade with --max-allowed-packet=4095..
-mysql_upgrade: [Warning] option 'max_allowed_packet': unsigned value 4095 adjusted to 4096
+mysql_upgrade: [Warning] option 'max_allowed_packet': unsigned value 4095 adjusted to 4096.
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -231,7 +231,7 @@ mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 sys.sys_config                                     OK
 # Running mysql_upgrade with --max-allowed-packet=1000..
-mysql_upgrade: [Warning] option 'max_allowed_packet': unsigned value 1000 adjusted to 4096
+mysql_upgrade: [Warning] option 'max_allowed_packet': unsigned value 1000 adjusted to 4096.
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -269,7 +269,7 @@ mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 sys.sys_config                                     OK
 # Running mysql_upgrade with --max-allowed-packet=2147483649..
-mysql_upgrade: [Warning] option 'max_allowed_packet': unsigned value 2147483649 adjusted to 2147483648
+mysql_upgrade: [Warning] option 'max_allowed_packet': unsigned value 2147483649 adjusted to 2147483648.
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -307,7 +307,7 @@ mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 sys.sys_config                                     OK
 # Running mysql_upgrade with --max-allowed-packet=21474836480..
-mysql_upgrade: [Warning] option 'max_allowed_packet': unsigned value 2147484652 adjusted to 2147483648
+mysql_upgrade: [Warning] option 'max_allowed_packet': unsigned value 2147484652 adjusted to 2147483648.
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -419,7 +419,7 @@ mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 sys.sys_config                                     OK
 # Running mysql_upgrade with --net-buffer-length=4095..
-mysql_upgrade: [Warning] option 'net_buffer_length': unsigned value 4095 adjusted to 4096
+mysql_upgrade: [Warning] option 'net_buffer_length': unsigned value 4095 adjusted to 4096.
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -457,7 +457,7 @@ mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 sys.sys_config                                     OK
 # Running mysql_upgrade with --net-buffer-length=1024..
-mysql_upgrade: [Warning] option 'net_buffer_length': unsigned value 1024 adjusted to 4096
+mysql_upgrade: [Warning] option 'net_buffer_length': unsigned value 1024 adjusted to 4096.
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -495,7 +495,7 @@ mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 sys.sys_config                                     OK
 # Running mysql_upgrade with --net-buffer-length=16777217..
-mysql_upgrade: [Warning] option 'net_buffer_length': unsigned value 16777217 adjusted to 16777216
+mysql_upgrade: [Warning] option 'net_buffer_length': unsigned value 16777217 adjusted to 16777216.
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -533,7 +533,7 @@ mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 sys.sys_config                                     OK
 # Running mysql_upgrade with --net-buffer-length=167772160..
-mysql_upgrade: [Warning] option 'net_buffer_length': unsigned value 167772160 adjusted to 16777216
+mysql_upgrade: [Warning] option 'net_buffer_length': unsigned value 167772160 adjusted to 16777216.
 mysql.columns_priv                                 OK
 mysql.component                                    OK
 mysql.db                                           OK
@@ -805,15 +805,15 @@ sys.sys_config                                     OK
 #   from mysql_upgrade
 #
 Run mysql_upgrade with --datadir : should fail
-mysql_upgrade: [ERROR] unknown variable 'datadir=somedir'
+mysql_upgrade: [ERROR] unknown variable 'datadir=somedir'.
 Upgrade process encountered error and will not continue.
 Run mysql_upgrade with --basedir : should fail
-mysql_upgrade: [ERROR] unknown variable 'basedir=somedir'
+mysql_upgrade: [ERROR] unknown variable 'basedir=somedir'.
 Upgrade process encountered error and will not continue.
 # Running mysql_upgrade with invalid/incorrect options
-mysql_upgrade: [ERROR] mysql_upgrade: unknown option '-c'
+mysql_upgrade: [ERROR] mysql_upgrade: unknown option '-c'.
 Upgrade process encountered error and will not continue.
-mysql_upgrade: [ERROR] mysql_upgrade: unknown option '-t'
+mysql_upgrade: [ERROR] mysql_upgrade: unknown option '-t'.
 Upgrade process encountered error and will not continue.
 Unknown option to protocol: AAA
 Alternatives are: 'TCP','SOCKET','PIPE','MEMORY'

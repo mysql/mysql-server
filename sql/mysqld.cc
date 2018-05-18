@@ -1371,19 +1371,15 @@ struct System_status_var *get_thd_status_var(THD *thd) {
   return &thd->status_var;
 }
 
-static void option_error_reporter(enum loglevel level, const char *format, ...)
-    MY_ATTRIBUTE((format(printf, 2, 3)));
-
-static void option_error_reporter(enum loglevel level, const char *format,
-                                  ...) {
+static void option_error_reporter(enum loglevel level, uint ecode, ...) {
   va_list args;
-  va_start(args, format);
+  va_start(args, ecode);
 
   /*
     Don't print warnings for --loose options during initialize.
   */
   if (level == ERROR_LEVEL || !opt_initialize || (log_error_verbosity > 1)) {
-    error_log_printf(level, format, args);
+    error_log_print(level, ecode, args);
   }
   va_end(args);
 }
@@ -1391,21 +1387,18 @@ static void option_error_reporter(enum loglevel level, const char *format,
 /**
   Character set and collation error reporter that prints to sql error log.
   @param level          log message level
-  @param format         log message format string
+  @param ecode          Error code of the error message.
 
   This routine is used to print character set and collation
   warnings and errors inside an already running mysqld server,
   e.g. when a character set or collation is requested for the very first time
   and its initialization does not go well for some reasons.
 */
-static void charset_error_reporter(enum loglevel level, const char *format, ...)
-    MY_ATTRIBUTE((format(printf, 2, 3)));
 
-static void charset_error_reporter(enum loglevel level, const char *format,
-                                   ...) {
+static void charset_error_reporter(enum loglevel level, uint ecode, ...) {
   va_list args;
-  va_start(args, format);
-  error_log_printf(level, format, args);
+  va_start(args, ecode);
+  error_log_print(level, ecode, args);
   va_end(args);
 }
 
@@ -1791,7 +1784,7 @@ bool signal_restart_server() {
 
 #ifdef _WIN32
   if (!SetEvent(hEventRestart)) {
-    sql_print_error("Got error: %ld from SetEvent", GetLastError());
+    LogErr(ERROR_LEVEL, ER_SET_EVENT_FAILED, GetLastError());
     my_error(ER_RESTART_SERVER_FAILED, MYF(0), "Internal operation failure");
     return true;
   }
@@ -4246,7 +4239,7 @@ static int warn_one(const char *file_name) {
 
   bio = BIO_new(BIO_s_file());
   if (!bio) {
-    sql_print_error("Error allocating SSL BIO");
+    LogErr(ERROR_LEVEL, ER_FAILED_TO_ALLOCATE_SSL_BIO);
     my_fclose(fp, MYF(0));
     return 1;
   }
@@ -5486,7 +5479,7 @@ int mysqld_main(int argc, char **argv)
   system_charset_info = &my_charset_utf8_general_ci;
 
   /* Write mysys error messages to the error log. */
-  local_message_hook = error_log_printf;
+  local_message_hook = error_log_print;
 
   int ho_error;
 
@@ -9673,8 +9666,7 @@ static bool create_pid_file() {
     }
   }
   if (!is_path_accessible) {
-    sql_print_warning(
-        "Few location(s) are inaccessible while checking PID filepath.");
+    LogErr(WARNING_LEVEL, ER_PID_FILEPATH_LOCATIONS_INACCESSIBLE);
   }
   if ((file = mysql_file_create(key_file_pid, pidfile_name, 0664,
                                 O_WRONLY | O_TRUNC, MYF(MY_WME))) >= 0) {

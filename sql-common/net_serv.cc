@@ -975,9 +975,8 @@ static bool net_read_packet_header(NET *net) {
       the server expects the client to send a file, but the client
       may reply with a new command instead.
     */
-    my_message_local(ERROR_LEVEL,
-                     "packets out of order (found %u, expected %u)",
-                     (uint)pkt_nr, net->pkt_nr);
+    my_message_local(ERROR_LEVEL, EE_PACKETS_OUT_OF_ORDER, (uint)pkt_nr,
+                     net->pkt_nr);
     DBUG_ASSERT(pkt_nr == net->pkt_nr);
 #endif
     return true;

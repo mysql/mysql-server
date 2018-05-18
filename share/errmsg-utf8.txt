@@ -18086,6 +18086,39 @@ ER_UPDATE_GTID_PURGED_WITH_GR
 ER_AUDIT_LOG_TABLE_DEFINITION_NOT_UPDATED
   eng "'%s.%s' table definition has not been upgraded; to upgrade it, run mysql_upgrade command."
 
+ER_NO_PATH_FOR_SHARED_LIBRARY
+  eng "No paths allowed for shared library."
+
+ER_UDF_ALREADY_EXISTS
+  eng "Function '%-.192s' already exists."
+
+ER_SET_EVENT_FAILED
+  eng "Got Error: %ld from SetEvent."
+
+ER_FAILED_TO_ALLOCATE_SSL_BIO
+  eng "Error allocating SSL BIO."
+
+ER_IB_MSG_1273
+  eng "%s"
+
+ER_PID_FILEPATH_LOCATIONS_INACCESSIBLE
+  eng "One or several locations were inaccessible while checking PID filepath."
+
+ER_UNKNOWN_VARIABLE_IN_PERSISTED_CONFIG_FILE
+  eng "Currently unknown variable '%s' was read from the persisted config file."
+
+ER_FAILED_TO_HANDLE_DEFAULTS_FILE
+  eng "Fatal error in defaults handling. Program aborted!"
+
+ER_DUPLICATE_SYS_VAR
+  eng "Duplicate variable name '%s'."
+
+ER_FAILED_TO_INIT_SYS_VAR
+  eng "Failed to initialize system variables."
+
+ER_SYS_VAR_NOT_FOUND
+  eng "Variable name '%s' not found."
+
 #
 # End of 8.0 Server error messages.
 # (Please read comments from the header of this section before adding error

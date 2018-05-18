@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -191,7 +191,7 @@ void my_print_open_files(void) {
     uint i;
     for (i = 0; i < my_file_limit; i++) {
       if (my_file_info[i].type != UNOPEN) {
-        my_message_local(INFORMATION_LEVEL, EE(EE_FILE_NOT_CLOSED),
+        my_message_local(INFORMATION_LEVEL, EE_FILE_NOT_CLOSED,
                          my_file_info[i].name, i);
       }
     }

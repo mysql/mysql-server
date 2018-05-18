@@ -33,9 +33,10 @@
 #include <sys/event.h>
 
 #include "my_dbug.h"
-#include "my_sys.h"     /* my_message_local */
-#include "my_thread.h"  /* my_thread_init, my_thread_end */
-#include "my_timer.h"   /* my_timer_t */
+#include "my_sys.h"    /* my_message_local */
+#include "my_thread.h" /* my_thread_init, my_thread_end */
+#include "my_timer.h"  /* my_timer_t */
+#include "mysys_err.h"
 #include "mysys_priv.h" /* key_thread_timer_notifier */
 
 /* Kernel event queue file descriptor. */
@@ -61,10 +62,7 @@ static void *timer_notify_thread_func(void *arg MY_ATTRIBUTE((unused))) {
       if (errno == EINTR)
         continue;
       else {
-        my_message_local(ERROR_LEVEL,
-                         "kevent failed with errno= %d,"
-                         "exiting timer notifier thread.",
-                         errno);
+        my_message_local(ERROR_LEVEL, EE_EXITING_TIMER_NOTIFY_THREAD, errno);
         break;
       }
     }
@@ -95,7 +93,7 @@ static int start_helper_thread(void) {
   EV_SET(&kev, 0, EVFILT_USER, EV_ADD, 0, 0, 0);
 
   if (kevent(kq_fd, &kev, 1, NULL, 0, NULL) < 0) {
-    my_message_local(ERROR_LEVEL, "Failed to create event (errno= %d).", errno);
+    my_message_local(ERROR_LEVEL, EE_FAILED_TO_CREATE_TIMER, errno);
     return -1;
   }
 
@@ -115,15 +113,13 @@ int my_timer_initialize(void) {
 
   /* Create a file descriptor for event notification. */
   if ((kq_fd = kqueue()) < 0) {
-    my_message_local(ERROR_LEVEL,
-                     "Failed to create fd for event notification (errno= %d).",
-                     errno);
+    my_message_local(ERROR_LEVEL, EE_FAILED_TO_CREATE_TIMER_QUEUE, errno);
     return -1;
   }
 
   /* Create a helper thread. */
   if ((rc = start_helper_thread())) {
-    my_message_local(ERROR_LEVEL, "Failed to start timer notify thread.");
+    my_message_local(ERROR_LEVEL, EE_FAILED_TO_START_TIMER_NOTIFY_THREAD);
     close(kq_fd);
   }
 
@@ -141,8 +137,7 @@ void my_timer_deinitialize(void) {
 
   if (kevent(kq_fd, &kev, 1, NULL, 0, NULL) < 0)
     my_message_local(ERROR_LEVEL,
-                     "Failed to create event to interrupt timer notifier thread"
-                     " (errno= %d).",
+                     EE_FAILED_TO_CREATE_TIMER_NOTIFY_THREAD_INTERRUPT_EVENT,
                      errno);
 
   my_thread_join(&timer_notify_thread, NULL);

@@ -124,7 +124,7 @@ TEST_F(File_io_test, SeekOnInvalidFileDescriptor) {
   keyring::File_io file_io(logger);
   File file = 2050;
 
-  EXPECT_CALL(*logger, log(ERROR_LEVEL, StartsWith("Can't seek in file")));
+  EXPECT_CALL(*logger, log(ERROR_LEVEL, StartsWith("Cannot seek in file")));
   ASSERT_TRUE(file_io.seek(file, 0, MY_SEEK_END, MYF(MY_WME)) ==
               MY_FILEPOS_ERROR);
 }
@@ -133,7 +133,7 @@ TEST_F(File_io_test, TellOnInvalidFileDescriptor) {
   keyring::File_io file_io(logger);
   File file = 2050;
 
-  EXPECT_CALL(*logger, log(ERROR_LEVEL, StartsWith("Can't seek in file")));
+  EXPECT_CALL(*logger, log(ERROR_LEVEL, StartsWith("Cannot seek in file")));
   ASSERT_TRUE(file_io.tell(file, MYF(MY_WME)) == ((my_off_t)-1));
 }
 

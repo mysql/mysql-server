@@ -679,10 +679,8 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options) {
         is loaded and continue with remaining persisted variables
       */
       m_persist_plugin_variables.push_back(*iter);
-      my_message_local(WARNING_LEVEL,
-                       "Currently unknown variable '%s' "
-                       "was read from the persisted config file",
-                       var_name.c_str());
+      LogErr(WARNING_LEVEL, ER_UNKNOWN_VARIABLE_IN_PERSISTED_CONFIG_FILE,
+             var_name.c_str());
       continue;
     }
     switch (sysvar->show_type()) {
@@ -1051,8 +1049,7 @@ bool Persisted_variables_cache::append_read_only_variables(
   return 0;
 
 err:
-  my_message_local(ERROR_LEVEL,
-                   "Fatal error in defaults handling. Program aborted!");
+  LogErr(ERROR_LEVEL, ER_FAILED_TO_HANDLE_DEFAULTS_FILE);
   exit(1);
 }
 

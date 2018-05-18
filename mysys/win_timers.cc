@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,9 +29,10 @@
 #include <windows.h> /* Timer Queue and IO completion port functions */
 
 #include "my_dbug.h"
-#include "my_sys.h"     /* my_message_local */
-#include "my_thread.h"  /* my_thread_init, my_thread_end */
-#include "my_timer.h"   /* my_timer_t */
+#include "my_sys.h"    /* my_message_local */
+#include "my_thread.h" /* my_thread_init, my_thread_end */
+#include "my_timer.h"  /* my_timer_t */
+#include "mysys_err.h"
 #include "mysys_priv.h" /* key_thread_timer_notifier */
 
 enum enum_timer_state { TIMER_SET = false, TIMER_EXPIRED = true };
@@ -188,8 +189,7 @@ static int delete_timer(my_timer_t *timer, int *state) {
           callback functions for this timer.
         */
         if (--retry_count == 0) {
-          my_message_local(ERROR_LEVEL, "Failed to delete timer (errno= %d).",
-                           errno);
+          my_message_local(ERROR_LEVEL, EE_FAILED_TO_DELETE_TIMER, errno);
           return -1;
         }
       }
@@ -209,23 +209,21 @@ int my_timer_initialize(void) {
   // Create timer queue.
   timer_queue = CreateTimerQueue();
   if (!timer_queue) {
-    my_message_local(ERROR_LEVEL, "Failed to create Timer Queue (errno= %d)",
-                     errno);
+    my_message_local(ERROR_LEVEL, EE_FAILED_TO_CREATE_TIMER_QUEUE, errno);
     goto err;
   }
 
   // Create IO completion port.
   io_compl_port = CreateIoCompletionPort(INVALID_HANDLE_VALUE, 0, 0, 0);
   if (!io_compl_port) {
-    my_message_local(ERROR_LEVEL,
-                     "Failed to create IO completion port (errno= %d)", errno);
+    my_message_local(ERROR_LEVEL, EE_FAILED_TO_CREATE_IO_COMPLETION_PORT,
+                     errno);
     goto err;
   }
 
   if (mysql_thread_create(key_thread_timer_notifier, &timer_notify_thread, 0,
                           timer_notify_thread_func, 0)) {
-    my_message_local(ERROR_LEVEL,
-                     "Failed to create timer notify thread (errno= %d).",
+    my_message_local(ERROR_LEVEL, EE_FAILED_TO_START_TIMER_NOTIFY_THREAD,
                      errno);
     goto err;
   }

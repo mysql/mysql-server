@@ -54,10 +54,10 @@ mysqltest: Could not open connection 'default': 2026 SSL connection error: xxxx
 mysqltest: Could not open connection 'default': 2026 SSL connection error: xxxx
 mysqltest: Could not open connection 'default': 2026 SSL connection error: xxxx
 WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY.
-mysqltest: [ERROR] SSL error: Unable to get private key from ''
+mysqltest: [ERROR] SSL error: Unable to get private key from ''.
 mysqltest: Could not open connection 'default': 2026 SSL connection error: Unable to get private key
 WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY.
-mysqltest: [ERROR] SSL error: Unable to get certificate from ''
+mysqltest: [ERROR] SSL error: Unable to get certificate from ''.
 mysqltest: Could not open connection 'default': 2026 SSL connection error: Unable to get certificate
 SHOW STATUS LIKE 'Ssl_cipher';
 Variable_name	Value
@@ -201,7 +201,7 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
-mysqldump: [ERROR] SSL error: Unable to get private key from 'MYSQL_TEST_DIR/std_data/client-cert.pem'
+mysqldump: [ERROR] SSL error: Unable to get private key from 'MYSQL_TEST_DIR/std_data/client-cert.pem'.
 mysqldump: Got error: 2026: SSL connection error: Unable to get private key when trying to connect
 DROP TABLE t1;
 Variable_name	Value

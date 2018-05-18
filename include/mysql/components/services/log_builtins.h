@@ -1207,6 +1207,23 @@ class LogEvent {
     return *this;
   }
 
+  /**
+    Find an error message by its MySQL error code. Substitute the % in that
+    message with the given arguments list, then add the result as the event's
+    message.
+
+    @param  errcode  MySQL error code for the message in question,
+                     e.g. ER_STARTUP
+    @param  args     varargs to satisfy any % in the message
+
+    @retval          the LogEvent, for easy fluent-style chaining.
+  */
+  LogEvent &lookupv(longlong errcode, va_list args) {
+    set_message_by_errcode(errcode, args);
+
+    return *this;
+  }
+
   LogEvent &lookup_quoted(longlong errcode, const char *tag, ...) {
     msg_tag = tag;
 

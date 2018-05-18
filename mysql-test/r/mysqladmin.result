@@ -1,7 +1,7 @@
 mysqladmin: [Warning] Using a password on the command line interface can be insecure.
 mysqld is alive
-mysqladmin: [ERROR] unknown variable 'database=db1'
-mysqladmin: [Warning] unknown variable 'loose-database=db2'
+mysqladmin: [ERROR] unknown variable 'database=db1'.
+mysqladmin: [Warning] unknown variable 'loose-database=db2'.
 mysqladmin: [Warning] Using a password on the command line interface can be insecure.
 mysqld is alive
 mysqld is alive

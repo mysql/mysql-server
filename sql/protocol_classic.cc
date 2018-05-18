@@ -446,6 +446,7 @@
 #include "mysql/com_data.h"
 #include "mysql/psi/mysql_socket.h"
 #include "mysqld_error.h"
+#include "mysys_err.h"
 #include "sql/field.h"
 #include "sql/item.h"
 #include "sql/item_func.h"  // Item_func_set_user_var
@@ -1164,7 +1165,8 @@ static bool net_send_error_packet(NET *net, uint sql_errno, const char *err,
   if (net->vio == 0) {
     if (bootstrap) {
       /* In bootstrap it's ok to print on stderr */
-      my_message_local(ERROR_LEVEL, "%d  %s", sql_errno, err);
+      my_message_local(ERROR_LEVEL, EE_NET_SEND_ERROR_IN_BOOTSTRAP, sql_errno,
+                       err);
     }
     DBUG_RETURN(false);
   }

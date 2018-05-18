@@ -222,8 +222,7 @@ extern const char *my_progname; /* program-name (printed in errors) */
 extern void (*error_handler_hook)(uint my_err, const char *str, myf MyFlags);
 extern void (*fatal_error_handler_hook)(uint my_err, const char *str,
                                         myf MyFlags);
-extern void (*local_message_hook)(enum loglevel ll, const char *format,
-                                  va_list args);
+extern void (*local_message_hook)(enum loglevel ll, uint ecode, va_list args);
 extern uint my_file_limit;
 extern MYSQL_PLUGIN_IMPORT ulong my_thread_stack_size;
 
@@ -487,8 +486,7 @@ struct ST_FILE_ID {
   ino_t st_ino;
 };
 
-typedef void (*my_error_reporter)(enum loglevel level, const char *format, ...)
-    MY_ATTRIBUTE((format(printf, 2, 3)));
+typedef void (*my_error_reporter)(enum loglevel level, uint ecode, ...);
 
 extern my_error_reporter my_charset_error_reporter;
 
@@ -673,9 +671,8 @@ extern int my_error_register(const char *(*get_errmsg)(int), int first,
 extern bool my_error_unregister(int first, int last);
 extern void my_message(uint my_err, const char *str, myf MyFlags);
 extern void my_message_stderr(uint my_err, const char *str, myf MyFlags);
-void my_message_local_stderr(enum loglevel ll, const char *format, va_list args)
-    MY_ATTRIBUTE((format(printf, 2, 0)));
-extern void my_message_local(enum loglevel ll, const char *format, ...);
+void my_message_local_stderr(enum loglevel, uint ecode, va_list args);
+extern void my_message_local(enum loglevel ll, uint ecode, ...);
 extern bool my_init(void);
 extern void my_end(int infoflag);
 extern char *my_filename(File fd);

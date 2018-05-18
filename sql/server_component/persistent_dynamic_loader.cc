@@ -44,6 +44,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "my_macros.h"
 #include "my_sys.h"
 #include "mysql/components/service_implementation.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
@@ -96,11 +97,34 @@ static const TABLE_FIELD_DEF component_table_def = {CT_FIELD_COUNT,
 
 class Component_db_intact : public Table_check_intact {
  protected:
-  void report_error(uint, const char *fmt, ...)
+  void report_error(uint ecode, const char *fmt, ...)
       MY_ATTRIBUTE((format(printf, 3, 4))) {
+    longlong log_ecode = 0;
+    switch (ecode) {
+      case 0:
+        log_ecode = ER_SERVER_TABLE_CHECK_FAILED;
+        break;
+      case ER_CANNOT_LOAD_FROM_TABLE_V2:
+        log_ecode = ER_SERVER_CANNOT_LOAD_FROM_TABLE_V2;
+        break;
+      case ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2:
+        log_ecode = ER_SERVER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2;
+        break;
+      case ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2:
+        log_ecode = ER_SERVER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2;
+        break;
+      default:
+        DBUG_ASSERT(false);
+        return;
+    }
+
     va_list args;
     va_start(args, fmt);
-    error_log_printf(ERROR_LEVEL, fmt, args);
+    LogEvent()
+        .type(LOG_TYPE_ERROR)
+        .prio(ERROR_LEVEL)
+        .errcode(log_ecode)
+        .messagev(fmt, args);
     va_end(args);
   }
 };

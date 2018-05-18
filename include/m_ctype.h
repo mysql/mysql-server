@@ -170,13 +170,13 @@ typedef struct CHARSET_INFO CHARSET_INFO;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 
 typedef struct MY_CHARSET_LOADER {
-  char error[192];
+  uint errcode;
+  char errarg[192];
   void *(*once_alloc)(size_t);
   void *(*mem_malloc)(size_t);
   void *(*mem_realloc)(void *, size_t);
   void (*mem_free)(void *);
-  void (*reporter)(enum loglevel, const char *format, ...)
-      MY_ATTRIBUTE((format(printf, 2, 3)));
+  void (*reporter)(enum loglevel, uint errcode, ...);
   int (*add_collation)(CHARSET_INFO *cs);
 } MY_CHARSET_LOADER;
 

@@ -6,7 +6,7 @@ mysqlpump: Got error: 2005: Unknown MySQL server host 'non_existent_ghost' (errn
 mysqlpump: [ERROR] (11) 
 Dump process encountered error and will not continue.
 # testing an invalid option: must not crash
-mysqlpump: [ERROR] unknown variable 'parallelism=3'
+mysqlpump: [ERROR] unknown variable 'parallelism=3'.
 mysqlpump: [ERROR] (7) Error during handling options
 Dump process encountered error and will not continue.
 mysqlpump: Got error: 2005: Unknown MySQL server host 'non_existent_ghost' (errno) while connecting to the MySQL server

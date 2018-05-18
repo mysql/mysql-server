@@ -7,7 +7,7 @@ drop table if exists t1;
 # They are reported to the server error log. Let's suppress them.
 --disable_query_log
 call mtr.add_suppression("Syntax error at '\\[strength tertiary\\]'");
-call mtr.add_suppression("Can't reset before a primary ignorable character U\\+A48C");
+call mtr.add_suppression("Failed to reset before a primary ignorable character U\\+A48C");
 --enable_query_log
 
 --echo In the following tests we change the order of letter "b"

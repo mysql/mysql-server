@@ -48,11 +48,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
     ulint line)       /*!< in: line number of the assertion */
 {
 #if !defined(UNIV_HOTBACKUP) && !defined(UNIV_NO_ERR_MSGS)
-  sql_print_error("InnoDB: Assertion failure: %s:" ULINTPF
-                  "%s%s\n"
-                  "InnoDB: thread " UINT64PF,
-                  innobase_basename(file), line, expr != nullptr ? ":" : "",
-                  expr != nullptr ? expr : "", os_thread_handle());
+  ib::error(ER_IB_MSG_1273)
+      << "Assertion failure: " << innobase_basename(file) << ":" << line
+      << ((expr != nullptr) ? ":" : "") << ((expr != nullptr) ? expr : "")
+      << " thread " << os_thread_handle();
+
 #else  /* !UNIV_HOTBACKUP && !defined(UNIV_NO_ERR_MSGS) */
   auto filename = base_name(file);
 

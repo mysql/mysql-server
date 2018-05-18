@@ -871,7 +871,7 @@ SHOW WARNINGS;
 Level	Code	Message
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Error	1273	Unknown collation: 'utf8_5624_2'
-Warning	1273	Syntax error at '[strength tertiary]' for COLLATION : utf8_5624_2
+Warning	1273	Syntax error at '[strength tertiary]' for COLLATION : utf8_5624_2.
 #
 # WL#5624, reset before primary ignorable
 #
@@ -881,7 +881,7 @@ SHOW WARNINGS;
 Level	Code	Message
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Error	1273	Unknown collation: 'utf8_5624_3'
-Warning	1273	Can't reset before a primary ignorable character U+A48C
+Warning	1273	Failed to reset before a primary ignorable character U+A48C.
 #
 # WL#5624, \u without hex digits is equal to {'\', 'u'}
 #

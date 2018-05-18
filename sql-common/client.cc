@@ -1870,7 +1870,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
           case OPT_protocol:
             if ((options->protocol = find_type(opt_arg, &sql_protocol_typelib,
                                                FIND_TYPE_BASIC)) <= 0) {
-              my_message_local(ERROR_LEVEL, "Unknown option to protocol: %s",
+              my_message_local(ERROR_LEVEL, EE_UNKNOWN_PROTOCOL_OPTION,
                                opt_arg);
               exit(1);
             }

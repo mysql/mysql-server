@@ -69,6 +69,7 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/service_mysql_password_policy.h"
 #include "mysqld_error.h"
+#include "mysys_err.h"
 #include "password.h"  // my_make_scrambled_password
 #include "sha1.h"      // SHA1_HASH_SIZE
 #include "sha2.h"
@@ -4554,13 +4555,16 @@ CHARSET_INFO *mysqld_collation_get_by_name(const char *name,
                                            CHARSET_INFO *name_cs) {
   CHARSET_INFO *cs;
   MY_CHARSET_LOADER loader;
+  char error[1024];
   my_charset_loader_init_mysys(&loader);
   if (!(cs = my_collation_get_by_name(&loader, name, MYF(0)))) {
     ErrConvString err(name, name_cs);
     my_error(ER_UNKNOWN_COLLATION, MYF(0), err.ptr());
-    if (loader.error[0])
+    if (loader.errcode) {
+      snprintf(error, sizeof(error) - 1, EE(loader.errcode), loader.errarg);
       push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                          ER_UNKNOWN_COLLATION, "%s", loader.error);
+                          ER_UNKNOWN_COLLATION, "%s", error);
+    }
   }
   return cs;
 }

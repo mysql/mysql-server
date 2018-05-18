@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,6 +52,7 @@
 #include "mysql/psi/mysql_thread.h"
 #include "mysql/psi/psi_thread.h"
 #include "mysys/mysys_priv.h"
+#include "mysys_err.h"
 #include "thr_mutex.h"
 
 static bool my_thread_global_init_done = false;
@@ -219,9 +220,7 @@ void my_thread_global_end() {
         are killed when we enter here.
       */
       if (THR_thread_count) /* purecov: begin inspected */
-        my_message_local(ERROR_LEVEL,
-                         "Error in my_thread_global_end(): "
-                         "%d threads didn't exit",
+        my_message_local(ERROR_LEVEL, EE_FAILED_TO_KILL_ALL_THREADS,
                          THR_thread_count);
         /* purecov: end */
 #endif

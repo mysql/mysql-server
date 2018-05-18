@@ -795,11 +795,10 @@ extern Slow_log_throttle log_throttle_qni;
   Table_check_intact::report_error, and others.
 
   @param level          The level of the msg significance
-  @param format         Printf style format of message
+  @param ecode          Error code of the error message.
   @param args           va_list list of arguments for the message
 */
-void error_log_printf(enum loglevel level, const char *format, va_list args)
-    MY_ATTRIBUTE((format(printf, 2, 0)));
+void error_log_print(enum loglevel level, uint ecode, va_list args);
 
 /**
   Initialize structures (e.g. mutex) needed by the error log.

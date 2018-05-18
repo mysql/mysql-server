@@ -258,7 +258,7 @@ mysqlslap: [Warning] Using a password on the command line interface can be insec
 #
 # Bug#18430704 : MYSQLSLAP CRASHES BY FLOATING POINT EXCEPTION
 #
-mysqlslap: [Warning] option 'iterations': unsigned value 0 adjusted to 1
+mysqlslap: [Warning] option 'iterations': unsigned value 0 adjusted to 1.
 
 #WL7764 : Make STRICT mode for transactional SEs default in 5.7
 #Adding negative test for added option --sql_mode

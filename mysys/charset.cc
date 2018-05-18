@@ -307,7 +307,7 @@ static int add_collation(CHARSET_INFO *cs) {
   Be silent by default: no warnings on the client side.
 */
 static void default_reporter(enum loglevel level MY_ATTRIBUTE((unused)),
-                             const char *format MY_ATTRIBUTE((unused)), ...) {}
+                             uint ecode MY_ATTRIBUTE((unused)), ...) {}
 my_error_reporter my_charset_error_reporter = default_reporter;
 
 /**
@@ -333,7 +333,8 @@ static void my_free_c(void *ptr) { my_free(ptr); }
   @param loader  Loader to initialize
 */
 void my_charset_loader_init_mysys(MY_CHARSET_LOADER *loader) {
-  loader->error[0] = '\0';
+  loader->errcode = 0;
+  loader->errarg[0] = '\0';
   loader->once_alloc = my_once_alloc_c;
   loader->mem_malloc = my_malloc_c;
   loader->mem_realloc = my_realloc_c;
@@ -367,7 +368,7 @@ static bool my_read_charset_file(MY_CHARSET_LOADER *loader,
 
   if (my_parse_charset_xml(loader, (char *)buf, len)) {
     my_printf_error(EE_UNKNOWN_CHARSET, "Error while parsing '%s': %s\n",
-                    MYF(0), filename, loader->error);
+                    MYF(0), filename, loader->errarg);
     goto error;
   }
 

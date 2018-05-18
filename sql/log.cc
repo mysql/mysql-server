@@ -75,6 +75,7 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
+#include "mysys_err.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"
@@ -201,11 +202,34 @@ static const TABLE_FIELD_DEF general_log_table_def = {GLT_FIELD_COUNT,
 
 class Query_log_table_intact : public Table_check_intact {
  protected:
-  void report_error(uint, const char *fmt, ...)
+  void report_error(uint ecode, const char *fmt, ...)
       MY_ATTRIBUTE((format(printf, 3, 4))) {
+    longlong log_ecode = 0;
+    switch (ecode) {
+      case 0:
+        log_ecode = ER_SERVER_TABLE_CHECK_FAILED;
+        break;
+      case ER_CANNOT_LOAD_FROM_TABLE_V2:
+        log_ecode = ER_SERVER_CANNOT_LOAD_FROM_TABLE_V2;
+        break;
+      case ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2:
+        log_ecode = ER_SERVER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2;
+        break;
+      case ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2:
+        log_ecode = ER_SERVER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2;
+        break;
+      default:
+        DBUG_ASSERT(false);
+        return;
+    }
+
     va_list args;
     va_start(args, fmt);
-    error_log_printf(ERROR_LEVEL, fmt, args);
+    LogEvent()
+        .type(LOG_TYPE_ERROR)
+        .prio(ERROR_LEVEL)
+        .errcode(log_ecode)
+        .messagev(fmt, args);
     va_end(args);
   }
 };
@@ -2139,20 +2163,18 @@ int log_vmessage(int log_type MY_ATTRIBUTE((unused)), va_list fili) {
    Table_check_intact::report_error, and others.
 
   @param level          The level of the msg significance
-  @param format         Printf style format of message
+  @param ecode          Error code of the error message.
   @param args           va_list list of arguments for the message
 
 */
-void error_log_printf(enum loglevel level, const char *format, va_list args) {
-  char buff[LOG_BUFF_MAX];
+void error_log_print(enum loglevel level, uint ecode, va_list args) {
   DBUG_ENTER("error_log_print");
 
-  vsnprintf(buff, sizeof(buff), format, args);
   LogEvent()
       .type(LOG_TYPE_ERROR)
-      .errcode(ER_LOG_PRINTF_MSG)
+      .errcode(ecode)
       .prio(level)
-      .verbatim(buff);
+      .messagev(EE(ecode), args);
 
   DBUG_VOID_RETURN;
 }

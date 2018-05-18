@@ -74,6 +74,7 @@
 #include "mysql/psi/mysql_file.h"
 #include "mysql_version.h"  // MYSQL_PERSIST_CONFIG_NAME
 #include "mysys/mysys_priv.h"
+#include "mysys_err.h"
 #include "mysys_ssl/my_default_priv.h"
 #include "typelib.h"
 #ifdef _WIN32
@@ -456,7 +457,7 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
              func, func_ctx, "", "", my_defaults_file, 0, is_login_file)) < 0)
       goto err;
     if (error > 0) {
-      my_message_local(ERROR_LEVEL, "Could not open required defaults file: %s",
+      my_message_local(ERROR_LEVEL, EE_FAILED_TO_OPEN_DEFAULTS_FILE,
                        my_defaults_file);
       goto err;
     }
@@ -472,8 +473,7 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
                                                   is_login_file)) < 0)
           goto err; /* Fatal error */
         if (error > 0) {
-          my_message_local(ERROR_LEVEL,
-                           "Could not open required defaults file: %s",
+          my_message_local(ERROR_LEVEL, EE_FAILED_TO_OPEN_DEFAULTS_FILE,
                            my_defaults_extra_file);
           goto err;
         }
@@ -484,8 +484,7 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
   DBUG_RETURN(0);
 
 err:
-  my_message_local(ERROR_LEVEL,
-                   "Fatal error in defaults handling. Program aborted!");
+  my_message_local(ERROR_LEVEL, EE_FAILED_TO_HANDLE_DEFAULTS_FILE);
   DBUG_RETURN(1);
 }
 
@@ -778,8 +777,7 @@ int my_load_defaults(const char *conf_file, const char **groups, int *argc,
   DBUG_RETURN(0);
 
 err:
-  my_message_local(ERROR_LEVEL,
-                   "Fatal error in defaults handling. Program aborted!");
+  my_message_local(ERROR_LEVEL, EE_FAILED_TO_HANDLE_DEFAULTS_FILE);
   exit(1);
   return 0; /* Keep compiler happy */
 }
@@ -838,9 +836,8 @@ static char *get_argument(const char *keyword, size_t kwlen, char *ptr,
 
   /* Print error msg if there is nothing after !include* directive */
   if (end <= ptr) {
-    my_message_local(ERROR_LEVEL,
-                     "Wrong '!%s' directive in config file %s at line %d!",
-                     keyword, name, line);
+    my_message_local(ERROR_LEVEL, EE_WRONG_DIRECTIVE_IN_CONFIG_FILE, keyword,
+                     name, line);
     return 0;
   }
   return ptr;
@@ -926,8 +923,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
         }
         end[0] = 0;
         my_message_local(WARNING_LEVEL,
-                         "skipping '%s' directive as maximum include"
-                         "recursion level was reached in file %s at line %d!",
+                         EE_SKIPPING_DIRECTIVE_DUE_TO_MAX_INCLUDE_RECURSION,
                          ptr, name, line);
         continue;
       }
@@ -1010,8 +1006,8 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
       found_group = 1;
       if (!(end = strchr(++ptr, ']'))) {
         my_message_local(ERROR_LEVEL,
-                         "Wrong group definition in config file %s at line %d!",
-                         name, line);
+                         EE_INCORRECT_GRP_DEFINITION_IN_CONFIG_FILE, name,
+                         line);
         goto err;
       }
       /* Remove end space */
@@ -1029,10 +1025,8 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
       continue;
     }
     if (!found_group) {
-      my_message_local(ERROR_LEVEL,
-                       "Found option without preceding group in config file"
-                       " %s at line %d!",
-                       name, line);
+      my_message_local(ERROR_LEVEL, EE_OPTION_WITHOUT_GRP_IN_CONFIG_FILE, name,
+                       line);
       goto err;
     }
 
@@ -1647,10 +1641,7 @@ int check_file_permissions(const char *file_name, bool is_login_file) {
   */
   if (is_login_file && (stat_info.st_mode & (S_IXUSR | S_IRWXG | S_IRWXO)) &&
       (stat_info.st_mode & S_IFMT) == S_IFREG) {
-    my_message_local(WARNING_LEVEL,
-                     "%s should be readable/writable only by "
-                     "current user.",
-                     file_name);
+    my_message_local(WARNING_LEVEL, EE_CONFIG_FILE_PERMISSION_ERROR, file_name);
     return 0;
   }
   /*
@@ -1662,8 +1653,8 @@ int check_file_permissions(const char *file_name, bool is_login_file) {
            (stat_info.st_mode & S_IFMT) == S_IFREG)
 
   {
-    my_message_local(WARNING_LEVEL,
-                     "World-writable config file '%s' is ignored.", file_name);
+    my_message_local(WARNING_LEVEL, EE_IGNORE_WORLD_WRITABLE_CONFIG_FILE,
+                     file_name);
     return 0;
   }
 #endif

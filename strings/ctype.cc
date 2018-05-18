@@ -36,6 +36,7 @@
 #include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_xml.h"
+#include "mysys_err.h"
 
 /*
 
@@ -427,8 +428,7 @@ static int cs_enter(MY_XML_PARSER *st, const char *attr, size_t len) {
 
   switch (state) {
     case 0:
-      i->loader->reporter(WARNING_LEVEL, "Unknown LDML tag: '%.*s'", (int)len,
-                          attr);
+      i->loader->reporter(WARNING_LEVEL, EE_UNKNOWN_LDML_TAG, (int)len, attr);
       break;
 
     case _CS_CHARSET:
@@ -748,8 +748,8 @@ bool my_parse_charset_xml(MY_CHARSET_LOADER *loader, const char *buf,
   my_charset_file_free(&info);
   if (rc != MY_XML_OK) {
     const char *errstr = my_xml_error_string(&p);
-    if (sizeof(loader->error) > 32 + strlen(errstr)) {
-      sprintf(loader->error, "at line %d pos %d: %s",
+    if (sizeof(loader->errarg) > 32 + strlen(errstr)) {
+      sprintf(loader->errarg, "at line %d pos %d: %s",
               my_xml_error_lineno(&p) + 1, (int)my_xml_error_pos(&p),
               my_xml_error_string(&p));
     }

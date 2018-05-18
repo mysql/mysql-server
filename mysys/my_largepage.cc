@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,6 +39,7 @@
 #include "my_sys.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysys/mysys_priv.h"
+#include "mysys_err.h"
 
 static uint my_get_large_page_size_int(void);
 
@@ -51,7 +52,7 @@ uint my_get_large_page_size(void) {
   if (!(size = my_get_large_page_size_int()))
     my_message_local(
         WARNING_LEVEL,
-        "Failed to determine large page size"); /* purecov: inspected */
+        EE_FAILED_TO_DETERMINE_LARGE_PAGE_SIZE); /* purecov: inspected */
 
   DBUG_RETURN(size);
 }

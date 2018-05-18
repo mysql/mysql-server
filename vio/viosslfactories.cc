@@ -33,6 +33,7 @@
 #include "mysql/psi/mysql_rwlock.h"
 #endif
 #include "mysql/service_mysql_alloc.h"
+#include "mysys_err.h"
 #include "vio/vio_priv.h"
 
 #ifdef HAVE_OPENSSL
@@ -205,7 +206,7 @@ static int vio_set_cert_stuff(SSL_CTX *ctx, const char *cert_file,
     DBUG_PRINT("error",
                ("%s from file '%s'", sslGetErrString(*error), cert_file));
     DBUG_EXECUTE("error", ERR_print_errors_fp(DBUG_FILE););
-    my_message_local(ERROR_LEVEL, "SSL error: %s from '%s'",
+    my_message_local(ERROR_LEVEL, EE_SSL_ERROR_FROM_FILE,
                      sslGetErrString(*error), cert_file);
     DBUG_RETURN(1);
   }
@@ -216,7 +217,7 @@ static int vio_set_cert_stuff(SSL_CTX *ctx, const char *cert_file,
     DBUG_PRINT("error",
                ("%s from file '%s'", sslGetErrString(*error), key_file));
     DBUG_EXECUTE("error", ERR_print_errors_fp(DBUG_FILE););
-    my_message_local(ERROR_LEVEL, "SSL error: %s from '%s'",
+    my_message_local(ERROR_LEVEL, EE_SSL_ERROR_FROM_FILE,
                      sslGetErrString(*error), key_file);
     DBUG_RETURN(1);
   }
@@ -229,7 +230,7 @@ static int vio_set_cert_stuff(SSL_CTX *ctx, const char *cert_file,
     *error = SSL_INITERR_NOMATCH;
     DBUG_PRINT("error", ("%s", sslGetErrString(*error)));
     DBUG_EXECUTE("error", ERR_print_errors_fp(DBUG_FILE););
-    my_message_local(ERROR_LEVEL, "SSL error: %s", sslGetErrString(*error));
+    my_message_local(ERROR_LEVEL, EE_SSL_ERROR, sslGetErrString(*error));
     DBUG_RETURN(1);
   }
 

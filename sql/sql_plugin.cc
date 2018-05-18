@@ -495,8 +495,29 @@ static void report_error(int where_to, uint error, ...) {
     va_end(args);
   }
   if (where_to & REPORT_TO_LOG) {
+    longlong ecode = 0;
+    switch (error) {
+      case ER_UDF_NO_PATHS:
+        ecode = ER_NO_PATH_FOR_SHARED_LIBRARY;
+        break;
+      case ER_CANT_OPEN_LIBRARY:
+        ecode = ER_FAILED_TO_OPEN_SHARED_LIBRARY;
+        break;
+      case ER_CANT_FIND_DL_ENTRY:
+        ecode = ER_FAILED_TO_FIND_DL_ENTRY;
+        break;
+      case ER_OUTOFMEMORY:
+        ecode = ER_SERVER_OUTOFMEMORY;
+        break;
+      case ER_UDF_EXISTS:
+        ecode = ER_UDF_ALREADY_EXISTS;
+        break;
+      default:
+        DBUG_ASSERT(false);
+        return;
+    }
     va_start(args, error);
-    error_log_printf(ERROR_LEVEL, ER_DEFAULT(error), args);
+    LogEvent().type(LOG_TYPE_ERROR).prio(ERROR_LEVEL).lookupv(ecode, args);
     va_end(args);
   }
 }

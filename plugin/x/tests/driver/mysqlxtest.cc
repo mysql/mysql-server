@@ -32,7 +32,7 @@
 #include "plugin/x/tests/driver/processor/stream_processor.h"
 #include "violite.h"
 
-static void ignore_traces_from_libraries(enum loglevel ll, const char *format,
+static void ignore_traces_from_libraries(enum loglevel ll, uint ecode,
                                          va_list args) {}
 
 bool parse_mysql_connstring(const std::string &connstring,

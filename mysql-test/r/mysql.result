@@ -520,8 +520,8 @@ ERROR 1243 (HY000) at line 15: Unknown prepared statement handler (x) given to E
 #
 # Bug #16102788: INDETERMINATE BEHAVIOR DUE TO EMPTY OPTION VALUES
 #
-mysql: [ERROR] mysql: Empty value for 'port' specified
-mysql: [ERROR] mysql: Empty value for 'port' specified
+mysql: [ERROR] mysql: Empty value for 'port' specified.
+mysql: [ERROR] mysql: Empty value for 'port' specified.
 #
 # Bug #21464621: MYSQL CLI SHOULD SUGGEST CONNECT-EXPIRED-PASSWORD WHEN ERROR 1862 OCCURS
 #

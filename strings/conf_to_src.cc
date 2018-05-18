@@ -149,10 +149,11 @@ static int add_collation(CHARSET_INFO *cs) {
 }
 
 static void default_reporter(enum loglevel level MY_ATTRIBUTE((unused)),
-                             const char *format MY_ATTRIBUTE((unused)), ...) {}
+                             uint ecode MY_ATTRIBUTE((unused)), ...) {}
 
 static void my_charset_loader_init(MY_CHARSET_LOADER *loader) {
-  loader->error[0] = '\0';
+  loader->errcode = 0;
+  loader->errarg[0] = '\0';
   loader->once_alloc = malloc;
   loader->mem_malloc = malloc;
   loader->mem_realloc = realloc;
@@ -178,7 +179,7 @@ static int my_read_charset_file(const char *filename) {
   close(fd);
 
   if (my_parse_charset_xml(&loader, buf, len)) {
-    fprintf(stderr, "Error while parsing '%s': %s\n", filename, loader.error);
+    fprintf(stderr, "Error while parsing '%s': %s\n", filename, loader.errarg);
     exit(1);
   }
 

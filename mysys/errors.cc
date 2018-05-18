@@ -75,10 +75,69 @@ const char *globerrs[GLOBERRS] = {
     "'%s' file",
     "File '%s' not found (OS errno %d - %s)",
     "File '%s' (fileno: %d) was not closed",
-    "Can't change ownership of the file '%s' (OS errno %d - %s)",
-    "Can't change permissions of the file '%s' (OS errno %d - %s)",
-    "Can't seek in file '%s' (OS errno %d - %s)",
-    "Memory capacity exceeded (capacity %llu bytes)"};
+    "Cannot change ownership of the file '%s' (OS errno %d - %s)",
+    "Cannot change permissions of the file '%s' (OS errno %d - %s)",
+    "Cannot seek in file '%s' (OS errno %d - %s)",
+    "Memory capacity exceeded (capacity %llu bytes)",
+    "Disk is full writing '%s' (OS errno %d - %s). Waiting for someone to free "
+    "space... Retry in %d secs. Message reprinted in %d secs.",
+    "Failed to create timer (OS errno %d).",
+    "Failed to delete timer (OS errno %d).",
+    "Failed to create timer queue (OS errno %d).",
+    "Failed to start timer notify thread.",
+    "Failed to create event to interrupt timer notifier thread (OS errno %d).",
+    "Failed to register timer event with queue (OS errno %d), exiting timer "
+    "notifier thread.",
+    "LoadLibrary(\"kernel32.dll\") failed: GetLastError returns %lu.",
+    "%s.",
+    "Failed to determine large page size.",
+    "Error in my_thread_global_end(): %d thread(s) did not exit.",
+    "Failed to create IO completion port (OS errno %d).",
+    "Failed to open required defaults file: %s",
+    "Fatal error in defaults handling. Program aborted!",
+    "Wrong '!%s' directive in config file %s at line %d.",
+    "Skipping '%s' directive as maximum include recursion level was"
+    " reached in file %s at line %d.",
+    "Wrong group definition in config file %s at line %d.",
+    "Found option without preceding group in config file %s at line %d.",
+    "%s should be readable/writable only by current user.",
+    "World-writable config file '%s' is ignored.",
+    "%s: Option '%s' was used, but is disabled.",
+    "%s: Option '-%c' was used, but is disabled.",
+    "Using a password on the command line interface can be insecure.",
+    "Unknown suffix '%c' used for variable '%s' (value '%s').",
+    "SSL error: %s from '%s'.",
+    "SSL error: %s.",
+    "%d  %s.",
+    "Packets out of order (found %u, expected %u).",
+    "Unknown option to protocol: %s.",
+    "Failed to locate server public key '%s'.",
+    "Public key is not in Privacy Enhanced Mail format: '%s'.",
+    "%s.",
+    "unknown variable '%s'.",
+    "unknown option '--%s'.",
+    "%s: unknown option '-%c'.",
+    "%s: option '--%s' cannot take an argument.",
+    "%s: option '--%s' requires an argument.",
+    "%s: option '-%c' requires an argument.",
+    "%s: ignoring option '--%s' due to invalid value '%s'.",
+    "%s: Empty value for '%s' specified.",
+    "%s: Maximum value of '%s' cannot be set.",
+    "option '%s': boolean value '%s' was not recognized. Set to OFF.",
+    "%s: Error while setting value '%s' to '%s'.",
+    "Incorrect integer value: '%s'.",
+    "Incorrect unsigned integer value: '%s'.",
+    "option '%s': signed value %s adjusted to %s.",
+    "option '%s': unsigned value %s adjusted to %s.",
+    "option '%s': value %s adjusted to %s.",
+    "option '%s': value %g adjusted to %g.",
+    "Invalid decimal value for option '%s'.",
+    "%s.",
+    "Failed to reset before a primary ignorable character %s.",
+    "Failed to reset before a territory ignorable character %s.",
+    "Shift character out of range: %s.",
+    "Reset character out of range: %s.",
+    "Unknown LDML tag: '%.*s'."};
 
 /*
  We cannot call my_error/my_printf_error here in this function.
@@ -93,10 +152,9 @@ void wait_for_free_space(const char *filename, int errors) {
 
   if (!(errors % MY_WAIT_GIVE_USER_A_MESSAGE)) {
     char errbuf[MYSYS_STRERROR_SIZE];
-    my_message_local(ERROR_LEVEL, EE(EE_DISK_FULL), filename, my_errno(),
-                     my_strerror(errbuf, sizeof(errbuf), my_errno()));
     my_message_local(
-        ERROR_LEVEL, "Retry in %d secs. Message reprinted in %d secs",
+        ERROR_LEVEL, EE_DISK_FULL_WITH_RETRY_MSG, filename, my_errno(),
+        my_strerror(errbuf, sizeof(errbuf), my_errno()),
         MY_WAIT_FOR_USER_TO_FIX_PANIC,
         MY_WAIT_GIVE_USER_A_MESSAGE * MY_WAIT_FOR_USER_TO_FIX_PANIC);
   }
