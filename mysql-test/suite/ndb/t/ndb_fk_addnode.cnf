@@ -30,8 +30,6 @@ ndb-extra-logging=99
 log-error-verbosity=3
 # Enable load data local functionality
 local-infile=true
-# Switch off mysqlx as default plugin
-mysqlx=OFF
 
 [cluster_config.ndbd.3.1]
 Nodegroup=65536

@@ -18,8 +18,6 @@ ndb-wait-connected=20
 ndb-wait-setup=120
 ndb-cluster-connection-pool=1
 binlog-format=row
-# Switch off mysqlx as default plugin
-mysqlx=OFF
 
 [mysqld.1.1]
 ndb-log-update-as-write=1

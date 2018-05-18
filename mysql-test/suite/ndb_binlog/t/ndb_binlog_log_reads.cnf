@@ -25,9 +25,6 @@ ndb-log-empty-update
 # Enable load data local functionality
 local-infile=true
 
-# Switch off mysqlx as default plugin
-mysqlx=OFF
-
 [mysqld.1.1]
 ndb-log-update-as-write=1
 ndb-log-updated-only=1

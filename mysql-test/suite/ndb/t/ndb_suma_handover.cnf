@@ -12,8 +12,6 @@ RestartSubscriberConnectTimeout=25000
 [mysqld]
 ndbcluster
 ndb-cluster-connection-pool=5
-# Switch off mysqlx as default plugin
-mysqlx=OFF
 
 [ENV]
 NDB_CONNECTSTRING=             @mysql_cluster.1.ndb_connectstring
