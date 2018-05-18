@@ -1717,6 +1717,11 @@ static int check_if_server_properly_configured() {
 
   gr_lower_case_table_names = startup_pre_reqs.lower_case_table_names;
   DBUG_ASSERT(gr_lower_case_table_names <= 2);
+#ifndef DBUG_OFF
+  DBUG_EXECUTE_IF("group_replication_skip_encode_lower_case_table_names", {
+    gr_lower_case_table_names = SKIP_ENCODING_LOWER_CASE_TABLE_NAMES;
+  });
+#endif
 
   DBUG_RETURN(0);
 }
