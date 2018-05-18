@@ -72,14 +72,14 @@ include/assert.inc ['There is a value 3 in table t2']
 # 6. Check that stable set and certification info size are
 #    properly updated after stable set propagation and
 #    certification info garbage collection on server 1.
-include/assert.inc ['Count_transactions_rows_validating must be 0']
+include/assert.inc ['Count_transactions_rows_validating must be 2']
 include/assert.inc ['Transactions_committed_all_members must be equal to GTID_EXECUTED']
 
 ############################################################
 # 7. Check that stable set and certification info size are
 #    properly updated after stable set propagation and
 #    certification info garbage collection on server 2.
-include/assert.inc ['Count_transactions_rows_validating must be 0']
+include/assert.inc ['Count_transactions_rows_validating must be 2']
 include/assert.inc ['Transactions_committed_all_members must be equal to GTID_EXECUTED']
 
 ############################################################

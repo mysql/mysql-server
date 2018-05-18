@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -298,6 +298,11 @@ int Applier_module::apply_data_packet(Data_packet *data_packet,
   int error= 0;
   uchar* payload= data_packet->payload;
   uchar* payload_end= data_packet->payload + data_packet->len;
+
+  DBUG_EXECUTE_IF("group_replication_before_apply_data_packet", {
+    const char act[] = "now wait_for continue_apply";
+    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+  });
 
   if (check_single_primary_queue_status())
     return 1; /* purecov: inspected */
