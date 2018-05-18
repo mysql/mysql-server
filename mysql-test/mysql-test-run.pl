@@ -176,6 +176,7 @@ my %mysqld_logs;
 
 # Storage for changed environment variables
 my %old_env;
+my %visited_suite_names;
 
 # Global variables
 our $opt_client_dbx;
@@ -377,21 +378,79 @@ sub main {
     collect_test_cases_from_list(\@opt_cases, $opt_do_test_list, \$opt_ctest);
   }
 
-  if (!$opt_suites) {
-    $opt_suites = $DEFAULT_SUITES;
+  my $suite_set;
+  if ($opt_suites) {
+    # Collect suite set if passed through the MTR command line
+    if ($opt_suites =~ /^default$/i) {
+      $suite_set = 0;
+    } elsif ($opt_suites =~ /^non[-]default$/i) {
+      $suite_set = 1;
+    } elsif ($opt_suites =~ /^all$/i) {
+      $suite_set = 2;
+    }
+  } else {
+    # Use all suites(suite set 2) in case the suite set isn't explicitly
+    # specified and :-
+    # a) A PREFIX or REGEX is specified using the --do-suite option
+    # b) Test cases are passed on the command line
+    # c) The --do-test or --do-test-list options are used
+    #
+    # If none of the above are used, use the default suite set (i.e.,
+    # suite set 0)
+    $suite_set = ($opt_do_suite or
+                    @opt_cases  or
+                    $::do_test  or
+                    $opt_do_test_list
+    ) ? 2 : 0;
   }
 
-  if ($opt_skip_sys_schema) {
-    $opt_suites =~ s/,sysschema//;
+  # Ignore the suite set parameter in case a list of suites is explicitly
+  # given
+  if (defined $suite_set) {
+    mtr_print(
+         "Using '" . ("default", "non-default", "all")[$suite_set] . "' suites")
+      if @opt_cases;
+
+    if ($suite_set == 0) {
+      # Run default set of suites
+      $opt_suites = $DEFAULT_SUITES;
+    } else {
+      # Include the main suite by default when suite set is 'all'
+      # since it does not have a directory structure like:
+      # mysql-test/<suite_name>/[<t>,<r>,<include>]
+      $opt_suites = ($suite_set == 2) ? "main" : "";
+
+      # Scan all sub-directories for available test suites
+      # $opt_suites is updated by get_all_suites()
+      find(\&get_all_suites, "$basedir/mysql-test");
+      find(\&get_all_suites, "$basedir/internal");
+
+      if ($suite_set == 1) {
+        # Run only with non-default suites
+        for my $suite (split(",", $DEFAULT_SUITES)) {
+          for ("$suite", "i_$suite") {
+            remove_suite_from_list($_);
+          }
+        }
+      }
+
+      # Remove cluster test suites if ndb cluster is not enabled
+      if (not $ndbcluster_enabled) {
+        for my $suite (split(",", $opt_suites)) {
+          next if not $suite =~ /ndb/;
+          remove_suite_from_list($suite);
+        }
+      }
+    }
   }
 
   my $mtr_suites = $opt_suites;
-  # Skip the suites that doesn't match --do-suite filter
+  # Skip suites which don't match the --do-suite filter
   if ($opt_do_suite) {
     my $opt_do_suite_reg = init_pattern($opt_do_suite, "--do-suite");
     for my $suite (split(",", $opt_suites)) {
       if ($opt_do_suite_reg and not $suite =~ /$opt_do_suite_reg/) {
-        $opt_suites =~ s/$suite,?//;
+        remove_suite_from_list($suite);
       }
     }
 
@@ -399,8 +458,36 @@ sub main {
     $opt_suites =~ s/,$//;
   }
 
+  if ($opt_skip_sys_schema) {
+    remove_suite_from_list("sysschema");
+  }
+
   if ($opt_suites) {
-    mtr_report("Using suites: $opt_suites") unless @opt_cases;
+    # Remove extended suite if the original suite is already in
+    # the suite list
+    for my $suite (split(",", $opt_suites)) {
+      if ($suite =~ /^i_(.*)/) {
+        my $orig_suite = $1;
+        if ($opt_suites =~ /,$orig_suite,/ or
+            $opt_suites =~ /^$orig_suite,/ or
+            $opt_suites =~ /^$orig_suite$/ or
+            $opt_suites =~ /,$orig_suite$/) {
+          remove_suite_from_list($suite);
+        }
+      }
+    }
+
+    # Finally, filter out duplicate suite names if present,
+    # i.e., using `--suite=ab,ab mytest` should not end up
+    # running ab.mytest twice.
+    my %unique_suites = map { $_ => 1 } split(",", $opt_suites);
+    $opt_suites = join(",", sort keys %unique_suites);
+
+    if (@opt_cases) {
+      mtr_verbose("Using suite(s): $opt_suites");
+    } else {
+      mtr_report("Using suite(s): $opt_suites");
+    }
   } else {
     if ($opt_do_suite) {
       mtr_error("The PREFIX/REGEX '$opt_do_suite' doesn't match any of " .
@@ -495,7 +582,6 @@ sub main {
   my $plugin_def =
     "$basedir/plugin/*/tests/mtr/plugin.defs " .
     "$basedir/internal/plugin/*/tests/mtr/plugin.defs " .
-    "$basedir/rapid/plugin/*/tests/mtr/plugin.defs " .
     "$basedir/components/*/tests/mtr/plugin.defs " . "suite/*/plugin.defs";
 
   for (glob $plugin_def) {
@@ -2467,10 +2553,6 @@ sub read_plugin_defs($) {
 
     my ($plugin) = find_plugin($plug_file, $plug_loc);
 
-    if (!$plugin) {
-      ($plugin) = find_plugin($plug_file, "rapid/$plug_loc");
-    }
-
     # Set env. variables that tests may use, set to empty if plugin
     # listed in def. file but not found.
     if ($plugin) {
@@ -2502,6 +2584,41 @@ sub read_plugin_defs($) {
     }
   }
   close PLUGDEF;
+}
+
+#
+# Scan sub-directories in basedir and fetch all
+# mysql-test suite names
+#
+sub get_all_suites {
+  # Skip processing if path does not point to a directory
+  return if not -d;
+
+  # NB: suite/(.*)/t$ is required because of suites like
+  #     'engines/funcs' and 'engines/iuds'
+  my $suite_name = $1
+    if ($File::Find::name =~ /mysql\-test[\/\\]suite[\/\\](.*)[\/\\]t$/ or
+       $File::Find::name =~ /mysql\-test[\/\\]suite[\/\\]([^\/\\]*).*/     or
+       $File::Find::name =~ /plugin[\/\\](.*)[\/\\]tests[\/\\]mtr[\/\\]t$/ or
+       $File::Find::name =~ /components[\/\\](.*)[\/\\]tests[\/\\]mtr[\/\\]t$/);
+  return if not defined $suite_name;
+
+  # Skip extracting suite name if the path is already processed
+  if (not $visited_suite_names{$suite_name}) {
+    $visited_suite_names{$suite_name}++;
+    $opt_suites = $opt_suites . ($opt_suites ? "," : "") . $suite_name;
+  }
+}
+
+#
+# Remove specified suite from the comma separated suite list
+#
+sub remove_suite_from_list {
+  my $suite = shift;
+  ($opt_suites =~ s/,$suite,/,/)  or
+    ($opt_suites =~ s/^$suite,//) or
+    ($opt_suites =~ s/^$suite$//) or
+    ($opt_suites =~ s/,$suite$//);
 }
 
 # Sets a long list of environment variables. Those that begin with
@@ -2571,7 +2688,6 @@ sub environment_setup {
       my_find_bin($bindir, [ "runtime_output_directory", "bin" ], "ndb_mgm");
 
     $ENV{'NDB_WAITER'} = $exe_ndb_waiter;
-
 
     $ENV{'NDB_CONFIG'} =
       my_find_bin($bindir, [ "runtime_output_directory", "bin" ], "ndb_config");
@@ -6775,9 +6891,18 @@ Options to control what test suites or cases to run
                         or fulfills REGEX.
   start-from=PREFIX     Run test cases starting test prefixed with PREFIX where
                         prefix may be suite.testname or just testname.
-  suite[s]=NAME1,..,NAMEN
+  suite[s]=NAME1,..,NAMEN or [default|all|non-default]
                         Collect tests in suites from the comma separated
-                        list of suite names. The default is "$DEFAULT_SUITES".
+                        list of suite names.
+                        The default is: "$DEFAULT_SUITES"
+                        It can also be used to specify which set of suites set
+                        to run. Suite sets take the below values -
+                        'default'    - will run the default suites.
+                        'all'        - will scan the mysql directory and run
+                                       all available suites.
+                        'non-default'- will scan the mysql directory for
+                                       available suites and runs only the
+                                       non-default suites.
   with-ndbcluster-only  Run only tests that include "ndb" in the filename.
 
 Options that specify ports

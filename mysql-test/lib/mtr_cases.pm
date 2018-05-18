@@ -30,8 +30,8 @@ package mtr_cases;
 use strict;
 
 use base qw(Exporter);
-our @EXPORT= qw(collect_option collect_test_cases init_pattern
-                $group_replication);
+our @EXPORT = qw(collect_option collect_test_cases init_pattern
+  $do_test $group_replication);
 
 use File::Basename;
 use File::Spec::Functions qw / splitdir /;
@@ -188,7 +188,7 @@ sub create_disabled_test_list($$) {
   # Check for the tests to be skipped in valgrind which are listed
   # in "mysql-test/collections/disabled-valgrind.list" file.
   if ($::opt_valgrind) {
-   # Check for disabled-valgrind.list
+    # Check for disabled-valgrind.list
     if ($opt_skip_test_list !~ /disabled-valgrind\.list$/) {
       push(@disabled_collection, "collections/disabled-valgrind.list");
     }

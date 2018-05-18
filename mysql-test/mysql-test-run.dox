@@ -4213,12 +4213,21 @@
 
       Run all test cases from suites having a name that begins with
       the given <b><em>prefix</em></b> value or matches the regular
-      expression. If the argument matches no existing suites, @ref
+      expression. If the argument matches no existing suite, @ref
       PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" aborts.
 
       The argument for the <b>`--do-suite`</b> option allows more
       flexible specification of which tests to perform. See the
       description of the <b>`--do-test`</b> option for details.
+
+      In case a suite or a list of suites is specified using the
+      <b>`--suite`</b> option along with a pattern or regular
+      expression given through <b>`--do-suite`</b>, only suite(s)
+      from the list which match the prefix or regular expression
+      are picked up.
+
+      When the <b>`--do-suite`</b> option is specified more than once
+      on the command line, only the last occurrence is considered.
     </li>
 
     <li>
@@ -5024,11 +5033,33 @@
     </li>
 
     <li>
-      <tt>`--suite`=<b>suite_name</b></tt>
+      <tt>`--suite(s)`=<b>{suite_name|suite_list|suite_set}</b></tt>
 
-      Run the named test suite. The default name is <b>main</b> (the
-      regular test suite located in the <b>mysql-test</b>
-      directory).
+      Run a suite or a comma separated list of suites or those suites
+      which fall under the specified suite set. If the option is not
+      specified explicitly, MTR assumes that it needs to use the
+      default suite set for the test run.
+
+      The suite set's MTR can use are case insensitive and take the
+      below values:
+      @verbatim
+  default     - To run the default list of suites.
+  all         - To scan the mysql directory and run all available suites.
+  non-default - To scan the mysql directory for available suites and
+                collect only the non-default suites.
+      @endverbatim
+
+      The suite set 'all' is used implicitly if neither a suite nor a
+      suite list is specified and\n
+      (i)  There are tests given on the MTR command line <b>or</b>\n
+      (ii) Any of the following options are used: <b>--do-suite</b>,
+      <b>--do-test</b>, <b>--do-test-list</b>.
+
+      Note that suite sets 'all' and 'non-default' do not include ndb test
+      suites in case ndb cluster is not enabled.
+
+      If a suite set is specified in the suite list, MTR does not treat it
+      as a suite set and considers it as the name of a suite to be run.
     </li>
 
     <li>

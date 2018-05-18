@@ -30,6 +30,7 @@ package My::Find;
 use strict;
 use Carp;
 
+use mtr_report;
 use My::Platform;
 
 use base qw(Exporter);
@@ -207,9 +208,12 @@ sub find_error {
   push(@names, ref $names eq "ARRAY" ? @$names : $names);
   push(@paths, ref $paths eq "ARRAY" ? @$paths : $paths);
 
-  croak "mysql-test-run: *** ERROR: Could not find",
-    commify(fnuttify(@names)), " in ...\n",
-    commify(fnuttify(my_find_paths($base, $paths, $names))), "\n";
+  mtr_verbose("The paths scanned by MTR are:\n",
+              join("\n", fnuttify(my_find_paths($base, $paths, $names))), "\n");
+
+  mtr_error("Could not find",
+            commify(fnuttify(@names)),
+            "in scanned directories");
 }
 
 1;
