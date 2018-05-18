@@ -1560,7 +1560,6 @@ bool dd_instant_columns_exist(const dd::Table &dd_table) {
 
   dd_table.se_private_data().get_uint32(
       dd_table_key_strings[DD_TABLE_INSTANT_COLS], &n_cols);
-  ut_ad(n_cols > 0);
 
   for (auto col : dd_table.columns()) {
     if (col->is_virtual() || col->is_se_hidden()) {
@@ -1579,6 +1578,8 @@ bool dd_instant_columns_exist(const dd::Table &dd_table) {
   }
 
   ut_ad(found);
+  /* Please note that n_cols could be 0 if the table only had some virtual
+  columns before instant ADD COLUMN. So below check should be sufficient */
   ut_ad(non_instant_cols == n_cols);
   return (found && non_instant_cols == n_cols);
 }
