@@ -2997,6 +2997,7 @@ fil_reinit_space_header_for_table(
 	they won't violate the latch ordering. */
 	dict_table_x_unlock_indexes(table);
 	row_mysql_unlock_data_dictionary(trx);
+	DEBUG_SYNC_C("trunc_table_index_dropped_release_dict_lock");
 
 	/* Lock the search latch in shared mode to prevent user
 	from disabling AHI during the scan */
