@@ -289,6 +289,11 @@ int Applier_module::apply_data_packet(Data_packet *data_packet,
   uchar *payload = data_packet->payload;
   uchar *payload_end = data_packet->payload + data_packet->len;
 
+  DBUG_EXECUTE_IF("group_replication_before_apply_data_packet", {
+    const char act[] = "now wait_for continue_apply";
+    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+  });
+
   if (check_single_primary_queue_status()) return 1; /* purecov: inspected */
 
   while ((payload != payload_end) && !error) {

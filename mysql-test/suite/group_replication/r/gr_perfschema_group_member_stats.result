@@ -53,7 +53,7 @@ server1
 include/assert.inc [The value of member_id should be equal to server UUID after starting group replication]
 include/assert.inc [The value of Count_Transactions_checked should be 6 after starting group replication]
 include/assert.inc [The value of Count_conflicts_detected should be 0 after starting group replication]
-include/assert.inc [The value of Count_Transactions_rows_validating should be 2 after starting group replication]
+include/assert.inc [The value of Count_Transactions_rows_validating should be 3 after starting group replication]
 include/assert.inc [The value of Transactions_committed_all_members should have server 1 GTIDs before server2 start]
 include/assert.inc [The value of Last_Conflict_free_transaction should be the gtid of the last applied transaction.]
 SET SESSION sql_log_bin= 0;
