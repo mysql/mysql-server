@@ -7354,25 +7354,11 @@ int binlog_log_row(TABLE *table, const uchar *before_record,
   if (check_table_binlog_row_based(thd, table)) {
     if (thd->variables.transaction_write_set_extraction != HASH_ALGORITHM_OFF) {
       if (before_record && after_record) {
-        size_t length = table->s->reclength;
-        uchar *temp_image =
-            (uchar *)my_malloc(PSI_NOT_INSTRUMENTED, length, MYF(MY_WME));
-        if (!temp_image) {
-          LogErr(ERROR_LEVEL, ER_TRX_WRITE_SET_OOM);
-          return 1;
-        }
-        add_pke(table, thd);
-
-        memcpy(temp_image, table->record[0], (size_t)table->s->reclength);
-        memcpy(table->record[0], table->record[1], (size_t)table->s->reclength);
-
-        add_pke(table, thd);
-
-        memcpy(table->record[0], temp_image, (size_t)table->s->reclength);
-
-        my_free(temp_image);
+        /* capture both images pke */
+        add_pke(table, thd, table->record[0]);
+        add_pke(table, thd, table->record[1]);
       } else {
-        add_pke(table, thd);
+        add_pke(table, thd, table->record[0]);
       }
     }
     DBUG_DUMP("read_set 10", (uchar *)table->read_set->bitmap,

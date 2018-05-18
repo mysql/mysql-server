@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,8 @@
 #ifndef RPL_WRITE_SET_HANDLER_INCLUDED
 #define RPL_WRITE_SET_HANDLER_INCLUDED
 
+#include "my_inttypes.h"
+
 extern const char *transaction_write_set_hashing_algorithms[];
 
 class THD;
@@ -42,7 +44,8 @@ const char *get_write_set_algorithm_string(unsigned int algorithm);
 
   @param[in] table - TABLE object
   @param[in] thd - THD object pointing to current thread.
+  @param[in] record - The record to process (record[0] or record[1]).
 */
-void add_pke(TABLE *table, THD *thd);
+void add_pke(TABLE *table, THD *thd, uchar *record);
 
 #endif

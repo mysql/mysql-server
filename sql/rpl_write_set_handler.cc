@@ -418,8 +418,9 @@ static void generate_hash_pke(const std::string &pke, THD *thd) {
   DBUG_VOID_RETURN;
 }
 
-void add_pke(TABLE *table, THD *thd) {
+void add_pke(TABLE *table, THD *thd, uchar *record) {
   DBUG_ENTER("add_pke");
+  DBUG_ASSERT(record == table->record[0] || record == table->record[1]);
   /*
     The next section extracts the primary key equivalent of the rows that are
     changing during the current transaction.
@@ -459,6 +460,7 @@ void add_pke(TABLE *table, THD *thd) {
   bool writeset_hashes_added = false;
 
   if (table->key_info && (table->s->primary_key < MAX_KEY)) {
+    my_ptrdiff_t ptrdiff = record - table->record[0];
     std::string pke_schema_table;
     pke_schema_table.reserve(NAME_LEN * 3);
     pke_schema_table.append(HASH_STRING_SEPARATOR);
@@ -491,28 +493,33 @@ void add_pke(TABLE *table, THD *thd) {
            i++) {
         /* Get the primary key field index. */
         int index = table->key_info[key_number].key_part[i].fieldnr;
+        Field *field = table->field[index - 1];
 
         /* Ignore if the value is NULL. */
-        if (table->field[index - 1]->is_null()) break;
+        if (field->is_null(ptrdiff)) break;
 
-        const CHARSET_INFO *cs = table->field[index - 1]->charset();
-        int max_length =
-            cs->coll->strnxfrmlen(cs, table->field[index - 1]->pack_length());
+        /*
+          Update the field offset as we may be working on table->record[0]
+          or table->record[1], depending on the "record" parameter.
+         */
+        field->move_field_offset(ptrdiff);
+        const CHARSET_INFO *cs = field->charset();
+        int max_length = cs->coll->strnxfrmlen(cs, field->pack_length());
         std::unique_ptr<uchar[]> pk_value(new uchar[max_length + 1]());
 
         /*
           convert to normalized string and store so that it can be
           sorted using binary comparison functions like memcmp.
         */
-        size_t length =
-            table->field[index - 1]->make_sort_key(pk_value.get(), max_length);
+        size_t length = field->make_sort_key(pk_value.get(), max_length);
         pk_value[length] = 0;
 
         pke.append(pointer_cast<char *>(pk_value.get()), length);
         pke.append(HASH_STRING_SEPARATOR);
         pke.append(std::to_string(length));
-      }
 
+        field->move_field_offset(-ptrdiff);
+      }
       /*
         If any part of the key is NULL, ignore adding it to hash keys.
         NULL cannot conflict with any value.
@@ -565,25 +572,28 @@ void add_pke(TABLE *table, THD *thd) {
 
       if (!foreign_key_map.empty()) {
         for (uint i = 0; i < table->s->fields; i++) {
-          /* Ignore if the value is NULL. */
-          if (table->field[i]->is_null()) continue;
-
+          Field *field = table->field[i];
+          if (field->is_null(ptrdiff)) continue;
+          /*
+            Update the field offset, since we may be operating on
+            table->record[0] or table->record[1] and both have
+            different offsets.
+          */
+          field->move_field_offset(ptrdiff);
           std::map<std::string, std::string>::iterator it =
-              foreign_key_map.find(table->s->field[i]->field_name);
+              foreign_key_map.find(field->field_name);
           if (foreign_key_map.end() != it) {
             std::string pke_prefix = it->second;
 
-            const CHARSET_INFO *cs = table->field[i]->charset();
-            int max_length =
-                cs->coll->strnxfrmlen(cs, table->field[i]->pack_length());
+            const CHARSET_INFO *cs = field->charset();
+            int max_length = cs->coll->strnxfrmlen(cs, field->pack_length());
             std::unique_ptr<uchar[]> pk_value(new uchar[max_length + 1]());
 
             /*
               convert to normalized string and store so that it can be
               sorted using binary comparison functions like memcmp.
             */
-            size_t length =
-                table->field[i]->make_sort_key(pk_value.get(), max_length);
+            size_t length = field->make_sort_key(pk_value.get(), max_length);
             pk_value[length] = 0;
 
             pke_prefix.append(pointer_cast<char *>(pk_value.get()), length);
@@ -597,6 +607,8 @@ void add_pke(TABLE *table, THD *thd) {
             write_sets.push_back(pke_prefix);
 #endif
           }
+          /* revert the field object record offset back */
+          field->move_field_offset(-ptrdiff);
         }
       }
     }
