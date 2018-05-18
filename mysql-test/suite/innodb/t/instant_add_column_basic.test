@@ -17,3 +17,19 @@ let $row_format = DYNAMIC;
 let $row_format = COMPACT;
 --source suite/innodb/include/instant_add_column_basic.inc
 
+--echo #
+--echo # Test cases which don't care about row format start here
+--echo #
+
+--echo #
+--echo # Bug #28040201	ADDING A NEW COLUMN TO A TABLE HAVING A GENRATED COLUMN
+--echo # CRASHES THE SERVER
+--echo #
+
+CREATE TABLE t1 (a TEXT GENERATED ALWAYS AS (lpad(1, 1, 1)) VIRTUAL);
+
+ALTER TABLE t1 ADD COLUMN (b INT);
+
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;
