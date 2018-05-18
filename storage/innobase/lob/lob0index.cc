@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -150,9 +150,9 @@ std::ostream &index_entry_t::print(std::ostream &out) const {
         << ", modifier_trxid=" << get_trx_id_modifier()
         << ", trx_undo_no=" << get_trx_undo_no()
         << ", page_no=" << get_page_no() << ", data_len=" << get_data_len()
-        << ", index_id=" << m_index->id << ", next=" << get_next()
-        << ", prev=" << get_prev() << ", versions=" << get_versions_mem()
-        << "]";
+        << ", lob version=" << get_lob_version() << ", index_id=" << m_index->id
+        << ", next=" << get_next() << ", prev=" << get_prev()
+        << ", versions=" << get_versions_mem() << "]";
   }
   return (out);
 }
