@@ -7,9 +7,10 @@
 # cache in MySQL. Start at 70% of total RAM for dedicated server, else 10%.
 # innodb_buffer_pool_size = 128M
 #
-# Remove leading # to turn on a very important data integrity option: logging
-# changes to the binary log between backups.
-# log_bin
+# Remove the leading "# " to disable binary logging
+# Binary logging captures changes between backups and is enabled by
+# default. It's default setting is log_bin=binlog
+# disable_log_bin
 #
 # Remove leading # to set options mainly useful for reporting servers.
 # The server defaults are faster for transactions and fast SELECTs.
