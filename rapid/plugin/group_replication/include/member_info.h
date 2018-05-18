@@ -50,6 +50,16 @@
 #define CNF_SINGLE_PRIMARY_MODE_F                 0x2
 
 /*
+  Valid values of lower_case_table_names are 0 - 2.
+  So when member has DEFAULT_NOT_RECEIVED value, it means its
+  lower_case_table_names value is not known.
+*/
+#define DEFAULT_NOT_RECEIVED_LOWER_CASE_TABLE_NAMES  65540
+#ifndef DBUG_OFF
+#define SKIP_ENCODING_LOWER_CASE_TABLE_NAMES         65541
+#endif
+
+/*
   @class Group_member_info
 
   Describes all the properties of a group member
