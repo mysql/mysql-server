@@ -942,6 +942,7 @@ dberr_t insert(InsertContext *ctx, trx_t *trx, ref_t &ref,
     entry.set_trx_undo_no_modifier(undo_no);
     entry.set_page_no(first.get_page_no());
     entry.set_data_len(to_write);
+    entry.set_lob_version(1);
     flst_add_last(index_list, node, mtr);
 
     first.set_trx_id(trxid);
@@ -980,6 +981,7 @@ dberr_t insert(InsertContext *ctx, trx_t *trx, ref_t &ref,
     entry.set_trx_undo_no_modifier(undo_no);
     entry.set_page_no(data_page.get_page_no());
     entry.set_data_len(to_write);
+    entry.set_lob_version(1);
     entry.push_back(first.index_list());
 
     ut_ad(!entry.get_self().is_equal(entry.get_prev()));
