@@ -342,11 +342,12 @@ int JOIN::optimize() {
       open any tables.
     */
     if ((res = opt_sum_query(thd, select_lex->leaf_tables, all_fields,
-                             where_cond))) {
+                             where_cond, &select_count))) {
       best_rowcount = 0;
       if (res == HA_ERR_KEY_NOT_FOUND) {
         DBUG_PRINT("info", ("No matching min/max row"));
         zero_result_cause = "No matching min/max row";
+
         goto setup_subq_exit;
       }
       if (res > 1) {
@@ -2903,9 +2904,10 @@ static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join,
   DBUG_EXECUTE_IF("test_bka_unique", use_bka_unique = true;);
 
   // Set preliminary join cache setting based on decision from greedy search
-  tab->set_use_join_cache(tab->position()->use_join_buffer
-                              ? JOIN_CACHE::ALG_BNL
-                              : JOIN_CACHE::ALG_NONE);
+  if (!join->select_count)
+    tab->set_use_join_cache(tab->position()->use_join_buffer
+                                ? JOIN_CACHE::ALG_BNL
+                                : JOIN_CACHE::ALG_NONE);
 
   if (tableno == join->const_tables) {
     DBUG_ASSERT(tab->use_join_cache() == JOIN_CACHE::ALG_NONE);
@@ -3013,7 +3015,8 @@ static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join,
         goto no_join_cache;
       }
 
-      tab->set_use_join_cache(JOIN_CACHE::ALG_BNL);
+      if (join->select_count == false)
+        tab->set_use_join_cache(JOIN_CACHE::ALG_BNL);
       return false;
     case JT_SYSTEM:
     case JT_CONST:

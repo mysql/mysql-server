@@ -306,7 +306,7 @@ enum enum_alter_inplace_result {
 #define HA_CAN_BIT_FIELD (1 << 28)
 #define HA_ANY_INDEX_MAY_BE_UNIQUE (1 << 30)
 #define HA_NO_COPY_ON_ALTER (1LL << 31)
-#define HA_HAS_RECORDS (1LL << 32) /* records() gives exact count*/
+#define HA_COUNT_ROWS_INSTANT (1LL << 32) /* records() gives exact count*/
 /* Has it's own method of binlog logging */
 #define HA_HAS_OWN_BINLOGGING (1LL << 33)
 /*
@@ -4011,25 +4011,37 @@ class handler {
   virtual int multi_range_read_next(char **range_info);
 
   /**
-    Number of rows in table. It will only be called if
-    (table_flags() & (HA_HAS_RECORDS | HA_STATS_RECORDS_IS_EXACT)) != 0
-    @param[out]  num_rows number of rows in table.
+    Number of rows in table. If HA_COUNT_ROWS_INSTANT is set, count is
+    available instantly. Else do a table scan.
+
+    @param num_rows [out]  num_rows number of rows in table.
+
     @retval 0 for OK, one of the HA_xxx values in case of error.
   */
-  virtual int records(ha_rows *num_rows) {
-    *num_rows = stats.records;
-    return 0;
-  }
+  virtual int records(ha_rows *num_rows);
 
- public:
   /**
-    Public function wrapping the actual handler call, and doing error checking.
-     @param[out]  num_rows number of rows in table.
-     @retval 0 for OK, one of the HA_xxx values in case of error.
+    Number of rows in table counted using the secondary index chosen by
+    optimizer. See comments in opt_sum_query(...) .
+
+      @param num_rows [out]  Number of rows in table.
+      @param index           Index chosen by optimizer for counting.
+
+      @retval 0 for OK, one of the HA_xxx values in case of error.
   */
-  int ha_records(ha_rows *num_rows) {
-    int error = records(num_rows);
-    // A return value of HA_POS_ERROR was previously used to indicate error.
+  virtual int records_from_index(ha_rows *num_rows, uint index);
+
+ private:
+  /**
+    Function will handle the error code from call to records() and
+    records_from_index().
+
+      @param error     return code from records() and records_from_index().
+      @param num_rows  Check if it contains HA_POS_ERROR in case error < 0.
+
+      @retval 0 for OK, one of the HA_xxx values in case of error.
+  */
+  int handle_records_error(int error, ha_rows *num_rows) {
     if (error != 0) DBUG_ASSERT(*num_rows == HA_POS_ERROR);
     if (*num_rows == HA_POS_ERROR) DBUG_ASSERT(error != 0);
     if (error != 0) {
@@ -4050,6 +4062,30 @@ class handler {
       }
     }
     return 0;
+  }
+
+ public:
+  /**
+    Wrapper function to call records() in storage engine.
+
+      @param num_rows [out]  Number of rows in table.
+
+      @retval 0 for OK, one of the HA_xxx values in case of error.
+  */
+  int ha_records(ha_rows *num_rows) {
+    return handle_records_error(records(num_rows), num_rows);
+  }
+
+  /**
+    Wrapper function to call records_from_index() in storage engine.
+
+      @param num_rows [out]  Number of rows in table.
+      @param index           Index chosen by optimizer for counting.
+
+      @retval 0 for OK, one of the HA_xxx values in case of error.
+  */
+  int ha_records(ha_rows *num_rows, uint index) {
+    return handle_records_error(records_from_index(num_rows, index), num_rows);
   }
 
   /**

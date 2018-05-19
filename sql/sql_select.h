@@ -876,7 +876,7 @@ uint find_shortest_key(TABLE *table, const Key_map *usable_keys);
 /* functions from opt_sum.cc */
 bool simple_pred(Item_func *func_item, Item **args, bool *inv_order);
 int opt_sum_query(THD *thd, TABLE_LIST *tables, List<Item> &all_fields,
-                  Item *conds);
+                  Item *conds, bool *select_count);
 
 /* from sql_delete.cc, used by opt_range.cc */
 extern "C" int refpos_order_cmp(const void *arg, const void *a, const void *b);

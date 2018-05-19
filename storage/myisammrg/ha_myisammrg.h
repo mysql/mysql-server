@@ -98,7 +98,7 @@ class ha_myisammrg : public handler {
     return (HA_AUTO_PART_KEY | HA_NO_TRANSACTIONS | HA_BINLOG_ROW_CAPABLE |
             HA_BINLOG_STMT_CAPABLE | HA_NULL_IN_KEY | HA_CAN_INDEX_BLOBS |
             HA_FILE_BASED | HA_ANY_INDEX_MAY_BE_UNIQUE | HA_CAN_BIT_FIELD |
-            HA_HAS_RECORDS | HA_NO_COPY_ON_ALTER | HA_DUPLICATE_POS);
+            HA_COUNT_ROWS_INSTANT | HA_NO_COPY_ON_ALTER | HA_DUPLICATE_POS);
   }
   ulong index_flags(uint inx, uint, bool) const {
     return ((table_share->key_info[inx].algorithm == HA_KEY_ALG_FULLTEXT)

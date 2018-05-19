@@ -633,13 +633,13 @@ void _mi_report_crashed(MI_INFO *file, const char *message, const char *sfile,
 ha_myisam::ha_myisam(handlerton *hton, TABLE_SHARE *table_arg)
     : handler(hton, table_arg),
       file(0),
-      int_table_flags(HA_NULL_IN_KEY | HA_CAN_FULLTEXT | HA_CAN_SQL_HANDLER |
-                      HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE |
-                      HA_DUPLICATE_POS | HA_CAN_INDEX_BLOBS | HA_AUTO_PART_KEY |
-                      HA_FILE_BASED | HA_CAN_GEOMETRY | HA_NO_TRANSACTIONS |
-                      HA_CAN_BIT_FIELD | HA_CAN_RTREEKEYS | HA_HAS_RECORDS |
-                      HA_STATS_RECORDS_IS_EXACT | HA_CAN_REPAIR |
-                      HA_GENERATED_COLUMNS | HA_ATTACHABLE_TRX_COMPATIBLE),
+      int_table_flags(
+          HA_NULL_IN_KEY | HA_CAN_FULLTEXT | HA_CAN_SQL_HANDLER |
+          HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE | HA_DUPLICATE_POS |
+          HA_CAN_INDEX_BLOBS | HA_AUTO_PART_KEY | HA_FILE_BASED |
+          HA_CAN_GEOMETRY | HA_NO_TRANSACTIONS | HA_CAN_BIT_FIELD |
+          HA_CAN_RTREEKEYS | HA_COUNT_ROWS_INSTANT | HA_STATS_RECORDS_IS_EXACT |
+          HA_CAN_REPAIR | HA_GENERATED_COLUMNS | HA_ATTACHABLE_TRX_COMPATIBLE),
       can_enable_indexes(1),
       ds_mrr(this) {}
 

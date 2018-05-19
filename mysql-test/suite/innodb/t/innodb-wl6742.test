@@ -194,8 +194,11 @@ COMMIT;
 # Solaris reports 10 rows which is correct, but other OSes report 9.
 --replace_column 10 #
 EXPLAIN SELECT * FROM t1;
+--replace_column 10 #
 EXPLAIN SELECT COUNT(*) FROM t1;
+--replace_column 10 #
 EXPLAIN SELECT COUNT(*) FROM t3;
+--replace_column 10 #
 EXPLAIN SELECT COUNT(c1) FROM t1;
 --replace_column 10 #
 EXPLAIN SELECT COUNT(c2) FROM t1;
@@ -377,15 +380,20 @@ INSERT INTO t1(c1) SELECT c1 + 10 FROM t1;
 INSERT INTO t1(c1) SELECT c1 + 100 FROM t1;
 
 CREATE TABLE t2 SELECT * FROM t1;
+ANALYZE TABLE t1, t2;
 
 let query1= SELECT COUNT(*) FROM t1;
 let query2= SELECT COUNT(*) FROM t1 FORCE INDEX(c2_idx);
 let query3= SELECT COUNT(*) FROM t1, t2;
 let query4= SELECT COUNT(*) FROM t1 FORCE INDEX(c2_idx), t2;
 
+--replace_column 10 #
 eval EXPLAIN $query1;
+--replace_column 10 #
 eval EXPLAIN $query2;
+--replace_column 10 #
 eval EXPLAIN $query3;
+--replace_column 10 #
 eval EXPLAIN $query4;
 
 DROP TABLE t1, t2;

@@ -62,7 +62,7 @@ QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 call p1()	20	0
 call p1()	20	0
 set b@0 NULL	20	0
-jump_if_not 3(3) (select count(0) from `somedb`.`t1`)	706	0
+jump_if_not 3(3) (select count(0) from `somedb`.`t1`)	2957	0
 select 22 into b from dual	407	0
 select a into b from t1 limit 1	2169	0
 insert into t1 values(current_user())	20	0
@@ -269,7 +269,7 @@ QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 call p1()	20	0
 call p1()	20	0
 set b@0 NULL	20	0
-jump_if_not 3(3) (select count(0) from `somedb`.`t1`)	706	0
+jump_if_not 3(3) (select count(0) from `somedb`.`t1`)	2957	0
 select 22 into b from dual	407	0
 select a into b from t1 limit 1	2169	0
 insert into t1 values(current_user())	20	0
@@ -745,7 +745,7 @@ QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 call p1()	20	0
 call p1()	20	0
 set b@0 NULL	20	0
-jump_if_not 3(3) (select count(0) from `somedb`.`t1`)	706	0
+jump_if_not 3(3) (select count(0) from `somedb`.`t1`)	3095	0
 select 22 into b from dual	407	0
 select a into b from t1 limit 1	2169	0
 insert into t1 values(current_user())	20	0

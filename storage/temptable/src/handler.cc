@@ -858,7 +858,7 @@ const char *Handler::table_type() const {
   // clang-format off
   const Table_flags flags =
       HA_FAST_KEY_READ |
-      HA_HAS_RECORDS |
+      HA_COUNT_ROWS_INSTANT |
       HA_NO_BLOBS |
       HA_NO_TRANSACTIONS |
       HA_NULL_IN_KEY |

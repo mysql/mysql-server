@@ -1,0 +1,30 @@
+-- source include/have_ndb.inc
+
+CREATE TABLE t_ndb(c1 INT NOT NULL PRIMARY KEY,
+                c2 INT NOT NULL,
+                c3 char(20),
+                KEY c3_idx(c3)) ENGINE=ndbcluster;
+INSERT INTO t_ndb VALUES (1,1, '9412'), (2,2, '9413');
+CREATE TABLE t_innodb(c1 INT NOT NULL PRIMARY KEY,
+                      c2 INT NOT NULL,
+                      c3 char(20),
+                      KEY c3_idx(c3))ENGINE=INNODB;
+
+INSERT INTO t_innodb VALUES (1, 1, 'a'), (2,2,'a'), (3,3,'a');
+ANALYZE TABLE t_innodb;
+
+#Uses stats.records in opt_sum_query()
+let query1= SELECT COUNT(*) FROM t_ndb;
+
+#Uses ha_ndbcluster::records()
+let query2= SELECT COUNT(*) FROM t_ndb, t_innodb;
+
+--replace_column 10 # 11 #
+eval EXPLAIN $query1;
+--replace_column 10 # 11 #
+eval EXPLAIN $query2;
+
+eval $query1;
+eval $query2;
+
+DROP TABLE t_ndb, t_innodb;

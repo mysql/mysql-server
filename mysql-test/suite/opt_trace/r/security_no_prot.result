@@ -61,7 +61,7 @@ select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPT
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 call p1()	20	0
 set b@0 NULL	20	0
-jump_if_not 3(3) (select count(0) from `somedb`.`t1`)	706	0
+jump_if_not 3(3) (select count(0) from `somedb`.`t1`)	2957	0
 select 22 into b from dual	407	0
 select a into b from t1 limit 1	2169	0
 insert into t1 values(current_user())	20	0
@@ -244,7 +244,7 @@ select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPT
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 call p1()	20	0
 set b@0 NULL	20	0
-jump_if_not 3(3) (select count(0) from `somedb`.`t1`)	706	0
+jump_if_not 3(3) (select count(0) from `somedb`.`t1`)	2957	0
 select 22 into b from dual	407	0
 select a into b from t1 limit 1	2169	0
 insert into t1 values(current_user())	20	0
@@ -273,7 +273,7 @@ set optimizer_trace_offset=2,optimizer_trace_limit=1;
 call p1();
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
-jump_if_not 3(3) (select count(0) from `somedb`.`t1`)	706	0
+jump_if_not 3(3) (select count(0) from `somedb`.`t1`)	2957	0
 set optimizer_trace="enabled=off";
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
 call p2();
@@ -685,7 +685,7 @@ select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPT
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 call p1()	20	0
 set b@0 NULL	20	0
-jump_if_not 3(3) (select count(0) from `somedb`.`t1`)	706	0
+jump_if_not 3(3) (select count(0) from `somedb`.`t1`)	3095	0
 select 22 into b from dual	407	0
 select a into b from t1 limit 1	2169	0
 insert into t1 values(current_user())	20	0

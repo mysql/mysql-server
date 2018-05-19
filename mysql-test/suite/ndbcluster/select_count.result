@@ -1,0 +1,31 @@
+CREATE TABLE t_ndb(c1 INT NOT NULL PRIMARY KEY,
+c2 INT NOT NULL,
+c3 char(20),
+KEY c3_idx(c3)) ENGINE=ndbcluster;
+INSERT INTO t_ndb VALUES (1,1, '9412'), (2,2, '9413');
+CREATE TABLE t_innodb(c1 INT NOT NULL PRIMARY KEY,
+c2 INT NOT NULL,
+c3 char(20),
+KEY c3_idx(c3))ENGINE=INNODB;
+INSERT INTO t_innodb VALUES (1, 1, 'a'), (2,2,'a'), (3,3,'a');
+ANALYZE TABLE t_innodb;
+Table	Op	Msg_type	Msg_text
+test.t_innodb	analyze	status	OK
+EXPLAIN SELECT COUNT(*) FROM t_ndb;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	Select tables optimized away
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t_ndb`
+EXPLAIN SELECT COUNT(*) FROM t_ndb, t_innodb;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t_ndb	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+1	SIMPLE	t_innodb	NULL	index	NULL	c3_idx	81	NULL	#	#	Using index
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t_ndb` join `test`.`t_innodb`
+SELECT COUNT(*) FROM t_ndb;
+COUNT(*)
+2
+SELECT COUNT(*) FROM t_ndb, t_innodb;
+COUNT(*)
+6
+DROP TABLE t_ndb, t_innodb;

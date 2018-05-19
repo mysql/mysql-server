@@ -1,0 +1,543 @@
+CREATE TABLE t_innodb(c1 INT NOT NULL PRIMARY KEY,
+c2 INT NOT NULL,
+c3 char(20),
+KEY c3_idx(c3))ENGINE=INNODB;
+INSERT INTO t_innodb VALUES (1, 1, 'a'), (2,2,'a'), (3,3,'a');
+ANALYZE TABLE t_innodb;
+Table	Op	Msg_type	Msg_text
+test.t_innodb	analyze	status	OK
+CREATE TABLE t_myisam(c1 INT NOT NULL PRIMARY KEY,
+c2 INT NOT NULL DEFAULT 1,
+c3 char(20),
+KEY c3_idx(c3)) ENGINE=MYISAM;
+INSERT INTO t_myisam(c1) VALUES (1), (2);
+ANALYZE TABLE t_myisam;
+Table	Op	Msg_type	Msg_text
+test.t_myisam	analyze	status	OK
+EXPLAIN SELECT COUNT(*) FROM t_innodb;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t_innodb	NULL	index	NULL	c3_idx	81	NULL	3	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t_innodb`
+EXPLAIN SELECT COUNT(*) FROM t_myisam;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t_myisam`
+EXPLAIN SELECT COUNT(*) FROM t_myisam, t_innodb;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t_myisam	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
+1	SIMPLE	t_innodb	NULL	index	NULL	c3_idx	81	NULL	3	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t_myisam` join `test`.`t_innodb`
+EXPLAIN SELECT MIN(c2), COUNT(*), MAX(c1) FROM t_innodb;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t_innodb	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select min(`test`.`t_innodb`.`c2`) AS `MIN(c2)`,count(0) AS `COUNT(*)`,max(`test`.`t_innodb`.`c1`) AS `MAX(c1)` from `test`.`t_innodb`
+EXPLAIN SELECT MIN(c3), COUNT(*) FROM t_innodb;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t_innodb	NULL	index	NULL	c3_idx	81	NULL	3	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select min(`test`.`t_innodb`.`c3`) AS `MIN(c3)`,count(0) AS `COUNT(*)` from `test`.`t_innodb`
+FLUSH STATUS;
+SELECT COUNT(*) FROM t_innodb;
+COUNT(*)
+3
+SHOW STATUS LIKE 'Handler_%';
+Variable_name	Value
+Handler_commit	1
+Handler_delete	0
+Handler_discover	0
+Handler_external_lock	2
+Handler_mrr_init	0
+Handler_prepare	0
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	3
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+Handler_rollback	0
+Handler_savepoint	0
+Handler_savepoint_rollback	0
+Handler_update	0
+Handler_write	0
+FLUSH STATUS;
+SELECT COUNT(*) FROM t_myisam;
+COUNT(*)
+2
+SHOW STATUS LIKE 'Handler_%';
+Variable_name	Value
+Handler_commit	0
+Handler_delete	0
+Handler_discover	0
+Handler_external_lock	2
+Handler_mrr_init	0
+Handler_prepare	0
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+Handler_rollback	0
+Handler_savepoint	0
+Handler_savepoint_rollback	0
+Handler_update	0
+Handler_write	0
+FLUSH STATUS;
+SELECT COUNT(*) FROM t_myisam, t_innodb;
+COUNT(*)
+6
+SHOW STATUS LIKE 'Handler_%';
+Variable_name	Value
+Handler_commit	1
+Handler_delete	0
+Handler_discover	0
+Handler_external_lock	4
+Handler_mrr_init	0
+Handler_prepare	0
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	3
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+Handler_rollback	0
+Handler_savepoint	0
+Handler_savepoint_rollback	0
+Handler_update	0
+Handler_write	0
+FLUSH STATUS;
+SELECT MIN(c2), COUNT(*), MAX(c1) FROM t_innodb;
+MIN(c2)	COUNT(*)	MAX(c1)
+1	3	3
+SHOW STATUS LIKE 'Handler_%';
+Variable_name	Value
+Handler_commit	1
+Handler_delete	0
+Handler_discover	0
+Handler_external_lock	2
+Handler_mrr_init	0
+Handler_prepare	0
+Handler_read_first	1
+Handler_read_key	2
+Handler_read_last	1
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	4
+Handler_rollback	0
+Handler_savepoint	0
+Handler_savepoint_rollback	0
+Handler_update	0
+Handler_write	0
+FLUSH STATUS;
+SELECT MIN(c3), COUNT(*) FROM t_innodb;
+MIN(c3)	COUNT(*)
+a	3
+SHOW STATUS LIKE 'Handler_%';
+Variable_name	Value
+Handler_commit	1
+Handler_delete	0
+Handler_discover	0
+Handler_external_lock	2
+Handler_mrr_init	0
+Handler_prepare	0
+Handler_read_first	1
+Handler_read_key	2
+Handler_read_last	0
+Handler_read_next	3
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+Handler_rollback	0
+Handler_savepoint	0
+Handler_savepoint_rollback	0
+Handler_update	0
+Handler_write	0
+CREATE TABLE t_nopk(c1 INT NOT NULL , c2 INT NOT NULL)ENGINE=INNODB;
+INSERT INTO t_nopk SELECT c1, c2 FROM t_innodb;
+SHOW CREATE TABLE t_nopk;
+Table	Create Table
+t_nopk	CREATE TABLE `t_nopk` (
+  `c1` int(11) NOT NULL,
+  `c2` int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+EXPLAIN SELECT COUNT(*) FROM t_nopk;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t_nopk	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t_nopk`
+FLUSH STATUS;
+SELECT COUNT(*) FROM t_nopk;
+COUNT(*)
+3
+SHOW STATUS LIKE 'Handler_%';
+Variable_name	Value
+Handler_commit	1
+Handler_delete	0
+Handler_discover	0
+Handler_external_lock	2
+Handler_mrr_init	0
+Handler_prepare	0
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+Handler_rollback	0
+Handler_savepoint	0
+Handler_savepoint_rollback	0
+Handler_update	0
+Handler_write	0
+CREATE INDEX c2_idx on t_nopk(c2);
+SHOW CREATE TABLE t_nopk;
+Table	Create Table
+t_nopk	CREATE TABLE `t_nopk` (
+  `c1` int(11) NOT NULL,
+  `c2` int(11) NOT NULL,
+  KEY `c2_idx` (`c2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+EXPLAIN SELECT COUNT(*) FROM t_nopk;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t_nopk	NULL	index	NULL	c2_idx	4	NULL	3	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t_nopk`
+FLUSH STATUS;
+SELECT COUNT(*) FROM t_nopk;
+COUNT(*)
+3
+SHOW STATUS LIKE 'Handler_%';
+Variable_name	Value
+Handler_commit	1
+Handler_delete	0
+Handler_discover	0
+Handler_external_lock	2
+Handler_mrr_init	0
+Handler_prepare	0
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	3
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+Handler_rollback	0
+Handler_savepoint	0
+Handler_savepoint_rollback	0
+Handler_update	0
+Handler_write	0
+DROP TABLE t_nopk;
+CREATE TABLE t_innodb_nopk_sk(c1 INT NOT NULL,
+c2 INT NOT NULL, KEY c2_idx(c2))ENGINE=INNODB;
+CREATE TABLE t_innodb_pk_nosk(c1 INT NOT NULL PRIMARY KEY,
+c2 INT NOT NULL)ENGINE=INNODB;
+CREATE TABLE t_innodb_nopk_nosk(c1 INT NOT NULL,
+c2 INT NOT NULL)ENGINE=INNODB;
+INSERT INTO t_innodb_nopk_sk(c1,c2) VALUES (1, 1), (2,2), (3,3);
+INSERT INTO t_innodb_pk_nosk(c1,c2) SELECT * FROM t_innodb_nopk_sk;
+INSERT INTO t_innodb_nopk_nosk(c1,c2) SELECT * FROM t_innodb_nopk_sk;
+ANALYZE TABLE t_innodb_nopk_sk, t_innodb_pk_nosk, t_innodb_nopk_nosk;
+Table	Op	Msg_type	Msg_text
+test.t_innodb_nopk_sk	analyze	status	OK
+test.t_innodb_pk_nosk	analyze	status	OK
+test.t_innodb_nopk_nosk	analyze	status	OK
+EXPLAIN SELECT COUNT(*) FROM t_innodb_nopk_sk;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t_innodb_nopk_sk	NULL	index	NULL	c2_idx	4	NULL	3	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t_innodb_nopk_sk`
+EXPLAIN SELECT COUNT(*) FROM t_innodb_pk_nosk;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t_innodb_pk_nosk	NULL	index	NULL	PRIMARY	4	NULL	3	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t_innodb_pk_nosk`
+EXPLAIN SELECT COUNT(*) FROM t_innodb_nopk_nosk;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t_innodb_nopk_nosk	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t_innodb_nopk_nosk`
+FLUSH STATUS;
+SELECT COUNT(*) FROM t_innodb_nopk_sk;
+COUNT(*)
+3
+SHOW STATUS LIKE 'Handler_%';
+Variable_name	Value
+Handler_commit	1
+Handler_delete	0
+Handler_discover	0
+Handler_external_lock	2
+Handler_mrr_init	0
+Handler_prepare	0
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	3
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+Handler_rollback	0
+Handler_savepoint	0
+Handler_savepoint_rollback	0
+Handler_update	0
+Handler_write	0
+FLUSH STATUS;
+SELECT COUNT(*) FROM t_innodb_pk_nosk;
+COUNT(*)
+3
+SHOW STATUS LIKE 'Handler_%';
+Variable_name	Value
+Handler_commit	1
+Handler_delete	0
+Handler_discover	0
+Handler_external_lock	2
+Handler_mrr_init	0
+Handler_prepare	0
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+Handler_rollback	0
+Handler_savepoint	0
+Handler_savepoint_rollback	0
+Handler_update	0
+Handler_write	0
+FLUSH STATUS;
+SELECT COUNT(*) FROM t_innodb_nopk_nosk;
+COUNT(*)
+3
+SHOW STATUS LIKE 'Handler_%';
+Variable_name	Value
+Handler_commit	1
+Handler_delete	0
+Handler_discover	0
+Handler_external_lock	2
+Handler_mrr_init	0
+Handler_prepare	0
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+Handler_rollback	0
+Handler_savepoint	0
+Handler_savepoint_rollback	0
+Handler_update	0
+Handler_write	0
+DROP TABLE t_innodb_pk_nosk, t_innodb_nopk_sk, t_innodb_nopk_nosk;
+CREATE TABLE t_heap(c1 INT NOT NULL PRIMARY KEY,
+c2 INT NOT NULL,
+c3 char(20)) ENGINE=HEAP;
+CREATE TABLE t_archive(c1 INT NOT NULL, c2 char(20)) ENGINE=ARCHIVE;
+INSERT INTO t_heap SELECT * FROM t_innodb WHERE c1 > 1;
+INSERT INTO t_archive SELECT c1, c3 FROM t_innodb WHERE c1 > 1;
+EXPLAIN SELECT COUNT(*) FROM t_heap;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t_heap`
+EXPLAIN SELECT COUNT(*) FROM t_innodb, t_heap;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t_heap	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t_innodb	NULL	index	NULL	c3_idx	81	NULL	3	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t_innodb` join `test`.`t_heap`
+EXPLAIN SELECT COUNT(*) FROM t_archive;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t_archive`
+EXPLAIN SELECT COUNT(*) FROM t_innodb, t_archive;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t_archive	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t_innodb	NULL	index	NULL	c3_idx	81	NULL	3	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t_innodb` join `test`.`t_archive`
+FLUSH STATUS;
+SELECT COUNT(*) FROM t_heap;
+COUNT(*)
+2
+SHOW STATUS LIKE 'Handler_%';
+Variable_name	Value
+Handler_commit	0
+Handler_delete	0
+Handler_discover	0
+Handler_external_lock	2
+Handler_mrr_init	0
+Handler_prepare	0
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+Handler_rollback	0
+Handler_savepoint	0
+Handler_savepoint_rollback	0
+Handler_update	0
+Handler_write	0
+FLUSH STATUS;
+SELECT COUNT(*) FROM t_innodb, t_heap;
+COUNT(*)
+6
+SHOW STATUS LIKE 'Handler_%';
+Variable_name	Value
+Handler_commit	1
+Handler_delete	0
+Handler_discover	0
+Handler_external_lock	4
+Handler_mrr_init	0
+Handler_prepare	0
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	3
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+Handler_rollback	0
+Handler_savepoint	0
+Handler_savepoint_rollback	0
+Handler_update	0
+Handler_write	0
+FLUSH STATUS;
+SELECT COUNT(*) FROM t_archive;
+COUNT(*)
+2
+SHOW STATUS LIKE 'Handler_%';
+Variable_name	Value
+Handler_commit	0
+Handler_delete	0
+Handler_discover	0
+Handler_external_lock	2
+Handler_mrr_init	0
+Handler_prepare	0
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+Handler_rollback	0
+Handler_savepoint	0
+Handler_savepoint_rollback	0
+Handler_update	0
+Handler_write	0
+FLUSH STATUS;
+SELECT COUNT(*) FROM t_innodb, t_archive;
+COUNT(*)
+6
+SHOW STATUS LIKE 'Handler_%';
+Variable_name	Value
+Handler_commit	1
+Handler_delete	0
+Handler_discover	0
+Handler_external_lock	4
+Handler_mrr_init	0
+Handler_prepare	0
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	3
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+Handler_rollback	0
+Handler_savepoint	0
+Handler_savepoint_rollback	0
+Handler_update	0
+Handler_write	0
+DROP TABLE t_archive, t_heap;
+EXPLAIN SELECT COUNT(*) FROM t_innodb FORCE INDEX(c3_idx);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t_innodb	NULL	index	NULL	c3_idx	81	NULL	3	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t_innodb` FORCE INDEX (`c3_idx`)
+EXPLAIN SELECT COUNT(*) FROM t_myisam FORCE INDEX(c3_idx);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t_myisam	NULL	index	NULL	c3_idx	81	NULL	2	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t_myisam` FORCE INDEX (`c3_idx`)
+FLUSH STATUS;
+SELECT COUNT(*) FROM t_innodb FORCE INDEX(c3_idx);
+COUNT(*)
+3
+SHOW STATUS LIKE 'Handler_%';
+Variable_name	Value
+Handler_commit	1
+Handler_delete	0
+Handler_discover	0
+Handler_external_lock	2
+Handler_mrr_init	0
+Handler_prepare	0
+Handler_read_first	1
+Handler_read_key	1
+Handler_read_last	0
+Handler_read_next	3
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+Handler_rollback	0
+Handler_savepoint	0
+Handler_savepoint_rollback	0
+Handler_update	0
+Handler_write	0
+FLUSH STATUS;
+SELECT COUNT(*) FROM t_myisam FORCE INDEX(c3_idx);
+COUNT(*)
+2
+SHOW STATUS LIKE 'Handler_%';
+Variable_name	Value
+Handler_commit	0
+Handler_delete	0
+Handler_discover	0
+Handler_external_lock	2
+Handler_mrr_init	0
+Handler_prepare	0
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+Handler_rollback	0
+Handler_savepoint	0
+Handler_savepoint_rollback	0
+Handler_update	0
+Handler_write	0
+SELECT COUNT(*) FROM (SELECT DISTINCT c1 FROM t_myisam) dt, t_myisam;
+COUNT(*)
+4
+SET @s =1;
+SELECT @s, COUNT(*) FROM t_innodb;
+@s	COUNT(*)
+1	3
+set sql_mode='';
+SELECT 1 AS c1, (SELECT COUNT(*) FROM t_innodb HAVING c1 > 0) FROM DUAL;
+c1	(SELECT COUNT(*) FROM t_innodb HAVING c1 > 0)
+1	3
+SELECT 1 FROM t_innodb HAVING COUNT(*) > 1;
+1
+1
+SELECT COUNT(*) c FROM t_innodb HAVING c > 1;
+c
+3
+SELECT COUNT(*) c FROM t_innodb HAVING c > 7;
+c
+set sql_mode=default;
+DROP TABLE t_innodb, t_myisam;

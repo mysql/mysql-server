@@ -1158,6 +1158,9 @@ static int do_select(JOIN *join) {
       relevant to this join table).
     */
     if (join->thd->is_error()) error = NESTED_LOOP_ERROR;
+  } else if (join->select_count) {
+    QEP_TAB *qep_tab = join->qep_tab;
+    error = end_send_count(join, qep_tab);
   } else {
     QEP_TAB *qep_tab = join->qep_tab + join->const_tables;
     DBUG_ASSERT(join->primary_tables);
@@ -3093,6 +3096,82 @@ static enum_nested_loop_state end_send(JOIN *join, QEP_TAB *qep_tab,
     }
   }
   DBUG_RETURN(NESTED_LOOP_OK);
+}
+
+/**
+  Get exact count of rows in all tables. When this is called, at least one
+  table's SE doesn't include HA_COUNT_ROWS_INSTANT.
+
+    @param qep_tab      List of qep_tab in this JOIN.
+    @param table_count  Count of qep_tab in the JOIN.
+    @param error [out]  Return any possible error. Else return 0
+
+    @returns
+      Cartesian product of count of the rows in all tables if success
+      0 if error.
+
+  @note The "error" parameter is required for the sake of testcases like the
+        one in innodb-wl6742.test:272. Earlier if an error was raised by
+        ha_records, it wasn't handled by get_exact_record_count. Instead it was
+        just allowed to go to the execution phase, where end_send_group would
+        see the same error and raise it.
+
+        But with the new function 'end_send_count' in the execution phase,
+        such an error should be properly returned so that it can be raised.
+*/
+ulonglong get_exact_record_count(QEP_TAB *qep_tab, uint table_count,
+                                 int *error) {
+  ulonglong count = 1;
+  QEP_TAB *qt;
+
+  for (uint i = 0; i < table_count - 1; i++) {
+    ha_rows tmp = 0;
+    qt = qep_tab + i;
+
+    if (qt->type() == JT_ALL || (qt->index() == qt->table()->s->primary_key &&
+                                 qt->table()->file->primary_key_is_clustered()))
+      *error = qt->table()->file->ha_records(&tmp);
+    else
+      *error = qt->table()->file->ha_records(&tmp, qt->index());
+    if (*error != 0) {
+      (void)report_handler_error(qt->table(), *error);
+      return 0;
+    }
+    count *= tmp;
+  }
+  return count;
+}
+
+enum_nested_loop_state end_send_count(JOIN *join, QEP_TAB *qep_tab) {
+  List_iterator_fast<Item> it(join->all_fields);
+  Item *item;
+  int error = 0;
+
+  while ((item = it++)) {
+    if (item->type() == Item::SUM_FUNC_ITEM &&
+        (((Item_sum *)item))->sum_func() == Item_sum::COUNT_FUNC) {
+      ulonglong count = get_exact_record_count(qep_tab, join->tables, &error);
+      if (error) return NESTED_LOOP_ERROR;
+
+      ((Item_sum_count *)item)->make_const((longlong)count);
+    }
+  }
+
+  /*
+    Copy non-aggregated items in the result set.
+    Handles queries like:
+    SET @s =1;
+    SELECT @s, COUNT(*) FROM t1;
+  */
+  if (copy_fields(&join->tmp_table_param, join->thd)) return NESTED_LOOP_ERROR;
+
+  if (having_is_true(join->having_cond)) {
+    if (join->select_lex->query_result()->send_data(*join->fields))
+      return NESTED_LOOP_ERROR;
+    join->send_records++;
+  }
+
+  return NESTED_LOOP_OK;
 }
 
 /* ARGSUSED */

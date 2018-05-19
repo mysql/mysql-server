@@ -280,7 +280,8 @@ class JOIN {
         with_json_agg(select->json_agg_func_used()),
         optimized(false),
         executed(false),
-        plan_state(NO_PLAN) {
+        plan_state(NO_PLAN),
+        select_count(false) {
     rollup.state = ROLLUP::STATE_NONE;
     tmp_table_param.end_write_records = HA_POS_ERROR;
     if (select->order_list.first) explain_flags.set(ESC_ORDER_BY, ESP_EXISTS);
@@ -864,6 +865,16 @@ class JOIN {
   /// Final execution plan state. Currently used only for EXPLAIN
   enum_plan_state plan_state;
 
+ public:
+  /*
+    When join->select_count is set, tables will not be optimized away. The call
+    to records() will be delayed until the execution phase and the counting
+    will be done on an index of Optimizer's choice. This flag will be set in
+    opt_sum_query. The index will be decided in find_shortest_key().
+  */
+  bool select_count;
+
+ private:
   /**
     Create a temporary table to be used for processing DISTINCT/ORDER
     BY/GROUP BY.

@@ -14163,7 +14163,7 @@ ulonglong ha_ndbcluster::table_flags(void) const
     HA_PARTIAL_COLUMN_READ |
     HA_HAS_OWN_BINLOGGING |
     HA_BINLOG_ROW_CAPABLE |
-    HA_HAS_RECORDS |
+    HA_COUNT_ROWS_INSTANT |
     HA_READ_BEFORE_WRITE_REMOVAL |
     HA_GENERATED_COLUMNS |
     0;

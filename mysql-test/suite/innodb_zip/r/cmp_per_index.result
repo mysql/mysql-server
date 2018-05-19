@@ -85,9 +85,9 @@ FROM information_schema.innodb_cmp_per_index
 ORDER BY 1, 2, 3;
 database_name	test
 table_name	t
-index_name	PRIMARY
+index_name	b
 compress_ops	0
 compress_ops_ok	0
-uncompress_ops	9
+uncompress_ops	6
 DROP TABLE t;
 SET GLOBAL innodb_cmp_per_index_enabled=default;

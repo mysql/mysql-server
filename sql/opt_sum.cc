@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -89,23 +89,16 @@ static bool reckey_in_range(bool max_fl, TABLE_REF *ref, Item_field *item_field,
                             Item *cond, uint range_fl, uint prefix_len);
 static bool maxmin_in_range(bool max_fl, Item_field *item_field, Item *cond);
 
-/*
-  Get exact count of rows in all tables
+/**
+  Get exact count of rows in all tables. This is called, when at least one of
+  the table handlers support HA_COUNT_ROWS_INSTANT, but not
+  HA_STATS_RECORDS_IS_EXACT (NDB is one such storage engine).
 
-  SYNOPSIS
-    get_exact_record_count()
     @param tables  List of tables
 
-  NOTES
-    When this is called, we know all table handlers supports HA_HAS_RECORDS
-    or HA_STATS_RECORDS_IS_EXACT
-
-  RETURN
-    ULLONG_MAX          Error: Could not calculate number of rows
-    #			Multiplication of number of rows in all tables
+    @retval Product of number of rows in all tables. ULLONG_MAX for error.
 */
-
-static ulonglong get_exact_record_count(TABLE_LIST *tables) {
+ulonglong get_exact_record_count(TABLE_LIST *tables) {
   ulonglong count = 1;
   for (TABLE_LIST *tl = tables; tl; tl = tl->next_leaf) {
     ha_rows tmp = 0;
@@ -228,10 +221,12 @@ static int get_index_max_value(TABLE *table, TABLE_REF *ref, uint range_fl) {
 /**
   Substitutes constants for some COUNT(), MIN() and MAX() functions.
 
-  @param thd                   thread handler
-  @param tables                list of leaves of join table tree
-  @param all_fields            All fields to be returned
-  @param conds                 WHERE clause
+  @param[in]  thd                   thread handler
+  @param[in]  tables                list of leaves of join table tree
+  @param[in]  all_fields            All fields to be returned
+  @param[in]  conds                 WHERE clause
+  @param[out] select_count          Set to true when COUNT is delayed to
+                                    execution phase
 
   @note
     This function is only called for queries with aggregate functions and no
@@ -251,15 +246,27 @@ static int get_index_max_value(TABLE *table, TABLE_REF *ref, uint range_fl) {
 */
 
 int opt_sum_query(THD *thd, TABLE_LIST *tables, List<Item> &all_fields,
-                  Item *conds) {
+                  Item *conds, bool *select_count) {
   List_iterator_fast<Item> it(all_fields);
   int const_result = 1;
   bool recalc_const_item = false;
   ulonglong count = 1;
-  bool is_exact_count = true, maybe_exact_count = true;
+  bool is_exact_count = true, tables_filled = true;
   table_map removed_tables = 0, outer_tables = 0, used_tables = 0;
   Item *item;
   int error;
+
+  /*
+    This is a local flag that indicates that ha_records() can be called in the
+    execute phase only. The actual decision is recorded in join->select_count.
+
+    Note: If a single table in the table-list can't optimize the tables away,
+          then all tables will be will read in the execution phase
+          (i.e. end_send_count).
+
+    Example: SELECT COUNT(*) FROM t_myisam, t_innodb;
+  */
+  bool delay_ha_records_to_exec_phase = false;
 
   DBUG_ENTER("opt_sum_query");
 
@@ -273,7 +280,6 @@ int opt_sum_query(THD *thd, TABLE_LIST *tables, List<Item> &all_fields,
    */
   if (where_tables & OUTER_REF_TABLE_BIT) DBUG_RETURN(0);
 
-  bool force_index = false;
   /*
     Analyze outer join dependencies, and, if possible, compute the number
     of returned rows.
@@ -301,10 +307,13 @@ int opt_sum_query(THD *thd, TABLE_LIST *tables, List<Item> &all_fields,
       Schema tables are filled after this function is invoked, so we can't
       get row count.
       Derived tables aren't filled yet, their number of rows are estimates.
+      FORCE INDEX implies that user wants a specific index to be used. So skip
+      using stats.records.
     */
-    bool table_filled = !(tl->schema_table || tl->uses_materialization());
-    if ((tl->table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) &&
-        table_filled) {
+    tables_filled &= !(tl->schema_table || tl->uses_materialization());
+    ulonglong table_flags = tl->table->file->ha_table_flags();
+    if ((table_flags & HA_STATS_RECORDS_IS_EXACT) && tables_filled &&
+        !tl->table->force_index) {
       error = tl->fetch_number_of_rows();
       if (error) {
         tl->table->file->print_error(error, MYF(ME_FATALERROR));
@@ -312,11 +321,12 @@ int opt_sum_query(THD *thd, TABLE_LIST *tables, List<Item> &all_fields,
       }
       count *= tl->table->file->stats.records;
     } else {
-      maybe_exact_count &= (table_filled && (tl->table->file->ha_table_flags() &
-                                             HA_HAS_RECORDS));
+      delay_ha_records_to_exec_phase |=
+          (MY_TEST(!(table_flags & HA_COUNT_ROWS_INSTANT)) ||
+           tl->table->force_index);
+
       is_exact_count = false;
       count = 1;  // ensure count != 0
-      force_index |= tl->table->force_index;
     }
   }
 
@@ -338,41 +348,36 @@ int opt_sum_query(THD *thd, TABLE_LIST *tables, List<Item> &all_fields,
             If the expr in COUNT(expr) can never be null we can change this
             to the number of rows in the tables if this number is exact and
             there are no outer joins.
-            Don't apply this optimization when there is a FORCE INDEX on any of
-            the tables.
           */
           if (!conds && !((Item_sum_count *)item)->get_arg(0)->maybe_null &&
-              !outer_tables && maybe_exact_count && !force_index) {
-            if (!is_exact_count) {
-              /*
-                Don't get exact record count for EXPLAIN since it wouldn't be
-                shown anyway. The reason is that storage engine's records()
-                could be slow, and while for execution it would be faster than
-                counting all rows, it still could be a significant performance
-                regression for EXPLAIN. This could block some optimizations
-                done in this function from showing in EXPLAIN, that's ok as
-                real query will be executed faster than one shown by EXPLAIN.
-              */
-              if (!thd->lex->is_explain() &&
-                  (count = get_exact_record_count(tables)) == ULLONG_MAX) {
-                /* Error from handler in counting rows. Don't optimize count()
-                 */
-                const_result = 0;
-                continue;
+              !outer_tables && tables_filled) {
+            if (delay_ha_records_to_exec_phase) {
+              *select_count = true;
+              const_result = 0;
+            } else {
+              if (!is_exact_count) {
+                if ((count = get_exact_record_count(tables)) == ULLONG_MAX) {
+                  /*
+                    Error from handler in counting rows. Don't optimize count()
+                  */
+                  const_result = 0;
+                  continue;
+                }
+                is_exact_count = 1;  // count is now exact
               }
-              is_exact_count = 1;  // count is now exact
             }
           }
-          /* For result count of full-text search: If
-             1. it is a single table query,
-             2. the WHERE condition is a single MATCH expresssion,
-             3. the table engine can provide the row count from FTS result, and
-             4. the expr in COUNT(expr) can not be NULL,
-             we do the full-text search now, and replace with the actual count.
+          /*
+            For result count of full-text search: If
+            1. it is a single table query,
+            2. the WHERE condition is a single MATCH expresssion,
+            3. the table engine can provide the row count from FTS result, and
+            4. the expr in COUNT(expr) can not be NULL,
+            we do the full-text search now, and replace with the actual count.
 
-             Note: Item_func_match::init_search() will be called again
-                   later in the optimization phase by init_fts_funcs(),
-                   but search will still only be done once.
+            Note: Item_func_match::init_search() will be called again later in
+                  the optimization phase by init_fts_funcs(), but search will
+                  still only be done once.
           */
           else if (tables->next_leaf == NULL &&  // 1
                    conds && conds->type() == Item::FUNC_ITEM &&
@@ -395,7 +400,6 @@ int opt_sum_query(THD *thd, TABLE_LIST *tables, List<Item> &all_fields,
             ((Item_sum_count *)item)->make_const((longlong)count);
             recalc_const_item = true;
           }
-
           break;
         case Item_sum::MIN_FUNC:
         case Item_sum::MAX_FUNC: {
@@ -538,6 +542,39 @@ int opt_sum_query(THD *thd, TABLE_LIST *tables, List<Item> &all_fields,
   }
 
   if (thd->is_error()) DBUG_RETURN(thd->get_stmt_da()->mysql_errno());
+
+  /*
+    To use end_send_count, each field should be either a COUNT(*) or
+    a const item. If not, shift to table/index scan.
+
+    CREATE TABLE t1(c1 INT NOT NULL PRIMARY KEY,
+                  c2 INT NOT NULL,
+                  c3 char(20),
+                  KEY c3_idx(c3)) ENGINE=INNODB;
+
+    Example 1: Shouldn't use end_send_count because there is no index on
+               column c2 and will require a table scan.
+    SELECT MIN(c2), COUNT(*) FROM t1;
+
+    Example 2: Shouldn't use end_send_count because column c2 is not a constant.
+    set sql_mode='';
+    SELECT c2, COUNT(*) FROM t1;
+
+    Example 3: Can use end_send_count because there is an index on column c3
+               and that part of the query has been completed with call to
+               get_index_min_value(), i.e. MIN(c2) is retrieved in
+               opt_sum_query (this function) and is considered a const value.
+    SELECT MIN(c3), COUNT(*) FROM t1;
+  */
+  if (*select_count) {
+    it.rewind();
+    while ((item = it++)) {
+      bool is_count_item =
+          (item->type() == Item::SUM_FUNC_ITEM &&
+           (((Item_sum *)item))->sum_func() == Item_sum::COUNT_FUNC);
+      if (!is_count_item) *select_count &= item->const_item();
+    }
+  }
 
   /*
     If we have a where clause, we can only ignore searching in the

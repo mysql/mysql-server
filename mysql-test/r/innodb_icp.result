@@ -557,7 +557,7 @@ FROM t2)
 ORDER BY t1.c2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where 0 order by `test`.`t1`.`c2`
 SELECT t1.c1

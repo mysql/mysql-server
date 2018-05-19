@@ -2908,6 +2908,76 @@ int handler::sample_next(uchar *buf) {
   return res;
 }
 
+int handler::records(ha_rows *num_rows) {
+  if (MY_TEST((ha_table_flags() & HA_COUNT_ROWS_INSTANT))) {
+    *num_rows = stats.records;
+    return 0;
+  }
+
+  int error = 0;
+  ha_rows rows = 0;
+  start_psi_batch_mode();
+
+  if (!(error = ha_rnd_init(true))) {
+    while (!table->in_use->killed) {
+      if ((error = ha_rnd_next(table->record[0]))) {
+        if (error == HA_ERR_RECORD_DELETED)
+          continue;
+        else
+          break;
+      }
+      ++rows;
+    }
+  }
+
+  *num_rows = rows;
+  end_psi_batch_mode();
+  int ha_rnd_end_error = 0;
+  if (error != HA_ERR_END_OF_FILE) *num_rows = HA_POS_ERROR;
+
+  // Call ha_rnd_end() only if only if handler has been initialized.
+  if (inited && (ha_rnd_end_error = ha_rnd_end())) *num_rows = HA_POS_ERROR;
+
+  return (error != HA_ERR_END_OF_FILE) ? error : ha_rnd_end_error;
+}
+
+int handler::records_from_index(ha_rows *num_rows, uint index) {
+  if (MY_TEST((ha_table_flags() & HA_COUNT_ROWS_INSTANT))) {
+    *num_rows = stats.records;
+    return 0;
+  }
+
+  int error = 0;
+  ha_rows rows = 0;
+  uchar *buf = table->record[0];
+  start_psi_batch_mode();
+
+  if (!(error = ha_index_init(index, false))) {
+    if (!(error = ha_index_first(buf))) {
+      rows = 1;
+      while (!table->in_use->killed) {
+        if ((error = ha_index_next(buf))) {
+          if (error == HA_ERR_RECORD_DELETED)
+            continue;
+          else
+            break;
+        }
+        ++rows;
+      }
+    }
+  }
+
+  *num_rows = rows;
+  end_psi_batch_mode();
+  int ha_index_end_error = 0;
+  if (error != HA_ERR_END_OF_FILE) *num_rows = HA_POS_ERROR;
+
+  // Call ha_index_end() only if handler has been initialized.
+  if (inited && (ha_index_end_error = ha_index_end())) *num_rows = HA_POS_ERROR;
+
+  return (error != HA_ERR_END_OF_FILE) ? error : ha_index_end_error;
+}
+
 /**
   Read [part of] row via [part of] index.
   @param[out] buf          buffer where store the data
