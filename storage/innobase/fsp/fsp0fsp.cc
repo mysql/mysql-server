@@ -858,8 +858,7 @@ bool fsp_header_init(space_id_t space_id, page_no_t size, mtr_t *mtr,
   const page_id_t page_id(space_id, 0);
   const page_size_t page_size(space->flags);
 
-  block = buf_page_create(page_id, page_size, mtr);
-  buf_page_get(page_id, page_size, RW_SX_LATCH, mtr);
+  block = buf_page_create(page_id, page_size, RW_SX_LATCH, mtr);
   buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
 
   space->size_in_header = size;
@@ -1281,9 +1280,7 @@ static void fsp_fill_free_list(bool init_space, fil_space_t *space,
       if (i > 0) {
         const page_id_t page_id(space->id, i);
 
-        block = buf_page_create(page_id, page_size, mtr);
-
-        buf_page_get(page_id, page_size, RW_SX_LATCH, mtr);
+        block = buf_page_create(page_id, page_size, RW_SX_LATCH, mtr);
 
         buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
 
@@ -1308,9 +1305,7 @@ static void fsp_fill_free_list(bool init_space, fil_space_t *space,
 
         const page_id_t page_id(space->id, i + FSP_IBUF_BITMAP_OFFSET);
 
-        block = buf_page_create(page_id, page_size, &ibuf_mtr);
-
-        buf_page_get(page_id, page_size, RW_SX_LATCH, &ibuf_mtr);
+        block = buf_page_create(page_id, page_size, RW_SX_LATCH, &ibuf_mtr);
 
         buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
 
@@ -1438,30 +1433,8 @@ static buf_block_t *fsp_page_create(const page_id_t &page_id,
                                     const page_size_t &page_size,
                                     rw_lock_type_t rw_latch, mtr_t *mtr,
                                     mtr_t *init_mtr) {
-  buf_block_t *block = buf_page_create(page_id, page_size, init_mtr);
-
-  ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX) ==
-        rw_lock_own(&block->lock, RW_LOCK_X));
-
-  ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_SX_FIX) ==
-        rw_lock_own(&block->lock, RW_LOCK_SX));
-
   ut_ad(rw_latch == RW_X_LATCH || rw_latch == RW_SX_LATCH);
-
-  /* Mimic buf_page_get(), but avoid the buf_pool->page_hash lookup. */
-  if (rw_latch == RW_X_LATCH) {
-    rw_lock_x_lock(&block->lock);
-  } else {
-    rw_lock_sx_lock(&block->lock);
-  }
-  mutex_enter(&block->mutex);
-
-  buf_block_buf_fix_inc(block, __FILE__, __LINE__);
-
-  mutex_exit(&block->mutex);
-  mtr_memo_push(
-      init_mtr, block,
-      rw_latch == RW_X_LATCH ? MTR_MEMO_PAGE_X_FIX : MTR_MEMO_PAGE_SX_FIX);
+  buf_block_t *block = buf_page_create(page_id, page_size, rw_latch, init_mtr);
 
   if (init_mtr == mtr ||
       (rw_latch == RW_X_LATCH ? rw_lock_get_x_lock_count(&block->lock) == 1

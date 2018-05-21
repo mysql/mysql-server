@@ -715,7 +715,7 @@ dberr_t Clone_Snapshot::get_next_page(uint chunk_num, uint &block_num,
   /* Get page from buffer pool. */
   page_id_t page_id(clone_page.m_space_id, clone_page.m_page_no);
 
-  get_page_for_write(page_id, page_size, data_buf, data_size);
+  auto err = get_page_for_write(page_id, page_size, data_buf, data_size);
 
   /* Update size from space header page. */
   if (clone_page.m_page_no == 0) {
@@ -730,7 +730,7 @@ dberr_t Clone_Snapshot::get_next_page(uint chunk_num, uint &block_num,
     }
   }
 
-  return (DB_SUCCESS);
+  return (err);
 }
 
 /** Get page from buffer pool and make ready for write
@@ -739,30 +739,30 @@ dberr_t Clone_Snapshot::get_next_page(uint chunk_num, uint &block_num,
 @param[out]	page_data	data page
 @param[out]	data_size	page size in bytes
 @return error code */
-void Clone_Snapshot::get_page_for_write(const page_id_t &page_id,
-                                        const page_size_t &page_size,
-                                        byte *&page_data, uint &data_size) {
-  fil_space_t *space = fil_space_get(page_id.space());
+dberr_t Clone_Snapshot::get_page_for_write(const page_id_t &page_id,
+                                           const page_size_t &page_size,
+                                           byte *&page_data, uint &data_size) {
+  auto space = fil_space_get(page_id.space());
   IORequest request(IORequest::WRITE);
 
-  buf_block_t *block;
-  buf_page_t *bpage;
-  byte *src_data;
-  byte *encrypted_data;
   mtr_t mtr;
-
   mtr_start(&mtr);
 
   ut_ad(data_size >= 2 * page_size.physical());
 
   data_size = page_size.physical();
-  encrypted_data = page_data + data_size;
+  auto encrypted_data = page_data + data_size;
 
-  block = buf_page_get_gen(page_id, page_size, RW_S_LATCH, nullptr,
-                           BUF_GET_POSSIBLY_FREED, __FILE__, __LINE__, &mtr);
-  bpage = &block->page;
+  /* Space header page is modified with SX latch while extending. Also,
+  we would like to serialize with page flush to disk. */
+  auto block =
+      buf_page_get_gen(page_id, page_size, RW_SX_LATCH, nullptr,
+                       BUF_GET_POSSIBLY_FREED, __FILE__, __LINE__, &mtr);
+  auto bpage = &block->page;
 
-  if (bpage->zip.data != NULL) {
+  byte *src_data;
+
+  if (bpage->zip.data != nullptr) {
     ut_ad(bpage->size.is_compressed());
     src_data = bpage->zip.data;
   } else {
@@ -772,8 +772,16 @@ void Clone_Snapshot::get_page_for_write(const page_id_t &page_id,
 
   memcpy(page_data, src_data, data_size);
 
+  buf_page_mutex_enter(block);
+  ut_ad(!fsp_is_checksum_disabled(bpage->id.space()));
+  /* Get oldest and newest page modification LSN for dirty page. */
+  auto oldest_lsn = bpage->oldest_modification;
+  auto newest_lsn = bpage->newest_modification;
+  buf_page_mutex_exit(block);
+
   /* If page is dirty, we need to set checksum and page LSN. */
-  if (bpage->oldest_modification > 0) {
+  if (oldest_lsn > 0) {
+    ut_ad(newest_lsn > 0);
     /* For compressed table, must copy the compressed page. */
     if (page_size.is_compressed()) {
       page_zip_des_t page_zip;
@@ -785,22 +793,37 @@ void Clone_Snapshot::get_page_for_write(const page_id_t &page_id,
 #endif /* UNIV_DEBUG */
           page_zip.m_end = page_zip.m_nonempty = page_zip.n_blobs = 0;
 
-      buf_flush_init_for_writing(nullptr, block->frame, &page_zip,
-                                 bpage->newest_modification,
-                                 fsp_is_checksum_disabled(bpage->id.space()),
-                                 false /* do not skip lsn check */);
+      buf_flush_init_for_writing(nullptr, block->frame, &page_zip, newest_lsn,
+                                 false, false);
     } else {
-      buf_flush_init_for_writing(nullptr, page_data, nullptr,
-                                 bpage->newest_modification,
-                                 fsp_is_checksum_disabled(bpage->id.space()),
-                                 false /* do not skip lsn check */);
+      buf_flush_init_for_writing(nullptr, page_data, nullptr, newest_lsn, false,
+                                 false);
     }
+  }
+
+  BlockReporter reporter(false, page_data, page_size, false);
+
+  const auto page_lsn =
+      static_cast<lsn_t>(mach_read_from_8(page_data + FIL_PAGE_LSN));
+
+  const auto page_checksum = static_cast<uint32_t>(
+      mach_read_from_4(page_data + FIL_PAGE_SPACE_OR_CHKSUM));
+
+  auto cur_lsn = log_get_lsn(*log_sys);
+
+  dberr_t err = DB_SUCCESS;
+
+  if (reporter.is_corrupted() || page_lsn > cur_lsn ||
+      (page_checksum != 0 && page_lsn == 0)) {
+    ut_ad(false);
+    my_error(ER_INTERNAL_ERROR, MYF(0), "Innodb Clone Corrupt Page");
+    err = DB_ERROR;
   }
 
   fil_io_set_encryption(request, page_id, space);
 
   /* Encrypt page if TDE is enabled. */
-  if (request.is_encrypted()) {
+  if (err == DB_SUCCESS && request.is_encrypted()) {
     Encryption encryption(request.encryption_algorithm());
     ulint data_len;
     byte *ret_data;
@@ -820,4 +843,5 @@ void Clone_Snapshot::get_page_for_write(const page_id_t &page_id,
   in remote during clone could be expensive. */
 
   mtr_commit(&mtr);
+  return (err);
 }
