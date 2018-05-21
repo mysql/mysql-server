@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,7 +66,7 @@ class table_mapping {
   int set_table(ulonglong table_id, Mapped_table *table);
   int remove_table(ulonglong table_id);
   void clear_tables();
-  ulong count() const { return m_table_ids.size(); }
+  ulong count() const { return static_cast<ulong>(m_table_ids.size()); }
 
  private:
   struct entry {
