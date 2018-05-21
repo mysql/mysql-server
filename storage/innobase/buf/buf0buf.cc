@@ -4358,16 +4358,9 @@ func_exit:
   return (bpage);
 }
 
-/** Initializes a page to the buffer buf_pool. The page is usually not read
-from a file even if it cannot be found in the buffer buf_pool. This is one
-of the functions which perform to a block a state transition NOT_USED =>
-FILE_PAGE (the other is buf_page_get_gen).
-@param[in]	page_id		page id
-@param[in]	page_size	page size
-@param[in]	mtr		mini-transaction
-@return pointer to the block, page bufferfixed */
 buf_block_t *buf_page_create(const page_id_t &page_id,
-                             const page_size_t &page_size, mtr_t *mtr) {
+                             const page_size_t &page_size,
+                             rw_lock_type_t rw_latch, mtr_t *mtr) {
   buf_frame_t *frame;
   buf_block_t *block;
   buf_block_t *free_block = NULL;
@@ -4400,7 +4393,7 @@ buf_block_t *buf_page_create(const page_id_t &page_id,
 
     buf_block_free(free_block);
 
-    return (buf_page_get_with_no_latch(page_id, page_size, mtr));
+    return (buf_page_get(page_id, page_size, rw_latch, mtr));
   }
 
   /* If we get here, the page was not in buf_pool: init it there */
@@ -4414,32 +4407,44 @@ buf_block_t *buf_page_create(const page_id_t &page_id,
 
   buf_page_init(buf_pool, page_id, page_size, block);
 
+  buf_block_buf_fix_inc(block, __FILE__, __LINE__);
+
+  buf_page_set_accessed(&block->page);
+
+  mutex_exit(&block->mutex);
+
+  /* Latch the page before releasing hash lock so that concurrent request for
+  this page doesn't see half initialized page. ALTER tablespace for encryption
+  and clone page copy can request page for any page id within tablespace
+  size limit. */
+  mtr_memo_type_t mtr_latch_type;
+
+  if (rw_latch == RW_X_LATCH) {
+    rw_lock_x_lock(&block->lock);
+    mtr_latch_type = MTR_MEMO_PAGE_X_FIX;
+  } else {
+    rw_lock_sx_lock(&block->lock);
+    mtr_latch_type = MTR_MEMO_PAGE_SX_FIX;
+  }
+  mtr_memo_push(mtr, block, mtr_latch_type);
+
   rw_lock_x_unlock(hash_lock);
 
   /* The block must be put to the LRU list */
   buf_LRU_add_block(&block->page, FALSE);
 
-  buf_block_buf_fix_inc(block, __FILE__, __LINE__);
   os_atomic_increment_ulint(&buf_pool->stat.n_pages_created, 1);
 
   if (page_size.is_compressed()) {
-    void *data;
-
-    /* Prevent race conditions during buf_buddy_alloc(),
-    which may release and reacquire buf_pool->LRU_list_mutex,
-    by IO-fixing and X-latching the block. */
-
-    buf_page_set_io_fix(&block->page, BUF_IO_READ);
-    rw_lock_x_lock(&block->lock);
-
     mutex_exit(&buf_pool->LRU_list_mutex);
-    buf_page_mutex_exit(block);
 
-    data = buf_buddy_alloc(buf_pool, page_size.physical());
+    auto data = buf_buddy_alloc(buf_pool, page_size.physical());
 
     mutex_enter(&buf_pool->LRU_list_mutex);
+
     buf_page_mutex_enter(block);
     block->page.zip.data = (page_zip_t *)data;
+    buf_page_mutex_exit(block);
 
     /* To maintain the invariant
     block->in_unzip_LRU_list
@@ -4448,18 +4453,9 @@ buf_block_t *buf_page_create(const page_id_t &page_id,
     block->page.zip.data is set. */
     ut_ad(buf_page_belongs_to_unzip_LRU(&block->page));
     buf_unzip_LRU_add_block(block, FALSE);
-
-    buf_page_set_io_fix(&block->page, BUF_IO_NONE);
-    rw_lock_x_unlock(&block->lock);
   }
 
   mutex_exit(&buf_pool->LRU_list_mutex);
-
-  mtr_memo_push(mtr, block, MTR_MEMO_BUF_FIX);
-
-  buf_page_set_accessed(&block->page);
-
-  buf_page_mutex_exit(block);
 
   /* Delete possible entries for the page from the insert buffer:
   such can exist if the page belonged to an index which was dropped */

@@ -328,9 +328,9 @@ class Clone_Snapshot {
   @param[out]	page_data	data page
   @param[out]	data_size	page size in bytes
   @return error code */
-  void get_page_for_write(const page_id_t &page_id,
-                          const page_size_t &page_size, byte *&page_data,
-                          uint &data_size);
+  dberr_t get_page_for_write(const page_id_t &page_id,
+                             const page_size_t &page_size, byte *&page_data,
+                             uint &data_size);
 
   /** Build file metadata entry
   @param[in]	file_name	name of the file
