@@ -1141,11 +1141,14 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize) {
     if (file->state != &file->s->state.state)
       file->s->state.state = *file->state;
     if (file->s->base.auto_key) update_auto_increment_key(&param, file, 1);
-    if (optimize_done)
+    if (optimize_done) {
+      mysql_mutex_lock(&share->intern_lock);
       error = update_state_info(
           &param, file,
           UPDATE_TIME | UPDATE_OPEN_COUNT |
               (local_testflag & T_STATISTICS ? UPDATE_STAT : 0));
+      mysql_mutex_unlock(&share->intern_lock);
+    }
     info(HA_STATUS_NO_LOCK | HA_STATUS_TIME | HA_STATUS_VARIABLE |
          HA_STATUS_CONST);
     if (rows != file->state->records && !(param.testflag & T_VERY_SILENT)) {
