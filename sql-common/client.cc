@@ -2084,7 +2084,9 @@ MYSQL_FIELD *unpack_fields(MYSQL *mysql, MYSQL_ROWS *data, MEM_ROOT *alloc,
   memset(field, 0, sizeof(MYSQL_FIELD) * fields);
   for (row = data; row; row = row->next, field++) {
     /* fields count may be wrong */
-    if (field < result || field - result >= fields) DBUG_RETURN(NULL);
+    if (field < result || static_cast<uint>(field - result) >= fields) {
+      DBUG_RETURN(NULL);
+    }
     if (unpack_field(mysql, alloc, default_value, server_capabilities, row,
                      field)) {
       DBUG_RETURN(NULL);
