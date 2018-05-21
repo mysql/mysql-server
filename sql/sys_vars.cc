@@ -6075,10 +6075,12 @@ static Sys_var_set Sys_binlog_row_value_options(
     ON_CHECK(check_binlog_row_value_options));
 
 static bool check_keyring_access(sys_var *, THD *thd, set_var *) {
-  if (!(thd->security_context()
+  if (!thd->security_context()->check_access(SUPER_ACL) &&
+      !(thd->security_context()
             ->has_global_grant(STRING_WITH_LEN("ENCRYPTION_KEY_ADMIN"))
             .first)) {
-    my_error(ER_KEYRING_ACCESS_DENIED_ERROR, MYF(0), "ENCRYPTION_KEY_ADMIN");
+    my_error(ER_KEYRING_ACCESS_DENIED_ERROR, MYF(0),
+             "SUPER or ENCRYPTION_KEY_ADMIN");
     return true;
   }
   return false;
