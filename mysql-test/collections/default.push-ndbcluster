@@ -19,3 +19,27 @@ perl mysql-test-run.pl --timer --force --parallel=auto --comment=ndb_memcache --
 
 # Run the meb and meb_ptr suites
 perl mysql-test-run.pl --timer --force --parallel=auto --comment=MEB --vardir=var-meb --experimental=collections/default.experimental --suite=meb,meb_ptr
+
+# Run the group_replication suite
+perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication --vardir=var-group_replication --suite=group_replication --experimental=collections/default.experimental
+
+# Run the audit_log suite
+perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=audit_log --vardir=var_audit_log --suite=audit_log --experimental=collections/default.experimental  --max-test-fail=0
+
+# Run the clone suite
+perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=clone-debug --vardir=var-clone-debug --suite=clone --experimental=collections/default.experimental
+
+# Run the firewall suite
+perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=firewall --vardir=var_firewall --suite=firewall --experimental=collections/default.experimental  --max-test-fail=0
+
+# Run the authentication_ldap suite
+perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=ldap --vardir=var-ldap --suite=authentication_ldap --experimental=collections/default.experimental --max-test-fail=0
+
+# Run the openssl_udf suite
+perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=openssl_udf --vardir=var_openssl_udf --suite=openssl_udf --experimental=collections/default.experimental  --max-test-fail=0
+
+# Run the thread_pool suite
+perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=thread_pool --vardir=var-thread_pool --suite=thread_pool --experimental=collections/default.experimental  --max-test-fail=0
+
+# Run the windows-authentication-plugin suite
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=windows-authentication-plugin --vardir=var-windows-authentication-plugin --suite=windows-authentication-plugin --experimental=collections/default.experimental  --max-test-fail=0
