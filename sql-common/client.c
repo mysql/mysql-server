@@ -2176,7 +2176,7 @@ unpack_fields(MYSQL *mysql, MYSQL_ROWS *data,MEM_ROOT *alloc,uint fields,
   for (row=data; row ; row = row->next,field++)
   {
     /* fields count may be wrong */
-    if (field < result || field - result >= fields) DBUG_RETURN(NULL);
+    if (field < result || uint(field - result) >= fields) DBUG_RETURN(NULL);
     if (unpack_field(mysql, alloc, default_value, server_capabilities,
                      row, field))
     {
