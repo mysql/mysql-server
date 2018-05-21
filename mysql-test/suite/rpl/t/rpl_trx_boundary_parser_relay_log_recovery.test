@@ -38,7 +38,7 @@ DROP TABLE t1;
 # File to GREP
 --let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.2.err
 # Show entries only after the last occurrence of the following pattern
---let $assert_only_after=.* \[Note\] \[[^]]*\] Shutting down slave threads
+--let $assert_only_after=.* \[Note\] \[[^]]*\] .* Shutting down slave threads
 # Assert that there is no expected note log line about reading relay log events
 --let $assert_count= 0
 --let $assert_select=.* \[Note\] \[[^]]*\] .* events read in relaylog file .*
