@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -380,10 +380,10 @@ typedef boost::property<boost::vertex_acl_user_t, ACL_USER,
 typedef boost::property<boost::edge_capacity_t, int> Role_edge_properties;
 
 /** A graph of all users/roles privilege inheritance */
-typedef boost::adjacency_list<boost::setS,       // OutEdges
-                              boost::vecS,       // Vertices
-                              boost::directedS,  // Directed graph
-                              Role_properties,   // Vertex props
+typedef boost::adjacency_list<boost::setS,            // OutEdges
+                              boost::vecS,            // Vertices
+                              boost::bidirectionalS,  // Directed graph
+                              Role_properties,        // Vertex props
                               Role_edge_properties>
     Granted_roles_graph;
 
@@ -397,6 +397,17 @@ typedef boost::graph_traits<Granted_roles_graph>::edge_descriptor
 
 /** The datatype of the map between authids and graph vertex descriptors */
 typedef std::unordered_map<std::string, Role_vertex_descriptor> Role_index_map;
+
+/** The type used for the number of edges incident to a vertex in the graph. */
+using degree_s_t = boost::graph_traits<Granted_roles_graph>::degree_size_type;
+
+/** The type for the iterator returned by out_edges(). */
+using out_edge_itr_t =
+    boost::graph_traits<Granted_roles_graph>::out_edge_iterator;
+
+/** The type for the iterator returned by in_edges(). */
+using in_edge_itr_t =
+    boost::graph_traits<Granted_roles_graph>::in_edge_iterator;
 
 /** Container for global, schema, table/view and routine ACL maps */
 class Acl_map {
