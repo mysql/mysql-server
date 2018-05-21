@@ -2176,7 +2176,7 @@ unpack_fields(MYSQL *mysql, MYSQL_ROWS *data,MEM_ROOT *alloc,uint fields,
   for (row=data; row ; row = row->next,field++)
   {
     /* fields count may be wrong */
-    DBUG_ASSERT((uint) (field - result) < fields);
+    if (field < result || field - result >= fields) DBUG_RETURN(NULL);
     if (unpack_field(mysql, alloc, default_value, server_capabilities,
                      row, field))
     {
@@ -2288,6 +2288,7 @@ MYSQL_DATA *cli_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
 
   if ((pkt_len= cli_safe_read(mysql, &is_data_packet)) == packet_error)
     DBUG_RETURN(0);
+  if (pkt_len == 0) DBUG_RETURN(0);
   if (!(result=(MYSQL_DATA*) my_malloc(key_memory_MYSQL_DATA,
                                        sizeof(MYSQL_DATA),
 				       MYF(MY_WME | MY_ZEROFILL))))
