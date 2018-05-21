@@ -731,4 +731,13 @@ SELECT regexp_instr( 'abc', '(?-' );
 
 select regexp_instr(char('313:50:35.199734'using utf16le),uuid());
 
+--echo #
+--echo # Bug#27992118: REGEXP_REPLACE ACCUMULATING RESULT
+--echo #
+
+CREATE TABLE t1 ( a VARCHAR(10) );
+INSERT INTO t1 VALUES ('a a a'), ('b b b'), ('c c c');
+SELECT regexp_replace(a, '^([[:alpha:]]+)[[:space:]].*$', '$1') FROM t1;
+DROP TABLE t1;
+
 --source ../mysql-test/include/cleanup_icu_utils.inc
