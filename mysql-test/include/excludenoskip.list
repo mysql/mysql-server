@@ -92,6 +92,7 @@ have_openssl_binary.inc
 have_ssl.inc
 have_ssl_crypto_functs.inc
 not_openssl.inc
+check_openssl_version.inc
 
 # 4.5 Reason for inclusion: Tests should run only with supported innodb page
 # sizes and skip on others. However, this can be handled using a custom

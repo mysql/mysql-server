@@ -2630,12 +2630,18 @@ static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
       are what we expect.
     */
 
-    /* Use OpenSSL host check instead of our own if we have OpenSSL */
+    /* Use OpenSSL certificate matching functions instead of our own if we
+       have OpenSSL. The X509_check_* functions return 1 on success.
+    */
 #if OPENSSL_VERSION_NUMBER >= 0x10002000L || defined(HAVE_WOLFSSL)
-  if (X509_check_host(server_cert, server_hostname, strlen(server_hostname), 0,
-                      0) != 1) {
-    *errptr = "Failed to verify the server certificate via X509_check_host";
+  if ((X509_check_host(server_cert, server_hostname, strlen(server_hostname), 0,
+                       0) != 1) &&
+      (X509_check_ip_asc(server_cert, server_hostname, 0) != 1)) {
+    *errptr =
+        "Failed to verify the server certificate via X509 certificate "
+        "matching functions";
     goto error;
+
   } else {
     /* Success */
     ret_validation = 0;
