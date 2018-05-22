@@ -1,18 +1,19 @@
 # Want to skip this test from Valgrind execution
 --source include/no_valgrind_without_big.inc
 -- source include/have_ssl.inc
+-- source include/have_openssl.inc
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
-let $ssl_verify_pass_path = --ssl --ssl-ca=$MYSQL_TEST_DIR/std_data/ca-cert-verify.pem --ssl-key=$MYSQL_TEST_DIR/std_data/server-key-verify-pass.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert-verify-pass.pem;
+let $ssl_verify_fail_path = --ssl --ssl-ca=$MYSQL_TEST_DIR/std_data/ca-cert-verify.pem --ssl-key=$MYSQL_TEST_DIR/std_data/server-key-verify-fail.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert-verify-fail.pem;
 
 let $tls_default= TLSv1.2;
 
---echo #T2: Host name (localhost) as common name in the server certificate, server certificate verification should pass.
---let $restart_parameters="restart: $ssl_verify_pass_path"
+--echo #T1: Host name (/CN=localhost/) as OU name in the server certificate, server certificate verification should fail.
+--let $restart_parameters="restart: $ssl_verify_fail_path"
 --source include/restart_mysqld.inc
 
---replace_result $tls_default TLS_VERSION
+--error 1
 --exec $MYSQL --protocol=tcp --ssl-ca=$MYSQL_TEST_DIR/std_data/ca-cert-verify.pem --ssl-mode=VERIFY_IDENTITY -e "SHOW STATUS like 'Ssl_version'"
 
 --let $restart_parameters="restart: "

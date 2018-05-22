@@ -1,5 +1,5 @@
-#T1: Host name (/CN=localhost/) as OU name in the server certificate, server certificate verification should fail.
 #T2: Host name (localhost) as common name in the server certificate, server certificate verification should pass.
+# restart: --ssl --ssl-ca=/export/home/tmp/gkodinov/work/B27786807-8.0/mysql-test/std_data/ca-cert-verify.pem --ssl-key=/export/home/tmp/gkodinov/work/B27786807-8.0/mysql-test/std_data/server-key-verify-pass.pem --ssl-cert=/export/home/tmp/gkodinov/work/B27786807-8.0/mysql-test/std_data/server-cert-verify-pass.pem
 Variable_name	Value
 Ssl_version	TLS_VERSION
-# restart server using restart
+# restart: 

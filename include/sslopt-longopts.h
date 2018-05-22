@@ -159,11 +159,7 @@
     {"tls-version",
      OPT_TLS_VERSION,
      "TLS version to use, "
-#ifndef HAVE_WOLFSSL
      "permitted values are: TLSv1, TLSv1.1, TLSv1.2",
-#else
-     "permitted values are: TLSv1, TLSv1.1",
-#endif
      &opt_tls_version,
      &opt_tls_version,
      0,
