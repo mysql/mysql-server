@@ -1,4 +1,5 @@
 --source include/have_debug.inc
+--source include/have_innodb_16k.inc
 
 --echo #
 --echo # Bug #27852003 LOG::ALLOC_LOB_PAGE MAY FAIL AND RETURN NULLPTR
