@@ -260,10 +260,7 @@ double mbr_join_area(const dd::Spatial_reference_system *srs, const double *a,
           gis::Geographic_point(srs->to_radians(b[1]), srs->to_radians(b[3])));
       bg::expand(a_box, b_box);
       area = bg::area(
-          a_box, bg::strategy::area::geographic<
-                     gis::Geographic_point, bg::strategy::andoyer,
-                     bg::strategy::default_order<bg::strategy::andoyer>::value,
-                     bg::srs::spheroid<double>>(bg::srs::spheroid<double>(
+          a_box, bg::strategy::area::geographic<>(bg::srs::spheroid<double>(
                      srs->semi_major_axis(), srs->semi_minor_axis())));
     }
   } catch (...) {
@@ -290,10 +287,7 @@ double compute_area(const dd::Spatial_reference_system *srs, const double *a,
           gis::Geographic_point(srs->to_radians(a[0]), srs->to_radians(a[2])),
           gis::Geographic_point(srs->to_radians(a[1]), srs->to_radians(a[3])));
       area = bg::area(
-          a_box, bg::strategy::area::geographic<
-                     gis::Geographic_point, bg::strategy::andoyer,
-                     bg::strategy::default_order<bg::strategy::andoyer>::value,
-                     bg::srs::spheroid<double>>(bg::srs::spheroid<double>(
+          a_box, bg::strategy::area::geographic<>(bg::srs::spheroid<double>(
                      srs->semi_major_axis(), srs->semi_minor_axis())));
     }
   } catch (...) {
@@ -412,17 +406,11 @@ double rtree_area_increase(const dd::Spatial_reference_system *srs,
                                 gis::Geographic_point(srs->to_radians(b_xmax),
                                                       srs->to_radians(b_ymax)));
       a_area = bg::area(
-          a_box, bg::strategy::area::geographic<
-                     gis::Geographic_point, bg::strategy::andoyer,
-                     bg::strategy::default_order<bg::strategy::andoyer>::value,
-                     bg::srs::spheroid<double>>(bg::srs::spheroid<double>(
+          a_box, bg::strategy::area::geographic<>(bg::srs::spheroid<double>(
                      srs->semi_major_axis(), srs->semi_minor_axis())));
       bg::expand(a_box, b_box);
       *ab_area = bg::area(
-          a_box, bg::strategy::area::geographic<
-                     gis::Geographic_point, bg::strategy::andoyer,
-                     bg::strategy::default_order<bg::strategy::andoyer>::value,
-                     bg::srs::spheroid<double>>(bg::srs::spheroid<double>(
+          a_box, bg::strategy::area::geographic<>(bg::srs::spheroid<double>(
                      srs->semi_major_axis(), srs->semi_minor_axis())));
     }
     if (std::isinf(a_area)) a_area = std::numeric_limits<double>::max();
@@ -486,13 +474,10 @@ double rtree_area_overlapping(const dd::Spatial_reference_system *srs,
                        bg::strategy::intersection::geographic_segments<>(
                            bg::srs::spheroid<double>(srs->semi_major_axis(),
                                                      srs->semi_minor_axis())));
-      area = bg::area(
-          overlapping_box,
-          bg::strategy::area::geographic<
-              gis::Geographic_point, bg::strategy::andoyer,
-              bg::strategy::default_order<bg::strategy::andoyer>::value,
-              bg::srs::spheroid<double>>(bg::srs::spheroid<double>(
-              srs->semi_major_axis(), srs->semi_minor_axis())));
+      area =
+          bg::area(overlapping_box,
+                   bg::strategy::area::geographic<>(bg::srs::spheroid<double>(
+                       srs->semi_major_axis(), srs->semi_minor_axis())));
     }
   } catch (...) {
     DBUG_ASSERT(false); /* purecov: inspected */
