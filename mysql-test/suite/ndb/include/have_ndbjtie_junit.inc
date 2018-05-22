@@ -35,9 +35,9 @@ if ($jtie_junit) {
   print $F "--let \$NDBJTIE_JUNIT= $jtie_junit_dir\n";
   print $F "--let \$NDBJTIE_JUNIT_JAR= $jtie_junit\n";
   print $F "--let \$NDBJTIE_UNLOAD_JUNIT_JAR= $jtie_unload_junit\n";
-  print $F "--echo Found NDB JTie JUnit tests: '\$NDBJTIE_JUNIT_JAR'\n"
+  print $F "--echo Found NDB JTie JUnit tests\n"
 } else {
-  print $F "skip Could not find NDB JTie JUnit tests\n";
+  print $F "--skip Could not find NDB JTie JUnit tests\n";
 }
 $F->close();
 
