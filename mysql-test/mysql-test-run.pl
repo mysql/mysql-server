@@ -423,7 +423,7 @@ sub main {
       # Scan all sub-directories for available test suites
       # $opt_suites is updated by get_all_suites()
       find(\&get_all_suites, "$basedir/mysql-test");
-      find(\&get_all_suites, "$basedir/internal");
+      find(\&get_all_suites, "$basedir/internal") if (-d "$basedir/internal");
 
       if ($suite_set == 1) {
         # Run only with non-default suites
