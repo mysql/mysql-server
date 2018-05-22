@@ -120,7 +120,7 @@ class RowIterator {
     return std::vector<RowIterator *>();
   }
 
-  virtual std::string DebugString() const = 0;
+  virtual std::vector<std::string> DebugString() const = 0;
 
   /**
     Start performance schema batch mode, if supported (otherwise ignored).

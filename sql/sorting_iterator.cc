@@ -60,6 +60,7 @@
 #include "varlen_sort.h"
 
 using std::string;
+using std::vector;
 
 SortFileIndirectIterator::SortFileIndirectIterator(THD *thd, TABLE *table,
                                                    IO_CACHE *tempfile,
@@ -250,10 +251,10 @@ int SortFileIndirectIterator::CachedRead() {
   }
 }
 
-string SortFileIndirectIterator::DebugString() const {
+vector<string> SortFileIndirectIterator::DebugString() const {
   // Not used, because sorting strategy is not decided at EXPLAIN time.
-  return string("Read sorted data: Row IDs from file, records from ") +
-         table()->alias;
+  return {string("Read sorted data: Row IDs from file, records from ") +
+          table()->alias};
 }
 
 template <bool Packed_addon_fields>
@@ -317,10 +318,10 @@ int SortFileIterator<Packed_addon_fields>::Read() {
 }
 
 template <bool Packed_addon_fields>
-string SortFileIterator<Packed_addon_fields>::DebugString() const {
+vector<string> SortFileIterator<Packed_addon_fields>::DebugString() const {
   // Not used, because sorting strategy is not decided at EXPLAIN time.
-  return string("Read sorted data from file (originally from ") +
-         table()->alias + ")";
+  return {string("Read sorted data from file (originally from ") +
+          table()->alias + ")"};
 }
 
 template <bool Packed_addon_fields>
@@ -378,10 +379,10 @@ int SortBufferIterator<Packed_addon_fields>::Read() {
 }
 
 template <bool Packed_addon_fields>
-string SortBufferIterator<Packed_addon_fields>::DebugString() const {
+vector<string> SortBufferIterator<Packed_addon_fields>::DebugString() const {
   // Not used, because sorting strategy is not decided at EXPLAIN time.
-  return string("Read sorted data from memory (originally from ") +
-         table()->alias + ")";
+  return {string("Read sorted data from memory (originally from ") +
+          table()->alias + ")"};
 }
 
 SortBufferIndirectIterator::SortBufferIndirectIterator(
@@ -443,10 +444,10 @@ int SortBufferIndirectIterator::Read() {
   }
 }
 
-string SortBufferIndirectIterator::DebugString() const {
+vector<string> SortBufferIndirectIterator::DebugString() const {
   // Not used, because sorting strategy is not decided at EXPLAIN time.
-  return string("Read sorted data: Row IDs from memory, records from ") +
-         table()->alias;
+  return {string("Read sorted data: Row IDs from memory, records from ") +
+          table()->alias};
 }
 
 SortingIterator::SortingIterator(THD *thd, Filesort *filesort,
@@ -611,8 +612,6 @@ int SortingIterator::DoSort(QEP_TAB *qep_tab) {
       return -1;
   }
 
-  if (table->s->tmp_table)
-    table->file->info(HA_STATUS_VARIABLE);  // Get record count
   ha_rows found_rows, returned_rows;
   bool error = filesort(thd(), m_filesort, qep_tab->keep_current_rowid,
                         m_source_iterator.get(), &m_sort_result, &found_rows,
@@ -647,7 +646,7 @@ inline void Filesort_info::unpack_addon_fields(uchar *buff) {
   }
 }
 
-string SortingIterator::DebugString() const {
+vector<string> SortingIterator::DebugString() const {
   string ret = "Sort: ";
 
   bool first = true;
@@ -675,5 +674,5 @@ string SortingIterator::DebugString() const {
     ret += " (with hidden filter)";
   }
 
-  return ret;
+  return {ret};
 }

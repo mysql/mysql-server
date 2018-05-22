@@ -207,6 +207,10 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30;
 --replace_regex /("peak_memory_used":) [0-9]+/\1 "NNN"/
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 
+# Tests printing of MaterializeIterator with multiple iterators
+# on top of the table iterator.
+EXPLAIN FORMAT=tree SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30;
+
 CREATE VIEW v2 as SELECT * FROM t1 ORDER BY f2, f0 LIMIT 100;
 SELECT * FROM v1 JOIN v2 on v1.f1=v2.f1 ORDER BY v1.f2,v1.f0,v2.f0
 LIMIT 30;

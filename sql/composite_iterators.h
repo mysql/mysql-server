@@ -50,9 +50,14 @@
 #include "my_table_map.h"
 #include "sql/item.h"
 #include "sql/row_iterator.h"
+#include "sql/table.h"
 
 class JOIN;
+class SELECT_LEX;
 class THD;
+class Temp_table_param;
+template <class T>
+class List;
 
 /**
   An iterator that takes in a stream of rows and passes through only those that
@@ -79,8 +84,8 @@ class FilterIterator final : public RowIterator {
     return std::vector<RowIterator *>{m_source.get()};
   }
 
-  std::string DebugString() const override {
-    return "Filter: " + ItemToString(m_condition);
+  std::vector<std::string> DebugString() const override {
+    return {"Filter: " + ItemToString(m_condition)};
   }
 
  private:
@@ -125,7 +130,7 @@ class LimitOffsetIterator final : public RowIterator {
     return std::vector<RowIterator *>{m_source.get()};
   }
 
-  std::string DebugString() const override {
+  std::vector<std::string> DebugString() const override {
     char buf[256];
     if (m_offset == 0) {
       snprintf(buf, sizeof(buf), "Limit: %llu row(s)", m_limit);
@@ -135,7 +140,7 @@ class LimitOffsetIterator final : public RowIterator {
       snprintf(buf, sizeof(buf), "Limit/Offset: %llu/%llu row(s)",
                m_limit - m_offset, m_offset);
     }
-    return buf;
+    return {std::string(buf)};
   }
 
  private:
@@ -192,7 +197,7 @@ class AggregateIterator final : public RowIterator {
     return std::vector<RowIterator *>{m_source.get()};
   }
 
-  std::string DebugString() const override;
+  std::vector<std::string> DebugString() const override;
 
  private:
   unique_ptr_destroy_only<RowIterator> m_source;
@@ -244,7 +249,7 @@ class PrecomputedAggregateIterator final : public RowIterator {
     return std::vector<RowIterator *>{m_source.get()};
   }
 
-  std::string DebugString() const override;
+  std::vector<std::string> DebugString() const override;
 
  private:
   unique_ptr_destroy_only<RowIterator> m_source;
@@ -312,7 +317,7 @@ class NestedLoopIterator final : public RowIterator {
     }
   }
 
-  std::string DebugString() const override;
+  std::vector<std::string> DebugString() const override;
 
   std::vector<RowIterator *> children() const override {
     return std::vector<RowIterator *>{m_source_outer.get(),
@@ -333,6 +338,61 @@ class NestedLoopIterator final : public RowIterator {
 
   /** Whether to use batch mode when scanning the inner iterator. */
   const bool m_pfs_batch_mode;
+};
+
+/**
+  Handles materialization; the first call to Init() will scan the given iterator
+  to the end, store the results in a temporary table (optionally with
+  deduplication), and then Read() will allow you to read that table repeatedly
+  without the cost of executing the given subquery many times (unless you ask
+  for rematerialization).
+
+  When materializing, MaterializeIterator takes care of evaluating any items
+  that need so, and storing the results in the fields of the outgoing table --
+  which items is governed by the temporary table parameters.
+
+  Conceptually (although not performance-wise!), the MaterializeIterator is a
+  no-op if you don't ask for deduplication, and in some cases, we probably
+  should elide it (e.g. when scanning a table only once). However, it's not
+  necessarily straightforward to do so by just not inserting the iterator,
+  as the optimizer will have set up everything (e.g., read sets, or what table
+  upstream items will read from) assuming the materialization will happen.
+ */
+class MaterializeIterator final : public TableRowIterator {
+ public:
+  // SELECT_LEX is used only to get active options.
+  MaterializeIterator(THD *thd,
+                      unique_ptr_destroy_only<RowIterator> subquery_iterator,
+                      List<Item> *fields, Temp_table_param *temp_table_param,
+                      TABLE *table,
+                      unique_ptr_destroy_only<RowIterator> table_iterator,
+                      SELECT_LEX *select_lex);
+
+  bool Init() override;
+  int Read() override;
+  std::vector<std::string> DebugString() const override;
+
+  // We don't list the table iterator as an explicit child; we mark it in our
+  // DebugString() instead. (Anything else would look confusingly much like a
+  // join.)
+  std::vector<RowIterator *> children() const override {
+    return std::vector<RowIterator *>{m_subquery_iterator.get()};
+  }
+
+  void SetNullRowFlag(bool is_null_row) override {
+    m_table_iterator->SetNullRowFlag(is_null_row);
+  }
+
+  // The temporary table is private to us, so there's no need to worry about
+  // locks to other transactions.
+  void UnlockRow() override {}
+
+ private:
+  unique_ptr_destroy_only<RowIterator> m_subquery_iterator;
+  unique_ptr_destroy_only<RowIterator> m_table_iterator;
+  List<Item> *m_fields;
+  Temp_table_param *m_tmp_table_param;
+  SELECT_LEX *m_select_lex;
 };
 
 #endif  // SQL_COMPOSITE_ITERATORS_INCLUDED

@@ -1729,7 +1729,7 @@ SELECT * from t1 ORDER BY rand(2) LIMIT 2	{
               "key_size": 16,
               "row_size": 16,
               "max_rows_per_buffer": 3,
-              "num_rows_estimate": 110,
+              "num_rows_estimate": 10,
               "num_rows_found": 100,
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": "NNN",
@@ -4378,7 +4378,8 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 30,
-              "chosen": true
+              "chosen": false,
+              "cause": "sort_is_cheaper"
             },
             "filesort_execution": [
             ],
@@ -4386,13 +4387,13 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
               "memory_available": 327680,
               "key_size": 17,
               "row_size": 17,
-              "max_rows_per_buffer": 31,
-              "num_rows_estimate": 1510,
+              "max_rows_per_buffer": 15,
+              "num_rows_estimate": 15,
               "num_rows_found": 1500,
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": "NNN",
-              "sort_algorithm": "std::sort",
-              "unpacked_addon_fields": "using_priority_queue",
+              "sort_algorithm": "std::stable_sort",
+              "unpacked_addon_fields": "using_heap_table",
               "sort_mode": "<fixed_sort_key, rowid>"
             }
           }
@@ -4705,7 +4706,8 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 60,
-              "chosen": true
+              "chosen": false,
+              "cause": "sort_is_cheaper"
             },
             "filesort_execution": [
             ],
@@ -4713,13 +4715,13 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
               "memory_available": 327680,
               "key_size": 17,
               "row_size": 17,
-              "max_rows_per_buffer": 61,
-              "num_rows_estimate": 1510,
+              "max_rows_per_buffer": 15,
+              "num_rows_estimate": 15,
               "num_rows_found": 1500,
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": "NNN",
-              "sort_algorithm": "std::sort",
-              "unpacked_addon_fields": "using_priority_queue",
+              "sort_algorithm": "std::stable_sort",
+              "unpacked_addon_fields": "using_heap_table",
               "sort_mode": "<fixed_sort_key, rowid>"
             }
           }
@@ -5045,8 +5047,8 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
               "memory_available": 327680,
               "key_size": 17,
               "row_size": 17,
-              "max_rows_per_buffer": 1510,
-              "num_rows_estimate": 1510,
+              "max_rows_per_buffer": 15,
+              "num_rows_estimate": 15,
               "num_rows_found": 1500,
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": "NNN",
@@ -5437,8 +5439,8 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
               "memory_available": 327680,
               "key_size": 17,
               "row_size": 17,
-              "max_rows_per_buffer": 1195,
-              "num_rows_estimate": 1195,
+              "max_rows_per_buffer": 15,
+              "num_rows_estimate": 15,
               "num_rows_found": 1185,
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": "NNN",
@@ -5752,7 +5754,7 @@ SELECT * FROM v1	{
             }
           },
           {
-            "join_execution": {
+            "materialize": {
               "select#": 2,
               "steps": [
                 {
@@ -6095,7 +6097,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
             }
           },
           {
-            "join_execution": {
+            "materialize": {
               "select#": 2,
               "steps": [
                 {
@@ -6174,6 +6176,16 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
     }
   ]
 }	0	0
+EXPLAIN FORMAT=tree SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30;
+EXPLAIN
+-> Limit: 30 row(s)
+    -> Sort: v1.f2, v1.f0
+        -> Table scan on v1
+            -> Materialize
+                -> Limit: 100 row(s)
+                    -> Sort: t1.f1, t1.f0
+                        -> Table scan on t1
+
 CREATE VIEW v2 as SELECT * FROM t1 ORDER BY f2, f0 LIMIT 100;
 SELECT * FROM v1 JOIN v2 on v1.f1=v2.f1 ORDER BY v1.f2,v1.f0,v2.f0
 LIMIT 30;
@@ -6954,7 +6966,8 @@ LIMIT 30	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 30,
-              "chosen": true
+              "chosen": false,
+              "cause": "sort_is_cheaper"
             },
             "filesort_execution": [
             ],
@@ -6962,13 +6975,13 @@ LIMIT 30	{
               "memory_available": 327680,
               "key_size": 217,
               "row_size": 217,
-              "max_rows_per_buffer": 31,
-              "num_rows_estimate": 335,
+              "max_rows_per_buffer": 15,
+              "num_rows_estimate": 15,
               "num_rows_found": 325,
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": "NNN",
-              "sort_algorithm": "std::sort",
-              "unpacked_addon_fields": "using_priority_queue",
+              "sort_algorithm": "std::stable_sort",
+              "unpacked_addon_fields": "using_heap_table",
               "sort_mode": "<fixed_sort_key, rowid>"
             }
           }
@@ -7157,7 +7170,8 @@ GROUP BY 1 ORDER BY 2,1 LIMIT 5	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 5,
-              "chosen": true
+              "chosen": false,
+              "cause": "sort_is_cheaper"
             },
             "filesort_execution": [
             ],
@@ -7165,13 +7179,13 @@ GROUP BY 1 ORDER BY 2,1 LIMIT 5	{
               "memory_available": 327680,
               "key_size": 25,
               "row_size": 25,
-              "max_rows_per_buffer": 6,
-              "num_rows_estimate": 20,
+              "max_rows_per_buffer": 15,
+              "num_rows_estimate": 15,
               "num_rows_found": 10,
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": "NNN",
               "sort_algorithm": "std::sort",
-              "unpacked_addon_fields": "using_priority_queue",
+              "unpacked_addon_fields": "using_heap_table",
               "sort_mode": "<fixed_sort_key, rowid>"
             }
           }
@@ -8169,7 +8183,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
             }
           },
           {
-            "join_execution": {
+            "materialize": {
               "select#": 2,
               "steps": [
                 {
@@ -8715,7 +8729,8 @@ ORDER BY d1.f2 DESC LIMIT 30	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 30,
-              "chosen": true
+              "chosen": false,
+              "cause": "sort_is_cheaper"
             },
             "filesort_execution": [
             ],
@@ -8723,13 +8738,13 @@ ORDER BY d1.f2 DESC LIMIT 30	{
               "memory_available": 327680,
               "key_size": 209,
               "row_size": 209,
-              "max_rows_per_buffer": 31,
-              "num_rows_estimate": 630,
+              "max_rows_per_buffer": 15,
+              "num_rows_estimate": 15,
               "num_rows_found": 620,
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": "NNN",
-              "sort_algorithm": "std::sort",
-              "unpacked_addon_fields": "using_priority_queue",
+              "sort_algorithm": "std::stable_sort",
+              "unpacked_addon_fields": "using_heap_table",
               "sort_mode": "<fixed_sort_key, rowid>"
             }
           }

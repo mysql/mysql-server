@@ -32,6 +32,7 @@
 #include <algorithm>
 #include <cstring>
 #include <new>
+#include <vector>
 
 #include "binary_log_types.h"
 #include "lex_string.h"
@@ -53,7 +54,6 @@
 #include "sql/debug_sync.h"  // DEBUG_SYNC
 #include "sql/field.h"
 #include "sql/filesort.h"  // filesort_free_buffers
-#include "sql/gis/srid.h"
 #include "sql/handler.h"
 #include "sql/item_func.h"  // Item_func
 #include "sql/item_sum.h"   // Item_sum
@@ -2567,8 +2567,9 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
         DBUG_ASSERT(rows_on_disk);
         (void)table->file->ha_rnd_end();
         rec_ref_w_open_cursor = true;
-        psi_batch_started = table->file->end_psi_batch_mode_if_started();
       }
+
+      psi_batch_started = table->file->end_psi_batch_mode_if_started();
 
       // Closing the MEMORY table drops it if its ref count is down to zero.
       (void)table->file->ha_close();

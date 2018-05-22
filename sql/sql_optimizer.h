@@ -38,6 +38,7 @@
 
 #include <string.h>
 #include <sys/types.h>
+#include <algorithm>
 #include <memory>
 
 #include "my_alloc.h"
@@ -900,6 +901,9 @@ class JOIN {
   int push_to_engines();
 
   RowIterator *root_iterator() const { return m_root_iterator.get(); }
+  unique_ptr_destroy_only<RowIterator> release_root_iterator() {
+    return move(m_root_iterator);
+  }
 
  private:
   bool optimized;  ///< flag to avoid double optimization in EXPLAIN

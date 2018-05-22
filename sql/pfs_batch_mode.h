@@ -33,6 +33,10 @@
 // However, if we only have one table (and it is not outer-joined to any
 // const tables), PFS batch mode should be activated for it,
 // and there's no NestedLoopIterator to do so.
+//
+// Note that this needs to happen after Init() on the root iterator,
+// since Init() could close and reopen the TABLE object (if a materialized
+// table needs to be spilled to disk).
 class PFSBatchMode {
  public:
   // If we're scanning a JOIN (ie., a whole iterator subtree): qep_tab should be

@@ -50,6 +50,7 @@
 #include "sql/table.h"
 
 using std::string;
+using std::vector;
 
 /**
   Initialize READ_RECORD structure to perform full index scan in desired
@@ -171,7 +172,7 @@ int IndexScanIterator<true>::Read() {  // Backward read.
 //! @endcond
 
 template <bool Reverse>
-string IndexScanIterator<Reverse>::DebugString() const {
+vector<string> IndexScanIterator<Reverse>::DebugString() const {
   DBUG_ASSERT(table()->file->pushed_idx_cond == nullptr);
 
   const KEY *key = &table()->key_info[m_idx];
@@ -180,7 +181,7 @@ string IndexScanIterator<Reverse>::DebugString() const {
   if (Reverse) {
     str += " (reverse)";
   }
-  return str;
+  return {str};
 }
 
 template class IndexScanIterator<true>;
@@ -357,7 +358,7 @@ int IndexRangeScanIterator::Read() {
   return 0;
 }
 
-string IndexRangeScanIterator::DebugString() const {
+vector<string> IndexRangeScanIterator::DebugString() const {
   // TODO: Convert QUICK_SELECT_I to RowIterator so that we can get
   // better outputs here (similar to dbug_dump()).
   String str;
@@ -368,7 +369,7 @@ string IndexRangeScanIterator::DebugString() const {
     ret += ", with index condition: " +
            ItemToString(table()->file->pushed_idx_cond);
   }
-  return ret;
+  return {ret};
 }
 
 TableScanIterator::TableScanIterator(THD *thd, TABLE *table, QEP_TAB *qep_tab,
@@ -417,7 +418,7 @@ int TableScanIterator::Read() {
   return 0;
 }
 
-string TableScanIterator::DebugString() const {
+vector<string> TableScanIterator::DebugString() const {
   DBUG_ASSERT(table()->file->pushed_idx_cond == nullptr);
-  return string("Table scan on ") + table()->alias;
+  return {string("Table scan on ") + table()->alias};
 }

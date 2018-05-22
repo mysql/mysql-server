@@ -89,7 +89,7 @@ class SortingIterator final : public RowIterator {
     return std::vector<RowIterator *>{m_source_iterator.get()};
   }
 
-  std::string DebugString() const override;
+  std::vector<std::string> DebugString() const override;
 
  private:
   int DoSort(QEP_TAB *qep_tab);

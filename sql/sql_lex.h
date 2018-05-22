@@ -1901,8 +1901,6 @@ class SELECT_LEX {
   TABLE_LIST *find_table_by_name(const Table_ident *ident);
 };
 
-typedef class SELECT_LEX SELECT_LEX;
-
 inline bool SELECT_LEX_UNIT::is_union() const {
   return first_select()->next_select() &&
          first_select()->next_select()->linkage == UNION_TYPE;

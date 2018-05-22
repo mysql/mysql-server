@@ -50,7 +50,7 @@ class RefIterator final : public TableRowIterator {
 
   bool Init() override;
   int Read() override;
-  std::string DebugString() const override;
+  std::vector<std::string> DebugString() const override;
 
  private:
   TABLE_REF *const m_ref;
@@ -72,7 +72,7 @@ class RefOrNullIterator final : public TableRowIterator {
 
   bool Init() override;
   int Read() override;
-  std::string DebugString() const override;
+  std::vector<std::string> DebugString() const override;
 
  private:
   TABLE_REF *const m_ref;
@@ -97,7 +97,7 @@ class EQRefIterator final : public TableRowIterator {
   bool Init() override;
   int Read() override;
   void UnlockRow() override;
-  std::string DebugString() const override;
+  std::vector<std::string> DebugString() const override;
 
  private:
   TABLE_REF *const m_ref;
@@ -126,7 +126,7 @@ class ConstIterator final : public TableRowIterator {
   */
   void UnlockRow() override {}
 
-  std::string DebugString() const override;
+  std::vector<std::string> DebugString() const override;
 
  private:
   TABLE_REF *const m_ref;
@@ -144,7 +144,7 @@ class FullTextSearchIterator final : public TableRowIterator {
 
   bool Init() override;
   int Read() override;
-  std::string DebugString() const override;
+  std::vector<std::string> DebugString() const override;
 
  private:
   TABLE_REF *const m_ref;
@@ -173,7 +173,7 @@ class DynamicRangeIterator final : public TableRowIterator {
 
   bool Init() override;
   int Read() override;
-  std::string DebugString() const override;
+  std::vector<std::string> DebugString() const override;
 
  private:
   QEP_TAB *m_qep_tab;
@@ -225,7 +225,7 @@ class PushedJoinRefIterator final : public TableRowIterator {
 
   bool Init() override;
   int Read() override;
-  std::string DebugString() const override;
+  std::vector<std::string> DebugString() const override;
 
  private:
   TABLE_REF *const m_ref;
@@ -268,7 +268,7 @@ class AlternativeIterator final : public RowIterator {
         const_cast<TableScanIterator *>(&m_table_scan_iterator)};
   }
 
-  std::string DebugString() const override;
+  std::vector<std::string> DebugString() const override;
 
  private:
   // The reference value with condition guards that we are switching on.

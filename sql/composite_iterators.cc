@@ -26,13 +26,25 @@
 #include <string>
 #include <vector>
 
+#include "my_inttypes.h"
+#include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/item_sum.h"
+#include "sql/opt_trace.h"
 #include "sql/sql_base.h"
 #include "sql/sql_class.h"
 #include "sql/sql_executor.h"
+#include "sql/sql_lex.h"
 #include "sql/sql_opt_exec_shared.h"
 #include "sql/sql_optimizer.h"
+#include "sql/sql_tmp_table.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "sql/temp_table_param.h"
+
+class Opt_trace_context;
+template <class T>
+class List;
 
 using std::string;
 using std::vector;
@@ -214,7 +226,7 @@ void AggregateIterator::UnlockRow() {
   // Thus, do nothing.
 }
 
-string AggregateIterator::DebugString() const {
+vector<string> AggregateIterator::DebugString() const {
   string ret;
   if (m_join->grouped || m_join->group_optimized_away) {
     if (m_join->sum_funcs == m_join->sum_funcs_end[0]) {
@@ -236,7 +248,7 @@ string AggregateIterator::DebugString() const {
     }
     ret += ItemToString(*item);
   }
-  return ret;
+  return {ret};
 }
 
 bool PrecomputedAggregateIterator::Init() {
@@ -265,7 +277,7 @@ void PrecomputedAggregateIterator::UnlockRow() {
   // See AggregateIterator::UnlockRow().
 }
 
-string PrecomputedAggregateIterator::DebugString() const {
+vector<string> PrecomputedAggregateIterator::DebugString() const {
   string ret;
 
   // If precomputed_group_by is set, there's always grouping; thus, our
@@ -289,7 +301,7 @@ string PrecomputedAggregateIterator::DebugString() const {
     }
     ret += ItemToString(*item);
   }
-  return ret;
+  return {ret};
 }
 
 bool NestedLoopIterator::Init() {
@@ -369,16 +381,123 @@ int NestedLoopIterator::Read() {
   }
 }
 
-string NestedLoopIterator::DebugString() const {
+vector<string> NestedLoopIterator::DebugString() const {
   switch (m_join_type) {
     case JoinType::INNER:
-      return "Nested loop inner join";
+      return {"Nested loop inner join"};
     case JoinType::OUTER:
-      return "Nested loop left join";
+      return {"Nested loop left join"};
     case JoinType::ANTI:
-      return "Nested loop anti-join";
+      return {"Nested loop anti-join"};
     default:
       DBUG_ASSERT(false);
-      return "Nested loop <error>";
+      return {"Nested loop <error>"};
   }
+}
+
+MaterializeIterator::MaterializeIterator(
+    THD *thd, unique_ptr_destroy_only<RowIterator> subquery_iterator,
+    List<Item> *fields, Temp_table_param *tmp_table_param, TABLE *table,
+    unique_ptr_destroy_only<RowIterator> table_iterator, SELECT_LEX *select_lex)
+    : TableRowIterator(thd, table),
+      m_subquery_iterator(move(subquery_iterator)),
+      m_table_iterator(move(table_iterator)),
+      m_fields(fields),
+      m_tmp_table_param(tmp_table_param),
+      m_select_lex(select_lex) {}
+
+bool MaterializeIterator::Init() {
+  if (table()->materialized) {
+    // Just a rescan of the same table.
+    return m_table_iterator->Init();
+  }
+  table()->set_not_started();
+
+  {
+    Opt_trace_context *const trace = &thd()->opt_trace;
+    Opt_trace_object trace_wrapper(trace);
+    Opt_trace_object trace_exec(trace, "materialize");
+    trace_exec.add_select_number(m_select_lex->select_number);
+    Opt_trace_array trace_steps(trace, "steps");
+
+    if (m_subquery_iterator->Init()) {
+      return true;
+    }
+
+    if (!table()->is_created()) {
+      if (instantiate_tmp_table(thd(), table())) {
+        return true;
+      }
+      empty_record(table());
+    }
+
+    for (;;) {
+      // TODO: Activate performance schema batch mode.
+      int error = m_subquery_iterator->Read();
+      if (error > 0 || thd()->is_error())
+        return true;
+      else if (error < 0)
+        break;
+      else if (thd()->killed) {
+        thd()->send_kill_message();
+        return true;
+      }
+
+      // Materialize items for this row.
+      if (fill_record(thd(), table(), table()->visible_field_ptr(), *m_fields,
+                      NULL, NULL))
+        return true; /* purecov: inspected */
+
+      if (!check_unique_constraint(table())) continue;
+
+      error = table()->file->ha_write_row(table()->record[0]);
+      if (error == 0) {
+        continue;
+      }
+      // create_ondisk_from_heap will generate error if needed.
+      if (!table()->file->is_ignorable_error(error)) {
+        bool is_duplicate;
+        if (create_ondisk_from_heap(thd(), table(), error, true, &is_duplicate))
+          return true; /* purecov: inspected */
+        // Table's engine changed; index is not initialized anymore.
+        if (table()->hash_field) table()->file->ha_index_init(0, false);
+      } else {
+        // An ignorable error means duplicate key, ie. we deduplicated away
+        // the row.
+      }
+    }
+
+    table()->materialized = true;
+  }
+
+  return m_table_iterator->Init();
+}
+
+int MaterializeIterator::Read() { return m_table_iterator->Read(); }
+
+vector<string> MaterializeIterator::DebugString() const {
+  // The table iterator could be a whole string of iterators
+  // (sort, filter, etc.) due to add_sorting_to_table(), so show them all.
+  //
+  // TODO: Make the optimizer put these on top of the MaterializeIterator
+  // instead (or perhaps better yet, on the subquery iterator), so that
+  // table_iterator is always just a single basic iterator.
+  vector<string> ret;
+  RowIterator *sub_iterator = m_table_iterator.get();
+  for (;;) {
+    for (string str : sub_iterator->DebugString()) {
+      if (sub_iterator->children().size() > 1) {
+        // This can happen if e.g. a filter has subqueries in it.
+        // TODO: Consider having a RowIterator::parent(), so that we can show
+        // the entire tree.
+        str += " [other sub-iterators not shown]";
+      }
+      ret.push_back(str);
+    }
+    if (sub_iterator->children().empty()) break;
+    sub_iterator = sub_iterator->children()[0];
+  }
+
+  ret.push_back("Materialize");
+  return ret;
 }

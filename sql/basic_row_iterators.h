@@ -69,7 +69,7 @@ class TableScanIterator final : public TableRowIterator {
   bool Init() override;
   int Read() override;
 
-  std::string DebugString() const override;
+  std::vector<std::string> DebugString() const override;
 
  private:
   uchar *const m_record;
@@ -99,7 +99,7 @@ class IndexScanIterator final : public TableRowIterator {
 
   bool Init() override;
   int Read() override;
-  std::string DebugString() const override;
+  std::vector<std::string> DebugString() const override;
 
  private:
   uchar *const m_record;
@@ -135,7 +135,7 @@ class IndexRangeScanIterator final : public TableRowIterator {
 
   bool Init() override;
   int Read() override;
-  std::string DebugString() const override;
+  std::vector<std::string> DebugString() const override;
 
  private:
   // NOTE: No destructor; quick_range will call ha_index_or_rnd_end() for us.
@@ -173,7 +173,7 @@ class SortBufferIterator final : public TableRowIterator {
 
   bool Init() override;
   int Read() override;
-  std::string DebugString() const override;
+  std::vector<std::string> DebugString() const override;
 
  private:
   // NOTE: No m_record -- unpacks directly into each Field's field->ptr.
@@ -210,7 +210,7 @@ class SortBufferIndirectIterator final : public TableRowIterator {
   ~SortBufferIndirectIterator() override;
   bool Init() override;
   int Read() override;
-  std::string DebugString() const override;
+  std::vector<std::string> DebugString() const override;
 
  private:
   Sort_result *const m_sort_result;
@@ -239,7 +239,7 @@ class SortFileIterator final : public TableRowIterator {
 
   bool Init() override { return false; }
   int Read() override;
-  std::string DebugString() const override;
+  std::vector<std::string> DebugString() const override;
 
  private:
   uchar *const m_rec_buf;
@@ -272,7 +272,7 @@ class SortFileIndirectIterator final : public TableRowIterator {
 
   bool Init() override;
   int Read() override;
-  std::string DebugString() const override;
+  std::vector<std::string> DebugString() const override;
 
  private:
   bool InitCache();

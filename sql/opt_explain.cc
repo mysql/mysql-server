@@ -92,6 +92,8 @@
 #include "sql/table_function.h"  // Table_function
 #include "sql_string.h"
 
+using std::string;
+
 class Opt_trace_context;
 
 using std::string;
@@ -1992,18 +1994,23 @@ bool explain_query_specification(THD *explain_thd, const THD *query_thd,
 }
 
 std::string PrintQueryPlan(int level, RowIterator *iterator) {
-  std::string ret(level * 4, ' ');
+  string ret;
 
   if (iterator == nullptr) {
+    ret.assign(level * 4, ' ');
     return ret + "<not executable by iterator executor>\n";
   }
 
-  ret += "-> ";
-  ret += iterator->DebugString();
-  ret += "\n";
+  for (const string &str : iterator->DebugString()) {
+    ret.append(level * 4, ' ');
+    ret += "-> ";
+    ret += str;
+    ret += "\n";
+    ++level;
+  }
 
   for (RowIterator *child : iterator->children()) {
-    ret += PrintQueryPlan(level + 1, child);
+    ret += PrintQueryPlan(level, child);
   }
   return ret;
 }

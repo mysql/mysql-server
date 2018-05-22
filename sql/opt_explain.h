@@ -53,6 +53,8 @@ launches the EXPLAIN process for "inner units" (==subqueries of this
 SELECT_LEX), by calling explain_unit() for each of them.
 */
 
+#include <string>
+
 #include "my_base.h"
 #include "my_sqlcommand.h"
 #include "my_thread_local.h"
@@ -60,14 +62,13 @@ SELECT_LEX), by calling explain_unit() for each of them.
 #include "sql/parse_tree_node_base.h"
 #include "sql/query_result.h"  // Query_result_send
 #include "sql/sql_cmd.h"       // Sql_cmd
-#include "sql/sql_lex.h"
 #include "sys/types.h"
-
-#include <string>
 
 class Item;
 class QEP_TAB;
 class RowIterator;
+class SELECT_LEX;
+class SELECT_LEX_UNIT;
 class THD;
 struct TABLE;
 template <class T>
