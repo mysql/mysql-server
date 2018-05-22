@@ -2860,6 +2860,7 @@ template bool Dictionary_client::acquire_for_modification(Object_id,
                                                           dd::Charset **);
 template void Dictionary_client::remove_uncommitted_objects<Charset>(bool);
 template bool Dictionary_client::acquire(String_type const &, Charset const **);
+template bool Dictionary_client::acquire(String_type const &, Schema const **);
 template bool Dictionary_client::acquire_for_modification(String_type const &,
                                                           dd::Charset **);
 

@@ -600,6 +600,10 @@ template bool Storage_adapter::drop(THD *, const Index_stat *);
 template void Storage_adapter::core_drop<Schema>(THD *, const Schema *);
 template void Storage_adapter::core_drop<Table>(THD *, const Table *);
 template void Storage_adapter::core_drop<Tablespace>(THD *, const Tablespace *);
+
+template void Storage_adapter::core_store<Schema>(THD *, Schema *);
+template void Storage_adapter::core_store<Table>(THD *, Table *);
+template void Storage_adapter::core_store<Tablespace>(THD *, Tablespace *);
 #endif
 
 }  // namespace cache
