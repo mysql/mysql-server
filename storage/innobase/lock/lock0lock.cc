@@ -1322,7 +1322,7 @@ static void lock_update_trx_age(trx_t *trx, int32_t age) {
   const auto wait_lock = trx->lock.wait_lock;
 
   /* could be table level lock like autoinc or predicate lock */
-  if (!lock_use_fcfs(wait_lock)) {
+  if (lock_use_fcfs(wait_lock)) {
     return;
   }
 
