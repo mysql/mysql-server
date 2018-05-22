@@ -160,7 +160,7 @@ COMMIT;
 
 # Compare the number of SRSs with the number recorded at the top of the test to
 # detect if we created an SRS and forgot to drop it afterwards.
-SELECT @number_of_srss AS at_beginning, COUNT(*) AS at_end
+SELECT @number_of_srss = COUNT(*) AS should_be_true
 FROM INFORMATION_SCHEMA.ST_SPATIAL_REFERENCE_SYSTEMS;
 
 --source include/sync_slave_sql_with_master.inc

@@ -114,9 +114,9 @@ SELECT ST_SRID(ST_GeomFromText('POINT(0 0)', 1000000002));
 ERROR SR001: There's no spatial reference system with SRID 1000000002.
 [Connection Master]
 COMMIT;
-SELECT @number_of_srss AS at_beginning, COUNT(*) AS at_end
+SELECT @number_of_srss = COUNT(*) AS should_be_true
 FROM INFORMATION_SCHEMA.ST_SPATIAL_REFERENCE_SYSTEMS;
-at_beginning	at_end
-5108	5108
+should_be_true
+1
 include/sync_slave_sql_with_master.inc
 include/rpl_end.inc
