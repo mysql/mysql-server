@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -88,11 +88,6 @@ void Query_result_send::abort_result_set() {
 bool Query_result_send::send_data(List<Item> &items) {
   Protocol *protocol = thd->get_protocol();
   DBUG_ENTER("Query_result_send::send_data");
-
-  if (unit->offset_limit_cnt) {  // using limit offset,count
-    unit->offset_limit_cnt--;
-    DBUG_RETURN(false);
-  }
 
   protocol->start_row();
   if (thd->send_result_set_row(&items)) {
@@ -344,10 +339,6 @@ bool Query_result_export::send_data(List<Item> &items) {
   String tmp(buff, sizeof(buff), &my_charset_bin), *res;
   tmp.length(0);
 
-  if (unit->offset_limit_cnt) {  // using limit offset,count
-    unit->offset_limit_cnt--;
-    DBUG_RETURN(false);
-  }
   row_count++;
   Item *item;
   size_t used_length = 0;
@@ -646,10 +637,6 @@ bool Query_result_dump::send_data(List<Item> &items) {
   Item *item;
   DBUG_ENTER("Query_result_dump::send_data");
 
-  if (unit->offset_limit_cnt) {  // using limit offset,count
-    unit->offset_limit_cnt--;
-    DBUG_RETURN(false);
-  }
   if (row_count++ > 1) {
     my_error(ER_TOO_MANY_ROWS, MYF(0));
     goto err;
@@ -698,10 +685,6 @@ bool Query_dumpvar::send_data(List<Item> &items) {
   PT_select_var *mv;
   DBUG_ENTER("Query_dumpvar::send_data");
 
-  if (unit->offset_limit_cnt) {  // using limit offset,count
-    unit->offset_limit_cnt--;
-    DBUG_RETURN(false);
-  }
   if (row_count++) {
     my_error(ER_TOO_MANY_ROWS, MYF(0));
     DBUG_RETURN(true);

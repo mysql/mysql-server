@@ -2013,11 +2013,6 @@ bool Query_result_insert::send_data(List<Item> &values) {
   DBUG_ENTER("Query_result_insert::send_data");
   bool error = 0;
 
-  if (unit->offset_limit_cnt) {  // using limit offset,count
-    unit->offset_limit_cnt--;
-    DBUG_RETURN(false);
-  }
-
   thd->check_for_truncated_fields = CHECK_FIELD_WARN;
   store_values(values);
   thd->check_for_truncated_fields = CHECK_FIELD_ERROR_FOR_NULL;

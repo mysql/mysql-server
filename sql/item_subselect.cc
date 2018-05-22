@@ -932,10 +932,6 @@ bool Query_result_scalar_subquery::send_data(List<Item> &items) {
     my_error(ER_SUBQUERY_NO_1_ROW, MYF(0));
     DBUG_RETURN(true);
   }
-  if (unit->offset_limit_cnt) {  // Using limit offset,count
-    unit->offset_limit_cnt--;
-    DBUG_RETURN(false);
-  }
   List_iterator_fast<Item> li(items);
   Item *val_item;
   for (uint i = 0; (val_item = li++); i++) it->store(i, val_item);
@@ -1391,10 +1387,6 @@ class Query_result_exists_subquery : public Query_result_subquery {
 bool Query_result_exists_subquery::send_data(List<Item> &) {
   DBUG_ENTER("Query_result_exists_subquery::send_data");
   Item_exists_subselect *it = (Item_exists_subselect *)item;
-  if (unit->offset_limit_cnt) {  // Using limit offset,count
-    unit->offset_limit_cnt--;
-    DBUG_RETURN(0);
-  }
   /*
     A subquery may be evaluated 1) by executing the JOIN 2) by optimized
     functions (index_subquery, subquery materialization).

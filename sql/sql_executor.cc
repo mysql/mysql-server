@@ -237,7 +237,7 @@ void JOIN::exec() {
       */
       if (((select_lex->having_value != Item::COND_FALSE) &&
            having_is_true(having_cond)) &&
-          do_send_rows && query_result->send_data(fields_list))
+          should_send_current_row() && query_result->send_data(fields_list))
         error = 1;
       else {
         error = (int)query_result->send_eof();
@@ -421,7 +421,7 @@ bool JOIN::rollup_send_data(uint idx) {
     copy_ref_item_slice(ref_items[REF_SLICE_ACTIVE], rollup.ref_item_arrays[i]);
     current_ref_item_slice = -1;  // as we switched to a not-numbered slice
     if (having_is_true(having_cond)) {
-      if (send_records < unit->select_limit_cnt && do_send_rows &&
+      if (send_records < unit->select_limit_cnt && should_send_current_row() &&
           select_lex->query_result()->send_data(rollup.fields_list[i]))
         return true;
       send_records++;
@@ -849,7 +849,7 @@ static void return_zero_rows(JOIN *join, List<Item> &fields) {
         item.no_rows_in_result();
       }
 
-      if (having_is_true(join->having_cond))
+      if (having_is_true(join->having_cond) && join->should_send_current_row())
         send_error = select->query_result()->send_data(fields);
     }
     if (!send_error) select->query_result()->send_eof();  // Should be safe
@@ -1145,7 +1145,8 @@ static int do_select(JOIN *join) {
       if (join->clear_fields(&save_nullinfo))
         error = NESTED_LOOP_ERROR;
       else {
-        if (having_is_true(join->having_cond))
+        if (having_is_true(join->having_cond) &&
+            join->should_send_current_row())
           rc = join->select_lex->query_result()->send_data(*join->fields);
 
         // Restore NULL values if needed.
@@ -3130,7 +3131,7 @@ static enum_nested_loop_state end_send(JOIN *join, QEP_TAB *qep_tab,
     if (!having_is_true(join->having_cond))
       DBUG_RETURN(NESTED_LOOP_OK);  // Didn't match having
     error = 0;
-    if (join->do_send_rows)
+    if (join->should_send_current_row())
       error = join->select_lex->query_result()->send_data(*fields);
     if (error) DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
 
@@ -3316,7 +3317,7 @@ enum_nested_loop_state end_send_group(JOIN *join, QEP_TAB *qep_tab,
           if (!having_is_true(join->having_cond))
             error = -1;  // Didn't satisfy having
           else {
-            if (join->do_send_rows)
+            if (join->should_send_current_row())
               error = join->select_lex->query_result()->send_data(*fields);
             join->send_records++;
             join->thd->get_stmt_da()->inc_current_row_for_condition();

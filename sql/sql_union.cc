@@ -84,11 +84,6 @@ bool Query_result_union::prepare(List<Item> &, SELECT_LEX_UNIT *u) {
 }
 
 bool Query_result_union::send_data(List<Item> &values) {
-  // Skip "offset" number of rows before producing rows
-  if (unit->offset_limit_cnt > 0) {
-    unit->offset_limit_cnt--;
-    return false;
-  }
   if (fill_record(thd, table, table->visible_field_ptr(), values, NULL, NULL))
     return true; /* purecov: inspected */
 

@@ -873,6 +873,23 @@ class JOIN {
   */
   bool propagate_dependencies();
 
+  /**
+    Returns whether one should send the current row on to the output,
+    or ignore it. (In particular, this implements OFFSET handling
+    in the non-iterator executor.)
+   */
+  bool should_send_current_row() {
+    if (!do_send_rows) {
+      return false;
+    }
+    if (unit->offset_limit_cnt > 0) {
+      --unit->offset_limit_cnt;
+      return false;
+    } else {
+      return true;
+    }
+  }
+
  private:
   bool optimized;  ///< flag to avoid double optimization in EXPLAIN
   bool executed;   ///< Set by exec(), reset by reset()
