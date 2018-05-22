@@ -1,7 +1,7 @@
 #ifndef SQL_GIS_RING_FLIP_VISITOR_H_INCLUDED
 #define SQL_GIS_RING_FLIP_VISITOR_H_INCLUDED
 
-// Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -40,8 +40,7 @@ namespace gis {
 class Ring_flip_visitor : public Nop_visitor {
  private:
   /// Strategy used for geographic SRSs.
-  boost::geometry::strategy::area::geographic<Geographic_point>
-      m_geographic_strategy;
+  boost::geometry::strategy::area::geographic<> m_geographic_strategy;
   /// Whether a ring with unknown direction has been encountered
   bool m_detected_unknown;
 

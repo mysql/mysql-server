@@ -4064,17 +4064,19 @@ String *Item_func_simplify::val_str(String *str) {
       bggc.fill(geom);
       Gis_geometry_collection gc(geom->get_srid(), Geometry::wkb_invalid_type,
                                  NULL, str);
+      bool has_geometries = false;
       for (BG_geometry_collection::Geometry_list::iterator i =
                bggc.get_geometries().begin();
            i != bggc.get_geometries().end(); ++i) {
         String gbuf;
-        if ((null_value = simplify_basic<bgcs::cartesian>(*i, max_dist, &gbuf,
-                                                          &gc, str)))
-          return error_str();
+        has_geometries |=
+            !simplify_basic<bgcs::cartesian>(*i, max_dist, &gbuf, &gc, str);
       }
+      null_value = !has_geometries;
+      if (null_value) return nullptr;
     } else {
       if ((null_value = simplify_basic<bgcs::cartesian>(geom, max_dist, str)))
-        return error_str();
+        return nullptr;
       else
         bg_resbuf_mgr.set_result_buffer(const_cast<char *>(str->ptr()));
     }
@@ -4122,6 +4124,10 @@ int Item_func_simplify::simplify_basic(Geometry *geom, double max_dist,
           geom->get_srid()),
           out;
       boost::geometry::simplify(geo, out, max_dist);
+      if (out.size() < 2) {
+        // Empty result. The geometry is so small that it disappeared.
+        return (null_value = true);
+      }
       if ((null_value = post_fix_result(&bg_resbuf_mgr, out, str)))
         return null_value;
       if (gc && (null_value = gc->append_geometry(&out, gcbuf)))
@@ -4131,11 +4137,17 @@ int Item_func_simplify::simplify_basic(Geometry *geom, double max_dist,
       typename BG_models<Coordsys>::Multilinestring geo(
           geom->get_data_ptr(), geom->get_data_size(), geom->get_flags(),
           geom->get_srid()),
-          out;
+          out, out_cleaned;
       boost::geometry::simplify(geo, out, max_dist);
-      if ((null_value = post_fix_result(&bg_resbuf_mgr, out, str)))
+      // for (auto it = out.begin(); it < out.end(); it++) {
+      for (auto ls : out) {
+        if (ls.size() >= 2) {
+          out_cleaned.push_back(ls);
+        }
+      }
+      if ((null_value = post_fix_result(&bg_resbuf_mgr, out_cleaned, str)))
         return null_value;
-      if (gc && (null_value = gc->append_geometry(&out, gcbuf)))
+      if (gc && (null_value = gc->append_geometry(&out_cleaned, gcbuf)))
         return null_value;
     } break;
     case Geometry::wkb_polygon: {
@@ -4144,6 +4156,10 @@ int Item_func_simplify::simplify_basic(Geometry *geom, double max_dist,
           geom->get_srid()),
           out;
       boost::geometry::simplify(geo, out, max_dist);
+      if (out.outer().size() == 0) {
+        // Empty result. The geometry is so small that it disappeared.
+        return (null_value = true);
+      }
       if ((null_value = post_fix_result(&bg_resbuf_mgr, out, str)))
         return null_value;
       if (gc && (null_value = gc->append_geometry(&out, gcbuf)))
