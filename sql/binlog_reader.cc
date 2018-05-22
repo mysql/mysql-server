@@ -17,6 +17,7 @@
 #include "sql/log_event.h"
 
 unsigned char *Default_binlog_event_allocator::allocate(size_t size) {
+  DBUG_EXECUTE_IF("simulate_allocate_failure", return nullptr;);
   return static_cast<unsigned char *>(
       my_malloc(key_memory_log_event, size + 1, MYF(MY_WME)));
 }
@@ -40,7 +41,9 @@ static void debug_corrupt_event(unsigned char *buffer, unsigned int event_len) {
       if (type != binary_log::FORMAT_DESCRIPTION_EVENT &&
           type != binary_log::PREVIOUS_GTIDS_LOG_EVENT &&
           type != binary_log::GTID_LOG_EVENT) {
-        int cor_pos = rand() % (event_len - BINLOG_CHECKSUM_LEN);
+        int cor_pos = rand() % (event_len - BINLOG_CHECKSUM_LEN -
+                                LOG_EVENT_MINIMAL_HEADER_LEN) +
+                      LOG_EVENT_MINIMAL_HEADER_LEN;
         buffer[cor_pos] = buffer[cor_pos] + 1;
         DBUG_PRINT("info", ("Corrupt the event on position %d", cor_pos));
       });
@@ -122,7 +125,6 @@ Binlog_read_error::Error_type binlog_event_deserialize(
                 "uint4korr(buf+EVENT_LEN_OFFSET)=%d",
                 event_len, EVENT_LEN_OFFSET, buf[EVENT_TYPE_OFFSET],
                 binary_log::ENUM_END_EVENT, uint4korr(buf + EVENT_LEN_OFFSET)));
-
     DBUG_RETURN(event_len > uint4korr(buf + EVENT_LEN_OFFSET)
                     ? Binlog_read_error::BOGUS
                     : Binlog_read_error::TRUNC_EVENT);
@@ -155,7 +157,6 @@ Binlog_read_error::Error_type binlog_event_deserialize(
             : Log_event_footer::get_checksum_alg(buf, event_len);
 
 #ifndef DBUG_OFF
-  debug_corrupt_event(const_cast<unsigned char *>(buffer), event_len);
   binary_log_debug::debug_checksum_test =
       DBUG_EVALUATE_IF("simulate_checksum_test_failure", true, false);
 #endif

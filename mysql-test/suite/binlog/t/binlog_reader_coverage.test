@@ -1,0 +1,48 @@
+# Coverage Tests for WL#10956
+--source include/not_valgrind.inc
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+call mtr.add_suppression("Binary logging not possible");
+call mtr.add_suppression("Attempting backtrace");
+RESET MASTER;
+
+CREATE TABLE t1(c1 INT);
+--let $start_pos = query_get_value(SHOW MASTER STATUS, Position, 1)
+
+SET debug = "+d,simulate_init_io_cache_failure";
+--error ER_ERROR_WHEN_EXECUTING_COMMAND
+SHOW BINLOG EVENTS;
+SET debug = "-d,simulate_init_io_cache_failure";
+
+SET debug = "+d,simulate_allocate_failure";
+--error ER_ERROR_WHEN_EXECUTING_COMMAND
+SHOW BINLOG EVENTS;
+SET debug = "-d,simulate_allocate_failure";
+
+SET debug = "+d,simulate_seek_failure";
+--error ER_ERROR_WHEN_EXECUTING_COMMAND
+eval SHOW BINLOG EVENTS FROM $start_pos;
+SET debug = "-d,simulate_seek_failure";
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+SET debug = "+d,simulate_ostream_write_failure";
+--error ER_BINLOG_LOGGING_IMPOSSIBLE
+INSERT INTO t1 VALUES(1);
+
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--error 1
+--exec $MYSQL_BINLOG file_not_exist >/dev/null
+
+--error 1,12
+--exec $MYSQL_BINLOG -#d,simulate_init_io_cache_failure - > /dev/null 2>&1
+
+--error 1,12
+--exec $MYSQL_BINLOG -#d,simulate_init_io_cache_failure binlog.000001 > /dev/null  2>&1
+
+--error 1,12
+--exec $MYSQL_BINLOG --start-position=100000000 binlog.000001 > /dev/null 2>&1
+DROP TABLE t1;
+

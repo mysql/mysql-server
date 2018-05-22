@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -908,8 +908,7 @@ int Mts_submode_logical_clock::wait_for_workers_to_finish(
   while (delegated_jobs > jobs_done && !thd->killed && !is_error) {
     // Todo: consider to replace with a. GAQ::get_lwm_timestamp() or
     // b. (better) pthread wait+signal similarly to DB type.
-    if (mts_checkpoint_routine(rli, 0, true, true /*need_data_lock=true*/))
-      DBUG_RETURN(-1);
+    if (mts_checkpoint_routine(rli, true)) DBUG_RETURN(-1);
   }
   DBUG_EXECUTE_IF("wait_for_workers_to_finish_after_wait", {
     const char act[] = "now WAIT_FOR coordinator_continue";

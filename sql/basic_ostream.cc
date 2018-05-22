@@ -20,9 +20,7 @@
 #include "mysqld_error.h"
 #include "sql/log.h"
 
-IO_CACHE_ostream::IO_CACHE_ostream() {
-  memset(&m_io_cache, 0, sizeof(m_io_cache));
-}
+IO_CACHE_ostream::IO_CACHE_ostream() {}
 IO_CACHE_ostream::~IO_CACHE_ostream() { close(); }
 
 bool IO_CACHE_ostream::open(
@@ -52,11 +50,6 @@ bool IO_CACHE_ostream::close() {
   return false;
 }
 
-my_off_t IO_CACHE_ostream::tell() {
-  DBUG_ASSERT(my_b_inited(&m_io_cache));
-  return my_b_tell(&m_io_cache);
-}
-
 bool IO_CACHE_ostream::seek(my_off_t offset) {
   DBUG_ASSERT(my_b_inited(&m_io_cache));
   return reinit_io_cache(&m_io_cache, WRITE_CACHE, offset, false, true);
@@ -64,6 +57,7 @@ bool IO_CACHE_ostream::seek(my_off_t offset) {
 
 bool IO_CACHE_ostream::write(const unsigned char *buffer, my_off_t length) {
   DBUG_ASSERT(my_b_inited(&m_io_cache));
+  DBUG_EXECUTE_IF("simulate_ostream_write_failure", return true;);
   return my_b_safe_write(&m_io_cache, buffer, length);
 }
 

@@ -12,7 +12,6 @@ relay-log-purge=0
 relay-log-recovery=1
 sync_relay_log=10
 max-relay-log-size=1073741824
-relay-log-space-limit=1073741824
 relay-log=relaylog-msr
 relay-log-index=relaylog-msr.index
 sync-master-info=10

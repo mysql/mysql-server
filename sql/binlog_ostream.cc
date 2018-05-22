@@ -21,9 +21,7 @@
 #include "sql/mysqld.h"
 #include "sql/sql_class.h"
 
-IO_CACHE_binlog_cache_storage::IO_CACHE_binlog_cache_storage() {
-  memset(&m_io_cache, 0, sizeof(m_io_cache));
-}
+IO_CACHE_binlog_cache_storage::IO_CACHE_binlog_cache_storage() {}
 IO_CACHE_binlog_cache_storage::~IO_CACHE_binlog_cache_storage() { close(); }
 
 bool IO_CACHE_binlog_cache_storage::open(const char *dir, const char *prefix,

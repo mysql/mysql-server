@@ -41,6 +41,8 @@ call mtr.add_suppression("Could not find target log file mentioned in relay log 
 call mtr.add_suppression("Failed to initialize the relay-log-info structure");
 call mtr.add_suppression("Failed to initialize the master info structure");
 call mtr.add_suppression("Failed to create or recover replication info repositories");
+call mtr.add_suppression("listed in the index, but failed to stat");
+call mtr.add_suppression("Error counting relay log space");
 
 # Stop slave
 --let $rpl_server_number= 2

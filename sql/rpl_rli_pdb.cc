@@ -1929,7 +1929,7 @@ bool Slave_worker::read_and_apply_events(uint start_relay_number,
       }
     } else {
       /*
-        IO error happens if relay_io.error != 0, otherwise it arrives the
+        IO error happens if error_type is not READ_EOF, otherwise it arrives the
         end of the relay log
       */
       if (relaylog_file_reader.get_error_type() !=

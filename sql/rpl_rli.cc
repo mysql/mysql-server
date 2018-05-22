@@ -114,7 +114,6 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
                ,
                param_id, param_channel),
       replicate_same_server_id(::replicate_same_server_id),
-      cur_log_fd(-1),
       relay_log(&sync_relaylog_period),
       is_relay_log_recovery(is_slave_recovery),
       save_temporary_tables(0),
@@ -335,12 +334,10 @@ void Relay_log_info::reset_notified_relay_log_change() {
    @param new_ts           new seconds_behind_master timestamp value
                            unless zero. Zero could be due to FD event
                            or fake rotate event.
-   @param need_data_lock   False if caller has locked @c data_lock
    @param update_timestamp if true, this function will update the
                            rli->last_master_timestamp.
 */
 void Relay_log_info::reset_notified_checkpoint(ulong shift, time_t new_ts,
-                                               bool need_data_lock,
                                                bool update_timestamp) {
   /*
     If this is not a parallel execution we return immediately.
@@ -385,12 +382,9 @@ void Relay_log_info::reset_notified_checkpoint(ulong shift, time_t new_ts,
                      shift, checkpoint_seqno));
 
   if (update_timestamp) {
-    if (need_data_lock)
-      mysql_mutex_lock(&data_lock);
-    else
-      mysql_mutex_assert_owner(&data_lock);
+    mysql_mutex_lock(&data_lock);
     last_master_timestamp = new_ts;
-    if (need_data_lock) mysql_mutex_unlock(&data_lock);
+    mysql_mutex_unlock(&data_lock);
   }
 }
 
@@ -479,255 +473,37 @@ int Relay_log_info::count_relay_log_space() {
   DBUG_RETURN(0);
 }
 
-/**
-  Re-init the SQL thread IO_CACHE for a given file.
+bool Relay_log_info::reset_group_relay_log_pos(const char **errmsg) {
+  LOG_INFO linfo;
 
-  If the file specified as parameter is not the one the SQL thread is
-  reading from, this function does nothing.
+  mysql_mutex_assert_owner(&data_lock);
 
-  @param [in] log Name of relay log file to re-init the IO_CACHE.
-  @param [in] need_data_lock If true, this function will acquire the
-                             rli->data_lock; otherwise the caller should already
-                             have acquired it.
-
-  @retval false On successful operation.
-  @retval true  On error.
-*/
-
-bool Relay_log_info::reinit_sql_thread_io_cache(const char *log,
-                                                bool need_data_lock) {
-  DBUG_ENTER("Relay_log_info::reinit_sql_thread_io_cache");
-  bool error = false;
-  my_off_t current_relay_log_pos;
-
-  if (need_data_lock)
-    mysql_mutex_lock(&data_lock);
-  else
-    mysql_mutex_assert_owner(&data_lock);
-
-  // The SQL thread was not reading from the requested file
-  if (strcmp(log, get_event_relay_log_name())) goto end;
-
-  // Save current relay log pos
-  current_relay_log_pos = my_b_tell(&cache_buf);
-
-  /*
-    The SQL thread was reading from the "hot" relay log file but that file
-    was truncated by the I/O thread. We will re-init the IO_CACHE of the
-    SQL thread in order to avoid reading content that was in the IO_CACHE
-    but no longer exists on the relay log file because of the truncation.
-
-    Suppose:
-    a) the relay log file have a full transaction (many events) with a
-       total of finishing at position 8190;
-    b) the I/O thread is receiving and queuing a 32K event;
-    c) the disk had only space to write 30K of the event;
-
-    In this situation, the I/O thread will be waiting for disk space, and the
-    SQL thread would be allowed to read up to the end of the last fully queued
-    event (that would be the 8190 position of the file).
-
-    Starting the SQL thread, it would read until the relay_log.binlog_end_pos
-    (the 8190), but, because of some optimizations, the IO_CACHE will read a
-    full "buffer" (8192 bytes) from the file. The additional 2 bytes belong
-    to the not yet completely queued event, and should not be read by the
-    SQL thread.
-
-    If the I/O thread is killed, it will truncate the relay log file at position
-    8190. This means that the SQL thread IO_CACHE have 2 bytes that doesn't
-    belong to the relay log file anymore and should re-initialize its IO_CACHE
-    to remove such data from it.
-  */
-  DBUG_ASSERT(cur_log_fd >= 0);
-  error =
-      reinit_io_cache(&cache_buf, READ_CACHE, current_relay_log_pos, 0, true);
-#ifndef DBUG_OFF
-  {
-    char llbuf1[22], llbuf2[22];
-    DBUG_PRINT("info", ("my_b_tell(cur_log)=%s, event_relay_log_pos=%s",
-                        llstr(my_b_tell(&cache_buf), llbuf1),
-                        llstr(get_event_relay_log_pos(), llbuf2)));
-  }
-#endif
-
-end:
-  if (need_data_lock) mysql_mutex_unlock(&data_lock);
-
-  DBUG_RETURN(error);
-}
-
-/**
-  Opens and initialize the given relay log. Specifically, it does what follows:
-
-  - Closes old open relay log files.
-  - Opens the 'log' binary file.
-
-  @todo check proper initialization of
-  group_master_log_name/group_master_log_pos. /alfranio
-
-  @param [in] log Name of relay log file to read from. NULL = First log
-  @param [in] pos Position in relay log file
-  @param [in] need_data_lock If true, this function will acquire the
-  relay_log.data_lock(); otherwise the caller should already have
-  acquired it.
-  @param [out] errmsg On error, this function will store a pointer to
-  an error message here
-  @param [in] keep_looking_for_fd If true, this function will
-  look for a Format_description_log_event.  We only need this when the
-  SQL thread starts and opens an existing relay log and has to execute
-  it (possibly from an offset >4); then we need to read the first
-  event of the relay log to be able to parse the events we have to
-  execute.
-
-  @retval 0 ok,
-  @retval 1 error.  In this case, *errmsg is set to point to the error
-  message.
-*/
-
-int Relay_log_info::init_relay_log_pos(const char *log, ulonglong pos,
-                                       bool need_data_lock, const char **errmsg,
-                                       bool keep_looking_for_fd) {
-  DBUG_ENTER("Relay_log_info::init_relay_log_pos");
-  DBUG_PRINT("info", ("pos: %lu", (ulong)pos));
-
-  *errmsg = 0;
-  const char *errmsg_fmt = 0;
-  static char errmsg_buff[MYSQL_ERRMSG_SIZE + FN_REFLEN];
-  IO_CACHE *cur_log = &cache_buf;
-
-  if (need_data_lock)
-    mysql_mutex_lock(&data_lock);
-  else
-    mysql_mutex_assert_owner(&data_lock);
-
-  set_rli_description_event(new Format_description_log_event());
-
-  /* Close log file and free buffers if it's already open */
-  if (cur_log_fd >= 0) {
-    end_io_cache(&cache_buf);
-    mysql_file_close(cur_log_fd, MYF(MY_WME));
-    cur_log_fd = -1;
-  }
-
-  group_relay_log_pos = event_relay_log_pos = pos;
-
-  /*
-    Test to see if the previous run was with the skip of purging
-    If yes, we do not purge when we restart
-  */
   if (relay_log.find_log_pos(&linfo, NullS, 1)) {
     *errmsg = "Could not find first log during relay log initialization";
-    goto err;
+    return true;
   }
+  set_group_relay_log_name(linfo.log_file_name);
+  group_relay_log_pos = BIN_LOG_HEADER_SIZE;
+  return false;
+}
 
-  if (log && relay_log.find_log_pos(&linfo, log, 1)) {
+bool Relay_log_info::is_group_relay_log_name_invalid(const char **errmsg) {
+  DBUG_ENTER("Relay_log_info::group_relay_log_is_invalid");
+  const char *errmsg_fmt = 0;
+  static char errmsg_buff[MYSQL_ERRMSG_SIZE + FN_REFLEN];
+  LOG_INFO linfo;
+
+  *errmsg = 0;
+  if (relay_log.find_log_pos(&linfo, group_relay_log_name, 1)) {
     errmsg_fmt =
         "Could not find target log file mentioned in "
         "relay log info in the index file '%s' during "
         "relay log initialization";
     sprintf(errmsg_buff, errmsg_fmt, relay_log.get_index_fname());
     *errmsg = errmsg_buff;
-    goto err;
+    DBUG_RETURN(true);
   }
-
-  set_group_relay_log_name(linfo.log_file_name);
-  set_event_relay_log_name(linfo.log_file_name);
-
-  /* Open the relay log */
-  if ((cur_log_fd = open_binlog_file(&cache_buf, linfo.log_file_name, errmsg)) <
-      0)
-    goto err;
-
-  /*
-    In all cases, check_binlog_magic() has been called so we're at offset 4 for
-    sure.
-  */
-  if (pos > BIN_LOG_HEADER_SIZE) /* If pos<=4, we stay at 4 */
-  {
-    Log_event *ev;
-    while (keep_looking_for_fd) {
-      /*
-        Read the possible Format_description_log_event; if position
-        was 4, no need, it will be read naturally.
-      */
-      DBUG_PRINT("info", ("looking for a Format_description_log_event"));
-
-      if (my_b_tell(cur_log) >= pos) break;
-
-      /*
-        Because of we have data_lock and log_lock, we can safely read an
-        event
-      */
-      if (!(ev = Log_event::read_log_event(cur_log, 0, rli_description_event,
-                                           opt_slave_sql_verify_checksum))) {
-        DBUG_PRINT("info",
-                   ("could not read event, cur_log->error=%d", cur_log->error));
-        if (cur_log->error) /* not EOF */
-        {
-          *errmsg = "I/O error reading event at position 4";
-          goto err;
-        }
-        break;
-      } else if (ev->get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT) {
-        DBUG_PRINT("info", ("found Format_description_log_event"));
-        set_rli_description_event((Format_description_log_event *)ev);
-        /*
-          As ev was returned by read_log_event, it has passed is_valid(), so
-          my_malloc() in ctor worked, no need to check again.
-        */
-        /*
-          Ok, we found a Format_description event. But it is not sure that this
-          describes the whole relay log; indeed, one can have this sequence
-          (starting from position 4):
-          Format_desc (of slave)
-          Previous-GTIDs (of slave IO thread, if GTIDs are enabled)
-          Rotate (of master)
-          Format_desc (of master)
-          So the Format_desc which really describes the rest of the relay log
-          can be the 3rd or the 4th event (depending on GTIDs being enabled or
-          not, it can't be further than that, because we rotate
-          the relay log when we queue a Rotate event from the master).
-          But what describes the Rotate is the first Format_desc.
-          So what we do is:
-          go on searching for Format_description events, until you exceed the
-          position (argument 'pos') or until you find an event other than
-          Previous-GTIDs, Rotate or Format_desc.
-        */
-      } else {
-        DBUG_PRINT("info",
-                   ("found event of another type=%d", ev->get_type_code()));
-        keep_looking_for_fd =
-            (ev->get_type_code() == binary_log::ROTATE_EVENT ||
-             ev->get_type_code() == binary_log::PREVIOUS_GTIDS_LOG_EVENT);
-        delete ev;
-      }
-    }
-    my_b_seek(cur_log, (off_t)pos);
-#ifndef DBUG_OFF
-    {
-      char llbuf1[22], llbuf2[22];
-      DBUG_PRINT("info", ("my_b_tell(cur_log)=%s >event_relay_log_pos=%s",
-                          llstr(my_b_tell(cur_log), llbuf1),
-                          llstr(get_event_relay_log_pos(), llbuf2)));
-    }
-#endif
-  }
-
-err:
-  /*
-    If we don't purge, we can't honour relay_log_space_limit ;
-    silently discard it
-  */
-  if (!relay_log_purge) {
-    log_space_limit = 0;  // todo: consider to throw a warning at least
-  }
-  mysql_cond_broadcast(&data_cond);
-
-  if (need_data_lock) mysql_mutex_unlock(&data_lock);
-  if (!rli_description_event->is_valid() && !*errmsg)
-    *errmsg = "Invalid Format_description log event; could be out of memory";
-
-  DBUG_RETURN((*errmsg) ? 1 : 0);
+  DBUG_RETURN(false);
 }
 
 /**
@@ -1210,8 +986,6 @@ void Relay_log_info::close_temporary_tables() {
   slave thread are running.
 
   @param[in]   thd         connection,
-  @param[in]   just_reset  if false, it tells that logs should be purged
-                           and @c init_relay_log_pos() should be called,
   @param[out]  errmsg      store pointer to an error message.
   @param[in]   delete_only If true, do not start writing to a new log file.
 
@@ -1219,8 +993,8 @@ void Relay_log_info::close_temporary_tables() {
   @retval 1 otherwise error, where errmsg is set to point to the error message.
 */
 
-int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
-                                     const char **errmsg, bool delete_only) {
+int Relay_log_info::purge_relay_logs(THD *thd, const char **errmsg,
+                                     bool delete_only) {
   int error = 0;
   const char *ln;
   /* name of the index file if opt_relaylog_index_name is set*/
@@ -1324,18 +1098,6 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
   slave_skip_counter = 0;
   mysql_mutex_lock(&data_lock);
 
-  /*
-    we close the relay log fd possibly left open by the slave SQL thread,
-    to be able to delete it; the relay log fd possibly left open by the slave
-    I/O thread will be closed naturally in reset_logs() by the
-    close(LOG_CLOSE_TO_BE_OPENED) call
-  */
-  if (cur_log_fd >= 0) {
-    end_io_cache(&cache_buf);
-    my_close(cur_log_fd, MYF(MY_WME));
-    cur_log_fd = -1;
-  }
-
   if (relay_log.reset_logs(thd, delete_only)) {
     *errmsg = "Failed during log reset";
     error = 1;
@@ -1351,16 +1113,13 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
 
   /* Save name of used relay log file */
   set_group_relay_log_name(relay_log.get_log_fname());
-  set_event_relay_log_name(relay_log.get_log_fname());
-  group_relay_log_pos = event_relay_log_pos = BIN_LOG_HEADER_SIZE;
+  group_relay_log_pos = BIN_LOG_HEADER_SIZE;
   if (!delete_only && count_relay_log_space()) {
     *errmsg = "Error counting relay log space";
     error = 1;
     goto err;
   }
-  if (!just_reset)
-    error = init_relay_log_pos(group_relay_log_name, group_relay_log_pos,
-                               false /*need_data_lock=false*/, errmsg, 0);
+
   if (!inited && error_on_rli_init_info)
     relay_log.close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT,
                     true /*need_lock_log=true*/, true /*need_lock_index=true*/);
@@ -1424,8 +1183,6 @@ bool Relay_log_info::cached_charset_compare(char *charset) const {
 }
 
 int Relay_log_info::stmt_done(my_off_t event_master_log_pos) {
-  int error = 0;
-
   clear_flag(IN_STMT);
 
   DBUG_ASSERT(!belongs_to_client());
@@ -1466,24 +1223,10 @@ int Relay_log_info::stmt_done(my_off_t event_master_log_pos) {
       mts_group_status != MTS_NOT_IN_GROUP) {
     inc_event_relay_log_pos();
   } else {
-    if (is_parallel_exec()) {
-      DBUG_ASSERT(!is_mts_worker(info_thd));
-
-      /*
-        Format Description events only can drive MTS execution to this
-        point. It is a special event group that is handled with
-        synchronization. For that reason, the checkpoint routine is
-        called here.
-      */
-      error =
-          mts_checkpoint_routine(this, 0, false, true /*need_data_lock=true*/);
-    }
-    if (!error)
-      error = inc_group_relay_log_pos(event_master_log_pos,
-                                      true /*need_data_lock=true*/);
+    return inc_group_relay_log_pos(event_master_log_pos,
+                                   true /*need_data_lock*/);
   }
-
-  return error;
+  return 0;
 }
 
 void Relay_log_info::cleanup_context(THD *thd, bool error) {
@@ -1724,12 +1467,9 @@ int Relay_log_info::rli_init_info() {
   if (error_on_rli_init_info) goto err;
 
   if (inited) {
-    IO_CACHE *cur_log = &cache_buf;
-    my_b_seek(cur_log, (my_off_t)0);
     DBUG_RETURN(recovery_parallel_workers ? mts_recovery_groups(this) : 0);
   }
 
-  cur_log_fd = -1;
   slave_skip_counter = 0;
   abort_pos_wait = 0;
   log_space_limit = relay_log_space_limit;
@@ -1934,10 +1674,7 @@ int Relay_log_info::rli_init_info() {
 
   if (check_return == REPOSITORY_DOES_NOT_EXIST) {
     /* Init relay log with first entry in the relay index file */
-    if (init_relay_log_pos(NullS, BIN_LOG_HEADER_SIZE,
-                           false /*need_data_lock=false (lock should be held
-                                  prior to invoking this function)*/,
-                           &msg, 0)) {
+    if (reset_group_relay_log_pos(&msg)) {
       error = 1;
       goto err;
     }
@@ -1955,28 +1692,12 @@ int Relay_log_info::rli_init_info() {
       goto err;
     }
 
-    if (init_relay_log_pos(group_relay_log_name, group_relay_log_pos,
-                           false /*need_data_lock=false (lock should be held
-                                  prior to invoking this function)*/,
-                           &msg, 0)) {
-      char llbuf[22];
+    if (is_group_relay_log_name_invalid(&msg)) {
       LogErr(ERROR_LEVEL, ER_RPL_MTS_RECOVERY_CANT_OPEN_RELAY_LOG,
-             group_relay_log_name, llstr(group_relay_log_pos, llbuf));
+             group_relay_log_name, std::to_string(group_relay_log_pos).c_str());
       error = 1;
       goto err;
     }
-
-#ifndef DBUG_OFF
-    {
-      IO_CACHE *cur_log = &cache_buf;
-      char llbuf1[22], llbuf2[22];
-      DBUG_PRINT("info", ("my_b_tell(cur_log)=%s event_relay_log_pos=%s",
-                          llstr(my_b_tell(cur_log), llbuf1),
-                          llstr(event_relay_log_pos, llbuf2)));
-      DBUG_ASSERT(event_relay_log_pos >= BIN_LOG_HEADER_SIZE);
-      DBUG_ASSERT((my_b_tell(cur_log) == event_relay_log_pos));
-    }
-#endif
   }
 
   inited = 1;
@@ -2018,11 +1739,6 @@ void Relay_log_info::end_info() {
 
   handler->end_info();
 
-  if (cur_log_fd >= 0) {
-    end_io_cache(&cache_buf);
-    (void)my_close(cur_log_fd, MYF(MY_WME));
-    cur_log_fd = -1;
-  }
   inited = 0;
   relay_log.close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT,
                   true /*need_lock_log=true*/, true /*need_lock_index=true*/);
@@ -2800,4 +2516,25 @@ void Relay_log_info::post_commit(bool on_rollback) {
           !static_cast<Query_log_event *>(current_event)->has_ddl_committed);
     }
   }
+}
+
+void Relay_log_info::notify_relay_log_truncated() {
+  mysql_mutex_lock(&data_lock);
+  m_relay_log_truncated = true;
+  mysql_mutex_unlock(&data_lock);
+}
+
+void Relay_log_info::clear_relay_log_truncated() {
+  mysql_mutex_assert_owner(&data_lock);
+  m_relay_log_truncated = false;
+}
+
+bool Relay_log_info::is_time_for_mts_checkpoint() {
+  if (is_parallel_exec() && opt_mts_checkpoint_period != 0) {
+    struct timespec curr_clock;
+    set_timespec_nsec(&curr_clock, 0);
+    return diff_timespec(&curr_clock, &last_clock) >=
+           opt_mts_checkpoint_period * 1000000ULL;
+  }
+  return false;
 }

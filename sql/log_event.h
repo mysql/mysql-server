@@ -714,21 +714,6 @@ class Log_event {
             enum_event_logging_type logging_type_arg, Log_event_header *header,
             Log_event_footer *footer);
   /*
-    read_log_event() functions read an event from a binlog or relay
-    log; used by SHOW BINLOG EVENTS, the binlog_dump thread on the
-    master (reads master's binlog), the slave IO thread (reads the
-    event sent by binlog_dump), the slave SQL thread (reads the event
-    from the relay log).  If mutex is 0, the read will proceed without
-    mutex.  We need the description_event to be able to parse the
-    event (to know the post-header's size); in fact in read_log_event
-    we detect the event's type, then call the specific event's
-    constructor and pass description_event as an argument.
-  */
-  static Log_event *read_log_event(
-      IO_CACHE *file, mysql_mutex_t *log_lock,
-      const Format_description_log_event *description_event, bool crc_check);
-
-  /*
     init_show_field_list() prepares the column names and types for the
     output of SHOW BINLOG EVENTS; it is used only by SHOW BINLOG
     EVENTS.

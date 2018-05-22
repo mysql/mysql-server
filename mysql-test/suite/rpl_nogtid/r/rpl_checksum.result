@@ -92,7 +92,7 @@ set @@global.slave_sql_verify_checksum = 1;
 set @@global.debug='d,simulate_checksum_test_failure';
 start slave sql_thread;
 include/wait_for_slave_sql_error.inc [errno=13117]
-Last_SQL_Error = 'Error initializing relay log position: I/O error reading event at position 4'
+Last_SQL_Error = 'Event crc check failed! Most likely there is event corruption.'
 include/stop_slave.inc
 set @@global.debug='';
 include/start_slave.inc

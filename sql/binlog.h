@@ -462,7 +462,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
 
   /* This is relay log */
   bool is_relay_log;
-  ulong signal_cnt;          // update of the counter is checked by heartbeat
+
   uint8 checksum_alg_reset;  // to contain a new value when binlog is rotated
   /*
     Holds the last seen in Relay-Log FD's checksum alg value.
@@ -678,7 +678,6 @@ class MYSQL_BIN_LOG : public TC_LOG {
   void set_max_size(ulong max_size_arg);
   void signal_update() {
     DBUG_ENTER("MYSQL_BIN_LOG::signal_update");
-    signal_cnt++;
     mysql_cond_broadcast(&update_cond);
     DBUG_VOID_RETURN;
   }
@@ -799,7 +798,6 @@ class MYSQL_BIN_LOG : public TC_LOG {
                  bool need_update_threads, ulonglong *decrease_log_space,
                  bool auto_purge);
   int purge_logs_before_date(time_t purge_time, bool auto_purge);
-  int purge_first_log(Relay_log_info *rli, bool included);
   int set_crash_safe_index_file_name(const char *base_file_name);
   int open_crash_safe_index_file();
   int close_crash_safe_index_file();
@@ -869,7 +867,6 @@ class MYSQL_BIN_LOG : public TC_LOG {
     True while rotating binlog, which is caused by logging Incident_log_event.
   */
   bool is_rotating_caused_by_incident;
-  static const int MAX_RETRIES_BY_OOM = 10;
 };
 
 struct LOAD_FILE_INFO {
@@ -902,12 +899,6 @@ bool stmt_cannot_safely_rollback(const THD *thd);
 
 int log_loaded_block(IO_CACHE *file);
 
-/**
-  Open a single binary log file for reading.
-*/
-File open_binlog_file(IO_CACHE *log, const char *log_file_name,
-                      const char **errmsg);
-int check_binlog_magic(IO_CACHE *log, const char **errmsg);
 bool purge_master_logs(THD *thd, const char *to_log);
 bool purge_master_logs_before_date(THD *thd, time_t purge_time);
 bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log);

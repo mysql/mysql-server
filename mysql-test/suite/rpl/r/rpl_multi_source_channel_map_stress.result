@@ -7,6 +7,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 CALL mtr.add_suppression('Slave failed to initialize master info structure from the repository');
 CALL mtr.add_suppression('This operation cannot be performed with a running slave');
 CALL mtr.add_suppression('Could not find target log file mentioned in relay log info in the index file');
+CALL mtr.add_suppression('Could not find relay log file');
 CALL mtr.add_suppression('A slave with the same server_uuid/server_id as this slave has connected to the master');
 SET @saved_event_scheduler= @@GLOBAL.event_scheduler;
 SET @saved_relay_log_purge= @@GLOBAL.relay_log_purge;

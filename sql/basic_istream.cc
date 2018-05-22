@@ -18,9 +18,7 @@
 #include <my_sys.h>
 #include <mysql/psi/mysql_file.h>
 
-IO_CACHE_istream::IO_CACHE_istream() {
-  memset(&m_io_cache, 0, sizeof(m_io_cache));
-}
+IO_CACHE_istream::IO_CACHE_istream() {}
 
 IO_CACHE_istream::~IO_CACHE_istream() { close(); }
 
@@ -63,11 +61,12 @@ ssize_t IO_CACHE_istream::read(unsigned char *buffer, size_t length) {
 }
 
 bool IO_CACHE_istream::seek(my_off_t offset) {
+  DBUG_EXECUTE_IF("simulate_seek_failure", return true;);
   my_b_seek(&m_io_cache, offset);
   return false;
 }
 
-Stdin_istream::Stdin_istream() { memset(&m_io_cache, 0, sizeof(m_io_cache)); }
+Stdin_istream::Stdin_istream() {}
 
 Stdin_istream::~Stdin_istream() { close(); }
 

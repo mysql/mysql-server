@@ -1,0 +1,20 @@
+call mtr.add_suppression("Binary logging not possible");
+call mtr.add_suppression("Attempting backtrace");
+RESET MASTER;
+CREATE TABLE t1(c1 INT);
+SET debug = "+d,simulate_init_io_cache_failure";
+SHOW BINLOG EVENTS;
+ERROR HY000: Error when executing command SHOW BINLOG EVENTS: Could not open log file
+SET debug = "-d,simulate_init_io_cache_failure";
+SET debug = "+d,simulate_allocate_failure";
+SHOW BINLOG EVENTS;
+ERROR HY000: Error when executing command SHOW BINLOG EVENTS: memory allocation failed reading log event
+SET debug = "-d,simulate_allocate_failure";
+SET debug = "+d,simulate_seek_failure";
+SHOW BINLOG EVENTS FROM 337;
+ERROR HY000: Error when executing command SHOW BINLOG EVENTS: I/O error reading log event
+SET debug = "-d,simulate_seek_failure";
+SET debug = "+d,simulate_ostream_write_failure";
+INSERT INTO t1 VALUES(1);
+ERROR HY000: Binary logging not possible. Message: An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'ABORT_SERVER'. Hence aborting the server.
+DROP TABLE t1;

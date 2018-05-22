@@ -179,6 +179,8 @@ int init_io_cache_ext(IO_CACHE *info, File file, size_t cachesize,
   DBUG_PRINT("enter", ("cache: %p  type: %d  pos: %ld", info, (int)type,
                        (ulong)seek_offset));
 
+  DBUG_EXECUTE_IF("simulate_init_io_cache_failure", DBUG_RETURN(1););
+
   info->file = file;
   info->file_key = file_key;
   info->type = TYPE_NOT_SET; /* Don't set it until mutex are created */

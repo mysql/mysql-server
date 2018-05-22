@@ -215,23 +215,11 @@ class Relay_log_info : public Rpl_info {
    */
   bool replicate_same_server_id;
 
-  /*** The following variables can only be read when protect by data lock ****/
-  /*
-    cur_log_fd - file descriptor of the current read  relay log
-  */
-  File cur_log_fd;
   /*
     Protected with internal locks.
     Must get data_lock when resetting the logs.
   */
   MYSQL_BIN_LOG relay_log;
-  LOG_INFO linfo;
-
-  /*
-   cache_buf
-     IO_CACHE used when opening relay logs.
-   */
-  IO_CACHE cache_buf;
 
   /*
     Identifies when the recovery process is going on.
@@ -369,6 +357,19 @@ class Relay_log_info : public Rpl_info {
     max_binlog_size.
   */
  protected:
+  /**
+     Event group means a group of events of a transaction. group_relay_log_name
+     and group_relay_log_pos record the place before where all event groups
+     are applied. When slave starts, it resume to apply events from
+     group_relay_log_pos. They will be initialized to the begin of the first
+     relay log file if it is a new slave(including SLAVE RESET). Then,
+     group_relay_log_pos is advanced after each transaction is applied
+     successfully in single thread slave. For MTS, group_relay_log_pos
+     is updated by mts checkpoint mechanism. group_relay_log_pos and
+     group_relay_log_name are stored into relay_log_info file/table
+     periodically. When server startup, they are loaded from relay log info
+     file/table.
+   */
   char group_relay_log_name[FN_REFLEN];
   ulonglong group_relay_log_pos;
   char event_relay_log_name[FN_REFLEN];
@@ -422,7 +423,16 @@ class Relay_log_info : public Rpl_info {
   */
   Gtid_monitoring_info *gtid_monitoring_info;
 
+  /**
+     It will be set to true when receiver truncated relay log for some reason.
+     The truncated data may already be read by applier. So applier need to check
+     it each time the binlog_end_pos is updated.
+   */
+  bool m_relay_log_truncated = false;
+
  public:
+  bool is_relay_log_truncated() { return m_relay_log_truncated; }
+
   Sid_map *get_sid_map() { return gtid_set->get_sid_map(); }
 
   Checkable_rwlock *get_sid_lock() { return get_sid_map()->get_sid_lock(); }
@@ -446,9 +456,27 @@ class Relay_log_info : public Rpl_info {
   const Gtid_set *get_gtid_set() const { return gtid_set; }
 
   bool reinit_sql_thread_io_cache(const char *log, bool need_data_lock);
-  int init_relay_log_pos(const char *log, ulonglong pos, bool need_data_lock,
-                         const char **errmsg, bool keep_looking_for_fd);
 
+  /**
+     Check if group_relay_log_name is in index file.
+
+     @param [out] errmsg An error message is returned if error happens.
+
+     @retval    false    It is valid.
+     @retval    true     It is invalid. In this case, *errmsg is set to point to
+                         the error message.
+*/
+  bool is_group_relay_log_name_invalid(const char **errmsg);
+  /**
+     Reset group_relay_log_name and group_relay_log_pos to the start of the
+     first relay log file. The caller must hold data_lock.
+
+     @param[out]     errmsg    An error message is set into it if error happens.
+
+     @retval    false    Success
+     @retval    true     Error
+ */
+  bool reset_group_relay_log_pos(const char **errmsg);
   /*
     Update the error number, message and timestamp fields. This function is
     different from va_report() as va_report() also logs the error message in the
@@ -565,6 +593,17 @@ class Relay_log_info : public Rpl_info {
   }
 
   /**
+     Receiver thread notifies that it truncated some data from relay log.
+     data_lock will be acquired, so the caller should not hold data_lock.
+  */
+  void notify_relay_log_truncated();
+  /**
+     Applier clears the flag after it handled the situation. The caller must
+     hold data_lock.
+  */
+  void clear_relay_log_truncated();
+
+  /**
     The same as @c notify_group_relay_log_name_update but for
     @c group_master_log_name.
   */
@@ -630,8 +669,7 @@ class Relay_log_info : public Rpl_info {
   void cleanup_context(THD *, bool);
   void slave_close_thread_tables(THD *);
   void clear_tables_to_lock();
-  int purge_relay_logs(THD *thd, bool just_reset, const char **errmsg,
-                       bool delete_only = false);
+  int purge_relay_logs(THD *thd, const char **errmsg, bool delete_only = false);
 
   /*
     Used to defer stopping the SQL thread to give it a chance
@@ -913,6 +951,13 @@ class Relay_log_info : public Rpl_info {
   }
 
   /**
+     Check if it is time to compute MTS checkpoint.
+
+     @retval true   It is time to compute MTS checkpoint.
+     @retval false  It is not MTS or it is not time for computing checkpoint.
+  */
+  bool is_time_for_mts_checkpoint();
+  /**
      While a group is executed by a Worker the relay log can change.
      Coordinator notifies Workers about this event. Worker is supposed
      to commit to the recovery table with the new info.
@@ -925,7 +970,6 @@ class Relay_log_info : public Rpl_info {
      maintain a bitmap of executed group that is reset with a new checkpoint.
   */
   void reset_notified_checkpoint(ulong count, time_t new_ts,
-                                 bool need_data_lock,
                                  bool update_timestamp = false);
 
   /**

@@ -503,8 +503,17 @@ extern char *master_info_file, *relay_log_info_file, *report_user;
 extern char *report_host, *report_password;
 
 bool mts_recovery_groups(Relay_log_info *rli);
-bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period, bool force,
-                            bool need_data_lock);
+/**
+   Processing rli->gaq to find out the low-water-mark (lwm) coordinates
+   which is stored into the central recovery table. rli->data_lock will be
+   required, so the caller should not hold rli->data_lock.
+
+   @param     rli      pointer to Relay-log-info of Coordinator
+   @param     force    if true then hang in a loop till some progress
+   @retval    false    Success
+   @retval    true     Error
+*/
+bool mts_checkpoint_routine(Relay_log_info *rli, bool force);
 bool sql_slave_killed(THD *thd, Relay_log_info *rli);
 
 /* masks for start/stop operations on io and sql slave threads */

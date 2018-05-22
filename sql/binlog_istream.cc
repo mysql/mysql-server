@@ -31,7 +31,7 @@ const char *Binlog_read_error::get_str() const {
     case SYSTEM_IO:
       return "I/O error reading log event";
     case EVENT_TOO_LARGE:
-      return "log event entry too large to read";
+      return "Event too big";
     case MEM_ALLOCATE:
       return "memory allocation failed reading log event";
     case TRUNC_EVENT:

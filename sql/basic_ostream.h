@@ -99,11 +99,6 @@ class IO_CACHE_ostream : public Truncatable_ostream {
   */
   bool close();
 
-  /**
-     Returns the write position of the file.
-  */
-  my_off_t tell();
-
   bool write(const unsigned char *buffer, my_off_t length) override;
   bool seek(my_off_t offset) override;
   bool truncate(my_off_t offset) override;

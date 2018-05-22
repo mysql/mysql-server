@@ -2769,54 +2769,6 @@ static bool purge_error_message(THD *thd, int res) {
   return false;
 }
 
-int check_binlog_magic(IO_CACHE *log, const char **errmsg) {
-  char magic[BINLOG_MAGIC_SIZE];
-  DBUG_ASSERT(my_b_tell(log) == 0);
-
-  if (my_b_read(log, (uchar *)magic, BINLOG_MAGIC_SIZE)) {
-    *errmsg = "I/O error reading the header from the binary log";
-    LogErr(ERROR_LEVEL, ER_BINLOG_IO_ERROR_READING_HEADER, my_errno(),
-           log->error);
-    return 1;
-  }
-  if (memcmp(magic, BINLOG_MAGIC, BINLOG_MAGIC_SIZE)) {
-    *errmsg =
-        "Binlog has bad magic number;  It's not a binary log file that can be "
-        "used by this version of MySQL";
-    return 1;
-  }
-  return 0;
-}
-
-File open_binlog_file(IO_CACHE *log, const char *log_file_name,
-                      const char **errmsg) {
-  File file;
-  DBUG_ENTER("open_binlog_file");
-
-  if ((file = mysql_file_open(key_file_binlog, log_file_name, O_RDONLY,
-                              MYF(MY_WME))) < 0) {
-    LogErr(ERROR_LEVEL, ER_BINLOG_CANT_OPEN_LOG, log_file_name, my_errno());
-    *errmsg = "Could not open log file";
-    goto err;
-  }
-  if (init_io_cache_ext(log, file, rpl_read_size, READ_CACHE, 0, 0,
-                        MYF(MY_WME | MY_DONT_CHECK_FILESIZE),
-                        key_file_binlog_cache)) {
-    LogErr(ERROR_LEVEL, ER_BINLOG_CANT_CREATE_CACHE_FOR_LOG, log_file_name);
-    *errmsg = "Could not open log file";
-    goto err;
-  }
-  if (check_binlog_magic(log, errmsg)) goto err;
-  DBUG_RETURN(file);
-
-err:
-  if (file >= 0) {
-    mysql_file_close(file, MYF(0));
-    end_io_cache(log);
-  }
-  DBUG_RETURN(-1);
-}
-
 bool is_empty_transaction_in_binlog_cache(const THD *thd) {
   DBUG_ENTER("is_empty_transaction_in_binlog_cache");
 
@@ -3215,7 +3167,6 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period)
       sync_period_ptr(sync_period),
       sync_counter(0),
       is_relay_log(0),
-      signal_cnt(0),
       checksum_alg_reset(binary_log::BINLOG_CHECKSUM_ALG_UNDEF),
       relay_log_checksum_alg(binary_log::BINLOG_CHECKSUM_ALG_UNDEF),
       previous_gtid_set_relaylog(0),
@@ -5454,146 +5405,6 @@ int MYSQL_BIN_LOG::close_crash_safe_index_file() {
 }
 
 /**
-  Delete relay log files prior to rli->group_relay_log_name
-  (i.e. all logs which are not involved in a non-finished group
-  (transaction)), remove them from the index file and start on next
-  relay log.
-
-  IMPLEMENTATION
-
-  - You must hold rli->data_lock before calling this function, since
-    it writes group_relay_log_pos and similar fields of
-    Relay_log_info.
-  - Protects index file with LOCK_index
-  - Delete relevant relay log files
-  - Copy all file names after these ones to the front of the index file
-  - If the OS has truncate, truncate the file, else fill it with \n'
-  - Read the next file name from the index file and store in rli->linfo
-
-  @param rli	       Relay log information
-  @param included     If false, all relay logs that are strictly before
-                      rli->group_relay_log_name are deleted ; if true, the
-                      latter is deleted too (i.e. all relay logs
-                      read by the SQL slave thread are deleted).
-
-  @note
-    - This is only called from the slave SQL thread when it has read
-    all commands from a relay log and want to switch to a new relay log.
-    - When this happens, we can be in an active transaction as
-    a transaction can span over two relay logs
-    (although it is always written as a single block to the master's binary
-    log, hence cannot span over two master's binary logs).
-
-  @retval
-    0			ok
-  @retval
-    LOG_INFO_EOF	        End of log-index-file found
-  @retval
-    LOG_INFO_SEEK	Could not allocate IO cache
-  @retval
-    LOG_INFO_IO		Got IO error while reading file
-*/
-
-int MYSQL_BIN_LOG::purge_first_log(Relay_log_info *rli, bool included) {
-  int error;
-  char *to_purge_if_included = NULL;
-  DBUG_ENTER("purge_first_log");
-
-  DBUG_ASSERT(current_thd->system_thread == SYSTEM_THREAD_SLAVE_SQL);
-  DBUG_ASSERT(is_relay_log);
-  DBUG_ASSERT(is_open());
-  DBUG_ASSERT(rli->slave_running == 1);
-  DBUG_ASSERT(
-      !strcmp(rli->linfo.log_file_name, rli->get_event_relay_log_name()));
-
-  mysql_mutex_assert_owner(&rli->data_lock);
-
-  mysql_mutex_lock(&LOCK_index);
-  to_purge_if_included =
-      my_strdup(key_memory_Relay_log_info_group_relay_log_name,
-                rli->get_group_relay_log_name(), MYF(0));
-
-  /*
-    Read the next log file name from the index file and pass it back to
-    the caller.
-  */
-  if ((error = find_log_pos(&rli->linfo, rli->get_event_relay_log_name(),
-                            false /*need_lock_index=false*/)) ||
-      (error = find_next_log(&rli->linfo, false /*need_lock_index=false*/))) {
-    char buff[22];
-    LogErr(ERROR_LEVEL, ER_BINLOG_ERROR_GETTING_NEXT_LOG_FROM_INDEX, error,
-           llstr(rli->linfo.index_file_offset, buff),
-           rli->get_event_relay_log_name(), included);
-    goto err;
-  }
-
-  /*
-    Reset rli's coordinates to the current log.
-  */
-  rli->set_event_relay_log_pos(BIN_LOG_HEADER_SIZE);
-  rli->set_event_relay_log_name(rli->linfo.log_file_name);
-
-  /*
-    If we removed the rli->group_relay_log_name file,
-    we must update the rli->group* coordinates, otherwise do not touch it as the
-    group's execution is not finished (e.g. COMMIT not executed)
-  */
-  if (included) {
-    rli->set_group_relay_log_pos(BIN_LOG_HEADER_SIZE);
-    rli->set_group_relay_log_name(rli->linfo.log_file_name);
-  }
-  /*
-    Store where we are in the new file for the execution thread.
-    If we are in the middle of a transaction, then we
-    should not store the position in the repository, instead in
-    that case set a flag to true which indicates that a 'forced flush'
-    is postponed due to transaction split across the relaylogs.
-  */
-  if (!rli->is_in_group())
-    rli->flush_info(true);
-  else
-    rli->force_flush_postponed_due_to_split_trans = true;
-
-  DBUG_EXECUTE_IF("crash_before_purge_logs", DBUG_SUICIDE(););
-
-  mysql_mutex_lock(&rli->log_space_lock);
-  rli->relay_log.purge_logs(
-      to_purge_if_included, included, false /*need_lock_index=false*/,
-      false /*need_update_threads=false*/, &rli->log_space_total, true);
-  // Tell the I/O thread to take the relay_log_space_limit into account
-  rli->ignore_log_space_limit = 0;
-  mysql_mutex_unlock(&rli->log_space_lock);
-
-  /*
-    Ok to broadcast after the critical region as there is no risk of
-    the mutex being destroyed by this thread later - this helps save
-    context switches
-  */
-  mysql_cond_broadcast(&rli->log_space_cond);
-
-  /*
-   * Need to update the log pos because purge logs has been called
-   * after fetching initially the log pos at the begining of the method.
-   */
-  if ((error = find_log_pos(&rli->linfo, rli->get_event_relay_log_name(),
-                            false /*need_lock_index=false*/))) {
-    char buff[22];
-    LogErr(ERROR_LEVEL, ER_BINLOG_ERROR_GETTING_NEXT_LOG_FROM_INDEX, error,
-           llstr(rli->linfo.index_file_offset, buff),
-           rli->get_group_relay_log_name(), included);
-    goto err;
-  }
-
-  /* If included was passed, rli->linfo should be the first entry. */
-  DBUG_ASSERT(!included || rli->linfo.index_file_start_offset == 0);
-
-err:
-  my_free(to_purge_if_included);
-  mysql_mutex_unlock(&LOCK_index);
-  DBUG_RETURN(error);
-}
-
-/**
   Remove logs from index file.
 
   - To make crash safe, we copy the content of index file
@@ -6869,21 +6680,12 @@ void MYSQL_BIN_LOG::purge() {
 
     DBUG_EXECUTE_IF("expire_logs_always", { purge_time = my_time(0); });
     if (purge_time >= 0) {
-      Is_instance_backup_locked_result is_instance_locked;
-      is_instance_locked = is_instance_backup_locked(current_thd);
-
-      int i = 0;
-      while (is_instance_locked == Is_instance_backup_locked_result::OOM &&
-             i < MYSQL_BIN_LOG::MAX_RETRIES_BY_OOM) {
-        /* Sleep 1 microsecond per try to avoid temporary 'out of memory' */
-        my_sleep(1);
-        is_instance_locked = is_instance_backup_locked(current_thd);
-        i++;
-      }
+      Is_instance_backup_locked_result is_instance_locked =
+          is_instance_backup_locked(current_thd);
 
       if (is_instance_locked == Is_instance_backup_locked_result::OOM) {
         exec_binlog_error_action_abort(
-            "OOM happened while checking if "
+            "Out of memory happened while checking if "
             "instance was locked for backup");
       }
       if (is_instance_locked == Is_instance_backup_locked_result::NOT_LOCKED) {
@@ -7304,9 +7106,9 @@ void MYSQL_BIN_LOG::report_binlog_write_error() {
   @retval    0          if got signalled on update
   @retval    non-0      if wait timeout elapsed
   @note
-    LOCK_log must be taken before calling this function.
-    LOCK_log is being released while the thread is waiting.
-    LOCK_log is released by the caller.
+    LOCK_binlog_end_pos must be taken before calling this function.
+    LOCK_binlog_end_pos is being released while the thread is waiting.
+    LOCK_binlog_end_pos is released by the caller.
 */
 
 int MYSQL_BIN_LOG::wait_for_update(const struct timespec *timeout) {
@@ -7619,11 +7421,7 @@ bool MYSQL_BIN_LOG::truncate_relaylog_file(Master_info *mi,
       // Re-init the SQL thread IO_CACHE
       DBUG_ASSERT(strcmp(rli->get_event_relay_log_name(), log_file_name) ||
                   rli->get_event_relay_log_pos() <= truncate_pos);
-      if (rli->reinit_sql_thread_io_cache(log_file_name, true)) {
-        mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
-                   ER_THD(current_thd, ER_SLAVE_RELAY_LOG_WRITE_FAILURE),
-                   "unable to re-initialize SQL thread I/O cache");
-      }
+      rli->notify_relay_log_truncated();
     }
   }
   DBUG_RETURN(error);

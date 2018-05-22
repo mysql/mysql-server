@@ -1964,8 +1964,7 @@ static Exit_status dump_multiple_logs(int argc, char **argv) {
   When reading a remote binlog, this function is used to grab the
   Format_description_log_event in the beginning of the stream.
 
-  This is not as smart as check_header() (used for local log); it will
-  not work for a binlog which mixes format. TODO: fix this.
+  It will not work for a binlog which mixes format. TODO: fix this.
 
   @retval ERROR_STOP An error occurred - the program should terminate.
   @retval OK_CONTINUE No error, the program should continue.
@@ -2399,11 +2398,13 @@ class Stdin_binlog_istream : public Basic_seekable_istream,
     return false;
   }
 
+  /* purecov: begin inspected */
   /** Stdin has no length. It should never be called. */
   my_off_t length() override {
     DBUG_ASSERT(0);
     return 0;
   };
+  /* purecov: end */
 
  private:
   /**

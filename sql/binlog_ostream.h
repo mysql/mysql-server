@@ -77,6 +77,7 @@ class IO_CACHE_binlog_cache_storage : public Truncatable_ostream {
 
   bool write(const unsigned char *buffer, my_off_t length) override;
   bool truncate(my_off_t offset) override;
+  /* purecov: inspected */
   /* binlog cache doesn't need seek operation. Setting true to return error */
   bool seek(my_off_t offset MY_ATTRIBUTE((unused))) override { return true; }
   /**

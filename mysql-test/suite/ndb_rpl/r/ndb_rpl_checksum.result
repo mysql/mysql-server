@@ -77,7 +77,7 @@ include/start_slave.inc
 set @@global.master_verify_checksum = 1;
 set @@session.debug='d,simulate_checksum_test_failure';
 show binlog events;
-ERROR HY000: Error when executing command SHOW BINLOG EVENTS: Wrong offset or I/O error
+ERROR HY000: Error when executing command SHOW BINLOG EVENTS: event read from binlog did not pass crc check
 set @@session.debug='';
 set @@global.master_verify_checksum = default;
 include/stop_slave.inc
@@ -92,7 +92,7 @@ set @@global.slave_sql_verify_checksum = 1;
 set @@global.debug='d,simulate_checksum_test_failure';
 start slave sql_thread;
 include/wait_for_slave_sql_error.inc [errno=13117]
-Last_SQL_Error = 'Error initializing relay log position: I/O error reading event at position 4'
+Last_SQL_Error = 'Error initializing relay log position: event read from binlog did not pass crc check'
 include/stop_slave.inc
 set @@global.debug='';
 include/start_slave.inc

@@ -10999,10 +10999,10 @@ ER_BINLOG_FILE_BEING_READ_NOT_PURGED
 ER_BINLOG_IO_ERROR_READING_HEADER
   eng "I/O error reading the header from the binary log, errno=%d, io cache code=%d"
 
-ER_BINLOG_CANT_OPEN_LOG
+OBSOLETE_ER_BINLOG_CANT_OPEN_LOG
   eng "Failed to open log (file '%s', errno %d)"
 
-ER_BINLOG_CANT_CREATE_CACHE_FOR_LOG
+OBSOLETE_ER_BINLOG_CANT_CREATE_CACHE_FOR_LOG
   eng "Failed to create a cache on log (file '%s')"
 
 ER_BINLOG_FILE_EXTENSION_NUMBER_EXHAUSTED
@@ -11068,7 +11068,7 @@ ER_BINLOG_CANT_SET_TMP_INDEX_NAME
 ER_BINLOG_FAILED_TO_OPEN_TEMPORARY_INDEX_FILE
   eng "MYSQL_BIN_LOG::open_crash_safe_index_file failed to open temporary index file."
 
-ER_BINLOG_ERROR_GETTING_NEXT_LOG_FROM_INDEX
+OBSOLETE_ER_BINLOG_ERROR_GETTING_NEXT_LOG_FROM_INDEX
   eng "next log error: %d  offset: %s  log: %s included: %d"
 
 ER_BINLOG_CANT_OPEN_TMP_INDEX
@@ -18181,6 +18181,9 @@ ER_CANT_SET_ERROR_SUPPRESSION_LIST_FROM_COMMAND_LINE
 
 ER_INVALID_VALUE_OF_BIND_ADDRESSES
   eng "Invalid value for command line option bind-addresses: '%s'"
+
+ER_RELAY_LOG_SPACE_LIMIT_DISABLED
+  eng "Ignoring the @@global.relay_log_space_limit option because @@global.relay_log_purge is disabled."
 
 #
 # End of 8.0 Server error messages.

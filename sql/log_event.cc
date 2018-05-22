@@ -1308,136 +1308,6 @@ bool Log_event::write_header(Basic_ostream *ostream, size_t event_data_length) {
 }
 #endif /* MYSQL_SERVER */
 
-#ifdef MYSQL_SERVER
-#define UNLOCK_MUTEX \
-  if (log_lock) mysql_mutex_unlock(log_lock);
-#define LOCK_MUTEX \
-  if (log_lock) mysql_mutex_lock(log_lock);
-#else
-#define UNLOCK_MUTEX
-#define LOCK_MUTEX
-#endif
-
-#ifdef MYSQL_SERVER
-/**
-  @note
-    Allocates memory;  The caller is responsible for clean-up.
-*/
-Log_event *Log_event::read_log_event(
-    IO_CACHE *file, mysql_mutex_t *log_lock,
-    const Format_description_log_event *description_event, bool crc_check) {
-  DBUG_ENTER(
-      "Log_event::read_log_event(IO_CACHE *[, mysql_mutex_t *], "
-      "Format_description_log_event *, bool)");
-  DBUG_ASSERT(description_event != 0);
-  char head[LOG_EVENT_MINIMAL_HEADER_LEN];
-  /*
-    First we only want to read at most LOG_EVENT_MINIMAL_HEADER_LEN, just to
-    check the event for sanity and to know its length; no need to really parse
-    it. We say "at most" because this could be a 3.23 master, which has header
-    of 13 bytes, whereas LOG_EVENT_MINIMAL_HEADER_LEN is 19 bytes (it's
-    "minimal" over the set {MySQL >=4.0}).
-  */
-  uint header_size = min<uint>(description_event->common_header_len,
-                               LOG_EVENT_MINIMAL_HEADER_LEN);
-
-  LOCK_MUTEX;
-  DBUG_PRINT("info", ("my_b_tell: %lu", (ulong)my_b_tell(file)));
-  if (my_b_read(file, (uchar *)head, header_size)) {
-    DBUG_PRINT("info", ("Log_event::read_log_event(IO_CACHE*,Format_desc*) "
-                        "failed in my_b_read((IO_CACHE*)%p, (uchar*)%p, %u)",
-                        file, head, header_size));
-    UNLOCK_MUTEX;
-    /*
-      No error here; it could be that we are at the file's end. However
-      if the next my_b_read() fails (below), it will be an error as we
-      were able to read the first bytes.
-    */
-    DBUG_RETURN(0);
-  }
-  ulong data_len = uint4korr(head + EVENT_LEN_OFFSET);
-  char *buf = 0;
-  const char *error = 0;
-  Log_event *res = 0;
-#if !defined(MYSQL_SERVER)
-  ulong log_max_allowed_packet;
-  mysql_get_option(NULL, MYSQL_OPT_MAX_ALLOWED_PACKET, &log_max_allowed_packet);
-#else
-  THD *thd = current_thd;
-  uint log_max_allowed_packet = thd ? slave_max_allowed_packet : ~0U;
-#endif
-  Binlog_read_error read_error;
-
-  ulong const max_size =
-      max<ulong>(log_max_allowed_packet,
-                 opt_binlog_rows_event_max_size + MAX_LOG_EVENT_HEADER);
-  if (data_len > max_size) {
-    error = "Event too big";
-    goto err;
-  }
-
-  if (data_len < header_size) {
-    error = "Event too small";
-    goto err;
-  }
-
-  // some events use the extra byte to null-terminate strings
-  if (!(buf = (char *)my_malloc(key_memory_log_event, data_len + 1,
-                                MYF(MY_WME)))) {
-    error = "Out of memory";
-    goto err;
-  }
-  buf[data_len] = 0;
-  memcpy(buf, head, header_size);
-  if (my_b_read(file, (uchar *)buf + header_size, data_len - header_size)) {
-    error = "read error";
-    goto err;
-  }
-
-#if !defined(MYSQL_SERVER)
-  if (f && f(&buf, &data_len, description_event)) {
-    error = "Error applying filter while reading event";
-    goto err;
-  }
-#endif
-  read_error =
-      binlog_event_deserialize(reinterpret_cast<unsigned char *>(buf), data_len,
-                               description_event, crc_check, &res);
-  if (read_error.has_error())
-    error = read_error.get_str();
-  else
-    res->register_temp_buf(buf);
-
-err:
-  UNLOCK_MUTEX;
-  if (!res) {
-    DBUG_ASSERT(error != 0);
-#if defined(MYSQL_SERVER)
-    LogErr(ERROR_LEVEL, ER_READ_LOG_EVENT_FAILED, error, data_len,
-           head[EVENT_TYPE_OFFSET]);
-#else
-    sql_print_error(
-        "Error in Log_event::read_log_event(): "
-        "'%s', data_len: %lu, event_type: %d",
-        error, data_len, head[EVENT_TYPE_OFFSET]);
-#endif
-    my_free(buf);
-    /*
-      The SQL slave thread will check if file->error<0 to know
-      if there was an I/O error. Even if there is no "low-level" I/O errors
-      with 'file', any of the high-level above errors is worrying
-      enough to stop the SQL thread now ; as we are skipping the current event,
-      going on with reading and successfully executing other events can
-      only corrupt the slave's databases. So stop.
-      The file->error is also checked to record the position of
-      the last valid event when master server recovers.
-    */
-    file->error = -1;
-  }
-  DBUG_RETURN(res);
-}
-#endif
-
 #ifndef MYSQL_SERVER
 
 /*
@@ -5507,9 +5377,7 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli) {
         synchronization point. For that reason, the checkpoint
         routine is being called here.
       */
-      if ((error = mts_checkpoint_routine(rli, 0, false,
-                                          true /*need_data_lock=true*/)))
-        goto err;
+      if ((error = mts_checkpoint_routine(rli, false))) goto err;
     }
 
     mysql_mutex_lock(&rli->data_lock);
@@ -5545,7 +5413,7 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli) {
       bool real_event = server_id && !is_artificial_event();
       rli->reset_notified_checkpoint(
           0, real_event ? common_header->when.tv_sec + (time_t)exec_time : 0,
-          true /*need_data_lock = true*/, real_event ? true : false);
+          real_event);
     }
 
     /*
