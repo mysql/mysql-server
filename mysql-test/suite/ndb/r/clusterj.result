@@ -1,32 +1,12 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
-#
-# Run the Cluster/J JUnit tests from MTR
-#
---source include/have_ndb.inc
---source include/have_big5.inc
---source include/have_utf8.inc
---source include/have_sjis.inc
---source include/not_embedded.inc
---source suite/ndb/include/have_clusterj.inc
---source suite/ndb/include/have_connectorj.inc
---source suite/ndb/include/have_java.inc
-
---let JAVA_CLASSPATH=$CLUSTERJ_TEST_JAR
---let JAVA_CLASSPATH_1=$CLUSTERJ_JAR
-# MTR_CLASSPATH automatically added to JAVA_CLASSPATH
---let JAVA_JVM_OPTS= -ea -Xcheck:jni
---let JAVA_JVM_OPTS_1= -Dclusterj.properties=$MYSQLTEST_VARDIR/tmp/clusterj.properties
---let JAVA_JVM_OPTS_2= -Djava.library.path="$NDBCLIENT_LIB_DIR"
---let JAVA_CLASS= testsuite.clusterj.AllTests
---let JAVA_ARGUMENTS= $CLUSTERJ_TEST_JAR
-
---source suite/ndb/include/run_java.inc
-
---echo Clean up tables used in the JUnit tests.
+Found clusterj.jar
+Found clusterj_test jar
+Found ndbclient library
+Found Connector/J JAR in MTR_CLASSPATH
+Looking for a suitable Java...
+Found Java
+Running command
+Result of command: 0
+Clean up tables used in the JUnit tests.
 DROP TABLE a;
 DROP TABLE allprimitives;
 DROP TABLE autopkint;
@@ -84,4 +64,3 @@ DROP TABLE varbinarypk;
 DROP TABLE varbinarytypes;
 DROP TABLE IF EXISTS test2.t_basic2;
 DROP DATABASE IF EXISTS test2;
-

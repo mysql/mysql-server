@@ -67,7 +67,6 @@ sub java_exists {
    my $devnull = "/dev/null";
    $devnull = "NUL" if IS_WINDOWS;
 
-   system("echo trying: $exists");
    system("\"$exists\" " . $java_args . " -version > " . $devnull);
   
    my $ret =  $exists if ($? == 0);
@@ -110,8 +109,7 @@ if ($java_loc eq '') {
   print $F "--let \MTR_JAVA= $java_loc\n";
   print $F "--let \MTR_JAVA_ARGS= $java_args\n";
   print $F "--let \MTR_JAVA_VERSION= $java_version\n";
-  print $F "--echo Found Java: '\$MTR_JAVA'\n";
-  print $F "--echo Java version: '\$MTR_JAVA_VERSION'\n";
+  print $F "--echo Found Java\n";
 }
 $F->close();
 
