@@ -88,6 +88,10 @@ my_bool	net_flush(NET *net);
 #define SOCKET_ERROR -1
 #endif
 
+#ifdef HAVE_OPENSSL
+#include <openssl/x509v3.h>
+#endif
+
 #include "client_settings.h"
 #include <sql_common.h>
 #include <mysql/client_plugin.h>
@@ -2675,12 +2679,15 @@ static int ssl_verify_server_cert(Vio *vio, const char* server_hostname, const c
 {
   SSL *ssl;
   X509 *server_cert= NULL;
+  int ret_validation= 1;
+
+#if !(OPENSSL_VERSION_NUMBER >= 0x10002000L)
   char *cn= NULL;
   int cn_loc= -1;
   ASN1_STRING *cn_asn1= NULL;
   X509_NAME_ENTRY *cn_entry= NULL;
   X509_NAME *subject= NULL;
-  int ret_validation= 1;
+#endif
 
   DBUG_ENTER("ssl_verify_server_cert");
   DBUG_PRINT("enter", ("server_hostname: %s", server_hostname));
@@ -2715,11 +2722,25 @@ static int ssl_verify_server_cert(Vio *vio, const char* server_hostname, const c
   */
 
   /*
-   Some notes for future development
-   We should check host name in alternative name first and then if needed check in common name.
-   Currently yssl doesn't support alternative name.
-   openssl 1.0.2 support X509_check_host method for host name validation, we may need to start using
-   X509_check_host in the future.
+     Use OpenSSL certificate matching functions instead of our own if we
+     have OpenSSL. The X509_check_* functions return 1 on success.
+  */
+#if OPENSSL_VERSION_NUMBER >= 0x10002000L || defined(HAVE_WOLFSSL)
+  if ((X509_check_host(server_cert, server_hostname, strlen(server_hostname),
+                       0, 0) != 1) &&
+      (X509_check_ip_asc(server_cert, server_hostname, 0) != 1)) {
+    *errptr = "Failed to verify the server certificate via X509 certificate "
+              "matching functions";
+    goto error;
+
+  } else {
+    /* Success */
+    ret_validation = 0;
+  }
+#else  /* OPENSSL_VERSION_NUMBER < 0x10002000L */
+  /*
+     OpenSSL prior to 1.0.2 do not support X509_check_host() function.
+     Use deprecated X509_get_subject_name() instead.
   */
 
   subject= X509_get_subject_name((X509 *) server_cert);
@@ -2766,7 +2787,7 @@ static int ssl_verify_server_cert(Vio *vio, const char* server_hostname, const c
     /* Success */
     ret_validation= 0;
   }
-
+#endif /* OPENSSL_VERSION_NUMBER >= 0x10002000L */
   *errptr= "SSL certificate validation failure";
 
 error:
