@@ -14853,7 +14853,6 @@ void Dblqh::send_next_NEXT_SCANREQ(Signal* signal,
           sendSignal(reference(), GSN_ACC_CHECK_SCAN, signal, 4, JBB);
           return;
         }
-        scanPtr->m_exec_direct_batch_size_words = 0;
         if (prioAFlag)
         {
           /* Prioritised scan at high load situation */
