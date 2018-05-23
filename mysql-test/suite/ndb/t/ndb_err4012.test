@@ -148,7 +148,7 @@ drop logfile group lg1 engine=ndb;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 6217" >> $NDB_TOOLS_OUTPUT
 set @save_debug = @@session.debug;
 SET SESSION debug="+d,ndb_dictsignal_timeout";
---error 1296
+--error ER_CANT_CREATE_TABLE
 create table t1(id int primary key, val int)engine=ndb;
 show warnings;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
@@ -283,7 +283,7 @@ drop logfile group lg1 engine=ndb;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 6222" >> $NDB_TOOLS_OUTPUT
 set @save_debug = @@session.debug;
 SET SESSION debug="+d,ndb_dictsignal_timeout";
---error 1296
+--error ER_CANT_CREATE_TABLE
 create table t1(id int primary key, val int) engine=ndb;
 show warnings;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT

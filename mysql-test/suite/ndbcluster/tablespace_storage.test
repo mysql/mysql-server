@@ -32,13 +32,14 @@ DROP TABLE t1;
 
 --echo # Check that it's not possible to create table with storage disk
 --echo # without tablespace(i.e tablespace is required)
---error ER_MISSING_HA_CREATE_OPTION
+--error ER_CANT_CREATE_TABLE
 CREATE TABLE t1(
   a INT STORAGE DISK
 )
 STORAGE DISK
 ENGINE NDB;
-
+# Check that warning says "tablespace is required for storage disk"
+SHOW WARNINGS;
 
 # Remove datafile from tablespace
 ALTER TABLESPACE ts1

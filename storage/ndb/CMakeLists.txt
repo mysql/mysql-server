@@ -83,6 +83,7 @@ SET(NDBCLUSTER_SOURCES
   ../../sql/ndb_schema_dist_table.cc
   ../../sql/ndb_fk_util.cpp
   ../../sql/ndb_schema_trans_guard.cc
+  ../../sql/ndb_create_helper.cc
 )
 
 # Include directories used when building ha_ndbcluster

@@ -370,7 +370,7 @@ drop table t1;
 
 # bug#24820 CREATE INDEX ....USING HASH on NDB table creates ordered index, not HASH index
 
---error ER_UNSUPPORTED_EXTENSION
+--error ER_CANT_CREATE_TABLE
 create table nationaldish (DishID int(10) unsigned NOT NULL AUTO_INCREMENT,
                            CountryCode char(3) NOT NULL,
                            DishTitle varchar(64) NOT NULL,
@@ -378,6 +378,7 @@ create table nationaldish (DishID int(10) unsigned NOT NULL AUTO_INCREMENT,
                            PRIMARY KEY (DishID),
                            INDEX i USING HASH (countrycode,calories)
                            ) ENGINE=ndbcluster;
+SHOW WARNINGS;
 
 create table nationaldish (DishID int(10) unsigned NOT NULL AUTO_INCREMENT,
                            CountryCode char(3) NOT NULL,

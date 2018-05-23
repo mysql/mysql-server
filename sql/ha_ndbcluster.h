@@ -447,12 +447,9 @@ public:
 
   int prepare_inplace__add_index(THD *thd, KEY *key_info,
                                  uint num_of_keys) const;
-  int create_ndb_index(THD *thd, const char *name, KEY *key_info,
-                       const NdbDictionary::Table *ndbtab, bool unique) const;
-  int create_ordered_index(THD *thd, const char *name, KEY *key_info,
-                           const NdbDictionary::Table *ndbtab) const;
-  int create_unique_index(THD *thd, const char *name, KEY *key_info,
-                          const NdbDictionary::Table *ndbtab) const;
+  int create_index_in_NDB(THD *thd, const char *name, KEY *key_info,
+                          const NdbDictionary::Table *ndbtab,
+                          bool unique) const;
   int create_index(THD *thd, const char *name, KEY *key_info,
                    NDB_INDEX_TYPE idx_type,
                    const NdbDictionary::Table *ndbtab) const;

@@ -112,7 +112,7 @@ alter table t1 algorithm=inplace, reorganize partition;
 alter table t1 algorithm=inplace, add partition partitions 1;
 ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 alter table t1 algorithm=copy, add partition partitions 1;
-ERROR HY000: Got error 797 'Wrong fragment count for fully replicated table' from NDBCLUSTER
+ERROR HY000: Can't create destination table for copying alter table
 alter table t1 algorithm=inplace, add column c int column_format dynamic;
 show create table t1;
 Table	Create Table
@@ -326,11 +326,11 @@ key(b, a)
 ) comment='NDB_TABLE=FULLY_REPLICATED=1'
   ENGINE=ndbcluster
 partition by key() partitions 2;
-ERROR HY000: Got error 797 'Wrong fragment count for fully replicated table' from NDBCLUSTER
+ERROR HY000: Can't create table './test/t2'
 show warnings;
 Level	Code	Message
 Warning	1296	Got error 797 'Wrong fragment count for fully replicated table' from NDB
-Error	1296	Got error 797 'Wrong fragment count for fully replicated table' from NDBCLUSTER
+Error	1005	Can't create table './test/t2'
 CREATE TABLE t2 (
 a char(10) NOT NULL primary key,
 b int not null,
@@ -348,7 +348,7 @@ key(b, a)
 ENGINE=ndbcluster
 comment='NDB_TABLE=FULLY_REPLICATED=1'
 PARTITION BY HASH(b);
-ERROR HY000: Got error 797 'Wrong fragment count for fully replicated table' from NDBCLUSTER
+ERROR HY000: Can't create table './test/t2'
 create table t1 (
 a char(10) NOT NULL primary key,
 b int not null)

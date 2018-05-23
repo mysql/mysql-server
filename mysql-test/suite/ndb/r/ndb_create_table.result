@@ -1,8 +1,6 @@
 create table t1 (a int primary key)
 engine NDB
 comment='NDB_TABLE=NOLOGGING=1';
-show warnings;
-Level	Code	Message
 drop table t1;
 create table t1 (a int primary key)
 engine NDB
@@ -18,7 +16,6 @@ show warnings;
 Level	Code	Message
 Warning	1478	NDB_TABLE= : modifier NOLOGGING specified twice
 Error	1478	Table storage engine 'ndbcluster' does not support the create option 'Syntax error in COMMENT modifier'
-Error	1031	Table storage engine for 't1' doesn't have this option
 create table t1 (a int primary key)
 engine NDB
 comment='NDB_TABLE=NOLOGGING=a,NOLOGGING';
@@ -27,7 +24,6 @@ show warnings;
 Level	Code	Message
 Warning	1478	NDB_TABLE= : invalid value 'a' for NOLOGGING
 Error	1478	Table storage engine 'ndbcluster' does not support the create option 'Syntax error in COMMENT modifier'
-Error	1031	Table storage engine for 't1' doesn't have this option
 create table t1 (a int primary key)
 engine NDB
 comment='NDB_TABLE=NOLOGGING,NOLOGGINGa';
@@ -36,7 +32,6 @@ show warnings;
 Level	Code	Message
 Warning	1478	NDB_TABLE= : unknown modifier: NOLOGGINGa
 Error	1478	Table storage engine 'ndbcluster' does not support the create option 'Syntax error in COMMENT modifier'
-Error	1031	Table storage engine for 't1' doesn't have this option
 create table t1 (a int primary key,
 b blob comment 'NDB_COLUMN=MAX_BLOB_PART_SIZE',
 c blob)

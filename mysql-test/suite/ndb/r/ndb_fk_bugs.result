@@ -573,7 +573,12 @@ c5 char(255) column_format fixed, c4 char(255) column_format fixed, c3 char(255)
 primary key using hash(c1)
 ,foreign key(c1) references t1_parent(pk1)
 ) charset=latin1, engine=ndb;
-ERROR HY000: Got error 851 'Maximum 8052 bytes of FIXED columns supported, use varchar or COLUMN_FORMAT DYNAMIC instead' from NDBCLUSTER
+ERROR HY000: Can't create table './test/t1'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1296	Got error 851 'Maximum 8052 bytes of FIXED columns supported, use varchar or COLUMN_FORMAT DYNAMIC instead' from NDB
+Warning	1296	Failed to commit NDB schema transaction
+Error	1005	Can't create table './test/t1'
 create table t1(a int primary key) engine = ndb;
 drop table t1, t1_parent;
 # bug#17591531 - ERROR ON DROP INDEX WHEN REFERENCING FOREIGN KEYS

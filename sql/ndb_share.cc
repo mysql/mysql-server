@@ -28,8 +28,6 @@
 #include <sstream>
 
 #include "m_string.h"
-#include "my_sys.h"
-#include "sql/field.h"
 #include "sql/ndb_conflict.h"
 #include "sql/ndb_dist_priv_util.h"
 #include "sql/ndb_event_data.h"
@@ -276,8 +274,7 @@ NDB_SHARE::create_and_acquire_reference(const char *key,
   NDB_SHARE* share = NDB_SHARE::create(key);
   if (share == nullptr)
   {
-    DBUG_PRINT("error", ("failed to alloc share"));
-    my_error(ER_OUTOFMEMORY, MYF(0), static_cast<int>(sizeof(*share)));
+    DBUG_PRINT("error", ("failed to create NDB_SHARE"));
     DBUG_RETURN(nullptr);
   }
 

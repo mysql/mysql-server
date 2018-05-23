@@ -254,7 +254,7 @@ ENGINE = NDB;
 DROP TABLE t1;
 
 #Verify that it isn't possible to create no logging table with disk fields
---error ER_UNSUPPORTED_EXTENSION
+--error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TABLE t1 (a bigint primary key, b bigint storage disk)
 ENGINE ndb
 COMMENT="NDB_TABLE=NOLOGGING=1"

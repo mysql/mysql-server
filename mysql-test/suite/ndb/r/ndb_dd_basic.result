@@ -213,7 +213,7 @@ CREATE TABLE t1 (a bigint primary key, b bigint storage disk)
 ENGINE ndb
 COMMENT="NDB_TABLE=NOLOGGING=1"
 TABLESPACE ts1 STORAGE DISK;
-ERROR 42000: Table 't1' uses an extension that doesn't exist in this MySQL version
+ERROR HY000: Table storage engine 'ndbcluster' does not support the create option 'NOLOGGING=1 on table with fields using STORAGE DISK'
 create tablespace ts2
 add datafile 'datafile2_1.dat'
 use logfile group lg1

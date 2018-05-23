@@ -22,7 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-// Implements the functions defined in ndb_schema_dist.h
+// Implements the functions declared in ndb_schema_dist.h
 #include "sql/ndb_schema_dist.h"
 
 #include <atomic>

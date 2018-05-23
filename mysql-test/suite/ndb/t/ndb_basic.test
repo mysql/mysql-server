@@ -479,7 +479,7 @@ while ($i)
 let $sql=$sql, primary key using hash(c1)) engine=ndb;
 let $sql=$sql charset=latin1;
 
---error 1296
+--error ER_CANT_CREATE_TABLE
 eval $sql; # eval the sql and create the table
 show warnings;
 
@@ -877,7 +877,7 @@ DROP TABLE child, parent;
 #
 # bug#59756
 #
---error 1031
+--error ER_CANT_CREATE_TABLE
 CREATE TABLE t1 (a INT PRIMARY KEY, b TEXT)
 ENGINE=ndb PARTITION BY KEY(a) PARTITIONS 144;
 show warnings;

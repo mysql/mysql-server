@@ -56,6 +56,7 @@
 #include "sql/ndb_component.h"
 #include "sql/ndb_conflict.h"
 #include "sql/ndb_dist_priv_util.h"
+#include "sql/ndb_create_helper.h"
 #include "sql/ndb_event_data.h"
 #include "sql/ndb_global_schema_lock.h"
 #include "sql/ndb_global_schema_lock_guard.h"
@@ -10286,24 +10287,23 @@ static int drop_table_impl(THD *thd, Ndb *ndb,
                            const char *table_name);
 
 /**
-  Create a table in NDB Cluster
+  @brief Create a table in NDB
+  @param name                  Table name.
+  @param form                  TABLE object describing the table to be
+                               created.
+  @param create_info           HA_CREATE_INFO describing table.
+  @param table_def             dd::Table object describing the table
+                               to be created. This object can be
+                               updated and will be persisted in the
+                               data dictionary when function returns
+  @retval 0 Sucess
+  @retval != 0 Error
 
-  ERROR HANDLING:
-  1) when a new error is added call my_error()/my_printf_error() with proper
-  mysql error code from(mysqld_error.h ,mysqld_ername.h). only the first call to
-  my_error() will be displayed on the prompt, other error message can be viewed only
-  by calling 'SHOW WARNING' command. hence, make sure the new error  is first
-  in the error flow.
-
-  2)Caller of ha_ndbcluster::create() will call ha_ndbcluster::print_error() and
-  handler::print_error() with the return value.
-
-  so, incase we return MySQL error code, make sure that the error code we return is
-  present in handler::print_error(). not all error codes that are listed in mysqld_error.h
-  can be returned.
-
-  */
-
+  @note Warnings and error should be reported before returning from this
+        function. When this is done properly the error code HA_ERR_GENERIC
+        can be used to avoid that ha_ndbcluster::print_error() reports
+        another error.
+*/
 int ha_ndbcluster::create(const char *name, 
                           TABLE *form, 
                           HA_CREATE_INFO *create_info,
@@ -10328,24 +10328,13 @@ int ha_ndbcluster::create(const char *name,
   Ndb_table_map table_map(form);
 
   /*
-    Don't allow CREATE TEMPORARY TABLE, it's not allowed since there is
-    no guarantee that the table "is visible only to the current
-    session, and is dropped automatically when the session is closed".
+    CREATE TEMPORARY TABLE is not suported in NDB since there is no
+    guarantee that the table "is visible only to the current session,
+    and is dropped automatically when the session is closed". Support
+    for temporary tables is turned off with HTON_TEMPORARY_NOT_SUPPORTED so
+    crash in debug if mysqld tries to create such a table anyway.
   */
-  if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
-  {
-
-    /*
-      NOTE! This path is just a safeguard, the mysqld should never try to
-      create a temporary table as long as the HTON_TEMPORARY_NOT_SUPPORTED
-      flag is set on the handlerton.
-    */
-    DBUG_ASSERT(false);
-
-    my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
-             ndbcluster_hton_name, "TEMPORARY");
-    DBUG_RETURN(HA_WRONG_CREATE_OPTION);
-  }
+  DBUG_ASSERT(!(create_info->options & HA_LEX_CREATE_TMP_TABLE));
 
   set_dbname(name);
   set_tabname(name);
@@ -10376,7 +10365,8 @@ int ha_ndbcluster::create(const char *name,
 
   if (check_ndb_connection(thd))
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
-  
+
+  Ndb_create_helper create(thd, name);
   Ndb *ndb= get_ndb(thd);
   NDBDICT *dict= ndb->getDictionary();
 
@@ -10392,17 +10382,15 @@ int ha_ndbcluster::create(const char *name,
         ndbcluster_binlog_setup_table(thd, ndb,
                                       m_dbname, m_tabname,
                                       table_def);
-    DBUG_ASSERT(setup_result == 0); // Catch in debug
-    if (setup_result == HA_ERR_TABLE_EXIST)
-    {
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_TABLE_EXISTS_ERROR,
-                          "Failed to setup replication of table %s.%s",
-                          m_dbname, m_tabname);
-
+    if (setup_result != 0) {
+      if (setup_result == HA_ERR_TABLE_EXIST) {
+        push_warning_printf(
+            thd, Sql_condition::SL_WARNING, ER_TABLE_EXISTS_ERROR,
+            "Failed to setup replication of table %s.%s", m_dbname, m_tabname);
+      }
+      DBUG_RETURN(create.failed_warning_already_pushed());
     }
-
-    DBUG_RETURN(setup_result);
+    DBUG_RETURN(0);
   }
 
   /*
@@ -10542,13 +10530,10 @@ int ha_ndbcluster::create(const char *name,
   if (table_modifiers.loadComment(create_info->comment.str,
                                   create_info->comment.length) == -1)
   {
-    push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_ILLEGAL_HA_CREATE_OPTION,
-                        "%s",
-                        table_modifiers.getErrMsg());
-    my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0), ndbcluster_hton_name,
-             "Syntax error in COMMENT modifier");
-    DBUG_RETURN(HA_WRONG_CREATE_OPTION);
+    thd_ndb->push_warning(ER_ILLEGAL_HA_CREATE_OPTION, "%s",
+                          table_modifiers.getErrMsg());
+    DBUG_RETURN(create.failed_illegal_create_option(
+        "Syntax error in COMMENT modifier"));
   }
   const NDB_Modifier * mod_nologging = table_modifiers.get("NOLOGGING");
   const NDB_Modifier * mod_frags = table_modifiers.get("PARTITION_BALANCE");
@@ -10569,13 +10554,8 @@ int ha_ndbcluster::create(const char *name,
   else if (ndbd_support_partition_balance(
             ndb->getMinDbNodeVersion()) == 0)
   {
-    /**
-     * NDB_TABLE=PARTITION_BALANCE not supported by data nodes.
-     */
-    my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
-             ndbcluster_hton_name,
-             "PARTITION_BALANCE not supported by current data node versions");
-    DBUG_RETURN(HA_WRONG_CREATE_OPTION);
+    DBUG_RETURN(create.failed_illegal_create_option(
+        "PARTITION_BALANCE not supported by current data node versions"));
   }
 
   /* Verify we can support read backup table property if set */
@@ -10584,27 +10564,21 @@ int ha_ndbcluster::create(const char *name,
       ndbd_support_read_backup(
             ndb->getMinDbNodeVersion()) == 0)
   {
-    /**
-     * NDB_TABLE=READ_BACKUP not supported by data nodes.
-     */
-    my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
-             ndbcluster_hton_name,
-             "READ_BACKUP not supported by current data node versions");
-    DBUG_RETURN(HA_WRONG_CREATE_OPTION);
+    DBUG_RETURN(create.failed_illegal_create_option(
+        "READ_BACKUP not supported by current data node versions"));
   }
-
 
   /*
     ROW_FORMAT=[DEFAULT|FIXED|DYNAMIC|COMPRESSED|REDUNDANT|COMPACT]
 
-    Only DEFAULT,FIXED or DYNAMIC supported
+    Only DEFAULT, FIXED or DYNAMIC supported
   */
   if (!(create_info->row_type == ROW_TYPE_DEFAULT ||
         create_info->row_type == ROW_TYPE_FIXED ||
         create_info->row_type == ROW_TYPE_DYNAMIC))
   {
-    /*Unsupported row format requested */
-    String err_message;
+    /* Unsupported row format requested */
+    std::string err_message;
     err_message.append("ROW_FORMAT=");
     switch (create_info->row_type)
     {
@@ -10625,10 +10599,7 @@ int ha_ndbcluster::create(const char *name,
       DBUG_ASSERT(false);
       break;
     }
-    my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
-             ndbcluster_hton_name,
-             err_message.c_ptr());
-    DBUG_RETURN(HA_WRONG_CREATE_OPTION);
+    DBUG_RETURN(create.failed_illegal_create_option(err_message.c_str()));
   }
 
   /* Verify we can support fully replicated table property if set */
@@ -10637,13 +10608,8 @@ int ha_ndbcluster::create(const char *name,
       ndbd_support_fully_replicated(
             ndb->getMinDbNodeVersion()) == 0)
   {
-    /**
-     * NDB_TABLE=FULLY_REPLICATED not supported by data nodes.
-     */
-    my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
-             ndbcluster_hton_name,
-             "FULLY_REPLICATED not supported by current data node versions");
-    DBUG_RETURN(HA_WRONG_CREATE_OPTION);
+    DBUG_RETURN(create.failed_illegal_create_option(
+        "FULLY_REPLICATED not supported by current data node versions"));
   }
 
   // Read mysql.ndb_replication settings for this table, if any
@@ -10701,7 +10667,7 @@ int ha_ndbcluster::create(const char *name,
   Ndb_schema_trans_guard schema_trans(thd_ndb, dict);
   if (!schema_trans.begin_trans())
   {
-    ERR_RETURN(dict->getNdbError());
+    DBUG_RETURN(create.failed_warning_already_pushed());
   }
 
   // Guard class which will invalidate the table in NdbApi global dict
@@ -10744,7 +10710,8 @@ int ha_ndbcluster::create(const char *name,
 
   if (tab.setName(m_tabname))
   {
-    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+    DBUG_RETURN(
+        create.failed_oom("Failed to set table name"));
   }
   if (!ndb_sys_table)
   {
@@ -10808,10 +10775,8 @@ int ha_ndbcluster::create(const char *name,
          * Cannot mix FULLY_REPLICATED=1 and READ_BACKUP=0 since
          * FULLY_REPLICATED=1 implies READ_BACKUP=1.
          */
-        my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
-                 ndbcluster_hton_name,
-          "READ_BACKUP=0 cannot be used for fully replicated tables");
-        DBUG_RETURN(HA_WRONG_CREATE_OPTION);
+        DBUG_RETURN(create.failed_illegal_create_option(
+            "READ_BACKUP=0 cannot be used for fully replicated tables"));
       }
       tab.setReadBackupFlag(true);
       tab.setFullyReplicated(true);
@@ -10840,14 +10805,15 @@ int ha_ndbcluster::create(const char *name,
     dd::sdi_t sdi;
     if (!ndb_sdi_serialize(thd, table_def, m_dbname, sdi))
     {
-      DBUG_RETURN(1);
+      DBUG_RETURN(create.failed_internal_error(
+          "Failed to serialize dictionary information"));
     }
 
     const int result = tab.setExtraMetadata(2,  // version 2 for sdi
                                             sdi.c_str(), (Uint32)sdi.length());
     if (result != 0)
     {
-      DBUG_RETURN(result);
+      DBUG_RETURN(create.failed_internal_error("Failed to set extra metadata"));
     }
   }
 
@@ -10919,7 +10885,7 @@ int ha_ndbcluster::create(const char *name,
 
       if (tab.addColumn(col))
       {
-        DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+        DBUG_RETURN(create.failed_oom("Failed to add column"));
       }
       if (col.getPrimaryKey())
         pk_length += (field->pack_length() + 3) / 4;
@@ -10933,13 +10899,8 @@ int ha_ndbcluster::create(const char *name,
         mod_nologging->m_val_bool)
     {
       // Setting NOLOGGING=1 on a disk table isn't permitted.
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_ILLEGAL_HA_CREATE_OPTION,
-                          ER_THD(thd, ER_ILLEGAL_HA_CREATE_OPTION),
-                          ndbcluster_hton_name,
-                          "NOLOGGING=1 on table with fields "
-                          "using STORAGE DISK");
-      DBUG_RETURN(HA_ERR_UNSUPPORTED);
+      DBUG_RETURN(create.failed_illegal_create_option(
+          "NOLOGGING=1 on table with fields using STORAGE DISK"));
     }
     tab.setLogging(true);
     tab.setTemporary(false);
@@ -10952,9 +10913,8 @@ int ha_ndbcluster::create(const char *name,
     {
       // It's not possible to create a table which uses disk without
       // also specifying a tablespace name
-      my_error(ER_MISSING_HA_CREATE_OPTION, MYF(0),
-               ndbcluster_hton_name);
-      DBUG_RETURN(HA_MISSING_CREATE_OPTION);
+      DBUG_RETURN(create.failed_missing_create_option(
+          "TABLESPACE option must be specified when using STORAGE DISK"));
     }
   }
 
@@ -10986,12 +10946,12 @@ int ha_ndbcluster::create(const char *name,
     {
       if (key_part->field->field_storage_type() == HA_SM_DISK)
       {
-        my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
-                        "Cannot create index on DISK column '%s'. Alter it "
-                        "in a way to use STORAGE MEMORY.",
-                        MYF(0),
-                        key_part->field->field_name);
-        DBUG_RETURN(HA_ERR_UNSUPPORTED);
+        thd_ndb->push_warning(ER_ILLEGAL_HA_CREATE_OPTION,
+                              "Cannot create index on DISK column '%s'. Alter "
+                              "it in a way to use STORAGE MEMORY.",
+                              key_part->field->field_name);
+        DBUG_RETURN(
+            create.failed_illegal_create_option("index on DISK column"));
       }
       table_map.getColumn(tab, key_part->fieldnr-1)->setStorageType(
         NdbDictionary::Column::StorageTypeMemory);
@@ -11004,7 +10964,7 @@ int ha_ndbcluster::create(const char *name,
     DBUG_PRINT("info", ("Generating shadow key"));
     if (col.setName("$PK"))
     {
-      DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+      DBUG_RETURN(create.failed_oom("Failed to set name for shadow key"));
     }
     col.setType(NdbDictionary::Column::Bigunsigned);
     col.setLength(1);
@@ -11014,7 +10974,7 @@ int ha_ndbcluster::create(const char *name,
     col.setDefaultValue(NULL, 0);
     if (tab.addColumn(col))
     {
-      DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+      DBUG_RETURN(create.failed_oom("Failed to add column for shadow key"));
     }
     pk_length += 2;
   }
@@ -11141,21 +11101,16 @@ int ha_ndbcluster::create(const char *name,
   else if (tab.getFragmentType() == NDBTAB::HashMapPartition)
   {
     NdbDictionary::HashMap hm;
-    int res= dict->getDefaultHashMap(hm, tab.getFragmentCount());
-    if (res == -1)
+    if (dict->getDefaultHashMap(hm, tab.getFragmentCount()) == -1)
     {
-      res= dict->initDefaultHashMap(hm, tab.getFragmentCount());
-      if (res == -1)
+      if (dict->initDefaultHashMap(hm, tab.getFragmentCount()) == -1)
       {
-        const NdbError err= dict->getNdbError();
-        DBUG_RETURN(ndb_to_mysql_error(&err));
+        DBUG_RETURN(create.failed_in_NDB(dict->getNdbError()));
       }
 
-      res= dict->createHashMap(hm);
-      if (res == -1)
+      if (dict->createHashMap(hm) == -1)
       {
-        const NdbError err= dict->getNdbError();
-        DBUG_RETURN(ndb_to_mysql_error(&err));
+        DBUG_RETURN(create.failed_in_NDB(dict->getNdbError()));
       }
     }
   }
@@ -11163,8 +11118,7 @@ int ha_ndbcluster::create(const char *name,
   // Create the table in NDB
   if (dict->createTable(tab) != 0)
   {
-    const NdbError err= dict->getNdbError();
-    DBUG_RETURN(ndb_to_mysql_error(&err));
+    DBUG_RETURN(create.failed_in_NDB(dict->getNdbError()));
   }
 
   DBUG_PRINT("info", ("Table '%s/%s' created in NDB, id: %d, version: %d",
@@ -11179,10 +11133,9 @@ int ha_ndbcluster::create(const char *name,
                                          tab.getObjectVersion());
 
   // Create secondary indexes
-  const int create_index_result = create_indexes(thd, form, &tab);
-  if (create_index_result != 0)
+  if (create_indexes(thd, form, &tab) != 0)
   {
-    DBUG_RETURN(create_index_result);
+    DBUG_RETURN(create.failed_warning_already_pushed());
   }
 
   if (thd_sql_command(thd) != SQLCOM_TRUNCATE)
@@ -11220,7 +11173,7 @@ int ha_ndbcluster::create(const char *name,
   // All schema objects created, commit NDB schema transaction
   if (!schema_trans.commit_trans())
   {
-    ERR_RETURN(dict->getNdbError());
+    DBUG_RETURN(create.failed_warning_already_pushed());
   }
 
   // Invalidate the sucessfully created table in NdbApi global dict cache
@@ -11244,7 +11197,7 @@ int ha_ndbcluster::create(const char *name,
     // table is apparently not in NDB it cant be dropped.
     // However an NDB error must have occured since the table can't
     // be opened and as such the NDB error can be returned here
-    ERR_RETURN(dict->getNdbError());
+    DBUG_RETURN(create.failed_in_NDB(dict->getNdbError()));
   }
 
   // Check if the DD table object has the correct number of partitions.
@@ -11276,17 +11229,14 @@ int ha_ndbcluster::create(const char *name,
     (void)drop_table_and_related(thd, ndb, dict, ndbtab,
                                  0,          // drop_flags
                                  false);     // skip_related
-    my_printf_error(ER_OUTOFMEMORY,
-                    "Failed to acquire NDB_SHARE while creating table '%s'",
-                    MYF(0), name);
-    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+    DBUG_RETURN(create.failed_oom("Failed to acquire NDB_SHARE"));
   }
 
   if (ndb_name_is_temp(m_tabname))
   {
     // Temporary named table created OK
     NDB_SHARE::release_reference(share, "create"); // temporary ref.
-    DBUG_RETURN(0); // All OK
+    DBUG_RETURN(create.succeeded()); // All OK
   }
 
   // Apply the mysql.ndb_replication settings
@@ -11308,10 +11258,7 @@ int ha_ndbcluster::create(const char *name,
                                    0,          // drop_flags
                                    false);     // skip_related
       NDB_SHARE::release_reference(share, "create"); // temporary ref.
-      my_printf_error(ER_INTERNAL_ERROR,
-                      "Failed to create event for table '%s'",
-                      MYF(0), name);
-      DBUG_RETURN(ER_INTERNAL_ERROR);
+      DBUG_RETURN(create.failed_internal_error( "Failed to create event"));
     }
 
     if (binlog_client.table_should_have_event_op(share))
@@ -11326,10 +11273,8 @@ int ha_ndbcluster::create(const char *name,
                                      0,          // drop_flags
                                      false);     // skip_related
         NDB_SHARE::release_reference(share, "create"); // temporary ref.
-        my_printf_error(ER_INTERNAL_ERROR,
-                        "Failed to create event operation for table '%s'",
-                        MYF(0), name);
-        DBUG_RETURN(ER_INTERNAL_ERROR);
+        DBUG_RETURN(
+            create.failed_internal_error("Failed to create event operation"));
       }
     }
   }
@@ -11359,14 +11304,12 @@ int ha_ndbcluster::create(const char *name,
                                  0,                 // drop_flags
                                  false);            // skip_related
     NDB_SHARE::release_reference(share, "create");  // temporary ref.
-    my_printf_error(ER_INTERNAL_ERROR, "Failed to distribute table '%s'",
-                    MYF(0), name);
-    DBUG_RETURN(ER_INTERNAL_ERROR);
+    DBUG_RETURN(create.failed_internal_error("Failed to distribute table"));
   }
 
   NDB_SHARE::release_reference(share, "create"); // temporary ref.
 
-  DBUG_RETURN(0); // All OK
+  DBUG_RETURN(create.succeeded()); // All OK
 }
 
 int ha_ndbcluster::create_index(THD *thd, const char *name, KEY *key_info,
@@ -11390,11 +11333,12 @@ int ha_ndbcluster::create_index(THD *thd, const char *name, KEY *key_info,
     // Do nothing, already created
     break;
   case PRIMARY_KEY_ORDERED_INDEX:
-    error= create_ordered_index(thd, name, key_info, ndbtab);
+    error= create_index_in_NDB(thd, name, key_info, ndbtab, false);
     break;
   case UNIQUE_ORDERED_INDEX:
-    if (!(error= create_ordered_index(thd, name, key_info, ndbtab)))
-      error= create_unique_index(thd, unique_name, key_info, ndbtab);
+    if (!(error= create_index_in_NDB(thd, name, key_info, ndbtab, false)))
+      error = create_index_in_NDB(thd, unique_name, key_info, ndbtab,
+                                  true /* unique */);
     break;
   case UNIQUE_INDEX:
     if (check_index_fields_not_null(key_info))
@@ -11403,7 +11347,8 @@ int ha_ndbcluster::create_index(THD *thd, const char *name, KEY *key_info,
 			  ER_NULL_COLUMN_IN_INDEX,
 			  "Ndb does not support unique index on NULL valued attributes, index access with NULL value will become full table scan");
     }
-    error= create_unique_index(thd, unique_name, key_info, ndbtab);
+    error = create_index_in_NDB(thd, unique_name, key_info, ndbtab,
+                                true /* unique */);
     break;
   case ORDERED_INDEX:
     if (key_info->algorithm == HA_KEY_ALG_HASH)
@@ -11417,7 +11362,7 @@ int ha_ndbcluster::create_index(THD *thd, const char *name, KEY *key_info,
       error= HA_ERR_UNSUPPORTED;
       break;
     }
-    error= create_ordered_index(thd, name, key_info, ndbtab);
+    error= create_index_in_NDB(thd, name, key_info, ndbtab, false);
     break;
   default:
     DBUG_ASSERT(false);
@@ -11427,41 +11372,25 @@ int ha_ndbcluster::create_index(THD *thd, const char *name, KEY *key_info,
   DBUG_RETURN(error);
 }
 
-int ha_ndbcluster::create_ordered_index(
-    THD *thd, const char *name, KEY *key_info,
-    const NdbDictionary::Table *ndbtab) const
-{
-  DBUG_ENTER("ha_ndbcluster::create_ordered_index");
-  DBUG_RETURN(create_ndb_index(thd, name, key_info, ndbtab, false));
-}
-
-int ha_ndbcluster::create_unique_index(
-    THD *thd, const char *name, KEY *key_info,
-    const NdbDictionary::Table *ndbtab) const
-{
-  DBUG_ENTER("ha_ndbcluster::create_unique_index");
-  DBUG_RETURN(create_ndb_index(thd, name, key_info, ndbtab, true));
-}
 
 /**
   @brief Create an index in NDB.
 */
-
-int ha_ndbcluster::create_ndb_index(THD *thd, const char *name, KEY *key_info,
-                                    const NdbDictionary::Table *ndbtab,
-                                    bool unique) const
-{
-  char index_name[FN_LEN + 1];
+int ha_ndbcluster::create_index_in_NDB(THD *thd, const char *name,
+                                       KEY *key_info,
+                                       const NdbDictionary::Table *ndbtab,
+                                       bool unique) const {
   Ndb *ndb= get_ndb(thd);
   NdbDictionary::Dictionary *dict= ndb->getDictionary();
   KEY_PART_INFO *key_part= key_info->key_part;
   KEY_PART_INFO *end= key_part + key_info->user_defined_key_parts;
   
-  DBUG_ENTER("ha_ndbcluster::create_index");
-  DBUG_PRINT("enter", ("name: %s ", name));
+  DBUG_ENTER("ha_ndbcluster::create_index_in_NDB");
+  DBUG_PRINT("enter", ("name: %s, unique: %d ", name, unique));
 
+  char index_name[FN_LEN + 1];
   ndb_protect_char(name, index_name, sizeof(index_name) - 1, '/');
-  DBUG_PRINT("info", ("index name: %s ", index_name));
+  DBUG_PRINT("info", ("index_name: %s ", index_name));
 
   NdbDictionary::Index ndb_index(index_name);
   if (unique)
@@ -13841,6 +13770,19 @@ void ha_ndbcluster::print_error(int error, myf errflag)
 {
   DBUG_ENTER("ha_ndbcluster::print_error");
   DBUG_PRINT("enter", ("error: %d", error));
+
+  if (error == HA_ERR_GENERIC)
+  {
+    // This error code is used to indicate that the error already has been
+    // handled and reported in other parts of ha_ndbcluster, thus it can be
+    // safely ignored here. NOTE! HA_ERR_GENERIC is not used elsewhere in
+    // ha_ndbcluster and should not be used for any other purpose in the future
+
+    // Verify that error has been reported already
+    DBUG_ASSERT(current_thd->get_stmt_da()->is_error());
+
+    DBUG_VOID_RETURN;
+  }
 
   if (error == HA_ERR_NO_PARTITION_FOUND)
   {

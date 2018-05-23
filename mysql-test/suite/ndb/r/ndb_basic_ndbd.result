@@ -629,13 +629,12 @@ length(b)
 13000
 drop table t1;
 create table t1 ( c50 char(255) column_format fixed, c49 char(255) column_format fixed, c48 char(255) column_format fixed, c47 char(255) column_format fixed, c46 char(255) column_format fixed, c45 char(255) column_format fixed, c44 char(255) column_format fixed, c43 char(255) column_format fixed, c42 char(255) column_format fixed, c41 char(255) column_format fixed, c40 char(255) column_format fixed, c39 char(255) column_format fixed, c38 char(255) column_format fixed, c37 char(255) column_format fixed, c36 char(255) column_format fixed, c35 char(255) column_format fixed, c34 char(255) column_format fixed, c33 char(255) column_format fixed, c32 char(255) column_format fixed, c31 char(255) column_format fixed, c30 char(255) column_format fixed, c29 char(255) column_format fixed, c28 char(255) column_format fixed, c27 char(255) column_format fixed, c26 char(255) column_format fixed, c25 char(255) column_format fixed, c24 char(255) column_format fixed, c23 char(255) column_format fixed, c22 char(255) column_format fixed, c21 char(255) column_format fixed, c20 char(255) column_format fixed, c19 char(255) column_format fixed, c18 char(255) column_format fixed, c17 char(255) column_format fixed, c16 char(255) column_format fixed, c15 char(255) column_format fixed, c14 char(255) column_format fixed, c13 char(255) column_format fixed, c12 char(255) column_format fixed, c11 char(255) column_format fixed, c10 char(255) column_format fixed, c9 char(255) column_format fixed, c8 char(255) column_format fixed, c7 char(255) column_format fixed, c6 char(255) column_format fixed, c5 char(255) column_format fixed, c4 char(255) column_format fixed, c3 char(255) column_format fixed, c2 char(255) column_format fixed, c1 char(255) column_format fixed, primary key using hash(c1)) engine=ndb charset=latin1;
-ERROR HY000: Got error 851 'Maximum 8052 bytes of FIXED columns supported, use varchar or COLUMN_FORMAT DYNAMIC instead' from NDBCLUSTER
+ERROR HY000: Can't create table './test/t1'
 show warnings;
 Level	Code	Message
 Warning	1296	Got error 851 'Maximum 8052 bytes of FIXED columns supported, use varchar or COLUMN_FORMAT DYNAMIC instead' from NDB
 Warning	1296	Failed to commit NDB schema transaction
-Warning	1296	Got error 851 'Maximum 8052 bytes of FIXED columns supported, use varchar or COLUMN_FORMAT DYNAMIC instead' from NDB
-Error	1296	Got error 851 'Maximum 8052 bytes of FIXED columns supported, use varchar or COLUMN_FORMAT DYNAMIC instead' from NDBCLUSTER
+Error	1005	Can't create table './test/t1'
 create table `t1` (`a` int, b int, primary key (a,b)) engine=ndb partition by key(`a`,`b`,`a`);
 ERROR HY000: Duplicate partition field name 'a'
 create table t1 (
@@ -1077,13 +1076,12 @@ id	parent_id
 DROP TABLE child, parent;
 CREATE TABLE t1 (a INT PRIMARY KEY, b TEXT)
 ENGINE=ndb PARTITION BY KEY(a) PARTITIONS 144;
-ERROR HY000: Table storage engine for 't1' doesn't have this option
+ERROR HY000: Can't create table './test/t1'
 show warnings;
 Level	Code	Message
 Warning	1296	Got error 1224 'Too many fragments' from NDB
 Warning	1296	Failed to commit NDB schema transaction
-Warning	1296	Got error 1224 'Too many fragments' from NDB
-Error	1031	Table storage engine for 't1' doesn't have this option
+Error	1005	Can't create table './test/t1'
 CREATE TABLE t1 (a INT PRIMARY KEY, b TEXT)
 ENGINE=ndb;
 show warnings;

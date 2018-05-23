@@ -65,18 +65,18 @@ ENGINE ndb;
 CREATE TABLE t5 (a int PRIMARY KEY, t5b tinyblob,
 t5c tinytext, t5d int unique key STORAGE disk)
 TABLESPACE ts1 ENGINE ndb;
-ERROR HY000: Cannot create index on DISK column 't5d'. Alter it in a way to use STORAGE MEMORY.
+ERROR HY000: Table storage engine 'ndbcluster' does not support the create option 'index on DISK column'
 SHOW WARNINGS;
 Level	Code	Message
-Error	1478	Cannot create index on DISK column 't5d'. Alter it in a way to use STORAGE MEMORY.
-Error	1112	Table 't5' uses an extension that doesn't exist in this MySQL version
+Warning	1478	Cannot create index on DISK column 't5d'. Alter it in a way to use STORAGE MEMORY.
+Error	1478	Table storage engine 'ndbcluster' does not support the create option 'index on DISK column'
 CREATE TABLE t5 (a int PRIMARY KEY, t5b tinyblob,
 t5c tinytext, t5d int STORAGE disk)
 TABLESPACE ts1 ENGINE ndb;
 CREATE INDEX 5d_i ON t5(t5d);
-ERROR HY000: Cannot create index on DISK column 't5d'. Alter it in a way to use STORAGE MEMORY.
+ERROR HY000: Table storage engine 'ndbcluster' does not support the create option 'index on DISK column'
 ALTER TABLE t5 ADD INDEX 5d_i (t5d);
-ERROR HY000: Cannot create index on DISK column 't5d'. Alter it in a way to use STORAGE MEMORY.
+ERROR HY000: Table storage engine 'ndbcluster' does not support the create option 'index on DISK column'
 DROP TABLE t5;
 CREATE TABLE t5 (a int PRIMARY KEY, t5b tinyblob,
 t5c tinytext, t5d int)

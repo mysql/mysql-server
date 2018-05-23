@@ -7,14 +7,13 @@
 --echo #  - should fail the create table
 set @save_debug = @@session.debug;
 SET SESSION debug="+d,ndb_share_create_fail1";
-# Mask nuber of needed bytes in error message
---replace_regex /needed ([0-9]* bytes)/needed X bytes/
---error 1037
+--error ER_CANT_CREATE_TABLE
 CREATE TABLE t1(
   id INT PRIMARY KEY,
   val INT
 )
 ENGINE=ndbcluster;
+SHOW WARNINGS;
 SET SESSION debug=@save_debug;
 
 --echo # - check that table can be created, this also checks
@@ -35,7 +34,7 @@ DROP TABLE t1;
 --echo # NOTE! This is very unlikely and should only
 --echo # happen at cluster failure.
 SET SESSION debug="+d,ndb_create_open_fail";
---error ER_NO_SUCH_TABLE
+--error ER_CANT_CREATE_TABLE
 CREATE TABLE t1(a int primary key) engine = NDB;
 SHOW WARNINGS;
 SET SESSION debug=@save_debug;

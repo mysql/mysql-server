@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,11 +32,8 @@
 #endif
 
 #include "my_alloc.h"        // MEM_ROOT
-#include "my_bitmap.h"       // MY_BITMAP
-#include "mysql/psi/mysql_thread.h"
 #include "storage/ndb/include/ndbapi/Ndb.hpp" // Ndb::TupleIdRange
 #include "thr_lock.h"        // THR_LOCK
-
 
 enum Ndb_binlog_type
 {

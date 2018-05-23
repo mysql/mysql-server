@@ -25,10 +25,11 @@ eval select LENGTH('$max_identifier');
 
 eval CREATE DATABASE $max_identifier;
 eval use $max_identifier;
---error ER_NO_SUCH_TABLE
+--error ER_CANT_CREATE_TABLE
 eval CREATE TABLE $max_identifier (
   a int primary key
 ) engine = NDB;
+SHOW WARNINGS;
 
 eval DROP DATABASE $max_identifier;
 

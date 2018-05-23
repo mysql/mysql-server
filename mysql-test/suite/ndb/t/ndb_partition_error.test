@@ -1,22 +1,12 @@
 -- source include/have_ndb.inc
-#--disable_abort_on_error
-#
-# Simple test for the partition storage engine
-# Focuses on range partitioning tests
-# 
-#-- source include/have_partition.inc
 
---disable_warnings
-drop table if exists t1;
---enable_warnings
-
---disable_query_log
+# Turn on support for the "new" extended partition syntax
 set new=on;
---enable_query_log
+
 #
 # Partition by range, generate node group error
 #
---error 1031 
+--error ER_CANT_CREATE_TABLE
 CREATE TABLE t1 (
 a int not null,
 b int not null,

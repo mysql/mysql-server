@@ -35,6 +35,7 @@
 */
 
 struct THD_NDB_SHARE;
+class THD;
 
 class Thd_ndb 
 {
