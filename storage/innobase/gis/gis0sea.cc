@@ -348,8 +348,7 @@ static bool rtr_pcur_getnext_from_path(
     /* Attach predicate lock if needed, no matter whether
     there are matched records */
     if (mode != PAGE_CUR_RTREE_INSERT && mode != PAGE_CUR_RTREE_LOCATE &&
-        mode >= PAGE_CUR_CONTAIN && btr_cur->rtr_info->need_prdt_lock &&
-        found) {
+        mode >= PAGE_CUR_CONTAIN && btr_cur->rtr_info->need_prdt_lock) {
       lock_prdt_t prdt;
 
       trx_t *trx = thr_get_trx(btr_cur->rtr_info->thr);
