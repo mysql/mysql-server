@@ -5206,7 +5206,7 @@ bool dd_create_fts_index_table(const dict_table_t *parent_table,
     return (false);
   }
 
-  std::unique_ptr<dd::Table> dd_table_obj(dd::create_object<dd::Table>());
+  std::unique_ptr<dd::Table> dd_table_obj(schema->create_table(thd));
   dd::Table *dd_table = dd_table_obj.get();
 
   dd_table->set_name(table_name);
@@ -5351,7 +5351,7 @@ bool dd_create_fts_common_table(const dict_table_t *parent_table,
     return (false);
   }
 
-  std::unique_ptr<dd::Table> dd_table_obj(dd::create_object<dd::Table>());
+  std::unique_ptr<dd::Table> dd_table_obj(schema->create_table(thd));
   dd::Table *dd_table = dd_table_obj.get();
 
   dd_table->set_name(table_name);
