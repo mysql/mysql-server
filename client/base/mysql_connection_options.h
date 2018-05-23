@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -137,6 +137,8 @@ private:
   Nullable<std::string> m_user;
   Nullable<std::string> m_password;
   Nullable<std::string> m_default_charset;
+  Nullable<std::string> m_server_public_key;
+  bool m_get_server_public_key;
 };
 
 }
