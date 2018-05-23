@@ -60,7 +60,7 @@ const char *globerrs[GLOBERRS] = {
     "Can't get working directory (OS errno %d - %s)",
     "Can't change dir to '%s' (OS errno %d - %s)",
     "Warning: '%s' had %d links",
-    "Warning: %d files and %d streams is left open\n",
+    "Warning: %d files and %d streams is left open",
     "Disk is full writing '%s' (OS errno %d - %s). Waiting for someone to free "
     "space...",
     "Can't create directory '%s' (OS errno %d - %s)",
