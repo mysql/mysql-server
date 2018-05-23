@@ -180,9 +180,6 @@ my_bool check_scramble(const unsigned char *reply, const char *message,
 void get_salt_from_password(unsigned char *res, const char *password);
 void make_password_from_salt(char *to, const unsigned char *hash_stage2);
 char *octet2hex(char *to, const char *str, unsigned int len);
-my_bool generate_sha256_scramble(unsigned char *dst, size_t dst_size,
-                                 const char *src, size_t src_size, const char *rnd,
-                                 size_t rnd_size);
 char *get_tty_password(const char *opt_message);
 const char *mysql_errno_to_sqlstate(unsigned int mysql_errno);
 my_bool my_thread_init(void);
@@ -365,8 +362,7 @@ enum mysql_option
   MYSQL_OPT_SSL_ENFORCE,
   MYSQL_OPT_MAX_ALLOWED_PACKET, MYSQL_OPT_NET_BUFFER_LENGTH,
   MYSQL_OPT_TLS_VERSION,
-  MYSQL_OPT_SSL_MODE,
-  MYSQL_OPT_GET_SERVER_PUBLIC_KEY
+  MYSQL_OPT_SSL_MODE
 };
 struct st_mysql_options_extention;
 struct st_mysql_options {

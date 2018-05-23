@@ -188,7 +188,6 @@ SET(CLIENT_SOURCES
   ../sql/net_serv.cc
   ../sql-common/pack.c 
   ../sql/auth/password.c
-  ../sql/auth/sha2_password_common.cc
 )
 
 IF (WIN32 AND OPENSSL_APPLINK_C)

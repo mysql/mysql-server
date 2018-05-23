@@ -21,7 +21,6 @@
 #include "mysql_connection_options.h"
 #include "abstract_program.h"
 #include <mysys_err.h>
-#include "caching_sha2_passwordopt-vars.h"
 
 using Mysql::Tools::Base::Abstract_program;
 using namespace Mysql::Tools::Base::Options;
@@ -113,11 +112,6 @@ void Mysql_connection_options::create_options()
     "Directory for client-side plugins.");
   this->create_new_option(&this->m_default_auth, "default_auth",
     "Default authentication client-side plugin to use.");
-  this->create_new_option(&this->m_server_public_key, "server_public_key_path",
-                          "Path to file containing server public key");
-  this->create_new_option(&this->m_get_server_public_key,
-                          "get-server-public-key",
-                          "Get public key from server");
 }
 
 MYSQL* Mysql_connection_options::create_connection()
@@ -162,19 +156,6 @@ MYSQL* Mysql_connection_options::create_connection()
   mysql_options(connection, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
   mysql_options4(connection, MYSQL_OPT_CONNECT_ATTR_ADD,
                   "program_name", this->m_program->get_name().c_str());
-
-#if !defined(HAVE_YASSL)
-  if (this->m_server_public_key.has_value())
-  {
-    opt_server_public_key=
-      const_cast <char *> (this->m_server_public_key.value().c_str());
-  }
-
-  opt_get_server_public_key= this->m_get_server_public_key ? TRUE : FALSE;
-#endif /* !HAVE_YASSL */
-
-  set_server_public_key(connection);
-  set_get_server_public_key_option(connection);
 
   if (!mysql_real_connect(connection,
     this->get_null_or_string(this->m_host),
