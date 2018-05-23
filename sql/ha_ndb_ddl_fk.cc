@@ -2388,9 +2388,6 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb,
         }
       }
 
-      unsigned parentObjectId= 0;
-      unsigned childObjectId= 0;
-
       {
         char db_and_name[FN_LEN + 1];
         const char * name= fk_split_name(db_and_name, fk.getParentTable());
@@ -2400,7 +2397,6 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb,
         {
           ERR_RETURN(dict->getNdbError());
         }
-        parentObjectId= org_parent.get_table()->getObjectId();
       }
 
       {
@@ -2412,7 +2408,6 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb,
         {
           ERR_RETURN(dict->getNdbError());
         }
-        childObjectId= org_child.get_table()->getObjectId();
       }
 
       /**
@@ -2436,7 +2431,6 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb,
           cols[j]= dsttab.get_table()->getColumn(orgcol->getName());
         }
         cols[fk.getParentColumnCount()]= 0;
-        parentObjectId= dsttab.get_table()->getObjectId();
         if (fk.getParentIndex() != 0)
         {
           name = fk_split_name(db_and_name, fk.getParentIndex(), true);
@@ -2444,11 +2438,6 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb,
           const NDBINDEX * idx = dict->getIndexGlobal(name,*dsttab.get_table());
           if (idx == 0)
           {
-            printf("%u %s - %u/%u get_index(%s)\n",
-                   __LINE__, fk.getName(),
-                   parentObjectId,
-                   childObjectId,
-                   name); fflush(stdout);
             ERR_RETURN(dict->getNdbError());
           }
           fk.setParent(* dsttab.get_table(), idx, cols);
@@ -2501,7 +2490,6 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb,
           cols[j]= dsttab.get_table()->getColumn(orgcol->getName());
         }
         cols[fk.getChildColumnCount()]= 0;
-        childObjectId= dsttab.get_table()->getObjectId();
         if (fk.getChildIndex() != 0)
         {
           name = fk_split_name(db_and_name, fk.getChildIndex(), true);
@@ -2513,11 +2501,6 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb,
                                                      child_primary_key);
           if (!child_primary_key && idx == 0)
           {
-            printf("%u %s - %u/%u get_index(%s)\n",
-                   __LINE__, fk.getName(),
-                   parentObjectId,
-                   childObjectId,
-                   name); fflush(stdout);
             ERR_RETURN(dict->getNdbError());
           }
           fk.setChild(* dsttab.get_table(), idx, cols);
