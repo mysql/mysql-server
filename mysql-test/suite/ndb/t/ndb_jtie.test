@@ -24,4 +24,3 @@
 --let JAVA_CLASS=test.MyLoadUnloadTest
 --source suite/ndb/include/run_java.inc
 
-exit;
