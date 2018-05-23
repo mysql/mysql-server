@@ -1,6 +1,6 @@
 #ifndef _EVENT_SCHEDULER_H_
 #define _EVENT_SCHEDULER_H_
-/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,16 +58,10 @@ void deinit_event_thread(THD *thd);
 
 class Event_worker_thread {
  public:
-  static void init(Event_db_repository *db_repository_arg) {
-    db_repository = db_repository_arg;
-  }
-
   void run(THD *thd, Event_queue_element_for_exec *event);
 
  private:
   void print_warnings(THD *thd, Event_job_data *et);
-
-  static Event_db_repository *db_repository;
 };
 
 class Event_scheduler {

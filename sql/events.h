@@ -1,6 +1,6 @@
 #ifndef _EVENT_H_
 #define _EVENT_H_
-/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -117,9 +117,6 @@ class Events {
   static bool start(int *err_no);
   static bool stop();
 
-  /* A hack needed for Event_queue_element */
-  static Event_db_repository *get_db_repository() { return db_repository; }
-
   static bool init(bool opt_noacl);
 
   static void deinit();
@@ -154,7 +151,6 @@ class Events {
  private:
   static Event_queue *event_queue;
   static Event_scheduler *scheduler;
-  static Event_db_repository *db_repository;
 };
 
 /**

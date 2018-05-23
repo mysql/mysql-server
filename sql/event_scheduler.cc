@@ -78,8 +78,6 @@
 
 extern my_thread_attr_t connection_attrib;
 
-Event_db_repository *Event_worker_thread::db_repository;
-
 static const LEX_STRING scheduler_states_names[] = {
     {C_STRING_WITH_LEN("INITIALIZED")},
     {C_STRING_WITH_LEN("RUNNING")},
@@ -372,8 +370,8 @@ void Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event) {
       goto end;
     }
 
-    if ((res = db_repository->load_named_event(thd, event->dbname, event->name,
-                                               &job_data))) {
+    if ((res = Event_db_repository::load_named_event(thd, event->dbname,
+                                                     event->name, &job_data))) {
       DBUG_PRINT("error", ("Got error from load_named_event"));
       thd->mdl_context.release_lock(event_mdl_request.ticket);
       goto end;

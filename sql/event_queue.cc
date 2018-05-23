@@ -383,7 +383,6 @@ void Event_queue::find_n_remove_event(LEX_STRING db, LEX_STRING name) {
 */
 
 void Event_queue::recalculate_activation_times(THD *thd) {
-  Event_db_repository *db_repository = Events::get_db_repository();
   DBUG_ENTER("Event_queue::recalculate_activation_times");
 
   LOCK_QUEUE_DATA();
@@ -426,9 +425,9 @@ void Event_queue::recalculate_activation_times(THD *thd) {
     if (element->m_dropped) {
       bool ret;
       bool event_exists;
-      if (!(ret = db_repository->drop_event(thd, element->m_schema_name,
-                                            element->m_event_name, false,
-                                            &event_exists))) {
+      if (!(ret = Event_db_repository::drop_event(thd, element->m_schema_name,
+                                                  element->m_event_name, false,
+                                                  &event_exists))) {
         String sp_sql;
         if ((ret =
                  construct_drop_event_sql(thd, &sp_sql, element->m_schema_name,
@@ -643,8 +642,7 @@ end:
                          (*event_name)->name.str))
       DBUG_RETURN(true);
 
-    Event_db_repository *db_repository = Events::get_db_repository();
-    (void)db_repository->update_timing_fields_for_event(
+    (void)Event_db_repository::update_timing_fields_for_event(
         thd, (*event_name)->dbname, (*event_name)->name, last_executed,
         (ulonglong)status);
 
