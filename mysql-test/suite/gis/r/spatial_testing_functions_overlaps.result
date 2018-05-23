@@ -2426,21 +2426,25 @@ FROM t1 IGNORE INDEX(g_idx)
 WHERE MBROverlaps(g, @geo_py)
 ORDER BY id;
 id	ST_AsText(g)
+5	POLYGON((5.00001 5,5.00001 6,10 6,10 5,5.00001 5))
 SELECT id, ST_AsText(g)
 FROM t1 FORCE INDEX(g_idx)
 WHERE MBROverlaps(g, @geo_py)
 ORDER BY id;
 id	ST_AsText(g)
+5	POLYGON((5.00001 5,5.00001 6,10 6,10 5,5.00001 5))
 SELECT id, ST_AsText(g)
 FROM t1 IGNORE INDEX(g_idx)
 WHERE MBROverlaps(g, @geo_mpt)
 ORDER BY id;
 id	ST_AsText(g)
+4	POLYGON((4 4,4 5,5 5,5 4,4 4))
 SELECT id, ST_AsText(g)
 FROM t1 FORCE INDEX(g_idx)
 WHERE MBROverlaps(g, @geo_mpt)
 ORDER BY id;
 id	ST_AsText(g)
+4	POLYGON((4 4,4 5,5 5,5 4,4 4))
 DROP TABLE t1;
 #
 # Bug #26188118 MBROVERLAPS(LS, LS) INCORRECT FOR PERPENDICULAR LINES
