@@ -686,16 +686,16 @@ pretty                            TRUE
 ]
 # 18. Pass --no-check & --strict-check together
 [ERROR] ibd2sdi: Invalid combination of options. Cannot use --no-check & --strict-check together.
-ibd2sdi: [ERROR] Unknown suffix '@' used for variable 'type' (value '@')
-ibd2sdi: [ERROR] IBD2SDI: Error while setting value '@' to 'type'
-ibd2sdi: [ERROR] Unknown suffix '=' used for variable 'type' (value '=')
-ibd2sdi: [ERROR] IBD2SDI: Error while setting value '=' to 'type'
+ibd2sdi: [ERROR] Unknown suffix '@' used for variable 'type' (value '@').
+ibd2sdi: [ERROR] IBD2SDI: Error while setting value '@' to 'type'.
+ibd2sdi: [ERROR] Unknown suffix '=' used for variable 'type' (value '=').
+ibd2sdi: [ERROR] IBD2SDI: Error while setting value '=' to 'type'.
 # 22. Test --type option with
 # 22.1 non numeric/Alphanumeric
-ibd2sdi: [ERROR] Unknown suffix 'a' used for variable 'type' (value 'a')
-ibd2sdi: [ERROR] IBD2SDI: Error while setting value 'a' to 'type'
-ibd2sdi: [ERROR] Unknown suffix 'b' used for variable 'type' (value 'b')
-ibd2sdi: [ERROR] IBD2SDI: Error while setting value 'b' to 'type'
+ibd2sdi: [ERROR] Unknown suffix 'a' used for variable 'type' (value 'a').
+ibd2sdi: [ERROR] IBD2SDI: Error while setting value 'a' to 'type'.
+ibd2sdi: [ERROR] Unknown suffix 'b' used for variable 'type' (value 'b').
+ibd2sdi: [ERROR] IBD2SDI: Error while setting value 'b' to 'type'.
 # 22.2 numbers with +/-
 ["ibd2sdi"
 ,
@@ -706,7 +706,7 @@ ibd2sdi: [ERROR] IBD2SDI: Error while setting value 'b' to 'type'
 		Test00
 }
 ]
-ibd2sdi: [Warning] option 'type': value -0 adjusted to 0
+ibd2sdi: [Warning] option 'type': value -0 adjusted to 0.
 ["ibd2sdi"
 ,
 {
@@ -725,7 +725,7 @@ ibd2sdi: [Warning] option 'type': value -0 adjusted to 0
 		Test10
 }
 ]
-ibd2sdi: [Warning] option 'type': value -1 adjusted to 0
+ibd2sdi: [Warning] option 'type': value -1 adjusted to 0.
 ["ibd2sdi"
 ,
 {
@@ -735,7 +735,7 @@ ibd2sdi: [Warning] option 'type': value -1 adjusted to 0
 		Test00
 }
 ]
-ibd2sdi: [Warning] option 'type': value -15 adjusted to 0
+ibd2sdi: [Warning] option 'type': value -15 adjusted to 0.
 ["ibd2sdi"
 ,
 {
@@ -750,7 +750,7 @@ ibd2sdi: [Warning] option 'type': value -15 adjusted to 0
 # 22.4 with no permitted values
 ["ibd2sdi"
 ]
-ibd2sdi: [Warning] option 'type': value -14 adjusted to 0
+ibd2sdi: [Warning] option 'type': value -14 adjusted to 0.
 ["ibd2sdi"
 ,
 {
@@ -761,19 +761,19 @@ ibd2sdi: [Warning] option 'type': value -14 adjusted to 0
 }
 ]
 # 22.5 with very long value
-ibd2sdi: [ERROR] Incorrect unsigned integer value: '14324932470234893204293032'
-ibd2sdi: [ERROR] IBD2SDI: Error while setting value '14324932470234893204293032' to 'type'
+ibd2sdi: [ERROR] Incorrect unsigned integer value: '14324932470234893204293032'.
+ibd2sdi: [ERROR] IBD2SDI: Error while setting value '14324932470234893204293032' to 'type'.
 # 22.6 with blank value
-ibd2sdi: [ERROR] IBD2SDI: Empty value for 'type' specified
+ibd2sdi: [ERROR] IBD2SDI: Empty value for 'type' specified.
 # 22.7 value with spaces
-ibd2sdi: [ERROR] IBD2SDI: Empty value for 'type' specified
+ibd2sdi: [ERROR] IBD2SDI: Empty value for 'type' specified.
 # 23. Test for reading form more than type example (invalid): -t 0,1
-ibd2sdi: [ERROR] Unknown suffix ',' used for variable 'type' (value '0,1')
-ibd2sdi: [ERROR] IBD2SDI: Error while setting value '0,1' to 'type'
-ibd2sdi: [ERROR] Unknown suffix ',' used for variable 'type' (value '2,3')
-ibd2sdi: [ERROR] IBD2SDI: Error while setting value '2,3' to 'type'
+ibd2sdi: [ERROR] Unknown suffix ',' used for variable 'type' (value '0,1').
+ibd2sdi: [ERROR] IBD2SDI: Error while setting value '0,1' to 'type'.
+ibd2sdi: [ERROR] Unknown suffix ',' used for variable 'type' (value '2,3').
+ibd2sdi: [ERROR] IBD2SDI: Error while setting value '2,3' to 'type'.
 # 24. With misspelled --type
-ibd2sdi: [ERROR] unknown variable 'tpe=0'
+ibd2sdi: [ERROR] unknown variable 'tpe=0'.
 # 25. With Invalid file types
 # 25.1 With non IBD file
 [ERROR] ibd2sdi:  Unable to read the page header of 1024 bytes.
@@ -885,32 +885,32 @@ pretty                            TRUE
 ]
 # 18. Pass --no-check & --strict-check together
 [ERROR] ibd2sdi: Invalid combination of options. Cannot use --no-check & --strict-check together.
-ibd2sdi: [ERROR] Unknown suffix '@' used for variable 'type' (value '@')
-ibd2sdi: [ERROR] IBD2SDI: Error while setting value '@' to 'type'
-ibd2sdi: [ERROR] Unknown suffix '=' used for variable 'type' (value '=')
-ibd2sdi: [ERROR] IBD2SDI: Error while setting value '=' to 'type'
+ibd2sdi: [ERROR] Unknown suffix '@' used for variable 'type' (value '@').
+ibd2sdi: [ERROR] IBD2SDI: Error while setting value '@' to 'type'.
+ibd2sdi: [ERROR] Unknown suffix '=' used for variable 'type' (value '=').
+ibd2sdi: [ERROR] IBD2SDI: Error while setting value '=' to 'type'.
 # 22. Test --type option with
 # 22.1 non numeric/Alphanumeric
-ibd2sdi: [ERROR] Unknown suffix 'a' used for variable 'type' (value 'a')
-ibd2sdi: [ERROR] IBD2SDI: Error while setting value 'a' to 'type'
-ibd2sdi: [ERROR] Unknown suffix 'b' used for variable 'type' (value 'b')
-ibd2sdi: [ERROR] IBD2SDI: Error while setting value 'b' to 'type'
+ibd2sdi: [ERROR] Unknown suffix 'a' used for variable 'type' (value 'a').
+ibd2sdi: [ERROR] IBD2SDI: Error while setting value 'a' to 'type'.
+ibd2sdi: [ERROR] Unknown suffix 'b' used for variable 'type' (value 'b').
+ibd2sdi: [ERROR] IBD2SDI: Error while setting value 'b' to 'type'.
 # 22.2 numbers with +/-
 # 22.4 with no permitted values
 # 22.5 with very long value
-ibd2sdi: [ERROR] Incorrect unsigned integer value: '14324932470234893204293032'
-ibd2sdi: [ERROR] IBD2SDI: Error while setting value '14324932470234893204293032' to 'type'
+ibd2sdi: [ERROR] Incorrect unsigned integer value: '14324932470234893204293032'.
+ibd2sdi: [ERROR] IBD2SDI: Error while setting value '14324932470234893204293032' to 'type'.
 # 22.6 with blank value
-ibd2sdi: [ERROR] IBD2SDI: Empty value for 'type' specified
+ibd2sdi: [ERROR] IBD2SDI: Empty value for 'type' specified.
 # 22.7 value with spaces
-ibd2sdi: [ERROR] IBD2SDI: Empty value for 'type' specified
+ibd2sdi: [ERROR] IBD2SDI: Empty value for 'type' specified.
 # 23. Test for reading form more than type example (invalid): -t 0,1
-ibd2sdi: [ERROR] Unknown suffix ',' used for variable 'type' (value '0,1')
-ibd2sdi: [ERROR] IBD2SDI: Error while setting value '0,1' to 'type'
-ibd2sdi: [ERROR] Unknown suffix ',' used for variable 'type' (value '2,3')
-ibd2sdi: [ERROR] IBD2SDI: Error while setting value '2,3' to 'type'
+ibd2sdi: [ERROR] Unknown suffix ',' used for variable 'type' (value '0,1').
+ibd2sdi: [ERROR] IBD2SDI: Error while setting value '0,1' to 'type'.
+ibd2sdi: [ERROR] Unknown suffix ',' used for variable 'type' (value '2,3').
+ibd2sdi: [ERROR] IBD2SDI: Error while setting value '2,3' to 'type'.
 # 24. With misspelled --type
-ibd2sdi: [ERROR] unknown variable 'tpe=0'
+ibd2sdi: [ERROR] unknown variable 'tpe=0'.
 # 25. With Invalid file types
 # 25.1 With non IBD file
 [ERROR] ibd2sdi:  Unable to read the page header of 1024 bytes.
@@ -1030,32 +1030,32 @@ pretty                            TRUE
 ]
 # 18. Pass --no-check & --strict-check together
 [ERROR] ibd2sdi: Invalid combination of options. Cannot use --no-check & --strict-check together.
-ibd2sdi: [ERROR] Unknown suffix '@' used for variable 'type' (value '@')
-ibd2sdi: [ERROR] IBD2SDI: Error while setting value '@' to 'type'
-ibd2sdi: [ERROR] Unknown suffix '=' used for variable 'type' (value '=')
-ibd2sdi: [ERROR] IBD2SDI: Error while setting value '=' to 'type'
+ibd2sdi: [ERROR] Unknown suffix '@' used for variable 'type' (value '@').
+ibd2sdi: [ERROR] IBD2SDI: Error while setting value '@' to 'type'.
+ibd2sdi: [ERROR] Unknown suffix '=' used for variable 'type' (value '=').
+ibd2sdi: [ERROR] IBD2SDI: Error while setting value '=' to 'type'.
 # 22. Test --type option with
 # 22.1 non numeric/Alphanumeric
-ibd2sdi: [ERROR] Unknown suffix 'a' used for variable 'type' (value 'a')
-ibd2sdi: [ERROR] IBD2SDI: Error while setting value 'a' to 'type'
-ibd2sdi: [ERROR] Unknown suffix 'b' used for variable 'type' (value 'b')
-ibd2sdi: [ERROR] IBD2SDI: Error while setting value 'b' to 'type'
+ibd2sdi: [ERROR] Unknown suffix 'a' used for variable 'type' (value 'a').
+ibd2sdi: [ERROR] IBD2SDI: Error while setting value 'a' to 'type'.
+ibd2sdi: [ERROR] Unknown suffix 'b' used for variable 'type' (value 'b').
+ibd2sdi: [ERROR] IBD2SDI: Error while setting value 'b' to 'type'.
 # 22.2 numbers with +/-
 # 22.4 with no permitted values
 # 22.5 with very long value
-ibd2sdi: [ERROR] Incorrect unsigned integer value: '14324932470234893204293032'
-ibd2sdi: [ERROR] IBD2SDI: Error while setting value '14324932470234893204293032' to 'type'
+ibd2sdi: [ERROR] Incorrect unsigned integer value: '14324932470234893204293032'.
+ibd2sdi: [ERROR] IBD2SDI: Error while setting value '14324932470234893204293032' to 'type'.
 # 22.6 with blank value
-ibd2sdi: [ERROR] IBD2SDI: Empty value for 'type' specified
+ibd2sdi: [ERROR] IBD2SDI: Empty value for 'type' specified.
 # 22.7 value with spaces
-ibd2sdi: [ERROR] IBD2SDI: Empty value for 'type' specified
+ibd2sdi: [ERROR] IBD2SDI: Empty value for 'type' specified.
 # 23. Test for reading form more than type example (invalid): -t 0,1
-ibd2sdi: [ERROR] Unknown suffix ',' used for variable 'type' (value '0,1')
-ibd2sdi: [ERROR] IBD2SDI: Error while setting value '0,1' to 'type'
-ibd2sdi: [ERROR] Unknown suffix ',' used for variable 'type' (value '2,3')
-ibd2sdi: [ERROR] IBD2SDI: Error while setting value '2,3' to 'type'
+ibd2sdi: [ERROR] Unknown suffix ',' used for variable 'type' (value '0,1').
+ibd2sdi: [ERROR] IBD2SDI: Error while setting value '0,1' to 'type'.
+ibd2sdi: [ERROR] Unknown suffix ',' used for variable 'type' (value '2,3').
+ibd2sdi: [ERROR] IBD2SDI: Error while setting value '2,3' to 'type'.
 # 24. With misspelled --type
-ibd2sdi: [ERROR] unknown variable 'tpe=0'
+ibd2sdi: [ERROR] unknown variable 'tpe=0'.
 # 25. With Invalid file types
 # 25.1 With non IBD file
 [ERROR] ibd2sdi:  Unable to read the page header of 1024 bytes.
