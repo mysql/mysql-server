@@ -143,7 +143,6 @@ static char * opt_mysql_unix_port=0;
 static char *opt_bind_addr = NULL;
 static int   first_error=0;
 #include <sslopt-vars.h>
-#include <caching_sha2_passwordopt-vars.h>
 FILE *md_result_file= 0;
 FILE *stderror_file=0;
 
@@ -527,7 +526,6 @@ static struct my_option my_long_options[] =
     " uses old (pre-4.1.1) protocol. Deprecated. Always TRUE",
     &opt_secure_auth, &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
-#include <caching_sha2_passwordopt-longopts.h>
   {"tab",'T',
    "Create tab-separated textfile for each table to given path. (Create .sql "
    "and .txt files.) NOTE: This only works if mysqldump is run on the same "
@@ -1683,10 +1681,6 @@ static int connect_to_db(char *host, char *user,char *passwd)
   mysql_options(&mysql_connection, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
   mysql_options4(&mysql_connection, MYSQL_OPT_CONNECT_ATTR_ADD,
                  "program_name", "mysqldump");
-
-  set_server_public_key(&mysql_connection);
-  set_get_server_public_key_option(&mysql_connection);
-
   if (!(mysql= mysql_real_connect(&mysql_connection,host,user,passwd,
                                   NULL,opt_mysql_port,opt_mysql_unix_port,
                                   0)))

@@ -137,8 +137,6 @@ private:
   Nullable<std::string> m_user;
   Nullable<std::string> m_password;
   Nullable<std::string> m_default_charset;
-  Nullable<std::string> m_server_public_key;
-  bool m_get_server_public_key;
 };
 
 }
