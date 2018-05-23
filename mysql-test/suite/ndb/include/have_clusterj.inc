@@ -59,22 +59,22 @@ my $ndbclient_lib = my_find_file($bindir,
 my $F = IO::File->new("$vardir/tmp/have_clusterj_result.inc", 'w') or die;
 if ($clusterj_jar) {
   print $F "--let \$CLUSTERJ_JAR= $clusterj_jar\n"; 
-  print $F "--echo Found clusterj.jar: '\$CLUSTERJ_JAR'\n"
+  print $F "--echo Found clusterj.jar\n"
 } else {
-  print $F "skip Could not find clusterj jar file\n";
+  print $F "--skip Could not find clusterj jar file\n";
 }
 
 if ($clusterj_test_jar) {
   print $F "--let \$CLUSTERJ_TEST_JAR= $clusterj_test_jar\n";
-  print $F "--echo Found clusterj_test jar: '\$CLUSTERJ_TEST_JAR'\n"
+  print $F "--echo Found clusterj_test jar\n"
 } else {
-  print $F "skip Could not find clusterj test jar file\n";
+  print $F "--skip Could not find clusterj test jar file\n";
 }
 
 if ($ndbclient_lib) {
   my $ndbclient_lib_dir = dirname($ndbclient_lib);
   print $F "--let \$NDBCLIENT_LIB_DIR= $ndbclient_lib_dir\n";
-  print $F "--echo Found ndbclient library at: '\$NDBCLIENT_LIB_DIR'\n"
+  print $F "--echo Found ndbclient library\n"
 } else {
   # Test runs only when ndb is compiled and enabled.
   # If not able to find libndbclient, probably an issue with this script.
