@@ -79,7 +79,10 @@ if ($res)
 }
 else
 {
-  print $F "die \'$cmd\' run failed;\n";
+  # Rather than --die, we change the output
+  # That will cause a result-content-mismatch giving more
+  # visible context info
+  print $F "--echo \'$cmd\' run failed;\n";
 }
 $F->close();
 
