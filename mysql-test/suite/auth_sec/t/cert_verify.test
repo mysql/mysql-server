@@ -10,6 +10,7 @@ let $tls_default= TLSv1.2;
 
 --echo #T2: Host name (localhost) as common name in the server certificate, server certificate verification should pass.
 --let $restart_parameters="restart: $ssl_verify_pass_path"
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --source include/restart_mysqld.inc
 
 --replace_result $tls_default TLS_VERSION
