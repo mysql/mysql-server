@@ -9,6 +9,6 @@ col6 VARBINARY(10),
 col7 INT UNSIGNED,
 col8 INT UNSIGNED
 )ENGINE=NDBCLUSTER;
-Running 'testSystemRestart -nMTR_AddNodesAndRestart1 -l1 --noddl -v T1'
-Result of 'testSystemRestart -nMTR_AddNodesAndRestart1 -l1 --noddl -v T1': 0
+Running command
+Result of command: 0
 DROP DATABASE TEST_DB;
