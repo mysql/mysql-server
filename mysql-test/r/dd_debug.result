@@ -266,4 +266,14 @@ SET DEBUG_SYNC= "now SIGNAL killed";
 DROP TABLE t1;
 disconnect con1;
 SET DEBUG_SYNC= "RESET";
+#
+# Bug#27960500: UPGRADE 5.7 -> 8.0.11 -> 8.0.{12,13} FAILS DUE TO FTS TABLES WITH 0 TIMESTAMPS
+#
+CREATE TABLE t1(pk INT PRIMARY KEY, s VARCHAR(10), FULLTEXT idx(s));
+SET debug = '+d,skip_dd_table_access_check';
+include/assert.inc [There are no tables with 0 timestamps.]
+connection default;
+connection default;
+SET debug = DEFAULT;
+DROP TABLE t1;
 ###################################################################

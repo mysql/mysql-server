@@ -88,7 +88,16 @@ bool execute_query(THD *thd, const dd::String_type &q_buf) {
   Ed_connection con(thd);
   LEX_STRING str;
   thd->make_lex_string(&str, q_buf.c_str(), q_buf.length(), false);
-  return con.execute_direct(str);
+  if (con.execute_direct(str)) {
+    // Report error to log file during bootstrap.
+    if (dd::bootstrap::DD_bootstrap_ctx::instance().get_stage() <
+        dd::bootstrap::Stage::FINISHED) {
+      LogErr(ERROR_LEVEL, ER_DD_INITIALIZE_SQL_ERROR, q_buf.c_str(),
+             con.get_last_errno(), con.get_last_error());
+    }
+    return true;
+  }
+  return false;
 }
 
 using namespace dd;
@@ -1367,6 +1376,23 @@ bool migrate_meta_data(THD *thd, const std::set<String_type> &create_set,
   std::set<String_type> migrated_set{};
 
   /* Version dependent migration of meta data can be added here. */
+
+  /*
+    8.0.11 allowed entries with 0 timestamps to be created. These must
+    be updated, otherwise, upgrade will fail since 0 timstamps are not
+    allowed with the default SQL mode.
+  */
+  if (bootstrap::DD_bootstrap_ctx::instance().is_upgrade_from_before(
+          bootstrap::DD_VERSION_80012)) {
+    if (execute_query(thd,
+                      "UPDATE mysql.tables SET last_altered = "
+                      "CURRENT_TIMESTAMP WHERE last_altered = 0"))
+      return dd::end_transaction(thd, true);
+    if (execute_query(thd,
+                      "UPDATE mysql.tables SET created = CURRENT_TIMESTAMP "
+                      "WHERE created = 0"))
+      return dd::end_transaction(thd, true);
+  }
 
   /*
     Default handling: Copy all meta data for the tables that have been

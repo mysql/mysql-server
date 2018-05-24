@@ -337,6 +337,17 @@ DROP TABLE t1;
 disconnect con1;
 SET DEBUG_SYNC= "RESET";
 
+--echo #
+--echo # Bug#27960500: UPGRADE 5.7 -> 8.0.11 -> 8.0.{12,13} FAILS DUE TO FTS TABLES WITH 0 TIMESTAMPS
+--echo #
+CREATE TABLE t1(pk INT PRIMARY KEY, s VARCHAR(10), FULLTEXT idx(s));
+SET debug = '+d,skip_dd_table_access_check';
+--let $assert_cond = "[SELECT COUNT(*) FROM mysql.tables WHERE created = 0 OR last_altered = 0]" = 0
+--let $assert_text = There are no tables with 0 timestamps.
+--source include/assert.inc
+SET debug = DEFAULT;
+DROP TABLE t1;
+
 --echo ###################################################################
 
 --disable_connect_log
