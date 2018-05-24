@@ -96,32 +96,15 @@ external tools. */
 #include "my_compiler.h"
 #include "my_inttypes.h"
 
-#if defined(__GNUC__) && defined(__x86_64__)
-#define gnuc64
+#if defined(__GNUC__) && defined(__x86_64__) || defined(_WIN32)
+# define UT_CRC32_HW
+# define UT_CRC32_X64
 #endif
 
-#if defined(gnuc64) || defined(_WIN32)
-/*
-  GCC 4.8 can't include intrinsic headers without -msse4.2.
-  4.9 and newer can, so we can remove this test once we no longer
-  support 4.8.
-*/
-#if defined(__SSE4_2__) || defined(__clang__) || !defined(__GNUC__) || \
-    __GNUC__ >= 5 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 9)
-#include <nmmintrin.h>
-#else
-// GCC 4.8 without -msse4.2.
-MY_ATTRIBUTE((target("sse4.2")))
-ALWAYS_INLINE uint32 _mm_crc32_u8(uint32 __C, uint32 __V) {
-  return __builtin_ia32_crc32qi(__C, __V);
-}
-
-MY_ATTRIBUTE((target("sse4.2")))
-ALWAYS_INLINE uint64 _mm_crc32_u64(uint64 __C, uint64 __V) {
-  return __builtin_ia32_crc32di(__C, __V);
-}
+#if defined(UNIV_LINUX) && defined(__aarch64__)
+# define UT_CRC32_HW
+# define UT_CRC32_ARM64
 #endif
-#endif  // defined(gnuc64) || defined(_WIN32)
 
 #include "univ.i"
 #include "ut0crc32.h"
@@ -149,16 +132,27 @@ inline uint64_t ut_crc32_swap_byteorder(uint64_t i) {
 
 /* CRC32 hardware implementation. */
 
-/** Flag that tells whether the CPU supports CRC32 or not.
-The CRC32 instructions are part of the SSE4.2 instruction set. */
+/** Flag that tells whether the CPU supports CRC32 or not. */
 bool ut_crc32_cpu_enabled = false;
+
+#ifdef UT_CRC32_HW
 
 #if defined(_WIN32)
 #include <intrin.h>
 #endif
-#if defined(gnuc64) || defined(_WIN32)
-/** Checks whether the CPU has the CRC32 instructions (part of the SSE4.2
-instruction set).
+
+#ifdef UT_CRC32_ARM64
+/* Access to Linux auxiliary vector */
+# include <sys/auxv.h>
+# include <asm/hwcap.h>
+# ifndef HWCAP_CRC32
+#  define HWCAP_CRC32 (1<<7)
+# endif
+/* ARM ACLE definitions */
+# include <arm_acle.h>
+#endif // UT_CRC32_ARM64
+
+/** Checks whether the CPU has the CRC32 instructions.
 @return true if CRC32 is available */
 static bool ut_crc32_check_cpu() {
 #ifdef UNIV_DEBUG_VALGRIND
@@ -179,11 +173,11 @@ static bool ut_crc32_check_cpu() {
 
   */
   return false;
-#else
+#elif defined(UT_CRC32_X64)
 
   uint32_t features_ecx;
 
-#if defined(gnuc64)
+#if defined(__GNUC__) && defined(__x86_64__)
   uint32_t sig;
   uint32_t features_edx;
 
@@ -197,13 +191,42 @@ static bool ut_crc32_check_cpu() {
   __cpuid(cpu_info, 1 /* function 1 */);
 
   features_ecx = static_cast<uint32_t>(cpu_info[2]);
-#else
-#error Dont know how to handle non-gnuc64 and non-windows platforms.
 #endif
 
   return features_ecx & (1 << 20);  // SSE4.2
+#elif defined (UT_CRC32_ARM64)
+  unsigned long	hwcap;
+
+  hwcap = getauxval(AT_HWCAP);
+
+  return hwcap & HWCAP_CRC32;
+#else
+#error Do not have ut_crc32_check_cpu() implementation for this platform.
 #endif /* UNIV_DEBUG_VALGRIND */
 }
+
+#ifdef UT_CRC32_X64
+/*
+  GCC 4.8 can't include intrinsic headers without -msse4.2.
+  4.9 and newer can, so we can remove this test once we no longer
+  support 4.8.
+*/
+#if defined(__SSE4_2__) || defined(__clang__) || !defined(__GNUC__) || \
+    __GNUC__ >= 5 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 9)
+#include <nmmintrin.h>
+#else
+// GCC 4.8 without -msse4.2.
+MY_ATTRIBUTE((target("sse4.2")))
+ALWAYS_INLINE uint32 _mm_crc32_u8(uint32 __C, uint32 __V) {
+  return __builtin_ia32_crc32qi(__C, __V);
+}
+
+MY_ATTRIBUTE((target("sse4.2")))
+ALWAYS_INLINE uint64 _mm_crc32_u64(uint64 __C, uint64 __V) {
+  return __builtin_ia32_crc32di(__C, __V);
+}
+#endif
+#endif // UT_CRC32_X64
 
 /** Calculate CRC32 over 8-bit data using a hardware/CPU instruction.
 @param[in,out]	crc	crc32 checksum so far when this function is called,
@@ -211,9 +234,19 @@ when the function ends it will contain the new checksum
 @param[in,out]	data	data to be checksummed, the pointer will be advanced
 with 1 byte
 @param[in,out]	len	remaining bytes, it will be decremented with 1 */
+#ifdef UT_CRC32_X64
 MY_ATTRIBUTE((target("sse4.2")))
+#elif defined(UT_CRC32_ARM64)
+MY_ATTRIBUTE((target("+crc")))
+#endif
 inline void ut_crc32_8_hw(uint64_t *crc, const byte **data, ulint *len) {
+#ifdef UT_CRC32_X64
   *crc = _mm_crc32_u8(static_cast<unsigned>(*crc), (*data)[0]);
+#elif defined(UT_CRC32_ARM64)
+  *crc = __crc32cb(static_cast<uint32_t>(*crc), (*data)[0]);
+#else
+#error Do not have ut_crc32_8_hw() implementation for this platform.
+#endif
   (*data)++;
   (*len)--;
 }
@@ -222,10 +255,20 @@ inline void ut_crc32_8_hw(uint64_t *crc, const byte **data, ulint *len) {
 @param[in]	crc	crc32 checksum so far
 @param[in]	data	data to be checksummed
 @return resulting checksum of crc + crc(data) */
+#ifdef UT_CRC32_X64
 MY_ATTRIBUTE((target("sse4.2")))
+#elif defined(UT_CRC32_ARM64)
+MY_ATTRIBUTE((target("+crc")))
+#endif
 inline uint64_t ut_crc32_64_low_hw(uint64_t crc, uint64_t data) {
   uint64_t crc_64bit = crc;
+#ifdef UT_CRC32_X64
   crc_64bit = _mm_crc32_u64(crc_64bit, data);
+#elif defined(UT_CRC32_ARM64)
+  crc_64bit = __crc32cd(static_cast<uint32_t>(crc), data);
+#else
+#error Do not have ut_crc32_64_low_hw() implementation for this platform.
+#endif
   return (crc_64bit);
 }
 
@@ -235,12 +278,11 @@ when the function ends it will contain the new checksum
 @param[in,out]	data	data to be checksummed, the pointer will be advanced
 with 8 bytes
 @param[in,out]	len	remaining bytes, it will be decremented with 8 */
-MY_ATTRIBUTE((target("sse4.2")))
 inline void ut_crc32_64_hw(uint64_t *crc, const byte **data, ulint *len) {
   uint64_t data_int = *reinterpret_cast<const uint64_t *>(*data);
 
 #ifdef WORDS_BIGENDIAN
-  /* Currently we only support x86_64 (little endian) CPUs. In case
+  /* Currently we only support HW-optimized CRC32 on little endian CPUs. In case
   some big endian CPU supports a CRC32 instruction, then maybe we will
   need a byte order swap here. */
 #error Dont know how to handle big endian CPUs
@@ -269,7 +311,7 @@ inline void ut_crc32_64_legacy_big_endian_hw(uint64_t *crc, const byte **data,
 #ifndef WORDS_BIGENDIAN
   data_int = ut_crc32_swap_byteorder(data_int);
 #else
-  /* Currently we only support x86_64 (little endian) CPUs. In case
+  /* Currently we only support HW-optimized CRC32 on little endian CPUs. In case
   some big endian CPU supports a CRC32 instruction, then maybe we will
   NOT need a byte order swap here. */
 #error Dont know how to handle big endian CPUs
@@ -285,7 +327,6 @@ inline void ut_crc32_64_legacy_big_endian_hw(uint64_t *crc, const byte **data,
 @param[in]	buf	data over which to calculate CRC32
 @param[in]	len	data length
 @return CRC-32C (polynomial 0x11EDC6F41) */
-MY_ATTRIBUTE((target("sse4.2")))
 static uint32_t ut_crc32_hw(const byte *buf, ulint len) {
   uint64_t crc = 0xFFFFFFFFU;
 
@@ -432,7 +473,7 @@ static uint32_t ut_crc32_byte_by_byte_hw(const byte *buf, ulint len) {
 
   return (~static_cast<uint32_t>(crc));
 }
-#endif /* defined(gnuc64) || defined(_WIN32) */
+#endif /* UT_CRC32_HW */
 
 /* CRC32 software implementation. */
 
@@ -656,7 +697,7 @@ static uint32_t ut_crc32_byte_by_byte_sw(const byte *buf, ulint len) {
 /** Initializes the data structures used by ut_crc32*(). Does not do any
  allocations, would not hurt if called twice, but would be pointless. */
 void ut_crc32_init() {
-#if defined(gnuc64) || defined(_WIN32)
+#ifdef UT_CRC32_HW
   ut_crc32_cpu_enabled = ut_crc32_check_cpu();
 
   if (ut_crc32_cpu_enabled) {
@@ -664,7 +705,7 @@ void ut_crc32_init() {
     ut_crc32_legacy_big_endian = ut_crc32_legacy_big_endian_hw;
     ut_crc32_byte_by_byte = ut_crc32_byte_by_byte_hw;
   }
-#endif /* defined(gnuc64) || defined(_WIN32) */
+#endif /* UT_CRC32_HW */
 
   if (!ut_crc32_cpu_enabled) {
     ut_crc32_slice8_table_init();
