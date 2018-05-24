@@ -94,7 +94,8 @@ SET GLOBAL innodb_log_compressed_pages=@save_innodb_log_compressed_pages;
 
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 
-SELECT COUNT(*) FROM t;
+#Force table to use primary key
+CREATE TABLE tmp_table SELECT * FROM t;
 
 SELECT
 database_name,
@@ -107,6 +108,6 @@ ELSE uncompress_ops END as uncompress_ops
 FROM information_schema.innodb_cmp_per_index
 ORDER BY 1, 2, 3;
 
-DROP TABLE t;
+DROP TABLE t,tmp_table;
 
 SET GLOBAL innodb_cmp_per_index_enabled=default;
