@@ -144,7 +144,7 @@ Vio &Vio::operator=(Vio &&vio) {
 
 #ifdef USE_PPOLL_IN_VIO
   thread_id = vio.thread_id;
-  signal_mask = signal_mask;
+  signal_mask = vio.signal_mask;
   if (vio.poll_shutdown_flag.test_and_set())
     poll_shutdown_flag.test_and_set();
   else
