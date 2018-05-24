@@ -10,6 +10,6 @@ col7 INT UNSIGNED,
 col8 INT UNSIGNED
 )ENGINE=NDBCLUSTER;
 call mtr.add_suppression("Node failure caused abort of transaction");
-Running 'testSystemRestart -nMTR_AddNodesAndRestart2 -l1 --noddl -v T1'
-Result of 'testSystemRestart -nMTR_AddNodesAndRestart2 -l1 --noddl -v T1': 0
+Running command
+Result of command: 0
 DROP DATABASE TEST_DB;
