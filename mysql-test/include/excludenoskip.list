@@ -67,6 +67,13 @@ have_ndb_rqg.inc
 # Generated in var/tmp/ by run_ndbapitest.inc and then sourced
 run_ndbapitest_result.inc
 
+# Java related var/tmp generated include files
+have_clusterj_result.inc
+have_ndbjtie_junit_result.inc
+have_connectorj_result.inc
+have_java_result.inc
+
+
 # 4.0 Miscellaneous
 
 # 4.1 Reason for inclusion: If not included, this will cause the same tests
