@@ -2269,11 +2269,6 @@ Dbtc::TCKEY_abort(Signal* signal, int place, ApiConnectRecordPtr const apiConnec
     systemErrorLab(signal, __LINE__);
     return;
 
-  case 41:
-    jam();
-    systemErrorLab(signal, __LINE__);
-    return;
-
   case 42:
     jam();
     systemErrorLab(signal, __LINE__);
@@ -3091,7 +3086,6 @@ Dbtc::seizeCacheRecord(Signal* signal, CacheRecordPtr& cachePtr, ApiConnectRecor
 {
   if (unlikely(!c_cacheRecordPool.seize(cachePtr)))
   {
-    TCKEY_abort(signal, 41, ApiConnectRecordPtr::get(NULL, RNIL));
     return 1;
   }
   CacheRecord * const regCachePtr = cachePtr.p;
@@ -3442,6 +3436,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   if (unlikely(seizeCacheRecord(signal, cachePtr, apiConnectptr.p) != 0))
   {
     releaseSections(handle);
+    TCKEY_abort(signal, 3, apiConnectptr);
     return;
   }//if
 
@@ -13096,7 +13091,12 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   {
     jam();
     CacheRecordPtr cachePtr;
-    ndbrequire(seizeCacheRecord(signal, cachePtr, apiConnectptr.p) == 0); // TODO handle seize failure
+    if (seizeCacheRecord(signal, cachePtr, apiConnectptr.p) != 0)
+    {
+      transP->apiScanRec = scanptr.i;
+      releaseScanResources(signal, scanptr, apiConnectptr, true /* NotStarted */);
+      goto SCAN_TAB_error;
+    }
     cachePtr.p->attrlength = aiLength;
     cachePtr.p->keylen = keyLen;
     cachePtr.p->save1 = 0;
