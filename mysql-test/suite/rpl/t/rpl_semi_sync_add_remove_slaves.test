@@ -1,0 +1,190 @@
+#==== Purpose ====
+#
+# This test script purpose is to check semisync replication
+# behaviour when there are semisync slaves getting added and
+# removed while dml changes are happening.
+#
+#==== Implementation ====
+#
+# 1) Install semisync on one Master and 8 Slaves.
+# 2) Using mysqlslap, keep inserting data in background on Master.
+# 3) While the DMLs are going on, keep adding/removing semisync slaves.
+# 4) At the end of the step-3, check that the data is synced without any
+#    issues.
+# 5) Check semisync is still enabled on Master and all slaves.
+#
+#==== References ====
+#
+# Bug#27610678 SEMI-SYNC REPLICATION DOESN'T WORK FOR MINUTES AFTER RESTART
+#              REPLICATION
+#
+#========
+#
+# 9 servers + 5000 inserts involved in test. Hence marking it as big-test.
+#
+--source include/big_test.inc
+--source include/not_group_replication_plugin.inc
+--source include/have_binlog_format_statement.inc
+--source include/have_debug.inc
+
+#
+# One Master and 8 Slaves in the semi sync topology.
+#
+--let rpl_topology=1->2, 1->3, 1->4, 1->5, 1->6, 1->7, 1->8, 1->9
+--source include/rpl_init.inc
+
+--echo #
+--echo # 1. Initial data.
+--echo #
+CREATE TABLE t1(c1 INT);
+--source include/rpl_sync.inc
+
+--echo #
+--echo # 2. Install semisync on all the 9 servers.
+--echo #
+--let $i= 1
+while ($i < 10)
+{
+  --let $rpl_connection_name= server_$i
+  --source include/rpl_connection.inc
+  if ( $i == 1)
+  {
+    --connect(server1_1, localhost,root,,,$MASTER_MYPORT)
+    CALL mtr.add_suppression("Semi-sync master failed on net_flush.*");
+    --source include/install_semisync_master.inc
+  }
+  if ( $i != 1 )
+  {
+    CALL mtr.add_suppression("Semi-sync slave net_flush.*");
+    --source include/install_semisync_slave.inc
+  }
+  --inc $i
+}
+
+--echo #
+--echo # 3. Make Master aware of 8 semisync slaves.
+--echo #
+--let $rpl_connection_name= server1_1
+--source include/rpl_connection.inc
+--let $slaves = 8
+--eval SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = $slaves
+
+--echo #
+--echo # 4. Insert 5000 tuples in background using 10 parallel connections.
+--echo #
+--exec_in_background $MYSQL_SLAP --create-schema=test --delimiter=";" --iterations=500 --query="INSERT INTO t1 values (1)" --concurrency=10 --silent 2>&1
+
+--echo #
+--echo # 5. While the insert operations are going in the background, keep
+--echo #    adding/removing semisync slaves randomly.
+--echo #
+--let $rpl_connection_silent = 1
+--let $include_silent= 1
+--disable_result_log
+--disable_query_log
+--let $rpl_debug= 0
+--let $iter= 1
+while ( $iter < 50 )
+{
+  # Random server_id generator ( server_id will between [2-9]
+  --let $server_id=`SELECT FLOOR(2 + ((RAND() * 100) % 8))`
+  --let $rpl_connection_name= server_$server_id
+  --source include/rpl_connection.inc
+  --let $service_state= `SELECT service_state FROM performance_schema.replication_connection_status`
+  if ($service_state == 'ON')
+  {
+    # If the replication state is ON, bring it down.
+    --source include/stop_slave.inc
+    --let $rpl_connection_name= server1_1
+    --source include/rpl_connection.inc
+    # Adjust rpl_semi_sync_master_wait_for_slave_count variable.
+    --dec $slaves
+    --eval SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = $slaves
+  }
+  if ($service_state == 'OFF')
+  {
+    # If the replication state is OFF, bring it up.
+    --source include/start_slave.inc
+    --let $rpl_connection_name= server1_1
+    --source include/rpl_connection.inc
+    # Adjust rpl_semi_sync_master_wait_for_slave_count variable.
+    --inc $slaves
+    --eval SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = $slaves
+  }
+  --inc $iter
+  # Do it slowly while insertions on the master are happening in the background.
+  sleep 1;
+}
+
+--echo #
+--echo # 6. Add all 8 semisync slaves back to Master
+--echo #     (if they were disconnected, in above step).
+--echo #
+--let $iter = 2
+while ($iter <= 9)
+{
+  --let $rpl_connection_name= server_$iter
+  --source include/rpl_connection.inc
+  --let $service_state= `SELECT service_state FROM performance_schema.replication_connection_status`
+  if ($service_state == 'OFF')
+  {
+    --source include/start_slave.inc
+    --let $rpl_connection_name= server1_1
+    --source include/rpl_connection.inc
+    # Adjust rpl_semi_sync_master_wait_for_slave_count variable.
+    --inc $slaves
+    --eval SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = $slaves
+  }
+  --inc $iter
+}
+--enable_result_log
+--enable_query_log
+--let $rpl_connection_silent = 0
+--let $include_silent= 0
+
+
+--echo #
+--echo # 7. Make sure the data is synced on Master without any issues.
+--echo #
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--let $wait_timeout= 60
+--let $wait_condition= SELECT count(*) = 5000 FROM t1
+--source include/wait_condition.inc
+--let $slave_timeout=600
+--source include/rpl_sync.inc
+
+--echo #
+--echo # 8. Check on all servers semisync is enabled after the
+--echo #    the experiment and then uninstall semisync pluging
+--echo #    from it.
+--echo #
+--let $i= 9
+while ($i >= 1)
+{
+  --let $rpl_connection_name= server_$i
+  --source include/rpl_connection.inc
+  if ( $i == 1)
+  {
+    --let $assert_variable_name= rpl_semi_sync_master_enabled
+    --let $assert_variable_value= 1
+    --source include/assert_variable.inc
+    --source include/uninstall_semisync_master.inc
+  }
+  if ( $i != 1 )
+  {
+    --let $assert_variable_name= rpl_semi_sync_slave_enabled
+    --let $assert_variable_value= 1
+    --source include/assert_variable.inc
+    --source include/uninstall_semisync_slave.inc
+  }
+  --dec $i
+}
+
+--echo #
+--echo # 9. Cleanup time.
+--echo #
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+DROP TABLE t1;
+--source include/rpl_end.inc

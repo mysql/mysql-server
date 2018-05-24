@@ -1,0 +1,59 @@
+!include ../my.cnf
+
+[mysqld.1]
+log-slave-updates
+server_id=1
+
+[mysqld.2]
+log-slave-updates
+server_id=2
+
+[mysqld.3]
+log-slave-updates
+server_id=3
+
+[mysqld.4]
+log-slave-updates
+server_id=4
+
+[mysqld.5]
+log-slave-updates
+server_id=5
+
+[mysqld.6]
+log-slave-updates
+server_id=6
+
+[mysqld.7]
+log-slave-updates
+server_id=7
+
+[mysqld.8]
+log-slave-updates
+server_id=8
+
+[mysqld.9]
+log-slave-updates
+server_id=9
+
+[ENV]
+SERVER_MYPORT_3=		@mysqld.3.port
+SERVER_MYSOCK_3=		@mysqld.3.socket
+
+SERVER_MYPORT_4=		@mysqld.4.port
+SERVER_MYSOCK_4=		@mysqld.4.socket
+
+SERVER_MYPORT_5=		@mysqld.5.port
+SERVER_MYSOCK_5=		@mysqld.5.socket
+
+SERVER_MYPORT_6=		@mysqld.6.port
+SERVER_MYSOCK_6=		@mysqld.6.socket
+
+SERVER_MYPORT_7=		@mysqld.7.port
+SERVER_MYSOCK_7=		@mysqld.7.socket
+
+SERVER_MYPORT_8=		@mysqld.8.port
+SERVER_MYSOCK_8=		@mysqld.8.socket
+
+SERVER_MYPORT_9=		@mysqld.9.port
+SERVER_MYSOCK_9=		@mysqld.9.socket
