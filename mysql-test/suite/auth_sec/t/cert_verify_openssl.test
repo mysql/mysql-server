@@ -11,6 +11,7 @@ let $tls_default= TLSv1.2;
 
 --echo #T1: Host name (/CN=localhost/) as OU name in the server certificate, server certificate verification should fail.
 --let $restart_parameters="restart: $ssl_verify_fail_path"
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --source include/restart_mysqld.inc
 
 --error 1
