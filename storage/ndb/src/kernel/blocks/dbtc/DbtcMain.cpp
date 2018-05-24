@@ -6276,7 +6276,11 @@ bool Dbtc::seizeApiConnectCopy(Signal* signal,
     return false;
   }
   locApiConnectptr.p->apiConnectkind = ApiConnectRecord::CK_COPY;
-  ndbrequire(seizeApiConTimer(locApiConnectptr));
+  if (!seizeApiConTimer(locApiConnectptr))
+  {
+    c_apiConnectRecordPool.release(locApiConnectptr);
+    return false;
+  }
   setApiConTimer(locApiConnectptr, 0, __LINE__);
   ndbassert(regApiPtr->apiCopyRecord == RNIL);
   regApiPtr->apiCopyRecord = locApiConnectptr.i;
@@ -15665,10 +15669,15 @@ bool Dbtc::seizeApiConnect(Signal* signal, ApiConnectRecordPtr& apiConnectptr)
   if (likely(c_apiConnectRecordPool.seize(apiConnectptr)))
   {
     jam();
+    if (!seizeApiConTimer(apiConnectptr))
+    {
+      c_apiConnectRecordPool.release(apiConnectptr);
+      terrorCode = ZNO_FREE_API_CONNECTION;
+      return false;
+    }
     terrorCode = ZOK;
     apiConnectptr.p->apiConnectkind = ApiConnectRecord::CK_USER;
     apiConnectptr.p->apiConnectstate = CS_DISCONNECTED;
-    ndbrequire(seizeApiConTimer(apiConnectptr));
     setApiConTimer(apiConnectptr, 0, __LINE__);
     apiConnectptr.p->apiConnectstate = CS_CONNECTED; /* STATE OF CONNECTION */
     tc_clearbit(apiConnectptr.p->m_flags,
