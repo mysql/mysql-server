@@ -1,0 +1,119 @@
+include/rpl_init.inc [topology=1->2, 1->3, 1->4, 1->5, 1->6, 1->7, 1->8, 1->9]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+#
+# 1. Initial data.
+#
+CREATE TABLE t1(c1 INT);
+include/rpl_sync.inc
+#
+# 2. Install semisync on all the 9 servers.
+#
+[connection server_1]
+CALL mtr.add_suppression("Semi-sync master failed on net_flush.*");
+include/install_semisync_master.inc
+[connection server_2]
+CALL mtr.add_suppression("Semi-sync slave net_flush.*");
+include/install_semisync_slave.inc
+[connection server_3]
+CALL mtr.add_suppression("Semi-sync slave net_flush.*");
+include/install_semisync_slave.inc
+[connection server_4]
+CALL mtr.add_suppression("Semi-sync slave net_flush.*");
+include/install_semisync_slave.inc
+[connection server_5]
+CALL mtr.add_suppression("Semi-sync slave net_flush.*");
+include/install_semisync_slave.inc
+[connection server_6]
+CALL mtr.add_suppression("Semi-sync slave net_flush.*");
+include/install_semisync_slave.inc
+[connection server_7]
+CALL mtr.add_suppression("Semi-sync slave net_flush.*");
+include/install_semisync_slave.inc
+[connection server_8]
+CALL mtr.add_suppression("Semi-sync slave net_flush.*");
+include/install_semisync_slave.inc
+[connection server_9]
+CALL mtr.add_suppression("Semi-sync slave net_flush.*");
+include/install_semisync_slave.inc
+#
+# 3. Make Master aware of 8 semisync slaves.
+#
+[connection server1_1]
+SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = 8;
+#
+# 4. Insert 5000 tuples in background using 10 parallel connections.
+#
+#
+# 5. While the insert operations are going in the background, keep
+#    adding/removing semisync slaves randomly.
+#
+#
+# 6. Add all 8 semisync slaves back to Master
+#     (if they were disconnected, in above step).
+#
+#
+# 7. Make sure the data is synced on Master without any issues.
+#
+[connection server_1]
+include/rpl_sync.inc
+#
+# 8. Check on all servers semisync is enabled after the
+#    the experiment and then uninstall semisync pluging
+#    from it.
+#
+[connection server_9]
+include/assert.inc [ should be 1]
+include/uninstall_semisync_slave.inc
+[connection server_8]
+include/assert.inc [ should be 1]
+include/uninstall_semisync_slave.inc
+[connection server_7]
+include/assert.inc [ should be 1]
+include/uninstall_semisync_slave.inc
+[connection server_6]
+include/assert.inc [ should be 1]
+include/uninstall_semisync_slave.inc
+[connection server_5]
+include/assert.inc [ should be 1]
+include/uninstall_semisync_slave.inc
+[connection server_4]
+include/assert.inc [ should be 1]
+include/uninstall_semisync_slave.inc
+[connection server_3]
+include/assert.inc [ should be 1]
+include/uninstall_semisync_slave.inc
+[connection server_2]
+include/assert.inc [ should be 1]
+include/uninstall_semisync_slave.inc
+[connection server_1]
+include/assert.inc [ should be 1]
+include/uninstall_semisync_master.inc
+#
+# 9. Cleanup time.
+#
+[connection server_1]
+DROP TABLE t1;
+include/rpl_end.inc

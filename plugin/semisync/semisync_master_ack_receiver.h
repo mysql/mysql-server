@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,11 +23,12 @@
 
 struct Slave
 {
-  THD *thd;
+  uint32_t thread_id;
   Vio vio;
+  uint server_id;
+  bool net_compress;
 
   my_socket sock_fd() const { return vio.mysql_socket.fd; }
-  uint server_id() const { return thd->server_id; }
 };
 
 typedef std::vector<Slave> Slave_vector;
