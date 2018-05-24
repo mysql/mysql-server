@@ -7777,9 +7777,12 @@ Qmgr::execDBINFO_SCANREQ(Signal *signal)
           row.write_string(uri_buffer);                     // service_URI
           ndbinfo_send_row(signal, req, row, rl);
         }
-        else if(nodeInfo.m_type != NodeInfo::DB)
+        else if(nodeInfo.m_type != NodeInfo::DB &&
+                nodeInfo.m_version > 0 &&
+                nodeInfo.m_version < NDBD_PROCESSINFO_VERSION)
         {
-          /* MGM/API node is an older version or has not sent ProcessInfoRep */
+          /* MGM/API node is too old to send ProcessInfoRep, so create a
+             fallback-style report */
 
           struct in_addr addr= globalTransporterRegistry.get_connect_address(i);
           char service_uri[32];
