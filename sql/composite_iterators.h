@@ -80,9 +80,7 @@ class FilterIterator final : public RowIterator {
 
   void UnlockRow() override { m_source->UnlockRow(); }
 
-  std::vector<RowIterator *> children() const override {
-    return std::vector<RowIterator *>{m_source.get()};
-  }
+  std::vector<Child> children() const override;
 
   std::vector<std::string> DebugString() const override {
     return {"Filter: " + ItemToString(m_condition)};
@@ -126,8 +124,8 @@ class LimitOffsetIterator final : public RowIterator {
 
   void UnlockRow() override { m_source->UnlockRow(); }
 
-  std::vector<RowIterator *> children() const override {
-    return std::vector<RowIterator *>{m_source.get()};
+  std::vector<Child> children() const override {
+    return std::vector<Child>{{m_source.get(), ""}};
   }
 
   std::vector<std::string> DebugString() const override {
@@ -193,8 +191,8 @@ class AggregateIterator final : public RowIterator {
   }
   void UnlockRow() override;
 
-  std::vector<RowIterator *> children() const override {
-    return std::vector<RowIterator *>{m_source.get()};
+  std::vector<Child> children() const override {
+    return std::vector<Child>{{m_source.get(), ""}};
   }
 
   std::vector<std::string> DebugString() const override;
@@ -245,8 +243,8 @@ class PrecomputedAggregateIterator final : public RowIterator {
   }
   void UnlockRow() override;
 
-  std::vector<RowIterator *> children() const override {
-    return std::vector<RowIterator *>{m_source.get()};
+  std::vector<Child> children() const override {
+    return std::vector<Child>{{m_source.get(), ""}};
   }
 
   std::vector<std::string> DebugString() const override;
@@ -319,9 +317,9 @@ class NestedLoopIterator final : public RowIterator {
 
   std::vector<std::string> DebugString() const override;
 
-  std::vector<RowIterator *> children() const override {
-    return std::vector<RowIterator *>{m_source_outer.get(),
-                                      m_source_inner.get()};
+  std::vector<Child> children() const override {
+    return std::vector<Child>{{m_source_outer.get(), ""},
+                              {m_source_inner.get(), ""}};
   }
 
  private:
@@ -375,8 +373,8 @@ class MaterializeIterator final : public TableRowIterator {
   // We don't list the table iterator as an explicit child; we mark it in our
   // DebugString() instead. (Anything else would look confusingly much like a
   // join.)
-  std::vector<RowIterator *> children() const override {
-    return std::vector<RowIterator *>{m_subquery_iterator.get()};
+  std::vector<Child> children() const override {
+    return std::vector<Child>{{m_subquery_iterator.get(), ""}};
   }
 
   void SetNullRowFlag(bool is_null_row) override {

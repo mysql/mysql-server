@@ -64,6 +64,9 @@ SELECT_LEX), by calling explain_unit() for each of them.
 #include "sql/sql_cmd.h"       // Sql_cmd
 #include "sys/types.h"
 
+#include <functional>
+#include <string>
+
 class Item;
 class QEP_TAB;
 class RowIterator;
@@ -194,5 +197,15 @@ class Sql_cmd_explain_other_thread final : public Sql_cmd {
 // Print out an iterator and all of its children (if any) in a tree.
 // "level" is the current indenting level, as this is called recursively.
 std::string PrintQueryPlan(int level, RowIterator *iterator);
+
+// For each subselect within the given item, call the given functor
+// with its SELECT number, dependent/cacheable status and an iterator
+// (or nullptr if none; this may happen if the query is not executable
+// by the iterator executor).
+void ForEachSubselect(
+    Item *parent_item,
+    const std::function<void(int select_number, bool is_dependent,
+                             bool is_cacheable, RowIterator *iterator)>
+        &callback);
 
 #endif /* OPT_EXPLAIN_INCLUDED */

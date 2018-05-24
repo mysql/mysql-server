@@ -35,6 +35,7 @@
 #include <atomic>
 #include <limits>
 #include <string>
+#include <vector>
 
 #include "ft_global.h"
 #include "lex_string.h"
@@ -91,12 +92,14 @@
 #include "sql/table.h"
 #include "sql/table_function.h"  // Table_function
 #include "sql_string.h"
-
-using std::string;
+#include "template_utils.h"
 
 class Opt_trace_context;
 
+using std::function;
 using std::string;
+using std::string;
+using std::vector;
 
 typedef qep_row::extra extra;
 
@@ -2009,8 +2012,16 @@ std::string PrintQueryPlan(int level, RowIterator *iterator) {
     ++level;
   }
 
-  for (RowIterator *child : iterator->children()) {
-    ret += PrintQueryPlan(level, child);
+  for (const RowIterator::Child &child : iterator->children()) {
+    if (!child.description.empty()) {
+      ret.append(level * 4, ' ');
+      ret.append("-> ");
+      ret.append(child.description);
+      ret.append("\n");
+      ret += PrintQueryPlan(level + 1, child.iterator);
+    } else {
+      ret += PrintQueryPlan(level, child.iterator);
+    }
   }
   return ret;
 }
@@ -2486,4 +2497,31 @@ Modification_plan::~Modification_plan() {
     thd->query_plan.set_modification_plan(NULL);
     thd->unlock_query_plan();
   }
+}
+
+void ForEachSubselect(
+    Item *parent_item,
+    const function<void(int select_number, bool is_dependent, bool is_cacheable,
+                        RowIterator *)> &callback) {
+  WalkItem(parent_item, Item::WALK_POSTFIX, [&callback](Item *item) {
+    if (item->type() == Item::SUBSELECT_ITEM) {
+      Item_subselect *subselect = down_cast<Item_subselect *>(item);
+      SELECT_LEX *select_lex = subselect->unit->first_select();
+      int select_number = select_lex->select_number;
+      bool is_dependent = select_lex->is_dependent();
+      bool is_cacheable = select_lex->is_cacheable();
+      if (subselect->unit->is_simple()) {
+        JOIN *join = select_lex->join;
+        if (join == nullptr || join->root_iterator() == nullptr) {
+          callback(select_number, is_dependent, is_cacheable, nullptr);
+        } else {
+          callback(select_number, is_dependent, is_cacheable,
+                   join->root_iterator());
+        }
+      } else {
+        callback(select_number, is_dependent, is_cacheable, nullptr);
+      }
+    }
+    return false;
+  });
 }

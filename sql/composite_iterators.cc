@@ -30,6 +30,7 @@
 #include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/item_sum.h"
+#include "sql/opt_explain.h"
 #include "sql/opt_trace.h"
 #include "sql/sql_base.h"
 #include "sql/sql_class.h"
@@ -103,6 +104,33 @@ bool LimitOffsetIterator::Init() {
   }
   m_seen_rows = m_offset;
   return false;
+}
+
+vector<RowIterator::Child> FilterIterator::children() const {
+  // Return the source iterator, and also iterators for any subqueries in the
+  // condition.
+  vector<Child> ret{{m_source.get(), ""}};
+
+  ForEachSubselect(m_condition, [&ret](int select_number, bool is_dependent,
+                                       bool is_cacheable,
+                                       RowIterator *iterator) {
+    char description[256];
+    if (is_dependent) {
+      snprintf(description, sizeof(description),
+               "Select #%d (subquery in condition; dependent)", select_number);
+    } else if (!is_cacheable) {
+      snprintf(description, sizeof(description),
+               "Select #%d (subquery in condition; uncacheable)",
+               select_number);
+    } else {
+      snprintf(description, sizeof(description),
+               "Select #%d (subquery in condition; run only once)",
+               select_number);
+    }
+    ret.push_back(Child{iterator, description});
+  });
+
+  return ret;
 }
 
 int LimitOffsetIterator::Read() {
@@ -495,7 +523,7 @@ vector<string> MaterializeIterator::DebugString() const {
       ret.push_back(str);
     }
     if (sub_iterator->children().empty()) break;
-    sub_iterator = sub_iterator->children()[0];
+    sub_iterator = sub_iterator->children()[0].iterator;
   }
 
   ret.push_back("Materialize");

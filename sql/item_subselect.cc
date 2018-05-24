@@ -34,8 +34,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <atomic>
-#include <memory>
 #include <utility>
+#include <vector>
 
 #include "decimal.h"
 #include "lex_string.h"
@@ -49,7 +49,6 @@
 #include "my_sys.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "sql/basic_row_iterators.h"
 #include "sql/check_stack.h"
 #include "sql/current_thd.h"  // current_thd
 #include "sql/debug_sync.h"   // DEBUG_SYNC
@@ -69,14 +68,11 @@
 #include "sql/parse_tree_nodes.h"  // PT_subquery
 #include "sql/query_options.h"
 #include "sql/query_result.h"
-#include "sql/records.h"
-#include "sql/row_iterator.h"
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
 #include "sql/sql_executor.h"
-#include "sql/sql_join_buffer.h"  // JOIN_CACHE
-#include "sql/sql_lex.h"          // SELECT_LEX
+#include "sql/sql_lex.h"  // SELECT_LEX
 #include "sql/sql_list.h"
 #include "sql/sql_opt_exec_shared.h"
 #include "sql/sql_optimizer.h"  // JOIN
@@ -864,7 +860,17 @@ void Item_subselect::print(const THD *thd, String *str,
                            enum_query_type query_type) const {
   if (engine) {
     str->append('(');
-    engine->print(thd, str, query_type);
+    if (query_type & QT_SUBSELECT_AS_ONLY_SELECT_NUMBER) {
+      str->append("select #");
+      uint select_number = unit->first_select()->select_number;
+      if (select_number >= INT_MAX) {
+        str->append("fake");
+      } else {
+        str->append_ulonglong(select_number);
+      }
+    } else {
+      engine->print(thd, str, query_type);
+    }
     str->append(')');
   } else
     str->append("(...)");

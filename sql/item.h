@@ -1960,6 +1960,12 @@ class Item : public Parse_tree_node {
     return (this->*processor)(arg);
   }
 
+  /** @see WalkItem */
+  template <class T>
+  bool walk_helper_thunk(uchar *arg) {
+    return (*reinterpret_cast<T *>(arg))(this);
+  }
+
   /**
     Perform a generic transformation of the Item tree, by adding zero or
     more additional Item objects to it.
@@ -2724,6 +2730,20 @@ class Item : public Parse_tree_node {
     return false;
   }
 };
+
+/**
+  A helper class to give in a functor to Item::walk(). Use as e.g.:
+
+  bool result = WalkItem(root_item, Item::WALK_POSTFIX, [](Item *item) { ... });
+
+  TODO: Make Item::walk() just take in a functor in the first place, instead of
+  a pointer-to-member and an opaque argument.
+ */
+template <class T>
+inline bool WalkItem(Item *item, Item::enum_walk walk, T &&functor) {
+  return item->walk(&Item::walk_helper_thunk<T>, walk,
+                    reinterpret_cast<uchar *>(&functor));
+}
 
 class sp_head;
 

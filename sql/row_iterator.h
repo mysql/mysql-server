@@ -116,9 +116,17 @@ class RowIterator {
   // or just ignore it. The right behavior depends on the iterator.
   virtual void UnlockRow() = 0;
 
-  virtual std::vector<RowIterator *> children() const {
-    return std::vector<RowIterator *>();
-  }
+  struct Child {
+    RowIterator *iterator;
+
+    // Normally blank. If not blank, a heading for this iterator
+    // saying what kind of role it has to the parent if it is not
+    // obvious. E.g., FilterIterator can print iterators that are
+    // children because they come out of subselect conditions.
+    std::string description;
+  };
+
+  virtual std::vector<Child> children() const { return std::vector<Child>(); }
 
   virtual std::vector<std::string> DebugString() const = 0;
 

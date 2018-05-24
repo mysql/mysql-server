@@ -262,10 +262,10 @@ class AlternativeIterator final : public RowIterator {
 
   void UnlockRow() override { m_iterator->UnlockRow(); }
 
-  std::vector<RowIterator *> children() const override {
-    return std::vector<RowIterator *>{
-        m_source_iterator.get(),
-        const_cast<TableScanIterator *>(&m_table_scan_iterator)};
+  std::vector<Child> children() const override {
+    return std::vector<Child>{
+        {m_source_iterator.get(), ""},
+        {const_cast<TableScanIterator *>(&m_table_scan_iterator), ""}};
   }
 
   std::vector<std::string> DebugString() const override;

@@ -85,8 +85,8 @@ class SortingIterator final : public RowIterator {
 
   void UnlockRow() override { m_result_iterator->UnlockRow(); }
 
-  std::vector<RowIterator *> children() const override {
-    return std::vector<RowIterator *>{m_source_iterator.get()};
+  std::vector<Child> children() const override {
+    return std::vector<Child>{{m_source_iterator.get(), ""}};
   }
 
   std::vector<std::string> DebugString() const override;

@@ -9572,7 +9572,9 @@ string ItemToString(Item *item) {
   String str;
   const ulonglong save_bits = current_thd->variables.option_bits;
   current_thd->variables.option_bits &= ~OPTION_QUOTE_SHOW_CREATE;
-  item->print(current_thd, &str, QT_NO_DEFAULT_DB);
+  item->print(
+      current_thd, &str,
+      enum_query_type(QT_NO_DEFAULT_DB | QT_SUBSELECT_AS_ONLY_SELECT_NUMBER));
   current_thd->variables.option_bits = save_bits;
   return to_string(str);
 }
