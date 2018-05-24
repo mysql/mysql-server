@@ -105,7 +105,6 @@ class Item_sum;
 class Parse_tree_root;
 class PT_alter_table_standalone_action;
 class PT_assign_to_keycache;
-class PT_base_index_option;
 class PT_column_attr_base;
 class PT_create_table_option;
 class PT_ddl_table_option;
@@ -2180,9 +2179,8 @@ union YYSTYPE {
     LEX_STRING name;
     class PT_base_index_option *type;
   } index_name_and_type;
-  class PT_base_index_option *index_option;
+  PT_base_index_option *index_option;
   Mem_root_array_YY<PT_base_index_option *> index_options;
-  PT_base_index_option *index_type;
   Mem_root_array_YY<LEX_STRING> lex_str_list;
   bool visibility;
   class PT_with_clause *with_clause;

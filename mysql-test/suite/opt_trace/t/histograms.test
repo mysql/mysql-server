@@ -56,7 +56,7 @@ CREATE TABLE t1 (col1 INT, col2 INT);
 INSERT INTO t1 VALUES (15, 84), (19, 51), (70, 52), (54, 82), (33, 93), (80, 0),
 (51, 82), (50, 14), (22, 27), (96, 82), (96, 3), (86, 61), (4, 58), (95, 20),
 (28, 56), (64, 99), (10, 85), (30, 81), (13, 85), (28, 94);
-CREATE INDEX ON t1 (col1, col2);
+CREATE INDEX idx1 ON t1 (col1, col2);
 ANALYZE TABLE t1;
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1, col2 WITH 8 BUCKETS;
 

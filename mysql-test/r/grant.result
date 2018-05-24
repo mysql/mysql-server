@@ -2809,7 +2809,7 @@ CREATE DATABASE db8657;
 CREATE TABLE db8657.t1 (i INT);
 CREATE USER 'untrusted8657'@'localhost';
 # Connection con1
-CREATE INDEX ON db8657.t1 (i);
+CREATE INDEX idx1 ON db8657.t1 (i);
 ERROR 42000: INDEX command denied to user 'untrusted8657'@'localhost' for table 't1'
 PREPARE stmt FROM 'CREATE TABLE db8657.t2 (i INT)';
 ERROR 42000: CREATE command denied to user 'untrusted8657'@'localhost' for table 't2'
