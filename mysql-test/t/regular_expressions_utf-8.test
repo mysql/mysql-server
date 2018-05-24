@@ -487,17 +487,24 @@ INSERT INTO t1 VALUES ( regexp_like('a', 'a'),
 SELECT * FROM t1;
 DELETE FROM t1;
 
-INSERT INTO t1 VALUES ( regexp_replace('a', 'a', 'a'),
-                        regexp_replace('a', 'a', 'a'),
-                        regexp_replace('a', 'a', 'a'),
-                        regexp_replace('a', 'a', 'a') );
+--error 1265
+INSERT INTO t1 ( a ) VALUES ( regexp_replace('a', 'a', 'a') );
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+INSERT INTO t1 ( b ) VALUES ( regexp_replace('a', 'a', 'a') );
+INSERT INTO t1 ( c ) VALUES ( regexp_replace('a', 'a', 'a') );
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+INSERT INTO t1 ( d ) VALUES ( regexp_replace('a', 'a', 'a') );
+
 SELECT * FROM t1;
 DELETE FROM t1;
 
-INSERT INTO t1 VALUES ( regexp_substr('a', 'a'),
-                        regexp_substr('a', 'a'),
-                        regexp_substr('a', 'a'),
-                        regexp_substr('a', 'a') );
+--error 1265
+INSERT INTO t1 ( a ) VALUES ( regexp_substr('a', 'a') );
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+INSERT INTO t1 ( b ) VALUES ( regexp_substr('a', 'a') );
+INSERT INTO t1 ( c ) VALUES ( regexp_substr('a', 'a') );
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+INSERT INTO t1 ( d ) VALUES ( regexp_substr('a', 'a') );
 SELECT * FROM t1;
 
 DROP TABLE t1;
@@ -733,5 +740,22 @@ INSERT INTO t1 VALUES ('a a a'), ('b b b'), ('c c c');
 SELECT regexp_replace(a, '^([[:alpha:]]+)[[:space:]].*$', '$1') FROM t1;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#28027093: REGEXP_REPLACE TRUNCATE UPDATE
+--echo #
+
+CREATE TABLE t1 ( a CHAR(3) );
+INSERT INTO t1 VALUES ( regexp_replace ('a', 'a', 'x') );
+SELECT * FROM t1;
+UPDATE t1 SET a = regexp_replace ( 'b', 'b', 'y' );
+SELECT * FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 ( a CHAR(3) );
+INSERT INTO t1 VALUES ( regexp_substr ('a', 'a', 1) );
+SELECT * FROM t1;
+UPDATE t1 SET a = regexp_substr ('b', 'b', 1);
+SELECT * FROM t1;
+DROP TABLE t1;
 
 --source ../mysql-test/include/cleanup_icu_utils.inc

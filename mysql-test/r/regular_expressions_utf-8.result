@@ -581,30 +581,40 @@ SELECT * FROM t1;
 a	b	c	d
 1	1	1	1
 DELETE FROM t1;
-INSERT INTO t1 VALUES ( regexp_replace('a', 'a', 'a'),
-regexp_replace('a', 'a', 'a'),
-regexp_replace('a', 'a', 'a'),
-regexp_replace('a', 'a', 'a') );
+INSERT INTO t1 ( a ) VALUES ( regexp_replace('a', 'a', 'a') );
+ERROR 01000: Data truncated for column 'a' at row 1
+INSERT INTO t1 ( b ) VALUES ( regexp_replace('a', 'a', 'a') );
+ERROR HY000: Incorrect integer value: 'a' for column 'b' at row 1
+INSERT INTO t1 ( c ) VALUES ( regexp_replace('a', 'a', 'a') );
+INSERT INTO t1 ( d ) VALUES ( regexp_replace('a', 'a', 'a') );
+ERROR HY000: Incorrect decimal value: 'a' for column 'd' at row 1
 SELECT * FROM t1;
 a	b	c	d
-0	0	0	0
+NULL	NULL	a	NULL
 DELETE FROM t1;
-INSERT INTO t1 VALUES ( regexp_substr('a', 'a'),
-regexp_substr('a', 'a'),
-regexp_substr('a', 'a'),
-regexp_substr('a', 'a') );
+INSERT INTO t1 ( a ) VALUES ( regexp_substr('a', 'a') );
+ERROR 01000: Data truncated for column 'a' at row 1
+INSERT INTO t1 ( b ) VALUES ( regexp_substr('a', 'a') );
+ERROR HY000: Incorrect integer value: 'a' for column 'b' at row 1
+INSERT INTO t1 ( c ) VALUES ( regexp_substr('a', 'a') );
+INSERT INTO t1 ( d ) VALUES ( regexp_substr('a', 'a') );
+ERROR HY000: Incorrect decimal value: 'a' for column 'd' at row 1
 SELECT * FROM t1;
 a	b	c	d
-0	0	0	0
+NULL	NULL	a	NULL
 DROP TABLE t1;
 # At the time of writing, val_int() is not called when inserting into an
 # INT column.
 SELECT cast( regexp_replace('a', 'a', 'a') AS SIGNED INTEGER );
 cast( regexp_replace('a', 'a', 'a') AS SIGNED INTEGER )
 0
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'a'
 SELECT cast( regexp_substr ('a', 'a')      AS SIGNED INTEGER );
 cast( regexp_substr ('a', 'a')      AS SIGNED INTEGER )
 0
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'a'
 # Casting to DATETIME/TIME
 # Due to the class hierarchy of function objects, these have to be
 # copy-pasted.
@@ -854,4 +864,27 @@ regexp_replace(a, '^([[:alpha:]]+)[[:space:]].*$', '$1')
 a
 b
 c
+DROP TABLE t1;
+#
+# Bug#28027093: REGEXP_REPLACE TRUNCATE UPDATE
+#
+CREATE TABLE t1 ( a CHAR(3) );
+INSERT INTO t1 VALUES ( regexp_replace ('a', 'a', 'x') );
+SELECT * FROM t1;
+a
+x
+UPDATE t1 SET a = regexp_replace ( 'b', 'b', 'y' );
+SELECT * FROM t1;
+a
+y
+DROP TABLE t1;
+CREATE TABLE t1 ( a CHAR(3) );
+INSERT INTO t1 VALUES ( regexp_substr ('a', 'a', 1) );
+SELECT * FROM t1;
+a
+a
+UPDATE t1 SET a = regexp_substr ('b', 'b', 1);
+SELECT * FROM t1;
+a
+b
 DROP TABLE t1;
