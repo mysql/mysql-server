@@ -1238,6 +1238,19 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
   DBUG_ASSERT(last_idx > first_idx);
   unique_ptr_destroy_only<RowIterator> iterator = nullptr;
 
+  // A special case: If we are at the top but the first table is an outer
+  // join, we implicitly have one or more const tables to the left side
+  // of said join.
+  bool is_top_level_outer_join = false;
+  vector<PendingCondition> top_level_pending_conditions;
+  if (pending_conditions == nullptr &&
+      qep_tabs[first_idx].last_inner() != NO_PLAN_IDX) {
+    is_top_level_outer_join = true;
+    iterator.reset(new (thd->mem_root)
+                       FakeSingleRowIterator(thd, /*examined_rows=*/nullptr));
+    pending_conditions = &top_level_pending_conditions;
+  }
+
   // NOTE: i is advanced in in one of two ways:
   //
   //  - If we have an inner join, it will be incremented near the bottom of the
@@ -1409,6 +1422,10 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       pending_conditions->push_back(cond);
     }
   }
+  if (is_top_level_outer_join) {
+    iterator = PossiblyAttachFilterIterator(move(iterator),
+                                            top_level_pending_conditions, thd);
+  }
   return iterator;
 }
 
@@ -1458,9 +1475,8 @@ void JOIN::create_iterators() {
     }
   }
   // Similarly, no rollup, SELECT DISTINCT or window functions.
-  if (const_tables != 0 || tmp_tables != 0 ||
-      rollup.state != ROLLUP::STATE_NONE || select_distinct ||
-      m_windows.elements != 0) {
+  if (tmp_tables != 0 || rollup.state != ROLLUP::STATE_NONE ||
+      select_distinct || m_windows.elements != 0) {
     return;
   }
 
@@ -1481,8 +1497,21 @@ void JOIN::create_iterators() {
     qep_tab->found = true;
   }
 
-  unique_ptr_destroy_only<RowIterator> iterator =
-      ConnectJoins(const_tables, primary_tables, qep_tab, thd, nullptr);
+  unique_ptr_destroy_only<RowIterator> iterator;
+  if (const_tables == primary_tables) {
+    // Only const tables, so add a fake single row to join in all
+    // the const tables (only inner-joined tables are promoted to
+    // const tables in the optimizer).
+    iterator.reset(new (thd->mem_root)
+                       FakeSingleRowIterator(thd, &examined_rows));
+    if (where_cond != nullptr) {
+      iterator = PossiblyAttachFilterIterator(move(iterator),
+                                              vector<Item *>{where_cond}, thd);
+    }
+  } else {
+    iterator =
+        ConnectJoins(const_tables, primary_tables, qep_tab, thd, nullptr);
+  }
 
   // See if we need to aggregate data in the final step. Note that we can
   // _not_ rely on streaming_aggregation, as it can be changed from false
@@ -1596,7 +1625,13 @@ static int do_select(JOIN *join) {
   join->send_records = 0;
   THD *thd = join->thd;
 
-  if (join->plan_is_const() && !join->need_tmp_before_win) {
+  if (join->select_count) {
+    QEP_TAB *qep_tab = join->qep_tab;
+    error = end_send_count(join, qep_tab);
+  } else if (join->root_iterator() != nullptr) {
+    error =
+        ExecuteIteratorQuery(join) == 0 ? NESTED_LOOP_OK : NESTED_LOOP_ERROR;
+  } else if (join->plan_is_const() && !join->need_tmp_before_win) {
     // Special code for dealing with queries that don't need to
     // read any tables.
 
@@ -1655,14 +1690,9 @@ static int do_select(JOIN *join) {
     // Pre-iterator query execution path.
     DBUG_ASSERT(join->primary_tables);
 
-    if (join->root_iterator() != nullptr) {
-      error =
-          ExecuteIteratorQuery(join) == 0 ? NESTED_LOOP_OK : NESTED_LOOP_ERROR;
-    } else {
-      QEP_TAB *qep_tab = join->qep_tab + join->const_tables;
-      error = join->first_select(join, qep_tab, 0);
-      if (error >= NESTED_LOOP_OK) error = join->first_select(join, qep_tab, 1);
-    }
+    QEP_TAB *qep_tab = join->qep_tab + join->const_tables;
+    error = join->first_select(join, qep_tab, 0);
+    if (error >= NESTED_LOOP_OK) error = join->first_select(join, qep_tab, 1);
   }
 
   thd->current_found_rows = join->send_records;

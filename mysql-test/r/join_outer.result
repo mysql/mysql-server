@@ -1805,12 +1805,33 @@ SELECT t1.col_int
 FROM t1
 LEFT JOIN t2
 LEFT JOIN t3
-JOIN t4  
+JOIN t4
 ON t3.col_int  = t4.pk
 ON t2.col_varchar_10 = t3.col_varchar_10
 ON t2.col_int = t1.pk
 WHERE   t1.col_int_key IS NULL OR t4.pk < t3.col_int;
 col_int
+EXPLAIN FORMAT=tree SELECT t1.col_int
+FROM t1
+LEFT JOIN t2
+LEFT JOIN t3
+JOIN t4
+ON t3.col_int  = t4.pk
+ON t2.col_varchar_10 = t3.col_varchar_10
+ON t2.col_int = t1.pk
+WHERE   t1.col_int_key IS NULL OR t4.pk < t3.col_int;
+EXPLAIN
+-> Filter: <if>(found_match(t3..t4), (<cache>(isnull('-448724992')) or (t4.pk < t3.col_int)), true)
+    -> Nested loop left join
+        -> Rows fetched before execution
+        -> Nested loop left join
+            -> Filter: (t2.col_int = '6')
+                -> Table scan on t2
+            -> Nested loop inner join
+                -> Filter: (t3.col_varchar_10 = t2.col_varchar_10)
+                    -> Table scan on t3
+                -> Single-row index lookup on t4 using PRIMARY (pk=t3.col_int)
+
 DROP TABLE t1,t2,t3,t4;
 
 # BUG#12567331 - INFINITE LOOP WHEN RESOLVING AN ALIASED COLUMN

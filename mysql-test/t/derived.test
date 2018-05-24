@@ -442,12 +442,21 @@ SET @optimizer_switch_saved= @@optimizer_switch;
 SET @@optimizer_switch="derived_merge=off";
 
 --echo # Ref access to the derived table should be used.
-EXPLAIN SELECT table1 . o1 
-FROM C table1  
-  JOIN ( C table2  
-    JOIN ( SELECT * FROM cc ) table3  
-    ON table3 .`i1`  = table2 .o1  
-  ) ON table3 .`i2`  = table2 .o1   
+EXPLAIN SELECT table1 . o1
+FROM C table1
+  JOIN ( C table2
+    JOIN ( SELECT * FROM cc ) table3
+    ON table3 .`i1`  = table2 .o1
+  ) ON table3 .`i2`  = table2 .o1
+;
+
+# Test EXPLAIN on MaterializeIterator.
+EXPLAIN FORMAT=tree SELECT table1 . o1
+FROM C table1
+  JOIN ( C table2
+    JOIN ( SELECT * FROM cc ) table3
+    ON table3 .`i1`  = table2 .o1
+  ) ON table3 .`i2`  = table2 .o1
 ;
 
 SET @@optimizer_switch=@optimizer_switch_saved;

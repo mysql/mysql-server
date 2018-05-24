@@ -81,6 +81,15 @@ CREATE TABLE t1 ( f1 INT PRIMARY KEY );
 INSERT INTO t1 VALUES ( 1 );
 INSERT INTO t1 VALUES ( 2 );
 INSERT INTO t1 VALUES ( 3 );
+EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f1=2;
+EXPLAIN
+-> Rows fetched before execution
+
+DROP TABLE t1;
+CREATE TABLE t1 ( f1 INT PRIMARY KEY );
+INSERT INTO t1 VALUES ( 1 );
+INSERT INTO t1 VALUES ( 2 );
+INSERT INTO t1 VALUES ( 3 );
 CREATE TABLE t2 ( f1 INT PRIMARY KEY );
 INSERT INTO t2 SELECT * FROM t1;
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON t1.f1 = t2.f1 + 2 AND t2.f1 = 3;
@@ -89,6 +98,19 @@ EXPLAIN
     -> Index scan on t1 using PRIMARY
     -> Filter: (t1.f1 = <cache>((3 + 2)))
         -> Constant row from t2
+
+DROP TABLE t1, t2;
+CREATE TABLE t1 ( f1 INT PRIMARY KEY );
+INSERT INTO t1 VALUES ( 1 );
+INSERT INTO t1 VALUES ( 2 );
+INSERT INTO t1 VALUES ( 3 );
+CREATE TABLE t2 AS SELECT * FROM t1;
+EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 USING (f1) WHERE t1.f1=2;
+EXPLAIN
+-> Nested loop left join
+    -> Rows fetched before execution
+    -> Filter: (t2.f1 = 2)
+        -> Table scan on t2
 
 DROP TABLE t1, t2;
 CREATE TABLE t1 ( a INT );

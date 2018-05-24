@@ -301,4 +301,43 @@ class SortFileIndirectIterator final : public TableRowIterator {
         *m_read_positions = nullptr;
 };
 
+// Used when the plan is const, ie. is known to contain a single row
+// (and all values have been read in advance, so we don't need to read
+// a single table).
+class FakeSingleRowIterator final : public RowIterator {
+ public:
+  // "examined_rows", if not nullptr, is incremented for each successful Read().
+  FakeSingleRowIterator(THD *thd, ha_rows *examined_rows)
+      : RowIterator(thd), m_examined_rows(examined_rows) {}
+
+  bool Init() override {
+    m_has_row = true;
+    return false;
+  }
+
+  int Read() override {
+    if (m_has_row) {
+      m_has_row = false;
+      if (m_examined_rows != nullptr) {
+        ++*m_examined_rows;
+      }
+      return 0;
+    } else {
+      return -1;
+    }
+  }
+
+  std::vector<std::string> DebugString() const override {
+    return {"Rows fetched before execution"};
+  }
+
+  void SetNullRowFlag(bool) override { DBUG_ASSERT(false); }
+
+  void UnlockRow() override {}
+
+ private:
+  bool m_has_row;
+  ha_rows *const m_examined_rows;
+};
+
 #endif  // SQL_BASIC_ROW_ITERATORS_H_

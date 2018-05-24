@@ -1342,7 +1342,20 @@ SELECT t1.col_int
 FROM t1
   LEFT JOIN t2
     LEFT JOIN t3
-      JOIN t4  
+      JOIN t4
+      ON t3.col_int  = t4.pk
+    ON t2.col_varchar_10 = t3.col_varchar_10
+  ON t2.col_int = t1.pk
+WHERE   t1.col_int_key IS NULL OR t4.pk < t3.col_int;
+
+# Demonstrates the case where we put a condition on the top level above
+# an outer join with const tables on the left side. The found_match test
+# is redundant and should probably be removed if we can.
+EXPLAIN FORMAT=tree SELECT t1.col_int
+FROM t1
+  LEFT JOIN t2
+    LEFT JOIN t3
+      JOIN t4
       ON t3.col_int  = t4.pk
     ON t2.col_varchar_10 = t3.col_varchar_10
   ON t2.col_int = t1.pk
