@@ -704,12 +704,19 @@ given at all. */
 /** COMPRESSION="zlib|lz4|none" used during table create. */
 #define HA_CREATE_USED_COMPRESS (1L << 26)
 
+/** ENCRYPTION="Y" used during table create. */
+#define HA_CREATE_USED_ENCRYPT (1L << 27)
+
 /**
   CREATE|ALTER SCHEMA|DATABASE|TABLE has an explicit COLLATE clause.
 
   Implies HA_CREATE_USED_DEFAULT_CHARSET.
 */
-#define HA_CREATE_USED_DEFAULT_COLLATE (1L << 27)
+#define HA_CREATE_USED_DEFAULT_COLLATE (1L << 28)
+
+/*
+  End of bits used in used_fields
+*/
 
 /*
   Structure to hold list of database_name.table_name.
@@ -725,9 +732,6 @@ struct st_handler_tablename {
 
 #define COMPATIBLE_DATA_YES 0
 #define COMPATIBLE_DATA_NO 1
-
-/** ENCRYPTION="Y" used during table create. */
-#define HA_CREATE_USED_ENCRYPT (1L << 27)
 
 /*
   These structures are used to pass information from a set of SQL commands
