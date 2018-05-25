@@ -128,9 +128,7 @@ bool Ack_receiver::add_slave(THD *thd)
   const char *kWho = "Ack_receiver::add_slave";
   function_enter(kWho);
 
-  slave.thread_id= thd->thread_id();
-  slave.server_id= thd->server_id;
-  slave.net_compress= thd->get_protocol_classic()->get_compression();
+  slave.thd= thd;
   slave.vio= *thd->get_protocol_classic()->get_vio();
   slave.vio.mysql_socket.m_psi= NULL;
   slave.vio.read_timeout= 1;
@@ -165,7 +163,7 @@ void Ack_receiver::remove_slave(THD *thd)
 
   for (it= m_slaves.begin(); it != m_slaves.end(); it++)
   {
-    if (it->thread_id == thd->thread_id())
+    if (it->thd == thd)
     {
       m_slaves.erase(it);
       m_slaves_changed= true;
@@ -204,7 +202,11 @@ void Ack_receiver::run()
   NET net;
   unsigned char net_buff[REPLY_MESSAGE_MAX_LENGTH];
   uint i;
-  Socket_listener listener;
+#ifdef HAVE_POLL
+  Poll_socket_listener listener(m_slaves);
+#else
+  Select_socket_listener listener(m_slaves);
+#endif //HAVE_POLL
 
   sql_print_information("Starting ack receiver thread");
 
@@ -232,14 +234,14 @@ void Ack_receiver::run()
         mysql_mutex_unlock(&m_mutex);
         continue;
       }
-      if (!listener.init_slave_sockets(m_slaves))
+      if (!listener.init_slave_sockets())
         goto end;
       m_slaves_changed= false;
     }
-    mysql_mutex_unlock(&m_mutex);
     ret= listener.listen_on_sockets();
     if (ret <= 0)
     {
+      mysql_mutex_unlock(&m_mutex);
 
       ret= DBUG_EVALUATE_IF("rpl_semisync_simulate_select_error", -1, ret);
 
@@ -253,32 +255,33 @@ void Ack_receiver::run()
 
     set_stage_info(stage_reading_semi_sync_ack);
     i= 0;
-    while (i < listener.number_of_slave_sockets() && m_status == ST_UP)
+    while (i < m_slaves.size())
     {
       if (listener.is_socket_active(i))
       {
-        Slave slave_obj= listener.get_slave_obj(i);
         ulong len;
-        net.vio= &slave_obj.vio;
+        net.vio= &m_slaves[i].vio;
         /*
           Set compress flag. This is needed to support
           Slave_compress_protocol flag enabled Slaves
         */
-        net.compress= slave_obj.net_compress;
+        net.compress=
+          m_slaves[i].thd->get_protocol_classic()->get_compression();
 
         do {
           net_clear(&net, 0);
 
           len= my_net_read(&net);
           if (likely(len != packet_error))
-            repl_semisync.reportReplyPacket(slave_obj.server_id,
+            repl_semisync.reportReplyPacket(m_slaves[i].server_id(),
                                             net.read_pos, len);
           else if (net.last_errno == ER_NET_READ_ERROR)
             listener.clear_socket_info(i);
-        } while (net.vio->has_data(net.vio) && m_status == ST_UP);
+        } while (net.vio->has_data(net.vio));
       }
       i++;
     }
+    mysql_mutex_unlock(&m_mutex);
   }
 end:
   sql_print_information("Stopping ack receiver thread");
