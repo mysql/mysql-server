@@ -17549,19 +17549,15 @@ ndbcluster_show_status(handlerton *hton, THD* thd, stat_print_fn *stat_print,
 
 int ha_ndbcluster::get_default_num_partitions(HA_CREATE_INFO *create_info)
 {
-  if (unlikely(g_ndb_cluster_connection->get_no_ready() <= 0))
+  THD* thd = current_thd;
+
+  if (check_ndb_connection(thd))
   {
-err:
     my_error(HA_ERR_NO_CONNECTION, MYF(0));
     return -1;
   }
 
-  THD* thd = current_thd;
-  if (thd == 0)
-    goto err;
   Thd_ndb * thd_ndb = get_thd_ndb(thd);
-  if (thd_ndb == 0)
-    goto err;
 
   ha_rows max_rows, min_rows;
   if (create_info)
