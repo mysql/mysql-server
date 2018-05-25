@@ -543,7 +543,7 @@ USER()	CURRENT_USER()
 user_name_len_22_01234@localhost	user_name_len_22_0dest@%
 SET NAMES utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE USER очень_очень_очень_длинный_юзер__ IDENTIFIED WITH 'test_plugin_server' AS 'очень_очень_очень_длинный_дест__';
 CREATE USER очень_очень_очень_длинный_дест__ IDENTIFIED BY 'plug_dest_passwd';
 SELECT plugin,authentication_string FROM mysql.user WHERE User='plug';
@@ -614,7 +614,7 @@ DROP USER user_name_len_32_012345678901234@localhost;
 # Testing 32 utf users with different authentication plugins
 SET NAMES utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE USER очень_очень_очень_длинный_юзер__@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string';
 SELECT CURRENT_USER();
 CURRENT_USER()

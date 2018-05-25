@@ -862,7 +862,7 @@ CREATE PROCEDURE p1() SELECT 1;
 CREATE FUNCTION f1() RETURNS INT RETURN 1;
 set names utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 -- Here we enable metadata just to check that the collation of the
 -- resultset is non-binary for string type. This should be changed
 -- after Bug#29394 is implemented.
@@ -1293,7 +1293,7 @@ Poblacion varchar(255) default NULL,
 PRIMARY KEY  (Codigo)
 ) ENGINE=MyISAM AUTO_INCREMENT=11 DEFAULT CHARSET=utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 show create table t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def					Table	253	64	2	N	1	31	7
@@ -1361,7 +1361,7 @@ show engine csv mutex;
 Type	Name	Status
 set names utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 drop table if exists `√©t√©`;
 create table `√©t√©` (field1 int);
 show full tables;
@@ -1474,7 +1474,7 @@ SET NEW.c1 = '‘≈”‘';
 CREATE EVENT ev1 ON SCHEDULE AT '2030-01-01 00:00:00' DO SELECT '‘≈”‘' AS test;
 set names utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select '—Ç–µ—Å—Ç' AS `test`	koi8r	koi8r_general_ci
@@ -1545,7 +1545,7 @@ t1	CREATE TABLE `t1` (
 # Connection con1
 ALTER TABLE t1 CHARACTER SET = utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 UNLOCK TABLES;
 # Connection default
 COMMIT;
@@ -1574,7 +1574,7 @@ t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_
 # Connection con1
 ALTER TABLE t1 CHARACTER SET = utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Connection default
 COMMIT;
 DROP TRIGGER t1_bi;
@@ -1595,7 +1595,7 @@ Id	User	Host	db	Command	Time	State	Info
 ###	root	###	test	Query	###	###	SHOW PROCESSLIST
 SET NAMES utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
 ###	event_scheduler	###	NULL	Daemon	###	###	NULL
@@ -1639,7 +1639,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 CREATE TABLE t1 (i CHAR(3),
 n CHAR(20) CHARACTER SET utf8 GENERATED ALWAYS AS (md5(i)));
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Use SHOW CREATE TABLE output below unmodified to re-create table
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -1653,7 +1653,7 @@ CREATE TABLE `t1` (
 `n` char(20) CHARACTER SET utf8 GENERATED ALWAYS AS (md5(i)) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP TABLE t1;
 #
 # Bug#24800048 - SHOW TABLES FROM DATABASE HANGS ON WINDOWS PLATFORM
@@ -1736,15 +1736,15 @@ SELECT * FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE table_name='t1';
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
 def	test	PRIMARY	test	t1	PRIMARY KEY
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT constraint_schema, constraint_name, table_name, column_name FROM
 INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE table_name='t1';
 constraint_schema	constraint_name	table_name	column_name
 test	PRIMARY	t1	c1
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # EXTENDED keyword is introduced to list the hidden index and index
 # columns.
 SHOW EXTENDED INDEX FROM t1;

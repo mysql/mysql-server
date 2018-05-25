@@ -42,7 +42,7 @@ SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING utf8)) FROM `‚s‚P`;
 CHARSET(CONVERT(`‚b‚P` USING utf8))
 utf8
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING ucs2)) FROM `‚s‚P`;
 CHARSET(CONVERT(`‚b‚P` USING ucs2))
 ucs2
@@ -56,7 +56,7 @@ SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING utf8)) FROM `‚s‚Q`;
 CHARSET(CONVERT(`‚b‚P` USING utf8))
 utf8
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING ucs2)) FROM `‚s‚Q`;
 CHARSET(CONVERT(`‚b‚P` USING ucs2))
 ucs2
@@ -70,7 +70,7 @@ SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING utf8)) FROM `‚s‚R`;
 CHARSET(CONVERT(`‚b‚P` USING utf8))
 utf8
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING ucs2)) FROM `‚s‚R`;
 CHARSET(CONVERT(`‚b‚P` USING ucs2))
 ucs2
@@ -93,7 +93,7 @@ SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING utf8)) FROM `‚s‚S`;
 CHARSET(CONVERT(`‚b‚P` USING utf8))
 utf8
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING ucs2)) FROM `‚s‚S`;
 CHARSET(CONVERT(`‚b‚P` USING ucs2))
 ucs2
@@ -107,7 +107,7 @@ SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING utf8)) FROM `‚s‚T`;
 CHARSET(CONVERT(`‚b‚P` USING utf8))
 utf8
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING ucs2)) FROM `‚s‚T`;
 CHARSET(CONVERT(`‚b‚P` USING ucs2))
 ucs2
@@ -121,7 +121,7 @@ SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING utf8)) FROM `‚s‚U`;
 CHARSET(CONVERT(`‚b‚P` USING utf8))
 utf8
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING ucs2)) FROM `‚s‚U`;
 CHARSET(CONVERT(`‚b‚P` USING ucs2))
 ucs2
@@ -144,7 +144,7 @@ SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING utf8)) FROM `‚s‚V`;
 CHARSET(CONVERT(`‚b‚P` USING utf8))
 utf8
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING ucs2)) FROM `‚s‚V`;
 CHARSET(CONVERT(`‚b‚P` USING ucs2))
 ucs2
@@ -158,7 +158,7 @@ SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING utf8)) FROM `‚s‚W`;
 CHARSET(CONVERT(`‚b‚P` USING utf8))
 utf8
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING ucs2)) FROM `‚s‚W`;
 CHARSET(CONVERT(`‚b‚P` USING ucs2))
 ucs2
@@ -172,7 +172,7 @@ SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING utf8)) FROM `‚s‚X`;
 CHARSET(CONVERT(`‚b‚P` USING utf8))
 utf8
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING ucs2)) FROM `‚s‚X`;
 CHARSET(CONVERT(`‚b‚P` USING ucs2))
 ucs2

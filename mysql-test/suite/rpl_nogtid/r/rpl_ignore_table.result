@@ -136,7 +136,7 @@ CREATE TABLE t5 (
 word varchar(50) collate utf8_unicode_ci NOT NULL default ''
 ) DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET @@session.character_set_client=33,@@session.collation_connection=192;
 CREATE TEMPORARY TABLE tmptbl504451f4258$1 (id INT NOT NULL) ENGINE=MEMORY;
 INSERT INTO t5 (word)  VALUES ('TEST’');

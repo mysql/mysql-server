@@ -1031,7 +1031,7 @@ DROP TABLE t1;
 create table t1 (a tinytext character set latin1);
 alter table t1 convert to character set utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1041,7 +1041,7 @@ drop table t1;
 create table t1 (a mediumtext character set latin1);
 alter table t1 convert to character set utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1265,7 +1265,7 @@ DROP TABLE t1;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (id int, c int) character set utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES (1,1);
 ALTER TABLE t1 CHANGE c d int;
 affected rows: 0
@@ -1378,7 +1378,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (f1 TIMESTAMP NULL DEFAULT NULL,
 f2 INT(11) DEFAULT NULL) ENGINE=MYISAM DEFAULT CHARSET=utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES (NULL, NULL), ("2009-10-09 11:46:19", 2);
 this should affect no rows as there is no real change
 ALTER TABLE t1 CHANGE COLUMN f1 f1_no_real_change TIMESTAMP NULL DEFAULT NULL;
@@ -1465,7 +1465,7 @@ DROP TABLE t1;
 DROP DATABASE IF EXISTS db1;
 CREATE DATABASE db1 CHARACTER SET utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE db1.t1 (bar TINYTEXT, KEY (bar(100)));
 ERROR 42000: Specified key was too long; max key length is 255 bytes
 CREATE TABLE db1.t1 (bar TINYTEXT, KEY (bar(85)));
@@ -1897,12 +1897,12 @@ ALTER TABLE ti1 DEFAULT CHARACTER SET utf8;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 1
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 ALTER TABLE tm1 DEFAULT CHARACTER SET utf8;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 1
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 ALTER TABLE ti1 FORCE;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
@@ -2843,26 +2843,26 @@ CREATE TABLE t1 (f1 INT);
 #         ALTER table operation should pass.
 ALTER TABLE t1 CHARACTER SET utf8, CHARACTER SET utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Case 2: Alter table with CHARACTER SET X, CONVERT TO CHARACTER SET X
 #         ALTER table operation should pass.
 ALTER TABLE t1 CHARACTER SET utf8, CONVERT TO CHARACTER SET utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Case 3: Alter table with CONVERT TO CHARACTER SET X, CHARACTER SET X
 #         ALTER table operation should pass.
 ALTER TABLE t1 CONVERT TO CHARACTER SET utf8, CHARACTER SET utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Case 4: Alter table with CONVERT TO CHARACTER SET X, CONVERT TO CHARACTER SET X
 #         ALTER table operation should pass.
 ALTER TABLE t1 CONVERT TO CHARACTER SET utf8, CONVERT TO CHARACTER SET utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Case 5: Alter table with CHARACTER SET X, CONVERT TO CHARACTER SET Y
 #         Alter table operations should fail with an error "ER_CONFLICTING_DECLARATIONS".
 ALTER TABLE t1 CHARACTER SET utf8, CONVERT TO CHARACTER SET latin1;
@@ -3005,7 +3005,7 @@ DROP TABLE t;
 CREATE TABLE t1 (fld1 INT PRIMARY KEY) ENGINE = INNODB CHARACTER SET gbk;
 ALTER TABLE t1 CONVERT TO CHARACTER SET UTF8, ALGORITHM = INPLACE;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Without fix, the CHARSET SET for table remains gbk.
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -3027,7 +3027,7 @@ CREATE TABLE t1 (fld1 INT PRIMARY KEY, fld2 CHAR(10)) ENGINE = INNODB
 CHARACTER SET gbk;
 ALTER TABLE t1 CHARACTER SET UTF8, ALGORITHM = INPLACE;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

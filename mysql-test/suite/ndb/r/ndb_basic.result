@@ -870,8 +870,8 @@ b VARCHAR (256) CHARACTER SET UTF8 NOT NULL,
 c VARCHAR(256) CHARACTER SET UTF8 NOT NULL,
 PRIMARY KEY (b,c))  ENGINE=ndbcluster;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES
 ("a","ab","abc"),("b","abc","abcd"),("c","abc","ab"),("d","ab","ab"),("e","abc","abc");
 SELECT * FROM t1 ORDER BY a;
@@ -1021,7 +1021,7 @@ PRIMARY KEY (`id`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE `t2` (
 `id` int(11) NOT NULL,
 `obj_id` int(11) DEFAULT NULL,
@@ -1030,7 +1030,7 @@ KEY `obj_id` (`obj_id`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # here we used to segv
 explain SELECT t1.id FROM t1 INNER JOIN t2 ON t1.id = t2.id WHERE t2.obj_id=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra

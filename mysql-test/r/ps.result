@@ -114,7 +114,7 @@ deallocate prepare stmt4;
 deallocate prepare stmt5;
 PREPARE stmt1 FROM "select _utf8 'A' collate utf8_bin = ?";
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 set @var='A';
 EXECUTE stmt1 USING @var;
 _utf8 'A' collate utf8_bin = ?
@@ -271,7 +271,7 @@ deallocate prepare Stmt1;
 ERROR HY000: Unknown prepared statement handler (Stmt1) given to DEALLOCATE PREPARE
 set names utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 prepare `ü` from 'select 1234';
 execute `ü` ;
 1234
@@ -284,7 +284,7 @@ deallocate prepare `�`;
 set names default;
 create table t1 (a varchar(10)) charset=utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 (a) values ('yahoo');
 set character_set_connection=latin1;
 prepare stmt from 'select a from t1 where a like ?';
@@ -316,7 +316,7 @@ deallocate prepare stmt;
 drop table t1;
 prepare stmt from "select 'abc' like convert('abc' using utf8)";
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 execute stmt;
 'abc' like convert('abc' using utf8)
 1
@@ -586,8 +586,8 @@ start_date datetime default null,
 primary key  (id), unique key code (code)
 );
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t2 (
 id bigint(20) not null auto_increment,
 email varchar(250) character set utf8 collate utf8_bin default null,
@@ -600,9 +600,9 @@ primary key  (id), unique key email (email), key t1_id (t1_id),
 constraint t2_fk1 foreign key (t1_id) references t1 (id)
 );
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values
 (1, 'demo', 'demo s', 0, current_date()),
 (2, 'code2', 'name 2', 0, current_date()),
@@ -758,7 +758,7 @@ set names latin1;
 prepare stmt from "create table t1 (a enum('test') default 'test')
  character set utf8";
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 execute stmt;
 drop table t1;
 execute stmt;
@@ -804,7 +804,7 @@ drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 prepare stmt from 'create table t1 (a varchar(10) character set utf8)';
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 execute stmt;
 insert into t1 (a) values (repeat('a', 20));
 select length(a) from t1;
@@ -1134,7 +1134,7 @@ drop database if exists mysqltest;
 drop table if exists t1, t2;
 create database mysqltest character set utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 prepare stmt1 from "create table mysqltest.t1 (c char(10))";
 prepare stmt2 from "create table mysqltest.t2 select 'test'";
 execute stmt1;
@@ -2855,7 +2855,7 @@ Note	1051	Unknown table 'test.t1'
 prepare stmt
 from "create table t1 (c char(100) character set utf8, key (c(10)))";
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 execute stmt;
 show create table t1;
 Table	Create Table

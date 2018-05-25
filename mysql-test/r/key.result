@@ -192,7 +192,7 @@ a	2
 drop table t1;
 create table t1 (i int, a char(200), b text, unique (a), unique (b(300))) charset utf8 row_format=dynamic engine=innodb;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert ignore t1 values (1, repeat('a',210), repeat('b', 310));
 Warnings:
 Warning	1265	Data truncated for column 'a' at row 1
@@ -207,17 +207,17 @@ select i from t1 where a=repeat(_utf8 'a',200);
 i
 1
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select i from t1 where a=repeat(_utf8 0xD0B1,200);
 i
 2
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select i from t1 where b=repeat(_utf8 'b',310);
 i
 1
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 drop table t1;
 CREATE TABLE t1 (id int unsigned auto_increment, name char(50), primary key (id)) engine=myisam;
 insert into t1 (name) values ('a'), ('b'),('c'),('d'),('e'),('f'),('g');
@@ -260,7 +260,7 @@ numeropost
 drop table t1;
 create table t1 (c varchar(30), t text, unique (c(2)), unique (t(3))) charset utf8 engine=myisam;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

@@ -42,7 +42,7 @@ pqrstuvwxyz{|}~	pqrstuvwxyz{|}~
 ﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏ	ﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏ
 ﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝﾞﾟ	ﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝﾞﾟ
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT `Ｃ１`, CONVERT(`Ｃ１` using ucs2) FROM `Ｔ１`;
 Ｃ１	CONVERT(`Ｃ１` using ucs2)
  !"#$%&'()*+,-./	 !"#$%&'()*+,-./
@@ -136,7 +136,7 @@ SELECT `Ｃ１`, CONVERT(`Ｃ１` using utf8) FROM `Ｔ２`;
 黠黥黨黯黴黶黷黹黻黼黽鼇鼈皷鼕鼡鼬鼾齊齒	黠黥黨黯黴黶黷黹黻黼黽鼇鼈皷鼕鼡鼬鼾齊齒
 齔齣齟齠齡齦齧齬齪齷齲齶龕龜龠・・・・・	齔齣齟齠齡齦齧齬齪齷齲齶龕龜龠・・・・・
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT `Ｃ１`, CONVERT(`Ｃ１` using ucs2) FROM `Ｔ２`;
 Ｃ１	CONVERT(`Ｃ１` using ucs2)
 　　、。，．・：；？！゛゜´｀¨＾￣＿ヽ	　　、。，．・：；？！゛゜´｀¨＾￣＿ヽ
@@ -316,7 +316,7 @@ SELECT `Ｃ１`, CONVERT(`Ｃ１` using utf8) FROM `Ｔ３`;
 ・・・・・・・・・・・・・・・・・・・・	・・・・・・・・・・・・・・・・・・・・
 ・・・・・・・・・・・・・・・・・・・・	・・・・・・・・・・・・・・・・・・・・
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT `Ｃ１`, CONVERT(`Ｃ１` using ucs2) FROM `Ｔ３`;
 Ｃ１	CONVERT(`Ｃ１` using ucs2)
 ¤№・・・・・・・・・・・・・・・・・・	¤№・・・・・・・・・・・・・・・・・・
@@ -414,7 +414,7 @@ pqrstuvwxyz{|}~	pqrstuvwxyz{|}~
 ﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏ	ﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏ
 ﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝﾞﾟ	ﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝﾞﾟ
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT `Ｃ１`, CONVERT(`Ｃ１` using ucs2) FROM `Ｔ４`;
 Ｃ１	CONVERT(`Ｃ１` using ucs2)
  !"#$%&'()*+,-./	 !"#$%&'()*+,-./
@@ -508,7 +508,7 @@ SELECT `Ｃ１`, CONVERT(`Ｃ１` using utf8) FROM `Ｔ５`;
 黠黥黨黯黴黶黷黹黻黼黽鼇鼈皷鼕鼡鼬鼾齊齒	黠黥黨黯黴黶黷黹黻黼黽鼇鼈皷鼕鼡鼬鼾齊齒
 齔齣齟齠齡齦齧齬齪齷齲齶龕龜龠・・・・・	齔齣齟齠齡齦齧齬齪齷齲齶龕龜龠・・・・・
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT `Ｃ１`, CONVERT(`Ｃ１` using ucs2) FROM `Ｔ５`;
 Ｃ１	CONVERT(`Ｃ１` using ucs2)
 　　、。，．・：；？！゛゜´｀¨＾￣＿ヽ	　　、。，．・：；？！゛゜´｀¨＾￣＿ヽ
@@ -688,7 +688,7 @@ SELECT `Ｃ１`, CONVERT(`Ｃ１` using utf8) FROM `Ｔ６`;
 ・・・・・・・・・・・・・・・・・・・・	・・・・・・・・・・・・・・・・・・・・
 ・・・・・・・・・・・・・・・・・・・・	・・・・・・・・・・・・・・・・・・・・
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT `Ｃ１`, CONVERT(`Ｃ１` using ucs2) FROM `Ｔ６`;
 Ｃ１	CONVERT(`Ｃ１` using ucs2)
 ¤№・・・・・・・・・・・・・・・・・・	¤№・・・・・・・・・・・・・・・・・・
@@ -786,7 +786,7 @@ pqrstuvwxyz{|}~	pqrstuvwxyz{|}~
 ﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏ	ﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏ
 ﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝﾞﾟ	ﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝﾞﾟ
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT `Ｃ１`, CONVERT(`Ｃ１` using ucs2) FROM `Ｔ７`;
 Ｃ１	CONVERT(`Ｃ１` using ucs2)
  !"#$%&'()*+,-./	 !"#$%&'()*+,-./
@@ -880,7 +880,7 @@ SELECT `Ｃ１`, CONVERT(`Ｃ１` using utf8) FROM `Ｔ８`;
 ・・・・・・・・・・・・・・・・・・・・	・・・・・・・・・・・・・・・・・・・・
 ・・・・・・・・・・・・・・・・・・・・	・・・・・・・・・・・・・・・・・・・・
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT `Ｃ１`, CONVERT(`Ｃ１` using ucs2) FROM `Ｔ８`;
 Ｃ１	CONVERT(`Ｃ１` using ucs2)
 　　、。，．・：；？！゛゜´｀¨＾￣＿ヽ	　　、。，．・：；？！゛゜´｀¨＾￣＿ヽ
@@ -1060,7 +1060,7 @@ SELECT `Ｃ１`, CONVERT(`Ｃ１` using utf8) FROM `Ｔ９`;
 龔龖龗龞龡龢龣龥・・・・・・・・・・・・	龔龖龗龞龡龢龣龥・・・・・・・・・・・・
 ・・・・・・・・・・・・・・・・・・・・	・・・・・・・・・・・・・・・・・・・・
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT `Ｃ１`, CONVERT(`Ｃ１` using ucs2) FROM `Ｔ９`;
 Ｃ１	CONVERT(`Ｃ１` using ucs2)
 ・・・・・・・・・・・・・・・˘ˇ¸˙˝	・・・・・・・・・・・・・・・˘ˇ¸˙˝

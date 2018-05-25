@@ -41,8 +41,8 @@ def	test	fk1	test	product_order	FOREIGN KEY
 def	test	fk2	test	product_order	FOREIGN KEY
 def	test	PRIMARY	test	product_order	PRIMARY KEY
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select CONCAT_WS('.', TABLE_NAME, COLUMN_NAME) as COL,
 ORDINAL_POSITION,
 POSITION_IN_UNIQUE_CONSTRAINT,
@@ -61,8 +61,8 @@ product_order.no	1	NULL
 product_order.product_category	1	1	product.category
 product_order.product_id	2	2	product.id
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 drop table product_order, customer, product, emp;
 #
 # databases, circular, i_s.referential_constraints
@@ -109,8 +109,8 @@ def	mydb2	fk_b2b1	mydb2	t2	FOREIGN KEY
 def	mydb2	PRIMARY	mydb2	t2	PRIMARY KEY
 def	mydb2	xb2	mydb2	t2	UNIQUE
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select *
 from information_schema.key_column_usage
 where table_schema like 'mydb%'
@@ -125,8 +125,8 @@ def	mydb2	fk_b2b1	def	mydb2	t2	b2	1	1	mydb1	t1	b1
 def	mydb2	PRIMARY	def	mydb2	t2	a2	1	NULL	NULL	NULL	NULL
 def	mydb2	xb2	def	mydb2	t2	b2	1	NULL	NULL	NULL	NULL
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 alter table mydb1.t1
 drop foreign key fk_b1a1,
 drop foreign key fk_b1b2;

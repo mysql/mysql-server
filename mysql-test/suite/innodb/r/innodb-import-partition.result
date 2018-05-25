@@ -766,7 +766,7 @@ col19 DATE,col20 DATETIME, col21 TIMESTAMP NULL,
 col22 TIME, col23 YEAR) ENGINE = InnoDB
 PARTITION BY HASH (col18) PARTITIONS 3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # table for trigger action
 CREATE TABLE trigger_table (i int) ENGINE = InnoDB;
 CREATE  TRIGGER tri AFTER INSERT ON  t1
@@ -824,7 +824,7 @@ col19 DATE,col20 DATETIME, col21 TIMESTAMP NULL,
 col22 TIME, col23 YEAR) ENGINE = InnoDB
 PARTITION BY HASH (col18) PARTITIONS 3;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE INDEX idx1 ON t1(col18);
 CREATE INDEX prefix_idx ON t1(col14 (10));
 ALTER TABLE t1 DISCARD TABLESPACE;

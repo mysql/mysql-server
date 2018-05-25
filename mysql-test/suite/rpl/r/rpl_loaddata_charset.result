@@ -5,7 +5,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 create table t1 (a varchar(10) character set utf8);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 load data infile '../../std_data/loaddata6.dat' into table t1 CHARACTER SET latin1;
 set @@character_set_database=koi8r;
 Warnings:
@@ -50,11 +50,11 @@ include/sync_slave_sql_with_master.inc
 DROP DATABASE IF EXISTS mysqltest;
 CREATE DATABASE mysqltest CHARSET UTF8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 USE mysqltest;
 CREATE TABLE t (cl varchar(100)) CHARSET UTF8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 LOAD DATA LOCAL INFILE './std_data/loaddata_utf8.dat' INTO TABLE t
 FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n';
 ----------content on master----------
@@ -80,11 +80,11 @@ DROP DATABASE mysqltest;
 DROP DATABASE IF EXISTS mysqltest;
 CREATE DATABASE mysqltest CHARSET UTF8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 USE mysqltest;
 CREATE TABLE t (cl varchar(100)) CHARSET UTF8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t
 FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n';
 ----------content on master----------

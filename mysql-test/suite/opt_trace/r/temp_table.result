@@ -633,7 +633,7 @@ c1 INT AUTO_INCREMENT PRIMARY KEY,
 c2 VARCHAR(250)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1(c2) VALUES ('b'),('b');
 INSERT INTO t1(c2) SELECT t1.c2 FROM t1, t1 t2, t1 t3, t1 t4, t1 t5, t1 t6;
 SET @@max_heap_table_size=1;

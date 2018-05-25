@@ -763,7 +763,7 @@ FLUSH LOGS;
 #### Bug#26277771, PART2 ####
 CREATE TABLE t1 (c1 VARCHAR(20) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL PRIMARY KEY);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES ('a');
 INSERT INTO t1 VALUES ('A');
 INSERT INTO t1 VALUES ('b');
@@ -792,7 +792,7 @@ FLUSH LOGS;
 CREATE TABLE t1 (c1 varchar(20) NOT NULL PRIMARY KEY)
 ENGINE=InnoDB CHARACTER SET utf8 COLLATE utf8_bin;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES ('a');
 INSERT INTO t1 VALUES ('á');
 Processing binlog master-bin.000023

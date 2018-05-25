@@ -72,7 +72,7 @@ JSON_VALID('123')
 1
 set names 'utf8';
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 # Json expression
 select JSON_VALID(cast('[123]' as JSON ));
@@ -101,7 +101,7 @@ JSON_VALID( UPPER('"abc"') )
 1
 set names 'utf8';
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 # Function result - date, not valid as JSON without CAST
 select JSON_VALID( CAST('2015-01-15' AS DATE) );
@@ -113,7 +113,7 @@ select JSON_VALID( CAST(CAST('2015-01-15' AS DATE) as CHAR CHARACTER SET 'utf8')
 JSON_VALID( CAST(CAST('2015-01-15' AS DATE) as CHAR CHARACTER SET 'utf8') )
 0
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # OK, though:
 select JSON_VALID( CAST(CURDATE() as JSON) );
 JSON_VALID( CAST(CURDATE() as JSON) )
@@ -2739,7 +2739,7 @@ select json_quote(convert('abc' using utf8));
 json_quote(convert('abc' using utf8))
 "abc"
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select json_quote(convert('abc' using utf8mb4));
 json_quote(convert('abc' using utf8mb4))
 "abc"
@@ -2759,7 +2759,7 @@ select json_unquote(convert('"abc"' using utf8));
 json_unquote(convert('"abc"' using utf8))
 abc
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select json_unquote(convert('"abc"' using utf8mb4));
 json_unquote(convert('"abc"' using utf8mb4))
 abc
@@ -2810,7 +2810,7 @@ select json_quote(convert(X'e68891' using utf8));
 json_quote(convert(X'e68891' using utf8))
 "我"
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select json_quote(convert(X'e68891' using utf8mb4));
 json_quote(convert(X'e68891' using utf8mb4))
 "我"
@@ -2818,12 +2818,12 @@ select cast(json_quote(convert(X'e68891' using utf8)) as json);
 cast(json_quote(convert(X'e68891' using utf8)) as json)
 "我"
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select json_unquote(convert(X'e68891' using utf8));
 json_unquote(convert(X'e68891' using utf8))
 我
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select  json_quote(json_quote(json_quote('abc')));
 json_quote(json_quote(json_quote('abc')))
 "\"\\\"abc\\\"\""

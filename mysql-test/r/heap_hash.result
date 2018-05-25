@@ -449,8 +449,8 @@ CREATE TABLE t1(col1 VARCHAR(32) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
 col2 VARCHAR(32) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL, 
 UNIQUE KEY key1 USING HASH (col1, col2)) ENGINE=MEMORY;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES('A', 'A');
 INSERT INTO t1 VALUES('A ', 'A ');
 ERROR 23000: Duplicate entry 'A -A ' for key 'key1'

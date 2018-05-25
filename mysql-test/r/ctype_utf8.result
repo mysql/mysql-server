@@ -1,17 +1,17 @@
 drop table if exists t1,t2;
 set names utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select left(_utf8 0xD0B0D0B1D0B2,1);
 left(_utf8 0xD0B0D0B1D0B2,1)
 а
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select right(_utf8 0xD0B0D0B2D0B2,1);
 right(_utf8 0xD0B0D0B2D0B2,1)
 в
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select locate('he','hello');
 locate('he','hello')
 1
@@ -43,39 +43,39 @@ select locate(_utf8 0xD0B1, _utf8 0xD0B0D0B1D0B2);
 locate(_utf8 0xD0B1, _utf8 0xD0B0D0B1D0B2)
 2
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select locate(_utf8 0xD091, _utf8 0xD0B0D0B1D0B2);
 locate(_utf8 0xD091, _utf8 0xD0B0D0B1D0B2)
 2
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select locate(_utf8 0xD0B1, _utf8 0xD0B0D091D0B2);
 locate(_utf8 0xD0B1, _utf8 0xD0B0D091D0B2)
 2
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select locate(_utf8 0xD091, _utf8 0xD0B0D0B1D0B2 collate utf8_bin);
 locate(_utf8 0xD091, _utf8 0xD0B0D0B1D0B2 collate utf8_bin)
 0
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select locate(_utf8 0xD0B1, _utf8 0xD0B0D091D0B2 collate utf8_bin);
 locate(_utf8 0xD0B1, _utf8 0xD0B0D091D0B2 collate utf8_bin)
 0
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select length(_utf8 0xD0B1), bit_length(_utf8 0xD0B1), char_length(_utf8 0xD0B1);
 length(_utf8 0xD0B1)	bit_length(_utf8 0xD0B1)	char_length(_utf8 0xD0B1)
 2	16	1
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select 'a' like 'a';
 'a' like 'a'
 1
@@ -89,28 +89,28 @@ select _utf8 0xD0B0D0B1D0B2 like concat(_utf8'%',_utf8 0xD0B1,_utf8 '%');
 _utf8 0xD0B0D0B1D0B2 like concat(_utf8'%',_utf8 0xD0B1,_utf8 '%')
 1
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select convert(_latin1'G�nter Andr�' using utf8) like CONVERT(_latin1'G�NTER%' USING utf8);
 convert(_latin1'G�nter Andr�' using utf8) like CONVERT(_latin1'G�NTER%' USING utf8)
 1
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select CONVERT(_koi8r'����' USING utf8) LIKE CONVERT(_koi8r'����' USING utf8);
 CONVERT(_koi8r'����' USING utf8) LIKE CONVERT(_koi8r'����' USING utf8)
 1
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select CONVERT(_koi8r'����' USING utf8) LIKE CONVERT(_koi8r'����' USING utf8);
 CONVERT(_koi8r'����' USING utf8) LIKE CONVERT(_koi8r'����' USING utf8)
 1
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT 'a' = 'a ';
 'a' = 'a '
 1
@@ -143,7 +143,7 @@ SELECT 'a\t' < 'a ' collate utf8_bin;
 1
 CREATE TABLE t1 (a char(10) character set utf8 not null);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES ('a'),('a\0'),('a\t'),('a ');
 SELECT hex(a),STRCMP(a,'a'), STRCMP(a,'a ') FROM t1;
 hex(a)	STRCMP(a,'a')	STRCMP(a,'a ')
@@ -173,7 +173,7 @@ date_format("2004-01-19 10:10:10", "%Y-%m-%d")
 drop table t1;
 set names utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 set LC_TIME_NAMES='fr_FR';
 create table t1 (s1 char(20) character set latin1);
 insert into t1 values (date_format('2004-02-02','%M'));
@@ -199,7 +199,7 @@ SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 set names koi8r;
 create table t1 (s1 char(1) character set utf8);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values (_koi8r'��');
 Warnings:
 Warning	1265	Data truncated for column 's1' at row 1
@@ -209,7 +209,7 @@ s1	hex(s1)	char_length(s1)	octet_length(s1)
 drop table t1;
 create table t1 (s1 tinytext character set utf8);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 select repeat('a',300);
 Warnings:
 Warning	1265	Data truncated for column 's1' at row 1
@@ -242,7 +242,7 @@ length(s1)	char_length(s1)
 drop table t1;
 create table t1 (s1 text character set utf8);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 select repeat('a',66000);
 Warnings:
 Warning	1265	Data truncated for column 's1' at row 1
@@ -269,7 +269,7 @@ drop table t1;
 SET sql_mode = default;
 create table t1 (s1 char(10) character set utf8);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert ignore into t1 values (0x41FF);
 Warnings:
 Warning	1366	Incorrect string value: '\xFF' for column 's1' at row 1
@@ -279,7 +279,7 @@ hex(s1)
 drop table t1;
 create table t1 (s1 varchar(10) character set utf8);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert ignore into t1 values (0x41FF);
 Warnings:
 Warning	1366	Incorrect string value: '\xFF' for column 's1' at row 1
@@ -289,7 +289,7 @@ hex(s1)
 drop table t1;
 create table t1 (s1 text character set utf8);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert ignore into t1 values (0x41FF);
 Warnings:
 Warning	1366	Incorrect string value: '\xFF' for column 's1' at row 1
@@ -301,7 +301,7 @@ create table t1 (a text character set utf8, primary key(a(360)));
 ERROR 42000: Specified key was too long; max key length is 1000 bytes
 CREATE TABLE t1 ( a varchar(10) ) CHARACTER SET utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES ( 'test' );
 SELECT a.a, b.a FROM t1 a, t1 b WHERE a.a = b.a;
 a	a
@@ -315,7 +315,7 @@ test	test
 DROP TABLE t1;
 create table t1 (a char(255) character set utf8);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values('b'),('b');
 select * from t1 where a = 'b';
 a
@@ -374,10 +374,10 @@ ERROR HY000: The regular expression contains an unclosed bracket expression.
 drop table t1;
 set names utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 set names utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # Not supported by ICU
 select  'вася'  rlike '[[:<:]]вася[[:>:]]';
 ERROR HY000: Illegal argument to a regular expression.
@@ -404,10 +404,10 @@ ALTER TABLE t1 ADD COLUMN b CHAR(20);
 DROP TABLE t1;
 set names utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t1 (a enum('aaaa','проба') character set utf8);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -430,7 +430,7 @@ drop table t1;
 drop table t2;
 create table t1 (c varchar(30) character set utf8, unique(c(10)));
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values ('1'),('2'),('3'),('x'),('y'),('z');
 insert into t1 values ('aaaaaaaaaa');
 insert into t1 values ('aaaaaaaaaaa');
@@ -465,7 +465,7 @@ bbbbbbbbbbbbbbbbbbbb
 drop table t1;
 create table t1 (c varchar(30) character set utf8, unique(c(10))) engine=innodb;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values ('1'),('2'),('3'),('x'),('y'),('z');
 insert into t1 values ('aaaaaaaaaa');
 insert into t1 values ('aaaaaaaaaaa');
@@ -500,7 +500,7 @@ bbbbbbbbbbbbbbbbbbbb
 drop table t1;
 create table t1 (c char(3) character set utf8, unique (c(2)));
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values ('1'),('2'),('3'),('4'),('x'),('y'),('z');
 insert into t1 values ('a');
 insert into t1 values ('aa');
@@ -525,7 +525,7 @@ ERROR 23000: Duplicate entry 'ꪪꪪ' for key 'c'
 drop table t1;
 create table t1 (c char(3) character set utf8, unique (c(2))) engine=innodb;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values ('1'),('2'),('3'),('4'),('x'),('y'),('z');
 insert into t1 values ('a');
 insert into t1 values ('aa');
@@ -553,7 +553,7 @@ c char(10) character set utf8,
 unique key a using hash (c(1))
 ) engine=heap;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -591,7 +591,7 @@ c char(10) character set utf8,
 unique key a using btree (c(1))
 ) engine=heap;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -629,7 +629,7 @@ c char(10) character set utf8,
 unique key a (c(1))
 ) engine=innodb;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
 insert into t1 values ('aa');
 ERROR 23000: Duplicate entry 'a' for key 'a'
@@ -658,7 +658,7 @@ c_a
 drop table t1;
 create table t1 (c varchar(30) character set utf8 collate utf8_bin, unique(c(10)));
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values ('1'),('2'),('3'),('x'),('y'),('z');
 insert into t1 values ('aaaaaaaaaa');
 insert into t1 values ('aaaaaaaaaaa');
@@ -693,7 +693,7 @@ bbbbbbbbbbbbbbbbbbbb
 drop table t1;
 create table t1 (c char(3) character set utf8 collate utf8_bin, unique (c(2)));
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values ('1'),('2'),('3'),('4'),('x'),('y'),('z');
 insert into t1 values ('a');
 insert into t1 values ('aa');
@@ -721,7 +721,7 @@ c char(10) character set utf8 collate utf8_bin,
 unique key a using hash (c(1))
 ) engine=heap;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -759,7 +759,7 @@ c char(10) character set utf8 collate utf8_bin,
 unique key a using btree (c(1))
 ) engine=heap;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -797,7 +797,7 @@ c char(10) character set utf8 collate utf8_bin,
 unique key a (c(1))
 ) engine=innodb;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
 insert into t1 values ('aa');
 ERROR 23000: Duplicate entry 'a' for key 'a'
@@ -829,7 +829,7 @@ str varchar(255) character set utf8 not null,
 key str  (str(2))
 ) engine=myisam;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES ('str');
 INSERT INTO t1 VALUES ('str2');
 select * from t1 where str='str';
@@ -841,7 +841,7 @@ str varchar(255) character set utf8 not null,
 key str  (str(2))
 ) engine=innodb;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES ('str');
 INSERT INTO t1 VALUES ('str2');
 select * from t1 where str='str';
@@ -853,7 +853,7 @@ str varchar(255) character set utf8 not null,
 key str using btree (str(2))
 ) engine=heap;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES ('str');
 INSERT INTO t1 VALUES ('str2');
 select * from t1 where str='str';
@@ -865,7 +865,7 @@ str varchar(255) character set utf8 not null,
 key str using hash (str(2))
 ) engine=heap;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES ('str');
 INSERT INTO t1 VALUES ('str2');
 select * from t1 where str='str';
@@ -877,7 +877,7 @@ str varchar(255) character set utf8 not null,
 key str (str(2))
 ) engine=innodb;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES ('str');
 INSERT INTO t1 VALUES ('str2');
 select * from t1 where str='str';
@@ -886,21 +886,21 @@ str
 drop table t1;
 CREATE TABLE t1 (a varchar(32) BINARY) CHARACTER SET utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES ('test');
 SELECT a FROM t1 WHERE a LIKE '%te';
 a
 DROP TABLE t1;
 SET NAMES utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t1 (
 subject varchar(255) character set utf8 collate utf8_unicode_ci,
 p varchar(15) character set utf8
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES ('谷川俊二と申しますが、インターネット予約の会員登録をしましたところ、メールアドレスを間違えてしまい会員ＩＤが受け取ることが出来ませんでした。間違えアドレスはtani-shun@n.vodafone.ne.jpを書き込みました。どうすればよいですか？ その他、住所等は間違えありません。連絡ください。よろしくお願いします。m(__)m','040312-000057');
 INSERT INTO t1 VALUES ('aaa','bbb');
 SELECT length(subject) FROM t1;
@@ -920,7 +920,7 @@ PRIMARY KEY(id),
 INDEX(list_id, term(4))
 ) ENGINE=MYISAM CHARSET=utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 SET list_id = 1, term = "letterc";
 INSERT INTO t1 SET list_id = 1, term = "letterb";
 INSERT INTO t1 SET list_id = 1, term = "lettera";
@@ -947,7 +947,7 @@ PRIMARY KEY(id),
 INDEX(list_id, term(19))
 ) ENGINE=MyISAM CHARSET=utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 set list_id = 1, term = "test�test";
 INSERT INTO t1 set list_id = 1, term = "testetest";
 INSERT INTO t1 set list_id = 1, term = "test�test";
@@ -969,14 +969,14 @@ id	term
 DROP TABLE t1;
 set names utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t1 (
 a int primary key,
 b varchar(6),
 index b3(b(3))
 ) engine=innodb character set=utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values(1,'foo'),(2,'foobar');
 select * from t1 where b like 'foob%';
 a	b
@@ -991,12 +991,12 @@ a enum('петя','вася','анюта') character set utf8 not null default '
 b set('петя','вася','анюта') character set utf8 not null default 'анюта'
 );
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t2 select concat(a,_utf8'') as a, concat(b,_utf8'')as b from t1;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -1013,7 +1013,7 @@ SUBSTR('вася',-2)
 ся
 create table t1 (id integer, a varchar(100) character set utf8 collate utf8_unicode_ci);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values (1, 'Test');
 select * from t1 where soundex(a) = soundex('Test');
 id	a
@@ -1029,22 +1029,22 @@ select soundex(_utf8 0xE99885E8A788E99A8FE697B6E69BB4E696B0E79A84E696B0E997BB);
 soundex(_utf8 0xE99885E8A788E99A8FE697B6E69BB4E696B0E79A84E696B0E997BB)
 阅000
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select hex(soundex(_utf8 0xE99885E8A788E99A8FE697B6E69BB4E696B0E79A84E696B0E997BB));
 hex(soundex(_utf8 0xE99885E8A788E99A8FE697B6E69BB4E696B0E79A84E696B0E997BB))
 E99885303030
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select soundex(_utf8 0xD091D092D093);
 soundex(_utf8 0xD091D092D093)
 Б000
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select hex(soundex(_utf8 0xD091D092D093));
 hex(soundex(_utf8 0xD091D092D093))
 D091303030
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET collation_connection='utf8_general_ci';
 create table t1 select repeat('a',4000) a;
 delete from t1;
@@ -1206,7 +1206,7 @@ two	<two>
 DROP TABLE t1;
 create table t1 (f1 varchar(1) not null) default charset utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values (''), ('');
 select concat(concat(_latin1'->',f1),_latin1'<-') from t1;
 concat(concat(_latin1'->',f1),_latin1'<-')
@@ -1217,12 +1217,12 @@ select convert(_koi8r'�' using utf8) < convert(_koi8r'�' using utf8);
 convert(_koi8r'�' using utf8) < convert(_koi8r'�' using utf8)
 1
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 set names latin1;
 create table t1 (a varchar(10)) character set utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values ('test');
 select ifnull(a,'') from t1;
 ifnull(a,'')
@@ -1233,18 +1233,18 @@ h
 +++
 NULL
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select ifnull(NULL, _utf8'string');
 ifnull(NULL, _utf8'string')
 string
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 set names utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t1 (s1 char(5) character set utf8 collate utf8_lithuanian_ci);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values ('I'),('K'),('Y');
 select * from t1 where s1 < 'K' and s1 = 'Y';
 s1
@@ -1257,7 +1257,7 @@ Y
 drop table t1;
 create table t1 (s1 char(5) character set utf8 collate utf8_czech_ci);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values ('c'),('d'),('h'),('ch'),('CH'),('cH'),('Ch'),('i');
 select * from t1 where s1 > 'd' and s1 = 'CH';
 s1
@@ -1278,7 +1278,7 @@ cH
 drop table t1;
 create table t1 (a varchar(255)) default character set utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values (1.0);
 drop table t1;
 create table t1 (
@@ -1287,7 +1287,7 @@ city varchar(20) not null,
 key (city(7),id)
 ) character set=utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values (1,'Durban North');
 insert into t1 values (2,'Durban');
 select * from t1 where city = 'Durban';
@@ -1304,7 +1304,7 @@ ERROR 42000: Invalid default value for 'x'
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 SET NAMES UTF8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t1 (
 `id` int(20) NOT NULL auto_increment,
 `country` varchar(100) NOT NULL default '',
@@ -1324,7 +1324,7 @@ KEY `IX_mobile_originated_message_created` (`created`),
 KEY `IX_mobile_originated_message_support` (`msisdn`,`momid`,`keyword`,`gateway_id`,`created`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES 
 (1,'blah','464','aaa','fkc1c9ilc20x0hgae7lx6j09','ERR','ERR Имри.Афимим.Аеимимримдмримрмрирор имримримримр имридм ирбднримрфмририримрфмфмим.Ад.Д имдимримрад.Адимримримрмдиримримримр м.Дадимфшьмримд им.Адимимрн имадми','ИМРИ.АФИМИМ.АЕИМИМРИМДМРИМРМРИРОР',3,'2005-06-01 17:30:43','1234567890'),
 (2,'blah','464','aaa','haxpl2ilc20x00bj4tt2m5ti','11','11 g','G',3,'2005-06-02 22:43:10','1234567890');
@@ -1335,7 +1335,7 @@ CREATE TABLE t2 (
 UNIQUE KEY `PK_user` (`msisdn`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t2 VALUES ('1234567890',2,'2005-05-24 13:53:25');
 SELECT content, t2.msisdn FROM t1, t2 WHERE t1.msisdn = '1234567890';
 content	msisdn
@@ -1346,11 +1346,11 @@ SET sql_mode = default;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1 (a char(20) character set utf8);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values ('123456'),('андрей');
 alter table t1 modify a char(2) character set utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	1265	Data truncated for column 'a' at row 1
 Warning	1265	Data truncated for column 'a' at row 2
 select char_length(a), length(a), a from t1 order by a;
@@ -1361,13 +1361,13 @@ drop table t1;
 SET sql_mode = default;
 set names utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select 'andre%' like 'andreñ%' escape 'ñ';
 'andre%' like 'andreñ%' escape 'ñ'
 1
 set names utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select 'a\\' like 'a\\';
 'a\\' like 'a\\'
 1
@@ -1376,7 +1376,7 @@ select 'aa\\' like 'a%\\';
 1
 create table t1 (a char(10), key(a)) character set utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");
 select * from t1 where a like "abc%";
 a
@@ -1413,13 +1413,13 @@ a varchar(255) NOT NULL default '',
 KEY a (a)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE utf8_general_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values (_utf8 0xe880bd);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values (_utf8 0x5b);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select hex(a) from t1;
 hex(a)
 5B
@@ -1428,7 +1428,7 @@ drop table t1;
 set names 'latin1';
 create table t1 (a varchar(255)) default charset=utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select * from t1 where find_in_set('-1', a);
 a
 drop table t1;
@@ -1436,7 +1436,7 @@ create table t1 (a int);
 insert into t1 values (48),(49),(50);
 set names utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select distinct char(a) from t1;
 char(a)
 0
@@ -1445,7 +1445,7 @@ char(a)
 drop table t1;
 CREATE TABLE t1 (t TINYTEXT CHARACTER SET utf8);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES(REPEAT('a', 100));
 CREATE TEMPORARY TABLE t2 SELECT COALESCE(t) AS bug FROM t1;
 SELECT LENGTH(bug) FROM t2;
@@ -1455,19 +1455,19 @@ DROP TABLE t2;
 DROP TABLE t1;
 CREATE TABLE t1 (item varchar(255)) default character set utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES (N'\\');
 Warnings:
 Warning	3720	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES (_utf8'\\');
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES (N'Cote d\'Ivoire');
 Warnings:
 Warning	3720	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES (_utf8'Cote d\'Ivoire');
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT item FROM t1 ORDER BY item;
 item
 Cote d'Ivoire
@@ -1477,13 +1477,13 @@ Cote d'Ivoire
 DROP TABLE t1;
 SET NAMES utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP TABLE IF EXISTS t1;
 Warnings:
 Note	1051	Unknown table 'test.t1'
 CREATE TABLE t1(a VARCHAR(255), KEY(a)) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES('uuABCDEFGHIGKLMNOPRSTUVWXYZ̈bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
 INSERT INTO t1 VALUES('uu');
 check table t1;
@@ -1527,10 +1527,10 @@ test.t1	check	status	OK
 drop table t1;
 set names utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t1 (s1 char(5) character set utf8);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values
 ('a'),('b'),(null),('ペテルグル'),('ü'),('Y');
 create index it1 on t1 (s1);
@@ -1544,10 +1544,10 @@ after_delete_general_ci
 drop table t1;
 set names utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t1 (s1 char(5) character set utf8 collate utf8_unicode_ci);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values
 ('a'),('b'),(null),('ペテルグル'),('ü'),('Y');
 create index it1 on t1 (s1);
@@ -1561,10 +1561,10 @@ after_delete_unicode_ci
 drop table t1;
 set names utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t1 (s1 char(5) character set utf8 collate utf8_bin);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values
 ('a'),('b'),(null),('ペテルグル'),('ü'),('Y');
 create index it1 on t1 (s1);
@@ -1578,11 +1578,11 @@ after_delete_bin
 drop table t1;
 set names utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t1 (a varchar(30) not null primary key)
 engine=innodb  default character set utf8 collate utf8_general_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values ('あいうえおかきくけこさしすせそ');
 insert into t1 values ('さしすせそかきくけこあいうえお');
 select a as gci1 from t1 where a like 'さしすせそかきくけこあいうえお%';
@@ -1594,11 +1594,11 @@ gci2
 drop table t1;
 set names utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t1 (a varchar(30) not null primary key)
 engine=innodb default character set utf8 collate utf8_unicode_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values ('あいうえおかきくけこさしすせそ');
 insert into t1 values ('さしすせそかきくけこあいうえお');
 select a as uci1 from t1 where a like 'さしすせそかきくけこあいうえお%';
@@ -1610,11 +1610,11 @@ uci2
 drop table t1;
 set names utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t1 (a varchar(30) not null primary key)
 engine=innodb default character set utf8 collate utf8_bin;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values ('あいうえおかきくけこさしすせそ');
 insert into t1 values ('さしすせそかきくけこあいうえお');
 select a as bin1 from t1 where a like 'さしすせそかきくけこあいうえお%';
@@ -1626,7 +1626,7 @@ bin2
 drop table t1;
 SET NAMES utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t1 (id int PRIMARY KEY,
 a varchar(16) collate utf8_unicode_ci NOT NULL default '',
 b int,
@@ -1634,7 +1634,7 @@ f varchar(128) default 'XXX',
 INDEX (a(4))
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1(id, a, b) VALUES
 (1, 'cccc', 50), (2, 'cccc', 70), (3, 'cccc', 30),
 (4, 'cccc', 30), (5, 'cccc', 20), (6, 'bbbbbb', 40),
@@ -1670,13 +1670,13 @@ id	a
 DROP TABLE t1;
 SET NAMES utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t1 (
 a CHAR(13) DEFAULT '',
 INDEX(a)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES 
 ('Käli Käli 2-4'), ('Käli Käli 2-4'),
 ('Käli Käli 2+4'), ('Käli Käli 2+4'),
@@ -1729,7 +1729,7 @@ a char(255) DEFAULT '',
 KEY(a(10))
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES ('Käli Käli 2-4');
 SELECT * FROM t1 WHERE a LIKE 'Käli Käli 2%';
 a
@@ -1744,7 +1744,7 @@ CREATE TABLE t1 (
 a char(255) DEFAULT ''
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES ('Käli Käli 2-4');
 INSERT INTO t1 VALUES ('Käli Käli 2-4');
 SELECT * FROM t1 WHERE a LIKE 'Käli Käli 2%';
@@ -1765,7 +1765,7 @@ val text NOT NULL,
 INDEX idx(tid, val(10))
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES
 (40988,72,'VOLN� ADSL'),(41009,72,'VOLN� ADSL'),
 (41032,72,'VOLN� ADSL'),(41038,72,'VOLN� ADSL'),
@@ -1818,7 +1818,7 @@ DROP TABLE t1;
 create table t1(a char(200) collate utf8_unicode_ci NOT NULL default '')
 default charset=utf8 collate=utf8_unicode_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values (unhex('65')), (unhex('C3A9')), (unhex('65'));
 explain select distinct a from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1839,7 +1839,7 @@ e
 drop table t1;
 create table t1(a char(10)) default charset utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values ('123'), ('456');
 explain
 select substr(z.a,-1), z.a from t1 as y join t1 as z on y.a=z.a order by 1;
@@ -1856,11 +1856,11 @@ drop table t1;
 SET CHARACTER SET utf8;
 CREATE DATABASE crashtest DEFAULT CHARACTER SET utf8 COLLATE utf8_bin;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 USE crashtest;
 CREATE TABLE crashtest (crash char(10)) DEFAULT CHARSET=utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO crashtest VALUES ('35'), ('36'), ('37');
 SELECT * FROM crashtest ORDER BY CHAR(crash USING utf8);
 crash
@@ -1868,13 +1868,13 @@ crash
 36
 37
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO crashtest VALUES ('-1000');
 EXPLAIN SELECT * FROM crashtest ORDER BY CHAR(crash USING utf8);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	crashtest	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using filesort
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Note	1003	/* select#1 */ select `crashtest`.`crashtest`.`crash` AS `crash` from `crashtest`.`crashtest` order by char(`crashtest`.`crashtest`.`crash`)
 SELECT * FROM crashtest ORDER BY CHAR(crash USING utf8);
 crash
@@ -1883,7 +1883,7 @@ crash
 36
 37
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	1300	Invalid utf8 character string: 'FFFFFC'
 DROP TABLE crashtest;
 DROP DATABASE crashtest;
@@ -1891,7 +1891,7 @@ USE test;
 SET CHARACTER SET default;
 CREATE TABLE t1(id varchar(20) NOT NULL) DEFAULT CHARSET=utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES ('xxx'), ('aa'), ('yyy'), ('aa');
 SELECT id FROM t1;
 id
@@ -1915,35 +1915,35 @@ create table t1 (
 a varchar(26) not null
 ) default character set utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 (a) values ('abcdefghijklmnopqrstuvwxyz');
 select * from t1;
 a
 abcdefghijklmnopqrstuvwxyz
 alter table t1 change a a varchar(20) character set utf8 not null;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	1265	Data truncated for column 'a' at row 1
 select * from t1;
 a
 abcdefghijklmnopqrst
 alter table t1 change a a char(15) character set utf8 not null;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	1265	Data truncated for column 'a' at row 1
 select * from t1;
 a
 abcdefghijklmno
 alter table t1 change a a char(10) character set utf8 not null;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	1265	Data truncated for column 'a' at row 1
 select * from t1;
 a
 abcdefghij
 alter table t1 change a a varchar(5) character set utf8 not null;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	1265	Data truncated for column 'a' at row 1
 select * from t1;
 a
@@ -1953,11 +1953,11 @@ create table t1 (
 a varchar(4000) not null
 ) default character set utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values (repeat('a',4000));
 alter table t1 change a a varchar(3000) character set utf8 not null;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	1265	Data truncated for column 'a' at row 1
 select length(a) from t1;
 length(a)
@@ -1966,75 +1966,75 @@ drop table t1;
 SET sql_mode = default;
 set names utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select hex(char(1 using utf8));
 hex(char(1 using utf8))
 01
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select char(0xd1,0x8f using utf8);
 char(0xd1,0x8f using utf8)
 я
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select char(0xd18f using utf8);
 char(0xd18f using utf8)
 я
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select char(53647 using utf8);
 char(53647 using utf8)
 я
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select char(0xff,0x8f using utf8);
 char(0xff,0x8f using utf8)
 NULL
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	1300	Invalid utf8 character string: 'FF8F'
 select convert(char(0xff,0x8f) using utf8);
 convert(char(0xff,0x8f) using utf8)
 NULL
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	1300	Invalid utf8 character string: 'FF8F'
 set sql_mode=traditional;
 select char(0xff,0x8f using utf8);
 char(0xff,0x8f using utf8)
 NULL
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	1300	Invalid utf8 character string: 'FF8F'
 select char(195 using utf8);
 char(195 using utf8)
 NULL
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	1300	Invalid utf8 character string: 'C3'
 select char(196 using utf8);
 char(196 using utf8)
 NULL
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	1300	Invalid utf8 character string: 'C4'
 select char(2557 using utf8);
 char(2557 using utf8)
 NULL
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	1300	Invalid utf8 character string: 'FD'
 select convert(char(0xff,0x8f) using utf8);
 convert(char(0xff,0x8f) using utf8)
 NULL
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	1300	Invalid utf8 character string: 'FF8F'
 select hex(convert(char(2557 using latin1) using utf8));
 hex(convert(char(2557 using latin1) using utf8))
 09C3BD
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select hex(char(195));
 hex(char(195))
 C3
@@ -2046,13 +2046,13 @@ hex(char(2557))
 09FD
 set names utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t1 (a char(1)) default character set utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t2 (a char(1)) default character set utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values('a'),('a'),(0xE38182),(0xE38182);
 insert into t1 values('i'),('i'),(0xE38184),(0xE38184);
 select * from t1 union distinct select * from t2;
@@ -2064,7 +2064,7 @@ i
 drop table t1,t2;
 set names utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t1 (a char(10), b varchar(10));
 insert into t1 values ('bar','kostja');
 insert into t1 values ('kostja','bar');
@@ -2085,10 +2085,10 @@ drop table if exists t1;
 drop view if exists v1, v2;
 set names utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t1(col1 varchar(12) character set utf8 collate utf8_unicode_ci);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values('t1_val');
 create view v1 as select 'v1_val' as col1;
 select coercibility(col1), collation(col1) from v1;
@@ -2113,7 +2113,7 @@ drop view v1, v2;
 drop table t1;
 set names utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t1 (a varchar(10) character set latin1, b int);
 insert into t1 values ('a',1);
 select concat(a, if(b>10, N'x', N'y')) from t1;
@@ -2127,35 +2127,35 @@ ERROR HY000: Illegal mix of collations (latin1_swedish_ci,IMPLICIT) and (utf8_ge
 drop table t1;
 set names utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t1 (a varchar(10) character set latin1, b int);
 insert into t1 values ('a',1);
 select concat(a, if(b>10, _utf8'x', _utf8'y')) from t1;
 concat(a, if(b>10, _utf8'x', _utf8'y'))
 ay
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select concat(a, if(b>10, _utf8'æ', _utf8'ß')) from t1;
 ERROR HY000: Illegal mix of collations (latin1_swedish_ci,IMPLICIT) and (utf8_general_ci,COERCIBLE) for operation 'concat'
 drop table t1;
 set names utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t1 (a varchar(10) character set latin1, b int);
 insert into t1 values ('a',1);
 select concat(a, if(b>10, _utf8 0x78, _utf8 0x79)) from t1;
 concat(a, if(b>10, _utf8 0x78, _utf8 0x79))
 ay
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select concat(a, if(b>10, _utf8 0xC3A6, _utf8 0xC3AF)) from t1;
 ERROR HY000: Illegal mix of collations (latin1_swedish_ci,IMPLICIT) and (utf8_general_ci,COERCIBLE) for operation 'concat'
 drop table t1;
 set names utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t1 (a varchar(10) character set latin1, b int);
 insert into t1 values ('a',1);
 select concat(a, if(b>10, 'x' 'x', 'y' 'y')) from t1;
@@ -2170,7 +2170,7 @@ colB varchar(255) character set utf8 NOT NULL,
 PRIMARY KEY  (colA)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 (colA, colB) VALUES (1, 'foo'), (2, 'foo bar');
 CREATE TABLE t2 (
 colA int(11) NOT NULL,
@@ -2178,7 +2178,7 @@ colB varchar(255) character set utf8 NOT NULL,
 KEY bad  (colA,colB(3))
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t2 (colA, colB) VALUES (1, 'foo'),(2, 'foo bar');
 SELECT * FROM t1 JOIN t2 ON t1.colA=t2.colA AND t1.colB=t2.colB
 WHERE t1.colA < 3;
@@ -2204,7 +2204,7 @@ SELECT 1 UNION SELECT 'н1234567890';
 н1234567890
 CREATE TABLE t1 (c VARCHAR(11)) CHARACTER SET utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t2 (b CHAR(1) CHARACTER SET binary, i INT);
 INSERT INTO t1 (c) VALUES ('н1234567890');
 INSERT INTO t2 (b, i) VALUES ('1', 1);
@@ -2230,13 +2230,13 @@ select hex(char(0xFF using utf8));
 hex(char(0xFF using utf8))
 NULL
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	1300	Invalid utf8 character string: 'FF'
 select hex(convert(0xFF using utf8));
 hex(convert(0xFF using utf8))
 NULL
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	1300	Invalid utf8 character string: 'FF'
 select hex(_utf8 0x616263FF);
 ERROR HY000: Invalid utf8 character string: 'FF'
@@ -2251,13 +2251,13 @@ select hex(char(0xFF using utf8));
 hex(char(0xFF using utf8))
 NULL
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	1300	Invalid utf8 character string: 'FF'
 select hex(convert(0xFF using utf8));
 hex(convert(0xFF using utf8))
 NULL
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	1300	Invalid utf8 character string: 'FF'
 select hex(_utf8 0x616263FF);
 ERROR HY000: Invalid utf8 character string: 'FF'
@@ -2272,7 +2272,7 @@ ERROR HY000: Invalid utf8 character string: 'FF'
 #
 CREATE TABLE t1 (id int not null primary key, name varchar(10)) character set utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES
 (2,'一二三01'),(3,'一二三09'),(4,'一二三02'),(5,'一二三08'),
 (6,'一二三11'),(7,'一二三91'),(8,'一二三21'),(9,'一二三81');
@@ -2323,58 +2323,58 @@ SELECT LENGTH(RPAD(0.0115E88, 61297, _utf8'яэюя'));
 LENGTH(RPAD(0.0115E88, 61297, _utf8'яэюя'))
 122587
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT LENGTH(RPAD(0.0115E88, 61297, _utf8'йцуя'));
 LENGTH(RPAD(0.0115E88, 61297, _utf8'йцуя'))
 122587
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT HEX(RPAD(0x20, 2, _utf8 0xD18F));
 HEX(RPAD(0x20, 2, _utf8 0xD18F))
 20D1
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT HEX(RPAD(0x20, 4, _utf8 0xD18F));
 HEX(RPAD(0x20, 4, _utf8 0xD18F))
 20D18FD1
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT HEX(LPAD(0x20, 2, _utf8 0xD18F));
 HEX(LPAD(0x20, 2, _utf8 0xD18F))
 D120
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT HEX(LPAD(0x20, 4, _utf8 0xD18F));
 HEX(LPAD(0x20, 4, _utf8 0xD18F))
 D18FD120
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT HEX(RPAD(_utf8 0xD18F, 3, 0x20));
 HEX(RPAD(_utf8 0xD18F, 3, 0x20))
 D18F20
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT HEX(LPAD(_utf8 0xD18F, 3, 0x20));
 HEX(LPAD(_utf8 0xD18F, 3, 0x20))
 20D18F
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT HEX(INSERT(_utf8 0xD18F, 2, 1, 0x20));
 HEX(INSERT(_utf8 0xD18F, 2, 1, 0x20))
 D120
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT HEX(INSERT(_utf8 0xD18FD18E, 2, 1, 0x20));
 HEX(INSERT(_utf8 0xD18FD18E, 2, 1, 0x20))
 D120D18E
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 #
 # Bug#11752408 - 43593: DUMP/BACKUP/RESTORE/UPGRADE TOOLS FAILS BECAUSE OF UTF8_GENERAL_CI
 #
 CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET utf8 COLLATE utf8_general_mysql500_ci);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES ('a'),('r'),('s'),(_latin1 0xDF),(_latin1 0xF7),('t'),('z');
 SELECT * FROM t1 ORDER BY a;
 a
@@ -2418,7 +2418,7 @@ PRIMARY KEY (clipid),
 KEY tape(Tape(85))
 ) CHARACTER SET=utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 ALTER TABLE t1 ADD mos TINYINT DEFAULT 0 AFTER clipid;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -2436,7 +2436,7 @@ predicted_order int NOT NULL,
 utf8_encoding VARCHAR(10) NOT NULL
 ) CHARACTER SET utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES (19, x'E0B696'), (30, x'E0B69AE0B798'), (61, x'E0B6AF'), (93, x'E0B799'), (52, x'E0B6A6'), (73, x'E0B6BBE0B78AE2808D'), (3, x'E0B686'), (56, x'E0B6AA'), (55, x'E0B6A9'), (70, x'E0B6B9'), (94, x'E0B79A'), (80, x'E0B785'), (25, x'E0B69AE0B791'), (48, x'E0B6A2'), (13, x'E0B690'), (86, x'E0B793'), (91, x'E0B79F'), (81, x'E0B786'), (79, x'E0B784'), (14, x'E0B691'), (99, x'E0B78A'), (8, x'E0B68B'), (68, x'E0B6B7'), (22, x'E0B69A'), (16, x'E0B693'), (33, x'E0B69AE0B7B3'), (38, x'E0B69AE0B79D'), (21, x'E0B683'), (11, x'E0B68E'), (77, x'E0B782'), (40, x'E0B69AE0B78A'), (101, x'E0B78AE2808DE0B6BB'), (35, x'E0B69AE0B79A'), (1, x'E0B7B4'), (9, x'E0B68C'), (96, x'E0B79C'), (6, x'E0B689'), (95, x'E0B79B'), (88, x'E0B796'), (64, x'E0B6B3'), (26, x'E0B69AE0B792'), (82, x'E0B78F'), (28, x'E0B69AE0B794'), (39, x'E0B69AE0B79E'), (97, x'E0B79D'), (2, x'E0B685'), (75, x'E0B780'), (34, x'E0B69AE0B799'), (69, x'E0B6B8'), (83, x'E0B790'), (18, x'E0B695'), (90, x'E0B7B2'), (17, x'E0B694'), (72, x'E0B6BB'), (66, x'E0B6B5'), (59, x'E0B6AD'), (44, x'E0B69E'), (15, x'E0B692'), (23, x'E0B69AE0B78F'), (65, x'E0B6B4'), (42, x'E0B69C'), (63, x'E0B6B1'), (85, x'E0B792'), (47, x'E0B6A1'), (49, x'E0B6A3'), (92, x'E0B7B3'), (78, x'E0B783'), (36, x'E0B69AE0B79B'), (4, x'E0B687'), (24, x'E0B69AE0B790'), (87, x'E0B794'), (37, x'E0B69AE0B79C'), (32, x'E0B69AE0B79F'), (29, x'E0B69AE0B796'), (43, x'E0B69D'), (62, x'E0B6B0'), (100, x'E0B78AE2808DE0B6BA'), (60, x'E0B6AE'), (45, x'E0B69F'), (12, x'E0B68F'), (46, x'E0B6A0'), (50, x'E0B6A5'), (51, x'E0B6A4'), (5, x'E0B688'), (76, x'E0B781'), (89, x'E0B798'), (74, x'E0B6BD'), (10, x'E0B68D'), (57, x'E0B6AB'), (71, x'E0B6BA'), (58, x'E0B6AC'), (27, x'E0B69AE0B793'), (54, x'E0B6A8'), (84, x'E0B791'), (31, x'E0B69AE0B7B2'), (98, x'E0B79E'), (53, x'E0B6A7'), (41, x'E0B69B'), (67, x'E0B6B6'), (7, x'E0B68A'), (20, x'E0B682');
 SELECT predicted_order, hex(utf8_encoding) FROM t1 ORDER BY utf8_encoding COLLATE utf8_sinhala_ci;
 predicted_order	hex(utf8_encoding)
@@ -2544,7 +2544,7 @@ predicted_order	hex(utf8_encoding)
 DROP TABLE t1;
 SET NAMES utf8 COLLATE utf8_sinhala_ci;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t1 (s1 VARCHAR(10) COLLATE utf8_sinhala_ci);
 INSERT INTO t1 VALUES ('a'),('ae'),('af');
 SELECT s1,hex(s1) FROM t1 ORDER BY s1;
@@ -2572,13 +2572,13 @@ s3 MEDIUMTEXT CHARACTER SET utf8,
 s4 LONGTEXT CHARACTER SET utf8
 );
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET NAMES utf8, @@character_set_results=NULL;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT *, HEX(s1) FROM t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def	test	t1	t1	s1	s1	252	255	0	Y	16	0	33
@@ -2598,7 +2598,7 @@ def					HEX(s1)	253	1530	0	Y	0	31	8
 s1	s2	s3	s4	HEX(s1)
 SET NAMES utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT *, HEX(s1) FROM t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def	test	t1	t1	s1	s1	252	765	0	Y	16	0	33
@@ -2616,7 +2616,7 @@ t2	CREATE TABLE `t2` (
 DROP TABLE t1, t2;
 SET NAMES utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 #
 # Start of WL#2649 Number-to-string conversions
 #
@@ -5468,7 +5468,7 @@ SET NAMES latin1;
 SET sql_mode='';
 CREATE TABLE t1(a char(215) CHARACTER SET utf8 NOT NULL DEFAULT '', KEY(a));
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES ();
 SELECT maketime(`a`,`a`,`a`) FROM t1 GROUP BY 1;
 maketime(`a`,`a`,`a`)
@@ -5481,7 +5481,7 @@ SET sql_mode=default;
 #
 SET NAMES utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (0), (0), (1), (0), (0);
 SELECT COUNT(*) FROM t1, t1 t2 
@@ -5497,23 +5497,23 @@ EXPLAIN SELECT 'abcdÁÂÃÄÅ', _latin1'abcdÁÂÃÄÅ', _utf8'abcdÁÂÃÄÅ' 
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Note	1003	/* select#1 */ select 'abcdÁÂÃÄÅ' AS `abcdÁÂÃÄÅ`,_latin1'abcd\xC3\x81\xC3\x82\xC3\x83\xC3\x84\xC3\x85' AS `abcdÁÂÃÄÅ`,_utf8mb3'abcd\xC3\x81\xC3\x82\xC3\x83\xC3\x84\xC3\x85' AS `u`
 SET NAMES utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 EXPLAIN SELECT 'abcdÁÂÃÄÅ', _latin1'abcdÁÂÃÄÅ', _utf8'abcdÁÂÃÄÅ';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Note	1003	/* select#1 */ select 'abcdÁÂÃÄÅ' AS `abcdÁÂÃÄÅ`,_latin1'abcd\xC3\x81\xC3\x82\xC3\x83\xC3\x84\xC3\x85' AS `abcdÃÃ‚ÃƒÃ„Ã…`,_utf8mb3'abcd\xC3\x81\xC3\x82\xC3\x83\xC3\x84\xC3\x85' AS `abcdÁÂÃÄÅ`
 #
 # Bug#11750518 41090: ORDER BY TRUNCATES GROUP_CONCAT RESULT
 #
 SET NAMES utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT id, CHAR_LENGTH(GROUP_CONCAT(body)) AS l
 FROM (SELECT 'a' AS id, REPEAT('foo bar', 100) AS body
 UNION ALL
@@ -5535,7 +5535,7 @@ Warning	1260	Row 2 was cut by GROUP_CONCAT()
 #
 set names utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select @@collation_connection;
 @@collation_connection
 utf8_general_ci
@@ -5840,7 +5840,7 @@ select @@max_sort_length;
 5
 create table t1 (a varchar(128) character set utf8 collate utf8_general_ci);
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values ('a'),('b'),('c');
 select * from t1 order by a;
 a
@@ -5849,7 +5849,7 @@ b
 c
 alter table t1 modify a varchar(128) character set utf8 collate utf8_bin;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select * from t1 order by a;
 a
 a
@@ -5863,7 +5863,7 @@ set max_sort_length=default;
 #
 SET NAMES utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT is_ipv4(inet_ntoa('1'));
 is_ipv4(inet_ntoa('1'))
 1
@@ -5891,7 +5891,7 @@ Warning	1411	Incorrect string value: 'soundex('a')' for function inet6_aton
 #
 do is_ipv4_mapped(inet6_aton(convert(_ascii "a:" using utf8)));
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	1411	Incorrect string value: 'convert(_ascii'a:' using utf8)' for function inet6_aton
 #
 # End of 5.6 tests
@@ -5902,7 +5902,7 @@ Warning	1411	Incorrect string value: 'convert(_ascii'a:' using utf8)' for functi
 #
 SET NAMES utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t1(c1 INT);
 INSERT INTO t1 VALUES(1),(2),(3);
 SELECT hex(convert( substr(_utf8 0xE5A4A7E4B88DE58897E9A2A0E58F8AE58C97E788B1E5B094E585B0E88194E59088E78E8BE59BBD, 1, 15), BINARY)) FROM t1;
@@ -5911,7 +5911,7 @@ E5A4A7E4B88DE58897E9A2A0E58F8AE58C97E788B1E5B094E585B0E88194E59088E78E8BE59BBD
 E5A4A7E4B88DE58897E9A2A0E58F8AE58C97E788B1E5B094E585B0E88194E59088E78E8BE59BBD
 E5A4A7E4B88DE58897E9A2A0E58F8AE58C97E788B1E5B094E585B0E88194E59088E78E8BE59BBD
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT hex(convert( substr('大不列颠及北爱尔兰联合王国', 1, 15), BINARY)) FROM t1;
 hex(convert( substr('大不列颠及北爱尔兰联合王国', 1, 15), BINARY))
 E5A4A7E4B88DE58897E9A2A0E58F8AE58C97E788B1E5B094E585B0E88194E59088E78E8BE59BBD

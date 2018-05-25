@@ -1,6 +1,6 @@
 set names utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* A new Doc ID must be supplied while updating FTS indexed columns.");
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* FTS Doc ID must be larger than [0-9]+ for table `test`.`t1`");
 CREATE TABLE t1 (
@@ -10,7 +10,7 @@ b1 TEXT ,
 FULLTEXT KEY (a1,b1), PRIMARY KEY (a1, id1)
 ) CHARACTER SET = utf8 , ENGINE = InnoDB;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t2 (
 id2 INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 a2 VARCHAR(200),
@@ -19,7 +19,7 @@ FOREIGN KEY (a2) REFERENCES t1(a1) ON UPDATE CASCADE,
 FULLTEXT KEY (b2,a2)
 ) CHARACTER SET = utf8 ,ENGINE = InnoDB;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 (id1,a1,b1) VALUES
 (1,'MySQL Tutorial','DBMS stands for DataBase VÐƷWİ...')  ,
 (2,'How To Use MySQL Well','After you went through a ...'),
@@ -204,8 +204,8 @@ b1 TEXT character set utf8 ,
 FULLTEXT KEY (a1,b1)
 ) CHARACTER SET = utf8 ,ENGINE = InnoDB;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t2 (
 id2 INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 a2 VARCHAR(200),
@@ -214,8 +214,8 @@ FOREIGN KEY (a2) REFERENCES t1(a1) ON DELETE CASCADE,
 FULLTEXT KEY (b2,a2)
 ) CHARACTER SET = utf8 ,ENGINE = InnoDB;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 (id1,a1,b1) VALUES
 (1,'MySQL Tutorial','DBMS stands for DataBase VÐƷWİ...')  ,
 (2,'How To Use MySQL Well','After you went through a ...'),
@@ -248,7 +248,7 @@ b1 TEXT ,
 FULLTEXT KEY (a1,b1), PRIMARY KEY(a1, id1)
 ) CHARACTER SET = utf8 , ENGINE = InnoDB;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t2 (
 id2 INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 a2 VARCHAR(200),
@@ -257,7 +257,7 @@ FOREIGN KEY (a2) REFERENCES t1(a1) ON UPDATE CASCADE,
 FULLTEXT KEY (b2,a2)
 ) CHARACTER SET = utf8 ,ENGINE = InnoDB;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 (id1,a1,b1) VALUES
 (1,'MySQL Tutorial','DBMS stands for DataBase VÐƷWİ...')  ,
 (2,'How To Use MySQL Well','After you went through a ...'),
@@ -485,7 +485,7 @@ a VARCHAR(200),
 b TEXT
 ) CHARACTER SET = utf8, ROW_FORMAT=COMPRESSED, ENGINE = InnoDB;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 (a,b) VALUES
 ('MySQL Tutorial','DBMS stands for DataBase VÐƷWİ...')  ,
 ('How To Use MySQL Well','After you went through a ...'),
@@ -672,7 +672,7 @@ a VARCHAR(200),
 b TEXT
 ) CHARACTER SET = utf8, ENGINE=InnoDB;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 (a,b) VALUES
 ('Я могу есть стекло', 'оно мне не вредит'),
 ('Мога да ям стъкло', 'то не ми вреди'),
