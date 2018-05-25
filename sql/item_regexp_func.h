@@ -229,6 +229,8 @@ class Item_func_regexp_instr : public Item_func_regexp {
     set_data_type_longlong();
   }
 
+  Item_result result_type() const override { return INT_RESULT; }
+
   bool fix_fields(THD *thd, Item **arguments) override;
 
   String *val_str(String *str) override { return convert_int_to_str(str); }
@@ -281,6 +283,8 @@ class Item_func_regexp_like : public Item_func_regexp {
     set_data_type_longlong();
   }
 
+  Item_result result_type() const override { return INT_RESULT; }
+
   String *val_str(String *str) override { return convert_int_to_str(str); }
 
   double val_real() override { return convert_int_to_real(); }
@@ -317,6 +321,8 @@ class Item_func_regexp_replace : public Item_func_regexp {
       : Item_func_regexp(pos, args) {
     set_data_type_string_init();
   }
+
+  Item_result result_type() const override { return STRING_RESULT; }
 
   bool resolve_type(THD *) final;
 
@@ -356,6 +362,8 @@ class Item_func_regexp_substr : public Item_func_regexp {
       : Item_func_regexp(pos, args) {
     set_data_type_string_init();
   }
+
+  Item_result result_type() const override { return STRING_RESULT; }
 
   bool resolve_type(THD *) final;
 
