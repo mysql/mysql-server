@@ -864,8 +864,6 @@ f1	f2	f3
 111111	aaaaaa	1
 222222	bbbbbb	2
 drop table t1;
-Warning: using '--ndb' with 'perror' is deprecated and this functionality may not be available in the future versions, please use 'ndb_perror' instead
-Illegal ndb error code: 123456
 CREATE TABLE t1 (
 a VARBINARY(40) NOT NULL,
 b VARCHAR (256) CHARACTER SET UTF8 NOT NULL,

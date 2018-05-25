@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,7 @@
 #define QRY_EMPTY_PROJECTION 4826
 
 // We do not need this when building the 'perror' utility
-#if defined(__cplusplus) && !defined(PERROR_VERSION)
+#if defined(__cplusplus)
 #include <Vector.hpp>
 #include <Bitmask.hpp>
 #include "NdbQueryBuilder.hpp"

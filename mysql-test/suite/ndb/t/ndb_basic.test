@@ -708,11 +708,6 @@ drop table t1;
 # Bug#16561 Unknown ERROR msg "ERROR 1186 (HY000): Binlog closed" by perror
 #
 
-# As long there is no error code XXX defined by NDB
-# we should get a message "Illegal ndb error code: XXX"
---error 1
---exec $MY_PERROR --ndb 123456 2>&1
-
 #
 # Bug #25746 - VARCHAR UTF8 PK issue
 # - prior to bugfix 4209, illegal length parameter would be

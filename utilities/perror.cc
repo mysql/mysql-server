@@ -33,12 +33,6 @@
 #include "my_getopt.h"
 #include "my_sys.h"
 #include "mysys_err.h"
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-#define PERROR_VERSION "2.11"
-#include "storage/ndb/include/mgmapi/mgmapi_error.h"
-#include "storage/ndb/src/kernel/error/ndbd_exit_codes.cpp"
-#include "storage/ndb/src/ndbapi/ndberror.cpp"
-#endif
 #include "print_version.h"
 #include "welcome_copyright_notice.h" /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
@@ -48,31 +42,11 @@ static bool verbose;
 #include "my_compiler.h"
 #include "mysys/my_handler_errors.h"
 
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-static bool ndb_code;
-static char ndb_string[1024];
-int mgmapi_error_string(int err_no, char *str, int size) {
-  int i;
-  for (i = 0; i < ndb_mgm_noOfErrorMsgs; i++) {
-    if ((int)ndb_mgm_error_msgs[i].code == err_no) {
-      snprintf(str, size - 1, "%s", ndb_mgm_error_msgs[i].msg);
-      str[size - 1] = '\0';
-      return 0;
-    }
-  }
-  return -1;
-}
-#endif
-
 static struct my_option my_long_options[] = {
     {"help", '?', "Displays this help and exits.", 0, 0, 0, GET_NO_ARG, NO_ARG,
      0, 0, 0, 0, 0, 0},
     {"info", 'I', "Synonym for --help.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0,
      0, 0, 0},
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-    {"ndb", 257, "Ndbcluster storage engine specific error codes.", &ndb_code,
-     &ndb_code, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-#endif
     {"silent", 's', "Only print the error message.", 0, 0, 0, GET_NO_ARG,
      NO_ARG, 0, 0, 0, 0, 0, 0},
     {"verbose", 'v', "Print error code and message (default).", &verbose,
@@ -294,34 +268,7 @@ int main(int argc, char *argv[]) {
           code = get_ER_error_msg_by_symbol((char *)*argv);
       }
 
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-      if (ndb_code) {
-        if ((ndb_error_string(code, ndb_string, sizeof(ndb_string)) < 0) &&
-            (ndbd_exit_string(code, ndb_string, sizeof(ndb_string)) < 0) &&
-            (mgmapi_error_string(code, ndb_string, sizeof(ndb_string)) < 0)) {
-          msg = 0;
-        } else
-          msg = ndb_string;
-
-        fprintf(stderr,
-                "Warning: using '--ndb' with 'perror' is deprecated and this "
-                "functionality may not be available in the future versions, "
-                "please use 'ndb_perror' instead\n");
-
-        if (msg) {
-          if (verbose)
-            printf("NDB error code %3d: %s\n", code, msg);
-          else
-            puts(msg);
-        } else {
-          fprintf(stderr, "Illegal ndb error code: %d\n", code);
-          error = 1;
-        }
-        found = 1;
-        msg = 0;
-      } else
-#endif
-        msg = strerror(code);
+      msg = strerror(code);
 
       /*
         We don't print the OS error message if it is the same as the

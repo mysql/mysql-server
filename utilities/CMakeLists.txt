@@ -98,14 +98,6 @@ SET_TARGET_PROPERTIES(my_print_defaults PROPERTIES LINKER_LANGUAGE CXX)
 
 MYSQL_ADD_EXECUTABLE(perror perror.cc)
 ADD_DEPENDENCIES(perror GenError)
-IF(WITH_NDBCLUSTER)
-  # In case NDB is compiled in.
-  TARGET_INCLUDE_DIRECTORIES(perror PUBLIC
-    ${CMAKE_SOURCE_DIR}/storage/ndb/include
-    ${CMAKE_BINARY_DIR}/storage/ndb/include
-    ${CMAKE_SOURCE_DIR}/storage/ndb/include/ndbapi
-    ${CMAKE_SOURCE_DIR}/storage/ndb/include/mgmapi)
-ENDIF()
 TARGET_LINK_LIBRARIES(perror mysys mysys_ssl)
 SET_TARGET_PROPERTIES(perror PROPERTIES LINKER_LANGUAGE CXX)
 
