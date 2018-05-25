@@ -2128,9 +2128,6 @@ ALTER DATABASE db COLLATE DEFAULT;
 ALTER TABLE t COLLATE DEFAULT;
 
 --error ER_PARSE_ERROR
-ALTER TABLE t CONVERT TO CHARSET DEFAULT;
-
---error ER_PARSE_ERROR
 SET NAMES utf8 COLLATE DEFAULT;
 
 --error ER_PARSE_ERROR
@@ -2178,3 +2175,113 @@ CREATE FUNCTION f1() RETURNS CHAR(1) COLLATE DEFAULT RETURN '';
 
 CREATE TEMPORARY TABLE admin (admin INT);
 DROP TABLE admin;
+
+
+--echo #
+--echo # Bug#27760787: ERROR IN SQL SYNTAX WHEN USING "DEFAULT" KEYWORD IN
+--echo #               ALTER TABLE COMMAND
+
+SELECT @@default_collation_for_utf8mb4;
+
+--echo #########################################################################
+--echo #
+--echo # 1. @@default_collation_for_utf8mb4 does not matter:
+--echo #
+--echo #########################################################################
+
+CREATE DATABASE db1 CHARSET cp1251 COLLATE cp1251_general_ci;
+USE db1;
+CREATE TABLE t1 (i INT) CHARSET utf8mb4;
+
+--echo #
+--echo # Implicit COLLATE:
+--echo #
+
+ALTER TABLE t1 CONVERT TO CHARACTER SET DEFAULT;
+SHOW CREATE TABLE t1;
+
+--echo #
+--echo # Explicit COLLATE:
+--echo #
+
+ALTER TABLE t1 CONVERT TO CHARACTER SET DEFAULT COLLATE cp1251_bin;
+SHOW CREATE TABLE t1;
+
+DROP DATABASE db1;
+
+--echo #########################################################################
+--echo #
+--echo # 2. @@default_collation_for_utf8mb4 == utf8mb4_general_ci
+--echo #    @@collation_database            == utf8mb4_0900_ai_ci
+--echo #
+--echo #########################################################################
+
+SET @@default_collation_for_utf8mb4 = utf8mb4_general_ci;
+
+CREATE DATABASE db2 COLLATE utf8mb4_0900_ai_ci;
+USE db2;
+
+CREATE TABLE t2 (i INT) CHARSET latin1;
+
+--echo #
+--echo # Implicit COLLATE result in utf8mb4_0900_ai_ci (@@collation_database):
+--echo #
+
+ALTER TABLE t2 CONVERT TO CHARACTER SET DEFAULT;
+SHOW CREATE TABLE t2;
+
+--echo # Cleanup:
+ALTER TABLE t2 CONVERT TO CHARACTER SET latin1;
+
+--echo #
+--echo # Explicit COLLATE should result in utf8mb4_bin:
+--echo #
+
+ALTER TABLE t2 CONVERT TO CHARACTER SET DEFAULT COLLATE utf8mb4_bin;
+SHOW CREATE TABLE t2;
+
+DROP DATABASE db2;
+
+--echo #########################################################################
+--echo #
+--echo # 3. @@default_collation_for_utf8mb4 == utf8mb4_0900_ai_ci
+--echo #    @@collation_database            == utf8mb4_general_ci
+--echo #
+--echo #########################################################################
+
+SET @@default_collation_for_utf8mb4 = DEFAULT;
+SELECT @@default_collation_for_utf8mb4;
+
+CREATE DATABASE db3 COLLATE utf8mb4_general_ci;
+USE db3;
+
+CREATE TABLE t3 (i INT) CHARSET latin1;
+
+--echo #
+--echo # Implicit COLLATE should result in utf8mb4_general_ci (@@collation_database):
+--echo #
+
+ALTER TABLE t3 CONVERT TO CHARACTER SET DEFAULT;
+SHOW CREATE TABLE t3;
+
+--echo #
+--echo # Explicit COLLATE should result in utf8mb4_bin:
+--echo #
+
+ALTER TABLE t3 CONVERT TO CHARACTER SET DEFAULT COLLATE utf8mb4_bin;
+SHOW CREATE TABLE t3;
+
+--echo #########################################################################
+--echo #
+--echo # 4.  Incompatible character set in @@character_set_database and COLLATE should fail:
+--echo #
+--echo #########################################################################
+
+--error ER_COLLATION_CHARSET_MISMATCH
+ALTER TABLE t3 CONVERT TO CHARACTER SET DEFAULT COLLATE cp1251_general_cs;
+
+DROP DATABASE db3;
+
+--echo # Cleanup
+
+USE test;

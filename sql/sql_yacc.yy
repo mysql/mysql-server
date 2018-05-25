@@ -7843,6 +7843,12 @@ alter_list_item:
           {
             $$= NEW_PTN PT_alter_table_convert_to_charset($4, $5);
           }
+        | CONVERT_SYM TO_SYM character_set DEFAULT_SYM opt_collate
+          {
+            $$ = NEW_PTN PT_alter_table_convert_to_charset(
+                YYTHD->variables.collation_database,
+                $5 ? $5 : YYTHD->variables.collation_database);
+          }
         | FORCE_SYM
           {
             $$= NEW_PTN PT_alter_table_force;
