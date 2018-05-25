@@ -1729,9 +1729,8 @@ bool Fil_shard::reserve_open_slot(size_t shard_id) {
 void Fil_shard::release_open_slot(size_t shard_id) {
   size_t expected = shard_id;
 
-  bool success = s_open_slot.compare_exchange_weak(expected, EMPTY_OPEN_SLOT);
-
-  ut_a(success);
+  while (!s_open_slot.compare_exchange_weak(expected, EMPTY_OPEN_SLOT)) {
+  };
 }
 
 /** Map the space ID and name to the tablespace instance.
