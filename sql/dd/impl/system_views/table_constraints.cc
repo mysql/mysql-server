@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,8 +47,7 @@ Table_constraints::Table_constraints() {
                           "cat.name" + m_target_def.fs_name_collation());
   first_select->add_field(FIELD_CONSTRAINT_SCHEMA, "CONSTRAINT_SCHEMA",
                           "sch.name" + m_target_def.fs_name_collation());
-  first_select->add_field(FIELD_CONSTRAINT_NAME, "CONSTRAINT_NAME",
-                          "CONVERT(idx.name USING utf8)");
+  first_select->add_field(FIELD_CONSTRAINT_NAME, "CONSTRAINT_NAME", "idx.name");
   first_select->add_field(FIELD_TABLE_SCHEMA, "TABLE_SCHEMA",
                           "sch.name" + m_target_def.fs_name_collation());
   first_select->add_field(FIELD_TABLE_NAME, "TABLE_NAME",
@@ -73,7 +72,7 @@ Table_constraints::Table_constraints() {
   second_select->add_field(FIELD_CONSTRAINT_SCHEMA, "CONSTRAINT_SCHEMA",
                            "sch.name" + m_target_def.fs_name_collation());
   second_select->add_field(FIELD_CONSTRAINT_NAME, "CONSTRAINT_NAME",
-                           "CONVERT(fk.name USING utf8)");
+                           "fk.name COLLATE utf8_tolower_ci");
   second_select->add_field(FIELD_TABLE_SCHEMA, "TABLE_SCHEMA",
                            "sch.name" + m_target_def.fs_name_collation());
   second_select->add_field(FIELD_TABLE_NAME, "TABLE_NAME",

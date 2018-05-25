@@ -312,9 +312,6 @@ SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 'T2' ORDER BY constraint_name;
 constraint_name
 t2_ibfk_1
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 RENAME TABLE T2 TO T3;
 SELECT constraint_name FROM information_schema.referential_constraints
 WHERE table_name = 'T3' ORDER BY constraint_name;
@@ -324,9 +321,6 @@ SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 'T3' ORDER BY constraint_name;
 constraint_name
 t3_ibfk_1
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 RENAME TABLE t3 TO T4;
 SELECT constraint_name FROM information_schema.referential_constraints
 WHERE table_name = 'T4' ORDER BY constraint_name;
@@ -336,9 +330,6 @@ SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 'T4' ORDER BY constraint_name;
 constraint_name
 t4_ibfk_1
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP TABLE T4;
 CREATE TABLE T2(a INT, CONSTRAINT T2_ibfk_1 FOREIGN KEY(a) REFERENCES t1(a));
 SELECT constraint_name FROM information_schema.referential_constraints
@@ -349,9 +340,6 @@ SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 'T2' ORDER BY constraint_name;
 constraint_name
 T2_ibfk_1
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 RENAME TABLE T2 TO T3;
 SELECT constraint_name FROM information_schema.referential_constraints
 WHERE table_name = 'T3' ORDER BY constraint_name;
@@ -361,8 +349,5 @@ SELECT constraint_name FROM information_schema.table_constraints
 WHERE table_name = 'T3' ORDER BY constraint_name;
 constraint_name
 T2_ibfk_1
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 ALTER TABLE T3 DROP FOREIGN KEY t2_ibfk_1;
 DROP TABLE T3, t1;

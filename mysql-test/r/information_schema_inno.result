@@ -14,9 +14,6 @@ def	test	t2_ibfk_1	test	t2	FOREIGN KEY
 def	test	t2_ibfk_2	test	t2	FOREIGN KEY
 def	test	PRIMARY	test	t3	PRIMARY KEY
 def	test	t3_ibfk_1	test	t3	FOREIGN KEY
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select * from information_schema.KEY_COLUMN_USAGE where
 TABLE_SCHEMA= "test" order by TABLE_SCHEMA, TABLE_NAME, CONSTRAINT_NAME, COLUMN_NAME;
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	POSITION_IN_UNIQUE_CONSTRAINT	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME
@@ -27,9 +24,6 @@ def	test	t2_ibfk_2	def	test	t2	t1_id	1	1	test	t1	id
 def	test	PRIMARY	def	test	t3	id	1	NULL	NULL	NULL	NULL
 def	test	t3_ibfk_1	def	test	t3	id	1	1	test	t2	t1_id
 def	test	t3_ibfk_1	def	test	t3	t2_id	2	2	test	t2	id
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 drop table t3, t2, t1;
 CREATE TABLE t1(a1 INT NOT NULL, a2 INT NOT NULL,
 PRIMARY KEY(a1, a2)) ENGINE=INNODB;
@@ -56,15 +50,12 @@ from information_schema.TABLE_CONSTRAINTS a,
 information_schema.REFERENTIAL_CONSTRAINTS b
 where a.CONSTRAINT_SCHEMA COLLATE UTF8_GENERAL_CI = 'test' and
 a.CONSTRAINT_SCHEMA COLLATE UTF8_GENERAL_CI = b.CONSTRAINT_SCHEMA and
-a.CONSTRAINT_NAME COLLATE UTF8_GENERAL_CI = b.CONSTRAINT_NAME;
+a.CONSTRAINT_NAME = b.CONSTRAINT_NAME;
 CONSTRAINT_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_SCHEMA	UNIQUE_CONSTRAINT_NAME	MATCH_OPTION	UPDATE_RULE	DELETE_RULE	REFERENCED_TABLE_NAME
 test	t2	FOREIGN KEY	A1	test	PRIMARY	NONE	CASCADE	NO ACTION	t1
 test	t3	FOREIGN KEY	A2	test	NULL	NONE	SET NULL	RESTRICT	t2
 test	t4	FOREIGN KEY	A3	test	NULL	NONE	NO ACTION	SET NULL	t3
 test	t5	FOREIGN KEY	A4	test	t4_ukey	NONE	RESTRICT	CASCADE	t4
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 drop tables t5, t4, t3, t2, t1;
 create database `db-1`;
 use `db-1`;
@@ -87,9 +78,6 @@ referenced_table_schema	referenced_table_name
 NULL	NULL
 NULL	NULL
 db-1	t-2
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 drop database `db-1`;
 create table t1(id int primary key) engine = Innodb;
 create table t2(pid int, foreign key (pid) references t1(id)) engine = Innodb;
