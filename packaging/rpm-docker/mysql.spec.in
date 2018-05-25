@@ -161,7 +161,6 @@ mkdir release
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DMYSQLX_UNIX_ADDR="/var/run/mysqld/mysqlx.sock" \
            -DFEATURE_SET="%{feature_set}" \
-           -DWITH_NUMA=ON \
            %{?mecab_option} \
            -DWITH_SSL=system \
 %if 0%{?cluster}
