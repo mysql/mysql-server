@@ -625,6 +625,16 @@ IF(WIN32)
     ADD_COMPILE_FLAGS(
       ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
       COMPILE_FLAGS "/d2OptimizeHugeFunctions")
+  ELSE()
+      # The optimization _may_ be available in VS2015 if hotfix
+      # KB3207317 is installed
+      MY_CHECK_CXX_COMPILER_FLAG("/d2OptimizeHugeFunctions"
+                                 HAVE_OPTIMIZE_HUGE_FUNCTIONS)
+      IF(HAVE_OPTIMIZE_HUGE_FUNCTIONS)
+        ADD_COMPILE_FLAGS(
+          ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
+          COMPILE_FLAGS "/d2OptimizeHugeFunctions")
+      ENDIF()
   ENDIF()
 ENDIF()
 
