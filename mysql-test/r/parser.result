@@ -2225,8 +2225,6 @@ ALTER DATABASE db COLLATE DEFAULT;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DEFAULT' at line 1
 ALTER TABLE t COLLATE DEFAULT;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DEFAULT' at line 1
-ALTER TABLE t CONVERT TO CHARSET DEFAULT;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DEFAULT' at line 1
 SET NAMES utf8 COLLATE DEFAULT;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DEFAULT' at line 1
 SET NAMES DEFAULT COLLATE DEFAULT;
@@ -2261,3 +2259,112 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 #
 CREATE TEMPORARY TABLE admin (admin INT);
 DROP TABLE admin;
+#
+# Bug#27760787: ERROR IN SQL SYNTAX WHEN USING "DEFAULT" KEYWORD IN
+#               ALTER TABLE COMMAND
+SELECT @@default_collation_for_utf8mb4;
+@@default_collation_for_utf8mb4
+utf8mb4_0900_ai_ci
+#########################################################################
+#
+# 1. @@default_collation_for_utf8mb4 does not matter:
+#
+#########################################################################
+CREATE DATABASE db1 CHARSET cp1251 COLLATE cp1251_general_ci;
+USE db1;
+CREATE TABLE t1 (i INT) CHARSET utf8mb4;
+#
+# Implicit COLLATE:
+#
+ALTER TABLE t1 CONVERT TO CHARACTER SET DEFAULT;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=cp1251
+#
+# Explicit COLLATE:
+#
+ALTER TABLE t1 CONVERT TO CHARACTER SET DEFAULT COLLATE cp1251_bin;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=cp1251 COLLATE=cp1251_bin
+DROP DATABASE db1;
+#########################################################################
+#
+# 2. @@default_collation_for_utf8mb4 == utf8mb4_general_ci
+#    @@collation_database            == utf8mb4_0900_ai_ci
+#
+#########################################################################
+SET @@default_collation_for_utf8mb4 = utf8mb4_general_ci;
+Warnings:
+Warning	1681	Updating 'default_collation_for_utf8mb4' is deprecated. It will be made read-only in a future release.
+CREATE DATABASE db2 COLLATE utf8mb4_0900_ai_ci;
+USE db2;
+CREATE TABLE t2 (i INT) CHARSET latin1;
+#
+# Implicit COLLATE result in utf8mb4_0900_ai_ci (@@collation_database):
+#
+ALTER TABLE t2 CONVERT TO CHARACTER SET DEFAULT;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Cleanup:
+ALTER TABLE t2 CONVERT TO CHARACTER SET latin1;
+#
+# Explicit COLLATE should result in utf8mb4_bin:
+#
+ALTER TABLE t2 CONVERT TO CHARACTER SET DEFAULT COLLATE utf8mb4_bin;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+DROP DATABASE db2;
+#########################################################################
+#
+# 3. @@default_collation_for_utf8mb4 == utf8mb4_0900_ai_ci
+#    @@collation_database            == utf8mb4_general_ci
+#
+#########################################################################
+SET @@default_collation_for_utf8mb4 = DEFAULT;
+Warnings:
+Warning	1681	Updating 'default_collation_for_utf8mb4' is deprecated. It will be made read-only in a future release.
+SELECT @@default_collation_for_utf8mb4;
+@@default_collation_for_utf8mb4
+utf8mb4_0900_ai_ci
+CREATE DATABASE db3 COLLATE utf8mb4_general_ci;
+USE db3;
+CREATE TABLE t3 (i INT) CHARSET latin1;
+#
+# Implicit COLLATE should result in utf8mb4_general_ci (@@collation_database):
+#
+ALTER TABLE t3 CONVERT TO CHARACTER SET DEFAULT;
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+#
+# Explicit COLLATE should result in utf8mb4_bin:
+#
+ALTER TABLE t3 CONVERT TO CHARACTER SET DEFAULT COLLATE utf8mb4_bin;
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+#########################################################################
+#
+# 4.  Incompatible character set in @@character_set_database and COLLATE should fail:
+#
+#########################################################################
+ALTER TABLE t3 CONVERT TO CHARACTER SET DEFAULT COLLATE cp1251_general_cs;
+ERROR 42000: COLLATION 'cp1251_general_cs' is not valid for CHARACTER SET 'utf8mb4'
+DROP DATABASE db3;
+# Cleanup
+USE test;
