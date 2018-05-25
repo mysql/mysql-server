@@ -13,8 +13,8 @@ from tmp
 where d<@edge_count
 )
 select s,e from tmp;
-create index on edges (s);
-create index on edges (e);
+create index idx1 on edges (s);
+create index idx2 on edges (e);
 flush status;
 set @start_node=60308;
 select * from edges where s=@start_node order by e;

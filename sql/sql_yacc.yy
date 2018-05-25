@@ -1693,13 +1693,13 @@ void warn_about_deprecated_national(THD *thd)
 
 %type <index_option> index_option common_index_option fulltext_index_option
           spatial_index_option
+          index_type_clause
+          opt_index_type_clause
 
 %type <alter_table_algorithm> alter_algorithm_option_value
         alter_algorithm_option
 
 %type <alter_table_lock> alter_lock_option_value alter_lock_option
-
-%type <index_type> index_type_clause
 
 %type <table_constraint_def> table_constraint_def
 
@@ -2861,14 +2861,14 @@ default_role_clause:
         ;
 
 create_index_stmt:
-          CREATE opt_unique INDEX_SYM opt_index_name_and_type
+          CREATE opt_unique INDEX_SYM ident opt_index_type_clause
           ON_SYM table_ident '(' key_list ')' opt_index_options
           opt_index_lock_and_algorithm
           {
-            $$= NEW_PTN PT_create_index_stmt(YYMEM_ROOT, $2, $4.name, $4.type,
-                                             $6, $8, $10,
-                                             $11.algo.get_or_default(),
-                                             $11.lock.get_or_default());
+            $$= NEW_PTN PT_create_index_stmt(YYMEM_ROOT, $2, $4, $5,
+                                             $7, $9, $11,
+                                             $12.algo.get_or_default(),
+                                             $12.lock.get_or_default());
           }
         | CREATE FULLTEXT_SYM INDEX_SYM ident ON_SYM table_ident
           '(' key_list ')' opt_fulltext_index_options opt_index_lock_and_algorithm
@@ -6983,6 +6983,11 @@ opt_index_name_and_type:
           opt_ident                  { $$= {$1, NULL}; }
         | opt_ident USING index_type { $$= {$1, NEW_PTN PT_index_type($3)}; }
         | ident TYPE_SYM index_type  { $$= {$1, NEW_PTN PT_index_type($3)}; }
+        ;
+
+opt_index_type_clause:
+          /* empty */                { $$ = nullptr; }
+        | index_type_clause
         ;
 
 index_type_clause:
