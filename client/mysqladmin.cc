@@ -70,6 +70,7 @@ static my_bool ex_status_printed = 0; /* First output is not relative. */
 static uint ex_var_count, max_var_length, max_val_length;
 
 #include <sslopt-vars.h>
+#include <caching_sha2_passwordopt-vars.h>
 
 static void print_version(void);
 static void usage(void);
@@ -210,6 +211,7 @@ static struct my_option my_long_options[] =
    &interval, &interval, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0,
    0, 0},
 #include <sslopt-longopts.h>
+#include <caching_sha2_passwordopt-longopts.h>
   {"user", 'u', "User for login if not current user.", &user,
    &user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"verbose", 'v', "Write more information.", &opt_verbose,
@@ -415,6 +417,9 @@ int main(int argc,char *argv[])
     TRUE : FALSE;
   mysql_options(&mysql, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS,
                 &can_handle_passwords);
+
+  set_server_public_key(&mysql);
+  set_get_server_public_key_option(&mysql);
 
   if (sql_connect(&mysql, option_wait))
   {

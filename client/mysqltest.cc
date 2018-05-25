@@ -165,9 +165,6 @@ static my_bool is_windows= 0;
 static char **default_argv;
 static const char *load_default_groups[]= { "mysqltest", "client", 0 };
 static char line_buffer[MAX_DELIMITER_LENGTH], *line_buffer_pos= line_buffer;
-#if !defined(HAVE_YASSL)
-static const char *opt_server_public_key= 0;
-#endif
 static my_bool can_handle_expired_passwords= TRUE;
 
 /* Info on properties that can be set with --enable_X and --disable_X */
@@ -299,6 +296,7 @@ typedef Prealloced_array<st_command*, 1024> Q_lines;
 Q_lines *q_lines;
 
 #include "sslopt-vars.h"
+#include <caching_sha2_passwordopt-vars.h>
 
 struct Parser
 {
@@ -5744,6 +5742,10 @@ void safe_connect(MYSQL* mysql, const char *name, const char *host,
                  "program_name", "mysqltest");
   mysql_options(mysql, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS,
                 &can_handle_expired_passwords);
+
+  set_server_public_key(mysql);
+  set_get_server_public_key_option(mysql);
+
   while(!mysql_real_connect(mysql, host,user, pass, db, port, sock,
                             CLIENT_MULTI_STATEMENTS | CLIENT_REMEMBER_OPTIONS))
   {
@@ -5849,6 +5851,10 @@ int connect_n_handle_errors(struct st_command *command,
   mysql_options4(con, MYSQL_OPT_CONNECT_ATTR_ADD, "program_name", "mysqltest");
   mysql_options(con, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS,
                 &can_handle_expired_passwords);
+
+  set_server_public_key(con);
+  set_get_server_public_key_option(con);
+
   while (!mysql_real_connect(con, host, user, pass, db, port, sock ? sock: 0,
                           CLIENT_MULTI_STATEMENTS))
   {
@@ -7102,6 +7108,7 @@ static struct my_option my_long_options[] =
    &sp_protocol, &sp_protocol, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #include "sslopt-longopts.h"
+#include <caching_sha2_passwordopt-longopts.h>
   {"tail-lines", OPT_TAIL_LINES,
    "Number of lines of the result to include in a failure report.",
    &opt_tail_lines, &opt_tail_lines, 0,
