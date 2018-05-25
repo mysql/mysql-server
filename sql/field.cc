@@ -9062,6 +9062,7 @@ void Create_field::create_length_to_internal_length(void) {
 
 uint32 calc_key_length(enum_field_types sql_type, uint32 length,
                        uint32 decimals, bool is_unsigned, uint32 elements) {
+  uint precision;
   switch (sql_type) {
     case MYSQL_TYPE_TINY_BLOB:
     case MYSQL_TYPE_MEDIUM_BLOB:
@@ -9080,9 +9081,10 @@ uint32 calc_key_length(enum_field_types sql_type, uint32 length,
       return length / 8 + (length & 7 ? 1 : 0);
       break;
     case MYSQL_TYPE_NEWDECIMAL:
-      return my_decimal_get_binary_size(
+      precision = std::min<uint>(
           my_decimal_length_to_precision(length, decimals, is_unsigned),
-          decimals);
+          DECIMAL_MAX_PRECISION);
+      return my_decimal_get_binary_size(precision, decimals);
     default:
       return calc_pack_length(sql_type, length);
   }
