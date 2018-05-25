@@ -13,7 +13,7 @@ PRIMARY KEY (id,time)
 (PARTITION p10 VALUES LESS THAN (734708) ENGINE = InnoDB,
 PARTITION p20 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 (time,id2) VALUES ('2011-07-24',1);
 INSERT INTO t1 (time,id2) VALUES ('2011-07-25',1);
 INSERT INTO t1 (time,id2) VALUES ('2011-07-25',1);

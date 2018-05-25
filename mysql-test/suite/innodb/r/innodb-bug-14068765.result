@@ -1,7 +1,7 @@
 CREATE DATABASE testdb_wl5522;
 CREATE TABLE testdb_wl5522.t1(col1 bit(1) , col2 boolean,col3 tinyint , col4 smallint , col5 mediumint ,col6 int , col7 bigint , col8 float (14,3) ,col9 double (14,3), col10 VARCHAR(20) CHARACTER SET utf8 , col11 TEXT CHARACTER SET binary ,      col12 ENUM('a','b','c') CHARACTER SET binary  ,col13 TEXT CHARACTER SET latin1 COLLATE latin1_general_cs ,col14 CHAR(20) , col15 VARBINARY (400) , col16 BINARY(40), col17 BLOB (400) , col18 int not null primary key,col19 DATE ,col20 DATETIME , col21 TIMESTAMP ,col22 TIME , col23 YEAR ) ENGINE = Innodb;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE INDEX idx1 ON testdb_wl5522.t1(col18);
 CREATE INDEX prefix_idx ON testdb_wl5522.t1(col14 (10));
 CREATE UNIQUE INDEX idx2 ON testdb_wl5522.t1(col12);
@@ -21,7 +21,7 @@ UNLOCK TABLES;
 DROP TABLE testdb_wl5522.t1;
 CREATE TABLE testdb_wl5522.t1(col1 bit(1) , col2 boolean,col3 tinyint , col4 smallint , col5 mediumint ,col6 int , col7 bigint , col8 float (14,3) ,col9 double (14,3), col10 VARCHAR(20) CHARACTER SET utf8 , col11 TEXT CHARACTER SET binary ,      col12 ENUM('a','b','c') CHARACTER SET binary  ,col13 TEXT CHARACTER SET latin1 COLLATE latin1_general_cs ,col14 CHAR(20) , col15 VARBINARY (400) , col16 BINARY(40), col17 BLOB (400) , col18 int not null primary key,col19 DATE ,col20 DATETIME , col21 TIMESTAMP ,col22 TIME , col23 YEAR ) ENGINE = Innodb;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE INDEX idx1 ON testdb_wl5522.t1(col18);
 CREATE INDEX prefix_idx ON testdb_wl5522.t1(col14 (10));
 CREATE UNIQUE INDEX idx2 ON testdb_wl5522.t1(col12);

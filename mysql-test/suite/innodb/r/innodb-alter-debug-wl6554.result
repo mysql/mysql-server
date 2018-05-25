@@ -172,8 +172,8 @@ SET DEBUG_SYNC = 'RESET';
 CREATE TABLE t1 (a INT DEFAULT 100 , b VARCHAR(254) CHARACTER SET latin1,
 c VARCHAR(254) CHARACTER SET utf8) ENGINE=Innodb CHARSET=utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE INDEX c1 ON t1(c);
 INSERT IGNORE INTO t1 (a,b) VALUES (1,repeat('a',254)),(2,repeat('b',254)),(3,repeat('c',300));
 Warnings:
@@ -221,7 +221,7 @@ a	LEFT(b,10)	LENGTH(b) = 254	c
 100	zzzzzzzzzz	1	Môžem
 SET DEBUG_SYNC='now SIGNAL s2';
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -264,8 +264,8 @@ SET DEBUG_SYNC = 'RESET';
 CREATE TABLE t1 (a INT DEFAULT 100 , b VARCHAR(254) CHARACTER SET latin1,
 c VARCHAR(254) CHARACTER SET utf8, d CHAR(10) DEFAULT 'test') ENGINE=Innodb CHARSET=utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE INDEX c1 ON t1(c);
 INSERT IGNORE INTO t1 (a,b) VALUES (1,repeat('a',254)),(2,repeat('b',254)),(3,repeat('c',300));
 Warnings:
@@ -283,7 +283,7 @@ ALTER TABLE t1 ADD INDEX idx1(b),CHANGE d d VARCHAR(100) ,ALGORITHM=INPLACE;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot change column type INPLACE. Try ALGORITHM=COPY.
 ALTER TABLE t1 ADD INDEX idx(b),CHANGE b b varchar(355) CHARACTER SET latin1,CHANGE c c varchar(255) CHARACTER SET utf8,DROP INDEX c1 ;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP TABLE t1;
 # Bug#15863023 - case6 enlarge varchar other
 # alter operations with fk on parent

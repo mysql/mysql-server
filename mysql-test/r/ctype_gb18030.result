@@ -72,7 +72,7 @@ select 1 from t1 order by cast(a as char(1));
 drop table t1;
 set names utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t1 (
 name varchar(10),
 level smallint unsigned);
@@ -95,7 +95,7 @@ SET character_set_client= @safe_character_set_client;
 SET character_set_results= @safe_character_set_results;
 SET NAMES utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET collation_connection='gb18030_chinese_ci';
 create table t1 select repeat('a',4000) a;
 delete from t1;
@@ -319,7 +319,7 @@ SELECT HEX(CONVERT(_gb18030 0xA14041 USING utf8));
 HEX(CONVERT(_gb18030 0xA14041 USING utf8))
 EE938641
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT HEX(CONVERT(_gb18030 0xFEFEFEFD814040 USING utf32));
 HEX(CONVERT(_gb18030 0xFEFEFEFD814040 USING utf32))
 0000E4C50000E4C400004E0200000040

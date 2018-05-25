@@ -564,7 +564,7 @@ Mysqlx.Sql.StmtExecuteOk {
 Mysqlx.Notice.Frame {
   type: 1
   scope: LOCAL
-  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 3719\nmsg: \"\\\'utf8\\\' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.\"\n }"
+  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 3719\nmsg: \"\\\'utf8\\\' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.\"\n }"
 }
 
 Mysqlx.Notice.Frame {

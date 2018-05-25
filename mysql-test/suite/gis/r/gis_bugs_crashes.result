@@ -6376,7 +6376,7 @@ CREATE TABLE `t` (
 `geo` geometry DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t values (st_geomfromtext(@geom1));
 DROP TABLE IF EXISTS `t1`;
 Warnings:
@@ -6385,7 +6385,7 @@ CREATE TABLE `t1` (
 `geo` geometry DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values (st_geomfromtext(@geom2));
 select t1.geo from t,t1 where st_intersects(t1.geo, st_buffer(t.geo,50));
 geo

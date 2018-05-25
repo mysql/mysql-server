@@ -100,7 +100,7 @@ KEY thread (thread),
 FULLTEXT KEY beitrag (beitrag)
 ) ENGINE =InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=7923 ;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t2 (
 id int(11) NOT NULL auto_increment,
 text varchar(100) NOT NULL default '',
@@ -108,7 +108,7 @@ PRIMARY KEY  (id),
 KEY text (text)
 ) ENGINE = InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=63 ;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t3 (
 id int(11) NOT NULL auto_increment,
 forum int(11) NOT NULL default '0',
@@ -118,7 +118,7 @@ KEY forum (forum),
 FULLTEXT KEY betreff (betreff)
 ) ENGINE = InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=996 ;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select a.text, b.id, b.betreff
 from 
 t2 a inner join t3 b on a.id = b.forum inner join

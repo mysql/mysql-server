@@ -88,7 +88,7 @@ SET sql_mode='NO_ENGINE_SUBSTITUTION';
 create table t1(f1 varchar(3800) binary not null, key(f1))
 character set utf8 collate utf8_general_ci row_format=dynamic;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	1071	Specified key was too long; max key length is 3072 bytes
 insert into t1 values('aaa');
 drop table t1;

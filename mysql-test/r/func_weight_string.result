@@ -77,7 +77,7 @@ Warning	1301	Result of cast_as_binary() was larger than max_allowed_packet (6710
 #
 SET NAMES utf8;
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET collation_connection=utf16_unicode_ci;
 CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET latin2 COLLATE latin2_czech_cs);
 INSERT INTO t1 VALUES ('abcd');
