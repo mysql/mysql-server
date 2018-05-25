@@ -3343,8 +3343,12 @@ dberr_t dd_table_load_fk(dd::cache::Dictionary_client *client,
     mutex_exit(&dict_sys->mutex);
   }
 
+  DBUG_EXECUTE_IF("enable_stack_overrun_post_alter_commit",
+                  { DBUG_SET("+d,simulate_stack_overrun"); });
   err = dd_table_check_for_child(client, tbl_name, col_names, m_table, dd_table,
                                  thd, check_charsets, ignore_err, fk_tables);
+  DBUG_EXECUTE_IF("enable_stack_overrun_post_alter_commit",
+                  { DBUG_SET("-d,simulate_stack_overrun"); });
 
   if (dict_locked) {
     mutex_enter(&dict_sys->mutex);
@@ -4081,8 +4085,13 @@ dict_table_t *dd_open_table_one(dd::cache::Dictionary_client *client,
   /* Load foreign key info. It could also register child table(s) that
   refers to current table */
   if (exist == nullptr) {
-    dd_table_load_fk(client, norm_name, nullptr, m_table, &dd_table->table(),
-                     thd, false, true, &fk_list);
+    dberr_t error =
+        dd_table_load_fk(client, norm_name, nullptr, m_table,
+                         &dd_table->table(), thd, false, true, &fk_list);
+    if (error != DB_SUCCESS) {
+      dict_table_close(m_table, FALSE, FALSE);
+      m_table = nullptr;
+    }
   }
   mem_heap_free(heap);
 
