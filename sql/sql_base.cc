@@ -3377,13 +3377,23 @@ reset:
 
   table_list->table = table;
 
-  if (table->part_info) {
-    /* Set all [named] partitions as used. */
-    if (table->part_info->set_partition_bitmaps(table_list)) DBUG_RETURN(true);
-  } else if (table_list->partition_names) {
-    /* Don't allow PARTITION () clause on a nonpartitioned table */
-    my_error(ER_PARTITION_CLAUSE_ON_NONPARTITIONED, MYF(0));
-    DBUG_RETURN(true);
+  /*
+    Position for each partition in the bitmap is read from the Handler_share
+    instance of the table. In MYSQL_OPEN_NO_NEW_TABLE_IN_SE mode, table is not
+    opened in the SE and Handler_share instance for it is not created. Hence
+    skipping partitions bitmap setting in the MYSQL_OPEN_NO_NEW_TABLE_IN_SE
+    mode.
+  */
+  if (!(flags & MYSQL_OPEN_NO_NEW_TABLE_IN_SE)) {
+    if (table->part_info) {
+      /* Set all [named] partitions as used. */
+      if (table->part_info->set_partition_bitmaps(table_list))
+        DBUG_RETURN(true);
+    } else if (table_list->partition_names) {
+      /* Don't allow PARTITION () clause on a nonpartitioned table */
+      my_error(ER_PARTITION_CLAUSE_ON_NONPARTITIONED, MYF(0));
+      DBUG_RETURN(true);
+    }
   }
 
   table->init(thd, table_list);
