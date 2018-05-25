@@ -94,6 +94,18 @@ inline bool unlikely(bool expr) { return expr; }
 #define MY_ALIGNED(size)
 #endif
 
+/*
+  the macro below defines a compiler barrier, i.e. compiler-specific code to
+  prevent instructions reordering during compile time.
+*/
+#if defined __GNUC__ || defined __SUNPRO_C || defined __SUNPRO_CC
+# define MY_COMPILER_BARRIER() __asm__ __volatile__ ("" ::: "memory")
+#elif defined _MSC_VER
+# define MY_COMPILER_BARRIER() _ReadWriteBarrier()
+#else
+# error No MY_COMPILER_BARRIER() implementation for this compiler!
+#endif
+
 /* Visual Studio requires '__inline' for C code */
 #if !defined(__cplusplus) && defined(_MSC_VER)
 #define inline __inline
