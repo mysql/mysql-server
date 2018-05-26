@@ -449,24 +449,3 @@ SET @@default_collation_for_utf8mb4 = DEFAULT;
 Warnings:
 Warning	1681	Updating 'default_collation_for_utf8mb4' is deprecated. It will be made read-only in a future release.
 #
-# Bug #27959941: DEFAULT_COLLATION_FOR_UTF8MB4 CAN'T BE SET FROM CONFIGURATION FILE
-#
-#########################################################################
-# Should work: default-collation-for-utf8mb4=utf8mb4_0900_ai_ci
-#########################################################################
-# There should be no errors
-Pattern "\[ERROR\]" not found
-#########################################################################
-# Should work: default-collation-for-utf8mb4=utf8mb4_general_ci
-#########################################################################
-# There should be no errors
-Pattern "\[ERROR\]" not found
-#########################################################################
-# Should fail: default-collation-for-utf8mb4=koi8r_general_ci
-#########################################################################
-include/assert_grep.inc ["unexpected collation name"]
-#########################################################################
-# Should fail: default-collation-for-utf8mb4=WRONG_COLLATION_NAME
-#########################################################################
-include/assert_grep.inc ["unknown collation name"]
-#

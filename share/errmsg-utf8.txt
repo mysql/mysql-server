@@ -18089,9 +18089,6 @@ ER_AUDIT_LOG_TABLE_DEFINITION_NOT_UPDATED
 ER_DD_INITIALIZE_SQL_ERROR
   eng "Execution of server-side SQL statement '%s' failed with error code = %d, error message = '%s'."
 
-ER_INVALID_DEFAULT_UTF8MB4_COLLATION_OPTION
-  eng "Invalid default-collation-for-utf8mb4: expected utf8mb4_0900_ai_ci or utf8mb4_general_ci, got '%s'"
-
 ER_NO_PATH_FOR_SHARED_LIBRARY
   eng "No paths allowed for shared library."
 
