@@ -793,7 +793,6 @@ static char *lc_messages;
 static char *lc_time_names_name;
 char *my_bind_addr_str;
 static char *default_collation_name;
-static char *default_collation_name_for_utf8mb4;
 char *default_storage_engine;
 char *default_tmp_storage_engine;
 /**
@@ -803,8 +802,6 @@ char *default_tmp_storage_engine;
 ulong internal_tmp_disk_storage_engine;
 ulonglong temptable_max_ram;
 static char compiled_default_collation_name[] = MYSQL_DEFAULT_COLLATION_NAME;
-static char compiled_default_collation_name_for_utf8mb4[] =
-    "utf8mb4_0900_ai_ci";
 static bool binlog_format_used = false;
 
 LEX_STRING opt_init_connect, opt_init_slave;
@@ -1141,7 +1138,6 @@ MY_TMPDIR mysql_tmpdir_list;
 CHARSET_INFO *system_charset_info, *files_charset_info;
 CHARSET_INFO *national_charset_info, *table_alias_charset;
 CHARSET_INFO *character_set_filesystem;
-CHARSET_INFO *default_collation_for_utf8mb4;
 
 MY_LOCALE *my_default_lc_messages;
 MY_LOCALE *my_default_lc_time_names;
@@ -3985,6 +3981,8 @@ int init_common_variables() {
   /* Set collactions that depends on the default collation */
   global_system_variables.collation_server = default_charset_info;
   global_system_variables.collation_database = default_charset_info;
+  global_system_variables.default_collation_for_utf8mb4 =
+      &my_charset_utf8mb4_0900_ai_ci;
 
   if (is_supported_parser_charset(default_charset_info)) {
     global_system_variables.collation_connection = default_charset_info;
@@ -4002,17 +4000,6 @@ int init_common_variables() {
             character_set_filesystem_name, MY_CS_PRIMARY, MYF(MY_WME))))
     return 1;
   global_system_variables.character_set_filesystem = character_set_filesystem;
-
-  default_collation_for_utf8mb4 =
-      get_charset_by_name(default_collation_name_for_utf8mb4, MYF(0));
-  if (default_collation_for_utf8mb4 == nullptr ||
-      validate_default_collation_for_utf8mb4(default_collation_for_utf8mb4)) {
-    LogErr(ERROR_LEVEL, ER_INVALID_DEFAULT_UTF8MB4_COLLATION_OPTION,
-           default_collation_name_for_utf8mb4);
-    return 1;
-  }
-  global_system_variables.default_collation_for_utf8mb4 =
-      default_collation_for_utf8mb4;
 
   if (lex_init()) {
     LogErr(ERROR_LEVEL, ER_OOM);
@@ -6988,11 +6975,6 @@ struct my_option my_long_options[] = {
      &opt_console, &opt_console, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
     {"core-file", OPT_WANT_CORE, "Write core on errors.", 0, 0, 0, GET_NO_ARG,
      NO_ARG, 0, 0, 0, 0, 0, 0},
-    {"default-collation-for-utf8mb4", 0,
-     "Set the default collation for utf8mb4 while replicating implicit utf8mb4 "
-     "collations.",
-     &default_collation_name_for_utf8mb4, &default_collation_name_for_utf8mb4,
-     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
     /* default-storage-engine should have "MyISAM" as def_value. Instead
        of initializing it here it is done in init_common_variables() due
        to a compiler bug in Sun Studio compiler. */
@@ -8403,7 +8385,6 @@ static int mysql_init_variables() {
   national_charset_info = &my_charset_utf8_general_ci;
   table_alias_charset = &my_charset_bin;
   character_set_filesystem = &my_charset_bin;
-  default_collation_for_utf8mb4 = &my_charset_utf8mb4_0900_ai_ci;
 
   opt_specialflag = 0;
   mysql_home_ptr = mysql_home;
@@ -8438,8 +8419,6 @@ static int mysql_init_variables() {
   charsets_dir = 0;
   default_character_set_name = (char *)MYSQL_DEFAULT_CHARSET_NAME;
   default_collation_name = compiled_default_collation_name;
-  default_collation_name_for_utf8mb4 =
-      compiled_default_collation_name_for_utf8mb4;
   character_set_filesystem_name = (char *)"binary";
   lc_messages = (char *)mysqld_default_locale_name;
   lc_time_names_name = (char *)mysqld_default_locale_name;

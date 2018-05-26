@@ -1,1 +1,0 @@
-SELECT @@default_collation_for_utf8mb4;

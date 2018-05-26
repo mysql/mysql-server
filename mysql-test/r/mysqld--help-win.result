@@ -218,9 +218,6 @@ The following options may be given as the first argument:
  --default-authentication-plugin=name 
  The default authentication plugin used by the server to
  hash the password.
- --default-collation-for-utf8mb4=name 
- Set the default collation for utf8mb4 while replicating
- implicit utf8mb4 collations.
  --default-password-lifetime=# 
  The number of days after which the password will expire.
  --default-storage-engine=name 
@@ -1369,7 +1366,6 @@ connect-timeout 10
 console FALSE
 cte-max-recursion-depth 1000
 default-authentication-plugin caching_sha2_password
-default-collation-for-utf8mb4 utf8mb4_0900_ai_ci
 default-password-lifetime 0
 default-storage-engine InnoDB
 default-time-zone (No default value)
