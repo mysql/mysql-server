@@ -1092,10 +1092,7 @@ retry:
   Determine the ahi_slot based on the block contents. */
 
   const space_index_t index_id = btr_page_get_index_id(block->frame);
-  const ulint ahi_slot =
-      ut_fold_ulint_pair(static_cast<ulint>(index_id),
-                         static_cast<ulint>(block->page.id.space())) %
-      btr_ahi_parts;
+  const ulint ahi_slot = static_cast<ulint>(index_id) % btr_ahi_parts;
   latch = btr_search_latches[ahi_slot];
 
   ut_ad(!btr_search_own_any(RW_LOCK_S));
