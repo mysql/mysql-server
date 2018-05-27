@@ -38,6 +38,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "univ.i"
 
+#include "os0numa.h"
 #include "os0thread.h"
 #include "ut0dbg.h"
 
@@ -61,6 +62,29 @@ struct generic_indexer_t {
     return (((index % N) + 1) * (INNOBASE_CACHE_LINE_SIZE / sizeof(Type)));
   }
 };
+
+#ifdef HAVE_OS_GETCPU
+/** Use the cpu id to index into the counter array. If it fails then
+use the thread id. */
+template <typename Type=ulint, int N=1>
+struct get_sched_indexer_t : public generic_indexer_t<Type, N> {
+  /** Default constructor/destructor should be OK. */
+
+  enum { fast = 1 };
+
+  /* @return result from sched_getcpu(), use thread id if it fails. */
+  static size_t get_rnd_index() UNIV_NOTHROW {
+
+    int cpu = os_getcpu();
+
+    if (unlikely(cpu < 0)) {
+      return static_cast<size_t>(os_thread_get_curr_id());
+    }
+
+    return(static_cast<size_t>(cpu));
+  }
+};
+#endif
 
 /** Use the result of my_timer_cycles(), which mainly uses RDTSC for cycles,
 to index into the counter array. See the comments for my_timer_cycles() */
@@ -111,7 +135,11 @@ struct single_indexer_t {
   }
 };
 
+#ifdef HAVE_OS_GETCPU
+#define default_indexer_t get_sched_indexer_t
+#else
 #define default_indexer_t counter_indexer_t
+#endif
 
 /** Class for using fuzzy counters. The counter is not protected by any
 mutex and the results are not guaranteed to be 100% accurate but close

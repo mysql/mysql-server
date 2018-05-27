@@ -48,7 +48,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #endif /* HAVE_LIBNUMA */
 
 #ifdef HAVE_SCHED_GETCPU
-#include <utmpx.h>
+#include <sched.h>
 #endif /* HAVE_SCHED_GETCPU */
 
 #ifdef _WIN32
