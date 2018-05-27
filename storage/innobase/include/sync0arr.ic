@@ -47,7 +47,7 @@ sync_array_t *sync_array_get() {
   }
 
   return (
-      sync_wait_array[default_indexer_t<>::get_rnd_index() % sync_array_size]);
+      sync_wait_array[counter_indexer_t<>::get_rnd_index() % sync_array_size]);
 }
 
 /** Get an instance of the sync wait array and reserve a wait array cell

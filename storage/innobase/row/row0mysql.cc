@@ -2541,9 +2541,9 @@ run_again:
     with a latch. */
     dict_table_n_rows_dec(table);
 
-    srv_stats.n_rows_deleted.add((size_t)trx->id, 1);
+    srv_stats.n_rows_deleted.inc();
   } else {
-    srv_stats.n_rows_updated.add((size_t)trx->id, 1);
+    srv_stats.n_rows_updated.inc();
   }
 
   row_update_statistics_if_needed(table);
