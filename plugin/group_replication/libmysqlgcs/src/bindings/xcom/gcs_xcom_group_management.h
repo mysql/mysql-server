@@ -29,6 +29,9 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_state_exchange.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_utils.h"
 
+#include <string>
+#include <vector>
+
 class Gcs_xcom_group_management : public Gcs_group_management_interface {
  public:
   explicit Gcs_xcom_group_management(
@@ -59,6 +62,42 @@ class Gcs_xcom_group_management : public Gcs_group_management_interface {
     XCOM thread and we cannot add a mutex to it.
   */
   void set_xcom_nodes(const Gcs_xcom_nodes &xcom_nodes);
+
+  /*
+   Get a copy of the nodes in the current configuration that are in the
+   filter list.
+
+   @param[out] result_xcom_nodes The set of Gcs_xcom_nodes that are in the
+              filter list
+   @param[in] filter The list of nodes identified as a string that one is
+                     interested in retrieving information on
+   */
+  void get_xcom_nodes(Gcs_xcom_nodes &result_xcom_nodes,
+                      const std::vector<std::string> &filter);
+
+  /*
+   Get a copy of the nodes in the current configuration that are in the
+   filter list.
+
+   @param[out] result_xcom_nodes The set of Gcs_xcom_nodes that are in the
+   filter list
+   @param[in] filter The list of nodes identified as Gcs_member_identifier(s)
+   that one is interested in retrieving information on
+   */
+  void get_xcom_nodes(Gcs_xcom_nodes &result_xcom_nodes,
+                      const std::vector<Gcs_member_identifier> &filter);
+
+  /*
+   Get a copy of the nodes in the current configuration that are in the
+   filter list.
+
+   @param[out] result_xcom_nodes The set of Gcs_xcom_nodes that are in the
+   filter list
+   @param[in] filter The list of nodes identified as Gcs_member_identifier(s)
+   that one is interested in retrieving information on
+   */
+  void get_xcom_nodes(Gcs_xcom_nodes &result_xcom_nodes,
+                      const std::vector<Gcs_member_identifier *> &filter);
 
  private:
   Gcs_xcom_proxy *m_xcom_proxy;

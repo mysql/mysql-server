@@ -187,6 +187,7 @@ Gcs_xcom_nodes::Gcs_xcom_nodes(const site_def *site, node_set &nodes)
       m_addrs(NULL),
       m_uuids(NULL) {
   Gcs_xcom_uuid uuid;
+
   for (unsigned int i = 0; i < nodes.node_set_len; ++i) {
     /* Get member address and save it. */
     std::string address(site->nodes.node_list_val[i].address);

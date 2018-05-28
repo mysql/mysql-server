@@ -23,6 +23,8 @@
 #ifndef GCS_MESSAGE_STAGE_LZ4_H
 #define GCS_MESSAGE_STAGE_LZ4_H
 
+#include <utility>
+
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_message_stages.h"
 
 /**
@@ -31,46 +33,54 @@
  */
 class Gcs_message_stage_lz4 : public Gcs_message_stage {
  private:
-  void encode(unsigned char *hd, unsigned short hd_len,
-              Gcs_message_stage::enum_type_code type_code,
-              unsigned long long uncompressed);
+  /*
+   Methods inherited from the Gcs_message_stage class.
+   */
+  virtual Gcs_message_stage::stage_status skip_apply(
+      const Gcs_packet &packet) const;
 
-  void decode(const unsigned char *hd, unsigned short *hd_len,
-              Gcs_message_stage::enum_type_code *type,
-              unsigned long long *uncompressed);
+  virtual Gcs_message_stage::stage_status skip_revert(
+      const Gcs_packet &packet) const;
+
+  virtual unsigned long long calculate_payload_length(Gcs_packet &packet) const;
+
+  virtual std::pair<bool, unsigned long long> transform_payload_apply(
+      unsigned int version, unsigned char *new_payload_ptr,
+      unsigned long long new_payload_length, unsigned char *old_payload_ptr,
+      unsigned long long old_payload_length);
+
+  virtual std::pair<bool, unsigned long long> transform_payload_revert(
+      unsigned int version, unsigned char *new_payload_ptr,
+      unsigned long long new_payload_length, unsigned char *old_payload_ptr,
+      unsigned long long old_payload_length);
 
  public:
   /**
-   The on-the-wire field size for the uncompressed size field.
+   The default threshold value in bytes.
    */
-  static const unsigned short WIRE_HD_UNCOMPRESSED_SIZE;
+  static const unsigned long long DEFAULT_THRESHOLD = 1024;
 
   /**
-   The on-the-wire uncompressed size field offset within the stage header.
-  */
-  static const unsigned short WIRE_HD_UNCOMPRESSED_OFFSET;
-
-  /**
-   The default threshold value.
-   */
-  static const unsigned long long DEFAULT_THRESHOLD;
-
-  /**
-   Creates an instance of the stage with the default threshold set.
+   Creates an instance of the stage with the default threshold in bytes set.
    */
   explicit Gcs_message_stage_lz4() : m_threshold(DEFAULT_THRESHOLD) {}
 
   /**
-   Creates an instance of the stage with the given threshold.
+   Creates an instance of the stage with the given threshold in bytes.
+
    @param compress_threshold messages with the payload larger
-                             than compress_threshold are compressed.
+                             than compress_threshold in bytes are compressed.
    */
-  explicit Gcs_message_stage_lz4(unsigned long long compress_threshold)
-      : m_threshold(compress_threshold) {}
+  explicit Gcs_message_stage_lz4(bool enabled,
+                                 unsigned long long compress_threshold)
+      : Gcs_message_stage(enabled), m_threshold(compress_threshold) {}
 
   virtual ~Gcs_message_stage_lz4() {}
 
-  virtual enum_type_code type_code() { return ST_LZ4; }
+  /*
+   Return the stage code.
+   */
+  virtual stage_code get_stage_code() const { return stage_code::ST_LZ4; }
 
   /**
     Sets the threshold in bytes after which compression kicks in.
@@ -81,32 +91,14 @@ class Gcs_message_stage_lz4 : public Gcs_message_stage {
   void set_threshold(unsigned long long threshold) { m_threshold = threshold; }
 
   /**
-   This member function SHALL compress the contents of the packet and WILL
-   modify its argument.
-
-   Note that the buffer that packet contains SHALL be modified, since the
-   packet will be deallocated and filled in with a new buffer that contains
-   the compressed data.
-
-   @param p the packet to encode.
+   Return the maximum payload size in bytes that can be compressed.
    */
-  virtual bool apply(Gcs_packet &p);
-
-  /**
-   This member function SHALL uncompress the contents of the packet.
-
-   Note that the packet will be modified, since it will be deallocated and a
-   new buffer with the contents of the uncompressed data shall be put inside.
-
-   @param p the packet to uncompress.
-   @return false on success, true on failures.
-   */
-  virtual bool revert(Gcs_packet &p);
+  static unsigned long long max_input_compression();
 
  private:
   /**
-   This marks the threshold above which a message gets compressed. Messages
-   that are smaller than this threshold are not compressed.
+   This marks the threshold in bytes above which a message gets compressed.
+   Messages that are smaller than this threshold are not compressed.
    */
   unsigned long long m_threshold;
 };

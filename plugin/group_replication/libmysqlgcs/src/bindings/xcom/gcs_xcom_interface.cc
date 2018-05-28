@@ -670,7 +670,7 @@ gcs_xcom_group_interfaces *Gcs_xcom_interface::get_group_interfaces(
     group_interface->vce = vce;
     group_interface->se = se;
 
-    configure_msg_stages(m_initialization_parameters, group_identifier);
+    configure_message_stages(group_identifier);
   } else {
     group_interface = registered_group->second;
   }
@@ -988,53 +988,49 @@ Gcs_xcom_node_address *Gcs_xcom_interface::get_node_address() {
 }
 /* purecov: end*/
 
-enum_gcs_error Gcs_xcom_interface::configure_msg_stages(
-    const Gcs_interface_parameters &p, const Gcs_group_identifier &gid) {
-  // first instantiate the stages
+enum_gcs_error Gcs_xcom_interface::configure_message_stages(
+    const Gcs_group_identifier &gid) {
+  /*
+   Define local variables.
+   */
+  bool error = false;
   Gcs_xcom_communication *comm_if =
       static_cast<Gcs_xcom_communication *>(get_communication_session(gid));
   Gcs_message_pipeline &pipeline = comm_if->get_msg_pipeline();
-  std::vector<Gcs_message_stage::enum_type_code> pipeline_setup;
-
-  // instantiate stages
-  Gcs_message_stage_lz4 *st_lz4 = new Gcs_message_stage_lz4();
-
-  // register stages so that we are able to handle them on receive
-  pipeline.register_stage(st_lz4);
-  MYSQL_GCS_LOG_TRACE("::configure_msg_stages():: Registered st_LZ4");
-
-  // second activate the stages, so that we are able to use them when sending
+  bool enabled = false;
+  unsigned long long threshold = Gcs_message_stage_lz4::DEFAULT_THRESHOLD;
 
   /*
-   The following builds the pipeline. Mind you that the pipeline needs to
-   observe some rules. For instance, one should make the compression stage
-   appear before a stage that for instance encrypts messages.
+   Extract configuration options from the initialization parameters.
    */
-
-  // At this point in time, all parameters have already been checked,
-  // validated and the default values filled in, so it is safe to access
-  // them
-
-  /** STAGE: COMPRESSION */
-  const std::string *sptr = p.get_parameter("compression");
+  const std::string *sptr =
+      m_initialization_parameters.get_parameter("compression");
   if (sptr->compare("on") == 0) {
-    unsigned long long threshold = static_cast<unsigned long long>(
-        atoll(p.get_parameter("compression_threshold")->c_str()));
-
-    st_lz4->set_threshold(threshold);
+    threshold = static_cast<unsigned long long>(atoll(
+        m_initialization_parameters.get_parameter("compression_threshold")
+            ->c_str()));
     MYSQL_GCS_LOG_TRACE(
         "::configure_msg_stages():: Set compression threshold to %llu",
         threshold)
-
-    pipeline_setup.push_back(Gcs_message_stage::ST_LZ4);
+    enabled = true;
   }
 
-  /** End of the pipeline assembly. */
+  /*
+   Create and configure all the stages.
+   */
+  // clang-format off
+  pipeline.cleanup();
+  pipeline.register_stage<Gcs_message_stage_lz4>(enabled, threshold);
+  error = pipeline.register_pipeline({
+    {
+      Gcs_message_pipeline::DEFAULT_PROTOCOL_VERSION, {
+          Gcs_message_stage::stage_code::ST_LZ4
+      }
+    }
+  });
+  // clang-format on
 
-  // build the pipeline for sending messages
-  pipeline.configure_outgoing_pipeline(pipeline_setup);
-
-  return GCS_OK;
+  return (error ? GCS_NOK : GCS_OK);
 }
 
 enum_gcs_error Gcs_xcom_interface::configure_suspicions_mgr(
@@ -1105,7 +1101,7 @@ void do_cb_xcom_receive_data(synode_no message_id, Gcs_xcom_nodes *xcom_nodes,
 
   Gcs_internal_message_header hd;
   Gcs_communication_interface *comm_if = NULL;
-  Gcs_packet p((unsigned char *)data, size);
+  Gcs_packet p(reinterpret_cast<unsigned char *>(data), size);
 
   Gcs_xcom_interface *intf =
       static_cast<Gcs_xcom_interface *>(Gcs_xcom_interface::get_interface());
@@ -1116,7 +1112,7 @@ void do_cb_xcom_receive_data(synode_no message_id, Gcs_xcom_nodes *xcom_nodes,
   if (destination == NULL) {
     // It means that the group is not configured at all...
     MYSQL_GCS_LOG_WARN("Rejecting this message. Group still not configured.")
-    free(p.swap_buffer(NULL, 0));
+    p.free_buffer();
     delete xcom_nodes;
     return;
   }
@@ -1132,7 +1128,7 @@ void do_cb_xcom_receive_data(synode_no message_id, Gcs_xcom_nodes *xcom_nodes,
     MYSQL_GCS_LOG_DEBUG(
         "Rejecting this message. The group communication engine has already "
         "stopped.")
-    free(p.swap_buffer(NULL, 0));
+    p.free_buffer();
     delete xcom_nodes;
     return;
   }
@@ -1158,7 +1154,7 @@ void do_cb_xcom_receive_data(synode_no message_id, Gcs_xcom_nodes *xcom_nodes,
   if (last_config_id.group_id == 0) {
     MYSQL_GCS_LOG_DEBUG(
         "Rejecting this message. The member is not in a view yet.")
-    free(p.swap_buffer(NULL, 0));
+    p.free_buffer();
     delete xcom_nodes;
     return;
   }
@@ -1174,17 +1170,16 @@ void do_cb_xcom_receive_data(synode_no message_id, Gcs_xcom_nodes *xcom_nodes,
       static_cast<Gcs_xcom_communication *>(comm_if)->get_msg_pipeline();
 
   if (hd.decode(p.get_buffer())) {
-    free(p.swap_buffer(NULL, 0));
+    p.free_buffer();
     delete xcom_nodes;
     return;
   }
 
   if (pipeline.incoming(p)) {
-    // TODO: this should return error
     MYSQL_GCS_LOG_ERROR(
         "Rejecting message since it wasn't processed correctly in the "
         "pipeline.")
-    free(p.swap_buffer(NULL, 0));
+    p.free_buffer();
     delete xcom_nodes;
     return;
   }
@@ -1192,7 +1187,7 @@ void do_cb_xcom_receive_data(synode_no message_id, Gcs_xcom_nodes *xcom_nodes,
   // Build a gcs_message from the arriving data...
   MYSQL_GCS_TRACE_EXECUTE(
       if (hd.get_cargo_type() ==
-          Gcs_internal_message_header::CT_INTERNAL_STATE_EXCHANGE) {
+          Gcs_internal_message_header::cargo_type::CT_INTERNAL_STATE_EXCHANGE) {
         MYSQL_GCS_LOG_TRACE(
             "Reading message that carries exchangeable data: (header, "
             "payload)= %llu",
@@ -1200,13 +1195,13 @@ void do_cb_xcom_receive_data(synode_no message_id, Gcs_xcom_nodes *xcom_nodes,
       });
   Gcs_message_data *message_data = new Gcs_message_data(p.get_payload_length());
   if (message_data->decode(p.get_payload(), p.get_payload_length())) {
-    free(p.swap_buffer(NULL, 0));
+    p.free_buffer();
     delete xcom_nodes;
     delete message_data;
     MYSQL_GCS_LOG_WARN("Discarding message. Unable to decode it.");
     return;
   }
-  free(p.swap_buffer(NULL, 0));
+  p.free_buffer();
 
   const Gcs_xcom_node_information *node = xcom_nodes->get_node(message_id.node);
   Gcs_member_identifier origin(node->get_member_id());
@@ -1221,8 +1216,8 @@ void do_cb_xcom_receive_data(synode_no message_id, Gcs_xcom_nodes *xcom_nodes,
     delivered to any registered listeners.
   */
   if (hd.get_cargo_type() ==
-      Gcs_internal_message_header::CT_INTERNAL_STATE_EXCHANGE) {
-    xcom_control_if->process_control_message(message);
+      Gcs_internal_message_header::cargo_type::CT_INTERNAL_STATE_EXCHANGE) {
+    xcom_control_if->process_control_message(message, hd.get_version());
     delete xcom_nodes;
     return;
   }
@@ -1347,6 +1342,7 @@ int cb_xcom_match_port(xcom_port if_port) { return xcom_local_port == if_port; }
 
 void cb_xcom_receive_local_view(synode_no message_id, node_set nodes) {
   const site_def *site = find_site_def(message_id);
+
   if (site->nodeno == VOID_NODE_NO) {
     free_node_set(&nodes);
     return;

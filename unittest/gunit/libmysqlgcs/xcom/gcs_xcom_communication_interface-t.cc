@@ -22,6 +22,7 @@
 
 #include "gcs_base_test.h"
 
+#include "gcs_message_stage_lz4.h"
 #include "gcs_xcom_communication_interface.h"
 #include "gcs_xcom_statistics_interface.h"
 #include "mysql/gcs/gcs_message.h"
@@ -137,6 +138,10 @@ class XComCommunicationTest : public GcsBaseTest {
     mock_proxy = new mock_gcs_xcom_proxy();
     mock_vce = new mock_gcs_xcom_view_change_control_interface();
     xcom_comm_if = new Gcs_xcom_communication(mock_stats, mock_proxy, mock_vce);
+
+    xcom_comm_if->get_msg_pipeline().register_stage<Gcs_message_stage_lz4>();
+    xcom_comm_if->get_msg_pipeline().register_pipeline(
+        {{1, {Gcs_message_stage::stage_code::ST_LZ4}}});
   }
 
   virtual void TearDown() {

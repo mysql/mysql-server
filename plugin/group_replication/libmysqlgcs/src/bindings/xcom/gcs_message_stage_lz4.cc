@@ -32,189 +32,104 @@
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/byteorder.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_internal_message.h"
 
-const unsigned short Gcs_message_stage_lz4::WIRE_HD_UNCOMPRESSED_OFFSET =
-    static_cast<unsigned short>(Gcs_message_stage::WIRE_HD_LEN_SIZE +
-                                Gcs_message_stage::WIRE_HD_TYPE_SIZE);
+const unsigned long long Gcs_message_stage_lz4::DEFAULT_THRESHOLD;
 
-const unsigned short Gcs_message_stage_lz4::WIRE_HD_UNCOMPRESSED_SIZE = 8;
+unsigned long long Gcs_message_stage_lz4::max_input_compression() {
+  /*
+   The code expects that the following assumption will always hold.
+   */
+  static_assert(
+      LZ4_MAX_INPUT_SIZE <= std::numeric_limits<int>::max(),
+      "Maximum input size for lz compression exceeds the expected value");
+  return LZ4_MAX_INPUT_SIZE;
+}
 
-const unsigned long long Gcs_message_stage_lz4::DEFAULT_THRESHOLD = 1024;
-
-bool Gcs_message_stage_lz4::apply(Gcs_packet &packet) {
-  if (packet.get_payload_length() > m_threshold) {
-    unsigned short hd_len = static_cast<unsigned short>(
-        WIRE_HD_UNCOMPRESSED_SIZE + WIRE_HD_UNCOMPRESSED_OFFSET);
-
-    unsigned char *old_buffer = NULL;
-    Gcs_internal_message_header hd;
-
-    unsigned long long fixed_header_len = packet.get_header_length();
-    unsigned long long old_payload_len = packet.get_payload_length();
-
-    // we are compressing the payload, but not the header
-    int compress_bound = LZ4_compressBound(static_cast<int>(old_payload_len));
-    /*
-      Currently, this function can just compress packets smaller than
-      LZ4_MAX_INPUT_SIZE. old_payload_len > max() must be tested, because high
-      32bits of old_payload_len bigger than max() will be truncated when
-      passing to LZ4_compressBound. The truncated value may be small enough
-      and the function will think it can be compressed and return an valid
-      value. E.g 0x100000001 will became 0x1 after high 32bits are truncated.
-    */
-    if (old_payload_len > std::numeric_limits<unsigned int>::max() ||
-        compress_bound <= 0) {
-      MYSQL_GCS_LOG_ERROR(
-          "Gcs_packet's payload is too big. Only the packets "
-          "smaller than 2113929216 bytes can be compressed.");
-      return true;
-    }
-
-    unsigned long long new_packet_len =
-        fixed_header_len + hd_len + static_cast<unsigned int>(compress_bound);
-    int compressed_len = 0;
-    // align to Gcs_packet::BLOCK_SIZE
-    unsigned long long new_capacity =
-        ((new_packet_len / Gcs_packet::BLOCK_SIZE) + 1) *
-        Gcs_packet::BLOCK_SIZE;
-    unsigned char *new_buffer = (unsigned char *)malloc(new_capacity);
-    unsigned char *new_payload_ptr = new_buffer + fixed_header_len + hd_len;
-
-    // compress payload
-    compressed_len = LZ4_compress_default(
-        (const char *)packet.get_payload(), (char *)new_payload_ptr,
-        static_cast<int>(old_payload_len), compress_bound);
-
-    new_packet_len =
-        fixed_header_len + hd_len + static_cast<unsigned int>(compressed_len);
-
-    // swap buffers
-    old_buffer = packet.swap_buffer(new_buffer, new_capacity);
-
-    // copy the header and fix a couple of fields in it
-    hd.decode(old_buffer);  // decode old information
-    hd.set_msg_length(new_packet_len);
-    hd.set_dynamic_headers_length(hd.get_dynamic_headers_length() + hd_len);
-    hd.encode(packet.get_buffer());  // encode to the new buffer
-
-    // reload the header details into the packet
-    packet.reload_header(hd);
-
-    // encode the new dynamic header into the buffer
-    encode(packet.get_payload(), hd_len, Gcs_message_stage::ST_LZ4,
-           old_payload_len);
-
-    // delete the temp buffer
-    free(old_buffer);
+Gcs_message_stage::stage_status Gcs_message_stage_lz4::skip_apply(
+    const Gcs_packet &packet) const {
+  /*
+   Check if the packet really needs to be compressed.
+   */
+  if (packet.get_payload_length() < m_threshold) {
+    return stage_status::skip;
   }
 
-  return false;
-}
-
-bool Gcs_message_stage_lz4::revert(Gcs_packet &packet) {
-  // if there are valid headers in the packet
-  if (packet.get_dyn_headers_length() > 0) {
-    Gcs_message_stage::enum_type_code type_code;
-    unsigned short hd_len;
-
-    unsigned char *old_buffer = NULL;
-    Gcs_internal_message_header hd;
-
-    unsigned long long fixed_header_size = packet.get_header_length();
-    unsigned long long old_payload_len = packet.get_payload_length();
-    unsigned long long new_length = 0;
-    unsigned long long uncompressed_size = 0;
-
-    // align to Gcs_packet::BLOCK_SIZE
-    unsigned long long new_capacity = 0;
-
-    // decode the header
-    decode(packet.get_payload(), &hd_len, &type_code, &uncompressed_size);
-
-    /* assert(type_code==this->type_code()); */
-
-    new_capacity =
-        (((uncompressed_size + fixed_header_size) / Gcs_packet::BLOCK_SIZE) +
-         1) *
-        Gcs_packet::BLOCK_SIZE;
-
-    unsigned char *new_buffer = (unsigned char *)malloc(new_capacity);
-    if (!new_buffer) return true;
-    unsigned char *compressed_payload_ptr = packet.get_payload() + hd_len;
-    unsigned char *new_payload_ptr = new_buffer + fixed_header_size;
-
-    // This is the deserialization part, so assertions are fine.
-    assert(old_payload_len < std::numeric_limits<unsigned int>::max());
-    assert(uncompressed_size < std::numeric_limits<unsigned int>::max());
-    // decompress to the new buffer
-    int src_len = static_cast<int>(old_payload_len - hd_len);
-    int dest_len = static_cast<int>(uncompressed_size);
-    int uncompressed_len =
-        LZ4_decompress_safe((const char *)compressed_payload_ptr,
-                            (char *)new_payload_ptr, src_len, dest_len);
-
-    if (uncompressed_len < 0) {
-      free(new_buffer);
-      return true;
-    }
-
-    // effective length of the packet
-    new_length =
-        fixed_header_size + static_cast<unsigned int>(uncompressed_len);
-
-    // swap buffers
-    old_buffer = packet.swap_buffer(new_buffer, new_capacity);
-
-    // copy the old headers and fix a couple of fields in it
-    hd.decode(old_buffer);  // decode old information
-    hd.set_dynamic_headers_length(hd.get_dynamic_headers_length() - hd_len);
-    hd.set_msg_length(new_length);
-    hd.encode(packet.get_buffer());  // encode to the new buffer
-
-    // reload the header into the packet
-    packet.reload_header(hd);
-
-    // delete the temp buffer
-    free(old_buffer);
+  /*
+   Currently, this function can just compress packets smaller than
+   Gcs_message_stage_lz4::max_input_compression(). Note that we are
+   disregarding the header because only the palyload is compressed.
+   */
+  if (packet.get_payload_length() >
+      Gcs_message_stage_lz4::max_input_compression()) {
+    MYSQL_GCS_LOG_ERROR(
+        "Gcs_packet's payload is too big. Only packets smaller than "
+        << Gcs_message_stage_lz4::max_input_compression()
+        << " bytes can "
+           "be compressed. Payload size is "
+        << packet.get_payload_length() << ".");
+    return stage_status::abort;
   }
 
-  return false;
+  return stage_status::apply;
 }
 
-void Gcs_message_stage_lz4::encode(unsigned char *hd, unsigned short hd_len,
-                                   Gcs_message_stage::enum_type_code type_code,
-                                   unsigned long long uncompressed) {
-  unsigned int type_code_enc = (unsigned int)type_code;
-
-  unsigned short hd_len_enc = htole16(hd_len);
-  memcpy(hd + WIRE_HD_LEN_OFFSET, &hd_len_enc, WIRE_HD_LEN_SIZE);
-
-  // encode filter header - enums may have different storage
-  // sizes, force to 32 bits
-  type_code_enc = htole32(type_code_enc);
-  memcpy(hd + WIRE_HD_TYPE_OFFSET, &type_code_enc, WIRE_HD_TYPE_SIZE);
-
-  unsigned long long uncompressed_enc = htole64(uncompressed);
-  memcpy(hd + WIRE_HD_UNCOMPRESSED_OFFSET, &uncompressed_enc,
-         WIRE_HD_UNCOMPRESSED_SIZE);
+unsigned long long Gcs_message_stage_lz4::calculate_payload_length(
+    Gcs_packet &packet) const {
+  return LZ4_compressBound(static_cast<int>(packet.get_payload_length()));
 }
 
-void Gcs_message_stage_lz4::decode(const unsigned char *hd,
-                                   unsigned short *hd_len,
-                                   Gcs_message_stage::enum_type_code *type,
-                                   unsigned long long *uncompressed) {
-  const unsigned char *slider = hd;
-  unsigned int type_code_enc;
+std::pair<bool, unsigned long long>
+Gcs_message_stage_lz4::transform_payload_apply(
+    unsigned int, unsigned char *new_payload_ptr,
+    unsigned long long new_payload_length, unsigned char *old_payload_ptr,
+    unsigned long long old_payload_length) {
+  int compressed_len = LZ4_compress_default(
+      reinterpret_cast<char *>(old_payload_ptr),
+      reinterpret_cast<char *>(new_payload_ptr),
+      static_cast<int>(old_payload_length), new_payload_length);
 
-  memcpy(hd_len, slider, WIRE_HD_LEN_SIZE);
-  *hd_len = le16toh(*hd_len);
-  slider += WIRE_HD_LEN_SIZE;
+  return std::make_pair(false, static_cast<unsigned long long>(compressed_len));
+}
 
-  // enums may require more than four bytes. We force this to 4 bytes.
-  memcpy(&type_code_enc, slider, WIRE_HD_TYPE_SIZE);
-  type_code_enc = le32toh(type_code_enc);
-  *type = (Gcs_message_stage::enum_type_code)type_code_enc;
-  slider += WIRE_HD_TYPE_SIZE;
+Gcs_message_stage::stage_status Gcs_message_stage_lz4::skip_revert(
+    const Gcs_packet &packet) const {
+  /*
+   If the payload's length is greater than the maximum allowed compressed
+   information an error is returned.
+   */
+  if (packet.get_payload_length() >
+      Gcs_message_stage_lz4::max_input_compression()) {
+    MYSQL_GCS_LOG_ERROR(
+        "Gcs_packet's payload is too big. Only packets smaller than "
+        << Gcs_message_stage_lz4::max_input_compression()
+        << " bytes can "
+           "be uncompressed. Payload size is "
+        << packet.get_payload_length() << ".");
 
-  memcpy(uncompressed, slider, WIRE_HD_UNCOMPRESSED_SIZE);
-  *uncompressed = le64toh(*uncompressed);
+    return stage_status::abort;
+  }
+
+  return stage_status::apply;
+}
+
+std::pair<bool, unsigned long long>
+Gcs_message_stage_lz4::transform_payload_revert(
+    unsigned int, unsigned char *new_payload_ptr,
+    unsigned long long new_payload_length, unsigned char *old_payload_ptr,
+    unsigned long long old_payload_length) {
+  // Decompress to the payload
+  int src_len = static_cast<int>(old_payload_length);
+  int dest_len = static_cast<int>(new_payload_length);
+  int uncompressed_len = LZ4_decompress_safe(
+      reinterpret_cast<char *>(old_payload_ptr),
+      reinterpret_cast<char *>(new_payload_ptr), src_len, dest_len);
+
+  if (uncompressed_len < 0) {
+    MYSQL_GCS_LOG_ERROR("Error decompressing payload of size "
+                        << new_payload_length << ".");
+    return std::make_pair(true, 0);
+  }
+  assert(static_cast<unsigned long long>(uncompressed_len) ==
+         new_payload_length);
+
+  return std::make_pair(false, new_payload_length);
 }

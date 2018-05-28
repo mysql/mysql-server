@@ -307,9 +307,11 @@ class Gcs_xcom_control : public Gcs_control_interface {
     to the state exchange.
 
     @param[in] msg message
+    @param[in] protocol_version protocol version in use by control message,
+                                i.e. state exchange message
   */
 
-  void process_control_message(Gcs_message *msg);
+  void process_control_message(Gcs_message *msg, unsigned int protocol_version);
 
   std::map<int, const Gcs_control_event_listener &> *get_event_listeners();
 
@@ -417,7 +419,8 @@ class Gcs_xcom_control : public Gcs_control_interface {
      @return true if i am the node responsible to call remove_node to expel
                   another member
    */
-  bool is_killer_node(std::vector<Gcs_member_identifier *> &alive_members);
+  bool is_killer_node(
+      const std::vector<Gcs_member_identifier *> &alive_members) const;
 
   /**
     Copies from a set to a vector of Gcs_member_identifier.
@@ -428,6 +431,28 @@ class Gcs_xcom_control : public Gcs_control_interface {
 
   void build_member_list(std::set<Gcs_member_identifier *> *origin,
                          std::vector<Gcs_member_identifier> *to_fill);
+
+  /*
+   Immediately exclude nodes from the current view, when those nodes are
+   considered dead or are not compatible with the previous set of members, for
+   example.
+
+   @param[in] to_exclude Set of members to exclude from the current view.
+   @param[in] alive_members Set of members alive in the current view.
+   */
+  void exclude_from_view(
+      const std::vector<Gcs_member_identifier *> &to_exclude,
+      const std::vector<Gcs_member_identifier *> &alive_members);
+
+  /*
+   Immediately exclude nodes from the current view, when those nodes are
+   considered dead or are not compatible with the previous set of members, for
+   example.
+
+   @param[in] to_exclude Set of members to exclude from the current view.
+   */
+  void exclude_from_view(
+      const std::vector<Gcs_member_identifier> &to_exclude_members);
 
   /**
     Makes all the necessary arrangements to install a new view in the binding

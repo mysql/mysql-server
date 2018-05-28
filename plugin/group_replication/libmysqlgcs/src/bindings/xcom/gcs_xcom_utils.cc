@@ -758,7 +758,7 @@ int Gcs_xcom_proxy_impl::xcom_client_force_config(node_list *nl,
 
 int Gcs_xcom_proxy_base::xcom_remove_nodes(Gcs_xcom_nodes &nodes,
                                            uint32_t group_id_hash) {
-  node_list nl;
+  node_list nl{0, nullptr};
   int ret = 1;
 
   if (serialize_nodes_information(nodes, nl)) {
@@ -781,7 +781,7 @@ int Gcs_xcom_proxy_base::xcom_remove_node(const Gcs_xcom_node_information &node,
 
 int Gcs_xcom_proxy_base::xcom_force_nodes(Gcs_xcom_nodes &nodes,
                                           uint32_t group_id_hash) {
-  node_list nl;
+  node_list nl{0, nullptr};
   int ret = 1;
 
   if (serialize_nodes_information(nodes, nl)) {
@@ -799,11 +799,11 @@ bool Gcs_xcom_proxy_base::serialize_nodes_information(Gcs_xcom_nodes &nodes,
   unsigned int len = 0;
   char **addrs = NULL;
   blob *uuids = NULL;
-  nl.node_list_len = 0;
+  nl = {0, nullptr};
 
   if (nodes.get_size() == 0) {
     MYSQL_GCS_LOG_DEBUG("There aren't nodes to be reported.");
-    return true;
+    return false;
   }
 
   if (!nodes.encode(&len, &addrs, &uuids)) {

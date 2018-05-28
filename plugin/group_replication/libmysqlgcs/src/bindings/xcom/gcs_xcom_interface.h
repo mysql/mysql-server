@@ -133,8 +133,7 @@ class Gcs_xcom_interface : public Gcs_interface {
   Gcs_group_management_interface *get_management_session(
       const Gcs_group_identifier &group_identifier);
 
-  enum_gcs_error configure_msg_stages(const Gcs_interface_parameters &p,
-                                      const Gcs_group_identifier &gid);
+  enum_gcs_error configure_message_stages(const Gcs_group_identifier &gid);
 
   enum_gcs_error configure_suspicions_mgr(Gcs_interface_parameters &p,
                                           Gcs_suspicions_manager *mgr);

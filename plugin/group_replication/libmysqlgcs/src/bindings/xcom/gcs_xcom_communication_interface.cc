@@ -92,9 +92,9 @@ enum_gcs_error Gcs_xcom_communication::send_message(
     return GCS_NOK;
   }
 
-  message_result =
-      this->send_binding_message(message_to_send, &message_length,
-                                 Gcs_internal_message_header::CT_USER_DATA);
+  message_result = this->send_binding_message(
+      message_to_send, &message_length,
+      Gcs_internal_message_header::cargo_type::CT_USER_DATA);
 
   if (message_result == GCS_OK) {
     this->stats->update_message_sent(message_length);
@@ -105,46 +105,43 @@ enum_gcs_error Gcs_xcom_communication::send_message(
 
 enum_gcs_error Gcs_xcom_communication::send_binding_message(
     const Gcs_message &msg, unsigned long long *msg_len,
-    Gcs_internal_message_header::enum_cargo_type cargo) {
-  unsigned long long msg_length = 0;
+    Gcs_internal_message_header::cargo_type cargo) {
   enum_gcs_error ret = GCS_NOK;
   Gcs_message_data &msg_data = msg.get_message_data();
-  unsigned long long len =
-      msg_data.get_header_length() + msg_data.get_payload_length();
-  Gcs_packet packet(len + Gcs_internal_message_header::WIRE_FIXED_HEADER_SIZE);
-  uint64_t buffer_size = packet.get_capacity();
-  unsigned long long payload_len;
+  unsigned long long msg_total_length = 0;
   Gcs_internal_message_header gcs_header;
-  if (packet.get_buffer() == NULL) {
+
+  /*
+   Configure the header to carry metadata information.
+   */
+  gcs_header.set_payload_length(msg_data.get_encode_size());
+  gcs_header.set_cargo_type(cargo);
+
+  /*
+   Configure the packet which will carry the payload information.
+   */
+  Gcs_packet gcs_packet(gcs_header);
+  uint64_t buffer_size = gcs_packet.get_capacity();
+
+  if (gcs_packet.get_buffer() == NULL) {
     MYSQL_GCS_LOG_ERROR("Error generating the binding message.")
     goto end;
   }
 
-  // insert the payload
-  if (msg_data.encode(packet.get_buffer() +
-                          Gcs_internal_message_header::WIRE_FIXED_HEADER_SIZE,
-                      &buffer_size)) {
+  /*
+   Copy the payload content to the packet.
+   */
+  if (msg_data.encode(gcs_packet.get_payload(), &buffer_size)) {
     MYSQL_GCS_LOG_ERROR("Error inserting the payload in the binding message.")
     goto end;
   }
 
-  payload_len = buffer_size;
-
-  // Insert the header in the buffer
-  gcs_header.set_msg_length(
-      payload_len + Gcs_internal_message_header::WIRE_FIXED_HEADER_SIZE);
-  gcs_header.set_dynamic_headers_length(0);
-  gcs_header.set_cargo_type(cargo);
-  gcs_header.encode(packet.get_buffer());
-
-  // reload the header information into the packet
-  packet.reload_header(gcs_header);
-
-  MYSQL_GCS_LOG_TRACE("Pipelining message with payload length %llu",
-                      (long long unsigned)packet.get_payload_length())
+  MYSQL_GCS_LOG_TRACE(
+      "Pipelining message with payload length %llu",
+      static_cast<unsigned long long>(gcs_packet.get_payload_length()))
 
   // apply transformations
-  if (m_msg_pipeline.outgoing(packet)) {
+  if (m_msg_pipeline.outgoing(gcs_header, gcs_packet)) {
     MYSQL_GCS_LOG_ERROR("Error preparing the message for sending.")
     goto end;
   }
@@ -153,24 +150,26 @@ enum_gcs_error Gcs_xcom_communication::send_binding_message(
     Note that XCom will own the packet buffer now, so we don't need to
     free it before exiting.
   */
-  msg_length = packet.get_length();
-  MYSQL_GCS_LOG_TRACE("Sending message with payload length %llu", msg_length)
+  msg_total_length = gcs_packet.get_total_length();
+  MYSQL_GCS_LOG_TRACE("Sending message with payload length %llu",
+                      msg_total_length)
   if (m_xcom_proxy->xcom_client_send_data(
-          msg_length, reinterpret_cast<char *>(packet.get_buffer()))) {
+          msg_total_length,
+          reinterpret_cast<char *>(gcs_packet.get_buffer()))) {
     MYSQL_GCS_LOG_ERROR(
         "Error pushing message into group communication engine.")
     goto end;
   }
 
-  *msg_len = len;
+  *msg_len = msg_total_length;
   ret = GCS_OK;
 
 end:
-  if (ret == GCS_NOK) free(packet.get_buffer());
+  if (ret == GCS_NOK) free(gcs_packet.get_buffer());
 
   MYSQL_GCS_LOG_TRACE(
       "send_binding_message enum_gcs_error result(%u). Bytes sent(%llu)",
-      static_cast<unsigned int>(ret), msg_length)
+      static_cast<unsigned int>(ret), msg_total_length)
 
   return ret;
 }

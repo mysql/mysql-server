@@ -26,6 +26,9 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_group_member_information.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_utils.h"
 
+#include <algorithm>
+#include <iterator>
+
 Gcs_xcom_group_management::Gcs_xcom_group_management(
     Gcs_xcom_proxy *xcom_proxy, const Gcs_group_identifier &group_identifier)
     : m_xcom_proxy(xcom_proxy),
@@ -49,6 +52,40 @@ void Gcs_xcom_group_management::set_xcom_nodes(
     const Gcs_xcom_nodes &xcom_nodes) {
   m_nodes_mutex.lock();
   m_xcom_nodes.add_nodes(xcom_nodes);
+  m_nodes_mutex.unlock();
+}
+
+void Gcs_xcom_group_management::get_xcom_nodes(
+    Gcs_xcom_nodes &result_xcom_nodes,
+    const std::vector<Gcs_member_identifier> &filter) {
+  std::vector<std::string> str_filter;
+  std::transform(filter.cbegin(), filter.cend(), std::back_inserter(str_filter),
+                 [](const Gcs_member_identifier &value) -> std::string {
+                   return value.get_member_id();
+                 });
+  get_xcom_nodes(result_xcom_nodes, str_filter);
+}
+
+void Gcs_xcom_group_management::get_xcom_nodes(
+    Gcs_xcom_nodes &result_xcom_nodes,
+    const std::vector<Gcs_member_identifier *> &filter) {
+  std::vector<std::string> str_filter;
+  std::transform(filter.cbegin(), filter.cend(), std::back_inserter(str_filter),
+                 [](const Gcs_member_identifier *value) -> std::string {
+                   return value->get_member_id();
+                 });
+  get_xcom_nodes(result_xcom_nodes, str_filter);
+}
+
+void Gcs_xcom_group_management::get_xcom_nodes(
+    Gcs_xcom_nodes &result_xcom_nodes, const std::vector<std::string> &filter) {
+  m_nodes_mutex.lock();
+  for (const auto &member_id : filter) {
+    const Gcs_xcom_node_information *node = m_xcom_nodes.get_node(member_id);
+    if (node != nullptr) {
+      result_xcom_nodes.add_node(*node);
+    }
+  }
   m_nodes_mutex.unlock();
 }
 
@@ -89,27 +126,14 @@ enum_gcs_error Gcs_xcom_group_management::modify_configuration(
     return GCS_NOK;
   }
 
-  m_nodes_mutex.lock();
   Gcs_xcom_nodes new_xcom_nodes;
-  std::vector<std::string>::const_iterator nodes_it = processed_peers.begin();
-  std::vector<std::string>::const_iterator nodes_end = processed_peers.end();
-  for (int i = 0; nodes_it != nodes_end; i++, ++nodes_it) {
-    const Gcs_xcom_node_information *node = m_xcom_nodes.get_node((*nodes_it));
-    if (node == NULL) {
-      /* purecov: begin deadcode */
-      MYSQL_GCS_LOG_ERROR(
-          "The peer is trying to set up a configuration where there is a "
-          "member '"
-          << (*nodes_it)
-          << "' that doesn't belong to its current "
-             "view.");
-      m_nodes_mutex.unlock();
-      return GCS_NOK;
-      /* purecov: end */
-    }
-    new_xcom_nodes.add_node(*node);
+  get_xcom_nodes(new_xcom_nodes, processed_peers);
+  if (new_xcom_nodes.get_size() != processed_peers.size()) {
+    MYSQL_GCS_LOG_ERROR(
+        "The peer is trying to set up a configuration where there are members "
+        "that don't belong to the current view.")
+    return GCS_NOK;
   }
-  m_nodes_mutex.unlock();
 
   if (new_xcom_nodes.get_size() == 0) {
     /* purecov: begin deadcode */

@@ -35,7 +35,9 @@ using std::set;
 using std::string;
 
 #include <assert.h>
+#include <algorithm>
 #include <iostream>
+#include <iterator>
 #include <list>
 
 /*
@@ -194,7 +196,7 @@ enum_gcs_error Gcs_xcom_control::join() {
   MYSQL_GCS_LOG_DEBUG("Joining a group.")
 
   /*
-    It is not possilbe to call join or leave if the node is already
+    It is not possible to call join or leave if the node is already
     trying to join or leave the group. The start_join() method
     verifies it and updates a flag to indicate that the join is
     taking place.
@@ -469,7 +471,7 @@ enum_gcs_error Gcs_xcom_control::leave() {
   MYSQL_GCS_LOG_DEBUG("The member is leaving the group.")
 
   /*
-    It is not possilbe to call join or leave if the node is already
+    It is not possible to call join or leave if the node is already
     trying to join or leave the group. The start_leave() method
     verifies it and updates a flag to indicate that the leave is
     taking place.
@@ -686,8 +688,9 @@ void Gcs_xcom_control::build_joined_members(
       if (current_members_it != current_members->end()) joined = false;
     }
 
-    if (joined)
+    if (joined) {
       joined_members.push_back(new Gcs_member_identifier(*(*alive_members_it)));
+    }
   }
 }
 
@@ -790,7 +793,7 @@ void Gcs_xcom_control::build_suspect_members(
 }
 
 bool Gcs_xcom_control::is_killer_node(
-    std::vector<Gcs_member_identifier *> &alive_members) {
+    const std::vector<Gcs_member_identifier *> &alive_members) const {
   /*
     Note that the member elected to remove another members from the group
     if they are considered faulty is the first one in the list of alive
@@ -956,6 +959,7 @@ bool Gcs_xcom_control::xcom_receive_global_view(synode_no message_id,
     connections among their peers are still beeing established.
   */
   build_total_members(xcom_nodes, alive_members, failed_members);
+
   /*
     Build the set of joined members which are all alive members that are not
     part of the current members.
@@ -995,42 +999,18 @@ bool Gcs_xcom_control::xcom_receive_global_view(synode_no message_id,
                                      suspect_members);
 
   /*
+   We save the information on the nodes reported by the global view.
+   This is necessary if want to reconfigure the group. In the future,
+   we should revisit this decision and check whether we should copy
+   such information to the view.
+   */
+  m_xcom_group_management->set_xcom_nodes(*xcom_nodes);
+
+  /*
     Note that this code may try to kill the same node several times.
     Although this may generate additional traffic, there is no harm.
   */
-  if (expel_members.size() > 0) {
-    assert(current_view != NULL);
-    MYSQL_GCS_LOG_DEBUG(
-        "::xcom_receive_global_view():: Failed "
-        "members detected. My node_id is %llu",
-        static_cast<unsigned long long>(xcom_nodes->get_node_no()))
-
-    bool should_i_kill = is_killer_node(alive_members);
-    if (should_i_kill) {
-      MYSQL_GCS_LOG_INFO(
-          "Removing members that have failed while processing new view.")
-
-      Gcs_xcom_nodes nodes_to_remove;
-
-      const Gcs_xcom_node_information *node = NULL;
-      std::vector<Gcs_member_identifier *>::iterator members_failed_it;
-      for (members_failed_it = failed_members.begin();
-           members_failed_it != failed_members.end(); ++members_failed_it) {
-        node = xcom_nodes->get_node((*members_failed_it)->get_member_id());
-        nodes_to_remove.add_node(*node);
-      }
-
-      m_xcom_proxy->xcom_remove_nodes(nodes_to_remove, m_gid_hash);
-    }
-  }
-
-  /*
-    We save the information on the nodes reported by the global view.
-    This is necessary if want to reconfigure the group. In the future,
-    we should revisit this decision and check whether we should copy
-    such information to the view.
-  */
-  m_xcom_group_management->set_xcom_nodes(*xcom_nodes);
+  exclude_from_view(expel_members, alive_members);
 
   MYSQL_GCS_TRACE_EXECUTE(
       unsigned int node_no = xcom_nodes->get_node_no();
@@ -1185,7 +1165,8 @@ end:
   return ret;
 }
 
-void Gcs_xcom_control::process_control_message(Gcs_message *msg) {
+void Gcs_xcom_control::process_control_message(Gcs_message *msg,
+                                               unsigned int protocol_version) {
   MYSQL_GCS_LOG_TRACE(
       "::process_control_message():: Received a control message")
 
@@ -1205,7 +1186,7 @@ void Gcs_xcom_control::process_control_message(Gcs_message *msg) {
       get_node_address()->get_member_address().c_str())
 
   /*
-    XCOM does not preserver FIFO and for that reason a message from
+    XCOM does not preserve FIFO and for that reason a message from
     a previous state exchange phase may arrive when the newest phase
     has already finished.
   */
@@ -1237,11 +1218,19 @@ void Gcs_xcom_control::process_control_message(Gcs_message *msg) {
 
   Gcs_member_identifier pid(msg->get_origin());
   // takes ownership of ms_info
-  bool can_install_view = m_state_exchange->process_member_state(ms_info, pid);
+  bool can_install_view =
+      m_state_exchange->process_member_state(ms_info, pid, protocol_version);
 
   // If state exchange has finished
   if (can_install_view) {
     MYSQL_GCS_LOG_TRACE("::process_control_message()::Install new view")
+
+    /*
+     Check if all members have a protocol version number that is compatible with
+     the current protocol version number in use.
+     */
+    assert(m_state_exchange->compute_incompatible_protocol_members().size() ==
+           0);
 
     // Make a copy of the state exchange provided view id
     Gcs_xcom_view_identifier *provided_view_id =
@@ -1265,6 +1254,46 @@ void Gcs_xcom_control::process_control_message(Gcs_message *msg) {
   }
 
   delete msg;
+}
+
+void Gcs_xcom_control::exclude_from_view(
+    const std::vector<Gcs_member_identifier *> &to_exclude,
+    const std::vector<Gcs_member_identifier *> &alive_members) {
+  if (to_exclude.empty()) return;
+
+  /*
+   Check if the node is the one that can act as a leader and remove other nodes.
+   */
+  bool should_i_kill = is_killer_node(alive_members);
+
+  if (should_i_kill) {
+    std::vector<Gcs_member_identifier> new_to_exclude_members;
+    std::transform(to_exclude.cbegin(), to_exclude.cend(),
+                   std::back_inserter(new_to_exclude_members),
+                   [](Gcs_member_identifier *value) -> Gcs_member_identifier {
+                     return *value;
+                   });
+
+    exclude_from_view(new_to_exclude_members);
+  }
+}
+
+void Gcs_xcom_control::exclude_from_view(
+    const std::vector<Gcs_member_identifier> &to_exclude_members) {
+  if (to_exclude_members.empty()) return;
+
+  MYSQL_GCS_LOG_INFO(
+      "Removing members from the group that have failed or are incompatible.")
+
+  /*
+    Define the nodes to be removed from the current view according to the nodes
+    in the to_exclude vector.
+  */
+  Gcs_xcom_nodes to_remove_members;
+  m_xcom_group_management->get_xcom_nodes(to_remove_members,
+                                          to_exclude_members);
+  m_xcom_proxy->xcom_remove_nodes(to_remove_members, m_gid_hash);
+  assert(to_remove_members.get_size() == to_exclude_members.size());
 }
 
 void Gcs_xcom_control::install_view(

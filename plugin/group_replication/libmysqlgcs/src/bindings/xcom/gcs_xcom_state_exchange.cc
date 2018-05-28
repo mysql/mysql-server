@@ -22,18 +22,15 @@
 
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_state_exchange.h"
 
-#include <assert.h>
-#include <time.h>
+#include <cassert>
+#include <ctime>
+#include <iterator>
+#include <limits>
 
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_logging_system.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/byteorder.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_communication_interface.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/synode_no.h"
-
-#ifdef _WIN32
-#include <iterator>
-#endif
-
-#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/byteorder.h"
 
 Xcom_member_state::Xcom_member_state(const Gcs_xcom_view_identifier &view_id,
                                      synode_no configuration_id,
@@ -239,6 +236,7 @@ Gcs_xcom_state_exchange::Gcs_xcom_state_exchange(
       m_ms_left(),
       m_ms_joined(),
       m_member_states(),
+      m_member_versions(),
       m_group_name(NULL),
       m_local_information("none"),
       m_configuration_id(null_synode) {}
@@ -306,6 +304,8 @@ void Gcs_xcom_state_exchange::reset() {
        state_it++)
     delete (*state_it).second;
   m_member_states.clear();
+
+  m_member_versions.clear();
 
   m_awaited_vector.clear();
 
@@ -517,7 +517,7 @@ enum_gcs_error Gcs_xcom_state_exchange::broadcast_state(
   unsigned long long message_length = 0;
   return binding_broadcaster->send_binding_message(
       message, &message_length,
-      Gcs_internal_message_header::CT_INTERNAL_STATE_EXCHANGE);
+      Gcs_internal_message_header::cargo_type::CT_INTERNAL_STATE_EXCHANGE);
 }
 
 void Gcs_xcom_state_exchange::update_awaited_vector() {
@@ -540,7 +540,8 @@ void Gcs_xcom_state_exchange::update_awaited_vector() {
 }
 
 bool Gcs_xcom_state_exchange::process_member_state(
-    Xcom_member_state *ms_info, const Gcs_member_identifier &p_id) {
+    Xcom_member_state *ms_info, const Gcs_member_identifier &p_id,
+    const unsigned int protocol_version) {
   /*
     A state exchange message just arrived and we will only consider it
     if its configuration identifier matches the one expected by the
@@ -569,6 +570,10 @@ bool Gcs_xcom_state_exchange::process_member_state(
     return false;
   }
 
+  /*
+   Save the protocol version in use and state exchange per member.
+   */
+  m_member_versions[p_id] = protocol_version;
   m_member_states[p_id] = ms_info;
 
   /*
@@ -586,6 +591,42 @@ bool Gcs_xcom_state_exchange::process_member_state(
   bool can_install_view = (m_awaited_vector.size() == 0);
 
   return can_install_view;
+}
+
+std::vector<Gcs_member_identifier>
+Gcs_xcom_state_exchange::compute_incompatible_protocol_members() {
+  std::vector<Gcs_member_identifier> result;
+
+  /*
+   Compute the greatest common protocol version number in use among members.
+   */
+  unsigned int computed_version = std::numeric_limits<unsigned int>::max();
+  for (const auto &version : m_member_versions) {
+    if (version.second < computed_version) computed_version = version.second;
+  }
+  assert(computed_version != std::numeric_limits<unsigned int>::max());
+
+  /*
+   Try to set up the message pipeline to use the computed protocol version
+   number. This operation will only fail if the proposed version is less
+   than the current version in use by the member and consequently in the
+   group.
+
+   Although fetching and setting the pipeline version through two different
+   operations is not atomic, this is not a problem because there is no
+   concurrency as only the GCS thread is allowed to change the protocol
+   version in use.
+
+   Currently, this shall not fail as the protocol version has not been
+   changed.
+   */
+  Gcs_xcom_communication *comm =
+      static_cast<Gcs_xcom_communication *>(m_broadcaster);
+  Gcs_message_pipeline &pipeline = comm->get_msg_pipeline();
+  assert(pipeline.get_version() == computed_version);
+  pipeline.set_version(computed_version);
+
+  return result;
 }
 
 void Gcs_xcom_state_exchange::fill_member_set(

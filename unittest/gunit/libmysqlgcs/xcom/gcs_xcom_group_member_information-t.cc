@@ -504,6 +504,7 @@ TEST_F(GcsNodesTest, TestGcsNodesConstructor) {
   site_def *site_config = new_site_def();
   init_site_def(2, node_addrs, site_config);
   site_config->nodeno = 0;
+  site_config->x_proto = static_cast<xcom_proto>(1);
 
   node_set nodes;
   alloc_node_set(&nodes, 2);

@@ -70,7 +70,7 @@ class Gcs_xcom_communication_interface : public Gcs_communication_interface {
 
   virtual enum_gcs_error send_binding_message(
       const Gcs_message &message_to_send, unsigned long long *message_length,
-      Gcs_internal_message_header::enum_cargo_type cargo) = 0;
+      Gcs_internal_message_header::cargo_type cargo) = 0;
 
   /**
     The purpose of this method is to be called when in Gcs_xcom_interface
@@ -202,7 +202,7 @@ class Gcs_xcom_communication : public Gcs_xcom_communication_interface {
   // Implementation of the Gcs_xcom_communication_interface
   enum_gcs_error send_binding_message(
       const Gcs_message &message_to_send, unsigned long long *message_length,
-      Gcs_internal_message_header::enum_cargo_type cargo);
+      Gcs_internal_message_header::cargo_type cargo);
 
   // For unit testing purposes
   std::map<int, const Gcs_communication_event_listener &>

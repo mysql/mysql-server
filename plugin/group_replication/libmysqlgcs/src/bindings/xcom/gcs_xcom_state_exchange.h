@@ -306,13 +306,29 @@ class Gcs_xcom_state_exchange_interface {
 
     @param[in] ms_info received Member State
     @param[in] p_id the node that the Member State pertains
+    @param[in] protocol_version protocol version in use by a member during the
+               state exchange phase
 
     @return true if State Exchanged is to be finished and the view can be
                  installed
   */
 
   virtual bool process_member_state(Xcom_member_state *ms_info,
-                                    const Gcs_member_identifier &p_id) = 0;
+                                    const Gcs_member_identifier &p_id,
+                                    const unsigned int protocol_version) = 0;
+
+  /*
+   Compute the greatest common protocol version among members using the
+   information that was gathered during the state exchange phase and determine
+   the nodes that cannot remain as members because they have a protocol version
+   that may not be compatible with the current protocol version in use by the
+   group.
+
+   @return the set of members that has a protocol version that is less than
+           possible version accepted by the group.
+   */
+  virtual std::vector<Gcs_member_identifier>
+  compute_incompatible_protocol_members() = 0;
 
   /**
     Retrieves the new view identifier after a State Exchange.
@@ -388,7 +404,10 @@ class Gcs_xcom_state_exchange : public Gcs_xcom_state_exchange_interface {
                       const Gcs_member_identifier &local_info);
 
   bool process_member_state(Xcom_member_state *ms_info,
-                            const Gcs_member_identifier &p_id);
+                            const Gcs_member_identifier &p_id,
+                            const unsigned int protocol_version);
+
+  std::vector<Gcs_member_identifier> compute_incompatible_protocol_members();
 
   Gcs_xcom_view_identifier *get_new_view_id();
 
@@ -457,6 +476,9 @@ class Gcs_xcom_state_exchange : public Gcs_xcom_state_exchange_interface {
 
   /* Collection of State Message contents to facilitate view installation. */
   std::map<Gcs_member_identifier, Xcom_member_state *> m_member_states;
+
+  /* Collection of protocol version in use per member. */
+  std::map<Gcs_member_identifier, unsigned int> m_member_versions;
 
   // Group name to exchange state
   std::string *m_group_name;
