@@ -15803,10 +15803,14 @@ int ha_innobase::end_stmt() {
 
   ut_ad(trx->duplicates == 0);
 
+  trx_mutex_enter(trx);
   if (trx->lock.start_stmt) {
-    TrxInInnoDB::end_stmt(trx);
-
     trx->lock.start_stmt = false;
+    trx_mutex_exit(trx);
+
+    TrxInInnoDB::end_stmt(trx);
+  } else {
+    trx_mutex_exit(trx);
   }
 
   return (0);
@@ -15916,11 +15920,15 @@ int ha_innobase::start_stmt(THD *thd, thr_lock_type lock_type) {
     ++trx->will_lock;
   }
 
+  trx_mutex_enter(trx);
   /* Only do it once per transaction. */
   if (!trx->lock.start_stmt && lock_type != TL_UNLOCK) {
-    TrxInInnoDB::begin_stmt(trx);
-
     trx->lock.start_stmt = true;
+    trx_mutex_exit(trx);
+
+    TrxInInnoDB::begin_stmt(trx);
+  } else {
+    trx_mutex_exit(trx);
   }
 
   DBUG_RETURN(0);
