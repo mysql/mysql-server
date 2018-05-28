@@ -73,10 +73,13 @@ the list below:
    based on the file name, and if file name is not found in the predefined list
    (in ut_new_boot()) then mem_key_other is used.
 Keep this list alphabetically sorted. */
+// TODO: check if keys other than buf_buf_pool should be also global
+//       (should use PSI_FLAG_ONLY_GLOBAL_STAT)
 static PSI_memory_info pfs_info[] = {
     {&mem_key_ahi, "adaptive hash index", 0, 0, PSI_DOCUMENT_ME},
     {&mem_key_archive, "log and page archiver", 0, 0, PSI_DOCUMENT_ME},
-    {&mem_key_buf_buf_pool, "buf_buf_pool", 0, 0, PSI_DOCUMENT_ME},
+    {&mem_key_buf_buf_pool, "buf_buf_pool", PSI_FLAG_ONLY_GLOBAL_STAT, 0,
+     PSI_DOCUMENT_ME},
     {&mem_key_buf_stat_per_index_t, "buf_stat_per_index_t", 0, 0,
      PSI_DOCUMENT_ME},
     {&mem_key_clone, "clone data", 0, 0, PSI_DOCUMENT_ME},

@@ -158,8 +158,7 @@ extern const size_t alloc_max_retries;
 /** Keys for registering allocations with performance schema.
 Pointers to these variables are supplied to PFS code via the pfs_info[]
 array and the PFS code initializes them via PSI_MEMORY_CALL(register_memory)().
-mem_key_other and mem_key_std are special in the following way (see also
-ut_allocator::get_mem_key()):
+mem_key_other and mem_key_std are special in the following way.
 * If the caller has not provided a key and the file name of the caller is
   unknown, then mem_key_std will be used. This happens only when called from
   within std::* containers.
@@ -508,7 +507,8 @@ class ut_allocator {
   typedef size_t size_type;
   typedef ptrdiff_t difference_type;
 
-  /** Default constructor. */
+  /** Default constructor.
+  @param[in] key  performance schema key. */
   explicit ut_allocator(PSI_memory_key key = PSI_NOT_INSTRUMENTED)
       :
 #ifdef UNIV_PFS_MEMORY
@@ -517,16 +517,20 @@ class ut_allocator {
         m_oom_fatal(true) {
   }
 
-  /** Constructor from allocator of another type. */
+  /** Constructor from allocator of another type.
+  @param[in] other  the allocator to copy. */
   template <class U>
   ut_allocator(const ut_allocator<U> &other)
-      : m_oom_fatal(other.is_oom_fatal()) {
+      :
 #ifdef UNIV_PFS_MEMORY
-    const PSI_memory_key other_key = other.get_mem_key();
-
-    m_key = (other_key != mem_key_std) ? other_key : PSI_NOT_INSTRUMENTED;
+        m_key(other.get_mem_key()),
 #endif /* UNIV_PFS_MEMORY */
+        m_oom_fatal(other.is_oom_fatal()) {
   }
+
+  /* Assignment operator, not used, thus deleted. */
+  template <class U>
+  void operator=(const ut_allocator<U> &) = delete;
 
   /** When out of memory (OOM) happens, report error and do not
   make it fatal.
@@ -539,6 +543,15 @@ class ut_allocator {
   /** Check if allocation failure is a fatal error.
   @return true if allocation failure is fatal, false otherwise. */
   bool is_oom_fatal() const { return (m_oom_fatal); }
+
+#ifdef UNIV_PFS_MEMORY
+  /** Get the performance schema key to use for tracing allocations.
+  @return performance schema key */
+  PSI_memory_key get_mem_key() const {
+    /* note: keep this as simple getter as is used by copy constructor */
+    return (m_key);
+  }
+#endif /* UNIV_PFS_MEMORY */
 
   /** Return the maximum number of objects that can be allocated by
   this allocator. */
@@ -557,15 +570,16 @@ class ut_allocator {
   If the allocation fails this method may throw an exception. This
   is mandated by the standard and if it returns NULL instead, then
   STL containers that use it (e.g. std::vector) may get confused.
-  After successfull allocation the returned pointer must be passed
+  After successful allocation the returned pointer must be passed
   to ut_allocator::deallocate() when no longer needed.
-  @param[in]	n_elements	number of elements
-  @param[in]	hint		pointer to a nearby memory location,
-                                  unused by this implementation
-  @param[in]	key		Performance schema key
-  @param[in]	set_to_zero	if true, then the returned memory is
-                                  initialized with 0x0 bytes.
-  @param[in]	throw_on_error	error
+  @param[in]  n_elements      number of elements
+  @param[in]  hint            pointer to a nearby memory location,
+                              unused by this implementation
+  @param[in]  key             performance schema key
+  @param[in]  set_to_zero     if true, then the returned memory is
+                              initialized with 0x0 bytes.
+  @param[in]  throw_on_error  if true, then exception is throw on
+                              allocation failure
   @return pointer to the allocated memory */
   pointer allocate(size_type n_elements, const_pointer hint = NULL,
                    PSI_memory_key key = PSI_NOT_INSTRUMENTED,
@@ -835,13 +849,9 @@ class ut_allocator {
     os_mem_free_large(ptr, pfx->m_size);
   }
 
+ private:
 #ifdef UNIV_PFS_MEMORY
 
-  /** Get the performance schema key to use for tracing allocations.
-  @return performance schema key */
-  PSI_memory_key get_mem_key() const { return (m_key); }
-
- private:
   /** Retrieve the size of a memory block allocated by new_array().
   @param[in]	ptr	pointer returned by new_array().
   @return size of memory block */
@@ -861,6 +871,10 @@ class ut_allocator {
   @param[out]	pfx	placeholder to store the info which will be
                           needed when freeing the memory */
   void allocate_trace(size_t size, PSI_memory_key key, ut_new_pfx_t *pfx) {
+    if (m_key != PSI_NOT_INSTRUMENTED) {
+      key = m_key;
+    }
+
     pfx->m_key = PSI_MEMORY_CALL(memory_alloc)(key, size, &pfx->m_owner);
 
     pfx->m_size = size;
@@ -873,14 +887,9 @@ class ut_allocator {
   }
 
   /** Performance schema key. */
-  PSI_memory_key m_key;
+  const PSI_memory_key m_key;
 
 #endif /* UNIV_PFS_MEMORY */
-
- private:
-  /** Assignment operator, not used, thus disabled (private). */
-  template <class U>
-  void operator=(const ut_allocator<U> &);
 
   /** A flag to indicate whether out of memory (OOM) error is considered
   fatal.  If true, it is fatal. */
