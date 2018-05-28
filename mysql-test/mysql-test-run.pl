@@ -420,10 +420,11 @@ sub main {
       # mysql-test/<suite_name>/[<t>,<r>,<include>]
       $opt_suites = ($suite_set == 2) ? "main" : "";
 
-      # Scan all sub-directories for available test suites
-      # $opt_suites is updated by get_all_suites()
-      find(\&get_all_suites, "$basedir/mysql-test");
-      find(\&get_all_suites, "$basedir/internal") if (-d "$basedir/internal");
+      # Scan all sub-directories for available test suites.
+      # The variable $opt_suites is updated by get_all_suites()
+      find(\&get_all_suites, "$glob_mysql_test_dir");
+      find({ wanted => \&get_all_suites, follow => 1 }, "$basedir/internal")
+        if (-d "$basedir/internal");
 
       if ($suite_set == 1) {
         # Run only with non-default suites
