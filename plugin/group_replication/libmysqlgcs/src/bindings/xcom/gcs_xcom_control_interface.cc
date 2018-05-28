@@ -340,22 +340,40 @@ enum_gcs_error Gcs_xcom_control::retry_do_join() {
     xcom_port port = 0;
     char *addr = NULL;
     std::vector<Gcs_xcom_node_address *>::iterator it;
-    std::string *local_node_info_str =
-        m_local_node_address->get_member_representation();
+
+    std::string local_node_info_str_ip;
+    bool resolve_error = false;
+    resolve_error = resolve_ip_addr_from_hostname(
+        m_local_node_address->get_member_ip(), local_node_info_str_ip);
+
+    if (resolve_error) {
+      MYSQL_GCS_LOG_ERROR("Error resolving local address name: "
+                          << m_local_node_address->get_member_ip().c_str())
+      goto err;
+    }
 
     while (con == NULL && n < Gcs_xcom_proxy::connection_attempts) {
       for (it = m_initial_peers.begin();
            con == NULL && it != m_initial_peers.end(); it++) {
         Gcs_xcom_node_address *peer = *(it);
-        std::string *peer_rep = peer->get_member_representation();
+        std::string peer_rep_ip;
 
-        if (peer_rep->compare(*local_node_info_str) == 0) {
-          MYSQL_GCS_LOG_TRACE("::join():: Skipping own address.")
-          // Skip own address if configured in the peer list
-          delete peer_rep;
+        resolve_error =
+            resolve_ip_addr_from_hostname(peer->get_member_ip(), peer_rep_ip);
+        if (resolve_error) {
+          MYSQL_GCS_LOG_WARN("Unable to resolve peer address "
+                             << peer->get_member_ip().c_str()
+                             << ". Skipping...")
           continue;
         }
-        delete peer_rep;
+
+        if (peer_rep_ip.compare(local_node_info_str_ip) == 0 &&
+            peer->get_member_port() ==
+                m_local_node_address->get_member_port()) {
+          MYSQL_GCS_LOG_TRACE("::join():: Skipping own address.")
+          // Skip own address if configured in the peer list
+          continue;
+        }
 
         port = peer->get_member_port();
         addr = (char *)peer->get_member_ip().c_str();
@@ -373,10 +391,6 @@ enum_gcs_error Gcs_xcom_control::retry_do_join() {
       }
       n++;
     }
-
-    // Not needed anymore since it was only used in the loop
-    // above. As such, claim back memory.
-    delete local_node_info_str;
 
     if (con != NULL) {
       if (m_socket_util->disable_nagle_in_socket(con->fd) < 0) {
