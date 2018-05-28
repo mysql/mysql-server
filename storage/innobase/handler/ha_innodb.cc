@@ -15343,11 +15343,15 @@ ha_innobase::end_stmt()
 
 	/* This transaction had called ha_innobase::start_stmt() */
 	trx_t*	trx = m_prebuilt->trx;
-
+	trx_mutex_enter(trx);
 	if (trx->lock.start_stmt) {
-		TrxInInnoDB::end_stmt(trx);
-
 		trx->lock.start_stmt = false;
+		trx_mutex_exit(trx);
+
+		TrxInInnoDB::end_stmt(trx);
+	}
+	else {
+		trx_mutex_exit(trx);
 	}
 
 	return(0);
@@ -15474,12 +15478,16 @@ ha_innobase::start_stmt(
 		++trx->will_lock;
 	}
 
+	trx_mutex_enter(trx);
 	/* Only do it once per transaction. */
 	if (!trx->lock.start_stmt && lock_type != TL_UNLOCK) {
+		trx->lock.start_stmt = true;
+		trx_mutex_exit(trx);
 
 		TrxInInnoDB::begin_stmt(trx);
-
-		trx->lock.start_stmt = true;
+	}
+	else {
+		trx_mutex_exit(trx);
 	}
 
 	DBUG_RETURN(0);
