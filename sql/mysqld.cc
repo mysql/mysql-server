@@ -10207,6 +10207,7 @@ PSI_stage_info stage_upgrading_lock= { 0, "upgrading lock", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_user_sleep= { 0, "User sleep", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_verifying_table= { 0, "verifying table", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_waiting_for_gtid_to_be_committed= { 0, "Waiting for GTID to be committed", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_waiting_for_handler_commit= { 0, "waiting for handler commit", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_waiting_for_handler_insert= { 0, "waiting for handler insert", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_waiting_for_handler_lock= { 0, "waiting for handler lock", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_waiting_for_handler_open= { 0, "waiting for handler open", 0, PSI_DOCUMENT_ME};
@@ -10318,6 +10319,7 @@ PSI_stage_info *all_server_stages[] = {
     &stage_user_sleep,
     &stage_verifying_table,
     &stage_waiting_for_gtid_to_be_committed,
+    &stage_waiting_for_handler_commit,
     &stage_waiting_for_handler_insert,
     &stage_waiting_for_handler_lock,
     &stage_waiting_for_handler_open,

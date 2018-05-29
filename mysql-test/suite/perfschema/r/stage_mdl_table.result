@@ -23,12 +23,12 @@ username	event_name	sql_text
 user1	statement/sql/select	select * from test.t1 for update
 username	event_name	nesting_event_type
 username	event_name	nesting_event_type
-user1	stage/sql/optimizing	STATEMENT
-user1	stage/sql/statistics	STATEMENT
 user1	stage/sql/preparing	STATEMENT
 user1	stage/sql/executing	STATEMENT
 user1	stage/sql/Sending data	STATEMENT
 user1	stage/sql/end	STATEMENT
+user1	stage/sql/query end	STATEMENT
+user1	stage/sql/waiting for handler commit	STATEMENT
 user1	stage/sql/query end	STATEMENT
 user1	stage/sql/closing tables	STATEMENT
 user1	stage/sql/freeing items	STATEMENT
