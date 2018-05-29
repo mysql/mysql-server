@@ -30,6 +30,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
  Created 4/20/1996 Heikki Tuuri
  *******************************************************/
 
+#include <cmath>
+#include <cstdint>
+
 #include "dict0dict.h"
 #include "rem0rec.h"
 #include "trx0undo.h"
@@ -185,15 +188,19 @@ ib_uint64_t row_parse_int(const byte *data, ulint len, ulint mtype,
     case DATA_FLOAT:
 
       ut_a(len == sizeof(float));
-      value = static_cast<ib_uint64_t>(mach_float_read(data));
+      /* Cast float value to int64_t first, before casting to unsigned,
+         to avoid UBSAN warnings. */
+      value =
+          static_cast<ib_uint64_t>(static_cast<int64_t>(mach_float_read(data)));
       break;
 
-    case DATA_DOUBLE:
-
+    case DATA_DOUBLE: {
       ut_a(len == sizeof(double));
-      value = static_cast<ib_uint64_t>(mach_double_read(data));
+      double dblval = mach_double_read(data);
+      value = std::signbit(dblval) ? static_cast<int64_t>(dblval)
+                                   : static_cast<ib_uint64_t>(dblval);
       break;
-
+    }
     default:
       ut_error;
   }

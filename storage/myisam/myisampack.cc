@@ -154,8 +154,7 @@ static int test_space_compress(HUFF_COUNTS *huff_counts, my_off_t records,
 static HUFF_TREE *make_huff_trees(HUFF_COUNTS *huff_counts, uint trees);
 static int make_huff_tree(HUFF_TREE *tree, HUFF_COUNTS *huff_counts);
 static int compare_huff_elements(void *not_used, uchar *a, uchar *b);
-static int save_counts_in_queue(uchar *key, element_count count,
-                                HUFF_TREE *tree);
+static int save_counts_in_queue(void *v_key, element_count count, void *v_tree);
 static my_off_t calc_packed_length(HUFF_COUNTS *huff_counts, uint flag);
 static uint join_same_trees(HUFF_COUNTS *huff_counts, uint trees);
 static int make_huff_decode_table(HUFF_TREE *huff_tree, uint trees);
@@ -1426,9 +1425,8 @@ static int make_huff_tree(HUFF_TREE *huff_tree, HUFF_COUNTS *huff_counts) {
       in fact irrelevant here. We will establish the correct order
       later.
     */
-    tree_walk(&huff_counts->int_tree,
-              (int (*)(void *, element_count, void *))save_counts_in_queue,
-              (uchar *)huff_tree, left_root_right);
+    tree_walk(&huff_counts->int_tree, save_counts_in_queue, (uchar *)huff_tree,
+              left_root_right);
   } else {
     huff_tree->elements = found;
     huff_tree->tree_pack_length =
@@ -1554,8 +1552,10 @@ static int compare_tree(const void *cmp_arg MY_ATTRIBUTE((unused)),
     0
  */
 
-static int save_counts_in_queue(uchar *key, element_count count,
-                                HUFF_TREE *tree) {
+static int save_counts_in_queue(void *v_key, element_count count,
+                                void *v_tree) {
+  uchar *key = static_cast<uchar *>(v_key);
+  HUFF_TREE *tree = static_cast<HUFF_TREE *>(v_tree);
   HUFF_ELEMENT *new_huff_el;
 
   new_huff_el = tree->element_buffer + (tree->elements++);

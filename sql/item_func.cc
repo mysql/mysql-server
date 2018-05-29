@@ -34,7 +34,8 @@
 #include <algorithm>
 #include <atomic>
 #include <cfloat>  // DBL_DIG
-#include <cmath>   // std::log2
+#include <climits>
+#include <cmath>  // std::log2
 #include <iosfwd>
 #include <memory>
 #include <new>
@@ -1173,8 +1174,14 @@ longlong Item_func_numhybrid::val_int() {
     }
     case INT_RESULT:
       return int_op();
-    case REAL_RESULT:
-      return (longlong)rint(real_op());
+    case REAL_RESULT: {
+      double realval = real_op();
+      if (realval < LLONG_MIN || realval > LLONG_MAX) {
+        raise_integer_overflow();
+        return error_int();
+      }
+      return llrint(realval);
+    }
     case STRING_RESULT: {
       switch (data_type()) {
         case MYSQL_TYPE_DATE:
