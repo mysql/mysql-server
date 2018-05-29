@@ -1046,8 +1046,12 @@ bool Aggregator_distinct::setup(THD *thd) {
     enum enum_field_types field_type =
         calc_tmp_field_type(arg->data_type(), arg->result_type());
 
-    field_def.init_for_tmp_table(field_type, arg->max_length, arg->decimals,
-                                 arg->maybe_null, arg->unsigned_flag, 0);
+    field_def.init_for_tmp_table(
+        field_type, arg->max_length,
+        field_type == MYSQL_TYPE_NEWDECIMAL
+            ? min<unsigned int>(arg->decimals, DECIMAL_MAX_SCALE)
+            : arg->decimals,
+        arg->maybe_null, arg->unsigned_flag, 0);
 
     if (!(table = create_tmp_table_from_fields(thd, field_list)))
       DBUG_RETURN(true);
