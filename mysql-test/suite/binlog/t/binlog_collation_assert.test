@@ -1,0 +1,24 @@
+###########################################################
+#                                                         #
+# This test is to verify that there is no assert when     #
+# trying to set a collation with an ID > 255              #
+#                                                         #
+# Reference:                                              #
+# Bug #28015761:BINLOG CACHE: ASSERTION FAILED:           #
+#               CHARSET_DATABASE_NUMBER <= 0XFF           #
+###########################################################
+
+# The test is binary log format agnostic
+--source include/have_binlog_format_row.inc
+
+# Save the initial session value.
+SET @session_start_value = @@collation_database;
+
+CREATE DATABASE collation_test DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_as_ci;
+
+USE collation_test;
+SET @@session.collation_database='utf8mb4_vi_0900_as_cs';
+
+# This query should not cause assert.
+
+DROP DATABASE collation_test;
