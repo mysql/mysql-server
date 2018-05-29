@@ -5274,7 +5274,6 @@ static enum_nested_loop_state end_update(JOIN *join, QEP_TAB *const qep_tab,
   DBUG_RETURN(NESTED_LOOP_OK);
 }
 
-/* ARGSUSED */
 enum_nested_loop_state end_write_group(JOIN *join, QEP_TAB *const qep_tab,
                                        bool end_of_records) {
   TABLE *table = qep_tab->table();
@@ -5285,59 +5284,92 @@ enum_nested_loop_state end_write_group(JOIN *join, QEP_TAB *const qep_tab,
     join->thd->send_kill_message();
     DBUG_RETURN(NESTED_LOOP_KILLED); /* purecov: inspected */
   }
-  if (!join->seen_first_record || end_of_records ||
-      (idx = update_item_cache_if_changed(join->group_fields)) >= 0) {
+  /*
+    (1) Haven't seen a first row yet
+    (2) Have seen all rows
+    (3) GROUP expression are different from previous row's
+  */
+  if (!join->seen_first_record ||                                     // (1)
+      end_of_records ||                                               // (2)
+      (idx = update_item_cache_if_changed(join->group_fields)) >= 0)  // (3)
+  {
     Temp_table_param *const tmp_tbl = qep_tab->tmp_table_param;
     if (join->seen_first_record || (end_of_records && !join->grouped)) {
-      int send_group_parts = join->send_group_parts;
-      if (idx < send_group_parts) {
+      if (idx < (int)join->send_group_parts) {
+        /*
+          As GROUP expressions have changed, we now send forward the group
+          of the previous row.
+        */
         Switch_ref_item_slice slice_switch(join, qep_tab->ref_item_slice);
         DBUG_ASSERT(qep_tab - 1 !=
                         join->ref_slice_immediately_before_group_by &&
                     qep_tab != join->ref_slice_immediately_before_group_by);
-        table_map save_nullinfo = 0;
-        if (!join->seen_first_record) {
-          // Calculate aggregate functions for no rows
-          for (Item &item : *join->get_current_fields()) {
-            item.no_rows_in_result();
+        {
+          table_map save_nullinfo = 0;
+          if (!join->seen_first_record) {
+            // Calculate aggregate functions for no rows
+            for (Item &item : *join->get_current_fields()) {
+              item.no_rows_in_result();
+            }
+
+            /*
+              Mark tables as containing only NULL values for ha_write_row().
+              Calculate a set of tables for which NULL values need to
+              be restored after sending data.
+            */
+            if (join->clear_fields(&save_nullinfo))
+              DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
           }
-
-          /*
-            Mark tables as containing only NULL values for ha_write_row().
-            Calculate a set of tables for which NULL values need to
-            be restored after sending data.
-          */
-          if (join->clear_fields(&save_nullinfo))
-            DBUG_RETURN(NESTED_LOOP_ERROR);
+          copy_sum_funcs(join->sum_funcs,
+                         join->sum_funcs_end[join->send_group_parts]);
+          if (having_is_true(qep_tab->having)) {
+            int error = table->file->ha_write_row(table->record[0]);
+            if (error && create_ondisk_from_heap(
+                             join->thd, table, tmp_tbl->start_recinfo,
+                             &tmp_tbl->recinfo, error, false, NULL))
+              DBUG_RETURN(NESTED_LOOP_ERROR);
+          }
+          if (join->rollup.state != ROLLUP::STATE_NONE) {
+            if (join->rollup_write_data((uint)(idx + 1), qep_tab))
+              DBUG_RETURN(NESTED_LOOP_ERROR);
+          }
+          // Restore NULL values if needed.
+          if (save_nullinfo) join->restore_fields(save_nullinfo);
         }
-        copy_sum_funcs(join->sum_funcs, join->sum_funcs_end[send_group_parts]);
-        if (having_is_true(qep_tab->having)) {
-          int error = table->file->ha_write_row(table->record[0]);
-          if (error &&
-              create_ondisk_from_heap(join->thd, table, tmp_tbl->start_recinfo,
-                                      &tmp_tbl->recinfo, error, false, NULL))
-            DBUG_RETURN(NESTED_LOOP_ERROR);
-        }
-        if (join->rollup.state != ROLLUP::STATE_NONE) {
-          if (join->rollup_write_data((uint)(idx + 1), qep_tab))
-            DBUG_RETURN(NESTED_LOOP_ERROR);
-        }
-        // Restore NULL values if needed.
-        if (save_nullinfo) join->restore_fields(save_nullinfo);
-
         if (end_of_records) DBUG_RETURN(NESTED_LOOP_OK);
       }
     } else {
       if (end_of_records) DBUG_RETURN(NESTED_LOOP_OK);
       join->seen_first_record = true;
 
+      // Initialize the cache of GROUP expressions with this 1st row's values
       (void)(update_item_cache_if_changed(join->group_fields));
     }
     if (idx < (int)join->send_group_parts) {
+      /*
+        As GROUP expressions have changed, initialize the new group:
+        (1) copy non-aggregated expressions (they're constant over the group)
+        (2) and reset group aggregate functions.
+
+        About (1): some expressions to copy are not Item_fields and they are
+        copied by copy_fields() which evaluates them (see
+        param->grouped_expressions, set up in setup_copy_fields()). Thus,
+        copy_fields() can evaluate functions. One of them, F2, may reference
+        another one F1, example: SELECT expr AS F1 ... GROUP BY ... HAVING
+        F2(F1)<=2 . Assume F1 and F2 are not aggregate functions. Then they are
+        calculated by copy_fields() when starting a new group, i.e. here. As F2
+        uses an alias to F1, F1 is calculated first; F2 must use that value (not
+        evaluate expr again, as expr may not be deterministic), so F2 uses a
+        reference (Item_ref) to the already-computed value of F1; that value is
+        in Item_copy part of REF_SLICE_ORDERED_GROUP_BY. So, we switch to that
+        slice.
+      */
       Switch_ref_item_slice slice_switch(join, qep_tab->ref_item_slice);
-      if (copy_fields(tmp_tbl, join->thd)) DBUG_RETURN(NESTED_LOOP_ERROR);
+      if (copy_fields(tmp_tbl, join->thd))  // (1)
+        DBUG_RETURN(NESTED_LOOP_ERROR);
       if (copy_funcs(tmp_tbl, join->thd)) DBUG_RETURN(NESTED_LOOP_ERROR);
-      if (init_sum_functions(join->sum_funcs, join->sum_funcs_end[idx + 1]))
+      if (init_sum_functions(join->sum_funcs,
+                             join->sum_funcs_end[idx + 1]))  //(2)
         DBUG_RETURN(NESTED_LOOP_ERROR);
       DBUG_RETURN(NESTED_LOOP_OK);
     }
