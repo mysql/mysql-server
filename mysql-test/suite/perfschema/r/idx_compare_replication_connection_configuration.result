@@ -60,7 +60,7 @@ SELECT * FROM performance_schema.replication_connection_configuration WHERE CHAN
 
 OK: Handler_read_key
 
-OK: Result set: Empty  Expected: Empty
+OK: Result set: Non-empty  Expected: Non-empty
 
 OK: Extra rows: 0  Missing rows: 0
 

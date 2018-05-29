@@ -160,15 +160,11 @@ ha_rows table_replication_applier_status_by_coordinator::get_row_count() {
 }
 
 int table_replication_applier_status_by_coordinator::rnd_next(void) {
-  int res = HA_ERR_END_OF_FILE;
-
   Master_info *mi;
-
   channel_map.rdlock();
 
   for (m_pos.set_at(&m_next_pos);
-       m_pos.m_index < channel_map.get_max_channels() && res != 0;
-       m_pos.next()) {
+       m_pos.m_index < channel_map.get_max_channels(); m_pos.next()) {
     mi = channel_map.get_mi_at_pos(m_pos.m_index);
 
     /*
@@ -180,14 +176,15 @@ int table_replication_applier_status_by_coordinator::rnd_next(void) {
       'replication_applier_status_by_worker' table.
     */
     if (mi && mi->host[0] && mi->rli && mi->rli->get_worker_count() > 0) {
-      res = make_row(mi);
+      make_row(mi);
       m_next_pos.set_after(&m_pos);
+      channel_map.unlock();
+      return 0;
     }
   }
 
   channel_map.unlock();
-
-  return res;
+  return HA_ERR_END_OF_FILE;
 }
 
 int table_replication_applier_status_by_coordinator::rnd_pos(const void *pos) {

@@ -252,37 +252,27 @@ int table_replication_applier_status_by_worker::rnd_next(void) {
     }
 
     wc = mi->rli->get_worker_count();
+    if (wc == 0) {
+      /* Single Thread Slave */
+      make_row(mi);
+      m_next_pos.set_channel_after(&m_pos);
+      channel_map.unlock();
+      return 0;
+    }
+    for (; m_pos.m_index_2 < wc; m_pos.next_worker()) {
+      /* Multi Thread Slave */
 
-    for (; m_pos.m_index_2 < wc + 1; m_pos.m_index_2++) {
-      if (m_pos.m_index_2 == 0) {
-        /* Looking for Single Thread Slave */
-
-        if (wc == 0) {
-          if (!make_row(mi)) {
-            m_next_pos.set_channel_after(&m_pos);
-            channel_map.unlock();
-            return 0;
-          }
-        }
-      } else {
-        /* Looking for Multi Thread Slave */
-
-        if ((m_pos.m_index_2 >= 1) && (m_pos.m_index_2 <= wc)) {
-          worker = mi->rli->get_worker(m_pos.m_index_2 - 1);
-          if (worker) {
-            if (!make_row(worker)) {
-              m_next_pos.set_after(&m_pos);
-              channel_map.unlock();
-              return 0;
-            }
-          }
-        }
+      worker = mi->rli->get_worker(m_pos.m_index_2);
+      if (worker) {
+        make_row(worker);
+        m_next_pos.set_after(&m_pos);
+        channel_map.unlock();
+        return 0;
       }
     }
   }
 
   channel_map.unlock();
-
   return HA_ERR_END_OF_FILE;
 }
 
@@ -305,18 +295,17 @@ int table_replication_applier_status_by_worker::rnd_pos(const void *pos) {
 
   wc = mi->rli->get_worker_count();
 
-  if (m_pos.m_index_1 == 0) {
-    /* Looking for Single Thread Slave */
-    if (wc == 0) {
-      res = make_row(mi);
-    }
+  if (wc == 0) {
+    /* Single Thread Slave */
+    make_row(mi);
+    res = 0;
   } else {
-    /* Looking for Multi Thread Slave */
-    if ((m_pos.m_index_2 >= 1) && (m_pos.m_index_2 <= wc)) {
-      worker = mi->rli->get_worker(m_pos.m_index_2 - 1);
-
+    /* Multi Thread Slave */
+    if (m_pos.m_index_2 < wc) {
+      worker = mi->rli->get_worker(m_pos.m_index_2);
       if (worker != NULL) {
-        res = make_row(worker);
+        make_row(worker);
+        res = 0;
       }
     }
   }
