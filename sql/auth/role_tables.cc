@@ -240,7 +240,7 @@ bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst) {
     init_alloc_root(PSI_NOT_INSTRUMENTED, &tmp_mem, 128, 0);
     g_authid_to_vertex->clear();
     g_granted_roles->clear();
-    while (!(read_rec_errcode = read_record_info.iterator->Read())) {
+    while (!(read_rec_errcode = read_record_info->Read())) {
       char *from_host = get_field(
           &tmp_mem, roles_edges_table->field[MYSQL_ROLE_EDGES_FIELD_FROM_HOST]);
       char *from_user = get_field(
@@ -280,7 +280,7 @@ bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst) {
       DBUG_RETURN(true);
     }
     g_default_roles->clear();
-    while (!(read_rec_errcode = read_record_info.iterator->Read())) {
+    while (!(read_rec_errcode = read_record_info->Read())) {
       char *host = get_field(
           &tmp_mem, default_role_table->field[MYSQL_DEFAULT_ROLE_FIELD_HOST]);
       char *user = get_field(

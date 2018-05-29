@@ -6227,7 +6227,7 @@ enum_nested_loop_state QEP_tmp_table::end_send() {
       }
     }
 
-    int error = qep_tab->read_record.iterator->Read();
+    int error = qep_tab->read_record->Read();
     if (error > 0 || (join->thd->is_error()))  // Fatal error
       rc = NESTED_LOOP_ERROR;
     else if (error < 0)

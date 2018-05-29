@@ -40,6 +40,8 @@ struct TABLE;
 struct READ_RECORD {
   typedef void (*Unlock_row_func)(QEP_TAB *);
 
+  RowIterator *operator->() { return iterator.get(); }
+
   // These are only used for the remaining access methods in sql_executor.cc
   // that have not been converted to RowIterator yet.
   TABLE *table{nullptr}; /* Head-form */

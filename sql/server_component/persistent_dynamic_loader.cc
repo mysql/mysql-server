@@ -244,7 +244,7 @@ bool mysql_persistent_dynamic_loader_imp::init(void *thdp) {
     std::map<uint64, std::vector<std::string>> component_groups;
 
     for (;;) {
-      res = read_record_info.iterator->Read();
+      res = read_record_info->Read();
       if (res != 0) {
         break;
       }

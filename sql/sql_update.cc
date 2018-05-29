@@ -636,7 +636,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
           DBUG_RETURN(true);
         }
 
-        while (!(error = info.iterator->Read()) && !thd->killed) {
+        while (!(error = info->Read()) && !thd->killed) {
           DBUG_ASSERT(!thd->is_error());
           thd->inc_examined_row_count(1);
 
@@ -739,7 +739,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
     uint dup_key_found;
 
     while (true) {
-      error = info.iterator->Read();
+      error = info->Read();
       if (error || thd->killed) break;
       thd->inc_examined_row_count(1);
       bool skip_record;

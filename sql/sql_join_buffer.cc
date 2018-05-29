@@ -1861,7 +1861,7 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last) {
 
   /* Start retrieving all records of the joined table */
   if (qep_tab->read_record.iterator->Init(qep_tab)) return NESTED_LOOP_ERROR;
-  if ((error = qep_tab->read_record.iterator->Read()))
+  if ((error = qep_tab->read_record->Read()))
     return error < 0 ? NESTED_LOOP_OK : NESTED_LOOP_ERROR;
 
   READ_RECORD *info = &qep_tab->read_record;

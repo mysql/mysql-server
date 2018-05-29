@@ -226,7 +226,7 @@ static bool servers_load(THD *thd, TABLE *table) {
                        /*ignore_not_found_rows=*/false))
     DBUG_RETURN(true);
 
-  while (!(read_record_info.iterator->Read())) {
+  while (!(read_record_info->Read())) {
     if ((get_server_from_table_to_cache(table))) DBUG_RETURN(true);
   }
 

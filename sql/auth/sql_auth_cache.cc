@@ -1492,7 +1492,7 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
 
   allow_all_hosts = 0;
   int read_rec_errcode;
-  while (!(read_rec_errcode = read_record_info.iterator->Read())) {
+  while (!(read_rec_errcode = read_record_info->Read())) {
     password_expired = false;
     /* Reading record from mysql.user */
     ACL_USER user;
@@ -1862,7 +1862,7 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
   table->use_all_columns();
   acl_dbs->clear();
 
-  while (!(read_rec_errcode = read_record_info.iterator->Read())) {
+  while (!(read_rec_errcode = read_record_info->Read())) {
     /* Reading record in mysql.db */
     ACL_DB db;
     db.host.update_hostname(
@@ -1915,7 +1915,7 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
                          false, /*ignore_not_found_rows=*/false))
       goto end;
     table->use_all_columns();
-    while (!(read_rec_errcode = read_record_info.iterator->Read())) {
+    while (!(read_rec_errcode = read_record_info->Read())) {
       /* Reading record in mysql.proxies_priv */
       ACL_PROXY_USER proxy;
       proxy.init(table, &global_acl_memory);

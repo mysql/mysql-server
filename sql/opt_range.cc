@@ -10439,7 +10439,7 @@ int QUICK_INDEX_MERGE_SELECT::get_next() {
 
   if (doing_pk_scan) DBUG_RETURN(pk_quick_select->get_next());
 
-  if ((result = read_record.iterator->Read()) == -1) {
+  if ((result = read_record->Read()) == -1) {
     result = HA_ERR_END_OF_FILE;
 
     // NOTE: destroying the RowIterator also clears

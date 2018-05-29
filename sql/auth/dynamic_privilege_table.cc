@@ -131,7 +131,7 @@ bool populate_dynamic_privilege_caches(THD *thd, TABLE_LIST *tablelst) {
       DBUG_RETURN(true);
     }
     init_alloc_root(PSI_NOT_INSTRUMENTED, &tmp_mem, 256, 0);
-    while (!error && !(read_rec_errcode = read_record_info.iterator->Read())) {
+    while (!error && !(read_rec_errcode = read_record_info->Read())) {
       char *host =
           get_field(&tmp_mem, table->field[MYSQL_DYNAMIC_PRIV_FIELD_HOST]);
       if (host == 0) host = &percentile_character[0];

@@ -461,7 +461,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
 
     // The loop that reads rows and delete those that qualify
 
-    while (!(error = info.iterator->Read()) && !thd->killed) {
+    while (!(error = info->Read()) && !thd->killed) {
       DBUG_ASSERT(!thd->is_error());
       thd->inc_examined_row_count(1);
 
@@ -1108,7 +1108,7 @@ int Query_result_delete::do_table_deletes(TABLE *table) {
                        /*ignore_not_found_rows=*/true))
     DBUG_RETURN(1);
   bool will_batch = !table->file->start_bulk_delete();
-  while (!(local_error = info.iterator->Read()) && !thd->killed) {
+  while (!(local_error = info->Read()) && !thd->killed) {
     if (table->triggers &&
         table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
                                           TRG_ACTION_BEFORE, false)) {

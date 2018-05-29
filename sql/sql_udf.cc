@@ -249,7 +249,7 @@ void udf_read_functions_table() {
   if (init_read_record(&read_record_info, new_thd, table, NULL, false,
                        /*ignore_not_found_rows=*/false))
     goto end;
-  while (!(error = read_record_info.iterator->Read())) {
+  while (!(error = read_record_info->Read())) {
     DBUG_PRINT("info", ("init udf record"));
     LEX_STRING name;
     name.str = get_field(&mem, table->field[0]);

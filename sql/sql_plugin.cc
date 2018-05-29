@@ -1677,7 +1677,7 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv) {
     environment, and it uses mysql_mutex_assert_owner(), so we lock
     the mutex here to satisfy the assert
   */
-  while (!(error = read_record_info.iterator->Read())) {
+  while (!(error = read_record_info->Read())) {
     DBUG_PRINT("info", ("init plugin record"));
     String str_name, str_dl;
     get_field(tmp_root, table->field[0], &str_name);

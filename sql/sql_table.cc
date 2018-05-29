@@ -14796,7 +14796,7 @@ static int copy_data_between_tables(
 
   to->file->extra(HA_EXTRA_BEGIN_ALTER_COPY);
 
-  while (!(error = info.iterator->Read())) {
+  while (!(error = info->Read())) {
     if (thd->killed) {
       thd->send_kill_message();
       error = 1;

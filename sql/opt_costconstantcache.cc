@@ -262,7 +262,7 @@ static void read_server_cost_constants(THD *thd, TABLE *table,
     table->use_all_columns();
 
     // Read one record
-    while (!read_record_info.iterator->Read()) {
+    while (!read_record_info->Read()) {
       /*
         Check if a non-default value has been configured for this cost
         constant.
@@ -330,7 +330,7 @@ static void read_engine_cost_constants(THD *thd, TABLE *table,
     table->use_all_columns();
 
     // Read one record
-    while (!read_record_info.iterator->Read()) {
+    while (!read_record_info->Read()) {
       /*
         Check if a non-default value has been configured for this cost
         constant.

@@ -223,7 +223,7 @@ static int search_topics(THD *thd, QEP_TAB *topics,
                        /*ignore_not_found_rows=*/false))
     DBUG_RETURN(0);
 
-  while (!read_record_info.iterator->Read()) {
+  while (!read_record_info->Read()) {
     if (!topics->condition()->val_int())  // Doesn't match like
       continue;
     memorize_variant_topic(thd, count, find_fields, names, name, description,
@@ -262,7 +262,7 @@ static int search_keyword(THD *thd, QEP_TAB *keywords,
                        /*ignore_not_found_rows=*/false))
     DBUG_RETURN(0);
 
-  while (!read_record_info.iterator->Read() && count < 2) {
+  while (!read_record_info->Read() && count < 2) {
     if (!keywords->condition()->val_int())  // Dosn't match like
       continue;
 
@@ -386,7 +386,7 @@ static int search_categories(THD *thd, QEP_TAB *categories,
                        /*ignore_not_found_rows=*/false))
     DBUG_RETURN(0);
 
-  while (!read_record_info.iterator->Read()) {
+  while (!read_record_info->Read()) {
     if (categories->condition() && !categories->condition()->val_int())
       continue;
     String *lname = new (thd->mem_root) String;
@@ -417,7 +417,7 @@ static void get_all_items_for_category(THD *thd, QEP_TAB *items, Field *pfname,
   if (init_read_record(&read_record_info, thd, NULL, items, false,
                        /*ignore_not_found_rows=*/false))
     DBUG_VOID_RETURN;
-  while (!read_record_info.iterator->Read()) {
+  while (!read_record_info->Read()) {
     if (!items->condition()->val_int()) continue;
     String *name = new (thd->mem_root) String();
     get_field(thd->mem_root, pfname, name);
