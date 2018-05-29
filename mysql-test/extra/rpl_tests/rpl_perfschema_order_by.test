@@ -1,0 +1,91 @@
+# The test file is invoked from rpl.rpl_perfschema_order_by.test
+#
+# === References ===
+# Bug #22958077: ORDER BY LAST_SEEN_TRANSACTION RESULTS IN EMPTY SET (OR DEBUG
+#                ASSERTION)
+
+--echo # 1) Create a database on server_1.
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+CREATE DATABASE db1;
+
+--echo # 2) create database on server_3.
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+CREATE DATABASE db3;
+
+--echo # 3)  sync the slave (server_2) with both masters (server_1 and server_3).
+#sync the slave with server_1
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--let $rpl_channel_name= 'channel_1'
+--let $sync_slave_connection= server_2
+--source include/sync_slave_sql_with_master.inc
+
+# sync the slave with server_3
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+
+--let $rpl_channel_name= 'channel_3'
+--let $sync_slave_connection=server_2
+--source include/sync_slave_sql_with_master.inc
+
+# Restart slave for channel_3 so that SELECT returns unsorted data.
+--let $rpl_channel_name= 'channel_3'
+--source include/stop_slave.inc
+--source include/start_slave.inc
+
+--echo
+SELECT CHANNEL_NAME FROM performance_schema.replication_applier_configuration;
+SELECT CHANNEL_NAME FROM performance_schema.replication_applier_configuration ORDER BY CHANNEL_NAME;
+
+--echo
+SELECT CHANNEL_NAME FROM performance_schema.replication_applier_status;
+SELECT CHANNEL_NAME FROM performance_schema.replication_applier_status ORDER BY CHANNEL_NAME;
+
+--echo
+SELECT CHANNEL_NAME, LAST_ERROR_MESSAGE FROM performance_schema.replication_connection_status;
+SELECT CHANNEL_NAME, LAST_ERROR_MESSAGE FROM performance_schema.replication_connection_status ORDER BY CHANNEL_NAME;
+
+--echo
+SELECT CHANNEL_NAME, TLS_VERSION FROM performance_schema.replication_connection_configuration;
+SELECT CHANNEL_NAME, TLS_VERSION FROM performance_schema.replication_connection_configuration ORDER BY CHANNEL_NAME;
+
+--let $is_mts= `SELECT @@global.slave_parallel_workers`
+if ($is_mts)
+{
+  --echo
+  SELECT CHANNEL_NAME, LAST_ERROR_MESSAGE FROM performance_schema.replication_applier_status_by_coordinator;
+  SELECT CHANNEL_NAME, LAST_ERROR_MESSAGE FROM performance_schema.replication_applier_status_by_coordinator ORDER BY CHANNEL_NAME;
+}
+
+--echo
+SELECT CHANNEL_NAME, LAST_ERROR_MESSAGE FROM performance_schema.replication_applier_status_by_worker;
+SELECT CHANNEL_NAME, LAST_ERROR_MESSAGE FROM performance_schema.replication_applier_status_by_worker ORDER BY CHANNEL_NAME;
+--echo
+
+# Cleanup
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+DROP DATABASE db1;
+
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+DROP DATABASE db3;
+
+#sync the slave with server_1
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--let $rpl_channel_name= 'channel_1'
+--let $sync_slave_connection= server_2
+--source include/sync_slave_sql_with_master.inc
+
+# sync the slave with server_3
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+
+--let $rpl_channel_name= 'channel_3'
+--let $sync_slave_connection=server_2
+--source include/sync_slave_sql_with_master.inc
