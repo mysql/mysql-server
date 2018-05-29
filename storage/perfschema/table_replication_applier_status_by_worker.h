@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -74,14 +74,16 @@ struct st_row_worker {
 };
 
 /**
-  Index 1 for replication channel
-  Index 2 for worker
+  Position in table replication_applier_status_by_worker.
+  Index 1 for replication channel.
+  Index 2 for worker:
+  - position [0] is for Single Thread Slave (Master_info)
+  - position [1] .. [N] is for Multi Thread Slave (Slave_worker)
 */
-struct workers_per_channel
-:public PFS_double_index
+struct pos_replication_applier_status_by_worker : public PFS_double_index
 {
-  workers_per_channel()
-    :PFS_double_index(0,0)
+
+  pos_replication_applier_status_by_worker() : PFS_double_index(0, 0)
   {}
 
   inline void reset(void)
@@ -98,12 +100,26 @@ struct workers_per_channel
     m_index_1++;
     m_index_2= 0;
   }
+
+  inline void next_worker()
+  {
+    m_index_2++;
+  }
+
+  inline void
+  set_channel_after(const pos_replication_applier_status_by_worker *other)
+  {
+    m_index_1 = other->m_index_1 + 1;
+    m_index_2 = 0;
+  }
 };
 
 
 /** Table PERFORMANCE_SCHEMA.replication_applier_status_by_worker */
 class table_replication_applier_status_by_worker: public PFS_engine_table
 {
+  typedef pos_replication_applier_status_by_worker pos_t;
+
 private:
   void make_row(Slave_worker *);
   /*
@@ -121,13 +137,9 @@ private:
   /** True is the current row exists. */
   bool m_row_exists;
   /** Current position. */
-  workers_per_channel m_pos;
+  pos_t m_pos;
   /** Next position. */
-  workers_per_channel m_next_pos;
-  /** Current position. */
-  PFS_simple_index m_applier_pos;
-  /** Next position. */
-  PFS_simple_index m_applier_next_pos;
+  pos_t m_next_pos;
 
 protected:
   /**
