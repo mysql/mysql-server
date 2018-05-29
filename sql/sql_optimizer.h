@@ -202,7 +202,7 @@ class JOIN {
         const_tables(0),
         tmp_tables(0),
         send_group_parts(0),
-        sort_and_group(false),
+        streaming_aggregation(false),
         seen_first_record(false),
         // @todo Can this be substituted with select->is_explicitly_grouped()?
         grouped(select->is_explicitly_grouped()),
@@ -353,12 +353,21 @@ class JOIN {
   uint tmp_tables;      ///< Number of temporary tables used by query
   uint send_group_parts;
   /**
-    Indicates that grouping will be performed on the result set during
-    query execution. This field belongs to query execution.
+    Indicates that the data will be aggregated (typically GROUP BY),
+    _and_ that it is already processed in an order that is compatible with
+    the grouping in use (e.g. because we are scanning along an index,
+    or because an earlier step sorted the data in a group-compatible order).
+
+    Note that this flag changes value at multiple points during optimization;
+    if it's set when a temporary table is created, this means we aggregate
+    into said temporary table (end_write_group is chosen instead of end_write),
+    but if it's set later, it means that we can aggregate as we go,
+    just before sending the data to the client (end_send_group is chosen
+    instead of end_send).
 
     @see make_group_fields, alloc_group_fields, JOIN::exec
   */
-  bool sort_and_group;
+  bool streaming_aggregation;
   bool seen_first_record;   ///< Whether we've seen at least one row already
   bool grouped;             ///< If query contains GROUP BY clause
   bool do_send_rows;        ///< If true, send produced rows using query_result

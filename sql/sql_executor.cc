@@ -887,7 +887,7 @@ void setup_tmptable_write_func(QEP_TAB *tab, Opt_trace_object *trace) {
       description = "continuously_update_group_row";
       op->set_write_func(end_update);
     }
-  } else if (join->sort_and_group && !tmp_tbl->precomputed_group_by) {
+  } else if (join->streaming_aggregation && !tmp_tbl->precomputed_group_by) {
     DBUG_ASSERT(phase < REF_SLICE_WIN_1);
     description = "write_group_row_when_complete";
     DBUG_PRINT("info", ("Using end_write_group"));
@@ -924,7 +924,7 @@ Next_select_func JOIN::get_end_select_func() {
      more aggregate functions). Use end_send if the query should not
      be grouped.
    */
-  if (sort_and_group && !tmp_table_param.precomputed_group_by) {
+  if (streaming_aggregation && !tmp_table_param.precomputed_group_by) {
     DBUG_PRINT("info", ("Using end_send_group"));
     DBUG_RETURN(end_send_group);
   }
@@ -5683,7 +5683,7 @@ bool make_group_fields(JOIN *main_join, JOIN *curr_join) {
   DBUG_ENTER("make_group_fields");
   if (main_join->group_fields_cache.elements) {
     curr_join->group_fields = main_join->group_fields_cache;
-    curr_join->sort_and_group = 1;
+    curr_join->streaming_aggregation = true;
   } else {
     if (alloc_group_fields(curr_join, curr_join->group_list)) DBUG_RETURN(1);
     main_join->group_fields_cache = curr_join->group_fields;
@@ -5704,7 +5704,7 @@ static bool alloc_group_fields(JOIN *join, ORDER *group) {
       if (!tmp || join->group_fields.push_front(tmp)) return true;
     }
   }
-  join->sort_and_group = 1; /* Mark for do_select */
+  join->streaming_aggregation = true; /* Mark for do_select */
   return false;
 }
 

@@ -3879,7 +3879,7 @@ bool JOIN::make_tmp_tables_info() {
     if (alloc_ref_item_slice(thd, REF_SLICE_TMP1)) DBUG_RETURN(true);
 
     // Change sum_fields reference to calculated fields in tmp_table
-    if (sort_and_group || qep_tab[curr_tmp_table].table()->group ||
+    if (streaming_aggregation || qep_tab[curr_tmp_table].table()->group ||
         tmp_table_param.precomputed_group_by) {
       if (change_to_use_tmp_fields(
               thd, ref_items[REF_SLICE_TMP1], tmp_fields_list[REF_SLICE_TMP1],
@@ -3906,8 +3906,8 @@ bool JOIN::make_tmp_tables_info() {
       If having is not handled here, it will be checked before the row is sent
       to the client.
     */
-    if (having_cond &&
-        (sort_and_group || (exec_tmp_table->is_distinct && !group_list))) {
+    if (having_cond && (streaming_aggregation ||
+                        (exec_tmp_table->is_distinct && !group_list))) {
       /*
         If there is no select distinct or rollup, then move the having to table
         conds of tmp table.
@@ -3933,7 +3933,7 @@ bool JOIN::make_tmp_tables_info() {
 
     tmp_table_param.func_count = 0;
 
-    if (sort_and_group || qep_tab[curr_tmp_table].table()->group) {
+    if (streaming_aggregation || qep_tab[curr_tmp_table].table()->group) {
       tmp_table_param.field_count += tmp_table_param.sum_func_count;
       tmp_table_param.sum_func_count = 0;
     }
@@ -3978,7 +3978,7 @@ bool JOIN::make_tmp_tables_info() {
       tmp_table_param.hidden_field_count =
           tmp_all_fields[REF_SLICE_TMP1].elements -
           tmp_fields_list[REF_SLICE_TMP1].elements;
-      sort_and_group = false;
+      streaming_aggregation = false;
       if (!exec_tmp_table->group && !exec_tmp_table->is_distinct) {
         // 1st tmp table were materializing join result
         materialize_join = true;
@@ -4069,7 +4069,7 @@ bool JOIN::make_tmp_tables_info() {
         tmp_table_param.func_count = 0;
 
     tmp_table_param.cleanup();
-    seen_first_record = sort_and_group = false;
+    seen_first_record = streaming_aggregation = false;
 
     if (!group_optimized_away) {
       grouped = false;
@@ -4179,7 +4179,7 @@ bool JOIN::make_tmp_tables_info() {
       If we have already done the group, add HAVING to sorted table except
       when rollup is present
     */
-    if (having_cond && !group_list && !sort_and_group &&
+    if (having_cond && !group_list && !streaming_aggregation &&
         rollup.state == ROLLUP::STATE_NONE) {
       if (add_having_as_tmp_table_cond(curr_tmp_table)) DBUG_RETURN(true);
     }

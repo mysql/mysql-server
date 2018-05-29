@@ -1285,7 +1285,7 @@ bool JOIN::optimize_distinct_group_order() {
       group_list.force_order();
       trace_opt.add("removed_order_by", true);
     }
-    if (is_indexed_agg_distinct(this, NULL)) sort_and_group = 0;
+    if (is_indexed_agg_distinct(this, NULL)) streaming_aggregation = false;
   }
 
   DBUG_RETURN(false);
@@ -7457,7 +7457,7 @@ static void add_loose_index_scan_and_skip_scan_keys(JOIN *join,
       loose index scan, and is_indexed_agg_distinct() has already
       collected all referenced fields into indexed_fields.
     */
-    join->sort_and_group = 1;
+    join->streaming_aggregation = true;
     cause = "indexed_distinct_aggregate";
   } else
     return;
