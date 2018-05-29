@@ -69,12 +69,6 @@ ENDIF()
 
 OPTION(WITH_DEBUG "Use dbug/safemutex" OFF)
 
-# Distinguish between community and non-community builds, with the
-# default being a community build. This does not impact the feature
-# set that will be compiled in; it's merely provided as a hint to
-# custom packaging steps.
-OPTION(COMMUNITY_BUILD "Set to true if this is a community build" ON) 
-
 # Use a default manufacturer if no manufacturer was identified.
 SET(MANUFACTURER_DOCSTRING
   "Set the entity that appears as the manufacturer of packages that support a manufacturer field.")
