@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,7 @@
 class String;
 class THD;
 struct TABLE_LIST;
+class handler;
 
 /**
   This class represents the interface for internal error handlers.
@@ -352,6 +353,26 @@ class Info_schema_error_handler : public Internal_error_handler {
 
   // Flag to indicate whether deadlock error is handled by the handler or not.
   bool m_error_handled = false;
+};
+
+/**
+   An Internal_error_handler that converts errors related to foreign key
+   constraint checks 'ER_NO_REFERENCED_ROW_2' and 'ER_ROW_IS_REFERENCED_2'
+   to ER_NO_REFERENCED_ROW and ER_ROW_IS_REFERENCED based on privilege checks.
+   This prevents from revealing parent and child tables information respectively
+   when the foreign key constraint check fails and user does not have privileges
+   to access those tables.
+*/
+class Foreign_key_error_handler : public Internal_error_handler {
+  handler *m_table_handler;
+  THD *m_thd;
+
+ public:
+  Foreign_key_error_handler(THD *thd, handler *table_handler)
+      : m_table_handler(table_handler), m_thd(thd) {}
+  virtual bool handle_condition(THD *, uint sql_errno, const char *,
+                                Sql_condition::enum_severity_level *level,
+                                const char *message);
 };
 
 #endif  // ERROR_HANDLER_INCLUDED

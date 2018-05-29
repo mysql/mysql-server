@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,6 +21,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/error_handler.h"
+#include "sql/auth/auth_acls.h"
 
 #include <errno.h>
 
@@ -90,6 +91,8 @@ bool Ignore_error_handler::handle_condition(
     case ER_SUBQUERY_NO_1_ROW:
     case ER_ROW_IS_REFERENCED_2:
     case ER_NO_REFERENCED_ROW_2:
+    case ER_NO_REFERENCED_ROW:
+    case ER_ROW_IS_REFERENCED:
     case ER_BAD_NULL_ERROR:
     case ER_DUP_ENTRY:
     case ER_DUP_ENTRY_WITH_KEY_NAME:
@@ -296,5 +299,40 @@ bool Info_schema_error_handler::handle_condition(
     m_error_handled = true;
   }
 
+  return false;
+}
+
+bool Foreign_key_error_handler::handle_condition(
+    THD *, uint sql_errno, const char *, Sql_condition::enum_severity_level *,
+    const char *) {
+  TABLE_LIST table;
+  const TABLE_SHARE *share = m_table_handler->get_table_share();
+
+  if (sql_errno == ER_NO_REFERENCED_ROW_2) {
+    for (TABLE_SHARE_FOREIGN_KEY_INFO *fk = share->foreign_key;
+         fk < share->foreign_key + share->foreign_keys; ++fk) {
+      table.init_one_table(
+          fk->referenced_table_db.str, fk->referenced_table_db.length,
+          fk->referenced_table_name.str, fk->referenced_table_name.length,
+          fk->referenced_table_name.str, TL_READ);
+      if (check_table_access(m_thd, TABLE_ACLS, &table, true, 1, true)) {
+        my_error(ER_NO_REFERENCED_ROW, MYF(0));
+        return true;
+      }
+    }
+  } else if (sql_errno == ER_ROW_IS_REFERENCED_2) {
+    for (TABLE_SHARE_FOREIGN_KEY_PARENT_INFO *fk_p = share->foreign_key_parent;
+         fk_p < share->foreign_key_parent + share->foreign_key_parents;
+         ++fk_p) {
+      table.init_one_table(
+          fk_p->referencing_table_db.str, fk_p->referencing_table_db.length,
+          fk_p->referencing_table_name.str, fk_p->referencing_table_name.length,
+          fk_p->referencing_table_name.str, TL_READ);
+      if (check_table_access(m_thd, TABLE_ACLS, &table, true, 1, true)) {
+        my_error(ER_ROW_IS_REFERENCED, MYF(0));
+        return true;
+      }
+    }
+  }
   return false;
 }

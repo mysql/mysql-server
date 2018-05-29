@@ -3448,3 +3448,160 @@ self	CREATE TABLE `self` (
 ALTER TABLE child DROP KEY fk_s, ADD COLUMN j INT, ADD KEY (fk, j);
 ALTER TABLE self DROP KEY fk_s, ADD COLUMN j INT, ADD KEY(fk, j);
 DROP TABLES self, child, parent;
+#
+# WL#8910: Ensure foreign key error does not reveal information about
+#          parent table for which user has no access privileges.
+#
+#Set up tables.
+CREATE TABLE t1(fld1 INT PRIMARY KEY, fld2 INT) ENGINE=INNODB;
+CREATE TABLE t2(fld1 INT PRIMARY KEY, fld2 INT, CONSTRAINT fk2
+FOREIGN KEY (fld1) REFERENCES t1 (fld1)) ENGINE=InnoDB;
+CREATE TABLE t3(fld1 INT PRIMARY KEY, fld2 INT) ENGINE=InnoDB;
+# Set up stored routines
+CREATE PROCEDURE p1() SQL SECURITY INVOKER INSERT INTO t2 (fld1, fld2) VALUES (1, 2);
+CREATE PROCEDURE p2() SQL SECURITY DEFINER INSERT INTO t2 (fld1, fld2) VALUES (1, 2);
+CREATE FUNCTION f1() RETURNS INT SQL SECURITY INVOKER
+BEGIN
+INSERT INTO t2 (fld1, fld2) VALUES (1, 2);
+RETURN 0;
+END|
+CREATE FUNCTION f2() RETURNS INT SQL SECURITY DEFINER
+BEGIN
+INSERT INTO t2 (fld1, fld2) VALUES (1, 2);
+RETURN 0;
+END|
+# Set up views.
+CREATE SQL SECURITY INVOKER VIEW v1 AS SELECT * FROM t2;
+CREATE SQL SECURITY DEFINER VIEW v2 AS SELECT * FROM t2;
+# Set up users and permissions.
+CREATE USER user1@localhost;
+CREATE USER user2@localhost;
+CREATE USER user3@localhost;
+GRANT INSERT (fld1, fld2) ON t2 TO user1@localhost;
+GRANT INSERT ON v1 TO user2@localhost;
+GRANT INSERT ON v2 TO user2@localhost;
+GRANT SET_USER_ID ON *.* TO user2@localhost;
+GRANT EXECUTE ON PROCEDURE p1 TO user2@localhost;
+GRANT EXECUTE ON PROCEDURE p2 TO user2@localhost;
+GRANT EXECUTE ON FUNCTION f1 TO user2@localhost;
+GRANT EXECUTE ON FUNCTION f2 TO user2@localhost;
+connect  con1, localhost, user1,,test;
+# Without patch, reveals parent table's information.
+INSERT INTO t2 (fld1, fld2) VALUES (1, 2);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails
+# Warning displayed does not reveal parent table information.
+INSERT IGNORE INTO t2 (fld1, fld2) VALUES (1, 2);
+Warnings:
+Warning	1216	Cannot add or update a child row: a foreign key constraint fails
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1216	Cannot add or update a child row: a foreign key constraint fails
+connection default;
+GRANT SELECT ON t1 TO user1@localhost;
+connection con1;
+INSERT INTO t2 (fld1, fld2) VALUES (1, 2);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk2` FOREIGN KEY (`fld1`) REFERENCES `t1` (`fld1`))
+connection default;
+ALTER TABLE t2 ADD CONSTRAINT fk3 FOREIGN KEY (fld2) REFERENCES t3(fld1);
+connection con1;
+# Without patch, reveals parent table's information.
+INSERT INTO t2 (fld1, fld2) VALUES (1, 2);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails
+# Warning displayed does not reveal parent table information.
+INSERT IGNORE INTO t2 (fld1, fld2) VALUES (1, 2);
+Warnings:
+Warning	1216	Cannot add or update a child row: a foreign key constraint fails
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1216	Cannot add or update a child row: a foreign key constraint fails
+connection default;
+GRANT SELECT ON t3 TO user1@localhost;
+connection con1;
+INSERT INTO t2 (fld1, fld2) VALUES (1, 2);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk2` FOREIGN KEY (`fld1`) REFERENCES `t1` (`fld1`))
+connection default;
+GRANT INSERT (fld1, fld2) ON t2 TO user2@localhost;
+GRANT CREATE ROUTINE ON test.* TO user2@localhost;
+GRANT CREATE VIEW ON test.* TO user2@localhost;
+# Tests where DML reports FK constraint failure within Stored Routines.
+connect  con2, localhost, user2,,test;
+# The SQL security for p1 is invoker where invoker lacks permission
+# to parent table, hence parent table information is not displayed.
+CALL p1();
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails
+# The SQL security p2 is definer, where the definer has access privilege
+# to the parent table, hence parent table information is displayed.
+CALL p2();
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk2` FOREIGN KEY (`fld1`) REFERENCES `t1` (`fld1`))
+# The SQL security for f1 is invoker where invoker lacks permission
+# to parent table, hence parent table information is not displayed.
+SELECT f1();
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails
+# The SQL security f2 is definer, where the definer has access privilege
+# to the parent table, hence parent table information is displayed.
+SELECT f2();
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk2` FOREIGN KEY (`fld1`) REFERENCES `t1` (`fld1`))
+# Test for DMLs on VIEWS.
+# The invoker does not have access to the parent table, hence the parent
+# table information is not displayed.
+INSERT INTO v1 VALUES (1, 2);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails
+# DML on view executed within the definer context where the invoker does
+# not have access to the parent table, hence the parent table information
+# is not displayed.
+INSERT INTO v2 VALUES (1, 2);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails
+connection default;
+GRANT SELECT ON t1 TO user2@localhost;
+GRANT SELECT ON t3 TO user2@localhost;
+connection con2;
+# DML on view executed within the definer context where the invoker
+# has access to the parent table, hence the parent table information
+# is displayed.
+INSERT INTO v2 VALUES (1, 2);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk2` FOREIGN KEY (`fld1`) REFERENCES `t1` (`fld1`))
+# Tests with SET_USER_ID
+# Set up stored routines and views by user with SET_USER_ID
+# privilege.
+CREATE DEFINER=root@localhost PROCEDURE p3() SQL SECURITY DEFINER
+INSERT INTO t2 (fld1, fld2) VALUES (1, 2);
+CREATE DEFINER=root@localhost FUNCTION f3() RETURNS
+INT SQL SECURITY DEFINER
+BEGIN
+INSERT INTO t2 (fld1, fld2) VALUES (1, 2);
+RETURN 0;
+END|
+CREATE DEFINER=root@localhost SQL SECURITY DEFINER VIEW v3 AS
+SELECT * FROM t2;
+# Grant privileges for user3.
+connection default;
+GRANT EXECUTE ON PROCEDURE p3 TO user3@localhost;
+GRANT EXECUTE ON FUNCTION f3 TO user3@localhost;
+GRANT INSERT ON v3 TO user3@localhost;
+GRANT SELECT ON t1 TO user3@localhost;
+GRANT SELECT ON t3 TO user3@localhost;
+connect  con3, localhost, user3,,test;
+# Since the execution happens in the definer 'root' user
+# context, the parent table informaton is exposed.
+CALL p3();
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk2` FOREIGN KEY (`fld1`) REFERENCES `t1` (`fld1`))
+SELECT f3();
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk2` FOREIGN KEY (`fld1`) REFERENCES `t1` (`fld1`))
+INSERT INTO v3 VALUES(4, 5);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk2` FOREIGN KEY (`fld1`) REFERENCES `t1` (`fld1`))
+# Cleanup
+connection default;
+disconnect con1;
+disconnect con2;
+disconnect con3;
+DROP VIEW v1, v2, v3;
+DROP TABLE t2, t3, t1;
+DROP USER user1@localhost;
+DROP USER user2@localhost;
+DROP USER user3@localhost;
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP PROCEDURE p3;
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;

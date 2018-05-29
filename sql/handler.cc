@@ -3909,6 +3909,9 @@ bool handler::is_fatal_error(int error) {
     - table->alias
 */
 void handler::print_error(int error, myf errflag) {
+  THD *thd = current_thd;
+  Foreign_key_error_handler foreign_key_error_handler(thd, this);
+
   DBUG_ENTER("handler::print_error");
   DBUG_PRINT("enter", ("error: %d", error));
 
@@ -4044,14 +4047,26 @@ void handler::print_error(int error, myf errflag) {
       break;
     case HA_ERR_ROW_IS_REFERENCED: {
       String str;
+      /*
+        Manipulate the error message while handling the error
+        condition based on the access check.
+      */
+      thd->push_internal_handler(&foreign_key_error_handler);
       get_error_message(error, &str);
       my_error(ER_ROW_IS_REFERENCED_2, errflag, str.c_ptr_safe());
+      thd->pop_internal_handler();
       DBUG_VOID_RETURN;
     }
     case HA_ERR_NO_REFERENCED_ROW: {
       String str;
+      /*
+        Manipulate the error message while handling the error
+        condition based on the access check.
+      */
+      thd->push_internal_handler(&foreign_key_error_handler);
       get_error_message(error, &str);
       my_error(ER_NO_REFERENCED_ROW_2, errflag, str.c_ptr_safe());
+      thd->pop_internal_handler();
       DBUG_VOID_RETURN;
     }
     case HA_ERR_TABLE_DEF_CHANGED:

@@ -3367,3 +3367,200 @@ SHOW CREATE TABLE self;
 ALTER TABLE child DROP KEY fk_s, ADD COLUMN j INT, ADD KEY (fk, j);
 ALTER TABLE self DROP KEY fk_s, ADD COLUMN j INT, ADD KEY(fk, j);
 DROP TABLES self, child, parent;
+
+
+--echo #
+--echo # WL#8910: Ensure foreign key error does not reveal information about
+--echo #          parent table for which user has no access privileges.
+--echo #
+
+--echo #Set up tables.
+CREATE TABLE t1(fld1 INT PRIMARY KEY, fld2 INT) ENGINE=INNODB;
+CREATE TABLE t2(fld1 INT PRIMARY KEY, fld2 INT, CONSTRAINT fk2
+FOREIGN KEY (fld1) REFERENCES t1 (fld1)) ENGINE=InnoDB;
+CREATE TABLE t3(fld1 INT PRIMARY KEY, fld2 INT) ENGINE=InnoDB;
+
+--echo # Set up stored routines
+CREATE PROCEDURE p1() SQL SECURITY INVOKER INSERT INTO t2 (fld1, fld2) VALUES (1, 2);
+CREATE PROCEDURE p2() SQL SECURITY DEFINER INSERT INTO t2 (fld1, fld2) VALUES (1, 2);
+DELIMITER |;
+CREATE FUNCTION f1() RETURNS INT SQL SECURITY INVOKER
+BEGIN
+  INSERT INTO t2 (fld1, fld2) VALUES (1, 2);
+  RETURN 0;
+END|
+
+CREATE FUNCTION f2() RETURNS INT SQL SECURITY DEFINER
+BEGIN
+  INSERT INTO t2 (fld1, fld2) VALUES (1, 2);
+  RETURN 0;
+END|
+
+DELIMITER ;|
+
+--echo # Set up views.
+CREATE SQL SECURITY INVOKER VIEW v1 AS SELECT * FROM t2;
+CREATE SQL SECURITY DEFINER VIEW v2 AS SELECT * FROM t2;
+
+--echo # Set up users and permissions.
+CREATE USER user1@localhost;
+CREATE USER user2@localhost;
+CREATE USER user3@localhost;
+GRANT INSERT (fld1, fld2) ON t2 TO user1@localhost;
+GRANT INSERT ON v1 TO user2@localhost;
+GRANT INSERT ON v2 TO user2@localhost;
+GRANT SET_USER_ID ON *.* TO user2@localhost;
+GRANT EXECUTE ON PROCEDURE p1 TO user2@localhost;
+GRANT EXECUTE ON PROCEDURE p2 TO user2@localhost;
+GRANT EXECUTE ON FUNCTION f1 TO user2@localhost;
+GRANT EXECUTE ON FUNCTION f2 TO user2@localhost;
+
+--enable_connect_log
+
+connect (con1, localhost, user1,,test);
+--echo # Without patch, reveals parent table's information.
+--error ER_NO_REFERENCED_ROW
+INSERT INTO t2 (fld1, fld2) VALUES (1, 2);
+
+--echo # Warning displayed does not reveal parent table information.
+INSERT IGNORE INTO t2 (fld1, fld2) VALUES (1, 2);
+SHOW WARNINGS;
+
+connection default;
+GRANT SELECT ON t1 TO user1@localhost;
+
+connection con1;
+--error ER_NO_REFERENCED_ROW_2
+INSERT INTO t2 (fld1, fld2) VALUES (1, 2);
+
+connection default;
+ALTER TABLE t2 ADD CONSTRAINT fk3 FOREIGN KEY (fld2) REFERENCES t3(fld1);
+
+connection con1;
+--echo # Without patch, reveals parent table's information.
+--error ER_NO_REFERENCED_ROW
+INSERT INTO t2 (fld1, fld2) VALUES (1, 2);
+
+--echo # Warning displayed does not reveal parent table information.
+INSERT IGNORE INTO t2 (fld1, fld2) VALUES (1, 2);
+SHOW WARNINGS;
+
+connection default;
+GRANT SELECT ON t3 TO user1@localhost;
+
+connection con1;
+--error ER_NO_REFERENCED_ROW_2
+INSERT INTO t2 (fld1, fld2) VALUES (1, 2);
+
+connection default;
+GRANT INSERT (fld1, fld2) ON t2 TO user2@localhost;
+GRANT CREATE ROUTINE ON test.* TO user2@localhost;
+GRANT CREATE VIEW ON test.* TO user2@localhost;
+
+--echo # Tests where DML reports FK constraint failure within Stored Routines.
+connect (con2, localhost, user2,,test);
+
+--echo # The SQL security for p1 is invoker where invoker lacks permission
+--echo # to parent table, hence parent table information is not displayed.
+--error ER_NO_REFERENCED_ROW
+CALL p1();
+
+--echo # The SQL security p2 is definer, where the definer has access privilege
+--echo # to the parent table, hence parent table information is displayed.
+--error ER_NO_REFERENCED_ROW_2
+CALL p2();
+
+--echo # The SQL security for f1 is invoker where invoker lacks permission
+--echo # to parent table, hence parent table information is not displayed.
+--error ER_NO_REFERENCED_ROW
+SELECT f1();
+
+--echo # The SQL security f2 is definer, where the definer has access privilege
+--echo # to the parent table, hence parent table information is displayed.
+--error ER_NO_REFERENCED_ROW_2
+SELECT f2();
+
+--echo # Test for DMLs on VIEWS.
+
+--echo # The invoker does not have access to the parent table, hence the parent
+--echo # table information is not displayed.
+--error ER_NO_REFERENCED_ROW
+INSERT INTO v1 VALUES (1, 2);
+
+--echo # DML on view executed within the definer context where the invoker does
+--echo # not have access to the parent table, hence the parent table information
+--echo # is not displayed.
+--error ER_NO_REFERENCED_ROW
+INSERT INTO v2 VALUES (1, 2);
+
+connection default;
+GRANT SELECT ON t1 TO user2@localhost;
+GRANT SELECT ON t3 TO user2@localhost;
+
+connection con2;
+--echo # DML on view executed within the definer context where the invoker
+--echo # has access to the parent table, hence the parent table information
+--echo # is displayed.
+--error ER_NO_REFERENCED_ROW_2
+INSERT INTO v2 VALUES (1, 2);
+
+--echo # Tests with SET_USER_ID
+
+--echo # Set up stored routines and views by user with SET_USER_ID
+--echo # privilege.
+
+CREATE DEFINER=root@localhost PROCEDURE p3() SQL SECURITY DEFINER
+INSERT INTO t2 (fld1, fld2) VALUES (1, 2);
+
+DELIMITER |;
+CREATE DEFINER=root@localhost FUNCTION f3() RETURNS
+INT SQL SECURITY DEFINER
+BEGIN
+  INSERT INTO t2 (fld1, fld2) VALUES (1, 2);
+  RETURN 0;
+END|
+
+DELIMITER ;|
+
+CREATE DEFINER=root@localhost SQL SECURITY DEFINER VIEW v3 AS
+SELECT * FROM t2;
+
+--echo # Grant privileges for user3.
+connection default;
+GRANT EXECUTE ON PROCEDURE p3 TO user3@localhost;
+GRANT EXECUTE ON FUNCTION f3 TO user3@localhost;
+GRANT INSERT ON v3 TO user3@localhost;
+GRANT SELECT ON t1 TO user3@localhost;
+GRANT SELECT ON t3 TO user3@localhost;
+
+connect (con3, localhost, user3,,test);
+
+--echo # Since the execution happens in the definer 'root' user
+--echo # context, the parent table informaton is exposed.
+--error ER_NO_REFERENCED_ROW_2
+CALL p3();
+
+--error ER_NO_REFERENCED_ROW_2
+SELECT f3();
+
+--error ER_NO_REFERENCED_ROW_2
+INSERT INTO v3 VALUES(4, 5);
+
+--echo # Cleanup
+connection default;
+disconnect con1;
+disconnect con2;
+disconnect con3;
+DROP VIEW v1, v2, v3;
+DROP TABLE t2, t3, t1;
+DROP USER user1@localhost;
+DROP USER user2@localhost;
+DROP USER user3@localhost;
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP PROCEDURE p3;
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+
+--disable_connect_log
