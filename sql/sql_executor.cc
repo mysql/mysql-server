@@ -3130,9 +3130,9 @@ enum_nested_loop_state end_send_group(JOIN *join, QEP_TAB *qep_tab,
     (2) Have seen all rows
     (3) GROUP expression are different from previous row's
   */
-  if (!join->seen_first_record ||                                   // (1)
-      end_of_records ||                                             // (2)
-      (idx = test_if_item_cache_changed(join->group_fields)) >= 0)  // (3)
+  if (!join->seen_first_record ||                                     // (1)
+      end_of_records ||                                               // (2)
+      (idx = update_item_cache_if_changed(join->group_fields)) >= 0)  // (3)
   {
     if (!join->group_sent &&
         (join->seen_first_record ||
@@ -3152,10 +3152,10 @@ enum_nested_loop_state end_send_group(JOIN *join, QEP_TAB *qep_tab,
           existing group happens right below.
           As we are now reading from pseudo-table REF_SLICE_ORDERED_GROUP_BY, we
           switch to this slice; we should not have switched when calculating
-          group expressions in test_if_item_cache_changed() above; indeed these
-          group expressions need the current row of the input table, not what
-          is in this slice (which is generally the last completed group so is
-          based on some previous row of the input table).
+          group expressions in update_item_cache_if_changed() above; indeed
+          these group expressions need the current row of the input table, not
+          what is in this slice (which is generally the last completed group so
+          is based on some previous row of the input table).
         */
         Switch_ref_item_slice slice_switch(join, REF_SLICE_ORDERED_GROUP_BY);
         DBUG_ASSERT(fields == join->get_current_fields());
@@ -3216,7 +3216,7 @@ enum_nested_loop_state end_send_group(JOIN *join, QEP_TAB *qep_tab,
       if (end_of_records) DBUG_RETURN(NESTED_LOOP_OK);
       join->seen_first_record = true;
       // Initialize the cache of GROUP expressions with this 1st row's values
-      (void)(test_if_item_cache_changed(join->group_fields));
+      (void)(update_item_cache_if_changed(join->group_fields));
     }
     if (idx < (int)join->send_group_parts) {
       /*
@@ -5286,7 +5286,7 @@ enum_nested_loop_state end_write_group(JOIN *join, QEP_TAB *const qep_tab,
     DBUG_RETURN(NESTED_LOOP_KILLED); /* purecov: inspected */
   }
   if (!join->seen_first_record || end_of_records ||
-      (idx = test_if_item_cache_changed(join->group_fields)) >= 0) {
+      (idx = update_item_cache_if_changed(join->group_fields)) >= 0) {
     Temp_table_param *const tmp_tbl = qep_tab->tmp_table_param;
     if (join->seen_first_record || (end_of_records && !join->grouped)) {
       int send_group_parts = join->send_group_parts;
@@ -5331,7 +5331,7 @@ enum_nested_loop_state end_write_group(JOIN *join, QEP_TAB *const qep_tab,
       if (end_of_records) DBUG_RETURN(NESTED_LOOP_OK);
       join->seen_first_record = true;
 
-      (void)(test_if_item_cache_changed(join->group_fields));
+      (void)(update_item_cache_if_changed(join->group_fields));
     }
     if (idx < (int)join->send_group_parts) {
       Switch_ref_item_slice slice_switch(join, qep_tab->ref_item_slice);
@@ -5689,8 +5689,8 @@ static bool alloc_group_fields(JOIN *join, ORDER *group) {
   @return index of the first item that changed
 */
 
-int test_if_item_cache_changed(List<Cached_item> &list) {
-  DBUG_ENTER("test_if_item_cache_changed");
+int update_item_cache_if_changed(List<Cached_item> &list) {
+  DBUG_ENTER("update_item_cache_if_changed");
   List_iterator<Cached_item> li(list);
   int idx = -1, i;
   Cached_item *buff;

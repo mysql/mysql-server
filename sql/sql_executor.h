@@ -371,7 +371,7 @@ int join_materialize_table_function(QEP_TAB *tab);
 int join_materialize_semijoin(QEP_TAB *tab);
 
 int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl);
-int test_if_item_cache_changed(List<Cached_item> &list);
+int update_item_cache_if_changed(List<Cached_item> &list);
 
 // Create list for using with tempory table
 bool change_to_use_tmp_fields(THD *thd, Ref_item_array ref_item_array,

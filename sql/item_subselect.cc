@@ -866,7 +866,7 @@ bool Item_in_subselect::exec() {
     DBUG_RETURN(true);
 
   if (left_expr_cache != NULL) {
-    const int result = test_if_item_cache_changed(*left_expr_cache);
+    const int result = update_item_cache_if_changed(*left_expr_cache);
     if (left_expr_cache_filled &&  // cache was previously filled
         result < 0)  // new value is identical to previous cached value
     {
