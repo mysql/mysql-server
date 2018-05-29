@@ -4027,7 +4027,6 @@ bool Query_log_event::write(IO_CACHE *file) {
     start += 2;
   }
   if (charset_database_number) {
-    DBUG_ASSERT(charset_database_number <= 0xFF);
     *start++ = Q_CHARSET_DATABASE_CODE;
     int2store(start, charset_database_number);
     start += 2;
