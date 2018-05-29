@@ -4619,43 +4619,19 @@ static bool initialize_storage_engine(char *se_name, const char *se_kind,
   return false;
 }
 
-static int init_server_components() {
-  DBUG_ENTER("init_server_components");
-  /*
-    We need to call each of these following functions to ensure that
-    all things are initialized so that unireg_abort() doesn't fail
-  */
-  mdl_init();
-  partitioning_init();
-  if (table_def_init() | hostname_cache_init(host_cache_size))
-    unireg_abort(MYSQLD_ABORT_EXIT);
+static void setup_error_log() {
+/* Setup logs */
 
-  /*
-    Timers not needed if only starting with --help.
-  */
-  if (!opt_help) {
-    if (my_timer_initialize())
-      LogErr(ERROR_LEVEL, ER_CANT_INIT_TIMER, errno);
-    else
-      have_statement_timeout = SHOW_OPTION_YES;
-  }
+/*
+  Enable old-fashioned error log, except when the user has requested
+  help information. Since the implementation of plugin server
+  variables the help output is now written much later.
 
-  randominit(&sql_rand, (ulong)server_start_time, (ulong)server_start_time / 2);
-  setup_fpu();
-  init_slave_list();
-
-  /* Setup logs */
-
-  /*
-    Enable old-fashioned error log, except when the user has requested
-    help information. Since the implementation of plugin server
-    variables the help output is now written much later.
-
-    log_error_dest can be:
-    disabled_my_option     --log-error was not used or --log-error=
-    ""                     --log-error without arguments (no '=')
-    filename               --log-error=filename
-  */
+  log_error_dest can be:
+  disabled_my_option     --log-error was not used or --log-error=
+  ""                     --log-error without arguments (no '=')
+  filename               --log-error=filename
+*/
 #ifdef _WIN32
   /*
     Enable the error log file only if console option is not specified
@@ -4718,6 +4694,34 @@ static int init_server_components() {
     // Flush messages buffered so far.
     flush_error_log_messages();
   }
+}
+
+static int init_server_components() {
+  DBUG_ENTER("init_server_components");
+  /*
+    We need to call each of these following functions to ensure that
+    all things are initialized so that unireg_abort() doesn't fail
+  */
+  mdl_init();
+  partitioning_init();
+  if (table_def_init() | hostname_cache_init(host_cache_size))
+    unireg_abort(MYSQLD_ABORT_EXIT);
+
+  /*
+    Timers not needed if only starting with --help.
+  */
+  if (!opt_help) {
+    if (my_timer_initialize())
+      LogErr(ERROR_LEVEL, ER_CANT_INIT_TIMER, errno);
+    else
+      have_statement_timeout = SHOW_OPTION_YES;
+  }
+
+  randominit(&sql_rand, (ulong)server_start_time, (ulong)server_start_time / 2);
+  setup_fpu();
+  init_slave_list();
+
+  setup_error_log();
 
   enter_cond_hook = thd_enter_cond;
   exit_cond_hook = thd_exit_cond;
@@ -5738,7 +5742,10 @@ int mysqld_main(int argc, char **argv)
     exit(MYSQLD_ABORT_EXIT);
   }
 
-  if (init_common_variables()) unireg_abort(MYSQLD_ABORT_EXIT);  // Will do exit
+  if (init_common_variables()) {
+    setup_error_log();
+    unireg_abort(MYSQLD_ABORT_EXIT);  // Will do exit
+  }
 
   my_init_signals();
 
