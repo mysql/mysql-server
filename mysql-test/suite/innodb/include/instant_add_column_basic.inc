@@ -537,6 +537,8 @@ let $instant_add_column = ALTER TABLE t1 ADD COLUMN c INT NOT NULL DEFAULT 100, 
 
 ALTER TABLE t1 ADD KEY(c);
 
+# Replace the numbers in the output with '#' to stablize the result, after all we only care about the index picked.
+--replace_column 8 # 10 #
 EXPLAIN SELECT c FROM t1;
 
 SELECT c FROM t1 WHERE c != 100;
@@ -549,6 +551,8 @@ UPDATE t1 SET e = 'Hello MySQL' WHERE a > 30;
 
 ALTER TABLE t1 ADD KEY(e);
 
+# Replace the numbers in the output with '#' to stablize the result, after all we only care about the index picked.
+--replace_column 8 # 10 #
 EXPLAIN SELECT e FROM t1;
 SELECT count(e) FROM t1 WHERE e LIKE '%MySQL%';
 SELECT count(e) FROM t1 WHERE e LIKE '%world%';

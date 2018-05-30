@@ -868,7 +868,7 @@ test.t1	check	status	OK
 ALTER TABLE t1 ADD KEY(c);
 EXPLAIN SELECT c FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	c	4	NULL	5	100.00	Using index
+1	SIMPLE	t1	NULL	index	NULL	c	#	NULL	#	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c` AS `c` from `test`.`t1`
 SELECT c FROM t1 WHERE c != 100;
@@ -880,7 +880,7 @@ UPDATE t1 SET e = 'Hello MySQL' WHERE a > 30;
 ALTER TABLE t1 ADD KEY(e);
 EXPLAIN SELECT e FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	e	403	NULL	40	100.00	Using index
+1	SIMPLE	t1	NULL	index	NULL	e	#	NULL	#	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`e` AS `e` from `test`.`t1`
 SELECT count(e) FROM t1 WHERE e LIKE '%MySQL%';
@@ -2874,7 +2874,7 @@ test.t1	check	status	OK
 ALTER TABLE t1 ADD KEY(c);
 EXPLAIN SELECT c FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	c	4	NULL	5	100.00	Using index
+1	SIMPLE	t1	NULL	index	NULL	c	#	NULL	#	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c` AS `c` from `test`.`t1`
 SELECT c FROM t1 WHERE c != 100;
@@ -2886,7 +2886,7 @@ UPDATE t1 SET e = 'Hello MySQL' WHERE a > 30;
 ALTER TABLE t1 ADD KEY(e);
 EXPLAIN SELECT e FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	e	403	NULL	40	100.00	Using index
+1	SIMPLE	t1	NULL	index	NULL	e	#	NULL	#	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`e` AS `e` from `test`.`t1`
 SELECT count(e) FROM t1 WHERE e LIKE '%MySQL%';
@@ -4880,7 +4880,7 @@ test.t1	check	status	OK
 ALTER TABLE t1 ADD KEY(c);
 EXPLAIN SELECT c FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	c	4	NULL	5	100.00	Using index
+1	SIMPLE	t1	NULL	index	NULL	c	#	NULL	#	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c` AS `c` from `test`.`t1`
 SELECT c FROM t1 WHERE c != 100;
@@ -4892,7 +4892,7 @@ UPDATE t1 SET e = 'Hello MySQL' WHERE a > 30;
 ALTER TABLE t1 ADD KEY(e);
 EXPLAIN SELECT e FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	e	403	NULL	40	100.00	Using index
+1	SIMPLE	t1	NULL	index	NULL	e	#	NULL	#	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`e` AS `e` from `test`.`t1`
 SELECT count(e) FROM t1 WHERE e LIKE '%MySQL%';
