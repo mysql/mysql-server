@@ -181,7 +181,11 @@ drop table t2;
 #
 # 6. Creating temp-table with large prefix.				#
 #
-SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+
+# Enabling the default 'strict' mode since as part of fix for bug#26848813, an
+# error is reported when index> 767 bytes and in non-strict mode only a warning
+# is reported
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION,STRICT_TRANS_TABLES';
 # This will lead to warnings on innodb_page_size=8k or 4k:
 # 8k: Specified key was too long; max key length is 1536 bytes
 # 4k: Specified key was too long; max key length is 768 bytes
@@ -209,7 +213,7 @@ create temporary table t (
 drop table t;
 #
 SET innodb_strict_mode=OFF;
---error ER_INDEX_COLUMN_TOO_LONG
+--error ER_TOO_LONG_KEY
 create temporary table t (
 	a int not null,
 	b blob not null,
@@ -230,7 +234,7 @@ create temporary table t (
 	) row_format = compressed engine=innodb;
 drop table t;
 #
---error ER_INDEX_COLUMN_TOO_LONG
+--error ER_TOO_LONG_KEY
 create temporary table t (
 	a int not null,
 	b blob not null,

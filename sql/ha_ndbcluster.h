@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -248,8 +248,8 @@ public:
   uint max_supported_keys() const override;
   uint max_supported_key_parts() const override;
   uint max_supported_key_length() const override;
-  uint max_supported_key_part_length() const override;
-
+  uint max_supported_key_part_length(HA_CREATE_INFO
+                                     *create_info) const override;
 private:
   int get_child_or_parent_fk_list(List<FOREIGN_KEY_INFO>*f_key_list,
                                   bool is_child, bool is_parent);

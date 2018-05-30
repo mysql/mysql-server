@@ -158,7 +158,7 @@ SELECT * FROM tab;
 SET GLOBAL innodb_default_row_format=COMPACT;
 
 # Check error ERROR 1709 (HY000): Index column size too large
--- error ER_INDEX_COLUMN_TOO_LONG
+-- error ER_TOO_LONG_KEY
 ALTER TABLE tab ROW_FORMAT=COMPACT;
 
 # Cleanup

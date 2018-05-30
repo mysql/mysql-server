@@ -113,7 +113,10 @@ class ha_perfschema : public handler {
 
   uint max_supported_key_length(void) const { return MAX_KEY_LENGTH; }
 
-  uint max_supported_key_part_length() const { return MAX_KEY_LENGTH; }
+  uint max_supported_key_part_length(
+      HA_CREATE_INFO *create_info MY_ATTRIBUTE((unused))) const {
+    return MAX_KEY_LENGTH;
+  }
 
   int index_init(uint index, bool sorted);
   int index_end();

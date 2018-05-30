@@ -1987,6 +1987,9 @@ struct handlerton {
 
 #define HTON_SUPPORTS_ATOMIC_DDL (1 << 12)
 
+/* Engine supports packed keys. */
+#define HTON_SUPPORTS_PACKED_KEYS (1 << 13)
+
 inline bool ddl_is_atomic(const handlerton *hton) {
   return (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) != 0;
 }
@@ -2328,6 +2331,13 @@ class Alter_inplace_info {
 
   // Rebuild partition
   static const HA_ALTER_FLAGS ALTER_REBUILD_PARTITION = 1ULL << 42;
+
+  /**
+    Change in index length such that it does not require index rebuild.
+    For example, change in index length due to column expansion like
+    varchar(X) changed to varchar(X + N).
+  */
+  static const HA_ALTER_FLAGS ALTER_COLUMN_INDEX_LENGTH = 1ULL << 43;
 
   /**
     Create options (like MAX_ROWS) for the new version of table.
@@ -4550,15 +4560,18 @@ class handler {
   uint max_key_length() const {
     return std::min(MAX_KEY_LENGTH, max_supported_key_length());
   }
-  uint max_key_part_length() const {
-    return std::min(MAX_KEY_LENGTH, max_supported_key_part_length());
+  uint max_key_part_length(HA_CREATE_INFO *create_info) const {
+    return std::min(MAX_KEY_LENGTH, max_supported_key_part_length(create_info));
   }
 
   virtual uint max_supported_record_length() const { return HA_MAX_REC_LENGTH; }
   virtual uint max_supported_keys() const { return 0; }
   virtual uint max_supported_key_parts() const { return MAX_REF_PARTS; }
   virtual uint max_supported_key_length() const { return MAX_KEY_LENGTH; }
-  virtual uint max_supported_key_part_length() const { return 255; }
+  virtual uint max_supported_key_part_length(
+      HA_CREATE_INFO *create_info MY_ATTRIBUTE((unused))) const {
+    return 255;
+  }
   virtual uint min_record_length(uint options MY_ATTRIBUTE((unused))) const {
     return 1;
   }

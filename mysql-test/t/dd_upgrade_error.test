@@ -72,7 +72,7 @@ let SEARCH_FILE= $MYSQLD_LOG;
 --source include/search_pattern.inc
 
 --echo # Remove copied files
---remove_file $MYSQLD_LOG
+#--remove_file $MYSQLD_LOG
 --remove_file $MYSQL_TMP_DIR/data57.zip
 --force-rmdir $MYSQL_TMP_DIR/data57
 

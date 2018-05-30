@@ -926,7 +926,8 @@ uint Handler::max_supported_key_length() const {
   DBUG_RETURN(length);
 }
 
-uint Handler::max_supported_key_part_length() const {
+uint Handler::max_supported_key_part_length(
+    HA_CREATE_INFO *create_info MY_ATTRIBUTE((unused))) const {
   DBUG_ENTER("temptable::Handler::max_supported_key_part_length");
 
   const uint length = std::numeric_limits<uint>::max();

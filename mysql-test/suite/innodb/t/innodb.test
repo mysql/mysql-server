@@ -1399,9 +1399,14 @@ set session old_alter_table=0;
 #
 # Some errors/warnings on create
 #
-SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+
+# Enabling the default 'strict' mode since as part of fix for bug#26848813, an
+# error is reported when index> 767 bytes and in non-strict mode only a warning
+# is reported.
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION,STRICT_TRANS_TABLES';
 --error ER_TOO_LONG_KEY,ER_INDEX_COLUMN_TOO_LONG
 create table t1 (v varchar(65530), key(v)) charset latin1 ROW_FORMAT=COMPACT;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1 (v varchar(65536));
 show create table t1;
 drop table t1;
