@@ -674,7 +674,7 @@ if ($MTR_RECORD == 0) {
 
 # If --record is used, save the json files created in the $DEST_DIR
 # back to the $SRC_DIR.
-if ($RECORD == 1) {
+if ($MTR_RECORD == 1) {
 --copy_files_wildcard $DEST_DIR $SRC_DIR *.json
 }
 
