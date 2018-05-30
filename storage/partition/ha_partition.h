@@ -2,7 +2,7 @@
 #define HA_PARTITION_INCLUDED
 
 /*
-   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -902,11 +902,13 @@ public:
     The maximum supported values is the minimum of all handlers in the table
   */
   uint min_of_the_max_uint(uint (handler::*operator_func)(void) const) const;
+  uint min_of_the_max_uint(HA_CREATE_INFO *create_info,
+                           uint (handler::*operator_func)(HA_CREATE_INFO *) const) const;
   virtual uint max_supported_record_length() const;
   virtual uint max_supported_keys() const;
   virtual uint max_supported_key_parts() const;
   virtual uint max_supported_key_length() const;
-  virtual uint max_supported_key_part_length() const;
+  virtual uint max_supported_key_part_length(HA_CREATE_INFO *create_info) const;
 
   /*
     All handlers in a partitioned table must have the same low_byte_first
