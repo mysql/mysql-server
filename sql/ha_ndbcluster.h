@@ -246,8 +246,8 @@ public:
   uint max_supported_keys() const override;
   uint max_supported_key_parts() const override;
   uint max_supported_key_length() const override;
-  uint max_supported_key_part_length() const override;
-
+  uint max_supported_key_part_length(HA_CREATE_INFO
+                                     *create_info) const override;
 private:
   int get_child_or_parent_fk_list(List<FOREIGN_KEY_INFO>*f_key_list,
                                   bool is_child, bool is_parent);

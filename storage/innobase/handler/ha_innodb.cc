@@ -6593,10 +6593,18 @@ handler *ha_innobase::clone(const char *name,   /*!< in: table name */
   DBUG_RETURN(new_handler);
 }
 
-uint ha_innobase::max_supported_key_part_length() const {
+uint ha_innobase::max_supported_key_part_length(
+    HA_CREATE_INFO *create_info) const {
   /* A table format specific index column length check will be performed
   at ha_innobase::add_index() and row_create_index_for_mysql() */
-  return (REC_VERSION_56_MAX_INDEX_COL_LEN);
+  switch (create_info->row_type) {
+    case ROW_TYPE_REDUNDANT:
+    case ROW_TYPE_COMPACT:
+      return (REC_ANTELOPE_MAX_INDEX_COL_LEN - 1);
+      break;
+    default:
+      return (REC_VERSION_56_MAX_INDEX_COL_LEN);
+  }
 }
 
 /** Closes a handle to an InnoDB table.

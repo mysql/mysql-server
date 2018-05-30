@@ -45,9 +45,9 @@ WHERE col_1_varchar = REPEAT("c", 4000) AND col_2_varchar = REPEAT("o", 4000);
 INSERT INTO worklog5743 VALUES(REPEAT("a", 4000),REPEAT("o", 4000));
 DELETE FROM worklog5743 WHERE col_1_varchar = REPEAT("b", 4000);
 SELECT col_1_varchar = REPEAT("c", 4000) FROM worklog5743;
---error ER_INDEX_COLUMN_TOO_LONG
+--error ER_TOO_LONG_KEY
 ALTER TABLE worklog5743 ROW_FORMAT=REDUNDANT;
---error ER_INDEX_COLUMN_TOO_LONG
+--error ER_TOO_LONG_KEY
 ALTER TABLE worklog5743 ROW_FORMAT=COMPACT;
 ALTER TABLE worklog5743 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16;
 DROP TABLE worklog5743;
@@ -1364,7 +1364,7 @@ PRIMARY KEY (col_1_varchar(767))
 INSERT INTO worklog5743 VALUES(REPEAT('a',4000),REPEAT('b',4000));
 # Prefix index > 767 is truncated with REDUNDANT and COMPACT
 --enable_info
---error ER_INDEX_COLUMN_TOO_LONG
+--error ER_TOO_LONG_KEY
 CREATE INDEX prefix_idx ON worklog5743(col_1_varchar (1000));
 CREATE INDEX prefix_idx ON worklog5743(col_1_varchar (767));
 ALTER TABLE worklog5743 ROW_FORMAT=REDUNDANT;

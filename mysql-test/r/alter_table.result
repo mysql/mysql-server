@@ -2689,8 +2689,10 @@ SET sql_mode= '';
 # Test with '767' as index size limit.
 CREATE TABLE t1(fld1 VARCHAR(767), KEY a(fld1)) charset latin1 ENGINE= INNODB
 ROW_FORMAT=COMPACT;
+# With patch for Bug#26848813, a warning is reported.
 ALTER TABLE t1 CHANGE fld1 fld1 VARCHAR(768), ALGORITHM= INPLACE;
-ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
+Warnings:
+Warning	1071	Specified key was too long; max key length is 767 bytes
 DROP TABLE t1;
 CREATE TABLE t1(fld1 VARCHAR(3072), KEY a(fld1)) charset latin1 ENGINE= INNODB,
 ROW_FORMAT=DYNAMIC;
@@ -3825,3 +3827,82 @@ Warning	1264	Out of range value for column 'c1' at row 1
 ALTER TABLE t1 ADD INDEX (c1);
 DROP TABLE t1;
 SET SQL_MODE=default;
+#
+# BUG#26848813: INDEXED COLUMN CAN'T BE CHANGED FROM VARCHAR(15)
+#               TO VARCHAR(40) INSTANTANEOUSLY
+SET @orig_sql_mode = @@sql_mode;
+# Tests where an error is reported under strict mode when the index
+# limit exceeds the maximum supported length by SE.
+CREATE TABLE t1 (fld1 VARCHAR(768), KEY(fld1)) CHARSET latin1 ENGINE =InnoDB
+ROW_FORMAT= COMPACT;
+ERROR 42000: Specified key was too long; max key length is 767 bytes
+CREATE TABLE t2 (fld1 VARCHAR(3073), KEY(fld1)) CHARSET latin1 ENGINE= InnoDB;
+ERROR 42000: Specified key was too long; max key length is 3072 bytes
+# Test with innodb prefix indexes where the index limit is 767 bytes
+CREATE TABLE t1 (fld1 VARCHAR(767), KEY(fld1)) CHARSET latin1 ENGINE=INNODB
+ROW_FORMAT=COMPACT;
+ALTER TABLE t1 MODIFY fld1 VARCHAR(768), ALGORITHM= INPLACE;
+ERROR 42000: Specified key was too long; max key length is 767 bytes
+ALTER TABLE t1 MODIFY fld1 VARCHAR(768), ALGORITHM= COPY;
+ERROR 42000: Specified key was too long; max key length is 767 bytes
+# Test with innodb prefix indexes where the index limit is 3072 bytes
+CREATE TABLE t2 (fld1 VARCHAR(3072), KEY(fld1)) CHARSET latin1 ENGINE=INNODB
+ROW_FORMAT=DYNAMIC;
+ALTER TABLE t2 MODIFY fld1 VARCHAR(3073), ALGORITHM= INPLACE;
+ERROR 42000: Specified key was too long; max key length is 3072 bytes
+ALTER TABLE t2 MODIFY fld1 VARCHAR(3073), ALGORITHM= COPY;
+ERROR 42000: Specified key was too long; max key length is 3072 bytes
+DROP TABLE t1, t2;
+SET sql_mode= '';
+# Test where the indexes are truncated to fit the index limit and
+# a warning is reported under non-strict mode when the index exceeds
+# the SE limit.
+CREATE TABLE t1 (fld1 VARCHAR(768), KEY(fld1)) ENGINE= InnoDB
+ROW_FORMAT=COMPACT;
+Warnings:
+Warning	1071	Specified key was too long; max key length is 767 bytes
+CREATE TABLE t2 (fld1 VARCHAR(3073), KEY(fld1)) ENGINE= InnoDB;
+Warnings:
+Warning	1071	Specified key was too long; max key length is 3072 bytes
+# Test with innodb prefix indexes where the index limit is 767 bytes.
+CREATE TABLE t3 (fld1 VARCHAR(767), KEY(fld1))ENGINE=INNODB ROW_FORMAT=COMPACT;
+Warnings:
+Warning	1071	Specified key was too long; max key length is 767 bytes
+ALTER TABLE t3 MODIFY fld1 VARCHAR(768), ALGORITHM= INPLACE;
+ALTER TABLE t3 MODIFY fld1 VARCHAR(800), ALGORITHM= COPY;
+# Test with innodb prefix indexes where the index limit is 3072 bytes.
+CREATE TABLE t4 (fld1 VARCHAR(3072), KEY(fld1))ENGINE=INNODB
+ROW_FORMAT=DYNAMIC;
+Warnings:
+Warning	1071	Specified key was too long; max key length is 3072 bytes
+ALTER TABLE t4 MODIFY fld1 VARCHAR(3073), ALGORITHM= INPLACE;
+ALTER TABLE t4 MODIFY fld1 VARCHAR(3074), ALGORITHM= COPY;
+# For unique and primary keys, an error is reported even in non-strict
+# mode.
+CREATE TABLE t5(fld1 VARCHAR(768) PRIMARY KEY) ENGINE= InnoDB
+ROW_FORMAT=COMPACT;
+ERROR 42000: Specified key was too long; max key length is 767 bytes
+CREATE TABLE t5(fld1 VARCHAR(3073), UNIQUE KEY(fld1)) ENGINE= InnoDB;
+ERROR 42000: Specified key was too long; max key length is 3072 bytes
+DROP TABLE t1, t2, t3, t4;
+SET sql_mode= @orig_sql_mode;
+# Tests added for coverage.
+CREATE TABLE t1(fld1 VARCHAR(3), KEY(fld1)) ENGINE=MYISAM;
+# Conversion of unpacked keys to packed keys reports
+# error for INPLACE Alter.
+ALTER TABLE t1 MODIFY fld1 VARCHAR(10), ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+# Succeeds with index rebuild.
+ALTER TABLE t1 MODIFY fld1 VARCHAR(10), ALGORITHM=COPY;
+# Succeeds since the row format is dynamic.
+CREATE TABLE t2(fld1 VARCHAR(768), KEY(fld1)) ENGINE= InnoDB ROW_FORMAT= DYNAMIC;
+# An error is reported when the index exceeds the column size
+# in both strict and non-strict mode.
+ALTER TABLE t2 ADD INDEX idx1(fld1(769));
+ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
+SET sql_mode= '';
+ALTER TABLE t2 ADD INDEX idx1(fld1(769));
+ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
+# Cleanup.
+DROP TABLE t1, t2;
+SET sql_mode= @orig_sql_mode;

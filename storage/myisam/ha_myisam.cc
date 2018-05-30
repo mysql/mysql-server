@@ -2025,7 +2025,8 @@ static int myisam_init(void *p) {
   myisam_hton->create = myisam_create_handler;
   myisam_hton->panic = myisam_panic;
   myisam_hton->close_connection = myisam_close_connection;
-  myisam_hton->flags = HTON_CAN_RECREATE | HTON_SUPPORT_LOG_TABLES;
+  myisam_hton->flags =
+      HTON_CAN_RECREATE | HTON_SUPPORT_LOG_TABLES | HTON_SUPPORTS_PACKED_KEYS;
   myisam_hton->is_supported_system_table = myisam_is_supported_system_table;
   myisam_hton->file_extensions = ha_myisam_exts;
   myisam_hton->rm_tmp_tables = default_rm_tmp_tables;

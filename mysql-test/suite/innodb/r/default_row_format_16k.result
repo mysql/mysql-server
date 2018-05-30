@@ -827,5 +827,5 @@ DROP TABLE t1;
 CREATE TABLE t1(a VARCHAR(1000)) charset latin1 ROW_FORMAT=DYNAMIC;
 CREATE INDEX idx1 ON t1(a);
 ALTER TABLE t1 ROW_FORMAT=COMPACT;
-ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
+ERROR 42000: Specified key was too long; max key length is 767 bytes
 DROP TABLE t1;

@@ -693,7 +693,7 @@ create table t1 (a varchar(334) character set utf16 primary key) engine=MyISAM;
 create table t1 (a varchar(150) character set utf16 primary key);
 show create table t1;
 drop table t1;
---error ER_INDEX_COLUMN_TOO_LONG
+--error ER_TOO_LONG_KEY
 create table t1 (a varchar(334) character set utf16 primary key) ROW_FORMAT=COMPACT;
 
 #

@@ -4581,10 +4581,10 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
       size_t max_field_size = blob_length_by_type(sql_field->sql_type);
       if (key_part_length > max_field_size ||
           key_part_length > file->max_key_length() ||
-          key_part_length > file->max_key_part_length()) {
+          key_part_length > file->max_key_part_length(create_info)) {
         // Given prefix length is too large, adjust it.
         key_part_length =
-            min(file->max_key_length(), file->max_key_part_length());
+            min(file->max_key_length(), file->max_key_part_length(create_info));
         if (max_field_size)
           key_part_length = min(key_part_length, max_field_size);
         if (key->type == KEYTYPE_MULTIPLE) {
@@ -4625,9 +4625,9 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
     my_error(ER_WRONG_KEY_COLUMN, MYF(0), column->field_name.str);
     DBUG_RETURN(true);
   }
-  if (key_part_length > file->max_key_part_length() &&
+  if (key_part_length > file->max_key_part_length(create_info) &&
       key->type != KEYTYPE_FULLTEXT) {
-    key_part_length = file->max_key_part_length();
+    key_part_length = file->max_key_part_length(create_info);
     if (key->type == KEYTYPE_MULTIPLE) {
       /* not a critical problem */
       push_warning_printf(thd, Sql_condition::SL_WARNING, ER_TOO_LONG_KEY,
@@ -4655,7 +4655,8 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
     binary compatibility for MyISAM tables with indexes on such columns
     we mimic this buggy behavior here.
   */
-  if (!((create_info->table_options & HA_OPTION_NO_PACK_KEYS)) &&
+  if ((create_info->db_type->flags & HTON_SUPPORTS_PACKED_KEYS) &&
+      !((create_info->table_options & HA_OPTION_NO_PACK_KEYS)) &&
       (key_part_length >= KEY_DEFAULT_PACK_LENGTH &&
        (sql_field->sql_type == MYSQL_TYPE_STRING ||
         sql_field->sql_type == MYSQL_TYPE_VARCHAR ||
@@ -9058,20 +9059,30 @@ static bool has_index_def_changed(Alter_inplace_info *ha_alter_info,
   end = table_key->key_part + table_key->user_defined_key_parts;
   for (key_part = table_key->key_part, new_part = new_key->key_part;
        key_part < end; key_part++, new_part++) {
-    /*
-      Key definition has changed if we are using a different field or
-      if the used key part length is different, or key part direction has
-      changed. It makes sense to check lengths first as in case when fields
-      differ it is likely that lengths differ too and checking fields is more
-      expensive in general case.
+    new_field = get_field_by_index(alter_info, new_part->fieldnr);
 
+    /*
+      If there is a change in index length due to column expansion
+      like varchar(X) changed to varchar(X + N) and has a compatible
+      packed data representation, we mark it for fast/INPLACE change
+      in index definition. Some engines like InnoDB supports INPLACE
+      alter for such cases.
+
+      In other cases, key definition has changed if we are using a
+      different field or if the used key part length is different, or
+      key part direction has changed.
     */
-    if (key_part->length != new_part->length ||
-        (key_part->key_part_flag & HA_REVERSE_SORT) !=
-            (new_part->key_part_flag & HA_REVERSE_SORT))
+    if (key_part->length != new_part->length &&
+        ha_alter_info->alter_info->flags == Alter_info::ALTER_CHANGE_COLUMN &&
+        (key_part->field->is_equal(new_field) == IS_EQUAL_PACK_LENGTH)) {
+      ha_alter_info->handler_flags |=
+          Alter_inplace_info::ALTER_COLUMN_INDEX_LENGTH;
+    } else if (key_part->length != new_part->length)
       return true;
 
-    new_field = get_field_by_index(alter_info, new_part->fieldnr);
+    if ((key_part->key_part_flag & HA_REVERSE_SORT) !=
+        (new_part->key_part_flag & HA_REVERSE_SORT))
+      return true;
 
     /*
       For prefix keys KEY_PART_INFO::field points to cloned Field

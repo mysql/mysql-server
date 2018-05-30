@@ -2497,9 +2497,12 @@ a	b
 20	NULL
 drop table t1;
 set session old_alter_table=0;
-SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION,STRICT_TRANS_TABLES';
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 create table t1 (v varchar(65530), key(v)) charset latin1 ROW_FORMAT=COMPACT;
 Got one of the listed errors
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1 (v varchar(65536));
 Warnings:
 Note	1246	Converting column 'v' from VARCHAR to TEXT

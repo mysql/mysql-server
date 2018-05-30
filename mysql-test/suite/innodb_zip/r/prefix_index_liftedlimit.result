@@ -29,9 +29,9 @@ col_1_varchar = REPEAT("c", 4000)
 0
 1
 ALTER TABLE worklog5743 ROW_FORMAT=REDUNDANT;
-ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
+ERROR 42000: Specified key was too long; max key length is 767 bytes
 ALTER TABLE worklog5743 ROW_FORMAT=COMPACT;
-ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
+ERROR 42000: Specified key was too long; max key length is 767 bytes
 ALTER TABLE worklog5743 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16;
 DROP TABLE worklog5743;
 CREATE TABLE worklog5743 (
@@ -1405,7 +1405,7 @@ PRIMARY KEY (col_1_varchar(767))
 ) charset latin1 engine = innodb ROW_FORMAT=COMPACT;
 INSERT INTO worklog5743 VALUES(REPEAT('a',4000),REPEAT('b',4000));
 CREATE INDEX prefix_idx ON worklog5743(col_1_varchar (1000));
-ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
+ERROR 42000: Specified key was too long; max key length is 767 bytes
 CREATE INDEX prefix_idx ON worklog5743(col_1_varchar (767));
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
