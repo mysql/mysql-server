@@ -21,7 +21,7 @@ let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
 #Start the server with --lower_case_table_names=0 in Windows.
 --enable_reconnect
 --error 1
---exec $MYSQLD_CMD --lower_case_table_names=0 > $SEARCH_FILE  2>&1
+--exec $MYSQLD_CMD --console --lower_case_table_names=0 > $SEARCH_FILE  2>&1
 
 #Search for the error messege in the server error log.
 let SEARCH_PATTERN= \[ERROR\] \[[^]]*\] \[[^]]*\] The server option \'lower_case_table_names\' is configured to use case sensitive table names but the data directory is on a case-insensitive file system which is an unsupported combination\. Please consider either using a case sensitive file system for your data directory or switching to a case-insensitive table name mode\.;
