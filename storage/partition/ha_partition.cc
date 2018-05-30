@@ -5551,6 +5551,21 @@ uint ha_partition::min_of_the_max_uint(
 }
 
 
+uint ha_partition::min_of_the_max_uint(HA_CREATE_INFO *create_info,
+                       uint (handler::*operator_func)(HA_CREATE_INFO *) const) const
+{
+  handler **file;
+  uint min_of_the_max= ((*m_file)->*operator_func)(create_info);
+
+  for (file= m_file+1; *file; file++)
+  {
+    uint tmp= ((*file)->*operator_func)(create_info);
+    set_if_smaller(min_of_the_max, tmp);
+  }
+  return min_of_the_max;
+}
+
+
 uint ha_partition::max_supported_key_parts() const
 {
   return min_of_the_max_uint(&handler::max_supported_key_parts);
@@ -5563,9 +5578,11 @@ uint ha_partition::max_supported_key_length() const
 }
 
 
-uint ha_partition::max_supported_key_part_length() const
+uint ha_partition::max_supported_key_part_length(HA_CREATE_INFO
+                                                 *create_info) const
 {
-  return min_of_the_max_uint(&handler::max_supported_key_part_length);
+  return
+  min_of_the_max_uint(create_info, &handler::max_supported_key_part_length);
 }
 
 

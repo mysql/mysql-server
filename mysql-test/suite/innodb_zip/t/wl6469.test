@@ -219,10 +219,10 @@ SET sql_mode = default;
 #
 set global innodb_large_prefix = 1;
 #
-SET sql_mode='NO_ENGINE_SUBSTITUTION';
+SET sql_mode='NO_ENGINE_SUBSTITUTION,STRICT_TRANS_TABLES';
 SET innodb_strict_mode=OFF;
 --disable_warnings
---error ER_INDEX_COLUMN_TOO_LONG
+--error ER_TOO_LONG_KEY
 create temporary table t (
 	a int not null,
 	b blob not null,
@@ -246,7 +246,7 @@ drop table t;
 SET GLOBAL innodb_large_prefix=default;
 set global innodb_file_per_table = 0;
 #
---error ER_INDEX_COLUMN_TOO_LONG
+--error ER_TOO_LONG_KEY
 create temporary table t (
 	a int not null,
 	b blob not null,
