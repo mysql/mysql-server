@@ -324,9 +324,6 @@ static void trace_filesort_information(Opt_trace_context *trace,
   in sorted order. This should be done with the functions
   in records.cc.
 
-  Before calling filesort, one must have done
-  table->file->info(HA_STATUS_VARIABLE)
-
   The result set is stored in table->sort.io_cache or
   table->sort.sorted_result, or left in the main filesort buffer.
 
@@ -361,7 +358,6 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
   IO_CACHE chunk_file;  // For saving Merge_chunk structs.
   IO_CACHE *outfile;    // Contains the final, sorted result.
   Sort_param param;
-  Opt_trace_context *const trace = &thd->opt_trace;
   QEP_TAB *const qep_tab = filesort->qep_tab;
   TABLE *const table = qep_tab->table();
   ha_rows max_rows = filesort->limit;
@@ -371,15 +367,6 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
 
   if (!(s_length = filesort->sort_order_length()))
     DBUG_RETURN(true); /* purecov: inspected */
-
-  /*
-    We need a nameless wrapper, since we may be inside the "steps" of
-    "join_execution".
-  */
-  Opt_trace_object trace_wrapper(trace);
-  if (qep_tab->join())
-    trace_wrapper.add("sorting_table_in_plan_at_position", qep_tab->idx());
-  trace_filesort_information(trace, filesort->sortorder, s_length);
 
   DBUG_ASSERT(!table->reginfo.join_tab);
   DBUG_ASSERT(qep_tab == table->reginfo.qep_tab);
@@ -396,6 +383,25 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
   my_b_clear(&chunk_file);
   error = 1;
 
+  // Make sure the source iterator is initialized before init_for_filesort(),
+  // since table->file (and in particular, ref_length) may not be initialized
+  // before that.
+  DBUG_EXECUTE_IF("bug14365043_1", DBUG_SET("+d,ha_rnd_init_fail"););
+  if (source_iterator->Init()) {
+    DBUG_RETURN(HA_POS_ERROR);
+  }
+
+  /*
+    We need a nameless wrapper, since we may be inside the "steps" of
+    "join_execution".
+  */
+  Opt_trace_context *const trace = &thd->opt_trace;
+  Opt_trace_object trace_wrapper(trace);
+  if (qep_tab->join())
+    trace_wrapper.add("sorting_table_in_plan_at_position", qep_tab->idx());
+
+  trace_filesort_information(trace, filesort->sortorder, s_length);
+
   param.init_for_filesort(filesort, make_array(filesort->sortorder, s_length),
                           sortlength(thd, filesort->sortorder, s_length), table,
                           thd->variables.max_length_for_sort_data, max_rows,
@@ -411,6 +417,9 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
     thd->inc_status_sort_range();
   else
     thd->inc_status_sort_scan();
+
+  if (table->s->tmp_table)
+    table->file->info(HA_STATUS_VARIABLE);  // Get record count
 
   // If number of rows is not known, use as much of sort buffer as possible.
   num_rows_estimate = table->file->estimate_rows_upper_bound();
@@ -959,11 +968,6 @@ static ha_rows read_all_rows(
   handler *file = sort_form->file;
   *found_rows = 0;
   uchar *ref_pos = &file->ref[0];
-
-  DBUG_EXECUTE_IF("bug14365043_1", DBUG_SET("+d,ha_rnd_init_fail"););
-  if (source_iterator->Init()) {
-    DBUG_RETURN(HA_POS_ERROR);
-  }
 
   // Now modify the read bitmaps, so that we are sure to get the rows
   // that we need for the sort (ie., the fields to sort on) as well as

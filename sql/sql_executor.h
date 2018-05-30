@@ -268,6 +268,7 @@ class QEP_tmp_table : public QEP_operation {
   void set_write_func(Next_select_func new_write_func) {
     write_func = new_write_func;
   }
+  Next_select_func get_write_func() const { return write_func; }
 
  private:
   /** Write function that would be used for saving records in tmp table. */
@@ -334,6 +335,10 @@ enum Copy_func_type {
 
 bool copy_funcs(Temp_table_param *, const THD *thd,
                 Copy_func_type type = CFT_ALL);
+
+// Combines copy_fields() and copy_funcs().
+bool copy_fields_and_funcs(Temp_table_param *param, const THD *thd,
+                           Copy_func_type type = CFT_ALL);
 
 /**
   Copy the lookup key into the table ref's key buffer.
@@ -597,6 +602,11 @@ class QEP_TAB : public QEP_shared_owner {
   /** true <=> remove duplicates on this table. */
   bool needs_duplicate_removal = false;
 
+  // If we have a query of the type SELECT DISTINCT t1.* FROM t1 JOIN t2
+  // ON ..., (ie., we join in one or more tables that we don't actually
+  // read any columns from), we can stop scanning t2 as soon as we see the
+  // first row. This pattern seems to be a workaround for lack of semijoins
+  // in older versions of MySQL.
   bool not_used_in_distinct;
 
   /// Index condition for BKA access join
@@ -695,6 +705,7 @@ class QEP_TAB_standalone {
   QEP_TAB m_qt;
 };
 
+void copy_sum_funcs(Item_sum **func_ptr, Item_sum **end_ptr);
 bool init_sum_functions(Item_sum **func_ptr, Item_sum **end_ptr);
 bool set_record_buffer(const QEP_TAB *tab);
 bool update_sum_func(Item_sum **func_ptr);

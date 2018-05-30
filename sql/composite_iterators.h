@@ -171,6 +171,8 @@ class LimitOffsetIterator final : public RowIterator {
   REF_SLICE_ORDERED_GROUP_BY slice, so that it can hold a single row. This row
   is then used for our output, and we then switch to it just before the end of
   Read() so that anyone reading from the buffers will get that output.
+  The caller knows the context about where our output goes, and thus also picks
+  the appropriate output slice for us.
 
   This isn't very pretty. What should be done is probably a more abstract
   concept of sending a row around and taking copies of it if needed, as opposed
@@ -181,8 +183,13 @@ class LimitOffsetIterator final : public RowIterator {
 class AggregateIterator final : public RowIterator {
  public:
   AggregateIterator(THD *thd, unique_ptr_destroy_only<RowIterator> source,
-                    JOIN *join)
-      : RowIterator(thd), m_source(move(source)), m_join(join) {}
+                    JOIN *join, Temp_table_param *temp_table_param,
+                    int output_slice)
+      : RowIterator(thd),
+        m_source(move(source)),
+        m_join(join),
+        m_output_slice(output_slice),
+        m_temp_table_param(temp_table_param) {}
 
   bool Init() override;
   int Read() override;
@@ -211,6 +218,9 @@ class AggregateIterator final : public RowIterator {
   /// The slice of the fields we are reading from (see the class comment).
   int m_input_slice;
 
+  /// The slice of the fields we are outputting to. See the class comment.
+  int m_output_slice;
+
   /// Whether we are about to read the very first row.
   bool m_first_row;
 
@@ -222,6 +232,9 @@ class AggregateIterator final : public RowIterator {
     zero input rows.
    */
   table_map m_save_nullinfo;
+
+  /// The parameters for the temporary table we are materializing into, if any.
+  Temp_table_param *m_temp_table_param;
 };
 
 /**
@@ -233,8 +246,13 @@ class PrecomputedAggregateIterator final : public RowIterator {
  public:
   PrecomputedAggregateIterator(THD *thd,
                                unique_ptr_destroy_only<RowIterator> source,
-                               JOIN *join)
-      : RowIterator(thd), m_source(move(source)), m_join(join) {}
+                               JOIN *join, Temp_table_param *temp_table_param,
+                               int output_slice)
+      : RowIterator(thd),
+        m_source(move(source)),
+        m_join(join),
+        m_temp_table_param(temp_table_param),
+        m_output_slice(output_slice) {}
 
   bool Init() override;
   int Read() override;
@@ -259,6 +277,12 @@ class PrecomputedAggregateIterator final : public RowIterator {
     and so on.
    */
   JOIN *m_join = nullptr;
+
+  /// The parameters for the temporary table we are materializing into, if any.
+  Temp_table_param *m_temp_table_param;
+
+  /// The slice of the fields we are outputting to.
+  int m_output_slice;
 };
 
 enum class JoinType { INNER, OUTER, ANTI };
@@ -359,23 +383,32 @@ class NestedLoopIterator final : public RowIterator {
 class MaterializeIterator final : public TableRowIterator {
  public:
   // SELECT_LEX is used only to get active options.
+  //
+  // If “copy_fields_and_items” is set to false, the Field objects in the
+  // output row is presumed already to be filled out. This is the case
+  // iff there's an AggregateIterator earlier in the chain.
+  //
+  // The “limit_rows” parameter does the same job as a LimitOffsetIterator
+  // right before the MaterializeIterator would have done, except that it
+  // works _after_ deduplication (if that is active). It is used for when
+  // pushing LIMIT down to MaterializeIterator, so that we can stop
+  // materializing when there are enough rows. The deduplication is the
+  // reason why this specific limit has to be handled in MaterializeIterator
+  // and not using a regular LimitOffsetIterator. Set to HA_POS_ERROR
+  // for no limit.
   MaterializeIterator(THD *thd,
                       unique_ptr_destroy_only<RowIterator> subquery_iterator,
-                      List<Item> *fields, Temp_table_param *temp_table_param,
-                      TABLE *table,
+                      Temp_table_param *temp_table_param, TABLE *table,
                       unique_ptr_destroy_only<RowIterator> table_iterator,
-                      SELECT_LEX *select_lex);
+                      SELECT_LEX *select_lex, JOIN *join, int ref_slice,
+                      bool copy_fields_and_items, bool rematerialize,
+                      ha_rows limit_rows);
 
   bool Init() override;
   int Read() override;
   std::vector<std::string> DebugString() const override;
 
-  // We don't list the table iterator as an explicit child; we mark it in our
-  // DebugString() instead. (Anything else would look confusingly much like a
-  // join.)
-  std::vector<Child> children() const override {
-    return std::vector<Child>{{m_subquery_iterator.get(), ""}};
-  }
+  std::vector<Child> children() const override;
 
   void SetNullRowFlag(bool is_null_row) override {
     m_table_iterator->SetNullRowFlag(is_null_row);
@@ -388,9 +421,42 @@ class MaterializeIterator final : public TableRowIterator {
  private:
   unique_ptr_destroy_only<RowIterator> m_subquery_iterator;
   unique_ptr_destroy_only<RowIterator> m_table_iterator;
-  List<Item> *m_fields;
   Temp_table_param *m_tmp_table_param;
   SELECT_LEX *m_select_lex;
+
+  /// The join we are materializing.
+  JOIN *const m_join;
+
+  /// The slice to set when accessing temporary table; used if anything upstream
+  /// (e.g. WHERE, HAVING) wants to evaluate values based on its contents.
+  const int m_ref_slice;
+
+  /// See constructor.
+  const bool m_copy_fields_and_items;
+
+  /// If true, we need to materialize anew for each Init() (because the contents
+  /// of the table will depend on some outer non-constant value).
+  const bool m_rematerialize;
+
+  /// See constructor.
+  const ha_rows m_limit_rows;
+
+  /// Whether we are deduplicating using a hash field on the temporary
+  /// table. (This condition mirrors check_unique_constraint().)
+  /// If so, we compute a hash value for every row, look up all rows with
+  /// the same hash and manually compare them to the row we are trying to
+  /// insert.
+  ///
+  /// Note that this is _not_ the common way of deduplicating as we go.
+  /// The common method is to have a regular index on the table
+  /// over the right columns, and in that case, ha_write_row() will fail
+  /// with an ignorable error, so that the row is ignored even though
+  /// check_unique_constraint() is not called. However, B-tree indexes
+  /// have limitations, in particular on length, that sometimes require us
+  /// to do this instead. See create_tmp_table() for details.
+  bool doing_hash_deduplication() const {
+    return table()->hash_field && !table()->no_keyread;
+  }
 };
 
 #endif  // SQL_COMPOSITE_ITERATORS_INCLUDED

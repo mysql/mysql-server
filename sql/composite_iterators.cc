@@ -27,16 +27,17 @@
 #include <vector>
 
 #include "my_inttypes.h"
+#include "scope_guard.h"
+#include "sql/debug_sync.h"
 #include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/item_sum.h"
 #include "sql/opt_explain.h"
 #include "sql/opt_trace.h"
-#include "sql/sql_base.h"
+#include "sql/pfs_batch_mode.h"
 #include "sql/sql_class.h"
 #include "sql/sql_executor.h"
 #include "sql/sql_lex.h"
-#include "sql/sql_opt_exec_shared.h"
 #include "sql/sql_optimizer.h"
 #include "sql/sql_tmp_table.h"
 #include "sql/system_variables.h"
@@ -208,11 +209,34 @@ int AggregateIterator::Read() {
   // (even though also need to be initialized as part of the start of the
   // group), because they are overwritten by the testing at each row, just like
   // the data from Read() will be.
+  //
+  // If we are outputting to a temporary table (ie., there's a
+  // MaterializeIterator after us), this copy of the group expressions actually
+  // goes directly into the output row, since there's room there. In this case,
+  // MaterializeIterator does not try to do the copying itself; it would only
+  // get the wrong version.
   {
-    Switch_ref_item_slice slice_switch(m_join, REF_SLICE_ORDERED_GROUP_BY);
-    if (copy_fields(&m_join->tmp_table_param, m_join->thd)) {
+    Switch_ref_item_slice slice_switch(m_join, m_output_slice);
+    if (copy_fields(m_temp_table_param, m_join->thd)) {
       return 1;
     }
+
+    // m_temp_table_param->items_to_copy, copied through copy_funcs(),
+    // can contain two distinct kinds of Items:
+    //
+    //  - Group expressions, similar to the ones we just in copy_fields(),
+    //    e.g. GROUP BY f1 + 1. It does not matter whether we copy them here
+    //    or just before outputting the row; if we copy them here, they will
+    //    refer to the Item_fields we just copied from, and if we copy them
+    //    later, they will refer to the Item_fields we just copied _to_.
+    //    (This is done through the slice system.)
+    //  - When outputting to a materialized table only: Non-group expressions.
+    //    We can _not_ copy them here, since they can refer to aggregates that
+    //    are not ready before output time; e.g., SUM(f1) + 1.
+    //
+    // Thus, we need to delay calling copy_funcs() until we actually return
+    // rows.
+
     (void)update_item_cache_if_changed(m_join->group_fields);
     // TODO: Implement rollup.
     if (init_sum_functions(m_join->sum_funcs, m_join->sum_funcs_end[0])) {
@@ -227,7 +251,18 @@ int AggregateIterator::Read() {
 
     if (err == -1) {
       // End of input rows; return the last group.
-      SwitchSlice(m_join, REF_SLICE_ORDERED_GROUP_BY);
+      SwitchSlice(m_join, m_output_slice);
+
+      // Store the result in the temporary table, if we are outputting to that.
+      // Also see the comment after create_field(), above.
+      copy_sum_funcs(m_join->sum_funcs,
+                     m_join->sum_funcs_end[m_join->send_group_parts]);
+      if (m_temp_table_param->items_to_copy != nullptr) {
+        if (copy_funcs(m_temp_table_param, m_join->thd)) {
+          return 1;
+        }
+      }
+
       m_eof = true;
       return 0;
     }
@@ -236,7 +271,18 @@ int AggregateIterator::Read() {
     if (idx >= 0) {
       // The group changed. Return the current row; the next Read() will deal
       // with the new group.
-      SwitchSlice(m_join, REF_SLICE_ORDERED_GROUP_BY);
+      SwitchSlice(m_join, m_output_slice);
+
+      // Store the result in the temporary table, if we are outputting to that.
+      // Also see the comment after create_field(), above.
+      copy_sum_funcs(m_join->sum_funcs,
+                     m_join->sum_funcs_end[m_join->send_group_parts]);
+      if (m_temp_table_param->items_to_copy != nullptr) {
+        if (copy_funcs(m_temp_table_param, m_join->thd)) {
+          return 1;
+        }
+      }
+
       return 0;
     } else {
       // We're still in the same group.
@@ -294,10 +340,10 @@ int PrecomputedAggregateIterator::Read() {
   // Even if the aggregates have been precomputed (typically by
   // QUICK_RANGE_MIN_MAX), we need to copy over the non-aggregated
   // fields here.
-  if (copy_fields(&m_join->tmp_table_param, m_join->thd)) {
+  if (copy_fields_and_funcs(m_temp_table_param, m_join->thd)) {
     return 1;
   }
-  SwitchSlice(m_join, REF_SLICE_ORDERED_GROUP_BY);
+  SwitchSlice(m_join, m_output_slice);
   return 0;
 }
 
@@ -425,17 +471,23 @@ vector<string> NestedLoopIterator::DebugString() const {
 
 MaterializeIterator::MaterializeIterator(
     THD *thd, unique_ptr_destroy_only<RowIterator> subquery_iterator,
-    List<Item> *fields, Temp_table_param *tmp_table_param, TABLE *table,
-    unique_ptr_destroy_only<RowIterator> table_iterator, SELECT_LEX *select_lex)
+    Temp_table_param *tmp_table_param, TABLE *table,
+    unique_ptr_destroy_only<RowIterator> table_iterator, SELECT_LEX *select_lex,
+    JOIN *join, int ref_slice, bool copy_fields_and_items, bool rematerialize,
+    ha_rows limit_rows)
     : TableRowIterator(thd, table),
       m_subquery_iterator(move(subquery_iterator)),
       m_table_iterator(move(table_iterator)),
-      m_fields(fields),
       m_tmp_table_param(tmp_table_param),
-      m_select_lex(select_lex) {}
+      m_select_lex(select_lex),
+      m_join(join),
+      m_ref_slice(ref_slice),
+      m_copy_fields_and_items(copy_fields_and_items),
+      m_rematerialize(rematerialize),
+      m_limit_rows(limit_rows) {}
 
 bool MaterializeIterator::Init() {
-  if (table()->materialized) {
+  if (table()->materialized && !m_rematerialize) {
     // Just a rescan of the same table.
     return m_table_iterator->Init();
   }
@@ -458,9 +510,25 @@ bool MaterializeIterator::Init() {
       }
       empty_record(table());
     }
+    // If we are removing duplicates by way of a hash field
+    // (see doing_hash_deduplication() for an explanation), we need to
+    // initialize scanning of the index over that hash field. (This is entirely
+    // separate from any index usage when reading back the materialized table;
+    // m_table_iterator will do that for us.)
+    if (!table()->file->inited && doing_hash_deduplication()) {
+      if (table()->file->ha_index_init(0, 0)) {
+        return true;
+      }
+    }
+    auto end_unique_index = create_scope_guard([&] {
+      if (doing_hash_deduplication()) {
+        table()->file->ha_index_end();
+      }
+    });
 
-    for (;;) {
-      // TODO: Activate performance schema batch mode.
+    PFSBatchMode pfs_batch_mode(&m_join->qep_tab[m_join->const_tables], m_join);
+    ha_rows stored_rows = 0;
+    while (stored_rows < m_limit_rows) {
       int error = m_subquery_iterator->Read();
       if (error > 0 || thd()->is_error())
         return true;
@@ -472,14 +540,15 @@ bool MaterializeIterator::Init() {
       }
 
       // Materialize items for this row.
-      if (fill_record(thd(), table(), table()->visible_field_ptr(), *m_fields,
-                      NULL, NULL))
-        return true; /* purecov: inspected */
+      if (m_copy_fields_and_items) {
+        if (copy_fields_and_funcs(m_tmp_table_param, thd())) return true;
+      }
 
       if (!check_unique_constraint(table())) continue;
 
       error = table()->file->ha_write_row(table()->record[0]);
       if (error == 0) {
+        ++stored_rows;
         continue;
       }
       // create_ondisk_from_heap will generate error if needed.
@@ -489,19 +558,41 @@ bool MaterializeIterator::Init() {
           return true; /* purecov: inspected */
         // Table's engine changed; index is not initialized anymore.
         if (table()->hash_field) table()->file->ha_index_init(0, false);
+        ++stored_rows;
       } else {
         // An ignorable error means duplicate key, ie. we deduplicated away
-        // the row.
+        // the row. This is seemingly separate from check_unique_constraint(),
+        // which only checks hash indexes.
       }
+    }
+
+    if (doing_hash_deduplication()) {
+      table()->file->ha_index_end();
+      end_unique_index.commit();
     }
 
     table()->materialized = true;
   }
 
+  if (!m_rematerialize) {
+    DEBUG_SYNC(thd(), "after_materialize_derived");
+  }
+
   return m_table_iterator->Init();
 }
 
-int MaterializeIterator::Read() { return m_table_iterator->Read(); }
+int MaterializeIterator::Read() {
+  /*
+    Enable the items which one should use if one wants to evaluate anything
+    (e.g. functions in WHERE, HAVING) involving columns of this table.
+  */
+  if (m_join != nullptr && m_ref_slice != -1) {
+    if (!m_join->ref_items[m_ref_slice].is_null()) {
+      m_join->set_ref_item_slice(m_ref_slice);
+    }
+  }
+  return m_table_iterator->Read();
+}
 
 vector<string> MaterializeIterator::DebugString() const {
   // The table iterator could be a whole string of iterators
@@ -526,6 +617,48 @@ vector<string> MaterializeIterator::DebugString() const {
     sub_iterator = sub_iterator->children()[0].iterator;
   }
 
-  ret.push_back("Materialize");
+  string str;
+  if (m_rematerialize) {
+    str = "Temporary table";
+  } else {
+    str = "Materialize";
+  }
+
+  // We assume that if there's an unique index, it has to be used for
+  // deduplication.
+  bool any_unique_index = false;
+  if (table()->key_info != nullptr) {
+    for (size_t i = 0; i < table()->s->keys; ++i) {
+      if ((table()->key_info[i].flags & HA_NOSAME) != 0) {
+        any_unique_index = true;
+        break;
+      }
+    }
+  }
+
+  if (doing_hash_deduplication() || any_unique_index) {
+    str += " with deduplication";
+  }
+  ret.push_back(str);
   return ret;
+}
+
+vector<RowIterator::Child> MaterializeIterator::children() const {
+  char heading[256] = "";
+  if (m_limit_rows != HA_POS_ERROR) {
+    // We call this “Limit table size” as opposed to “Limit”, to be able to
+    // distinguish between the two in EXPLAIN when debugging.
+    if (doing_hash_deduplication() || table()->key_info != nullptr) {
+      snprintf(heading, sizeof(heading), "Limit table size: %llu unique row(s)",
+               m_limit_rows);
+    } else {
+      snprintf(heading, sizeof(heading), "Limit table size: %llu row(s)",
+               m_limit_rows);
+    }
+  }
+
+  // We don't list the table iterator as an explicit child; we mark it in our
+  // DebugString() instead. (Anything else would look confusingly much like a
+  // join.)
+  return vector<Child>{{m_subquery_iterator.get(), heading}};
 }

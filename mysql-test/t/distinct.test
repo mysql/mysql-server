@@ -886,3 +886,65 @@ INSERT INTO t VALUES(2,4);
 SELECT  LEAST(1,COUNT(DISTINCT a)) FROM t GROUP BY a;
 SELECT DISTINCT LEAST(1,COUNT(DISTINCT a)) FROM t GROUP BY a;
 DROP TABLE t;
+
+--echo #
+--echo # Bug #28974762: WL#12074: RESULT DIFFS WITH SOME SELECT DISTINCT QUERIES
+--echo #
+
+SET @old_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='block_nested_loop=off';
+
+CREATE TABLE t1 (
+  pk integer NOT NULL,
+  f1 integer,
+  f2 varchar(10),
+  f3 varchar(255)
+);
+
+INSERT INTO t1 VALUES (14,7,'G','W');
+INSERT INTO t1 VALUES (16,8,'W','p');
+INSERT INTO t1 VALUES (23,NULL,'q','w');
+
+# Verify that we don't add LIMIT 1 on the scan of table2, since the filter is
+# pushed up above it.
+
+SELECT DISTINCT table1.pk FROM t1 AS table1 LEFT JOIN t1 AS table2 ON table1.f2=table2.f3 WHERE table2.f1 IS NULL;
+EXPLAIN FORMAT=tree SELECT DISTINCT table1.pk FROM t1 AS table1 LEFT JOIN t1 AS table2 ON table1.f2=table2.f3 WHERE table2.f1 IS NULL;
+
+DROP TABLE t1;
+
+# Verify that we only put the LIMIT on the rightmost table in a multi-table join.
+# Putting limit on t3 here (the second table in the join order) would cause
+# wrong results, as the first row would pass the filter on t3, but only the second
+# row would also match the filter in the upper join.
+
+CREATE TABLE t1 (
+  pk integer
+);
+
+INSERT INTO t1 VALUES (3);
+
+CREATE TABLE t2 (
+  pk integer,
+  f1 integer
+);
+
+INSERT INTO t2 VALUES (12,4);
+
+CREATE TABLE t3 (
+  pk integer,
+  f2 integer,
+  f3 integer
+);
+
+INSERT INTO t3 VALUES (56,0,4);  # Two different rows that both match t2.pk=4...
+INSERT INTO t3 VALUES (97,3,4);  # ...but only the second one also matches t1.pk=3.
+
+SELECT /*+JOIN_ORDER(t2,t3,t1) */ DISTINCT t2.pk FROM t1 LEFT JOIN t2 RIGHT OUTER JOIN t3 ON t2.f1 = t3.f3 ON t1.pk = t3.f2 WHERE t3.pk <> t2.pk;
+
+# Demonstrate that we get the expected plan, with only one LIMIT 1.
+EXPLAIN FORMAT=tree SELECT /*+JOIN_ORDER(t2,t3,t1) */ DISTINCT t2.pk FROM t1 LEFT JOIN t2 RIGHT OUTER JOIN t3 ON t2.f1 = t3.f3 ON t1.pk = t3.f2 WHERE t3.pk <> t2.pk;
+
+DROP TABLE t1, t2, t3;
+
+SET optimizer_switch=@old_optimizer_switch;

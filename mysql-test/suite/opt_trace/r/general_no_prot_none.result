@@ -6379,19 +6379,25 @@ insert into t6 select * from t6 where d>7	{
         "select#": 1,
         "steps": [
           {
-            "creating_tmp_table": {
-              "tmp_table_info": {
-                "table": "intermediate_tmp_table",
-                "in_plan_at_position": 1,
-                "columns": 1,
-                "row_length": 5,
-                "key_length": 0,
-                "unique_constraint": false,
-                "makes_grouped_rows": false,
-                "cannot_insert_duplicates": false,
-                "location": "TempTable"
-              } /* tmp_table_info */
-            } /* creating_tmp_table */
+            "materialize": {
+              "select#": 1,
+              "steps": [
+                {
+                  "creating_tmp_table": {
+                    "tmp_table_info": {
+                      "in_plan_at_position": 1,
+                      "columns": 1,
+                      "row_length": 5,
+                      "key_length": 0,
+                      "unique_constraint": false,
+                      "makes_grouped_rows": false,
+                      "cannot_insert_duplicates": false,
+                      "location": "TempTable"
+                    } /* tmp_table_info */
+                  } /* creating_tmp_table */
+                }
+              ] /* steps */
+            } /* materialize */
           }
         ] /* steps */
       } /* join_execution */

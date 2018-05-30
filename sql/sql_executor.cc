@@ -134,7 +134,6 @@ static enum_nested_loop_state end_write_wf(JOIN *join, QEP_TAB *qep_tab,
                                            bool end_of_records);
 static enum_nested_loop_state end_update(JOIN *join, QEP_TAB *qep_tab,
                                          bool end_of_records);
-static void copy_sum_funcs(Item_sum **func_ptr, Item_sum **end_ptr);
 
 static int read_system(TABLE *table);
 static int read_const(TABLE *table, TABLE_REF *ref);
@@ -615,9 +614,13 @@ static void update_tmptable_sum_func(Item_sum **func_ptr,
 
 /** Copy result of sum functions to record in tmp_table. */
 
-static void copy_sum_funcs(Item_sum **func_ptr, Item_sum **end_ptr) {
+void copy_sum_funcs(Item_sum **func_ptr, Item_sum **end_ptr) {
   DBUG_ENTER("copy_sum_funcs");
-  for (; func_ptr != end_ptr; func_ptr++) (*func_ptr)->save_in_result_field(1);
+  for (; func_ptr != end_ptr; func_ptr++) {
+    if ((*func_ptr)->result_field != nullptr) {
+      (*func_ptr)->save_in_result_field(1);
+    }
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -699,7 +702,12 @@ bool copy_funcs(Temp_table_param *param, const THD *thd, Copy_func_type type) {
     }
 
     if (do_copy) {
-      item->save_in_result_field(/*no_conversions=*/true);
+      if (func.override_result_field() == nullptr) {
+        item->save_in_result_field(/*no_conversions=*/true);
+      } else {
+        item->save_in_field(func.override_result_field(),
+                            /*no_conversions=*/true);
+      }
       /*
         Need to check the THD error state because Item::val_xxx() don't
         return error code, but can generate errors
@@ -1170,6 +1178,21 @@ static unique_ptr_destroy_only<RowIterator> PossiblyAttachFilterIterator(
       new (thd->mem_root) FilterIterator(thd, move(iterator), condition));
 }
 
+unique_ptr_destroy_only<RowIterator> CreateNestedLoopIterator(
+    THD *thd, unique_ptr_destroy_only<RowIterator> left_iterator,
+    unique_ptr_destroy_only<RowIterator> right_iterator, JoinType join_type,
+    bool pfs_batch_mode) {
+  if (join_type == JoinType::ANTI) {
+    // This does not make sense as an optimization for antijoins.
+    pfs_batch_mode = false;
+  }
+
+  return unique_ptr_destroy_only<RowIterator>(
+      new (thd->mem_root)
+          NestedLoopIterator(thd, move(left_iterator), move(right_iterator),
+                             join_type, pfs_batch_mode));
+}
+
 /*
   If a condition cannot be applied right away, for instance because it is a
   WHERE condition and we're on the right side of an outer join, we have to
@@ -1303,11 +1326,10 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       } else {
         join_type = JoinType::OUTER;
       }
-      const bool pfs_batch_mode = qep_tab->pfs_batch_update(qep_tab->join()) &&
-                                  join_type != JoinType::ANTI;
-      iterator.reset(new (thd->mem_root) NestedLoopIterator(
+
+      iterator = CreateNestedLoopIterator(
           thd, move(iterator), move(subtree_iterator), join_type,
-          pfs_batch_mode));
+          qep_tab->pfs_batch_update(qep_tab->join()));
 
       iterator = PossiblyAttachFilterIterator(move(iterator),
                                               subtree_pending_conditions, thd);
@@ -1319,10 +1341,56 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
     unique_ptr_destroy_only<RowIterator> table_iterator;
     if (qep_tab->materialize_table == join_materialize_derived) {
       JOIN *subjoin = qep_tab->table_ref->derived_unit()->first_select()->join;
+
+      // For historical reasons, derived table materialization and temporary
+      // table materialization didn't specify the fields to materialize in the
+      // same way. Temporary table materialization used copy_fields() and
+      // copy_funcs() (also reused for aggregation; see the comments on
+      // AggregateIterator for the relation between aggregations and temporary
+      // tables) to get the data into the Field pointers of the temporary table
+      // to be written, storing the lists in copy_fields and items_to_copy.
+      //
+      // However, derived table materialization used JOIN::fields (which is a
+      // set of Item, not Field!) for the same purpose, calling fill_record()
+      // (which originally was meant for INSERT and UPDATE) instead. Thus, we
+      // have to rewrite one to the other, so that we can have only one
+      // MaterializeIterator. We choose to rewrite JOIN::fields to
+      // copy_fields/items_to_copy.
+      //
+      // TODO: The optimizer should output just one kind of structure directly.
+      Temp_table_param *param = &subjoin->tmp_table_param;
+
+      DBUG_ASSERT(param->items_to_copy == nullptr);
+
+      // All fields are to be copied.
+      Func_ptr_array *copy_func =
+          new (current_thd->mem_root) Func_ptr_array(current_thd->mem_root);
+      Field **field_ptr = qep_tab->table()->visible_field_ptr();
+      for (Item &item : *subjoin->fields) {
+        Item *real_item = item.real_item();
+        if (real_item->type() == Item::FIELD_ITEM) {
+          param->copy_fields.emplace_back(
+              *field_ptr, ((Item_field *)real_item)->field, /*save=*/true);
+        } else if (item.real_item()->is_result_field()) {
+          item.set_result_field(*field_ptr);
+          copy_func->push_back(Func_ptr(&item));
+        } else {
+          Func_ptr ptr(&item);
+          ptr.set_override_result_field(*field_ptr);
+          copy_func->push_back(ptr);
+        }
+        ++field_ptr;
+      }
+      param->items_to_copy = copy_func;
+
+      bool copy_fields_and_items_in_materialize =
+          !subjoin->streaming_aggregation;
       table_iterator.reset(new (thd->mem_root) MaterializeIterator(
-          thd, subjoin->release_root_iterator(), subjoin->fields,
-          &subjoin->tmp_table_param, qep_tab->table(),
-          move(qep_tab->read_record.iterator), subjoin->select_lex));
+          thd, subjoin->release_root_iterator(), &subjoin->tmp_table_param,
+          qep_tab->table(), move(qep_tab->read_record.iterator),
+          subjoin->select_lex, subjoin,
+          /*ref_slice=*/-1, copy_fields_and_items_in_materialize,
+          qep_tab->rematerialize, subjoin->tmp_table_param.end_write_records));
     } else {
       table_iterator = move(qep_tab->read_record.iterator);
     }
@@ -1404,14 +1472,38 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       // We are the first table in this join.
       iterator = move(table_iterator);
     } else {
+      // We can only enable DISTINCT optimizations if we are not in the right
+      // (inner) side of an outer join; since the filter is deferred, the limit
+      // would have to be, too. Similarly, we the old executor can do these
+      // optimizations for multiple tables, but it requires poking into global
+      // state to see if later tables produced rows or not; we restrict
+      // ourselves to the rightmost table, instead of trying to make iterators
+      // look at nonlocal state.
+      //
+      // We don't lose correctness by not applying the limit, only performance
+      // on some fairly rare queries (for for former: DISTINCT queries where we
+      // outer-join in a table that we don't use in the select list, but filter
+      // on one of the columns; for the latter: queries with multiple unused
+      // tables).
+      //
+      // TODO: Consider pushing this limit up the tree together with the filter.
+      // Note that this would require some trickery to reset the filter for
+      // each new row on the left side of the join, so it's probably not worth
+      // it.
+      if (qep_tab->not_used_in_distinct && pending_conditions == nullptr &&
+          i == static_cast<plan_idx>(qep_tab->join()->primary_tables - 1)) {
+        table_iterator.reset(new (thd->mem_root) LimitOffsetIterator(
+            thd, move(table_iterator), /*limit=*/1, /*offset=*/0,
+            /*skipped_rows=*/nullptr));
+      }
+
       // Inner join this table to the existing tree.
       // Inner joins are always left-deep, so we can just attach the tables as
       // we find them.
       DBUG_ASSERT(qep_tab->last_inner() == NO_PLAN_IDX);
-      const bool pfs_batch_mode = qep_tab->pfs_batch_update(qep_tab->join());
-      iterator.reset(new (thd->mem_root) NestedLoopIterator(
+      iterator = CreateNestedLoopIterator(
           thd, move(iterator), move(table_iterator), JoinType::INNER,
-          pfs_batch_mode));
+          qep_tab->pfs_batch_update(qep_tab->join()));
     }
     ++i;
 
@@ -1432,18 +1524,22 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
 void JOIN::create_iterators() {
   DBUG_ASSERT(m_root_iterator == nullptr);
 
+  struct MaterializeOperation {
+    QEP_TAB *temporary_qep_tab;
+    enum {
+      MATERIALIZE,
+      AGGREGATE_THEN_MATERIALIZE,
+      AGGREGATE_INTO_TMP_TABLE
+    } type;
+  };
+  vector<MaterializeOperation> final_materializations;
+
   // The new executor engine can't do materialized tables (except
-  // materialized derived tables in some cases), CTEs, semijoins,
-  // loose scan or BNL/BKA.
+  // materialized derived tables in some cases, and materialization
+  // at the very end), CTEs, semijoins, loose scan or BNL/BKA.
   // Revert to the old one if they show up.
   for (unsigned table_idx = const_tables; table_idx < tables; ++table_idx) {
     QEP_TAB *qep_tab = &this->qep_tab[table_idx];
-
-    // Skip unset tables (should not exist, but do, probably due to a bug)
-    // and temporary tables.
-    if (qep_tab->position() == nullptr) {
-      continue;
-    }
     if (qep_tab->materialize_table != nullptr &&
         qep_tab->materialize_table != join_materialize_derived) {
       // Materialized table functions or semijoins.
@@ -1465,18 +1561,48 @@ void JOIN::create_iterators() {
         return;
       }
     }
-    if (qep_tab->table_ref->is_recursive_reference() ||
-        qep_tab->table()->pos_in_table_list->common_table_expr() != nullptr ||
-        qep_tab->do_firstmatch() || qep_tab->do_loosescan() ||
+    if (qep_tab->next_select == sub_select_op) {
+      // We don't support join buffering, but we do support temporary tables.
+      QEP_operation *op = qep_tab[1].op;
+      if (op->type() != QEP_operation::OT_TMP_TABLE) {
+        return;
+      }
+
+      QEP_tmp_table *tmp_op = down_cast<QEP_tmp_table *>(op);
+      if (tmp_op->get_write_func() == end_write) {
+        DBUG_ASSERT(need_tmp_before_win);
+        final_materializations.push_back(MaterializeOperation{
+            qep_tab + 1, MaterializeOperation::MATERIALIZE});
+      } else if (tmp_op->get_write_func() == end_write_group) {
+        final_materializations.push_back(MaterializeOperation{
+            qep_tab + 1, MaterializeOperation::AGGREGATE_THEN_MATERIALIZE});
+      } else {
+        // We don't support end_update yet (used for on-the-fly grouping).
+        final_materializations.push_back(MaterializeOperation{
+            qep_tab + 1, MaterializeOperation::AGGREGATE_INTO_TMP_TABLE});
+        return;
+      }
+    }
+
+    if ((qep_tab->table_ref != nullptr &&
+         qep_tab->table_ref->is_recursive_reference()) ||
+        (qep_tab->table() != nullptr &&
+         qep_tab->table()->pos_in_table_list != nullptr &&
+         qep_tab->table()->pos_in_table_list->common_table_expr() != nullptr)) {
+      // CTE.
+      return;
+    }
+    if (qep_tab->do_firstmatch() || qep_tab->do_loosescan() ||
         qep_tab->starts_weedout() || qep_tab->finishes_weedout() ||
-        qep_tab->next_select == sub_select_op ||
         qep_tab->needs_duplicate_removal) {
       return;
     }
   }
-  // Similarly, no rollup, SELECT DISTINCT or window functions.
-  if (tmp_tables != 0 || rollup.state != ROLLUP::STATE_NONE ||
-      select_distinct || m_windows.elements != 0) {
+
+  // Similarly, no rollup, final SELECT DISTINCT (ie., those that are not
+  // resolved through temporary tables) or window functions.
+  if (rollup.state != ROLLUP::STATE_NONE || select_distinct ||
+      m_windows.elements != 0) {
     return;
   }
 
@@ -1513,6 +1639,82 @@ void JOIN::create_iterators() {
         ConnectJoins(const_tables, primary_tables, qep_tab, thd, nullptr);
   }
 
+  // Deal with any materialization happening at the end (typically for sorting,
+  // grouping or distinct).
+  for (MaterializeOperation materialize_op : final_materializations) {
+    QEP_TAB *qep_tab = materialize_op.temporary_qep_tab;
+
+    if (materialize_op.type ==
+        MaterializeOperation::AGGREGATE_THEN_MATERIALIZE) {
+      // Aggregate as we go, with output into a temporary table.
+      // (We can also aggregate as we go after the materialization step;
+      // see below. We won't be aggregating twice, though.)
+      if (qep_tab->tmp_table_param->precomputed_group_by) {
+        iterator.reset(new (thd->mem_root) PrecomputedAggregateIterator(
+            thd, move(iterator), this, qep_tab->tmp_table_param,
+            qep_tab->ref_item_slice));
+      } else {
+        iterator.reset(new (thd->mem_root) AggregateIterator(
+            thd, move(iterator), this, qep_tab->tmp_table_param,
+            qep_tab->ref_item_slice));
+      }
+    }
+
+    // Attach HAVING if needed (it's put on the QEP_TAB and not on the JOIN if
+    // we have a temporary table).
+    //
+    // FIXME: If the HAVING condition is an alias (a MySQL-specific extension),
+    // it could be evaluated twice; once for the condition, and again for the
+    // copying into the table. This was originally partially fixed by moving
+    // the HAVING into qep_tab->condition() instead, although this makes the
+    // temporary table larger than it needs to be, and is not a legal case in
+    // the presence of SELECT DISTINCT. (The main.having test has a few tests
+    // for this.) Later, it was completely fixed for the old executor,
+    // by evaluating the filter against the temporary table row (switching
+    // slices), although the conditional move into qep_tab->condition(),
+    // which was obsolete for the old executor after said fix, was never
+    // removed. See if we can get this fixed in the new executor as well,
+    // and then remove the code that moves HAVING onto qep_tab->condition().
+    if (qep_tab->having != nullptr) {
+      iterator.reset(new (thd->mem_root)
+                         FilterIterator(thd, move(iterator), qep_tab->having));
+    }
+
+    // Sorting comes after the materialization (which we're about to add),
+    // and should be shown as such. Prevent join_setup_read_record
+    // from adding it to the result iterator; we'll add it ourselves below.
+    //
+    // Note that this would break the query if run by the old executor!
+    Filesort *filesort = qep_tab->filesort;
+    qep_tab->filesort = nullptr;
+
+    qep_tab->read_record.iterator.reset();
+    join_setup_read_record(qep_tab);
+
+    qep_tab->table()->alias = "<temporary>";
+    bool copy_fields_and_items =
+        (materialize_op.type !=
+         MaterializeOperation::AGGREGATE_THEN_MATERIALIZE);
+    iterator.reset(new (thd->mem_root) MaterializeIterator(
+        thd, move(iterator), qep_tab->tmp_table_param, qep_tab->table(),
+        move(qep_tab->read_record.iterator), select_lex, this,
+        qep_tab->ref_item_slice, copy_fields_and_items,
+        /*rematerialize=*/true, qep_tab->tmp_table_param->end_write_records));
+
+    // TODO: Pull the filtering out of filesort, so this works for
+    // filesort != nullptr, too.
+    if (qep_tab->condition() != nullptr && filesort == nullptr) {
+      iterator.reset(new (thd->mem_root) FilterIterator(thd, move(iterator),
+                                                        qep_tab->condition()));
+      qep_tab->set_condition(nullptr);
+    }
+
+    if (filesort != nullptr) {
+      iterator.reset(new (thd->mem_root) SortingIterator(
+          thd, filesort, move(iterator), &examined_rows));
+    }
+  }
+
   // See if we need to aggregate data in the final step. Note that we can
   // _not_ rely on streaming_aggregation, as it can be changed from false
   // to true during optimization, and depending on when it was set, it could
@@ -1525,13 +1727,22 @@ void JOIN::create_iterators() {
   if (qep_tab[primary_tables + tmp_tables - 1].next_select == end_send_group ||
       ((grouped || group_optimized_away) &&
        tmp_table_param.precomputed_group_by)) {
+    // Aggregate as we go, with output into a special slice of the same table.
     DBUG_ASSERT(streaming_aggregation || tmp_table_param.precomputed_group_by);
+#ifndef DBUG_OFF
+    for (MaterializeOperation materialize_op : final_materializations) {
+      DBUG_ASSERT(materialize_op.type !=
+                  MaterializeOperation::AGGREGATE_THEN_MATERIALIZE);
+    }
+#endif
     if (tmp_table_param.precomputed_group_by) {
       iterator.reset(new (thd->mem_root) PrecomputedAggregateIterator(
-          thd, move(iterator), this));
+          thd, move(iterator), this, &tmp_table_param,
+          REF_SLICE_ORDERED_GROUP_BY));
     } else {
-      iterator.reset(new (thd->mem_root)
-                         AggregateIterator(thd, move(iterator), this));
+      iterator.reset(new (thd->mem_root) AggregateIterator(
+          thd, move(iterator), this, &tmp_table_param,
+          REF_SLICE_ORDERED_GROUP_BY));
     }
   }
 
@@ -5774,9 +5985,7 @@ static enum_nested_loop_state end_write(JOIN *join, QEP_TAB *const qep_tab,
     Switch_ref_item_slice slice_switch(join, qep_tab->ref_item_slice);
     DBUG_ASSERT(qep_tab - 1 != join->ref_slice_immediately_before_group_by);
 
-    if (copy_fields(tmp_tbl, join->thd))
-      DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
-    if (copy_funcs(tmp_tbl, join->thd))
+    if (copy_fields_and_funcs(tmp_tbl, join->thd))
       DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
 
     if (having_is_true(qep_tab->having)) {
@@ -5926,9 +6135,6 @@ static enum_nested_loop_state end_write_wf(JOIN *join, QEP_TAB *const qep_tab,
   if (window_buffering) {
     bool new_partition = false;
     if (!end_of_records) {
-      if (copy_fields(out_tbl, thd))
-        DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
-
       /*
         This saves the values of non-WF functions for the row. For example,
         1+t.a. But also 1+LEAD. Even though at this point we lack data to
@@ -5936,7 +6142,7 @@ static enum_nested_loop_state end_write_wf(JOIN *join, QEP_TAB *const qep_tab,
         is fully computable, we will re-evaluate the CFT_NON_WF to get a
         correct value for 1+LEAD.
       */
-      if (copy_funcs(out_tbl, thd, CFT_NON_WF))
+      if (copy_fields_and_funcs(out_tbl, thd, CFT_NON_WF))
         DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
 
       if (!having_is_true(qep_tab->having))
@@ -6010,10 +6216,7 @@ static enum_nested_loop_state end_write_wf(JOIN *join, QEP_TAB *const qep_tab,
         DBUG_RETURN(NESTED_LOOP_ERROR);
     }
   } else {
-    if (copy_fields(out_tbl, thd))
-      DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
-
-    if (copy_funcs(out_tbl, thd, CFT_NON_WF))
+    if (copy_fields_and_funcs(out_tbl, thd, CFT_NON_WF))
       DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
 
     if (!having_is_true(qep_tab->having))
@@ -6247,9 +6450,8 @@ enum_nested_loop_state end_write_group(JOIN *join, QEP_TAB *const qep_tab,
         slice.
       */
       Switch_ref_item_slice slice_switch(join, qep_tab->ref_item_slice);
-      if (copy_fields(tmp_tbl, join->thd))  // (1)
+      if (copy_fields_and_funcs(tmp_tbl, join->thd))  // (1)
         DBUG_RETURN(NESTED_LOOP_ERROR);
-      if (copy_funcs(tmp_tbl, join->thd)) DBUG_RETURN(NESTED_LOOP_ERROR);
       if (init_sum_functions(join->sum_funcs,
                              join->sum_funcs_end[idx + 1]))  //(2)
         DBUG_RETURN(NESTED_LOOP_ERROR);
@@ -6774,10 +6976,11 @@ bool setup_copy_fields(THD *thd, Temp_table_param *param,
 }
 
 /**
-  Make a copy of all simple SELECT'ed items.
+  Make a copy of all simple SELECT'ed fields.
 
   This is done at the start of a new group so that we can retrieve
-  these later when the group changes.
+  these later when the group changes. It is also used in materialization,
+  to copy the values into the temporary table's fields.
 
   @param param     Represents the current temporary file being produced
   @param thd       The current thread
@@ -6797,6 +7000,15 @@ bool copy_fields(Temp_table_param *param, const THD *thd) {
     if (item->copy(thd)) DBUG_RETURN(true);
   }
   DBUG_RETURN(false);
+}
+
+bool copy_fields_and_funcs(Temp_table_param *param, const THD *thd,
+                           Copy_func_type type) {
+  if (copy_fields(param, thd)) return true;
+  if (param->items_to_copy != nullptr) {
+    if (copy_funcs(param, thd, type)) return true;
+  }
+  return false;
 }
 
 /**

@@ -56,10 +56,16 @@ class Func_ptr {
   /// @returns the previously calculated information.
   bool contains_alias_of_expr() const { return m_contains_alias_of_expr; }
   Item *func() const { return m_func; }
+  void set_override_result_field(Field *f) { m_override_result_field = f; }
+  Field *override_result_field() const { return m_override_result_field; }
 
  private:
   Item *m_func;
   bool m_contains_alias_of_expr = false;
+
+  /// If not nullptr, copy_funcs() will save the result of m_func here instead
+  /// of in m_func's usual designated result field.
+  Field *m_override_result_field = nullptr;
 };
 
 /// Used by copy_funcs()
