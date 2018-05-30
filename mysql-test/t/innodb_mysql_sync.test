@@ -1098,6 +1098,34 @@ DROP TABLE t1;
 SET debug="-d,innodb_index_drop_count_zero";
 
 
+--echo #
+--echo # BUG#26848813: INDEXED COLUMN CAN'T BE CHANGED FROM VARCHAR(15)
+--echo #               TO VARCHAR(40) INSTANTANEOUSLY
+
+CREATE TABLE t1(fld1 VARCHAR(5), KEY(fld1)) ENGINE= InnoDB;
+SET DEBUG="+d,innodb_index_drop_count_zero";
+
+--echo # Without patch, an error is reported.
+ALTER TABLE t1 MODIFY fld1 VARCHAR(7), ALGORITHM= INPLACE;
+
+--echo # Scenario where non-packed keys is converted to packed keys
+--echo # before the patch, an error is reported.
+ALTER TABLE t1 MODIFY fld1 VARCHAR(9), ALGORITHM= INPLACE;
+
+SET DEBUG="-d,innodb_index_drop_count_zero";
+
+--echo # Tests added for covering cases where rebuild is required.
+
+--echo # Reducing the size of the field.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 MODIFY fld1 VARCHAR(3), ALGORITHM= INPLACE;
+
+--echo # Increasing the size of the field to boundary condition.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 MODIFY fld1 VARCHAR(256), ALGORITHM= INPLACE;
+
+DROP TABLE t1;
+
 # Check that all connections opened by test cases in this file are really
 # gone so execution of other tests won't be affected by their presence.
 --source include/wait_until_count_sessions.inc
