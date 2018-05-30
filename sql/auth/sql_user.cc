@@ -769,15 +769,19 @@ bool change_password(THD *thd, const char *host, const char *user,
   thd->lex->alter_password.account_locked= false;
   thd->lex->alter_password.update_password_expired_fields= false;
 
+
   /*
-    When @@log-backward-compatible-user-definitions variable is ON
-    and its a slave thread, then the password is already hashed. So
-    do not generate another hash.
-  */
-  if (opt_log_builtin_as_identified_by_password &&
-      thd->slave_thread)
+    In case its a slave thread or a binlog applier thread, the password
+    is already hashed. Do not generate another hash!
+   */
+  if (thd->slave_thread || thd->is_binlog_applier())
+  {
+    /* Password is in hash form */
+    combo->uses_authentication_string_clause= true;
+    /* Password is not plain text */
     combo->uses_identified_by_clause= false;
-    
+  }
+
   if (set_and_validate_user_attributes(thd, combo, what_to_set,
                                        true, "SET PASSWORD"))
   {
