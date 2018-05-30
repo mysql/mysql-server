@@ -503,7 +503,7 @@ void Cache_temp_engine_properties::init(THD *thd) {
   db_plugin = ha_lock_engine(0, heap_hton);
   handler = get_new_handler((TABLE_SHARE *)0, false, thd->mem_root, heap_hton);
   HEAP_MAX_KEY_LENGTH = handler->max_key_length();
-  HEAP_MAX_KEY_PART_LENGTH = handler->max_key_part_length();
+  HEAP_MAX_KEY_PART_LENGTH = handler->max_key_part_length(nullptr);
   HEAP_MAX_KEY_PARTS = handler->max_key_parts();
   destroy(handler);
   plugin_unlock(0, db_plugin);
@@ -512,7 +512,7 @@ void Cache_temp_engine_properties::init(THD *thd) {
   handler =
       get_new_handler((TABLE_SHARE *)0, false, thd->mem_root, temptable_hton);
   TEMPTABLE_MAX_KEY_LENGTH = handler->max_key_length();
-  TEMPTABLE_MAX_KEY_PART_LENGTH = handler->max_key_part_length();
+  TEMPTABLE_MAX_KEY_PART_LENGTH = handler->max_key_part_length(nullptr);
   TEMPTABLE_MAX_KEY_PARTS = handler->max_key_parts();
   destroy(handler);
   plugin_unlock(0, db_plugin);
@@ -521,7 +521,7 @@ void Cache_temp_engine_properties::init(THD *thd) {
   handler =
       get_new_handler((TABLE_SHARE *)0, false, thd->mem_root, myisam_hton);
   MYISAM_MAX_KEY_LENGTH = handler->max_key_length();
-  MYISAM_MAX_KEY_PART_LENGTH = handler->max_key_part_length();
+  MYISAM_MAX_KEY_PART_LENGTH = handler->max_key_part_length(nullptr);
   MYISAM_MAX_KEY_PARTS = handler->max_key_parts();
   destroy(handler);
   plugin_unlock(0, db_plugin);

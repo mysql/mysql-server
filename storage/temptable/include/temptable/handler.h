@@ -389,7 +389,8 @@ class Handler : public ::handler {
 
   /** Get the maximum supported indexed columns length.
    * @return max length */
-  uint max_supported_key_part_length() const override;
+  uint max_supported_key_part_length(
+      HA_CREATE_INFO *create_info) const override;
 
 #if 0
   /* This is disabled in order to mimic ha_heap's implementation which relies on

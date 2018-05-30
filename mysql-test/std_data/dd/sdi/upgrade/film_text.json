@@ -302,7 +302,7 @@
                 "is_generated": false,
                 "ordinal_position": 2,
                 "comment": "",
-                "options": "flags=32;",
+                "options": "flags=0;",
                 "se_private_data": "id=A;root=B;space_id=C;table_id=D;trx_id=E",
                 "type": 4,
                 "algorithm": 5,

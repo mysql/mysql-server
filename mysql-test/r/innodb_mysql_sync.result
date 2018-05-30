@@ -748,3 +748,22 @@ ALTER TABLE t1 MODIFY fld1 CHAR(20);
 #cleanup
 DROP TABLE t1;
 SET debug="-d,innodb_index_drop_count_zero";
+#
+# BUG#26848813: INDEXED COLUMN CAN'T BE CHANGED FROM VARCHAR(15)
+#               TO VARCHAR(40) INSTANTANEOUSLY
+CREATE TABLE t1(fld1 VARCHAR(5), KEY(fld1)) ENGINE= InnoDB;
+SET DEBUG="+d,innodb_index_drop_count_zero";
+# Without patch, an error is reported.
+ALTER TABLE t1 MODIFY fld1 VARCHAR(7), ALGORITHM= INPLACE;
+# Scenario where non-packed keys is converted to packed keys
+# before the patch, an error is reported.
+ALTER TABLE t1 MODIFY fld1 VARCHAR(9), ALGORITHM= INPLACE;
+SET DEBUG="-d,innodb_index_drop_count_zero";
+# Tests added for covering cases where rebuild is required.
+# Reducing the size of the field.
+ALTER TABLE t1 MODIFY fld1 VARCHAR(3), ALGORITHM= INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot change column type INPLACE. Try ALGORITHM=COPY.
+# Increasing the size of the field to boundary condition.
+ALTER TABLE t1 MODIFY fld1 VARCHAR(256), ALGORITHM= INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot change column type INPLACE. Try ALGORITHM=COPY.
+DROP TABLE t1;

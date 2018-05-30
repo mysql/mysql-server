@@ -2093,9 +2093,10 @@ SET sql_mode= '';
 --echo # Test with '767' as index size limit.
 CREATE TABLE t1(fld1 VARCHAR(767), KEY a(fld1)) charset latin1 ENGINE= INNODB
 ROW_FORMAT=COMPACT;
---error ER_INDEX_COLUMN_TOO_LONG
+--echo # With patch for Bug#26848813, a warning is reported.
 ALTER TABLE t1 CHANGE fld1 fld1 VARCHAR(768), ALGORITHM= INPLACE;
 DROP TABLE t1;
+
 CREATE TABLE t1(fld1 VARCHAR(3072), KEY a(fld1)) charset latin1 ENGINE= INNODB,
 ROW_FORMAT=DYNAMIC;
 INSERT INTO t1 VALUES('a');
@@ -3041,3 +3042,110 @@ CREATE TABLE t1 SELECT 100000000000000000000000000000000000000000000000000000000
 ALTER TABLE t1 ADD INDEX (c1);
 DROP TABLE t1;
 SET SQL_MODE=default;
+
+--echo #
+--echo # BUG#26848813: INDEXED COLUMN CAN'T BE CHANGED FROM VARCHAR(15)
+--echo #               TO VARCHAR(40) INSTANTANEOUSLY
+
+SET @orig_sql_mode = @@sql_mode;
+
+--echo # Tests where an error is reported under strict mode when the index
+--echo # limit exceeds the maximum supported length by SE.
+
+--error ER_TOO_LONG_KEY
+CREATE TABLE t1 (fld1 VARCHAR(768), KEY(fld1)) CHARSET latin1 ENGINE =InnoDB
+ROW_FORMAT= COMPACT;
+
+--error ER_TOO_LONG_KEY
+CREATE TABLE t2 (fld1 VARCHAR(3073), KEY(fld1)) CHARSET latin1 ENGINE= InnoDB;
+
+--echo # Test with innodb prefix indexes where the index limit is 767 bytes
+CREATE TABLE t1 (fld1 VARCHAR(767), KEY(fld1)) CHARSET latin1 ENGINE=INNODB
+ROW_FORMAT=COMPACT;
+
+--error ER_TOO_LONG_KEY
+ALTER TABLE t1 MODIFY fld1 VARCHAR(768), ALGORITHM= INPLACE;
+
+--error ER_TOO_LONG_KEY
+ALTER TABLE t1 MODIFY fld1 VARCHAR(768), ALGORITHM= COPY;
+
+--echo # Test with innodb prefix indexes where the index limit is 3072 bytes
+CREATE TABLE t2 (fld1 VARCHAR(3072), KEY(fld1)) CHARSET latin1 ENGINE=INNODB
+ROW_FORMAT=DYNAMIC;
+
+--error ER_TOO_LONG_KEY
+ALTER TABLE t2 MODIFY fld1 VARCHAR(3073), ALGORITHM= INPLACE;
+
+--error ER_TOO_LONG_KEY
+ALTER TABLE t2 MODIFY fld1 VARCHAR(3073), ALGORITHM= COPY;
+
+DROP TABLE t1, t2;
+
+SET sql_mode= '';
+
+--enable_warnings
+
+--echo # Test where the indexes are truncated to fit the index limit and
+--echo # a warning is reported under non-strict mode when the index exceeds
+--echo # the SE limit.
+CREATE TABLE t1 (fld1 VARCHAR(768), KEY(fld1)) ENGINE= InnoDB
+ROW_FORMAT=COMPACT;
+CREATE TABLE t2 (fld1 VARCHAR(3073), KEY(fld1)) ENGINE= InnoDB;
+
+--echo # Test with innodb prefix indexes where the index limit is 767 bytes.
+CREATE TABLE t3 (fld1 VARCHAR(767), KEY(fld1))ENGINE=INNODB ROW_FORMAT=COMPACT;
+
+ALTER TABLE t3 MODIFY fld1 VARCHAR(768), ALGORITHM= INPLACE;
+
+ALTER TABLE t3 MODIFY fld1 VARCHAR(800), ALGORITHM= COPY;
+
+--echo # Test with innodb prefix indexes where the index limit is 3072 bytes.
+CREATE TABLE t4 (fld1 VARCHAR(3072), KEY(fld1))ENGINE=INNODB
+ROW_FORMAT=DYNAMIC;
+
+ALTER TABLE t4 MODIFY fld1 VARCHAR(3073), ALGORITHM= INPLACE;
+
+ALTER TABLE t4 MODIFY fld1 VARCHAR(3074), ALGORITHM= COPY;
+
+--echo # For unique and primary keys, an error is reported even in non-strict
+--echo # mode.
+
+--error ER_TOO_LONG_KEY
+CREATE TABLE t5(fld1 VARCHAR(768) PRIMARY KEY) ENGINE= InnoDB
+ROW_FORMAT=COMPACT;
+
+--error ER_TOO_LONG_KEY
+CREATE TABLE t5(fld1 VARCHAR(3073), UNIQUE KEY(fld1)) ENGINE= InnoDB;
+
+--disable_warnings
+DROP TABLE t1, t2, t3, t4;
+
+SET sql_mode= @orig_sql_mode;
+
+--echo # Tests added for coverage.
+CREATE TABLE t1(fld1 VARCHAR(3), KEY(fld1)) ENGINE=MYISAM;
+
+--echo # Conversion of unpacked keys to packed keys reports
+--echo # error for INPLACE Alter.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 MODIFY fld1 VARCHAR(10), ALGORITHM=INPLACE;
+
+--echo # Succeeds with index rebuild.
+ALTER TABLE t1 MODIFY fld1 VARCHAR(10), ALGORITHM=COPY;
+
+--echo # Succeeds since the row format is dynamic.
+CREATE TABLE t2(fld1 VARCHAR(768), KEY(fld1)) ENGINE= InnoDB ROW_FORMAT= DYNAMIC;
+
+--echo # An error is reported when the index exceeds the column size
+--echo # in both strict and non-strict mode.
+--error ER_WRONG_SUB_KEY
+ALTER TABLE t2 ADD INDEX idx1(fld1(769));
+
+SET sql_mode= '';
+
+--error ER_WRONG_SUB_KEY
+ALTER TABLE t2 ADD INDEX idx1(fld1(769));
+
+--echo # Cleanup.
+DROP TABLE t1, t2;
+SET sql_mode= @orig_sql_mode;

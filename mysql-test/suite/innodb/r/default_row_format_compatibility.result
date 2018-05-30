@@ -72,7 +72,7 @@ Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/tab	test/tab	33	5	Dynamic	0	Single
 SET GLOBAL innodb_default_row_format=COMPACT;
 ALTER TABLE tab ROW_FORMAT=COMPACT;
-ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
+ERROR 42000: Specified key was too long; max key length is 767 bytes
 DROP TABLE tab;
 SET GLOBAL innodb_default_row_format=Default;
 SELECT @@innodb_default_row_format;

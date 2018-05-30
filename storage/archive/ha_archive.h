@@ -119,7 +119,10 @@ class ha_archive : public handler {
                                   ulonglong *nb_reserved_values);
   uint max_supported_keys() const { return 1; }
   uint max_supported_key_length() const { return sizeof(ulonglong); }
-  uint max_supported_key_part_length() const { return sizeof(ulonglong); }
+  uint max_supported_key_part_length(
+      HA_CREATE_INFO *create_info MY_ATTRIBUTE((unused))) const {
+    return sizeof(ulonglong);
+  }
   virtual int records(ha_rows *num_rows) {
     *num_rows = share->rows_recorded;
     return 0;

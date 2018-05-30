@@ -107,7 +107,7 @@ class ha_innobase : public handler {
 
   uint max_supported_key_length() const;
 
-  uint max_supported_key_part_length() const;
+  uint max_supported_key_part_length(HA_CREATE_INFO *create_info) const;
 
   int open(const char *name, int, uint open_flags, const dd::Table *table_def);
 

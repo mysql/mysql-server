@@ -740,17 +740,6 @@ ALTER TABLE slave_master_info
   MODIFY COLUMN Get_public_key BOOLEAN NOT NULL COMMENT 'Preference to get public key from master.'
   AFTER Public_key_path;
 
-SET @have_innodb= (SELECT COUNT(engine) FROM information_schema.engines WHERE engine='InnoDB' AND support != 'NO');
-SET @str=IF(@have_innodb <> 0, "ALTER TABLE innodb_table_stats STATS_PERSISTENT=0", "SET @dummy = 0");
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
-SET @str=IF(@have_innodb <> 0, "ALTER TABLE innodb_index_stats STATS_PERSISTENT=0", "SET @dummy = 0");
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
 #
 # Alter mysql.ndb_binlog_index only if it exists already.
 #

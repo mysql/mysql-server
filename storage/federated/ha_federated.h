@@ -170,7 +170,8 @@ class ha_federated : public handler {
   uint max_supported_keys() const { return MAX_KEY; }
   uint max_supported_key_parts() const { return MAX_REF_PARTS; }
   uint max_supported_key_length() const { return FEDERATED_MAX_KEY_LENGTH; }
-  uint max_supported_key_part_length() const {
+  uint max_supported_key_part_length(
+      HA_CREATE_INFO *create_info MY_ATTRIBUTE((unused))) const {
     return FEDERATED_MAX_KEY_LENGTH;
   }
   /*
