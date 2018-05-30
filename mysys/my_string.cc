@@ -106,7 +106,6 @@ bool dynstr_append(DYNAMIC_STRING *str, const char *append) {
 
 bool dynstr_append_mem(DYNAMIC_STRING *str, const char *append, size_t length) {
   char *new_ptr;
-  if (length == 0) return false;
   if (str->length + length >= str->max_length) {
     size_t new_length =
         (str->length + length + str->alloc_increment) / str->alloc_increment;
@@ -117,7 +116,7 @@ bool dynstr_append_mem(DYNAMIC_STRING *str, const char *append, size_t length) {
     str->str = new_ptr;
     str->max_length = new_length;
   }
-  memcpy(str->str + str->length, append, length);
+  if (length > 0) memcpy(str->str + str->length, append, length);
   str->length += length;
   str->str[str->length] = 0; /* Safety for C programs */
   return false;
