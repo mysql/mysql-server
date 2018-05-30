@@ -30,9 +30,9 @@ col_1_varchar = REPEAT("c", 4000)
 0
 1
 ALTER TABLE worklog5743 ROW_FORMAT=REDUNDANT;
-ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
+ERROR 42000: Specified key was too long; max key length is 767 bytes
 ALTER TABLE worklog5743 ROW_FORMAT=COMPACT;
-ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
+ERROR 42000: Specified key was too long; max key length is 767 bytes
 ALTER TABLE worklog5743 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16;
 DROP TABLE worklog5743;
 CREATE TABLE worklog5743 (

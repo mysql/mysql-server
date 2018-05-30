@@ -270,8 +270,9 @@ SET sql_mode = default;
 set global innodb_large_prefix = 1;
 Warnings:
 Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
-SET sql_mode='NO_ENGINE_SUBSTITUTION';
+SET sql_mode='NO_ENGINE_SUBSTITUTION,STRICT_TRANS_TABLES';
 Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET innodb_strict_mode=OFF;
 create temporary table t (
@@ -279,7 +280,7 @@ a int not null,
 b blob not null,
 index sk (b(3021))
 ) row_format = compact engine=innodb;
-ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
+ERROR 42000: Specified key was too long; max key length is 767 bytes
 create temporary table t (
 a int not null,
 b blob not null,
@@ -299,7 +300,7 @@ a int not null,
 b blob not null,
 index sk (b(3021))
 ) row_format = compact engine=innodb;
-ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
+ERROR 42000: Specified key was too long; max key length is 767 bytes
 create temporary table t (
 a int not null,
 b blob not null,

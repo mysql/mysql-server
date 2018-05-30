@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -91,7 +91,7 @@ public:
 
 	uint max_supported_key_length() const;
 
-	uint max_supported_key_part_length() const;
+	uint max_supported_key_part_length(HA_CREATE_INFO *create_info) const;
 
 	const key_map* keys_to_use_for_scanning();
 

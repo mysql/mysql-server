@@ -6345,14 +6345,23 @@ ha_innobase::clone(
 
 
 uint
-ha_innobase::max_supported_key_part_length() const
+ha_innobase::max_supported_key_part_length(HA_CREATE_INFO *create_info) const
 /*==============================================*/
 {
 	/* A table format specific index column length check will be performed
 	at ha_innobase::add_index() and row_create_index_for_mysql() */
-	return(innobase_large_prefix
-		? REC_VERSION_56_MAX_INDEX_COL_LEN
-		: REC_ANTELOPE_MAX_INDEX_COL_LEN - 1);
+	switch (create_info->row_type) {
+	case ROW_TYPE_REDUNDANT:
+	case ROW_TYPE_COMPACT:
+		return (REC_ANTELOPE_MAX_INDEX_COL_LEN - 1);
+		break;
+	default:
+		if (innobase_large_prefix)
+			return (REC_VERSION_56_MAX_INDEX_COL_LEN);
+		else
+			return (REC_ANTELOPE_MAX_INDEX_COL_LEN - 1);
+	}
+
 }
 
 /******************************************************************//**
