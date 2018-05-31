@@ -258,7 +258,12 @@ class View_creation_ctx : public Default_object_creation_ctx {
 
 struct ORDER {
   ORDER *next;
-  Item **item;    /* Point at item in select fields */
+  /**
+    Points at the item in the select fields. Note that this means that
+    after resolving, it points into a slice (see JOIN::ref_items),
+    even though the item is not of type Item_ref!
+   */
+  Item **item;
   Item *item_ptr; /* Storage for initial item */
 
   enum_order direction; /* Requested direction of ordering */
