@@ -466,6 +466,10 @@ dtuple_t *dtuple_create_with_vcol(mem_heap_t *heap, ulint n_fields,
 
   tuple = dtuple_create_from_mem(buf, buf_size, n_fields, n_v_fields);
 
+#ifdef UNIV_DEBUG
+  tuple->m_heap = heap;
+#endif /* UNIV_DEBUG */
+
   return (tuple);
 }
 
