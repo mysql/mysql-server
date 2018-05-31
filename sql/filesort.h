@@ -49,8 +49,6 @@ class Filesort {
  public:
   /// The QEP entry for the table to be sorted
   QEP_TAB *const qep_tab;
-  /// List of expressions to order the table by
-  ORDER *order;
   /// Maximum number of rows to return
   ha_rows limit;
   /// ORDER BY list with some precalculated info for filesort
@@ -62,27 +60,22 @@ class Filesort {
   /// Addon fields descriptor
   Addon_fields *addon_fields;
 
-  Filesort(QEP_TAB *tab_arg, ORDER *order_arg, ha_rows limit_arg)
-      : Filesort(tab_arg, order_arg, limit_arg, false) {}
-
-  Filesort(QEP_TAB *tab_arg, ORDER *order_arg, ha_rows limit_arg,
-           bool force_stable_sort)
-      : qep_tab(tab_arg),
-        order(order_arg),
-        limit(limit_arg),
-        sortorder(NULL),
-        using_pq(false),
-        m_force_stable_sort(
-            force_stable_sort),  // keep relative order of equiv. elts
-        addon_fields(NULL){};
-
-  /* Prepare ORDER BY list for sorting. */
-  uint make_sortorder();
+  Filesort(QEP_TAB *tab_arg, ORDER *order, ha_rows limit_arg,
+           bool force_stable_sort = false);
 
   Addon_fields *get_addon_fields(ulong max_length_for_sort_data,
                                  Field **ptabfield, uint sortlength,
                                  Addon_fields_status *addon_fields_status,
                                  uint *plength, uint *ppackable_length);
+
+  // Number of elements in the sortorder array.
+  uint sort_order_length() const { return m_sort_order_length; }
+
+ private:
+  /* Prepare ORDER BY list for sorting. */
+  uint make_sortorder(ORDER *order);
+
+  uint m_sort_order_length;
 };
 
 bool filesort(THD *thd, Filesort *fsort, bool sort_positions,

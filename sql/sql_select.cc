@@ -4336,6 +4336,22 @@ bool JOIN::make_tmp_tables_info() {
       if (m_windows[wno]->make_special_rows_cache(thd, tab->table()))
         DBUG_RETURN(true);
 
+      if (alloc_ref_item_slice(thd, widx)) DBUG_RETURN(true);
+
+      if (change_to_use_tmp_fields(
+              thd, ref_items[widx], tmp_fields_list[widx], tmp_all_fields[widx],
+              fields_list.elements,
+              (last_slice_before_windowing == REF_SLICE_ACTIVE
+                   ? all_fields
+                   : tmp_all_fields[last_slice_before_windowing])))
+        DBUG_RETURN(true);
+
+      curr_fields_list = &tmp_fields_list[widx];
+      curr_all_fields = &tmp_all_fields[widx];
+      set_ref_item_slice(widx);
+      tab->ref_item_slice = widx;
+      setup_tmptable_write_func(tab, &trace_this_tbl);
+
       ORDER_with_src w_partition(m_windows[wno]->sorting_order(),
                                  ESC_WINDOWING);
 
@@ -4362,22 +4378,6 @@ bool JOIN::make_tmp_tables_info() {
           tab->tmp_table_param->m_window_short_circuit = true;
         }
       }
-
-      if (alloc_ref_item_slice(thd, widx)) DBUG_RETURN(true);
-
-      if (change_to_use_tmp_fields(
-              thd, ref_items[widx], tmp_fields_list[widx], tmp_all_fields[widx],
-              fields_list.elements,
-              (last_slice_before_windowing == REF_SLICE_ACTIVE
-                   ? all_fields
-                   : tmp_all_fields[last_slice_before_windowing])))
-        DBUG_RETURN(true);
-
-      curr_fields_list = &tmp_fields_list[widx];
-      curr_all_fields = &tmp_all_fields[widx];
-      set_ref_item_slice(widx);
-      tab->ref_item_slice = widx;
-      setup_tmptable_write_func(tab, &trace_this_tbl);
 
       if (having_cond != nullptr) {
         tab->having = having_cond;

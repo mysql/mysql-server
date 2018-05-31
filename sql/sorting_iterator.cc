@@ -450,12 +450,6 @@ bool SortingIterator::Init() {
   ReleaseBuffers();
 
   THD_STAGE_INFO(thd(), stage_creating_sort_index);
-  if (qep_tab->join() != nullptr) {
-    DBUG_ASSERT(qep_tab->join()->m_ordered_index_usage !=
-                (qep_tab->filesort->order == qep_tab->join()->order
-                     ? JOIN::ORDERED_INDEX_ORDER_BY
-                     : JOIN::ORDERED_INDEX_GROUP_BY));
-  }
 
   // Both empty result and error count as errors. (TODO: Why? This is a legacy
   // choice that doesn't always seem right to me, although it should nearly

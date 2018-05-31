@@ -362,7 +362,7 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
 
   DBUG_ENTER("filesort");
 
-  if (!(s_length = filesort->make_sortorder()))
+  if (!(s_length = filesort->sort_order_length()))
     DBUG_RETURN(true); /* purecov: inspected */
 
   /*
@@ -647,7 +647,31 @@ void filesort_free_buffers(TABLE *table, bool full) {
   DBUG_VOID_RETURN;
 }
 
-uint Filesort::make_sortorder() {
+Filesort::Filesort(QEP_TAB *tab_arg, ORDER *order, ha_rows limit_arg,
+                   bool force_stable_sort)
+    : qep_tab(tab_arg),
+      limit(limit_arg),
+      sortorder(NULL),
+      using_pq(false),
+      m_force_stable_sort(
+          force_stable_sort),  // keep relative order of equiv. elts
+      addon_fields(NULL) {
+  // Switch to the right slice if applicable, so that we fetch out the correct
+  // items from order_arg.
+  if (qep_tab->join() != nullptr) {
+    DBUG_ASSERT(qep_tab->join()->m_ordered_index_usage !=
+                (order == qep_tab->join()->order
+                     ? JOIN::ORDERED_INDEX_ORDER_BY
+                     : JOIN::ORDERED_INDEX_GROUP_BY));
+    Switch_ref_item_slice slice_switch(qep_tab->join(),
+                                       qep_tab->ref_item_slice);
+    m_sort_order_length = make_sortorder(order);
+  } else {
+    m_sort_order_length = make_sortorder(order);
+  }
+}
+
+uint Filesort::make_sortorder(ORDER *order) {
   uint count;
   st_sort_field *sort, *pos;
   ORDER *ord;

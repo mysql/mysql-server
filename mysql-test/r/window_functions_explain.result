@@ -16629,12 +16629,12 @@ SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t 
                 "adding_tmp_table_in_plan_at_position": 2,
                 "cause": "output_for_window_functions",
                 "with_buffer": false,
+                "write_method": "write_all_rows",
                 "adding_sort_to_previous_table": {
                   "filesort": {
                     "adding_sort_to_table_in_plan_at_position": 1
                   }
-                },
-                "write_method": "write_all_rows"
+                }
               },
               {
                 "creating_tmp_table": {
@@ -16654,6 +16654,7 @@ SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t 
                 "adding_tmp_table_in_plan_at_position": 3,
                 "cause": "output_for_window_functions",
                 "with_buffer": true,
+                "write_method": "write_all_rows",
                 "adding_sort_to_previous_table": {
                   "filesort": {
                     "adding_sort_to_table_in_plan_at_position": 2
@@ -16661,8 +16662,7 @@ SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t 
                 },
                 "filesort": {
                   "adding_sort_to_table_in_plan_at_position": 3
-                },
-                "write_method": "write_all_rows"
+                }
               }
             ]
           }
