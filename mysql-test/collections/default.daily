@@ -31,7 +31,8 @@ perl mysql-test-run.pl --force --timer   --parallel=auto --experimental=collecti
 
 #################SECTION2: RUN SUITES THAT ARE NOT PART OF DEFAULT##########
 # Run the suites that are not part of the default - funcs_2, stress, jp, nist
-# interactive_utilities,engines, memcached
+# interactive_utilities,engines, memcached, audit_null
+perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60   --parallel=auto --experimental=collections/default.experimental --comment=audit_null-big  --vardir=var-audit_null-big --suite=audit_null --no-skip
 perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60   --parallel=auto --experimental=collections/default.experimental --comment=funcs2-big  --vardir=var-funcs2-big --suite=funcs_2 --no-skip
 perl mysql-test-run.pl --force --timer --big-test  --parallel=auto --experimental=collections/default.experimental --comment=stress --vardir=var-stress  --suite=stress --no-skip
 perl mysql-test-run.pl --force --timer --big-test  --parallel=auto --experimental=collections/default.experimental --comment=jp --vardir=var-jp --suite=jp --no-skip

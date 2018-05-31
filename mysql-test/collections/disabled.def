@@ -10,6 +10,9 @@
 #
 ##############################################################################
 
+# audit_null
+audit_null.audit_plugin_bugs : BUG#28080637 2018-05-31 Anitha Test fails consistently
+
 # binlog suite tests
 binlog.binlog_xa_commit_failure : BUG#27588706 2018-02-23 Erlend Test has never worked correctly.
 
