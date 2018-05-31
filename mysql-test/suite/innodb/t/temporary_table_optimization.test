@@ -182,10 +182,7 @@ drop table t2;
 # 6. Creating temp-table with large prefix.				#
 #
 
-# Enabling the default 'strict' mode since as part of fix for bug#26848813, an
-# error is reported when index> 767 bytes and in non-strict mode only a warning
-# is reported
-SET sql_mode = 'NO_ENGINE_SUBSTITUTION,STRICT_TRANS_TABLES';
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 # This will lead to warnings on innodb_page_size=8k or 4k:
 # 8k: Specified key was too long; max key length is 1536 bytes
 # 4k: Specified key was too long; max key length is 768 bytes
@@ -212,6 +209,10 @@ create temporary table t (
 	) row_format = dynamic engine=innodb;
 drop table t;
 #
+# Enabling the default 'strict' mode since as part of fix for bug#26848813, an
+# error is reported when index> 767 bytes and in non-strict mode only a warning
+# is reported
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION,STRICT_TRANS_TABLES';
 SET innodb_strict_mode=OFF;
 --error ER_TOO_LONG_KEY
 create temporary table t (
@@ -219,6 +220,8 @@ create temporary table t (
 	b blob not null,
 	index sk (b(3021))
 	) row_format = compact engine=innodb;
+
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 #
 create temporary table t (
 	a int not null,
@@ -234,6 +237,11 @@ create temporary table t (
 	) row_format = compressed engine=innodb;
 drop table t;
 #
+#
+# Enabling the default 'strict' mode since as part of fix for bug#26848813, an
+# error is reported when index> 767 bytes and in non-strict mode only a warning
+# is reported
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION,STRICT_TRANS_TABLES';
 --error ER_TOO_LONG_KEY
 create temporary table t (
 	a int not null,
@@ -241,6 +249,7 @@ create temporary table t (
 	index sk (b(3021))
 	) row_format = compact engine=innodb;
 #
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create temporary table t (
 	a int not null,
 	b blob not null,
