@@ -240,27 +240,26 @@ i
 6
 7
 drop table t2;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+create temporary table t (
+a int not null,
+b blob not null,
+index sk (b(3021))
+) row_format = dynamic engine=innodb;
+drop table t;
+create temporary table t (
+a int not null,
+b blob not null,
+index sk (b(3021))
+) row_format = dynamic engine=innodb;
+drop table t;
+create temporary table t (
+a int not null,
+b blob not null,
+index sk (b(3021))
+) row_format = dynamic engine=innodb;
+drop table t;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION,STRICT_TRANS_TABLES';
-Warnings:
-Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-create temporary table t (
-a int not null,
-b blob not null,
-index sk (b(3021))
-) row_format = dynamic engine=innodb;
-drop table t;
-create temporary table t (
-a int not null,
-b blob not null,
-index sk (b(3021))
-) row_format = dynamic engine=innodb;
-drop table t;
-create temporary table t (
-a int not null,
-b blob not null,
-index sk (b(3021))
-) row_format = dynamic engine=innodb;
-drop table t;
 SET innodb_strict_mode=OFF;
 create temporary table t (
 a int not null,
@@ -268,6 +267,7 @@ b blob not null,
 index sk (b(3021))
 ) row_format = compact engine=innodb;
 ERROR 42000: Specified key was too long; max key length is 767 bytes
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create temporary table t (
 a int not null,
 b blob not null,
@@ -280,12 +280,14 @@ b blob not null,
 index sk (b(3021))
 ) row_format = compressed engine=innodb;
 drop table t;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION,STRICT_TRANS_TABLES';
 create temporary table t (
 a int not null,
 b blob not null,
 index sk (b(3021))
 ) row_format = compact engine=innodb;
 ERROR 42000: Specified key was too long; max key length is 767 bytes
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create temporary table t (
 a int not null,
 b blob not null,
