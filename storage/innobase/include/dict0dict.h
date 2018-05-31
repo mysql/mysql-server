@@ -1365,6 +1365,10 @@ class DDTableBuffer {
   be freed before return */
   mem_heap_t *m_dynamic_heap;
 
+  /** The heap used during replace() operation, which should always
+  be freed before return */
+  mem_heap_t *m_replace_heap;
+
   /** The heap used to create the search tuple and replace tuple */
   mem_heap_t *m_heap;
 

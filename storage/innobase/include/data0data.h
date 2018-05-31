@@ -476,6 +476,10 @@ struct dtuple_t {
   /*!< data tuples can be linked into a
   list using this field */
 #ifdef UNIV_DEBUG
+
+  /** memory heap where this tuple is allocated. */
+  mem_heap_t *m_heap;
+
   ulint magic_n; /*!< magic number, used in
                  debug assertions */
 /** Value of dtuple_t::magic_n */

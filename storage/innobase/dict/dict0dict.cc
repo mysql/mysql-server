@@ -6380,6 +6380,7 @@ void DDTableBuffer::init() {
 
   m_heap = mem_heap_create(500);
   m_dynamic_heap = mem_heap_create(1000);
+  m_replace_heap = mem_heap_create(1000);
 
   create_tuples();
 }
@@ -6478,6 +6479,7 @@ void DDTableBuffer::init_tuple_with_id(dtuple_t *tuple, table_id_t id) {
 void DDTableBuffer::close() {
   mem_heap_free(m_heap);
   mem_heap_free(m_dynamic_heap);
+  mem_heap_free(m_replace_heap);
 
   m_search_tuple = NULL;
   m_replace_tuple = NULL;
@@ -6516,7 +6518,7 @@ upd_t *DDTableBuffer::update_set_metadata(const dtuple_t *entry,
     return (nullptr);
   }
 
-  update = upd_create(2, m_dynamic_heap);
+  update = upd_create(2, m_replace_heap);
 
   upd_field = upd_get_nth_field(update, 0);
   dfield_copy(&upd_field->new_val, version_field);
@@ -6558,7 +6560,7 @@ dberr_t DDTableBuffer::replace(table_id_t id, uint64_t version,
   dfield_set_data(dfield, metadata, len);
   /* Other system fields have been initialized */
 
-  entry = row_build_index_entry(m_replace_tuple, NULL, m_index, m_dynamic_heap);
+  entry = row_build_index_entry(m_replace_tuple, NULL, m_index, m_replace_heap);
 
   /* Start to search for the to-be-replaced tuple */
   mtr.start();
@@ -6581,6 +6583,7 @@ dberr_t DDTableBuffer::replace(table_id_t id, uint64_t version,
     ut_a(error == DB_SUCCESS);
 
     mem_heap_empty(m_dynamic_heap);
+    mem_heap_empty(m_replace_heap);
 
     return (DB_SUCCESS);
   }
@@ -6599,7 +6602,7 @@ dberr_t DDTableBuffer::replace(table_id_t id, uint64_t version,
 
     error = btr_cur_pessimistic_update(
         flags, btr_pcur_get_btr_cur(&pcur), &cur_offsets, &m_dynamic_heap,
-        m_dynamic_heap, &big_rec, update, 0, NULL, 0, 0, &mtr);
+        m_replace_heap, &big_rec, update, 0, NULL, 0, 0, &mtr);
     ut_a(error == DB_SUCCESS);
     /* We don't have big rec in this table */
     ut_ad(!big_rec);
@@ -6607,6 +6610,7 @@ dberr_t DDTableBuffer::replace(table_id_t id, uint64_t version,
 
   mtr.commit();
   mem_heap_empty(m_dynamic_heap);
+  mem_heap_empty(m_replace_heap);
 
   return (DB_SUCCESS);
 }

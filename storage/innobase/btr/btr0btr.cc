@@ -2349,6 +2349,7 @@ rec_t *btr_page_split_and_insert(
   }
   n_uniq = dict_index_get_n_unique_in_tree(cursor->index);
 func_start:
+  ut_ad(tuple->m_heap != *heap);
   mem_heap_empty(*heap);
   *offsets = NULL;
 
