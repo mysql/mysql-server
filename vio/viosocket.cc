@@ -794,7 +794,13 @@ int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout) {
   */
   do {
 #ifdef USE_PPOLL_IN_VIO
-    ret = ppoll(&pfd, 1, ts_ptr, &vio->signal_mask);
+    /*
+      vio->signal_mask is only useful when thread_id != 0.
+      thread_id is only set for servers, so signal_mask is unused for client
+      libraries.
+    */
+    ret = ppoll(&pfd, 1, ts_ptr,
+                vio->thread_id != 0 ? &vio->signal_mask : nullptr);
 #else
     ret = poll(&pfd, 1, timeout);
 #endif
