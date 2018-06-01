@@ -819,3 +819,19 @@ Warning	1292	Incorrect datetime value: '1'
 Warning	1292	Incorrect datetime value: '1'
 Warning	1292	Incorrect datetime value: '1'
 DROP TABLE t;
+#
+# Bug#27453155 W->FRAME_BUFFER()->S->DB_TYPE()->DB_TYPE ==
+#              DB_TYPE_INNODB || CNT <= 1 || (W->LA
+#
+CREATE TABLE t(a SMALLINT);
+INSERT INTO t(a) VALUES (-32768), (-1), (32767), (32767), (1);
+SELECT a, COUNT(a) OVER w, LAG(1,13) RESPECT NULLS OVER w
+FROM t
+WINDOW w AS (ORDER BY a RANGE BETWEEN 1 FOLLOWING AND UNBOUNDED FOLLOWING);
+a	COUNT(a) OVER w	LAG(1,13) RESPECT NULLS OVER w
+-32768	4	NULL
+-1	3	NULL
+1	2	NULL
+32767	0	NULL
+32767	0	NULL
+DROP TABLE t;
