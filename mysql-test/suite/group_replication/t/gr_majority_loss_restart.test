@@ -76,7 +76,7 @@ SET SESSION sql_log_bin= 1;
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
---let $wait_condition= SELECT PROCESSLIST_STATE="After create" FROM performance_schema.threads WHERE processlist_INFO LIKE "CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY)"
+--let $wait_condition= SELECT PROCESSLIST_STATE="waiting for handler commit" FROM performance_schema.threads WHERE processlist_INFO LIKE "CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY)"
 --source include/wait_condition.inc
 
 

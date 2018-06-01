@@ -73,7 +73,7 @@ call mtr.add_suppression("The member lost contact with a majority of the members
 set session sql_log_bin=1;
 
 # Wait for INSERT to be blocked
---let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist WHERE state='query end' AND info='INSERT INTO test.t1 VALUES(11)'
+--let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist WHERE state='waiting for handler commit' AND info='INSERT INTO test.t1 VALUES(11)'
 --source include/wait_condition.inc
 
 --echo

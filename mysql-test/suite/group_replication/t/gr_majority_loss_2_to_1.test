@@ -128,8 +128,8 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 --source include/rpl_connection.inc
 --let $local_address_server1= `SELECT @@GLOBAL.group_replication_local_address`
 
-# wait until the transaction blocks on query end
---let $wait_condition= select PROCESSLIST_STATE="query end" from performance_schema.threads where processlist_INFO LIKE "INSERT INTO t1 VALUES (1)"
+# wait until the transaction blocks on "waiting for handler commit"
+--let $wait_condition= select PROCESSLIST_STATE="waiting for handler commit" from performance_schema.threads where processlist_INFO LIKE "INSERT INTO t1 VALUES (1)"
 --source include/wait_condition.inc
 
 ###
