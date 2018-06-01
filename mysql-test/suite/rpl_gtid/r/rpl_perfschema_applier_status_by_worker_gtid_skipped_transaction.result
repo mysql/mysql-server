@@ -6,6 +6,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 CREATE TABLE t (a int);
 DROP TABLE t;
 include/sync_slave_sql_with_master.inc
+include/wait_for_slave_param.inc [Slave_SQL_Running_State]
 include/stop_slave_sql.inc
 [connection master]
 CREATE TABLE t1 (a int);
