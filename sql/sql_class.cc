@@ -118,6 +118,7 @@ void THD::Transaction_state::backup(THD *thd) {
   this->m_server_status = thd->server_status;
   this->m_in_lock_tables = thd->in_lock_tables;
   this->m_time_zone_used = thd->time_zone_used;
+  this->m_transaction_rollback_request = thd->transaction_rollback_request;
 }
 
 void THD::Transaction_state::restore(THD *thd) {
@@ -135,6 +136,7 @@ void THD::Transaction_state::restore(THD *thd) {
   thd->lex->sql_command = this->m_sql_command;
   thd->in_lock_tables = this->m_in_lock_tables;
   thd->time_zone_used = this->m_time_zone_used;
+  thd->transaction_rollback_request = this->m_transaction_rollback_request;
 }
 
 THD::Attachable_trx::Attachable_trx(THD *thd, Attachable_trx *prev_trx)
@@ -155,11 +157,6 @@ THD::Attachable_trx::Attachable_trx(THD *thd, Attachable_trx *prev_trx,
 }
 
 void THD::Attachable_trx::init() {
-  // The THD::transaction_rollback_request is expected to be unset in the
-  // attachable transaction. It's weird to start attachable transaction when the
-  // SE asked to rollback the regular transaction.
-  DBUG_ASSERT(!m_thd->transaction_rollback_request);
-
   // Save the transaction state.
 
   m_trx_state.backup(m_thd);
@@ -234,6 +231,13 @@ void THD::Attachable_trx::init() {
 
   // Reset @@session.time_zone usage indicator for consistency.
   m_thd->time_zone_used = false;
+
+  /*
+    InnoDB can ask to start attachable transaction while rolling back
+    the regular transaction. Reset rollback request flag to avoid it
+    influencing attachable transaction we are initiating.
+  */
+  m_thd->transaction_rollback_request = false;
 }
 
 THD::Attachable_trx::~Attachable_trx() {

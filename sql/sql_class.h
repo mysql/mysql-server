@@ -1574,6 +1574,16 @@ class THD : public MDL_context_owner,
       stick to UTC for internal storage of timestamps in DD objects.
     */
     bool m_time_zone_used;
+
+    /**
+      Transaction rollback request flag.
+
+      InnoDB can try to access table definition while rolling back regular
+      transaction. So we need to be able to start attachable transaction
+      without being affected by, and affecting, the rollback state of regular
+      transaction.
+    */
+    bool m_transaction_rollback_request;
   };
 
  public:
