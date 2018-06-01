@@ -36,9 +36,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <errno.h>
 #include <stddef.h>
 #include <sys/types.h>
-
 #include "ha_prototypes.h"
-#include "my_inttypes.h"
 #include "os0proc.h"
 #include "srv0srv.h"
 #include "ut0byte.h"

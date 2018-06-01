@@ -36,12 +36,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fsp0sysspace.h"
 #include "ha_prototypes.h"
 #include "ibuf0ibuf.h"
-#include "my_compiler.h"
-#include "my_dbug.h"
 #include "row0mysql.h"
 #include "row0quiesce.h"
 #include "srv0start.h"
 #include "trx0purge.h"
+
+#include "my_dbug.h"
 
 /** Write the meta data (index user fields) config file.
  @return DB_SUCCESS or error code. */

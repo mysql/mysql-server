@@ -36,10 +36,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "fsp0fsp.h"
 #include "ha_prototypes.h"
-#include "my_compiler.h"
-#include "my_dbug.h"
-#include "my_inttypes.h"
 #include "trx0undo.h"
+
+#include "my_dbug.h"
+
 #ifndef UNIV_HOTBACKUP
 #include "mach0data.h"
 #include "mtr0log.h"

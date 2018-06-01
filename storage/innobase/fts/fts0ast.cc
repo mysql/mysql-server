@@ -37,7 +37,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fts0fts.h"
 #include "fts0pars.h"
 #include "ha_prototypes.h"
-#include "my_inttypes.h"
 
 /* The FTS ast visit pass. */
 enum fts_ast_visit_pass_t {

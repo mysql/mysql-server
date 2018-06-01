@@ -69,7 +69,7 @@ que_node_t */
 
 #include "univ.i"
 #include <math.h>
-#include "my_compiler.h"
+
 #include "pars0pars.h"
 #include "mem0mem.h"
 #include "que0types.h"

@@ -33,12 +33,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "page0cur.h"
 
-#include <algorithm>
 #include "btr0btr.h"
 #include "ha_prototypes.h"
 #include "log0recv.h"
 #include "mtr0log.h"
-#include "my_inttypes.h"
+
+#include <algorithm>
 #include "page0zip.h"
 
 #ifndef UNIV_HOTBACKUP

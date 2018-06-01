@@ -89,12 +89,11 @@ Copyright (c) 2011, 2018, Oracle and/or its affiliates. All Rights Reserved.
 other files in library. The code in this file is used to make a library for
 external tools. */
 
+#include "my_compiler.h"
 #include "my_config.h"
+#include "my_inttypes.h"
 
 #include <string.h>
-
-#include "my_compiler.h"
-#include "my_inttypes.h"
 
 #if defined(__GNUC__) && defined(__x86_64__)
 #define gnuc64
@@ -112,12 +111,12 @@ external tools. */
 #else
 // GCC 4.8 without -msse4.2.
 MY_ATTRIBUTE((target("sse4.2")))
-ALWAYS_INLINE uint32 _mm_crc32_u8(uint32 __C, uint32 __V) {
+ALWAYS_INLINE uint32_t _mm_crc32_u8(uint32_t __C, uint32_t __V) {
   return __builtin_ia32_crc32qi(__C, __V);
 }
 
 MY_ATTRIBUTE((target("sse4.2")))
-ALWAYS_INLINE uint64 _mm_crc32_u64(uint64 __C, uint64 __V) {
+ALWAYS_INLINE uint64_t _mm_crc32_u64(uint64_t __C, uint64_t __V) {
   return __builtin_ia32_crc32di(__C, __V);
 }
 #endif

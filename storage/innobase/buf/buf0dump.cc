@@ -38,8 +38,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "buf0buf.h"
 #include "buf0dump.h"
 #include "dict0dict.h"
-#include "my_compiler.h"
-#include "my_inttypes.h"
+
 #include "my_io.h"
 #include "my_psi_config.h"
 #include "my_sys.h"

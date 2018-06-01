@@ -35,7 +35,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0dict.h"
 #include "fts0priv.h"
 #include "fts0types.h"
-#include "my_inttypes.h"
 #include "pars0pars.h"
 #include "que0que.h"
 #include "trx0roll.h"

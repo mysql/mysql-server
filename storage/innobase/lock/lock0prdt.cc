@@ -41,7 +41,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "lock0lock.h"
 #include "lock0prdt.h"
 #include "lock0priv.h"
-#include "my_inttypes.h"
 #include "srv0mon.h"
 #include "trx0purge.h"
 #include "trx0sys.h"

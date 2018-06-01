@@ -24,9 +24,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-#include "my_compiler.h"
-#include "my_inttypes.h"
-
 /** @file include/mach0data.h
  Utilities for converting data from the database file
  to the machine format.

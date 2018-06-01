@@ -42,9 +42,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "handler0alter.h"
 #include "lob0lob.h"
 #include "lock0lock.h"
-#include "my_compiler.h"
-#include "my_dbug.h"
-#include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "pars0pars.h"
 #include "row0ext.h"
@@ -58,6 +55,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0new.h"
 #include "ut0sort.h"
 #include "ut0stage.h"
+
+#include "my_dbug.h"
 
 /* Ignore posix_fadvise() on those platforms where it does not exist */
 #if defined _WIN32

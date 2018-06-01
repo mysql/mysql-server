@@ -36,7 +36,7 @@ external tools. */
 
 #include "ha_prototypes.h"
 #include "mem0mem.h"
-#include "my_inttypes.h"
+
 #ifndef UNIV_LIBRARY
 #include "buf0buf.h"
 #include "srv0srv.h"
@@ -304,7 +304,7 @@ mem_block_t *mem_heap_create_block_func(
 #ifdef UNIV_NO_ERR_MSGS
     ib::fatal()
 #else
-    ib::fatal(ER_IB_MSG_739)
+    ib::fatal(ER_IB_MSG_1274)
 #endif /* !UNIV_NO_ERR_MSGS */
         << "Unable to allocate memory of size " << len << ".";
   }

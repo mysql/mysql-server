@@ -18089,6 +18089,12 @@ ER_AUDIT_LOG_TABLE_DEFINITION_NOT_UPDATED
 ER_DD_INITIALIZE_SQL_ERROR
   eng "Execution of server-side SQL statement '%s' failed with error code = %d, error message = '%s'."
 
+ER_IB_MSG_1274
+  eng "%s"
+
+ER_IB_MSG_1275
+  eng "%s"
+
 #
 # End of 8.0 Server error messages.
 # (Please read comments from the header of this section before adding error

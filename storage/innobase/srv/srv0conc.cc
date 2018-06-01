@@ -50,7 +50,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "dict0dict.h"
 #include "ha_prototypes.h"
-#include "my_inttypes.h"
 #include "row0mysql.h"
 #include "srv0srv.h"
 #include "trx0trx.h"

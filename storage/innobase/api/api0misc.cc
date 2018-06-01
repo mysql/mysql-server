@@ -36,7 +36,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0mem.h"
 #include "ha_prototypes.h"
 #include "lock0lock.h"
-#include "my_inttypes.h"
+
 #include "pars0pars.h"
 #include "row0sel.h"
 #include "srv0srv.h"

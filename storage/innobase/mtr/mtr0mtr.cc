@@ -743,9 +743,9 @@ void mtr_t::memo_modify_page(const byte *ptr) {
 
 /** Print info of an mtr handle. */
 void mtr_t::print() const {
-  ib::info(ER_IB_MSG_740) << "Mini-transaction handle: memo size "
-                          << m_impl.m_memo.size() << " bytes log size "
-                          << get_log()->size() << " bytes";
+  ib::info(ER_IB_MSG_1275) << "Mini-transaction handle: memo size "
+                           << m_impl.m_memo.size() << " bytes log size "
+                           << get_log()->size() << " bytes";
 }
 
 #endif /* UNIV_DEBUG */

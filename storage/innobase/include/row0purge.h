@@ -24,8 +24,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-#include "my_compiler.h"
-
 /** @file include/row0purge.h
  Purge obsolete records
 
@@ -35,6 +33,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef row0purge_h
 #define row0purge_h
 
+#include "univ.i"
+
 #include "btr0pcur.h"
 #include "btr0types.h"
 #include "data0data.h"
@@ -42,7 +42,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "que0types.h"
 #include "row0types.h"
 #include "trx0types.h"
-#include "univ.i"
 #include "ut0vec.h"
 
 /** Create a purge node to a query graph.

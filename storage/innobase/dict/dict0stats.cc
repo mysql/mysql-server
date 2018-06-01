@@ -25,7 +25,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 #include "my_dbug.h"
-#include "my_inttypes.h"
 
 /** @file dict/dict0stats.cc
  Code used for calculating and manipulating table statistics.

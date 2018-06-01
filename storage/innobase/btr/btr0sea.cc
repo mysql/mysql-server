@@ -46,8 +46,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "btr0pcur.h"
 #include "buf0buf.h"
 #include "ha0ha.h"
-#include "my_compiler.h"
-#include "my_inttypes.h"
+
 #include "page0cur.h"
 #include "page0page.h"
 #include "srv0mon.h"

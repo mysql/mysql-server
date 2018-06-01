@@ -39,7 +39,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "config.h"
 #include "db0err.h"
 
-/* Define uint32 outside my_inttypes.h, because my_inttypes.h would not allow
+/* Define uint32 outside my_compiler.h, because my_compiler.h would not allow
 Memcached C code to use the bool data type. */
 #if SIZEOF_INT == 4
 typedef unsigned int uint32;

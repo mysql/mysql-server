@@ -34,7 +34,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ft_global.h"
 #include "fts0ast.h"
 #include "fts0tokenize.h"
-#include "my_inttypes.h"
 
 /** FTS default parser init
  @return 0 */

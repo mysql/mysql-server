@@ -40,7 +40,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0dict.h"
 #include "dict0stats.h"
 #include "dict0stats_bg.h"
-#include "my_inttypes.h"
+
 #include "os0thread-create.h"
 #include "row0mysql.h"
 #include "srv0start.h"

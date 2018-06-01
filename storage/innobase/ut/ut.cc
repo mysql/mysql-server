@@ -37,7 +37,6 @@ external tools. */
 #include <sys/types.h>
 #include <time.h>
 
-#include "my_inttypes.h"
 #include "univ.i"
 #include "ut/ut.h"
 

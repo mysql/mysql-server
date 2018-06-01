@@ -27,8 +27,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "my_compiler.h"
-
 /** @file include/btr0cur.h
  The index tree cursor
 

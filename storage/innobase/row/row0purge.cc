@@ -34,33 +34,32 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <stddef.h>
 
+#include "current_thd.h"
+#include "mysqld.h"
+
+#include "dict0dd.h"
 #include "fsp0fsp.h"
 #include "ha_innodb.h"
 #include "handler.h"
 #include "lob0lob.h"
 #include "log0log.h"
 #include "mach0data.h"
-#include "my_inttypes.h"
-#include "mysqld.h"
 #include "que0que.h"
 #include "row0log.h"
 #include "row0mysql.h"
 #include "row0row.h"
 #include "row0upd.h"
 #include "row0vers.h"
+#include "sql_base.h"
 #include "srv0mon.h"
 #include "srv0start.h"
+#include "table.h"
 #include "trx0purge.h"
 #include "trx0rec.h"
 #include "trx0roll.h"
 #include "trx0rseg.h"
 #include "trx0trx.h"
 #include "trx0undo.h"
-
-#include "current_thd.h"
-#include "dict0dd.h"
-#include "sql_base.h"
-#include "table.h"
 
 /*************************************************************************
 IMPORTANT NOTE: Any operation that generates redo MUST check that there

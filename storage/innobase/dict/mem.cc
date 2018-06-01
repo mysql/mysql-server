@@ -41,7 +41,6 @@ external tools. */
 #ifndef UNIV_HOTBACKUP
 #include "lock0lock.h"
 #endif /* !UNIV_HOTBACKUP */
-#include "my_inttypes.h"
 
 /** Append 'name' to 'col_names'.  @see dict_table_t::col_names
  @return new column names array */

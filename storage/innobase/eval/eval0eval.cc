@@ -34,7 +34,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "eval0eval.h"
 
 #include "data0data.h"
-#include "my_inttypes.h"
+
 #include "rem0cmp.h"
 #include "row0sel.h"
 

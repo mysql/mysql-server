@@ -33,7 +33,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fut0lst.h"
 
 #include "buf0buf.h"
-#include "my_inttypes.h"
+
 #include "page0page.h"
 
 /** Adds a node to an empty list. */

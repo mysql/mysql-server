@@ -39,13 +39,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ha_prototypes.h"
 #include "lock0lock.h"
 #include "lock0priv.h"
-#include "my_dbug.h"
-#include "my_inttypes.h"
 #include "os0thread-create.h"
 #include "que0que.h"
 #include "row0mysql.h"
 #include "srv0mon.h"
 #include "srv0start.h"
+
+#include "my_dbug.h"
 
 /** Print the contents of the lock_sys_t::waiting_threads array. */
 static void lock_wait_table_print(void) {

@@ -46,8 +46,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "lock0lock.h"
 #endif /* !UNIV_NO_ERR_MSGS */
 
-#include "ha_prototypes.h"
-#include "my_inttypes.h"
 #include "os0event.h"
 #include "os0file.h"
 #include "srv0srv.h"

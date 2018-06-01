@@ -32,8 +32,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "buf0lru.h"
 
-#include "my_inttypes.h"
-
 #include "btr0btr.h"
 #include "btr0sea.h"
 #include "buf0buddy.h"

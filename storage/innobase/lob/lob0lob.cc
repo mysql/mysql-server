@@ -32,10 +32,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "lob0inf.h"
 #include "lob0lob.h"
 #include "lob0zip.h"
-#include "my_dbug.h"
-#include "my_inttypes.h"
 #include "row0upd.h"
 #include "zlob0first.h"
+
+#include "my_dbug.h"
 
 namespace lob {
 

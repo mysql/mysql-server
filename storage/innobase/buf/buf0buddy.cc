@@ -36,7 +36,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "buf0flu.h"
 #include "buf0lru.h"
 #include "dict0dict.h"
-#include "my_inttypes.h"
+
 #include "page0zip.h"
 
 /** When freeing a buf we attempt to coalesce by looking at its buddy

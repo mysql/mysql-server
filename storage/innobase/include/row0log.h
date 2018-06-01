@@ -24,7 +24,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-#include "my_compiler.h"
 #include "my_psi_config.h"
 
 /** @file include/row0log.h
@@ -36,6 +35,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef row0log_h
 #define row0log_h
 
+#include "univ.i"
+
 #include "data0types.h"
 #include "dict0types.h"
 #include "mtr0types.h"
@@ -43,7 +44,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "rem0types.h"
 #include "row0types.h"
 #include "trx0types.h"
-#include "univ.i"
 
 class ut_stage_alter_t;
 

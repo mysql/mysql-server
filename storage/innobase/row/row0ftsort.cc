@@ -39,13 +39,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fts0plugin.h"
 #include "ha_prototypes.h"
 #include "lob0lob.h"
-#include "my_dbug.h"
-#include "my_inttypes.h"
 #include "os0thread-create.h"
 #include "pars0pars.h"
 #include "row0ftsort.h"
 #include "row0merge.h"
 #include "row0row.h"
+
+#include "my_dbug.h"
 
 /** Read the next record to buffer N.
 @param N index into array of merge info structure */

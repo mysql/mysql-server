@@ -24,8 +24,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-#include "my_compiler.h"
-
 /** @file include/row0sel.h
  Select
 
@@ -34,6 +32,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #ifndef row0sel_h
 #define row0sel_h
+
+#include "univ.i"
 
 #include "btr0pcur.h"
 #include "data0data.h"
@@ -45,7 +45,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "row0mysql.h"
 #include "row0types.h"
 #include "trx0types.h"
-#include "univ.i"
 
 /** Creates a select node struct.
  @return own: select node struct */

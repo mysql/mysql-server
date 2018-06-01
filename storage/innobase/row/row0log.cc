@@ -41,8 +41,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "data0data.h"
 #include "handler0alter.h"
 #include "lob0lob.h"
-#include "my_dbug.h"
-#include "my_inttypes.h"
 #include "que0que.h"
 #include "row0ext.h"
 #include "row0ins.h"
@@ -53,6 +51,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0rec.h"
 #include "ut0new.h"
 #include "ut0stage.h"
+
+#include "my_dbug.h"
 
 /** Table row modification operations during online table rebuild.
 Delete-marked records are not copied to the rebuilt table. */

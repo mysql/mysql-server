@@ -34,8 +34,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <sys/types.h>
 
-#include "my_inttypes.h"
-
 #ifdef UNIV_DEBUG
 #include "buf0buf.h"
 #endif /* UNIV_DEBUG */
