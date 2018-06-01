@@ -16,6 +16,10 @@ CREATE TABLE t (a int);
 DROP TABLE t;
 --source include/sync_slave_sql_with_master.inc
 
+--let $slave_param= Slave_SQL_Running_State
+--let $slave_param_value= Slave has read all relay log; waiting for more updates
+--source include/wait_for_slave_param.inc
+
 --let $last_processed_gtid_before= query_get_value(select LAST_PROCESSED_TRANSACTION from performance_schema.replication_applier_status_by_coordinator, LAST_PROCESSED_TRANSACTION, 1)
 --let $last_applied_gtid_before= query_get_value(select LAST_APPLIED_TRANSACTION from performance_schema.replication_applier_status_by_worker, LAST_APPLIED_TRANSACTION, 1)
 
@@ -40,7 +44,6 @@ SET @@SESSION.GTID_NEXT= 'AUTOMATIC';
 
 --source include/rpl_connection_master.inc
 --source include/sync_slave_sql_with_master.inc
-
 
 --let $queueing_gtid_= query_get_value(SELECT QUEUEING_TRANSACTION FROM performance_schema.replication_connection_status, QUEUEING_TRANSACTION, 1)
 --let $assert_text= queueing_gtid was cleared after the gtid skipped transactions
