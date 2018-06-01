@@ -1,3 +1,5 @@
+# Becasue of Bug 28112444  disabling this test on windows
+-- source include/not_windows.inc
 -- source include/have_innodb.inc
 -- source include/mysql_upgrade_preparation.inc
 --echo #
