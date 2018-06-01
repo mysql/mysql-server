@@ -33,8 +33,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sys/types.h>
 
 #include "ha_innodb.h"
-#include "my_compiler.h"
-#include "my_inttypes.h"
 #include "partitioning/partition_handler.h"
 #include "row0mysql.h"
 

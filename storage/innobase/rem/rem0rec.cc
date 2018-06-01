@@ -41,10 +41,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "mach0data.h"
 #include "mtr0log.h"
 #include "mtr0mtr.h"
-#include "my_dbug.h"
-#include "my_inttypes.h"
 #include "page0page.h"
 #include "trx0sys.h"
+
+#include "my_dbug.h"
 
 /*			PHYSICAL RECORD (OLD STYLE)
                         ===========================

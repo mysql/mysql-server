@@ -34,14 +34,14 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <stdlib.h>
 #include <sys/types.h>
 
-#include "lock0iter.h"  // lock_queue_iterator_t
-#include "lock0lock.h"  // lock_mutex_enter
-#include "my_inttypes.h"
+#include "lock0iter.h"
+#include "lock0lock.h"
+#include "sql_table.h"
+#include "table.h"
+#include "trx0i_s.h"
+#include "trx0sys.h"
+
 #include "my_io.h"
-#include "sql_table.h"  // parse_filename
-#include "table.h"      // system_charset_info
-#include "trx0i_s.h"    // trx_i_s_create_lock_id
-#include "trx0sys.h"    // trx_ut_list_t
 
 /**
   @page PAGE_INNODB_PFS Innodb data lock instrumentation

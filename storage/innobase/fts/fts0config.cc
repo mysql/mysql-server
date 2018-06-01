@@ -33,7 +33,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <stdlib.h>
 
 #include "fts0priv.h"
-#include "my_inttypes.h"
+
 #include "row0sel.h"
 #include "trx0roll.h"
 

@@ -37,8 +37,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fsp0fsp.h"
 #include "mach0data.h"
 #include "mtr0log.h"
-#include "my_dbug.h"
-#include "my_inttypes.h"
 #include "trx0undo.h"
 #ifndef UNIV_HOTBACKUP
 #include "dict0dict.h"
@@ -55,6 +53,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0purge.h"
 #include "trx0rseg.h"
 #include "ut0mem.h"
+
+#include "my_dbug.h"
 
 namespace dd {
 class Spatial_reference_system;

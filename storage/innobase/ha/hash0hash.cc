@@ -31,9 +31,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
  *******************************************************/
 
 #include "hash0hash.h"
-
 #include "mem0mem.h"
-#include "my_inttypes.h"
 #include "sync0sync.h"
 
 #ifndef UNIV_HOTBACKUP

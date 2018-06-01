@@ -58,7 +58,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dd_table_share.h"
 
 #include "btr0sea.h"
-#include "clone0api.h"
 #include "dict0crea.h"
 #include "dict0dd.h"
 #include "dict0dict.h"
@@ -73,12 +72,17 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ha_prototypes.h"
 #include "handler0alter.h"
 #include "lex_string.h"
-#include "lock0lock.h"
 #include "log0log.h"
-#include "my_compiler.h"
+
 #include "my_dbug.h"
-#include "my_inttypes.h"
 #include "my_io.h"
+
+#include "clone0api.h"
+#include "dict0dd.h"
+#include "fts0plugin.h"
+#include "fts0priv.h"
+#include "handler0alter.h"
+#include "lock0lock.h"
 #include "pars0pars.h"
 #include "partition_info.h"
 #include "rem0types.h"

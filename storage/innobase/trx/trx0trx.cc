@@ -43,9 +43,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ha_prototypes.h"
 #include "lock0lock.h"
 #include "log0log.h"
-#include "my_compiler.h"
-#include "my_dbug.h"
-#include "my_inttypes.h"
 #include "os0proc.h"
 #include "que0que.h"
 #include "read0read.h"
@@ -64,6 +61,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0new.h"
 #include "ut0pool.h"
 #include "ut0vec.h"
+
+#include "my_dbug.h"
 
 static const ulint MAX_DETAILED_ERROR_LEN = 256;
 

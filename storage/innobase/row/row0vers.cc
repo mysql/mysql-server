@@ -39,8 +39,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ha_prototypes.h"
 #include "lock0lock.h"
 #include "mach0data.h"
-#include "my_dbug.h"
-#include "my_inttypes.h"
 #include "que0que.h"
 #include "read0read.h"
 #include "rem0cmp.h"
@@ -55,6 +53,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0rseg.h"
 #include "trx0trx.h"
 #include "trx0undo.h"
+
+#include "my_dbug.h"
 
 /** Check whether all non-virtual columns in a index entries match
 @param[in]	index		the secondary index

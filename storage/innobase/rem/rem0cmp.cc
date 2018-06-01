@@ -38,8 +38,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "ha_prototypes.h"
 #include "handler0alter.h"
-#include "my_compiler.h"
-#include "my_inttypes.h"
 #include "rem0cmp.h"
 #include "srv0srv.h"
 

@@ -49,7 +49,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #endif /* !UNIV_HOTBACKUP */
 #include "ha_prototypes.h"
 #include "my_dbug.h"
-#include "my_inttypes.h"
+
 #ifndef UNIV_HOTBACKUP
 #include "clone0api.h"
 #include "mysqld.h"  // system_charset_info

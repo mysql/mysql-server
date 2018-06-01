@@ -38,7 +38,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0dd.h"
 #include "eval0eval.h"
 #include "mem0mem.h"
-#include "my_inttypes.h"
 #include "pars0grm.h"
 #include "pars0pars.h"
 #include "que0que.h"

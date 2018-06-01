@@ -38,7 +38,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ibuf0ibuf.h"
 #include "lock0lock.h"
 #include "mach0data.h"
-#include "my_inttypes.h"
 #include "os0file.h"
 #include "srv0mon.h"
 #include "srv0srv.h"

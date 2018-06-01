@@ -41,8 +41,6 @@ external tools. */
 
 #include "btr0btr.h"
 #include "mem0mem.h"
-#include "my_compiler.h"
-#include "my_inttypes.h"
 #include "page/zipdecompress.h"
 #include "page0page.h"
 #include "rem0rec.h"

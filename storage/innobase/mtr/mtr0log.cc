@@ -37,7 +37,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "buf0dblwr.h"
 #include "dict0dict.h"
 #include "log0recv.h"
-#include "my_inttypes.h"
 #endif /* !UNIV_HOTBACKUP */
 #include "page0page.h"
 

@@ -33,7 +33,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "page0zip.h"
 
-#include "my_inttypes.h"
 #include "page0size.h"
 
 /** A BLOB field reference full of zero, for use in assertions and tests.

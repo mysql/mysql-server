@@ -48,11 +48,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ha_prototypes.h"
 #include "lock0lock.h"
 #include "lock0priv.h"
-#include "my_compiler.h"
-#include "my_dbug.h"
-#include "my_inttypes.h"
-#include "my_psi_config.h"
-#include "mysql/psi/psi_thread.h"
 #include "pars0pars.h"
 #include "row0mysql.h"
 #include "row0sel.h"
@@ -62,6 +57,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "usr0sess.h"
 #include "ut0new.h"
 #include "ut0vec.h"
+
+#include "my_dbug.h"
+#include "my_psi_config.h"
+#include "mysql/psi/psi_thread.h"
 
 /* Flag to enable/disable deadlock detector. */
 bool innobase_deadlock_detect = true;

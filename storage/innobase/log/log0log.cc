@@ -65,9 +65,8 @@ log_checksum_func_t log_checksum_algorithm_ptr;
 #include <debug_sync.h>
 #include <sys/types.h>
 #include <time.h>
-#include "ha_prototypes.h"
-
 #include "dict0boot.h"
+#include "ha_prototypes.h"
 #include "os0thread-create.h"
 #include "trx0sys.h"
 

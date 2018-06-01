@@ -26,8 +26,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <sys/types.h>
 
-#include "my_compiler.h"
-
 /** @file include/buf0lru.h
  The database buffer pool LRU replacement algorithm
 

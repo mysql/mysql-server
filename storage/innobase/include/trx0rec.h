@@ -24,8 +24,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-#include "my_compiler.h"
-
 /** @file include/trx0rec.h
  Transaction undo log record
 
@@ -34,6 +32,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #ifndef trx0rec_h
 #define trx0rec_h
+
+#include "univ.i"
 
 #include "data0data.h"
 #include "dict0types.h"
@@ -44,7 +44,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "row0log.h"
 #include "row0types.h"
 #include "trx0types.h"
-#include "univ.i"
 
 #ifndef UNIV_HOTBACKUP
 #include "que0types.h"

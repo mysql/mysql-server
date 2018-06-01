@@ -47,9 +47,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "lob0impl.h"
 #include "lob0lob.h"
 #include "lob0pages.h"
-#include "my_compiler.h"
-#include "my_dbug.h"
-#include "my_inttypes.h"
 #include "pars0pars.h"
 #include "que0que.h"
 #include "row0import.h"
@@ -63,7 +60,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <vector>
 
-#include <my_aes.h>
+#include "my_aes.h"
+#include "my_dbug.h"
 
 /** The size of the buffer to use for IO. Note: os_file_read() doesn't expect
 reads to fail. If you set the buffer size to be greater than a multiple of the

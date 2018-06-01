@@ -59,8 +59,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fut0fut.h"
 #include "ha_prototypes.h"
 #include "ibuf0ibuf.h"
-#include "my_dbug.h"
-#include "my_inttypes.h"
 #include "page0zip.h"
 #include "pars0pars.h"
 #include "srv0mon.h"
@@ -68,6 +66,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0i_s.h"
 #include "trx0trx.h"
 #include "ut0new.h"
+
+#include "my_dbug.h"
 
 /** structure associates a name string with a file page type and/or buffer
 page state. */

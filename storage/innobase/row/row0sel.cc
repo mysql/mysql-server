@@ -57,8 +57,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "lob0undo.h"
 #include "lock0lock.h"
 #include "mach0data.h"
-#include "my_dbug.h"
-#include "my_inttypes.h"
 #include "pars0pars.h"
 #include "pars0sym.h"
 #include "que0que.h"
@@ -74,19 +72,21 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0undo.h"
 #include "ut0new.h"
 
-/* Maximum number of rows to prefetch; MySQL interface has another parameter */
+#include "my_dbug.h"
+
+/** Maximum number of rows to prefetch; MySQL interface has another parameter */
 #define SEL_MAX_N_PREFETCH 16
 
-/* Number of rows fetched, after which to start prefetching; MySQL interface
+/** Number of rows fetched, after which to start prefetching; MySQL interface
 has another parameter */
 #define SEL_PREFETCH_LIMIT 1
 
-/* When a select has accessed about this many pages, it returns control back
+/** When a select has accessed about this many pages, it returns control back
 to que_run_threads: this is to allow canceling runaway queries */
 
 #define SEL_COST_LIMIT 100
 
-/* Flags for search shortcut */
+/** Flags for search shortcut */
 #define SEL_FOUND 0
 #define SEL_EXHAUSTED 1
 #define SEL_RETRY 2

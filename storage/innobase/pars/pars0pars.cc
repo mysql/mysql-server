@@ -45,9 +45,6 @@ on 1/27/1998 */
 #include "eval0eval.h"
 #include "ha_prototypes.h"
 #include "lock0lock.h"
-#include "my_compiler.h"
-#include "my_dbug.h"
-#include "my_inttypes.h"
 #include "pars0grm.h"
 #include "pars0opt.h"
 #include "pars0pars.h"
@@ -57,6 +54,8 @@ on 1/27/1998 */
 #include "row0upd.h"
 #include "trx0roll.h"
 #include "trx0trx.h"
+
+#include "my_dbug.h"
 
 /* Global variable used while parsing a single procedure or query : the code is
 NOT re-entrant */

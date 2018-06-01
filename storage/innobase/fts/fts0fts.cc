@@ -33,7 +33,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <new>
 
 #include "btr0pcur.h"
-#include "dict0dd.h"
 #include "dict0priv.h"
 #include "dict0stats.h"
 #include "dict0types.h"
@@ -45,9 +44,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fts0vlc.ic"
 #include "ha_prototypes.h"
 #include "lob0lob.h"
-#include "my_compiler.h"
+
 #include "my_dbug.h"
-#include "my_inttypes.h"
+
+#include "dict0dd.h"
+#include "lob0lob.h"
 #include "row0mysql.h"
 #include "row0sel.h"
 #include "row0upd.h"

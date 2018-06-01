@@ -18122,6 +18122,12 @@ ER_FAILED_TO_INIT_SYS_VAR
 ER_SYS_VAR_NOT_FOUND
   eng "Variable name '%s' not found."
 
+ER_IB_MSG_1274
+  eng "%s"
+
+ER_IB_MSG_1275
+  eng "%s"
+
 #
 # End of 8.0 Server error messages.
 # (Please read comments from the header of this section before adding error

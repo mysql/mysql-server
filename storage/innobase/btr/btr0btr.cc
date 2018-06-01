@@ -47,7 +47,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ibuf0ibuf.h"
 #include "lock0lock.h"
 #include "my_dbug.h"
-#include "my_inttypes.h"
 #include "page0page.h"
 #include "page0zip.h"
 #include "rem0cmp.h"

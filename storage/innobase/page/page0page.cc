@@ -31,13 +31,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
  Created 2/2/1994 Heikki Tuuri
  *******************************************************/
 
-#include "page0page.h"
+#include "my_dbug.h"
 
 #include "btr0btr.h"
 #include "buf0buf.h"
-#include "my_dbug.h"
-#include "my_inttypes.h"
 #include "page0cur.h"
+#include "page0page.h"
 #include "page0zip.h"
 #ifndef UNIV_HOTBACKUP
 #include "btr0sea.h"

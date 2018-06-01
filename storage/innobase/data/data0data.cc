@@ -35,8 +35,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "data0data.h"
 #include "ha_prototypes.h"
-#include "my_compiler.h"
-#include "my_inttypes.h"
+
 #ifndef UNIV_HOTBACKUP
 #include "btr0cur.h"
 #include "dict0dict.h"

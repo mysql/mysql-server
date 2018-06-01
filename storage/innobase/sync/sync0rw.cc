@@ -44,7 +44,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "ha_prototypes.h"
 #include "mem0mem.h"
-#include "my_inttypes.h"
 #include "os0event.h"
 #include "os0thread.h"
 #include "srv0mon.h"

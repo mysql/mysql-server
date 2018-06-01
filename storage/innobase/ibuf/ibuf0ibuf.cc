@@ -35,11 +35,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "btr0sea.h"
 #include "ha_prototypes.h"
 #include "ibuf0ibuf.h"
-#include "log0log.h"
-#include "my_compiler.h"
-#include "my_dbug.h"
-#include "my_inttypes.h"
 #include "sync0sync.h"
+
+#include "my_dbug.h"
 
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
 bool srv_ibuf_disable_background_merge;
@@ -71,7 +69,7 @@ bool srv_ibuf_disable_background_merge;
 #include "rem0cmp.h"
 #include "rem0rec.h"
 #include "row0upd.h"
-#include "srv0start.h" /* srv_shutdown_state */
+#include "srv0start.h"
 #include "trx0sys.h"
 
 /*	STRUCTURE OF AN INSERT BUFFER RECORD

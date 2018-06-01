@@ -35,7 +35,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <stddef.h>
 
 #include "my_dbug.h"
-#include "my_inttypes.h"
+
 #include "rem0cmp.h"
 #include "trx0trx.h"
 #include "ut0byte.h"

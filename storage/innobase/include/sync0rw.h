@@ -42,7 +42,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "univ.i"
 #ifndef UNIV_HOTBACKUP
-#include "my_compiler.h"
 #include "os0event.h"
 #include "ut0counter.h"
 #endif /* !UNIV_HOTBACKUP */
@@ -51,6 +50,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 struct rw_lock_t;
 
 #ifndef UNIV_HOTBACKUP
+
 #ifdef UNIV_LIBRARY
 
 #ifdef UNIV_DEBUG
@@ -62,7 +62,7 @@ thread has locked the rw-lock in the specified mode.
 @param[in]	lock type	lock type: RW_LOCK_S, RW_LOCK_X
 @return true if success */
 UNIV_INLINE
-bool rw_lock_own(rw_lock_t *lock, ulint lock_type) { return lock != nullptr; }
+bool rw_lock_own(rw_lock_t *lock, ulint lock_type) { return (lock != nullptr); }
 
 #define sync_check_iterate(A) true
 #endif /* UNIV_DEBUG */
