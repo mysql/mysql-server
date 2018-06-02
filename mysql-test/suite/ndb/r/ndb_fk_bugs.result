@@ -300,9 +300,6 @@ from information_schema.key_column_usage
 where TABLE_SCHEMA = 'test' and TABLE_NAME = 't2';
 REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME
 test	t1	id
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 drop table t2, t1;
 # bug#16275509 - case: alter engine from ndb
 create table t1 (
