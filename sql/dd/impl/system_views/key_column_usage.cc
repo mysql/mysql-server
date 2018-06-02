@@ -47,9 +47,7 @@ Key_column_usage::Key_column_usage() {
                           "cat.name" + m_target_def.fs_name_collation());
   first_select->add_field(FIELD_CONSTRAINT_SCHEMA, "CONSTRAINT_SCHEMA",
                           "sch.name" + m_target_def.fs_name_collation());
-  first_select->add_field(
-      FIELD_CONSTRAINT_NAME, "CONSTRAINT_NAME",
-      "CONVERT(idx.name USING utf8)" + m_target_def.fs_name_collation());
+  first_select->add_field(FIELD_CONSTRAINT_NAME, "CONSTRAINT_NAME", "idx.name");
   first_select->add_field(FIELD_TABLE_CATALOG, "TABLE_CATALOG",
                           "cat.name" + m_target_def.fs_name_collation());
   first_select->add_field(FIELD_TABLE_SCHEMA, "TABLE_SCHEMA",
@@ -91,9 +89,8 @@ Key_column_usage::Key_column_usage() {
                            "cat.name" + m_target_def.fs_name_collation());
   second_select->add_field(FIELD_CONSTRAINT_SCHEMA, "CONSTRAINT_SCHEMA",
                            "sch.name" + m_target_def.fs_name_collation());
-  second_select->add_field(
-      FIELD_CONSTRAINT_NAME, "CONSTRAINT_NAME",
-      "CONVERT(fk.name USING utf8)" + m_target_def.fs_name_collation());
+  second_select->add_field(FIELD_CONSTRAINT_NAME, "CONSTRAINT_NAME",
+                           "fk.name COLLATE utf8_tolower_ci");
   second_select->add_field(FIELD_TABLE_CATALOG, "TABLE_CATALOG",
                            "cat.name" + m_target_def.fs_name_collation());
   second_select->add_field(FIELD_TABLE_SCHEMA, "TABLE_SCHEMA",

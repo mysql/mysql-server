@@ -62,12 +62,16 @@ namespace info_schema {
     Changes the column I_S.STATISTICS.NON_UNIQUE type from VARCHAR
     to INT.
 
-  80012: Next I_S version number to use when there is change.
-  -----------------------------------------------------------
-  No changes yet, hence this number is not used yet.
+  80012: Current
+  ------------------------------------
+  Changes from version 80011:
+
+  - Bug#27945704 UNABLE TO JOIN TABLE_CONSTRAINTS AND REFERENTIAL_CONSTRAINTS
+    Changes the collation of I_S columns that project index name and
+    constraint name to use utf8_tolower_ci.
 */
 
-static const uint IS_DD_VERSION = 80011;
+static const uint IS_DD_VERSION = 80012;
 
 /**
   Initialize INFORMATION_SCHEMA system views.

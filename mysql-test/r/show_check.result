@@ -1735,16 +1735,10 @@ test	t1	PRIMARY	c1
 SELECT * FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE table_name='t1';
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
 def	test	PRIMARY	test	t1	PRIMARY KEY
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT constraint_schema, constraint_name, table_name, column_name FROM
 INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE table_name='t1';
 constraint_schema	constraint_name	table_name	column_name
 test	PRIMARY	t1	c1
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # EXTENDED keyword is introduced to list the hidden index and index
 # columns.
 SHOW EXTENDED INDEX FROM t1;
