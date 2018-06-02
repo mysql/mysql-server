@@ -6,9 +6,6 @@ SELECT COUNT(*) FROM information_schema.key_column_usage
 WHERE REFERENCED_TABLE_NAME in ('t1', 't2');
 COUNT(*)
 2
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET foreign_key_checks=0;
 DROP TABLE t1, t2;
 SET foreign_key_checks=0;
@@ -19,9 +16,6 @@ SELECT COUNT(*) FROM information_schema.key_column_usage
 WHERE REFERENCED_TABLE_NAME in ('t1', 't2');
 COUNT(*)
 2
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET foreign_key_checks=0;
 DROP TABLE t2, t1;
 SET foreign_key_checks=1;
