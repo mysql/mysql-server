@@ -1401,7 +1401,7 @@ CREATE SPATIAL INDEX idx2 ON t1(c1);
 DROP TABLE t1;
 CREATE TABLE mysql.innodb_table_stats (
 database_name varchar(64) COLLATE utf8_bin NOT NULL,
-table_name varchar(64) COLLATE utf8_bin NOT NULL,
+table_name varchar(199) COLLATE utf8_bin NOT NULL,
 last_update timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 n_rows bigint(20) unsigned NOT NULL,
 clustered_index_size bigint(20) unsigned NOT NULL,

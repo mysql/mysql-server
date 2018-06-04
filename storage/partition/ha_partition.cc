@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1401,7 +1401,6 @@ void ha_partition::update_create_info(HA_CREATE_INFO *create_info)
   uint num_parts = num_subparts ? m_file_tot_parts / num_subparts
                                 : m_file_tot_parts;
   HA_CREATE_INFO dummy_info;
-  memset(&dummy_info, 0, sizeof(dummy_info));
 
   /*
   Since update_create_info() can be called from mysql_prepare_alter_table()

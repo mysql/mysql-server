@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -25,11 +25,20 @@ ADD_DEFINITIONS(${SSL_DEFINES})
 ADD_DEFINITIONS(-Dget_tty_password_ext=yassl_mysql_get_tty_password_ext)
 ADD_DEFINITIONS(-Dget_tty_password=yassl_mysql_get_tty_password)
 
+INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
+
+MY_CHECK_CXX_COMPILER_FLAG("-Wstringop-overflow" HAVE_STRINGOP_OVERFLOW)
+IF(HAVE_STRINGOP_OVERFLOW)
+  ADD_COMPILE_FLAGS(
+    src/ssl.cpp
+    src/yassl_imp.cpp
+    COMPILE_FLAGS -Wno-stringop-overflow
+    )
+ENDIF()
 
 MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-const-variable" HAVE_NO_UNUSED_CONST_VAR)
 
 IF(CMAKE_GENERATOR MATCHES "Xcode" AND HAVE_NO_UNUSED_CONST_VAR)
-  INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
   ADD_COMPILE_FLAGS(
     src/yassl_int.cpp
     src/socket_wrapper.cpp

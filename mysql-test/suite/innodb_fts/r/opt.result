@@ -1543,6 +1543,8 @@ DROP TABLE t1;
 CREATE TABLE t1 (f1 CHAR(1), FULLTEXT KEY (f1));
 SELECT 1 FROM t1 NATURAL JOIN t1 a GROUP BY MATCH(t1.f1) AGAINST ("1") DESC;
 1
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 DROP TABLE t1;
 #
 # Bug#20261601 ASSERTION FAILED: !FIRST_QEP_TAB->TABLE()->NO_KEYREAD

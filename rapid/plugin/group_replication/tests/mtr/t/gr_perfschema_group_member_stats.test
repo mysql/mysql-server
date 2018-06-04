@@ -182,8 +182,8 @@ START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
 --source include/assert.inc
 
 --let $certification_db_size= query_get_value(SELECT Count_Transactions_rows_validating from performance_schema.replication_group_member_stats, Count_Transactions_rows_validating, 1)
---let $assert_text= The value of Count_Transactions_rows_validating should be 2 after starting group replication
---let $assert_cond= "$certification_db_size" = 2
+--let $assert_text= The value of Count_Transactions_rows_validating should be 6 after starting group replication
+--let $assert_cond= "$certification_db_size" = 6
 --source include/assert.inc
 
 --let $stable_set= query_get_value(SELECT Transactions_committed_all_members from performance_schema.replication_group_member_stats, Transactions_committed_all_members, 1)

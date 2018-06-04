@@ -4778,6 +4778,18 @@ void THD::rpl_detach_engine_ha_data()
 #endif
 };
 
+void THD::rpl_reattach_engine_ha_data()
+{
+#ifdef HAVE_REPLICATION
+  Relay_log_info *rli =
+      is_binlog_applier() ? rli_fake : (slave_thread ? rli_slave : NULL);
+
+  DBUG_ASSERT(!rli_fake || !rli_fake->is_engine_ha_data_detached);
+  DBUG_ASSERT(!rli_slave || !rli_slave->is_engine_ha_data_detached);
+
+  if (rli) rli->reattach_engine_ha_data(this);
+#endif
+}
 
 bool THD::rpl_unflag_detached_engine_ha_data()
 {

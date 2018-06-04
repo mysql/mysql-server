@@ -1,0 +1,176 @@
+#
+# BUG#27082268 FTS synchronization issues
+#
+
+--source include/have_innodb.inc
+--source include/have_debug_sync.inc
+
+#--------------------------------------
+# Check FTS_sync vs TRUNCATE (1)
+#--------------------------------------
+
+CREATE TABLE t1 (
+    id INT AUTO_INCREMENT NOT NULL PRIMARY KEY,
+    value VARCHAR(1024)
+    ) ENGINE=InnoDB;
+
+CREATE FULLTEXT INDEX idx1 ON t1(value);
+
+SET GLOBAL debug="+d,fts_instrument_sync_request,fts_instrument_sync_before_syncing,ib_trunc_sleep_before_fts_cache_clear";
+
+INSERT INTO t1 (value) VALUES
+    ('By default or with the IN NATURAL LANGUAGE MODE modifier')
+    ;
+
+TRUNCATE TABLE t1;
+
+DROP TABLE t1;
+
+SET GLOBAL debug="-d,fts_instrument_sync_request,fts_instrument_sync_before_syncing,ib_trunc_sleep_before_fts_cache_clear";
+
+#--------------------------------------
+# Check FTS sync vs DROP INDEX (2)
+#--------------------------------------
+
+CREATE TABLE t1 (
+    id INT AUTO_INCREMENT NOT NULL PRIMARY KEY,
+    value VARCHAR(1024)
+    ) ENGINE=InnoDB;
+
+CREATE FULLTEXT INDEX idx1 ON t1(value);
+
+SET GLOBAL debug="+d,fts_instrument_sync_request,fts_instrument_write_words_before_select_index,ib_trunc_sleep_before_fts_cache_clear";
+
+INSERT INTO t1 (value) VALUES
+    ('By default or with the IN NATURAL LANGUAGE MODE modifier'),
+    ('performs a natural language search for a string'),
+    ('collection is a set of one or more columns included'),
+    ('returns a relevance value; that is, a similarity measure'),
+    ('and the text in that row in the columns named in'),
+    ('By default, the search is performed in case-insensitive'),
+    ('sensitive full-text search, use a binary collation '),
+    ('example, a column that uses the latin1 character'),
+    ('collation of latin1_bin to make it case sensitive')
+    ;
+
+TRUNCATE TABLE t1;
+
+DROP TABLE t1;
+
+SET GLOBAL debug="-d,fts_instrument_sync_request,fts_instrument_write_words_before_select_index,ib_trunc_sleep_before_fts_cache_clear";
+
+#--------------------------------------
+# Check FTS sync vs DROP INDEX
+#--------------------------------------
+
+CREATE TABLE t1 (
+    value VARCHAR(1024)
+    ) ENGINE=InnoDB;
+
+CREATE FULLTEXT INDEX idx1 ON t1(value);
+
+SET GLOBAL debug="+d,fts_instrument_sync_request,fts_instrument_msg_sync_sleep";
+
+INSERT INTO t1 (value) VALUES
+    ('By default or with the IN NATURAL LANGUAGE MODE modifier'),
+    ('performs a natural language search for a string'),
+    ('collection is a set of one or more columns included'),
+    ('returns a relevance value; that is, a similarity measure'),
+    ('and the text in that row in the columns named in'),
+    ('By default, the search is performed in case-insensitive'),
+    ('sensitive full-text search, use a binary collation '),
+    ('example, a column that uses the latin1 character'),
+    ('collation of latin1_bin to make it case sensitive')
+    ;
+
+DROP INDEX idx1 ON t1;
+
+DROP TABLE t1;
+
+SET GLOBAL debug="-d,fts_instrument_sync_request,fts_instrument_msg_sync_sleep";
+
+#--------------------------------------
+# Check FTS sync vs ALTER TABLE DROP INDEX (INPLACE)
+#--------------------------------------
+
+CREATE TABLE t1 (
+    value VARCHAR(1024)
+    ) ENGINE=InnoDB;
+
+CREATE FULLTEXT INDEX idx1 ON t1(value);
+
+SET GLOBAL debug="+d,fts_instrument_sync_request,fts_instrument_msg_sync_sleep";
+
+INSERT INTO t1 (value) VALUES
+    ('By default or with the IN NATURAL LANGUAGE MODE modifier'),
+    ('performs a natural language search for a string'),
+    ('collection is a set of one or more columns included'),
+    ('returns a relevance value; that is, a similarity measure'),
+    ('and the text in that row in the columns named in'),
+    ('By default, the search is performed in case-insensitive'),
+    ('sensitive full-text search, use a binary collation '),
+    ('example, a column that uses the latin1 character'),
+    ('collation of latin1_bin to make it case sensitive')
+    ;
+
+ALTER TABLE t1
+    DROP INDEX idx1,
+    ALGORITHM=INPLACE;
+
+DROP TABLE t1;
+
+SET GLOBAL debug="-d,fts_instrument_sync_request,fts_instrument_msg_sync_sleep";
+
+#--------------------------------------
+# Check FTS sync vs ALTER TABLE DROP INDEX (COPY)
+#--------------------------------------
+
+CREATE TABLE t1 (
+    value VARCHAR(1024)
+    ) ENGINE=InnoDB;
+
+CREATE FULLTEXT INDEX idx1 ON t1(value);
+
+SET GLOBAL debug="+d,fts_instrument_sync_request,fts_instrument_msg_sync_sleep";
+
+INSERT INTO t1 (value) VALUES
+    ('example, a column that uses the latin1 character'),
+    ('collation of latin1_bin to make it case sensitive')
+    ;
+
+ALTER TABLE t1
+    DROP INDEX idx1,
+    ALGORITHM=COPY;
+
+DROP TABLE t1;
+
+SET GLOBAL debug="-d,fts_instrument_sync_request,fts_instrument_msg_sync_sleep";
+
+#--------------------------------------
+# Check FTS sync vs ALTER TABLE (INPLACE, new cluster)
+#--------------------------------------
+
+CREATE TABLE t1 (
+    id1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    value VARCHAR(1024)
+    ) ENGINE=InnoDB;
+
+CREATE FULLTEXT INDEX idx1 ON t1(value);
+
+SET GLOBAL debug="+d,fts_instrument_sync_request,fts_instrument_msg_sync_sleep";
+
+INSERT INTO t1 (value) VALUES
+    ('example, a column that uses the latin1 character'),
+    ('collation of latin1_bin to make it case sensitive')
+    ;
+
+ALTER TABLE t1
+    DROP COLUMN id1,
+    ADD COLUMN id2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    DROP INDEX idx1,
+    ADD FULLTEXT INDEX idx2(value),
+    ALGORITHM=INPLACE;
+
+DROP TABLE t1;
+
+SET GLOBAL debug="-d,fts_instrument_sync_request,fts_instrument_msg_sync_sleep";

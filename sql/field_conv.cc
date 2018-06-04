@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -232,6 +232,13 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
 
   switch (field->table->in_use->count_cuted_fields) {
   case CHECK_FIELD_WARN:
+    // There's no valid conversion for geometry values.
+    if (field->type() == MYSQL_TYPE_GEOMETRY)
+    {
+      my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
+      return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
+    }
+
     field->set_warning(Sql_condition::SL_WARNING, ER_BAD_NULL_ERROR, 1);
     /* fall through */
   case CHECK_FIELD_IGNORE:

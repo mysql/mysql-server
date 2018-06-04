@@ -1927,7 +1927,7 @@ dict_table_rename_in_cache(
 
 			ulint	db_len;
 			char*	old_id;
-			char    old_name_cs_filename[MAX_TABLE_NAME_LEN+20];
+			char    old_name_cs_filename[MAX_FULL_NAME_LEN + 1];
 			uint    errors = 0;
 
 			/* All table names are internally stored in charset
@@ -1944,7 +1944,7 @@ dict_table_rename_in_cache(
 			in old_name_cs_filename */
 
 			strncpy(old_name_cs_filename, old_name,
-				MAX_TABLE_NAME_LEN);
+				sizeof(old_name_cs_filename));
 			if (strstr(old_name, TEMP_TABLE_PATH_PREFIX) == NULL) {
 
 				innobase_convert_to_system_charset(
@@ -1966,7 +1966,7 @@ dict_table_rename_in_cache(
 					/* Old name already in
 					my_charset_filename */
 					strncpy(old_name_cs_filename, old_name,
-						MAX_TABLE_NAME_LEN);
+						sizeof(old_name_cs_filename));
 				}
 			}
 
@@ -1992,7 +1992,7 @@ dict_table_rename_in_cache(
 
 				/* This is a generated >= 4.0.18 format id */
 
-				char	table_name[MAX_TABLE_NAME_LEN] = "";
+				char	table_name[MAX_TABLE_NAME_LEN + 1] = "";
 				uint	errors = 0;
 
 				if (strlen(table->name.m_name)
@@ -2299,7 +2299,6 @@ dict_index_node_ptr_max_size(
 	}
 
 	comp = dict_table_is_comp(index->table);
-
 	/* Each record has page_no, length of page_no and header. */
 	rec_max_size = comp
 		? REC_NODE_PTR_SIZE + 1 + REC_N_NEW_EXTRA_BYTES
@@ -2338,6 +2337,14 @@ dict_index_node_ptr_max_size(
 		}
 
 		field_max_size = dict_col_get_max_size(col);
+		/* A varchar(0) case when the max size of field
+		can't be estimated accurately */
+		if (field_max_size == 0) {
+			ulint page_rec_max = srv_page_size == UNIV_PAGE_SIZE_MAX
+				? REC_MAX_DATA_SIZE - 1
+			: page_get_free_space_of_empty(comp) / 2;
+			rec_max_size += page_rec_max;
+		}
 		field_ext_max_size = field_max_size < 256 ? 1 : 2;
 
 		if (field->prefix_len
@@ -3659,6 +3666,11 @@ dict_foreign_find_index(
 		    && !(index->type & DICT_FTS)
 		    && !dict_index_is_spatial(index)
 		    && !index->to_be_dropped
+		    && (!(index->uncommitted
+			&& ((index->online_status
+			     ==  ONLINE_INDEX_ABORTED_DROPPED)
+			     || (index->online_status
+				== ONLINE_INDEX_ABORTED))))
 		    && dict_foreign_qualify_index(
 			    table, col_names, columns, n_cols,
 			    index, types_idx,
@@ -6342,9 +6354,20 @@ dict_table_schema_check(
 		/* check length for exact match */
 		if (req_schema->columns[i].len != table->cols[j].len) {
 
-			CREATE_TYPES_NAMES();
+			if(!strcmp(req_schema->table_name, TABLE_STATS_NAME)
+			   || !strcmp(req_schema->table_name, INDEX_STATS_NAME)) {
+				ut_ad(table->cols[j].len <
+					req_schema->columns[i].len);
+				ib::warn() << "Table " << req_schema->table_name
+					   << " has length mismatch in the"
+					   << " column name "
+					   << req_schema->columns[i].name
+					   << ".  Please run mysql_upgrade";
+			} else {
 
-			ut_snprintf(errstr, errstr_sz,
+				CREATE_TYPES_NAMES();
+
+				ut_snprintf(errstr, errstr_sz,
 				    "Column %s in table %s is %s"
 				    " but should be %s (length mismatch).",
 				    req_schema->columns[i].name,
@@ -6352,7 +6375,8 @@ dict_table_schema_check(
 						   buf, sizeof(buf)),
 				    actual_type, req_type);
 
-			return(DB_ERROR);
+				return(DB_ERROR);
+			}
 		}
 
 		/* check mtype for exact match */

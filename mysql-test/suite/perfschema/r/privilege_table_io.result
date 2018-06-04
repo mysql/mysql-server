@@ -110,29 +110,29 @@ where event_name like 'wait/io/table/%'
   and object_schema in ("test", "mysql")
 order by thread_id, event_id;
 event_name	short_source	object_type	object_schema	pretty_name	operation	number_of_bytes
-wait/io/table/sql/handler	handler.cc:	TABLE	mysql	user	fetch	1
-wait/io/table/sql/handler	handler.cc:	TABLE	mysql	user	fetch	1
-wait/io/table/sql/handler	handler.cc:	TABLE	mysql	user	fetch	1
-wait/io/table/sql/handler	handler.cc:	TABLE	mysql	user	fetch	1
-wait/io/table/sql/handler	handler.cc:	TABLE	mysql	user	fetch	1
-wait/io/table/sql/handler	handler.cc:	TABLE	mysql	user	fetch	1
-wait/io/table/sql/handler	handler.cc:	TABLE	mysql	user	fetch	1
-wait/io/table/sql/handler	handler.cc:	TABLE	mysql	db	fetch	1
-wait/io/table/sql/handler	handler.cc:	TABLE	mysql	db	fetch	1
-wait/io/table/sql/handler	handler.cc:	TABLE	mysql	db	fetch	1
-wait/io/table/sql/handler	handler.cc:	TABLE	mysql	db	fetch	1
-wait/io/table/sql/handler	handler.cc:	TABLE	mysql	db	fetch	1
-wait/io/table/sql/handler	handler.cc:	TABLE	mysql	proxies_priv	fetch	1
-wait/io/table/sql/handler	handler.cc:	TABLE	mysql	proxies_priv	fetch	1
-wait/io/table/sql/handler	handler.cc:	TABLE	mysql	proxies_priv	fetch	1
-wait/io/table/sql/handler	handler.cc:	TABLE	mysql	tables_priv	fetch	1
-wait/io/table/sql/handler	handler.cc:	TABLE	mysql	tables_priv	fetch	1
-wait/io/table/sql/handler	handler.cc:	TABLE	mysql	tables_priv	fetch	1
-wait/io/table/sql/handler	handler.cc:	TABLE	mysql	procs_priv	fetch	1
-wait/io/table/sql/handler	handler.cc:	TABLE	mysql	servers	fetch	1
-wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
-wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
-wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
+wait/io/table/sql/handler		TABLE	mysql	user	fetch	1
+wait/io/table/sql/handler		TABLE	mysql	user	fetch	1
+wait/io/table/sql/handler		TABLE	mysql	user	fetch	1
+wait/io/table/sql/handler		TABLE	mysql	user	fetch	1
+wait/io/table/sql/handler		TABLE	mysql	user	fetch	1
+wait/io/table/sql/handler		TABLE	mysql	user	fetch	1
+wait/io/table/sql/handler		TABLE	mysql	user	fetch	1
+wait/io/table/sql/handler		TABLE	mysql	db	fetch	1
+wait/io/table/sql/handler		TABLE	mysql	db	fetch	1
+wait/io/table/sql/handler		TABLE	mysql	db	fetch	1
+wait/io/table/sql/handler		TABLE	mysql	db	fetch	1
+wait/io/table/sql/handler		TABLE	mysql	db	fetch	1
+wait/io/table/sql/handler		TABLE	mysql	proxies_priv	fetch	1
+wait/io/table/sql/handler		TABLE	mysql	proxies_priv	fetch	1
+wait/io/table/sql/handler		TABLE	mysql	proxies_priv	fetch	1
+wait/io/table/sql/handler		TABLE	mysql	tables_priv	fetch	1
+wait/io/table/sql/handler		TABLE	mysql	tables_priv	fetch	1
+wait/io/table/sql/handler		TABLE	mysql	tables_priv	fetch	1
+wait/io/table/sql/handler		TABLE	mysql	procs_priv	fetch	1
+wait/io/table/sql/handler		TABLE	mysql	servers	fetch	1
+wait/io/table/sql/handler		TABLE	test	marker	insert	1
+wait/io/table/sql/handler		TABLE	test	marker	insert	1
+wait/io/table/sql/handler		TABLE	test	marker	insert	1
 show global status like 'performance_schema_%';
 Variable_name	Value
 Performance_schema_accounts_lost	0

@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -32,7 +32,6 @@ IF("${VERSION}" MATCHES "-ndb-")
 ENDIF()
 SET(CMAKE_SIZEOF_VOID_P @CMAKE_SIZEOF_VOID_P@)
 SET(MANUFACTURER "@MANUFACTURER@")
-# SET(WIXCA_LOCATION "@WIXCA_LOCATION@")
 SET(COPYING_RTF "@COPYING_RTF@")
 SET(CPACK_WIX_CONFIG "@CPACK_WIX_CONFIG@")
 SET(CPACK_WIX_INCLUDE "@CPACK_WIX_INCLUDE@")
@@ -51,10 +50,6 @@ IF("${VERSION}" MATCHES "-ndb-")
   MESSAGE(STATUS "Overriding PRODUCT_DESCRIPTION ${PRODUCT_DESCRIPTION}")
   SET(PRODUCT_DESCRIPTION "MySQL Cluster")
   MESSAGE(STATUS "PRODUCT_DESCRIPTION: ${PRODUCT_DESCRIPTION}")
-
-  MESSAGE(STATUS "Overriding WIXCA_LOCATION ${WIXCA_LOCATION}")
-  SET(WIXCA_LOCATION "@CMAKE_BINARY_DIR@/packaging/WiX/ca/RelWithDebInfo/wixca.dll")
-  MESSAGE(STATUS "WIXCA_LOCATION: ${WIXCA_LOCATION}")
 
   # use codes different from Server codes
   MESSAGE(STATUS "Overriding UPGRADE_ID ${UPGRADE_ID}")
@@ -221,8 +216,6 @@ ENDFOREACH()
 
 
 IF(CMAKE_INSTALL_CONFIG_NAME)
-  STRING(REPLACE "${CMAKE_CFG_INTDIR}" "${CMAKE_INSTALL_CONFIG_NAME}" 
-    WIXCA_LOCATION "${WIXCA_LOCATION}")
   SET(CONFIG_PARAM "-DCMAKE_INSTALL_CONFIG_NAME=${CMAKE_INSTALL_CONFIG_NAME}")
 ENDIF()
 

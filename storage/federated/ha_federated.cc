@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -3285,6 +3285,9 @@ int ha_federated::stash_remote_error()
   if (remote_error_number == ER_DUP_ENTRY ||
       remote_error_number == ER_DUP_KEY)
     DBUG_RETURN(HA_ERR_FOUND_DUPP_KEY);
+  if (remote_error_number == ER_NO_REFERENCED_ROW ||
+      remote_error_number == ER_NO_REFERENCED_ROW_2)
+    DBUG_RETURN(HA_ERR_NO_REFERENCED_ROW);
   DBUG_RETURN(HA_FEDERATED_ERROR_WITH_REMOTE_SYSTEM);
 }
 

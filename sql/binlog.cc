@@ -285,8 +285,11 @@ public:
   binlog_cache_data(bool trx_cache_arg,
                     my_off_t max_binlog_cache_size_arg,
                     ulong *ptr_binlog_cache_use_arg,
-                    ulong *ptr_binlog_cache_disk_use_arg)
-  : m_pending(0), saved_max_binlog_cache_size(max_binlog_cache_size_arg),
+                    ulong *ptr_binlog_cache_disk_use_arg,
+                    const IO_CACHE &cache_log_arg)
+  : cache_log(cache_log_arg),
+    m_pending(0),
+    saved_max_binlog_cache_size(max_binlog_cache_size_arg),
     ptr_binlog_cache_use(ptr_binlog_cache_use_arg),
     ptr_binlog_cache_disk_use(ptr_binlog_cache_disk_use_arg)
   {
@@ -337,6 +340,36 @@ public:
   bool has_incident(void) const
   {
     return flags.incident;
+  }
+
+  /**
+    Sets the binlog_cache_data::Flags::flush_error flag if there
+    is an error while flushing cache to the file.
+
+    @param thd  The client thread that is executing the transaction.
+  */
+  void set_flush_error(THD *thd)
+  {
+    flags.flush_error= true;
+    if(is_trx_cache())
+    {
+      /*
+         If the cache is a transactional cache and if the write
+         has failed due to ENOSPC, then my_write() would have
+         set EE_WRITE error, so clear the error and create an
+         equivalent server error.
+      */
+      if (thd->is_error())
+        thd->clear_error();
+      char errbuf[MYSYS_STRERROR_SIZE];
+      my_error(ER_ERROR_ON_WRITE, MYF(MY_WME), my_filename(cache_log.file),
+          errno, my_strerror(errbuf, sizeof(errbuf), errno));
+    }
+  }
+
+  bool get_flush_error(void) const
+  {
+    return flags.flush_error;
   }
 
   bool has_xid() const {
@@ -432,6 +465,8 @@ public:
     flags.with_start= false;
     flags.with_end= false;
     flags.with_content= false;
+    flags.flush_error= false;
+
     /*
       The truncate function calls reinit_io_cache that calls my_b_flush_io_cache
       which may increase disk_writes. This breaks the disk_writes use by the
@@ -579,7 +614,13 @@ protected:
   {
     DBUG_PRINT("info", ("truncating to position %lu", (ulong) pos));
     remove_pending_event();
-    reinit_io_cache(&cache_log, WRITE_CACHE, pos, 0, 0);
+    /*
+      Whenever there is an error while flushing cache to file,
+      the local cache will not be in a normal state and the same
+      cache cannot be used without facing an assert.
+      So, clear the cache if there is a flush error.
+    */
+    reinit_io_cache(&cache_log, WRITE_CACHE, pos, 0, get_flush_error());
     cache_log.end_of_file= saved_max_binlog_cache_size;
   }
 
@@ -658,6 +699,12 @@ protected:
       This indicates that the cache contain content other than START/END.
     */
     bool with_content:1;
+
+    /*
+      This flag is set to 'true' when there is an error while flushing the
+      I/O cache to file.
+    */
+    bool flush_error:1;
   } flags;
 
 private:
@@ -713,11 +760,13 @@ public:
   binlog_stmt_cache_data(bool trx_cache_arg,
                         my_off_t max_binlog_cache_size_arg,
                         ulong *ptr_binlog_cache_use_arg,
-                        ulong *ptr_binlog_cache_disk_use_arg)
+                        ulong *ptr_binlog_cache_disk_use_arg,
+                        const IO_CACHE &cache_log)
     : binlog_cache_data(trx_cache_arg,
                         max_binlog_cache_size_arg,
                         ptr_binlog_cache_use_arg,
-                        ptr_binlog_cache_disk_use_arg)
+                        ptr_binlog_cache_disk_use_arg,
+                        cache_log)
   {
   }
 
@@ -752,11 +801,13 @@ public:
   binlog_trx_cache_data(bool trx_cache_arg,
                         my_off_t max_binlog_cache_size_arg,
                         ulong *ptr_binlog_cache_use_arg,
-                        ulong *ptr_binlog_cache_disk_use_arg)
+                        ulong *ptr_binlog_cache_disk_use_arg,
+                        const IO_CACHE &cache_log)
   : binlog_cache_data(trx_cache_arg,
                       max_binlog_cache_size_arg,
                       ptr_binlog_cache_use_arg,
-                      ptr_binlog_cache_disk_use_arg),
+                      ptr_binlog_cache_disk_use_arg,
+                      cache_log),
     m_cannot_rollback(FALSE), before_stmt_pos(MY_OFF_T_UNDEF)
   {   }
 
@@ -846,13 +897,17 @@ public:
                     ulong *ptr_binlog_stmt_cache_disk_use_arg,
                     my_off_t max_binlog_cache_size_arg,
                     ulong *ptr_binlog_cache_use_arg,
-                    ulong *ptr_binlog_cache_disk_use_arg)
+                    ulong *ptr_binlog_cache_disk_use_arg,
+                    const IO_CACHE &stmt_cache_log,
+                    const IO_CACHE &trx_cache_log)
   : stmt_cache(FALSE, max_binlog_stmt_cache_size_arg,
                ptr_binlog_stmt_cache_use_arg,
-               ptr_binlog_stmt_cache_disk_use_arg),
+               ptr_binlog_stmt_cache_disk_use_arg,
+               stmt_cache_log),
     trx_cache(TRUE, max_binlog_cache_size_arg,
               ptr_binlog_cache_use_arg,
-              ptr_binlog_cache_disk_use_arg),
+              ptr_binlog_cache_disk_use_arg,
+              trx_cache_log),
     has_logged_xid(NULL)
   {  }
 
@@ -1273,6 +1328,15 @@ int binlog_cache_data::write_event(THD *thd, Log_event *ev)
   {
     DBUG_EXECUTE_IF("simulate_disk_full_at_flush_pending",
                   {DBUG_SET("+d,simulate_file_write_error");});
+
+    DBUG_EXECUTE_IF("simulate_tmpdir_partition_full",
+                  {
+                  static int count= -1;
+                  count++;
+                  if(count %4 == 3 && ev->get_type_code() ==
+                      binary_log::WRITE_ROWS_EVENT)
+                    DBUG_SET("+d,simulate_temp_file_write_error");
+                  });
     if (ev->write(&cache_log) != 0)
     {
       DBUG_EXECUTE_IF("simulate_disk_full_at_flush_pending",
@@ -1288,6 +1352,19 @@ int binlog_cache_data::write_event(THD *thd, Log_event *ev)
                         */
                         DBUG_SET("+d,simulate_do_write_cache_failure");
                       });
+
+      DBUG_EXECUTE_IF("simulate_temp_file_write_error",
+                      {
+                        DBUG_SET("-d,simulate_temp_file_write_error");
+                      });
+      /*
+        If the flush has failed due to ENOSPC error, set the
+        flush_error flag.
+      */
+      if (thd->is_error() && my_errno() == ENOSPC)
+      {
+        set_flush_error(thd);
+      }
       DBUG_RETURN(1);
     }
     if (ev->get_type_code() == binary_log::XID_EVENT)
@@ -7588,8 +7665,19 @@ bool MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache, Binlog_event_writer *writer)
   uint64 expected_total_len= my_b_tell(cache);
 #endif
 
+  DBUG_EXECUTE_IF("simulate_tmpdir_partition_full",
+                  {
+                    DBUG_SET("+d,simulate_file_write_error");
+                  });
+
   if (reinit_io_cache(cache, READ_CACHE, 0, 0, 0))
+  {
+    DBUG_EXECUTE_IF("simulate_tmpdir_partition_full",
+                    {
+                      DBUG_SET("-d,simulate_file_write_error");
+                    });
     DBUG_RETURN(true);
+  }
 
   uchar *buf= cache->read_pos;
   uint32 buf_len= my_b_bytes_in_cache(cache);
@@ -7929,6 +8017,14 @@ err:
     write_error= true;
     sql_print_error(ER(ER_ERROR_ON_WRITE), name,
                     errno, my_strerror(errbuf, sizeof(errbuf), errno));
+  }
+
+  /*
+    If the flush has failed due to ENOSPC, set the flush_error flag.
+  */
+  if (cache->error && thd->is_error() && my_errno() == ENOSPC)
+  {
+    cache_data->set_flush_error(thd);
   }
   thd->commit_error= THD::CE_FLUSH_ERROR;
 
@@ -9176,7 +9272,7 @@ void MYSQL_BIN_LOG::handle_binlog_flush_or_sync_error(THD *thd,
           binlog_error_action == ABORT_SERVER ? "ABORT_SERVER" : "IGNORE_ERROR");
   if (binlog_error_action == ABORT_SERVER)
   {
-    char err_buff[MYSQL_ERRMSG_SIZE];
+    char err_buff[MYSQL_ERRMSG_SIZE + 27];
     sprintf(err_buff, "%s Hence aborting the server.", errmsg);
     exec_binlog_error_action_abort(err_buff);
   }
@@ -9203,6 +9299,14 @@ void MYSQL_BIN_LOG::handle_binlog_flush_or_sync_error(THD *thd,
     }
     close(LOG_CLOSE_INDEX|LOG_CLOSE_STOP_EVENT, false/*need_lock_log=false*/,
           true/*need_lock_index=true*/);
+    /*
+      If there is a write error (flush/sync stage) and if
+      binlog_error_action=IGNORE_ERROR, clear the error
+      and allow the commit to happen in storage engine.
+    */
+    if (check_write_error(thd))
+      thd->clear_error();
+
     if (need_lock_log)
       mysql_mutex_unlock(&LOCK_log);
     DEBUG_SYNC(thd, "after_binlog_closed_due_to_error");
@@ -9721,16 +9825,28 @@ int THD::binlog_setup_trx_data()
   if (cache_mngr)
     DBUG_RETURN(0);                             // Already set up
 
+  IO_CACHE stmt_cache_log, trx_cache_log;
+  memset(&stmt_cache_log, 0, sizeof(stmt_cache_log));
+  memset(&trx_cache_log, 0, sizeof(trx_cache_log));
+
   cache_mngr= (binlog_cache_mngr*) my_malloc(key_memory_binlog_cache_mngr,
                                              sizeof(binlog_cache_mngr), MYF(MY_ZEROFILL));
-  if (!cache_mngr ||
-      open_cached_file(&cache_mngr->stmt_cache.cache_log, mysql_tmpdir,
-                       LOG_PREFIX, binlog_stmt_cache_size, MYF(MY_WME)) ||
-      open_cached_file(&cache_mngr->trx_cache.cache_log, mysql_tmpdir,
-                       LOG_PREFIX, binlog_cache_size, MYF(MY_WME)))
+  if (!cache_mngr)
+  {
+    DBUG_RETURN(1);
+  }
+  if (open_cached_file(&stmt_cache_log, mysql_tmpdir,
+                       LOG_PREFIX, binlog_stmt_cache_size, MYF(MY_WME)))
   {
     my_free(cache_mngr);
     DBUG_RETURN(1);                      // Didn't manage to set it up
+  }
+  if (open_cached_file(&trx_cache_log, mysql_tmpdir,
+                       LOG_PREFIX, binlog_cache_size, MYF(MY_WME)))
+  {
+    close_cached_file(&stmt_cache_log);
+    my_free(cache_mngr);
+    DBUG_RETURN(1);
   }
   DBUG_PRINT("debug", ("Set ha_data slot %d to 0x%llx", binlog_hton->slot, (ulonglong) cache_mngr));
   thd_set_ha_data(this, binlog_hton, cache_mngr);
@@ -9741,7 +9857,9 @@ int THD::binlog_setup_trx_data()
                                 &binlog_stmt_cache_disk_use,
                                 max_binlog_cache_size,
                                 &binlog_cache_use,
-                                &binlog_cache_disk_use);
+                                &binlog_cache_disk_use,
+                                stmt_cache_log,
+                                trx_cache_log);
   DBUG_RETURN(0);
 }
 

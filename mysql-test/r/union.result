@@ -2941,3 +2941,19 @@ i1	i2	i3	i4	i5	d1	d2	d3	d4	d5	g1
 DROP TEMPORARY TABLE t2;
 SET SQL_MODE=DEFAULT;
 DROP TABLE t1;
+#
+# Bug#27197235 USER VARIABLE + UINON + DECIMAL COLUMN RETURNS
+#              WRONG VALUES
+#
+SET NAMES utf8;
+SET @advertAcctId = 1000003;
+select @advertAcctId as a from dual union all select 1.0 from dual;
+a
+1000003.0
+1.0
+SET NAMES latin1;
+SET @advertAcctId = 1000003;
+select @advertAcctId as a from dual union all select 1.0 from dual;
+a
+1000003.0
+1.0

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1547,7 +1547,7 @@ rtr_copy_buf(
 	will be copied. It is also undefined what will happen with the
 	newly memcpy()ed mutex if the source mutex was acquired by
 	(another) thread while it was copied. */
-	memcpy(&matches->block.page, &block->page, sizeof(buf_page_t));
+	new (&matches->block.page) buf_page_t(block->page);
 	matches->block.frame = block->frame;
 #ifndef UNIV_HOTBACKUP
 	matches->block.unzip_LRU = block->unzip_LRU;

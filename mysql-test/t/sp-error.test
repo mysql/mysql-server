@@ -3838,3 +3838,27 @@ drop function test.f111111111122222222223333333333444444444455555555556666666666
 --error ER_WRONG_DB_NAME 
 drop function mysqltest111111111122222222223333333333444444444455555555556666666666777777777788888888889999999999aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeffffffffffgggggggggghhhhhhhhhhiiiiiiiiiijjjj.test;
 
+
+--echo #
+--echo # Bug #24357244: CANNOT CREATE A STORED FUNCTION IF A DATABASE IS NOT
+--echo #                SELECTED
+--echo #
+
+CREATE DATABASE mysqltest;
+USE mysqltest;
+DROP DATABASE mysqltest;
+
+# Should return NULL
+SELECT DATABASE();
+
+CREATE DATABASE mysqltest;
+CREATE FUNCTION mysqltest.f1() RETURNS INT RETURN 0;
+CREATE FUNCTION mysqltest.f2() RETURNS INT RETURN f1();
+
+USE mysqltest;
+SELECT f1();
+SELECT f2();
+
+DROP FUNCTION IF EXISTS f2;
+DROP FUNCTION IF EXISTS f1;
+DROP DATABASE mysqltest;

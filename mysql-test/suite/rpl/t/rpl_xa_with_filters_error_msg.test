@@ -1,0 +1,66 @@
+# ==== Requirements ====
+#
+# R1. When using replication filter together with XA transactions, output an
+#     error message when some statement gets filtered within the active XA
+#     transaction.
+#
+# ==== Implementation ====
+#
+# With default setup:
+# 1) Add a replication filter to the slave node
+# 2) Create a table that gets filtered out by the added filter
+# 3) Start an XA transaction and execute a statement that is filtered out by
+#    replication filter
+# 4) Ensure that the error message get logged to the slave error log file.
+#
+# ==== References ====
+#
+# BUG#27442477: ASSERT `THD->GET_HA_DATA...HAS_STATE(XID_STATE::XA_ACTIVE))' AT HANDLER.CC:1396
+
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+--echo #
+--echo # 1) Add a replication filter to the slave node
+--echo #
+--source include/rpl_connection_slave.inc
+--source include/stop_slave_sql.inc
+CALL mtr.add_suppression("Slave SQL.*The use of replication filters with XA transactions is not supported, and can lead to an undefined state in the replication slave.*");
+CHANGE REPLICATION FILTER Replicate_Do_Table=(test.tab1);
+--source include/start_slave_sql.inc
+
+--source include/rpl_connection_master.inc
+--echo #
+--echo # 2) Create a table that gets filtered out by the added filter
+--echo #
+CREATE TABLE t1 (a INT);
+--echo #
+--echo # 3) Start an XA transaction and execute a statement that is filtered out by
+--echo #    replication filter
+--echo #
+XA START '1'; INSERT INTO t1 VALUES (1); XA END '1'; XA PREPARE '1';
+XA COMMIT '1';
+
+--source include/sync_slave_sql_with_master.inc
+
+--echo #
+--echo # 4) Ensure that the error message get logged to the slave error log file.
+--echo #
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_only_after= CURRENT_TEST: rpl_gtid:rpl_xa_with_filters_error_msg
+--let $assert_match= The use of replication filters with XA transactions is not supported, and can lead to an undefined state in the replication slave
+--let $assert_select= Slave SQL
+--let $assert_text= Found error message regarding usage of replication filters with XA transactions
+--source include/assert_grep.inc
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+
+--let $slave_sql_errno= convert_error(ER_XA_REPLICATION_FILTERS)
+
+--source include/stop_slave_sql.inc
+CHANGE REPLICATION FILTER Replicate_Do_Table=();
+--source include/start_slave_sql.inc
+
+--source include/rpl_end.inc

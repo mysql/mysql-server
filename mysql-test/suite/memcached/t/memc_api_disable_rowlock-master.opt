@@ -1,0 +1,3 @@
+$DAEMON_MEMCACHED_OPT
+--loose-innodb-api-disable-rowlock=1
+--loose-daemon_memcached_engine_lib_path=$INNODB_ENGINE_DIR

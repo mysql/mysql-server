@@ -804,7 +804,7 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   my_stpcpy(tmpname,path);
   /* make table according to fields */
 
-  memset(table, 0, sizeof(*table));
+  new (table) TABLE;
   memset(reg_field, 0, sizeof(Field*)*(field_count + 2));
   memset(default_field, 0, sizeof(Field*) * (field_count + 1));
   memset(from_field, 0, sizeof(Field*)*(field_count + 1));
@@ -1643,7 +1643,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   my_stpcpy(tmpname,path);
 
   /* STEP 4: Create TABLE description */
-  memset(table, 0, sizeof(*table));
+  new (table) TABLE;
   memset(reg_field, 0, sizeof(Field*) * 3);
 
   table->mem_root= own_root;
@@ -1962,8 +1962,8 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
                         NullS))
     return 0;
 
-  memset(table, 0, sizeof(*table));
-  memset(share, 0, sizeof(*share));
+  new (table) TABLE;
+  new (share) TABLE_SHARE;
   table->field= field;
   table->s= share;
   table->temp_pool_slot= MY_BIT_NONE;
@@ -2242,8 +2242,6 @@ bool create_innodb_tmp_table(TABLE *table, KEY *keyinfo)
   DBUG_ENTER("create_innodb_tmp_table");
 
   HA_CREATE_INFO create_info;
-
-  memset(&create_info, 0, sizeof(create_info));
 
   create_info.db_type= table->s->db_type();
   create_info.row_type= table->s->row_type;

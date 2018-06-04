@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,16 +26,6 @@
 #
 # Either way: we will unpack the zip, compile gmock-all.cc and gtest-all.cc
 # and link them into the executables.
-
-# Disable googletest for Solaris Studio < 12.4 since it doesn't compile.
-IF(CMAKE_C_COMPILER_ID MATCHES "SunPro")
-  IF(${CC_MINOR_VERSION} LESS 13)
-    MESSAGE(WARNING "Googletest requires Solaris Studio 12.4 or newer.")
-    UNSET(GMOCK_FOUND)
-    UNSET(GMOCK_FOUND CACHE)
-    RETURN()
-  ENDIF()
-ENDIF()
 
 # Default location for where to download and build gmock/gtest.
 IF(NOT DOWNLOAD_ROOT)
@@ -191,26 +181,17 @@ SET(GMOCK_INCLUDE_DIRS
   CACHE INTERNAL "")
 
 # Build gmock/gtest libraries.
-INCLUDE_DIRECTORIES(
+INCLUDE_DIRECTORIES(SYSTEM
   ${GMOCK_SOURCE_DIR}
   ${GMOCK_SOURCE_DIR}/include
   ${GTEST_SOURCE_DIR}
   ${GTEST_SOURCE_DIR}/include
 )
 
-# Turn off some warning flags when compiling GUnit
-MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" HAVE_NO_UNUSED_TYPEDEFS)
-IF(HAVE_NO_UNUSED_TYPEDEFS)
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-local-typedefs")
-ENDIF()
-MY_CHECK_CXX_COMPILER_FLAG("-Wno-missing-field-initializers"
-                           HAVE_NO_MISSING_FIELD_INITIALIZERS)
-IF(HAVE_NO_MISSING_FIELD_INITIALIZERS)
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-missing-field-initializers")
-ENDIF()
+# Some tests require Boost.
+INCLUDE_DIRECTORIES(SYSTEM ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
 
 MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)
-MY_CHECK_CXX_COMPILER_FLAG("-Wempty-body" HAVE_EMPTY_BODY)
 
 ADD_LIBRARY(gmock STATIC ${GMOCK_SOURCE_DIR}/src/gmock-all.cc)
 ADD_LIBRARY(gtest STATIC ${GTEST_SOURCE_DIR}/src/gtest-all.cc)
@@ -285,6 +266,7 @@ SET(TESTS
   my_murmur3
   my_qsort_vs_stdsort
   my_regex
+  my_snprintf
   my_thread
   mysys_base64
   mysys_lf
@@ -385,10 +367,6 @@ IF (MERGE_UNITTESTS)
       COMPILE_FLAGS "-Wno-empty-body"
     )
   ENDIF()
-  ADD_COMPILE_FLAGS(
-    ${MERGE_SMALL_TESTS}
-    COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
-  )
   # Fixes "C1128: number of sections exceeded object file format limit" in MSVC
   IF(WIN32)
     ADD_COMPILE_FLAGS(
@@ -467,14 +445,6 @@ ENDIF(MERGE_UNITTESTS)
       COMPILE_FLAGS "-Wno-empty-body"
   )
   ENDIF()
-  ADD_COMPILE_FLAGS(
-    bounded_queue-t.cc
-    COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
-  )
-  ADD_COMPILE_FLAGS(
-    pump_object_filter-t.cc
-    COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
-  )
 
   FOREACH(test ${SERVER_TESTS})
     SET(SRC_FILES ${test}-t.cc)

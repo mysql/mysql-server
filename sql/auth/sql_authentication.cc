@@ -3359,7 +3359,24 @@ public:
   RSA *operator()(void)
   {
     /* generate RSA keys */
-    RSA *rsa= RSA_generate_key(m_key_size, m_exponent, NULL, NULL);
+    RSA *rsa= RSA_new();
+    if (!rsa)
+      return NULL;
+    BIGNUM *e= BN_new();
+    if (!e)
+    {
+      RSA_free(rsa);
+      return NULL;
+    }
+    if (!BN_set_word(e, m_exponent) ||
+        !RSA_generate_key_ex(rsa, m_key_size, e, NULL))
+    {
+      RSA_free(rsa);
+      BN_free(e);
+      return NULL;
+    }
+    BN_free(e);
+
     return rsa; // pass ownership
   }
 

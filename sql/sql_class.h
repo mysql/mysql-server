@@ -1192,6 +1192,14 @@ public:
   }
 };
 
+class Key_length_error_handler : public Internal_error_handler {
+ public:
+  virtual bool handle_condition(THD *, uint sql_errno, const char *,
+                                Sql_condition::enum_severity_level *,
+                                const char *) {
+    return (sql_errno == ER_TOO_LONG_KEY);
+  }
+};
 
 /**
   This class is an internal error handler implementation for
@@ -1557,6 +1565,12 @@ public:
     ha_data associated with it and memorizes the fact of that.
   */
   void rpl_detach_engine_ha_data();
+
+  /**
+    When the thread is a binlog or slave applier it reattaches the engine
+    ha_data associated with it and memorizes the fact of that.
+  */
+  void rpl_reattach_engine_ha_data();
 
   /**
     @return true   when the current binlog (rli_fake) or slave (rli_slave)
@@ -5621,6 +5635,20 @@ inline void reattach_engine_ha_data_to_thd(THD *thd, const struct handlerton *ht
       replace_native_transaction_in_thd(thd, *trx_backup, NULL);
     *trx_backup= NULL;
   }
+}
+
+/**
+  Check if engine substitution is allowed in the current thread context.
+
+  @param thd         thread context
+  @return
+  @retval            true if engine substitution is allowed
+  @retval            false otherwise
+*/
+
+static inline bool is_engine_substitution_allowed(THD* thd)
+{
+  return !(thd->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION);
 }
 
 /*************************************************************************/

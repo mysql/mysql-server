@@ -56,6 +56,11 @@ call mtr.add_suppression("The slave coordinator and worker threads are stopped")
 --source include/wait_for_slave_sql_error.inc
 
 # Reset slave.
+# On slower machines, when the SQL thread is killed due to error
+# ER_CANT_SET_GTID_NEXT_TO_GTID_WHEN_GTID_MODE_IS_OFF, it may happen that the IO
+# thread is also killed while it is still reading events from the binlog.
+--let $slave_io_errno= 2013 #CR_SERVER_LOST
+--let $rpl_allow_error= 1
 --source include/stop_slave.inc
 RESET MASTER;
 RESET SLAVE;

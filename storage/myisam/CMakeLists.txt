@@ -27,6 +27,14 @@ SET(MYISAM_SOURCES  ft_boolean_search.c ft_nlq_search.c ft_parser.c ft_static.c
 				rt_split.c sort.cc sp_key.c mi_extrafunc.h myisamdef.h
 				rt_index.h mi_rkey.c)
 
+MY_CHECK_CXX_COMPILER_FLAG("-Wcast-function-type" HAVE_CAST_FUNCTION_TYPE)
+IF(HAVE_CAST_FUNCTION_TYPE)
+  ADD_COMPILE_FLAGS(
+    mi_write.c
+    myisamlog.c
+    COMPILE_FLAGS "-Wno-cast-function-type")
+ENDIF()
+
 MYSQL_ADD_PLUGIN(myisam ${MYISAM_SOURCES} 
   STORAGE_ENGINE 
   MANDATORY 

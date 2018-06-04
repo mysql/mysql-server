@@ -334,6 +334,8 @@ f59
 10
 CREATE or REPLACE VIEW v1 AS select f59
 from tb2 group by f59 asc;
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 select * FROM v1 order by f59 limit 0,10;
 f59
 1
@@ -348,6 +350,8 @@ f59
 10
 CREATE or REPLACE VIEW v1 AS select f59
 from tb2 group by f59 desc;
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 select * FROM v1 order by f59 limit 0,10;
 f59
 1
@@ -360,6 +364,8 @@ f59
 8
 9
 10
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 CREATE or REPLACE VIEW v1 AS (select f59 from tb2)
 union (select f59 from t1);
 select * FROM v1 order by f59 limit 0,10;
