@@ -1,4 +1,4 @@
-# Copyright (c) 2013, 2017 Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -142,5 +142,4 @@ ELSE(WIX_DONT_SET_CPACK_MONOLITHIC_INSTALL)
 		COMMENT "Run cmake on cache to turn CPACK_MONOLITHIC_INSTALL back on"
 		VERBATIM)
 ENDIF(WIX_DONT_SET_CPACK_MONOLITHIC_INSTALL)
-ADD_DEPENDENCIES(NDB_MSI wixca)
 ADD_DEPENDENCIES(NDB_MSI configure_mysql_server_extra)
