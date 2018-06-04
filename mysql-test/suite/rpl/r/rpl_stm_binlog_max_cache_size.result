@@ -111,7 +111,19 @@ BEGIN;
 Got one of the listed errors
 COMMIT;
 include/diff_tables.inc [master:t1,slave:t1]
-######### 8 - Bug#55375(Regression Bug) Transaction bigger than  ##########
+####### 8 - LOAD DATA INFILE INTO TABLE #######
+[connection master]
+CREATE TABLE t6 (a varchar(20)) ENGINE=Innodb;
+LOAD DATA INFILE 'temp_file' INTO TABLE t6;
+ERROR HY000: Multi-statement transaction required more than 'max_binlog_cache_size' bytes of storage; increase this mysqld variable and try again
+include/assert.inc [assert that the above Event has not been added to binlog]
+include/assert.inc [Check that the LOAD DATA didn't add any data into the table]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Check that the LOAD DATA didn't add any data into the table]
+[connection master]
+DROP TABLE t6;
+include/sync_slave_sql_with_master.inc
+######### 9 - Bug#55375(Regression Bug) Transaction bigger than  ##########
 #########     max_binlog_cache_size crashes slave                ##########
 # [ On Slave ]
 SET GLOBAL max_binlog_cache_size = 4096;
