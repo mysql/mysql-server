@@ -264,7 +264,8 @@ sub fix_rsa_public_key {
 }
 
 # Rules to run for each mysqld in the config
-#  - will be run in order listed here
+#  - some rules depend on each other and thus need to be run
+#    in the order listed here
 my @mysqld_rules = (
   { '#abs_datadir'                                 => \&fix_abs_datadir },
   { '#host'                                        => \&fix_host },
@@ -273,6 +274,7 @@ my @mysqld_rules = (
   { 'caching_sha2_password_public_key_path'        => \&fix_rsa_public_key },
   { 'character-sets-dir'                           => \&fix_charset_dir },
   { 'datadir'                                      => \&fix_datadir },
+  { 'port'                                         => \&fix_port },
   { 'general_log'                                  => 1 },
   { 'general_log_file'                             => \&fix_log },
   { 'loose-mysqlx-port'                            => \&fix_x_port },
@@ -282,7 +284,6 @@ my @mysqld_rules = (
   { 'loose-mysqlx-ssl-cert'                        => "" },
   { 'loose-mysqlx-ssl-key'                         => "" },
   { 'pid-file'                                     => \&fix_pidfile },
-  { 'port'                                         => \&fix_port },
   { 'server-id'                                    => \&fix_server_id, },
   { 'slow_query_log'                               => 1 },
   { 'slow_query_log_file'                          => \&fix_log_slow_queries },
