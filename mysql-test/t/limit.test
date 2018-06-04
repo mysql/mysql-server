@@ -103,3 +103,53 @@ execute s using @a, @a;
 select 1 as a limit 4294967296,10;
 
 --echo End of 5.1 tests
+
+#
+# Bug #27998526 : FORCE INDEX DOESN'T TAKE EFFECT WHEN A QUERY HAS GROUP_BY,
+# ORDER_BY, AND LIMIT
+#
+
+
+CREATE TABLE t1 (id INT NOT NULL AUTO_INCREMENT,
+                 k INT,
+                 payload CHAR(100),
+                 PRIMARY KEY(id),
+                 KEY idx_k (k));
+
+INSERT INTO t1(k) VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+ANALYZE TABLE t1;
+
+#problem query
+let query1= SELECT * FROM t1 FORCE INDEX (idx_k)
+  WHERE k BETWEEN 2 AND 5
+  GROUP BY id
+  ORDER BY id LIMIT 0,1;
+
+# no order by
+let query2= SELECT * FROM t1 FORCE INDEX (idx_k)
+  WHERE k BETWEEN 2 AND 5
+  GROUP BY id
+  LIMIT 0,1;
+
+#no group by
+let query3= SELECT * FROM t1 FORCE INDEX (idx_k)
+  WHERE k BETWEEN 2 AND 5
+  ORDER BY id LIMIT 0,1;
+
+#no limit
+let query4= SELECT * FROM t1 FORCE INDEX (idx_k)
+  WHERE k BETWEEN 2 AND 5
+  GROUP BY id
+  ORDER BY id;
+
+eval EXPLAIN $query1;
+eval EXPLAIN $query2;
+eval EXPLAIN $query3;
+eval EXPLAIN $query4;
+
+eval $query1;
+eval $query2;
+eval $query3;
+eval $query4;
+
+DROP TABLE t1;

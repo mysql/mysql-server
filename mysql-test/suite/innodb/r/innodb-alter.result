@@ -871,20 +871,11 @@ id int(11) NOT NULL AUTO_INCREMENT,
 body text COLLATE utf8_unicode_ci,
 PRIMARY KEY (id)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8
-COLLATE=utf8_unicode_ci
-ROW_FORMAT=COMPRESSED;
-Warnings:
-Warning	1478	InnoDB: ROW_FORMAT=COMPRESSED requires innodb_file_format > Antelope.
-Warning	1478	InnoDB: assuming ROW_FORMAT=COMPACT.
+COLLATE=utf8_unicode_ci;
 ALTER TABLE notes ADD FULLTEXT INDEX index_ft_body (body(255));
 Warnings:
-Warning	1478	InnoDB: ROW_FORMAT=COMPRESSED requires innodb_file_format > Antelope.
-Warning	1478	InnoDB: assuming ROW_FORMAT=COMPACT.
 Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 DROP INDEX index_ft_body ON notes;
-Warnings:
-Warning	1478	InnoDB: ROW_FORMAT=COMPRESSED requires innodb_file_format > Antelope.
-Warning	1478	InnoDB: assuming ROW_FORMAT=COMPACT.
 CREATE DATABASE db2;
 RENAME TABLE db1.notes TO db2.notes;
 DROP DATABASE db1;

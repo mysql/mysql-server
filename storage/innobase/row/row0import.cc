@@ -1337,11 +1337,20 @@ row_import::match_schema(
 	/* Do some simple checks. */
 
 	if (m_flags != m_table->flags) {
-		ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
-			 "Table flags don't match, server table has 0x%lx "
-			 "and the meta-data file has 0x%lx",
-			 (ulong) m_table->n_cols, (ulong) m_flags);
-
+		if (dict_tf_to_row_format_string(m_flags) !=
+				dict_tf_to_row_format_string(m_table->flags)) {
+			ib_errf(thd, IB_LOG_LEVEL_ERROR,
+				ER_TABLE_SCHEMA_MISMATCH,
+				"Table flags don't match,"
+				"server table has %s "
+				"and the meta-data file has %s",
+				dict_tf_to_row_format_string(m_table->flags),
+				dict_tf_to_row_format_string(m_flags));
+		} else {
+			ib_errf(thd, IB_LOG_LEVEL_ERROR,
+				ER_TABLE_SCHEMA_MISMATCH,
+				"Table flags don't match");
+		}
 		return(DB_ERROR);
 	} else if (m_table->n_cols != m_n_cols) {
 		ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,

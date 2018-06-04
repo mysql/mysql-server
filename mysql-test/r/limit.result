@@ -114,3 +114,62 @@ End of 5.0 tests
 select 1 as a limit 4294967296,10;
 a
 End of 5.1 tests
+CREATE TABLE t1 (id INT NOT NULL AUTO_INCREMENT,
+k INT,
+payload CHAR(100),
+PRIMARY KEY(id),
+KEY idx_k (k));
+INSERT INTO t1(k) VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT * FROM t1 FORCE INDEX (idx_k)
+WHERE k BETWEEN 2 AND 5
+GROUP BY id
+ORDER BY id LIMIT 0,1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	PRIMARY,idx_k	idx_k	5	NULL	3	Using index condition; Using filesort
+EXPLAIN SELECT * FROM t1 FORCE INDEX (idx_k)
+WHERE k BETWEEN 2 AND 5
+GROUP BY id
+LIMIT 0,1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	PRIMARY,idx_k	idx_k	5	NULL	3	Using index condition; Using filesort
+EXPLAIN SELECT * FROM t1 FORCE INDEX (idx_k)
+WHERE k BETWEEN 2 AND 5
+ORDER BY id LIMIT 0,1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	idx_k	idx_k	5	NULL	3	Using index condition; Using filesort
+EXPLAIN SELECT * FROM t1 FORCE INDEX (idx_k)
+WHERE k BETWEEN 2 AND 5
+GROUP BY id
+ORDER BY id;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	PRIMARY,idx_k	idx_k	5	NULL	3	Using index condition; Using filesort
+SELECT * FROM t1 FORCE INDEX (idx_k)
+WHERE k BETWEEN 2 AND 5
+GROUP BY id
+ORDER BY id LIMIT 0,1;
+id	k	payload
+2	2	NULL
+SELECT * FROM t1 FORCE INDEX (idx_k)
+WHERE k BETWEEN 2 AND 5
+GROUP BY id
+LIMIT 0,1;
+id	k	payload
+2	2	NULL
+SELECT * FROM t1 FORCE INDEX (idx_k)
+WHERE k BETWEEN 2 AND 5
+ORDER BY id LIMIT 0,1;
+id	k	payload
+2	2	NULL
+SELECT * FROM t1 FORCE INDEX (idx_k)
+WHERE k BETWEEN 2 AND 5
+GROUP BY id
+ORDER BY id;
+id	k	payload
+2	2	NULL
+3	3	NULL
+4	4	NULL
+5	5	NULL
+DROP TABLE t1;
