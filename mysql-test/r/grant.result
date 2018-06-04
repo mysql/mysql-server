@@ -1692,6 +1692,7 @@ revoke create, insert on mysqltest.t6 from mysqltest@localhost;
 drop user mysqltest@localhost;
 drop database mysqltest;
 use test;
+call mtr.add_suppression("Can't open and lock privilege tables");
 FLUSH PRIVILEGES without procs_priv table.
 RENAME TABLE mysql.procs_priv TO mysql.procs_gone;
 FLUSH PRIVILEGES;
@@ -1780,8 +1781,6 @@ BEGIN
 SET @x = 0;
 REPEAT SET @x = @x + 1; UNTIL @x > p1 END REPEAT;
 END ;||
-Warnings:
-Warning	1404	Failed to grant EXECUTE and ALTER ROUTINE privileges
 SHOW GRANTS FOR 'user1'@'localhost';
 Grants for user1@localhost
 GRANT USAGE ON *.* TO 'user1'@'localhost'
@@ -1791,6 +1790,7 @@ SHOW GRANTS FOR 'user2';
 Grants for user2@%
 GRANT USAGE ON *.* TO 'user2'@'%'
 GRANT CREATE, CREATE ROUTINE ON `db1`.* TO 'user2'@'%'
+GRANT EXECUTE, ALTER ROUTINE ON PROCEDURE `db1`.`proc2` TO 'user2'@'%'
 DROP PROCEDURE db1.proc1;
 DROP PROCEDURE db1.proc2;
 REVOKE ALL ON db1.* FROM 'user1'@'localhost';

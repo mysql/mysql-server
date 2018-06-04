@@ -1667,6 +1667,9 @@ use test;
 #
 # Bug#16470 crash on grant if old grant tables
 #
+
+call mtr.add_suppression("Can't open and lock privilege tables");
+
 --echo FLUSH PRIVILEGES without procs_priv table.
 RENAME TABLE mysql.procs_priv TO mysql.procs_gone;
 --error ER_NO_SUCH_TABLE
