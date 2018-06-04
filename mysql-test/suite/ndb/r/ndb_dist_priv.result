@@ -152,6 +152,7 @@ Error	1205	Lock wait timeout exceeded; try restarting transaction
 Warning	1297	Got temporary error 274 'Time-out in NDB, probably caused by deadlock' from NDB
 Warning	1297	Got temporary error 274 'Time-out in NDB, probably caused by deadlock' from NDB
 Error	1205	Lock wait timeout exceeded; try restarting transaction
+Error	1205	Lock wait timeout exceeded; try restarting transaction
 ROLLBACK;
 DROP USER 'billy1'@'127.0.0.1';
 set @orig_sql_mode= @@sql_mode;
