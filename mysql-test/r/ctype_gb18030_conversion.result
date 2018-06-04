@@ -26,6 +26,8 @@ ORDER BY ch1.ch, ch2.ch, ch3.ch;
 DROP TEMPORARY TABLE head, tail;
 DROP TEMPORARY TABLE ch1, ch2, ch3;
 SET sql_mode='PAD_CHAR_TO_FULL_LENGTH';
+Warnings:
+Warning	3090	Changing sql mode 'PAD_CHAR_TO_FULL_LENGTH' is deprecated. It will be removed in a future release.
 # Check [U+D800, U+DFFF] maps to ?(0x3F)
 SELECT COUNT(*) FROM t1 WHERE CONVERT(code USING gb18030) <> 0x3F AND
 code >= 0xD800 AND code <= 0xDFFF;
