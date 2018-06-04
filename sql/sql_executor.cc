@@ -3128,6 +3128,9 @@ ulonglong get_exact_record_count(QEP_TAB *qep_tab, uint table_count,
     ha_rows tmp = 0;
     qt = qep_tab + i;
 
+    // Proceed only when table has position in the join order.
+    if (!qt->position()) continue;
+
     if (qt->type() == JT_ALL || (qt->index() == qt->table()->s->primary_key &&
                                  qt->table()->file->primary_key_is_clustered()))
       *error = qt->table()->file->ha_records(&tmp);

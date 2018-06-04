@@ -539,5 +539,11 @@ c
 3
 SELECT COUNT(*) c FROM t_innodb HAVING c > 7;
 c
+SELECT SQL_BIG_RESULT COUNT(*) FROM t_innodb;
+COUNT(*)
+3
+SELECT SQL_BIG_RESULT COUNT(*) FROM t_innodb, t_myisam;
+COUNT(*)
+6
 set sql_mode=default;
 DROP TABLE t_innodb, t_myisam;
