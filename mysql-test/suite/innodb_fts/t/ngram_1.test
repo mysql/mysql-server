@@ -36,3 +36,29 @@ LET $table_row_format =  ROW_FORMAT=COMPRESSED ;
 --source suite/innodb_fts/include/ngram.inc
 
 EVAL SET GLOBAL innodb_file_per_table = $per_table;
+
+#
+## Bug #25873310  FULLTEXT SEARCH CAN NOT FIND WORD WHICH CONTAINS "," OR "."
+#
+
+SET GLOBAL innodb_ft_enable_stopword=OFF;
+SET innodb_ft_enable_stopword=OFF;
+
+let @old_innodb_ft_aux_table = `select @@innodb_ft_aux_table`;
+CREATE TABLE ft_test3(
+       id INT NOT NULL,
+       contents TEXT,
+       PRIMARY KEY(id),
+       FULLTEXT INDEX fx_contents(contents) WITH PARSER NGRAM
+     ) ENGINE=INNODB;
+
+SET GLOBAL innodb_ft_aux_table='test/ft_test3';
+INSERT INTO ft_test3 VALUES (1, 'xy,yz');
+
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE ORDER BY position;
+SELECT * FROM ft_test3 WHERE MATCH(contents) AGAINST('y,' IN BOOLEAN MODE);
+SELECT * FROM ft_test3 WHERE MATCH(contents) AGAINST('y,' IN NATURAl LANGUAGE MODE);
+
+SET GLOBAL innodb_ft_enable_stopword = ON;
+SET GLOBAL innodb_ft_aux_table = @old_innodb_ft_aux_table;
+DROP TABLE ft_test3;

@@ -3530,20 +3530,20 @@ int Partition_helper::handle_ordered_next(uchar *buf, bool is_next_same)
   else
     read_buf= rec_buf;
 
-
-  if (m_index_scan_type == PARTITION_READ_RANGE)
-  {
-    error= read_range_next_in_part(part_id,
-                                   read_buf == m_table->record[0]
-                                     ? NULL : read_buf);
-  }
-  else if (!is_next_same)
-    error= index_next_in_part(part_id, read_buf);
-  else
-    error= index_next_same_in_part(part_id,
+  if (is_next_same) {
+    error = index_next_same_in_part(part_id,
                                    read_buf,
                                    m_start_key.key,
                                    m_start_key.length);
+  } else if (m_index_scan_type == PARTITION_READ_RANGE) {
+    error = read_range_next_in_part(part_id,
+                                   read_buf == m_table->record[0]
+                                     ? NULL : read_buf);
+  }
+  else {
+    error = index_next_in_part(part_id, read_buf);
+  }
+
   if (error)
   {
     if (error == HA_ERR_END_OF_FILE)

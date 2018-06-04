@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -8729,17 +8729,17 @@ type_conversion_status
 Field_geom::store_internal(const char *from, size_t length,
                            const CHARSET_INFO *cs)
 {
-  DBUG_ASSERT(length > 0);
-
   // Check that the given WKB
-  // 1. isn't marked as bad geometry data
-  // 2. isn't shorter than empty geometrycollection
-  // 3. is a valid geometry type
-  // 4. is well formed
-  if (from == Geometry::bad_geometry_data.ptr() ||                    // 1
-      length < SRID_SIZE + WKB_HEADER_SIZE + sizeof(uint32) ||        // 2
-      !Geometry::is_valid_geotype(uint4korr(from + SRID_SIZE + 1)) || // 3
-      !Geometry::is_well_formed(from, length,                         // 4
+  // 1. is at least 13 bytes long (length of GEOMETRYCOLLECTION EMPTY)
+  // 2. isn't marked as bad geometry data
+  // 3. isn't shorter than empty geometrycollection
+  // 4. is a valid geometry type
+  // 5. is well formed
+  if (length < 13 ||                                                  // 1
+      from == Geometry::bad_geometry_data.ptr() ||                    // 2
+      length < SRID_SIZE + WKB_HEADER_SIZE + sizeof(uint32) ||        // 3
+      !Geometry::is_valid_geotype(uint4korr(from + SRID_SIZE + 1)) || // 4
+      !Geometry::is_well_formed(from, length,                         // 5
                                 geometry_type_to_wkb_type(geom_type),
                                 Geometry::wkb_ndr))
   {
@@ -9162,37 +9162,52 @@ enum ha_base_keytype Field_enum::key_type() const
 void Field_enum::store_type(ulonglong value)
 {
   switch (packlength) {
-  case 1: ptr[0]= (uchar) value;  break;
+  case 1: ptr[0]= (uchar) value;
+    break;
   case 2:
 #ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first)
-  {
-    int2store(ptr,(unsigned short) value);
-  }
-  else
-#endif
+    if (table->s->db_low_byte_first)
+    {
+      int2store(ptr,(unsigned short) value);
+    }
+    else
+    {
+      shortstore(ptr,(unsigned short) value);
+    }
+#else
     shortstore(ptr,(unsigned short) value);
-  break;
-  case 3: int3store(ptr,(long) value); break;
+#endif
+    break;
+  case 3: int3store(ptr,(long) value);
+    break;
   case 4:
 #ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first)
-  {
-    int4store(ptr,value);
-  }
-  else
-#endif
+    if (table->s->db_low_byte_first)
+    {
+      int4store(ptr,value);
+    }
+    else
+    {
+      longstore(ptr,(long) value);
+    }
+#else
     longstore(ptr,(long) value);
-  break;
+#endif
+    break;
   case 8:
 #ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first)
-  {
-    int8store(ptr,value);
-  }
-  else
+    if (table->s->db_low_byte_first)
+    {
+      int8store(ptr,value);
+    }
+    else
+    {
+      longlongstore(ptr,value);
+    }
+#else
+    longlongstore(ptr,value);
 #endif
-    longlongstore(ptr,value); break;
+    break;
   }
 }
 

@@ -1,7 +1,7 @@
 #ifndef FIELD_INCLUDED
 #define FIELD_INCLUDED
 
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3797,8 +3797,8 @@ public:
   }
   void reset_fields()
   { 
-    memset(&value, 0, sizeof(value)); 
-    memset(&old_value, 0, sizeof(old_value));
+    value= String();
+    old_value= String();
   }
   size_t get_field_buffer_size() { return value.alloced_length(); }
 #ifndef WORDS_BIGENDIAN
@@ -3880,7 +3880,7 @@ public:
     value.mem_free();
     old_value.mem_free();
   }
-  inline void clear_temporary() { memset(&value, 0, sizeof(value)); }
+  inline void clear_temporary() { value= String(); }
   friend type_conversion_status field_conv(Field *to,Field *from);
   bool has_charset(void) const
   { return charset() == &my_charset_bin ? FALSE : TRUE; }

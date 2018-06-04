@@ -1465,6 +1465,7 @@ void Gcs_xcom_control::process_control_message(Gcs_message *msg)
       << configuration_id.msgno << "), node_no("
       << configuration_id.node << ")."
     )
+    delete ms_info;
     delete msg;
     return;
   }
@@ -1475,6 +1476,7 @@ void Gcs_xcom_control::process_control_message(Gcs_message *msg)
     << configuration_id.node << ")."
   )
 
+  // takes ownership of ms_info
   bool can_install_view=
     m_state_exchange->process_member_state(ms_info, msg->get_origin());
 

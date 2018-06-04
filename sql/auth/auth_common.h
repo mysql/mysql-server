@@ -608,13 +608,15 @@ bool acl_check_host(const char *host, const char *ip);
 
 /* rewrite CREATE/ALTER/GRANT user */
 void mysql_rewrite_create_alter_user(THD *thd, String *rlb,
-                                     std::set<LEX_USER *> *extra_users= NULL);
+                                     std::set<LEX_USER *> *extra_users= NULL,
+                                     bool hide_password_hash= false);
 void mysql_rewrite_grant(THD *thd, String *rlb);
 
 /* sql_user */
 void append_user(THD *thd, String *str, LEX_USER *user,
                  bool comma, bool ident);
-void append_user_new(THD *thd, String *str, LEX_USER *user, bool comma);
+void append_user_new(THD *thd, String *str, LEX_USER *user, bool comma= true,
+                     bool hide_password_hash= false);
 int check_change_password(THD *thd, const char *host, const char *user,
                           const char *password, size_t password_len);
 bool change_password(THD *thd, const char *host, const char *user,
@@ -679,7 +681,7 @@ ulong get_column_grant(THD *thd, GRANT_INFO *grant,
                        const char *db_name, const char *table_name,
                        const char *field_name);
 bool mysql_show_grants(THD *thd, LEX_USER *user);
-bool mysql_show_create_user(THD *thd, LEX_USER *user);
+bool mysql_show_create_user(THD *thd, LEX_USER *user, bool are_both_users_same);
 bool mysql_revoke_all(THD *thd, List <LEX_USER> &list);
 bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
                           bool is_proc);

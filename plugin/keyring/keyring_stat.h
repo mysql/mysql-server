@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,7 +25,17 @@ typedef MY_STAT My_stat;
 struct Keyring_stat : public My_stat
 {
   Keyring_stat() : is_initialized(FALSE)
-  {}
+  {
+    // Initialize relevant fields in base class.
+    st_dev = 0;
+    st_ino = 0;
+    st_mode = 0;
+    st_uid = 0;
+    st_gid = 0;
+    st_rdev = 0;
+    st_size = 0;
+    st_mtime = 0;
+  }
 
   my_bool operator==(const MY_STAT& stat)
   {

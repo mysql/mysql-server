@@ -392,7 +392,7 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
                        table_cache_instances * sizeof(*cache_element_array),
                        NULL))
   {
-    memset(share, 0, sizeof(*share));
+    new (share) TABLE_SHARE;
 
     share->set_table_cache_key(key_buff, key, key_length);
 
@@ -458,7 +458,7 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
   DBUG_ENTER("init_tmp_table_share");
   DBUG_PRINT("enter", ("table: '%s'.'%s'", key, table_name));
 
-  memset(share, 0, sizeof(*share));
+  new (share) TABLE_SHARE;
   init_sql_alloc(key_memory_table_share,
                  &share->mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
   share->table_category=         TABLE_CATEGORY_TEMPORARY;
@@ -3066,7 +3066,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                       share->table_name.str, (long) outparam));
 
   error= 1;
-  memset(outparam, 0, sizeof(*outparam));
+  new (outparam) TABLE;
   outparam->in_use= thd;
   outparam->s= share;
   outparam->db_stat= db_stat;
@@ -4895,14 +4895,16 @@ TABLE_LIST *TABLE_LIST::new_nested_join(MEM_ROOT *allocator,
   DBUG_ASSERT(belongs_to && select);
 
   TABLE_LIST *const join_nest=
-    (TABLE_LIST *) alloc_root(allocator, ALIGN_SIZE(sizeof(TABLE_LIST))+
-                                                    sizeof(NESTED_JOIN));
+    (TABLE_LIST*) alloc_root(allocator, sizeof(TABLE_LIST));
   if (join_nest == NULL)
     return NULL;
+  new (join_nest) TABLE_LIST;
 
-  memset(join_nest, 0, ALIGN_SIZE(sizeof(TABLE_LIST)) + sizeof(NESTED_JOIN));
   join_nest->nested_join=
-    (NESTED_JOIN *) ((uchar *)join_nest + ALIGN_SIZE(sizeof(TABLE_LIST)));
+    (NESTED_JOIN*) alloc_root(allocator, sizeof(NESTED_JOIN));
+  if (join_nest->nested_join == NULL)
+    return NULL;
+  new (join_nest->nested_join) NESTED_JOIN;
 
   join_nest->db= (char *)"";
   join_nest->db_length= 0;

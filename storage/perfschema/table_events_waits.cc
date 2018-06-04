@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -481,8 +481,6 @@ int table_events_waits_common::make_metadata_lock_object_columns(PFS_events_wait
 void table_events_waits_common::make_row(PFS_events_waits *wait)
 {
   PFS_instr_class *safe_class;
-  const char *base;
-  const char *safe_source_file;
   enum_timer_name timer_name= wait_timer;
   ulonglong timer_end;
 
@@ -585,19 +583,9 @@ void table_events_waits_common::make_row(PFS_events_waits *wait)
   m_row.m_name= safe_class->m_name;
   m_row.m_name_length= safe_class->m_name_length;
 
-  /*
-    We are assuming this pointer is sane,
-    since it comes from __FILE__.
-  */
-  safe_source_file= wait->m_source_file;
-  if (unlikely(safe_source_file == NULL))
-    return;
+  /* Disable source file and line to avoid stale __FILE__ pointers. */
+  m_row.m_source_length= 0;
 
-  base= base_name(wait->m_source_file);
-  m_row.m_source_length= my_snprintf(m_row.m_source, sizeof(m_row.m_source),
-                                     "%s:%d", base, wait->m_source_line);
-  if (m_row.m_source_length > sizeof(m_row.m_source))
-    m_row.m_source_length= sizeof(m_row.m_source);
   m_row.m_operation= wait->m_operation;
   m_row.m_number_of_bytes= wait->m_number_of_bytes;
   m_row.m_flags= wait->m_flags;

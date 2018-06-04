@@ -261,26 +261,35 @@ explain select userid,count(*) from t1 group by userid desc;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	8	100.00	Using temporary; Using filesort
 Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 Note	1003	/* select#1 */ select `test`.`t1`.`userID` AS `userid`,count(0) AS `count(*)` from `test`.`t1` group by `test`.`t1`.`userID` desc
 explain select userid,count(*) from t1 group by userid desc order by null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	8	100.00	Using temporary
 Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 Note	1003	/* select#1 */ select `test`.`t1`.`userID` AS `userid`,count(0) AS `count(*)` from `test`.`t1` group by `test`.`t1`.`userID` desc order by NULL
 select userid,count(*) from t1 group by userid desc;
 userid	count(*)
 3	5
 2	1
 1	2
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 select userid,count(*) from t1 group by userid desc having (count(*)+1) IN (4,3);
 userid	count(*)
 1	2
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 select userid,count(*) from t1 group by userid desc having 3  IN (1,COUNT(*));
 userid	count(*)
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 explain select spid,count(*) from t1 where spid between 1 and 2 group by spid desc;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	spID	spID	5	NULL	3	100.00	Using where; Using index
 Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 Note	1003	/* select#1 */ select `test`.`t1`.`spID` AS `spid`,count(0) AS `count(*)` from `test`.`t1` where (`test`.`t1`.`spID` between 1 and 2) group by `test`.`t1`.`spID` desc
 explain select spid,count(*) from t1 where spid between 1 and 2 group by spid;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -300,16 +309,20 @@ select spid,count(*) from t1 where spid between 1 and 2 group by spid desc;
 spid	count(*)
 2	2
 1	1
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 explain extended select sql_big_result spid,sum(userid) from t1 group by spid desc;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	spID	NULL	NULL	NULL	8	100.00	Using filesort
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 Note	1003	/* select#1 */ select sql_big_result `test`.`t1`.`spID` AS `spid`,sum(`test`.`t1`.`userID`) AS `sum(userid)` from `test`.`t1` group by `test`.`t1`.`spID` desc
 explain select sql_big_result spid,sum(userid) from t1 group by spid desc order by null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	spID	NULL	NULL	NULL	8	100.00	Using filesort
 Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 Note	1003	/* select#1 */ select sql_big_result `test`.`t1`.`spID` AS `spid`,sum(`test`.`t1`.`userID`) AS `sum(userid)` from `test`.`t1` group by `test`.`t1`.`spID` desc order by NULL
 select sql_big_result spid,sum(userid) from t1 group by spid desc;
 spid	sum(userid)
@@ -320,21 +333,27 @@ spid	sum(userid)
 3	3
 2	3
 1	1
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 explain select sql_big_result score,count(*) from t1 group by score desc;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	score	score	3	NULL	8	100.00	Using index; Using filesort
 Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 Note	1003	/* select#1 */ select sql_big_result `test`.`t1`.`score` AS `score`,count(0) AS `count(*)` from `test`.`t1` group by `test`.`t1`.`score` desc
 explain select sql_big_result score,count(*) from t1 group by score desc order by null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	score	score	3	NULL	8	100.00	Using index; Using filesort
 Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 Note	1003	/* select#1 */ select sql_big_result `test`.`t1`.`score` AS `score`,count(0) AS `count(*)` from `test`.`t1` group by `test`.`t1`.`score` desc order by NULL
 select sql_big_result score,count(*) from t1 group by score desc;
 score	count(*)
 3	5
 2	1
 1	2
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 drop table t1;
 create table t1 (a date default null, b date default null);
 insert t1 values ('1999-10-01','2000-01-10'), ('1997-01-01','1998-10-01');
@@ -638,10 +657,13 @@ userid	count(*)
 3	5
 2	1
 1	2
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 EXPLAIN SELECT userid,count(*) FROM t1 GROUP BY userid DESC;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	8	100.00	Using temporary; Using filesort
 Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 Note	1003	/* select#1 */ select `test`.`t1`.`userid` AS `userid`,count(0) AS `count(*)` from `test`.`t1` group by `test`.`t1`.`userid` desc
 DROP TABLE t1;
 CREATE TABLE t1 (

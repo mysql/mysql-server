@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2012, Facebook Inc.
 
@@ -5214,6 +5214,8 @@ btr_cur_pessimistic_delete(
 	ulint		level;
 	mem_heap_t*	heap;
 	ulint*		offsets;
+	bool		allow_merge;/* if true, implies we have taken appropriate page
+			latches needed to merge this page.*/
 #ifdef UNIV_DEBUG
 	bool		parent_latched	= false;
 #endif /* UNIV_DEBUG */
@@ -5221,6 +5223,9 @@ btr_cur_pessimistic_delete(
 	block = btr_cur_get_block(cursor);
 	page = buf_block_get_frame(block);
 	index = btr_cur_get_index(cursor);
+
+	ulint rec_size_est = dict_index_node_ptr_max_size(index);
+	const page_size_t       page_size(dict_table_page_size(index->table));
 
 	ut_ad(flags == 0 || flags == BTR_CREATE_FLAG);
 	ut_ad(!dict_index_is_online_ddl(index)
@@ -5361,6 +5366,12 @@ btr_cur_pessimistic_delete(
 
 	btr_search_update_hash_on_delete(cursor);
 
+	if (page_is_leaf(page)) {
+		allow_merge = true;
+	} else {
+		allow_merge = btr_cur_will_modify_tree(index,page,BTR_INTENTION_DELETE,
+                                        rec,rec_size_est,page_size,mtr);
+	}
 	page_cur_delete_rec(btr_cur_get_page_cur(cursor), index, offsets, mtr);
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(!page_zip || page_zip_validate(page_zip, page, index));
@@ -5374,8 +5385,20 @@ return_after_reservations:
 
 	mem_heap_free(heap);
 
-	if (ret == FALSE) {
-		ret = btr_cur_compress_if_useful(cursor, FALSE, mtr);
+	if(!ret) {
+		bool do_merge = btr_cur_compress_recommendation(cursor,mtr);
+		/* We are not allowed do merge because appropriate locks
+		are not taken while positioning the cursor. */
+		if (!allow_merge && do_merge) {
+			ib::info() << "Ignoring merge recommendation for page"
+				"as we could not predict it early .Page"
+				"number being\n" << page_get_page_no(page) <<
+				"Index name\n" << index->name;
+			ut_ad(false);
+		} else if (do_merge) {
+
+			ret = btr_cur_compress_if_useful(cursor, FALSE, mtr);
+		}
 	}
 
 	if (!srv_read_only_mode

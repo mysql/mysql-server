@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2728,7 +2728,7 @@ void Item_func_interval::fix_length_and_dec()
     for (uint i= 1; not_null_consts && i < rows; i++)
     {
       Item *el= row->element_index(i);
-      not_null_consts&= el->const_item() & !el->is_null();
+      not_null_consts= el->const_item() && !el->is_null();
     }
 
     if (not_null_consts &&
@@ -3156,8 +3156,19 @@ longlong compare_between_int_result(bool compare_as_temporal_dates,
         rewritten to
         value BETWEEN 0 AND <some number>
       */
-      if (!args[1]->unsigned_flag && (longlong) a < 0)
+      if (!args[1]->unsigned_flag && static_cast<longlong>(a) < 0)
         a = 0;
+      /*
+        Comparing as unsigned.
+        value BETWEEN <some number> AND <some negative number>
+        rewritten to
+        1 BETWEEN <some number> AND 0
+      */
+      if (!args[2]->unsigned_flag && static_cast<longlong>(b) < 0)
+      {
+        b= 0;
+        value= 1;
+      }
     }
     else
     {

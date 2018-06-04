@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -250,7 +250,7 @@ const ulint	srv_buf_pool_min_size	= 5 * 1024 * 1024;
 const ulint	srv_buf_pool_def_size	= 128 * 1024 * 1024;
 /** Requested buffer pool chunk size. Each buffer pool instance consists
 of one or more chunks. */
-ulong	srv_buf_pool_chunk_unit;
+ulonglong	srv_buf_pool_chunk_unit;
 /** Requested number of buffer pool instances */
 ulong	srv_buf_pool_instances;
 /** Default number of buffer pool instances */

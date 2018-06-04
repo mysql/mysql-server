@@ -1,7 +1,7 @@
 #ifndef SQL_COMMON_INCLUDED
 #define SQL_COMMON_INCLUDED
 
-/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -103,7 +103,7 @@ struct st_mysql_options_extention {
   char *server_public_key_path;
   size_t connection_attributes_length;
   my_bool enable_cleartext_plugin;
-  my_bool unused0;                              /* Former ssl_enforce */
+  my_bool get_server_public_key;
   char *tls_version; /* TLS version option */
   long ssl_ctx_flags; /* SSL ctx options flag */
 #ifndef MCP_BUG22389653
@@ -185,6 +185,9 @@ void set_stmt_error(MYSQL_STMT *stmt, int errcode, const char *sqlstate,
 void set_mysql_error(MYSQL *mysql, int errcode, const char *sqlstate);
 void set_mysql_extended_error(MYSQL *mysql, int errcode, const char *sqlstate,
                               const char *format, ...);
+#ifdef EMBEDDED_LIBRARY
+int embedded_ssl_check(MYSQL *mysql);
+#endif
 
 /* client side of the pluggable authentication */
 struct st_plugin_vio_info;

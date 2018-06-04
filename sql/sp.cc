@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -966,8 +966,7 @@ sp_returns_type(THD *thd, String &result, sp_head *sp)
   TABLE table;
   TABLE_SHARE share;
   Field *field;
-  memset(&table, 0, sizeof(table));
-  memset(&share, 0, sizeof(share));
+
   table.in_use= thd;
   table.s = &share;
   field= sp->create_result_field(0, 0, &table);

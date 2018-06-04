@@ -230,6 +230,7 @@ rm -rf %{buildroot}%{_datadir}/mysql/java/
 # Remove files pages we explicitly do not want to package
 rm -rf %{buildroot}%{_infodir}/mysql.info*
 rm -f %{buildroot}%{_datadir}/mysql/win_install_firewall.sql
+rm -f %{buildroot}%{_datadir}/mysql/upgrade_firewall.sql
 rm -f %{buildroot}%{_datadir}/mysql/audit_log_filter_win_install.sql
 
 %check

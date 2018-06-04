@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -609,6 +609,12 @@ process_member_state(Xcom_member_state *ms_info,
         << m_configuration_id.node << ")."
       )
     );
+    /*
+     * ms_info will leak if we don't delete it here.
+     * If this branch is not taken, m_member_states takes ownership of the
+     * pointer below.
+     */
+    delete ms_info;
     return false;
   }
 

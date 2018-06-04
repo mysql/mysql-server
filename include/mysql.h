@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -166,7 +166,8 @@ enum mysql_option
   MYSQL_OPT_SSL_ENFORCE,
   MYSQL_OPT_MAX_ALLOWED_PACKET, MYSQL_OPT_NET_BUFFER_LENGTH,
   MYSQL_OPT_TLS_VERSION,
-  MYSQL_OPT_SSL_MODE
+  MYSQL_OPT_SSL_MODE,
+  MYSQL_OPT_GET_SERVER_PUBLIC_KEY
 #ifndef MCP_BUG22389653
 /*
   The option value 'MYSQL_OPT_RETRY_COUNT' is added to allow
