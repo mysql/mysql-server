@@ -483,7 +483,6 @@ bool dict_sdi_delete(const dd::Tablespace &tablespace, const dd::Table *table,
                         << " is interrupted";);
     return (true);
   } else if (err != DB_SUCCESS) {
-    ut_ad(0);
     dict_sdi_report_error(operation, table, tablespace);
     return (true);
   } else {
