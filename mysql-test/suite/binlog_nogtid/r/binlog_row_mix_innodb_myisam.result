@@ -227,6 +227,8 @@ a
 select (@before:=unix_timestamp())*0;
 (@before:=unix_timestamp())*0
 0
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 begin;
 select * from t1 for update;
 insert into t2 values (20);
@@ -234,6 +236,8 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select (@after:=unix_timestamp())*0;
 (@after:=unix_timestamp())*0
 0
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select (@after-@before) >= 2;
 (@after-@before) >= 2
 1

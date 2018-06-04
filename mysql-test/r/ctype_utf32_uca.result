@@ -2788,6 +2788,9 @@ ii	8	ii	8	II	8
 İI	8	ii	8	İI	8
 İİ	8	ii	8	İİ	8
 II	8	ii	8	II	8
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 ALTER TABLE t1 MODIFY a VARCHAR(30) character set utf32 collate utf32_turkish_ci;
 SELECT a, length(a) la, @l:=lower(a) l, length(@l) ll, @u:=upper(a) u, length(@u) lu
 FROM t1 ORDER BY id;
@@ -2798,6 +2801,9 @@ ii	8	ii	8	İİ	8
 İI	8	iı	8	İI	8
 İİ	8	ii	8	İİ	8
 II	8	ıı	8	II	8
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 DROP TABLE t1;
 CREATE TABLE t1 (
 c1 text character set utf32 collate utf32_polish_ci NOT NULL

@@ -51,8 +51,13 @@ hex(c2)	hex(c3)	c1
 SELECT @the_epoch:=MAX(epoch) FROM mysql.ndb_apply_status;
 @the_epoch:=MAX(epoch)
 <the_epoch>
+Warnings:
+<the_epoch>	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 @the_pos:=Position	@the_file:=SUBSTRING_INDEX(REPLACE(FILE,'\\','/'), '/', -1)
 <the_pos>	master-bin.000001
+Warnings:
+<the_pos>	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+<the_pos>	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 CHANGE MASTER TO
 master_log_file = 'master-bin.000001',
 master_log_pos = <the_pos> ;

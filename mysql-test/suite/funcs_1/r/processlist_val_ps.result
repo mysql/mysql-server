@@ -54,6 +54,8 @@ WHERE ID = @default_id;
 @my_info := INFO
 SELECT @my_info := INFO FROM INFORMATION_SCHEMA.PROCESSLIST
 WHERE ID = @default_id
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 SELECT @my_info = 'SELECT @my_info := INFO FROM INFORMATION_SCHEMA.PROCESSLIST
 WHERE ID = @default_id'
     AS 'Is the content of PROCESSLIST.INFO correct?';

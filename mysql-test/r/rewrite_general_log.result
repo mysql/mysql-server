@@ -148,6 +148,10 @@ EXPLAIN SELECT @a=5,@b:=10,@c:=20,@d:=40+5,(@e:=80)+5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 Note	1003	/* select#1 */ select ((@`a`) = 5) AS `@a=5`,(@b:=10) AS `@b:=10`,(@c:=20) AS `@c:=20`,(@d:=(40 + 5)) AS `@d:=40+5`,((@e:=80) + 5) AS `(@e:=80)+5`
 
 End of 5.6 tests!

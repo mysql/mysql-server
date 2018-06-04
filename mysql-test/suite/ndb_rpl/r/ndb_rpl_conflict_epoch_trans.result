@@ -1035,6 +1035,8 @@ select @primary_ok:=
 @epoch_trans2_same_epoch) XOR
 @epoch_trans2_diff_epoch)
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 EPOCH_TRANS has stable results independent of
 epoch boundaries: 
 select * from test.t1 order by a;
@@ -1068,6 +1070,8 @@ select @secondary_ok:=
 @epoch_trans2_same_epoch) XOR
 @epoch_trans2_diff_epoch)
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 EPOCH_TRANS has stable results independent of
 epoch boundaries: 
 select * from test.t1 order by a;
@@ -1187,6 +1191,8 @@ select @primary_ok:=
 @epoch_trans_diff_epoch) XOR
 @epoch2_trans)
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 Restart SECONDARY Slave
 START SLAVE;
 Sync PRIMARY -> SECONDARY
@@ -1200,6 +1206,8 @@ select @secondary_ok:=
 @epoch_trans_diff_epoch) XOR
 @epoch2_trans)
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 STABILISE
 drop table mysql.ndb_replication;
 drop table test.t1;

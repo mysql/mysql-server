@@ -85,6 +85,8 @@ s1	s2	s3
 42	0	4
 SET @l=1;
 UPDATE t1 SET name=CONCAT(name, @l:=@l+1);
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 SELECT SUM(DISTINCT RIGHT(name, 1)) FROM t1;
 SUM(DISTINCT RIGHT(name, 1))
 45

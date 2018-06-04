@@ -1688,10 +1688,14 @@ insert into t1(f1) values(1);
 select @a:=f2 from t1;
 @a:=f2
 #
+Warnings:
+#	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 update t1 set f1=1;
 select @b:=f2 from t1;
 @b:=f2
 #
+Warnings:
+#	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select if(@a=@b,"ok","wrong");
 if(@a=@b,"ok","wrong")
 ok
@@ -1699,6 +1703,8 @@ insert into t1(f1) values (1) on duplicate key update f1="1";
 select @b:=f2 from t1;
 @b:=f2
 #
+Warnings:
+#	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select if(@a=@b,"ok","wrong");
 if(@a=@b,"ok","wrong")
 ok
@@ -1706,6 +1712,8 @@ insert into t1(f1) select f1 from t1 on duplicate key update f1="1";
 select @b:=f2 from t1;
 @b:=f2
 #
+Warnings:
+#	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select if(@a=@b,"ok","wrong");
 if(@a=@b,"ok","wrong")
 ok
@@ -1985,6 +1993,8 @@ create table t1(a int);
 insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t2 (a int, b int, pk int, key(a,b), primary key(pk)) engine=innodb;
 insert into t2 select @a:=A.a+10*(B.a + 10*C.a),@a, @a from t1 A, t1 B, t1 C;
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 # this must use key 'a', not PRIMARY:
 explain select a from t2 where a=b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra

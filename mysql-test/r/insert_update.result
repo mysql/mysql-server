@@ -407,10 +407,14 @@ insert into t1(f1) values(1);
 select @stamp1:=f2 from t1;
 @stamp1:=f2
 #
+Warnings:
+#	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 insert into t1(f1) values(1) on duplicate key update f1=1;
 select @stamp2:=f2 from t1;
 @stamp2:=f2
 #
+Warnings:
+#	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select if( @stamp1 = @stamp2, "correct", "wrong");
 if( @stamp1 = @stamp2, "correct", "wrong")
 correct

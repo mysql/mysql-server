@@ -10316,6 +10316,9 @@ variable:
 variable_aux:
           ident_or_text SET_VAR expr
           {
+            push_warning(YYTHD, Sql_condition::SL_WARNING,
+                         ER_WARN_DEPRECATED_SYNTAX,
+                         ER_THD(YYTHD, ER_WARN_DEPRECATED_USER_SET_EXPR));
             $$= NEW_PTN PTI_variable_aux_set_var(@$, $1, $3);
           }
         | ident_or_text

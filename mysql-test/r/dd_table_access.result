@@ -356,6 +356,8 @@ WHERE database_name= 'mysql' AND table_name= 't' AND
 index_name= 'PRIMARY' AND stat_name= 'size';
 @old_description:= stat_description
 Number of pages in the index
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 UPDATE mysql.innodb_index_stats SET stat_description= 'Updated'
     WHERE database_name= 'mysql' AND table_name= 't' AND
 index_name= 'PRIMARY' AND stat_name= 'size';

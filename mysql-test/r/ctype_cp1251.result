@@ -387,6 +387,8 @@ FE	FE	FE	D18E	FE
 FF	FF	FF	D18F	FF	
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 DROP TABLE t1;
 set global LC_TIME_NAMES=convert((-8388608) using cp1251);
 ERROR HY000: Unknown locale: '-8388608'
@@ -1206,7 +1208,12 @@ drop table t1;
 select hex(concat(@a1:=1));
 hex(concat(@a1:=1))
 31
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 create table t1 as select concat(@a2:=2) as c1, @a3:=3 as c2;
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select hex(c1) from t1;
 hex(c1)
 32
@@ -1235,7 +1242,12 @@ drop table t1;
 select hex(concat(@a1:=sqrt(1)));
 hex(concat(@a1:=sqrt(1)))
 31
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 create table t1 as select concat(@a2:=sqrt(1)) as c1, @a3:=sqrt(1) as c2;
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select hex(c1) from t1;
 hex(c1)
 31
@@ -1264,7 +1276,12 @@ drop table t1;
 select hex(concat(@a1:=1.1));
 hex(concat(@a1:=1.1))
 312E31
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 create table t1 as select concat(@a2:=1.1) as c1, @a3:=1.1 as c2;
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select hex(c1) from t1;
 hex(c1)
 312E31

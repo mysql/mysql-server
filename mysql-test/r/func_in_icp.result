@@ -343,6 +343,9 @@ select @str:=concat(@str, @cnt:=@cnt+1, ",")
 from t1 A, t1 B, t1 C, t1 D) Z;
 count(*)
 10000
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 set @str:=concat(@str, "10000)");
 select substr(@str, 1, 50);
 substr(@str, 1, 50)

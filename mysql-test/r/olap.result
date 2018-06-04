@@ -1998,6 +1998,8 @@ NULL
 1
 1
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 SELECT a + COUNT(*) OVER () FROM t GROUP BY a WITH ROLLUP;
 a + COUNT(*) OVER ()
 5

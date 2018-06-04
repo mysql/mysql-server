@@ -8,6 +8,8 @@ select
 is not null AS Loaded;
 Loaded
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select 1 /* must return 1 as query completed before got killed*/;
 1
 1
@@ -26,6 +28,8 @@ select
 is not null AS Loaded;
 Loaded
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select 0 /* must return 0 to mean the killed query is in */;
 0
 0

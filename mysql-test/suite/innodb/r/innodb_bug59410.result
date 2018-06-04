@@ -14,4 +14,6 @@ start transaction;
 set @a=(select b from bug59410_2 where
 (select 1 from bug59410_2 where a group by @a=b)
 group by @a:=b);
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 drop table bug59410_2;

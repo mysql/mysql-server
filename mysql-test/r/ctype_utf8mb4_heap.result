@@ -123,6 +123,8 @@ aa	b
 select char_length(left(@a:='тест',5)), length(@a), @a;
 char_length(left(@a:='тест',5))	length(@a)	@a
 4	8	тест
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 create table t1 ENGINE heap select date_format("2004-01-19 10:10:10", "%Y-%m-%d");
 show create table t1;
 Table	Create Table

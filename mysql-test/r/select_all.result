@@ -5055,6 +5055,8 @@ DROP FUNCTION f1;
 SELECT @old_optimizer_switch:=@@optimizer_switch;
 @old_optimizer_switch:=@@optimizer_switch
 #
+Warnings:
+#	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 CREATE TABLE t1 (
 pk int(11) NOT NULL,
 i int(11) DEFAULT NULL,

@@ -63,6 +63,8 @@ SET DEBUG_SYNC= "now WAIT_FOR opening";
 SELECT ((@id := id) - id) FROM t2;
 ((@id := id) - id)
 0
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 KILL @id;
 SET DEBUG_SYNC= "now SIGNAL killed";
 DROP TABLE t1, t2;

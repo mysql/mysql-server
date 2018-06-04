@@ -9,6 +9,8 @@ update t1 set b=0 where a=2;
 commit;
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select * from t1 order by a;
 a	b
 0	0
@@ -24,6 +26,8 @@ insert into t2 values (10,10);
 commit;
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select * from t1 order by a;
 a	b
 0	0
@@ -40,6 +44,8 @@ insert into t2 values (11,11);
 commit;
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 3
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select * from t1 order by a;
 a	b
 0	0

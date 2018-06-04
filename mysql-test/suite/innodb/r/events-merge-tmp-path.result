@@ -11,9 +11,16 @@ insert into t1 values
 , (@id:=@id+1,md5(rand()*1000000),md5(rand()*1000000),md5(rand()*1000000),md5(rand()*1000000))
 , (@id:=@id+1,md5(rand()*1000000),md5(rand()*1000000),md5(rand()*1000000),md5(rand()*1000000))
 , (@id:=@id+1,md5(rand()*1000000),md5(rand()*1000000),md5(rand()*1000000),md5(rand()*1000000));
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 insert into `t1`(`id`,`name1`,`name2`,`name3`,`name4`)
 select  @id:=@id+1,md5(rand()*1000000),md5(rand()*1000000),md5(rand()*1000000),md5(rand()*1000000)  from
 `t1` k1, `t1` k2, `t1` k3, `t1` k4,`t1` k5,`t1` k6,`t1` k7,`t1` k8,`t1` k9;
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 create index i_dtyp_big on `t1`(name1) algorithm=inplace;;
 select distinct object_name from performance_schema.events_waits_history_long where event_name like '%wait%io%file%innodb%innodb_temp_file%';
 object_name

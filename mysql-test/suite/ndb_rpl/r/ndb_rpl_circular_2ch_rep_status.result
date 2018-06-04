@@ -137,6 +137,8 @@ variable_name='Ndb_slave_max_replicated_epoch'
 variable_value = epoch;
 @result:=count(1)
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 Now make a new Cluster A change and see that the Max Replicated Epoch advances
 once it has propagated
 Master1 (3)

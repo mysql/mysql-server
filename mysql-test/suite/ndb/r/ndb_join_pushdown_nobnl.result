@@ -2424,6 +2424,8 @@ a	b	a	b
 3	1	1	2
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 3
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 This should yield 3 executes (for now...buh)
 set autocommit=on;
 drop table t1;
@@ -2453,6 +2455,8 @@ a	b	a	b
 3	1	1	2
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 This should yield 1 execute (but inefficient since it's based on scan)
 set autocommit=on;
 explain

@@ -47,6 +47,8 @@ t1.libname) > 1;
 isbn	city	@bar:=t1.libname	a
 007	Berkeley	Berkeley Public1	2
 000	New York	New York Public Libra	2
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 SELECT @bar;
 @bar
 Berkeley Public2
@@ -57,6 +59,8 @@ t1.libname) > 1;
 isbn	city	concat(@bar:=t1.libname)	a
 007	Berkeley	Berkeley Public1	2
 000	New York	New York Public Libra	2
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 SELECT @bar;
 @bar
 Berkeley Public2

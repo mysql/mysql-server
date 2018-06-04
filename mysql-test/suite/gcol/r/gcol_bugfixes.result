@@ -618,7 +618,11 @@ c	a
 2001-01-01 00:00:00	2001-01-01 00:00:00
 UPDATE t SET b='xyz';
 DO (SELECT @c1:= c FROM t);
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 DO (SELECT (@c2:= c) - a FROM t);
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 SELECT @c2 - @c1;
 @c2 - @c1
 0

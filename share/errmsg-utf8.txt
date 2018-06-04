@@ -8660,6 +8660,11 @@ ER_GTID_UNSAFE_ALTER_ADD_COL_WITH_DEFAULT_EXPRESSION
 ER_FK_CANNOT_CHANGE_ENGINE
   eng "Cannot change table's storage engine because the table participates in a foreign key constraint."
 
+# When using this error message, use the ER_WARN_DEPRECATED_SYNTAX error
+# code.
+ER_WARN_DEPRECATED_USER_SET_EXPR
+  eng "Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead."
+
 #
 #  End of 8.0 error messages.
 #

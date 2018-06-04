@@ -952,6 +952,8 @@ drop table t1;
 create table t1 (a int);
 insert into t1 values (1);
 do @a:=(SELECT a from t1);
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select @a;
 @a
 1
@@ -2344,6 +2346,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`c` = 2)
 do @a:= (select sum(a) from t1 where b > @b);
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 explain select a from t1 where c=2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
@@ -7134,12 +7138,15 @@ sq4_alias1.col_varchar_key = @var3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 Note	1003	/* select#1 */ select (@var3:=12) AS `@var3:=12`,NULL AS `pk`,NULL AS `col_int_nokey`,NULL AS `col_int_key`,NULL AS `col_time_key`,NULL AS `col_varchar_key`,NULL AS `col_varchar_nokey` from `test`.`t1` `sq4_alias1` where (isnull((NULL + NULL)) or (NULL = (@`var3`)))
 SELECT @var3:=12, sq4_alias1.*
 FROM t1 AS sq4_alias1
 WHERE (sq4_alias1.col_varchar_key + NULL) IS NULL OR
 sq4_alias1.col_varchar_key = @var3;
 @var3:=12	pk	col_int_nokey	col_int_key	col_time_key	col_varchar_key	col_varchar_nokey
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 SELECT @var3;
 @var3
 8
@@ -7151,12 +7158,15 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 Note	1003	/* select#1 */ select NULL AS `@var3:=12`,NULL AS `pk`,NULL AS `col_int_nokey`,NULL AS `col_int_key`,NULL AS `col_time_key`,NULL AS `col_varchar_key`,NULL AS `col_varchar_nokey` from (/* select#2 */ select (@var3:=12) AS `@var3:=12`,NULL AS `pk`,NULL AS `col_int_nokey`,NULL AS `col_int_key`,NULL AS `col_time_key`,NULL AS `col_varchar_key`,NULL AS `col_varchar_nokey` from `test`.`t1` `sq4_alias1` where (isnull((NULL + NULL)) or (NULL = (@`var3`)))) `alias3`
 SELECT * FROM ( SELECT @var3:=12, sq4_alias1.*
 FROM t1 AS sq4_alias1
 WHERE (sq4_alias1.col_varchar_key + NULL) IS NULL OR
 sq4_alias1.col_varchar_key = @var3 ) AS alias3;
 @var3:=12	pk	col_int_nokey	col_int_key	col_time_key	col_varchar_key	col_varchar_nokey
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 SELECT @var3;
 @var3
 8

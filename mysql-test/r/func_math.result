@@ -712,6 +712,10 @@ SELECT ((@a:=@b:=1.0) div (@b:=@a:=get_format(datetime, 'usa')));
 ((@a:=@b:=1.0) div (@b:=@a:=get_format(datetime, 'usa')))
 NULL
 Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 Warning	1366	Incorrect DECIMAL value: '0' for column '' at row -1
 Warning	1365	Division by 0
 #

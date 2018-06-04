@@ -1029,6 +1029,8 @@ DB7FDCFF	F3AFB3BF	DB7FDCFF
 00FF	C3BF	00FF
 E000	EE8080	E000
 FFFF	EFBFBF	FFFF
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 drop table t1;
 set collation_connection=utf16_general_ci;
 drop table if exists t1;

@@ -336,6 +336,8 @@ execute stmt1 ;
 @@version
 <version>
 prepare stmt_do from ' do @var:=  (1 in (select a from t1)) ' ;
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 prepare stmt_set from ' set @var= (1 in (select a from t1)) ' ;
 execute stmt_do ;
 content of @var is:
@@ -358,6 +360,8 @@ content of @var is:
 drop table if exists t5 ;
 create table t5 (a int) ;
 prepare stmt_do from ' do @var:=  (1 in (select a from t5)) ' ;
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 prepare stmt_set from ' set @var= (1 in (select a from t5)) ' ;
 execute stmt_do ;
 content of @var is:

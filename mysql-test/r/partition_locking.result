@@ -4503,6 +4503,8 @@ DO (SELECT a FROM t1);
 ERROR 21000: Subquery returns more than 1 row
 FLUSH STATUS;
 DO (SELECT @x:= b FROM t1 WHERE a = 5);
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	1
 Handler_external_lock	2
@@ -4514,6 +4516,8 @@ SELECT @x;
 Five
 FLUSH STATUS;
 DO (SELECT @x:= b FROM t1 WHERE a = 5 or a = 1 ORDER BY b LIMIT 1);
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	1
 Handler_external_lock	2
@@ -4541,6 +4545,8 @@ SELECT @x;
 5
 FLUSH STATUS;
 SET @y = (SELECT @x:= b FROM t1 WHERE a = 5);
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	1
 Handler_external_lock	2
@@ -4552,6 +4558,8 @@ SELECT @x, @y;
 Five	Five
 FLUSH STATUS;
 SET @y = (SELECT @x:= b FROM t1 WHERE a = 5 or a = 1 ORDER BY b LIMIT 1);
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	1
 Handler_external_lock	2

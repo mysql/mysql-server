@@ -21,6 +21,8 @@ FLUSH TABLES WITH READ LOCK;
 SELECT ((@id := kill_id) - kill_id) FROM t1 LIMIT 1;
 ((@id := kill_id) - kill_id)
 0
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 # Wait till FLUSH TABLES WITH READ LOCK blocks due
 # to active COMMIT
 # Kill connection 'con1'.

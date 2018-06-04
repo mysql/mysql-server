@@ -1040,6 +1040,8 @@ select @primary_ok:=
 @epoch_trans2_same_epoch) XOR
 @epoch_trans2_diff_epoch)
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 EPOCH2_TRANS results are dependent on epoch boundaries
 Now sync with Secondary to show outcomes
 start slave;
@@ -1054,6 +1056,8 @@ select @secondary_ok:=
 @epoch_trans2_same_epoch) XOR
 @epoch_trans2_diff_epoch)
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 EPOCH2_TRANS results are dependent on epoch boundaries
 PRIMARY
 Cleanup
@@ -1161,6 +1165,8 @@ select @primary_ok:=
 @epoch_trans_diff_epoch) XOR
 @epoch2_trans)
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select * from test.t1 order by a;
 a	b
 6	Pentland
@@ -1177,6 +1183,8 @@ select @secondary_ok:=
 @epoch_trans_diff_epoch) XOR
 @epoch2_trans)
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select * from test.t1 order by a;
 a	b
 6	Pentland
@@ -2233,6 +2241,8 @@ select @primary_ok:=
 @epoch_trans2_same_epoch) XOR
 @epoch_trans2_diff_epoch)
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 EPOCH2_TRANS results are dependent on epoch boundaries
 Now sync with Secondary to show outcomes
 start slave;
@@ -2247,6 +2257,8 @@ select @secondary_ok:=
 @epoch_trans2_same_epoch) XOR
 @epoch_trans2_diff_epoch)
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 EPOCH2_TRANS results are dependent on epoch boundaries
 PRIMARY
 Cleanup
@@ -2354,6 +2366,8 @@ select @primary_ok:=
 @epoch_trans_diff_epoch) XOR
 @epoch2_trans)
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select * from test.t1 order by a;
 a	b
 6	Pentland
@@ -2370,6 +2384,8 @@ select @secondary_ok:=
 @epoch_trans_diff_epoch) XOR
 @epoch2_trans)
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select * from test.t1 order by a;
 a	b
 6	Pentland

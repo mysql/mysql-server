@@ -575,6 +575,8 @@ filler1 char(200), filler2 char(200),
 key(a),key(b)
 );
 insert into t1 select @v:= A.a, @v, 't1', 'filler2' from t0 A, t0 B, t0 C;
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 create table t2 like t1;
 create table t3 (
 a int, b int,

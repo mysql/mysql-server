@@ -756,6 +756,8 @@ create table mt1 (a int not null, b int not null, key (a));
 insert into mt1 values (1,1),(1,2),(1,3),(3,1),(3,2),(3,3),(3,1),(3,2),(3,3),(2,1),(2,2),(2,3);
 SET @tmp=0;
 update mt1 set b=(@tmp:=@tmp+1) order by a;
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 update mt1 set b=99 where a=1 order by b asc limit 1;
 select * from mt1 order by a,b;
 a	b

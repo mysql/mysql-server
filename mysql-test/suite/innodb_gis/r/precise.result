@@ -227,6 +227,8 @@ SET g=ST_GeomFromText(geom);
 SELECT geom AS `-----`;
 SELECT dist, ST_GeometryType(@buf:=ST_Buffer(g, dist)) AS `buffer`, ROUND(ST_AREA(@buf),2) AS buf_area;
 END|
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 #
 # Testing ST_BUFFER with positive distance
 #

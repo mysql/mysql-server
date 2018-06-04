@@ -19,6 +19,8 @@ info: Rows matched: 1  Changed: 1  Warnings: 0
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 2
 affected rows: 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select * from t1 where a = 1 order by a;
 a	b	c
 1	20	111
@@ -35,6 +37,8 @@ affected rows: 1
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 1
 affected rows: 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select * from t1 where a = 1 order by a;
 a	b	c
 affected rows: 0
@@ -51,6 +55,8 @@ info: Rows matched: 1  Changed: 1  Warnings: 0
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 1
 affected rows: 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select * from t1 where b = 2 order by a;
 a	b	c
 9	2	1111
@@ -68,6 +74,8 @@ info: Rows matched: 1  Changed: 1  Warnings: 0
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 2
 affected rows: 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select * from t1 where b = 2 order by a;
 a	b	c
 affected rows: 0
@@ -83,6 +91,8 @@ affected rows: 1
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 1
 affected rows: 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select * from t1 where b = 19 order by a;
 a	b	c
 affected rows: 0
@@ -99,6 +109,8 @@ info: Rows matched: 1  Changed: 1  Warnings: 0
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 3
 affected rows: 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select * from t1 order by a;
 a	b	c
 2	9	1
@@ -123,6 +135,8 @@ info: Rows matched: 2  Changed: 2  Warnings: 0
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 1
 affected rows: 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select * from t1 order by a;
 a	b	c
 2	9	1
@@ -147,6 +161,8 @@ info: Rows matched: 3  Changed: 3  Warnings: 0
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 4
 affected rows: 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select * from t1 order by a;
 a	b	c
 2	9	1
@@ -189,6 +205,8 @@ info: Rows matched: 1  Changed: 1  Warnings: 0
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 4
 affected rows: 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select * from t1 where a = 13 order by a;
 a	b	c
 13	20	11
@@ -208,6 +226,8 @@ info: Rows matched: 1  Changed: 1  Warnings: 0
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 4
 affected rows: 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select * from t1 where b = 19 order by a;
 a	b	c
 12	19	11
@@ -228,6 +248,8 @@ info: Rows matched: 1  Changed: 1  Warnings: 0
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 2
 affected rows: 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select * from t1 where b = 19 order by a;
 a	b	c
 12	19	11
@@ -244,6 +266,8 @@ affected rows: 0
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 2
 affected rows: 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select * from t1 where b = 6 order by a;
 a	b	c
 affected rows: 0
@@ -270,6 +294,8 @@ info: Rows matched: 1  Changed: 1  Warnings: 0
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 1
 affected rows: 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 
 # expected result 1 roundtrip
 # 0 - info call
@@ -284,6 +310,8 @@ info: Rows matched: 0  Changed: 0  Warnings: 0
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 1
 affected rows: 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 
 # expected result 1 roundtrip
 # 0 - info call
@@ -301,6 +329,8 @@ Warning	1265	Data truncated for column 'b' at row 1
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 1
 affected rows: 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 
 # expected result 1 roundtrip
 # 0 - info call
@@ -318,6 +348,8 @@ Warning	1265	Data truncated for column 'b' at row 1
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 1
 affected rows: 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 
 # expected result 2 roundtrips
 # 0 - info call
@@ -336,6 +368,8 @@ affected rows: 0
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 2
 affected rows: 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 
 # expected result 2 roundtrips
 # 0 - info call
@@ -354,6 +388,8 @@ affected rows: 0
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 2
 affected rows: 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 
 # expected result 2 roundtrips
 # 0 - info call
@@ -375,6 +411,8 @@ affected rows: 0
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 2
 affected rows: 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 
 # expected result 2 roundtrips
 # 0 - info call
@@ -396,6 +434,8 @@ affected rows: 0
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 2
 affected rows: 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 drop table t1;
 create table t1
 (a int not null primary key auto_increment, b int, c varchar(256))
@@ -447,6 +487,8 @@ affected rows: 1
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 9
 affected rows: 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 set autocommit=on;
 affected rows: 0
 update t1 set c = 'kalle' where a in (...)
@@ -455,26 +497,36 @@ info: Rows matched: 1000  Changed: 1000  Warnings: 0
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 9
 affected rows: 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 delete from t1 where a in (...)
 affected rows: 1000
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 3
 affected rows: 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 delete from t1 where a in (...)
 affected rows: 0
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 3
 affected rows: 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 update t1 set c = 'kalle' where a in (...)
 affected rows: 0
 info: Rows matched: 0  Changed: 0  Warnings: 0
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 9
 affected rows: 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 update t1 set c = 'kalle' where a in (...)
 affected rows: 0
 info: Rows matched: 0  Changed: 0  Warnings: 0
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
 9
 affected rows: 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 drop table t1;

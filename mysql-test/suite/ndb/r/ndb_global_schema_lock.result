@@ -1,39 +1,61 @@
 CREATE DATABASE test2;
 @ndb_schema_locks_count:=VARIABLE_VALUE-@ndb_init_schema_locks_count
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 ALTER DATABASE test2 CHARACTER SET latin2;
 @ndb_schema_locks_count:=VARIABLE_VALUE-@ndb_init_schema_locks_count
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 DROP DATABASE test2;
 @ndb_schema_locks_count:=VARIABLE_VALUE-@ndb_init_schema_locks_count
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 CREATE TABLE t1(a int not null primary key) ENGINE ndb;
 @ndb_schema_locks_count:=VARIABLE_VALUE-@ndb_init_schema_locks_count
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 RENAME TABLE t1 TO t2;
 @ndb_schema_locks_count:=VARIABLE_VALUE-@ndb_init_schema_locks_count
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 CREATE TABLE t3 LIKE t2;
 @ndb_schema_locks_count:=VARIABLE_VALUE-@ndb_init_schema_locks_count
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 ALTER TABLE t3 ADD COLUMN b int default NULL;
 Warnings:
 Warning	1478	Converted FIXED field 'b' to DYNAMIC to enable online ADD COLUMN
 @ndb_schema_locks_count:=VARIABLE_VALUE-@ndb_init_schema_locks_count
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 INSERT INTO t2 VALUES(1);
 TRUNCATE TABLE t2;
 @ndb_schema_locks_count:=VARIABLE_VALUE-@ndb_init_schema_locks_count
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 CREATE TABLE t4 ENGINE=NDB AS SELECT * FROM t2;
 @ndb_schema_locks_count:=VARIABLE_VALUE-@ndb_init_schema_locks_count
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 DROP TABLE t2;
 @ndb_schema_locks_count:=VARIABLE_VALUE-@ndb_init_schema_locks_count
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 DROP TABLE t3, t4;
 @ndb_schema_locks_count:=VARIABLE_VALUE-@ndb_init_schema_locks_count
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 CREATE TABLE t10(a int primary key) ENGINE ndb;
 LOCK TABLES t10 READ;
 CREATE DATABASE test2;
@@ -77,9 +99,13 @@ Warnings:
 Warning	1478	Converted FIXED field 'b' to DYNAMIC to enable online ADD COLUMN
 @ndb_schema_locks_count:=VARIABLE_VALUE-@ndb_init_schema_locks_count
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 TRUNCATE TABLE t10;
 @ndb_schema_locks_count:=VARIABLE_VALUE-@ndb_init_schema_locks_count
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 CREATE TABLE t4 AS SELECT * FROM t10;
 ERROR HY000: Table 't4' was not locked with LOCK TABLES
 RENAME TABLE t10 TO t110;

@@ -14,6 +14,8 @@ a char(8) not null, b char(8) not null, filler char(200),
 key(a)
 );
 insert into t3 select @a:=concat('c-', 1000+ A.a, '=w'), @a, 'filler' from t2 A;
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 insert into t3 select concat('c-', 1000+A.a, '=w'), concat('c-', 2000+A.a, '=w'), 
 'filler-1' from t2 A;
 insert into t3 select concat('c-', 1000+A.a, '=w'), concat('c-', 3000+A.a, '=w'), 
