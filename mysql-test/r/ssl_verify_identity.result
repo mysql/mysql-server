@@ -1,0 +1,17 @@
+### Trying to connect without ssl. This should establish an unencrypted connection.
+Variable_name	Value
+Ssl_cipher	
+### Trying to connect with ssl-mode as REQUIRED. This should establish an encrypted connection.
+Variable_name	Value
+Ssl_cipher	SSL_CIPHER
+### Trying to connect with ssl-verify-server-cert option. This should establish an encrypted connection.
+Variable_name	Value
+Ssl_cipher	SSL_CIPHER
+### Trying to connect with ssl-verify-server-cert option and hostname as nonexistent. This should fail.
+#Search for the error in the file
+### Trying to connect with ssl-verify-server-cert option and hostname as localhost. This should establish an encrypted connection as localhost is present in Alternative Subject Name in the certificate.
+Variable_name	Value
+Ssl_cipher	SSL_CIPHER
+### Trying to connect with ssl-verify-server-cert option and hostname as 127.0.0.1. This should establish an encrypted connection as localhost is present in Alternative Subject Name in the certificate.
+Variable_name	Value
+Ssl_cipher	SSL_CIPHER

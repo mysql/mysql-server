@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -7869,6 +7869,9 @@ static bool make_join_select(JOIN *join, Item *cond)
               sel->cond->quick_fix_field();
 
             key_map usable_keys= tab->keys;
+            if (tab->table->force_index)
+              usable_keys.intersect(tab->table->keys_in_use_for_order_by);
+
             ORDER::enum_order interesting_order= ORDER::ORDER_NOT_RELEVANT;
 
             if (recheck_reason == LOW_LIMIT)

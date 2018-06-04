@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1693,6 +1693,10 @@ static bool sql_slave_killed(THD* thd, Relay_log_info* rli)
   DBUG_ASSERT(rli->slave_running == 1);
   if (rli->sql_thread_kill_accepted)
     DBUG_RETURN(true);
+  DBUG_EXECUTE_IF("stop_when_mts_in_group", rli->abort_slave = 1;
+                  DBUG_SET("-d,stop_when_mts_in_group");
+                  DBUG_SET("-d,simulate_stop_when_mts_in_group");
+                  DBUG_RETURN(false););
   if (abort_loop || thd->killed || rli->abort_slave)
   {
     rli->sql_thread_kill_accepted= true;
@@ -3932,6 +3936,10 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
       DBUG_RETURN(SLAVE_APPLY_EVENT_AND_UPDATE_POS_OK);
 
     exec_res= ev->apply_event(rli);
+    DBUG_EXECUTE_IF("simulate_stop_when_mts_in_group",
+                    if (rli->mts_group_status == Relay_log_info::MTS_IN_GROUP
+                        && rli->curr_group_seen_begin)
+		    DBUG_SET("+d,stop_when_mts_in_group"););
 
     if (!exec_res && (ev->worker != rli))
     {
@@ -6102,6 +6110,7 @@ pthread_handler_t handle_slave_sql(void *arg)
 
   Relay_log_info* rli = ((Master_info*)arg)->rli;
   const char *errmsg;
+  const char *error_string;
   bool mts_inited= false;
 
   // needs to call my_thread_init(), otherwise we get a coredump in DBUG_ stuff
@@ -6112,6 +6121,7 @@ pthread_handler_t handle_slave_sql(void *arg)
   mysql_mutex_lock(&rli->run_lock);
   DBUG_ASSERT(!rli->slave_running);
   errmsg= 0;
+  error_string= 0;
 #ifndef DBUG_OFF
   rli->events_until_exit = abort_slave_event_count;
 #endif
@@ -6382,31 +6392,31 @@ log '%s' at position %s, relay log '%s' position: %s", rli->get_rpl_log_name(),
           sql_print_warning("Slave: %s Error_code: %d", err->get_message_text(), err->get_sql_errno());
         }
         if (udf_error)
-          sql_print_error("Error loading user-defined library, slave SQL "
-            "thread aborted. Install the missing library, and restart the "
-            "slave SQL thread with \"SLAVE START\". We stopped at log '%s' "
-            "position %s", rli->get_rpl_log_name(),
-            llstr(rli->get_group_master_log_pos(), llbuff));
+          error_string= "Error loading user-defined library, slave SQL "
+            "thread aborted. Install the missing library, and restart the"
+            " slave SQL thread with \"SLAVE START\".";
         else
-          sql_print_error("\
-Error running query, slave SQL thread aborted. Fix the problem, and restart \
-the slave SQL thread with \"SLAVE START\". We stopped at log \
-'%s' position %s", rli->get_rpl_log_name(),
-llstr(rli->get_group_master_log_pos(), llbuff));
+          error_string= "Error running query, slave SQL thread aborted."
+            " Fix the problem, and restart the slave SQL thread with "
+            "\"SLAVE START\".";
       }
       goto err;
     }
   }
 
-  /* Thread stopped. Print the current replication position to the log */
-  sql_print_information("Slave SQL thread exiting, replication stopped in log "
-                        "'%s' at position %s",
-                        rli->get_rpl_log_name(),
-                        llstr(rli->get_group_master_log_pos(), llbuff));
-
  err:
 
   slave_stop_workers(rli, &mts_inited); // stopping worker pool
+  /* Thread stopped. Print the current replication position to the log */
+  if (error_string)
+    sql_print_error("%s We stopped at log '%s' position %s.", error_string,
+                    rli->get_rpl_log_name(),
+                    llstr(rli->get_group_master_log_pos(), llbuff));
+  else
+    sql_print_information("Slave SQL thread exiting, replication stopped in log"
+                          " '%s' at position %s",
+                          rli->get_rpl_log_name(),
+                          llstr(rli->get_group_master_log_pos(), llbuff));
   rli->clear_mts_recovery_groups();
 
   /*
