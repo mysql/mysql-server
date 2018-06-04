@@ -1,7 +1,7 @@
 #ifndef SQL_COMMON_INCLUDED
 #define SQL_COMMON_INCLUDED
 
-/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -96,6 +96,9 @@ void set_stmt_error(MYSQL_STMT *stmt, int errcode, const char *sqlstate,
 void set_mysql_error(MYSQL *mysql, int errcode, const char *sqlstate);
 void set_mysql_extended_error(MYSQL *mysql, int errcode, const char *sqlstate,
                               const char *format, ...);
+#ifdef EMBEDDED_LIBRARY
+int embedded_ssl_check(MYSQL *mysql);
+#endif
 
 /* client side of the pluggable authentication */
 struct st_plugin_vio_info;
