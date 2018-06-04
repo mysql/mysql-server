@@ -1919,10 +1919,13 @@ INSERT INTO t1 VALUES (4),(3),(1),(2);
 # query:  DELETE   FROM t1 WHERE (@a:= a) ORDER BY a LIMIT 1
 # select: SELECT * FROM t1 WHERE (@a:= a) ORDER BY a LIMIT 1
 #
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 EXPLAIN DELETE   FROM t1 WHERE (@a:= a) ORDER BY a LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	index	NULL	PRIMARY	4	NULL	4	100.00	Using where
 Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 Note	1003	delete from `test`.`t1` where (@a:=`test`.`t1`.`a`) order by `test`.`t1`.`a` limit 1
 FLUSH STATUS;
 FLUSH TABLES;
@@ -1951,6 +1954,7 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 Note	1003	delete from `test`.`t1` where (@a:=`test`.`t1`.`a`) order by `test`.`t1`.`a` limit 1
 FLUSH STATUS;
 FLUSH TABLES;
@@ -1992,11 +1996,16 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (@a:=`test`.`t1`.`a`) order by `test`.`t1`.`a` limit 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
 Handler_read_key	1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	1
@@ -6171,6 +6180,7 @@ EXPLAIN DELETE FROM t1 WHERE (@a:= a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 Note	1003	delete from `test`.`t1` where (@a:=`test`.`t1`.`a`)
 DROP TABLE t1;
 #56

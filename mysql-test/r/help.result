@@ -5,60 +5,82 @@ Warning	1364	Field 'url' doesn't have a default value
 select @category1_id:= 10001;
 @category1_id:= 10001
 10001
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 insert into mysql.help_category(help_category_id,name)values(10002,'impossible_category_2');
 Warnings:
 Warning	1364	Field 'url' doesn't have a default value
 select @category2_id:= 10002;
 @category2_id:= 10002
 10002
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 insert into mysql.help_category(help_category_id,name,parent_category_id)values(10003,'impossible_category_3',@category2_id);
 Warnings:
 Warning	1364	Field 'url' doesn't have a default value
 select @category3_id:= 10003;
 @category3_id:= 10003
 10003
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 insert into mysql.help_topic(help_topic_id,name,help_category_id,description,example)values(10101,'impossible_function_1',@category1_id,'description of \n impossible_function1\n','example of \n impossible_function1');
 Warnings:
 Warning	1364	Field 'url' doesn't have a default value
 select @topic1_id:= 10101;
 @topic1_id:= 10101
 10101
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 insert into mysql.help_topic(help_topic_id,name,help_category_id,description,example)values(10102,'impossible_function_2',@category1_id,'description of \n impossible_function2\n','example of \n impossible_function2');
 Warnings:
 Warning	1364	Field 'url' doesn't have a default value
 select @topic2_id:= 10102;
 @topic2_id:= 10102
 10102
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 insert into mysql.help_topic(help_topic_id,name,help_category_id,description,example)values(10103,'impossible_function_3',@category2_id,'description of \n impossible_function3\n','example of \n impossible_function3');
 Warnings:
 Warning	1364	Field 'url' doesn't have a default value
 select @topic3_id:= 10103;
 @topic3_id:= 10103
 10103
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 insert into mysql.help_topic(help_topic_id,name,help_category_id,description,example)values(10104,'impossible_function_4',@category2_id,'description of \n impossible_function4\n','example of \n impossible_function4');
 Warnings:
 Warning	1364	Field 'url' doesn't have a default value
 select @topic4_id:= 10104;
 @topic4_id:= 10104
 10104
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 insert into mysql.help_topic(help_topic_id,name,help_category_id,description,example)values(10105,'impossible_function_7',@category3_id,'description of \n impossible_function5\n','example of \n impossible_function7');
 Warnings:
 Warning	1364	Field 'url' doesn't have a default value
 select @topic5_id:= 10105;
 @topic5_id:= 10105
 10105
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 insert into mysql.help_keyword(help_keyword_id,name)values(10201,'impossible_function_1');
 select @keyword1_id:= 10201;
 @keyword1_id:= 10201
 10201
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 insert into mysql.help_keyword(help_keyword_id,name)values(10202,'impossible_function_5');
 select @keyword2_id:= 10202;
 @keyword2_id:= 10202
 10202
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 insert into mysql.help_keyword(help_keyword_id,name)values(10203,'impossible_function_6');
 select @keyword3_id:= 10203;
 @keyword3_id:= 10203
 10203
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 insert into mysql.help_relation(help_keyword_id,help_topic_id)values(@keyword1_id,@topic2_id);
 insert into mysql.help_relation(help_keyword_id,help_topic_id)values(@keyword2_id,@topic1_id);
 insert into mysql.help_relation(help_keyword_id,help_topic_id)values(@keyword3_id,@topic3_id);

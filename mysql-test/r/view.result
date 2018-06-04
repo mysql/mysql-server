@@ -2235,6 +2235,8 @@ BEGIN
 DO (SELECT  @next := IFNULL(max(bug_table_seq),0) + 1 FROM v1);
 INSERT INTO t1 VALUES (1);
 END //
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 CALL p1();
 DROP PROCEDURE p1;
 DROP VIEW v1;

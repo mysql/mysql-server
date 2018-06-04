@@ -291,6 +291,8 @@ CREATE TABLE raw_mode_exit (exit_code INT);
 SELECT ((@id := id) - id) from information_schema.processlist where processlist.command like '%Binlog%' and state like '%Master has sent%';
 ((@id := id) - id)
 0
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 kill @id;
 DROP TABLE raw_mode_exit;
 End of tests

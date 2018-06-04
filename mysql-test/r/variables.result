@@ -53,6 +53,8 @@ select @test, @`test`, @TEST, @`TEST`, @"teSt";
 select @`teST`:=5;
 @`teST`:=5
 5
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select @test, @`test`, @TEST, @`TEST`, @"teSt";
 @test	@`test`	@TEST	@`TEST`	@"teSt"
 5	5	5	5	5
@@ -79,10 +81,17 @@ NULL	NULL	NULL	NULL
 select @t1:=(@t2:=1)+@t3:=4,@t1,@t2,@t3;
 @t1:=(@t2:=1)+@t3:=4	@t1	@t2	@t3
 5	5	1	4
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 explain select @t1:=(@t2:=1)+@t3:=4,@t1,@t2,@t3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 Note	1003	/* select#1 */ select (@t1:=((@t2:=1) + (@t3:=4))) AS `@t1:=(@t2:=1)+@t3:=4`,(@`t1`) AS `@t1`,(@`t2`) AS `@t2`,(@`t3`) AS `@t3`
 select @t5;
 @t5
@@ -92,6 +101,9 @@ INSERT INTO t1 VALUES (1,'Bozo','USA'),(2,'Ronald','USA'),(3,'Kinko','IRE'),(4,'
 SELECT @min_cid:=min(c_id), @max_cid:=max(c_id) from t1;
 @min_cid:=min(c_id)	@max_cid:=max(c_id)
 1	4
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 SELECT * FROM t1 WHERE c_id=@min_cid OR c_id=@max_cid;
 c_id	c_name	c_country
 1	Bozo	USA
@@ -1544,8 +1556,12 @@ INSERT INTO t1 VALUES (0.2),(0.1);
 SELECT 1 FROM t1 GROUP BY @a:= (SELECT ROUND(f1) FROM t1 WHERE @a=f1);
 1
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 DROP TABLE t1;
 CREATE TABLE t1 AS SELECT @a:= CAST(1 AS UNSIGNED) AS a;
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

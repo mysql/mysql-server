@@ -2784,6 +2784,9 @@ ii	4	ii	4	II	4
 İI	4	ii	4	İI	4
 İİ	4	ii	4	İİ	4
 II	4	ii	4	II	4
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 ALTER TABLE t1 MODIFY a VARCHAR(30) character set utf16 collate utf16_turkish_ci;
 SELECT a, length(a) la, @l:=lower(a) l, length(@l) ll, @u:=upper(a) u, length(@u) lu
 FROM t1 ORDER BY id;
@@ -2794,6 +2797,9 @@ ii	4	ii	4	İİ	4
 İI	4	iı	4	İI	4
 İİ	4	ii	4	İİ	4
 II	4	ıı	4	II	4
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 DROP TABLE t1;
 CREATE TABLE t1 (
 c1 text character set utf16 collate utf16_polish_ci NOT NULL

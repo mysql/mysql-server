@@ -19,9 +19,18 @@ insert into t1 values (@s1), (@s2), (@s3), (@s4), (@s5);
 insert into t1 values (@n1);
 insert into t1 values (@n2);
 insert into t1 values (@a:=0), (@a:=@a+1), (@a:=@a+1);
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 insert into t1 values (@a+(@b:=@a+1));
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 set @q:='abc';
 insert t1 values (@q), (@q:=concat(@q, 'n1')), (@q:=concat(@q, 'n2'));
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 set @a:=5;
 insert into t1 values (@a),(@a);
 select * from t1 where n = '<nonexistant>';
@@ -237,6 +246,8 @@ k
 drop table t1, t2;
 create table t1(a int, b int);
 prepare s1 from 'insert into t1 values (@x:=@x+1, ?)';
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 set @x=1;
 execute s1 using @x;
 select * from t1;

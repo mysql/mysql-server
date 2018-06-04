@@ -20,6 +20,8 @@ row1	will go away	1
 SELECT @the_epoch:=MAX(epoch) FROM mysql.ndb_apply_status;
 @the_epoch:=MAX(epoch)
 <the_epoch>
+Warnings:
+<the_epoch>	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 SELECT * FROM t1 ORDER BY c3;
 c1	c2	c3
 row1	will go away	1

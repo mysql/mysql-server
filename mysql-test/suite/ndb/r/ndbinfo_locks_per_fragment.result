@@ -763,6 +763,9 @@ Ok wait case
 Expect > 0 ok_millis, 0 fail_millis
 ok_millis	fail_millis
 1	0
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 drop table test.t1;
 delete from current;
 delete from baseline;

@@ -1140,6 +1140,8 @@ set @a="select * from t2 force index (a) where a NOT IN(0";
 select count(*) from (select @a:=concat(@a, ',', a) from t2 ) Z;
 count(*)
 1000
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 set @a=concat(@a, ')');
 insert into t2 values (11),(13),(15);
 set @b= concat("explain ", @a);

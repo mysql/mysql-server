@@ -192,6 +192,13 @@ where find_in_set(cn.n,eq.pivot_columns)=0
 order by find_in_set(ln.n,eq.pivot_lines);
 end
 $
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 SET @@sql_mode=@save_sql_mode$
 # Unique solution
 call solver("[[2,3,1],  [5,-3,10],  [6,0,12]]", "[7,21,28]");

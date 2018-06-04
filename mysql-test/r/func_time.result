@@ -564,6 +564,8 @@ SET sql_mode = default;
 select @a:=FROM_UNIXTIME(1);
 @a:=FROM_UNIXTIME(1)
 1970-01-01 03:00:01
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select unix_timestamp(@a);
 unix_timestamp(@a)
 1
@@ -1361,6 +1363,8 @@ SELECT 1 FROM t1 ORDER BY @x:=makedate(a,a);
 1
 1
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 DROP TABLE t1;
 #
 # Bug #52160: crash and inconsistent results when grouping
@@ -1799,6 +1803,7 @@ SELECT 1 FROM t1 GROUP BY @a:=UNIX_TIMESTAMP(a);
 1
 1
 Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 Warning	1292	Incorrect datetime value: 'a'
 SELECT a, UNIX_TIMESTAMP(a), UNIX_TIMESTAMP('a') FROM t1;
 a	UNIX_TIMESTAMP(a)	UNIX_TIMESTAMP('a')

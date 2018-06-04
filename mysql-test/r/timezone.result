@@ -5,6 +5,8 @@ system_time_zone	MET
 select @a:=FROM_UNIXTIME(1);
 @a:=FROM_UNIXTIME(1)
 1970-01-01 01:00:01
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select unix_timestamp(@a);
 unix_timestamp(@a)
 1

@@ -1968,6 +1968,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	UNCACHEABLE SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 4	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 Note	1003	/* select#1 */ select `dt2`.`a` AS `a` from (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((1,`test`.`t1`.`a`,2) = (/* select#3 */ select (@n:=((@`n`) + 1)),`test`.`t2`.`a`,sum(`test`.`t2`.`b`) from `test`.`t2` group by `test`.`t2`.`a`))) `dt2`
 explain select /*+ merge(dt2) */ * from
 (
@@ -1985,6 +1987,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	UNCACHEABLE SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 4	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 Note	1003	/* select#1 */ select /*+ MERGE(`dt2`@`select#1`) */ `test`.`t1`.`a` AS `a` from `test`.`t1` where ((1,`test`.`t1`.`a`,2) = (/* select#3 */ select (@n:=((@`n`) + 1)),`test`.`t2`.`a`,sum(`test`.`t2`.`b`) from `test`.`t2` group by `test`.`t2`.`a`))
 # ALGORITHM clause overrides heuristics too
 create view v1 as select (select t1.a from t1 where t1.a=t2.a) from t2;

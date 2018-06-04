@@ -778,6 +778,8 @@ Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 set @row=10;
 insert into t1 select 1, b, c + (@row:=@row - 1) * 10, d - @row from t2 limit 10;
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select * from t1 where a=1 and b in (1) order by c, b, a;
 a	b	c	d
 1	1	2	0

@@ -1098,7 +1098,9 @@ SET sql_mode = default;
 --echo # Part2 (5.6)
 CREATE TABLE t1 (a VARCHAR(32) NOT NULL);
 INSERT INTO t1 VALUES ('a');
+--disable_ps_protocol  # See bug #27245598.
 SELECT 1 FROM t1 GROUP BY @a:=UNIX_TIMESTAMP(a);
+--enable_ps_protocol
 SELECT a, UNIX_TIMESTAMP(a), UNIX_TIMESTAMP('a') FROM t1;
 DELETE FROM t1;
 INSERT INTO t1 VALUES ('5000-01-01 00:00:00');

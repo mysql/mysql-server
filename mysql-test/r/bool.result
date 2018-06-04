@@ -54,12 +54,20 @@ NULL	1	1	0
 SET @a=0, @b=0;
 SELECT * FROM t1 WHERE NULL AND (@a:=@a+1);
 a
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 SELECT * FROM t1 WHERE NOT(a>=0 AND NULL AND (@b:=@b+1));
 a
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 SELECT * FROM t1 WHERE a=2 OR (NULL AND (@a:=@a+1));
 a
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 SELECT * FROM t1 WHERE NOT(a=2 OR (NULL AND (@b:=@b+1)));
 a
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 DROP TABLE t1;
 create table t1 (a int, b int);
 insert into t1 values(null, null), (0, null), (1, null), (null, 0), (null, 1), (0, 0), (0, 1), (1, 0), (1, 1);

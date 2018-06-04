@@ -7,6 +7,8 @@ SELECT @@global.innodb_file_per_table;
 SELECT @mycount_SYS_DATAFILES:=COUNT(*)  FROM information_schema.INNODB_DATAFILES;
 @mycount_SYS_DATAFILES:=COUNT(*)
 NUM
+Warnings:
+NUM	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 CREATE TEMPORARY TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b FLOAT(5,3),
 c BLOB(100),d VARCHAR(100),e TEXT) ENGINE=InnoDB;
 # creation of shared temp-tablespace in MYSQL_DATA_DIR

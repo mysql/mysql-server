@@ -1315,6 +1315,8 @@ C000	C380	C000
 FF00	C3BF	FF00
 00E0	EE8080	00E0
 FFFF	EFBFBF	FFFF
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 DROP TABLE t1;
 #
 # Test basic regex functionality

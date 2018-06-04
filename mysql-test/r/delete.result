@@ -195,6 +195,8 @@ drop table t1;
 create table t1(f1 int primary key);
 insert into t1 values (4),(3),(1),(2);
 delete from t1 where (@a:= f1) order by f1 limit 1;
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select @a;
 @a
 1

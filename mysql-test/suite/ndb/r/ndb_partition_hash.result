@@ -15,21 +15,33 @@ UPDATE t1 force index (primary) SET ol_tmp = 1
 WHERE ol_o_id = 0 AND ol_d_id = 1 AND ol_w_id = 1;
 ndb_scan_count
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 ndb_pruned_scan_count
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 SELECT * FROM t1 WHERE ol_w_id = 1 AND ol_d_id = 1 AND ol_o_id = 0;
 ol_o_id	ol_d_id	ol_w_id	ol_number	ol_tmp
 0	1	1	4	1
 0	1	1	5	1
 ndb_scan_count
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 ndb_pruned_scan_count
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 SELECT SUM(ol_number) FROM t1 WHERE ol_o_id = 0 AND ol_w_id = 1 AND ol_d_id = 1;
 SUM(ol_number)
 9
 ndb_scan_count
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 ndb_pruned_scan_count
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 drop table t1;

@@ -1837,9 +1837,11 @@ DROP TABLE t1, t2;
 
 CREATE TABLE t1(f1 LONGTEXT CHARACTER SET utf8mb4);
 INSERT INTO t1 VALUES ('a');
+--disable_ps_protocol  # See bug #27245598.
 SELECT @a:= CAST(f1 AS SIGNED) FROM t1
 UNION ALL
 SELECT CAST(f1 AS SIGNED) FROM t1;
+--enable_ps_protocol
 DROP TABLE t1;
 
 --echo #

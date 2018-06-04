@@ -885,6 +885,8 @@ create table t2 (a int, b int, filler char(100), key(a), key(b));
 create table t3 (a int, b int, filler char(100), key(a), key(b));
 insert into t2 
 select @a:= A.a + 10*(B.a + 10*C.a), @a, 'filler' from t1 A, t1 B, t1 C;
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 insert into t3 select * from t2 where a < 800;
 explain select * from t2,t3 where t2.a < 400 and t2.b=t3.b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -897,6 +899,8 @@ create table t1 (a int);
 insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t2 (a int, b int, primary key(a));
 insert into t2 select @v:=A.a+10*B.a, @v  from t1 A, t1 B;
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 explain select * from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL

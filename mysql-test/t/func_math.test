@@ -528,7 +528,9 @@ DROP TABLE t1;
 --echo # Bug #59241 invalid memory read
 --echo #            in do_div_mod with doubly assigned variables
 --echo #
+--disable_ps_protocol  # See bug #27245598.
 SELECT ((@a:=@b:=1.0) div (@b:=@a:=get_format(datetime, 'usa')));
+--enable_ps_protocol
 
 --echo #
 --echo # Bug #59498 div function broken in mysql-trunk

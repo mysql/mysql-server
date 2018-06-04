@@ -95,15 +95,23 @@ hex(weight_string(convert(_utf32 0x10002 using utf8mb4) collate utf8mb4_test_ci)
 SELECT hex(@a:=convert(_utf32 0x10400 using utf8mb4) collate utf8mb4_test_ci), hex(lower(@a));
 hex(@a:=convert(_utf32 0x10400 using utf8mb4) collate utf8mb4_test_ci)	hex(lower(@a))
 F0909080	F09090A8
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 SELECT hex(@a:=convert(_utf32 0x10428 using utf8mb4) collate utf8mb4_test_ci), hex(upper(@a));
 hex(@a:=convert(_utf32 0x10428 using utf8mb4) collate utf8mb4_test_ci)	hex(upper(@a))
 F09090A8	F0909080
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 SELECT hex(@a:=convert(_utf32 0x2C00 using utf8mb4) collate utf8mb4_test_ci), hex(lower(@a));
 hex(@a:=convert(_utf32 0x2C00 using utf8mb4) collate utf8mb4_test_ci)	hex(lower(@a))
 E2B080	E2B0B0
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 SELECT hex(@a:=convert(_utf32 0x2C30 using utf8mb4) collate utf8mb4_test_ci), hex(upper(@a));
 hex(@a:=convert(_utf32 0x2C30 using utf8mb4) collate utf8mb4_test_ci)	hex(upper(@a))
 E2B0B0	E2B080
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 SELECT hex(weight_string(convert(_utf32 0x61 using utf8mb4) collate utf8mb4_test_ci));
 hex(weight_string(convert(_utf32 0x61 using utf8mb4) collate utf8mb4_test_ci))
 120F
@@ -580,15 +588,23 @@ FFFD
 SELECT hex(@a:=convert(_utf32 0x10400 using utf8mb4) collate utf8mb4_test_400_ci), hex(lower(@a));
 hex(@a:=convert(_utf32 0x10400 using utf8mb4) collate utf8mb4_test_400_ci)	hex(lower(@a))
 F0909080	F09090A8
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 SELECT hex(@a:=convert(_utf32 0x10428 using utf8mb4) collate utf8mb4_test_400_ci), hex(upper(@a));
 hex(@a:=convert(_utf32 0x10428 using utf8mb4) collate utf8mb4_test_400_ci)	hex(upper(@a))
 F09090A8	F09090A8
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 SELECT hex(@a:=convert(_utf32 0x2C00 using utf8mb4) collate utf8mb4_test_400_ci), hex(lower(@a));
 hex(@a:=convert(_utf32 0x2C00 using utf8mb4) collate utf8mb4_test_400_ci)	hex(lower(@a))
 E2B080	E2B080
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 SELECT hex(@a:=convert(_utf32 0x2C30 using utf8mb4) collate utf8mb4_test_400_ci), hex(upper(@a));
 hex(@a:=convert(_utf32 0x2C30 using utf8mb4) collate utf8mb4_test_400_ci)	hex(upper(@a))
 E2B0B0	E2B0B0
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 #
 # WL#5624 Collation customization improvements
 #

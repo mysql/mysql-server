@@ -55,6 +55,8 @@ update t1 set n = n + if(n > 50, 1, get_lock('crash_lock%20C', 100));
 select (@id := id) - id from t2;
 (@id := id) - id
 0
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 kill @id;
 drop table t2;
 drop temporary table if exists t3;

@@ -1358,6 +1358,8 @@ select c, substring_index(lcase(c), @q:=',', -1) as res from t1;
 c	res
 y,abc	abc
 y,abc	abc
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 drop table t1;
 select cast(rtrim('  20.06 ') as decimal(19,2));
 cast(rtrim('  20.06 ') as decimal(19,2))
@@ -2816,6 +2818,8 @@ SELECT ((0xf3) * (rpad(1.0,2048,1)) << (0xcc));
 SELECT @tmp_max:= @@global.max_allowed_packet;
 @tmp_max:= @@global.max_allowed_packet
 67108864
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 SET @@global.max_allowed_packet=1024*1024*1024;
 SELECT @@global.max_allowed_packet;
 @@global.max_allowed_packet
@@ -4228,24 +4232,38 @@ NULL
 SELECT @b:= TO_BASE64(''), FROM_BASE64(@b);
 @b:= TO_BASE64('')	FROM_BASE64(@b)
 	
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 SELECT @b:= TO_BASE64('f'), FROM_BASE64(@b);
 @b:= TO_BASE64('f')	FROM_BASE64(@b)
 Zg==	f
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 SELECT @b:= TO_BASE64('fo'), FROM_BASE64(@b);
 @b:= TO_BASE64('fo')	FROM_BASE64(@b)
 Zm8=	fo
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 SELECT @b:= TO_BASE64('foo'), FROM_BASE64(@b);
 @b:= TO_BASE64('foo')	FROM_BASE64(@b)
 Zm9v	foo
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 SELECT @b:= TO_BASE64('foob'), FROM_BASE64(@b);
 @b:= TO_BASE64('foob')	FROM_BASE64(@b)
 Zm9vYg==	foob
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 SELECT @b:= TO_BASE64('fooba'), FROM_BASE64(@b);
 @b:= TO_BASE64('fooba')	FROM_BASE64(@b)
 Zm9vYmE=	fooba
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 SELECT @b:= TO_BASE64('foobar'), FROM_BASE64(@b);
 @b:= TO_BASE64('foobar')	FROM_BASE64(@b)
 Zm9vYmFy	foobar
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 #
 # Invalid characters - return NULL
 #
@@ -4371,6 +4389,8 @@ DROP TABLE t1;
 SELECT @tmp_max:= @@global.max_allowed_packet;
 @tmp_max:= @@global.max_allowed_packet
 67108864
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 SET @@global.max_allowed_packet=1024*1024*1024;
 SELECT @@global.max_allowed_packet;
 @@global.max_allowed_packet

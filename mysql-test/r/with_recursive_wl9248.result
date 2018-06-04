@@ -127,6 +127,8 @@ with recursive q (b, c) as
 select sum(b*c) from q;
 sum(b*c)
 2668667000
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 show status like 'Created_tmp_disk_tables';
 Variable_name	Value
 Created_tmp_disk_tables	1
@@ -201,6 +203,8 @@ with recursive q (b, c) as
 select sum(b*c) from q;
 sum(b*c)
 2668667000
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 show status like 'Created_tmp_disk_tables';
 Variable_name	Value
 Created_tmp_disk_tables	1
@@ -273,6 +277,8 @@ with recursive q (b, c) as
 select sum(b*c) from q;
 sum(b*c)
 2668667000
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 show status like 'Created_tmp_disk_tables';
 Variable_name	Value
 Created_tmp_disk_tables	1
@@ -345,6 +351,8 @@ with recursive q (b, c) as
 select sum(b*c) from q;
 sum(b*c)
 2668667000
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 show status like 'Created_tmp_disk_tables';
 Variable_name	Value
 Created_tmp_disk_tables	0

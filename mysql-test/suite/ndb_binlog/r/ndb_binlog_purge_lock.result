@@ -80,6 +80,8 @@ Now we should have no rows in the first file
 select @result:=count(*)=0 from mysql.ndb_binlog_index where File=@file1;
 @result:=count(*)=0
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 Now we still should see rows in the next file
 select count(*)>0 from mysql.ndb_binlog_index where File=@file2;
 count(*)>0

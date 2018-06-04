@@ -173,9 +173,13 @@ INSERT INTO t1 VALUES(1);
 SELECT 1 FROM t1 ORDER BY @x:=makedate(a,a);
 1
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 DROP TABLE t1;
 CREATE TABLE t1 AS SELECT 1 AS a WHERE false;
 CREATE TABLE t2 AS SELECT @x:=makedate(a,a) FROM t1;
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -183,6 +187,10 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT @a:=@b:=@x:=makedate(a,a) FROM t1;
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (

@@ -12,6 +12,8 @@ SET DEBUG_SYNC = "now wait_for truncate_before_lock";
 SELECT ((@id := id) - id) FROM information_schema.processlist WHERE processlist.info LIKE '%TRUNCATE t1%' AND state LIKE '%open_and_process_table%';
 ((@id := id) - id)
 0
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 KILL QUERY @id;
 connection default;
 ERROR 70100: Query execution was interrupted

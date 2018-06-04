@@ -745,6 +745,9 @@ SELECT @v3, @v4;
 2	APPLE
 SELECT DISTINCT @v5:= fruit_id, @v6:= fruit_name INTO @v7, @v8 FROM t1 WHERE 
 fruit_name = 'APPLE';
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 SELECT @v5, @v6, @v7, @v8;
 @v5	@v6	@v7	@v8
 2	APPLE	2	APPLE
@@ -755,6 +758,9 @@ SELECT @v5, @v6, @v7, @v8, @v9, @v10;
 2	APPLE	2	APPLE	4	APPLEAPPLE
 SELECT DISTINCT @v11:= @v5 + fruit_id, @v12:= CONCAT(@v6, fruit_name) INTO 
 @v13, @v14 FROM t1 WHERE fruit_name = 'APPLE';
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 SELECT @v11, @v12, @v13, @v14;
 @v11	@v12	@v13	@v14
 4	APPLEAPPLE	4	APPLEAPPLE
@@ -775,6 +781,9 @@ SELECT DISTINCT fruit_id, fruit_name INTO OUTFILE
 LOAD DATA INFILE '../../tmp/data1.tmp' INTO TABLE t2;
 SELECT DISTINCT @v19:= fruit_id, @v20:= fruit_name INTO OUTFILE 
 '../../tmp/data2.tmp' FROM t1 WHERE fruit_name = 'APPLE';
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 LOAD DATA INFILE '../../tmp/data2.tmp' INTO TABLE t2;
 SELECT @v19, @v20;
 @v19	@v20

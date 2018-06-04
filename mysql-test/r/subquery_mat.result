@@ -2049,11 +2049,23 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 SET @str= repeat("a",450);
 SET @num=1000;
 INSERT INTO t1 VALUES (CONCAT((@num:=@num+1), @str));
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 INSERT INTO t1 SELECT CONCAT((@num:=@num+1), @str) FROM t1;
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 INSERT INTO t1 SELECT CONCAT((@num:=@num+1), @str) FROM t1;
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 INSERT INTO t1 SELECT CONCAT((@num:=@num+1), @str) FROM t1;
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 INSERT INTO t1 SELECT CONCAT((@num:=@num+1), @str) FROM t1;
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 INSERT INTO t1 SELECT CONCAT((@num:=@num+1), @str) FROM t1;
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 32

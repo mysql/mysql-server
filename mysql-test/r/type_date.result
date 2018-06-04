@@ -116,18 +116,24 @@ drop table t1;
 select @d:=1111;
 @d:=1111
 1111
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select year(@d), month(@d), day(@d), cast(@d as date);
 year(@d)	month(@d)	day(@d)	cast(@d as date)
 2000	11	11	2000-11-11
 select @d:=011111;
 @d:=011111
 11111
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select year(@d), month(@d), day(@d), cast(@d as date);
 year(@d)	month(@d)	day(@d)	cast(@d as date)
 2001	11	11	2001-11-11
 select @d:=1311;
 @d:=1311
 1311
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select year(@d), month(@d), day(@d), cast(@d as date);
 year(@d)	month(@d)	day(@d)	cast(@d as date)
 NULL	NULL	NULL	NULL

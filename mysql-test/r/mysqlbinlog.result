@@ -1022,6 +1022,8 @@ SELECT
 IS NOT NULL AS Loaded;
 Loaded
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 *** Unsigned server_id 4294967295 is found: 1 ***
 SET @@global.server_id= 1;
 RESET MASTER;

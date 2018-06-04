@@ -1327,6 +1327,9 @@ SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SEL
 select (@query:=QUERY)+NULL, (@trace:=TRACE)+NULL from information_schema.OPTIMIZER_TRACE;
 (@query:=QUERY)+NULL	(@trace:=TRACE)+NULL
 NULL	NULL
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select length(@trace);
 length(@trace)
 13676
@@ -1340,9 +1343,14 @@ c
 select (@missing_bytes:=missing_bytes_beyond_max_mem_size) from information_schema.OPTIMIZER_TRACE;
 (@missing_bytes:=missing_bytes_beyond_max_mem_size)
 0
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select (@query2:=QUERY)+NULL,(@trace2:=TRACE)+NULL from information_schema.OPTIMIZER_TRACE;
 (@query2:=QUERY)+NULL	(@trace2:=TRACE)+NULL
 NULL	NULL
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select length(@trace2),
 (length(@trace2) + @missing_bytes) = length(@trace),
 @query2 = @query;

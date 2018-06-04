@@ -73,21 +73,25 @@ hex(@utf81:= CONVERT(@ujis1 USING utf8))
 EFBDA1EFBDA2EFBDA3EFBDA4EFBDA5EFBDA6EFBDA7EFBDA8EFBDA9EFBDAAEFBDABEFBDACEFBDADEFBDAEEFBDAF
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select hex(@utf82:= CONVERT(@ujis2 USING utf8));
 hex(@utf82:= CONVERT(@ujis2 USING utf8))
 EFBDB0EFBDB1EFBDB2EFBDB3EFBDB4EFBDB5EFBDB6EFBDB7EFBDB8EFBDB9EFBDBAEFBDBBEFBDBCEFBDBDEFBDBEEFBDBF
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select hex(@utf83:= CONVERT(@ujis3 USING utf8));
 hex(@utf83:= CONVERT(@ujis3 USING utf8))
 EFBE80EFBE81EFBE82EFBE83EFBE84EFBE85EFBE86EFBE87EFBE88EFBE89EFBE8AEFBE8BEFBE8CEFBE8DEFBE8EEFBE8F
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select hex(@utf84:= CONVERT(@ujis4 USING utf8));
 hex(@utf84:= CONVERT(@ujis4 USING utf8))
 EFBE90EFBE91EFBE92EFBE93EFBE94EFBE95EFBE96EFBE97EFBE98EFBE99EFBE9AEFBE9BEFBE9CEFBE9DEFBE9EEFBE9F
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
 select @ujis1 = CONVERT(@utf81 USING ujis);
 @ujis1 = CONVERT(@utf81 USING ujis)
 1
