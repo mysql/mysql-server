@@ -3159,8 +3159,6 @@ ib_err_t ib_sdi_delete(uint32_t tablespace_id, const ib_sdi_key_t *ib_sdi_key,
           << "sdi_delete failed: tablespace_id: " << tablespace_id
           << " Key: " << ib_sdi_key->sdi_key->type << " "
           << ib_sdi_key->sdi_key->id << " Error returned: " << err;
-      bool sdi_delete_failed = true;
-      ut_ad(!sdi_delete_failed);
     }
   }
 #endif /* UNIV_DEBUG */

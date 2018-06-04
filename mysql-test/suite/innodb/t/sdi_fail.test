@@ -1,0 +1,23 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # Bug #27493634 FAILURE DURING SDI DELETION CAUSES ASSERT
+--echo #
+
+--disable_query_log
+call mtr.add_suppression("InnoDB: sdi_delete failed: tablespace_id:");
+call mtr.add_suppression("InnoDB: Cannot save table statistics for table");
+--enable_query_log
+
+create table t1(c1 int primary key, c2 char(1), c3 int unsigned);
+show create table t1;
+
+SET DEBUG='+d,ib_create_table_fail_too_many_trx';
+
+--error ER_SDI_OPERATION_FAILED,
+ALTER TABLE t1 ADD INDEX (c2), ADD INDEX (c3);
+
+SET DEBUG='-d,ib_create_table_fail_too_many_trx';
+
+drop table t1;
+
