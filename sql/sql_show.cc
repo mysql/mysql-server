@@ -627,8 +627,6 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
 
 
 
-  memset(&table_list, 0, sizeof(table_list));
-
   if (!(dirp = my_dir(path,MYF(dir ? MY_WANT_STAT : 0))))
   {
     if (my_errno() == ENOENT)
@@ -1670,7 +1668,6 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   }
 
   key_info= table->key_info;
-  memset(&create_info, 0, sizeof(create_info));
   /* Allow update_create_info to update row type */
   create_info.row_type= share->row_type;
   file->update_create_info(&create_info);
@@ -2627,7 +2624,7 @@ int add_status_vars(const SHOW_VAR *list)
     while (list->name)
       all_status_vars.push_back(*list++);
   }
-  catch (std::bad_alloc)
+  catch (const std::bad_alloc &)
   {
     my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR),
              static_cast<int>(sizeof(Status_var_array::value_type)));
@@ -4253,8 +4250,6 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
   size_t key_length;
   char db_name_buff[NAME_LEN + 1], table_name_buff[NAME_LEN + 1];
 
-  memset(&table_list, 0, sizeof(TABLE_LIST));
-
   DBUG_ASSERT(db_name->length <= NAME_LEN);
   DBUG_ASSERT(table_name->length <= NAME_LEN);
 
@@ -4320,7 +4315,6 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
     {
       TABLE tbl;
 
-      memset(&tbl, 0, sizeof(TABLE));
       init_sql_alloc(key_memory_table_triggers_list,
                      &tbl.mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
 
@@ -4401,7 +4395,6 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
 
   {
     TABLE tbl;
-    memset(&tbl, 0, sizeof(TABLE));
     init_sql_alloc(key_memory_table_triggers_list,
                    &tbl.mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
 
@@ -5684,7 +5677,6 @@ bool store_schema_params(THD *thd, TABLE *table, TABLE *proc_table,
   bool free_sp_head;
   DBUG_ENTER("store_schema_params");
 
-  memset(&tbl, 0, sizeof(TABLE));
   (void) build_table_filename(path, sizeof(path), "", "", "", 0);
   init_tmp_table_share(thd, &share, "", 0, "", path);
 
@@ -5897,7 +5889,6 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
           Field *field;
           Create_field *field_def= &sp->m_return_field_def;
 
-          memset(&tbl, 0, sizeof(TABLE));
           (void) build_table_filename(path, sizeof(path), "", "", "", 0);
           init_tmp_table_share(thd, &share, "", 0, "", path);
           field= make_field(&share, (uchar*) 0, field_def->length,
@@ -5982,7 +5973,6 @@ int fill_schema_proc(THD *thd, TABLE_LIST *tables, Item *cond)
   strxmov(definer, thd->security_context()->priv_user().str, "@",
           thd->security_context()->priv_host().str, NullS);
   /* We use this TABLE_LIST instance only for checking of privileges. */
-  memset(&proc_tables, 0, sizeof(proc_tables));
   proc_tables.db= (char*) "mysql";
   proc_tables.db_length= 5;
   proc_tables.table_name= proc_tables.alias= (char*) "proc";
@@ -6170,7 +6160,6 @@ static int get_schema_views_record(THD *thd, TABLE_LIST *tables,
         {
           TABLE_LIST table_list;
           uint view_access;
-          memset(&table_list, 0, sizeof(table_list));
           table_list.db= tables->db;
           table_list.table_name= tables->table_name;
           table_list.grant.privilege= thd->col_access;
@@ -6703,6 +6692,10 @@ static void store_schema_partitions_record(THD *thd, TABLE *schema_table,
     table->field[18]->store_time(&time);
     table->field[18]->set_notnull();
   }
+  else
+  {
+    table->field[18]->set_null();
+  }
   if (stat_info.update_time)
   {
     thd->variables.time_zone->gmt_sec_to_TIME(&time,
@@ -6710,12 +6703,20 @@ static void store_schema_partitions_record(THD *thd, TABLE *schema_table,
     table->field[19]->store_time(&time);
     table->field[19]->set_notnull();
   }
+  else
+  {
+    table->field[19]->set_null();
+  }
   if (stat_info.check_time)
   {
     thd->variables.time_zone->gmt_sec_to_TIME(&time,
                                               (my_time_t)stat_info.check_time);
     table->field[20]->store_time(&time);
     table->field[20]->set_notnull();
+  }
+  else
+  {
+    table->field[20]->set_null();
   }
   if (file->ha_table_flags() & (ulong) HA_HAS_CHECKSUM)
   {

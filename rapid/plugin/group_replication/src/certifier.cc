@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1230,7 +1230,7 @@ void Certifier::garbage_collect()
   stable_gtid_set_lock->wrlock();
   while (it != certification_info.end())
   {
-    if (it->second->is_subset(stable_gtid_set))
+    if (it->second->is_subset_not_equals(stable_gtid_set))
     {
       if (it->second->unlink() == 0)
         delete it->second;

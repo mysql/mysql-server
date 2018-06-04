@@ -1,0 +1,148 @@
+################################################################################
+# Validate that certification info garbage collection do not purge more data
+# than it should.
+#
+# Test:
+#  0. The test requires two servers: M1 and M2.
+#  1. Create a table on server1.
+#  2. Set a debug sync before broadcast message to group on
+#     connection server_1.
+#     Commit a transaction that will be block before broadcast.
+#  3. Wait until server_1 connection reaches the
+#     group_replication_before_message_broadcast debug sync point.
+#  4. Execute a transaction on server2, that will reach first
+#     certification, since server_1 is blocked before broadcast.
+#  5. Suspend pipeline on server2.
+#  6. Resume the transaction on server_1
+#  7. Make sure the pipeline is suspended on server2.
+#  8. Wait until certification info garbage collector does
+#     its work.
+#  9. Resume the pipeline on server2.
+# 10. Execute a new transaction in order to have a sync point
+#     to make the test deterministic,
+#     Validate that data and GTIDs are correct.
+# 11. Clean up.
+################################################################################
+--source include/have_debug_sync.inc
+--source include/big_test.inc
+--source ../inc/have_group_replication_plugin.inc
+--source ../inc/group_replication.inc
+
+--echo
+--echo ############################################################
+--echo #  1. Create a table on server1.
+CREATE TABLE t1(a INT, b INT, PRIMARY KEY(a));
+INSERT INTO t1 VALUE(1, 1);
+--source include/rpl_sync.inc
+
+--echo
+--echo ############################################################
+--echo #  2. Set a debug sync before broadcast message to group on
+--echo #     connection server_1.
+--echo #     Commit a transaction that will be block before broadcast.
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG='+d,group_replication_before_message_broadcast';
+BEGIN;
+UPDATE t1 SET b=10 WHERE a=1;
+--send COMMIT
+
+--echo
+--echo ############################################################
+--echo #  3. Wait until server_1 connection reaches the
+--echo #     group_replication_before_message_broadcast debug sync point.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now'
+--source include/wait_condition.inc
+
+--echo
+--echo ############################################################
+--echo #  4. Execute a transaction on server2, that will reach first
+--echo #     certification, since server_1 is blocked before broadcast.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+UPDATE t1 SET b=20 WHERE a=1;
+
+--echo
+--echo ############################################################
+--echo #  5. Suspend pipeline on server2.
+SET @@GLOBAL.DEBUG='+d,group_replication_before_apply_data_packet';
+
+--echo
+--echo ############################################################
+--echo #  6. Resume the transaction on server_1
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET DEBUG_SYNC='now SIGNAL waiting';
+SET @@GLOBAL.DEBUG='-d,group_replication_before_message_broadcast';
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--error ER_TRANSACTION_ROLLBACK_DURING_COMMIT
+--reap
+
+--echo
+--echo ############################################################
+--echo #  7. Make sure the pipeline is suspended on server2.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now'
+--source include/wait_condition.inc
+
+--echo
+--echo ############################################################
+--echo #  8. Wait until certification info garbage collector does
+--echo #     its work.
+--let $gtid_assignment_block_size= `SELECT @@GLOBAL.group_replication_gtid_assignment_block_size;`
+--let $expected_gtid_set= $group_replication_group_name:1-4:1000002
+if ($gtid_assignment_block_size == 1)
+{
+  --let $expected_gtid_set= $group_replication_group_name:1-5
+}
+--let $wait_condition= SELECT transactions_committed_all_members = "$expected_gtid_set" from performance_schema.replication_group_member_stats;
+--let $wait_timeout= 150
+--source include/wait_condition.inc
+
+--echo
+--echo ############################################################
+--echo #  9. Resume the pipeline on server2.
+SET DEBUG_SYNC='now SIGNAL continue_apply';
+SET @@GLOBAL.DEBUG='-d,group_replication_before_apply_data_packet';
+
+--echo
+--echo ############################################################
+--echo # 10. Execute a new transaction in order to have a sync point
+--echo #     to make the test deterministic,
+--echo #     Validate that data and GTIDs are correct.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+INSERT INTO t1 VALUE(2, 2);
+--source include/rpl_sync.inc
+
+--let $expected_gtid_set= $group_replication_group_name:1-5:1000002
+if ($gtid_assignment_block_size == 1)
+{
+  --let $expected_gtid_set= $group_replication_group_name:1-6
+}
+
+--let $assert_text= GTID_EXECUTED must contain 6 transactions
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$expected_gtid_set";
+--source include/assert.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $assert_text= GTID_EXECUTED must contain 6 transactions
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$expected_gtid_set";
+--source include/assert.inc
+
+--let $diff_tables=server1:t1, server2:t1
+--source include/diff_tables.inc
+
+
+--echo
+--echo ############################################################
+--echo # 11. Clean up.
+DROP TABLE t1;
+
+--source ../inc/group_replication_end.inc

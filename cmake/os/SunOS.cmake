@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,13 +18,13 @@ INCLUDE(CheckCSourceRuns)
 INCLUDE(CheckCSourceCompiles) 
 INCLUDE(CheckCXXSourceCompiles)
 
-# We require at least GCC 4.4 or SunStudio 12u2 (CC 5.11)
+# We require at least GCC 7.3 or SunStudio 12.2 (CC 5.14)
 IF(NOT FORCE_UNSUPPORTED_COMPILER)
   IF(CMAKE_COMPILER_IS_GNUCC)
     EXECUTE_PROCESS(COMMAND ${CMAKE_C_COMPILER} -dumpversion
                     OUTPUT_VARIABLE GCC_VERSION)
-    IF(GCC_VERSION VERSION_LESS 4.4)
-      MESSAGE(FATAL_ERROR "GCC 4.4 or newer is required!")
+    IF(GCC_VERSION VERSION_LESS 7.3)
+      MESSAGE(FATAL_ERROR "GCC 7.3 or newer is required!")
     ENDIF()
   ELSEIF(CMAKE_C_COMPILER_ID MATCHES "SunPro")
     # CC -V yields
@@ -44,8 +44,8 @@ IF(NOT FORCE_UNSUPPORTED_COMPILER)
         VERSION_STRING ${stderr})
     ENDIF()
     SET(CC_MINOR_VERSION ${CMAKE_MATCH_1})
-    IF(${CC_MINOR_VERSION} LESS 11)
-      MESSAGE(FATAL_ERROR "SunStudio 12u2 or newer is required!")
+    IF(${CC_MINOR_VERSION} LESS 14)
+      MESSAGE(FATAL_ERROR "Oracle Studio 12.5 or newer is required!")
     ENDIF()
   ELSE()
     MESSAGE(FATAL_ERROR "Unsupported compiler!")

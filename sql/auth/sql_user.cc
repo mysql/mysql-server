@@ -124,7 +124,8 @@ void append_user(THD *thd, String *str, LEX_USER *user, bool comma= true,
   }
 }
 
-void append_user_new(THD *thd, String *str, LEX_USER *user, bool comma= true)
+void append_user_new(THD *thd, String *str, LEX_USER *user, bool comma,
+                     bool hide_password_hash)
 {
   String from_user(user->user.str, user->user.length, system_charset_info);
   String from_plugin(user->plugin.str, user->plugin.length, system_charset_info);
@@ -174,7 +175,8 @@ void append_user_new(THD *thd, String *str, LEX_USER *user, bool comma= true)
       if (user->auth.length > 0)
       {
         str->append(STRING_WITH_LEN(" AS "));
-        if (thd->lex->contains_plaintext_password)
+        if (thd->lex->contains_plaintext_password ||
+            hide_password_hash)
         {
           str->append("'");
           str->append(STRING_WITH_LEN("<secret>"));
@@ -267,15 +269,17 @@ int check_change_password(THD *thd, const char *host, const char *user,
 /**
   Auxiliary function for constructing CREATE USER sql for a given user.
 
-  @param thd          Thread context
-  @param user_name    user for which the sql should be constructed.
+  @param thd                    Thread context
+  @param user_name              user for which the sql should be constructed.
+  @param are_both_users_same    If the command is issued for self or not.
 
   @retval
     0         OK.
     1         Error.
  */
 
-bool mysql_show_create_user(THD *thd, LEX_USER *user_name)
+bool mysql_show_create_user(THD *thd, LEX_USER *user_name,
+                            bool are_both_users_same)
 {
   int error= 0;
   ACL_USER *acl_user;
@@ -289,8 +293,17 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name)
   List<Item> field_list;
   String sql_text(buff,sizeof(buff),system_charset_info);
   LEX_ALTER alter_info;
+  bool hide_password_hash= false;
 
   DBUG_ENTER("mysql_show_create_user");
+  if (are_both_users_same)
+  {
+    TABLE_LIST t1;
+    t1.init_one_table(C_STRING_WITH_LEN("mysql"), C_STRING_WITH_LEN("user"),
+                      "user", TL_READ);
+    hide_password_hash= check_table_access(thd, SELECT_ACL, &t1, false,
+                                           UINT_MAX, true);
+  }
 
   mysql_mutex_lock(&acl_cache->lock);
   if (!(acl_user= find_acl_user(user_name->host.str, user_name->user.str, TRUE)))
@@ -359,7 +372,7 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name)
   }
   sql_text.length(0);
   lex->users_list.push_back(user_name);
-  mysql_rewrite_create_alter_user(thd, &sql_text);
+  mysql_rewrite_create_alter_user(thd, &sql_text, NULL, hide_password_hash);
   /* send the result row to client */
   protocol->start_row();
   protocol->store(sql_text.ptr(),sql_text.length(),sql_text.charset());

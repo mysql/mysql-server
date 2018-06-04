@@ -1,0 +1,70 @@
+# =========== Purpose ===========
+#
+# To test that if different primary key is used on master and slave
+# and if there is an  Unique key present on slave then that should be
+# used for lookup replicated rows.
+# Earlier in above cases a TABLE_SCAN was being performed which can be
+# slower than INDEX_SCAN that will be performed after the bug fix.
+#
+# ========= Reference ==========
+# Bug#26450129:DEAD BRANCH IN SEARCH_KEY_IN_TABLE()
+
+# The status variable Slave_rows_last_search_algorithm_used is defined
+# only in Debug mode, running this test in non-debug mode will cause
+# assert failure.
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+--let $rpl_skip_start_slave = 1
+--source include/master-slave.inc
+
+--echo ==== Initialize ====
+
+--source include/rpl_connection_slave.inc
+SET @old_slave_rows_search_algorithms = @@global.slave_rows_search_algorithms;
+SET @@global.slave_rows_search_algorithms = 'INDEX_SCAN,TABLE_SCAN';
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+SET @@session.binlog_row_image = 'MINIMAL';
+
+SET @@session.sql_log_bin = 0;
+CREATE TABLE t1 (a INT, b INT, PRIMARY KEY(b));
+SET @@session.sql_log_bin = 1;
+--source include/rpl_connection_slave.inc
+CREATE TABLE t1 (a INT, b INT NOT NULL, UNIQUE KEY(b), PRIMARY KEY(a));
+--source include/rpl_connection_master.inc
+
+--let $row_count = 100
+--let $rows = (0, 0)
+--let $i = 1
+while ($i < $row_count) {
+  --let $rows = $rows, ($i, $i)
+  --inc $i
+}
+--disable_query_log
+--echo INSERT INTO t1 VALUES [$row_count rows];
+eval INSERT INTO t1 VALUES $rows;
+--enable_query_log
+--source include/sync_slave_sql_with_master.inc
+
+--echo ==== Test ====
+
+--source include/rpl_connection_master.inc
+
+DELETE FROM t1 WHERE b != 0 ORDER BY b DESC;
+--source include/sync_slave_sql_with_master.inc
+
+
+--let $assert_cond = "[SHOW STATUS LIKE \"Slave_rows_last_search_algorithm_used\", Value, 1]" = "INDEX_SCAN"
+--let $assert_text= The search algorithm used while deleting rows is INDEX_SCAN, in the code before this bug it was TABLE_SCAN
+--source include/assert.inc
+
+# Cleanup
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+SET @@global.slave_rows_search_algorithms = @old_slave_rows_search_algorithms;
+
+--let $rpl_only_running_threads=1
+--source include/rpl_end.inc

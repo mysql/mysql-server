@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,7 +15,7 @@
 
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 
-INCLUDE_DIRECTORIES(${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
+INCLUDE_DIRECTORIES(SYSTEM ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/common)
 
 SET(
@@ -38,10 +38,6 @@ MYSQL_ADD_PLUGIN(keyring_file
 
 IF(SSL_DEFINES)
   ADD_DEFINITIONS(${SSL_DEFINES})
-ENDIF()
-
-IF(WITH_KEYRING_TEST)
-  ADD_SUBDIRECTORY(keyring-test)
 ENDIF()
 
 IF(HAVE_DLOPEN)

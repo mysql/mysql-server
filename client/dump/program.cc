@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -150,7 +150,7 @@ int Program::execute(std::vector<std::string> positional_options)
       new Single_transaction_connection_provider(this, num_connections, message_handler)
       : new Thread_specific_connection_provider(this);
   }
-  catch (std::exception e)
+  catch (const std::exception &e)
   {
     this->error(Mysql::Tools::Base::Message_data(
       0, "Error during creating connection.",

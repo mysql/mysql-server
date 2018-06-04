@@ -197,6 +197,12 @@ ELSEIF(WITH_GCS_LOG_DEBUG)
                                              "-DWITH_LOG_DEBUG")
 ENDIF()
 
+MY_CHECK_C_COMPILER_FLAG("-Wcast-function-type" HAVE_CAST_FUNCTION_TYPE)
+IF(HAVE_CAST_FUNCTION_TYPE)
+  ADD_COMPILE_FLAGS(libmysqlgcs/src/bindings/xcom/xcom/xcom_transport.c
+                    COMPILE_FLAGS "-Wno-cast-function-type")
+ENDIF()
+
 ### Configuration ###
 
 # disabling warnings for generated code

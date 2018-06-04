@@ -68,50 +68,6 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND
   ADD_DEFINITIONS(-DSOLARIS_64BIT_ENABLED)
 ENDIF()
 
-# Nothing explicit on command line? Use c++03
-IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND
-   CMAKE_C_COMPILER_ID MATCHES "SunPro" AND
-   NOT CMAKE_CXX_FLAGS MATCHES "-std=" AND
-   NOT CMAKE_CXX_FLAGS MATCHES "-library" AND
-   NOT CMAKE_CXX_FLAGS MATCHES "stdcxx4" AND
-   NOT CMAKE_CXX_FLAGS MATCHES "stlport"
-   )
-  IF(SUNPRO_CXX_LIBRARY)
-    MESSAGE(WARNING "You should upgrade to -std=c++03")
-  ELSE()
-    # cmake/os/SunOS.cmake has done version check
-    # /opt/solarisstudio12.4/bin/CC has CC_MINOR_VERSION == 13
-    IF(DEFINED CC_MINOR_VERSION AND CC_MINOR_VERSION GREATER 12)
-      MESSAGE("Adding -std=c++03")
-      SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++03")
-    ENDIF()
-  ENDIF()
-ENDIF()
-
-# The default C++ library for SunPro is really old, and not standards compliant.
-# http://www.oracle.com/technetwork/server-storage/solaris/cmp-stlport-libcstd-142559.html
-# Use stlport rather than Rogue Wave,
-#   unless otherwise specified on command line.
-# This does *not* work for building the server, only for client libraries,
-# i.e. -DWITHOUT_SERVER=1
-IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
-  IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
-    IF(CMAKE_CXX_FLAGS MATCHES "-std=")
-      # Nothing here, handled separately below
-    ELSE()
-      IF(SUNPRO_CXX_LIBRARY)
-        SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -library=${SUNPRO_CXX_LIBRARY}")
-        IF(SUNPRO_CXX_LIBRARY STREQUAL "stdcxx4")
-          ADD_DEFINITIONS(-D__MATHERR_RENAME_EXCEPTION)
-          SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -template=extdef")
-        ENDIF()
-      ELSE()
-        SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -library=stlport4")
-      ENDIF()
-    ENDIF()
-  ENDIF()
-ENDIF()
-
 # Check to see if we are using LLVM's libc++ rather than e.g. libstd++
 # Can then check HAVE_LLBM_LIBCPP later without including e.g. ciso646.
 CHECK_CXX_SOURCE_RUNS("
@@ -129,94 +85,10 @@ MACRO(DIRNAME IN OUT)
   GET_FILENAME_COMPONENT(${OUT} ${IN} PATH)
 ENDMACRO()
 
-MACRO(FIND_REAL_LIBRARY SOFTLINK_NAME REALNAME)
-  # We re-distribute libstlport.so/libstdc++.so which are both symlinks.
-  # There is no 'readlink' on solaris, so we use perl to follow links:
-  SET(PERLSCRIPT
-    "my $link= $ARGV[0]; use Cwd qw(abs_path); my $file = abs_path($link); print $file;")
-  EXECUTE_PROCESS(
-    COMMAND perl -e "${PERLSCRIPT}" ${SOFTLINK_NAME}
-    RESULT_VARIABLE result
-    OUTPUT_VARIABLE real_library
-    )
-  SET(REALNAME ${real_library})
-ENDMACRO()
 
-MACRO(EXTEND_CXX_LINK_FLAGS LIBRARY_PATH)
-  # Using the $ORIGIN token with the -R option to locate the libraries
-  # on a path relative to the executable:
-  # We need an extra backslash to pass $ORIGIN to the mysql_config script...
-  SET(QUOTED_CMAKE_CXX_LINK_FLAGS
-    "${CMAKE_CXX_LINK_FLAGS} -R'\\$ORIGIN/../lib' -R${LIBRARY_PATH} ")
-  SET(CMAKE_CXX_LINK_FLAGS
-    "${CMAKE_CXX_LINK_FLAGS} -R'\$ORIGIN/../lib' -R${LIBRARY_PATH}")
-  MESSAGE(STATUS "CMAKE_CXX_LINK_FLAGS ${CMAKE_CXX_LINK_FLAGS}")
-ENDMACRO()
-
-MACRO(EXTEND_C_LINK_FLAGS LIBRARY_PATH)
-  SET(CMAKE_C_LINK_FLAGS
-    "${CMAKE_C_LINK_FLAGS} -R'\$ORIGIN/../lib' -R${LIBRARY_PATH}")
-  MESSAGE(STATUS "CMAKE_C_LINK_FLAGS ${CMAKE_C_LINK_FLAGS}")
-  SET(CMAKE_SHARED_LIBRARY_C_FLAGS
-    "${CMAKE_SHARED_LIBRARY_C_FLAGS} -R'\$ORIGIN/../lib' -R${LIBRARY_PATH}")
-ENDMACRO()
-
-IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_COMPILER_IS_GNUCC)
-  DIRNAME(${CMAKE_CXX_COMPILER} CXX_PATH)
-  SET(LIB_SUFFIX "lib")
-  IF(SIZEOF_VOIDP EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "sparc")
-    SET(LIB_SUFFIX "lib/sparcv9")
-  ENDIF()
-  IF(SIZEOF_VOIDP EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
-    SET(LIB_SUFFIX "lib/amd64")
-  ENDIF()
-  FIND_LIBRARY(GPP_LIBRARY_NAME
-    NAMES "stdc++"
-    PATHS ${CXX_PATH}/../${LIB_SUFFIX}
-    NO_DEFAULT_PATH
-  )
-  MESSAGE(STATUS "GPP_LIBRARY_NAME ${GPP_LIBRARY_NAME}")
-  IF(GPP_LIBRARY_NAME)
-    DIRNAME(${GPP_LIBRARY_NAME} GPP_LIBRARY_PATH)
-    FIND_REAL_LIBRARY(${GPP_LIBRARY_NAME} real_library)
-    MESSAGE(STATUS "INSTALL ${GPP_LIBRARY_NAME} ${real_library}")
-    INSTALL(FILES ${GPP_LIBRARY_NAME} ${real_library}
-            DESTINATION ${INSTALL_LIBDIR} COMPONENT SharedLibraries)
-    EXTEND_CXX_LINK_FLAGS(${GPP_LIBRARY_PATH})
-    EXECUTE_PROCESS(
-      COMMAND sh -c "elfdump ${real_library} | grep SONAME"
-      RESULT_VARIABLE result
-      OUTPUT_VARIABLE sonameline
-    )
-    IF(NOT result)
-      STRING(REGEX MATCH "libstdc.*[^\n]" soname ${sonameline})
-      MESSAGE(STATUS "INSTALL ${GPP_LIBRARY_PATH}/${soname}")
-      INSTALL(FILES "${GPP_LIBRARY_PATH}/${soname}"
-              DESTINATION ${INSTALL_LIBDIR} COMPONENT SharedLibraries)
-    ENDIF()
-  ENDIF()
-  FIND_LIBRARY(GCC_LIBRARY_NAME
-    NAMES "gcc_s"
-    PATHS ${CXX_PATH}/../${LIB_SUFFIX}
-    NO_DEFAULT_PATH
-  )
-  IF(GCC_LIBRARY_NAME)
-    DIRNAME(${GCC_LIBRARY_NAME} GCC_LIBRARY_PATH)
-    FIND_REAL_LIBRARY(${GCC_LIBRARY_NAME} real_library)
-    MESSAGE(STATUS "INSTALL ${GCC_LIBRARY_NAME} ${real_library}")
-    INSTALL(FILES ${GCC_LIBRARY_NAME} ${real_library}
-            DESTINATION ${INSTALL_LIBDIR} COMPONENT SharedLibraries)
-    EXTEND_C_LINK_FLAGS(${GCC_LIBRARY_PATH})
-  ENDIF()
-ENDIF()
-
-# TODO: consider to INSTALL this library
-# /opt/developerstudio12.5/lib/compilers/atomic/sparcv9/libstatomic.so
-# see: https://docs.oracle.com/cd/E60778_01/html/E60746/gqhbq.html
 # We assume that developer studio runtime libraries are installed.
 IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND
-   CMAKE_CXX_COMPILER_ID STREQUAL "SunPro" AND
-   CMAKE_CXX_FLAGS MATCHES "-std=c")
+   CMAKE_CXX_COMPILER_ID STREQUAL "SunPro")
   DIRNAME(${CMAKE_CXX_COMPILER} CXX_PATH)
 
   SET(LIBRARY_SUFFIX "lib/compilers/CC-gcc/lib")
@@ -247,91 +119,6 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND
     "${CMAKE_CXX_LINK_FLAGS} -lstdc++ -lgcc_s -lCrunG3 -lc")
   SET(QUOTED_CMAKE_CXX_LINK_FLAGS
     "${QUOTED_CMAKE_CXX_LINK_FLAGS} -lstdc++ -lgcc_s -lCrunG3 -lc ")
-  SET(QUOTED_CMAKE_CXX_LINK_FLAGS
-    "${QUOTED_CMAKE_CXX_LINK_FLAGS} -L/usr/lib -latomic ")
-ENDIF()
-
-IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND
-   CMAKE_C_COMPILER_ID MATCHES "SunPro" AND
-   CMAKE_CXX_FLAGS MATCHES "stlport4")
-  DIRNAME(${CMAKE_CXX_COMPILER} CXX_PATH)
-  # Also extract real path to the compiler(which is normally
-  # in <install_path>/prod/bin) and try to find the
-  # stlport libs relative to that location as well.
-  GET_FILENAME_COMPONENT(CXX_REALPATH ${CMAKE_CXX_COMPILER} REALPATH)
-
-  # CC -V yields
-  # CC: Studio 12.6 Sun C++ 5.15 SunOS_sparc Beta 2016/12/19
-  # CC: Studio 12.5 Sun C++ 5.14 SunOS_sparc Dodona 2016/04/04
-  # CC: Sun C++ 5.13 SunOS_sparc Beta 2014/03/11
-  # CC: Sun C++ 5.11 SunOS_sparc 2010/08/13
-
-  EXECUTE_PROCESS(
-    COMMAND ${CMAKE_CXX_COMPILER} "-V"
-    OUTPUT_VARIABLE stdout
-    ERROR_VARIABLE  stderr
-    RESULT_VARIABLE result
-  )
-  IF(result)
-    MESSAGE(FATAL_ERROR "Failed to execute ${CMAKE_CXX_COMPILER} -V")
-  ENDIF()
-
-  STRING(REGEX MATCH "CC: Sun C\\+\\+ 5\\.([0-9]+)" VERSION_STRING ${stderr})
-  IF (NOT CMAKE_MATCH_1 OR CMAKE_MATCH_1 STREQUAL "")
-    STRING(REGEX MATCH "CC: Studio 12\\.[56] Sun C\\+\\+ 5\\.([0-9]+)"
-      VERSION_STRING ${stderr})
-  ENDIF()
-  SET(CC_MINOR_VERSION ${CMAKE_MATCH_1})
-
-  IF(${CC_MINOR_VERSION} EQUAL 14)
-    MESSAGE(FATAL_ERROR
-      "Please run cmake with -DCMAKE_CXX_FLAGS=-std=c++03 for ${stderr}")
-  ENDIF()
-
-  IF(${CC_MINOR_VERSION} EQUAL 13)
-    SET(STLPORT_SUFFIX "lib/compilers/stlport4")
-    IF(SIZEOF_VOIDP EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "sparc")
-      SET(STLPORT_SUFFIX "lib/compilers/stlport4/sparcv9")
-    ENDIF()
-    IF(SIZEOF_VOIDP EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
-      SET(STLPORT_SUFFIX "lib/compilers/stlport4/amd64")
-    ENDIF()
-  ELSE()
-    SET(STLPORT_SUFFIX "lib/stlport4")
-    IF(SIZEOF_VOIDP EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "sparc")
-      SET(STLPORT_SUFFIX "lib/stlport4/v9")
-    ENDIF()
-    IF(SIZEOF_VOIDP EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
-      SET(STLPORT_SUFFIX "lib/stlport4/amd64")
-    ENDIF()
-  ENDIF()
-
-  FIND_LIBRARY(STL_LIBRARY_NAME
-    NAMES "stlport"
-    PATHS ${CXX_PATH}/../${STLPORT_SUFFIX}
-          ${CXX_REALPATH}/../../${STLPORT_SUFFIX}
-  )
-  MESSAGE(STATUS "STL_LIBRARY_NAME ${STL_LIBRARY_NAME}")
-  IF(STL_LIBRARY_NAME)
-    DIRNAME(${STL_LIBRARY_NAME} STLPORT_PATH)
-    FIND_REAL_LIBRARY(${STL_LIBRARY_NAME} real_library)
-    MESSAGE(STATUS "INSTALL ${STL_LIBRARY_NAME} ${real_library}")
-    INSTALL(FILES ${STL_LIBRARY_NAME} ${real_library}
-            DESTINATION ${INSTALL_LIBDIR} COMPONENT SharedLibraries)
-    EXTEND_C_LINK_FLAGS(${STLPORT_PATH})
-    EXTEND_CXX_LINK_FLAGS(${STLPORT_PATH})
-  ELSE()
-    MESSAGE(STATUS "Failed to find the reuired stlport library, print some"
-                   "variables to help debugging and bail out")
-    MESSAGE(STATUS "CMAKE_CXX_COMPILER ${CMAKE_CXX_COMPILER}")
-    MESSAGE(STATUS "CXX_PATH ${CXX_PATH}")
-    MESSAGE(STATUS "CXX_REALPATH ${CXX_REALPATH}")
-    MESSAGE(STATUS "STLPORT_SUFFIX ${STLPORT_SUFFIX}")
-    MESSAGE(STATUS "PATH: ${CXX_PATH}/../${STLPORT_SUFFIX}")
-    MESSAGE(STATUS "PATH: ${CXX_REALPATH}/../../${STLPORT_SUFFIX}")
-    MESSAGE(FATAL_ERROR
-      "Could not find the required stlport library.")
-  ENDIF()
 ENDIF()
 
 IF(CMAKE_COMPILER_IS_GNUCXX)

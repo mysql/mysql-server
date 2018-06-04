@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -133,7 +133,6 @@ class Mock_share : public TABLE_SHARE
 public:
   Mock_share(const char *key)
   {
-    memset((TABLE_SHARE *)this, 0, sizeof(TABLE_SHARE));
     /*
       Both table_cache_key and cache_element array are used by
       Table_cache code.
@@ -162,7 +161,7 @@ public:
   {
     TABLE *result= (TABLE *)my_malloc(PSI_NOT_INSTRUMENTED, sizeof(TABLE), MYF(0));
 
-    memset(result, 0, sizeof(TABLE));
+    ::new(result) TABLE;
     result->s= this;
     // We create TABLE which is already marked as used
     result->in_use= thd;

@@ -113,7 +113,7 @@ ALTER TABLE t2 DISCARD TABLESPACE;
 # List after t2 DISCARD
 t2.frm
 ALTER TABLE t2 IMPORT TABLESPACE;
-ERROR HY000: Schema mismatch (Table flags don't match, server table has 0x4 and the meta-data file has 0x1)
+ERROR HY000: Schema mismatch (Table flags don't match, server table has ROW_TYPE_DYNAMIC and the meta-data file has ROW_TYPE_COMPACT)
 ALTER TABLE t2 IMPORT TABLESPACE;
 ERROR HY000: Schema mismatch (Table has ROW_TYPE_DYNAMIC row format, .ibd file has ROW_TYPE_COMPACT row format.)
 DROP TABLE t2;
@@ -593,7 +593,7 @@ SELECT * FROM t1;
 ERROR HY000: Tablespace has been discarded for table 't1'
 restore: t1 .ibd and .cfg files
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: Schema mismatch (Table flags don't match, server table has 0x5 and the meta-data file has 0x0)
+ERROR HY000: Schema mismatch (Table flags don't match, server table has ROW_TYPE_COMPACT and the meta-data file has ROW_TYPE_REDUNDANT)
 unlink: t1.ibd
 unlink: t1.cfg
 DROP TABLE t1;
@@ -605,7 +605,7 @@ SELECT * FROM t1;
 ERROR HY000: Tablespace has been discarded for table 't1'
 restore: t1 .ibd and .cfg files
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: Schema mismatch (Table flags don't match, server table has 0x5 and the meta-data file has 0x0)
+ERROR HY000: Schema mismatch (Table flags don't match, server table has ROW_TYPE_DYNAMIC and the meta-data file has ROW_TYPE_REDUNDANT)
 unlink: t1.ibd
 unlink: t1.cfg
 DROP TABLE t1;
@@ -779,7 +779,7 @@ SELECT * FROM t1;
 ERROR HY000: Tablespace has been discarded for table 't1'
 restore: t1 .ibd and .cfg files
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: Schema mismatch (Table flags don't match, server table has 0x5 and the meta-data file has 0x1)
+ERROR HY000: Schema mismatch (Table flags don't match, server table has ROW_TYPE_REDUNDANT and the meta-data file has ROW_TYPE_COMPACT)
 unlink: t1.ibd
 unlink: t1.cfg
 DROP TABLE t1;
@@ -791,7 +791,7 @@ SELECT * FROM t1;
 ERROR HY000: Tablespace has been discarded for table 't1'
 restore: t1 .ibd and .cfg files
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: Schema mismatch (Table flags don't match, server table has 0x5 and the meta-data file has 0x1)
+ERROR HY000: Schema mismatch (Table flags don't match, server table has ROW_TYPE_DYNAMIC and the meta-data file has ROW_TYPE_COMPACT)
 unlink: t1.ibd
 unlink: t1.cfg
 DROP TABLE t1;
@@ -968,7 +968,7 @@ SELECT * FROM t1;
 ERROR HY000: Tablespace has been discarded for table 't1'
 restore: t1 .ibd and .cfg files
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: Schema mismatch (Table flags don't match, server table has 0x5 and the meta-data file has 0x21)
+ERROR HY000: Schema mismatch (Table flags don't match, server table has ROW_TYPE_COMPACT and the meta-data file has ROW_TYPE_DYNAMIC)
 unlink: t1.ibd
 unlink: t1.cfg
 DROP TABLE t1;
@@ -980,7 +980,7 @@ SELECT * FROM t1;
 ERROR HY000: Tablespace has been discarded for table 't1'
 restore: t1 .ibd and .cfg files
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: Schema mismatch (Table flags don't match, server table has 0x5 and the meta-data file has 0x21)
+ERROR HY000: Schema mismatch (Table flags don't match, server table has ROW_TYPE_REDUNDANT and the meta-data file has ROW_TYPE_DYNAMIC)
 unlink: t1.ibd
 unlink: t1.cfg
 DROP TABLE t1;

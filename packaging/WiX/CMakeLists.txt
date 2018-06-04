@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -63,8 +63,6 @@ IF(NOT WIX_DIR)
   RETURN()
 ENDIF()
 
-ADD_SUBDIRECTORY(ca)
-
 FIND_PROGRAM(HEAT_EXECUTABLE heat ${WIX_DIR})
 FIND_PROGRAM(CANDLE_EXECUTABLE candle ${WIX_DIR})
 FIND_PROGRAM(LIGHT_EXECUTABLE light ${WIX_DIR})
@@ -87,7 +85,6 @@ ELSE()
   FILE(APPEND "${CMAKE_CURRENT_BINARY_DIR}/COPYING.rtf" "\n}\n")
   SET(COPYING_RTF "${CMAKE_CURRENT_BINARY_DIR}/COPYING.rtf")
 ENDIF()
-# GET_TARGET_PROPERTY(WIXCA_LOCATION wixca LOCATION)
 SET(CPACK_WIX_CONFIG ${CMAKE_CURRENT_SOURCE_DIR}/CPackWixConfig.cmake)
 SET(CPACK_WIX_INCLUDE "${CMAKE_CURRENT_BINARY_DIR}/mysql_server_extra.wxs;${CMAKE_CURRENT_SOURCE_DIR}/custom_ui.wxs")
 
@@ -119,7 +116,6 @@ ADD_CUSTOM_TARGET(
   COMMAND ${CMAKE_COMMAND}
   -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/mysql_server_extra.wxs.in
   -DOUTPUT_FILE=${CMAKE_CURRENT_BINARY_DIR}/mysql_server_extra.wxs
-  -DWIXCA_LOCATION=$<TARGET_FILE:wixca>
   -DMAJOR_VERSION=${MAJOR_VERSION}
   -DMINOR_VERSION=${MINOR_VERSION}
   -DWixWin64=${WixWin64}
@@ -140,8 +136,6 @@ ADD_CUSTOM_TARGET(
   COMMAND set VS_UNICODE_OUTPUT=
   COMMAND ${CMAKE_COMMAND} 
   ${CONFIG_PARAM} 
-  -DWIXCA_LOCATION=$<TARGET_FILE:wixca>
   -P  ${CMAKE_CURRENT_BINARY_DIR}/create_msi.cmake
 )
-ADD_DEPENDENCIES(MSI wixca)
 ADD_DEPENDENCIES(MSI configure_mysql_server_extra)

@@ -20,28 +20,28 @@ where operation not like "tell"
   and event_name like "wait/io/file/myisam/%"
   order by thread_id, event_id;
 event_name	short_source	operation	number_of_bytes	short_name
-wait/io/file/myisam/kfile	mi_create.c:	create	NULL	no_index_tab.MYI
-wait/io/file/myisam/dfile	mi_create.c:	create	NULL	no_index_tab.MYD
-wait/io/file/myisam/kfile	mi_open.c:	write	176	no_index_tab.MYI
-wait/io/file/myisam/kfile	mi_open.c:	write	100	no_index_tab.MYI
-wait/io/file/myisam/kfile	mi_open.c:	write	7	no_index_tab.MYI
-wait/io/file/myisam/kfile	mi_open.c:	write	7	no_index_tab.MYI
-wait/io/file/myisam/kfile	mi_open.c:	write	7	no_index_tab.MYI
-wait/io/file/myisam/kfile	mi_create.c:	chsize	1024	no_index_tab.MYI
-wait/io/file/myisam/dfile	mi_create.c:	close	NULL	no_index_tab.MYD
-wait/io/file/myisam/kfile	mi_create.c:	close	NULL	no_index_tab.MYI
-wait/io/file/myisam/kfile	mi_open.c:	open	NULL	no_index_tab.MYI
-wait/io/file/myisam/kfile	mi_open.c:	read	24	no_index_tab.MYI
-wait/io/file/myisam/kfile	mi_open.c:	seek	NULL	no_index_tab.MYI
-wait/io/file/myisam/kfile	mi_open.c:	read	297	no_index_tab.MYI
-wait/io/file/myisam/dfile	mi_open.c:	open	NULL	no_index_tab.MYD
-wait/io/file/myisam/kfile	mi_locking.c:	write	3	no_index_tab.MYI
-wait/io/file/myisam/dfile	mi_dynrec.c:	write	20	no_index_tab.MYD
-wait/io/file/myisam/kfile	mi_open.c:	write	124	no_index_tab.MYI
-wait/io/file/myisam/dfile	mi_dynrec.c:	write	20	no_index_tab.MYD
-wait/io/file/myisam/kfile	mi_open.c:	write	124	no_index_tab.MYI
-wait/io/file/myisam/dfile	mi_dynrec.c:	write	20	no_index_tab.MYD
-wait/io/file/myisam/kfile	mi_open.c:	write	124	no_index_tab.MYI
+wait/io/file/myisam/kfile		create	NULL	no_index_tab.MYI
+wait/io/file/myisam/dfile		create	NULL	no_index_tab.MYD
+wait/io/file/myisam/kfile		write	176	no_index_tab.MYI
+wait/io/file/myisam/kfile		write	100	no_index_tab.MYI
+wait/io/file/myisam/kfile		write	7	no_index_tab.MYI
+wait/io/file/myisam/kfile		write	7	no_index_tab.MYI
+wait/io/file/myisam/kfile		write	7	no_index_tab.MYI
+wait/io/file/myisam/kfile		chsize	1024	no_index_tab.MYI
+wait/io/file/myisam/dfile		close	NULL	no_index_tab.MYD
+wait/io/file/myisam/kfile		close	NULL	no_index_tab.MYI
+wait/io/file/myisam/kfile		open	NULL	no_index_tab.MYI
+wait/io/file/myisam/kfile		read	24	no_index_tab.MYI
+wait/io/file/myisam/kfile		seek	NULL	no_index_tab.MYI
+wait/io/file/myisam/kfile		read	297	no_index_tab.MYI
+wait/io/file/myisam/dfile		open	NULL	no_index_tab.MYD
+wait/io/file/myisam/kfile		write	3	no_index_tab.MYI
+wait/io/file/myisam/dfile		write	20	no_index_tab.MYD
+wait/io/file/myisam/kfile		write	124	no_index_tab.MYI
+wait/io/file/myisam/dfile		write	20	no_index_tab.MYD
+wait/io/file/myisam/kfile		write	124	no_index_tab.MYI
+wait/io/file/myisam/dfile		write	20	no_index_tab.MYD
+wait/io/file/myisam/kfile		write	124	no_index_tab.MYI
 show global status like 'performance_schema_%';
 Variable_name	Value
 Performance_schema_accounts_lost	0

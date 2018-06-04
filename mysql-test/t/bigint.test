@@ -458,4 +458,28 @@ SELECT (184467440737095 BETWEEN 0 AND 18446744073709551500);
 
 SELECT 184467440737095 >= 0;
 SELECT 0 <= 18446744073709551500;
+
+--echo #
+--echo # Bug#22501606 SELECT CAST(100 AS UNSIGNED) BETWEEN 1 AND -1 RETURNS TRUE
+--echo # Bug#79857 select cast(100 as unsigned) between 1 and -1 returns true
+--echo #
+
+SELECT CAST(100 AS UNSIGNED) BETWEEN 1 AND -1;
+SELECT CAST(100 AS UNSIGNED) NOT BETWEEN 1 AND -1;
+
+SELECT CAST(0 AS UNSIGNED) BETWEEN 0 AND -1;
+SELECT CAST(0 AS UNSIGNED) NOT BETWEEN 0 AND -1;
+
+--echo #
+--echo # Bug #27691347: BETWEEN CLAUSE RETURNS INCOHERENT RESULTS COMPARING
+--echo #                NEGATIVE VALUES
+
+CREATE TABLE Reservation (id BIGINT UNSIGNED NOT NULL,
+                          transaction_id BIGINT UNSIGNED NOT NULL DEFAULT '0',
+                          KEY transaction_id_idx (transaction_id));
+INSERT INTO Reservation(id, transaction_id) VALUES(1, 1);
+
+SELECT COUNT(*) FROM Reservation WHERE transaction_id BETWEEN -2 AND -1;
+DROP TABLE Reservation;
+
 SET sql_mode = default;

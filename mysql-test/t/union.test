@@ -2026,3 +2026,18 @@ while ($c)
 }
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#27197235 USER VARIABLE + UINON + DECIMAL COLUMN RETURNS
+--echo #              WRONG VALUES
+--echo #
+
+let $old_charset= `SELECT @@character_set_client`;
+
+SET NAMES utf8;
+SET @advertAcctId = 1000003;
+select @advertAcctId as a from dual union all select 1.0 from dual;
+
+eval SET NAMES $old_charset;
+SET @advertAcctId = 1000003;
+select @advertAcctId as a from dual union all select 1.0 from dual;

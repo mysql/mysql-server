@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,6 +17,8 @@ INCLUDE_DIRECTORIES(BEFORE ${CMAKE_CURRENT_SOURCE_DIR} )
 INCLUDE(CheckIncludeFile)
 include(CheckFunctionExists)
 CHECK_INCLUDE_FILES(term.h HAVE_TERM_H)
+
+INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 
 SET(CMAKE_REQUIRED_LIBRARIES ${CURSES_LIBRARY})
 CHECK_CXX_SOURCE_COMPILES("
@@ -153,6 +155,16 @@ ${CMAKE_SOURCE_DIR}/include
 ${CMAKE_CURRENT_BINARY_DIR}
 ${CURSES_INCLUDE_PATH}
 )
+
+MY_CHECK_C_COMPILER_FLAG("-Wstringop-overflow" HAVE_STRINGOP_OVERFLOW)
+IF(HAVE_STRINGOP_OVERFLOW)
+  ADD_COMPILE_FLAGS(
+    history.c
+    historyn.c
+    readline.c
+    COMPILE_FLAGS -Wno-stringop-overflow
+    )
+ENDIF()
 
 SET(LIBEDIT_SOURCES
   chared.c 

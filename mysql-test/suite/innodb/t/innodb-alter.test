@@ -475,8 +475,7 @@ CREATE TABLE notes (
    body text COLLATE utf8_unicode_ci,
    PRIMARY KEY (id)
    ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8
-COLLATE=utf8_unicode_ci
-ROW_FORMAT=COMPRESSED;
+COLLATE=utf8_unicode_ci;
 
 ALTER TABLE notes ADD FULLTEXT INDEX index_ft_body (body(255));
 DROP INDEX index_ft_body ON notes;
