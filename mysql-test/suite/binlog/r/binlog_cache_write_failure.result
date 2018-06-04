@@ -1,0 +1,65 @@
+call mtr.add_suppression("An error occurred during flush stage of the commit");
+call mtr.add_suppression("Attempting backtrace. You can use the following information to find out*");
+RESET MASTER;
+CREATE TABLE t1(i INT);
+
+# Case 1 (binlog_error_action = ABORT_SERVER)
+
+SET GLOBAL binlog_error_action = ABORT_SERVER;
+
+# Case 1.1  CLIENT DISCONNECTION
+BEGIN;
+INSERT INTO t1 VALUES (1);
+SET SESSION debug= "+d,simulate_tmpdir_partition_full";
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+ERROR HY000: Error writing file <tmp_file_name> (Errcode: ##)
+SET SESSION debug= "-d,simulate_tmpdir_partition_full";
+
+# Case 1.2 ROLLBACK
+BEGIN;
+INSERT INTO t1 VALUES (1);
+SET SESSION debug= "+d,simulate_tmpdir_partition_full";
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+ERROR HY000: Error writing file <tmp_file_name> (Errcode: ##)
+ROLLBACK;
+SET SESSION debug= "-d,simulate_tmpdir_partition_full";
+
+# Case 1.3 COMMIT
+BEGIN;
+INSERT INTO t1 VALUES (1);
+SET SESSION debug= "+d,simulate_tmpdir_partition_full";
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+ERROR HY000: Error writing file <tmp_file_name> (Errcode: ##)
+COMMIT;
+ERROR HY000: Binary logging not possible. Message: An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'ABORT_SERVER'. Hence aborting the server.
+include/assert_grep.inc [An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'ABORT_SERVER'.]
+include/assert.inc [Count of elements in t1 should be 0.]
+include/assert.inc [Query is not binlogged as expected.]
+TRUNCATE TABLE t1;
+
+# Case 2 (binlog_error_action = IGNORE_ERROR)
+
+RESET MASTER;
+SET GLOBAL binlog_error_action= IGNORE_ERROR;
+BEGIN;
+INSERT INTO t1 VALUES (1);
+SET SESSION debug= "+d,simulate_tmpdir_partition_full";
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+ERROR HY000: Error writing file <tmp_file_name> (Errcode: ##)
+COMMIT;
+Warnings:
+Error	3	Error writing file MYSQLTEST_VARDIR/tmp/temp_file (Errcode: ##)
+Error	1026	Error writing file MYSQLTEST_VARDIR/tmp/temp_file (Errcode: ##)
+SET SESSION debug= "-d,simulate_tmpdir_partition_full";
+include/assert.inc [Count of elements in t1 should be 2.]
+SHOW BINARY LOGS;
+ERROR HY000: You are not using binary logging
+include/assert_grep.inc [An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'IGNORE_ERROR'.]
+# restart
+include/assert.inc [Count of elements in t1 should be 2.]
+DROP TABLE t1;
+RESET MASTER;

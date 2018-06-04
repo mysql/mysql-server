@@ -6,11 +6,12 @@
 --source include/not_embedded.inc
 --source include/have_innodb_max_16k.inc
 
+--disable_query_log
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
-call mtr.add_suppression("InnoDB: The error means that another program is using InnoDB's files");
 call mtr.add_suppression("InnoDB: The error means that another program is using InnoDB's files");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 32 in a file operation.");
+--enable_query_log
+
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
 
 #------------------------------------------------------------------------------

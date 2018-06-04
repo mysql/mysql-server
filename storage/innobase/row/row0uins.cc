@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -200,7 +200,6 @@ row_undo_ins_remove_sec_low(
 	ibool			modify_leaf = false;
 
 	log_free_check();
-	memset(&pcur, 0, sizeof(pcur));
 
 	mtr_start(&mtr);
 	mtr.set_named_space(index->space);

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #include <mysql_version.h>
 #include <mysqld_error.h>
 #include <sslopt-vars.h>
+#include <caching_sha2_passwordopt-vars.h>
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 using namespace Mysql::Tools::Check;
@@ -198,6 +199,7 @@ static struct my_option my_long_options[] =
    &opt_mysql_unix_port, &opt_mysql_unix_port, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
+#include <caching_sha2_passwordopt-longopts.h>
   {"tables", OPT_TABLES, "Overrides option --databases (-B).", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"use-frm", OPT_FRM,
@@ -488,6 +490,10 @@ static int dbConnect(char *host, char *user, char *passwd)
   mysql_options(&mysql_connection, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
   mysql_options4(&mysql_connection, MYSQL_OPT_CONNECT_ATTR_ADD,
                  "program_name", "mysqlcheck");
+
+  set_server_public_key(&mysql_connection);
+  set_get_server_public_key_option(&mysql_connection);
+
   if (!(sock = mysql_real_connect(&mysql_connection, host, user, passwd,
          NULL, opt_mysql_port, opt_mysql_unix_port, 0)))
   {

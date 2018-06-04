@@ -174,9 +174,10 @@ extern PSI_memory_key key_memory_max_alloca;
   trashes value of B.
 */
 #define TRASH(A,B) do {                                                 \
+    void *p = (A);                                                      \
     const size_t l= (B);                                                \
     MEM_CHECK_ADDRESSABLE(A, l);                                        \
-    memset(A, 0x8F, l);                                                 \
+    memset(p, 0x8F, l);                                                 \
     MEM_UNDEFINED(A, l);                                                \
   } while (0)
 #else

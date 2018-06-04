@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -248,7 +248,7 @@ static int sql_get_null(void *ctx)
   uint col= pctx->current_col;
   pctx->current_col++;
 
-  strncpy(pctx->sql_str_value[row][col], "[NULL]", sizeof("[NULL]")-1);
+  strcpy(pctx->sql_str_value[row][col], "[NULL]");
   pctx->sql_str_len[row][col]=  sizeof("[NULL]")-1;
 
   DBUG_RETURN(false);

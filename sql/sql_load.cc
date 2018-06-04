@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -447,8 +447,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
                        MY_RETURN_REAL_PATH);
     }
 
-    if (thd->slave_thread & ((SYSTEM_THREAD_SLAVE_SQL |
-                             (SYSTEM_THREAD_SLAVE_WORKER))!=0))
+    if ((thd->slave_thread &
+         (SYSTEM_THREAD_SLAVE_SQL | SYSTEM_THREAD_SLAVE_WORKER)) != 0)
     {
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
       Relay_log_info* rli= thd->rli_slave->get_c_rli();

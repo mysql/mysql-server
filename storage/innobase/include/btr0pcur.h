@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -497,6 +497,8 @@ enum pcur_pos_t {
 selects, updates, and deletes. */
 
 struct btr_pcur_t{
+	btr_pcur_t() { memset(this, 0, sizeof(*this)); }
+
 	/** a B-tree cursor */
 	btr_cur_t	btr_cur;
 	/** see TODO note below!

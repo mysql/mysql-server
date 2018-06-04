@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -838,14 +838,6 @@ public:
       dim= GEOM_DIM - 1;
       nomem= 1;
     }
-
-    Flags_t &operator=(const Flags_t &rhs)
-    {
-      compile_time_assert(sizeof(*this) == sizeof(uint64));
-      memcpy(this, &rhs, sizeof(rhs));
-      return *this;
-    }
-
 
     uint64 bo:1;
     uint64 dim:2;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,7 +40,6 @@ public:
     , file_io(logger)
     , keyring_file(-1)
   {
-    memset(&saved_keyring_stat, 0, sizeof(MY_STAT));
   }
 
   my_bool init(std::string *keyring_filename);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -8367,16 +8367,11 @@ bool Item_func_sp::itemize(Parse_context *pc, Item **res)
   context= lex->current_context();
   lex->safe_to_cache_query= false;
 
-  if (m_name->m_db.str == NULL) // use the default database name
+  if (m_name->m_db.str == NULL)
   {
     /* Cannot match the function since no database is selected */
-    if (thd->db().str == NULL)
-    {
-      my_error(ER_NO_DB_ERROR, MYF(0));
-      return true;
-    }
-    m_name->m_db= thd->db();
-    m_name->m_db.str= thd->strmake(m_name->m_db.str, m_name->m_db.length);
+    my_error(ER_NO_DB_ERROR, MYF(0));
+    return true;
   }
 
   m_name->init_qname(thd);

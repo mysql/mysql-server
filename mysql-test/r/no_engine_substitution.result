@@ -1,0 +1,179 @@
+#
+# Bug#27502530: DISABLING NO_ENGINE_SUBSTITUTION DOES NOT BEHAVE AS
+#               DOCUMENTED
+#
+CALL mtr.add_suppression("default_storage_engine is set to a disabled storage engine .*");
+CALL mtr.add_suppression("default_tmp_storage_engine is set to a disabled storage engine .*");
+# Started the server by disabling InnoDB using system variable 'disabled_storage_engines'
+SELECT @@disabled_storage_engines;
+@@disabled_storage_engines
+InnoDB
+SET DEFAULT_STORAGE_ENGINE= MyISAM;
+SELECT @@default_storage_engine;
+@@default_storage_engine
+MyISAM
+
+# NO_ENGINE_SUBSTITUTION enabled
+SET SQL_MODE= 'NO_ENGINE_SUBSTITUTION';
+CREATE TABLE t1(c1 INT) ENGINE= MyISAM;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+INSERT INTO t1 VALUES(1);
+CREATE TABLE t2(c1 INT) ENGINE= InnoDB;
+ERROR HY000: Storage engine InnoDB is disabled (Table creation is disallowed).
+CREATE TEMPORARY TABLE t2(c1 INT) ENGINE= InnoDB;
+ERROR HY000: Storage engine InnoDB is disabled (Table creation is disallowed).
+ALTER TABLE t1 ENGINE= InnoDB;
+ERROR HY000: Storage engine InnoDB is disabled (Table creation is disallowed).
+# Restart the server disabling the myisam storage engine using variable 'disabled_storage_engines'
+SELECT @@disabled_storage_engines;
+@@disabled_storage_engines
+myisam,example
+SET @old_default_engine= @@default_storage_engine;
+# Changing the default engine to InnoDB
+SET DEFAULT_STORAGE_ENGINE= InnoDB;
+SELECT @@default_storage_engine;
+@@default_storage_engine
+InnoDB
+CREATE TABLE t2(c1 INT) ENGINE= MyISAM;
+ERROR HY000: Storage engine MyISAM is disabled (Table creation is disallowed).
+SELECT * FROM t1;
+c1
+1
+# Checking table creation with dynamic storage plugins
+INSTALL PLUGIN example SONAME 'ha_example.so';
+CREATE TABLE t1(a int) ENGINE=EXAMPLE;
+ERROR HY000: Storage engine EXAMPLE is disabled (Table creation is disallowed).
+
+# NO_ENGINE_SUBSTITUTION disabled
+SET SQL_MODE='';
+# The disabled engine is substituted with the default engine for the table.
+CREATE TABLE t2(c1 INT) ENGINE= MyISAM;
+Warnings:
+Warning	3161	Storage engine MyISAM is disabled (Table creation is disallowed).
+Warning	1266	Using storage engine InnoDB for table 't2'
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+CREATE TABLE t3 LIKE t1;
+Warnings:
+Warning	3161	Storage engine MyISAM is disabled (Table creation is disallowed).
+Warning	1266	Using storage engine InnoDB for table 't3'
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `c1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+CREATE TEMPORARY TABLE t4(c1 INT) ENGINE= MyISAM;
+Warnings:
+Warning	3161	Storage engine MyISAM is disabled (Table creation is disallowed).
+Warning	1266	Using storage engine InnoDB for table 't4'
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TEMPORARY TABLE `t4` (
+  `c1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+CREATE TABLE t5 (c1 INT) ENGINE= ARCHIVE;
+# ALTER TABLE ... ENGINE reports a warning and the table is not altered.
+ALTER TABLE t5 ENGINE= MyISAM;
+Warnings:
+Warning	1286	Unknown storage engine 'MyISAM'
+SHOW CREATE TABLE t5;
+Table	Create Table
+t5	CREATE TABLE `t5` (
+  `c1` int(11) DEFAULT NULL
+) ENGINE=ARCHIVE DEFAULT CHARSET=latin1
+CREATE PROCEDURE p1()
+BEGIN
+CREATE TABLE t6(c1 INT) ENGINE= MyISAM;
+END /
+CALL p1();
+Warnings:
+Warning	3161	Storage engine MyISAM is disabled (Table creation is disallowed).
+Warning	1266	Using storage engine InnoDB for table 't6'
+SHOW CREATE TABLE t6;
+Table	Create Table
+t6	CREATE TABLE `t6` (
+  `c1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+CREATE TABLE t7 (c1 INT) ENGINE= EXAMPLE;
+Warnings:
+Warning	3161	Storage engine EXAMPLE is disabled (Table creation is disallowed).
+Warning	1266	Using storage engine InnoDB for table 't7'
+SHOW CREATE TABLE t7;
+Table	Create Table
+t7	CREATE TABLE `t7` (
+  `c1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SET DEFAULT_STORAGE_ENGINE= MyISAM;
+CREATE TABLE t8 (c1 INT) ENGINE= MyISAM;
+ERROR HY000: Storage engine MyISAM is disabled (Table creation is disallowed).
+CREATE TABLE t8 (c1 INT) ENGINE= EXAMPLE;
+ERROR HY000: Storage engine EXAMPLE is disabled (Table creation is disallowed).
+UNINSTALL PLUGIN EXAMPLE;
+DROP PROCEDURE p1;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+DROP TABLE t5;
+DROP TABLE t6;
+DROP TABLE t7;
+SET @@default_storage_engine=@old_default_engine;
+SET sql_mode= DEFAULT;
+# Restart the server disabling archive engine via '--skip-archive or --archive=off'
+SET @old_default_engine= @@default_storage_engine;
+SET DEFAULT_STORAGE_ENGINE= MyISAM;
+SET DEFAULT_TMP_STORAGE_ENGINE= MyISAM;
+
+# NO_ENGINE_SUBSTITUTION enabled
+SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
+CREATE TABLE t1 (c1 INT) ENGINE= ARCHIVE;
+ERROR 42000: Unknown storage engine 'ARCHIVE'
+CREATE TEMPORARY TABLE t1 (c1 INT) ENGINE= ARCHIVE;
+ERROR 42000: Unknown storage engine 'ARCHIVE'
+CREATE TABLE t1 (c1 INT) ENGINE=MyISAM;
+ALTER TABLE t1 ENGINE= ARCHIVE;
+ERROR 42000: Unknown storage engine 'ARCHIVE'
+
+# NO_ENGINE_SUBSTITUTION disabled
+SET SQL_MODE='';
+CREATE TABLE t2 (c1 INT) ENGINE=ARCHIVE;
+Warnings:
+Warning	1286	Unknown storage engine 'ARCHIVE'
+Warning	1266	Using storage engine MyISAM for table 't2'
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+CREATE TEMPORARY TABLE t3 (c1 INT) ENGINE= ARCHIVE;
+Warnings:
+Warning	1286	Unknown storage engine 'ARCHIVE'
+Warning	1266	Using storage engine MyISAM for table 't3'
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TEMPORARY TABLE `t3` (
+  `c1` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+# ALTER TABLE .. ENGINE reports a warning and the table is not altered.
+ALTER TABLE t1 ENGINE= ARCHIVE;
+Warnings:
+Warning	1286	Unknown storage engine 'ARCHIVE'
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+SET @@default_storage_engine= @old_default_engine;
+SET sql_mode = DEFAULT;
+# restart

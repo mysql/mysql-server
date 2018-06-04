@@ -1,4 +1,4 @@
-# Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -104,23 +104,21 @@ IF(UNIX)
     ENDIF()
 
     IF(CMAKE_C_COMPILER_ID MATCHES "SunPro")
-      IF(DEFINED CC_MINOR_VERSION AND CC_MINOR_VERSION GREATER 12)
-        SET(SUNPRO_FLAGS     "-xdebuginfo=no%decl")
-      ENDIF()
+      SET(SUNPRO_FLAGS     "-xdebuginfo=no%decl")
       SET(SUNPRO_FLAGS     "${SUNPRO_FLAGS} -xbuiltin=%all")
       SET(SUNPRO_FLAGS     "${SUNPRO_FLAGS} -xlibmil")
       # Link with the libatomic library in /usr/lib
       # This prevents dependencies on libstatomic
       # This was introduced with developerstudio12.5
-      IF(CC_MINOR_VERSION GREATER 13)
-        SET(SUNPRO_FLAGS   "${SUNPRO_FLAGS} -xatomic=gcc")
-      ENDIF()
+      SET(SUNPRO_FLAGS     "${SUNPRO_FLAGS} -xatomic=gcc")
+
       IF(CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
         SET(SUNPRO_FLAGS   "${SUNPRO_FLAGS} -nofstore")
       ENDIF()
 
       SET(COMMON_C_FLAGS            "-g ${SUNPRO_FLAGS}")
       SET(COMMON_CXX_FLAGS          "-g0 ${SUNPRO_FLAGS}")
+      SET(COMMON_CXX_FLAGS          "${COMMON_CXX_FLAGS} -std=c++03")
       SET(CMAKE_C_FLAGS_DEBUG       "${COMMON_C_FLAGS}")
       SET(CMAKE_CXX_FLAGS_DEBUG     "${COMMON_CXX_FLAGS}")
       SET(CMAKE_C_FLAGS_RELWITHDEBINFO   "-xO3 ${COMMON_C_FLAGS}")

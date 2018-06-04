@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -426,7 +426,6 @@ Trigger::Trigger(MEM_ROOT *mem_root,
   m_on_table_name= NULL_STR;
 
   m_parse_error_message[0]= 0;
-  memset(&m_subject_table_grant, 0, sizeof (m_subject_table_grant));
 }
 
 

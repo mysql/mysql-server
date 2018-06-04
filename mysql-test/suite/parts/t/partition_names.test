@@ -1,0 +1,49 @@
+-- source include/have_innodb.inc
+-- source include/mysql_upgrade_preparation.inc
+--echo #
+--echo # Bug26390736 THE FIELD TABLE_NAME (VARCHAR(64)) FROM MYSQL.INNODB_TABLE_STATS CAN OVERFLOW
+--echo #
+#Test 1 Table with maximum possible name
+
+show create table mysql.innodb_index_stats;
+show create table mysql.innodb_table_stats;
+
+create table abcdefghijklmnopqrstuvwxyz_abcdefghijklmnopqrstuvwxyz_abcdefghij (id int) engine=innodb
+partition by range (id)
+subpartition by hash(id) (
+
+partition pbcdefghijklmnopqrstuvwxyz_abcdefghijklmnopqrstuvwxyz_abcdefghij values less than (10) (
+
+subpartition subdefghijklmnopqrstuvwxyz_abcdefghijklmnopqrstuvwxyz_abcdefghij,
+subpartition s02
+),
+partition pmax VALUES LESS THAN MAXVALUE (
+subpartition pmax_sub1,
+subpartition pmax_sub2
+)
+);
+
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
+select table_name,LENGTH(table_name) from mysql.innodb_table_stats where LENGTH(table_name) = 199;
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
+select table_name,LENGTH(table_name) from mysql.innodb_index_stats where LENGTH(table_name) = 199;
+drop table abcdefghijklmnopqrstuvwxyz_abcdefghijklmnopqrstuvwxyz_abcdefghij;
+
+#Test 2 Check mysql-upgrade
+
+#Manually change length
+CALL mtr.add_suppression("Table mysql/innodb_table_stats has length mismatch in the column name table_name.  Please run mysql_upgrade");
+CALL mtr.add_suppression("Table mysql/innodb_index_stats has length mismatch in the column name table_name.  Please run mysql_upgrade");
+alter table mysql.innodb_table_stats modify table_name varchar(64);
+alter table mysql.innodb_index_stats modify table_name varchar(64);
+
+show create table mysql.innodb_index_stats;
+show create table mysql.innodb_table_stats;
+
+#Run upgrade to check if the length has changed.
+--exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+
+show create table mysql.innodb_index_stats;
+show create table mysql.innodb_table_stats;
+
+--source include/mysql_upgrade_cleanup.inc

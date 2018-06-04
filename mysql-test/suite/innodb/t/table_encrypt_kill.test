@@ -15,14 +15,10 @@
 --source include/not_crashrep.inc
 
 #suppress warning
+--disable_query_log
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("ibd can't be decrypted , please confirm the keyfile is match and keyring plugin is loaded");
-call mtr.add_suppression("Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
+call mtr.add_suppression("ibd can't be decrypted");
 call mtr.add_suppression("does not exist in the InnoDB internal data dictionary though MySQL is trying to drop it");
-
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("ibd can't be decrypted , please confirm the keyfile is match and keyring plugin is loaded");
-call mtr.add_suppression("Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
 call mtr.add_suppression("InnoDB: Operating system error number");
 call mtr.add_suppression("The error means the system cannot find the path specified");
 call mtr.add_suppression("InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them");
@@ -34,6 +30,7 @@ call mtr.add_suppression("\\[ERROR\\] InnoDB: Table tde_db/t_encrypt.* in the In
 call mtr.add_suppression("\\[Warning\\] InnoDB: Please refer to .* for how to resolve the issue");
 call mtr.add_suppression("Cannot create keyring directory");
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'Could not create keyring directory");
+--enable_query_log
 
 
 

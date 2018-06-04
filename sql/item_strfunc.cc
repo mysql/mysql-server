@@ -3186,14 +3186,15 @@ String *Item_func_format::val_str_ascii(String *str)
       str_length >= dec_length + 1 + lc->grouping[0])
   {
     /* We need space for ',' between each group of digits as well. */
-    char buf[2 * FLOATING_POINT_BUFFER];
+    char buf[2 * FLOATING_POINT_BUFFER + 2] = {0};
     int count;
     const char *grouping= lc->grouping;
     char sign_length= *str->ptr() == '-' ? 1 : 0;
     const char *src= str->ptr() + str_length - dec_length - 1;
     const char *src_begin= str->ptr() + sign_length;
-    char *dst= buf + sizeof(buf);
-    
+    char *dst= buf + 2 * FLOATING_POINT_BUFFER;
+    char *start_dst = dst;
+
     /* Put the fractional part */
     if (dec)
     {
@@ -3225,7 +3226,8 @@ String *Item_func_format::val_str_ascii(String *str)
       *--dst= *str->ptr();
     
     /* Put the rest of the integer part without grouping */
-    str->copy(dst, buf + sizeof(buf) - dst, &my_charset_latin1);
+    size_t result_length = start_dst - dst;
+    str->copy(dst, result_length, &my_charset_latin1);
   }
   else if (dec_length && lc->decimal_point != '.')
   {

@@ -2930,7 +2930,6 @@ int Query_result_create::binlog_show_create_table(TABLE **tables, uint count)
   int result;
   TABLE_LIST tmp_table_list;
 
-  memset(&tmp_table_list, 0, sizeof(tmp_table_list));
   tmp_table_list.table = *tables;
   query.length(0);      // Have to zero it since constructor doesn't
 

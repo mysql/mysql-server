@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -105,6 +105,8 @@ typedef UT_LIST_BASE_NODE_T(row_fts_token_t)     fts_token_list_t;
 
 /** Structure stores information from string tokenization operation */
 struct fts_tokenize_ctx {
+	fts_tokenize_ctx() { memset(this, 0, sizeof(*this)); }
+
 	ulint			processed_len;  /*!< processed string length */
 	ulint			init_pos;       /*!< doc start position */
 	ulint			buf_used;       /*!< the sort buffer (ID) when

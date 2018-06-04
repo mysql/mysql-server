@@ -1684,7 +1684,9 @@ Plugin_gcs_events_handler::compare_member_option_compatibility() const
       goto cleaning;
     }
 
-    if (local_member_info->get_lower_case_table_names() !=
+    if ((*all_members_it)->get_lower_case_table_names() !=
+         DEFAULT_NOT_RECEIVED_LOWER_CASE_TABLE_NAMES &&
+        local_member_info->get_lower_case_table_names() !=
         (*all_members_it)->get_lower_case_table_names())
     {
       result= 1;

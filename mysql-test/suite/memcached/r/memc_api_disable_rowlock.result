@@ -1,0 +1,48 @@
+SET @tx_isolation= @@global.tx_isolation;
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+INSERT INTO cache_policies VALUES("cache_policy", "innodb_only",
+"innodb_only", "innodb_only", "innodb_only");
+INSERT INTO config_options VALUES("separator", "|");
+INSERT INTO containers VALUES ("desc_t1", "test", "t1",
+"c1", "c2,c21", "c3", "c4", "c5", "PRIMARY");
+USE test;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1        (c1 VARCHAR(32),
+c2 VARCHAR(1024),
+c21 VARCHAR(1024),
+c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
+ENGINE = INNODB;
+INSERT INTO t1 VALUES ('D', 'Darmstadt', 'City', 0, 0, 0);
+INSERT INTO t1 VALUES ('B', 'Berlin', 'Mitte', 0, 0, 0);
+INSERT INTO t1 VALUES ('C', 'Cottbus', 'West', 0, 0 ,0);
+INSERT INTO t1 VALUES ('H', 'Hamburg', 'Norderstedt', 0, 0, 0);
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+SELECT @@global.daemon_memcached_r_batch_size;
+@@global.daemon_memcached_r_batch_size
+1
+SET @@global.daemon_memcached_r_batch_size=100;
+ERROR HY000: Variable 'daemon_memcached_r_batch_size' is a read only variable
+SELECT c1,c2,c21 FROM t1;
+c1	c2	c21
+B	Berlin	Mitte
+C	Cottbus	West
+D	Darmstadt	City
+H	Hamburg	Norderstedt
+SELECT SLEEP(2);
+SLEEP(2)
+0
+Here the memcached results with D,B,H,C:
+SELECT c1,c2,c21 FROM t1;
+c1	c2	c21
+B	Berlin	Mitte
+C	Cottbus	West
+D	Darmstadt	City
+H	Hamburg	Norderstedt
+DROP TABLE t1;
+UNINSTALL PLUGIN daemon_memcached;
+DROP DATABASE innodb_memcache;
+SET @@global.tx_isolation= @tx_isolation;
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead

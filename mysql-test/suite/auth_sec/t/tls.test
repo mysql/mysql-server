@@ -32,11 +32,9 @@ let $MYSQLD_DATADIR= `SELECT @@datadir`;
 let $MYSQL_SOCKET= `SELECT @@socket`;
 let $MYSQL_PORT= `SELECT @@port`;
 
-let $cipher_default= DHE-RSA-AES256-SHA;
 let $tls_default= TLSv1.1;
 let $openssl= query_get_value("SHOW STATUS LIKE 'Rsa_public_key'", Variable_name, 1);
 if ($openssl == 'Rsa_public_key'){
-  let $cipher_default= DHE-RSA-AES128-GCM-SHA256;
   let $tls_default= TLSv1.2;
 }
 --echo #T1: Default TLS connection
@@ -44,7 +42,7 @@ if ($openssl == 'Rsa_public_key'){
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW STATUS like 'Ssl_version'"
 
 --echo #T2: Default SSL cipher
---replace_result $cipher_default SSL_CIPHER
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW STATUS like 'Ssl_cipher'"
 
 --echo #T3: Setting TLS version TLSv1.2 (for yassl TLSv1.1) from the client

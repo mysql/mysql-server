@@ -10,14 +10,14 @@
 #
 ##############################################################################
 max_parts.innodb-import-partition-1 : Bug#27413612 Ashish Fails consistently on hudson jobs. Disabled until bug is fixed.
-max_parts.innodb_partition_open_files_limit @windows        : 20.02.2018 Ashish Disabling max_parts tests on windows.
-max_parts.partition_max_parts_list_innodb @windows          : 20.02.2018 Ashish Disabling max_parts tests on windows.
-max_parts.partition_max_parts_hash_innodb @windows          : 20.02.2018 Ashish Disabling max_parts tests on windows.
-max_parts.partition_max_parts_key_innodb @windows           : 20.02.2018 Ashish Disabling max_parts tests on windows.
-max_parts.partition_max_parts_inv_innodb @windows           : 20.02.2018 Ashish Disabling max_parts tests on windows.
-max_parts.partition_max_sub_parts_range_innodb @windows     : 20.02.2018 Ashish Disabling max_parts tests on windows.
-max_parts.partition_max_sub_parts_key_range_innodb @windows : 20.02.2018 Ashish Disabling max_parts tests on windows.
-max_parts.partition_max_sub_parts_key_list_innodb @windows  : 20.02.2018 Ashish Disabling max_parts tests on windows.
-max_parts.partition_max_parts_range_innodb @windows         : 20.02.2018 Ashish Disabling max_parts tests on windows.
-max_parts.partition_max_sub_parts_list_innodb @windows      : 20.02.2018 Ashish Disabling max_parts tests on windows.
+max_parts.innodb_partition_open_files_limit @windows        : Bug#27681900 20.02.2018 Ashish Disabling max_parts tests on windows.
+max_parts.partition_max_parts_list_innodb @windows          : Bug#27681900 20.02.2018 Ashish Disabling max_parts tests on windows.
+max_parts.partition_max_parts_hash_innodb @windows          : Bug#27681900 20.02.2018 Ashish Disabling max_parts tests on windows.
+max_parts.partition_max_parts_key_innodb @windows           : Bug#27681900 20.02.2018 Ashish Disabling max_parts tests on windows.
+max_parts.partition_max_parts_inv_innodb @windows           : Bug#27681900 20.02.2018 Ashish Disabling max_parts tests on windows.
+max_parts.partition_max_sub_parts_range_innodb @windows     : Bug#27681900 20.02.2018 Ashish Disabling max_parts tests on windows.
+max_parts.partition_max_sub_parts_key_range_innodb @windows : Bug#27681900 20.02.2018 Ashish Disabling max_parts tests on windows.
+max_parts.partition_max_sub_parts_key_list_innodb @windows  : Bug#27681900 20.02.2018 Ashish Disabling max_parts tests on windows.
+max_parts.partition_max_parts_range_innodb @windows         : Bug#27681900 20.02.2018 Ashish Disabling max_parts tests on windows.
+max_parts.partition_max_sub_parts_list_innodb @windows      : Bug#27681900 20.02.2018 Ashish Disabling max_parts tests on windows.
 

@@ -42,7 +42,9 @@
 #include "x_platform.h"
 
 /* Buffer size should be always a multiple of 'struct ifreq' size */
-#define IF_INIT_BUF_SIZE ((int)sizeof(struct ifreq) * 10)
+#define MAX_SOCKADDR_STRUCT_SIZE (int)sizeof(struct sockaddr_storage)
+#define MAX_IFCONF_ENTRY_SIZE (IFNAMSIZ + MAX_SOCKADDR_STRUCT_SIZE)
+#define IF_INIT_BUF_SIZE (MAX_IFCONF_ENTRY_SIZE * 10)
 #define IFRP_INIT_ARR_SIZE 64
 
 struct sock_probe
@@ -87,9 +89,23 @@ static int init_sock_probe(sock_probe *s)
   reset_sock_probe(s);
 
   /*
-   ioctl may overflow without returning an error. Thence we iterate to
-   make sure that we don't fill up the buffer. Then, when finally ifc_len
-   is smaller than the buffer size, we break the loop.
+    The ioctl function may overflow without returning any error, and it may
+    also overflow even without filling up the buffer, as is the case of
+    Mac OS, because it does not insert any byte of a configuration that does
+    not fit entirely in the remaining buffer. In this case, ioctl still
+    returns 0 signaling the operation as successful.
+    Due to this, and also to the fact that the entries in the buffer may have
+    variable size in some platforms and that the buffer size grows in
+    multiples of the size of the ifreq struct, we have to iterate to make sure
+    that there are no interfaces' configurations outside the buffer.
+    To circumvent this problem, we assume that any variable size information
+    will never have a size that is greater than MAX_IFCONF_ENTRY_SIZE
+    (IFNAMSIZ + (int)sizeof(sockaddr_storage)).
+    The size of the sockaddr_storage struct is used as a measuring unit
+    because this struct is large enough to contain any socket address
+    structure that the system supports.
+    See https://tools.ietf.org/html/rfc3493#section-3.10 for more details on
+    sockaddr_storage.
   */
   do
   {
@@ -115,7 +131,7 @@ static int init_sock_probe(sock_probe *s)
       abrt= TRUE;
       goto err;
     }
-  } while (s->ifc.ifc_len >= bufsize);
+  } while (s->ifc.ifc_len >= (bufsize - MAX_IFCONF_ENTRY_SIZE));
 
   DBGOUT(STRLIT("Registering interfaces:"));
 
@@ -152,10 +168,13 @@ static int init_sock_probe(sock_probe *s)
 
 #if defined(SA_LEN)
     ptr+= IFNAMSIZ + SA_LEN(sa);
+    assert(MAX_IFCONF_ENTRY_SIZE >= (IFNAMSIZ + SA_LEN(sa)));
 #elif defined(HAVE_STRUCT_SOCKADDR_SA_LEN)
     ptr+= IFNAMSIZ + sa->sa_len;
+    assert(MAX_IFCONF_ENTRY_SIZE >= (IFNAMSIZ + sa->sa_len));
 #else
     ptr+= sizeof(struct ifreq);
+    assert(MAX_IFCONF_ENTRY_SIZE >= sizeof(struct ifreq));
 #endif
 
 #if defined(TASK_DBUG_ON) && TASK_DBUG_ON

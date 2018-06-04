@@ -42,3 +42,5 @@ perl mysql-test-run.pl --timer --force  --comment=memcached --vardir=var-memcach
 perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=test_service_sql_api --vardir=var-test_service_sql_api --suite=test_service_sql_api --experimental=collections/default.experimental --skip-ndb
 # test x plugin
 perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=x --vardir=var-x --suite=x --experimental=collections/default.experimental
+# cross_plugin_test
+perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=cross_plugin_test --vardir=var-cross_plugin_test --suite=cross_plugin_test --experimental=collections/default.experimental

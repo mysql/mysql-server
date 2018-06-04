@@ -1,0 +1,39 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# 1) Add a replication filter to the slave node
+#
+[connection slave]
+include/stop_slave_sql.inc
+CALL mtr.add_suppression("Slave SQL.*The use of replication filters with XA transactions is not supported, and can lead to an undefined state in the replication slave.*");
+CHANGE REPLICATION FILTER Replicate_Do_Table=(test.tab1);
+include/start_slave_sql.inc
+[connection master]
+#
+# 2) Create a table that gets filtered out by the added filter
+#
+CREATE TABLE t1 (a INT);
+#
+# 3) Start an XA transaction and execute a statement that is filtered out by
+#    replication filter
+#
+XA START '1';
+INSERT INTO t1 VALUES (1);
+XA END '1';
+XA PREPARE '1';
+XA COMMIT '1';
+include/sync_slave_sql_with_master.inc
+#
+# 4) Ensure that the error message get logged to the slave error log file.
+#
+include/assert_grep.inc [Found error message regarding usage of replication filters with XA transactions]
+[connection master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+include/stop_slave_sql.inc
+CHANGE REPLICATION FILTER Replicate_Do_Table=();
+include/start_slave_sql.inc
+include/rpl_end.inc

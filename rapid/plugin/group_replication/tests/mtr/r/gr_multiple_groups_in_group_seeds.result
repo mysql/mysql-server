@@ -8,8 +8,14 @@ Note	####	Storing MySQL user name or password information in the master info rep
 #
 [connection server1]
 include/start_and_bootstrap_group_replication.inc
+set session sql_log_bin=0;
+call mtr.add_suppression("The request to add .*:[0-9]* to the group has been rejected because it is aimed at another group");
+set session sql_log_bin=1;
 [connection server2]
 include/start_and_bootstrap_group_replication.inc
+set session sql_log_bin=0;
+call mtr.add_suppression("The request to add .*:[0-9]* to the group has been rejected because it is aimed at another group");
+set session sql_log_bin=1;
 #
 # GROUP#1 is b0000000-7fb8-11e6-9f35-ac56a84b7f00
 # GROUP#2 is b1111111-7fb8-11e6-9f35-ac56a84b7f11
