@@ -633,10 +633,14 @@ SELECT @@global.sql_mode;
 @@global.sql_mode
 NO_ENGINE_SUBSTITUTION
 SET @@session.sql_mode= cast(pow(2,31) as unsigned integer);
+Warnings:
+Warning	3090	Changing sql mode 'PAD_CHAR_TO_FULL_LENGTH' is deprecated. It will be removed in a future release.
 SELECT @@session.sql_mode;
 @@session.sql_mode
 PAD_CHAR_TO_FULL_LENGTH
 SET @@global.sql_mode= cast(pow(2,31) as unsigned integer);
+Warnings:
+Warning	3090	Changing sql mode 'PAD_CHAR_TO_FULL_LENGTH' is deprecated. It will be removed in a future release.
 SELECT @@global.sql_mode;
 @@global.sql_mode
 PAD_CHAR_TO_FULL_LENGTH
