@@ -1,0 +1,41 @@
+#
+## Bug #26654685   INDEX->ID == BTR_PAGE_GET_INDEX_ID(PAGE)
+##		   AT BTR_CUR_SEARCH_TO_NTH_LEVEL IN BTR/B
+#
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/count_sessions.inc
+--source include/have_innodb_16k.inc
+
+CREATE TABLE parent (a INT PRIMARY KEY, b INT NOT NULL) ENGINE = InnoDB;
+INSERT INTO parent VALUES(1,2),(2,2);
+CREATE TABLE child (a INT PRIMARY KEY, b INT NOT NULL) ENGINE = InnoDB;
+INSERT INTO child VALUES (10, 2);
+
+# This should rollback due to dup key
+SET DEBUG_SYNC = 'innodb_inplace_alter_table_enter SIGNAL start_create
+WAIT_FOR go_ahead';
+--send CREATE UNIQUE INDEX idx ON parent(b);
+
+# Make table ref_count > 1
+connect (con1,localhost,root,,);
+connection con1;
+SET DEBUG_SYNC = 'now WAIT_FOR start_create';
+INSERT INTO parent VALUES(4, 2);
+SET DEBUG_SYNC = 'now SIGNAL go_ahead';
+
+connection default;
+--error ER_DUP_ENTRY
+reap;
+SET DEBUG_SYNC = 'now SIGNAL conn_add_fk';
+
+connection con1;
+SET DEBUG_SYNC = 'now WAIT_FOR conn_add_fk';
+--error ER_CANNOT_ADD_FOREIGN
+ALTER TABLE child ADD CONSTRAINT cfx FOREIGN KEY (b) REFERENCES parent(b);
+
+--connection default
+DROP TABLE child;
+DROP TABLE parent;
+--disconnect con1

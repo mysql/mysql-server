@@ -1,0 +1,157 @@
+# === Purpose ===
+#
+# Verify that disk full/out of space errors generated during the flush
+# stage of binlog commit are properly handled by the server.
+#
+# === Implementation ===
+#
+# 1) Simulate the disk full scenario using dbug simulations so that
+#    every alternate statement fails with 'No Space Error'.
+# 2) With binlog_error_action= ABORT_SERVER, prepare a transaction
+#    and perform the following operations.
+#    2.1) Disconnect
+#    2.2) Rollback
+#    2.3) Commit
+# 3) Repeat step 2 with binlog_error_action= IGNORE_ERROR.
+#
+# === References ===
+#
+# Bug #27399620 BINLOG AND ENGINE BECOME INCONSISTENT WHEN BINLOG CACHE FILE
+# GETS OUT OF SPACE
+
+--source include/have_gtid.inc
+--source include/have_binlog_format_row.inc
+--source include/have_log_bin.inc
+--source include/have_debug.inc
+# Don't test this under valgrind, memory leaks will occur
+--source include/not_valgrind.inc
+# Avoid CrashReporter popup on Mac
+--source include/not_crashrep.inc
+
+call mtr.add_suppression("An error occurred during flush stage of the commit");
+call mtr.add_suppression("Attempting backtrace. You can use the following information to find out*");
+
+RESET MASTER;
+CREATE TABLE t1(i INT);
+
+--echo
+--echo # Case 1 (binlog_error_action = ABORT_SERVER)
+--echo
+--let $log_pos_before = query_get_value("SHOW BINARY LOGS", File_size, 1)
+SET GLOBAL binlog_error_action = ABORT_SERVER;
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--echo
+--echo # Case 1.1  CLIENT DISCONNECTION
+connect(con1,localhost,root,,);
+--connection con1
+BEGIN;
+INSERT INTO t1 VALUES (1);
+SET SESSION debug= "+d,simulate_tmpdir_partition_full";
+INSERT INTO t1 VALUES (2);
+--replace_regex /.*Error writing file.*/Error writing file <tmp_file_name> (Errcode: ##)/
+--error ER_ERROR_ON_WRITE,
+INSERT INTO t1 VALUES (3);
+SET SESSION debug= "-d,simulate_tmpdir_partition_full";
+--disconnect con1
+
+--echo
+--echo # Case 1.2 ROLLBACK
+--connection default
+BEGIN;
+INSERT INTO t1 VALUES (1);
+SET SESSION debug= "+d,simulate_tmpdir_partition_full";
+INSERT INTO t1 VALUES (2);
+--replace_regex /.*Error writing file.*/Error writing file <tmp_file_name> (Errcode: ##)/
+--error ER_ERROR_ON_WRITE,
+INSERT INTO t1 VALUES (3);
+ROLLBACK;
+SET SESSION debug= "-d,simulate_tmpdir_partition_full";
+
+--echo
+--echo # Case 1.3 COMMIT
+BEGIN;
+INSERT INTO t1 VALUES (1);
+SET SESSION debug= "+d,simulate_tmpdir_partition_full";
+INSERT INTO t1 VALUES (2);
+--replace_regex /.*Error writing file.*/Error writing file <tmp_file_name> (Errcode: ##)/
+--error ER_ERROR_ON_WRITE,
+INSERT INTO t1 VALUES (3);
+
+# Check that flush error causing server to abort and client gets
+# ER_BINLOG_LOGGING_IMPOSSIBLE when binlog_error_action= 'ABORT_SERVER'.
+--replace_result $MYSQLTEST_VARDIR/ MYSQLTEST_VARDIR/
+--error ER_BINLOG_LOGGING_IMPOSSIBLE
+COMMIT;
+
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+# Check that error is present in error log
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_only_after = CURRENT_TEST: binlog.binlog_cache_write_failure
+--let $assert_count = 1
+--let $assert_select = An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'ABORT_SERVER'.
+--let $assert_text = An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'ABORT_SERVER'.
+--source include/assert_grep.inc
+
+# Check that transaction is not committed
+--let $assert_cond= COUNT(*) = 0 FROM t1;
+--let $assert_text= Count of elements in t1 should be 0.
+--source include/assert.inc
+
+# Check that transaction is not binlogged as well
+--let $log_pos_after = query_get_value("SHOW BINARY LOGS", File_size, 1)
+--let $assert_cond = $log_pos_before = $log_pos_after
+--let $assert_text = Query is not binlogged as expected.
+--source include/assert.inc
+TRUNCATE TABLE t1;
+
+--echo
+--echo # Case 2 (binlog_error_action = IGNORE_ERROR)
+--echo
+RESET MASTER;
+SET GLOBAL binlog_error_action= IGNORE_ERROR;
+
+BEGIN;
+INSERT INTO t1 VALUES (1);
+SET SESSION debug= "+d,simulate_tmpdir_partition_full";
+INSERT INTO t1 VALUES (2);
+--replace_regex /.*Error writing file.*/Error writing file <tmp_file_name> (Errcode: ##)/
+--error ER_ERROR_ON_WRITE,
+INSERT INTO t1 VALUES (3);
+--replace_regex /.*Error writing file.*/Error writing file MYSQLTEST_VARDIR\/tmp\/temp_file (Errcode: ##)/
+COMMIT;
+SET SESSION debug= "-d,simulate_tmpdir_partition_full";
+
+# Check that transaction is committed
+--let $assert_cond = COUNT(*) = 2 FROM t1;
+--let $assert_text = Count of elements in t1 should be 2.
+--source include/assert.inc
+
+# Test to prove that binary log is disabled
+--error ER_NO_BINARY_LOGGING
+SHOW BINARY LOGS;
+
+# Check that error is present in error log
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_only_after = CURRENT_TEST: binlog.binlog_cache_write_failure
+--let $assert_count = 1
+--let $assert_select = An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'IGNORE_ERROR'.
+--let $assert_text = An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'IGNORE_ERROR'.
+--source include/assert_grep.inc
+
+# Restart so that binary log is enabled again and we can do the below test
+--source include/restart_mysqld.inc
+
+# Check that transaction is committed (binlog position check cannot be done
+# as we would have written STOP_EVENT in the binlog while closing
+# it)
+--let $assert_cond = COUNT(*) = 2 FROM t1;
+--let $assert_text = Count of elements in t1 should be 2.
+--source include/assert.inc
+
+# Cleanup
+DROP TABLE t1;
+RESET MASTER;

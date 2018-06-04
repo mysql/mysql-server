@@ -1,0 +1,53 @@
+# === Purpose ===
+# This test verifies that while verifying the server certificates
+# when ssl-verify-server-cert option is provided, the DNS/IPs provided
+# in the Subject Alternative Names field (which can be provided as an
+# extension in X509) are also checked for apart from the Common Name in
+# the subject. Applicable for openssl versions 1.0.2 and greater.
+#
+# === Related bugs and/or worklogs ===
+# Bug #16211011 - SSL CERTIFICATE SUBJECT ALT NAMES WITH IPS NOT RESPECTED WITH --SSL-VERIFY-SERVER-CERT
+#
+# Note that these test cases are written keeping in mind that the openssl version used by the system will
+# be 1.0.2+. For older versions of openssl, the test will be skipped.
+
+--source include/have_openssl.inc
+--source include/have_openssl_support.inc
+--source include/check_openssl_version.inc
+--source include/not_embedded.inc
+
+--echo ### Trying to connect without ssl. This should establish an unencrypted connection.
+--exec $MYSQL --skip-ssl test -e "SHOW STATUS LIKE 'Ssl_cipher'" 2> $MYSQLTEST_VARDIR/tmp/bug24732452_stderr
+--cat_file $MYSQLTEST_VARDIR/tmp/bug24732452_stderr
+--cat_file $MYSQLTEST_VARDIR/tmp/bug24732452_stderr
+
+--echo ### Trying to connect with ssl-mode as REQUIRED. This should establish an encrypted connection.
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
+--exec $MYSQL --ssl-mode=REQUIRED --ssl-ca=$MYSQL_TEST_DIR/std_data/ca-cert-verify-san.pem  --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert-verify-san.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key-verify-san.pem test -e "SHOW STATUS LIKE 'Ssl_cipher'" 2> $MYSQLTEST_VARDIR/tmp/bug24732452_stderr
+--cat_file $MYSQLTEST_VARDIR/tmp/bug24732452_stderr
+
+--echo ### Trying to connect with ssl-verify-server-cert option. This should establish an encrypted connection.
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
+--exec $MYSQL --ssl-verify-server-cert --ssl-ca=$MYSQL_TEST_DIR/std_data/ca-cert-verify-san.pem  --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert-verify-san.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key-verify-san.pem test -e "SHOW STATUS LIKE 'Ssl_cipher'" 2> $MYSQLTEST_VARDIR/tmp/bug24732452_stderr
+--cat_file $MYSQLTEST_VARDIR/tmp/bug24732452_stderr
+
+--echo ### Trying to connect with ssl-verify-server-cert option and hostname as nonexistent. This should fail.
+--error 1
+--exec $MYSQL --host=nonexistent --ssl-verify-server-cert --ssl-ca=$MYSQL_TEST_DIR/std_data/ca-cert-verify-san.pem  --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert-verify-san.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key-verify-san.pem test -e "SHOW STATUS LIKE 'Ssl_cipher'" 2> $MYSQLTEST_VARDIR/tmp/bug24732452_stderr
+let SEARCH_FILE= $MYSQLTEST_VARDIR/tmp/bug24732452_stderr;
+--echo #Search for the error in the file
+--let SEARCH_PATTERN= ERROR 2005 \(HY000\): Unknown MySQL server host 'nonexistent'
+--source include/search_pattern_in_file.inc
+
+--echo ### Trying to connect with ssl-verify-server-cert option and hostname as localhost. This should establish an encrypted connection as localhost is present in Alternative Subject Name in the certificate.
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
+--exec $MYSQL --host=localhost --ssl-verify-server-cert --ssl-ca=$MYSQL_TEST_DIR/std_data/ca-cert-verify-san.pem  --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert-verify-san.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key-verify-san.pem test -e "SHOW STATUS LIKE 'Ssl_cipher'" 2> $MYSQLTEST_VARDIR/tmp/bug24732452_stderr
+--cat_file $MYSQLTEST_VARDIR/tmp/bug24732452_stderr
+
+--echo ### Trying to connect with ssl-verify-server-cert option and hostname as 127.0.0.1. This should establish an encrypted connection as localhost is present in Alternative Subject Name in the certificate.
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER ECDHE-RSA-AES128-SHA256 SSL_CIPHER
+--exec $MYSQL --host=127.0.0.1 --ssl-verify-server-cert --ssl-ca=$MYSQL_TEST_DIR/std_data/ca-cert-verify-san.pem  --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert-verify-san.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key-verify-san.pem test -e "SHOW STATUS LIKE 'Ssl_cipher'" 2> $MYSQLTEST_VARDIR/tmp/bug24732452_stderr
+--cat_file $MYSQLTEST_VARDIR/tmp/bug24732452_stderr
+
+#Cleanup
+--remove_file $MYSQLTEST_VARDIR/tmp/bug24732452_stderr
