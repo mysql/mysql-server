@@ -3999,10 +3999,12 @@ static bool check_sql_mode(sys_var *, THD *thd, set_var *var) {
   var->save_result.ulonglong_value = candidate_mode;
 
   if (candidate_mode & ~MODE_ALLOWED_MASK) {
-    push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_WARN_DEPRECATED_SQLMODE,
-                        ER_THD(thd, ER_WARN_DEPRECATED_SQLMODE), "HEI HEI");
     return true;
+  }
+  if (candidate_mode & MODE_PAD_CHAR_TO_FULL_LENGTH) {
+    push_warning_printf(
+        thd, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_SQLMODE,
+        ER_THD(thd, ER_WARN_DEPRECATED_SQLMODE), "PAD_CHAR_TO_FULL_LENGTH");
   }
 
   return false;
