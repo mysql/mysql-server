@@ -4370,10 +4370,10 @@ private:
    */
   // Common operation record pool
 public:
-  STATIC_CONST( opCreateEventSize = sizeof(OpCreateEvent) );
-  STATIC_CONST( opSubEventSize = sizeof(OpSubEvent) );
-  STATIC_CONST( opDropEventSize = sizeof(OpDropEvent) );
-  STATIC_CONST( opSignalUtilSize = sizeof(OpSignalUtil) );
+  static constexpr Uint32 opCreateEventSize = sizeof(OpCreateEvent);
+  static constexpr Uint32 opSubEventSize = sizeof(OpSubEvent);
+  static constexpr Uint32 opDropEventSize = sizeof(OpDropEvent);
+  static constexpr Uint32 opSignalUtilSize = sizeof(OpSignalUtil);
 private:
 #define PTR_ALIGN(n) ((((n)+sizeof(void*)-1)>>2)&~((sizeof(void*)-1)>>2))
   union OpRecordUnion {

@@ -40,7 +40,7 @@ class DihSwitchReplicaReq {
   friend class Dbdih;
 
 public:
-  STATIC_CONST( SignalLength = 4 + MAX_REPLICAS );
+  static constexpr Uint32 SignalLength = 4 + MAX_REPLICAS;
   
 private:
   /**
@@ -61,7 +61,7 @@ class DihSwitchReplicaRef {
   friend class Dbdih;
   
 public:
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
   
 private:
   Uint32 senderNode;
@@ -75,7 +75,7 @@ class DihSwitchReplicaConf {
   friend class Dbdih;
   
 public:
-  STATIC_CONST( SignalLength = 1 );
+  static constexpr Uint32 SignalLength = 1;
   
 private:
   Uint32 senderNode;

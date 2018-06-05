@@ -37,7 +37,7 @@
  assert((value) >= (min) && (value) <= (max))
 #define ASSERT_MAX(value, max, message) assert((value) <= (max))
 
-#define SECTION(x) STATIC_CONST(x)
+#define SECTION(x) static constexpr Uint32 x
 
 template <typename T>
 inline

@@ -771,8 +771,8 @@ public:
   Uint16 m_max_gci_index;
   Vector<Uint64> m_known_gci;
   Vector<Gci_container_pod> m_active_gci;
-  STATIC_CONST( ACTIVE_GCI_DIRECTORY_SIZE = 4 );
-  STATIC_CONST( ACTIVE_GCI_MASK = ACTIVE_GCI_DIRECTORY_SIZE - 1 );
+  static constexpr Uint32 ACTIVE_GCI_DIRECTORY_SIZE = 4;
+  static constexpr Uint32 ACTIVE_GCI_MASK = ACTIVE_GCI_DIRECTORY_SIZE - 1;
 
   NdbEventOperation *createEventOperation(const char* eventName,
 					  NdbError &);

@@ -43,7 +43,7 @@ class DropTabFileReq {
   friend class Dbacc;
   friend class Dbtup;
 public:
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
 
 private:
   Uint32 userPtr;
@@ -64,7 +64,7 @@ class DropTabFileConf {
   friend class Dbacc;
   friend class Dbtup;
 public:
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
 
 private:
   Uint32 userPtr;

@@ -44,7 +44,7 @@ class DropEvntReq {
   friend bool printDROP_EVNT_REQ(FILE*, const Uint32*, Uint32, Uint16);
 
 public:
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
   SECTION( EVENT_NAME_SECTION = 0 );
 
   union {             // user block reference
@@ -77,7 +77,7 @@ class DropEvntConf {
   friend bool printDROP_EVNT_CONF(FILE*, const Uint32*, Uint32, Uint16);
 
 public:
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
 
   union {             // user block reference
     Uint32 senderRef;
@@ -118,8 +118,8 @@ public:
     AllocationFailure = 747,
     TableNotFound = 4710
   };
-  STATIC_CONST( SignalLength = 7 );
-  STATIC_CONST( SignalLength2 = SignalLength+1 );
+  static constexpr Uint32 SignalLength = 7;
+  static constexpr Uint32 SignalLength2 = SignalLength+1;
 
   union {             // user block reference
     Uint32 senderRef;
@@ -199,9 +199,9 @@ struct CreateEvntReq {
     EF_NO_REPORT_DDL = 0x4 << 16,
     EF_ALL = 0xFFFF << 16
   };
-  STATIC_CONST( SignalLengthGet = 3 );
-  STATIC_CONST( SignalLengthCreate = 6+MAXNROFATTRIBUTESINWORDS_OLD );
-  STATIC_CONST( SignalLength = 8+MAXNROFATTRIBUTESINWORDS_OLD );
+  static constexpr Uint32 SignalLengthGet = 3;
+  static constexpr Uint32 SignalLengthCreate = 6+MAXNROFATTRIBUTESINWORDS_OLD;
+  static constexpr Uint32 SignalLength = 8+MAXNROFATTRIBUTESINWORDS_OLD;
 
   SECTION( EVENT_NAME_SECTION = 0 );
   SECTION( ATTRIBUTE_MASK = 1 );
@@ -338,8 +338,8 @@ class CreateEvntConf {
   friend bool printCREATE_EVNT_CONF(FILE*, const Uint32*, Uint32, Uint16);
 
 public:
-  //  STATIC_CONST( InternalLength = 3 );
-  STATIC_CONST( SignalLength = 8+MAXNROFATTRIBUTESINWORDS_OLD );
+  //  static constexpr Uint32 InternalLength = 3;
+  static constexpr Uint32 SignalLength = 8+MAXNROFATTRIBUTESINWORDS_OLD;
 
   union {
     Uint32 m_userRef;             // user block reference
@@ -420,8 +420,8 @@ struct CreateEvntRef {
   friend class SafeCounter;
   friend bool printCREATE_EVNT_REF(FILE*, const Uint32*, Uint32, Uint16);
 
-  STATIC_CONST( SignalLength = 11 );
-  STATIC_CONST( SignalLength2 = SignalLength + 1 );
+  static constexpr Uint32 SignalLength = 11;
+  static constexpr Uint32 SignalLength2 = SignalLength + 1;
   enum ErrorCode {
     NoError = 0,
     Undefined = 1,

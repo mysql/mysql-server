@@ -70,7 +70,7 @@ public:
     time_t log_timestamp;
     size_t varpart_length[2]; // 0: length of category, 1: length of message
   };
-  STATIC_CONST( MAX_VARPART_SIZE = MAX_HEADER_LENGTH + MAX_LOG_MESSAGE_SIZE );
+  static constexpr Uint32 MAX_VARPART_SIZE = MAX_HEADER_LENGTH + MAX_LOG_MESSAGE_SIZE;
 
 protected:
   void writeHeader(const char* pCategory, Logger::LoggerLevel level,

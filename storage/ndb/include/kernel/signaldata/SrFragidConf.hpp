@@ -41,7 +41,7 @@ class SrFragidConf {
    */
   friend class Dblqh;
 public:
-  STATIC_CONST( SignalLength = 10 );
+  static constexpr Uint32 SignalLength = 10;
 
 private:
   Uint32 lcpPtr;

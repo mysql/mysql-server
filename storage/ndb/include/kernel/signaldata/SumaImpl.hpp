@@ -35,7 +35,7 @@
 struct SubCreateReq {
 
   friend bool printSUB_CREATE_REQ(FILE *, const Uint32 *, Uint32, Uint16);
-  STATIC_CONST( SignalLength = 7 );
+  static constexpr Uint32 SignalLength = 7;
   
   enum SubscriptionType {
     SingleTableScan  = 1,  // 
@@ -62,7 +62,7 @@ struct SubCreateReq {
 
 struct SubCreateRef {
   friend bool printSUB_CREATE_REF(FILE *, const Uint32 *, Uint32, Uint16);
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
 
   Uint32 senderRef;
   Uint32 senderData;
@@ -81,7 +81,7 @@ struct SubCreateRef {
 
 struct SubCreateConf {
   friend bool printSUB_CREATE_CONF(FILE *, const Uint32 *, Uint32, Uint16);
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
   
   Uint32 senderRef;
   Uint32 senderData;
@@ -101,7 +101,7 @@ struct SubStartReq {
   friend class Suma;
   
   friend bool printSUB_START_REQ(FILE *, const Uint32 *, Uint32, Uint16);
-  STATIC_CONST( SignalLength = 7 );
+  static constexpr Uint32 SignalLength = 7;
 
   Uint32 senderRef;
   Uint32 senderData;
@@ -137,9 +137,9 @@ struct SubStartRef {
     ,SubscriberNodeIdUndefined = 1429
   };
 
-  STATIC_CONST( SignalLength = 7 );
-  STATIC_CONST( SignalLength2 = SignalLength+1 );
-  STATIC_CONST( SL_MasterNode = 9 );
+  static constexpr Uint32 SignalLength = 7;
+  static constexpr Uint32 SignalLength2 = SignalLength+1;
+  static constexpr Uint32 SL_MasterNode = 9;
   
   Uint32 senderRef;
   Uint32 senderData;
@@ -162,7 +162,7 @@ struct SubStartConf {
    */
 
   friend bool printSUB_START_CONF(FILE *, const Uint32 *, Uint32, Uint16);
-  STATIC_CONST( SignalLength = 9 );
+  static constexpr Uint32 SignalLength = 9;
 
   Uint32 senderRef;
   Uint32 senderData;
@@ -187,7 +187,7 @@ struct SubStopReq {
   };
 
   friend bool printSUB_STOP_REQ(FILE *, const Uint32 *, Uint32, Uint16);
-  STATIC_CONST( SignalLength = 8 );
+  static constexpr Uint32 SignalLength = 8;
   Uint32 senderRef;
   Uint32 senderData;
   Uint32 subscriptionId;
@@ -219,8 +219,8 @@ struct SubStopRef {
     ,NotStarted = 1428
   };
 
-  STATIC_CONST( SignalLength = 8 );
-  STATIC_CONST( SL_MasterNode = 9 );
+  static constexpr Uint32 SignalLength = 8;
+  static constexpr Uint32 SL_MasterNode = 9;
   
   Uint32 senderRef;
   Uint32 senderData;
@@ -239,8 +239,8 @@ struct SubStopConf {
    */
 
   friend bool printSUB_STOP_CONF(FILE *, const Uint32 *, Uint32, Uint16);
-  STATIC_CONST( SignalLengthWithGci = 9 );
-  STATIC_CONST( SignalLength = 9 );
+  static constexpr Uint32 SignalLengthWithGci = 9;
+  static constexpr Uint32 SignalLength = 9;
 
   Uint32 senderRef;
   Uint32 senderData;
@@ -261,7 +261,7 @@ struct SubSyncReq {
   friend class Suma;
 
   friend bool printSUB_SYNC_REQ(FILE *, const Uint32 *, Uint32, Uint16);
-  STATIC_CONST( SignalLength = 9 );
+  static constexpr Uint32 SignalLength = 9;
   
   Uint32 senderRef;
   Uint32 senderData;
@@ -298,7 +298,7 @@ struct SubSyncRef {
   enum ErrorCode {
     Undefined = 1
   };
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
   
   Uint32 senderRef;
   Uint32 senderData;
@@ -314,7 +314,7 @@ struct SubSyncConf {
   friend class Suma;
 
   friend bool printSUB_SYNC_CONF(FILE *, const Uint32 *, Uint32, Uint16);
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
   
   Uint32 senderRef;
   Uint32 senderData;
@@ -322,8 +322,8 @@ struct SubSyncConf {
 
 struct SubTableData {
   friend bool printSUB_TABLE_DATA(FILE *, const Uint32 *, Uint32, Uint16);
-  STATIC_CONST( SignalLength = 8 );
-  STATIC_CONST( SignalLengthWithTransId = 10 );
+  static constexpr Uint32 SignalLength = 8;
+  static constexpr Uint32 SignalLengthWithTransId = 10;
   SECTION( DICT_TAB_INFO = 0 );
   SECTION( ATTR_INFO = 0 );
   SECTION( AFTER_VALUES = 1 );
@@ -380,7 +380,7 @@ struct SubSyncContinueReq {
   friend class Trix;
   
   friend bool printSUB_SYNC_CONTINUE_REQ(FILE *, const Uint32 *, Uint32, Uint16);
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
 
   Uint32 subscriberData;
   Uint32 noOfRowsSent;
@@ -394,7 +394,7 @@ struct SubSyncContinueRef {
   friend class Trix;
   
   friend bool printSUB_SYNC_CONTINUE_REF(FILE *, const Uint32 *, Uint32, Uint16);
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
 
   Uint32 subscriptionId;
   Uint32 subscriptionKey;
@@ -408,7 +408,7 @@ struct SubSyncContinueConf {
   friend class Trix;
   
   friend bool printSUB_SYNC_CONTINUE_CONF(FILE *, const Uint32 *, Uint32, Uint16);
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
 
   Uint32 subscriptionId;
   Uint32 subscriptionKey;
@@ -424,13 +424,13 @@ struct SubGcpCompleteRep {
   friend class Trix;
   
   friend bool printSUB_GCP_COMPLETE_REP(FILE *, const Uint32 *, Uint32, Uint16);
-  STATIC_CONST( SignalLength = 5 );
-  STATIC_CONST( ON_DISK = 1 );
-  STATIC_CONST( IN_MEMORY = 2 );
-  STATIC_CONST( MISSING_DATA = 4 );
-  STATIC_CONST( ADD_CNT = 8 );  // Uses hi 16-bit for delta
-  STATIC_CONST( SUB_CNT = 16);  // Uses hi 16-bit for delta
-  STATIC_CONST( SUB_DATA_STREAMS_IN_SIGNAL = 32); // Whether sub datat stream identifiers are appended to signal
+  static constexpr Uint32 SignalLength = 5;
+  static constexpr Uint32 ON_DISK = 1;
+  static constexpr Uint32 IN_MEMORY = 2;
+  static constexpr Uint32 MISSING_DATA = 4;
+  static constexpr Uint32 ADD_CNT = 8;  // Uses hi 16-bit for delta
+  static constexpr Uint32 SUB_CNT = 16;  // Uses hi 16-bit for delta
+  static constexpr Uint32 SUB_DATA_STREAMS_IN_SIGNAL = 32; // Whether sub datat stream identifiers are appended to signal
   // If the number of sub data streams increase in future, we may need to put the identifiers in a separate section.
 
   Uint32 gci_hi;
@@ -454,14 +454,14 @@ struct SubGcpCompleteAck {
   /**
    * Sender(s)/Reciver(s)
    */
-  STATIC_CONST( SignalLength = SubGcpCompleteRep::SignalLength );
+  static constexpr Uint32 SignalLength = SubGcpCompleteRep::SignalLength;
 
   SubGcpCompleteRep rep;
 };
 
 struct SubRemoveReq {
   friend bool printSUB_REMOVE_REQ(FILE *, const Uint32 *, Uint32, Uint16);
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
   
   Uint32 senderRef;
   Uint32 senderData;
@@ -471,7 +471,7 @@ struct SubRemoveReq {
 
 struct SubRemoveRef {
   friend bool printSUB_REMOVE_REF(FILE *, const Uint32 *, Uint32, Uint16);
-  STATIC_CONST( SignalLength = 5 );
+  static constexpr Uint32 SignalLength = 5;
   enum ErrorCode {
     Undefined = 1,
     NF_FakeErrorREF = 11,
@@ -492,7 +492,7 @@ struct SubRemoveRef {
 
 struct SubRemoveConf {
   friend bool printSUB_REMOVE_CONF(FILE *, const Uint32 *, Uint32, Uint16);
-  STATIC_CONST( SignalLength = 5 );
+  static constexpr Uint32 SignalLength = 5;
   
   Uint32 senderRef;
   Uint32 subscriptionId;
@@ -505,7 +505,7 @@ struct SubRemoveConf {
 struct CreateSubscriptionIdReq {
   friend bool printCREATE_SUBSCRIPTION_ID_REQ(FILE *, const Uint32 *, 
 					       Uint32, Uint16);
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
   
   Uint32 senderRef;
   Uint32 senderData;
@@ -515,7 +515,7 @@ struct CreateSubscriptionIdReq {
 struct CreateSubscriptionIdConf {
   friend bool printCREATE_SUBSCRIPTION_ID_CONF(FILE *, const Uint32 *, 
 					       Uint32, Uint16);
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
   
   Uint32 senderRef;
   Uint32 senderData;
@@ -527,7 +527,7 @@ struct CreateSubscriptionIdConf {
 struct CreateSubscriptionIdRef {
   friend bool printCREATE_SUBSCRIPTION_ID_REF(FILE *, const Uint32 *, 
 					       Uint32, Uint16);
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
   
   Uint32 senderRef;
   Uint32 senderData;
@@ -535,12 +535,12 @@ struct CreateSubscriptionIdRef {
 };
 
 struct SumaStartMeReq {
-  STATIC_CONST( SignalLength = 1 );
+  static constexpr Uint32 SignalLength = 1;
   Uint32 unused;
 };
 
 struct SumaStartMeRef {
-  STATIC_CONST( SignalLength = 1 );
+  static constexpr Uint32 SignalLength = 1;
   Uint32 errorCode;
   enum {
     Busy = 0x1
@@ -549,13 +549,13 @@ struct SumaStartMeRef {
 };
 
 struct SumaStartMeConf {
-  STATIC_CONST( SignalLength = 1 );
+  static constexpr Uint32 SignalLength = 1;
   Uint32 unused;
 };
 
 struct SumaHandoverReq
 {
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
   Uint32 gci;
   Uint32 nodeId;
   Uint32 theBucketMask[1];
@@ -570,7 +570,7 @@ struct SumaHandoverReq
 
 struct SumaHandoverConf
 {
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
   Uint32 gci;
   Uint32 nodeId;
   Uint32 theBucketMask[1];

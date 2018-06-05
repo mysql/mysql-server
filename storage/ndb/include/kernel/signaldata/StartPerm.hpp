@@ -41,7 +41,7 @@ class StartPermReq {
   friend class Dbdih;
   
 public:
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
 private:
   
   Uint32 blockRef;
@@ -56,7 +56,7 @@ class StartPermConf {
   friend class Dbdih;
   
 public:
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
 private:
   
   Uint32 startingNodeId;
@@ -71,7 +71,7 @@ class StartPermRef {
   friend class Dbdih;
   
 public:
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
 private:
   
   Uint32 startingNodeId;
@@ -97,7 +97,7 @@ class StartPermRep
   friend class Ndbcntr;
 
 public:
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
   enum
   {
     PermissionToStart = 0,

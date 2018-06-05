@@ -79,7 +79,7 @@ public:
    * No of categories
    */
 #define _LOGLEVEL_CATEGORIES (CFG_MAX_LOGLEVEL - CFG_MIN_LOGLEVEL + 1)
-  STATIC_CONST( LOGLEVEL_CATEGORIES = _LOGLEVEL_CATEGORIES );
+  static constexpr Uint32 LOGLEVEL_CATEGORIES = _LOGLEVEL_CATEGORIES;
   
   void clear();
   

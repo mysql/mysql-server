@@ -39,12 +39,12 @@ struct StartCopyReq
   Uint32 senderData;
   Uint32 flags;
   
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
 };
 
 struct StartCopyRef
 {
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
 
   Uint32 senderRef;
   Uint32 senderData;
@@ -57,12 +57,12 @@ struct StartCopyConf
   Uint32 senderRef;
   Uint32 senderData;
 
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
 };
 
 struct StartToReq 
 {
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
 
   Uint32 senderData;
   Uint32 senderRef;
@@ -71,7 +71,7 @@ struct StartToReq
 
 struct StartToRef 
 {
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
   
   Uint32 senderData;
   Uint32 senderRef;
@@ -81,7 +81,7 @@ struct StartToRef
 
 struct StartToConf 
 {
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
   
   Uint32 senderData;
   Uint32 sendingNodeId;
@@ -90,7 +90,7 @@ struct StartToConf
 
 struct UpdateToReq 
 {
-  STATIC_CONST( SignalLength = 7 );
+  static constexpr Uint32 SignalLength = 7;
 
   enum RequestType 
   {
@@ -111,7 +111,7 @@ struct UpdateToReq
 
 struct UpdateToRef 
 {
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
   
   enum ErrorCode {
     CopyNodeInProgress = 1  // StartMe++
@@ -129,7 +129,7 @@ struct UpdateToRef
 
 struct UpdateToConf 
 {
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
   
   Uint32 senderData;
   Uint32 sendingNodeId;
@@ -138,7 +138,7 @@ struct UpdateToConf
 
 struct UpdateFragStateReq 
 {
-  STATIC_CONST( SignalLength = 9 );
+  static constexpr Uint32 SignalLength = 9;
 
   enum ReplicaType {
     STORED = 7,
@@ -159,7 +159,7 @@ struct UpdateFragStateReq
 
 struct UpdateFragStateConf 
 {
-  STATIC_CONST( SignalLength = 6 );
+  static constexpr Uint32 SignalLength = 6;
   
   Uint32 senderData;
   Uint32 tableId;
@@ -171,7 +171,7 @@ struct UpdateFragStateConf
 
 struct EndToReq 
 {
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
   
   Uint32 senderData;
   Uint32 senderRef;
@@ -181,7 +181,7 @@ struct EndToReq
 
 struct EndToRef
 {
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
   
   Uint32 senderData;
   Uint32 senderRef;
@@ -191,7 +191,7 @@ struct EndToRef
 
 struct EndToConf 
 {
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
   
   Uint32 senderData;
   Uint32 sendingNodeId;
@@ -201,7 +201,7 @@ struct EndToConf
 struct EndToRep
 {
 public:
-  STATIC_CONST ( SignalLength = 1 );
+  static constexpr Uint32 SignalLength = 1;
 
   Uint32 nodeId;
 };

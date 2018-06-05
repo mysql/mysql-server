@@ -42,7 +42,7 @@ class StopForCrash {
 
   friend bool printSTOP_FOR_CRASH(FILE *,const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 1 );
+  static constexpr Uint32 SignalLength = 1;
 
 public:
   Uint32 flags;                 // No information in this signal atm.

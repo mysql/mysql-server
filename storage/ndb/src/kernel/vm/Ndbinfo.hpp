@@ -175,10 +175,10 @@ public:
 
     Uint32 totalRows;
     Uint32 totalBytes;
-    STATIC_CONST( Length = 10 );
+    static constexpr Uint32 Length = 10;
 
-    STATIC_CONST( MOREDATA_SHIFT = 0 );
-    STATIC_CONST( MOREDATA_MASK = 1 );
+    static constexpr Uint32 MOREDATA_SHIFT = 0;
+    static constexpr Uint32 MOREDATA_MASK = 1;
 
     static bool getHasMoreData(const UintR & flags){
       return (bool)((flags >> MOREDATA_SHIFT) & MOREDATA_MASK);

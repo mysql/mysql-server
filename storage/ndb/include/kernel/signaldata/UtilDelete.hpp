@@ -51,8 +51,8 @@ class UtilDeleteReq {
   friend bool printUTIL_DELETE_REQ(FILE * output, const Uint32 * theData, 
 				   Uint32 len, Uint16 receiverBlockNo);
 public:
-  STATIC_CONST( DataLength = 22 );
-  STATIC_CONST( HeaderLength = 3 );
+  static constexpr Uint32 DataLength = 22;
+  static constexpr Uint32 HeaderLength = 3;
 
 private:  
   Uint32 senderData;
@@ -91,7 +91,7 @@ class UtilDeleteConf {
 				     Uint32 len, 
 				     Uint16 receiverBlockNo);
 
-  STATIC_CONST( SignalLength = 1 );
+  static constexpr Uint32 SignalLength = 1;
 
 private:
   Uint32 senderData;   ///< The client data provided by the client sending
@@ -120,7 +120,7 @@ class UtilDeleteRef {
 				    Uint32 len, 
 				    Uint16 receiverBlockNo);
 
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
 
 private:
   Uint32 senderData;

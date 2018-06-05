@@ -56,7 +56,7 @@
 class OldNdbApiSectionIterator: public GenericSectionIterator
 {
 private :
-  STATIC_CONST(KeyAndAttrInfoHeaderLength = 3);
+  static constexpr Uint32 KeyAndAttrInfoHeaderLength = 3;
 
   const Uint32 firstSigDataLen; // Num words in first signal
   Uint32* firstDataPtr;         // Ptr to start of data in first signal

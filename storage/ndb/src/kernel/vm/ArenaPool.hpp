@@ -41,7 +41,7 @@ struct ArenaBlock
 
   Uint32 m_data[1];
 
-  STATIC_CONST( HeaderSize = 2 );
+  static constexpr Uint32 HeaderSize = 2;
 
   static Uint32 computeBlockSizeInWords(Uint32 datasz) {
     return 16 * (((datasz + 2) + 8) / 16);

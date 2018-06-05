@@ -39,7 +39,7 @@ class DictStartReq {
   friend class Dbdict;
 
 public:
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
 private:
   
   Uint32 restartGci;

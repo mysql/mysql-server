@@ -39,7 +39,7 @@ struct AllocExtentReq {
    * For printing
    */
   
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
 
   enum ErrorCode {
     UnmappedExtentPageIsNotImplemented = 1,
@@ -74,7 +74,7 @@ struct FreeExtentReq {
    * For printing
    */
   
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
 
   enum ErrorCode {
     UnmappedExtentPageIsNotImplemented = 1
@@ -106,7 +106,7 @@ struct AllocPageReq {
    * For printing
    */
   
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
 
   enum ErrorCode {
     UnmappedExtentPageIsNotImplemented = 1,

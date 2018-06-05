@@ -80,7 +80,7 @@ public:
    const Uint32 *       getDataPtr() const;
          Uint32 *       getDataPtrSend();
    const Uint32 *       getConstDataPtrSend() const;
-   STATIC_CONST(        MaxSignalWords = 25);
+   static constexpr Uint32 MaxSignalWords = 25;
 
   NodeId                get_sender_node() const;
 

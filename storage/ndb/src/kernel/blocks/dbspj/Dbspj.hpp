@@ -309,7 +309,7 @@ public:
       return RowRef::map_is_null(ptr);
     }
 
-    STATIC_CONST( MAP_SIZE_PER_REF_16 = 3 );
+    static constexpr Uint32 MAP_SIZE_PER_REF_16 = 3;
   };
 
   /**
@@ -453,7 +453,7 @@ public:
     Uint32 nextList;
     Uint32 prevList;
     Uint32 m_data[GLOBAL_PAGE_SIZE_WORDS - 7];
-    STATIC_CONST( SIZE = GLOBAL_PAGE_SIZE_WORDS - 7 );
+    static constexpr Uint32 SIZE = GLOBAL_PAGE_SIZE_WORDS - 7;
   };
   typedef ArrayPool<RowPage> RowPage_pool;
   // Use 'counted' list to keep track of GlobalSharedMemory size used.
@@ -774,7 +774,7 @@ public:
    */
   struct TreeNode
   {
-    STATIC_CONST ( MAGIC = ~RT_SPJ_TREENODE );
+    static constexpr Uint32 MAGIC = ~RT_SPJ_TREENODE;
 
     TreeNode()
     : m_magic(MAGIC), m_state(TN_END),

@@ -40,7 +40,7 @@ extern EventLogger * g_eventLogger;
 class NdbObjectIdMap
 {
 public:
-  STATIC_CONST( InvalidId = 0x7fffffff );
+  static constexpr Uint32 InvalidId = 0x7fffffff;
 
 private:
   /**

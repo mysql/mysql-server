@@ -51,7 +51,7 @@ public:
   Uint32 restartInfo;
   
 public:
-  STATIC_CONST( SignalLength = 1 );
+  static constexpr Uint32 SignalLength = 1;
 };
 
 

@@ -34,7 +34,7 @@
 
 struct CreateIndxReq 
 {
-  STATIC_CONST( SignalLength = 9 );
+  static constexpr Uint32 SignalLength = 9;
   SECTION( ATTRIBUTE_LIST_SECTION = 0 );
   SECTION( INDEX_NAME_SECTION = 1 );
 
@@ -55,7 +55,7 @@ struct CreateIndxReq
 };
 
 struct CreateIndxConf {
-  STATIC_CONST( SignalLength = 5 );
+  static constexpr Uint32 SignalLength = 5;
 
   Uint32 senderRef;
   Uint32 clientData;
@@ -65,7 +65,7 @@ struct CreateIndxConf {
 };
 
 struct CreateIndxRef {
-  STATIC_CONST( SignalLength = 7 );
+  static constexpr Uint32 SignalLength = 7;
 
   enum ErrorCode {
     NoError = 0,

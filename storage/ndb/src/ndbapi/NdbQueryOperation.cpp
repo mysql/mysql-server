@@ -327,7 +327,7 @@ private:
   NdbWorker(const NdbWorker&);
   NdbWorker& operator=(const NdbWorker&);
 
-  STATIC_CONST(voidWorkerNo = 0xffffffff);
+  static constexpr Uint32 voidWorkerNo = 0xffffffff;
 
   /** Enclosing query.*/
   NdbQueryImpl* m_query;

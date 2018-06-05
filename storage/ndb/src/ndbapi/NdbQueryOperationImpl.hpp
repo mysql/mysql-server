@@ -775,7 +775,7 @@ public:
 
 private:
 
-  STATIC_CONST (MAGIC = 0xfade1234);
+  static constexpr Uint32 MAGIC = 0xfade1234;
 
   /** Interface for the application developer.*/
   NdbQueryOperation m_interface;

@@ -490,7 +490,7 @@ struct Fragmentrec {
 // elementLength: Length of element in bucket and overflow pages
 // keyLength: Length of key
 //-----------------------------------------------------------------------------
-  STATIC_CONST( elementLength = 2 );
+  static constexpr Uint32 elementLength = 2;
   Uint16 keyLength;
 
 //-----------------------------------------------------------------------------
@@ -502,9 +502,9 @@ struct Fragmentrec {
 // hashcheckbit is the bit to check whether to send element to split bucket or not
 // k (== 6) is the number of buckets per page
 //-----------------------------------------------------------------------------
-  STATIC_CONST( k = 6 );
-  STATIC_CONST( MIN_HASH_COMPARE_BITS = 7 );
-  STATIC_CONST( MAX_HASH_VALUE_BITS = 31 );
+  static constexpr Uint32 k = 6;
+  static constexpr Uint32 MIN_HASH_COMPARE_BITS = 7;
+  static constexpr Uint32 MAX_HASH_VALUE_BITS = 31;
 
 //-----------------------------------------------------------------------------
 // nodetype can only be STORED in this release. Is currently only set, never read
@@ -687,7 +687,7 @@ public:
 
 
 struct Operationrec {
-  STATIC_CONST( TYPE_ID = RT_DBACC_OPERATION);
+  static constexpr Uint32 TYPE_ID = RT_DBACC_OPERATION;
   Uint32 m_magic;
 
   enum OpBits {
@@ -778,14 +778,14 @@ struct Operationrec {
 
   typedef Ptr<Operationrec> OperationrecPtr;
   typedef TransientPool<Operationrec> Operationrec_pool;
-  STATIC_CONST(DBACC_OPERATION_RECORD_TRANSIENT_POOL_INDEX = 1);
+  static constexpr Uint32 DBACC_OPERATION_RECORD_TRANSIENT_POOL_INDEX = 1;
   Operationrec_pool oprec_pool;
   OperationrecPtr operationRecPtr;
   OperationrecPtr queOperPtr;
   Uint32 cfreeopRec;
 
 struct ScanRec {
-  STATIC_CONST( TYPE_ID = RT_DBACC_SCAN );
+  static constexpr Uint32 TYPE_ID = RT_DBACC_SCAN;
   Uint32 m_magic;
 
   enum ScanState {
@@ -861,7 +861,7 @@ public:
 };
   typedef Ptr<ScanRec> ScanRecPtr;
   typedef TransientPool<ScanRec> ScanRec_pool;
-  STATIC_CONST(DBACC_SCAN_RECORD_TRANSIENT_POOL_INDEX = 0);
+  static constexpr Uint32 DBACC_SCAN_RECORD_TRANSIENT_POOL_INDEX = 0;
   ScanRec_pool scanRec_pool;
   ScanRecPtr scanPtr;
 

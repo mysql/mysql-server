@@ -50,7 +50,7 @@ class TcCommitConf {
   friend class TransporterFacade;
 
 public:
-  STATIC_CONST( SignalLength = 5 );
+  static constexpr Uint32 SignalLength = 5;
 private:
 
   /**
@@ -79,7 +79,7 @@ class TcCommitRef {
   friend class NdbTransaction;
 
 public:
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
 private:
   
   Uint32 apiConnectPtr;

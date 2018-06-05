@@ -44,7 +44,7 @@ class AddFragReq {
   friend bool printADD_FRAG_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 
 public:
-  STATIC_CONST( SignalLength = 14 );
+  static constexpr Uint32 SignalLength = 14;
   
   enum RequestInfo {
     CreateInRunning = 0x8000000,
@@ -80,7 +80,7 @@ class AddFragRef {
 
   friend bool printADD_FRAG_REF(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
   
 private:
   Uint32 dihPtr;
@@ -100,7 +100,7 @@ class AddFragConf {
 
   friend bool printADD_FRAG_CONF(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
   
 private:
   Uint32 dihPtr;
@@ -122,9 +122,9 @@ class LqhFragReq {
   friend bool printLQH_FRAG_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 
 public:
-  STATIC_CONST( SignalLength = 24 );
-  STATIC_CONST( OldSignalLength = 23 );
-  STATIC_CONST( OldestSignalLength = 22 );
+  static constexpr Uint32 SignalLength = 24;
+  static constexpr Uint32 OldSignalLength = 23;
+  static constexpr Uint32 OldestSignalLength = 22;
   
   enum RequestInfo {
     CreateInRunning = 0x8000000,
@@ -178,7 +178,7 @@ class LqhFragConf {
 
   friend bool printLQH_FRAG_CONF(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 5 );
+  static constexpr Uint32 SignalLength = 5;
 
 private:
   Uint32 senderData;
@@ -202,7 +202,7 @@ class LqhFragRef {
 
   friend bool printLQH_FRAG_REF(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 6 );
+  static constexpr Uint32 SignalLength = 6;
 
 private:
   Uint32 senderData;
@@ -227,10 +227,10 @@ class LqhAddAttrReq {
 
   friend bool printLQH_ADD_ATTR_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( HeaderLength = 4 );
-  STATIC_CONST( EntryLength = 3 );
-  STATIC_CONST( MAX_ATTRIBUTES = 6 );
-  STATIC_CONST( DEFAULT_VALUE_SECTION_NUM = 0 );
+  static constexpr Uint32 HeaderLength = 4;
+  static constexpr Uint32 EntryLength = 3;
+  static constexpr Uint32 MAX_ATTRIBUTES = 6;
+  static constexpr Uint32 DEFAULT_VALUE_SECTION_NUM = 0;
   struct Entry {
     Uint32 attrId;              // for index, includes primary attr id << 16
     Uint32 attrDescriptor;      // 2 words type info
@@ -258,7 +258,7 @@ class LqhAddAttrRef {
 
   friend bool printLQH_ADD_ATTR_REF(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
 
 private:
   Uint32 senderData;
@@ -279,7 +279,7 @@ class LqhAddAttrConf {
 
   friend bool printLQH_ADD_ATTR_CONF(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
 
 private:
   Uint32 senderData;
@@ -288,7 +288,7 @@ private:
 
 struct DropFragReq
 {
-  STATIC_CONST( SignalLength = 5 );
+  static constexpr Uint32 SignalLength = 5;
   enum RequestInfo
   {
     AlterTableAbort = 0x1
@@ -302,7 +302,7 @@ struct DropFragReq
 
 struct DropFragRef
 {
-  STATIC_CONST( SignalLength = 5 );
+  static constexpr Uint32 SignalLength = 5;
   Uint32 senderRef;
   Uint32 senderData;
   Uint32 tableId;
@@ -312,7 +312,7 @@ struct DropFragRef
 
 struct DropFragConf
 {
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
   Uint32 senderRef;
   Uint32 senderData;
   Uint32 tableId;

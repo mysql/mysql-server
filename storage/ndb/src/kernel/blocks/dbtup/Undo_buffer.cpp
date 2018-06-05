@@ -34,7 +34,7 @@ struct UndoPage
   Uint32 m_ref_count;
   Uint32 m_data[GLOBAL_PAGE_SIZE_WORDS-2];
   
-  STATIC_CONST( DATA_WORDS = GLOBAL_PAGE_SIZE_WORDS-2 );
+  static constexpr Uint32 DATA_WORDS = GLOBAL_PAGE_SIZE_WORDS-2;
 };
 
 #if defined VM_TRACE || defined ERROR_INSERT

@@ -569,7 +569,7 @@ public:
   typedef Ptr<AddFragRecord> AddFragRecordPtr;
   
   struct ScanRecord {
-    STATIC_CONST( TYPE_ID = RT_DBLQH_SCAN_RECORD);
+    static constexpr Uint32 TYPE_ID = RT_DBLQH_SCAN_RECORD;
     Uint32 m_magic;
 
     ScanRecord() :
@@ -620,9 +620,9 @@ public:
      * an ACC ptr, but all others are refs to SectionSegments containing
      * ACC ptrs.
      */
-    STATIC_CONST( MaxScanAccSegments= (
+    static constexpr Uint32 MaxScanAccSegments = (
                  (MAX_PARALLEL_OP_PER_SCAN + SectionSegment::DataLength - 1) /
-                 SectionSegment::DataLength) + 1);
+                 SectionSegment::DataLength) + 1;
 
     UintR scan_acc_op_ptr[ MaxScanAccSegments ];
     Uint32 scan_acc_index;
@@ -704,7 +704,7 @@ public:
     Uint8 m_first_match_flag;
     Uint8 m_send_early_hbrep;
   };
-  STATIC_CONST(DBLQH_SCAN_RECORD_TRANSIENT_POOL_INDEX = 1);
+  static constexpr Uint32 DBLQH_SCAN_RECORD_TRANSIENT_POOL_INDEX = 1;
   typedef Ptr<ScanRecord> ScanRecordPtr;
   typedef TransientPool<ScanRecord> ScanRecord_pool;
   typedef DLCList<ScanRecord_pool> ScanRecord_list;
@@ -1332,9 +1332,9 @@ public:
 
   struct IOTracker
   {
-    STATIC_CONST( SAMPLE_TIME = 128 );              // millis
-    STATIC_CONST( SLIDING_WINDOW_LEN = 1024 );      // millis
-    STATIC_CONST( SLIDING_WINDOW_HISTORY_LEN = 8 );
+    static constexpr Uint32 SAMPLE_TIME = 128;              // millis
+    static constexpr Uint32 SLIDING_WINDOW_LEN = 1024;      // millis
+    static constexpr Uint32 SLIDING_WINDOW_HISTORY_LEN = 8;
 
     void init(Uint32 partNo);
     Uint32 m_log_part_no;
@@ -1443,7 +1443,7 @@ public:
    */
   struct LCPFragWatchdog
   {
-    STATIC_CONST( PollingPeriodMillis = 1000 ); /* 10s */
+    static constexpr Uint32 PollingPeriodMillis = 1000; /* 10s */
     Uint32 WarnElapsedWithNoProgressMillis; /* LCP Warn, milliseconds */
     Uint32 MaxElapsedWithNoProgressMillis;  /* LCP Fail, milliseconds */
 
@@ -2592,7 +2592,7 @@ public:
       LOG_CONNECTED = 3
     };
 #ifndef DBLQH_STATE_EXTRACT
-    STATIC_CONST( TYPE_ID = RT_DBLQH_TC_CONNECT);
+    static constexpr Uint32 TYPE_ID = RT_DBLQH_TC_CONNECT;
     Uint32 m_magic;
     Uint32 ptrI;
 
@@ -2856,7 +2856,7 @@ public:
   }; /* p2c: size = 308 bytes */
 
 #ifndef DBLQH_STATE_EXTRACT
-  STATIC_CONST(DBLQH_OPERATION_RECORD_TRANSIENT_POOL_INDEX = 0);
+  static constexpr Uint32 DBLQH_OPERATION_RECORD_TRANSIENT_POOL_INDEX = 0;
   Uint32 ctcConnectReservedCount;
   Uint32 ctcConnectReserved;
   typedef Ptr<TcConnectionrec> TcConnectionrecPtr;
@@ -4323,7 +4323,7 @@ public:
    *
    */
   struct CommitAckMarker {
-    STATIC_CONST( TYPE_ID = RT_DBLQH_COMMIT_ACK_MARKER );
+    static constexpr Uint32 TYPE_ID = RT_DBLQH_COMMIT_ACK_MARKER;
     Uint32 m_magic;
 
     CommitAckMarker() :
@@ -4353,7 +4353,7 @@ public:
       return transid1;
     }
   };
-  STATIC_CONST(DBLQH_COMMIT_ACK_MARKER_TRANSIENT_POOL_INDEX = 2);
+  static constexpr Uint32 DBLQH_COMMIT_ACK_MARKER_TRANSIENT_POOL_INDEX = 2;
   typedef Ptr<CommitAckMarker> CommitAckMarkerPtr;
   typedef TransientPool<CommitAckMarker> CommitAckMarker_pool;
   typedef DLHashTable<CommitAckMarker_pool> CommitAckMarker_hash;

@@ -2263,7 +2263,7 @@ private:
     /*       GLOBAL CHECKPOINTS. WE CAN HOWEVER ONLY HANDLE TWO SUCH COPY AT  */
     /*       THE TIME. THUS WE HAVE TO KEEP WAIT INFORMATION IN THIS VARIABLE.*/
     /*------------------------------------------------------------------------*/
-    STATIC_CONST( WAIT_CNT = 2 );
+    static constexpr Uint32 WAIT_CNT = 2;
     CopyGCIReq::CopyReason m_waiting[WAIT_CNT];
   } c_copyGCIMaster;
   

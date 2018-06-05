@@ -55,7 +55,7 @@ public:
     InvalidCharFormat = 744,
     TooMuchAttrInfo = 823
   };
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
 private:
   /*
    * Error code set by TUX.  Zero means no error.

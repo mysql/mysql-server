@@ -32,7 +32,7 @@
 
 struct LocalRouteOrd
 {
-  STATIC_CONST( StaticLen = 3 );
+  static constexpr Uint32 StaticLen = 3;
 
   Uint32 cnt; // 16-bit path, 16-bit destination
   Uint32 gsn; // Final gsn

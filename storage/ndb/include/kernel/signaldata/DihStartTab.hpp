@@ -41,7 +41,7 @@ class DihStartTabReq {
    */
   friend class Dbdih;
 public:
-  STATIC_CONST( HeaderLength = 3 );
+  static constexpr Uint32 HeaderLength = 3;
   
 private:
   
@@ -66,7 +66,7 @@ class DihStartTabConf {
    */
   friend class Dbdict;
 public:
-  STATIC_CONST( SignalLength = 2 );
+  static constexpr Uint32 SignalLength = 2;
   
 private:
   Uint32 senderRef;

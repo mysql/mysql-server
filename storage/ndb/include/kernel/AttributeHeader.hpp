@@ -43,60 +43,60 @@ public:
   /**
    * Pseudo columns
    */
-  STATIC_CONST( PSEUDO       = 0x8000 );
-  STATIC_CONST( FRAGMENT     = 0xFFFE ); // Read fragment no
-  STATIC_CONST( ROW_COUNT    = 0xFFFD ); // Read row count (committed)
-  STATIC_CONST( COMMIT_COUNT = 0xFFFC ); // Read commit count
-  STATIC_CONST( RANGE_NO     = 0xFFFB ); // Read range no (when batched ranges)
+  static constexpr Uint32 PSEUDO = 0x8000;
+  static constexpr Uint32 FRAGMENT = 0xFFFE; // Read fragment no
+  static constexpr Uint32 ROW_COUNT = 0xFFFD; // Read row count (committed)
+  static constexpr Uint32 COMMIT_COUNT = 0xFFFC; // Read commit count
+  static constexpr Uint32 RANGE_NO = 0xFFFB; // Read range no (when batched ranges)
   
-  STATIC_CONST( ROW_SIZE     = 0xFFFA );
-  STATIC_CONST( FRAGMENT_FIXED_MEMORY= 0xFFF9 );
+  static constexpr Uint32 ROW_SIZE = 0xFFFA;
+  static constexpr Uint32 FRAGMENT_FIXED_MEMORY = 0xFFF9;
 
-  STATIC_CONST( RECORDS_IN_RANGE = 0xFFF8 );
-  STATIC_CONST( DISK_REF     = 0xFFF7 );
-  STATIC_CONST( ROWID        = 0xFFF6 );
-  STATIC_CONST( ROW_GCI      = 0xFFF5 );
-  STATIC_CONST( FRAGMENT_VARSIZED_MEMORY = 0xFFF4 );
-  STATIC_CONST( READ_PACKED  = 0xFFF3 );
-  STATIC_CONST( ANY_VALUE    = 0xFFF2 );
-  STATIC_CONST( COPY_ROWID   = 0xFFF1 );
-  STATIC_CONST( READ_ALL     = 0xFFF0 );
-  STATIC_CONST( READ_LCP     = 0xFFEF );
-  STATIC_CONST( LOCK_REF     = 0xFFEE ); // Operation lock reference
-  STATIC_CONST( OP_ID        = 0xFFED ); // Operation runtime identity
+  static constexpr Uint32 RECORDS_IN_RANGE = 0xFFF8;
+  static constexpr Uint32 DISK_REF = 0xFFF7;
+  static constexpr Uint32 ROWID = 0xFFF6;
+  static constexpr Uint32 ROW_GCI = 0xFFF5;
+  static constexpr Uint32 FRAGMENT_VARSIZED_MEMORY = 0xFFF4;
+  static constexpr Uint32 READ_PACKED = 0xFFF3;
+  static constexpr Uint32 ANY_VALUE = 0xFFF2;
+  static constexpr Uint32 COPY_ROWID = 0xFFF1;
+  static constexpr Uint32 READ_ALL = 0xFFF0;
+  static constexpr Uint32 READ_LCP = 0xFFEF;
+  static constexpr Uint32 LOCK_REF = 0xFFEE; // Operation lock reference
+  static constexpr Uint32 OP_ID = 0xFFED; // Operation runtime identity
 
   // Extents * sizeof(Extent) allocated to fragment
-  STATIC_CONST( FRAGMENT_EXTENT_SPACE = 0xFFEC );
+  static constexpr Uint32 FRAGMENT_EXTENT_SPACE = 0xFFEC;
   
   // Free but allocated DD extent space
-  STATIC_CONST( FRAGMENT_FREE_EXTENT_SPACE = 0xFFEB );
+  static constexpr Uint32 FRAGMENT_FREE_EXTENT_SPACE = 0xFFEB;
 
-  STATIC_CONST( FLUSH_AI = 0xFFEA );
-  STATIC_CONST( CORR_FACTOR32 = 0xFFE9 ); // excluding root-frag
-  STATIC_CONST( CORR_FACTOR64 = 0xFFE8 ); // including root-frag
+  static constexpr Uint32 FLUSH_AI = 0xFFEA;
+  static constexpr Uint32 CORR_FACTOR32 = 0xFFE9; // excluding root-frag
+  static constexpr Uint32 CORR_FACTOR64 = 0xFFE8; // including root-frag
 
   /**
    * 64-bit row gci (extending lower if not sufficient bits)
    *   read-only
    */
-  STATIC_CONST( ROW_GCI64    = 0xFFE7);
+  static constexpr Uint32 ROW_GCI64 = 0xFFE7;
 
   /**
    * Row author... autoset to 0, can be over written
    */
-  STATIC_CONST( ROW_AUTHOR    = 0xFFE6);
+  static constexpr Uint32 ROW_AUTHOR = 0xFFE6;
 
   /**
    * Optimize pseudo column and optimization options
    */
-  STATIC_CONST( OPTIMIZE     = 0xFFE0 );          //pseudo column id to optimize
-  STATIC_CONST( OPTIMIZE_OPTIONS_MASK = 0xFFFF ); //bitmask AND column value
-  STATIC_CONST( OPTIMIZE_MOVE_VARPART = 0x0001 ); //option to move varpart
-  STATIC_CONST( OPTIMIZE_MOVE_FIXPART = 0x0002 ); //option to move fixpart
+  static constexpr Uint32 OPTIMIZE = 0xFFE0;          //pseudo column id to optimize
+  static constexpr Uint32 OPTIMIZE_OPTIONS_MASK = 0xFFFF; //bitmask AND column value
+  static constexpr Uint32 OPTIMIZE_MOVE_VARPART = 0x0001; //option to move varpart
+  static constexpr Uint32 OPTIMIZE_MOVE_FIXPART = 0x0002; //option to move fixpart
 
   // index stats pseudo columns
-  STATIC_CONST( INDEX_STAT_KEY   = 0xFFD0 );
-  STATIC_CONST( INDEX_STAT_VALUE = 0xFFD1 );
+  static constexpr Uint32 INDEX_STAT_KEY = 0xFFD0;
+  static constexpr Uint32 INDEX_STAT_VALUE = 0xFFD1;
 
   // NOTE: in 5.1 ctors and init take size in bytes
 

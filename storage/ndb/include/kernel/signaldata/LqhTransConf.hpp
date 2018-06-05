@@ -48,14 +48,14 @@ class LqhTransConf {
 
   friend bool printLQH_TRANSCONF(FILE *, const Uint32 *, Uint32, Uint16);  
 public:
-  STATIC_CONST( SignalLength = 18 );
+  static constexpr Uint32 SignalLength = 18;
 
   /**
    * Upgrade
    */
-  STATIC_CONST( SignalLength_GCI_LO = 16 );
-  STATIC_CONST( SignalLength_FRAG_ID = 17 );
-  STATIC_CONST( SignalLength_INST_ID = 18 );
+  static constexpr Uint32 SignalLength_GCI_LO = 16;
+  static constexpr Uint32 SignalLength_FRAG_ID = 17;
+  static constexpr Uint32 SignalLength_INST_ID = 18;
 private:
 
   /**

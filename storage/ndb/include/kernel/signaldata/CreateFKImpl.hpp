@@ -43,9 +43,9 @@ struct CreateFKImplReq
    */
   friend bool printCREATE_FK_IMPL_REQ(FILE*, const Uint32*, Uint32, Uint16);
 
-  STATIC_CONST( SignalLength = 10 );
-  STATIC_CONST( PARENT_COLUMNS = 0); // section no
-  STATIC_CONST( CHILD_COLUMNS = 1); // section no
+  static constexpr Uint32 SignalLength = 10;
+  static constexpr Uint32 PARENT_COLUMNS = 0; // section no
+  static constexpr Uint32 CHILD_COLUMNS = 1; // section no
 
   enum {
     RT_PARSE    = 0x1,
@@ -119,7 +119,7 @@ struct CreateFKImplRef
    */
   friend bool printCREATE_FK_IMPL_REF(FILE*, const Uint32*, Uint32, Uint16);
 
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
 
   Uint32 senderData;
   Uint32 senderRef;
@@ -145,7 +145,7 @@ struct CreateFKImplConf
    */
   friend bool printCREATE_FK_IMPL_CONF(FILE*, const Uint32*, Uint32, Uint16);
 
-  STATIC_CONST( SignalLength = 4 );
+  static constexpr Uint32 SignalLength = 4;
 
   Uint32 senderData;
   Uint32 senderRef;

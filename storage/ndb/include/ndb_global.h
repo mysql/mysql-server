@@ -147,12 +147,6 @@
 
 static const char table_name_separator =  '/';
 
-#if defined(_AIX) || defined(WIN32) || defined(NDB_VC98)
-#define STATIC_CONST(x) enum { x }
-#else
-#define STATIC_CONST(x) static const Uint32 x
-#endif
-
 #ifdef  __cplusplus
 extern "C" {
 #endif

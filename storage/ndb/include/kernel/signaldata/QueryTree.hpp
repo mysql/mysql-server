@@ -198,7 +198,7 @@ struct QN_LookupNode // Is a QueryNode subclass
   Uint32 requestInfo;
   Uint32 tableId;      // 16-bit
   Uint32 tableVersion;
-  STATIC_CONST ( NodeSize = 4 );
+  static constexpr Uint32 NodeSize = 4;
 
   /**
    * See DABits::NodeInfoBits
@@ -228,7 +228,7 @@ struct QN_LookupParameters // Is a QueryNodeParameters subclass
   Uint32 len;
   Uint32 requestInfo;
   Uint32 resultData;   // Api connect ptr
-  STATIC_CONST ( NodeSize = 3 );
+  static constexpr Uint32 NodeSize = 3;
 
   /**
    * See DABits::ParamInfoBits
@@ -245,7 +245,7 @@ struct QN_ScanFragNode_v1 // Is a QueryNode subclass
   Uint32 requestInfo;
   Uint32 tableId;      // 16-bit
   Uint32 tableVersion;
-  STATIC_CONST ( NodeSize = 4 );
+  static constexpr Uint32 NodeSize = 4;
 
   /**
    * See DABits::NodeInfoBits
@@ -262,7 +262,7 @@ struct QN_ScanFragParameters_v1 // Is a QueryNodeParameters subclass
   Uint32 len;
   Uint32 requestInfo;
   Uint32 resultData;   // Api connect ptr
-  STATIC_CONST ( NodeSize = 3 );
+  static constexpr Uint32 NodeSize = 3;
 
   /**
    * See DABits::ParamInfoBits
@@ -279,7 +279,7 @@ struct QN_ScanIndexNode_v1
   Uint32 requestInfo;
   Uint32 tableId;      // 16-bit
   Uint32 tableVersion;
-  STATIC_CONST( NodeSize = 4 );
+  static constexpr Uint32 NodeSize = 4;
 
   enum ScanIndexBits
   {
@@ -318,9 +318,9 @@ struct QN_ScanIndexParameters_v1
   Uint32 requestInfo;
   Uint32 batchSize;    // (bytes << 11) | (rows)
   Uint32 resultData;   // Api connect ptr
-  STATIC_CONST ( NodeSize = 4 );
+  static constexpr Uint32 NodeSize = 4;
   // Number of bits for representing row count in 'batchSize'.
-  STATIC_CONST ( BatchRowBits = 11 );
+  static constexpr Uint32 BatchRowBits = 11;
 
   enum ScanIndexParamBits
   {
@@ -355,7 +355,7 @@ struct QN_ScanFragNode // Note: Same layout as old QN_ScanIndexNode_v1
   Uint32 requestInfo;
   Uint32 tableId;      // 16-bit
   Uint32 tableVersion;
-  STATIC_CONST( NodeSize = 4 );
+  static constexpr Uint32 NodeSize = 4;
 
   enum ScanFragBits    // Note: Same enum as old ScanIndexBits_v1
   {
@@ -400,7 +400,7 @@ struct QN_ScanFragParameters
   Uint32 unused1;
   Uint32 unused2;
 
-  STATIC_CONST ( NodeSize = 8 );
+  static constexpr Uint32 NodeSize = 8;
 
   enum ScanFragParamBits
   {

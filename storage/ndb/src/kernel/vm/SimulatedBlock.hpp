@@ -2780,7 +2780,7 @@ BLOCK::addRecSignal(GlobalSignalNumber gsn, ExecSignalLocal f, bool force){ \
 
 struct Hash2FragmentMap
 {
-  STATIC_CONST( MAX_MAP = NDB_MAX_HASHMAP_BUCKETS );
+  static constexpr Uint32 MAX_MAP = NDB_MAX_HASHMAP_BUCKETS;
   Uint32 m_cnt;
   Uint32 m_fragments;
   Uint16 m_map[MAX_MAP];

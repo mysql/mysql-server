@@ -31,7 +31,7 @@
 
 
 struct AlterTableReq {
-  STATIC_CONST( SignalLength = 8 );
+  static constexpr Uint32 SignalLength = 8;
   
   Uint32 clientRef;
   Uint32 clientData;
@@ -364,7 +364,7 @@ AlterTableReq::setReadBackupFlag(UintR & changeMask, Uint32 rbFlag){
 }
 
 struct AlterTableConf {
-  STATIC_CONST( SignalLength = 6 );
+  static constexpr Uint32 SignalLength = 6;
 
   Uint32 senderRef;
   union {
@@ -378,7 +378,7 @@ struct AlterTableConf {
 };
 
 struct AlterTableRef {
-  STATIC_CONST( SignalLength = 9 );
+  static constexpr Uint32 SignalLength = 9;
 
   enum ErrorCode {
     NoError = 0,
@@ -428,7 +428,7 @@ struct AlterTableRep
 {
   friend bool printALTER_TABLE_REP(FILE*, const Uint32*, Uint32, Uint16);
   
-  STATIC_CONST( SignalLength = 3 );
+  static constexpr Uint32 SignalLength = 3;
   
   enum Change_type 
   {

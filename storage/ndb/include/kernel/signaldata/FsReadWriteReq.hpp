@@ -86,7 +86,7 @@ public:
   /**
    * Length of signal
    */
-  STATIC_CONST( FixedLength = 6 );
+  static constexpr Uint32 FixedLength = 6;
 
 private:
 
@@ -197,7 +197,7 @@ struct FsSuspendOrd
   UintR filePointer;          // DATA 0
   Uint32 milliseconds;
 
-  STATIC_CONST(SignalLength = 2);
+  static constexpr Uint32 SignalLength = 2;
 };
 
 

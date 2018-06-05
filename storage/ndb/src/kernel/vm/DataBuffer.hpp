@@ -42,7 +42,7 @@
 template<Uint32 sz, Uint32 Type_id = 0>
   struct DataBufferSegment
   {
-    STATIC_CONST( TYPE_ID = Type_id );
+    static constexpr Uint32 TYPE_ID = Type_id;
 
     DataBufferSegment()
       : m_magic(Magic::make(TYPE_ID))

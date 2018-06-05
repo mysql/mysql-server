@@ -56,33 +56,33 @@ public:
   /**
    * Instructions
    */
-  STATIC_CONST( READ_ATTR_INTO_REG    = 1 );
-  STATIC_CONST( WRITE_ATTR_FROM_REG   = 2 );
-  STATIC_CONST( LOAD_CONST_NULL       = 3 );
-  STATIC_CONST( LOAD_CONST16          = 4 );
-  STATIC_CONST( LOAD_CONST32          = 5 );
-  STATIC_CONST( LOAD_CONST64          = 6 );
-  STATIC_CONST( ADD_REG_REG           = 7 );
-  STATIC_CONST( SUB_REG_REG           = 8 );
-  STATIC_CONST( BRANCH                = 9 );
-  STATIC_CONST( BRANCH_REG_EQ_NULL    = 10 );
-  STATIC_CONST( BRANCH_REG_NE_NULL    = 11 );
-  STATIC_CONST( BRANCH_EQ_REG_REG     = 12 );
-  STATIC_CONST( BRANCH_NE_REG_REG     = 13 );
-  STATIC_CONST( BRANCH_LT_REG_REG     = 14 );
-  STATIC_CONST( BRANCH_LE_REG_REG     = 15 );
-  STATIC_CONST( BRANCH_GT_REG_REG     = 16 );
-  STATIC_CONST( BRANCH_GE_REG_REG     = 17 );
-  STATIC_CONST( EXIT_OK               = 18 );
-  STATIC_CONST( EXIT_REFUSE           = 19 );
-  STATIC_CONST( CALL                  = 20 );
-  STATIC_CONST( RETURN                = 21 );
-  STATIC_CONST( EXIT_OK_LAST          = 22 );
-  STATIC_CONST( BRANCH_ATTR_OP_ARG    = 23 );
-  STATIC_CONST( BRANCH_ATTR_EQ_NULL   = 24 );
-  STATIC_CONST( BRANCH_ATTR_NE_NULL   = 25 );
-  STATIC_CONST( BRANCH_ATTR_OP_ARG_2  = 26 );
-  STATIC_CONST( BRANCH_ATTR_OP_ATTR   = 27 );
+  static constexpr Uint32 READ_ATTR_INTO_REG = 1;
+  static constexpr Uint32 WRITE_ATTR_FROM_REG = 2;
+  static constexpr Uint32 LOAD_CONST_NULL = 3;
+  static constexpr Uint32 LOAD_CONST16 = 4;
+  static constexpr Uint32 LOAD_CONST32 = 5;
+  static constexpr Uint32 LOAD_CONST64 = 6;
+  static constexpr Uint32 ADD_REG_REG = 7;
+  static constexpr Uint32 SUB_REG_REG = 8;
+  static constexpr Uint32 BRANCH = 9;
+  static constexpr Uint32 BRANCH_REG_EQ_NULL = 10;
+  static constexpr Uint32 BRANCH_REG_NE_NULL = 11;
+  static constexpr Uint32 BRANCH_EQ_REG_REG = 12;
+  static constexpr Uint32 BRANCH_NE_REG_REG = 13;
+  static constexpr Uint32 BRANCH_LT_REG_REG = 14;
+  static constexpr Uint32 BRANCH_LE_REG_REG = 15;
+  static constexpr Uint32 BRANCH_GT_REG_REG = 16;
+  static constexpr Uint32 BRANCH_GE_REG_REG = 17;
+  static constexpr Uint32 EXIT_OK = 18;
+  static constexpr Uint32 EXIT_REFUSE = 19;
+  static constexpr Uint32 CALL = 20;
+  static constexpr Uint32 RETURN = 21;
+  static constexpr Uint32 EXIT_OK_LAST = 22;
+  static constexpr Uint32 BRANCH_ATTR_OP_ARG = 23;
+  static constexpr Uint32 BRANCH_ATTR_EQ_NULL = 24;
+  static constexpr Uint32 BRANCH_ATTR_NE_NULL = 25;
+  static constexpr Uint32 BRANCH_ATTR_OP_ARG_2 = 26;
+  static constexpr Uint32 BRANCH_ATTR_OP_ATTR = 27;
 
   /**
    * Macros for creating code

@@ -76,7 +76,7 @@ public:
     const ParserRow<T> * m_currentCmd;
     const ParserRow<T> * m_currentArg;
     char * m_currentToken;
-    STATIC_CONST(MaxParseBytes = 512);
+    static constexpr Uint32 MaxParseBytes = 512;
     char m_tokenBuffer[ MaxParseBytes ];
     NdbMutex *m_mutex;
 

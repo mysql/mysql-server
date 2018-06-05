@@ -703,12 +703,12 @@ private:
   };
   typedef ArrayPool<Buffer_page> Buffer_page_pool;
   
-  STATIC_CONST( NO_OF_BUCKETS = 24 ); // 24 = 4*3*2*1! 
+  static constexpr Uint32 NO_OF_BUCKETS = 24; // 24 = 4*3*2*1! 
   Uint32 c_no_of_buckets;
   struct Bucket c_buckets[NO_OF_BUCKETS];
   Uint32 c_subscriber_per_node[MAX_NODES];
 
-  STATIC_CONST( BUCKET_MASK_SIZE = (((NO_OF_BUCKETS+31)>> 5)) );
+  static constexpr Uint32 BUCKET_MASK_SIZE = (((NO_OF_BUCKETS+31)>> 5));
   typedef Bitmask<BUCKET_MASK_SIZE> Bucket_mask;
   Bucket_mask m_active_buckets;
   Bucket_mask m_switchover_buckets;  
@@ -756,8 +756,8 @@ private:
 
   struct Page_chunk
   {
-    STATIC_CONST( CHUNK_PAGE_SIZE = 32768 );
-    STATIC_CONST( PAGES_PER_CHUNK = 16 );
+    static constexpr Uint32 CHUNK_PAGE_SIZE = 32768;
+    static constexpr Uint32 PAGES_PER_CHUNK = 16;
 
     Uint32 m_page_id;
     Uint32 m_size;
@@ -799,7 +799,7 @@ private:
   */
   Uint32 m_max_gcp_rep_counter_index;
 
-  STATIC_CONST(MAX_LDM_EPOCH_LAG = 50);
+  static constexpr Uint32 MAX_LDM_EPOCH_LAG = 50;
   SubGcpCompleteCounter m_gcp_rep_counter[MAX_LDM_EPOCH_LAG];
 
   Uint32 m_oldest_gcp_inflight_index;

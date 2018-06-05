@@ -393,7 +393,7 @@ struct SavedEvent
   Uint32 m_time;
   Uint32 m_data[MAX_EVENT_REP_SIZE_WORDS];
 
-  STATIC_CONST( HeaderLength = 3 );
+  static constexpr Uint32 HeaderLength = 3;
 };
 
 #define SAVE_BUFFER_CNT (CFG_MAX_LOGLEVEL - CFG_MIN_LOGLEVEL + 1)

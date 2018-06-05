@@ -350,12 +350,12 @@ public:
   };
   
   // AttributeSize constants
-  STATIC_CONST( aBit = 0 );
-  STATIC_CONST( an8Bit = 3 );
-  STATIC_CONST( a16Bit = 4 );
-  STATIC_CONST( a32Bit = 5 );
-  STATIC_CONST( a64Bit = 6 );
-  STATIC_CONST( a128Bit = 7 );
+  static constexpr Uint32 aBit = 0;
+  static constexpr Uint32 an8Bit = 3;
+  static constexpr Uint32 a16Bit = 4;
+  static constexpr Uint32 a32Bit = 5;
+  static constexpr Uint32 a64Bit = 6;
+  static constexpr Uint32 a128Bit = 7;
     
   // Table data interpretation
   struct Table {
@@ -677,8 +677,8 @@ public:
   static const Uint32 AttributeMappingSize;
 
   // Signal constants
-  STATIC_CONST( DataLength = 20 );
-  STATIC_CONST( HeaderLength = 5 );
+  static constexpr Uint32 DataLength = 20;
+  static constexpr Uint32 HeaderLength = 5;
 
 private:  
   Uint32 senderRef;
