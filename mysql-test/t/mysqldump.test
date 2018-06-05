@@ -2691,7 +2691,7 @@ FROM information_schema.COLUMN_STATISTICS;
 
 --exec $MYSQL_DUMP --column-statistics column_statistics_dump t1 > $assert_file
 
---let $assert_select= \/\*!80002 ANALYZE TABLE `t1` UPDATE HISTOGRAM ON `col1` WITH 22 BUCKETS; \*\/;
+--let $assert_select= \/\*!80002 ANALYZE TABLE `t1` UPDATE HISTOGRAM ON `col1` WITH 22 BUCKETS \*\/;
 --let $assert_count= 1
 --let $assert_text= Check for ANALYZE TABLE with histogram clause
 --source include/assert_grep.inc

@@ -3350,7 +3350,7 @@ static bool dump_column_statistics_for_table(char *table_name, char *db_name) {
     } else {
       fprintf(sql_file,
               "/*!80002 ANALYZE TABLE %s UPDATE HISTOGRAM ON %s "
-              "WITH %s BUCKETS; */;\n",
+              "WITH %s BUCKETS */;\n",
               quoted_table, quoted_column, row[1]);
     }
   }
