@@ -267,6 +267,9 @@ class Linestring : public Curve {
   /// @return Number of points in the linestring.
   virtual std::size_t size() const = 0;
 
+  /// Removes all points from the linestring.
+  virtual void clear() noexcept = 0;
+
   virtual Point &operator[](std::size_t i) = 0;
   virtual const Point &operator[](std::size_t i) const = 0;
 };
@@ -374,6 +377,17 @@ class Geometrycollection : public Geometry {
   ///
   /// @return Number of geometries in the geometrycollection.
   virtual std::size_t size() const = 0;
+
+  /// Resizes the geometrycollection to contain a given number of elements.
+  ///
+  /// If the new size is smaller than the current size, the remaining geometries
+  /// are discarded.
+  ///
+  /// @param[in] count The new number of geometries.
+  virtual void resize(std::size_t count) = 0;
+
+  /// Removes all geometries from the geometrycollection.
+  virtual void clear() noexcept = 0;
 
   virtual Geometry &operator[](std::size_t i) = 0;
   virtual const Geometry &operator[](std::size_t i) const = 0;

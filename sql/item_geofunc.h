@@ -732,18 +732,15 @@ class Item_func_validate : public Item_geometry_func {
   String *val_str(String *) override;
 };
 
-class Item_func_simplify : public Item_geometry_func {
-  BG_result_buf_mgr bg_resbuf_mgr;
-  String arg_val;
-  template <typename Coordsys>
-  int simplify_basic(Geometry *geom, double max_dist, String *str,
-                     Gis_geometry_collection *gc = NULL, String *gcbuf = NULL);
-
+/// Item that implements function ST_Simplify, which simplifies a geometry using
+/// the Douglas-Peucker algorithm.
+class Item_func_st_simplify : public Item_geometry_func {
  public:
-  Item_func_simplify(const POS &pos, Item *a, Item *b)
+  Item_func_st_simplify(const POS &pos, Item *a, Item *b)
       : Item_geometry_func(pos, a, b) {}
-  const char *func_name() const override { return "st_simplify"; }
   String *val_str(String *) override;
+
+  const char *func_name() const override { return "st_simplify"; }
 };
 
 class Item_func_point : public Item_geometry_func {

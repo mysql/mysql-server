@@ -1,7 +1,7 @@
 #ifndef SQL_GIS_GEOMETRIES_CS_H_INCLUDED
 #define SQL_GIS_GEOMETRIES_CS_H_INCLUDED
 
-// Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -72,6 +72,7 @@ class Cartesian_linestring : public Linestring {
   std::vector<Cartesian_point, Malloc_allocator<Cartesian_point>> m_points;
 
  public:
+  typedef decltype(m_points)::value_type value_type;
   typedef decltype(m_points)::iterator iterator;
   typedef decltype(m_points)::const_iterator const_iterator;
 
@@ -88,7 +89,7 @@ class Cartesian_linestring : public Linestring {
   bool empty() const override;
   std::size_t size() const override { return m_points.size(); }
   void resize(std::size_t count) { m_points.resize(count); }
-  void clear() { m_points.clear(); }
+  void clear() noexcept override { m_points.clear(); }
 
   Cartesian_point &back() { return m_points.back(); }
   const Cartesian_point &back() const { return m_points.back(); }
@@ -117,6 +118,7 @@ class Geographic_linestring : public Linestring {
   std::vector<Geographic_point, Malloc_allocator<Geographic_point>> m_points;
 
  public:
+  typedef decltype(m_points)::value_type value_type;
   typedef decltype(m_points)::iterator iterator;
   typedef decltype(m_points)::const_iterator const_iterator;
 
@@ -133,7 +135,7 @@ class Geographic_linestring : public Linestring {
   bool empty() const override;
   std::size_t size() const override { return m_points.size(); }
   void resize(std::size_t count) { m_points.resize(count); }
-  void clear() { m_points.clear(); }
+  void clear() noexcept override { m_points.clear(); }
 
   Geographic_point &back() { return m_points.back(); }
   const Geographic_point &back() const { return m_points.back(); }
@@ -167,6 +169,7 @@ class Cartesian_linearring : public Cartesian_linestring, public Linearring {
   }
   bool empty() const override { return Cartesian_linestring::empty(); }
   std::size_t size() const override { return Cartesian_linestring::size(); }
+  void clear() noexcept override { Cartesian_linestring::clear(); }
 
   Cartesian_point &operator[](std::size_t i) override {
     return Cartesian_linestring::operator[](i);
@@ -193,6 +196,7 @@ class Geographic_linearring : public Geographic_linestring, public Linearring {
   }
   bool empty() const override { return Geographic_linestring::empty(); }
   std::size_t size() const override { return Geographic_linestring::size(); }
+  void clear() noexcept override { Geographic_linestring::clear(); }
 
   Geographic_point &operator[](std::size_t i) override {
     return Geographic_linestring::operator[](i);
@@ -338,6 +342,8 @@ class Cartesian_geometrycollection : public Geometrycollection {
   void push_back(Geometry &&g) override;
   bool empty() const override;
   std::size_t size() const override { return m_geometries.size(); }
+  void resize(std::size_t count) override { m_geometries.resize(count); }
+  void clear() noexcept override { m_geometries.clear(); }
 
   iterator begin() noexcept { return m_geometries.begin(); }
   const_iterator begin() const noexcept { return m_geometries.begin(); }
@@ -389,6 +395,8 @@ class Geographic_geometrycollection : public Geometrycollection {
   void push_back(Geometry &&g) override;
   bool empty() const override;
   std::size_t size() const override { return m_geometries.size(); }
+  void resize(std::size_t count) override { m_geometries.resize(count); }
+  void clear() noexcept override { m_geometries.clear(); }
 
   iterator begin() noexcept { return m_geometries.begin(); }
   const_iterator begin() const noexcept { return m_geometries.begin(); }
@@ -431,6 +439,8 @@ class Cartesian_multipoint : public Multipoint {
   void push_back(Geometry &&g) override;
   bool empty() const override;
   std::size_t size() const override { return m_points.size(); }
+  void resize(std::size_t count) override { m_points.resize(count); }
+  void clear() noexcept override { m_points.clear(); }
 
   iterator begin() noexcept { return m_points.begin(); }
   const_iterator begin() const noexcept { return m_points.begin(); }
@@ -472,6 +482,8 @@ class Geographic_multipoint : public Multipoint {
   void push_back(Geometry &&g) override;
   bool empty() const override;
   std::size_t size() const override { return m_points.size(); }
+  void resize(std::size_t count) override { m_points.resize(count); }
+  void clear() noexcept override { m_points.clear(); }
 
   iterator begin() noexcept { return m_points.begin(); }
   const_iterator begin() const noexcept { return m_points.begin(); }
@@ -516,6 +528,7 @@ class Cartesian_multilinestring : public Multilinestring {
   bool empty() const override;
   std::size_t size() const override { return m_linestrings.size(); }
   void resize(std::size_t count) { m_linestrings.resize(count); }
+  void clear() noexcept override { m_linestrings.clear(); }
 
   Cartesian_linestring &back() { return m_linestrings.back(); }
   const Cartesian_linestring &back() const { return m_linestrings.back(); }
@@ -526,7 +539,9 @@ class Cartesian_multilinestring : public Multilinestring {
   iterator end() noexcept { return m_linestrings.end(); }
   const_iterator end() const noexcept { return m_linestrings.end(); }
 
-  Geometry &operator[](std::size_t i) override { return m_linestrings[i]; }
+  Cartesian_linestring &operator[](std::size_t i) override {
+    return m_linestrings[i];
+  }
   const Geometry &operator[](std::size_t i) const override {
     return m_linestrings[i];
   }
@@ -563,6 +578,7 @@ class Geographic_multilinestring : public Multilinestring {
   bool empty() const override;
   std::size_t size() const override { return m_linestrings.size(); }
   void resize(std::size_t count) { m_linestrings.resize(count); }
+  void clear() noexcept override { m_linestrings.clear(); }
 
   Geographic_linestring &back() { return m_linestrings.back(); }
   const Geographic_linestring &back() const { return m_linestrings.back(); }
@@ -573,7 +589,9 @@ class Geographic_multilinestring : public Multilinestring {
   iterator end() noexcept { return m_linestrings.end(); }
   const_iterator end() const noexcept { return m_linestrings.end(); }
 
-  Geometry &operator[](std::size_t i) override { return m_linestrings[i]; }
+  Geographic_linestring &operator[](std::size_t i) override {
+    return m_linestrings[i];
+  }
   const Geometry &operator[](std::size_t i) const override {
     return m_linestrings[i];
   }
@@ -609,6 +627,8 @@ class Cartesian_multipolygon : public Multipolygon {
   void push_back(Geometry &&g) override;
   bool empty() const override;
   std::size_t size() const override { return m_polygons.size(); }
+  void resize(std::size_t count) override { m_polygons.resize(count); }
+  void clear() noexcept override { m_polygons.clear(); }
 
   iterator begin() noexcept { return m_polygons.begin(); }
   const_iterator begin() const noexcept { return m_polygons.begin(); }
@@ -616,7 +636,9 @@ class Cartesian_multipolygon : public Multipolygon {
   iterator end() noexcept { return m_polygons.end(); }
   const_iterator end() const noexcept { return m_polygons.end(); }
 
-  Geometry &operator[](std::size_t i) override { return m_polygons[i]; }
+  Cartesian_polygon &operator[](std::size_t i) override {
+    return m_polygons[i];
+  }
   const Geometry &operator[](std::size_t i) const override {
     return m_polygons[i];
   }
@@ -652,6 +674,8 @@ class Geographic_multipolygon : public Multipolygon {
   void push_back(Geometry &&g) override;
   bool empty() const override;
   std::size_t size() const override { return m_polygons.size(); }
+  void resize(std::size_t count) override { m_polygons.resize(count); }
+  void clear() noexcept override { m_polygons.clear(); }
 
   iterator begin() noexcept { return m_polygons.begin(); }
   const_iterator begin() const noexcept { return m_polygons.begin(); }
@@ -659,7 +683,9 @@ class Geographic_multipolygon : public Multipolygon {
   iterator end() noexcept { return m_polygons.end(); }
   const_iterator end() const noexcept { return m_polygons.end(); }
 
-  Geometry &operator[](std::size_t i) override { return m_polygons[i]; }
+  Geographic_polygon &operator[](std::size_t i) override {
+    return m_polygons[i];
+  }
   const Geometry &operator[](std::size_t i) const override {
     return m_polygons[i];
   }

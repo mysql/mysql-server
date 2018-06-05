@@ -36,7 +36,6 @@
 #include <boost/geometry/algorithms/centroid.hpp>
 #include <boost/geometry/algorithms/convex_hull.hpp>
 #include <boost/geometry/algorithms/is_valid.hpp>  // IWYU pragma: keep
-#include <boost/geometry/algorithms/simplify.hpp>
 #include <boost/geometry/core/cs.hpp>
 #include <boost/geometry/geometry.hpp>
 #include <boost/geometry/strategies/strategies.hpp>
@@ -66,6 +65,7 @@
 #include "sql/gis/is_simple.h"
 #include "sql/gis/is_valid.h"
 #include "sql/gis/length.h"
+#include "sql/gis/simplify.h"
 #include "sql/gis/srid.h"
 #include "sql/gis/wkb.h"
 #include "sql/gstream.h"  // Gis_read_stream
@@ -4011,178 +4011,46 @@ bool Item_func_convex_hull::bg_convex_hull(const Geometry *geom,
   return null_value;
 }
 
-String *Item_func_simplify::val_str(String *str) {
-  DBUG_ASSERT(fixed == 1);
-  String *swkb = args[0]->val_str(&arg_val);
-  double max_dist = args[1]->val_real();
-  Geometry_buffer buffer;
-  Geometry *geom = NULL;
+String *Item_func_st_simplify::val_str(String *str) {
+  DBUG_ASSERT(fixed);
+  String *swkb = args[0]->val_str(str);
+  double max_distance = args[1]->val_real();
 
-  // Release last call's result buffer.
-  bg_resbuf_mgr.free_result_buffer();
+  if ((null_value = (args[0]->null_value || args[1]->null_value)))
+    return nullptr;
 
-  if ((null_value = (!swkb || args[0]->null_value || args[1]->null_value)))
-    return error_str();
-  if (!(geom = Geometry::construct(&buffer, swkb))) {
+  if (!swkb) {
+    /* purecov: begin inspected */
+    DBUG_ASSERT(false);
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_str();
+    /* purecov: end */
   }
 
-  if (geom->get_srid() != 0) {
-    THD *thd = current_thd;
-    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-    Srs_fetcher fetcher(thd);
-    const dd::Spatial_reference_system *srs = nullptr;
-    if (fetcher.acquire(geom->get_srid(), &srs))
-      return error_str();  // Error has already been flagged.
+  const dd::Spatial_reference_system *srs = nullptr;
+  std::unique_ptr<gis::Geometry> g;
+  dd::cache::Dictionary_client::Auto_releaser m_releaser(
+      current_thd->dd_client());
+  if (gis::parse_geometry(current_thd, func_name(), swkb, &srs, &g))
+    return error_str();
 
-    if (srs == nullptr) {
-      my_error(ER_SRS_NOT_FOUND, MYF(0), geom->get_srid());
-      return error_str();
-    }
-
-    if (!srs->is_cartesian()) {
-      DBUG_ASSERT(srs->is_geographic());
-      std::string parameters(geom->get_class_info()->m_name.str);
-      parameters.append(", ...");
-      my_error(ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS, MYF(0), func_name(),
-               parameters.c_str());
-      return error_str();
-    }
-  }
-
-  if (max_dist <= 0 || std::isnan(max_dist)) {
+  if (max_distance <= 0 || std::isnan(max_distance)) {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
     return error_str();
   }
 
-  Geometry::wkbType gtype = geom->get_type();
-
-  try {
-    if (gtype == Geometry::wkb_geometrycollection) {
-      BG_geometry_collection bggc;
-      bggc.fill(geom);
-      Gis_geometry_collection gc(geom->get_srid(), Geometry::wkb_invalid_type,
-                                 NULL, str);
-      bool has_geometries = false;
-      for (BG_geometry_collection::Geometry_list::iterator i =
-               bggc.get_geometries().begin();
-           i != bggc.get_geometries().end(); ++i) {
-        String gbuf;
-        has_geometries |=
-            !simplify_basic<bgcs::cartesian>(*i, max_dist, &gbuf, &gc, str);
-      }
-      null_value = !has_geometries;
-      if (null_value) return nullptr;
-    } else {
-      if ((null_value = simplify_basic<bgcs::cartesian>(geom, max_dist, str)))
-        return nullptr;
-      else
-        bg_resbuf_mgr.set_result_buffer(const_cast<char *>(str->ptr()));
-    }
-  } catch (...) {
+  std::unique_ptr<gis::Geometry> result;
+  if (gis::simplify(srs, *g, max_distance, func_name(), &result))
+    return error_str();
+  if (result.get() == nullptr) {
+    DBUG_ASSERT(maybe_null);
     null_value = true;
-    handle_gis_exception("ST_Simplify");
+    return nullptr;
   }
 
+  if (gis::write_geometry(srs, *result, str))
+    return error_str(); /* purecov: inspected */
   return str;
-}
-
-template <typename Coordsys>
-int Item_func_simplify::simplify_basic(Geometry *geom, double max_dist,
-                                       String *str, Gis_geometry_collection *gc,
-                                       String *gcbuf) {
-  DBUG_ASSERT((gc == NULL && gcbuf == NULL) || (gc != NULL && gcbuf != NULL));
-  Geometry::wkbType geotype = geom->get_type();
-
-  switch (geotype) {
-    case Geometry::wkb_point: {
-      typename BG_models<Coordsys>::Point geo(
-          geom->get_data_ptr(), geom->get_data_size(), geom->get_flags(),
-          geom->get_srid()),
-          out;
-      boost::geometry::simplify(geo, out, max_dist);
-      if ((null_value = post_fix_result(&bg_resbuf_mgr, out, str)))
-        return null_value;
-      if (gc && (null_value = gc->append_geometry(&out, gcbuf)))
-        return null_value;
-    } break;
-    case Geometry::wkb_multipoint: {
-      typename BG_models<Coordsys>::Multipoint geo(
-          geom->get_data_ptr(), geom->get_data_size(), geom->get_flags(),
-          geom->get_srid()),
-          out;
-      boost::geometry::simplify(geo, out, max_dist);
-      if ((null_value = post_fix_result(&bg_resbuf_mgr, out, str)))
-        return null_value;
-      if (gc && (null_value = gc->append_geometry(&out, gcbuf)))
-        return null_value;
-    } break;
-    case Geometry::wkb_linestring: {
-      typename BG_models<Coordsys>::Linestring geo(
-          geom->get_data_ptr(), geom->get_data_size(), geom->get_flags(),
-          geom->get_srid()),
-          out;
-      boost::geometry::simplify(geo, out, max_dist);
-      if (out.size() < 2) {
-        // Empty result. The geometry is so small that it disappeared.
-        return (null_value = true);
-      }
-      if ((null_value = post_fix_result(&bg_resbuf_mgr, out, str)))
-        return null_value;
-      if (gc && (null_value = gc->append_geometry(&out, gcbuf)))
-        return null_value;
-    } break;
-    case Geometry::wkb_multilinestring: {
-      typename BG_models<Coordsys>::Multilinestring geo(
-          geom->get_data_ptr(), geom->get_data_size(), geom->get_flags(),
-          geom->get_srid()),
-          out, out_cleaned;
-      boost::geometry::simplify(geo, out, max_dist);
-      // for (auto it = out.begin(); it < out.end(); it++) {
-      for (auto ls : out) {
-        if (ls.size() >= 2) {
-          out_cleaned.push_back(ls);
-        }
-      }
-      if ((null_value = post_fix_result(&bg_resbuf_mgr, out_cleaned, str)))
-        return null_value;
-      if (gc && (null_value = gc->append_geometry(&out_cleaned, gcbuf)))
-        return null_value;
-    } break;
-    case Geometry::wkb_polygon: {
-      typename BG_models<Coordsys>::Polygon geo(
-          geom->get_data_ptr(), geom->get_data_size(), geom->get_flags(),
-          geom->get_srid()),
-          out;
-      boost::geometry::simplify(geo, out, max_dist);
-      if (out.outer().size() == 0) {
-        // Empty result. The geometry is so small that it disappeared.
-        return (null_value = true);
-      }
-      if ((null_value = post_fix_result(&bg_resbuf_mgr, out, str)))
-        return null_value;
-      if (gc && (null_value = gc->append_geometry(&out, gcbuf)))
-        return null_value;
-    } break;
-    case Geometry::wkb_multipolygon: {
-      typename BG_models<Coordsys>::Multipolygon geo(
-          geom->get_data_ptr(), geom->get_data_size(), geom->get_flags(),
-          geom->get_srid()),
-          out;
-      boost::geometry::simplify(geo, out, max_dist);
-      if ((null_value = post_fix_result(&bg_resbuf_mgr, out, str)))
-        return null_value;
-      if (gc && (null_value = gc->append_geometry(&out, gcbuf)))
-        return null_value;
-    } break;
-    case Geometry::wkb_geometrycollection:
-    default:
-      DBUG_ASSERT(false);
-      break;
-  }
-
-  return 0;
 }
 
 /*

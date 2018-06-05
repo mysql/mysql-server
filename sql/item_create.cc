@@ -1586,7 +1586,7 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"ST_POLYFROMWKB", SQL_FACTORY(Polyfromwkb_instantiator)},
     {"ST_POLYGONFROMTEXT", SQL_FACTORY(Polygonfromtext_instantiator)},
     {"ST_POLYGONFROMWKB", SQL_FACTORY(Polygonfromwkb_instantiator)},
-    {"ST_SIMPLIFY", SQL_FN(Item_func_simplify, 2)},
+    {"ST_SIMPLIFY", SQL_FN(Item_func_st_simplify, 2)},
     {"ST_SRID", SQL_FACTORY(Srid_instantiator)},
     {"ST_STARTPOINT", SQL_FACTORY(Startpoint_instantiator)},
     {"ST_SYMDIFFERENCE", SQL_FN(Item_func_st_symdifference, 2)},

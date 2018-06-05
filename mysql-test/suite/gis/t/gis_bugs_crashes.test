@@ -2152,7 +2152,7 @@ SELECT ST_VALIDATE(ST_GEOMFROMTEXT(@star_all_points,-1));
 --echo # BUG#20430521 : WL#8034 : CRASH WITH ST_SIMPLIFY() IN ITEM_FUNC_SIMPLIFY::VAL_STR
 --echo ######################################################################################################
 
---error ER_GIS_DATA_WRONG_ENDIANESS
+--error ER_GIS_INVALID_DATA
 SELECT ST_ASTEXT(ST_SIMPLIFY(0x000000000200000000000000000000000000000000, 1));
 
 --echo ######################################################################################################
