@@ -4836,6 +4836,12 @@ static bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
           }
         }
       }
+
+      // We have empty frame, maintain invariant
+      if (!found_first) {
+        DBUG_ASSERT(!row_added);
+        w.set_first_rowno_in_range_frame(w.last_rowno_in_range_frame() + 1);
+      }
     }
   }
 
