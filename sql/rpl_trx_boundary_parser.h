@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,9 +37,8 @@
 
 #include <stddef.h>
 
+#include "libbinlogevents/include/control_events.h"
 #include "my_dbug.h"
-
-class Format_description_log_event;
 
 /**
   @class Transaction_boundary_parser
@@ -128,7 +127,7 @@ class Transaction_boundary_parser {
               true if the transaction boundary parser didn't accepted the event.
   */
   bool feed_event(const char *buf, size_t length,
-                  const Format_description_log_event *fd_event,
+                  const binary_log::Format_description_event *fd_event,
                   bool throw_warnings);
 
   /**
@@ -210,7 +209,7 @@ class Transaction_boundary_parser {
   */
   static enum_event_boundary_type get_event_boundary_type(
       const char *buf, size_t length,
-      const Format_description_log_event *description_event,
+      const binary_log::Format_description_event *fd_event,
       bool throw_warnings);
 
   /**

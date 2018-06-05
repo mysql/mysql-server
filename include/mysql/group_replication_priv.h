@@ -30,6 +30,7 @@
 #include "my_sys.h"
 #include "my_thread.h"
 #include "sql/binlog_ostream.h"
+#include "sql/binlog_reader.h"
 #include "sql/debug_sync.h"
 #include "sql/log_event.h"
 #include "sql/replication.h"

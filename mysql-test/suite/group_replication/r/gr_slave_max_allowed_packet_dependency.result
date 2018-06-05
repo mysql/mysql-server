@@ -23,6 +23,8 @@ call mtr.add_suppression("Unable to convert the event into a packet on the appli
 call mtr.add_suppression("Failed to fetch transaction data containing required transaction info for applier");
 call mtr.add_suppression("Error at event handling.*");
 call mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.");
+call mtr.add_suppression("Event too big.*");
+call mtr.add_suppression("The applier thread execution was aborted.*");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 call mtr.add_suppression("Slave SQL for channel 'group_replication_applier'.*");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");

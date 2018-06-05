@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,6 +39,7 @@
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/sql_security_ctx.h"
+#include "sql/binlog_reader.h"
 #include "sql/log_event.h"  // Format_description_log_event
 #include "sql/psi_memory_key.h"
 #include "sql/rpl_info_factory.h"  // Rpl_info_factory
@@ -239,11 +240,12 @@ void mysql_client_binlog_statement(THD *thd) {
 
       if (check_event_type(bufptr[EVENT_TYPE_OFFSET], rli)) goto end;
 
-      ev = Log_event::read_log_event(bufptr, event_len, &error,
-                                     rli->get_rli_description_event(), 0);
-
-      DBUG_PRINT("info", ("binlog base64 err=%s", error));
-      if (!ev) {
+      Binlog_read_error binlog_read_error = binlog_event_deserialize(
+          reinterpret_cast<unsigned char *>(bufptr), event_len,
+          rli->get_rli_description_event(), false, &ev);
+      if (binlog_read_error.has_error()) {
+        DBUG_PRINT("info",
+                   ("binlog base64 err=%s", binlog_read_error.get_str()));
         /*
           This could actually be an out-of-memory, but it is more likely
           caused by a bad statement

@@ -63,6 +63,7 @@
 #include "mysql_time.h"
 #include "psi_memory_key.h"
 #include "query_options.h"
+#include "sql/binlog_reader.h"
 #include "sql/my_decimal.h"   // my_decimal
 #include "sql/rpl_handler.h"  // RUN_HOOK
 #include "sql/rpl_tblmap.h"
@@ -910,7 +911,9 @@ const char *Log_event::get_type_str(Log_event_type type) {
   }
 }
 
-const char *Log_event::get_type_str() { return get_type_str(get_type_code()); }
+const char *Log_event::get_type_str() const {
+  return get_type_str(get_type_code());
+}
 
   /*
     Log_event::Log_event()
@@ -993,40 +996,6 @@ Log_event::Log_event(Log_event_header *header, Log_event_footer *footer)
 void *Log_event::operator new(size_t size) {
   return my_malloc(key_memory_log_event, size, MYF(MY_WME | MY_FAE));
 }
-
-#ifdef MYSQL_SERVER
-#define my_b_event_read my_b_read
-#else
-/**
-  Wrapper around my_b_read to skip over any binlog_magic numbers
-  we may see in the middle of stream. This can only happen if we
-  are reading from stdin and input stream contains multiple binlog
-  files. The first 4 bytes of an event are timestamp. It is possible
-  that by coincidence the timestamp is same as binlog magic number
-  (0xfe62696e i.e 4267862382) but that would only happen for one second
-  at Mon Mar 30 05:19:42 2105. We ignore that coincidence for now.
- */
-int my_b_event_read(IO_CACHE *file, uchar *buf, int buflen) {
-  int read_status = 0;  // assume success
-  int nbytes_already_read = 0;
-  if (file->file == my_fileno(stdin)) {
-    read_status = my_b_read(file, buf, SIZEOF_BINLOG_MAGIC);
-    if (!read_status) {
-      // read succeeded
-      if (memcmp(buf, BINLOG_MAGIC, SIZEOF_BINLOG_MAGIC)) {
-        // does not match binlog magic number
-        nbytes_already_read = SIZEOF_BINLOG_MAGIC;
-      }
-      // else we got binlog magic number in middle of stream. Ignore.
-    }
-  }
-  if (!read_status) {
-    read_status = my_b_read(file, buf + nbytes_already_read,
-                            buflen - nbytes_already_read);
-  }
-  return read_status;
-}
-#endif
 
 #ifdef MYSQL_SERVER
 inline int Log_event::do_apply_event_worker(Slave_worker *w) {
@@ -1337,167 +1306,6 @@ bool Log_event::write_header(Basic_ostream *ostream, size_t event_data_length) {
 
   DBUG_RETURN(ret);
 }
-
-/**
-  This needn't be format-tolerant, because we only read
-  LOG_EVENT_MINIMAL_HEADER_LEN (we just want to read the event's length).
-
-  The caller should allocate the packet buffer before calling this function.
-*/
-
-int Log_event::read_log_event(IO_CACHE *file, String *packet,
-                              mysql_mutex_t *log_lock,
-                              enum_binlog_checksum_alg checksum_alg_arg,
-                              const char *log_file_name_arg,
-                              bool *is_binlog_active, char *event_header) {
-  ulong data_len;
-  int result = 0;
-  char local_buf[LOG_EVENT_MINIMAL_HEADER_LEN];
-  char *buf = event_header != NULL ? event_header : local_buf;
-  uchar ev_offset = packet->length();
-  DBUG_ENTER(
-      "Log_event::read_log_event(IO_CACHE *, String *, mysql_mutex_t, uint8)");
-
-  if (log_lock) mysql_mutex_lock(log_lock);
-
-  if (log_file_name_arg)
-    *is_binlog_active = mysql_bin_log.is_active(log_file_name_arg);
-
-  /* If the event header wasn't passed, we need to read it. */
-  if (buf == local_buf) {
-    if (my_b_read(file, (uchar *)buf, LOG_EVENT_MINIMAL_HEADER_LEN)) {
-      /*
-        If the read hits eof, we must report it as eof so the caller
-        will know it can go into cond_wait to be woken up on the next
-        update to the log.
-      */
-      DBUG_PRINT("error", ("my_b_read failed. file->error: %d", file->error));
-      if (!file->error)
-        result = LOG_READ_EOF;
-      else
-        result = (file->error > 0 ? LOG_READ_TRUNC : LOG_READ_IO);
-      goto end;
-    }
-  } else
-    DBUG_PRINT("info",
-               ("Skipped reading the event header. Using the provided one."));
-
-  data_len = uint4korr(buf + EVENT_LEN_OFFSET);
-  if (data_len < LOG_EVENT_MINIMAL_HEADER_LEN ||
-      data_len > max(current_thd->variables.max_allowed_packet,
-                     opt_binlog_rows_event_max_size + MAX_LOG_EVENT_HEADER)) {
-    DBUG_PRINT("error", ("data_len is out of bounds. data_len: %lu", data_len));
-    result = ((data_len < LOG_EVENT_MINIMAL_HEADER_LEN) ? LOG_READ_BOGUS
-                                                        : LOG_READ_TOO_LARGE);
-    goto end;
-  }
-
-  /*
-    If the event header wasn't passed, the caller doesn't know the event size
-    yet, so the packet size may not have enough space to load the entire
-    event. We need to adjust the packet size here since the call to my_b_read()
-    below expects the buffer to be allocated.
-  */
-  if (buf == local_buf) {
-    ulong new_alloc_len = packet->length() + data_len;
-    if (new_alloc_len > packet->alloced_length() &&
-        packet->mem_realloc(new_alloc_len)) {
-      /* Failed to allocate packet */
-      result = LOG_READ_MEM;
-      goto end;
-    }
-  }
-
-  /* Check packet buffer size and append the log event header to it */
-  if (packet->alloced_length() - packet->length() < data_len ||
-      packet->append(buf, LOG_EVENT_MINIMAL_HEADER_LEN)) {
-    DBUG_PRINT("info", ("first packet->append failed (out of memory)"));
-    /* Failed to allocate packet */
-    result = LOG_READ_MEM;
-    goto end;
-  }
-  data_len -= LOG_EVENT_MINIMAL_HEADER_LEN;
-  if (data_len) {
-    /*
-      Append rest of event, read directly from file into packet.
-
-      We are avoiding to call packet->append(IO_CACHE, size_t) at this point
-      because the String::append logic will call String::mem_realloc() that
-      might resize the buffer (changing its pointer) in order to reserve a
-      space for a trailing '\0' that we don't need.
-    */
-    char *event_data_buffer =
-        const_cast<char *>(packet->ptr() + packet->length());
-    result =
-        my_b_read(file, reinterpret_cast<uchar *>(event_data_buffer), data_len);
-    if (result) {
-      /*
-        Fatal error occured when appending rest of the event
-        to packet, possible failures:
-        1. EOF occured when reading from file, it's really an error
-           as data_len is >=0 there's supposed to be more bytes available.
-           file->error will have been set to number of bytes left to read
-        2. Read was interrupted, file->error would normally be set to -1
-        3. Failed to allocate memory for packet, my_errno
-           will be ENOMEM(file->error shuold be 0, but since the
-           memory allocation occurs before the call to read it might
-           be uninitialized)
-      */
-      DBUG_PRINT("info", ("second packet->append failed (out of memory)"));
-      result = (my_errno() == ENOMEM
-                    ? LOG_READ_MEM
-                    : (file->error >= 0 ? LOG_READ_TRUNC : LOG_READ_IO));
-      goto end;
-    } else {
-      packet->length(packet->length() + data_len);
-      /*
-        Corrupt the event for Dump thread.
-        We also need to exclude Previous_gtids_log_event and Gtid_log_event
-        events from injected corruption to allow dump thread to move forward
-        on binary log until the missing transactions from slave when
-        MASTER_AUTO_POSITION= 1.
-      */
-      DBUG_EXECUTE_IF(
-          "corrupt_read_log_event",
-          uchar *debug_event_buf_c = (uchar *)packet->ptr() + ev_offset;
-          if (debug_event_buf_c[EVENT_TYPE_OFFSET] !=
-                  binary_log::FORMAT_DESCRIPTION_EVENT &&
-              debug_event_buf_c[EVENT_TYPE_OFFSET] !=
-                  binary_log::PREVIOUS_GTIDS_LOG_EVENT &&
-              debug_event_buf_c[EVENT_TYPE_OFFSET] !=
-                  binary_log::GTID_LOG_EVENT) {
-            int debug_cor_pos =
-                rand() %
-                (data_len + LOG_EVENT_MINIMAL_HEADER_LEN - BINLOG_CHECKSUM_LEN);
-            debug_event_buf_c[debug_cor_pos] =
-                ~debug_event_buf_c[debug_cor_pos];
-            DBUG_PRINT("info",
-                       ("Corrupt the event at Log_event::read_log_event: byte "
-                        "on position %d",
-                        debug_cor_pos));
-          });
-      /*
-        CRC verification of the Dump thread
-      */
-      binary_log_debug::debug_checksum_test =
-          DBUG_EVALUATE_IF("simulate_checksum_test_failure", true, false);
-
-      if (opt_master_verify_checksum &&
-          Log_event_footer::event_checksum_test(
-              (uchar *)packet->ptr() + ev_offset,
-              data_len + LOG_EVENT_MINIMAL_HEADER_LEN, checksum_alg_arg)) {
-        DBUG_PRINT("info", ("checksum test failed"));
-        result = LOG_READ_CHECKSUM_FAILURE;
-        goto end;
-      }
-    }
-  }
-
-end:
-  if (log_lock) mysql_mutex_unlock(log_lock);
-  DBUG_PRINT("info", ("read_log_event returns %d", result));
-  DBUG_RETURN(result);
-}
 #endif /* MYSQL_SERVER */
 
 #ifdef MYSQL_SERVER
@@ -1517,13 +1325,7 @@ end:
 */
 Log_event *Log_event::read_log_event(
     IO_CACHE *file, mysql_mutex_t *log_lock,
-    const Format_description_log_event *description_event, bool crc_check)
-#else
-Log_event *Log_event::read_log_event(
-    IO_CACHE *file, const Format_description_log_event *description_event,
-    bool crc_check, read_log_event_filter_function f)
-#endif
-{
+    const Format_description_log_event *description_event, bool crc_check) {
   DBUG_ENTER(
       "Log_event::read_log_event(IO_CACHE *[, mysql_mutex_t *], "
       "Format_description_log_event *, bool)");
@@ -1541,11 +1343,10 @@ Log_event *Log_event::read_log_event(
 
   LOCK_MUTEX;
   DBUG_PRINT("info", ("my_b_tell: %lu", (ulong)my_b_tell(file)));
-  if (my_b_event_read(file, (uchar *)head, header_size)) {
-    DBUG_PRINT("info",
-               ("Log_event::read_log_event(IO_CACHE*,Format_desc*) "
-                "failed in my_b_event_read((IO_CACHE*)%p, (uchar*)%p, %u)",
-                file, head, header_size));
+  if (my_b_read(file, (uchar *)head, header_size)) {
+    DBUG_PRINT("info", ("Log_event::read_log_event(IO_CACHE*,Format_desc*) "
+                        "failed in my_b_read((IO_CACHE*)%p, (uchar*)%p, %u)",
+                        file, head, header_size));
     UNLOCK_MUTEX;
     /*
       No error here; it could be that we are at the file's end. However
@@ -1565,6 +1366,7 @@ Log_event *Log_event::read_log_event(
   THD *thd = current_thd;
   uint log_max_allowed_packet = thd ? slave_max_allowed_packet : ~0U;
 #endif
+  Binlog_read_error read_error;
 
   ulong const max_size =
       max<ulong>(log_max_allowed_packet,
@@ -1598,8 +1400,12 @@ Log_event *Log_event::read_log_event(
     goto err;
   }
 #endif
-  if ((res =
-           read_log_event(buf, data_len, &error, description_event, crc_check)))
+  read_error =
+      binlog_event_deserialize(reinterpret_cast<unsigned char *>(buf), data_len,
+                               description_event, crc_check, &res);
+  if (read_error.has_error())
+    error = read_error.get_str();
+  else
     res->register_temp_buf(buf);
 
 err:
@@ -1630,279 +1436,7 @@ err:
   }
   DBUG_RETURN(res);
 }
-
-/**
-  Binlog format tolerance is in (buf, event_len, description_event)
-  constructors.
-*/
-
-Log_event *Log_event::read_log_event(
-    const char *buf, uint event_len, const char **error,
-    const Format_description_log_event *description_event, bool crc_check) {
-  Log_event *ev = NULL;
-  enum_binlog_checksum_alg alg;
-  DBUG_ENTER(
-      "Log_event::read_log_event(char *, uint, char **, "
-      "Format_description_log_event *, bool)");
-  DBUG_ASSERT(description_event != 0);
-  DBUG_PRINT("info", ("binlog_version: %d", description_event->binlog_version));
-  DBUG_DUMP("data", (unsigned char *)buf, event_len);
-
-  /* Check the integrity */
-  if (event_len < EVENT_LEN_OFFSET ||
-      event_len != uint4korr(buf + EVENT_LEN_OFFSET)) {
-    DBUG_PRINT("error",
-               ("event_len=%u EVENT_LEN_OFFSET=%d "
-                "buf[EVENT_TYPE_OFFSET]=%d ENUM_END_EVENT=%d "
-                "uint4korr(buf+EVENT_LEN_OFFSET)=%d",
-                event_len, EVENT_LEN_OFFSET, buf[EVENT_TYPE_OFFSET],
-                binary_log::ENUM_END_EVENT, uint4korr(buf + EVENT_LEN_OFFSET)));
-    *error = "Sanity check failed";  // Needed to free buffer
-    DBUG_RETURN(NULL);  // general sanity check - will fail on a partial read
-  }
-
-  uint event_type = buf[EVENT_TYPE_OFFSET];
-  // Sanity check for Format description event
-  if (event_type == binary_log::FORMAT_DESCRIPTION_EVENT) {
-    if (event_len <
-        LOG_EVENT_MINIMAL_HEADER_LEN + ST_COMMON_HEADER_LEN_OFFSET) {
-      *error = "Found invalid Format description event in binary log";
-      DBUG_RETURN(0);
-    }
-    uint tmp_header_len =
-        buf[LOG_EVENT_MINIMAL_HEADER_LEN + ST_COMMON_HEADER_LEN_OFFSET];
-    if (event_len < tmp_header_len + ST_SERVER_VER_OFFSET + ST_SERVER_VER_LEN) {
-      *error = "Found invalid Format description event in binary log";
-      DBUG_RETURN(0);
-    }
-  }
-  /*
-    CRC verification by SQL and Show-Binlog-Events master side.
-    The caller has to provide @description_event->checksum_alg to
-    be the last seen FD's (A) descriptor.
-    If event is FD the descriptor is in it.
-    Notice, FD of the binlog can be only in one instance and therefore
-    Show-Binlog-Events executing master side thread needs just to know
-    the only FD's (A) value -  whereas RL can contain more.
-    In the RL case, the alg is kept in FD_e (@description_event) which is reset
-    to the newer read-out event after its execution with possibly new alg
-    descriptor. Therefore in a typical sequence of RL: {FD_s^0, FD_m, E_m^1}
-    E_m^1 will be verified with (A) of FD_m.
-
-    See legends definition on MYSQL_BIN_LOG::relay_log_checksum_alg docs
-    lines (log.h).
-
-    Notice, a pre-checksum FD version forces alg := BINLOG_CHECKSUM_ALG_UNDEF.
-  */
-  alg = (event_type != binary_log::FORMAT_DESCRIPTION_EVENT)
-            ? description_event->common_footer->checksum_alg
-            : Log_event_footer::get_checksum_alg(buf, event_len);
-  // Emulate the corruption during reading an event
-  DBUG_EXECUTE_IF(
-      "corrupt_read_log_event_char",
-      if (event_type != binary_log::FORMAT_DESCRIPTION_EVENT) {
-        char *debug_event_buf_c = (char *)buf;
-        int debug_cor_pos = rand() % (event_len - BINLOG_CHECKSUM_LEN);
-        debug_event_buf_c[debug_cor_pos] = ~debug_event_buf_c[debug_cor_pos];
-        DBUG_PRINT("info",
-                   ("Corrupt the event at "
-                    "Log_event::read_log_event(char*,...): byte on position %d",
-                    debug_cor_pos));
-        DBUG_SET("");
-      });
-
-#ifndef DBUG_OFF
-  binary_log_debug::debug_checksum_test =
-      DBUG_EVALUATE_IF("simulate_checksum_test_failure", true, false);
 #endif
-  if (crc_check &&
-      Log_event_footer::event_checksum_test((uchar *)buf, event_len, alg) &&
-      /* Skip the crc check when simulating an unknown ignorable log event. */
-      !DBUG_EVALUATE_IF("simulate_unknown_ignorable_log_event", 1, 0)) {
-    *error = "Event crc check failed! Most likely there is event corruption.";
-#ifndef MYSQL_SERVER
-    if (force_opt) {
-      ev = new Unknown_log_event(buf, description_event);
-      DBUG_RETURN(ev);
-    }
-#endif
-    DBUG_RETURN(NULL);
-  }
-
-  if (event_type > description_event->number_of_event_types &&
-      event_type != binary_log::FORMAT_DESCRIPTION_EVENT &&
-      /*
-        Skip the event type check when simulating an
-        unknown ignorable log event.
-      */
-      !DBUG_EVALUATE_IF("simulate_unknown_ignorable_log_event", 1, 0)) {
-    /*
-      It is unsafe to use the description_event if its post_header_len
-      array does not include the event type.
-    */
-    DBUG_PRINT("error", ("event type %d found, but the current "
-                         "Format_description_log_event supports only %d event "
-                         "types",
-                         event_type, description_event->number_of_event_types));
-    ev = NULL;
-  } else {
-    if (alg != binary_log::BINLOG_CHECKSUM_ALG_UNDEF &&
-        (event_type == binary_log::FORMAT_DESCRIPTION_EVENT ||
-         alg != binary_log::BINLOG_CHECKSUM_ALG_OFF))
-      event_len = event_len - BINLOG_CHECKSUM_LEN;
-
-    switch (event_type) {
-      case binary_log::QUERY_EVENT:
-#ifndef DBUG_OFF
-        binary_log_debug::debug_query_mts_corrupt_db_names = DBUG_EVALUATE_IF(
-            "query_log_event_mts_corrupt_db_names", true, false);
-#endif
-        ev = new Query_log_event(buf, event_len, description_event,
-                                 binary_log::QUERY_EVENT);
-        break;
-      case binary_log::ROTATE_EVENT:
-        ev = new Rotate_log_event(buf, event_len, description_event);
-        break;
-      case binary_log::APPEND_BLOCK_EVENT:
-        ev = new Append_block_log_event(buf, event_len, description_event);
-        break;
-      case binary_log::DELETE_FILE_EVENT:
-        ev = new Delete_file_log_event(buf, event_len, description_event);
-        break;
-      case binary_log::STOP_EVENT:
-        ev = new Stop_log_event(buf, description_event);
-        break;
-      case binary_log::INTVAR_EVENT:
-        ev = new Intvar_log_event(buf, description_event);
-        break;
-      case binary_log::XID_EVENT:
-        ev = new Xid_log_event(buf, description_event);
-        break;
-      case binary_log::RAND_EVENT:
-        ev = new Rand_log_event(buf, description_event);
-        break;
-      case binary_log::USER_VAR_EVENT:
-        ev = new User_var_log_event(buf, event_len, description_event);
-        break;
-      case binary_log::FORMAT_DESCRIPTION_EVENT:
-        ev =
-            new Format_description_log_event(buf, event_len, description_event);
-        break;
-      case binary_log::WRITE_ROWS_EVENT_V1:
-        if (!(description_event->post_header_len.empty()))
-          ev = new Write_rows_log_event(buf, event_len, description_event);
-        break;
-      case binary_log::UPDATE_ROWS_EVENT_V1:
-        if (!(description_event->post_header_len.empty()))
-          ev = new Update_rows_log_event(buf, event_len, description_event);
-        break;
-      case binary_log::DELETE_ROWS_EVENT_V1:
-        if (!(description_event->post_header_len.empty()))
-          ev = new Delete_rows_log_event(buf, event_len, description_event);
-        break;
-      case binary_log::TABLE_MAP_EVENT:
-        if (!(description_event->post_header_len.empty()))
-          ev = new Table_map_log_event(buf, event_len, description_event);
-        break;
-      case binary_log::BEGIN_LOAD_QUERY_EVENT:
-        ev = new Begin_load_query_log_event(buf, event_len, description_event);
-        break;
-      case binary_log::EXECUTE_LOAD_QUERY_EVENT:
-        ev =
-            new Execute_load_query_log_event(buf, event_len, description_event);
-        break;
-      case binary_log::INCIDENT_EVENT:
-        ev = new Incident_log_event(buf, event_len, description_event);
-        break;
-      case binary_log::ROWS_QUERY_LOG_EVENT:
-        ev = new Rows_query_log_event(buf, event_len, description_event);
-        break;
-      case binary_log::GTID_LOG_EVENT:
-      case binary_log::ANONYMOUS_GTID_LOG_EVENT:
-        ev = new Gtid_log_event(buf, event_len, description_event);
-        break;
-      case binary_log::PREVIOUS_GTIDS_LOG_EVENT:
-        ev = new Previous_gtids_log_event(buf, event_len, description_event);
-        break;
-      case binary_log::WRITE_ROWS_EVENT:
-        ev = new Write_rows_log_event(buf, event_len, description_event);
-        break;
-      case binary_log::UPDATE_ROWS_EVENT:
-        ev = new Update_rows_log_event(buf, event_len, description_event);
-        break;
-      case binary_log::DELETE_ROWS_EVENT:
-        ev = new Delete_rows_log_event(buf, event_len, description_event);
-        break;
-      case binary_log::TRANSACTION_CONTEXT_EVENT:
-        ev = new Transaction_context_log_event(buf, event_len,
-                                               description_event);
-        break;
-      case binary_log::VIEW_CHANGE_EVENT:
-        ev = new View_change_log_event(buf, event_len, description_event);
-        break;
-      case binary_log::XA_PREPARE_LOG_EVENT:
-        ev = new XA_prepare_log_event(buf, description_event);
-        break;
-      case binary_log::PARTIAL_UPDATE_ROWS_EVENT:
-        ev = new Update_rows_log_event(buf, event_len, description_event);
-        break;
-      default:
-        /*
-          Create an object of Ignorable_log_event for unrecognized sub-class.
-          So that SLAVE SQL THREAD will only update the position and continue.
-        */
-        if (uint2korr(buf + FLAGS_OFFSET) & LOG_EVENT_IGNORABLE_F) {
-          ev = new Ignorable_log_event(buf, description_event);
-        } else {
-          DBUG_PRINT("error",
-                     ("Unknown event code: %d", (int)buf[EVENT_TYPE_OFFSET]));
-          ev = NULL;
-        }
-        break;
-    }
-  }
-
-  if (ev) {
-    ev->common_footer->checksum_alg = alg;
-    if (ev->common_footer->checksum_alg !=
-            binary_log::BINLOG_CHECKSUM_ALG_OFF &&
-        ev->common_footer->checksum_alg !=
-            binary_log::BINLOG_CHECKSUM_ALG_UNDEF)
-      ev->crc = uint4korr(buf + (event_len));
-  }
-
-  DBUG_PRINT("read_event", ("%s(type_code: %d; event_len: %d)",
-                            ev ? ev->get_type_str() : "<unknown>",
-                            buf[EVENT_TYPE_OFFSET], event_len));
-  /*
-    is_valid is used for small event-specific sanity tests which are
-    important; for example there are some my_malloc() in constructors
-    (e.g. Query_log_event::Query_log_event(char*...)); when these
-    my_malloc() fail we can't return an error out of the constructor
-    (because constructor is "void") ; so instead we leave the pointer we
-    wanted to allocate (e.g. 'query') to 0 and we test it and set the
-    value of is_valid to true or false based on the test.
-    Same for Format_description_log_event, member 'post_header_len'.
-
-    SLAVE_EVENT is never used, so it should not be read ever.
-  */
-  if (!ev || !ev->is_valid() || (event_type == binary_log::SLAVE_EVENT)) {
-    DBUG_PRINT("error", ("Found invalid event in binary log"));
-    delete ev;
-#ifndef MYSQL_SERVER
-    if (!force_opt) /* then mysqlbinlog dies */
-    {
-      *error = "Found invalid event in binary log";
-      DBUG_RETURN(0);
-    }
-    ev = new Unknown_log_event(buf, description_event);
-#else
-    *error = "Found invalid event in binary log";
-    DBUG_RETURN(0);
-#endif
-  }
-  DBUG_RETURN(ev);
-}
 
 #ifndef MYSQL_SERVER
 
@@ -1911,7 +1445,7 @@ Log_event *Log_event::read_log_event(
 */
 
 void Log_event::print_header(IO_CACHE *file, PRINT_EVENT_INFO *print_event_info,
-                             bool is_more MY_ATTRIBUTE((unused))) {
+                             bool is_more MY_ATTRIBUTE((unused))) const {
   char llbuff[22];
   my_off_t hexdump_from = print_event_info->hexdump_from;
   DBUG_ENTER("Log_event::print_header");
@@ -2920,7 +2454,7 @@ end:
 }
 
 void Log_event::print_base64(IO_CACHE *file, PRINT_EVENT_INFO *print_event_info,
-                             bool more) {
+                             bool more) const {
   const uchar *ptr = (const uchar *)temp_buf;
   uint32 size = uint4korr(ptr + EVENT_LEN_OFFSET);
   DBUG_ENTER("Log_event::print_base64");
@@ -2998,7 +2532,7 @@ void Log_event::print_base64(IO_CACHE *file, PRINT_EVENT_INFO *print_event_info,
   Log_event::print_timestamp()
 */
 
-void Log_event::print_timestamp(IO_CACHE *file, time_t *ts) {
+void Log_event::print_timestamp(IO_CACHE *file, time_t *ts) const {
   struct tm *res;
   /*
     In some Windows versions timeval.tv_sec is defined as "long",
@@ -4590,8 +4124,8 @@ inline size_t microsecond_timestamp_to_str(ulonglong timestamp, char *buf) {
   @todo
     print the catalog ??
 */
-void Query_log_event::print_query_header(IO_CACHE *file,
-                                         PRINT_EVENT_INFO *print_event_info) {
+void Query_log_event::print_query_header(
+    IO_CACHE *file, PRINT_EVENT_INFO *print_event_info) const {
   // TODO: print the catalog ??
   char buff[48], *end;  // Enough for "SET TIMESTAMP=1305535348.123456"
   char quoted_id[1 + 2 * FN_REFLEN + 2];
@@ -4721,7 +4255,7 @@ void Query_log_event::print_query_header(IO_CACHE *file,
   if (likely(charset_inited) &&
       (unlikely(!print_event_info->charset_inited ||
                 memcmp(print_event_info->charset, charset, 6)))) {
-    char *charset_p = charset;  // Avoid type-punning warning.
+    const char *charset_p = charset;  // Avoid type-punning warning.
     CHARSET_INFO *cs_info = get_charset(uint2korr(charset_p), MYF(MY_WME));
     if (cs_info) {
       /* for mysql client */
@@ -4776,7 +4310,7 @@ void Query_log_event::print_query_header(IO_CACHE *file,
   }
 }
 
-void Query_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) {
+void Query_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) const {
   IO_CACHE *const head = &print_event_info->head_cache;
 
   /**
@@ -5019,7 +4553,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       }
       if (charset_inited) {
         if (rli->cached_charset_compare(charset)) {
-          char *charset_p = charset;  // Avoid type-punning warning.
+          const char *charset_p = charset;  // Avoid type-punning warning.
           /* Verify that we support the charsets found in the event. */
           if (!(thd->variables.character_set_client =
                     get_charset(uint2korr(charset_p), MYF(MY_WME))) ||
@@ -5492,7 +5026,7 @@ Log_event::enum_skip_reason Query_log_event::do_shall_skip(
    @return                  The size of the query.
 */
 size_t Query_log_event::get_query(const char *buf, size_t length,
-                                  const Format_description_log_event *fd_event,
+                                  const Format_description_event *fd_event,
                                   char **query) {
   DBUG_ASSERT((Log_event_type)buf[EVENT_TYPE_OFFSET] ==
               binary_log::QUERY_EVENT);
@@ -5519,8 +5053,7 @@ size_t Query_log_event::get_query(const char *buf, size_t length,
   }
 
   /* Check if the event has trailing checksum */
-  if (fd_event->common_footer->checksum_alg !=
-      binary_log::BINLOG_CHECKSUM_ALG_OFF)
+  if (fd_event->footer()->checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_OFF)
     checksum_size = 4;
 
   db_len = (uchar)buf[Q_DB_LEN_OFFSET];
@@ -5594,8 +5127,8 @@ Format_description_log_event::Format_description_log_event(
 }
 
 #ifndef MYSQL_SERVER
-void Format_description_log_event::print(FILE *,
-                                         PRINT_EVENT_INFO *print_event_info) {
+void Format_description_log_event::print(
+    FILE *, PRINT_EVENT_INFO *print_event_info) const {
   DBUG_ENTER("Format_description_log_event::print");
 
   IO_CACHE *const head = &print_event_info->head_cache;
@@ -5833,7 +5366,7 @@ int Rotate_log_event::pack_info(Protocol *protocol) {
   */
 
 #ifndef MYSQL_SERVER
-void Rotate_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) {
+void Rotate_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) const {
   char buf[22];
   IO_CACHE *const head = &print_event_info->head_cache;
 
@@ -6122,7 +5655,7 @@ bool Intvar_log_event::write(Basic_ostream *ostream) {
   */
 
 #ifndef MYSQL_SERVER
-void Intvar_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) {
+void Intvar_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) const {
   char llbuff[22];
   const char *msg = NULL;
   IO_CACHE *const head = &print_event_info->head_cache;
@@ -6229,7 +5762,7 @@ bool Rand_log_event::write(Basic_ostream *ostream) {
 #endif
 
 #ifndef MYSQL_SERVER
-void Rand_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) {
+void Rand_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) const {
   IO_CACHE *const head = &print_event_info->head_cache;
 
   char llbuff[22], llbuff2[22];
@@ -6329,7 +5862,7 @@ bool Xid_log_event::write(Basic_ostream *ostream) {
 #endif
 
 #ifndef MYSQL_SERVER
-void Xid_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) {
+void Xid_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) const {
   IO_CACHE *const head = &print_event_info->head_cache;
 
   if (!print_event_info->short_form) {
@@ -6680,7 +6213,8 @@ bool XA_prepare_log_event::write(Basic_ostream *ostream) {
 #endif  // MYSQL_SERVER
 
 #ifndef MYSQL_SERVER
-void XA_prepare_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) {
+void XA_prepare_log_event::print(FILE *,
+                                 PRINT_EVENT_INFO *print_event_info) const {
   IO_CACHE *const head = &print_event_info->head_cache;
   char buf[ser_buf_size];
 
@@ -6914,7 +6448,8 @@ bool User_var_log_event::write(Basic_ostream *ostream) {
   */
 
 #ifndef MYSQL_SERVER
-void User_var_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) {
+void User_var_log_event::print(FILE *,
+                               PRINT_EVENT_INFO *print_event_info) const {
   IO_CACHE *const head = &print_event_info->head_cache;
   char quoted_id[1 + NAME_LEN * 2 + 2];  // quoted length of the identifier
   char name_id[NAME_LEN];
@@ -7151,7 +6686,8 @@ Log_event::enum_skip_reason User_var_log_event::do_shall_skip(
   **************************************************************************/
 
 #ifndef MYSQL_SERVER
-void Unknown_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) {
+void Unknown_log_event::print(FILE *,
+                              PRINT_EVENT_INFO *print_event_info) const {
   if (print_event_info->short_form) return;
   print_header(&print_event_info->head_cache, print_event_info, false);
   my_b_printf(&print_event_info->head_cache, "\n# %s", "Unknown event\n");
@@ -7165,7 +6701,7 @@ void Unknown_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) {
   Stop_log_event::print()
 */
 
-void Stop_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) {
+void Stop_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) const {
   if (print_event_info->short_form) return;
 
   print_header(&print_event_info->head_cache, print_event_info, false);
@@ -7267,7 +6803,8 @@ bool Append_block_log_event::write(Basic_ostream *ostream) {
   */
 
 #ifndef MYSQL_SERVER
-void Append_block_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) {
+void Append_block_log_event::print(FILE *,
+                                   PRINT_EVENT_INFO *print_event_info) const {
   if (print_event_info->short_form) return;
   print_header(&print_event_info->head_cache, print_event_info, false);
   my_b_printf(&print_event_info->head_cache,
@@ -7405,7 +6942,8 @@ bool Delete_file_log_event::write(Basic_ostream *ostream) {
   */
 
 #ifndef MYSQL_SERVER
-void Delete_file_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) {
+void Delete_file_log_event::print(FILE *,
+                                  PRINT_EVENT_INFO *print_event_info) const {
   if (print_event_info->short_form) return;
   print_header(&print_event_info->head_cache, print_event_info, false);
   my_b_printf(&print_event_info->head_cache, "\n#Delete_file: file_id=%u\n",
@@ -7541,8 +7079,8 @@ bool Execute_load_query_log_event::write_post_header_for_derived(
 #endif
 
 #ifndef MYSQL_SERVER
-void Execute_load_query_log_event::print(FILE *file,
-                                         PRINT_EVENT_INFO *print_event_info) {
+void Execute_load_query_log_event::print(
+    FILE *file, PRINT_EVENT_INFO *print_event_info) const {
   print(file, print_event_info, 0);
 }
 
@@ -7551,7 +7089,7 @@ void Execute_load_query_log_event::print(FILE *file,
 */
 void Execute_load_query_log_event::print(FILE *,
                                          PRINT_EVENT_INFO *print_event_info,
-                                         const char *local_fname) {
+                                         const char *local_fname) const {
   IO_CACHE *const head = &print_event_info->head_cache;
 
   print_query_header(head, print_event_info);
@@ -10326,7 +9864,8 @@ int Rows_log_event::pack_info(Protocol *protocol) {
 #endif  // MYSQL_SERVER
 
 #ifndef MYSQL_SERVER
-void Rows_log_event::print_helper(FILE *, PRINT_EVENT_INFO *print_event_info) {
+void Rows_log_event::print_helper(FILE *,
+                                  PRINT_EVENT_INFO *print_event_info) const {
   IO_CACHE *const head = &print_event_info->head_cache;
   IO_CACHE *const body = &print_event_info->body_cache;
   if (!print_event_info->short_form) {
@@ -11245,7 +10784,8 @@ int Table_map_log_event::pack_info(Protocol *protocol) {
 #endif  // MYSQL_SERVER
 
 #ifndef MYSQL_SERVER
-void Table_map_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) {
+void Table_map_log_event::print(FILE *,
+                                PRINT_EVENT_INFO *print_event_info) const {
   if (!print_event_info->short_form) {
     print_header(&print_event_info->head_cache, print_event_info, true);
     my_b_printf(&print_event_info->head_cache,
@@ -11411,7 +10951,7 @@ static void get_type_name(uint type, unsigned char **meta_ptr,
 }
 
 void Table_map_log_event::print_columns(
-    IO_CACHE *file, const Optional_metadata_fields &fields) {
+    IO_CACHE *file, const Optional_metadata_fields &fields) const {
   uint char_col_index = 0;
   unsigned char *field_metadata_ptr = m_field_metadata;
   std::vector<bool>::const_iterator signedness_it = fields.m_signedness.begin();
@@ -11539,7 +11079,7 @@ void Table_map_log_event::print_columns(
 }
 
 void Table_map_log_event::print_primary_key(
-    IO_CACHE *file, const Optional_metadata_fields &fields) {
+    IO_CACHE *file, const Optional_metadata_fields &fields) const {
   if (!fields.m_primary_key.empty()) {
     my_b_printf(file, "# Primary Key(");
 
@@ -12021,7 +11561,7 @@ int Write_rows_log_event::do_exec_row(const Relay_log_info *const rli) {
 
 #ifndef MYSQL_SERVER
 void Write_rows_log_event::print(FILE *file,
-                                 PRINT_EVENT_INFO *print_event_info) {
+                                 PRINT_EVENT_INFO *print_event_info) const {
   DBUG_EXECUTE_IF("simulate_cache_read_error",
                   { DBUG_SET("+d,simulate_my_b_fill_error"); });
   Rows_log_event::print_helper(file, print_event_info);
@@ -12112,7 +11652,7 @@ int Delete_rows_log_event::do_exec_row(const Relay_log_info *const) {
 
 #ifndef MYSQL_SERVER
 void Delete_rows_log_event::print(FILE *file,
-                                  PRINT_EVENT_INFO *print_event_info) {
+                                  PRINT_EVENT_INFO *print_event_info) const {
   Rows_log_event::print_helper(file, print_event_info);
 }
 #endif
@@ -12262,7 +11802,7 @@ int Update_rows_log_event::do_exec_row(const Relay_log_info *const rli) {
 
 #ifndef MYSQL_SERVER
 void Update_rows_log_event::print(FILE *file,
-                                  PRINT_EVENT_INFO *print_event_info) {
+                                  PRINT_EVENT_INFO *print_event_info) const {
   Rows_log_event::print_helper(file, print_event_info);
 }
 #endif
@@ -12306,7 +11846,8 @@ int Incident_log_event::pack_info(Protocol *protocol) {
 #endif
 
 #ifndef MYSQL_SERVER
-void Incident_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) {
+void Incident_log_event::print(FILE *,
+                               PRINT_EVENT_INFO *print_event_info) const {
   if (print_event_info->short_form) return;
 
   print_header(&print_event_info->head_cache, print_event_info, false);
@@ -12421,7 +11962,8 @@ int Ignorable_log_event::pack_info(Protocol *protocol) {
 
 #ifndef MYSQL_SERVER
 /* Print for its unrecognized ignorable event */
-void Ignorable_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) {
+void Ignorable_log_event::print(FILE *,
+                                PRINT_EVENT_INFO *print_event_info) const {
   if (print_event_info->short_form) return;
 
   print_header(&print_event_info->head_cache, print_event_info, false);
@@ -12455,7 +11997,8 @@ int Rows_query_log_event::pack_info(Protocol *protocol) {
 #endif
 
 #ifndef MYSQL_SERVER
-void Rows_query_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) {
+void Rows_query_log_event::print(FILE *,
+                                 PRINT_EVENT_INFO *print_event_info) const {
   if (!print_event_info->short_form && print_event_info->verbose > 1) {
     IO_CACHE *const head = &print_event_info->head_cache;
     IO_CACHE *const body = &print_event_info->body_cache;
@@ -12650,7 +12193,7 @@ size_t Gtid_log_event::to_string(char *buf) const {
 }
 
 #ifndef MYSQL_SERVER
-void Gtid_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) {
+void Gtid_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) const {
   char buffer[MAX_SET_STRING_LENGTH + 1];
   IO_CACHE *const head = &print_event_info->head_cache;
   if (!print_event_info->short_form) {
@@ -13034,7 +12577,7 @@ int Previous_gtids_log_event::pack_info(Protocol *protocol) {
 
 #ifndef MYSQL_SERVER
 void Previous_gtids_log_event::print(FILE *,
-                                     PRINT_EVENT_INFO *print_event_info) {
+                                     PRINT_EVENT_INFO *print_event_info) const {
   IO_CACHE *const head = &print_event_info->head_cache;
   char *str = get_str(NULL, &Gtid_set::commented_string_format);
   if (str != NULL) {
@@ -13204,8 +12747,8 @@ int Transaction_context_log_event::pack_info(Protocol *protocol) {
 #endif
 
 #ifndef MYSQL_SERVER
-void Transaction_context_log_event::print(FILE *,
-                                          PRINT_EVENT_INFO *print_event_info) {
+void Transaction_context_log_event::print(
+    FILE *, PRINT_EVENT_INFO *print_event_info) const {
   DBUG_ENTER("Transaction_context_log_event::print");
   char buf[256];
   IO_CACHE *const head = &print_event_info->head_cache;
@@ -13430,7 +12973,8 @@ int View_change_log_event::pack_info(Protocol *protocol) {
 #endif
 
 #ifndef MYSQL_SERVER
-void View_change_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) {
+void View_change_log_event::print(FILE *,
+                                  PRINT_EVENT_INFO *print_event_info) const {
   DBUG_ENTER("View_change_log_event::print");
   char buf[256];
   IO_CACHE *const head = &print_event_info->head_cache;

@@ -268,24 +268,19 @@ class Pipeline_event {
       @retval 1      Error on packet conversion
   */
   int convert_packet_to_log_event() {
-    int error = 0;
-    const char *errmsg = 0;
-
     uint event_len = uint4korr(((uchar *)(packet->payload)) + EVENT_LEN_OFFSET);
-    log_event =
-        Log_event::read_log_event((const char *)packet->payload, event_len,
-                                  &errmsg, format_descriptor, true);
+    Binlog_read_error binlog_read_error = binlog_event_deserialize(
+        packet->payload, event_len, format_descriptor, true, &log_event);
 
-    if (unlikely(!log_event)) {
+    if (unlikely(binlog_read_error.has_error())) {
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_UNABLE_TO_CONVERT_PACKET_TO_EVENT,
-                   errmsg); /* purecov: inspected */
-      error = 1;            /* purecov: inspected */
+                   binlog_read_error.get_str()); /* purecov: inspected */
     }
 
     delete packet;
     packet = NULL;
 
-    return error;
+    return binlog_read_error.has_error();
   }
 
   /**

@@ -98,6 +98,7 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/binlog.h"
+#include "sql/binlog_reader.h"
 #include "sql/current_thd.h"
 #include "sql/debug_sync.h"   // DEBUG_SYNC
 #include "sql/derror.h"       // ER_THD
@@ -841,31 +842,21 @@ enum enum_read_rotate_from_relay_log_status {
 static enum_read_rotate_from_relay_log_status read_rotate_from_relay_log(
     char *filename, char *master_log_file, my_off_t *master_log_pos) {
   DBUG_ENTER("read_rotate_from_relay_log");
-  /*
-    Create a Format_description_log_event that is used to read the
-    first event of the log.
-   */
-  Format_description_log_event fd_ev, *fd_ev_p = &fd_ev;
-  DBUG_ASSERT(fd_ev.is_valid());
-  IO_CACHE log;
-  const char *errmsg = NULL;
-  File file = open_binlog_file(&log, filename, &errmsg);
-  if (file < 0) {
-    LogErr(ERROR_LEVEL, ER_RPL_RECOVERY_ERROR, errmsg);
+
+  Relaylog_file_reader relaylog_file_reader(opt_slave_sql_verify_checksum);
+  if (relaylog_file_reader.open(filename)) {
+    LogErr(ERROR_LEVEL, ER_RPL_RECOVERY_ERROR,
+           relaylog_file_reader.get_error_str());
     DBUG_RETURN(ERROR);
   }
-  my_b_seek(&log, BIN_LOG_HEADER_SIZE);
+
   Log_event *ev = NULL;
   bool done = false;
   enum_read_rotate_from_relay_log_status ret = NOT_FOUND_ROTATE;
-  while (!done &&
-         (ev = Log_event::read_log_event(
-              &log, 0, fd_ev_p, opt_slave_sql_verify_checksum)) != NULL) {
+  while (!done && (ev = relaylog_file_reader.read_event_object()) != NULL) {
     DBUG_PRINT("info", ("Read event of type %s", ev->get_type_str()));
     switch (ev->get_type_code()) {
       case binary_log::FORMAT_DESCRIPTION_EVENT:
-        if (fd_ev_p != &fd_ev) delete fd_ev_p;
-        fd_ev_p = (Format_description_log_event *)ev;
         break;
       case binary_log::ROTATE_EVENT:
         /*
@@ -892,21 +883,10 @@ static enum_read_rotate_from_relay_log_status read_rotate_from_relay_log(
         done = true;
         break;
     }
-    if (ev != fd_ev_p) delete ev;
+    delete ev;
   }
-  if (log.error < 0) {
-    LogErr(ERROR_LEVEL, ER_RPL_RECOVERY_ERROR_READ_RELAY_LOG, log.error);
-    DBUG_RETURN(ERROR);
-  }
-
-  if (fd_ev_p != &fd_ev) {
-    delete fd_ev_p;
-    fd_ev_p = &fd_ev;
-  }
-
-  if (mysql_file_close(file, MYF(MY_WME))) DBUG_RETURN(ERROR);
-  if (end_io_cache(&log)) {
-    LogErr(ERROR_LEVEL, ER_RPL_RECOVERY_ERROR_FREEING_IO_CACHE);
+  if (relaylog_file_reader.has_fatal_error()) {
+    LogErr(ERROR_LEVEL, ER_RPL_RECOVERY_ERROR_READ_RELAY_LOG, -1);
     DBUG_RETURN(ERROR);
   }
   DBUG_RETURN(ret);
@@ -5797,7 +5777,6 @@ int mts_event_coord_cmp(LOG_POS_COORD *id1, LOG_POS_COORD *id2) {
 bool mts_recovery_groups(Relay_log_info *rli) {
   Log_event *ev = NULL;
   bool is_error = false;
-  const char *errmsg = NULL;
   bool flag_group_seen_begin = false;
   uint recovery_group_cnt = 0;
   bool not_reached_commit = true;
@@ -5805,8 +5784,6 @@ bool mts_recovery_groups(Relay_log_info *rli) {
   // Value-initialization, to avoid compiler warnings on push_back.
   Slave_job_group job_worker = Slave_job_group();
 
-  IO_CACHE log;
-  File file;
   LOG_INFO linfo;
   my_off_t offset = 0;
   MY_BITMAP *groups = &rli->recovery_groups;
@@ -5846,9 +5823,6 @@ bool mts_recovery_groups(Relay_log_info *rli) {
   */
   LOG_POS_COORD cp = {(char *)rli->get_group_master_log_name(),
                       rli->get_group_master_log_pos()};
-
-  Format_description_log_event fdle, *p_fdle = &fdle;
-  DBUG_ASSERT(p_fdle->is_valid());
 
   /*
     Gathers information on valuable workers and stores it in
@@ -5935,7 +5909,6 @@ bool mts_recovery_groups(Relay_log_info *rli) {
     Slave_worker *w = jg->worker;
     LOG_POS_COORD w_last = {const_cast<char *>(w->get_group_master_log_name()),
                             w->get_group_master_log_pos()};
-    bool checksum_detected = false;
 
     LogErr(INFORMATION_LEVEL,
            ER_RPL_MTS_GROUP_RECOVERY_RELAY_LOG_INFO_FOR_WORKER, w->id,
@@ -5951,42 +5924,19 @@ bool mts_recovery_groups(Relay_log_info *rli) {
       goto err;
     }
     offset = rli->get_group_relay_log_pos();
+
+    Relaylog_file_reader relaylog_file_reader(opt_slave_sql_verify_checksum);
+
     for (int checking = 0; not_reached_commit; checking++) {
-      if ((file = open_binlog_file(&log, linfo.log_file_name, &errmsg)) < 0) {
-        LogErr(ERROR_LEVEL, ER_BINLOG_FILE_OPEN_FAILED, errmsg);
+      if (relaylog_file_reader.open(linfo.log_file_name, offset)) {
+        LogErr(ERROR_LEVEL, ER_BINLOG_FILE_OPEN_FAILED,
+               relaylog_file_reader.get_error_str());
         goto err;
       }
-      /*
-        Looking for the actual relay checksum algorithm that is present in
-        a FD at head events of the relay log.
-      */
-      if (!checksum_detected) {
-        int i = 0;
-        while (i < 4 && (ev = Log_event::read_log_event(
-                             &log, (mysql_mutex_t *)0, p_fdle, 0))) {
-          if (ev->get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT) {
-            p_fdle->common_footer->checksum_alg =
-                ev->common_footer->checksum_alg;
-            checksum_detected = true;
-          }
-          delete ev;
-          i++;
-        }
-        if (!checksum_detected) {
-          LogErr(ERROR_LEVEL, ER_BINLOG_MALFORMED_OR_OLD_RELAY_LOG);
-          goto err;
-        }
-      }
-
-      my_b_seek(&log, offset);
 
       while (not_reached_commit &&
-             (ev = Log_event::read_log_event(&log, 0, p_fdle,
-                                             opt_slave_sql_verify_checksum))) {
+             (ev = relaylog_file_reader.read_event_object())) {
         DBUG_ASSERT(ev->is_valid());
-
-        if (ev->get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT)
-          p_fdle->common_footer->checksum_alg = ev->common_footer->checksum_alg;
 
         if (ev->get_type_code() == binary_log::ROTATE_EVENT ||
             ev->get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT ||
@@ -6042,8 +5992,8 @@ bool mts_recovery_groups(Relay_log_info *rli) {
         delete ev;
         ev = NULL;
       }
-      end_io_cache(&log);
-      mysql_file_close(file, MYF(MY_WME));
+
+      relaylog_file_reader.close();
       offset = BIN_LOG_HEADER_SIZE;
       if (not_reached_commit && rli->relay_log.find_next_log(&linfo, 1)) {
         LogErr(ERROR_LEVEL, ER_RPL_CANT_FIND_FOLLOWUP_FILE,
@@ -7350,18 +7300,18 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
         The relay_log struct does not move (though some members of it can
         change), so we needn't any lock (no rli->data_lock, no log lock).
       */
-      const char *errmsg_unused;
       // mark it as undefined that is irrelevant anymore
       mi->checksum_alg_before_fd = binary_log::BINLOG_CHECKSUM_ALG_UNDEF;
-      Format_description_log_event *new_fdle =
-          (Format_description_log_event *)Log_event::read_log_event(
-              buf, event_len, &errmsg_unused, mi->get_mi_description_event(),
-              1);
-      /// @todo: don't ignore 'errmsg_unused'; instead report correct error here
-      if (new_fdle == NULL) {
+      Format_description_log_event *new_fdle;
+      Log_event *ev = NULL;
+      if (binlog_event_deserialize(reinterpret_cast<const unsigned char *>(buf),
+                                   event_len, mi->get_mi_description_event(),
+                                   true, &ev) != Binlog_read_error::SUCCESS) {
         // This error will be reported later at handle_slave_io().
         goto err;
       }
+
+      new_fdle = dynamic_cast<Format_description_log_event *>(ev);
       if (new_fdle->common_footer->checksum_alg ==
           binary_log::BINLOG_CHECKSUM_ALG_UNDEF)
         new_fdle->common_footer->checksum_alg =

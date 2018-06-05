@@ -317,6 +317,8 @@ class Format_description_event : public Binary_log_event {
   Format_description_event(const char *buf, unsigned int event_len,
                            const Format_description_event *description_event);
 
+  Format_description_event &operator=(const Format_description_event &) =
+      default;
   uint8_t number_of_event_types;
   unsigned long get_product_version() const;
   bool is_version_before_checksum() const;

@@ -10171,7 +10171,7 @@ ER_RPL_RECOVERY_NO_ROTATE_EVENT_FROM_MASTER
 ER_RPL_RECOVERY_ERROR_READ_RELAY_LOG
   eng "Error during --relay-log-recovery: Error reading events from relay log: %d"
 
-ER_RPL_RECOVERY_ERROR_FREEING_IO_CACHE
+OBSOLETE_ER_RPL_RECOVERY_ERROR_FREEING_IO_CACHE
   eng "Error during --relay-log-recovery: Error while freeing IO_CACHE object"
 
 ER_RPL_RECOVERY_SKIPPED_GROUP_REPLICATION_CHANNEL

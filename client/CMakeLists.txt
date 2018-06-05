@@ -80,6 +80,9 @@ SET(MYSQLBINLOG_LIB_SOURCES
   ${CMAKE_SOURCE_DIR}/sql/rpl_gtid_set.cc
   ${CMAKE_SOURCE_DIR}/sql/rpl_gtid_specification.cc
   ${CMAKE_SOURCE_DIR}/sql/rpl_tblmap.cc
+  ${CMAKE_SOURCE_DIR}/sql/basic_istream.cc
+  ${CMAKE_SOURCE_DIR}/sql/binlog_istream.cc
+  ${CMAKE_SOURCE_DIR}/sql/binlog_reader.cc
 )
 ADD_LIBRARY(mysqlbinlog_lib STATIC ${MYSQLBINLOG_LIB_SOURCES})
 ADD_DEPENDENCIES(mysqlbinlog_lib GenError)

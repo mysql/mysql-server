@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,14 +29,10 @@
 #include "my_compiler.h"
 #include "my_inttypes.h"
 
-class Format_description_log_event;
-
 extern bool force_opt;
 extern bool short_form;
 extern ulong opt_server_id_mask;
 extern ulong opt_binlog_rows_event_max_size;
-
-extern Format_description_log_event *glob_description_event;
 
 /*
   error() is used in macro BINLOG_ERROR which is invoked in

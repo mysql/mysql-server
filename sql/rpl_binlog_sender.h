@@ -33,18 +33,23 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"  // ER_*
 #include "sql/binlog.h"    // LOG_INFO
+#include "sql/binlog_reader.h"
 #include "sql/rpl_gtid.h"
 #include "sql/sql_error.h"  // Diagnostics_area
 
 class String;
 class THD;
-struct IO_CACHE;
 
 /**
   The major logic of dump thread is implemented in this class. It sends
   required binlog events to clients according to their requests.
 */
 class Binlog_sender : Gtid_mode_copy {
+  class Event_allocator;
+  typedef Basic_binlog_file_reader<Binlog_ifile, Binlog_event_data_istream,
+                                   Binlog_event_object_istream, Event_allocator>
+      File_reader;
+
  public:
   Binlog_sender(THD *thd, const char *start_file, my_off_t start_pos,
                 Gtid_set *exclude_gtids, uint32 flag);
@@ -180,53 +185,51 @@ class Binlog_sender : Gtid_mode_copy {
   /** Check if the requested binlog file and position are valid */
   int check_start_file();
   /** Transform read error numbers to error messages. */
-  const char *log_read_error_msg(int error);
+  const char *log_read_error_msg(Binlog_read_error::Error_type error);
 
   /**
     It dumps a binlog file. Events are read and sent one by one. If it need
     to wait for new events, it will wait after already reading all events in
     the active log file.
 
-    @param[in] log_cache  IO_CACHE of the binlog will be sent
+    @param[in] reader     File_reader of binlog will be sent
     @param[in] start_pos  Position requested by the slave's IO thread.
                           Only the events after the position are sent.
 
     @return It returns 0 if succeeds, otherwise 1 is returned.
   */
-  my_off_t send_binlog(IO_CACHE *log_cache, my_off_t start_pos);
+  int send_binlog(File_reader *reader, my_off_t start_pos);
 
   /**
     It sends some events in a binlog file to the client.
 
-
-     @param[in] log_cache  IO_CACHE of the binlog will be sent
+    @param[in] reader     File_reader of binlog will be sent
      @param[in] end_pos    Only the events before end_pos are sent
 
      @return It returns 0 if succeeds, otherwise 1 is returned.
   */
-  int send_events(IO_CACHE *log_cache, my_off_t end_pos);
+  int send_events(File_reader *reader, my_off_t end_pos);
 
   /**
     It gets the end position of the binlog file.
 
-    @param[in] log_cache  IO_CACHE of the binlog will be checked
-
-    @return
-      @retval 0  It already arrives the end of the binlog.
-      @retval 1  Failed to get binlog position
-      @retval >1 Succeeded to get binlog end position
+    @param[in] reader   File_reader of binlog will be checked
+    @param[out] end_pos Will be set to the end position of the reading binlog
+                        file. If this is an inactive file,  it will be set to 0.
+    @retval 0 Success
+    @retval 1 Error (the thread was killed)
   */
-  my_off_t get_binlog_end_pos(IO_CACHE *log_cache);
+  int get_binlog_end_pos(File_reader *reader, my_off_t *end_pos);
 
   /**
      It checks if a binlog file has Previous_gtid_log_event
 
-     @param[in]  log_cache  IO_CACHE of the binlog will be checked
+     @param[in]  reader     File_reader of binlog will be checked
      @param[out] found      Found Previous_gtid_log_event or not
 
      @return It returns 0 if succeeds, otherwise 1 is returned.
   */
-  int has_previous_gtid_log_event(IO_CACHE *log_cache, bool *found);
+  int has_previous_gtid_log_event(File_reader *reader, bool *found);
 
   /**
     It sends a faked rotate event which does not exist physically in any
@@ -263,13 +266,13 @@ class Binlog_sender : Gtid_mode_copy {
      Format_description_log_event has to be set to 0. So the slave
      will not increment its master's binlog position.
 
-     @param[in] log       IO_CACHE of the binlog will be dumpped
+     @param[in] reader    File_reader of the binlog will be dumpped
      @param[in] start_pos Position requested by the slave's IO thread.
                           Only the events after the position are sent.
 
      @return It returns 0 if succeeds, otherwise 1 is returned.
   */
-  int send_format_description_event(IO_CACHE *log, my_off_t start_pos);
+  int send_format_description_event(File_reader *reader, my_off_t start_pos);
   /**
      It sends a heartbeat to the client.
 
@@ -280,18 +283,19 @@ class Binlog_sender : Gtid_mode_copy {
   int send_heartbeat_event(my_off_t log_pos);
 
   /**
-     It reads a event from binlog file.
+     It reads an event from binlog file. this function can set event_ptr either
+     a valid buffer pointer or nullptr. nullptr means it arrives at the end of
+     the binlog file if no error happens.
 
-     @param[in] log_cache     IO_CACHE of the binlog file.
-     @param[in] checksum_alg  Checksum algorithm used to check the event.
+     @param[in] reader        File_reader of the binlog file.
      @param[out] event_ptr    The buffer used to store the event.
      @param[out] event_len    Length of the event.
 
-     @return It returns 0 if succeeds, otherwise 1 is returned.
+     @retval 0 Succeed
+     @retval 1 Fail
   */
-  inline int read_event(IO_CACHE *log_cache,
-                        binary_log::enum_binlog_checksum_alg checksum_alg,
-                        uchar **event_ptr, uint32 *event_len);
+  inline int read_event(File_reader *reader, uchar **event_ptr,
+                        uint32 *event_len);
   /**
     Check if it is allowed to send this event type.
 

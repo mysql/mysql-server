@@ -77,7 +77,7 @@ include/start_slave.inc
 set @@global.master_verify_checksum = 1;
 set @@session.debug='d,simulate_checksum_test_failure';
 show binlog events;
-ERROR HY000: Error when executing command SHOW BINLOG EVENTS: Wrong offset or I/O error
+ERROR HY000: Error when executing command SHOW BINLOG EVENTS: Event crc check failed! Most likely there is event corruption.
 set @@session.debug='';
 set @@global.master_verify_checksum = default;
 include/stop_slave.inc

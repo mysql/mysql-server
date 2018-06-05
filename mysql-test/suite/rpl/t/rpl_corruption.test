@@ -68,7 +68,7 @@ while ($i) {
 
 # Emulate corruption in binlog file when SHOW BINLOG EVENTS is executing
 --echo # 2. Corruption in master binlog and SHOW BINLOG EVENTS
-SET GLOBAL debug="d,corrupt_read_log_event_char";
+SET GLOBAL debug="d,corrupt_read_log_event";
 --echo SHOW BINLOG EVENTS;
 --disable_query_log
 send_eval SHOW BINLOG EVENTS FROM $pos;
@@ -108,7 +108,7 @@ let $slave_io_errno= 13122,13115; # ER_SLAVE_RELAY_LOG_WRITE_FAILURE, ER_NETWORK
 
 # Emulate corruption in relay log
 --echo # 6. Slave. Corruption in relay log
-SET GLOBAL debug="d,corrupt_read_log_event_char";
+SET GLOBAL debug="d,corrupt_read_log_event";
 START SLAVE SQL_THREAD;
 let $slave_sql_errno= 13117; # ER_SLAVE_FATAL_ERROR
 --source include/wait_for_slave_sql_error.inc

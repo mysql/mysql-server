@@ -73,6 +73,7 @@
 #include "prealloced_array.h"
 #include "rows_event.h"
 #include "sql/binlog_ostream.h"
+#include "sql/binlog_reader.h"
 #include "sql/current_thd.h"
 #include "sql/debug_sync.h"  // DEBUG_SYNC
 #include "sql/derror.h"      // ER_THD
@@ -174,6 +175,8 @@ static int binlog_prepare(handlerton *hton, THD *thd, bool all);
 static xa_status_code binlog_xa_commit(handlerton *hton, XID *xid);
 static xa_status_code binlog_xa_rollback(handlerton *hton, XID *xid);
 static void exec_binlog_error_action_abort(const char *err_string);
+static int binlog_recover(Binlog_file_reader *binlog_file_reader,
+                          my_off_t *valid_pos);
 
 static inline bool has_commit_order_manager(THD *thd) {
   return is_mts_worker(thd) &&
@@ -972,7 +975,7 @@ class binlog_cache_mngr {
                    ptr_binlog_stmt_cache_disk_use_arg),
         trx_cache(true, ptr_binlog_cache_use_arg,
                   ptr_binlog_cache_disk_use_arg),
-        has_logged_xid(NULL) {}
+        has_logged_xid(false) {}
 
   bool init() {
     return stmt_cache.open(binlog_stmt_cache_size,
@@ -2767,16 +2770,16 @@ static bool purge_error_message(THD *thd, int res) {
 }
 
 int check_binlog_magic(IO_CACHE *log, const char **errmsg) {
-  char magic[4];
+  char magic[BINLOG_MAGIC_SIZE];
   DBUG_ASSERT(my_b_tell(log) == 0);
 
-  if (my_b_read(log, (uchar *)magic, sizeof(magic))) {
+  if (my_b_read(log, (uchar *)magic, BINLOG_MAGIC_SIZE)) {
     *errmsg = "I/O error reading the header from the binary log";
     LogErr(ERROR_LEVEL, ER_BINLOG_IO_ERROR_READING_HEADER, my_errno(),
            log->error);
     return 1;
   }
-  if (memcmp(magic, BINLOG_MAGIC, sizeof(magic))) {
+  if (memcmp(magic, BINLOG_MAGIC, BINLOG_MAGIC_SIZE)) {
     *errmsg =
         "Binlog has bad magic number;  It's not a binary log file that can be "
         "used by this version of MySQL";
@@ -3059,23 +3062,17 @@ int log_loaded_block(IO_CACHE *file) {
 }
 
 /* Helper function for SHOW BINLOG/RELAYLOG EVENTS */
+template <class BINLOG_FILE_READER>
 bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log) {
   Protocol *protocol = thd->get_protocol();
   List<Item> field_list;
   const char *errmsg = 0;
-  bool ret = true;
-  IO_CACHE log;
-  File file = -1;
-  int old_max_allowed_packet = thd->variables.max_allowed_packet;
   LOG_INFO linfo;
 
   DBUG_ENTER("show_binlog_events");
 
   DBUG_ASSERT(thd->lex->sql_command == SQLCOM_SHOW_BINLOG_EVENTS ||
               thd->lex->sql_command == SQLCOM_SHOW_RELAYLOG_EVENTS);
-
-  Format_description_log_event *description_event =
-      new Format_description_log_event();
 
   if (binary_log->is_open()) {
     LEX_MASTER_INFO *lex_mi = &thd->lex->mi;
@@ -3085,8 +3082,6 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log) {
         max<my_off_t>(BIN_LOG_HEADER_SIZE, lex_mi->pos);  // user-friendly
     char search_file_name[FN_REFLEN], *name;
     const char *log_file_name = lex_mi->log_file_name;
-    mysql_mutex_t *end_pos_lock = binary_log->get_binlog_end_pos_lock();
-    Log_event *ev;
 
     unit->set_limit(thd, thd->lex->current_select());
     limit_start = unit->offset_limit_cnt;
@@ -3109,95 +3104,53 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log) {
     thd->current_linfo = &linfo;
     mysql_mutex_unlock(&thd->LOCK_thd_data);
 
-    if ((file = open_binlog_file(&log, linfo.log_file_name, &errmsg)) < 0)
-      goto err;
+    BINLOG_FILE_READER binlog_file_reader(
+        opt_master_verify_checksum,
+        std::max(thd->variables.max_allowed_packet,
+                 opt_binlog_rows_event_max_size + MAX_LOG_EVENT_HEADER));
 
-    my_off_t end_pos = 0;
-    bool is_hot_log = false;
-    if (binary_log->is_active(linfo.log_file_name)) {
-      /*
-        Acquire binlog_end_pos_lock only for the duration to calculate the
-        log's end position. Need to check if log is still hot after acquiring
-        binlog_end_pos_lock.
-      */
-      mysql_mutex_lock(end_pos_lock);
-      if ((is_hot_log = binary_log->is_active(linfo.log_file_name)))
-        end_pos = binary_log->get_binlog_end_pos();
-      mysql_mutex_unlock(end_pos_lock);
-    }
-    if (!is_hot_log) {
-      end_pos = my_b_filelength(&log);
+    if (binlog_file_reader.open(linfo.log_file_name, pos)) {
+      errmsg = binlog_file_reader.get_error_str();
+      goto err;
     }
 
     /*
-      to account binlog event header size
+      For 'in-active' binlog file, it is safe to read all events in it. But
+      for 'active' binlog file, it is only safe to read the events before
+      get_binlog_end_pos().
+
+      Binlog rotation may happen after calling is_active(). In this case,
+      end_pos will NOT be set to 0 while the file is actually not 'active'.
+      It is safe, since 'end_pos' still expresses a correct position.
     */
-    thd->variables.max_allowed_packet += MAX_LOG_EVENT_HEADER;
+    my_off_t end_pos = binary_log->get_binlog_end_pos();
+    if (!binary_log->is_active(linfo.log_file_name)) end_pos = 0;
 
     DEBUG_SYNC(thd, "after_show_binlog_event_found_file");
+    for (event_count = 0; event_count < limit_end; event_count++) {
+      Log_event *ev = binlog_file_reader.read_event_object();
+      if (ev == nullptr) {
+        if (binlog_file_reader.has_fatal_error())
+          errmsg = binlog_file_reader.get_error_str();
+        break;
+      }
 
-    /*
-      open_binlog_file() sought to position 4.
-      Read the first event in case it's a Format_description_log_event, to
-      know the format. If there's no such event, we are 3.23 or 4.x. This
-      code, like before, can't read 3.23 binlogs.
-      This code will fail on a mixed relay log (one which has Format_desc then
-      Rotate then Format_desc).
-    */
-    ev = Log_event::read_log_event(&log, (mysql_mutex_t *)0, description_event,
-                                   opt_master_verify_checksum);
-    if (ev) {
-      if (ev->get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT) {
-        delete description_event;
-        description_event = (Format_description_log_event *)ev;
-      } else
-        delete ev;
-    }
-
-    my_b_seek(&log, pos);
-
-    if (!description_event->is_valid()) {
-      errmsg = "Invalid Format_description event; could be out of memory";
-      goto err;
-    }
-
-    for (event_count = 0; (ev = Log_event::read_log_event(
-                               &log, (mysql_mutex_t *)0, description_event,
-                               opt_master_verify_checksum));) {
       DEBUG_SYNC(thd, "wait_in_show_binlog_events_loop");
-      if (ev->get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT)
-        description_event->common_footer->checksum_alg =
-            ev->common_footer->checksum_alg;
       if (event_count >= limit_start &&
           ev->net_send(protocol, linfo.log_file_name, pos)) {
         errmsg = "Net error";
         delete ev;
         goto err;
       }
-
-      pos = my_b_tell(&log);
       delete ev;
-
-      if (++event_count >= limit_end || pos >= end_pos) break;
-    }
-
-    if (event_count < limit_end && log.error) {
-      errmsg = "Wrong offset or I/O error";
-      goto err;
+      pos = binlog_file_reader.position();
+      if (end_pos > 0 && pos >= end_pos) break;
     }
   }
   // Check that linfo is still on the function scope.
   DEBUG_SYNC(thd, "after_show_binlog_events");
 
-  ret = false;
-
 err:
-  delete description_event;
-  if (file >= 0) {
-    end_io_cache(&log);
-    mysql_file_close(file, MYF(MY_WME));
-  }
-
   if (errmsg) {
     if (thd->lex->sql_command == SQLCOM_SHOW_RELAYLOG_EVENTS)
       my_error(ER_ERROR_WHEN_EXECUTING_COMMAND, MYF(0), "SHOW RELAYLOG EVENTS",
@@ -3211,8 +3164,13 @@ err:
   mysql_mutex_lock(&thd->LOCK_thd_data);
   thd->current_linfo = 0;
   mysql_mutex_unlock(&thd->LOCK_thd_data);
-  thd->variables.max_allowed_packet = old_max_allowed_packet;
-  DBUG_RETURN(ret);
+  DBUG_RETURN(errmsg != nullptr);
+}
+
+bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log) {
+  if (binary_log->is_relay_log)
+    return show_binlog_events<Relaylog_file_reader>(thd, binary_log);
+  return show_binlog_events<Binlog_file_reader>(thd, binary_log);
 }
 
 /**
@@ -3695,19 +3653,11 @@ static bool read_gtids_and_update_trx_parser_from_relaylog(
   unsigned long event_counter = 0;
 #endif
 
-  /*
-    Create a Format_description_log_event that is used to read the
-    first event of the log.
-  */
-  Format_description_log_event fd_ev, *fd_ev_p = &fd_ev;
-  if (!fd_ev.is_valid()) DBUG_RETURN(true);
+  Relaylog_file_reader relaylog_file_reader(verify_checksum);
+  if (relaylog_file_reader.open(filename)) {
+    LogErr(ERROR_LEVEL, ER_BINLOG_FILE_OPEN_FAILED,
+           relaylog_file_reader.get_error_str());
 
-  File file;
-  IO_CACHE log;
-
-  const char *errmsg = NULL;
-  if ((file = open_binlog_file(&log, filename, &errmsg)) < 0) {
-    LogErr(ERROR_LEVEL, ER_BINLOG_FILE_OPEN_FAILED, errmsg);
     /*
       As read_gtids_from_binlog() will not throw error on truncated
       relaylog files, we should do the same here in order to keep the
@@ -3716,25 +3666,21 @@ static bool read_gtids_and_update_trx_parser_from_relaylog(
     DBUG_RETURN(false);
   }
 
-  /*
-    Seek for Previous_gtids_log_event and Gtid_log_event events to
-    gather information what has been processed so far.
-  */
-  my_b_seek(&log, BIN_LOG_HEADER_SIZE);
   Log_event *ev = NULL;
   bool error = false;
   bool seen_prev_gtids = false;
   ulong data_len = 0;
 
-  while (!error && (ev = Log_event::read_log_event(&log, 0, fd_ev_p,
-                                                   verify_checksum)) != NULL) {
+  while (!error && (ev = relaylog_file_reader.read_event_object()) != NULL) {
     DBUG_PRINT("info", ("Read event of type %s", ev->get_type_str()));
 #ifndef DBUG_OFF
     event_counter++;
 #endif
 
     data_len = uint4korr(ev->temp_buf + EVENT_LEN_OFFSET);
-    if (trx_parser->feed_event(ev->temp_buf, data_len, fd_ev_p, false)) {
+    if (trx_parser->feed_event(ev->temp_buf, data_len,
+                               relaylog_file_reader.format_description_event(),
+                               false)) {
       /*
         The transaction boundary parser found an error while parsing a
         sequence of events from the relaylog. As we don't know if the
@@ -3811,9 +3757,6 @@ static bool read_gtids_and_update_trx_parser_from_relaylog(
 
     switch (ev->get_type_code()) {
       case binary_log::FORMAT_DESCRIPTION_EVENT:
-        if (fd_ev_p != &fd_ev) delete fd_ev_p;
-        fd_ev_p = (Format_description_log_event *)ev;
-        break;
       case binary_log::ROTATE_EVENT:
         // do nothing; just accept this event and go to next
         break;
@@ -3903,23 +3846,14 @@ static bool read_gtids_and_update_trx_parser_from_relaylog(
         }
         break;
     }
-    if (ev != fd_ev_p) delete ev;
+    delete ev;
   }
 
-  if (log.error < 0) {
+  if (relaylog_file_reader.has_fatal_error()) {
     // This is not a fatal error; the log may just be truncated.
     // @todo but what other errors could happen? IO error?
-    LogErr(WARNING_LEVEL, ER_BINLOG_ERROR_READING_GTIDS_FROM_RELAY_LOG,
-           log.error);
+    LogErr(WARNING_LEVEL, ER_BINLOG_ERROR_READING_GTIDS_FROM_RELAY_LOG, -1);
   }
-
-  if (fd_ev_p != &fd_ev) {
-    delete fd_ev_p;
-    fd_ev_p = &fd_ev;
-  }
-
-  mysql_file_close(file, MYF(MY_WME));
-  end_io_cache(&log);
 
 #ifndef DBUG_OFF
   LogErr(INFORMATION_LEVEL, ER_BINLOG_EVENTS_READ_FROM_RELAY_LOG_INFO,
@@ -3975,16 +3909,6 @@ static enum_read_gtids_from_binlog_status read_gtids_from_binlog(
   DBUG_ENTER("read_gtids_from_binlog");
   DBUG_PRINT("info", ("Opening file %s", filename));
 
-  /*
-    Create a Format_description_log_event that is used to read the
-    first event of the log.
-  */
-  Format_description_log_event fd_ev, *fd_ev_p = &fd_ev;
-  if (!fd_ev.is_valid()) DBUG_RETURN(ERROR);
-
-  File file;
-  IO_CACHE log;
-
 #ifndef DBUG_OFF
   unsigned long event_counter = 0;
   /*
@@ -3998,9 +3922,10 @@ static enum_read_gtids_from_binlog_status read_gtids_from_binlog(
   if (prev_gtids) DBUG_ASSERT(prev_gtids->get_sid_map() == sid_map);
 #endif
 
-  const char *errmsg = NULL;
-  if ((file = open_binlog_file(&log, filename, &errmsg)) < 0) {
-    LogErr(ERROR_LEVEL, ER_BINLOG_FILE_OPEN_FAILED, errmsg);
+  Binlog_file_reader binlog_file_reader(verify_checksum);
+  if (binlog_file_reader.open(filename)) {
+    LogErr(ERROR_LEVEL, ER_BINLOG_FILE_OPEN_FAILED,
+           binlog_file_reader.get_error_str());
     /*
       We need to revisit the recovery procedure for relay log
       files. Currently, it is called after this routine.
@@ -4009,26 +3934,17 @@ static enum_read_gtids_from_binlog_status read_gtids_from_binlog(
     DBUG_RETURN(TRUNCATED);
   }
 
-  /*
-    Seek for Previous_gtids_log_event and Gtid_log_event events to
-    gather information what has been processed so far.
-  */
-  my_b_seek(&log, BIN_LOG_HEADER_SIZE);
   Log_event *ev = NULL;
   enum_read_gtids_from_binlog_status ret = NO_GTIDS;
   bool done = false;
   bool seen_first_gtid = false;
-  while (!done && (ev = Log_event::read_log_event(&log, 0, fd_ev_p,
-                                                  verify_checksum)) != NULL) {
+  while (!done && (ev = binlog_file_reader.read_event_object()) != NULL) {
 #ifndef DBUG_OFF
     event_counter++;
 #endif
     DBUG_PRINT("info", ("Read event of type %s", ev->get_type_str()));
     switch (ev->get_type_code()) {
       case binary_log::FORMAT_DESCRIPTION_EVENT:
-        if (fd_ev_p != &fd_ev) delete fd_ev_p;
-        fd_ev_p = (Format_description_log_event *)ev;
-        break;
       case binary_log::ROTATE_EVENT:
         // do nothing; just accept this event and go to next
         break;
@@ -4159,25 +4075,16 @@ static enum_read_gtids_from_binlog_status read_gtids_from_binlog(
         if (ret == GOT_PREVIOUS_GTIDS && is_relay_log) done = true;
         break;
     }
-    if (ev != fd_ev_p) delete ev;
+    delete ev;
     DBUG_PRINT("info", ("done=%d", done));
   }
 
-  if (log.error < 0) {
+  if (binlog_file_reader.has_fatal_error()) {
     // This is not a fatal error; the log may just be truncated.
 
     // @todo but what other errors could happen? IO error?
-    LogErr(WARNING_LEVEL, ER_BINLOG_ERROR_READING_GTIDS_FROM_BINARY_LOG,
-           log.error);
+    LogErr(WARNING_LEVEL, ER_BINLOG_ERROR_READING_GTIDS_FROM_BINARY_LOG, -1);
   }
-
-  if (fd_ev_p != &fd_ev) {
-    delete fd_ev_p;
-    fd_ev_p = &fd_ev;
-  }
-
-  mysql_file_close(file, MYF(MY_WME));
-  end_io_cache(&log);
 
   if (all_gtids)
     all_gtids->dbug_print("all_gtids");
@@ -7579,17 +7486,11 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name) {
   }
 
   {
-    const char *errmsg;
-    IO_CACHE log;
-    File file;
     Log_event *ev = 0;
-    Format_description_log_event fdle;
     char log_name[FN_REFLEN];
     my_off_t valid_pos = 0;
     my_off_t binlog_size;
     MY_STAT s;
-
-    if (!fdle.is_valid()) goto err;
 
     do {
       strmake(log_name, log_info.log_file_name, sizeof(log_name) - 1);
@@ -7601,13 +7502,15 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name) {
       goto err;
     }
 
-    if ((file = open_binlog_file(&log, log_name, &errmsg)) < 0) {
-      LogErr(ERROR_LEVEL, ER_BINLOG_FILE_OPEN_FAILED, errmsg);
-      goto err;
-    }
-
     my_stat(log_name, &s, MYF(0));
     binlog_size = s.st_size;
+
+    Binlog_file_reader binlog_file_reader(opt_master_verify_checksum);
+    if (binlog_file_reader.open(log_name)) {
+      LogErr(ERROR_LEVEL, ER_BINLOG_FILE_OPEN_FAILED,
+             binlog_file_reader.get_error_str());
+      goto err;
+    }
 
     /*
       If the binary log was not properly closed it means that the server
@@ -7622,27 +7525,25 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name) {
       total_ha_2pc == 1, to find the last valid group of events written.
       Later we will take this value and truncate the log if need be.
     */
-    if ((ev = Log_event::read_log_event(&log, 0, &fdle,
-                                        opt_master_verify_checksum)) &&
+    if ((ev = binlog_file_reader.read_event_object()) &&
         ev->get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT &&
         (ev->common_header->flags & LOG_EVENT_BINLOG_IN_USE_F ||
          DBUG_EVALUATE_IF("eval_force_bin_log_recovery", true, false))) {
       LogErr(INFORMATION_LEVEL, ER_BINLOG_RECOVERING_AFTER_CRASH_USING,
              opt_name);
-      valid_pos = my_b_tell(&log);
-      error = recover(&log, (Format_description_log_event *)ev, &valid_pos);
+      valid_pos = binlog_file_reader.position();
+      error = binlog_recover(&binlog_file_reader, &valid_pos);
     } else
       error = 0;
 
     delete ev;
-    end_io_cache(&log);
-    mysql_file_close(file, MYF(MY_WME));
 
     if (error) goto err;
 
     /* Trim the crashed binlog file to last valid transaction
       or event (non-transaction) base on valid_pos. */
     if (valid_pos > 0) {
+      File file;
       if ((file = mysql_file_open(key_file_binlog, log_name, O_RDWR,
                                   MYF(MY_WME))) < 0) {
         LogErr(ERROR_LEVEL, ER_BINLOG_CANT_OPEN_CRASHED_BINLOG);
@@ -8885,8 +8786,7 @@ commit_stage:
 /**
   MYSQLD server recovers from last crashed binlog.
 
-  @param[in] log        IO_CACHE of the crashed binlog.
-  @param[in] fdle       Format_description_log_event of the crashed binlog.
+  @param[in] binlog_file_reader Binlog_file_reader of the crashed binlog.
   @param[out] valid_pos The position of the last valid transaction or
                         event(non-transaction) of the crashed binlog.
                         valid_pos must be non-NULL.
@@ -8916,8 +8816,8 @@ commit_stage:
   @retval 0 Success
   @retval 1 Out of memory, or storage engine returns error.
 */
-int MYSQL_BIN_LOG::recover(IO_CACHE *log, Format_description_log_event *fdle,
-                           my_off_t *valid_pos) {
+static int binlog_recover(Binlog_file_reader *binlog_file_reader,
+                          my_off_t *valid_pos) {
   Log_event *ev;
   /*
     The flag is used for handling the case that a transaction
@@ -8926,14 +8826,11 @@ int MYSQL_BIN_LOG::recover(IO_CACHE *log, Format_description_log_event *fdle,
   bool in_transaction = false;
   int memory_page_size = my_getpagesize();
 
-  if (!fdle->is_valid()) goto err1;
-
   {
     MEM_ROOT mem_root(key_memory_binlog_recover_exec, memory_page_size);
     memroot_unordered_set<my_xid> xids(&mem_root);
 
-    while ((ev = Log_event::read_log_event(log, 0, fdle, true)) &&
-           ev->is_valid()) {
+    while ((ev = binlog_file_reader->read_event_object())) {
       if (ev->get_type_code() == binary_log::QUERY_EVENT &&
           !strcmp(((Query_log_event *)ev)->query, "BEGIN"))
         in_transaction = true;
@@ -8993,8 +8890,8 @@ int MYSQL_BIN_LOG::recover(IO_CACHE *log, Format_description_log_event *fdle,
           <---> HERE IS VALID <--->
           ...
       */
-      if (!log->error && !in_transaction && !is_gtid_event(ev))
-        *valid_pos = my_b_tell(log);
+      if (!in_transaction && !is_gtid_event(ev))
+        *valid_pos = binlog_file_reader->position();
 
       delete ev;
     }

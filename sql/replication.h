@@ -28,7 +28,6 @@
 #include "sql/handler.h"             // enum_tx_isolation
 
 struct MYSQL;
-struct IO_CACHE;
 
 #ifdef __cplusplus
 class THD;

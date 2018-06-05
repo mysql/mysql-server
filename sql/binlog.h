@@ -655,8 +655,6 @@ class MYSQL_BIN_LOG : public TC_LOG {
   int rollback(THD *thd, bool all);
   bool truncate_relaylog_file(Master_info *mi, my_off_t valid_pos);
   int prepare(THD *thd, bool all);
-  int recover(IO_CACHE *log, Format_description_log_event *fdle,
-              my_off_t *valid_pos);
 #if defined(MYSQL_SERVER)
 
   void update_thd_next_event_pos(THD *thd);

@@ -701,7 +701,8 @@ SET (BINLOG_SOURCE rpl_gtid_misc.cc
                    rpl_gtid_state.cc rpl_gtid_owned.cc rpl_gtid_execution.cc
                    rpl_gtid_mutex_cond_array.cc rpl_gtid_persist.cc
                    log_event.cc binlog.cc sql_binlog.cc basic_ostream.cc
-                   binlog_ostream.cc
+                   binlog_ostream.cc basic_istream.cc binlog_istream.cc
+                   binlog_reader.cc
                    rpl_filter.cc rpl_record.cc rpl_trx_tracking.cc
                    rpl_utility.cc rpl_injector.cc rpl_table_access.cc)
 ADD_CONVENIENCE_LIBRARY(binlog ${BINLOG_SOURCE})
@@ -710,7 +711,7 @@ TARGET_LINK_LIBRARIES(binlog binlogevents_static)
 SET (RPL_SOURCE rpl_handler.cc rpl_tblmap.cc rpl_context.cc)
 ADD_DEPENDENCIES(binlog GenError)
 ADD_CONVENIENCE_LIBRARY(rpl ${RPL_SOURCE})
-SET (MASTER_SOURCE rpl_master.cc rpl_binlog_sender.cc)
+SET (MASTER_SOURCE rpl_master.cc rpl_binlog_sender.cc binlog_reader.cc)
 ADD_DEPENDENCIES(rpl GenError)
 ADD_CONVENIENCE_LIBRARY(master ${MASTER_SOURCE})
 ADD_DEPENDENCIES(master GenError)

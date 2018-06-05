@@ -13,7 +13,6 @@ call mtr.add_suppression('Relay log write failure: could not queue event from ma
 call mtr.add_suppression('Event crc check failed! Most likely there is event corruption');
 call mtr.add_suppression("Slave SQL for channel '': Error initializing relay log position: I/O error reading event at position .*, Error_code: MY-013117");
 call mtr.add_suppression('Master is configured to log replication events with checksum, but will not send such events to slaves that cannot process');
-
 # A. read/write access to the global vars:
 # binlog_checksum master_verify_checksum slave_sql_verify_checksum
 
