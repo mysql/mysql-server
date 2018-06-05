@@ -55,39 +55,44 @@ std::unique_ptr<Geometry> Simplify::eval(const Geometry &g) const {
 }
 
 std::unique_ptr<Geometry> Simplify::eval(const Cartesian_point &g) const {
-  std::unique_ptr<Cartesian_point> result(new Cartesian_point());
-  bg::simplify(g, *result, m_max_distance);
+  Cartesian_point *pt_result = new Cartesian_point();
+  std::unique_ptr<Geometry> result(pt_result);
+  bg::simplify(g, *pt_result, m_max_distance);
   return result;
 }
 
 std::unique_ptr<Geometry> Simplify::eval(const Cartesian_linestring &g) const {
-  std::unique_ptr<Cartesian_linestring> result(new Cartesian_linestring());
-  bg::simplify(g, *result, m_max_distance);
-  if (result->size() < 2) result->clear();
+  Cartesian_linestring *ls_result = new Cartesian_linestring();
+  std::unique_ptr<Geometry> result(ls_result);
+  bg::simplify(g, *ls_result, m_max_distance);
+  if (ls_result->size() < 2) ls_result->clear();
   return result;
 }
 
 std::unique_ptr<Geometry> Simplify::eval(const Cartesian_polygon &g) const {
-  std::unique_ptr<Cartesian_polygon> result(new Cartesian_polygon());
-  bg::simplify(g, *result, m_max_distance);
-  if (result->exterior_ring().size() < 4) result.reset(new Cartesian_polygon());
+  Cartesian_polygon *py_result = new Cartesian_polygon();
+  std::unique_ptr<Geometry> result(py_result);
+  bg::simplify(g, *py_result, m_max_distance);
+  if (py_result->exterior_ring().size() < 4)
+    result.reset(new Cartesian_polygon());
   return result;
 }
 
 std::unique_ptr<Geometry> Simplify::eval(
     const Cartesian_geometrycollection &g) const {
-  std::unique_ptr<Cartesian_geometrycollection> result(
-      new Cartesian_geometrycollection());
+  Cartesian_geometrycollection *gc_result = new Cartesian_geometrycollection();
+  std::unique_ptr<Geometry> result(gc_result);
   for (Geometry *geom : g) {
     std::unique_ptr<Geometry> simplified_geom = (*this)(*geom);
-    if (!simplified_geom->is_empty()) result->push_back(*simplified_geom);
+    if (!simplified_geom->is_empty()) gc_result->push_back(*simplified_geom);
   }
   return result;
 }
 
 std::unique_ptr<Geometry> Simplify::eval(const Cartesian_multipoint &g) const {
-  std::unique_ptr<Cartesian_multipoint> result(new Cartesian_multipoint());
-  bg::simplify(g, *result, m_max_distance);
+  Cartesian_multipoint *mpt_result = new Cartesian_multipoint();
+  std::unique_ptr<Geometry> result(mpt_result);
+  bg::simplify(g, *mpt_result, m_max_distance);
   return result;
 }
 
@@ -98,10 +103,10 @@ std::unique_ptr<Geometry> Simplify::eval(
   bg::simplify(g, *unfiltered_result, m_max_distance);
 
   // bg::simplify may create geometries with too few points. Filter out those.
-  std::unique_ptr<Cartesian_multilinestring> result(
-      new Cartesian_multilinestring());
+  Cartesian_multilinestring *mls_result = new Cartesian_multilinestring();
+  std::unique_ptr<Geometry> result(mls_result);
   for (Cartesian_linestring &ls : *unfiltered_result) {
-    if (ls.size() >= 2) result->push_back(ls);
+    if (ls.size() >= 2) mls_result->push_back(ls);
   }
 
   return result;
@@ -113,9 +118,10 @@ std::unique_ptr<Geometry> Simplify::eval(
   bg::simplify(g, *unfiltered_result, m_max_distance);
 
   // bg::simplify may create geometries with too few points. Filter out those.
-  std::unique_ptr<Cartesian_multipolygon> result(new Cartesian_multipolygon());
+  Cartesian_multipolygon *mpy_result = new Cartesian_multipolygon();
+  std::unique_ptr<Geometry> result(mpy_result);
   for (Cartesian_polygon &py : *unfiltered_result) {
-    if (py.exterior_ring().size() >= 4) result->push_back(py);
+    if (py.exterior_ring().size() >= 4) mpy_result->push_back(py);
   }
 
   return result;
