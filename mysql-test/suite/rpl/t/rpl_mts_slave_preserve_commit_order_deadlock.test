@@ -56,7 +56,8 @@ SET GLOBAL innodb_lock_wait_timeout = 1000;
 # So we need to an extra transaction here.
 INSERT INTO t1 VALUES(10, 10);
 
-SET debug = "d,set_commit_parent_100";
+--let $debug_point= d,set_commit_parent_100
+--source include/add_debug_point.inc
 INSERT INTO t1 VALUES(11, NULL);
 DELETE FROM t1 WHERE c2 <= 3;
 
@@ -81,7 +82,8 @@ ROLLBACK;
 --source include/rpl_diff.inc
 
 --source include/rpl_connection_master.inc
-SET debug = "";
+--let $debug_point= d,set_commit_parent_100
+--source include/remove_debug_point.inc
 TRUNCATE t1;
 INSERT INTO t1 VALUES(1, NULL),(2, 2), (3, NULL), (4, 4), (5, NULL), (6, 6);
 --source include/sync_slave_sql_with_master.inc
@@ -94,7 +96,8 @@ INSERT INTO t1 VALUES(1, NULL),(2, 2), (3, NULL), (4, 4), (5, NULL), (6, 6);
 --source include/rpl_connection_master.inc
 INSERT INTO t1 VALUES(20, NULL);
 
-SET debug = "d,set_commit_parent_100";
+--let $debug_point= d,set_commit_parent_100
+--source include/add_debug_point.inc
 INSERT INTO t1 VALUES(21, NULL);
 
 BEGIN;
@@ -142,7 +145,8 @@ ROLLBACK;
 --source include/rpl_diff.inc
 
 --source include/rpl_connection_master.inc
-SET debug = "";
+--let $debug_point= d,set_commit_parent_100
+--source include/remove_debug_point.inc
 TRUNCATE t1;
 INSERT INTO t1 VALUES(1, NULL),(2, 2), (3, NULL), (4, 4), (5, NULL), (32, 32);
 --source include/sync_slave_sql_with_master.inc
@@ -156,7 +160,10 @@ INSERT INTO t1 VALUES(1, NULL),(2, 2), (3, NULL), (4, 4), (5, NULL), (32, 32);
 --source include/rpl_connection_master.inc
 INSERT INTO t1 VALUES(30, NULL);
 
-SET debug = "d,set_commit_parent_100";
+# SET debug = "d,set_commit_parent_100";
+--let $debug_point= d,set_commit_parent_100
+--source include/add_debug_point.inc
+
 INSERT INTO t1 VALUES(31, NULL);
 INSERT INTO t1 VALUES(33, NULL);
 
@@ -199,13 +206,15 @@ ROLLBACK;
 
 --let $rpl_diff_statement= SELECT * FROM t1
 --source include/rpl_diff.inc
-SET debug = "";
 
 --echo #
 --echo # Test Case 4: Innodb internal transaction deadlock
 --echo #
 --source include/rpl_connection_master.inc
 CALL mtr.add_suppression(".*Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.*");
+--let $debug_point= d,set_commit_parent_100
+--source include/remove_debug_point.inc
+
 CREATE TABLE t2(database_name VARCHAR(200), table_name VARCHAR(200));
 INSERT INTO t2 SELECT database_name, table_name FROM mysql.innodb_table_stats;
 --source include/sync_slave_sql_with_master.inc
@@ -217,7 +226,9 @@ LOCK TABLE t1 WRITE;
 # There is a bug that the first two transactions cannot be applied parallel.
 # So we need to an extra transaction here.
 TRUNCATE t2;
-SET debug = "d,set_commit_parent_100";
+--let $debug_point= d,set_commit_parent_100
+--source include/add_debug_point.inc
+
 ANALYZE TABLE t1;
 INSERT INTO t2 SELECT database_name, table_name FROM mysql.innodb_table_stats;
 
@@ -235,7 +246,9 @@ UNLOCK TABLES;
 --echo #              slave_preserve_commit_order is OFF
 --echo #
 --source include/rpl_connection_master.inc
-SET debug = "";
+--let $debug_point= d,set_commit_parent_100
+--source include/remove_debug_point.inc
+
 TRUNCATE t1;
 INSERT INTO t1 VALUES(1, NULL),(2, 2), (3, NULL), (4, 4), (5, NULL), (6, 6);
 --source include/sync_slave_sql_with_master.inc
@@ -244,7 +257,9 @@ INSERT INTO t1 VALUES(1, NULL),(2, 2), (3, NULL), (4, 4), (5, NULL), (6, 6);
 --source include/rpl_connection_master.inc
 INSERT INTO t1 VALUES(50, 50);
 
-SET debug = "d,set_commit_parent_100";
+--let $debug_point= d,set_commit_parent_100
+--source include/add_debug_point.inc
+
 INSERT INTO t1 VALUES(51, NULL);
 BEGIN;
 INSERT INTO t1 VALUES(52, 52);
@@ -297,7 +312,8 @@ ROLLBACK;
 --echo # Deinitialize
 --echo #
 --source include/rpl_connection_master.inc
-SET debug = "";
+--let $debug_point= d,set_commit_parent_100
+--source include/remove_debug_point.inc
 DROP TABLE t1, t2;
 --source include/sync_slave_sql_with_master.inc
 
@@ -308,5 +324,5 @@ SET GLOBAL slave_parallel_workers = @saved_slave_parallel_workers;
 SET GLOBAL slave_preserve_commit_order = @saved_slave_preserve_commit_order;
 SET GLOBAL innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
 
---let $rpl_only_running_threads= 1
+--source include/start_slave.inc
 --source include/rpl_end.inc
