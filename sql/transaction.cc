@@ -649,7 +649,10 @@ bool trans_savepoint(THD *thd, LEX_STRING name) {
   if (*sv) /* old savepoint of the same name exists */
   {
     newsv = *sv;
-    ha_release_savepoint(thd, *sv);
+    if (ha_release_savepoint(thd, *sv)) {
+      DBUG_ASSERT(thd->is_error() || thd->is_killed());
+      DBUG_RETURN(true);
+    }
     *sv = (*sv)->prev;
   } else if ((newsv = (SAVEPOINT *)thd->get_transaction()->allocate_memory(
                   savepoint_alloc_size)) == NULL) {
