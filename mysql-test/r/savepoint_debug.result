@@ -1,0 +1,9 @@
+#
+# Bug#27898591: SQL_ERROR.CC:380: VOID DIAGNOSTICS_AREA::SET_OK_STATUS(ULONGLONG, ULONGLONG, CON
+#
+START TRANSACTION;
+SAVEPOINT save_1;
+SET DEBUG="+d,fail_ha_release_savepoint";
+SAVEPOINT save_1;
+ERROR HY000: Unknown error
+SET DEBUG="-d,fail_ha_release_savepoint";

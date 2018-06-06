@@ -2258,6 +2258,10 @@ int ha_release_savepoint(THD *thd, SAVEPOINT *sv) {
       error = 1;
     }
   }
+  DBUG_EXECUTE_IF("fail_ha_release_savepoint", {
+    my_error(ER_UNKNOWN_ERROR, MYF(0));
+    error = 1;
+  });
 
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
   if (thd->m_transaction_psi != NULL)
