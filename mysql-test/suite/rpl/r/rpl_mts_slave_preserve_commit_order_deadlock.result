@@ -23,7 +23,7 @@ SET GLOBAL innodb_lock_wait_timeout = 1000;
 #
 [connection master]
 INSERT INTO t1 VALUES(10, 10);
-SET debug = "d,set_commit_parent_100";
+# Adding debug point 'd,set_commit_parent_100' to @@GLOBAL.debug
 INSERT INTO t1 VALUES(11, NULL);
 DELETE FROM t1 WHERE c2 <= 3;
 [connection slave]
@@ -35,7 +35,7 @@ include/start_slave_sql.inc
 ROLLBACK;
 include/rpl_diff.inc
 [connection master]
-SET debug = "";
+# Removing debug point 'd,set_commit_parent_100' from @@GLOBAL.debug
 TRUNCATE t1;
 INSERT INTO t1 VALUES(1, NULL),(2, 2), (3, NULL), (4, 4), (5, NULL), (6, 6);
 include/sync_slave_sql_with_master.inc
@@ -46,7 +46,7 @@ include/stop_slave_sql.inc
 #
 [connection master]
 INSERT INTO t1 VALUES(20, NULL);
-SET debug = "d,set_commit_parent_100";
+# Adding debug point 'd,set_commit_parent_100' to @@GLOBAL.debug
 INSERT INTO t1 VALUES(21, NULL);
 BEGIN;
 INSERT INTO t1 VALUES(22, 22);
@@ -69,7 +69,7 @@ ROLLBACK;
 ROLLBACK;
 include/rpl_diff.inc
 [connection master]
-SET debug = "";
+# Removing debug point 'd,set_commit_parent_100' from @@GLOBAL.debug
 TRUNCATE t1;
 INSERT INTO t1 VALUES(1, NULL),(2, 2), (3, NULL), (4, 4), (5, NULL), (32, 32);
 include/sync_slave_sql_with_master.inc
@@ -80,7 +80,7 @@ include/stop_slave_sql.inc
 #
 [connection master]
 INSERT INTO t1 VALUES(30, NULL);
-SET debug = "d,set_commit_parent_100";
+# Adding debug point 'd,set_commit_parent_100' to @@GLOBAL.debug
 INSERT INTO t1 VALUES(31, NULL);
 INSERT INTO t1 VALUES(33, NULL);
 DELETE FROM t1 WHERE c2 <= 3;
@@ -97,12 +97,12 @@ ROLLBACK;
 [connection server_2_1]
 ROLLBACK;
 include/rpl_diff.inc
-SET debug = "";
 #
 # Test Case 4: Innodb internal transaction deadlock
 #
 [connection master]
 CALL mtr.add_suppression(".*Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.*");
+# Removing debug point 'd,set_commit_parent_100' from @@GLOBAL.debug
 CREATE TABLE t2(database_name VARCHAR(200), table_name VARCHAR(200));
 INSERT INTO t2 SELECT database_name, table_name FROM mysql.innodb_table_stats;
 include/sync_slave_sql_with_master.inc
@@ -111,7 +111,7 @@ CALL mtr.add_suppression(".* Cannot save table statistics for table.*");
 LOCK TABLE t1 WRITE;
 [connection master]
 TRUNCATE t2;
-SET debug = "d,set_commit_parent_100";
+# Adding debug point 'd,set_commit_parent_100' to @@GLOBAL.debug
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
@@ -124,14 +124,14 @@ UNLOCK TABLES;
 #              slave_preserve_commit_order is OFF
 #
 [connection master]
-SET debug = "";
+# Removing debug point 'd,set_commit_parent_100' from @@GLOBAL.debug
 TRUNCATE t1;
 INSERT INTO t1 VALUES(1, NULL),(2, 2), (3, NULL), (4, 4), (5, NULL), (6, 6);
 include/sync_slave_sql_with_master.inc
 include/stop_slave_sql.inc
 [connection master]
 INSERT INTO t1 VALUES(50, 50);
-SET debug = "d,set_commit_parent_100";
+# Adding debug point 'd,set_commit_parent_100' to @@GLOBAL.debug
 INSERT INTO t1 VALUES(51, NULL);
 BEGIN;
 INSERT INTO t1 VALUES(52, 52);
@@ -159,7 +159,7 @@ include/rpl_diff.inc
 # Deinitialize
 #
 [connection master]
-SET debug = "";
+# Removing debug point 'd,set_commit_parent_100' from @@GLOBAL.debug
 DROP TABLE t1, t2;
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
@@ -168,4 +168,5 @@ SET GLOBAL slave_parallel_type = @saved_slave_parallel_type;
 SET GLOBAL slave_parallel_workers = @saved_slave_parallel_workers;
 SET GLOBAL slave_preserve_commit_order = @saved_slave_preserve_commit_order;
 SET GLOBAL innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
+include/start_slave.inc
 include/rpl_end.inc
