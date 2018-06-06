@@ -1,5 +1,10 @@
 #--source include/have_daemon_example_plugin.inc
 
+# Restart of server and removal of log file to get deterministic results.
+--source include/shutdown_mysqld.inc
+--remove_file $MYSQLTEST_VARDIR/log/mysqld.1.err
+--source include/start_mysqld.inc
+
 call mtr.add_suppression("This is a warning from test plugin");
 call mtr.add_suppression("This is an error from test plugin");
 

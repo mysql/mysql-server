@@ -1,3 +1,4 @@
+# restart
 call mtr.add_suppression("This is a warning from test plugin");
 call mtr.add_suppression("This is an error from test plugin");
 SET @orig_log_error_verbosity= @@global.log_error_verbosity;

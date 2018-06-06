@@ -1,3 +1,4 @@
+# restart
 ------ Run plugin ------------------------------------------------
 INSTALL PLUGIN test_services_plugin_registry SONAME 'TEST_SERVICES_PLUGIN_REGISTRY';
 ------ Show status of plugin -------------------------------------
