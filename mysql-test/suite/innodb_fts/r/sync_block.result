@@ -28,7 +28,7 @@ SELECT SLEEP(2);
 SLEEP(2)
 0
 # slow log results should only contain INSERT INTO t1.
-SELECT sql_text FROM mysql.slow_log WHERE query_time >= '00:00:02';
+SELECT sql_text FROM mysql.slow_log WHERE query_time >= '00:00:02' AND sql_text LIKE 'INSERT%';
 sql_text
 INSERT INTO t1(title) VALUES('mysql database')
 SET GLOBAL debug="-d,fts_instrument_sync_debug,fts_instrument_sync_sleep";
