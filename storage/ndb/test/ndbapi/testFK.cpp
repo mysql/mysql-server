@@ -26,16 +26,14 @@
 #include <NodeBitmask.hpp>
 #include <NdbEnv.h>
 
-extern "C" my_bool opt_core;
 
 #define DBG(x) \
   do { g_info << x << " at line " << __LINE__ << endl; } while (0)
 
-#define CHK1(b, e) \
+#define CHK1(b) \
   if (!(b)) { \
     g_err << "ERR: " << #b << " failed at line " << __LINE__ \
           << endl; \
-    if (opt_core) abort(); \
     return NDBT_FAILED; \
   }
 
@@ -43,9 +41,10 @@ extern "C" my_bool opt_core;
   if (!(b)) { \
     g_err << "ERR: " << #b << " failed at line " << __LINE__ \
           << ": " << e << endl; \
-    if (opt_core) abort(); \
     return NDBT_FAILED; \
   }
+
+#define CHK_RET_FAILED(x) if (!(x)) return NDBT_FAILED
 
 static int runLongSignalMemorySnapshot(NDBT_Context* ctx, NDBT_Step* step);
 
@@ -165,8 +164,6 @@ runTransactions(NDBT_Context* ctx, NDBT_Step* step)
   }
   return NDBT_OK;
 }
-
-#define CHK_RET_FAILED(x) if (!(x)) return NDBT_FAILED
 
 int
 runMixedDML(NDBT_Context* ctx, NDBT_Step* step)
@@ -508,13 +505,8 @@ createIDX(NdbDictionary::Dictionary * dict,
           }
 
           DBG("CREATE index " << pIdx.getName());
-          if (dict->createIndex(pIdx) != 0)
-          {
-            ndbout << "FAILED! to create OI " << tmp.c_str() << endl;
-            const NdbError err = dict->getNdbError();
-            ndbout << err << endl;
-            return NDBT_FAILED;
-          }
+          CHK2(dict->createIndex(pIdx) == 0,
+               tmp.c_str() << ": " << dict->getNdbError());
 
           const NdbDictionary::Index * idx = dict->getIndex(tmp.c_str(),
                                                             pTab->getName());
@@ -594,14 +586,8 @@ createIDX(NdbDictionary::Dictionary * dict,
     }
 
     DBG("CREATE index " << pIdx.getName());
-    if (dict->createIndex(pIdx) != 0)
-    {
-      ndbout << "FAILED! to create UI " << tmp.c_str() << endl;
-      const NdbError err = dict->getNdbError();
-      ndbout << err << endl;
-      abort();
-      return NDBT_FAILED;
-    }
+    CHK2(dict->createIndex(pIdx) == 0,
+         tmp.c_str() << ": " << dict->getNdbError());
 
     const NdbDictionary::Index * idx = dict->getIndex(tmp.c_str(),
                                                       pTab->getName());
@@ -610,7 +596,6 @@ createIDX(NdbDictionary::Dictionary * dict,
       indexes.push_back(idx);
     }
   }
-
   return NDBT_OK;
 }
 
@@ -634,7 +619,6 @@ createFK(NdbDictionary::Dictionary * dict,
 
   /**
    * Create self referencing FK based on random index...
-   *
    */
   {
     unsigned p = schema_rand() % indexes.size();
@@ -776,7 +760,9 @@ createFK(NdbDictionary::Dictionary * dict,
     break;
   }
 
-  if (dict->createForeignKey(ndbfk) == 0)
+  CHK2(dict->createForeignKey(ndbfk) == 0,
+       pChild->getName() << ": " << dict->getNdbError());
+
   {
     // bug#19122346 TODO: provide new NdbDictionary methods
     char fullname[MAX_TAB_NAME_SIZE];
@@ -787,18 +773,8 @@ createFK(NdbDictionary::Dictionary * dict,
     CHK2(dict->getForeignKey(* get, fullname) == 0,
          fullname << ": " << dict->getNdbError());
     fks.push_back(get);
-    return NDBT_OK;
   }
-  ndbout << dict->getNdbError() << endl;
-
-  if (1)
-  {
-    ndbout << "DESC " << pChild->getName() << endl;
-    dict->print(ndbout, * pChild);
-  }
-
-  abort();
-  return NDBT_FAILED;
+  return NDBT_OK;
 }
 
 static
@@ -821,27 +797,27 @@ runCreateRandom(NDBT_Context* ctx, NDBT_Step* step)
 
   for (int i = 0; i < indexcnt; i++)
   {
-    createIDX(dict, pTab, T_RAND);
+    CHK1(createIDX(dict, pTab, T_RAND) != NDBT_FAILED);
   }
   for (int i = 0; i < uiindexcnt; i++)
   {
-    createIDX(dict, pTab, T_UNIQ);
+    CHK1(createIDX(dict, pTab, T_UNIQ) != NDBT_FAILED);
   }
   for (int i = 0; i < oiindexcnt; i++)
   {
-    createIDX(dict, pTab, T_MANY);
+    CHK1(createIDX(dict, pTab, T_MANY) != NDBT_FAILED);
   }
   for (int i = 0; i < fkcount; i++)
   {
-    createFK(dict, pTab, T_RAND, pTab, T_RAND);
+    CHK1(createFK(dict, pTab, T_RAND, pTab, T_RAND) != NDBT_FAILED);
   }
   for (int i = 0; i < uifkcount; i++)
   {
-    createFK(dict, pTab, T_RAND, pTab, T_UNIQ);
+    CHK1(createFK(dict, pTab, T_RAND, pTab, T_UNIQ) != NDBT_FAILED);
   }
   for (int i = 0; i < oifkcount; i++)
   {
-    createFK(dict, pTab, T_RAND, pTab, T_MANY);
+    CHK1(createFK(dict, pTab, T_RAND, pTab, T_MANY) != NDBT_FAILED);
   }
 
   if (1)
@@ -895,14 +871,14 @@ runCreateDropRandom(NDBT_Context* ctx, NDBT_Step* step)
 
   for (int i = 0; i < loops; i++)
   {
-    CHK2(runCreateRandom(ctx, step) == NDBT_OK, "");
+    CHK1(runCreateRandom(ctx, step) == NDBT_OK);
 
     if (ctx->getProperty("CreateAndLoad", Uint32(0)) != 0)
     {
-      CHK2(runLoadTable(ctx, step) == NDBT_OK, "");
-      CHK2(runClearTable(ctx, step) == NDBT_OK, "");
+      CHK1(runLoadTable(ctx, step) == NDBT_OK);
+      CHK1(runClearTable(ctx, step) == NDBT_OK);
     }
-    CHK2(runCleanupTable(ctx, step) == NDBT_OK, "");
+    CHK1(runCleanupTable(ctx, step) == NDBT_OK);
   }
 
   ctx->stopTest();
@@ -1011,10 +987,7 @@ runTransSnapshotCheck(NDBT_Context* ctx, NDBT_Step* step)
   g_info << "save all resource usage" << endl;
   pDict->forceGCPWait(1);
   Uint32 dump1[] = { DumpStateOrd::TcResourceCheckLeak };
-  if (Ndb_internal::send_dump_state_all(pNdb, dump1, 1) != 0)
-  {
-    return NDBT_FAILED;
-  }
+  CHK1(Ndb_internal::send_dump_state_all(pNdb, dump1, 1) == 0);
   return NDBT_OK;
 }
 
@@ -1129,19 +1102,9 @@ runCreateCascadeChild(NDBT_Context* ctx, NDBT_Step* step)
   /**
    * Now create FK
    */
-  int res;
-  res = createFK(dict,
-                 pTab, T_UK_IDX,
-                 pChild, T_RAND,
-                 (1 << NDB_FK_CASCADE),
-                 (1 << NDB_FK_CASCADE));
-
-
-  if (res != 0)
-  {
-    abort();
-    return res;
-  }
+  CHK1(createFK(dict, pTab, T_UK_IDX, pChild, T_RAND,
+                (1 << NDB_FK_CASCADE),
+                (1 << NDB_FK_CASCADE)) == 0);
 
   if (1)
   {
@@ -1156,10 +1119,8 @@ runCreateCascadeChild(NDBT_Context* ctx, NDBT_Step* step)
   for (int i = 0; tables[i] != 0; i++)
   {
     HugoTransactions c(* tables[i]);
-    if (c.loadTable(pNdb, rows, batchSize) != 0)
-    {
-      g_err << "Load table failed" << endl;
-    }
+    CHK2(c.loadTable(pNdb, rows, batchSize) == 0,
+         "Load table failed");
   }
 
   return NDBT_OK;
@@ -1329,7 +1290,6 @@ runDropCascadeChild(NDBT_Context* ctx, NDBT_Step* step)
 int
 runRestartOneNodeNoStart(NDBT_Context* ctx, NDBT_Step* step)
 {
-  int result = NDBT_OK;
   NdbRestarter restarter;
 
   /* choose a random node and restart with nostart */
@@ -1338,29 +1298,23 @@ runRestartOneNodeNoStart(NDBT_Context* ctx, NDBT_Step* step)
   /* wait for it to go to no start phase */
   CHK2(restarter.waitNodesNoStart(&nodeId, 1) == 0,
        "Unable to restart node");
-  return result;
+  return NDBT_OK;
 }
 
 int
 runStartAllNodes(NDBT_Context* ctx, NDBT_Step* step){
-  int result = NDBT_OK;
   NdbRestarter restarter;
 
   CHK2(restarter.startAll() == 0, "Failed starting node");
-
-  return result;
+  return NDBT_OK;
 }
 
 int
 runCheckAllNodesStarted(NDBT_Context* ctx, NDBT_Step* step){
   NdbRestarter restarter;
 
-  if (restarter.waitClusterStarted(1) != 0)
-  {
-    g_err << "All nodes were not started " << endl;
-    return NDBT_FAILED;
-  }
-
+  CHK2(restarter.waitClusterStarted(1) == 0,
+       "All nodes were not started");
   return NDBT_OK;
 }
 
@@ -1442,11 +1396,8 @@ runAbortWithSlowChildScans(NDBT_Context* ctx, NDBT_Step* step)
  
   { 
     HugoTransactions ht(*pTab);
-    if (ht.loadTable(pNdb, rows, batchSize) != 0)
-    {
-      g_err << "Load table failed" << endl;
-      return NDBT_FAILED;
-    }
+    CHK2(ht.loadTable(pNdb, rows, batchSize) == 0,
+         "Load table failed");
   }
 
   /* Originally used a separate row lock to cause stall,
@@ -1495,14 +1446,9 @@ runAbortWithSlowChildScans(NDBT_Context* ctx, NDBT_Step* step)
     /* Attempt to delete everything, will fail
      * as triggered child table scans timeout
      */
-    if (ht.pkDelRecords(&myNdb,
-                        rows) == 0)
-    {
-      g_err << "Unexpected success of ht!" << endl;
-      return NDBT_FAILED;
-    }
+    CHK2(ht.pkDelRecords(&myNdb, rows) != 0, //Expect error
+	 "Unexpected success of ht!");
     
-    /* Error is expected */
     /* Now close Ndb object, causing some TCRELEASEREQ validation */
   }
 
