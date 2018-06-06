@@ -842,7 +842,7 @@ row_log_table_low_redundant(
 
 		old_pk_size = rec_get_converted_size_temp(
 			new_index, old_pk->fields, old_pk->n_fields,
-			ventry, &old_pk_extra_size);
+			NULL, &old_pk_extra_size);
 		ut_ad(old_pk_extra_size < 0x100);
 		mrec_size += 1/*old_pk_extra_size*/ + old_pk_size;
 	}
