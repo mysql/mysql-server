@@ -385,8 +385,7 @@ rtr_pcur_getnext_from_path(
 		if (mode != PAGE_CUR_RTREE_INSERT
 		    && mode != PAGE_CUR_RTREE_LOCATE
 		    && mode >= PAGE_CUR_CONTAIN
-		    && btr_cur->rtr_info->need_prdt_lock
-		    && found) {
+		    && btr_cur->rtr_info->need_prdt_lock) {
 			lock_prdt_t	prdt;
 
 			trx_t*		trx = thr_get_trx(
