@@ -227,7 +227,7 @@ static Field *create_tmp_field_from_item(Item *item, TABLE *table,
     in the beginning of create_tmp_field().
    */
   if (copy_func && item->real_item()->is_result_field())
-    copy_func->push_back(item);
+    copy_func->push_back(Func_ptr(item));
   if (modify_item) item->set_result_field(new_field);
   if (item->type() == Item::NULL_ITEM)
     new_field->is_created_from_null_item = true;
@@ -371,7 +371,7 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
           DBUG_ASSERT(item_func_sp->result_field);
           *from_field = item_func_sp->result_field;
         } else {
-          copy_func->push_back(item);
+          copy_func->push_back(Func_ptr(item));
         }
 
         result = create_tmp_field_from_field(

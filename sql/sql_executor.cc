@@ -638,41 +638,42 @@ bool copy_funcs(Temp_table_param *param, const THD *thd, Copy_func_type type) {
   Func_ptr_array *func_ptr = param->items_to_copy;
   uint end = func_ptr->size();
   for (uint i = 0; i < end; i++) {
-    Item *f = func_ptr->at(i).func();
+    Func_ptr &func = func_ptr->at(i);
+    Item *item = func.func();
     bool do_copy = false;
     switch (type) {
       case CFT_ALL:
         do_copy = true;
         break;
       case CFT_WF_FRAMING:
-        do_copy =
-            (f->m_is_window_function && down_cast<Item_sum *>(f)->framing());
+        do_copy = (item->m_is_window_function &&
+                   down_cast<Item_sum *>(item)->framing());
         break;
       case CFT_WF_NON_FRAMING:
-        do_copy =
-            (f->m_is_window_function && !down_cast<Item_sum *>(f)->framing() &&
-             !down_cast<Item_sum *>(f)->needs_card());
+        do_copy = (item->m_is_window_function &&
+                   !down_cast<Item_sum *>(item)->framing() &&
+                   !down_cast<Item_sum *>(item)->needs_card());
         break;
       case CFT_WF_NEEDS_CARD:
-        do_copy =
-            (f->m_is_window_function && down_cast<Item_sum *>(f)->needs_card());
+        do_copy = (item->m_is_window_function &&
+                   down_cast<Item_sum *>(item)->needs_card());
         break;
       case CFT_WF_USES_ONLY_ONE_ROW:
-        do_copy = (f->m_is_window_function &&
-                   down_cast<Item_sum *>(f)->uses_only_one_row());
+        do_copy = (item->m_is_window_function &&
+                   down_cast<Item_sum *>(item)->uses_only_one_row());
         break;
       case CFT_NON_WF:
-        do_copy = !f->m_is_window_function;
+        do_copy = !item->m_is_window_function;
         if (do_copy)  // copying an expression of a WF would be wrong:
-          DBUG_ASSERT(!f->has_wf());
+          DBUG_ASSERT(!item->has_wf());
         break;
       case CFT_WF:
-        do_copy = f->m_is_window_function;
+        do_copy = item->m_is_window_function;
         break;
     }
 
     if (do_copy) {
-      f->save_in_result_field(1);
+      item->save_in_result_field(/*no_conversions=*/true);
       /*
         Need to check the THD error state because Item::val_xxx() don't
         return error code, but can generate errors
@@ -899,7 +900,7 @@ void setup_tmptable_write_func(QEP_TAB *tab, Opt_trace_object *trace) {
       Item_sum **func_ptr = join->sum_funcs;
       Item_sum *func;
       while ((func = *(func_ptr++))) {
-        tmp_tbl->items_to_copy->push_back(func);
+        tmp_tbl->items_to_copy->push_back(Func_ptr(func));
       }
     }
   }

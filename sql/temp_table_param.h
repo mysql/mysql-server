@@ -46,7 +46,7 @@ using Memroot_vector = std::vector<T, Memroot_allocator<T>>;
 */
 class Func_ptr {
  public:
-  Func_ptr(Item *f) : m_func(f), m_contains_alias_of_expr(false) {}
+  explicit Func_ptr(Item *f) : m_func(f) {}
   /**
     Calculates if m_func contains an alias to an expression of the SELECT list
     of 'select'.
@@ -60,7 +60,7 @@ class Func_ptr {
 
  private:
   Item *m_func;
-  bool m_contains_alias_of_expr;
+  bool m_contains_alias_of_expr = false;
 };
 
 /// Used by copy_funcs()
