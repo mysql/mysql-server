@@ -41,7 +41,7 @@ let BOOTSTRAP_SQL= $MYSQL_TMP_DIR/tiny_bootstrap.sql;
 
 --echo # Shut server down.
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 120
+--shutdown_server
 --source include/wait_until_disconnected.inc
 
 --echo # Create bootstrap file.
@@ -63,7 +63,7 @@ EOF
 
 --echo # Shutdown server.
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 120
+--shutdown_server
 --source include/wait_until_disconnected.inc
 
 --echo # Cleanup.
