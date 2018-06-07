@@ -4233,7 +4233,10 @@ static void lock_rec_unlock_grant(lock_t *first_lock, lock_t *lock,
 
 /** Removes a granted record lock of a transaction from the queue and grants
  locks to other transactions waiting in the queue if they now are entitled
- to a lock. */
+ to a lock.
+ This function is meant to be used only by row_unlock_for_mysql, and it assumes
+ that the lock we are looking for has LOCK_REC_NOT_GAP flag.
+ */
 void lock_rec_unlock(
     trx_t *trx,               /*!< in/out: transaction that has
                               set a record lock */
@@ -4260,13 +4263,15 @@ void lock_rec_unlock(
 
   for (auto lock = first_lock; lock != nullptr;
        lock = lock_rec_get_next(heap_no, lock)) {
-    if (lock->trx == trx && lock_get_mode(lock) == lock_mode) {
+    if (lock->trx == trx && lock_get_mode(lock) == lock_mode &&
+        lock_rec_get_rec_not_gap(lock)) {
 #ifdef UNIV_DEBUG
       /* Since we actually found the first, not the last lock, lets check
          that it is also the last one */
       for (auto lock2 = lock_rec_get_next(heap_no, lock); lock2 != nullptr;
            lock2 = lock_rec_get_next(heap_no, lock2)) {
-        ut_ad(!(lock2->trx == trx && lock_get_mode(lock2) == lock_mode));
+        ut_ad(!(lock2->trx == trx && lock_get_mode(lock2) == lock_mode &&
+                lock_rec_get_rec_not_gap(lock2)));
       }
 #endif
       lock_rec_unlock_grant(first_lock, lock, heap_no);
