@@ -2393,7 +2393,8 @@ void row_unlock_for_mysql(row_prebuilt_t *prebuilt, ibool has_latches_on_recs) {
 
   trx->op_info = "unlock_row";
 
-  if (prebuilt->new_rec_locks >= 1) {
+  if (std::count(prebuilt->new_rec_lock,
+                 prebuilt->new_rec_lock + row_prebuilt_t::LOCK_COUNT, true)) {
     const rec_t *rec;
     dict_index_t *index;
     trx_id_t rec_trx_id;
@@ -2410,7 +2411,7 @@ void row_unlock_for_mysql(row_prebuilt_t *prebuilt, ibool has_latches_on_recs) {
     rec = btr_pcur_get_rec(pcur);
     index = btr_pcur_get_btr_cur(pcur)->index;
 
-    if (prebuilt->new_rec_locks >= 2) {
+    if (prebuilt->new_rec_lock[row_prebuilt_t::LOCK_CLUST_PCUR]) {
       /* Restore the cursor position and find the record
       in the clustered index. */
 
@@ -2451,12 +2452,15 @@ void row_unlock_for_mysql(row_prebuilt_t *prebuilt, ibool has_latches_on_recs) {
     if (rec_trx_id != trx->id) {
       /* We did not update the record: unlock it */
 
-      rec = btr_pcur_get_rec(pcur);
+      if (prebuilt->new_rec_lock[row_prebuilt_t::LOCK_PCUR]) {
+        rec = btr_pcur_get_rec(pcur);
 
-      lock_rec_unlock(trx, btr_pcur_get_block(pcur), rec,
-                      static_cast<enum lock_mode>(prebuilt->select_lock_type));
+        lock_rec_unlock(
+            trx, btr_pcur_get_block(pcur), rec,
+            static_cast<enum lock_mode>(prebuilt->select_lock_type));
+      }
 
-      if (prebuilt->new_rec_locks >= 2) {
+      if (prebuilt->new_rec_lock[row_prebuilt_t::LOCK_CLUST_PCUR]) {
         rec = btr_pcur_get_rec(clust_pcur);
 
         lock_rec_unlock(

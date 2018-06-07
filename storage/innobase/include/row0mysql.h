@@ -647,25 +647,43 @@ struct row_prebuilt_t {
                                 This eliminates lock waits in some
                                 cases; note that this breaks
                                 serializability. */
-  ulint new_rec_locks;          /*!< normally 0; if session is using
-                                READ COMMITTED or READ UNCOMMITTED
-                                isolation level, set in
-                                row_search_for_mysql() if we set a new
-                                record lock on the secondary
-                                or clustered index; this is
-                                used in row_unlock_for_mysql()
-                                when releasing the lock under
-                                the cursor if we determine
-                                after retrieving the row that
-                                it does not need to be locked
-                                ('mini-rollback') */
-  ulint mysql_prefix_len;       /*!< byte offset of the end of
-                               the last requested column */
-  ulint mysql_row_len;          /*!< length in bytes of a row in the
-                                MySQL format */
-  ulint n_rows_fetched;         /*!< number of rows fetched after
-                                positioning the current cursor */
-  ulint fetch_direction;        /*!< ROW_SEL_NEXT or ROW_SEL_PREV */
+
+  enum {
+    LOCK_PCUR,
+    LOCK_CLUST_PCUR,
+    LOCK_COUNT,
+  };
+
+  bool new_rec_lock[LOCK_COUNT]; /*!< normally false; if
+                        session is using READ COMMITTED or READ UNCOMMITTED
+                        isolation level, set in row_search_for_mysql() if we set
+                        a new record lock on the secondary or clustered index;
+                        this is used in row_unlock_for_mysql() when releasing
+                        the lock under the cursor if we determine after
+                        retrieving the row that it does not need to be locked
+                        ('mini-rollback')
+                        [LOCK_PCUR] corresponds to pcur, the first index we
+                        looked up (can be secondary or clustered!)
+
+                        [LOCK_CLUST_PCUR] corresponds to clust_pcur, which if
+                        used at all, is always the clustered index.
+
+                        The meaning of these booleans is:
+                        true = we've created a rec lock, which we might
+                               release as we "own" it
+                        false = we should not release any lock for this
+                               index as we either reused some existing
+                               lock, or there is some other reason, we
+                               should keep it
+                        */
+  ulint mysql_prefix_len;        /*!< byte offset of the end of
+                                 the last requested column */
+  ulint mysql_row_len;           /*!< length in bytes of a row in the
+                                 MySQL format */
+  ulint n_rows_fetched;          /*!< number of rows fetched after
+                                 positioning the current cursor */
+  ulint fetch_direction;         /*!< ROW_SEL_NEXT or ROW_SEL_PREV */
+
   byte *fetch_cache[MYSQL_FETCH_CACHE_SIZE];
   /*!< a cache for fetched rows if we
   fetch many rows from the same cursor:

@@ -1,0 +1,141 @@
+--source include/have_debug_sync.inc
+
+--echo #################################################################
+--echo #                                                               #
+--echo # Bug # 27898384: InnoDB: Assertion failure: lock0lock.cc:4226: #
+--echo #  !(lock2->trx == trx && lock_get_mode(lock2) == lock_mode)    #
+--echo #                                                               #
+--echo #################################################################
+
+--echo ##############
+--echo # SCENARIO 1 #
+--echo ##############
+    # To reproduce the problem we need a transaction in READ COMMITED mode
+    # to scan a range of rows, some of which do not match a criteria, which
+    # causes mysql to ask InnoDB to release a lock previously granted for
+    # such row. Then lock_rec_unlock is used to remove such lock, and it will
+    # fail if it is not sure which lock should be removed.
+    # Such a situation might happen if there are two different locks held for
+    # the same row, same trx, and same (LOCK_X) mode, but they differ in type.
+    # For example one is an LOCK_INSERT_INTENTION|LOCK_GAP|LOCK_REC|LOCK_X
+    # obtained in a previous query, and the another is a
+    # LOCK_REC_NOT_GAP|LOCK_REC|LOCK_X granted during the current scan.
+    # The scenario which leads to such situation is:
+    # 1. con1 attempts to DELETE a non-existing row with id=123.
+    # 2. con2 starts INSERT with id=123
+    #    but has to wait for con1, thus enqueues LOCK_INSERT_INTENTION
+    # 3. con1 performs ROLLBACK
+    #    and thus con2 can continue, and has a granted II lock
+    # 4. con2 performs SELECT ... FOR UPDATE with a query range containing
+    #    id=123, and a condition which does not match the row with id=123.
+    #    Which means it has to unlock the row with id=123.
+
+    CREATE TABLE t1 (
+        id INT PRIMARY KEY,
+        val INT
+    ) Engine=InnoDB;
+    INSERT INTO t1 (id, val) VALUES (100,100),(200,200);
+
+    --connect (con1, localhost, root,,)
+    --connect (con2, localhost, root,,)
+
+    --connection con1
+        BEGIN;
+        DELETE FROM t1 WHERE id=123;
+
+    --connection con2
+        SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+        BEGIN;
+        SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL con1_will_wait';
+        --send INSERT INTO t1 (id, val) VALUES (123,123);
+
+    --connection con1
+        SET DEBUG_SYNC = 'now WAIT_FOR con1_will_wait';
+        ROLLBACK;
+
+    --connection con2
+        --reap
+        SELECT * FROM t1 WHERE 100<=id AND id<=200 AND val=100 FOR UPDATE;
+        ROLLBACK;
+
+    # Clean up:
+
+        --connection default
+        --disconnect con1
+        --disconnect con2
+        DROP TABLE t1;
+        SET DEBUG_SYNC = 'RESET';
+
+
+--echo ##############
+--echo # SCENARIO 2 #
+--echo ##############
+
+    CREATE TABLE t1 (
+        `a` int(11) NOT NULL auto_increment,
+        `b` int(11) default NULL,
+        `c` int default 7,
+        PRIMARY KEY  (`a`),
+        UNIQUE KEY `b` (`b`)
+    ) ENGINE=innodb;
+    INSERT INTO t1 (a,b,c) VALUES (1,1,1), (2,2,2), (3,3,3), (4,4,4);
+
+    --connect (con1, localhost, root,,)
+    --connect (con2, localhost, root,,)
+
+    --connection con1
+        SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+        BEGIN;
+        # next UPDATE will fail because of duplicate key b=2
+        # also it will create an S-lock on index entry b=2 to preserve this
+        --error ER_DUP_ENTRY
+        UPDATE t1 SET b=2 WHERE a=1;
+
+        # next SELECT ... FOR SHARE is cleverly constructed to:
+        # 1. perform a scan over index for column b
+        # 2. in particular it visits b=2
+        # 3. it temporarily S-locks visited entries
+        # 4. it does not need to create an S-lock for b=2, because it already
+        #    has it
+        # 5. it does however S-lock the row (2,2,2) in primary key
+        #    and sets new_rec_locks=2
+        # 6. only at the mysql layer we observe that c=1 does not hold,
+        #    so we discard this row
+        # 7. we see that new_rec_locks=2 so we think we have to unlock both:
+        #    secondary and primary entry
+        # 8. thus we remove the S-lock in index on column b!
+        SELECT a FROM t1 WHERE 2<=b AND b<=3 AND c=1 FOR SHARE;
+
+    --connection con2
+        BEGIN;
+        # this DELETE should block, because transaction from con1 believes that
+        # there is a row with b=2, which is the reason UPDATE has failed.
+        # However, as you can see this DELETE will be performed without
+        # problems, because con1 no longer holds an S-lock on b=2!
+        SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL con2_will_wait';
+        --send DELETE FROM t1 WHERE b=2
+
+    --connection con1
+        # If the code has a bug, then con2 will never enter a wait, and the next
+        # line will fail with a timeout.
+        SET DEBUG_SYNC = 'now WAIT_FOR con2_will_wait';
+        COMMIT;
+
+    --connection con2
+        --reap
+        COMMIT;
+
+    # Clean up:
+
+        --connection default
+        --disconnect con1
+        --disconnect con2
+
+        DROP TABLE t1;
+        SET DEBUG_SYNC = 'RESET';
+
+--echo ########################
+--echo #                      #
+--echo # End of Bug #27898384 #
+--echo #                      #
+--echo ########################
