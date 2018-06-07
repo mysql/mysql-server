@@ -527,7 +527,7 @@ class Cartesian_multilinestring : public Multilinestring {
   void push_back(Geometry &&g) override;
   bool empty() const override;
   std::size_t size() const override { return m_linestrings.size(); }
-  void resize(std::size_t count) { m_linestrings.resize(count); }
+  void resize(std::size_t count) override { m_linestrings.resize(count); }
   void clear() noexcept override { m_linestrings.clear(); }
 
   Cartesian_linestring &back() { return m_linestrings.back(); }
@@ -577,7 +577,7 @@ class Geographic_multilinestring : public Multilinestring {
   void push_back(Geometry &&g) override;
   bool empty() const override;
   std::size_t size() const override { return m_linestrings.size(); }
-  void resize(std::size_t count) { m_linestrings.resize(count); }
+  void resize(std::size_t count) override { m_linestrings.resize(count); }
   void clear() noexcept override { m_linestrings.clear(); }
 
   Geographic_linestring &back() { return m_linestrings.back(); }
