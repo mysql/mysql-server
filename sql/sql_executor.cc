@@ -3124,12 +3124,9 @@ ulonglong get_exact_record_count(QEP_TAB *qep_tab, uint table_count,
   ulonglong count = 1;
   QEP_TAB *qt;
 
-  for (uint i = 0; i < table_count - 1; i++) {
+  for (uint i = 0; i < table_count; i++) {
     ha_rows tmp = 0;
     qt = qep_tab + i;
-
-    // Proceed only when table has position in the join order.
-    if (!qt->position()) continue;
 
     if (qt->type() == JT_ALL || (qt->index() == qt->table()->s->primary_key &&
                                  qt->table()->file->primary_key_is_clustered()))
@@ -3153,7 +3150,8 @@ enum_nested_loop_state end_send_count(JOIN *join, QEP_TAB *qep_tab) {
   while ((item = it++)) {
     if (item->type() == Item::SUM_FUNC_ITEM &&
         (((Item_sum *)item))->sum_func() == Item_sum::COUNT_FUNC) {
-      ulonglong count = get_exact_record_count(qep_tab, join->tables, &error);
+      ulonglong count =
+          get_exact_record_count(qep_tab, join->primary_tables, &error);
       if (error) return NESTED_LOOP_ERROR;
 
       ((Item_sum_count *)item)->make_const((longlong)count);
