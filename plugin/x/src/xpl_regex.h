@@ -23,6 +23,8 @@
 #ifndef PLUGIN_X_SRC_XPL_REGEX_H_
 #define PLUGIN_X_SRC_XPL_REGEX_H_
 
+#include <memory>
+
 #include "unicode/regex.h"
 
 namespace xpl {
@@ -33,8 +35,18 @@ class Regex {
   bool match(const char *value) const;
 
  private:
-  mutable UErrorCode m_status;
-  mutable icu::RegexMatcher m_re;
+  UErrorCode m_status;
+  UParseError m_parse_error;
+  /* RegexPatter doesn't have public constructor
+   * that allow to initialize the object directly
+   * by the text patter. Only static method which
+   * returns an object pointer allows initialization
+   * text patter.
+   *
+   * We require here to have an smart-ptr/field
+   * instead a object/field.
+   */
+  std::unique_ptr<icu::RegexPattern> m_pattern;
 };
 }  // namespace xpl
 

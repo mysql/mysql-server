@@ -22,20 +22,43 @@
 
 #include "plugin/x/src/xpl_regex.h"
 
+#include <memory>
+
 #include "include/my_dbug.h"
 
 namespace xpl {
 
 Regex::Regex(const char *const pattern)
     : m_status{U_ZERO_ERROR},
-      m_re{icu::UnicodeString::fromUTF8(pattern), UREGEX_CASE_INSENSITIVE,
-           m_status} {
+      m_pattern{icu::RegexPattern::compile(
+          icu::UnicodeString::fromUTF8(pattern), UREGEX_CASE_INSENSITIVE,
+          m_parse_error, m_status)} {
   DBUG_ASSERT(U_SUCCESS(m_status));
 }
 
 bool xpl::Regex::match(const char *value) const {
-  return U_SUCCESS(m_status) &&
-         m_re.reset(icu::UnicodeString::fromUTF8(value)).find(m_status);
+  if (!U_SUCCESS(m_status)) return false;
+
+  UErrorCode match_status{U_ZERO_ERROR};
+
+  /* Initializing RegexMatcher object with RegexPattern
+   * can by done only by calling an RegexPattern method
+   * that returns RegexMatcher pointer.
+   *
+   * RegexMatcher is not reentrant thus we need create an
+   * instance per thread or like in current solution,
+   * instance per xpl::Regex::match call.
+   *
+   * Other possibility would be to create RegexMatcher on stack
+   * and parse the text patter each time that xpl::Regex::match
+   * is called.
+   */
+  std::unique_ptr<icu::RegexMatcher> regexp{
+      m_pattern->matcher(icu::UnicodeString::fromUTF8(value), match_status)};
+
+  if (!U_SUCCESS(match_status)) return false;
+
+  return regexp->find();
 }
 
 }  // namespace xpl
