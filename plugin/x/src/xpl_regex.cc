@@ -53,8 +53,9 @@ bool xpl::Regex::match(const char *value) const {
    * and parse the text patter each time that xpl::Regex::match
    * is called.
    */
+  UnicodeString value_as_utf8{icu::UnicodeString::fromUTF8(value)};
   std::unique_ptr<icu::RegexMatcher> regexp{
-      m_pattern->matcher(icu::UnicodeString::fromUTF8(value), match_status)};
+      m_pattern->matcher(value_as_utf8, match_status)};
 
   if (!U_SUCCESS(match_status)) return false;
 
