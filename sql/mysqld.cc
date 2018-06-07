@@ -3852,8 +3852,9 @@ static int init_server_components()
     */
     log_error_dest= errorlog_filename_buff;
 
-    if (open_error_log(errorlog_filename_buff))
+    if (open_error_log(errorlog_filename_buff, false))
       unireg_abort(MYSQLD_ABORT_EXIT);
+
 #ifdef _WIN32
     FreeConsole();        // Remove window
 #endif

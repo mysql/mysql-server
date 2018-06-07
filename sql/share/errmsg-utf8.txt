@@ -7771,6 +7771,9 @@ WARN_DEPRECATED_MAXDB_SQL_MODE_FOR_TIMESTAMP
 ER_XA_REPLICATION_FILTERS
   eng "The use of replication filters with XA transactions is not supported, and can lead to an undefined state in the replication slave."
 
+ER_CANT_OPEN_ERROR_LOG
+  eng "Could not open file '%s' for error logging%s%s"
+
 #
 #  End of 5.7 error messages.
 #
