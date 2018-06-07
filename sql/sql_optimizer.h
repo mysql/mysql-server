@@ -446,7 +446,13 @@ class JOIN {
 
   ROLLUP rollup;           ///< Used with rollup
   bool implicit_grouping;  ///< True if aggregated but no GROUP BY
-  bool select_distinct;    ///< Set if SELECT DISTINCT
+
+  /**
+    At construction time, set if SELECT DISTINCT. May be reset to false
+    later, when we set up a temporary table operation that deduplicates for us.
+   */
+  bool select_distinct;
+
   /**
     If we have the GROUP BY statement in the query,
     but the group_list was emptied by optimizer, this
