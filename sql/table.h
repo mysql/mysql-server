@@ -128,12 +128,6 @@ bool assert_ref_count_is_locked(const TABLE_SHARE *);
   memcpy((A)->record[0], (A)->B, (size_t)(A)->s->reclength)
 #define cmp_record(A, B) \
   memcmp((A)->record[0], (A)->B, (size_t)(A)->s->reclength)
-#define empty_record(A)                                 \
-  {                                                     \
-    restore_record((A), s->default_values);             \
-    if ((A)->s->null_bytes > 0)                         \
-      memset((A)->null_flags, 255, (A)->s->null_bytes); \
-  }
 
 #define tmp_file_prefix "#sql" /**< Prefix for tmp tables */
 #define tmp_file_prefix_length 4
@@ -2078,6 +2072,12 @@ struct TABLE {
   */
   bool should_binlog_drop_if_temp(void) const;
 };
+
+static inline void empty_record(TABLE *table) {
+  restore_record(table, s->default_values);
+  if (table->s->null_bytes > 0)
+    memset(table->null_flags, 255, table->s->null_bytes);
+}
 
 enum enum_schema_table_state {
   NOT_PROCESSED = 0,
