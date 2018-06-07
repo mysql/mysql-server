@@ -2666,13 +2666,11 @@ int ha_innopart::set_dd_discard_attribute(dd::Table *table_def, bool discard) {
   dd::Properties &p = table_def->table().se_private_data();
   p.set_bool(dd_table_key_strings[DD_TABLE_DISCARD], discard);
 
-  /* Set new table id of latest partition for dd columns when
-  it's importing tablespace. */
+  /* Set new table id of the first partition to dd::Column::se_private_data */
   if (!discard) {
-    table = m_part_share->get_table_part(m_tot_parts - 1);
-    dd::Partition *dd_part = table_def->leaf_partitions()->back();
+    table = m_part_share->get_table_part(0);
 
-    for (auto dd_column : *dd_part->table().columns()) {
+    for (auto dd_column : *table_def->columns()) {
       dd_column->se_private_data().set_uint64(dd_index_key_strings[DD_TABLE_ID],
                                               table->id);
     }

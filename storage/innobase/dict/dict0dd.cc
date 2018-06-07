@@ -1515,6 +1515,18 @@ void dd_copy_table_columns(dd::Table &new_table, const dd::Table &old_table) {
   }
 }
 
+void dd_part_adjust_table_id(dd::Table *new_table) {
+  ut_ad(dd_table_is_partitioned(*new_table));
+
+  auto part = new_table->leaf_partitions()->begin();
+  table_id_t table_id = (*part)->se_private_id();
+
+  for (auto dd_column : *new_table->table().columns()) {
+    dd_column->se_private_data().set_uint64(dd_index_key_strings[DD_TABLE_ID],
+                                            table_id);
+  }
+}
+
 /** Clear the instant ADD COLUMN information of a table
 @param[in,out]	dd_table	dd::Table */
 void dd_clear_instant_table(dd::Table &dd_table) {
@@ -1987,6 +1999,17 @@ template void dd_set_table_options<dd::Partition>(dd::Partition *,
 
 void dd_update_v_cols(dd::Table *dd_table, table_id_t id) {
   for (auto dd_column : *dd_table->columns()) {
+#ifdef UNIV_DEBUG
+    if (dd_column->se_private_data().exists(
+            dd_index_key_strings[DD_TABLE_ID])) {
+      table_id_t table_id;
+      dd_column->se_private_data().get_uint64(
+          dd_index_key_strings[DD_TABLE_ID],
+          reinterpret_cast<uint64 *>(&table_id));
+      ut_ad(table_id == id);
+    }
+#endif /* UNIV_DEBUG */
+
     if (!dd_column->is_virtual()) {
       continue;
     }

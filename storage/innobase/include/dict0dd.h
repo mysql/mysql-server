@@ -488,6 +488,12 @@ inline void dd_copy_table(dd::Table &new_table, const dd::Table &old_table) {
   }
 }
 
+/** Adjust TABLE_ID for partitioned table after ALTER TABLE ... PARTITION.
+This makes sure that the TABLE_ID stored in dd::Column::se_private_data
+is correct if the first partition got changed
+@param[in,out]	new_table	New dd::Table */
+void dd_part_adjust_table_id(dd::Table *new_table);
+
 /** Add column default values for new instantly added columns
 @param[in]	old_table	MySQL table as it is before the ALTER operation
 @param[in]	altered_table	MySQL table that is being altered

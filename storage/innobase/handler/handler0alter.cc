@@ -10200,6 +10200,7 @@ bool ha_innopart::commit_inplace_alter_partition(
       }
 
       dd_copy_table(*new_dd_tab, *old_dd_tab);
+      dd_part_adjust_table_id(new_dd_tab);
       if (!dd_table_part_has_instant_cols(*new_dd_tab) &&
           dd_table_has_instant_cols(*new_dd_tab)) {
         dd_clear_instant_table(*new_dd_tab);
