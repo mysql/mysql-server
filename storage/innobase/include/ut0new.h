@@ -528,10 +528,6 @@ class ut_allocator {
         m_oom_fatal(other.is_oom_fatal()) {
   }
 
-  /* Assignment operator, not used, thus deleted. */
-  template <class U>
-  void operator=(const ut_allocator<U> &) = delete;
-
   /** When out of memory (OOM) happens, report error and do not
   make it fatal.
   @return a reference to the allocator. */
@@ -885,10 +881,15 @@ class ut_allocator {
   void deallocate_trace(const ut_new_pfx_t *pfx) {
     PSI_MEMORY_CALL(memory_free)(pfx->m_key, pfx->m_size, pfx->m_owner);
   }
+#endif /* UNIV_PFS_MEMORY */
 
+  /* Assignment operator, not used, thus disabled (private. */
+  template <class U>
+  void operator=(const ut_allocator<U> &);
+
+#ifdef UNIV_PFS_MEMORY
   /** Performance schema key. */
-  const PSI_memory_key m_key;
-
+  PSI_memory_key m_key;
 #endif /* UNIV_PFS_MEMORY */
 
   /** A flag to indicate whether out of memory (OOM) error is considered
