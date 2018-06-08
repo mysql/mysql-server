@@ -130,6 +130,8 @@ check.
 If you make a change in this module make sure that no codepath is
 introduced where a call to log_free_check() is bypassed. */
 
+static_assert(DATA_TRX_ID + 1 == DATA_ROLL_PTR, "DATA_TRX_ID invalid value!");
+
 /** Checks if an update vector changes some of the first ordering fields of an
  index record. This is only used in foreign key checks and we can assume
  that index does not contain column prefixes.
@@ -317,9 +319,6 @@ void row_upd_rec_sys_fields_in_recovery(
 
     field = const_cast<byte *>(rec_get_nth_field(rec, offsets, pos, &len));
     ut_ad(len == DATA_TRX_ID_LEN);
-#if DATA_TRX_ID + 1 != DATA_ROLL_PTR
-#error "DATA_TRX_ID + 1 != DATA_ROLL_PTR"
-#endif
     trx_write_trx_id(field, trx_id);
     trx_write_roll_ptr(field + DATA_TRX_ID_LEN, roll_ptr);
   }

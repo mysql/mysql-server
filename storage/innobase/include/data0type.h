@@ -173,11 +173,17 @@ be less than 256 */
 #define DATA_ROW_ID 0     /* row id: a 48-bit integer */
 #define DATA_ROW_ID_LEN 6 /* stored length for row id */
 
-#define DATA_TRX_ID 1 /* transaction id: 6 bytes */
-#define DATA_TRX_ID_LEN 6
+/** Transaction id: 6 bytes */
+constexpr size_t DATA_TRX_ID = 1;
 
-#define DATA_ROLL_PTR 2 /* rollback data pointer: 7 bytes */
-#define DATA_ROLL_PTR_LEN 7
+/** Transaction ID type size in bytes. */
+constexpr size_t DATA_TRX_ID_LEN = 6;
+
+/** Rollback data pointer: 7 bytes */
+constexpr size_t DATA_ROLL_PTR = 2;
+
+/** Rollback data pointer type size in bytes. */
+constexpr size_t DATA_ROLL_PTR_LEN = 7;
 
 #define DATA_N_SYS_COLS 3 /* number of system columns defined above */
 
@@ -513,6 +519,14 @@ struct dtype_t {
                             mbminlen=DATA_MBMINLEN(mbminmaxlen);
                             mbmaxlen=DATA_MBMINLEN(mbminmaxlen) */
 };
+
+static_assert(TRUE == 1, "TRUE != 1");
+
+static_assert(DATA_TRX_ID_LEN == 6, "DATA_TRX_ID_LEN != 6!");
+
+static_assert(DATA_ROLL_PTR_LEN == 7, "DATA_PTR_LEN != 7!");
+
+static_assert(DATA_TRX_ID + 1 == DATA_ROLL_PTR, "DATA_TRX_ID value invalid!");
 
 #include "data0type.ic"
 

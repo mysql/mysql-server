@@ -122,6 +122,13 @@ extern uint ibuf_debug;
 #include "ut0new.h"
 #endif /* !UNIV_HOTBACKUP */
 
+static_assert(DATA_ROW_ID == 0, "DATA_ROW_ID != 0");
+static_assert(DATA_TRX_ID == 1, "DATA_TRX_ID != 1");
+static_assert(DATA_ROLL_PTR == 2, "DATA_ROLL_PTR != 2");
+static_assert(DATA_N_SYS_COLS == 3, "DATA_N_SYS_COLS != 3");
+static_assert(DATA_TRX_ID_LEN == 6, "DATA_TRX_ID_LEN != 6");
+static_assert(DATA_ITT_N_SYS_COLS == 2, "DATA_ITT_N_SYS_COLS != 2");
+
 /** the dictionary system */
 dict_sys_t *dict_sys = NULL;
 
@@ -1141,31 +1148,15 @@ void dict_table_add_system_columns(dict_table_t *table, /*!< in/out: table */
   dict_mem_table_add_col(table, heap, "DB_ROW_ID", DATA_SYS,
                          DATA_ROW_ID | DATA_NOT_NULL, DATA_ROW_ID_LEN);
 
-#if (DATA_ITT_N_SYS_COLS != 2)
-#error "DATA_ITT_N_SYS_COLS != 2"
-#endif
-
-#if DATA_ROW_ID != 0
-#error "DATA_ROW_ID != 0"
-#endif
   dict_mem_table_add_col(table, heap, "DB_TRX_ID", DATA_SYS,
                          DATA_TRX_ID | DATA_NOT_NULL, DATA_TRX_ID_LEN);
-#if DATA_TRX_ID != 1
-#error "DATA_TRX_ID != 1"
-#endif
 
   if (!table->is_intrinsic()) {
     dict_mem_table_add_col(table, heap, "DB_ROLL_PTR", DATA_SYS,
                            DATA_ROLL_PTR | DATA_NOT_NULL, DATA_ROLL_PTR_LEN);
-#if DATA_ROLL_PTR != 2
-#error "DATA_ROLL_PTR != 2"
-#endif
 
     /* This check reminds that if a new system column is added to
     the program, it should be dealt with here */
-#if DATA_N_SYS_COLS != 3
-#error "DATA_N_SYS_COLS != 3"
-#endif
   }
 }
 
@@ -2900,16 +2891,6 @@ static dict_index_t *dict_index_build_internal_clust(
   /* Add system columns, trx id first */
 
   trx_id_pos = new_index->n_def;
-
-#if DATA_ROW_ID != 0
-#error "DATA_ROW_ID != 0"
-#endif
-#if DATA_TRX_ID != 1
-#error "DATA_TRX_ID != 1"
-#endif
-#if DATA_ROLL_PTR != 2
-#error "DATA_ROLL_PTR != 2"
-#endif
 
   if (!dict_index_is_unique(index)) {
     dict_index_add_col(new_index, table, table->get_sys_col(DATA_ROW_ID), 0,

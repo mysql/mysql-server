@@ -186,9 +186,6 @@ void row_upd_rec_sys_fields(
       offset = row_get_trx_id_offset(index, offsets);
     }
 
-#if DATA_TRX_ID + 1 != DATA_ROLL_PTR
-#error "DATA_TRX_ID + 1 != DATA_ROLL_PTR"
-#endif
     /* During IMPORT the trx id in the record can be in the
     future, if the .ibd file is being imported from another
     instance. During IMPORT roll_ptr will be 0. */

@@ -46,9 +46,6 @@ inline roll_ptr_t trx_undo_build_roll_ptr(ibool is_insert, space_id_t space_id,
                                           page_no_t page_no, ulint offset) {
   roll_ptr_t roll_ptr;
   ulint id;
-#if DATA_ROLL_PTR_LEN != 7
-#error "DATA_ROLL_PTR_LEN != 7"
-#endif
 
   ut_ad(is_insert == 0 || is_insert == 1);
   ut_ad(offset < 65536);
@@ -69,12 +66,6 @@ inline void trx_undo_decode_roll_ptr(
     ulint *offset)       /*!< out: offset of the undo
                          entry within page */
 {
-#if DATA_ROLL_PTR_LEN != 7
-#error "DATA_ROLL_PTR_LEN != 7"
-#endif
-#if TRUE != 1
-#error "TRUE != 1"
-#endif
   ut_ad(roll_ptr < (1ULL << 56));
   *offset = (ulint)roll_ptr & 0xFFFF;
   roll_ptr >>= 16;
@@ -90,12 +81,6 @@ inline void trx_undo_decode_roll_ptr(
 UNIV_INLINE
 ibool trx_undo_roll_ptr_is_insert(roll_ptr_t roll_ptr) /*!< in: roll pointer */
 {
-#if DATA_ROLL_PTR_LEN != 7
-#error "DATA_ROLL_PTR_LEN != 7"
-#endif
-#if TRUE != 1
-#error "TRUE != 1"
-#endif
   ut_ad(roll_ptr < (1ULL << 56));
   return ((ibool)(roll_ptr >> 55));
 }
@@ -106,9 +91,6 @@ UNIV_INLINE
 bool trx_undo_trx_id_is_insert(
     const byte *trx_id) /*!< in: DB_TRX_ID, followed by DB_ROLL_PTR */
 {
-#if DATA_TRX_ID + 1 != DATA_ROLL_PTR
-#error
-#endif
   return (static_cast<bool>(trx_id[DATA_TRX_ID_LEN] >> 7));
 }
 #endif /* !UNIV_HOTBACKUP */
@@ -121,9 +103,6 @@ void trx_write_roll_ptr(byte *ptr,           /*!< in: pointer to memory where
                                              written */
                         roll_ptr_t roll_ptr) /*!< in: roll ptr */
 {
-#if DATA_ROLL_PTR_LEN != 7
-#error "DATA_ROLL_PTR_LEN != 7"
-#endif
   mach_write_to_7(ptr, roll_ptr);
 }
 
@@ -135,9 +114,6 @@ UNIV_INLINE
 roll_ptr_t trx_read_roll_ptr(
     const byte *ptr) /*!< in: pointer to memory from where to read */
 {
-#if DATA_ROLL_PTR_LEN != 7
-#error "DATA_ROLL_PTR_LEN != 7"
-#endif
   return (mach_read_from_7(ptr));
 }
 
