@@ -2256,11 +2256,30 @@ dberr_t Fil_shard::get_file_size(fil_node_t *file, bool read_only_mode) {
   ulint min_size = expected_size * page_size.physical();
 
   if (size_bytes < min_size) {
-    ib::error(ER_IB_MSG_269)
-        << "The size of tablespace file " << file->name << " is only "
-        << size_bytes << ", should be at least " << min_size << "!";
+    if (has_sdi) {
+      /** Add some tolerance when the tablespace is upgraded. If an empty
+      general tablespace is created in 5.7, and then upgraded to 8.0, then
+      its size changes from FIL_IBD_FILE_INITIAL_SIZE_5_7 pages to
+      FIL_IBD_FILE_INITIAL_SIZE-1. */
 
-    ut_error;
+      ut_ad(expected_size == FIL_IBD_FILE_INITIAL_SIZE);
+      ulint upgrade_size = (expected_size - 1) * page_size.physical();
+
+      if (size_bytes < upgrade_size) {
+        ib::error(ER_IB_MSG_269)
+            << "The size of tablespace file " << file->name << " is only "
+            << size_bytes << ", should be at least " << upgrade_size << "!";
+
+        ut_error;
+      }
+
+    } else {
+      ib::error(ER_IB_MSG_269)
+          << "The size of tablespace file " << file->name << " is only "
+          << size_bytes << ", should be at least " << min_size << "!";
+
+      ut_error;
+    }
   }
 
   if (space_id != space->id) {
