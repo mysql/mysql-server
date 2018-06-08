@@ -801,9 +801,7 @@ bool os_has_said_disk_full = false;
 /** Default Zip compression level */
 extern uint page_zip_level;
 
-#if DATA_TRX_ID_LEN > 6
-#error "COMPRESSION_ALGORITHM will not fit"
-#endif /* DATA_TRX_ID_LEN */
+static_assert(DATA_TRX_ID_LEN <= 6, "COMPRESSION_ALGORITHM will not fit!");
 
 /** Validates the consistency of the aio system.
 @return true if ok */

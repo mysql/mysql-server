@@ -163,9 +163,6 @@ UNIV_INLINE
 void trx_write_trx_id(byte *ptr,   /*!< in: pointer to memory where written */
                       trx_id_t id) /*!< in: id */
 {
-#if DATA_TRX_ID_LEN != 6
-#error "DATA_TRX_ID_LEN != 6"
-#endif
   ut_ad(id > 0);
   mach_write_to_6(ptr, id);
 }
@@ -179,9 +176,6 @@ UNIV_INLINE
 trx_id_t trx_read_trx_id(
     const byte *ptr) /*!< in: pointer to memory from where to read */
 {
-#if DATA_TRX_ID_LEN != 6
-#error "DATA_TRX_ID_LEN != 6"
-#endif
   return (mach_read_from_6(ptr));
 }
 
@@ -351,29 +345,26 @@ trx_id_t trx_sys_get_new_trx_id() {
   return (trx_sys->max_trx_id++);
 }
 
-/** Determines the maximum transaction id.
- @return maximum currently allocated trx id; will be stale after the
- next call to trx_sys_get_new_trx_id() */
-UNIV_INLINE
-trx_id_t trx_sys_get_max_trx_id(void) {
+inline trx_id_t trx_sys_get_max_trx_id() {
   ut_ad(!trx_sys_mutex_own());
 
-#if UNIV_WORD_SIZE < DATA_TRX_ID_LEN
-  /* Avoid torn reads. */
+  if (UNIV_WORD_SIZE < DATA_TRX_ID_LEN) {
+    /* Avoid torn reads. */
 
-  trx_sys_mutex_enter();
+    trx_sys_mutex_enter();
 
-  trx_id_t max_trx_id = trx_sys->max_trx_id;
+    trx_id_t max_trx_id = trx_sys->max_trx_id;
 
-  trx_sys_mutex_exit();
+    trx_sys_mutex_exit();
 
-  return (max_trx_id);
-#else
-  /* Perform a dirty read. Callers should be prepared for stale
-  values, and we know that the value fits in a machine word, so
-  that it will be read and written atomically. */
-  return (trx_sys->max_trx_id);
-#endif /* UNIV_WORD_SIZE < DATA_TRX_ID_LEN */
+    return (max_trx_id);
+  } else {
+    /* Perform a dirty read. Callers should be prepared for stale
+    values, and we know that the value fits in a machine word, so
+    that it will be read and written atomically. */
+
+    return (trx_sys->max_trx_id);
+  }
 }
 
 /** Determine if there are incomplete transactions in the system.
