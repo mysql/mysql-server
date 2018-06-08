@@ -458,7 +458,8 @@ ENDIF()
 
 OPTION(WITH_UBSAN "Enable undefined behavior sanitizer" OFF)
 IF(WITH_UBSAN)
-  MY_SANITIZER_CHECK("-fsanitize=undefined" FALSE WITH_UBSAN_OK)
+  # TRUE: basic optimizations, but disable inlining for stack trace readability.
+  MY_SANITIZER_CHECK("-fsanitize=undefined -fno-inline " TRUE WITH_UBSAN_OK)
   IF(NOT WITH_UBSAN_OK)
     MESSAGE(FATAL_ERROR
             "Do not know how to enable undefined behavior sanitizer")
