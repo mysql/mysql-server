@@ -1875,19 +1875,6 @@ double Item_sum_sum::val_real() {
 }
 
 String *Item_sum_sum::val_str(String *str) {
-  if (m_is_window_function) {
-    my_decimal tmp1;
-    DBUG_ASSERT(hybrid_type == DECIMAL_RESULT);
-    my_decimal *const argd = Item_sum_sum::val_decimal(&tmp1);
-
-    if (null_value) return nullptr;
-
-    my_decimal tmp2;
-    my_decimal_round(E_DEC_FATAL_ERROR, argd, decimals, false, &tmp2);
-    my_decimal2string(E_DEC_FATAL_ERROR, &tmp2, 0, 0, 0, str);
-    return str;
-  }
-
   if (aggr) aggr->endup();
   if (hybrid_type == DECIMAL_RESULT) return val_string_from_decimal(str);
   return val_string_from_real(str);
@@ -2243,19 +2230,6 @@ my_decimal *Item_sum_avg::val_decimal(my_decimal *val) {
 }
 
 String *Item_sum_avg::val_str(String *str) {
-  if (m_is_window_function) {
-    my_decimal tmp1;
-    DBUG_ASSERT(hybrid_type == DECIMAL_RESULT);
-    my_decimal *const argd = Item_sum_avg::val_decimal(&tmp1);
-
-    if (null_value) return nullptr;
-
-    my_decimal tmp2;
-    my_decimal_round(E_DEC_FATAL_ERROR, argd, decimals, false, &tmp2);
-    my_decimal2string(E_DEC_FATAL_ERROR, &tmp2, 0, 0, 0, str);
-    return str;
-  }
-
   if (aggr) aggr->endup();
   if (hybrid_type == DECIMAL_RESULT) return val_string_from_decimal(str);
   return val_string_from_real(str);
