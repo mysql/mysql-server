@@ -905,8 +905,7 @@ void log_checkpointer(log_t *log_ptr) {
 
 /* @{ */
 
-uint64_t log_calc_safe_concurrency_margin(const log_t &log,
-                                          int thread_concurrency) {
+static bool log_calc_concurrency_margin(log_t &log) {
   ut_ad(log_writer_mutex_own(log));
 
   uint64_t concurrency_margin;
@@ -914,48 +913,39 @@ uint64_t log_calc_safe_concurrency_margin(const log_t &log,
   /* Single thread, which keeps latches of dirty pages, that block
   the checkpoint to advance, will have to finish writes to redo.
   It won't write more than LOG_CHECKPOINT_FREE_PER_THREAD, before
-  it checks, if it should wait for the checkpoint (log_free_check()) */
+  it checks, if it should wait for the checkpoint (log_free_check()). */
   concurrency_margin = LOG_CHECKPOINT_FREE_PER_THREAD * UNIV_PAGE_SIZE;
 
   /* We will have at most that many threads, that need to release
   the latches. Note, that each thread will notice, that checkpoint
   is required and will wait until it's done in log_free_check(). */
-  concurrency_margin *= 10 + thread_concurrency;
+  concurrency_margin *= 10 + srv_thread_concurrency;
 
-  /* Add extra safety */
+  /* Add constant extra safety */
   concurrency_margin += LOG_CHECKPOINT_EXTRA_FREE * UNIV_PAGE_SIZE;
 
-  return (concurrency_margin);
-}
+  /* Add extra safety calculated from redo-size. It is 5% of 90%
+  of the real capacity (lsn_capacity is 90% of the real capacity). */
+  concurrency_margin += ut_uint64_align_down(
+      static_cast<uint64_t>(0.05 * log.lsn_capacity_for_writer),
+      OS_FILE_LOG_BLOCK_SIZE);
 
-bool log_calc_concurrency_margin(const log_t &log, int thread_concurrency,
-                                 uint64_t &concurrency_margin) {
-  ut_ad(log_writer_mutex_own(log));
-
-  concurrency_margin =
-      log_calc_safe_concurrency_margin(log, thread_concurrency);
-
-  if (concurrency_margin > log.lsn_capacity / 2) {
-    concurrency_margin = log.lsn_capacity / 2;
-
-    concurrency_margin =
-        ut_uint64_align_up(concurrency_margin, OS_FILE_LOG_BLOCK_SIZE);
-
-    return (false);
+  bool success;
+  if (concurrency_margin > log.max_concurrency_margin) {
+    concurrency_margin = log.max_concurrency_margin;
+    success = false;
+  } else {
+    success = true;
   }
 
-  return (true);
+  MONITOR_SET(MONITOR_LOG_CONCURRENCY_MARGIN, concurrency_margin);
+  log.concurrency_margin.store(concurrency_margin);
+  return success;
 }
 
 void log_update_limits(log_t &log) {
-  const uint32_t extra_free = 2 * OS_FILE_LOG_BLOCK_SIZE;
-
-  const lsn_t chkp_lsn = log.last_checkpoint_lsn.load();
-
-  const sn_t sn_capacity = log.sn_capacity;
-
-  const sn_t sn_file_limit =
-      log_translate_lsn_to_sn(chkp_lsn) + sn_capacity - extra_free;
+  const sn_t sn_file_limit = log_translate_lsn_to_sn(
+      log.last_checkpoint_lsn.load() + log.lsn_capacity_for_free_check);
 
   LOG_SYNC_POINT("log_update_limits_middle_1");
 
@@ -963,30 +953,26 @@ void log_update_limits(log_t &log) {
 
   LOG_SYNC_POINT("log_update_limits_middle_2");
 
-  const sn_t buf_size = log.buf_size_sn.load();
-
-  const sn_t sn_buf_limit =
-      log_translate_lsn_to_sn(write_lsn) + buf_size - extra_free;
-
-  const sn_t limit_for_end = sn_buf_limit;
-
-  const sn_t limit_for_start = std::min(sn_file_limit, sn_buf_limit);
-
-  const sn_t concurrency_margin = log.concurrency_safe_free_margin;
-
-  const sn_t dict_persist_margin = log.dict_persist_margin.load();
-
-  const sn_t margins = concurrency_margin + dict_persist_margin;
+  const sn_t limit_for_end = log_translate_lsn_to_sn(write_lsn) +
+                             log.buf_size_sn.load() -
+                             2 * OS_FILE_LOG_BLOCK_SIZE;
 
   log.sn_limit_for_end.store(limit_for_end);
 
   LOG_SYNC_POINT("log_update_limits_middle_3");
 
+  sn_t limit_for_start = std::min(sn_file_limit, limit_for_end);
+
+  sn_t margins = 0;
+  margins += log.concurrency_margin.load();
+  margins += log.dict_persist_margin.load();
+
   if (margins >= limit_for_start) {
-    log.sn_limit_for_start.store(0);
+    limit_for_start = 0;
   } else {
-    log.sn_limit_for_start.store(limit_for_start - margins);
+    limit_for_start -= margins;
   }
+  log.sn_limit_for_start.store(limit_for_start);
 
   log.dict_suggest_checkpoint_lsn = 0;
 }
@@ -994,34 +980,41 @@ void log_update_limits(log_t &log) {
 bool log_calc_max_ages(log_t &log) {
   ut_ad(log_writer_mutex_own(log));
 
-  log.lsn_capacity = log.files_real_capacity - LOG_FILE_HDR_SIZE * log.n_files;
+  log.lsn_real_capacity =
+      log.files_real_capacity - LOG_FILE_HDR_SIZE * log.n_files;
 
-  /* We better have this extra safety if we allow to overwrite.. */
-  log.lsn_capacity = static_cast<uint64_t>(log.lsn_capacity * 0.9);
+  /* Add safety margin, disallowed to be used (never, ever). */
+  const lsn_t safety_margin =
+      std::min(static_cast<lsn_t>(0.1 * log.lsn_real_capacity),
+               static_cast<lsn_t>(256 * LOG_CHECKPOINT_FREE_PER_THREAD *
+                                  UNIV_PAGE_SIZE));
 
-  log.lsn_capacity =
-      ut_uint64_align_down(log.lsn_capacity, OS_FILE_LOG_BLOCK_SIZE);
+  ut_a(log.lsn_real_capacity > safety_margin + OS_FILE_LOG_BLOCK_SIZE * 8);
 
-  log.sn_capacity =
-      log.lsn_capacity / OS_FILE_LOG_BLOCK_SIZE * LOG_BLOCK_DATA_SIZE;
+  log.lsn_capacity_for_writer = ut_uint64_align_down(
+      log.lsn_real_capacity - safety_margin, OS_FILE_LOG_BLOCK_SIZE);
 
-  /* For each OS thread we must reserve so much free space in the
-  log, that it can accommodate the log entries produced by single
-  query steps: running out of free log space is a serious system
-  error which requires rebooting the database. */
-  uint64_t concurrency_margin;
+  /* Extra margin used for emergency increase of the concurrency_margin. */
+  log.extra_margin = ut_uint64_align_down(
+      static_cast<lsn_t>(log.lsn_capacity_for_writer * 0.05),
+      OS_FILE_LOG_BLOCK_SIZE);
 
-  const bool success = log_calc_concurrency_margin(log, srv_thread_concurrency,
-                                                   concurrency_margin);
+  /* Users stop in log-free-check call before they enter the extra_margin,
+  the log_writer can still go forward through the extra_margin, triggering
+  the emergency increase of concurrency_margin mean while. */
+  log.lsn_capacity_for_free_check =
+      log.lsn_capacity_for_writer - log.extra_margin;
 
-  uint64_t limit = log.lsn_capacity - concurrency_margin;
+  log.max_concurrency_margin = ut_uint64_align_up(
+      log.lsn_capacity_for_writer / 2, OS_FILE_LOG_BLOCK_SIZE);
 
-  /* Add still some extra safety */
-  limit = static_cast<uint64_t>(limit * 0.9);
+  const bool success = log_calc_concurrency_margin(log);
 
-  limit = ut_uint64_align_down(limit, OS_FILE_LOG_BLOCK_SIZE);
+  log.concurrency_margin_ok = true;
 
-  log.max_checkpoint_age = limit;
+  /* Set limits used in flushing and checkpointing mechanism. */
+
+  const lsn_t limit = log.lsn_capacity_for_free_check;
 
   log.max_modified_age_sync = limit - limit / LOG_POOL_PREFLUSH_RATIO_SYNC;
 
@@ -1030,9 +1023,20 @@ bool log_calc_max_ages(log_t &log) {
   log.max_checkpoint_age_async =
       limit - limit / LOG_POOL_CHECKPOINT_RATIO_ASYNC;
 
-  log.concurrency_safe_free_margin = concurrency_margin;
+  return success;
+}
 
-  return (success);
+void log_increase_concurrency_margin(log_t &log) {
+  /* Increase margin by 20% but do not exceed maximum allowed size. */
+  const auto new_size =
+      std::min(log.max_concurrency_margin,
+               ut_uint64_align_up(
+                   static_cast<lsn_t>(log.concurrency_margin.load() * 1.2),
+                   OS_FILE_LOG_BLOCK_SIZE));
+
+  log.concurrency_margin.store(new_size);
+
+  MONITOR_SET(MONITOR_LOG_CONCURRENCY_MARGIN, new_size);
 }
 
   /* @} */

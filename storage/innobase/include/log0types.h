@@ -208,9 +208,8 @@ struct alignas(INNOBASE_CACHE_LINE_SIZE) log_t {
   Protected by: writer_mutex (writes). */
   atomic_sn_t sn_limit_for_start;
 
-  /** Margin used in calculation of @see sn_limit_for_start.
-  Protected by: writer_mutex. */
-  sn_t concurrency_safe_free_margin;
+  /** Margin used in calculation of @see sn_limit_for_start. */
+  atomic_sn_t concurrency_margin;
 
   atomic_sn_t dict_persist_margin;
 
@@ -348,6 +347,31 @@ struct alignas(INNOBASE_CACHE_LINE_SIZE) log_t {
   including headers of the log files. */
   uint64_t files_real_capacity;
 
+  /** Capacity of redo log files for log writer thread. The log writer
+  does not to exceed this value. If space is not reclaimed after 1 sec
+  wait, it writes only as much as can fit the free space or crashes if
+  there is no free space at all (checkpoint did not advance for 1 sec). */
+  lsn_t lsn_capacity_for_writer;
+
+  /** When this margin is being used, the log writer decides to increase
+  the concurrency_margin to stop new incoming mini transactions earlier,
+  on bigger margin. This is used to provide adaptive concurrency margin
+  calculation, which we need because we might have unlimited thread
+  concurrency setting or we could miss some log_free_check() calls.
+  It is just best effort to help getting out of the troubles. */
+  lsn_t extra_margin;
+
+  /** True if we haven't increased the concurrency_margin since we entered
+  (lsn_capacity_for_margin_inc..lsn_capacity_for_writer] range. This allows
+  to increase the margin only once per issue and wait until the issue becomes
+  resolved, still having an option to increase margin even more, if new issue
+  comes later. */
+  bool concurrency_margin_ok;
+
+  /** Maximum allowed concurrency_margin. We never set higher, even when we
+  increase the concurrency_margin in the adaptive solution. */
+  lsn_t max_concurrency_margin;
+
 #ifndef UNIV_HOTBACKUP
   /** Mutex which can be used to pause log writer thread. */
   ib_mutex_t writer_mutex;
@@ -460,10 +484,8 @@ struct alignas(INNOBASE_CACHE_LINE_SIZE) log_t {
   that is including bytes for headers and footers of log blocks. */
   size_t buf_size;
 
-  /** Capacity of the log files in total, expressed in number of
-  data bytes, that is excluding bytes for headers and footers of
-  log blocks. */
-  lsn_t sn_capacity;
+  /** Capacity of the log files available for log_free_check(). */
+  lsn_t lsn_capacity_for_free_check;
 
   /** Lsn from which recovery has been started. */
   lsn_t recovered_lsn;
@@ -519,9 +541,8 @@ struct alignas(INNOBASE_CACHE_LINE_SIZE) log_t {
 
   /** Capacity of log files excluding headers of the log files.
   If the checkpoint age exceeds this, it is a serious error,
-  because it is possible we will then overwrite log and spoil
-  crash recovery. */
-  lsn_t lsn_capacity;
+  because in such case we have already overwritten redo log. */
+  lsn_t lsn_real_capacity;
 
   /** When the oldest dirty page age exceeds this value, we start
   an asynchronous preflush of dirty pages. */
@@ -534,10 +555,6 @@ struct alignas(INNOBASE_CACHE_LINE_SIZE) log_t {
   /** When checkpoint age exceeds this value, we force writing next
   checkpoint (requesting the log checkpointer thread to do it). */
   lsn_t max_checkpoint_age_async;
-
-  /** When checkpoint age exceeds this value, user thread needs
-  to wait. The check is performed when a new query step is started. */
-  lsn_t max_checkpoint_age;
 
   /** If should perform checkpoints every innodb_log_checkpoint_every ms.
   Disabled during startup / shutdown. */

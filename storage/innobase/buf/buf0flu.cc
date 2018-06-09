@@ -2290,9 +2290,11 @@ static ulint af_get_pct_for_dirty() {
  @return percent of io_capacity to flush to manage redo space */
 static ulint af_get_pct_for_lsn(lsn_t age) /*!< in: current age of LSN. */
 {
+  const lsn_t redo_capacity = log_sys->lsn_capacity_for_writer;
+
   lsn_t max_async_age;
   lsn_t lsn_age_factor;
-  lsn_t af_lwm = (srv_adaptive_flushing_lwm * log_get_capacity()) / 100;
+  lsn_t af_lwm = (srv_adaptive_flushing_lwm * redo_capacity) / 100;
 
   if (age < af_lwm) {
     /* No adaptive flushing. */

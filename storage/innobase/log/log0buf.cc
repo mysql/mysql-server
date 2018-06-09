@@ -614,13 +614,18 @@ static void log_wait_for_space_after_reserving(log_t &log,
   log_wait_for_space_in_log_buf(log, end_sn);
 }
 
-void log_wait_for_space_in_log_file(log_t &log, sn_t end_sn) {
-  auto stop_condition = [&log, end_sn](bool) {
+void log_free_check_wait(log_t &log, sn_t sn) {
+  auto stop_condition = [&log, sn](bool) {
 
-    const sn_t chkp_sn =
-        log_translate_lsn_to_sn(log.last_checkpoint_lsn.load());
+    sn_t margins = log.concurrency_margin.load();
 
-    return (end_sn <= chkp_sn + log.sn_capacity);
+    margins += log.dict_persist_margin.load();
+
+    const lsn_t start_lsn = log_translate_sn_to_lsn(sn + margins);
+
+    const lsn_t checkpoint_lsn = log.last_checkpoint_lsn.load();
+
+    return start_lsn <= checkpoint_lsn + log.lsn_capacity_for_free_check;
   };
 
   const auto wait_stats = ut_wait_for(0, 100, stop_condition);
