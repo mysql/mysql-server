@@ -185,9 +185,13 @@ log_partial_block_writes	disabled
 log_padded	disabled
 log_next_file	disabled
 log_checkpoints	disabled
+log_free_space	disabled
+log_concurrency_margin	disabled
 log_writer_no_waits	disabled
 log_writer_waits	disabled
 log_writer_wait_loops	disabled
+log_writer_on_file_space_waits	disabled
+log_writer_on_archiver_waits	disabled
 log_flusher_no_waits	disabled
 log_flusher_waits	disabled
 log_flusher_wait_loops	disabled

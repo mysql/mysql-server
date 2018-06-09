@@ -462,6 +462,13 @@ dberr_t Arch_Log_Sys::stop(Arch_Group *group, lsn_t &stop_lsn, byte *log_blk,
   return (err);
 }
 
+/** Force to abort the archiver (state becomes ARCH_STATE_ABORT). */
+void Arch_Log_Sys::force_abort() {
+  lsn_t lsn_max = LSN_MAX; /* unused */
+  uint to_archive = 0;     /* unused */
+  check_set_state(true, &lsn_max, &to_archive);
+}
+
 /** Release the current group from client.
 @param[in]	group		group the client is attached to
 @param[in]	is_durable	if client needs durable archiving */
@@ -540,8 +547,6 @@ Arch_State Arch_Log_Sys::check_set_state(bool is_abort, lsn_t *archived_lsn,
         *to_archive = m_chunk_size;
       }
 
-      need_to_abort = is_abort || (is_shutdown && *to_archive == 0);
-
       if (!need_to_abort) {
         break;
       }
@@ -579,6 +584,9 @@ Arch_State Arch_Log_Sys::check_set_state(bool is_abort, lsn_t *archived_lsn,
       break;
 
     case ARCH_STATE_ABORT:
+      /* We could abort archiver from log_writer when
+      it is already in the aborted state (shutdown). */
+      break;
 
     default:
       ut_ad(false);

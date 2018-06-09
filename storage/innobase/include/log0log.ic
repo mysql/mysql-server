@@ -165,8 +165,6 @@ inline void log_block_store_checksum(byte *log_block) {
 
 #ifndef UNIV_HOTBACKUP
 
-inline lsn_t log_get_capacity() { return (log_sys->lsn_capacity); }
-
 inline lsn_t log_get_max_modified_age_async() {
   return (log_sys->max_modified_age_async);
 }
@@ -204,19 +202,17 @@ inline void log_free_check() {
   /** We prefer to wait now for the space in log file, because now
   are not holding any latches of dirty pages. */
 
-  sn_t sn = log.sn.load();
+  const sn_t sn = log.sn.load();
 
   if (unlikely(sn > log.sn_limit_for_start.load())) {
-    sn += log.concurrency_safe_free_margin;
+    /* We need to wait, because the concurrency margin could be violated
+    if we let all threads to go forward after making this check now.
 
-    sn += log.dict_persist_margin.load();
+    The waiting procedure is rather unlikely to happen for proper my.cnf.
+    Therefore we extracted the code to seperate function, to make the
+    inlined log_free_check() small. */
 
-    /* We need to wait until at least concurrency_safe_free_margin
-    bytes are free in the log file. If we proceeded without waiting
-    it could happen, that we would x-lock very old dirty page in a
-    mtr, making it impossible to reclaim the free space then. */
-
-    log_wait_for_space_in_log_file(log, sn);
+    log_free_check_wait(log, sn);
   }
 }
 

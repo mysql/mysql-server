@@ -666,6 +666,9 @@ class Arch_Log_Sys {
   dberr_t stop(Arch_Group *group, lsn_t &stop_lsn, byte *log_blk,
                uint32_t &blk_len);
 
+  /** Force to abort the archiver (state becomes ARCH_STATE_ABORT). */
+  void force_abort();
+
   /** Release the current group from client.
   @param[in]	group		group the client is attached to
   @param[in]	is_durable	if client needs durable archiving */

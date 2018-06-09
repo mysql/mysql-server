@@ -882,9 +882,24 @@ static monitor_info_t innodb_counter_info[] = {
     {"log_checkpoints", "log", "Number of checkpoints", MONITOR_NONE,
      MONITOR_DEFAULT_START, MONITOR_LOG_CHECKPOINTS},
 
+    {"log_free_space", "log", "Free space in redo (emergency when negative).",
+     MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_LOG_FREE_SPACE},
+
+    {"log_concurrency_margin", "log",
+     "Current concurrency margin used (may increase).", MONITOR_NONE,
+     MONITOR_DEFAULT_START, MONITOR_LOG_CONCURRENCY_MARGIN},
+
     MONITOR_WAIT_STATS("log_writer_", "log",
                        "Waits on task in log_writer thread",
                        MONITOR_LOG_WRITER_),
+
+    {"log_writer_on_file_space_waits", "log",
+     "Waits on free space in log writer", MONITOR_NONE, MONITOR_DEFAULT_START,
+     MONITOR_LOG_WRITER_ON_FREE_SPACE_WAITS},
+
+    {"log_writer_on_archiver_waits", "log",
+     "Waits on redo archiver in log writer", MONITOR_NONE,
+     MONITOR_DEFAULT_START, MONITOR_LOG_WRITER_ON_ARCHIVER_WAITS},
 
     MONITOR_WAIT_STATS("log_flusher_", "log",
                        "Waits on task in log_flusher thread",
