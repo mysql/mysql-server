@@ -998,3 +998,20 @@ SELECT ((table1.col_int) * (table1.col_int)) AS field2 FROM (t1 AS table1)
   HAVING (field2 <> 239 ) ORDER BY GROUPING(field2);
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#27735167: WITH ROLLUP: CRASH IN SET_FIELD_TO_NULL_WITH_CONVERSIONS
+--echo #
+
+CREATE TABLE t(a INT,b BLOB);
+INSERT INTO t VALUES (1,'a'),(1,'b'),(2,'c'),(3,'d');
+
+SELECT (((@e:=`b`)) NOT BETWEEN 0x0b5f09 AND (CHAR(md5(@pub1),
+  (CONNECTION_ID()+LEAD(5225.750000,110) RESPECT NULLS OVER(ORDER BY b, a)))))
+  FROM t GROUP BY b,a WITH ROLLUP;
+
+SELECT a + COUNT(*) OVER () FROM t GROUP BY a WITH ROLLUP;
+
+SELECT a, b, a + SUM(a) OVER () FROM t GROUP BY a,b WITH ROLLUP;
+
+DROP TABLE t;

@@ -457,6 +457,18 @@ bool JOIN::rollup_send_data(uint idx) {
 */
 
 bool has_rollup_result(Item *item) {
+  /*
+    Do not save rollup result for expressions having window functions.
+    Window functions will be evaluated after ROLLUP processing.
+    So we cannot store the result of the expression yet.
+    However, all the expressions having window functions would have
+    called spilt_sum_func(). As a result, rollup fields that are part
+    of this expression would have the ROLLUP NULLs stored. These
+    are later used to evaulate the expressions when window functions
+    get evaulated.
+  */
+  if (item->has_wf()) return false;
+
   if (item->type() == Item::NULL_RESULT_ITEM) return true;
 
   if (item->type() == Item::FUNC_ITEM) {
