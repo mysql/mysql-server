@@ -39,7 +39,7 @@ our @EXPORT = qw(report_option mtr_print_line mtr_print_thick_line
 
 use File::Spec;
 use IO::Handle qw[ flush ];
-use POSIX qw[ _exit ];
+use POSIX qw(_exit floor);
 
 use My::Platform;
 use mtr_match;
@@ -47,7 +47,7 @@ use mtr_results;
 
 require "mtr_io.pl";
 
-my $done_percentage = 0;
+my $tests_completed = 0;
 my $tot_real_time   = 0;
 
 our $name;
@@ -96,8 +96,10 @@ sub _name {
   return $name ? $name . " " : undef;
 }
 
-sub _mtr_report_test_name ($) {
-  my $tinfo = shift;
+sub _mtr_report_test_name ($$) {
+  my $tinfo           = shift;
+  my $done_percentage = shift;
+
   my $tname = $tinfo->{name};
 
   return unless defined $verbose;
@@ -159,15 +161,17 @@ sub mtr_report_test ($) {
   my $retry    = $tinfo->{'retries'} ? "retry-" : "";
   my $warnings = $tinfo->{'warnings'};
 
+  my $done_percentage = 0;
+
   if ($::opt_test_progress) {
     if ($tinfo->{'name'} && !$retry) {
-      $::remaining = $::remaining - 1;
+      $tests_completed = $tests_completed + 1;
       $done_percentage =
-        100 - int(($::remaining * 100) / ($::num_tests_for_report));
+        floor(($tests_completed / $::num_tests_for_report) * 100);
     }
   }
 
-  my $test_name = _mtr_report_test_name($tinfo);
+  my $test_name = _mtr_report_test_name($tinfo, $done_percentage);
 
   if ($result eq 'MTR_RES_FAILED') {
     my $fail   = "fail";

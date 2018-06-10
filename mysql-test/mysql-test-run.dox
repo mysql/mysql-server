@@ -4577,24 +4577,6 @@
     </li>
 
     <li>
-      <tt>`--nocheck-testcases`</tt>
-
-      Disable the check for test case side effects. For additional
-      information, see the description of the
-      <b>`--check-testcases`</b> option.
-    </li>
-
-    <li>
-      <tt>`--noreorder`</tt>
-
-      Do not reorder tests to reduce number of restarts, but run them
-      in exactly the order given. If a whole suite is to be run, the
-      tests are run in alphabetic order, though similiar combinations
-      will be grouped together. If more than one suite is listed, the
-      tests are run one suite at a time, in the order listed.
-    </li>
-
-    <li>
       <tt>`--no-skip`</tt>
 
       This option forces all tests to run, ignoring any
@@ -4610,6 +4592,24 @@
       @verbatim
   shell> mysql-test-run.pl --suite=innodb --no-skip
       @endverbatim
+    </li>
+
+    <li>
+      <tt>`--nocheck-testcases`</tt>
+
+      Disable the check for test case side effects. For additional
+      information, see the description of the
+      <b>`--check-testcases`</b> option.
+    </li>
+
+    <li>
+      <tt>`--noreorder`</tt>
+
+      Do not reorder tests to reduce number of restarts, but run them
+      in exactly the order given. If a whole suite is to be run, the
+      tests are run in alphabetic order, though similiar combinations
+      will be grouped together. If more than one suite is listed, the
+      tests are run one suite at a time, in the order listed.
     </li>
 
     <li>
@@ -5024,10 +5024,10 @@
     </li>
 
     <li>
-      <tt>`--test-progress`</tt>
+      <tt>`--test-progress`={0|1}</tt>
 
-      Print the percentage of tests completed. This option is disabled
-      by default.
+      Print the percentage of tests completed. This option is enabled
+      by default. To disable it, set the value to <b>0</b>.
 
       For example, consider a test suite <b>sample_test_suite</b>
       containing  3 tests.
