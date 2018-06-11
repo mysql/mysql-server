@@ -24,6 +24,7 @@
 #define PFS_STAT_H
 
 #include <algorithm>
+#include <atomic>
 
 #include "my_dbug.h"
 #include "my_sys.h"
@@ -1010,6 +1011,14 @@ void memory_partial_aggregate(F *from, T *stat1, T *stat2) {
     from->m_free_size_capacity = 0;
   }
 }
+
+// Missing overload for Studio 12.6 Sun C++ 5.15
+#if defined(__SUNPRO_CC) && (__SUNPRO_CC == 0x5150)
+inline size_t &operator+=(size_t &target, const std::atomic<size_t> &val) {
+  target += val.load();
+  return target;
+}
+#endif
 
 template <typename F, typename T>
 void memory_full_aggregate(const F *from, T *stat) {

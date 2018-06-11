@@ -97,7 +97,7 @@ dberr_t Page_Arch_Client_Ctx::start() {
 
   ib::info(ER_IB_MSG_20) << "Clone Start PAGE ARCH : start LSN : "
                          << m_start_lsn << ", checkpoint LSN : "
-                         << log_sys->last_checkpoint_lsn;
+                         << log_sys->last_checkpoint_lsn.load();
 
   return (DB_SUCCESS);
 }
@@ -116,7 +116,7 @@ dberr_t Page_Arch_Client_Ctx::stop() {
 
   ib::info(ER_IB_MSG_21) << "Clone Stop  PAGE ARCH : end   LSN : " << m_stop_lsn
                          << ", checkpoint LSN : "
-                         << log_sys->last_checkpoint_lsn;
+                         << log_sys->last_checkpoint_lsn.load();
 
   return (DB_SUCCESS);
 }

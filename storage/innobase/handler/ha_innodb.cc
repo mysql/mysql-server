@@ -2954,7 +2954,7 @@ class Validate_files {
              size_t *moved_count);
 
   /** @return true if there were failures. */
-  bool failed() const { return (m_n_errors != 0); }
+  bool failed() const { return (m_n_errors.load() != 0); }
 
   /** @return the number of tablespaces checked. */
   size_t checked() const { return (m_checked); }
