@@ -9108,7 +9108,7 @@ ER_DEFAULT_SE_UNAVAILABLE
   eng "Default%s storage engine (%s) is not available"
 
 ER_CANT_OPEN_ERROR_LOG
-  eng "Could not open %s file for error logging: %s."
+  eng "Could not open file '%s' for error logging%s%s"
 
 ER_INVALID_ERROR_LOG_NAME
   eng "Invalid log file name after expanding symlinks: '%s'"

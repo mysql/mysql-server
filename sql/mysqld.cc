@@ -4680,11 +4680,9 @@ static void setup_error_log() {
     }
 #endif /* ndef _WIN32 */
 
-    if (open_error_log(errorlog_filename_buff)) {
-      LogErr(ERROR_LEVEL, ER_CANT_OPEN_ERROR_LOG, log_error_dest,
-             strerror(errno));
+    if (open_error_log(errorlog_filename_buff, false))
       unireg_abort(MYSQLD_ABORT_EXIT);
-    }
+
 #ifdef _WIN32
       // FreeConsole();        // Remove window
 #endif /* _WIN32 */
