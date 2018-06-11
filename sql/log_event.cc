@@ -1024,7 +1024,7 @@ void *Log_event::operator new(size_t size) {
 int my_b_event_read(IO_CACHE *file, uchar *buf, int buflen) {
   int read_status = 0;  // assume success
   int nbytes_already_read = 0;
-  if (file->file == fileno(stdin)) {
+  if (file->file == my_fileno(stdin)) {
     read_status = my_b_read(file, buf, SIZEOF_BINLOG_MAGIC);
     if (!read_status) {
       // read succeeded

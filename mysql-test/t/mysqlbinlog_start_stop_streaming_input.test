@@ -5,7 +5,6 @@
 #
 # ==== Implementation ====
 
--- source include/not_windows.inc
 -- source include/have_binlog_format_mixed_or_statement.inc
 
 CREATE TABLE t1 (a INT);
