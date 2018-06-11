@@ -2471,13 +2471,6 @@ strings/ctype_extra_sources.c
 strings/str_test
 strings/test_decimal
 support-files/*.ini
-support-files/MacOSX/Description.plist
-support-files/MacOSX/Info.plist
-support-files/MacOSX/StartupParameters.plist
-support-files/MacOSX/postflight
-support-files/MacOSX/postinstall
-support-files/MacOSX/preflight
-support-files/MacOSX/preinstall
 support-files/my-default.cnf
 support-files/my-huge.cnf
 support-files/my-innodb-heavy-4G.cnf
