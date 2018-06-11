@@ -33,12 +33,56 @@ while (`SELECT LOCATE('=', '$option_text')`)
 # Print output
 --replace_regex /SET @@SESSION.GTID_NEXT= '.*'/SET @@SESSION.GTID_NEXT= 'GTID';/ /([0-9A-F\-]{36})\:[0-9]+\-[0-9]+/UUID:#-#/ /_timestamp=[0-9A-Za-z:\(\)\. \-]*/_timestamp=TIMESTAMP/
 
-if ($error)
+--let _BINLOG_FILE= $file_options
+--let _RESULT_FILE= $result_file_options
+--let _MYSQLBINLOG= $MYSQL_BINLOG
+--let _OPTIONS= $option
+--let _ERROR= $error
+# use this to find out which command to use 'cat' or 'type'
+--let _IS_WINDOWS = 0
+if (`SELECT CONVERT(@@VERSION_COMPILE_OS USING latin1) IN ('Win32', 'Win64', 'Windows')`)
 {
-  --error 1
-  --exec cat $file_options | $MYSQL_BINLOG --short-form $option -
+  --let _IS_WINDOWS= 1
 }
-if (!$error)
-{
-  --exec cat $file_options | $MYSQL_BINLOG --short-form $option -
-}
+--perl
+  use strict;
+  use warnings;
+  my $binlog_file_perl = $ENV{'_BINLOG_FILE'};
+  my $result_file_perl = $ENV{'_RESULT_FILE'};
+  my $mysqlbinlog = $ENV{'_MYSQLBINLOG'};
+  my $is_windows = $ENV{'_IS_WINDOWS'};
+  my $options = $ENV{'_OPTIONS'};
+  my $error = $ENV{'_ERROR'};
+
+  if ($is_windows)
+  {
+    $binlog_file_perl =~ tr{/}{\\};
+    if ($error)
+    {
+      my $result = `type  $binlog_file_perl | $mysqlbinlog  $options -`;
+      if (length $result)
+      {
+        die;
+      }
+    }
+    if (!$error)
+    {
+      my $result = `type  $binlog_file_perl | $mysqlbinlog  $options - > $result_file_perl`;
+    }
+  }
+  else
+  {
+    if ($error)
+    {
+      my $result = `cat  $binlog_file_perl | $mysqlbinlog  $options -`;
+      if (length $result)
+      {
+        die;
+      }
+    }
+    if (!$error)
+    {
+      my $result = `cat  $binlog_file_perl | $mysqlbinlog  $options - > $result_file_perl`;
+    }
+  }
+EOF
