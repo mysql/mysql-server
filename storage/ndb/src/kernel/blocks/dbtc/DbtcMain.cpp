@@ -9271,8 +9271,16 @@ void Dbtc::timeOutLoopStartLab(Signal* signal, Uint32 api_con_timer_ptr)
     {
       break;
     }
+    if (api_con_timers_ptr == RNIL)
+    {
+      api_con_timer_ptr = RNIL;
+    }
+    else
+    {
+      api_con_timer_ptr = (api_con_timers_ptr << ApiConTimers::INDEX_BITS);
+    }
   }
-  if (api_con_timers_ptr == RNIL)
+  if (api_con_timer_ptr == RNIL)
   {
     jam();
     /*------------------------------------------------------------------*/
