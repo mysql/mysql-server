@@ -372,8 +372,9 @@ XError Protocol_impl::send(const Client_message_type_id mid,
     return XError{CR_MALFORMED_PACKET, ER_TEXT_PB_SERIALIZATION_FAILED};
   }
 
-  std::uint32_t *buf_ptr = reinterpret_cast<std::uint32_t *>(&msg_buffer[0]);
-  *buf_ptr = static_cast<std::uint32_t>(msg_size + 1);
+  const auto msg_size_to_buffer = static_cast<std::uint32_t>(msg_size + 1);
+
+  memcpy(&msg_buffer[0], &msg_size_to_buffer, sizeof(std::uint32_t));
 #ifdef WORDS_BIGENDIAN
   std::swap(msg_buffer[0], msg_buffer[3]);
   std::swap(msg_buffer[1], msg_buffer[2]);
