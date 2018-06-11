@@ -237,9 +237,9 @@ bool Session::can_forward_error_code_to_client(const int error_code) {
   // return general authentication problem. It may have not too
   // accurate error message.
   const static std::set<int> allowed_error_codes{
-      ER_DBACCESS_DENIED_ERROR, ER_MUST_CHANGE_PASSWORD_LOGIN,
+      ER_DBACCESS_DENIED_ERROR,   ER_MUST_CHANGE_PASSWORD_LOGIN,
       ER_ACCOUNT_HAS_BEEN_LOCKED, ER_SECURE_TRANSPORT_REQUIRED,
-      ER_SERVER_OFFLINE_MODE};
+      ER_SERVER_OFFLINE_MODE,     ER_BAD_DB_ERROR};
 
   return 0 < allowed_error_codes.count(error_code);
 }

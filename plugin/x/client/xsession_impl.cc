@@ -699,11 +699,12 @@ XError Session_impl::authenticate(const char *user, const char *pass,
   if (error) return error;
 
   bool has_sha256_memory = false;
-  XError auth_error;
-  XError reported_error =
-      XError{ER_ACCESS_DENIED_ERROR, "Invalid user or password"};
+  bool fatal_error_received = false;
+  XError reported_error;
+
   for (const auto &auth_method : optional_auth_methods.second) {
     const bool is_last = &auth_method == &optional_auth_methods.second.back();
+
     if (auth_method == "PLAIN" && !is_secure_connection) {
       // If this is not the last authentication mechanism then do not report
       // error but try those other methods instead.
@@ -712,42 +713,70 @@ XError Session_impl::authenticate(const char *user, const char *pass,
             CR_X_INVALID_AUTH_METHOD,
             "Invalid authentication method: PLAIN over unsecure channel"};
       }
-    } else {
-      auth_error = protocol.execute_authenticate(
-          details::value_or_empty_string(user),
-          details::value_or_empty_string(pass),
-          details::value_or_empty_string(schema), auth_method);
 
-      const auto current_error_code = auth_error.error();
-
-      // In case of 'broken pipe', 'peer disconnected' and timeouts we should
-      // break the authentication sequence and return an error.
-      if (current_error_code == CR_SERVER_GONE_ERROR ||
-          current_error_code == CR_X_WRITE_TIMEOUT ||
-          current_error_code == CR_X_READ_TIMEOUT ||
-          current_error_code == CR_UNKNOWN_ERROR)
-        return auth_error;
-
-      if (current_error_code != ER_ACCESS_DENIED_ERROR ||
-          reported_error.error() == ER_ACCESS_DENIED_ERROR) {
-        reported_error = auth_error;
-      }
-
-      // Also we should stop the authentication sequence on any fatal error.
-      if (auth_error.is_fatal()) return reported_error;
-
-      if (auth_method == "SHA256_MEMORY") has_sha256_memory = true;
+      continue;
     }
 
+    XError current_error = protocol.execute_authenticate(
+        details::value_or_empty_string(user),
+        details::value_or_empty_string(pass),
+        details::value_or_empty_string(schema), auth_method);
+
     // Authentication successful, otherwise try to use different auth method
-    if (!auth_error) return {};
+    if (!current_error) return {};
+
+    const auto current_error_code = current_error.error();
+
+    // In case of connection errors ('broken pipe', 'peer disconnected',
+    // timeouts...) we should break the authentication sequence and return
+    // an error.
+    if (current_error_code == CR_SERVER_GONE_ERROR ||
+        current_error_code == CR_X_WRITE_TIMEOUT ||
+        current_error_code == CR_X_READ_TIMEOUT ||
+        current_error_code == CR_UNKNOWN_ERROR) {
+      // Expected disconnection
+      if (fatal_error_received) return reported_error;
+
+      // Unexpected disconnection
+      return current_error;
+    }
+
+    // Try to choose most important error:
+    //
+    // |Priority |Action                        |
+    // |---------|------------------------------|
+    // |1        |No error was set              |
+    // |2        |Last other than access denied |
+    // |3        |Last access denied            |
+    if (!reported_error || current_error_code != ER_ACCESS_DENIED_ERROR ||
+        reported_error.error() == ER_ACCESS_DENIED_ERROR) {
+      reported_error = current_error;
+    }
+
+    // Also we should stop the authentication sequence on fatal error.
+    // Still it would break compatibility with servers that wrongly mark
+    // Mysqlx::Error message with fatal flag.
+    //
+    // To workaround the problem of backward compatibility, we should
+    // remember that fatal error was received and try to continue the
+    // sequence. After reception of fatal error, following connection
+    // errors are expected (CR_SERVER_GONE_ERROR, CR_X_WRITE_TIMEOUT....)
+    // and must be ignored.
+    if (current_error.is_fatal()) fatal_error_received = true;
+
+    if (auth_method == "SHA256_MEMORY") has_sha256_memory = true;
   }
 
+  // In case when SHA256_MEMORY was used and no PLAIN (because of not using
+  // secure connection) and all errors where ER_ACCESS_DENIED, there is
+  // possibility that password cache on the server side is empty.
+  // We need overwrite the error to give the user a hint that
+  // secure connection can be used.
   if (has_sha256_memory && !is_secure_connection &&
       reported_error.error() == ER_ACCESS_DENIED_ERROR) {
     reported_error = XError{CR_X_AUTH_PLUGIN_ERROR,
-                            "Authentication failed, check username and \
-password or try a secure connection"};
+                            "Authentication failed, check username and "
+                            "password or try a secure connection"};
   }
 
   return reported_error;

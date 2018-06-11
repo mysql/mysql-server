@@ -9,13 +9,18 @@
 
 --write_file $MYSQL_TMP_DIR/connection_default_schema_manual.tmp
 
--->newsession non_roo_user	-
+-->newsession non_root_user	-
 -->login user_with_access_to_ydb		ydb
 -->closesession
 
--->newsession non_roo_user	-
+-->newsession non_root_user	-
 -->expecterror ER_DBACCESS_DENIED_ERROR
 -->login user_with_access_to_ydb		xdb
+-->closesession abort
+
+-->newsession root_user	-
+-->expecterror ER_BAD_DB_ERROR
+-->login root		non_existing_schema	sha256_memory
 -->closesession abort
 
 EOF
@@ -36,8 +41,25 @@ GRANT SELECT ON ydb.* TO 'user_with_access_to_ydb'@'%';
 --echo ## Testcase execute
 --echo #
 
+
 --echo #
 --echo ## Test group 1.
+--echo ##
+--echo ## Authenticate using plain X Protocol flows to schema that:
+--echo ##
+--echo ## * account has permissions
+--echo ## * account has not permissions
+--echo ## * account has permissions still db-doesn't exist
+--echo #
+
+exec $MYSQLXTEST
+  -uroot
+  --ssl-mode=REQUIRED
+  -f $MYSQL_TMP_DIR/connection_default_schema_manual.tmp;
+
+
+--echo #
+--echo ## Test group 2.
 --echo ##
 --echo ## Authenticate using an account which has permissions
 --echo ## to selected schema.
@@ -58,7 +80,7 @@ let $schema=xdb;
 
 
 --echo #
---echo ## Test group 2.
+--echo ## Test group 3.
 --echo ##
 --echo ## Authenticate using an account which has not permissions
 --echo ## to selected schema.
@@ -82,18 +104,28 @@ let $expect_error=code 1044;
 
 
 --echo #
---echo ## Test group 3.
+--echo ## Test group 4.
 --echo ##
---echo ## Authenticate using plain X Protocol flows to schame that:
---echo ##
---echo ## * account has permissions
---echo ## * account has not permissions
+--echo ## Authenticate using an valid account to non existing
+--echo ## schema.
 --echo #
 
-exec $MYSQLXTEST
-  -uroot
-  --ssl-mode=REQUIRED
-  -f $MYSQL_TMP_DIR/connection_default_schema_manual.tmp;
+
+--echo
+--echo # Using MySQL client
+let $execute_command=$MYSQL;
+let $user=root;
+let $schema=non_existing_schema;
+let $expect_error=ERROR 1049 ;
+--source ../include/connection_default_schema.inc
+
+--echo
+--echo # Using mysqlxtest
+let $execute_command=$MYSQLXTEST;
+let $user=root;
+let $schema=non_existing_schema;
+let $expect_error=code 1049;
+--source ../include/connection_default_schema.inc
 
 
 --echo #
