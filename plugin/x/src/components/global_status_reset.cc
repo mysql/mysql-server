@@ -65,7 +65,7 @@ METADATA("mysql.author", "Oracle Corporation"),
 DECLARE_COMPONENT(mysqlx_global_status_reset, udf_name)
 udf_register, udf_unregister END_DECLARE_COMPONENT();
 
+}  // namespace
+
 DECLARE_LIBRARY_COMPONENTS &COMPONENT_REF(mysqlx_global_status_reset)
     END_DECLARE_LIBRARY_COMPONENTS
-
-}  // namespace
