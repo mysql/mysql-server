@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -59,8 +59,12 @@ IF(CMAKE_SIZEOF_VOID_P MATCHES 8)
   SET(SYSTEM_TYPE "Win64")
   SET(MYSQL_MACHINE_TYPE "x86_64")
 ELSE()
-  MESSAGE(FATAL_ERROR "32 bit Windows builds are not supported. "
-       "Clean the build dir and rebuild using -G \"${CMAKE_GENERATOR} Win64\"")
+  IF(WITHOUT_SERVER)
+    MESSAGE(WARNING "32bit is experimental!!")
+  ELSE()
+    MESSAGE(FATAL_ERROR "32 bit Windows builds are not supported. "
+      "Clean the build dir and rebuild using -G \"${CMAKE_GENERATOR} Win64\"")
+  ENDIF()
 ENDIF()
 
 # Target Windows 7 / Windows Server 2008 R2 or later, i.e _WIN32_WINNT_WIN7
