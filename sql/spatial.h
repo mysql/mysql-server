@@ -42,6 +42,7 @@
 #include "sql_string.h"  // String
 
 class Gis_read_stream;
+class THD;
 
 const uint GEOM_DIM = 2;
 const uint SRID_SIZE = 4;
@@ -484,7 +485,8 @@ class Geometry {
 
   /* read from wkb the wkb data and write into res as wkb encoded data. */
   /* returns the length of the wkb that was read */
-  virtual uint init_from_wkb(const char *wkb MY_ATTRIBUTE((unused)),
+  virtual uint init_from_wkb(THD *thd MY_ATTRIBUTE((unused)),
+                             const char *wkb MY_ATTRIBUTE((unused)),
                              uint len MY_ATTRIBUTE((unused)),
                              wkbByteOrder bo MY_ATTRIBUTE((unused)),
                              String *res MY_ATTRIBUTE((unused))) {
@@ -612,8 +614,9 @@ class Geometry {
                                    Gis_read_stream *trs, String *wkt,
                                    bool init_stream = true,
                                    bool check_trailing = true);
-  static Geometry *create_from_wkb(Geometry_buffer *buffer, const char *wkb,
-                                   uint32 len, String *res, bool init);
+  static Geometry *create_from_wkb(THD *thd, Geometry_buffer *buffer,
+                                   const char *wkb, uint32 len, String *res,
+                                   bool init);
   bool as_wkt(String *wkt, wkb_parser *wkb) const {
     uint32 len = (uint)get_class_info()->m_name.length;
     if (wkt->reserve(len + 2, 512)) return true;
@@ -1182,7 +1185,7 @@ class Gis_point : public Geometry {
   bool init_from_wkt(Gis_read_stream *trs, String *wkb) override {
     return init_from_wkt(trs, wkb, true);
   }
-  uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo,
+  uint init_from_wkb(THD *thd, const char *wkb, uint len, wkbByteOrder bo,
                      String *res) override;
   bool get_data_as_wkt(String *txt, wkb_parser *wkb) const override;
   bool get_mbr(MBR *mbr, wkb_parser *wkb) const override;
@@ -2128,7 +2131,7 @@ class Gis_line_string : public Gis_wkb_vector<Gis_point> {
   virtual ~Gis_line_string() {} /* Remove gcc warning */
   uint32 get_data_size() const override;
   bool init_from_wkt(Gis_read_stream *trs, String *wkb) override;
-  uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo,
+  uint init_from_wkb(THD *thd, const char *wkb, uint len, wkbByteOrder bo,
                      String *res) override;
   bool get_data_as_wkt(String *txt, wkb_parser *wkb) const override;
   bool get_mbr(MBR *mbr, wkb_parser *wkb) const override;
@@ -2207,7 +2210,7 @@ class Gis_polygon : public Geometry {
  public:
   uint32 get_data_size() const override;
   bool init_from_wkt(Gis_read_stream *trs, String *wkb) override;
-  uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo,
+  uint init_from_wkb(THD *thd, const char *wkb, uint len, wkbByteOrder bo,
                      String *res) override;
   bool get_data_as_wkt(String *txt, wkb_parser *wkb) const override;
   bool get_mbr(MBR *mbr, wkb_parser *wkb) const override;
@@ -2316,7 +2319,7 @@ class Gis_multi_point : public Gis_wkb_vector<Gis_point> {
   virtual ~Gis_multi_point() {} /* Remove gcc warning */
   uint32 get_data_size() const override;
   bool init_from_wkt(Gis_read_stream *trs, String *wkb) override;
-  uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo,
+  uint init_from_wkb(THD *thd, const char *wkb, uint len, wkbByteOrder bo,
                      String *res) override;
   bool get_data_as_wkt(String *txt, wkb_parser *wkb) const override;
   bool get_mbr(MBR *mbr, wkb_parser *wkb) const override;
@@ -2355,7 +2358,7 @@ class Gis_multi_line_string : public Gis_wkb_vector<Gis_line_string> {
   virtual ~Gis_multi_line_string() {} /* Remove gcc warning */
   uint32 get_data_size() const override;
   bool init_from_wkt(Gis_read_stream *trs, String *wkb) override;
-  uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo,
+  uint init_from_wkb(THD *thd, const char *wkb, uint len, wkbByteOrder bo,
                      String *res) override;
   bool get_data_as_wkt(String *txt, wkb_parser *wkb) const override;
   bool get_mbr(MBR *mbr, wkb_parser *wkb) const override;
@@ -2396,7 +2399,7 @@ class Gis_multi_polygon : public Gis_wkb_vector<Gis_polygon> {
   virtual ~Gis_multi_polygon() {} /* Remove gcc warning */
   uint32 get_data_size() const override;
   bool init_from_wkt(Gis_read_stream *trs, String *wkb) override;
-  uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo,
+  uint init_from_wkb(THD *thd, const char *wkb, uint len, wkbByteOrder bo,
                      String *res) override;
   bool get_data_as_wkt(String *txt, wkb_parser *wkb) const override;
   bool get_mbr(MBR *mbr, wkb_parser *wkb) const override;
@@ -2447,7 +2450,7 @@ class Gis_geometry_collection : public Geometry {
                        String *gcbuf);
   uint32 get_data_size() const override;
   bool init_from_wkt(Gis_read_stream *trs, String *wkb) override;
-  uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo,
+  uint init_from_wkb(THD *thd, const char *wkb, uint len, wkbByteOrder bo,
                      String *res) override;
   bool get_data_as_wkt(String *txt, wkb_parser *wkb) const override;
   bool get_mbr(MBR *mbr, wkb_parser *wkb) const override;

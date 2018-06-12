@@ -738,8 +738,8 @@ String *Item_func_geometry_from_wkb::val_str(String *str) {
   }
 
   Geometry_buffer buff;
-  Geometry *g =
-      Geometry::create_from_wkb(&buff, wkb->ptr(), wkb->length(), &temp, true);
+  Geometry *g = Geometry::create_from_wkb(current_thd, &buff, wkb->ptr(),
+                                          wkb->length(), &temp, true);
   if (g == nullptr) {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_str();
