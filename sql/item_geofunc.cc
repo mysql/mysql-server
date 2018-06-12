@@ -3736,8 +3736,8 @@ bool geometry_collection_centroid(const Geometry *geom,
     components of lower dimensions weighs nothing in comparison.
    */
   wkb_len0 = wkb_len;
-  wkb_scanner(wkb_start, &wkb_len, Geometry::wkb_geometrycollection, false,
-              &plgn_grouper);
+  wkb_scanner(current_thd, wkb_start, &wkb_len,
+              Geometry::wkb_geometrycollection, false, &plgn_grouper);
   if (mplgn.size() > 0) {
     if (mplgn.normalize_ring_order() == NULL) return true;
 
@@ -3746,16 +3746,16 @@ bool geometry_collection_centroid(const Geometry *geom,
     typename BG_models<Coordsys>::Multilinestring mls;
     wkb_len = wkb_len0;
     Geometry_grouper<typename BG_models<Coordsys>::Linestring> ls_grouper(&mls);
-    wkb_scanner(wkb_start, &wkb_len, Geometry::wkb_geometrycollection, false,
-                &ls_grouper);
+    wkb_scanner(current_thd, wkb_start, &wkb_len,
+                Geometry::wkb_geometrycollection, false, &ls_grouper);
     if (mls.size() > 0)
       boost::geometry::centroid(mls, *respt);
     else {
       typename BG_models<Coordsys>::Multipoint mpts;
       wkb_len = wkb_len0;
       Geometry_grouper<typename BG_models<Coordsys>::Point> pt_grouper(&mpts);
-      wkb_scanner(wkb_start, &wkb_len, Geometry::wkb_geometrycollection, false,
-                  &pt_grouper);
+      wkb_scanner(current_thd, wkb_start, &wkb_len,
+                  Geometry::wkb_geometrycollection, false, &pt_grouper);
       if (mpts.size() > 0)
         boost::geometry::centroid(mpts, *respt);
       else
@@ -3898,7 +3898,7 @@ bool Item_func_convex_hull::bg_convex_hull(const Geometry *geom,
       Point_accumulator pt_acc(&mpts);
       const char *wkb_start = geom->get_cptr();
       uint32 wkb_len = geom->get_data_size();
-      wkb_scanner(wkb_start, &wkb_len, geotype, false, &pt_acc);
+      wkb_scanner(current_thd, wkb_start, &wkb_len, geotype, false, &pt_acc);
       bool isdone = true;
       if (mpts.size() == 0) return (null_value = true);
 
@@ -4806,8 +4806,8 @@ static int check_geometry_valid(Geometry *geom) {
         it's the WKB data doesn't have a WKB header before it. Otherwise in
         Geomcoll_validity_checker it's required that the WKB data has a header.
        */
-      wkb_scanner(geom->get_cptr(), &wkb_len, Geometry::wkb_geometrycollection,
-                  false, &validity_checker);
+      wkb_scanner(current_thd, geom->get_cptr(), &wkb_len,
+                  Geometry::wkb_geometrycollection, false, &validity_checker);
       ret = validity_checker.is_valid();
       break;
     }

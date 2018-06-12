@@ -2511,6 +2511,6 @@ class WKB_scanner_event_handler {
   virtual bool continue_scan() const { return true; }
 };
 
-const char *wkb_scanner(const char *wkb, uint32 *len, uint32 geotype,
+const char *wkb_scanner(THD *thd, const char *wkb, uint32 *len, uint32 geotype,
                         bool has_hdr, WKB_scanner_event_handler *handler);
 #endif

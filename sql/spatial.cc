@@ -757,8 +757,8 @@ bool Geometry::is_well_formed(const char *from, size_t length,
 
   if (length < GEOM_HEADER_SIZE) return false;
 
-  is_well_formed =
-      (wkb_scanner(from + SRID_SIZE, &len, 0, true, &checker) != NULL);
+  is_well_formed = (wkb_scanner(current_thd, from + SRID_SIZE, &len, 0, true,
+                                &checker) != NULL);
 
   return (is_well_formed && checker.is_well_formed() &&
           checker.get_last_position() == from + length);
@@ -856,6 +856,7 @@ static uint32 wkb_get_uint(const char *ptr, Geometry::wkbByteOrder bo) {
   Scan WKB byte string and notify WKB events by calling registered callbacks.
   @param wkb a little endian WKB byte string of 'len' bytes, with or
              without WKB header.
+  @param[in] thd Thread context.
   @param [in,out] len remaining number of bytes of the wkb string.
   @param geotype the type of the geometry to be scanned.
   @param has_hdr whether the 'wkb' point to a WKB header or right after
@@ -865,8 +866,10 @@ static uint32 wkb_get_uint(const char *ptr, Geometry::wkbByteOrder bo) {
   @param handler the registered WKB_scanner_event_handler object to be notified.
   @return the next byte after last valid geometry just scanned, or NULL on error
  */
-const char *wkb_scanner(const char *wkb, uint32 *len, uint32 geotype,
+const char *wkb_scanner(THD *thd, const char *wkb, uint32 *len, uint32 geotype,
                         bool has_hdr, WKB_scanner_event_handler *handler) {
+  if (check_stack_overrun(current_thd, STACK_MIN_SIZE, nullptr)) return nullptr;
+
   Geometry::wkbType gt;
   const char *q = NULL;
   uint32 ngeos = 0, comp_type = 0, gtype = 0;
@@ -943,7 +946,7 @@ const char *wkb_scanner(const char *wkb, uint32 *len, uint32 geotype,
 
   if (!done && q != NULL) {
     for (uint32 i = 0; i < ngeos; i++) {
-      q = wkb_scanner(q, len, comp_type, comp_hashdr, handler);
+      q = wkb_scanner(thd, q, len, comp_type, comp_hashdr, handler);
       if (q == NULL) return NULL;
     }
     handler->on_wkb_end(q);
@@ -1042,8 +1045,8 @@ bool Geometry::envelope(String *result) const {
       GeomColl_component_counter counter;
       uint32 wkb_len = get_data_size();
 
-      wkb_scanner(get_cptr(), &wkb_len, Geometry::wkb_geometrycollection, false,
-                  &counter);
+      wkb_scanner(current_thd, get_cptr(), &wkb_len,
+                  Geometry::wkb_geometrycollection, false, &counter);
       // Non-empty nested geometry collections.
       if (counter.num > 0) return true;
     }
