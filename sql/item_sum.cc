@@ -1815,7 +1815,7 @@ longlong Item_sum_sum::val_int() {
     longlong result = 0;
     my_decimal tmp;
     my_decimal *r = Item_sum_sum::val_decimal(&tmp);
-    if (r != nullptr)
+    if (r != nullptr && !null_value)
       my_decimal2int(E_DEC_FATAL_ERROR, r, unsigned_flag, &result);
     DBUG_RETURN(result);
   }
@@ -1840,7 +1840,8 @@ double Item_sum_sum::val_real() {
     if (hybrid_type == DECIMAL_RESULT) {
       my_decimal tmp;
       my_decimal *r = Item_sum_sum::val_decimal(&tmp);
-      if (r != nullptr) my_decimal2double(E_DEC_FATAL_ERROR, r, &sum);
+      if (r != nullptr && !null_value)
+        my_decimal2double(E_DEC_FATAL_ERROR, r, &sum);
     } else {
       double d = args[0]->val_real();
 
