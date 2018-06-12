@@ -421,7 +421,7 @@ String *Item_func_geometry_from_text::val_str(String *str) {
     return error_str();
   }
 
-  Gis_read_stream trs(wkt->charset(), wkt->ptr(), wkt->length());
+  Gis_read_stream trs(current_thd, wkt->charset(), wkt->ptr(), wkt->length());
   gis::srid_t srid = 0;
 
   if (arg_count >= 2) {

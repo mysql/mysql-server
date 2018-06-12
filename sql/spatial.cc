@@ -37,10 +37,12 @@
 #include "my_sys.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"
+#include "sql/check_stack.h"  // check_stack_overrun
 #include "sql/gis/srid.h"
 #include "sql/gis_bg_traits.h"  // IWYU pragma: keep
 #include "sql/gstream.h"        // Gis_read_stream
 #include "sql/psi_memory_key.h"
+#include "sql/sql_const.h"   // STACK_MIN_SIZE
 #include "sql_string.h"      // String
 #include "template_utils.h"  // pointer_cast
 
@@ -1376,6 +1378,8 @@ uint32 Gis_point::get_data_size() const {
 
 bool Gis_point::init_from_wkt(Gis_read_stream *trs, String *wkb,
                               const bool parens) {
+  if (check_stack_overrun(trs->thd(), STACK_MIN_SIZE, nullptr)) return true;
+
   double x, y;
   if ((parens && trs->check_next_symbol('(')) || trs->get_next_number(&x) ||
       trs->get_next_number(&y) || wkb->reserve(POINT_DATA_SIZE, 256) ||
@@ -1489,6 +1493,8 @@ inline double coord_val(const char *p, int i, int x) {
 }
 
 bool Gis_line_string::init_from_wkt(Gis_read_stream *trs, String *wkb) {
+  if (check_stack_overrun(trs->thd(), STACK_MIN_SIZE, nullptr)) return true;
+
   uint32 n_points = 0;
   uint32 np_pos = wkb->length();
   Gis_point p(false);
@@ -2072,6 +2078,8 @@ uint32 Gis_polygon::get_data_size() const {
 }
 
 bool Gis_polygon::init_from_wkt(Gis_read_stream *trs, String *wkb) {
+  if (check_stack_overrun(trs->thd(), STACK_MIN_SIZE, nullptr)) return true;
+
   uint32 n_linear_rings = 0;
   uint32 lr_pos = wkb->length();
 
@@ -2405,6 +2413,8 @@ uint32 Gis_multi_point::get_data_size() const {
 }
 
 bool Gis_multi_point::init_from_wkt(Gis_read_stream *trs, String *wkb) {
+  if (check_stack_overrun(trs->thd(), STACK_MIN_SIZE, nullptr)) return true;
+
   uint32 n_points = 0;
   uint32 np_pos = wkb->length();
   Gis_point p(false);
@@ -2602,6 +2612,8 @@ uint32 Gis_multi_line_string::get_data_size() const {
 }
 
 bool Gis_multi_line_string::init_from_wkt(Gis_read_stream *trs, String *wkb) {
+  if (check_stack_overrun(trs->thd(), STACK_MIN_SIZE, nullptr)) return true;
+
   uint32 n_line_strings = 0;
   uint32 ls_pos = wkb->length();
 
@@ -2865,6 +2877,8 @@ uint32 Gis_multi_polygon::get_data_size() const {
 }
 
 bool Gis_multi_polygon::init_from_wkt(Gis_read_stream *trs, String *wkb) {
+  if (check_stack_overrun(trs->thd(), STACK_MIN_SIZE, nullptr)) return true;
+
   uint32 n_polygons = 0;
   uint32 np_pos = wkb->length();
   Gis_polygon p(false);
@@ -3342,6 +3356,8 @@ uint32 Gis_geometry_collection::get_data_size() const {
 }
 
 bool Gis_geometry_collection::init_from_wkt(Gis_read_stream *trs, String *wkb) {
+  if (check_stack_overrun(trs->thd(), STACK_MIN_SIZE, nullptr)) return true;
+
   uint32 n_objects = 0;
   uint32 no_pos = wkb->length();
   Geometry_buffer buffer;

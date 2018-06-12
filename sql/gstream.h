@@ -1,7 +1,7 @@
 #ifndef GSTREAM_INCLUDED
 #define GSTREAM_INCLUDED
 
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,15 +30,19 @@
 #include "m_string.h"
 #include "mysql/service_mysql_alloc.h"
 
+class THD;
+
 class Gis_read_stream {
  public:
   enum enum_tok_types { unknown, eostream, word, numeric, l_bra, r_bra, comma };
 
-  Gis_read_stream(const CHARSET_INFO *charset, const char *buffer, int size)
+  Gis_read_stream(THD *thd, const CHARSET_INFO *charset, const char *buffer,
+                  int size)
       : m_cur(buffer),
         m_limit(buffer + size),
         m_err_msg(NULL),
-        m_charset(charset) {}
+        m_charset(charset),
+        m_thd(thd) {}
   Gis_read_stream() : m_cur(NullS), m_limit(NullS), m_err_msg(NullS) {}
   ~Gis_read_stream() { my_free(m_err_msg); }
 
@@ -68,11 +72,16 @@ class Gis_read_stream {
     return err_msg;
   }
 
+  THD *thd() { return m_thd; }
+
  protected:
   const char *m_cur;
   const char *m_limit;
   char *m_err_msg;
   const CHARSET_INFO *m_charset;
+
+ private:
+  THD *m_thd;
 };
 
 #endif /* GSTREAM_INCLUDED */
