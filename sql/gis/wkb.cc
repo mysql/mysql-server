@@ -28,12 +28,14 @@
 #include "my_byteorder.h"  // float8get, int4store, uint4korr
 #include "my_sys.h"        // my_error()
 #include "mysqld_error.h"
+#include "sql/check_stack.h"  // check_stack_overrun
 #include "sql/gis/coordinate_range_visitor.h"
 #include "sql/gis/geometries.h"
 #include "sql/gis/geometries_cs.h"
 #include "sql/gis/ring_flip_visitor.h"
 #include "sql/gis/wkb_size_visitor.h"
 #include "sql/gis/wkb_visitor.h"
+#include "sql/sql_const.h"  // STACK_MIN_SIZE
 #include "sql/sql_error.h"
 #include "sql/srs_fetcher.h"
 #include "sql_string.h"
@@ -111,6 +113,7 @@ class Wkb_parser {
   bool m_positive_north;
   bool m_positive_east;
   bool m_swap_axes;
+  THD *m_thd;
 
   double transform_x(double x) {
     DBUG_ASSERT(!std::isnan(x));
@@ -158,8 +161,8 @@ class Wkb_parser {
   }
 
  public:
-  Wkb_parser(const dd::Spatial_reference_system *srs, bool ignore_axis_order,
-             uchar *begin, uchar *end)
+  Wkb_parser(THD *thd, const dd::Spatial_reference_system *srs,
+             bool ignore_axis_order, uchar *begin, uchar *end)
       : m_begin(begin),
         m_end(end),
         m_coordinate_system(Coordinate_system::kCartesian),
@@ -167,7 +170,8 @@ class Wkb_parser {
         m_prime_meridian(0.0),
         m_positive_north(true),
         m_positive_east(true),
-        m_swap_axes(false) {
+        m_swap_axes(false),
+        m_thd(thd) {
     if (srs == nullptr || srs->is_cartesian()) {
       m_coordinate_system = Coordinate_system::kCartesian;
     } else if (srs->is_geographic()) {
@@ -262,6 +266,8 @@ class Wkb_parser {
   }
 
   Point_t parse_wkb_point() {
+    if (m_thd != nullptr && check_stack_overrun(m_thd, STACK_MIN_SIZE, nullptr))
+      throw std::exception();
     Byte_order bo = parse_byte_order();
     Geometry_type type = parse_geometry_type(bo);
     if (type != Geometry_type::kPoint) throw std::exception();
@@ -279,6 +285,8 @@ class Wkb_parser {
   }
 
   Linestring_t parse_wkb_linestring() {
+    if (m_thd != nullptr && check_stack_overrun(m_thd, STACK_MIN_SIZE, nullptr))
+      throw std::exception();
     Byte_order bo = parse_byte_order();
     Geometry_type type = parse_geometry_type(bo);
     if (type != Geometry_type::kLinestring) throw std::exception();
@@ -302,6 +310,8 @@ class Wkb_parser {
   }
 
   Polygon_t parse_wkb_polygon() {
+    if (m_thd != nullptr && check_stack_overrun(m_thd, STACK_MIN_SIZE, nullptr))
+      throw std::exception();
     Byte_order bo = parse_byte_order();
     Geometry_type type = parse_geometry_type(bo);
 
@@ -310,6 +320,8 @@ class Wkb_parser {
   }
 
   Multipoint_t parse_multipoint(Byte_order bo) {
+    if (m_thd != nullptr && check_stack_overrun(m_thd, STACK_MIN_SIZE, nullptr))
+      throw std::exception();
     Multipoint_t mpt;
     std::uint32_t num_points = parse_uint32(bo);
     if (num_points == 0) throw std::exception();
@@ -320,6 +332,8 @@ class Wkb_parser {
   }
 
   Multilinestring_t parse_multilinestring(Byte_order bo) {
+    if (m_thd != nullptr && check_stack_overrun(m_thd, STACK_MIN_SIZE, nullptr))
+      throw std::exception();
     Multilinestring_t mls;
     std::uint32_t num_linestrings = parse_uint32(bo);
     if (num_linestrings == 0) throw std::exception();
@@ -331,6 +345,8 @@ class Wkb_parser {
   }
 
   Multipolygon_t parse_multipolygon(Byte_order bo) {
+    if (m_thd != nullptr && check_stack_overrun(m_thd, STACK_MIN_SIZE, nullptr))
+      throw std::exception();
     Multipolygon_t mpy;
     std::uint32_t num_polygons = parse_uint32(bo);
     if (num_polygons == 0) throw std::exception();
@@ -341,6 +357,8 @@ class Wkb_parser {
   }
 
   Geometrycollection_t parse_geometrycollection(Byte_order bo) {
+    if (m_thd != nullptr && check_stack_overrun(m_thd, STACK_MIN_SIZE, nullptr))
+      throw std::exception();
     Geometrycollection_t gc;
     std::uint32_t num_geometries = parse_uint32(bo);
     for (std::uint32_t i = 0; i < num_geometries; i++) {
@@ -376,7 +394,8 @@ class Wkb_parser {
   }
 };
 
-std::unique_ptr<Geometry> parse_wkb(const dd::Spatial_reference_system *srs,
+std::unique_ptr<Geometry> parse_wkb(THD *thd,
+                                    const dd::Spatial_reference_system *srs,
                                     const char *wkb, std::size_t length,
                                     bool ignore_axis_order) {
   unsigned char *begin = pointer_cast<unsigned char *>(const_cast<char *>(wkb));
@@ -390,7 +409,7 @@ std::unique_ptr<Geometry> parse_wkb(const dd::Spatial_reference_system *srs,
                  Cartesian_polygon, Cartesian_geometrycollection,
                  Cartesian_multipoint, Cartesian_multilinestring,
                  Cartesian_multipolygon>
-          parser(srs, ignore_axis_order, begin, end);
+          parser(thd, srs, ignore_axis_order, begin, end);
       g.reset(parser.parse_wkb());
       res = !g || !parser.reached_end();
     } catch (...) {
@@ -402,7 +421,7 @@ std::unique_ptr<Geometry> parse_wkb(const dd::Spatial_reference_system *srs,
                  Geographic_polygon, Geographic_geometrycollection,
                  Geographic_multipoint, Geographic_multilinestring,
                  Geographic_multipolygon>
-          parser(srs, ignore_axis_order, begin, end);
+          parser(thd, srs, ignore_axis_order, begin, end);
       g.reset(parser.parse_wkb());
       res = !g || !parser.reached_end();
     } catch (...) {
@@ -447,7 +466,7 @@ bool parse_geometry(THD *thd, const char *func_name, const String *str,
     return true;
   }
 
-  *geometry = gis::parse_wkb(*srs, str->ptr() + sizeof(srid_t),
+  *geometry = gis::parse_wkb(thd, *srs, str->ptr() + sizeof(srid_t),
                              str->length() - sizeof(srid_t), true);
   if (!(*geometry)) {
     // Parsing failed, assume invalid input data.

@@ -153,7 +153,7 @@ TEST_F(WkbParserTest, Invalid) {
       "\x03\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\xf0\x3f\x00\x00\x00\x00\x00"
       "\x00\x00\x40",
       21);
-  g = gis::parse_wkb(m_cartesian_srs, bo.c_str(), bo.length());
+  g = gis::parse_wkb(nullptr, m_cartesian_srs, bo.c_str(), bo.length());
   EXPECT_FALSE(g);
 
   // Invalid WKB type
@@ -163,14 +163,15 @@ TEST_F(WkbParserTest, Invalid) {
       "\x01\xff\x00\x00\x00\x00\x00\x00\x00\x00\x00\xf0\x3f\x00\x00\x00\x00\x00"
       "\x00\x00\x40",
       21);
-  g = gis::parse_wkb(m_cartesian_srs, invalid_type.c_str(),
+  g = gis::parse_wkb(nullptr, m_cartesian_srs, invalid_type.c_str(),
                      invalid_type.length());
   EXPECT_FALSE(g);
 
   // Too short WKB type
   //                      |bo||WKB type      |
   std::string short_type("\x01\xff\x00\x00", 4);
-  g = gis::parse_wkb(m_cartesian_srs, short_type.c_str(), short_type.length());
+  g = gis::parse_wkb(nullptr, m_cartesian_srs, short_type.c_str(),
+                     short_type.length());
   EXPECT_FALSE(g);
 }
 
@@ -191,25 +192,25 @@ TEST_F(WkbParserTest, Point) {
       21);
 
   // Cartesian
-  g = gis::parse_wkb(m_cartesian_srs, le.c_str(), le.length());
+  g = gis::parse_wkb(nullptr, m_cartesian_srs, le.c_str(), le.length());
   EXPECT_EQ(g->type(), gis::Geometry_type::kPoint);
   EXPECT_DOUBLE_EQ(static_cast<gis::Point &>(*g.get()).x(), 1.0);
   EXPECT_DOUBLE_EQ(static_cast<gis::Point &>(*g.get()).y(), 2.0);
 
-  g = gis::parse_wkb(m_cartesian_srs, be.c_str(), be.length());
+  g = gis::parse_wkb(nullptr, m_cartesian_srs, be.c_str(), be.length());
   EXPECT_EQ(g->type(), gis::Geometry_type::kPoint);
   EXPECT_DOUBLE_EQ(static_cast<gis::Point &>(*g.get()).x(), 1.0);
   EXPECT_DOUBLE_EQ(static_cast<gis::Point &>(*g.get()).y(), 2.0);
 
   // Lat-long
-  g = gis::parse_wkb(m_lat_long_srs, le.c_str(), le.length());
+  g = gis::parse_wkb(nullptr, m_lat_long_srs, le.c_str(), le.length());
   EXPECT_EQ(g->type(), gis::Geometry_type::kPoint);
   EXPECT_DOUBLE_EQ(static_cast<gis::Point &>(*g.get()).x(),
                    0.034906585039886556);
   EXPECT_DOUBLE_EQ(static_cast<gis::Point &>(*g.get()).y(),
                    0.017453292519943278);
 
-  g = gis::parse_wkb(m_lat_long_srs, be.c_str(), be.length());
+  g = gis::parse_wkb(nullptr, m_lat_long_srs, be.c_str(), be.length());
   EXPECT_EQ(g->type(), gis::Geometry_type::kPoint);
   EXPECT_DOUBLE_EQ(static_cast<gis::Point &>(*g.get()).x(),
                    0.034906585039886556);
@@ -217,14 +218,14 @@ TEST_F(WkbParserTest, Point) {
                    0.017453292519943278);
 
   // Long-lat
-  g = gis::parse_wkb(m_long_lat_srs, le.c_str(), le.length());
+  g = gis::parse_wkb(nullptr, m_long_lat_srs, le.c_str(), le.length());
   EXPECT_EQ(g->type(), gis::Geometry_type::kPoint);
   EXPECT_DOUBLE_EQ(static_cast<gis::Point &>(*g.get()).x(),
                    0.017453292519943278);
   EXPECT_DOUBLE_EQ(static_cast<gis::Point &>(*g.get()).y(),
                    0.034906585039886556);
 
-  g = gis::parse_wkb(m_long_lat_srs, be.c_str(), be.length());
+  g = gis::parse_wkb(nullptr, m_long_lat_srs, be.c_str(), be.length());
   EXPECT_EQ(g->type(), gis::Geometry_type::kPoint);
   EXPECT_DOUBLE_EQ(static_cast<gis::Point &>(*g.get()).x(),
                    0.017453292519943278);
@@ -232,13 +233,13 @@ TEST_F(WkbParserTest, Point) {
                    0.034906585039886556);
 
   // Lat-long, grad, meridian 10 grad East of Greenwich
-  g = gis::parse_wkb(m_tweaked_geo_srs, le.c_str(), le.length());
+  g = gis::parse_wkb(nullptr, m_tweaked_geo_srs, le.c_str(), le.length());
   EXPECT_EQ(g->type(), gis::Geometry_type::kPoint);
   EXPECT_DOUBLE_EQ(static_cast<gis::Point &>(*g.get()).x(), 0.1256637061435916);
   EXPECT_DOUBLE_EQ(static_cast<gis::Point &>(*g.get()).y(),
                    -0.01570796326794895);
 
-  g = gis::parse_wkb(m_tweaked_geo_srs, be.c_str(), be.length());
+  g = gis::parse_wkb(nullptr, m_tweaked_geo_srs, be.c_str(), be.length());
   EXPECT_EQ(g->type(), gis::Geometry_type::kPoint);
   EXPECT_DOUBLE_EQ(static_cast<gis::Point &>(*g.get()).x(), 0.1256637061435916);
   EXPECT_DOUBLE_EQ(static_cast<gis::Point &>(*g.get()).y(),
@@ -258,10 +259,12 @@ TEST_F(WkbParserTest, Point) {
       "\x00\x00\x00\x00",
       22);
 
-  g = gis::parse_wkb(m_cartesian_srs, too_short.c_str(), too_short.length());
+  g = gis::parse_wkb(nullptr, m_cartesian_srs, too_short.c_str(),
+                     too_short.length());
   EXPECT_FALSE(g);
 
-  g = gis::parse_wkb(m_cartesian_srs, too_long.c_str(), too_long.length());
+  g = gis::parse_wkb(nullptr, m_cartesian_srs, too_long.c_str(),
+                     too_long.length());
   EXPECT_FALSE(g);
 }
 
@@ -271,7 +274,8 @@ TEST_F(WkbParserTest, Linestring) {
   // Linestring with no points
   //                    |bo||WKB type      ||numPoints     |
   std::string empty_ls("\x01\x02\x00\x00\x00\x00\x00\x00\x00", 9);
-  g = gis::parse_wkb(m_cartesian_srs, empty_ls.c_str(), empty_ls.length());
+  g = gis::parse_wkb(nullptr, m_cartesian_srs, empty_ls.c_str(),
+                     empty_ls.length());
   EXPECT_FALSE(g);
 
   // Linestring with one point
@@ -281,7 +285,7 @@ TEST_F(WkbParserTest, Linestring) {
       "\x01\x02\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
       "\x00\x00\x00\x00\x00\x00\x00",
       25);
-  g = gis::parse_wkb(m_cartesian_srs, one_ls.c_str(), one_ls.length());
+  g = gis::parse_wkb(nullptr, m_cartesian_srs, one_ls.c_str(), one_ls.length());
   EXPECT_FALSE(g);
 
   // Linestring with two points
@@ -293,7 +297,7 @@ TEST_F(WkbParserTest, Linestring) {
       "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
       "\x00\x00\x00\x00\x00",
       41);
-  g = gis::parse_wkb(m_cartesian_srs, two_ls.c_str(), two_ls.length());
+  g = gis::parse_wkb(nullptr, m_cartesian_srs, two_ls.c_str(), two_ls.length());
   EXPECT_EQ(g->type(), gis::Geometry_type::kLinestring);
   EXPECT_FALSE(static_cast<gis::Linestring *>(g.get())->empty());
   EXPECT_EQ(static_cast<gis::Linestring *>(g.get())->size(), 2UL);
@@ -314,7 +318,7 @@ TEST_F(WkbParserTest, Linestring) {
   ls.append(pt_10_10);
   ls.append(pt_10_0);
 
-  g = gis::parse_wkb(m_cartesian_srs, ls.c_str(), ls.length());
+  g = gis::parse_wkb(nullptr, m_cartesian_srs, ls.c_str(), ls.length());
   EXPECT_EQ(g->type(), gis::Geometry_type::kLinestring);
   EXPECT_FALSE(static_cast<gis::Linestring *>(g.get())->empty());
   EXPECT_EQ(static_cast<gis::Linestring *>(g.get())->size(), 4UL);
@@ -326,14 +330,16 @@ TEST_F(WkbParserTest, Polygon) {
   // Polygon with no rings
   //                    |bo||WKB type      ||numRings      |
   std::string empty_py("\x01\x03\x00\x00\x00\x00\x00\x00\x00", 9);
-  g = gis::parse_wkb(m_cartesian_srs, empty_py.c_str(), empty_py.length());
+  g = gis::parse_wkb(nullptr, m_cartesian_srs, empty_py.c_str(),
+                     empty_py.length());
   EXPECT_FALSE(g);
 
   // Polygon with exterior ring with no points
   //                   |bo||WKB type      ||numRings      ||numPoints     |
   std::string zero_py("\x01\x03\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00",
                       13);
-  g = gis::parse_wkb(m_cartesian_srs, zero_py.c_str(), zero_py.length());
+  g = gis::parse_wkb(nullptr, m_cartesian_srs, zero_py.c_str(),
+                     zero_py.length());
   EXPECT_FALSE(g);
 
   // Polygon with exterior ring with one point
@@ -343,7 +349,7 @@ TEST_F(WkbParserTest, Polygon) {
       "\x01\x03\x00\x00\x00\x01\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00"
       "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
       29);
-  g = gis::parse_wkb(m_cartesian_srs, one_py.c_str(), one_py.length());
+  g = gis::parse_wkb(nullptr, m_cartesian_srs, one_py.c_str(), one_py.length());
   EXPECT_FALSE(g);
 
   // Polygon with exterior ring with two points
@@ -355,7 +361,7 @@ TEST_F(WkbParserTest, Polygon) {
       "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
       "\x00\x00\x00\x00\x00\x00\x00\x00\x00",
       45);
-  g = gis::parse_wkb(m_cartesian_srs, two_py.c_str(), two_py.length());
+  g = gis::parse_wkb(nullptr, m_cartesian_srs, two_py.c_str(), two_py.length());
   EXPECT_FALSE(g);
 
   // Polygon with exterior ring with three points
@@ -369,7 +375,8 @@ TEST_F(WkbParserTest, Polygon) {
       "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
       "\x00\x00\x00\x00\x00\x00\x00",
       61);
-  g = gis::parse_wkb(m_cartesian_srs, three_py.c_str(), three_py.length());
+  g = gis::parse_wkb(nullptr, m_cartesian_srs, three_py.c_str(),
+                     three_py.length());
   EXPECT_FALSE(g);
 
   //                    |x                             ||y |
@@ -424,7 +431,7 @@ TEST_F(WkbParserTest, Polygon) {
   py.append(interior1);
   py.append(interior2);
 
-  g = gis::parse_wkb(m_cartesian_srs, py.c_str(), py.length());
+  g = gis::parse_wkb(nullptr, m_cartesian_srs, py.c_str(), py.length());
   EXPECT_EQ(g->type(), gis::Geometry_type::kPolygon);
   EXPECT_EQ(static_cast<gis::Polygon *>(g.get())->size(), 3UL);
   EXPECT_FALSE(static_cast<gis::Polygon *>(g.get())->empty());
@@ -452,7 +459,7 @@ TEST_F(WkbParserTest, Multipoint) {
   mpt.append(le);
   mpt.append(be);
 
-  g = gis::parse_wkb(m_cartesian_srs, mpt.c_str(), mpt.length());
+  g = gis::parse_wkb(nullptr, m_cartesian_srs, mpt.c_str(), mpt.length());
   EXPECT_EQ(g->type(), gis::Geometry_type::kMultipoint);
   EXPECT_FALSE(static_cast<gis::Multipoint *>(g.get())->empty());
   EXPECT_EQ(static_cast<gis::Multipoint *>(g.get())->size(), 2UL);
@@ -460,7 +467,8 @@ TEST_F(WkbParserTest, Multipoint) {
   // Multipoint with no points
   //                     |bo||WKB type      ||numPoints     |
   std::string empty_mpt("\x01\x04\x00\x00\x00\x00\x00\x00\x00", 9);
-  g = gis::parse_wkb(m_cartesian_srs, empty_mpt.c_str(), empty_mpt.length());
+  g = gis::parse_wkb(nullptr, m_cartesian_srs, empty_mpt.c_str(),
+                     empty_mpt.length());
   EXPECT_FALSE(g);
 }
 
@@ -487,7 +495,7 @@ TEST_F(WkbParserTest, Multilinestring) {
   std::string mls("\x00\x00\x00\x00\x05\x00\x00\x00\x01", 9);
   mls.append(ls);
 
-  g = gis::parse_wkb(m_cartesian_srs, mls.c_str(), mls.length());
+  g = gis::parse_wkb(nullptr, m_cartesian_srs, mls.c_str(), mls.length());
   EXPECT_EQ(g->type(), gis::Geometry_type::kMultilinestring);
   EXPECT_FALSE(static_cast<gis::Multilinestring *>(g.get())->empty());
   EXPECT_EQ(static_cast<gis::Multilinestring *>(g.get())->size(), 1UL);
@@ -495,7 +503,8 @@ TEST_F(WkbParserTest, Multilinestring) {
   // Multilinestrings with no linestrings
   //                     |bo||WKB type      ||numLinestrings|
   std::string empty_mls("\x01\x05\x00\x00\x00\x00\x00\x00\x00", 9);
-  g = gis::parse_wkb(m_cartesian_srs, empty_mls.c_str(), empty_mls.length());
+  g = gis::parse_wkb(nullptr, m_cartesian_srs, empty_mls.c_str(),
+                     empty_mls.length());
   EXPECT_FALSE(g);
 }
 
@@ -557,7 +566,7 @@ TEST_F(WkbParserTest, Multipolygon) {
   std::string mpy("\x00\x00\x00\x00\x06\x00\x00\x00\x01", 9);
   mpy.append(py);
 
-  g = gis::parse_wkb(m_cartesian_srs, mpy.c_str(), mpy.length());
+  g = gis::parse_wkb(nullptr, m_cartesian_srs, mpy.c_str(), mpy.length());
   EXPECT_EQ(g->type(), gis::Geometry_type::kMultipolygon);
   EXPECT_FALSE(static_cast<gis::Multipolygon *>(g.get())->empty());
   EXPECT_EQ(static_cast<gis::Multipolygon *>(g.get())->size(), 1UL);
@@ -565,7 +574,8 @@ TEST_F(WkbParserTest, Multipolygon) {
   // Multipolygon with no polygons
   //                     |bo||WKB type      ||numPolygons   |
   std::string empty_mpy("\x01\x06\x00\x00\x00\x00\x00\x00\x00", 9);
-  g = gis::parse_wkb(m_cartesian_srs, empty_mpy.c_str(), empty_mpy.length());
+  g = gis::parse_wkb(nullptr, m_cartesian_srs, empty_mpy.c_str(),
+                     empty_mpy.length());
   EXPECT_FALSE(g);
 }
 
@@ -590,7 +600,7 @@ TEST_F(WkbParserTest, Geometrycollection) {
   gc.append(le);
   gc.append(be);
 
-  g = gis::parse_wkb(m_cartesian_srs, gc.c_str(), gc.length());
+  g = gis::parse_wkb(nullptr, m_cartesian_srs, gc.c_str(), gc.length());
   EXPECT_EQ(g->type(), gis::Geometry_type::kGeometrycollection);
   EXPECT_FALSE(static_cast<gis::Geometrycollection *>(g.get())->empty());
   EXPECT_EQ(static_cast<gis::Geometrycollection *>(g.get())->size(), 2UL);
@@ -598,7 +608,8 @@ TEST_F(WkbParserTest, Geometrycollection) {
   // Empty geometrycollection
   //                    |bo||WKB type      ||numGeometries |
   std::string empty_gc("\x01\x07\x00\x00\x00\x00\x00\x00\x00", 9);
-  g = gis::parse_wkb(m_cartesian_srs, empty_gc.c_str(), empty_gc.length());
+  g = gis::parse_wkb(nullptr, m_cartesian_srs, empty_gc.c_str(),
+                     empty_gc.length());
   EXPECT_TRUE(g);
 
   // Geometry collection with empty geometrycollection
@@ -608,7 +619,7 @@ TEST_F(WkbParserTest, Geometrycollection) {
       "\x01\x07\x00\x00\x00\x01\x00\x00\x00\x01\x07\x00\x00\x00\x00\x00\x00"
       "\x00",
       18);
-  g = gis::parse_wkb(m_cartesian_srs, gc_empty_gc.c_str(),
+  g = gis::parse_wkb(nullptr, m_cartesian_srs, gc_empty_gc.c_str(),
                      gc_empty_gc.length());
   EXPECT_TRUE(g);
   EXPECT_FALSE(static_cast<gis::Geometrycollection *>(g.get())->empty());

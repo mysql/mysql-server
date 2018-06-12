@@ -61,14 +61,23 @@ bool parse_srid(const char *str, std::size_t length, srid_t *srid);
 /// storage format, not general WKB. The storage format differs from ordinary
 /// WKB by having a fixed x=longitude, y=latitude mapping.
 ///
+/// @warning This function checks if there are so many nested levels of geometry
+/// collections that the stack will be exhausted. If that happens, my_error is
+/// called and the function exits with no geometry value. However, if thd is
+/// nullptr, this check is disabled, and the caller is responsible for checking
+/// that there is enough stack to parse the WKB string.
+///
+/// @param[in] thd Thread handle.
 /// @param srs The SRS of the geometry.
 /// @param wkb The WKB string.
 /// @param length Length of the WKB string.
 /// @param ignore_axis_order Ignore SRS axis order and assume it's always
 /// long-lat.
 ///
-/// @return The geometry
-std::unique_ptr<Geometry> parse_wkb(const dd::Spatial_reference_system *srs,
+/// @return The geometry. If an error occurred, the return value is a null
+/// pointer. In case of stack overrun, my_error has been called.
+std::unique_ptr<Geometry> parse_wkb(THD *thd,
+                                    const dd::Spatial_reference_system *srs,
                                     const char *wkb, std::size_t length,
                                     bool ignore_axis_order = false);
 

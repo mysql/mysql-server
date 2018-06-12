@@ -312,9 +312,14 @@ int get_mbr_from_store(const dd::Spatial_reference_system *srs, uchar *store,
   if (srid != nullptr) *srid = uint4korr(store);
 
   try {
-    std::unique_ptr<gis::Geometry> g =
-        gis::parse_wkb(srs, pointer_cast<char *>(store) + sizeof(gis::srid_t),
-                       size - sizeof(gis::srid_t), true);
+    // Note: current_thd may be nullptr here if this function was called from an
+    // internal InnoDB thread. In that case, we won't get any stack size check
+    // in gis::parse_wkb, but the geometry has been parsed before with the stack
+    // size check enabled. We assume we have at least the same amount of stack
+    // when called from an internal thread as when called from a MySQL thread.
+    std::unique_ptr<gis::Geometry> g = gis::parse_wkb(
+        current_thd, srs, pointer_cast<char *>(store) + sizeof(gis::srid_t),
+        size - sizeof(gis::srid_t), true);
     if (g.get() == nullptr) {
       return -1; /* purecov: inspected */
     }
