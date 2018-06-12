@@ -16668,13 +16668,15 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
 #ifdef ERROR_INSERT
     rss_cconcurrentOp = c_counters.cconcurrentOp;
 #endif
+// Below not tested in 7.6.6 and earlier
+// ApiConnectRecord and ApiConTimers excluded since API never releases those while connected
     RSS_AP_SNAPSHOT_SAVE(c_theAttributeBufferPool);
     RSS_AP_SNAPSHOT_SAVE(c_theCommitAckMarkerBufferPool);
-    RSS_AP_SNAPSHOT_SAVE(c_apiConTimersPool);
+//    RSS_AP_SNAPSHOT_SAVE(c_apiConTimersPool);
     RSS_AP_SNAPSHOT_SAVE(m_fragLocationPool);
-    RSS_AP_SNAPSHOT_SAVE(c_apiConnectRecordPool);
+//    RSS_AP_SNAPSHOT_SAVE(c_apiConnectRecordPool);
     RSS_AP_SNAPSHOT_SAVE(c_cacheRecordPool);
-    RSS_AP_SNAPSHOT_SAVE(c_gcpRecordPool);
+//    RSS_AP_SNAPSHOT_SAVE(c_gcpRecordPool);
   }
   if (arg == DumpStateOrd::TcResourceCheckLeak)
   {
@@ -16690,11 +16692,11 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
 #endif
     RSS_AP_SNAPSHOT_CHECK(c_theAttributeBufferPool);
     RSS_AP_SNAPSHOT_CHECK(c_theCommitAckMarkerBufferPool);
-    RSS_AP_SNAPSHOT_CHECK(c_apiConTimersPool);
+//    RSS_AP_SNAPSHOT_CHECK(c_apiConTimersPool);
     RSS_AP_SNAPSHOT_CHECK(m_fragLocationPool);
-    RSS_AP_SNAPSHOT_CHECK(c_apiConnectRecordPool);
+//    RSS_AP_SNAPSHOT_CHECK(c_apiConnectRecordPool);
     RSS_AP_SNAPSHOT_CHECK(c_cacheRecordPool);
-    RSS_AP_SNAPSHOT_CHECK(c_gcpRecordPool);
+//    RSS_AP_SNAPSHOT_CHECK(c_gcpRecordPool);
   }
 
   if (arg == DumpStateOrd::TcDumpPoolLevels)
