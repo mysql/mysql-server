@@ -266,6 +266,10 @@ ENDIF()
 INCLUDE(CheckTypeSize)
 CHECK_TYPE_SIZE("void *" SIZEOF_VOIDP)
 MESSAGE(STATUS "SIZEOF_VOIDP ${SIZEOF_VOIDP}")
+# On some platforms, cmake may think that CMAKE_SIZEOF_VOID_P == 4
+# even if we have configured for 64bit build....
+SET(CMAKE_SIZEOF_VOID_P ${SIZEOF_VOIDP})
+
 IF(WITH_DEFAULT_COMPILER_OPTIONS)
   INCLUDE(${CMAKE_SOURCE_DIR}/cmake/build_configurations/compiler_options.cmake)
 ENDIF()
