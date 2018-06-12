@@ -78,8 +78,14 @@
 %global sles12                1
 %endif
 
+%if 0%{?suse_version} == 1500
+%global dist                  .sles15
+%global sles15                1
+%endif
+
 # https://en.opensuse.org/openSUSE:Systemd_packaging_guidelines
 %{?sles12:                %global systemd 1}
+%{?sles15:                %global systemd 1}
 %{!?_tmpfilesdir:         %global _tmpfilesdir /usr/lib/tmpfiles.d}
 
 %global min                   8.0.0
