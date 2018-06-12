@@ -38,6 +38,7 @@
 #include "mysqld_error.h"
 #include "prealloced_array.h"
 #include "sql/check_stack.h"  // check_stack_overrun
+#include "sql/current_thd.h"
 #include "sql/gis/srid.h"
 #include "sql/gis_bg_traits.h"  // IWYU pragma: keep
 #include "sql/gstream.h"        // Gis_read_stream
@@ -1374,6 +1375,8 @@ void Gis_point::set_ptr(void *ptr, size_t len) {
 }
 
 uint32 Gis_point::get_data_size() const {
+  if (check_stack_overrun(current_thd, STACK_MIN_SIZE, nullptr))
+    return GET_SIZE_ERROR;
   if (get_nbytes() != POINT_DATA_SIZE) return GET_SIZE_ERROR;
 
   return POINT_DATA_SIZE;
@@ -1474,6 +1477,9 @@ const Geometry::Class_info *Gis_point::get_class_info() const {
 
 /***************************** LineString *******************************/
 uint32 Gis_line_string::get_data_size() const {
+  if (check_stack_overrun(current_thd, STACK_MIN_SIZE, nullptr))
+    return GET_SIZE_ERROR;
+
   if (is_length_verified()) return static_cast<uint32>(get_nbytes());
 
   uint32 n_points;
@@ -2058,6 +2064,9 @@ void Gis_polygon::make_rings() {
 }
 
 uint32 Gis_polygon::get_data_size() const {
+  if (check_stack_overrun(current_thd, STACK_MIN_SIZE, nullptr))
+    return GET_SIZE_ERROR;
+
   uint32 n_linear_rings;
   uint32 len;
   wkb_parser wkb(get_cptr(), get_cptr() + get_nbytes());
@@ -2406,6 +2415,9 @@ void own_rings(Geometry *geo0) {
 
 /***************************** MultiPoint *******************************/
 uint32 Gis_multi_point::get_data_size() const {
+  if (check_stack_overrun(current_thd, STACK_MIN_SIZE, nullptr))
+    return GET_SIZE_ERROR;
+
   uint32 n_points;
   uint32 len;
   wkb_parser wkb(get_cptr(), get_cptr() + get_nbytes());
@@ -2599,6 +2611,9 @@ const Geometry::Class_info *Gis_multi_point::get_class_info() const {
 
 /***************************** MultiLineString *******************************/
 uint32 Gis_multi_line_string::get_data_size() const {
+  if (check_stack_overrun(current_thd, STACK_MIN_SIZE, nullptr))
+    return GET_SIZE_ERROR;
+
   uint32 n_line_strings;
   uint32 len;
   wkb_parser wkb(get_cptr(), get_cptr() + get_nbytes());
@@ -2861,6 +2876,9 @@ const Geometry::Class_info *Gis_multi_line_string::get_class_info() const {
 
 /***************************** MultiPolygon *******************************/
 uint32 Gis_multi_polygon::get_data_size() const {
+  if (check_stack_overrun(current_thd, STACK_MIN_SIZE, nullptr))
+    return GET_SIZE_ERROR;
+
   uint32 n_polygons;
   uint32 len;
   wkb_parser wkb(get_cptr(), get_cptr() + get_nbytes());
@@ -3327,6 +3345,9 @@ Gis_geometry_collection::Gis_geometry_collection(Geometry *geo, String *gcbuf)
 }
 
 uint32 Gis_geometry_collection::get_data_size() const {
+  if (check_stack_overrun(current_thd, STACK_MIN_SIZE, nullptr))
+    return GET_SIZE_ERROR;
+
   uint32 n_objects = 0;
   uint32 len;
   wkb_parser wkb(get_cptr(), get_cptr() + get_nbytes());
