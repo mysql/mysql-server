@@ -228,6 +228,8 @@ create temporary table t (
 	b blob not null,
 	index sk (b(3021))
 	) row_format = compact engine=innodb;
+
+SET sql_mode='NO_ENGINE_SUBSTITUTION';
 #
 create temporary table t (
 	a int not null,
@@ -243,6 +245,7 @@ create temporary table t (
 	) row_format = compressed engine=innodb;
 drop table t;
 #
+SET sql_mode='NO_ENGINE_SUBSTITUTION,STRICT_TRANS_TABLES';
 SET GLOBAL innodb_large_prefix=default;
 set global innodb_file_per_table = 0;
 #
@@ -253,6 +256,7 @@ create temporary table t (
 	index sk (b(3021))
 	) row_format = compact engine=innodb;
 #
+SET sql_mode='NO_ENGINE_SUBSTITUTION';
 create temporary table t (
 	a int not null,
 	b blob not null,
