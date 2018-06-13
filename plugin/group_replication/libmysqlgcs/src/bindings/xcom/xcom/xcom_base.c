@@ -991,6 +991,7 @@ static xcom_state_change_cb xcom_run_cb = 0;
 static xcom_state_change_cb xcom_terminate_cb = 0;
 static xcom_state_change_cb xcom_comms_cb = 0;
 static xcom_state_change_cb xcom_exit_cb = 0;
+static xcom_state_change_cb xcom_fatal_error_cb = 0;
 
 void set_xcom_run_cb(xcom_state_change_cb x) { xcom_run_cb = x; }
 
@@ -999,6 +1000,10 @@ void set_xcom_comms_cb(xcom_state_change_cb x) { xcom_comms_cb = x; }
 void set_xcom_terminate_cb(xcom_state_change_cb x) { xcom_terminate_cb = x; }
 /* purecov: end */
 void set_xcom_exit_cb(xcom_state_change_cb x) { xcom_exit_cb = x; }
+
+void set_xcom_fatal_error_cb(xcom_state_change_cb x) {
+  xcom_fatal_error_cb = x;
+}
 
 int xcom_taskmain2(xcom_port listen_port) {
   init_xcom_transport(listen_port);
@@ -3683,10 +3688,11 @@ pax_msg *dispatch_op(site_def const *site, pax_msg *p, linkage *reply_queue) {
       */
       if (!synode_lt(p->synode, executed_msg)) {
         g_critical(
-            "Node %u unable to get message, process will now exit. Please "
-            "ensure that the process is restarted",
+            "Node %u is unable to get messages, since the group is too far "
+            "ahead. Node will now exit.",
             get_nodeno(site));
-        exit(1);
+        terminate_and_exit();
+        if (xcom_fatal_error_cb) xcom_fatal_error_cb(0);
       }
     default:
       break;
@@ -5034,6 +5040,34 @@ end:
   msg->a = 0; /* Do not deallocate a */
   XCOM_XDR_FREE(xdr_pax_msg, msg);
   return retval;
+}
+
+int64_t xcom_client_send_die(connection_descriptor *fd) {
+  uint32_t buflen = 0;
+  char *buf = 0;
+  int64_t retval = 0;
+  app_data a;
+  pax_msg *msg = pax_msg_new(null_synode, 0);
+  init_app_data(&a);
+  a.body.c_t = app_type;
+  msg->a = &a;
+  msg->op = die_op;
+  /*
+    Set the msgno to a value that ensures the die_op will be processed by
+    XCom when it is received (it needs to be higher than the msgno of the
+    executed_msg, otherwise XCom will simply ignore it).
+   */
+  msg->synode.msgno = UINT64_MAX;
+
+  serialize_msg(msg, fd->x_proto, &buflen, &buf);
+  if (buflen) {
+    retval = socket_write(fd, buf, buflen);
+    X_FREE(buf);
+  }
+  msg->a = 0;
+  XCOM_XDR_FREE(xdr_pax_msg, msg);
+  my_xdr_free((xdrproc_t)xdr_app_data, (char *)&a);
+  return retval > 0 && retval == buflen ? retval : 0;
 }
 
 int64_t xcom_client_send_data(uint32_t size, char *data,

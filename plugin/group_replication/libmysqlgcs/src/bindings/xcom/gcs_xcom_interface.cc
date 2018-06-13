@@ -82,6 +82,8 @@ void do_cb_xcom_receive_global_view(synode_no config_id, synode_no message_id,
 void cb_xcom_comms(int status);
 void cb_xcom_ready(int status);
 void cb_xcom_exit(int status);
+void cb_xcom_fatal_error(int status);
+
 synode_no cb_xcom_get_app_snap(blob *gcs_snap);
 int cb_xcom_get_should_exit();
 void cb_xcom_handle_app_snap(blob *gcs_snap);
@@ -532,6 +534,22 @@ void Gcs_xcom_interface::finalize_xcom() {
   }
 }
 
+void Gcs_xcom_interface::finalize_gcs_on_error() {
+  Gcs_group_identifier *group_identifier = NULL;
+  map<u_long, Gcs_group_identifier *>::iterator xcom_configured_groups_it;
+  Gcs_xcom_interface *intf =
+      static_cast<Gcs_xcom_interface *>(Gcs_xcom_interface::get_interface());
+
+  for (xcom_configured_groups_it = m_xcom_configured_groups.begin();
+       xcom_configured_groups_it != m_xcom_configured_groups.end();
+       xcom_configured_groups_it++) {
+    group_identifier = (*xcom_configured_groups_it).second;
+    Gcs_xcom_control *control_if = static_cast<Gcs_xcom_control *>(
+        intf->get_control_session(*group_identifier));
+    control_if->do_leave_gcs(Gcs_view::MEMBER_EXPELLED);
+  }
+}
+
 enum_gcs_error Gcs_xcom_interface::finalize() {
   if (!is_initialized()) return GCS_NOK;
 
@@ -793,6 +811,7 @@ bool Gcs_xcom_interface::initialize_xcom(
   ::set_xcom_run_cb(cb_xcom_ready);
   ::set_xcom_comms_cb(cb_xcom_comms);
   ::set_xcom_exit_cb(cb_xcom_exit);
+  ::set_xcom_fatal_error_cb(cb_xcom_fatal_error);
   ::set_xcom_socket_accept_cb(cb_xcom_socket_accept);
 
   const std::string *wait_time_str =
@@ -1422,6 +1441,19 @@ void cb_xcom_comms(int status) {
 void cb_xcom_exit(int status MY_ATTRIBUTE((unused))) {
   last_config_id.group_id = 0;
   if (xcom_proxy) xcom_proxy->xcom_signal_exit();
+}
+
+/**
+  Callback function used by XCom to signal that a 'die_op' has been received,
+  causing XCom to terminate.
+ */
+void cb_xcom_fatal_error(int status MY_ATTRIBUTE((unused))) {
+  MYSQL_GCS_LOG_FATAL(
+      "The node has missed messages that can no longer be "
+      "recovered from the other nodes' caches. GCS will now terminate.");
+  Gcs_xcom_interface *iface =
+      static_cast<Gcs_xcom_interface *>(Gcs_xcom_interface::get_interface());
+  iface->finalize_gcs_on_error();
 }
 
 /**

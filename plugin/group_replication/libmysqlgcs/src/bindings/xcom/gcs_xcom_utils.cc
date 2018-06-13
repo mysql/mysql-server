@@ -223,6 +223,20 @@ int Gcs_xcom_proxy_impl::xcom_client_send_data(unsigned long long len,
   return res;
 }
 
+int Gcs_xcom_proxy_impl::xcom_client_send_die() {
+  int res = true;
+
+  int index = xcom_acquire_handler();
+  if (index != -1) {
+    connection_descriptor *fd = m_xcom_handlers[index]->get_fd();
+    if (fd != NULL) {
+      res = !::xcom_client_send_die(fd);
+    }
+  }
+  xcom_release_handler(index);
+  return res;
+}
+
 int Gcs_xcom_proxy_impl::xcom_init(xcom_port xcom_listen_port) {
   /* Init XCom */
   ::xcom_fsm(xa_init, int_arg(0)); /* Basic xcom init */

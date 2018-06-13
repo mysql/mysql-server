@@ -188,6 +188,7 @@ typedef void (*xcom_state_change_cb)(int status);
 void set_xcom_run_cb(xcom_state_change_cb x);
 void set_xcom_terminate_cb(xcom_state_change_cb x);
 void set_xcom_exit_cb(xcom_state_change_cb x);
+void set_xcom_fatal_error_cb(xcom_state_change_cb x);
 
 typedef int (*should_exit_getter)();
 void set_should_exit_getter(should_exit_getter x);
@@ -220,6 +221,7 @@ int xcom_client_force_remove_node(connection_descriptor *fd, node_list *nl,
                                   uint32_t group_id);
 int xcom_client_remove_node(connection_descriptor *fd, node_list *nl,
                             uint32_t group_id);
+int64_t xcom_client_send_die(connection_descriptor *fd);
 int64_t xcom_client_send_data(uint32_t size, char *data,
                               connection_descriptor *fd);
 int xcom_client_terminate_and_exit(connection_descriptor *fd);
