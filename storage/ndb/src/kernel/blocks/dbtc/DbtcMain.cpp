@@ -7335,7 +7335,11 @@ Dbtc::execFIRE_TRIG_CONF(Signal* signal)
   const FireTrigConf * conf = CAST_CONSTPTR(FireTrigConf, signal->theData);
   localTcConnectptr.i = conf->tcOpRec;
   jamEntry();
-  tcConnectRecord.getPtr(localTcConnectptr);
+  if (!tcConnectRecord.getValidPtr(localTcConnectptr))
+  {
+    warningReport(signal, 28);
+    return;
+  }
   regApiPtr.i = localTcConnectptr.p->apiConnect;
   if (localTcConnectptr.p->tcConnectstate != OS_FIRE_TRIG_REQ)
   {
@@ -7414,7 +7418,11 @@ Dbtc::execFIRE_TRIG_REF(Signal* signal)
   const FireTrigRef * ref = CAST_CONSTPTR(FireTrigRef, signal->theData);
   localTcConnectptr.i = ref->tcOpRec;
   jamEntry();
-  tcConnectRecord.getPtr(localTcConnectptr);
+  if (!tcConnectRecord.getValidPtr(localTcConnectptr))
+  {
+    warningReport(signal, 28);
+    return;
+  }
   apiConnectptr.i = localTcConnectptr.p->apiConnect;
   if (localTcConnectptr.p->tcConnectstate != OS_FIRE_TRIG_REQ)
   {
