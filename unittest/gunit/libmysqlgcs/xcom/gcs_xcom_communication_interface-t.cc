@@ -89,6 +89,7 @@ class mock_gcs_xcom_proxy : public Gcs_xcom_proxy_base {
                connection_descriptor *(std::string, xcom_port port));
   MOCK_METHOD1(xcom_client_close_connection, int(connection_descriptor *con));
   MOCK_METHOD2(xcom_client_send_data, int(unsigned long long size, char *data));
+  MOCK_METHOD0(xcom_client_send_die, int());
   MOCK_METHOD1(xcom_init, int(xcom_port listen_port));
   MOCK_METHOD1(xcom_exit, int(bool xcom_handlers_open));
   MOCK_METHOD0(xcom_set_cleanup, void());

@@ -234,6 +234,13 @@ class Gcs_xcom_proxy {
   virtual int xcom_client_send_data(unsigned long long size, char *data) = 0;
 
   /**
+    This member function is used to send a 'die_op' to the local XCom. It is
+    intended to test the fix for Bug#27918666 - Remove the exit call() from
+    die_op in XCOM.
+   */
+  virtual int xcom_client_send_die() = 0;
+
+  /**
     This member function initializes XCom. This function must be called before
     anything else and from within the XCom thread. It will eventually call
     the main loop inside XCom.
@@ -724,6 +731,7 @@ class Gcs_xcom_proxy_impl : public Gcs_xcom_proxy_base {
                                                      xcom_port port);
   int xcom_client_close_connection(connection_descriptor *fd);
   int xcom_client_send_data(unsigned long long size, char *data);
+  int xcom_client_send_die();
   int xcom_init(xcom_port listen_port);
   int xcom_exit(bool xcom_handlers_open);
   int xcom_get_ssl_mode(const char *mode);

@@ -552,6 +552,11 @@ enum_gcs_error Gcs_xcom_control::do_leave() {
   }
   wait_for_xcom_thread();
 
+  return do_leave_gcs(Gcs_view::OK);
+}
+
+enum_gcs_error Gcs_xcom_control::do_leave_gcs(
+    Gcs_view::Gcs_view_error_code error_code) {
   /*
     There is no need to interact with the local xcom anymore so we
     will can close local handlers.
@@ -563,6 +568,8 @@ enum_gcs_error Gcs_xcom_control::do_leave() {
   }
 
   m_xcom_running = false;
+
+  assert(m_xcom_proxy->xcom_is_exit());
 
   set_terminate_suspicion_thread(true);
 
@@ -592,10 +599,9 @@ enum_gcs_error Gcs_xcom_control::do_leave() {
   }
 
   /*
-    Notify that the node has left the group because someone has
-    requested to do so.
+    Notify that the node has left the group.
   */
-  install_leave_view(Gcs_view::OK);
+  install_leave_view(error_code);
 
   /*
     Set that the node does not belong to a group anymore. Note there

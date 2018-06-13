@@ -260,10 +260,18 @@ class Gcs_xcom_control : public Gcs_control_interface {
   enum_gcs_error leave();
 
   /*
-    Responsible for doing the heavy lifting related to the leave
-    operation.
+    Responsible for doing the heavy lifting related to the leave operation.
+    Triggers and oversees the termination of XCom, then calls 'do_leave_gcs'.
   */
   enum_gcs_error do_leave();
+
+  /**
+    Terminates GCS only (assumes that XCom has already exited). Stops the
+    suspicions manager and installs the leave view indicated in 'error_code'.
+
+    @param error_code The leave view to be installed.
+  */
+  enum_gcs_error do_leave_gcs(Gcs_view::Gcs_view_error_code error_code);
 
   bool belongs_to_group();
 
