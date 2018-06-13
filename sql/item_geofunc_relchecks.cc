@@ -37,7 +37,6 @@
 #include "my_sys.h"
 #include "mysqld_error.h"
 #include "sql/current_thd.h"
-#include "sql/dd/cache/dictionary_client.h"
 #include "sql/dd/types/spatial_reference_system.h"
 #include "sql/derror.h"  // ER_THD
 #include "sql/gis/geometries.h"
@@ -1253,8 +1252,6 @@ longlong Item_func_spatial_relation::val_int() {
   const dd::Spatial_reference_system *srs2 = nullptr;
   std::unique_ptr<gis::Geometry> g1;
   std::unique_ptr<gis::Geometry> g2;
-  dd::cache::Dictionary_client::Auto_releaser m_releaser(
-      current_thd->dd_client());
   if (gis::parse_geometry(current_thd, func_name(), res1, &srs1, &g1) ||
       gis::parse_geometry(current_thd, func_name(), res2, &srs2, &g2)) {
     DBUG_RETURN(error_int());

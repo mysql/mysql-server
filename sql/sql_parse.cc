@@ -73,9 +73,9 @@
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/binlog.h"  // purge_master_logs
 #include "sql/current_thd.h"
-#include "sql/dd/cache/dictionary_client.h"
-#include "sql/dd/dd.h"          // dd::get_dictionary
-#include "sql/dd/dd_schema.h"   // Schema_MDL_locker
+#include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client::Auto_releaser
+#include "sql/dd/dd.h"                       // dd::get_dictionary
+#include "sql/dd/dd_schema.h"                // Schema_MDL_locker
 #include "sql/dd/dictionary.h"  // dd::Dictionary::is_system_view_name
 #include "sql/dd/info_schema/table_stats.h"
 #include "sql/debug_sync.h"  // DEBUG_SYNC
@@ -2442,6 +2442,13 @@ int mysql_execute_command(THD *thd, bool first_level) {
               lex->sql_command == SQLCOM_EXPLAIN_OTHER);
 
   thd->work_part_info = 0;
+
+  /*
+    Statement level auto-releaser. If shorter dictionary object lifetimes are
+    needed, functions deeper down in the call stack can create their own
+    releasers.
+  */
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   /*
     Each statement or replication event which might produce deadlock

@@ -45,7 +45,6 @@
 #include "mysql/psi/psi_base.h"
 #include "mysqld_error.h"
 #include "sql/current_thd.h"
-#include "sql/dd/cache/dictionary_client.h"
 #include "sql/dd/types/spatial_reference_system.h"
 #include "sql/derror.h"  // ER_THD
 #include "sql/gis/srid.h"
@@ -2719,7 +2718,6 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg) {
 
   if (g1->get_srid() != 0) {
     THD *thd = current_thd;
-    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
     Srs_fetcher fetcher(thd);
     const dd::Spatial_reference_system *srs = nullptr;
     if (fetcher.acquire(g1->get_srid(), &srs))
