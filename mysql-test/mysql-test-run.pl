@@ -209,7 +209,6 @@ our $opt_ssl;
 our $opt_ssl_supported;
 our $opt_suite_opt;
 our $opt_summary_report;
-our $opt_test_progress;
 our $opt_vardir;
 our $opt_xml_report;
 
@@ -227,6 +226,7 @@ our $opt_parallel        = $ENV{MTR_PARALLEL};
 our $opt_repeat          = 1;
 our $opt_report_times    = 0;
 our $opt_resfile         = $ENV{'MTR_RESULT_FILE'} || 0;
+our $opt_test_progress   = 1;
 our $opt_sanitize        = 0;
 our $opt_user            = "root";
 our $opt_valgrind        = 0;
@@ -268,7 +268,6 @@ our $path_client_libdir;
 our $path_current_testlog;
 our $path_language;
 our $path_testlog;
-our $remaining;
 our $start_only;
 
 our $experimental_test_cases = [];
@@ -532,8 +531,6 @@ sub main {
   initialize_servers();
 
   my $num_tests = @$tests;
-  $num_tests_for_report = $num_tests * $opt_repeat;
-  $remaining            = $num_tests_for_report;
 
   # Limit parallel workers to number of tests to avoid idle workers
   $opt_parallel = $num_tests if ($num_tests > 0 and $opt_parallel > $num_tests);
@@ -547,6 +544,12 @@ sub main {
                   "--stress nor --mysqlx_port.\nSetting parallel value to 1.");
       $opt_parallel = 1;
     }
+  }
+
+  if ($opt_parallel == 1) {
+    $num_tests_for_report = $num_tests * $opt_repeat;
+  } else {
+    $num_tests_for_report = $num_tests;
   }
 
   # Please note, that disk_usage() will print a space to separate its
@@ -1372,7 +1375,7 @@ sub command_line_setup {
     'check-testcases!' => \$opt_check_testcases,
     'mark-progress'    => \$opt_mark_progress,
     'record'           => \$opt_record,
-    'test-progress'    => \$opt_test_progress,
+    'test-progress=i'  => \$opt_test_progress,
 
     # Extra options used when starting mysqld
     'mysqld=s'     => \@opt_extra_mysqld_opt,
@@ -1659,6 +1662,10 @@ sub command_line_setup {
       collect_option('binlog-format', $1);
       mtr_report("Using binlog format '$1'");
     }
+  }
+
+  if ($opt_test_progress != 0 and $opt_test_progress != 1) {
+    mtr_error("Invalid value '$opt_test_progress' for option 'test-progress'.");
   }
 
   # Read the file and store it in a string.
@@ -6934,7 +6941,7 @@ Options for test case authoring
   mark-progress         Log line number and elapsed time to <testname>.progress
                         file.
   record TESTNAME       (Re)genereate the result file for TESTNAME.
-  test-progress         Print the percentage of tests completed.
+  test-progress={0|1}   Print the percentage of tests completed.
 
 Options that pass on options (these may be repeated)
 
