@@ -267,6 +267,25 @@ ELSEIF(DEB_CODENAME STREQUAL "bionic")
   SET (DEB_INIT_APPARMOR "/lib/apparmor/profile-load usr.sbin.mysqld")
   SET (DEB_CONTROL_DBGSYM "")
   SET (DEB_RULES_STRIP "")
+ELSEIF(DEB_CODENAME STREQUAL "cosmic")
+  SET (DEB_PLATFORMRELEASE "ubuntu18.10")
+  SET (DEB_CONTROL_BDEPS ", dh-apparmor, dh-systemd (>=1.5)")
+  SET (DEB_INSTALL_SOURCE_XZ "../*.tar.xz usr/src/mysql/")
+  SET (DEB_RULES_INSTALL_SYSTEMD
+    "install -m 0755 debian/extra/mysql-systemd-start debian/tmp/usr/share/mysql-${MYSQL_BASE_VERSION}/")
+  SET (DEB_RULES_INSTALL_APPARMOR
+    "install -g root -o root -m 0644 -D debian/extra/apparmor-profile debian/tmp/etc/apparmor.d/usr.sbin.mysqld")
+  SET (DEB_RULES_APPARMOR_LOAD
+    "dh_apparmor -pmysql-${DEB_PRODUCTNAME}-server --profile-name=usr.sbin.mysqld")
+  SET (DEB_RULES_SYSTEMD_ENABLE "dh_systemd_enable --name=mysql")
+  SET (DEB_RULES_SYSTEMD_START "dh_systemd_start --restart-after-upgrade")
+  SET (DEB_INSTALL_SERVER_SYSTEMD "usr/share/mysql-${MYSQL_BASE_VERSION}/mysql-systemd-start")
+  SET (DEB_INSTALL_SERVER_APPARMOR "etc/apparmor.d/usr.sbin.mysqld")
+  SET (DEB_SERVICE_SERVER_EXECPRE
+    "ExecStartPre=/usr/share/mysql-${MYSQL_BASE_VERSION}/mysql-systemd-start pre")
+  SET (DEB_INIT_APPARMOR "/lib/apparmor/profile-load usr.sbin.mysqld")
+  SET (DEB_CONTROL_DBGSYM "")
+  SET (DEB_RULES_STRIP "")
 ELSE()
   MESSAGE(STATUS
     "Skipping deb packaging on unsupported platform ${DEB_CODENAME}.")
