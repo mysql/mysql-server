@@ -108,6 +108,13 @@ struct z_first_page_t {
     return (flst_get_len(flst) == 0);
   }
 
+  /** Get the length of the index list.
+  @return length of the index list. */
+  ulint get_index_list_length() const {
+    flst_base_node_t *flst = index_list();
+    return (flst_get_len(flst));
+  }
+
   void set_version_0() {
     mlog_write_ulint(frame() + OFFSET_VERSION, 0, MLOG_1BYTE, m_mtr);
   }

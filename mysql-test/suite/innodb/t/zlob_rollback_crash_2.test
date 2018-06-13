@@ -1,0 +1,27 @@
+--source include/have_debug.inc
+--source include/have_innodb_max_16k.inc
+
+--echo #
+--echo # Bug #27419474 INNODB: ASSERTION FAILURE: ZLOB0READ.CC.*:FLST_LEN != 0
+--echo #
+
+set global innodb_compression_level = 0;
+
+create table t1 (f1 int primary key, f2 longblob, key(f2(50)))
+engine=innodb row_format=compressed;
+
+show create table t1;
+
+start transaction;
+insert into t1 values (1, repeat('x', 50000));
+set debug = '+d,crash_middle_zlob_rollback';
+--source include/expect_crash.inc
+
+--error 0,2013
+rollback;
+
+--source include/start_mysqld.inc
+
+select * from t1;
+drop table t1;
+set global innodb_compression_level = default;
