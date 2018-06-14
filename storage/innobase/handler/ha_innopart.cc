@@ -4237,6 +4237,15 @@ ha_innopart::external_lock(
 
 				ut_ad(table->quiesce == QUIESCE_START);
 
+				if (dict_table_is_discarded(table)) {
+					ib_senderrf(m_prebuilt->trx->mysql_thd,
+						    IB_LOG_LEVEL_ERROR,
+						    ER_TABLESPACE_DISCARDED,
+						    table->name.m_name);
+
+					return (HA_ERR_NO_SUCH_TABLE);
+				}
+
 				row_quiesce_table_start(table,
 							m_prebuilt->trx);
 
