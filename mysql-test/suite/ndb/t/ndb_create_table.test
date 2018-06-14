@@ -58,10 +58,13 @@ drop table t1;
 create table t1 (a int primary key) engine ndb;
 
 --echo #execute same query in loops through mysql -e argument - should pass without any error
---let $loops = 20
-while($loops) {
-  --exec $MYSQL -e "create table if not exists test.t1 (a int primary key) engine ndb;"
-  --dec $loops
+if(!`select version() like '%embedded%'`) {
+  # Not run for embedded since it do not work in that case, Bug#28188664.
+  --let $loops = 20
+  while($loops) {
+    --exec $MYSQL -e "create table if not exists test.t1 (a int primary key) engine ndb;"
+    --dec $loops
+  }
 }
 
 --connection default
