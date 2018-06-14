@@ -19,6 +19,9 @@
 SELECT * FROM performance_schema.persisted_variables;
 SELECT VARIABLE_NAME FROM performance_schema.variables_info WHERE VARIABLE_SOURCE = 'PERSISTED';
 
+# clang/UBSAN needs to override the small thread stack in the .sql file
+call mtr.add_suppression("option 'thread_stack':");
+
 --echo # Allow SET PERSIST to set all the read only variables excluding plugin
 --echo # variables.
 --echo #

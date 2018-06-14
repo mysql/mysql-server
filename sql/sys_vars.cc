@@ -3230,8 +3230,14 @@ static Sys_var_charptr Sys_socket(
 static Sys_var_ulong Sys_thread_stack(
     "thread_stack", "The stack size for each thread",
     READ_ONLY GLOBAL_VAR(my_thread_stack_size), CMD_LINE(REQUIRED_ARG),
-    VALID_RANGE(128 * 1024, ULONG_MAX), DEFAULT(DEFAULT_THREAD_STACK),
-    BLOCK_SIZE(1024));
+#if defined(__clang__) && defined(HAVE_UBSAN)
+    // DEFAULT_THREAD_STACK is multiplied by 3 for clang/UBSAN
+    // We need to increase the minimum value as well.
+    VALID_RANGE(DEFAULT_THREAD_STACK / 2, ULONG_MAX),
+#else
+    VALID_RANGE(128 * 1024, ULONG_MAX),
+#endif
+    DEFAULT(DEFAULT_THREAD_STACK), BLOCK_SIZE(1024));
 
 static Sys_var_charptr Sys_tmpdir(
     "tmpdir",

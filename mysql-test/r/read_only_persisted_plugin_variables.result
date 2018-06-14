@@ -9,6 +9,7 @@ SELECT * FROM performance_schema.persisted_variables;
 VARIABLE_NAME	VARIABLE_VALUE
 SELECT VARIABLE_NAME FROM performance_schema.variables_info WHERE VARIABLE_SOURCE = 'PERSISTED';
 VARIABLE_NAME
+call mtr.add_suppression("option 'thread_stack':");
 # Allow SET PERSIST to set all the read only variables excluding plugin
 # variables.
 #

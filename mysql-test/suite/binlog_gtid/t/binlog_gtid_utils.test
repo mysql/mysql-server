@@ -8,6 +8,9 @@
 # For each function in gtid_utils.inc, test a few values, try to
 # include boundary conditions etc.
 
+# clang/UBSAN needs to override the small thread stack in our -master.opt
+call mtr.add_suppression("option 'thread_stack':");
+
 # Only need to test under one binlog format
 --source include/have_binlog_format_row.inc
 # Thread stack overrun in debug mode on sparc

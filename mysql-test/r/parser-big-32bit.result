@@ -37,9 +37,9 @@ numterms	query lengt	increment
 SELECT LENGTH(@terms);
 LENGTH(@terms)
 10709996
-SELECT @@global.thread_stack, @@global.max_allowed_packet;
-@@global.thread_stack	@@global.max_allowed_packet
-286720	16999424
+SELECT @@global.max_allowed_packet;
+@@global.max_allowed_packet
+16999424
 DROP FUNCTION f1;
 DROP PROCEDURE p1;
 DROP TABLE t1;
