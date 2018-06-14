@@ -1,0 +1,7 @@
+--source include/have_lowercase0.inc
+
+--echo #
+--echo # Test Mixed Case Identifiers with --lower-case-table-name=0
+--echo #
+
+--source suite/innodb/include/mixed_case.inc

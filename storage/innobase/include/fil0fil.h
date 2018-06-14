@@ -686,6 +686,11 @@ class Fil_path {
   /** Convert filename to the file system charset format.
   @param[in,out]	name		Filename to convert */
   static void convert_to_filename_charset(std::string &name);
+
+  /** Convert to lower case using the file system charset.
+  @param[in,out]	path		Filepath to convert */
+  static void convert_to_lower_case(std::string &path);
+
 #endif /* !UNIV_HOTBACKUP */
 
  protected:
