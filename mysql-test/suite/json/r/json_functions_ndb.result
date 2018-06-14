@@ -99,21 +99,21 @@ Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON in the IN operator'
 Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON in the IN operator'
 Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 2
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 34
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 35
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 36
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 37
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 40
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 54
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 55
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 56
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 57
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 58
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 59
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 60
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 61
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 62
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 63
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 3
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 4
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 5
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 6
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 9
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 23
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 24
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 25
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 26
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 27
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 28
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 29
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 30
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 31
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 32
 SELECT i FROM t1
 WHERE j = CAST(CAST(j AS CHAR CHARACTER SET 'utf8') AS JSON)
 ORDER BY i;
@@ -7373,7 +7373,7 @@ FROM t1 JOIN t2
 HAVING field1 = 7;
 field1
 Warnings:
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column ? at row 2
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column ? at row 1
 drop table t1;
 drop table t2;
 # ----------------------------------------------------------------------
