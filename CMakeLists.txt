@@ -738,6 +738,69 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_BINARY_DIR}/libbinlogevents/include
   ${CMAKE_SOURCE_DIR}/libbinlogevents/export)
 
+
+SET(WITH_SYSTEM_LIBS_DEFAULT OFF)
+
+OPTION(WITH_LTO
+  "Enable the link-time optimizer. Currently works for gcc8 only." OFF)
+IF(WITH_LTO)
+  MY_CHECK_CXX_COMPILER_FLAG("-flto" CXX_LTO_RESULT)
+  IF(NOT CXX_LTO_RESULT)
+    MESSAGE(FATAL_ERROR "Compiler does not support -flto")
+  ENDIF()
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -flto")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -flto")
+
+  # Test for parallel linking.
+  SET(NUM_PROCESSING_UNITS 4)
+  MY_CHECK_CXX_COMPILER_FLAG(
+    "-flto=${NUM_PROCESSING_UNITS}" CXX_LTO_PARALLEL_RESULT)
+  IF(CXX_LTO_PARALLEL_RESULT)
+    FIND_PROGRAM(NPROC_EXECUTABLE nproc)
+    IF(NPROC_EXECUTABLE)
+      EXECUTE_PROCESS(COMMAND ${NPROC_EXECUTABLE}
+        OUTPUT_VARIABLE NPROC_NUM
+        RESULT_VARIABLE NPROC_RESULT
+        OUTPUT_STRIP_TRAILING_WHITESPACE)
+      IF(NOT NPROC_RESULT)
+        SET(NUM_PROCESSING_UNITS ${NPROC_NUM})
+      ENDIF()
+    ENDIF()
+    SET(CMAKE_CXX_LINK_FLAGS
+      "${CMAKE_CXX_LINK_FLAGS} -flto=${NUM_PROCESSING_UNITS}")
+    SET(CMAKE_SHARED_LINKER_FLAGS
+      "${CMAKE_SHARED_LINKER_FLAGS} -flto=${NUM_PROCESSING_UNITS}")
+  ELSE()
+    SET(CMAKE_CXX_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS} -flto")
+    SET(CMAKE_SHARED_LINKER_FLAGS
+      "${CMAKE_SHARED_LINKER_FLAGS} -flto")
+  ENDIF()
+
+  # On some platforms (Fedora) we *must* use gcc-ar / gcc-ranlib
+  # to get the right plugins for supporting -flto output from gcc.
+  IF(CMAKE_COMPILER_IS_GNUCC AND CMAKE_COMPILER_IS_GNUCXX)
+    IF(ALTERNATIVE_GCC AND ALTERNATIVE_GPP)
+      FIND_PROGRAM(GCC_AR_EXECUTABLE gcc-ar
+        NO_DEFAULT_PATH
+        PATHS "/opt/rh/devtoolset-7/root/usr/bin")
+      FIND_PROGRAM(GCC_RANLIB_EXECUTABLE gcc-ranlib
+        NO_DEFAULT_PATH
+        PATHS "/opt/rh/devtoolset-7/root/usr/bin")
+    ELSE()
+      FIND_PROGRAM(GCC_AR_EXECUTABLE gcc-ar)
+      FIND_PROGRAM(GCC_RANLIB_EXECUTABLE gcc-ranlib)
+    ENDIF()
+    IF(GCC_AR_EXECUTABLE AND GCC_RANLIB_EXECUTABLE)
+      SET(CMAKE_AR ${GCC_AR_EXECUTABLE})
+      SET(CMAKE_RANLIB ${GCC_RANLIB_EXECUTABLE})
+    ENDIF()
+  ENDIF()
+
+  # We must use -DWITH_PROTOBUF=system.
+  # There are also bugs exposed by LTO in the bundled ICU and editline sources.
+  SET(WITH_SYSTEM_LIBS_DEFAULT ON)
+ENDIF()
+
 # Explicit list of all -DWITH_XXX=system possibilities
 # *except* boost, which requires one specific version to be downloaded
 SET(SYSTEM_LIBRARIES
@@ -755,7 +818,7 @@ SET(SYSTEM_LIBRARIES
   )
 
 OPTION(WITH_SYSTEM_LIBS
-  "Use -DWITH_XXX=system for ${SYSTEM_LIBRARIES}" OFF)
+  "Use -DWITH_XXX=system for ${SYSTEM_LIBRARIES}" ${WITH_SYSTEM_LIBS_DEFAULT})
 
 GET_CMAKE_PROPERTY(CACHE_VARS CACHE_VARIABLES)
 UNSET(COMMAND_LINE_VARS)

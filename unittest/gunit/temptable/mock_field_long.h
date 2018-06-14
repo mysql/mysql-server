@@ -27,6 +27,8 @@
 
 #include "sql/field.h"
 
+namespace temptable_test {
+
 /** Helper to simplify creating fields. */
 class Mock_field_long : public Field_long {
  public:
@@ -56,5 +58,7 @@ class Mock_field_long : public Field_long {
   uchar buffer[PACK_LENGTH];
   uchar null_byte = '\0';
 };
+
+}  // namespace temptable_test
 
 #endif  // MOCK_FIELD_LONG_INCLUDED

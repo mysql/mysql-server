@@ -69,6 +69,10 @@ IF(WITH_INNODB_MEMCACHED AND UNIX)
     SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-but-set-variable")
   ENDIF()
 
+  # -Werror=lto-type-mismatch for misc functions.
+  STRING(REPLACE "-flto" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+  STRING(REPLACE "-flto" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+
   ADD_SUBDIRECTORY(daemon_memcached)
   ADD_SUBDIRECTORY(innodb_memcache)
 ENDIF()

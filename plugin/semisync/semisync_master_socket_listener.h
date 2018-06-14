@@ -49,6 +49,7 @@ class Poll_socket_listener {
       pollfd poll_fd;
       poll_fd.fd = m_slaves[i].sock_fd();
       poll_fd.events = POLLIN;
+      poll_fd.revents = 0;
       m_fds.push_back(poll_fd);
     }
     return true;

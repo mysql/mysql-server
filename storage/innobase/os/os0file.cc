@@ -8032,7 +8032,7 @@ void Encryption::get_master_key(ulint *master_key_id, byte **master_key) {
 @return true if success */
 bool Encryption::fill_encryption_info(byte *key, byte *iv, byte *encrypt_info,
                                       bool is_boot) {
-  byte *master_key;
+  byte *master_key = nullptr;
   ulint master_key_id;
 
   /* Get master key from key ring. For bootstrap, we use a default

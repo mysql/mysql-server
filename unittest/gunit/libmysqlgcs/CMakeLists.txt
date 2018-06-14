@@ -34,6 +34,11 @@ IF(RPC_INCLUDE_DIR STREQUAL "/usr/include/tirpc")
   ADD_DEFINITIONS(-DHAVE_TIRPC)
 ENDIF()
 
+# Add the definition to build XCom with SSL support.
+# The testing code needs to have the same #defines as the code under test.
+# (Specifically struct connection_descriptor)
+ADD_DEFINITIONS(-DXCOM_HAVE_OPENSSL)
+
 INCLUDE_DIRECTORIES(
   SYSTEM
   ${GMOCK_INCLUDE_DIRS}

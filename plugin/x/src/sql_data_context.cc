@@ -263,7 +263,7 @@ bool get_security_context_value(MYSQL_THD thd, const char *option,
 }
 
 bool Sql_data_context::is_acl_disabled() {
-  MYSQL_LEX_CSTRING value;
+  MYSQL_LEX_CSTRING value{"", 0};
 
   if (get_security_context_value(get_thd(), "priv_user", value)) {
     return 0 != value.length && NULL != strstr(value.str, "skip-grants ");
@@ -281,7 +281,7 @@ bool Sql_data_context::has_authenticated_user_a_super_priv() const {
 }
 
 std::string Sql_data_context::get_user_name() const {
-  MYSQL_LEX_CSTRING result;
+  MYSQL_LEX_CSTRING result{"", 0};
 
   if (get_security_context_value(get_thd(), "user", result)) return result.str;
 
@@ -289,7 +289,7 @@ std::string Sql_data_context::get_user_name() const {
 }
 
 std::string Sql_data_context::get_host_or_ip() const {
-  MYSQL_LEX_CSTRING result;
+  MYSQL_LEX_CSTRING result{"", 0};
 
   if (get_security_context_value(get_thd(), "host_or_ip", result))
     return result.str;
@@ -298,7 +298,7 @@ std::string Sql_data_context::get_host_or_ip() const {
 }
 
 std::string Sql_data_context::get_authenticated_user_name() const {
-  MYSQL_LEX_CSTRING result;
+  MYSQL_LEX_CSTRING result{"", 0};
 
   if (get_security_context_value(get_thd(), "priv_user", result))
     return result.str;
@@ -307,7 +307,7 @@ std::string Sql_data_context::get_authenticated_user_name() const {
 }
 
 std::string Sql_data_context::get_authenticated_user_host() const {
-  MYSQL_LEX_CSTRING result;
+  MYSQL_LEX_CSTRING result{"", 0};
 
   if (get_security_context_value(get_thd(), "priv_host", result))
     return result.str;

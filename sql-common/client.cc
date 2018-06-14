@@ -3430,7 +3430,7 @@ static int cli_establish_ssl(MYSQL *mysql) {
     /* Do the SSL layering. */
     struct st_mysql_options *options = &mysql->options;
     struct st_VioSSLFd *ssl_fd;
-    enum enum_ssl_init_error ssl_init_error;
+    enum enum_ssl_init_error ssl_init_error = SSL_INITERR_NOERROR;
     const char *cert_error;
     unsigned long ssl_error;
     char buff[33], *end;

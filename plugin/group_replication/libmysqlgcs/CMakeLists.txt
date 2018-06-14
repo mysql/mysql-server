@@ -115,7 +115,7 @@ IF(HAVE_CAST_FUNCTION_TYPE)
                     COMPILE_FLAGS "-Wno-cast-function-type")
 ENDIF()
 
-# add the definition to build XCom with SSL support
+# Add the definition to build XCom with SSL support.
 ADD_DEFINITIONS(-DXCOM_HAVE_OPENSSL)
 
 ### Configuration ###
