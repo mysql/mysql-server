@@ -39,7 +39,7 @@ Type: select
 Choices: Use Strong Password Encryption (RECOMMENDED), Use Legacy Authentication Method (Retain MySQL 5.x Compatibility)
 Description: Select default authentication plugin
  MySQL 8 uses a new authentication based on improved SHA256-based password methods. It is recommended that all new MySQL Server installations use this method going forward.
- This new authentication plugin requires new versions of connectors and clients, with support for this new 8 authentication (caching_sha2_password).
+ This new authentication plugin requires new versions of connectors and clients, with support for this new authentication method (caching_sha2_password).
  Currently MySQL 8 Connectors and community drivers built with libmysqlclient21 support this new method. Clients built with older versions of libmysqlclient may not be able
  to connect to the new server.
  .
