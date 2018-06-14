@@ -4357,13 +4357,13 @@ CREATE TABLE t1( f1 BIGINT, f2 DECIMAL(5,2));
 CREATE OR REPLACE VIEW v1 (my_f1, my_f2) AS SELECT *      FROM t1;
 CREATE OR REPLACE VIEW v1 (my_f1, my_f2) AS SELECT f1, f2 FROM t1;
 CREATE OR REPLACE VIEW v1 (my_f1       ) AS SELECT *      FROM t1;
-ERROR HY000: View's SELECT and view's field list have different column counts
+ERROR HY000: In definition of view, derived table or common table expression, SELECT list and column names list have different column counts
 CREATE OR REPLACE VIEW v1 (my_f1       ) AS SELECT f1, f2 FROM t1;
-ERROR HY000: View's SELECT and view's field list have different column counts
+ERROR HY000: In definition of view, derived table or common table expression, SELECT list and column names list have different column counts
 CREATE OR REPLACE VIEW v1 (my_f1, my_f2, my_f3) AS SELECT *      FROM t1;
-ERROR HY000: View's SELECT and view's field list have different column counts
+ERROR HY000: In definition of view, derived table or common table expression, SELECT list and column names list have different column counts
 CREATE OR REPLACE VIEW v1 (my_f1, my_f2, my_f3) AS SELECT f1, f2 FROM t1;
-ERROR HY000: View's SELECT and view's field list have different column counts
+ERROR HY000: In definition of view, derived table or common table expression, SELECT list and column names list have different column counts
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 

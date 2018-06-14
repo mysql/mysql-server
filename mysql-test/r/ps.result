@@ -1895,9 +1895,9 @@ a	b
 drop view v1;
 prepare stmt from "create view v1 (a,b,c) as select * from t1";
 execute stmt;
-ERROR HY000: View's SELECT and view's field list have different column counts
+ERROR HY000: In definition of view, derived table or common table expression, SELECT list and column names list have different column counts
 execute stmt;
-ERROR HY000: View's SELECT and view's field list have different column counts
+ERROR HY000: In definition of view, derived table or common table expression, SELECT list and column names list have different column counts
 deallocate prepare stmt;
 drop table t1;
 create temporary table t1 (a int, b int);

@@ -306,7 +306,7 @@ ERROR 21000: The used SELECT statements have a different number of columns
 # recursive CTE which creates tmp table earlier in preparation.
 with recursive q (b) as (select 1, 1 union all select 1, 1 from q)
 select b from q;
-ERROR HY000: View's SELECT and view's field list have different column counts
+ERROR HY000: In definition of view, derived table or common table expression, SELECT list and column names list have different column counts
 # Cannot have two recursive refs in FROM:
 with recursive qn as (
 select 123 as a union all
@@ -1615,7 +1615,7 @@ ERROR 21000: The used SELECT statements have a different number of columns
 # recursive CTE which creates tmp table earlier in preparation.
 with recursive q (b) as (select 1, 1 union all select 1, 1 from q)
 select b from q;
-ERROR HY000: View's SELECT and view's field list have different column counts
+ERROR HY000: In definition of view, derived table or common table expression, SELECT list and column names list have different column counts
 # Cannot have two recursive refs in FROM:
 with recursive qn as (
 select 123 as a union all

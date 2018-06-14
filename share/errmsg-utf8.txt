@@ -5320,7 +5320,7 @@ ER_VIEW_SELECT_TMPTABLE
         rus "View SELECT содержит ссылку на временную таблицу '%-.192s'"
         ukr "View SELECT використовує тимчасову таблицю '%-.192s'"
 ER_VIEW_WRONG_LIST  
-        eng "View's SELECT and view's field list have different column counts"
+        eng "In definition of view, derived table or common table expression, SELECT list and column names list have different column counts"
         ger "SELECT- und Feldliste der Views haben unterschiedliche Anzahlen von Spalten"
         rus "View SELECT и список полей view имеют разное количество столбцов"
         ukr "View SELECT і перелік стовбців view мають різну кількість сковбців"
