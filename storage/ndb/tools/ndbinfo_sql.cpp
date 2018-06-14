@@ -885,6 +885,8 @@ int main(int argc, char** argv){
 
   }
 
+  delete [] tables;
+
   printf("# Recreate handler local lookup tables in %s\n", opt_ndbinfo_db);
   const char* prev_name = "";
   for (size_t i = 0; i < num_lookups; i++)
