@@ -29,3 +29,4 @@ Description: MySQL Enterprise Backup
 ")
 
 SET (DEB_CMAKE_EXTRAS "${DEB_CMAKE_EXTRAS} -DWITH_MEB=1 -DMYSQL_SERVER_SUFFIX=\"-commercial\"")
+SET (DEB_CONTROL_BDEPS_COMMERCIAL ", libcurl4-openssl-dev")

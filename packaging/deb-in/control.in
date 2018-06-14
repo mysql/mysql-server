@@ -4,7 +4,7 @@ Section: database
 Priority: optional
 Standards-Version: 3.9.8
 Homepage: http://www.mysql.com/
-Build-Depends: debhelper (>= 9.0.0), libaio-dev[linux-any], libncurses5-dev (>= 5.0-6), libjson-perl, libldap2-dev, libsasl2-dev, perl, zlib1g-dev (>= 1:1.1.3-5), po-debconf, psmisc, bison, lsb-release, cmake, fakeroot, libnuma-dev, libmecab-dev, @DEB_CONTROL_BDEPS@
+Build-Depends: debhelper (>= 9.0.0), libaio-dev[linux-any], libncurses5-dev (>= 5.0-6), libjson-perl, libldap2-dev, libsasl2-dev, perl, zlib1g-dev (>= 1:1.1.3-5), po-debconf, psmisc, bison, lsb-release, cmake, fakeroot, libnuma-dev, libmecab-dev @DEB_CONTROL_BDEPS@ @DEB_CONTROL_BDEPS_COMMERCIAL@
 
 
 Package: mysql-server
