@@ -325,6 +325,7 @@ SET GLOBAL DEBUG= '+d, skip_purge_check_shutdown';
         "schema_ref": "test",
         "se_private_id":NNN,
         "engine": "InnoDB",
+        "last_checked_for_upgrade_version_id": X,
         "comment": "",
         "se_private_data": "",
         "row_format": 2,

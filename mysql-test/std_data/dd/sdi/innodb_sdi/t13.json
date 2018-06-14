@@ -237,6 +237,7 @@
         "schema_ref": "test",
         "se_private_id":NNN,
         "engine": "InnoDB",
+        "last_checked_for_upgrade_version_id": X,
         "comment": "",
         "se_private_data": "autoinc=0;version=0;",
         "row_format": 2,

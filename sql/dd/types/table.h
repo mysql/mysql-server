@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -145,6 +145,13 @@ class Table : virtual public Abstract_table {
 
   virtual const String_type &comment() const = 0;
   virtual void set_comment(const String_type &comment) = 0;
+
+  /////////////////////////////////////////////////////////////////////////
+  // last_checked_for_upgrade_version_id api
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual bool is_checked_for_upgrade() const = 0;
+  virtual void mark_as_checked_for_upgrade() = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // se_private_data.

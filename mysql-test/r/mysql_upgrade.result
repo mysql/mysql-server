@@ -38,122 +38,122 @@ sys.sys_config                                     OK
 Run it again - should say already completed
 This installation of MySQL is already upgraded to VERSION, use --force if you still need to run mysql_upgrade
 Force should run it regardless of wether it's been run before
-mysql.columns_priv                                 OK
-mysql.component                                    OK
-mysql.db                                           OK
-mysql.default_roles                                OK
-mysql.engine_cost                                  OK
-mysql.func                                         OK
-mysql.general_log                                  OK
-mysql.global_grants                                OK
-mysql.gtid_executed                                OK
-mysql.help_category                                OK
-mysql.help_keyword                                 OK
-mysql.help_relation                                OK
-mysql.help_topic                                   OK
-mysql.innodb_index_stats                           OK
-mysql.innodb_table_stats                           OK
-mysql.password_history                             OK
-mysql.plugin                                       OK
-mysql.procs_priv                                   OK
-mysql.proxies_priv                                 OK
-mysql.role_edges                                   OK
-mysql.server_cost                                  OK
-mysql.servers                                      OK
-mysql.slave_master_info                            OK
-mysql.slave_relay_log_info                         OK
-mysql.slave_worker_info                            OK
-mysql.slow_log                                     OK
-mysql.tables_priv                                  OK
-mysql.time_zone                                    OK
-mysql.time_zone_leap_second                        OK
-mysql.time_zone_name                               OK
-mysql.time_zone_transition                         OK
-mysql.time_zone_transition_type                    OK
-mysql.user                                         OK
-mtr.global_suppressions                            OK
-mtr.test_suppressions                              OK
-sys.sys_config                                     OK
+mysql.columns_priv                                 Table is already up to date
+mysql.component                                    Table is already up to date
+mysql.db                                           Table is already up to date
+mysql.default_roles                                Table is already up to date
+mysql.engine_cost                                  Table is already up to date
+mysql.func                                         Table is already up to date
+mysql.general_log                                  Table is already up to date
+mysql.global_grants                                Table is already up to date
+mysql.gtid_executed                                Table is already up to date
+mysql.help_category                                Table is already up to date
+mysql.help_keyword                                 Table is already up to date
+mysql.help_relation                                Table is already up to date
+mysql.help_topic                                   Table is already up to date
+mysql.innodb_index_stats                           Table is already up to date
+mysql.innodb_table_stats                           Table is already up to date
+mysql.password_history                             Table is already up to date
+mysql.plugin                                       Table is already up to date
+mysql.procs_priv                                   Table is already up to date
+mysql.proxies_priv                                 Table is already up to date
+mysql.role_edges                                   Table is already up to date
+mysql.server_cost                                  Table is already up to date
+mysql.servers                                      Table is already up to date
+mysql.slave_master_info                            Table is already up to date
+mysql.slave_relay_log_info                         Table is already up to date
+mysql.slave_worker_info                            Table is already up to date
+mysql.slow_log                                     Table is already up to date
+mysql.tables_priv                                  Table is already up to date
+mysql.time_zone                                    Table is already up to date
+mysql.time_zone_leap_second                        Table is already up to date
+mysql.time_zone_name                               Table is already up to date
+mysql.time_zone_transition                         Table is already up to date
+mysql.time_zone_transition_type                    Table is already up to date
+mysql.user                                         Table is already up to date
+mtr.global_suppressions                            Table is already up to date
+mtr.test_suppressions                              Table is already up to date
+sys.sys_config                                     Table is already up to date
 Run mysql_upgrade with a non existing server socket
 mysql_upgrade: Got error: 2005: Unknown MySQL server host 'not_existing_host' (errno) while connecting to the MySQL server
 Upgrade process encountered error and will not continue.
-mysql.columns_priv                                 OK
-mysql.component                                    OK
-mysql.db                                           OK
-mysql.default_roles                                OK
-mysql.engine_cost                                  OK
-mysql.func                                         OK
-mysql.general_log                                  OK
-mysql.global_grants                                OK
-mysql.gtid_executed                                OK
-mysql.help_category                                OK
-mysql.help_keyword                                 OK
-mysql.help_relation                                OK
-mysql.help_topic                                   OK
-mysql.innodb_index_stats                           OK
-mysql.innodb_table_stats                           OK
-mysql.password_history                             OK
-mysql.plugin                                       OK
-mysql.procs_priv                                   OK
-mysql.proxies_priv                                 OK
-mysql.role_edges                                   OK
-mysql.server_cost                                  OK
-mysql.servers                                      OK
-mysql.slave_master_info                            OK
-mysql.slave_relay_log_info                         OK
-mysql.slave_worker_info                            OK
-mysql.slow_log                                     OK
-mysql.tables_priv                                  OK
-mysql.time_zone                                    OK
-mysql.time_zone_leap_second                        OK
-mysql.time_zone_name                               OK
-mysql.time_zone_transition                         OK
-mysql.time_zone_transition_type                    OK
-mysql.user                                         OK
-mtr.global_suppressions                            OK
-mtr.test_suppressions                              OK
-sys.sys_config                                     OK
+mysql.columns_priv                                 Table is already up to date
+mysql.component                                    Table is already up to date
+mysql.db                                           Table is already up to date
+mysql.default_roles                                Table is already up to date
+mysql.engine_cost                                  Table is already up to date
+mysql.func                                         Table is already up to date
+mysql.general_log                                  Table is already up to date
+mysql.global_grants                                Table is already up to date
+mysql.gtid_executed                                Table is already up to date
+mysql.help_category                                Table is already up to date
+mysql.help_keyword                                 Table is already up to date
+mysql.help_relation                                Table is already up to date
+mysql.help_topic                                   Table is already up to date
+mysql.innodb_index_stats                           Table is already up to date
+mysql.innodb_table_stats                           Table is already up to date
+mysql.password_history                             Table is already up to date
+mysql.plugin                                       Table is already up to date
+mysql.procs_priv                                   Table is already up to date
+mysql.proxies_priv                                 Table is already up to date
+mysql.role_edges                                   Table is already up to date
+mysql.server_cost                                  Table is already up to date
+mysql.servers                                      Table is already up to date
+mysql.slave_master_info                            Table is already up to date
+mysql.slave_relay_log_info                         Table is already up to date
+mysql.slave_worker_info                            Table is already up to date
+mysql.slow_log                                     Table is already up to date
+mysql.tables_priv                                  Table is already up to date
+mysql.time_zone                                    Table is already up to date
+mysql.time_zone_leap_second                        Table is already up to date
+mysql.time_zone_name                               Table is already up to date
+mysql.time_zone_transition                         Table is already up to date
+mysql.time_zone_transition_type                    Table is already up to date
+mysql.user                                         Table is already up to date
+mtr.global_suppressions                            Table is already up to date
+mtr.test_suppressions                              Table is already up to date
+sys.sys_config                                     Table is already up to date
 #
 # Bug #27549249: MYSQL_UPGRADE FAILED TO CHANGE @@SESSION.SQL_LOG_BIN
 #   WHEN AUTOCOMMIT IS OFF
 #
 SET GLOBAL autocommit = 0;
-mysql.columns_priv                                 OK
-mysql.component                                    OK
-mysql.db                                           OK
-mysql.default_roles                                OK
-mysql.engine_cost                                  OK
-mysql.func                                         OK
-mysql.general_log                                  OK
-mysql.global_grants                                OK
-mysql.gtid_executed                                OK
-mysql.help_category                                OK
-mysql.help_keyword                                 OK
-mysql.help_relation                                OK
-mysql.help_topic                                   OK
-mysql.innodb_index_stats                           OK
-mysql.innodb_table_stats                           OK
-mysql.password_history                             OK
-mysql.plugin                                       OK
-mysql.procs_priv                                   OK
-mysql.proxies_priv                                 OK
-mysql.role_edges                                   OK
-mysql.server_cost                                  OK
-mysql.servers                                      OK
-mysql.slave_master_info                            OK
-mysql.slave_relay_log_info                         OK
-mysql.slave_worker_info                            OK
-mysql.slow_log                                     OK
-mysql.tables_priv                                  OK
-mysql.time_zone                                    OK
-mysql.time_zone_leap_second                        OK
-mysql.time_zone_name                               OK
-mysql.time_zone_transition                         OK
-mysql.time_zone_transition_type                    OK
-mysql.user                                         OK
-mtr.global_suppressions                            OK
-mtr.test_suppressions                              OK
-sys.sys_config                                     OK
+mysql.columns_priv                                 Table is already up to date
+mysql.component                                    Table is already up to date
+mysql.db                                           Table is already up to date
+mysql.default_roles                                Table is already up to date
+mysql.engine_cost                                  Table is already up to date
+mysql.func                                         Table is already up to date
+mysql.general_log                                  Table is already up to date
+mysql.global_grants                                Table is already up to date
+mysql.gtid_executed                                Table is already up to date
+mysql.help_category                                Table is already up to date
+mysql.help_keyword                                 Table is already up to date
+mysql.help_relation                                Table is already up to date
+mysql.help_topic                                   Table is already up to date
+mysql.innodb_index_stats                           Table is already up to date
+mysql.innodb_table_stats                           Table is already up to date
+mysql.password_history                             Table is already up to date
+mysql.plugin                                       Table is already up to date
+mysql.procs_priv                                   Table is already up to date
+mysql.proxies_priv                                 Table is already up to date
+mysql.role_edges                                   Table is already up to date
+mysql.server_cost                                  Table is already up to date
+mysql.servers                                      Table is already up to date
+mysql.slave_master_info                            Table is already up to date
+mysql.slave_relay_log_info                         Table is already up to date
+mysql.slave_worker_info                            Table is already up to date
+mysql.slow_log                                     Table is already up to date
+mysql.tables_priv                                  Table is already up to date
+mysql.time_zone                                    Table is already up to date
+mysql.time_zone_leap_second                        Table is already up to date
+mysql.time_zone_name                               Table is already up to date
+mysql.time_zone_transition                         Table is already up to date
+mysql.time_zone_transition_type                    Table is already up to date
+mysql.user                                         Table is already up to date
+mtr.global_suppressions                            Table is already up to date
+mtr.test_suppressions                              Table is already up to date
+sys.sys_config                                     Table is already up to date
 SET GLOBAL autocommit = default;
 #
 # Bug #27568278: CAN'T LOCATE SERVER PUBLIC KEY 'ROOT' WHEN RUNNING MYSQL_UPGRADE
@@ -164,44 +164,44 @@ Checking server version.
 Running queries to upgrade MySQL server.
 Upgrading system table data.
 Checking system database.
-mysql.columns_priv                                 OK
-mysql.component                                    OK
-mysql.db                                           OK
-mysql.default_roles                                OK
-mysql.engine_cost                                  OK
-mysql.func                                         OK
-mysql.general_log                                  OK
-mysql.global_grants                                OK
-mysql.gtid_executed                                OK
-mysql.help_category                                OK
-mysql.help_keyword                                 OK
-mysql.help_relation                                OK
-mysql.help_topic                                   OK
-mysql.innodb_index_stats                           OK
-mysql.innodb_table_stats                           OK
-mysql.password_history                             OK
-mysql.plugin                                       OK
-mysql.procs_priv                                   OK
-mysql.proxies_priv                                 OK
-mysql.role_edges                                   OK
-mysql.server_cost                                  OK
-mysql.servers                                      OK
-mysql.slave_master_info                            OK
-mysql.slave_relay_log_info                         OK
-mysql.slave_worker_info                            OK
-mysql.slow_log                                     OK
-mysql.tables_priv                                  OK
-mysql.time_zone                                    OK
-mysql.time_zone_leap_second                        OK
-mysql.time_zone_name                               OK
-mysql.time_zone_transition                         OK
-mysql.time_zone_transition_type                    OK
-mysql.user                                         OK
+mysql.columns_priv                                 Table is already up to date
+mysql.component                                    Table is already up to date
+mysql.db                                           Table is already up to date
+mysql.default_roles                                Table is already up to date
+mysql.engine_cost                                  Table is already up to date
+mysql.func                                         Table is already up to date
+mysql.general_log                                  Table is already up to date
+mysql.global_grants                                Table is already up to date
+mysql.gtid_executed                                Table is already up to date
+mysql.help_category                                Table is already up to date
+mysql.help_keyword                                 Table is already up to date
+mysql.help_relation                                Table is already up to date
+mysql.help_topic                                   Table is already up to date
+mysql.innodb_index_stats                           Table is already up to date
+mysql.innodb_table_stats                           Table is already up to date
+mysql.password_history                             Table is already up to date
+mysql.plugin                                       Table is already up to date
+mysql.procs_priv                                   Table is already up to date
+mysql.proxies_priv                                 Table is already up to date
+mysql.role_edges                                   Table is already up to date
+mysql.server_cost                                  Table is already up to date
+mysql.servers                                      Table is already up to date
+mysql.slave_master_info                            Table is already up to date
+mysql.slave_relay_log_info                         Table is already up to date
+mysql.slave_worker_info                            Table is already up to date
+mysql.slow_log                                     Table is already up to date
+mysql.tables_priv                                  Table is already up to date
+mysql.time_zone                                    Table is already up to date
+mysql.time_zone_leap_second                        Table is already up to date
+mysql.time_zone_name                               Table is already up to date
+mysql.time_zone_transition                         Table is already up to date
+mysql.time_zone_transition_type                    Table is already up to date
+mysql.user                                         Table is already up to date
 The sys schema is already up to date (version 2.0.0).
 Checking databases.
-mtr.global_suppressions                            OK
-mtr.test_suppressions                              OK
-sys.sys_config                                     OK
+mtr.global_suppressions                            Table is already up to date
+mtr.test_suppressions                              Table is already up to date
+sys.sys_config                                     Table is already up to date
 Upgrade process completed successfully.
 Checking if update is needed.
 DROP USER root_sha256@localhost;
@@ -212,44 +212,44 @@ Checking server version.
 Running queries to upgrade MySQL server.
 Upgrading system table data.
 Checking system database.
-mysql.columns_priv                                 OK
-mysql.component                                    OK
-mysql.db                                           OK
-mysql.default_roles                                OK
-mysql.engine_cost                                  OK
-mysql.func                                         OK
-mysql.general_log                                  OK
-mysql.global_grants                                OK
-mysql.gtid_executed                                OK
-mysql.help_category                                OK
-mysql.help_keyword                                 OK
-mysql.help_relation                                OK
-mysql.help_topic                                   OK
-mysql.innodb_index_stats                           OK
-mysql.innodb_table_stats                           OK
-mysql.password_history                             OK
-mysql.plugin                                       OK
-mysql.procs_priv                                   OK
-mysql.proxies_priv                                 OK
-mysql.role_edges                                   OK
-mysql.server_cost                                  OK
-mysql.servers                                      OK
-mysql.slave_master_info                            OK
-mysql.slave_relay_log_info                         OK
-mysql.slave_worker_info                            OK
-mysql.slow_log                                     OK
-mysql.tables_priv                                  OK
-mysql.time_zone                                    OK
-mysql.time_zone_leap_second                        OK
-mysql.time_zone_name                               OK
-mysql.time_zone_transition                         OK
-mysql.time_zone_transition_type                    OK
-mysql.user                                         OK
+mysql.columns_priv                                 Table is already up to date
+mysql.component                                    Table is already up to date
+mysql.db                                           Table is already up to date
+mysql.default_roles                                Table is already up to date
+mysql.engine_cost                                  Table is already up to date
+mysql.func                                         Table is already up to date
+mysql.general_log                                  Table is already up to date
+mysql.global_grants                                Table is already up to date
+mysql.gtid_executed                                Table is already up to date
+mysql.help_category                                Table is already up to date
+mysql.help_keyword                                 Table is already up to date
+mysql.help_relation                                Table is already up to date
+mysql.help_topic                                   Table is already up to date
+mysql.innodb_index_stats                           Table is already up to date
+mysql.innodb_table_stats                           Table is already up to date
+mysql.password_history                             Table is already up to date
+mysql.plugin                                       Table is already up to date
+mysql.procs_priv                                   Table is already up to date
+mysql.proxies_priv                                 Table is already up to date
+mysql.role_edges                                   Table is already up to date
+mysql.server_cost                                  Table is already up to date
+mysql.servers                                      Table is already up to date
+mysql.slave_master_info                            Table is already up to date
+mysql.slave_relay_log_info                         Table is already up to date
+mysql.slave_worker_info                            Table is already up to date
+mysql.slow_log                                     Table is already up to date
+mysql.tables_priv                                  Table is already up to date
+mysql.time_zone                                    Table is already up to date
+mysql.time_zone_leap_second                        Table is already up to date
+mysql.time_zone_name                               Table is already up to date
+mysql.time_zone_transition                         Table is already up to date
+mysql.time_zone_transition_type                    Table is already up to date
+mysql.user                                         Table is already up to date
 The sys schema is already up to date (version 2.0.0).
 Checking databases.
-mtr.global_suppressions                            OK
-mtr.test_suppressions                              OK
-sys.sys_config                                     OK
+mtr.global_suppressions                            Table is already up to date
+mtr.test_suppressions                              Table is already up to date
+sys.sys_config                                     Table is already up to date
 Upgrade process completed successfully.
 Checking if update is needed.
 DROP USER root_caching_sha2@localhost;

@@ -18,7 +18,7 @@ COMMIT;
 --echo Run mysql_upgrade
 # Filter out ndb_binlog_index to mask differences due to running with or
 # without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
+--replace_regex /mysql.ndb_binlog_index.*$// /Table is already up to date/OK/
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 
 --let $assert_text= The mysql.infoschema user should exist after upgrade

@@ -13580,6 +13580,15 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     DBUG_ASSERT(table_def);
   }
 
+  if (old_table_def) {
+    if (old_table_def->is_checked_for_upgrade()) {
+      DBUG_PRINT("admin", ("Transfering upgrade mark "
+                           "from Table %s (%llu) to Table %s (%llu)",
+                           old_table_def->name().c_str(), old_table_def->id(),
+                           table_def->name().c_str(), table_def->id()));
+      table_def->mark_as_checked_for_upgrade();
+    }
+  }
   /*
     Check if new table definition is compatible with foreign keys
     on other tales which reference this one. We want to do this
@@ -14304,9 +14313,18 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                                     columns, backup_table, new_table))
       goto err_with_mdl; /* purecov: deadcode */
 
+    bool update = false;
     if (backup_table->has_trigger()) {
       new_table->copy_triggers(backup_table);
       backup_table->drop_all_triggers();
+      update = true;
+    }
+    if (!new_table->is_checked_for_upgrade() &&
+        backup_table->is_checked_for_upgrade()) {
+      new_table->mark_as_checked_for_upgrade();
+      update = true;
+    }
+    if (update) {
       if (thd->dd_client()->update(backup_table) ||
           thd->dd_client()->update(new_table))
         goto err_with_mdl;

@@ -52,6 +52,7 @@ enum class Stage {
 // Individual version labels that we can refer to.
 static constexpr uint DD_VERSION_80011 = 80011;
 static constexpr uint DD_VERSION_80012 = 80012;
+static constexpr uint DD_VERSION_80013 = 80013;
 
 /*
   Set of supported DD version labels. A supported DD version is a version

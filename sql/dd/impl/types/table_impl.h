@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@
 #include <string>
 
 #include "my_inttypes.h"
+#include "mysql_version.h"  // MYSQL_VERSION_ID
 #include "sql/dd/impl/raw/raw_record.h"
 #include "sql/dd/impl/types/abstract_table_impl.h"  // dd::Abstract_table_impl
 #include "sql/dd/impl/types/entity_object_impl.h"
@@ -160,6 +161,18 @@ class Table_impl : public Abstract_table_impl, virtual public Table {
   virtual const String_type &comment() const { return m_comment; }
 
   virtual void set_comment(const String_type &comment) { m_comment = comment; }
+
+  /////////////////////////////////////////////////////////////////////////
+  // last_checked_for_upgrade_version_id
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual bool is_checked_for_upgrade() const {
+    return m_last_checked_for_upgrade_version_id == MYSQL_VERSION_ID;
+  }
+
+  virtual void mark_as_checked_for_upgrade() {
+    m_last_checked_for_upgrade_version_id = MYSQL_VERSION_ID;
+  }
 
   /////////////////////////////////////////////////////////////////////////
   // se_private_data.
@@ -478,6 +491,12 @@ class Table_impl : public Abstract_table_impl, virtual public Table {
 
   String_type m_engine;
   String_type m_comment;
+
+  // Setting this to 0 means that every table will be checked by CHECK
+  // TABLE FOR UPGRADE once, even if it was created in this version.
+  // If we instead initialize to MYSQL_VERSION_ID, it will only run
+  // CHECK TABLE FOR UPGRADE after a real upgrade.
+  uint m_last_checked_for_upgrade_version_id = 0;
   std::unique_ptr<Properties> m_se_private_data;
   enum_row_format m_row_format;
 

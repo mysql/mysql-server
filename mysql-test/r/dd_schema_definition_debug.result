@@ -165,7 +165,7 @@ SET debug = '+d,skip_dd_table_access_check';
 ########################################################################
 # The actual DD version stored on disk.
 ########################################################################
-DD_VERSION=80012
+DD_VERSION=80013
 ########################################################################
 # List the CREATE TABLE statements for the DD tables.
 # Mask the AUTO INCREMENT counter, which is not
@@ -627,6 +627,7 @@ tables	CREATE TABLE `tables` (
   `view_client_collation_id` bigint(20) unsigned DEFAULT NULL,
   `view_connection_collation_id` bigint(20) unsigned DEFAULT NULL,
   `view_column_names` longtext COLLATE utf8_bin,
+  `last_checked_for_upgrade_version_id` int(10) unsigned NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `schema_id` (`schema_id`,`name`),
   UNIQUE KEY `engine` (`engine`,`se_private_id`),
@@ -718,5 +719,5 @@ SET debug = '-d,skip_dd_table_access_check';
 SET debug = '+d,skip_dd_table_access_check';
 include/assert.inc [The group concat max length is sufficient.]
 CHECK_STATUS
-The schema checksum corresponds to DD version 80012.
+The schema checksum corresponds to DD version 80013.
 include/assert.inc [The schema checksum corresponds to a known DD version.]

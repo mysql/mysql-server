@@ -1377,6 +1377,16 @@ bool migrate_meta_data(THD *thd, const std::set<String_type> &create_set,
 
   /* Version dependent migration of meta data can be added here. */
 
+  /* Upgrade from 80012. */
+  if (bootstrap::DD_bootstrap_ctx::instance().is_upgrade_from_before(
+          bootstrap::DD_VERSION_80013)) {
+    migrated_set.insert("tables");
+    if (execute_query(thd,
+                      "INSERT INTO tables SELECT *, 0 FROM mysql.tables")) {
+      return dd::end_transaction(thd, true);
+    }
+  }
+
   /*
     8.0.11 allowed entries with 0 timestamps to be created. These must
     be updated, otherwise, upgrade will fail since 0 timstamps are not

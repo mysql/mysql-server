@@ -147,6 +147,10 @@ Tables::Tables() {
                          "view_connection_collation_id BIGINT UNSIGNED");
   m_target_def.add_field(FIELD_VIEW_COLUMN_NAMES, "FIELD_VIEW_COLUMN_NAMES",
                          "view_column_names LONGTEXT");
+  m_target_def.add_field(
+      FIELD_LAST_CHECKED_FOR_UPGRADE_VERSION_ID,
+      "FIELD_LAST_CHECKED_FOR_UPGRADE_VERSION_ID",
+      "last_checked_for_upgrade_version_id INT UNSIGNED NOT NULL");
 
   m_target_def.add_index(INDEX_PK_ID, "INDEX_PK_ID", "PRIMARY KEY (id)");
   m_target_def.add_index(INDEX_UK_SCHEMA_ID_NAME, "INDEX_UK_SCHEMA_ID_NAME",

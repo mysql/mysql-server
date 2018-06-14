@@ -7,8 +7,9 @@
 #
 --echo Run mysql_upgrade once
 # Filter out ndb_binlog_index to mask differences due to running with or
-# without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
+# without ndb. Always report check-for-upgrade status as OK, as it depends
+# on the order in which tests are run.
+--replace_regex /mysql.ndb_binlog_index.*$// /Table is already up to date/OK/
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 
 # It should have created a file in the MySQL Servers datadir

@@ -103,3 +103,75 @@ disconnect con1;
 
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc
+
+
+--echo #
+--echo # Bug#24741307: add last_checked_for_upgrade column to dd.tables table
+--echo #
+
+--echo # Checking default storage engine (Innodb)
+CREATE TABLE t1(i INT);
+
+--echo # Table has been created with last_checked_for_upgrade = 0,
+--echo # so the check will be performed
+CHECK TABLE t1 FOR UPGRADE;
+
+--echo # Checking again will detect that the table has already been checked
+CHECK TABLE t1 FOR UPGRADE;
+
+ALTER TABLE t1 CHANGE COLUMN i j INT, ALGORITHM=INPLACE;
+
+--echo # Checking again after ALTER INPLACE to verify that the check status is
+--echo # still present
+CHECK TABLE t1 FOR UPGRADE;
+
+ALTER TABLE t1 CHANGE COLUMN j k INT, ALGORITHM=COPY;
+
+--echo # Checking again after ALTER COPY to verify that the check status is
+--echo # still present
+CHECK TABLE t1 FOR UPGRADE;
+
+ALTER TABLE t1 ADD COLUMN l INT, ALGORITHM=INSTANT;
+
+--echo # Checking again after ALTER INSTANT to verify that the check status
+--echo # still present
+CHECK TABLE t1 FOR UPGRADE;
+
+TRUNCATE TABLE t1;
+
+--echo # Checking again after TRUNCATE to verify that the check status
+--echo # still present
+CHECK TABLE t1 FOR UPGRADE;
+
+--echo # Checking MyISAM storage engine
+CREATE TABLE t2(i INT) ENGINE=MYISAM;
+
+--echo # Table has been created with last_checked_for_upgrade = 0,
+--echo # so the check will be performed
+CHECK TABLE t2 FOR UPGRADE;
+
+--echo # Checking again will detect that the table has already been checked
+CHECK TABLE t2 FOR UPGRADE;
+
+ALTER TABLE t2 CHANGE COLUMN i j INT, ALGORITHM=INPLACE;
+
+--echo # Checking again after ALTER INPLACE to verify that the check status is
+--echo # still present
+CHECK TABLE t2 FOR UPGRADE;
+
+ALTER TABLE t2 CHANGE COLUMN j k INT, ALGORITHM=COPY;
+
+--echo # Checking again after ALTER COPY to verify that the check status is
+--echo # still present
+CHECK TABLE t2 FOR UPGRADE;
+
+TRUNCATE TABLE t2;
+
+--echo # Checking again after TRUNCATE to verify that the check status is
+--echo # still present
+CHECK TABLE t2 FOR UPGRADE;
+
+
+--echo # Cleanup
+DROP TABLE t2;
+DROP TABLE t1;

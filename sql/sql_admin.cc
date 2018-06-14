@@ -48,9 +48,13 @@
 #include "sql/auth/auth_common.h"  // *_ACL
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/clone_handler.h"
+#include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
 #include "sql/dd/dd_table.h"                 // dd::recreate_table
+#include "sql/dd/impl/sdi_utils.h"           // mdl_lock
 #include "sql/dd/info_schema/table_stats.h"  // dd::info_schema::update_*
+#include "sql/dd/string_type.h"              // dd::String_type
 #include "sql/dd/types/abstract_table.h"     // dd::enum_table_type
+#include "sql/dd/types/table.h"              // dd::Table
 #include "sql/debug_sync.h"                  // DEBUG_SYNC
 #include "sql/derror.h"                      // ER_THD
 #include "sql/handler.h"
@@ -58,6 +62,7 @@
 #include "sql/item.h"
 #include "sql/key.h"
 #include "sql/keycaches.h"  // get_key_cache
+#include "sql/lock.h"       // acquire_shared_global_read_lock()
 #include "sql/log.h"
 #include "sql/mdl.h"
 #include "sql/mysqld.h"             // key_file_misc
@@ -454,6 +459,66 @@ bool Sql_cmd_analyze_table::update_histogram(THD *thd, TABLE_LIST *table,
                                       get_histogram_buckets(), results);
 }
 
+using Check_result = std::pair<bool, int>;
+template <typename CHECK_FUNC>
+static Check_result check_for_upgrade(THD *thd, dd::String_type &sname,
+                                      dd::String_type &tname, CHECK_FUNC &&cf) {
+  dd::cache::Dictionary_client *dc = thd->dd_client();
+
+  const dd::Table *t = nullptr;
+  if (dc->acquire(sname, tname, &t)) {
+    return {true, HA_ADMIN_FAILED};
+  }
+  DBUG_ASSERT(t != nullptr);
+
+  if (t->is_checked_for_upgrade()) {
+    DBUG_PRINT("admin", ("Table %s (%llu) already checked for upgrade, "
+                         "skipping",
+                         t->name().c_str(), t->id()));
+    return {false, HA_ADMIN_ALREADY_DONE};
+  }
+  DBUG_PRINT("admin",
+             ("Table %s (%llu) needs checking", t->name().c_str(), t->id()));
+  int result_code = cf();
+
+  if (result_code != HA_ADMIN_OK && result_code != HA_ADMIN_ALREADY_DONE) {
+    DBUG_PRINT("admin", ("result_code: %d", result_code));
+    return {false, result_code};
+  }
+  Check_result error{true, result_code};
+
+  // Ok we have successfully checked table for upgrade. Record
+  // this fact in the DD.
+
+  if (acquire_shared_global_read_lock(thd, thd->variables.lock_wait_timeout)) {
+    return error;
+  }
+
+  // Need IX on schema for acquire_for_modification()
+  if (dd::sdi_utils::mdl_lock(thd, MDL_key::SCHEMA, sname, "",
+                              MDL_INTENTION_EXCLUSIVE)) {
+    return error;
+  }
+
+  // Need X on table so that the last_checked version can be updated
+  if (dd::sdi_utils::mdl_lock(thd, MDL_key::TABLE, sname, tname)) {
+    return error;
+  }
+
+  dd::Table *c = nullptr;
+  if (dc->acquire_for_modification(t->id(), &c)) {
+    return error;
+  }
+  c->mark_as_checked_for_upgrade();
+  if (dc->update(c)) {
+    return error;
+  }
+  DBUG_PRINT("admin",
+             ("dd::Table %s marked as checked for upgrade", c->name().c_str()));
+
+  return {false, result_code};
+}
+
 /*
   RETURN VALUES
     false Message sent to net (admin operation went ok)
@@ -473,6 +538,7 @@ static bool mysql_admin_table(
     being updated.
   */
   Disable_autocommit_guard autocommit_guard(thd);
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   TABLE_LIST *table;
   SELECT_LEX *select = thd->lex->select_lex;
@@ -854,8 +920,25 @@ static bool mysql_admin_table(
       }
     }
 
-    DBUG_PRINT("admin", ("calling operator_func '%s'", operator_name));
-    result_code = (table->table->file->*operator_func)(thd, check_opt);
+    if (check_opt && (check_opt->sql_flags & TT_FOR_UPGRADE) != 0) {
+      dd::String_type snam = dd::make_string_type(table->table->s->db);
+      dd::String_type tnam = dd::make_string_type(table->table->s->table_name);
+
+      Check_result cr = check_for_upgrade(thd, snam, tnam, [&]() {
+        DBUG_PRINT("admin", ("calling operator_func '%s'", operator_name));
+        return (table->table->file->*operator_func)(thd, check_opt);
+      });
+
+      result_code = cr.second;
+      if (cr.first) {
+        goto err;
+      }
+    }
+    // Some other admin COMMAND
+    else {
+      DBUG_PRINT("admin", ("calling operator_func '%s'", operator_name));
+      result_code = (table->table->file->*operator_func)(thd, check_opt);
+    }
     DBUG_PRINT("admin", ("operator_func returned: %d", result_code));
 
     /*
@@ -1185,11 +1268,14 @@ static bool mysql_admin_table(
         Unlikely, but transaction rollback was requested by one of storage
         engines (e.g. due to deadlock). Perform it.
       */
+      DBUG_PRINT("admin", ("rollback"));
+
       if (trans_rollback_stmt(thd) || trans_rollback_implicit(thd)) goto err;
     } else {
       if (trans_commit_stmt(thd, ignore_grl_on_analyze) ||
           trans_commit_implicit(thd, ignore_grl_on_analyze))
         goto err;
+      DBUG_PRINT("admin", ("commit"));
     }
     close_thread_tables(thd);
     thd->mdl_context.release_transactional_locks();
@@ -1204,6 +1290,7 @@ static bool mysql_admin_table(
   DBUG_RETURN(false);
 
 err:
+  DBUG_PRINT("admin", ("err:"));
   if (gtid_rollback_must_be_skipped) thd->skip_gtid_rollback = false;
 
   trans_rollback_stmt(thd);

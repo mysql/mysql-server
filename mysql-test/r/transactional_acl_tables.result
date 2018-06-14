@@ -1760,7 +1760,6 @@ tables_priv	MyISAM
 user	MyISAM
 
 # mysql_upgrade...
-Checking if update is needed.
 Checking server version.
 Running queries to upgrade MySQL server.
 Upgrading system table data.

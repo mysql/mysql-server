@@ -19,8 +19,9 @@ ALTER TABLE mysql.server_cost DROP COLUMN default_value;
 ALTER TABLE mysql.engine_cost DROP COLUMN default_value;
 
 # Filter out ndb_binlog_index to mask differences due to running with
-# or without NDB
---replace_regex /mysql.ndb_binlog_index.*$//
+# or without NDB. Always report check-for-upgrade status as OK, as it depends
+# on the order in which tests are run.
+--replace_regex /mysql.ndb_binlog_index.*$// /Table is already up to date/OK/
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 
 # Mask out the content of the last_update column
@@ -41,7 +42,7 @@ SELECT @old_server_defaults=@new_server_defaults,
 # Run upgrade script a second time to test upgrade when columns already exists
 #
 # Filter out ndb_binlog_index to mask differences due to running with
-# or without NDB
+# or without NDB.
 --replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 

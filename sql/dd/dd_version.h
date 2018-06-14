@@ -122,7 +122,7 @@
     MEDIUMBLOB.
 
 
-  80012: Current.
+  80012: Published in 8.0.12
   ----------------------------------------------------------------------------
   Changes from version 80011:
 
@@ -130,11 +130,11 @@
     in sync with WL#6379.
 
 
-  80013: Next DD version number after the previous is public.
+  80013: Current
   ----------------------------------------------------------------------------
   Changes from version 80012:
 
-  - No changes yet, hence this number is not used yet.
+  - Bug#24741307: add last_checked_for_upgrade column to msyql.tables table
 
 
   If a new DD version is published in a MRU, that version may or may not
@@ -143,12 +143,19 @@
   should be set to the lowest DD_VERSION that we may downgrade to. If minor
   downgrade is not supported at all, DD_VERSION_MINOR_DOWNGRADE_THRESHOLD
   should be set to DD_VERSION.
+
+
+  80014: Next DD version number after the previous is public.
+  ----------------------------------------------------------------------------
+  Changes from version 80013:
+
+  - No changes yet, hence this number is not used yet.
 */
 namespace dd {
 
-static const uint DD_VERSION = 80012;
+static const uint DD_VERSION = 80013;
 
-static const uint DD_VERSION_MINOR_DOWNGRADE_THRESHOLD = 80012;
+static const uint DD_VERSION_MINOR_DOWNGRADE_THRESHOLD = 80013;
 
 }  // namespace dd
 
