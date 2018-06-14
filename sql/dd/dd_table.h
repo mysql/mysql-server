@@ -29,6 +29,7 @@
 
 #include "binary_log_types.h"  // enum_field_types
 #include "my_inttypes.h"
+#include "sql/dd/result_type.h"  // dd::ResultType
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/column.h"  // dd::enum_column_types
 #include "sql/handler.h"          // legacy_db_type
@@ -391,5 +392,8 @@ bool get_field_numeric_precision(Create_field *field, uint *numeric_precision);
 
 bool get_field_datetime_precision(Create_field *field,
                                   uint *datetime_precision);
+
+using Encrypt_result = ResultType<bool>;
+Encrypt_result is_tablespace_encrypted(THD *thd, const dd::Table &t);
 }  // namespace dd
 #endif  // DD_TABLE_INCLUDED

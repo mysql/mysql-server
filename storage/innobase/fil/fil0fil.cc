@@ -2242,6 +2242,11 @@ dberr_t Fil_shard::get_file_size(fil_node_t *file, bool read_only_mode) {
   ulint flags = fsp_header_get_flags(page);
   space_id_t space_id = fsp_header_get_space_id(page);
 
+#ifndef UNIV_HOTBACKUP
+  encryption_op_type encryption_op =
+      fsp_header_encryption_op_type_in_progress(page, page_size_t(flags));
+#endif /* UNIV_HOTBACKUP */
+
   /* To determine if tablespace is from 5.7 or not, we
   rely on SDI flag. For IBDs from 5.7, which are opened
   during import or during upgrade, their initial size
@@ -2303,6 +2308,19 @@ dberr_t Fil_shard::get_file_size(fil_node_t *file, bool read_only_mode) {
   assert after dict_tf_to_fsp_flags() removal. */
   space->flags |= flags & FSP_FLAGS_MASK_SDI;
   /* ut_ad(space->flags == flags); */
+
+#ifndef UNIV_HOTBACKUP
+  /* It is possible for a space flag to be updated for encryption
+  in the ibd file, but the server crashed before DD flags are
+  updated. Update encryption flags for that scenario.
+
+  This is safe because m_encryption_op_in_progress will always be
+  set to NONE unless there is a crash before Encryption is
+  finished. */
+  if (encryption_op == ENCRYPTION) {
+    space->flags |= flags & FSP_FLAGS_MASK_ENCRYPTION;
+  }
+#endif /* UNIV_HOTBACKUP */
 
   if (space->flags != flags) {
     ib::fatal(ER_IB_MSG_272, space->flags, file->name, flags);
@@ -5168,8 +5186,22 @@ dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
     ut_ad(df.space_version() == DD_SPACE_CURRENT_SPACE_VERSION);
   }
 
+  /* Set unencryption in progress flag */
+  space->encryption_op_in_progress = df.m_encryption_op_in_progress;
+
+  /* Its possible during Encryption processing, space flag for encryption
+  has been updated in ibd file but server crashed before DD flags are
+  updated. Thus, consider ibd setting too for encryption.
+
+  It is safe because m_encryption_op_in_progress will be set to NONE
+  always unless there is a crash before finishing Encryption. */
+  if (space->encryption_op_in_progress == ENCRYPTION) {
+    space->flags |= flags & FSP_FLAGS_MASK_ENCRYPTION;
+  }
+
   /* For encryption tablespace, initialize encryption information.*/
-  if (is_encrypted && !for_import) {
+  if ((is_encrypted || space->encryption_op_in_progress == ENCRYPTION) &&
+      !for_import) {
     dberr_t err;
     byte *key = df.m_encryption_key;
     byte *iv = df.m_encryption_iv;
@@ -5503,6 +5535,9 @@ fil_load_status Fil_shard::ibd_open_for_recovery(space_id_t space_id,
       ib::error(ER_IB_MSG_312, space->name);
     }
   }
+
+  /* Set unencryption in progress flag */
+  space->encryption_op_in_progress = df.m_encryption_op_in_progress;
 
   return (FIL_LOAD_OK);
 }
@@ -6795,6 +6830,8 @@ void fil_io_set_encryption(IORequest &req_type, const page_id_t &page_id,
   /* Don't encrypt page 0 of all tablespaces except redo log
   tablespace, all pages from the system tablespace. */
   if (space->encryption_type == Encryption::NONE ||
+      (space->encryption_op_in_progress == UNENCRYPTION &&
+       req_type.is_write()) ||
       (page_id.page_no() == 0 && !req_type.is_log())) {
     req_type.clear_encrypted();
     return;
@@ -8030,11 +8067,12 @@ dberr_t fil_tablespace_iterate(dict_table_t *table, ulint n_io_buffers,
     if (FSP_FLAGS_GET_ENCRYPTION(space_flags)) {
       ut_ad(table->encryption_key != nullptr);
 
-      if (!dict_table_is_encrypted(table)) {
+      if (!dd_is_table_in_encrypted_tablespace(table)) {
         ib::error(ER_IB_MSG_338) << "Table is not in an encrypted"
                                     " tablespace, but the data file which"
                                     " trying to import is an encrypted"
                                     " tablespace";
+
         err = DB_IO_NO_ENCRYPT_TABLESPACE;
       }
     }
@@ -8331,6 +8369,39 @@ dberr_t fil_set_encryption(space_id_t space_id, Encryption::Type algorithm,
   return (DB_SUCCESS);
 }
 
+/** Reset the encryption type for the tablespace
+@param[in] space_id		Space ID of tablespace for which to set
+@return DB_SUCCESS or error code */
+dberr_t fil_reset_encryption(space_id_t space_id) {
+  ut_ad(space_id != TRX_SYS_SPACE);
+
+  if (fsp_is_system_or_temp_tablespace(space_id)) {
+    return (DB_IO_NO_ENCRYPT_TABLESPACE);
+  }
+
+  auto shard = fil_system->shard_by_id(space_id);
+
+  shard->mutex_acquire();
+
+  fil_space_t *space = shard->get_space_by_id(space_id);
+
+  if (space == NULL) {
+    shard->mutex_release();
+    return (DB_NOT_FOUND);
+  }
+
+  memset(space->encryption_key, 0, ENCRYPTION_KEY_LEN);
+  space->encryption_klen = 0;
+
+  memset(space->encryption_iv, 0, ENCRYPTION_KEY_LEN);
+
+  space->encryption_type = Encryption::NONE;
+
+  shard->mutex_release();
+
+  return (DB_SUCCESS);
+}
+
 #ifndef UNIV_HOTBACKUP
 /** Rotate the tablespace keys by new master key.
 @param[in,out]	shard		Rotate the keys in this shard
@@ -8358,24 +8429,19 @@ bool Fil_system::encryption_rotate_in_a_shard(Fil_shard *shard) {
       continue;
     }
 
+    mtr_t mtr;
+    mtr_start(&mtr);
+    mtr_x_lock_space(space, &mtr);
     /* Rotate the encrypted tablespaces. */
     if (space->encryption_type != Encryption::NONE) {
-      mtr_t mtr;
-
-      mtr_start(&mtr);
-
-      mtr_x_lock_space(space, &mtr);
-
       memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE);
 
       if (!fsp_header_rotate_encryption(space, encrypt_info, &mtr)) {
         mtr_commit(&mtr);
-
         return (false);
       }
-
-      mtr_commit(&mtr);
     }
+    mtr_commit(&mtr);
 
     DBUG_EXECUTE_IF("ib_crash_during_rotation_for_encryption", DBUG_SUICIDE(););
   }
@@ -9471,12 +9537,12 @@ byte *fil_tablespace_redo_encryption(byte *ptr, const byte *end,
 
       recv_sys->keys->push_back(new_key);
     }
-
   } else {
-    ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
-
-    space->encryption_type = Encryption::AES;
-    space->encryption_klen = ENCRYPTION_KEY_LEN;
+    if (FSP_FLAGS_GET_ENCRYPTION(space->flags) ||
+        space->encryption_op_in_progress == ENCRYPTION) {
+      space->encryption_type = Encryption::AES;
+      space->encryption_klen = ENCRYPTION_KEY_LEN;
+    }
   }
 
   return (ptr);

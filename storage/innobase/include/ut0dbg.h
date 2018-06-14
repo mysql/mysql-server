@@ -75,8 +75,16 @@ this program; if not, write to the Free Software Foundation, Inc.,
     snprintf(buf, sizeof buf, prefix "_%u", count); \
     DBUG_EXECUTE_IF(buf, DBUG_SUICIDE(););          \
   } while (0)
+
+#define DBUG_INJECT_CRASH_WITH_LOG_FLUSH(prefix, count)                \
+  do {                                                                 \
+    char buf[64];                                                      \
+    snprintf(buf, sizeof buf, prefix "_%u", count);                    \
+    DBUG_EXECUTE_IF(buf, log_buffer_flush_to_disk(); DBUG_SUICIDE();); \
+  } while (0)
 #else
 #define DBUG_INJECT_CRASH(prefix, count)
+#define DBUG_INJECT_CRASH_WITH_LOG_FLUSH(prefix, count)
 #endif
 
 /** Silence warnings about an unused variable by doing a null assignment.

@@ -1,0 +1,180 @@
+################################################################################
+# InnoDB transparent tablespace data encryption for general shared tablespace.
+# This test case will test
+#    - Progress monitoring of 'ALTER TABLESPACE ... ENCRYPTION=Y'
+#      in performance_schema table.
+################################################################################
+
+--source include/no_valgrind_without_big.inc
+--source include/have_debug.inc
+
+--disable_query_log
+call mtr.add_suppression("ibd can't be decrypted , please confirm the keyfile is match and keyring plugin is loaded.");
+call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] \\[[^]]*\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] InnoDB: Check keyring plugin fail, please check the keyring plugin is loaded.");
+--enable_query_log
+
+--echo #########################################################################
+--echo # START : WITHOUT KEYRING PLUGIN
+--echo #########################################################################
+--echo
+--echo #########
+--echo # SETUP #
+--echo #########
+
+# Create an Unencrypted tablespace
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd'
+	ENGINE=InnoDB ENCRYPTION="N";
+# Create an unencrypted table in tablespace
+CREATE TABLE t1(c1 char(100)) ENGINE=InnoDB TABLESPACE encrypt_ts;
+# Insert few rows in table
+--disable_query_log
+INSERT INTO t1 VALUES ("SOME VALUES");
+let $counter=5;
+while ($counter>0)
+{
+  INSERT INTO test.t1 SELECT * FROM test.t1;
+  dec $counter;
+}
+--enable_query_log
+
+# Make sure ts file is updated with new records in table
+set global innodb_buf_flush_list_now = 1;
+
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+	WHERE NAME='encrypt_ts';
+SELECT * FROM t1 LIMIT 10;
+
+# Try to alter tablespace to be encrypted. Should fail as keyring is not laoded.
+--error ER_CANNOT_FIND_KEY_IN_KEYRING
+ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
+
+--echo #########################################################################
+--echo # RESTART 1 : WITH KEYRING PLUGIN
+--echo #########################################################################
+let $restart_parameters = restart:
+--early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --performance-schema-consumer-events-stages-current=ON --performance-schema-events-stages-history-size=1000;
+--source include/restart_mysqld_no_echo.inc
+
+--echo # Monitoring connection
+connect(con1, localhost, root,,);
+--connection con1
+
+UPDATE performance_schema.setup_consumers SET ENABLED='YES';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+	WHERE NAME='encrypt_ts';
+SELECT * FROM performance_schema.setup_consumers
+	WHERE NAME LIKE "%stages%";
+SELECT * FROM performance_schema.setup_instruments
+	WHERE NAME LIKE "%encryption%";
+
+select count(*) from performance_schema.events_stages_current
+	WHERE EVENT_NAME='stage/innodb/alter tablespace (encryption)';
+
+--echo # Default connection
+--connection default
+--echo ############################################################
+--echo # ALTER TABLESPACE 1 :    Unencrypted => Encrypted         #
+--echo ############################################################
+--echo
+--echo # Set Encryption process to wait after page 5 so that we can monitor
+--echo # progress in performance_schema table
+SET DEBUG_SYNC = 'alter_encrypt_tablespace_wait_after_page5 SIGNAL s1 WAIT_FOR s2';
+
+let $con_default_thread_id= `select THREAD_ID from performance_schema.threads
+                                where PROCESSLIST_ID = connection_id()`;
+
+--send
+ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
+
+--echo # Monitoring connection
+--connection con1
+SET DEBUG_SYNC = 'now WAIT_FOR s1';
+
+--echo # Wait for Encryption progress monitoring to appear in PFS table
+let $wait_condition = SELECT COUNT(*) = 1
+        FROM performance_schema.events_stages_current
+        WHERE EVENT_NAME='stage/innodb/alter tablespace (encryption)';
+--source include/wait_condition.inc
+
+--echo # Wait for some progress to appear in PFS table
+let $wait_condition = SELECT WORK_COMPLETED > 0
+	FROM performance_schema.events_stages_current
+	WHERE EVENT_NAME='stage/innodb/alter tablespace (encryption)';
+--source include/wait_condition.inc
+
+# Verify the expected progress seen in PFS table
+select WORK_ESTIMATED, WORK_COMPLETED
+	FROM performance_schema.events_stages_current
+	WHERE EVENT_NAME = 'stage/innodb/alter tablespace (encryption)';
+
+# Let the encryption processing continue
+SET DEBUG_SYNC = 'now SIGNAL s2';
+
+--echo # Default connection
+--connection default
+--reap
+
+--echo # Once done, select count from PFS tables
+SELECT COUNT(*)
+	FROM performance_schema.events_stages_current
+	WHERE EVENT_NAME='stage/innodb/alter tablespace (encryption)';
+
+SELECT COUNT(*)
+	FROM performance_schema.events_stages_history
+	WHERE EVENT_NAME='stage/innodb/alter tablespace (encryption)';
+
+SELECT COUNT(*)
+	FROM performance_schema.events_stages_history_long
+	WHERE EVENT_NAME='stage/innodb/alter tablespace (encryption)';
+
+SELECT COUNT(*)
+	FROM performance_schema.events_stages_summary_global_by_event_name
+	WHERE EVENT_NAME = 'stage/innodb/alter tablespace (encryption)' AND
+	COUNT_STAR>0;
+
+--disable_query_log
+eval SELECT COUNT(*)
+	FROM performance_schema.events_stages_summary_by_thread_by_event_name
+	WHERE EVENT_NAME = 'stage/innodb/alter tablespace (encryption)' AND
+	THREAD_ID=$con_default_thread_id;
+--enable_query_log
+
+SELECT COUNT(*)
+	FROM performance_schema.events_stages_summary_by_user_by_event_name
+	WHERE EVENT_NAME = 'stage/innodb/alter tablespace (encryption)' AND
+	COUNT_STAR>0;
+
+SELECT COUNT(*)
+	FROM performance_schema.events_stages_summary_by_host_by_event_name
+	WHERE EVENT_NAME = 'stage/innodb/alter tablespace (encryption)' AND
+	COUNT_STAR>0;
+
+SELECT COUNT(*)
+	FROM performance_schema.events_stages_summary_by_account_by_event_name
+	WHERE EVENT_NAME = 'stage/innodb/alter tablespace (encryption)' AND
+	COUNT_STAR>0;
+
+--echo # Check that Encryption done successfully.
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+	WHERE NAME='encrypt_ts';
+SELECT * FROM t1 LIMIT 10;
+
+--echo #########################################################################
+--echo # RESTART 2 : WITHOUT KEYRING PLUGIN
+--echo #########################################################################
+let $restart_parameters = restart:;
+--source include/restart_mysqld_no_echo.inc
+
+# We shouldn't be able to read t1 records as it is encrypted now and keyring
+# plugin is not loaded.
+--error ER_CANNOT_FIND_KEY_IN_KEYRING
+SELECT * FROM t1 LIMIT 10;
+
+--echo ###########
+--echo # Cleanup #
+--echo ###########
+--disconnect con1
+DROP TABLE t1;
+DROP TABLESPACE encrypt_ts;
+remove_file $MYSQL_TMP_DIR/mysecret_keyring;

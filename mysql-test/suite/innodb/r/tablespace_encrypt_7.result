@@ -1,0 +1,356 @@
+#########################################################################
+# START : WITHOUT KEYRING PLUGIN
+#########################################################################
+
+#########
+# SETUP #
+#########
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' ENGINE=InnoDB ENCRYPTION="N";
+CREATE TABLE t1(c1 char(100)) ENGINE=InnoDB TABLESPACE encrypt_ts;
+set global innodb_buf_flush_list_now = 1;
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	N
+SELECT * FROM t1 LIMIT 10;
+c1
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+#########################################################################
+# RESTART 1 : WITH KEYRING PLUGIN
+#########################################################################
+########################################################################
+# ALTER TABLESPACE 1 :    Unencrypted => Encrypted                     #
+#                         crash just before flushing page 0 at the end #
+########################################################################
+# Set process to crash just before flushing page 0 at the end
+SET SESSION debug= '+d,alter_encrypt_tablespace_crash_before_flushing_page_0';
+# Encrypt the tablespace. It will cause crash.
+ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
+# Restart after crash
+# Wait for Encryption processing to finish in background thread
+set global innodb_buf_flush_list_now = 1;
+# After restart/recovery, check that Encryption was roll-forward
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	Y
+SELECT * FROM t1 LIMIT 10;
+c1
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+#########################################################################
+# RESTART 2 : WITHOUT KEYRING PLUGIN
+#########################################################################
+SELECT * FROM t1 LIMIT 10;
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+#########################################################################
+# RESTART 3 : WITH KEYRING PLUGIN
+#########################################################################
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	Y
+SELECT * FROM t1 LIMIT 10;
+c1
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+########################################################################
+# ALTER TABLESPACE 2 :    Encrypted => Unencrypted                     #
+#                         crash just before flushing page 0 at the end #
+########################################################################
+# Set process to crash just before flushing page 0 at the end
+SET SESSION debug= '+d,alter_encrypt_tablespace_crash_before_flushing_page_0';
+# Unencrypt the tablespace. It will cause crash.
+ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
+# Restart after crash
+# Wait for Unencryption processing to finish in background thread
+set global innodb_buf_flush_list_now = 1;
+# After restart/recovery, check that Unencryption was roll-forward
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	N
+SELECT * FROM t1 LIMIT 10;
+c1
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+#########################################################################
+# RESTART 4 : WITHOUT KEYRING PLUGIN
+#########################################################################
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	N
+SELECT * FROM t1 LIMIT 10;
+c1
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+#########################################################################
+# RESTART 5 : WITH KEYRING PLUGIN
+#########################################################################
+########################################################################
+# ALTER TABLESPACE 3 :    Unencrypted => Encrypted                     #
+#                         crash just after flushing page 0 at the end  #
+########################################################################
+# Set process to crash just after flushing page 0 at the end
+SET SESSION debug= '+d,alter_encrypt_tablespace_crash_after_flushing_page_0';
+# Encrypt the tablespace. It will cause crash.
+ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
+# Restart after crash
+# Wait for Encryption processing to finish in background thread
+set global innodb_buf_flush_list_now = 1;
+# After restart/recovery, check that Encryption was roll-forward
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	Y
+SELECT * FROM t1 LIMIT 10;
+c1
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+#########################################################################
+# RESTART 6 : WITHOUT KEYRING PLUGIN
+#########################################################################
+SELECT * FROM t1 LIMIT 10;
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+#########################################################################
+# RESTART 7 : WITH KEYRING PLUGIN
+#########################################################################
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	Y
+SELECT * FROM t1 LIMIT 10;
+c1
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+########################################################################
+# ALTER TABLESPACE 4 :    Encrypted => Unencrypted                     #
+#                         crash just after flushing page 0 at the end  #
+########################################################################
+# Set process to crash just after flushing page 0 at the end
+SET SESSION debug= '+d,alter_encrypt_tablespace_crash_after_flushing_page_0';
+# Unencrypt the tablespace. It will cause crash.
+ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
+# Restart after crash
+# Wait for Unencryption processing to finish in background thread
+set global innodb_buf_flush_list_now = 1;
+# After restart/recovery, check that Unencryption was roll-forward
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	N
+SELECT * FROM t1 LIMIT 10;
+c1
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+#########################################################################
+# RESTART 8 : WITHOUT KEYRING PLUGIN
+#########################################################################
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	N
+SELECT * FROM t1 LIMIT 10;
+c1
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+#########################################################################
+# RESTART 9 : WITH KEYRING PLUGIN
+#########################################################################
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	N
+SELECT * FROM t1 LIMIT 10;
+c1
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+########################################################################
+# ALTER TABLESPACE 5 :  Encrypted => unencrypted                       #
+#                       crash just before resetting progress onpage 0  #
+########################################################################
+ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
+# Set process to crash just after flushing page 0 at the end
+SET SESSION debug= '+d,alter_encrypt_tablespace_crash_before_updating_flags';
+# Unencrypt the tablespace. It will cause crash.
+ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
+# Restart after crash
+# Wait for Unencryption processing to finish in background thread
+set global innodb_buf_flush_list_now = 1;
+# After restart/recovery, check that Unencryption was roll-forward
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	N
+SELECT * FROM t1 LIMIT 10;
+c1
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+#########################################################################
+# RESTART 10 : WITHOUT KEYRING PLUGIN
+#########################################################################
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	N
+SELECT * FROM t1 LIMIT 10;
+c1
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+#########################################################################
+# RESTART 11 : WITH KEYRING PLUGIN
+#########################################################################
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	N
+SELECT * FROM t1 LIMIT 10;
+c1
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+########################################################################
+# ALTER TABLESPACE 6 :  Encrypted => unencrypted                       #
+#                       crash just before resetting progress onpage 0  #
+########################################################################
+ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
+# Set process to crash just after flushing page 0 at the end
+SET SESSION debug= '+d,alter_encrypt_tablespace_crash_before_resetting_progress';
+# Unencrypt the tablespace. It will cause crash.
+ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
+# Restart after crash
+# Wait for Unencryption processing to finish in background thread
+set global innodb_buf_flush_list_now = 1;
+# After restart/recovery, check that Unencryption was roll-forward
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	N
+SELECT * FROM t1 LIMIT 10;
+c1
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+#########################################################################
+# RESTART 12: WITHOUT KEYRING PLUGIN
+#########################################################################
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	N
+SELECT * FROM t1 LIMIT 10;
+c1
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+###########
+# Cleanup #
+###########
+DROP TABLE t1;
+DROP TABLESPACE encrypt_ts;

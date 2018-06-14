@@ -155,6 +155,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0priv.h"
 #include "dict0sdi.h"
 #include "dict0upgrade.h"
+#include "os0thread-create.h"
+#include "os0thread.h"
 #include "sql/item.h"
 #include "sql_base.h"
 #include "trx0roll.h"
@@ -204,6 +206,8 @@ ib_mutex_t master_key_id_mutex;
 static ulong commit_threads = 0;
 static mysql_cond_t commit_cond;
 static mysql_mutex_t commit_cond_m;
+mysql_cond_t resume_encryption_cond;
+mysql_mutex_t resume_encryption_cond_m;
 static bool innodb_inited = 0;
 
 #define EQ_CURRENT_THD(thd) ((thd) == current_thd)
@@ -545,13 +549,17 @@ performance schema */
 static mysql_pfs_key_t innobase_share_mutex_key;
 static mysql_pfs_key_t commit_cond_mutex_key;
 static mysql_pfs_key_t commit_cond_key;
+mysql_pfs_key_t resume_encryption_cond_mutex_key;
+mysql_pfs_key_t resume_encryption_cond_key;
 
 static PSI_mutex_info all_pthread_mutexes[] = {
     PSI_MUTEX_KEY(commit_cond_mutex, 0, 0, PSI_DOCUMENT_ME),
-    PSI_MUTEX_KEY(innobase_share_mutex, 0, 0, PSI_DOCUMENT_ME)};
+    PSI_MUTEX_KEY(innobase_share_mutex, 0, 0, PSI_DOCUMENT_ME),
+    PSI_MUTEX_KEY(resume_encryption_cond_mutex, 0, 0, PSI_DOCUMENT_ME)};
 
 static PSI_cond_info all_innodb_conds[] = {
-    PSI_KEY(commit_cond, 0, 0, PSI_DOCUMENT_ME)};
+    PSI_KEY(commit_cond, 0, 0, PSI_DOCUMENT_ME),
+    PSI_KEY(resume_encryption_cond, 0, 0, PSI_DOCUMENT_ME)};
 
 #ifdef UNIV_PFS_MUTEX
 /* all_innodb_mutexes array contains mutexes that are
@@ -708,7 +716,8 @@ static PSI_thread_info all_innodb_threads[] = {
     PSI_KEY(page_flush_coordinator_thread, 0, 0, PSI_DOCUMENT_ME),
     PSI_KEY(fts_optimize_thread, 0, 0, PSI_DOCUMENT_ME),
     PSI_KEY(fts_parallel_merge_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(fts_parallel_tokenization_thread, 0, 0, PSI_DOCUMENT_ME)};
+    PSI_KEY(fts_parallel_tokenization_thread, 0, 0, PSI_DOCUMENT_ME),
+    PSI_KEY(srv_ts_alter_encrypt_thread, 0, 0, PSI_DOCUMENT_ME)};
 #endif /* UNIV_PFS_THREAD */
 
 #ifdef UNIV_PFS_IO
@@ -1286,6 +1295,8 @@ static int innodb_shutdown(handlerton *, ha_panic_function) {
     mysql_mutex_destroy(&innobase_share_mutex);
     mysql_mutex_destroy(&commit_cond_m);
     mysql_cond_destroy(&commit_cond);
+    mysql_mutex_destroy(&resume_encryption_cond_m);
+    mysql_cond_destroy(&resume_encryption_cond);
   }
 
   DBUG_RETURN(0);
@@ -3429,6 +3440,19 @@ static void innobase_post_recover() {
     return;
   }
 
+  /* Resume unfinished (un)encryption process in background thread. */
+  if (!ts_encrypt_ddl_records.empty()) {
+    srv_threads.m_ts_alter_encrypt_thread_active = true;
+    os_thread_create(srv_ts_alter_encrypt_thread_key,
+                     fsp_init_resume_alter_encrypt_tablespace);
+
+    /* Wait till shared MDL is taken by background thread for all tablespaces,
+    for which (un)encryption is to be rolled forward. */
+    mysql_mutex_lock(&resume_encryption_cond_m);
+    mysql_cond_wait(&resume_encryption_cond, &resume_encryption_cond_m);
+    mysql_mutex_unlock(&resume_encryption_cond_m);
+  }
+
   Auto_THD thd;
   if (dd_tablespace_update_cache(thd.thd)) {
     ut_ad(0);
@@ -4525,6 +4549,9 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
   mysql_mutex_init(commit_cond_mutex_key.m_value, &commit_cond_m,
                    MY_MUTEX_INIT_FAST);
   mysql_cond_init(commit_cond_key.m_value, &commit_cond);
+  mysql_mutex_init(resume_encryption_cond_mutex_key.m_value,
+                   &resume_encryption_cond_m, MY_MUTEX_INIT_FAST);
+  mysql_cond_init(resume_encryption_cond_key.m_value, &resume_encryption_cond);
   innodb_inited = 1;
 #ifdef MYSQL_DYNAMIC_PLUGIN
   if (innobase_hton != p) {
@@ -6194,7 +6221,7 @@ int ha_innobase::open(const char *name, int, uint open_flags,
 
   /* For encrypted table, check if the encryption info in data
   file can't be retrieved properly, mark it as corrupted. */
-  if (ib_table != NULL && dict_table_is_encrypted(ib_table) &&
+  if (ib_table != NULL && dd_is_table_in_encrypted_tablespace(ib_table) &&
       ib_table->ibd_file_missing && !dict_table_is_discarded(ib_table)) {
     /* Mark this table as corrupted, so the drop table
     or force recovery can still use it, but not others. */
@@ -9906,15 +9933,16 @@ inline MY_ATTRIBUTE((warn_unused_result)) int create_table_info_t::
 
     if (err == DB_SUCCESS) {
       const char *encrypt = m_create_info->encrypt_type.str;
+      /* If encryption option is specified, then it must be
+      innodb-file-per-table tablespace. Otherwise case would
+      have already been blocked at
+      create_option_tablespace_is_valid(). */
+      if (encrypt) {
+        ut_ad(m_flags2 & DICT_TF2_USE_FILE_PER_TABLE);
+        ut_ad(!DICT_TF_HAS_SHARED_SPACE(m_flags));
+      }
 
-      if (!(m_flags2 & DICT_TF2_USE_FILE_PER_TABLE) &&
-          m_create_info->encrypt_type.length > 0 &&
-          !Encryption::is_none(encrypt)) {
-        my_error(ER_TABLESPACE_CANNOT_ENCRYPT, MYF(0));
-        err = DB_UNSUPPORTED;
-        dict_mem_table_free(table);
-
-      } else if (!Encryption::is_none(encrypt)) {
+      if (!Encryption::is_none(encrypt)) {
         /* Set the encryption flag. */
         byte *master_key = NULL;
         ulint master_key_id;
@@ -9928,7 +9956,10 @@ inline MY_ATTRIBUTE((warn_unused_result)) int create_table_info_t::
           dict_mem_table_free(table);
         } else {
           my_free(master_key);
-          DICT_TF2_FLAG_SET(table, DICT_TF2_ENCRYPTION);
+          /* This flag will be used for setting
+          encryption flag for file-per-table
+          tablespace. */
+          DICT_TF2_FLAG_SET(table, DICT_TF2_ENCRYPTION_FILE_PER_TABLE);
         }
       }
     }
@@ -10377,8 +10408,22 @@ bool innobase_is_valid_tablespace_name(bool tablespace_ddl, const char *name) {
 @return true if valid, false if not. */
 bool create_table_info_t::create_option_tablespace_is_valid() {
   if (!m_use_shared_space) {
-    /* Do not allow creation of a temp table
-    with innodb_file_per_table option. */
+    if (!m_use_file_per_table) {
+      /* System tablespace is being used for table */
+      if (m_create_info->encrypt_type.str) {
+        /* Encryption option is not allowed for table in general/shared
+        tablesapces. */
+        my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
+                        "InnoDB : ENCRYPTION is not accepted"
+                        " syntax for CREATE/ALTER table, for"
+                        " tables in general/shared tablespace.",
+                        MYF(0));
+        return false;
+      }
+    }
+
+    /* Do not allow creation of a temp table with innodb_file_per_table
+    option. */
     if ((m_create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
         tablespace_is_file_per_table(m_create_info)) {
       if (THDVAR(m_thd, strict_mode)) {
@@ -10422,6 +10467,42 @@ bool create_table_info_t::create_option_tablespace_is_valid() {
     return (false);
   }
 
+  bool is_create_table = (thd_sql_command(m_thd) == SQLCOM_CREATE_TABLE);
+  /* If ENCRYPTION option is used */
+  if (m_create_info->used_fields & HA_CREATE_USED_ENCRYPT) {
+    bool report_error = false;
+    if (is_create_table) { /* CREATE TABLE ... */
+      /* Its a create table command (obviously for shared tablespace).*/
+      report_error = true;
+    } else { /* ALTER TABLE ... */
+      /* TABLESPACE option is also used */
+      if (m_create_info->used_fields & HA_CREATE_USED_TABLESPACE) {
+        if (is_shared_tablespace(m_create_info->tablespace)) {
+          /* Table is being moved to a shared tablespace */
+          report_error = true;
+        }
+      } else if (is_shared_tablespace(m_create_info->tablespace)) {
+        /* Table belongs to a shared tablespace */
+        report_error = true;
+      }
+    }
+
+    if (report_error) {
+      my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
+                      "InnoDB : ENCRYPTION is not accepted syntax"
+                      " for CREATE/ALTER table, for tables in"
+                      " general/shared tablespace.",
+                      MYF(0));
+      return false;
+    }
+  }
+
+  /* Tables in shared tablespace should not have encryption options */
+  if (is_shared_tablespace(m_create_info->tablespace)) {
+    m_create_info->encrypt_type.str = nullptr;
+    m_create_info->encrypt_type.length = 0;
+  }
+
   /* If TABLESPACE=innodb_file_per_table this function is not called
   since tablespace_is_shared_space() will return false.  Any other
   tablespace is incompatible with the DATA DIRECTORY phrase.
@@ -10430,10 +10511,6 @@ bool create_table_info_t::create_option_tablespace_is_valid() {
   needed for CREATE TABLE only. ALTER TABLE may be moving remote
   file-per-table table to a general tablespace, in which case the
   create_info->data_file_name is not null. */
-  bool is_create_table;
-
-  is_create_table = (thd_sql_command(m_thd) == SQLCOM_CREATE_TABLE);
-
   if (is_create_table && m_create_info->data_file_name != nullptr &&
       *m_create_info->data_file_name != '\0') {
     my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
@@ -11031,10 +11108,8 @@ bool create_table_info_t::innobase_table_flags() {
       DBUG_RETURN(false);
     }
 
-    if (m_use_shared_space ||
-        (m_create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
+    if (m_create_info->options & HA_LEX_CREATE_TMP_TABLE) {
       if (!Encryption::is_none(encryption)) {
-        /* Can't encrypt shared tablespace */
         my_error(ER_TABLESPACE_CANNOT_ENCRYPT, MYF(0));
         DBUG_RETURN(false);
       }
@@ -11975,9 +12050,9 @@ int innobase_basic_ddl::create_impl(THD *thd, const char *name, TABLE *form,
                                     bool file_per_table, bool evictable,
                                     bool skip_strict, ulint old_flags,
                                     ulint old_flags2) {
-  char norm_name[FN_REFLEN];   /* {database}/{tablename} */
-  char remote_path[FN_REFLEN]; /* Absolute path of table */
-  char tablespace[NAME_LEN];   /* Tablespace name identifier */
+  char norm_name[FN_REFLEN] = {'\0'};   /* {database}/{tablename} */
+  char remote_path[FN_REFLEN] = {'\0'}; /* Absolute path of table */
+  char tablespace[NAME_LEN] = {'\0'};   /* Tablespace name identifier */
   trx_t *trx;
 
   if (high_level_read_only &&
@@ -13332,6 +13407,7 @@ static int innobase_create_tablespace(handlerton *hton, THD *thd,
   trx_t *trx;
   int error;
   Tablespace tablespace;
+  ulint fsp_flags = 0;
 
   DBUG_ENTER("innobase_create_tablespace");
   DBUG_ASSERT(hton == innodb_hton_ptr);
@@ -13376,13 +13452,41 @@ static int innobase_create_tablespace(handlerton *hton, THD *thd,
   page_size_t page_size(zip_size, UNIV_PAGE_SIZE, zipped);
   bool atomic_blobs = page_size.is_compressed();
 
+  bool encrypted = false;
+  if (dd_space->options().exists("encryption")) {
+    const char *encrypt = dd_space->options().value("encryption").data();
+
+    /* Validate Encryption option provided */
+    if (Encryption::validate(encrypt) != DB_SUCCESS) {
+      /* Incorrect encryption option */
+      my_error(ER_INVALID_ENCRYPTION_OPTION, MYF(0));
+      err = DB_UNSUPPORTED;
+      goto error_exit;
+    }
+
+    /* If encryption is to be done */
+    if (!Encryption::is_none(encrypt)) {
+      /* Check if keyring is ready. */
+      if (!Encryption::check_keyring()) {
+        my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
+        err = DB_UNSUPPORTED;
+        goto error_exit;
+      }
+      encrypted = true;
+    }
+
+    DBUG_EXECUTE_IF("ib_crash_during_create_tablespace_for_encryption",
+                    DBUG_SUICIDE(););
+  }
+
   /* Create the filespace flags */
-  ulint fsp_flags =
+  fsp_flags =
       fsp_flags_init(page_size,    /* page sizes and a flag if compressed */
                      atomic_blobs, /* needed only for compressed tables */
                      false,        /* This is not a file-per-table tablespace */
                      true,         /* This is a general shared tablespace */
-                     false); /* Temporary General Tablespaces not allowed */
+                     false,      /* Temporary General Tablespaces not allowed */
+                     encrypted); /* If tablespace is to be Encrypted */
   tablespace.set_flags(fsp_flags);
 
   err = dict_build_tablespace(trx, &tablespace);
@@ -13395,6 +13499,7 @@ static int innobase_create_tablespace(handlerton *hton, THD *thd,
     }
   }
 
+error_exit:
   if (err != DB_SUCCESS) {
     error = convert_error_code_to_mysql(err, 0, NULL);
   } else {
@@ -13461,6 +13566,123 @@ static int innobase_drop_tablespace(handlerton *hton, THD *thd,
   DBUG_RETURN(error);
 }
 
+/** Alter Encrypt/Unencrypt a tablespace.
+@param[in]	hton		Handlerton of InnoDB
+@param[in]	thd		Connection
+@param[in]	alter_info	How to do the command
+@param[in]	old_dd_space	Tablespace metadata
+@param[in,out]	new_dd_space	Tablespace metadata
+@return MySQL error code*/
+static int innobase_alter_encrypt_tablespace(handlerton *hton, THD *thd,
+                                             st_alter_tablespace *alter_info,
+                                             const dd::Tablespace *old_dd_space,
+                                             dd::Tablespace *new_dd_space) {
+  trx_t *trx = nullptr;
+  dberr_t err = DB_SUCCESS;
+  int error = 0;
+  space_id_t space_id = SPACE_UNKNOWN;
+  bool to_encrypt = false;
+
+  DBUG_ENTER("innobase_alter_encrypt_tablespace");
+  DBUG_ASSERT(hton == innodb_hton_ptr);
+
+  DEBUG_SYNC(current_thd, "innodb_alter_encrypt_tablespace");
+
+  ut_ad(alter_info->tablespace_name == old_dd_space->name());
+
+  if (srv_read_only_mode) {
+    DBUG_RETURN(HA_ERR_INNODB_READ_ONLY);
+  }
+
+  /* Name validation should be ensured from the SQL layer. */
+  ut_ad(validate_tablespace_name(alter_info->tablespace_name, false) == 0);
+
+  /* Be sure that this tablespace is known and valid. */
+  if (old_dd_space->se_private_data().get_uint32(
+          dd_space_key_strings[DD_SPACE_ID], &space_id) ||
+      space_id == SPACE_UNKNOWN) {
+    DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
+  }
+
+  /* Make sure keyring plugin is loaded. */
+  if (!Encryption::check_keyring()) {
+    my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
+    error = convert_error_code_to_mysql(DB_ERROR, 0, NULL);
+    DBUG_RETURN(error);
+  }
+
+  /* Make sure tablespace is loaded. */
+  fil_space_t *space = fil_space_get(space_id);
+  if (space == nullptr) {
+    DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
+  }
+  ut_ad(fsp_flags_is_valid(space->flags));
+
+  const dd::Properties &oldopts = old_dd_space->options();
+  const dd::Properties &newopts = new_dd_space->options();
+
+  /* Get value of old encryption option. */
+  dd::String_type oldenc;
+  if (oldopts.exists("encryption")) {
+    oldenc = oldopts.value("encryption");
+  }
+
+  /* Get value of new encryption option. */
+  ut_ad(newopts.exists("encryption"));
+  dd::String_type newenc = newopts.value("encryption");
+
+  /* Validate new encryption option provided */
+  const char *encrypt = newenc.data();
+  if (Encryption::validate(encrypt) != DB_SUCCESS) {
+    /* Incorrect encryption option */
+    my_error(ER_INVALID_ENCRYPTION_OPTION, MYF(0));
+    error = convert_error_code_to_mysql(DB_ERROR, 0, NULL);
+    DBUG_RETURN(error);
+  }
+
+  if ((oldenc.empty() || Encryption::is_none(oldenc.data())) &&
+      !Encryption::is_none(newenc.data())) {
+    /* Encrypt tablespace */
+    to_encrypt = true;
+  } else if (!Encryption::is_none(oldenc.data()) &&
+             Encryption::is_none(newenc.data())) {
+    /* Unencrypt tablespace */
+    to_encrypt = false;
+  } else {
+    /* Nothing to do */
+    DBUG_RETURN(error);
+  }
+
+  /* Get the transaction associated with the current thd */
+  trx = check_trx_exists(thd);
+  trx_start_if_not_started(trx, true);
+
+  /* Make an entry in DDL LOG for this tablespace. */
+  mutex_enter(&dict_sys->mutex);
+  if (DB_SUCCESS != log_ddl->write_alter_encrypt_space_log(space_id)) {
+    ib::error(ER_IB_MSG_1283) << "Couldn't write DDL LOG for " << space_id;
+    mutex_exit(&dict_sys->mutex);
+    error = convert_error_code_to_mysql(DB_ERROR, 0, NULL);
+    DBUG_RETURN(error);
+  }
+  mutex_exit(&dict_sys->mutex);
+
+  DBUG_EXECUTE_IF("alter_encrypt_tablespace_crash_before_processing",
+                  DBUG_SUICIDE(););
+
+  clone_mark_abort(true);
+  /* do encryption/unencryption processing now. */
+  err = fsp_alter_encrypt_tablespace(thd, space_id, 1, to_encrypt, false,
+                                     new_dd_space);
+  clone_mark_active();
+
+  DBUG_EXECUTE_IF("alter_encrypt_tablespace_crash_after_processing",
+                  DBUG_SUICIDE(););
+
+  error = convert_error_code_to_mysql(err, 0, NULL);
+  DBUG_RETURN(error);
+}
+
 /** This API handles CREATE, ALTER & DROP commands for InnoDB tablespaces.
 @param[in]	hton		Handlerton of InnoDB
 @param[in]	thd		Connection
@@ -13475,7 +13697,7 @@ static int innobase_alter_tablespace(handlerton *hton, THD *thd,
                                      st_alter_tablespace *alter_info,
                                      const dd::Tablespace *old_ts_def,
                                      dd::Tablespace *new_ts_def) {
-  int error; /* return zero for success */
+  int error = 0; /* return zero for success */
   DBUG_ENTER("innobase_alter_tablespace");
 
   switch (alter_info->ts_cmd_type) {
@@ -13494,7 +13716,6 @@ static int innobase_alter_tablespace(handlerton *hton, THD *thd,
 
     case ALTER_TABLESPACE:
       if (alter_info->ts_alter_tablespace_type == ALTER_TABLESPACE_RENAME) {
-        /* Only support rename tablespace at the time being */
         from = old_ts_def->name().c_str();
         to = new_ts_def->name().c_str();
 
@@ -13528,6 +13749,14 @@ static int innobase_alter_tablespace(handlerton *hton, THD *thd,
         }
 
         error = convert_error_code_to_mysql(err, 0, NULL);
+        break;
+      }
+      if (alter_info->ts_alter_tablespace_type == ALTER_TABLESPACE_OPTIONS) {
+        /* If ALTER Encryption */
+        if (new_ts_def->options().exists("encryption")) {
+          error = innobase_alter_encrypt_tablespace(hton, thd, alter_info,
+                                                    old_ts_def, new_ts_def);
+        }
         break;
       }
       // fallthrough

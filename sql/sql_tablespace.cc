@@ -449,6 +449,11 @@ bool Sql_cmd_create_tablespace::execute(THD *thd) {
   // Engine type
   tablespace->set_engine(ha_resolve_storage_engine_name(hton));
 
+  if (m_options->encryption.str) {
+    tablespace->options().set("encryption",
+                              dd::make_string_type(m_options->encryption));
+  }
+
   size_t cl = m_options->ts_comment.length;
   if (validate_comment_length(
           thd, m_options->ts_comment.str, &cl, TABLESPACE_COMMENT_MAXLEN,
@@ -637,6 +642,92 @@ bool Sql_cmd_drop_tablespace::execute(THD *thd) {
     return true;
   }
 
+  return false;
+}
+
+Sql_cmd_alter_tablespace::Sql_cmd_alter_tablespace(
+    const LEX_STRING &ts_name, const Tablespace_options *options)
+    : Sql_cmd_tablespace{ts_name, options} {}
+
+bool Sql_cmd_alter_tablespace::execute(THD *thd) {
+  Rollback_guard rollback_on_return{thd};
+
+  if (check_global_access(thd, CREATE_TABLESPACE_ACL)) {
+    return true;
+  }
+
+  if (lock_tablespace_names(thd, m_tablespace_name)) {
+    return true;
+  }
+
+  auto &dc = *thd->dd_client();
+  dd::cache::Dictionary_client::Auto_releaser releaser(&dc);
+
+  auto tsmp = get_ts_mod_pair(&dc, m_tablespace_name.str);
+  if (tsmp.first == nullptr) {
+    return true;
+  }
+
+  if (m_options->encryption.str) {
+    tsmp.second->options().set("encryption",
+                               dd::make_string_type(m_options->encryption));
+  }
+
+  handlerton *hton = nullptr;
+  if (get_dd_hton(thd, tsmp.first->engine(), m_options->engine_name,
+                  m_tablespace_name.str,
+                  "ALTER TABLESPACE ... <tablespace_options>", &hton)) {
+    return true;
+  }
+  rollback_on_return.m_hton = hton;
+  if (ha_is_storage_engine_disabled(hton)) {
+    my_error(ER_DISABLED_STORAGE_ENGINE, MYF(0),
+             ha_resolve_storage_engine_name(hton));
+    return true;
+  }
+  /*
+    Even if the tablespace already exists in the DD we still need to
+    validate the name, since we are not allowed to modify
+    tablepspaces created by the system.
+    FUTURE: Would be better if this was made into a
+    property/attribute of dd::Tablespace
+  */
+  if (validate_tablespace_name(true, m_tablespace_name.str, hton)) {
+    return true;
+  }
+
+  st_alter_tablespace ts_info{m_tablespace_name.str,
+                              nullptr,
+                              ALTER_TABLESPACE,
+                              ALTER_TABLESPACE_OPTIONS,
+                              nullptr,
+                              nullptr,
+                              *m_options};
+
+  if (map_errors(
+          hton->alter_tablespace(hton, thd, &ts_info, tsmp.first, tsmp.second),
+          "ALTER TABLESPACE ... <tablespace_options>", &ts_info)) {
+    return true;
+  }
+
+  if (dc.update(tsmp.second)) {
+    return true;
+  }
+
+  /*
+    Per convention only engines supporting atomic DDL are allowed to
+    modify data-dictionary objects in handler::create() and other
+    similar calls. However, DROP and ALTER TABLESPACE for engines which
+    don't support atomic DDL still needs to be handled by doing commit
+    right after updating data-dictionary.
+  */
+  if (intermediate_commit_unless_atomic_ddl(thd, hton)) {
+    return true;
+  }
+
+  if (complete_stmt(thd, hton, [&]() { rollback_on_return.disable(); })) {
+    return true;
+  }
   return false;
 }
 

@@ -63,8 +63,11 @@ enum class Log_Type : uint32_t {
   /** Remove a table from dict cache */
   REMOVE_CACHE_LOG,
 
+  /** Alter Encrypt a tablespace */
+  ALTER_ENCRYPT_TABLESPACE_LOG,
+
   /** Biggest log type */
-  BIGGEST_LOG = REMOVE_CACHE_LOG
+  BIGGEST_LOG = ALTER_ENCRYPT_TABLESPACE_LOG
 };
 
 /** DDL log record */
@@ -133,6 +136,14 @@ class DDL_Record {
   @param[in]	table_id	table id. */
   void set_table_id(table_id_t table_id) { m_table_id = table_id; }
 
+  /** Set deletability of this record.
+  @param[in] deletable	deletability. */
+  void set_deletable(bool deletable) { m_deletable = deletable; }
+
+  /** If this record can be deleted.
+  @return true if record is deletable. */
+  bool get_deletable() const { return (m_deletable); }
+
   /** Get the old file path/name present in the DDL log record.
   @return old file path/name. */
   const char *get_old_file_path() const { return (m_old_file_path); }
@@ -195,6 +206,9 @@ class DDL_Record {
 
   /** memory heap object used for storing file name. */
   mem_heap_t *m_heap;
+
+  /** If this record can be deleted */
+  bool m_deletable;
 };
 
 /** Forward declaration */
@@ -412,6 +426,11 @@ class Log_DDL {
   dberr_t write_rename_space_log(space_id_t space_id, const char *old_file_path,
                                  const char *new_file_path);
 
+  /** Write an ALTER ENCRYPT Tablespace DDL log record
+  @param[in]	space_id	tablespace id
+  @return DB_SUCCESS or error */
+  dberr_t write_alter_encrypt_space_log(space_id_t space_id);
+
   /** Write a DROP log to indicate the entry in innodb_table_metadata
   should be removed for specified table
   @param[in,out]	trx		transaction
@@ -450,6 +469,23 @@ class Log_DDL {
   should be recovered before calling this function.
   @return	DB_SUCCESS or error */
   dberr_t recover();
+
+  /** Post tablespace (un)encryption recovery. Delete ddl logs
+  entry for the tablespaces for which (un)encyrption operation
+  was resumed.
+  NOTE: This is called by background thread doing resume (un)encryption.
+  param[in]	records		list of records to be deleted */
+  void post_ts_encryption(DDL_Records &records) {
+    for (auto record : records) {
+      record->set_deletable(true);
+    }
+
+    delete_by_ids(records);
+
+    for (auto record : records) {
+      delete record;
+    }
+  }
 
   /** Is it in ddl recovery in server startup.
   @return	true if it's in ddl recover */
@@ -501,12 +537,24 @@ class Log_DDL {
                                   const char *old_file_path,
                                   const char *new_file_path);
 
-  /** Relay RENAME log
+  /** Replay RENAME log
   @param[in]	space_id	tablespace id
   @param[in]	old_file_path	old file path
   @param[in]	new_file_path	new file path */
   void replay_rename_space_log(space_id_t space_id, const char *old_file_path,
                                const char *new_file_path);
+
+  /** Insert an ALTER ENCRYPT TABLESPACE log record
+  @param[in]	id		log id
+  @param[in]	thread_id	thread id
+  @param[in]	space_id	tablespace id
+  @return DB_SUCCESS or error */
+  dberr_t insert_alter_encrypt_space_log(uint64_t id, ulint thread_id,
+                                         space_id_t space_id);
+
+  /** Replay an ALTER ENCRYPT TABLESPACE log record
+  @param[in]	space_id	tablespace id */
+  void replay_alter_encrypt_space_log(space_id_t space_id);
 
   /** Insert a DROP log record
   @param[in,out]	trx		transaction

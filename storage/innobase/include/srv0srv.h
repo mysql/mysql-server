@@ -159,6 +159,9 @@ struct Srv_threads {
 
   /** true if master thread is created */
   bool m_master_thread_active;
+
+  /** true if tablespace alter encrypt thread is created */
+  bool m_ts_alter_encrypt_thread_active;
 };
 
 struct Srv_cpu_usage {
@@ -631,6 +634,7 @@ extern mysql_pfs_key_t srv_monitor_thread_key;
 extern mysql_pfs_key_t srv_purge_thread_key;
 extern mysql_pfs_key_t srv_worker_thread_key;
 extern mysql_pfs_key_t trx_recovery_rollback_thread_key;
+extern mysql_pfs_key_t srv_ts_alter_encrypt_thread_key;
 #endif /* UNIV_PFS_THREAD */
 #endif /* !UNIV_HOTBACKUP */
 
@@ -662,6 +666,10 @@ extern PSI_stage_info srv_stage_alter_table_merge_sort;
 /** Performance schema stage event for monitoring ALTER TABLE progress
 row_merge_read_clustered_index(). */
 extern PSI_stage_info srv_stage_alter_table_read_pk_internal_sort;
+
+/** Performance schema stage event for monitoring ALTER TABLESPACE
+ENCRYPTION progress. */
+extern PSI_stage_info srv_stage_alter_tablespace_encryption;
 
 /** Performance schema stage event for monitoring buffer pool load progress. */
 extern PSI_stage_info srv_stage_buffer_pool_load;

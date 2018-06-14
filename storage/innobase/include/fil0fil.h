@@ -176,6 +176,9 @@ struct fil_node_t {
   size_t magic_n;
 };
 
+/* Type of (un)encryption operation in progress for Tablespace. */
+enum encryption_op_type { ENCRYPTION = 1, UNENCRYPTION = 2, NONE };
+
 /** Tablespace or log data space */
 struct fil_space_t {
   using List_node = UT_LIST_NODE_T(fil_space_t);
@@ -270,6 +273,9 @@ struct fil_space_t {
 
   /** Encrypt initial vector */
   byte encryption_iv[ENCRYPTION_KEY_LEN];
+
+  /** Encryption is in progress */
+  encryption_op_type encryption_op_in_progress;
 
   /** Release the reserved free extents.
   @param[in]	n_reserved	number of reserved extents */
@@ -1569,6 +1575,11 @@ dberr_t fil_set_encryption(space_id_t space_id, Encryption::Type algorithm,
                            byte *key, byte *iv)
     MY_ATTRIBUTE((warn_unused_result));
 
+/** Reset the encryption type for the tablespace
+@param[in] space_id		Space ID of tablespace for which to set
+@return DB_SUCCESS or error code */
+dberr_t fil_reset_encryption(space_id_t space_id)
+    MY_ATTRIBUTE((warn_unused_result));
 /** @return true if the re-encrypt success */
 bool fil_encryption_rotate() MY_ATTRIBUTE((warn_unused_result));
 

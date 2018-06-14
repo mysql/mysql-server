@@ -373,9 +373,9 @@ inline bool fsp_flags_is_valid(ulint flags) {
     return (false);
   }
 
-  /* Only single-table and not temp tablespaces use the encryption
-  clause. */
-  if (is_encryption && (is_shared || is_temp)) {
+  /* Only single-table and general tablespaces and not temp tablespaces
+  use the encryption clause. */
+  if (is_encryption && (is_temp)) {
     return (false);
   }
 
@@ -403,6 +403,28 @@ inline ulint fsp_header_get_sdi_offset(const page_size_t &page_size) {
 
   ut_ad(left_size >= FSP_SDI_HEADER_LEN);
 #endif
+  return (offset);
+}
+
+/** Get the offset of encrytion progress information in page 0.
+@param[in]      page_size       page size.
+@return offset on success, otherwise 0. */
+inline ulint fsp_header_get_encryption_progress_offset(
+    const page_size_t &page_size) {
+  ulint offset;
+#ifdef UNIV_DEBUG
+  ulint left_size;
+#endif
+
+  offset = fsp_header_get_sdi_offset(page_size) + FSP_SDI_HEADER_LEN;
+#ifdef UNIV_DEBUG
+  left_size =
+      page_size.physical() - FSP_HEADER_OFFSET - offset - FIL_PAGE_DATA_END;
+
+  ut_ad(left_size >=
+        ENCRYPTION_OPERATION_INFO_SIZE + ENCRYPTION_PROGRESS_INFO_SIZE);
+#endif
+
   return (offset);
 }
 

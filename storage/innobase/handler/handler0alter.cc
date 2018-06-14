@@ -4463,28 +4463,25 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
 
     const char *encrypt;
     encrypt = ha_alter_info->create_info->encrypt_type.str;
+    /* If encryption option is specified, then it must be
+    innodb-file-per-table tablespace. Otherwise case would
+    have already been blocked at
+    create_option_tablespace_is_valid(). */
+    if (encrypt) {
+      ut_ad(flags2 & DICT_TF2_USE_FILE_PER_TABLE);
+      ut_ad(!DICT_TF_HAS_SHARED_SPACE(flags));
+    }
 
-    if (!(ctx->new_table->flags2 & DICT_TF2_USE_FILE_PER_TABLE) &&
-        ha_alter_info->create_info->encrypt_type.length > 0 &&
-        !Encryption::is_none(encrypt)) {
-      dict_mem_table_free(ctx->new_table);
-      my_error(ER_TABLESPACE_CANNOT_ENCRYPT, MYF(0));
-      goto new_clustered_failed;
-    } else if (!Encryption::is_none(encrypt)) {
-      /* Set the encryption flag. */
-      byte *master_key = NULL;
-      ulint master_key_id;
-
+    if (!Encryption::is_none(encrypt)) {
       /* Check if keyring is ready. */
-      Encryption::get_master_key(&master_key_id, &master_key);
-
-      if (master_key == NULL) {
+      if (!Encryption::check_keyring()) {
         dict_mem_table_free(ctx->new_table);
         my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
         goto new_clustered_failed;
       } else {
-        my_free(master_key);
-        DICT_TF2_FLAG_SET(ctx->new_table, DICT_TF2_ENCRYPTION);
+        /* This flag will be used to set encryption
+        option for file-per-table tablespace. */
+        DICT_TF2_FLAG_SET(ctx->new_table, DICT_TF2_ENCRYPTION_FILE_PER_TABLE);
       }
     }
 
@@ -5183,8 +5180,15 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
   ut_ad(1 == in_system_space + is_file_per_table + in_general_space);
 #endif /* UNIV_DEBUG */
 
+  /* Make a copy for existing tablespace name */
+  char tablespace[NAME_LEN] = {'\0'};
+  if (indexed_table->tablespace) {
+    strcpy(tablespace, indexed_table->tablespace());
+  }
+
   create_table_info_t info(m_user_thd, altered_table,
-                           ha_alter_info->create_info, NULL, NULL, NULL,
+                           ha_alter_info->create_info, nullptr, nullptr,
+                           indexed_table->tablespace ? tablespace : nullptr,
                            is_file_per_table, false, 0, 0);
 
   info.set_tablespace_type(is_file_per_table);
@@ -5195,6 +5199,13 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
       my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0), table_type(), invalid_opt);
       goto err_exit_no_heap;
     }
+  }
+
+  /* If target tablespace is shared tablespace, remove encrypt option from
+  table definition as table is moved to shared tablespace. */
+  if (is_shared_tablespace(ha_alter_info->create_info->tablespace) &&
+      old_dd_tab->options().exists("encrypt_type")) {
+    new_dd_tab->options().remove("encrypt_type");
   }
 
   /* Check if any index name is reserved. */
@@ -8432,6 +8443,12 @@ class alter_part_add : public alter_part {
     ut_ad(new_part != nullptr);
     char part_name[FN_REFLEN];
 
+    if (m_tablespace && is_shared_tablespace(m_tablespace)) {
+      my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
+                      PARTITION_IN_SHARED_TABLESPACE, MYF(0));
+      return (HA_ERR_INTERNAL_ERROR);
+    }
+
     build_partition_name(new_part, need_rename(), part_name);
 
     int error = create(part_name, new_part, altered_table, m_tablespace,
@@ -9672,6 +9689,12 @@ bool ha_innopart::prepare_inplace_alter_table(TABLE *altered_table,
                                               dd::Table *new_table_def) {
   DBUG_ENTER("ha_innopart::prepare_inplace_alter_table");
   DBUG_ASSERT(ha_alter_info->handler_ctx == nullptr);
+
+  if (tablespace_is_shared_space(ha_alter_info->create_info)) {
+    my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION, PARTITION_IN_SHARED_TABLESPACE,
+                    MYF(0));
+    DBUG_RETURN(true);
+  }
 
   /* The row format in new table may differ from the old one,
   which is set by server earlier. So keep them the same */

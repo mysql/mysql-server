@@ -231,6 +231,8 @@ bool has_exclusive_table_mdl(THD *thd, const char *schema_name,
                               else use acquire_lock() with
                               thd->variables.lock_wait_timeout timeout value.
   @param       ticket         ticket for request (optional out parameter)
+  @param       for_trx        true if MDL duration is MDL_TRANSACTION
+                              false if MDL duration is MDL_EXPLICIT
 
   @retval      true           Failure, e.g. a lock wait timeout.
   @retval      false          Successful lock acquisition.
@@ -238,7 +240,8 @@ bool has_exclusive_table_mdl(THD *thd, const char *schema_name,
 
 bool acquire_exclusive_tablespace_mdl(THD *thd, const char *tablespace_name,
                                       bool no_wait,
-                                      MDL_ticket **ticket = nullptr)
+                                      MDL_ticket **ticket = nullptr,
+                                      bool for_trx = true)
     MY_ATTRIBUTE((warn_unused_result));
 
 /**
@@ -250,12 +253,16 @@ bool acquire_exclusive_tablespace_mdl(THD *thd, const char *tablespace_name,
   @param       no_wait        Use try_acquire_lock() if no_wait is true,
                               else use acquire_lock() with
                               thd->variables.lock_wait_timeout timeout value.
+  @param       ticket         ticket for request (optional out parameter)
+  @param       for_trx        true if MDL duration is MDL_TRANSACTION
+                              false if MDL duration is MDL_EXPLICIT
 
   @retval      true           Failure, e.g. a lock wait timeout.
   @retval      false          Successful lock acquisition.
 */
 bool acquire_shared_tablespace_mdl(THD *thd, const char *tablespace_name,
-                                   bool no_wait)
+                                   bool no_wait, MDL_ticket **ticket = nullptr,
+                                   bool for_trx = true)
     MY_ATTRIBUTE((warn_unused_result));
 
 /**
@@ -396,13 +403,15 @@ bool reset_tables_and_tablespaces();
   @param[in,out]  space  Tablespace to update and commit.
   @param[in]      error  true for failure: Do rollback.
                          false for success: Do commit.
+  @param[in]      release_mdl_on_commit_only release MDLs only on commit
 
   @retval true    If error is true, or if failure in update or in commit.
   @retval false   Otherwise.
 */
 
-bool commit_or_rollback_tablespace_change(THD *thd, dd::Tablespace *space,
-                                          bool error);
+bool commit_or_rollback_tablespace_change(
+    THD *thd, dd::Tablespace *space, bool error,
+    bool release_mdl_on_commit_only = false);
 
 /**
   Get the Object_table instance storing the given entity object type.

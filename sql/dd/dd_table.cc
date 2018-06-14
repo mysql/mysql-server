@@ -62,6 +62,7 @@
 #include "sql/dd/types/index_element.h"        // dd::Index_element
 #include "sql/dd/types/object_table.h"         // dd::Object_table
 #include "sql/dd/types/partition.h"            // dd::Partition
+#include "sql/dd/types/partition_index.h"      // dd::Partition_index
 #include "sql/dd/types/partition_value.h"      // dd::Partition_value
 #include "sql/dd/types/schema.h"               // dd::Schema
 #include "sql/dd/types/table.h"                // dd::Table
@@ -2518,4 +2519,80 @@ bool fix_row_type(THD *thd, dd::Table *table_def, row_type correct_row_type) {
   return thd->dd_client()->update(table_def);
 }
 
+// Helper function which copies all tablespace ids referenced by
+// table to an (output) iterator
+template <typename IT>
+static void copy_tablespace_ids(const Table &t, IT it) {
+  *it = t.tablespace_id();
+  ++it;
+  for (const dd::Index *ix : t.indexes()) {
+    *it = ix->tablespace_id();
+    ++it;
+  }
+
+  for (const dd::Partition *part : t.partitions()) {
+    for (const dd::Partition_index *part_ix : part->indexes()) {
+      *it = part_ix->tablespace_id();
+      ++it;
+    }
+  }
+}
+
+/**
+   Predicate to determine if a table resides in an encrypted
+   tablespace.  First checks if the option "encrypt_type" is set on
+   the table itself (implicit tablespace), then proceeds to acquire
+   and check the "ecryption" option in table's tablespaces.
+
+   @param thd
+   @param t table to check
+
+   @retval {true, *} in case of errors
+   @retval {false, true} if at least one tablespace is encrypted
+   @retval {false, false} if no tablespace is encrypted
+ */
+Encrypt_result is_tablespace_encrypted(THD *thd, const Table &t) {
+  if (t.options().exists("encrypt_type")) {
+    const String_type &et = t.options().value("encrypt_type");
+    DBUG_ASSERT(et.empty() == false);
+    if (et == "Y" || et == "y") {
+      return {false, true};
+    }
+    return {false, false};
+  }
+  std::vector<Object_id> tspids;
+  copy_tablespace_ids(t, std::back_inserter(tspids));
+  auto valid_end =
+      std::partition(tspids.begin(), tspids.end(),
+                     [](Object_id id) { return id != INVALID_OBJECT_ID; });
+  std::sort(tspids.begin(), valid_end);
+  auto unique_end = std::unique(tspids.begin(), valid_end);
+
+  bool error = false;
+  bool encrypted =
+      std::any_of(tspids.begin(), unique_end, [&](const Object_id id) {
+        cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+        const Tablespace *tsp = nullptr;
+        if (thd->dd_client()->acquire(id, &tsp)) {
+          error = true;
+          return false;  // or true to stop execution?
+        }
+        DBUG_ASSERT(tsp != nullptr);
+        if (tsp == nullptr) {
+          return false;
+        }
+
+        if (!tsp->options().exists("encryption")) {
+          return false;
+        }
+
+        const String_type &e = tsp->options().value("encryption");
+        DBUG_ASSERT(e.empty() == false);
+        if (e == "Y" || e == "y") {
+          return true;
+        }
+        return false;
+      });
+  return {error, encrypted};
+}
 }  // namespace dd

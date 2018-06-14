@@ -864,9 +864,6 @@ partitions 3
 partition x2 engine innodb,
 partition x3 engine innodb);
 drop table t1;
-CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
-CREATE TABLESPACE ts2 ADD DATAFILE 'ts2.ibd';
-CREATE TABLESPACE ts3 ADD DATAFILE 'ts3.ibd';
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -874,9 +871,9 @@ c int not null,
 primary key(a,b))
 partition by key (a)
 partitions 3
-(partition x1 tablespace ts1,
-partition x2 tablespace ts2,
-partition x3 tablespace ts3);
+(partition x1 tablespace innodb_file_per_table,
+partition x2 tablespace innodb_file_per_table,
+partition x3 tablespace innodb_file_per_table);
 CREATE TABLE t2 LIKE t1;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -887,9 +884,9 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
-(PARTITION x1 TABLESPACE = `ts1` ENGINE = InnoDB,
- PARTITION x2 TABLESPACE = `ts2` ENGINE = InnoDB,
- PARTITION x3 TABLESPACE = `ts3` ENGINE = InnoDB) */
+(PARTITION x1 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+ PARTITION x2 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+ PARTITION x3 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB) */
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -899,9 +896,9 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (a)
-(PARTITION x1 TABLESPACE = `ts1` ENGINE = InnoDB,
- PARTITION x2 TABLESPACE = `ts2` ENGINE = InnoDB,
- PARTITION x3 TABLESPACE = `ts3` ENGINE = InnoDB) */
+(PARTITION x1 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+ PARTITION x2 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
+ PARTITION x3 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB) */
 drop table t2;
 drop table t1;
 CREATE TABLE t1 (
@@ -911,9 +908,9 @@ c int not null,
 primary key(a,b))
 partition by list (a)
 partitions 3
-(partition x1 values in (1,2,9,4) tablespace ts1,
-partition x2 values in (3, 11, 5, 7) tablespace ts2,
-partition x3 values in (16, 8, 5+19, 70-43) tablespace ts3);
+(partition x1 values in (1,2,9,4),
+partition x2 values in (3, 11, 5, 7),
+partition x3 values in (16, 8, 5+19, 70-43));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -923,9 +920,9 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST (`a`)
-(PARTITION x1 VALUES IN (1,2,9,4) TABLESPACE = `ts1` ENGINE = InnoDB,
- PARTITION x2 VALUES IN (3,11,5,7) TABLESPACE = `ts2` ENGINE = InnoDB,
- PARTITION x3 VALUES IN (16,8,24,27) TABLESPACE = `ts3` ENGINE = InnoDB) */
+(PARTITION x1 VALUES IN (1,2,9,4) ENGINE = InnoDB,
+ PARTITION x2 VALUES IN (3,11,5,7) ENGINE = InnoDB,
+ PARTITION x3 VALUES IN (16,8,24,27) ENGINE = InnoDB) */
 drop table t1;
 CREATE TABLE t1 (
 a int not null,
@@ -934,9 +931,9 @@ c int not null,
 primary key(a,b))
 partition by list (b*a)
 partitions 3
-(partition x1 values in (1,2,9,4) tablespace ts1,
-partition x2 values in (3, 11, 5, 7) tablespace ts2,
-partition x3 values in (16, 8, 5+19, 70-43) tablespace ts3);
+(partition x1 values in (1,2,9,4),
+partition x2 values in (3, 11, 5, 7),
+partition x3 values in (16, 8, 5+19, 70-43));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -946,9 +943,9 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST ((`b` * `a`))
-(PARTITION x1 VALUES IN (1,2,9,4) TABLESPACE = `ts1` ENGINE = InnoDB,
- PARTITION x2 VALUES IN (3,11,5,7) TABLESPACE = `ts2` ENGINE = InnoDB,
- PARTITION x3 VALUES IN (16,8,24,27) TABLESPACE = `ts3` ENGINE = InnoDB) */
+(PARTITION x1 VALUES IN (1,2,9,4) ENGINE = InnoDB,
+ PARTITION x2 VALUES IN (3,11,5,7) ENGINE = InnoDB,
+ PARTITION x3 VALUES IN (16,8,24,27) ENGINE = InnoDB) */
 drop table t1;
 CREATE TABLE t1 (
 a int not null,
@@ -956,9 +953,9 @@ b int not null,
 c int not null,
 primary key(a,b))
 partition by list (b*a)
-(partition x1 values in (1) tablespace ts1,
-partition x2 values in (3, 11, 5, 7) tablespace ts2,
-partition x3 values in (16, 8, 5+19, 70-43) tablespace ts3);
+(partition x1 values in (1),
+partition x2 values in (3, 11, 5, 7),
+partition x3 values in (16, 8, 5+19, 70-43));
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -968,9 +965,9 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LIST ((`b` * `a`))
-(PARTITION x1 VALUES IN (1) TABLESPACE = `ts1` ENGINE = InnoDB,
- PARTITION x2 VALUES IN (3,11,5,7) TABLESPACE = `ts2` ENGINE = InnoDB,
- PARTITION x3 VALUES IN (16,8,24,27) TABLESPACE = `ts3` ENGINE = InnoDB) */
+(PARTITION x1 VALUES IN (1) ENGINE = InnoDB,
+ PARTITION x2 VALUES IN (3,11,5,7) ENGINE = InnoDB,
+ PARTITION x3 VALUES IN (16,8,24,27) ENGINE = InnoDB) */
 drop table t1;
 CREATE TABLE t1 (
 a int not null)
@@ -1373,9 +1370,9 @@ drop table t1//
 create table t1 (a int,b int,c int,key(a,b))
 partition by range (a)
 partitions 3
-(partition x1 values less than (0) tablespace ts1,
-partition x2 values less than (10) tablespace ts2,
-partition x3 values less than maxvalue tablespace ts3);
+(partition x1 values less than (0),
+partition x2 values less than (10),
+partition x3 values less than maxvalue);
 insert into t1 values (NULL, 1, 1);
 insert into t1 values (0, 1, 1);
 insert into t1 values (12, 1, 1);
@@ -1394,19 +1391,10 @@ t1	CREATE TABLE `t1` (
   KEY `a` (`a`,`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
-(PARTITION x1 VALUES LESS THAN (0) TABLESPACE = `ts1` ENGINE = InnoDB,
- PARTITION x2 VALUES LESS THAN (10) TABLESPACE = `ts2` ENGINE = InnoDB,
- PARTITION x3 VALUES LESS THAN MAXVALUE TABLESPACE = `ts3` ENGINE = InnoDB) */
+(PARTITION x1 VALUES LESS THAN (0) ENGINE = InnoDB,
+ PARTITION x2 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION x3 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 drop table t1;
-DROP TABLESPACE ts1 ENGINE = InnoDB;
-Warnings:
-Warning	1681	'ENGINE tablespace option' is deprecated and will be removed in a future release.
-DROP TABLESPACE ts2 ENGINE = InnoDB;
-Warnings:
-Warning	1681	'ENGINE tablespace option' is deprecated and will be removed in a future release.
-DROP TABLESPACE ts3 ENGINE = InnoDB;
-Warnings:
-Warning	1681	'ENGINE tablespace option' is deprecated and will be removed in a future release.
 create table t1 (a int,b int, c int)
 partition by list(a)
 partitions 2
@@ -2766,18 +2754,17 @@ DROP TABLE example;
 # Bug#18513130 STRANGE INTERACTION OF SQL_MODE=ANSI AND PARTITION
 #
 SET @@SQL_MODE= 'ANSI_QUOTES';
-CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
 CREATE TABLE t1(col1 INT, col2 DATE)
 ENGINE=INNODB
 PARTITION BY RANGE(YEAR("col2"))
 SUBPARTITION BY HASH(TO_DAYS("col2"))(
 PARTITION p0 VALUES LESS THAN (1990)(
 SUBPARTITION s0,
-SUBPARTITION s1 tablespace=`ts1`
+SUBPARTITION s1 tablespace=`innodb_file_per_table`
       ),
 PARTITION p1 VALUES LESS THAN MAXVALUE(
 SUBPARTITION s2,
-SUBPARTITION s3 tablespace="ts1"
+SUBPARTITION s3 tablespace="innodb_file_per_table"
         )
 );
 SHOW CREATE TABLE t1;
@@ -2790,10 +2777,10 @@ t1	CREATE TABLE "t1" (
 SUBPARTITION BY HASH (to_days("col2"))
 (PARTITION p0 VALUES LESS THAN (1990)
  (SUBPARTITION s0 TABLESPACE = "innodb_file_per_table" ENGINE = InnoDB,
-  SUBPARTITION s1 TABLESPACE = "ts1" ENGINE = InnoDB),
+  SUBPARTITION s1 TABLESPACE = "innodb_file_per_table" ENGINE = InnoDB),
  PARTITION p1 VALUES LESS THAN MAXVALUE
  (SUBPARTITION s2 TABLESPACE = "innodb_file_per_table" ENGINE = InnoDB,
-  SUBPARTITION s3 TABLESPACE = "ts1" ENGINE = InnoDB)) */
+  SUBPARTITION s3 TABLESPACE = "innodb_file_per_table" ENGINE = InnoDB)) */
 SELECT partition_expression FROM information_schema.partitions
 WHERE table_schema = 'test' AND table_name = 't1';
 PARTITION_EXPRESSION
@@ -2813,10 +2800,10 @@ t1	CREATE TABLE `t1` (
 SUBPARTITION BY HASH (to_days(`col2`))
 (PARTITION p0 VALUES LESS THAN (1990)
  (SUBPARTITION s0 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
-  SUBPARTITION s1 TABLESPACE = `ts1` ENGINE = InnoDB),
+  SUBPARTITION s1 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB),
  PARTITION p1 VALUES LESS THAN MAXVALUE
  (SUBPARTITION s2 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
-  SUBPARTITION s3 TABLESPACE = `ts1` ENGINE = InnoDB)) */
+  SUBPARTITION s3 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB)) */
 SELECT partition_expression FROM information_schema.partitions
 WHERE table_schema = 'test' AND table_name = 't1';
 PARTITION_EXPRESSION
@@ -2835,10 +2822,10 @@ t1	CREATE TABLE t1 (
 SUBPARTITION BY HASH (to_days(col2))
 (PARTITION p0 VALUES LESS THAN (1990)
  (SUBPARTITION s0 TABLESPACE = innodb_file_per_table ENGINE = InnoDB,
-  SUBPARTITION s1 TABLESPACE = ts1 ENGINE = InnoDB),
+  SUBPARTITION s1 TABLESPACE = innodb_file_per_table ENGINE = InnoDB),
  PARTITION p1 VALUES LESS THAN MAXVALUE
  (SUBPARTITION s2 TABLESPACE = innodb_file_per_table ENGINE = InnoDB,
-  SUBPARTITION s3 TABLESPACE = ts1 ENGINE = InnoDB)) */
+  SUBPARTITION s3 TABLESPACE = innodb_file_per_table ENGINE = InnoDB)) */
 SELECT partition_expression FROM information_schema.partitions
 WHERE table_schema = 'test' AND table_name = 't1';
 PARTITION_EXPRESSION
@@ -2848,7 +2835,6 @@ year(`col2`)
 year(`col2`)
 SET @@SQL_QUOTE_SHOW_CREATE= 1;
 DROP TABLE t1;
-DROP TABLESPACE ts1;
 #
 # Test max partitioning and subpartition expression length
 #

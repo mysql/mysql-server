@@ -604,7 +604,7 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
   char name[OS_FILE_MAX_PATH];
 
   /* If table is not encrypted, return. */
-  if (!dict_table_is_encrypted(table)) {
+  if (!dd_is_table_in_encrypted_tablespace(table)) {
     return (DB_SUCCESS);
   }
 
@@ -728,14 +728,14 @@ void row_quiesce_table_start(dict_table_t *table, /*!< in: quiesce this table */
   if (!trx_is_interrupted(trx)) {
     extern ib_mutex_t master_key_id_mutex;
 
-    if (dict_table_is_encrypted(table)) {
+    if (dd_is_table_in_encrypted_tablespace(table)) {
       /* Require the mutex to block key rotation. */
       mutex_enter(&master_key_id_mutex);
     }
 
     buf_LRU_flush_or_remove_pages(table->space, BUF_REMOVE_FLUSH_WRITE, trx);
 
-    if (dict_table_is_encrypted(table)) {
+    if (dd_is_table_in_encrypted_tablespace(table)) {
       mutex_exit(&master_key_id_mutex);
     }
 
@@ -796,7 +796,7 @@ void row_quiesce_table_complete(
   ib::info(ER_IB_MSG_1024) << "Deleting the meta-data file '" << cfg_name
                            << "'";
 
-  if (dict_table_is_encrypted(table)) {
+  if (dd_is_table_in_encrypted_tablespace(table)) {
     char cfp_name[OS_FILE_MAX_PATH];
 
     srv_get_encryption_data_filename(table, cfp_name, sizeof(cfp_name));

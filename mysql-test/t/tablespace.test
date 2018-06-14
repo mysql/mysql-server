@@ -317,8 +317,10 @@ SHOW CREATE TABLE t_subpart;
 
 --echo # 2.3 Alter table.
 
-ALTER TABLE t_part TABLESPACE innodb_system;
-SHOW CREATE TABLE t_part;
+# TODO : Enable following once shared tablespaces are allowed in Partitioned
+#	 Tables (wl#12034).
+# ALTER TABLE t_part TABLESPACE innodb_system;
+# SHOW CREATE TABLE t_part;
 
 ALTER TABLE t_subpart TABLESPACE innodb_file_per_table;
 SHOW CREATE TABLE t_subpart;
@@ -425,23 +427,25 @@ PARTITION p2 VALUES LESS THAN (200) TABLESPACE altering,
 PARTITION p3 VALUES LESS THAN (300) TABLESPACE mysql,
 PARTITION p4 VALUES LESS THAN (400) TABLESPACE mysql);
 
---echo # Create a partitioned table to be altered later.
-CREATE TABLE partition_test3 (a INT, b INT) ENGINE = InnoDB ROW_FORMAT=DYNAMIC
-PARTITION BY RANGE(a) SUBPARTITION BY KEY(b) (
-PARTITION p1 VALUES LESS THAN (100) TABLESPACE altering,
-PARTITION p2 VALUES LESS THAN (200) TABLESPACE altering,
-PARTITION p3 VALUES LESS THAN (300) TABLESPACE altering,
-PARTITION p4 VALUES LESS THAN (400) TABLESPACE altering);
-
---echo # An arbitrary partitioned table cannot have new partitions in the mysql tablespace.
---error ER_RESERVED_TABLESPACE_NAME
-ALTER TABLE partition_test3 ADD PARTITION
-(PARTITION p5 VALUES LESS THAN (500) TABLESPACE mysql);
-
---echo # An arbitrary partitioned table cannot have partitions altered to be in the mysql tablespace.
---error ER_RESERVED_TABLESPACE_NAME
-ALTER TABLE partition_test3 REORGANIZE PARTITION p1 INTO
-  (PARTITION p1 VALUES LESS THAN (100) TABLESPACE `mysql`);
+# TODO : Enable following once shared tablespaces are allowed in partitioned
+#	 Tables (wl#12034).
+# --echo # Create a partitioned table to be altered later.
+# CREATE TABLE partition_test3 (a INT, b INT) ENGINE = InnoDB ROW_FORMAT=DYNAMIC
+# PARTITION BY RANGE(a) SUBPARTITION BY KEY(b) (
+# PARTITION p1 VALUES LESS THAN (100) TABLESPACE altering,
+# PARTITION p2 VALUES LESS THAN (200) TABLESPACE altering,
+# PARTITION p3 VALUES LESS THAN (300) TABLESPACE altering,
+# PARTITION p4 VALUES LESS THAN (400) TABLESPACE altering);
+#
+# --echo # An arbitrary partitioned table cannot have new partitions in the mysql tablespace.
+# --error ER_RESERVED_TABLESPACE_NAME
+# ALTER TABLE partition_test3 ADD PARTITION
+# (PARTITION p5 VALUES LESS THAN (500) TABLESPACE mysql);
+#
+# --echo # An arbitrary partitioned table cannot have partitions altered to be in the mysql tablespace.
+# --error ER_RESERVED_TABLESPACE_NAME
+# ALTER TABLE partition_test3 REORGANIZE PARTITION p1 INTO
+#   (PARTITION p1 VALUES LESS THAN (100) TABLESPACE `mysql`);
 
 --echo # An arbitrary partitioned table cannot have subpartitions in the mysql tablespace.
 --error ER_RESERVED_TABLESPACE_NAME
@@ -456,7 +460,7 @@ PARTITIONS 2 SUBPARTITION BY HASH(i) (
 
 --echo Clean up
 DROP TABLE altering_table;
-DROP TABLE partition_test3;
+# DROP TABLE partition_test3;
 DROP TABLESPACE altering;
 
 # Check that new name shows up in I_S
@@ -570,154 +574,155 @@ ROLLBACK WORK;
 
 SET AUTOCOMMIT=ON;
 
-
---echo #
---echo # Additional test cases requested by QA
---echo #
-
---echo # Test ALTER TABLESPACE RENAME with partition tables
-CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' Engine=InnoDB;
-
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-let $restart_parameters = restart: --innodb-directories=$MYSQL_TMP_DIR;
---source include/restart_mysqld.inc
-
---disable_query_log
---eval CREATE TABLESPACE ts2 ADD DATAFILE '$MYSQL_TMP_DIR/ts2.ibd' ENGINE=InnoDB;
---enable_query_log
-
-CREATE TABLE tab (a INT, b INT) ENGINE = InnoDB ROW_FORMAT=DYNAMIC
-PARTITION BY RANGE(a) SUBPARTITION BY KEY(b) (
-PARTITION p1 VALUES LESS THAN (100) TABLESPACE=ts1,
-PARTITION p2 VALUES LESS THAN (200) TABLESPACE=ts2,
-PARTITION p3 VALUES LESS THAN (300) TABLESPACE innodb_file_per_table,
-PARTITION p4 VALUES LESS THAN (400) TABLESPACE innodb_system);
-
-INSERT INTO tab VALUES(99,99);
-
-INSERT INTO tab VALUES(199,199);
-
-INSERT INTO tab VALUES(299,299);
-
-INSERT INTO tab VALUES(399,399);
-
-SHOW CREATE TABLE tab;
-
-ALTER TABLESPACE ts1 RENAME TO ts11 ;
-
-ALTER TABLESPACE ts2 RENAME TO ts22 ;
-
-SHOW CREATE TABLE tab;
-
-DELETE FROM tab;
-
-SELECT COUNT(*) FROM tab;
-
-ALTER TABLE tab ADD PARTITION (PARTITION p5 VALUES LESS THAN (500) TABLESPACE ts22);
-
-INSERT INTO tab VALUES(99,99);
-
-INSERT INTO tab VALUES(199,199);
-
-INSERT INTO tab VALUES(299,299);
-
-INSERT INTO tab VALUES(399,399);
-
-INSERT INTO tab VALUES(499,499);
-
-SELECT COUNT(*) FROM tab;
-
-SHOW CREATE TABLE tab;
-
-ALTER TABLE tab ROW_FORMAT=COMPACT;
-
-ALTER TABLESPACE ts11 RENAME TO ts1 ;
-
-ALTER TABLESPACE ts22 RENAME TO ts2 ;
-
-SHOW CREATE TABLE tab;
-
-ALTER TABLE tab ROW_FORMAT=REDUNDANT;
-
-SHOW CREATE TABLE tab;
-
---echo # failed: 1478:  Tablespace `ts1` cannot contain a COMPRESSED table
-#ALTER TABLE tab ROW_FORMAT=COMPRESSED;
-
-SHOW CREATE TABLE tab;
-
-DROP TABLE tab;
-
-DROP TABLESPACE ts1;
-
-DROP TABLESPACE ts2;
-
-
---echo # Check ALTER TABLESPACE RENAME with STORED PROCEDURE
-CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENGINE=InnoDB;
-
---disable_query_log
---eval CREATE TABLESPACE ts2 ADD DATAFILE '$MYSQL_TMP_DIR/ts2.ibd' ENGINE=InnoDB;
---enable_query_log
-
-CREATE TABLE tab1(c1 int) ENGINE=InnoDB TABLESPACE=ts1;
-
-CREATE TABLE tab2(c1 int) ENGINE=InnoDB TABLESPACE=ts2;
-
-delimiter |;
-
-CREATE PROCEDURE proc_alter()
-BEGIN
-
-ALTER TABLESPACE ts1 RENAME TO ts11 ;
-
-INSERT INTO tab1 VALUES(1);
-
-ALTER TABLESPACE ts2 RENAME TO ts22 ;
-
-INSERT INTO tab2 VALUES(1);
-
-END|
-delimiter ;|
-
-CALL proc_alter();
-
-SELECT COUNT(*) FROM tab1;
-
-SELECT COUNT(*) FROM tab2;
-
-SHOW CREATE TABLE tab1;
-
-SHOW CREATE TABLE tab2;
-
-DROP PROCEDURE proc_alter;
-
-DROP TABLE tab1,tab2;
-
-DROP TABLESPACE ts11;
-
-DROP TABLESPACE ts22;
-
-
---echo #
---echo # Bug#26428558: INNODB: ASSERTION FAILURE:
---echo # HA_INNOPART.CC:2431:PART_ELEM->TABLESPACE_NAME == __N
---echo #
-
-CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' Engine=InnoDB;
-
-CREATE TABLE tab (a INT, b INT) ENGINE=InnoDB #ROW_FORMAT=DYNAMIC
-PARTITION BY RANGE(a) SUBPARTITION BY KEY(b) (
-PARTITION p1 VALUES LESS THAN (100) TABLESPACE=ts1);
-
-SHOW CREATE TABLE tab;
-ALTER TABLESPACE ts1 RENAME TO ts11 ;
-
---echo # Crash
-SHOW CREATE TABLE tab;
-
-DROP TABLE tab;
-DROP TABLESPACE ts11;
+# TODO : Enable following once shared tablespaces are allowed in Partitioned
+#	 Tables (wl#12034).
+# --echo #
+# --echo # Additional test cases requested by QA
+# --echo #
+#
+# --echo # Test ALTER TABLESPACE RENAME with partition tables
+# CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' Engine=InnoDB;
+#
+# --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+# let $restart_parameters = restart: --innodb-directories=$MYSQL_TMP_DIR;
+# --source include/restart_mysqld.inc
+#
+# --disable_query_log
+# --eval CREATE TABLESPACE ts2 ADD DATAFILE '$MYSQL_TMP_DIR/ts2.ibd' ENGINE=InnoDB;
+# --enable_query_log
+#
+# CREATE TABLE tab (a INT, b INT) ENGINE = InnoDB ROW_FORMAT=DYNAMIC
+# PARTITION BY RANGE(a) SUBPARTITION BY KEY(b) (
+# PARTITION p1 VALUES LESS THAN (100) TABLESPACE=ts1,
+# PARTITION p2 VALUES LESS THAN (200) TABLESPACE=ts2,
+# PARTITION p3 VALUES LESS THAN (300) TABLESPACE innodb_file_per_table,
+# PARTITION p4 VALUES LESS THAN (400) TABLESPACE innodb_system);
+#
+# INSERT INTO tab VALUES(99,99);
+#
+# INSERT INTO tab VALUES(199,199);
+#
+# INSERT INTO tab VALUES(299,299);
+#
+# INSERT INTO tab VALUES(399,399);
+#
+# SHOW CREATE TABLE tab;
+#
+# ALTER TABLESPACE ts1 RENAME TO ts11 ;
+#
+# ALTER TABLESPACE ts2 RENAME TO ts22 ;
+#
+# SHOW CREATE TABLE tab;
+#
+# DELETE FROM tab;
+#
+# SELECT COUNT(*) FROM tab;
+#
+# ALTER TABLE tab ADD PARTITION (PARTITION p5 VALUES LESS THAN (500) TABLESPACE ts22);
+#
+# INSERT INTO tab VALUES(99,99);
+#
+# INSERT INTO tab VALUES(199,199);
+#
+# INSERT INTO tab VALUES(299,299);
+#
+# INSERT INTO tab VALUES(399,399);
+#
+# INSERT INTO tab VALUES(499,499);
+#
+# SELECT COUNT(*) FROM tab;
+#
+# SHOW CREATE TABLE tab;
+#
+# ALTER TABLE tab ROW_FORMAT=COMPACT;
+#
+# ALTER TABLESPACE ts11 RENAME TO ts1 ;
+#
+# ALTER TABLESPACE ts22 RENAME TO ts2 ;
+#
+# SHOW CREATE TABLE tab;
+#
+# ALTER TABLE tab ROW_FORMAT=REDUNDANT;
+#
+# SHOW CREATE TABLE tab;
+#
+# --echo # failed: 1478:  Tablespace `ts1` cannot contain a COMPRESSED table
+# #ALTER TABLE tab ROW_FORMAT=COMPRESSED;
+#
+# SHOW CREATE TABLE tab;
+#
+# DROP TABLE tab;
+#
+# DROP TABLESPACE ts1;
+#
+# DROP TABLESPACE ts2;
+#
+#
+# --echo # Check ALTER TABLESPACE RENAME with STORED PROCEDURE
+# CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENGINE=InnoDB;
+#
+# --disable_query_log
+# --eval CREATE TABLESPACE ts2 ADD DATAFILE '$MYSQL_TMP_DIR/ts2.ibd' ENGINE=InnoDB;
+# --enable_query_log
+#
+# CREATE TABLE tab1(c1 int) ENGINE=InnoDB TABLESPACE=ts1;
+#
+# CREATE TABLE tab2(c1 int) ENGINE=InnoDB TABLESPACE=ts2;
+#
+# delimiter |;
+#
+# CREATE PROCEDURE proc_alter()
+# BEGIN
+#
+# ALTER TABLESPACE ts1 RENAME TO ts11 ;
+#
+# INSERT INTO tab1 VALUES(1);
+#
+# ALTER TABLESPACE ts2 RENAME TO ts22 ;
+#
+# INSERT INTO tab2 VALUES(1);
+#
+# END|
+# delimiter ;|
+#
+# CALL proc_alter();
+#
+# SELECT COUNT(*) FROM tab1;
+#
+# SELECT COUNT(*) FROM tab2;
+#
+# SHOW CREATE TABLE tab1;
+#
+# SHOW CREATE TABLE tab2;
+#
+# DROP PROCEDURE proc_alter;
+#
+# DROP TABLE tab1,tab2;
+#
+# DROP TABLESPACE ts11;
+#
+# DROP TABLESPACE ts22;
+#
+#
+# --echo #
+# --echo # Bug#26428558: INNODB: ASSERTION FAILURE:
+# --echo # HA_INNOPART.CC:2431:PART_ELEM->TABLESPACE_NAME == __N
+# --echo #
+#
+# CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' Engine=InnoDB;
+#
+# CREATE TABLE tab (a INT, b INT) ENGINE=InnoDB #ROW_FORMAT=DYNAMIC
+# PARTITION BY RANGE(a) SUBPARTITION BY KEY(b) (
+# PARTITION p1 VALUES LESS THAN (100) TABLESPACE=ts1);
+#
+# SHOW CREATE TABLE tab;
+# ALTER TABLESPACE ts1 RENAME TO ts11 ;
+#
+# --echo # Crash
+# SHOW CREATE TABLE tab;
+#
+# DROP TABLE tab;
+# DROP TABLESPACE ts11;
 
 
 --echo #

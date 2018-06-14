@@ -6499,6 +6499,12 @@ static ST_FIELD_INFO innodb_tablespaces_fields_info[] = {
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
      STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
 
+#define INNODB_TABLESPACES_ENCRYPTION 12
+    {STRUCT_FLD(field_name, "ENCRYPTION"), STRUCT_FLD(field_length, 1),
+     STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+
     END_OF_ST_FIELD_INFO
 
 };
@@ -6511,12 +6517,14 @@ collected by scanning INNODB_TABLESPACESS table.
 @param[in]	flags		tablespace flags
 @param[in]	server_version	server version
 @param[in]	space_version	tablespace version
+@param[in]	is_encrypted	true if tablespace is encrypted
 @param[in,out]	table_to_fill	fill this table
 @return 0 on success */
 static int i_s_dict_fill_innodb_tablespaces(THD *thd, space_id_t space,
                                             const char *name, ulint flags,
                                             uint32 server_version,
                                             uint32 space_version,
+                                            bool is_encrypted,
                                             TABLE *table_to_fill) {
   Field **fields;
   ulint atomic_blobs = FSP_FLAGS_HAS_ATOMIC_BLOBS(flags);
@@ -6562,6 +6570,9 @@ static int i_s_dict_fill_innodb_tablespaces(THD *thd, space_id_t space,
   OK(field_store_string(fields[INNODB_TABLESPACES_NAME], name));
 
   OK(fields[INNODB_TABLESPACES_FLAGS]->store(flags, true));
+
+  OK(field_store_string(fields[INNODB_TABLESPACES_ENCRYPTION],
+                        is_encrypted ? "Y" : "N"));
 
   OK(field_store_string(fields[INNODB_TABLESPACES_ROW_FORMAT], row_format));
 
@@ -6677,19 +6688,21 @@ static int i_s_innodb_tablespaces_fill_table(THD *thd, TABLE_LIST *tables,
     uint flags;
     uint32 server_version;
     uint32 space_version;
+    bool is_encrypted = false;
 
     /* Extract necessary information from a INNODB_TABLESPACES
     row */
     ret = dd_process_dd_tablespaces_rec(heap, rec, &space, &name, &flags,
                                         &server_version, &space_version,
-                                        dd_spaces);
+                                        &is_encrypted, dd_spaces);
 
     mtr_commit(&mtr);
     mutex_exit(&dict_sys->mutex);
 
     if (ret && space != 0) {
       i_s_dict_fill_innodb_tablespaces(thd, space, name, flags, server_version,
-                                       space_version, tables->table);
+                                       space_version, is_encrypted,
+                                       tables->table);
     }
 
     mem_heap_empty(heap);

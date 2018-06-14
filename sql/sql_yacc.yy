@@ -1867,6 +1867,7 @@ void warn_about_deprecated_national(THD *thd)
         ts_option_redo_buffer_size
         ts_option_undo_buffer_size
         ts_option_wait
+	ts_option_encryption
 
 %type <explain_format_type> opt_explain_format_type
 
@@ -5161,6 +5162,7 @@ tablespace_option:
         | ts_option_wait
         | ts_option_comment
         | ts_option_file_block_size
+	| ts_option_encryption
         ;
 
 opt_alter_tablespace_options:
@@ -5189,6 +5191,7 @@ alter_tablespace_option:
         | ts_option_max_size
         | ts_option_engine
         | ts_option_wait
+	| ts_option_encryption
         ;
 
 opt_logfile_group_options:
@@ -5333,6 +5336,13 @@ ts_option_wait:
         | NO_WAIT_SYM
           {
             $$= NEW_PTN PT_alter_tablespace_option_wait_until_completed(false);
+          }
+        ;
+
+ts_option_encryption:
+          ENCRYPTION_SYM opt_equal TEXT_STRING_sys
+          {
+            $$= NEW_PTN PT_alter_tablespace_option_encryption($3);
           }
         ;
 
@@ -7294,7 +7304,26 @@ alter_tablespace_stmt:
           {
             Lex->m_sql_cmd= NEW_PTN Sql_cmd_alter_tablespace_rename{$3, $6};
             if (!Lex->m_sql_cmd)
-              MYSQL_YYABORT; /* purecov: inspected */ // OOM
+              MYSQL_YYABORT; // OOM
+
+            Lex->sql_command= SQLCOM_ALTER_TABLESPACE;
+          }
+        | ALTER TABLESPACE_SYM ident alter_tablespace_option_list
+          {
+            auto pc= NEW_PTN Alter_tablespace_parse_context{YYTHD};
+            if (pc == NULL)
+              MYSQL_YYABORT; // OOM
+
+            if ($4 != NULL)
+            {
+              if (YYTHD->is_error() || contextualize_array(pc, $4))
+                MYSQL_YYABORT;
+            }
+
+            Lex->m_sql_cmd=
+              NEW_PTN Sql_cmd_alter_tablespace{$3, pc};
+            if (!Lex->m_sql_cmd)
+              MYSQL_YYABORT; // OOM
 
             Lex->sql_command= SQLCOM_ALTER_TABLESPACE;
           }
@@ -11548,7 +11577,7 @@ drop_trigger_stmt:
           }
         ;
 
-drop_tablespace_stmt:  
+drop_tablespace_stmt:
           DROP TABLESPACE_SYM ident opt_drop_ts_options
           {
             auto pc= NEW_PTN Alter_tablespace_parse_context{YYTHD};
@@ -11567,9 +11596,9 @@ drop_tablespace_stmt:
             Lex->m_sql_cmd= cmd;
             Lex->sql_command= SQLCOM_ALTER_TABLESPACE;
           }
-        
+
 drop_logfile_stmt:
-          DROP LOGFILE_SYM GROUP_SYM ident opt_drop_ts_options          
+          DROP LOGFILE_SYM GROUP_SYM ident opt_drop_ts_options
           {
             auto pc= NEW_PTN Alter_tablespace_parse_context{YYTHD};
             if (pc == NULL)
@@ -14783,7 +14812,7 @@ role_or_privilege:
         | SHOW DATABASES
           { $$= NEW_PTN PT_static_privilege(@1, SHOW_DB_ACL); }
         | SUPER_SYM
-          { 
+          {
             /* DEPRECATED */
             $$= NEW_PTN PT_static_privilege(@1, SUPER_ACL);
             if (Lex->grant != GLOBAL_ACLS)
@@ -15796,7 +15825,7 @@ xid:
           }
           | text_string ',' text_string ',' ulong_num
           {
-            // check for overwflow of xid format id 
+            // check for overwflow of xid format id
             bool format_id_overflow_detected= ($5 > LONG_MAX);
 
             MYSQL_YYABORT_UNLESS($1->length() <= MAXGTRIDSIZE &&

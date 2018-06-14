@@ -9,19 +9,39 @@ SELECT @@innodb_file_per_table;
 @@innodb_file_per_table
 0
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
-ERROR HY000: This tablespace can't be encrypted.
+ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
+SHOW WARNINGS;
+Level	Code	Message
+Error	1478	InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
+Error	1031	Table storage engine for 't1' doesn't have this option
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 @@innodb_file_per_table
 1
 CREATE TABLE t1(c int) ENCRYPTION="Y" tablespace innodb_system;
-ERROR HY000: This tablespace can't be encrypted.
+ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
+SHOW WARNINGS;
+Level	Code	Message
+Error	1478	InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
+Error	1031	Table storage engine for 't1' doesn't have this option
 CREATE TABLE t1(c int) ENCRYPTION="N" tablespace innodb_system;
-DROP TABLE t1;
+ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
+SHOW WARNINGS;
+Level	Code	Message
+Error	1478	InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
+Error	1031	Table storage engine for 't1' doesn't have this option
 CREATE TEMPORARY TABLE t1(c int) ENCRYPTION="Y";
-ERROR HY000: This tablespace can't be encrypted.
+ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
+SHOW WARNINGS;
+Level	Code	Message
+Error	1478	InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
+Error	1031	Table storage engine for 't1' doesn't have this option
 CREATE TEMPORARY TABLE t1(c int) ENCRYPTION="N";
-DROP TABLE t1;
+ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
+SHOW WARNINGS;
+Level	Code	Message
+Error	1478	InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
+Error	1031	Table storage engine for 't1' doesn't have this option
 CREATE TABLE t1(c int) ENCRYPTION="R" ENGINE = InnoDB;
 ERROR HY000: Invalid encryption option.
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
@@ -102,7 +122,7 @@ c1	c2
 ALTER TABLE t1 ENCRYPTION="N", algorithm=inplace;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot alter encryption attribute by inplace algorithm.. Try ALGORITHM=COPY.
 ALTER TABLE t1 TABLESPACE=`innodb_system`;
-ERROR HY000: This tablespace can't be encrypted.
+ERROR HY000: Source tablespace is encrypted but target tablespace is not.
 ALTER TABLE t1 ENCRYPTION="N", algorithm=copy;
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 c1	c2
@@ -243,7 +263,11 @@ SET GLOBAL innodb_file_per_table=OFF;
 CREATE TABLE t1 (c1 int);
 ALTER TABLE t1 COMPRESSION='zlib';
 ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'COMPRESSION'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	138	InnoDB: Page Compression is not supported for the system tablespace
+Error	1478	Table storage engine 'InnoDB' does not support the create option 'COMPRESSION'
 ALTER TABLE t1 ENCRYPTION='Y',ALGORITHM=COPY;
-ERROR HY000: This tablespace can't be encrypted.
+ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
 SET GLOBAL innodb_file_per_table=1;
 DROP TABLE t1;

@@ -114,9 +114,6 @@ drop table t1;
 #
 # Partition by hash, basic
 #
-CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
-CREATE TABLESPACE ts2 ADD DATAFILE 'ts2.ibd';
-CREATE TABLESPACE ts3 ADD DATAFILE 'ts3.ibd';
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -124,9 +121,9 @@ c int not null,
 primary key(a,b))
 partition by hash (a + 2)
 partitions 3
-(partition x1 tablespace ts1,
- partition x2 tablespace ts2,
- partition x3 tablespace ts3);
+(partition x1,
+ partition x2,
+ partition x3);
 
 insert into t1 values (1,1,1);
 SHOW CREATE TABLE t1;
@@ -151,15 +148,12 @@ select * from t1;
 ALTER TABLE t1
 partition by hash (a + 3)
 partitions 3
-(partition x1 tablespace ts1,
- partition x2 tablespace ts2,
- partition x3 tablespace ts3);
+(partition x1,
+ partition x2,
+ partition x3);
 select * from t1;
 SHOW CREATE TABLE t1;
 drop table t1;
-DROP TABLESPACE ts1;
-DROP TABLESPACE ts2;
-DROP TABLESPACE ts3;
 
 #
 # Partition by hash, only one partition

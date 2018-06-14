@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,6 +49,7 @@ struct Tablespace_options {
   bool wait_until_completed = true;
   LEX_STRING ts_comment = {nullptr, 0};  // FIXME: Rename to comment?
   LEX_STRING engine_name = {nullptr, 0};
+  LEX_STRING encryption = {nullptr, 0};
 };
 
 /**
@@ -152,6 +153,24 @@ class Sql_cmd_drop_tablespace final
   Sql_cmd_drop_tablespace(const LEX_STRING &tsname,
                           const Tablespace_options *options);
   bool execute(THD *) override;
+};
+
+/**
+  Execution class for ALTER TABLESPACE ... tablespace_options
+ */
+class Sql_cmd_alter_tablespace final : public Sql_cmd_tablespace {
+ public:
+  /**
+    Creates execution class instance for plain alter tablespace
+    (modifying options).
+
+    @param ts_name name of tablespace
+    @param options additional options to statement
+  */
+  Sql_cmd_alter_tablespace(const LEX_STRING &ts_name,
+                           const Tablespace_options *options);
+
+  bool execute(THD *thd) override;
 };
 
 /**

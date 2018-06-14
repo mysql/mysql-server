@@ -427,7 +427,91 @@ inline void ut_stage_alter_t::change_phase(const PSI_stage_info *new_stage) {
   mysql_stage_set_work_completed(m_progress, c);
   mysql_stage_set_work_estimated(m_progress, e);
 }
-#else /* HAVE_PSI_STAGE_INTERFACE */
+
+/* class to monitor the progress of 'ALTER TABLESPACE ENCRYPTION' in terms
+of number of pages operated upon. */
+class ut_stage_alter_ts {
+ public:
+  /** Constructor. */
+  ut_stage_alter_ts()
+      : m_progress(nullptr),
+        m_work_estimated(0),
+        m_work_done(0),
+        m_cur_phase(NOT_STARTED) {}
+
+  /** Destructor. */
+  inline ~ut_stage_alter_ts() {
+    if (m_progress == NULL) {
+      return;
+    }
+    mysql_end_stage();
+  }
+
+  void init(int key) {
+    ut_ad(key != -1);
+
+    change_phase();
+    m_progress = nullptr;
+    m_work_estimated = 0;
+    m_work_done = 0;
+    m_cur_phase = WORK_ESTIMATE;
+
+    m_progress = mysql_set_stage(key);
+  }
+
+  void set_estimate(ulint units) {
+    ut_ad(m_progress != nullptr);
+    ut_ad(m_cur_phase == WORK_ESTIMATE);
+
+    m_work_estimated = units;
+    mysql_stage_set_work_estimated(m_progress, m_work_estimated);
+  }
+
+  void update_work(ulint units) {
+    ut_ad(m_progress != nullptr);
+    ut_ad(m_cur_phase == WORK_ESTIMATE);
+
+    m_work_done += units;
+    ut_ad(m_work_done <= m_work_estimated);
+    mysql_stage_set_work_completed(m_progress, m_work_done);
+  }
+
+  void change_phase() {
+    if (m_progress == NULL) {
+      return;
+    }
+
+    switch (m_cur_phase) {
+      case NOT_STARTED:
+        break;
+      case WORK_ESTIMATE:
+        m_cur_phase = WORK_COMPLETE;
+        break;
+      case WORK_COMPLETE:
+        m_cur_phase = NOT_STARTED;
+        break;
+    }
+  }
+
+ private:
+  /** Performance schema accounting object. */
+  PSI_stage_progress *m_progress;
+
+  /** Number of pages to be (un)encrypted . */
+  ulint m_work_estimated;
+
+  /** Number of pages already (un)encrypted . */
+  ulint m_work_done;
+
+  /** Current phase. */
+  enum {
+    NOT_STARTED = 0,
+    WORK_ESTIMATE = 1,
+    WORK_COMPLETE = 2,
+  } m_cur_phase;
+};
+
+#else  /* HAVE_PSI_STAGE_INTERFACE */
 
 class ut_stage_alter_t {
  public:
@@ -454,6 +538,22 @@ class ut_stage_alter_t {
   void begin_phase_end() {}
 };
 
+class ut_stage_alter_ts {
+ public:
+  /** Constructor. */
+  ut_stage_alter_ts() {}
+
+  /** Destructor. */
+  inline ~ut_stage_alter_ts() {}
+
+  void init(int key) {}
+
+  void set_estimate(uint units) {}
+
+  void update_work(uint units) {}
+
+  void change_phase() {}
+};
 #endif /* HAVE_PSI_STAGE_INTERFACE */
 
 #endif /* ut0stage_h */

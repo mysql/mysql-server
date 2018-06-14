@@ -698,6 +698,15 @@ static bool dd_upgrade_partitions(THD *thd, const char *norm_name,
                         << "Part table name from server: " << partition_name
                         << " from InnoDB: " << part_table->name.m_name;);
 
+    if (DICT_TF_HAS_SHARED_SPACE(part_table->flags)) {
+      ib::error(ER_IB_MSG_1282)
+          << "Share tablespace found in" << part_table->name.m_name
+          << ". A partitioned table is not allowed in a shared"
+             " tablespace. Please move all partitions to"
+             " file-per-table tablespace before upgrade.";
+      return (true);
+    }
+
     /* Set table id */
     part_obj->set_se_private_id(part_table->id);
 

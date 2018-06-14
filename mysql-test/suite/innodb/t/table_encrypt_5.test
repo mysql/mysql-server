@@ -34,6 +34,7 @@ call mtr.add_suppression("\\[ERROR\\].*Plugin keyring_file reported: 'Could not 
 call mtr.add_suppression("\\[ERROR\\].*Plugin keyring_file reported: 'keyring_file initialization failure.");
 call mtr.add_suppression("\\[ERROR\\].*Plugin keyring_file reported: 'File .*keyring' not found .*");
 call mtr.add_suppression("\\[ERROR\\].* Tablespace [0-9]+, name 'tde_db.*t_encrypt.*', unable to open file '.*tde_db.*t_encrypt.*.ibd' - Data structure corruption");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] Check keyring plugin fail, please check the keyring plugin is loaded.");
 -- enable_query_log
 
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
@@ -316,9 +317,9 @@ SELECT COUNT(*) FROM tde_db.t_non_encrypt_4;
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 
 --echo # encrypt table not accessible 
---error 3185
+--error ER_CANNOT_FIND_KEY_IN_KEYRING
 SELECT COUNT(*) FROM tde_db.t_encrypt;
---error 3185
+--error ER_CANNOT_FIND_KEY_IN_KEYRING
 SELECT COUNT(*) FROM tde_db.t_encrypt_2;
 
 DROP TABLE tde_db.t_encrypt , tde_db.t_encrypt_2;
@@ -581,9 +582,9 @@ SELECT COUNT(*) FROM tde_db.t_non_encrypt_4;
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 
 --echo # old encrypt table not accessible 
---error ER_CANNOT_FIND_KEY_IN_KEYRING,1146
+--error ER_CANNOT_FIND_KEY_IN_KEYRING, ER_NO_SUCH_TABLE
 SELECT COUNT(*) FROM tde_db.t_encrypt;
---error ER_CANNOT_FIND_KEY_IN_KEYRING,1146
+--error ER_CANNOT_FIND_KEY_IN_KEYRING, ER_NO_SUCH_TABLE
 SELECT COUNT(*) FROM tde_db.t_encrypt_2;
 --echo # NON encrypt old table are accessible
 SELECT COUNT(*) FROM tde_db.t_non_encrypt;

@@ -1,12 +1,3 @@
-#
-# Removing partitioning would not change the table level tablespace
-#
-CREATE TABLE t1 (col1 INT)
-ENGINE = InnoDB PARTITION BY KEY(col1) PARTITIONS 3;
-ALTER TABLE t1 ROW_FORMAT = COMPRESSED TABLESPACE innodb_system;
-ALTER TABLE t1 REMOVE PARTITIONING;
-ERROR HY000: InnoDB: Tablespace `innodb_system` cannot contain a COMPRESSED table
-DROP TABLE t1;
 # Check if non-strict mode can work when there is implicit row format change
 CREATE TABLE t1 (a INT, b INT, key(a)) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2 PARTITION BY RANGE (a % 7) (PARTITION p1 VALUES LESS THAN(1), PARTITION p2 VALUES LESS THAN (2), PARTITION p3 VALUES LESS THAN (5), PARTITION p4 VALUES LESS THAN(MAXVALUE));
 SHOW CREATE TABLE t1;

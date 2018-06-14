@@ -773,6 +773,12 @@ PSI_stage_info srv_stage_alter_table_read_pk_internal_sort = {
     0, "alter table (read PK and internal sort)", PSI_FLAG_STAGE_PROGRESS,
     PSI_DOCUMENT_ME};
 
+/** Performance schema stage event for monitoring ALTER TABLESPACE
+ENCRYPTION progress. */
+PSI_stage_info srv_stage_alter_tablespace_encryption = {
+    0, "alter tablespace (encryption)", PSI_FLAG_STAGE_PROGRESS,
+    PSI_DOCUMENT_ME};
+
 /** Performance schema stage event for monitoring buffer pool load progress. */
 PSI_stage_info srv_stage_buffer_pool_load = {
     0, "buffer pool load", PSI_FLAG_STAGE_PROGRESS, PSI_DOCUMENT_ME};
@@ -1729,6 +1735,7 @@ shutdown has already been completed.
 const char *srv_any_background_threads_are_active() {
   const char *thread_active = NULL;
 
+  ut_ad(!srv_threads.m_ts_alter_encrypt_thread_active);
   ut_ad(!srv_threads.m_dict_stats_thread_active);
 
   if (srv_read_only_mode) {
@@ -1772,6 +1779,7 @@ bool srv_master_thread_active() {
   }
 
   ut_a(!srv_threads.m_dict_stats_thread_active);
+  ut_a(!srv_threads.m_ts_alter_encrypt_thread_active);
   srv_sys_mutex_enter();
   ut_a(srv_sys->n_threads_active[SRV_WORKER] == 0);
   ut_a(srv_sys->n_threads_active[SRV_PURGE] == 0);
@@ -2402,7 +2410,7 @@ static void srv_enable_undo_encryption_if_set() {
         return;
       } else {
         if (!fsp_header_write_encryption(space->id, new_flags, encrypt_info,
-                                         true, &mtr)) {
+                                         true, false, &mtr)) {
           srv_undo_log_encrypt = false;
 
           ib::error(ER_IB_MSG_1053);

@@ -260,6 +260,16 @@ static const char ENCRYPTION_DEFAULT_MASTER_KEY[] = "DefaultMasterKey";
 /** Default master key id for bootstrap */
 static const ulint ENCRYPTION_DEFAULT_MASTER_KEY_ID = 0;
 
+/** (Un)Encryption Operation information size */
+static const uint ENCRYPTION_OPERATION_INFO_SIZE = 1;
+
+/** Encryption Progress information size */
+static const uint ENCRYPTION_PROGRESS_INFO_SIZE = sizeof(uint);
+
+/** Flag bit to indicate if Encryption/Decryption is in progress */
+#define ENCRYPTION_IN_PROGRESS (1 << 0)
+#define UNENCRYPTION_IN_PROGRESS (1 << 1)
+
 class IORequest;
 
 /** Encryption algorithm. */
@@ -390,10 +400,11 @@ struct Encryption {
   /** Decoding the encryption info from the first page of a tablespace.
   @param[in,out]	key		key
   @param[in,out]	iv		iv
-  @param[in]	encryption_info	encrytion info.
+  @param[in]		encryption_info	encryption info
+  @param[in]		report		true, if error to be reported
   @return true if success */
-  static bool decode_encryption_info(byte *key, byte *iv,
-                                     byte *encryption_info);
+  static bool decode_encryption_info(byte *key, byte *iv, byte *encryption_info,
+                                     const bool report = true);
 
   /** Encrypt the redo log block.
   @param[in]	type		IORequest

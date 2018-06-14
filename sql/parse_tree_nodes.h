@@ -4767,6 +4767,10 @@ typedef PT_alter_tablespace_option<
     &Tablespace_options::wait_until_completed>
     PT_alter_tablespace_option_wait_until_completed;
 
+typedef PT_alter_tablespace_option<decltype(Tablespace_options::encryption),
+                                   &Tablespace_options::encryption>
+    PT_alter_tablespace_option_encryption;
+
 class PT_alter_tablespace_option_nodegroup final
     : public PT_alter_tablespace_option_base /* purecov: inspected */
 {

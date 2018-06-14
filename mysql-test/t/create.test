@@ -1848,16 +1848,18 @@ PARTITION p0 VALUES LESS THAN (10) INDEX DIRECTORY = 'test'
 );
 
 
---echo #
---echo # Bug #27331588: ASSERTION `THD->MDL_CONTEXT.OWNS_EQUAL_OR_STRONGER_LOCK
---echo # MDL_KEY::TABLESPACE
---echo #
-
-SET GLOBAL innodb_file_per_table= 0;
-CREATE TABLE t (i INT) PARTITION BY HASH(i) PARTITIONS 2;
-CREATE TABLE t_like LIKE t;
-DROP TABLES t, t_like;
-SET GLOBAL innodb_file_per_table= DEFAULT;
+# TODO : Enable following once shared tablespaces are allowed in Partitioned
+#	 Tables (wl#12034).
+#--echo #
+#--echo # Bug #27331588: ASSERTION `THD->MDL_CONTEXT.OWNS_EQUAL_OR_STRONGER_LOCK
+#--echo # MDL_KEY::TABLESPACE
+#--echo #
+#
+#SET GLOBAL innodb_file_per_table= 0;
+#CREATE TABLE t (i INT) PARTITION BY HASH(i) PARTITIONS 2;
+#CREATE TABLE t_like LIKE t;
+#DROP TABLES t, t_like;
+#SET GLOBAL innodb_file_per_table= DEFAULT;
 
 
 --echo #

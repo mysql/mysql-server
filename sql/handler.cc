@@ -2490,7 +2490,16 @@ void HA_CREATE_INFO::init_create_options_from_share(const TABLE_SHARE *share,
     compress = share->compress;
   }
 
-  if (!(used_fields & HA_CREATE_USED_ENCRYPT)) {
+  /*
+     encrypt_type on the table is only meaningful for implicit
+     tablespaces, since the encryption is really a tablespace
+     attribute. So whenever a table is moved to a different tablespace
+     the encrypt_type must not be propagated. When moving
+     the table to a (new) implicit tablespace the encrypt_type will
+     only be set if explicitly requested with HA_CREATE_USED_ENCRYPT (by the
+     parser).
+  */
+  if (!(used_fields & (HA_CREATE_USED_ENCRYPT | HA_CREATE_USED_TABLESPACE))) {
     // Assert to check that used_fields flag and encrypt_type are in sync
     DBUG_ASSERT(!encrypt_type.str);
     encrypt_type = share->encrypt_type;

@@ -92,7 +92,8 @@ class Datafile {
         m_last_os_error(),
         m_file_info(),
         m_encryption_key(),
-        m_encryption_iv() {
+        m_encryption_iv(),
+        m_encryption_op_in_progress(NONE) {
     m_handle.m_file = OS_FILE_CLOSED;
   }
 
@@ -114,7 +115,8 @@ class Datafile {
         m_last_os_error(),
         m_file_info(),
         m_encryption_key(),
-        m_encryption_iv() {
+        m_encryption_iv(),
+        m_encryption_op_in_progress(NONE) {
     ut_ad(m_name != nullptr);
     m_handle.m_file = OS_FILE_CLOSED;
     /* No op */
@@ -136,7 +138,8 @@ class Datafile {
         m_last_os_error(),
         m_file_info(),
         m_encryption_key(),
-        m_encryption_iv() {
+        m_encryption_iv(),
+        m_encryption_op_in_progress(NONE) {
     m_name = mem_strdup(file.m_name);
     ut_ad(m_name != nullptr);
 
@@ -191,6 +194,7 @@ class Datafile {
     m_first_page = nullptr;
     m_encryption_key = nullptr;
     m_encryption_iv = nullptr;
+    m_encryption_op_in_progress = NONE;
 
     m_atomic_write = file.m_atomic_write;
 
@@ -494,5 +498,8 @@ class Datafile {
 
   /** Encryption iv read from first page */
   byte *m_encryption_iv;
+
+  /** Encryption operation in progress */
+  encryption_op_type m_encryption_op_in_progress;
 };
 #endif /* fsp0file_h */

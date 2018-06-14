@@ -1,13 +1,15 @@
---echo #
---echo # Removing partitioning would not change the table level tablespace
---echo #
+# TODO : Enable following once shared tablespaces are allowed in Partitioned
+#	 Tables (wl#12034).
+# --echo #
+# --echo # Removing partitioning would not change the table level tablespace
+# --echo #
 
-CREATE TABLE t1 (col1 INT)
-ENGINE = InnoDB PARTITION BY KEY(col1) PARTITIONS 3;
-ALTER TABLE t1 ROW_FORMAT = COMPRESSED TABLESPACE innodb_system;
---error ER_ILLEGAL_HA_CREATE_OPTION
-ALTER TABLE t1 REMOVE PARTITIONING;
-DROP TABLE t1;
+# CREATE TABLE t1 (col1 INT)
+# ENGINE = InnoDB PARTITION BY KEY(col1) PARTITIONS 3;
+# ALTER TABLE t1 ROW_FORMAT = COMPRESSED TABLESPACE innodb_system;
+# --error ER_ILLEGAL_HA_CREATE_OPTION
+# ALTER TABLE t1 REMOVE PARTITIONING;
+# DROP TABLE t1;
 
 
 --echo # Check if non-strict mode can work when there is implicit row format change

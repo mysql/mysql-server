@@ -179,7 +179,7 @@ DROP TABLE t1;
 --echo # Bug#20516390: PARTITIONED TABLE, TBLSPACE MOVE, ALTER, ASSERT
 --echo # !(M_FILE_PER_TABLE && M_USE_SHAR
 --echo #
-CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+# CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
 CREATE TABLE t1
 (a int not null,
  d int not null,
@@ -192,10 +192,12 @@ CREATE TABLE t1
  INDEX (b(5), c(10), a))
 ENGINE=InnoDB stats_persistent=DEFAULT
 PARTITION BY LINEAR HASH(d) PARTITIONS 2;
-ALTER TABLE t1 TABLESPACE ts1;
+# TODO : Enable following once shared tablespace are allowed in Partitioned
+#	 Table (wl#12034).
+# ALTER TABLE t1 TABLESPACE ts1;
 ALTER TABLE t1 DROP PRIMARY KEY, ALGORITHM=DEFAULT;
 DROP TABLE t1;
-DROP TABLESPACE ts1;
+# DROP TABLESPACE ts1;
 
 --echo #
 --echo # Bug #20593808: CRASH WITH PARTITIONED TABLES
@@ -397,23 +399,25 @@ DROP TABLE t1;
 #DROP TABLE t1;
 #DROP TABLESPACE ts1;
 
---echo #
---echo # Bug#21796845 ASSERT ERR == DB_SUCCESS, ROW_QUIESCE_TABLE_START(), FLUSH TABLES FOR EXPORT
---echo #
-CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
-
-CREATE TABLE t1 (a INT, b INT) ENGINE = InnoDB
-     PARTITION BY RANGE(a) (
-     PARTITION p1 VALUES LESS THAN (100) TABLESPACE innodb_system,
-     PARTITION p2 VALUES LESS THAN (200),
-     PARTITION p3 VALUES LESS THAN (300) TABLESPACE ts1,
-     PARTITION p4 VALUES LESS THAN (400) TABLESPACE innodb_system);
-
-FLUSH table t1 FOR EXPORT;
-UNLOCK TABLES;
-
-DROP TABLE t1;
-DROP TABLESPACE ts1;
+# TODO : Enable following once shared tablespace are allowed in Partitioned
+#	 Table (wl#12034).
+# --echo #
+# --echo # Bug#21796845 ASSERT ERR == DB_SUCCESS, ROW_QUIESCE_TABLE_START(), FLUSH TABLES FOR EXPORT
+# --echo #
+# CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+#
+# CREATE TABLE t1 (a INT, b INT) ENGINE = InnoDB
+#      PARTITION BY RANGE(a) (
+#      PARTITION p1 VALUES LESS THAN (100) TABLESPACE innodb_system,
+#      PARTITION p2 VALUES LESS THAN (200),
+#      PARTITION p3 VALUES LESS THAN (300) TABLESPACE ts1,
+#      PARTITION p4 VALUES LESS THAN (400) TABLESPACE innodb_system);
+#
+# FLUSH table t1 FOR EXPORT;
+# UNLOCK TABLES;
+#
+# DROP TABLE t1;
+# DROP TABLESPACE ts1;
 
 --echo #
 --echo # Bug#21957001 INNODB: FAILING ASSERTION: 0 IN FILE HA_INNOPART.CC LINE 3526
@@ -487,254 +491,257 @@ SELECT 1 FROM t1 WHERE col2 > 'a' GROUP BY col3;
 
 DROP TABLE t1;
 
---echo #
---echo # Bug#21914047 SHOW CREATE DUMPS AFTER ALTER ON INNODB TABLE WITH PARTITIONS USING TABLESPACE
---echo #
-CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
-CREATE TABLESPACE ts2 ADD DATAFILE 'ts2.ibd';
+# TODO : Enable following once shared tablespace are allowed in Partitioned
+#	 Table (wl#12034).
+# --echo #
+# --echo # Bug#21914047 SHOW CREATE DUMPS AFTER ALTER ON INNODB TABLE WITH PARTITIONS USING TABLESPACE
+# --echo #
+# CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+# CREATE TABLESPACE ts2 ADD DATAFILE 'ts2.ibd';
+#
+# CREATE TABLE t1 (a INT NOT NULL, PRIMARY KEY (a))
+# ENGINE=InnoDB TABLESPACE ts2
+# PARTITION BY RANGE(a)
+# PARTITIONS 4
+#  ( PARTITION p1 VALUES LESS THAN (2) TABLESPACE ts1,
+#    PARTITION p2 VALUES LESS THAN (4) TABLESPACE innodb_system,
+#    PARTITION p3 VALUES LESS THAN (6),
+#    PARTITION p4  VALUES LESS THAN (8) TABLESPACE innodb_file_per_table);
+#
+# SHOW CREATE TABLE t1;
+#
+# --replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
+# --replace_result #P# #p#
+# SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
+# FROM information_schema.innodb_tables A
+# LEFT JOIN
+# information_schema.innodb_tablespaces B
+# ON A.SPACE = B.SPACE
+# WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
+#
+# ALTER TABLE t1 ADD COLUMN b int;
+# SHOW CREATE TABLE t1;
+#
+# --replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
+# --replace_result #P# #p#
+# SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
+# FROM information_schema.innodb_tables A
+# LEFT JOIN
+# information_schema.innodb_tablespaces B
+# ON A.SPACE = B.SPACE
+# WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
+#
+# ALTER TABLE t1 ADD COLUMN c int, TABLESPACE ts1;
+# SHOW CREATE TABLE t1;
+#
+# --replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
+# --replace_result #P# #p#
+# SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
+# FROM information_schema.innodb_tables A
+# LEFT JOIN
+# information_schema.innodb_tablespaces B
+# ON A.SPACE = B.SPACE
+# WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
+#
+# ALTER TABLE t1 ADD PARTITION (PARTITION p5 VALUES LESS THAN (10) TABLESPACE ts2);
+# SHOW CREATE TABLE t1;
+#
+# --replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
+# --replace_result #P# #p#
+# SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
+# FROM information_schema.innodb_tables A
+# LEFT JOIN
+# information_schema.innodb_tablespaces B
+# ON A.SPACE = B.SPACE
+# WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
+#
+# ALTER TABLE t1 ADD PARTITION (PARTITION p6 VALUES LESS THAN (12));
+# SHOW CREATE TABLE t1;
+#
+# --replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
+# --replace_result #P# #p#
+# SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
+# FROM information_schema.innodb_tables A
+# LEFT JOIN
+# information_schema.innodb_tablespaces B
+# ON A.SPACE = B.SPACE
+# WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
+#
+# ALTER TABLE t1 REORGANIZE PARTITION p4 INTO (PARTITION p4 VALUES LESS THAN (8));
+# SHOW CREATE TABLE t1;
+#
+# --replace_result #P# #p#
+# --replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
+# SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
+# FROM information_schema.innodb_tables A
+# LEFT JOIN
+# information_schema.innodb_tablespaces B
+# ON A.SPACE = B.SPACE
+# WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
+#
+# ALTER TABLE t1 REORGANIZE PARTITION p3 INTO (PARTITION p3 VALUES LESS THAN (6) TABLESPACE innodb_system);
+# SHOW CREATE TABLE t1;
+#
+# --replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
+# --replace_result #P# #p#
+# SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
+# FROM information_schema.innodb_tables A
+# LEFT JOIN
+# information_schema.innodb_tablespaces B
+# ON A.SPACE = B.SPACE
+# WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
+#
+# DROP TABLE t1;
+#
+# CREATE TABLE t1 (a INT NOT NULL, PRIMARY KEY (a))
+# ENGINE=InnoDB
+# PARTITION BY RANGE(a)
+# PARTITIONS 4
+#  ( PARTITION p1 VALUES LESS THAN (2) TABLESPACE ts1,
+#    PARTITION p2 VALUES LESS THAN (4) TABLESPACE innodb_system,
+#    PARTITION p3 VALUES LESS THAN (6),
+#    PARTITION p4  VALUES LESS THAN (8) TABLESPACE innodb_file_per_table);
+#
+# SHOW CREATE TABLE t1;
+#
+# --replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
+# --replace_result #P# #p#
+# SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
+# FROM information_schema.innodb_tables A
+# LEFT JOIN
+# information_schema.innodb_tablespaces B
+# ON A.SPACE = B.SPACE
+# WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
+#
+# ALTER TABLE t1 ADD COLUMN b int;
+# SHOW CREATE TABLE t1;
+#
+# --replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
+# --replace_result #P# #p#
+# SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
+# FROM information_schema.innodb_tables A
+# LEFT JOIN
+# information_schema.innodb_tablespaces B
+# ON A.SPACE = B.SPACE
+# WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
+#
+# ALTER TABLE t1 ADD COLUMN c int, TABLESPACE ts1;
+# SHOW CREATE TABLE t1;
+#
+# --replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
+# --replace_result #P# #p#
+# SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
+# FROM information_schema.innodb_tables A
+# LEFT JOIN
+# information_schema.innodb_tablespaces B
+# ON A.SPACE = B.SPACE
+# WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
+#
+# ALTER TABLE t1 ADD PARTITION (PARTITION p5 VALUES LESS THAN (10) TABLESPACE ts2);
+# SHOW CREATE TABLE t1;
+#
+# --replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
+# --replace_result #P# #p#
+# SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
+# FROM information_schema.innodb_tables A
+# LEFT JOIN
+# information_schema.innodb_tablespaces B
+# ON A.SPACE = B.SPACE
+# WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
+#
+# ALTER TABLE t1 ADD PARTITION (PARTITION p6 VALUES LESS THAN (12));
+# SHOW CREATE TABLE t1;
+#
+# --replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
+# --replace_result #P# #p#
+# SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
+# FROM information_schema.innodb_tables A
+# LEFT JOIN
+# information_schema.innodb_tablespaces B
+# ON A.SPACE = B.SPACE
+# WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
+#
+# ALTER TABLE t1 REORGANIZE PARTITION p4 INTO (PARTITION p4 VALUES LESS THAN (8));
+# SHOW CREATE TABLE t1;
+#
+# --replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
+# --replace_result #P# #p#
+# SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
+# FROM information_schema.innodb_tables A
+# LEFT JOIN
+# information_schema.innodb_tablespaces B
+# ON A.SPACE = B.SPACE
+# WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
+#
+# ALTER TABLE t1 REORGANIZE PARTITION p3 INTO (PARTITION p3 VALUES LESS THAN (6) TABLESPACE innodb_system);
+# SHOW CREATE TABLE t1;
+#
+# --replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
+# --replace_result #P# #p#
+# SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
+# FROM information_schema.innodb_tables A
+# LEFT JOIN
+# information_schema.innodb_tablespaces B
+# ON A.SPACE = B.SPACE
+# WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
+#
+# DROP TABLE t1;
+# DROP TABLESPACE ts1;
+# DROP TABLESPACE ts2;
+#
+# --echo #
+# --echo # Bug#22245554 OUTPUT OF SHOW CREATE TABLE INVOLVING PARTITION TABLESPACE
+# --echo # LEADS TO CONFUSION
+# --echo #
+#
+# CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+#
+# --let $innodb_file_per_table=`select @@innodb_file_per_table`
+#
+# --let $TABLESPACE1=
+# --let $TABLESPACE2=TABLESPACE innodb_system
+# --let $TABLESPACE3=TABLESPACE innodb_file_per_table
+# --let $TABLESPACE4=
+#
+# --let $INNODB_FILE_PER_TABLE_FOR_CREATE=OFF
+# --let $INNODB_FILE_PER_TABLE_FOR_ALTER=ON
+# --echo # CASE A
+# --echo # file_per_table OFF for CREATE, ON for ALTER
+# --source suite/innodb/include/create_alter_partition.inc
+#
+# --let $INNODB_FILE_PER_TABLE_FOR_CREATE=ON
+# --let $INNODB_FILE_PER_TABLE_FOR_ALTER=OFF
+# --echo # CASE B
+# --echo # file_per_table ON for CREATE, OFF for ALTER
+# --source suite/innodb/include/create_alter_partition.inc
+#
+# --let $TABLESPACE1=
+# --let $TABLESPACE2=
+# --let $TABLESPACE3=
+# --let $TABLESPACE4=
+#
+# --let $INNODB_FILE_PER_TABLE_FOR_CREATE=OFF
+# --let $INNODB_FILE_PER_TABLE_FOR_ALTER=OFF
+# --echo # CASE C
+# --echo # file_per_table OFF for CREATE, OFF for ALTER
+# --source suite/innodb/include/create_alter_partition.inc
+#
+# --let $INNODB_FILE_PER_TABLE_FOR_CREATE=ON
+# --let $INNODB_FILE_PER_TABLE_FOR_ALTER=ON
+# --echo # CASE D
+# --echo # file_per_table ON for CREATE, ON for ALTER
+# --source suite/innodb/include/create_alter_partition.inc
+#
+# --let $INNODB_FILE_PER_TABLE_FOR_CREATE=ON
+# --let $INNODB_FILE_PER_TABLE_FOR_ALTER=OFF
+# --echo # CASE E
+# --echo # file_per_table ON for CREATE, OFF for ALTER
+# --source suite/innodb/include/create_alter_partition.inc
+#
+# --eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table
+#
+# DROP TABLESPACE ts1;
 
-CREATE TABLE t1 (a INT NOT NULL, PRIMARY KEY (a))
-ENGINE=InnoDB TABLESPACE ts2
-PARTITION BY RANGE(a)
-PARTITIONS 4
- ( PARTITION p1 VALUES LESS THAN (2) TABLESPACE ts1,
-   PARTITION p2 VALUES LESS THAN (4) TABLESPACE innodb_system,
-   PARTITION p3 VALUES LESS THAN (6),
-   PARTITION p4  VALUES LESS THAN (8) TABLESPACE innodb_file_per_table);
-
-SHOW CREATE TABLE t1;
-
---replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
---replace_result #P# #p#
-SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
-FROM information_schema.innodb_tables A
-LEFT JOIN
-information_schema.innodb_tablespaces B
-ON A.SPACE = B.SPACE
-WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
-
-ALTER TABLE t1 ADD COLUMN b int;
-SHOW CREATE TABLE t1;
-
---replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
---replace_result #P# #p#
-SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
-FROM information_schema.innodb_tables A
-LEFT JOIN
-information_schema.innodb_tablespaces B
-ON A.SPACE = B.SPACE
-WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
-
-ALTER TABLE t1 ADD COLUMN c int, TABLESPACE ts1;
-SHOW CREATE TABLE t1;
-
---replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
---replace_result #P# #p#
-SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
-FROM information_schema.innodb_tables A
-LEFT JOIN
-information_schema.innodb_tablespaces B
-ON A.SPACE = B.SPACE
-WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
-
-ALTER TABLE t1 ADD PARTITION (PARTITION p5 VALUES LESS THAN (10) TABLESPACE ts2);
-SHOW CREATE TABLE t1;
-
---replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
---replace_result #P# #p#
-SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
-FROM information_schema.innodb_tables A
-LEFT JOIN
-information_schema.innodb_tablespaces B
-ON A.SPACE = B.SPACE
-WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
-
-ALTER TABLE t1 ADD PARTITION (PARTITION p6 VALUES LESS THAN (12));
-SHOW CREATE TABLE t1;
-
---replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
---replace_result #P# #p#
-SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
-FROM information_schema.innodb_tables A
-LEFT JOIN
-information_schema.innodb_tablespaces B
-ON A.SPACE = B.SPACE
-WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
-
-ALTER TABLE t1 REORGANIZE PARTITION p4 INTO (PARTITION p4 VALUES LESS THAN (8));
-SHOW CREATE TABLE t1;
-
---replace_result #P# #p#
---replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
-SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
-FROM information_schema.innodb_tables A
-LEFT JOIN
-information_schema.innodb_tablespaces B
-ON A.SPACE = B.SPACE
-WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
-
-ALTER TABLE t1 REORGANIZE PARTITION p3 INTO (PARTITION p3 VALUES LESS THAN (6) TABLESPACE innodb_system);
-SHOW CREATE TABLE t1;
-
---replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
---replace_result #P# #p#
-SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
-FROM information_schema.innodb_tables A
-LEFT JOIN
-information_schema.innodb_tablespaces B
-ON A.SPACE = B.SPACE
-WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
-
-DROP TABLE t1;
-
-CREATE TABLE t1 (a INT NOT NULL, PRIMARY KEY (a))
-ENGINE=InnoDB
-PARTITION BY RANGE(a)
-PARTITIONS 4
- ( PARTITION p1 VALUES LESS THAN (2) TABLESPACE ts1,
-   PARTITION p2 VALUES LESS THAN (4) TABLESPACE innodb_system,
-   PARTITION p3 VALUES LESS THAN (6),
-   PARTITION p4  VALUES LESS THAN (8) TABLESPACE innodb_file_per_table);
-
-SHOW CREATE TABLE t1;
-
---replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
---replace_result #P# #p#
-SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
-FROM information_schema.innodb_tables A
-LEFT JOIN
-information_schema.innodb_tablespaces B
-ON A.SPACE = B.SPACE
-WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
-
-ALTER TABLE t1 ADD COLUMN b int;
-SHOW CREATE TABLE t1;
-
---replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
---replace_result #P# #p#
-SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
-FROM information_schema.innodb_tables A
-LEFT JOIN
-information_schema.innodb_tablespaces B
-ON A.SPACE = B.SPACE
-WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
-
-ALTER TABLE t1 ADD COLUMN c int, TABLESPACE ts1;
-SHOW CREATE TABLE t1;
-
---replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
---replace_result #P# #p#
-SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
-FROM information_schema.innodb_tables A
-LEFT JOIN
-information_schema.innodb_tablespaces B
-ON A.SPACE = B.SPACE
-WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
-
-ALTER TABLE t1 ADD PARTITION (PARTITION p5 VALUES LESS THAN (10) TABLESPACE ts2);
-SHOW CREATE TABLE t1;
-
---replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
---replace_result #P# #p#
-SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
-FROM information_schema.innodb_tables A
-LEFT JOIN
-information_schema.innodb_tablespaces B
-ON A.SPACE = B.SPACE
-WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
-
-ALTER TABLE t1 ADD PARTITION (PARTITION p6 VALUES LESS THAN (12));
-SHOW CREATE TABLE t1;
-
---replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
---replace_result #P# #p#
-SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
-FROM information_schema.innodb_tables A
-LEFT JOIN
-information_schema.innodb_tablespaces B
-ON A.SPACE = B.SPACE
-WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
-
-ALTER TABLE t1 REORGANIZE PARTITION p4 INTO (PARTITION p4 VALUES LESS THAN (8));
-SHOW CREATE TABLE t1;
-
---replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
---replace_result #P# #p#
-SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
-FROM information_schema.innodb_tables A
-LEFT JOIN
-information_schema.innodb_tablespaces B
-ON A.SPACE = B.SPACE
-WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
-
-ALTER TABLE t1 REORGANIZE PARTITION p3 INTO (PARTITION p3 VALUES LESS THAN (6) TABLESPACE innodb_system);
-SHOW CREATE TABLE t1;
-
---replace_regex /innodb_file_per_table.[0-9]+/innodb_file_per_table.##/
---replace_result #P# #p#
-SELECT A.NAME as partition_name, A.SPACE_TYPE as space_type, B.NAME as space_name
-FROM information_schema.innodb_tables A
-LEFT JOIN
-information_schema.innodb_tablespaces B
-ON A.SPACE = B.SPACE
-WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
-
-DROP TABLE t1;
-DROP TABLESPACE ts1;
-DROP TABLESPACE ts2;
-
---echo #
---echo # Bug#22245554 OUTPUT OF SHOW CREATE TABLE INVOLVING PARTITION TABLESPACE
---echo # LEADS TO CONFUSION
---echo #
-
-CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
-
---let $innodb_file_per_table=`select @@innodb_file_per_table`
-
---let $TABLESPACE1=
---let $TABLESPACE2=TABLESPACE innodb_system
---let $TABLESPACE3=TABLESPACE innodb_file_per_table
---let $TABLESPACE4=
-
---let $INNODB_FILE_PER_TABLE_FOR_CREATE=OFF
---let $INNODB_FILE_PER_TABLE_FOR_ALTER=ON
---echo # CASE A
---echo # file_per_table OFF for CREATE, ON for ALTER
---source suite/innodb/include/create_alter_partition.inc
-
---let $INNODB_FILE_PER_TABLE_FOR_CREATE=ON
---let $INNODB_FILE_PER_TABLE_FOR_ALTER=OFF
---echo # CASE B
---echo # file_per_table ON for CREATE, OFF for ALTER
---source suite/innodb/include/create_alter_partition.inc
-
---let $TABLESPACE1=
---let $TABLESPACE2=
---let $TABLESPACE3=
---let $TABLESPACE4=
-
---let $INNODB_FILE_PER_TABLE_FOR_CREATE=OFF
---let $INNODB_FILE_PER_TABLE_FOR_ALTER=OFF
---echo # CASE C
---echo # file_per_table OFF for CREATE, OFF for ALTER
---source suite/innodb/include/create_alter_partition.inc
-
---let $INNODB_FILE_PER_TABLE_FOR_CREATE=ON
---let $INNODB_FILE_PER_TABLE_FOR_ALTER=ON
---echo # CASE D
---echo # file_per_table ON for CREATE, ON for ALTER
---source suite/innodb/include/create_alter_partition.inc
-
---let $INNODB_FILE_PER_TABLE_FOR_CREATE=ON
---let $INNODB_FILE_PER_TABLE_FOR_ALTER=OFF
---echo # CASE E
---echo # file_per_table ON for CREATE, OFF for ALTER
---source suite/innodb/include/create_alter_partition.inc
-
---eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table
-
-DROP TABLESPACE ts1;
 --echo # Bug#22444530 - GCOLS + PARTITIONED TABLE, CRASH IN
 --echo #
 set sql_mode='';
@@ -803,87 +810,89 @@ SELECT * FROM t1 WHERE sha(uuid_short());
 
 DROP TABLE t1;
 
---echo #
---echo # Bug#25516367 - CRASH IN HA_INNOBASE::COMMIT_INPLACE_ALTER_TABLE_IMPL
---echo #
-
-CREATE TABLESPACE s1 ADD DATAFILE '1.ibd' ENGINE = InnoDB;
-CREATE TABLE t1 (col1 INT, col2 INT) ENGINE = InnoDB ROW_FORMAT = DYNAMIC TABLESPACE s1;
-
-ALTER TABLE t1 PARTITION BY RANGE(col1)
-( PARTITION p0 VALUES LESS THAN (128), PARTITION p3 VALUES LESS THAN MAXVALUE );
---error ER_ILLEGAL_HA_CREATE_OPTION
-ALTER TABLE t1 ROW_FORMAT = COMPRESSED;
-
-DROP TABLE t1;
-DROP TABLESPACE s1;
-
---echo #
---echo # This checks if operation bit is set properly for REORGANIZE PARTITION
---echo #
-
-CREATE TABLE t1 (a INTEGER, b INTEGER NOT NULL, KEY(b)) ENGINE = INNODB /*!50100 PARTITION BY KEY(b) PARTITIONS 3 */;
-SHOW CREATE TABLE t1;
-ALTER TABLE t1 REORGANIZE PARTITION;
-SHOW CREATE TABLE t1;
-DROP TABLE t1;
-
-
---echo # Ignore incompatible options of a table which was created in not strict mode
-
-SET @orig_innodb_file_per_table= @@innodb_file_per_table;
-SET GLOBAL innodb_file_per_table = 0;
-SET @save_innodb_strict_mode=@@session.innodb_strict_mode;
-SET SESSION innodb_strict_mode = 0;
-
-CREATE TABLE t1(a INT NOT NULL, d INT NOT NULL, KEY(a), KEY(d)) ENGINE = InnoDB PARTITION BY HASH(d) PARTITIONS 02;
-
-SET SESSION innodb_strict_mode = 0;
-
-# To prevent the compression warning differences in different platform
---disable_warnings
-
-ALTER TABLE t1 COMPRESSION='zlib', ALGORITHM=INPLACE;
-
-ALTER TABLE t1 TABLESPACE innodb_system, ALGORITHM=INPLACE, LOCK=DEFAULT;
-
-OPTIMIZE TABLE t1;
-
---enable_warnings
-
-SHOW CREATE TABLE t1;
-
-SET GLOBAL innodb_file_per_table = @orig_innodb_file_per_table;
-SET SESSION innodb_strict_mode=@save_innodb_strict_mode;
-
---source include/restart_mysqld.inc
-
-CHECK TABLE t1;
-
-INSERT INTO t1 VALUES(0, 1), (2, 3), (5, 6), (10, 11);
-
-SELECT * FROM t1 ORDER BY a;
-
-DROP TABLE t1;
-
-
---echo # DATA DIRECTORY should be read correctly after restart
-
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-eval CREATE TABLE t1 (a INT, b INT) PARTITION BY RANGE(a)
-(PARTITION P0 VALUES LESS THAN (10) DATA DIRECTORY '$MYSQL_TMP_DIR',
- PARTITION p1 VALUES LESS THAN (20) DATA DIRECTORY '$MYSQL_TMP_DIR');
-
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SHOW CREATE TABLE t1;
-
---source include/restart_mysqld.inc
-
-TRUNCATE TABLE t1;
-
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SHOW CREATE TABLE t1;
-
-DROP TABLE t1;
-# Remove directory left behind by the above
---rmdir $MYSQL_TMP_DIR/test
+# TODO : Enable following once shared tablespace are allowed in Partitioned
+#	 Table (wl#12034).
+# --echo #
+# --echo # Bug#25516367 - CRASH IN HA_INNOBASE::COMMIT_INPLACE_ALTER_TABLE_IMPL
+# --echo #
+#
+# CREATE TABLESPACE s1 ADD DATAFILE '1.ibd' ENGINE = InnoDB;
+# CREATE TABLE t1 (col1 INT, col2 INT) ENGINE = InnoDB ROW_FORMAT = DYNAMIC TABLESPACE s1;
+#
+# ALTER TABLE t1 PARTITION BY RANGE(col1)
+# ( PARTITION p0 VALUES LESS THAN (128), PARTITION p3 VALUES LESS THAN MAXVALUE );
+# --error ER_ILLEGAL_HA_CREATE_OPTION
+# ALTER TABLE t1 ROW_FORMAT = COMPRESSED;
+#
+# DROP TABLE t1;
+# DROP TABLESPACE s1;
+#
+# --echo #
+# --echo # This checks if operation bit is set properly for REORGANIZE PARTITION
+# --echo #
+#
+# CREATE TABLE t1 (a INTEGER, b INTEGER NOT NULL, KEY(b)) ENGINE = INNODB /*!50100 PARTITION BY KEY(b) PARTITIONS 3 */;
+# SHOW CREATE TABLE t1;
+# ALTER TABLE t1 REORGANIZE PARTITION;
+# SHOW CREATE TABLE t1;
+# DROP TABLE t1;
+#
+#
+# --echo # Ignore incompatible options of a table which was created in not strict mode
+#
+# SET @orig_innodb_file_per_table= @@innodb_file_per_table;
+# SET GLOBAL innodb_file_per_table = 0;
+# SET @save_innodb_strict_mode=@@session.innodb_strict_mode;
+# SET SESSION innodb_strict_mode = 0;
+#
+# CREATE TABLE t1(a INT NOT NULL, d INT NOT NULL, KEY(a), KEY(d)) ENGINE = InnoDB PARTITION BY HASH(d) PARTITIONS 02;
+#
+# SET SESSION innodb_strict_mode = 0;
+#
+# # To prevent the compression warning differences in different platform
+# --disable_warnings
+#
+# ALTER TABLE t1 COMPRESSION='zlib', ALGORITHM=INPLACE;
+#
+# ALTER TABLE t1 TABLESPACE innodb_system, ALGORITHM=INPLACE, LOCK=DEFAULT;
+#
+# OPTIMIZE TABLE t1;
+#
+# --enable_warnings
+#
+# SHOW CREATE TABLE t1;
+#
+# SET GLOBAL innodb_file_per_table = @orig_innodb_file_per_table;
+# SET SESSION innodb_strict_mode=@save_innodb_strict_mode;
+#
+# --source include/restart_mysqld.inc
+#
+# CHECK TABLE t1;
+#
+# INSERT INTO t1 VALUES(0, 1), (2, 3), (5, 6), (10, 11);
+#
+# SELECT * FROM t1 ORDER BY a;
+#
+# DROP TABLE t1;
+#
+#
+# --echo # DATA DIRECTORY should be read correctly after restart
+#
+# --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+# eval CREATE TABLE t1 (a INT, b INT) PARTITION BY RANGE(a)
+# (PARTITION P0 VALUES LESS THAN (10) DATA DIRECTORY '$MYSQL_TMP_DIR',
+#  PARTITION p1 VALUES LESS THAN (20) DATA DIRECTORY '$MYSQL_TMP_DIR');
+#
+# --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+# SHOW CREATE TABLE t1;
+#
+# --source include/restart_mysqld.inc
+#
+# TRUNCATE TABLE t1;
+#
+# --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+# SHOW CREATE TABLE t1;
+#
+# DROP TABLE t1;
+# # Remove directory left behind by the above
+# --rmdir $MYSQL_TMP_DIR/test

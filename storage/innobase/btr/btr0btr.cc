@@ -281,8 +281,7 @@ dberr_t btr_root_adjust_on_import(
     } else {
       /* Check that the table flags and the tablespace
       flags match. */
-      ulint flags =
-          dict_tf_to_fsp_flags(table->flags, dict_table_is_encrypted(table));
+      ulint flags = dict_tf_to_fsp_flags(table->flags);
       ulint fsp_flags = fil_space_get_flags(table->space);
 
       /* We remove SDI flag from space flags temporarily for
@@ -290,9 +289,10 @@ dberr_t btr_root_adjust_on_import(
       flags will not have SDI flag */
       fsp_flags &= ~FSP_FLAGS_MASK_SDI;
 
-      if (dict_table_is_sdi(index->table->id)) {
-        fsp_flags &= ~FSP_FLAGS_MASK_ENCRYPTION;
-      }
+      /* As encryption is not a table property, we don't keep
+      any encryption property related flag in table. Thus
+      exclude encryption flag as well. */
+      fsp_flags &= ~FSP_FLAGS_MASK_ENCRYPTION;
 
       err = fsp_flags_are_equal(flags, fsp_flags) ? DB_SUCCESS : DB_CORRUPTION;
     }

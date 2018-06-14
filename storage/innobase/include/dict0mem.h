@@ -272,8 +272,8 @@ FTS, etc.... Intrinsic table has all the properties of the normal table except
 it is not created by user and so not visible to end-user. */
 #define DICT_TF2_INTRINSIC 128
 
-/** Encryption table bit. */
-#define DICT_TF2_ENCRYPTION 256
+/** Encryption table bit for innodb_file-per-table only. */
+#define DICT_TF2_ENCRYPTION_FILE_PER_TABLE 256
 
 /** FTS AUX hidden table bit. */
 #define DICT_TF2_AUX 512

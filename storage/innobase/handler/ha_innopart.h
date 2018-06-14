@@ -40,6 +40,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 class Altered_partitions;
 class partition_info;
 
+/* Error Text */
+static constexpr auto PARTITION_IN_SHARED_TABLESPACE =
+    "InnoDB : A partitioned table"
+    " is not allowed in a shared tablespace.";
+
 /** HA_DUPLICATE_POS and HA_READ_BEFORE_WRITE_REMOVAL is not
 set from ha_innobase, but cannot yet be supported in ha_innopart.
 Full text and geometry is not yet supported. */

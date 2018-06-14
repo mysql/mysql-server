@@ -48,6 +48,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "buf0buf.h"
 #endif /* UNIV_HOTBACKUP */
 
+class DDL_Record;
+extern std::vector<DDL_Record *> ts_encrypt_ddl_records;
+extern mysql_cond_t resume_encryption_cond;
+extern mysql_mutex_t resume_encryption_cond_m;
+
 /* @defgroup Tablespace Header Constants (moved from fsp0fsp.c) @{ */
 
 /** Offset of the space header within a file page */
@@ -402,6 +407,15 @@ bool fsp_header_get_encryption_key(ulint fsp_flags, byte *key, byte *iv,
 @return true if success */
 bool fsp_header_check_encryption_key(ulint fsp_flags, page_t *page);
 
+/** Get encryption operation type in progress from the first
+page of a tablespace.
+@param[in]	page		first page of a tablespace
+@param[in]	page_size	tablespace page size
+@return operation type
+*/
+encryption_op_type fsp_header_encryption_op_type_in_progress(
+    const page_t *page, page_size_t page_size);
+
 /** Check if the tablespace size information is valid.
 @param[in]	space_id	the tablespace identifier
 @return true if valid, false if invalid. */
@@ -431,7 +445,19 @@ ulint fsp_header_get_encryption_offset(const page_size_t &page_size);
 @return true if success. */
 bool fsp_header_write_encryption(space_id_t space_id, ulint space_flags,
                                  byte *encrypt_info, bool update_fsp_flags,
-                                 mtr_t *mtr);
+                                 bool rotate_encryption, mtr_t *mtr);
+
+/** Write the encryption progress info into the space header.
+@param[in]      space_id		tablespace id
+@param[in]      space_flags		tablespace flags
+@param[in]      progress_info		max pages (un)encrypted
+@param[in]      operation_type		typpe of operation
+@param[in]      update_operation_type	is operation to be updated
+@param[in,out]	mtr			mini-transaction
+@return true if success. */
+bool fsp_header_write_encryption_progress(
+    space_id_t space_id, ulint space_flags, ulint progress_info,
+    byte operation_type, bool update_operation_type, mtr_t *mtr);
 
 /** Rotate the encryption info in the space header.
 @param[in]	space		tablespace
@@ -862,10 +888,30 @@ inline bool fsp_is_inode_page(page_no_t page);
 @return offset on success, else 0 */
 inline ulint fsp_header_get_sdi_offset(const page_size_t &page_size);
 
+/** Get the offset of encrytion progress information in page 0.
+@param[in]      page_size       page size.
+@return offset on success, otherwise 0. */
+inline ulint fsp_header_get_encryption_progress_offset(
+    const page_size_t &page_size);
+
 /** Determine if the tablespace has SDI.
 @param[in]	space_id	Tablespace id
 @return DB_SUCCESS if SDI is present else DB_ERROR
 or DB_TABLESPACE_NOT_FOUND */
 dberr_t fsp_has_sdi(space_id_t space_id);
 
+/** Encrypt/Unencrypt a tablespace.
+@param[in]      thd             current thread
+@param[in]	space_id	Tablespace id
+@param[in]	from_page	page id from where operation to be done
+@param[in]	to_encrypt	true if to encrypt, false if to unencrypt
+@param[in]	in_recovery	true if its called after recovery
+@param[in, out]	dd_space_in	dd tablespace object
+@return	0 for success, otherwise error code */
+dberr_t fsp_alter_encrypt_tablespace(THD *thd, space_id_t space_id,
+                                     page_no_t from_page, bool to_encrypt,
+                                     bool in_recovery, void *dd_space_in);
+
+/** Initiate roll-forward of alter encrypt in background thread */
+void fsp_init_resume_alter_encrypt_tablespace();
 #endif

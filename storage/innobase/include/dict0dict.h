@@ -629,10 +629,8 @@ dict_table_t::flags |     0     |    1    |     1      |    1
 fil_space_t::flags  |     0     |    0    |     1      |    1
 ==================================================================
 @param[in]	table_flags	dict_table_t::flags
-@param[in]	is_encrypted	if it's an encrypted table
 @return tablespace flags (fil_space_t::flags) */
-ulint dict_tf_to_fsp_flags(ulint table_flags, bool is_encrypted = false)
-    MY_ATTRIBUTE((const));
+ulint dict_tf_to_fsp_flags(ulint table_flags) MY_ATTRIBUTE((const));
 
 /** Extract the page size from table flags.
 @param[in]	flags	flags
@@ -1482,13 +1480,6 @@ bool dict_tf2_is_valid(ulint flags, ulint flags2);
  @return true if the tablespace has been discarded. */
 UNIV_INLINE
 bool dict_table_is_discarded(
-    const dict_table_t *table) /*!< in: table to check */
-    MY_ATTRIBUTE((warn_unused_result));
-
-/** Check if it is a encrypted table.
- @return true if table encryption flag is set. */
-UNIV_INLINE
-bool dict_table_is_encrypted(
     const dict_table_t *table) /*!< in: table to check */
     MY_ATTRIBUTE((warn_unused_result));
 

@@ -7231,7 +7231,7 @@ class SimulatedAIOHandler {
     ut_a(err == DB_SUCCESS);
   }
 
-  /** Do the file read
+  /** Do the file write
   @param[in,out]	slot		Slot that has the IO context */
   void write(Slot *slot) {
     dberr_t err = os_file_write_func(slot->type, slot->name, slot->file.m_file,
@@ -8202,10 +8202,12 @@ byte *Encryption::get_master_key_from_info(byte *encrypt_info, Version version,
 /** Decoding the encryption info from the first page of a tablespace.
 @param[in,out]	key		key
 @param[in,out]	iv		iv
-@param[in]	encryption_info	encrytion info.
+@param[in]	encryption_info	encryption info
+@param[in]	report		true, if error to be rerpoted
 @return true if success */
 bool Encryption::decode_encryption_info(byte *key, byte *iv,
-                                        byte *encryption_info) {
+                                        byte *encryption_info,
+                                        const bool report) {
   byte *ptr;
   byte *master_key = nullptr;
   uint32 m_key_id;
@@ -8237,8 +8239,11 @@ bool Encryption::decode_encryption_info(byte *key, byte *iv,
       return (true);
     }
 
-    ib::error(ER_IB_MSG_837) << "Failed to decrypt encryption information,"
-                             << " found unexpected version of it!";
+    if (report) {
+      ib::error(ER_IB_MSG_837) << "Failed to decrypt encryption information,"
+                               << " found unexpected version of it!";
+    }
+
     return (false);
   }
 
@@ -8655,6 +8660,7 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
   }
   ut_free(buf2);
   ut_free(check_buf);
+
   fprintf(stderr, "Encrypted page:%lu.%lu\n", space_id, page_no);
 #endif /* UNIV_ENCRYPT_DEBUG */
 
@@ -8861,15 +8867,15 @@ dberr_t Encryption::decrypt(const IORequest &type, byte *src, ulint src_len,
 
     std::ostringstream msg;
 
-    msg << "key={" ut_print_buf(msg, m_key, 32);
+    msg << "key={";
+    ut_print_buf(msg, m_key, 32);
     msg << "}" << std::endl << "iv= {";
     ut_print_buf(msg, m_iv, 32);
     msg << "}";
 
-    ib::info(ER_IB_MSG_848)
-        << "Decrypting page: " << space_id << "." << page_no,
-        << " len: " << src_len << std::endl
-        << msg.str();
+    ib::info(ER_IB_MSG_848) << "Decrypting page: " << space_id << "." << page_no
+                            << " len: " << src_len << "\n"
+                            << msg.str();
   }
 #endif /* UNIV_ENCRYPT_DEBUG */
 

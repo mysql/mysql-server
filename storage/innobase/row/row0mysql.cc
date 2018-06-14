@@ -3407,7 +3407,7 @@ static dberr_t row_discard_tablespace(trx_t *trx, dict_table_t *table,
   we need save the encryption information into table, otherwise,
   this information will be lost in fil_discard_tablespace along
   with fil_space_free(). */
-  if (dict_table_is_encrypted(table)) {
+  if (dd_is_table_in_encrypted_tablespace(table)) {
     ut_ad(table->encryption_key == NULL && table->encryption_iv == NULL);
 
     lint old_size = mem_heap_get_size(table->heap);
@@ -3992,20 +3992,16 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
 
   space_id_t space_id;
   bool is_temp;
-  bool ibd_file_missing;
   bool is_discarded;
   bool shared_tablespace;
   table_id_t table_id;
   char *table_name;
-  bool is_encrypted;
 
   space_id = table->space;
   table_id = table->id;
-  ibd_file_missing = table->ibd_file_missing;
   is_discarded = dict_table_is_discarded(table);
   is_temp = table->is_temporary();
   shared_tablespace = DICT_TF_HAS_SHARED_SPACE(table->flags);
-  is_encrypted = dict_table_is_encrypted(table);
 
   /* We do not allow temporary tables with a remote path. */
   ut_a(!(is_temp && DICT_TF_HAS_DATA_DIR(table->flags)));
@@ -4055,15 +4051,9 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
 
   /* Do not attempt to drop known-to-be-missing tablespaces,
   nor system or shared general tablespaces. */
-  if (is_discarded || ibd_file_missing || is_temp || shared_tablespace ||
+  if (is_discarded || is_temp || shared_tablespace ||
       fsp_is_system_or_temp_tablespace(space_id)) {
-    /* For encrypted table, if ibd file can not be decrypt,
-    we also set ibd_file_missing. We still need to try to
-    remove the ibd file for this. */
-
-    if (is_discarded || !is_encrypted || !ibd_file_missing) {
-      goto funct_exit;
-    }
+    goto funct_exit;
   }
 
   ut_ad(file_per_table);

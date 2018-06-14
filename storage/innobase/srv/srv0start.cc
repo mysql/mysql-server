@@ -194,6 +194,7 @@ mysql_pfs_key_t srv_monitor_thread_key;
 mysql_pfs_key_t srv_purge_thread_key;
 mysql_pfs_key_t srv_worker_thread_key;
 mysql_pfs_key_t trx_recovery_rollback_thread_key;
+mysql_pfs_key_t srv_ts_alter_encrypt_thread_key;
 #endif /* UNIV_PFS_THREAD */
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
@@ -207,6 +208,7 @@ static PSI_stage_info *srv_stages[] = {
     &srv_stage_alter_table_log_table,
     &srv_stage_alter_table_merge_sort,
     &srv_stage_alter_table_read_pk_internal_sort,
+    &srv_stage_alter_tablespace_encryption,
     &srv_stage_buffer_pool_load,
     &srv_stage_clone_file_copy,
     &srv_stage_clone_redo_copy,
@@ -2757,6 +2759,15 @@ void srv_pre_dd_shutdown() {
 
       if (count % 600 == 0) {
         ib::info(ER_IB_MSG_1153);
+      }
+    }
+
+    if (srv_threads.m_ts_alter_encrypt_thread_active) {
+      wait = true;
+      if ((count % 600) == 0) {
+        ib::info(ER_IB_MSG_1276) << "Waiting for"
+                                    " tablespace_alter_encrypt_thread to"
+                                    " to exit";
       }
     }
 

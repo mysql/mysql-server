@@ -396,6 +396,7 @@ UPDATE t1 SET data = data*2 WHERE data = 2;
 #SHOW ENGINE InnoDB STATUS;
 
 SET @@session.transaction_isolation = @old_transaction_isolation;
+SET autocommit = default;
 
 DROP TABLE t1;
 
@@ -1126,102 +1127,103 @@ DROP TABLE t1;
 --rmdir $MYSQL_TMP_DIR/temp_dir/test
 --rmdir $MYSQL_TMP_DIR/temp_dir
 
-
-#Create one partition in general tablespace and other in different path
-
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-let $restart_parameters = restart: --innodb-directories=$MYSQL_TMP_DIR;
---source include/restart_mysqld.inc
-
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-eval CREATE TABLESPACE ts1 ADD DATAFILE '$MYSQL_TMP_DIR/ts1.ibd' ENGINE=Innodb;
-
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-eval CREATE TABLE `t1` (
-       `f1` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
-       `f2` MEDIUMTEXT NOT NULL,
-       `f3` CHAR(100) NOT NULL,
-       `f4` TINYINT(1) unsigned NOT NULL,
-       PRIMARY KEY (`f1`,`f4`)
-     ) TABLESPACE ts1 ENGINE=InnoDB AUTO_INCREMENT=0 DEFAULT CHARSET=latin1
-     PARTITION BY LIST (`f4`)
-     (PARTITION p0 VALUES IN (0) ENGINE = InnoDB,
-      PARTITION p1 VALUES IN (1) DATA DIRECTORY = '$MYSQL_TMP_DIR/temp_tblspc' ENGINE = InnoDB);
-
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SHOW CREATE TABLE t1;
-
-OPTIMIZE TABLE t1;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SHOW CREATE TABLE t1;
-
-ALTER TABLE t1 OPTIMIZE PARTITION p0;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SHOW CREATE TABLE t1;
-
-ALTER TABLE t1 OPTIMIZE PARTITION p1;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SHOW CREATE TABLE t1;
-
-DROP TABLE t1;
-DROP TABLESPACE ts1;
-
---rmdir $MYSQL_TMP_DIR/temp_tblspc/test
---rmdir $MYSQL_TMP_DIR/temp_tblspc
-
-#Create partitions in two different tablespaces
-
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-eval CREATE TABLESPACE ts1 ADD DATAFILE '$MYSQL_TMP_DIR/ts1.ibd' ENGINE=Innodb;
-
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-eval CREATE TABLESPACE ts2 ADD DATAFILE '$MYSQL_TMP_DIR/ts2.ibd' ENGINE=Innodb;
-
-eval CREATE TABLE `t1` (
-       `f1` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
-       `f4` TINYINT(1) unsigned NOT NULL,
-       PRIMARY KEY (`f1`,`f4`)
-     )  ENGINE=InnoDB AUTO_INCREMENT=0 DEFAULT CHARSET=latin1
-     PARTITION BY LIST (`f4`)
-     (PARTITION p0 VALUES IN (0) TABLESPACE ts1 ENGINE = InnoDB,
-      PARTITION p1 VALUES IN (1) TABLESPACE ts2 ENGINE = InnoDB);
-
-SHOW CREATE TABLE t1;
-OPTIMIZE TABLE t1;
-SHOW CREATE TABLE t1;
-DROP TABLE t1;
-DROP TABLESPACE ts1;
-DROP TABLESPACE ts2;
-
-#Create partitions to use differeent avaliable tablespace options
-
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-eval CREATE TABLESPACE ts1 ADD DATAFILE '$MYSQL_TMP_DIR/ts1.ibd' ENGINE=Innodb;
-
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-eval CREATE TABLE `t1` (
-       `f1` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
-       `f4` TINYINT(1) unsigned NOT NULL,
-       PRIMARY KEY (`f1`,`f4`)
-     )  ENGINE=InnoDB AUTO_INCREMENT=0 DEFAULT CHARSET=latin1
-     PARTITION BY LIST (`f4`)
-     (PARTITION p0 VALUES IN (0) TABLESPACE ts1 ENGINE = InnoDB,
-      PARTITION p1 VALUES IN (1) TABLESPACE innodb_file_per_table DATA DIRECTORY='$MYSQL_TMP_DIR/temp_dir' ENGINE = InnoDB,
-      PARTITION p2 VALUES IN (2) TABLESPACE innodb_file_per_table ENGINE = InnoDB,
-      PARTITION p3 VALUES IN (3) TABLESPACE innodb_system ENGINE = InnoDB);
-
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SHOW CREATE TABLE t1;
-
-OPTIMIZE TABLE t1;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SHOW CREATE TABLE t1;
-
-DROP TABLE t1;
-DROP TABLESPACE ts1;
-
---rmdir $MYSQL_TMP_DIR/temp_dir/test
---rmdir $MYSQL_TMP_DIR/temp_dir
+# TODO : Enable following once shared tablespaces are allowed in Partitioned
+#	 Tables (wl#12034).
+# #Create one partition in general tablespace and other in different path
+#
+# --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+# let $restart_parameters = restart: --innodb-directories=$MYSQL_TMP_DIR;
+# --source include/restart_mysqld.inc
+#
+# --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+# eval CREATE TABLESPACE ts1 ADD DATAFILE '$MYSQL_TMP_DIR/ts1.ibd' ENGINE=Innodb;
+#
+# --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+# eval CREATE TABLE `t1` (
+#        `f1` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+#        `f2` MEDIUMTEXT NOT NULL,
+#        `f3` CHAR(100) NOT NULL,
+#        `f4` TINYINT(1) unsigned NOT NULL,
+#        PRIMARY KEY (`f1`,`f4`)
+#      ) TABLESPACE ts1 ENGINE=InnoDB AUTO_INCREMENT=0 DEFAULT CHARSET=latin1
+#      PARTITION BY LIST (`f4`)
+#      (PARTITION p0 VALUES IN (0) ENGINE = InnoDB,
+#       PARTITION p1 VALUES IN (1) DATA DIRECTORY = '$MYSQL_TMP_DIR/temp_tblspc' ENGINE = InnoDB);
+#
+# --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+# SHOW CREATE TABLE t1;
+#
+# OPTIMIZE TABLE t1;
+# --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+# SHOW CREATE TABLE t1;
+#
+# ALTER TABLE t1 OPTIMIZE PARTITION p0;
+# --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+# SHOW CREATE TABLE t1;
+#
+# ALTER TABLE t1 OPTIMIZE PARTITION p1;
+# --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+# SHOW CREATE TABLE t1;
+#
+# DROP TABLE t1;
+# DROP TABLESPACE ts1;
+#
+# --rmdir $MYSQL_TMP_DIR/temp_tblspc/test
+# --rmdir $MYSQL_TMP_DIR/temp_tblspc
+#
+# #Create partitions in two different tablespaces
+#
+# --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+# eval CREATE TABLESPACE ts1 ADD DATAFILE '$MYSQL_TMP_DIR/ts1.ibd' ENGINE=Innodb;
+#
+# --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+# eval CREATE TABLESPACE ts2 ADD DATAFILE '$MYSQL_TMP_DIR/ts2.ibd' ENGINE=Innodb;
+#
+# eval CREATE TABLE `t1` (
+#        `f1` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+#        `f4` TINYINT(1) unsigned NOT NULL,
+#        PRIMARY KEY (`f1`,`f4`)
+#      )  ENGINE=InnoDB AUTO_INCREMENT=0 DEFAULT CHARSET=latin1
+#      PARTITION BY LIST (`f4`)
+#      (PARTITION p0 VALUES IN (0) TABLESPACE ts1 ENGINE = InnoDB,
+#       PARTITION p1 VALUES IN (1) TABLESPACE ts2 ENGINE = InnoDB);
+#
+# SHOW CREATE TABLE t1;
+# OPTIMIZE TABLE t1;
+# SHOW CREATE TABLE t1;
+# DROP TABLE t1;
+# DROP TABLESPACE ts1;
+# DROP TABLESPACE ts2;
+#
+# #Create partitions to use differeent avaliable tablespace options
+#
+# --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+# eval CREATE TABLESPACE ts1 ADD DATAFILE '$MYSQL_TMP_DIR/ts1.ibd' ENGINE=Innodb;
+#
+# --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+# eval CREATE TABLE `t1` (
+#        `f1` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+#        `f4` TINYINT(1) unsigned NOT NULL,
+#        PRIMARY KEY (`f1`,`f4`)
+#      )  ENGINE=InnoDB AUTO_INCREMENT=0 DEFAULT CHARSET=latin1
+#      PARTITION BY LIST (`f4`)
+#      (PARTITION p0 VALUES IN (0) TABLESPACE ts1 ENGINE = InnoDB,
+#       PARTITION p1 VALUES IN (1) TABLESPACE innodb_file_per_table DATA DIRECTORY='$MYSQL_TMP_DIR/temp_dir' ENGINE = InnoDB,
+#       PARTITION p2 VALUES IN (2) TABLESPACE innodb_file_per_table ENGINE = InnoDB,
+#       PARTITION p3 VALUES IN (3) TABLESPACE innodb_system ENGINE = InnoDB);
+#
+# --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+# SHOW CREATE TABLE t1;
+#
+# OPTIMIZE TABLE t1;
+# --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+# SHOW CREATE TABLE t1;
+#
+# DROP TABLE t1;
+# DROP TABLESPACE ts1;
+#
+# --rmdir $MYSQL_TMP_DIR/temp_dir/test
+# --rmdir $MYSQL_TMP_DIR/temp_dir
 
 --echo
 --echo Bug #25942592    INNODB: FAILING ASSERTION: INDEX->PAGE != 0XFFFFFFFF

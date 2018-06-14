@@ -784,6 +784,9 @@ dberr_t BtrBulk::insert(dtuple_t *tuple, ulint level) {
     }
   }
 
+  DBUG_EXECUTE_IF("BtrBulk_insert_inject_error", err = DB_INTERRUPTED;
+                  goto func_exit;);
+
   /* Convert tuple to rec. */
   rec = rec_convert_dtuple_to_rec(
       static_cast<byte *>(mem_heap_alloc(page_bulk->m_heap, rec_size)), m_index,

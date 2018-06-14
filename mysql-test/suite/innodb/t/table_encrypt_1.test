@@ -17,6 +17,7 @@ call mtr.add_suppression("ibd can't be decrypted , please confirm the keyfile is
 call mtr.add_suppression("\\[Warning\\].* Ignoring tablespace .* because it could not be opened");
 call mtr.add_suppression("\\[ERROR\\].* If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
 call mtr.add_suppression("\\[ERROR\\].* Tablespace [0-9]+, name 'test.*t1', unable to open file '.*test.*t1.ibd' - Data structure corruption");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] Check keyring plugin fail, please check the keyring plugin is loaded.");
 --enable_query_log
 
 # Create a table with encryption, should fail since keyring is not
@@ -46,28 +47,34 @@ let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
 SET GLOBAL innodb_file_per_table = 0;
 SELECT @@innodb_file_per_table;
 # Test create encrypted table when inndb_file_per_table is 0,
-# Should fail, since we don't support create table in shared tablespace.
---error ER_TABLESPACE_CANNOT_ENCRYPT
+# Should fail, since it will try to create table in system tablespace and
+# 'ENCRYPTION' option is not allowed with shared tablespace.
+--error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+SHOW WARNINGS;
 
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 
 # Test create encrypted table in system tablespace,
-# Should fail, since it's a shared tablespace.
---error ER_TABLESPACE_CANNOT_ENCRYPT
+# Should fail, since it's a shared tablespace and 'ENCRYPTION' option is not
+# allowed with shared tablespace.
+--error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TABLE t1(c int) ENCRYPTION="Y" tablespace innodb_system;
-
+SHOW WARNINGS;
+--error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TABLE t1(c int) ENCRYPTION="N" tablespace innodb_system;
-DROP TABLE t1;
+SHOW WARNINGS;
 
 # Test create temporary encrypted table,
-# Should fail, since temporary table is in shared tablespace.
---error ER_TABLESPACE_CANNOT_ENCRYPT
+# Should fail, since temporary table is in shared tablespace and 'ENCRYPTION'
+# option is not allowed with shared tablespace.
+--error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TEMPORARY TABLE t1(c int) ENCRYPTION="Y";
-
+SHOW WARNINGS;
+--error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TEMPORARY TABLE t1(c int) ENCRYPTION="N";
-DROP TABLE t1;
+SHOW WARNINGS;
 
 # Test create encrypted table with incorrect option.
 --error ER_INVALID_ENCRYPTION_OPTION
@@ -152,10 +159,10 @@ SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 ALTER TABLE t1 ENCRYPTION="N", algorithm=inplace;
 
 # Don't support move it to shared tablespace
---error ER_TABLESPACE_CANNOT_ENCRYPT
+--error ER_TARGET_TS_UNENCRYPTED
 ALTER TABLE t1 TABLESPACE=`innodb_system`;
 
-# We only support copy alter
+# Alter using copy algorithm
 ALTER TABLE t1 ENCRYPTION="N", algorithm=copy;
 
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
@@ -169,6 +176,7 @@ ALTER TABLE t1 ENCRYPTION='P',algorithm=copy;
 
 ALTER TABLE t1 ADD KEY k1 (c1) ,algorithm=inplace;
 
+# Alter using inpalce algorithm
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t1 ENCRYPTION='Y',algorithm=inplace;
 
@@ -270,8 +278,9 @@ CREATE TABLE t1 (c1 int);
 
 --error ER_ILLEGAL_HA_CREATE_OPTION
 ALTER TABLE t1 COMPRESSION='zlib';
+SHOW WARNINGS;
 
---error ER_TABLESPACE_CANNOT_ENCRYPT
+--error ER_ILLEGAL_HA_CREATE_OPTION
 ALTER TABLE t1 ENCRYPTION='Y',ALGORITHM=COPY;
 
 # Cleanup

@@ -30,6 +30,7 @@ Data dictionary interface */
 #ifndef UNIV_HOTBACKUP
 #include <auto_thd.h>
 #include <current_thd.h>
+#include <sql_backup_lock.h>
 #include <sql_class.h>
 #include <sql_thd_internal_api.h>
 #else /* !UNIV_HOTBACKUP */
@@ -2658,7 +2659,7 @@ static inline dict_table_t *dd_fill_dict_table(const Table *dd_tab,
     return (nullptr);
   }
 
-  /* Set encryption option. */
+  /* Set encryption option for file-per-table tablespace. */
   dd::String_type encrypt;
   if (dd_tab->table().options().exists("encrypt_type")) {
     dd_tab->table().options().get("encrypt_type", encrypt);
@@ -2848,7 +2849,9 @@ static inline dict_table_t *dd_fill_dict_table(const Table *dd_tab,
   if (is_encrypted) {
     /* We don't support encrypt intrinsic and temporary table.  */
     ut_ad(!m_table->is_intrinsic() && !m_table->is_temporary());
-    DICT_TF2_FLAG_SET(m_table, DICT_TF2_ENCRYPTION);
+    /* This flag will be used to set file-per-table tablesapce
+    encryption flag */
+    DICT_TF2_FLAG_SET(m_table, DICT_TF2_ENCRYPTION_FILE_PER_TABLE);
   }
 
   heap = mem_heap_create(1000);
@@ -3660,14 +3663,18 @@ void dd_get_meta_data_filename(dict_table_t *table, dd::Table *dd_table,
 }
 
 /** Opens a tablespace for dd_load_table_one()
-@tparam		Table		dd::Table or dd::Partition
-@param[in,out]	dd_table	dd table
-@param[in,out]	table		A table that refers to the tablespace to open
-@param[in,out]	heap		A memory heap
-@param[in]	ignore_err	Whether to ignore an error. */
+@tparam		Table			dd::Table or dd::Partition
+@param[in,out]	dd_table		dd table
+@param[in,out]	table			A table that refers to the tablespace to
+                                        open
+@param[in,out]	heap			A memory heap
+@param[in]	expected_fsp_flags	expected flags of tablespace to be
+                                        loaded
+@param[in]	ignore_err		Whether to ignore an error. */
 template <typename Table>
 void dd_load_tablespace(const Table *dd_table, dict_table_t *table,
-                        mem_heap_t *heap, dict_err_ignore_t ignore_err) {
+                        mem_heap_t *heap, dict_err_ignore_t ignore_err,
+                        ulint expected_fsp_flags) {
   bool alloc_from_heap = false;
 
   ut_ad(!table->is_temporary());
@@ -3760,11 +3767,9 @@ void dd_load_tablespace(const Table *dd_table, dict_table_t *table,
 
   /* Try to open the tablespace.  We set the 2nd param (fix_dict) to
   false because we do not have an x-lock on dict_operation_lock */
-  bool is_encrypted = dict_table_is_encrypted(table);
-  ulint fsp_flags = dict_tf_to_fsp_flags(table->flags, is_encrypted);
-
-  dberr_t err = fil_ibd_open(true, FIL_TYPE_TABLESPACE, table->space, fsp_flags,
-                             space_name, tbl_name, filepath, true, false);
+  dberr_t err =
+      fil_ibd_open(true, FIL_TYPE_TABLESPACE, table->space, expected_fsp_flags,
+                   space_name, tbl_name, filepath, true, false);
 
   if (err == DB_SUCCESS) {
     /* This will set the DATA DIRECTORY for SHOW CREATE TABLE. */
@@ -4016,8 +4021,18 @@ dict_table_t *dd_open_table_one(dd::cache::Dictionary_client *client,
       m_table->space = sid;
       m_table->dd_space_id = index_space_id;
 
+      uint32 dd_fsp_flags;
+      if (dd_table->tablespace_id() == dict_sys_t::s_dd_space_id) {
+        dd_fsp_flags = dict_tf_to_fsp_flags(m_table->flags);
+      } else {
+        ut_ad(dd_space != nullptr);
+        dd_space->se_private_data().get_uint32(
+            dd_space_key_strings[DD_SPACE_FLAGS], &dd_fsp_flags);
+      }
+
       mutex_enter(&dict_sys->mutex);
-      dd_load_tablespace(dd_table, m_table, heap, DICT_ERR_IGNORE_RECOVER_LOCK);
+      dd_load_tablespace(dd_table, m_table, heap, DICT_ERR_IGNORE_RECOVER_LOCK,
+                         dd_fsp_flags);
       mutex_exit(&dict_sys->mutex);
       first_index = false;
     }
@@ -4992,12 +5007,13 @@ bool dd_process_dd_indexes_rec_simple(mem_heap_t *heap, const rec_t *rec,
 @param[in,out]	flags		space flags
 @param[in,out]	server_version	server version
 @param[in,out]	space_version	space version
+@param[in,out]	is_encrypted	true if tablespace is encrypted
 @param[in]	dd_spaces	dict_table_t obj of mysql.tablespaces
 @return true if data is retrived */
 bool dd_process_dd_tablespaces_rec(mem_heap_t *heap, const rec_t *rec,
                                    space_id_t *space_id, char **name,
                                    uint *flags, uint32 *server_version,
-                                   uint32 *space_version,
+                                   uint32 *space_version, bool *is_encrypted,
                                    dict_table_t *dd_spaces) {
   ulint len;
   const byte *field;
@@ -5072,6 +5088,11 @@ bool dd_process_dd_tablespaces_rec(mem_heap_t *heap, const rec_t *rec,
   if (p->get_uint32(dd_space_key_strings[DD_SPACE_VERSION], space_version)) {
     delete p;
     return (false);
+  }
+
+  /* Get Encryption. */
+  if (FSP_FLAGS_GET_ENCRYPTION(*flags)) {
+    *is_encrypted = true;
   }
 
   delete p;
@@ -5632,6 +5653,13 @@ bool dd_tablespace_get_discard(const dd::Tablespace *dd_space) {
   return (false);
 }
 
+/** Release the MDL held by the given ticket.
+@param[in]  mdl_ticket  tablespace MDL ticket */
+void dd_release_mdl(MDL_ticket *mdl_ticket) {
+  dd::release_mdl(current_thd, mdl_ticket);
+  release_backup_lock(current_thd);
+}
+
 #ifdef UNIV_DEBUG
 /** @return total number of indexes of all DD tables */
 uint32_t dd_get_total_indexes_num() {
@@ -5788,7 +5816,9 @@ bool dd_tablespace_update_cache(THD *thd) {
       the tablespace name matches the name in dictionary.
       If it doesn't match, use the name from dictionary. */
 
-      ut_ad(space->flags == flags);
+      /* Exclude Encryption flag as (un)encryption operation might be rolling
+      forward in background thread. */
+      ut_ad(!((space->flags ^ flags) & ~(FSP_FLAGS_MASK_ENCRYPTION)));
 
       fil_space_update_name(space, space_name);
 
@@ -5821,5 +5851,36 @@ bool dd_tablespace_update_cache(THD *thd) {
 
   fil_set_max_space_id_if_bigger(max_id);
   return (fail);
+}
+
+/* Check if the table belongs to an encrypted tablespace.
+@param[in]	table	table for which check is to be done
+@return true if it does. */
+bool dd_is_table_in_encrypted_tablespace(const dict_table_t *table) {
+  fil_space_t *space = fil_space_get(table->space);
+  if (space != nullptr) {
+    return (FSP_FLAGS_GET_ENCRYPTION(space->flags));
+  } else {
+    /* Its possible that tablespace flag is missing (for ex: after
+    discard tablespace). In that case get tablespace flags from Data
+    Dictionary/ */
+    THD *thd = current_thd;
+    dd::cache::Dictionary_client *client = dd::get_dd_client(thd);
+    dd::cache::Dictionary_client::Auto_releaser releaser(client);
+    dd::Tablespace *dd_space;
+
+    if (!client->acquire_uncached_uncommitted<dd::Tablespace>(
+            table->dd_space_id, &dd_space)) {
+      ut_ad(dd_space);
+      uint32 flags;
+      dd_space->se_private_data().get_uint32(
+          dd_space_key_strings[DD_SPACE_FLAGS], &flags);
+
+      return (FSP_FLAGS_GET_ENCRYPTION(flags));
+    }
+    /* We should not reach here */
+    ut_ad(0);
+    return false;
+  }
 }
 #endif /* !UNIV_HOTBACKUP */

@@ -652,10 +652,12 @@ the tail of the LRU list.
 @param[in]	flush		flush to disk if true, otherwise remove
                                 the pages without flushing
 @param[in]	trx		transaction to check if the operation
-                                must be interrupted */
+                                must be interrupted
+@param[in]	strict		true, if no page from tablespace
+                                can be in buffer pool just after flush */
 static void buf_flush_dirty_pages(buf_pool_t *buf_pool, space_id_t id,
                                   FlushObserver *observer, bool flush,
-                                  const trx_t *trx) {
+                                  const trx_t *trx, bool strict) {
   dberr_t err;
 
   do {
@@ -687,7 +689,7 @@ static void buf_flush_dirty_pages(buf_pool_t *buf_pool, space_id_t id,
 
   } while (err == DB_FAIL);
 
-  ut_ad(err == DB_INTERRUPTED ||
+  ut_ad(err == DB_INTERRUPTED || !strict ||
         buf_pool_get_dirty_pages_count(buf_pool, id, observer) == 0);
 }
 
@@ -836,8 +838,10 @@ static void buf_LRU_remove_pages(
     buf_pool_t *buf_pool,    /*!< buffer pool instance */
     space_id_t id,           /*!< in: space id */
     buf_remove_t buf_remove, /*!< in: remove or flush strategy */
-    const trx_t *trx)        /*!< to check if the operation must
+    const trx_t *trx,        /*!< to check if the operation must
                              be interrupted */
+    bool strict)             /*!< in: true if no page from tablespace
+                             can be in buffer pool just after flush */
 {
   FlushObserver *observer = (trx == NULL) ? NULL : trx->flush_observer;
 
@@ -848,11 +852,11 @@ static void buf_LRU_remove_pages(
 
     case BUF_REMOVE_FLUSH_NO_WRITE:
       /* Pass trx as NULL to avoid interruption check. */
-      buf_flush_dirty_pages(buf_pool, id, observer, false, NULL);
+      buf_flush_dirty_pages(buf_pool, id, observer, false, NULL, strict);
       break;
 
     case BUF_REMOVE_FLUSH_WRITE:
-      buf_flush_dirty_pages(buf_pool, id, observer, true, trx);
+      buf_flush_dirty_pages(buf_pool, id, observer, true, trx, strict);
 
       if (observer == NULL) {
         /* Ensure that all asynchronous IO is completed. */
@@ -871,8 +875,10 @@ static void buf_LRU_remove_pages(
 void buf_LRU_flush_or_remove_pages(
     space_id_t id,           /*!< in: space id */
     buf_remove_t buf_remove, /*!< in: remove or flush strategy */
-    const trx_t *trx)        /*!< to check if the operation must
+    const trx_t *trx,        /*!< to check if the operation must
                              be interrupted */
+    bool strict)             /*!< in: true if no page from tablespace
+                             can be in buffer pool just after flush */
 {
   ulint i;
 
@@ -903,7 +909,7 @@ void buf_LRU_flush_or_remove_pages(
         break;
     }
 
-    buf_LRU_remove_pages(buf_pool, id, buf_remove, trx);
+    buf_LRU_remove_pages(buf_pool, id, buf_remove, trx, strict);
   }
 }
 

@@ -1,7 +1,3 @@
-call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Encryption can't find master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
-call mtr.add_suppression("The error means that another program is using InnoDB's files");
-call mtr.add_suppression("Operating system error number .* in a file operation");
 # Create encrypt table before loading keyring plugin
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
@@ -195,17 +191,29 @@ c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
 c7 POINT NOT NULL SRID 0,
 spatial INDEX idx2 (c7)
 )  ENCRYPTION="Y" ENGINE = InnoDB;
-ERROR HY000: This tablespace can't be encrypted.
+ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
+SHOW WARNINGS;
+Level	Code	Message
+Error	1478	InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
+Error	1031	Table storage engine for 't_encrypt' doesn't have this option
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 @@innodb_file_per_table
 1
 CREATE TABLESPACE s_alt1 ADD DATAFILE 's_alt1.ibd';
 CREATE TABLE tde_db.t_encrypt (a int, b text) ENCRYPTION="Y" TABLESPACE=`s_alt1` ENGINE=InnoDB;
-ERROR HY000: This tablespace can't be encrypted.
+ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
+SHOW WARNINGS;
+Level	Code	Message
+Error	1478	InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
+Error	1031	Table storage engine for 't_encrypt' doesn't have this option
 DROP TABLESPACE s_alt1;
 CREATE TEMPORARY TABLE tde_db.t_encrypt (a int, b text) ENCRYPTION="Y" ENGINE=InnoDB;
-ERROR HY000: This tablespace can't be encrypted.
+ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
+SHOW WARNINGS;
+Level	Code	Message
+Error	1478	InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
+Error	1031	Table storage engine for 't_encrypt' doesn't have this option
 CREATE TABLE tde_db.t_encrypt_myisam (a int, b text) ENCRYPTION="Y" ENGINE=MyISAM;
 ERROR HY000: Table storage engine for 't_encrypt_myisam' doesn't have this option
 CREATE PROCEDURE tde_db.row_format_t_encrypt(row_form VARCHAR(1000))

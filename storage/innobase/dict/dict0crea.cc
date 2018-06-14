@@ -205,9 +205,12 @@ dberr_t dict_build_tablespace_for_table(dict_table_t *table, trx_t *trx) {
     table->space = space;
 
     /* Determine the tablespace flags. */
-    bool is_encrypted = dict_table_is_encrypted(table);
+    ulint fsp_flags = dict_tf_to_fsp_flags(table->flags);
 
-    ulint fsp_flags = dict_tf_to_fsp_flags(table->flags, is_encrypted);
+    /* For file-per-table tablespace, set encryption flag */
+    if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_ENCRYPTION_FILE_PER_TABLE)) {
+      fsp_flags |= FSP_FLAGS_MASK_ENCRYPTION;
+    }
 
     if (DICT_TF_HAS_DATA_DIR(table->flags)) {
       std::string path;

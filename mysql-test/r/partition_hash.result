@@ -213,9 +213,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` >= 1) and (`test`.`t1`.`a` <= 5))
 drop table t1;
-CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
-CREATE TABLESPACE ts2 ADD DATAFILE 'ts2.ibd';
-CREATE TABLESPACE ts3 ADD DATAFILE 'ts3.ibd';
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -223,9 +220,9 @@ c int not null,
 primary key(a,b))
 partition by hash (a + 2)
 partitions 3
-(partition x1 tablespace ts1,
-partition x2 tablespace ts2,
-partition x3 tablespace ts3);
+(partition x1,
+partition x2,
+partition x3);
 insert into t1 values (1,1,1);
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -236,9 +233,9 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH ((`a` + 2))
-(PARTITION x1 TABLESPACE = `ts1` ENGINE = InnoDB,
- PARTITION x2 TABLESPACE = `ts2` ENGINE = InnoDB,
- PARTITION x3 TABLESPACE = `ts3` ENGINE = InnoDB) */
+(PARTITION x1 ENGINE = InnoDB,
+ PARTITION x2 ENGINE = InnoDB,
+ PARTITION x3 ENGINE = InnoDB) */
 insert into t1 values (2,1,1);
 insert into t1 values (3,1,1);
 insert into t1 values (4,1,1);
@@ -271,9 +268,9 @@ a	b	c
 ALTER TABLE t1
 partition by hash (a + 3)
 partitions 3
-(partition x1 tablespace ts1,
-partition x2 tablespace ts2,
-partition x3 tablespace ts3);
+(partition x1,
+partition x2,
+partition x3);
 select * from t1;
 a	b	c
 SHOW CREATE TABLE t1;
@@ -285,13 +282,10 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH ((`a` + 3))
-(PARTITION x1 TABLESPACE = `ts1` ENGINE = InnoDB,
- PARTITION x2 TABLESPACE = `ts2` ENGINE = InnoDB,
- PARTITION x3 TABLESPACE = `ts3` ENGINE = InnoDB) */
+(PARTITION x1 ENGINE = InnoDB,
+ PARTITION x2 ENGINE = InnoDB,
+ PARTITION x3 ENGINE = InnoDB) */
 drop table t1;
-DROP TABLESPACE ts1;
-DROP TABLESPACE ts2;
-DROP TABLESPACE ts3;
 CREATE TABLE t1 (
 a int not null,
 b int not null,

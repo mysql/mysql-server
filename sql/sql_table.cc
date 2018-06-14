@@ -13580,6 +13580,30 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     DBUG_ASSERT(table_def);
   }
 
+  if (  // Tablespace specified in ALTER
+      (create_info->used_fields & HA_CREATE_USED_TABLESPACE) &&
+      // Have valid table object for old version of table
+      old_table_def != nullptr) {
+    dd::Encrypt_result er = dd::is_tablespace_encrypted(thd, *table_def);
+    if (er.error) {
+      goto err_new_table_cleanup;
+    }
+    if (!er.value) {
+      // Destination tablespace is not encrypted, need to check that
+      // the src is not either (to avoid unintended decryption)
+      dd::Encrypt_result old_er =
+          dd::is_tablespace_encrypted(thd, *old_table_def);
+      if (old_er.error) {
+        goto err_new_table_cleanup;
+      }
+      if (old_er.value) {
+        // Cannot transfer encrypted table to non-encrypted tablespace
+        my_error(ER_TARGET_TS_UNENCRYPTED, MYF(0));
+        goto err_new_table_cleanup;
+      }
+    }
+  }
+
   if (old_table_def) {
     if (old_table_def->is_checked_for_upgrade()) {
       DBUG_PRINT("admin", ("Transfering upgrade mark "
@@ -13589,6 +13613,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       table_def->mark_as_checked_for_upgrade();
     }
   }
+
   /*
     Check if new table definition is compatible with foreign keys
     on other tales which reference this one. We want to do this

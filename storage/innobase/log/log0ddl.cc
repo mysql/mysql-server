@@ -113,6 +113,12 @@ static uint32_t crash_after_drop_log_counter = 1;
 /** Crash injection counter used after any replay */
 static uint32_t crash_after_replay_counter = 1;
 
+/** Crash injection counter used before writing ALTER ENCRYPT TABLESPACE log */
+static uint32_t crash_before_alter_encrypt_space_log_counter = 1;
+
+/** Crash injection counter used after writing ALTER ENCRYPT TABLESPACE log */
+static uint32_t crash_after_alter_encrypt_space_log_counter = 1;
+
 void ddl_log_crash_reset(THD *thd, SYS_VAR *var, void *var_ptr,
                          const void *save) {
   const bool reset = *static_cast<const bool *>(save);
@@ -146,7 +152,8 @@ DDL_Record::DDL_Record()
       m_table_id(ULINT_UNDEFINED),
       m_old_file_path(nullptr),
       m_new_file_path(nullptr),
-      m_heap(nullptr) {}
+      m_heap(nullptr),
+      m_deletable(true) {}
 
 DDL_Record::~DDL_Record() {
   if (m_heap != nullptr) {
@@ -218,6 +225,9 @@ std::ostream &DDL_Record::print(std::ostream &out) const {
       break;
     case Log_Type::REMOVE_CACHE_LOG:
       out << "REMOVE CACHE";
+      break;
+    case Log_Type::ALTER_ENCRYPT_TABLESPACE_LOG:
+      out << "ALTER ENCRYPT TABLESPACE";
       break;
     default:
       ut_ad(0);
@@ -779,8 +789,10 @@ dberr_t DDL_Log_Table::remove(const DDL_Records &records) {
   dberr_t error = DB_SUCCESS;
 
   for (auto record : records) {
-    error = remove(record->get_id());
-    ut_ad(error == DB_SUCCESS);
+    if (record->get_deletable()) {
+      error = remove(record->get_id());
+      ut_ad(error == DB_SUCCESS);
+    }
   }
 
   return (error);
@@ -1084,6 +1096,69 @@ dberr_t Log_DDL::insert_rename_space_log(uint64_t id, ulint thread_id,
   return (error);
 }
 
+dberr_t Log_DDL::write_alter_encrypt_space_log(space_id_t space_id) {
+  /* Missing current_thd, it happens during crash recovery */
+  if (!current_thd) {
+    return (DB_SUCCESS);
+  }
+
+  trx_t *trx = thd_to_trx(current_thd);
+
+  if (skip(nullptr, trx->mysql_thd)) {
+    return (DB_SUCCESS);
+  }
+
+  uint64_t id = next_id();
+  ulint thread_id = thd_get_thread_id(trx->mysql_thd);
+
+  trx->ddl_operation = true;
+
+  DBUG_INJECT_CRASH("ddl_log_crash_before_alter_encrypt_space_log",
+                    crash_before_alter_encrypt_space_log_counter++);
+
+  dberr_t err = insert_alter_encrypt_space_log(id, thread_id, space_id);
+  ut_ad(err == DB_SUCCESS);
+
+  DBUG_INJECT_CRASH("ddl_log_crash_after_alter_encrypt_space_log",
+                    crash_after_alter_encrypt_space_log_counter++);
+
+  return (err);
+}
+
+dberr_t Log_DDL::insert_alter_encrypt_space_log(uint64_t id, ulint thread_id,
+                                                space_id_t space_id) {
+  dberr_t error;
+  trx_t *trx = trx_allocate_for_background();
+  trx_start_internal(trx);
+  trx->ddl_operation = true;
+
+  ut_ad(mutex_own(&dict_sys->mutex));
+  mutex_exit(&dict_sys->mutex);
+
+  DDL_Record record;
+  record.set_id(id);
+  record.set_thread_id(thread_id);
+  record.set_type(Log_Type::ALTER_ENCRYPT_TABLESPACE_LOG);
+  record.set_space_id(space_id);
+
+  {
+    DDL_Log_Table ddl_log(trx);
+    error = ddl_log.insert(record);
+    ut_ad(error == DB_SUCCESS);
+  }
+
+  mutex_enter(&dict_sys->mutex);
+
+  trx_commit_for_mysql(trx);
+  trx_free_for_background(trx);
+
+  if (srv_print_ddl_logs) {
+    ib::info(ER_IB_MSG_1284) << "DDL log insert : " << record;
+  }
+
+  return (error);
+}
+
 dberr_t Log_DDL::write_drop_log(trx_t *trx, const table_id_t table_id) {
   if (skip(NULL, trx->mysql_thd)) {
     return (DB_SUCCESS);
@@ -1293,12 +1368,21 @@ dberr_t Log_DDL::replay_all() {
 
   for (auto record : records) {
     log_ddl->replay(*record);
+    /* If this is alter tablespace encrypt entry, don't delete it yet.
+    This is to handle crash during resume operation. This entry will be deleted
+    once resume operation is finished. */
+    if (record->get_type() == Log_Type::ALTER_ENCRYPT_TABLESPACE_LOG) {
+      ts_encrypt_ddl_records.push_back(record);
+      record->set_deletable(false);
+    }
   }
 
   delete_by_ids(records);
 
   for (auto record : records) {
-    delete record;
+    if (record->get_deletable()) {
+      delete record;
+    }
   }
 
   return (error);
@@ -1385,6 +1469,10 @@ dberr_t Log_DDL::replay(DDL_Record &record) {
                               record.get_new_file_path());
       break;
 
+    case Log_Type::ALTER_ENCRYPT_TABLESPACE_LOG:
+      replay_alter_encrypt_space_log(record.get_space_id());
+      break;
+
     default:
       ut_error;
   }
@@ -1466,6 +1554,11 @@ void Log_DDL::replay_rename_space_log(space_id_t space_id,
                             << " to " << new_file_path << " failed";
   }
 
+  DBUG_INJECT_CRASH("ddl_log_crash_after_replay", crash_after_replay_counter++);
+}
+
+void Log_DDL::replay_alter_encrypt_space_log(space_id_t space_id) {
+  /* NOOP */
   DBUG_INJECT_CRASH("ddl_log_crash_after_replay", crash_after_replay_counter++);
 }
 

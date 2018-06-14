@@ -6198,9 +6198,8 @@ Other bits are the same.
 dict_table_t::flags |     0     |    1    |     1      |    1
 fil_space_t::flags  |     0     |    0    |     1      |    1
 @param[in]	table_flags	dict_table_t::flags
-@param[in]	is_encrypted	if it's an encrypted table
 @return tablespace flags (fil_space_t::flags) */
-ulint dict_tf_to_fsp_flags(ulint table_flags, bool is_encrypted) {
+ulint dict_tf_to_fsp_flags(ulint table_flags) {
   DBUG_EXECUTE_IF("dict_tf_to_fsp_flags_failure", return (ULINT_UNDEFINED););
 
   bool has_atomic_blobs = DICT_TF_HAS_ATOMIC_BLOBS(table_flags);
@@ -6217,7 +6216,7 @@ ulint dict_tf_to_fsp_flags(ulint table_flags, bool is_encrypted) {
   }
 
   ulint fsp_flags = fsp_flags_init(page_size, has_atomic_blobs, has_data_dir,
-                                   is_shared, false, is_encrypted);
+                                   is_shared, false);
 
   return (fsp_flags);
 }

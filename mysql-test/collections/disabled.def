@@ -29,6 +29,10 @@ innodb.log_corruption @darwin         : BUG#27760219 2018-03-27 Anitha Test fail
 innodb.log_corruption @freebsd        : BUG#27760219 2018-03-27 Anitha Test fails consistently on freebsd and Mac after WL#11009.
 innodb.portability_tablespace_linux   : Sivert The maintainability of the zip files required by this test is not acceptable.
 innodb.portability_tablespace_windows : Sivert The maintainability of the zip files required by this test is not acceptable.
+innodb.create_tablespace_partition    : Mayank Enable again once shared tablespaces are allowed in partitioned table (wl#12034).
+innodb.alter_tablespace_partition     : Mayank Enable again once shared tablespaces are allowed in partitioned table (wl#12034).
+innodb.truncate                       : Mayank Enable again once shared tablespaces are allowed in partitioned table (wl#12034).
+innodb.subpartition                   : Mayank Enable again once shared tablespaces are allowed in partitioned table (wl#12034).
 
 # json suite tests
 json.json_ddl_ndb : BUG#26616564 FAILURE OF JSON_DDL_NDB TEST, Bug#26609059 2017-08-10 Bin, PB2 failures.

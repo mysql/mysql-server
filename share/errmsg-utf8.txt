@@ -18128,6 +18128,36 @@ ER_IB_MSG_1274
 ER_IB_MSG_1275
   eng "%s"
 
+ER_TARGET_TS_UNENCRYPTED
+  eng "Source tablespace is encrypted but target tablespace is not."
+
+ER_IB_MSG_1276
+  eng "%s"
+
+ER_IB_MSG_1277
+  eng "%s"
+
+ER_IB_MSG_1278
+  eng "%s"
+
+ER_IB_MSG_1279
+  eng "%s"
+
+ER_IB_MSG_1280
+  eng "%s"
+
+ER_IB_MSG_1281
+  eng "%s"
+
+ER_IB_MSG_1282
+  eng "%s"
+
+ER_IB_MSG_1283
+  eng "%s"
+
+ER_IB_MSG_1284
+  eng "%s"
+
 #
 # End of 8.0 Server error messages.
 # (Please read comments from the header of this section before adding error

@@ -1152,9 +1152,7 @@ CREATE TABLE t1 (
   PRIMARY KEY (a)
 )
 ENGINE=InnoDB
-PARTITION BY RANGE (a)
-PARTITIONS 1
-(PARTITION P1 VALUES LESS THAN (2) TABLESPACE ts1);
+TABLESPACE ts1;
 
 --connect (con1, localhost, root)
 
@@ -1231,7 +1229,7 @@ SET DEBUG_SYNC= 'RESET';
 SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table
   SIGNAL got_lock
   WAIT_FOR cont';
---send CREATE TABLE t3 ( a INT NOT NULL, PRIMARY KEY (a)) ENGINE=InnoDB PARTITION BY RANGE (a) PARTITIONS 1 (PARTITION P1 VALUES LESS THAN (2) TABLESPACE ts1);
+--send CREATE TABLE t3 ( a INT NOT NULL, PRIMARY KEY (a)) ENGINE=InnoDB TABLESPACE ts1;
 
 --echo # Verify that the tablespace name is locked.
 --connection default
@@ -1268,29 +1266,31 @@ SET DEBUG_SYNC= 'now SIGNAL cont';
 --echo # Reaping 'CREATE TABLE LIKE'
 --reap
 
---echo #############################################
---echo # Case6: Checking ALTER TABLE ... PARTITION
-
-CREATE TABLESPACE ts2 ADD DATAFILE 'ts2.ibd';
-
-SET DEBUG_SYNC= 'RESET';
-SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table
-  SIGNAL got_lock
-  WAIT_FOR cont';
---send ALTER TABLE t2 ADD PARTITION (partition p2 values less than (4) tablespace ts2);
-
---echo # Verify that the tablespace name is locked.
---connection default
-SET DEBUG_SYNC= 'now WAIT_FOR got_lock';
-LET $wait_condition=
-  SELECT COUNT(*) = 1 FROM performance_schema.metadata_locks
-    WHERE object_type LIKE 'TABLESPACE' AND object_name LIKE 'ts2';
---source include/wait_condition.inc
-SET DEBUG_SYNC= 'now SIGNAL cont';
-
---connection con1
---echo # Reaping 'ALTER TABLE'
---reap
+# TODO : Enable following once shared tablespace are allowed in Partitioned
+#        Table (wl#12034).
+#--echo #############################################
+#--echo # Case6: Checking ALTER TABLE ... PARTITION
+#
+#CREATE TABLESPACE ts2 ADD DATAFILE 'ts2.ibd';
+#
+#SET DEBUG_SYNC= 'RESET';
+#SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table
+#  SIGNAL got_lock
+#  WAIT_FOR cont';
+#--send ALTER TABLE t2 ADD PARTITION (partition p2 values less than (4) tablespace ts2);
+#
+#--echo # Verify that the tablespace name is locked.
+#--connection default
+#SET DEBUG_SYNC= 'now WAIT_FOR got_lock';
+#LET $wait_condition=
+#  SELECT COUNT(*) = 1 FROM performance_schema.metadata_locks
+#    WHERE object_type LIKE 'TABLESPACE' AND object_name LIKE 'ts2';
+#--source include/wait_condition.inc
+#SET DEBUG_SYNC= 'now SIGNAL cont';
+#
+#--connection con1
+#--echo # Reaping 'ALTER TABLE'
+#--reap
 
 --echo #############################################
 --echo # Case7: Checking LOCK TABLE t2 WRITE
@@ -1317,25 +1317,27 @@ SET DEBUG_SYNC= 'now SIGNAL cont';
 UNLOCK TABLES;
 
 
---echo #############################################
---echo # Case8 - A tablespace name 65 3-byte characters should
---echo # be rejected, when specified for table partition.
-
---error ER_TOO_LONG_IDENT
-CREATE TABLE t5 (
-  a INT NOT NULL,
-  PRIMARY KEY (a)
-)
-ENGINE=InnoDB
-PARTITION BY RANGE (a)
-PARTITIONS 1
-(PARTITION P1 VALUES LESS THAN (2) TABLESPACE
-  `€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€`);
-
---error ER_TOO_LONG_IDENT
-ALTER TABLE t2 ADD PARTITION (
-  partition p2 values less than (4) tablespace
-  `€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€`);
+# TODO : Enable following once shared tablespace are allowed in Partitioned
+#        Table (wl#12034).
+#--echo #############################################
+#--echo # Case8 - A tablespace name 65 3-byte characters should
+#--echo # be rejected, when specified for table partition.
+#
+#--error ER_TOO_LONG_IDENT
+#CREATE TABLE t5 (
+#  a INT NOT NULL,
+#  PRIMARY KEY (a)
+#)
+#ENGINE=InnoDB
+#PARTITION BY RANGE (a)
+#PARTITIONS 1
+#(PARTITION P1 VALUES LESS THAN (2) TABLESPACE
+#  `€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€`);
+#
+#--error ER_TOO_LONG_IDENT
+#ALTER TABLE t2 ADD PARTITION (
+#  partition p2 values less than (4) tablespace
+#  `€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€`);
 
 --disconnect con1
 --source include/wait_until_disconnected.inc
@@ -1347,7 +1349,7 @@ DROP TABLE t2;
 DROP TABLE t3;
 DROP TABLE t4;
 DROP TABLESPACE ts1;
-DROP TABLESPACE ts2;
+#DROP TABLESPACE ts2;
 
 --echo #
 --echo # Tescases for wl#8972. Rename a general tablespace.
@@ -1485,18 +1487,17 @@ SET @@session.lock_wait_timeout= DEFAULT;
 --echo #
 
 CREATE TABLESPACE s1 ADD DATAFILE 's1.ibd';
-CREATE TABLESPACE s2 ADD DATAFILE 's2.ibd';
+#CREATE TABLESPACE s2 ADD DATAFILE 's2.ibd';
 
-CREATE TABLE t1 (pk INTEGER PRIMARY KEY)
-  PARTITION BY RANGE (pk) PARTITIONS 1 (PARTITION P1 VALUES LESS THAN (2));
+CREATE TABLE t1 (pk INTEGER PRIMARY KEY);
 
 LOCK TABLE t1 WRITE;
 ALTER TABLE t1 TABLESPACE s1;
-ALTER TABLE t1 ADD PARTITION (PARTITION p2 VALUES LESS THAN (4) TABLESPACE s2);
+#ALTER TABLE t1 ADD PARTITION (PARTITION p2 VALUES LESS THAN (4) TABLESPACE s2);
 UNLOCK TABLE;
 DROP TABLE t1;
 DROP TABLESPACE s1;
-DROP TABLESPACE s2;
+#DROP TABLESPACE s2;
 
 
 --echo #

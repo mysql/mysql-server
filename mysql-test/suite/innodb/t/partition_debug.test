@@ -9,18 +9,14 @@
 # Have to set the default row format to a non-default one.
 SET GLOBAL innodb_default_row_format = REDUNDANT;
 
-CREATE TABLESPACE tbs01 ADD DATAFILE './tbs01.ibd';
-
-CREATE TABLE t1 (a INT NOT NULL, d INT NOT NULL, index(a, d)) ENGINE=InnoDB TABLESPACE tbs01 PARTITION BY LIST COLUMNS (a,d)  (PARTITION p36_1 VALUES IN ((10,5),(10,6)), PARTITION p36_2 VALUES IN ((11,5),(11,6)));
+CREATE TABLE t1 (a INT NOT NULL, d INT NOT NULL, index(a, d)) ENGINE=InnoDB PARTITION BY LIST COLUMNS (a,d)  (PARTITION p36_1 VALUES IN ((10,5),(10,6)), PARTITION p36_2 VALUES IN ((11,5),(11,6)));
 
 SET SESSION debug= '+d,skip_dd_table_access_check';
 SELECT name, se_private_data FROM mysql.table_partitions;
 
 --source include/restart_mysqld.inc
 
-CREATE TABLESPACE tbs02 ADD DATAFILE './tbs02.ibd';
-
-ALTER TABLE t1 ADD PARTITION (PARTITION p_r13 VALUES IN ((741,377), (21,728)), PARTITION p_r23 VALUES IN ((102,337), (453,337), (-9,179)) TABLESPACE=tbs02);
+ALTER TABLE t1 ADD PARTITION (PARTITION p_r13 VALUES IN ((741,377), (21,728)), PARTITION p_r23 VALUES IN ((102,337), (453,337), (-9,179)));
 
 SET SESSION debug= '+d,skip_dd_table_access_check';
 SELECT name, se_private_data FROM mysql.table_partitions;
@@ -37,8 +33,6 @@ SELECT name, se_private_data FROM mysql.table_partitions;
 CHECK TABLE t1;
 
 DROP TABLE t1;
-DROP TABLESPACE tbs01;
-DROP TABLESPACE tbs02;
 
 SET GLOBAL innodb_default_row_format = Default;
 

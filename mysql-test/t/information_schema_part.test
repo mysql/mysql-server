@@ -2,15 +2,11 @@
 drop table if exists t1,t2,t3,t4;
 --enable_warnings
 
-CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENGINE=InnoDB;
-CREATE TABLESPACE ts2 ADD DATAFILE 'ts2.ibd' ENGINE=InnoDB;
-CREATE TABLESPACE ts3 ADD DATAFILE 'ts3.ibd' ENGINE=InnoDB;
-
 create table t1 (a int not null,b int not null,c int not null, primary key(a,b))
 partition by list (b*a)
-(partition x1 values in (1) tablespace ts1,
- partition x2 values in (3, 11, 5, 7) tablespace ts2,
- partition x3 values in (16, 8, 5+19, 70-43) tablespace ts3);
+(partition x1 values in (1),
+ partition x2 values in (3, 11, 5, 7),
+ partition x3 values in (16, 8, 5+19, 70-43));
 
 --replace_column 16 # 19 # 20 #
 select * from information_schema.partitions where table_schema="test"
@@ -19,9 +15,9 @@ and table_name="t1";
 create table t2 (a int not null,b int not null,c int not null, primary key(a,b))
 partition by range (a)
 partitions 3
-(partition x1 values less than (5) tablespace ts1,
- partition x2 values less than (10) tablespace ts2,
- partition x3 values less than maxvalue tablespace ts3);
+(partition x1 values less than (5),
+ partition x2 values less than (10),
+ partition x3 values less than maxvalue);
 --replace_column 16 # 19 # 20 #
 select * from information_schema.partitions where table_schema="test"
 and table_name="t2";
@@ -42,29 +38,26 @@ and table_name="t4";
 
 drop table t1,t2,t3,t4;
 
-CREATE TABLESPACE tbsp1 ADD DATAFILE 't1.ibd' ENGINE=InnoDB;
-CREATE TABLESPACE tbsp2 ADD DATAFILE 't2.ibd' ENGINE=InnoDB;
-
 create table t1 (a int not null,b int not null,c int not null,primary key (a,b))
 partition by range (a)
 subpartition by hash (a+b)
 ( partition x1 values less than (1)
-  ( subpartition x11 tablespace tbsp1,
-    subpartition x12 tablespace tbsp2),
+  ( subpartition x11,
+    subpartition x12),
    partition x2 values less than (5)
-  ( subpartition x21 tablespace tbsp1,
-    subpartition x22 tablespace tbsp2)
+  ( subpartition x21,
+    subpartition x22)
 );
 
 create table t2 (a int not null,b int not null,c int not null,primary key (a,b))
 partition by range (a)
 subpartition by key (a)
 ( partition x1 values less than (1)
-  ( subpartition x11 tablespace tbsp1,
-    subpartition x12 tablespace tbsp2),
+  ( subpartition x11,
+    subpartition x12),
    partition x2 values less than (5)
-  ( subpartition x21 tablespace tbsp1,
-    subpartition x22 tablespace tbsp2)
+  ( subpartition x21,
+    subpartition x22)
 );
 --replace_column 16 # 19 # 20 #
 select * from information_schema.partitions where table_schema="test"; 
@@ -78,14 +71,14 @@ primary key (a,b))
 partition by range (a)
 subpartition by hash (a+b)
 ( partition x1 values less than (1)
- ( subpartition x11 tablespace tbsp1 nodegroup 0,
-   subpartition x12 tablespace tbsp2 nodegroup 1),
+ ( subpartition x11 nodegroup 0,
+   subpartition x12 nodegroup 1),
   partition x2 values less than (5)
-( subpartition x21 tablespace tbsp1 nodegroup 0,
-  subpartition x22 tablespace tbsp2 nodegroup 1),
+( subpartition x21 nodegroup 0,
+  subpartition x22 nodegroup 1),
   partition x3 values less than (10)
-( subpartition x31 tablespace tbsp1 max_rows=50,
-  subpartition x32 tablespace tbsp2 nodegroup 1)
+( subpartition x31 max_rows=50,
+  subpartition x32 nodegroup 1)
 );
    
 --replace_column 16 # 19 # 20 #
@@ -138,8 +131,3 @@ drop table if exists t1;
 create table t1 (f1 int key) partition by key(f1) partitions 2;
 select create_options from information_schema.tables where table_schema="test";
 drop table t1;
-drop tablespace ts1;
-drop tablespace ts2;
-drop tablespace ts3;
-drop tablespace tbsp1;
-drop tablespace tbsp2;

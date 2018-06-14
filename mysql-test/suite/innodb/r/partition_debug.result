@@ -3,16 +3,14 @@
 # Case one: between dynamic and redundant
 #
 SET GLOBAL innodb_default_row_format = REDUNDANT;
-CREATE TABLESPACE tbs01 ADD DATAFILE './tbs01.ibd';
-CREATE TABLE t1 (a INT NOT NULL, d INT NOT NULL, index(a, d)) ENGINE=InnoDB TABLESPACE tbs01 PARTITION BY LIST COLUMNS (a,d)  (PARTITION p36_1 VALUES IN ((10,5),(10,6)), PARTITION p36_2 VALUES IN ((11,5),(11,6)));
+CREATE TABLE t1 (a INT NOT NULL, d INT NOT NULL, index(a, d)) ENGINE=InnoDB PARTITION BY LIST COLUMNS (a,d)  (PARTITION p36_1 VALUES IN ((10,5),(10,6)), PARTITION p36_2 VALUES IN ((11,5),(11,6)));
 SET SESSION debug= '+d,skip_dd_table_access_check';
 SELECT name, se_private_data FROM mysql.table_partitions;
 name	se_private_data
 p36_1	NULL
 p36_2	NULL
 # restart
-CREATE TABLESPACE tbs02 ADD DATAFILE './tbs02.ibd';
-ALTER TABLE t1 ADD PARTITION (PARTITION p_r13 VALUES IN ((741,377), (21,728)), PARTITION p_r23 VALUES IN ((102,337), (453,337), (-9,179)) TABLESPACE=tbs02);
+ALTER TABLE t1 ADD PARTITION (PARTITION p_r13 VALUES IN ((741,377), (21,728)), PARTITION p_r23 VALUES IN ((102,337), (453,337), (-9,179)));
 SET SESSION debug= '+d,skip_dd_table_access_check';
 SELECT name, se_private_data FROM mysql.table_partitions;
 name	se_private_data
@@ -29,12 +27,12 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `d` int(11) NOT NULL,
   KEY `a` (`a`,`d`)
-) /*!50100 TABLESPACE `tbs01` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50500 PARTITION BY LIST  COLUMNS(a,d)
-(PARTITION p36_1 VALUES IN ((10,5),(10,6)) TABLESPACE = `tbs01` ENGINE = InnoDB,
- PARTITION p36_2 VALUES IN ((11,5),(11,6)) TABLESPACE = `tbs01` ENGINE = InnoDB,
- PARTITION p_r13 VALUES IN ((741,377),(21,728)) TABLESPACE = `tbs01` ENGINE = InnoDB,
- PARTITION p_r23 VALUES IN ((102,337),(453,337),(-9,179)) TABLESPACE = `tbs02` ENGINE = InnoDB) */
+(PARTITION p36_1 VALUES IN ((10,5),(10,6)) ENGINE = InnoDB,
+ PARTITION p36_2 VALUES IN ((11,5),(11,6)) ENGINE = InnoDB,
+ PARTITION p_r13 VALUES IN ((741,377),(21,728)) ENGINE = InnoDB,
+ PARTITION p_r23 VALUES IN ((102,337),(453,337),(-9,179)) ENGINE = InnoDB) */
 # restart
 SET SESSION debug= '+d,skip_dd_table_access_check';
 SELECT name, se_private_data FROM mysql.table_partitions;
@@ -47,8 +45,6 @@ CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 DROP TABLE t1;
-DROP TABLESPACE tbs01;
-DROP TABLESPACE tbs02;
 SET GLOBAL innodb_default_row_format = Default;
 #
 # Different partitions can have different row format

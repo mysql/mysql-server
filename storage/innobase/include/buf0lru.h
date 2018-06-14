@@ -64,8 +64,10 @@ These are low-level functions
 void buf_LRU_flush_or_remove_pages(
     space_id_t id,           /*!< in: space id */
     buf_remove_t buf_remove, /*!< in: remove or flush strategy */
-    const trx_t *trx);       /*!< to check if the operation must
+    const trx_t *trx,        /*!< to check if the operation must
                              be interrupted */
+    bool strict = true);     /*!< in: true, if no page from tablespace
+                             can be in buffer pool just after flush */
 
 #ifndef UNIV_HOTBACKUP
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG

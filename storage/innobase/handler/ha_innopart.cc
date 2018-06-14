@@ -2321,10 +2321,17 @@ int ha_innopart::create(const char *name, TABLE *form,
 
   trx = check_trx_exists(thd);
 
+  DBUG_ENTER("ha_innopart::create");
+
+  if (is_shared_tablespace(create_info->tablespace)) {
+    my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION, PARTITION_IN_SHARED_TABLESPACE,
+                    MYF(0));
+    DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
+  }
+
   create_table_info_t info(thd, form, create_info, table_name, remote_path,
                            tablespace_name, srv_file_per_table, false, 0, 0);
 
-  DBUG_ENTER("ha_innopart::create");
   ut_ad(create_info != NULL);
   ut_ad(m_part_info == form->part_info);
   ut_ad(table_share != NULL);
@@ -2395,13 +2402,29 @@ int ha_innopart::create(const char *name, TABLE *form,
       while ((sub_elem = sub_it++)) {
         tablespace = partition_get_tablespace(table_level_tablespace_name,
                                               part_elem, sub_elem);
+        if (is_shared_tablespace(tablespace)) {
+          tablespace_names.clear();
+          error = HA_ERR_INTERNAL_ERROR;
+          break;
+        }
         tablespace_names.push_back(tablespace);
       }
     } else {
       tablespace = partition_get_tablespace(table_level_tablespace_name,
                                             part_elem, NULL);
+      if (is_shared_tablespace(tablespace)) {
+        tablespace_names.clear();
+        error = HA_ERR_INTERNAL_ERROR;
+        break;
+      }
       tablespace_names.push_back(tablespace);
     }
+  }
+
+  if (error) {
+    my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION, PARTITION_IN_SHARED_TABLESPACE,
+                    MYF(0));
+    DBUG_RETURN(error);
   }
 
   for (const auto dd_part : *table_def->leaf_partitions()) {

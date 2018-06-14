@@ -1501,8 +1501,11 @@ space_id_t dict_check_sys_tables(bool validate) {
                          : dict_get_first_path(space_id);
 
     /* Check that the .ibd file exists. */
-    bool is_encrypted = flags2 & DICT_TF2_ENCRYPTION;
-    ulint fsp_flags = dict_tf_to_fsp_flags(flags, is_encrypted);
+    ulint fsp_flags = dict_tf_to_fsp_flags(flags);
+    /* Set tablespace encryption flag */
+    if (flags2 & DICT_TF2_ENCRYPTION_FILE_PER_TABLE) {
+      fsp_flags |= FSP_FLAGS_MASK_ENCRYPTION;
+    }
 
     dberr_t err =
         fil_ibd_open(validate, FIL_TYPE_TABLESPACE, space_id, fsp_flags,
@@ -2236,8 +2239,11 @@ void dict_load_tablespace(dict_table_t *table, mem_heap_t *heap,
 
   /* Try to open the tablespace.  We set the 2nd param (fix_dict) to
   false because we do not have an x-lock on dict_operation_lock */
-  bool is_encrypted = dict_table_is_encrypted(table);
-  ulint fsp_flags = dict_tf_to_fsp_flags(table->flags, is_encrypted);
+  ulint fsp_flags = dict_tf_to_fsp_flags(table->flags);
+  /* Set tablespace encryption flag */
+  if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_ENCRYPTION_FILE_PER_TABLE)) {
+    fsp_flags |= FSP_FLAGS_MASK_ENCRYPTION;
+  }
 
   /* This dict_load_tablespace() is only used on old 5.7 database during
   upgrade */

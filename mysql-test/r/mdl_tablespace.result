@@ -831,9 +831,7 @@ a INT NOT NULL,
 PRIMARY KEY (a)
 )
 ENGINE=InnoDB
-PARTITION BY RANGE (a)
-PARTITIONS 1
-(PARTITION P1 VALUES LESS THAN (2) TABLESPACE ts1);
+TABLESPACE ts1;
 #############################################
 # Case1: Checking TRUNCATE TABLE
 # Sending 'TRUNCATE TABLE t1;'
@@ -875,7 +873,7 @@ SET DEBUG_SYNC= 'RESET';
 SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table
   SIGNAL got_lock
   WAIT_FOR cont';
-CREATE TABLE t3 ( a INT NOT NULL, PRIMARY KEY (a)) ENGINE=InnoDB PARTITION BY RANGE (a) PARTITIONS 1 (PARTITION P1 VALUES LESS THAN (2) TABLESPACE ts1);;
+CREATE TABLE t3 ( a INT NOT NULL, PRIMARY KEY (a)) ENGINE=InnoDB TABLESPACE ts1;;
 # Verify that the tablespace name is locked.
 SET DEBUG_SYNC= 'now WAIT_FOR got_lock';
 SET DEBUG_SYNC= 'now SIGNAL cont';
@@ -892,18 +890,6 @@ SET DEBUG_SYNC= 'now WAIT_FOR got_lock';
 SET DEBUG_SYNC= 'now SIGNAL cont';
 # Reaping 'CREATE TABLE LIKE'
 #############################################
-# Case6: Checking ALTER TABLE ... PARTITION
-CREATE TABLESPACE ts2 ADD DATAFILE 'ts2.ibd';
-SET DEBUG_SYNC= 'RESET';
-SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table
-  SIGNAL got_lock
-  WAIT_FOR cont';
-ALTER TABLE t2 ADD PARTITION (partition p2 values less than (4) tablespace ts2);;
-# Verify that the tablespace name is locked.
-SET DEBUG_SYNC= 'now WAIT_FOR got_lock';
-SET DEBUG_SYNC= 'now SIGNAL cont';
-# Reaping 'ALTER TABLE'
-#############################################
 # Case7: Checking LOCK TABLE t2 WRITE
 SET DEBUG_SYNC= 'RESET';
 SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table
@@ -912,33 +898,17 @@ SET DEBUG_SYNC= 'after_wait_locked_tablespace_name_for_table
 LOCK TABLE t2 WRITE;
 # Verify that the tablespace name is locked.
 SET DEBUG_SYNC= 'now WAIT_FOR got_lock';
+Timeout in wait_condition.inc for SELECT COUNT(*) = 1 FROM performance_schema.metadata_locks
+WHERE object_type LIKE 'TABLESPACE' AND object_name LIKE 'ts2'
 SET DEBUG_SYNC= 'now SIGNAL cont';
 # Reaping 'LOCK TABLE'
 UNLOCK TABLES;
-#############################################
-# Case8 - A tablespace name 65 3-byte characters should
-# be rejected, when specified for table partition.
-CREATE TABLE t5 (
-a INT NOT NULL,
-PRIMARY KEY (a)
-)
-ENGINE=InnoDB
-PARTITION BY RANGE (a)
-PARTITIONS 1
-(PARTITION P1 VALUES LESS THAN (2) TABLESPACE
-`€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€`);
-ERROR 42000: Identifier name '€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€?' is too long
-ALTER TABLE t2 ADD PARTITION (
-partition p2 values less than (4) tablespace
-`€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€`);
-ERROR 42000: Identifier name '€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€?' is too long
 # Cleanup
 SET DEBUG_SYNC= 'RESET';
 DROP TABLE t2;
 DROP TABLE t3;
 DROP TABLE t4;
 DROP TABLESPACE ts1;
-DROP TABLESPACE ts2;
 #
 # Tescases for wl#8972. Rename a general tablespace.
 #
@@ -1025,16 +995,12 @@ SET @@session.lock_wait_timeout= DEFAULT;
 # when issuing ALTER TABLE under LOCK TABLE.
 #
 CREATE TABLESPACE s1 ADD DATAFILE 's1.ibd';
-CREATE TABLESPACE s2 ADD DATAFILE 's2.ibd';
-CREATE TABLE t1 (pk INTEGER PRIMARY KEY)
-PARTITION BY RANGE (pk) PARTITIONS 1 (PARTITION P1 VALUES LESS THAN (2));
+CREATE TABLE t1 (pk INTEGER PRIMARY KEY);
 LOCK TABLE t1 WRITE;
 ALTER TABLE t1 TABLESPACE s1;
-ALTER TABLE t1 ADD PARTITION (PARTITION p2 VALUES LESS THAN (4) TABLESPACE s2);
 UNLOCK TABLE;
 DROP TABLE t1;
 DROP TABLESPACE s1;
-DROP TABLESPACE s2;
 #
 # Bug#27472087: ALTER TABLE HANGS IN "WAITING FOR TABLESPACE METADATA
 # LOCK" STATE

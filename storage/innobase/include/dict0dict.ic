@@ -1056,15 +1056,6 @@ bool dict_table_is_discarded(
   return (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_DISCARDED));
 }
 
-/** Check if it is a encrypted table.
- @return true if table encrypted flag is set. */
-UNIV_INLINE
-bool dict_table_is_encrypted(
-    const dict_table_t *table) /*!< in: table to check */
-{
-  return (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_ENCRYPTION));
-}
-
 #ifndef UNIV_HOTBACKUP
 /** Check whether the table is DDTableBuffer. See class DDTableBuffer
 @param[in]	table	table to check
