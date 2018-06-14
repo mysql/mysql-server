@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -246,7 +246,7 @@ extern ulong open_files_limit;
 extern ulong binlog_cache_size, binlog_stmt_cache_size;
 extern ulonglong max_binlog_cache_size, max_binlog_stmt_cache_size;
 extern int32 opt_binlog_max_flush_queue_time;
-extern ulong opt_binlog_group_commit_sync_delay;
+extern long opt_binlog_group_commit_sync_delay;
 extern ulong opt_binlog_group_commit_sync_no_delay_count;
 extern ulong max_binlog_size, max_relay_log_size;
 extern ulong slave_max_allowed_packet;
