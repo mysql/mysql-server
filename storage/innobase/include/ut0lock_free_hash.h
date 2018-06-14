@@ -96,7 +96,11 @@ class ut_lock_free_cnt_t {
  public:
   /** Constructor. */
   ut_lock_free_cnt_t() {
-    m_numa_available = os_numa_available() != -1;
+    /* It is possible that the machine has NUMA available for use.  But the
+    process/thread might not have sufficient permissions to use the same.
+    Hence, we need to check whether the current thread has permissions to
+    use them. Currently, disabling the use of numa here.  */
+    m_numa_available = false;
 
     if (m_numa_available) {
       m_cnt_size = os_numa_num_configured_cpus();
