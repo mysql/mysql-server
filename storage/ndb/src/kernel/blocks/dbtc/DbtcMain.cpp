@@ -20773,9 +20773,8 @@ Dbtc::execSCAN_TABCONF(Signal* signal)
   Uint32 orgTransPtrI = tcPtr.p->nextTcFailHash;
   ApiConnectRecordPtr orgApiConnectPtr;
   orgApiConnectPtr.i = orgTransPtrI;
-  c_apiConnectRecordPool.getPtr(orgApiConnectPtr);
-
-  if (unlikely(! (transId[0] == orgApiConnectPtr.p->transid[0] &&
+  if (unlikely(!c_apiConnectRecordPool.getValidPtr(orgApiConnectPtr)) ||
+      unlikely(! (transId[0] == orgApiConnectPtr.p->transid[0] &&
                   transId[1] == orgApiConnectPtr.p->transid[1] &&
                   orgApiConnectPtr.p->apiConnectstate != CS_ABORTING)))
   {
@@ -20977,9 +20976,9 @@ Dbtc::fk_scanFromChildTable_done(Signal* signal, TcConnectRecordPtr tcPtr)
 
   ApiConnectRecordPtr orgApiConnectPtr;
   orgApiConnectPtr.i = orgTransPtrI;
-  c_apiConnectRecordPool.getPtr(orgApiConnectPtr);
 
-  if (! (transId[0] == orgApiConnectPtr.p->transid[0] &&
+  if (!c_apiConnectRecordPool.getValidPtr(orgApiConnectPtr) ||
+      ! (transId[0] == orgApiConnectPtr.p->transid[0] &&
          transId[1] == orgApiConnectPtr.p->transid[1] &&
          orgApiConnectPtr.p->apiConnectstate != CS_ABORTING))
   {
