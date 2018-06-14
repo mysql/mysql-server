@@ -249,51 +249,62 @@ Dbtux::findNodeToScan(Frag& frag,
   entryKey.set_buf(c_ctx.c_entryKey, MaxAttrDataSize << 2);
   KeyDataC prefKey(index.m_keySpec, false);
   NodeHandle glbNode(frag);     // potential g.l.b of final node
-  while (true) {
-    jam();
+  while (true)
+  {
+    jamDebug();
     selectNode(c_ctx, currNode, currNode.m_loc);
     prefKey.set_buf(currNode.getPref(), prefBytes, prefAttrs);
     int ret = 0;
-    if (numAttrs > 0) {
-      if (prefAttrs > 0) {
-        jam();
+    if (likely(numAttrs > 0))
+    {
+      if (likely(prefAttrs > 0))
+      {
+        jamDebug();
         // compare node prefix - result 0 implies bound is longer
         ret = cmpSearchBound(c_ctx, searchBound, prefKey, prefAttrs);
       }
-      if (ret == 0) {
-        jam();
+      if (unlikely(ret == 0))
+      {
+        jamDebug();
         // read and compare all attributes
         readKeyAttrs(c_ctx, frag, currNode.getEnt(0), entryKey, numAttrs);
         ret = cmpSearchBound(c_ctx, searchBound, entryKey, numAttrs);
         ndbrequire(ret != 0);
       }
-    } else {
-      jam();
+    }
+    else
+    {
+      jamDebug();
       ret = (-1) * jdir;
     }
-    if (ret < 0) {
+    if (ret < 0)
+    {
       // bound is left of this node
-      jam();
+      jamDebug();
       const TupLoc loc = currNode.getLink(0);
-      if (loc != NullTupLoc) {
-        jam();
+      if (loc != NullTupLoc)
+      {
+        jamDebug();
         // continue to left subtree
         currNode.m_loc = loc;
         continue;
       }
-      if (! glbNode.isNull()) {
-        jam();
+      if (! glbNode.isNull())
+      {
+        jamDebug();
         // move up to the g.l.b
         currNode = glbNode;
       }
       break;
     }
-    if (ret > 0) {
+    if (likely(ret > 0))
+    {
       // bound is at or right of this node
-      jam();
+      jamDebug();
       const TupLoc loc = currNode.getLink(1);
-      if (loc != NullTupLoc) {
-        jam();
+      if (loc != NullTupLoc)
+      {
+        jamDebug();
         // save potential g.l.b
         glbNode = currNode;
         // continue to right subtree
@@ -325,24 +336,31 @@ Dbtux::findPosToScan(Frag& frag,
   int hi = (int)currNode.getOccup();
   KeyData entryKey(index.m_keySpec, false, 0);
   entryKey.set_buf(c_ctx.c_entryKey, MaxAttrDataSize << 2);
-  while (hi - lo > 1) {
-    jam();
+  while ((hi - lo) > 1)
+  {
+    jamDebug();
     // hi - lo > 1 implies lo < j < hi
     int j = (hi + lo) / 2;
     int ret = (-1) * jdir;
-    if (numAttrs != 0) {
+    if (likely(numAttrs != 0))
+    {
       // read and compare all attributes
       readKeyAttrs(c_ctx, frag, currNode.getEnt(j), entryKey, numAttrs);
       ret = cmpSearchBound(c_ctx, searchBound, entryKey, numAttrs);
       ndbrequire(ret != 0);
     }
-    if (ret < 0) {
-      jam();
+    if (ret < 0)
+    {
+      jamDebug();
       hi = j;
-    } else if (ret > 0) {
-      jam();
+    }
+    else if (ret > 0)
+    {
+      jamDebug();
       lo = j;
-    } else {
+    }
+    else
+    {
       // ret == 0 never
       ndbrequire(false);
     }
@@ -355,12 +373,16 @@ Dbtux::findPosToScan(Frag& frag,
  * Search for scan start position.
  */
 void
-Dbtux::searchToScan(Frag& frag, unsigned idir, const KeyBoundC& searchBound, TreePos& treePos)
+Dbtux::searchToScan(Frag& frag,
+                    unsigned idir,
+                    const KeyBoundC& searchBound,
+                    TreePos& treePos)
 {
   const TreeHead& tree = frag.m_tree;
   NodeHandle currNode(frag);
   currNode.m_loc = tree.m_root;
-  if (unlikely(currNode.m_loc == NullTupLoc)) {
+  if (unlikely(currNode.m_loc == NullTupLoc))
+  {
     // empty tree
     jam();
     return;
@@ -370,23 +392,34 @@ Dbtux::searchToScan(Frag& frag, unsigned idir, const KeyBoundC& searchBound, Tre
   Uint32 pos;
   findPosToScan(frag, idir, searchBound, currNode, &pos);
   const unsigned occup = currNode.getOccup();
-  if (idir == 0) {
-    if (pos < occup) {
-      jam();
+  if (idir == 0)
+  {
+    if (likely(pos < occup))
+    {
+      jamDebug();
       treePos.m_pos = pos;
       treePos.m_dir = 3;
-    } else {
+    }
+    else
+    {
       // start scan after node end i.e. proceed to right child
+      jamDebug();
       treePos.m_pos = Uint32(~0);
       treePos.m_dir = 5;
     }
-  } else {
-    if (pos > 0) {
-      jam();
+  }
+  else
+  {
+    if (likely(pos > 0))
+    {
+      jamDebug();
       // start scan from previous entry
       treePos.m_pos = pos - 1;
       treePos.m_dir = 3;
-    } else {
+    }
+    else
+    {
+      jamDebug();
       treePos.m_pos = Uint32(~0);
       treePos.m_dir = 0;
     }
