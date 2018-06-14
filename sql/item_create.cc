@@ -53,7 +53,7 @@
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"      // Item_func_any_value
 #include "sql/item_func.h"         // Item_func_udf_str
-#include "sql/item_geofunc.h"      // Item_func_area
+#include "sql/item_geofunc.h"      // Item_func_st_area
 #include "sql/item_inetfunc.h"     // Item_func_inet_ntoa
 #include "sql/item_json_func.h"    // Item_func_json
 #include "sql/item_regexp_func.h"  // Item_func_regexp_xxx
@@ -1506,7 +1506,7 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"SQRT", SQL_FN(Item_func_sqrt, 1)},
     {"STRCMP", SQL_FN(Item_func_strcmp, 2)},
     {"STR_TO_DATE", SQL_FN(Item_func_str_to_date, 2)},
-    {"ST_AREA", SQL_FN(Item_func_area, 1)},
+    {"ST_AREA", SQL_FN(Item_func_st_area, 1)},
     {"ST_ASBINARY", SQL_FN_V(Item_func_as_wkb, 1, 2)},
     {"ST_ASGEOJSON", SQL_FN_V_THD(Item_func_as_geojson, 1, 3)},
     {"ST_ASTEXT", SQL_FN_V(Item_func_as_wkt, 1, 2)},

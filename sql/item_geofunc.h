@@ -1637,18 +1637,13 @@ class Item_func_numpoints : public Item_int_func {
   }
 };
 
-class Item_func_area : public Item_real_func {
-  String value;
-
-  template <typename Coordsys>
-  double bg_area(const Geometry *geom);
-
+class Item_func_st_area : public Item_real_func {
  public:
-  Item_func_area(const POS &pos, Item *a) : Item_real_func(pos, a) {}
+  Item_func_st_area(const POS &pos, Item *a) : Item_real_func(pos, a) {}
   double val_real() override;
   const char *func_name() const override { return "st_area"; }
-  bool resolve_type(THD *thd) override {
-    if (Item_real_func::resolve_type(thd)) return true;
+  bool resolve_type(THD *) override {
+    // ST_Area returns NULL if the geometry is empty.
     maybe_null = true;
     return false;
   }

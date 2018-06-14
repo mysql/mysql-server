@@ -1,3 +1,55 @@
+# Top-level coverage tests for ST_AREA function.
+
+# NULL handling
+SELECT ST_AREA(NULL);
+
+# Test error forwarding from geometry parsing.
+--error ER_GIS_INVALID_DATA
+DO ST_AREA('');
+
+# Test error on unsupported types.
+--error ER_UNEXPECTED_GEOMETRY_TYPE
+DO ST_AREA(ST_GEOMFROMTEXT('POINT(0 0)'));
+--error ER_UNEXPECTED_GEOMETRY_TYPE
+DO ST_AREA(ST_GEOMFROMTEXT('MULTIPOINT(0 0)'));
+--error ER_UNEXPECTED_GEOMETRY_TYPE
+DO ST_AREA(ST_GEOMFROMTEXT('LINESTRING(0 0, 1 0)'));
+--error ER_UNEXPECTED_GEOMETRY_TYPE
+DO ST_AREA(ST_GEOMFROMTEXT('MULTILINESTRING((0 0, 1 0))'));
+--error ER_UNEXPECTED_GEOMETRY_TYPE
+DO ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'));
+
+
+# Test error due to numeric overflow.
+--error ER_DATA_OUT_OF_RANGE
+DO ST_AREA(ST_GEOMFROMTEXT('POLYGON((0 0, 0 1e308, 1e308 1e308, 0 0))'));
+
+# Excercise code on supported types.
+# Cartesian
+SELECT
+  ROUND(
+    ST_AREA(ST_GEOMFROMTEXT('POLYGON((0 0, 1 0, 1 1, 0 0))', 0)),
+    2
+  ) AS area;
+SELECT
+  ROUND(
+    ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0, 1 0, 1 1, 0 0)))', 0)),
+    2
+  ) AS area;
+# Geographic
+SELECT
+  ROUND(
+    ST_AREA(ST_GEOMFROMTEXT('POLYGON((0 0, 0 1, 1 1, 0 0))', 4326)),
+    2
+  ) AS area;
+SELECT
+  ROUND(
+    ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0, 0 1, 1 1, 0 0)))', 4326)),
+    2
+  ) AS area;
+
+# End of top-level coverage test.
+
 #########################################################################################
 #                                                                                       #
 # This test is aimed to focus on Spatial Analysis Functions.                            #
@@ -73,73 +125,6 @@ INSERT INTO gis_geometrycollection VALUES
 SELECT count(ST_ASTEXT(g) != 'NULL') FROM gis_geometrycollection;
 
 --echo #####################################################################################
---echo # ST_AREA(point)
---echo #####################################################################################
-
-SELECT ST_AREA(ST_GEOMFROMTEXT(@star_center));
-
-SELECT ST_AREA(ST_GEOMFROMTEXT(@star_top));
-
-SELECT ST_AREA(ST_GEOMFROMTEXT('POINT(2.34 -2.34)'));
-
-SELECT ST_AREA(ST_GEOMFROMTEXT('POINT(1e308 -1e308)'));
-
-SELECT ST_AREA(ST_GEOMFROMTEXT('POINT(-0.0000 0.000001)'));
-
-SELECT ST_AREA(g) FROM gis_geometrycollection WHERE fid=105;
-
---echo #####################################################################################
---echo # ST_AREA(multipoint)
---echo #####################################################################################
-
-SELECT ST_AREA(ST_GEOMFROMTEXT(@star_all_points));
-
-SELECT ST_AREA(ST_GEOMFROMTEXT(@star_bottom_points));
-
-SELECT ST_AREA(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 0,0 0,0 0)'));
-
-SELECT ST_AREA(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 5,5 5,5 0,0 0)'));
-
-SELECT ST_AREA(ST_GEOMFROMTEXT('MULTIPOINT(1 -1,1e308 -1e308,0.0001 0.000)'));
-
-SELECT ST_AREA(g) FROM gis_geometrycollection WHERE fid=108;
-
---echo #####################################################################################
---echo # ST_AREA(linestring)
---echo #####################################################################################
-
-SELECT ST_AREA(ST_GEOMFROMTEXT(@star_top_to_center));
-
-SELECT ST_AREA(ST_GEOMFROMTEXT(@star_line_horizontal));
-
-SELECT ST_AREA(ST_GEOMFROMTEXT('LINESTRING(0 0,-0.00 0,0.0 0)'));
-
-SELECT ST_AREA(ST_GEOMFROMTEXT('LINESTRING(0 0,0 5,5 5,5 0,0 0)'));
-
-SELECT ST_AREA(ST_GEOMFROMTEXT('LINESTRING(1 -1,1e308 -1e308,0.0001 0.000)'));
-
-SELECT ST_AREA(g) FROM gis_geometrycollection WHERE fid=110;
-
---echo #####################################################################################
---echo # ST_AREA(multilinestring)
---echo #####################################################################################
-
-SELECT ST_AREA(ST_GEOMFROMTEXT(@star_lines_near_vertical));
-
-SELECT ST_AREA(ST_GEOMFROMTEXT(@star_lines_near_horizontal));
-
---error ER_GIS_INVALID_DATA
-SELECT ST_AREA(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,-0.00 0),(0.0 0))'));
-
-SELECT ST_AREA(ST_GEOMFROMTEXT('MULTILINESTRING((0 0,0 5,5 5,5 0,0 0))'));
-
-SELECT ST_AREA(ST_GEOMFROMTEXT('MULTILINESTRING((0 10,10 0),(10 0,0 0),(0 0,10 10))'));
-
-SELECT ST_AREA(ST_GEOMFROMTEXT('MULTILINESTRING((1 -1,1e308 -1e308,0.0001 0.000),(2 2,4 -9.002))'));
-
-SELECT ST_AREA(g) FROM gis_geometrycollection WHERE fid=114;
-
---echo #####################################################################################
 --echo # ST_AREA(polygon)
 --echo #####################################################################################
 
@@ -194,58 +179,6 @@ SELECT ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(0 0,0 1
 SELECT ST_AREA(g) FROM gis_geometrycollection WHERE fid=103;
 
 --echo #####################################################################################
---echo # ST_AREA(geometrycollection)
---echo #####################################################################################
-
-SELECT ST_AREA(ST_GEOMFROMTEXT(@star_collection_elems));
-
-SELECT ST_AREA(ST_GEOMFROMTEXT(@star_collection_multilinestr));
-
-SELECT ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'));
-
-SELECT ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));
-
-SELECT ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))'));
-
-SELECT ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10))'));
-
-SELECT ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10)))'));
-
-SELECT ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),MULTILINESTRING((0 0,0 10,10 10,10 0, 0 0),(10 10,10 15,15 15,10 10)))'));
-
-SELECT ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(10 10),'
-                                                  'MULTIPOINT(0 0,10 10),'
-                                                  'LINESTRING(1 1,2 2,3 3),'
-                                                  'MULTILINESTRING((0 0,0 10,10 10,10 0, 0 0),(10 10,10 15,15 15,10 10)))'));
-
-SELECT ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0, 0 0)))'));
-
-SELECT ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0, 0 0)))))'));
-
-SELECT ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4, 4 4)),'
-                                                  'MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0)),((10 10,10 15,15 15,15 10,10 10))))'));
-
-SELECT ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),'
-                                                                     'MULTIPOINT(0 0,10 10)),'
-                                                  'GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),'
-                                                                     'MULTILINESTRING((0 0,0 10,10 10,10 0, 0 0),(10 10,10 15,15 15,10 10))))'));
-
-SELECT ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),'
-                                                                     'MULTIPOINT(0 0,10 10)),'
-                                                  'GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),'
-                                                                     'MULTILINESTRING((0 0,0 10,10 10,10 0, 0 0),(10 10,10 15,15 15,10 10))),'
-                                                  'GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0),(4 4,4 6,6 6,6 4, 4 4)),'
-                                                                     'MULTIPOLYGON(((0 0,0 10,10 10,10 0, 0 0)),((10 10,10 15,15 15,15 10,10 10)))))'));
-
-SELECT ST_AREA(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),'
-                                                                     'MULTIPOINT(0 0,10 10)),'
-                                                  'GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),'
-                                                                     'MULTILINESTRING((0 0,0 10,10 10,10 0, 0 0),(10 10,10 15,15 15,10 10))),'
-                                                  'GEOMETRYCOLLECTION(GEOMETRYCOLLECTION()))'));
-
-SELECT ST_AREA(g) FROM gis_geometrycollection WHERE fid=115;
-
---echo #####################################################################################
 --echo # ST_AREA(geometry) with different SRID values
 --echo #####################################################################################
 
@@ -254,8 +187,6 @@ SELECT ST_AREA(ST_GEOMFROMTEXT(@star_center,-1024));
 
 --error ER_DATA_OUT_OF_RANGE
 SELECT ST_AREA(ST_GEOMFROMTEXT(@star_all_points,-1));
-
-SELECT ST_AREA(ST_GEOMFROMTEXT(@star_top_to_center,0));
 
 --error ER_DATA_OUT_OF_RANGE
 SELECT ST_AREA(ST_GEOMFROMTEXT(@star_of_elems,4294967296));
@@ -344,43 +275,8 @@ SELECT ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,5 5,10 10)),((10 10)))'));
 --error ER_GIS_INVALID_DATA
 SELECT ST_AREA(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,5 5,10 10)),((10 10))'));
 
---error ER_GIS_DATA_WRONG_ENDIANESS
-SELECT ST_AREA(0x000000000200000000000000000000000000000000);
-
---error ER_GIS_DATA_WRONG_ENDIANESS
-SELECT ST_AREA(0x010100000001000000010100000000000000000000);
-
---error ER_GIS_DATA_WRONG_ENDIANESS
-SELECT ST_AREA(0x010100000002000000000000000000000000000000);
-
---error ER_GIS_DATA_WRONG_ENDIANESS
-SELECT ST_AREA(0x000000000600000001000000000200000002000000);
-
---error ER_GIS_DATA_WRONG_ENDIANESS
-SELECT ST_AREA(0x000000000200000001000000050000000000000000);
-
---error ER_GIS_DATA_WRONG_ENDIANESS
-SELECT ST_AREA(0x010300000002000000010300000002000000050000);
-
---error ER_GIS_DATA_WRONG_ENDIANESS
-SELECT ST_AREA(0x010400000002000000010100000000000000000000);
-
 --echo # Clean up
 DROP TABLE gis_geometrycollection;
-
---echo #
---echo # WL#8579 Spatial Reference Systems
---echo #
-
---echo # SRID 0 (should pass)
-SELECT ST_AREA(ST_GEOMFROMTEXT('POINT(0 0)', 0));
-
---echo # Projected SRS (should pass)
-SELECT ST_AREA(ST_GEOMFROMTEXT('POINT(0 0)', 2000));
-
---echo # Geographic SRS (should fail)
---error ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS
-SELECT ST_AREA(ST_GEOMFROMTEXT('POINT(0 0)', 4326));
 
 --echo #
 --echo # WL#11096 Don't do Cartesian computations on geographic geometries

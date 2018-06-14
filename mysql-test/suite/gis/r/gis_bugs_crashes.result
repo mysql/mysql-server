@@ -3,8 +3,6 @@
 ######################################################################################################
 SELECT ST_AREA(ST_GEOMFROMTEXT('POLYGON((0 0,5 5, 0 0))'));
 ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
-SELECT ST_AREA(ST_GEOMFROMTEXT('POLYGON((4 4,6 4,8 4,4 4))'));
-ERROR 22023: Invalid GIS data provided to function st_area.
 ######################################################################################################
 # BUG#18911154 : CENTROID() RETURNING ERROR MESSAGE FOR VALID GEOMETRY-COLLECTION GEOMETRY
 ######################################################################################################

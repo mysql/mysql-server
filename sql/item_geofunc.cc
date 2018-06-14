@@ -32,7 +32,6 @@
 #include <string.h>
 #include <algorithm>
 #include <boost/concept/usage.hpp>
-#include <boost/geometry/algorithms/area.hpp>
 #include <boost/geometry/algorithms/centroid.hpp>
 #include <boost/geometry/algorithms/convex_hull.hpp>
 #include <boost/geometry/algorithms/is_valid.hpp>  // IWYU pragma: keep
@@ -58,6 +57,7 @@
 #include "sql/current_thd.h"
 #include "sql/dd/types/spatial_reference_system.h"
 #include "sql/derror.h"  // ER_THD
+#include "sql/gis/area.h"
 #include "sql/gis/distance.h"
 #include "sql/gis/distance_sphere.h"
 #include "sql/gis/geometries.h"
@@ -5086,106 +5086,52 @@ String *Item_func_swap_xy::val_str(String *str) {
   return str;
 }
 
-template <typename Coordsys>
-double Item_func_area::bg_area(const Geometry *geom) {
-  double res = 0;
+double Item_func_st_area::val_real() {
+  DBUG_ASSERT(fixed);
 
-  try {
-    switch (geom->get_type()) {
-      case Geometry::wkb_point:
-      case Geometry::wkb_multipoint:
-      case Geometry::wkb_linestring:
-      case Geometry::wkb_multilinestring:
-        res = 0;
-        break;
-      case Geometry::wkb_polygon: {
-        typename BG_models<Coordsys>::Polygon plgn(
-            geom->get_data_ptr(), geom->get_data_size(), geom->get_flags(),
-            geom->get_srid());
+  String backing_unparsed_geometry;
+  String *unparsed_geometry = args[0]->val_str(&backing_unparsed_geometry);
 
-        res = boost::geometry::area(plgn);
-      } break;
-      case Geometry::wkb_multipolygon: {
-        typename BG_models<Coordsys>::Multipolygon mplgn(
-            geom->get_data_ptr(), geom->get_data_size(), geom->get_flags(),
-            geom->get_srid());
-
-        res = boost::geometry::area(mplgn);
-      } break;
-      case Geometry::wkb_geometrycollection: {
-        BG_geometry_collection bggc;
-
-        bggc.fill(geom);
-
-        for (BG_geometry_collection::Geometry_list::iterator i =
-                 bggc.get_geometries().begin();
-             i != bggc.get_geometries().end(); ++i) {
-          if ((*i)->get_geotype() != Geometry::wkb_geometrycollection &&
-              (*i)->normalize_ring_order() == NULL) {
-            my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-            null_value = true;
-            return 0;
-          }
-
-          res += bg_area<Coordsys>(*i);
-          if (null_value) return res;
-        }
-
-      } break;
-      default:
-        DBUG_ASSERT(false);
-        break;
-    }
-  } catch (...) {
-    null_value = true;
-    handle_gis_exception("st_area");
+  null_value = args[0]->null_value;
+  if (null_value) {
+    DBUG_ASSERT(maybe_null);
+    return 0.0;
   }
 
-  /*
-    Given a polygon whose rings' points are in counter-clockwise order,
-    boost geometry computes an area of negative value. Also, the inner ring
-    has to be clockwise.
+  if (!unparsed_geometry) {
+    /* purecov: begin deadcode */
+    // Item.val_str should not have returned nullptr if Item.null_value is
+    // false.
+    DBUG_ASSERT(false);
+    my_error(ER_INTERNAL_ERROR, MYF(0), func_name());
+    return error_real();
+    /* purecov: end */
+  }
 
-    We now always make polygon rings CCW --- outer ring CCW and inner rings CW,
-    thus if we get a negative value, it's because the inner ring is larger than
-    the outer ring, and we should keep it negative.
-   */
-
-  return res;
-}
-
-double Item_func_area::val_real() {
-  DBUG_ASSERT(fixed == 1);
-  double res = 0;  // In case of errors
-  String *swkb = args[0]->val_str(&value);
-  Geometry_buffer buffer;
-  Geometry *geom;
-
-  if ((null_value = (!swkb || args[0]->null_value))) return res;
-  if (!(geom = Geometry::construct(&buffer, swkb))) {
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+  const dd::Spatial_reference_system *srs;
+  std::unique_ptr<gis::Geometry> geometry;
+  if (gis::parse_geometry(current_thd, func_name(), unparsed_geometry, &srs,
+                          &geometry)) {
+    DBUG_ASSERT(current_thd->is_error());
     return error_real();
   }
-  DBUG_ASSERT(geom->get_coordsys() == Geometry::cartesian);
+  DBUG_ASSERT(geometry);
 
-  if (geom->get_geotype() != Geometry::wkb_geometrycollection &&
-      geom->normalize_ring_order() == NULL) {
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+  // This function is defined only on polygons and multipolygons for now.
+  if (geometry->type() != gis::Geometry_type::kPolygon &&
+      geometry->type() != gis::Geometry_type::kMultipolygon) {
+    my_error(ER_UNEXPECTED_GEOMETRY_TYPE, MYF(0), "POLYGON/MULTIPOLYGON",
+             gis::type_to_name(geometry->type()), func_name());
     return error_real();
   }
 
-  if (verify_cartesian_srs(geom, func_name())) return error_real();
-
-  res = bg_area<bgcs::cartesian>(geom);
-
-  // Had error in bg_area.
-  if (null_value) return error_real();
-
-  if (!std::isfinite(res)) {
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+  double result;
+  if (gis::area(srs, geometry.get(), func_name(), &result, &null_value)) {
+    DBUG_ASSERT(current_thd->is_error());
     return error_real();
   }
-  return res;
+
+  return result;
 }
 
 double Item_func_st_length::val_real() {

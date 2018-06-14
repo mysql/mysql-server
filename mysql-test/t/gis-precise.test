@@ -396,8 +396,6 @@ SELECT ST_Equals(ST_GeomFromText('polygon((0 0, 1 0, 0 1, 0 0))'), ST_GeomFromTe
 
 
 select ST_astext(ST_PolyFromWKB(ST_AsWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(1, 0), Point(0, 0))))));
---error ER_GIS_INVALID_DATA
-select ST_area(ST_PolyFromWKB(ST_AsWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(1, 0), Point(0, 0))))));
  select ST_AsText(ST_PolygonFromText('POLYGON((10 10,20 10,20 20,10 20, 10 10))'));
  select ST_area(ST_PolygonFromText('POLYGON((10 10,20 10,20 20,10 20, 10 10))'));
 
@@ -431,8 +429,6 @@ select st_astext(st_symdifference(ST_GeometryFromText('geometrycollection(polygo
 select st_astext(st_symdifference(ST_GeometryFromText('geometrycollection(polygon((0 0, 2 0, 2 1, 0 1, 0 0)))'), ST_GeometryFromText('geometrycollection(polygon((1 0, 3 0, 3 1, 1 1, 1 0)))')));
 
 select ST_astext(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(1, 0), Point(0, 0))));
---error ER_GIS_INVALID_DATA
-select ST_area(ST_PolyFromWKB(ST_AsWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(1, 0), Point(0, 0))))));
 select ST_astext(ST_envelope(ST_PolyFromWKB(ST_AsWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(1, 0), Point(0, 0)))))));
 --error ER_GIS_INVALID_DATA
 select ST_astext(ST_centroid(ST_PolyFromWKB(ST_AsWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(1, 0), Point(0, 0)))))));
@@ -1263,9 +1259,6 @@ SELECT HEX(POLYGON(LINESTRING(POINT(0,0),POINT(1,0),POINT(0,0))));
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('POINT(10 10)')));
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('LINESTRING(0 10,10 10)')));
 SELECT ST_ASTEXT(ST_ENVELOPE(ST_GEOMFROMTEXT('LINESTRING(0 0,0 10)')));
-SELECT ST_AREA(ST_ENVELOPE(ST_GEOMFROMTEXT('POINT(10 10)')));
-SELECT ST_AREA(ST_ENVELOPE(ST_GEOMFROMTEXT('LINESTRING(0 10,10 10)')));
-SELECT ST_AREA(ST_ENVELOPE(ST_GEOMFROMTEXT('LINESTRING(0 0,0 10)')));
 
 --echo #
 --echo # Bug#20196720  ENVELOPE(P) RETURNS NULL FOR A NON NULL POLYGON P

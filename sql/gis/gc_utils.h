@@ -67,7 +67,8 @@ void split_gc(const Geometrycollection *gc, std::unique_ptr<Multipoint> *mpt,
 /// down into non-overlapping collections.
 ///
 /// All input collections may contain overlapping geometries and
-/// duplicates, including the multipolygon.
+/// duplicates, including the multipolygon. This function requires that at least
+/// one of the inputs must be non-empty.
 ///
 /// May throw exceptions from BG operations.
 ///

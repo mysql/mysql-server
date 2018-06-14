@@ -379,17 +379,6 @@ SELECT COUNT(ST_ENVELOPE(g)) FROM gis_geometry;
 SELECT COUNT(DISTINCT(ST_ENVELOPE(g))) FROM gis_geometry;
 
 ############################################################################################
-# Checking the Area of the spatial objects inserted into GEOMETRY class                    #
-############################################################################################
-
---echo # Checking the Area of the spatial objects inserted into GEOMETRY class
-SELECT fid, ST_AREA(g) FROM gis_geometry;
-
-SELECT COUNT(ST_AREA(g)) FROM gis_geometry;
-
-SELECT COUNT(DISTINCT(ST_AREA(g))) FROM gis_geometry;
-
-############################################################################################
 # Checking the Centroid of the spatial objects inserted into GEOMETRY class                #
 ############################################################################################
 
@@ -436,7 +425,6 @@ BEGIN
     SELECT fid, ST_DIMENSION(g) FROM gis_geometry;
     SELECT fid, ST_ISSIMPLE(g) FROM gis_geometry;
     SELECT fid, ST_ASTEXT(ST_ENVELOPE(g)) FROM gis_geometry;
-    SELECT fid, ST_AREA(g) FROM gis_geometry;
     SELECT fid, ST_ASTEXT(ST_CENTROID(g)) FROM gis_geometry;
     SELECT fid, ST_ASTEXT(ST_CONVEXHULL(g)) FROM gis_geometry;
     SELECT fid, ST_ISEMPTY(g) FROM gis_geometry;
@@ -475,7 +463,6 @@ SELECT fid, ST_SRID(g) FROM gis_geometry_1;
 SELECT fid, ST_DIMENSION(g) FROM gis_geometry_1;
 SELECT fid, ST_ISSIMPLE(g) FROM gis_geometry_1;
 SELECT fid, ST_ASTEXT(ST_ENVELOPE(g)) FROM gis_geometry_1;
-SELECT fid, ST_AREA(g) FROM gis_geometry_1;
 SELECT fid, ST_ASTEXT(ST_CENTROID(g)) FROM gis_geometry_1;
 SELECT fid, ST_ASTEXT(ST_CONVEXHULL(g)) FROM gis_geometry_1;
 SELECT fid, ST_ISEMPTY(g) FROM gis_geometry_1;
@@ -502,7 +489,6 @@ BEGIN
     SELECT ST_DIMENSION(v);
     SELECT ST_ASTEXT(ST_ENVELOPE(v));
     SELECT ST_ISSIMPLE(v);
-    SELECT ST_AREA(v);
     SELECT ST_ASTEXT(ST_CENTROID(v));
     SELECT ST_ASTEXT(ST_CONVEXHULL(v));
     SELECT ST_ISEMPTY(v);
@@ -526,7 +512,6 @@ SELECT
     ST_SRID(tableX.g), ST_SRID(tableX.g),
     ST_DIMENSION(tableX.g), ST_DIMENSION(tableX.g),
     ST_ISSIMPLE(tableX.g), ST_ISSIMPLE(tableX.g),
-    ST_AREA(tableX.g), ST_AREA(tableX.g),
     ST_ISEMPTY(tableX.g), ST_ISEMPTY(tableX.g)
 FROM gis_geometry AS tableX, gis_geometry AS tableY
 WHERE
@@ -534,7 +519,6 @@ WHERE
     ST_SRID(tableX.g) = ST_SRID(tableY.g) AND
     ST_DIMENSION(tableX.g) = ST_DIMENSION(tableY.g) AND
     ST_ISSIMPLE(tableX.g) = ST_ISSIMPLE(tableY.g) AND
-    ST_AREA(tableX.g) = ST_AREA(tableY.g) AND
     ST_ISEMPTY(tableX.g) = ST_ISEMPTY(tableY.g);
 
 ############################################################################################
@@ -553,8 +537,6 @@ SELECT SUM(ST_DIMENSION(g)) FROM gis_geometry;
 
 SELECT SUM(ST_ISSIMPLE(g)) FROM gis_geometry;
 
-SELECT SUM(ST_AREA(g)) FROM gis_geometry;
-
 SELECT SUM(ST_ISEMPTY(g)) FROM gis_geometry;
 
 --echo # Checking the MAX function
@@ -565,8 +547,6 @@ SELECT MAX(ST_SRID(g)) FROM gis_geometry;
 SELECT MAX(ST_DIMENSION(g)) FROM gis_geometry;
 
 SELECT MAX(ST_ISSIMPLE(g)) FROM gis_geometry;
-
-SELECT MAX(ST_AREA(g)) FROM gis_geometry;
 
 SELECT MAX(ST_ISEMPTY(g)) FROM gis_geometry;
 
@@ -579,8 +559,6 @@ SELECT MIN(ST_DIMENSION(g)) FROM gis_geometry;
 
 SELECT MIN(ST_ISSIMPLE(g)) FROM gis_geometry;
 
-SELECT MIN(ST_AREA(g)) FROM gis_geometry;
-
 SELECT MIN(ST_ISEMPTY(g)) FROM gis_geometry;
 
 --echo # Checking the STD function
@@ -592,8 +570,6 @@ SELECT STD(ST_DIMENSION(g)) FROM gis_geometry;
 
 SELECT STD(ST_ISSIMPLE(g)) FROM gis_geometry;
 
-SELECT STD(ST_AREA(g)) FROM gis_geometry;
-
 SELECT STD(ST_ISEMPTY(g)) FROM gis_geometry;
 
 --echo # Checking the AVG function
@@ -604,8 +580,6 @@ SELECT AVG(ST_SRID(g)) FROM gis_geometry;
 SELECT AVG(ST_DIMENSION(g)) FROM gis_geometry;
 
 SELECT AVG(ST_ISSIMPLE(g)) FROM gis_geometry;
-
-SELECT AVG(ST_AREA(g)) FROM gis_geometry;
 
 SELECT AVG(ST_ISEMPTY(g)) FROM gis_geometry;
 
@@ -619,8 +593,6 @@ SELECT COUNT(DISTINCT(ST_DIMENSION(g))) FROM gis_geometry;
 SELECT COUNT(DISTINCT(ST_ENVELOPE(g))) FROM gis_geometry;
 
 SELECT COUNT(DISTINCT(ST_ISSIMPLE(g))) FROM gis_geometry;
-
-SELECT COUNT(DISTINCT(ST_AREA(g))) FROM gis_geometry;
 
 SELECT COUNT(DISTINCT(ST_CENTROID(g))) FROM gis_geometry;
 

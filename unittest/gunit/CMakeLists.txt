@@ -369,6 +369,7 @@ SET(SERVER_TESTS
   field
   get_diagnostics
   gis_algos
+  gis_area
   gis_geometries
   gis_is_simple
   gis_isvalid

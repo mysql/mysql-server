@@ -224,6 +224,7 @@ SET(DD_SOURCES
 
 SET(SQL_GIS_SOURCES
   geometry_rtree.cc
+  gis/area.cc
   gis/covered_by.cc
   gis/crosses.cc
   gis/difference.cc

@@ -18,9 +18,6 @@
 --error ER_GIS_INVALID_DATA
 SELECT ST_AREA(ST_GEOMFROMTEXT('POLYGON((0 0,5 5, 0 0))'));
 
---error ER_GIS_INVALID_DATA
-SELECT ST_AREA(ST_GEOMFROMTEXT('POLYGON((4 4,6 4,8 4,4 4))'));
-
 --echo ######################################################################################################
 --echo # BUG#18911154 : CENTROID() RETURNING ERROR MESSAGE FOR VALID GEOMETRY-COLLECTION GEOMETRY
 --echo ######################################################################################################
