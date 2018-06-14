@@ -47,6 +47,7 @@ use mtr_results;
 
 require "mtr_io.pl";
 
+my $done_percentage = 0;
 my $tests_completed = 0;
 my $tot_real_time   = 0;
 
@@ -161,14 +162,10 @@ sub mtr_report_test ($) {
   my $retry    = $tinfo->{'retries'} ? "retry-" : "";
   my $warnings = $tinfo->{'warnings'};
 
-  my $done_percentage = 0;
-
-  if ($::opt_test_progress) {
-    if ($tinfo->{'name'} && !$retry) {
-      $tests_completed = $tests_completed + 1;
-      $done_percentage =
-        floor(($tests_completed / $::num_tests_for_report) * 100);
-    }
+  if ($::opt_test_progress and $tinfo->{'name'} and !$retry) {
+    $tests_completed = $tests_completed + 1;
+    $done_percentage =
+      floor(($tests_completed / $::num_tests_for_report) * 100);
   }
 
   my $test_name = _mtr_report_test_name($tinfo, $done_percentage);
