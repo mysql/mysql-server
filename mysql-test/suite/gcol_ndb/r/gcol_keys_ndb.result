@@ -1013,8 +1013,8 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t`.`vc` AS `vc`,`test`.`t`.`gc` AS `gc` from `test`.`t` where (reverse(`test`.`t`.`vc`) between 'c' and 'e')
 SELECT * FROM t WHERE REVERSE(vc) BETWEEN 'c' AND 'e';
 vc	gc
-abcabc	cbacba
 abc	cba
+abcabc	cbacba
 DROP TABLE t;
 #
 DROP VIEW  IF EXISTS v1,v2;
