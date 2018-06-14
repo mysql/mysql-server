@@ -21,7 +21,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 usr/bin/memclient
 usr/sbin/memcached
-usr/lib/mysql-@MYSQL_BASE_VERSION@/ndb_engine.so
+usr/lib/*/ndb_engine.so
 usr/share/mysql-@MYSQL_BASE_VERSION@/memcache-api/*
 # legal
 usr/share/mysql-@MYSQL_BASE_VERSION@/LICENSE usr/share/doc/mysql-@DEB_PRODUCTNAME@-memcached/
