@@ -459,4 +459,43 @@ class MaterializeIterator final : public TableRowIterator {
   }
 };
 
+/**
+  Aggregates unsorted data into a temporary table, using update operations
+  to keep running aggregates. After that, works as a MaterializeIterator
+  in that it allows the temporary table to be scanned.
+ */
+class TemptableAggregateIterator final : public TableRowIterator {
+ public:
+  TemptableAggregateIterator(
+      THD *thd, unique_ptr_destroy_only<RowIterator> subquery_iterator,
+      Temp_table_param *temp_table_param, TABLE *table,
+      unique_ptr_destroy_only<RowIterator> table_iterator,
+      SELECT_LEX *select_lex, JOIN *join, int ref_slice);
+
+  bool Init() override;
+  int Read() override;
+  void SetNullRowFlag(bool is_null_row) override {
+    m_table_iterator->SetNullRowFlag(is_null_row);
+  }
+  void UnlockRow() override {}
+  std::vector<std::string> DebugString() const override;
+
+  std::vector<Child> children() const override;
+
+ private:
+  /// The iterator we are reading rows from.
+  unique_ptr_destroy_only<RowIterator> m_subquery_iterator;
+
+  /// The iterator used to scan the resulting temporary table.
+  unique_ptr_destroy_only<RowIterator> m_table_iterator;
+
+  Temp_table_param *m_tmp_table_param;
+  SELECT_LEX *m_select_lex;
+  JOIN *const m_join;
+  const int m_ref_slice;
+
+  // See MaterializeIterator::doing_hash_deduplication().
+  bool using_hash_key() const { return table()->hash_field; }
+};
+
 #endif  // SQL_COMPOSITE_ITERATORS_INCLUDED

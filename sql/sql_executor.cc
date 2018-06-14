@@ -67,6 +67,7 @@
 #include "mysqld_error.h"
 #include "sql/basic_row_iterators.h"
 #include "sql/composite_iterators.h"
+#include "sql/current_thd.h"
 #include "sql/debug_sync.h"  // DEBUG_SYNC
 #include "sql/enum_query_type.h"
 #include "sql/field.h"
@@ -595,7 +596,7 @@ bool setup_sum_funcs(THD *thd, Item_sum **func_ptr) {
   DBUG_RETURN(false);
 }
 
-static void init_tmptable_sum_functions(Item_sum **func_ptr) {
+void init_tmptable_sum_functions(Item_sum **func_ptr) {
   DBUG_ENTER("init_tmptable_sum_functions");
   Item_sum *func;
   while ((func = *(func_ptr++))) func->reset_field();
@@ -604,8 +605,8 @@ static void init_tmptable_sum_functions(Item_sum **func_ptr) {
 
 /** Update record 0 in tmp_table from record 1. */
 
-static void update_tmptable_sum_func(Item_sum **func_ptr,
-                                     TABLE *tmp_table MY_ATTRIBUTE((unused))) {
+void update_tmptable_sum_func(Item_sum **func_ptr,
+                              TABLE *tmp_table MY_ATTRIBUTE((unused))) {
   DBUG_ENTER("update_tmptable_sum_func");
   Item_sum *func;
   while ((func = *(func_ptr++))) func->update_field();
@@ -1225,6 +1226,50 @@ static Item_func_trig_cond *GetTriggerCondOrNull(Item *item) {
 }
 
 /**
+  For historical reasons, derived table materialization and temporary
+  table materialization didn't specify the fields to materialize in the
+  same way. Temporary table materialization used copy_fields() and
+  copy_funcs() (also reused for aggregation; see the comments on
+  AggregateIterator for the relation between aggregations and temporary
+  tables) to get the data into the Field pointers of the temporary table
+  to be written, storing the lists in copy_fields and items_to_copy.
+
+  However, derived table materialization used JOIN::fields (which is a
+  set of Item, not Field!) for the same purpose, calling fill_record()
+  (which originally was meant for INSERT and UPDATE) instead. Thus, we
+  have to rewrite one to the other, so that we can have only one
+  MaterializeIterator. We choose to rewrite JOIN::fields to
+  copy_fields/items_to_copy.
+
+  TODO: The optimizer should output just one kind of structure directly.
+ */
+static void ConvertItemsToCopy(List<Item> *items, Field **fields,
+                               Temp_table_param *param) {
+  DBUG_ASSERT(param->items_to_copy == nullptr);
+
+  // All fields are to be copied.
+  Func_ptr_array *copy_func =
+      new (current_thd->mem_root) Func_ptr_array(current_thd->mem_root);
+  Field **field_ptr = fields;
+  for (Item &item : *items) {
+    Item *real_item = item.real_item();
+    if (real_item->type() == Item::FIELD_ITEM) {
+      param->copy_fields.emplace_back(
+          *field_ptr, ((Item_field *)real_item)->field, /*save=*/true);
+    } else if (item.real_item()->is_result_field()) {
+      item.set_result_field(*field_ptr);
+      copy_func->push_back(Func_ptr(&item));
+    } else {
+      Func_ptr ptr(&item);
+      ptr.set_override_result_field(*field_ptr);
+      copy_func->push_back(ptr);
+    }
+    ++field_ptr;
+  }
+  param->items_to_copy = copy_func;
+}
+
+/**
   For a given slice of the table list, build up the iterator tree corresponding
   to the tables in that slice. Currently only handles inner and outer joins,
   not semijoins (“first match”).
@@ -1341,47 +1386,8 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
     unique_ptr_destroy_only<RowIterator> table_iterator;
     if (qep_tab->materialize_table == join_materialize_derived) {
       JOIN *subjoin = qep_tab->table_ref->derived_unit()->first_select()->join;
-
-      // For historical reasons, derived table materialization and temporary
-      // table materialization didn't specify the fields to materialize in the
-      // same way. Temporary table materialization used copy_fields() and
-      // copy_funcs() (also reused for aggregation; see the comments on
-      // AggregateIterator for the relation between aggregations and temporary
-      // tables) to get the data into the Field pointers of the temporary table
-      // to be written, storing the lists in copy_fields and items_to_copy.
-      //
-      // However, derived table materialization used JOIN::fields (which is a
-      // set of Item, not Field!) for the same purpose, calling fill_record()
-      // (which originally was meant for INSERT and UPDATE) instead. Thus, we
-      // have to rewrite one to the other, so that we can have only one
-      // MaterializeIterator. We choose to rewrite JOIN::fields to
-      // copy_fields/items_to_copy.
-      //
-      // TODO: The optimizer should output just one kind of structure directly.
-      Temp_table_param *param = &subjoin->tmp_table_param;
-
-      DBUG_ASSERT(param->items_to_copy == nullptr);
-
-      // All fields are to be copied.
-      Func_ptr_array *copy_func =
-          new (current_thd->mem_root) Func_ptr_array(current_thd->mem_root);
-      Field **field_ptr = qep_tab->table()->visible_field_ptr();
-      for (Item &item : *subjoin->fields) {
-        Item *real_item = item.real_item();
-        if (real_item->type() == Item::FIELD_ITEM) {
-          param->copy_fields.emplace_back(
-              *field_ptr, ((Item_field *)real_item)->field, /*save=*/true);
-        } else if (item.real_item()->is_result_field()) {
-          item.set_result_field(*field_ptr);
-          copy_func->push_back(Func_ptr(&item));
-        } else {
-          Func_ptr ptr(&item);
-          ptr.set_override_result_field(*field_ptr);
-          copy_func->push_back(ptr);
-        }
-        ++field_ptr;
-      }
-      param->items_to_copy = copy_func;
+      ConvertItemsToCopy(subjoin->fields, qep_tab->table()->visible_field_ptr(),
+                         &subjoin->tmp_table_param);
 
       bool copy_fields_and_items_in_materialize =
           !subjoin->streaming_aggregation;
@@ -1577,10 +1583,8 @@ void JOIN::create_iterators() {
         final_materializations.push_back(MaterializeOperation{
             qep_tab + 1, MaterializeOperation::AGGREGATE_THEN_MATERIALIZE});
       } else {
-        // We don't support end_update yet (used for on-the-fly grouping).
         final_materializations.push_back(MaterializeOperation{
             qep_tab + 1, MaterializeOperation::AGGREGATE_INTO_TMP_TABLE});
-        return;
       }
     }
 
@@ -1661,7 +1665,7 @@ void JOIN::create_iterators() {
     }
 
     // Attach HAVING if needed (it's put on the QEP_TAB and not on the JOIN if
-    // we have a temporary table).
+    // we have a temporary table) and we've done all aggregation.
     //
     // FIXME: If the HAVING condition is an alias (a MySQL-specific extension),
     // it could be evaluated twice; once for the condition, and again for the
@@ -1675,7 +1679,8 @@ void JOIN::create_iterators() {
     // which was obsolete for the old executor after said fix, was never
     // removed. See if we can get this fixed in the new executor as well,
     // and then remove the code that moves HAVING onto qep_tab->condition().
-    if (qep_tab->having != nullptr) {
+    if (qep_tab->having != nullptr &&
+        materialize_op.type != MaterializeOperation::AGGREGATE_INTO_TMP_TABLE) {
       iterator.reset(new (thd->mem_root)
                          FilterIterator(thd, move(iterator), qep_tab->having));
     }
@@ -1692,14 +1697,27 @@ void JOIN::create_iterators() {
     join_setup_read_record(qep_tab);
 
     qep_tab->table()->alias = "<temporary>";
-    bool copy_fields_and_items =
-        (materialize_op.type !=
-         MaterializeOperation::AGGREGATE_THEN_MATERIALIZE);
-    iterator.reset(new (thd->mem_root) MaterializeIterator(
-        thd, move(iterator), qep_tab->tmp_table_param, qep_tab->table(),
-        move(qep_tab->read_record.iterator), select_lex, this,
-        qep_tab->ref_item_slice, copy_fields_and_items,
-        /*rematerialize=*/true, qep_tab->tmp_table_param->end_write_records));
+
+    if (materialize_op.type == MaterializeOperation::AGGREGATE_INTO_TMP_TABLE) {
+      iterator.reset(new (thd->mem_root) TemptableAggregateIterator(
+          thd, move(iterator), qep_tab->tmp_table_param, qep_tab->table(),
+          move(qep_tab->read_record.iterator), select_lex, this,
+          qep_tab->ref_item_slice));
+      if (qep_tab->having != nullptr) {
+        iterator.reset(new (thd->mem_root) FilterIterator(thd, move(iterator),
+                                                          qep_tab->having));
+      }
+    } else {
+      // MATERIALIZE or AGGREGATE_THEN_MATERIALIZE.
+      bool copy_fields_and_items =
+          (materialize_op.type !=
+           MaterializeOperation::AGGREGATE_THEN_MATERIALIZE);
+      iterator.reset(new (thd->mem_root) MaterializeIterator(
+          thd, move(iterator), qep_tab->tmp_table_param, qep_tab->table(),
+          move(qep_tab->read_record.iterator), select_lex, this,
+          qep_tab->ref_item_slice, copy_fields_and_items,
+          /*rematerialize=*/true, qep_tab->tmp_table_param->end_write_records));
+    }
 
     // TODO: Pull the filtering out of filesort, so this works for
     // filesort != nullptr, too.

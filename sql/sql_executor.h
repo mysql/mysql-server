@@ -706,8 +706,10 @@ class QEP_TAB_standalone {
 };
 
 void copy_sum_funcs(Item_sum **func_ptr, Item_sum **end_ptr);
-bool init_sum_functions(Item_sum **func_ptr, Item_sum **end_ptr);
 bool set_record_buffer(const QEP_TAB *tab);
+bool init_sum_functions(Item_sum **func_ptr, Item_sum **end_ptr);
+void init_tmptable_sum_functions(Item_sum **func_ptr);
 bool update_sum_func(Item_sum **func_ptr);
+void update_tmptable_sum_func(Item_sum **func_ptr, TABLE *tmp_table);
 
 #endif /* SQL_EXECUTOR_INCLUDED */

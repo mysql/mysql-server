@@ -22,6 +22,7 @@
 
 #include "sql/composite_iterators.h"
 
+#include <string.h>
 #include <atomic>
 #include <string>
 #include <vector>
@@ -29,12 +30,15 @@
 #include "my_inttypes.h"
 #include "scope_guard.h"
 #include "sql/debug_sync.h"
+#include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/item_sum.h"
+#include "sql/key.h"
 #include "sql/opt_explain.h"
 #include "sql/opt_trace.h"
 #include "sql/pfs_batch_mode.h"
+#include "sql/sql_base.h"
 #include "sql/sql_class.h"
 #include "sql/sql_executor.h"
 #include "sql/sql_lex.h"
@@ -661,4 +665,195 @@ vector<RowIterator::Child> MaterializeIterator::children() const {
   // DebugString() instead. (Anything else would look confusingly much like a
   // join.)
   return vector<Child>{{m_subquery_iterator.get(), heading}};
+}
+
+TemptableAggregateIterator::TemptableAggregateIterator(
+    THD *thd, unique_ptr_destroy_only<RowIterator> subquery_iterator,
+    Temp_table_param *tmp_table_param, TABLE *table,
+    unique_ptr_destroy_only<RowIterator> table_iterator, SELECT_LEX *select_lex,
+    JOIN *join, int ref_slice)
+    : TableRowIterator(thd, table),
+      m_subquery_iterator(move(subquery_iterator)),
+      m_table_iterator(move(table_iterator)),
+      m_tmp_table_param(tmp_table_param),
+      m_select_lex(select_lex),
+      m_join(join),
+      m_ref_slice(ref_slice) {}
+
+bool TemptableAggregateIterator::Init() {
+  // NOTE: We never scan these tables more than once, so we don't need to
+  // check whether we have already materialized.
+
+  Opt_trace_context *const trace = &thd()->opt_trace;
+  Opt_trace_object trace_wrapper(trace);
+  Opt_trace_object trace_exec(trace, "temp_table_aggregate");
+  trace_exec.add_select_number(m_select_lex->select_number);
+  Opt_trace_array trace_steps(trace, "steps");
+
+  if (m_subquery_iterator->Init()) {
+    return true;
+  }
+
+  if (!table()->is_created()) {
+    if (instantiate_tmp_table(thd(), table())) {
+      return true;
+    }
+    empty_record(table());
+  }
+
+  // Initialize the index used for finding the groups.
+  if (table()->file->ha_index_init(0, 0)) {
+    return true;
+  }
+  auto end_unique_index =
+      create_scope_guard([&] { table()->file->ha_index_end(); });
+
+  PFSBatchMode pfs_batch_mode(&m_join->qep_tab[m_join->const_tables], m_join);
+  for (;;) {
+    int error = m_subquery_iterator->Read();
+    if (error > 0 || thd()->is_error())  // Fatal error
+      return true;
+    else if (error < 0)
+      break;
+    else if (thd()->killed)  // Aborted by user
+    {
+      thd()->send_kill_message();
+      return true;
+    }
+
+    // See comment below.
+    DBUG_ASSERT(m_tmp_table_param->grouped_expressions.size() == 0);
+
+    // Materialize items for this row. Note that groups are copied twice.
+    // (FIXME: Is this comment really still current? It seems to date back
+    // to pre-2000, but I can't see that it's really true.)
+    if (copy_fields(m_tmp_table_param, thd()))
+      return 1; /* purecov: inspected */
+
+    // See if we have seen this row already; if so, we want to update it,
+    // not insert a new one.
+    bool group_found;
+    if (using_hash_key()) {
+      /*
+        We need to call copy_funcs here in order to get correct value for
+        hash_field. However, this call isn't needed so early when hash_field
+        isn't used as it would cause unnecessary additional evaluation of
+        functions to be copied when 2nd and further records in group are
+        found.
+      */
+      if (copy_funcs(m_tmp_table_param, thd()))
+        return 1; /* purecov: inspected */
+      group_found = !check_unique_constraint(table());
+    } else {
+      for (ORDER *group = table()->group; group; group = group->next) {
+        Item *item = *group->item;
+        item->save_org_in_field(group->field_in_tmp_table);
+        /* Store in the used key if the field was 0 */
+        if (item->maybe_null)
+          group->buff[-1] = (char)group->field_in_tmp_table->is_null();
+      }
+      const uchar *key = m_tmp_table_param->group_buff;
+      group_found = !table()->file->ha_index_read_map(
+          table()->record[1], key, HA_WHOLE_KEY, HA_READ_KEY_EXACT);
+    }
+    if (group_found) {
+      // Update the existing record. (If it's unchanged, that's a
+      // nonfatal error.)
+      restore_record(table(), record[1]);
+      update_tmptable_sum_func(m_join->sum_funcs, table());
+      int error =
+          table()->file->ha_update_row(table()->record[1], table()->record[0]);
+      if (error != 0 && error != HA_ERR_RECORD_IS_THE_SAME) {
+        PrintError(error);
+        return 1;
+      }
+      continue;
+    }
+
+    // OK, we need to insert a new row; we need to materialize any items that we
+    // are doing GROUP BY on.
+
+    /*
+      Why do we advance the slice here and not before copy_fields()?
+      Because of the evaluation of *group->item above: if we do it with this tmp
+      table's slice, *group->item points to the field materializing the
+      expression, which hasn't been calculated yet. We could force the missing
+      calculation by doing copy_funcs() before evaluating *group->item; but
+      then, for a group made of N rows, we might be doing N evaluations of
+      another function when only one would suffice (like the '*' in
+      "SELECT a, a*a ... GROUP BY a": only the first/last row of the group,
+      needs to evaluate a*a).
+
+      The assertion on tmp_tbl->grouped_expressions.size() is to make sure
+      copy_fields() doesn't suffer from the late switching.
+    */
+    Switch_ref_item_slice slice_switch(m_join, m_ref_slice);
+
+    /*
+      Copy null bits from group key to table
+      We can't copy all data as the key may have different format
+      as the row data (for example as with VARCHAR keys)
+    */
+    if (!using_hash_key()) {
+      ORDER *group;
+      KEY_PART_INFO *key_part;
+      for (group = table()->group, key_part = table()->key_info[0].key_part;
+           group; group = group->next, key_part++) {
+        // Field null indicator is located one byte ahead of field value.
+        // @todo - check if this NULL byte is really necessary for grouping
+        if (key_part->null_bit)
+          memcpy(table()->record[0] + key_part->offset - 1, group->buff - 1, 1);
+      }
+      /* See comment on copy_funcs above. */
+      if (copy_funcs(m_tmp_table_param, thd())) return 1;
+    }
+    init_tmptable_sum_functions(m_join->sum_funcs);
+    error = table()->file->ha_write_row(table()->record[0]);
+    if (error != 0) {
+      if (create_ondisk_from_heap(thd(), table(), error, false, NULL)) {
+        end_unique_index.commit();
+        return 1;  // Not a table_is_full error.
+      }
+      // Table's engine changed, index is not initialized anymore
+      error = table()->file->ha_index_init(0, false);
+      if (error != 0) {
+        end_unique_index.commit();
+        PrintError(error);
+        return 1;
+      }
+    }
+  }
+
+  table()->file->ha_index_end();
+  end_unique_index.commit();
+
+  table()->materialized = true;
+
+  return m_table_iterator->Init();
+}
+
+int TemptableAggregateIterator::Read() {
+  /*
+    Enable the items which one should use if one wants to evaluate anything
+    (e.g. functions in WHERE, HAVING) involving columns of this table.
+  */
+  if (m_join != nullptr && m_ref_slice != -1) {
+    if (!m_join->ref_items[m_ref_slice].is_null()) {
+      m_join->set_ref_item_slice(m_ref_slice);
+    }
+  }
+  return m_table_iterator->Read();
+}
+
+vector<string> TemptableAggregateIterator::DebugString() const {
+  vector<string> ret = m_table_iterator->DebugString();
+  ret.push_back("Aggregate using temporary table");
+  return ret;
+}
+
+vector<RowIterator::Child> TemptableAggregateIterator::children() const {
+  // We don't list the table iterator as an explicit child; we mark it in our
+  // DebugString() instead. (Anything else would look confusingly much like a
+  // join.)
+  return vector<Child>{{m_subquery_iterator.get(), ""}};
 }

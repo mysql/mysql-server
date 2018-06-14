@@ -7145,18 +7145,24 @@ GROUP BY 1 ORDER BY 2,1 LIMIT 5	{
         "select#": 1,
         "steps": [
           {
-            "creating_tmp_table": {
-              "tmp_table_info": {
-                "table": "intermediate_tmp_table",
-                "in_plan_at_position": 1,
-                "columns": 2,
-                "row_length": 18,
-                "key_length": 9,
-                "unique_constraint": false,
-                "makes_grouped_rows": true,
-                "cannot_insert_duplicates": false,
-                "location": "TempTable"
-              }
+            "temp_table_aggregate": {
+              "select#": 1,
+              "steps": [
+                {
+                  "creating_tmp_table": {
+                    "tmp_table_info": {
+                      "in_plan_at_position": 1,
+                      "columns": 2,
+                      "row_length": 18,
+                      "key_length": 9,
+                      "unique_constraint": false,
+                      "makes_grouped_rows": true,
+                      "cannot_insert_duplicates": false,
+                      "location": "TempTable"
+                    }
+                  }
+                }
+              ]
             }
           },
           {
@@ -7164,12 +7170,10 @@ GROUP BY 1 ORDER BY 2,1 LIMIT 5	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "table": "intermediate_tmp_table",
                 "field": "count(f2)"
               },
               {
                 "direction": "asc",
-                "table": "intermediate_tmp_table",
                 "field": "f3"
               }
             ],

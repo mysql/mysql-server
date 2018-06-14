@@ -1487,26 +1487,32 @@ TRACE
             } /* creating_tmp_table */
           },
           {
-            "join_execution": {
+            "materialize": {
               "select#": 2,
               "steps": [
                 {
-                  "creating_tmp_table": {
-                    "tmp_table_info": {
-                      "table": "intermediate_tmp_table",
-                      "in_plan_at_position": 1,
-                      "columns": 2,
-                      "row_length": 22,
-                      "key_length": 5,
-                      "unique_constraint": false,
-                      "makes_grouped_rows": true,
-                      "cannot_insert_duplicates": false,
-                      "location": "TempTable"
-                    } /* tmp_table_info */
-                  } /* creating_tmp_table */
+                  "temp_table_aggregate": {
+                    "select#": 2,
+                    "steps": [
+                      {
+                        "creating_tmp_table": {
+                          "tmp_table_info": {
+                            "in_plan_at_position": 1,
+                            "columns": 2,
+                            "row_length": 22,
+                            "key_length": 5,
+                            "unique_constraint": false,
+                            "makes_grouped_rows": true,
+                            "cannot_insert_duplicates": false,
+                            "location": "TempTable"
+                          } /* tmp_table_info */
+                        } /* creating_tmp_table */
+                      }
+                    ] /* steps */
+                  } /* temp_table_aggregate */
                 }
               ] /* steps */
-            } /* join_execution */
+            } /* materialize */
           }
         ] /* steps */
       } /* join_execution */
@@ -5375,26 +5381,31 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
         "select#": 1,
         "steps": [
           {
-            "creating_tmp_table": {
-              "tmp_table_info": {
-                "table": "intermediate_tmp_table",
-                "in_plan_at_position": 2,
-                "columns": 3,
-                "row_length": 18,
-                "key_length": 4,
-                "unique_constraint": false,
-                "makes_grouped_rows": true,
-                "cannot_insert_duplicates": false,
-                "location": "TempTable"
-              } /* tmp_table_info */
-            } /* creating_tmp_table */
+            "temp_table_aggregate": {
+              "select#": 1,
+              "steps": [
+                {
+                  "creating_tmp_table": {
+                    "tmp_table_info": {
+                      "in_plan_at_position": 2,
+                      "columns": 3,
+                      "row_length": 18,
+                      "key_length": 4,
+                      "unique_constraint": false,
+                      "makes_grouped_rows": true,
+                      "cannot_insert_duplicates": false,
+                      "location": "TempTable"
+                    } /* tmp_table_info */
+                  } /* creating_tmp_table */
+                }
+              ] /* steps */
+            } /* temp_table_aggregate */
           },
           {
             "sorting_table_in_plan_at_position": 2,
             "filesort_information": [
               {
                 "direction": "asc",
-                "table": "intermediate_tmp_table",
                 "field": "col_int_key"
               }
             ] /* filesort_information */,

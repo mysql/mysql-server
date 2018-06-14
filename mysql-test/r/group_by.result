@@ -36,6 +36,15 @@ ANALYZE TABLE t1,t2;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 test.t2	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT t2.userid, MIN(t1.score) FROM t1, t2 WHERE t1.userID=t2.userID GROUP BY t2.userid;
+EXPLAIN
+-> Table scan on <temporary>
+    -> Aggregate using temporary table
+        -> Nested loop inner join
+            -> Filter: (t1.userID is not null)
+                -> Table scan on t1
+            -> Single-row index lookup on t2 using PRIMARY (userID=t1.userID)
+
 SELECT t2.userid, MIN(t1.score) FROM t1, t2 WHERE t1.userID=t2.userID GROUP BY t2.userid;
 userid	MIN(t1.score)
 1	1
