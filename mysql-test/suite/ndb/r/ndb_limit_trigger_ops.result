@@ -1,0 +1,152 @@
+create table t1(
+c1 int not null primary key,
+c2 int not null,
+c3 int not null,
+c4 int not null,
+c5 int not null,
+c6 int not null,
+c7 int not null,
+c8 int not null,
+c9 int not null,
+c10 int not null,
+c11 int not null,
+c12 int not null,
+c13 int not null,
+c14 int not null,
+c15 int not null,
+c16 int not null,
+c17 int not null,
+c18 int not null,
+c19 int not null,
+c20 int not null,
+c21 int not null,
+c22 int not null,
+c23 int not null,
+c24 int not null,
+c25 int not null,
+c26 int not null,
+c27 int not null,
+c28 int not null,
+c29 int not null,
+c30 int not null,
+c31 int not null,
+c32 int not null,
+unique key uk2(c2),
+unique key uk3(c3),
+unique key uk4(c4),
+unique key uk5(c5),
+unique key uk6(c6),
+unique key uk7(c7),
+unique key uk8(c8),
+unique key uk9(c9),
+unique key uk10(c10),
+unique key uk11(c11),
+unique key uk12(c12),
+unique key uk13(c13),
+unique key uk14(c14),
+unique key uk15(c15),
+unique key uk16(c16),
+unique key uk17(c17),
+unique key uk18(c18),
+unique key uk19(c19),
+unique key uk20(c20),
+unique key uk21(c21),
+unique key uk22(c22),
+unique key uk23(c23),
+unique key uk24(c24)
+) engine=ndbcluster;
+update t1 set c2=1000+c2, c3=1000+c3, c4=1000+c4,
+c5=1000+c5, c6=1000+c6, c7=1000+c7, c8=1000+c8,
+c9=1000+c9, c10=1000+c10, c11=1000+c11, c12=1000+c12,
+c13=1000+c13, c14=1000+c14, c15=1000+c15, c16=1000+c16,
+c17=1000+c17, c18=1000+c18, c19=1000+c19, c20=1000+c20,
+c21=1000+c21, c22=1000+c22, c23=1000+c23, c24=1000+c24,
+c25=1000+c25, c26=1000+c26, c27=1000+c27, c28=1000+c28,
+c29=1000+c29, c30=1000+c30, c31=1000+c31, c32=1000+c32;
+show warnings;
+Level	Code	Message
+update t1 set c2=1000+c2, c3=1000+c3, c4=1000+c4,
+c5=1000+c5, c6=1000+c6, c7=1000+c7, c8=1000+c8,
+c9=1000+c9, c10=1000+c10, c11=1000+c11, c12=1000+c12,
+c13=1000+c13, c14=1000+c14, c15=1000+c15, c16=1000+c16,
+c17=1000+c17, c18=1000+c18, c19=1000+c19, c20=1000+c20,
+c21=1000+c21, c22=1000+c22, c23=1000+c23, c24=1000+c24,
+c25=1000+c25, c26=1000+c26, c27=1000+c27, c28=1000+c28,
+c29=1000+c29, c30=1000+c30, c31=1000+c31, c32=1000+c32
+where c1 < 500;
+delete from t1;
+delete from t1 where c1 < 100;
+drop table t1;
+create table parent(
+c1 int not null primary key,
+c2 int not null,
+c3 int not null,
+c4 int not null,
+c5 int not null,
+unique key uk2(c2),
+unique key uk3(c3),
+unique key uk4(c4),
+unique key uk5(c5)
+) engine=ndbcluster;
+create table child(
+c1 int not null primary key,
+c2 int not null,
+c3 int not null,
+c4 int,
+c5 int,
+unique key uk2(c2),
+unique key uk3(c3),
+key k4(c4),
+key k5(c5),
+foreign key fk2(c2) references parent(c1) on update restrict on delete cascade,
+foreign key fk3(c3) references parent(c1) on update restrict on delete cascade
+) engine=ndbcluster;
+create table grandchild(
+c1 int not null primary key,
+c2 int,
+c3 int,
+c4 int,
+c5 int not null,
+unique key uk2(c2),
+unique key uk3(c3),
+key k4(c4),
+key k5(c5),
+foreign key fk2(c2) references child(c2) on update restrict on delete cascade,
+foreign key fk3(c3) references child(c3) on update restrict on delete cascade
+) engine=ndbcluster;
+set ndb_deferred_constraints = 0;
+update parent set c2=1000+c2, c3=1000+c3,
+c4=1000+c4, c5=1000+c5
+where c1 < 500;
+select * from parent where c1=1;
+c1	c2	c3	c4	c5
+1	1001	1001	1001	1001
+select * from child where c1=1;
+c1	c2	c3	c4	c5
+1	1	1	1	1
+begin;
+delete from parent;
+rollback;
+select count(*) from parent;
+count(*)
+1000
+select count(*) from child;
+count(*)
+1000
+select count(*) from grandchild;
+count(*)
+1000
+delete from parent where c1<500;
+delete from parent where c1<1001;
+select count(*) from parent;
+count(*)
+0
+select count(*) from child;
+count(*)
+0
+select count(*) from grandchild;
+count(*)
+0
+drop table grandchild;
+drop table child;
+drop table parent;
