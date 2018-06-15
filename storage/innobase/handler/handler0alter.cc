@@ -2768,6 +2768,7 @@ static void online_retry_drop_dict_indexes(dict_table_t *table, bool locked) {
     mutex_enter(&dict_sys->mutex);
   }
 
+  bool modify = false;
   dict_index_t *index = table->first_index();
 
   while ((index = index->next())) {
@@ -2777,7 +2778,18 @@ static void online_retry_drop_dict_indexes(dict_table_t *table, bool locked) {
       dict_index_remove_from_cache(table, index);
 
       index = prev;
+
+      modify = true;
     }
+  }
+
+  if (modify) {
+    /* Since the table has been modified, table->def_trx_id should be
+    adjusted like row_merge_drop_indexes(). However, this function may
+    be called before the DDL transaction starts, so it is impossible to
+    get current DDL transaction ID. Thus advancing def_trx_id by 1 to
+    simply inform other threads about this change. */
+    ++table->def_trx_id;
   }
 
   if (!locked) {
