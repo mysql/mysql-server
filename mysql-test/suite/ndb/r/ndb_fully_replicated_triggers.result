@@ -1,0 +1,15 @@
+CREATE TABLE t1 (
+a char(10) NOT NULL primary key,
+b int not null,
+unique (b)
+) comment='NDB_TABLE=FULLY_REPLICATED=1' ENGINE=ndbcluster;
+Fill tables
+update t1 set b=b+1000;
+select count(*) from t1;
+count(*)
+1000
+delete from t1;
+select count(*) from t1;
+count(*)
+0
+drop table t1;
