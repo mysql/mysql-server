@@ -1,0 +1,7 @@
+!include suite/ndb/my.cnf
+
+[cluster.config]
+
+[cluster_config.1]
+ndbd=,,,,,
+NoOfReplicas=2

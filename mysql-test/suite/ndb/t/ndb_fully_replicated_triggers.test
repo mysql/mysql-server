@@ -1,0 +1,33 @@
+### This test checks whether limiting the number of concurrent ###
+### trigger operations with fully replicated trigers           ###
+
+-- source include/have_ndb.inc
+
+## Test fully replicated triggers
+
+CREATE TABLE t1 (
+  a char(10) NOT NULL primary key,
+  b int not null,
+  unique (b)
+) comment='NDB_TABLE=FULLY_REPLICATED=1' ENGINE=ndbcluster;
+
+let $max_rows = 1000;
+
+--echo Fill tables
+--disable_query_log
+let $loops = $max_rows;
+while ($loops)
+{
+  eval insert into t1 values ($loops, $loops);
+  dec $loops;
+}
+--enable_query_log
+
+eval update t1 set b=b+$max_rows;
+select count(*) from t1;
+
+delete from t1;
+select count(*) from t1;
+
+drop table t1;
+
