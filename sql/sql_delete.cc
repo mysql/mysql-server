@@ -419,7 +419,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
       fsort.reset(new (thd->mem_root) Filesort(&qep_tab, order, HA_POS_ERROR));
       unique_ptr_destroy_only<RowIterator> sort(
           new (&info.sort_holder)
-              SortingIterator(thd, table, fsort.get(), move(info.iterator),
+              SortingIterator(thd, fsort.get(), move(info.iterator),
                               /*rows_examined=*/nullptr));
       qep_tab.keep_current_rowid = true;  // Force filesort to sort by position.
       if (sort->Init()) DBUG_RETURN(true);

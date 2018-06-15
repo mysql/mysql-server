@@ -2170,7 +2170,7 @@ static int read_system(TABLE *table) {
 
 ConstIterator::ConstIterator(THD *thd, TABLE *table, TABLE_REF *table_ref,
                              ha_rows *examined_rows)
-    : RowIterator(thd, table),
+    : TableRowIterator(thd, table),
       m_ref(table_ref),
       m_examined_rows(examined_rows) {}
 
@@ -2241,7 +2241,7 @@ static int read_const(TABLE *table, TABLE_REF *ref) {
 
 EQRefIterator::EQRefIterator(THD *thd, TABLE *table, TABLE_REF *ref,
                              bool use_order, ha_rows *examined_rows)
-    : RowIterator(thd, table),
+    : TableRowIterator(thd, table),
       m_ref(ref),
       m_use_order(use_order),
       m_examined_rows(examined_rows) {}
@@ -2374,7 +2374,7 @@ void EQRefIterator::UnlockRow() {
 PushedJoinRefIterator::PushedJoinRefIterator(THD *thd, TABLE *table,
                                              TABLE_REF *ref, bool use_order,
                                              ha_rows *examined_rows)
-    : RowIterator(thd, table),
+    : TableRowIterator(thd, table),
       m_ref(ref),
       m_use_order(use_order),
       m_examined_rows(examined_rows) {}
@@ -2439,7 +2439,7 @@ template <bool Reverse>
 RefIterator<Reverse>::RefIterator(THD *thd, TABLE *table, TABLE_REF *ref,
                                   bool use_order, QEP_TAB *qep_tab,
                                   ha_rows *examined_rows)
-    : RowIterator(thd, table),
+    : TableRowIterator(thd, table),
       m_ref(ref),
       m_use_order(use_order),
       m_qep_tab(qep_tab),
@@ -2538,7 +2538,7 @@ int RefIterator<true>::Read() {  // Reverse read.
 DynamicRangeIterator::DynamicRangeIterator(THD *thd, TABLE *table,
                                            QEP_TAB *qep_tab,
                                            ha_rows *examined_rows)
-    : RowIterator(thd, table),
+    : TableRowIterator(thd, table),
       m_qep_tab(qep_tab),
       m_examined_rows(examined_rows) {}
 
@@ -2648,8 +2648,8 @@ void join_setup_read_record(QEP_TAB *tab) {
     // sorted results out.
     unique_ptr_destroy_only<RowIterator> sort(
         new (&tab->read_record.sort_holder) SortingIterator(
-            tab->join()->thd, tab->table(), tab->filesort,
-            move(tab->read_record.iterator), &tab->join()->examined_rows));
+            tab->join()->thd, tab->filesort, move(tab->read_record.iterator),
+            &tab->join()->examined_rows));
     tab->read_record.iterator = move(sort);
   }
 }
@@ -2768,7 +2768,7 @@ bool QEP_TAB::use_order() const {
 FullTextSearchIterator::FullTextSearchIterator(THD *thd, TABLE *table,
                                                TABLE_REF *ref, bool use_order,
                                                ha_rows *examined_rows)
-    : RowIterator(thd, table),
+    : TableRowIterator(thd, table),
       m_ref(ref),
       m_use_order(use_order),
       m_examined_rows(examined_rows) {}
@@ -2807,7 +2807,7 @@ int FullTextSearchIterator::Read() {
 RefOrNullIterator::RefOrNullIterator(THD *thd, TABLE *table, TABLE_REF *ref,
                                      bool use_order, QEP_TAB *qep_tab,
                                      ha_rows *examined_rows)
-    : RowIterator(thd, table),
+    : TableRowIterator(thd, table),
       m_ref(ref),
       m_use_order(use_order),
       m_qep_tab(qep_tab),
@@ -2867,7 +2867,7 @@ AlternativeIterator::AlternativeIterator(
     THD *thd, TABLE *table, QEP_TAB *qep_tab, Item *pushed_condition,
     ha_rows *examined_rows, unique_ptr_destroy_only<RowIterator> source,
     TABLE_REF *ref)
-    : RowIterator(thd, source->table()),
+    : RowIterator(thd),
       m_ref(ref),
       m_source_iterator(std::move(source)),
       m_table_scan_iterator(thd, table, qep_tab, pushed_condition,

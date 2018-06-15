@@ -15713,7 +15713,7 @@ static int copy_data_between_tables(
     fsort.reset(new (thd->mem_root) Filesort(&qep_tab, order, HA_POS_ERROR));
     unique_ptr_destroy_only<RowIterator> sort(
         new (&info.sort_holder)
-            SortingIterator(thd, from, fsort.get(), move(info.iterator),
+            SortingIterator(thd, fsort.get(), move(info.iterator),
                             /*examined_rows=*/nullptr));
     if (sort->Init()) {
       error = 1;

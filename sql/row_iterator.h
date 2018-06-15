@@ -56,7 +56,7 @@ struct TABLE;
  */
 class RowIterator {
  public:
-  RowIterator(THD *thd, TABLE *table) : m_thd(thd), m_table(table) {}
+  RowIterator(THD *thd) : m_thd(thd) {}
   virtual ~RowIterator() {}
 
   /**
@@ -95,17 +95,32 @@ class RowIterator {
   // not _which_ rows are returned. Thus, if Read() returned a row that you did
   // not actually use, you should call UnlockRow() afterwards, which allows the
   // storage engine to release the row lock in such situations.
-  virtual void UnlockRow();
+  //
+  // TableRowIterator has a default implementation of this; other iterators
+  // should usually either forward the call to their source iterator (if any)
+  // or just ignore it. The right behavior depends on the iterator.
+  virtual void UnlockRow() = 0;
+
+ protected:
+  THD *thd() const { return m_thd; }
+
+ private:
+  THD *const m_thd;
+};
+
+class TableRowIterator : public RowIterator {
+ public:
+  TableRowIterator(THD *thd, TABLE *table) : RowIterator(thd), m_table(table) {}
+
+  void UnlockRow() override;
 
  protected:
   int HandleError(int error);
   void PrintError(int error);
   void PushDownCondition(Item *condition);
-  THD *thd() const { return m_thd; }
   TABLE *table() const { return m_table; }
 
  private:
-  THD *const m_thd;
   TABLE *const m_table;
 
   friend class AlternativeIterator;

@@ -54,7 +54,7 @@ struct TABLE;
   This is the most basic access method of a table using rnd_init,
   ha_rnd_next and rnd_end. No indexes are used.
  */
-class TableScanIterator final : public RowIterator {
+class TableScanIterator final : public TableRowIterator {
  public:
   // Accepts nullptr for qep_tab; qep_tab is used only for setting up record
   // buffers.
@@ -78,7 +78,7 @@ class TableScanIterator final : public RowIterator {
 
 /** Perform a full index scan along an index. */
 template <bool Reverse>
-class IndexScanIterator final : public RowIterator {
+class IndexScanIterator final : public TableRowIterator {
  public:
   // use_order must be set to true if you actually need to get the records
   // back in index order. It can be set to false if you wish to scan
@@ -120,7 +120,7 @@ class IndexScanIterator final : public RowIterator {
   TODO: Convert the QUICK_SELECT framework to RowIterator, so that
   we do not need this adapter.
  */
-class IndexRangeScanIterator final : public RowIterator {
+class IndexRangeScanIterator final : public TableRowIterator {
  public:
   // Does _not_ take ownership of "quick" (but maybe it should).
   //
@@ -165,7 +165,7 @@ class IndexRangeScanIterator final : public RowIterator {
   In this case the records are fetched from a memory buffer.
  */
 template <bool Packed_addon_fields>
-class SortBufferIterator final : public RowIterator {
+class SortBufferIterator final : public TableRowIterator {
  public:
   // "examined_rows", if not nullptr, is incremented for each successful Read().
   SortBufferIterator(THD *thd, TABLE *table, Filesort_info *sort,
@@ -195,7 +195,7 @@ class SortBufferIterator final : public RowIterator {
   In this case the record data is fetched from the handler using the saved
   reference using the rnd_pos handler call.
  */
-class SortBufferIndirectIterator final : public RowIterator {
+class SortBufferIndirectIterator final : public TableRowIterator {
  public:
   // Ownership here is suboptimal: Takes only partial ownership of
   // "sort_result", so it must be alive for as long as the RowIterator is.
@@ -230,7 +230,7 @@ class SortBufferIndirectIterator final : public RowIterator {
   necessarily suboptimal compared to e.g. SortBufferIndirectIterator.
  */
 template <bool Packed_addon_fields>
-class SortFileIterator final : public RowIterator {
+class SortFileIterator final : public TableRowIterator {
  public:
   // Takes ownership of tempfile.
   SortFileIterator(THD *thd, TABLE *table, IO_CACHE *tempfile,
@@ -257,7 +257,7 @@ class SortFileIterator final : public RowIterator {
   are read from file, then those record IDs are used to look up rows in the
   table.
  */
-class SortFileIndirectIterator final : public RowIterator {
+class SortFileIndirectIterator final : public TableRowIterator {
  public:
   // Takes ownership of tempfile.
   //

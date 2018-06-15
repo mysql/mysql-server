@@ -58,7 +58,7 @@ class SortingIterator final : public RowIterator {
   // times). It _does_ take ownership of "source", and is responsible for
   // calling Init() on it, but does not hold the memory.
   // "examined_rows", if not nullptr, is incremented for each successful Read().
-  SortingIterator(THD *thd, TABLE *table, Filesort *filesort,
+  SortingIterator(THD *thd, Filesort *filesort,
                   unique_ptr_destroy_only<RowIterator> source,
                   ha_rows *examined_rows);
   ~SortingIterator();
@@ -79,6 +79,8 @@ class SortingIterator final : public RowIterator {
   bool Init() override;
 
   int Read() override { return m_result_iterator->Read(); }
+
+  void UnlockRow() override { m_result_iterator->UnlockRow(); }
 
  private:
   int DoSort(QEP_TAB *qep_tab);

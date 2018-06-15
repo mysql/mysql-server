@@ -566,7 +566,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         fsort.reset(new (thd->mem_root) Filesort(&qep_tab, order, limit));
         unique_ptr_destroy_only<RowIterator> sort(
             new (&info.sort_holder)
-                SortingIterator(thd, table, fsort.get(), move(info.iterator),
+                SortingIterator(thd, fsort.get(), move(info.iterator),
                                 /*examined_rows=*/nullptr));
         if (sort->Init()) DBUG_RETURN(true);
         info.iterator = move(sort);

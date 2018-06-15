@@ -101,7 +101,7 @@ IndexScanIterator<Reverse>::IndexScanIterator(THD *thd, TABLE *table, int idx,
                                               bool use_order, QEP_TAB *qep_tab,
                                               Item *pushed_condition,
                                               ha_rows *examined_rows)
-    : RowIterator(thd, table),
+    : TableRowIterator(thd, table),
       m_record(table->record[0]),
       m_idx(idx),
       m_use_order(use_order),
@@ -272,11 +272,11 @@ bool init_read_record(READ_RECORD *info, THD *thd, TABLE *table,
   The default implementation of unlock-row method of READ_RECORD,
   used in all access methods except EQRefIterator.
 */
-void RowIterator::UnlockRow() { m_table->file->unlock_row(); }
+void TableRowIterator::UnlockRow() { m_table->file->unlock_row(); }
 
-int RowIterator::HandleError(int error) {
+int TableRowIterator::HandleError(int error) {
   if (thd()->killed) {
-    m_thd->send_kill_message();
+    thd()->send_kill_message();
     return 1;
   }
 
@@ -289,7 +289,7 @@ int RowIterator::HandleError(int error) {
   }
 }
 
-void RowIterator::PrintError(int error) {
+void TableRowIterator::PrintError(int error) {
   m_table->file->print_error(error, MYF(0));
 }
 
@@ -300,8 +300,8 @@ void RowIterator::PrintError(int error) {
   Some temporary tables do not have a TABLE_LIST object, and it is never
   needed to push down conditions (ECP) for such tables.
 */
-void RowIterator::PushDownCondition(Item *condition) {
-  if (m_thd->optimizer_switch_flag(
+void TableRowIterator::PushDownCondition(Item *condition) {
+  if (thd()->optimizer_switch_flag(
           OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN) &&
       condition && m_table->pos_in_table_list &&
       (condition->used_tables() & m_table->pos_in_table_list->map()) &&
@@ -315,7 +315,7 @@ IndexRangeScanIterator::IndexRangeScanIterator(THD *thd, TABLE *table,
                                                QEP_TAB *qep_tab,
                                                Item *pushed_condition,
                                                ha_rows *examined_rows)
-    : RowIterator(thd, table),
+    : TableRowIterator(thd, table),
       m_quick(quick),
       m_qep_tab(qep_tab),
       m_pushed_condition(pushed_condition),
@@ -360,7 +360,7 @@ int IndexRangeScanIterator::Read() {
 TableScanIterator::TableScanIterator(THD *thd, TABLE *table, QEP_TAB *qep_tab,
                                      Item *pushed_condition,
                                      ha_rows *examined_rows)
-    : RowIterator(thd, table),
+    : TableRowIterator(thd, table),
       m_record(table->record[0]),
       m_qep_tab(qep_tab),
       m_pushed_condition(pushed_condition),

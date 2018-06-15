@@ -61,7 +61,7 @@
 SortFileIndirectIterator::SortFileIndirectIterator(
     THD *thd, TABLE *table, IO_CACHE *tempfile, bool request_cache,
     bool ignore_not_found_rows, Item *pushed_condition, ha_rows *examined_rows)
-    : RowIterator(thd, table),
+    : TableRowIterator(thd, table),
       m_io_cache(tempfile),
       m_pushed_condition(pushed_condition),
       m_examined_rows(examined_rows),
@@ -253,7 +253,7 @@ SortFileIterator<Packed_addon_fields>::SortFileIterator(THD *thd, TABLE *table,
                                                         IO_CACHE *tempfile,
                                                         Filesort_info *sort,
                                                         ha_rows *examined_rows)
-    : RowIterator(thd, table),
+    : TableRowIterator(thd, table),
       m_rec_buf(sort->addon_fields->get_addon_buf()),
       m_ref_length(sort->addon_fields->get_addon_buf_length()),
       m_io_cache(tempfile),
@@ -312,7 +312,7 @@ template <bool Packed_addon_fields>
 SortBufferIterator<Packed_addon_fields>::SortBufferIterator(
     THD *thd, TABLE *table, Filesort_info *sort, Sort_result *sort_result,
     ha_rows *examined_rows)
-    : RowIterator(thd, table),
+    : TableRowIterator(thd, table),
       m_sort(sort),
       m_sort_result(sort_result),
       m_examined_rows(examined_rows) {}
@@ -365,7 +365,7 @@ int SortBufferIterator<Packed_addon_fields>::Read() {
 SortBufferIndirectIterator::SortBufferIndirectIterator(
     THD *thd, TABLE *table, Sort_result *sort_result,
     bool ignore_not_found_rows, Item *pushed_condition, ha_rows *examined_rows)
-    : RowIterator(thd, table),
+    : TableRowIterator(thd, table),
       m_sort_result(sort_result),
       m_ref_length(table->file->ref_length),
       m_pushed_condition(pushed_condition),
@@ -422,10 +422,11 @@ int SortBufferIndirectIterator::Read() {
     return HandleError(tmp);
   }
 }
-SortingIterator::SortingIterator(THD *thd, TABLE *table, Filesort *filesort,
+
+SortingIterator::SortingIterator(THD *thd, Filesort *filesort,
                                  unique_ptr_destroy_only<RowIterator> source,
                                  ha_rows *examined_rows)
-    : RowIterator(thd, table),
+    : RowIterator(thd),
       m_filesort(filesort),
       m_source_iterator(move(source)),
       m_examined_rows(examined_rows) {}

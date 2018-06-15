@@ -42,7 +42,7 @@ struct TABLE_REF;
   more matching rows from the given table, i.e., WHERE column=\<ref\>.
  */
 template <bool Reverse>
-class RefIterator final : public RowIterator {
+class RefIterator final : public TableRowIterator {
  public:
   // "examined_rows", if not nullptr, is incremented for each successful Read().
   RefIterator(THD *thd, TABLE *table, TABLE_REF *ref, bool use_order,
@@ -63,7 +63,7 @@ class RefIterator final : public RowIterator {
   Like RefIterator, but after it's returned all its rows, will also search for
   rows that match NULL, i.e., WHERE column=\<ref\> OR column IS NULL.
  */
-class RefOrNullIterator final : public RowIterator {
+class RefOrNullIterator final : public TableRowIterator {
  public:
   // "examined_rows", if not nullptr, is incremented for each successful Read().
   RefOrNullIterator(THD *thd, TABLE *table, TABLE_REF *ref, bool use_order,
@@ -86,7 +86,7 @@ class RefOrNullIterator final : public RowIterator {
   It adds extra buffering to reduce the number of calls to the storage engine in
   the case where many consecutive rows on the left side contain the same value.
  */
-class EQRefIterator final : public RowIterator {
+class EQRefIterator final : public TableRowIterator {
  public:
   // "examined_rows", if not nullptr, is incremented for each successful Read().
   EQRefIterator(THD *thd, TABLE *table, TABLE_REF *ref, bool use_order,
@@ -107,7 +107,7 @@ class EQRefIterator final : public RowIterator {
   An iterator that reads from a table where only a single row is known to be
   matching, no matter what's on the left side, i.e., WHERE column=\<const\>.
  */
-class ConstIterator final : public RowIterator {
+class ConstIterator final : public TableRowIterator {
  public:
   // "examined_rows", if not nullptr, is incremented for each successful Read().
   ConstIterator(THD *thd, TABLE *table, TABLE_REF *table_ref,
@@ -123,7 +123,7 @@ class ConstIterator final : public RowIterator {
 };
 
 /** An iterator that does a search through a full-text index. */
-class FullTextSearchIterator final : public RowIterator {
+class FullTextSearchIterator final : public TableRowIterator {
  public:
   // "examined_rows", if not nullptr, is incremented for each successful Read().
   FullTextSearchIterator(THD *thd, TABLE *table, TABLE_REF *ref, bool use_order,
@@ -152,7 +152,7 @@ class FullTextSearchIterator final : public RowIterator {
   query plan accordingly! It is not clear whether this is an actual
   win in a typical query.
  */
-class DynamicRangeIterator final : public RowIterator {
+class DynamicRangeIterator final : public TableRowIterator {
  public:
   // "examined_rows", if not nullptr, is incremented for each successful Read().
   DynamicRangeIterator(THD *thd, TABLE *table, QEP_TAB *qep_tab,
@@ -203,7 +203,7 @@ class DynamicRangeIterator final : public RowIterator {
    these situation by letting @c ha_index_read_pushed() then effectively do a
    plain old' index_read_map(..., HA_READ_KEY_EXACT);
  */
-class PushedJoinRefIterator final : public RowIterator {
+class PushedJoinRefIterator final : public TableRowIterator {
  public:
   // "examined_rows", if not nullptr, is incremented for each successful Read().
   PushedJoinRefIterator(THD *thd, TABLE *table, TABLE_REF *ref, bool use_order,
@@ -240,6 +240,8 @@ class AlternativeIterator final : public RowIterator {
   bool Init() override;
 
   int Read() override { return m_iterator->Read(); }
+
+  void UnlockRow() override { m_iterator->UnlockRow(); }
 
  private:
   // The reference value with condition guards that we are switching on.
