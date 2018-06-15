@@ -152,7 +152,9 @@ void Slave_reporting_capability::va_report(loglevel level, int err_code,
       break;
     default:
       DBUG_ASSERT(0);  // should not come here
-      return;          // don't crash production builds, just do nothing
+      // don't crash production builds, just do nothing
+      mysql_mutex_unlock(&err_lock);
+      return;
   }
   curr_buff = pbuff;
   if (prefix_msg)
