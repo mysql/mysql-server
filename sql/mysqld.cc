@@ -827,7 +827,7 @@ bool opt_using_transactions;
 ulong opt_tc_log_size;
 std::atomic<int32> connection_events_loop_aborted_flag;
 static enum_server_operational_state server_operational_state = SERVER_BOOTING;
-char *opt_log_error_filter_rules;
+char *opt_log_error_suppression_list;
 char *opt_log_error_services;
 bool opt_log_syslog_enable;
 char *opt_log_syslog_tag = NULL;
@@ -9140,6 +9140,47 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
 
   // update verbosity in filter engine, if needed
   log_builtins_filter_update_verbosity(log_error_verbosity);
+
+  // update suppression list in filter engine
+  {
+    int rr;
+    // try to set the list
+    if (((rr = log_builtins_filter_parse_suppression_list(
+              opt_log_error_suppression_list, false)) != 0) ||
+        ((rr = log_builtins_filter_parse_suppression_list(
+              opt_log_error_suppression_list, true)) != 0)) {
+      rr = -(rr + 1);
+      LogErr(ERROR_LEVEL, ER_CANT_SET_ERROR_SUPPRESSION_LIST_FROM_COMMAND_LINE,
+             "log_error_suppression_list", &opt_log_error_suppression_list[rr]);
+
+      /*
+        We were given an illegal value at start-up, so the default will be
+        used instead. We have reported the problem (and the dodgy value);
+        let's now point our variable back at the default (i.e. the value
+        actually used) so SELECT @@GLOBAL.log_error_suppression_list will
+        render correct results.
+      */
+      sys_var *var =
+          intern_find_sys_var(STRING_WITH_LEN("log_error_suppression_list"));
+      if (var != nullptr) {
+        opt_log_error_suppression_list = (char *)var->get_default();
+        /*
+          During unit-testing, the log subsystem is not initialized,
+          so while the default should always check out as a valid
+          argument, actually setting it will still fail in this
+          particular case as we cannot acquire the rule-set or its
+          lock.
+        */
+        if (log_builtins_filter_parse_suppression_list(
+                opt_log_error_suppression_list, false) == 0) {
+          log_builtins_filter_parse_suppression_list(
+              opt_log_error_suppression_list, true);
+        } else {
+          DBUG_ASSERT(false); /* purecov: inspected */
+        }
+      }
+    }
+  }
 
   if (!opt_help)
     vector<my_option>().swap(all_options);  // Deletes the vector contents.

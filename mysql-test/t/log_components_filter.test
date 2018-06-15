@@ -574,7 +574,7 @@ SET @@global.log_error_services="log_filter_dragnet; log_sink_json";
 
 # rule-set with too many rules -- this will fail with an explanatory message
 --error ER_WRONG_VALUE_FOR_VAR
-SET @@global.dragnet.log_error_filter_rules= REPEAT("IF prio>9 THEN drop. ", 65);
+SET @@global.dragnet.log_error_filter_rules= REPEAT("IF prio>9 THEN drop. ", 1025);
 SHOW WARNINGS;
 # rule-set that's too long -- this will succeed, but without a decompile
 SET @rules= CONCAT("IF ", REPEAT("x", 20000), ">9 THEN drop.");
@@ -601,7 +601,35 @@ SET @@global.dragnet.log_error_filter_rules="IF subsystem == 'Server' THEN SET s
 
 SET @@global.dragnet.log_error_filter_rules="IF subsystem != 'SERVER' THEN SET msg := 'This message is seen as the the subsystem is specified in upper case'.";
 
+SET @@global.dragnet.log_error_filter_rules=@save_filters;
+
+#
+# WL#11393: Implement an interface to suppress error logs of type warning or note
+#
+call mtr.add_suppression("\\[ERROR\\] \\[MY\\-010000\\] \\[Server\\] Errors should not be suppressed");
+
+# Log error messages with varying severities having the same error code and
+# check if they are printed when the error code is present in the suppression
+# list.
+
+SET @save_suppression_list=@@global.log_error_suppression_list;
+
+SET @@global.log_error_services='log_filter_dragnet; log_filter_internal; log_sink_internal';
+SET @@global.log_error_suppression_list='10000';
+# Log message with [System] label - not suppressed
+SET @@global.dragnet.log_error_filter_rules='IF err_code==ER_PARSER_TRACE THEN SET prio=0. IF err_code==ER_PARSER_TRACE THEN SET msg="System messages should not be suppressed".';
+# Log message as an [ERROR] - not suppressed
+SET @@global.dragnet.log_error_filter_rules='IF err_code==ER_PARSER_TRACE THEN SET prio=1. IF err_code==ER_PARSER_TRACE THEN SET msg="Errors should not be suppressed".';
+# Log message as a [Warning] - suppressed
+SET @@global.dragnet.log_error_filter_rules='IF err_code==ER_PARSER_TRACE THEN SET prio=2. IF err_code==ER_PARSER_TRACE THEN SET msg="Warnings should be suppressed".';
+# Log message as a [Note] - suppressed
+SET @@global.dragnet.log_error_filter_rules='IF err_code==ER_PARSER_TRACE THEN SET prio=3. IF err_code==ER_PARSER_TRACE THEN SET msg="Notes should be suppressed".';
+
 SET @@global.log_error_services=DEFAULT;
+
+SET @@global.dragnet.log_error_filter_rules=@save_filters;
+
+SET @@global.log_error_suppression_list=@save_suppression_list;
 
 --echo # Now we can uninstall.
 --error 0,ER_WRONG_VALUE_FOR_VAR

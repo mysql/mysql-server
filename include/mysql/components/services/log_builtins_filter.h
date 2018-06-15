@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,6 +40,7 @@ typedef enum enum_log_filter_verb {
   LOG_FILTER_THROTTLE = 2, /**< rate-limit this line class */
   LOG_FILTER_ITEM_SET = 3, /**< add field */
   LOG_FILTER_ITEM_DEL = 4, /**< remove field */
+  LOG_FILTER_RETURN = 8,   /**< stop filtering, run (next filter or) sinks */
 
   LOG_FILTER_CHAIN_AND = 4096, /**< no verb yet, part of a condition chain */
   LOG_FILTER_CHAIN_OR = 4097   /**< no verb yet, part of a condition chain */
@@ -143,7 +144,7 @@ typedef struct _log_filter_rule {
   mysql_rwlock_t rule_lock;
 } log_filter_rule;
 
-#define LOG_FILTER_RULE_MAX 64
+#define LOG_FILTER_RULE_MAX 512
 
 typedef struct _log_filter_ruleset {
   /** creator of this rule */

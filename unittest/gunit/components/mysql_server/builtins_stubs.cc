@@ -55,6 +55,10 @@ const char *mysql_errno_to_sqlstate(uint mysql_errno MY_ATTRIBUTE((unused))) {
   return NULL;
 }
 
+int mysql_errno_to_builtin(uint mysql_errno MY_ATTRIBUTE((unused))) {
+  return 0;
+}
+
 int log_vmessage(int log_type MY_ATTRIBUTE((unused)),
                  va_list lili MY_ATTRIBUTE((unused))) {
   return -1;

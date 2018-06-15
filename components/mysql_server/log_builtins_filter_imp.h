@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -181,11 +181,13 @@ int log_builtins_filter_run(log_filter_ruleset *ruleset, log_line *ll);
   This is part of the 5.7 emulation:
   If --log_error_verbosity is changed, we generate an
   artificial filter rule from it here.
-  These synthetic filter rules are only used if no other
-  filter service (including the loadable filter
-  configuration engine that extends the built-in filtering
-  engine with a configuration language that exposes all
-  the filter's features to the DBA) is loaded.
+
+  For this filtering to be active, @@global.log_error_services
+  has to feature "log_filter_internal", as it does by default.
+  When that is the case, one or both of log_error_verbosity and
+  log_error_suppression_list (see below) may be used.
+  Only one of "log_filter_internal" and "log_filter_dragnet"
+  should be used at a time.
 
   @param verbosity  log_error_verbosity style, range(1,3)
                     1:errors,   2:+=warnings,  3:+=notes
@@ -194,6 +196,46 @@ int log_builtins_filter_run(log_filter_ruleset *ruleset, log_line *ll);
   @retval           !0: failure
 */
 int log_builtins_filter_update_verbosity(int verbosity);
+
+/**
+  @@global.log_error_suppression_list accepts a comma-separated
+  list of error-codes that should not be included in the error-log.
+  Events with a severity of System or Error can not be filtered
+  in this way and will always be forwarded to the log-sinks.
+
+  This provides simple filtering for cases where the flexibility
+  of the loadable filter-language is not needed. (The same engine
+  is used however, just with a more limited interface.)
+
+  For this filtering to be active, @@global.log_error_services has
+  to feature "log_filter_internal", as it does by default. When that
+  is the case, one or both of log_error_verbosity and this variable
+  may be used. Only one of "log_filter_internal" and "log_filter_dragnet"
+  should be used at a time.
+
+  The semantics follow that of our system variables; that is to say,
+  when called with update==false, the function acts as a check-function
+  that validates the entire list given to it; when called with
+  update==true, it creates filter-rules from the list items. This way,
+  we either create all rules, or no rules, rather than ending up with
+  an incomplete rule-set when we encounter a problem in the input.
+
+  The return value encodes the location in the argument where the
+  failure occurred, like so:
+  - if 0 is returned, no issues were detected
+  - if a value less than zero is returned, -(retval + 1) is the
+    byte position (counting from 0) in the list argument at
+    which point the failure was detected
+
+  @param   list       list of error-codes that should not appear
+                      in the error-log
+  @param   update     false: verify list only
+                      true:  create filtering rules from suppression list
+
+  @retval              0: success
+  @retval             !0: failure (see above)
+*/
+int log_builtins_filter_parse_suppression_list(char *list, bool update);
 
 #endif /* MYSQL_SERVER */
 

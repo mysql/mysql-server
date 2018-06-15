@@ -1,0 +1,181 @@
+SELECT @@global.log_error_suppression_list INTO @old_sl;
+# empty list: allowed
+SET @@global.log_error_suppression_list="";
+# NULL: forbidden
+SET @@global.log_error_suppression_list=NULL;
+ERROR 42000: Variable 'log_error_suppression_list' can't be set to the value of 'NULL'
+# client-range: forbidden
+SET @@global.log_error_suppression_list="1234";
+ERROR 42000: Variable 'log_error_suppression_list' can't be set to the value of '1234'
+SET @@global.log_error_suppression_list=DEFAULT;
+SELECT @@global.log_error_suppression_list;
+@@global.log_error_suppression_list
+
+# various legal values
+SET @@global.log_error_suppression_list="10000";
+SET @@global.log_error_suppression_list="MY-10000";
+SET @@global.log_error_suppression_list="MY-010000";
+# list of legal values
+SET @@global.log_error_suppression_list="10000,10001,MY-10002";
+# lists containing illegal values. warning should flag first problem.
+SET @@global.log_error_suppression_list="-10000,10001,MY-10002";
+ERROR 42000: Variable 'log_error_suppression_list' can't be set to the value of '-10000,10001,MY-10002'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3735	log_error_suppression_list: Could not add suppression rule for code "-10000,10001,MY-10002". Rule-set may be full, or code may not correspond to an error-log message.
+Error	1231	Variable 'log_error_suppression_list' can't be set to the value of '-10000,10001,MY-10002'
+SET @@global.log_error_suppression_list="10000,-10001,MY-10002";
+ERROR 42000: Variable 'log_error_suppression_list' can't be set to the value of '10000,-10001,MY-10002'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3735	log_error_suppression_list: Could not add suppression rule for code "-10001,MY-10002". Rule-set may be full, or code may not correspond to an error-log message.
+Error	1231	Variable 'log_error_suppression_list' can't be set to the value of '10000,-10001,MY-10002'
+SET @@global.log_error_suppression_list="10000,10001,-MY-10002";
+ERROR 42000: Variable 'log_error_suppression_list' can't be set to the value of '10000,10001,-MY-10002'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3735	log_error_suppression_list: Could not add suppression rule for code "-MY-10002". Rule-set may be full, or code may not correspond to an error-log message.
+Error	1231	Variable 'log_error_suppression_list' can't be set to the value of '10000,10001,-MY-10002'
+SET @@global.log_error_suppression_list=",10000,10001,MY-10002";
+ERROR 42000: Variable 'log_error_suppression_list' can't be set to the value of ',10000,10001,MY-10002'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3735	log_error_suppression_list: Could not add suppression rule for code ",10000,10001,MY-10002". Rule-set may be full, or code may not correspond to an error-log message.
+Error	1231	Variable 'log_error_suppression_list' can't be set to the value of ',10000,10001,MY-10002'
+SET @@global.log_error_suppression_list="10000,,10001,MY-10002";
+ERROR 42000: Variable 'log_error_suppression_list' can't be set to the value of '10000,,10001,MY-10002'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3735	log_error_suppression_list: Could not add suppression rule for code ",10001,MY-10002". Rule-set may be full, or code may not correspond to an error-log message.
+Error	1231	Variable 'log_error_suppression_list' can't be set to the value of '10000,,10001,MY-10002'
+SET @@global.log_error_suppression_list="10000,10001,MY-10002,";
+ERROR 42000: Variable 'log_error_suppression_list' can't be set to the value of '10000,10001,MY-10002,'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3735	log_error_suppression_list: Could not add suppression rule for code "". Rule-set may be full, or code may not correspond to an error-log message.
+Error	1231	Variable 'log_error_suppression_list' can't be set to the value of '10000,10001,MY-10002,'
+SET @@global.log_error_suppression_list=",";
+ERROR 42000: Variable 'log_error_suppression_list' can't be set to the value of ','
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3735	log_error_suppression_list: Could not add suppression rule for code ",". Rule-set may be full, or code may not correspond to an error-log message.
+Error	1231	Variable 'log_error_suppression_list' can't be set to the value of ','
+SET @@global.log_error_suppression_list="10000 10001";
+ERROR 42000: Variable 'log_error_suppression_list' can't be set to the value of '10000 10001'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3735	log_error_suppression_list: Could not add suppression rule for code "10001". Rule-set may be full, or code may not correspond to an error-log message.
+Error	1231	Variable 'log_error_suppression_list' can't be set to the value of '10000 10001'
+SET @@global.log_error_suppression_list= CONCAT(REPEAT("10000,", 2), "11111");
+SET @@global.log_error_suppression_list= CONCAT(REPEAT("ER_PARSER_TRACE,",508),"ER_PARSER_TRACE");
+SET @@global.log_error_suppression_list= CONCAT(REPEAT("ER_PARSER_TRACE,",509),"ER_PARSER_TRACE");
+ERROR 42000: Variable 'log_error_suppression_list' can't be set to the value of 'ER_PARSER_TRACE,ER_PARSER_TRACE,ER_PARSER_TRACE,ER_PARSER_TRACE,ER_PARSER_TRACE,ER_PARSER_TRACE,ER_PARSER_TRACE,ER_PARSER_TRACE,ER_PARSER_TRACE,ER_PARSER_TRACE,ER_PARSER_TRACE,ER_PARSER_TRACE,ER_PARSE'
+SET @@global.log_error_suppression_list= CONCAT(REPEAT("10000,", 508), "11111");
+SET @@global.log_error_suppression_list= CONCAT(REPEAT("10000,", 509), "11111");
+ERROR 42000: Variable 'log_error_suppression_list' can't be set to the value of '10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10000,10'
+SET @@global.log_error_suppression_list='10000.123';
+ERROR 42000: Variable 'log_error_suppression_list' can't be set to the value of '10000.123'
+SET @@global.log_error_suppression_list='MY-10000#$%';
+ERROR 42000: Variable 'log_error_suppression_list' can't be set to the value of 'MY-10000#$%'
+SET @@global.log_error_suppression_list='31';
+SET @@global.log_error_suppression_list='MY-31';
+SET @@global.log_error_suppression_list='999';
+ERROR 42000: Variable 'log_error_suppression_list' can't be set to the value of '999'
+SET @@global.log_error_suppression_list='MY-999';
+ERROR 42000: Variable 'log_error_suppression_list' can't be set to the value of 'MY-999'
+SET @save_log_services=@@global.log_error_services;
+SET GLOBAL log_error_services="log_sink_internal";
+SET @@global.log_error_suppression_list='25000';
+ERROR 42000: Variable 'log_error_suppression_list' can't be set to the value of '25000'
+SET GLOBAL log_error_services=@save_log_services;
+SET SESSION log_error_suppression_list='10000';
+ERROR HY000: Variable 'log_error_suppression_list' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@log_error_suppression_list;
+@@log_error_suppression_list
+MY-31
+SET @@log_error_suppression_list='10000';
+ERROR HY000: Variable 'log_error_suppression_list' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@log_error_suppression_list;
+@@log_error_suppression_list
+MY-31
+SET GLOBAL log_error_suppression_list="10000,10001,10002";
+SHOW VARIABLES LIKE 'log%suppress%';
+Variable_name	Value
+log_error_suppression_list	10000,10001,10002
+SELECT * FROM performance_schema.global_variables
+WHERE VARIABLE_NAME = 'log_error_suppression_list';
+VARIABLE_NAME	VARIABLE_VALUE
+log_error_suppression_list	10000,10001,10002
+SELECT * FROM performance_schema.variables_info
+WHERE VARIABLE_NAME = 'log_error_suppression_list';
+VARIABLE_NAME	VARIABLE_SOURCE	VARIABLE_PATH	MIN_VALUE	MAX_VALUE	SET_TIME	SET_USER	SET_HOST
+log_error_suppression_list	DYNAMIC		0	0	#	root	localhost
+SET GLOBAL log_error_suppression_list=10000;
+ERROR 42000: Incorrect argument type to variable 'log_error_suppression_list'
+SELECT @@global.log_error_suppression_list;
+@@global.log_error_suppression_list
+10000,10001,10002
+SET GLOBAL log_error_suppression_list=ER_PARSER_TRACE;
+SELECT @@global.log_error_suppression_list;
+@@global.log_error_suppression_list
+ER_PARSER_TRACE
+SET GLOBAL log_error_suppression_list=ER_PARSER_TRACE,ER_SERVER_SHUTDOWN_INFO;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+SELECT @@global.log_error_suppression_list;
+@@global.log_error_suppression_list
+ER_PARSER_TRACE
+SET GLOBAL log_error_suppression_list=`10000,10001,10002`;
+SELECT @@global.log_error_suppression_list;
+@@global.log_error_suppression_list
+10000,10001,10002
+SET GLOBAL log_error_suppression_list='ER_PARSER_TRACE, ER_SERVER_TEST_MESSAGE';
+SELECT @@global.log_error_suppression_list;
+@@global.log_error_suppression_list
+ER_PARSER_TRACE, ER_SERVER_TEST_MESSAGE
+SET GLOBAL log_error_suppression_list=" ER_PARSER_TRACE  ,  10001  ,  ER_SERVER_TEST_MESSAGE ";
+SELECT @@global.log_error_suppression_list;
+@@global.log_error_suppression_list
+ ER_PARSER_TRACE  ,  10001  ,  ER_SERVER_TEST_MESSAGE 
+SET GLOBAL log_error_suppression_list=12345.124;
+ERROR 42000: Incorrect argument type to variable 'log_error_suppression_list'
+SET GLOBAL log_error_suppression_list='12345.124';
+ERROR 42000: Variable 'log_error_suppression_list' can't be set to the value of '12345.124'
+SET GLOBAL log_error_suppression_list='12345e5';
+ERROR 42000: Variable 'log_error_suppression_list' can't be set to the value of '12345e5'
+SET GLOBAL log_error_suppression_list=abcd;
+ERROR 42000: Variable 'log_error_suppression_list' can't be set to the value of 'abcd'
+SET GLOBAL log_error_suppression_list='abcd';
+ERROR 42000: Variable 'log_error_suppression_list' can't be set to the value of 'abcd'
+SET GLOBAL log_error_suppression_list=',';
+ERROR 42000: Variable 'log_error_suppression_list' can't be set to the value of ','
+SET GLOBAL log_error_suppression_list=',10000,';
+ERROR 42000: Variable 'log_error_suppression_list' can't be set to the value of ',10000,'
+SET GLOBAL log_error_suppression_list='10000,';
+ERROR 42000: Variable 'log_error_suppression_list' can't be set to the value of '10000,'
+SET GLOBAL log_error_suppression_list=',10000';
+ERROR 42000: Variable 'log_error_suppression_list' can't be set to the value of ',10000'
+SET GLOBAL log_error_suppression_list='10000,,10001';
+ERROR 42000: Variable 'log_error_suppression_list' can't be set to the value of '10000,,10001'
+SET GLOBAL log_error_suppression_list="'10000'";
+ERROR 42000: Variable 'log_error_suppression_list' can't be set to the value of ''10000''
+SET GLOBAL log_error_suppression_list=CONCAT("'",CONCAT('10000',"'"));
+ERROR 42000: Variable 'log_error_suppression_list' can't be set to the value of ''10000''
+SET GLOBAL log_error_suppression_list='0000000000000010000';
+SELECT @@global.log_error_suppression_list;
+@@global.log_error_suppression_list
+0000000000000010000
+SET GLOBAL log_error_suppression_list='MY-010000';
+SELECT @@global.log_error_suppression_list;
+@@global.log_error_suppression_list
+MY-010000
+SET GLOBAL log_error_suppression_list='MY-000010000';
+SELECT @@global.log_error_suppression_list;
+@@global.log_error_suppression_list
+MY-000010000
+SET GLOBAL log_error_suppression_list='MY-010000';
+SELECT @@global.log_error_suppression_list;
+@@global.log_error_suppression_list
+MY-010000
+SET GLOBAL log_error_suppression_list="MY-0100000";
+ERROR 42000: Variable 'log_error_suppression_list' can't be set to the value of 'MY-0100000'
+SET @@global.log_error_suppression_list=@old_sl;

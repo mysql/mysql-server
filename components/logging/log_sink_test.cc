@@ -898,6 +898,14 @@ DEFINE_METHOD(int, log_service_imp::run,
 
     test_rules = log_fd->filter_debug_ruleset_get();
 
+    bool pause_return = false;
+    if ((test_rules->count > 0) &&
+        (test_rules->rule[0].verb == LOG_FILTER_RETURN) &&
+        !(test_rules->rule[0].flags & LOG_FILTER_FLAG_DISABLED)) {
+      pause_return = true;
+      test_rules->rule[0].flags |= LOG_FILTER_FLAG_DISABLED;
+    }
+
     // log a message from this here external service
     banner();
 
@@ -924,6 +932,7 @@ DEFINE_METHOD(int, log_service_imp::run,
     failed = true;
 
     // Do not release the rule-set here, as it's not ours.
+    if (pause_return) test_rules->rule[0].flags &= ~LOG_FILTER_FLAG_DISABLED;
     test_rules = nullptr;
   }
 

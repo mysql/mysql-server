@@ -252,6 +252,7 @@ static const log_filter_xlate_key log_filter_xlate_keys[] = {
      C_STRING_WITH_LEN("set")},
     {LOG_FILTER_ITEM_DEL, LOG_FILTER_XLATE_VERB | LOG_FILTER_XLATE_AUXNAME,
      C_STRING_WITH_LEN("unset")},
+    {LOG_FILTER_RETURN, LOG_FILTER_XLATE_VERB, C_STRING_WITH_LEN("return")},
 
     {LOG_FILTER_CHAIN_AND, LOG_FILTER_XLATE_CHAIN, C_STRING_WITH_LEN("AND")},
     {LOG_FILTER_CHAIN_OR, LOG_FILTER_XLATE_CHAIN, C_STRING_WITH_LEN("OR")}};
@@ -795,10 +796,7 @@ static set_arg_result log_filter_set_arg(const char **token, const size_t *len,
 
     if (sym == nullptr) return SET_ARG_OOM; /* purecov: inspected */
 
-    if (is_symbol)
-      errcode = log_bi->errcode_by_errsymbol(sym);
-    else
-      errcode = atoll(&sym[3]);
+    errcode = log_bi->errcode_by_errsymbol(sym);
 
     log_bs->free(sym);
 

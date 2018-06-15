@@ -75,6 +75,35 @@ SELECT @@global.dragnet.log_error_filter_rules;
 @@global.dragnet.log_error_filter_rules
 IF prio>=INFORMATION THEN drop. IF EXISTS source_line THEN unset source_line.
 UNINSTALL COMPONENT "file://component_log_filter_dragnet";
+# restart: --no-console --log-error=LOG_FILE16 --log-error-suppression-list=ER_ACCESS_DENIED_ERROR_WITH_PASSWORD 
+SELECT @@global.log_error_suppression_list;
+@@global.log_error_suppression_list
+ER_ACCESS_DENIED_ERROR_WITH_PASSWORD
+SET @saved_log_error_verbosity= @@global.log_error_verbosity;
+SET GLOBAL log_error_verbosity= 3;
+connect(localhost,unknown_user_filtered,,,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'unknown_user_filtered'@'localhost' (using password: NO)
+SET @@global.log_error_suppression_list="";
+SELECT @@global.log_error_suppression_list;
+@@global.log_error_suppression_list
+
+connect(localhost,unknown_user_unfiltered,,,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'unknown_user_unfiltered'@'localhost' (using password: NO)
+SET GLOBAL log_error_verbosity= @saved_log_error_verbosity;
+SET @@global.log_error_suppression_list=DEFAULT;
+SET PERSIST log_error_suppression_list= "MY-10000";
+# restart: --no-console --log-error=LOG_FILE17 
+SELECT @@global.log_error_suppression_list;
+@@global.log_error_suppression_list
+MY-10000
+RESET PERSIST `log_error_suppression_list`;
+SET GLOBAL log_error_suppression_list= DEFAULT;
+SET GLOBAL log_error_services= DEFAULT;
+# restart: --no-console --log-error=LOG_FILE18 --log_error_suppression_list=invalid
+SELECT @@global.log_error_suppression_list;
+@@global.log_error_suppression_list
+
+Pattern "log_error_suppression_list: Could not add suppression rule for code .invalid." found
 
 Reading error logs for validation
 ---------------------------------
@@ -89,3 +118,5 @@ Reading error logs for validation
 [ PASS ] Error log successfully parsed as a json document
 [ PASS ] Expected entry found in the json error log:-Access denied for user 'unknown_user'@'localhost' (using password: NO)
 [ PASS ] Error log messages throttled at three for 'Access denied' messages
+[ PASS ] 'Access denied' messages filtered as per suppression list
+[ PASS ] 'Access denied' messages not filtered, as per suppression list.

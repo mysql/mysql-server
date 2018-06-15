@@ -458,6 +458,14 @@ The following options may be given as the first argument:
  --log-error-services=name 
  Services that should be called when an error event is
  received
+ --log-error-suppression-list=name 
+ Comma-separated list of error-codes. Error messages
+ corresponding to these codes will not be included in the
+ error log. Only events with a severity of Warning or
+ Information can be suppressed; events with System or
+ Error severity will always be included. Requires the
+ filter 'log_filter_internal' to be set in
+ @@global.log_error_services, which is the default.
  --log-error-verbosity=# 
  How detailed the error log should be. 1, log errors only.
  2, log errors and warnings. 3, log errors, warnings, and
@@ -1434,6 +1442,7 @@ log-bin-trust-function-creators FALSE
 log-bin-use-v1-row-events FALSE
 log-error stderr
 log-error-services log_filter_internal; log_sink_internal
+log-error-suppression-list 
 log-error-verbosity 2
 log-isam myisam.log
 log-output FILE

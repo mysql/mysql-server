@@ -103,6 +103,7 @@ C_MODE_END
 
 const char *mysql_errno_to_symbol(int mysql_errno);
 int mysql_symbol_to_errno(const char *error_symbol);
+int mysql_errno_to_builtin(uint mysql_errno);
 
 int errmsgs_reload(THD *thd);
 

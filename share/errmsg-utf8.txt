@@ -8528,6 +8528,9 @@ ER_FK_CANNOT_USE_VIRTUAL_COLUMN
 ER_FK_NO_COLUMN_PARENT
   eng "Failed to add the foreign key constraint. Missing column '%s' for constraint '%s' in the referenced table '%s'"
 
+ER_CANT_SET_ERROR_SUPPRESSION_LIST
+  eng "%s: Could not add suppression rule for code \"%s\". Rule-set may be full, or code may not correspond to an error-log message."
+
 #
 #  End of 8.0 error messages.
 #
@@ -18157,6 +18160,9 @@ ER_IB_MSG_1283
 
 ER_IB_MSG_1284
   eng "%s"
+
+ER_CANT_SET_ERROR_SUPPRESSION_LIST_FROM_COMMAND_LINE
+  eng "%s: Could not add suppression rule for code \"%s\". Rule-set may be full, or code may not correspond to an error-log message."
 
 #
 # End of 8.0 Server error messages.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -78,6 +78,8 @@
 #include "log_builtins_filter_imp.h"
 #include "log_builtins_imp.h"
 #include "my_atomic.h"
+#include "mysys_err.h"  // EE_ERROR_LAST for globerrs
+#include "sql/derror.h"
 #include "sql/log.h"
 // for the default rules
 #include "sql/mysqld.h"
@@ -133,6 +135,9 @@ static log_filter_rule *log_builtins_filter_rule_init(
 
 /**
   Release all resources associated with a filter rule.
+  Leaves a "gap" (an uninitialized rule) for immediate re-filling;
+  if this is undesired, use log_builtins_filter_rule_remove() (see there).
+  Must hold rule-set lock.
 
   @param  ri  the rule to release
 
@@ -147,6 +152,33 @@ static int log_builtins_filter_rule_free(log_filter_rule *ri) {
   log_item_free(&(ri->aux));
 
   return mysql_rwlock_destroy(&(ri->rule_lock));
+}
+
+/**
+  Release filter rule (key/value pair) with the index "elem" in "ruleset".
+  This frees whichever of key and value were dynamically allocated.
+  This moves any trailing items to fill the "gap" and decreases the counter
+  of elements in the rule-set.  If the intention is to leave a "gap" in the
+  bag that may immediately be overwritten with an updated element, use
+  log_builtins_filter_rule_free() instead!
+  Must hold rule-set lock.
+
+  @param         ruleset   filter rule-set
+  @param         elem      index of the filter rule to release
+*/
+static void log_builtins_filter_rule_remove(log_filter_ruleset *ruleset,
+                                            int elem) {
+  size_t rn;
+
+  DBUG_ASSERT(ruleset->count > 0);
+
+  log_builtins_filter_rule_free(&ruleset->rule[elem]);
+
+  for (rn = elem; rn < (ruleset->count - 1); rn++) {
+    ruleset->rule[rn] = ruleset->rule[rn + 1];
+  }
+
+  ruleset->count--;
 }
 
 /**
@@ -261,6 +293,16 @@ static void log_builtins_filter_set_defaults(log_filter_ruleset *ruleset) {
 
   DBUG_ASSERT(!log_filter_ruleset_full(ruleset));
 
+  // failsafe: simple built-in filter may not drop "System" or "Error" messages
+  r = log_builtins_filter_rule_init(ruleset);
+  log_item_set_with_key(&r->match, LOG_ITEM_LOG_PRIO, nullptr,
+                        LOG_ITEM_FREE_NONE)
+      ->data_integer = WARNING_LEVEL;
+  r->cond = LOG_FILTER_COND_LT;
+  r->verb = LOG_FILTER_RETURN;
+
+  ruleset->count++;
+
   // sys_var: log_error_verbosity
   r = log_builtins_filter_rule_init(ruleset);
   log_item_set_with_key(&r->match, LOG_ITEM_LOG_PRIO, nullptr,
@@ -347,6 +389,9 @@ int log_builtins_filter_init() {
 static log_filter_apply log_filter_try_apply(log_line *ll, int ln,
                                              log_filter_rule *r) {
   switch (r->verb) {
+    case LOG_FILTER_RETURN:
+      break;
+
     case LOG_FILTER_DROP:
       log_line_item_free_all(ll);
       break;
@@ -681,13 +726,17 @@ int log_builtins_filter_run(log_filter_ruleset *ruleset, log_line *ll) {
       continue;
 
   apply_action:
-    log_filter_try_apply(ll, ln, r);
-    processed++;
+    if (log_filter_try_apply(ll, ln, r) == LOG_FILTER_APPLY_SUCCESS) {
+      processed++;
+
+      if (r->verb == LOG_FILTER_RETURN) goto done;
+    }
 
     if (r->jump != 0)  // we're at the end of a block; jump to ENDIF
       rn += r->jump - 1;
   }
 
+done:
   mysql_rwlock_unlock(&ruleset->ruleset_lock);
 
   return processed;
@@ -697,11 +746,13 @@ int log_builtins_filter_run(log_filter_ruleset *ruleset, log_line *ll) {
   This is part of the 5.7 emulation:
   If --log_error_verbosity is changed, we generate an
   artificial filter rule from it here.
-  These synthetic filter rules are only used if no other
-  filter service (including the loadable filter
-  configuration engine that extends the built-in filtering
-  engine with a configuration language that exposes all
-  the filter's features to the DBA) is loaded.
+
+  For this filtering to be active, @@global.log_error_services
+  has to feature "log_filter_internal", as it does by default.
+  When that is the case, one or both of log_error_verbosity and
+  log_error_suppression_list (see below) may be used.
+  Only one of "log_filter_internal" and "log_filter_dragnet"
+  should be used at a time.
 
   @param verbosity  log_error_verbosity style, range(1,3)
                     1:errors,   2:+=warnings,  3:+=notes
@@ -758,6 +809,173 @@ int log_builtins_filter_update_verbosity(int verbosity) {
 
 done:
   log_builtins_filter_ruleset_unlock(log_filter_builtin_rules);
+
+  return rr;
+}
+
+/**
+  @@global.log_error_suppression_list accepts a comma-separated
+  list of error-codes that should not be included in the error-log.
+  Events with a severity of System or Error can not be filtered
+  in this way and will always be forwarded to the log-sinks.
+
+  This provides simple filtering for cases where the flexibility
+  of the loadable filter-language is not needed. (The same engine
+  is used however, just with a more limited interface.)
+
+  For this filtering to be active, @@global.log_error_services has
+  to feature "log_filter_internal", as it does by default. When that
+  is the case, one or both of log_error_verbosity and this variable
+  may be used. Only one of "log_filter_internal" and "log_filter_dragnet"
+  should be used at a time.
+
+  The semantics follow that of our system variables; that is to say,
+  when called with update==false, the function acts as a check-function
+  that validates the entire list given to it; when called with
+  update==true, it creates filter-rules from the list items. This way,
+  we either create all rules, or no rules, rather than ending up with
+  an incomplete rule-set when we encounter a problem in the input.
+
+  The return value encodes the location in the argument where the
+  failure occurred, like so:
+  - if 0 is returned, no issues were detected
+  - if a value less than zero is returned, -(retval + 1) is the
+    byte position (counting from 0) in the list argument at
+    which point the failure was detected
+
+  @param   list       list of error-codes that should not appear
+                      in the error-log
+  @param   update     false: verify list only
+                      true:  create filtering rules from suppression list
+
+  @retval              0: success
+  @retval             !0: failure (see above)
+*/
+int log_builtins_filter_parse_suppression_list(char *list, bool update) {
+  char symbol[80];      // error to suppress ("1234" or "MY-001234")
+  char *start = list;   // start of token
+  char *end = nullptr;  // end of token
+  size_t len;           // length of token
+  int errcode;          // error-code of token
+  int commas = -1;      // reject two separators in a row
+  int rr = 0;           // return value
+  size_t rn;            // rule number
+  log_filter_rule *r;   // rule
+  uint list_len = 0;    // number of error-codes in input
+
+  // in update-mode, discard old suppress rules for filter rule-set
+  if (update) {
+    // lock rule-set
+    if (log_builtins_filter_ruleset_lock(log_filter_builtin_rules,
+                                         LOG_BUILTINS_LOCK_EXCLUSIVE) < 0)
+      return -1;  // bail directly (without trying to unlock)
+
+    for (rn = 0; (rn < log_filter_builtin_rules->count);) {
+      r = &log_filter_builtin_rules->rule[rn];
+
+      if ((r->match.type == LOG_ITEM_SQL_ERRCODE) &&
+          (r->verb == LOG_FILTER_DROP) &&
+          (r->cond == LOG_FILTER_COND_EQ))  // match "drop by errcode"
+        log_builtins_filter_rule_remove(log_filter_builtin_rules, rn);
+      else
+        rn++;
+    }
+  }
+
+  if (list == nullptr) goto success;
+
+  while (true) {
+    // find start of token
+    while ((*start != '\0') && (isspace(*start) || (*start == ','))) {
+      if (*start == ',') {
+        /*
+          commas at this point:
+          -1  We're looking for the first element. No comma allowed yet!
+           0  We're looking for element 2+, no comma yet, one is allowed.
+           1  We're looking for element 2+ and already have a comma!
+        */
+        if (commas != 0) goto fail;
+        commas++;
+      }
+      start++;
+    }
+    end = start;
+
+    // find first non-token character (i.e. first character after token)
+    while ((*end != '\0') && !(isspace(*end) || (*end == ','))) end++;
+
+    // no token found, end loop
+    if ((len = (end - start)) == 0) {
+      if (commas < 1)  // list may not end in a comma
+        goto success;
+      goto fail;
+    }
+
+    if (commas == 0)  // element needs to be first, or follow a comma
+      goto fail;
+    else
+      commas = 0;
+
+    // token too long, error
+    if (len >= sizeof(symbol) - 1) goto fail;
+    strncpy(symbol, start, len);
+    symbol[len] = '\0';
+
+    // numeric token "1234"
+    if (isdigit(symbol[0])) {
+      char *last;
+      errcode = (int)strtol(symbol, &last, 10);
+      if (*last != '\0') errcode = -1;
+    }
+    // alphanumeric token ("MY-1234" or "ER_FOO")
+    else
+      errcode = mysql_symbol_to_errno(symbol);
+
+    if (!(((errcode >= EE_ERROR_FIRST) && (errcode <= EE_ERROR_LAST)) ||
+          ((errcode >= ER_SERVER_RANGE_START) &&
+           (mysql_errno_to_builtin(errcode) >= 0))))
+      goto fail;
+
+    if (update) {
+      // make sure we have the space
+      if (log_filter_ruleset_full(log_filter_builtin_rules)) goto fail;
+
+      /*
+        This would require the mutex-init to fail,
+        which we can't know beforehand.
+      */
+      if ((r = log_builtins_filter_rule_init(log_filter_builtin_rules)) ==
+          nullptr)
+        goto fail; /* purecov: inspected */
+
+      log_item_set_with_key(&r->match, LOG_ITEM_SQL_ERRCODE, nullptr,
+                            LOG_ITEM_FREE_NONE)
+          ->data_integer = errcode;
+      r->cond = LOG_FILTER_COND_EQ;
+      r->verb = LOG_FILTER_DROP;
+
+      log_filter_builtin_rules->count++;
+    }
+
+    /*
+      During check-phase, make sure the requested number of error-codes
+      (and therefore, the requested number of DROP rules) will fit into
+      the built-in rule-set.  Reserve one rule for --log-error-verbosity
+      and one for our "ERROR and SYSTEM always pass" shortcut.
+      Without this check, we'd still catch the (attempted) overflow during
+      assignment, but if we do it during the check phase, we protect the
+      integrity of both the current rule-set and the variable's value.
+    */
+    else if (++list_len >= (log_filter_builtin_rules->alloc - 2))
+      goto fail;
+
+    start = end;
+  }
+
+fail:
+  rr = -(start - list + 1);
+success:
+  if (update) log_builtins_filter_ruleset_unlock(log_filter_builtin_rules);
 
   return rr;
 }

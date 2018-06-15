@@ -308,6 +308,89 @@ UNINSTALL COMPONENT "file://component_log_filter_dragnet";
 
 
 
+##==========================================================##
+# 7 - WL#11393: Logging services: log-error-suppression-list #
+##==========================================================##
+
+# 7.1 Pass --log-error-suppression-list through command line
+# ----------------------------------------------------------
+
+--let LOG_FILE16= $MYSQLTEST_VARDIR/tmp/test16.err
+--let restart_parameters="restart: --no-console --log-error=$LOG_FILE16 --log-error-suppression-list=ER_ACCESS_DENIED_ERROR_WITH_PASSWORD "
+--replace_result $LOG_FILE16 LOG_FILE16
+--source include/restart_mysqld.inc
+
+# Validate parameters passed through command line
+SELECT @@global.log_error_suppression_list;
+
+# 7.2 Set --log-error-suppression-list to include a suppression
+#     for ER_ACCESS_DENIED_ERROR, then cause that condition to occur.
+# -------------------------------------------------------------------
+
+SET @saved_log_error_verbosity= @@global.log_error_verbosity;
+
+# Enable logging NOTE's to test throttling
+SET GLOBAL log_error_verbosity= 3;
+
+# Try to log in without proper credentials, cause ACCESS DENIED, filter it
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(con6,localhost,unknown_user_filtered,,*NO-ONE*);
+
+# Unset suppression list, logging ACCESS DENIED is now allowed!
+SET @@global.log_error_suppression_list="";
+SELECT @@global.log_error_suppression_list;
+# Try to log in without proper credentials, cause ACCESS DENIED, log it
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(con6,localhost,unknown_user_unfiltered,,*NO-ONE*);
+
+SET GLOBAL log_error_verbosity= @saved_log_error_verbosity;
+SET @@global.log_error_suppression_list=DEFAULT;
+
+
+# 7.3 Check that SET PERSIST retains error suppression list
+# ---------------------------------------------------------
+SET PERSIST log_error_suppression_list= "MY-10000";
+
+--let LOG_FILE17= $MYSQLTEST_VARDIR/tmp/test17.err
+--let restart_parameters="restart: --no-console --log-error=$LOG_FILE17 "
+
+--replace_result $LOG_FILE17 LOG_FILE17
+--source include/restart_mysqld.inc
+
+# Verify value of the persisted variable
+SELECT @@global.log_error_suppression_list;
+
+RESET PERSIST `log_error_suppression_list`;
+
+# Cleanup
+SET GLOBAL log_error_suppression_list= DEFAULT;
+SET GLOBAL log_error_services= DEFAULT;
+
+--let $MYSQLD_DATADIR= `select @@datadir`
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+
+
+# 7.4 Verify that we use default settings if an invalid
+#     suppression list is passed at start-up
+# --------------------------------------------------------------
+
+# Invalid filter config given in mysqld command line
+--let LOG_FILE18= $MYSQLTEST_VARDIR/tmp/test18.err
+--let restart_parameters="restart: --no-console --log-error=$LOG_FILE18 --log_error_suppression_list=invalid"
+
+--replace_result $LOG_FILE18 LOG_FILE18
+--source include/restart_mysqld.inc
+
+# Server will use default value due to the wrong configuration
+SELECT @@global.log_error_suppression_list;
+
+# Verify that a message is written to the error log
+--let SEARCH_FILE= $LOG_FILE18
+--let SEARCH_PATTERN= log_error_suppression_list: Could not add suppression rule for code .invalid.
+--source include/search_pattern.inc
+
 ##===============================================================##
 #           Validate error logs for the above cases               #
 ##===============================================================##
@@ -606,6 +689,46 @@ UNINSTALL COMPONENT "file://component_log_filter_dragnet";
      }
    }
 
+   # --------
+   # TEST 7.1
+   # --------
+   my $file= $ENV{'LOG_FILE16'} or die("log file16 not set");
+
+   my $result=0;
+   open(FILE, "$file") or die("Unable to open $file: $!");
+   while (<FILE>) {
+     my $line = $_;
+     if ($line =~ /\[Note\] \[[^]]*\] \[[^]]*\] Access denied for user \'unknown_user_filtered\'/) {
+         $result= 1;
+         print "[ FAIL ] Offender: $line\n";
+       }
+     }
+   close(FILE);
+   if ($result == 1) {
+     print "[ FAIL ] Error log has $result 'Access denied' message(s) despite of them being in the supression list\n";
+   }
+   else
+   {
+     print "[ PASS ] 'Access denied' messages filtered as per suppression list\n";
+   }
+
+   my $result=0;
+   open(FILE, "$file") or die("Unable to open $file: $!");
+   while (<FILE>) {
+     my $line = $_;
+     if ($line =~ /\[Note\] \[[^]]*\] \[[^]]*\] Access denied for user \'unknown_user_unfiltered\'/) {
+         $result= 1;
+       }
+     }
+   close(FILE);
+   if ($result == 1) {
+     print "[ PASS ] 'Access denied' messages not filtered, as per suppression list.\n";
+   }
+   else
+   {
+     print "[ FAIL ] 'Access denied' messages filtered despite of them not being in the supression list!\n";
+   }
+
 EOF
 
 # Cleanup
@@ -626,6 +749,9 @@ EOF
 --remove_file $LOG_FILE13
 --remove_file $LOG_FILE14
 --remove_file $LOG_FILE15
+--remove_file $LOG_FILE16
+--remove_file $LOG_FILE17
+--remove_file $LOG_FILE18
 
 # Restart server after this test since it enables binary 
 # logging and may affect further tests

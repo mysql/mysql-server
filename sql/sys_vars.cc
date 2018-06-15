@@ -2079,6 +2079,46 @@ static Sys_var_charptr Sys_log_error_services(
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_log_error_services),
     ON_UPDATE(fix_log_error_services));
 
+static bool check_log_error_suppression_list(sys_var *self, THD *thd,
+                                             set_var *var) {
+  int i;
+
+  if (var->save_result.string_value.str == nullptr) return true;
+
+  if ((i = log_builtins_filter_parse_suppression_list(
+           var->save_result.string_value.str, false)) < 0) {
+    push_warning_printf(
+        thd, Sql_condition::SL_WARNING, ER_CANT_SET_ERROR_SUPPRESSION_LIST,
+        ER_THD(thd, ER_CANT_SET_ERROR_SUPPRESSION_LIST), self->name.str,
+        &((char *)var->save_result.string_value.str)[-(i + 1)]);
+    return true;
+  }
+
+  return false;
+}
+
+static bool fix_log_error_suppression_list(
+    sys_var *self MY_ATTRIBUTE((unused)), THD *thd MY_ATTRIBUTE((unused)),
+    enum_var_type type MY_ATTRIBUTE((unused))) {
+  // syntax is OK and errcodes have messages; try to make filter rules for them!
+  int rr = log_builtins_filter_parse_suppression_list(
+      opt_log_error_suppression_list, true);
+  return (rr < 0) ? true : false;
+}
+
+static Sys_var_charptr Sys_log_error_suppression_list(
+    "log_error_suppression_list",
+    "Comma-separated list of error-codes. Error messages corresponding to "
+    "these codes will not be included in the error log. Only events with a "
+    "severity of Warning or Information can be suppressed; events with System "
+    "or Error severity will always be included. Requires the filter "
+    "\'log_filter_internal\' to be set in @@global.log_error_services, which "
+    "is the default.",
+    GLOBAL_VAR(opt_log_error_suppression_list), CMD_LINE(REQUIRED_ARG),
+    IN_SYSTEM_CHARSET, DEFAULT(""), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(check_log_error_suppression_list),
+    ON_UPDATE(fix_log_error_suppression_list));
+
 static Sys_var_bool Sys_log_queries_not_using_indexes(
     "log_queries_not_using_indexes",
     "Log queries that are executed without benefit of any index to the "

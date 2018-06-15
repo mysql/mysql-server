@@ -334,7 +334,7 @@ extern bool avoid_temporal_upgrade;
 extern LEX_STRING opt_init_connect, opt_init_slave;
 extern ulong connection_errors_internal;
 extern ulong connection_errors_peer_addr;
-extern char *opt_log_error_filter_rules;
+extern char *opt_log_error_suppression_list;
 extern char *opt_log_error_services;
 extern bool opt_log_syslog_enable;
 extern char *opt_log_syslog_tag;
