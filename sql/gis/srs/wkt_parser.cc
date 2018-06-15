@@ -188,8 +188,8 @@ struct Grammar : qi::grammar<Iterator, Coordinate_system(), Skipper> {
     geographic_cs = qi::no_case[qi::lit("GEOGCS")] >> left_delimiter >>
                     quoted_string >> qi::lit(',') >> datum >> qi::lit(',') >>
                     prime_meridian >> qi::lit(',') >> angular_unit >>
-                    -(qi::lit(',') >> twin_axes) >>
-                    -(qi::lit(',') >> authority) >> right_delimiter;
+                    qi::lit(',') >> twin_axes >> -(qi::lit(',') >> authority) >>
+                    right_delimiter;
     parameter = qi::no_case[qi::lit("PARAMETER")] >> left_delimiter >>
                 quoted_string >> qi::lit(',') >> number >>
                 -(qi::lit(',') >> authority) >> right_delimiter;

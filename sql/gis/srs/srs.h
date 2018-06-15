@@ -232,20 +232,6 @@ class Geographic_srs : public Spatial_reference_system {
     return !std::isnan(m_towgs84[0]);
   }
 
-  /**
-    Check if this SRS has valid axis definitions.
-
-    @retval true Axes are specified
-    @retval false Axes are not specified
-  */
-  bool has_axes() {
-    // Either none or both axes are specified.
-    DBUG_ASSERT((m_axes[0] == Axis_direction::UNSPECIFIED) ==
-                (m_axes[1] == Axis_direction::UNSPECIFIED));
-
-    return m_axes[0] != Axis_direction::UNSPECIFIED;
-  }
-
   Axis_direction axis_direction(const int axis) const override {
     DBUG_ASSERT(axis >= 0 && axis <= 1);
     return m_axes[axis];

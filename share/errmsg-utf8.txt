@@ -8531,6 +8531,9 @@ ER_FK_NO_COLUMN_PARENT
 ER_CANT_SET_ERROR_SUPPRESSION_LIST
   eng "%s: Could not add suppression rule for code \"%s\". Rule-set may be full, or code may not correspond to an error-log message."
 
+ER_SRS_GEOGCS_INVALID_AXES SR002
+  eng "The spatial reference system definition for SRID %u specifies invalid geographic axes '%.20s' and '%.20s'. One axis must be NORTH or SOUTH and the other must be EAST or WEST."
+
 #
 #  End of 8.0 error messages.
 #

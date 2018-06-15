@@ -218,10 +218,33 @@ static bool set_parameters(gis::srid_t srid,
   return false;
 }
 
+static const char *axis_direction_to_name(gis::srs::Axis_direction direction) {
+  switch (direction) {
+    case gis::srs::Axis_direction::UNSPECIFIED:
+      return "UNSPECIFIED";
+    case gis::srs::Axis_direction::NORTH:
+      return "NORTH";
+    case gis::srs::Axis_direction::SOUTH:
+      return "SOUTH";
+    case gis::srs::Axis_direction::EAST:
+      return "EAST";
+    case gis::srs::Axis_direction::WEST:
+      return "WEST";
+    case gis::srs::Axis_direction::OTHER:
+      return "OTHER";
+    default:
+      /* purecov: begin inspected */
+      DBUG_ASSERT(false);
+      return "UNKNOWN";
+      /* purecov: end */
+  }
+}
+
 namespace gis {
 namespace srs {
 
-bool Geographic_srs::init(gis::srid_t, gis::srs::wkt_parser::Geographic_cs *g) {
+bool Geographic_srs::init(gis::srid_t srid,
+                          gis::srs::wkt_parser::Geographic_cs *g) {
   m_semi_major_axis = g->datum.spheroid.semi_major_axis;
   m_inverse_flattening = g->datum.spheroid.inverse_flattening;
 
@@ -255,13 +278,24 @@ bool Geographic_srs::init(gis::srid_t, gis::srs::wkt_parser::Geographic_cs *g) {
   DBUG_ASSERT(!std::isnan(m_prime_meridian));
   DBUG_ASSERT(!std::isnan(m_angular_unit));
 
-  if (g->axes.valid) {
-    m_axes[0] = g->axes.x.direction;
-    m_axes[1] = g->axes.y.direction;
-
-    // The parser requires either both or none to be specified.
-    DBUG_ASSERT(m_axes[0] != Axis_direction::UNSPECIFIED);
-    DBUG_ASSERT(m_axes[1] != Axis_direction::UNSPECIFIED);
+  // The parser requires that both axes are specified.
+  DBUG_ASSERT(g->axes.valid);
+  m_axes[0] = g->axes.x.direction;
+  m_axes[1] = g->axes.y.direction;
+  if (!(((m_axes[0] == Axis_direction::NORTH ||
+          m_axes[0] == Axis_direction::SOUTH) &&
+         (m_axes[1] == Axis_direction::EAST ||
+          m_axes[1] == Axis_direction::WEST)) ||
+        ((m_axes[0] == Axis_direction::EAST ||
+          m_axes[0] == Axis_direction::WEST) &&
+         (m_axes[1] == Axis_direction::NORTH ||
+          m_axes[1] == Axis_direction::SOUTH)))) {
+    // Axes are neither lat-long nor long-lat, which doesn't make sense for
+    // geographic SRSs.
+    my_error(ER_SRS_GEOGCS_INVALID_AXES, MYF(0), srid,
+             axis_direction_to_name(m_axes[0]),
+             axis_direction_to_name(m_axes[1]));
+    return true;
   }
 
   // Check if this is a valid WGS 84 representation. The requirements are:
