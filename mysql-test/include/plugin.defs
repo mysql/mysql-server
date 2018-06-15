@@ -87,39 +87,39 @@ libtest_sql_errors                      plugin_output_directory TEST_SQL_ERRORS
 libtest_sql_stmt                        plugin_output_directory TEST_SQL_STMT
 connection_control                      plugin_output_directory  CONNECTION_CONTROL_PLUGIN    connection_control
 # Test component
-component_example_component1    component_output_directory  EXAMPLE_COMPONENT_1
-component_example_component2    component_output_directory  EXAMPLE_COMPONENT_2
-component_example_component3    component_output_directory  EXAMPLE_COMPONENT_3
+component_example_component1    plugin_output_directory  EXAMPLE_COMPONENT_1
+component_example_component2    plugin_output_directory  EXAMPLE_COMPONENT_2
+component_example_component3    plugin_output_directory  EXAMPLE_COMPONENT_3
 
-component_test_string_service   component_output_directory  TEST_STRING_SERVICE
-component_test_string_service_long   component_output_directory  TEST_STRING_SERVICE_LONG
-component_test_string_service_charset   component_output_directory  TEST_STRING_SERVICE_CHARSET
+component_test_string_service   plugin_output_directory  TEST_STRING_SERVICE
+component_test_string_service_long   plugin_output_directory  TEST_STRING_SERVICE_LONG
+component_test_string_service_charset   plugin_output_directory  TEST_STRING_SERVICE_CHARSET
 
-component_test_backup_lock_service   component_output_directory  TEST_BACKUP_LOCK_SERVICE
+component_test_backup_lock_service   plugin_output_directory  TEST_BACKUP_LOCK_SERVICE
 # Test Performance Schema services
-component_test_pfs_notification         component_output_directory  TEST_PFS_NOTIFICATION_SERVICE
-component_test_pfs_resource_group       component_output_directory  TEST_PFS_RESOURCE_GROUP_SERVICE
-component_log_sink_json         component_output_directory  LOGGING_COMPONENTS
+component_test_pfs_notification         plugin_output_directory  TEST_PFS_NOTIFICATION_SERVICE
+component_test_pfs_resource_group       plugin_output_directory  TEST_PFS_RESOURCE_GROUP_SERVICE
+component_log_sink_json         plugin_output_directory  LOGGING_COMPONENTS
 
 # pfs_example_plugin_employee plugin
 pfs_example_plugin_employee    plugin_output_directory  PFS_EXAMPLE_PLUGIN_EMPLOYEE pfs_example_plugin_employee
 # pfs_example_component_population component
-component_pfs_example_component_population    component_output_directory PFS_EXAMPLE_COMPONENT_POPULATION
+component_pfs_example_component_population    plugin_output_directory PFS_EXAMPLE_COMPONENT_POPULATION
 
-component_test_udf_registration    component_output_directory  TEST_UDF_REGISTRATION
-component_udf_reg_3_func   component_output_directory  UDF_REG_3_FUNC       component_udf_reg_3_func
-component_udf_reg_only_3_func component_output_directory UDF_REG_ONLY_3_FUNC component_udf_reg_only_3_func
-component_udf_unreg_3_func   component_output_directory  UDF_UNREG_3_FUNC component_udf_unreg_3_func
-component_test_component_sys_var_service   component_output_directory  TEST_COM_SYS_VAR_SERVICES_OPT
-component_test_sys_var_service component_output_directory SYS_VAR_SERVICE component_test_sys_var_service
-component_test_sys_var_service_same component_output_directory SYS_VAR_SERVICE_SAME component_test_sys_var_service_same
-component_test_status_var_service component_output_directory STATUS_VAR_SERVICE component_test_status_var_service
+component_test_udf_registration    plugin_output_directory  TEST_UDF_REGISTRATION
+component_udf_reg_3_func   plugin_output_directory  UDF_REG_3_FUNC       component_udf_reg_3_func
+component_udf_reg_only_3_func plugin_output_directory UDF_REG_ONLY_3_FUNC component_udf_reg_only_3_func
+component_udf_unreg_3_func   plugin_output_directory  UDF_UNREG_3_FUNC component_udf_unreg_3_func
+component_test_component_sys_var_service   plugin_output_directory  TEST_COM_SYS_VAR_SERVICES_OPT
+component_test_sys_var_service plugin_output_directory SYS_VAR_SERVICE component_test_sys_var_service
+component_test_sys_var_service_same plugin_output_directory SYS_VAR_SERVICE_SAME component_test_sys_var_service_same
+component_test_status_var_service plugin_output_directory STATUS_VAR_SERVICE component_test_status_var_service
 
 # pfs_example
-component_pfs_example    component_output_directory  PFS_EXAMPLE
+component_pfs_example    plugin_output_directory  PFS_EXAMPLE
 
 # Test system_variable_source service
-component_test_system_variable_source component_output_directory TEST_SYSTEM_VARIABLE_SOURCE
+component_test_system_variable_source plugin_output_directory TEST_SYSTEM_VARIABLE_SOURCE
 
 # password validation component
-component_validate_password     component_output_directory  VALIDATE_PASSWORD_COMPONENT
+component_validate_password     plugin_output_directory  VALIDATE_PASSWORD_COMPONENT
