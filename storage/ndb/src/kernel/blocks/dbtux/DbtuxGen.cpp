@@ -49,8 +49,6 @@ Dbtux::Dbtux(Block_context& ctx, Uint32 instanceNumber) :
       (sizeof(DescHead) & 0x3) == 0 &&
       (sizeof(KeyType) & 0x3) == 0
   );
-  c_ctx.searchBoundArray = (KeyBoundArray*)&c_ctx.searchBoundArray_c[0];
-  c_ctx.searchDataArray = (KeyDataArray*)&c_ctx.searchDataArray_c[0];
   /*
    * DbtuxGen.cpp
    */
@@ -300,11 +298,22 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
   }
   // allocate buffers
   c_ctx.jamBuffer = jamBuffer();
-  c_ctx.c_searchKey = (Uint32*)allocRecord("c_searchKey", sizeof(Uint32), MaxAttrDataSize);
-  c_ctx.c_nextKey = (Uint32*)allocRecord("c_nextKey", sizeof(Uint32), MaxAttrDataSize);
-  c_ctx.c_entryKey = (Uint32*)allocRecord("c_entryKey", sizeof(Uint32), MaxAttrDataSize);
+  c_ctx.c_searchKey = (Uint32*)allocRecord("c_searchKey",
+                                           sizeof(Uint32),
+                                           MaxAttrDataSize);
+  c_ctx.c_nextKey = (Uint32*)allocRecord("c_nextKey",
+                                         sizeof(Uint32),
+                                         MaxAttrDataSize);
+  c_ctx.c_entryKey = (Uint32*)allocRecord("c_entryKey",
+                                          sizeof(Uint32),
+                                          MaxAttrDataSize);
 
-  c_ctx.c_dataBuffer = (Uint32*)allocRecord("c_dataBuffer", sizeof(Uint64), (MaxXfrmDataSize + 1) >> 1);
+  c_ctx.c_dataBuffer = (Uint32*)allocRecord("c_dataBuffer",
+                                            sizeof(Uint64),
+                                            (MaxXfrmDataSize + 1) >> 1);
+  c_ctx.c_boundBuffer = (Uint32*)allocRecord("c_boundBuffer",
+                                             sizeof(Uint64),
+                                             (MaxXfrmDataSize + 1) >> 1);
 
 #ifdef VM_TRACE
   c_ctx.c_debugBuffer = (char*)allocRecord("c_debugBuffer", sizeof(char), DebugBufferBytes);
@@ -372,6 +381,50 @@ Dbtux::readKeyAttrs(TuxCtx& ctx,
     debugOut << "readKeyAttrs: ";
     debugOut << " ent:" << ent << " count:" << count;
     debugOut << " data:" << keyData.print(ctx.c_debugBuffer, DebugBufferBytes);
+    debugOut << endl;
+  }
+#endif
+}
+
+void
+Dbtux::readKeyAttrs(TuxCtx& ctx,
+                    const Frag& frag,
+                    TreeEnt ent,
+                    Uint32 count,
+                    Uint32 *outputBuffer)
+{
+  const Index& index = *c_indexPool.getPtr(frag.m_indexId);
+  const DescHead& descHead = getDescHead(index);
+  const AttributeHeader* keyAttrs = getKeyAttrs(descHead);
+
+#ifdef VM_TRACE
+  ndbrequire(count <= index.m_numAttrs);
+#endif
+
+  const TupLoc tupLoc = ent.m_tupLoc;
+  const Uint32 pageId = tupLoc.getPageId();
+  const Uint32 pageOffset = tupLoc.getPageOffset();
+  const Uint32 tupVersion = ent.m_tupVersion;
+  const Uint32 tableFragPtrI = frag.m_tupTableFragPtrI;
+  const Uint32* keyAttrs32 = (const Uint32*)&keyAttrs[0];
+
+  int ret;
+  ret = c_tup->tuxReadAttrs(ctx.jamBuffer,
+                            tableFragPtrI,
+                            pageId,
+                            pageOffset,
+                            tupVersion,
+                            keyAttrs32,
+                            count,
+                            outputBuffer,
+                            false);
+  thrjamDebug(ctx.jamBuffer);
+  ndbrequire(ret > 0);
+
+#ifdef VM_TRACE
+  if (debugFlags & (DebugMaint | DebugScan)) {
+    debugOut << "readKeyAttrs: ";
+    debugOut << " ent:" << ent << " count:" << count;
     debugOut << endl;
   }
 #endif

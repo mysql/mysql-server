@@ -74,11 +74,22 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
   ent.m_tupLoc = TupLoc(req->pageId, req->pageIndex);
   ent.m_tupVersion = req->tupVersion;
   // set up and read search key
-  KeyData searchKey(indexPtr.p->m_keySpec, false, 0);
-  searchKey.set_buf(c_ctx.c_searchKey, MaxAttrDataSize << 2);
-  readKeyAttrs(c_ctx, frag, ent, searchKey, indexPtr.p->m_numAttrs);
+  readKeyAttrs(c_ctx,
+               frag,
+               ent,
+               indexPtr.p->m_numAttrs,
+               c_ctx.c_boundBuffer);
+  KeyDataArray* key_data = new (&c_ctx.searchKeyDataArray)
+                           KeyDataArray();
+  key_data->init_poai(c_ctx.c_boundBuffer, indexPtr.p->m_numAttrs);
+  KeyBoundArray *searchBound = new (&c_ctx.searchKeyBoundArray)
+                               KeyBoundArray(&indexPtr.p->m_keySpec,
+                                             &c_ctx.searchKeyDataArray,
+                                             false);
+
   if (unlikely(! indexPtr.p->m_storeNullKey) &&
-      searchKey.get_null_cnt() == indexPtr.p->m_numAttrs) {
+      key_data->get_null_cnt() == indexPtr.p->m_numAttrs)
+  {
     jam();
     return;
   }
@@ -101,16 +112,23 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
   switch (opCode) {
   case TuxMaintReq::OpAdd:
     jamDebug();
-    ok = searchToAdd(c_ctx, frag, searchKey, ent, treePos);
+    ok = searchToAdd(c_ctx,
+                     frag,
+                     *searchBound,
+                     ent,
+                     treePos);
 #ifdef VM_TRACE
-    if (debugFlags & DebugMaint) {
+    if (debugFlags & DebugMaint)
+    {
       debugOut << treePos << (! ok ? " - error" : "") << endl;
     }
 #endif
-    if (! ok) {
+    if (! ok)
+    {
       jam();
       // there is no "Building" state so this will have to do
-      if (indexPtr.p->m_state == Index::Online) {
+      if (indexPtr.p->m_state == Index::Online)
+      {
         jam();
         req->errorCode = TuxMaintReq::SearchError;
       }
@@ -120,11 +138,13 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
      * At most one new node is inserted in the operation.  Pre-allocate
      * it so that the operation cannot fail.
      */
-    if (frag.m_freeLoc == NullTupLoc) {
-      jam();
+    if (frag.m_freeLoc == NullTupLoc)
+    {
+      jamDebug();
       NodeHandle node(frag);
       req->errorCode = allocNode(c_ctx, node);
-      if (req->errorCode != 0) {
+      if (req->errorCode != 0)
+      {
         jam();
         break;
       }
@@ -133,21 +153,28 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
     }
     treeAdd(c_ctx, frag, treePos, ent);
     frag.m_entryCount++;
-    frag.m_entryBytes += searchKey.get_data_len();
+    frag.m_entryBytes += key_data->get_data_len();
     frag.m_entryOps++;
     break;
   case TuxMaintReq::OpRemove:
-    jam();
-    ok = searchToRemove(c_ctx, frag, searchKey, ent, treePos);
+    jamDebug();
+    ok = searchToRemove(c_ctx,
+                        frag,
+                        *searchBound,
+                        ent,
+                        treePos);
 #ifdef VM_TRACE
-    if (debugFlags & DebugMaint) {
+    if (debugFlags & DebugMaint)
+    {
       debugOut << treePos << (! ok ? " - error" : "") << endl;
     }
 #endif
-    if (! ok) {
+    if (! ok)
+    {
       jam();
       // there is no "Building" state so this will have to do
-      if (indexPtr.p->m_state == Index::Online) {
+      if (indexPtr.p->m_state == Index::Online)
+      {
         jam();
         req->errorCode = TuxMaintReq::SearchError;
       }
@@ -156,7 +183,7 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
     treeRemove(frag, treePos);
     ndbrequire(frag.m_entryCount != 0);
     frag.m_entryCount--;
-    frag.m_entryBytes -= searchKey.get_data_len();
+    frag.m_entryBytes -= key_data->get_data_len();
     frag.m_entryOps++;
     break;
   default:
@@ -164,7 +191,8 @@ Dbtux::execTUX_MAINT_REQ(Signal* signal)
     break;
   }
 #ifdef VM_TRACE
-  if (debugFlags & DebugTree) {
+  if (debugFlags & DebugTree)
+  {
     printTree(signal, frag, debugOut);
   }
 #endif

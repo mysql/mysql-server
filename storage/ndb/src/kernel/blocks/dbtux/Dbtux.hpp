@@ -596,6 +596,11 @@ private:
                     TreeEnt ent,
                     KeyData& keyData,
                     Uint32 count);
+  void readKeyAttrs(TuxCtx&,
+                    const Frag& frag,
+                    TreeEnt ent,
+                    Uint32 count,
+                    Uint32 *outputBuffer);
   void readTablePk(const Frag& frag, TreeEnt ent, Uint32* pkData, unsigned& pkSize);
   void unpackBound(Uint32* const outputBuffer,
                    const ScanBound& bound,
@@ -695,43 +700,41 @@ private:
    */
   void findNodeToUpdate(TuxCtx&,
                         Frag& frag,
-                        const KeyDataC& searchKey,
+                        const KeyBoundArray& searchBound,
                         TreeEnt searchEnt,
                         NodeHandle& currNode);
   bool findPosToAdd(TuxCtx&,
                     Frag& frag,
-                    const KeyDataC& searchKey,
+                    const KeyBoundArray& searchBound,
                     TreeEnt searchEnt,
                     NodeHandle& currNode,
                     TreePos& treePos);
   bool findPosToRemove(TuxCtx&,
-                       Frag& frag,
-                       const KeyDataC& searchKey,
                        TreeEnt searchEnt,
                        NodeHandle& currNode,
                        TreePos& treePos);
   bool searchToAdd(TuxCtx&,
                    Frag& frag,
-                   const KeyDataC& searchKey,
+                   const KeyBoundArray& searchBound,
                    TreeEnt searchEnt,
                    TreePos& treePos);
   bool searchToRemove(TuxCtx&,
                       Frag& frag,
-                      const KeyDataC& searchKey,
+                      const KeyBoundArray& searchBound,
                       TreeEnt searchEnt,
                       TreePos& treePos);
   void findNodeToScan(Frag& frag,
                       unsigned dir,
-                      const KeyBoundC& searchBound,
+                      const KeyBoundArray& searchBound,
                       NodeHandle& currNode);
   void findPosToScan(Frag& frag,
                      unsigned idir,
-                     const KeyBoundC& searchBound,
+                     const KeyBoundArray& searchBound,
                      NodeHandle& currNode,
                      Uint32* pos);
   void searchToScan(Frag& frag,
                     unsigned idir,
-                    const KeyBoundC& searchBound,
+                    const KeyBoundArray& searchBound,
                     TreePos& treePos);
 
   /*
@@ -836,12 +839,12 @@ private:
     Uint32 attrDataOffset;
     Uint32 tuxFixHeaderSize;
 
-    char searchBoundArray_c[sizeof(KeyBoundArray)];
-    char searchDataArray_c[sizeof(KeyDataArray)];
-
-    KeyDataArray *searchDataArray;
-    KeyBoundArray *searchBoundArray;
+    KeyDataArray searchScanDataArray;
+    KeyBoundArray searchScanBoundArray;
     Uint32 *keyAttrs;
+
+    KeyDataArray searchKeyDataArray;
+    KeyBoundArray searchKeyBoundArray;
 
     Uint32 scanBoundCnt;
     Uint32 descending;
@@ -859,6 +862,9 @@ private:
 
     // buffer for xfrm-ed PK and for temporary use
     Uint32* c_dataBuffer;
+
+    // buffer for xfrm-ed PK and for temporary use
+    Uint32* c_boundBuffer;
 
 #ifdef VM_TRACE
     char* c_debugBuffer;

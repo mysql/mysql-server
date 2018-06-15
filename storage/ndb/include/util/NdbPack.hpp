@@ -460,27 +460,33 @@ public:
     ~DataArray() {}
     void init_poai(const Uint32* buf, const Uint32 cnt);
     void init_bound(const BoundC&, const Uint32 cnt);
-    int cmp(const Spec& spec,
-            const DataArray& d2,
+    int cmp(const Spec* spec,
+            const DataArray* d2,
             const Uint32 cnt) const;
     Uint32 cnt() const;
+    Uint32 get_null_cnt() const;
+    Uint32 get_data_len() const;
   private:
     friend class BoundArray;
     Uint32 m_cnt;
+    Uint32 m_null_cnt;
     DataEntry m_entries[MAX_ATTRIBUTES_IN_INDEX];
   };
 
   class BoundArray
   {
     public:
-      BoundArray(const Spec&,
-                 const DataArray&,
+      BoundArray();
+      BoundArray(const Spec*,
+                 const DataArray*,
                  const int side);
       ~BoundArray() {}
-      int cmp(const DataArray& d2) const;
+      int cmp(const DataArray* d2) const;
+      int cmp(const DataArray* d2, const Uint32 cnt) const;
+      Uint32 cnt() const;
     private:
-      const Spec& m_spec;
-      const DataArray& m_data_array;
+      const Spec* m_spec;
+      const DataArray* m_data_array;
       const int m_side;
   };
 
@@ -920,9 +926,34 @@ NdbPack::DataArray::cnt() const
   return m_cnt;
 }
 
+inline Uint32
+NdbPack::DataArray::get_null_cnt() const
+{
+  return m_null_cnt;
+}
+
+inline Uint32
+NdbPack::DataArray::get_data_len() const
+{
+  Uint32 cnt = m_cnt;
+  Uint32 len = 0;
+  for (Uint32 i = 0; i < cnt; i++)
+  {
+    len += m_entries[i].m_data_len;
+  }
+  return len;
+}
+
+inline NdbPack::BoundArray::BoundArray() :
+  m_spec(NULL),
+  m_data_array(NULL),
+  m_side(0)
+{
+}
+
 inline NdbPack::BoundArray::BoundArray(
-                   const Spec& spec,
-                   const DataArray& data_array,
+                   const Spec* spec,
+                   const DataArray* data_array,
                    const int side) :
   m_spec(spec),
   m_data_array(data_array),
@@ -931,14 +962,28 @@ inline NdbPack::BoundArray::BoundArray(
 }
 
 inline int
-NdbPack::BoundArray::cmp(const DataArray& d2) const
+NdbPack::BoundArray::cmp(const DataArray* d2, const Uint32 cnt) const
 {
-  const BoundArray& b1 = *this;
-  const DataArray& d1 = b1.m_data_array;
-  const Uint32 cnt = d1.cnt();
-  int res = d1.cmp(m_spec, d2, cnt);
+  int res = m_data_array->cmp(m_spec, d2, cnt);
   if (res == 0)
-    res = b1.m_side;
+    res = m_side;
   return res;
+}
+
+inline int
+NdbPack::BoundArray::cmp(const DataArray* d2) const
+{
+  const DataArray* d1 = m_data_array;
+  const Uint32 cnt = d1->cnt();
+  int res = d1->cmp(m_spec, d2, cnt);
+  if (res == 0)
+    res = m_side;
+  return res;
+}
+
+inline Uint32
+NdbPack::BoundArray::cnt() const
+{
+  return m_data_array->cnt();
 }
 #endif // NDB_PACK_HPP

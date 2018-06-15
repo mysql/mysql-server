@@ -181,18 +181,14 @@ Dbtux::setNodePref(TuxCtx & ctx, NodeHandle& node)
    * then set_buf() could overwrite m_pageId1 in first entry, causing
    * random crash in TUP via readKeyAttrs().
    */
-  if (index.m_prefAttrs > 0) {
-    KeyData prefKey(index.m_keySpec, false, 0);
-    prefKey.set_buf(node.getPref(), index.m_prefBytes);
+  if (index.m_prefAttrs > 0)
+  {
     thrjam(ctx.jamBuffer);
-    readKeyAttrs(ctx, frag, node.getEnt(0), prefKey, index.m_prefAttrs);
-#ifdef VM_TRACE
-    if (debugFlags & DebugMaint) {
-      debugOut << "setNodePref: " << node;
-      debugOut << " " << prefKey.print(ctx.c_debugBuffer, DebugBufferBytes);
-      debugOut << endl;
-    }
-#endif
+    readKeyAttrs(ctx,
+                 frag,
+                 node.getEnt(0),
+                 index.m_prefAttrs,
+                 node.getPref());
   }
 }
 
