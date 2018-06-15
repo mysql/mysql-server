@@ -979,7 +979,7 @@ ulonglong max_binlog_cache_size = 0;
 ulong slave_max_allowed_packet = 0;
 ulong binlog_stmt_cache_size = 0;
 int32 opt_binlog_max_flush_queue_time = 0;
-ulong opt_binlog_group_commit_sync_delay = 0;
+long opt_binlog_group_commit_sync_delay = 0;
 ulong opt_binlog_group_commit_sync_no_delay_count = 0;
 ulonglong max_binlog_stmt_cache_size = 0;
 ulong refresh_version; /* Increments on each reload */

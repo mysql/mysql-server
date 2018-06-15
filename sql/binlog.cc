@@ -2223,17 +2223,17 @@ THD *Stage_manager::Mutex_queue::fetch_and_empty() {
   DBUG_RETURN(result);
 }
 
-void Stage_manager::wait_count_or_timeout(ulong count, ulong usec,
+void Stage_manager::wait_count_or_timeout(ulong count, long usec,
                                           StageID stage) {
-  ulong to_wait = DBUG_EVALUATE_IF("bgc_set_infinite_delay", LONG_MAX, usec);
+  long to_wait = DBUG_EVALUATE_IF("bgc_set_infinite_delay", LONG_MAX, usec);
   /*
     For testing purposes while waiting for inifinity
     to arrive, we keep checking the queue size at regular,
     small intervals. Otherwise, waiting 0.1 * infinite
     is too long.
    */
-  ulong delta = DBUG_EVALUATE_IF("bgc_set_infinite_delay", 100000,
-                                 max<ulong>(1, (to_wait * 0.1)));
+  long delta = DBUG_EVALUATE_IF("bgc_set_infinite_delay", 100000,
+                                max<long>(1, (to_wait * 0.1)));
 
   while (
       to_wait > 0 &&
