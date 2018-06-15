@@ -1691,23 +1691,31 @@ reporting_node_id	node_id	node_type	process_name
 2	63	1	mysqld
 2	127	1	mysqld
 
+set @windows = convert(@@version_compile_os using latin1)
+                 in ('Win32', 'Win64', 'Windows');
+
 SELECT node_id,
 node_type,
 replace(replace(process_name,"-debug",""),".exe","") AS process_name,
 if(process_id is null, "null", "not_null") as proc_id,
-if(angel_process_id is null, "null", "not_null") as angel_proc_id
+if(@windows AND node_type = 'API',
+   "null",
+   if(angel_process_id is null, "null", "not_null")) as angel_proc_id,
+if(NOT @windows AND node_type = 'API',
+   "not_null",
+   if(angel_process_id is null, "null", "not_null")) as monitor_proc_id
 FROM processes
 ORDER BY node_id;
-node_id	node_type	process_name	proc_id	angel_proc_id
-1	NDB	ndbmtd	not_null	not_null
-2	NDB	ndbmtd	not_null	not_null
-3	MGM	ndb_mgmd	not_null	null
-16	API	mysqld	not_null	null
-32	API	mysqld	not_null	null
-48	API	mysqld	not_null	null
-49	API	mysqld	not_null	null
-63	API	mysqld	not_null	null
-127	API	mysqld	not_null	null
+node_id	node_type	process_name	proc_id	angel_proc_id	monitor_proc_id
+1	NDB	ndbmtd	not_null	not_null	not_null
+2	NDB	ndbmtd	not_null	not_null	not_null
+3	MGM	ndb_mgmd	not_null	null	null
+16	API	mysqld	not_null	null	not_null
+32	API	mysqld	not_null	null	not_null
+48	API	mysqld	not_null	null	not_null
+49	API	mysqld	not_null	null	not_null
+63	API	mysqld	not_null	null	not_null
+127	API	mysqld	not_null	null	not_null
 
 set @@ndbinfo_show_hidden=TRUE;
 desc ndb$config_nodes;

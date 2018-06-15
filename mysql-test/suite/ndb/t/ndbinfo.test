@@ -898,11 +898,34 @@ FROM ndb$processes
 ORDER BY reporting_node_id, node_id;
 
 # Query the view
+#
+# Note, on Windows mysqld processes will have an angel_process_id while
+# on other platforms there will be none.
+#
+# The Windows angel_process_id will be reported in monitor_proc_id
+# instead.
+#
+# On Windows the angel_proc_id will always be set to "null" for API.
+# On other platforms monitor_proc_id will instead always be set to
+# "not_null" for API.
+#
+# Test for node_type = 'API' is used since checking for process_name =
+# 'mysqld' would be much more cumbersome, and the only API node running
+# in this case are the mysqld servers.
+
+set @windows = convert(@@version_compile_os using latin1)
+                 in ('Win32', 'Win64', 'Windows');
+
 SELECT node_id,
 node_type,
 replace(replace(process_name,"-debug",""),".exe","") AS process_name,
 if(process_id is null, "null", "not_null") as proc_id,
-if(angel_process_id is null, "null", "not_null") as angel_proc_id
+if(@windows AND node_type = 'API',
+   "null",
+   if(angel_process_id is null, "null", "not_null")) as angel_proc_id,
+if(NOT @windows AND node_type = 'API',
+   "not_null",
+   if(angel_process_id is null, "null", "not_null")) as monitor_proc_id
 FROM processes
 ORDER BY node_id;
 
