@@ -8455,7 +8455,7 @@ class alter_part_add : public alter_part {
     ut_ad(new_part != nullptr);
     char part_name[FN_REFLEN];
 
-    if (m_tablespace && is_shared_tablespace(m_tablespace)) {
+    if (is_shared_tablespace(m_tablespace)) {
       my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
                       PARTITION_IN_SHARED_TABLESPACE, MYF(0));
       return (HA_ERR_INTERNAL_ERROR);
