@@ -8534,6 +8534,18 @@ ER_CANT_SET_ERROR_SUPPRESSION_LIST
 ER_SRS_GEOGCS_INVALID_AXES SR002
   eng "The spatial reference system definition for SRID %u specifies invalid geographic axes '%.20s' and '%.20s'. One axis must be NORTH or SOUTH and the other must be EAST or WEST."
 
+ER_SRS_INVALID_SEMI_MAJOR_AXIS SR002
+  eng "The length of the semi-major axis must be a positive number."
+
+ER_SRS_INVALID_INVERSE_FLATTENING SR002
+  eng "The inverse flattening must be larger than 1.0, or 0.0 if the ellipsoid is a sphere."
+
+ER_SRS_INVALID_ANGULAR_UNIT SR002
+  eng "The angular unit conversion factor must be a positive number."
+
+ER_SRS_INVALID_PRIME_MERIDIAN SR002
+  eng "The prime meridian must be within (-180, 180] degrees, specified in the SRS angular unit."
+
 #
 #  End of 8.0 error messages.
 #

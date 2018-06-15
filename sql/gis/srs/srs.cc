@@ -245,12 +245,21 @@ namespace srs {
 
 bool Geographic_srs::init(gis::srid_t srid,
                           gis::srs::wkt_parser::Geographic_cs *g) {
+  // Semi-major axis is required by the parser.
   m_semi_major_axis = g->datum.spheroid.semi_major_axis;
-  m_inverse_flattening = g->datum.spheroid.inverse_flattening;
+  DBUG_ASSERT(std::isfinite(m_semi_major_axis));
+  if (m_semi_major_axis <= 0.0) {
+    my_error(ER_SRS_INVALID_SEMI_MAJOR_AXIS, MYF(0));
+    return true;
+  }
 
-  // Semi-major axis and inverse flattening are required by the parser.
-  DBUG_ASSERT(!std::isnan(m_semi_major_axis));
-  DBUG_ASSERT(!std::isnan(m_inverse_flattening));
+  // Inverse flattening is required by the parser.
+  m_inverse_flattening = g->datum.spheroid.inverse_flattening;
+  DBUG_ASSERT(std::isfinite(m_inverse_flattening));
+  if (m_inverse_flattening != 0.0 && m_inverse_flattening <= 1.0) {
+    my_error(ER_SRS_INVALID_INVERSE_FLATTENING, MYF(0));
+    return true;
+  }
 
   if (g->datum.towgs84.valid) {
     m_towgs84[0] = g->datum.towgs84.dx;
@@ -262,21 +271,31 @@ bool Geographic_srs::init(gis::srid_t srid,
     m_towgs84[6] = g->datum.towgs84.ppm;
 
     // If not all parameters are used, the parser sets the remaining ones to 0.
-    DBUG_ASSERT(!std::isnan(m_towgs84[0]));
-    DBUG_ASSERT(!std::isnan(m_towgs84[1]));
-    DBUG_ASSERT(!std::isnan(m_towgs84[2]));
-    DBUG_ASSERT(!std::isnan(m_towgs84[3]));
-    DBUG_ASSERT(!std::isnan(m_towgs84[4]));
-    DBUG_ASSERT(!std::isnan(m_towgs84[5]));
-    DBUG_ASSERT(!std::isnan(m_towgs84[6]));
+    DBUG_ASSERT(std::isfinite(m_towgs84[0]));
+    DBUG_ASSERT(std::isfinite(m_towgs84[1]));
+    DBUG_ASSERT(std::isfinite(m_towgs84[2]));
+    DBUG_ASSERT(std::isfinite(m_towgs84[3]));
+    DBUG_ASSERT(std::isfinite(m_towgs84[4]));
+    DBUG_ASSERT(std::isfinite(m_towgs84[5]));
+    DBUG_ASSERT(std::isfinite(m_towgs84[6]));
   }
 
-  m_prime_meridian = g->prime_meridian.longitude;
+  // Angular unit is required by the parser.
   m_angular_unit = g->angular_unit.conversion_factor;
+  DBUG_ASSERT(std::isfinite(m_angular_unit));
+  if (m_angular_unit <= 0) {
+    my_error(ER_SRS_INVALID_ANGULAR_UNIT, MYF(0));
+    return true;
+  }
 
-  // Prime meridian and angular unit are required by the parser.
-  DBUG_ASSERT(!std::isnan(m_prime_meridian));
-  DBUG_ASSERT(!std::isnan(m_angular_unit));
+  // Prime meridian is required by the parser.
+  m_prime_meridian = g->prime_meridian.longitude;
+  DBUG_ASSERT(std::isfinite(m_prime_meridian));
+  if (m_prime_meridian * m_angular_unit <= -M_PI ||
+      m_prime_meridian * m_angular_unit > M_PI) {
+    my_error(ER_SRS_INVALID_PRIME_MERIDIAN, MYF(0));
+    return true;
+  }
 
   // The parser requires that both axes are specified.
   DBUG_ASSERT(g->axes.valid);

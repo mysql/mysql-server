@@ -24,6 +24,7 @@
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA.
 
 #include <boost/geometry.hpp>
+#include <memory>  // std::unique_ptr
 
 #include "sql/dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
 #include "sql/gis/geometries_cs.h"
@@ -40,31 +41,41 @@ namespace gis {
 class Ring_flip_visitor : public Nop_visitor {
  private:
   /// Strategy used for geographic SRSs.
-  boost::geometry::strategy::area::geographic<> m_geographic_strategy;
-  /// Whether a ring with unknown direction has been encountered
-  bool m_detected_unknown;
+  std::unique_ptr<boost::geometry::strategy::area::geographic<>>
+      m_geographic_strategy;
+  /// Whether the geometry is invalid. That happens either if the ellipsoid of
+  /// a geographic SRS is invalid or if we encounter a ring with unknown
+  /// direction.
+  bool m_invalid;
 
  public:
   /// Construct a new ring flip visitor.
   ///
   /// @param[in] semi_major The semi-major axis of the ellipsoid.
   /// @param[in] semi_minor The semi-minor axis of the ellipsoid.
-  Ring_flip_visitor(double semi_major, double semi_minor)
-      : m_geographic_strategy(
-            boost::geometry::srs::spheroid<double>(semi_major, semi_minor)),
-        m_detected_unknown(false) {}
+  Ring_flip_visitor(double semi_major, double semi_minor) {
+    try {
+      m_geographic_strategy.reset(
+          new boost::geometry::strategy::area::geographic<>(
+              boost::geometry::srs::spheroid<double>(semi_major, semi_minor)));
+      m_invalid = false;
+    } catch (...) {
+      // Spheroid construction may fail if the axes are invalid.
+      m_invalid = true;
+    }
+  }
 
-  /// Check if the visitor has detected any invalid polygon rings during
-  /// processing.
+  /// Check if anything wrong has been detected, either an invalid ellipsoid or
+  /// a ring with an unknown direction.
   ///
   /// Polygon rings which direction can't be determined are invalid. This is the
   /// only way this visitor detects invalid rings. Other invalid rings, e.g.,
   /// rings crossing themselves, are not necessarily detected.
   ///
-  /// @retval true At least one invalid polygon ring.
+  /// @retval true Invalid SRS ellipsoid or invalid polygon ring.
   /// @retval false No invalid rings detected, but the geometry may still be
   /// invalid.
-  bool invalid() const { return m_detected_unknown; }
+  bool invalid() const { return m_invalid; }
 
   using Nop_visitor::visit_enter;
   bool visit_enter(Polygon *py) override;

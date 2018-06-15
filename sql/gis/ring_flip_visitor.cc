@@ -1,4 +1,4 @@
-// Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -31,38 +31,40 @@
 namespace gis {
 
 bool Ring_flip_visitor::visit_enter(Polygon *py) {
-  try {
-    switch (py->coordinate_system()) {
-      case Coordinate_system::kCartesian:
-        boost::geometry::correct(*down_cast<Cartesian_polygon *>(py));
-        break;
-      case Coordinate_system::kGeographic:
-        boost::geometry::correct(*down_cast<Geographic_polygon *>(py),
-                                 m_geographic_strategy);
-        break;
+  if (!m_invalid) {
+    try {
+      switch (py->coordinate_system()) {
+        case Coordinate_system::kCartesian:
+          boost::geometry::correct(*down_cast<Cartesian_polygon *>(py));
+          break;
+        case Coordinate_system::kGeographic:
+          boost::geometry::correct(*down_cast<Geographic_polygon *>(py),
+                                   *m_geographic_strategy);
+          break;
+      }
+    } catch (...) {
+      m_invalid = true;
     }
-  } catch (...) {
-    m_detected_unknown = true;
   }
-
   return true;  // Don't descend into each ring.
 }
 
 bool Ring_flip_visitor::visit_enter(Multipolygon *mpy) {
-  try {
-    switch (mpy->coordinate_system()) {
-      case Coordinate_system::kCartesian:
-        boost::geometry::correct(*down_cast<Cartesian_multipolygon *>(mpy));
-        break;
-      case Coordinate_system::kGeographic:
-        boost::geometry::correct(*down_cast<Geographic_multipolygon *>(mpy),
-                                 m_geographic_strategy);
-        break;
+  if (!m_invalid) {
+    try {
+      switch (mpy->coordinate_system()) {
+        case Coordinate_system::kCartesian:
+          boost::geometry::correct(*down_cast<Cartesian_multipolygon *>(mpy));
+          break;
+        case Coordinate_system::kGeographic:
+          boost::geometry::correct(*down_cast<Geographic_multipolygon *>(mpy),
+                                   *m_geographic_strategy);
+          break;
+      }
+    } catch (...) {
+      m_invalid = true;
     }
-  } catch (...) {
-    m_detected_unknown = true;
   }
-
   return true;  // Don't descend into each polygon.
 }
 

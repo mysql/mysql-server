@@ -1604,6 +1604,31 @@ ERROR SR002: Can't parse the spatial reference system definition of SRID 1039014
 # Parentheses and whitespace at the end (should pass)
 CREATE SPATIAL REFERENCE SYSTEM 1039015 NAME 'TEST1039015 WGS 84' DEFINITION 'GEOGCS("WGS 84",DATUM("World Geodetic System 1984",SPHEROID("WGS 84",6378137,298.257223563,AUTHORITY("EPSG","7030")),AUTHORITY("EPSG","6326")),PRIMEM("Greenwich",0,AUTHORITY("EPSG","8901")),UNIT("degree",0.017453292519943278,AUTHORITY("EPSG","9122")),AXIS("Lat",NORTH),AXIS("Long",EAST),AUTHORITY("EPSG","4326"))  ';
 DROP SPATIAL REFERENCE SYSTEM 1039015;
+# Semi-major axis 0 (should fail)
+CREATE SPATIAL REFERENCE SYSTEM 1000000
+NAME 'test1'
+DEFINITION 'GEOGCS["WGS 84",DATUM["World Geodetic System 1984",SPHEROID["WGS 84",0,298.257223563]],PRIMEM["Greenwich",0],UNIT["degree",0.017453292519943278],AXIS["Lat",NORTH],AXIS["Lon",EAST]]';
+ERROR SR002: The length of the semi-major axis must be a positive number.
+# Inverse flattening 1 (should fail)
+CREATE SPATIAL REFERENCE SYSTEM 1000000
+NAME 'test1'
+DEFINITION 'GEOGCS["WGS 84",DATUM["World Geodetic System 1984",SPHEROID["WGS 84",6378137,1]],PRIMEM["Greenwich",0],UNIT["degree",0.017453292519943278],AXIS["Lat",NORTH],AXIS["Lon",EAST]]';
+ERROR SR002: The inverse flattening must be larger than 1.0, or 0.0 if the ellipsoid is a sphere.
+# Prime meridian < -180 (should fail)
+CREATE SPATIAL REFERENCE SYSTEM 1000000
+NAME 'test1'
+DEFINITION 'GEOGCS["WGS 84",DATUM["World Geodetic System 1984",SPHEROID["WGS 84",6378137,298.257223563]],PRIMEM["Foo",-180.0000001],UNIT["degree",0.017453292519943278],AXIS["Lat",NORTH],AXIS["Lon",EAST]]';
+ERROR SR002: The prime meridian must be within (-180, 180] degrees, specified in the SRS angular unit.
+# Prime meridian > 180 (should fail)
+CREATE SPATIAL REFERENCE SYSTEM 1000000
+NAME 'test1'
+DEFINITION 'GEOGCS["WGS 84",DATUM["World Geodetic System 1984",SPHEROID["WGS 84",6378137,298.257223563]],PRIMEM["Foo",180.0000001],UNIT["degree",0.017453292519943278],AXIS["Lat",NORTH],AXIS["Lon",EAST]]';
+ERROR SR002: The prime meridian must be within (-180, 180] degrees, specified in the SRS angular unit.
+# Unit conversion factor 0 (should fail)
+CREATE SPATIAL REFERENCE SYSTEM 1000000
+NAME 'test1'
+DEFINITION 'GEOGCS["WGS 84",DATUM["World Geodetic System 1984",SPHEROID["WGS 84",6378137,298.257223563]],PRIMEM["Greenwich",0],UNIT["degree",0],AXIS["Lat",NORTH],AXIS["Lon",EAST]]';
+ERROR SR002: The angular unit conversion factor must be a positive number.
 #
 # Projected SRS parsing
 #
