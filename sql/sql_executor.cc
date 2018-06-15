@@ -5597,8 +5597,8 @@ bool QEP_TAB::remove_duplicates() {
   free_io_cache(tbl);  // Safety
   tbl->file->info(HA_STATUS_VARIABLE);
   constexpr int HASH_OVERHEAD = 16;  // Very approximate.
-  if (tbl->s->db_type() == temptable_hton || tbl->s->db_type() == heap_hton ||
-      (!tbl->s->blob_fields &&
+  if (!tbl->s->blob_fields &&
+      (tbl->s->db_type() == temptable_hton || tbl->s->db_type() == heap_hton ||
        ((ALIGN_SIZE(key_length) + HASH_OVERHEAD) * tbl->file->stats.records <
         join()->thd->variables.sortbuff_size)))
     error = remove_dup_with_hash_index(thd, tbl, first_field, field_lengths,

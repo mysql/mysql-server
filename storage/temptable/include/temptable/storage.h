@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -26,12 +26,12 @@ TempTable Storage. */
 #ifndef TEMPTABLE_STORAGE_H
 #define TEMPTABLE_STORAGE_H
 
-#include <cstddef> /* size_t */
-#include <utility> /* std::move() */
+#include <cstddef>
+#include <utility>
 
-#include "my_dbug.h"                                       /* DBUG_ASSERT() */
-#include "storage/temptable/include/temptable/allocator.h" /* temptable::Allocator */
-#include "storage/temptable/include/temptable/constants.h" /* temptable::STORAGE_PAGE_SIZE */
+#include "my_dbug.h"
+#include "storage/temptable/include/temptable/allocator.h"
+#include "storage/temptable/include/temptable/constants.h"
 
 namespace temptable {
 

@@ -56,19 +56,20 @@ https://msdn.microsoft.com/en-us/library/windows/desktop/aa366891(v=vs.85).aspx
 #endif /* _WIN32 */
 // clang-format on
 
-#include "my_config.h" /* HAVE_LIBNUMA */
+#include "my_config.h"
 
 #include "memory_debugging.h"
-#include "my_dbug.h"                /* DBUG_ASSERT(), DBUG_PRINT() */
-#include "my_io.h"                  /* File */
-#include "my_psi_config.h"          /* HAVE_PSI_MEMORY_INTERFACE */
-#include "my_sys.h"                 /* create_temp_file(), my_*() */
-#include "mysql/psi/mysql_memory.h" /* PSI_MEMORY_CALL */
-#include "mysql/psi/psi_base.h"     /* PSI_NOT_INSTRUMENTED */
-#include "mysql/psi/psi_memory.h"   /* PSI_memory_key, PSI_memory_info */
-#include "sql/mysqld.h"             /* temptable_max_ram */
-#include "storage/temptable/include/temptable/constants.h" /* temptable::ALLOCATOR_MAX_BLOCK_* */
-#include "storage/temptable/include/temptable/result.h" /* Result */
+#include "my_dbug.h"
+#include "my_io.h"
+#include "my_psi_config.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_memory.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/psi/psi_memory.h"
+#include "sql/mysqld.h"
+#include "storage/temptable/include/temptable/constants.h"
+#include "storage/temptable/include/temptable/result.h"
+#include "storage/temptable/include/temptable/misc.h"
 
 #ifdef HAVE_LIBNUMA
 #define TEMPTABLE_USE_LINUX_NUMA
@@ -705,7 +706,7 @@ inline void *Allocator<T>::mem_fetch_from_ram(size_t bytes) {
   GetNumaProcessorNodeEx(&processorNumber, &numaNodeId);
   bytes =
       (bytes + win_page_size - 1) & ~(static_cast<size_t>(win_page_size) - 1);
-  return VirtualAllocExNuma(GetCurrentProcess(), NULL, bytes,
+  return VirtualAllocExNuma(GetCurrentProcess(), nullptr, bytes,
                             MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE,
                             numaNodeId);
 #else
@@ -714,8 +715,8 @@ inline void *Allocator<T>::mem_fetch_from_ram(size_t bytes) {
 }
 
 template <class T>
-inline void Allocator<T>::mem_drop_from_ram(
-    void *ptr, size_t bytes MY_ATTRIBUTE((unused))) {
+inline void Allocator<T>::mem_drop_from_ram(void *ptr,
+                                            size_t bytes TEMPTABLE_UNUSED) {
 #if defined(TEMPTABLE_USE_LINUX_NUMA)
   if (linux_numa_available) {
     numa_free(ptr, bytes);

@@ -3,6 +3,8 @@
 drop table if exists t1;
 --enable_warnings
 
+SET @big_tables_save=@@big_tables;
+
 create table t1(n1 int, n2 int, s char(20), vs varchar(20), t text);
 insert into t1 values (1,11, 'one','eleven', 'eleven'),
  (1,11, 'one','eleven', 'eleven'),
@@ -66,6 +68,7 @@ show status like 'Created_tmp_disk_tables';
 drop table t1;
 
 # Test use of MyISAM tmp tables
+SET SESSION big_tables=1;
 create table t1 (s text);
 let $1=5000;
 disable_query_log;
@@ -79,5 +82,6 @@ flush status;
 select count(distinct s) from t1;
 show status like 'Created_tmp_disk_tables';
 drop table t1;
+SET SESSION big_tables=@big_tables_save;
 
 # End of 4.1 tests

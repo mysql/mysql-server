@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -26,7 +26,17 @@ TempTable miscellaneous helper utilities declarations. */
 #ifndef TEMPTABLE_MISC_H
 #define TEMPTABLE_MISC_H
 
-#include <cstddef> /* size_t */
+#include <cstddef>
+
+#include "my_compiler.h"
+
+#define TEMPTABLE_UNUSED MY_ATTRIBUTE((unused))
+
+#ifdef DBUG_OFF
+#define TEMPTABLE_UNUSED_NODBUG MY_ATTRIBUTE((unused))
+#else /* DBUG_OFF */
+#define TEMPTABLE_UNUSED_NODBUG
+#endif /* DBUG_OFF */
 
 namespace temptable {
 

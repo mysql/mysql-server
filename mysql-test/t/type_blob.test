@@ -121,9 +121,13 @@ select c from t1 group by c;
 select d from t1 group by d;
 set big_tables=0;
 select distinct * from t1;
+--sorted_result
 select t,count(*) from t1 group by t;
+--sorted_result
 select b,count(*) from t1 group by b;
+--sorted_result
 select c,count(*) from t1 group by c;
+--sorted_result
 select d,count(*) from t1 group by d;
 drop table t1;
 

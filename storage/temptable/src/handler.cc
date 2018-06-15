@@ -23,22 +23,22 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** @file storage/temptable/src/handler.cc
 TempTable public handler API implementation. */
 
-#include <limits> /* std::numeric_limits */
-#include <new>    /* std::bad_alloc */
+#include <limits>
+#include <new>
 
 #ifndef DBUG_OFF
-#include <thread> /* std::thread* */
+#include <thread>
 #endif
 
 #include "my_base.h"
 #include "my_dbug.h"
 #include "sql/handler.h"
-#include "sql/mysqld.h" /* temptable_max_ram */
+#include "sql/mysqld.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "storage/temptable/include/temptable/handler.h"
 #include "storage/temptable/include/temptable/row.h"
-#include "storage/temptable/include/temptable/storage.h" /* temptable::Storage */
+#include "storage/temptable/include/temptable/storage.h"
 #include "storage/temptable/include/temptable/table.h"
 #include "storage/temptable/include/temptable/test.h"
 
@@ -102,11 +102,10 @@ int Handler::create(const char *table_name, TABLE *mysql_table,
   for (uint i = 0; i < mysql_table->s->fields; ++i) {
     Field *mysql_field = mysql_table->field[i];
     DBUG_ASSERT(mysql_field != nullptr);
-    if (mysql_field->type() == MYSQL_TYPE_VARCHAR) {
+    if (!is_field_type_fixed_size(*mysql_field)) {
       all_columns_are_fixed_size = false;
       break;
     }
-    DBUG_ASSERT(is_field_type_supported(*mysql_field));
   }
 
   Result ret = Result::OUT_OF_MEM;
@@ -214,7 +213,8 @@ int Handler::close() {
   m_rnd_iterator_is_positioned = false;
   m_index_cursor.unposition();
 
-  const Result ret MY_ATTRIBUTE((unused)) = Result::OK;
+  /* Marked unused - temporary fix for GCC 8 bug 82728. */
+  const Result ret TEMPTABLE_UNUSED = Result::OK;
 
   DBUG_PRINT("temptable_api",
              ("this=%p; return=%s", this, result_to_string(ret)));
@@ -229,7 +229,8 @@ int Handler::rnd_init(bool) {
 
   m_rnd_iterator_is_positioned = false;
 
-  const Result ret MY_ATTRIBUTE((unused)) = Result::OK;
+  /* Marked unused - temporary fix for GCC 8 bug 82728. */
+  const Result ret TEMPTABLE_UNUSED = Result::OK;
 
   DBUG_PRINT("temptable_api",
              ("this=%p; return=%s", this, result_to_string(ret)));
@@ -241,10 +242,9 @@ int Handler::rnd_next(uchar *mysql_row) {
   DBUG_ENTER("temptable::Handler::rnd_next");
 
   DBUG_ASSERT(current_thread_is_creator());
+  opened_table_validate();
 
   handler::ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
-
-  opened_table_validate();
 
   const Storage &rows = m_opened_table->rows();
 
@@ -305,6 +305,7 @@ int Handler::rnd_pos(uchar *mysql_row, uchar *position) {
   DBUG_ENTER("temptable::Handler::rnd_pos");
 
   DBUG_ASSERT(current_thread_is_creator());
+  opened_table_validate();
 
   handler::ha_statistic_increment(&System_status_var::ha_read_rnd_count);
 
@@ -314,11 +315,10 @@ int Handler::rnd_pos(uchar *mysql_row, uchar *position) {
 
   m_rnd_iterator_is_positioned = true;
 
-  opened_table_validate();
-
   m_opened_table->row(m_rnd_iterator, mysql_row);
 
-  const Result ret MY_ATTRIBUTE((unused)) = Result::OK;
+  /* Marked unused - temporary fix for GCC 8 bug 82728. */
+  const Result ret TEMPTABLE_UNUSED = Result::OK;
 
   DBUG_PRINT("temptable_api",
              ("this=%p position=%p out=(%s); return=%s", this, position,
@@ -335,7 +335,8 @@ int Handler::rnd_end() {
 
   m_rnd_iterator_is_positioned = false;
 
-  const Result ret MY_ATTRIBUTE((unused)) = Result::OK;
+  /* Marked unused - temporary fix for GCC 8 bug 82728. */
+  const Result ret TEMPTABLE_UNUSED = Result::OK;
 
   DBUG_PRINT("temptable_api",
              ("this=%p; return=%s", this, result_to_string(ret)));
@@ -347,7 +348,7 @@ int Handler::index_init(uint index_no, bool) {
   DBUG_ENTER("temptable::Handler::index_init");
 
   DBUG_ASSERT(current_thread_is_creator());
-  DBUG_ASSERT(m_opened_table != nullptr);
+  opened_table_validate();
 
   Result ret;
 
@@ -370,10 +371,9 @@ int Handler::index_read(uchar *mysql_row, const uchar *mysql_search_cells,
   DBUG_ENTER("temptable::Handler::index_read");
 
   DBUG_ASSERT(current_thread_is_creator());
+  opened_table_validate();
 
   handler::ha_statistic_increment(&System_status_var::ha_read_key_count);
-
-  opened_table_validate();
 
   DBUG_ASSERT(handler::active_index < m_opened_table->number_of_indexes());
 
@@ -491,6 +491,7 @@ int Handler::index_next(uchar *mysql_row) {
   DBUG_ENTER("temptable::Handler::index_next");
 
   DBUG_ASSERT(current_thread_is_creator());
+  opened_table_validate();
 
   handler::ha_statistic_increment(&System_status_var::ha_read_next_count);
 
@@ -510,6 +511,7 @@ int Handler::index_next_same(uchar *mysql_row, const uchar *, uint) {
   DBUG_ENTER("temptable::Handler::index_next_same");
 
   DBUG_ASSERT(current_thread_is_creator());
+  opened_table_validate();
 
   handler::ha_statistic_increment(&System_status_var::ha_read_next_count);
 
@@ -530,13 +532,13 @@ Result Handler::index_next_conditional(uchar *mysql_row,
                                        NextCondition condition) {
   DBUG_ENTER("temptable::Handler::index_next_conditional");
 
+  opened_table_validate();
+
   DBUG_ASSERT(m_index_cursor.is_positioned());
 
   Result ret;
 
   try {
-    opened_table_validate();
-
     const Index &index = m_opened_table->index(handler::active_index);
 
     const Cursor &end = index.end();
@@ -608,6 +610,7 @@ int Handler::index_read_last(uchar *mysql_row, const uchar *mysql_search_cells,
   DBUG_ENTER("temptable::Handler::index_read_last");
 
   DBUG_ASSERT(current_thread_is_creator());
+  opened_table_validate();
 
   const Result ret = static_cast<Result>(
       index_read(mysql_row, mysql_search_cells, mysql_search_cells_len_bytes,
@@ -631,6 +634,8 @@ int Handler::index_prev(uchar *mysql_row) {
   DBUG_ENTER("temptable::Handler::index_prev");
 
   DBUG_ASSERT(current_thread_is_creator());
+  opened_table_validate();
+
   DBUG_ASSERT(m_index_cursor.is_positioned());
 
   handler::ha_statistic_increment(&System_status_var::ha_read_prev_count);
@@ -638,8 +643,6 @@ int Handler::index_prev(uchar *mysql_row) {
   Result ret;
 
   try {
-    opened_table_validate();
-
     const Cursor &begin = m_opened_table->index(handler::active_index).begin();
 
     if (handler::table->s->key_info[handler::active_index].algorithm !=
@@ -678,7 +681,8 @@ int Handler::index_end() {
 
   m_index_cursor.unposition();
 
-  const Result ret MY_ATTRIBUTE((unused)) = Result::OK;
+  /* Marked unused - temporary fix for GCC 8 bug 82728. */
+  const Result ret TEMPTABLE_UNUSED = Result::OK;
 
   DBUG_PRINT("temptable_api",
              ("this=%p; return=%s", this, result_to_string(ret)));
@@ -712,10 +716,9 @@ int Handler::write_row(uchar *mysql_row) {
   DBUG_ENTER("temptable::Handler::write_row");
 
   DBUG_ASSERT(current_thread_is_creator());
+  opened_table_validate();
 
   handler::ha_statistic_increment(&System_status_var::ha_write_count);
-
-  opened_table_validate();
 
   const Result ret = m_opened_table->insert(mysql_row);
 
@@ -730,6 +733,7 @@ int Handler::update_row(const uchar *mysql_row_old, uchar *mysql_row_new) {
   DBUG_ENTER("temptable::Handler::update_row");
 
   DBUG_ASSERT(current_thread_is_creator());
+  opened_table_validate();
 
   handler::ha_statistic_increment(&System_status_var::ha_update_count);
 
@@ -742,8 +746,6 @@ int Handler::update_row(const uchar *mysql_row_old, uchar *mysql_row_new) {
     DBUG_ASSERT(m_index_cursor.is_positioned());
     target_row = m_index_cursor.row();
   }
-
-  opened_table_validate();
 
   const Result ret =
       m_opened_table->update(mysql_row_old, mysql_row_new, target_row);
@@ -761,6 +763,8 @@ int Handler::delete_row(const uchar *mysql_row) {
   DBUG_ENTER("temptable::Handler::delete_row");
 
   DBUG_ASSERT(current_thread_is_creator());
+  opened_table_validate();
+
   DBUG_ASSERT(m_rnd_iterator_is_positioned);
 
   ha_statistic_increment(&System_status_var::ha_delete_count);
@@ -774,8 +778,6 @@ int Handler::delete_row(const uchar *mysql_row) {
   } else {
     --m_rnd_iterator;
   }
-
-  opened_table_validate();
 
   const Result ret = m_opened_table->remove(mysql_row, victim_position);
 
@@ -794,7 +796,6 @@ int Handler::truncate(dd::Table *) {
   DBUG_ENTER("temptable::Handler::truncate");
 
   DBUG_ASSERT(current_thread_is_creator());
-
   opened_table_validate();
 
   m_opened_table->truncate();
@@ -802,7 +803,8 @@ int Handler::truncate(dd::Table *) {
   m_rnd_iterator_is_positioned = false;
   m_index_cursor.unposition();
 
-  const Result ret MY_ATTRIBUTE((unused)) = Result::OK;
+  /* Marked unused - temporary fix for GCC 8 bug 82728. */
+  const Result ret TEMPTABLE_UNUSED = Result::OK;
 
   DBUG_PRINT("temptable_api",
              ("this=%p; return=%s", this, result_to_string(ret)));
@@ -819,6 +821,7 @@ int Handler::info(uint) {
   DBUG_ENTER("temptable::Handler::info");
 
   DBUG_ASSERT(current_thread_is_creator());
+  opened_table_validate();
 
   stats.deleted = m_deleted_rows;
   stats.records = m_opened_table->number_of_rows();
@@ -830,7 +833,8 @@ int Handler::info(uint) {
     key->set_in_memory_estimate(1.0);
   }
 
-  const Result ret MY_ATTRIBUTE((unused)) = Result::OK;
+  /* Marked unused - temporary fix for GCC 8 bug 82728. */
+  const Result ret TEMPTABLE_UNUSED = Result::OK;
 
   DBUG_PRINT("temptable_api", ("this=%p out=(stats.records=%llu); return=%s",
                                this, stats.records, result_to_string(ret)));
@@ -857,12 +861,14 @@ const char *Handler::table_type() const {
 
   // clang-format off
   const Table_flags flags =
-      HA_FAST_KEY_READ |
-      HA_COUNT_ROWS_INSTANT |
-      HA_NO_BLOBS |
       HA_NO_TRANSACTIONS |
+      HA_CAN_GEOMETRY |
+      HA_FAST_KEY_READ |
       HA_NULL_IN_KEY |
-      HA_STATS_RECORDS_IS_EXACT;
+      HA_CAN_INDEX_BLOBS |
+      HA_STATS_RECORDS_IS_EXACT |
+      HA_NO_AUTO_INCREMENT |
+      HA_COUNT_ROWS_INSTANT;
   // clang-format on
 
   DBUG_PRINT("temptable_api", ("this=%p; return=%lld", this, flags));

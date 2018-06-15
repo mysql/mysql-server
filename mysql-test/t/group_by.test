@@ -2769,11 +2769,15 @@ while ($i < 2) {
 --eval CREATE TABLE t(a $type, b INT)
 INSERT INTO t VALUES ('1', 10), ('1', 11), ('2', 20), ('2', 20), ('3', 30);
 --source include/turn_off_only_full_group_by.inc
+--sorted_result
 SELECT (SELECT a) AS col1, COUNT(DISTINCT b) FROM t GROUP BY -col1;
 # This query gave the right results also before the fix:
+--sorted_result
 SELECT (SELECT a) AS col1, COUNT(b) FROM t GROUP BY -col1;
 # Same query with SQL_BIG_RESULT or WITH ROLLUP gave wrong results:
+--sorted_result
 SELECT SQL_BIG_RESULT (SELECT a) AS col1, COUNT(b) FROM t GROUP BY -col1;
+--sorted_result
 SELECT (SELECT a) AS col1, COUNT(b) FROM t GROUP BY -col1 WITH ROLLUP;
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 DROP TABLE t;

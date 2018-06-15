@@ -1,0 +1,181 @@
+--source include/have_debug.inc
+
+#============
+# Basic temptable tests
+#============
+
+# ---------------------------------------------------------------------
+# Prepare
+#
+
+SET @@internal_tmp_mem_storage_engine = TempTable;
+
+CREATE TABLE t_int (c INT);
+CREATE TABLE t_char (c CHAR(20));
+CREATE TABLE t_varchar (c VARCHAR(20));
+CREATE TABLE t_text (c TEXT);
+CREATE TABLE t_blob (c BLOB);
+CREATE TABLE t_json (c JSON);
+CREATE TABLE t_point (c POINT);
+CREATE TABLE t_geom (c GEOMETRY);
+
+INSERT INTO t_int VALUES
+	(1),
+	(2),
+	(2),
+	(3),
+	(4),
+	(NULL);
+
+INSERT INTO t_char VALUES
+	('abcde'),
+	('fghij'),
+	('fghij'),
+	('klmno  '),
+	('stxyz'),
+	(''),
+	(NULL);
+
+INSERT INTO t_varchar VALUES
+	('abcde'),
+	('fghij'),
+	('fghij'),
+	('klmno  '),
+	('stxyz'),
+	(''),
+	(NULL);
+
+INSERT INTO t_text VALUES
+	('abcde'),
+	('fghij'),
+	('fghij'),
+	('klmno  '),
+	('stxyz'),
+	(''),
+	(NULL);
+
+INSERT INTO t_blob VALUES
+	('abcde'),
+	('fghij'),
+	('fghij'),
+	('klmno  '),
+	('stxyz'),
+	(''),
+	(NULL);
+
+INSERT INTO t_json VALUES
+	('{"k1": "value", "k2": [10, 20]}'),
+	('["hot", "cold"]'),
+	('["hot", "cold"]'),
+	('["a", "b", 1]'),
+	('{"key": "value"}'),
+	(NULL);
+
+INSERT INTO t_point VALUES
+	(ST_PointFromText('POINT(10 10)')),
+	(ST_PointFromText('POINT(50 10)')),
+	(ST_PointFromText('POINT(50 10)')),
+	(ST_PointFromText('POINT(-1 -2)')),
+	(ST_PointFromText('POINT(10 50)')),
+	(NULL);
+
+INSERT INTO t_geom VALUES
+	(ST_PointFromText('POINT(10 10)')),
+	(ST_MultiPointFromText('MULTIPOINT(0 0,10 10,10 20,20 20)')),
+	(ST_MultiPointFromText('MULTIPOINT(0 0,10 10,10 20,20 20)')),
+	(ST_PolygonFromText('POLYGON((10 10,20 10,20 20,10 20,10 10))')),
+	(ST_LineFromText('LINESTRING(0 0,0 10,10 0)')),
+	(NULL);
+
+SHOW STATUS LIKE 'Created_tmp_tables';
+SHOW STATUS LIKE 'Created_tmp_disk_tables';
+
+--echo # ---------------------------------------------------------------------
+--echo # Scenario 1:
+--echo #
+
+--sorted_result
+SELECT DISTINCT * FROM
+    t_int AS t1,
+    t_int AS t2;
+
+--sorted_result
+SELECT DISTINCT * FROM
+    t_char AS t1,
+    t_char AS t2;
+
+--sorted_result
+SELECT DISTINCT * FROM
+    t_varchar AS t1,
+    t_varchar AS t2;
+
+--sorted_result
+SELECT DISTINCT * FROM
+    t_text AS t1,
+    t_text AS t2;
+
+--sorted_result
+SELECT DISTINCT * FROM
+    t_blob AS t1,
+    t_blob AS t2;
+
+--sorted_result
+SELECT DISTINCT * FROM
+    t_json AS t1,
+    t_json AS t2;
+
+--sorted_result
+SELECT DISTINCT ST_AsText(t1.c),ST_AsText(t2.c) FROM
+    t_point AS t1,
+    t_point AS t2;
+
+--sorted_result
+SELECT DISTINCT ST_AsText(t1.c),ST_AsText(t2.c) FROM
+    t_geom AS t1,
+    t_geom AS t2;
+
+--echo # ---------------------------------------------------------------------
+--echo # Scenario 2:
+--echo #
+
+--sorted_result
+SELECT c,COUNT(*) FROM t_int GROUP BY c;
+
+--sorted_result
+SELECT c,COUNT(*) FROM t_char GROUP BY c;
+
+--sorted_result
+SELECT c,COUNT(*) FROM t_varchar GROUP BY c;
+
+--sorted_result
+SELECT c,COUNT(*) FROM t_text GROUP BY c;
+
+--sorted_result
+SELECT c,COUNT(*) FROM t_blob GROUP BY c;
+
+--sorted_result
+SELECT c,COUNT(*) FROM t_json GROUP BY c;
+
+--sorted_result
+SELECT ST_AsText(c),COUNT(*) FROM t_point GROUP BY c;
+
+--sorted_result
+SELECT ST_AsText(c),COUNT(*) FROM t_geom GROUP BY c;
+
+SHOW STATUS LIKE 'Created_tmp_tables';
+SHOW STATUS LIKE 'Created_tmp_disk_tables';
+
+# ---------------------------------------------------------------------
+# Cleanup
+#
+
+DROP TABLE t_int;
+DROP TABLE t_char;
+DROP TABLE t_varchar;
+DROP TABLE t_text;
+DROP TABLE t_blob;
+DROP TABLE t_json;
+DROP TABLE t_point;
+DROP TABLE t_geom;
+
+SET @@internal_tmp_mem_storage_engine = default;

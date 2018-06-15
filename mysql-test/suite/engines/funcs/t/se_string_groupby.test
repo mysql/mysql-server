@@ -1,635 +1,384 @@
 --source include/no_valgrind_without_big.inc
+
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 --enable_warnings
+
+--echo #------------------------------
+--echo # Test CHAR 'a'
+--echo #------------------------------
 CREATE TABLE t1(c1 CHAR(1) NULL, c2 CHAR(1) NULL, c3 INT NULL);
 --source suite/engines/funcs/t/data1.inc
-SELECT c1 FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*) FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' OR c2 = '#C2' GROUP BY c1;
-SELECT c1,c2 FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' OR c2 = '#C2' GROUP BY c1,c2;
-SELECT c2,c1 FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' OR c2 = '#C2' GROUP BY c2,c1;
+set @value := 'a';
+--source suite/engines/funcs/t/se_string_groupby_statements.inc
 DROP TABLE t1;
+
+--echo #------------------------------
+--echo # Test CHAR 'b'
+--echo #------------------------------
 CREATE TABLE t1(c1 CHAR(1) NULL, c2 CHAR(1) NULL, c3 INT NULL);
 --source suite/engines/funcs/t/data1.inc
-SELECT c1 FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*) FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' OR c2 = '#C2' GROUP BY c1;
-SELECT c1,c2 FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' OR c2 = '#C2' GROUP BY c1,c2;
-SELECT c2,c1 FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' OR c2 = '#C2' GROUP BY c2,c1;
+set @value := 'b';
+--source suite/engines/funcs/t/se_string_groupby_statements.inc
 DROP TABLE t1;
+
+--echo #------------------------------
+--echo # Test CHAR 'c'
+--echo #------------------------------
 CREATE TABLE t1(c1 CHAR(1) NULL, c2 CHAR(1) NULL, c3 INT NULL);
 --source suite/engines/funcs/t/data1.inc
-SELECT c1 FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*) FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' OR c2 = '#C2' GROUP BY c1;
-SELECT c1,c2 FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' OR c2 = '#C2' GROUP BY c1,c2;
-SELECT c2,c1 FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' OR c2 = '#C2' GROUP BY c2,c1;
+set @value := 'c';
+--source suite/engines/funcs/t/se_string_groupby_statements.inc
 DROP TABLE t1;
+
+--echo #------------------------------
+--echo # Test CHAR 'd'
+--echo #------------------------------
 CREATE TABLE t1(c1 CHAR(1) NULL, c2 CHAR(1) NULL, c3 INT NULL);
 --source suite/engines/funcs/t/data1.inc
-SELECT c1 FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*) FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' OR c2 = '#C2' GROUP BY c1;
-SELECT c1,c2 FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' OR c2 = '#C2' GROUP BY c1,c2;
-SELECT c2,c1 FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' OR c2 = '#C2' GROUP BY c2,c1;
+set @value := 'd';
+--source suite/engines/funcs/t/se_string_groupby_statements.inc
 DROP TABLE t1;
+
+--echo #------------------------------
+--echo # Test CHAR 'e'
+--echo #------------------------------
 CREATE TABLE t1(c1 CHAR(1) NULL, c2 CHAR(1) NULL, c3 INT NULL);
 --source suite/engines/funcs/t/data1.inc
-SELECT c1 FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*) FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' OR c2 = '#C2' GROUP BY c1;
-SELECT c1,c2 FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' OR c2 = '#C2' GROUP BY c1,c2;
-SELECT c2,c1 FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' OR c2 = '#C2' GROUP BY c2,c1;
+set @value := 'e';
+--source suite/engines/funcs/t/se_string_groupby_statements.inc
 DROP TABLE t1;
+
+--echo #------------------------------
+--echo # Test CHAR 'f'
+--echo #------------------------------
 CREATE TABLE t1(c1 CHAR(1) NULL, c2 CHAR(1) NULL, c3 INT NULL);
 --source suite/engines/funcs/t/data1.inc
-SELECT c1 FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*) FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' OR c2 = '#C2' GROUP BY c1;
-SELECT c1,c2 FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' OR c2 = '#C2' GROUP BY c1,c2;
-SELECT c2,c1 FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' OR c2 = '#C2' GROUP BY c2,c1;
+set @value := 'f';
+--source suite/engines/funcs/t/se_string_groupby_statements.inc
 DROP TABLE t1;
+
+--echo #------------------------------
+--echo # Test CHAR 'y'
+--echo #------------------------------
 CREATE TABLE t1(c1 CHAR(1) NULL, c2 CHAR(1) NULL, c3 INT NULL);
 --source suite/engines/funcs/t/data1.inc
-SELECT c1 FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*) FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' OR c2 = '#C2' GROUP BY c1;
-SELECT c1,c2 FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' OR c2 = '#C2' GROUP BY c1,c2;
-SELECT c2,c1 FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' OR c2 = '#C2' GROUP BY c2,c1;
+set @value := 'y';
+--source suite/engines/funcs/t/se_string_groupby_statements.inc
 DROP TABLE t1;
+
+--echo #------------------------------
+--echo # Test VARCHAR 'a'
+--echo #------------------------------
 CREATE TABLE t1(c1 VARCHAR(1) NULL, c2 VARCHAR(1) NULL, c3 INT NULL);
 --source suite/engines/funcs/t/data1.inc
-SELECT c1 FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*) FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' OR c2 = '#C2' GROUP BY c1;
-SELECT c1,c2 FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' OR c2 = '#C2' GROUP BY c1,c2;
-SELECT c2,c1 FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' OR c2 = '#C2' GROUP BY c2,c1;
+set @value := 'a';
+--source suite/engines/funcs/t/se_string_groupby_statements.inc
 DROP TABLE t1;
+
+--echo #------------------------------
+--echo # Test VARCHAR 'b'
+--echo #------------------------------
 CREATE TABLE t1(c1 VARCHAR(1) NULL, c2 VARCHAR(1) NULL, c3 INT NULL);
 --source suite/engines/funcs/t/data1.inc
-SELECT c1 FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*) FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' OR c2 = '#C2' GROUP BY c1;
-SELECT c1,c2 FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' OR c2 = '#C2' GROUP BY c1,c2;
-SELECT c2,c1 FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' OR c2 = '#C2' GROUP BY c2,c1;
+set @value := 'b';
+--source suite/engines/funcs/t/se_string_groupby_statements.inc
 DROP TABLE t1;
+
+--echo #------------------------------
+--echo # Test VARCHAR 'c'
+--echo #------------------------------
 CREATE TABLE t1(c1 VARCHAR(1) NULL, c2 VARCHAR(1) NULL, c3 INT NULL);
 --source suite/engines/funcs/t/data1.inc
-SELECT c1 FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*) FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' OR c2 = '#C2' GROUP BY c1;
-SELECT c1,c2 FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' OR c2 = '#C2' GROUP BY c1,c2;
-SELECT c2,c1 FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' OR c2 = '#C2' GROUP BY c2,c1;
+set @value := 'c';
+--source suite/engines/funcs/t/se_string_groupby_statements.inc
 DROP TABLE t1;
+
+--echo #------------------------------
+--echo # Test VARCHAR 'd'
+--echo #------------------------------
 CREATE TABLE t1(c1 VARCHAR(1) NULL, c2 VARCHAR(1) NULL, c3 INT NULL);
 --source suite/engines/funcs/t/data1.inc
-SELECT c1 FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*) FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' OR c2 = '#C2' GROUP BY c1;
-SELECT c1,c2 FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' OR c2 = '#C2' GROUP BY c1,c2;
-SELECT c2,c1 FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' OR c2 = '#C2' GROUP BY c2,c1;
+set @value := 'd';
+--source suite/engines/funcs/t/se_string_groupby_statements.inc
 DROP TABLE t1;
+
+--echo #------------------------------
+--echo # Test VARCHAR 'e'
+--echo #------------------------------
 CREATE TABLE t1(c1 VARCHAR(1) NULL, c2 VARCHAR(1) NULL, c3 INT NULL);
 --source suite/engines/funcs/t/data1.inc
-SELECT c1 FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*) FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' OR c2 = '#C2' GROUP BY c1;
-SELECT c1,c2 FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' OR c2 = '#C2' GROUP BY c1,c2;
-SELECT c2,c1 FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' OR c2 = '#C2' GROUP BY c2,c1;
+set @value := 'e';
+--source suite/engines/funcs/t/se_string_groupby_statements.inc
 DROP TABLE t1;
+
+--echo #------------------------------
+--echo # Test VARCHAR 'f'
+--echo #------------------------------
 CREATE TABLE t1(c1 VARCHAR(1) NULL, c2 VARCHAR(1) NULL, c3 INT NULL);
 --source suite/engines/funcs/t/data1.inc
-SELECT c1 FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*) FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' OR c2 = '#C2' GROUP BY c1;
-SELECT c1,c2 FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' OR c2 = '#C2' GROUP BY c1,c2;
-SELECT c2,c1 FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' OR c2 = '#C2' GROUP BY c2,c1;
+set @value := 'f';
+--source suite/engines/funcs/t/se_string_groupby_statements.inc
 DROP TABLE t1;
+
+--echo #------------------------------
+--echo # Test VARCHAR 'y'
+--echo #------------------------------
 CREATE TABLE t1(c1 VARCHAR(1) NULL, c2 VARCHAR(1) NULL, c3 INT NULL);
 --source suite/engines/funcs/t/data1.inc
-SELECT c1 FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*) FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' OR c2 = '#C2' GROUP BY c1;
-SELECT c1,c2 FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' OR c2 = '#C2' GROUP BY c1,c2;
-SELECT c2,c1 FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' OR c2 = '#C2' GROUP BY c2,c1;
+set @value := 'y';
+--source suite/engines/funcs/t/se_string_groupby_statements.inc
 DROP TABLE t1;
+
+--echo #------------------------------
+--echo # Test BINARY 'a'
+--echo #------------------------------
 CREATE TABLE t1(c1 BINARY(1) NULL, c2 BINARY(1) NULL, c3 INT NULL);
 --source suite/engines/funcs/t/data1.inc
-SELECT c1 FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*) FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' OR c2 = '#C2' GROUP BY c1;
-SELECT c1,c2 FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' OR c2 = '#C2' GROUP BY c1,c2;
-SELECT c2,c1 FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' OR c2 = '#C2' GROUP BY c2,c1;
+set @value := 'a';
+--source suite/engines/funcs/t/se_string_groupby_statements.inc
 DROP TABLE t1;
+
+--echo #------------------------------
+--echo # Test BINARY 'b'
+--echo #------------------------------
 CREATE TABLE t1(c1 BINARY(1) NULL, c2 BINARY(1) NULL, c3 INT NULL);
 --source suite/engines/funcs/t/data1.inc
-SELECT c1 FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*) FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' OR c2 = '#C2' GROUP BY c1;
-SELECT c1,c2 FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' OR c2 = '#C2' GROUP BY c1,c2;
-SELECT c2,c1 FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' OR c2 = '#C2' GROUP BY c2,c1;
+set @value := 'b';
+--source suite/engines/funcs/t/se_string_groupby_statements.inc
 DROP TABLE t1;
+
+--echo #------------------------------
+--echo # Test BINARY 'c'
+--echo #------------------------------
 CREATE TABLE t1(c1 BINARY(1) NULL, c2 BINARY(1) NULL, c3 INT NULL);
 --source suite/engines/funcs/t/data1.inc
-SELECT c1 FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*) FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' OR c2 = '#C2' GROUP BY c1;
-SELECT c1,c2 FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' OR c2 = '#C2' GROUP BY c1,c2;
-SELECT c2,c1 FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' OR c2 = '#C2' GROUP BY c2,c1;
+set @value := 'c';
+--source suite/engines/funcs/t/se_string_groupby_statements.inc
 DROP TABLE t1;
+
+--echo #------------------------------
+--echo # Test BINARY 'd'
+--echo #------------------------------
 CREATE TABLE t1(c1 BINARY(1) NULL, c2 BINARY(1) NULL, c3 INT NULL);
 --source suite/engines/funcs/t/data1.inc
-SELECT c1 FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*) FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' OR c2 = '#C2' GROUP BY c1;
-SELECT c1,c2 FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' OR c2 = '#C2' GROUP BY c1,c2;
-SELECT c2,c1 FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' OR c2 = '#C2' GROUP BY c2,c1;
+set @value := 'd';
+--source suite/engines/funcs/t/se_string_groupby_statements.inc
 DROP TABLE t1;
+
+--echo #------------------------------
+--echo # Test BINARY 'e'
+--echo #------------------------------
 CREATE TABLE t1(c1 BINARY(1) NULL, c2 BINARY(1) NULL, c3 INT NULL);
 --source suite/engines/funcs/t/data1.inc
-SELECT c1 FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*) FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' OR c2 = '#C2' GROUP BY c1;
-SELECT c1,c2 FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' OR c2 = '#C2' GROUP BY c1,c2;
-SELECT c2,c1 FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' OR c2 = '#C2' GROUP BY c2,c1;
+set @value := 'e';
+--source suite/engines/funcs/t/se_string_groupby_statements.inc
 DROP TABLE t1;
+
+--echo #------------------------------
+--echo # Test BINARY 'f'
+--echo #------------------------------
 CREATE TABLE t1(c1 BINARY(1) NULL, c2 BINARY(1) NULL, c3 INT NULL);
 --source suite/engines/funcs/t/data1.inc
-SELECT c1 FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*) FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' OR c2 = '#C2' GROUP BY c1;
-SELECT c1,c2 FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' OR c2 = '#C2' GROUP BY c1,c2;
-SELECT c2,c1 FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' OR c2 = '#C2' GROUP BY c2,c1;
+set @value := 'f';
+--source suite/engines/funcs/t/se_string_groupby_statements.inc
 DROP TABLE t1;
+
+--echo #------------------------------
+--echo # Test BINARY 'y'
+--echo #------------------------------
 CREATE TABLE t1(c1 BINARY(1) NULL, c2 BINARY(1) NULL, c3 INT NULL);
 --source suite/engines/funcs/t/data1.inc
-SELECT c1 FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*) FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' OR c2 = '#C2' GROUP BY c1;
-SELECT c1,c2 FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' OR c2 = '#C2' GROUP BY c1,c2;
-SELECT c2,c1 FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' OR c2 = '#C2' GROUP BY c2,c1;
+set @value := 'y';
+--source suite/engines/funcs/t/se_string_groupby_statements.inc
 DROP TABLE t1;
+
+--echo #------------------------------
+--echo # Test VARBINARY 'a'
+--echo #------------------------------
 CREATE TABLE t1(c1 VARBINARY(1) NULL, c2 VARBINARY(1) NULL, c3 INT NULL);
 --source suite/engines/funcs/t/data1.inc
-SELECT c1 FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*) FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' OR c2 = '#C2' GROUP BY c1;
-SELECT c1,c2 FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' OR c2 = '#C2' GROUP BY c1,c2;
-SELECT c2,c1 FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' OR c2 = '#C2' GROUP BY c2,c1;
+set @value := 'a';
+--source suite/engines/funcs/t/se_string_groupby_statements.inc
 DROP TABLE t1;
+
+--echo #------------------------------
+--echo # Test VARBINARY 'b'
+--echo #------------------------------
 CREATE TABLE t1(c1 VARBINARY(1) NULL, c2 VARBINARY(1) NULL, c3 INT NULL);
 --source suite/engines/funcs/t/data1.inc
-SELECT c1 FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*) FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' OR c2 = '#C2' GROUP BY c1;
-SELECT c1,c2 FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' OR c2 = '#C2' GROUP BY c1,c2;
-SELECT c2,c1 FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' OR c2 = '#C2' GROUP BY c2,c1;
+set @value := 'b';
+--source suite/engines/funcs/t/se_string_groupby_statements.inc
 DROP TABLE t1;
+
+--echo #------------------------------
+--echo # Test VARBINARY 'c'
+--echo #------------------------------
 CREATE TABLE t1(c1 VARBINARY(1) NULL, c2 VARBINARY(1) NULL, c3 INT NULL);
 --source suite/engines/funcs/t/data1.inc
-SELECT c1 FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*) FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' OR c2 = '#C2' GROUP BY c1;
-SELECT c1,c2 FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' OR c2 = '#C2' GROUP BY c1,c2;
-SELECT c2,c1 FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' OR c2 = '#C2' GROUP BY c2,c1;
+set @value := 'c';
+--source suite/engines/funcs/t/se_string_groupby_statements.inc
 DROP TABLE t1;
+
+--echo #------------------------------
+--echo # Test VARBINARY 'd'
+--echo #------------------------------
 CREATE TABLE t1(c1 VARBINARY(1) NULL, c2 VARBINARY(1) NULL, c3 INT NULL);
 --source suite/engines/funcs/t/data1.inc
-SELECT c1 FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*) FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' OR c2 = '#C2' GROUP BY c1;
-SELECT c1,c2 FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' OR c2 = '#C2' GROUP BY c1,c2;
-SELECT c2,c1 FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' OR c2 = '#C2' GROUP BY c2,c1;
+set @value := 'd';
+--source suite/engines/funcs/t/se_string_groupby_statements.inc
 DROP TABLE t1;
+
+--echo #------------------------------
+--echo # Test VARBINARY 'e'
+--echo #------------------------------
 CREATE TABLE t1(c1 VARBINARY(1) NULL, c2 VARBINARY(1) NULL, c3 INT NULL);
 --source suite/engines/funcs/t/data1.inc
-SELECT c1 FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*) FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' OR c2 = '#C2' GROUP BY c1;
-SELECT c1,c2 FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' OR c2 = '#C2' GROUP BY c1,c2;
-SELECT c2,c1 FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' OR c2 = '#C2' GROUP BY c2,c1;
+set @value := 'e';
+--source suite/engines/funcs/t/se_string_groupby_statements.inc
 DROP TABLE t1;
+
+--echo #------------------------------
+--echo # Test VARBINARY 'f'
+--echo #------------------------------
 CREATE TABLE t1(c1 VARBINARY(1) NULL, c2 VARBINARY(1) NULL, c3 INT NULL);
 --source suite/engines/funcs/t/data1.inc
-SELECT c1 FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*) FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' OR c2 = '#C2' GROUP BY c1;
-SELECT c1,c2 FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' OR c2 = '#C2' GROUP BY c1,c2;
-SELECT c2,c1 FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' OR c2 = '#C2' GROUP BY c2,c1;
+set @value := 'f';
+--source suite/engines/funcs/t/se_string_groupby_statements.inc
 DROP TABLE t1;
+
+--echo #------------------------------
+--echo # Test VARBINARY 'y'
+--echo #------------------------------
 CREATE TABLE t1(c1 VARBINARY(1) NULL, c2 VARBINARY(1) NULL, c3 INT NULL);
 --source suite/engines/funcs/t/data1.inc
-SELECT c1 FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*) FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' OR c2 = '#C2' GROUP BY c1;
-SELECT c1,c2 FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' OR c2 = '#C2' GROUP BY c1,c2;
-SELECT c2,c1 FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' OR c2 = '#C2' GROUP BY c2,c1;
+set @value := 'y';
+--source suite/engines/funcs/t/se_string_groupby_statements.inc
 DROP TABLE t1;
+
+--echo #------------------------------
+--echo # Test BLOB 'a'
+--echo #------------------------------
 CREATE TABLE t1(c1 BLOB(1) NULL, c2 BLOB(1) NULL, c3 INT NULL);
 --source suite/engines/funcs/t/data1.inc
-SELECT c1 FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*) FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' OR c2 = '#C2' GROUP BY c1;
-SELECT c1,c2 FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' OR c2 = '#C2' GROUP BY c1,c2;
-SELECT c2,c1 FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' OR c2 = '#C2' GROUP BY c2,c1;
+set @value := 'a';
+--source suite/engines/funcs/t/se_string_groupby_statements.inc
 DROP TABLE t1;
+
+--echo #------------------------------
+--echo # Test BLOB 'b'
+--echo #------------------------------
 CREATE TABLE t1(c1 BLOB(1) NULL, c2 BLOB(1) NULL, c3 INT NULL);
 --source suite/engines/funcs/t/data1.inc
-SELECT c1 FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*) FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' OR c2 = '#C2' GROUP BY c1;
-SELECT c1,c2 FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' OR c2 = '#C2' GROUP BY c1,c2;
-SELECT c2,c1 FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' OR c2 = '#C2' GROUP BY c2,c1;
+set @value := 'b';
+--source suite/engines/funcs/t/se_string_groupby_statements.inc
 DROP TABLE t1;
+
+--echo #------------------------------
+--echo # Test BLOB 'c'
+--echo #------------------------------
 CREATE TABLE t1(c1 BLOB(1) NULL, c2 BLOB(1) NULL, c3 INT NULL);
 --source suite/engines/funcs/t/data1.inc
-SELECT c1 FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*) FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' OR c2 = '#C2' GROUP BY c1;
-SELECT c1,c2 FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' OR c2 = '#C2' GROUP BY c1,c2;
-SELECT c2,c1 FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' OR c2 = '#C2' GROUP BY c2,c1;
+set @value := 'c';
+--source suite/engines/funcs/t/se_string_groupby_statements.inc
 DROP TABLE t1;
+
+--echo #------------------------------
+--echo # Test BLOB 'd'
+--echo #------------------------------
 CREATE TABLE t1(c1 BLOB(1) NULL, c2 BLOB(1) NULL, c3 INT NULL);
 --source suite/engines/funcs/t/data1.inc
-SELECT c1 FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*) FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' OR c2 = '#C2' GROUP BY c1;
-SELECT c1,c2 FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' OR c2 = '#C2' GROUP BY c1,c2;
-SELECT c2,c1 FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' OR c2 = '#C2' GROUP BY c2,c1;
+set @value := 'd';
+--source suite/engines/funcs/t/se_string_groupby_statements.inc
 DROP TABLE t1;
+
+--echo #------------------------------
+--echo # Test BLOB 'e'
+--echo #------------------------------
 CREATE TABLE t1(c1 BLOB(1) NULL, c2 BLOB(1) NULL, c3 INT NULL);
 --source suite/engines/funcs/t/data1.inc
-SELECT c1 FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*) FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' OR c2 = '#C2' GROUP BY c1;
-SELECT c1,c2 FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' OR c2 = '#C2' GROUP BY c1,c2;
-SELECT c2,c1 FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' OR c2 = '#C2' GROUP BY c2,c1;
+set @value := 'e';
+--source suite/engines/funcs/t/se_string_groupby_statements.inc
 DROP TABLE t1;
+
+--echo #------------------------------
+--echo # Test BLOB 'f'
+--echo #------------------------------
 CREATE TABLE t1(c1 BLOB(1) NULL, c2 BLOB(1) NULL, c3 INT NULL);
 --source suite/engines/funcs/t/data1.inc
-SELECT c1 FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*) FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' OR c2 = '#C2' GROUP BY c1;
-SELECT c1,c2 FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' OR c2 = '#C2' GROUP BY c1,c2;
-SELECT c2,c1 FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' OR c2 = '#C2' GROUP BY c2,c1;
+set @value := 'f';
+--source suite/engines/funcs/t/se_string_groupby_statements.inc
 DROP TABLE t1;
+
+--echo #------------------------------
+--echo # Test BLOB 'y'
+--echo #------------------------------
 CREATE TABLE t1(c1 BLOB(1) NULL, c2 BLOB(1) NULL, c3 INT NULL);
 --source suite/engines/funcs/t/data1.inc
-SELECT c1 FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*) FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' OR c2 = '#C2' GROUP BY c1;
-SELECT c1,c2 FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' OR c2 = '#C2' GROUP BY c1,c2;
-SELECT c2,c1 FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' OR c2 = '#C2' GROUP BY c2,c1;
+set @value := 'y';
+--source suite/engines/funcs/t/se_string_groupby_statements.inc
 DROP TABLE t1;
+
+--echo #------------------------------
+--echo # Test TEXT 'a'
+--echo #------------------------------
 CREATE TABLE t1(c1 TEXT(1) NULL, c2 TEXT(1) NULL, c3 INT NULL);
 --source suite/engines/funcs/t/data1.inc
-SELECT c1 FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*) FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' OR c2 = '#C2' GROUP BY c1;
-SELECT c1,c2 FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' OR c2 = '#C2' GROUP BY c1,c2;
-SELECT c2,c1 FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='a' OR c2 = '#C2' GROUP BY c2,c1;
+set @value := 'a';
+--source suite/engines/funcs/t/se_string_groupby_statements.inc
 DROP TABLE t1;
+
+--echo #------------------------------
+--echo # Test TEXT 'b'
+--echo #------------------------------
 CREATE TABLE t1(c1 TEXT(1) NULL, c2 TEXT(1) NULL, c3 INT NULL);
 --source suite/engines/funcs/t/data1.inc
-SELECT c1 FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*) FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' OR c2 = '#C2' GROUP BY c1;
-SELECT c1,c2 FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' OR c2 = '#C2' GROUP BY c1,c2;
-SELECT c2,c1 FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='b' OR c2 = '#C2' GROUP BY c2,c1;
+set @value := 'b';
+--source suite/engines/funcs/t/se_string_groupby_statements.inc
 DROP TABLE t1;
+
+--echo #------------------------------
+--echo # Test TEXT 'c'
+--echo #------------------------------
 CREATE TABLE t1(c1 TEXT(1) NULL, c2 TEXT(1) NULL, c3 INT NULL);
 --source suite/engines/funcs/t/data1.inc
-SELECT c1 FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*) FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' OR c2 = '#C2' GROUP BY c1;
-SELECT c1,c2 FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' OR c2 = '#C2' GROUP BY c1,c2;
-SELECT c2,c1 FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='c' OR c2 = '#C2' GROUP BY c2,c1;
+set @value := 'c';
+--source suite/engines/funcs/t/se_string_groupby_statements.inc
 DROP TABLE t1;
+
+--echo #------------------------------
+--echo # Test TEXT 'd'
+--echo #------------------------------
 CREATE TABLE t1(c1 TEXT(1) NULL, c2 TEXT(1) NULL, c3 INT NULL);
 --source suite/engines/funcs/t/data1.inc
-SELECT c1 FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*) FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' OR c2 = '#C2' GROUP BY c1;
-SELECT c1,c2 FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' OR c2 = '#C2' GROUP BY c1,c2;
-SELECT c2,c1 FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='d' OR c2 = '#C2' GROUP BY c2,c1;
+set @value := 'd';
+--source suite/engines/funcs/t/se_string_groupby_statements.inc
 DROP TABLE t1;
+
+--echo #------------------------------
+--echo # Test TEXT 'e'
+--echo #------------------------------
 CREATE TABLE t1(c1 TEXT(1) NULL, c2 TEXT(1) NULL, c3 INT NULL);
 --source suite/engines/funcs/t/data1.inc
-SELECT c1 FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*) FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' OR c2 = '#C2' GROUP BY c1;
-SELECT c1,c2 FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' OR c2 = '#C2' GROUP BY c1,c2;
-SELECT c2,c1 FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='e' OR c2 = '#C2' GROUP BY c2,c1;
+set @value := 'e';
+--source suite/engines/funcs/t/se_string_groupby_statements.inc
 DROP TABLE t1;
+
+--echo #------------------------------
+--echo # Test TEXT 'f'
+--echo #------------------------------
 CREATE TABLE t1(c1 TEXT(1) NULL, c2 TEXT(1) NULL, c3 INT NULL);
 --source suite/engines/funcs/t/data1.inc
-SELECT c1 FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*) FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' OR c2 = '#C2' GROUP BY c1;
-SELECT c1,c2 FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' OR c2 = '#C2' GROUP BY c1,c2;
-SELECT c2,c1 FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='f' OR c2 = '#C2' GROUP BY c2,c1;
+set @value := 'f';
+--source suite/engines/funcs/t/se_string_groupby_statements.inc
 DROP TABLE t1;
+
+--echo #------------------------------
+--echo # Test TEXT 'y'
+--echo #------------------------------
 CREATE TABLE t1(c1 TEXT(1) NULL, c2 TEXT(1) NULL, c3 INT NULL);
 --source suite/engines/funcs/t/data1.inc
-SELECT c1 FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*) FROM t1 GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' GROUP BY c1;
-SELECT c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' OR c2 = '#C2' GROUP BY c1;
-SELECT c1,c2 FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*) FROM t1 GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' GROUP BY c1,c2;
-SELECT c1,c2,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' OR c2 = '#C2' GROUP BY c1,c2;
-SELECT c2,c1 FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*) FROM t1 GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' GROUP BY c2,c1;
-SELECT c2,c1,COUNT(*),MAX(c3) FROM t1 WHERE c1='y' OR c2 = '#C2' GROUP BY c2,c1;
+set @value := 'e';
+--source suite/engines/funcs/t/se_string_groupby_statements.inc
 DROP TABLE t1;
 

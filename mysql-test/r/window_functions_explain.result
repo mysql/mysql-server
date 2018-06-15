@@ -12010,7 +12010,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "2.10"
+      "query_cost": "4.30"
     },
     "table": {
       "table_name": "alias",
@@ -12019,9 +12019,9 @@ EXPLAIN
       "rows_produced_per_join": 16,
       "filtered": "100.00",
       "cost_info": {
-        "read_cost": "0.50",
+        "read_cost": "2.70",
         "eval_cost": "1.60",
-        "prefix_cost": "2.10",
+        "prefix_cost": "4.30",
         "data_read_per_join": "512"
       },
       "used_columns": [

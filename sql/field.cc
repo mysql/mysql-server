@@ -7205,13 +7205,18 @@ int Field_blob::do_save_field_metadata(uchar *metadata_ptr) {
 uint32 Field_blob::sort_length() const { return 0xFFFFFFFFu; }
 
 size_t Field_blob::make_sort_key(uchar *to, size_t length) {
+  static const uchar EMPTY_BLOB[1] = {0};
   size_t blob_length = get_length();
+  const uchar *blob;
 
   const int flags =
       (field_charset->pad_attribute == NO_PAD) ? 0 : MY_STRXFRM_PAD_TO_MAXLEN;
 
-  uchar *blob;
-  memcpy(&blob, ptr + packlength, sizeof(char *));
+  if (blob_length > 0) {
+    memcpy(&blob, ptr + packlength, sizeof(char *));
+  } else {
+    blob = EMPTY_BLOB;
+  }
 
   return field_charset->coll->strnxfrm(field_charset, to, length, length, blob,
                                        blob_length, flags);

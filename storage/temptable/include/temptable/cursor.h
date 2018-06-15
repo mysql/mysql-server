@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -26,12 +26,12 @@ TempTable index cursor. */
 #ifndef TEMPTABLE_CURSOR_H
 #define TEMPTABLE_CURSOR_H
 
-#include "my_dbug.h"                                    /* DBUG_ASSERT() */
-#include "storage/temptable/include/temptable/column.h" /* temptable::Columns */
-#include "storage/temptable/include/temptable/containers.h" /* temptable::*container */
-#include "storage/temptable/include/temptable/indexed_cells.h" /* temptable::Indexed_cells */
-#include "storage/temptable/include/temptable/row.h" /* temptable::Row */
-#include "storage/temptable/include/temptable/storage.h" /* temptable::Storage::Element */
+#include "my_dbug.h"
+#include "storage/temptable/include/temptable/column.h"
+#include "storage/temptable/include/temptable/containers.h"
+#include "storage/temptable/include/temptable/indexed_cells.h"
+#include "storage/temptable/include/temptable/row.h"
+#include "storage/temptable/include/temptable/storage.h"
 
 namespace temptable {
 

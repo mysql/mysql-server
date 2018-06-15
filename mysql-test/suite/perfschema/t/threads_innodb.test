@@ -11,6 +11,7 @@
 # in case some defaults are changed.
 # Also 'thread/innodb/trx_recovery_rollback_thread' is disabled explicitly
 # because it's a short life thread which results in result mismatch sporadically
+--sorted_result
 SELECT name, type, processlist_user, processlist_host, processlist_db,
        processlist_command, processlist_state, processlist_info,
        parent_thread_id, `role`, instrumented

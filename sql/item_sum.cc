@@ -951,8 +951,9 @@ bool Aggregator_distinct::setup(THD *thd) {
     table->no_rows = 1;
     if (table->hash_field) table->file->ha_index_init(0, 0);
 
-    if (table->s->db_type() == temptable_hton ||
-        table->s->db_type() == heap_hton) {
+    if ((table->s->db_type() == temptable_hton ||
+         table->s->db_type() == heap_hton) &&
+        (table->s->blob_fields == 0)) {
       /*
         No blobs:
         set up a compare function and its arguments to use with Unique.

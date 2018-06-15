@@ -59,11 +59,7 @@ int Row::compare(const Row &lhs, const Row &rhs, const Columns &columns,
 #endif /* DBUG_OFF */
 
 Result Row::copy_to_own_memory(const Columns &columns,
-                               size_t mysql_row_length
-#ifdef DBUG_OFF
-                                   MY_ATTRIBUTE((unused))
-#endif /* DBUG_OFF */
-                                   ) const {
+                               size_t mysql_row_length) const {
   DBUG_ASSERT(m_data_is_in_mysql_memory);
 
   const unsigned char *mysql_row = m_ptr;
@@ -71,7 +67,7 @@ Result Row::copy_to_own_memory(const Columns &columns,
   size_t buf_len = sizeof(size_t);
 
   for (const auto &column : columns) {
-    buf_len += sizeof(Cell) + column.user_data_length(mysql_row);
+    buf_len += sizeof(Cell) + column.read_user_data_length(mysql_row);
   }
 
   try {
@@ -92,19 +88,14 @@ Result Row::copy_to_own_memory(const Columns &columns,
       reinterpret_cast<unsigned char *>(cell + columns.size());
 
   for (const auto &column : columns) {
-    const bool is_null = column.is_null(mysql_row);
+    const bool is_null = column.read_is_null(mysql_row);
 
-    const uint32_t data_length = column.user_data_length(mysql_row);
+    const uint32_t data_length = column.read_user_data_length(mysql_row);
 
     if (data_length > 0) {
-      const unsigned char *data_in_mysql_buf =
-          mysql_row + column.user_data_offset();
-
-      DBUG_ASSERT(buf_is_inside_another(data_in_mysql_buf, data_length,
-                                        mysql_row, mysql_row_length));
       DBUG_ASSERT(buf_is_inside_another(data_ptr, data_length, m_ptr, buf_len));
 
-      memcpy(data_ptr, data_in_mysql_buf, data_length);
+      column.read_user_data(data_ptr, data_length, mysql_row, mysql_row_length);
     }
 
     new (cell) Cell{is_null, data_length, data_ptr};
@@ -114,70 +105,25 @@ Result Row::copy_to_own_memory(const Columns &columns,
     data_ptr += data_length;
   }
 
-  return Result::OK;
+  return (Result::OK);
 }
 
 void Row::copy_to_mysql_row(const Columns &columns, unsigned char *mysql_row,
-                            size_t mysql_row_length
-#ifdef DBUG_OFF
-                                MY_ATTRIBUTE((unused))
-#endif /* DBUG_OFF */
-                                ) const {
+                            size_t mysql_row_length) const {
   DBUG_ASSERT(!m_data_is_in_mysql_memory);
 
   for (size_t i = 0; i < columns.size(); ++i) {
     const Column &column = columns[i];
     const Cell &cell = cells()[i];
 
-    if (column.is_nullable()) {
-      unsigned char *b = mysql_row + column.null_byte_offset();
+    /* No need to copy the BLOB memory as the row will remain valid
+     * till next operation. */
 
-      DBUG_ASSERT(buf_is_inside_another(b, 1, mysql_row, mysql_row_length));
-
-      if (cell.is_null()) {
-        *b |= column.null_bitmask();
-      } else {
-        *b &= ~column.null_bitmask();
-      }
-    } else {
-      DBUG_ASSERT(!cell.is_null());
-    }
-
-    const uint32_t data_length = cell.data_length();
-
-    if (!column.is_fixed_size()) {
-      const uint8_t length_size = column.length_size();
-
-      /* We must write the length of the user data in a few bytes (length_size)
-       * just before the user data itself. This is where l points. */
-      unsigned char *l = mysql_row + column.user_data_offset() - length_size;
-
-      DBUG_ASSERT(
-          buf_is_inside_another(l, length_size, mysql_row, mysql_row_length));
-
-      switch (length_size) {
-        case 0:
-          break;
-        case 1:
-          DBUG_ASSERT(data_length <= 0xFF);
-          l[0] = data_length;
-          break;
-        case 2:
-          DBUG_ASSERT(data_length <= 0xFFFF);
-          l[0] = data_length & 0x000000FF;
-          l[1] = (data_length & 0x0000FF00) >> 8;
-          break;
-        default:
-          DBUG_ABORT();
-      }
-    }
-
-    unsigned char *u = mysql_row + column.user_data_offset();
-
-    DBUG_ASSERT(
-        buf_is_inside_another(u, data_length, mysql_row, mysql_row_length));
-
-    memcpy(u, cell.data(), data_length);
+    column.write_is_null(cell.is_null(), mysql_row, mysql_row_length);
+    column.write_user_data_length(cell.data_length(), mysql_row,
+                                  mysql_row_length);
+    column.write_user_data(cell.is_null(), cell.data(), cell.data_length(),
+                           mysql_row, mysql_row_length);
   }
 }
 

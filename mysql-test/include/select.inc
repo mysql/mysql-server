@@ -1424,9 +1424,12 @@ select distinct fld5 from t2 limit 10;
 #
 # Force use of remove_dupp
 #
+# NOTE: Returned records may be selected randomly depending on storage engine
+#       used due to bug#27716329 (not all sort columns are selected).
+#
 
 select distinct fld3,count(*) from t2 group by companynr asc, fld3 asc limit 10;
-SET BIG_TABLES=1; # Force use of MyISAM
+SET BIG_TABLES=1; # Force use of disk temptables
 select distinct fld3,count(*) from t2 group by companynr asc, fld3 asc limit 10;
 SET BIG_TABLES=0;
 select distinct fld3,repeat("a",length(fld3)),count(*) from t2 group by companynr asc,fld3 asc limit 100,10;

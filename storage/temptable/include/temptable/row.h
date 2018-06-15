@@ -395,6 +395,8 @@ f7  | .   | from above (8/8)
 #ifndef TEMPTABLE_ROW_H
 #define TEMPTABLE_ROW_H
 
+#include <algorithm>
+
 #include "my_dbug.h"
 #include "sql/field.h"
 #include "storage/temptable/include/temptable/allocator.h"
@@ -420,10 +422,10 @@ class Row {
   Row &operator=(const Row &) = delete;
 
   /** Move constructor. `other` is undefined after this call. */
-  Row(Row &&other);
+  Row(Row &&other) = delete;
 
   /** Move assignment. `rhs` is undefined after this call. */
-  Row &operator=(Row &&rhs);
+  Row &operator=(Row &&rhs) = delete;
 
   /** Destructor. */
   ~Row();
@@ -454,10 +456,17 @@ class Row {
       /** [in] Presumed length of the mysql row in bytes. */
       size_t mysql_row_length) const;
 
+  /** Swaps contents of two rows. */
+  static void swap(
+      /** [in,out] First row to swap. */
+      Row &r1,
+      /** [in,out] Seconds row to swap. */
+      Row &r2);
+
 #ifndef DBUG_OFF
   /** Compare to another row. Used by Table::update() and Table::remove() to
-   * double check that the row which is passed as "old row" indeed equals to the
-   * row pointed to by the specified position.
+   * double check that the row which is passed as "old row" indeed equals to
+   * the row pointed to by the specified position.
    * @retval <0 if lhs < rhs
    * @retval  0 if lhs == rhs
    * @retval >0 if lhs > rhs */
@@ -468,7 +477,8 @@ class Row {
       const Row &rhs,
       /** [in] Columns that constitute `this` and in `rhs`. */
       const Columns &columns,
-      /** [in] List of MySQL column definitions, used for querying metadata. */
+      /** [in] List of MySQL column definitions,
+       * used for querying metadata. */
       Field **mysql_fields);
 #endif /* DBUG_OFF */
 
@@ -517,38 +527,16 @@ class Row {
 
 /* Implementation of inlined methods. */
 
+inline void Row::swap(Row &r1, Row &r2) {
+  std::swap(r1.m_allocator, r2.m_allocator);
+  std::swap(r1.m_data_is_in_mysql_memory, r2.m_data_is_in_mysql_memory);
+  std::swap(r1.m_ptr, r2.m_ptr);
+}
+
 inline Row::Row(const unsigned char *mysql_row, Allocator<uint8_t> *allocator)
     : m_allocator(allocator),
       m_data_is_in_mysql_memory(true),
       m_ptr(const_cast<unsigned char *>(mysql_row)) {}
-
-inline Row::Row(Row &&other)
-    : m_allocator(other.m_allocator),
-      m_data_is_in_mysql_memory(other.m_data_is_in_mysql_memory),
-      m_ptr(other.m_ptr) {
-  other.m_allocator = nullptr;
-  other.m_data_is_in_mysql_memory = false;
-  other.m_ptr = nullptr;
-}
-
-inline Row &Row::operator=(Row &&rhs) {
-  /* Clean up the destination (this). */
-  if (!m_data_is_in_mysql_memory && m_ptr != nullptr) {
-    m_allocator->deallocate(m_ptr, buf_length());
-  }
-
-  m_allocator = rhs.m_allocator;
-  rhs.m_allocator = nullptr;
-
-  m_data_is_in_mysql_memory = rhs.m_data_is_in_mysql_memory;
-  rhs.m_data_is_in_mysql_memory = false;
-
-  DBUG_ASSERT(rhs.m_ptr != nullptr);
-  m_ptr = rhs.m_ptr;
-  rhs.m_ptr = nullptr;
-
-  return *this;
-}
 
 inline Row::~Row() {
   if (!m_data_is_in_mysql_memory && m_ptr != nullptr) {
@@ -575,13 +563,11 @@ inline Cell Row::cell_in_row(size_t i) const { return cells()[i]; }
 inline Cell Row::cell_in_mysql_memory(const Column &column) const {
   DBUG_ASSERT(m_data_is_in_mysql_memory);
 
-  const bool is_null = column.is_null(m_ptr);
+  const bool is_null = column.read_is_null(m_ptr);
+  const uint32_t data_length = column.read_user_data_length(m_ptr);
+  const unsigned char *data_ptr = column.get_user_data_ptr(m_ptr);
 
-  const uint32_t data_length = column.user_data_length(m_ptr);
-
-  const unsigned char *data = m_ptr + column.user_data_offset();
-
-  return Cell{is_null, data_length, data};
+  return Cell{is_null, data_length, data_ptr};
 }
 
 inline size_t Row::buf_length() const {

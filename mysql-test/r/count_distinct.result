@@ -27,8 +27,8 @@ insert into t1 values ('Berkeley Public2','Berkeley');
 insert into t1 values ('NYC Lib','New York');
 select t2.isbn,city,t1.libname,count(t1.libname) as a from t3 left join t1 on t3.libname=t1.libname left join t2 on t3.isbn=t2.isbn group by city,t1.libname;
 isbn	city	libname	a
-001	New York	NYC Lib	1
 000	New York	New York Public Libra	6
+001	New York	NYC Lib	1
 006	San Fran	San Fransisco Public	1
 007	Berkeley	Berkeley Public1	1
 007	Berkeley	Berkeley Public2	1

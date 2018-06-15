@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -26,16 +26,16 @@ TempTable Indexed Cells declaration. */
 #ifndef TEMPTABLE_INDEXED_CELLS_H
 #define TEMPTABLE_INDEXED_CELLS_H
 
-#include <array>   /* std::array */
-#include <cstddef> /* size_t */
-#include <limits>  /* std::numeric_limits */
+#include <array>
+#include <cstddef>
+#include <limits>
 
-#include "sql/key.h"                                    /* KEY */
-#include "sql/sql_const.h"                              /* MAX_REF_PARTS */
-#include "storage/temptable/include/temptable/cell.h"   /* temptable::Cell */
-#include "storage/temptable/include/temptable/column.h" /* temptable::Columns */
-#include "storage/temptable/include/temptable/row.h"    /* temptable::Row */
-#include "storage/temptable/include/temptable/storage.h" /* temptable::Storage::Element */
+#include "sql/key.h"
+#include "sql/sql_const.h"
+#include "storage/temptable/include/temptable/cell.h"
+#include "storage/temptable/include/temptable/column.h"
+#include "storage/temptable/include/temptable/row.h"
+#include "storage/temptable/include/temptable/storage.h"
 
 namespace temptable {
 
@@ -132,6 +132,19 @@ class Indexed_cells {
     /** The data is in `temptable::Row`. */
     ROW,
   };
+
+  /** Generate a cell from a `temptable::Row` object with a possibly reduced
+   * length, if a prefix index is used. */
+  static Cell cell_from_row(
+      /** [in] Indexed cell number in the index. E.g. if we have a row
+       * (a, b, c, d) and an index on (b, c) and we want the cell `c`,
+       * then this will be 1. */
+      size_t i,
+      /** [in] Index to which the current objects belongs, used for
+       * querying metadata. */
+      const Index &index,
+      /** [in] Row that contains the data. */
+      const Row &row);
 
   /** Derive the Nth cell if
    * `m_data_location == Data_location::MYSQL_BUF_INDEX_READ`.

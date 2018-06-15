@@ -2012,6 +2012,53 @@ error:
 }
 
 /**
+  Checks if disk storage engine should be used for temporary table.
+
+  @param table            table to allocate SE for
+  @param select_options   current select's options
+  @param force_disk_table true <=> Use MyISAM or InnoDB
+  @param mem_engine       Selected in-memory storage engine.
+
+  @return
+    true if disk storage engine should be used
+    false if disk storage engine is not required
+ */
+static bool use_tmp_disk_storage_engine(
+    TABLE *table, ulonglong select_options, bool force_disk_table,
+    enum_internal_tmp_mem_storage_engine mem_engine) {
+  THD *thd = table->in_use;
+  TABLE_SHARE *share = table->s;
+
+  /* Caller needs SE to be disk-based (@see create_tmp_table()). */
+  if (force_disk_table) {
+    return true;
+  }
+
+  /* During bootstrap, the heap engine is not available, so we force using
+    disk storage engine. This is especially hit when creating a I_S system
+    view definition with a UNION in it. */
+  if (opt_initialize) {
+    return true;
+  }
+
+  if (mem_engine == TMP_TABLE_MEMORY) {
+    /* MEMORY do not support BLOBs */
+    if (share->blob_fields) {
+      return true;
+    }
+  } else {
+    DBUG_ASSERT(mem_engine == TMP_TABLE_TEMPTABLE);
+  }
+
+  /* User said the result would be big, so may not fit in memory */
+  if ((thd->variables.big_tables) && !(select_options & SELECT_SMALL_RESULT)) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
   Helper function to create_tmp_table_* family for setting up table's SE
 
   @param table            table to allocate SE for
@@ -2023,29 +2070,29 @@ error:
     false on success
     true  otherwise
 */
-
 static bool setup_tmp_table_handler(TABLE *table, ulonglong select_options,
                                     bool force_disk_table, bool schema_table) {
   THD *thd = table->in_use;
-  TABLE_SHARE *share = table->s;
-  if (select_options & TMP_TABLE_FORCE_MYISAM)
-    share->db_plugin = ha_lock_engine(0, myisam_hton);
-  else if (share->blob_fields ||          // 1
-           (thd->variables.big_tables &&  // 2
-            !(select_options & SELECT_SMALL_RESULT)) ||
-           force_disk_table ||  // 3
-           opt_initialize)      // 4
-  {
-    /*
-      1: MEMORY and TempTable do not support BLOBs
-      2: User said the result would be big, so may not fit in memory
-      3: Caller needs SE to be disk-based (@see create_tmp_table())
-      4: During bootstrap, the heap engine is not available, so we force using
-      InnoDB. This is especially hit when creating a I_S system view
-      definition with a UNION in it.
 
-      Except for special conditions, tmp table engine will be chosen by user.
-    */
+  TABLE_SHARE *share = table->s;
+  enum_internal_tmp_mem_storage_engine mem_engine =
+      static_cast<enum_internal_tmp_mem_storage_engine>(
+          thd->variables.internal_tmp_mem_storage_engine);
+
+  /* Except for special conditions, tmp table engine will be chosen by user. */
+
+  /* For information_schema tables we use the Heap engine because we do
+  not allow user-created TempTable tables and even though information_schema
+  tables are not user-created, an ingenious user may execute:
+  CREATE TABLE myowntemptabletable LIKE information_schema.some; */
+  if (schema_table && (mem_engine == TMP_TABLE_TEMPTABLE)) {
+    mem_engine = TMP_TABLE_MEMORY;
+  }
+
+  if (select_options & TMP_TABLE_FORCE_MYISAM) {
+    share->db_plugin = ha_lock_engine(0, myisam_hton);
+  } else if (use_tmp_disk_storage_engine(table, select_options,
+                                         force_disk_table, mem_engine)) {
     switch (internal_tmp_disk_storage_engine) {
       case TMP_TABLE_MYISAM:
         share->db_plugin = ha_lock_engine(0, myisam_hton);
@@ -2059,19 +2106,10 @@ static bool setup_tmp_table_handler(TABLE *table, ulonglong select_options,
     }
   } else {
     share->db_plugin = nullptr;
-    switch ((enum_internal_tmp_mem_storage_engine)
-                thd->variables.internal_tmp_mem_storage_engine) {
+    switch (mem_engine) {
       case TMP_TABLE_TEMPTABLE:
-        if (!schema_table) {
-          share->db_plugin = ha_lock_engine(0, temptable_hton);
-          break;
-        }
-        /* For information_schema tables we use the Heap engine because we do
-        not allow user-created TempTable tables and even though
-        information_schema tables are not user-created, an ingenious user may
-        execute: CREATE TABLE myowntemptabletable LIKE information_schema.some;
-      */
-        /* Fall-through. */
+        share->db_plugin = ha_lock_engine(0, temptable_hton);
+        break;
       case TMP_TABLE_MEMORY:
         share->db_plugin = ha_lock_engine(0, heap_hton);
         break;
@@ -2082,6 +2120,7 @@ static bool setup_tmp_table_handler(TABLE *table, ulonglong select_options,
   if (!(table->file =
             get_new_handler(share, false, &share->mem_root, share->db_type())))
     return true;
+
   // Update the handler with information about the table object
   table->file->change_table_ptr(table, share);
   if (table->file->set_ha_share_ref(&share->ha_share)) {

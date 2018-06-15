@@ -596,16 +596,16 @@ Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a fut
 SET BIG_TABLES=0;
 select distinct fld3,repeat("a",length(fld3)),count(*) from t2 group by companynr,fld3 limit 100,10;
 fld3	repeat("a",length(fld3))	count(*)
-chancellor	aaaaaaaaaa	1
-Chippewa	aaaaaaaa	1
-circumference	aaaaaaaaaaaaa	1
-circus	aaaaaa	1
-cited	aaaaa	1
-congresswoman	aaaaaaaaaaaaa	1
-contrition	aaaaaaaaaa	1
-corny	aaaaa	1
-cultivation	aaaaaaaaaaa	1
-definiteness	aaaaaaaaaaaa	1
+bivalves	aaaaaaaa	1
+incurring	aaaaaaaaa	1
+Adolph	aaaaaa	1
+pithed	aaaaaa	1
+emergency	aaaaaaaaa	1
+Miles	aaaaa	1
+trimmings	aaaaaaaaa	1
+tragedies	aaaaaaaaa	1
+skulking	aaaaaaaa	1
+flint	aaaaa	1
 select distinct companynr,rtrim(space(512+companynr)) from t3 order by 1,2;
 companynr	rtrim(space(512+companynr))
 37	

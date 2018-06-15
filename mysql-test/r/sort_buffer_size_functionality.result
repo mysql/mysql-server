@@ -145,7 +145,7 @@ count(1)
 100000
 select ( select variable_value from performance_schema.global_status where variable_name ='Sort_merge_passes') - @Sort_merge_passes;
 ( select variable_value from performance_schema.global_status where variable_name ='Sort_merge_passes') - @Sort_merge_passes
-16
+19
 select (select variable_value from performance_schema.global_status where variable_name ='Sort_rows') - @Sort_rows;
 (select variable_value from performance_schema.global_status where variable_name ='Sort_rows') - @Sort_rows
 100000
@@ -157,7 +157,7 @@ count(1)
 100000
 select ( select variable_value from performance_schema.global_status where variable_name ='Sort_merge_passes') - @Sort_merge_passes;
 ( select variable_value from performance_schema.global_status where variable_name ='Sort_merge_passes') - @Sort_merge_passes
-32
+38
 select (select variable_value from performance_schema.global_status where variable_name ='Sort_rows') - @Sort_rows;
 (select variable_value from performance_schema.global_status where variable_name ='Sort_rows') - @Sort_rows
 200000

@@ -26,21 +26,21 @@ TempTable Table declarations. */
 #ifndef TEMPTABLE_TABLE_H
 #define TEMPTABLE_TABLE_H
 
-#include <cstddef>       /* size_t */
-#include <functional>    /* std::hash, std::equal_to */
-#include <string>        /* std::string */
-#include <unordered_map> /* std::unordered_map */
-#include <utility>       /* std::pair, std::move */
-#include <vector>        /* std::vector */
+#include <cstddef>
+#include <functional>
+#include <string>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
-#include "sql/table.h" /* TABLE, TABLE_SHARE */
-#include "storage/temptable/include/temptable/allocator.h" /* temptable::Allocator */
-#include "storage/temptable/include/temptable/column.h"  /* temptable::Column */
-#include "storage/temptable/include/temptable/cursor.h"  /* temptable::Cursor */
-#include "storage/temptable/include/temptable/index.h"   /* temptable::Index */
-#include "storage/temptable/include/temptable/result.h"  /* temptable::Result */
-#include "storage/temptable/include/temptable/row.h"     /* temptable::Row */
-#include "storage/temptable/include/temptable/storage.h" /* temptable::Storage */
+#include "sql/table.h"
+#include "storage/temptable/include/temptable/allocator.h"
+#include "storage/temptable/include/temptable/column.h"
+#include "storage/temptable/include/temptable/cursor.h"
+#include "storage/temptable/include/temptable/index.h"
+#include "storage/temptable/include/temptable/result.h"
+#include "storage/temptable/include/temptable/row.h"
+#include "storage/temptable/include/temptable/storage.h"
 
 namespace temptable {
 
@@ -101,17 +101,7 @@ class Table {
       const unsigned char *mysql_row_new,
       /** [in,out] Position in the list of rows to update. The row pointed to
        * by this must equal `mysql_row_old`. */
-      Storage::Element *target_row,
-      /** [in] Indicate if this is reversing an incomplete update operation.
-       * When a normal update(reversal = false) fails at some index for example
-       * because the index is unique and it resulted in a duplicate, then we
-       * need to undo all the actions performed on the table and its indexes in
-       * order to restore to the state before the update(reversal = false) call.
-       * Then we call update(reversal = true) and set `max_index` to the index
-       * at which the failure occured. */
-      bool reversal = false,
-      /** [in] In case of reversal, the index which we failed to update. */
-      size_t max_index = 0);
+      Storage::Element *target_row);
 
   Result remove(const unsigned char *mysql_row_must_be,
                 const Storage::Iterator &victim_position);
@@ -131,6 +121,13 @@ class Table {
     size_t m_alloc_size;
   };
 
+  /** Check if the table is indexed.
+   *
+   * @retval true if there are any indexes defined and not disabled.
+   * @retval false table is not indexed.
+   */
+  bool indexed() const;
+
   /** Create index for given key and append it to indexes table. */
   template <class T>
   void append_new_index(const KEY &mysql_index);
@@ -141,6 +138,17 @@ class Table {
 
   /** Destroy the indexes in `m_index_entries`. */
   void indexes_destroy();
+
+  void indexes_find_modified(const unsigned char *mysql_row_old,
+                             const unsigned char *mysql_row_new);
+
+  Result indexes_insert(Storage::Element *row);
+
+  Result indexes_insert_modified(Storage::Element *row);
+
+  Result indexes_remove(Storage::Element *row);
+
+  Result indexes_remove_modified(Storage::Element *row);
 
   /** Allocator for all members that need dynamic memory allocation. */
   Allocator<uint8_t> m_allocator;
@@ -157,6 +165,8 @@ class Table {
   std::vector<Index_entry, Allocator<Index_entry>> m_index_entries;
 
   std::vector<Cursor, Allocator<Cursor>> m_insert_undo;
+
+  std::vector<Index *, Allocator<Index *>> m_modified_indexes;
 
   Columns m_columns;
 
@@ -193,16 +203,17 @@ inline Table &Table::operator=(Table &&rhs) {
 
   indexes_destroy();
 
-  m_index_entries = std::move(rhs.m_index_entries);
-
-  /* No need to move `m_insert_undo[]`. It does not bring a state - it is only
-   * used by the `insert()` method as a scratch-pad. */
-  m_insert_undo.reserve(m_index_entries.size());
-
   m_columns = std::move(rhs.m_columns);
 
   m_mysql_table_share = rhs.m_mysql_table_share;
   rhs.m_mysql_table_share = nullptr;
+
+  m_index_entries = std::move(rhs.m_index_entries);
+
+  /* No need to move - these are only scratch pads
+   * used by methods. */
+  m_insert_undo.reserve(m_index_entries.size());
+  m_modified_indexes.reserve(m_index_entries.size());
 
   return *this;
 }
@@ -281,6 +292,10 @@ inline Result Table::enable_indexes() {
   }
 
   return Result::WRONG_COMMAND;
+}
+
+inline bool Table::indexed() const {
+  return m_indexes_are_enabled && !m_index_entries.empty();
 }
 
 /** Create index for given key and appends it to indexes table. */

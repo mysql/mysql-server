@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -23,64 +23,77 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** @file storage/temptable/src/column.cc
 TempTable Column implementation. */
 
-#include "storage/temptable/include/temptable/column.h" /* temptable::Column */
+#include "storage/temptable/include/temptable/column.h"
 
-#include "my_dbug.h"   /* DBUG_ASSERT() */
-#include "sql/field.h" /* Field */
-#include "sql/key.h"   /* KEY */
+#include "my_dbug.h"
+#include "sql/field.h"
+#include "sql/key.h"
 #include "sql/table.h"
+
+#include "storage/temptable/include/temptable/misc.h"
 
 namespace temptable {
 
-Column::Column(const TABLE &mysql_table, const Field &mysql_field) {
-  m_nullable = mysql_field.real_maybe_null();
+Column::Column(const unsigned char *mysql_row,
+               const TABLE &mysql_table TEMPTABLE_UNUSED_NODBUG,
+               const Field &mysql_field) {
+/* NOTE: The contents of mysql_row could be bogus at this time,
+ * we don't look at the data, we just use it to calculate offsets
+ * later used to get the user data inside our own copy of a row in
+ * `m_mysql_row` which is neither record[0] nor record[1]. */
 
-  m_null_bitmask = mysql_field.null_bit;
-
-  /* A pointer to the user data inside TABLE::record[0] or TABLE::record[1].
-   * Derived from Field::ptr which always points inside record[0] or record[1].
-   * The contents of record[0] or record[1] could be bogus at this time, we
-   * don't look at it, we just measure the offset of the user data and use the
-   * same offset to get the user data inside our own copy of a row in
-   * `m_mysql_row` which is neither record[0] nor record[1]. */
-  unsigned char *ptr;
-  const_cast<Field &>(mysql_field).get_ptr(&ptr);
-
-  unsigned char *mysql_row = mysql_table.record[0];
+#if !defined(DBUG_OFF)
+  unsigned char *field_ptr = mysql_field.ptr;
   const size_t mysql_row_length = mysql_table.s->rec_buff_length;
 
-  size_t user_data_offset = static_cast<size_t>(ptr - mysql_row);
+  DBUG_ASSERT(field_ptr >= mysql_row);
+  DBUG_ASSERT(field_ptr < mysql_row + mysql_row_length);
+#endif /* DBUG_OFF */
 
-  if (ptr >= mysql_row && user_data_offset < mysql_row_length) {
-    /* ptr is inside record[0]. */
+  size_t data_offset;
+
+  m_is_blob = ((mysql_field.flags & BLOB_FLAG) != 0);
+
+  if (m_is_blob) {
+    auto blob_field = static_cast<const Field_blob &>(mysql_field);
+
+    DBUG_ASSERT(blob_field.pack_length_no_ptr() <=
+                std::numeric_limits<decltype(m_length_bytes_size)>::max());
+
+    m_length_bytes_size = blob_field.pack_length_no_ptr();
+    m_offset = mysql_field.offset(const_cast<unsigned char *>(mysql_row));
+
+    const unsigned char *data_ptr = mysql_field.ptr + m_length_bytes_size;
+
+    data_offset = static_cast<size_t>(data_ptr - mysql_row);
+  } else if (mysql_field.type() == MYSQL_TYPE_VARCHAR) {
+    auto &varstring_field = static_cast<const Field_varstring &>(mysql_field);
+
+    DBUG_ASSERT(varstring_field.length_bytes <=
+                std::numeric_limits<decltype(m_length_bytes_size)>::max());
+
+    m_length_bytes_size = varstring_field.length_bytes;
+    m_offset = mysql_field.offset(const_cast<unsigned char *>(mysql_row));
+
+    unsigned char *data_ptr;
+    const_cast<Field &>(mysql_field).get_ptr(&data_ptr);
+
+    data_offset = static_cast<size_t>(data_ptr - mysql_row);
   } else {
-    /* ptr does not point inside record[0], try record[1]. */
-    mysql_row = mysql_table.record[1];
-    user_data_offset = static_cast<size_t>(ptr - mysql_row);
-    if (ptr >= mysql_row && user_data_offset < mysql_row_length) {
-      /* ptr is inside record[1]. */
-    } else {
-      /* ptr does not point inside neither record[0] nor record[1]. */
-      abort();
-    }
-  }
+    m_length_bytes_size = 0;
+    m_length = const_cast<Field &>(mysql_field).data_length();
 
-  DBUG_ASSERT(user_data_offset <=
+    unsigned char *data_ptr;
+    const_cast<Field &>(mysql_field).get_ptr(&data_ptr);
+
+    data_offset = static_cast<size_t>(data_ptr - mysql_row);
+  }
+  DBUG_ASSERT(data_offset <=
               std::numeric_limits<decltype(m_user_data_offset)>::max());
-  m_user_data_offset =
-      static_cast<decltype(m_user_data_offset)>(user_data_offset);
+  m_user_data_offset = static_cast<decltype(m_user_data_offset)>(data_offset);
 
-  switch (mysql_field.real_type()) {
-    case MYSQL_TYPE_VARCHAR:
-      m_length = mysql_field.offset(mysql_row);
-      DBUG_ASSERT(ptr > mysql_row + m_length);
-      m_length_bytes_size = ptr - (mysql_row + m_length);
-      break;
-    default:
-      m_length = const_cast<Field &>(mysql_field).data_length();
-      m_length_bytes_size = 0;
-      break;
-  }
+  m_nullable = mysql_field.real_maybe_null();
+  m_null_bitmask = mysql_field.null_bit;
 
   if (m_nullable) {
     m_null_byte_offset = mysql_field.null_offset(mysql_row);

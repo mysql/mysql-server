@@ -18,9 +18,9 @@ doc
 command ok
 group by name and count
 doc
+{"name": "foo", "count": 2}
 {"name": "bar", "count": 1}
 {"name": "baz", "count": 1}
-{"name": "foo", "count": 2}
 {"name": "buz", "count": 1}
 command ok
 group by name, age and count

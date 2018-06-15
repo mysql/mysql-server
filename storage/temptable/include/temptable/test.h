@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -26,7 +26,7 @@ TempTable C++ unit tests hooked inside CREATE TABLE. */
 #ifndef TEMPTABLE_TEST_H
 #define TEMPTABLE_TEST_H
 
-#include "my_dbug.h" /* DBUG_OFF */
+#include "my_dbug.h"
 #include "sql/handler.h"
 #include "sql/table.h"
 
@@ -52,10 +52,10 @@ class Test {
 
   void scan_hash_index();
 
-  template <class H>
+  template <class Handler_type>
   void sysbench_distinct_ranges_write_only(size_t number_of_rows_to_write);
 
-  template <class H>
+  template <class Handler_type>
   void sysbench_distinct_ranges();
 
   handlerton *m_hton;

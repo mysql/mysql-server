@@ -92,33 +92,6 @@ Indexed_cells::Indexed_cells(const Row &row, const Index &index)
 Cell Indexed_cells::cell(size_t i, const Index &index) const {
   DBUG_ASSERT(i < m_number_of_cells);
 
-  /** Generate a cell from a `temptable::Row` object with a possibly reduced
-   * length, if a prefix index is used. */
-  auto indexed_cell_from_row =
-      [&index](
-          /** [in] Indexed cell number in the index. E.g. if we have a row
-           * (a, b, c, d) and an index on (b, c) and we want the cell `c`,
-           * then this will be 1. */
-          size_t i,
-          /** [in] Row that contains the data. */
-          const Row &row) -> Cell {
-    const auto &indexed_column = index.indexed_column(i);
-
-    /* In the case of the above example, this will be 2. */
-    const size_t cell_index_in_row = indexed_column.field_index();
-
-    const auto &column = index.table().columns().at(cell_index_in_row);
-
-    const Cell &row_cell = row.cell(column, cell_index_in_row);
-
-    /* Lower row_cell.data_length() in case we have a prefix index, e.g.:
-     * CREATE TABLE t (c CHAR(16), INDEX c(10)); */
-    const uint32_t data_length =
-        std::min(row_cell.data_length(), indexed_column.prefix_length());
-
-    return Cell{row_cell.is_null(), data_length, row_cell.data()};
-  };
-
   /*
   switch (m_data_location) {
     case Data_location::MYSQL_BUF_INDEX_READ:
@@ -135,10 +108,10 @@ Cell Indexed_cells::cell(size_t i, const Index &index) const {
     return cell_from_mysql_buf_index_read(i, index);
 
   } else if (m_data_location == Data_location::MYSQL_BUF_WRITE_ROW) {
-    return indexed_cell_from_row(i, Row(m_mysql_buf, nullptr));
+    return cell_from_row(i, index, Row(m_mysql_buf, nullptr));
 
   } else if (m_data_location == Data_location::ROW) {
-    return indexed_cell_from_row(i, *m_row);
+    return cell_from_row(i, index, *m_row);
   }
 
   /* Not reached. */
@@ -169,6 +142,27 @@ int Indexed_cells::compare(const Indexed_cells &rhs, const Index &index) const {
    * them equal even though one of `lhs` or `rhs` may contain more cells than
    * the other. This is part of how prefix search works. */
   return 0;
+}
+
+/** Generate a cell from a `temptable::Row` object with a possibly reduced
+ * length, if a prefix index is used. */
+Cell Indexed_cells::cell_from_row(size_t i, const Index &index,
+                                  const Row &row) {
+  const auto &indexed_column = index.indexed_column(i);
+
+  /* In the case of the above example, this will be 2. */
+  const size_t cell_index_in_row = indexed_column.field_index();
+
+  const auto &column = index.table().columns().at(cell_index_in_row);
+
+  const Cell &row_cell = row.cell(column, cell_index_in_row);
+
+  /* Lower row_cell.data_length() in case we have a prefix index, e.g.:
+   * CREATE TABLE t (c CHAR(16), INDEX c(10)); */
+  const uint32_t data_length =
+      std::min(row_cell.data_length(), indexed_column.prefix_length());
+
+  return Cell{row_cell.is_null(), data_length, row_cell.data()};
 }
 
 Cell Indexed_cells::cell_from_mysql_buf_index_read(size_t i,

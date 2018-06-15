@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -61,7 +61,7 @@ class Chrono {
 
   /** Resets the chrono (records the current time in it). */
   void reset() {
-    gettimeofday(&m_tv, NULL);
+    gettimeofday(&m_tv, nullptr);
 
     getrusage(RUSAGE_SELF, &m_ru);
   }
@@ -74,7 +74,7 @@ class Chrono {
 
     getrusage(RUSAGE_SELF, &ru_now);
 
-    gettimeofday(&tv_now, NULL);
+    gettimeofday(&tv_now, nullptr);
 
 #ifndef timersub
 #define timersub(a, b, r)                       \
@@ -144,7 +144,7 @@ void Test::correctness() {
     }              \
   } while (0)
 
-template <class H>
+template <class Handler_type>
 void Test::sysbench_distinct_ranges_write_only(size_t number_of_rows_to_write) {
   // clang-format off
   char row[] = {
@@ -152,30 +152,30 @@ void Test::sysbench_distinct_ranges_write_only(size_t number_of_rows_to_write) {
   };
   // clang-format on
 
-  H h(m_hton, m_mysql_table_share);
+  Handler_type handler(m_hton, m_mysql_table_share);
 
   HA_CREATE_INFO create_info;
   create_info.auto_increment_value = 0;
 
-  ut_a(h.create("t1", m_mysql_table, &create_info, nullptr) == 0);
+  ut_a(handler.create("t1", m_mysql_table, &create_info, nullptr) == 0);
 
-  ut_a(h.ha_open(m_mysql_table, "t1", 0, 0, nullptr) == 0);
+  ut_a(handler.ha_open(m_mysql_table, "t1", 0, 0, nullptr) == 0);
 
   for (size_t n = 0; n < number_of_rows_to_write; ++n) {
     snprintf(row + 1, 119, "%016zx", n);
     row[17] = '-';
     memcpy(m_mysql_table->record[0], row, 120);
 
-    const int ret = h.write_row(m_mysql_table->record[0]);
+    const int ret = handler.write_row(m_mysql_table->record[0]);
     ut_a(ret == 0);
   }
 
-  ut_a(h.close() == 0);
+  ut_a(handler.close() == 0);
 
-  ut_a(h.delete_table("t1", nullptr) == 0);
+  ut_a(handler.delete_table("t1", nullptr) == 0);
 }
 
-template <class H>
+template <class Handler_type>
 void Test::sysbench_distinct_ranges() {
   // clang-format off
   static const char* rows[] = {
@@ -297,20 +297,20 @@ void Test::sysbench_distinct_ranges() {
 #endif /* ALSO_DO_READS */
 
   for (size_t n = 0; n < number_of_iterations; ++n) {
-    H h(m_hton, m_mysql_table_share);
+    Handler_type handler(m_hton, m_mysql_table_share);
 
 #ifdef ALSO_DO_READS
-    ut_a(h.ref_length <= sizeof(positions[0]));
+    ut_a(handler.ref_length <= sizeof(positions[0]));
 #endif /* ALSO_DO_READS */
 
-    ut_a(h.create("t1", m_mysql_table, &create_info, nullptr) == 0);
+    ut_a(handler.create("t1", m_mysql_table, &create_info, nullptr) == 0);
 
-    ut_a(h.ha_open(m_mysql_table, "t1", 0, 0, nullptr) == 0);
+    ut_a(handler.ha_open(m_mysql_table, "t1", 0, 0, nullptr) == 0);
 
     for (size_t i = 0; i < n_rows; ++i) {
       memcpy(m_mysql_table->record[0], rows[i], 120);
 
-      const int ret = h.write_row(m_mysql_table->record[0]);
+      const int ret = handler.write_row(m_mysql_table->record[0]);
       if (ret != 0) {
         std::cerr << "write_row() failed with error " << ret << std::endl;
         abort();
@@ -318,26 +318,26 @@ void Test::sysbench_distinct_ranges() {
     }
 
 #ifdef ALSO_DO_READS
-    ut_a(h.rnd_init(true) == 0);
+    ut_a(handler.rnd_init(true) == 0);
 
     size_t i = 0;
-    while (h.rnd_next(m_mysql_table->record[0]) == 0) {
-      h.position(nullptr);
+    while (handler.rnd_next(m_mysql_table->record[0]) == 0) {
+      handler.position(nullptr);
       // std::cout << "ref: " << (void*)h.ref << ", ref_length: " <<
       // h.ref_length
       //          << ", ref val: " << *(uint64_t*)h.ref << "\n";
-      memcpy(positions.at(i), h.ref, h.ref_length);
+      memcpy(positions.at(i), handler.ref, handler.ref_length);
       ++i;
     }
 
     for (size_t j = 0; j < i; ++j) {
-      ut_a(h.rnd_pos(m_mysql_table->record[0], positions.at(j)) == 0);
+      ut_a(handler.rnd_pos(m_mysql_table->record[0], positions.at(j)) == 0);
     }
 #endif /* ALSO_DO_READS */
 
-    ut_a(h.close() == 0);
+    ut_a(handler.close() == 0);
 
-    ut_a(h.delete_table("t1", nullptr) == 0);
+    ut_a(handler.delete_table("t1", nullptr) == 0);
   }
 }
 
@@ -366,44 +366,44 @@ void Test::performance() {
 }
 
 void Test::create_and_drop() {
-  Handler h(m_hton, m_mysql_table_share);
+  Handler handler(m_hton, m_mysql_table_share);
 
-  ut_a(h.create("t1", m_mysql_table, nullptr, nullptr) == 0);
-  ut_a(h.create("t2", m_mysql_table, nullptr, nullptr) == 0);
-  ut_a(h.delete_table("t1", nullptr) == 0);
-  ut_a(h.delete_table("t2", nullptr) == 0);
+  ut_a(handler.create("t1", m_mysql_table, nullptr, nullptr) == 0);
+  ut_a(handler.create("t2", m_mysql_table, nullptr, nullptr) == 0);
+  ut_a(handler.delete_table("t1", nullptr) == 0);
+  ut_a(handler.delete_table("t2", nullptr) == 0);
 }
 
 void Test::scan_empty() {
-  Handler h(m_hton, m_mysql_table_share);
+  Handler handler(m_hton, m_mysql_table_share);
 
   static const char *table_name = "test_scan_empty";
 
-  ut_a(h.create(table_name, m_mysql_table, nullptr, nullptr) == 0);
+  ut_a(handler.create(table_name, m_mysql_table, nullptr, nullptr) == 0);
 
-  h.change_table_ptr(m_mysql_table, m_mysql_table_share);
+  handler.change_table_ptr(m_mysql_table, m_mysql_table_share);
 
-  ut_a(h.open(table_name, 0, 0, nullptr) == 0);
+  ut_a(handler.open(table_name, 0, 0, nullptr) == 0);
 
-  ut_a(h.rnd_init(true /* ignored */) == 0);
-  ut_a(h.rnd_next(nullptr) == HA_ERR_END_OF_FILE);
-  ut_a(h.rnd_end() == 0);
+  ut_a(handler.rnd_init(true /* ignored */) == 0);
+  ut_a(handler.rnd_next(nullptr) == HA_ERR_END_OF_FILE);
+  ut_a(handler.rnd_end() == 0);
 
-  ut_a(h.close() == 0);
+  ut_a(handler.close() == 0);
 
-  ut_a(h.delete_table(table_name, nullptr) == 0);
+  ut_a(handler.delete_table(table_name, nullptr) == 0);
 }
 
 void Test::scan_hash_index() {
-  Handler h(m_hton, m_mysql_table_share);
+  Handler handler(m_hton, m_mysql_table_share);
 
   static const char *table_name = "test_scan_hash_index";
 
-  ut_a(h.create(table_name, m_mysql_table, nullptr, nullptr) == 0);
+  ut_a(handler.create(table_name, m_mysql_table, nullptr, nullptr) == 0);
 
-  h.change_table_ptr(m_mysql_table, m_mysql_table_share);
+  handler.change_table_ptr(m_mysql_table, m_mysql_table_share);
 
-  ut_a(h.open(table_name, 0, 0, nullptr) == 0);
+  ut_a(handler.open(table_name, 0, 0, nullptr) == 0);
 
   // clang-format off
   const unsigned char* row1 = reinterpret_cast<const unsigned char*>("\xFF""aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
@@ -411,35 +411,44 @@ void Test::scan_hash_index() {
   // clang-format on
   const size_t row_len = 121;
 
-  memcpy(m_mysql_table->record[0], row1, row_len);
-  ut_a(h.write_row(m_mysql_table->record[0]) == 0);
+  std::array<const unsigned char *, 2> rows{row1, row2};
 
-  memcpy(m_mysql_table->record[0], row2, row_len);
-  ut_a(h.write_row(m_mysql_table->record[0]) == 0);
-
-  ut_a(h.index_init(0, true /* ignored */) == 0);
-
-  ut_a(h.index_read(m_mysql_table->record[0], row1 + 1, row_len - 1,
-                    HA_READ_KEY_EXACT) == 0);
-  ut_a(memcmp(m_mysql_table->record[0], row1, row_len) == 0);
-
-  /* This could return either success or not found because hash indexes do not
-   * have a predetermined order and we do not know if bbb... will follow a... */
-  switch (h.index_next(m_mysql_table->record[0])) {
-    case 0:
-      ut_a(memcmp(m_mysql_table->record[0], row2, row_len) == 0);
-      break;
-    case HA_ERR_END_OF_FILE:
-      break;
-    default:
-      abort();
+  for (auto row : rows) {
+    memcpy(m_mysql_table->record[0], row, row_len);
+    ut_a(handler.write_row(m_mysql_table->record[0]) == 0);
   }
 
-  ut_a(h.index_end() == 0);
+  int next_count = 0;
+  for (auto row : rows) {
+    ut_a(handler.index_init(0, true /* ignored */) == 0);
 
-  ut_a(h.close() == 0);
+    ut_a(handler.index_read(m_mysql_table->record[0], row + 1, row_len - 1,
+                            HA_READ_KEY_EXACT) == 0);
+    ut_a(memcmp(m_mysql_table->record[0], row, row_len) == 0);
 
-  ut_a(h.delete_table(table_name, nullptr) == 0);
+    /* This could return either success or not found because hash
+     * indexes do not have a predetermined order and we do not know
+     * if bbb... will follow a... */
+    switch (handler.index_next(m_mysql_table->record[0])) {
+      case 0: {
+        auto expected_next_row = (row == row1) ? row2 : row1;
+        ++next_count;
+        ut_a(memcmp(m_mysql_table->record[0], expected_next_row, row_len) == 0);
+        break;
+      }
+      case HA_ERR_END_OF_FILE:
+        break;
+      default:
+        abort();
+    }
+
+    ut_a(handler.index_end() == 0);
+  }
+  ut_a(next_count == 1);
+
+  ut_a(handler.close() == 0);
+
+  ut_a(handler.delete_table(table_name, nullptr) == 0);
 }
 
 #if 0
