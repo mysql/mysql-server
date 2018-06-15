@@ -55,6 +55,8 @@ Dbtux::mt_buildIndexFragment_wrapper(void * obj)
     ptr += MaxAttrDataSize;
     tux_ctx->c_dataBuffer = ptr;
     ptr += MaxAttrDataSize;
+    tux_ctx->c_boundBuffer = ptr;
+    ptr += MaxAttrDataSize;
 #ifdef VM_TRACE
     tux_ctx->c_debugBuffer = (char*)ptr;
     ptr += (DebugBufferBytes + 3) / 4;
@@ -107,18 +109,32 @@ Dbtux::mt_buildIndexFragment(mt_BuildIndxCtx* req)
     ent.m_tupVersion = pos.m_file_no; // used for version
 
     // set up and read search key
-    KeyData searchKey(indexPtr.p->m_keySpec, false, 0);
-    searchKey.set_buf(ctx.c_searchKey, MaxAttrDataSize << 2);
-    readKeyAttrs(ctx, frag, ent, searchKey, indexPtr.p->m_numAttrs);
+    readKeyAttrs(ctx,
+                 frag,
+                 ent,
+                 indexPtr.p->m_numAttrs,
+                 ctx.c_boundBuffer);
+    KeyDataArray *key_data = new (&ctx.searchKeyDataArray)
+                             KeyDataArray();
+    key_data->init_poai(ctx.c_boundBuffer, indexPtr.p->m_numAttrs);
+    KeyBoundArray *searchBound = new (&ctx.searchKeyBoundArray)
+                                 KeyBoundArray(&indexPtr.p->m_keySpec,
+                                               &ctx.searchKeyDataArray,
+                                               false);
 
     if (unlikely(! indexPtr.p->m_storeNullKey) &&
-        searchKey.get_null_cnt() == indexPtr.p->m_numAttrs) {
+        key_data->get_null_cnt() == indexPtr.p->m_numAttrs)
+    {
       thrjam(ctx.jamBuffer);
       continue;
     }
 
     TreePos treePos;
-    bool ok = searchToAdd(ctx, frag, searchKey, ent, treePos);
+    bool ok = searchToAdd(ctx,
+                          frag,
+                          *searchBound,
+                          ent,
+                          treePos);
     ndbrequire(ok);
 
     /*
@@ -140,7 +156,7 @@ Dbtux::mt_buildIndexFragment(mt_BuildIndxCtx* req)
     }
     treeAdd(ctx, frag, treePos, ent);
     frag.m_entryCount++;
-    frag.m_entryBytes += searchKey.get_data_len();
+    frag.m_entryBytes += key_data->get_data_len();
     frag.m_entryOps++;
   }
 

@@ -315,6 +315,7 @@ void NdbPack::DataArray::init_bound(const BoundC& b,
     m_entries[i].m_data_ptr = (Uint8*)&data.m_buf[iter.m_itemPos];
     m_entries[i].m_data_len = iter.m_itemLen;
   }
+  m_null_cnt = iter.m_nullCnt;
 }
 
 /**
@@ -327,6 +328,7 @@ NdbPack::DataArray::init_poai(const Uint32 *buffer,
 {
   Uint32 inx = 0;
   m_cnt = cnt;
+  m_null_cnt = 0;
   for (Uint32 i = 0; i < cnt; i++)
   {
     const AttributeHeader ah =
@@ -342,6 +344,7 @@ NdbPack::DataArray::init_poai(const Uint32 *buffer,
     }
     else
     {
+      m_null_cnt++;
       m_entries[i].m_data_ptr = 0;
       m_entries[i].m_data_len = 0;
     }
@@ -349,20 +352,19 @@ NdbPack::DataArray::init_poai(const Uint32 *buffer,
 }
 
 int
-NdbPack::DataArray::cmp(const Spec& spec,
-                        const DataArray& d2,
+NdbPack::DataArray::cmp(const Spec* spec,
+                        const DataArray* d2,
                         const Uint32 cnt) const
 {
-  const DataArray& d1 = *this;
   int res = 0;
   for (Uint32 i = 0; i < cnt; i++)
   {
-    const Type& type = spec.m_buf[i];
-    const Uint8* p1 = d1.m_entries[i].m_data_ptr;
-    const Uint32 n1 = d1.m_entries[i].m_data_len;
+    const Type& type = spec->m_buf[i];
+    const Uint8* p1 = m_entries[i].m_data_ptr;
+    const Uint32 n1 = m_entries[i].m_data_len;
     const NdbSqlUtil::Type& sqlType = getSqlType(type.m_typeId);
-    const Uint8* p2 = d2.m_entries[i].m_data_ptr;
-    const Uint32 n2 = d2.m_entries[i].m_data_len;
+    const Uint8* p2 = d2->m_entries[i].m_data_ptr;
+    const Uint32 n2 = d2->m_entries[i].m_data_len;
     CHARSET_INFO* cs = all_charsets[type.m_csNumber];
     if (n1 != 0)
     {

@@ -64,13 +64,14 @@ Dbtux::prepare_scan_bounds()
     KeyDataC searchBoundData(index.m_keySpec, true);
     KeyBoundC searchBound(searchBoundData);
     unpackBound(c_ctx.c_nextKey, scanBound, searchBound);
-    c_ctx.searchDataArray = new (c_ctx.searchDataArray)
-                               KeyDataArray();
-    c_ctx.searchDataArray->init_bound(searchBound, scanBound.m_cnt);
-    c_ctx.searchBoundArray = new (c_ctx.searchBoundArray)
-       KeyBoundArray(index.m_keySpec,
-                     *c_ctx.searchDataArray,
+    KeyDataArray *key_data = new (&c_ctx.searchScanDataArray)
+                             KeyDataArray();
+    key_data->init_bound(searchBound, scanBound.m_cnt);
+    KeyBoundArray *searchBoundArray = new (&c_ctx.searchScanBoundArray)
+       KeyBoundArray(&index.m_keySpec,
+                     key_data,
                      scanBound.m_side);
+    (void)searchBoundArray;
 
     const DescHead& descHead = getDescHead(index);
     const AttributeHeader* keyAttrs = getKeyAttrs(descHead);
@@ -915,8 +916,17 @@ Dbtux::scanFirst(ScanOpPtr scanPtr, Frag& frag, const Index& index)
   KeyDataC searchBoundData(index.m_keySpec, true);
   KeyBoundC searchBound(searchBoundData);
   unpackBound(c_ctx.c_searchKey, scanBound, searchBound);
+
+  KeyDataArray *key_data = new (&c_ctx.searchKeyDataArray)
+                           KeyDataArray();
+  key_data->init_bound(searchBound, scanBound.m_cnt);
+  KeyBoundArray *searchBoundArray = new (&c_ctx.searchKeyBoundArray)
+    KeyBoundArray(&index.m_keySpec,
+                  &c_ctx.searchKeyDataArray,
+                  scanBound.m_side);
+
   TreePos treePos;
-  searchToScan(frag, idir, searchBound, treePos);
+  searchToScan(frag, idir, *searchBoundArray, treePos);
   if (likely(treePos.m_loc != NullTupLoc))
   {
     scan.m_scanPos = treePos;
@@ -1289,7 +1299,7 @@ Dbtux::scanCheck(ScanOp& scan, TreeEnt ent)
     KeyDataArray key_data;
     key_data.init_poai(outputBuffer, count);
     // compare bound to key
-    ret = c_ctx.searchBoundArray->cmp(key_data);
+    ret = c_ctx.searchScanBoundArray.cmp(&key_data);
     ndbrequire(ret != 0);
     const unsigned idir = c_ctx.descending;
     const int jdir = 1 - 2 * (int)idir;

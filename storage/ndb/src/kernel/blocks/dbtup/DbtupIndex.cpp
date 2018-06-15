@@ -891,7 +891,7 @@ Dbtup::buildIndexOffline_table_readonly(Signal* signal, Uint32 buildPtrI)
     req.tux_ptr = tux;
     req.tup_ptr = this;
     req.func_ptr = Dbtux_mt_buildIndexFragment_wrapper_C;
-    req.buffer_size = 16*32768; // thread-local-buffer
+    req.buffer_size = 32*32768; // thread-local-buffer
 
     Uint32 * req_ptr = signal->getDataPtrSend();
     memcpy(req_ptr, &req, sizeof(req));
