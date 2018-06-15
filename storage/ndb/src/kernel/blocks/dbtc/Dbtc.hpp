@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -517,6 +517,9 @@ public:
   Uint32 c_maxNumberOfDefinedTriggers;
   Uint32 c_maxNumberOfFiredTriggers;
 
+  // Max number of outstanding FireTrigRequests per transaction
+  static const Uint32 MaxOutstandingFireTrigReqPerTrans = 32;
+
   struct AttrInfoRecord {
     /**
      * Pre-allocated AttrInfo signal
@@ -740,8 +743,15 @@ public:
   UintR* c_apiConTimer;
   UintR* c_apiConTimer_line;
 
-  // max cascading scans (FK child scans) per transaction
+  /**
+   * Limit the resource (signal/job buffer) usage of a transaction
+   * by limiting :
+   * - max cascading scans (FK child scans) and
+   * - trigger operations.
+   * An FK child scan is executed alone exclusively.
+   */
   static const Uint8 MaxCascadingScansPerTransaction = 1;
+  static const Uint32 MaxExecutingTriggerOpsPerTrans = 32;
 
   struct ApiConnectRecord {
     ApiConnectRecord(ArrayPool<TcFiredTriggerData> & firedTriggerPool,
@@ -869,8 +879,18 @@ public:
      * The list of fired triggers
      */  
     DLFifoList<TcFiredTriggerData> theFiredTriggers;
-    
-    
+
+    // Count the outstanding FIRE_TRIG_REQs of a transaction.
+    // Limit it in order to avoid job buffer overload
+    Uint32 m_outstanding_fire_trig_req;
+
+    // First and last indices of the local tc connect pointers that will
+    // be used to send fire trigger reqs when resumed in execFireTrigConf
+    // or in execCONTINUEB
+    UintR m_firstTcConnectPtrI_FT;
+    UintR m_lastTcConnectPtrI_FT;
+
+
     // Index data
     
     UintR noIndexOp;     // No outstanding index ops
@@ -897,8 +917,54 @@ public:
         apiConnectstate == CS_WAIT_FIRE_TRIG_REQ ;
     }
 
-    // number of on-going cascading scans (FK child scans)
+    // number of on-going cascading scans (FK child scans) at a transaction.
     Uint8 cascading_scans_count;
+
+    // Number of on-going trigger operations at a transaction
+    // Limit them in order to avoid the transaction
+    // overloading node resources (signal/job buffers).
+    Uint32 m_executing_trigger_ops;
+
+    // Trigger execution loop active
+    bool m_inExecuteTriggers;
+    /**
+     * ExecTriggersGuard
+     *
+     * Used to avoid recursive calls of executeTriggers
+     */
+    class ExecTriggersGuard
+    {
+      ApiConnectRecord* m_recPtr;
+    public:
+      ExecTriggersGuard(ApiConnectRecord* recPtr)
+      {
+        if (recPtr->m_inExecuteTriggers)
+        {
+          m_recPtr = NULL;
+        }
+        else
+        {
+          m_recPtr = recPtr;
+          m_recPtr->m_inExecuteTriggers = true;
+        }
+      }
+
+      ~ExecTriggersGuard()
+      {
+        if (m_recPtr)
+        {
+          assert(m_recPtr->m_inExecuteTriggers == true);
+          m_recPtr->m_inExecuteTriggers = false;
+        }
+      }
+
+      bool canExecNow() const
+      {
+        assert(m_recPtr == NULL ||
+               m_recPtr->m_inExecuteTriggers);
+        return (m_recPtr != NULL);
+      }
+    };
   };
   
   typedef Ptr<ApiConnectRecord> ApiConnectRecordPtr;
@@ -1548,9 +1614,14 @@ private:
                          TcConnectRecord * const regTcPtr);
 
   void startSendFireTrigReq(Signal*, Ptr<ApiConnectRecord>);
-  void sendFireTrigReq(Signal*, Ptr<ApiConnectRecord>,
-                       Uint32 firstTcConnect, Uint32 lastTcConnect);
-  Uint32 sendFireTrigReqLqh(Signal*, Ptr<TcConnectRecord>, Uint32 pass);
+
+  void sendFireTrigReq(Signal*, Ptr<ApiConnectRecord>);
+
+  Uint32 sendFireTrigReqLqh(Signal*, Ptr<TcConnectRecord>, Uint32 pass,
+                            Ptr<ApiConnectRecord>);
+
+  void checkWaitFireTrigConfDone(Signal*,
+                                 Ptr<ApiConnectRecord>);
 
 /**
  * These use modulo 2 hashing, so these need to be a number which is 2^n.
@@ -1744,7 +1815,8 @@ private:
                            Uint32 triggerPtrI,
                            TcConnectRecord* triggeringOp,
                            Uint32 returnCode);
-  void continueTriggeringOp(Signal* signal, TcConnectRecord* trigOp);
+  void continueTriggeringOp(Signal* signal, TcConnectRecord* trigOp,
+                            ApiConnectRecordPtr);
 
   void executeTriggers(Signal* signal, ApiConnectRecordPtr* transPtr);
   void waitToExecutePendingTrigger(Signal* signal, ApiConnectRecordPtr transPtr);
