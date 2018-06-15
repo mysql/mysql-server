@@ -1,0 +1,178 @@
+###############################################################################
+#
+# group_replication_exit_state_action sysvar specifies which action is taken by
+# a server once it has involuntarily left the group. Currently there are only
+# two actions: either the server continues running but with super_read_only
+# enabled (READ_ONLY) or it aborts (ABORT_SERVER).
+#
+# This test shall verify that the correct exit state action is executed when
+# an error occurs upon joining the group (in this case, when the
+# group_replication_gtid_assignment_block_size value on a joining member
+# differs from the group).
+#
+# Test:
+# 0) Setup group of 2 members (M1 and M2).
+# 1) Relaunch M2 with a different gtid_assignment_block_size from M1.
+# 2) M2 should be in super_read_only mode and in OFFLINE state (since it
+#    failed to join the group).
+# 3) Relaunch M2 with a different gtid_assignment_block_size from M1 and with
+#    exit_state_action set to ABORT_SERVER.
+# 4) M2 should have abort()ed.
+# 5) Restart M2 again without group_replication_start_on_boot enabled. The
+#     server should start normally and be able to join the group.
+# 6) Cleanup.
+#
+################################################################################
+--source include/not_valgrind.inc
+--source include/have_group_replication_plugin.inc
+
+--echo
+--echo #########################################################################
+--echo # 0) Setup group of 2 members (M1 and M2).
+--echo #########################################################################
+--echo
+--let $rpl_skip_group_replication_start = 1
+--source include/group_replication.inc
+--source include/start_and_bootstrap_group_replication.inc
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("The plugin encountered a critical error and will abort: Fatal error during execution of Group Replication");
+call mtr.add_suppression("Unable to start Group Replication on boot");
+call mtr.add_suppression("Timeout on wait for view after joining group");
+call mtr.add_suppression("\\[GCS\\] Error connecting to all peers. Member join failed.*");
+call mtr.add_suppression("\\[GCS\\] read failed");
+call mtr.add_suppression("\\[GCS\\] The member was unable to join the group.*");
+SET SESSION sql_log_bin = 1;
+
+--echo
+--echo #########################################################################
+--echo # 1) Relaunch M2 with a different gtid_assignment_block_size from M1.
+--echo #########################################################################
+--echo
+# We need a different value to trigger a group incompatibility
+--let $gtid_assignment_block_size = `SELECT @@GLOBAL.group_replication_gtid_assignment_block_size`
+--inc $gtid_assignment_block_size
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+# Save all the context we'll need during the test
+--let $error_file = $MYSQLTEST_VARDIR/tmp/gr_exit_state_action_on_join_wrong_gtid_assignment_block_size.2.err
+--let $member2_uuid=`SELECT @@GLOBAL.server_uuid`
+--let $local_address_server2= `SELECT @@GLOBAL.group_replication_local_address`
+--let $group_seeds_server2= `SELECT @@GLOBAL.group_replication_group_seeds`
+# Restart the server with group_replication_start_on_boot enabled
+--let $allow_rpl_inited = 1
+--let $restart_parameters=restart:--group_replication_local_address=$local_address_server2 --group_replication_group_seeds=$group_seeds_server2 --group-replication-group-name=$group_replication_group_name --group_replication_start_on_boot=1 --group_replication_gtid_assignment_block_size=$gtid_assignment_block_size
+--replace_result $local_address_server2 GROUP_REPLICATION_LOCAL_ADDRESS $group_seeds_server2 GROUP_REPLICATION_GROUP_SEEDS $gtid_assignment_block_size GROUP_REPLICATION_GTID_ASSIGNMENT_BLOCK_SIZE $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--source include/restart_mysqld.inc
+# Reestablish the connection to the server
+--let $rpl_server_number= 2
+--source include/rpl_reconnect.inc
+
+--echo
+--echo #########################################################################
+--echo # 2) M2 should be in super_read_only mode and in OFFLINE state (since it
+--echo # failed to join the group).
+--echo #########################################################################
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+# Wait for the member to realize that it couldn't join the group
+--let $member2_uuid = `SELECT @@GLOBAL.server_uuid`
+--let $group_replication_number_of_members = 2
+--source include/gr_wait_for_number_of_members.inc
+--let $group_replication_member_state = OFFLINE
+--let $group_replication_member_id = $member2_uuid
+--source include/gr_wait_for_member_state.inc
+# Verify that it went to super_read_only mode
+--let $assert_text= super_read_only should be enabled
+--let $assert_cond= [SELECT @@GLOBAL.super_read_only] = 1;
+--source include/assert.inc
+# Verify that the expected error occurred
+--let $assert_file = $error_file
+--let $assert_text = GR reported that it has a different gtid_assignment_block_size value (as expected)
+--let $assert_select = The member is configured with a group_replication_gtid_assignment_block_size option value .+ different from the group
+--let $assert_count = 1
+--source include/assert_grep.inc
+# Verify that member 2 didn't join the group
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $group_replication_number_of_members = 1
+--source include/gr_wait_for_number_of_members.inc
+
+--echo
+--echo #########################################################################
+--echo # 3) Relaunch M2 with a different gtid_assignment_block_size from M1 and
+--echo # with exit_state_action set to ABORT_SERVER.
+--echo #########################################################################
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+# Restart the server again with group_replication_start_on_boot enabled and with
+# group_replication_exit_state_action set to ABORT_SERVER
+--let $allow_rpl_inited = 1
+--let $restart_parameters=restart:--group_replication_local_address=$local_address_server2 --group_replication_group_seeds=$group_seeds_server2 --group-replication-group-name=$group_replication_group_name --group_replication_start_on_boot=1 --group_replication_gtid_assignment_block_size=$gtid_assignment_block_size --group_replication_exit_state_action=ABORT_SERVER
+--replace_result $local_address_server2 GROUP_REPLICATION_LOCAL_ADDRESS $group_seeds_server2 GROUP_REPLICATION_GROUP_SEEDS $gtid_assignment_block_size GROUP_REPLICATION_GTID_ASSIGNMENT_BLOCK_SIZE $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--source include/restart_mysqld.inc
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+--source include/wait_until_disconnected.inc
+
+--echo
+--echo #########################################################################
+--echo # 4) M2 should have abort()ed.
+--echo #########################################################################
+--echo
+# Wait for server 1 to see that server 2 didn't join
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $group_replication_number_of_members = 1
+--source include/gr_wait_for_number_of_members.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+--let $rpl_server_number= 2
+--source include/rpl_reconnect.inc
+# Wait until server 2 is disconnected, so we know it has abort()'ed
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/wait_until_connected_again.inc
+# Search for the expected errors in the error log file
+--let $rpl_server_number= 2
+--source include/rpl_reconnect.inc
+--let $assert_file = $error_file
+--let $assert_text = GR reported that it has a different gtid_assignment_block_size value (as expected)
+--let $assert_select = The member is configured with a group_replication_gtid_assignment_block_size option value .+ different from the group
+--let $assert_count = 2
+--source include/assert_grep.inc
+--let $assert_text = GR reported expected abort
+--let $assert_select = The plugin encountered a critical error and will abort
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--echo
+--echo #########################################################################
+--echo # 5) Restart M2 again without group_replication_start_on_boot enabled.
+--echo # The server should start normally and be able to join the group.
+--echo #########################################################################
+--echo
+# Restart server 2 again, now with group_replication_start_on_boot disabled
+--let $allow_rpl_inited=1
+--let $restart_parameters=restart:--group_replication_local_address=$local_address_server2 --group_replication_group_seeds=$group_seeds_server2 --group-replication-group-name=$group_replication_group_name
+--replace_result $local_address_server2 GROUP_REPLICATION_LOCAL_ADDRESS $group_seeds_server2 GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--source include/restart_mysqld.inc
+--let $rpl_server_number= 2
+--source include/rpl_reconnect.inc
+# Start GR on server 2 and verify that the group stabilizes itself
+--source include/start_group_replication.inc
+--let $group_replication_number_of_members = 2
+--source include/gr_wait_for_number_of_members.inc
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $group_replication_number_of_members = 2
+--source include/gr_wait_for_number_of_members.inc
+
+--echo
+--echo #########################################################################
+--echo # 6) Cleanup.
+--echo #########################################################################
+--echo
+--source include/group_replication_end.inc
+
