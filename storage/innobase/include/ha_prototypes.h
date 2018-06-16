@@ -141,6 +141,7 @@ void innobase_convert_from_table_id(
     const char *from,       /*!< in: identifier to convert */
     ulint len);             /*!< in: length of 'to', in bytes; should
                             be at least 5 * strlen(to) + 1 */
+
 /** Converts an identifier to UTF-8. */
 void innobase_convert_from_id(
     const CHARSET_INFO *cs, /*!< in: the 'from' character set */
@@ -148,8 +149,12 @@ void innobase_convert_from_id(
     const char *from,       /*!< in: identifier to convert */
     ulint len);             /*!< in: length of 'to', in bytes;
                             should be at least 3 * strlen(to) + 1 */
+
 /** Makes all characters in a NUL-terminated UTF-8 string lower case. */
 void innobase_casedn_str(char *a); /*!< in/out: string to put in lower case */
+
+/** Makes all characters in a NUL-terminated UTF-8 path string lower case. */
+void innobase_casedn_path(char *a); /*!< in/out: string to put in lower case */
 
 /** Determines the connection character set.
  @return connection character set */

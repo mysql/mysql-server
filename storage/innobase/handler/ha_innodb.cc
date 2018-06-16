@@ -2076,6 +2076,12 @@ void innobase_casedn_str(char *a) /*!< in/out: string to put in lower case */
   my_casedn_str(system_charset_info, a);
 }
 
+/** Makes all characters in a NUL-terminated UTF-8 path string lower case. */
+void innobase_casedn_path(char *a) /*!< in/out: string to put in lower case */
+{
+  my_casedn_str(&my_charset_filename, a);
+}
+
 /** Determines the connection character set.
  @return connection character set */
 const CHARSET_INFO *innobase_get_charset(

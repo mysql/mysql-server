@@ -10292,6 +10292,9 @@ bool Fil_path::is_valid_location(const char *space_name,
   std::string subdir = (pos == std::string::npos)
                            ? dirpath
                            : dirpath.substr(pos + 1, dirpath.length());
+  if (innobase_get_lower_case_table_names() == 2) {
+    Fil_path::convert_to_lower_case(subdir);
+  }
 
   pos = name.find_last_of(SEPARATOR);
 
@@ -10364,6 +10367,20 @@ void Fil_path::convert_to_filename_charset(std::string &name) {
   if (errors == 0) {
     name.assign(filename);
   }
+}
+
+/** Convert to lower case using the file system charset.
+@param[in,out]	path		Filepath to convert */
+void Fil_path::convert_to_lower_case(std::string &path) {
+  char lc_path[MAX_TABLE_NAME_LEN + 20];
+
+  ut_ad(path.length() < sizeof(lc_path) - 1);
+
+  strncpy(lc_path, path.c_str(), sizeof(lc_path) - 1);
+
+  innobase_casedn_path(lc_path);
+
+  path.assign(lc_path);
 }
 
 #endif /* !UNIV_HOTBACKUP */
