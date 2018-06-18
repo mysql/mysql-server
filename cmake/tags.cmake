@@ -1,4 +1,4 @@
-# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,7 @@ IF(UNIX)
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
   )
   ADD_CUSTOM_TARGET (ctags
-    COMMAND  ctags -R -f CTAGS
+    COMMAND support-files/build-tags ctags
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
   )
 ENDIF()

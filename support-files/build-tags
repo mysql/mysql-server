@@ -1,6 +1,6 @@
-#! /bin/sh
+#! /bin/bash
 
-# Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -22,13 +22,24 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-rm -f TAGS
+tagstyle=${1:-etags}
+
+case $tagstyle in
+    "etags") tagfile=TAGS
+             tagopt="-e"
+             ;;
+    "ctags") tagfile=tags
+             tagopt=""
+             ;;
+    *) echo "$0 [etags|ctags]"
+       exit 1
+       ;;
+esac
+
+rm -f $tagfile
 filter='\.cpp$\|\.cc$\|\.c$\|\.h$\|sql_yacc\.yy$\|\.hpp$\|\.ic$'
 
 list="find . -type f"
 git rev-parse >/dev/null 2>/dev/null && list="git ls-files"
 
-$list |grep $filter |while read f; 
-do
-	 etags -o TAGS --append $f
-done
+ctags $tagopt -o $tagfile $( $list | grep $filter )
