@@ -2,7 +2,7 @@
 
 # Restart of server and removal of log file to get deterministic results.
 --source include/shutdown_mysqld.inc
---remove_file $MYSQLTEST_VARDIR/log/mysqld.1.err 5
+--remove_file $MYSQLTEST_VARDIR/log/mysqld.1.err 15
 --source include/start_mysqld.inc
 
 call mtr.add_suppression("This is a warning from test plugin");
