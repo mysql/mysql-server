@@ -219,21 +219,24 @@ static bool set_parameters(gis::srid_t srid,
 }
 
 static const char *axis_direction_to_name(gis::srs::Axis_direction direction) {
-  switch (direction) {
-    case gis::srs::Axis_direction::UNSPECIFIED:
+  // Work around bugs in Developer Studio 12.5 on Solaris by casting the enum to
+  // int. Otherwise the default case, and only the default case, is always
+  // executed. This happens regardless of direction value.
+  switch (static_cast<int>(direction)) {
+    case static_cast<int>(gis::srs::Axis_direction::UNSPECIFIED):
       return "UNSPECIFIED";
-    case gis::srs::Axis_direction::NORTH:
+    case static_cast<int>(gis::srs::Axis_direction::NORTH):
       return "NORTH";
-    case gis::srs::Axis_direction::SOUTH:
+    case static_cast<int>(gis::srs::Axis_direction::SOUTH):
       return "SOUTH";
-    case gis::srs::Axis_direction::EAST:
+    case static_cast<int>(gis::srs::Axis_direction::EAST):
       return "EAST";
-    case gis::srs::Axis_direction::WEST:
+    case static_cast<int>(gis::srs::Axis_direction::WEST):
       return "WEST";
-    case gis::srs::Axis_direction::OTHER:
+    case static_cast<int>(gis::srs::Axis_direction::OTHER):
       return "OTHER";
     default:
-      /* purecov: begin inspected */
+      /* purecov: begin deadcode */
       DBUG_ASSERT(false);
       return "UNKNOWN";
       /* purecov: end */
