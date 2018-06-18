@@ -1,9 +1,0 @@
-!include ../my.cnf
-
-[cluster_config.1]
-MaxNoOfLocalOperations=50K
-MaxNoOfConcurrentOperations=50K
-LongMessageBuffer=128M
-DataMemory=128M
-
-ThreadConfig=main={count=1},tc={count=1},ldm={count=2},io={count=1},rep={count=1},recv={count=2},send={count=2}
