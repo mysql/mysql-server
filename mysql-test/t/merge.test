@@ -935,10 +935,9 @@ SELECT * FROM t3 ORDER BY c1;
 --echo # 3. Normal rename with locked tables.
 LOCK TABLES t1 WRITE, t2 WRITE, t3 WRITE;
 SELECT * FROM t3 ORDER BY c1;
---error ER_LOCK_OR_ACTIVE_TRANSACTION
 RENAME TABLE t2 TO t5;
+--error ER_TABLE_NOT_LOCKED
 SELECT * FROM t3 ORDER BY c1;
---error ER_LOCK_OR_ACTIVE_TRANSACTION
 RENAME TABLE t5 TO t2;
 SELECT * FROM t3 ORDER BY c1;
 UNLOCK TABLES;
@@ -962,17 +961,15 @@ UNLOCK TABLES;
 --echo #
 --echo # Rename parent.
 --echo #
---echo # 1. Normal rename with locked tables.
+--echo # 6. Normal rename with locked tables.
 LOCK TABLES t1 WRITE, t2 WRITE, t3 WRITE;
 SELECT * FROM t3 ORDER BY c1;
---error ER_LOCK_OR_ACTIVE_TRANSACTION
 RENAME TABLE t3 TO t5;
-SELECT * FROM t3 ORDER BY c1;
---error ER_LOCK_OR_ACTIVE_TRANSACTION
+SELECT * FROM t5 ORDER BY c1;
 RENAME TABLE t5 TO t3;
 SELECT * FROM t3 ORDER BY c1;
 --echo #
---echo # 5. Alter table rename with locked tables.
+--echo # 7. Alter table rename with locked tables.
 ALTER TABLE t3 RENAME TO t5;
 SELECT * FROM t5 ORDER BY c1;
 UNLOCK TABLES;

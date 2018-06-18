@@ -5253,6 +5253,11 @@ bool get_and_lock_tablespace_names(THD *thd, TABLE_LIST *tables_start,
   @param lock_wait_timeout Seconds to wait before timeout.
   @param flags             Bitmap of flags to modify how the tables will be
                            open, see open_table() description for details.
+  @param schema_reqs       When non-nullptr, pointer to array in which
+                           pointers to MDL requests for acquired schema
+                           locks to be stored. It is guaranteed that
+                           each schema will be present in this array
+                           only once.
 
   @retval false  Success.
   @retval true   Failure (e.g. connection was killed)
@@ -5260,7 +5265,8 @@ bool get_and_lock_tablespace_names(THD *thd, TABLE_LIST *tables_start,
 
 bool lock_table_names(THD *thd, TABLE_LIST *tables_start,
                       TABLE_LIST *tables_end, ulong lock_wait_timeout,
-                      uint flags) {
+                      uint flags,
+                      Prealloced_array<MDL_request *, 1> *schema_reqs) {
   MDL_request_list mdl_requests;
   TABLE_LIST *table;
   MDL_request global_request;
@@ -5270,7 +5276,18 @@ bool lock_table_names(THD *thd, TABLE_LIST *tables_start,
   bool need_global_read_lock_protection = false;
   bool acquire_backup_lock = false;
 
-  DBUG_ASSERT(!thd->locked_tables_mode);
+  /*
+    This function is not supposed to be used under LOCK TABLES normally.
+    Instead open_tables_check_upgradable_mdl() or some other function
+    checking if we have tables locked in proper mode should be used.
+
+    The exception to this rule is RENAME TABLES code which uses this call
+    to "upgrade" metadata lock on tables renamed along with acquiring
+    exclusive locks on target table names, after checking that tables
+    renamed are properly locked.
+  */
+  DBUG_ASSERT(!thd->locked_tables_mode ||
+              thd->lex->sql_command == SQLCOM_RENAME_TABLE);
 
   // Phase 1: Iterate over tables, collect set of unique schema names, and
   //          construct a list of requests for table MDL locks.
@@ -5329,6 +5346,7 @@ bool lock_table_names(THD *thd, TABLE_LIST *tables_start,
       MDL_REQUEST_INIT(schema_request, MDL_key::SCHEMA, table->db, "",
                        MDL_INTENTION_EXCLUSIVE, MDL_TRANSACTION);
       mdl_requests.push_front(schema_request);
+      if (schema_reqs) schema_reqs->push_back(schema_request);
     }
 
     if (need_global_read_lock_protection) {

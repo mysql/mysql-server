@@ -35,6 +35,7 @@
 #include "mysql/psi/psi_base.h"
 #include "nullable.h"
 #include "sql/gis/srid.h"
+#include "sql/mdl.h"                // MDL_request
 #include "sql/mem_root_array.h"     // Mem_root_array
 #include "sql/sql_cmd.h"            // Sql_cmd
 #include "sql/sql_cmd_ddl_table.h"  // Sql_cmd_ddl_table
@@ -464,6 +465,14 @@ class Alter_table_ctx {
     old version of table.
   */
   uint fk_max_generated_name_number;
+
+  /**
+    Metadata lock request on table's new name when this name or database
+    are changed.
+  */
+  MDL_request target_mdl_request;
+  /** Metadata lock request on table's new database if it is changed. */
+  MDL_request target_db_mdl_request;
 
  private:
   char new_filename[FN_REFLEN + 1];

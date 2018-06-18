@@ -100,3 +100,534 @@ RENAME TABLE tttttttttttttttt1_abc TO t1;
 # Should only see t1_XXX.sdi
 t1_XXX.sdi
 DROP TABLE t1;
+#
+# Test coverage for WL#9826 "Allow RENAME TABLES under LOCK TABLES".
+#
+SET @old_lock_wait_timeout= @@lock_wait_timeout;
+connect  con1, localhost, root,,;
+SET @old_lock_wait_timeout= @@lock_wait_timeout;
+connection default;
+#
+# 1) Requirements on table locking for tables renamed and
+#    target table names.
+#
+# 1.1) Requirements on renamed table locks.
+CREATE TABLE t1 (i INT);
+CREATE TABLE t2 (j INT);
+LOCK TABLES t1 READ;
+# Renamed table must be locked.
+RENAME TABLE t2 TO t3;
+ERROR HY000: Table 't2' was not locked with LOCK TABLES
+# Moreover, renamed table must be locked for write.
+RENAME TABLE t1 TO t3;
+ERROR HY000: Table 't1' was locked with a READ lock and can't be updated
+UNLOCK TABLES;
+LOCK TABLE t1 WRITE;
+# Renaming write-locked table is OK, there is no need
+# (and way) to lock target table name.
+RENAME TABLE t1 TO t3;
+# There is no need to lock source name for the table, if it is
+# result of some earlier step of the same RENAME TABLES.
+RENAME TABLE t3 TO t4, t4 TO t5;
+UNLOCK TABLES;
+# Special case involving foreign keys. If RENAME TABLE is
+# going to provide parent for some orphan FK, then the
+# child table of this FK needs to be write locked, or
+# FK invariants for LOCK TABLES will be broken,
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE t1 (fk INT, FOREIGN KEY(fk) REFERENCES t3(pk));
+SET FOREIGN_KEY_CHECKS=1;
+CREATE TABLE t0 (pk INT PRIMARY KEY);
+LOCK TABLES t0 WRITE;
+RENAME TABLE t0 TO t3;
+ERROR HY000: Table 't1' was not locked with LOCK TABLES
+UNLOCK TABLES;
+LOCK TABLES t1 READ, t0 WRITE;
+RENAME TABLE t0 TO t3;
+ERROR HY000: Table 't1' was locked with a READ lock and can't be updated
+UNLOCK TABLES;
+LOCK TABLES t1 WRITE, t0 WRITE;
+RENAME TABLE t0 TO t3;
+UNLOCK TABLES;
+DROP TABLES t1, t3;
+#
+# 1.2) Locking of target table.
+#
+# This part of test resides in rename_debug.test.
+#
+# 2) Failure to acquire/upgrade locks on tables involved.
+#
+# This part of test resides in rename_debug.test.
+#
+# 3) Effects of RENAME TABLES on set of locked tables and
+#    metadata locks held.
+#
+# 3.1) Trivial RENAME TABLE.
+LOCK TABLES t5 WRITE;
+RENAME TABLE t5 TO t4;
+# Table is available under new name under LOCK TABLES.
+SELECT * FROM t4;
+i
+connection con1;
+# Access by new name from other connections should be blocked.
+SET @@lock_wait_timeout= 1;
+SELECT * FROM t4;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+# But not for old table name.
+SELECT * FROM t5;
+ERROR 42S02: Table 'test.t5' doesn't exist
+connection default;
+UNLOCK TABLES;
+#
+# 3.2) RENAME TABLE in case when several tables are locked.
+LOCK TABLES t2 READ, t4 WRITE;
+RENAME TABLE t4 TO t5;
+# Table t2 should be still locked, and t4 should be available as t5
+# with correct lock type.
+SELECT * FROM t2;
+j
+INSERT INTO t5 values (1);
+UNLOCK TABLES;
+#
+# 3.3) RENAME TABLE in case when same table locked more than once.
+LOCK TABLES t2 READ, t5 WRITE, t5 AS a WRITE, t5 AS b READ;
+RENAME TABLE t5 TO t4;
+# Check that tables are locked under correct aliases and with modes.
+SELECT * FROM t4 AS a, t4 AS b;
+i	i
+1	1
+INSERT INTO t4 VALUES (2);
+DELETE a FROM t4 AS a, t4 AS b;
+DELETE b FROM t4 AS a, t4 AS b;
+ERROR HY000: Table 'b' was locked with a READ lock and can't be updated
+UNLOCK TABLES;
+#
+# 3.4) RENAME TABLES which does old good table swap.
+LOCK TABLES t2 WRITE, t4 WRITE;
+RENAME TABLES t2 TO t0, t4 TO t2, t0 TO t4;
+# Tables are available under new name under LOCK TABLES.
+SELECT * FROM t2;
+i
+SELECT * FROM t4;
+j
+connection con1;
+# Access by new names from other connections should be blocked.
+SET @@lock_wait_timeout= 1;
+SELECT * FROM t2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT * FROM t4;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+# But not for auxiliary name.
+SELECT * FROM t0;
+ERROR 42S02: Table 'test.t0' doesn't exist
+connection default;
+UNLOCK TABLES;
+#
+# 3.5) RENAME TABLES which renames same table several times.
+LOCK TABLE t2 WRITE;
+RENAME TABLES t2 TO t1, t1 TO t3, t3 TO t5;
+# Table is available under new name under LOCK TABLES.
+SELECT * FROM t5;
+i
+# But not under other names.
+SELECT * FROM t1;
+ERROR HY000: Table 't1' was not locked with LOCK TABLES
+SELECT * FROM t2;
+ERROR HY000: Table 't2' was not locked with LOCK TABLES
+SELECT * FROM t3;
+ERROR HY000: Table 't3' was not locked with LOCK TABLES
+connection con1;
+# Access by new name from other connections should be blocked.
+SET @@lock_wait_timeout= 1;
+SELECT * FROM t5;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+# But not for other names
+SELECT * FROM t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+SELECT * FROM t2;
+ERROR 42S02: Table 'test.t2' doesn't exist
+SELECT * FROM t3;
+ERROR 42S02: Table 'test.t3' doesn't exist
+connection default;
+UNLOCK TABLES;
+#
+# 3.6) RENAME TABLES which renames 2 tables while additional
+#      table is locked.
+CREATE TABLE t6(k INT);
+LOCK TABLES t4 WRITE, t5 WRITE, t6 WRITE;
+RENAME TABLES t4 TO t1, t5 TO t2;
+# Renamed tables are available under new names.
+SELECT * FROM t1;
+j
+SELECT * FROM t2;
+i
+# But not under other names.
+SELECT * FROM t4;
+ERROR HY000: Table 't4' was not locked with LOCK TABLES
+SELECT * FROM t5;
+ERROR HY000: Table 't5' was not locked with LOCK TABLES
+# Untouched table is still available.
+SELECT * FROM t6;
+k
+connection con1;
+# Access by new name from other connections should be blocked.
+SET @@lock_wait_timeout= 1;
+SELECT * FROM t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT * FROM t2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# And access to untouched table too.
+SELECT * FROM t6;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+# Old names should not be locked.
+SELECT * FROM t4;
+ERROR 42S02: Table 'test.t4' doesn't exist
+SELECT * FROM t5;
+ERROR 42S02: Table 'test.t5' doesn't exist
+connection default;
+UNLOCK TABLES;
+DROP TABLES t1, t2, t6;
+#
+# 4) Effects of failed RENAME TABLES on set of locked tables and
+#    metadata locks held.
+#
+# 4.1) Atomic RENAME TABLES which fails at late stage should be
+#      fully rolled back.
+CREATE TABLE t1 (i INT) ENGINE=InnoDB;
+CREATE TABLE t2 (j INT) ENGINE=InnoDB;
+CREATE TABLE t3 (k INT) ENGINE=InnoDB;
+CREATE TABLE t4 (l INT) ENGINE=InnoDB;
+LOCK TABLES t1 WRITE, t2 WRITE, t3 WRITE;
+RENAME TABLES t1 TO t0, t2 TO t4;
+ERROR 42S01: Table 't4' already exists
+# Tables are available under old names.
+SELECT * FROM t1;
+i
+SELECT * FROM t2;
+j
+# Including untouched table.
+SELECT * FROM t3;
+k
+# And not under new names.
+SELECT * FROM t0;
+ERROR HY000: Table 't0' was not locked with LOCK TABLES
+SELECT * FROM t4;
+ERROR HY000: Table 't4' was not locked with LOCK TABLES
+connection con1;
+# Access by old names from other connections should be blocked.
+SET @@lock_wait_timeout= 1;
+SELECT * FROM t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT * FROM t2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# And access to untouched table too.
+SELECT * FROM t3;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+# New names should not be locked.
+SELECT * FROM t0;
+ERROR 42S02: Table 'test.t0' doesn't exist
+SELECT * FROM t4;
+l
+connection default;
+UNLOCK TABLES;
+#
+# 4.2) Non-atomic RENAME TABLES which fails but is fully
+#      reverted should restore set of locked tables and
+#      state of metadata locks.
+CREATE TABLE t0 (m INT) ENGINE=MyISAM;
+LOCK TABLES t1 WRITE, t2 WRITE, t3 WRITE, t0 WRITE;
+RENAME TABLES t0 TO t00, t1 TO t01, t2 TO t4;
+ERROR 42S01: Table 't4' already exists
+# Tables are available under old names.
+SELECT * FROM t0;
+m
+SELECT * FROM t1;
+i
+SELECT * FROM t2;
+j
+# Including untouched table.
+SELECT * FROM t3;
+k
+# And not under new names.
+SELECT * FROM t00;
+ERROR HY000: Table 't00' was not locked with LOCK TABLES
+SELECT * FROM t01;
+ERROR HY000: Table 't01' was not locked with LOCK TABLES
+SELECT * FROM t4;
+ERROR HY000: Table 't4' was not locked with LOCK TABLES
+connection con1;
+# Access by old names from other connections should be blocked.
+SET @@lock_wait_timeout= 1;
+SELECT * FROM t0;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT * FROM t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT * FROM t2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# And access to untouched table too.
+SELECT * FROM t3;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+# New names should not be locked.
+SELECT * FROM t00;
+ERROR 42S02: Table 'test.t00' doesn't exist
+SELECT * FROM t01;
+ERROR 42S02: Table 'test.t01' doesn't exist
+SELECT * FROM t4;
+l
+connection default;
+UNLOCK TABLES;
+DROP TABLES t0, t1, t2, t3, t4;
+#
+# 4.3) Non-atomic RENAME TABLES which fails at late stage and
+#      is NOT fully reverted.
+#
+# This part of test resides in rename_debug.test.
+#
+# 5) RENAME TABLES under LOCK TABLES and views.
+#
+# 5.1) Requirements on locking is similar to tables.
+CREATE TABLE t1 (i INT);
+CREATE TABLE t2 (j INT);
+CREATE VIEW v1 AS SELECT * FROM t1;
+CREATE VIEW v2 AS SELECT * FROM t2;
+LOCK TABLES t1 WRITE;
+RENAME TABLE v1 TO v2;
+ERROR HY000: Table 'v1' was not locked with LOCK TABLES
+UNLOCK TABLES;
+LOCK TABLES v1 READ;
+RENAME TABLE v1 TO v2;
+ERROR HY000: Table 'v1' was locked with a READ lock and can't be updated
+UNLOCK TABLES;
+#
+# Coverage for target name resides in rename_debug.test.
+#
+# 5.2) Effects of RENAME TABLE on a view on the
+#      set of locked tables and metadata locks.
+LOCK TABLES v1 WRITE;
+RENAME TABLE v1 TO v3;
+# View is available under new name under LOCK TABLES.
+INSERT INTO v3 VALUES (1);
+# And not under old name.
+SELECT * FROM v1;
+ERROR HY000: Table 'v1' was not locked with LOCK TABLES
+connection con1;
+# Access by new name from other connections should be blocked.
+SET @@lock_wait_timeout= 1;
+SELECT * FROM v3;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+# But not for old table name.
+SELECT * FROM v1;
+ERROR 42S02: Table 'test.v1' doesn't exist
+connection default;
+UNLOCK TABLES;
+#
+# A bit more complex RENAME TABLE which swaps two views.
+LOCK TABLES v2 WRITE, v3 WRITE;
+RENAME TABLE v2 TO v0, v3 TO v2, v0 TO v3;
+# Views are available under new name under LOCK TABLES.
+SELECT * FROM v2;
+i
+1
+SELECT * FROM v3;
+j
+connection con1;
+# Access by new names from other connections should be blocked.
+SET @@lock_wait_timeout= 1;
+SELECT * FROM v2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT * FROM v3;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+# But not for auxiliary name.
+SELECT * FROM v0;
+ERROR 42S02: Table 'test.v0' doesn't exist
+connection default;
+UNLOCK TABLES;
+DROP VIEW v2;
+DROP VIEW v3;
+DROP TABLES t1, t2;
+#
+# 6) RENAME TABLES under LOCK TABLES and foreign keys.
+#
+# 6.1) Renaming of child table updates parent definition.
+CREATE TABLE t1 (pk INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (fk INT, FOREIGN KEY (fk) REFERENCES t1 (pk));
+INSERT INTO t2 VALUES (1);
+CREATE TABLE t3 (fk INT);
+CREATE TABLE t4 (pk INT NOT NULL, UNIQUE(pk));
+INSERT INTO t4 VALUES (2);
+LOCK TABLES t1 WRITE, t2 WRITE, t3 WRITE, t4 WRITE;
+RENAME TABLES t2 TO t0, t3 TO t2, t0 TO t3;
+# The above RENAME TABLES should have updated parent definition
+# so below DELETE goes to new 't3' (old 't2') when checking if
+# rows can be deleted.
+DELETE FROM t1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `t1` (`pk`))
+#
+# 6.2) Renaming of parent table updates parent definition as well.
+RENAME TABLE t1 TO t0, t4 TO t1, t0 TO t4;
+# The above RENAME TABLES should have updated child definition
+# so below INSERT goes to new 't4' (old 't1') when checking if
+# row can be inserted.
+INSERT INTO t3 VALUES (2);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `t4` (`pk`))
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `fk` int(11) DEFAULT NULL,
+  KEY `fk` (`fk`),
+  CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `t4` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Parent key name still should be PRIMARY.
+SELECT unique_constraint_name FROM information_schema.referential_constraints WHERE table_name = 't3';
+UNIQUE_CONSTRAINT_NAME
+PRIMARY
+UNLOCK TABLES;
+#
+# 6.3) RENAME TABLES which adds parent to orphan FK updates
+#      child definition.
+# Make FK on t3 orphan.
+SET foreign_key_checks = 0;
+DROP TABLES t1, t2, t4;
+SET foreign_key_checks = 1;
+CREATE TABLE t1 (pk INT NOT NULL, UNIQUE(pk));
+INSERT INTO t1 VALUES (1), (2);
+LOCK TABLES t1 WRITE, t3 WRITE;
+# Add parent for orphan FK.
+RENAME TABLE t1 TO t4;
+# Child definition should be updated to reflect new parent.
+INSERT INTO t3 VALUES (2);
+INSERT INTO t3 VALUES (3);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `t4` (`pk`))
+# Parent key name should be 'pk'.
+SELECT unique_constraint_name FROM information_schema.referential_constraints WHERE table_name = 't3';
+UNIQUE_CONSTRAINT_NAME
+pk
+# Parent definition should be aware of new child as well.
+# Doesn't work yet. Apparently some bug in InnoDB.
+DELETE FROM t4;
+UNLOCK TABLES;
+DROP TABLE t3, t4;
+#
+# 7) RENAME TABLES under LOCK TABLES which moves tables
+#    between schemas.
+#
+# 7.1) RENAME TABLES under LOCK TABLES which moves table
+#      to different schema acquires IX lock on it and keeps
+#      it until UNLOCK TABLES.
+CREATE TABLE t1 (i INT);
+CREATE DATABASE mysqltest;
+LOCK TABLES t1 WRITE;
+RENAME TABLE t1 TO mysqltest.t1;
+# Table is available in new schema!
+INSERT INTO mysqltest.t1 VALUES (1);
+# And not in the old one.
+SELECT * FROM t1;
+ERROR HY000: Table 't1' was not locked with LOCK TABLES
+connection con1;
+# Access in the new schema from other connections should be blocked.
+SET @@lock_wait_timeout= 1;
+SELECT * FROM mysqltest.t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+# But not when trying to find table in old schema.
+SELECT * FROM test.t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+# Also IX metadata lock on new schema should be kept.
+SET @@lock_wait_timeout= 1;
+ALTER DATABASE mysqltest CHARACTER SET latin1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection default;
+UNLOCK TABLES;
+DROP TABLE mysqltest.t1;
+#
+# 7.2) Atomic RENAME TABLES which moves table to different schema
+#      and fails at late stage should be fully rolled back.
+CREATE TABLE t1 (i INT) ENGINE=InnoDB;
+CREATE TABLE t2 (j INT) ENGINE=InnoDB;
+CREATE TABLE t3 (k INT);
+CREATE TABLE t4 (l INT) ENGINE=MyISAM;
+LOCK TABLES t1 WRITE, t2 WRITE;
+RENAME TABLES t1 TO mysqltest.t1, t2 TO t3;
+ERROR 42S01: Table 't3' already exists
+# Tables are available under old names.
+SELECT * FROM t1;
+i
+SELECT * FROM t2;
+j
+# And not under new names.
+SELECT * FROM mysqltest.t1;
+ERROR HY000: Table 't1' was not locked with LOCK TABLES
+SELECT * FROM t3;
+ERROR HY000: Table 't3' was not locked with LOCK TABLES
+connection con1;
+# Access by old names from other connections should be blocked.
+SET @@lock_wait_timeout= 1;
+SELECT * FROM t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT * FROM t2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+# New names should not be locked.
+SELECT * FROM mysqltest.t1;
+ERROR 42S02: Table 'mysqltest.t1' doesn't exist
+SELECT * FROM t3;
+k
+# There should be no IX metadata lock on new schema.
+ALTER DATABASE mysqltest CHARACTER SET latin1;
+connection default;
+UNLOCK TABLES;
+#
+# 7.3) Non-atomic RENAME TABLES which moves table to different schema, fails
+#      but is fully reverted should restore set of locked tables and
+#      state of metadata locks too.
+LOCK TABLES t4 WRITE, t1 WRITE;
+RENAME TABLES t4 TO mysqltest.t4, t1 TO t3;
+ERROR 42S01: Table 't3' already exists
+# Tables are available under old names.
+SELECT * FROM t4;
+l
+SELECT * FROM t1;
+i
+# And not under new names.
+SELECT * FROM mysqltest.t4;
+ERROR HY000: Table 't4' was not locked with LOCK TABLES
+SELECT * FROM t3;
+ERROR HY000: Table 't3' was not locked with LOCK TABLES
+connection con1;
+# Access by old names from other connections should be blocked.
+SET @@lock_wait_timeout= 1;
+SELECT * FROM t4;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT * FROM t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+# New names should not be locked.
+SELECT * FROM mysqltest.t4;
+ERROR 42S02: Table 'mysqltest.t4' doesn't exist
+SELECT * FROM t3;
+k
+# There should be no IX metadata lock on new schema.
+ALTER DATABASE mysqltest CHARACTER SET latin1;
+connection default;
+UNLOCK TABLES;
+DROP TABLES t1, t2, t3, t4;
+DROP DATABASE mysqltest;
+#
+# 7.4) Non-atomic RENAME TABLES which moves table to different chema,
+#      fails at late stage and is NOT fully reverted.
+#
+# This part of test resides in rename_debug.test.
+# Clean-up.
+connection con1;
+disconnect con1;
+connection default;

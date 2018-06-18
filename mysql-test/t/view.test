@@ -6083,6 +6083,21 @@ RENAME TABLE t3 TO t1, t4 TO t2;
 DROP VIEW v1;
 DROP TABLE t1, t2;
 
+# Coverage for case of non-atomic RENAME TABLES which is also renaming a view.
+CREATE TABLE t1(a INT) ENGINE=MyISAM;
+CREATE TABLE t2(b INT);
+CREATE TABLE t3(c INT);
+CREATE TABLE t4(d INT);
+CREATE VIEW v1 AS SELECT * FROM t2;
+RENAME TABLES t1 TO t5, v1 TO v2;
+SELECT * FROM v2;
+# Now non-atomic RENAME TABLES which renames view and fails.
+--error ER_TABLE_EXISTS_ERROR
+RENAME TABLES t5 TO t1, v2 TO v1, t3 TO t4;
+SELECT * FROM v2;
+DROP VIEW v2;
+DROP TABLES t2, t3, t4, t5;
+
 
 --echo #
 --echo # BUG#25634576: DATABASE NAME IN SHOW CREATE VIEW

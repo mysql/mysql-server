@@ -192,6 +192,19 @@ Alter_table_ctx::Alter_table_ctx(THD *thd, TABLE_LIST *table_list,
     tmp_table = true;
 #endif
   }
+
+  /* Initialize MDL requests on new table name and database if necessary. */
+  if (table_list->table->s->tmp_table == NO_TMP_TABLE) {
+    if (is_table_renamed()) {
+      MDL_REQUEST_INIT(&target_mdl_request, MDL_key::TABLE, new_db, new_name,
+                       MDL_EXCLUSIVE, MDL_TRANSACTION);
+
+      if (is_database_changed()) {
+        MDL_REQUEST_INIT(&target_db_mdl_request, MDL_key::SCHEMA, new_db, "",
+                         MDL_INTENTION_EXCLUSIVE, MDL_TRANSACTION);
+      }
+    }
+  }
 }
 
 Alter_table_ctx::~Alter_table_ctx() {}

@@ -1282,17 +1282,9 @@ c1
 4
 4
 RENAME TABLE t2 TO t5;
-ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 SELECT * FROM t3 ORDER BY c1;
-c1
-1
-2
-3
-4
-4
-4
+ERROR HY000: Table 't2' was not locked with LOCK TABLES
 RENAME TABLE t5 TO t2;
-ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 SELECT * FROM t3 ORDER BY c1;
 c1
 1
@@ -1335,7 +1327,7 @@ UNLOCK TABLES;
 #
 # Rename parent.
 #
-# 1. Normal rename with locked tables.
+# 6. Normal rename with locked tables.
 LOCK TABLES t1 WRITE, t2 WRITE, t3 WRITE;
 SELECT * FROM t3 ORDER BY c1;
 c1
@@ -1346,8 +1338,7 @@ c1
 4
 4
 RENAME TABLE t3 TO t5;
-ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
-SELECT * FROM t3 ORDER BY c1;
+SELECT * FROM t5 ORDER BY c1;
 c1
 1
 2
@@ -1356,7 +1347,6 @@ c1
 4
 4
 RENAME TABLE t5 TO t3;
-ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 SELECT * FROM t3 ORDER BY c1;
 c1
 1
@@ -1366,7 +1356,7 @@ c1
 4
 4
 #
-# 5. Alter table rename with locked tables.
+# 7. Alter table rename with locked tables.
 ALTER TABLE t3 RENAME TO t5;
 SELECT * FROM t5 ORDER BY c1;
 c1

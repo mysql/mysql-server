@@ -259,8 +259,36 @@ DELETE b FROM t4 AS a, t4 AS b;
 UNLOCK TABLES;
 DROP TABLES t1, t4;
 
+--echo # 1.4) ALTER TABLE RENAME to different schema.
 --echo #
---echo # 1.4) ALTER TABLE RENAME which fails at the late stage for SEs
+CREATE TABLE t1 (i INT);
+CREATE DATABASE mysqltest;
+LOCK TABLES t1 WRITE;
+ALTER TABLE t1 RENAME TO mysqltest.t1;
+--echo # Table is available in new schema under LOCK TABLES.
+SELECT * FROM mysqltest.t1;
+
+connection con1;
+--echo # Access by new name from other connections should be blocked.
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM mysqltest.t1;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+--echo # But not to old schema and table name.
+--error ER_NO_SUCH_TABLE
+SELECT * FROM t1;
+--echo # Also IX lock on new schema should be kept.
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER DATABASE mysqltest CHARACTER SET latin1;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+
+connection default;
+UNLOCK TABLES;
+DROP DATABASE mysqltest;
+
+--echo #
+--echo # 1.5) ALTER TABLE RENAME which fails at the late stage for SEs
 --echo #      supporting and not supporting atomic DDL.
 --echo #
 CREATE TABLE t1 (i INT) ENGINE=InnoDB;
@@ -366,8 +394,36 @@ DELETE b FROM t4 AS a, t4 AS b;
 UNLOCK TABLES;
 DROP TABLES t1, t4;
 
+--echo # 2.4) ALTER TABLE INPLACE with RENAME clause to different schema.
 --echo #
---echo # 2.4) ALTER TABLE INPLACE with RENAME clause fails at the late stage
+CREATE TABLE t1 (i INT);
+CREATE DATABASE mysqltest;
+LOCK TABLES t1 WRITE;
+ALTER TABLE t1 ADD COLUMN k INT, RENAME TO mysqltest.t1, ALGORITHM=INPLACE;
+--echo # Table is available in new schema under LOCK TABLES.
+SELECT * FROM mysqltest.t1;
+
+connection con1;
+--echo # Access by new name from other connections should be blocked.
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM mysqltest.t1;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+--echo # But not to old schema and table name.
+--error ER_NO_SUCH_TABLE
+SELECT * FROM t1;
+--echo # Also IX lock on new schema should be kept.
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER DATABASE mysqltest CHARACTER SET latin1;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+
+connection default;
+UNLOCK TABLES;
+DROP DATABASE mysqltest;
+
+--echo #
+--echo # 2.5) ALTER TABLE INPLACE with RENAME clause fails at the late stage
 --echo #      for SEs supporting and not supporting atomic DDL.
 --echo #
 CREATE TABLE t1 (i INT) ENGINE=InnoDB;
@@ -473,12 +529,41 @@ DELETE b FROM t4 AS a, t4 AS b;
 UNLOCK TABLES;
 DROP TABLES t1, t4;
 
+--echo # 3.4) ALTER TABLE COPY with RENAME clause to different schema.
 --echo #
---echo # 3.4) ALTER TABLE COPY with RENAME clause fails at the late stage
+CREATE TABLE t1 (i INT);
+CREATE DATABASE mysqltest;
+LOCK TABLES t1 WRITE;
+ALTER TABLE t1 ADD COLUMN k INT, RENAME TO mysqltest.t1, ALGORITHM=COPY;
+--echo # Table is available in new schema under LOCK TABLES.
+SELECT * FROM mysqltest.t1;
+
+connection con1;
+--echo # Access by new name from other connections should be blocked.
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM mysqltest.t1;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+--echo # But not to old schema and table name.
+--error ER_NO_SUCH_TABLE
+SELECT * FROM t1;
+--echo # Also IX lock on new schema should be kept.
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER DATABASE mysqltest CHARACTER SET latin1;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+
+connection default;
+UNLOCK TABLES;
+DROP DATABASE mysqltest;
+
+--echo #
+--echo # 3.5) ALTER TABLE COPY with RENAME clause fails at the late stage
 --echo #      for SEs supporting and not supporting atomic DDL.
 --echo #
 CREATE TABLE t1 (i INT) ENGINE=InnoDB;
 CREATE TABLE t2 (i INT) ENGINE=MyISAM;
+CREATE DATABASE mysqltest;
 LOCK TABLES t1 WRITE, t2 WRITE;
 SET @@debug='+d,injecting_fault_writing';
 --replace_regex /(errno: .*)/(errno: #)/
@@ -495,6 +580,8 @@ connection con1;
 SELECT * FROM t3;
 
 connection default;
+DROP TABLE t1;
+
 SET @@debug='+d,injecting_fault_writing';
 --replace_regex /(errno: .*)/(errno: #)/
 --error ER_ERROR_ON_WRITE
@@ -526,10 +613,49 @@ SET @@lock_wait_timeout= @old_lock_wait_timeout;
 
 connection default;
 UNLOCK TABLES;
-DROP TABLES t1, t4;
+
+--echo # Now test SE not supporting atomic DDL and different schema
+--echo # to improve code coverage.
+connection default;
+LOCK TABLE t4 WRITE;
+SET @@debug='+d,injecting_fault_writing';
+--replace_regex /(errno: .*)/(errno: #)/
+--error ER_ERROR_ON_WRITE
+ALTER TABLE t4 RENAME COLUMN j TO i, RENAME TO mysqltest.t4, ALGORITHM=COPY;
+SET @@debug='-d,injecting_fault_writing';
+--echo # For SE not supporting atomic DDL table will be
+--echo # removed from list of locked tables. And new
+--echo # name should not be added.
+--error ER_TABLE_NOT_LOCKED
+SELECT * FROM t4;
+--error ER_TABLE_NOT_LOCKED
+SELECT * FROM mysqltest.t4;
+
+connection con1;
+--echo # Metadata locks on both old and new names are still kept.
+# Disable prepared statements, since for them the below check
+# works differently. The prepare phase of statements execution
+# acquires weaker S metadata locks (which do not conflict with
+# SNRW locks held by LOCK TABLE WRITE) and manages to discover
+# that tables with such names don't exist.
+--disable_ps_protocol
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t4;
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM mysqltest.t4;
+--echo # Also IX lock on new schema should be kept.
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER DATABASE mysqltest CHARACTER SET latin1;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+--enable_ps_protocol
+
+connection default;
+UNLOCK TABLES;
+DROP DATABASE mysqltest;
 
 --echo #
---echo # 3.5) Special case ALTER TABLE COPY with RENAME clause which
+--echo # 3.6) Special case ALTER TABLE COPY with RENAME clause which
 --echo #      non-atomic, adds foreign keys and fails at the late stage.
 --echo #
 CREATE TABLE t1 (pk INT PRIMARY KEY) ENGINE=InnoDB;

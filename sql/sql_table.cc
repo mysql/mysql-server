@@ -10364,7 +10364,6 @@ static bool table_is_empty(TABLE *table, bool *is_empty) {
                             out and serving as a storage place for data
                             used during different phases.
   @param inplace_supported  Enum describing the locking requirements.
-  @param target_mdl_request Metadata request/lock on the target table name.
   @param alter_ctx          ALTER TABLE runtime context.
   @param columns            A list of columns to be modified. This is needed
                             for removal/renaming of histogram statistics.
@@ -10396,8 +10395,7 @@ static bool mysql_inplace_alter_table(
     const dd::Table *table_def, dd::Table *altered_table_def,
     TABLE_LIST *table_list, TABLE *table, TABLE *altered_table,
     Alter_inplace_info *ha_alter_info,
-    enum_alter_inplace_result inplace_supported,
-    MDL_request *target_mdl_request, Alter_table_ctx *alter_ctx,
+    enum_alter_inplace_result inplace_supported, Alter_table_ctx *alter_ctx,
     histograms::columns_set &columns, FOREIGN_KEY *fk_key_info,
     uint fk_key_count, Foreign_key_parents_invalidator *fk_invalidator) {
   handlerton *db_type = table->s->db_type();
@@ -10868,8 +10866,9 @@ static bool mysql_inplace_alter_table(
     table_list.init_one_table(alter_ctx->new_db, strlen(alter_ctx->new_db),
                               alter_ctx->new_name, strlen(alter_ctx->new_name),
                               alter_ctx->new_alias, TL_READ);
-    table_list.mdl_request.ticket =
-        alter_ctx->is_table_renamed() ? target_mdl_request->ticket : mdl_ticket;
+    table_list.mdl_request.ticket = alter_ctx->is_table_renamed()
+                                        ? alter_ctx->target_mdl_request.ticket
+                                        : mdl_ticket;
 
     Open_table_context ot_ctx(thd, MYSQL_OPEN_REOPEN);
 
@@ -12392,7 +12391,6 @@ static bool is_simple_rename_or_index_change(const Alter_info *alter_info) {
   @param thd                Thread handler
   @param new_schema         Target schema.
   @param table_list         TABLE_LIST for the table to change
-  @param target_mdl_request Metadata request/lock on the target table name.
   @param keys_onoff         ENABLE or DISABLE KEYS?
   @param alter_ctx          ALTER TABLE runtime context.
 
@@ -12403,7 +12401,6 @@ static bool is_simple_rename_or_index_change(const Alter_info *alter_info) {
 
 static bool simple_rename_or_index_change(
     THD *thd, const dd::Schema &new_schema, TABLE_LIST *table_list,
-    MDL_request *target_mdl_request,
     Alter_info::enum_enable_or_disable keys_onoff, Alter_table_ctx *alter_ctx) {
   TABLE *table = table_list->table;
   MDL_ticket *mdl_ticket = table->mdl_ticket;
@@ -12560,9 +12557,9 @@ static bool simple_rename_or_index_change(
 
   if (!error) {
     if (alter_ctx->is_table_renamed())
-      thd->locked_tables_list.rename_locked_table(table_list, alter_ctx->new_db,
-                                                  alter_ctx->new_name,
-                                                  target_mdl_request->ticket);
+      thd->locked_tables_list.rename_locked_table(
+          table_list, alter_ctx->new_db, alter_ctx->new_name,
+          alter_ctx->target_mdl_request.ticket);
   } else {
     if (atomic_ddl) {
       /*
@@ -12604,9 +12601,13 @@ static bool simple_rename_or_index_change(
         invariants for LOCK TABLES.
       */
       thd->mdl_context.release_all_locks_for_name(mdl_ticket);
-      thd->mdl_context.set_lock_duration(target_mdl_request->ticket,
+      thd->mdl_context.set_lock_duration(alter_ctx->target_mdl_request.ticket,
                                          MDL_EXPLICIT);
-      target_mdl_request->ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
+      alter_ctx->target_mdl_request.ticket->downgrade_lock(
+          MDL_SHARED_NO_READ_WRITE);
+      if (alter_ctx->is_database_changed())
+        thd->mdl_context.set_lock_duration(
+            alter_ctx->target_db_mdl_request.ticket, MDL_EXPLICIT);
     } else
       mdl_ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
   }
@@ -13033,8 +13034,6 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     DBUG_RETURN(true);
   }
 
-  MDL_request target_mdl_request;
-
   /* Check that we are not trying to rename to an existing table */
   if (alter_ctx.is_table_renamed()) {
     if (table->s->tmp_table != NO_TMP_TABLE) {
@@ -13044,23 +13043,15 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       }
     } else {
       MDL_request_list mdl_requests;
-      MDL_request target_db_mdl_request;
 
-      MDL_REQUEST_INIT(&target_mdl_request, MDL_key::TABLE, alter_ctx.new_db,
-                       alter_ctx.new_name, MDL_EXCLUSIVE, MDL_TRANSACTION);
-      mdl_requests.push_front(&target_mdl_request);
-
+      mdl_requests.push_front(&alter_ctx.target_mdl_request);
       /*
         If we are moving the table to a different database, we also
         need IX lock on the database name so that the target database
         is protected by MDL while the table is moved.
       */
-      if (alter_ctx.is_database_changed()) {
-        MDL_REQUEST_INIT(&target_db_mdl_request, MDL_key::SCHEMA,
-                         alter_ctx.new_db, "", MDL_INTENTION_EXCLUSIVE,
-                         MDL_TRANSACTION);
-        mdl_requests.push_front(&target_db_mdl_request);
-      }
+      if (alter_ctx.is_database_changed())
+        mdl_requests.push_front(&alter_ctx.target_db_mdl_request);
 
       /*
         Global intention exclusive lock must have been already acquired when
@@ -13275,8 +13266,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       DBUG_RETURN(true);
     }
     DBUG_RETURN(simple_rename_or_index_change(
-        thd, *new_schema, table_list, &target_mdl_request,
-        alter_info->keys_onoff, &alter_ctx));
+        thd, *new_schema, table_list, alter_info->keys_onoff, &alter_ctx));
   }
 
   /* We have to do full alter table. */
@@ -13798,11 +13788,11 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     }
 
     if (use_inplace) {
-      if (mysql_inplace_alter_table(
-              thd, *schema, *new_schema, old_table_def, table_def, table_list,
-              table, altered_table, &ha_alter_info, inplace_supported,
-              &target_mdl_request, &alter_ctx, columns, fk_key_info,
-              fk_key_count, &fk_invalidator)) {
+      if (mysql_inplace_alter_table(thd, *schema, *new_schema, old_table_def,
+                                    table_def, table_list, table, altered_table,
+                                    &ha_alter_info, inplace_supported,
+                                    &alter_ctx, columns, fk_key_info,
+                                    fk_key_count, &fk_invalidator)) {
         DBUG_RETURN(true);
       }
 
@@ -14443,8 +14433,9 @@ end_inplace_noop:
     table_list.init_one_table(alter_ctx.new_db, strlen(alter_ctx.new_db),
                               alter_ctx.new_name, strlen(alter_ctx.new_name),
                               alter_ctx.new_alias, TL_READ);
-    table_list.mdl_request.ticket =
-        alter_ctx.is_table_renamed() ? target_mdl_request.ticket : mdl_ticket;
+    table_list.mdl_request.ticket = alter_ctx.is_table_renamed()
+                                        ? alter_ctx.target_mdl_request.ticket
+                                        : mdl_ticket;
 
     Open_table_context ot_ctx(thd, MYSQL_OPEN_REOPEN);
 
@@ -14460,9 +14451,9 @@ end_inplace:
   fk_invalidator.invalidate(thd);
 
   if (alter_ctx.is_table_renamed())
-    thd->locked_tables_list.rename_locked_table(table_list, alter_ctx.new_db,
-                                                alter_ctx.new_name,
-                                                target_mdl_request.ticket);
+    thd->locked_tables_list.rename_locked_table(
+        table_list, alter_ctx.new_db, alter_ctx.new_name,
+        alter_ctx.target_mdl_request.ticket);
 
   {
     bool reopen_error = thd->locked_tables_list.reopen_tables(thd);
@@ -14476,9 +14467,13 @@ end_inplace:
           as we will mess up FK invariants for LOCK TABLES otherwise.
         */
         thd->mdl_context.release_all_locks_for_name(mdl_ticket);
-        thd->mdl_context.set_lock_duration(target_mdl_request.ticket,
+        thd->mdl_context.set_lock_duration(alter_ctx.target_mdl_request.ticket,
                                            MDL_EXPLICIT);
-        target_mdl_request.ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
+        alter_ctx.target_mdl_request.ticket->downgrade_lock(
+            MDL_SHARED_NO_READ_WRITE);
+        if (alter_ctx.is_database_changed())
+          thd->mdl_context.set_lock_duration(
+              alter_ctx.target_db_mdl_request.ticket, MDL_EXPLICIT);
       } else
         mdl_ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
     }
@@ -14612,9 +14607,13 @@ err_with_mdl:
       scenarios we keep both of them.
     */
     if (!atomic_replace && alter_ctx.is_table_renamed()) {
-      thd->mdl_context.set_lock_duration(target_mdl_request.ticket,
+      thd->mdl_context.set_lock_duration(alter_ctx.target_mdl_request.ticket,
                                          MDL_EXPLICIT);
-      target_mdl_request.ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
+      alter_ctx.target_mdl_request.ticket->downgrade_lock(
+          MDL_SHARED_NO_READ_WRITE);
+      if (alter_ctx.is_database_changed())
+        thd->mdl_context.set_lock_duration(
+            alter_ctx.target_db_mdl_request.ticket, MDL_EXPLICIT);
     }
     mdl_ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
   }
