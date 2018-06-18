@@ -135,7 +135,7 @@ struct atrt_testcase {
 
 extern Logger g_logger;
 
-bool parse_args(int argc, char** argv);
+bool parse_args(int argc, char** argv, MEM_ROOT *alloc);
 bool setup_config(atrt_config&, const char* mysqld);
 bool load_deployment_options(atrt_config&);
 bool configure(atrt_config&, int setup);

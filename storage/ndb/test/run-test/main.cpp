@@ -198,7 +198,8 @@ int main(int argc, char **argv) {
     exit(check_testcase_file_main(argc, argv));
   }
 
-  if (!parse_args(argc, argv)) {
+  MEM_ROOT alloc = MEM_ROOT{PSI_NOT_INSTRUMENTED, 512};
+  if (!parse_args(argc, argv, &alloc)) {
     g_logger.critical("Failed to parse arguments");
     goto end;
   }
@@ -546,7 +547,7 @@ extern "C" bool get_one_option(int arg, const struct my_option *opt,
   return 0;
 }
 
-bool parse_args(int argc, char **argv) {
+bool parse_args(int argc, char **argv, MEM_ROOT *alloc) {
   bool fail_after_help = false;
   char buf[2048];
   if (getcwd(buf, sizeof(buf)) == 0) {
@@ -579,7 +580,6 @@ bool parse_args(int argc, char **argv) {
   g_logger.info("Bootstrapping using %s", mycnf.c_str());
 
   const char *groups[] = {"atrt", 0};
-  MEM_ROOT *alloc = new MEM_ROOT{PSI_NOT_INSTRUMENTED, 512};  // LEAK
   int ret = load_defaults(mycnf.c_str(), groups, &argc, &argv, alloc);
 
   if (ret) {
