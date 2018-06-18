@@ -40,6 +40,7 @@
 #include <new>
 
 #include "lex_string.h"
+#include "limits.h"
 #include "my_alloc.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -62,7 +63,8 @@
 #include "sql/item_subselect.h"
 #include "sql/item_sum.h"  // Item_sum
 #include "sql/key.h"       // key_copy, key_cmp, key_cmp_if_same
-#include "sql/lock.h"      // mysql_unlock_some_tables,
+#include "sql/key_spec.h"
+#include "sql/lock.h"  // mysql_unlock_some_tables,
 #include "sql/my_decimal.h"
 #include "sql/mysqld.h"  // stage_init
 #include "sql/nested_join.h"
@@ -78,6 +80,7 @@
 #include "sql/set_var.h"
 #include "sql/sorting_iterator.h"
 #include "sql/sql_base.h"
+#include "sql/sql_cmd.h"
 #include "sql/sql_do.h"
 #include "sql/sql_executor.h"
 #include "sql/sql_join_buffer.h"  // JOIN_CACHE
@@ -1629,6 +1632,10 @@ bool JOIN::destroy() {
   cond_equal = 0;
 
   set_plan_state(NO_PLAN);
+
+  // Clear iterators that may refer to table objects before we start
+  // deleting said objects (e.g. temporary tables).
+  m_root_iterator.reset();
 
   if (qep_tab) {
     DBUG_ASSERT(!join_tab);

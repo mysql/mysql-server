@@ -66,6 +66,7 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/basic_row_iterators.h"
+#include "sql/composite_iterators.h"
 #include "sql/debug_sync.h"  // DEBUG_SYNC
 #include "sql/enum_query_type.h"
 #include "sql/field.h"
@@ -85,13 +86,14 @@
 #include "sql/opt_trace.h"  // Opt_trace_object
 #include "sql/opt_trace_context.h"
 #include "sql/parse_tree_nodes.h"  // PT_frame
+#include "sql/pfs_batch_mode.h"
 #include "sql/protocol.h"
 #include "sql/psi_memory_key.h"
 #include "sql/query_options.h"
 #include "sql/query_result.h"   // Query_result
 #include "sql/record_buffer.h"  // Record_buffer
 #include "sql/ref_row_iterators.h"
-#include "sql/sort_param.h"
+#include "sql/row_iterator.h"
 #include "sql/sorting_iterator.h"
 #include "sql/sql_base.h"  // fill_record
 #include "sql/sql_bitmap.h"
@@ -100,7 +102,6 @@
 #include "sql/sql_list.h"
 #include "sql/sql_optimizer.h"  // JOIN
 #include "sql/sql_select.h"
-#include "sql/sql_sort.h"
 #include "sql/sql_tmp_table.h"  // create_tmp_table
 #include "sql/system_variables.h"
 #include "sql/table_function.h"
@@ -589,7 +590,7 @@ static void copy_sum_funcs(Item_sum **func_ptr, Item_sum **end_ptr) {
   DBUG_VOID_RETURN;
 }
 
-static bool init_sum_functions(Item_sum **func_ptr, Item_sum **end_ptr) {
+bool init_sum_functions(Item_sum **func_ptr, Item_sum **end_ptr) {
   for (; func_ptr != end_ptr; func_ptr++) {
     if ((*func_ptr)->reset_and_add()) return 1;
   }
@@ -600,7 +601,7 @@ static bool init_sum_functions(Item_sum **func_ptr, Item_sum **end_ptr) {
   return 0;
 }
 
-static bool update_sum_func(Item_sum **func_ptr) {
+bool update_sum_func(Item_sum **func_ptr) {
   DBUG_ENTER("update_sum_func");
   Item_sum *func;
   for (; (func = *func_ptr); func_ptr++)
@@ -1085,6 +1086,134 @@ bool set_record_buffer(const QEP_TAB *tab) {
   return false;
 }
 
+void JOIN::create_iterators() {
+  DBUG_ASSERT(m_root_iterator == nullptr);
+
+  // The new executor engine can't do materialized tables, CTEs,
+  // semijoins, loose scan, BNL/BKA or anti-joins.
+  // Revert to the old one if they show up.
+  for (unsigned table_idx = const_tables; table_idx < tables; ++table_idx) {
+    QEP_TAB *qep_tab = &this->qep_tab[table_idx];
+
+    // Skip unset tables (should not exist, but do, probably due to a bug)
+    // and temporary tables.
+    if (qep_tab == nullptr || qep_tab->position() == nullptr) {
+      continue;
+    }
+    if (qep_tab->materialize_table ||
+        qep_tab->table_ref->is_recursive_reference() ||
+        qep_tab->table()->pos_in_table_list->common_table_expr() != nullptr ||
+        qep_tab->do_firstmatch() || qep_tab->do_loosescan() ||
+        qep_tab->starts_weedout() || qep_tab->finishes_weedout() ||
+        qep_tab->next_select == sub_select_op ||
+        qep_tab->table()->reginfo.not_exists_optimize ||
+        qep_tab->needs_duplicate_removal) {
+      return;
+    }
+  }
+  // Similarly, no joins, rollup, SELECT DISTINCT or window functions.
+  if (primary_tables != 1 || const_tables != 0 || tmp_tables != 0 ||
+      rollup.state != ROLLUP::STATE_NONE || select_distinct ||
+      m_windows.elements != 0) {
+    return;
+  }
+
+  unique_ptr_destroy_only<RowIterator> iterator =
+      move(qep_tab[const_tables].read_record.iterator);
+
+  Item *condition = qep_tab[const_tables].condition();
+  if (condition) {
+    iterator.reset(new (thd->mem_root)
+                       FilterIterator(thd, move(iterator), condition));
+  }
+
+  // See if we need to aggregate data in the final step. Note that we can
+  // _not_ rely on streaming_aggregation, as it can be changed from false
+  // to true during optimization, and depending on when it was set, it could
+  // either mean to aggregate into a temporary table or aggregate on final
+  // send.
+  //
+  // Note that tmp_table_param.precomputed_group_by can be set even if we
+  // don't actually have any grouping (e.g., make_tmp_tables_info() does this
+  // even if there are no temporary tables made).
+  if (qep_tab[primary_tables + tmp_tables - 1].next_select == end_send_group ||
+      ((grouped || group_optimized_away) &&
+       tmp_table_param.precomputed_group_by)) {
+    DBUG_ASSERT(streaming_aggregation || tmp_table_param.precomputed_group_by);
+    if (tmp_table_param.precomputed_group_by) {
+      iterator.reset(new (thd->mem_root) PrecomputedAggregateIterator(
+          thd, move(iterator), this));
+    } else {
+      iterator.reset(new (thd->mem_root)
+                         AggregateIterator(thd, move(iterator), this));
+    }
+  }
+
+  // Attach HAVING and LIMIT if needed.
+  // NOTE: We can have HAVING even without GROUP BY, although it's not very
+  // useful.
+  if (having_cond != nullptr) {
+    iterator.reset(new (thd->mem_root)
+                       FilterIterator(thd, move(iterator), having_cond));
+  }
+
+  ha_rows select_limit_cnt =
+      calc_found_rows ? HA_POS_ERROR : unit->select_limit_cnt;
+  if (select_limit_cnt != HA_POS_ERROR || unit->offset_limit_cnt != 0) {
+    iterator.reset(new (thd->mem_root) LimitOffsetIterator(
+        thd, move(iterator), select_limit_cnt, unit->offset_limit_cnt,
+        /*skipped_rows=*/&send_records));
+  }
+
+  m_root_iterator = move(iterator);
+}
+
+static int ExecuteIteratorQuery(JOIN *join) {
+  // The outermost LimitOffsetIterator, if any, will increment send_records for
+  // each record skipped by OFFSET. This is needed because LIMIT 50 OFFSET 10
+  // with no SQL_CALC_ROWS is defined to return 60, not 50 (even though it's
+  // not necessarily the most useful definition).
+  join->send_records = 0;
+
+  join->thd->get_stmt_da()->reset_current_row_for_condition();
+  if (join->root_iterator()->Init()) {
+    return 1;
+  }
+
+  PFSBatchMode pfs_batch_mode(&join->qep_tab[join->const_tables]);
+  for (;;) {
+    int error = join->root_iterator()->Read();
+
+    DBUG_EXECUTE_IF("bug13822652_1", join->thd->killed = THD::KILL_QUERY;);
+
+    if (error > 0 || (join->thd->is_error()))  // Fatal error
+      return 1;
+    else if (error < 0)
+      break;
+    else if (join->thd->killed)  // Aborted by user
+    {
+      join->thd->send_kill_message();
+      return -1;
+    }
+
+    ++join->send_records;
+
+    // If we have calc_found_rows, limit doesn't happen in a LimitOffsetIterator
+    // (offset will still, though), so we'll need to do the check ourselves
+    // here.
+    if (!(join->calc_found_rows &&
+          join->unit->select_limit_cnt != HA_POS_ERROR &&
+          join->send_records > join->unit->select_limit_cnt)) {
+      if (join->select_lex->query_result()->send_data(join->thd,
+                                                      *join->fields)) {
+        return 1;
+      }
+    }
+    join->thd->get_stmt_da()->inc_current_row_for_condition();
+  }
+  return 0;
+}
+
 /**
   Make a join of all tables and write it on socket or to table.
 
@@ -1105,6 +1234,9 @@ static int do_select(JOIN *join) {
   THD *thd = join->thd;
 
   if (join->plan_is_const() && !join->need_tmp_before_win) {
+    // Special code for dealing with queries that don't need to
+    // read any tables.
+
     Next_select_func end_select = join->get_end_select_func();
     /*
       HAVING will be checked after processing aggregate functions,
@@ -1157,10 +1289,17 @@ static int do_select(JOIN *join) {
     QEP_TAB *qep_tab = join->qep_tab;
     error = end_send_count(join, qep_tab);
   } else {
-    QEP_TAB *qep_tab = join->qep_tab + join->const_tables;
+    // Pre-iterator query execution path.
     DBUG_ASSERT(join->primary_tables);
-    error = join->first_select(join, qep_tab, 0);
-    if (error >= NESTED_LOOP_OK) error = join->first_select(join, qep_tab, 1);
+
+    if (join->root_iterator() != nullptr) {
+      error =
+          ExecuteIteratorQuery(join) == 0 ? NESTED_LOOP_OK : NESTED_LOOP_ERROR;
+    } else {
+      QEP_TAB *qep_tab = join->qep_tab + join->const_tables;
+      error = join->first_select(join, qep_tab, 0);
+      if (error >= NESTED_LOOP_OK) error = join->first_select(join, qep_tab, 1);
+    }
   }
 
   thd->current_found_rows = join->send_records;
@@ -1502,7 +1641,11 @@ enum_nested_loop_state sub_select(JOIN *join, QEP_TAB *const qep_tab,
     count_iterations = join->select_lex != join->unit->fake_select_lex;
   }
 
-  const bool pfs_batch_update = qep_tab->pfs_batch_update(join);
+  // NOTE: If we are reading from a SortingIterator, it will set up batch mode
+  // by itself, so don't activate it here. (It won't be activated when reading
+  // the records back, though, only during the sort itself.)
+  const bool pfs_batch_update =
+      qep_tab->filesort == nullptr && qep_tab->pfs_batch_update(join);
   if (pfs_batch_update) table->file->start_psi_batch_mode();
 
   RowIterator *iterator = qep_tab->read_record.iterator.get();

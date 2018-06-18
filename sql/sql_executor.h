@@ -699,6 +699,8 @@ class QEP_TAB_standalone {
   QEP_TAB m_qt;
 };
 
+bool init_sum_functions(Item_sum **func_ptr, Item_sum **end_ptr);
 bool set_record_buffer(const QEP_TAB *tab);
+bool update_sum_func(Item_sum **func_ptr);
 
 #endif /* SQL_EXECUTOR_INCLUDED */

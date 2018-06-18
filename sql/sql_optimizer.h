@@ -898,6 +898,8 @@ class JOIN {
   */
   int push_to_engines();
 
+  RowIterator *root_iterator() const { return m_root_iterator.get(); }
+
  private:
   bool optimized;  ///< flag to avoid double optimization in EXPLAIN
   bool executed;   ///< Set by exec(), reset by reset()
@@ -1084,6 +1086,21 @@ class JOIN {
   void test_skip_sort();
 
   bool alloc_indirection_slices();
+
+  /**
+    If possible, convert the executor structures to a set of row iterators,
+    storing the result in m_root_iterator. If not, m_root_iterator will remain
+    nullptr.
+   */
+  void create_iterators();
+
+  /**
+    An iterator you can read from to get all records for this query.
+
+    May be nullptr even after create_iterators() if the current query
+    is not supported by the iterator executor.
+   */
+  unique_ptr_destroy_only<RowIterator> m_root_iterator;
 };
 
 /**

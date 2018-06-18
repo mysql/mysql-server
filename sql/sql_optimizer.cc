@@ -33,8 +33,6 @@
 
 #include "sql/sql_optimizer.h"
 
-#include "my_config.h"
-
 #include <limits.h>
 #include <algorithm>
 #include <atomic>
@@ -48,6 +46,7 @@
 #include "my_bit.h"  // my_count_bits
 #include "my_bitmap.h"
 #include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
@@ -728,6 +727,9 @@ int JOIN::optimize() {
   }
 
   count_field_types(select_lex, &tmp_table_param, all_fields, false, false);
+
+  create_iterators();
+
   // Make plan visible for EXPLAIN
   set_plan_state(PLAN_READY);
 
@@ -7560,15 +7562,15 @@ static void add_loose_index_scan_and_skip_scan_keys(JOIN *join,
     return;
   }
 
-  if (join->group_list) { /* Collect all query fields referenced in the GROUP
-                             clause. */
+  if (join->group_list) {
+    /* Collect all query fields referenced in the GROUP clause. */
     for (cur_group = join->group_list; cur_group; cur_group = cur_group->next)
       (*cur_group->item)
           ->walk(&Item::collect_item_field_processor, Item::WALK_POSTFIX,
                  (uchar *)&indexed_fields);
     cause = "group_by";
-  } else if (join->select_distinct) { /* Collect all query fields referenced in
-                                         the SELECT clause. */
+  } else if (join->select_distinct) {
+    /* Collect all query fields referenced in the SELECT clause. */
     List<Item> &select_items = join->fields_list;
     List_iterator<Item> select_items_it(select_items);
     Item *item;

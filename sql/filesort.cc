@@ -38,14 +38,13 @@
 
 #include <limits.h>
 #include <math.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 #include <algorithm>
 #include <atomic>
-#include <limits>
 #include <memory>
 #include <new>
-#include <type_traits>
 #include <vector>
 
 #include "add_with_saturate.h"
@@ -53,14 +52,14 @@
 #include "binlog_config.h"
 #include "decimal.h"
 #include "m_ctype.h"
+#include "map_helpers.h"
+#include "my_basename.h"
 #include "my_bitmap.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_loglevel.h"
-#include "my_macros.h"
-#include "my_pointer_arithmetic.h"
 #include "my_sys.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
@@ -69,11 +68,11 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "nullable.h"
 #include "priority_queue.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/bounded_queue.h"
 #include "sql/cmp_varlen_keys.h"
-#include "sql/current_thd.h"
 #include "sql/debug_sync.h"
 #include "sql/derror.h"
 #include "sql/error_handler.h"
@@ -84,16 +83,16 @@
 #include "sql/item_subselect.h"
 #include "sql/json_dom.h"  // Json_wrapper
 #include "sql/key_spec.h"
-#include "sql/log.h"
 #include "sql/malloc_allocator.h"
 #include "sql/merge_many_buff.h"
 #include "sql/my_decimal.h"
 #include "sql/mysqld.h"  // mysql_tmpdir
 #include "sql/opt_costmodel.h"
-#include "sql/opt_range.h"  // QUICK
 #include "sql/opt_trace.h"
 #include "sql/opt_trace_context.h"
+#include "sql/pfs_batch_mode.h"
 #include "sql/psi_memory_key.h"
+#include "sql/row_iterator.h"
 #include "sql/sort_param.h"
 #include "sql/sql_array.h"
 #include "sql/sql_base.h"
@@ -1014,6 +1013,8 @@ static ha_rows read_all_rows(
     fs_info->reset();
     fs_info->clear_peak_memory_used();
   }
+
+  PFSBatchMode pfs_batch_mode(qep_tab);
   for (;;) {
     DBUG_EXECUTE_IF("bug19656296", DBUG_SET("+d,ha_rnd_next_deadlock"););
     if ((error = source_iterator->Read())) {
