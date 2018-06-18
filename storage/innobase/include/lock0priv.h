@@ -181,7 +181,7 @@ struct lock_t {
   }
 
   /** @return the lock mode */
-  ulint type() const { return (type_mode & LOCK_TYPE_MASK); }
+  uint32_t type() const { return (type_mode & LOCK_TYPE_MASK); }
 
   /** @return the precise lock mode */
   lock_mode mode() const {

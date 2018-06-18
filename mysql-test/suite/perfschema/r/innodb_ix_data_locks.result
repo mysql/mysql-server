@@ -12,6 +12,6 @@ from performance_schema.data_locks
 where object_name="t1_ix";
 object_schema	object_name	lock_type	lock_mode	lock_status	lock_data
 test	t1_ix	TABLE	IX	GRANTED	NULL
-test	t1_ix	RECORD	X	GRANTED	1
+test	t1_ix	RECORD	X,REC_NOT_GAP	GRANTED	1
 unlock tables;
 drop table t1_ix;

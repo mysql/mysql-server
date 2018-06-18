@@ -145,14 +145,14 @@
       --echo # default:
       SET DEBUG_SYNC = 'now WAIT_FOR too_big_to_fail_will_wait';
       # If there is a bug in CATS this will report two different transactions
-      # having RECORD X GRANTED 3 (one for seer, one for victim).
+      # having RECORD X,REC_NOT_GAP GRANTED 3 (one for seer, one for victim).
       # If there is no bug, then only one lock should be visible (the one of the
       # victim).
       let $x_locks_count = `SELECT COUNT(*)
         FROM performance_schema.data_locks
         WHERE object_name = 't1'
           AND lock_type = 'RECORD'
-          AND lock_mode = 'X'
+          AND lock_mode = 'X,REC_NOT_GAP'
           AND lock_data = 3
           AND lock_status = 'GRANTED'`;
       --echo # Number of X locks granted: $x_locks_count

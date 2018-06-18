@@ -33,7 +33,7 @@ test	t1_x_gap	RECORD	X	GRANTED
 test	t1_x_gap	RECORD	X	GRANTED
 test	t1_x_gap	RECORD	X	GRANTED
 test	t1_x_gap	RECORD	X	GRANTED
-test	t1_x_gap	RECORD	X,GAP	WAITING
+test	t1_x_gap	RECORD	X,GAP,INSERT_INTENTION	WAITING
 test	t1_x_gap	TABLE	IX	GRANTED
 test	t1_x_gap	TABLE	IX	GRANTED
 commit;
@@ -42,6 +42,6 @@ from performance_schema.data_locks
 where object_name="t1_x_gap";
 object_schema	object_name	lock_type	lock_mode	lock_status
 test	t1_x_gap	TABLE	IX	GRANTED
-test	t1_x_gap	RECORD	X,GAP	GRANTED
+test	t1_x_gap	RECORD	X,GAP,INSERT_INTENTION	GRANTED
 commit;
 drop table t1_x_gap;
