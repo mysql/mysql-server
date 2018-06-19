@@ -367,10 +367,19 @@ struct cartesian_segments
         sinfo.dy_a = get<1, 1>(a) - get<0, 1>(a); // distance in y-dir
         sinfo.dy_b = get<1, 1>(b) - get<0, 1>(b);
 
-        robust_coordinate_type const robust_dx_a = get<0>(robust_a2) - get<0>(robust_a1);
-        robust_coordinate_type const robust_dx_b = get<0>(robust_b2) - get<0>(robust_b1);
-        robust_coordinate_type const robust_dy_a = get<1>(robust_a2) - get<1>(robust_a1);
-        robust_coordinate_type const robust_dy_b = get<1>(robust_b2) - get<1>(robust_b1);
+        ratio_numeric_type const a1_x = get<0>(robust_a1);
+        ratio_numeric_type const a2_x = get<0>(robust_a2);
+        ratio_numeric_type const b1_x = get<0>(robust_b1);
+        ratio_numeric_type const b2_x = get<0>(robust_b2);
+        ratio_numeric_type const a1_y = get<1>(robust_a1);
+        ratio_numeric_type const a2_y = get<1>(robust_a2);
+        ratio_numeric_type const b1_y = get<1>(robust_b1);
+        ratio_numeric_type const b2_y = get<1>(robust_b2);
+
+        ratio_numeric_type const robust_dx_a = a2_x - a1_x;
+        ratio_numeric_type const robust_dx_b = b2_x - b1_x;
+        ratio_numeric_type const robust_dy_a = a2_y - a1_y;
+        ratio_numeric_type const robust_dy_b = b2_y - b1_y;
 
         // r: ratio 0-1 where intersection divides A/B
         // (only calculated for non-collinear segments)
@@ -380,16 +389,16 @@ struct cartesian_segments
             ratio_numeric_type robust_db0, robust_db;
 
             cramers_rule(robust_dx_a, robust_dy_a, robust_dx_b, robust_dy_b,
-                get<0>(robust_a1) - get<0>(robust_b1),
-                get<1>(robust_a1) - get<1>(robust_b1),
-                robust_da0, robust_da);
+                         a1_x - b1_x,
+                         a1_y - b1_y,
+                         robust_da0, robust_da);
 
             cramers_rule(robust_dx_b, robust_dy_b, robust_dx_a, robust_dy_a,
-                get<0>(robust_b1) - get<0>(robust_a1),
-                get<1>(robust_b1) - get<1>(robust_a1),
-                robust_db0, robust_db);
+                         b1_x - a1_x,
+                         b1_y - a1_y,
+                         robust_db0, robust_db);
 
-            math::detail::equals_factor_policy<robust_coordinate_type>
+            math::detail::equals_factor_policy<ratio_numeric_type>
                 policy(robust_dx_a, robust_dy_a, robust_dx_b, robust_dy_b);
             ratio_numeric_type const zero = 0;
             if (math::detail::equals_by_policy(robust_da0, zero, policy)

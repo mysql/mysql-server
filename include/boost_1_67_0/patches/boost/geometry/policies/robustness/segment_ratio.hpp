@@ -20,9 +20,7 @@
 #include <boost/geometry/util/math.hpp>
 #include <boost/geometry/util/promote_floating_point.hpp>
 
-#if !defined(BOOST_HAS_INT128) || defined(BOOST_GEOMETRY_DISABLE_INT128_TYPE)
 #include <boost/multiprecision/cpp_int.hpp>
-#endif
 
 namespace boost { namespace geometry
 {

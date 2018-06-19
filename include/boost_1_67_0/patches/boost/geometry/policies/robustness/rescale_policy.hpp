@@ -26,9 +26,7 @@
 
 #include <boost/geometry/util/math.hpp>
 
-#if !defined(BOOST_HAS_INT128) || defined(BOOST_GEOMETRY_DISABLE_INT128_TYPE)
 #include <boost/multiprecision/cpp_int.hpp>
-#endif
 
 namespace boost { namespace geometry
 {
@@ -83,19 +81,16 @@ struct robust_point_type<Point, detail::robust_policy<FpPoint, IntPoint, Calcula
 template <typename Point, typename FpPoint, typename IntPoint, typename CalculationType>
 struct segment_ratio_type<Point, detail::robust_policy<FpPoint, IntPoint, CalculationType> >
 {
-#if !defined(BOOST_HAS_INT128) || defined(BOOST_GEOMETRY_DISABLE_INT128_TYPE)
-    typedef boost::multiprecision::int128_t numeric_type;
-#else
-    // NOTE: boost::rational requires numeric_limits to be specialized
-    // and it's used in segment_ratio if is_integral<numeric_type>
-    /*typedef boost::mpl::if_c
+    typedef boost::multiprecision::number
         <
-            std::numeric_limits<boost::int128_type>::is_specialized,
-            boost::int128_type,
-            boost::multiprecision::int128_t
-        >::type numeric_type;*/
-    typedef boost::int128_type numeric_type;    
-#endif
+            boost::multiprecision::cpp_int_backend
+                <
+                    64, 256,
+                    boost::multiprecision::signed_magnitude,
+                    boost::multiprecision::unchecked,
+                    void
+                >
+        > numeric_type;
 
     //typedef segment_ratio<boost::long_long_type> type;
     typedef segment_ratio<numeric_type> type;
