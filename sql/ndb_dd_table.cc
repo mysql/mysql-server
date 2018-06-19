@@ -152,7 +152,7 @@ void ndb_dd_table_fix_partition_count(dd::Table* table_def,
 {
 
   DBUG_ENTER("ndb_dd_table_fix_partition_count");
-  DBUG_PRINT("enter", ("ndb_num_partitions: %lu", ndb_num_partitions));
+  DBUG_PRINT("enter", ("ndb_num_partitions: %zu", ndb_num_partitions));
 
   const size_t dd_num_partitions = table_def->partitions()->size();
 
