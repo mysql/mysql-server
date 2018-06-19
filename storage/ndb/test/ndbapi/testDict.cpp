@@ -71,7 +71,7 @@
 #define MAX_NDB_NODES 49
 #define MAX_NDB_NODE_GROUPS 48
 
-#define TEST_FRM_DATA_SIZE 7000
+#define TEST_FRM_DATA_SIZE 14000
 
 static int numNodeGroups;
 static int numNoNodeGroups;
@@ -1628,16 +1628,24 @@ int runStoreExtraMetada(NDBT_Context* ctx, NDBT_Step* step)
   const NdbDictionary::Table* pTab = ctx->getTab();
   int result = NDBT_OK;
 
+  static constexpr Uint32 testBufferLenInWords = (TEST_FRM_DATA_SIZE + 3) / 4;
+  Int32 data[testBufferLenInWords];
+
   for (int l = 0; l < ctx->getNumLoops() && result == NDBT_OK ; l++)
   {
-    const Uint32 dataLen = (Uint32)myRandom48(TEST_FRM_DATA_SIZE);
-    unsigned char data[TEST_FRM_DATA_SIZE];
+    /* LENGTH OF DATA: The data fills 75% to 100% of the test buffer. */
+    const Uint32 dataLen = (testBufferLenInWords * 3) +
+                           myRandom48(testBufferLenInWords);
+    const Uint32 dataLenInWords = (dataLen + 3)  / 4;
 
-    // Fill in the "data" array with some varying numbers
-    char value = l + 248;
-    for(Uint32 i = 0; i < dataLen; i++){
-      data[i] = value;
-      value++;
+    /* Fill the buffer with (almost) random data. We use random data to defeat
+       the zlib compression that will be applied to ExtraMetadata.
+       Actually myRandom48() returns a signed long int >= 0, so for every 32 
+       bits stored we only get 31 bits of randomness, but this is good enough.
+    */
+    for(Uint32 i = 0; i < dataLenInWords; i++)
+    {
+      data[i] = myRandom48(INT32_MAX);
     }
 
     NdbDictionary::Table newTab(* pTab);
@@ -1646,12 +1654,14 @@ int runStoreExtraMetada(NDBT_Context* ctx, NDBT_Step* step)
     if (newTab.setExtraMetadata(version,
                                 &data, dataLen))
     {
+      g_err << "table.setExtraMetadata() failed. length:" << dataLen << endl;
       result = NDBT_FAILED;
       continue;
     }
 
     // Try to create table in db
     if (newTab.createTableInDb(pNdb) != 0){
+      g_err << "createTableInDb() failed" << endl;
       result = NDBT_FAILED;
       continue;
     }
@@ -1689,8 +1699,9 @@ int runStoreExtraMetada(NDBT_Context* ctx, NDBT_Step* step)
       result = NDBT_FAILED;
     }
 
-    // Verfiy the frm data
-    if (memcmp(&data, data2, dataLen2) != 0){
+    // Verify the frm data
+    if (memcmp(data, data2, dataLen2) != 0)
+    {
       g_err << "Wrong data received" << endl;
       for (size_t i = 0; i < dataLen; i++){
         unsigned char c = ((unsigned char*)data2)[i];
