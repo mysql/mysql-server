@@ -1567,61 +1567,6 @@ int runStoreFrm(NDBT_Context* ctx, NDBT_Step* step){
   return result;
 }
 
-int runStoreFrmError(NDBT_Context* ctx, NDBT_Step* step){
-  Ndb* pNdb = GETNDB(step);  
-  const NdbDictionary::Table* pTab = ctx->getTab();
-  int result = NDBT_OK;
-  int loops = ctx->getNumLoops();
-
-  for (int l = 0; l < loops && result == NDBT_OK ; l++){
-
-    const Uint32 dataLen = TEST_FRM_DATA_SIZE + 10;
-    unsigned char data[dataLen];
-
-    char start = l + 248;
-    for(Uint32 i = 0; i < dataLen; i++){
-      data[i] = start;
-      start++;
-    }
-#if 0
-    ndbout << "dataLen="<<dataLen<<endl;
-    for (Uint32 i = 0; i < dataLen; i++){
-      unsigned char c = data[i];
-      ndbout << hex << c << ", ";
-    }
-    ndbout << endl;
-#endif
-
-    NdbDictionary::Table newTab(* pTab);
-        
-    void* pData = &data;
-    newTab.setFrm(pData, dataLen);
-    
-    // Try to create table in db
-    if (newTab.createTableInDb(pNdb) == 0){
-      result = NDBT_FAILED;
-      continue;
-    }
-    
-    const NdbDictionary::Table* pTab2 = 
-      NDBT_Table::discoverTableFromDb(pNdb, pTab->getName());
-    if (pTab2 != NULL){
-      g_err << pTab->getName() << " was found in DB"<< endl;
-      result = NDBT_FAILED;
-      if (pNdb->getDictionary()->dropTable(pTab2->getName()) != 0){
-	g_err << "It can NOT be dropped" << endl;
-	result = NDBT_FAILED;
-      } 
-      
-      continue;
-    } 
-    
-  }
-
-  return result;
-}
-
-
 int runStoreExtraMetada(NDBT_Context* ctx, NDBT_Step* step)
 {
   Ndb* pNdb = GETNDB(step);
@@ -11817,10 +11762,6 @@ TESTCASE("GetPrimaryKey",
 	 "It should return true only if the column is part of \n"
 	 "the primary key in the table"){
   INITIALIZER(runGetPrimaryKey);
-}
-TESTCASE("StoreFrmError", 
-	 "Test that a frm file with too long length can't be stored."){
-  INITIALIZER(runStoreFrmError);
 }
 TESTCASE("StoreExtraMetadata",
          "Test that extra metadata can be stored as part of the\n"
