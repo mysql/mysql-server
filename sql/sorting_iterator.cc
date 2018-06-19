@@ -20,6 +20,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <stdio.h>
 #include <sys/types.h>
 #include <algorithm>
 #include <cstring>
@@ -672,6 +673,12 @@ vector<string> SortingIterator::DebugString() const {
   if (m_filesort->qep_tab->condition() != nullptr) {
     // FIXME: Get rid of filtering in filesort.
     ret += " (with hidden filter)";
+  }
+  if (m_filesort->limit != HA_POS_ERROR) {
+    char buf[256];
+    snprintf(buf, sizeof(buf), ", limit input to %llu row(s) per chunk",
+             m_filesort->limit);
+    ret += buf;
   }
 
   return {ret};
