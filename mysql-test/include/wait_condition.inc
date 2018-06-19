@@ -20,7 +20,7 @@
 #    --source include/wait_condition.inc
 #    --echo Executed the test condition $wait_condition_reps times
 #
-# 
+#
 # EXAMPLE
 #    events_bugs.test, events_time_zone.test
 #

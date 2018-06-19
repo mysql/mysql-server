@@ -166,7 +166,7 @@
 #   Set to LENGTH($rpl_server_count). So if $rpl_server_count < 10,
 #   then $rpl_server_count_length = 1; if 10 <= $rpl_server_count <
 #   100, then $rpl_server_count_length = 2, etc.
-# 
+#
 # $_rpl_space
 #   Contains a single space. This is used by other .inc files to
 #   append a single space character to the end of an

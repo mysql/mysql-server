@@ -1,10 +1,10 @@
 # ==== Purpose ====
-# 
-# Several test primitives from mysql-test/extra/rpl_tests 
+#
+# Several test primitives from mysql-test/extra/rpl_tests
 # are shared for test cases for MyISAM, InnoDB, NDB and
 # other engines.
 # For NDB engine all events will be added by NDB injector
-# so tests only can continue after injector is ready, 
+# so tests only can continue after injector is ready,
 # this file waits for all committed transactions (at start
 # of file) are injected into the binlog.
 #

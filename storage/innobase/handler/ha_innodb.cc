@@ -4640,7 +4640,13 @@ static bool innobase_flush_logs(handlerton *hton, bool binlog_group_flush) {
 void innobase_commit_low(trx_t *trx) /*!< in: transaction handle */
 {
   if (trx_is_started(trx)) {
-    trx_commit_for_mysql(trx);
+    const dberr_t error MY_ATTRIBUTE((unused)) = trx_commit_for_mysql(trx);
+    // This is ut_ad not ut_a, because previously we did not have an assert
+    // and nobody has noticed for a long time, so probably there is no much
+    // harm in silencing this error. OTOH we believe it should no longer happen
+    // after adding `true` as a second argument to TrxInInnoDB constructor call,
+    // so we'd like to learn if the error can still happen.
+    ut_ad(DB_SUCCESS == error);
   }
   trx->will_lock = 0;
 }
@@ -4714,7 +4720,22 @@ static int innobase_commit(handlerton *hton, /*!< in: InnoDB handlerton */
 
   trx_t *trx = check_trx_exists(thd);
 
-  TrxInInnoDB trx_in_innodb(trx);
+  /* We are about to check if the transaction is_aborted, and if it is,
+  then we want to rollback, and otherwise we want to proceed.
+  However it might happen that a different transaction, which has high priority
+  will abort our transaction just after we do the test.
+  To prevent that, we want to set TRX_FORCE_ROLLBACK_DISABLE flag on our trx,
+  which is checked in RecLock::make_trx_hit_list and prevents high priority
+  transaction from killing us.
+  One way to do that is to call TrxInInnoDB with `true` as second argument.
+  Note that innobase_commit is called not only on "real" COMMIT, but also
+  after each statement (with commit_trx=false), so we need some logic to decide
+  if we really plan to perform commit during this call.
+  */
+  bool will_commit =
+      commit_trx ||
+      (!thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
+  TrxInInnoDB trx_in_innodb(trx, will_commit);
 
   if (trx_in_innodb.is_aborted()) {
     innobase_rollback(hton, thd, commit_trx);
@@ -4735,8 +4756,7 @@ static int innobase_commit(handlerton *hton, /*!< in: InnoDB handlerton */
 
   bool read_only = trx->read_only || trx->id == 0;
 
-  if (commit_trx ||
-      (!thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
+  if (will_commit) {
     /* We were instructed to commit the whole transaction, or
     this is an SQL statement end and autocommit is on */
 

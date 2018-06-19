@@ -2159,6 +2159,7 @@ que_thr_t *trx_commit_step(que_thr_t *thr) /*!< in: query thread */
  @return DB_SUCCESS or error number */
 dberr_t trx_commit_for_mysql(trx_t *trx) /*!< in/out: transaction */
 {
+  DEBUG_SYNC_C("trx_commit_for_mysql_checks_for_aborted");
   TrxInInnoDB trx_in_innodb(trx, true);
 
   if (trx_in_innodb.is_aborted() && trx->killed_by != os_thread_get_curr_id()) {

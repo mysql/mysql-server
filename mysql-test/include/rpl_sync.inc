@@ -18,7 +18,7 @@
 #     By default, this script assumes that both the IO thread and the
 #     SQL thread are running and fails if one of them is stopped.  If
 #     $rpl_only_running_threads is set, this script first checks
-#     which slave threads are running: 
+#     which slave threads are running:
 #      - If both threads are running, sync both threads with master.
 #      - If only IO thread is running, sync IO thread with master.
 #      - If only SQL thread is running, sync SQL thread with IO thread.

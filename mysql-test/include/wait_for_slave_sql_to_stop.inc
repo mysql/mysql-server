@@ -42,7 +42,7 @@ if ($rpl_channel_name)
 --let $slave_param_comparison= =
 --let $slave_error_param= Last_SQL_Errno
 --source include/wait_for_slave_param.inc
---let $slave_error_param= 
+--let $slave_error_param=
 
 
 --let $include_filename= wait_for_slave_sql_to_stop.inc
