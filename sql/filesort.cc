@@ -1196,9 +1196,9 @@ static void copy_native_longlong(uchar *to, size_t to_length, longlong val,
   @returns
     length of the key stored
 */
-static uint MY_ATTRIBUTE((noinline))
-    make_json_sort_key(Item *item, uchar *to, uchar *null_indicator,
-                       size_t length, ulonglong *hash) {
+NO_INLINE
+static uint make_json_sort_key(Item *item, uchar *to, uchar *null_indicator,
+                               size_t length, ulonglong *hash) {
   DBUG_ASSERT(!item->maybe_null || *null_indicator == 1);
 
   Json_wrapper wr;

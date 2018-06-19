@@ -166,6 +166,12 @@ struct my_aligned_storage {
 #define ALWAYS_INLINE __attribute__((always_inline)) inline
 #endif
 
+#if defined(_MSC_VER)
+#define NO_INLINE __declspec(noinline)
+#else
+#define NO_INLINE __attribute__((noinline))
+#endif
+
 #ifndef __has_attribute
 #define __has_attribute(x) 0
 #endif

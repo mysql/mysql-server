@@ -921,8 +921,10 @@ func_exit:
 /** Perform referential actions or checks when a parent row is deleted or
  updated and the constraint had an ON DELETE or ON UPDATE condition which was
  not RESTRICT.
- @return DB_SUCCESS, DB_LOCK_WAIT, or error code */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+ @return DB_SUCCESS, DB_LOCK_WAIT, or error code
+ Disable inlining because of a bug in gcc8 which may lead to stack exhaustion.
+*/
+static NO_INLINE MY_ATTRIBUTE((warn_unused_result)) dberr_t
     row_ins_foreign_check_on_constraint(
         que_thr_t *thr,          /*!< in: query thread whose run_node
                                  is an update node */
