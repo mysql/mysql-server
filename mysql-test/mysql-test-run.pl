@@ -137,7 +137,6 @@ my $opt_start_exit;
 my $start_only;
 
 our $num_tests_for_report;      # for test-progress option
-our $remaining;
 
 my $auth_plugin;                # the path to the authentication test plugin
 
@@ -284,7 +283,7 @@ my $opt_skip_core;
 
 our $opt_check_testcases= 1;
 my $opt_mark_progress;
-our $opt_test_progress;
+our $opt_test_progress= 1;
 my $opt_max_connections;
 our $opt_report_times= 0;
 
@@ -428,9 +427,7 @@ sub main {
 
   #######################################################################
   my $num_tests= @$tests;
-
   $num_tests_for_report = $num_tests * $opt_repeat;
-  $remaining= $num_tests_for_report;
 
   if ( $opt_parallel eq "auto" ) {
     # Try to find a suitable value for number of workers
@@ -1159,7 +1156,7 @@ sub command_line_setup {
              'record'                   => \$opt_record,
              'check-testcases!'         => \$opt_check_testcases,
              'mark-progress'            => \$opt_mark_progress,
-             'test-progress'            => \$opt_test_progress,
+             'test-progress:1'          => \$opt_test_progress,
 
              # Extra options used when starting mysqld
              'mysqld=s'                 => \@opt_extra_mysqld_opt,
@@ -1437,6 +1434,10 @@ sub command_line_setup {
     {
       push(@opt_cases, $arg);
     }
+  }
+
+  if ($opt_test_progress != 0 and $opt_test_progress != 1) {
+    mtr_error("Invalid value '$opt_test_progress' for option 'test-progress'.");
   }
 
   # disable syslog / EventLog in normal (non-bootstrap) operation.
@@ -7324,7 +7325,8 @@ Options for test case authoring
   record TESTNAME       (Re)genereate the result file for TESTNAME
   check-testcases       Check testcases for sideeffects
   mark-progress         Log line number and elapsed time to <testname>.progress
-  test-progress         Print the percentage of tests completed
+  test-progress[={0|1}] Print the percentage of tests completed. This setting
+                        is enabled by default.
 
 Options that pass on options (these may be repeated)
 
