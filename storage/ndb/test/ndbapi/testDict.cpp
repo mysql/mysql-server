@@ -1666,27 +1666,28 @@ int runStoreExtraMetada(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
-
+/* After wl#10665, the limit on the size of ExtraMetadata is
+   defined by MAX_WORDS_META_FILE.
+*/
 int runStoreExtraMetadataError(NDBT_Context* ctx, NDBT_Step* step)
 {
   Ndb* pNdb = GETNDB(step);
   const NdbDictionary::Table* pTab = ctx->getTab();
   int result = NDBT_OK;
 
+  static constexpr Uint32 dataLenInWords = MAX_WORDS_META_FILE;
+  static constexpr Uint32 dataLen = dataLenInWords * 4;
+  Int32 data[dataLenInWords];
+
   for (int l = 0; l < ctx->getNumLoops() && result == NDBT_OK ; l++)
   {
-    // The setExtraMetadata function will compress the payload,
-    // need to use a fairly larg value in order to guarantee it
-    // exceeds the MAX_FRM_DATA_SIZE limit after it has been
-    // compressed
-    const Uint32 dataLen = 0x200000U;
-    uchar* data = new uchar[dataLen];
+    // The whole dictionary entry must fit in MAX_WORDS_META_FILE.
+    // Create a table where the ExtraMetadata alone is too long
+    // (and cannot be effectively compressed).
 
-    // Fill in the "data" array with some varying numbers
-    char value = l + 248;
-    for(Uint32 i = 0; i < dataLen; i++){
-      data[i] = value;
-      value++;
+    for(Uint32 i = 0; i < dataLenInWords; i++)
+    {
+      data[i] = myRandom48(INT32_MAX);
     }
 
     // It should be possible to set the extra metadata
@@ -1695,13 +1696,10 @@ int runStoreExtraMetadataError(NDBT_Context* ctx, NDBT_Step* step)
     if (newTab.setExtraMetadata(37, // version
                                 data, dataLen))
     {
-      g_err << "Failed to set the extra metadata, "
-               "length: " << dataLen << endl;
+      g_err << "Failed to set the extra metadata, length: " << dataLen << endl;
       result = NDBT_FAILED;
-      delete[] data;
       continue;
     }
-    delete[] data;
 
     // Try to create table in db, should fail!
     if (newTab.createTableInDb(pNdb) == 0){
