@@ -1,18 +1,17 @@
-#ifndef _STRLCPY_INTERNAL_H_
-#define _STRLCPY_INTERNAL_H_
+#ifndef STRLCPY_INTERNAL_H_INCLUDED_
+#define STRLCPY_INTERNAL_H_INCLUDED_
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif /* HAVE_CONFIG_H */
+#include "event2/event-config.h"
+#include "evconfig-private.h"
 
-#ifndef HAVE_STRLCPY
+#ifndef EVENT__HAVE_STRLCPY
 #include <string.h>
-size_t _event_strlcpy(char *dst, const char *src, size_t siz);
-#define strlcpy _event_strlcpy
+size_t event_strlcpy_(char *dst, const char *src, size_t siz);
+#define strlcpy event_strlcpy_
 #endif
 
 #ifdef __cplusplus

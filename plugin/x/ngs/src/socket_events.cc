@@ -174,7 +174,7 @@ void Socket_events::loop() { event_base_loop(m_evbase, 0); }
 
 void Socket_events::break_loop() { event_base_loopbreak(m_evbase); }
 
-void Socket_events::timeout_call(int, short, void *arg) {
+void Socket_events::timeout_call(socket_type, short, void *arg) {
   Timer_data *data = (Timer_data *)arg;
 
   if (!data->callback()) {
@@ -195,7 +195,7 @@ void Socket_events::timeout_call(int, short, void *arg) {
   }
 }
 
-void Socket_events::socket_data_avaiable(int, short, void *arg) {
+void Socket_events::socket_data_avaiable(socket_type, short, void *arg) {
   Socket_data *data = (Socket_data *)arg;
   Operations_factory operations_factory;
   System_interface::Shared_ptr system_interface(

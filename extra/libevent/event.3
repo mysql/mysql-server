@@ -183,14 +183,14 @@
 .Fn "evbuffer_write" "struct evbuffer *buf" "int fd"
 .Ft int
 .Fn "evbuffer_read" "struct evbuffer *buf" "int fd" "int size"
-.Ft "u_char *"
-.Fn "evbuffer_find" "struct evbuffer *buf" "const u_char *data" "size_t size"
+.Ft "unsigned char *"
+.Fn "evbuffer_find" "struct evbuffer *buf" "const unsigned char *data" "size_t size"
 .Ft "char *"
 .Fn "evbuffer_readline" "struct evbuffer *buf"
 .Ft "struct evhttp *"
 .Fn "evhttp_new" "struct event_base *base"
 .Ft int
-.Fn "evhttp_bind_socket" "struct evhttp *http" "const char *address" "u_short port"
+.Fn "evhttp_bind_socket" "struct evhttp *http" "const char *address" "unsigned short port"
 .Ft "void"
 .Fn "evhttp_free" "struct evhttp *http"
 .Ft int
@@ -253,7 +253,7 @@ the type of event which will be either
 or
 .Va EV_WRITE .
 Additionally, an event which has registered interest in more than one of the
-preceding events, via bitwise-OR to
+preceeding events, via bitwise-OR to
 .Fn event_set ,
 can provide its callback function with a bitwise-OR of more than one triggered
 event.

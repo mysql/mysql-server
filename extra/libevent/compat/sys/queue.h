@@ -32,11 +32,11 @@
  *	@(#)queue.h	8.5 (Berkeley) 8/20/94
  */
 
-#ifndef	_SYS_QUEUE_H_
-#define	_SYS_QUEUE_H_
+#ifndef	SYS_QUEUE_H__
+#define	SYS_QUEUE_H__
 
 /*
- * This file defines five types of data structures: singly-linked lists, 
+ * This file defines five types of data structures: singly-linked lists,
  * lists, simple queues, tail queues, and circular queues.
  *
  *
@@ -89,11 +89,11 @@
 struct name {								\
 	struct type *slh_first;	/* first element */			\
 }
- 
+
 #define	SLIST_HEAD_INITIALIZER(head)					\
 	{ NULL }
 
-#ifndef WIN32
+#ifndef _WIN32
 #define SLIST_ENTRY(type)						\
 struct {								\
 	struct type *sle_next;	/* next element */			\
@@ -287,8 +287,8 @@ struct {								\
 	struct type **tqe_prev;	/* address of previous next element */	\
 }
 
-/* 
- * tail queue access methods 
+/*
+ * tail queue access methods
  */
 #define	TAILQ_FIRST(head)		((head)->tqh_first)
 #define	TAILQ_END(head)			NULL
@@ -306,7 +306,7 @@ struct {								\
 	    (var) != TAILQ_END(head);					\
 	    (var) = TAILQ_NEXT(var, field))
 
-#define TAILQ_FOREACH_REVERSE(var, head, field, headname)		\
+#define TAILQ_FOREACH_REVERSE(var, head, headname, field)		\
 	for((var) = TAILQ_LAST(head, headname);				\
 	    (var) != TAILQ_END(head);					\
 	    (var) = TAILQ_PREV(var, headname, field))
@@ -391,7 +391,7 @@ struct {								\
 }
 
 /*
- * Circular queue access methods 
+ * Circular queue access methods
  */
 #define	CIRCLEQ_FIRST(head)		((head)->cqh_first)
 #define	CIRCLEQ_LAST(head)		((head)->cqh_last)
@@ -485,4 +485,4 @@ struct {								\
 		(elm2)->field.cqe_prev->field.cqe_next = (elm2);	\
 } while (0)
 
-#endif	/* !_SYS_QUEUE_H_ */
+#endif	/* !SYS_QUEUE_H__ */
