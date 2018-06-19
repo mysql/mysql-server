@@ -36,7 +36,7 @@ User=mysql
 Group=mysql
 Type=notify
 PermissionsStartOnly=true
-@DEB_SERVICE_SERVER_EXECPRE@ @%I
+ExecStartPre=/usr/share/mysql-@MYSQL_BASE_VERSION@/mysql-systemd-start pre @%I
 ExecStart=/usr/sbin/mysqld --defaults-group-suffix=@%I
 TimeoutSec=600
 LimitNOFILE = 10000

@@ -31,7 +31,7 @@ usr/share/mysql-@MYSQL_BASE_VERSION@/*.sql
 @DEB_INSTALL_DEBUG_SERVER_PLUGINS@
 @DEB_INSTALL_SERVER_PLUGINS@
 usr/share/mysql-@MYSQL_BASE_VERSION@/mysql-helpers
-@DEB_INSTALL_SERVER_SYSTEMD@
+usr/share/mysql-@MYSQL_BASE_VERSION@/mysql-systemd-start
 usr/share/mysql-@MYSQL_BASE_VERSION@/mysqld_multi.server
 # legal
 usr/share/mysql-@MYSQL_BASE_VERSION@/LICENSE usr/share/doc/mysql-@DEB_PRODUCTNAME@-server/

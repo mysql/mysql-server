@@ -85,16 +85,16 @@ override_dh_auto_install:
 	# add apparmor profile
 	@DEB_RULES_INSTALL_APPARMOR@
 	# add systemd script
-	@DEB_RULES_INSTALL_SYSTEMD@
+	install -m 0755 debian/extra/mysql-systemd-start debian/tmp/usr/share/mysql-@MYSQL_BASE_VERSION@/
 	touch $@
 
 override_dh_installinit:
 	@echo "RULES.$@"
 	@DEB_RULES_APPARMOR_LOAD@
-	@DEB_RULES_SYSTEMD_ENABLE@
+	dh_systemd_enable --name=mysql
 	dh_installinit --name=mysql -- defaults 19 21
 	dh_installinit --name=mysql@ -- disable
-	@DEB_RULES_SYSTEMD_START@
+	dh_systemd_start --restart-after-upgrade
 	touch $@
 
 override_dh_install:
