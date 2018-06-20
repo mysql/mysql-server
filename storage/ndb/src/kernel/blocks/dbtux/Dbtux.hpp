@@ -1523,22 +1523,6 @@ Dbtux::prepare_all_tup_ptrs(TuxCtx& ctx)
                           ctx.attrDataOffset,
                           ctx.tuxFixHeaderSize);
 }
-
-inline
-void
-Dbtux::prepare_tup_ptrs(TuxCtx& ctx)
-{
-#ifdef VM_TRACE
-  ctx.tupRealFragPtr = NULL;
-  ctx.tupRealTablePtr = NULL;
-#endif
-  c_tup->get_tup_ptrs(ctx.fragPtr.p->m_tupIndexFragPtrI,
-                      &ctx.tupIndexFragPtr,
-                      &ctx.tupIndexTablePtr,
-                      ctx.attrDataOffset,
-                      ctx.tuxFixHeaderSize);
-}
-
 #undef JAM_FILE_ID
 
 #endif
