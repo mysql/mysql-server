@@ -89,4 +89,7 @@ cmd: atrt-testBackup
 args: -n ConsistencyUnderLoadStallGCP T1
 max-time: 1200
 
+cmd: test_event
+args: -n checkParallelTriggerDropReqHandling T1
+max-time: 120
 
