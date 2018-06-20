@@ -420,11 +420,15 @@ Dbtux::readKeyAttrs(TuxCtx& ctx,
 }
 
 void
-Dbtux::readTablePk(const Frag& frag, TreeEnt ent, Uint32* pkData, unsigned& pkSize)
+Dbtux::readTablePk(TreeEnt ent, Uint32* pkData, unsigned& pkSize)
 {
-  const Uint32 tableFragPtrI = frag.m_tupTableFragPtrI;
   const TupLoc tupLoc = ent.m_tupLoc;
-  int ret = c_tup->tuxReadPk(tableFragPtrI, tupLoc.getPageId(), tupLoc.getPageOffset(), pkData, true);
+  int ret = c_tup->tuxReadPk(c_ctx.tupRealFragPtr,
+                             c_ctx.tupRealTablePtr,
+                             tupLoc.getPageId(),
+                             tupLoc.getPageOffset(),
+                             pkData,
+                             true);
   jamEntry();
   ndbrequire(ret > 0);
   pkSize = ret;

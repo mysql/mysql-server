@@ -462,7 +462,13 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
       // read tuple key - use TUX routine
       const ScanPos& pos = scan.m_scanPos;
       const Local_key& key_mm = pos.m_key_mm;
-      int ret = tuxReadPk(fragPtr.i, pos.m_realpid_mm, key_mm.m_page_idx,
+      TablerecPtr tablePtr;
+      tablePtr.i = fragPtr.p->fragTableId;
+      ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
+      int ret = tuxReadPk((Uint32*)fragPtr.p,
+                          (Uint32*)tablePtr.p,
+                          pos.m_realpid_mm,
+                          key_mm.m_page_idx,
 			  pkData, true);
       ndbrequire(ret > 0);
       pkSize = ret;

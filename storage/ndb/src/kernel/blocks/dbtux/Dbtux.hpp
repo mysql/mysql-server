@@ -601,7 +601,7 @@ private:
                     TreeEnt ent,
                     Uint32 count,
                     Uint32 *outputBuffer);
-  void readTablePk(const Frag& frag, TreeEnt ent, Uint32* pkData, unsigned& pkSize);
+  void readTablePk(TreeEnt ent, Uint32* pkData, unsigned& pkSize);
   void unpackBound(Uint32* const outputBuffer,
                    const ScanBound& bound,
                    KeyBoundC& searchBound);
