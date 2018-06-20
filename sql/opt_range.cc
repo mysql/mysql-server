@@ -12586,15 +12586,20 @@ static void cost_group_min_max(TABLE *table, uint key, uint used_key_parts,
              b-tree the number of comparisons will be larger.
        TODO: This cost should be provided by the storage engine.
   */
-  const double tree_height =
-      table_records == 0
-          ? 1.0
-          : ceil(log(double(table_records)) / log(double(keys_per_block)));
-  const double tree_traversal_cost = cost_model->key_compare_cost(tree_height);
-
-  const double cpu_cost =
-      num_groups * (tree_traversal_cost + cost_model->row_evaluate_cost(1.0));
-  cost_est->add_cpu(cpu_cost);
+  if (keys_per_block <= 1) {
+    // Only one key per block? A *very* high tree.
+    cost_est->add_cpu(std::numeric_limits<double>::max());
+  } else {
+    const double tree_height =
+        table_records == 0
+            ? 1.0
+            : ceil(log(double(table_records)) / log(double(keys_per_block)));
+    const double tree_traversal_cost =
+        cost_model->key_compare_cost(tree_height);
+    const double cpu_cost =
+        num_groups * (tree_traversal_cost + cost_model->row_evaluate_cost(1.0));
+    cost_est->add_cpu(cpu_cost);
+  }
   *records = num_groups;
 
   DBUG_PRINT("info", ("table rows: %lu  keys/block: %u  keys/group: %.1f  "
