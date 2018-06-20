@@ -52,24 +52,25 @@ Dbtup::tuxGetTupAddr(Uint32 fragPtrI,
  */
 int
 Dbtup::tuxAllocNode(EmulatedJamBuffer * jamBuf,
-                    Uint32 fragPtrI,
+                    Uint32 *fragPtrP_input,
+                    Uint32 *tablePtrP_input,
                     Uint32& pageId,
                     Uint32& pageOffset,
                     Uint32*& node)
 {
   thrjamEntry(jamBuf);
-  FragrecordPtr fragPtr;
-  fragPtr.i= fragPtrI;
-  ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
-  TablerecPtr tablePtr;
-  tablePtr.i= fragPtr.p->fragTableId;
-  ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
+  Tablerec* tablePtrP = (Tablerec*)tablePtrP_input;
+  Fragrecord* fragPtrP = (Fragrecord*)fragPtrP_input;
 
   Local_key key;
   Uint32* ptr, frag_page_id, err;
   c_allow_alloc_spare_page=true;
-  if ((ptr= alloc_fix_rec(jamBuf, &err,fragPtr.p,tablePtr.p, &key, 
-                          &frag_page_id)) == 0)
+  if ((ptr = alloc_fix_rec(jamBuf,
+                           &err,
+                           fragPtrP,
+                           tablePtrP,
+                           &key, 
+                           &frag_page_id)) == 0)
   {
     c_allow_alloc_spare_page=false;
     thrjam(jamBuf);
@@ -78,7 +79,7 @@ Dbtup::tuxAllocNode(EmulatedJamBuffer * jamBuf,
   c_allow_alloc_spare_page=false;
   pageId= key.m_page_no;
   pageOffset= key.m_page_idx;
-  Uint32 attrDescIndex= tablePtr.p->tabDescriptor + (0 << ZAD_LOG_SIZE);
+  Uint32 attrDescIndex= tablePtrP->tabDescriptor + (0 << ZAD_LOG_SIZE);
   Uint32 attrDataOffset= AttributeOffset::getOffset(
                               tableDescriptor[attrDescIndex + 1].tabDescr);
   node= ptr + attrDataOffset;
@@ -86,30 +87,27 @@ Dbtup::tuxAllocNode(EmulatedJamBuffer * jamBuf,
 }
 
 void
-Dbtup::tuxFreeNode(Uint32 fragPtrI,
+Dbtup::tuxFreeNode(Uint32* fragPtrP_input,
+                   Uint32* tablePtrP_input,
                    Uint32 pageId,
                    Uint32 pageOffset,
                    Uint32* node)
 {
   jamEntry();
-  FragrecordPtr fragPtr;
-  fragPtr.i= fragPtrI;
-  ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
-  TablerecPtr tablePtr;
-  tablePtr.i= fragPtr.p->fragTableId;
-  ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
+  Tablerec* tablePtrP = (Tablerec*)tablePtrP_input;
+  Fragrecord* fragPtrP = (Fragrecord*)fragPtrP_input;
 
   Local_key key;
   key.m_page_no = pageId;
   key.m_page_idx = pageOffset;
   PagePtr pagePtr;
-  Tuple_header* ptr = (Tuple_header*)get_ptr(&pagePtr, &key, tablePtr.p);
+  Tuple_header* ptr = (Tuple_header*)get_ptr(&pagePtr, &key, tablePtrP);
 
-  Uint32 attrDescIndex= tablePtr.p->tabDescriptor + (0 << ZAD_LOG_SIZE);
+  Uint32 attrDescIndex= tablePtrP->tabDescriptor + (0 << ZAD_LOG_SIZE);
   Uint32 attrDataOffset= AttributeOffset::getOffset(tableDescriptor[attrDescIndex + 1].tabDescr);
   ndbrequire(node == (Uint32*)ptr + attrDataOffset);
 
-  free_fix_rec(fragPtr.p, tablePtr.p, &key, (Fix_page*)pagePtr.p);
+  free_fix_rec(fragPtrP, tablePtrP, &key, (Fix_page*)pagePtr.p);
 }
 
 int
