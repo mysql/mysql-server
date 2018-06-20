@@ -1841,8 +1841,17 @@ public:
    * TUX index in TUP has single Uint32 array attribute which stores an
    * index node.  TUX reads and writes the node directly via pointer.
    */
-  int tuxAllocNode(EmulatedJamBuffer*, Uint32 fragPtrI, Uint32& pageId, Uint32& pageOffset, Uint32*& node);
-  void tuxFreeNode(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32* node);
+  int tuxAllocNode(EmulatedJamBuffer*,
+                   Uint32* fragPtrP,
+                   Uint32* tablePtrP,
+                   Uint32& pageId,
+                   Uint32& pageOffset,
+                   Uint32*& node);
+  void tuxFreeNode(Uint32* fragPtrP,
+                   Uint32* tablePtrP,
+                   Uint32 pageId,
+                   Uint32 pageOffset,
+                   Uint32* node);
   void tuxGetNode(Uint32 attrDataOffset,
                   Uint32 tuxFixHeaderSize,
                   Uint32 pageId,

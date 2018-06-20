@@ -34,13 +34,15 @@ Dbtux::allocNode(TuxCtx& ctx, NodeHandle& node)
     CLEAR_ERROR_INSERT_VALUE;
     return TuxMaintReq::NoMemError;
   }
-  Frag& frag = node.m_frag;
   Uint32 pageId = NullTupLoc.getPageId();
   Uint32 pageOffset = NullTupLoc.getPageOffset();
   Uint32* node32 = 0;
   int errorCode = c_tup->tuxAllocNode(ctx.jamBuffer,
-                                      frag.m_tupIndexFragPtrI,
-                                      pageId, pageOffset, node32);
+                                      ctx.tupIndexFragPtr,
+                                      ctx.tupIndexTablePtr,
+                                      pageId,
+                                      pageOffset,
+                                      node32);
   thrjamEntryDebug(ctx.jamBuffer);
   if (likely(errorCode == 0))
   {
@@ -69,12 +71,14 @@ Dbtux::allocNode(TuxCtx& ctx, NodeHandle& node)
 void
 Dbtux::freeNode(NodeHandle& node)
 {
-  Frag& frag = node.m_frag;
   Uint32 pageId = node.m_loc.getPageId();
   Uint32 pageOffset = node.m_loc.getPageOffset();
   Uint32* node32 = reinterpret_cast<Uint32*>(node.m_node);
-  c_tup->tuxFreeNode(frag.m_tupIndexFragPtrI,
-                     pageId, pageOffset, node32);
+  c_tup->tuxFreeNode(c_ctx.tupIndexFragPtr,
+                     c_ctx.tupIndexTablePtr,
+                     pageId,
+                     pageOffset,
+                     node32);
   jamEntry();
   // invalidate the handle
   node.m_loc = NullTupLoc;
