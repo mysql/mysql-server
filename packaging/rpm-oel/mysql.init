@@ -175,7 +175,7 @@ stop(){
 	fi
 	MYSQLPID=$(cat "$mypidfile")
 	if [ -n "$MYSQLPID" ]; then
-	    /bin/kill "$MYSQLPID" >/dev/null 2>&1
+	    /bin/su - mysql -s /bin/bash -c "/bin/kill $MYSQLPID" >/dev/null 2>&1
 	    ret=$?
 	    if [ $ret -eq 0 ]; then
 		TIMEOUT="$STOPTIMEOUT"
