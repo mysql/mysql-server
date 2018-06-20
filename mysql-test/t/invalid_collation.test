@@ -18,8 +18,8 @@ SHOW COLLATION LIKE 'utf8_phone_ci';
 
 --echo #
 --echo # Create two tables using the new collation:
-CREATE TABLE t1 (i INTEGER) COLLATE utf8_phone_ci;
-CREATE TABLE t2 (i INTEGER) COLLATE utf8_phone_ci;
+CREATE TABLE t1 (i INTEGER, a VARCHAR(10) COLLATE utf8_phone_ci) COLLATE utf8_phone_ci;
+CREATE TABLE t2 (i INTEGER, a VARCHAR(10) COLLATE utf8_phone_ci) COLLATE utf8_phone_ci;
 
 --echo #
 --echo # Restart server with original character sets dir:

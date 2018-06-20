@@ -817,6 +817,7 @@ static bool fill_column_from_dd(THD *thd, TABLE_SHARE *share,
                     "invalid collation id %llu for table %s, column %s", MYF(0),
                     col_obj->collation_id(), share->table_name.str, name);
     if (thd->is_error()) return true;
+    charset = default_charset_info;
   }
 
   // Decimals
