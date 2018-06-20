@@ -77,7 +77,6 @@ enum THR_PFS_key {
   THR_PFS_SBH,  // status_by_host
   THR_PFS_NUM_KEYS
 };
-extern thread_local PFS_table_context *THR_PFS_contexts[THR_PFS_NUM_KEYS];
 
 /* Only Innodb so far */
 #define COUNT_DATA_LOCK_ENGINES 1

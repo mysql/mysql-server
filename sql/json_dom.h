@@ -1,7 +1,7 @@
 #ifndef JSON_DOM_INCLUDED
 #define JSON_DOM_INCLUDED
 
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -815,7 +815,7 @@ class Json_int : public Json_number {
   longlong m_i;  //!< holds the value
  public:
   explicit Json_int(longlong value) : Json_number(), m_i(value) {}
-  ~Json_int() {}
+  ~Json_int();
 
   // See base class documentation
   enum_json_type json_type() const { return enum_json_type::J_INT; }

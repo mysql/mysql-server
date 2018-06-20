@@ -37,6 +37,7 @@
 #include "storage/perfschema/pfs_builtin_memory.h"
 #include "storage/perfschema/pfs_defaults.h"
 #include "storage/perfschema/pfs_digest.h"
+#include "storage/perfschema/pfs_engine_table.h"
 #include "storage/perfschema/pfs_error.h"
 #include "storage/perfschema/pfs_events_stages.h"
 #include "storage/perfschema/pfs_events_statements.h"

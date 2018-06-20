@@ -651,4 +651,7 @@ struct PFS_triple_index {
 };
 
 /** @} */
+
+extern thread_local PFS_table_context *THR_PFS_contexts[THR_PFS_NUM_KEYS];
+
 #endif

@@ -742,7 +742,7 @@ INCLUDE_DIRECTORIES(
 SET(WITH_SYSTEM_LIBS_DEFAULT OFF)
 
 OPTION(WITH_LTO
-  "Enable the link-time optimizer. Currently works for gcc8 only." OFF)
+  "Enable the link-time optimizer. Currently works for gcc7/gcc8 only." OFF)
 IF(WITH_LTO)
   MY_CHECK_CXX_COMPILER_FLAG("-flto" CXX_LTO_RESULT)
   IF(NOT CXX_LTO_RESULT)

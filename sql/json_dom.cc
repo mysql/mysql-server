@@ -74,6 +74,8 @@
 #include "sql_string.h"
 #include "template_utils.h"  // down_cast, pointer_cast
 
+Json_int::~Json_int() {}
+
 #ifdef MYSQL_SERVER
 static Json_dom *json_binary_to_dom_template(const json_binary::Value &v);
 static bool populate_object_or_array(const THD *thd, Json_dom *dom,

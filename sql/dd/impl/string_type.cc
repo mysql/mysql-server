@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,3 +40,6 @@ size_t hash<dd::String_type>::operator()(const dd::String_type &s) const {
   return murmur3_32(reinterpret_cast<const uchar *>(s.c_str()), s.size(), 0);
 }
 }  // namespace std
+
+// Explicit template instantiation needed for gcc7 -flto
+template dd::String_type::~basic_string();
