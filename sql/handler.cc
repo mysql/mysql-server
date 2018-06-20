@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2434,7 +2434,8 @@ err:
 
 void handler::ha_statistic_increment(ulonglong SSV::*offset) const
 {
-  status_var_increment(table->in_use->status_var.*offset);
+  if (table && table->in_use)
+    status_var_increment(table->in_use->status_var.*offset);
 }
 
 void **handler::ha_data(THD *thd) const
