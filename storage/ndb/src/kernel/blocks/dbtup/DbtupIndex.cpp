@@ -228,38 +228,38 @@ Dbtup::tuxReadAttrsCommon(KeyReqStruct &req_struct,
 }
 
 int
-Dbtup::tuxReadPk(Uint32 fragPtrI, Uint32 pageId, Uint32 pageIndex, Uint32* dataOut, bool xfrmFlag)
+Dbtup::tuxReadPk(Uint32* fragPtrP_input,
+                 Uint32* tablePtrP_input,
+                 Uint32 pageId,
+                 Uint32 pageIndex,
+                 Uint32* dataOut,
+                 bool xfrmFlag)
 {
   jamEntryDebug();
-  // use own variables instead of globals
-  FragrecordPtr fragPtr;
-  fragPtr.i= fragPtrI;
-  ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
-  TablerecPtr tablePtr;
-  tablePtr.i= fragPtr.p->fragTableId;
-  ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
+  Fragrecord* fragPtrP = (Fragrecord*)fragPtrP_input;
+  Tablerec* tablePtrP = (Tablerec*)tablePtrP_input;
   
   Operationrec tmpOp;
   tmpOp.m_tuple_location.m_page_no= pageId;
   tmpOp.m_tuple_location.m_page_idx= pageIndex;
   
   KeyReqStruct req_struct(this);
-  req_struct.tablePtrP = tablePtr.p;
-  req_struct.fragPtrP = fragPtr.p;
+  req_struct.tablePtrP = tablePtrP;
+  req_struct.fragPtrP = fragPtrP;
  
   PagePtr page_ptr;
-  Uint32* ptr= get_ptr(&page_ptr, &tmpOp.m_tuple_location, tablePtr.p);
+  Uint32* ptr= get_ptr(&page_ptr, &tmpOp.m_tuple_location, tablePtrP);
   req_struct.m_page_ptr = page_ptr;
   req_struct.m_tuple_ptr = (Tuple_header*)ptr;
   
   int ret = 0;
   if (! (req_struct.m_tuple_ptr->m_header_bits & Tuple_header::FREE))
   {
-    req_struct.check_offset[MM]= tablePtr.p->get_check_offset(MM);
-    req_struct.check_offset[DD]= tablePtr.p->get_check_offset(DD);
+    req_struct.check_offset[MM]= tablePtrP->get_check_offset(MM);
+    req_struct.check_offset[DD]= tablePtrP->get_check_offset(DD);
     
-    Uint32 num_attr= tablePtr.p->m_no_of_attributes;
-    Uint32 descr_start= tablePtr.p->tabDescriptor;
+    Uint32 num_attr= tablePtrP->m_no_of_attributes;
+    Uint32 descr_start= tablePtrP->tabDescriptor;
     TableDescriptor *tab_descr= &tableDescriptor[descr_start];
     ndbrequire(descr_start + (num_attr << ZAD_LOG_SIZE) <= cnoOfTabDescrRec);
     req_struct.attr_descr= tab_descr; 
@@ -272,10 +272,10 @@ Dbtup::tuxReadPk(Uint32 fragPtrI, Uint32 pageId, Uint32 pageIndex, Uint32* dataO
       req_struct.m_tuple_ptr=
 	get_copy_tuple(&opPtrP->m_copy_tuple_location);
     }
-    prepare_read(&req_struct, tablePtr.p, false);
+    prepare_read(&req_struct, tablePtrP, false);
     
-    const Uint32* attrIds= &tableDescriptor[tablePtr.p->readKeyArray].tabDescr;
-    const Uint32 numAttrs= tablePtr.p->noOfKeyAttr;
+    const Uint32* attrIds= &tableDescriptor[tablePtrP->readKeyArray].tabDescr;
+    const Uint32 numAttrs= tablePtrP->noOfKeyAttr;
     // read pk attributes from original tuple
     
     // do it
@@ -306,9 +306,9 @@ Dbtup::tuxReadPk(Uint32 fragPtrI, Uint32 pageId, Uint32 pageIndex, Uint32* dataO
       return ret;
     }
   }
-  if (tablePtr.p->m_bits & Tablerec::TR_RowGCI)
+  if (tablePtrP->m_bits & Tablerec::TR_RowGCI)
   {
-    dataOut[ret] = *req_struct.m_tuple_ptr->get_mm_gci(tablePtr.p);
+    dataOut[ret] = *req_struct.m_tuple_ptr->get_mm_gci(tablePtrP);
   }
   else
   {
@@ -332,7 +332,12 @@ Dbtup::accReadPk(Uint32 tableId, Uint32 fragId, Uint32 fragPageId, Uint32 pageIn
 
   Uint32 pageId = getRealpid(fragPtr.p, fragPageId);
   // use TUX routine - optimize later
-  int ret = tuxReadPk(fragPtr.i, pageId, pageIndex, dataOut, xfrmFlag);
+  int ret = tuxReadPk((Uint32*)fragPtr.p,
+                      (Uint32*)tablePtr.p,
+                      pageId,
+                      pageIndex,
+                      dataOut,
+                      xfrmFlag);
   return ret;
 }
 

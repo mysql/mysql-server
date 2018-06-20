@@ -602,7 +602,7 @@ Dbtux::continue_scan(Signal *signal,
       jamDebug();
       const TreeEnt ent = scan.m_scanEnt;
       // read tuple key
-      readTablePk(frag, ent, pkData, pkSize);
+      readTablePk(ent, pkData, pkSize);
       // get read lock or exclusive lock
       AccLockReq* const lockReq = (AccLockReq*)signal->getDataPtrSend();
       lockReq->returnCode = RNIL;

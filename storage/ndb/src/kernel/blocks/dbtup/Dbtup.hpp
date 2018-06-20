@@ -1903,7 +1903,12 @@ public:
    * for md5 summing and when returning keyinfo.  Returns number of
    * words or negative (-terrorCode) on error.
    */
-  int tuxReadPk(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32* dataOut, bool xfrmFlag);
+  int tuxReadPk(Uint32* fragPtrP,
+                Uint32* tablePtrP,
+                Uint32 pageId,
+                Uint32 pageOffset,
+                Uint32* dataOut,
+                bool xfrmFlag);
 
   /*
    * ACC reads primary key without headers into an array of words.  At
