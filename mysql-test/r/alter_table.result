@@ -3906,3 +3906,19 @@ ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used le
 # Cleanup.
 DROP TABLE t1, t2;
 SET sql_mode= @orig_sql_mode;
+#
+# BUG#27164393: ALTER COLUMN SET DEFAULT DOES NOT RETURN ERROR
+#               ON GENERATED COLUMNS
+CREATE TABLE t1(fld1 INT, fld2 INT GENERATED ALWAYS AS (-fld1) VIRTUAL,
+fld3 INT GENERATED ALWAYS AS (-fld1) STORED);
+# Without patch, does not report an error.
+ALTER TABLE t1 ALTER COLUMN fld2 SET DEFAULT -1;
+ERROR HY000: Incorrect usage of DEFAULT and generated column
+ALTER TABLE t1 ALTER COLUMN fld3 SET DEFAULT -1;
+ERROR HY000: Incorrect usage of DEFAULT and generated column
+# Tests added for coverage
+ALTER TABLE t1 CHANGE fld2 fld2 INT GENERATED ALWAYS AS (-fld1) DEFAULT -1;
+ERROR HY000: Incorrect usage of DEFAULT and generated column
+ALTER TABLE t1 MODIFY fld3 INT GENERATED ALWAYS AS (-fld1) STORED DEFAULT -1;
+ERROR HY000: Incorrect usage of DEFAULT and generated column
+DROP TABLE t1;

@@ -3149,3 +3149,28 @@ ALTER TABLE t2 ADD INDEX idx1(fld1(769));
 --echo # Cleanup.
 DROP TABLE t1, t2;
 SET sql_mode= @orig_sql_mode;
+
+
+--echo #
+--echo # BUG#27164393: ALTER COLUMN SET DEFAULT DOES NOT RETURN ERROR
+--echo #               ON GENERATED COLUMNS
+
+
+CREATE TABLE t1(fld1 INT, fld2 INT GENERATED ALWAYS AS (-fld1) VIRTUAL,
+                fld3 INT GENERATED ALWAYS AS (-fld1) STORED); 
+
+--echo # Without patch, does not report an error.
+--error ER_WRONG_USAGE
+ALTER TABLE t1 ALTER COLUMN fld2 SET DEFAULT -1;
+
+--error ER_WRONG_USAGE
+ALTER TABLE t1 ALTER COLUMN fld3 SET DEFAULT -1;
+
+--echo # Tests added for coverage
+--error ER_WRONG_USAGE
+ALTER TABLE t1 CHANGE fld2 fld2 INT GENERATED ALWAYS AS (-fld1) DEFAULT -1;
+
+--error ER_WRONG_USAGE
+ALTER TABLE t1 MODIFY fld3 INT GENERATED ALWAYS AS (-fld1) STORED DEFAULT -1;
+
+DROP TABLE t1;

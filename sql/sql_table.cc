@@ -11376,6 +11376,12 @@ static bool alter_column_name_or_default(Alter_info *alter_info,
         DBUG_RETURN(true);
       }
 
+      // Default value is not permitted for generated columns
+      if (def->field->is_gcol()) {
+        my_error(ER_WRONG_USAGE, MYF(0), "DEFAULT", "generated column");
+        DBUG_RETURN(true);
+      }
+
       def->flags &= ~NO_DEFAULT_VALUE_FLAG;
       /*
         The defaults are explicitly altered for the TIMESTAMP/DATETIME
