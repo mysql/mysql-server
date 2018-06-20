@@ -6293,6 +6293,11 @@ err:
 static int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited) {
   uint i;
   int error = 0;
+  /**
+    gtid_monitoring_info must be cleared when MTS is enabled or
+    workers_copy_pfs has elements
+  */
+  bool clear_gtid_monitoring_info = false;
 
   mysql_mutex_assert_owner(&rli->run_lock);
 
@@ -6340,8 +6345,7 @@ static int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited) {
   rli->checkpoint_seqno = 0;
   rli->mts_last_online_stat = my_time(0);
   rli->mts_group_status = Relay_log_info::MTS_NOT_IN_GROUP;
-  // clear monitoring information
-  rli->clear_gtid_monitoring_info();
+  clear_gtid_monitoring_info = true;
 
   if (init_hash_workers(rli))  // MTS: mapping_db_to_worker
   {
@@ -6361,8 +6365,11 @@ end:
     the table performance_schema.table_replication_applier_status_by_worker
     between stop slave and next start slave.
   */
-  for (int i = static_cast<int>(rli->workers_copy_pfs.size()) - 1; i >= 0; i--)
+  for (int i = static_cast<int>(rli->workers_copy_pfs.size()) - 1; i >= 0;
+       i--) {
     delete rli->workers_copy_pfs[i];
+    if (!clear_gtid_monitoring_info) clear_gtid_monitoring_info = true;
+  }
   rli->workers_copy_pfs.clear();
 
   // Effective end of the recovery right now when there is no gaps
@@ -6373,6 +6380,7 @@ end:
   }
 
 err:
+  if (clear_gtid_monitoring_info) rli->clear_gtid_monitoring_info();
   return error;
 }
 
