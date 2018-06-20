@@ -148,37 +148,34 @@ Dbtup::tuxReadAttrsCurr(EmulatedJamBuffer *jamBuf,
  * ordered indexes.
  */
 int
-Dbtup::tuxReadAttrs(EmulatedJamBuffer * jamBuf,
-                    Uint32 fragPtrI,
-                    Uint32 pageId,
-                    Uint32 pageIndex,
-                    Uint32 tupVersion,
-                    const Uint32* attrIds,
-                    Uint32 numAttrs,
-                    Uint32* dataOut,
-                    bool xfrmFlag)
+Dbtup::tuxReadAttrsOpt(EmulatedJamBuffer * jamBuf,
+                       Uint32* fragPtrP,
+                       Uint32* tablePtrP,
+                       Uint32 pageId,
+                       Uint32 pageIndex,
+                       Uint32 tupVersion,
+                       const Uint32* attrIds,
+                       Uint32 numAttrs,
+                       Uint32* dataOut,
+                       bool xfrmFlag)
 {
   thrjamEntryDebug(jamBuf);
-  // use own variables instead of globals
-  FragrecordPtr fragPtr;
-  fragPtr.i= fragPtrI;
-  ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
-  TablerecPtr tablePtr;
-  tablePtr.i= fragPtr.p->fragTableId;
-  ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
-
   // search for tuple version if not original
 
   Operationrec tmpOp;
   KeyReqStruct req_struct(jamBuf);
-  req_struct.tablePtrP = tablePtr.p;
-  req_struct.fragPtrP = fragPtr.p;
+  req_struct.tablePtrP = (Tablerec*)tablePtrP;
+  req_struct.fragPtrP = (Fragrecord*)fragPtrP;
 
   tmpOp.m_tuple_location.m_page_no= pageId;
   tmpOp.m_tuple_location.m_page_idx= pageIndex;
   tmpOp.op_type = ZREAD; // valgrind
-  setup_fixed_tuple_ref(&req_struct, &tmpOp, tablePtr.p);
-  setup_fixed_part(&req_struct, &tmpOp, tablePtr.p);
+  setup_fixed_tuple_ref(&req_struct,
+                        &tmpOp,
+                        (Tablerec*)tablePtrP);
+  setup_fixed_part(&req_struct,
+                   &tmpOp,
+                   (Tablerec*)tablePtrP);
   return tuxReadAttrsCommon(req_struct,
                             attrIds,
                             numAttrs,
@@ -428,6 +425,49 @@ Dbtup::tuxQueryTh(Uint32 opPtrI,
     }
   }
   return res;
+}
+
+/**
+ * This method is still used by index statistics and debug code.
+ */
+int
+Dbtup::tuxReadAttrs(EmulatedJamBuffer * jamBuf,
+                    Uint32 fragPtrI,
+                    Uint32 pageId,
+                    Uint32 pageIndex,
+                    Uint32 tupVersion,
+                    const Uint32* attrIds,
+                    Uint32 numAttrs,
+                    Uint32* dataOut,
+                    bool xfrmFlag)
+{
+  thrjamEntryDebug(jamBuf);
+  // use own variables instead of globals
+  FragrecordPtr fragPtr;
+  fragPtr.i= fragPtrI;
+  ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
+  TablerecPtr tablePtr;
+  tablePtr.i= fragPtr.p->fragTableId;
+  ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
+
+  // search for tuple version if not original
+
+  Operationrec tmpOp;
+  KeyReqStruct req_struct(jamBuf);
+  req_struct.tablePtrP = tablePtr.p;
+  req_struct.fragPtrP = fragPtr.p;
+
+  tmpOp.m_tuple_location.m_page_no= pageId;
+  tmpOp.m_tuple_location.m_page_idx= pageIndex;
+  tmpOp.op_type = ZREAD; // valgrind
+  setup_fixed_tuple_ref(&req_struct, &tmpOp, tablePtr.p);
+  setup_fixed_part(&req_struct, &tmpOp, tablePtr.p);
+  return tuxReadAttrsCommon(req_struct,
+                            attrIds,
+                            numAttrs,
+                            dataOut,
+                            xfrmFlag,
+                            tupVersion);
 }
 
 // ordered index build

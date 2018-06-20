@@ -47,6 +47,10 @@ Dbtux::prepare_build_ctx(TuxCtx& ctx, FragPtr fragPtr)
   indexPtr.i = fragPtr.p->m_indexId;
   c_indexPool.getPtr(indexPtr);
   ctx.indexPtr = indexPtr;
+  const Index& index = *c_ctx.indexPtr.p;
+  const DescHead& descHead = getDescHead(index);
+  const AttributeHeader* keyAttrs = getKeyAttrs(descHead);
+  ctx.keyAttrs = (Uint32*)keyAttrs;
   prepare_all_tup_ptrs(ctx);
 }
 
@@ -73,13 +77,13 @@ Dbtux::prepare_scan_bounds()
                      scanBound.m_side);
     (void)searchBoundArray;
 
-    const DescHead& descHead = getDescHead(index);
-    const AttributeHeader* keyAttrs = getKeyAttrs(descHead);
-    c_ctx.keyAttrs = (Uint32*)keyAttrs;
   }
+  const DescHead& descHead = getDescHead(index);
+  const AttributeHeader* keyAttrs = getKeyAttrs(descHead);
+  c_ctx.keyAttrs = (Uint32*)keyAttrs;
   c_ctx.descending = scan.m_descending;
   c_ctx.scanBoundCnt = scanBound.m_cnt;
-  prepare_tup_ptrs(c_ctx);
+  prepare_all_tup_ptrs(c_ctx);
 }
 
 void

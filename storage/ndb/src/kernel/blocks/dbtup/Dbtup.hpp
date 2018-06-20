@@ -1866,6 +1866,16 @@ public:
                    Uint32 numAttrs,
                    Uint32* dataOut,
                    bool xfrmFlag);
+  int tuxReadAttrsOpt(EmulatedJamBuffer*,
+                      Uint32* fragPtrP,
+                      Uint32* tablePtrP,
+                      Uint32 pageId,
+                      Uint32 pageOffset,
+                      Uint32 tupVersion,
+                      const Uint32* attrIds,
+                      Uint32 numAttrs,
+                      Uint32* dataOut,
+                      bool xfrmFlag);
   int tuxReadAttrsCurr(EmulatedJamBuffer*,
                        const Uint32* attrIds,
                        Uint32 numAttrs,
@@ -2244,11 +2254,6 @@ public:
   void prepare_scan_tux_TUPKEYREQ(Uint32 page_id, Uint32 page_idx);
   void prepare_op_pointer(Uint32 opPtrI);
   void prepare_tab_pointers(Uint32 fragPtrI);
-  void get_tup_ptrs(Uint32 indexFragPtrI,
-                    Uint32** index_fragptr,
-                    Uint32** index_tabptr,
-                    Uint32& attrDataOffset,
-                    Uint32& tuxFixHeaderSize);
   void get_all_tup_ptrs(Uint32 indexFragPtrI,
                         Uint32 tableFragPtrI,
                         Uint32** index_fragptr,
@@ -4261,29 +4266,6 @@ Dbtup::get_all_tup_ptrs(Uint32 indexFragPtrI,
   ptrCheckGuard(realTablePtr, cnoOfTablerec, tablerec);
   *real_fragptr = (Uint32*)realFragPtr.p;
   *real_tabptr = (Uint32*)realTablePtr.p;
-}
-
-inline
-void
-Dbtup::get_tup_ptrs(Uint32 indexFragPtrI,
-                    Uint32 **index_fragptr,
-                    Uint32 **index_tabptr,
-                    Uint32 &attrDataOffset,
-                    Uint32 &tuxFixHeaderSize)
-{
-  FragrecordPtr indexFragPtr;
-  indexFragPtr.i= indexFragPtrI;
-  ptrCheckGuard(indexFragPtr, cnoOfFragrec, fragrecord);
-  TablerecPtr indexTablePtr;
-  indexTablePtr.i= indexFragPtr.p->fragTableId;
-  ptrCheckGuard(indexTablePtr, cnoOfTablerec, tablerec);
-  *index_fragptr = (Uint32*)indexFragPtr.p;
-  *index_tabptr = (Uint32*)indexTablePtr.p;
-
-  Uint32 attrDescIndex= indexTablePtr.p->tabDescriptor;
-  attrDataOffset = AttributeOffset::getOffset(
-                            tableDescriptor[attrDescIndex + 1].tabDescr);
-  tuxFixHeaderSize = indexTablePtr.p->m_offsets[MM].m_fix_header_size;
 }
 
 // Dbtup_client provides proxying similar to Page_cache_client

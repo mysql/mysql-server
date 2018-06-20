@@ -46,11 +46,12 @@ Dbtux::findNodeToUpdate(TuxCtx& ctx,
   const Uint32 numAttrs = index.m_numAttrs;
   const Uint32 prefAttrs = index.m_prefAttrs;
   NodeHandle glbNode(frag);     // potential g.l.b of final node
-  while (true) {
+  while (true)
+  {
     thrjamDebug(ctx.jamBuffer);
     selectNode(ctx, currNode, currNode.m_loc);
     int ret = 0;
-    if (prefAttrs > 0)
+    if (likely(prefAttrs > 0))
     {
       thrjamDebug(ctx.jamBuffer);
       KeyDataArray key_data;
@@ -70,7 +71,7 @@ Dbtux::findNodeToUpdate(TuxCtx& ctx,
       key_data.init_poai(ctx.c_dataBuffer, numAttrs);
       ret = searchBound.cmp(&key_data);
     }
-    if (ret == 0)
+    if (unlikely(ret == 0))
     {
       thrjamDebug(ctx.jamBuffer);
       // keys are equal, compare entry values
@@ -147,7 +148,7 @@ Dbtux::findPosToAdd(TuxCtx& ctx,
     KeyDataArray key_data;
     key_data.init_poai(ctx.c_dataBuffer, index.m_numAttrs);
     int ret = searchBound.cmp(&key_data);
-    if (ret == 0)
+    if (unlikely(ret == 0))
     {
       thrjamDebug(ctx.jamBuffer);
       // keys are equal, compare entry values
@@ -266,7 +267,6 @@ Dbtux::searchToRemove(TuxCtx& ctx,
   {
     return true;
   }
-  ndbassert(false);
   thrjam(ctx.jamBuffer);
   return false;
 }
