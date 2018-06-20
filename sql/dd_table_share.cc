@@ -760,11 +760,11 @@ static uint column_preamble_bits(const dd::Column *col_obj) {
   return result;
 }
 
-static Field *make_field(const dd::Column &col_obj, TABLE_SHARE *share,
-                         uchar *ptr, uchar *null_pos, size_t null_bit) {
+static Field *make_field(const dd::Column &col_obj, const CHARSET_INFO *charset,
+                         TABLE_SHARE *share, uchar *ptr, uchar *null_pos,
+                         size_t null_bit) {
   auto field_type = dd_get_old_field_type(col_obj.type());
   auto field_length = col_obj.char_length();
-  auto charset = get_charset(static_cast<uint>(col_obj.collation_id()), MYF(0));
 
   auto column_options = const_cast<dd::Properties *>(&col_obj.options());
 
@@ -923,6 +923,7 @@ static bool fill_column_from_dd(THD *thd, TABLE_SHARE *share,
                     "invalid collation id %llu for table %s, column %s", MYF(0),
                     col_obj->collation_id(), share->table_name.str, name);
     if (thd->is_error()) return true;
+    charset = default_charset_info;
   }
 
   // Decimals
@@ -1009,7 +1010,8 @@ static bool fill_column_from_dd(THD *thd, TABLE_SHARE *share,
   // Create FIELD
   //
 
-  reg_field = make_field(*col_obj, share, rec_pos, null_pos, null_bit_pos);
+  reg_field =
+      make_field(*col_obj, charset, share, rec_pos, null_pos, null_bit_pos);
 
   reg_field->field_index = field_nr;
   reg_field->gcol_info = gcol_info;
