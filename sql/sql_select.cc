@@ -38,6 +38,7 @@
 #include <atomic>
 #include <memory>
 #include <new>
+#include <vector>
 
 #include "lex_string.h"
 #include "limits.h"
@@ -53,6 +54,7 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // *_ACL
 #include "sql/auth/sql_security_ctx.h"
+#include "sql/composite_iterators.h"
 #include "sql/current_thd.h"
 #include "sql/debug_sync.h"  // DEBUG_SYNC
 #include "sql/enum_query_type.h"
@@ -100,6 +102,7 @@ class Opt_trace_context;
 
 using std::max;
 using std::min;
+using std::vector;
 
 const char store_key_const_item::static_name[] = "const";
 
@@ -4694,12 +4697,26 @@ bool JOIN::add_sorting_to_table(uint idx, ORDER_with_src *sort_order,
   Opt_trace_object trace_tmp(&thd->opt_trace, "filesort");
   trace_tmp.add("adding_sort_to_table_in_plan_at_position", idx);
 
+  unique_ptr_destroy_only<RowIterator> iterator =
+      move(tab->read_record.iterator);
+
+  if (tab->condition()) {
+    vector<Item *> predicates_below_join;
+    vector<PendingCondition> predicates_above_join;
+    SplitConditions(tab->condition(), &predicates_below_join,
+                    &predicates_above_join);
+
+    iterator = PossiblyAttachFilterIterator(move(iterator),
+                                            predicates_below_join, thd);
+    tab->mark_condition_as_pushed_to_sort();
+  }
+
   // Wrap the chosen RowIterator in a SortingIterator, so that we get
   // sorted results out.
   unique_ptr_destroy_only<RowIterator> sort(
-      new (&tab->read_record.sort_holder) SortingIterator(
-          tab->join()->thd, tab->filesort, move(tab->read_record.iterator),
-          &tab->join()->examined_rows));
+      new (&tab->read_record.sort_holder)
+          SortingIterator(tab->join()->thd, tab->filesort, move(iterator),
+                          &tab->join()->examined_rows));
   tab->read_record.iterator = move(sort);
 
   DBUG_RETURN(false);

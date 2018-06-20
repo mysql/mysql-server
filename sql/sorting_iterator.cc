@@ -670,10 +670,6 @@ vector<string> SortingIterator::DebugString() const {
       ret += " DESC";
     }
   }
-  if (m_filesort->qep_tab->condition() != nullptr) {
-    // FIXME: Get rid of filtering in filesort.
-    ret += " (with hidden filter)";
-  }
   if (m_filesort->limit != HA_POS_ERROR) {
     char buf[256];
     snprintf(buf, sizeof(buf), ", limit input to %llu row(s) per chunk",

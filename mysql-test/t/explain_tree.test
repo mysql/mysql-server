@@ -174,7 +174,7 @@ EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f1 = ( SELECT MIN(f1) FROM t1 AS i WH
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f1 > ( SELECT f1 FROM t1 LIMIT 1 );
 DROP TABLE t1;
 
-# Condition pushed into filesort (and thus hidden).
+# Condition pushed before filesort.
 CREATE TABLE t1 (a INTEGER, b INTEGER);
 INSERT INTO t1 VALUES (1,3), (2,4), (1,5),
 (1,3), (2,1), (1,5), (1,7), (3,1),
@@ -217,3 +217,12 @@ EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN (
     LATERAL ( SELECT * FROM t4 WHERE t4.a = t3.a LIMIT 1 ) t4d
 ) ON t1.a = t4d.a;
 DROP TABLE t1, t2, t3, t4;
+
+# Demonstrate a shortcoming in printing table iterators on MaterializeIterator;
+# we're not showing the sub-iterator for the WHERE subquery, just marking it as
+# “other sub-iterators not shown”. See MaterializeIterator::DebugString() for
+# more information.
+CREATE TABLE t1 ( f1 INTEGER );
+EXPLAIN FORMAT=TREE SELECT * FROM ( SELECT * FROM t1 LIMIT 2 OFFSET 1 ) AS alias1
+  WHERE f1 <= ANY ( SELECT f1 FROM t1 ) ORDER BY f1;
+DROP TABLE t1;

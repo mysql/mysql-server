@@ -50,7 +50,8 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // check_grant, check_access
 #include "sql/basic_row_iterators.h"
-#include "sql/binlog.h"      // mysql_bin_log
+#include "sql/binlog.h"  // mysql_bin_log
+#include "sql/composite_iterators.h"
 #include "sql/debug_sync.h"  // DEBUG_SYNC
 #include "sql/derror.h"      // ER_THD
 #include "sql/field.h"       // Field
@@ -74,6 +75,7 @@
 #include "sql/query_options.h"
 #include "sql/records.h"  // READ_RECORD
 #include "sql/row_iterator.h"
+#include "sql/select_lex_visitor.h"
 #include "sql/sorting_iterator.h"
 #include "sql/sql_array.h"
 #include "sql/sql_base.h"  // check_record, fill_record
@@ -577,13 +579,19 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         setup_read_record(&info, thd, NULL, &qep_tab, false,
                           /*ignore_not_found_rows=*/false, &examined_rows);
 
+        unique_ptr_destroy_only<RowIterator> iterator = move(info.iterator);
+
+        if (qep_tab.condition() != nullptr) {
+          iterator.reset(new (&info.sort_condition_holder) FilterIterator(
+              thd, move(iterator), qep_tab.condition()));
+        }
+
         // Force filesort to sort by position.
         qep_tab.keep_current_rowid = true;
         fsort.reset(new (thd->mem_root) Filesort(&qep_tab, order, limit));
-        unique_ptr_destroy_only<RowIterator> sort(
-            new (&info.sort_holder)
-                SortingIterator(thd, fsort.get(), move(info.iterator),
-                                /*examined_rows=*/nullptr));
+        unique_ptr_destroy_only<RowIterator> sort(new (
+            &info.sort_holder) SortingIterator(thd, fsort.get(), move(iterator),
+                                               /*examined_rows=*/nullptr));
         if (sort->Init()) DBUG_RETURN(true);
         info.iterator = move(sort);
         thd->inc_examined_row_count(examined_rows);

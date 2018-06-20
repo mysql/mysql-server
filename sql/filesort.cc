@@ -959,9 +959,6 @@ static ha_rows read_all_rows(
   Filesort_error_handler error_handler(thd);
 
   DBUG_ENTER("read_all_rows");
-  DBUG_PRINT("info", ("using: %s", (qep_tab->condition()
-                                        ? qep_tab->quick() ? "ranges" : "where"
-                                        : "every row")));
 
   int error = 0;
   TABLE *sort_form = param->sort_form;
@@ -1034,48 +1031,39 @@ static ha_rows read_all_rows(
       goto cleanup;
     }
 
-    bool skip_record;
-    if (!qep_tab->skip_record(thd, &skip_record) && !skip_record) {
-      ++(*found_rows);
-      num_total_records++;
-      if (pq)
-        pq->push(ref_pos);
-      else {
-        bool out_of_mem = alloc_and_make_sortkey(param, fs_info, ref_pos);
-        if (out_of_mem) {
-          // Out of room, so flush chunk to disk (if there's anything to flush).
-          if (num_records_this_chunk > 0) {
-            if (write_keys(param, fs_info, num_records_this_chunk, chunk_file,
-                           tempfile)) {
-              num_total_records = HA_POS_ERROR;
-              goto cleanup;
-            }
-            num_records_this_chunk = 0;
-            num_written_chunks++;
-            fs_info->reset();
-
-            // Now we should have room for a new row.
-            out_of_mem = alloc_and_make_sortkey(param, fs_info, ref_pos);
-          }
-
-          // If we're still out of memory after flushing to disk, give up.
-          if (out_of_mem) {
-            my_error(ER_OUT_OF_SORTMEMORY, ME_FATALERROR);
-            LogErr(ERROR_LEVEL, ER_SERVER_OUT_OF_SORTMEMORY);
+    ++(*found_rows);
+    num_total_records++;
+    if (pq)
+      pq->push(ref_pos);
+    else {
+      bool out_of_mem = alloc_and_make_sortkey(param, fs_info, ref_pos);
+      if (out_of_mem) {
+        // Out of room, so flush chunk to disk (if there's anything to flush).
+        if (num_records_this_chunk > 0) {
+          if (write_keys(param, fs_info, num_records_this_chunk, chunk_file,
+                         tempfile)) {
             num_total_records = HA_POS_ERROR;
             goto cleanup;
           }
+          num_records_this_chunk = 0;
+          num_written_chunks++;
+          fs_info->reset();
+
+          // Now we should have room for a new row.
+          out_of_mem = alloc_and_make_sortkey(param, fs_info, ref_pos);
         }
 
-        num_records_this_chunk++;
+        // If we're still out of memory after flushing to disk, give up.
+        if (out_of_mem) {
+          my_error(ER_OUT_OF_SORTMEMORY, ME_FATALERROR);
+          LogErr(ERROR_LEVEL, ER_SERVER_OUT_OF_SORTMEMORY);
+          num_total_records = HA_POS_ERROR;
+          goto cleanup;
+        }
       }
+
+      num_records_this_chunk++;
     }
-    /*
-      Don't try unlocking the row if skip_record reported an error since in
-      this case the transaction might have been rolled back already.
-    */
-    else if (!thd->is_error())
-      file->unlock_row();
     /* It does not make sense to read more keys in case of a fatal error */
     if (thd->is_error()) break;
   }

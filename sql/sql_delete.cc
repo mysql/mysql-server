@@ -40,8 +40,9 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // check_table_access
 #include "sql/binlog.h"            // mysql_bin_log
-#include "sql/debug_sync.h"        // DEBUG_SYNC
-#include "sql/filesort.h"          // Filesort
+#include "sql/composite_iterators.h"
+#include "sql/debug_sync.h"  // DEBUG_SYNC
+#include "sql/filesort.h"    // Filesort
 #include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/key_spec.h"
@@ -76,6 +77,7 @@
 class COND_EQUAL;
 class Item_exists_subselect;
 class Opt_trace_context;
+class Select_lex_visitor;
 
 bool Sql_cmd_delete::precheck(THD *thd) {
   DBUG_ENTER("Sql_cmd_delete::precheck");
@@ -430,11 +432,17 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     if (need_sort) {
       DBUG_ASSERT(usable_index == MAX_KEY);
 
+      unique_ptr_destroy_only<RowIterator> iterator = move(info.iterator);
+
+      if (qep_tab.condition() != nullptr) {
+        iterator.reset(new (&info.sort_condition_holder) FilterIterator(
+            thd, move(iterator), qep_tab.condition()));
+      }
+
       fsort.reset(new (thd->mem_root) Filesort(&qep_tab, order, HA_POS_ERROR));
-      unique_ptr_destroy_only<RowIterator> sort(
-          new (&info.sort_holder)
-              SortingIterator(thd, fsort.get(), move(info.iterator),
-                              /*rows_examined=*/nullptr));
+      unique_ptr_destroy_only<RowIterator> sort(new (
+          &info.sort_holder) SortingIterator(thd, fsort.get(), move(iterator),
+                                             /*rows_examined=*/nullptr));
       qep_tab.keep_current_rowid = true;  // Force filesort to sort by position.
       if (sort->Init()) DBUG_RETURN(true);
       info.iterator = move(sort);

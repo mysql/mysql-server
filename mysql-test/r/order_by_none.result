@@ -742,8 +742,8 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = 1) or isnull(`test`.`t1`.`b`)) order by `test`.`t1`.`a`
 explain format=tree select * from t1 where b=1 or b is null order by a;
 EXPLAIN
--> Filter: ((t1.b = 1) or isnull(t1.b))
-    -> Sort: t1.a (with hidden filter)
+-> Sort: t1.a
+    -> Filter: ((t1.b = 1) or isnull(t1.b))
         -> Index lookup on t1 using b (b=1 or NULL)
 
 select * from t1 where b=1 or b is null order by a;

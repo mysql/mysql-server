@@ -1155,7 +1155,7 @@ static void ExtractConditions(Item *condition,
   conditions (if any), ANDed together. If there are no conditions, just return
   the given iterator back.
  */
-static unique_ptr_destroy_only<RowIterator> PossiblyAttachFilterIterator(
+unique_ptr_destroy_only<RowIterator> PossiblyAttachFilterIterator(
     unique_ptr_destroy_only<RowIterator> iterator,
     const vector<Item *> &conditions, THD *thd) {
   if (conditions.empty()) {
@@ -1211,17 +1211,6 @@ static unique_ptr_destroy_only<RowIterator> CreateInvalidatorIterator(
   }
   return unique_ptr_destroy_only<RowIterator>(invalidator);
 }
-
-/*
-  If a condition cannot be applied right away, for instance because it is a
-  WHERE condition and we're on the right side of an outer join, we have to
-  return it up so that it can be applied on a higher recursion level.
-  This structure represents such a condition.
- */
-struct PendingCondition {
-  Item *cond;
-  int table_index_to_attach_to;  // -1 means “on the last possible outer join”.
-};
 
 static unique_ptr_destroy_only<RowIterator> PossiblyAttachFilterIterator(
     unique_ptr_destroy_only<RowIterator> iterator,
@@ -1296,6 +1285,79 @@ struct PendingInvalidator {
   QEP_TAB *qep_tab;
   int table_index_to_attach_to;  // -1 means “on the last possible outer join”.
 };
+
+/*
+  There are three kinds of conditions stored into a table's QEP_TAB object:
+
+  1. Join conditions (where not optimized into EQ_REF accesses or similar).
+     These are attached as a condition on the rightmost table of the join;
+     if it's an outer join, they are wrapped in a “not_null_compl”
+     condition, to mark that they should not be applied to the NULL values
+     synthesized when no row is found. These can be kept on the table, and
+     we don't really need the not_null_compl wrapper as long as we don't
+     move the condition up above the join (which we don't).
+
+  2. WHERE predicates referring to the table, and possibly also one or more
+     earlier tables in the join. These should normally be kept on the table,
+     so we can discard rows as early as possible (but see next point).
+     We should test these after the join conditions, though, as they may
+     have side effects. Also note that these may be pushed below sort
+     operations for efficiency -- in fact, they already have, so we should
+     not try to re-apply them.
+
+  3. Predicates like in #2 that are on the inner (right) side of a
+     left join. These conditions must be moved _above_ the join, as they
+     should also be tested for NULL-complemented rows the join may generate.
+     E.g., for t1 LEFT JOIN t2 WHERE t1.x + t2.x > 3, the condition will be
+     attached to t2's QEP_TAB, but needs to be attached above the join, or
+     it would erroneously keep rows wherever t2 did not produce a
+     (real) row. Such conditions are marked with a “found” trigger (in the
+     old execution engine, which tested qep_tab->condition() both before and
+     after the join, it would need to be exempt from the first test).
+
+  4. Predicates that are #1 _and_ #3. These can happen with more complicated
+     outer joins; e.g., with t1 LEFT JOIN ( t2 LEFT JOIN t3 ON <x> ) ON <y>,
+     the <x> join condition (posted on t3) should be above one join but
+     below the other.
+
+  TODO: The optimizer should distinguish between before-join and
+  after-join conditions to begin with, instead of us having to untangle
+  it here.
+ */
+void SplitConditions(Item *condition, vector<Item *> *predicates_below_join,
+                     vector<PendingCondition> *predicates_above_join) {
+  vector<Item *> condition_parts;
+  ExtractConditions(condition, &condition_parts);
+  for (Item *item : condition_parts) {
+    Item_func_trig_cond *trig_cond = GetTriggerCondOrNull(item);
+    if (trig_cond != nullptr) {
+      Item *inner_cond = trig_cond->arguments()[0];
+      if (trig_cond->get_trig_type() == Item_func_trig_cond::FOUND_MATCH) {
+        // A WHERE predicate on the table that needs to be pushed up above the
+        // join (case #3 above). Push it up to above the last outer join.
+        predicates_above_join->push_back(PendingCondition{inner_cond, -1});
+      } else if (trig_cond->get_trig_type() ==
+                 Item_func_trig_cond::IS_NOT_NULL_COMPL) {
+        // It's a join condition, so it should nominally go directly onto the
+        // table. If it _also_ has a FOUND_MATCH predicate, we are dealing
+        // with case #4 above, and need to push it up to exactly the right
+        // spot.
+        Item_func_trig_cond *inner_trig_cond = GetTriggerCondOrNull(inner_cond);
+        if (inner_trig_cond != nullptr) {
+          Item *inner_inner_cond = inner_trig_cond->arguments()[0];
+          predicates_above_join->push_back(
+              PendingCondition{inner_inner_cond, inner_trig_cond->idx()});
+        } else {
+          predicates_below_join->push_back(inner_cond);
+        }
+      } else {
+        predicates_below_join->push_back(item);
+      }
+    } else {
+      predicates_below_join->push_back(item);
+    }
+  }
+}
 
 /**
   For a given slice of the table list, build up the iterator tree corresponding
@@ -1480,78 +1542,15 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       table_iterator = move(qep_tab->read_record.iterator);
     }
 
-    /*
-      There are three kinds of conditions stored into a table's QEP_TAB object:
-
-      1. Join conditions (where not optimized into EQ_REF accesses or similar).
-         These are attached as a condition on the rightmost table of the join;
-         if it's an outer join, they are wrapped in a “not_null_compl”
-         condition, to mark that they should not be applied to the NULL values
-         synthesized when no row is found. These can be kept on the table, and
-         we don't really need the not_null_compl wrapper as long as we don't
-         move the condition up above the join (which we don't).
-
-      2. WHERE predicates referring to the table, and possibly also one or more
-         earlier tables in the join. These should normally be kept on the table,
-         so we can discard rows as early as possible (but see next point).
-         We should test these after the join conditions, though, as they may
-         have side effects.
-
-      3. Predicates like in #2 that are on the inner (right) side of a
-         left join. These conditions must be moved _above_ the join, as they
-         should also be tested for NULL-complemented rows the join may generate.
-         E.g., for t1 LEFT JOIN t2 WHERE t1.x + t2.x > 3, the condition will be
-         attached to t2's QEP_TAB, but needs to be attached above the join, or
-         it would erroneously keep rows wherever t2 did not produce a
-         (real) row. Such conditions are marked with a “found” trigger (in the
-         old execution engine, which tested qep_tab->condition() both before and
-         after the join, it would need to be exempt from the first test).
-
-      4. Predicates that are #1 _and_ #3. These can happen with more complicated
-         outer joins; e.g., with t1 LEFT JOIN ( t2 LEFT JOIN t3 ON <x> ) ON <y>,
-         the <x> join condition (posted on t3) should be above one join but
-         below the other.
-
-      TODO: The optimizer should distinguish between before-join and
-      after-join conditions to begin with, instead of us having to untangle
-      it here.
-     */
-    vector<Item *> condition_parts, predicates_below_join;
+    vector<Item *> predicates_below_join;
     vector<PendingCondition> predicates_above_join;
-    ExtractConditions(qep_tab->condition(), &condition_parts);
-    for (Item *item : condition_parts) {
-      Item_func_trig_cond *trig_cond = GetTriggerCondOrNull(item);
-      if (trig_cond != nullptr) {
-        Item *inner_cond = trig_cond->arguments()[0];
-        if (trig_cond->get_trig_type() == Item_func_trig_cond::FOUND_MATCH) {
-          // A WHERE predicate on the table that needs to be pushed up above the
-          // join (case #3 above). Push it up to above the last outer join.
-          predicates_above_join.push_back(PendingCondition{inner_cond, -1});
-        } else if (trig_cond->get_trig_type() ==
-                   Item_func_trig_cond::IS_NOT_NULL_COMPL) {
-          // It's a join condition, so it should nominally go directly onto the
-          // table. If it _also_ has a FOUND_MATCH predicate, we are dealing
-          // with case #4 above, and need to push it up to exactly the right
-          // spot.
-          Item_func_trig_cond *inner_trig_cond =
-              GetTriggerCondOrNull(inner_cond);
-          if (inner_trig_cond != nullptr) {
-            Item *inner_inner_cond = inner_trig_cond->arguments()[0];
-            predicates_above_join.push_back(
-                PendingCondition{inner_inner_cond, inner_trig_cond->idx()});
-          } else {
-            predicates_below_join.push_back(inner_cond);
-          }
-        } else {
-          predicates_below_join.push_back(item);
-        }
-      } else {
-        predicates_below_join.push_back(item);
-      }
-    }
+    SplitConditions(qep_tab->condition(), &predicates_below_join,
+                    &predicates_above_join);
 
-    table_iterator = PossiblyAttachFilterIterator(move(table_iterator),
-                                                  predicates_below_join, thd);
+    if (!qep_tab->condition_is_pushed_to_sort()) {  // See the comment on #2.
+      table_iterator = PossiblyAttachFilterIterator(move(table_iterator),
+                                                    predicates_below_join, thd);
+    }
 
     if (qep_tab->lateral_derived_tables_depend_on_me) {
       if (pending_invalidators != nullptr) {
@@ -1815,12 +1814,10 @@ void JOIN::create_iterators() {
       // as this iterator always rematerializes anyway.
     }
 
-    // TODO: Pull the filtering out of filesort, so this works for
-    // filesort != nullptr, too.
-    if (qep_tab->condition() != nullptr && filesort == nullptr) {
+    if (qep_tab->condition() != nullptr) {
       iterator.reset(new (thd->mem_root) FilterIterator(thd, move(iterator),
                                                         qep_tab->condition()));
-      qep_tab->set_condition(nullptr);
+      qep_tab->mark_condition_as_pushed_to_sort();
     }
 
     if (filesort != nullptr) {
@@ -3606,12 +3603,21 @@ void join_setup_read_record(QEP_TAB *tab) {
                     /*ignore_not_found_rows=*/false, /*examined_rows=*/nullptr);
 
   if (tab->filesort) {
+    unique_ptr_destroy_only<RowIterator> iterator =
+        move(tab->read_record.iterator);
+
+    if (tab->condition()) {
+      iterator.reset(new (&tab->read_record.sort_condition_holder)
+                         FilterIterator(tab->join()->thd, move(iterator),
+                                        tab->condition()));
+    }
+
     // Wrap the chosen RowIterator in a SortingIterator, so that we get
     // sorted results out.
     unique_ptr_destroy_only<RowIterator> sort(
-        new (&tab->read_record.sort_holder) SortingIterator(
-            tab->join()->thd, tab->filesort, move(tab->read_record.iterator),
-            &tab->join()->examined_rows));
+        new (&tab->read_record.sort_holder)
+            SortingIterator(tab->join()->thd, tab->filesort, move(iterator),
+                            &tab->join()->examined_rows));
     tab->read_record.iterator = move(sort);
   }
 }

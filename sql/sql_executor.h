@@ -715,4 +715,23 @@ void init_tmptable_sum_functions(Item_sum **func_ptr);
 bool update_sum_func(Item_sum **func_ptr);
 void update_tmptable_sum_func(Item_sum **func_ptr, TABLE *tmp_table);
 
+/*
+  If a condition cannot be applied right away, for instance because it is a
+  WHERE condition and we're on the right side of an outer join, we have to
+  return it up so that it can be applied on a higher recursion level.
+  This structure represents such a condition.
+ */
+struct PendingCondition {
+  Item *cond;
+  int table_index_to_attach_to;  // -1 means “on the last possible outer join”.
+};
+
+unique_ptr_destroy_only<RowIterator> PossiblyAttachFilterIterator(
+    unique_ptr_destroy_only<RowIterator> iterator,
+    const std::vector<Item *> &conditions, THD *thd);
+
+void SplitConditions(Item *condition,
+                     std::vector<Item *> *predicates_below_join,
+                     std::vector<PendingCondition> *predicates_above_join);
+
 #endif /* SQL_EXECUTOR_INCLUDED */
