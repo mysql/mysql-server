@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,13 +35,27 @@
     return NDBT_FAILED; \
   }
 
+static void inline generateEventName(char* eventName,
+                                     const char* tabName, uint eventId)
+{
+  if (eventId == 0)
+  {
+    sprintf(eventName, "%s_EVENT", tabName);
+  }
+  else
+  {
+    sprintf(eventName, "%s_EVENT_%d", tabName, eventId);
+  }
+}
+
 static int createEvent(Ndb *pNdb,
                        const NdbDictionary::Table &tab,
                        bool merge_events,
-                       bool report)
+                       bool report,
+                       uint eventId = 0)
 {
   char eventName[1024];
-  sprintf(eventName,"%s_EVENT",tab.getName());
+  generateEventName(eventName, tab.getName(), eventId);
 
   NdbDictionary::Dictionary *myDict = pNdb->getDictionary();
 
@@ -110,10 +124,11 @@ static int createEvent(Ndb *pNdb,
   return createEvent(pNdb, tab, merge_events, report);
 }
 
-static int dropEvent(Ndb *pNdb, const NdbDictionary::Table &tab)
+static int dropEvent(Ndb *pNdb, const NdbDictionary::Table &tab,
+                     uint eventId = 0)
 {
   char eventName[1024];
-  sprintf(eventName,"%s_EVENT",tab.getName());
+  generateEventName(eventName, tab.getName(), eventId);
   NdbDictionary::Dictionary *myDict = pNdb->getDictionary();
   if (!myDict) {
     g_err << "Dictionary not found " 
@@ -133,11 +148,12 @@ static int dropEvent(Ndb *pNdb, const NdbDictionary::Table &tab)
 static
 NdbEventOperation *createEventOperation(Ndb *ndb,
                                         const NdbDictionary::Table &tab,
-                                        int do_report_error = 1)
+                                        int do_report_error = 1,
+                                        int eventId = 0)
 {
-  char buf[1024];
-  sprintf(buf, "%s_EVENT", tab.getName());
-  NdbEventOperation *pOp= ndb->createEventOperation(buf);
+  char eventName[1024];
+  generateEventName(eventName, tab.getName(), eventId);
+  NdbEventOperation *pOp= ndb->createEventOperation(eventName);
   if (pOp == 0)
   {
     if (do_report_error)
@@ -5319,6 +5335,273 @@ runSlowGCPCompleteAck(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
+#include "NdbMgmd.hpp"
+int runGetLogEventParsable(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbMgmd mgmd;
+  if (!mgmd.connect())
+    return NDBT_FAILED;
+
+  int filter[] = {15, NDB_MGM_EVENT_CATEGORY_INFO, 0};
+
+  NdbLogEventHandle le_handle =
+    ndb_mgm_create_logevent_handle(mgmd.handle(), filter);
+  if (!le_handle)
+    return NDBT_FAILED;
+
+  struct ndb_logevent le_event;
+  int statusMsges = 0, statusMsges2 = 0;
+
+   while (!ctx->isTestStopped())
+   {
+     int r = ndb_logevent_get_next2(le_handle,
+                                   &le_event,
+                                   2000);
+     if(r>0)
+     {
+       switch(le_event.type)
+       {
+       case NDB_LE_EventBufferStatus:
+         {
+           statusMsges++;
+           Uint32 alloc = le_event.EventBufferStatus.alloc;
+           Uint32 max = le_event.EventBufferStatus.max;
+           Uint32 used = le_event.EventBufferStatus.usage;
+           Uint32 used_pct = 0;
+           if (alloc != 0)
+             used_pct = (Uint32)((((Uint64)used)*100)/alloc);
+           Uint32 allocd_pct = 0;
+           if (max != 0)
+             allocd_pct = (Uint32)((((Uint64)alloc)*100)/max);
+
+           g_err << "Parsable str: Event buffer status: ";
+           g_err << "used=" << le_event.EventBufferStatus.usage
+                 << "(" << used_pct << "%) "
+                 << "alloc=" << alloc;
+           if (max != 0)
+             g_err << "(" << allocd_pct << "%)";
+           g_err << " max=" << max
+                 << " apply_gci " << le_event.EventBufferStatus.apply_gci_l
+                 << "/" << le_event.EventBufferStatus.apply_gci_h
+                 << " latest_gci " << le_event.EventBufferStatus.latest_gci_l
+                 << "/" << le_event.EventBufferStatus.latest_gci_h
+                 << endl;
+         }
+         break;
+       case NDB_LE_EventBufferStatus2:
+         {
+           Uint32 alloc = le_event.EventBufferStatus2.alloc;
+           Uint32 max = le_event.EventBufferStatus2.max;
+           Uint32 used = le_event.EventBufferStatus2.usage;
+           Uint32 used_pct = 0;
+           if (alloc != 0)
+             used_pct = (Uint32)((((Uint64)used)*100)/alloc);
+           Uint32 allocd_pct = 0;
+           if (max != 0)
+             allocd_pct = (Uint32)((((Uint64)alloc)*100)/max);
+
+           Uint32 ndb_ref = le_event.EventBufferStatus2.ndb_reference;
+           Uint32 reason = le_event.EventBufferStatus2.report_reason;
+           if (tardy_ndb_ref == ndb_ref && reason != 0)
+             statusMsges2++;
+
+           g_err << "Parsable str: Event buffer status2 "
+                 << "(" << hex << ndb_ref << "): " << dec
+                 << "used=" << used
+                 << "(" << used_pct << "%) "
+                 << "alloc=" << alloc;
+           if (max != 0)
+             g_err << "(" << allocd_pct << "%)";
+           g_err << " max=" << max
+                 << " latest_consumed_epoch "
+                 << le_event.EventBufferStatus2.latest_consumed_epoch_l
+                 << "/" << le_event.EventBufferStatus2.latest_consumed_epoch_h
+                 << " latest_buffered_epoch "
+                 << le_event.EventBufferStatus2.latest_buffered_epoch_l
+                 << "/" << le_event.EventBufferStatus2.latest_buffered_epoch_h
+                 << " reason " << reason
+                 << endl;
+         }
+         break;
+       default:
+         break;
+       }
+     }
+     else if (r<0)
+     {
+       g_err << "ERROR: ndb_logevent_get_next returned error: "
+             << r << endl;
+     }
+     else
+     {
+       g_info << "ndb_logevent_get_next returned timeout" << endl;
+     }
+  }
+  ndb_mgm_destroy_logevent_handle(&le_handle);
+
+ if (ctx->getProperty("BufferUsage2") && statusMsges2 > 0)
+    return NDBT_OK;
+
+  if (statusMsges > 0)
+    return NDBT_OK;
+
+  g_err << "ERROR: No EventBufferStatus msg received" << endl;
+  return NDBT_FAILED;
+}
+
+int runGetLogEventPretty(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbMgmd mgmd;
+
+  if (!mgmd.connect())
+    return NDBT_FAILED;
+
+  int filter[] = {15, NDB_MGM_EVENT_CATEGORY_INFO, 0};
+  ndb_native_socket_t fd= ndb_mgm_listen_event(mgmd.handle(), filter);
+  ndb_socket_t my_fd = ndb_socket_create_from_native(fd);
+
+  if(!my_socket_valid(my_fd))
+  {
+    ndbout << "FAILED: could not listen to event" << endl;
+    return NDBT_FAILED;
+  }
+
+  int prettyStatusMsges = 0, prettyStatusMsges2 = 0;
+  while (!ctx->isTestStopped())
+  {
+    char *result_str = 0;
+    char buf[512];
+
+    SocketInputStream in(my_fd,2000);
+    for(int i=0; i<20; i++)
+    {
+      if ((result_str = in.gets(buf, sizeof(buf))))
+      {
+        if(result_str && strlen(result_str))
+        {
+          if (strstr(result_str, "Event buffer status"))
+          {
+            prettyStatusMsges++;
+            g_err << "Pretty str: " << result_str << endl;
+          }
+          else if (strstr(result_str, "Event buffer status2"))
+          {
+            prettyStatusMsges2++;
+            g_err << "Pretty str2: " << result_str << endl;
+          }
+        }
+      }
+      else
+      {
+        if (in.timedout())
+        {
+          g_err << "TIMED OUT READING EVENT at iteration " << i << endl;
+          break;
+        }
+      }
+    }
+  }
+
+ if (ctx->getProperty("BufferUsage2") && prettyStatusMsges2 > 0)
+    return NDBT_OK;
+
+  if (prettyStatusMsges > 0)
+    return NDBT_OK;
+
+  g_err << "ERROR: No EventBufferStatus msg received" << endl;
+  return NDBT_FAILED;
+}
+
+int runCreateMultipleEvents(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Create multiple events */
+  Ndb *pNdb = GETNDB(step);
+  const NdbDictionary::Table *tab = ctx->getTab();
+  int numOfEvents = ctx->getProperty("numOfEvents") *
+                      ctx->getProperty("numOfThreads");
+
+  for (int i = 0; i < numOfEvents; i++)
+  {
+    if (createEvent(pNdb, *tab, false, false, i+1) != 0){
+      return NDBT_FAILED;
+    }
+  }
+
+  return NDBT_OK;
+}
+
+int runCreateDropMultipleEventOperations(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb;
+  Ndb_cluster_connection *pCC;
+
+  if (cc(&pCC, &pNdb))
+  {
+    // too few api slots...
+    return NDBT_OK;
+  }
+  /* Create multiple event ops */
+  NdbRestarter restarter;
+  int res = NDBT_OK;
+
+  const NdbDictionary::Table *tab= ctx->getTab();
+  int numOfEvents = ctx->getProperty("numOfEvents");
+  int eventID = (numOfEvents * (step->getStepNo() - 1)) + 1;
+
+  Vector<NdbEventOperation*> pOpArr;
+  for (int i = 0; i < numOfEvents; i++, eventID++)
+  {
+    NdbEventOperation *pOp = createEventOperation(pNdb, *tab, true, eventID);
+    if (pOp == NULL) {
+      res = NDBT_FAILED;
+      goto dropEvents;
+    }
+    pOpArr.push_back(pOp);
+  }
+
+  restarter.insertErrorInAllNodes(13051);
+
+  dropEvents:
+  for(uint i =0; i < pOpArr.size(); i++)
+  {
+    if (pNdb->dropEventOperation(pOpArr[i]) != 0) {
+      g_err << "operation drop failed\n";
+      res = NDBT_FAILED;
+    }
+  }
+  restarter.insertErrorInAllNodes(0);
+
+  delete pNdb;
+  delete pCC;
+  return res;
+}
+
+int runDropMultipleEvents(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Drop multiple events from the table */
+  Ndb *pNdb = GETNDB(step);
+  const NdbDictionary::Table *tab = ctx->getTab();
+  int numOfEvents = ctx->getProperty("numOfEvents");
+  for (int i = 0; i < numOfEvents; i++)
+  {
+    if (dropEvent(pNdb, *tab, i+1) != 0){
+      return NDBT_FAILED;
+    }
+  }
+  return NDBT_OK;
+}
+
+int runCheckAllNodesOnline(NDBT_Context* ctx, NDBT_Step* step){
+  NdbRestarter restarter;
+
+  if(restarter.waitClusterStarted(1) != 0){
+    g_err << "All nodes were not online " << endl;
+    return NDBT_FAILED;
+  }
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(test_event);
 TESTCASE("BasicEventOperation", 
 	 "Verify that we can listen to Events"
@@ -5705,6 +5988,31 @@ TESTCASE("SlowGCP_COMPLETE_ACK",
   INITIALIZER(runCreateEvent);
   STEP(runSlowGCPCompleteAck);
   FINALIZER(runDropEvent);
+}
+TESTCASE("getEventBufferUsage2",
+         "Get event buffer usage2 as pretty and parsable format "
+         "by subscribing them. Event buffer usage msg is ensured "
+         "by running tardy listener filling the event buffer")
+{
+  TC_PROPERTY("BufferUsage2", 1);
+  INITIALIZER(runCreateEvent);
+  STEP(runInsertDeleteUntilStopped);
+  STEP(runTardyEventListener);
+  STEP(runGetLogEventParsable);
+  STEP(runGetLogEventPretty);
+  FINALIZER(runDropEvent);
+}
+TESTCASE("checkParallelTriggerDropReqHandling",
+         "Flood the DBDICT with lots of SUB_STOP_REQs and "
+         "check that the SUMA handles them properly without "
+         "flooding the DBTUP with DROP_TRIG_IMPL_REQs")
+{
+  TC_PROPERTY("numOfEvents", 100);
+  TC_PROPERTY("numOfThreads", 10);
+  INITIALIZER(runCreateMultipleEvents);
+  STEPS(runCreateDropMultipleEventOperations, 10);
+  VERIFIER(runCheckAllNodesOnline);
+  FINALIZER(runDropMultipleEvents);
 }
 
 #if 0
