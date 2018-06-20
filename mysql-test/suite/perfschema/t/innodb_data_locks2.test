@@ -1,0 +1,99 @@
+# This test is a continuation of innodb_data_locks.test
+# However it requires DEBUG_SYNC support and
+# setting --innodb-autoinc-lock-mode=0 both of which are
+# controled at the test file level, so I've moved it to
+# separate file, not to impact the old test which do not
+# have such specific requirements.
+
+--source include/have_debug_sync.inc
+
+--echo
+--echo Bug #28176805  PERFORMANCE_SCHEMA.DATA_LOCKS.LOCK_MODE
+--echo DOES NOT RECOGNIZE LOCK_REC_NOT_GAP
+--echo
+
+# This test attempts to demonstrate various modes of locking
+
+CREATE TABLE t1 (id INT PRIMARY KEY) Engine=InnoDB;
+INSERT INTO t1 VALUES (0),(10),(20),(30);
+CREATE TABLE t2 (id INT PRIMARY KEY AUTO_INCREMENT, val INT) Engine=InnoDB;
+
+--connect (C1, localhost, root,,)
+--connect (C2, localhost, root,,)
+--connect (C3, localhost, root,,)
+--connect (C4, localhost, root,,)
+
+--connection C1
+  BEGIN;
+  # table IS
+  # S
+  SELECT * FROM t1 WHERE id=10 FOR SHARE;
+  # table IX
+  # X,REC_NOT_GAP
+  INSERT INTO t1 VALUES (5);
+  # S,GAP
+  SELECT * FROM t1 WHERE id=25 FOR SHARE;
+  # X,GAP
+  SELECT * FROM t1 WHERE id=22 FOR UPDATE;
+  # S,REC_NOT_GAP
+  SELECT * FROM t1 where id>=10 and id<=20 FOR SHARE;
+  # X
+  SELECT * FROM t1 WHERE id>20 FOR UPDATE;
+
+--connection C2
+  BEGIN;
+  SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL C2_will_wait';
+  # X,GAP,INSERT_INTENTION
+  --send INSERT INTO t1 VALUES (21)
+
+--connection C3
+  SET DEBUG_SYNC = 'now WAIT_FOR C2_will_wait';
+  BEGIN;
+  SHOW VARIABLES LIKE 'innodb_autoinc_lock_mode';
+  SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL C3_will_wait';
+  # AUTO_INC
+  --send INSERT INTO t2 (val) SELECT id FROM t1 WHERE id>=0 AND id< 10;
+
+--connection C4
+  SET DEBUG_SYNC = 'now WAIT_FOR C3_will_wait';
+  BEGIN;
+  SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL C4_will_wait';
+  # X,INSERT_INTENTION
+  --send INSERT INTO t1 VALUES (35)
+
+--connection default
+  SET DEBUG_SYNC = 'now WAIT_FOR C4_will_wait';
+
+  # We need to sort results so they are repeatable.
+  # However Bug #28176910 causes ORDER BY to spoil the content of
+  # result table if used directly in a query.
+  # For now we simply hope for determinism.
+    SELECT
+      object_name,
+      index_name,
+      lock_type,
+      lock_mode,
+      lock_status,
+      lock_data
+    FROM performance_schema.data_locks;
+
+
+--connection C1
+  ROLLBACK;
+--connection C2
+  --reap
+  ROLLBACK;
+--connection C3
+  --reap
+  ROLLBACK;
+--connection C4
+  --reap
+  ROLLBACK;
+
+--connection default
+--disconnect C1
+--disconnect C2
+--disconnect C3
+--disconnect C4
+DROP TABLE t1;
+DROP TABLE t2;
