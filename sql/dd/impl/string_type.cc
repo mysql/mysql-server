@@ -41,5 +41,8 @@ size_t hash<dd::String_type>::operator()(const dd::String_type &s) const {
 }
 }  // namespace std
 
+// Doxygen gets confused by explicit specializations.
+//! @cond
 // Explicit template instantiation needed for gcc7 -flto
 template dd::String_type::~basic_string();
+//! @endcond
