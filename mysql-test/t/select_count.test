@@ -205,10 +205,21 @@ SELECT COUNT(*) c FROM t_innodb HAVING c > 1;
 #empty result.
 SELECT COUNT(*) c FROM t_innodb HAVING c > 7;
 
+set sql_mode=default;
+
 # Bug #28056133: Requires a fix in get_exact_record_count to avoid dummy temp
 # tables.
 SELECT SQL_BIG_RESULT COUNT(*) FROM t_innodb;
 SELECT SQL_BIG_RESULT COUNT(*) FROM t_innodb, t_myisam;
 
-set sql_mode=default;
+#Bug #28079850: Requires handling THD::KILL_QUERY in records* functions.
+SET debug= '+d,bug28079850';
+#checks handler::records_from_index()
+--error ER_QUERY_INTERRUPTED
+SELECT COUNT(*) FROM t_innodb;
+#checks handler::records()
+--error ER_QUERY_INTERRUPTED
+SELECT COUNT(*) FROM performance_schema.table_handles;
+SET debug= '-d,bug28079850';
+
 DROP TABLE t_innodb, t_myisam;

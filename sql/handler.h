@@ -4056,28 +4056,7 @@ class handler {
 
       @retval 0 for OK, one of the HA_xxx values in case of error.
   */
-  int handle_records_error(int error, ha_rows *num_rows) {
-    if (error != 0) DBUG_ASSERT(*num_rows == HA_POS_ERROR);
-    if (*num_rows == HA_POS_ERROR) DBUG_ASSERT(error != 0);
-    if (error != 0) {
-      /*
-        ha_innobase::records may have rolled back internally.
-        In this case, thd_mark_transaction_to_rollback() will have been called.
-        For the errors below, we need to abort right away.
-      */
-      switch (error) {
-        case HA_ERR_LOCK_DEADLOCK:
-        case HA_ERR_LOCK_TABLE_FULL:
-        case HA_ERR_LOCK_WAIT_TIMEOUT:
-        case HA_ERR_QUERY_INTERRUPTED:
-          print_error(error, MYF(0));
-          return error;
-        default:
-          return error;
-      }
-    }
-    return 0;
-  }
+  int handle_records_error(int error, ha_rows *num_rows);
 
  public:
   /**

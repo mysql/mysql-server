@@ -2940,6 +2940,7 @@ int handler::records(ha_rows *num_rows) {
 
   if (!(error = ha_rnd_init(true))) {
     while (!table->in_use->killed) {
+      DBUG_EXECUTE_IF("bug28079850", table->in_use->killed = THD::KILL_QUERY;);
       if ((error = ha_rnd_next(table->record[0]))) {
         if (error == HA_ERR_RECORD_DELETED)
           continue;
@@ -2975,7 +2976,10 @@ int handler::records_from_index(ha_rows *num_rows, uint index) {
   if (!(error = ha_index_init(index, false))) {
     if (!(error = ha_index_first(buf))) {
       rows = 1;
+
       while (!table->in_use->killed) {
+        DBUG_EXECUTE_IF("bug28079850",
+                        table->in_use->killed = THD::KILL_QUERY;);
         if ((error = ha_index_next(buf))) {
           if (error == HA_ERR_RECORD_DELETED)
             continue;
@@ -2996,6 +3000,35 @@ int handler::records_from_index(ha_rows *num_rows, uint index) {
   if (inited && (ha_index_end_error = ha_index_end())) *num_rows = HA_POS_ERROR;
 
   return (error != HA_ERR_END_OF_FILE) ? error : ha_index_end_error;
+}
+
+int handler::handle_records_error(int error, ha_rows *num_rows) {
+  // If query was killed set the error since not all storage engines do it.
+  if (table->in_use->killed) {
+    *num_rows = HA_POS_ERROR;
+    if (error == 0) error = HA_ERR_QUERY_INTERRUPTED;
+  }
+
+  if (error != 0) DBUG_ASSERT(*num_rows == HA_POS_ERROR);
+  if (*num_rows == HA_POS_ERROR) DBUG_ASSERT(error != 0);
+  if (error != 0) {
+    /*
+      ha_innobase::records may have rolled back internally.
+      In this case, thd_mark_transaction_to_rollback() will have been called.
+      For the errors below, we need to abort right away.
+    */
+    switch (error) {
+      case HA_ERR_LOCK_DEADLOCK:
+      case HA_ERR_LOCK_TABLE_FULL:
+      case HA_ERR_LOCK_WAIT_TIMEOUT:
+      case HA_ERR_QUERY_INTERRUPTED:
+        print_error(error, MYF(0));
+        return error;
+      default:
+        return error;
+    }
+  }
+  return 0;
 }
 
 /**

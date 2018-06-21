@@ -539,11 +539,17 @@ c
 3
 SELECT COUNT(*) c FROM t_innodb HAVING c > 7;
 c
+set sql_mode=default;
 SELECT SQL_BIG_RESULT COUNT(*) FROM t_innodb;
 COUNT(*)
 3
 SELECT SQL_BIG_RESULT COUNT(*) FROM t_innodb, t_myisam;
 COUNT(*)
 6
-set sql_mode=default;
+SET debug= '+d,bug28079850';
+SELECT COUNT(*) FROM t_innodb;
+ERROR 70100: Query execution was interrupted
+SELECT COUNT(*) FROM performance_schema.table_handles;
+ERROR 70100: Query execution was interrupted
+SET debug= '-d,bug28079850';
 DROP TABLE t_innodb, t_myisam;
