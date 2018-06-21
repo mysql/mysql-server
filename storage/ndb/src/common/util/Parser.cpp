@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -317,6 +317,7 @@ TAPTEST(Parser) {
   OK(split(str, &name, &value));
   OK(!strcmp(name, "x"));
   OK(!strcmp(value, "c:\\windows"));
+  free(str);
 
   return 1;
 }

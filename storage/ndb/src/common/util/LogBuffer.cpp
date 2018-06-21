@@ -554,6 +554,7 @@ void* thread_consumer1(void* dummy)
   char* flush = (char*)malloc(buf_t2->getSize());
   bytes = buf_t2->get(flush, buf_t2->getSize());
   fwrite(flush, bytes, 1, stdout);
+  free(flush);
 
   // print lost bytes if any
   size_t lost_count = buf_t2->getLostCount();
@@ -585,6 +586,7 @@ void* thread_consumer2(void* dummy)
   char* flush = (char*)malloc(buf_t3->getSize());
   bytes_flushed = buf_t3->get(flush, buf_t3->getSize());
   total_bytes_read_t3 += bytes_flushed;
+  free(flush);
 
   NdbThread_Exit(NULL);
   return NULL;
