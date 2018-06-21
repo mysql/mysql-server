@@ -100,9 +100,6 @@ IndexScanIterator<Reverse>::~IndexScanIterator() {
   }
 }
 
-template class IndexScanIterator<true>;
-template class IndexScanIterator<false>;
-
 template <bool Reverse>
 bool IndexScanIterator<Reverse>::Init(QEP_TAB *qep_tab) {
   if (!table()->file->inited) {
@@ -154,6 +151,9 @@ int IndexScanIterator<true>::Read() {  // Backward read.
   return 0;
 }
 //! @endcond
+
+template class IndexScanIterator<true>;
+template class IndexScanIterator<false>;
 
 /**
   setup_read_record is used to scan by using a number of different methods.
