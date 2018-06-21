@@ -1,0 +1,79 @@
+#
+# WL#11652 -- Support multiple addresses for the --bind-address command option
+#
+#
+# Server is started with --bind-address=127.0.0.1,::1
+# Check that server accepts incoming connection both
+# on the address 127.0.0.1 and on the address ::1
+#
+# Connecting to a server via 127.0.0.1
+# Connecting to a server via ::1
+SELECT @@global.bind_address;
+@@global.bind_address
+127.0.0.1,::1
+# Stop DB server which was created by MTR default
+#
+# Starting mysqld in the regular mode...
+#
+# restart: --bind-address=127.0.0.1
+SELECT @@global.bind_address;
+@@global.bind_address
+127.0.0.1
+# Stop DB server which was created by MTR default
+#
+# Starting mysqld in the regular mode...
+#
+# restart: --bind-address=*
+SELECT @@global.bind_address;
+@@global.bind_address
+*
+# Stop DB server which was created by MTR default
+#
+# Starting mysqld in the regular mode...
+#
+# restart: --bind-address=::
+SELECT @@global.bind_address;
+@@global.bind_address
+::
+# Stop DB server which was created by MTR default
+# Check seperators not being ','.
+# Check that specially treated value :: is not allowed as part of
+# multi-value option bind-address.
+Pattern "Invalid value for command line option bind-addresses:" found
+# Check that specially treated value * is not allowed as part of
+# multi-value option bind-address.
+Pattern "Invalid value for command line option bind-addresses:" found
+# Check that server catches a parsing error during processing of
+# multi-value option bind-address.
+# Two adjacent commas in a value of the option --bind-address is treated
+# as an error.
+Pattern "Invalid value for command line option bind-addresses:" found
+# Check that a server catches a parsing error during processing of
+# multi-value option bind-address.
+# Comma in the end of a value of the option --bind-address is treated
+# as an error.
+Pattern "Invalid value for command line option bind-addresses:" found
+# Check that a server catches a parsing error during processing of
+# multi-value option bind-address.
+# Comma in the begining of a value of the option --bind-address
+# is treated as an error.
+Pattern "Invalid value for command line option bind-addresses:" found
+# Check that a server catches a parsing error during processing of
+# multi-value option bind-address.
+# empty value of the option --bind-address
+# is treated as an error.
+Pattern "Invalid value for command line option bind-addresses:" found
+# Check that a server catches a parsing error during processing of
+# multi-value option bind-address.
+# Check that specially treated ipv4 address 0.0.0.0 is not allowed
+# as part of multi-value option bind-address.
+Pattern "Invalid value for command line option bind-addresses:" found
+# Check that a server catches a parsing error during processing of
+# multi-value option bind-address.
+# empty value of the option --bind-address
+# is treated as an error.
+Pattern "Invalid value for command line option bind-addresses:" found
+#
+# Starting mysqld in the regular mode...
+#
+# restart

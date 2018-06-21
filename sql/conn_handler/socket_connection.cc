@@ -201,6 +201,10 @@ class Channel_info_tcpip_socket : public Channel_info {
 */
 const char *MY_BIND_ALL_ADDRESSES = "*";
 
+const char *ipv4_all_addresses = "0.0.0.0";
+
+const char *ipv6_all_addresses = "::";
+
 /**
   TCP_socket class represents the TCP sockets abstraction. It provides
   the get_listener_socket that setup a TCP listener socket to listen.
@@ -293,7 +297,6 @@ class TCP_socket {
       */
 
       bool ipv6_available = false;
-      const char *ipv6_all_addresses = "::";
       if (!getaddrinfo(ipv6_all_addresses, port_buf, &hints, &ai)) {
         /*
           IPv6 might be available (the system might be able to resolve an IPv6
@@ -316,7 +319,6 @@ class TCP_socket {
 
         // Retrieve address info (ai) for IPv4 address.
 
-        const char *ipv4_all_addresses = "0.0.0.0";
         if (getaddrinfo(ipv4_all_addresses, port_buf, &hints, &ai)) {
           LogErr(ERROR_LEVEL, ER_CONN_TCP_ERROR_WITH_STRERROR, strerror(errno));
           LogErr(ERROR_LEVEL, ER_CONN_TCP_CANT_RESOLVE_HOSTNAME);
@@ -669,11 +671,10 @@ bool Unix_socket::create_lockfile() {
 // Mysqld_socket_listener implementation
 ///////////////////////////////////////////////////////////////////////////
 
-Mysqld_socket_listener::Mysqld_socket_listener(std::string bind_addr_str,
-                                               uint tcp_port, uint backlog,
-                                               uint port_timeout,
-                                               std::string unix_sockname)
-    : m_bind_addr_str(bind_addr_str),
+Mysqld_socket_listener::Mysqld_socket_listener(
+    const std::list<std::string> &bind_addresses, uint tcp_port, uint backlog,
+    uint port_timeout, std::string unix_sockname)
+    : m_bind_addresses(bind_addresses),
       m_tcp_port(tcp_port),
       m_backlog(backlog),
       m_port_timeout(port_timeout),
@@ -690,13 +691,15 @@ Mysqld_socket_listener::Mysqld_socket_listener(std::string bind_addr_str,
 bool Mysqld_socket_listener::setup_listener() {
   // Setup tcp socket listener
   if (m_tcp_port) {
-    TCP_socket tcp_socket(m_bind_addr_str, m_tcp_port, m_backlog,
-                          m_port_timeout);
+    for (const auto &bind_address : m_bind_addresses) {
+      TCP_socket tcp_socket(bind_address, m_tcp_port, m_backlog,
+                            m_port_timeout);
 
-    MYSQL_SOCKET mysql_socket = tcp_socket.get_listener_socket();
-    if (mysql_socket.fd == INVALID_SOCKET) return true;
+      MYSQL_SOCKET mysql_socket = tcp_socket.get_listener_socket();
+      if (mysql_socket.fd == INVALID_SOCKET) return true;
 
-    m_socket_map.insert(std::pair<MYSQL_SOCKET, bool>(mysql_socket, false));
+      m_socket_map.insert(std::pair<MYSQL_SOCKET, bool>(mysql_socket, false));
+    }
   }
 #if defined(HAVE_SYS_UN_H)
   // Setup unix socket listener
@@ -713,17 +716,19 @@ bool Mysqld_socket_listener::setup_listener() {
 
     // Setup for connection events for poll or select
 #ifdef HAVE_POLL
-  int count = 0;
+  const socket_map_t::size_type total_number_of_addresses_to_bind =
+      m_socket_map.size();
+  m_poll_info.m_fds.reserve(total_number_of_addresses_to_bind);
+  m_poll_info.m_pfs_fds.reserve(total_number_of_addresses_to_bind);
 #endif
   for (socket_map_iterator_t sock_map_iter = m_socket_map.begin();
        sock_map_iter != m_socket_map.end(); ++sock_map_iter) {
     MYSQL_SOCKET listen_socket = sock_map_iter->first;
     mysql_socket_set_thread_owner(listen_socket);
 #ifdef HAVE_POLL
-    m_poll_info.m_fds[count].fd = mysql_socket_getfd(listen_socket);
-    m_poll_info.m_fds[count].events = POLLIN;
-    m_poll_info.m_pfs_fds[count] = listen_socket;
-    count++;
+    m_poll_info.m_fds.emplace_back(
+        pollfd{mysql_socket_getfd(listen_socket), POLLIN, 0});
+    m_poll_info.m_pfs_fds.push_back(listen_socket);
 #else   // HAVE_POLL
     FD_SET(mysql_socket_getfd(listen_socket), &m_select_info.m_client_fds);
     if ((uint)mysql_socket_getfd(listen_socket) >

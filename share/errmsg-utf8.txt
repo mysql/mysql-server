@@ -18179,6 +18179,9 @@ ER_IB_MSG_1284
 ER_CANT_SET_ERROR_SUPPRESSION_LIST_FROM_COMMAND_LINE
   eng "%s: Could not add suppression rule for code \"%s\". Rule-set may be full, or code may not correspond to an error-log message."
 
+ER_INVALID_VALUE_OF_BIND_ADDRESSES
+  eng "Invalid value for command line option bind-addresses: '%s'"
+
 #
 # End of 8.0 Server error messages.
 # (Please read comments from the header of this section before adding error

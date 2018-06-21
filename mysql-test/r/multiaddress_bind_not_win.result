@@ -1,0 +1,14 @@
+#
+# WL#11652 -- Support multiple addresses for the --bind-address command option
+#
+# Stop DB server which was created by MTR default
+# Check that not existing IP address as a value of
+# the option --bind-address is treated as an error.
+Pattern "Bind on TCP/IP port: Can't assign requested address" found
+# Check that not existing IP address as one of a value of
+# the option --bind-address is treated as an error.
+Pattern "Bind on TCP/IP port: Can't assign requested address" found
+#
+# Starting mysqld in the regular mode...
+#
+# restart

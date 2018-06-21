@@ -2270,6 +2270,71 @@ static void set_root(const char *path) {
 }
 #endif  // !_WIN32
 
+/**
+  Check acceptable value of parameter bind_address
+
+  @param      bind_address          Value of the parameter bind-address
+  @param[out] valid_bind_addresses  List of addresses to listen
+
+  @return false on success, true on failure
+*/
+static bool check_bind_address_has_valid_value(
+    const char *bind_address, std::list<std::string> *valid_bind_addresses) {
+  if (strlen(bind_address) == 0)
+    // Empty value for bind_address is an error
+    return true;
+
+  const char *comma_separator = strchr(bind_address, ',');
+  const char *begin_of_value = bind_address;
+  const bool multiple_bind_addresses = (comma_separator != nullptr);
+  /*
+    The following lambda is to check that an address value is a wildcard IP
+    value, that is it has either the value 0.0.0.0 for IPv4 or the value ::1 in
+    case IPv6, or has the specially treated symbol * as its value.
+  */
+  auto address_is_wildcard = [](const char *address_value,
+                                size_t address_length) {
+    return
+        // Wildcard is not allowed in case a comma separated list of
+        // addresses is specified
+        native_strncasecmp(address_value, MY_BIND_ALL_ADDRESSES,
+                           address_length) == 0 ||
+        // The specially treated address :: is not allowed in case
+        // a comma separated list of addresses is specified
+        native_strncasecmp(address_value, ipv6_all_addresses, address_length) ==
+            0 ||
+        // The specially treated address 0.0.0.0 is not allowed in case
+        // a comma separated list of addresses is specified
+        native_strncasecmp(address_value, ipv4_all_addresses, address_length) ==
+            0;
+  };
+
+  if (comma_separator == begin_of_value)
+    // Return an error if a value of bind_address begins with comma
+    return true;
+
+  while (comma_separator != nullptr) {
+    if (address_is_wildcard(begin_of_value, comma_separator - begin_of_value))
+      return true;
+
+    valid_bind_addresses->emplace_back(
+        std::string(begin_of_value, comma_separator));
+    begin_of_value = comma_separator + 1;
+    comma_separator = strchr(begin_of_value, ',');
+    if (comma_separator == begin_of_value)
+      // Return an error if a value of bind_address has two adjacent commas
+      return true;
+  }
+
+  if (multiple_bind_addresses &&
+      (address_is_wildcard(begin_of_value, strlen(begin_of_value)) ||
+       strlen(begin_of_value) == 0))
+    return true;
+
+  valid_bind_addresses->emplace_back(begin_of_value);
+  return false;
+}
+
 static bool network_init(void) {
   if (opt_initialize) return false;
 
@@ -2281,11 +2346,16 @@ static bool network_init(void) {
   std::string const unix_sock_name("");
 #endif
 
+  std::list<std::string> bind_addresses;
   if (!opt_disable_networking || unix_sock_name != "") {
-    std::string const bind_addr_str(my_bind_addr_str ? my_bind_addr_str : "");
+    if (my_bind_addr_str != nullptr &&
+        check_bind_address_has_valid_value(my_bind_addr_str, &bind_addresses)) {
+      LogErr(ERROR_LEVEL, ER_INVALID_VALUE_OF_BIND_ADDRESSES, my_bind_addr_str);
+      return true;
+    }
 
     Mysqld_socket_listener *mysqld_socket_listener = new (std::nothrow)
-        Mysqld_socket_listener(bind_addr_str, mysqld_port, back_log,
+        Mysqld_socket_listener(bind_addresses, mysqld_port, back_log,
                                mysqld_port_timeout, unix_sock_name);
     if (mysqld_socket_listener == NULL) return true;
 

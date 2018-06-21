@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,8 +28,10 @@
 #include "my_config.h"
 
 #include <sys/types.h>
+#include <list>
 #include <map>
 #include <string>
+#include <vector>
 
 #include "my_psi_config.h"
 #include "mysql/components/services/psi_statement_bits.h"
@@ -41,6 +43,9 @@
 class Channel_info;
 
 extern const char *MY_BIND_ALL_ADDRESSES;
+extern const char *ipv4_all_addresses;
+extern const char *ipv6_all_addresses;
+
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
 extern PSI_statement_info stmt_info_new_packet;
 #endif
@@ -74,8 +79,8 @@ typedef std::map<MYSQL_SOCKET, bool, Socket_lt_type>::iterator
   defaul pathname.
 */
 class Mysqld_socket_listener {
-  std::string m_bind_addr_str;  // IP address string
-  uint m_tcp_port;              // TCP port to bind to
+  std::list<std::string> m_bind_addresses;  // addresses to listen to
+  uint m_tcp_port;                          // TCP port to bind to
   uint m_backlog;       // backlog specifying length of pending connection queue
   uint m_port_timeout;  // port timeout value
   std::string m_unix_sockname;  // unix socket pathname to bind to
@@ -89,10 +94,9 @@ class Mysqld_socket_listener {
   uint m_error_count;  // Internal variable for maintaining error count.
 
 #ifdef HAVE_POLL
-  static const int MAX_SOCKETS = 2;
   struct poll_info_t {
-    struct pollfd m_fds[MAX_SOCKETS];
-    MYSQL_SOCKET m_pfs_fds[MAX_SOCKETS];
+    std::vector<struct pollfd> m_fds;
+    std::vector<MYSQL_SOCKET> m_pfs_fds;
   };
   // poll related info. used in poll for listening to connection events.
   poll_info_t m_poll_info;
@@ -136,15 +140,16 @@ class Mysqld_socket_listener {
     Constructor to setup a listener for listen to connect events from
     clients.
 
-    @param   bind_addr_str  IP address used in bind
-    @param   tcp_port       TCP port to bind to
-    @param   backlog        backlog specifying length of pending
-                            connection queue used in listen.
-    @param   port_timeout   portname.
-    @param   unix_sockname  pathname for unix socket to bind to
+    @param   bind_addresses  list of addresses to listen to
+    @param   tcp_port        TCP port to bind to
+    @param   backlog         backlog specifying length of pending
+                             connection queue used in listen.
+    @param   port_timeout    portname.
+    @param   unix_sockname   pathname for unix socket to bind to
   */
-  Mysqld_socket_listener(std::string bind_addr_str, uint tcp_port, uint backlog,
-                         uint port_timeout, std::string unix_sockname);
+  Mysqld_socket_listener(const std::list<std::string> &bind_addresses,
+                         uint tcp_port, uint backlog, uint port_timeout,
+                         std::string unix_sockname);
 
   /**
     Set up a listener - set of sockets to listen for connection events
