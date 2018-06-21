@@ -13,16 +13,13 @@ CALL mtr.add_suppression("The error means that another program is using InnoDB's
 
 LET $innodb_ddl_log_crash_reset_debug_orig = `SELECT @@innodb_ddl_log_crash_reset_debug`;
 
-CREATE TABLESPACE ts1 ADD DATAFILE 'data1.ibd';
-CREATE TABLESPACE ts2 ADD DATAFILE 'data2.ibd';
-
 let $table_name= t1;
 
 # ADD PARTITION for RANGE
 let $create_statement= CREATE TABLE $table_name
-(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) ENGINE=InnoDB TABLESPACE ts2
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) ENGINE=InnoDB
 PARTITION BY RANGE(a) PARTITIONS 2
- ( PARTITION p0 VALUES LESS THAN (10) TABLESPACE ts1,
+ ( PARTITION p0 VALUES LESS THAN (10) TABLESPACE innodb_file_per_table,
    PARTITION p1 VALUES LESS THAN (20) TABLESPACE innodb_file_per_table);
 
 let $insert_statement= INSERT INTO t1 VALUES (1, "Filler1", 1),
@@ -34,18 +31,18 @@ let $test_free= 1;
 let $test_delete= 0;
 let $test_rename= 0;
 let $test_drop= 0;
-let $crash_statement= ALTER TABLE $table_name ADD PARTITION (PARTITION p2 VALUES LESS THAN(30) TABLESPACE = innodb_file_per_table, PARTITION p3 VALUES LESS THAN(40) TABLESPACE = ts1);
+let $crash_statement= ALTER TABLE $table_name ADD PARTITION (PARTITION p2 VALUES LESS THAN(30) TABLESPACE = innodb_file_per_table, PARTITION p3 VALUES LESS THAN(40) TABLESPACE = innodb_file_per_table);
 --source ../mysql-test/suite/innodb/include/ddl_crash_statement.inc
 
 
 # DROP PARTITION
 let $create_statement= CREATE TABLE $table_name
-(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) ENGINE=InnoDB TABLESPACE ts2
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) ENGINE=InnoDB
 PARTITION BY RANGE(a) PARTITIONS 4
- ( PARTITION p0 VALUES LESS THAN (10) TABLESPACE ts1,
+ ( PARTITION p0 VALUES LESS THAN (10) TABLESPACE innodb_file_per_table,
    PARTITION p1 VALUES LESS THAN (20) TABLESPACE innodb_file_per_table,
    PARTITION p2 VALUES LESS THAN (30) TABLESPACE innodb_file_per_table,
-   PARTITION p3 VALUES LESS THAN (40) TABLESPACE innodb_system);
+   PARTITION p3 VALUES LESS THAN (40) TABLESPACE innodb_file_per_table);
 
 let $insert_statement= INSERT INTO t1 VALUES (1, "Filler1", 1),
 (2, "filler2", 2), (3, "FILLER3", 3), (14, "Filler4", 14), (25, "15", 25),
@@ -61,12 +58,12 @@ let $crash_statement= ALTER TABLE $table_name DROP PARTITION p1, p3;
 
 # REORGANIZE PARTITION
 let $create_statement= CREATE TABLE $table_name
-(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) ENGINE=InnoDB TABLESPACE ts2
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, KEY(c)) ENGINE=InnoDB
 PARTITION BY RANGE(a) PARTITIONS 4
- ( PARTITION p0 VALUES LESS THAN (10) TABLESPACE ts1,
+ ( PARTITION p0 VALUES LESS THAN (10) TABLESPACE innodb_file_per_table,
    PARTITION p1 VALUES LESS THAN (20) TABLESPACE innodb_file_per_table,
    PARTITION p2 VALUES LESS THAN (30) TABLESPACE innodb_file_per_table,
-   PARTITION p3 VALUES LESS THAN (40) TABLESPACE innodb_system);
+   PARTITION p3 VALUES LESS THAN (40) TABLESPACE innodb_file_per_table);
 
 let $test_free= 1;
 let $test_delete= 1;
@@ -136,9 +133,5 @@ let $crash_statement= ALTER TABLE $table_name EXCHANGE PARTITION p1 WITH TABLE t
 
 CHECK TABLE t2;
 DROP TABLE t2;
-
-
-DROP TABLESPACE ts1;
-DROP TABLESPACE ts2;
 
 eval SET GLOBAL innodb_ddl_log_crash_reset_debug = $innodb_ddl_log_crash_reset_debug_orig;
