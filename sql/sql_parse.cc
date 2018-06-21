@@ -2444,13 +2444,6 @@ int mysql_execute_command(THD *thd, bool first_level) {
   thd->work_part_info = 0;
 
   /*
-    Statement level auto-releaser. If shorter dictionary object lifetimes are
-    needed, functions deeper down in the call stack can create their own
-    releasers.
-  */
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-
-  /*
     Each statement or replication event which might produce deadlock
     should handle transaction rollback on its own. So by the start of
     the next statement transaction rollback request should be fulfilled

@@ -97,6 +97,8 @@ bool Srs_fetcher::acquire_for_modification(gis::srid_t srid,
 
 bool Srs_fetcher::srs_exists(THD *thd, gis::srid_t srid, bool *exists) {
   DBUG_ASSERT(exists);
+  std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
+      new dd::cache::Dictionary_client::Auto_releaser(thd->dd_client()));
   Srs_fetcher fetcher(thd);
   const dd::Spatial_reference_system *srs = nullptr;
   if (fetcher.acquire(srid, &srs)) return true; /* purecov: inspected */

@@ -44,6 +44,7 @@
 #include <boost/geometry/strategies/cartesian/buffer_side_straight.hpp>
 #include <boost/geometry/strategies/strategies.hpp>
 #include <boost/iterator/iterator_facade.hpp>
+#include <memory>  // std::unique_ptr
 #include <vector>
 
 #include "m_ctype.h"
@@ -54,6 +55,7 @@
 #include "my_sys.h"
 #include "mysqld_error.h"
 #include "sql/current_thd.h"
+#include "sql/dd/cache/dictionary_client.h"
 #include "sql/dd/types/spatial_reference_system.h"
 #include "sql/derror.h"  // ER_THD
 #include "sql/item.h"
@@ -387,6 +389,8 @@ String *Item_func_buffer::val_str(String *str_value_arg) {
 
   if (geom->get_srid() != 0) {
     THD *thd = current_thd;
+    std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
+        new dd::cache::Dictionary_client::Auto_releaser(thd->dd_client()));
     Srs_fetcher fetcher(thd);
     const dd::Spatial_reference_system *srs = nullptr;
     if (fetcher.acquire(geom->get_srid(), &srs))

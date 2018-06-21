@@ -55,6 +55,7 @@
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "sql/current_thd.h"
+#include "sql/dd/cache/dictionary_client.h"
 #include "sql/dd/types/spatial_reference_system.h"
 #include "sql/derror.h"  // ER_THD
 #include "sql/gis/area.h"
@@ -221,6 +222,8 @@ static bool validate_srid_arg(Item *arg, gis::srid_t *srid, bool *null_value,
 static bool verify_cartesian_srs(const Geometry *g, const char *func_name) {
   if (g->get_srid() != 0) {
     THD *thd = current_thd;
+    std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
+        new dd::cache::Dictionary_client::Auto_releaser(thd->dd_client()));
     Srs_fetcher fetcher(thd);
     const dd::Spatial_reference_system *srs = nullptr;
     if (fetcher.acquire(g->get_srid(), &srs))
@@ -254,6 +257,8 @@ static bool verify_cartesian_srs(const Geometry *g, const char *func_name) {
 static bool verify_srid_is_defined(gis::srid_t srid) {
   if (srid != 0) {
     THD *thd = current_thd;
+    std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
+        new dd::cache::Dictionary_client::Auto_releaser(thd->dd_client()));
     Srs_fetcher fetcher(thd);
     bool srs_exists = false;
     if (fetcher.srs_exists(thd, srid, &srs_exists))
@@ -431,6 +436,9 @@ String *Item_func_geometry_from_text::val_str(String *str) {
   }
 
   const dd::Spatial_reference_system *srs = nullptr;
+  std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
+      new dd::cache::Dictionary_client::Auto_releaser(
+          current_thd->dd_client()));
   if (srid != 0) {
     Srs_fetcher fetcher(current_thd);
     if (fetcher.acquire(srid, &srs)) {
@@ -665,6 +673,9 @@ String *Item_func_geometry_from_wkb::val_str(String *str) {
   }
 
   const dd::Spatial_reference_system *srs = nullptr;
+  std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
+      new dd::cache::Dictionary_client::Auto_releaser(
+          current_thd->dd_client()));
 
   if (srid != 0) {
     Srs_fetcher fetcher(current_thd);
@@ -963,6 +974,9 @@ String *Item_func_geomfromgeojson::val_str(String *buf) {
   } else if (m_srid_found_in_document > -1) {
     Srs_fetcher fetcher(current_thd);
     const dd::Spatial_reference_system *srs = nullptr;
+    std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
+        new dd::cache::Dictionary_client ::Auto_releaser(
+            current_thd->dd_client()));
     if (fetcher.acquire(m_srid_found_in_document, &srs)) {
       return error_str(); /* purecov: inspected */
     }
@@ -1080,6 +1094,9 @@ bool Item_func_geomfromgeojson::parse_object(const Json_object *object,
     if (srid != 0) {
       Srs_fetcher fetcher(current_thd);
       const dd::Spatial_reference_system *srs = nullptr;
+      std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
+          new dd::cache::Dictionary_client ::Auto_releaser(
+              current_thd->dd_client()));
       if (fetcher.acquire(srid, &srs)) {
         return true; /* purecov: inspected */
       }
@@ -2563,6 +2580,8 @@ bool Item_func_geohash::fill_and_check_fields() {
 
     if (geom != nullptr && geom->get_srid() != 0) {
       THD *thd = current_thd;
+      std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
+          new dd::cache::Dictionary_client::Auto_releaser(thd->dd_client()));
       Srs_fetcher fetcher(thd);
       const dd::Spatial_reference_system *srs = nullptr;
       if (fetcher.acquire(geom->get_srid(), &srs))
@@ -3120,6 +3139,8 @@ String *Item_func_as_wkt::val_str_ascii(String *str) {
 
   if (g->get_srid() != 0) {
     THD *thd = current_thd;
+    std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
+        new dd::cache::Dictionary_client::Auto_releaser(thd->dd_client()));
     Srs_fetcher fetcher(thd);
     const dd::Spatial_reference_system *srs = nullptr;
     if (fetcher.acquire(g->get_srid(), &srs)) return error_str();
@@ -3234,6 +3255,9 @@ String *Item_func_as_wkb::val_str(String *str) {
   }
 
   if (g->get_srid() != 0) {
+    std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
+        new dd::cache::Dictionary_client::Auto_releaser(
+            current_thd->dd_client()));
     Srs_fetcher fetcher(current_thd);
     const dd::Spatial_reference_system *srs = nullptr;
     if (fetcher.acquire(g->get_srid(), &srs)) return error_str();
@@ -3382,6 +3406,8 @@ String *Item_func_make_envelope::val_str(String *str) {
 
   if (geom1->get_srid() != 0) {
     THD *thd = current_thd;
+    std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
+        new dd::cache::Dictionary_client::Auto_releaser(thd->dd_client()));
     Srs_fetcher fetcher(thd);
     const dd::Spatial_reference_system *srs = nullptr;
     if (fetcher.acquire(geom1->get_srid(), &srs))
@@ -4013,6 +4039,9 @@ String *Item_func_st_simplify::val_str(String *str) {
 
   const dd::Spatial_reference_system *srs = nullptr;
   std::unique_ptr<gis::Geometry> g;
+  std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
+      new dd::cache::Dictionary_client::Auto_releaser(
+          current_thd->dd_client()));
   if (gis::parse_geometry(current_thd, func_name(), swkb, &srs, &g))
     return error_str();
 
@@ -4612,6 +4641,10 @@ longlong Item_func_st_issimple::val_int() {
     DBUG_RETURN(error_int());
   }
 
+  std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
+      new dd::cache::Dictionary_client::Auto_releaser(
+          current_thd->dd_client()));
+
   const dd::Spatial_reference_system *srs;
   std::unique_ptr<gis::Geometry> g;
   if (gis::parse_geometry(current_thd, func_name(), arg_wkb, &srs, &g)) {
@@ -4816,6 +4849,9 @@ longlong Item_func_isvalid::val_int() {
 
   const dd::Spatial_reference_system *srs = nullptr;
   std::unique_ptr<gis::Geometry> g;
+  std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
+      new dd::cache::Dictionary_client::Auto_releaser(
+          current_thd->dd_client()));
 
   if (gis::parse_geometry(current_thd, func_name(), swkb, &srs, &g)) {
     return error_int();
@@ -4928,6 +4964,9 @@ String *Item_func_coordinate_mutator::val_str(String *str) {
 
   const dd::Spatial_reference_system *srs = nullptr;
   std::unique_ptr<gis::Geometry> g;
+  std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
+      new dd::cache::Dictionary_client::Auto_releaser(
+          current_thd->dd_client()));
   if (gis::parse_geometry(current_thd, func_name(), swkb, &srs, &g))
     return error_str();
 
@@ -4999,6 +5038,9 @@ double Item_func_coordinate_observer::val_real() {
 
   const dd::Spatial_reference_system *srs = nullptr;
   std::unique_ptr<gis::Geometry> g;
+  std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
+      new dd::cache::Dictionary_client::Auto_releaser(
+          current_thd->dd_client()));
   if (gis::parse_geometry(current_thd, func_name(), swkb, &srs, &g))
     return error_real();
 
@@ -5109,6 +5151,9 @@ double Item_func_st_area::val_real() {
   }
 
   const dd::Spatial_reference_system *srs;
+  std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
+      new dd::cache::Dictionary_client::Auto_releaser(
+          current_thd->dd_client()));
   std::unique_ptr<gis::Geometry> geometry;
   if (gis::parse_geometry(current_thd, func_name(), unparsed_geometry, &srs,
                           &geometry)) {
@@ -5156,6 +5201,9 @@ double Item_func_st_length::val_real() {
 
   const dd::Spatial_reference_system *srs = nullptr;
   std::unique_ptr<gis::Geometry> g;
+  std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
+      new dd::cache::Dictionary_client::Auto_releaser(
+          current_thd->dd_client()));
   if (gis::parse_geometry(current_thd, func_name(), swkb, &srs, &g)) {
     DBUG_RETURN(error_real());
   }
@@ -5192,6 +5240,9 @@ longlong Item_func_st_srid_observer::val_int() {
 
   const dd::Spatial_reference_system *srs = nullptr;
   std::unique_ptr<gis::Geometry> g;
+  std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
+      new dd::cache::Dictionary_client::Auto_releaser(
+          current_thd->dd_client()));
   if (gis::parse_geometry(current_thd, func_name(), swkb, &srs, &g, true))
     return error_int();
 
@@ -5246,6 +5297,9 @@ String *Item_func_st_srid_mutator::val_str(String *str) {
 
   const dd::Spatial_reference_system *srs = nullptr;
   std::unique_ptr<gis::Geometry> g;
+  std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
+      new dd::cache::Dictionary_client::Auto_releaser(
+          current_thd->dd_client()));
   if (gis::parse_geometry(current_thd, func_name(), str, &srs, &g))
     return error_str();
 
@@ -5277,6 +5331,9 @@ double Item_func_distance::val_real() {
   const dd::Spatial_reference_system *srs2 = nullptr;
   std::unique_ptr<gis::Geometry> g1;
   std::unique_ptr<gis::Geometry> g2;
+  std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
+      new dd::cache::Dictionary_client::Auto_releaser(
+          current_thd->dd_client()));
   if (gis::parse_geometry(current_thd, func_name(), res1, &srs1, &g1) ||
       gis::parse_geometry(current_thd, func_name(), res2, &srs2, &g2)) {
     DBUG_RETURN(error_real());
@@ -5328,6 +5385,10 @@ double Item_func_st_distance_sphere::val_real() {
     my_error(ER_INTERNAL_ERROR, MYF(0), func_name());
     DBUG_RETURN(error_real());
   }
+
+  std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
+      new dd::cache::Dictionary_client::Auto_releaser(
+          current_thd->dd_client()));
 
   const dd::Spatial_reference_system *srs1;
   std::unique_ptr<gis::Geometry> g1;
