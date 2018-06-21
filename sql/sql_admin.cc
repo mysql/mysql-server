@@ -921,17 +921,22 @@ static bool mysql_admin_table(
     }
 
     if (check_opt && (check_opt->sql_flags & TT_FOR_UPGRADE) != 0) {
-      dd::String_type snam = dd::make_string_type(table->table->s->db);
-      dd::String_type tnam = dd::make_string_type(table->table->s->table_name);
+      if (table->table->s->tmp_table) {
+        result_code = HA_ADMIN_OK;
+      } else {
+        dd::String_type snam = dd::make_string_type(table->table->s->db);
+        dd::String_type tnam =
+            dd::make_string_type(table->table->s->table_name);
 
-      Check_result cr = check_for_upgrade(thd, snam, tnam, [&]() {
-        DBUG_PRINT("admin", ("calling operator_func '%s'", operator_name));
-        return (table->table->file->*operator_func)(thd, check_opt);
-      });
+        Check_result cr = check_for_upgrade(thd, snam, tnam, [&]() {
+          DBUG_PRINT("admin", ("calling operator_func '%s'", operator_name));
+          return (table->table->file->*operator_func)(thd, check_opt);
+        });
 
-      result_code = cr.second;
-      if (cr.first) {
-        goto err;
+        result_code = cr.second;
+        if (cr.first) {
+          goto err;
+        }
       }
     }
     // Some other admin COMMAND

@@ -175,3 +175,12 @@ CHECK TABLE t2 FOR UPGRADE;
 --echo # Cleanup
 DROP TABLE t2;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#28220374 	T != NULLPTR' AT BOOL)::<LAMBDA IN SQL/SQL_ADMIN.CC
+--echo #
+--echo # Verify that OK is returned for temporary tables
+CREATE TEMPORARY TABLE tt1(i INT);
+CHECK TABLE tt1 FOR UPGRADE;
+DROP TABLE tt1;
+
