@@ -2543,7 +2543,7 @@ err:
 
 void handler::ha_statistic_increment(
     ulonglong System_status_var::*offset) const {
-  (table->in_use->status_var.*offset)++;
+  if (table && table->in_use) (table->in_use->status_var.*offset)++;
 }
 
 THD *handler::ha_thd(void) const {
