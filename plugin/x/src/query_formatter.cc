@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@
 
 using namespace xpl;
 
-enum Block {
+enum Block_enum {
   Block_none,
   Block_string_quoted,
   Block_string_double_quoted,
@@ -51,7 +51,7 @@ class Sql_search_tags {
         m_matching_chars_line_comment2(0),
         m_escape_chars(0) {}
 
-  bool should_ignore_block(const char character, const Block try_block,
+  bool should_ignore_block(const char character, const Block_enum try_block,
                            const char character_begin, const char character_end,
                            bool escape = false) {
     if (m_state != try_block && m_state != Block_none) return false;
@@ -84,7 +84,8 @@ class Sql_search_tags {
     return false;
   }
 
-  bool if_matching_switch_state(const char character, const Block try_block,
+  bool if_matching_switch_state(const char character,
+                                const Block_enum try_block,
                                 uint8_t &matching_chars, const char *match,
                                 const std::size_t match_length) {
     bool repeat = true;
@@ -112,7 +113,7 @@ class Sql_search_tags {
 
   template <std::size_t block_begin_length, std::size_t block_end_length>
   bool should_ignore_block_multichar(
-      const char character, const Block try_block_state,
+      const char character, const Block_enum try_block_state,
       uint8_t &matching_chars, const char (&block_begin)[block_begin_length],
       const char (&block_end)[block_end_length]) {
     if (m_state != try_block_state && m_state != Block_none) return false;
@@ -166,7 +167,7 @@ class Sql_search_tags {
   }
 
  private:
-  Block m_state;
+  Block_enum m_state;
   uint8_t m_matching_chars_comment;
   uint8_t m_matching_chars_line_comment1;
   uint8_t m_matching_chars_line_comment2;

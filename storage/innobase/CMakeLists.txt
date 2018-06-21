@@ -36,10 +36,8 @@ INCLUDE_DIRECTORIES(
 # Conflicting YYSTYPE, because we have multiple Bison grammars.
 # WL#11100 Migrate to Bison 3.x should fix this.
 #
-# Conflicting os0file.cc:111: warning: type struct Block
-# Conflicting plugin/x/src/query_formatter.cc:36: enum Block
-STRING(REPLACE "-flto" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
-STRING(REPLACE "-flto" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+# STRING(REPLACE "-flto" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+# STRING(REPLACE "-flto" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
 SET(INNOBASE_ZIP_DECOMPRESS_SOURCES
 	buf/buf.cc
