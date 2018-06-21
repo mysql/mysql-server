@@ -167,8 +167,8 @@ template class IndexScanIterator<false>;
   @param qep_tab  QEP_TAB for 'table', if there is one; we may use
     qep_tab->quick() as data source
   @param disable_rr_cache
-    Don't use rr_from_cache (used by sort-union index-merge which produces
-    rowid sequences that are already ordered)
+    Don't use caching in SortBufferIndirectIterator (used by sort-union
+    index-merge which produces rowid sequences that are already ordered)
   @param ignore_not_found_rows
     Ignore any rows not found in reference tables, as they may already have
     been deleted by foreign key handling. Only relevant for methods that need

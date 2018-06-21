@@ -494,7 +494,7 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
   {
     if (save_index(&param, num_rows_found, &table->sort, sort_result)) goto err;
   } else {
-    // We will need an extra buffer in rr_unpack_from_tempfile()
+    // We will need an extra buffer in SortFileIndirectIterator
     if (table->sort.addon_fields != nullptr &&
         !(table->sort.addon_fields->allocate_addon_buf(param.m_addon_length)))
       goto err; /* purecov: inspected */
@@ -1650,18 +1650,18 @@ static void register_used_fields(Sort_param *param) {
   but the new buffer - containing only row references - is probably a
   lot smaller.
 
-  The result data will be unpacked by rr_unpack_from_buffer()
-  or rr_from_pointers()
+  The result data will be unpacked by SortBufferIterator
+  or SortBufferIndirectIterator
 
-  Note that rr_unpack_from_buffer() does not have access to a Sort_param.
+  Note that SortBufferIterator does not have access to a Sort_param.
   It does however have access to a Filesort_info, which knows whether
   we have variable sized keys or not.
-  TODO: consider templatizing rr_unpack_from_buffer on is_varlen or not.
+  TODO: consider templatizing SortBufferIterator on is_varlen or not.
 
   @param [in]     param      Sort parameters.
   @param          count      Number of records
-  @param [in,out] table_sort Information used by rr_unpack_from_buffer() /
-                             rr_from_pointers()
+  @param [in,out] table_sort Information used by SortBufferIterator /
+                             SortBufferIndirectIterator
   @param [out]    sort_result Where to store the actual result
  */
 static bool save_index(Sort_param *param, uint count, Filesort_info *table_sort,

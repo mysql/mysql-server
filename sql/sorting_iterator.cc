@@ -273,18 +273,12 @@ SortFileIterator<Packed_addon_fields>::~SortFileIterator() {
 template <bool Packed_addon_fields>
 int SortFileIterator<Packed_addon_fields>::Read() {
   uchar *destination = m_rec_buf;
-#ifndef DBUG_OFF
-  my_off_t where = my_b_tell(m_io_cache);
-#endif
   if (Packed_addon_fields) {
     const uint len_sz = Addon_fields::size_of_length_field;
 
     // First read length of the record.
     if (my_b_read(m_io_cache, destination, len_sz)) return -1;
     uint res_length = Addon_fields::read_addon_length(destination);
-    DBUG_PRINT("info",
-               ("rr_unpack from %llu to %p sz %u",
-                static_cast<ulonglong>(where), destination, res_length));
     DBUG_ASSERT(res_length > len_sz);
     DBUG_ASSERT(m_sort->using_addon_fields());
 

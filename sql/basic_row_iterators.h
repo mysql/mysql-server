@@ -93,8 +93,8 @@ class IndexScanIterator final : public RowIterator {
 /**
   Scan a given range of the table (a “quick”), using an index.
 
-  rr_quick uses one of the QUICK_SELECT classes in opt_range.cc to
-  perform an index scan. There are loads of functionality hidden
+  IndexRangeScanIterator uses one of the QUICK_SELECT classes in opt_range.cc
+  to perform an index scan. There are loads of functionality hidden
   in these quick classes. It handles all index scans of various kinds.
 
   TODO: Convert the QUICK_SELECT framework to RowIterator, so that
