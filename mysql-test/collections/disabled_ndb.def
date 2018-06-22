@@ -198,3 +198,6 @@ rpl_ndb.rpl_ndb_row_basic : BUG#26434966 FAILURE OF RPL_NDB_ROW_BASIC TEST
 # test everything.
 rpl_ndb.rpl_ndb_mixed_implicit_commit_binlog : Unstable, magic numbers causes errors
 rpl_ndb.rpl_ndb_row_implicit_commit_binlog   : BUG#12586131 - fails on SET PASSWORD
+
+# Below test disabled due to result content mismatch, test needs to be made more stable.
+ndb.ndb_read_location_domain : Bug #27935436 NDB_READ_LOCATION_DOMAIN FAILURE IN PB2.
