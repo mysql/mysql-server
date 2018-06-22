@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <!--
-Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -87,7 +87,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
                 document.body.appendChild(standby.domNode);
                 standby.startup();
-
+                
                 // No need to send path along as it is always HOME.
                 function populateMultiSelect(optionData){
                     require([
@@ -103,7 +103,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
                                     console.log("PICKED: " + picked);
                                     document.getElementById("d_passphrase").focus();
                                 },
-                            multiple: false
+                            multiple: false,
+                            class: "narrow wrap",
+                            style: "white-space: normal;"
                         }, sel);
                         ss1.startup();
                         document.getElementById("sid1").focus();

@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -205,6 +205,12 @@ function createSSHBlock(key_user, key_passp, key_file) {
      *       IF hosts[0].getValue("usr") THEN provide usr
      *       IF hosts[0].getValue("usrpwd") THEN provide usrpwd
      *   END
+     *
+     *   NEW: ClusterStorage got new members for detailed SSH config like the 
+     *   above for HostStorage. Same logic apply.
+     *      mcc.gui.getClSSHUser()
+     *      mcc.gui.getClSSHPwd()
+     *      mcc.gui.getClSSHKeyFile()
      *****************************************************************************/
 
     if (key_file) {
@@ -287,18 +293,33 @@ function hostInfoReq(hostname, onReply, onError) {
         } else {
             // Do it the old way.
             mcc.util.dbg("Host " + hostname + " has no creds.");
-            mcc.util.dbg("Running hostInfoReq for host " + hostname + " with Cluster creds");
-            // Create message
-            var msg = {
-                head: getHead("hostInfoReq"),
-                body: {
-                    ssh: getSSH(hostname, mcc.gui.getSSHkeybased(), 
-                            mcc.gui.getSSHUser(),
-                            mcc.gui.getSSHPwd()),
-                    hostName: hostname
+            mcc.util.dbg("SSHKeyBase is " + mcc.gui.getSSHkeybased());
+            if (mcc.gui.getSSHkeybased()) {
+                //New Cluster-LvL SSH code.
+                mcc.util.dbg("Running hostInfoReq for host " + hostname + " with Cluster keys");
+                var msg = {
+                    head: getHead("hostInfoReq"),
+                    body: {
+                        ssh: createSSHBlock(mcc.gui.getClSSHUser(), mcc.gui.getClSSHPwd(),
+                            mcc.gui.getClSSHKeyFile()),
+                        hostName: hostname
+                    }
                 }
-            };
 
+            } else {
+                // Create default message
+                mcc.util.dbg("Running hostInfoReq for host " + hostname + " with Cluster creds");
+                var msg = {
+                    head: getHead("hostInfoReq"),
+                    body: {
+                        ssh: getSSH(hostname, mcc.gui.getSSHkeybased(), 
+                                mcc.gui.getSSHUser(),
+                                mcc.gui.getSSHPwd()),
+                        hostName: hostname
+                    }
+                };
+            }
+            
             // Register last seq no
             mcc.storage.hostStorage().getItems({name: hostname}).then(
                 function (hosts) {
@@ -361,29 +382,31 @@ function hostDockerReq(hostname, onReply, onError) {
         } else {
             // Do it the old way.
             mcc.util.dbg("Host " + hostname + " has no creds.");
-            mcc.util.dbg("Running hostDockerReq for host " + hostname + " with Cluster creds");
-            // Create message
-            var msg = {
-                head: getHead("hostDockerReq"),
-                body: {
-                    ssh: getSSH(hostname, mcc.gui.getSSHkeybased(), 
-                            mcc.gui.getSSHUser(),
-                            mcc.gui.getSSHPwd()),
-                    hostName: hostname
-                }
-            };
-
-            // Register last seq no
-            mcc.storage.hostStorage().getItems({name: hostname}).then(
-                function (hosts) {
-                    if (hosts[0]) {
-
-                        // Call do_post, provide callbacks
-                        do_post(msg).then(replyHandler(onReply, onError), 
-                                errorHandler(msg.head, onError));
+            if (mcc.gui.getSSHkeybased()) {
+                //New Cluster-LvL SSH code.
+                mcc.util.dbg("Running hostDockerReq for host " + hostname + " with Cluster keys");
+                var msg = {
+                    head: getHead("hostDockerReq"),
+                    body: {
+                        ssh: createSSHBlock(mcc.gui.getClSSHUser(), mcc.gui.getClSSHPwd(),
+                            mcc.gui.getClSSHKeyFile()),
+                        hostName: hostname
                     }
                 }
-            );
+
+            } else {
+                // Create default message
+                mcc.util.dbg("Running hostDockerReq for host " + hostname + " with Cluster creds");
+                var msg = {
+                    head: getHead("hostDockerReq"),
+                    body: {
+                        ssh: getSSH(hostname, mcc.gui.getSSHkeybased(), 
+                                mcc.gui.getSSHUser(),
+                                mcc.gui.getSSHPwd()),
+                        hostName: hostname
+                    }
+                };
+            }
         }
     }
 }
@@ -443,22 +466,40 @@ function checkFileReq(hostname, path, filename, contents, overwrite,
                 }
             );
         } else {
-            // Get SSH info from cluster storage
-            mcc.util.dbg("Running checkFileReq for host " + hostname + " with Cluster creds");
-            // Create message
-            var msg = {
-                head: getHead("checkFileReq"),
-                body: {
-                    ssh: getSSH(hostname, mcc.gui.getSSHkeybased(), 
-                            mcc.gui.getSSHUser(),
-                            mcc.gui.getSSHPwd()),
-                    //ssh: getSSH('localhost', false, "", ""),
-                    file: {
-                        hostName: hostname,
-                        path: path
+            // Do it the old way.
+            mcc.util.dbg("Host " + hostname + " has no creds.");
+            if (mcc.gui.getSSHkeybased()) {
+                //New Cluster-LvL SSH code.
+                mcc.util.dbg("Running checkFileReq for host " + hostname + " with Cluster keys");
+                var msg = {
+                    head: getHead("checkFileReq"),
+                    body: {
+                        ssh: createSSHBlock(mcc.gui.getClSSHUser(), mcc.gui.getClSSHPwd(),
+                            mcc.gui.getClSSHKeyFile()),
+                        file: {
+                            hostName: hostname,
+                            path: path
+                        }
                     }
                 }
-            };
+
+            } else {
+                // Create default message
+                mcc.util.dbg("Running checkFileReq for host " + hostname + " with Cluster creds");
+                var msg = {
+                    head: getHead("checkFileReq"),
+                    body: {
+                        ssh: getSSH(hostname, mcc.gui.getSSHkeybased(), 
+                                mcc.gui.getSSHUser(),
+                                mcc.gui.getSSHPwd()),
+                        file: {
+                            hostName: hostname,
+                            path: path
+                        }
+                    }
+                };
+            }
+            
             if (filename) {
                 msg.body.file.name = filename;
             }
@@ -531,39 +572,76 @@ function createFileReq(hostname, path, filename, contents, overwrite,
                 }
             );
         } else {
-            // Get SSH info from cluster storage
-            mcc.util.dbg("Running createFileReq for host " + hostname + " with Cluster creds");
-            // Create message
-            try {
-                var msg = {
-                    head: getHead("createFileReq"),
-                    body: {
-                        ssh: getSSH(hostname, mcc.gui.getSSHkeybased(), 
-                                mcc.gui.getSSHUser(),
-                                mcc.gui.getSSHPwd()),
-                        file: {
-                            hostName: hostname,
-                            path: path
+            // Do it the old way.
+            mcc.util.dbg("Host " + hostname + " has no creds.");
+            if (mcc.gui.getSSHkeybased()) {
+                //New Cluster-LvL SSH code.
+                mcc.util.dbg("Running createFileReq for host " + hostname + " with Cluster keys");
+                try {
+                    var msg = {
+                        head: getHead("createFileReq"),
+                        body: {
+                            ssh: createSSHBlock(mcc.gui.getClSSHUser(), mcc.gui.getClSSHPwd(),
+                                mcc.gui.getClSSHKeyFile()),
+                            file: {
+                                hostName: hostname,
+                                path: path
+                            }
                         }
-                    }
-                };
-            } catch (e){
-                //IF mcc.gui.getSSHPwd() fails, which is the only case,
-                //then we can safely assume we are BEFORE gui initialization,
-                //which means on welcome page and not yet on content. Thus,
-                //no creds are available, we're on lacalhost.
-                mcc.util.dbg("Inside CATCH");
-                msg = {
-                    head: getHead("createFileReq"),
-                    body: {
-                        ssh: getSSH("localhost", false, "",""),
-                        file: {
-                            hostName: hostname,
-                            path: path
+                    };
+                } catch (e){
+                    //IF mcc.gui.getSSHPwd() fails, which is the only case,
+                    //then we can safely assume we are BEFORE gui initialization,
+                    //which means on welcome page and not yet on content. Thus,
+                    //no creds are available, we're on lacalhost.
+                    mcc.util.dbg("Inside CATCH");
+                    msg = {
+                        head: getHead("createFileReq"),
+                        body: {
+                            ssh: getSSH("localhost", false, "",""),
+                            file: {
+                                hostName: hostname,
+                                path: path
+                            }
                         }
-                    }
+                    };
                 };
-            };
+            } else {
+                // Create default message
+                mcc.util.dbg("Running createFileReq for host " + hostname + " with Cluster creds");
+                try {
+                    var msg = {
+                        head: getHead("createFileReq"),
+                        body: {
+                            ssh: getSSH(hostname, mcc.gui.getSSHkeybased(), 
+                                    mcc.gui.getSSHUser(),
+                                    mcc.gui.getSSHPwd()),
+                            file: {
+                                hostName: hostname,
+                                path: path
+                            }
+                        }
+                    };
+                } catch (e){
+                    //IF mcc.gui.getSSHPwd() fails, which is the only case,
+                    //then we can safely assume we are BEFORE gui initialization,
+                    //which means on welcome page and not yet on content. Thus,
+                    //no creds are available, we're on lacalhost.
+                    mcc.util.dbg("Inside CATCH");
+                    msg = {
+                        head: getHead("createFileReq"),
+                        body: {
+                            ssh: getSSH("localhost", false, "",""),
+                            file: {
+                                hostName: hostname,
+                                path: path
+                            }
+                        }
+                    };
+                };
+            }
+            
+            
             if (filename) {
                 msg.body.file.name = filename;
             }
@@ -638,28 +716,51 @@ function appendFileReq(hostname, srcPath, srcName, destPath, destName,
                 }
             );
         } else {
-            // Get SSH info from cluster storage
-            mcc.util.dbg("Running appendFileReq for host " + hostname + " with Cluster creds");
-            // Create message
-            var msg = {
-                head: getHead("appendFileReq"),
-                body: {
-                    ssh: getSSH(hostname, mcc.gui.getSSHkeybased(), 
-                            mcc.gui.getSSHUser(),
-                            mcc.gui.getSSHPwd()),
-                    sourceFile: {
-                        hostName: hostname,
-                        path: srcPath,
-                        name: srcName
-                    },
-                    destinationFile: {
-                        hostName: hostname,
-                        path: destPath,
-                        name: destName
+            // Do it the old way.
+            mcc.util.dbg("Host " + hostname + " has no creds.");
+            if (mcc.gui.getSSHkeybased()) {
+                //New Cluster-LvL SSH code.
+                mcc.util.dbg("Running appendFileReq for host " + hostname + " with Cluster keys");
+                var msg = {
+                    head: getHead("appendFileReq"),
+                    body: {
+                        ssh: createSSHBlock(mcc.gui.getClSSHUser(), mcc.gui.getClSSHPwd(),
+                            mcc.gui.getClSSHKeyFile()),
+                        sourceFile: {
+                            hostName: hostname,
+                            path: srcPath,
+                            name: srcName
+                        },
+                        destinationFile: {
+                            hostName: hostname,
+                            path: destPath,
+                            name: destName
+                        }
                     }
                 }
-            };
 
+            } else {
+                // Create default message
+                mcc.util.dbg("Running appendFileReq for host " + hostname + " with Cluster creds");
+                var msg = {
+                    head: getHead("appendFileReq"),
+                    body: {
+                        ssh: getSSH(hostname, mcc.gui.getSSHkeybased(), 
+                                mcc.gui.getSSHUser(),
+                                mcc.gui.getSSHPwd()),
+                        sourceFile: {
+                            hostName: hostname,
+                            path: srcPath,
+                            name: srcName
+                        },
+                        destinationFile: {
+                            hostName: hostname,
+                            path: destPath,
+                            name: destName
+                        }
+                    }
+                };
+            }
             // Call do_post, provide callbacks
             do_post(msg).then(replyHandler(onReply, onError), 
                     errorHandler(msg.head, onError));
@@ -710,20 +811,37 @@ function runMgmdCommandReq(hostname, port, cmd, onReply, onError) {
                 }
             );
         } else {
-            // Get SSH info from cluster storage
-            mcc.util.dbg("Running runMgmdCommandReq for host " + hostname + " with Cluster creds");
-            // Create message
-            var msg = {
-                head: getHead("runMgmdCommandReq"),
-                body: {
-                    ssh: getSSH(hostname, mcc.gui.getSSHkeybased(), 
-                            mcc.gui.getSSHUser(),
-                            mcc.gui.getSSHPwd()),
-                    hostName: hostname,
-                    port: port,
-                    mgmd_command: cmd
+            // Do it the old way.
+            mcc.util.dbg("Host " + hostname + " has no creds.");
+            if (mcc.gui.getSSHkeybased()) {
+                //New Cluster-LvL SSH code.
+                mcc.util.dbg("Running runMgmdCommandReq for host " + hostname + " with Cluster keys");
+                var msg = {
+                    head: getHead("runMgmdCommandReq"),
+                    body: {
+                        ssh: createSSHBlock(mcc.gui.getClSSHUser(), mcc.gui.getClSSHPwd(),
+                            mcc.gui.getClSSHKeyFile()),
+                            hostName: hostname,
+                            port: port,
+                            mgmd_command: cmd
+                    }
                 }
-            };
+
+            } else {
+                // Create default message
+                mcc.util.dbg("Running runMgmdCommandReq for host " + hostname + " with Cluster creds");
+                var msg = {
+                    head: getHead("runMgmdCommandReq"),
+                    body: {
+                        ssh: getSSH(hostname, mcc.gui.getSSHkeybased(), 
+                                mcc.gui.getSSHUser(),
+                                mcc.gui.getSSHPwd()),
+                            hostName: hostname,
+                            port: port,
+                            mgmd_command: cmd
+                    }
+                };
+            }
 
             // Call do_post, provide callbacks
             do_post(msg).then(replyHandler(onReply, onError), 
@@ -771,10 +889,21 @@ function doReq(reqName, body, cluster, onReply, onError) {
                 }
             );
         } else {
-            mcc.util.dbg("Running doReq for host " + hostName_fromBody + " with Cluster creds");
-            msg.body.ssh = getSSH(hostName_fromBody, mcc.gui.getSSHkeybased(), 
-                            mcc.gui.getSSHUser(),
-                            mcc.gui.getSSHPwd());
+            // Do it the old way.
+            mcc.util.dbg("Host " + hostName_fromBody + " has no creds.");
+            if (mcc.gui.getSSHkeybased()) {
+                //New Cluster-LvL SSH code.
+                mcc.util.dbg("Running doReq for host " + hostName_fromBody + " with Cluster keys");
+                msg.body.ssh = createSSHBlock(mcc.gui.getClSSHUser(), mcc.gui.getClSSHPwd(),
+                            mcc.gui.getClSSHKeyFile());
+            } else {
+                // Create default message
+                mcc.util.dbg("Running doReq for host " + hostName_fromBody + " with Cluster creds");
+                msg.body.ssh = getSSH(hostName_fromBody, mcc.gui.getSSHkeybased(), 
+                                mcc.gui.getSSHUser(),
+                                mcc.gui.getSSHPwd());
+            }
+
         }
         // Call do_post, provide callbacks
         do_post(msg).then(replyHandler(onReply, onError), 

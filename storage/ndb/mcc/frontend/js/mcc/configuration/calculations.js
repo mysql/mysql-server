@@ -342,6 +342,14 @@ function typeSetup(processTypeItem) {
             // Leave process type level datadir undefined
             waitCondition.resolve();
         } else if (processFamilyName == "data") {
+            // Get portbase, set default for ServerPort
+            var spbase = processFamilyItem.getValue("Portbase");
+            if (spbase === undefined) {
+                spbase = mcc.configuration.getPara(processFamilyName, null, 
+                        "ServerPort", "defaultValueType");
+            }
+            mcc.configuration.setPara(processFamilyName, null, "ServerPort",
+                    "defaultValueType", spbase);
 
             // Check parameters that depend on cluster defaults
             mcc.storage.clusterStorage().getItem(0).then(function (cluster) {
@@ -561,6 +569,23 @@ function ndbd_setup(processItem, processFamilyItem, host, waitCondition) {
     mcc.configuration.setPara(processFamilyName, id, "DataDir",
             "defaultValueInstance", datadir +
             processItem.getValue("NodeId") + dirSep);
+
+    // Get colleague nodes, find own index on host
+    mcc.util.getColleagueNodes(processItem).then(function (colleagues) {
+        var myIdx = dojo.indexOf(colleagues, processItem.getId());
+
+        // Get type's overridden port base
+        var pbase = processFamilyItem.getValue("Portbase");
+
+        // If not overridden, use type default
+        if (pbase === undefined) {
+            pbase = mcc.configuration.getPara(processFamilyName, null, 
+                    "Portbase", "defaultValueType");
+        }
+        // Set port using retrieved portbase and node index on host
+        mcc.configuration.setPara(processFamilyName, id, "ServerPort",
+                "defaultValueInstance", myIdx + pbase);
+    });
 
     // Get cluster attributes
     mcc.storage.clusterStorage().getItem(0).then(function (cluster) {

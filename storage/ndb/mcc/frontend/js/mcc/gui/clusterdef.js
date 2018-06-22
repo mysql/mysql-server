@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -83,6 +83,11 @@ mcc.gui.clusterdef.getSSHUser = getSSHUser;
 mcc.gui.clusterdef.getSSHkeybased = getSSHkeybased;
 mcc.gui.clusterdef.getOpenFW = getOpenFW;
 mcc.gui.clusterdef.getInstallCl = getInstallCl;
+//New SSH stuff
+mcc.gui.clusterdef.getClSSHPwd = getClSSHPwd;
+mcc.gui.clusterdef.getClSSHUser = getClSSHUser;
+mcc.gui.clusterdef.getClSSHKeyFile = getClSSHKeyFile;
+
 
 /******************************* Internal data ********************************/
 
@@ -91,6 +96,9 @@ var ssh_user = "";
 var ssh_keybased = false;
 var openFW = false;
 var installCl = "NONE";
+var ssh_ClKeyUser = "";
+var ssh_ClKeyPass = "";
+var ssh_ClKeyFile = "";
 /****************************** Implementation  *******************************/
 // Get SSH password.
 function getSSHPwd() {
@@ -117,6 +125,21 @@ function getInstallCl() {
     return installCl;
 }
 
+// Get NEW ClusterLvL SSHPwd
+function getClSSHPwd() {
+    return ssh_ClKeyPass;
+}
+
+// Get NEW ClusterLvL SSHUser
+function getClSSHUser() {
+    return ssh_ClKeyUser;
+}
+
+// Get NEW ClusterLvL SSH PK file
+function getClSSHKeyFile() {
+    return ssh_ClKeyFile;
+}
+
 // Save data from widgets into the cluster data object
 function saveClusterDefinition() {
 
@@ -126,27 +149,41 @@ function saveClusterDefinition() {
 
     // Get the (one and only) cluster item and update it
     clusterStorage.getItem(0).then(function (cluster) {
-
         // If toggling the keybased ssh on, reset and disable user/pwd
         if (dijit.byId("sd_keybased").get("value")) {
             dijit.byId("sd_user").set("disabled", true);
             dijit.byId("sd_user").set("value", "");
             dijit.byId("sd_pwd").set("disabled", true);
             dijit.byId("sd_pwd").set("value", "");
+            dijit.byId("sd_ClkeyUser").set("disabled", false);
+            dijit.byId("sd_ClkeyPass").set("disabled", false);
+            dijit.byId("sd_ClkeyFile").set("disabled", false);
         } else {
             dijit.byId("sd_user").set("disabled", false);
             dijit.byId("sd_pwd").set("disabled", false);
+            dijit.byId("sd_ClkeyUser").set("disabled", true);
+            dijit.byId("sd_ClkeyUser").set("value", "");
+            dijit.byId("sd_ClkeyPass").set("disabled", true);
+            dijit.byId("sd_ClkeyPass").set("value", "");
+            dijit.byId("sd_ClkeyFile").set("disabled", true);
+            dijit.byId("sd_ClkeyFile").set("value", "");
         }
-
+        
         // If there was a change in credentials, try to connect to all hosts
         var old_user = cluster.getValue("ssh_user");
         var old_keybased = cluster.getValue("ssh_keybased");
+        var old_SSHClkeyUser = cluster.getValue("ssh_ClKeyUser");
+        var old_ssh_ClKeyPass = cluster.getValue("ssh_ClKeyPass");
+        var old_ssh_ClKeyFile = cluster.getValue("ssh_ClKeyFile");
         //var old_pwd = ssh_pwd; 
         var old_pwd = cluster.getValue("ssh_pwd");
         
         if (old_user != dijit.byId("sd_user").getValue() ||
             old_keybased != dijit.byId("sd_keybased").getValue() ||
-            old_pwd != dijit.byId("sd_pwd").getValue()) {
+            old_pwd != dijit.byId("sd_pwd").getValue() || 
+            old_SSHClkeyUser != dijit.byId("sd_ClkeyUser").getValue() || 
+            old_ssh_ClKeyPass != dijit.byId("sd_ClkeyPass").getValue() || 
+            old_ssh_ClKeyFile != dijit.byId("sd_ClkeyFile").getValue()) {
 
             // Store SSH details
             cluster.setValue("ssh_keybased", 
@@ -156,9 +193,17 @@ function saveClusterDefinition() {
             cluster.setValue("ssh_pwd", 
                     dijit.byId("sd_pwd").getValue());
 
+            cluster.setValue("ssh_ClKeyUser", dijit.byId("sd_ClkeyUser").getValue());
+            cluster.setValue("ssh_ClKeyPass", dijit.byId("sd_ClkeyPass").getValue());
+            cluster.setValue("ssh_ClKeyFile", dijit.byId("sd_ClkeyFile").getValue()); 
+
             ssh_pwd = dijit.byId("sd_pwd").getValue();
             ssh_user = dijit.byId("sd_user").getValue();
             ssh_keybased = dijit.byId("sd_keybased").getValue();
+
+            ssh_ClKeyUser = dijit.byId("sd_ClkeyUser").getValue();
+            ssh_ClKeyPass = dijit.byId("sd_ClkeyPass").getValue();
+            ssh_ClKeyFile = dijit.byId("sd_ClkeyFile").getValue();
            
             // Try to reconnect all hosts to get resource information.
             mcc.util.dbg("Re-fetch host(s) resource information.");
@@ -280,7 +325,6 @@ function showClusterDefinition(initialize) {
     // Get hold of storage objects
     var clusterStorage = mcc.storage.clusterStorage();
     var hostStorage = mcc.storage.hostStorage();
-
     clusterStorage.getItem(0).then(function (cluster) {
         // SSH details
         dijit.byId("sd_keybased").setValue(
@@ -293,6 +337,18 @@ function showClusterDefinition(initialize) {
         ssh_pwd = cluster.getValue("ssh_pwd");
         ssh_user = cluster.getValue("ssh_user");
         ssh_keybased = cluster.getValue("ssh_keybased");
+        
+        dijit.byId("sd_ClkeyUser").setValue(
+            cluster.getValue("ssh_ClKeyUser"));
+        ssh_ClKeyUser = cluster.getValue("ssh_ClKeyUser");
+
+        dijit.byId("sd_ClkeyPass").setValue(
+            cluster.getValue("ssh_ClKeyPass"));
+        ssh_ClKeyPass = cluster.getValue("ssh_ClKeyPass");
+
+        dijit.byId("sd_ClkeyFile").setValue( 
+            cluster.getValue("ssh_ClKeyFile"));
+        ssh_ClKeyFile = cluster.getValue("ssh_ClKeyFile");
 
         // Cluster details
         dijit.byId("cd_name").setValue(
@@ -480,6 +536,38 @@ function clusterDefinitionSetup() {
         destroyOnHide: true
     });
 
+//NEW SSH stuff:
+    var sd_ClkeyUser = new dijit.form.TextBox({style: "width: 120px"}, "sd_ClkeyUser");
+    dojo.connect(sd_ClkeyUser, "onChange", saveClusterDefinition);
+    sd_ClkeyUser.setAttribute("disabled", true);
+    var sd_key_usr_tt = new dijit.Tooltip({
+        connectId: ["sd_ClkeyUser", "sd_ClkeyUser_qm"],
+        label: "User name for key login \
+                if different than in key.",
+        destroyOnHide: true
+    });
+
+    var sd_ClkeyPass = new dijit.form.TextBox({
+        type: "password",
+        style: "width: 120px"
+    }, "sd_ClkeyPass");
+    dojo.connect(sd_ClkeyPass, "onChange", saveClusterDefinition);
+    sd_ClkeyPass.setAttribute("disabled", true);
+    var sd_key_passp_tt = new dijit.Tooltip({
+        connectId: ["sd_ClkeyPass", "sd_ClkeyPass_qm"],
+        label: "Passphrase for the key.",
+        destroyOnHide: true
+    });
+
+    var sd_ClkeyFile = new dijit.form.TextBox({style: "width: 245px"}, "sd_ClkeyFile");
+    dojo.connect(sd_ClkeyFile, "onChange", saveClusterDefinition);
+    sd_ClkeyFile.setAttribute("disabled", true);
+    var sd_key_file_tt = new dijit.Tooltip({
+        connectId: ["sd_ClkeyFile", "sd_ClkeyFile_qm"],
+        label: "Path to file containing the key.",
+        destroyOnHide: true
+    });
+//-
     var sd_installCluster = new dijit.form.FilteringSelect({}, "sd_installCluster");
     var options=[];
     options.push({label: "BOTH", value: "BOTH", selected:false});

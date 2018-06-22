@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <!--
-Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -557,8 +557,10 @@ line.
     no SSH credentials are required. The credentials that can be specified are: 
     <ul>
     <li><b>Key based SSH: </b>Check this box if you have enabled key based login 
-        on the remote host. This will disable the two fields below. The private
-        key must reside in ~/.ssh and must not be encrypted. </li>
+        on the remote host. This will disable the two fields below. If the private
+        key is id_rsa and not encrypted and resides in ~/.ssh it will be used. For all 
+        other cases, please fill in <b>Key user</b> (if different than logged in one), <b>Key 
+        passphrase</b> (if key is encrypted) and <b>Key file</b> (if not ~/.ssh/id_rsa).</li>
     <li><b>User name: </b>Submit your remote SSH user name here. </li>
     <li><b>Password: </b>Submit your remote SSH password here. </li>
     <li><b>The credentials entered here are the same for every host, unless overridden 

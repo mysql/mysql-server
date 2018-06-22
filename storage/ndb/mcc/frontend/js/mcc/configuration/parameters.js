@@ -341,6 +341,24 @@ var processParameterDefaults= {
                 visibleInstance: false,
                 advancedLevel: true
             },
+            Portbase: {
+                label: "Portbase",
+                attribute: "Portbase",
+                tooltip: "Portbase is not a MySQL Cluster configuration " +
+                        "parameter, but is used for convenience to allow " +
+                        "changing the base for allocating port numbers for " +
+                        "individual ndb_mtd processes",
+                constraints: {min: 0, max: 65535, places: 0, pattern: "#"},
+                destination: "mcc",
+                overridableType: true,
+                overridableInstance: false,
+                widget: dijit.form.NumberSpinner,
+                width: "50%",
+                defaultValueType: 11860,
+                defaultValueInstance: [],
+                visibleType: true,
+                visibleInstance: false
+            },
             ServerPort: {
                 label: "ServerPort",
                 docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
@@ -353,13 +371,13 @@ var processParameterDefaults= {
                 attribute: "ServerPort",
                 destination: "config.ini",
                 overridableType: true,
-                overridableInstance: false,
+                overridableInstance: true,
                 widget: dijit.form.NumberSpinner,
                 width: "50%",
                 defaultValueType: undefined,
                 defaultValueInstance: [],
                 visibleType: true,
-                visibleInstance: false,
+                visibleInstance: true,
                 advancedLevel: true
             },
             LateAlloc: {
