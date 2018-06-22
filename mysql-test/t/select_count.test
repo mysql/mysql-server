@@ -212,14 +212,4 @@ set sql_mode=default;
 SELECT SQL_BIG_RESULT COUNT(*) FROM t_innodb;
 SELECT SQL_BIG_RESULT COUNT(*) FROM t_innodb, t_myisam;
 
-#Bug #28079850: Requires handling THD::KILL_QUERY in records* functions.
-SET debug= '+d,bug28079850';
-#checks handler::records_from_index()
---error ER_QUERY_INTERRUPTED
-SELECT COUNT(*) FROM t_innodb;
-#checks handler::records()
---error ER_QUERY_INTERRUPTED
-SELECT COUNT(*) FROM performance_schema.table_handles;
-SET debug= '-d,bug28079850';
-
 DROP TABLE t_innodb, t_myisam;

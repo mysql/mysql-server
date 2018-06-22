@@ -56,4 +56,27 @@ SET debug= '-d,bug13822652_2';
 
 DROP TABLE g1,g2;
 
+--echo #
+--echo # Bug#28079850: Requires handling THD::KILL_QUERY in records* functions.
+--echo #
+
+CREATE TABLE t_innodb(c1 INT NOT NULL PRIMARY KEY,
+                      c2 INT NOT NULL,
+                      c3 char(20),
+                      KEY c3_idx(c3))ENGINE=INNODB;
+
+INSERT INTO t_innodb VALUES (1, 1, 'a'), (2,2,'a'), (3,3,'a');
+ANALYZE TABLE t_innodb;
+
+SET debug= '+d,bug28079850';
+#checks handler::records_from_index()
+--error ER_QUERY_INTERRUPTED
+SELECT COUNT(*) FROM t_innodb;
+#checks handler::records()
+--error ER_QUERY_INTERRUPTED
+SELECT COUNT(*) FROM performance_schema.table_handles;
+SET debug= '-d,bug28079850';
+
+DROP TABLE t_innodb;
+
 SET debug= @old_debug;
