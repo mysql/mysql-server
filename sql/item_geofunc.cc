@@ -31,20 +31,13 @@
 #include <float.h>
 #include <string.h>
 #include <algorithm>
-#include <boost/concept/usage.hpp>
 #include <boost/geometry/algorithms/centroid.hpp>
 #include <boost/geometry/algorithms/convex_hull.hpp>
-#include <boost/geometry/algorithms/is_valid.hpp>  // IWYU pragma: keep
-#include <boost/geometry/core/cs.hpp>
-#include <boost/geometry/geometry.hpp>
 #include <boost/geometry/strategies/strategies.hpp>
-#include <boost/iterator/iterator_facade.hpp>
-#include <boost/move/utility_core.hpp>
 #include <cmath>  // std::isfinite, std::isnan
 #include <map>
 #include <memory>
 #include <new>
-#include <stack>
 #include <string>
 #include <utility>
 
@@ -85,8 +78,6 @@
 
 class PT_item_list;
 struct TABLE;
-
-static int check_geometry_valid(Geometry *geom);
 
 /**
   Check if a Item is considered to be a SQL NULL value.
@@ -3355,26 +3346,43 @@ String *Item_func_geometry_type::val_str_ascii(String *str) {
 }
 
 String *Item_func_validate::val_str(String *) {
-  DBUG_ASSERT(fixed == 1);
+  DBUG_ASSERT(fixed);
+
   String *swkb = args[0]->val_str(&arg_val);
-  Geometry_buffer buffer;
-  Geometry *geom = NULL;
-
-  if ((null_value = (!swkb || args[0]->null_value))) return error_str();
-  if (!(geom = Geometry::construct(&buffer, swkb))) return error_str();
-
-  if (verify_cartesian_srs(geom, func_name())) return error_str();
-
-  int isvalid = 0;
-
-  try {
-    isvalid = check_geometry_valid(geom);
-  } catch (...) {
+  if (args[0]->null_value) {
     null_value = true;
-    handle_gis_exception("ST_Validate");
+    return nullptr;
+  }
+  std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
+      new dd::cache::Dictionary_client::Auto_releaser(
+          current_thd->dd_client()));
+
+  if (swkb == nullptr) {
+    /* purecov: begin inspected */
+    DBUG_ASSERT(false);
+    null_value = true;
+    return nullptr;
+    /* purecov: end */
   }
 
-  return isvalid ? swkb : error_str();
+  const dd::Spatial_reference_system *srs = nullptr;
+  std::unique_ptr<gis::Geometry> g;
+
+  if (gis::parse_geometry(current_thd, func_name(), swkb, &srs, &g)) {
+    return error_str();
+  }
+  bool result = false;
+
+  if (gis::is_valid(srs, g.get(), func_name(), &result)) {
+    return error_str();
+  }
+  if (result) {
+    null_value = false;
+    return swkb;
+  } else {
+    null_value = true;
+    return nullptr;
+  }
 }
 
 Field::geometry_type Item_func_make_envelope::get_geometry_type() const {
@@ -4686,149 +4694,6 @@ longlong Item_func_isclosed::val_int() {
   null_value = geom->is_closed(&isclosed);
 
   return (longlong)isclosed;
-}
-
-/**
-  Checks the validity of a geometry collection, which is valid
-  if and only if all its components are valid.
- */
-class Geomcoll_validity_checker : public WKB_scanner_event_handler {
-  bool m_isvalid;
-  gis::srid_t m_srid;
-  std::stack<Geometry::wkbType> types;
-
- public:
-  explicit Geomcoll_validity_checker(gis::srid_t srid)
-      : m_isvalid(true), m_srid(srid) {}
-
-  bool is_valid() const { return m_isvalid; }
-
-  virtual void on_wkb_start(Geometry::wkbByteOrder, Geometry::wkbType geotype,
-                            const void *wkb, uint32 len,
-                            bool has_hdr MY_ATTRIBUTE((unused))) {
-    if (!m_isvalid) return;
-    Geometry::wkbType top = Geometry::wkb_invalid_type;
-    if (types.size() > 0)
-      top = types.top();
-    else
-      DBUG_ASSERT(geotype == Geometry::wkb_geometrycollection);
-
-    types.push(geotype);
-    // A geometry collection's vaidity is determined by that of its components.
-    if (geotype == Geometry::wkb_geometrycollection) return;
-    // If not owned by a GC(i.e. not a direct component of a GC), it doesn't
-    // influence the GC's validity.
-    if (top != Geometry::wkb_geometrycollection) return;
-
-    DBUG_ASSERT(top != Geometry::wkb_invalid_type && has_hdr);
-    DBUG_ASSERT(len > WKB_HEADER_SIZE);
-
-    Geometry_buffer geobuf;
-    Geometry *geo = NULL;
-
-    // Provide the WKB header starting address, wkb MUST have a WKB header
-    // right before it.
-    geo = Geometry::construct(&geobuf,
-                              static_cast<const char *>(wkb) - WKB_HEADER_SIZE,
-                              len + WKB_HEADER_SIZE, false /* has no srid */);
-    if (geo == NULL)
-      m_isvalid = false;
-    else {
-      geo->set_srid(m_srid);
-      m_isvalid = check_geometry_valid(geo);
-    }
-  }
-
-  virtual void on_wkb_end(const void *) {
-    if (types.size() > 0) types.pop();
-  }
-};
-
-/*
-  Call Boost Geometry algorithm to check whether a geometry is valid as
-  defined by OGC.
- */
-static int check_geometry_valid(Geometry *geom) {
-  int ret = 0;
-
-  // Empty geometry collection is always valid. This is shortcut for
-  // flat empty GCs.
-  if (is_empty_geocollection(geom)) return 1;
-
-  switch (geom->get_type()) {
-    case Geometry::wkb_point: {
-      BG_models<bgcs::cartesian>::Point bg(geom->get_data_ptr(),
-                                           geom->get_data_size(),
-                                           geom->get_flags(), geom->get_srid());
-      ret = bg::is_valid(bg);
-      break;
-    }
-    case Geometry::wkb_linestring: {
-      BG_models<bgcs::cartesian>::Linestring bg(
-          geom->get_data_ptr(), geom->get_data_size(), geom->get_flags(),
-          geom->get_srid());
-      ret = bg::is_valid(bg);
-      break;
-    }
-    case Geometry::wkb_polygon: {
-      const void *ptr = geom->normalize_ring_order();
-      if (ptr == NULL) {
-        ret = 0;
-        break;
-      }
-
-      BG_models<bgcs::cartesian>::Polygon bg(
-          ptr, geom->get_data_size(), geom->get_flags(), geom->get_srid());
-      ret = bg::is_valid(bg);
-      break;
-    }
-    case Geometry::wkb_multipoint: {
-      BG_models<bgcs::cartesian>::Multipoint bg(
-          geom->get_data_ptr(), geom->get_data_size(), geom->get_flags(),
-          geom->get_srid());
-      ret = bg::is_valid(bg);
-      break;
-    }
-    case Geometry::wkb_multilinestring: {
-      BG_models<bgcs::cartesian>::Multilinestring bg(
-          geom->get_data_ptr(), geom->get_data_size(), geom->get_flags(),
-          geom->get_srid());
-      ret = bg::is_valid(bg);
-      break;
-    }
-    case Geometry::wkb_multipolygon: {
-      const void *ptr = geom->normalize_ring_order();
-      if (ptr == NULL) {
-        ret = 0;
-        break;
-      }
-
-      BG_models<bgcs::cartesian>::Multipolygon bg(
-          ptr, geom->get_data_size(), geom->get_flags(), geom->get_srid());
-      ret = bg::is_valid(bg);
-      break;
-    }
-    case Geometry::wkb_geometrycollection: {
-      uint32 wkb_len = geom->get_data_size();
-      Geomcoll_validity_checker validity_checker(geom->get_srid());
-
-      /*
-        This case can only be reached when this function isn't recursively
-        called (indirectly by itself) but called by other functions, and
-        it's the WKB data doesn't have a WKB header before it. Otherwise in
-        Geomcoll_validity_checker it's required that the WKB data has a header.
-       */
-      wkb_scanner(current_thd, geom->get_cptr(), &wkb_len,
-                  Geometry::wkb_geometrycollection, false, &validity_checker);
-      ret = validity_checker.is_valid();
-      break;
-    }
-    default:
-      DBUG_ASSERT(false);
-      break;
-  }
-
-  return ret;
 }
 
 longlong Item_func_isvalid::val_int() {
