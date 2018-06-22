@@ -5077,25 +5077,26 @@
     </li>
 
     <li>
-      <tt>`--test-progress`={0|1}</tt>
+      <tt>`--test-progress`[={0|1}]</tt>
 
       Print the percentage of tests completed. This option is enabled
-      by default. To disable it, set the value to <b>0</b>.
+      by default. The argument to <b>`--test-progress`</b> is
+      optional. To disable it, set the value to <b>0</b>.
 
       For example, consider a test suite <b>sample_test_suite</b>
-      containing  3 tests.
+      containing 3 tests.
 
       @verbatim
-  ./mysql-test-run.pl --suite=sample_test_suite --test-progress
+  ./mysql-test-run.pl --suite=sample_test_suite [--test-progress]
       @endverbatim
 
       Running the suite with <b>`--test-progress`</b> option enabled
       will print the percentage of tests completed.
 
       @verbatim
-  [ 34%] test_suite.1st                           [ pass ]      1
-  [ 67%] test_suite.2nd                           [ pass ]      1
-  [100%] test_suite.3rd                           [ pass ]      1
+  [ 33%] sample_test_suite.1st                           [ pass ]      1
+  [ 66%] sample_test_suite.2nd                           [ pass ]      1
+  [100%] sample_test_suite.3rd                           [ pass ]      1
       @endverbatim
     </li>
 

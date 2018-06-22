@@ -1375,7 +1375,7 @@ sub command_line_setup {
     'check-testcases!' => \$opt_check_testcases,
     'mark-progress'    => \$opt_mark_progress,
     'record'           => \$opt_record,
-    'test-progress=i'  => \$opt_test_progress,
+    'test-progress:1'  => \$opt_test_progress,
 
     # Extra options used when starting mysqld
     'mysqld=s'     => \@opt_extra_mysqld_opt,
@@ -6941,7 +6941,10 @@ Options for test case authoring
   mark-progress         Log line number and elapsed time to <testname>.progress
                         file.
   record TESTNAME       (Re)genereate the result file for TESTNAME.
-  test-progress={0|1}   Print the percentage of tests completed.
+  test-progress[={0|1}] Print the percentage of tests completed. This setting
+                        is enabled by default. To disable it, set the value to
+                        0. Argument to '--test-progress' is optional.
+                        
 
 Options that pass on options (these may be repeated)
 
