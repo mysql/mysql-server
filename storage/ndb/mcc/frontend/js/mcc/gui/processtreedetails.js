@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2018 Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -248,8 +248,7 @@ function processTypeSelectionDetailsSetup(processType, appArea) {
             contentString += mcc.util.tableRow("pt_" + processType + "_",
                     mcc.configuration.getPara(processType, null, i, "label"), 
                     mcc.configuration.getPara(processType, null, i, "docurl"), 
-                    mcc.configuration.getPara(processType, null, i, 
-                            "attribute"),
+                    mcc.configuration.getPara(processType, null, i, "attribute"),
                     mcc.configuration.getPara(processType, null, i, "tooltip"));
         }
     }
@@ -321,8 +320,7 @@ function processInstanceSelectionDetailsSetup(processType, appArea) {
             contentString += mcc.util.tableRow("pi_" + processType + "_",
                     mcc.configuration.getPara(processType, null, i, "label"), 
                     mcc.configuration.getPara(processType, null, i, "docurl"), 
-                    mcc.configuration.getPara(processType, null, i, 
-                            "attribute"),
+                    mcc.configuration.getPara(processType, null, i, "attribute"),
                     mcc.configuration.getPara(processType, null, i, "tooltip"));
         }
     }
@@ -334,7 +332,7 @@ function processInstanceSelectionDetailsSetup(processType, appArea) {
         if (mcc.configuration.getPara(processType, null, i, "visibleInstance") 
                 && mcc.configuration.visiblePara("gui", appArea, processType, i)
                 && !mcc.configuration.isHeading(processType, i)) {
-            mcc.util.setupWidgets(function(attr, val) {
+                mcc.util.setupWidgets(function(attr, val) {
                     mcc.gui.getCurrentProcessTreeItem().
                             storageItem.setValue(attr, val);
                     mcc.storage.processStorage().save();
