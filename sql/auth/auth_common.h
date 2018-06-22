@@ -57,6 +57,7 @@ class Security_context;
 struct TABLE;
 struct TABLE_LIST;
 enum class role_enum;
+enum class Consumer_type;
 
 /** user, host tuple which reference either acl_cache or g_default_roles */
 typedef std::pair<LEX_CSTRING, LEX_CSTRING> Auth_id_ref;
@@ -625,6 +626,8 @@ extern bool validate_user_plugins;
 /* sql_authentication */
 
 int set_default_auth_plugin(char *plugin_name, size_t plugin_name_length);
+std::string get_default_autnetication_plugin_name();
+
 void acl_log_connect(const char *user, const char *host, const char *auth_as,
                      const char *db, THD *thd,
                      enum enum_server_command command);
@@ -648,19 +651,8 @@ bool acl_check_host(THD *thd, const char *host, const char *ip);
 #define DIFFERENT_PLUGIN_ATTR \
   (1L << 7) /* updated plugin with a different value */
 
-/* rewrite CREATE/ALTER/GRANT user */
-void mysql_rewrite_create_alter_user(
-    THD *thd, String *rlb, std::set<LEX_USER *> *users_not_to_log = NULL,
-    bool for_binlog = false, bool hide_password_hash = false);
-void mysql_rewrite_grant(THD *thd, String *rlb);
-void mysql_rewrite_set_password(THD *thd, String *rlb,
-                                std::set<LEX_USER *> *users,
-                                bool for_binlog = false);
-
 /* sql_user */
 void log_user(THD *thd, String *str, LEX_USER *user, bool comma);
-void append_user_new(THD *thd, String *str, LEX_USER *user, bool comma = true,
-                     bool hide_password_hash = false);
 int check_change_password(THD *thd, const char *host, const char *user);
 bool change_password(THD *thd, const char *host, const char *user,
                      char *password);
@@ -781,6 +773,7 @@ void roles_graphml(THD *thd, String *);
 bool has_grant_role_privilege(THD *thd, const LEX_CSTRING &role_name,
                               const LEX_CSTRING &role_host);
 Auth_id_ref create_authid_from(const LEX_USER *user);
+std::string create_authid_str_from(const LEX_USER *user);
 void append_identifier(String *packet, const char *name, size_t length);
 void append_identifier_with_q(int q, String *packet, const char *name,
                               size_t length);

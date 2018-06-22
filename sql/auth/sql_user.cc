@@ -91,6 +91,7 @@
 #include "sql/derror.h" /* ER_THD */
 #include "sql/log.h"
 #include "sql/mysqld.h"
+#include "sql/sql_rewrite.h"
 
 /**
   Auxiliary function for constructing a  user list string.
@@ -112,57 +113,6 @@ void log_user(THD *thd, String *str, LEX_USER *user, bool comma = true) {
   append_query_string(thd, system_charset_info, &from_user, str);
   str->append(STRING_WITH_LEN("@"));
   append_query_string(thd, system_charset_info, &from_host, str);
-}
-
-void append_user_new(THD *thd, String *str, LEX_USER *user, bool comma,
-                     bool hide_password_hash) {
-  String from_user(user->user.str, user->user.length, system_charset_info);
-  String from_plugin(user->plugin.str, user->plugin.length,
-                     system_charset_info);
-  String default_plugin(default_auth_plugin_name.str,
-                        default_auth_plugin_name.length, system_charset_info);
-  String from_auth(user->auth.str, user->auth.length, system_charset_info);
-  String from_host(user->host.str, user->host.length, system_charset_info);
-
-  if (comma) str->append(',');
-  append_query_string(thd, system_charset_info, &from_user, str);
-  str->append(STRING_WITH_LEN("@"));
-  append_query_string(thd, system_charset_info, &from_host, str);
-
-  /* CREATE USER is always rewritten with IDENTIFIED WITH .. AS */
-  if (thd->lex->sql_command == SQLCOM_CREATE_USER) {
-    str->append(STRING_WITH_LEN(" IDENTIFIED WITH "));
-    if (user->plugin.length > 0)
-      append_query_string(thd, system_charset_info, &from_plugin, str);
-    else
-      append_query_string(thd, system_charset_info, &default_plugin, str);
-    if (user->auth.length > 0) {
-      str->append(STRING_WITH_LEN(" AS "));
-      if (thd->lex->contains_plaintext_password) {
-        str->append("'");
-        str->append(STRING_WITH_LEN("<secret>"));
-        str->append("'");
-      } else
-        append_query_string(thd, system_charset_info, &from_auth, str);
-    }
-  } else {
-    if (user->uses_identified_by_clause || user->uses_identified_with_clause) {
-      str->append(STRING_WITH_LEN(" IDENTIFIED WITH "));
-      if (user->plugin.length > 0)
-        append_query_string(thd, system_charset_info, &from_plugin, str);
-      else
-        append_query_string(thd, system_charset_info, &default_plugin, str);
-      if (user->auth.length > 0) {
-        str->append(STRING_WITH_LEN(" AS "));
-        if (thd->lex->contains_plaintext_password || hide_password_hash) {
-          str->append("'");
-          str->append(STRING_WITH_LEN("<secret>"));
-          str->append("'");
-        } else
-          append_query_string(thd, system_charset_info, &from_auth, str);
-      }
-    }
-  }
 }
 
 extern bool initialized;
@@ -329,8 +279,7 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name,
       lex->sql_command == SQLCOM_CREATE_USER) {
     /*
       Recreate LEX for default roles given an ACL_USER. This will later be used
-      by rewrite_default_roles() called from mysql_rewrite_create_alter_user()
-      below.
+      by rewrite_default_roles() called by Rewriter_show_create_user::rewrite()
     */
     get_default_roles(create_authid_from(acl_user), default_roles);
     if (default_roles.size() > 0) {
@@ -359,8 +308,14 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name,
     }
   }
   lex->users_list.push_back(user_name);
-  mysql_rewrite_create_alter_user(thd, &sql_text, NULL, false,
-                                  hide_password_hash);
+  {
+    Show_user_params show_user_params(hide_password_hash);
+    mysql_rewrite_acl_query(thd, Consumer_type::STDOUT, &show_user_params,
+                            false);
+    sql_text.takeover(thd->rewritten_query);
+  }
+
+
   /* send the result row to client */
   protocol->start_row();
   protocol->store(sql_text.ptr(), sql_text.length(), sql_text.charset());
@@ -1053,7 +1008,6 @@ bool set_and_validate_user_attributes(THD *thd, LEX_USER *Str,
     /* Use the authentication_string field as password */
     Str->auth.str = password;
     Str->auth.length = buflen;
-    thd->lex->contains_plaintext_password = false;
   }
 
   /* Validate hash string */
@@ -1199,6 +1153,9 @@ bool change_password(THD *thd, const char *host, const char *user,
     result = 1;
     goto end;
   }
+
+  // We must not have user with plain text password at this point
+  thd->lex->contains_plaintext_password = false;
   authentication_plugin.assign(combo->plugin.str);
   ret = replace_user_table(thd, table, combo, 0, false, true, what_to_set);
   if (ret) {
@@ -1824,6 +1781,10 @@ bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,
     reset_users.insert(tmp_user_name);
 
   }  // END while tmp_user_name= user_lists++
+
+  // We must not have plain text password for any user at this point.
+  thd->lex->contains_plaintext_password = false;
+
   /* In case of SE error, we would have raised error before reaching here. */
   if (result && !thd->is_error()) {
     my_error(ER_CANNOT_USER, MYF(0), (is_role ? "CREATE ROLE" : "CREATE USER"),
@@ -2305,6 +2266,9 @@ bool mysql_alter_user(THD *thd, List<LEX_USER> &list, bool if_exists) {
 
     if (what_to_alter & RESOURCE_ATTR) reset_users.insert(tmp_user_from);
   }
+
+  // We must not have plain text password for any user at this point.
+  thd->lex->contains_plaintext_password = false;
 
   clear_and_init_db_cache();  // Clear locked hostname cache
 

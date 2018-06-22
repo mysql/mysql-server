@@ -7,6 +7,9 @@
 # make sure we start with a clean slate. log_tables.test says this is OK.
 TRUNCATE TABLE mysql.general_log;
 
+CALL mtr.add_suppression('Following users were specified in CREATE USER IF NOT EXISTS but they already exist');
+CALL mtr.add_suppression('Following users were specified in ALTER USER IF EXISTS but they do not exist');
+
 --echo --------------- general log ---------------------------------------
 
 SET @old_log_output=          @@global.log_output;
@@ -63,12 +66,29 @@ CHANGE MASTER TO MASTER_PASSWORD='azundris3';
 # 1.1.1.4
 CREATE USER 'test_user4'@'localhost' IDENTIFIED WITH mysql_native_password;
 ALTER USER 'test_user4'@'localhost' IDENTIFIED BY 'azundris4';
+# 1.1.1.5
+CREATE USER test_user5 IDENTIFIED WITH mysql_native_password AS
+'*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF', test_user6 IDENTIFIED BY 'test';
+ALTER USER IF EXISTS test_user5 IDENTIFIED BY 'test',
+ test_user6 IDENTIFIED WITH mysql_native_password AS
+ '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF', test_user7 IDENTIFIED BY 'test';
+CREATE USER IF NOT EXISTS test_user6 IDENTIFIED BY 'test',
+ test_user7 IDENTIFIED BY 'test';
+ALTER USER test_user7 IDENTIFIED WITH mysql_native_password AS
+ '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
+# 1.1.1.6 : Literal <secret> must be printed in the log for empty password
+CREATE USER test_user8 IDENTIFIED BY '';
+ALTER USER test_user8 IDENTIFIED BY '';
+CREATE USER test_user9 IDENTIFIED WITH 'caching_sha2_password' BY '';
+ALTER  USER test_user9 IDENTIFIED WITH 'caching_sha2_password' BY '';
 
 # clean-up
 SET GLOBAL general_log=       'OFF';
 
 DROP USER 'test_user4'@'localhost';
 DROP USER 'test_user3'@'localhost';
+DROP USER test_user9, test_user8;
+DROP USER test_user7, test_user6,  test_user5;
 DROP USER test_user2;
 DROP USER test_user1;
 
@@ -89,10 +109,11 @@ SELECT argument FROM mysql.general_log WHERE argument LIKE CONCAT('%azun','dris%
 --echo Show that we logged stuff at all:
 --echo ------ from file ------
 --replace_regex /.*Execute	*//i
-SELECT TRIM(LEADING '\t' FROM MID(argument,LOCATE('Query',argument)+5)) FROM test_log WHERE argument LIKE '%AS %' AND
-                                                                                            argument NOT LIKE '%Prepare%';
+SELECT TRIM(LEADING '\t' FROM MID(argument,LOCATE('Query',argument)+5)) FROM
+                test_log WHERE (argument LIKE '%BY %' OR argument LIKE '%AS %')
+                AND argument NOT LIKE '%Prepare%';
 --echo ------ from table ------
-SELECT argument FROM mysql.general_log WHERE argument LIKE '%AS %' AND command_type NOT LIKE 'Prepare';
+SELECT argument FROM mysql.general_log WHERE argument LIKE '%BY %' AND command_type NOT LIKE 'Prepare';
 --echo ------ done ------
 
 --echo ------ rewrite ------
@@ -102,7 +123,7 @@ SELECT argument FROM mysql.general_log WHERE argument LIKE 'GRANT %' AND command
 --echo ------ done ------ see log_tables.test for more proof! :)
 
 # Sanity check -- prove we log the correct hash.  Must return one row.
-SELECT COUNT(*)>=1 FROM mysql.general_log WHERE argument LIKE 'CREATE USER%' AND argument LIKE CONCAT('%AS %');
+SELECT COUNT(*)=1 FROM mysql.general_log WHERE argument LIKE 'CREATE USER%' AND argument LIKE CONCAT('%AS %');
 
 --echo Bug#13958454 -- show we print SET @a:=5, but SELECT (@a:=5)
 # We need the () in EXPLAIN, for (@e:=80)+5.

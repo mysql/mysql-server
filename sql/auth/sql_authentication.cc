@@ -1131,6 +1131,18 @@ int set_default_auth_plugin(char *plugin_name, size_t plugin_name_length) {
 
   return 0;
 }
+/**
+  Return the default authentication plugin name
+
+  @retval
+    A string containing the default authentication plugin name
+*/
+std::string get_default_autnetication_plugin_name() {
+  if (default_auth_plugin_name.length > 0)
+    return default_auth_plugin_name.str;
+  else
+    return "";
+}
 
 bool auth_plugin_is_built_in(const char *plugin_name) {
   LEX_CSTRING plugin = {C_STRING_WITH_LEN(plugin_name)};

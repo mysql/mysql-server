@@ -170,7 +170,7 @@ client_id	user	host	sql_session
 1	x_root	localhost	$SESSION
 command ok
 Query
-CREATE USER 'unpriv'@'localhost' IDENTIFIED WITH 'mysql_native_password'
+CREATE USER 'unpriv'@'localhost'
 SET PASSWORD FOR `unpriv`@`localhost`=<secret>
 0 rows affected
 ######### kill_client #########

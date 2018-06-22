@@ -84,13 +84,13 @@ SELECT sql_text FROM test_log WHERE sql_text LIKE CONCAT('%azun','dris%');
 SELECT sql_text FROM mysql.slow_log WHERE sql_text LIKE CONCAT('%azun','dris%');
 
 --echo ------ from file ------
-SELECT count(*) FROM test_log WHERE sql_text like '%AS %' AND sql_text NOT LIKE '%<secret>%';
-SELECT sql_text FROM test_log WHERE sql_text like 'CHANGE MASTER TO MASTER_BIND %';
-SELECT count(*) FROM test_log WHERE sql_text like '%SET PASSWORD %'; 
+SELECT count(*) FROM test_log WHERE sql_text LIKE 'CREATE USER %' AND sql_text LIKE '%<secret>%';
+SELECT sql_text FROM test_log WHERE sql_text LIKE 'CHANGE MASTER TO MASTER_BIND %';
+SELECT count(*) FROM test_log WHERE sql_text LIKE 'SET PASSWORD %' AND sql_text LIKE '%<secret>%'; 
 --echo ------ from table ------
-SELECT count(*) FROM mysql.slow_log WHERE sql_text like '%AS %' AND sql_text NOT LIKE '%<secret>%';
-SELECT sql_text FROM test_log WHERE sql_text like 'CHANGE MASTER TO MASTER_BIND %';
-SELECT count(*) FROM test_log WHERE sql_text like '%SET PASSWORD %';
+SELECT count(*) FROM mysql.slow_log WHERE sql_text LIKE 'CREATE USER %' AND sql_text LIKE '%<secret>%';
+SELECT sql_text FROM test_log WHERE sql_text LIKE 'CHANGE MASTER TO MASTER_BIND %';
+SELECT count(*) FROM test_log WHERE sql_text LIKE 'SET PASSWORD %' AND sql_text LIKE '%<secret>%';
 --echo ------ done ------
 
 DROP TABLE test_log;

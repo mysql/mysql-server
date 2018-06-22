@@ -41,23 +41,23 @@ sql_text
 SELECT sql_text FROM mysql.slow_log WHERE sql_text LIKE CONCAT('%azun','dris%');
 sql_text
 ------ from file ------
-SELECT count(*) FROM test_log WHERE sql_text like '%AS %' AND sql_text NOT LIKE '%<secret>%';
+SELECT count(*) FROM test_log WHERE sql_text LIKE 'CREATE USER %' AND sql_text LIKE '%<secret>%';
 count(*)
 1
-SELECT sql_text FROM test_log WHERE sql_text like 'CHANGE MASTER TO MASTER_BIND %';
+SELECT sql_text FROM test_log WHERE sql_text LIKE 'CHANGE MASTER TO MASTER_BIND %';
 sql_text
 CHANGE MASTER TO MASTER_BIND = 'eth4n', MASTER_PASSWORD = <secret>, MASTER_CONNECT_RETRY = 1, MASTER_RETRY_COUNT = 7, MASTER_DELAY = 4711, MASTER_HEARTBEAT_PERIOD = 1.010000, MASTER_LOG_FILE = 'master_log_name', MASTER_LOG_POS = 4, MASTER_AUTO_POSITION = 0, MASTER_SSL = 0, MASTER_SSL_CA = 'ca_file_name', MASTER_SSL_CAPATH = 'ca_directory_name', MASTER_SSL_CERT = 'cert_file_name', MASTER_SSL_CRL = 'crl_file_name', MASTER_SSL_CRLPATH = 'crl_directory_name', MASTER_SSL_KEY = 'key_file_name', MASTER_SSL_CIPHER = 'cipher_list', MASTER_SSL_VERIFY_SERVER_CERT = 1, MASTER_TLS_VERSION = 'TLSv1.2', IGNORE_SERVER_IDS = ( 99, 100 ) FOR CHANNEL 'chan_jackie';
-SELECT count(*) FROM test_log WHERE sql_text like '%SET PASSWORD %';
+SELECT count(*) FROM test_log WHERE sql_text LIKE 'SET PASSWORD %' AND sql_text LIKE '%<secret>%';
 count(*)
 1
 ------ from table ------
-SELECT count(*) FROM mysql.slow_log WHERE sql_text like '%AS %' AND sql_text NOT LIKE '%<secret>%';
+SELECT count(*) FROM mysql.slow_log WHERE sql_text LIKE 'CREATE USER %' AND sql_text LIKE '%<secret>%';
 count(*)
 1
-SELECT sql_text FROM test_log WHERE sql_text like 'CHANGE MASTER TO MASTER_BIND %';
+SELECT sql_text FROM test_log WHERE sql_text LIKE 'CHANGE MASTER TO MASTER_BIND %';
 sql_text
 CHANGE MASTER TO MASTER_BIND = 'eth4n', MASTER_PASSWORD = <secret>, MASTER_CONNECT_RETRY = 1, MASTER_RETRY_COUNT = 7, MASTER_DELAY = 4711, MASTER_HEARTBEAT_PERIOD = 1.010000, MASTER_LOG_FILE = 'master_log_name', MASTER_LOG_POS = 4, MASTER_AUTO_POSITION = 0, MASTER_SSL = 0, MASTER_SSL_CA = 'ca_file_name', MASTER_SSL_CAPATH = 'ca_directory_name', MASTER_SSL_CERT = 'cert_file_name', MASTER_SSL_CRL = 'crl_file_name', MASTER_SSL_CRLPATH = 'crl_directory_name', MASTER_SSL_KEY = 'key_file_name', MASTER_SSL_CIPHER = 'cipher_list', MASTER_SSL_VERIFY_SERVER_CERT = 1, MASTER_TLS_VERSION = 'TLSv1.2', IGNORE_SERVER_IDS = ( 99, 100 ) FOR CHANNEL 'chan_jackie';
-SELECT count(*) FROM test_log WHERE sql_text like '%SET PASSWORD %';
+SELECT count(*) FROM test_log WHERE sql_text LIKE 'SET PASSWORD %' AND sql_text LIKE '%<secret>%';
 count(*)
 1
 ------ done ------

@@ -214,21 +214,22 @@ SELECT @@LOCAL.external_user;
 plug_dest
 # in connection default
 WL#5706 -- show the above got logged/rewritten correctly
-SELECT argument FROM mysql.general_log WHERE argument LIKE CONCAT('%IDENTIFIED ','WITH %') AND
+SELECT argument FROM mysql.general_log WHERE argument LIKE CONCAT('CREATE USER %') AND
 command_type NOT LIKE 'Prepare';
 argument
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
-CREATE USER 'plug_dest'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'plug_dest'@'%' IDENTIFIED BY <secret>
 CREATE USER `Ÿ` IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
 CREATE USER grant_plug IDENTIFIED WITH 'test_plugin_server' 
 AS 'grant_plug_dest'
-CREATE USER 'grant_plug_dest'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
-CREATE USER 'grant_plug_dest2'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
-CREATE USER 'proxy_admin'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'grant_plug_dest'@'%' IDENTIFIED BY <secret>
+CREATE USER 'grant_plug_dest2'@'%' IDENTIFIED BY <secret>
+CREATE USER 'proxy_admin'@'%' IDENTIFIED BY <secret>
+CREATE USER test_drop@localhost
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
-CREATE USER 'plug_dest'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'plug_dest'@'%' IDENTIFIED BY <secret>
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
-CREATE USER 'plug_dest'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'plug_dest'@'%' IDENTIFIED BY <secret>
 ## cleanup
 DROP USER plug;
 DROP USER plug_dest;

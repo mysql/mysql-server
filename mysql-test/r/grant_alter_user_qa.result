@@ -1556,7 +1556,7 @@ Show what is logged:
 SELECT argument FROM mysql.general_log WHERE argument LIKE 'CREATE USER %' AND
 command_type NOT LIKE 'Prepare';
 argument
-CREATE USER 'u1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'u1'@'%' IDENTIFIED WITH 'mysql_native_password' BY <secret>
 CREATE USER user8@localhost IDENTIFIED WITH 'mysql_native_password'
                             AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
 CREATE USER user1@localhost IDENTIFIED WITH 'sha256_password' REQUIRE SSL
@@ -1564,23 +1564,23 @@ CREATE USER user11@localhost IDENTIFIED WITH 'mysql_native_password'
                              PASSWORD EXPIRE NEVER ACCOUNT LOCK
 CREATE USER user12@localhost IDENTIFIED WITH 'sha256_password'
                              PASSWORD EXPIRE NEVER
-CREATE USER 'u2'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'u2'@'localhost' IDENTIFIED BY <secret>
 CREATE USER u10@localhost IDENTIFIED WITH 'sha256_password'
             REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
 SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
             ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
             WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2
-CREATE USER 'user13'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'user13'@'localhost' IDENTIFIED BY <secret> ACCOUNT UNLOCK
 CREATE USER user14@localhost IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
                              ACCOUNT LOCK
-CREATE USER 'user15'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD EXPIRE NEVER ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'user15'@'localhost' IDENTIFIED WITH 'mysql_native_password' BY <secret> PASSWORD EXPIRE NEVER ACCOUNT UNLOCK
 CREATE USER user16@localhost IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
                              ACCOUNT LOCK PASSWORD EXPIRE NEVER
 CREATE USER user10@localhost IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
 SELECT argument FROM mysql.general_log WHERE argument LIKE 'ALTER USER %' AND
 command_type NOT LIKE 'Prepare';
 argument
-ALTER USER 'u10'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' REQUIRE SSL PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+ALTER USER 'u10'@'localhost' IDENTIFIED WITH 'mysql_native_password' BY <secret> REQUIRE SSL
 ALTER USER user11@localhost IDENTIFIED WITH 'sha256_password'
            REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
 SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
@@ -1593,7 +1593,7 @@ ALTER USER user13@localhost WITH MAX_QUERIES_PER_HOUR 22
 MAX_USER_CONNECTIONS 4 ACCOUNT LOCK PASSWORD EXPIRE NEVER
 ALTER USER user15@localhost PASSWORD EXPIRE DEFAULT ACCOUNT LOCK
 ALTER USER user16@localhost PASSWORD EXPIRE INTERVAL 10 DAY ACCOUNT LOCK
-ALTER USER 'u1'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+ALTER USER 'u1'@'%' IDENTIFIED BY <secret>
 SELECT argument FROM mysql.general_log WHERE argument LIKE 'SET PASSWORD %';
 argument
 SELECT argument FROM mysql.general_log WHERE argument LIKE 'GRANT %'AND

@@ -1,4 +1,6 @@
 TRUNCATE TABLE mysql.general_log;
+CALL mtr.add_suppression('Following users were specified in CREATE USER IF NOT EXISTS but they already exist');
+CALL mtr.add_suppression('Following users were specified in ALTER USER IF EXISTS but they do not exist');
 --------------- general log ---------------------------------------
 SET @old_log_output=          @@global.log_output;
 SET @old_general_log=         @@global.general_log;
@@ -34,9 +36,28 @@ CREATE USER test_user2 IDENTIFIED WITH mysql_native_password BY 'azundris2';
 CHANGE MASTER TO MASTER_PASSWORD='azundris3';
 CREATE USER 'test_user4'@'localhost' IDENTIFIED WITH mysql_native_password;
 ALTER USER 'test_user4'@'localhost' IDENTIFIED BY 'azundris4';
+CREATE USER test_user5 IDENTIFIED WITH mysql_native_password AS
+'*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF', test_user6 IDENTIFIED BY 'test';
+ALTER USER IF EXISTS test_user5 IDENTIFIED BY 'test',
+test_user6 IDENTIFIED WITH mysql_native_password AS
+'*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF', test_user7 IDENTIFIED BY 'test';
+Warnings:
+Note	3162	Authorization ID 'test_user7'@'%' does not exist.
+CREATE USER IF NOT EXISTS test_user6 IDENTIFIED BY 'test',
+test_user7 IDENTIFIED BY 'test';
+Warnings:
+Note	3163	Authorization ID 'test_user6'@'%' already exists.
+ALTER USER test_user7 IDENTIFIED WITH mysql_native_password AS
+'*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF';
+CREATE USER test_user8 IDENTIFIED BY '';
+ALTER USER test_user8 IDENTIFIED BY '';
+CREATE USER test_user9 IDENTIFIED WITH 'caching_sha2_password' BY '';
+ALTER  USER test_user9 IDENTIFIED WITH 'caching_sha2_password' BY '';
 SET GLOBAL general_log=       'OFF';
 DROP USER 'test_user4'@'localhost';
 DROP USER 'test_user3'@'localhost';
+DROP USER test_user9, test_user8;
+DROP USER test_user7, test_user6,  test_user5;
 DROP USER test_user2;
 DROP USER test_user1;
 CREATE TABLE test_log (argument TEXT);
@@ -49,22 +70,37 @@ SELECT argument FROM mysql.general_log WHERE argument LIKE CONCAT('%azun','dris%
 argument
 Show that we logged stuff at all:
 ------ from file ------
-SELECT TRIM(LEADING '\t' FROM MID(argument,LOCATE('Query',argument)+5)) FROM test_log WHERE argument LIKE '%AS %' AND
-argument NOT LIKE '%Prepare%';
+SELECT TRIM(LEADING '\t' FROM MID(argument,LOCATE('Query',argument)+5)) FROM
+test_log WHERE (argument LIKE '%BY %' OR argument LIKE '%AS %')
+AND argument NOT LIKE '%Prepare%';
 TRIM(LEADING '\t' FROM MID(argument,LOCATE('Query',argument)+5))
-CREATE USER 'test_user1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
-CREATE USER 'test_user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' REQUIRE SSL PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
-ALTER USER 'test_user3'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' REQUIRE X509 WITH MAX_QUERIES_PER_HOUR 1 MAX_UPDATES_PER_HOUR 2 MAX_CONNECTIONS_PER_HOUR 3 MAX_USER_CONNECTIONS 4 PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
-CREATE USER 'test_user2'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
-ALTER USER 'test_user4'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'test_user1'@'%' IDENTIFIED WITH 'mysql_native_password' BY <secret>
+CREATE USER 'test_user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' BY <secret> REQUIRE SSL
+ALTER USER 'test_user3'@'localhost' IDENTIFIED BY <secret> REQUIRE X509 WITH MAX_QUERIES_PER_HOUR 1 MAX_UPDATES_PER_HOUR 2 MAX_CONNECTIONS_PER_HOUR 3 MAX_USER_CONNECTIONS 4
+CREATE USER 'test_user2'@'%' IDENTIFIED WITH 'mysql_native_password' BY <secret>
+ALTER USER 'test_user4'@'localhost' IDENTIFIED BY <secret>
+CREATE USER 'test_user5'@'%' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF','test_user6'@'%' IDENTIFIED BY <secret>
+ALTER USER IF EXISTS 'test_user5'@'%' IDENTIFIED BY <secret>,'test_user6'@'%' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF','test_user7'@'%' IDENTIFIED BY <secret>
+CREATE USER IF NOT EXISTS 'test_user6'@'%' IDENTIFIED BY <secret>,'test_user7'@'%' IDENTIFIED BY <secret>
+CREATE USER 'test_user8'@'%' IDENTIFIED BY <secret>
+ALTER USER 'test_user8'@'%' IDENTIFIED BY <secret>
+CREATE USER 'test_user9'@'%' IDENTIFIED WITH 'caching_sha2_password' BY <secret>
+ALTER USER 'test_user9'@'%' IDENTIFIED WITH 'caching_sha2_password' BY <secret>
 ------ from table ------
-SELECT argument FROM mysql.general_log WHERE argument LIKE '%AS %' AND command_type NOT LIKE 'Prepare';
+SELECT argument FROM mysql.general_log WHERE argument LIKE '%BY %' AND command_type NOT LIKE 'Prepare';
 argument
-CREATE USER 'test_user1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
-CREATE USER 'test_user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' REQUIRE SSL PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
-ALTER USER 'test_user3'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' REQUIRE X509 WITH MAX_QUERIES_PER_HOUR 1 MAX_UPDATES_PER_HOUR 2 MAX_CONNECTIONS_PER_HOUR 3 MAX_USER_CONNECTIONS 4 PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
-CREATE USER 'test_user2'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
-ALTER USER 'test_user4'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'test_user1'@'%' IDENTIFIED WITH 'mysql_native_password' BY <secret>
+CREATE USER 'test_user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' BY <secret> REQUIRE SSL
+ALTER USER 'test_user3'@'localhost' IDENTIFIED BY <secret> REQUIRE X509 WITH MAX_QUERIES_PER_HOUR 1 MAX_UPDATES_PER_HOUR 2 MAX_CONNECTIONS_PER_HOUR 3 MAX_USER_CONNECTIONS 4
+CREATE USER 'test_user2'@'%' IDENTIFIED WITH 'mysql_native_password' BY <secret>
+ALTER USER 'test_user4'@'localhost' IDENTIFIED BY <secret>
+CREATE USER 'test_user5'@'%' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF','test_user6'@'%' IDENTIFIED BY <secret>
+ALTER USER IF EXISTS 'test_user5'@'%' IDENTIFIED BY <secret>,'test_user6'@'%' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF','test_user7'@'%' IDENTIFIED BY <secret>
+CREATE USER IF NOT EXISTS 'test_user6'@'%' IDENTIFIED BY <secret>,'test_user7'@'%' IDENTIFIED BY <secret>
+CREATE USER 'test_user8'@'%' IDENTIFIED BY <secret>
+ALTER USER 'test_user8'@'%' IDENTIFIED BY <secret>
+CREATE USER 'test_user9'@'%' IDENTIFIED WITH 'caching_sha2_password' BY <secret>
+ALTER USER 'test_user9'@'%' IDENTIFIED WITH 'caching_sha2_password' BY <secret>
 ------ done ------
 ------ rewrite ------
 SELECT argument FROM mysql.general_log WHERE argument LIKE CONCAT('set ','character set %');
@@ -84,8 +120,8 @@ GRANT EXECUTE ON FUNCTION test.func_rewrite_1 TO test_user1
 GRANT SELECT,USAGE ON test.* TO test_user3@localhost
 GRANT USAGE ON test.* TO test_user3@localhost WITH GRANT OPTION
 ------ done ------ see log_tables.test for more proof! :)
-SELECT COUNT(*)>=1 FROM mysql.general_log WHERE argument LIKE 'CREATE USER%' AND argument LIKE CONCAT('%AS %');
-COUNT(*)>=1
+SELECT COUNT(*)=1 FROM mysql.general_log WHERE argument LIKE 'CREATE USER%' AND argument LIKE CONCAT('%AS %');
+COUNT(*)=1
 1
 Bug#13958454 -- show we print SET @a:=5, but SELECT (@a:=5)
 EXPLAIN SELECT @a=5,@b:=10,@c:=20,@d:=40+5,(@e:=80)+5;
