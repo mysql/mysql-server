@@ -19,6 +19,8 @@
 #                                                                             #
 ###############################################################################
 
+# Results for temptable depends on pointer size (see handler::ref_length).
+-- source include/have_64bit.inc
 -- source include/no_valgrind_without_big.inc
 
 --echo '#---------------------WL6372_VAR_8_01----------------------#'
