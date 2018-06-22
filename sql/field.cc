@@ -4213,12 +4213,14 @@ bool Field_real::truncate(double *nr, double max_value) {
   }
 
   if (!not_fixed) {
+    double orig_max_value = max_value;
     uint order = field_length - dec;
     uint step = array_elements(log_10) - 1;
     max_value = 1.0;
     for (; order > step; order -= step) max_value *= log_10[step];
     max_value *= log_10[order];
     max_value -= 1.0 / log_10[dec];
+    max_value = std::min(max_value, orig_max_value);
 
     /* Check for infinity so we don't get NaN in calculations */
     if (!std::isinf(*nr)) {

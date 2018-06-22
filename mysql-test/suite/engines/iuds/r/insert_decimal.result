@@ -1902,9 +1902,13 @@ Warnings:
 Warning	1264	Out of range value for column 'c1' at row 3
 INSERT INTO t5 VALUES('1e+52','-1e+52','1e+52',5),('1e-52','-1e-52','1e-52',6);
 Warnings:
+Warning	1264	Out of range value for column 'c1' at row 1
+Warning	1264	Out of range value for column 'c2' at row 1
 Warning	1264	Out of range value for column 'c3' at row 1
 INSERT INTO t5 VALUES('1e+53','-1e+53','1e+53',7),('1e-53','-1e-53','1e-53',8);
 Warnings:
+Warning	1264	Out of range value for column 'c1' at row 1
+Warning	1264	Out of range value for column 'c2' at row 1
 Warning	1264	Out of range value for column 'c3' at row 1
 SELECT * FROM t5;
 c1	c2	c3	c4

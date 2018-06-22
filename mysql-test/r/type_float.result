@@ -471,3 +471,18 @@ f
 2
 DROP TABLE t1;
 SET sql_mode = default;
+#
+# Bug#28225635 RUNTIME ERROR: 1E+52 IS OUTSIDE THE RANGE OF
+#              REPRESENTABLE VALUES OF TYPE FLOAT
+#
+CREATE TABLE t5u(c1 FLOAT(58,0) UNSIGNED NOT NULL);
+CREATE TABLE t5s(c1 FLOAT(58,0) SIGNED NOT NULL);
+INSERT INTO t5u VALUES('1e+52');
+ERROR 22003: Out of range value for column 'c1' at row 1
+INSERT INTO t5s VALUES('-1e+52');
+ERROR 22003: Out of range value for column 'c1' at row 1
+SELECT * from t5u;
+c1
+SELECT * from t5s;
+c1
+DROP TABLE t5u, t5s;
