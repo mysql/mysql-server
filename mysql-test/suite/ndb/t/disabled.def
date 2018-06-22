@@ -19,3 +19,4 @@ ndb_dbug_lock : SEAGULL gsl locking order
 ndb_insert : Bug#16021097 INSERT .. SELECT WITH KEY VIOLATION DOES NOT FAIL
 ndb_row_count : Bug#16021097 INSERT .. SELECT WITH KEY VIOLATION DOES NOT FAIL
 
+ndb_read_location_domain : Bug #27935436 NDB_READ_LOCATION_DOMAIN FAILURE IN PB2.
