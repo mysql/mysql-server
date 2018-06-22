@@ -340,21 +340,6 @@ function verifyConfiguration() {
             var port = null;
             var dir = null;
 
-            var IsLocalHostDeployment = 0;
-            if ((hostName == "localhost") || (hostName == "127.0.0.1"))
-            {
-                IsLocalHostDeployment = 1;
-            }
-            mcc.util.dbg(" IsLocalHostDeployment = " + IsLocalHostDeployment);
-            var ServerPortValue = undefined;
-            ServerPortValue = getEffectiveTypeValue(processFamilyMap['data'], 'ServerPort');
-            mcc.util.dbg(" ServerPort = " + ServerPortValue);
-            if ((IsLocalHostDeployment == 1) && (ServerPortValue != undefined)) {
-                alert("ServerPort can not be assigned for localhost deployment! " +
-                    "Please create valid configuration.");
-                return false;
-            };
-            
             // ndbds have redo log
             if (cluster.getValue("apparea") != "simple testing" && 
                 !redoLogChecked && (
@@ -400,7 +385,7 @@ function verifyConfiguration() {
                             "data layer configuration parameter " +
                             "DataMemory might be too big for Windows. " +
                             "Please press the Cancel button below to cancel deployment " + 
-                            "and lower the value to <= 20480GB, or " +
+                            "and lower the value to <= 20480MB, or " +
                             "press OK to continue (but Cluster might not start). ")) {
                         return false; 
                     }
@@ -418,6 +403,14 @@ function verifyConfiguration() {
             if (processTypes[proc.getValue("processtype")].getValue("name") == 
                     "ndb_mgmd") {
                 port = getEffectiveInstanceValue(proc, "Portnumber");
+            }
+
+            // Only ndb_mtd processes have ServerPort
+            if ((processTypes[proc.getValue("processtype")].getValue("name") == 
+                    "ndbmtd") || 
+                (processTypes[proc.getValue("processtype")].getValue("name") == 
+                    "ndbd")){
+                port = getEffectiveInstanceValue(proc, "ServerPort");
             }
 
             // All processes except api have datadir
