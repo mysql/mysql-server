@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2012, 2017 Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2018 Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -203,4 +203,23 @@ label {
     background-repeat: no-repeat;
     width: 60px;
     height: 40px;
+}
+
+/****************************** Limit size of SELECT list *********************************/
+.narrow .dojoxCheckedMultiSelectWrapper {
+    width: 195px;
+}
+
+.scroll .dojoxCheckedMultiSelectWrapper {
+    overflow-x: scroll;
+}
+
+
+.wrap .dojoxMultiSelectItemLabel {
+    white-space: normal;
+}
+
+.wrap .dojoxMultiSelectItemBox {
+    vertical-align: top;
+    margin-top: 3px;
 }
