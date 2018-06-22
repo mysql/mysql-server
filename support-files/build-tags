@@ -24,12 +24,13 @@
 
 tagstyle=${1:-etags}
 
+common_opts="--langmap=C++:+.ic,YACC:+.yy -I MY_ATTRIBUTE+"
 case $tagstyle in
     "etags") tagfile=TAGS
-             tagopt="-e"
+             tagopt="-e $common_opts"
              ;;
     "ctags") tagfile=tags
-             tagopt=""
+             tagopt="--fields=+l $common_opts"
              ;;
     *) echo "$0 [etags|ctags]"
        exit 1
@@ -43,3 +44,5 @@ list="find . -type f"
 git rev-parse >/dev/null 2>/dev/null && list="git ls-files"
 
 ctags $tagopt -o $tagfile $( $list | grep $filter )
+
+echo "wrote file `pwd`/$tagfile"

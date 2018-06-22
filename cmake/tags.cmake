@@ -22,12 +22,29 @@
 
 # Generate tag files
 IF(UNIX)
-  ADD_CUSTOM_TARGET (tags
-    COMMAND support-files/build-tags
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-  )
-  ADD_CUSTOM_TARGET (ctags
-    COMMAND support-files/build-tags ctags
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-  )
+  FIND_PROGRAM(CTAGS_EXECUTABLE ctags)
+  IF(NOT CTAGS_EXECUTABLE)
+    RETURN()
+  ENDIF()
+  EXEC_PROGRAM(${CTAGS_EXECUTABLE} ARGS --version OUTPUT_VARIABLE CTAGS_VERSION)
+
+  IF(CTAGS_VERSION MATCHES "Exuberant")
+    ADD_CUSTOM_TARGET(tags
+      COMMAND support-files/build-tags
+      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+      )
+    ADD_CUSTOM_TARGET(ctags
+      COMMAND support-files/build-tags ctags
+      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+      )
+  ELSE()
+    ADD_CUSTOM_TARGET (tags
+      COMMAND exit 1
+      COMMENT "Please install Exuberant Ctags"
+      )
+    ADD_CUSTOM_TARGET (ctags
+      COMMAND exit 1
+      COMMENT "Please install Exuberant Ctags"
+      )
+  ENDIF()
 ENDIF()
