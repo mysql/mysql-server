@@ -411,7 +411,7 @@ void Test::scan_hash_index() {
   // clang-format on
   const size_t row_len = 121;
 
-  std::array<const unsigned char *, 2> rows{row1, row2};
+  std::array<const unsigned char *, 2> rows{{row1, row2}};
 
   for (auto row : rows) {
     memcpy(m_mysql_table->record[0], row, row_len);

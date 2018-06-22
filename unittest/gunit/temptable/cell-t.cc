@@ -30,7 +30,7 @@
 namespace temptable_test {
 
 TEST(Cell, ConstructorAndGetters) {
-  std::array<unsigned char, 8> data{8, 4, 6, 2, 0, 0, 5, 7};
+  std::array<unsigned char, 8> data{{8, 4, 6, 2, 0, 0, 5, 7}};
 
   const unsigned char *const valid_data = data.data();
   const uint32_t valid_data_length = static_cast<uint32_t>(data.size());
