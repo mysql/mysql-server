@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -141,21 +141,46 @@ var configWizardPages = {
                     </div>\
                     <div id='sshDetails'>\
                         <table border='0' width='100%'>\
-                        <tr><td style='width:30%;'><label for='sd_keybased'>Key based SSH</label>\
-                            <span class='helpIcon' id='sd_keybased_qm'>[?]\
-                            </span></td>\
-                            <td width='70%'><div id='sd_keybased'></div>\
-                            </td></tr>\
-                        <tr><td style='width:30%;'><label for='sd_user'>User name</label>\
+                        <tr>\
+                            <td style='width:25%;'>\
+                                <label for='sd_keybased'>Key based SSH</label>\
+                                <span class='helpIcon' id='sd_keybased_qm'>[?]\
+                                </span>\
+                            </td>\
+                            <td width='50%'>\
+                                <div id='sd_keybased'></div>\
+                            </td>\
+                            <td style='width:25%;'>\
+                                <label for='sd_ClkeyUser'>Key user:</label>\
+                                <span class='helpIcon' id='sd_ClkeyUser_qm'>[?]\
+                                </span>\
+                            </td>\
+                            <td width='50%'>\
+                                <div id='sd_ClkeyUser'></div>\
+                            </td>\
+                        </tr>\
+                        <tr><td style='width:25%;'><label for='sd_user'>User name</label>\
                             <span class='helpIcon' id='sd_user_qm'>[?]\
                             </span></td>\
-                            <td width='70%'><div id='sd_user'></div>\
-                            </td></tr>\
-                        <tr><td style='width:30%;'><label for='sd_pwd'>Password</label>\
+                            <td width='50%'><div id='sd_user'></div>\
+                            </td>\
+                            <td style='width:25%;'><label for='sd_ClkeyPass'>Key passphrase:</label>\
+                            <span class='helpIcon' id='sd_ClkeyPass_qm'>[?]\
+                            </span></td>\
+                            <td width='50%'><div id='sd_ClkeyPass'></div>\
+                            </td>\
+                            </tr>\
+                        <tr><td style='width:25%;'><label for='sd_pwd'>Password</label>\
                             <span class='helpIcon' id='sd_pwd_qm'>[?]\
                             </span></td>\
-                            <td width='70%'><div id='sd_pwd'></div>\
-                            </td></tr>\
+                            <td width='50%'><div id='sd_pwd'></div>\
+                            </td>\
+                            <td style='width:25%;'><label for='sd_ClkeyFile'>Key file:</label>\
+                            <span class='helpIcon' id='sd_ClkeyFile_qm'>[?]\
+                            </span></td>\
+                            <td width='50%'><div id='sd_ClkeyFile'></div>\
+                            </td>\
+                            </tr>\
                         </table>\
                     </div>\
                     <div id='installDetailsHeader'>\
@@ -270,9 +295,7 @@ var configWizardPages = {
                     <h2>Define Processes and Cluster Topology</h2>\
                     <span class='content-tab-sub-title'>Various processes may \
                             be part of a MySQL Cluster configuration. Please \
-                            refer to the <a href='" + mcc.util.getDocUrlRoot() + 
-                            "mysql-cluster.html'>MySQL Cluster \
-                            Documentation</a> for a description of the \
+                            refer to the MySQL Cluster Documentation for a description of the \
                             different process types. If you have added hosts \
                             previously, a default configuration will be \
                             suggested the first time you enter this page. This \
@@ -381,9 +404,7 @@ var configWizardPages = {
                     <span class='content-tab-sub-title'>The processes in your \
                             MySQL Cluster configuration can be tuned by setting\
                             a number of configuration parameters. Please refer \
-                            to the <a href='" + mcc.util.getDocUrlRoot() + 
-                            "mysql-cluster.html'>MySQL Cluster \
-                            Documentation</a> for a description of the \
+                            to the MySQL Cluster Documentation for a description of the \
                             different process parameters. This page allows you \
                             to define a subset of the configuration parameters.\
                             Below, you will see your \
@@ -395,7 +416,7 @@ var configWizardPages = {
                             may do so by selecting the process instance in the \
                             tree and set the desired parameter. This tool \
                             suggests predefined settings for the different \
-                            parameteres based on the hardware resources and the\
+                            parameters based on the hardware resources and the\
                             cluster topology. The predefined settings may be \
                             overridden by pressing the <i>Override</i> button \
                             to the very right of the configuration parameter. \
