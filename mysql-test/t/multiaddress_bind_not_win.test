@@ -18,7 +18,8 @@
 --exec $MYSQLD --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR --no-defaults --secure-file-priv="" --bind-address=128.0.0.1
 
 --let SEARCH_FILE=$MYSQLD_LOG
---let SEARCH_PATTERN= Bind on TCP/IP port: Can't assign requested address
+# In error.log: [ERROR] [MY-010262] [Server] Can't start server: Bind on TCP/IP port: Cannot/Can't assign requested address
+--let SEARCH_PATTERN= MY-010262.*Bind on TCP/IP port:.*assign requested address
 --source include/search_pattern.inc
 
 --remove_file $MYSQLD_LOG
@@ -29,7 +30,8 @@
 --exec $MYSQLD --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR --no-defaults --secure-file-priv="" --bind-address=128.0.0.1,::1
 
 --let SEARCH_FILE=$MYSQLD_LOG
---let SEARCH_PATTERN= Bind on TCP/IP port: Can't assign requested address
+# In error.log: [ERROR] [MY-010262] [Server] Can't start server: Bind on TCP/IP port: Cannot/Can't assign requested address
+--let SEARCH_PATTERN= MY-010262.*Bind on TCP/IP port:.*assign requested address
 --source include/search_pattern.inc
 
 --remove_file $MYSQLD_LOG
