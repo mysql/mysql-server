@@ -59,6 +59,7 @@ max_parts.partition_max_sub_parts_key_list_innodb @windows  : BUG#27681900 2018-
 max_parts.partition_max_sub_parts_key_range_innodb @windows : BUG#27681900 2018-02-20 Ashish Disabling max_parts tests on windows.
 max_parts.partition_max_sub_parts_list_innodb @windows      : BUG#27681900 2018-02-20 Ashish Disabling max_parts tests on windows.
 max_parts.partition_max_sub_parts_range_innodb @windows     : BUG#27681900 2018-02-20 Ashish Disabling max_parts tests on windows.
+max_parts.innodb_partition_open_files_limit                 : Bug#27423163 2018-06-22 Ashish Test times out consistently on Hudson.
 
 # perfschema suite test
 perfschema.innodb_is_data_locks : BUG#27491547 2018-02-08 Marc Alff PERFSCHEMA.INNODB_IS_DATA_LOCKS FAILS SPORADICALLY ON PB2.
