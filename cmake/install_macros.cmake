@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -162,13 +162,8 @@ FUNCTION(INSTALL_DEBUG_TARGET target)
     IF(APPLE)
       SET(DLL_SUFFIX ".so") # we do not use .dylib
     ENDIF()
-    GET_TARGET_PROPERTY(
-      target_output_directory ${target}  LIBRARY_OUTPUT_DIRECTORY)
-    IF(target_output_directory MATCHES "component_output_directory")
-      SET(MODULE_DIRECTORY "component_output_directory")
-    ELSE()
-      SET(MODULE_DIRECTORY "plugin_output_directory")
-    ENDIF()
+
+    SET(MODULE_DIRECTORY "plugin_output_directory")
     IF(BUILD_IS_SINGLE_CONFIG)
       SET(debug_target_location
         "${DEBUGBUILDDIR}/${MODULE_DIRECTORY}/${target_name}${DLL_SUFFIX}")

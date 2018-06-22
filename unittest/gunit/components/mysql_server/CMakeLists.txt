@@ -42,7 +42,7 @@ FOREACH(test ${TESTS})
     ${CMAKE_SOURCE_DIR}/sql/server_component/mysql_string_service.cc
     ${CMAKE_SOURCE_DIR}/sql-common/sql_string.cc
     builtins_stubs.cc
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/component_output_directory
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/plugin_output_directory
     ADD_TEST ${test}
   )
   TARGET_LINK_LIBRARIES(${test}-t

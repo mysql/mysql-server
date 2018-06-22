@@ -1,25 +1,3 @@
-# This test checks if old UDF statements can be used in parallel to the new UDF registration.
-# They must know about each other and aviod conflicts.
-# Check if the "old" so is available under same directory as the test components.
-# If not then copy them to that directory.
-perl;
-use File::Copy;
-if (! -e "$ENV{UDF_REG_ONLY_3_FUNC_DIR}/$ENV{UDF_EXAMPLE_LIB}")
-{
-  copy("$ENV{UDF_EXAMPLE_LIB_DIR}/$ENV{UDF_EXAMPLE_LIB}",
-       "$ENV{UDF_REG_ONLY_3_FUNC_DIR}/$ENV{UDF_EXAMPLE_LIB}");
-}
-EOF
-
-# If UDF so still not vailable, stop execution of test.
-perl;
-if (! -e "$ENV{UDF_REG_ONLY_3_FUNC_DIR}/$ENV{UDF_EXAMPLE_LIB}")
-{
-  print "UDF requires udf_example_lib.so, which cannot be find.\n";
-  exit;
-}
-EOF
-
 # Register the UDS. The component is only registering UDFs.
 # To unregister call another component.
 INSTALL COMPONENT "file://component_udf_reg_only_3_func";

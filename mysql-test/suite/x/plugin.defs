@@ -28,4 +28,4 @@
 # with name1, name2 etc from the comma separated list of plugin names
 # in the optional 4th argument.
 
-component_mysqlx_global_reset   component_output_directory    MYSQLXGLOBALRESET
+component_mysqlx_global_reset   plugin_output_directory    MYSQLXGLOBALRESET

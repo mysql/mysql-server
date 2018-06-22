@@ -1,4 +1,4 @@
-# Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -110,7 +110,7 @@ MACRO(MYSQL_ADD_COMPONENT)
     IF (ARG_MODULE)
       # Store all components in the same directory, for easier testing.
       SET_TARGET_PROPERTIES(${target} PROPERTIES
-        LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/component_output_directory
+        LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/plugin_output_directory
         )
       IF(WIN32_CLANG AND WITH_ASAN)
         TARGET_LINK_LIBRARIES(${target} "${ASAN_LIB_DIR}/clang_rt.asan_dll_thunk-x86_64.lib")
