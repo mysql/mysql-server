@@ -104,10 +104,14 @@ Table_map_event::Table_map_event(const char *buf,
   /* Read the variable part of the event */
 
   READER_TRY_SET(m_dblen, read<uint8_t>);
+  if (m_dblen > 64 /* NAME_CHAR_LEN */)
+    READER_THROW("Database name length too long.")
   ptr_dbnam = READER_TRY_CALL(ptr, m_dblen + 1);
   m_dbnam = std::string(ptr_dbnam, m_dblen);
 
   READER_TRY_SET(m_tbllen, read<uint8_t>);
+  if (m_tbllen > 64 /* NAME_CHAR_LEN */)
+    READER_THROW("Table name length too long.")
   ptr_tblnam = READER_TRY_CALL(ptr, m_tbllen + 1);
   m_tblnam = std::string(ptr_tblnam, m_tbllen);
 

@@ -10669,6 +10669,7 @@ int Table_map_log_event::pack_info(Protocol *protocol) {
   char buf[256];
   size_t bytes = snprintf(buf, sizeof(buf), "table_id: %llu (%s.%s)",
                           m_table_id.id(), m_dbnam.c_str(), m_tblnam.c_str());
+  DBUG_ASSERT(bytes < 256);
   protocol->store(buf, bytes, &my_charset_bin);
   return 0;
 }
