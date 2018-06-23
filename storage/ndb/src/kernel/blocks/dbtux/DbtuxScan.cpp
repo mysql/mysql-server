@@ -47,7 +47,7 @@ Dbtux::prepare_build_ctx(TuxCtx& ctx, FragPtr fragPtr)
   indexPtr.i = fragPtr.p->m_indexId;
   c_indexPool.getPtr(indexPtr);
   ctx.indexPtr = indexPtr;
-  const Index& index = *c_ctx.indexPtr.p;
+  const Index& index = *ctx.indexPtr.p;
   const DescHead& descHead = getDescHead(index);
   const AttributeHeader* keyAttrs = getKeyAttrs(descHead);
   ctx.keyAttrs = (Uint32*)keyAttrs;
