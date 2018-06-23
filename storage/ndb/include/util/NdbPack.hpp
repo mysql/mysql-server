@@ -481,8 +481,7 @@ public:
                  const DataArray*,
                  const int side);
       ~BoundArray() {}
-      int cmp(const DataArray* d2) const;
-      int cmp(const DataArray* d2, const Uint32 cnt) const;
+      int cmp(const DataArray* d2, const Uint32 cnt, bool ok_to_ret_eq) const;
       Uint32 cnt() const;
     private:
       const Spec* m_spec;
@@ -962,21 +961,12 @@ inline NdbPack::BoundArray::BoundArray(
 }
 
 inline int
-NdbPack::BoundArray::cmp(const DataArray* d2, const Uint32 cnt) const
+NdbPack::BoundArray::cmp(const DataArray* d2,
+                         const Uint32 cnt,
+                         const bool ok_to_ret_eq) const
 {
   int res = m_data_array->cmp(m_spec, d2, cnt);
-  if (res == 0)
-    res = m_side;
-  return res;
-}
-
-inline int
-NdbPack::BoundArray::cmp(const DataArray* d2) const
-{
-  const DataArray* d1 = m_data_array;
-  const Uint32 cnt = d1->cnt();
-  int res = d1->cmp(m_spec, d2, cnt);
-  if (res == 0)
+  if (res == 0 && !ok_to_ret_eq && m_data_array->m_cnt <= d2->cnt())
     res = m_side;
   return res;
 }

@@ -1303,7 +1303,7 @@ Dbtux::scanCheck(ScanOp& scan, TreeEnt ent)
     KeyDataArray key_data;
     key_data.init_poai(outputBuffer, count);
     // compare bound to key
-    ret = c_ctx.searchScanBoundArray.cmp(&key_data);
+    ret = c_ctx.searchScanBoundArray.cmp(&key_data, count, false);
     ndbrequire(ret != 0);
     const unsigned idir = c_ctx.descending;
     const int jdir = 1 - 2 * (int)idir;
