@@ -272,11 +272,9 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
   jamEntry();
   // get records
   TuxBoundInfo* const req = (TuxBoundInfo*)signal->getDataPtrSend();
-  ScanOpPtr scanPtr;
-  scanPtr.i = req->tuxScanPtrI;
-  c_scanOpPool.getPtr(scanPtr);
+  ScanOpPtr scanPtr = c_ctx.scanPtr;
   ScanOp& scan = *scanPtr.p;
-  const Index& index = *c_indexPool.getPtr(scan.m_indexId);
+  const Index& index = *c_ctx.indexPtr.p;
   // compiler warning unused: const DescHead& descHead = getDescHead(index);
   // compiler warning unused: const KeyType* keyTypes = getKeyTypes(descHead);
   // data passed in Signal
