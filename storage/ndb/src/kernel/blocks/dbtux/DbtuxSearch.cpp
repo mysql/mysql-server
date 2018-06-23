@@ -42,7 +42,7 @@ Dbtux::findNodeToUpdate(TuxCtx& ctx,
                         TreeEnt searchEnt,
                         NodeHandle& currNode)
 {
-  const Index& index = *c_indexPool.getPtr(frag.m_indexId);
+  const Index& index = *ctx.indexPtr.p;
   const Uint32 numAttrs = index.m_numAttrs;
   const Uint32 prefAttrs = index.m_prefAttrs;
   NodeHandle glbNode(frag);     // potential g.l.b of final node
@@ -131,7 +131,7 @@ Dbtux::findPosToAdd(TuxCtx& ctx,
                     NodeHandle& currNode,
                     TreePos& treePos)
 {
-  const Index& index = *c_indexPool.getPtr(frag.m_indexId);
+  const Index& index = *ctx.indexPtr.p;
   int lo = -1;
   int hi = (int)currNode.getOccup();
   while (hi - lo > 1)
@@ -284,7 +284,7 @@ Dbtux::findNodeToScan(Frag& frag,
                       NodeHandle& currNode)
 {
   const int jdir = 1 - 2 * int(idir);
-  const Index& index = *c_indexPool.getPtr(frag.m_indexId);
+  const Index& index = *c_ctx.indexPtr.p;
   const Uint32 numAttrs = searchBound.cnt();
   const Uint32 prefAttrs = min(index.m_prefAttrs, numAttrs);
   NodeHandle glbNode(frag);     // potential g.l.b of final node
