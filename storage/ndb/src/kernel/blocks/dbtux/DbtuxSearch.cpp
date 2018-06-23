@@ -56,7 +56,7 @@ Dbtux::findNodeToUpdate(TuxCtx& ctx,
       thrjamDebug(ctx.jamBuffer);
       KeyDataArray key_data;
       key_data.init_poai(currNode.getPref(), prefAttrs);
-      ret = searchBound.cmp(&key_data, prefAttrs);
+      ret = searchBound.cmp(&key_data, prefAttrs, true);
     }
     if (ret == 0 && prefAttrs < numAttrs)
     {
@@ -69,7 +69,7 @@ Dbtux::findNodeToUpdate(TuxCtx& ctx,
                    ctx.c_dataBuffer);
       KeyDataArray key_data;
       key_data.init_poai(ctx.c_dataBuffer, numAttrs);
-      ret = searchBound.cmp(&key_data);
+      ret = searchBound.cmp(&key_data, numAttrs, true);
     }
     if (unlikely(ret == 0))
     {
@@ -146,8 +146,9 @@ Dbtux::findPosToAdd(TuxCtx& ctx,
                  index.m_numAttrs,
                  ctx.c_dataBuffer);
     KeyDataArray key_data;
-    key_data.init_poai(ctx.c_dataBuffer, index.m_numAttrs);
-    int ret = searchBound.cmp(&key_data);
+    Uint32 numAttrs = index.m_numAttrs;
+    key_data.init_poai(ctx.c_dataBuffer, numAttrs);
+    int ret = searchBound.cmp(&key_data, numAttrs, true);
     if (unlikely(ret == 0))
     {
       thrjamDebug(ctx.jamBuffer);
@@ -299,7 +300,7 @@ Dbtux::findNodeToScan(Frag& frag,
         jamDebug();
         KeyDataArray key_data;
         key_data.init_poai(currNode.getPref(), prefAttrs);
-        ret = searchBound.cmp(&key_data, prefAttrs);
+        ret = searchBound.cmp(&key_data, prefAttrs, false);
         // compare node prefix - result 0 implies bound is longer
       }
       if (unlikely(ret == 0))
@@ -313,7 +314,7 @@ Dbtux::findNodeToScan(Frag& frag,
                      c_ctx.c_dataBuffer);
         KeyDataArray key_data;
         key_data.init_poai(c_ctx.c_dataBuffer, numAttrs);
-        ret = searchBound.cmp(&key_data);
+        ret = searchBound.cmp(&key_data, numAttrs, false);
       }
     }
     else
@@ -393,7 +394,7 @@ Dbtux::findPosToScan(Frag& frag,
                    c_ctx.c_dataBuffer);
       KeyDataArray key_data;
       key_data.init_poai(c_ctx.c_dataBuffer, numAttrs);
-      ret = searchBound.cmp(&key_data);
+      ret = searchBound.cmp(&key_data, numAttrs, false);
     }
     if (ret < 0)
     {
