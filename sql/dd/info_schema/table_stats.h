@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -254,6 +254,23 @@ class Table_statistics {
     m_key = form_key(db_name, table_name, partition_name);
   }
 
+  /**
+    Check if we have seen a error.
+
+    @param db_name     Database name.
+    @param table_name  Table name.
+
+    @returns true if there is error reported.
+             false if not.
+  */
+  inline bool check_error_for_key(const String &db_name,
+                                  const String &table_name) {
+    if (is_stat_cached_in_mem(db_name, table_name) && !m_error.empty())
+      return true;
+
+    return false;
+  }
+
  private:
   /**
     Read dynamic table/index statistics from SE API's OR by reading
@@ -352,23 +369,6 @@ class Table_statistics {
   ulonglong get_stat(ha_statistics &stat, enum_table_stats_type stype);
   inline ulonglong get_stat(enum_table_stats_type stype) {
     return get_stat(m_stats, stype);
-  }
-
-  /**
-    Check if we have seen a error.
-
-    @param db_name     Database name.
-    @param table_name  Table name.
-
-    @returns true if there is error reported.
-             false if not.
-  */
-  inline bool check_error_for_key(const String &db_name,
-                                  const String &table_name) {
-    if (is_stat_cached_in_mem(db_name, table_name) && !m_error.empty())
-      return true;
-
-    return false;
   }
 
   /// Set checksum

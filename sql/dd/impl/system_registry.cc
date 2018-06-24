@@ -44,11 +44,13 @@
 #include "sql/dd/impl/system_views/schemata.h"             // Schemata
 #include "sql/dd/impl/system_views/st_geometry_columns.h"  // st_geometry_columns
 #include "sql/dd/impl/system_views/st_spatial_reference_systems.h"  // St_spatial...
-#include "sql/dd/impl/system_views/statistics.h"         // Statistics
-#include "sql/dd/impl/system_views/table_constraints.h"  // Table_constraints
-#include "sql/dd/impl/system_views/tables.h"             // Tables
-#include "sql/dd/impl/system_views/triggers.h"           // Triggers
-#include "sql/dd/impl/system_views/views.h"              // Views
+#include "sql/dd/impl/system_views/statistics.h"          // Statistics
+#include "sql/dd/impl/system_views/table_constraints.h"   // Table_constraints
+#include "sql/dd/impl/system_views/tables.h"              // Tables
+#include "sql/dd/impl/system_views/triggers.h"            // Triggers
+#include "sql/dd/impl/system_views/view_routine_usage.h"  // View_routine_usage
+#include "sql/dd/impl/system_views/view_table_usage.h"    // View_table_usage
+#include "sql/dd/impl/system_views/views.h"               // Views
 
 #include "sql/dd/impl/tables/catalogs.h"              // Catalog
 #include "sql/dd/impl/tables/character_sets.h"        // Character_sets
@@ -256,6 +258,8 @@ void System_views::init() {
   register_view<dd::system_views::Table_constraints>(is);
   register_view<dd::system_views::Tables>(is);
   register_view<dd::system_views::Triggers>(is);
+  register_view<dd::system_views::View_routine_usage>(is);
+  register_view<dd::system_views::View_table_usage>(is);
   register_view<dd::system_views::Views>(is);
 }
 

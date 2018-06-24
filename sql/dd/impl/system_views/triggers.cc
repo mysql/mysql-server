@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,17 +33,19 @@ const Triggers &Triggers::instance() {
 Triggers::Triggers() {
   m_target_def.set_view_name(view_name());
 
-  m_target_def.add_field(FIELD_TRIGGER_CATALOG, "TRIGGER_CATALOG", "cat.name");
-  m_target_def.add_field(FIELD_TRIGGER_SCHEMA, "TRIGGER_SCHEMA", "sch.name");
+  m_target_def.add_field(FIELD_TRIGGER_CATALOG, "TRIGGER_CATALOG",
+                         "cat.name" + m_target_def.fs_name_collation());
+  m_target_def.add_field(FIELD_TRIGGER_SCHEMA, "TRIGGER_SCHEMA",
+                         "sch.name" + m_target_def.fs_name_collation());
   m_target_def.add_field(FIELD_TRIGGER_NAME, "TRIGGER_NAME", "trg.name");
   m_target_def.add_field(FIELD_EVENT_MANIPULATION, "EVENT_MANIPULATION",
                          "trg.event_type");
   m_target_def.add_field(FIELD_EVENT_OBJECT_CATALOG, "EVENT_OBJECT_CATALOG",
-                         "cat.name");
+                         "cat.name" + m_target_def.fs_name_collation());
   m_target_def.add_field(FIELD_EVENT_OBJECT_SCHEMA, "EVENT_OBJECT_SCHEMA",
-                         "sch.name");
+                         "sch.name" + m_target_def.fs_name_collation());
   m_target_def.add_field(FIELD_EVENT_OBJECT_TABLE, "EVENT_OBJECT_TABLE",
-                         "tbl.name");
+                         "tbl.name" + m_target_def.fs_name_collation());
   m_target_def.add_field(FIELD_ACTION_ORDER, "ACTION_ORDER",
                          "trg.action_order");
   m_target_def.add_field(FIELD_ACTION_CONDITION, "ACTION_CONDITION", "NULL");

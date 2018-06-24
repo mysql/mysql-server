@@ -1,3 +1,9 @@
+# Result differences depending on FS case sensitivity.
+if (!$require_case_insensitive_file_system)
+{
+  --source include/have_case_sensitive_file_system.inc
+}
+
 #
 # Check the layout of information_schema.routines and the impact of
 # CREATE/ALTER/DROP PROCEDURE/FUNCTION ... on it.

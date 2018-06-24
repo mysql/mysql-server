@@ -141,6 +141,8 @@ Database: information_schema
 | TRIGGERS                              |
 | USER_PRIVILEGES                       |
 | VIEWS                                 |
+| VIEW_ROUTINE_USAGE                    |
+| VIEW_TABLE_USAGE                      |
 +---------------------------------------+
 Database: INFORMATION_SCHEMA
 +---------------------------------------+
@@ -208,6 +210,8 @@ Database: INFORMATION_SCHEMA
 | TRIGGERS                              |
 | USER_PRIVILEGES                       |
 | VIEWS                                 |
+| VIEW_ROUTINE_USAGE                    |
+| VIEW_TABLE_USAGE                      |
 +---------------------------------------+
 Wildcard: inf_rmation_schema
 +--------------------+

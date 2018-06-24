@@ -363,6 +363,18 @@ def	information_schema	VIEWS	DEFINER	7	NULL	YES	varchar	93	279	NULL	NULL	NULL	ut
 def	information_schema	VIEWS	SECURITY_TYPE	8	NULL	YES	varchar	7	21	NULL	NULL	NULL	utf8	utf8_bin	varchar(7)			select			NULL
 def	information_schema	VIEWS	CHARACTER_SET_CLIENT	9	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	VIEWS	COLLATION_CONNECTION	10	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
+def	information_schema	VIEW_ROUTINE_USAGE	TABLE_CATALOG	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	VIEW_ROUTINE_USAGE	TABLE_SCHEMA	2	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	VIEW_ROUTINE_USAGE	TABLE_NAME	3	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	VIEW_ROUTINE_USAGE	SPECIFIC_CATALOG	4	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	VIEW_ROUTINE_USAGE	SPECIFIC_SCHEMA	5	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	VIEW_ROUTINE_USAGE	SPECIFIC_NAME	6	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
+def	information_schema	VIEW_TABLE_USAGE	VIEW_CATALOG	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	VIEW_TABLE_USAGE	VIEW_SCHEMA	2	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	VIEW_TABLE_USAGE	VIEW_NAME	3	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	VIEW_TABLE_USAGE	TABLE_CATALOG	4	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	VIEW_TABLE_USAGE	TABLE_SCHEMA	5	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	VIEW_TABLE_USAGE	TABLE_NAME	6	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 ##########################################################################
 # Show the quotient of CHARACTER_OCTET_LENGTH and CHARACTER_MAXIMUM_LENGTH
 ##########################################################################
@@ -798,4 +810,16 @@ NULL	information_schema	TRIGGERS	CREATED	timestamp	NULL	NULL	NULL	NULL	timestamp
 3.0000	information_schema	VIEWS	SECURITY_TYPE	varchar	7	21	utf8	utf8_bin	varchar(7)
 3.0000	information_schema	VIEWS	CHARACTER_SET_CLIENT	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	VIEWS	COLLATION_CONNECTION	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+3.0000	information_schema	VIEW_ROUTINE_USAGE	TABLE_CATALOG	varchar	64	192	utf8	utf8_bin	varchar(64)
+3.0000	information_schema	VIEW_ROUTINE_USAGE	TABLE_SCHEMA	varchar	64	192	utf8	utf8_bin	varchar(64)
+3.0000	information_schema	VIEW_ROUTINE_USAGE	TABLE_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
+3.0000	information_schema	VIEW_ROUTINE_USAGE	SPECIFIC_CATALOG	varchar	64	192	utf8	utf8_bin	varchar(64)
+3.0000	information_schema	VIEW_ROUTINE_USAGE	SPECIFIC_SCHEMA	varchar	64	192	utf8	utf8_bin	varchar(64)
+3.0000	information_schema	VIEW_ROUTINE_USAGE	SPECIFIC_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+3.0000	information_schema	VIEW_TABLE_USAGE	VIEW_CATALOG	varchar	64	192	utf8	utf8_bin	varchar(64)
+3.0000	information_schema	VIEW_TABLE_USAGE	VIEW_SCHEMA	varchar	64	192	utf8	utf8_bin	varchar(64)
+3.0000	information_schema	VIEW_TABLE_USAGE	VIEW_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
+3.0000	information_schema	VIEW_TABLE_USAGE	TABLE_CATALOG	varchar	64	192	utf8	utf8_bin	varchar(64)
+3.0000	information_schema	VIEW_TABLE_USAGE	TABLE_SCHEMA	varchar	64	192	utf8	utf8_bin	varchar(64)
+3.0000	information_schema	VIEW_TABLE_USAGE	TABLE_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
 SET sql_mode = default;

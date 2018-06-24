@@ -92,6 +92,8 @@ TABLE_PRIVILEGES
 TRIGGERS
 USER_PRIVILEGES
 VIEWS
+VIEW_ROUTINE_USAGE
+VIEW_TABLE_USAGE
 columns_priv
 component
 db
@@ -831,6 +833,8 @@ TABLES	TABLE_NAME	select
 TABLE_CONSTRAINTS	TABLE_NAME	select
 TABLE_PRIVILEGES	TABLE_NAME	select
 VIEWS	TABLE_NAME	select
+VIEW_ROUTINE_USAGE	TABLE_NAME	select
+VIEW_TABLE_USAGE	TABLE_NAME	select
 delete from mysql.user where user='mysqltest_4';
 delete from mysql.db where user='mysqltest_4';
 flush privileges;
@@ -839,7 +843,7 @@ table_schema IN ('mysql', 'information_schema', 'test', 'mysqltest')
 AND table_name not like 'ndb%' AND table_name COLLATE utf8_general_ci not like 'innodb_%'
 GROUP BY TABLE_SCHEMA;
 TABLE_SCHEMA	count(*)
-information_schema	32
+information_schema	34
 mysql	31
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row
@@ -1312,6 +1316,8 @@ TABLE_PRIVILEGES	information_schema.TABLE_PRIVILEGES	1
 TRIGGERS	information_schema.TRIGGERS	1
 USER_PRIVILEGES	information_schema.USER_PRIVILEGES	1
 VIEWS	information_schema.VIEWS	1
+VIEW_ROUTINE_USAGE	information_schema.VIEW_ROUTINE_USAGE	1
+VIEW_TABLE_USAGE	information_schema.VIEW_TABLE_USAGE	1
 create table t1(f1 int);
 create view v1 as select f1+1 as a from t1;
 create table t2 (f1 int, f2 int);
@@ -2440,6 +2446,8 @@ TABLE_PRIVILEGES	TABLE_SCHEMA
 TRIGGERS	TRIGGER_SCHEMA
 USER_PRIVILEGES	GRANTEE
 VIEWS	TABLE_SCHEMA
+VIEW_ROUTINE_USAGE	TABLE_SCHEMA
+VIEW_TABLE_USAGE	VIEW_SCHEMA
 SELECT t.table_name, c1.column_name
 FROM information_schema.tables t
 INNER JOIN
@@ -2491,6 +2499,8 @@ TABLE_PRIVILEGES	TABLE_SCHEMA
 TRIGGERS	TRIGGER_SCHEMA
 USER_PRIVILEGES	GRANTEE
 VIEWS	TABLE_SCHEMA
+VIEW_ROUTINE_USAGE	TABLE_SCHEMA
+VIEW_TABLE_USAGE	VIEW_SCHEMA
 #
 # BUG#24679166: TABLE CREATION WITH BINARY TYPE COLUMN IS RESULTING IN
 #               ASSERT CONDITION FAILURE.

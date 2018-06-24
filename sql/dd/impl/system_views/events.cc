@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,8 +33,10 @@ const Events &Events::instance() {
 Events::Events() {
   m_target_def.set_view_name(view_name());
 
-  m_target_def.add_field(FIELD_EVENT_CATALOG, "EVENT_CATALOG", "cat.name");
-  m_target_def.add_field(FIELD_EVENT_SCHEMA, "EVENT_SCHEMA", "sch.name");
+  m_target_def.add_field(FIELD_EVENT_CATALOG, "EVENT_CATALOG",
+                         "cat.name" + m_target_def.fs_name_collation());
+  m_target_def.add_field(FIELD_EVENT_SCHEMA, "EVENT_SCHEMA",
+                         "sch.name" + m_target_def.fs_name_collation());
   m_target_def.add_field(FIELD_EVENT_NAME, "EVENT_NAME", "evt.name");
   m_target_def.add_field(FIELD_DEFINER, "DEFINER", "evt.definer");
   m_target_def.add_field(FIELD_TIME_ZONE, "TIME_ZONE", "evt.time_zone");

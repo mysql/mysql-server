@@ -34,8 +34,10 @@ Routines::Routines() {
   m_target_def.set_view_name(view_name());
 
   m_target_def.add_field(FIELD_SPECIFIC_NAME, "SPECIFIC_NAME", "rtn.name");
-  m_target_def.add_field(FIELD_ROUTINE_CATALOG, "ROUTINE_CATALOG", "cat.name");
-  m_target_def.add_field(FIELD_ROUTINE_SCHEMA, "ROUTINE_SCHEMA", "sch.name");
+  m_target_def.add_field(FIELD_ROUTINE_CATALOG, "ROUTINE_CATALOG",
+                         "cat.name" + m_target_def.fs_name_collation());
+  m_target_def.add_field(FIELD_ROUTINE_SCHEMA, "ROUTINE_SCHEMA",
+                         "sch.name" + m_target_def.fs_name_collation());
   m_target_def.add_field(FIELD_ROUTINE_NAME, "ROUTINE_NAME", "rtn.name");
   m_target_def.add_field(FIELD_ROUTINE_TYPE, "ROUTINE_TYPE", "rtn.type");
   m_target_def.add_field(FIELD_DATA_TYPE, "DATA_TYPE",

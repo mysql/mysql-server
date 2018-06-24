@@ -51,7 +51,7 @@ namespace info_schema {
   ------------------------
   Introduced in MySQL 8.0.0 by WL#6599. Never published in a GA version.
 
-  80011: Current. Published in 8.0 GA.
+  80011: Published in 8.0 GA.
   ------------------------------------
   Changes from version 1:
 
@@ -69,6 +69,8 @@ namespace info_schema {
   - Bug#27945704 UNABLE TO JOIN TABLE_CONSTRAINTS AND REFERENTIAL_CONSTRAINTS
     Changes the collation of I_S columns that project index name and
     constraint name to use utf8_tolower_ci.
+
+  - WL#11864 Implement I_S.VIEW_TABLE_USAGE and I_S.VIEW_ROUTINE_USAGE
 */
 
 static const uint IS_DD_VERSION = 80012;
