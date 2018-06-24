@@ -1702,6 +1702,11 @@ do_possible_lock_wait:
 
     lock_wait_suspend_thread(thr);
 
+    if (trx->error_state != DB_SUCCESS) {
+      err = trx->error_state;
+      goto exit_func;
+    }
+
     thr->lock_state = QUE_THR_LOCK_NOLOCK;
 
     DBUG_PRINT("to_be_dropped", ("table: %s", check_table->name.m_name));
