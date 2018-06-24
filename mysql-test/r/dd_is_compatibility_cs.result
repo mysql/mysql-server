@@ -185,6 +185,8 @@ TABLE_PRIVILEGES
 TRIGGERS
 USER_PRIVILEGES
 VIEWS
+VIEW_ROUTINE_USAGE
+VIEW_TABLE_USAGE
 DROP VIEW v1;
 # 3. I_S tables/views/columns are not case sensitive, but on trunk, the
 # two statements below will have different case of the column heading.

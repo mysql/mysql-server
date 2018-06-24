@@ -1,3 +1,9 @@
+# Result differences depending on FS case sensitivity.
+if (!$require_case_insensitive_file_system)
+{
+  --source include/have_case_sensitive_file_system.inc
+}
+
 # Test needs myisam for some myisam specific testcases
 --source include/have_myisam.inc
 #------------------------------------------------------------------------------

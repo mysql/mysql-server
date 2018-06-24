@@ -139,6 +139,8 @@ SET(DD_SOURCES
   dd/impl/system_views/tables.cc
   dd/impl/system_views/table_constraints.cc
   dd/impl/system_views/triggers.cc
+  dd/impl/system_views/view_routine_usage.cc
+  dd/impl/system_views/view_table_usage.cc
   dd/impl/system_views/views.cc
 
   dd/impl/tables/character_sets.cc

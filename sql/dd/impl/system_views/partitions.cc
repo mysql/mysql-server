@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,8 +33,10 @@ const Partitions &Partitions::instance() {
 Partitions::Partitions() {
   m_target_def.set_view_name(view_name());
 
-  m_target_def.add_field(FIELD_TABLE_CATALOG, "TABLE_CATALOG", "cat.name");
-  m_target_def.add_field(FIELD_TABLE_SCHEMA, "TABLE_SCHEMA", "sch.name");
+  m_target_def.add_field(FIELD_TABLE_CATALOG, "TABLE_CATALOG",
+                         "cat.name" + m_target_def.fs_name_collation());
+  m_target_def.add_field(FIELD_TABLE_SCHEMA, "TABLE_SCHEMA",
+                         "sch.name" + m_target_def.fs_name_collation());
   m_target_def.add_field(FIELD_TABLE_NAME, "TABLE_NAME", "tbl.name");
   m_target_def.add_field(FIELD_PARTITION_NAME, "PARTITION_NAME", "part.name");
   m_target_def.add_field(FIELD_SUBPARTITION_NAME, "SUBPARTITION_NAME",

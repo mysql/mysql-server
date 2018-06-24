@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,8 +34,9 @@ Parameters::Parameters() {
   m_target_def.set_view_name(view_name());
 
   m_target_def.add_field(FIELD_SPECIFIC_CATALOG, "SPECIFIC_CATALOG",
-                         "cat.name");
-  m_target_def.add_field(FIELD_SPECIFIC_SCHEMA, "SPECIFIC_SCHEMA", "sch.name");
+                         "cat.name" + m_target_def.fs_name_collation());
+  m_target_def.add_field(FIELD_SPECIFIC_SCHEMA, "SPECIFIC_SCHEMA",
+                         "sch.name" + m_target_def.fs_name_collation());
   m_target_def.add_field(FIELD_SPECIFIC_NAME, "SPECIFIC_NAME", "rtn.name");
   m_target_def.add_field(FIELD_ORDINAL_POSITION, "ORDINAL_POSITION",
                          "IF (rtn.type = 'FUNCTION', prm.ordinal_position-1, "

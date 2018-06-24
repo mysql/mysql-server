@@ -7872,9 +7872,32 @@ longlong Item_func_can_access_view::val_int() {
   if (view_options->get_bool("view_valid", &is_view_valid)) DBUG_RETURN(0);
 
   THD *thd = current_thd;
-  if (!is_view_valid)
-    push_view_warning_or_error(thd, schema_name_ptr->c_ptr_safe(),
-                               table_name_ptr->c_ptr_safe());
+  if (!is_view_valid) {
+    /*
+      Check if we have seen error already for this view.
+      Do that if this is not SHOW FIELDS commands and
+      max_error_count is > 0
+    */
+    bool found = false;
+    bool cache_error_message = (thd->lex->sql_command != SQLCOM_SHOW_FIELDS ||
+                                thd->variables.max_error_count > 0);
+
+    const String db_str(schema_name_ptr->c_ptr_safe(), system_charset_info);
+    const String name_str(table_name_ptr->c_ptr_safe(), system_charset_info);
+
+    if (cache_error_message)
+      found = thd->lex->m_IS_table_stats.check_error_for_key(db_str, name_str);
+
+    if (!cache_error_message || !found) {
+      push_view_warning_or_error(thd, schema_name_ptr->c_ptr_safe(),
+                                 table_name_ptr->c_ptr_safe());
+
+      if (cache_error_message)
+        thd->lex->m_IS_table_stats.store_error_message(
+            db_str, name_str, nullptr,
+            (thd->get_stmt_da()->sql_conditions()++)->message_text());
+    }
+  }
 
   //
   // Check if definer user/host has access.

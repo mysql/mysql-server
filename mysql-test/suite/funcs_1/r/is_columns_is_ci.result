@@ -58,8 +58,8 @@ def	information_schema	ENGINES	COMMENT	3		NO	varchar	26	80	NULL	NULL	NULL	utf8	u
 def	information_schema	ENGINES	TRANSACTIONS	4		YES	varchar	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select			NULL
 def	information_schema	ENGINES	XA	5		YES	varchar	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select			NULL
 def	information_schema	ENGINES	SAVEPOINTS	6		YES	varchar	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select			NULL
-def	information_schema	EVENTS	EVENT_CATALOG	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
-def	information_schema	EVENTS	EVENT_SCHEMA	2	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	EVENTS	EVENT_CATALOG	1	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	EVENTS	EVENT_SCHEMA	2	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	EVENTS	EVENT_NAME	3	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	EVENTS	DEFINER	4	NULL	NO	varchar	93	279	NULL	NULL	NULL	utf8	utf8_bin	varchar(93)			select			NULL
 def	information_schema	EVENTS	TIME_ZONE	5	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
@@ -138,8 +138,8 @@ def	information_schema	OPTIMIZER_TRACE	QUERY	1		NO	varchar	21845	65535	NULL	NULL
 def	information_schema	OPTIMIZER_TRACE	TRACE	2		NO	varchar	21845	65535	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(65535)			select			NULL
 def	information_schema	OPTIMIZER_TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	3		NO	int	NULL	NULL	NULL	NULL	NULL	NULL	NULL	int(20)			select			NULL
 def	information_schema	OPTIMIZER_TRACE	INSUFFICIENT_PRIVILEGES	4		NO	tinyint	NULL	NULL	NULL	NULL	NULL	NULL	NULL	tinyint(1)			select			NULL
-def	information_schema	PARAMETERS	SPECIFIC_CATALOG	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
-def	information_schema	PARAMETERS	SPECIFIC_SCHEMA	2	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	PARAMETERS	SPECIFIC_CATALOG	1	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	PARAMETERS	SPECIFIC_SCHEMA	2	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	PARAMETERS	SPECIFIC_NAME	3	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	PARAMETERS	ORDINAL_POSITION	4	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(11) unsigned			select			NULL
 def	information_schema	PARAMETERS	PARAMETER_MODE	5	NULL	YES	varchar	5	15	NULL	NULL	NULL	utf8	utf8_bin	varchar(5)			select			NULL
@@ -154,8 +154,8 @@ def	information_schema	PARAMETERS	CHARACTER_SET_NAME	13	NULL	YES	varchar	64	192	
 def	information_schema	PARAMETERS	COLLATION_NAME	14	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	PARAMETERS	DTD_IDENTIFIER	15	NULL	NO	mediumtext	16777215	16777215	NULL	NULL	NULL	utf8	utf8_bin	mediumtext			select			NULL
 def	information_schema	PARAMETERS	ROUTINE_TYPE	16	NULL	NO	enum	9	27	NULL	NULL	NULL	utf8	utf8_bin	enum('FUNCTION','PROCEDURE')			select			NULL
-def	information_schema	PARTITIONS	TABLE_CATALOG	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
-def	information_schema	PARTITIONS	TABLE_SCHEMA	2	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	PARTITIONS	TABLE_CATALOG	1	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	PARTITIONS	TABLE_SCHEMA	2	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	PARTITIONS	TABLE_NAME	3	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	PARTITIONS	PARTITION_NAME	4	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	PARTITIONS	SUBPARTITION_NAME	5	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
@@ -215,8 +215,8 @@ def	information_schema	RESOURCE_GROUPS	RESOURCE_GROUP_ENABLED	3	NULL	NO	tinyint	
 def	information_schema	RESOURCE_GROUPS	VCPU_IDS	4	NULL	YES	blob	65535	65535	NULL	NULL	NULL	NULL	NULL	blob			select			NULL
 def	information_schema	RESOURCE_GROUPS	THREAD_PRIORITY	5	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select			NULL
 def	information_schema	ROUTINES	SPECIFIC_NAME	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
-def	information_schema	ROUTINES	ROUTINE_CATALOG	2	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
-def	information_schema	ROUTINES	ROUTINE_SCHEMA	3	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	ROUTINES	ROUTINE_CATALOG	2	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	ROUTINES	ROUTINE_SCHEMA	3	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	ROUTINES	ROUTINE_NAME	4	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	ROUTINES	ROUTINE_TYPE	5	NULL	NO	enum	9	27	NULL	NULL	NULL	utf8	utf8_bin	enum('FUNCTION','PROCEDURE')			select			NULL
 def	information_schema	ROUTINES	DATA_TYPE	6	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_bin	longtext			select			NULL
@@ -327,13 +327,13 @@ def	information_schema	TABLE_PRIVILEGES	TABLE_SCHEMA	3		NO	varchar	21	64	NULL	NU
 def	information_schema	TABLE_PRIVILEGES	TABLE_NAME	4		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	TABLE_PRIVILEGES	PRIVILEGE_TYPE	5		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	TABLE_PRIVILEGES	IS_GRANTABLE	6		NO	varchar	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select			NULL
-def	information_schema	TRIGGERS	TRIGGER_CATALOG	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
-def	information_schema	TRIGGERS	TRIGGER_SCHEMA	2	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	TRIGGERS	TRIGGER_CATALOG	1	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	TRIGGERS	TRIGGER_SCHEMA	2	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	TRIGGERS	TRIGGER_NAME	3	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	TRIGGERS	EVENT_MANIPULATION	4	NULL	NO	enum	6	18	NULL	NULL	NULL	utf8	utf8_bin	enum('INSERT','UPDATE','DELETE')			select			NULL
-def	information_schema	TRIGGERS	EVENT_OBJECT_CATALOG	5	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
-def	information_schema	TRIGGERS	EVENT_OBJECT_SCHEMA	6	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
-def	information_schema	TRIGGERS	EVENT_OBJECT_TABLE	7	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	TRIGGERS	EVENT_OBJECT_CATALOG	5	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	TRIGGERS	EVENT_OBJECT_SCHEMA	6	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	TRIGGERS	EVENT_OBJECT_TABLE	7	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	TRIGGERS	ACTION_ORDER	8	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select			NULL
 def	information_schema	TRIGGERS	ACTION_CONDITION	9	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	TRIGGERS	ACTION_STATEMENT	10	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_bin	longtext			select			NULL
@@ -363,6 +363,18 @@ def	information_schema	VIEWS	DEFINER	7	NULL	YES	varchar	93	279	NULL	NULL	NULL	ut
 def	information_schema	VIEWS	SECURITY_TYPE	8	NULL	YES	varchar	7	21	NULL	NULL	NULL	utf8	utf8_bin	varchar(7)			select			NULL
 def	information_schema	VIEWS	CHARACTER_SET_CLIENT	9	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	VIEWS	COLLATION_CONNECTION	10	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
+def	information_schema	VIEW_ROUTINE_USAGE	TABLE_CATALOG	1	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	VIEW_ROUTINE_USAGE	TABLE_SCHEMA	2	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	VIEW_ROUTINE_USAGE	TABLE_NAME	3	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	VIEW_ROUTINE_USAGE	SPECIFIC_CATALOG	4	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	VIEW_ROUTINE_USAGE	SPECIFIC_SCHEMA	5	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	VIEW_ROUTINE_USAGE	SPECIFIC_NAME	6	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
+def	information_schema	VIEW_TABLE_USAGE	VIEW_CATALOG	1	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	VIEW_TABLE_USAGE	VIEW_SCHEMA	2	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	VIEW_TABLE_USAGE	VIEW_NAME	3	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	VIEW_TABLE_USAGE	TABLE_CATALOG	4	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	VIEW_TABLE_USAGE	TABLE_SCHEMA	5	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
+def	information_schema	VIEW_TABLE_USAGE	TABLE_NAME	6	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 ##########################################################################
 # Show the quotient of CHARACTER_OCTET_LENGTH and CHARACTER_MAXIMUM_LENGTH
 ##########################################################################
@@ -798,4 +810,16 @@ NULL	information_schema	TRIGGERS	CREATED	timestamp	NULL	NULL	NULL	NULL	timestamp
 3.0000	information_schema	VIEWS	SECURITY_TYPE	varchar	7	21	utf8	utf8_bin	varchar(7)
 3.0000	information_schema	VIEWS	CHARACTER_SET_CLIENT	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	VIEWS	COLLATION_CONNECTION	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+3.0000	information_schema	VIEW_ROUTINE_USAGE	TABLE_CATALOG	varchar	64	192	utf8	utf8_bin	varchar(64)
+3.0000	information_schema	VIEW_ROUTINE_USAGE	TABLE_SCHEMA	varchar	64	192	utf8	utf8_bin	varchar(64)
+3.0000	information_schema	VIEW_ROUTINE_USAGE	TABLE_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
+3.0000	information_schema	VIEW_ROUTINE_USAGE	SPECIFIC_CATALOG	varchar	64	192	utf8	utf8_bin	varchar(64)
+3.0000	information_schema	VIEW_ROUTINE_USAGE	SPECIFIC_SCHEMA	varchar	64	192	utf8	utf8_bin	varchar(64)
+3.0000	information_schema	VIEW_ROUTINE_USAGE	SPECIFIC_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+3.0000	information_schema	VIEW_TABLE_USAGE	VIEW_CATALOG	varchar	64	192	utf8	utf8_bin	varchar(64)
+3.0000	information_schema	VIEW_TABLE_USAGE	VIEW_SCHEMA	varchar	64	192	utf8	utf8_bin	varchar(64)
+3.0000	information_schema	VIEW_TABLE_USAGE	VIEW_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
+3.0000	information_schema	VIEW_TABLE_USAGE	TABLE_CATALOG	varchar	64	192	utf8	utf8_bin	varchar(64)
+3.0000	information_schema	VIEW_TABLE_USAGE	TABLE_SCHEMA	varchar	64	192	utf8	utf8_bin	varchar(64)
+3.0000	information_schema	VIEW_TABLE_USAGE	TABLE_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
 SET sql_mode = default;
