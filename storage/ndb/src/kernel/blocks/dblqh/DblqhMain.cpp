@@ -15636,7 +15636,7 @@ void Dblqh::nextScanConfCopyLab(Signal* signal,
     if (nextScanConf->accOperationPtr == RNIL) {
       jam();
       scanptr.p->scan_lastSeen = __LINE__;
-      signal->theData[0] = scanptr.p->scanAccPtr;
+      signal->theData[0] = scanptr.i;
       signal->theData[1] = GSN_ACC_CHECK_SCAN;
       signal->theData[2] = AccCheckScan::ZCHECK_LCP_STOP;
       sendSignal(reference(), GSN_ACC_CHECK_SCAN, signal, 3, JBB);
