@@ -1411,6 +1411,7 @@ bool Sql_cmd_analyze_table::handle_histogram_command(THD *thd,
       res = false;
     } else {
       Disable_autocommit_guard autocommit_guard(thd);
+      dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
       switch (get_histogram_command()) {
         case Histogram_command::UPDATE_HISTOGRAM:
           res = acquire_shared_backup_lock(thd,
