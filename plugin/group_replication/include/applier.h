@@ -51,7 +51,8 @@ extern char applier_module_channel_name[];
 enum enum_packet_action {
   TERMINATION_PACKET = 0,  // Packet for a termination action
   SUSPENSION_PACKET,       // Packet to signal something to suspend
-  ACTION_NUMBER = 2        // The number of actions
+  CHECKPOINT_PACKET,       // Packet to wait for queue consumption
+  ACTION_NUMBER = 3        // The number of actions
 };
 
 /**
@@ -113,6 +114,27 @@ class Single_primary_action_packet : public Packet {
   enum enum_action action;
 };
 
+/**
+  @class Queue_checkpoint_packet
+  A packet to wait for queue consumption
+*/
+class Queue_checkpoint_packet : public Action_packet {
+ public:
+  /**
+    Create a new Queue_checkpoint_packet packet.
+  */
+  Queue_checkpoint_packet(
+      std::shared_ptr<Continuation> checkpoint_condition_arg)
+      : Action_packet(CHECKPOINT_PACKET),
+        checkpoint_condition(checkpoint_condition_arg) {}
+
+  void signal_checkpoint_reached() { checkpoint_condition->signal(); }
+
+ private:
+  /**If we discard a packet */
+  std::shared_ptr<Continuation> checkpoint_condition;
+};
+
 typedef enum enum_applier_state {
   APPLIER_STATE_ON = 1,
   APPLIER_STATE_OFF,
@@ -129,6 +151,13 @@ class Applier_module_interface {
   virtual void interrupt_applier_suspension_wait() = 0;
   virtual int wait_for_applier_event_execution(
       double timeout, bool check_and_purge_partial_transactions) = 0;
+  virtual bool wait_for_current_events_execution(
+      std::shared_ptr<Continuation> checkpoint_condition, bool *abort_flag,
+      bool update_THD_status = true) = 0;
+  virtual bool get_retrieved_gtid_set(std::string &retrieved_set) = 0;
+  virtual int wait_for_applier_event_execution(
+      std::string &retrieved_set, double timeout,
+      bool update_THD_status = true) = 0;
   virtual size_t get_message_queue_size() = 0;
   virtual Member_applier_state get_applier_status() = 0;
   virtual void add_suspension_packet() = 0;
@@ -144,6 +173,8 @@ class Applier_module_interface {
                                          bool threaded_sql_session) = 0;
   virtual uint64
   get_pipeline_stats_member_collector_transactions_applied_during_recovery() = 0;
+  virtual bool queue_and_wait_on_queue_checkpoint(
+      std::shared_ptr<Continuation> checkpoint_condition) = 0;
 };
 
 class Applier_module : public Applier_module_interface {
@@ -358,6 +389,11 @@ class Applier_module : public Applier_module_interface {
   }
 
   /**
+    Queues a single a packet that will enable certification on this member
+   */
+  virtual void queue_certification_enabling_packet();
+
+  /**
    Awakes the applier module
   */
   virtual void awake_applier_module() {
@@ -423,6 +459,62 @@ class Applier_module : public Applier_module_interface {
       double timeout, bool check_and_purge_partial_transactions);
 
   /**
+    Waits for the execution of all current events by part of the current SQL
+    applier.
+
+    The current gtid retrieved set is extracted and a loop is executed until
+    these transactions are executed.
+
+    If the applier SQL thread stops, the method will return an error.
+
+    If no handler exists, then it is assumed that transactions were processed.
+
+    @param checkpoint_condition  the class used to wait for the queue to be
+                                 consumed. Can be used to cancel the wait.
+    @param abort_flag            a pointer to a flag that the caller can use to
+                                 cancel the request.
+    @param update_THD_status     Shall the method update the THD stage
+
+
+    @return the operation status
+      @retval false    All transactions were executed
+      @retval true     An error occurred
+  */
+  virtual bool wait_for_current_events_execution(
+      std::shared_ptr<Continuation> checkpoint_condition, bool *abort_flag,
+      bool update_THD_status = true);
+
+  /**
+    Returns the retrieved gtid set for the applier channel
+
+    @param[out] retrieved_set the set in string format.
+
+    @return
+      @retval true there was an error.
+      @retval false the operation has succeeded.
+  */
+  virtual bool get_retrieved_gtid_set(std::string &retrieved_set);
+
+  /**
+    Waits for the execution of all events in the given set by the current SQL
+    applier. If no handler exists, then it is assumed that transactions were
+    processed.
+
+    @param retrieved_set the set in string format of transaction to wait for
+    @param timeout  the time (seconds) after which the method returns if the
+                    above condition was not satisfied
+    @param update_THD_status     Shall the method update the THD stage
+
+    @return the operation status
+      @retval 0      All transactions were executed
+      @retval -1     A timeout occurred
+      @retval -2     An error occurred
+  */
+  virtual int wait_for_applier_event_execution(std::string &retrieved_set,
+                                               double timeout,
+                                               bool update_THD_status = true);
+
+  /**
     Returns the handler instance in the applier module responsible for
     certification.
 
@@ -482,6 +574,9 @@ class Applier_module : public Applier_module_interface {
     return pipeline_stats_member_collector
         .get_transactions_applied_during_recovery();
   }
+
+  virtual bool queue_and_wait_on_queue_checkpoint(
+      std::shared_ptr<Continuation> checkpoint_condition);
 
  private:
   // Applier packet handlers
@@ -600,17 +695,6 @@ class Applier_module : public Applier_module_interface {
   */
   int intersect_group_executed_sets(std::vector<std::string> &gtid_sets,
                                     Gtid_set *output_set);
-
-  /**
-    This method checks if the primary did already apply all transactions
-    from the previous primary.
-    If it did, a message is sent to all group members notifying that.
-
-    @return the operation status
-        @retval 0   all went fine
-        @retval !=0 error
-  */
-  int check_single_primary_queue_status();
 
   // applier thread variables
   my_thread_handle applier_pthd;

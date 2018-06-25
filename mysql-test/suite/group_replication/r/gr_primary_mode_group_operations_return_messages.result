@@ -1,0 +1,54 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server2]
+[connection server1]
+
+# 1. Execute action set as primary on a multi primary group will
+#    return an error message
+SELECT group_replication_set_as_primary("MEMBER1_UUID");
+ERROR HY000: Can't initialize function 'group_replication_set_as_primary'; In multi-primary mode. Use group_replication_switch_to_single_primary_mode.
+
+# 2. Execute change to multi primary on multi primary it will be no op
+#    and print an information message
+include/assert.inc ["The message should be: "The group is already on multi-primary mode.""]
+
+# 3. Execute change to single primary on multi primary it will complete
+#    successfully and print an information message
+include/assert.inc ["The message should be: "Mode switched to single-primary successfully.""]
+
+# 4. Execute change to single primary when on single primary mode
+#    it is a no op and print an information message
+include/assert.inc ["The message should be: "The group is already on single-primary mode.""]
+
+# 5. Execute set primary member for the current primary member it will
+#    be a no op and print an information message
+[connection server2]
+include/assert.inc ["The message should be: "The requested member is already the current group primary.""]
+[connection server1]
+include/assert.inc ["The message should be: "The requested member is already the current group primary.""]
+
+# 6. Execute set primary member for one secondary member and it will
+#    change the primary and print an information message
+include/assert.inc ["The message should be: "Primary server switched to: MEMBER2_UUID""]
+
+# 7. Execute set switch to single primary mode on a single primary
+#    group, it will be a no op and print an information message
+include/assert.inc ["The message should be: "The group is already on single-primary mode.""]
+
+# 8. Execute set switch to single primary mode on a single primary
+#    group specifying the server uuid, it will not execute and print an
+#    information message
+include/assert.inc ["The message should be: "Already in single-primary mode. Did you meant to use group_replication_set_as_primary.""]
+
+# 9. Execute set switch to multi primary mode on a single primary
+#    group, it will be complete successfully and print an information message
+include/assert.inc ["The message should be: "Mode switched to multi-primary successfully.""]
+
+# 10. Execute set primary member for one of the members
+#     It should error out and say to use group_replication_switch_to_single_primary_mode
+SELECT group_replication_set_as_primary("$server2_uuid");
+ERROR HY000: Can't initialize function 'group_replication_set_as_primary'; Wrong arguments: The server uuid is not valid.
+include/group_replication_end.inc

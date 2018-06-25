@@ -54,7 +54,7 @@ int Asynchronous_channels_state_observer::thread_start(
   }
 
   /* Can't start slave relay io thread when group replication is running on
-     single-primary mode on secondary */
+   single-primary mode on secondary */
   if (is_plugin_configured_and_starting() &&
       strcmp(param->channel_name, "group_replication_recovery") != 0 &&
       strcmp(param->channel_name, "group_replication_applier") != 0 &&
@@ -73,6 +73,14 @@ int Asynchronous_channels_state_observer::thread_start(
                    param->channel_name);
       return 1;
     }
+  }
+
+  if (plugin_is_group_replication_running() &&
+      group_action_coordinator->is_group_action_running()) {
+    LogPluginErr(ERROR_LEVEL,
+                 ER_GRP_RPL_CHANNEL_THREAD_WHEN_GROUP_ACTION_RUNNING,
+                 "IO THREAD");
+    return 1;
   }
 
   return 0;
@@ -129,6 +137,14 @@ int Asynchronous_channels_state_observer::applier_start(
     }
   }
 
+  if (plugin_is_group_replication_running() &&
+      group_action_coordinator->is_group_action_running()) {
+    LogPluginErr(ERROR_LEVEL,
+                 ER_GRP_RPL_CHANNEL_THREAD_WHEN_GROUP_ACTION_RUNNING,
+                 "SQL THREAD");
+    return 1;
+  }
+
   return 0;
 }
 
@@ -159,12 +175,14 @@ int Asynchronous_channels_state_observer::after_reset_slave(
 }
 
 int Asynchronous_channels_state_observer::applier_log_event(
-    Binlog_relay_IO_param *, Trans_param *trans_param, int &out) {
+    Binlog_relay_IO_param *param, Trans_param *trans_param, int &out) {
   out = 0;
 
   if (is_plugin_configured_and_starting() ||
       (group_member_mgr && local_member_info->get_recovery_status() ==
                                Group_member_info::MEMBER_ONLINE)) {
+    Replication_thread_api channel_interface;
+
     /*
       Cycle through all involved tables to assess if they all
       comply with the plugin runtime requirements. For now:
@@ -187,7 +205,9 @@ int Asynchronous_channels_state_observer::applier_log_event(
 
       if (is_plugin_configured_and_starting() &&
           local_member_info->has_enforces_update_everywhere_checks() &&
-          trans_param->tables_info[table].has_cascade_foreign_key) {
+          trans_param->tables_info[table].has_cascade_foreign_key &&
+          !channel_interface.is_own_event_applier(
+              param->thread_id, "group_replication_applier")) {
         LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FK_WITH_CASCADE_UNSUPPORTED,
                      trans_param->tables_info[table].table_name);
         out++;

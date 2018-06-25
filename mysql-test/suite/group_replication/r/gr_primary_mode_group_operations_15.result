@@ -1,0 +1,44 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. server1 start group replication and server2 join
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+
+# 2. server1 as slave connection to server3
+[connection server1]
+CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=SERVER_3_PORT for channel 'ch3_1';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc [FOR CHANNEL 'ch3_1']
+
+# 3. Set primary election max weight on server2
+[connection server2]
+SET @@GLOBAL.group_replication_member_weight= 100;
+
+# 4. Execute action to single primary mode. It shall succeed, server 1
+#    is the only with slave connections
+SELECT group_replication_switch_to_single_primary_mode();
+group_replication_switch_to_single_primary_mode()
+Mode switched to single-primary successfully.
+
+# 5. Confirm that server2 has super_read_only= 1
+
+# 6. Server1 is the primary server on the group
+# Servers with slave channels take priority over high weight members
+[connection server2]
+include/gr_assert_secondary_member.inc
+[connection server1]
+include/gr_assert_primary_member.inc
+
+# 7. Cleanup
+STOP SLAVE FOR CHANNEL 'ch3_1';
+RESET SLAVE ALL FOR CHANNEL 'ch3_1';
+[connection server2]
+SET @@GLOBAL.group_replication_member_weight= DEFAULT;
+include/group_replication_end.inc

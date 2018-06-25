@@ -39,6 +39,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "my_inttypes.h"
 #include "my_sys.h"  // my_error
 #include "mysql_backup_lock.h"
+#include "mysql_ongoing_transaction_query.h"
 #include "mysql_string_service.h"
 #include "mysqld_error.h"
 #include "persistent_dynamic_loader.h"
@@ -273,6 +274,10 @@ BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_security_context_options)
 mysql_security_context_imp::get,
     mysql_security_context_imp::set END_SERVICE_IMPLEMENTATION();
 
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_ongoing_transactions_query)
+mysql_ongoing_transactions_query_imp::get_ongoing_server_transactions
+END_SERVICE_IMPLEMENTATION();
+
 BEGIN_COMPONENT_PROVIDES(mysql_server)
 PROVIDES_SERVICE(mysql_server, registry),
     PROVIDES_SERVICE(mysql_server, registry_registration),
@@ -316,6 +321,7 @@ PROVIDES_SERVICE(mysql_server, registry),
     PROVIDES_SERVICE(mysql_server,
                      mysql_account_database_security_context_lookup),
     PROVIDES_SERVICE(mysql_server, mysql_security_context_options),
+    PROVIDES_SERVICE(mysql_server, mysql_ongoing_transactions_query),
     END_COMPONENT_PROVIDES();
 
 static BEGIN_COMPONENT_REQUIRES(mysql_server) END_COMPONENT_REQUIRES();

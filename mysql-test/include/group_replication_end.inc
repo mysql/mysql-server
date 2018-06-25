@@ -8,6 +8,7 @@
 # [--let $rpl_debug= 1]
 # [--let $rpl_group_replication= 1]
 # [--let $rpl_group_replication_single_primary_mode= 1]
+# [--let $rpl_group_replication_reset_persistent_vars= 1]
 # --source include/group_replication_end.inc
 #
 # Parameters:
@@ -23,6 +24,10 @@
 #   $rpl_group_replication_single_primary_mode
 #     This instructs this script to run the script that
 #     resets the single primary mode configs
+#
+#   $rpl_group_replication_reset_persistent_vars
+#     This instructs the script to use RESET PERSIST for
+#     single primary variables set when you change mode for example
 #
 
 --let $include_filename= group_replication_end.inc
@@ -46,6 +51,11 @@ if ($rpl_group_replication_single_primary_mode)
 {
   --let $reset_single_primary_mode= 1
   --source include/gr_single_primary_mode.inc
+}
+
+if ($rpl_group_replication_reset_persistent_vars)
+{
+  --source include/gr_clear_persistent_variables.inc
 }
 
 --connection default

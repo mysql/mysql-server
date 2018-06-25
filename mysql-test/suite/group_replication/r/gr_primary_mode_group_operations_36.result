@@ -1,0 +1,57 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Server1 start, bootstrap the group and create table test.t1
+include/start_and_bootstrap_group_replication.inc
+set session sql_log_bin=0;
+call mtr.add_suppression("The function 'group_replication_switch_to_multi_primary_mode' failed. Member has left the group. This operation was locally aborted and for that reason terminated.");
+set session sql_log_bin=1;
+CREATE TABLE test.t1 (a INT PRIMARY KEY);
+
+# 2. Start server2 and server3
+[connection server2]
+include/start_group_replication.inc
+[connection server3]
+include/start_group_replication.inc
+
+# 3. Begin a transaction on server1
+[connection server1]
+BEGIN;
+INSERT INTO t1 VALUES(1);
+
+# 4. Execute action to switch to multi primary
+[connection server_1_1]
+SELECT group_replication_switch_to_multi_primary_mode();
+
+# 5. Assert that action is waiting for a member
+[connection server2]
+include/assert.inc [stage/group_rpl/Multi-primary Switch: waiting on another member step completion]
+
+# 6. Restart a member, won't impact the success of action
+[connection server_1]
+include/stop_group_replication.inc
+
+# 7. The action continued on other servers and everyone is on MP
+[connection server2]
+include/gr_assert_multi_primary_mode.inc
+[connection server3]
+include/gr_assert_multi_primary_mode.inc
+
+# 8. Check that Single primary mode is true on server 1 and the update
+#    everywhere checks are false.
+[connection server_1_1]
+ERROR HY000: The function 'group_replication_switch_to_multi_primary_mode' failed. Member has left the group. This operation was locally aborted and for that reason terminated.
+include/assert.inc [group_replication_enforce_update_everywhere_checks is OFF]
+
+# 9. Cleanup
+[connection server1]
+ROLLBACK;
+SET GLOBAL group_replication_single_primary_mode= OFF;
+SET GLOBAL group_replication_enforce_update_everywhere_checks= ON;
+include/start_group_replication.inc
+[connection server2]
+DROP TABLE t1;
+include/group_replication_end.inc

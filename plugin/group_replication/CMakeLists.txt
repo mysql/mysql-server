@@ -26,14 +26,16 @@ SET(GROUP_REPLICATION_SOURCES
   src/applier.cc
   src/auto_increment.cc
   src/certifier.cc
-  src/channel_observation_manager.cc
   src/delayed_plugin_initialization.cc
   src/gcs_event_handlers.cc
   src/gcs_logger.cc
   src/gcs_operations.cc
   src/gcs_plugin_messages.cc
   src/gcs_view_modification_notifier.cc
-  src/group_partition_handling.cc
+  src/group_actions/group_action.cc
+  src/group_actions/group_action_coordinator.cc
+  src/group_actions/multi_primary_migration_action.cc
+  src/group_actions/primary_election_action.cc
   src/member_info.cc
   src/observer_server_actions.cc
   src/observer_server_channels.cc
@@ -44,21 +46,36 @@ SET(GROUP_REPLICATION_SOURCES
   src/plugin.cc
   src/plugin_psi.cc
   src/plugin_utils.cc
+  src/plugin_udf_functions.cc
   src/ps_information.cc
-  src/read_mode_handler.cc
   src/recovery.cc
   src/recovery_channel_state_observer.cc
   src/applier_channel_state_observer.cc
   src/asynchronous_channels_state_observer.cc
-  src/recovery_message.cc
   src/recovery_state_transfer.cc
   src/replication_threads_api.cc
-  src/single_primary_message.cc
   src/member_version.cc
   src/compatibility_module.cc
   src/handlers/applier_handler.cc
   src/handlers/certification_handler.cc
   src/handlers/event_cataloger.cc
+  src/plugin_handlers/group_partition_handling.cc
+  src/plugin_handlers/persistent_variables_handler.cc
+  src/plugin_handlers/primary_election_invocation_handler.cc
+  src/plugin_handlers/primary_election_primary_process.cc
+  src/plugin_handlers/primary_election_secondary_process.cc
+  src/plugin_handlers/primary_election_utils.cc
+  src/plugin_handlers/server_ongoing_transactions_handler.cc
+  src/plugin_handlers/stage_monitor_handler.cc
+  src/plugin_handlers/read_mode_handler.cc
+  src/plugin_messages/group_action_message.cc
+  src/plugin_messages/group_validation_message.cc
+  src/plugin_messages/recovery_message.cc
+  src/plugin_messages/single_primary_message.cc
+  src/plugin_handlers/primary_election_validation_handler.cc
+  src/plugin_observers/channel_observation_manager.cc
+  src/plugin_observers/group_event_observer.cc
+  src/plugin_observers/group_transaction_observation_manager.cc
   src/sql_service/sql_resultset.cc
   src/sql_service/sql_service_context.cc
   src/sql_service/sql_service_context_base.cc

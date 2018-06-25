@@ -1,0 +1,113 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server2]
+[connection server1]
+
+# 1. Execute switch to single primary mode:
+# 1.1. With extra arguments it must fail.
+SELECT group_replication_switch_to_single_primary_mode("MEMBER1_UUID", "extra", "arguments");
+ERROR HY000: Can't initialize function 'group_replication_switch_to_single_primary_mode'; Wrong arguments: This function either takes no arguments or a single server uuid
+# 1.2. With invalid uuid it must fail.
+SELECT group_replication_switch_to_single_primary_mode("not an uuid");
+ERROR HY000: Can't initialize function 'group_replication_switch_to_single_primary_mode'; Wrong arguments: The server uuid is not valid.
+# 1.3. With an unknown uuid it must fail.
+SELECT group_replication_switch_to_single_primary_mode("aaaaaaaa-bbbb-aaaa-aaaa-aaaaaaaaaaaa");
+ERROR HY000: Can't initialize function 'group_replication_switch_to_single_primary_mode'; The requested uuid is not a member of the group.
+# 1.4. With NULL it must fail.
+SELECT group_replication_switch_to_single_primary_mode(NULL);
+ERROR HY000: Can't initialize function 'group_replication_switch_to_single_primary_mode'; Wrong arguments: This function either takes no arguments or a single server uuid
+# 1.5. With empty string it must fail.
+SELECT group_replication_set_as_primary("");
+ERROR HY000: Can't initialize function 'group_replication_set_as_primary'; Wrong arguments: You need to specify a server uuid.
+
+# 2. Change to single primary mode to test action of set as primary and
+#    switch to multi primary
+SELECT group_replication_switch_to_single_primary_mode("MEMBER1_UUID");
+group_replication_switch_to_single_primary_mode("MEMBER1_UUID")
+Mode switched to single-primary successfully.
+
+# 3. Execute action of set a new primary:
+# 3.1. With extra arguments it must fail.
+SELECT group_replication_set_as_primary("MEMBER1_UUID", "extra", "arguments");
+ERROR HY000: Can't initialize function 'group_replication_set_as_primary'; Wrong arguments: You need to specify a server uuid.
+# 3.2. With invalid uuid it must fail.
+SELECT group_replication_set_as_primary("not an uuid");
+ERROR HY000: Can't initialize function 'group_replication_set_as_primary'; Wrong arguments: The server uuid is not valid.
+# 3.3. With an unknown uuid it must fail.
+SELECT group_replication_set_as_primary("aaaaaaaa-bbbb-aaaa-aaaa-aaaaaaaaaaaa");
+ERROR HY000: Can't initialize function 'group_replication_set_as_primary'; The requested uuid is not a member of the group.
+# 3.4. With NULL it must fail.
+SELECT group_replication_set_as_primary(NULL);
+ERROR HY000: Can't initialize function 'group_replication_set_as_primary'; Wrong arguments: You need to specify a server uuid.
+# 3.5. With empty string it must fail.
+SELECT group_replication_set_as_primary("");
+ERROR HY000: Can't initialize function 'group_replication_set_as_primary'; Wrong arguments: You need to specify a server uuid.
+# 3.6. With blank value it must fail.
+SELECT group_replication_set_as_primary();
+ERROR HY000: Can't initialize function 'group_replication_set_as_primary'; Wrong arguments: You need to specify a server uuid.
+
+# 4. Execute action to switch to multi primary mode:
+# 4.1. With extra arguments it must fail.
+SELECT group_replication_switch_to_multi_primary_mode("extra", "arguments");
+ERROR HY000: Can't initialize function 'group_replication_switch_to_multi_primary_mode'; Wrong arguments: This function takes no arguments.
+# 4.2. With invalid uuid it must fail.
+SELECT group_replication_switch_to_multi_primary_mode("not an uuid");
+ERROR HY000: Can't initialize function 'group_replication_switch_to_multi_primary_mode'; Wrong arguments: This function takes no arguments.
+# 4.3. With an unknown uuid it must fail.
+SELECT group_replication_switch_to_multi_primary_mode("aaaaaaaa-bbbb-aaaa-aaaa-aaaaaaaaaaaa");
+ERROR HY000: Can't initialize function 'group_replication_switch_to_multi_primary_mode'; Wrong arguments: This function takes no arguments.
+# 4.4. With NULL it must fail.
+SELECT group_replication_switch_to_multi_primary_mode(NULL);
+ERROR HY000: Can't initialize function 'group_replication_switch_to_multi_primary_mode'; Wrong arguments: This function takes no arguments.
+# 4.5. With empty string it must fail.
+SELECT group_replication_switch_to_multi_primary_mode("");
+ERROR HY000: Can't initialize function 'group_replication_switch_to_multi_primary_mode'; Wrong arguments: This function takes no arguments.
+# 4.6. With valid and known uuid it must fail.
+SELECT group_replication_switch_to_multi_primary_mode("$server1_uuid");
+ERROR HY000: Can't initialize function 'group_replication_switch_to_multi_primary_mode'; Wrong arguments: This function takes no arguments.
+
+# 5. Change to multi primary mode to test action with output of a table.
+SELECT group_replication_switch_to_multi_primary_mode();
+group_replication_switch_to_multi_primary_mode()
+Mode switched to multi-primary successfully.
+
+# 6. Test group action with the output of a table. It must match as expected.
+CREATE TABLE test.t1 (a INT PRIMARY KEY NOT NULL AUTO_INCREMENT, b CHAR(36));
+
+# Test group_replication_switch_to_single_primary_mode output.
+CREATE TABLE test.tspm (a INT PRIMARY KEY NOT NULL AUTO_INCREMENT, b CHAR(100));
+include/rpl_sync.inc
+include/assert.inc ["The message must be: Wrong arguments: The server uuid is not valid."]
+include/assert.inc ["The message must be: The requested uuid is not a member of the group."]
+include/assert.inc ["The message must be: Wrong arguments: You need to specify a server uuid."]
+include/assert.inc ["The message must be: Wrong arguments: You need to specify a server uuid."]
+include/assert.inc ["The message must be: Mode switched to single-primary successfully."]
+include/assert.inc ["The message must be: Already in single-primary mode. Did you meant to use group_replication_set_as_primary."]
+
+# Test group_replication_switch_to_multi_primary_mode output.
+SELECT group_replication_switch_to_multi_primary_mode(b) FROM test.t1 ORDER BY a LIMIT 1;
+ERROR HY000: Can't initialize function 'group_replication_switch_to_multi_primary_mode'; Wrong arguments: This function takes no arguments.
+
+# Test group_replication_set_as_primary output.
+CREATE TABLE test.tsap (a INT PRIMARY KEY NOT NULL AUTO_INCREMENT, b CHAR(100));
+include/rpl_sync.inc
+include/assert.inc ["The message must be: Wrong arguments: The server uuid is not valid."]
+include/assert.inc ["The message must be: The requested uuid is not a member of the group."]
+include/assert.inc ["The message must be: Wrong arguments: You need to specify a server uuid."]
+include/assert.inc ["The message must be: Wrong arguments: You need to specify a server uuid."]
+include/assert.inc ["The message must be: The requested member is already the current group primary."]
+include/assert.inc ["The message must be: Primary server switched to: MEMBER2_UUID"]
+[connection server1]
+include/gr_assert_secondary_member.inc
+[connection server2]
+include/gr_assert_primary_member.inc
+
+# 6. Cleanup
+DROP TABLE test.t1;
+DROP TABLE test.tspm;
+DROP TABLE test.tsap;
+include/rpl_sync.inc
+include/group_replication_end.inc

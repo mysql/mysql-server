@@ -1,0 +1,37 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. On multi-primary mode any member can execute action to change to
+#    single primary mode
+SELECT group_replication_switch_to_single_primary_mode("MEMBER1_UUID");
+group_replication_switch_to_single_primary_mode("MEMBER1_UUID")
+Mode switched to single-primary successfully.
+[connection server2]
+
+# 2. On single primary mode a secondary member can execute a change of
+#    primary member
+SELECT group_replication_set_as_primary("MEMBER2_UUID");
+group_replication_set_as_primary("MEMBER2_UUID")
+Primary server switched to: MEMBER2_UUID
+include/gr_assert_primary_member.inc
+
+# 3. On single primary mode a primary member can execute a change of
+#    primary member
+SELECT group_replication_set_as_primary("MEMBER1_UUID");
+group_replication_set_as_primary("MEMBER1_UUID")
+Primary server switched to: MEMBER1_UUID
+[connection server1]
+include/gr_assert_primary_member.inc
+
+# 4. On single primary mode a secondary member can execute a change to
+#    multi primary mode
+[connection server2]
+SELECT group_replication_switch_to_multi_primary_mode();
+group_replication_switch_to_multi_primary_mode()
+Mode switched to multi-primary successfully.
+
+# 5. Cleanup
+include/group_replication_end.inc

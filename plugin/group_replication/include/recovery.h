@@ -29,7 +29,7 @@
 #include <string>
 
 #include "plugin/group_replication/include/applier.h"
-#include "plugin/group_replication/include/channel_observation_manager.h"
+#include "plugin/group_replication/include/plugin_observers/channel_observation_manager.h"
 #include "plugin/group_replication/include/recovery_state_transfer.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_communication_interface.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_control_interface.h"

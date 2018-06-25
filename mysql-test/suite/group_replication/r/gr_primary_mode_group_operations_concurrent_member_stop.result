@@ -1,0 +1,48 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Execute action to switch to single primary
+SELECT group_replication_switch_to_single_primary_mode("MEMBER1_UUID");
+
+# 2. Stop a member while the action might or not be running
+[connection server3]
+include/stop_group_replication.inc
+
+# 3. Action shall succeed
+[connection server1]
+group_replication_switch_to_single_primary_mode("MEMBER1_UUID")
+Mode switched to single-primary successfully.
+
+# 4. Start stopped server
+[connection server3]
+SET GLOBAL read_only= 0;
+SET GLOBAL group_replication_enforce_update_everywhere_checks= FALSE;
+SET GLOBAL group_replication_single_primary_mode= TRUE;
+include/start_group_replication.inc
+
+# 5. Execute action to change to multi primary
+[connection server1]
+SELECT group_replication_switch_to_multi_primary_mode();
+
+# 6. Stop server
+[connection server3]
+include/stop_group_replication.inc
+
+# 7. Action shall succeed
+[connection server1]
+group_replication_switch_to_multi_primary_mode()
+Mode switched to multi-primary successfully.
+
+# 8. Cleanup
+[connection server3]
+SET GLOBAL read_only= 0;
+SET GLOBAL group_replication_single_primary_mode= FALSE;
+SET GLOBAL group_replication_enforce_update_everywhere_checks= TRUE;
+set session sql_log_bin=0;
+call mtr.add_suppression("Error while executing a group configuration operation: This operation was locally aborted and for that reason terminated");
+call mtr.add_suppression("Error while executing a group configuration operation: Mode switched to multi-primary successfully. This information is local, the operation coordinator is terminating and no status is known about other members termination.");
+set session sql_log_bin=1;
+include/group_replication_end.inc

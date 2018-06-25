@@ -1,0 +1,30 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Set server 1 to fail when setting the read
+SET @@GLOBAL.DEBUG= '+d,group_replication_read_mode_error';
+
+# 2. Execute a change to single primary mode with server 2 as the primary
+[connection server2]
+SELECT group_replication_switch_to_single_primary_mode("MEMBER2_UUID");
+
+# 3. Wait for server 1 to crash and restart it
+# Check other members see it leave
+[connection server1]
+include/rpl_reconnect.inc
+[connection server_2]
+include/rpl_gr_wait_for_number_of_members.inc
+[connection server2]
+group_replication_switch_to_single_primary_mode("MEMBER2_UUID")
+Mode switched to single-primary successfully.
+# 4. Check the error message is in the log
+include/assert_grep.inc [Found the expected error in server log]
+# 5. Cleanup
+[connection server1]
+set session sql_log_bin=0;
+call mtr.add_suppression("The plugin encountered a critical error and will abort: Cannot enable the super read only mode on a secondary member");
+set session sql_log_bin=1;
+include/group_replication_end.inc

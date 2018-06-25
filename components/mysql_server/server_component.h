@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -58,6 +58,7 @@ void mysql_comp_sys_var_services_init();
 void mysql_comp_system_variable_source_init();
 void mysql_security_context_init();
 void mysql_backup_lock_service_init();
+void mysql_server_ongoing_transactions_query_init();
 
 /* implementation of the built-in components */
 

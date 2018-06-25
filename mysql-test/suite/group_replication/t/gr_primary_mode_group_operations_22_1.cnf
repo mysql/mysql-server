@@ -1,0 +1,12 @@
+!include ../my.cnf
+
+[mysqld.1]
+
+loose-group_replication_single_primary_mode= TRUE
+loose-group_replication_enforce_update_everywhere_checks= FALSE
+
+[mysqld.2]
+
+loose-group_replication_single_primary_mode= TRUE
+loose-group_replication_enforce_update_everywhere_checks= FALSE
+

@@ -31,9 +31,9 @@
 #include "my_systime.h"
 #include "plugin/group_replication/include/applier.h"
 #include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_messages/single_primary_message.h"
 #include "plugin/group_replication/include/plugin_server_include.h"
 #include "plugin/group_replication/include/services/notification/notification.h"
-#include "plugin/group_replication/include/single_primary_message.h"
 
 char applier_module_channel_name[] = "group_replication_applier";
 bool applier_thread_is_exiting = false;
@@ -234,6 +234,13 @@ bool Applier_module::apply_action_packet(Action_packet *action_packet) {
     suspend_applier_module();
     return false;
   }
+
+  if (action == CHECKPOINT_PACKET) {
+    Queue_checkpoint_packet *packet = (Queue_checkpoint_packet *)action_packet;
+    packet->signal_checkpoint_reached();
+    return false;
+  }
+
   return false; /* purecov: inspected */
 }
 
@@ -291,8 +298,6 @@ int Applier_module::apply_data_packet(Data_packet *data_packet,
     const char act[] = "now wait_for continue_apply";
     DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
-
-  if (check_single_primary_queue_status()) return 1; /* purecov: inspected */
 
   while ((payload != payload_end) && !error) {
     uint event_len = uint4korr(((uchar *)payload) + EVENT_LEN_OFFSET);
@@ -824,6 +829,56 @@ int Applier_module::wait_for_applier_event_execution(
   DBUG_RETURN(error);
 }
 
+bool Applier_module::get_retrieved_gtid_set(std::string &retrieved_set) {
+  Replication_thread_api applier_channel(applier_module_channel_name);
+  if (applier_channel.get_retrieved_gtid_set(retrieved_set)) {
+    /* purecov: begin inspected */
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_ERROR_GTID_SET_EXTRACTION,
+                 " cannot extract the applier module's retrieved set.");
+    return true;
+    /* purecov: end */
+  }
+  return false;
+}
+
+int Applier_module::wait_for_applier_event_execution(std::string &retrieved_set,
+                                                     double timeout,
+                                                     bool update_THD_status) {
+  DBUG_ENTER("Applier_module::wait_for_applier_event_execution");
+  int error = 0;
+  Event_handler *event_applier = NULL;
+  Event_handler::get_handler_by_role(pipeline, APPLIER, &event_applier);
+
+  if (event_applier) {
+    error = ((Applier_handler *)event_applier)
+                ->wait_for_gtid_execution(retrieved_set, timeout,
+                                          update_THD_status);
+  }
+
+  DBUG_RETURN(error);
+}
+
+bool Applier_module::wait_for_current_events_execution(
+    std::shared_ptr<Continuation> checkpoint_condition, bool *abort_flag,
+    bool update_THD_status) {
+  applier_module->queue_and_wait_on_queue_checkpoint(checkpoint_condition);
+  std::string current_retrieve_set;
+  if (applier_module->get_retrieved_gtid_set(current_retrieve_set)) return true;
+
+  int error = 1;
+  while (!*abort_flag && error != 0) {
+    error = applier_module->wait_for_applier_event_execution(
+        current_retrieve_set, 1, update_THD_status);
+
+    /* purecov: begin inspected */
+    if (error == -2) {  // error when waiting
+      return true;
+    }
+    /* purecov: end */
+  }
+  return false;
+}
+
 Certification_handler *Applier_module::get_certification_handler() {
   Event_handler *event_applier = NULL;
   Event_handler::get_handler_by_role(pipeline, CERTIFIER, &event_applier);
@@ -886,30 +941,13 @@ int Applier_module::intersect_group_executed_sets(
   return 0;
 }
 
-int Applier_module::check_single_primary_queue_status() {
-  /*
-    If the 1) group is on single primary mode, 2) this member is the
-    primary one, and 3) the group replication applier did apply all
-    previous primary transactions, we can switch off conflict
-    detection since all transactions will originate from the same
-    primary.
-  */
-  if (get_certification_handler()
-          ->get_certifier()
-          ->is_conflict_detection_enable() &&
-      local_member_info->in_primary_mode() &&
-      local_member_info->get_role() == Group_member_info::MEMBER_ROLE_PRIMARY &&
-      is_applier_thread_waiting()) {
-    Single_primary_message single_primary_message(
-        Single_primary_message::SINGLE_PRIMARY_QUEUE_APPLIED_MESSAGE);
-    if (gcs_module->send_message(single_primary_message)) {
-      LogPluginErr(ERROR_LEVEL,
-                   ER_GRP_RPL_ERROR_SENDING_SINGLE_PRIMARY_MSSG); /* purecov:
-                                                                     inspected
-                                                                   */
-      return 1; /* purecov: inspected */
-    }
-  }
+void Applier_module::queue_certification_enabling_packet() {
+  incoming->push(new Single_primary_action_packet(
+      Single_primary_action_packet::NEW_PRIMARY));
+}
 
-  return 0;
+bool Applier_module::queue_and_wait_on_queue_checkpoint(
+    std::shared_ptr<Continuation> checkpoint_condition) {
+  incoming->push(new Queue_checkpoint_packet(checkpoint_condition));
+  return checkpoint_condition->wait() != 0;
 }

@@ -1,0 +1,131 @@
+###############################################################################
+#
+# All changes to the primary mode shall be recorded with SET PERSIST
+# meaning they will have effect even after a member restart.
+#
+# Test:
+#   0. This test requires two servers in single primary mode
+#      Servers have a configuration file that makes them boot in
+#      single primary mode
+#   1. Change to multi primary mode
+#   2. Check all variables
+#   3. Restart Group Replication on server 2. Check all goes as planned
+#   4. Restart server 1. Don't pass the Primary mode settings. Check all
+#      goes planned.
+#
+###############################################################################
+
+--source include/force_restart.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--let $assert_text= group_replication_enforce_update_everywhere_checks is ON
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_enforce_update_everywhere_checks]" = 0
+--source include/assert.inc
+
+--let $assert_text= The single primary mode should be 1 here.
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_single_primary_mode]" = 1;
+--source include/assert.inc
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+
+--echo
+--echo # 1. Change to multi primary mode
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SELECT group_replication_switch_to_multi_primary_mode();
+
+--echo
+--echo # 2. Check all variables
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $assert_text= group_replication_enforce_update_everywhere_checks is ON
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_enforce_update_everywhere_checks]" = 1
+--source include/assert.inc
+
+--let $assert_text= The single primary mode should be 0 here.
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_single_primary_mode]" = 0;
+--source include/assert.inc
+
+--let $assert_text= The super_read_only mode should be 0 here.
+--let $assert_cond= "[SELECT @@GLOBAL.super_read_only]" = 0;
+--source include/assert.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $assert_text= group_replication_enforce_update_everywhere_checks is ON
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_enforce_update_everywhere_checks]" = 1
+--source include/assert.inc
+
+--let $assert_text= The single primary mode should be 0 here.
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_single_primary_mode]" = 0;
+--source include/assert.inc
+
+--let $assert_text= The super_read_only mode should be 0 here.
+--let $assert_cond= "[SELECT @@GLOBAL.super_read_only]" = 0;
+
+--echo
+--echo # 3. Restart Group Replication on server 2. Check all goes as planned
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+--source include/start_group_replication.inc
+
+--let $assert_text= group_replication_enforce_update_everywhere_checks is ON
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_enforce_update_everywhere_checks]" = 1
+--source include/assert.inc
+
+--let $assert_text= The single primary mode should be 0 here.
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_single_primary_mode]" = 0;
+--source include/assert.inc
+
+--let $assert_text= The super_read_only mode should be 0 here.
+--let $assert_cond= "[SELECT @@GLOBAL.super_read_only]" = 0;
+
+--echo
+--echo # 4. Restart server 1. Don't pass the Primary mode settings. Check all
+--echo #    goes planned.
+--source include/force_restart.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $allow_rpl_inited=1
+--let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $restart_parameters=restart:--group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group-replication-group-name=$group_replication_group_name
+--replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--source include/restart_mysqld.inc
+
+--let $rpl_server_number= 1
+--source include/rpl_reconnect.inc
+
+--let $assert_text= group_replication_enforce_update_everywhere_checks is ON
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_enforce_update_everywhere_checks]" = 1
+--source include/assert.inc
+
+--let $assert_text= The single primary mode should be 0 here.
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_single_primary_mode]" = 0;
+--source include/assert.inc
+
+--source include/start_group_replication.inc
+
+--let $assert_text= The super_read_only mode should be 1 here.
+--let $assert_cond= "[SELECT @@GLOBAL.super_read_only]" = 0;
+--source include/assert.inc
+
+--let $rpl_group_replication_reset_persistent_vars=1
+--source include/group_replication_end.inc

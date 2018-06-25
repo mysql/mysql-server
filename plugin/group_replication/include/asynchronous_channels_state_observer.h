@@ -24,7 +24,7 @@
 #define SINGLE_PRIMARY_CHANNEL_STATE_OBSERVER_INCLUDE
 
 #include "my_inttypes.h"
-#include "plugin/group_replication/include/channel_observation_manager.h"
+#include "plugin/group_replication/include/plugin_observers/channel_observation_manager.h"
 
 class Asynchronous_channels_state_observer : public Channel_state_observer {
  public:

@@ -1,0 +1,82 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 0. Test starts in Single primary mode with server1 as the primary
+include/start_and_bootstrap_group_replication.inc
+include/gr_assert_primary_member.inc
+CREATE TABLE t1(a int primary key);
+[connection server2]
+include/start_group_replication.inc
+
+# 1. Start 2 transactions on server 1
+# Change to multi primary mode
+# On the primary the stage reports waiting for pending transactions to finish
+# Commit a transaction and see there is reported progress
+# On the secondaries the stage reports waiting for a step completion
+[connection server_1]
+BEGIN;
+INSERT INTO t1 VALUES (1);
+[connection server_1_1]
+BEGIN;
+INSERT INTO t1 VALUES (2);
+[connection server2]
+SELECT group_replication_switch_to_multi_primary_mode();
+[connection server1]
+include/assert.inc [The stage should be "Multi-primary Switch: waiting for pending transactions to finish"]
+include/assert.inc [The estimated work is 2]
+include/assert.inc [The completed work is 0]
+[connection server_2]
+include/assert.inc [The stage should be "Multi-primary Switch: waiting on another member step completion"]
+include/assert.inc [The estimated work is 1]
+include/assert.inc [The completed work is 0]
+[connection server_1]
+COMMIT;
+include/assert.inc [The stage should be "Multi-primary Switch: waiting for pending transactions to finish"]
+include/assert.inc [The estimated work is 2]
+include/assert.inc [The completed work is 1]
+
+# 2. Lock table t1 on a secondary (server2)
+# Commit the last transaction on server1
+# On the locked server the stage is: applying buffered transactions
+[connection server_2_1]
+SET @@GLOBAL.read_only= 0;
+LOCK TABLE t1 READ;
+[connection server_1_1]
+COMMIT;
+[connection server_2]
+include/assert.inc [The stage should be "Multi-primary Switch: applying buffered transactions"]
+include/assert.inc [The estimated work is 1]
+include/assert.inc [The completed work is 0]
+
+# 3. Block the stop process of the action using a debug point
+# Unlock the table on server 2
+# Check it is stuck in the wait for other member to finish stage
+SET @@GLOBAL.DEBUG= '+d,group_replication_block_group_action_stop';
+[connection server_2_1]
+UNLOCK TABLES;
+[connection server1]
+include/assert.inc [The stage should be "Multi-primary Switch: waiting for operation to complete on all members"]
+include/assert.inc [The estimated work is 2]
+include/assert.inc [The completed work is 1]
+[connection server_2]
+include/assert.inc [The stage should be "Multi-primary Switch: waiting for operation to complete on all members"]
+include/assert.inc [The estimated work is 2]
+include/assert.inc [The completed work is 1]
+
+# 4. Unblock the debug point
+# Check the action terminates and no stages appear
+SET DEBUG_SYNC= "now SIGNAL signal.action_stop_continue";
+SET @@GLOBAL.DEBUG= '-d,group_replication_block_group_action_stop';
+[connection server2]
+group_replication_switch_to_multi_primary_mode()
+Mode switched to multi-primary successfully.
+include/assert.inc [There is no stage present]
+[connection server1]
+include/assert.inc [There is no stage present]
+
+# 5. Cleanup
+DROP TABLE t1;
+include/group_replication_end.inc

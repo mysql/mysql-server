@@ -143,8 +143,16 @@ class Plugin_gcs_message {
     // mode.
     CT_SINGLE_PRIMARY_MESSAGE = 7,
 
+    // This cargo type is used for messaging related to group coordinated
+    // actions.
+    CT_GROUP_ACTION_MESSAGE = 8,
+
+    // This cargo type is used for messaging when checking if a group is valid
+    // for some task
+    CT_GROUP_VALIDATION_MESSAGE = 9,
+
     // No valid type codes can appear after this one.
-    CT_MAX = 8
+    CT_MAX = 10
   };
 
  private:
@@ -182,9 +190,9 @@ class Plugin_gcs_message {
   unsigned short get_header_length() { return m_fixed_header_len; }
 
   /**
-   @return the cargo type.
-   */
-  enum_cargo_type get_cargo_type() { return m_cargo_type; }
+    @return the cargo type.
+  */
+  enum_cargo_type get_cargo_type() const { return m_cargo_type; }
 
   /**
    @return the message length field value.

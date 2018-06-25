@@ -30,9 +30,9 @@
 #include "my_systime.h"
 #include "plugin/group_replication/include/member_info.h"
 #include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_messages/recovery_message.h"
 #include "plugin/group_replication/include/recovery.h"
 #include "plugin/group_replication/include/recovery_channel_state_observer.h"
-#include "plugin/group_replication/include/recovery_message.h"
 #include "plugin/group_replication/include/services/notification/notification.h"
 
 using std::list;

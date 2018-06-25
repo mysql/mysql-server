@@ -94,6 +94,22 @@ class Applier_handler : public Event_handler {
   int wait_for_gtid_execution(double timeout);
 
   /**
+    Checks if all the given transactions were executed.
+
+    @param retrieved_set the set in string format of transaction to wait for
+    @param timeout  the time (seconds) after which the method returns if the
+                  above condition was not satisfied
+    @param update_THD_status     Shall the method update the THD stage
+
+    @return the operation status
+      @retval 0      All transactions were executed
+      @retval -1     A timeout occurred
+      @retval -2     An error occurred
+*/
+  int wait_for_gtid_execution(std::string &retrieved_set, double timeout,
+                              bool update_THD_status = true);
+
+  /**
     Checks if the channel's relay log contains partial transaction.
     @return
       @retval true  If relaylog contains partial transaction.

@@ -1,0 +1,44 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Execute action to switch to single primary
+# Block the action right before the invocation of Primary Election
+SET @@GLOBAL.DEBUG= '+d,group_replication_block_primary_action_validation';
+SELECT group_replication_switch_to_single_primary_mode("MEMBER1_UUID");
+[connection server_1]
+
+# 2. Unblock the action
+SET DEBUG_SYNC= "now SIGNAL signal.primary_action_continue";
+SET @@GLOBAL.DEBUG= '-d,group_replication_block_primary_action_validation';
+
+# 3. Shutdown the server.
+# Do it in a way that connections are killed before the plugin stop.
+# Wait for the server to be back again
+[connection server2]
+include/rpl_reconnect.inc
+
+# 4. Check the action completed correctly
+[connection server1]
+group_replication_switch_to_single_primary_mode("MEMBER1_UUID")
+Mode switched to single-primary successfully.
+
+# 5. Cleanup
+[connection server2]
+set session sql_log_bin=0;
+call mtr.add_suppression("Failed to establish an internal server connection to execute plugin operations. Server error: 3169. Server error message: Session was killed");
+call mtr.add_suppression("Error running internal SQL query: SET PERSIST_ONLY group_replication_enforce_update_everywhere_checks = OFF. Internal failure.");
+call mtr.add_suppression("Internal query: SET PERSIST_ONLY group_replication_enforce_update_everywhere_checks = OFF result in error. Error number: -2");
+call mtr.add_suppression("Error, maximum number of retries exceeded when waiting for the internal server session state to be operating");
+call mtr.add_suppression("Failed to establish an internal server connection to execute plugin operations");
+call mtr.add_suppression("Error running internal SQL query: SET PERSIST_ONLY group_replication_single_primary_mode = ON. Internal failure.");
+call mtr.add_suppression("Internal query: SET PERSIST_ONLY group_replication_single_primary_mode = ON result in error. Error number: -2");
+call mtr.add_suppression("Error running internal SQL query: SELECT @@GLOBAL.super_read_only. Internal failure.");
+call mtr.add_suppression("Unable to read the server value for the super_read_only variable.");
+call mtr.add_suppression("The plugin encountered a critical error and will abort: Cannot enable the super read only mode on a secondary member.");
+call mtr.add_suppression("Error running internal SQL query: SET GLOBAL super_read_only= 1;. Internal failure.");
+set session sql_log_bin=1;
+[connection server1]
+include/group_replication_end.inc

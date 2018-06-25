@@ -1,0 +1,99 @@
+###############################################################################
+#
+# When electing a primary server, P, if any other member than P
+# contains running slave channels, the configuration change shall abort.
+#
+# Test:
+#   0. This test need 3 servers
+#   1. server1 start group replication and server2 join
+#   2. server1 has a slave connection to server3
+#   3. Execute action to single primary mode with server2 as the primary.
+#      It shall fail as server1 has slave connections
+#   4. Execute action switch to single primary mode with server1 as primary
+#   5. Execute action set as primary to server2. It shall fail due to server1
+#      slave connections
+#   6. Cleanup
+#
+###############################################################################
+
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+--echo
+--echo # 1. server1 start group replication and server2 join
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+--echo
+--echo # 2. server1 has a slave connection to server3
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--replace_result $SERVER_MYPORT_3 SERVER_3_PORT
+--eval CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=$SERVER_MYPORT_3 for channel 'ch3_1'
+
+--let $rpl_channel_name='ch3_1'
+--source include/start_slave.inc
+--let $rpl_channel_name=
+
+--echo
+--echo # 3. Execute action to single primary mode with server2 as the primary.
+--echo #    It shall fail as server1 has slave connections
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--replace_result $server2_uuid MEMBER2_UUID $server1_uuid MEMBER1_UUID
+--error ER_GRP_RPL_UDF_ERROR
+--eval SELECT group_replication_switch_to_single_primary_mode("$server2_uuid")
+
+--echo
+--echo # 4. Execute action switch to single primary mode with server1 as primary
+
+--replace_result $server1_uuid MEMBER1_UUID
+--eval SELECT group_replication_switch_to_single_primary_mode("$server1_uuid")
+
+--echo
+--echo # 5. Execute action set as primary to server2.
+--echo #    It shall fail due to server1 slave connections
+
+--replace_result $server2_uuid MEMBER2_UUID
+--error ER_GRP_RPL_UDF_ERROR
+--eval SELECT group_replication_set_as_primary("$server2_uuid")
+
+--echo
+--echo # 6. Cleanup
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+STOP SLAVE FOR CHANNEL 'ch3_1';
+RESET SLAVE ALL FOR CHANNEL 'ch3_1';
+
+set session sql_log_bin=0;
+call mtr.add_suppression("Error while executing a group configuration operation: The requested primary is not valid as a slave channel is running on member*");
+call mtr.add_suppression("Error while executing a group configuration operation: There is a slave channel running in the group's current primary member.");
+set session sql_log_bin=1;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET GLOBAL read_only= 0;
+set session sql_log_bin=0;
+call mtr.add_suppression("The function 'group_replication_switch_to_single_primary_mode' failed. The requested primary is not valid as a slave channel is running on member*");
+call mtr.add_suppression("The function 'group_replication_set_as_primary' failed. There is a slave channel running in the group's current primary member.");
+set session sql_log_bin=1;
+
+--let $rpl_group_replication_single_primary_mode=1
+--let $rpl_group_replication_reset_persistent_vars=1
+--source include/group_replication_end.inc

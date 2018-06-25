@@ -207,6 +207,22 @@ class Replication_thread_api {
   int wait_for_gtid_execution(double timeout);
 
   /**
+    Checks if all the set transactions were executed.
+
+    @param retrieved_set the set in string format of transaction to wait for
+    @param timeout  the time (seconds) after which the method returns if the
+                    above condition was not satisfied
+    @param update_THD_status  Shall the method update the THD stage
+
+    @return the operation status
+      @retval 0   All transactions were executed
+      @retval REPLICATION_THREAD_WAIT_TIMEOUT_ERROR     A timeout occurred
+      @retval REPLICATION_THREAD_WAIT_NO_INFO_ERROR     An error occurred
+  */
+  int wait_for_gtid_execution(std::string &retrieved_set, double timeout,
+                              bool update_THD_status = true);
+
+  /**
     Method to get applier ids from the configured channel
 
     @param[out] thread_ids The retrieved thread ids.

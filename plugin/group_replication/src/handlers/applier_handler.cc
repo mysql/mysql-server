@@ -194,6 +194,17 @@ int Applier_handler::wait_for_gtid_execution(double timeout) {
   DBUG_RETURN(error);
 }
 
+int Applier_handler::wait_for_gtid_execution(std::string &retrieved_set,
+                                             double timeout,
+                                             bool update_THD_status) {
+  DBUG_ENTER("Applier_handler::wait_for_gtid_execution(gtid_set)");
+
+  int error = channel_interface.wait_for_gtid_execution(retrieved_set, timeout,
+                                                        update_THD_status);
+
+  DBUG_RETURN(error);
+}
+
 int Applier_handler::is_partial_transaction_on_relay_log() {
   return channel_interface.is_partial_transaction_on_relay_log();
 }

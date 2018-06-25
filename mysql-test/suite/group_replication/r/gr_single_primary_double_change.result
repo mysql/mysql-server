@@ -28,19 +28,17 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY, c2 INT) ENGINE=InnoDB;
 include/rpl_sync.inc
 
 ###########################################################
-# 2. Stop server 2 applier thread and insert data server 1.
-# This will prevent server2 from turning off certification
+# 2. Lock the table on server 2 and insert data server 1.
+# This will prevent server2 from  from applying the old data
 # once it is elected as primary.
-[connection server2]
-include/gr_stop_applier_sql_thread.inc
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+[connection server_2]
+LOCK TABLE t1 READ;
 [connection server1]
 INSERT INTO t1 VALUES(1,1);
 
 ###########################################################
 # 3. Stop server 1 (primary) and validate thar server 2 is
-# the new primary. If not skip test, server 2 needs to be
-# the primary to test continue.
+# the new primary.
 include/stop_group_replication.inc
 [connection server2]
 include/rpl_gr_wait_for_number_of_members.inc
@@ -54,21 +52,18 @@ CHANGE MASTER TO MASTER_USER='recovery_user', MASTER_PASSWORD='recovery_password
 include/start_group_replication.inc
 
 ###########################################################
-# 5. Insert conflicting transaction on server 2. Since
-# conflict detection is still enabled on both the primary
-# and the joiner, the transaction must be certified as
-# being concurrent in all members.
+# 5. Insert a transaction on server 2. Since the server is
+#  still in read mode, it shall fail.
 [connection server2]
 INSERT INTO t1 VALUES(1,2);
-ERROR 40000: Plugin instructed the server to rollback the current transaction.
-include/gr_start_applier_sql_thread.inc
-START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
-include/assert.inc ['The value of Count_conflicts_detected should be 1 on server 2']
-[connection server1]
-[connection server3]
+ERROR HY000: The MySQL server is running with the --super-read-only option so it cannot execute this statement
+[connection server_2]
+UNLOCK TABLES;
+include/assert.inc ['The value of Count_conflicts_detected should be 0 on server 2']
 
 ###########################################################
 # 6. Clean up.
+[connection server3]
 SET SESSION sql_log_bin= 0;
 SET GLOBAL read_only= 0;
 DROP USER recovery_user;

@@ -1,0 +1,79 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Bootstrap start GR on server1 (Primary).
+#    Start GR on server2 (Secondary).
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+include/assert.inc [Verify group_replication_primary_member is SERVER_UUID]
+
+############################################################
+# 2. Create two tables, one with a foreign key
+[connection server1]
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT, KEY(c2));
+INSERT INTO t1 VALUES (1,1);
+CREATE TABLE t2 (c1 INT PRIMARY KEY, c2 INT, FOREIGN KEY (c2) REFERENCES t1(c2));
+include/rpl_sync.inc
+
+############################################################
+# 3. Set a debug sync before broadcast message to group.
+[connection server1]
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG='d,group_replication_before_message_broadcast';
+
+############################################################
+# 4. Commit transaction T1 that will be blocked before broadcast.
+[connection server_1]
+BEGIN;
+INSERT INTO t2 VALUES (1,1);
+COMMIT;
+
+############################################################
+# 5. Wait until transaction T1 reaches the
+# group_replication_before_message_broadcast debug sync point.
+[connection server1]
+
+############################################################
+# 6. Commit transaction T2 that will be blocked before broadcast.
+[connection server_1_1]
+BEGIN;
+INSERT INTO t2 VALUES (2,1);
+COMMIT;
+
+############################################################
+# 7. Wait until both transactions reach the
+# group_replication_before_message_broadcast debug sync point.
+# Signal both transactions to resume the its path.
+[connection server1]
+SET DEBUG_SYNC='now SIGNAL waiting';
+SET DEBUG_SYNC='now SIGNAL waiting';
+SET @@GLOBAL.DEBUG= @debug_save;
+
+############################################################
+# 8. Fetch outcome of transaction T1.
+[connection server_1]
+
+############################################################
+# 9. Fetch outcome of transaction T2.
+[connection server_1_1]
+
+############################################################
+# 10. Check data consistency.
+[connection server1]
+include/rpl_sync.inc
+include/assert.inc [Table t2 contains one row with c1=1]
+include/assert.inc [Table t2 contains one row with c1=2]
+include/diff_tables.inc [server1:test.t1, server2:test.t1]
+include/diff_tables.inc [server1:test.t2, server2:test.t2]
+
+############################################################
+# 11. Clean up.
+DROP TABLE t2;
+DROP TABLE t1;
+include/group_replication_end.inc

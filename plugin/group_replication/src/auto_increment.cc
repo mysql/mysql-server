@@ -29,7 +29,8 @@ Plugin_group_replication_auto_increment::
     Plugin_group_replication_auto_increment()
     : group_replication_auto_increment(0), group_replication_auto_offset(0) {}
 
-void Plugin_group_replication_auto_increment::reset_auto_increment_variables() {
+void Plugin_group_replication_auto_increment::reset_auto_increment_variables(
+    bool force_reset) {
   /* get server auto_increment variables value */
   ulong current_server_increment = get_auto_increment_increment();
   ulong current_server_offset = get_auto_increment_offset();
@@ -40,7 +41,8 @@ void Plugin_group_replication_auto_increment::reset_auto_increment_variables() {
     group_replication_auto_increment_increment and
     group_replication_auto_increment_offset
   */
-  if (local_member_info != NULL && !local_member_info->in_primary_mode() &&
+  if ((force_reset ||
+       (local_member_info != NULL && !local_member_info->in_primary_mode())) &&
       group_replication_auto_increment == current_server_increment &&
       group_replication_auto_offset == current_server_offset) {
     /* set to default values i.e. 1 */

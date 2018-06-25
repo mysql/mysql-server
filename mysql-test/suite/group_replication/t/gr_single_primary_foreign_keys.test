@@ -1,0 +1,148 @@
+###############################################################################
+# This test validates that there are no fake foreign keys conflicts on Group
+# Replication while it is operating in single primary mode.
+# Test:
+#   0. The test requires three servers in SP
+#   1. Bootstrap start GR on server1 (Primary). Start GR on server2 (Secondary).
+#   2. Create two tables, one with a foreign key
+#   3. Block all send requests to the group
+#   4. Execute a transaction with FK=1 that will block (T1)
+#   5. Wait for it to block
+#   6. Execute another transaction with FK=1 that will also block (T2)
+#   7. Wait for it to block. Unblock both transactions
+#   8. Fetch outcome of transaction T1.
+#   9. Fetch outcome of transaction T2.
+#   10. Check data consistency.
+#   11. Cleanup
+#
+###############################################################################
+--source include/big_test.inc
+--source include/have_debug_sync.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 1. Bootstrap start GR on server1 (Primary).
+--echo #    Start GR on server2 (Secondary).
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $server1_uuid= `SELECT @@server_uuid`
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+# Make sure server1 is the primary
+--let $assert_text= Verify group_replication_primary_member is SERVER_UUID
+--let $assert_cond= "[SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME= \'group_replication_primary_member\', VARIABLE_VALUE, 1]" = "$server1_uuid"
+--source include/assert.inc
+
+--echo
+--echo ############################################################
+--echo # 2. Create two tables, one with a foreign key
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT, KEY(c2));
+INSERT INTO t1 VALUES (1,1);
+CREATE TABLE t2 (c1 INT PRIMARY KEY, c2 INT, FOREIGN KEY (c2) REFERENCES t1(c2));
+
+--source include/rpl_sync.inc
+
+--echo
+--echo ############################################################
+--echo # 3. Set a debug sync before broadcast message to group.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG='d,group_replication_before_message_broadcast';
+
+--echo
+--echo ############################################################
+--echo # 4. Commit transaction T1 that will be blocked before broadcast.
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+BEGIN;
+INSERT INTO t2 VALUES (1,1);
+--send COMMIT
+
+--echo
+--echo ############################################################
+--echo # 5. Wait until transaction T1 reaches the
+--echo # group_replication_before_message_broadcast debug sync point.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now'
+--source include/wait_condition.inc
+
+--echo
+--echo ############################################################
+--echo # 6. Commit transaction T2 that will be blocked before broadcast.
+--let $rpl_connection_name= server_1_1
+--source include/rpl_connection.inc
+BEGIN;
+INSERT INTO t2 VALUES (2,1);
+--send COMMIT
+
+--echo
+--echo ############################################################
+--echo # 7. Wait until both transactions reach the
+--echo # group_replication_before_message_broadcast debug sync point.
+--echo # Signal both transactions to resume the its path.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $wait_condition=SELECT COUNT(*)=2 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now'
+--source include/wait_condition.inc
+SET DEBUG_SYNC='now SIGNAL waiting';
+SET DEBUG_SYNC='now SIGNAL waiting';
+SET @@GLOBAL.DEBUG= @debug_save;
+
+--echo
+--echo ############################################################
+--echo # 8. Fetch outcome of transaction T1.
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--disable_warnings
+--reap
+--enable_warnings
+
+--echo
+--echo ############################################################
+--echo # 9. Fetch outcome of transaction T2.
+--let $rpl_connection_name= server_1_1
+--source include/rpl_connection.inc
+--disable_warnings
+--reap
+--enable_warnings
+
+--echo
+--echo ############################################################
+--echo # 10. Check data consistency.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/rpl_sync.inc
+
+--let $assert_text= Table t2 contains one row with c1=1
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t2 WHERE t2.c1=1, count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= Table t2 contains one row with c1=2
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t2 WHERE t2.c1=2, count, 1] = 1
+--source include/assert.inc
+
+--let $diff_tables= server1:test.t1, server2:test.t1
+--source include/diff_tables.inc
+--let $diff_tables= server1:test.t2, server2:test.t2
+--source include/diff_tables.inc
+
+--echo
+--echo ############################################################
+--echo # 11. Clean up.
+
+DROP TABLE t2;
+DROP TABLE t1;
+
+--source include/group_replication_end.inc

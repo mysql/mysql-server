@@ -1,0 +1,50 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Server1 start, bootstrap the group and create table test.t1
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE test.t1 (a INT PRIMARY KEY);
+
+# 2. Start server2 and server3
+[connection server2]
+include/start_group_replication.inc
+[connection server3]
+include/start_group_replication.inc
+
+# 3. Begin a transaction on server1
+[connection server1]
+BEGIN;
+INSERT INTO t1 VALUES(1);
+
+# 4. Execute action to switch to multi primary
+[connection server_1_1]
+SELECT group_replication_switch_to_multi_primary_mode();
+
+# 5. Assert that action is waiting for a member
+[connection server2]
+include/assert.inc [stage/group_rpl/Multi-primary Switch: waiting on another member step completion]
+
+# 6. Restart a member, won't impact the success of action
+[connection server3]
+# Kill and restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME
+include/rpl_reconnect.inc
+
+# 7. COMMIT pending transaction to action switch to multi primary  be
+#    executed
+[connection server1]
+COMMIT;
+[connection server_1_1]
+group_replication_switch_to_multi_primary_mode()
+Mode switched to multi-primary successfully.
+
+# 8. Confirm that exists two members as primary in the group
+include/gr_assert_multi_primary_mode.inc
+[connection server_2]
+include/gr_assert_multi_primary_mode.inc
+
+# 9. Cleanup
+DROP TABLE t1;
+include/group_replication_end.inc

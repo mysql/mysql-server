@@ -1,0 +1,87 @@
+###############################################################################
+#
+# Test that a group configuration action will fail if the process fails locally
+#
+# Test:
+#   0. This test requires two servers started on single primary mode
+#   1. Server1 start, bootstrap the group
+#   2. Start server2
+#   3. Stop the applier sql thread on server2 and execute an action,
+#      it shall fail
+#   4. Check that server2 went to error state. The action terminates locally
+#   5. Server 1 is the primary
+#   6. Cleanup
+#
+###############################################################################
+
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Server1 start, bootstrap the group
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--echo
+--echo # 2. Start server2
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+set session sql_log_bin=0;
+call mtr.add_suppression("There was an issue on the primary election process: Could not wait for the execution of local transactions. The member will now leave the group.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("The function 'group_replication_set_as_primary' failed. A critical error occurred during the local execution of this action. The member will now leave the group");
+call mtr.add_suppression("Plugin group_replication reported: 'A configuration change was killed in this member. The member will now leave the group as its configuration may have diverged.'");
+set session sql_log_bin=1;
+
+--source include/start_group_replication.inc
+
+--echo
+--echo # 3. Stop the applier sql thread on server2
+--echo #    Execute an action, it shall fail
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/gr_stop_applier_sql_thread.inc
+
+--let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+--replace_result $server2_uuid MEMBER2_UUID
+--error ER_GRP_RPL_UDF_ERROR
+--eval SELECT group_replication_set_as_primary("$server2_uuid")
+
+--echo
+--echo # 4. Check that server2 went to error state
+--echo #    The action terminates locally.
+
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+--let $group_replication_member_state= ERROR
+--source include/gr_wait_for_member_state.inc
+
+--let $wait_condition=SELECT COUNT(*)=0 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%"
+--source include/wait_condition.inc
+
+--echo
+--echo # 5. Server 1 is the primary
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $wait_condition=SELECT COUNT(*)=0 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%"
+--source include/wait_condition.inc
+
+--source include/gr_assert_primary_member.inc
+
+--echo
+--echo # 6. Cleanup
+
+--let $rpl_group_replication_reset_persistent_vars=1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication_end.inc

@@ -1,0 +1,64 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Bootstrap group on server1, which will be the primary.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE tp1 (c1 char(10) NOT NULL PRIMARY KEY);
+CREATE TABLE tc1 (c1 char(10) NOT NULL PRIMARY KEY,
+FOREIGN KEY (c1) REFERENCES tp1(c1) ON DELETE CASCADE ON UPDATE RESTRICT);
+
+############################################################
+# 2. Add a second member to the group.
+[connection server2]
+include/start_group_replication.inc
+
+############################################################
+# 3. Start a transaction that has cascading FK on the primary.
+[connection server_1]
+BEGIN;
+INSERT INTO tp1 VALUES('a');
+INSERT INTO tp1 VALUES('b');
+INSERT INTO tc1 VALUES('a');
+UPDATE tc1 SET c1 = 'b';
+
+############################################################
+# 4. Start group mode change to multi-primary on the primary.
+[connection server1]
+SELECT group_replication_switch_to_multi_primary_mode();
+[connection server_1]
+
+############################################################
+# 5. While group action is ongoing on server1, server2 already
+#    changed group_replication_enforce_update_everywhere_checks
+#    but has super_read_only enabled.
+[connection server2]
+include/assert.inc [group_replication_enforce_update_everywhere_checks is ON]
+include/assert.inc [The super_read_only mode must be 1 here.]
+
+############################################################
+# 6. Complete the ongoing transaction.
+[connection server_1]
+COMMIT;
+
+############################################################
+# 7. Successful termination of the group change.
+[connection server1]
+group_replication_switch_to_multi_primary_mode()
+Mode switched to multi-primary successfully.
+include/gr_assert_multi_primary_mode.inc
+[connection server2]
+include/gr_assert_multi_primary_mode.inc
+include/rpl_sync.inc
+include/diff_tables.inc [server1:tp1, server2:tp1]
+include/diff_tables.inc [server1:tc1, server2:tc1]
+
+############################################################
+# 8. Clean up.
+DROP TABLE tc1;
+DROP TABLE tp1;
+include/group_replication_end.inc

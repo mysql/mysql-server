@@ -1,0 +1,98 @@
+###############################################################################
+#
+# Functions to execute configuration changes are only present
+# when the plugin is installed.
+#
+# Test:
+#   0. This test use one server
+#   1. When plugin is installed the 3 functions shall be registered
+#   2. After UNINSTALL the plugin all functions shall be unregistered
+#      The unregistered 3 functions must fail to execute
+#   3. After INSTALL the plugin shall register 3 functions
+#   4. After START GROUP_REPLICATION the plugin shall have 3 functions
+#      registered
+#   5. After STOP GROUP_REPLICATION the plugin shall have 3 functions
+#      registered
+#   6. Cleanup
+#
+###############################################################################
+
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--echo
+--echo # 1. When plugin is installed the 3 functions shall be registered
+--let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--let $assert_text= 'There are 3 UDF functions registered'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.user_defined_functions WHERE udf_name LIKE "group_replication_%", count, 1] = 3
+--source include/assert.inc
+
+--let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+
+--echo
+--echo # 2. After UNINSTALL the plugin all functions shall be unregistered
+
+--source include/uninstall_group_replication_plugin.inc
+
+--let $assert_text= 'There are 0 UDF functions registered'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.user_defined_functions WHERE udf_name LIKE "group_replication_%", count, 1] = 0
+--source include/assert.inc
+
+--echo
+--echo # The unregistered 3 functions must fail to execute
+--error ER_SP_DOES_NOT_EXIST
+SELECT group_replication_switch_to_multi_primary_mode();
+
+--error ER_SP_DOES_NOT_EXIST
+SELECT group_replication_switch_to_single_primary_mode();
+
+--replace_result $server1_uuid MEMBER1_UUID
+--error ER_SP_DOES_NOT_EXIST
+--eval SELECT group_replication_switch_to_single_primary_mode("$server1_uuid")
+
+--replace_result $server1_uuid MEMBER1_UUID
+--error ER_SP_DOES_NOT_EXIST
+--eval SELECT group_replication_set_as_primary("$server1_uuid")
+
+--echo
+--echo # 3. After INSTALL the plugin shall register 3 functions
+
+--source include/install_group_replication_plugin.inc
+--source include/clean_group_replication_install_entry.inc
+
+--let $assert_text= 'There are 3 UDF functions registered'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.user_defined_functions WHERE udf_name LIKE "group_replication_%", count, 1] = 3
+--source include/assert.inc
+
+--replace_result $_group_replication_group_seeds GROUP_SEEDS
+--eval SET @@global.group_replication_group_seeds="$_group_replication_group_seeds"
+--replace_result $_group_replication_local_address LOCAL_ADDRESS
+--eval SET @@global.group_replication_local_address="$_group_replication_local_address"
+
+--echo
+--echo # 4. After START GROUP_REPLICATION the plugin shall have 3 functions
+--echo #    registered
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $assert_text= 'There are 3 UDF functions registered'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.user_defined_functions WHERE udf_name LIKE "group_replication_%", count, 1] = 3
+--source include/assert.inc
+
+--source include/stop_group_replication.inc
+
+--echo
+--echo # 5. After STOP GROUP_REPLICATION the plugin shall have 3 functions
+--echo #    registered
+
+--let $assert_text= 'There are 3 UDF functions registered'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.user_defined_functions WHERE udf_name LIKE "group_replication_%", count, 1] = 3
+--source include/assert.inc
+
+--echo
+--echo # 6. Cleanup
+
+--source include/group_replication_end.inc

@@ -1,0 +1,145 @@
+###############################################################################
+#
+# When the plugin is stopped or leaves in error, while changing
+# from single primary mode to multi primary mode, if the member did
+# not set the single primary mode flag to false, then update
+# everywhere checks shall remain false.
+#
+# When the plugin is stopped or leaves in error, plugin configurations
+# when the configuration change terminates must be valid,
+# even if not persisted with SET PERSIST.
+#
+# Test:
+#   0. This test requires three servers
+#   1. Server1 start, bootstrap the group and create table test.t1
+#   2. Start server2 and server3
+#   3. Begin a transaction on server1
+#   4. Execute action to switch to multi primary
+#   5. Assert that action is waiting for a member
+#   6. Restart a member, won't impact the success of action
+#   7. The action continued on other servers and everyone is on MP
+#   8. Check that Single primary mode is true on server 1 and the update
+#      everywhere checks are false.
+#   9. Cleanup
+#
+###############################################################################
+
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_server_count= 3
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Server1 start, bootstrap the group and create table test.t1
+
+--source include/start_and_bootstrap_group_replication.inc
+
+set session sql_log_bin=0;
+call mtr.add_suppression("The function 'group_replication_switch_to_multi_primary_mode' failed. Member has left the group. This operation was locally aborted and for that reason terminated.");
+set session sql_log_bin=1;
+
+CREATE TABLE test.t1 (a INT PRIMARY KEY);
+
+--echo
+--echo # 2. Start server2 and server3
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+--echo
+--echo # 3. Begin a transaction on server1
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+BEGIN;
+INSERT INTO t1 VALUES(1);
+
+--echo
+--echo # 4. Execute action to switch to multi primary
+
+--let $rpl_connection_name= server_1_1
+--source include/rpl_connection.inc
+
+--send SELECT group_replication_switch_to_multi_primary_mode()
+
+--echo
+--echo # 5. Assert that action is waiting for a member
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%waiting on another member step%"
+--source include/wait_condition.inc
+
+--let $stage_name= `SELECT event_name FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%";`
+--let $assert_text= stage/group_rpl/Multi-primary Switch: waiting on another member step completion
+--let $assert_cond= "$stage_name" = "stage/group_rpl/Multi-primary Switch: waiting on another member step completion"
+--source include/assert.inc
+
+--echo
+--echo # 6. Restart a member, won't impact the success of action
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+
+--echo
+--echo # 7. The action continued on other servers and everyone is on MP
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/gr_assert_multi_primary_mode.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--source include/gr_assert_multi_primary_mode.inc
+
+--echo
+--echo # 8. Check that Single primary mode is true on server 1 and the update
+--echo #    everywhere checks are false.
+
+--let $rpl_connection_name= server_1_1
+--source include/rpl_connection.inc
+
+--error ER_GRP_RPL_UDF_ERROR
+--reap
+
+--let $assert_text= group_replication_enforce_update_everywhere_checks is OFF
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_enforce_update_everywhere_checks]" = "0"
+--source include/assert.inc
+
+--let $assert_text= The single primary mode should be 1 here.
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_single_primary_mode]" = 1;
+
+--echo
+--echo # 9. Cleanup
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+ROLLBACK;
+
+SET GLOBAL group_replication_single_primary_mode= OFF;
+SET GLOBAL group_replication_enforce_update_everywhere_checks= ON;
+
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+DROP TABLE t1;
+
+--let $rpl_group_replication_reset_persistent_vars=1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication_end.inc

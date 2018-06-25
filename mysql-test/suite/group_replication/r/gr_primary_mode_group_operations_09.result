@@ -1,0 +1,60 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+
+# 1. Activate debug point that will block the group action when changing
+#    to single primary mode
+SET @@GLOBAL.DEBUG= '+d,group_replication_block_group_action_stop';
+
+# 2. Execute action to change group to single primary mode
+SELECT group_replication_switch_to_single_primary_mode("MEMBER1_UUID");
+[connection server_1]
+
+# 3. A new member can't start GR while an action is being executed.
+#    We also block the member from leaving after the error
+#    Wait for the member to be visible on server 1
+[connection server2]
+SET GLOBAL group_replication_group_name= 'GROUP_NAME';
+SET @@GLOBAL.DEBUG= '+d,group_replication_wait_before_leave_on_error';
+SET GLOBAL group_replication_enforce_update_everywhere_checks= FALSE;
+SET GLOBAL group_replication_single_primary_mode= TRUE;
+START GROUP_REPLICATION;
+[connection server_1]
+include/rpl_gr_wait_for_number_of_members.inc
+
+# 4. Unlock the action on server 1
+[connection server_1]
+SET DEBUG_SYNC= "now SIGNAL signal.action_stop_continue";
+[connection server1]
+group_replication_switch_to_single_primary_mode("MEMBER1_UUID")
+Mode switched to single-primary successfully.
+include/rpl_gr_wait_for_number_of_members.inc
+
+# 5. Allow server 2 to leave
+# Check an error was returned by the start process
+[connection server_2]
+SET DEBUG_SYNC= "now SIGNAL signal.continue_leave_process";
+[connection server2]
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+[connection server_1]
+include/rpl_gr_wait_for_number_of_members.inc
+
+# 6. After action is executed we can add another member
+[connection server2]
+set session sql_log_bin=0;
+call mtr.add_suppression("A member cannot join the group while a group configuration operation is running");
+set session sql_log_bin=1;
+include/start_group_replication.inc
+
+# 7. Cleanup
+[connection server1]
+SET @@GLOBAL.DEBUG= '-d,group_replication_block_group_action_stop';
+set session sql_log_bin=0;
+call mtr.add_suppression("A member is joining the group while a group configuration operation is occurring.*");
+set session sql_log_bin=1;
+[connection server2]
+SET @@GLOBAL.DEBUG= '-d,group_replication_wait_before_leave_on_error';
+include/group_replication_end.inc

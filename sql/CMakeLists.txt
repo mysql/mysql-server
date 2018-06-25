@@ -268,6 +268,7 @@ SET(MYSQL_SERVER_SUB_COMPONENT_SOURCES
   server_component/persistent_dynamic_loader.cc
   server_component/component_sys_var_service.cc
   server_component/component_status_var_service.cc
+  server_component/ongoing_transaction_query_service.cc
   server_component/system_variable_source_imp.cc
   server_component/security_context_imp.cc
   )

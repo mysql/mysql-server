@@ -1,0 +1,95 @@
+###############################################################################
+#
+# If the action thread is killed but the distributed execution
+# has already gone beyond a point where all servers agreed (cannot be
+# canceled) then the action will complete.
+# A warning shall be returned by the executing query stating the kill
+# had no effect.
+#
+# If the user kills the query thread then the action and query
+# threads shall be terminated.
+#
+# Test:
+#   0. This test requires two servers
+#   1. Use the debug point "group_replication_block_group_action_stop" on server 1
+#   2. Start a change to single primary mode on server 1
+#   3. Wait for the stage to be: Primary Switch: waiting for operation to
+#      complete on all members
+#   4. Kill the query
+#   5. Unblock the debug point with "signal.action_stop_continue"
+#   6. Check the action returns and it says: Despite being killed, the
+#      operation still completed successfully.
+#   7. Cleanup
+#
+###############################################################################
+
+--source include/have_debug_sync.inc
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Use the debug point "group_replication_block_group_action_stop" on server 1
+
+SET @@GLOBAL.DEBUG= '+d,group_replication_block_group_action';
+--let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--echo
+--echo # 2. Start a change to single primary mode on server 1
+
+--let $conn_id=`SELECT CONNECTION_ID()`
+
+--replace_result $server1_uuid MEMBER1_UUID
+--send_eval SELECT group_replication_switch_to_single_primary_mode("$server1_uuid")
+
+--echo
+--echo # 3. Wait for the stage to be: Primary Switch: waiting for operation to
+--echo #    complete on all members
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Single-primary Switch: checking group pre-conditions%"
+--source include/wait_condition.inc
+
+--echo
+--echo # 4. Kill the query
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--replace_result $conn_id CONNECTION_ID
+--eval KILL QUERY $conn_id
+
+--echo
+--echo # 5. Unblock the debug point with "signal.action_stop_continue"
+
+SET DEBUG_SYNC= "now SIGNAL signal.action_continue";
+
+--echo
+--echo # 6. Check the action returns and it says: Despite being killed, the
+--echo #    operation still completed successfully.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--replace_result $server1_uuid MEMBER1_UUID
+--reap
+
+--source include/gr_assert_primary_member.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/gr_assert_secondary_member.inc
+
+--echo
+--echo # 7. Cleanup
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET @@GLOBAL.DEBUG= '-d,group_replication_block_group_action';
+
+--let $rpl_group_replication_single_primary_mode=1
+--let $rpl_group_replication_reset_persistent_vars=1
+--source include/group_replication_end.inc

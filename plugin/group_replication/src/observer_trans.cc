@@ -33,6 +33,7 @@
 #include "my_inttypes.h"
 #include "plugin/group_replication/include/observer_trans.h"
 #include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_observers/group_transaction_observation_manager.h"
 #include "plugin/group_replication/include/sql_service/sql_command_test.h"
 #include "plugin/group_replication/include/sql_service/sql_service_command.h"
 #include "plugin/group_replication/include/sql_service/sql_service_interface.h"
@@ -492,14 +493,60 @@ int group_replication_trans_before_rollback(Trans_param *) {
   DBUG_RETURN(0);
 }
 
-int group_replication_trans_after_commit(Trans_param *) {
+int group_replication_trans_after_commit(Trans_param *param) {
   DBUG_ENTER("group_replication_trans_after_commit");
-  DBUG_RETURN(0);
+
+  int error = 0;
+
+  /**
+    We don't use locks here as observers are unregistered before the classes
+    used here disappear. Unregistration also avoids usage vs removal scenarios.
+  */
+
+  /*
+    If the plugin is not running, after commit should return success.
+    If there are no observers, we also don't care
+  */
+  if (!plugin_is_group_replication_running() ||
+      !group_transaction_observation_manager->is_any_observer_present()) {
+    DBUG_RETURN(0);
+  }
+
+  group_transaction_observation_manager->read_lock_observer_list();
+  std::list<Group_transaction_listener *> *transaction_observers =
+      group_transaction_observation_manager->get_all_observers();
+  for (Group_transaction_listener *transaction_observer :
+       *transaction_observers) {
+    transaction_observer->after_commit(param->thread_id);
+  }
+  group_transaction_observation_manager->unlock_observer_list();
+  DBUG_RETURN(error);
 }
 
-int group_replication_trans_after_rollback(Trans_param *) {
+int group_replication_trans_after_rollback(Trans_param *param) {
   DBUG_ENTER("group_replication_trans_after_rollback");
-  DBUG_RETURN(0);
+
+  int error = 0;
+
+  /*
+    If the plugin is not running, after rollback should return success.
+    If there are no observers, we also don't care
+  */
+  if (!plugin_is_group_replication_running() ||
+      !group_transaction_observation_manager->is_any_observer_present()) {
+    DBUG_RETURN(0);
+  }
+
+  group_transaction_observation_manager->read_lock_observer_list();
+  std::list<Group_transaction_listener *> *transaction_observers =
+      group_transaction_observation_manager->get_all_observers();
+  for (Group_transaction_listener *transaction_observer :
+       *transaction_observers) {
+    transaction_observer->after_rollback(param->thread_id);
+  }
+  group_transaction_observation_manager->unlock_observer_list();
+
+  DBUG_RETURN(error);
 }
 
 Trans_observer trans_observer = {

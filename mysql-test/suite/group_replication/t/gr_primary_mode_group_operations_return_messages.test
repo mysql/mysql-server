@@ -1,0 +1,174 @@
+###############################################################################
+#
+# Check messages returned from actions executed
+#
+# - Any change to multi-primary when already in multi-primary is a no-op.
+# - Any change to single-primary when already in single-primary is a no-op.
+# - An attempt to elect a primary member when in multi primary is
+#   not a valid operation.
+#   An error saying to use the primary switch command is issued.
+# - An attempt to elect a member as primary that is already the
+#   group primary member is a no-op.
+#
+# Test:
+#   0. This test requires two servers
+#   1. Execute action set as primary on a multi primary group will
+#      return an error message
+#   2. Execute change to multi primary on multi primary it will be no op
+#      and print an information message
+#   3. Execute change to single primary on multi primary it will be
+#      successful and print an information message
+#   4. Execute change to single primary when on single primary mode
+#      it will be a no op and print an information message
+#   5. Execute set primary member for the current primary member it will
+#      be a no op and print an information message
+#   6. Execute set primary member for one secondary member and it will
+#      change the primary and print an information message
+#   7. Execute set switch to single primary member on a single primary
+#      group, it will be a no op and print an information message
+#   8. Execute set switch to single primary mode on a single primary
+#      group specifying the server uuid, it will fail and print an
+#      information message
+#   9. Execute set switch to multi primary mode on a single primary
+#      group, it will be complete successfully and print an information message
+#  10. Execute set primary member for one of the members
+#      It should error out and say to use group_replication_switch_to_single_primary_mode
+#
+###############################################################################
+
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--echo
+--echo # 1. Execute action set as primary on a multi primary group will
+--echo #    return an error message
+
+--replace_result $server1_uuid MEMBER1_UUID
+--error ER_CANT_INITIALIZE_UDF
+--eval SELECT group_replication_set_as_primary("$server1_uuid")
+
+--echo
+--echo # 2. Execute change to multi primary on multi primary it will be no op
+--echo #    and print an information message
+
+--let $expected_message= "The group is already on multi-primary mode."
+--let $message= `SELECT group_replication_switch_to_multi_primary_mode()`
+
+--let $assert_text= "The message should be: $expected_message"
+--let $assert_cond= "$message" = $expected_message
+--source include/assert.inc
+
+--echo
+--echo # 3. Execute change to single primary on multi primary it will complete
+--echo #    successfully and print an information message
+
+--let $expected_message= "Mode switched to single-primary successfully."
+--let $message= `SELECT group_replication_switch_to_single_primary_mode("$server1_uuid")`
+
+--let $assert_text= "The message should be: $expected_message"
+--let $assert_cond= "$message" = $expected_message
+--source include/assert.inc
+
+--echo
+--echo # 4. Execute change to single primary when on single primary mode
+--echo #    it is a no op and print an information message
+
+--let $expected_message= "The group is already on single-primary mode."
+--let $message= `SELECT group_replication_switch_to_single_primary_mode()`
+
+--let $assert_text= "The message should be: $expected_message"
+--let $assert_cond= "$message" = $expected_message
+--source include/assert.inc
+
+--echo
+--echo # 5. Execute set primary member for the current primary member it will
+--echo #    be a no op and print an information message
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $expected_message= "The requested member is already the current group primary."
+--let $message= `SELECT group_replication_set_as_primary("$server1_uuid")`
+
+--let $assert_text= "The message should be: $expected_message"
+--let $assert_cond= "$message" = $expected_message
+--source include/assert.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $expected_message= "The requested member is already the current group primary."
+--let $message= `SELECT group_replication_set_as_primary("$server1_uuid")`
+
+--let $assert_text= "The message should be: $expected_message"
+--let $assert_cond= "$message" = $expected_message
+--source include/assert.inc
+
+--echo
+--echo # 6. Execute set primary member for one secondary member and it will
+--echo #    change the primary and print an information message
+
+--let $expected_message= "Primary server switched to: MEMBER2_UUID"
+--replace_result $server2_uuid MEMBER2_UUID
+--let $message= `SELECT group_replication_set_as_primary("$server2_uuid")`
+
+--let $assert_text= "The message should be: $expected_message"
+--let $assert_cond= "$message" = $expected_message
+--source include/assert.inc
+
+--echo
+--echo # 7. Execute set switch to single primary mode on a single primary
+--echo #    group, it will be a no op and print an information message
+
+--let $expected_message= "The group is already on single-primary mode."
+--replace_result $server2_uuid MEMBER2_UUID
+--let $message= `SELECT group_replication_switch_to_single_primary_mode()`
+
+--let $assert_text= "The message should be: $expected_message"
+--let $assert_cond= "$message" = $expected_message
+--source include/assert.inc
+
+--echo
+--echo # 8. Execute set switch to single primary mode on a single primary
+--echo #    group specifying the server uuid, it will not execute and print an
+--echo #    information message
+
+--let $expected_message= "Already in single-primary mode. Did you meant to use group_replication_set_as_primary."
+--replace_result $server2_uuid MEMBER2_UUID
+--let $message= `SELECT group_replication_switch_to_single_primary_mode("$server1_uuid")`
+
+--let $assert_text= "The message should be: $expected_message"
+--let $assert_cond= "$message" = $expected_message
+--source include/assert.inc
+
+--echo
+--echo # 9. Execute set switch to multi primary mode on a single primary
+--echo #    group, it will be complete successfully and print an information message
+
+--let $expected_message= "Mode switched to multi-primary successfully."
+--let $message= `SELECT group_replication_switch_to_multi_primary_mode()`
+
+--let $assert_text= "The message should be: $expected_message"
+--let $assert_cond= "$message" = $expected_message
+--source include/assert.inc
+
+--echo
+--echo # 10. Execute set primary member for one of the members
+--echo #     It should error out and say to use group_replication_switch_to_single_primary_mode
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT group_replication_set_as_primary("$server2_uuid");
+
+--let $rpl_group_replication_reset_persistent_vars=1
+--source include/group_replication_end.inc

@@ -1,20 +1,18 @@
 ###############################################################################
-# This test validates that when the primary has conflict resolution enabled, a
-# new joiner will detect conflicting transactions.
+# This test validates that when the primary has some load from the old primary
+# to apply, it wont unset the read mode.
 #
 # Test:
 # 0. Test requires 3 servers.
 # 1. Configure server 3 recovery user, so it is the only viable donor for
 #    server1 on step #4
-# 2. Stop server 2 applier thread and insert data server 1. This will prevent
-#    server2 from turning off certification once it is elected as primary.
-# 3. Stop server 1 (primary) and validate thar server 2 is the new primary. If
-#    not skip test, server 2 needs to be the primary to test continue.
+# 2. Lock the table on server 2 and insert data server 1. This will prevent
+#    server2 from applying the old data when it is elected as primary.
+# 3. Stop server 1 (primary) and validate thar server 2 is the new primary.
 # 4. Configure server 1 with recovery credentials from server 3 and start group
 #    replication.
-# 5. Insert confliction transaction on server 2. Since conflict detection is
-#    still enabled on both the primary and the joiner, the transaction must be
-#    certified as being concurrent in all members.
+# 5. Try to do a transaction on server 2. Since the server is still in read mode,
+#    the insert will fail.
 # 6. Clean up.
 #
 ###############################################################################
@@ -81,14 +79,14 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY, c2 INT) ENGINE=InnoDB;
 
 --echo
 --echo ###########################################################
---echo # 2. Stop server 2 applier thread and insert data server 1.
---echo # This will prevent server2 from turning off certification
+--echo # 2. Lock the table on server 2 and insert data server 1.
+--echo # This will prevent server2 from  from applying the old data
 --echo # once it is elected as primary.
 
---let $rpl_connection_name= server2
+--let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
 
---source include/gr_stop_applier_sql_thread.inc
+LOCK TABLE t1 READ;
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
@@ -98,8 +96,7 @@ INSERT INTO t1 VALUES(1,1);
 --echo
 --echo ###########################################################
 --echo # 3. Stop server 1 (primary) and validate thar server 2 is
---echo # the new primary. If not skip test, server 2 needs to be
---echo # the primary to test continue.
+--echo # the new primary.
 
 --source include/stop_group_replication.inc
 
@@ -133,41 +130,36 @@ INSERT INTO t1 VALUES(1,1);
 
 --echo
 --echo ###########################################################
---echo # 5. Insert conflicting transaction on server 2. Since
---echo # conflict detection is still enabled on both the primary
---echo # and the joiner, the transaction must be certified as
---echo # being concurrent in all members.
+--echo # 5. Insert a transaction on server 2. Since the server is
+--echo #  still in read mode, it shall fail.
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
---error 3101
+--error 1290
 INSERT INTO t1 VALUES(1,2);
 
---source include/gr_start_applier_sql_thread.inc
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+UNLOCK TABLES;
 
 #Waiting for the data to be applied
 --let $wait_condition= SELECT COUNT(*)=1 FROM t1
 --source include/wait_condition.inc
 
 --let $negatively_certified= query_get_value(SELECT Count_conflicts_detected FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Count_conflicts_detected, 1)
---let $assert_text= 'The value of Count_conflicts_detected should be 1 on server 2'
---let $assert_cond= $negatively_certified = 1
+--let $assert_text= 'The value of Count_conflicts_detected should be 0 on server 2'
+--let $assert_cond= $negatively_certified = 0
 --source include/assert.inc
-
---let $rpl_connection_name= server1
---source include/rpl_connection.inc
---let $wait_condition=SELECT Count_conflicts_detected=1 FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid)
---source include/wait_condition.inc
-
---let $rpl_connection_name= server3
---source include/rpl_connection.inc
---let $wait_condition=SELECT Count_conflicts_detected=1 FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid)
---source include/wait_condition.inc
 
 --echo
 --echo ###########################################################
 --echo # 6. Clean up.
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
 SET SESSION sql_log_bin= 0;
 SET GLOBAL read_only= 0;
 --eval DROP USER $recovery_user

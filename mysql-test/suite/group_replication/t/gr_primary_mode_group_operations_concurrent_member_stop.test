@@ -1,0 +1,105 @@
+###############################################################################
+#
+# Test the execution of configuration changes against concurrent member stops.
+#
+# Test:
+#   0. This test requires three servers
+#   1. Execute action to switch to single primary
+#   2. Stop a member while the action might or not be running
+#   3. Action shall succeed
+#   4. Start stopped server
+#   5. Execute action to change to multi primary
+#   6. Stop server
+#   7. Action shall succeed
+#   8. Cleanup
+#
+###############################################################################
+
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Execute action to switch to single primary
+
+--let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--replace_result $server1_uuid MEMBER1_UUID
+--send_eval SELECT group_replication_switch_to_single_primary_mode("$server1_uuid")
+
+--echo
+--echo # 2. Stop a member while the action might or not be running
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+
+--echo
+--echo # 3. Action shall succeed
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--replace_result $server1_uuid MEMBER1_UUID
+--reap
+
+--echo
+--echo # 4. Start stopped server
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+SET GLOBAL read_only= 0;
+
+SET GLOBAL group_replication_enforce_update_everywhere_checks= FALSE;
+SET GLOBAL group_replication_single_primary_mode= TRUE;
+
+--source include/start_group_replication.inc
+
+--echo
+--echo # 5. Execute action to change to multi primary
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--send SELECT group_replication_switch_to_multi_primary_mode()
+
+--echo
+--echo # 6. Stop server
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+
+--echo
+--echo # 7. Action shall succeed
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--replace_result $server1_uuid MEMBER1_UUID
+--reap
+
+--echo
+--echo # 8. Cleanup
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+SET GLOBAL read_only= 0;
+
+SET GLOBAL group_replication_single_primary_mode= FALSE;
+SET GLOBAL group_replication_enforce_update_everywhere_checks= TRUE;
+
+set session sql_log_bin=0;
+call mtr.add_suppression("Error while executing a group configuration operation: This operation was locally aborted and for that reason terminated");
+call mtr.add_suppression("Error while executing a group configuration operation: Mode switched to multi-primary successfully. This information is local, the operation coordinator is terminating and no status is known about other members termination.");
+
+set session sql_log_bin=1;
+
+--let $rpl_group_replication_single_primary_mode=1
+--let $rpl_group_replication_reset_persistent_vars=1
+--source include/group_replication_end.inc

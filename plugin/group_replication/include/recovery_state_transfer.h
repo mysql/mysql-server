@@ -28,8 +28,8 @@
 #include <vector>
 
 #include "my_io.h"
-#include "plugin/group_replication/include/channel_observation_manager.h"
 #include "plugin/group_replication/include/member_info.h"
+#include "plugin/group_replication/include/plugin_observers/channel_observation_manager.h"
 #include "plugin/group_replication/include/replication_threads_api.h"
 
 class Recovery_state_transfer {

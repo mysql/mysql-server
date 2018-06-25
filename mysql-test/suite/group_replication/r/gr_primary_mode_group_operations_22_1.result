@@ -1,0 +1,43 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+include/assert.inc [group_replication_enforce_update_everywhere_checks is ON]
+include/assert.inc [The single primary mode should be 1 here.]
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+
+# 1. Change to multi primary mode
+[connection server1]
+SELECT group_replication_switch_to_multi_primary_mode();
+group_replication_switch_to_multi_primary_mode()
+Mode switched to multi-primary successfully.
+
+# 2. Check all variables
+[connection server1]
+include/assert.inc [group_replication_enforce_update_everywhere_checks is ON]
+include/assert.inc [The single primary mode should be 0 here.]
+include/assert.inc [The super_read_only mode should be 0 here.]
+[connection server2]
+include/assert.inc [group_replication_enforce_update_everywhere_checks is ON]
+include/assert.inc [The single primary mode should be 0 here.]
+
+# 3. Restart Group Replication on server 2. Check all goes as planned
+[connection server2]
+include/stop_group_replication.inc
+include/start_group_replication.inc
+include/assert.inc [group_replication_enforce_update_everywhere_checks is ON]
+include/assert.inc [The single primary mode should be 0 here.]
+
+# 4. Restart server 1. Don't pass the Primary mode settings. Check all
+#    goes planned.
+[connection server1]
+# restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group-replication-group-name=GROUP_REPLICATION_GROUP_NAME
+include/rpl_reconnect.inc
+include/assert.inc [group_replication_enforce_update_everywhere_checks is ON]
+include/assert.inc [The single primary mode should be 0 here.]
+include/start_group_replication.inc
+include/assert.inc [The super_read_only mode should be 1 here.]
+include/group_replication_end.inc

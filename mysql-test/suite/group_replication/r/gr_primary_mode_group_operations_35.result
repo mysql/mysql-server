@@ -1,0 +1,56 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+set session sql_log_bin=0;
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("A configuration change was killed in this member. The member will now leave the group as its configuration may have diverged.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("The function 'group_replication_switch_to_single_primary_mode' failed. This operation was locally killed and for that reason terminated*");
+set session sql_log_bin=1;
+[connection server2]
+CREATE TABLE test.t1 (a INT PRIMARY KEY);
+include/rpl_sync.inc
+
+# 1. Get a transaction stuck on server 2 (the new primary) with a table lock
+[connection server_2]
+LOCK TABLE t1 WRITE;
+[connection server_1]
+INSERT INTO t1 VALUES (1);
+
+# 2. Do a change to single primary mode with server 2 as the new primary
+# Get the connection ID
+# See that it is stuck on Primary election
+[connection server1]
+SELECT group_replication_switch_to_single_primary_mode("MEMBER2_UUID");
+[connection server_1]
+include/assert.inc [The stage should be "Single-primary Switch: executing Primary election"]
+[connection server3]
+include/assert.inc [The stage should be "Single-primary Switch: executing Primary election"]
+
+# 3. Kill the query
+[connection server_1]
+KILL QUERY CONNECTION_ID;
+
+# 4. Check the member left the group and moved into ERROR state
+include/gr_wait_for_member_state.inc
+[connection server3]
+include/rpl_gr_wait_for_number_of_members.inc
+[connection server1]
+ERROR HY000: The function 'group_replication_switch_to_single_primary_mode' failed. This operation was locally killed and for that reason terminated. However the member is already configured to run in single primary mode, but the configuration was not persisted. The member will now leave the group.
+
+# 5. Unlock the table, check the action completed in the other members
+[connection server_2]
+UNLOCK TABLES;
+include/gr_assert_primary_member.inc
+[connection server3]
+include/gr_assert_secondary_member.inc
+
+# 6. Cleanup
+[connection server1]
+include/stop_group_replication.inc
+include/start_group_replication.inc
+[connection server2]
+DROP TABLE t1;
+include/group_replication_end.inc

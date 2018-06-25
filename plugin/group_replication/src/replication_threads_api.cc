@@ -202,6 +202,16 @@ int Replication_thread_api::wait_for_gtid_execution(double timeout) {
   DBUG_RETURN(error);
 }
 
+int Replication_thread_api::wait_for_gtid_execution(std::string &retrieved_set,
+                                                    double timeout,
+                                                    bool update_THD_status) {
+  DBUG_ENTER("Replication_thread_api::wait_for_gtid_execution(gtid_set)");
+
+  int error = channel_wait_until_transactions_applied(
+      interface_channel, retrieved_set.c_str(), timeout, update_THD_status);
+  DBUG_RETURN(error);
+}
+
 rpl_gno Replication_thread_api::get_last_delivered_gno(rpl_sidno sidno) {
   DBUG_ENTER("Replication_thread_api::get_last_delivered_gno");
   DBUG_RETURN(channel_get_last_delivered_gno(interface_channel, sidno));

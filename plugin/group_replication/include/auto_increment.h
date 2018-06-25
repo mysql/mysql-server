@@ -55,9 +55,10 @@ class Plugin_group_replication_auto_increment {
   /**
     Reset auto_increment_increment and auto_increment_offset,
     if modified by this plugin in set function
-  */
 
-  void reset_auto_increment_variables();
+    @param force if true, it ignores the member being in primary mode or not
+  */
+  void reset_auto_increment_variables(bool force = false);
 
  private:
   ulong group_replication_auto_increment;

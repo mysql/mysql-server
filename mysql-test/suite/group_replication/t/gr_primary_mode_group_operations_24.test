@@ -1,0 +1,96 @@
+###############################################################################
+#
+# When an configuration change is accepted, even if the invoking
+# member leaves or fails under a majority, the action will be executed
+# in all online members.
+#
+# Test:
+#   0. This test needs 3 servers
+#   1. Set an debug point on server to block group action after
+#      configuration is accepted
+#   2. Execute switch to single primary mode
+#   3. Kill server that is executing action
+#   4. Confirm other members executed the action
+#   5. Clean up
+#
+###############################################################################
+
+--source include/have_debug.inc
+--source include/have_group_replication_plugin.inc
+--source include/not_valgrind.inc
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Set an debug point on server to block group action after
+--echo #    configuration is accepted
+
+SET @@GLOBAL.DEBUG= '+d,group_replication_block_group_action';
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--echo
+--echo # 2. Execute switch to single primary mode
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--replace_result $server2_uuid MEMBER2_UUID
+--send_eval SELECT group_replication_switch_to_single_primary_mode("$server2_uuid")
+
+--echo
+--echo # 3. Kill server that is executing action
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+# verify thread THD_group_action_coordinator has started
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.threads WHERE NAME = "thread/group_rpl/THD_group_action_coordinator"
+--source include/wait_condition.inc
+
+--let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
+--let $restart_parameters=restart:--group-replication-start-on-boot=0 --group-replication-group-name=$group_replication_group_name --group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds  --group_replication_single_primary_mode=TRUE --group_replication_enforce_update_everywhere_checks=FALSE
+--source include/kill_and_restart_mysqld.inc
+
+--let $rpl_server_number= 1
+--source include/rpl_reconnect.inc
+
+--echo
+--echo # 4. Confirm other members executed the action
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $group_replication_number_of_members= 2
+--source include/gr_wait_for_number_of_members.inc
+
+--let $wait_condition=SELECT COUNT(*)=0 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%"
+--source include/wait_condition.inc
+
+--source include/gr_assert_primary_member.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--let $wait_condition=SELECT COUNT(*)=0 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%"
+--source include/wait_condition.inc
+
+--source include/gr_assert_secondary_member.inc
+
+--echo
+--echo # 5. Clean up
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--error CR_SERVER_LOST
+--reap
+
+--let $rpl_group_replication_single_primary_mode=1
+--let $rpl_group_replication_reset_persistent_vars=1
+--source include/group_replication_end.inc

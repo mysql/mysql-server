@@ -31,17 +31,14 @@
 #include "plugin/group_replication/include/gcs_plugin_messages.h"
 #include "plugin/group_replication/include/gcs_view_modification_notifier.h"
 #include "plugin/group_replication/include/plugin_constants.h"
-#include "plugin/group_replication/include/read_mode_handler.h"
+#include "plugin/group_replication/include/plugin_handlers/read_mode_handler.h"
+#include "plugin/group_replication/include/plugin_messages/group_action_message.h"
+#include "plugin/group_replication/include/plugin_messages/recovery_message.h"
+#include "plugin/group_replication/include/plugin_messages/single_primary_message.h"
 #include "plugin/group_replication/include/recovery.h"
-#include "plugin/group_replication/include/recovery_message.h"
 #include "plugin/group_replication/include/services/notification/notification.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_communication_event_listener.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_control_event_listener.h"
-
-/*
- The server version in which member weight was introduced.
- */
-#define PRIMARY_ELECTION_MEMBER_WEIGHT_VERSION 0x050720
 
 /**
   Group_member_info_pointer_comparator to guarantee uniqueness
@@ -97,10 +94,19 @@ class Plugin_gcs_events_handler : public Gcs_communication_event_listener,
    */
   void handle_transactional_message(const Gcs_message &message) const;
   void handle_certifier_message(const Gcs_message &message) const;
-  void handle_recovery_message(const Gcs_message &message) const;
+  void handle_recovery_message(Plugin_gcs_message *message) const;
   void handle_stats_message(const Gcs_message &message) const;
-  void handle_single_primary_message(const Gcs_message &message) const;
-
+  void handle_single_primary_message(
+      Plugin_gcs_message *processed_message) const;
+  void handle_group_action_message(const Gcs_message &message) const;
+  /**
+    This method passes the message to message listeners
+    @param plugin_message A pointer to the processed plugin gcs message
+    @param message_origin A id of the message originating member
+    @return true if the message should be skipped, false otherwise
+  */
+  bool pre_process_message(Plugin_gcs_message *plugin_message,
+                           const std::string &message_origin) const;
   /*
    Methods to act upon members after a on_view_change(...) is called
    */
@@ -134,37 +140,15 @@ class Plugin_gcs_events_handler : public Gcs_communication_event_listener,
     This method handles the election of a new primary node when the plugin runs
     in single primary mode.
 
+    @param enum_primary_election_mode election mode
+    @param suggested_primary what should be the next primary to elect
+
     @note This function unsets the super read only mode on primary node
           and sets it on secondary nodes
   */
-  void handle_leader_election_if_needed() const;
-
-  /**
-    Sort lower version members based on member weight if member version
-    is greater than equal to PRIMARY_ELECTION_MEMBER_WEIGHT_VERSION or uuid.
-
-    @param all_members_info    the vector with members info
-    @param lowest_version_end  first iterator position where members version
-                               increases.
-   */
-  void sort_members_for_election(
-      std::vector<Group_member_info *> *all_members_info,
-      std::vector<Group_member_info *>::iterator lowest_version_end) const;
-
-  /**
-    Sort members based on member_version and get first iterator position
-    where member version differs.
-
-    @param all_members_info    the vector with members info
-
-    @return  the first iterator position where members version increase.
-
-    @note from the start of the list to the returned iterator, all members have
-          the lowest version in the group.
-   */
-  std::vector<Group_member_info *>::iterator
-  sort_and_get_lowest_version_member_position(
-      std::vector<Group_member_info *> *all_members_info) const;
+  void handle_leader_election_if_needed(
+      enum_primary_election_mode election_mode,
+      std::string &suggested_primary) const;
 
   int process_local_exchanged_data(const Exchanged_data &exchanged_data,
                                    bool is_joining) const;
@@ -239,6 +223,15 @@ class Plugin_gcs_events_handler : public Gcs_communication_event_listener,
       @retval !=0   Otherwise
   */
   int compare_member_option_compatibility() const;
+
+  /**
+    Check if a member is not entering a group where an action is running
+
+    @return
+      @retval false     no group action is running
+      @retval true   a group action is running
+  */
+  bool is_group_running_a_configuration_change() const;
 
   /**
     This method submits a request to leave the group

@@ -1,0 +1,92 @@
+###############################################################################
+#
+# When changing to multi primary mode the auto increment values
+# of the server shall change to the plugin automatic values according
+# to the group_replication_auto_increment_increment variable if no
+# user set value is present.
+#
+# auto_increment_increment should be 1 on single primary and 7 on multi primary
+# auto_increment_offset should be equal to server id, for example on server1 is 1
+#
+# Test:
+#   0. This test requires one server
+#   1. Confirm value of auto_increment_increment is 1 and
+#      auto_increment_offset is 1 with server stopped
+#   2. Start server and bootstrap group
+#   3. On Single Primary the default value of  auto_increment_increment is
+#      1 and auto_increment_offset is 1
+#   4. Change to multi primary mode and confirm value of
+#      auto_increment_increment is 7 and auto_increment_offset is 1
+#   5. Stop server and confirm value of auto_increment_increment is 1 and
+#      auto_increment_offset is 1
+#   6. Clean up
+#
+###############################################################################
+
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Confirm value of auto_increment_increment is 1 and
+--echo #    auto_increment_offset is 1 with server stopped
+
+--let $assert_text= The default value of auto_increment_increment for single primary should be 1
+--let $assert_cond= [SELECT @@GLOBAL.auto_increment_increment] = 1
+--source include/assert.inc
+
+--let $assert_text= The default value of auto_increment_offset for single primary should be 1
+--let $assert_cond= [SELECT @@GLOBAL.auto_increment_offset] = 1
+--source include/assert.inc
+
+--echo
+--echo # 2. Start server and bootstrap group
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--echo
+--echo # 3. On Single Primary the default value of  auto_increment_increment is
+--echo #    1 and auto_increment_offset is 1
+
+--let $assert_text= The default value of auto_increment_increment for single primary should be 1
+--let $assert_cond= [SELECT @@GLOBAL.auto_increment_increment] = 1
+--source include/assert.inc
+
+--let $assert_text= The default value of auto_increment_offset for single primary should be 1
+--let $assert_cond= [SELECT @@GLOBAL.auto_increment_offset] = 1
+--source include/assert.inc
+
+--echo
+--echo # 4. Change to multi primary mode and confirm value of
+--echo #    auto_increment_increment is 7 and auto_increment_offset is 1
+
+SELECT group_replication_switch_to_multi_primary_mode();
+
+--let $assert_text= The default value of auto_increment_increment for single primary should be 7
+--let $assert_cond= [SELECT @@GLOBAL.auto_increment_increment] = 7
+--source include/assert.inc
+
+--let $assert_text= The default value of auto_increment_offset for single primary should be 1
+--let $assert_cond= [SELECT @@GLOBAL.auto_increment_offset] = 1
+--source include/assert.inc
+
+--echo
+--echo # 5. Stop server and confirm value of auto_increment_increment is 1 and
+--echo #    auto_increment_offset is 1
+
+--source include/stop_group_replication.inc
+
+--let $assert_text= The default value of auto_increment_increment for single primary should be 1
+--let $assert_cond= [SELECT @@GLOBAL.auto_increment_increment] = 1
+--source include/assert.inc
+
+--let $assert_text= The default value of auto_increment_offset for single primary should be 1
+--let $assert_cond= [SELECT @@GLOBAL.auto_increment_offset] = 1
+--source include/assert.inc
+
+--echo
+--echo # 6. Clean up
+
+--let $rpl_group_replication_reset_persistent_vars=1
+--source include/group_replication_end.inc

@@ -1,0 +1,52 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Start server1 and bootstrap group
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE test.t1 (a INT PRIMARY KEY);
+
+# 2. Configure server2 with weight to be next primary
+[connection server2]
+SET GLOBAL group_replication_member_weight= 90;
+include/start_group_replication.inc
+
+# 3. Lock table to block primary election
+LOCK TABLE t1 READ;
+
+# 4. Start server3
+[connection server3]
+set session sql_log_bin=0;
+call mtr.add_suppression("The function 'group_replication_switch_to_multi_primary_mode' failed. A primary election is occurring in the group. Wait for it to end.");
+set session sql_log_bin=1;
+include/start_group_replication.inc
+
+# 5. Insert data to prevent server2 set read only and block on primary
+#    election
+[connection server1]
+INSERT INTO t1 VALUES (1);
+
+# 6. Stop server1 and run primary election
+include/stop_group_replication.inc
+
+# 7. Executing an action will fail, a primary election is running
+[connection server3]
+SELECT group_replication_switch_to_multi_primary_mode();
+ERROR HY000: The function 'group_replication_switch_to_multi_primary_mode' failed. A primary election is occurring in the group. Wait for it to end.
+
+# 8. Unlock table to primary election finish
+[connection server2]
+UNLOCK TABLES;
+
+# 9. Assert server2 is the new primary
+include/gr_assert_primary_member.inc
+
+# 10. Cleanup
+[connection server1]
+include/start_group_replication.inc
+[connection server2]
+DROP TABLE t1;
+SET GLOBAL group_replication_member_weight= DEFAULT;
+include/group_replication_end.inc

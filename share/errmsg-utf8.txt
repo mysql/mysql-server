@@ -13100,7 +13100,7 @@ ER_GRP_RPL_SESSION_OPEN_FAILED
   eng "Unable to open session to (re)set read only mode. Skipping."
 
 ER_GRP_RPL_NEW_PRIMARY_ELECTED
-  eng "A new primary with address %s:%u was elected, enabling conflict detection until the new primary applies all relay logs."
+  eng "A new primary with address %s:%u was elected. %s"
 
 ER_GRP_RPL_DISABLE_READ_ONLY_FAILED
   eng "Unable to disable super read only flag. Try to disable it manually"
@@ -18196,6 +18196,63 @@ ER_INVALID_VALUE_OF_BIND_ADDRESSES
 
 ER_RELAY_LOG_SPACE_LIMIT_DISABLED
   eng "Ignoring the @@global.relay_log_space_limit option because @@global.relay_log_purge is disabled."
+
+ER_GRP_RPL_ERROR_GTID_SET_EXTRACTION
+  eng "Error when extracting GTID execution information: %s"
+
+ER_GRP_RPL_MISSING_GRP_RPL_ACTION_COORDINATOR
+  eng "Message received without a proper group coordinator module."
+
+ER_GRP_RPL_JOIN_WHEN_GROUP_ACTION_RUNNING
+  eng "A member cannot join the group while a group configuration operation is running."
+
+ER_GRP_RPL_JOINER_EXIT_WHEN_GROUP_ACTION_RUNNING
+  eng "A member is joining the group while a group configuration operation is occurring. The member will now leave the group"
+
+ER_GRP_RPL_CHANNEL_THREAD_WHEN_GROUP_ACTION_RUNNING
+  eng "Can't start slave %s when group replication is running a group configuration operation."
+
+ER_GRP_RPL_APPOINTED_PRIMARY_NOT_PRESENT
+  eng "A primary election was invoked but the requested primary member is not in the group. Request ignored."
+
+ER_GRP_RPL_ERROR_ON_MESSAGE_SENDING
+  eng "Error while sending message. Context: %s"
+
+ER_GRP_RPL_CONFIGURATION_ACTION_ERROR
+  eng "Error while executing a group configuration operation: %s"
+
+ER_GRP_RPL_CONFIGURATION_ACTION_LOCAL_TERMINATION
+  eng "Configuration operation '%s' terminated. %s"
+
+ER_GRP_RPL_CONFIGURATION_ACTION_START
+  eng "Starting group operation local execution: %s"
+
+ER_GRP_RPL_CONFIGURATION_ACTION_END
+  eng "Termination of group operation local execution: %s"
+
+ER_GRP_RPL_CONFIGURATION_ACTION_KILLED_ERROR
+  eng "A configuration change was killed in this member. The member will now leave the group as its configuration may have diverged."
+
+ER_GRP_RPL_PRIMARY_ELECTION_PROCESS_ERROR
+  eng "There was an issue on the primary election process: %s The member will now leave the group."
+
+ER_GRP_RPL_PRIMARY_ELECTION_STOP_ERROR
+  eng "There was an issue when stopping a previous election process: %s"
+
+ER_GRP_RPL_NO_STAGE_SERVICE
+  eng "It was not possible to initialize stage logging for this task. The operation will still run without stage tracking."
+
+ER_GRP_RPL_UDF_REGISTER_ERROR
+  eng "Could not execute the installation of Group Replication UDF function: %s. Check if the function is already present, if so, try to remove it"
+
+ER_GRP_RPL_UDF_UNREGISTER_ERROR
+  eng "Could not uninstall Group Replication UDF functions. Try to remove them manually if present."
+
+ER_GRP_RPL_UDF_REGISTER_SERVICE_ERROR
+  eng "Could not execute the installation of Group Replication UDF functions. Check for other errors in the log and try to reinstall the plugin"
+
+ER_GRP_RPL_UDF_ERROR
+  eng "The function '%s' failed. %s"
 
 #
 # End of 8.0 Server error messages.

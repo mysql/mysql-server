@@ -1,0 +1,78 @@
+###############################################################################
+#
+# Configuration changes can be invoked in any member despite its
+# primary or secondary role.
+#
+# Test:
+#   0. This test requires two servers
+#   1. On multi-primary mode any member can execute action to change to
+#      single primary mode
+#   2. On single primary mode a secondary member can execute a change of
+#      primary member
+#   3. On single primary mode a primary member can execute a change of
+#      primary member
+#   4. On single primary mode a secondary member can execute a change to
+#      multi primary mode
+#   5. Cleanup
+#
+###############################################################################
+
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+--echo
+--echo # 1. On multi-primary mode any member can execute action to change to
+--echo #    single primary mode
+
+--let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--replace_result $server1_uuid MEMBER1_UUID
+--eval SELECT group_replication_switch_to_single_primary_mode("$server1_uuid")
+
+# UDF function returns when all members say they finish. On server2
+# the message may not have been yet receive. Wait for no event of
+# group_rpl on stage to continue
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $wait_condition=SELECT COUNT(*)=0 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%"
+--source include/wait_condition.inc
+
+--echo
+--echo # 2. On single primary mode a secondary member can execute a change of
+--echo #    primary member
+
+--let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--replace_result $server2_uuid MEMBER2_UUID
+--eval SELECT group_replication_set_as_primary("$server2_uuid")
+
+--source include/gr_assert_primary_member.inc
+
+--echo
+--echo # 3. On single primary mode a primary member can execute a change of
+--echo #    primary member
+
+--replace_result $server1_uuid MEMBER1_UUID
+--eval SELECT group_replication_set_as_primary("$server1_uuid")
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/gr_assert_primary_member.inc
+
+--echo
+--echo # 4. On single primary mode a secondary member can execute a change to
+--echo #    multi primary mode
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SELECT group_replication_switch_to_multi_primary_mode();
+
+--echo
+--echo # 5. Cleanup
+
+--let $rpl_group_replication_reset_persistent_vars=1
+--source include/group_replication_end.inc

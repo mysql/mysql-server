@@ -1,0 +1,145 @@
+###############################################################################
+#
+# Test actions on network partitions, the secondary dies and there is a partition
+# Force a group with the primary member.
+#
+# Test:
+#   0. This test requires two servers
+#   1. Create table t1 and sync on group
+#   2. Lock table on server2 to block action
+#   3. Insert values on group
+#   4. Execute action that will block that will elect server1 as the primary
+#   5. Create a network partition by restarting server2 and disable start
+#      on boot
+#   6. Wait for members be unreachable
+#   7. Set force members to server1 unblocking the group
+#   8. Reap with success action executed
+#   9. Rejoin to group server2
+#  10. Assert server1 is primary on the group
+#  11. Assert server2 is secondary on the group
+#  12. Cleanup
+#
+###############################################################################
+
+--source include/not_valgrind.inc
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Create table t1 and sync on group
+
+--let $member1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+--let $local_address_server1= `SELECT @@GLOBAL.group_replication_local_address`
+
+CREATE TABLE test.t1 (a INT PRIMARY KEY);
+--source include/rpl_sync.inc
+
+--echo
+--echo # 2. Lock table on server2 to block action
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+--let $local_address_server2= `SELECT @@GLOBAL.group_replication_local_address`
+
+LOCK TABLE t1 READ;
+
+--echo
+--echo # 3. Insert values on group
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+INSERT INTO t1 VALUES (1);
+
+--echo
+--echo # 4. Execute action that will block
+
+--replace_result $member1_uuid MEMBER1_UUID
+--send_eval SELECT group_replication_switch_to_single_primary_mode("$member1_uuid")
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+# Wait for it to start the election process to make the test deterministic
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Single-primary Switch: executing Primary election%"
+--source include/wait_condition.inc
+
+--echo
+--echo # 5. Create a network partition by restarting server2 and disable start
+--echo #    on boot
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
+--let $restart_parameters=restart:--group-replication-start-on-boot=0 --group-replication-group-name=$group_replication_group_name --group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_single_primary_mode=TRUE --group_replication_enforce_update_everywhere_checks=FALSE
+--source include/kill_and_restart_mysqld.inc
+
+--let $rpl_server_number= 2
+--source include/rpl_reconnect.inc
+
+--echo
+--echo # 6. Wait for members be unreachable
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--let $group_replication_member_state= UNREACHABLE
+--let $group_replication_member_id= $member2_uuid
+--source include/gr_wait_for_member_state.inc
+
+--echo
+--echo # 7. Set force members to server1 unblocking the group
+
+--disable_query_log
+--eval SET GLOBAL group_replication_force_members= "$local_address_server1"
+--enable_query_log
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--echo
+--echo # 8. Reap with success action executed
+
+--replace_result $member1_uuid MEMBER1_UUID
+--reap
+
+--echo
+--echo # 9. Rejoin to group server2
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+
+--echo
+--echo # 10. Assert server1 is primary on the group
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--source include/gr_assert_primary_member.inc
+
+--echo
+--echo # 11. Assert server2 is secondary on the group
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/gr_assert_secondary_member.inc
+
+--echo
+--echo # 12. Cleanup
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+DROP TABLE t1;
+
+--let $rpl_group_replication_single_primary_mode=1
+--let $rpl_group_replication_reset_persistent_vars=1
+--source include/group_replication_end.inc

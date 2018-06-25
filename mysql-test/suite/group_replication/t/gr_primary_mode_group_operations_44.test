@@ -1,0 +1,102 @@
+###############################################################################
+#
+# Error in the election process that prevent its progress shall
+# make the server leave the group (if configured to) as its configuration
+# may have deviated from the group.
+#
+# Test:
+#   0. This test requires three servers
+#   1. Server1 start, bootstrap the group
+#   2. Start server2 and server3
+#   3. Stop the applier sql thread on server2
+#   4. Set server2 weight higher to be new primary server
+#   5. Stop primary member that will force election from another member
+#   6. Server2 will fail (applier thread stopped)  and leave the group
+#   7. Server3 is the new primary
+#   8. Confirm server2 is on ERROR state
+#   9. Cleanup
+#
+###############################################################################
+
+--source include/have_group_replication_plugin.inc
+--let $rpl_server_count= 3
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Server1 start, bootstrap the group
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--echo
+--echo # 2. Start server2 and server3
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+set session sql_log_bin=0;
+call mtr.add_suppression("There was an issue on the primary election process: Could not wait for the execution of local transactions. The member will now leave the group.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+set session sql_log_bin=1;
+
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+--let $server3_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--echo
+--echo # 3. Stop the applier sql thread on server2
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/gr_stop_applier_sql_thread.inc
+
+--echo
+--echo # 4. Set server2 weight higher to be new primary server
+
+SET GLOBAL group_replication_member_weight= 90;
+
+--echo
+--echo # 5. Stop primary member that will force election from another member
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+
+--echo
+--echo # 6. Server2 will fail (applier thread stopped)  and leave the group
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--let $group_replication_number_of_members= 1
+--source include/gr_wait_for_number_of_members.inc
+
+--echo # 7. Server3 is the new primary
+
+--source include/gr_assert_primary_member.inc
+
+--echo
+--echo # 8. Confirm server2 is on ERROR state
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $group_replication_member_state= ERROR
+--source include/gr_wait_for_member_state.inc
+
+--echo
+--echo # 9. Cleanup
+
+SET @@GLOBAL.group_replication_member_weight= DEFAULT;
+
+--let $rpl_group_replication_reset_persistent_vars=1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication_end.inc

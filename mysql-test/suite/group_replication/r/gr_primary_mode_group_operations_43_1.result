@@ -1,0 +1,40 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Start the servers, server 2 is configured to abort
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+set session sql_log_bin=0;
+call mtr.add_suppression("A configuration change was killed in this member. The member will now leave the group as its configuration may have diverged.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("The plugin encountered a critical error and will abort: Fatal error during a Group Replication configuration change. *");
+set session sql_log_bin=1;
+SET @@GLOBAL.group_replication_exit_state_action = ABORT_SERVER;
+include/start_group_replication.inc
+[connection server3]
+include/start_group_replication.inc
+
+# 2. Stop the applier sql thread in server2
+[connection server2]
+include/gr_stop_applier_sql_thread.inc
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+
+# 3. Change to multi primary mode
+[connection server1]
+SELECT group_replication_switch_to_multi_primary_mode();
+group_replication_switch_to_multi_primary_mode()
+Mode switched to multi-primary successfully.
+
+# 4. Server2 shall abort and 'exit' the group
+[connection server1]
+include/rpl_gr_wait_for_number_of_members.inc
+
+# 5. Wait for server 2 to disconnect/abort and restart
+[connection server2]
+include/rpl_reconnect.inc
+
+# 6. Cleanup
+include/group_replication_end.inc

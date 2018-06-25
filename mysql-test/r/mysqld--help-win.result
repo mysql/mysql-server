@@ -1552,7 +1552,7 @@ performance-schema-events-waits-history-long-size -1
 performance-schema-events-waits-history-size -1
 performance-schema-hosts-size -1
 performance-schema-instrument 
-performance-schema-max-cond-classes 80
+performance-schema-max-cond-classes 100
 performance-schema-max-cond-instances -1
 performance-schema-max-digest-length 1024
 performance-schema-max-digest-sample-age 60
@@ -1571,7 +1571,7 @@ performance-schema-max-rwlock-instances -1
 performance-schema-max-socket-classes 10
 performance-schema-max-socket-instances -1
 performance-schema-max-sql-text-length 1024
-performance-schema-max-stage-classes 150
+performance-schema-max-stage-classes 175
 performance-schema-max-statement-classes 212
 performance-schema-max-statement-stack 10
 performance-schema-max-table-handles -1

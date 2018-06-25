@@ -17,33 +17,49 @@ wait/synch/mutex/group_rpl/LOCK_certifier_broadcast_dispatcher_run	YES	YES	singl
 wait/synch/mutex/group_rpl/LOCK_certification_info	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_certification_members	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_channel_observation_list	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_channel_observation_removal	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_count_down_latch	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_delayed_init_run	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_delayed_init_server_ready	YES	YES	singleton	0	NULL
-wait/synch/mutex/group_rpl/key_GR_LOCK_group_part_handler_run	YES	YES	singleton	0	NULL
-wait/synch/mutex/group_rpl/key_GR_LOCK_group_part_handler_abort	YES	YES	singleton	0	NULL
-wait/synch/mutex/group_rpl/LOCK_view_modification_wait	YES	YES	singleton	0	NULL
-wait/synch/mutex/group_rpl/LOCK_group_info_manager	YES	YES	singleton	0	NULL
-wait/synch/mutex/group_rpl/LOCK_pipeline_continuation	YES	YES	singleton	0	NULL
-wait/synch/mutex/group_rpl/LOCK_synchronized_queue	YES	YES	singleton	0	NULL
-wait/synch/mutex/group_rpl/LOCK_count_down_latch	YES	YES	singleton	0	NULL
-wait/synch/mutex/group_rpl/LOCK_wait_ticket	YES	YES	singleton	0	NULL
-wait/synch/mutex/group_rpl/LOCK_recovery_module_run	YES	YES	singleton	0	NULL
-wait/synch/mutex/group_rpl/LOCK_recovery	YES	YES	singleton	0	NULL
-wait/synch/mutex/group_rpl/LOCK_recovery_donor_selection	YES	YES	singleton	0	NULL
-wait/synch/mutex/group_rpl/LOCK_session_thread_method_exec	YES	YES	singleton	0	NULL
-wait/synch/mutex/group_rpl/LOCK_session_thread_run	YES	YES	singleton	0	NULL
-wait/synch/mutex/group_rpl/LOCK_plugin_running	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_force_members_running	YES	YES	singleton	0	NULL
-wait/synch/mutex/group_rpl/LOCK_write_lock_protection	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/key_GR_LOCK_group_action_coordinator_process	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/key_GR_LOCK_group_action_coordinator_thread	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/key_GR_LOCK_group_action_coordinator_thread_end	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_group_info_manager	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/key_GR_LOCK_group_part_handler_abort	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/key_GR_LOCK_group_part_handler_run	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_multi_primary_action_notification	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_pipeline_continuation	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_pipeline_stats_flow_control	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_pipeline_stats_transactions_waiting_apply	YES	YES	singleton	0	NULL
-wait/synch/mutex/group_rpl/LOCK_transaction_unblocking	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_plugin_online	YES	YES	singleton	0	NULL
-wait/synch/mutex/group_rpl/LOCK_channel_observation_removal	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_plugin_running	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_primary_election_action_phase	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_primary_election_action_notification	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_primary_election_primary_process_run	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_primary_election_running_flag	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_primary_election_secondary_process_run	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_primary_election_validation_notification	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_recovery	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_recovery_donor_selection	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_recovery_module_run	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_server_ongoing_transaction_handler	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_session_thread_method_exec	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_session_thread_run	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_stage_monitor_handler	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_synchronized_queue	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_transaction_unblocking	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_view_modification_wait	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_wait_ticket	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_write_lock_protection	YES	YES	singleton	0	NULL
 wait/synch/rwlock/group_rpl/RWLOCK_certifier_stable_gtid_set	YES	YES	singleton	0	NULL
-wait/synch/rwlock/group_rpl/RWLOCK_plugin_stop	YES	YES	singleton	0	NULL
+wait/synch/rwlock/group_rpl/RWLOCK_channel_observation_list	YES	YES	singleton	0	NULL
 wait/synch/rwlock/group_rpl/RWLOCK_gcs_operations	YES	YES	singleton	0	NULL
 wait/synch/rwlock/group_rpl/RWLOCK_gcs_operations_finalize_ongoing	YES	YES	singleton	0	NULL
+wait/synch/rwlock/group_rpl/RWLOCK_group_event_observation_list	YES	YES	singleton	0	NULL
+wait/synch/rwlock/group_rpl/RWLOCK_io_cache_unused_list	YES	YES	singleton	0	NULL
+wait/synch/rwlock/group_rpl/RWLOCK_plugin_stop	YES	YES	singleton	0	NULL
+wait/synch/rwlock/group_rpl/RWLOCK_transaction_observation_list	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/COND_applier_module_run	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/COND_applier_module_suspend	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/COND_applier_module_wait	YES	YES	singleton	0	NULL
@@ -51,8 +67,12 @@ wait/synch/cond/group_rpl/COND_certifier_broadcast_run	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/COND_certifier_broadcast_dispatcher_run	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/COND_delayed_init_run	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/COND_delayed_init_server_ready	YES	YES	singleton	0	NULL
+wait/synch/cond/group_rpl/COND_group_action_coordinator_process	YES	YES	singleton	0	NULL
+wait/synch/cond/group_rpl/COND_group_action_coordinator_thread	YES	YES	singleton	0	NULL
+wait/synch/cond/group_rpl/COND_group_action_coordinator_thread_end	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/COND_group_part_handler_run	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/COND_group_part_handler_abort	YES	YES	singleton	0	NULL
+wait/synch/cond/group_rpl/COND_multi_primary_action_notification	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/COND_view_modification_wait	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/COND_pipeline_continuation	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/COND_synchronized_queue	YES	YES	singleton	0	NULL
@@ -63,8 +83,28 @@ wait/synch/cond/group_rpl/COND_recovery	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/COND_session_thread_method_exec	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/COND_session_thread_run	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/COND_pipeline_stats_flow_control	YES	YES	singleton	0	NULL
+wait/synch/cond/group_rpl/COND_primary_election_action_notification	YES	YES	singleton	0	NULL
+wait/synch/cond/group_rpl/COND_primary_election_primary_process_run	YES	YES	singleton	0	NULL
+wait/synch/cond/group_rpl/COND_primary_election_secondary_process_run	YES	YES	singleton	0	NULL
+wait/synch/cond/group_rpl/COND_primary_election_validation_notification	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/COND_write_lock_protection	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/COND_plugin_online	YES	YES	singleton	0	NULL
+stage/group_rpl/Multi-primary Switch: waiting for pending transactions to finish	YES	YES	progress	0	NULL
+stage/group_rpl/Multi-primary Switch: waiting on another member step completion	YES	YES	progress	0	NULL
+stage/group_rpl/Multi-primary Switch: applying buffered transactions	YES	YES	progress	0	NULL
+stage/group_rpl/Multi-primary Switch: waiting for operation to complete on all members	YES	YES	progress	0	NULL
+stage/group_rpl/Primary Election: applying buffered transactions	YES	YES	progress	0	NULL
+stage/group_rpl/Primary Election: waiting on current primary transaction execution	YES	YES	progress	0	NULL
+stage/group_rpl/Primary Election: waiting for members to enable super_read_only	YES	YES	progress	0	NULL
+stage/group_rpl/Primary Election: stabilizing transactions from former primaries	YES	YES	progress	0	NULL
+stage/group_rpl/Primary switch: checking current primary pre-conditions	YES	YES	progress	0	NULL
+stage/group_rpl/Primary Switch: waiting for pending transactions to finish	YES	YES	progress	0	NULL
+stage/group_rpl/Primary Switch: executing Primary election	YES	YES	progress	0	NULL
+stage/group_rpl/Primary Switch: waiting on another member step completion	YES	YES	progress	0	NULL
+stage/group_rpl/Primary Switch: waiting for operation to complete on all members	YES	YES	progress	0	NULL
+stage/group_rpl/Single-primary Switch: checking group pre-conditions	YES	YES	progress	0	NULL
+stage/group_rpl/Single-primary Switch: executing Primary election	YES	YES	progress	0	NULL
+stage/group_rpl/Single-primary Switch: waiting for operation to complete on all members	YES	YES	progress	0	NULL
 
 ############################################################
 # 2. Start the GR

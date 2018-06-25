@@ -1,0 +1,102 @@
+###############################################################################
+#
+# Test the execution of configuration changes against concurrent member
+# shutdowns.
+#
+# Test:
+#   0. This test requires three servers
+#   1. Execute action to switch to single primary
+#      Block the action right before the invocation of Primary Election
+#   2. Unblock the action
+#   3. Shutdown the server.
+#      Do it in a way that connections are killed before the plugin stop.
+#      Wait for the server to be back again
+#   4. Check the action completed correctly
+#   5. Cleanup
+#
+###############################################################################
+
+--source include/big_test.inc
+--source include/have_debug_sync.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Execute action to switch to single primary
+--echo # Block the action right before the invocation of Primary Election
+
+--let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+SET @@GLOBAL.DEBUG= '+d,group_replication_block_primary_action_validation';
+
+--replace_result $server1_uuid MEMBER1_UUID
+--send_eval SELECT group_replication_switch_to_single_primary_mode("$server1_uuid")
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%"
+--source include/wait_condition.inc
+
+--echo
+--echo # 2. Unblock the action
+
+SET DEBUG_SYNC= "now SIGNAL signal.primary_action_continue";
+SET @@GLOBAL.DEBUG= '-d,group_replication_block_primary_action_validation';
+
+--echo
+--echo # 3. Shutdown the server.
+--echo # Do it in a way that connections are killed before the plugin stop.
+--echo # Wait for the server to be back again
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+--send_shutdown
+
+--source include/wait_until_disconnected.inc
+
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+--let $rpl_server_number= 2
+--source include/rpl_reconnect.inc
+
+--echo
+--echo # 4. Check the action completed correctly
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--replace_result $server1_uuid MEMBER1_UUID
+--reap
+
+--echo
+--echo # 5. Cleanup
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+set session sql_log_bin=0;
+call mtr.add_suppression("Failed to establish an internal server connection to execute plugin operations. Server error: 3169. Server error message: Session was killed");
+call mtr.add_suppression("Error running internal SQL query: SET PERSIST_ONLY group_replication_enforce_update_everywhere_checks = OFF. Internal failure.");
+call mtr.add_suppression("Internal query: SET PERSIST_ONLY group_replication_enforce_update_everywhere_checks = OFF result in error. Error number: -2");
+call mtr.add_suppression("Error, maximum number of retries exceeded when waiting for the internal server session state to be operating");
+call mtr.add_suppression("Failed to establish an internal server connection to execute plugin operations");
+call mtr.add_suppression("Error running internal SQL query: SET PERSIST_ONLY group_replication_single_primary_mode = ON. Internal failure.");
+call mtr.add_suppression("Internal query: SET PERSIST_ONLY group_replication_single_primary_mode = ON result in error. Error number: -2");
+call mtr.add_suppression("Error running internal SQL query: SELECT @@GLOBAL.super_read_only. Internal failure.");
+call mtr.add_suppression("Unable to read the server value for the super_read_only variable.");
+call mtr.add_suppression("The plugin encountered a critical error and will abort: Cannot enable the super read only mode on a secondary member.");
+call mtr.add_suppression("Error running internal SQL query: SET GLOBAL super_read_only= 1;. Internal failure.");
+set session sql_log_bin=1;
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $rpl_group_replication_single_primary_mode=1
+--let $rpl_group_replication_reset_persistent_vars=1
+--source include/group_replication_end.inc

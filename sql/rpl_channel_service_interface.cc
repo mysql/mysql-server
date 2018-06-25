@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -861,6 +861,37 @@ int channel_wait_until_apply_queue_applied(const char *channel,
   int error =
       mi->rli->wait_for_gtid_set(current_thd, retrieved_gtid_set_buf, timeout);
   my_free(retrieved_gtid_set_buf);
+  mi->dec_reference();
+
+  if (error == -1) DBUG_RETURN(REPLICATION_THREAD_WAIT_TIMEOUT_ERROR);
+  if (error == -2) DBUG_RETURN(REPLICATION_THREAD_WAIT_NO_INFO_ERROR);
+
+  DBUG_RETURN(error);
+}
+
+int channel_wait_until_transactions_applied(const char *channel,
+                                            const char *gtid_set,
+                                            double timeout,
+                                            bool update_THD_status) {
+  DBUG_ENTER(
+      "channel_wait_until_transactions_applied(channel, gtid_set, timeout)");
+
+  channel_map.rdlock();
+
+  Master_info *mi = channel_map.get_mi(channel);
+
+  if (mi == NULL) {
+    channel_map.unlock(); /* purecov: inspected */
+    DBUG_RETURN(
+        RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR); /* purecov:
+                                                               inspected */
+  }
+
+  mi->inc_reference();
+  channel_map.unlock();
+
+  int error = mi->rli->wait_for_gtid_set(current_thd, gtid_set, timeout,
+                                         update_THD_status);
   mi->dec_reference();
 
   if (error == -1) DBUG_RETURN(REPLICATION_THREAD_WAIT_TIMEOUT_ERROR);

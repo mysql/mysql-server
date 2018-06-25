@@ -1521,7 +1521,6 @@ size_t Certifier::get_local_certified_gtid(
 
 void Certifier::enable_conflict_detection() {
   DBUG_ENTER("Certifier::enable_conflict_detection");
-  DBUG_ASSERT(local_member_info->in_primary_mode());
 
   mysql_mutex_lock(&LOCK_certification_info);
   conflict_detection_enable = true;

@@ -732,7 +732,8 @@ err:
   DBUG_RETURN(error ? error : event_count);
 }
 
-int Relay_log_info::wait_for_gtid_set(THD *thd, char *gtid, double timeout) {
+int Relay_log_info::wait_for_gtid_set(THD *thd, const char *gtid,
+                                      double timeout, bool update_THD_status) {
   DBUG_ENTER("Relay_log_info::wait_for_gtid_set(thd, char *, timeout)");
 
   DBUG_PRINT("info", ("Waiting for %s timeout %lf", gtid, timeout));
@@ -747,12 +748,15 @@ int Relay_log_info::wait_for_gtid_set(THD *thd, char *gtid, double timeout) {
     DBUG_RETURN(-2);
   }
 
-  DBUG_RETURN(wait_for_gtid_set(thd, &wait_gtid_set, timeout));
+  DBUG_RETURN(
+      wait_for_gtid_set(thd, &wait_gtid_set, timeout, update_THD_status));
 }
 
-int Relay_log_info::wait_for_gtid_set(THD *thd, String *gtid, double timeout) {
+int Relay_log_info::wait_for_gtid_set(THD *thd, String *gtid, double timeout,
+                                      bool update_THD_status) {
   DBUG_ENTER("Relay_log_info::wait_for_gtid_set(thd, String, timeout)");
-  DBUG_RETURN(wait_for_gtid_set(thd, gtid->c_ptr_safe(), timeout));
+  DBUG_RETURN(
+      wait_for_gtid_set(thd, gtid->c_ptr_safe(), timeout, update_THD_status));
 }
 
 /*
@@ -763,7 +767,7 @@ int Relay_log_info::wait_for_gtid_set(THD *thd, String *gtid, double timeout) {
   /Alfranio
 */
 int Relay_log_info::wait_for_gtid_set(THD *thd, const Gtid_set *wait_gtid_set,
-                                      double timeout) {
+                                      double timeout, bool update_THD_status) {
   int event_count = 0;
   ulong init_abort_pos_wait;
   int error = 0;
@@ -778,9 +782,10 @@ int Relay_log_info::wait_for_gtid_set(THD *thd, const Gtid_set *wait_gtid_set,
   set_timespec_nsec(&abstime, (ulonglong)timeout * 1000000000ULL);
 
   mysql_mutex_lock(&data_lock);
-  thd->ENTER_COND(&data_cond, &data_lock,
-                  &stage_waiting_for_the_slave_thread_to_advance_position,
-                  &old_stage);
+  if (update_THD_status)
+    thd->ENTER_COND(&data_cond, &data_lock,
+                    &stage_waiting_for_the_slave_thread_to_advance_position,
+                    &old_stage);
   /*
      This function will abort when it notices that some CHANGE MASTER or
      RESET MASTER has changed the master info.
@@ -876,7 +881,8 @@ int Relay_log_info::wait_for_gtid_set(THD *thd, const Gtid_set *wait_gtid_set,
   }
 
   mysql_mutex_unlock(&data_lock);
-  thd->EXIT_COND(&old_stage);
+
+  if (update_THD_status) thd->EXIT_COND(&old_stage);
   DBUG_PRINT("exit",
              ("killed: %d  abort: %d  slave_running: %d "
               "improper_arguments: %d  timed_out: %d",

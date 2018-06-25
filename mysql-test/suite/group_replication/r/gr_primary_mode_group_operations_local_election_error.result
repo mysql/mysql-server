@@ -1,0 +1,39 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Server1 start, bootstrap the group
+include/start_and_bootstrap_group_replication.inc
+
+# 2. Start server2
+[connection server2]
+set session sql_log_bin=0;
+call mtr.add_suppression("There was an issue on the primary election process: Could not wait for the execution of local transactions. The member will now leave the group.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("The function 'group_replication_set_as_primary' failed. A critical error occurred during the local execution of this action. The member will now leave the group");
+call mtr.add_suppression("Plugin group_replication reported: 'A configuration change was killed in this member. The member will now leave the group as its configuration may have diverged.'");
+set session sql_log_bin=1;
+include/start_group_replication.inc
+
+# 3. Stop the applier sql thread on server2
+#    Execute an action, it shall fail
+[connection server2]
+include/gr_stop_applier_sql_thread.inc
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+SELECT group_replication_set_as_primary("MEMBER2_UUID");
+ERROR HY000: The function 'group_replication_set_as_primary' failed. A critical error occurred during the local execution of this action. The member will now leave the group.
+
+# 4. Check that server2 went to error state
+#    The action terminates locally.
+[connection server_2]
+include/gr_wait_for_member_state.inc
+
+# 5. Server 1 is the primary
+[connection server1]
+include/gr_assert_primary_member.inc
+
+# 6. Cleanup
+include/group_replication_end.inc

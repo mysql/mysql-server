@@ -1,0 +1,67 @@
+###############################################################################
+#
+# This test uses mysql slap to create a high concurrency scenario of actions
+# being submitted against the server.
+#
+# Test:
+#   0. This test requires two servers
+#   1. Start group replication on server1 and other members
+#   2. Execute several requests in concurrency
+#   3. Cleanup
+#
+###############################################################################
+
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Start group replication on server1 and other members
+
+--source include/start_and_bootstrap_group_replication.inc
+--let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+--let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--echo
+--echo # 2. Execute several requests in concurrency
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--exec $MYSQL_SLAP -uroot -S$MASTER_MYSOCK --query="SELECT group_replication_switch_to_multi_primary_mode(); SELECT SLEEP(1); SELECT group_replication_switch_to_single_primary_mode();" --delimiter=";" --create-schema=test --concurrency=3 --iterations=2 --number-of-queries=250 --silent
+
+--sleep 1
+
+--exec $MYSQL_SLAP -uroot -S$MASTER_MYSOCK --query="SELECT group_replication_switch_to_single_primary_mode(); SELECT group_replication_set_as_primary('$server2_uuid'); SELECT group_replication_set_as_primary('$server1_uuid'); SELECT group_replication_switch_to_multi_primary_mode();" --delimiter=";" --create-schema=test --concurrency=3 --iterations=2 --number-of-queries=250 --silent
+
+--sleep 1
+
+--echo
+--echo # 3. Cleanup
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+# We don't quite know what is the state of the group at the end, so just ensure server 1 is the new primary
+--disable_query_log
+--disable_result_log
+--eval SELECT group_replication_switch_to_single_primary_mode("$server1_uuid")
+--eval SELECT group_replication_set_as_primary("$server1_uuid")
+--enable_result_log
+--enable_query_log
+
+set session sql_log_bin=0;
+call mtr.add_suppression("The function 'group_replication_switch_to_multi_primary_mode' failed. There is already a configuration action being proposed locally. Wait for it to finish.");
+call mtr.add_suppression("The function 'group_replication_switch_to_single_primary_mode' failed. There is already a configuration action being proposed locally. Wait for it to finish.");
+call mtr.add_suppression("The function 'group_replication_set_as_primary' failed. There is already a configuration action being proposed locally. Wait for it to finish.");
+set session sql_log_bin=1;
+
+--let $rpl_group_replication_reset_persistent_vars=1
+--source include/group_replication_end.inc

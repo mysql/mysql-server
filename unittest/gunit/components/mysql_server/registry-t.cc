@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,9 @@
 #include <component_sys_var_service.h>
 #include <mysql/components/services/backup_lock_service.h>
 #include <mysql/components/services/component_sys_var_service.h>
+#include <mysql/components/services/ongoing_transaction_query_service.h>
 #include <mysql/components/services/persistent_dynamic_loader.h>
+#include <mysql_ongoing_transaction_query.h>
 #include <persistent_dynamic_loader.h>
 #include <security_context_imp.h>
 #include <server_component.h>
@@ -183,6 +185,13 @@ DEFINE_BOOL_METHOD(mysql_security_context_imp::set,
                    (Security_context_handle, const char *, void *)) {
   return true;
 }
+
+DEFINE_BOOL_METHOD(
+    mysql_ongoing_transactions_query_imp::get_ongoing_server_transactions,
+    (unsigned long **, unsigned long *)) {
+  return 0;
+}
+
 /* TODO following code resembles symbols used in sql library, these should be
   some day extracted to be reused both in sql library and server component unit
   tests. */

@@ -115,7 +115,7 @@ show engine PERFORMANCE_SCHEMA status;
 show global status like "performance_schema%";
 show global variables like "performance_schema_max_cond_classes";
 Variable_name	Value
-performance_schema_max_cond_classes	80
+performance_schema_max_cond_classes	100
 select count(*) > 0 from performance_schema.setup_instruments
 where name like "wait/synch/cond/%";
 count(*) > 0

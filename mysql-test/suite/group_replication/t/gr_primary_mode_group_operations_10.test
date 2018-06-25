@@ -1,0 +1,73 @@
+###############################################################################
+#
+# No configuration change can happen if one of the members is in recovery mode.
+#
+# Test:
+#   0. The test requires two servers.
+#   1. Server1 bootstrap group
+#   2. Disable applier sql thread on server1 to prevent other servers to
+#      join the group, will be block on recovery
+#   3. Start server 2 that will block on recovery
+#   4. Execute action switch to single primary that will fail due a server
+#      is blocked on recovery
+#   5. Unlock applier sql thread to allow server2 to join to group
+#   6. Cleanup
+#
+###############################################################################
+
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Server1 bootstrap group
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--echo
+--echo # 2. Disable applier sql thread on server1 to prevent other servers to
+--echo #    join the group, will be block on recovery
+
+--source include/gr_stop_applier_sql_thread.inc
+
+--echo
+--echo # 3. Start server 2 that will block on recovery
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+set session sql_log_bin=0;
+call mtr.add_suppression("Error while executing a group configuration operation: A member is joining the group, wait for it to be ONLINE.");
+set session sql_log_bin=1;
+
+--let $group_replication_start_member_state= RECOVERING
+--source include/start_group_replication.inc
+
+--echo
+--echo # 4. Execute action switch to single primary that will fail due a server
+--echo #    is blocked on recovery
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+set session sql_log_bin=0;
+call mtr.add_suppression("The function 'group_replication_switch_to_single_primary_mode' failed. A member is joining the group.*");
+set session sql_log_bin=1;
+
+--replace_result $server1_uuid MEMBER1_UUID
+--error ER_GRP_RPL_UDF_ERROR
+--eval SELECT group_replication_switch_to_single_primary_mode("$server1_uuid")
+
+--echo
+--echo # 5. Unlock applier sql thread to allow server2 to join to group
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/gr_start_applier_sql_thread.inc
+
+--echo
+--echo # 6. Cleanup
+
+--source include/group_replication_end.inc

@@ -1,0 +1,65 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Fetch server uuid of all the members.
+[connection server3]
+[connection server2]
+
+# 2. Execute group action switch to primary mode on server2 to set
+#    server3 as primary.
+SELECT group_replication_switch_to_single_primary_mode("MEMBER3_UUID");
+group_replication_switch_to_single_primary_mode("MEMBER3_UUID")
+Mode switched to single-primary successfully.
+
+# 3. Verify that secondaries: server1, server2 and primary: server3.
+include/gr_assert_secondary_member.inc
+[connection server1]
+include/gr_assert_secondary_member.inc
+[connection server3]
+include/gr_assert_primary_member.inc
+
+# 4. Execute action on a secondary server1 to make another secondary
+#    server2 as primary.
+[connection server1]
+SELECT group_replication_set_as_primary("MEMBER2_UUID");
+group_replication_set_as_primary("MEMBER2_UUID")
+Primary server switched to: MEMBER2_UUID
+
+# 5. Verify that secondaries: server1, server3 and primary: server2.
+include/gr_assert_secondary_member.inc
+[connection server3]
+include/gr_assert_secondary_member.inc
+[connection server2]
+include/gr_assert_primary_member.inc
+
+# 6. Execute action on a primary server2 to make a secondary server3
+#    as primary.
+SELECT group_replication_set_as_primary("MEMBER3_UUID");
+group_replication_set_as_primary("MEMBER3_UUID")
+Primary server switched to: MEMBER3_UUID
+
+# 7. Verify that secondaries: server1, server2 and primary: server3.
+include/gr_assert_secondary_member.inc
+[connection server1]
+include/gr_assert_secondary_member.inc
+[connection server3]
+include/gr_assert_primary_member.inc
+
+# 8. Execute action on a secondary server1 to make itself as primary.
+[connection server1]
+SELECT group_replication_set_as_primary("MEMBER1_UUID");
+group_replication_set_as_primary("MEMBER1_UUID")
+Primary server switched to: MEMBER1_UUID
+
+# 9. Verify that secondaries: server2, server3 and primary: server1.
+include/gr_assert_primary_member.inc
+[connection server3]
+include/gr_assert_secondary_member.inc
+[connection server2]
+include/gr_assert_secondary_member.inc
+
+# 10. Clean up.
+include/group_replication_end.inc

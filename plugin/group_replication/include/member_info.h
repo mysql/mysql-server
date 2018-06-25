@@ -124,8 +124,11 @@ class Group_member_info : public Plugin_gcs_message {
     // Length of the payload item: 2 bytes
     PIT_LOWER_CASE_TABLE_NAME = 15,
 
+    // Length of the payload item: 1 bytes
+    PIT_GROUP_ACTION_RUNNING = 16,
+
     // No valid type codes can appear after this one.
-    PIT_MAX = 16
+    PIT_MAX = 17
   };
 
   /*
@@ -273,6 +276,19 @@ class Group_member_info : public Plugin_gcs_message {
   uint32 get_configuration_flags();
 
   /**
+    Set the primary flag
+    @param in_primary_mode is the member in primary mode
+  */
+  void set_primary_mode_flag(bool in_primary_mode);
+
+  /**
+    Set the enforces_update_everywhere_checks flag
+    @param enforce_everywhere are the update everywhere checks active or not
+  */
+  void set_enforces_update_everywhere_checks_flag(
+      bool enforce_everywhere_checks);
+
+  /**
     @return the global-variable lower case table names value
   */
   uint get_lower_case_table_names() const;
@@ -411,6 +427,17 @@ class Group_member_info : public Plugin_gcs_message {
    */
   uint get_member_weight();
 
+  /**
+    @return is a group action running in this member
+  */
+  bool is_group_action_running();
+
+  /**
+    Sets if the member is currently running a group action
+    @param is_runnning is a action running
+  */
+  void set_is_group_action_running(bool is_running);
+
  protected:
   void encode_payload(std::vector<unsigned char> *buffer) const;
   void decode_payload(const unsigned char *buffer, const unsigned char *);
@@ -432,6 +459,7 @@ class Group_member_info : public Plugin_gcs_message {
   bool conflict_detection_enable;
   uint member_weight;
   uint lower_case_table_names;
+  bool is_action_running;
 };
 
 /*
@@ -446,6 +474,14 @@ class Group_member_info_manager_interface {
   virtual ~Group_member_info_manager_interface(){};
 
   virtual size_t get_number_of_members() = 0;
+
+  /**
+    Is the member present in the group info
+
+    @param[in] uuid uuid to check
+    @return true if present, false otherwise
+  */
+  virtual bool is_member_info_present(const std::string &uuid) = 0;
 
   /**
     Retrieves a registered Group member by its uuid
@@ -532,6 +568,38 @@ class Group_member_info_manager_interface {
                                   Notification_context &ctx) = 0;
 
   /**
+   Updates the primary/secondary roles of the group.
+   This method allows for all roles to be updated at once in the same method
+
+   @param[in] uuid        the primary member uuid
+   @param[in,out] ctx     The notification context to update.
+  */
+  virtual void update_group_primary_roles(const std::string &uuid,
+                                          Notification_context &ctx) = 0;
+
+  /**
+  Updates the weight of a single member
+
+  @param[in] uuid        member uuid
+  @param[in] member_weight  the new weight
+ */
+  virtual void update_member_weight(const std::string &uuid,
+                                    uint member_weight) = 0;
+
+  /**
+    Changes the primary flag on all members
+    @param in_primary_mode is the member in primary mode
+  */
+  virtual void update_primary_member_flag(bool in_primary_mode) = 0;
+
+  /**
+    Set the enforces_update_everywhere_checks flag on all members
+    @param enforce_everywhere are the update everywhere checks active or not
+  */
+  virtual void update_enforce_everywhere_checks_flag(
+      bool enforce_everywhere) = 0;
+
+  /**
     Encodes this object to send via the network
 
     @param[out] to_encode out parameter to receive the encoded data
@@ -548,14 +616,34 @@ class Group_member_info_manager_interface {
   virtual std::vector<Group_member_info *> *decode(const uchar *to_decode,
                                                    size_t length) = 0;
 
-  /**¬
-  Check if some member of the group has the conflict detection enable
+  /**
+    Check if some member of the group has the conflict detection enable
 
-  @return true if at least one member has  conflict detection enabled
+    @return true if at least one member has  conflict detection enabled
   */
   virtual bool is_conflict_detection_enabled() = 0;
 
-  virtual void get_primary_member_uuid(std::string &primary_member_uuid) = 0;
+  /**
+    Return the uuid for the for the primary
+
+    @param[out] primary_member_uuid the uuid of the primary will be assigned
+    here.
+
+    @note If there is no primary or the member is on error state, the returned
+    uuid is "UNDEFINED". If not on primary mode it returns an empty string.
+
+    @return true if the member is in primary mode, false if it is not.
+  */
+  virtual bool get_primary_member_uuid(std::string &primary_member_uuid) = 0;
+
+  /**
+    Return the group member info for the current group primary
+
+    @note the returned reference must be deallocated by the caller.
+
+    @return reference to a Group_member_info. NULL if not managed
+  */
+  virtual Group_member_info *get_primary_member_info() = 0;
 
   /**¬
   Check if majority of the group is unreachable
@@ -589,6 +677,8 @@ class Group_member_info_manager : public Group_member_info_manager_interface {
 
   size_t get_number_of_members();
 
+  bool is_member_info_present(const std::string &uuid);
+
   Group_member_info *get_group_member_info(const std::string &uuid);
 
   Group_member_info *get_group_member_info_by_index(int idx);
@@ -608,9 +698,19 @@ class Group_member_info_manager : public Group_member_info_manager_interface {
 
   void update_gtid_sets(const std::string &uuid, std::string &gtid_executed,
                         std::string &gtid_retrieved);
+
   void update_member_role(const std::string &uuid,
                           Group_member_info::Group_member_role new_role,
                           Notification_context &ctx);
+
+  void update_group_primary_roles(const std::string &uuid,
+                                  Notification_context &ctx);
+
+  void update_member_weight(const std::string &uuid, uint member_weight);
+
+  void update_primary_member_flag(bool in_primary_mode);
+
+  void update_enforce_everywhere_checks_flag(bool enforce_everywhere);
 
   void encode(std::vector<uchar> *to_encode);
 
@@ -619,7 +719,9 @@ class Group_member_info_manager : public Group_member_info_manager_interface {
 
   bool is_conflict_detection_enabled();
 
-  void get_primary_member_uuid(std::string &primary_member_uuid);
+  bool get_primary_member_uuid(std::string &primary_member_uuid);
+
+  Group_member_info *get_primary_member_info();
 
   bool is_majority_unreachable();
 

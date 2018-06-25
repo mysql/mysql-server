@@ -1,0 +1,57 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Create table t1 and sync on group
+CREATE TABLE test.t1 (a INT PRIMARY KEY);
+include/rpl_sync.inc
+
+# 2. Lock table on server2 to block action
+[connection server2]
+LOCK TABLE t1 READ;
+
+# 3. Insert values on group
+[connection server1]
+INSERT INTO t1 VALUES (1);
+
+# 4. Execute action that will block
+SELECT group_replication_switch_to_single_primary_mode("MEMBER2_UUID");
+[connection server_1]
+
+# 5. Create a network partition by restarting server2 and disable start
+#    on boot
+[connection server2]
+# Kill and restart:--group-replication-start-on-boot=0 --group-replication-group-name=GROUP_REPLICATION_GROUP_NAME --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_single_primary_mode=TRUE --group_replication_enforce_update_everywhere_checks=FALSE
+include/rpl_reconnect.inc
+
+# 6. Wait for members be unreachable
+[connection server_1]
+include/gr_wait_for_member_state.inc
+
+# 7. Set force members to server1 unblocking the group
+[connection server1]
+
+# 8. Reap with success action executed
+group_replication_switch_to_single_primary_mode("MEMBER2_UUID")
+Mode switched to single-primary with reported warnings: The appointed primary left the group as the operation is terminating. Check the group member list to see who is the primary.
+Warnings:
+Warning	13223	The appointed primary left the group as the operation is terminating. Check the group member list to see who is the primary.
+
+# 9. Rejoin to group server2
+[connection server2]
+include/start_group_replication.inc
+
+# 10. Assert server1 is primary on the group
+[connection server_1]
+include/gr_assert_primary_member.inc
+
+# 11. Assert server2 is secondary on the group
+[connection server2]
+include/gr_assert_secondary_member.inc
+
+# 12. Cleanup
+[connection server1]
+DROP TABLE t1;
+include/group_replication_end.inc

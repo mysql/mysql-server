@@ -644,10 +644,48 @@ class Relay_log_info : public Rpl_info {
 
   int wait_for_pos(THD *thd, String *log_name, longlong log_pos,
                    double timeout);
-  int wait_for_gtid_set(THD *thd, char *gtid, double timeout);
-  int wait_for_gtid_set(THD *thd, String *gtid, double timeout);
-  int wait_for_gtid_set(THD *thd, const Gtid_set *wait_gtid_set,
-                        double timeout);
+  /**
+    Wait for a GTID set to be executed.
+
+    @param thd                 The thread for status changes and kill status
+    @param gtid                A char array with a GTID set
+    @param timeout             Number of seconds to wait before timing out
+    @param update_THD_status  Shall the method update the THD stage
+
+    @retval 0  The set is already executed
+    @retval -1 There was a timeout waiting for the set
+    @retval -2 There was an issue while waiting.
+   */
+  int wait_for_gtid_set(THD *thd, const char *gtid, double timeout,
+                        bool update_THD_status = true);
+  /**
+    Wait for a GTID set to be executed.
+
+    @param thd                 The thread for status changes and kill status
+    @param gtid                A String with a GTID set
+    @param timeout             Number of seconds to wait before timing out
+    @param update_THD_status  Shall the method update the THD stage
+
+    @retval 0  The set is already executed
+    @retval -1 There was a timeout waiting for the set
+    @retval -2 There was an issue while waiting.
+  */
+  int wait_for_gtid_set(THD *thd, String *gtid, double timeout,
+                        bool update_THD_status = true);
+  /**
+    Wait for a GTID set to be executed.
+
+    @param thd                 The thread for status changes and kill status
+    @param wait_gtid_set       A GTID_set object
+    @param timeout             Number of seconds to wait before timing out
+    @param update_THD_status   Shall the method update the THD stage
+
+    @retval 0  The set is already executed
+    @retval -1 There was a timeout waiting for the set
+    @retval -2 There was an issue while waiting.
+  */
+  int wait_for_gtid_set(THD *thd, const Gtid_set *wait_gtid_set, double timeout,
+                        bool update_THD_status = true);
 
   void close_temporary_tables();
 

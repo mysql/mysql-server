@@ -1,0 +1,106 @@
+###############################################################################
+#
+# No more than one configuration change can happen at the same time.
+#
+# Test:
+#   0. This test requires two servers
+#   1. Enable debug point to block action
+#   2. Execute a switch to single primary mode on server1
+#   3. Execute parallel group action on server2 that must fail
+#      due to already one operation is being executed
+#   4. Unlock the blocked action on server1
+#   5. Resume the action on server1
+#   6. Cleanup
+#
+###############################################################################
+
+--source include/have_debug_sync.inc
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Enable debug point to block action
+
+--let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+SET @@GLOBAL.DEBUG= '+d,group_replication_block_group_action';
+
+--echo
+--echo # 2. Execute a switch to single primary mode on server1
+
+--replace_result $server1_uuid MEMBER1_UUID
+--send_eval SELECT group_replication_switch_to_single_primary_mode("$server1_uuid")
+
+--echo
+--echo # 3. Execute parallel group action on server2 that must fail
+--echo #    due to already one operation is being executed
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+# verify thread THD_group_action_coordinator has started
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.threads WHERE NAME = "thread/group_rpl/THD_group_action_coordinator"
+--source include/wait_condition.inc
+
+--echo
+--echo # Execute a switch to single primary mode that must fail
+--replace_result $server2_uuid MEMBER2_UUID
+--error ER_GRP_RPL_UDF_ERROR
+--eval SELECT group_replication_switch_to_single_primary_mode("$server2_uuid")
+
+--echo
+--replace_result $server1_uuid MEMBER1_UUID
+--error ER_GRP_RPL_UDF_ERROR
+--eval SELECT group_replication_switch_to_single_primary_mode("$server1_uuid")
+
+--echo
+--error ER_GRP_RPL_UDF_ERROR
+SELECT group_replication_switch_to_single_primary_mode();
+
+--echo
+--echo # Execute a switch to multi primary mode that must be no-op
+SELECT group_replication_switch_to_multi_primary_mode();
+
+--echo
+--echo # Execute a set primary that must fail as can't initialize
+--replace_result $server2_uuid MEMBER2_UUID
+--error ER_CANT_INITIALIZE_UDF
+--eval SELECT group_replication_set_as_primary("$server2_uuid")
+
+--echo
+--replace_result $server1_uuid MEMBER1_UUID
+--error ER_CANT_INITIALIZE_UDF
+--eval SELECT group_replication_set_as_primary("$server1_uuid")
+
+--echo
+--echo # Add suppression
+set session sql_log_bin=0;
+call mtr.add_suppression("The function 'group_replication_switch_to_single_primary_mode' failed. There is*");
+set session sql_log_bin=1;
+
+--echo
+--echo # 4. Unlock the blocked action on server1
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+SET DEBUG_SYNC= "now SIGNAL signal.action_continue";
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--echo
+--echo # 5. Resume the action on server1
+
+--replace_result $server1_uuid MEMBER1_UUID
+--reap
+
+--echo
+--echo # 6. Cleanup
+
+SET @@GLOBAL.DEBUG= '-d,group_replication_block_group_action';
+
+--let $rpl_group_replication_single_primary_mode=1
+--let $rpl_group_replication_reset_persistent_vars=1
+--source include/group_replication_end.inc

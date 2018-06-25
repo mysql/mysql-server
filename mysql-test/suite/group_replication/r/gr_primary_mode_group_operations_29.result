@@ -1,0 +1,73 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Members in Multi Primary Mode, create two tables and rpl_sync
+CREATE TABLE test.t1 (a INT PRIMARY KEY);
+CREATE TABLE test.t2 (a INT PRIMARY KEY);
+include/rpl_sync.inc
+
+# 2. On a member server2  that will be secondary lock a table t1
+[connection server2]
+LOCK TABLE t1 READ;
+
+# 3. On other member insert value on table locked on server2
+[connection server_3]
+SET @@GLOBAL.group_replication_member_weight= 90;
+INSERT INTO t1 VALUES (1);
+[connection server_2]
+
+# 4. Execute action to change to single primary with server1 as primary
+[connection server3]
+SELECT group_replication_switch_to_single_primary_mode("MEMBER1_UUID");
+[connection server_3]
+
+# 5. Check that the other members are waiting for members to be in read
+#    mode. Stages should be
+#     - Primary Election: waiting for members to enable super_read_only
+#     - Single-primary Switch: executing Primary election - completed work 0
+include/assert.inc [The stage should be "Single-primary Switch: executing Primary election"]
+include/assert.inc [The stage should be "Primary Election: waiting for members to enable super_read_only"]
+
+# 6. Lock a table t2 on the primary server1
+[connection server1]
+LOCK TABLE t2 READ;
+
+# 7. Insert something on t2 on server2, the locked secondary
+[connection server_2_1]
+INSERT INTO t2 VALUES (1);
+
+# 8. Unlock table t1 on server2, the locked secondary
+[connection server2]
+UNLOCK TABLES;
+
+# 9. Stage should be
+#      - Single-primary Switch: executing Primary election - completed work 1
+
+# 10. Kill the new primary server1
+[connection server_1]
+# Kill and restart:--group-replication-start-on-boot=0 --group-replication-group-name=GROUP_REPLICATION_GROUP_NAME --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS  --group_replication_single_primary_mode=TRUE --group_replication_enforce_update_everywhere_checks=FALSE
+include/rpl_reconnect.inc
+
+# 11. Check that the action finishes
+[connection server2]
+include/rpl_gr_wait_for_number_of_members.inc
+
+# 12. Check server2 was able to insert value
+[connection server_2_1]
+
+# 13. Using weights one can assert here that primary is now server3
+[connection server3]
+group_replication_switch_to_single_primary_mode("MEMBER1_UUID")
+Mode switched to single-primary with reported warnings: The appointed primary left the group as the operation is terminating. Check the group member list to see who is the primary.
+Warnings:
+Warning	13223	The appointed primary left the group as the operation is terminating. Check the group member list to see who is the primary. There were warnings detected also on other members, check their logs.
+include/gr_assert_primary_member.inc
+
+# 14. Cleanup
+SET @@GLOBAL.group_replication_member_weight= DEFAULT;
+DROP TABLE t1;
+DROP TABLE t2;
+include/group_replication_end.inc

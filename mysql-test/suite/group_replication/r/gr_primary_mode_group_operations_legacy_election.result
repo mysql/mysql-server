@@ -1,0 +1,60 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Start group replication on server1 and bootstrap group
+include/start_and_bootstrap_group_replication.inc
+
+# 2. Configure server2 with lower version, and start group replication
+[connection server2]
+SET @@GLOBAL.DEBUG= '+d,group_replication_legacy_election_version';
+include/start_group_replication.inc
+
+# 3. Start group replication on server3 with a higher weight
+[connection server3]
+SET GLOBAL group_replication_member_weight= 90;
+include/start_group_replication.inc
+
+# 4. Stop group replication on server1 to force election of a new primary
+[connection server1]
+include/stop_group_replication.inc
+
+# 5. Check server3 is the primary and server2 the secondary
+[connection server3]
+include/gr_assert_primary_member.inc
+[connection server2]
+include/gr_assert_secondary_member.inc
+
+# 6. Increase the weight on server2
+SET GLOBAL group_replication_member_weight= 95;
+
+# 7. Start group replication on server1
+[connection server1]
+include/start_group_replication.inc
+
+# 8. Stop group replication on server3 to force election of a new primary
+[connection server3]
+include/stop_group_replication.inc
+
+# 9. Check server2 is the primary and server1 the secondary
+[connection server2]
+include/gr_assert_primary_member.inc
+[connection server1]
+include/gr_assert_secondary_member.inc
+
+# 10. Check the messages logged were for legacy elections.
+include/assert_grep.inc [Found the messages for two elections]
+
+# 11. Cleanup
+[connection server2]
+include/stop_group_replication.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_legacy_election_version';
+SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_restore_version';
+include/start_group_replication.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_compatibility_restore_version';
+SET @@GLOBAL.group_replication_member_weight= DEFAULT;
+[connection server3]
+SET @@GLOBAL.group_replication_member_weight= DEFAULT;
+include/group_replication_end.inc

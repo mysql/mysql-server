@@ -29,17 +29,21 @@
 #include "plugin/group_replication/include/applier.h"
 #include "plugin/group_replication/include/asynchronous_channels_state_observer.h"
 #include "plugin/group_replication/include/auto_increment.h"
-#include "plugin/group_replication/include/channel_observation_manager.h"
 #include "plugin/group_replication/include/compatibility_module.h"
 #include "plugin/group_replication/include/delayed_plugin_initialization.h"
 #include "plugin/group_replication/include/gcs_event_handlers.h"
 #include "plugin/group_replication/include/gcs_operations.h"
 #include "plugin/group_replication/include/gcs_view_modification_notifier.h"
-#include "plugin/group_replication/include/group_partition_handling.h"
+#include "plugin/group_replication/include/group_actions/group_action_coordinator.h"
 #include "plugin/group_replication/include/plugin_constants.h"
+#include "plugin/group_replication/include/plugin_handlers/group_partition_handling.h"
+#include "plugin/group_replication/include/plugin_handlers/primary_election_invocation_handler.h"
+#include "plugin/group_replication/include/plugin_handlers/read_mode_handler.h"
+#include "plugin/group_replication/include/plugin_observers/channel_observation_manager.h"
+#include "plugin/group_replication/include/plugin_observers/group_event_observer.h"
+#include "plugin/group_replication/include/plugin_observers/group_transaction_observation_manager.h"
 #include "plugin/group_replication/include/plugin_server_include.h"
 #include "plugin/group_replication/include/ps_information.h"
-#include "plugin/group_replication/include/read_mode_handler.h"
 #include "plugin/group_replication/include/recovery.h"
 #include "plugin/group_replication/include/services/registry.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_interface.h"
@@ -90,13 +94,18 @@ extern Applier_module *applier_module;
 extern Recovery_module *recovery_module;
 extern Registry_module_interface *registry_module;
 extern Group_member_info_manager_interface *group_member_mgr;
+extern Group_events_observation_manager *group_events_observation_manager;
 extern Channel_observation_manager_list *channel_observation_manager_list;
 extern Asynchronous_channels_state_observer
     *asynchronous_channels_state_observer;
 // Lock for the applier and recovery module to prevent the race between STOP
 // Group replication and ongoing transactions.
+extern Group_transaction_observation_manager
+    *group_transaction_observation_manager;
 extern Shared_writelock *shared_plugin_stop_lock;
 extern Delayed_initialization_thread *delayed_initialization_thread;
+extern Group_action_coordinator *group_action_coordinator;
+extern Primary_election_handler *primary_election_handler;
 
 // Auxiliary Functionality
 extern Plugin_gcs_events_handler *events_handler;
@@ -118,6 +127,10 @@ bool get_allow_local_lower_version_join();
 ulong get_transaction_size_limit();
 bool is_plugin_waiting_to_set_server_read_mode();
 bool check_async_channel_running_on_secondary();
+void set_enforce_update_everywhere_checks(bool option);
+void set_single_primary_mode_var(bool option);
+void set_auto_increment_handler_values();
+void reset_auto_increment_handler_values(bool force_reset = false);
 
 // Plugin public methods
 int plugin_group_replication_init(MYSQL_PLUGIN plugin_info);

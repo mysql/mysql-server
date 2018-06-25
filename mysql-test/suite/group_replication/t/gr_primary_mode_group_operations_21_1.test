@@ -1,0 +1,127 @@
+###############################################################################
+# This test verifies that group actions can be executed from any member and
+# it applies to the group successfully.
+#
+# Test:
+#  0. This test requires three servers
+#  1. Fetch server uuid of all the members.
+#  2. Execute group action switch to primary mode on server2 to set
+#     server3 as primary.
+#  3. Verify that secondaries: server1, server2 and primary: server3.
+#  4. Execute action on a secondary server1 to make another secondary
+#     server2 as primary.
+#  5. Verify that secondaries: server1, server3 and primary: server2.
+#  6. Execute action on a primary server2 to make a secondary server3
+#     as primary.
+#  7. Verify that secondaries: server1, server2 and primary: server3.
+#  8. Execute action on a secondary server1 to make itself as primary.
+#  9. Verify that secondaries: server2, server3 and primary: server1.
+# 10. Clean up.
+###############################################################################
+
+--source include/have_group_replication_plugin.inc
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Fetch server uuid of all the members.
+
+--let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--let $server3_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--echo
+--echo # 2. Execute group action switch to primary mode on server2 to set
+--echo #    server3 as primary.
+
+--replace_result $server3_uuid MEMBER3_UUID
+--eval SELECT group_replication_switch_to_single_primary_mode("$server3_uuid")
+
+--echo
+--echo # 3. Verify that secondaries: server1, server2 and primary: server3.
+
+--source include/gr_assert_secondary_member.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/gr_assert_secondary_member.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--source include/gr_assert_primary_member.inc
+
+--echo
+--echo # 4. Execute action on a secondary server1 to make another secondary
+--echo #    server2 as primary.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--replace_result $server2_uuid MEMBER2_UUID
+--eval SELECT group_replication_set_as_primary("$server2_uuid")
+
+--echo
+--echo # 5. Verify that secondaries: server1, server3 and primary: server2.
+
+--source include/gr_assert_secondary_member.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--source include/gr_assert_secondary_member.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/gr_assert_primary_member.inc
+
+--echo
+--echo # 6. Execute action on a primary server2 to make a secondary server3
+--echo #    as primary.
+
+--replace_result $server3_uuid MEMBER3_UUID
+--eval SELECT group_replication_set_as_primary("$server3_uuid")
+
+--echo
+--echo # 7. Verify that secondaries: server1, server2 and primary: server3.
+
+--source include/gr_assert_secondary_member.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/gr_assert_secondary_member.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--source include/gr_assert_primary_member.inc
+
+--echo
+--echo # 8. Execute action on a secondary server1 to make itself as primary.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--replace_result $server1_uuid MEMBER1_UUID
+--eval SELECT group_replication_set_as_primary("$server1_uuid")
+
+--echo
+--echo # 9. Verify that secondaries: server2, server3 and primary: server1.
+
+--source include/gr_assert_primary_member.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--source include/gr_assert_secondary_member.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/gr_assert_secondary_member.inc
+
+--echo
+--echo # 10. Clean up.
+
+--let $rpl_group_replication_single_primary_mode=1
+--let $rpl_group_replication_reset_persistent_vars=1
+--source include/group_replication_end.inc
