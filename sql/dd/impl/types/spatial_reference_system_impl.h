@@ -256,6 +256,11 @@ class Spatial_reference_system_impl : public Entity_object_impl,
     }
   }
 
+  virtual bool missing_towgs84() const override {
+    return (!m_parsed_definition->is_wgs84_based() &&
+            !m_parsed_definition->has_towgs84());
+  }
+
   virtual double to_radians(double d) const override {
     DBUG_ASSERT(is_geographic());
     DBUG_ASSERT(angular_unit() > 0.0);

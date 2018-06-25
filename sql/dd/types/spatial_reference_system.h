@@ -134,6 +134,16 @@ class Spatial_reference_system : virtual public Entity_object {
   virtual bool positive_east() const = 0;
   virtual bool positive_north() const = 0;
 
+  /// Checks whether the SRS definition is missing a TOWGS84 clause.
+  ///
+  /// TOWGS84 clauses are not mandatory. However, in order to transform to/from
+  /// an SRS, the SRS must either be WGS 84, be a projection of WGS 84, or have
+  /// a TOWGS84 clause in the definition.
+  ///
+  /// @retval true The SRS is missing a TOWGS84 clause.
+  /// @retval false The SRS has or doesn't need a TOWGS84 clause.
+  virtual bool missing_towgs84() const = 0;
+
   /// Converts a coordinate value from the SRS unit to radians.
   ///
   /// The conversion does not take axis direction or meridian shifting into

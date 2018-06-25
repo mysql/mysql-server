@@ -176,6 +176,18 @@ class Spatial_reference_system {
   ///
   /// @return Proj4 parameter string or empty string.
   virtual std::string proj4_parameters() const { return std::string(); }
+
+  /// Checks if this SRS has valid Bursa Wolf parameters.
+  ///
+  /// @retval true Transformation parameters are specified.
+  /// @retval false Transformation parameters are not specified.
+  virtual bool has_towgs84() const = 0;
+
+  /// Checks if this SRS is WGS 84 or a projection based on WGS 84.
+  ///
+  /// @retval true This SRS is WGS 84 or a projection of WGS 84.
+  /// @retval false This SRS is neither WGS 84 or a projection of WGS 84.
+  virtual bool is_wgs84_based() const = 0;
 };
 
 namespace wkt_parser {
@@ -230,16 +242,12 @@ class Geographic_srs : public Spatial_reference_system {
   */
   virtual bool init(srid_t srid, wkt_parser::Geographic_cs *g);
 
-  /**
-    Check if this SRS has valid Bursa Wolf parameters.
-
-    @retval true Transformation parameters are specified
-    @retval false Transformation parameters are not specified
-  */
-  bool has_towgs84() const {
+  bool has_towgs84() const override {
     // Either none or all parameters are specified.
     return !std::isnan(m_towgs84[0]);
   }
+
+  bool is_wgs84_based() const override { return m_is_wgs84; }
 
   Axis_direction axis_direction(const int axis) const override {
     DBUG_ASSERT(axis >= 0 && axis <= 1);
@@ -326,6 +334,12 @@ class Projected_srs : public Spatial_reference_system {
 
   double prime_meridian() const override {
     return m_geographic_srs.prime_meridian();
+  }
+
+  bool has_towgs84() const override { return m_geographic_srs.has_towgs84(); }
+
+  bool is_wgs84_based() const override {
+    return m_geographic_srs.is_wgs84_based();
   }
 };
 

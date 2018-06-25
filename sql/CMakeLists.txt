@@ -248,6 +248,7 @@ SET(SQL_GIS_SOURCES
   gis/srs/srs.cc
   gis/srs/wkt_parser.cc
   gis/touches.cc
+  gis/transform.cc
   gis/union.cc
   gis/within.cc
   gis/wkb.cc

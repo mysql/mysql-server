@@ -8546,6 +8546,18 @@ ER_SRS_INVALID_ANGULAR_UNIT SR002
 ER_SRS_INVALID_PRIME_MERIDIAN SR002
   eng "The prime meridian must be within (-180, 180] degrees, specified in the SRS angular unit."
 
+ER_TRANSFORM_SOURCE_SRS_NOT_SUPPORTED 22S00
+  eng "Transformation from SRID %u is not supported."
+
+ER_TRANSFORM_TARGET_SRS_NOT_SUPPORTED 22S00
+  eng "Transformation to SRID %u is not supported."
+
+ER_TRANSFORM_SOURCE_SRS_MISSING_TOWGS84 22S00
+  eng "Transformation from SRID %u is not supported. The spatial reference system has no TOWGS84 clause."
+
+ER_TRANSFORM_TARGET_SRS_MISSING_TOWGS84 22S00
+  eng "Transformation to SRID %u is not supported. The spatial reference system has no TOWGS84 clause."
+
 #
 #  End of 8.0 error messages.
 #
