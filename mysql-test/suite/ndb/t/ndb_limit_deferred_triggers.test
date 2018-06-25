@@ -7,6 +7,7 @@
 ### Test limiting deferred parent key checking by: ###
 ###   Updating child table having FK constraints   ###
 
+-- source include/not_embedded.inc
 # Server that create tables and fill them
 connect (ddl,localhost,root,,test);
 
