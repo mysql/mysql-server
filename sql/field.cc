@@ -5471,7 +5471,7 @@ type_conversion_status Field_year::store(const char *from, size_t len,
 }
 
 type_conversion_status Field_year::store(double nr) {
-  if (nr < 0.0 || nr >= 2155.0) {
+  if (nr < 0.0 || nr > 2155.0) {
     (void)Field_year::store((longlong)-1, false);
     return TYPE_WARN_OUT_OF_RANGE;
   }
