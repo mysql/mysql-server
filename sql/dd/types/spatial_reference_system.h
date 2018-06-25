@@ -29,8 +29,8 @@
 #include "nullable.h"
 #include "sql/dd/impl/raw/object_keys.h"  // IWYU pragma: keep
 #include "sql/dd/types/entity_object.h"   // dd::Entity_object
-#include "sql/gis/srid.h"
-#include "sql/gis/srs/srs.h"  // srid_t
+#include "sql/gis/geometries.h"           // gis::Coordinate_system
+#include "sql/gis/srid.h"                 // gis::srid_t
 
 class THD;
 
@@ -114,6 +114,7 @@ class Spatial_reference_system : virtual public Entity_object {
 
   virtual const String_type &definition() const = 0;
   virtual void set_definition(const String_type &definition) = 0;
+  virtual gis::Coordinate_system cs_type() const = 0;
   virtual bool is_projected() const = 0;
   virtual bool is_cartesian() const = 0;
   virtual bool is_geographic() const = 0;
