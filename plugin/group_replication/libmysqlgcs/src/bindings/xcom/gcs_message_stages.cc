@@ -23,7 +23,6 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_message_stages.h"
 
 #include <algorithm>
-#include <cassert>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
@@ -132,7 +131,7 @@ void Gcs_message_stage::decode(const unsigned char *hd,
                                unsigned long long *old_payload_length) {
   const unsigned char *slider = hd;
   unsigned int type_code_enc;
-  Gcs_message_stage::stage_code stage_code;
+  Gcs_message_stage::stage_code stage_code MY_ATTRIBUTE((unused));
 
   memcpy(header_length, slider, WIRE_HD_LEN_SIZE);
   *header_length = le16toh(*header_length);
@@ -143,7 +142,7 @@ void Gcs_message_stage::decode(const unsigned char *hd,
   memcpy(&type_code_enc, slider, WIRE_HD_TYPE_SIZE);
   type_code_enc = le32toh(type_code_enc);
   stage_code = static_cast<Gcs_message_stage::stage_code>(type_code_enc);
-  assert(stage_code == get_stage_code());
+  DBUG_ASSERT(stage_code == get_stage_code());
   slider += WIRE_HD_TYPE_SIZE;
   static_assert(sizeof(decltype(type_code_enc)) == WIRE_HD_TYPE_SIZE,
                 "The type_code_enc size does not match the storage capacity");

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,6 +43,7 @@
 #include <string.h>
 
 #include "m_string.h"
+#include "my_compiler.h"
 
 typedef unsigned char uchar;
 typedef unsigned short uint16;
@@ -399,7 +400,7 @@ int dump_ja_hans() {
     int ja_ch_u16 = 0;
     ja_han_u8_to_wc(ja_han, &ja_ch_u16);
     ja_han += 3;
-    int page = ja_ch_u16 >> 8;
+    int page MY_ATTRIBUTE((unused)) = ja_ch_u16 >> 8;
     assert(page >= 0x4E && page <= 0x9F);
     MY_UCA_ITEM *item = &ja_han_items[ja_ch_u16 - 0x4E00];
     item->num_of_ce = 1;

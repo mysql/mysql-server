@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -103,8 +103,7 @@ class buf_pool_t {
     buf_block_t *block = new (std::nothrow) buf_block_t;
     assert(block != nullptr);
     /* Ensure that the page_no is not already allocated. */
-    auto it = m_buf_pool.find(page_no);
-    assert(it == m_buf_pool.end());
+    assert(m_buf_pool.find(page_no) == m_buf_pool.end());
     /* Allocate the new page. */
     block->m_frame = alloc_frame();
     assert(block->m_frame != nullptr);

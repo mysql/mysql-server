@@ -28,6 +28,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <list>
 #include <string>
 
+#include "my_compiler.h"
+
 REQUIRES_SERVICE_PLACEHOLDER(udf_registration);
 REQUIRES_SERVICE_PLACEHOLDER(udf_registration_aggregate);
 
@@ -103,7 +105,7 @@ static bool dynamic_udf_init(UDF_INIT *initid, UDF_ARGS *, char *) {
   return 0;
 }
 
-static void dynamic_udf_deinit(UDF_INIT *initid) {
+static void dynamic_udf_deinit(UDF_INIT *initid MY_ATTRIBUTE((unused))) {
   assert(initid->ptr == test_init || initid->ptr == test_udf);
 }
 
@@ -118,7 +120,7 @@ static long long dynamic_udf(UDF_INIT *initid, UDF_ARGS *,
   return 42;
 }
 
-static void dynamic_agg_deinit(UDF_INIT *initid) {
+static void dynamic_agg_deinit(UDF_INIT *initid MY_ATTRIBUTE((unused))) {
   assert(initid->ptr == test_init || initid->ptr == test_udf ||
          initid->ptr == test_udf_clear || initid->ptr == test_udf_add);
 }

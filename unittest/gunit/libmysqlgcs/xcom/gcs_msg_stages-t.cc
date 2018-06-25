@@ -370,10 +370,9 @@ class Gcs_new_stage_1 : public Gcs_message_stage {
   }
 
   virtual std::pair<bool, unsigned long long> transform_payload_apply(
-      unsigned int version, unsigned char *new_payload_ptr,
-      unsigned long long new_payload_length, unsigned char *old_payload_ptr,
-      unsigned long long old_payload_length) {
-    assert(version == version);
+      unsigned int,  // version
+      unsigned char *new_payload_ptr, unsigned long long new_payload_length,
+      unsigned char *old_payload_ptr, unsigned long long old_payload_length) {
     assert(new_payload_length == (old_payload_length + MESSAGE_ID_SIZE));
 
     int64_t id = htole64(get_id());
@@ -386,10 +385,10 @@ class Gcs_new_stage_1 : public Gcs_message_stage {
   }
 
   virtual std::pair<bool, unsigned long long> transform_payload_revert(
-      unsigned int version, unsigned char *new_payload_ptr,
-      unsigned long long new_payload_length, unsigned char *old_payload_ptr,
-      unsigned long long old_payload_length) {
-    assert(version == version);
+      unsigned int,  // version
+      unsigned char *new_payload_ptr, unsigned long long new_payload_length,
+      unsigned char *old_payload_ptr,
+      unsigned long long old_payload_length MY_ATTRIBUTE((unused))) {
     assert(new_payload_length == (old_payload_length - MESSAGE_ID_SIZE));
 
     int64_t id = 0;
