@@ -11307,8 +11307,7 @@ void Dblqh::setup_key_pointers(Uint32 tcIndex)
   c_tup->prepare_op_pointer(tcConnectptr.p->tupConnectrec);
 }
 
-void Dblqh::setup_scan_pointers_from_tc_con(TcConnectionrecPtr tcConnectptr,
-                                            bool early)
+void Dblqh::setup_scan_pointers_from_tc_con(TcConnectionrecPtr tcConnectptr)
 {
   /**
    * We come here after a real-time break, we need to setup
@@ -11334,17 +11333,19 @@ void Dblqh::setup_scan_pointers_from_tc_con(TcConnectionrecPtr tcConnectptr,
   prim_tab_fragptr = loc_prim_tab_fragptr;
   c_tup->prepare_op_pointer(tcConnectptr.p->tupConnectrec);
   c_tup->prepare_tab_pointers(loc_prim_tab_fragptr.p->tupFragptr);
-  if (!early)
+  if (likely(loc_scanptr.p->scanStoredProcId != RNIL))
   {
     Uint32 storedProcLen =
       c_tup->copyAttrinfo(loc_scanptr.p->scanStoredProcId);
     ndbassert(loc_scanptr.p->scanAiLength == storedProcLen);
+  }
+  if (likely(loc_scanptr.p->scanAccPtr != RNIL))
+  {
     block->prepare_scan_ctx(loc_scanptr.p->scanAccPtr);
   }
 }
 
-void Dblqh::setup_scan_pointers(Uint32 scanPtrI,
-                                bool early)
+void Dblqh::setup_scan_pointers(Uint32 scanPtrI)
 {
   /**
    * We come here after a real-time break, we need to setup
@@ -11373,11 +11374,14 @@ void Dblqh::setup_scan_pointers(Uint32 scanPtrI,
   m_tc_connect_ptr = loc_tcConnectptr;
   c_tup->prepare_op_pointer(loc_tcConnectptr.p->tupConnectrec);
   c_tup->prepare_tab_pointers(loc_prim_tab_fragptr.p->tupFragptr);
-  if (!early)
+  if (likely(loc_scanptr.p->scanStoredProcId != RNIL))
   {
     Uint32 storedProcLen =
       c_tup->copyAttrinfo(loc_scanptr.p->scanStoredProcId);
     ndbassert(loc_scanptr.p->scanAiLength == storedProcLen);
+  }
+  if (likely(loc_scanptr.p->scanAccPtr != RNIL))
+  {
     block->prepare_scan_ctx(loc_scanptr.p->scanAccPtr);
   }
 }
@@ -13925,6 +13929,7 @@ void Dblqh::closeScanLab(Signal* signal, TcConnectionrec* regTcPtr)
   signal->theData[2] = NextScanReq::ZSCAN_CLOSE;
   signal->theData[0] = sig0;
   ndbrequire(is_scan_ok(scanPtr, fragstatus));
+  scanPtr->scanAccPtr = RNIL;
   block->EXECUTE_DIRECT_FN(f, signal);
 }//Dblqh::closeScanLab()
 
@@ -13963,6 +13968,7 @@ void Dblqh::accScanCloseConfLab(Signal* signal,
   signal->theData[4] = sig4;
   signal->theData[5] = sig5;
   c_tup->execSTORED_PROCREQ(signal);
+  scanPtr->scanStoredProcId = RNIL;
   ndbrequire(signal->theData[0] == 0);
 /* -------------------------------------------------------------------------
  *       ENTER STORED_PROCCONF
@@ -14024,7 +14030,7 @@ void Dblqh::tupScanCloseConfLab(Signal* signal,
 
 void Dblqh::restart_queued_scan(Signal* signal, Uint32 scanPtrI)
 {
-  setup_scan_pointers(scanPtrI, true);
+  setup_scan_pointers(scanPtrI);
   m_scan_direct_count = ZMAX_SCAN_DIRECT_COUNT - 8;
   // Hiding read only version in outer scope
   ndbrequire(scanptr.p->copyPtr == RNIL);
@@ -14057,6 +14063,7 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
   scanPtr->scanAiLength = aiLen;
   scanPtr->copyPtr = RNIL;
   scanPtr->scanStoredProcId = RNIL;
+  scanPtr->scanAccPtr = RNIL;
   scanPtr->scanNumber = ~0;
   m_scan_direct_count = ZMAX_SCAN_DIRECT_COUNT - 6;
   m_tot_scan_direct_count = 0;
@@ -15255,6 +15262,7 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
     scanPtr->readCommitted = 0;
     scanPtr->prioAFlag = ZFALSE;
     scanPtr->scanStoredProcId = RNIL;
+    scanPtr->scanAccPtr = RNIL;
     scanPtr->scan_lastSeen = __LINE__;
     scanPtr->scan_check_lcp_stop = 0;
     m_scan_direct_count = ZMAX_SCAN_DIRECT_COUNT - 6;
@@ -16086,6 +16094,7 @@ void Dblqh::closeCopyLab(Signal* signal,
   signal->theData[1] = RNIL;
   signal->theData[2] = NextScanReq::ZSCAN_CLOSE;
   ndbrequire(fragstatus == Fragrecord::FSACTIVE);
+  scanPtr->scanAccPtr = RNIL;
   block->EXECUTE_DIRECT_FN(f, signal);
 }//Dblqh::closeCopyLab()
 
@@ -16123,6 +16132,7 @@ void Dblqh::accCopyCloseConfLab(Signal* signal,
   signal->theData[5] = sig5;
   c_tup->execSTORED_PROCREQ(signal);
   jamEntryDebug();
+  scanPtr->scanStoredProcId = RNIL;
   tupCopyCloseConfLab(signal, tcConnectptr);
   return;
 }//Dblqh::accCopyCloseConfLab()
