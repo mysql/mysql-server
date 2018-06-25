@@ -55,10 +55,8 @@ int client_boot_done = 0;
 int netboot_ok = 0;
 int booting = 0;
 
-define_xdr_funcs(synode_no) define_xdr_funcs(app_data_ptr)
-
-    /* purecov: begin deadcode */
-    void init_recover_vars() {
+/* purecov: begin deadcode */
+void init_recover_vars() {
   start_type = IDLE;
   client_boot_done = 0;
   netboot_ok = 0;

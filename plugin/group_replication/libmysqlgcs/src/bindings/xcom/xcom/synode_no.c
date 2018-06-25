@@ -62,10 +62,8 @@ synode_no vp_count_to_synode(u_long high, u_long low, node_no nodeid,
 #endif
 
 /* purecov: begin deadcode */
-define_xdr_funcs(synode_no)
-
-    synode_no vp_count_to_synode(u_long high, u_long low, node_no nodeid,
-                                 uint32_t groupid) {
+synode_no vp_count_to_synode(u_long high, u_long low, node_no nodeid,
+                             uint32_t groupid) {
   synode_no ret;
 
   ret.group_id = groupid;

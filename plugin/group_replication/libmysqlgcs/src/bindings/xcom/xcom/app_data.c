@@ -40,7 +40,7 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xdr_utils.h"
 #include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
 
-define_xdr_funcs(synode_no) define_xdr_funcs(app_data_ptr)
+clone_xdr_array(synode_no)
 
     static app_data_list nextp(app_data_list l);
 static unsigned long msg_count(app_data_ptr a);
