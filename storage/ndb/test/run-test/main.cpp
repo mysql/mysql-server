@@ -70,6 +70,7 @@ const char *g_prefix = NULL;
 const char *g_prefix0 = NULL;
 const char *g_prefix1 = NULL;
 const char *g_clusters = 0;
+const char *g_config_type = NULL;  // "cnf" or "ini"
 const char *g_site = NULL;
 BaseString g_replicate;
 const char *save_file = 0;
@@ -104,6 +105,7 @@ static struct {
 const char *g_search_path[] = {"bin", "libexec",   "sbin", "scripts",
                                "lib", "lib/mysql", 0};
 static bool find_binaries();
+static bool find_config_ini_files();
 
 static struct my_option g_options[] = {
     {"help", '?', "Display this help and exit.", (uchar **)&g_help,
@@ -114,6 +116,8 @@ static struct my_option g_options[] = {
      REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
     {"clusters", 256, "Cluster", (uchar **)&g_clusters, (uchar **)&g_clusters,
      0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+    {"config-type", 256, "cnf (default) or ini", (uchar **)&g_config_type,
+     (uchar **)&g_config_type, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
     {"mysqld", 256, "atrt mysqld", (uchar **)&g_mysqld_host,
      (uchar **)&g_mysqld_host, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
     {"replicate", 1024, "replicate", (uchar **)&g_dummy, (uchar **)&g_dummy, 0,
@@ -200,6 +204,17 @@ int main(int argc, char **argv) {
   if (!find_binaries()) {
     g_logger.critical("Failed to find required binaries for execution");
     goto end;
+  }
+
+  g_config.m_config_type = atrt_config::CNF;
+  if (g_config_type != NULL && strcmp(g_config_type, "ini") == 0) {
+    g_logger.info("Using config.ini for cluster configuration");
+    g_config.m_config_type = atrt_config::INI;
+
+    if (!find_config_ini_files()) {
+      g_logger.critical("Failed to find required config.ini files");
+      goto end;
+    }
   }
 
   g_config.m_generated = false;
@@ -1657,6 +1672,29 @@ static bool find_binaries() {
     }
   }
   return ok;
+}
+
+static bool find_config_ini_files() {
+  g_logger.info("Locating config.ini files...");
+
+  BaseString tmp(g_clusters);
+  Vector<BaseString> clusters;
+  tmp.split(clusters, ",");
+
+  bool found = true;
+  for (unsigned int i = 0; i < clusters.size(); i++) {
+    BaseString config_ini_path(g_cwd);
+    const char *cluster_name = clusters[i].c_str();
+    config_ini_path.appfmt("%sconfig%s.ini", PATH_SEPARATOR, cluster_name);
+    to_native(config_ini_path);
+
+    if (!exists_file(config_ini_path.c_str())) {
+      g_logger.critical("Failed to locate '%s'", config_ini_path.c_str());
+      found = false;
+    }
+  }
+
+  return found;
 }
 
 template class Vector<Vector<SimpleCpcClient::Process> >;

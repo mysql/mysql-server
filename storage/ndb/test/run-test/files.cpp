@@ -242,6 +242,33 @@ bool setup_files(atrt_config& config, int setup, int sshx) {
     }
   }
 
+  if (config.m_config_type == atrt_config::INI) {
+    for (unsigned i = 0; i < config.m_clusters.size(); i++) {
+      atrt_cluster& cluster = *config.m_clusters[i];
+      const char* cluster_name = cluster.m_name.c_str();
+
+      if (strcmp(cluster_name, ".atrt") == 0) {
+        continue;
+      }
+
+      BaseString dst_config_ini;
+      dst_config_ini.assfmt("%s/config%s.ini", g_basedir, cluster_name);
+      to_native(dst_config_ini);
+
+      if (!delete_file_if_exists(dst_config_ini.c_str())) {
+        return false;
+      }
+
+      BaseString src_config_ini;
+      src_config_ini.assfmt("%s/config%s.ini", g_cwd, cluster_name);
+      to_native(src_config_ini);
+
+      if (!copy_file(src_config_ini.c_str(), dst_config_ini.c_str())) {
+        return false;
+      }
+    }
+  }
+
   if (setup == 2 || config.m_generated) {
     bool use_mysqld = (g_mysql_install_db_bin_path == NULL);
     if (!use_mysqld) {
@@ -319,7 +346,9 @@ bool setup_files(atrt_config& config, int setup, int sshx) {
     }
   }
 
-  if (config.m_generated == false) {
+  bool skip_my_cnf_generation =
+      config.m_config_type == atrt_config::INI || config.m_generated == false;
+  if (skip_my_cnf_generation) {
     g_logger.info("Skipping my.cnf generation...");
   } else {
     bool ok = generate_my_cnf(mycnf, config);
