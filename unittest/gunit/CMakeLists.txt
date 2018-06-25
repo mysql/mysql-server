@@ -374,6 +374,7 @@ SET(SERVER_TESTS
   gis_is_simple
   gis_isvalid
   gis_relops
+  gis_srs
   gis_wkb_parser
   gis_wkb_writer
   handler

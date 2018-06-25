@@ -202,6 +202,14 @@ class Spatial_reference_system : virtual public Entity_object {
   virtual bool can_be_modified_to(
       const Spatial_reference_system &srs) const = 0;
 
+  /// Gets the proj4 parameters for this SRS.
+  ///
+  /// An empty string is returned in case we don't know how to create proj4
+  /// parameters for this SRS.
+  ///
+  /// @return The proj4 parameter string, or an empty string.
+  virtual String_type proj4_parameters() const = 0;
+
   /////////////////////////////////////////////////////////////////////////
   // description
   /////////////////////////////////////////////////////////////////////////

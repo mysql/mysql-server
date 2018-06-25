@@ -28,7 +28,6 @@
 #include <cstddef>  // std::nullptr_t
 #include <memory>   // std::unique_ptr
 #include <new>
-#include <string>
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -301,6 +300,10 @@ class Spatial_reference_system_impl : public Entity_object_impl,
     return m_parsed_definition->can_be_modified_to(
         *static_cast<const Spatial_reference_system_impl &>(srs)
              .m_parsed_definition);
+  }
+
+  String_type proj4_parameters() const override {
+    return m_parsed_definition->proj4_parameters().c_str();
   }
 
   /////////////////////////////////////////////////////////////////////////

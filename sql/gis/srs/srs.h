@@ -25,6 +25,7 @@
 
 #include <cmath>
 #include <cstdint>
+#include <string>
 
 #include "my_dbug.h"
 #include "sql/gis/srid.h"
@@ -167,6 +168,14 @@ class Spatial_reference_system {
   /// how to compare them.
   virtual bool can_be_modified_to(
       const Spatial_reference_system &srs) const = 0;
+
+  /// Retrieve the proj4 parameter string.
+  ///
+  /// If the SRS can't be represented as a proj4 parameter string, an empty
+  /// string is returned.
+  ///
+  /// @return Proj4 parameter string or empty string.
+  virtual std::string proj4_parameters() const { return std::string(); }
 };
 
 namespace wkt_parser {
@@ -246,6 +255,8 @@ class Geographic_srs : public Spatial_reference_system {
   double prime_meridian() const override { return m_prime_meridian; }
 
   bool can_be_modified_to(const Spatial_reference_system &srs) const override;
+
+  std::string proj4_parameters() const override;
 };
 
 namespace wkt_parser {

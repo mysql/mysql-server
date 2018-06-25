@@ -27,13 +27,15 @@
 #include <cmath>
 #include <map>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include <boost/variant/get.hpp>
 
-#include "m_ctype.h"  // my_strcasecmp
+#include "m_ctype.h"   // my_strcasecmp
+#include "m_string.h"  // my_fcvt_compact
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
@@ -409,6 +411,55 @@ bool Projected_srs::common_proj_parameters_can_be_modified_to(
            m_axes[1] == that.m_axes[1];
   }
   return false;
+}
+
+std::string Geographic_srs::proj4_parameters() const {
+  char double_str[FLOATING_POINT_BUFFER];
+  bool error;
+  std::stringstream proj4;
+
+  if (!m_is_wgs84 && !has_towgs84())
+    return proj4.str();  // Can't convert if there's no path to WGS 84.
+
+  proj4 << "+proj=lonlat ";
+
+  my_fcvt_compact(semi_major_axis(), double_str, &error);
+  if (error) return std::string();
+  proj4 << "+a=" << double_str;
+
+  if (inverse_flattening() == 0.0) {
+    proj4 << " +b=" << double_str;
+  } else {
+    my_fcvt_compact(inverse_flattening(), double_str, &error);
+    if (error) return std::string();
+    proj4 << " +rf=" << double_str;
+  }
+
+  // Not setting prime meridian ("+pm="). The in-memory representation always
+  // uses Greenwich, which is default in BG.
+
+  // Not setting unit (not supported by proj4). The in-memory representation is
+  // always in radians, and BG retrieves the unit from type traits.
+
+  // Not setting axis order and direction (+axis). The in-memory representation
+  // is always East-North-up, and BG ignores the parameter.
+
+  proj4 << " +towgs84=";
+  if (has_towgs84()) {
+    for (int i = 0; i < 7; i++) {
+      if (i != 0) proj4 << ",";
+      my_fcvt_compact(m_towgs84[i], double_str, &error);
+      if (error) return std::string();
+      proj4 << double_str;
+    }
+  } else {
+    DBUG_ASSERT(m_is_wgs84);
+    proj4 << "0,0,0,0,0,0,0";
+  }
+
+  proj4 << " +no_defs";  // Don't set any defaults.
+
+  return proj4.str();
 }
 
 bool Projected_srs::init(gis::srid_t srid,
