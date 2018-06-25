@@ -3968,7 +3968,9 @@ static void mark_all_page_dirty_in_tablespace(THD *thd, space_id_t space_id,
                                               ulint space_flags,
                                               page_no_t total_pages,
                                               page_no_t from_page) {
+#ifdef HAVE_PSI_STAGE_INTERFACE
   ut_stage_alter_ts progress_monitor;
+#endif
   page_size_t pageSize(space_flags);
   page_no_t current_page = from_page;
   mtr_t mtr;
@@ -3976,8 +3978,10 @@ static void mark_all_page_dirty_in_tablespace(THD *thd, space_id_t space_id,
   /* Page 0 is never encrypted */
   ut_ad(current_page != 0);
 
+#ifdef HAVE_PSI_STAGE_INTERFACE
   progress_monitor.init(srv_stage_alter_tablespace_encryption.m_key);
   progress_monitor.set_estimate(total_pages - current_page);
+#endif
 
   while (current_page < total_pages) {
     /* Mark group of PAGE_GROUP_SIZE pages dirty */
@@ -4023,8 +4027,10 @@ static void mark_all_page_dirty_in_tablespace(THD *thd, space_id_t space_id,
                                          current_page - 1, 0, false, &mtr);
     mtr_commit(&mtr);
 
+#ifdef HAVE_PSI_STAGE_INTERFACE
     /* Update progress stats */
     progress_monitor.update_work(inner_count);
+#endif
 
     DBUG_EXECUTE_IF("alter_encrypt_tablespace_insert_delay", sleep(1););
 
