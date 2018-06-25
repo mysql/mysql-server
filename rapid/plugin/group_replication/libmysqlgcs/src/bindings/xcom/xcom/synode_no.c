@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -60,8 +60,6 @@ int	synode_gt(synode_no x, synode_no y)
 }
 
 /* purecov: begin deadcode */
-define_xdr_funcs(synode_no)
-
 synode_no vp_count_to_synode(u_long high, u_long low, node_no nodeid,
                              uint32_t groupid)
 {
