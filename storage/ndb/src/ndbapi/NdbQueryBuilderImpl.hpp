@@ -52,7 +52,6 @@
 #define QRY_BATCH_SIZE_TOO_SMALL 4825
 #define QRY_EMPTY_PROJECTION 4826
 
-// We do not need this when building the 'perror' utility
 #if defined(__cplusplus)
 #include <Vector.hpp>
 #include <Bitmask.hpp>

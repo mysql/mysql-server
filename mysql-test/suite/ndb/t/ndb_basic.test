@@ -705,8 +705,6 @@ select * from t1 order by f1;
 select * from t1 order by f2;
 select * from t1 order by f3;
 drop table t1;
-# Bug#16561 Unknown ERROR msg "ERROR 1186 (HY000): Binlog closed" by perror
-#
 
 #
 # Bug #25746 - VARCHAR UTF8 PK issue
