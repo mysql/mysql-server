@@ -106,6 +106,7 @@ struct atrt_cluster {
 
 struct atrt_config {
   bool m_generated;
+  enum { CNF, INI } m_config_type;
   BaseString m_key;
   BaseString m_replication;
   BaseString m_site;
