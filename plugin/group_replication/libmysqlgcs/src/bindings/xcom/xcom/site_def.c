@@ -53,7 +53,8 @@ struct site_def_ptr_array {
 };
 typedef struct site_def_ptr_array site_def_ptr_array;
 
-define_xdr_funcs(site_def_ptr)
+init_xdr_array(site_def_ptr) free_xdr_array(site_def_ptr)
+    set_xdr_array(site_def_ptr)
 
     /* FIFO of site definitions */
     static site_def_ptr_array site_defs;

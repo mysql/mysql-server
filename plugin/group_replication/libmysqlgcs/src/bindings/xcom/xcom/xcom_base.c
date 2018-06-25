@@ -478,9 +478,7 @@ static bool_t is_dead_site(uint32_t id) {
   return FALSE;
 }
 
-define_xdr_funcs(node_no)
-
-    extern node_set *init_node_set(node_set *set, u_int n);
+extern node_set *init_node_set(node_set *set, u_int n);
 extern node_set *alloc_node_set(node_set *set, u_int n);
 
 #if 0
