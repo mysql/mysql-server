@@ -2324,7 +2324,7 @@ INSERT IGNORE INTO mysql.user VALUES ('localhost','mysql.session',
   'N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','Y','N','N','N',
   'N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,
   'caching_sha2_password','$A$005$THISISACOMBINATIONOFINVALIDSALTANDPASSWORDTHATMUSTNEVERBRBEUSED',
-  'N',CURRENT_TIMESTAMP,NULL,'Y', 'N', 'N', NULL, NULL);
+  'N',CURRENT_TIMESTAMP,NULL,'Y', 'N', 'N', NULL, NULL, NULL);
 INSERT IGNORE INTO mysql.tables_priv VALUES ('localhost', 'mysql',
  'mysql.session', 'user', 'root\@localhost',
   CURRENT_TIMESTAMP, 'Select', '');

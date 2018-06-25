@@ -1224,6 +1224,7 @@ void warn_about_deprecated_national(THD *thd)
 %token<keyword> DESCRIPTION_SYM               /* MYSQL */
 %token<keyword> ORGANIZATION_SYM              /* MYSQL */
 %token<keyword> REFERENCE_SYM                 /* MYSQL */
+%token<keyword> OPTIONAL_SYM                  /* MYSQL */
 
 
 /*
@@ -1271,6 +1272,7 @@ void warn_about_deprecated_national(THD *thd)
 
 %type <lex_cstr>
         opt_table_alias
+        opt_replace_password
 
 %type <lex_str_list> TEXT_STRING_sys_list
 
@@ -1278,7 +1280,7 @@ void warn_about_deprecated_national(THD *thd)
         table_ident
 
 %type <simple_string>
-        opt_db password
+        opt_db
 
 %type <string>
         text_string opt_gconcat_separator
@@ -1430,7 +1432,7 @@ void warn_about_deprecated_national(THD *thd)
 %type <keyword> ident_keyword label_keyword role_keyword
         role_or_label_keyword role_or_ident_keyword
 
-%type <lex_user> user create_or_alter_user user_func role
+%type <lex_user> user create_or_alter_user alter_user user_func role
 
 %type <charset>
         opt_collate
@@ -2710,7 +2712,7 @@ create:
           }
         | CREATE view_or_trigger_or_sp_or_event
           {}
-        | CREATE USER opt_if_not_exists create_or_alter_user_list default_role_clause
+        | CREATE USER opt_if_not_exists create_user_list default_role_clause
                       require_clause connect_options
                       opt_account_lock_password_expire_options
           {
@@ -7341,13 +7343,18 @@ alter_server_stmt:
         ;
 
 alter_user_stmt:
-          alter_user_command create_or_alter_user_list require_clause
+          alter_user_command alter_user_list require_clause
           connect_options opt_account_lock_password_expire_options
         | alter_user_command user_func IDENTIFIED_SYM BY TEXT_STRING
+          opt_replace_password
           {
             $2->auth.str= $5.str;
             $2->auth.length= $5.length;
             $2->uses_identified_by_clause= true;
+            if ($6.str != nullptr) {
+              $2->current_auth= $6;
+              $2->uses_replace_clause= true;
+            }
             Lex->contains_plaintext_password= true;
           }
         | alter_user_command user DEFAULT_SYM ROLE_SYM ALL
@@ -7385,6 +7392,11 @@ alter_user_stmt:
                                                  role_enum::ROLE_NAME);
             MAKE_CMD(tmp);
           }
+        ;
+
+opt_replace_password:
+          /* empty */                   { $$ = LEX_CSTRING{nullptr, 0}; }
+        | REPLACE_SYM TEXT_STRING       { $$ = to_lex_cstring($2); }
         ;
 
 alter_resource_group_stmt:
@@ -7495,6 +7507,24 @@ opt_account_lock_password_expire_option:
             lex->alter_password.password_reuse_interval= 0;
             lex->alter_password.update_password_reuse_interval= true;
             lex->alter_password.use_default_password_reuse_interval= true;
+          }
+        | PASSWORD REQUIRE_SYM CURRENT_SYM
+          {
+            LEX *lex= Lex;
+            lex->alter_password.update_password_require_current=
+                Lex_acl_attrib_udyn::YES;
+          }
+        | PASSWORD REQUIRE_SYM CURRENT_SYM DEFAULT_SYM
+          {
+            LEX *lex= Lex;
+            lex->alter_password.update_password_require_current=
+                Lex_acl_attrib_udyn::DEFAULT;
+          }
+        | PASSWORD REQUIRE_SYM CURRENT_SYM OPTIONAL_SYM
+          {
+            LEX *lex= Lex;
+            lex->alter_password.update_password_require_current=
+                Lex_acl_attrib_udyn::NO;
           }
         ;
 
@@ -13934,6 +13964,7 @@ role_or_label_keyword:
         | OFFSET_SYM
         | ONE_SYM
         | ONLY_SYM
+        | OPTIONAL_SYM
         | ORDINALITY_SYM
         | ORGANIZATION_SYM
         | OTHERS_SYM
@@ -14127,13 +14158,15 @@ start_option_value_list:
           {
             $$= NEW_PTN PT_start_option_value_list_type($1, $2);
           }
-        | PASSWORD equal password
+        | PASSWORD equal TEXT_STRING opt_replace_password
           {
-            $$= NEW_PTN PT_option_value_no_option_type_password($3, @3);
+            $$= NEW_PTN PT_option_value_no_option_type_password($3.str,
+                                                                $4.str, @4);
           }
-        | PASSWORD FOR_SYM user equal password
+        | PASSWORD FOR_SYM user equal TEXT_STRING opt_replace_password
           {
-            $$= NEW_PTN PT_option_value_no_option_type_password_for($3, $5, @5);
+            $$= NEW_PTN PT_option_value_no_option_type_password_for($3, $5.str,
+                                                                    $6.str, @6);
           }
         ;
 
@@ -14391,15 +14424,6 @@ isolation_types:
         | REPEATABLE_SYM READ_SYM  { $$= ISO_REPEATABLE_READ; }
         | SERIALIZABLE_SYM         { $$= ISO_SERIALIZABLE; }
         ;
-
-password:
-          TEXT_STRING
-          {
-            $$=$1.str;
-            Lex->contains_plaintext_password= true;
-          }
-        ;
-
 
 set_expr_or_default:
           expr
@@ -14983,19 +15007,6 @@ role_list:
           }
         ;
 
-create_or_alter_user_list:
-          create_or_alter_user
-          {
-            if (Lex->users_list.push_back($1))
-              MYSQL_YYABORT;
-          }
-        | create_or_alter_user_list ',' create_or_alter_user
-          {
-            if (Lex->users_list.push_back($3))
-              MYSQL_YYABORT;
-          }
-        ;
-
 create_or_alter_user:
           user IDENTIFIED_SYM BY TEXT_STRING
           {
@@ -15038,6 +15049,61 @@ create_or_alter_user:
           {
             $$= $1;
             $1->auth= NULL_CSTR;
+          }
+        ;
+
+alter_user:
+         user IDENTIFIED_SYM BY TEXT_STRING REPLACE_SYM TEXT_STRING
+          {
+            $$=$1;
+            $1->auth.str= $4.str;
+            $1->auth.length= $4.length;
+            $1->uses_identified_by_clause= true;
+            $1->current_auth.str= $6.str;
+            $1->current_auth.length= $6.length;
+            $1->uses_replace_clause= true;
+            Lex->contains_plaintext_password= true;
+          }
+        | user IDENTIFIED_SYM WITH ident_or_text BY TEXT_STRING REPLACE_SYM TEXT_STRING
+          {
+            $$= $1;
+            $1->plugin.str= $4.str;
+            $1->plugin.length= $4.length;
+            $1->auth.str= $6.str;
+            $1->auth.length= $6.length;
+            $1->current_auth.str= $8.str;
+            $1->current_auth.length= $8.length;
+            $1->uses_replace_clause= true;
+            $1->uses_identified_with_clause= true;
+            $1->uses_identified_by_clause= true;
+            Lex->contains_plaintext_password= true;
+          }
+        | create_or_alter_user
+        ;
+
+create_user_list:
+          create_or_alter_user
+          {
+            if (Lex->users_list.push_back($1))
+              MYSQL_YYABORT;
+          }
+        | create_user_list ',' create_or_alter_user
+          {
+            if (Lex->users_list.push_back($3))
+              MYSQL_YYABORT;
+          }
+        ;
+
+alter_user_list:
+       alter_user
+         {
+            if (Lex->users_list.push_back($1))
+              MYSQL_YYABORT;
+         }
+       | alter_user_list ',' alter_user
+          {
+            if (Lex->users_list.push_back($3))
+              MYSQL_YYABORT;
           }
         ;
 

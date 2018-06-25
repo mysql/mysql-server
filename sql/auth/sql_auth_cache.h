@@ -155,6 +155,11 @@ class ACL_USER : public ACL_ACCESS {
   */
   bool use_default_password_reuse_interval;
 
+  /**
+    The current password needed to be specified while changing it.
+  */
+  Lex_acl_attrib_udyn password_require_current;
+
   ACL_USER *copy(MEM_ROOT *root);
 };
 

@@ -270,6 +270,7 @@ ACL_USER *ACL_USER::copy(MEM_ROOT *root) {
   }
   dst->auth_string.str = safe_strdup_root(root, auth_string.str);
   dst->host.update_hostname(safe_strdup_root(root, host.get_host()));
+  dst->password_require_current = password_require_current;
   return dst;
 }
 
@@ -1834,6 +1835,19 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
         }
       }
 
+      /* Read password_require_current field */
+      if (table->s->fields > table_schema->password_require_current_idx()) {
+        char *value = get_field(
+            &global_acl_memory,
+            table->field[table_schema->password_require_current_idx()]);
+        if (value == nullptr)
+          user.password_require_current = Lex_acl_attrib_udyn::DEFAULT;
+        else if (value[0] == 'Y')
+          user.password_require_current = Lex_acl_attrib_udyn::YES;
+        else if (value[0] == 'N')
+          user.password_require_current = Lex_acl_attrib_udyn::NO;
+      }
+
       set_user_salt(&user);
       user.password_expired = password_expired;
 
@@ -2014,6 +2028,7 @@ class Acl_ignore_error_handler : public Internal_error_handler {
     switch (sql_errno) {
       case ER_CANNOT_LOAD_FROM_TABLE_V2:
       case ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2:
+      case ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2:
         (*level) = Sql_condition::SL_WARNING;
         break;
       default:
@@ -2782,6 +2797,12 @@ void acl_update_user(const char *user, const char *host, enum SSL_type ssl_type,
                   ? 0
                   : password_life.password_reuse_interval;
         }
+        /* update current password field value */
+        if (password_life.update_password_require_current !=
+            Lex_acl_attrib_udyn::UNCHANGED) {
+          acl_user->password_require_current =
+              password_life.update_password_require_current;
+        }
         /* search complete: */
         break;
       }
@@ -2859,6 +2880,18 @@ void acl_insert_user(THD *thd MY_ATTRIBUTE((unused)), const char *user,
           : password_life.password_reuse_interval;
   acl_user.use_default_password_reuse_interval =
       password_life.use_default_password_reuse_interval;
+
+  /*
+    Assign the password_require_current field value to the ACL USER.
+    if it was not specified then assign the default value
+  */
+  if (password_life.update_password_require_current ==
+      Lex_acl_attrib_udyn::UNCHANGED) {
+    acl_user.password_require_current = Lex_acl_attrib_udyn::DEFAULT;
+  } else {
+    acl_user.password_require_current =
+        password_life.update_password_require_current;
+  }
 
   set_user_salt(&acl_user);
   /* New user is not a role by default. */

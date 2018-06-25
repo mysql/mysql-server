@@ -54,7 +54,7 @@ DROP USER 'user3'@'%';
 
 # Create 5.6 mysql.user table layout
 
---source include/user_58_to_57.inc
+--source include/user_80_to_57.inc
 --source include/user_57_to_56.inc
 
 INSERT INTO mysql.user VALUES
@@ -131,7 +131,7 @@ let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
 
 # Create 5.6 mysql.user table layout
 
---source include/user_58_to_57.inc
+--source include/user_80_to_57.inc
 --source include/user_57_to_56.inc
 
 call mtr.add_suppression("The plugin 'mysql_old_password' used to authenticate user 'user_old_pass_wp'@'%' is not loaded. Nobody can currently login using this account.");
@@ -330,7 +330,7 @@ let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
 
 # Create 5.6 mysql.user table layout
 
---source include/user_58_to_57.inc
+--source include/user_80_to_57.inc
 --source include/user_57_to_56.inc
 
 INSERT INTO mysql.user VALUES

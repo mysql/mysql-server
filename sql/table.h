@@ -2206,6 +2206,17 @@ class Natural_join_column {
   GRANT_INFO *grant();
 };
 
+/**
+  This is generic enum. It may be reused in the ACL statements
+  for clauses that can map to the values defined in this enum.
+*/
+enum class Lex_acl_attrib_udyn {
+  UNCHANGED, /* The clause is not specified */
+  DEFAULT,   /* Default value of clause is specified */
+  YES,       /* Value that maps to True is specified */
+  NO         /* Value that maps to False is specified */
+};
+
 /*
   This structure holds the specifications relating to
   ALTER user ... PASSWORD EXPIRE ...
@@ -2223,7 +2234,8 @@ struct LEX_ALTER {
   uint32 password_reuse_interval;
   bool use_default_password_reuse_interval;
   bool update_password_reuse_interval;
-
+  /* Holds the specification of 'PASSWORD REQUIRE CURRENT' clause. */
+  Lex_acl_attrib_udyn update_password_require_current;
   void cleanup() {
     update_password_expired_fields = false;
     update_password_expired_column = false;
@@ -2235,6 +2247,7 @@ struct LEX_ALTER {
     update_password_history = false;
     use_default_password_reuse_interval = true;
     update_password_reuse_interval = false;
+    update_password_require_current = Lex_acl_attrib_udyn::UNCHANGED;
     password_history_length = 0;
     password_reuse_interval = 0;
   }
@@ -2249,6 +2262,7 @@ struct LEX_USER {
   LEX_CSTRING host;
   LEX_CSTRING plugin;
   LEX_CSTRING auth;
+  LEX_CSTRING current_auth;
   /*
     The following flags are indicators for the SQL syntax used while
     parsing CREATE/ALTER user. While other members are self-explanatory,
@@ -2258,8 +2272,14 @@ struct LEX_USER {
   bool uses_identified_by_clause;
   bool uses_identified_with_clause;
   bool uses_authentication_string_clause;
+  bool uses_replace_clause;
   LEX_ALTER alter_status;
-
+  /*
+    Allocates the memory in the THD mem pool and initialize the members of
+    this struct. It is prefererable to use this method to create a LEX_USER
+    rather allocating the memory in the THD and initilizing the members
+    explicitiyly.
+  */
   static LEX_USER *alloc(THD *thd, LEX_STRING *user, LEX_STRING *host);
 };
 

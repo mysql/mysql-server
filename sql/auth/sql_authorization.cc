@@ -4745,28 +4745,28 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
 
 bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
                          bool is_proc) {
-  Security_context *sctx = thd->security_context();
-  LEX_USER *combo;
   TABLE_LIST tables[1];
   List<LEX_USER> user_list;
-  bool result;
-  ACL_USER *au;
+  bool result = true;
   Dummy_error_handler error_handler;
+
   DBUG_ENTER("sp_grant_privileges");
 
-  if (!(combo = (LEX_USER *)thd->alloc(sizeof(LEX_USER)))) DBUG_RETURN(true);
+  LEX_CSTRING sctx_user = thd->security_context()->priv_user();
+  LEX_CSTRING sctx_host = thd->security_context()->priv_host();
+  LEX_USER *combo =
+      LEX_USER::alloc(thd, (LEX_STRING *)&sctx_user, (LEX_STRING *)&sctx_host);
+  if (combo == nullptr) DBUG_RETURN(true);
 
-  combo->user.str = (char *)sctx->priv_user().str;
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
   if (!acl_cache_lock.lock()) DBUG_RETURN(true);
 
-  if ((au = find_acl_user(combo->host.str = (char *)sctx->priv_host().str,
-                          combo->user.str, false)))
-    goto found_acl;
-  acl_cache_lock.unlock();
-  DBUG_RETURN(true);
+  ACL_USER *au = find_acl_user(combo->host.str, combo->user.str, false);
+  if (au == nullptr) {
+    result = true;
+    goto end;
+  }
 
-found_acl:
   acl_cache_lock.unlock();
 
   new (&tables[0]) TABLE_LIST();
@@ -4779,12 +4779,6 @@ found_acl:
                        0);
   thd->make_lex_string(&combo->host, combo->host.str, strlen(combo->host.str),
                        0);
-
-  combo->plugin = EMPTY_CSTR;
-  combo->auth = EMPTY_CSTR;
-  combo->uses_identified_by_clause = false;
-  combo->uses_identified_with_clause = false;
-  combo->uses_authentication_string_clause = false;
 
   if (user_list.push_back(combo)) DBUG_RETURN(true);
 
@@ -4804,6 +4798,7 @@ found_acl:
   result = mysql_routine_grant(thd, tables, is_proc, user_list,
                                DEFAULT_CREATE_PROC_ACLS, false, false);
   thd->pop_internal_handler();
+end:
   DBUG_RETURN(result);
 }
 

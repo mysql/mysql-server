@@ -97,11 +97,11 @@ disconnect unlocked_user_con;
 --echo # Basic SHOW CREATE USER
 connection default;
 -- echo # Should appear without ACCOUNT UNLOCK
---replace_regex /IDENTIFIED WITH .* AS .* REQUIRE/IDENTIFIED WITH '<default_authentication>' AS '<non-deterministic-password-hash>' REQUIRE/
+--replace_regex /IDENTIFIED WITH '(.*)' AS '(.*)' REQUIRE/IDENTIFIED WITH '<default_authentication>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER unlocked_user@localhost;
 ALTER USER unlocked_user@localhost ACCOUNT LOCK;
 --echo # Should appear with ACCOUNT LOCK
---replace_regex /IDENTIFIED WITH .* AS .* REQUIRE/IDENTIFIED WITH '<default_authentication>' AS '<non-deterministic-password-hash>' REQUIRE/
+--replace_regex /IDENTIFIED WITH '(.*)' AS '(.*)' REQUIRE/IDENTIFIED WITH '<default_authentication>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER unlocked_user@localhost;
 
 --echo # roll back changes
@@ -248,23 +248,23 @@ CREATE USER u1@localhost REQUIRE NONE ACCOUNT LOCK WITH MAX_QUERIES_PER_HOUR 100
 --echo # CREATE USER SQL syntax check
 DROP USER u1@localhost;
 CREATE USER u1@localhost REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 100 ACCOUNT LOCK;
---replace_regex /IDENTIFIED WITH .* REQUIRE/IDENTIFIED WITH '<default_authentication>' REQUIRE/
+--replace_regex /IDENTIFIED WITH '(.*)' REQUIRE/IDENTIFIED WITH '<default_authentication>' REQUIRE/
 SHOW CREATE USER u1@localhost;
 --echo # ALTER USER correct SQL syntax 1
 ALTER USER u1@localhost PASSWORD EXPIRE ACCOUNT UNLOCK;
---replace_regex /IDENTIFIED WITH .* REQUIRE/IDENTIFIED WITH '<default_authentication>' REQUIRE/
+--replace_regex /IDENTIFIED WITH '(.*)' REQUIRE/IDENTIFIED WITH '<default_authentication>' REQUIRE/
 SHOW CREATE USER u1@localhost;
 --echo # ALTER USER correct SQL syntax 2
 ALTER USER u1@localhost ACCOUNT LOCK PASSWORD EXPIRE;
---replace_regex /IDENTIFIED WITH .* REQUIRE/IDENTIFIED WITH '<default_authentication>' REQUIRE/
+--replace_regex /IDENTIFIED WITH '(.*)' REQUIRE/IDENTIFIED WITH '<default_authentication>' REQUIRE/
 SHOW CREATE USER u1@localhost;
 --echo # ALTER USER correct SQL syntax 3
 ALTER USER u1@localhost REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 99 ACCOUNT UNLOCK PASSWORD EXPIRE NEVER;
---replace_regex /IDENTIFIED WITH .* REQUIRE/IDENTIFIED WITH '<default_authentication>' REQUIRE/
+--replace_regex /IDENTIFIED WITH '(.*)' REQUIRE/IDENTIFIED WITH '<default_authentication>' REQUIRE/
 SHOW CREATE USER u1@localhost;
 --echo # ALTER USER correct SQL syntax 4
 ALTER USER u1@localhost REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 98 PASSWORD EXPIRE INTERVAL 5 DAY ACCOUNT LOCK;
---replace_regex /IDENTIFIED WITH .* REQUIRE/IDENTIFIED WITH '<default_authentication>' REQUIRE/
+--replace_regex /IDENTIFIED WITH '(.*)' REQUIRE/IDENTIFIED WITH '<default_authentication>' REQUIRE/
 SHOW CREATE USER u1@localhost;
 --echo # ALTER USER invalid SQL syntax
 --error ER_PARSE_ERROR
@@ -272,37 +272,37 @@ ALTER USER u1@localhost ACCOUNT UNLOCK WITH MAX_QUERIES_PER_HOUR 97 PASSWORD EXP
 DROP USER u1@localhost;
 --echo # Duplicated ACCOUNT statement 1
 CREATE USER u1@localhost IDENTIFIED BY 'PASS' ACCOUNT LOCK ACCOUNT UNLOCK;
---replace_regex /IDENTIFIED WITH .* AS .* REQUIRE/IDENTIFIED WITH '<default_authentication>' AS '<non-deterministic-password-hash>' REQUIRE/
+--replace_regex /IDENTIFIED WITH '(.*)' AS '(.*)' REQUIRE/IDENTIFIED WITH '<default_authentication>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u1@localhost;
 DROP USER u1@localhost;
 --echo # Duplicated ACCOUNT statement 2
 CREATE USER u1@localhost ACCOUNT UNLOCK ACCOUNT LOCK;
---replace_regex /IDENTIFIED WITH .* REQUIRE/IDENTIFIED WITH '<default_authentication>' REQUIRE/
+--replace_regex /IDENTIFIED WITH '(.*)' REQUIRE/IDENTIFIED WITH '<default_authentication>' REQUIRE/
 SHOW CREATE USER u1@localhost;
 DROP USER u1@localhost;
 --echo # Duplicated ACCOUNT statement 3
 CREATE USER u1@localhost ACCOUNT LOCK PASSWORD EXPIRE ACCOUNT LOCK;
---replace_regex /IDENTIFIED WITH .* REQUIRE/IDENTIFIED WITH '<default_authentication>' REQUIRE/
+--replace_regex /IDENTIFIED WITH '(.*)' REQUIRE/IDENTIFIED WITH '<default_authentication>' REQUIRE/
 SHOW CREATE USER u1@localhost;
 --echo # Duplicated ACCOUNT statement 4
 ALTER USER u1@localhost IDENTIFIED BY 'PASS' ACCOUNT LOCK ACCOUNT UNLOCK;
---replace_regex /IDENTIFIED WITH .* AS .* REQUIRE/IDENTIFIED WITH '<default_authentication>' AS '<non-deterministic-password-hash>' REQUIRE/
+--replace_regex /IDENTIFIED WITH '(.*)' AS '(.*)' REQUIRE/IDENTIFIED WITH '<default_authentication>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u1@localhost;
 --echo # Duplicated ACCOUNT statement 5
 ALTER USER u1@localhost ACCOUNT UNLOCK ACCOUNT LOCK;
---replace_regex /IDENTIFIED WITH .* AS .* REQUIRE/IDENTIFIED WITH '<default_authentication>' AS '<non-deterministic-password-hash>' REQUIRE/
+--replace_regex /IDENTIFIED WITH '(.*)' AS '(.*)' REQUIRE/IDENTIFIED WITH '<default_authentication>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u1@localhost;
 --echo # Duplicated ACCOUNT statement 6
 ALTER USER u1@localhost ACCOUNT LOCK PASSWORD EXPIRE ACCOUNT LOCK;
---replace_regex /IDENTIFIED WITH .* AS .* REQUIRE/IDENTIFIED WITH '<default_authentication>' AS '<non-deterministic-password-hash>' REQUIRE/
+--replace_regex /IDENTIFIED WITH '(.*)' AS '(.*)' REQUIRE/IDENTIFIED WITH '<default_authentication>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u1@localhost;
 --echo # Duplicated ACCOUNT statement 7
 ALTER USER u1@localhost PASSWORD EXPIRE ACCOUNT LOCK PASSWORD EXPIRE NEVER;
---replace_regex /IDENTIFIED WITH .* AS .* REQUIRE/IDENTIFIED WITH '<default_authentication>' AS '<non-deterministic-password-hash>' REQUIRE/
+--replace_regex /IDENTIFIED WITH '(.*)' AS '(.*)' REQUIRE/IDENTIFIED WITH '<default_authentication>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u1@localhost;
 --echo # Duplicated ACCOUNT statement 8
 ALTER USER u1@localhost PASSWORD EXPIRE NEVER ACCOUNT LOCK PASSWORD EXPIRE INTERVAL 5 DAY ACCOUNT LOCK;
---replace_regex /IDENTIFIED WITH .* AS .* REQUIRE/IDENTIFIED WITH '<default_authentication>' AS '<non-deterministic-password-hash>' REQUIRE/
+--replace_regex /IDENTIFIED WITH '(.*)' AS '(.*)' REQUIRE/IDENTIFIED WITH '<default_authentication>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u1@localhost;
 
 --echo # MySQL user table layout from the before ACCOUNT LOCK option
@@ -370,10 +370,10 @@ DROP USER u3@localhost;
 --echo #
 
 CREATE USER u1 IDENTIFIED BY 'pass';
---replace_regex /IDENTIFIED WITH .* AS .* REQUIRE/IDENTIFIED WITH '<default_authentication>' AS '<non-deterministic-password-hash>' REQUIRE/
+--replace_regex /IDENTIFIED WITH '(.*)' AS '(.*)' REQUIRE/IDENTIFIED WITH '<default_authentication>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u1;
 ALTER USER u1 ACCOUNT LOCK;
---replace_regex /IDENTIFIED WITH .* AS .* REQUIRE/IDENTIFIED WITH '<default_authentication>' AS '<non-deterministic-password-hash>' REQUIRE/
+--replace_regex /IDENTIFIED WITH '(.*)' AS '(.*)' REQUIRE/IDENTIFIED WITH '<default_authentication>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u1;
 DROP USER u1;
 

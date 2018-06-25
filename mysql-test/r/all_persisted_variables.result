@@ -46,7 +46,7 @@ include/assert.inc ['Expect 558 variables in the table. Due to open Bugs, we are
 
 # Test SET PERSIST
 
-include/assert.inc ['Expect 356 persisted variables in the table. Due to open Bugs, we are checking for 351']
+include/assert.inc ['Expect 357 persisted variables in the table. Due to open Bugs, we are checking for 351']
 
 ************************************************************
 * 3. Restart server, it must preserve the persisted variable

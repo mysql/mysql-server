@@ -902,6 +902,7 @@ bool opt_myisam_use_mmap = 0;
 bool offline_mode = 0;
 uint opt_large_page_size = 0;
 uint default_password_lifetime = 0;
+volatile bool password_require_current = false;
 
 mysql_mutex_t LOCK_default_password_lifetime;
 mysql_mutex_t LOCK_mandatory_roles;

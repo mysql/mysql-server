@@ -300,7 +300,10 @@ static const TABLE_FIELD_TYPE mysql_user_table_fields[MYSQL_USER_FIELD_COUNT] =
       {NULL, 0}},
      {{C_STRING_WITH_LEN("Password_reuse_time")},
       {C_STRING_WITH_LEN("smallint(5)")},
-      {NULL, 0}}};
+      {NULL, 0}},
+     {{C_STRING_WITH_LEN("Password_require_current")},
+      {C_STRING_WITH_LEN("enum('N','Y')")},
+      {C_STRING_WITH_LEN("utf8")}}};
 
 static const TABLE_FIELD_TYPE
     mysql_proxies_priv_table_fields[MYSQL_PROXIES_PRIV_FIELD_COUNT] = {
@@ -666,8 +669,7 @@ bool log_and_commit_acl_ddl(THD *thd, bool transactional_tables,
                             std::set<LEX_USER *> *extra_users, /* = NULL */
                             bool extra_error,                  /* = true */
                             bool write_to_binlog,              /* = true */
-                            bool notify_htons)                 /* = true */
-{
+                            bool notify_htons) {
   bool result = false;
   DBUG_ENTER("logn_ddl_to_binlog");
   DBUG_ASSERT(thd);
@@ -1167,6 +1169,33 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo, ulong rights,
     }
   }
 
+  /* ALTER USER .. PASSWORD REQUIRE CURRENT */
+  if (table->s->fields > MYSQL_USER_FIELD_PASSWORD_REQUIRE_CURRENT) {
+    Field *fld = table->field[MYSQL_USER_FIELD_PASSWORD_REQUIRE_CURRENT];
+    switch (combo->alter_status.update_password_require_current) {
+      case Lex_acl_attrib_udyn::DEFAULT:
+        fld->set_null();
+        break;
+      case Lex_acl_attrib_udyn::NO:
+        fld->store("N", 1, system_charset_info);
+        fld->set_notnull();
+        break;
+      case Lex_acl_attrib_udyn::YES:
+        fld->store("Y", 1, system_charset_info);
+        fld->set_notnull();
+        break;
+      case Lex_acl_attrib_udyn::UNCHANGED:
+        if (!old_row_exists) fld->set_null();
+        break;
+      default:
+        DBUG_ASSERT(false);
+    }
+  } else {
+    my_error(ER_BAD_FIELD_ERROR, MYF(0), "password_require_current",
+             "mysql.user");
+    DBUG_RETURN(-1);
+  }
+
   if (what_to_replace & ACCOUNT_LOCK_ATTR) {
     if (!old_row_exists ||
         (old_row_exists && combo->alter_status.update_account_locked_column)) {
@@ -1187,7 +1216,7 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo, ulong rights,
 
   if (old_row_exists) {
     /*
-      We should NEVER delete from the user table, as a uses can still
+      We should NEVER delete from the user table, as an user can still
       use mysqld even if he doesn't have any privileges in the user table!
     */
     if (compare_records(table)) {

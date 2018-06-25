@@ -753,6 +753,11 @@ static Sys_var_charptr Sys_my_bind_addr(
     READ_ONLY NON_PERSIST GLOBAL_VAR(my_bind_addr_str), CMD_LINE(REQUIRED_ARG),
     IN_FS_CHARSET, DEFAULT(MY_BIND_ALL_ADDRESSES));
 
+static Sys_var_bool Sys_password_require_current(
+    "password_require_current",
+    "Current password is needed to be specified in order to change it",
+    GLOBAL_VAR(password_require_current), CMD_LINE(OPT_ARG), DEFAULT(false));
+
 static bool fix_binlog_cache_size(sys_var *, THD *thd, enum_var_type) {
   check_binlog_cache_size(thd);
   return false;

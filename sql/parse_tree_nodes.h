@@ -1126,12 +1126,16 @@ class PT_option_value_no_option_type_password
   typedef PT_start_option_value_list super;
 
   const char *password;
+  const char *current_password;
   POS expr_pos;
 
  public:
-  explicit PT_option_value_no_option_type_password(const char *password_arg,
-                                                   const POS &expr_pos_arg)
-      : password(password_arg), expr_pos(expr_pos_arg) {}
+  PT_option_value_no_option_type_password(const char *password_arg,
+                                          const char *current_password_arg,
+                                          const POS &expr_pos_arg)
+      : password(password_arg),
+        current_password(current_password_arg),
+        expr_pos(expr_pos_arg) {}
 
   virtual bool contextualize(Parse_context *pc);
 };
@@ -1142,49 +1146,20 @@ class PT_option_value_no_option_type_password_for
 
   LEX_USER *user;
   const char *password;
+  const char *current_password;
   POS expr_pos;
 
  public:
   PT_option_value_no_option_type_password_for(LEX_USER *user_arg,
                                               const char *password_arg,
+                                              const char *current_password_arg,
                                               const POS &expr_pos_arg)
-      : user(user_arg), password(password_arg), expr_pos(expr_pos_arg) {}
+      : user(user_arg),
+        password(password_arg),
+        current_password(current_password_arg),
+        expr_pos(expr_pos_arg) {}
 
-  virtual bool contextualize(Parse_context *pc) {
-    if (super::contextualize(pc)) return true;
-
-    THD *thd = pc->thd;
-    LEX *lex = thd->lex;
-    set_var_password *var;
-
-    /*
-      In case of anonymous user, user->user is set to empty string with
-      length 0. But there might be case when user->user.str could be NULL.
-      For Ex: "set password for current_user() = password('xyz');".
-      In this case, set user information as of the current user.
-    */
-    if (!user->user.str) {
-      LEX_CSTRING sctx_priv_user = thd->security_context()->priv_user();
-      DBUG_ASSERT(sctx_priv_user.str);
-      user->user.str = sctx_priv_user.str;
-      user->user.length = sctx_priv_user.length;
-    }
-    if (!user->host.str) {
-      LEX_CSTRING sctx_priv_host = thd->security_context()->priv_host();
-      DBUG_ASSERT(sctx_priv_host.str);
-      user->host.str = (char *)sctx_priv_host.str;
-      user->host.length = sctx_priv_host.length;
-    }
-
-    var =
-        new (*THR_MALLOC) set_var_password(user, const_cast<char *>(password));
-    if (var == NULL) return true;
-    lex->var_list.push_back(var);
-    lex->sql_command = SQLCOM_SET_PASSWORD;
-    if (lex->sphead) lex->sphead->m_flags |= sp_head::HAS_SET_AUTOCOMMIT_STMT;
-    if (sp_create_assignment_instr(pc->thd, expr_pos.raw.end)) return true;
-    return false;
-  }
+  virtual bool contextualize(Parse_context *pc);
 };
 
 class PT_option_value_type : public Parse_tree_node {

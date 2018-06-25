@@ -1,0 +1,1910 @@
+# Default server variable value must be OFF
+SELECT @@global.password_require_current;
+@@global.password_require_current
+0
+
+########################################################################
+# 1. Create user without any PASSWPRD REQUIRE CURRENT clause which
+#    must be equivalent to DEFAULT clause
+########################################################################
+CREATE USER non_priv_usr IDENTIFIED BY 'pwd1',
+priv_usr IDENTIFIED BY 'pwd2';
+
+# Show how the users were created
+
+SHOW CREATE USER non_priv_usr;
+CREATE USER for non_priv_usr@%
+CREATE USER 'non_priv_usr'@'%' IDENTIFIED WITH '<default_auth_plugin>' AS '<password_hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT
+SHOW CREATE USER priv_usr;
+CREATE USER for priv_usr@%
+CREATE USER 'priv_usr'@'%' IDENTIFIED WITH '<default_auth_plugin>' AS '<password_hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT
+SELECT password_require_current from mysql.user
+where user like '%priv_usr' OR user like '%non_priv_usr';
+password_require_current
+NULL
+NULL
+
+# Grant the update privileges to the user
+GRANT UPDATE ON mysql.* to 'priv_usr'@'%' WITH GRANT OPTION;
+
+#------------------------------------------------------------------------
+# Priv user changing his own password
+#------------------------------------------------------------------------
+
+# Without REPLACE clause
+SET PASSWORD='pwd1';
+SET PASSWORD for priv_usr='pwd2';
+ALTER USER user() IDENTIFIED BY 'pwd1';
+ALTER USER priv_usr IDENTIFIED BY 'pwd2';
+
+# With invalid current password in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+SET PASSWORD for priv_usr='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER priv_usr IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+
+# With valid current password in the REPLACE clause
+SET PASSWORD='pwd1' REPLACE 'pwd2';
+SET PASSWORD for priv_usr='pwd2' REPLACE 'pwd1';
+ALTER USER user() IDENTIFIED BY 'pwd1' REPLACE 'pwd2';
+ALTER USER priv_usr IDENTIFIED BY 'pwd2' REPLACE 'pwd1';
+
+#------------------------------------------------------------------------
+# Priv user changing the password of non_priv_usr
+#------------------------------------------------------------------------
+
+SET PASSWORD for non_priv_usr='pwd2' REPLACE 'pwd1';
+ERROR HY000: Do not specify the current password while changing it for other users.
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd2' REPLACE '';
+ERROR HY000: Do not specify the current password while changing it for other users.
+
+SET PASSWORD for non_priv_usr='pwd2';
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd2';
+
+#------------------------------------------------------------------------
+# One priv user(root) changing password for other priv user (priv_usr)
+#------------------------------------------------------------------------
+
+SET PASSWORD for priv_usr='pwd1' REPLACE 'pwd2';
+ERROR HY000: Do not specify the current password while changing it for other users.
+ALTER USER priv_usr IDENTIFIED BY 'pwd1' REPLACE 'P&(*^_)D';
+ERROR HY000: Do not specify the current password while changing it for other users.
+
+ALTER USER priv_usr IDENTIFIED BY 'pwd2';
+SET PASSWORD for priv_usr='pwd1';
+
+# Now test with Global server variable ON
+SET @@global.password_require_current=ON;
+
+#------------------------------------------------------------------------
+# Priv user changing his own password
+#------------------------------------------------------------------------
+
+# Can change without REPLACE clause
+SET PASSWORD='pwd2';
+SET PASSWORD for priv_usr='pwd1';
+ALTER USER user() IDENTIFIED BY 'pwd2';
+ALTER USER priv_usr IDENTIFIED BY 'pwd1';
+
+# Incorrect password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+SET PASSWORD for priv_usr='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER priv_usr IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+
+# Correct password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'pwd1';
+SET PASSWORD for priv_usr='pwd1' REPLACE 'pwd2';
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'pwd1';
+ALTER USER priv_usr IDENTIFIED BY 'pwd1' REPLACE 'pwd2'
+     WITH MAX_QUERIES_PER_HOUR 100 PASSWORD EXPIRE DEFAULT;
+
+#------------------------------------------------------------------------
+# Priv user changing the password of non_priv_usr
+#------------------------------------------------------------------------
+
+SET PASSWORD for non_priv_usr='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Do not specify the current password while changing it for other users.
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Do not specify the current password while changing it for other users.
+
+SET PASSWORD for non_priv_usr='pwd2' ;
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1';
+
+#------------------------------------------------------------------------
+# One priv user(root) changing password for other priv user (priv_usr)
+#------------------------------------------------------------------------
+
+SET PASSWORD for priv_usr='pwd1' REPLACE '';
+ERROR HY000: Do not specify the current password while changing it for other users.
+ALTER USER priv_usr IDENTIFIED BY 'pwd1' REPLACE 'pwd2';
+ERROR HY000: Do not specify the current password while changing it for other users.
+SET PASSWORD for priv_usr='pwd1';
+ALTER USER priv_usr IDENTIFIED BY 'pwd2';
+
+# Reset the privileges and global variable
+
+REVOKE UPDATE ON mysql.* FROM 'priv_usr'@'%';
+SET @@global.password_require_current=OFF;
+
+#------------------------------------------------------------------------
+# Non priv user changing his own password
+#------------------------------------------------------------------------
+
+# REPLACE clause is not specified
+SET PASSWORD='pwd2';
+SET PASSWORD for non_priv_usr='pwd2';
+ALTER USER user() IDENTIFIED BY 'pwd1';
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1';
+
+# Incorrect password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE '' ;
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+SET PASSWORD for non_priv_usr='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+
+# Correct password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'pwd1';
+SET PASSWORD for non_priv_usr='pwd1' REPLACE 'pwd2';
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'pwd1';
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1' REPLACE 'pwd2';
+
+# Now test with Global server variable ON
+SET @@global.password_require_current=ON;
+
+#------------------------------------------------------------------------
+# Non priv user changing his own password
+#------------------------------------------------------------------------
+
+# REPLACE clause is not specified
+SET PASSWORD='pwd2';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+SET PASSWORD for non_priv_usr='pwd2';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+ALTER USER user() IDENTIFIED BY 'pwd1';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+
+# Incorrect password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE '' ;
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+SET PASSWORD for non_priv_usr='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+
+# Correct password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'pwd1';
+SET PASSWORD for non_priv_usr='pwd1' REPLACE 'pwd2';
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'pwd1';
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1' REPLACE 'pwd2';
+
+# Reset the Global server variable to OFF
+SET @@global.password_require_current=OFF;
+
+DROP USER non_priv_usr, priv_usr;
+
+########################################################################
+# 2. Create user with PASSWPRD REQUIRE CURRENT DEFAULT clause
+########################################################################
+CREATE USER non_priv_usr IDENTIFIED BY 'pwd1',
+priv_usr IDENTIFIED BY 'pwd2'
+                 PASSWORD REQUIRE CURRENT DEFAULT;
+
+# Show how the users were created
+
+SHOW CREATE USER non_priv_usr;
+CREATE USER for non_priv_usr@%
+CREATE USER 'non_priv_usr'@'%' IDENTIFIED WITH '<default_auth_plugin>' AS '<password_hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT
+SHOW CREATE USER priv_usr;
+CREATE USER for priv_usr@%
+CREATE USER 'priv_usr'@'%' IDENTIFIED WITH '<default_auth_plugin>' AS '<password_hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT
+SELECT password_require_current from mysql.user
+where user like '%priv_usr' OR user like '%non_priv_usr';
+password_require_current
+NULL
+NULL
+
+# Grant the update privileges to the user
+GRANT UPDATE ON mysql.* to 'priv_usr'@'%' WITH GRANT OPTION;
+
+#------------------------------------------------------------------------
+# Priv user changing his own password
+#------------------------------------------------------------------------
+
+# Without REPLACE clause
+SET PASSWORD='pwd1';
+SET PASSWORD for priv_usr='pwd2';
+ALTER USER user() IDENTIFIED BY 'pwd1';
+ALTER USER priv_usr IDENTIFIED BY 'pwd2';
+
+# With invalid current password in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+SET PASSWORD for priv_usr='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER priv_usr IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+
+# With valid current password in the REPLACE clause
+SET PASSWORD='pwd1' REPLACE 'pwd2';
+SET PASSWORD for priv_usr='pwd2' REPLACE 'pwd1';
+ALTER USER user() IDENTIFIED BY 'pwd1' REPLACE 'pwd2';
+ALTER USER priv_usr IDENTIFIED BY 'pwd2' REPLACE 'pwd1';
+
+#------------------------------------------------------------------------
+# Priv user changing the password of non_priv_usr
+#------------------------------------------------------------------------
+
+SET PASSWORD for non_priv_usr='pwd2' REPLACE 'pwd1';
+ERROR HY000: Do not specify the current password while changing it for other users.
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd2' REPLACE '';
+ERROR HY000: Do not specify the current password while changing it for other users.
+
+SET PASSWORD for non_priv_usr='pwd2';
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd2';
+
+#------------------------------------------------------------------------
+# One priv user(root) changing password for other priv user (priv_usr)
+#------------------------------------------------------------------------
+
+SET PASSWORD for priv_usr='pwd1' REPLACE 'pwd2';
+ERROR HY000: Do not specify the current password while changing it for other users.
+ALTER USER priv_usr IDENTIFIED BY 'pwd1' REPLACE 'P&(*^_)D';
+ERROR HY000: Do not specify the current password while changing it for other users.
+
+ALTER USER priv_usr IDENTIFIED BY 'pwd2';
+SET PASSWORD for priv_usr='pwd1';
+
+# Now test with Global server variable ON
+SET @@global.password_require_current=ON;
+
+#------------------------------------------------------------------------
+# Priv user changing his own password
+#------------------------------------------------------------------------
+
+# Can change without REPLACE clause
+SET PASSWORD='pwd2';
+SET PASSWORD for priv_usr='pwd1';
+ALTER USER user() IDENTIFIED BY 'pwd2';
+ALTER USER priv_usr IDENTIFIED BY 'pwd1';
+
+# Incorrect password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+SET PASSWORD for priv_usr='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER priv_usr IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+
+# Correct password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'pwd1';
+SET PASSWORD for priv_usr='pwd1' REPLACE 'pwd2';
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'pwd1';
+ALTER USER priv_usr IDENTIFIED BY 'pwd1' REPLACE 'pwd2'
+     WITH MAX_QUERIES_PER_HOUR 100 PASSWORD EXPIRE DEFAULT;
+
+#------------------------------------------------------------------------
+# Priv user changing the password of non_priv_usr
+#------------------------------------------------------------------------
+
+SET PASSWORD for non_priv_usr='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Do not specify the current password while changing it for other users.
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Do not specify the current password while changing it for other users.
+
+SET PASSWORD for non_priv_usr='pwd2' ;
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1';
+
+#------------------------------------------------------------------------
+# One priv user(root) changing password for other priv user (priv_usr)
+#------------------------------------------------------------------------
+
+SET PASSWORD for priv_usr='pwd1' REPLACE '';
+ERROR HY000: Do not specify the current password while changing it for other users.
+ALTER USER priv_usr IDENTIFIED BY 'pwd1' REPLACE 'pwd2';
+ERROR HY000: Do not specify the current password while changing it for other users.
+SET PASSWORD for priv_usr='pwd1';
+ALTER USER priv_usr IDENTIFIED BY 'pwd2';
+
+# Reset the privileges and global variable
+
+REVOKE UPDATE ON mysql.* FROM 'priv_usr'@'%';
+SET @@global.password_require_current=OFF;
+
+#------------------------------------------------------------------------
+# Non priv user changing his own password
+#------------------------------------------------------------------------
+
+# REPLACE clause is not specified
+SET PASSWORD='pwd2';
+SET PASSWORD for non_priv_usr='pwd2';
+ALTER USER user() IDENTIFIED BY 'pwd1';
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1';
+
+# Incorrect password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE '' ;
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+SET PASSWORD for non_priv_usr='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+
+# Correct password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'pwd1';
+SET PASSWORD for non_priv_usr='pwd1' REPLACE 'pwd2';
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'pwd1';
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1' REPLACE 'pwd2';
+
+# Now test with Global server variable ON
+SET @@global.password_require_current=ON;
+
+#------------------------------------------------------------------------
+# Non priv user changing his own password
+#------------------------------------------------------------------------
+
+# REPLACE clause is not specified
+SET PASSWORD='pwd2';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+SET PASSWORD for non_priv_usr='pwd2';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+ALTER USER user() IDENTIFIED BY 'pwd1';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+
+# Incorrect password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE '' ;
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+SET PASSWORD for non_priv_usr='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+
+# Correct password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'pwd1';
+SET PASSWORD for non_priv_usr='pwd1' REPLACE 'pwd2';
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'pwd1';
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1' REPLACE 'pwd2';
+
+# Reset the Global server variable to OFF
+SET @@global.password_require_current=OFF;
+
+DROP USER non_priv_usr, priv_usr;
+
+########################################################################
+# 3. Create user with CURRENT clause
+########################################################################
+CREATE USER IF NOT EXISTS non_priv_usr IDENTIFIED BY 'pwd1',
+priv_usr IDENTIFIED BY 'pwd2' PASSWORD REQUIRE CURRENT;
+
+# Show how the users were created
+
+SHOW CREATE USER non_priv_usr;
+CREATE USER for non_priv_usr@%
+CREATE USER 'non_priv_usr'@'%' IDENTIFIED WITH '<default_auth_plugin>' AS '<password_hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT
+SHOW CREATE USER priv_usr;
+CREATE USER for priv_usr@%
+CREATE USER 'priv_usr'@'%' IDENTIFIED WITH '<default_auth_plugin>' AS '<password_hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT
+SELECT password_require_current from mysql.user
+where user like '%priv_usr' OR user like '%non_priv_usr';
+password_require_current
+Y
+Y
+
+# Grant the update privileges to the user
+GRANT UPDATE ON mysql.* to 'priv_usr'@'%' WITH GRANT OPTION;
+
+#------------------------------------------------------------------------
+# Priv user changing his own password
+#------------------------------------------------------------------------
+
+# Without REPLACE clause
+SET PASSWORD='pwd1';
+SET PASSWORD for priv_usr='pwd2';
+ALTER USER user() IDENTIFIED BY 'pwd1';
+ALTER USER priv_usr IDENTIFIED BY 'pwd2';
+
+# With invalid current password in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+SET PASSWORD for priv_usr='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER priv_usr IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+
+# With valid current password in the REPLACE clause
+SET PASSWORD='pwd1' REPLACE 'pwd2';
+SET PASSWORD for priv_usr='pwd2' REPLACE 'pwd1';
+ALTER USER user() IDENTIFIED BY 'pwd1' REPLACE 'pwd2';
+ALTER USER priv_usr IDENTIFIED BY 'pwd2' REPLACE 'pwd1';
+
+#------------------------------------------------------------------------
+# Priv user changing the password of non_priv_usr
+#------------------------------------------------------------------------
+
+SET PASSWORD for non_priv_usr='pwd2' REPLACE 'pwd1';
+ERROR HY000: Do not specify the current password while changing it for other users.
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd2' REPLACE '';
+ERROR HY000: Do not specify the current password while changing it for other users.
+
+SET PASSWORD for non_priv_usr='pwd2';
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd2';
+
+#------------------------------------------------------------------------
+# One priv user(root) changing password for other priv user (priv_usr)
+#------------------------------------------------------------------------
+
+SET PASSWORD for priv_usr='pwd1' REPLACE 'pwd2';
+ERROR HY000: Do not specify the current password while changing it for other users.
+ALTER USER priv_usr IDENTIFIED BY 'pwd1' REPLACE 'P&(*^_)D';
+ERROR HY000: Do not specify the current password while changing it for other users.
+
+ALTER USER priv_usr IDENTIFIED BY 'pwd2';
+SET PASSWORD for priv_usr='pwd1';
+
+# Now test with Global server variable ON
+SET @@global.password_require_current=ON;
+
+#------------------------------------------------------------------------
+# Priv user changing his own password
+#------------------------------------------------------------------------
+
+# Can change without REPLACE clause
+SET PASSWORD='pwd2';
+SET PASSWORD for priv_usr='pwd1';
+ALTER USER user() IDENTIFIED BY 'pwd2';
+ALTER USER priv_usr IDENTIFIED BY 'pwd1';
+
+# Incorrect password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+SET PASSWORD for priv_usr='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER priv_usr IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+
+# Correct password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'pwd1';
+SET PASSWORD for priv_usr='pwd1' REPLACE 'pwd2';
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'pwd1';
+ALTER USER priv_usr IDENTIFIED BY 'pwd1' REPLACE 'pwd2'
+     WITH MAX_QUERIES_PER_HOUR 100 PASSWORD EXPIRE DEFAULT;
+
+#------------------------------------------------------------------------
+# Priv user changing the password of non_priv_usr
+#------------------------------------------------------------------------
+
+SET PASSWORD for non_priv_usr='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Do not specify the current password while changing it for other users.
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Do not specify the current password while changing it for other users.
+
+SET PASSWORD for non_priv_usr='pwd2' ;
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1';
+
+#------------------------------------------------------------------------
+# One priv user(root) changing password for other priv user (priv_usr)
+#------------------------------------------------------------------------
+
+SET PASSWORD for priv_usr='pwd1' REPLACE '';
+ERROR HY000: Do not specify the current password while changing it for other users.
+ALTER USER priv_usr IDENTIFIED BY 'pwd1' REPLACE 'pwd2';
+ERROR HY000: Do not specify the current password while changing it for other users.
+SET PASSWORD for priv_usr='pwd1';
+ALTER USER priv_usr IDENTIFIED BY 'pwd2';
+
+# Reset the privileges and global variable
+
+REVOKE UPDATE ON mysql.* FROM 'priv_usr'@'%';
+SET @@global.password_require_current=OFF;
+
+#------------------------------------------------------------------------
+# Non priv user changing his own password
+#------------------------------------------------------------------------
+
+# REPLACE clause is not specified
+SET PASSWORD='pwd2';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+SET PASSWORD for non_priv_usr='pwd2';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+ALTER USER user() IDENTIFIED BY 'pwd1';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+
+# Incorrect password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'P&(*^_)D' ;
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+SET PASSWORD for non_priv_usr='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+
+# Correct password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'pwd1';
+SET PASSWORD for non_priv_usr='pwd1' REPLACE 'pwd2';
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'pwd1';
+ALTER USER IF EXISTS non_priv_usr IDENTIFIED BY 'pwd1' REPLACE 'pwd2';
+
+# Now test with Global server variable ON
+SET @@global.password_require_current=ON;
+
+#------------------------------------------------------------------------
+# Non priv user changing his own password
+#------------------------------------------------------------------------
+
+# REPLACE clause is not specified
+SET PASSWORD='pwd2';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+SET PASSWORD for non_priv_usr='pwd2';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+ALTER USER user() IDENTIFIED BY 'pwd2';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd2';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+
+# Incorrect password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'P&(*^_)D' ;
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+SET PASSWORD for non_priv_usr='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+
+# Correct password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'pwd1';
+SET PASSWORD for non_priv_usr='pwd1' REPLACE 'pwd2';
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'pwd1';
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1' REPLACE 'pwd2';
+
+# Reset the Global server variable to OFF
+SET @@global.password_require_current=OFF;
+
+DROP USER non_priv_usr, priv_usr;
+
+########################################################################
+# 4. Create user with OPTIONAL clause
+########################################################################
+CREATE USER non_priv_usr IDENTIFIED BY 'pwd1',
+priv_usr IDENTIFIED BY 'pwd2'
+                 PASSWORD REQUIRE CURRENT OPTIONAL;
+
+# Show how the users were created
+
+SHOW CREATE USER non_priv_usr;
+CREATE USER for non_priv_usr@%
+CREATE USER 'non_priv_usr'@'%' IDENTIFIED WITH '<default_auth_plugin>' AS '<password_hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT OPTIONAL
+SHOW CREATE USER priv_usr;
+CREATE USER for priv_usr@%
+CREATE USER 'priv_usr'@'%' IDENTIFIED WITH '<default_auth_plugin>' AS '<password_hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT OPTIONAL
+SELECT password_require_current from mysql.user
+where user like '%priv_usr' OR user like '%non_priv_usr';
+password_require_current
+N
+N
+
+# Grant the update privileges to the user
+GRANT UPDATE ON mysql.* to 'priv_usr'@'%' WITH GRANT OPTION;
+
+#------------------------------------------------------------------------
+# Priv user changing his own password
+#------------------------------------------------------------------------
+
+# Without REPLACE clause
+SET PASSWORD='pwd1';
+SET PASSWORD for priv_usr='pwd2';
+ALTER USER user() IDENTIFIED BY 'pwd1';
+ALTER USER priv_usr IDENTIFIED BY 'pwd2';
+
+# With invalid current password in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+SET PASSWORD for priv_usr='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER priv_usr IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+
+# With valid current password in the REPLACE clause
+SET PASSWORD='pwd1' REPLACE 'pwd2';
+SET PASSWORD for priv_usr='pwd2' REPLACE 'pwd1';
+ALTER USER user() IDENTIFIED BY 'pwd1' REPLACE 'pwd2';
+ALTER USER priv_usr IDENTIFIED BY 'pwd2' REPLACE 'pwd1';
+
+#------------------------------------------------------------------------
+# Priv user changing the password of non_priv_usr
+#------------------------------------------------------------------------
+
+SET PASSWORD for non_priv_usr='pwd2' REPLACE 'pwd1';
+ERROR HY000: Do not specify the current password while changing it for other users.
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd2' REPLACE '';
+ERROR HY000: Do not specify the current password while changing it for other users.
+
+SET PASSWORD for non_priv_usr='pwd2';
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd2';
+
+#------------------------------------------------------------------------
+# One priv user(root) changing password for other priv user (priv_usr)
+#------------------------------------------------------------------------
+
+SET PASSWORD for priv_usr='pwd1' REPLACE 'pwd2';
+ERROR HY000: Do not specify the current password while changing it for other users.
+ALTER USER priv_usr IDENTIFIED BY 'pwd1' REPLACE 'P&(*^_)D';
+ERROR HY000: Do not specify the current password while changing it for other users.
+
+ALTER USER priv_usr IDENTIFIED BY 'pwd2';
+SET PASSWORD for priv_usr='pwd1';
+
+# Now test with Global server variable ON
+SET @@global.password_require_current=ON;
+
+#------------------------------------------------------------------------
+# Priv user changing his own password
+#------------------------------------------------------------------------
+
+# Can change without REPLACE clause
+SET PASSWORD='pwd2';
+SET PASSWORD for priv_usr='pwd1';
+ALTER USER user() IDENTIFIED BY 'pwd2';
+ALTER USER priv_usr IDENTIFIED BY 'pwd1';
+
+# Incorrect password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+SET PASSWORD for priv_usr='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER priv_usr IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+
+# Correct password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'pwd1';
+SET PASSWORD for priv_usr='pwd1' REPLACE 'pwd2';
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'pwd1';
+ALTER USER priv_usr IDENTIFIED BY 'pwd1' REPLACE 'pwd2'
+     WITH MAX_QUERIES_PER_HOUR 100 PASSWORD EXPIRE DEFAULT;
+
+#------------------------------------------------------------------------
+# Priv user changing the password of non_priv_usr
+#------------------------------------------------------------------------
+
+SET PASSWORD for non_priv_usr='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Do not specify the current password while changing it for other users.
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Do not specify the current password while changing it for other users.
+
+SET PASSWORD for non_priv_usr='pwd2' ;
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1';
+
+#------------------------------------------------------------------------
+# One priv user(root) changing password for other priv user (priv_usr)
+#------------------------------------------------------------------------
+
+SET PASSWORD for priv_usr='pwd1' REPLACE '';
+ERROR HY000: Do not specify the current password while changing it for other users.
+ALTER USER priv_usr IDENTIFIED BY 'pwd1' REPLACE 'pwd2';
+ERROR HY000: Do not specify the current password while changing it for other users.
+SET PASSWORD for priv_usr='pwd1';
+ALTER USER priv_usr IDENTIFIED BY 'pwd2';
+
+# Reset the privileges and global variable
+
+REVOKE UPDATE ON mysql.* FROM 'priv_usr'@'%';
+SET @@global.password_require_current=OFF;
+
+#------------------------------------------------------------------------
+# Non priv user changing his own password
+#------------------------------------------------------------------------
+
+# REPLACE clause is not specified
+SET PASSWORD='pwd2';
+SET PASSWORD for non_priv_usr='pwd2';
+ALTER USER user() IDENTIFIED BY 'pwd1';
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1';
+
+# Incorrect password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'P&(*^_)D' ;
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+SET PASSWORD for non_priv_usr='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+
+# Correct password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'pwd1';
+SET PASSWORD for non_priv_usr='pwd1' REPLACE 'pwd2';
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'pwd1';
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1' REPLACE 'pwd2';
+
+# Now test with Global server variable ON
+SET @@global.password_require_current=ON;
+
+#------------------------------------------------------------------------
+# Non priv user changing his own password
+#------------------------------------------------------------------------
+
+# REPLACE clause is not specified
+SET PASSWORD='pwd2';
+SET PASSWORD for non_priv_usr='pwd1';
+ALTER USER user() IDENTIFIED BY 'pwd2';
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1';
+
+# Incorrect password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'P&(*^_)D' ;
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+SET PASSWORD for non_priv_usr='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+
+# Correct password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'pwd1';
+SET PASSWORD for non_priv_usr='pwd1' REPLACE 'pwd2';
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'pwd1';
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1' REPLACE 'pwd2';
+
+# Reset the Global server variable to OFF
+SET @@global.password_require_current=OFF;
+
+DROP USER non_priv_usr, priv_usr;
+
+########################################################################
+# 5. Verify the ALTER USER scenarios
+########################################################################
+CREATE USER non_priv_usr IDENTIFIED BY 'pwd1',
+priv_usr IDENTIFIED BY 'pwd2'
+                 PASSWORD REQUIRE CURRENT;
+#
+# Change password_require_current --> password_require_current_optional
+#
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1',
+priv_usr IDENTIFIED BY 'pwd2'
+                WITH MAX_USER_CONNECTIONS 2
+PASSWORD REQUIRE CURRENT OPTIONAL
+PASSWORD EXPIRE NEVER;
+
+# Show how the users were created
+
+SHOW CREATE USER non_priv_usr;
+CREATE USER for non_priv_usr@%
+CREATE USER 'non_priv_usr'@'%' IDENTIFIED WITH '<default_auth_plugin>' AS '<password_hash>' REQUIRE NONE WITH MAX_USER_CONNECTIONS 2 PASSWORD EXPIRE NEVER ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT OPTIONAL
+SHOW CREATE USER priv_usr;
+CREATE USER for priv_usr@%
+CREATE USER 'priv_usr'@'%' IDENTIFIED WITH '<default_auth_plugin>' AS '<password_hash>' REQUIRE NONE WITH MAX_USER_CONNECTIONS 2 PASSWORD EXPIRE NEVER ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT OPTIONAL
+SELECT password_require_current from mysql.user
+where user like '%priv_usr' OR user like '%non_priv_usr';
+password_require_current
+N
+N
+
+# Grant the update privileges to the user
+GRANT UPDATE ON mysql.* to 'priv_usr'@'%' WITH GRANT OPTION;
+
+#------------------------------------------------------------------------
+# Priv user changing his own password
+#------------------------------------------------------------------------
+
+# Without REPLACE clause
+SET PASSWORD='pwd1';
+SET PASSWORD for priv_usr='pwd2';
+ALTER USER user() IDENTIFIED BY 'pwd1';
+ALTER USER priv_usr IDENTIFIED BY 'pwd2';
+
+# With invalid current password in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+SET PASSWORD for priv_usr='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER priv_usr IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+
+# With valid current password in the REPLACE clause
+SET PASSWORD='pwd1' REPLACE 'pwd2';
+SET PASSWORD for priv_usr='pwd2' REPLACE 'pwd1';
+ALTER USER user() IDENTIFIED BY 'pwd1' REPLACE 'pwd2';
+ALTER USER priv_usr IDENTIFIED BY 'pwd2' REPLACE 'pwd1';
+
+#------------------------------------------------------------------------
+# Priv user changing the password of non_priv_usr
+#------------------------------------------------------------------------
+
+SET PASSWORD for non_priv_usr='pwd2' REPLACE 'pwd1';
+ERROR HY000: Do not specify the current password while changing it for other users.
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd2' REPLACE '';
+ERROR HY000: Do not specify the current password while changing it for other users.
+
+SET PASSWORD for non_priv_usr='pwd2';
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd2';
+
+#------------------------------------------------------------------------
+# One priv user(root) changing password for other priv user (priv_usr)
+#------------------------------------------------------------------------
+
+SET PASSWORD for priv_usr='pwd1' REPLACE 'pwd2';
+ERROR HY000: Do not specify the current password while changing it for other users.
+ALTER USER priv_usr IDENTIFIED BY 'pwd1' REPLACE 'P&(*^_)D';
+ERROR HY000: Do not specify the current password while changing it for other users.
+
+ALTER USER priv_usr IDENTIFIED BY 'pwd2';
+SET PASSWORD for priv_usr='pwd1';
+
+# Now test with Global server variable ON
+SET @@global.password_require_current=ON;
+
+#------------------------------------------------------------------------
+# Priv user changing his own password
+#------------------------------------------------------------------------
+
+# Can change without REPLACE clause
+SET PASSWORD='pwd2';
+SET PASSWORD for priv_usr='pwd1';
+ALTER USER user() IDENTIFIED BY 'pwd2';
+ALTER USER priv_usr IDENTIFIED BY 'pwd1';
+
+# Incorrect password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+SET PASSWORD for priv_usr='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER priv_usr IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+
+# Correct password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'pwd1';
+SET PASSWORD for priv_usr='pwd1' REPLACE 'pwd2';
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'pwd1';
+ALTER USER priv_usr IDENTIFIED BY 'pwd1' REPLACE 'pwd2'
+     WITH MAX_QUERIES_PER_HOUR 100 PASSWORD EXPIRE DEFAULT;
+
+#------------------------------------------------------------------------
+# Priv user changing the password of non_priv_usr
+#------------------------------------------------------------------------
+
+SET PASSWORD for non_priv_usr='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Do not specify the current password while changing it for other users.
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Do not specify the current password while changing it for other users.
+
+SET PASSWORD for non_priv_usr='pwd2' ;
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1';
+
+#------------------------------------------------------------------------
+# One priv user(root) changing password for other priv user (priv_usr)
+#------------------------------------------------------------------------
+
+SET PASSWORD for priv_usr='pwd1' REPLACE '';
+ERROR HY000: Do not specify the current password while changing it for other users.
+ALTER USER priv_usr IDENTIFIED BY 'pwd1' REPLACE 'pwd2';
+ERROR HY000: Do not specify the current password while changing it for other users.
+SET PASSWORD for priv_usr='pwd1';
+ALTER USER priv_usr IDENTIFIED BY 'pwd2';
+
+# Reset the privileges and global variable
+
+REVOKE UPDATE ON mysql.* FROM 'priv_usr'@'%';
+SET @@global.password_require_current=OFF;
+
+#------------------------------------------------------------------------
+# Non priv user changing his own password
+#------------------------------------------------------------------------
+
+# REPLACE clause is not specified
+SET PASSWORD='pwd2';
+SET PASSWORD for non_priv_usr='pwd2';
+ALTER USER user() IDENTIFIED BY 'pwd1';
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1';
+
+# Incorrect password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'P&(*^_)D' ;
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+SET PASSWORD for non_priv_usr='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+
+# Correct password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'pwd1';
+SET PASSWORD for non_priv_usr='pwd1' REPLACE 'pwd2';
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'pwd1';
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1' REPLACE 'pwd2';
+
+# Now test with Global server variable ON
+SET @@global.password_require_current=ON;
+
+#------------------------------------------------------------------------
+# Non priv user changing his own password
+#------------------------------------------------------------------------
+
+# REPLACE clause is not specified
+SET PASSWORD='pwd2';
+SET PASSWORD for non_priv_usr='pwd1';
+ALTER USER user() IDENTIFIED BY 'pwd2';
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1';
+
+# Incorrect password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'P&(*^_)D' ;
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+SET PASSWORD for non_priv_usr='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+
+# Correct password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'pwd1';
+SET PASSWORD for non_priv_usr='pwd1' REPLACE 'pwd2';
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'pwd1';
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1' REPLACE 'pwd2';
+
+# Reset the Global server variable to OFF
+SET @@global.password_require_current=OFF;
+
+#
+# Change password_require_optional --> password_require_current_default
+#
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1',
+priv_usr IDENTIFIED BY 'pwd2'
+                PASSWORD EXPIRE DEFAULT
+PASSWORD REUSE INTERVAL 0 DAY
+PASSWORD REQUIRE CURRENT DEFAULT;
+
+# Show how the users were created
+
+SHOW CREATE USER non_priv_usr;
+CREATE USER for non_priv_usr@%
+CREATE USER 'non_priv_usr'@'%' IDENTIFIED WITH '<default_auth_plugin>' AS '<password_hash>' REQUIRE NONE WITH MAX_USER_CONNECTIONS 2 PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL 0 DAY PASSWORD REQUIRE CURRENT DEFAULT
+SHOW CREATE USER priv_usr;
+CREATE USER for priv_usr@%
+CREATE USER 'priv_usr'@'%' IDENTIFIED WITH '<default_auth_plugin>' AS '<password_hash>' REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 100 MAX_USER_CONNECTIONS 2 PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL 0 DAY PASSWORD REQUIRE CURRENT DEFAULT
+SELECT password_require_current from mysql.user
+where user like '%priv_usr' OR user like '%non_priv_usr';
+password_require_current
+NULL
+NULL
+
+# Grant the update privileges to the user
+GRANT UPDATE ON mysql.* to 'priv_usr'@'%' WITH GRANT OPTION;
+
+#------------------------------------------------------------------------
+# Priv user changing his own password
+#------------------------------------------------------------------------
+
+# Without REPLACE clause
+SET PASSWORD='pwd1';
+SET PASSWORD for priv_usr='pwd2';
+ALTER USER user() IDENTIFIED BY 'pwd1';
+ALTER USER priv_usr IDENTIFIED BY 'pwd2';
+
+# With invalid current password in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+SET PASSWORD for priv_usr='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER priv_usr IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+
+# With valid current password in the REPLACE clause
+SET PASSWORD='pwd1' REPLACE 'pwd2';
+SET PASSWORD for priv_usr='pwd2' REPLACE 'pwd1';
+ALTER USER user() IDENTIFIED BY 'pwd1' REPLACE 'pwd2';
+ALTER USER priv_usr IDENTIFIED BY 'pwd2' REPLACE 'pwd1';
+
+#------------------------------------------------------------------------
+# Priv user changing the password of non_priv_usr
+#------------------------------------------------------------------------
+
+SET PASSWORD for non_priv_usr='pwd2' REPLACE 'pwd1';
+ERROR HY000: Do not specify the current password while changing it for other users.
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd2' REPLACE '';
+ERROR HY000: Do not specify the current password while changing it for other users.
+
+SET PASSWORD for non_priv_usr='pwd2';
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd2';
+
+#------------------------------------------------------------------------
+# One priv user(root) changing password for other priv user (priv_usr)
+#------------------------------------------------------------------------
+
+SET PASSWORD for priv_usr='pwd1' REPLACE 'pwd2';
+ERROR HY000: Do not specify the current password while changing it for other users.
+ALTER USER priv_usr IDENTIFIED BY 'pwd1' REPLACE 'P&(*^_)D';
+ERROR HY000: Do not specify the current password while changing it for other users.
+
+ALTER USER priv_usr IDENTIFIED BY 'pwd2';
+SET PASSWORD for priv_usr='pwd1';
+
+# Now test with Global server variable ON
+SET @@global.password_require_current=ON;
+
+#------------------------------------------------------------------------
+# Priv user changing his own password
+#------------------------------------------------------------------------
+
+# Can change without REPLACE clause
+SET PASSWORD='pwd2';
+SET PASSWORD for priv_usr='pwd1';
+ALTER USER user() IDENTIFIED BY 'pwd2';
+ALTER USER priv_usr IDENTIFIED BY 'pwd1';
+
+# Incorrect password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+SET PASSWORD for priv_usr='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER priv_usr IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+
+# Correct password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'pwd1';
+SET PASSWORD for priv_usr='pwd1' REPLACE 'pwd2';
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'pwd1';
+ALTER USER priv_usr IDENTIFIED BY 'pwd1' REPLACE 'pwd2'
+     WITH MAX_QUERIES_PER_HOUR 100 PASSWORD EXPIRE DEFAULT;
+
+#------------------------------------------------------------------------
+# Priv user changing the password of non_priv_usr
+#------------------------------------------------------------------------
+
+SET PASSWORD for non_priv_usr='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Do not specify the current password while changing it for other users.
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Do not specify the current password while changing it for other users.
+
+SET PASSWORD for non_priv_usr='pwd2' ;
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1';
+
+#------------------------------------------------------------------------
+# One priv user(root) changing password for other priv user (priv_usr)
+#------------------------------------------------------------------------
+
+SET PASSWORD for priv_usr='pwd1' REPLACE '';
+ERROR HY000: Do not specify the current password while changing it for other users.
+ALTER USER priv_usr IDENTIFIED BY 'pwd1' REPLACE 'pwd2';
+ERROR HY000: Do not specify the current password while changing it for other users.
+SET PASSWORD for priv_usr='pwd1';
+ALTER USER priv_usr IDENTIFIED BY 'pwd2';
+
+# Reset the privileges and global variable
+
+REVOKE UPDATE ON mysql.* FROM 'priv_usr'@'%';
+SET @@global.password_require_current=OFF;
+
+#------------------------------------------------------------------------
+# Non priv user changing his own password
+#------------------------------------------------------------------------
+
+# REPLACE clause is not specified
+SET PASSWORD='pwd2';
+SET PASSWORD for non_priv_usr='pwd2';
+ALTER USER user() IDENTIFIED BY 'pwd1';
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1';
+
+# Incorrect password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE '' ;
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+SET PASSWORD for non_priv_usr='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+
+# Correct password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'pwd1';
+SET PASSWORD for non_priv_usr='pwd1' REPLACE 'pwd2';
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'pwd1';
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1' REPLACE 'pwd2';
+
+# Now test with Global server variable ON
+SET @@global.password_require_current=ON;
+
+#------------------------------------------------------------------------
+# Non priv user changing his own password
+#------------------------------------------------------------------------
+
+# REPLACE clause is not specified
+SET PASSWORD='pwd2';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+SET PASSWORD for non_priv_usr='pwd2';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+ALTER USER user() IDENTIFIED BY 'pwd1';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+
+# Incorrect password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE '' ;
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+SET PASSWORD for non_priv_usr='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+
+# Correct password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'pwd1';
+SET PASSWORD for non_priv_usr='pwd1' REPLACE 'pwd2';
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'pwd1';
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1' REPLACE 'pwd2';
+
+# Reset the Global server variable to OFF
+SET @@global.password_require_current=OFF;
+
+#
+# Change password_require_default --> password_require_current
+#
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1',
+priv_usr IDENTIFIED BY 'pwd2'
+                WITH MAX_QUERIES_PER_HOUR 100
+PASSWORD HISTORY 0
+PASSWORD REQUIRE CURRENT;
+
+# Show how the users were created
+
+SHOW CREATE USER non_priv_usr;
+CREATE USER for non_priv_usr@%
+CREATE USER 'non_priv_usr'@'%' IDENTIFIED WITH '<default_auth_plugin>' AS '<password_hash>' REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 100 MAX_USER_CONNECTIONS 2 PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY 0 PASSWORD REUSE INTERVAL 0 DAY PASSWORD REQUIRE CURRENT
+SHOW CREATE USER priv_usr;
+CREATE USER for priv_usr@%
+CREATE USER 'priv_usr'@'%' IDENTIFIED WITH '<default_auth_plugin>' AS '<password_hash>' REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 100 MAX_USER_CONNECTIONS 2 PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY 0 PASSWORD REUSE INTERVAL 0 DAY PASSWORD REQUIRE CURRENT
+SELECT password_require_current from mysql.user
+where user like '%priv_usr' OR user like '%non_priv_usr';
+password_require_current
+Y
+Y
+
+# Grant the update privileges to the user
+GRANT UPDATE ON mysql.* to 'priv_usr'@'%' WITH GRANT OPTION;
+
+#------------------------------------------------------------------------
+# Priv user changing his own password
+#------------------------------------------------------------------------
+
+# Without REPLACE clause
+SET PASSWORD='pwd1';
+SET PASSWORD for priv_usr='pwd2';
+ALTER USER user() IDENTIFIED BY 'pwd1';
+ALTER USER priv_usr IDENTIFIED BY 'pwd2';
+
+# With invalid current password in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+SET PASSWORD for priv_usr='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER priv_usr IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+
+# With valid current password in the REPLACE clause
+SET PASSWORD='pwd1' REPLACE 'pwd2';
+SET PASSWORD for priv_usr='pwd2' REPLACE 'pwd1';
+ALTER USER user() IDENTIFIED BY 'pwd1' REPLACE 'pwd2';
+ALTER USER priv_usr IDENTIFIED BY 'pwd2' REPLACE 'pwd1';
+
+#------------------------------------------------------------------------
+# Priv user changing the password of non_priv_usr
+#------------------------------------------------------------------------
+
+SET PASSWORD for non_priv_usr='pwd2' REPLACE 'pwd1';
+ERROR HY000: Do not specify the current password while changing it for other users.
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd2' REPLACE '';
+ERROR HY000: Do not specify the current password while changing it for other users.
+
+SET PASSWORD for non_priv_usr='pwd2';
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd2';
+
+#------------------------------------------------------------------------
+# One priv user(root) changing password for other priv user (priv_usr)
+#------------------------------------------------------------------------
+
+SET PASSWORD for priv_usr='pwd1' REPLACE 'pwd2';
+ERROR HY000: Do not specify the current password while changing it for other users.
+ALTER USER priv_usr IDENTIFIED BY 'pwd1' REPLACE 'P&(*^_)D';
+ERROR HY000: Do not specify the current password while changing it for other users.
+
+ALTER USER priv_usr IDENTIFIED BY 'pwd2';
+SET PASSWORD for priv_usr='pwd1';
+
+# Now test with Global server variable ON
+SET @@global.password_require_current=ON;
+
+#------------------------------------------------------------------------
+# Priv user changing his own password
+#------------------------------------------------------------------------
+
+# Can change without REPLACE clause
+SET PASSWORD='pwd2';
+SET PASSWORD for priv_usr='pwd1';
+ALTER USER user() IDENTIFIED BY 'pwd2';
+ALTER USER priv_usr IDENTIFIED BY 'pwd1';
+
+# Incorrect password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+SET PASSWORD for priv_usr='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER priv_usr IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+
+# Correct password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'pwd1';
+SET PASSWORD for priv_usr='pwd1' REPLACE 'pwd2';
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'pwd1';
+ALTER USER priv_usr IDENTIFIED BY 'pwd1' REPLACE 'pwd2'
+     WITH MAX_QUERIES_PER_HOUR 100 PASSWORD EXPIRE DEFAULT;
+
+#------------------------------------------------------------------------
+# Priv user changing the password of non_priv_usr
+#------------------------------------------------------------------------
+
+SET PASSWORD for non_priv_usr='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Do not specify the current password while changing it for other users.
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Do not specify the current password while changing it for other users.
+
+SET PASSWORD for non_priv_usr='pwd2' ;
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1';
+
+#------------------------------------------------------------------------
+# One priv user(root) changing password for other priv user (priv_usr)
+#------------------------------------------------------------------------
+
+SET PASSWORD for priv_usr='pwd1' REPLACE '';
+ERROR HY000: Do not specify the current password while changing it for other users.
+ALTER USER priv_usr IDENTIFIED BY 'pwd1' REPLACE 'pwd2';
+ERROR HY000: Do not specify the current password while changing it for other users.
+SET PASSWORD for priv_usr='pwd1';
+ALTER USER priv_usr IDENTIFIED BY 'pwd2';
+
+# Reset the privileges and global variable
+
+REVOKE UPDATE ON mysql.* FROM 'priv_usr'@'%';
+SET @@global.password_require_current=OFF;
+
+#------------------------------------------------------------------------
+# Non priv user changing his own password
+#------------------------------------------------------------------------
+
+# REPLACE clause is not specified
+SET PASSWORD='pwd2';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+SET PASSWORD for non_priv_usr='pwd2';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+ALTER USER user() IDENTIFIED BY 'pwd1';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+
+# Incorrect password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'P&(*^_)D' ;
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+SET PASSWORD for non_priv_usr='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+
+# Correct password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'pwd1';
+SET PASSWORD for non_priv_usr='pwd1' REPLACE 'pwd2';
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'pwd1';
+ALTER USER IF EXISTS non_priv_usr IDENTIFIED BY 'pwd1' REPLACE 'pwd2';
+
+# Now test with Global server variable ON
+SET @@global.password_require_current=ON;
+
+#------------------------------------------------------------------------
+# Non priv user changing his own password
+#------------------------------------------------------------------------
+
+# REPLACE clause is not specified
+SET PASSWORD='pwd2';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+SET PASSWORD for non_priv_usr='pwd2';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+ALTER USER user() IDENTIFIED BY 'pwd2';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd2';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+
+# Incorrect password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'P&(*^_)D' ;
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+SET PASSWORD for non_priv_usr='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+
+# Correct password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'pwd1';
+SET PASSWORD for non_priv_usr='pwd1' REPLACE 'pwd2';
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'pwd1';
+ALTER USER non_priv_usr IDENTIFIED BY 'pwd1' REPLACE 'pwd2';
+
+# Reset the Global server variable to OFF
+SET @@global.password_require_current=OFF;
+
+DROP USER non_priv_usr, priv_usr;
+
+########################################################################
+# 6. Change password after privileges are granted/revoked from the user
+########################################################################
+CREATE USER usr1 IDENTIFIED BY 'pwd1' PASSWORD REQUIRE CURRENT;
+
+#------------------------------------------------------------------------
+# Non priv user changing his own password
+#------------------------------------------------------------------------
+
+# REPLACE clause is not specified
+SET PASSWORD='pwd2';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+SET PASSWORD for usr1='pwd2';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+ALTER USER user() IDENTIFIED BY 'pwd1';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+ALTER USER usr1 IDENTIFIED BY 'pwd1';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+
+# Incorrect password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'P&(*^_)D' ;
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+SET PASSWORD for usr1='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER usr1 IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+
+# Correct password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'pwd1';
+SET PASSWORD for usr1='pwd1' REPLACE 'pwd2';
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'pwd1';
+ALTER USER IF EXISTS usr1 IDENTIFIED BY 'pwd1' REPLACE 'pwd2';
+
+# Now test with Global server variable ON
+SET @@global.password_require_current=ON;
+
+#------------------------------------------------------------------------
+# Non priv user changing his own password
+#------------------------------------------------------------------------
+
+# REPLACE clause is not specified
+SET PASSWORD='pwd2';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+SET PASSWORD for usr1='pwd2';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+ALTER USER user() IDENTIFIED BY 'pwd2';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+ALTER USER usr1 IDENTIFIED BY 'pwd2';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+
+# Incorrect password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'P&(*^_)D' ;
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+SET PASSWORD for usr1='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER usr1 IDENTIFIED BY 'pwd1' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+
+# Correct password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'pwd1';
+SET PASSWORD for usr1='pwd1' REPLACE 'pwd2';
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'pwd1';
+ALTER USER usr1 IDENTIFIED BY 'pwd1' REPLACE 'pwd2';
+
+# Reset the Global server variable to OFF
+SET @@global.password_require_current=OFF;
+
+CREATE USER usr2 IDENTIFIED BY 'pwd1' PASSWORD REQUIRE CURRENT;
+
+# Show how the users were created
+
+SHOW CREATE USER usr2;
+CREATE USER for usr2@%
+CREATE USER 'usr2'@'%' IDENTIFIED WITH '<default_auth_plugin>' AS '<password_hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT
+SHOW CREATE USER usr1;
+CREATE USER for usr1@%
+CREATE USER 'usr1'@'%' IDENTIFIED WITH '<default_auth_plugin>' AS '<password_hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT
+SELECT password_require_current from mysql.user
+where user like '%usr1' OR user like '%usr2';
+password_require_current
+Y
+Y
+
+# Grant the update privileges to the user
+GRANT UPDATE ON mysql.* to 'usr1'@'%' WITH GRANT OPTION;
+
+#------------------------------------------------------------------------
+# Priv user changing his own password
+#------------------------------------------------------------------------
+
+# Without REPLACE clause
+SET PASSWORD='pwd1';
+SET PASSWORD for usr1='pwd1';
+ALTER USER user() IDENTIFIED BY 'pwd1';
+ALTER USER usr1 IDENTIFIED BY 'pwd1';
+
+# With invalid current password in the REPLACE clause
+SET PASSWORD='pwd1' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+SET PASSWORD for usr1='pwd1' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER user() IDENTIFIED BY 'pwd1' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER usr1 IDENTIFIED BY 'pwd1' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+
+# With valid current password in the REPLACE clause
+SET PASSWORD='pwd1' REPLACE 'pwd1';
+SET PASSWORD for usr1='pwd1' REPLACE 'pwd1';
+ALTER USER user() IDENTIFIED BY 'pwd1' REPLACE 'pwd1';
+ALTER USER usr1 IDENTIFIED BY 'pwd1' REPLACE 'pwd1';
+
+#------------------------------------------------------------------------
+# Priv user changing the password of usr2
+#------------------------------------------------------------------------
+
+SET PASSWORD for usr2='pwd1' REPLACE 'pwd1';
+ERROR HY000: Do not specify the current password while changing it for other users.
+ALTER USER usr2 IDENTIFIED BY 'pwd1' REPLACE '';
+ERROR HY000: Do not specify the current password while changing it for other users.
+
+SET PASSWORD for usr2='pwd1';
+ALTER USER usr2 IDENTIFIED BY 'pwd1';
+
+#------------------------------------------------------------------------
+# One priv user(root) changing password for other priv user (usr1)
+#------------------------------------------------------------------------
+
+SET PASSWORD for usr1='pwd1' REPLACE 'pwd1';
+ERROR HY000: Do not specify the current password while changing it for other users.
+ALTER USER usr1 IDENTIFIED BY 'pwd1' REPLACE 'P&(*^_)D';
+ERROR HY000: Do not specify the current password while changing it for other users.
+
+ALTER USER usr1 IDENTIFIED BY 'pwd1';
+SET PASSWORD for usr1='pwd1';
+
+# Now test with Global server variable ON
+SET @@global.password_require_current=ON;
+
+#------------------------------------------------------------------------
+# Priv user changing his own password
+#------------------------------------------------------------------------
+
+# Can change without REPLACE clause
+SET PASSWORD='pwd1';
+SET PASSWORD for usr1='pwd1';
+ALTER USER user() IDENTIFIED BY 'pwd1';
+ALTER USER usr1 IDENTIFIED BY 'pwd1';
+
+# Incorrect password specified in the REPLACE clause
+SET PASSWORD='pwd1' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+SET PASSWORD for usr1='pwd1' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER user() IDENTIFIED BY 'pwd1' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER usr1 IDENTIFIED BY 'pwd1' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+
+# Correct password specified in the REPLACE clause
+SET PASSWORD='pwd1' REPLACE 'pwd1';
+SET PASSWORD for usr1='pwd1' REPLACE 'pwd1';
+ALTER USER user() IDENTIFIED BY 'pwd1' REPLACE 'pwd1';
+ALTER USER usr1 IDENTIFIED BY 'pwd1' REPLACE 'pwd1'
+     WITH MAX_QUERIES_PER_HOUR 100 PASSWORD EXPIRE DEFAULT;
+
+#------------------------------------------------------------------------
+# Priv user changing the password of usr2
+#------------------------------------------------------------------------
+
+SET PASSWORD for usr2='pwd1' REPLACE 'P&(*^_)D';
+ERROR HY000: Do not specify the current password while changing it for other users.
+ALTER USER usr2 IDENTIFIED BY 'pwd1' REPLACE 'P&(*^_)D';
+ERROR HY000: Do not specify the current password while changing it for other users.
+
+SET PASSWORD for usr2='pwd1' ;
+ALTER USER usr2 IDENTIFIED BY 'pwd1';
+
+#------------------------------------------------------------------------
+# One priv user(root) changing password for other priv user (usr1)
+#------------------------------------------------------------------------
+
+SET PASSWORD for usr1='pwd1' REPLACE '';
+ERROR HY000: Do not specify the current password while changing it for other users.
+ALTER USER usr1 IDENTIFIED BY 'pwd1' REPLACE 'pwd1';
+ERROR HY000: Do not specify the current password while changing it for other users.
+SET PASSWORD for usr1='pwd1';
+ALTER USER usr1 IDENTIFIED BY 'pwd1';
+
+# Reset the privileges and global variable
+
+REVOKE UPDATE ON mysql.* FROM 'usr1'@'%';
+SET @@global.password_require_current=OFF;
+DROP USER usr2;
+
+#------------------------------------------------------------------------
+# Non priv user changing his own password
+#------------------------------------------------------------------------
+
+# REPLACE clause is not specified
+SET PASSWORD='pwd2';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+SET PASSWORD for usr1='pwd2';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+ALTER USER user() IDENTIFIED BY 'pwd1';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+ALTER USER usr1 IDENTIFIED BY 'pwd1';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+
+# Incorrect password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'P&(*^_)D' ;
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+SET PASSWORD for usr1='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER usr1 IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+
+# Correct password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'pwd1';
+SET PASSWORD for usr1='pwd1' REPLACE 'pwd2';
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'pwd1';
+ALTER USER IF EXISTS usr1 IDENTIFIED BY 'pwd1' REPLACE 'pwd2';
+
+# Now test with Global server variable ON
+SET @@global.password_require_current=ON;
+
+#------------------------------------------------------------------------
+# Non priv user changing his own password
+#------------------------------------------------------------------------
+
+# REPLACE clause is not specified
+SET PASSWORD='pwd2';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+SET PASSWORD for usr1='pwd2';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+ALTER USER user() IDENTIFIED BY 'pwd2';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+ALTER USER usr1 IDENTIFIED BY 'pwd2';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+
+# Incorrect password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'P&(*^_)D' ;
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+SET PASSWORD for usr1='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER usr1 IDENTIFIED BY 'pwd1' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+
+# Correct password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'pwd1';
+SET PASSWORD for usr1='pwd1' REPLACE 'pwd2';
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'pwd1';
+ALTER USER usr1 IDENTIFIED BY 'pwd1' REPLACE 'pwd2';
+
+# Reset the Global server variable to OFF
+SET @@global.password_require_current=OFF;
+
+DROP USER usr1;
+
+########################################################################
+# 7. Change password of an user using old auth plugin with empty password
+########################################################################
+CREATE USER usr1 IDENTIFIED WITH 'mysql_native_password'
+     PASSWORD REQUIRE CURRENT;
+
+#------------------------------------------------------------------------
+# Non priv user changing his own password
+#------------------------------------------------------------------------
+
+# REPLACE clause is not specified
+SET PASSWORD='pwd2';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+SET PASSWORD for usr1='pwd2';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+ALTER USER user() IDENTIFIED BY '';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+ALTER USER usr1 IDENTIFIED BY '';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+
+# Incorrect password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'P&(*^_)D' ;
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+SET PASSWORD for usr1='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER usr1 IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+
+# Correct password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE '';
+SET PASSWORD for usr1='' REPLACE 'pwd2';
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE '';
+ALTER USER IF EXISTS usr1 IDENTIFIED BY '' REPLACE 'pwd2';
+
+# Now test with Global server variable ON
+SET @@global.password_require_current=ON;
+
+#------------------------------------------------------------------------
+# Non priv user changing his own password
+#------------------------------------------------------------------------
+
+# REPLACE clause is not specified
+SET PASSWORD='pwd2';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+SET PASSWORD for usr1='pwd2';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+ALTER USER user() IDENTIFIED BY 'pwd2';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+ALTER USER usr1 IDENTIFIED BY 'pwd2';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+
+# Incorrect password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'P&(*^_)D' ;
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+SET PASSWORD for usr1='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER usr1 IDENTIFIED BY '' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+
+# Correct password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE '';
+SET PASSWORD for usr1='' REPLACE 'pwd2';
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE '';
+ALTER USER usr1 IDENTIFIED BY '' REPLACE 'pwd2';
+
+# Reset the Global server variable to OFF
+SET @@global.password_require_current=OFF;
+
+DROP USER usr1;
+CREATE USER usr1 IDENTIFIED WITH 'sha256_password'
+     PASSWORD REQUIRE CURRENT;
+
+#------------------------------------------------------------------------
+# Non priv user changing his own password
+#------------------------------------------------------------------------
+
+# REPLACE clause is not specified
+SET PASSWORD='pwd2';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+SET PASSWORD for usr1='pwd2';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+ALTER USER user() IDENTIFIED BY '';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+ALTER USER usr1 IDENTIFIED BY '';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+
+# Incorrect password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'P&(*^_)D' ;
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+SET PASSWORD for usr1='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER usr1 IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+
+# Correct password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE '';
+SET PASSWORD for usr1='' REPLACE 'pwd2';
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE '';
+ALTER USER IF EXISTS usr1 IDENTIFIED BY '' REPLACE 'pwd2';
+
+# Now test with Global server variable ON
+SET @@global.password_require_current=ON;
+
+#------------------------------------------------------------------------
+# Non priv user changing his own password
+#------------------------------------------------------------------------
+
+# REPLACE clause is not specified
+SET PASSWORD='pwd2';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+SET PASSWORD for usr1='pwd2';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+ALTER USER user() IDENTIFIED BY 'pwd2';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+ALTER USER usr1 IDENTIFIED BY 'pwd2';
+ERROR HY000: Current password needs to be specified in the REPLACE clause in order to change it.
+
+# Incorrect password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE 'P&(*^_)D' ;
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+SET PASSWORD for usr1='pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+ALTER USER usr1 IDENTIFIED BY '' REPLACE 'P&(*^_)D';
+ERROR HY000: Incorrect current password. Specify the correct password which has to be replaced.
+
+# Correct password specified in the REPLACE clause
+SET PASSWORD='pwd2' REPLACE '';
+SET PASSWORD for usr1='' REPLACE 'pwd2';
+ALTER USER user() IDENTIFIED BY 'pwd2' REPLACE '';
+ALTER USER usr1 IDENTIFIED BY '' REPLACE 'pwd2';
+
+# Reset the Global server variable to OFF
+SET @@global.password_require_current=OFF;
+
+DROP USER usr1;
+
+########################################################################
+# 8. Change the password of multiple users at once.
+########################################################################
+CREATE USER u1, u2, u3;
+GRANT SELECT, CREATE USER ON *.* to 'u1' WITH GRANT OPTION;
+SELECT user, password_require_current FROM mysql.user WHERE USER LIKE 'u%';
+user	password_require_current
+u1	NULL
+u2	NULL
+u3	NULL
+ALTER USER u1 IDENTIFIED BY '' REPLACE '', u2 IDENTIFIED BY '',
+u3 IDENTIFIED BY '' PASSWORD REQUIRE CURRENT OPTIONAL;
+SELECT user, password_require_current FROM mysql.user WHERE USER LIKE 'u%';
+user	password_require_current
+u1	N
+u2	N
+u3	N
+ALTER USER u2 IDENTIFIED BY '', u1 IDENTIFIED BY '' REPLACE '',
+u3 IDENTIFIED BY '';
+ALTER USER u3 IDENTIFIED BY '' , u2 IDENTIFIED BY '',
+u1 IDENTIFIED BY '' REPLACE '';
+ALTER USER u1 IDENTIFIED BY '' REPLACE '', u2 IDENTIFIED BY '' REPLACE '';
+ERROR HY000: Do not specify the current password while changing it for other users.
+ALTER USER u2 IDENTIFIED BY '' REPLACE '', u1 IDENTIFIED BY '';
+ERROR HY000: Do not specify the current password while changing it for other users.
+ALTER USER u1 IDENTIFIED BY '123',
+u2 IDENTIFIED BY '123' REPLACE '',
+u3 IDENTIFIED BY '';
+ERROR HY000: Do not specify the current password while changing it for other users.
+DROP USER u1, u2, u3;
+
+########################################################################
+# 9. Change the password as well as password require current clause
+#    of an user
+########################################################################
+CREATE USER u1, u2;
+SELECT user, password_require_current FROM mysql.user WHERE USER LIKE 'u%';
+user	password_require_current
+u1	NULL
+u2	NULL
+ALTER USER u1 IDENTIFIED BY '' REPLACE '' PASSWORD REQUIRE CURRENT;
+ERROR 42000: Access denied; you need (at least one of) the CREATE USER privilege(s) for this operation
+GRANT SELECT, CREATE USER ON *.* to 'u1' WITH GRANT OPTION;
+ALTER USER u1 IDENTIFIED BY '' REPLACE '' PASSWORD REQUIRE CURRENT;
+SELECT user, password_require_current FROM mysql.user WHERE USER LIKE 'u%';
+user	password_require_current
+u1	Y
+u2	NULL
+ALTER USER u1 IDENTIFIED BY '' PASSWORD REQUIRE CURRENT OPTIONAL;
+SELECT user, password_require_current FROM mysql.user WHERE USER LIKE 'u%';
+user	password_require_current
+u1	N
+u2	NULL
+DROP USER u1, u2;
+
+########################################################################
+# 10. Change the password of proxy user and proxied user
+########################################################################
+CREATE USER 'u1' IDENTIFIED with 'mysql_native_password';
+CREATE USER 'u2' IDENTIFIED with 'mysql_native_password';
+GRANT PROXY ON 'u1' TO 'u2';
+SET @@global.check_proxy_users = ON;
+SET @@global.mysql_native_password_proxy_users = ON;
+SET @@global.password_require_current = ON;
+SET PASSWORD='abc' REPLACE '';
+ALTER USER u1 IDENTIFIED BY '' REPLACE 'abc';
+ALTER USER u2 IDENTIFIED BY '' REPLACE '';
+ERROR 42000: Access denied; you need (at least one of) the CREATE USER privilege(s) for this operation
+SET PASSWORD='abc' REPLACE '';
+ALTER USER USER() IDENTIFIED BY '' REPLACE 'abc';
+ALTER USER u1 IDENTIFIED BY 'abc' REPLACE '';
+ERROR 42000: Access denied; you need (at least one of) the CREATE USER privilege(s) for this operation
+GRANT CREATE USER ON *.* to 'u1' WITH GRANT OPTION;
+SELECT USER();
+USER()
+u1@localhost
+SELECT CURRENT_USER();
+CURRENT_USER()
+u1@%
+SET PASSWORD='abc' REPLACE '';
+ALTER USER u2 IDENTIFIED BY 'abc' REPLACE '';
+ERROR HY000: Do not specify the current password while changing it for other users.
+SELECT USER();
+USER()
+u2@localhost
+SELECT CURRENT_USER();
+CURRENT_USER()
+u1@%
+SET PASSWORD='abc' REPLACE '';
+ALTER USER u1 IDENTIFIED BY '' REPLACE 'abc';
+ERROR HY000: Do not specify the current password while changing it for other users.
+DROP USER u1, u2;
+SET @@global.check_proxy_users = OFF;
+SET @@global.mysql_native_password_proxy_users = OFF;
+SET @@global.password_require_current = OFF;
+
+########################################################################
+# 11. Negative Tests
+########################################################################
+CREATE USER non_priv_usr PASSWORD REQUIRE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+CREATE USER non_priv_usr PASSWORD REQUIRE PASSWORD EXPIRE DEFAULT;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PASSWORD EXPIRE DEFAULT' at line 1
+CREATE USER non_priv_usr IDENTIFIED BY '123' REPLACE '133';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'REPLACE '133'' at line 1
+ALTER USER user() IDENTIFIED BY 'pwd1' REPLACE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+ALTER USER root IDENTIFIED BY 'pwd1' REPLACE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+SET PASSWORD='' REPLACE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+SET PASSWORD FOR root='' REPLACE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+ALTER USER user() IDENTIFIED AS '$A$005$THISISACOMBINATIONOFINVALIDSALTANDPASSWORDTHATMUSTNEVERBRBEUSED' replace '' ;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'AS '$A$005$THISISACOMBINATIONOFINVALIDSALTANDPASSWORDTHATMUSTNEVERBRBEUSED' repl' at line 1

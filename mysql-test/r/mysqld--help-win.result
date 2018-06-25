@@ -725,6 +725,9 @@ The following options may be given as the first argument:
  --password-history=# 
  The number of old passwords to check in the history. Set
  to 0 (the default) to turn the checks off
+ --password-require-current 
+ Current password is needed to be specified in order to
+ change it
  --password-reuse-interval=# 
  The minimum number of days that need to pass before a
  password can be reused. Set to 0 (the default) to turn
@@ -1522,6 +1525,7 @@ optimizer-trace-max-mem-size 1048576
 optimizer-trace-offset -1
 parser-max-mem-size 18446744073709551615
 password-history 0
+password-require-current FALSE
 password-reuse-interval 0
 performance-schema TRUE
 performance-schema-accounts-size -1

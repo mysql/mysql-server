@@ -405,6 +405,49 @@ bool PT_option_value_no_option_type_internal::contextualize(Parse_context *pc) {
   return false;
 }
 
+bool PT_option_value_no_option_type_password_for::contextualize(
+    Parse_context *pc) {
+  if (super::contextualize(pc)) return true;
+
+  THD *thd = pc->thd;
+  LEX *lex = thd->lex;
+  set_var_password *var;
+  lex->contains_plaintext_password = true;
+
+  /*
+    In case of anonymous user, user->user is set to empty string with
+    length 0. But there might be case when user->user.str could be NULL.
+    For Ex: "set password for current_user() = password('xyz');".
+    In this case, set user information as of the current user.
+  */
+  if (!user->user.str) {
+    LEX_CSTRING sctx_priv_user = thd->security_context()->priv_user();
+    DBUG_ASSERT(sctx_priv_user.str);
+    user->user.str = sctx_priv_user.str;
+    user->user.length = sctx_priv_user.length;
+  }
+  if (!user->host.str) {
+    LEX_CSTRING sctx_priv_host = thd->security_context()->priv_host();
+    DBUG_ASSERT(sctx_priv_host.str);
+    user->host.str = (char *)sctx_priv_host.str;
+    user->host.length = sctx_priv_host.length;
+  }
+
+  // Current password is specified through the REPLACE clause hence set the flag
+  if (current_password != nullptr) user->uses_replace_clause = true;
+
+  var = new (*THR_MALLOC) set_var_password(
+      user, const_cast<char *>(password), const_cast<char *>(current_password));
+
+  if (var == NULL || lex->var_list.push_back(var)) {
+    return true;  // Out of memory
+  }
+  lex->sql_command = SQLCOM_SET_PASSWORD;
+  if (lex->sphead) lex->sphead->m_flags |= sp_head::HAS_SET_AUTOCOMMIT_STMT;
+  if (sp_create_assignment_instr(pc->thd, expr_pos.raw.end)) return true;
+  return false;
+}
+
 bool PT_option_value_no_option_type_password::contextualize(Parse_context *pc) {
   if (super::contextualize(pc)) return true;
 
@@ -413,30 +456,26 @@ bool PT_option_value_no_option_type_password::contextualize(Parse_context *pc) {
   sp_head *sp = lex->sphead;
   sp_pcontext *pctx = lex->get_sp_current_parsing_ctx();
   LEX_STRING pw = {C_STRING_WITH_LEN("password")};
+  lex->contains_plaintext_password = true;
 
   if (pctx && pctx->find_variable(pw, false)) {
     my_error(ER_SP_BAD_VAR_SHADOW, MYF(0), pw.str);
     return true;
   }
 
-  LEX_USER *user = (LEX_USER *)thd->alloc(sizeof(LEX_USER));
-
-  if (!user) return true;
-
   LEX_CSTRING sctx_user = thd->security_context()->user();
-  user->user.str = (char *)sctx_user.str;
-  user->user.length = sctx_user.length;
-
   LEX_CSTRING sctx_priv_host = thd->security_context()->priv_host();
   DBUG_ASSERT(sctx_priv_host.str);
-  user->host.str = (char *)sctx_priv_host.str;
-  user->host.length = sctx_priv_host.length;
 
-  set_var_password *var =
-      new (*THR_MALLOC) set_var_password(user, const_cast<char *>(password));
-  if (var == NULL) return true;
+  LEX_USER *user = LEX_USER::alloc(thd, (LEX_STRING *)&sctx_user,
+                                   (LEX_STRING *)&sctx_priv_host);
+  if (!user) return true;
 
-  lex->var_list.push_back(var);
+  set_var_password *var = new (*THR_MALLOC) set_var_password(
+      user, const_cast<char *>(password), const_cast<char *>(current_password));
+  if (var == NULL || lex->var_list.push_back(var)) {
+    return true;  // Out of Memory
+  }
   lex->sql_command = SQLCOM_SET_PASSWORD;
 
   if (sp) sp->m_flags |= sp_head::HAS_SET_AUTOCOMMIT_STMT;

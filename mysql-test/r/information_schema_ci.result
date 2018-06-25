@@ -661,6 +661,7 @@ max_user_connections	select,insert,update,references
 password_expired	select,insert,update,references
 password_last_changed	select,insert,update,references
 password_lifetime	select,insert,update,references
+Password_require_current	select,insert,update,references
 Password_reuse_history	select,insert,update,references
 Password_reuse_time	select,insert,update,references
 Process_priv	select,insert,update,references

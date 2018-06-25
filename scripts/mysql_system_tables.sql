@@ -116,6 +116,7 @@ Create_role_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
 Drop_role_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
 Password_reuse_history smallint unsigned NULL DEFAULT NULL,
 Password_reuse_time smallint unsigned NULL DEFAULT NULL,
+Password_require_current enum('N', 'Y') COLLATE utf8_general_ci DEFAULT NULL,
 PRIMARY KEY Host (Host,User)
 ) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin comment='Users and global privileges' TABLESPACE=mysql;
 

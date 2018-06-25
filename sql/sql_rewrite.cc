@@ -390,6 +390,7 @@ bool Rewriter_user::rewrite() const {
   rewrite_account_lock(lex, rlb);
   rewrite_password_history(lex, rlb);
   rewrite_password_reuse(lex, rlb);
+  rewrite_password_require_current(lex, rlb);
   return false;
 }
 /**
@@ -515,6 +516,30 @@ void Rewriter_user::rewrite_password_expired(const LEX *lex,
     } else {
       str->append(STRING_WITH_LEN(" PASSWORD EXPIRE NEVER"));
     }
+  }
+}
+/**
+  Append the PASSWORD REQUIRE CURRENT clause for users
+  @param [in]       lex    LEX struct to know if the clause was specified
+  @param [in, out]  str    The string in which the clause is suffixed
+*/
+void Rewriter_user::rewrite_password_require_current(LEX *lex,
+                                                     String *str) const {
+  switch (lex->alter_password.update_password_require_current) {
+    case Lex_acl_attrib_udyn::YES:
+      str->append(STRING_WITH_LEN(" PASSWORD REQUIRE CURRENT"));
+      break;
+    case Lex_acl_attrib_udyn::DEFAULT:
+      str->append(STRING_WITH_LEN(" PASSWORD REQUIRE CURRENT DEFAULT"));
+      break;
+    case Lex_acl_attrib_udyn::NO:
+      str->append(STRING_WITH_LEN(" PASSWORD REQUIRE CURRENT OPTIONAL"));
+      break;
+    case Lex_acl_attrib_udyn::UNCHANGED:
+      // Do nothing
+      break;
+    default:
+      DBUG_ASSERT(false);
   }
 }
 /**
@@ -710,6 +735,10 @@ void Rewriter_alter_user::append_user_auth_info(LEX_USER *user, bool comma,
         m_consumer_type == Consumer_type::TEXTLOG) {
       str->append(STRING_WITH_LEN(" BY "));
       append_literal_secret(str);
+      /* Add the literal value in place of current password in the textlogs. */
+      if (user->uses_replace_clause) {
+        str->append(STRING_WITH_LEN(" REPLACE <secret>"));
+      }
     } else if (user->auth.length > 0) {
       str->append(STRING_WITH_LEN(" AS "));
       append_auth_str(user, str);

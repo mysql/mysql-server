@@ -97,6 +97,7 @@ ALTER TABLE mysql.user DROP COLUMN Drop_role_priv;
 ALTER TABLE mysql.user DROP COLUMN Create_role_priv;
 ALTER TABLE mysql.user DROP COLUMN Password_reuse_history;
 ALTER TABLE mysql.user DROP COLUMN Password_reuse_time;
+ALTER TABLE mysql.user DROP COLUMN Password_require_current;
 ALTER TABLE mysql.user ADD COLUMN Password
 char(41) character set latin1 collate latin1_bin DEFAULT '' NOT NULL
 AFTER user;
@@ -116,7 +117,7 @@ call mtr.add_suppression("User entry .B19011337");
 # expect a warning in the error log
 FLUSH PRIVILEGES;
 Warnings:
-Warning	1805	Column count of mysql.user is wrong. Expected 49, found 43. The table is probably corrupted
+Warning	1805	Column count of mysql.user is wrong. Expected 50, found 43. The table is probably corrupted
 # let's check for the presense of the warning
 Pattern "User entry 'B19011337_ohash'@'localhost' has a deprecated pre-4.1 password. The user will be ignored and no one can login with this user anymore." found
 Pattern "1. Stop" found
@@ -193,6 +194,7 @@ ALTER TABLE mysql.user DROP COLUMN Drop_role_priv;
 ALTER TABLE mysql.user DROP COLUMN Create_role_priv;
 ALTER TABLE mysql.user DROP COLUMN Password_reuse_history;
 ALTER TABLE mysql.user DROP COLUMN Password_reuse_time;
+ALTER TABLE mysql.user DROP COLUMN Password_require_current;
 ALTER TABLE mysql.user ADD COLUMN Password
 char(41) character set latin1 collate latin1_bin DEFAULT '' NOT NULL
 AFTER user;
@@ -218,7 +220,7 @@ INSERT INTO mysql.user VALUES
 ('%','user_nat_pass_wp','*46ABF58B20022A84DF7B2E8B1AC8219C8DA71553','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,'mysql_native_password','','N');
 FLUSH PRIVILEGES;
 Warnings:
-Warning	1805	Column count of mysql.user is wrong. Expected 49, found 43. The table is probably corrupted
+Warning	1805	Column count of mysql.user is wrong. Expected 50, found 43. The table is probably corrupted
 # check the presents of the warnings in the log file
 Pattern "User entry 'user_old_pass_pn'@'%' has a deprecated pre-4.1 password. The user will be ignored and no one can login with this user anymore." found
 Pattern "User entry 'su_old_pass_pn'@'%' has a deprecated pre-4.1 password. The user will be ignored and no one can login with this user anymore." found
@@ -241,7 +243,7 @@ ERROR 42000: SELECT command denied to user 'user_nat_pass_pn'@'localhost' for ta
 #Try granting all privileges on mysql db to user_nat_pass_pn using root
 #account - this should fail since mysql.user table has 5.6 layout.
 GRANT ALL PRIVILEGES ON mysql.* TO 'user_nat_pass_pn'@'%' WITH GRANT OPTION;
-ERROR HY000: Column count of mysql.user is wrong. Expected 49, found 43. The table is probably corrupted
+ERROR HY000: Column count of mysql.user is wrong. Expected 50, found 43. The table is probably corrupted
 #Select on mysql.user should not be possible since user_nat_pass_pn has
 #no select privileges on mysql database
 SELECT * FROM mysql.user WHERE user="user_nat_pass_pn";
@@ -249,7 +251,7 @@ ERROR 42000: SELECT command denied to user 'user_nat_pass_pn'@'localhost' for ta
 #Revoke all privileges from 'user_nat_pass_pn'@'%' - this should fail
 #since mysql.user table has 5.6 layout.
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'user_nat_pass_pn'@'%';
-ERROR HY000: Column count of mysql.user is wrong. Expected 49, found 43. The table is probably corrupted
+ERROR HY000: Column count of mysql.user is wrong. Expected 50, found 43. The table is probably corrupted
 #Trying to do select on mysql.user table - this should fail since
 #user_nat_pass_pn has no select prvileleges on mysql db.
 SELECT * FROM mysql.user WHERE user="user_nat_pass_pn";
@@ -262,7 +264,7 @@ SELECT password_expired FROM mysql.user where user='user_nat_pass_pn';
 password_expired
 N
 ALTER USER 'user_nat_pass_pn'@'%' PASSWORD EXPIRE;
-ERROR HY000: Column count of mysql.user is wrong. Expected 49, found 43. The table is probably corrupted
+ERROR HY000: Column count of mysql.user is wrong. Expected 50, found 43. The table is probably corrupted
 SELECT authentication_string FROM mysql.user WHERE user='user_nat_pass_pn';
 authentication_string
 
@@ -276,7 +278,7 @@ UPDATE mysql.user SET authentication_string='' WHERE user='user_nat_pass_pn';
 UPDATE mysql.user SET Select_priv='Y', Insert_priv='Y', Update_priv='Y', Delete_priv='Y', Create_priv='Y', Drop_priv='Y', Reload_priv='Y', Shutdown_priv='Y', Process_priv='Y', File_priv='Y', Grant_priv='Y', References_priv='Y', Index_priv='Y', Alter_priv='Y', Show_db_priv='Y', Super_priv='Y', Create_tmp_table_priv='Y', Lock_tables_priv='Y', Execute_priv='Y', Repl_slave_priv='Y', Repl_client_priv='Y', Create_view_priv='Y', Show_view_priv='Y', Create_routine_priv='Y', Alter_routine_priv='Y', Create_user_priv='Y', Event_priv='Y', Trigger_priv='Y', Create_tablespace_priv='Y' where user="user_nat_pass_pn";
 FLUSH PRIVILEGES;
 Warnings:
-Warning	1805	Column count of mysql.user is wrong. Expected 49, found 43. The table is probably corrupted
+Warning	1805	Column count of mysql.user is wrong. Expected 50, found 43. The table is probably corrupted
 #Select on mysql.user should now be possible
 SELECT * FROM mysql.user WHERE user="user_nat_pass_pn";
 Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	Create_tablespace_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections	plugin	authentication_string	password_expired
@@ -384,6 +386,7 @@ ALTER TABLE mysql.user DROP COLUMN Drop_role_priv;
 ALTER TABLE mysql.user DROP COLUMN Create_role_priv;
 ALTER TABLE mysql.user DROP COLUMN Password_reuse_history;
 ALTER TABLE mysql.user DROP COLUMN Password_reuse_time;
+ALTER TABLE mysql.user DROP COLUMN Password_require_current;
 ALTER TABLE mysql.user ADD COLUMN Password
 char(41) character set latin1 collate latin1_bin DEFAULT '' NOT NULL
 AFTER user;
@@ -395,7 +398,7 @@ INSERT INTO mysql.user VALUES
 ('localhost','B20614545','0f0ea7602c473904','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,'','','N');
 FLUSH PRIVILEGES;
 Warnings:
-Warning	1805	Column count of mysql.user is wrong. Expected 49, found 43. The table is probably corrupted
+Warning	1805	Column count of mysql.user is wrong. Expected 50, found 43. The table is probably corrupted
 # check the presents of the warnings in the log file
 Pattern "User entry 'B20614545'@'localhost' has a deprecated pre-4.1 password. The user will be ignored and no one can login with this user anymore." found
 # end of check for the presense of the warning

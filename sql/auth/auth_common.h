@@ -261,6 +261,7 @@ enum mysql_user_table_field {
   MYSQL_USER_FIELD_DROP_ROLE_PRIV,
   MYSQL_USER_FIELD_PASSWORD_REUSE_HISTORY,
   MYSQL_USER_FIELD_PASSWORD_REUSE_TIME,
+  MYSQL_USER_FIELD_PASSWORD_REQUIRE_CURRENT,
   MYSQL_USER_FIELD_COUNT
 };
 
@@ -401,6 +402,8 @@ class Acl_load_user_table_schema {
   virtual uint account_locked_idx() = 0;
   virtual uint password_reuse_history_idx() = 0;
   virtual uint password_reuse_time_idx() = 0;
+  // Added in 8.0.13
+  virtual uint password_require_current_idx() = 0;
 
   virtual ~Acl_load_user_table_schema() {}
 };
@@ -479,6 +482,9 @@ class Acl_load_user_table_current_schema : public Acl_load_user_table_schema {
   }
   uint password_reuse_time_idx() {
     return MYSQL_USER_FIELD_PASSWORD_REUSE_TIME;
+  }
+  uint password_require_current_idx() {
+    return MYSQL_USER_FIELD_PASSWORD_REQUIRE_CURRENT;
   }
 };
 
@@ -598,6 +604,7 @@ class Acl_load_user_table_old_schema : public Acl_load_user_table_schema {
   uint drop_role_priv_idx() { return MYSQL_USER_FIELD_COUNT_56; }
   uint password_reuse_history_idx() { return MYSQL_USER_FIELD_COUNT_56; }
   uint password_reuse_time_idx() { return MYSQL_USER_FIELD_COUNT_56; }
+  uint password_require_current_idx() { return MYSQL_USER_FIELD_COUNT_56; }
 };
 
 class Acl_load_user_table_schema_factory {
@@ -654,8 +661,8 @@ bool acl_check_host(THD *thd, const char *host, const char *ip);
 /* sql_user */
 void log_user(THD *thd, String *str, LEX_USER *user, bool comma);
 int check_change_password(THD *thd, const char *host, const char *user);
-bool change_password(THD *thd, const char *host, const char *user,
-                     char *password);
+bool change_password(THD *thd, LEX_USER *user, char *password,
+                     const char *current_password);
 bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,
                        bool is_role);
 bool mysql_alter_user(THD *thd, List<LEX_USER> &list, bool if_exists);

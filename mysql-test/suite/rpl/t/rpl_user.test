@@ -130,6 +130,27 @@ DROP USER 9591_user@localhost;
 --source include/sync_slave_sql_with_master.inc
 connection master;
 
+--echo #
+--echo # WL#11544: Current password required for SET PASSWORD
+--echo # Create users with current password require clauses.
+--echo #
+
+connection master;
+--echo [connection master]
+CREATE USER 11544_u1@localhost REQUIRE NONE PASSWORD REQUIRE CURRENT;
+CREATE USER 11544_u2@localhost REQUIRE NONE PASSWORD REQUIRE CURRENT OPTIONAL;
+CREATE USER 11544_u3@localhost REQUIRE NONE PASSWORD REQUIRE CURRENT DEFAULT;
+
+--source include/sync_slave_sql_with_master.inc
+--echo [connection slave]
+SELECT user, Password_require_current FROM mysql.user WHERE user like '11544_u%';
+
+connection master;
+--echo [connection master]
+DROP USER 11544_u1@localhost;
+DROP USER 11544_u2@localhost;
+DROP USER 11544_u3@localhost;
+
 #
 # show the binlog events on the master
 #

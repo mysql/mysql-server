@@ -6965,6 +6965,8 @@ LEX_USER *LEX_USER::alloc(THD *thd, LEX_STRING *user_arg,
   ret->host.length = host_arg ? host_arg->length : 1;
   ret->plugin = EMPTY_CSTR;
   ret->auth = NULL_CSTR;
+  ret->current_auth = NULL_CSTR;
+  ret->uses_replace_clause = false;
   ret->uses_identified_by_clause = false;
   ret->uses_identified_with_clause = false;
   ret->uses_authentication_string_clause = false;
@@ -6975,6 +6977,8 @@ LEX_USER *LEX_USER::alloc(THD *thd, LEX_STRING *user_arg,
   ret->alter_status.update_password_expired_fields = false;
   ret->alter_status.use_default_password_lifetime = true;
   ret->alter_status.use_default_password_history = true;
+  ret->alter_status.update_password_require_current =
+      Lex_acl_attrib_udyn::UNCHANGED;
   ret->alter_status.password_history_length = 0;
   ret->alter_status.password_reuse_interval = 0;
   if (check_string_char_length(ret->user, ER_THD(thd, ER_USERNAME),

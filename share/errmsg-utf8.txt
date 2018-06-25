@@ -18254,6 +18254,14 @@ ER_GRP_RPL_UDF_REGISTER_SERVICE_ERROR
 ER_GRP_RPL_UDF_ERROR
   eng "The function '%s' failed. %s"
 
+ER_CURRENT_PASSWORD_NOT_REQUIRED
+  eng "Do not specify the current password while changing it for other users."
+
+ER_INCORRECT_CURRENT_PASSWORD
+  eng "Incorrect current password. Specify the correct password which has to be replaced."
+
+ER_MISSING_CURRENT_PASSWORD
+  eng "Current password needs to be specified in the REPLACE clause in order to change it."
 #
 # End of 8.0 Server error messages.
 # (Please read comments from the header of this section before adding error

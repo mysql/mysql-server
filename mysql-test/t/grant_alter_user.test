@@ -397,17 +397,17 @@ DROP USER u1@localhost, u2@localhost;
 --echo # SHOW CREATE USER
 
 CREATE USER u1@localhost;
---replace_regex /WITH .* REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
+--replace_regex /WITH '(.*)' REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
 SHOW CREATE USER u1@localhost;
 ALTER USER u1@localhost IDENTIFIED BY 'auth_string';
---replace_regex /WITH .* AS .* REQUIRE/WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE/
+--replace_regex /WITH '(.*)' AS '(.*)' REQUIRE/WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u1@localhost;
 
 CREATE USER u2@localhost IDENTIFIED BY 'auth_string';
---replace_regex /WITH .* AS .* REQUIRE/WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE/
+--replace_regex /WITH '(.*)' AS '(.*)' REQUIRE/WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u2@localhost;
 ALTER USER u2@localhost IDENTIFIED WITH 'sha256_password';
---replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
+--replace_regex /AS '(.*)' REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u2@localhost;
 
 CREATE USER u3@localhost IDENTIFIED WITH 'sha256_password';
@@ -416,24 +416,24 @@ ALTER USER u3@localhost PASSWORD EXPIRE NEVER;
 SHOW CREATE USER u3@localhost;
 
 CREATE USER u4@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string';
---replace_regex /AS .*$/AS '<non-deterministic-password-hash>'/
+--replace_regex /AS '(.*)'/AS '<non-deterministic-password-hash>'/
 SHOW CREATE USER u4@localhost;
 ALTER USER u4@localhost PASSWORD EXPIRE INTERVAL 365 DAY;
---replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
+--replace_regex /AS '(.*)' REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u4@localhost;
 
 CREATE USER u5@localhost REQUIRE SSL;
---replace_regex /WITH .*$ REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
+--replace_regex /WITH '(.*)' REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
 SHOW CREATE USER u5@localhost;
 ALTER USER u5@localhost REQUIRE CIPHER "DHE-RSA-AES256-SHA";
---replace_regex /WITH .* REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
+--replace_regex /WITH '(.*)' REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
 SHOW CREATE USER u5@localhost;
 
 CREATE USER u6@localhost IDENTIFIED BY 'auth_string' REQUIRE X509;
---replace_regex /WITH .* AS .* REQUIRE/WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE/
+--replace_regex /WITH '(.*)' AS '(.*)' REQUIRE/WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u6@localhost;
 ALTER USER u6@localhost REQUIRE CIPHER "DHE-RSA-AES256-SHA" WITH MAX_QUERIES_PER_HOUR 2;
---replace_regex /WITH .* AS .* REQUIRE/WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE/
+--replace_regex /WITH '(.*)' AS '(.*)' REQUIRE/WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u6@localhost;
 
 CREATE USER u7@localhost IDENTIFIED WITH 'sha256_password'
@@ -444,40 +444,40 @@ SHOW CREATE USER u7@localhost;
 
 CREATE USER u8@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
             REQUIRE ISSUER 'issuer';
---replace_regex /AS .*$/AS '<non-deterministic-password-hash>'/
+--replace_regex /AS '(.*)'/AS '<non-deterministic-password-hash>'/
 SHOW CREATE USER u8@localhost;
 ALTER USER u8@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
 SHOW CREATE USER u8@localhost;
 
 CREATE USER u9@localhost REQUIRE SUBJECT 'sub';
---replace_regex /WITH .* REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
+--replace_regex /WITH '(.*)' REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
 SHOW CREATE USER u9@localhost;
 ALTER USER u9@localhost;
---replace_regex /WITH .* REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
+--replace_regex /WITH '(.*)' REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
 SHOW CREATE USER u9@localhost;
 
 CREATE USER u10@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
             REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
             SUBJECT "/C=SE/ST=Uppsala/O=MySQL AB"
             ISSUER "/C=SE/ST=Uppsala/L=Uppsala/O=MySQL AB";
---replace_regex /AS .*$/AS '<non-deterministic-password-hash>'/
+--replace_regex /AS '(.*)'/AS '<non-deterministic-password-hash>'/
 SHOW CREATE USER u10@localhost;
 ALTER USER u10@localhost PASSWORD EXPIRE NEVER;
---replace_regex /AS .*$/AS '<non-deterministic-password-hash>'/
+--replace_regex /AS '(.*)'/AS '<non-deterministic-password-hash>'/
 SHOW CREATE USER u10@localhost;
 
 CREATE USER u11@localhost WITH MAX_QUERIES_PER_HOUR 2;
---replace_regex /WITH .* REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
+--replace_regex /WITH '(.*)' REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
 SHOW CREATE USER u11@localhost;
 ALTER USER u11@localhost WITH MAX_QUERIES_PER_HOUR 10;
---replace_regex /WITH .* REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
+--replace_regex /WITH '(.*)' REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
 SHOW CREATE USER u11@localhost;
 
 CREATE USER u12@localhost IDENTIFIED BY 'auth_string'  WITH MAX_QUERIES_PER_HOUR 2;
---replace_regex /WITH .* AS .* REQUIRE/WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE/
+--replace_regex /WITH '(.*)' AS '(.*)' REQUIRE/WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u12@localhost;
 ALTER USER u12@localhost REQUIRE SUBJECT '/C=SE/ST=Uppsala/O=MySQL AB' WITH MAX_QUERIES_PER_HOUR 10;
---replace_regex /WITH .* AS .* REQUIRE/WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE/
+--replace_regex /WITH '(.*)' AS '(.*)' REQUIRE/WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u12@localhost;
 
 CREATE USER u13@localhost IDENTIFIED WITH 'sha256_password'
@@ -488,35 +488,35 @@ SHOW CREATE USER u13@localhost;
 
 CREATE USER u14@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
             WITH MAX_USER_CONNECTIONS 2;
---replace_regex /AS .*$/AS '<non-deterministic-password-hash>'/
+--replace_regex /AS '(.*)' REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u14@localhost;
 ALTER USER u14@localhost REQUIRE SUBJECT '/C=SE/ST=Uppsala/O=MySQL AB' WITH MAX_QUERIES_PER_HOUR 10
            PASSWORD EXPIRE;
---replace_regex /AS .*$/AS '<non-deterministic-password-hash>'/
+--replace_regex /AS '(.*)' REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u14@localhost;
 
 CREATE USER u15@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
             REQUIRE SUBJECT '/C=SE/ST=Uppsala/O=MySQL AB' ISSUER "/C=SE/ST=Uppsala/L=Uppsala/O=MySQL AB"
             CIPHER 'DHE-RSA-AES256-SHA' WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2;
---replace_regex /AS .*$/AS '<non-deterministic-password-hash>'/
+--replace_regex /AS '(.*)' REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u15@localhost;
 ALTER USER u15@localhost REQUIRE X509 PASSWORD EXPIRE INTERVAL 365 DAY;
---replace_regex /AS .*$/AS '<non-deterministic-password-hash>'/
+--replace_regex /AS '(.*)' REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u15@localhost;
 
 CREATE USER u16@localhost IDENTIFIED BY 'auth_string' PASSWORD EXPIRE;
---replace_regex /WITH .* AS .* REQUIRE/WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE/
+--replace_regex /WITH '(.*)' AS '(.*)' REQUIRE/WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u16@localhost;
 ALTER USER u16@localhost REQUIRE X509 PASSWORD EXPIRE INTERVAL 365 DAY;
---replace_regex /WITH .* AS .* REQUIRE/WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE/
+--replace_regex /WITH '(.*)' AS '(.*)' REQUIRE/WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u16@localhost;
 
 CREATE USER u17@localhost WITH MAX_QUERIES_PER_HOUR 200
                                MAX_USER_CONNECTIONS 2 PASSWORD EXPIRE NEVER;
---replace_regex /WITH .* REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
+--replace_regex /WITH '(.*)' REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
 SHOW CREATE USER u17@localhost;
 ALTER USER u17@localhost REQUIRE X509 PASSWORD EXPIRE INTERVAL 365 DAY;
---replace_regex /WITH .* REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
+--replace_regex /WITH '(.*)' REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
 SHOW CREATE USER u17@localhost;
 
 CREATE USER u18@localhost IDENTIFIED WITH 'sha256_password' PASSWORD EXPIRE INTERVAL 365 DAY;
@@ -527,11 +527,11 @@ SHOW CREATE USER u18@localhost;
 CREATE USER u19@localhost REQUIRE SUBJECT '/C=SE/ST=Uppsala/O=MySQL AB'
                           ISSUER "/C=SE/ST=Uppsala/L=Uppsala/O=MySQL AB"
                           PASSWORD EXPIRE DEFAULT;
---replace_regex /WITH .* REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
+--replace_regex /WITH '(.*)' REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
 SHOW CREATE USER u19@localhost;
 ALTER USER u19@localhost WITH MAX_QUERIES_PER_HOUR 200
                          MAX_USER_CONNECTIONS 2 PASSWORD EXPIRE NEVER;
---replace_regex /WITH .* REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
+--replace_regex /WITH '(.*)' REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
 SHOW CREATE USER u19@localhost;
 
 drop user u1@localhost, u2@localhost, u3@localhost, u4@localhost, u5@localhost,

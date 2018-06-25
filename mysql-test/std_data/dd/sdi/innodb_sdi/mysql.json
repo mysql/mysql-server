@@ -26190,6 +26190,51 @@
                 "is_explicit_collation": false
             },
             {
+                "name": "Password_require_current",
+                "type": 22,
+                "is_nullable": true,
+                "is_zerofill": false,
+                "is_unsigned": false,
+                "is_auto_increment": false,
+                "is_virtual": false,
+                "hidden": 1,
+                "ordinal_position": 50,
+                "char_length": 3,
+                "numeric_precision": 0,
+                "numeric_scale": 0,
+                "numeric_scale_null": true,
+                "datetime_precision": 0,
+                "datetime_precision_null": 1,
+                "has_no_default": false,
+                "default_value_null": true,
+                "srs_id_null": true,
+                "srs_id": 0,
+                "default_value": "",
+                "default_value_utf8_null": true,
+                "default_value_utf8": "",
+                "default_option": "",
+                "update_option": "",
+                "comment": "",
+                "generation_expression": "",
+                "generation_expression_utf8": "",
+                "options": "interval_count=2;",
+                "se_private_data": "table_id=X",
+                "column_key": 1,
+                "column_type_utf8": "enum('N','Y')",
+                "elements": [
+                    {
+                        "name": "Tg==", "decoded-name": "N",
+                        "index": 1
+                    },
+                    {
+                        "name": "WQ==", "decoded-name": "Y",
+                        "index": 2
+                    }
+                ],
+                "collation_id": X,
+                "is_explicit_collation": true
+            },
+            {
                 "name": "DB_TRX_ID",
                 "type": 10,
                 "is_nullable": false,
@@ -26198,7 +26243,7 @@
                 "is_auto_increment": false,
                 "is_virtual": false,
                 "hidden": 2,
-                "ordinal_position": 50,
+                "ordinal_position": 51,
                 "char_length": 6,
                 "numeric_precision": 0,
                 "numeric_scale": 0,
@@ -26234,7 +26279,7 @@
                 "is_auto_increment": false,
                 "is_virtual": false,
                 "hidden": 2,
-                "ordinal_position": 51,
+                "ordinal_position": 52,
                 "char_length": 7,
                 "numeric_precision": 0,
                 "numeric_scale": 0,
@@ -26308,13 +26353,13 @@
                         "ordinal_position": 3,
                         "length": 4294967295,
                         "order": 2,
-                        "column_opx": 49
+                        "column_opx": 50
                     },
                     {
                         "ordinal_position": 4,
                         "length": 4294967295,
                         "order": 2,
-                        "column_opx": 50
+                        "column_opx": 51
                     },
                     {
                         "ordinal_position": 5,
@@ -26597,6 +26642,12 @@
                         "length": 4294967295,
                         "order": 2,
                         "column_opx": 48
+                    },
+                    {
+                        "ordinal_position": 52,
+                        "length": 4294967295,
+                        "order": 2,
+                        "column_opx": 49
                     }
                 ],
                 "tablespace_ref": "mysql"

@@ -1,19 +1,20 @@
 #
 # === Purpose ===
 # This test script verifies that in a replication environment,
-# the slave correctly parses the hash password in ALTER USER or
-# SET PASSWORD query. It verifies that the slave doesn't
-# encounter an error in parsing a hash string which contains a
-# single quote. The fix ensures escaping the hash string correctly
-# depending on the server mode. Since this issue is sporadic,
-# we have used a debug flag to deterministically generate a
-# hash string which contains a single quote.
+# the slave correctly parses the ALTER USER or SET PASSWORD query. 
 #
-# === Related bugs and worklogs ===
+# === Bug#20228478: ON REPLICATION SLAVE, ALTER USER FAILING FOR USER
+#                   WITH SHA256_PASSWORD PLUGIN
+# It verifies that the slave doesn't encounter an error in parsing a hash
+# string which contains a single quote. The fix ensures escaping the hash
+# string correctly depending on the server mode. Since this issue is sporadic,
+# we have used a debug flag to deterministically generate a hash string which
+# contains a single quote.
 #
-# Bug#20228478: ON REPLICATION SLAVE, ALTER USER FAILING FOR USER
-#               WITH SHA256_PASSWORD PLUGIN
-#
+# === WL#11544: Current password required for SET PASSWORD
+# It verifies that binlog gets the "PASSWORD REQUIRE CURRENT" only if they are
+# explicitly specified in the ALTER USER statement. It also verifies that
+# REPLACE clause is never replicated to the binlog
 
 --source include/master-slave.inc
 --source include/have_debug.inc
@@ -93,6 +94,79 @@ SET PASSWORD FOR 'user1'@'localhost' = 'auth_secret2';
 SELECT USER();
 disconnect con1;
 
+--echo #
+--echo # WL#11544: Current password required for SET PASSWORD
+--echo # Create users with current password require clauses.
+--echo #
+
+--connection slave
+--let $saved_master_relay_pos= query_get_value('SHOW MASTER STATUS', Position, 1)
+
+--connection master
+--echo [connection master]
+# Save master position
+--let $saved_master_pos= query_get_value('SHOW MASTER STATUS', Position, 1)
+CREATE USER '11544_u1'@'localhost' PASSWORD REQUIRE CURRENT OPTIONAL;
+ALTER USER '11544_u1'@'localhost' PASSWORD REQUIRE CURRENT DEFAULT;
+ALTER USER '11544_u1'@'localhost' PASSWORD REQUIRE CURRENT;
+SET PASSWORD FOR '11544_u1'@'localhost'='haha';
+ALTER USER '11544_u1'@'localhost' IDENTIFIED BY 'hehe';
+
+connect(11544_u1_con_master, localhost, 11544_u1, hehe,,,,SSL);
+connection 11544_u1_con_master;
+--echo #
+--echo # To check that failed statements are not replicated to binlog
+--echo #
+--error ER_MISSING_CURRENT_PASSWORD
+SET PASSWORD ='ahaha';
+--error ER_MISSING_CURRENT_PASSWORD
+SET PASSWORD FOR '11544_u1'@'localhost'='ahaha';
+--error ER_MISSING_CURRENT_PASSWORD
+ALTER USER user() IDENTIFIED BY 'ahaha';
+--error ER_MISSING_CURRENT_PASSWORD
+ALTER USER '11544_u1'@'localhost' IDENTIFIED BY 'ahaha';
+--error ER_INCORRECT_CURRENT_PASSWORD
+SET PASSWORD='ahaha' REPLACE 'xyz';
+--error ER_INCORRECT_CURRENT_PASSWORD
+SET PASSWORD FOR '11544_u1'@'localhost'='ahaha' REPLACE 'xyz';
+--error ER_INCORRECT_CURRENT_PASSWORD
+ALTER USER user() IDENTIFIED BY 'ahaha' REPLACE 'xyz';
+--error ER_INCORRECT_CURRENT_PASSWORD
+ALTER USER '11544_u1'@'localhost' IDENTIFIED BY 'ahaha' REPLACE 'xyz';
+--echo #
+--echo # To check that REPLACE clause is not reflected in the binlog
+--echo #
+SET PASSWORD='ahaha' REPLACE 'hehe';
+SET PASSWORD FOR '11544_u1'@'localhost'='hehe' REPLACE 'ahaha';
+ALTER USER user() IDENTIFIED BY 'ahaha' REPLACE 'hehe';
+ALTER USER '11544_u1'@'localhost' IDENTIFIED BY 'hehe' REPLACE 'ahaha';
+--connection master
+disconnect 11544_u1_con_master;
+
+--echo # Check the binlog contents on the master
+--let $binlog_start= $saved_master_pos
+--let $binlog_limit= 100
+--let $mask_user_password_events=1
+--source include/show_binlog_events.inc
+--let $mask_user_password_events=0
+
+--echo # Check the binlog contents on the slave
+--source include/sync_slave_sql_with_master.inc
+--echo [connection slave]
+--let $binlog_start= $saved_master_relay_pos
+--let $binlog_limit= 100
+--let $mask_user_password_events=1
+--source include/show_binlog_events.inc
+--let $mask_user_password_events=0
+
+--echo # Check that we are successfully able to login to the slave from
+--echo # the user whose password is changed on master
+connect(11544_u1_con_slave, localhost, 11544_u1, hehe,,,,SSL);
+SELECT USER();
+--connection master
+--echo [connection master]
+DROP USER '11544_u1'@'localhost';
+
 #Restore the old sql_mode at the master and the slave
 --connection slave
 SET @@session.sql_mode= @old_sql_mode_slave;
@@ -101,4 +175,5 @@ SET @@session.sql_mode= @old_sql_mode_master;
 
 #cleanup
 DROP USER 'user1'@'localhost';
+#--let $rpl_debug= 1
 --source include/rpl_end.inc

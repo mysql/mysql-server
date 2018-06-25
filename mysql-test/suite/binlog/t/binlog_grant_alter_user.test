@@ -680,7 +680,7 @@ CREATE USER u1@localhost;
 SHOW CREATE USER u1@localhost;
 
 CREATE USER u2@localhost IDENTIFIED BY 'auth_string';
---replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
+--replace_regex /AS '(.*)' REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u2@localhost;
 --echo # DDL output for SHOW CREATE USER u2@localhost and recreating user
 DROP USER u2@localhost;
@@ -697,24 +697,24 @@ CREATE USER u3@localhost IDENTIFIED WITH 'mysql_native_password';
 SHOW CREATE USER u3@localhost;
 
 CREATE USER u4@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
---replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
+--replace_regex /AS '(.*)' REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u4@localhost;
 
 CREATE USER user1@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
---replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
+--replace_regex /AS '(.*)' REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER user1@localhost;
 
 --echo
 
 CREATE USER user2@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
---replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
+--replace_regex /AS '(.*)' REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER user2@localhost;
 --echo
 CREATE USER u5@localhost REQUIRE SSL;
 SHOW CREATE USER u5@localhost;
 
 CREATE USER u6@localhost IDENTIFIED BY 'auth_string' REQUIRE X509;
---replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
+--replace_regex /AS '(.*)' REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u6@localhost;
 
 CREATE USER u7@localhost IDENTIFIED WITH 'mysql_native_password'
@@ -723,7 +723,7 @@ SHOW CREATE USER u7@localhost;
 
 CREATE USER u8@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
             REQUIRE ISSUER 'issuer';
---replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
+--replace_regex /AS '(.*)' REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u8@localhost;
 
 CREATE USER u9@localhost REQUIRE SUBJECT 'sub';
@@ -733,14 +733,14 @@ CREATE USER u10@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_strin
             REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
             SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
             ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA";
---replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
+--replace_regex /AS '(.*)' REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u10@localhost;
 
 CREATE USER u11@localhost WITH MAX_QUERIES_PER_HOUR 2;
 SHOW CREATE USER u11@localhost;
 
 CREATE USER u12@localhost IDENTIFIED BY 'auth_string'  WITH MAX_QUERIES_PER_HOUR 2;
---replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
+--replace_regex /AS '(.*)' REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u12@localhost;
 
 CREATE USER u13@localhost IDENTIFIED WITH 'mysql_native_password'
@@ -749,14 +749,14 @@ SHOW CREATE USER u13@localhost;
 
 CREATE USER u14@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
             WITH MAX_USER_CONNECTIONS 2;
---replace_regex /AS .* WITH/AS '<non-deterministic-password-hash>' WITH/
+--replace_regex /AS '(.*)' REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u14@localhost;
 
 CREATE USER u15@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
             REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client'
             ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
             CIPHER 'cipher' WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2;
---replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
+--replace_regex /AS '(.*)' REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u15@localhost;
 
 DROP USER user1@localhost,u1@localhost,u2@localhost,u3@localhost,u4@localhost,

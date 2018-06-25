@@ -85,6 +85,25 @@ CURRENT_USER()
 9591_user@localhost
 DROP USER 9591_user@localhost;
 include/sync_slave_sql_with_master.inc
+#
+# WL#11544: Current password required for SET PASSWORD
+# Create users with current password require clauses.
+#
+[connection master]
+CREATE USER 11544_u1@localhost REQUIRE NONE PASSWORD REQUIRE CURRENT;
+CREATE USER 11544_u2@localhost REQUIRE NONE PASSWORD REQUIRE CURRENT OPTIONAL;
+CREATE USER 11544_u3@localhost REQUIRE NONE PASSWORD REQUIRE CURRENT DEFAULT;
+include/sync_slave_sql_with_master.inc
+[connection slave]
+SELECT user, Password_require_current FROM mysql.user WHERE user like '11544_u%';
+user	Password_require_current
+11544_u1	Y
+11544_u2	N
+11544_u3	NULL
+[connection master]
+DROP USER 11544_u1@localhost;
+DROP USER 11544_u2@localhost;
+DROP USER 11544_u3@localhost;
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; CREATE USER 'foo'@'fakehost' IDENTIFIED WITH 'caching_sha2_password'
@@ -100,4 +119,10 @@ master-bin.000001	#	Query	#	#	use `test`; ALTER USER 'must_change2'@'localhost' 
 master-bin.000001	#	Query	#	#	use `test`; DROP USER must_change2@localhost
 master-bin.000001	#	Query	#	#	use `test`; CREATE USER '9591_user'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>' REQUIRE NONE
 master-bin.000001	#	Query	#	#	use `test`; DROP USER 9591_user@localhost
+master-bin.000001	#	Query	#	#	use `test`; CREATE USER '11544_u1'@'localhost' IDENTIFIED WITH 'caching_sha2_password' REQUIRE NONE PASSWORD REQUIRE CURRENT
+master-bin.000001	#	Query	#	#	use `test`; CREATE USER '11544_u2'@'localhost' IDENTIFIED WITH 'caching_sha2_password' REQUIRE NONE PASSWORD REQUIRE CURRENT OPTIONAL
+master-bin.000001	#	Query	#	#	use `test`; CREATE USER '11544_u3'@'localhost' IDENTIFIED WITH 'caching_sha2_password' REQUIRE NONE PASSWORD REQUIRE CURRENT DEFAULT
+master-bin.000001	#	Query	#	#	use `test`; DROP USER 11544_u1@localhost
+master-bin.000001	#	Query	#	#	use `test`; DROP USER 11544_u2@localhost
+master-bin.000001	#	Query	#	#	use `test`; DROP USER 11544_u3@localhost
 include/rpl_end.inc

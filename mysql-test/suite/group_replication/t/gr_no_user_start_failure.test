@@ -68,7 +68,7 @@ START GROUP_REPLICATION;
 --echo #
 
 --disable_query_log
---eval INSERT IGNORE INTO mysql.user VALUES ('localhost','mysql.session','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','Y','N','N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,'mysql_native_password','*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE','N',"$date_to_restore",NULL,'Y', 'N', 'N', NULL, NULL);
+--eval INSERT IGNORE INTO mysql.user VALUES ('localhost','mysql.session','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','Y','N','N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,'mysql_native_password','*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE','N',"$date_to_restore",NULL,'Y', 'N', 'N', NULL, NULL, NULL);
 
 --eval INSERT IGNORE INTO mysql.tables_priv VALUES ('localhost', 'mysql', 'mysql.session', 'user', 'root\@localhost', "$date_to_restore_priv", 'Select', '');
 

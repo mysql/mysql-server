@@ -419,10 +419,11 @@ class set_var_user : public set_var_base {
 class set_var_password : public set_var_base {
   LEX_USER *user;
   char *password;
+  char *current_passowrd;
 
  public:
-  set_var_password(LEX_USER *user_arg, char *password_arg)
-      : user(user_arg), password(password_arg) {}
+  set_var_password(LEX_USER *user_arg, char *password_arg,
+                   char *current_passowrd_arg);
   int resolve(THD *) { return 0; }
   int check(THD *thd);
   int update(THD *thd);

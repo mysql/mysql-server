@@ -332,7 +332,7 @@ bool roles_rename_authid(THD *thd, TABLE *edge_table, TABLE *defaults_table,
 bool set_and_validate_user_attributes(THD *thd, LEX_USER *Str,
                                       ulong &what_to_set,
                                       bool is_privileged_user, bool is_role,
-                                      TABLE_LIST *history_table,
+                                      TABLE_LIST *table_list,
                                       bool *history_check_done,
                                       const char *cmd);
 typedef std::pair<std::string, bool> Grant_privilege;

@@ -1113,6 +1113,18 @@ void set_var_user::print(THD *, String *str) {
   Functions to handle SET PASSWORD
 *****************************************************************************/
 
+set_var_password::set_var_password(LEX_USER *user_arg, char *password_arg,
+                                   char *current_passowrd_arg)
+    : user(user_arg),
+      password(password_arg),
+      current_passowrd(current_passowrd_arg) {
+  if (current_passowrd != nullptr) {
+    user_arg->uses_replace_clause = true;
+    user_arg->current_auth.str = current_passowrd_arg;
+    user_arg->current_auth.length = strlen(current_passowrd_arg);
+  }
+}
+
 /**
   Check the validity of the SET PASSWORD request
 
@@ -1128,7 +1140,7 @@ int set_var_password::check(THD *thd) {
 
 int set_var_password::update(THD *thd) {
   /* Returns 1 as the function sends error to client */
-  return change_password(thd, user->host.str, user->user.str, password) ? 1 : 0;
+  return change_password(thd, user, password, current_passowrd) ? 1 : 0;
 }
 
 void set_var_password::print(THD *thd, String *str) {
@@ -1143,6 +1155,9 @@ void set_var_password::print(THD *thd, String *str) {
   } else
     str->append(STRING_WITH_LEN("PASSWORD FOR CURRENT_USER()="));
   str->append(STRING_WITH_LEN("<secret>"));
+  if (user->uses_replace_clause) {
+    str->append(STRING_WITH_LEN(" REPLACE <secret>"));
+  }
 }
 
 /*****************************************************************************

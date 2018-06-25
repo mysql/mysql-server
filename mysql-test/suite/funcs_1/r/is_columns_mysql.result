@@ -265,6 +265,7 @@ def	mysql	user	Create_role_priv	46	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_genera
 def	mysql	user	Drop_role_priv	47	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references			NULL
 def	mysql	user	Password_reuse_history	48	NULL	YES	smallint	NULL	NULL	5	0	NULL	NULL	NULL	smallint(5) unsigned			select,insert,update,references			NULL
 def	mysql	user	Password_reuse_time	49	NULL	YES	smallint	NULL	NULL	5	0	NULL	NULL	NULL	smallint(5) unsigned			select,insert,update,references			NULL
+def	mysql	user	Password_require_current	50	NULL	YES	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references			NULL
 ##########################################################################
 # Show the quotient of CHARACTER_OCTET_LENGTH and CHARACTER_MAXIMUM_LENGTH
 ##########################################################################
@@ -594,4 +595,5 @@ NULL	mysql	user	password_lifetime	smallint	NULL	NULL	NULL	NULL	smallint(5) unsig
 3.0000	mysql	user	Drop_role_priv	enum	1	3	utf8	utf8_general_ci	enum('N','Y')
 NULL	mysql	user	Password_reuse_history	smallint	NULL	NULL	NULL	NULL	smallint(5) unsigned
 NULL	mysql	user	Password_reuse_time	smallint	NULL	NULL	NULL	NULL	smallint(5) unsigned
+3.0000	mysql	user	Password_require_current	enum	1	3	utf8	utf8_general_ci	enum('N','Y')
 SET sql_mode = default;

@@ -28,7 +28,7 @@ CREATE TEMPORARY TABLE tmp_user AS (SELECT * FROM mysql.user);
 
 # Create 5.6 mysql.user table layout
 
---source include/user_58_to_57.inc
+--source include/user_80_to_57.inc
 --source include/user_57_to_56.inc
 
 --echo # "Manualy" create user with sha256 password

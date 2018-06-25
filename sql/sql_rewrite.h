@@ -156,10 +156,12 @@ class Rewriter_user : public I_rewriter {
   void rewrite_ssl_properties(const LEX *lex, String *str) const;
   /* Append the RESOURCES OPTIONS clause for users */
   void rewrite_user_resources(const LEX *lex, String *str) const;
-  // Append the ACCOUNT LOCK OPTIONS clause for users
+  /* Append the ACCOUNT LOCK OPTIONS clause for users */
   void rewrite_account_lock(const LEX *lex, String *str) const;
-  // Append the PASSWORD EXPIRED OPTIONS clause for users
+  /* Append the PASSWORD EXPIRED OPTIONS clause for users */
   void rewrite_password_expired(const LEX *lex, String *str) const;
+  /* Append the PASSWORD REQUIRE CURRENT clause for users */
+  void rewrite_password_require_current(LEX *lex, String *str) const;
 };
 /** Rewrites the CREATE USER statement. */
 class Rewriter_create_user final : public Rewriter_user {

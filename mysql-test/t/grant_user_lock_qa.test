@@ -28,7 +28,7 @@ ALTER USER user1;
 query_vertical SELECT host,user,plugin,authentication_string,account_locked
 FROM mysql.user WHERE USER='user1';
 --echo
---replace_regex /WITH .* REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
+--replace_regex /WITH '(.*)' REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
 SHOW CREATE USER user1;
 
 # Testing connection
@@ -165,7 +165,7 @@ FROM mysql.user WHERE USER='u2';
 --connect(con1, localhost, u2,'auth_string')
 connection default;
 --echo
---replace_regex /WITH .* AS .* REQUIRE/WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE/
+--replace_regex /WITH '(.*)' AS '(.*)' REQUIRE/WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u2@localhost;
 --echo # Recreating user using SHOW CREATE USER output for u2@localhost
 DROP USER u2@localhost;
@@ -187,7 +187,7 @@ FROM mysql.user WHERE USER='u2';
 SELECT USER();
 connection default;
 disconnect con1;
---replace_regex /WITH .* AS .* REQUIRE/WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE/
+--replace_regex /WITH '(.*)' AS '(.*)' REQUIRE/WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u2@localhost;
 
 CREATE USER u3@localhost IDENTIFIED WITH 'sha256_password'
@@ -235,7 +235,7 @@ ALTER USER u4@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
 query_vertical SELECT user,plugin,authentication_string,password_expired,
 password_lifetime,account_locked FROM mysql.user WHERE USER='u4';
 --echo
---replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
+--replace_regex /AS '(.*)' REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u4@localhost;
 
 # Testing connection
@@ -350,7 +350,7 @@ CREATE USER u5@localhost REQUIRE SSL ACCOUNT LOCK PASSWORD EXPIRE;
 query_vertical SELECT user,plugin,authentication_string,ssl_type,password_expired,
 password_lifetime,account_locked FROM mysql.user WHERE USER='u5';
 --echo
---replace_regex /WITH .* REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
+--replace_regex /WITH '(.*)' REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
 SHOW CREATE USER u5@localhost;
 # Testing connection
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
@@ -370,7 +370,7 @@ CREATE USER u6@localhost IDENTIFIED BY 'auth_string' REQUIRE X509
 query_vertical SELECT user,plugin,authentication_string,ssl_type,password_expired,
 password_lifetime,account_locked FROM mysql.user WHERE USER='u6';
 --echo
---replace_regex /WITH .* AS .* REQUIRE/WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE/
+--replace_regex /WITH '(.*)' AS '(.*)' REQUIRE/WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u6@localhost;
 # Testing connection
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
@@ -382,7 +382,7 @@ ALTER USER u6@localhost ACCOUNT UNLOCK;
 query_vertical SELECT user,plugin,authentication_string,ssl_type,password_expired,
 password_lifetime,account_locked FROM mysql.user WHERE USER='u6';
 --echo
---replace_regex /WITH .* AS .* REQUIRE/WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE/
+--replace_regex /WITH '(.*)' AS '(.*)' REQUIRE/WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u6@localhost;
 # Testing connection
 --connect(con1, localhost, u6,'auth_string',,,,SSL)
@@ -397,7 +397,7 @@ CREATE USER u7@localhost IDENTIFIED WITH 'sha256_password'
 query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,
 x509_subject,password_expired,password_lifetime,account_locked FROM mysql.user WHERE USER='u7';
 --echo
---replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
+--replace_regex /AS '(.*)' REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u7@localhost;
 # Testing connection
 --connect(con1, localhost, u7,,,,,SSL)
@@ -424,7 +424,7 @@ CREATE USER u8@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
 query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,
 x509_subject,password_expired,password_lifetime,account_locked FROM mysql.user WHERE USER='u8';
 --echo
---replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
+--replace_regex /AS '(.*)' REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u8@localhost;
 # Testing connection
 --connect(con1, localhost, u8,'auth_string',,,,SSL)
@@ -459,7 +459,7 @@ ALTER USER u9@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string' ACCOU
 query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,
 x509_subject,password_expired,password_lifetime,account_locked FROM mysql.user WHERE USER='u9';
 --echo
---replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
+--replace_regex /AS '(.*)' REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u9@localhost;
 # Testing connection
 --connect(con1, localhost, u9,'auth_string',,,,SSL)
@@ -476,7 +476,7 @@ CREATE USER u10@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string#y'
 query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,
 x509_subject,password_expired,password_lifetime,account_locked FROM mysql.user WHERE USER='u10';
 --echo
---replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
+--replace_regex /AS '(.*)' REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u10@localhost;
 # Testing connection
 --connect(con1, localhost, u10,'auth_string#y',,,,SSL)
@@ -489,7 +489,7 @@ ALTER USER u10@localhost REQUIRE CIPHER "DHE-RSA-AES256-SHA"
 query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,x509_issuer,
 x509_subject,password_expired,password_lifetime,account_locked FROM mysql.user WHERE USER='u10';
 --echo
---replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
+--replace_regex /AS '(.*)' REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u10@localhost;
 # Testing connection
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
@@ -502,7 +502,7 @@ CREATE USER u11@localhost WITH MAX_QUERIES_PER_HOUR 2 ACCOUNT LOCK;
 query_vertical SELECT user,plugin,authentication_string,max_questions,password_expired,
 password_lifetime,account_locked FROM mysql.user WHERE USER='u11';
 --echo
---replace_regex /WITH .* REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
+--replace_regex /WITH '(.*)' REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
 SHOW CREATE USER u11@localhost;
 # Testing connection
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
@@ -514,7 +514,7 @@ ALTER USER u11@localhost WITH MAX_QUERIES_PER_HOUR 6 ACCOUNT UNLOCK ACCOUNT UNLO
 query_vertical SELECT user,plugin,authentication_string,max_questions,password_expired,
 password_lifetime,account_locked FROM mysql.user WHERE USER='u11';
 --echo
---replace_regex /WITH .* REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
+--replace_regex /WITH '(.*)' REQUIRE/WITH '<default_authentication_plugin>' REQUIRE/
 SHOW CREATE USER u11@localhost;
 # Recreating user from SHOW CREATE USER output.
 DROP USER u11@localhost;
@@ -536,7 +536,7 @@ CREATE USER u12@localhost IDENTIFIED BY 'auth_string'
 query_vertical SELECT user,plugin,authentication_string,max_questions,password_expired,
 password_lifetime,account_locked FROM mysql.user WHERE USER='u12';
 --echo
---replace_regex /WITH .* AS .* REQUIRE/WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE/
+--replace_regex /WITH '(.*)' AS '(.*)' REQUIRE/WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u12@localhost;
 # Testing connection
 --connect(con1, localhost, u12,'auth_string')
@@ -560,7 +560,7 @@ ALTER USER u12@localhost ACCOUNT LOCK PASSWORD EXPIRE NEVER
 query_vertical SELECT user,plugin,authentication_string,max_questions,password_expired,
 password_lifetime,account_locked FROM mysql.user WHERE USER='u12';
 --echo
---replace_regex /WITH .* AS .* REQUIRE/WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE/
+--replace_regex /WITH '(.*)' AS '(.*)' REQUIRE/WITH '<default_authentication_plugin>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u12@localhost;
 # Testing connection
 --connect(con1, localhost, u12,'abc')
@@ -612,7 +612,7 @@ query_vertical SELECT user,plugin,authentication_string,ssl_type,ssl_cipher,x509
 x509_subject,max_user_connections,password_expired,password_lifetime,account_locked
 FROM mysql.user WHERE USER='u14';
 --echo
---replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
+--replace_regex /AS '(.*)' REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u14@localhost;
 # Testing connection
 --connect(con1, localhost, u14,'auth_string',,,,SSL)

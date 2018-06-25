@@ -32,6 +32,14 @@ SET SESSION long_query_time=  0;
 
 # 1.1.1.1
 CREATE USER test_user2 IDENTIFIED BY 'azundris2';
+connect(con1,localhost,test_user2,'azundris2',);
+SET SESSION long_query_time = 0;
+# Verification of WL#11544
+ALTER USER test_user2 IDENTIFIED BY 'azundris2' REPLACE 'azundris2';
+SET PASSWORD='azundris2' REPLACE 'azundris2';
+SET PASSWORD FOR test_user2='azundris2' REPLACE 'azundris2';
+disconnect con1;
+connection default;
 
 # 1.1.1.2
 # need TABLE so we can test FOR CHANNEL
@@ -83,12 +91,16 @@ SELECT sql_text FROM test_log WHERE sql_text LIKE CONCAT('%azun','dris%');
 # same for logging to table
 SELECT sql_text FROM mysql.slow_log WHERE sql_text LIKE CONCAT('%azun','dris%');
 
+# WL#11544 verification : Replace clause should be seen in the log.
+# In case of ps-protocol, it will be seen twice.
+SELECT count(*)=1 OR count(*)=2 FROM mysql.slow_log WHERE sql_text LIKE '%REPLACE%';
+
 --echo ------ from file ------
-SELECT count(*) FROM test_log WHERE sql_text LIKE 'CREATE USER %' AND sql_text LIKE '%<secret>%';
+SELECT count(*)=1 OR count(*)=2 FROM test_log WHERE sql_text LIKE 'CREATE USER %' AND sql_text LIKE '%<secret>%';
 SELECT sql_text FROM test_log WHERE sql_text LIKE 'CHANGE MASTER TO MASTER_BIND %';
-SELECT count(*) FROM test_log WHERE sql_text LIKE 'SET PASSWORD %' AND sql_text LIKE '%<secret>%'; 
+SELECT count(*) FROM test_log WHERE sql_text LIKE 'SET PASSWORD %' AND sql_text LIKE '%<secret>%';
 --echo ------ from table ------
-SELECT count(*) FROM mysql.slow_log WHERE sql_text LIKE 'CREATE USER %' AND sql_text LIKE '%<secret>%';
+SELECT count(*)=1 OR count(*)=2 FROM mysql.slow_log WHERE sql_text LIKE 'CREATE USER %' AND sql_text LIKE '%<secret>%';
 SELECT sql_text FROM test_log WHERE sql_text LIKE 'CHANGE MASTER TO MASTER_BIND %';
 SELECT count(*) FROM test_log WHERE sql_text LIKE 'SET PASSWORD %' AND sql_text LIKE '%<secret>%';
 --echo ------ done ------

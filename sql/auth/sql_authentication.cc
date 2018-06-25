@@ -1672,6 +1672,8 @@ static ACL_USER *decoy_user(const LEX_STRING &username,
   user->password_reuse_interval = 0;
   user->use_default_password_history = true;
   user->password_history_length = 0;
+  user->password_require_current = Lex_acl_attrib_udyn::DEFAULT;
+
   /*
     For now the common default account is used. Improvements might involve
     mapping a consistent hash of a username to a range of plugins.
@@ -3552,9 +3554,9 @@ static int compare_native_password_with_hash(const char *hash,
   char buffer[SCRAMBLED_PASSWORD_CHAR_LENGTH + 1];
 
   /** empty password results in an empty hash */
-  if (!hash_length && !cleartext_length) return 0;
+  if (!hash_length && !cleartext_length) DBUG_RETURN(0);
 
-  DBUG_ASSERT(hash_length == SCRAMBLED_PASSWORD_CHAR_LENGTH);
+  DBUG_ASSERT(hash_length <= SCRAMBLED_PASSWORD_CHAR_LENGTH);
 
   /* calculate the hash from the clear text */
   my_make_scrambled_password_sha1(buffer, cleartext, cleartext_length);
