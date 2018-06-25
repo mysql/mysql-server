@@ -1592,6 +1592,7 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"ST_SYMDIFFERENCE", SQL_FN(Item_func_st_symdifference, 2)},
     {"ST_SWAPXY", SQL_FN(Item_func_swap_xy, 1)},
     {"ST_TOUCHES", SQL_FN(Item_func_st_touches, 2)},
+    {"ST_TRANSFORM", SQL_FN(Item_func_st_transform, 2)},
     {"ST_UNION", SQL_FN(Item_func_st_union, 2)},
     {"ST_VALIDATE", SQL_FN(Item_func_validate, 1)},
     {"ST_WITHIN", SQL_FN(Item_func_st_within, 2)},

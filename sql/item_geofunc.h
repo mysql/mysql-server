@@ -1725,4 +1725,16 @@ class Item_func_st_distance_sphere : public Item_real_func {
   const char *func_name() const override { return "st_distance_sphere"; }
 };
 
+/// This class implements ST_Transform function that transforms a geometry from
+/// one SRS to another.
+class Item_func_st_transform final : public Item_geometry_func {
+ public:
+  Item_func_st_transform(const POS &pos, Item *a, Item *b)
+      : Item_geometry_func(pos, a, b) {}
+  String *val_str(String *str) override;
+
+ private:
+  const char *func_name() const override { return "st_transform"; }
+};
+
 #endif /*ITEM_GEOFUNC_INCLUDED*/

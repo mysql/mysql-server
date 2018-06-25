@@ -67,6 +67,7 @@
 #include "sql/gis/length.h"
 #include "sql/gis/simplify.h"
 #include "sql/gis/srid.h"
+#include "sql/gis/transform.h"
 #include "sql/gis/wkb.h"
 #include "sql/gstream.h"  // Gis_read_stream
 #include "sql/item_geofunc_internal.h"
@@ -5455,4 +5456,70 @@ double Item_func_st_distance_sphere::val_real() {
   DBUG_ASSERT(!null_value);
 
   DBUG_RETURN(result);
+}
+
+String *Item_func_st_transform::val_str(String *str) {
+  DBUG_ASSERT(fixed);
+  String *source_swkb = args[0]->val_str(str);
+  gis::srid_t target_srid = args[1]->val_int();
+
+  if ((null_value = (args[0]->null_value || args[1]->null_value)))
+    return nullptr;
+
+  if (!source_swkb) {
+    /* purecov: begin inspected */
+    DBUG_ASSERT(false);
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_str();
+    /* purecov: end */
+  }
+
+  const dd::Spatial_reference_system *source_srs = nullptr;
+  std::unique_ptr<gis::Geometry> source_g;
+  std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
+      new dd::cache::Dictionary_client::Auto_releaser(
+          current_thd->dd_client()));
+  if (gis::parse_geometry(current_thd, func_name(), source_swkb, &source_srs,
+                          &source_g))
+    return error_str();
+
+  if ((source_srs == nullptr && target_srid == 0) ||
+      (source_srs != nullptr && source_srs->id() == target_srid)) {
+    return source_swkb;
+  }
+
+  if (source_srs == nullptr) {
+    my_error(ER_TRANSFORM_SOURCE_SRS_NOT_SUPPORTED, MYF(0), 0);
+    return error_str();
+  }
+  if (target_srid == 0) {
+    my_error(ER_TRANSFORM_TARGET_SRS_NOT_SUPPORTED, MYF(0), 0);
+    return error_str();
+  }
+
+  const dd::Spatial_reference_system *target_srs = nullptr;
+  Srs_fetcher fetcher(current_thd);
+  if (fetcher.acquire(target_srid, &target_srs)) {
+    return error_str(); /* purecov: inspected */
+  }
+  if (target_srs == nullptr) {
+    my_error(ER_SRS_NOT_FOUND, MYF(0), target_srid);
+    return error_str();
+  }
+
+  std::unique_ptr<gis::Geometry> target_g;
+  if (gis::transform(source_srs, *source_g, target_srs, func_name(), &target_g))
+    return error_str();
+
+  if (target_g.get() == nullptr) {
+    // There should always be an output geometry for valid input.
+    /* purecov: begin deadcode */
+    DBUG_ASSERT(false);
+    null_value = true;
+    return nullptr;
+    /* purecov: end */
+  }
+
+  write_geometry(target_srs, *target_g, str);
+  return str;
 }
