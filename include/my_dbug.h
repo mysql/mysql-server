@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -134,14 +134,14 @@ extern const char *_db_get_func_(void);
 #define DBUG_EXPLAIN_INITIAL(buf, len) _db_explain_init_((buf), (len))
 #ifndef _WIN32
 #define DBUG_ABORT() (_db_flush_(), abort())
+#define DBUG_EXIT() (_db_flush_(), exit(2))
 #else
-/*
-  Avoid popup with abort/retry/ignore buttons. When BUG#31745 is fixed we can
-  call abort() instead of _exit(2) (now it would cause a "test signal" popup).
-*/
 #include <crtdbg.h>
 
 #define DBUG_ABORT()                                                     \
+  (_db_flush_(), (void)_CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE), \
+   (void)_CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR), abort())
+#define DBUG_EXIT()                                                      \
   (_db_flush_(), (void)_CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE), \
    (void)_CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR), _exit(2))
 #endif
@@ -155,7 +155,7 @@ extern const char *_db_get_func_(void);
   but then valgrind would report lots of memory leaks.
  */
 #ifdef _WIN32
-#define DBUG_SUICIDE() DBUG_ABORT()
+#define DBUG_SUICIDE() DBUG_EXIT()
 #else
 extern void _db_suicide_() MY_ATTRIBUTE((noreturn));
 extern void _db_flush_gcov_();
