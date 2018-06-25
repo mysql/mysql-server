@@ -524,7 +524,13 @@ bool log_sys_init(uint32_t n_files, uint64_t file_size, space_id_t space_id) {
   mutex_create(LATCH_ID_LOG_WRITE_NOTIFIER, &log.write_notifier_mutex);
   mutex_create(LATCH_ID_LOG_FLUSH_NOTIFIER, &log.flush_notifier_mutex);
 
-  log.sn_lock.create(log_sn_lock_key, SYNC_LOG_SN, 64);
+  log.sn_lock.create(
+#ifdef UNIV_PFS_RWLOCK
+      log_sn_lock_key,
+#else
+      PSI_NOT_INSTRUMENTED,
+#endif
+      SYNC_LOG_SN, 64);
 
   /* Allocate buffers. */
   log_allocate_buffer(log);

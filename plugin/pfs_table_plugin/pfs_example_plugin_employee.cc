@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -339,7 +339,7 @@ pfs_example_plugin_employee_init(void *p)
     DBUG_RETURN(1);
 
   /* Register the mutex classes */
-  PSI_MUTEX_CALL(register_mutex)("pfs_example2", mutex_info, 3);
+  mysql_mutex_register("pfs_example2", mutex_info, 3);
 
   /* Initialize mutexes to be used for table records */
   mysql_mutex_init(key_mutex_name, &LOCK_ename_records_array,
