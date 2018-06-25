@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -114,10 +114,17 @@ static void dtoa_free(char *, char *, size_t);
                       false  successful conversion
                       true   the input number is [-,+]infinity or nan.
                              The output string in this case is always '0'.
+   @param shorten     Whether to minimize the number of significant digits. If
+                      true, write only the minimum number of digits necessary to
+                      reproduce the double value when parsing the string. If
+                      false, zeros are added to the end to reach the precision
+                      limit.
+
    @return            number of written characters (excluding terminating '\0')
 */
 
-size_t my_fcvt(double x, int precision, char *to, bool *error) {
+static size_t my_fcvt_internal(double x, int precision, bool shorten, char *to,
+                               bool *error) {
   int decpt, sign, len, i;
   char *res, *src, *end, *dst = to;
   char buf[DTOA_BUFF_SIZE];
@@ -150,7 +157,7 @@ size_t my_fcvt(double x, int precision, char *to, bool *error) {
   }
   while (i++ <= decpt) *dst++ = '0';
 
-  if (precision > 0) {
+  if (precision > 0 && !shorten) {
     if (len <= decpt) *dst++ = '.';
 
     for (i = precision - MY_MAX(0, (len - decpt)); i > 0; i--) *dst++ = '0';
@@ -162,6 +169,73 @@ size_t my_fcvt(double x, int precision, char *to, bool *error) {
   dtoa_free(res, buf, sizeof(buf));
 
   return dst - to;
+}
+
+/**
+   @brief
+   Converts a given floating point number to a zero-terminated string
+   representation using the 'f' format.
+
+   @details
+   This function is a wrapper around dtoa() to do the same as
+   sprintf(to, "%-.*f", precision, x), though the conversion is usually more
+   precise. The only difference is in handling [-,+]infinity and nan values,
+   in which case we print '0\0' to the output string and indicate an overflow.
+
+   @param x           the input floating point number.
+   @param precision   the number of digits after the decimal point.
+                      All properties of sprintf() apply:
+                      - if the number of significant digits after the decimal
+                        point is less than precision, the resulting string is
+                        right-padded with zeros
+                      - if the precision is 0, no decimal point appears
+                      - if a decimal point appears, at least one digit appears
+                        before it
+   @param to          pointer to the output buffer. The longest string which
+                      my_fcvt() can return is FLOATING_POINT_BUFFER bytes
+                      (including the terminating '\0').
+   @param error       if not NULL, points to a location where the status of
+                      conversion is stored upon return.
+                      false  successful conversion
+                      true   the input number is [-,+]infinity or nan.
+                             The output string in this case is always '0'.
+
+   @return            number of written characters (excluding terminating '\0')
+*/
+size_t my_fcvt(double x, int precision, char *to, bool *error) {
+  return my_fcvt_internal(x, precision, false, to, error);
+}
+
+/**
+   @brief
+   Converts a given floating point number to a zero-terminated string
+   representation using the 'f' format.
+
+   @details
+   This function is a wrapper around dtoa() to do almost the same as
+   sprintf(to, "%-.*f", precision, x), though the conversion is usually more
+   precise. The only difference is in handling [-,+]infinity and nan values,
+   in which case we print '0\0' to the output string and indicate an overflow.
+
+   The string always contains the minimum number of digits necessary to
+   reproduce the same binary double value if the string is parsed back to a
+   double value.
+
+   @param x           the input floating point number.
+   @param to          pointer to the output buffer. The longest string which
+                      my_fcvt() can return is FLOATING_POINT_BUFFER bytes
+                      (including the terminating '\0').
+   @param error       if not NULL, points to a location where the status of
+                      conversion is stored upon return.
+                      false  successful conversion
+                      true   the input number is [-,+]infinity or nan.
+                             The output string in this case is always '0'.
+
+   @return            number of written characters (excluding terminating '\0')
+*/
+size_t my_fcvt_compact(double x, char *to, bool *error) {
+  return my_fcvt_internal(x, std::numeric_limits<double>::max_digits10, true,
+                          to, error);
 }
 
 /**
