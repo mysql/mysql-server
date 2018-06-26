@@ -351,9 +351,9 @@ a	b	name
 #  - ON UPDATE RESTRICT
 alter table t1 add foreign key (b) references t2(a) on update restrict;
 insert into t1 (a) values (4);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t1`, CONSTRAINT `t1_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t2` (`a`))
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t1`, CONSTRAINT `t1_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t2` (`a`) ON UPDATE RESTRICT)
 update t2 set a=4 where a=3;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t1`, CONSTRAINT `t1_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t2` (`a`))
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t1`, CONSTRAINT `t1_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t2` (`a`) ON UPDATE RESTRICT)
 select t1.a, t1.b, t2.name from t1,t2 where t1.b=t2.a;
 a	b	name
 1	1	value1
@@ -363,7 +363,7 @@ alter table t1 drop foreign key t1_ibfk_1;
 #  - ON DELETE RESTRICT
 alter table t1 add foreign key (b) references t2(a) on delete restrict;
 delete from t2 where a=3;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t1`, CONSTRAINT `t1_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t2` (`a`))
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t1`, CONSTRAINT `t1_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t2` (`a`) ON DELETE RESTRICT)
 select t1.a, t1.b, t2.name from t1,t2 where t1.b=t2.a;
 a	b	name
 1	1	value1

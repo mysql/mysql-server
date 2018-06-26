@@ -4999,11 +4999,11 @@ void dict_print_info_on_foreign_key_in_create_format(
     fputs(" ON DELETE SET NULL", file);
   }
 
-#ifdef HAS_RUNTIME_WL6049
-  if (foreign->type & DICT_FOREIGN_ON_DELETE_NO_ACTION) {
-    fputs(" ON DELETE NO ACTION", file);
+  if (!(foreign->type & DICT_FOREIGN_ON_DELETE_NO_ACTION) &&
+      !(foreign->type & DICT_FOREIGN_ON_DELETE_CASCADE) &&
+      !(foreign->type & DICT_FOREIGN_ON_DELETE_SET_NULL)) {
+    fputs(" ON DELETE RESTRICT", file);
   }
-#endif /* HAS_RUNTIME_WL6049 */
 
   if (foreign->type & DICT_FOREIGN_ON_UPDATE_CASCADE) {
     fputs(" ON UPDATE CASCADE", file);
@@ -5013,11 +5013,11 @@ void dict_print_info_on_foreign_key_in_create_format(
     fputs(" ON UPDATE SET NULL", file);
   }
 
-#ifdef HAS_RUNTIME_WL6049
-  if (foreign->type & DICT_FOREIGN_ON_UPDATE_NO_ACTION) {
-    fputs(" ON UPDATE NO ACTION", file);
+  if (!(foreign->type & DICT_FOREIGN_ON_UPDATE_NO_ACTION) &&
+      !(foreign->type & DICT_FOREIGN_ON_UPDATE_CASCADE) &&
+      !(foreign->type & DICT_FOREIGN_ON_UPDATE_SET_NULL)) {
+    fputs(" ON UPDATE RESTRICT", file);
   }
-#endif /* HAS_RUNTIME_WL6049 */
 }
 
 /** Outputs info on foreign keys of a table. */

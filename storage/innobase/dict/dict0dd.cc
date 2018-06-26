@@ -3245,10 +3245,14 @@ dberr_t dd_table_load_fk_from_dd(dict_table_t *m_table,
 
     switch (key->update_rule()) {
       case dd::Foreign_key::RULE_NO_ACTION:
+        /*
+          Since SET DEFAULT clause is not supported, ignore it by converting
+          into the value DICT_FOREIGN_ON_UPDATE_NO_ACTION
+        */
+      case dd::Foreign_key::RULE_SET_DEFAULT:
         foreign->type = DICT_FOREIGN_ON_UPDATE_NO_ACTION;
         break;
       case dd::Foreign_key::RULE_RESTRICT:
-      case dd::Foreign_key::RULE_SET_DEFAULT:
         foreign->type = 0;
         break;
       case dd::Foreign_key::RULE_CASCADE:
@@ -3263,9 +3267,13 @@ dberr_t dd_table_load_fk_from_dd(dict_table_t *m_table,
 
     switch (key->delete_rule()) {
       case dd::Foreign_key::RULE_NO_ACTION:
+        /*
+          Since SET DEFAULT clause is not supported, ignore it by converting
+          into the value DICT_FOREIGN_ON_UPDATE_NO_ACTION
+        */
+      case dd::Foreign_key::RULE_SET_DEFAULT:
         foreign->type |= DICT_FOREIGN_ON_DELETE_NO_ACTION;
       case dd::Foreign_key::RULE_RESTRICT:
-      case dd::Foreign_key::RULE_SET_DEFAULT:
         break;
       case dd::Foreign_key::RULE_CASCADE:
         foreign->type |= DICT_FOREIGN_ON_DELETE_CASCADE;
