@@ -190,6 +190,9 @@ class Channel_info_tcpip_socket : public Channel_info {
 ///////////////////////////////////////////////////////////////////////////
 // TCP_socket implementation
 ///////////////////////////////////////////////////////////////////////////
+#ifdef _WIN32
+using Socket_error_message_buf = TCHAR[1024];
+#endif
 
 /**
   MY_BIND_ALL_ADDRESSES defines a special value for the bind-address option,
@@ -320,7 +323,15 @@ class TCP_socket {
         // Retrieve address info (ai) for IPv4 address.
 
         if (getaddrinfo(ipv4_all_addresses, port_buf, &hints, &ai)) {
+#ifdef _WIN32
+          Socket_error_message_buf msg_buff;
+          FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, socket_errno,
+                        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                        (LPTSTR)msg_buff, sizeof(msg_buff), NULL);
+          LogErr(ERROR_LEVEL, ER_CONN_TCP_ERROR_WITH_STRERROR, msg_buff);
+#else
           LogErr(ERROR_LEVEL, ER_CONN_TCP_ERROR_WITH_STRERROR, strerror(errno));
+#endif
           LogErr(ERROR_LEVEL, ER_CONN_TCP_CANT_RESOLVE_HOSTNAME);
           return MYSQL_INVALID_SOCKET;
         }
@@ -329,7 +340,15 @@ class TCP_socket {
       }
     } else {
       if (getaddrinfo(m_bind_addr_str.c_str(), port_buf, &hints, &ai)) {
+#ifdef _WIN32
+        Socket_error_message_buf msg_buff;
+        FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, socket_errno,
+                      MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                      (LPTSTR)msg_buff, sizeof(msg_buff), NULL);
+        LogErr(ERROR_LEVEL, ER_CONN_TCP_ERROR_WITH_STRERROR, msg_buff);
+#else
         LogErr(ERROR_LEVEL, ER_CONN_TCP_ERROR_WITH_STRERROR, strerror(errno));
+#endif
         LogErr(ERROR_LEVEL, ER_CONN_TCP_CANT_RESOLVE_HOSTNAME);
         return MYSQL_INVALID_SOCKET;
       }
@@ -369,7 +388,15 @@ class TCP_socket {
 
     // Report user-error if we failed to create a socket.
     if (mysql_socket_getfd(listener_socket) == INVALID_SOCKET) {
+#ifdef _WIN32
+      Socket_error_message_buf msg_buff;
+      FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, socket_errno,
+                    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)msg_buff,
+                    sizeof(msg_buff), NULL);
+      LogErr(ERROR_LEVEL, ER_CONN_TCP_ERROR_WITH_STRERROR, msg_buff);
+#else
       LogErr(ERROR_LEVEL, ER_CONN_TCP_ERROR_WITH_STRERROR, strerror(errno));
+#endif
       return MYSQL_INVALID_SOCKET;
     }
 
@@ -427,14 +454,31 @@ class TCP_socket {
     freeaddrinfo(ai);
     if (ret < 0) {
       DBUG_PRINT("error", ("Got error: %d from bind", socket_errno));
+#ifdef _WIN32
+      Socket_error_message_buf msg_buff;
+      FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, socket_errno,
+                    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)msg_buff,
+                    sizeof(msg_buff), NULL);
+      LogErr(ERROR_LEVEL, ER_CONN_TCP_BIND_FAIL, msg_buff);
+#else
       LogErr(ERROR_LEVEL, ER_CONN_TCP_BIND_FAIL, strerror(socket_errno));
+#endif
       LogErr(ERROR_LEVEL, ER_CONN_TCP_IS_THERE_ANOTHER_USING_PORT, m_tcp_port);
       mysql_socket_close(listener_socket);
       return MYSQL_INVALID_SOCKET;
     }
 
     if (mysql_socket_listen(listener_socket, static_cast<int>(m_backlog)) < 0) {
+#ifdef _WIN32
+      Socket_error_message_buf msg_buff;
+      FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, socket_errno,
+                    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)msg_buff,
+                    sizeof(msg_buff), NULL);
+      LogErr(ERROR_LEVEL, ER_CONN_TCP_START_FAIL, msg_buff);
+#else
       LogErr(ERROR_LEVEL, ER_CONN_TCP_START_FAIL, strerror(errno));
+#endif
+
       LogErr(ERROR_LEVEL, ER_CONN_TCP_LISTEN_FAIL, socket_errno);
       mysql_socket_close(listener_socket);
       return MYSQL_INVALID_SOCKET;
@@ -802,8 +846,17 @@ Channel_info *Mysqld_socket_listener::listen_for_connection_event() {
       increment the server global status variable.
     */
     connection_errors_accept++;
-    if ((m_error_count++ & 255) == 0)  // This can happen often
+    if ((m_error_count++ & 255) == 0) {  // This can happen often
+#ifdef _WIN32
+      Socket_error_message_buf msg_buff;
+      FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, socket_errno,
+                    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)msg_buff,
+                    sizeof(msg_buff), NULL);
+      LogErr(ERROR_LEVEL, ER_CONN_SOCKET_ACCEPT_FAILED, msg_buff);
+#else
       LogErr(ERROR_LEVEL, ER_CONN_SOCKET_ACCEPT_FAILED, strerror(errno));
+#endif
+    }
     if (socket_errno == SOCKET_ENFILE || socket_errno == SOCKET_EMFILE)
       sleep(1);  // Give other threads some time
     return NULL;

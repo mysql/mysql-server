@@ -62,3 +62,12 @@ SELECT VARIABLE_NAME FROM performance_schema.global_variables
 WHERE VARIABLE_NAME = 'socket';
 VARIABLE_NAME
 socket
+#
+# BUG#28206667 -- INVALID IP ADDRESS REJECTED WITH "BIND ON TCP/IP PORT: UNKNOWN ERROR" ON WINDOWS
+#
+# Stop DB server which was created by MTR default
+#
+# Start mysqld with not existent IP address as a vaule of --bind-address option
+#
+Pattern "Bind on TCP/IP port: The requested address is not valid in its context." found
+# restart

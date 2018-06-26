@@ -99,3 +99,30 @@ deallocate prepare abc;
 SELECT VARIABLE_NAME FROM performance_schema.global_variables
   WHERE VARIABLE_NAME = 'socket';
 --enable_warnings
+
+--echo #
+--echo # BUG#28206667 -- INVALID IP ADDRESS REJECTED WITH "BIND ON TCP/IP PORT: UNKNOWN ERROR" ON WINDOWS
+--echo #
+
+--let $MYSQLD_LOG= $MYSQL_TMP_DIR/server.log
+--let $MYSQLD_DATADIR= `SELECT @@datadir`
+
+--echo # Stop DB server which was created by MTR default
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/shutdown_mysqld.inc
+
+--echo #
+--echo # Start mysqld with not existent IP address as a vaule of --bind-address option
+--echo #
+
+--error 1
+--exec $MYSQLD --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR --no-defaults --secure-file-priv="" --bind-address=128.0.0.1
+
+--let SEARCH_FILE=$MYSQLD_LOG
+--let SEARCH_PATTERN= Bind on TCP/IP port: The requested address is not valid in its context.
+--source include/search_pattern.inc
+
+--remove_file $MYSQLD_LOG
+
+--let $restart_parameters =
+--source include/start_mysqld.inc
