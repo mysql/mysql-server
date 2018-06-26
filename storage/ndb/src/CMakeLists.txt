@@ -54,6 +54,13 @@ ENDIF()
 ADD_SUBDIRECTORY(mgmclient)
 ADD_SUBDIRECTORY(mgmsrv)
 
+IF(BUILD_IS_SINGLE_CONFIG)
+  SET(JAVA_SUBDIR)
+ELSE()
+  set(JAVA_SUBDIR
+  $<$<CONFIG:Debug>:Debug>$<$<CONFIG:RelWithDebInfo>:RelWithDebInfo>)
+ENDIF()
+
 SET(NDBJTIE_LIB)
 IF(HAVE_JDK)
   ADD_SUBDIRECTORY(ndbjtie)
@@ -120,7 +127,44 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/libndbclient.ver.in
                ${CMAKE_CURRENT_BINARY_DIR}/libndbclient.ver)
 
 ADD_LIBRARY(ndbclient_so SHARED ndbclient_exports.cpp)
+
+# Collect all dynamic libraries in the same directory
+SET_TARGET_PROPERTIES(ndbclient_so PROPERTIES
+  LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory)
+IF(WIN32_CLANG AND WITH_ASAN)
+  TARGET_LINK_LIBRARIES(ndbclient_so "${ASAN_LIB_DIR}/clang_rt.asan_dll_thunk-x86_64.lib")
+ENDIF()
+
+IF(WIN32)
+  # This must be a cmake bug on windows ...
+  # Anyways, with this the .dll ends up in the desired directory.
+  SET_TARGET_PROPERTIES(ndbclient_so PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory)
+ENDIF()
+
 TARGET_LINK_LIBRARIES(ndbclient_so ${NDBCLIENT_SO_LIBS})
+
+IF(APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
+  ADD_CUSTOM_COMMAND(TARGET ndbclient_so POST_BUILD
+    COMMAND install_name_tool -change
+    "${CRYPTO_VERSION}" "@loader_path/${CRYPTO_VERSION}"
+    $<TARGET_SONAME_FILE:ndbclient_so>
+    COMMAND install_name_tool -change
+    "${OPENSSL_VERSION}" "@loader_path/${OPENSSL_VERSION}"
+    $<TARGET_SONAME_FILE:ndbclient_so>
+    )
+  # All executables have dependencies:  "@loader_path/../lib/xxx.dylib
+  # Create a symlink so that this works for Xcode also.
+  IF(NOT BUILD_IS_SINGLE_CONFIG)
+    ADD_CUSTOM_COMMAND(TARGET ndbclient_so POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E create_symlink
+      $<TARGET_SONAME_FILE_DIR:ndbclient_so> lib
+      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/runtime_output_directory
+      )
+  ENDIF()
+ENDIF()
+
+
 IF(APPLE)
   SET_TARGET_PROPERTIES(ndbclient_so PROPERTIES
     MACOSX_RPATH ON

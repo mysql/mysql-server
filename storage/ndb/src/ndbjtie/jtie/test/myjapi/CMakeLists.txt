@@ -1,4 +1,4 @@
- # Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+ # Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -62,6 +62,11 @@ SET_TARGET_PROPERTIES(libmyjapi
 SET_TARGET_PROPERTIES(libmyjapi PROPERTIES OUTPUT_NAME "myjapi")
 TARGET_LINK_LIBRARIES(libmyjapi libmyapi)
 
+IF(APPLE)
+  SET_TARGET_PROPERTIES(libmyjapi PROPERTIES
+    MACOSX_RPATH ON
+  )
+ENDIF()
 
 set(JAR "${JAVA_NDB_VERSION}.jar")
 set(JTIE_MYJAPI_JAR "${CMAKE_CURRENT_BINARY_DIR}/jtie-test-myjapi-${JAR}")
@@ -71,6 +76,6 @@ ADD_TEST(
   COMMAND
   ${Java_JAVA_EXECUTABLE_PATH} ${Java_JAVA_ARCH_OPT} "-ea" "-Xcheck:jni"
   "-classpath" "${JTIE_MYJAPI_JAR}"
-  "-Djava.library.path=${CMAKE_CURRENT_BINARY_DIR}"
+  "-Djava.library.path=${CMAKE_CURRENT_BINARY_DIR}/${JAVA_SUBDIR}"
   "test.MyJapiTest"
 )

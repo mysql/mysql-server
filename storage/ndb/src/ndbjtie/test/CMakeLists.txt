@@ -55,6 +55,14 @@ SET_TARGET_PROPERTIES(libndbjtie_unit_tests PROPERTIES
   LINK_FLAGS "${CMAKE_SHARED_LIBRARY_C_FLAGS}"
   OUTPUT_NAME "ndbjtie_unit_tests")
 
+SET_TARGET_PROPERTIES(libndbjtie_unit_tests PROPERTIES
+  LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory)
+
+IF(APPLE)
+  SET_TARGET_PROPERTIES(libndbjtie_unit_tests PROPERTIES
+    MACOSX_RPATH ON
+  )
+ENDIF()
 
 #### Tests ###
 
@@ -72,13 +80,12 @@ SET(MYJAPI_TEST_JAR "${MYJAPI_TEST_DIR}/jtie-test-myjapi-${JAVA_NDB_VERSION}.jar
 SET(UNLOAD_TEST_DIR "${NDBJTIE_DIR}/jtie/test/unload")
 SET(UNLOAD_TEST_JAR "${UNLOAD_TEST_DIR}/jtie-test-unload-${JAVA_NDB_VERSION}.jar")
 
-
 ADD_TEST(
   NAME test_ndbjtie_mutils
   COMMAND
   ${Java_JAVA_EXECUTABLE_PATH} ${Java_JAVA_ARCH_OPT} "-ea" "-Xcheck:jni"
   "-classpath" "${TEST_JAR}:${NDBJTIE_JAR}"
-  "-Djava.library.path=${NDBCLIENT_DIR}"
+  "-Djava.library.path=${CMAKE_BINARY_DIR}/library_output_directory/${JAVA_SUBDIR}"
   "test.MySqlUtilsTest"
 )
 
@@ -87,7 +94,7 @@ ADD_TEST(
   COMMAND
   ${Java_JAVA_EXECUTABLE_PATH} ${Java_JAVA_ARCH_OPT} "-ea" "-Xcheck:jni"
   "-classpath" "${TEST_JAR}:${NDBJTIE_JAR}"
-  "-Djava.library.path=${NDBCLIENT_DIR}:${BIN_DIR}"
+  "-Djava.library.path=${CMAKE_BINARY_DIR}/library_output_directory/${JAVA_SUBDIR}:${BIN_DIR}"
   "-Dtest.NdbJTieConstantsTest.ndbjtie_jar_file=${NDBJTIE_JAR}"
   "test.NdbJTieConstantsTest"
 )
@@ -97,7 +104,7 @@ ADD_TEST(
   COMMAND
   ${Java_JAVA_EXECUTABLE_PATH} ${Java_JAVA_ARCH_OPT} "-ea" "-Xcheck:jni"
   "-classpath" "${TEST_JAR}:${NDBJTIE_JAR}:${MYJAPI_TEST_JAR}"
-  "-Djava.library.path=${NDBCLIENT_DIR}:${MYJAPI_TEST_DIR}:${BIN_DIR}"
+  "-Djava.library.path=${CMAKE_BINARY_DIR}/library_output_directory/${JAVA_SUBDIR}:${MYJAPI_TEST_DIR}/${JAVA_SUBDIR}:${BIN_DIR}"
   "test.NdbJTieMultiLibTest"
 )
 
@@ -106,7 +113,7 @@ ADD_TEST(
   COMMAND
   ${Java_JAVA_EXECUTABLE_PATH} ${Java_JAVA_ARCH_OPT} "-ea" "-Xcheck:jni"
   "-classpath" "${TEST_JAR}:${NDBJTIE_JAR}"
-  "-Djava.library.path=${NDBCLIENT_DIR}"
+  "-Djava.library.path=${CMAKE_BINARY_DIR}/library_output_directory/${JAVA_SUBDIR}"
   "test.NdbJTieSmokeTest"
 )
 
@@ -118,7 +125,7 @@ ADD_TEST(
   COMMAND
   ${Java_JAVA_EXECUTABLE_PATH} ${Java_JAVA_ARCH_OPT} "-ea" "-Xcheck:jni"
   "-classpath" "${TEST_JAR}:${NDBJTIE_JAR}:${UNLOAD_TEST_JAR}"
-  "-Djava.library.path=${NDBCLIENT_DIR}:${BIN_DIR}"
+  "-Djava.library.path=${CMAKE_BINARY_DIR}/library_output_directory/${JAVA_SUBDIR}:${BIN_DIR}"
   "-D${UNLOAD_TEST}.target_package_prefixes=test.,com.mysql.ndbjtie."
   "-D${UNLOAD_TEST}.target_class_name=test.MySqlUtilsTest"
   "-D${UNLOAD_TEST}.target_method_name=test"
@@ -131,7 +138,7 @@ ADD_TEST(
   COMMAND
   ${Java_JAVA_EXECUTABLE_PATH} ${Java_JAVA_ARCH_OPT} "-ea" "-Xcheck:jni"
   "-classpath" "${TEST_JAR}:${NDBJTIE_JAR}:${UNLOAD_TEST_JAR}"
-  "-Djava.library.path=${NDBCLIENT_DIR}:${BIN_DIR}"
+  "-Djava.library.path=${CMAKE_BINARY_DIR}/library_output_directory/${JAVA_SUBDIR}:${BIN_DIR}"
   "-D${UNLOAD_TEST}.target_package_prefixes=test.,com.mysql.ndbjtie."
   "-D${UNLOAD_TEST}.target_class_name=test.NdbJTieConstantsTest"
   "-D${UNLOAD_TEST}.target_method_name=test"
@@ -144,7 +151,7 @@ ADD_TEST(
   COMMAND
   ${Java_JAVA_EXECUTABLE_PATH} ${Java_JAVA_ARCH_OPT} "-ea" "-Xcheck:jni"
   "-classpath" "${TEST_JAR}:${NDBJTIE_JAR}:${UNLOAD_TEST_JAR}:${MYJAPI_TEST_JAR}"
-  "-Djava.library.path=${NDBCLIENT_DIR}:${MYJAPI_TEST_DIR}:${BIN_DIR}"
+  "-Djava.library.path=${CMAKE_BINARY_DIR}/library_output_directory/${JAVA_SUBDIR}:${MYJAPI_TEST_DIR}/${JAVA_SUBDIR}:${BIN_DIR}"
   "-D${UNLOAD_TEST}.target_package_prefixes=test.,myjapi.,com.mysql.ndbjtie."
   "-D${UNLOAD_TEST}.target_class_name=test.NdbJTieMultiLibTest"
   "-D${UNLOAD_TEST}.target_method_name=test"
@@ -156,7 +163,7 @@ ADD_TEST(
   COMMAND
   ${Java_JAVA_EXECUTABLE_PATH} ${Java_JAVA_ARCH_OPT} "-ea" "-Xcheck:jni"
   "-classpath" "${TEST_JAR}:${NDBJTIE_JAR}:${UNLOAD_TEST_JAR}"
-  "-Djava.library.path=${NDBCLIENT_DIR}"
+  "-Djava.library.path=${CMAKE_BINARY_DIR}/library_output_directory/${JAVA_SUBDIR}"
   "-D${UNLOAD_TEST}.target_package_prefixes=test.,com.mysql.ndbjtie."
   "-D${UNLOAD_TEST}.target_class_name=test.NdbJTieSmokeTest"
   "-D${UNLOAD_TEST}.target_method_name=test"
