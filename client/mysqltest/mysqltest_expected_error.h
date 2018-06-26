@@ -103,10 +103,7 @@ class Expected_errors {
   /// @param sqlstate   SQLSTATE string
   /// @param type       Error type
   void add_error(std::uint32_t error_code, const char *sqlstate,
-                 error_type type) {
-    std::unique_ptr<Error> new_error(new Error(error_code, sqlstate, type));
-    m_errors.push_back(std::move(new_error));
-  }
+                 error_type type);
 
   /// Delete all errors from the vector.
   void clear_error_list() { m_errors.clear(); }

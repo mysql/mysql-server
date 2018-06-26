@@ -26,10 +26,8 @@
 ///
 /// See @ref PAGE_MYSQL_TEST_RUN "The MySQL Test Framework" for more
 /// information.
-///
-/// Please keep the test framework tools identical in all versions!
 
-#include "client/mysqltest/mysqltest_error.h"
+#include "client/mysqltest/mysqltest_expected_error.h"
 
 #include "my_config.h"
 

@@ -45,8 +45,11 @@ IF(NOT WITHOUT_SERVER)
   ADD_DEPENDENCIES(mysql_upgrade GenFixPrivs GenSysSchema GenBootstrapPriv)
 ENDIF()
 
-MYSQL_ADD_EXECUTABLE(mysqltest mysqltest.cc COMPONENT Test)
-SET_SOURCE_FILES_PROPERTIES(mysqltest.cc PROPERTIES COMPILE_FLAGS "-DTHREADS")
+SET(MYSQLTEST_SRC
+  mysqltest/mysqltest_expected_error.cc
+)
+
+MYSQL_ADD_EXECUTABLE(mysqltest mysqltest.cc ${MYSQLTEST_SRC} COMPONENT Test)
 TARGET_LINK_LIBRARIES(mysqltest mysqlclient regex)
 ADD_DEPENDENCIES(mysqltest GenError GenClientError)
 
