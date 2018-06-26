@@ -134,6 +134,7 @@ subpartitions 2
  partition p1 values in (1),
  partition pnull values in (null, 2),
  partition p3 values in (3));
+--sorted_result
 select partition_method, partition_expression, partition_description
   from information_schema.partitions where table_name = "t1";
 insert into t1 values (0,0),(0,1),(1,0),(1,1),(null,0),(null,1);
