@@ -849,3 +849,13 @@ DO LTRIM(AVG(LOG2(@c))OVER());
 DO (~(SUM(@f)OVER()));
 DO IS_UUID(SUM(@e)OVER());
 DO TO_BASE64(AVG(@d)OVER());
+#
+# Bug#28080199 UBSAN: DECIMAL_ADD, LOAD OF VALUE 53,
+#              WHICH IS NOT A VALID VALUE FOR TYPE
+#
+SELECT bit_count(sum(cos(-66365726))over());
+bit_count(sum(cos(-66365726))over())
+64
+SELECT bit_count(avg(cos(-66365726))over());
+bit_count(avg(cos(-66365726))over())
+64

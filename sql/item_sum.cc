@@ -1813,6 +1813,10 @@ longlong Item_sum_sum::val_int() {
   DBUG_ENTER("Item_sum_sum::val_int");
   DBUG_ASSERT(fixed == 1);
   if (m_window != nullptr) {
+    if (hybrid_type == REAL_RESULT) {
+      longlong result = llrint(val_real());
+      DBUG_RETURN(result);
+    }
     longlong result = 0;
     my_decimal tmp;
     my_decimal *r = Item_sum_sum::val_decimal(&tmp);
