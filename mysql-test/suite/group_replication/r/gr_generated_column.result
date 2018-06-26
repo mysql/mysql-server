@@ -94,7 +94,7 @@ UPDATE t2 SET a=2 WHERE b=4;
 UPDATE vt3 SET b=2 WHERE b IS NULL;
 UPDATE t2,vt3 SET vt3.a=t2.a WHERE t2.b=vt3.b;
 DELETE FROM t2 WHERE a=2;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`vt3`, CONSTRAINT `vt3_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t2` (`a`))
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`vt3`, CONSTRAINT `vt3_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t2` (`a`) ON DELETE RESTRICT ON UPDATE RESTRICT)
 DELETE FROM vt3 WHERE a=1;
 DELETE FROM vt3 WHERE c=100;
 include/rpl_sync.inc
