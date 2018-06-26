@@ -63,7 +63,7 @@ unless (@ARGV) {
     warn "basedir=$basedir\n" if $opt{v};
 
     my $datadir = ($defaults =~ m/--datadir=(.*)/)[0];
-    my $slowlog = ($defaults =~ m/--slow-query-log-file=(.*)/)[0];
+    my $slowlog = ($defaults =~ m/--slow_query_log_file=(.*)/)[0];
     if (!$datadir or $opt{i}) {
 	# determine the datadir from the instances section of /etc/my.cnf, if any
 	my $instances  = `my_print_defaults instances`;
