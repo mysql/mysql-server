@@ -274,10 +274,7 @@ rpl_gno get_last_executed_gno(rpl_sidno sidno) {
   DBUG_RETURN(gno);
 }
 
-Trx_monitoring_info::Trx_monitoring_info() {
-  is_info_set = false;
-  is_retrying = false;
-}
+Trx_monitoring_info::Trx_monitoring_info() { clear(); }
 
 Trx_monitoring_info::Trx_monitoring_info(const Trx_monitoring_info &info) {
   if ((is_info_set = info.is_info_set)) {
