@@ -556,8 +556,7 @@ void Rewriter_user::append_plugin_name(const LEX_USER *user,
                        system_charset_info);
     append_query_string(m_thd, system_charset_info, &from_plugin, str);
   } else {
-    std::string def_plugin_name =
-        std::move(get_default_autnetication_plugin_name());
+    std::string def_plugin_name = get_default_autnetication_plugin_name();
     String default_plugin(def_plugin_name.c_str(), def_plugin_name.length(),
                           system_charset_info);
     append_query_string(m_thd, system_charset_info, &default_plugin, str);
