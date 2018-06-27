@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,7 +58,7 @@ LINE_BUFFER *batch_readline_init(ulong max_size, FILE *file) {
             (LINE_BUFFER *)my_malloc(PSI_NOT_INSTRUMENTED, sizeof(*line_buff),
                                      MYF(MY_WME | MY_ZEROFILL))))
     return 0;
-  if (init_line_buffer(line_buff, my_fileno(file), IO_SIZE, max_size)) {
+  if (init_line_buffer(line_buff, my_fileno(file), batch_io_size, max_size)) {
     my_free(line_buff);
     return 0;
   }
@@ -175,8 +175,8 @@ static size_t fill_buffer(LINE_BUFFER *buffer) {
 
   for (;;) {
     uint start_offset = (uint)(buffer->start_of_line - buffer->buffer);
-    read_count = (buffer->bufread - bufbytes) / IO_SIZE;
-    if ((read_count *= IO_SIZE)) break;
+    read_count = (buffer->bufread - bufbytes) / batch_io_size;
+    if ((read_count *= batch_io_size)) break;
     if (buffer->bufread * 2 > buffer->max_size) {
       /*
         So we must grow the buffer but we cannot due to the max_size limit.
