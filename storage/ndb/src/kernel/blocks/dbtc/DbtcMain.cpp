@@ -3044,15 +3044,16 @@ void Dbtc::initApiConnectRec(Signal* signal,
 }//Dbtc::initApiConnectRec()
 
 void
-Dbtc::sendPoolShrink(Signal* signal, const Uint32 pool_index)
+Dbtc::sendPoolShrink(Signal*, const Uint32 pool_index)
 {
   const bool need_send = c_transient_pools_shrinking.get(pool_index) == 0;
   c_transient_pools_shrinking.set(pool_index);
   if (need_send)
   {
+    SignalT<2> signal[1];
     signal->theData[0] = TcContinueB::ZSHRINK_TRANSIENT_POOLS;
     signal->theData[1] = pool_index;
-    sendSignal(cownref, GSN_CONTINUEB, signal, 2, JBB);
+    sendSignal(cownref, GSN_CONTINUEB, (Signal*)signal, 2, JBB);
   }
 }
 
