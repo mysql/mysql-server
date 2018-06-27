@@ -1523,6 +1523,10 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
                     "chosen": false,
                     "cause": "not_single_table"
                   } /* group_index_range */,
+                  "skip_scan_range": {
+                    "chosen": false,
+                    "cause": "not_single_table"
+                  } /* skip_scan_range */,
                   "analyzing_range_alternatives": {
                     "range_scan_alternatives": [
                       {
@@ -7135,6 +7139,10 @@ update t6 set d=5 where d is NULL	{
           "chosen": false,
           "cause": "no_join"
         } /* group_index_range */,
+        "skip_scan_range": {
+          "chosen": false,
+          "cause": "no_join"
+        } /* skip_scan_range */,
         "analyzing_range_alternatives": {
           "range_scan_alternatives": [
             {
@@ -7232,6 +7240,10 @@ delete from t6 where d=5	{
           "chosen": false,
           "cause": "no_join"
         } /* group_index_range */,
+        "skip_scan_range": {
+          "chosen": false,
+          "cause": "no_join"
+        } /* skip_scan_range */,
         "analyzing_range_alternatives": {
           "range_scan_alternatives": [
             {
@@ -7360,6 +7372,15 @@ insert into t6 select * from t6 where d>7	{
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
                   } /* group_index_range */,
+                  "skip_scan_range": {
+                    "potential_skip_scan_indexes": [
+                      {
+                        "index": "d",
+                        "usable": false,
+                        "cause": "prefix_not_const_equality"
+                      }
+                    ] /* potential_skip_scan_indexes */
+                  } /* skip_scan_range */,
                   "analyzing_range_alternatives": {
                     "range_scan_alternatives": [
                       {
@@ -7574,6 +7595,10 @@ update t5, t6 set t6.d=t6.d+t5.c+4-t5.c-4 where d>7000	{
                     "chosen": false,
                     "cause": "not_single_table"
                   } /* group_index_range */,
+                  "skip_scan_range": {
+                    "chosen": false,
+                    "cause": "not_single_table"
+                  } /* skip_scan_range */,
                   "analyzing_range_alternatives": {
                     "range_scan_alternatives": [
                       {
@@ -7788,6 +7813,10 @@ delete t6 from t5, t6 where d>7000	{
                     "chosen": false,
                     "cause": "not_single_table"
                   } /* group_index_range */,
+                  "skip_scan_range": {
+                    "chosen": false,
+                    "cause": "not_single_table"
+                  } /* skip_scan_range */,
                   "analyzing_range_alternatives": {
                     "range_scan_alternatives": [
                       {
@@ -10271,6 +10300,15 @@ insert into t2 select d,100,200 from t6 where d is not null	{
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
                   } /* group_index_range */,
+                  "skip_scan_range": {
+                    "potential_skip_scan_indexes": [
+                      {
+                        "index": "d",
+                        "usable": false,
+                        "cause": "prefix_not_const_equality"
+                      }
+                    ] /* potential_skip_scan_indexes */
+                  } /* skip_scan_range */,
                   "analyzing_range_alternatives": {
                     "range_scan_alternatives": [
                       {

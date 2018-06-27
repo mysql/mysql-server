@@ -5815,6 +5815,10 @@ update t6 set d=5 where d is NULL	{
           "chosen": false,
           "cause": "no_join"
         } /* group_index_range */,
+        "skip_scan_range": {
+          "chosen": false,
+          "cause": "no_join"
+        } /* skip_scan_range */,
         "analyzing_range_alternatives": {
           "range_scan_alternatives": [
             {
@@ -5912,6 +5916,10 @@ delete from t6 where d=5	{
           "chosen": false,
           "cause": "no_join"
         } /* group_index_range */,
+        "skip_scan_range": {
+          "chosen": false,
+          "cause": "no_join"
+        } /* skip_scan_range */,
         "analyzing_range_alternatives": {
           "range_scan_alternatives": [
             {
@@ -6040,6 +6048,15 @@ insert into t6 select * from t6 where d>7	{
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
                   } /* group_index_range */,
+                  "skip_scan_range": {
+                    "potential_skip_scan_indexes": [
+                      {
+                        "index": "d",
+                        "usable": false,
+                        "cause": "prefix_not_const_equality"
+                      }
+                    ] /* potential_skip_scan_indexes */
+                  } /* skip_scan_range */,
                   "analyzing_range_alternatives": {
                     "range_scan_alternatives": [
                       {
@@ -6254,6 +6271,10 @@ update t5, t6 set t6.d=t6.d+t5.c+4-t5.c-4 where d>7000	{
                     "chosen": false,
                     "cause": "not_single_table"
                   } /* group_index_range */,
+                  "skip_scan_range": {
+                    "chosen": false,
+                    "cause": "not_single_table"
+                  } /* skip_scan_range */,
                   "analyzing_range_alternatives": {
                     "range_scan_alternatives": [
                       {
@@ -6468,6 +6489,10 @@ delete t6 from t5, t6 where d>7000	{
                     "chosen": false,
                     "cause": "not_single_table"
                   } /* group_index_range */,
+                  "skip_scan_range": {
+                    "chosen": false,
+                    "cause": "not_single_table"
+                  } /* skip_scan_range */,
                   "analyzing_range_alternatives": {
                     "range_scan_alternatives": [
                       {
@@ -6873,10 +6898,36 @@ select * from t6 where d in (select f1() from t2 where s="c")	{
             "rows_estimation": [
               {
                 "table": "`t6`",
-                "table_scan": {
-                  "rows": 4,
-                  "cost": 0.5017
-                } /* table_scan */
+                "range_analysis": {
+                  "table_scan": {
+                    "rows": 4,
+                    "cost": 3.0017
+                  } /* table_scan */,
+                  "potential_range_indexes": [
+                    {
+                      "index": "d",
+                      "usable": true,
+                      "key_parts": [
+                        "d"
+                      ] /* key_parts */
+                    }
+                  ] /* potential_range_indexes */,
+                  "best_covering_index_scan": {
+                    "index": "d",
+                    "cost": 0.6674,
+                    "chosen": true
+                  } /* best_covering_index_scan */,
+                  "setup_range_conditions": [
+                  ] /* setup_range_conditions */,
+                  "group_index_range": {
+                    "chosen": false,
+                    "cause": "not_group_by_or_distinct"
+                  } /* group_index_range */,
+                  "skip_scan_range": {
+                    "chosen": false,
+                    "cause": "disjuntive_predicate_present"
+                  } /* skip_scan_range */
+                } /* range_analysis */
               }
             ] /* rows_estimation */
           },
@@ -7911,10 +7962,36 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
             "rows_estimation": [
               {
                 "table": "`t6`",
-                "table_scan": {
-                  "rows": 4,
-                  "cost": 0.5017
-                } /* table_scan */
+                "range_analysis": {
+                  "table_scan": {
+                    "rows": 4,
+                    "cost": 3.0017
+                  } /* table_scan */,
+                  "potential_range_indexes": [
+                    {
+                      "index": "d",
+                      "usable": true,
+                      "key_parts": [
+                        "d"
+                      ] /* key_parts */
+                    }
+                  ] /* potential_range_indexes */,
+                  "best_covering_index_scan": {
+                    "index": "d",
+                    "cost": 0.6674,
+                    "chosen": true
+                  } /* best_covering_index_scan */,
+                  "setup_range_conditions": [
+                  ] /* setup_range_conditions */,
+                  "group_index_range": {
+                    "chosen": false,
+                    "cause": "not_group_by_or_distinct"
+                  } /* group_index_range */,
+                  "skip_scan_range": {
+                    "chosen": false,
+                    "cause": "disjuntive_predicate_present"
+                  } /* skip_scan_range */
+                } /* range_analysis */
               }
             ] /* rows_estimation */
           },
@@ -8977,6 +9054,15 @@ insert into t2 select d,100,200 from t6 where d is not null	{
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
                   } /* group_index_range */,
+                  "skip_scan_range": {
+                    "potential_skip_scan_indexes": [
+                      {
+                        "index": "d",
+                        "usable": false,
+                        "cause": "prefix_not_const_equality"
+                      }
+                    ] /* potential_skip_scan_indexes */
+                  } /* skip_scan_range */,
                   "analyzing_range_alternatives": {
                     "range_scan_alternatives": [
                       {
@@ -9987,10 +10073,36 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
             "rows_estimation": [
               {
                 "table": "`t6`",
-                "table_scan": {
-                  "rows": 4,
-                  "cost": 0.5017
-                } /* table_scan */
+                "range_analysis": {
+                  "table_scan": {
+                    "rows": 4,
+                    "cost": 3.0017
+                  } /* table_scan */,
+                  "potential_range_indexes": [
+                    {
+                      "index": "d",
+                      "usable": true,
+                      "key_parts": [
+                        "d"
+                      ] /* key_parts */
+                    }
+                  ] /* potential_range_indexes */,
+                  "best_covering_index_scan": {
+                    "index": "d",
+                    "cost": 0.6674,
+                    "chosen": true
+                  } /* best_covering_index_scan */,
+                  "setup_range_conditions": [
+                  ] /* setup_range_conditions */,
+                  "group_index_range": {
+                    "chosen": false,
+                    "cause": "not_group_by_or_distinct"
+                  } /* group_index_range */,
+                  "skip_scan_range": {
+                    "chosen": false,
+                    "cause": "disjuntive_predicate_present"
+                  } /* skip_scan_range */
+                } /* range_analysis */
               }
             ] /* rows_estimation */
           },

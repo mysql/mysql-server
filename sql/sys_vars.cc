@@ -2825,6 +2825,7 @@ static const char *optimizer_switch_names[] = {
     "condition_fanout_filter",
     "derived_merge",
     "use_invisible_indexes",
+    "skip_scan",
     "default",
     NullS};
 static Sys_var_flagset Sys_optimizer_switch(
@@ -2834,7 +2835,7 @@ static Sys_var_flagset Sys_optimizer_switch(
     "index_merge_intersection, engine_condition_pushdown, "
     "index_condition_pushdown, mrr, mrr_cost_based"
     ", materialization, semijoin, loosescan, firstmatch, duplicateweedout,"
-    " subquery_materialization_cost_based"
+    " subquery_materialization_cost_based, skip_scan"
     ", block_nested_loop, batched_key_access, use_index_extensions,"
     " condition_fanout_filter, derived_merge} and val is one of "
     "{on, off, default}",

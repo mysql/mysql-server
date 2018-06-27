@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -76,6 +76,7 @@ enum opt_hints_enum {
   JOIN_FIXED_ORDER_HINT_ENUM,
   INDEX_MERGE_HINT_ENUM,
   RESOURCE_GROUP_HINT_ENUM,
+  SKIP_SCAN_HINT_ENUM,
   MAX_HINT_ENUM
 };
 
@@ -244,7 +245,7 @@ class Opt_hints {
   /**
     If ignore_print() returns true, hint is not printed
     in Opt_hints::print() function. Atm used for
-    INDEX_MERGE hint only.
+    INDEX_MERGE, SKIP_SCAN hints.
 
     @param type_arg  hint type
 
@@ -514,6 +515,7 @@ class Opt_hints_table : public Opt_hints {
  public:
   Mem_root_array<Opt_hints_key *> keyinfo_array;
   Compound_key_hint index_merge;
+  Compound_key_hint skip_scan;
 
   Opt_hints_table(const LEX_CSTRING *table_name_arg, Opt_hints_qb *qb_hints_arg,
                   MEM_ROOT *mem_root_arg)
@@ -542,22 +544,36 @@ class Opt_hints_table : public Opt_hints {
   void set_resolved() override {
     Opt_hints::set_resolved();
     if (is_specified(INDEX_MERGE_HINT_ENUM)) index_merge.set_resolved(true);
+    if (is_specified(SKIP_SCAN_HINT_ENUM)) skip_scan.set_resolved(true);
   }
 
   void set_unresolved(opt_hints_enum type_arg) override {
-    if (type_arg == INDEX_MERGE_HINT_ENUM &&
-        is_specified(INDEX_MERGE_HINT_ENUM))
-      index_merge.set_resolved(false);
+    if (is_specified(type_arg) && is_compound_key_hint(type_arg))
+      get_compound_key_hint(type_arg)->set_resolved(false);
   }
 
   bool is_resolved(opt_hints_enum type_arg) override {
-    if (type_arg == INDEX_MERGE_HINT_ENUM)
-      return Opt_hints::is_resolved(type_arg) && index_merge.is_resolved();
+    if (is_compound_key_hint(type_arg))
+      return Opt_hints::is_resolved(type_arg) &&
+             get_compound_key_hint(type_arg)->is_resolved();
     return Opt_hints::is_resolved(type_arg);
   }
 
   void set_compound_key_hint_map(Opt_hints *hint, uint arg) {
     if (hint->is_specified(INDEX_MERGE_HINT_ENUM)) index_merge.set_key_map(arg);
+    if (hint->is_specified(SKIP_SCAN_HINT_ENUM)) skip_scan.set_key_map(arg);
+  }
+
+  Compound_key_hint *get_compound_key_hint(opt_hints_enum type_arg) {
+    if (type_arg == INDEX_MERGE_HINT_ENUM) return &index_merge;
+    if (type_arg == SKIP_SCAN_HINT_ENUM) return &skip_scan;
+    DBUG_ASSERT(0);
+    return NULL;
+  }
+
+  bool is_compound_key_hint(opt_hints_enum type_arg) {
+    return (type_arg == INDEX_MERGE_HINT_ENUM ||
+            type_arg == SKIP_SCAN_HINT_ENUM);
   }
 };
 
@@ -587,7 +603,8 @@ class Opt_hints_key : public Opt_hints {
     its own printing method.
   */
   virtual bool ignore_print(opt_hints_enum type_arg) const {
-    return (type_arg == INDEX_MERGE_HINT_ENUM);
+    return (type_arg == INDEX_MERGE_HINT_ENUM ||
+            type_arg == SKIP_SCAN_HINT_ENUM);
   }
 };
 
@@ -688,20 +705,23 @@ void append_table_name(THD *thd, String *str, const LEX_CSTRING *qb_name,
                        const LEX_CSTRING *table_name);
 
 /**
-  Returns true if index merge hint state is on with or without
+  Returns true if compoubd hint state is on with or without
   specified keys, otherwise returns false.
-  If index merge hint state is on and hint is specified without indexes,
+  If compound hint state is on and hint is specified without indexes,
   function returns 'true' for any 'keyno' argument. If hint specified
   with indexes, function returns true only for appropriate 'keyno' index.
 
 
   @param table              Pointer to TABLE object
   @param keyno              Key number
+  @param type_arg           Hint type
 
-  @return true if index merge hint state is on with or without
+  @return true if compound hint state is on with or without
           specified keys, otherwise returns false.
 */
-bool idx_merge_key_enabled(const TABLE *table, uint keyno);
+
+bool compound_hint_key_enabled(const TABLE *table, uint keyno,
+                               opt_hints_enum type_arg);
 
 /**
   Returns true if index merge hint state is on otherwise returns false.

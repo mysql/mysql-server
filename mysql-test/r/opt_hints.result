@@ -50,7 +50,7 @@ Handler_read_rnd	0
 Handler_read_rnd_next	0
 # Check statistics with hint
 FLUSH STATUS;
-SELECT /*+ NO_RANGE_OPTIMIZATION(t3 PRIMARY, f2_idx) */ f1 FROM t3 WHERE f1 > 30 AND f1 < 33;
+SELECT /*+ NO_RANGE_OPTIMIZATION(t3) */ f1 FROM t3 WHERE f1 > 30 AND f1 < 33;
 f1
 31
 32
@@ -65,21 +65,21 @@ Handler_read_rnd	0
 Handler_read_rnd_next	0
 EXPLAIN SELECT f1 FROM t3 WHERE f1 > 30 AND f1 < 33;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	range	PRIMARY,f2_idx	f2_idx	4	NULL	2	100.00	Using where; Using index
+1	SIMPLE	t3	NULL	range	PRIMARY,f2_idx,f3_idx	f2_idx	4	NULL	2	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`f1` AS `f1` from `test`.`t3` where ((`test`.`t3`.`f1` > 30) and (`test`.`t3`.`f1` < 33))
 # Turn off range access for PRIMARY key
 # Should use range access by f2_idx key
 EXPLAIN SELECT /*+ NO_RANGE_OPTIMIZATION(t3 PRIMARY) */ f1 FROM t3 WHERE f1 > 30 AND f1 < 33;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	range	PRIMARY,f2_idx	f2_idx	4	NULL	2	100.00	Using where; Using index
+1	SIMPLE	t3	NULL	range	PRIMARY,f2_idx,f3_idx	f2_idx	4	NULL	2	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select /*+ NO_RANGE_OPTIMIZATION(`t3`@`select#1` `PRIMARY`) */ `test`.`t3`.`f1` AS `f1` from `test`.`t3` where ((`test`.`t3`.`f1` > 30) and (`test`.`t3`.`f1` < 33))
 # Turn off range access for PRIMARY & f2_idx keys
-# Should use index access
+# Should use skip scan for f3_idx index
 EXPLAIN SELECT /*+ NO_RANGE_OPTIMIZATION(t3 PRIMARY, f2_idx) */ f1 FROM t3 WHERE f1 > 30 AND f1 < 33;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	index	PRIMARY,f2_idx	f2_idx	4	NULL	56	11.11	Using where; Using index
+1	SIMPLE	t3	NULL	range	PRIMARY,f2_idx,f3_idx	f3_idx	135	NULL	6	100.00	Using where; Using index for skip scan
 Warnings:
 Note	1003	/* select#1 */ select /*+ NO_RANGE_OPTIMIZATION(`t3`@`select#1` `PRIMARY`) NO_RANGE_OPTIMIZATION(`t3`@`select#1` `f2_idx`) */ `test`.`t3`.`f1` AS `f1` from `test`.`t3` where ((`test`.`t3`.`f1` > 30) and (`test`.`t3`.`f1` < 33))
 # Turn off range access for all keys
@@ -93,7 +93,7 @@ Note	1003	/* select#1 */ select /*+ NO_RANGE_OPTIMIZATION(`t3`@`select#1`) */ `t
 # Should use index access
 EXPLAIN SELECT /*+ NO_RANGE_OPTIMIZATION(t3 PRIMARY) NO_RANGE_OPTIMIZATION(t3 f2_idx) */ f1 FROM t3 WHERE f1 > 30 AND f1 < 33;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	index	PRIMARY,f2_idx	f2_idx	4	NULL	56	11.11	Using where; Using index
+1	SIMPLE	t3	NULL	range	PRIMARY,f2_idx,f3_idx	f3_idx	135	NULL	6	100.00	Using where; Using index for skip scan
 Warnings:
 Note	1003	/* select#1 */ select /*+ NO_RANGE_OPTIMIZATION(`t3`@`select#1` `PRIMARY`) NO_RANGE_OPTIMIZATION(`t3`@`select#1` `f2_idx`) */ `test`.`t3`.`f1` AS `f1` from `test`.`t3` where ((`test`.`t3`.`f1` > 30) and (`test`.`t3`.`f1` < 33))
 # NO_ICP hint testing

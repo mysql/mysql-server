@@ -620,17 +620,9 @@ c1	c2	c3
 SELECT * FROM t1 WHERE c1 IN(CURDATE(),ADDDATE(CURDATE(),'3 01:01:01')) ORDER BY c1 DESC;
 c1	c2	c3
 2009-02-28	2009-02-28	10
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '3 01:01:01'
-Warning	1292	Truncated incorrect INTEGER value: '3 01:01:01'
-Warning	1292	Truncated incorrect INTEGER value: '3 01:01:01'
 DELETE FROM t1 WHERE c1 IN(CURDATE(),ADDDATE(CURDATE(),'3')) ORDER BY c1 DESC LIMIT 2;
 SELECT * FROM t1 WHERE c1 IN(CURDATE(),ADDDATE(CURDATE(),'3 01:01:01')) ORDER BY c1 DESC;
 c1	c2	c3
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '3 01:01:01'
-Warning	1292	Truncated incorrect INTEGER value: '3 01:01:01'
-Warning	1292	Truncated incorrect INTEGER value: '3 01:01:01'
 SELECT * FROM t1 WHERE c2 IS NULL ORDER BY c2,c1;
 c1	c2	c3
 2009-03-01	NULL	13

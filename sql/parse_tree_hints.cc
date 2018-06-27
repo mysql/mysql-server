@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -360,7 +360,7 @@ bool PT_table_level_hint::contextualize(Parse_context *pc) {
 }
 
 void PT_key_level_hint::append_args(THD *thd, String *str) const {
-  if (type() == INDEX_MERGE_HINT_ENUM) {
+  if (type() == INDEX_MERGE_HINT_ENUM || type() == SKIP_SCAN_HINT_ENUM) {
     for (uint i = 0; i < key_list.size(); i++) {
       const LEX_CSTRING *key_name = &key_list.at(i);
       str->append(STRING_WITH_LEN(" "));
@@ -409,7 +409,7 @@ bool PT_key_level_hint::contextualize(Parse_context *pc) {
 
     if (key->set_switch(switch_on(), type(), true)) {
       is_conflicting = true;
-      if (type() == INDEX_MERGE_HINT_ENUM) {
+      if (tab->is_compound_key_hint(type())) {
         print_warn(pc->thd, ER_WARN_CONFLICTING_HINT,
                    &table_name.opt_query_block, &table_name.table, NULL, this);
         break;
@@ -420,8 +420,8 @@ bool PT_key_level_hint::contextualize(Parse_context *pc) {
     }
   }
 
-  if (type() == INDEX_MERGE_HINT_ENUM && !is_conflicting) {
-    tab->index_merge.set_pt_hint(this);
+  if (tab->is_compound_key_hint(type()) && !is_conflicting) {
+    tab->get_compound_key_hint(type())->set_pt_hint(this);
     (void)tab->set_switch(switch_on(), type(), false);
   }
 

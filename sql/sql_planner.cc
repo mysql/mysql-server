@@ -1000,7 +1000,9 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
              (used_key_parts >=
               table->quick_key_parts[best_ref->key]) &&  // (2)
              (tab->quick()->get_type() !=
-              QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX))  // (2)
+              QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX) &&
+             (tab->quick()->get_type() !=
+              QUICK_SELECT_I::QS_TYPE_SKIP_SCAN))  // (2)
   {
     trace_access_scan.add_alnum("access_type", "range");
     tab->quick()->trace_quick_description(trace);

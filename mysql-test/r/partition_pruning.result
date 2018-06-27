@@ -1962,217 +1962,217 @@ INSERT INTO t1 VALUES (1, '2009-01-01'), (1, '2009-04-01'), (2, '2009-04-01'),
 (1, '2009-04-05'), (1, '2009-04-06'), (1, '2009-04-07');
 EXPLAIN SELECT * FROM t1 WHERE b < CAST('2009-04-03' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	9	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402	index	PRIMARY	PRIMARY	9	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` < <cache>(cast('2009-04-03' as datetime)))
 EXPLAIN SELECT * FROM t1 WHERE b <= CAST('2009-04-03' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090402,p20090403	index	NULL	PRIMARY	9	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402,p20090403	index	PRIMARY	PRIMARY	9	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` <= <cache>(cast('2009-04-03' as datetime)))
 EXPLAIN SELECT * FROM t1 WHERE b = CAST('2009-04-03' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090403	index	NULL	PRIMARY	9	NULL	#	50.00	Using where; Using index
+1	SIMPLE	t1	p20090403	index	PRIMARY	PRIMARY	9	NULL	#	50.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = <cache>(cast('2009-04-03' as datetime)))
 EXPLAIN SELECT * FROM t1 WHERE b >= CAST('2009-04-03' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	9	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	PRIMARY	PRIMARY	9	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` >= <cache>(cast('2009-04-03' as datetime)))
 EXPLAIN SELECT * FROM t1 WHERE b > CAST('2009-04-03' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	9	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	PRIMARY	PRIMARY	9	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` > <cache>(cast('2009-04-03' as datetime)))
 EXPLAIN SELECT * FROM t1
 WHERE b < CAST('2009-04-02 23:59:59' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	9	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402	index	PRIMARY	PRIMARY	9	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` < <cache>(cast('2009-04-02 23:59:59' as datetime)))
 EXPLAIN SELECT * FROM t1
 WHERE b <= CAST('2009-04-02 23:59:59' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	9	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402	index	PRIMARY	PRIMARY	9	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` <= <cache>(cast('2009-04-02 23:59:59' as datetime)))
 EXPLAIN SELECT * FROM t1
 WHERE b = CAST('2009-04-02 23:59:59' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090402	index	NULL	PRIMARY	9	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090402	index	PRIMARY	PRIMARY	9	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = <cache>(cast('2009-04-02 23:59:59' as datetime)))
 EXPLAIN SELECT * FROM t1
 WHERE b >= CAST('2009-04-02 23:59:59' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090402,p20090403,p20090404,p20090405	index	NULL	PRIMARY	9	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402,p20090403,p20090404,p20090405	index	PRIMARY	PRIMARY	9	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` >= <cache>(cast('2009-04-02 23:59:59' as datetime)))
 EXPLAIN SELECT * FROM t1
 WHERE b > CAST('2009-04-02 23:59:59' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	9	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	PRIMARY	PRIMARY	9	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` > <cache>(cast('2009-04-02 23:59:59' as datetime)))
 EXPLAIN SELECT * FROM t1 WHERE b < CAST('2009-04-03' AS DATE);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	9	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402	index	PRIMARY	PRIMARY	9	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` < <cache>(cast('2009-04-03' as date)))
 EXPLAIN SELECT * FROM t1 WHERE b <= CAST('2009-04-03' AS DATE);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090402,p20090403	index	NULL	PRIMARY	9	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402,p20090403	index	PRIMARY	PRIMARY	9	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` <= <cache>(cast('2009-04-03' as date)))
 EXPLAIN SELECT * FROM t1 WHERE b = CAST('2009-04-03' AS DATE);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090403	index	NULL	PRIMARY	9	NULL	#	50.00	Using where; Using index
+1	SIMPLE	t1	p20090403	index	PRIMARY	PRIMARY	9	NULL	#	50.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = <cache>(cast('2009-04-03' as date)))
 EXPLAIN SELECT * FROM t1 WHERE b >= CAST('2009-04-03' AS DATE);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	9	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	PRIMARY	PRIMARY	9	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` >= <cache>(cast('2009-04-03' as date)))
 EXPLAIN SELECT * FROM t1 WHERE b > CAST('2009-04-03' AS DATE);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	9	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	PRIMARY	PRIMARY	9	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` > <cache>(cast('2009-04-03' as date)))
 EXPLAIN SELECT * FROM t1 WHERE b < '2009-04-03 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	9	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402	index	PRIMARY	PRIMARY	9	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` < '2009-04-03 00:00:00')
 EXPLAIN SELECT * FROM t1 WHERE b <= '2009-04-03 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090402,p20090403	index	NULL	PRIMARY	9	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402,p20090403	index	PRIMARY	PRIMARY	9	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` <= '2009-04-03 00:00:00')
 EXPLAIN SELECT * FROM t1 WHERE b = '2009-04-03 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090403	index	NULL	PRIMARY	9	NULL	#	50.00	Using where; Using index
+1	SIMPLE	t1	p20090403	index	PRIMARY	PRIMARY	9	NULL	#	50.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = '2009-04-03 00:00:00')
 EXPLAIN SELECT * FROM t1 WHERE b >= '2009-04-03 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	9	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	PRIMARY	PRIMARY	9	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` >= '2009-04-03 00:00:00')
 EXPLAIN SELECT * FROM t1 WHERE b > '2009-04-03 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	9	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	PRIMARY	PRIMARY	9	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` > '2009-04-03 00:00:00')
 EXPLAIN SELECT * FROM t1 WHERE b < '2009-04-02 23:59:59';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	9	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402	index	PRIMARY	PRIMARY	9	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` < '2009-04-02 23:59:59')
 EXPLAIN SELECT * FROM t1 WHERE b <= '2009-04-02 23:59:59';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	9	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402	index	PRIMARY	PRIMARY	9	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` <= '2009-04-02 23:59:59')
 EXPLAIN SELECT * FROM t1 WHERE b = '2009-04-02 23:59:59';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090402	index	NULL	PRIMARY	9	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090402	index	PRIMARY	PRIMARY	9	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = '2009-04-02 23:59:59')
 EXPLAIN SELECT * FROM t1 WHERE b >= '2009-04-02 23:59:59';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090402,p20090403,p20090404,p20090405	index	NULL	PRIMARY	9	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402,p20090403,p20090404,p20090405	index	PRIMARY	PRIMARY	9	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` >= '2009-04-02 23:59:59')
 EXPLAIN SELECT * FROM t1 WHERE b > '2009-04-02 23:59:59';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	9	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	PRIMARY	PRIMARY	9	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` > '2009-04-02 23:59:59')
 EXPLAIN SELECT * FROM t1 WHERE b < '2009-04-03';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	9	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402	index	PRIMARY	PRIMARY	9	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` < '2009-04-03')
 EXPLAIN SELECT * FROM t1 WHERE b <= '2009-04-03';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090402,p20090403	index	NULL	PRIMARY	9	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402,p20090403	index	PRIMARY	PRIMARY	9	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` <= '2009-04-03')
 EXPLAIN SELECT * FROM t1 WHERE b = '2009-04-03';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090403	index	NULL	PRIMARY	9	NULL	#	50.00	Using where; Using index
+1	SIMPLE	t1	p20090403	index	PRIMARY	PRIMARY	9	NULL	#	50.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = '2009-04-03')
 EXPLAIN SELECT * FROM t1 WHERE b >= '2009-04-03';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	9	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	PRIMARY	PRIMARY	9	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` >= '2009-04-03')
 EXPLAIN SELECT * FROM t1 WHERE b > '2009-04-03';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	9	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	PRIMARY	PRIMARY	9	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` > '2009-04-03')
 EXPLAIN SELECT * FROM t1
 WHERE b < CAST('2009-04-03 00:00:01' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090402,p20090403	index	NULL	PRIMARY	9	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402,p20090403	index	PRIMARY	PRIMARY	9	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` < <cache>(cast('2009-04-03 00:00:01' as datetime)))
 EXPLAIN SELECT * FROM t1
 WHERE b <= CAST('2009-04-03 00:00:01' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090402,p20090403	index	NULL	PRIMARY	9	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402,p20090403	index	PRIMARY	PRIMARY	9	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` <= <cache>(cast('2009-04-03 00:00:01' as datetime)))
 EXPLAIN SELECT * FROM t1
 WHERE b = CAST('2009-04-03 00:00:01' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090403	index	NULL	PRIMARY	9	NULL	#	50.00	Using where; Using index
+1	SIMPLE	t1	p20090403	index	PRIMARY	PRIMARY	9	NULL	#	50.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = <cache>(cast('2009-04-03 00:00:01' as datetime)))
 EXPLAIN SELECT * FROM t1
 WHERE b >= CAST('2009-04-03 00:00:01' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	9	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	PRIMARY	PRIMARY	9	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` >= <cache>(cast('2009-04-03 00:00:01' as datetime)))
 EXPLAIN SELECT * FROM t1
 WHERE b > CAST('2009-04-03 00:00:01' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	9	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	PRIMARY	PRIMARY	9	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` > <cache>(cast('2009-04-03 00:00:01' as datetime)))
 EXPLAIN SELECT * FROM t1
 WHERE b < CAST('2009-04-02 23:59:58' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	9	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402	index	PRIMARY	PRIMARY	9	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` < <cache>(cast('2009-04-02 23:59:58' as datetime)))
 EXPLAIN SELECT * FROM t1
 WHERE b <= CAST('2009-04-02 23:59:58' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	9	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402	index	PRIMARY	PRIMARY	9	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` <= <cache>(cast('2009-04-02 23:59:58' as datetime)))
 EXPLAIN SELECT * FROM t1
 WHERE b = CAST('2009-04-02 23:59:58' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090402	index	NULL	PRIMARY	9	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090402	index	PRIMARY	PRIMARY	9	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = <cache>(cast('2009-04-02 23:59:58' as datetime)))
 EXPLAIN SELECT * FROM t1
 WHERE b >= CAST('2009-04-02 23:59:58' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090402,p20090403,p20090404,p20090405	index	NULL	PRIMARY	9	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402,p20090403,p20090404,p20090405	index	PRIMARY	PRIMARY	9	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` >= <cache>(cast('2009-04-02 23:59:58' as datetime)))
 EXPLAIN SELECT * FROM t1
 WHERE b > CAST('2009-04-02 23:59:58' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090402,p20090403,p20090404,p20090405	index	NULL	PRIMARY	9	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402,p20090403,p20090404,p20090405	index	PRIMARY	PRIMARY	9	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` > <cache>(cast('2009-04-02 23:59:58' as datetime)))
 DROP TABLE t1;
@@ -2193,217 +2193,217 @@ INSERT INTO t1 VALUES (1, '2009-01-01'), (1, '2009-04-01'), (2, '2009-04-01'),
 (1, '2009-04-07');
 EXPLAIN SELECT * FROM t1 WHERE b < CAST('2009-04-03' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	7	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402	index	PRIMARY	PRIMARY	7	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` < <cache>(cast('2009-04-03' as datetime)))
 EXPLAIN SELECT * FROM t1 WHERE b <= CAST('2009-04-03' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090402,p20090403	index	NULL	PRIMARY	7	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402,p20090403	index	PRIMARY	PRIMARY	7	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` <= <cache>(cast('2009-04-03' as datetime)))
 EXPLAIN SELECT * FROM t1 WHERE b = CAST('2009-04-03' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090403	index	NULL	PRIMARY	7	NULL	#	50.00	Using where; Using index
+1	SIMPLE	t1	p20090403	index	PRIMARY	PRIMARY	7	NULL	#	50.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = <cache>(cast('2009-04-03' as datetime)))
 EXPLAIN SELECT * FROM t1 WHERE b >= CAST('2009-04-03' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	PRIMARY	PRIMARY	7	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` >= <cache>(cast('2009-04-03' as datetime)))
 EXPLAIN SELECT * FROM t1 WHERE b > CAST('2009-04-03' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090404,p20090405	index	PRIMARY	PRIMARY	7	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` > <cache>(cast('2009-04-03' as datetime)))
 EXPLAIN SELECT * FROM t1
 WHERE b < CAST('2009-04-02 23:59:59' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	7	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402	index	PRIMARY	PRIMARY	7	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` < <cache>(cast('2009-04-02 23:59:59' as datetime)))
 EXPLAIN SELECT * FROM t1
 WHERE b <= CAST('2009-04-02 23:59:59' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	7	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402	index	PRIMARY	PRIMARY	7	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` <= <cache>(cast('2009-04-02 23:59:59' as datetime)))
 EXPLAIN SELECT * FROM t1
 WHERE b = CAST('2009-04-02 23:59:59' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	PRIMARY	7	NULL	#	100.00	Using where; Using index
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = <cache>(cast('2009-04-02 23:59:59' as datetime)))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where multiple equal(cast('2009-04-02 23:59:59' as datetime), `test`.`t1`.`b`)
 EXPLAIN SELECT * FROM t1
 WHERE b >= CAST('2009-04-02 23:59:59' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	PRIMARY	PRIMARY	7	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` >= <cache>(cast('2009-04-02 23:59:59' as datetime)))
 EXPLAIN SELECT * FROM t1
 WHERE b > CAST('2009-04-02 23:59:59' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	PRIMARY	PRIMARY	7	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` > <cache>(cast('2009-04-02 23:59:59' as datetime)))
 EXPLAIN SELECT * FROM t1 WHERE b < CAST('2009-04-03' AS DATE);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	7	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402	index	PRIMARY	PRIMARY	7	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` < <cache>(cast('2009-04-03' as date)))
 EXPLAIN SELECT * FROM t1 WHERE b <= CAST('2009-04-03' AS DATE);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090402,p20090403	index	NULL	PRIMARY	7	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402,p20090403	index	PRIMARY	PRIMARY	7	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` <= <cache>(cast('2009-04-03' as date)))
 EXPLAIN SELECT * FROM t1 WHERE b = CAST('2009-04-03' AS DATE);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090403	index	NULL	PRIMARY	7	NULL	#	50.00	Using where; Using index
+1	SIMPLE	t1	p20090403	index	PRIMARY	PRIMARY	7	NULL	#	50.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = <cache>(cast('2009-04-03' as date)))
 EXPLAIN SELECT * FROM t1 WHERE b >= CAST('2009-04-03' AS DATE);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	PRIMARY	PRIMARY	7	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` >= <cache>(cast('2009-04-03' as date)))
 EXPLAIN SELECT * FROM t1 WHERE b > CAST('2009-04-03' AS DATE);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090404,p20090405	index	PRIMARY	PRIMARY	7	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` > <cache>(cast('2009-04-03' as date)))
 EXPLAIN SELECT * FROM t1 WHERE b < '2009-04-03 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	7	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402	index	PRIMARY	PRIMARY	7	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` < '2009-04-03 00:00:00')
 EXPLAIN SELECT * FROM t1 WHERE b <= '2009-04-03 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090402,p20090403	index	NULL	PRIMARY	7	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402,p20090403	index	PRIMARY	PRIMARY	7	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` <= '2009-04-03 00:00:00')
 EXPLAIN SELECT * FROM t1 WHERE b = '2009-04-03 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090403	index	NULL	PRIMARY	7	NULL	#	50.00	Using where; Using index
+1	SIMPLE	t1	p20090403	index	PRIMARY	PRIMARY	7	NULL	#	50.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = '2009-04-03 00:00:00')
 EXPLAIN SELECT * FROM t1 WHERE b >= '2009-04-03 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	PRIMARY	PRIMARY	7	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` >= '2009-04-03 00:00:00')
 EXPLAIN SELECT * FROM t1 WHERE b > '2009-04-03 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090404,p20090405	index	PRIMARY	PRIMARY	7	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` > '2009-04-03 00:00:00')
 EXPLAIN SELECT * FROM t1 WHERE b < '2009-04-02 23:59:59';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	7	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402	index	PRIMARY	PRIMARY	7	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` < '2009-04-02 23:59:59')
 EXPLAIN SELECT * FROM t1 WHERE b <= '2009-04-02 23:59:59';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	7	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402	index	PRIMARY	PRIMARY	7	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` <= '2009-04-02 23:59:59')
 EXPLAIN SELECT * FROM t1 WHERE b = '2009-04-02 23:59:59';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	PRIMARY	7	NULL	#	100.00	Using where; Using index
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = '2009-04-02 23:59:59')
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where multiple equal('2009-04-02 23:59:59', `test`.`t1`.`b`)
 EXPLAIN SELECT * FROM t1 WHERE b >= '2009-04-02 23:59:59';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	PRIMARY	PRIMARY	7	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` >= '2009-04-02 23:59:59')
 EXPLAIN SELECT * FROM t1 WHERE b > '2009-04-02 23:59:59';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	PRIMARY	PRIMARY	7	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` > '2009-04-02 23:59:59')
 EXPLAIN SELECT * FROM t1 WHERE b < '2009-04-03';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	7	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402	index	PRIMARY	PRIMARY	7	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` < '2009-04-03')
 EXPLAIN SELECT * FROM t1 WHERE b <= '2009-04-03';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090402,p20090403	index	NULL	PRIMARY	7	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402,p20090403	index	PRIMARY	PRIMARY	7	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` <= '2009-04-03')
 EXPLAIN SELECT * FROM t1 WHERE b = '2009-04-03';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090403	index	NULL	PRIMARY	7	NULL	#	50.00	Using where; Using index
+1	SIMPLE	t1	p20090403	index	PRIMARY	PRIMARY	7	NULL	#	50.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = '2009-04-03')
 EXPLAIN SELECT * FROM t1 WHERE b >= '2009-04-03';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	PRIMARY	PRIMARY	7	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` >= '2009-04-03')
 EXPLAIN SELECT * FROM t1 WHERE b > '2009-04-03';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090404,p20090405	index	PRIMARY	PRIMARY	7	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` > '2009-04-03')
 EXPLAIN SELECT * FROM t1
 WHERE b < CAST('2009-04-03 00:00:01' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090402,p20090403	index	NULL	PRIMARY	7	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402,p20090403	index	PRIMARY	PRIMARY	7	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` < <cache>(cast('2009-04-03 00:00:01' as datetime)))
 EXPLAIN SELECT * FROM t1
 WHERE b <= CAST('2009-04-03 00:00:01' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090402,p20090403	index	NULL	PRIMARY	7	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402,p20090403	index	PRIMARY	PRIMARY	7	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` <= <cache>(cast('2009-04-03 00:00:01' as datetime)))
 EXPLAIN SELECT * FROM t1
 WHERE b = CAST('2009-04-03 00:00:01' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	PRIMARY	7	NULL	#	100.00	Using where; Using index
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = <cache>(cast('2009-04-03 00:00:01' as datetime)))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where multiple equal(cast('2009-04-03 00:00:01' as datetime), `test`.`t1`.`b`)
 EXPLAIN SELECT * FROM t1
 WHERE b >= CAST('2009-04-03 00:00:01' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090404,p20090405	index	PRIMARY	PRIMARY	7	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` >= <cache>(cast('2009-04-03 00:00:01' as datetime)))
 EXPLAIN SELECT * FROM t1
 WHERE b > CAST('2009-04-03 00:00:01' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090404,p20090405	index	PRIMARY	PRIMARY	7	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` > <cache>(cast('2009-04-03 00:00:01' as datetime)))
 EXPLAIN SELECT * FROM t1
 WHERE b < CAST('2009-04-02 23:59:58' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	7	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402	index	PRIMARY	PRIMARY	7	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` < <cache>(cast('2009-04-02 23:59:58' as datetime)))
 EXPLAIN SELECT * FROM t1
 WHERE b <= CAST('2009-04-02 23:59:58' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	7	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090402	index	PRIMARY	PRIMARY	7	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` <= <cache>(cast('2009-04-02 23:59:58' as datetime)))
 EXPLAIN SELECT * FROM t1
 WHERE b = CAST('2009-04-02 23:59:58' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	PRIMARY	7	NULL	#	100.00	Using where; Using index
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = <cache>(cast('2009-04-02 23:59:58' as datetime)))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where multiple equal(cast('2009-04-02 23:59:58' as datetime), `test`.`t1`.`b`)
 EXPLAIN SELECT * FROM t1
 WHERE b >= CAST('2009-04-02 23:59:58' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	PRIMARY	PRIMARY	7	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` >= <cache>(cast('2009-04-02 23:59:58' as datetime)))
 EXPLAIN SELECT * FROM t1
 WHERE b > CAST('2009-04-02 23:59:58' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	NULL	PRIMARY	7	NULL	#	33.33	Using where; Using index
+1	SIMPLE	t1	p20090401,p20090403,p20090404,p20090405	index	PRIMARY	PRIMARY	7	NULL	#	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` > <cache>(cast('2009-04-02 23:59:58' as datetime)))
 DROP TABLE t1;
@@ -2898,6 +2898,8 @@ PARTITION pX VALUES LESS THAN MAXVALUE);
 SELECT a,b FROM t1 WHERE b >= '2008-12-01' AND b < '2009-12-00';
 a	b
 Warnings:
+Warning	1292	Incorrect datetime value: '2009-12-00' for column 'b' at row 1
+Warning	1292	Incorrect datetime value: '2009-12-00 00:00:00' for column 'b' at row 1
 Warning	1292	Incorrect datetime value: '2009-12-00' for column 'b' at row 1
 Warning	1292	Incorrect datetime value: '2009-12-00 00:00:00' for column 'b' at row 1
 Warning	1292	Incorrect datetime value: '2009-12-00' for column 'b' at row 1

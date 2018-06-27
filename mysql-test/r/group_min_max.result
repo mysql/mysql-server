@@ -1532,7 +1532,7 @@ where exists ( select * from t2 where t2.c > 'b1' )
 group by a1,a2,b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	range	idx_t1_1,idx_t1_2	idx_t1_1	147	NULL	17	100.00	Using index for group-by
-2	SUBQUERY	t2	NULL	index	NULL	idx_t2_1	163	NULL	164	33.33	Using where; Using index
+2	SUBQUERY	t2	NULL	index	idx_t2_1	idx_t2_1	163	NULL	164	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t1`.`b` AS `b`,min(`test`.`t1`.`c`) AS `min(c)`,max(`test`.`t1`.`c`) AS `max(c)` from `test`.`t1` where 1 group by `test`.`t1`.`a1`,`test`.`t1`.`a2`,`test`.`t1`.`b`
 explain select a1,a2,b,min(c),max(c) from t1 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;

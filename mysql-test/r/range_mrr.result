@@ -2997,7 +2997,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` fr
 # The statement immediately below should not use range access.
 EXPLAIN SELECT a, b FROM t1 WHERE (a, b) IN ((f1(), 1));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	x	10	NULL	4098	1.00	Using where; Using index
+1	SIMPLE	t1	NULL	index	x	x	10	NULL	4098	1.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = 1) and (`test`.`t1`.`a` = `f1`()))
 DROP FUNCTION f1;

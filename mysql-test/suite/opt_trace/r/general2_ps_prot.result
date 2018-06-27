@@ -354,6 +354,15 @@ TRACE
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
                   } /* group_index_range */,
+                  "skip_scan_range": {
+                    "potential_skip_scan_indexes": [
+                      {
+                        "index": "a",
+                        "usable": false,
+                        "cause": "prefix_not_const_equality"
+                      }
+                    ] /* potential_skip_scan_indexes */
+                  } /* skip_scan_range */,
                   "analyzing_range_alternatives": {
                     "range_scan_alternatives": [
                       {
@@ -2704,7 +2713,11 @@ table3.col_varchar_10_utf8_key	{
                         "group_index_range": {
                           "chosen": false,
                           "cause": "not_single_table"
-                        } /* group_index_range */
+                        } /* group_index_range */,
+                        "skip_scan_range": {
+                          "chosen": false,
+                          "cause": "not_single_table"
+                        } /* skip_scan_range */
                       } /* range_analysis */
                     } /* without_ON_clause */
                   } /* rechecking_index_usage */
@@ -3524,7 +3537,11 @@ from t0 where a in
                       "group_index_range": {
                         "chosen": false,
                         "cause": "not_single_table"
-                      } /* group_index_range */
+                      } /* group_index_range */,
+                      "skip_scan_range": {
+                        "chosen": false,
+                        "cause": "not_single_table"
+                      } /* skip_scan_range */
                     } /* range_analysis */
                   } /* rechecking_index_usage */
                 }
@@ -3769,7 +3786,11 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
                         "group_index_range": {
                           "chosen": false,
                           "cause": "not_single_table"
-                        } /* group_index_range */
+                        } /* group_index_range */,
+                        "skip_scan_range": {
+                          "chosen": false,
+                          "cause": "not_single_table"
+                        } /* skip_scan_range */
                       } /* range_analysis */
                     },
                     {
@@ -4361,6 +4382,10 @@ link_alias_148._field_156	{
                     "chosen": false,
                     "cause": "not_single_table"
                   } /* group_index_range */,
+                  "skip_scan_range": {
+                    "chosen": false,
+                    "cause": "not_single_table"
+                  } /* skip_scan_range */,
                   "analyzing_range_alternatives": {
                     "range_scan_alternatives": [
                       {
@@ -4432,6 +4457,10 @@ link_alias_148._field_156	{
                     "chosen": false,
                     "cause": "not_single_table"
                   } /* group_index_range */,
+                  "skip_scan_range": {
+                    "chosen": false,
+                    "cause": "not_single_table"
+                  } /* skip_scan_range */,
                   "analyzing_range_alternatives": {
                     "range_scan_alternatives": [
                       {
@@ -4503,6 +4532,10 @@ link_alias_148._field_156	{
                     "chosen": false,
                     "cause": "not_single_table"
                   } /* group_index_range */,
+                  "skip_scan_range": {
+                    "chosen": false,
+                    "cause": "not_single_table"
+                  } /* skip_scan_range */,
                   "analyzing_range_alternatives": {
                     "range_scan_alternatives": [
                       {
@@ -5035,7 +5068,11 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
                   "group_index_range": {
                     "chosen": false,
                     "cause": "not_single_table"
-                  } /* group_index_range */
+                  } /* group_index_range */,
+                  "skip_scan_range": {
+                    "chosen": false,
+                    "cause": "not_single_table"
+                  } /* skip_scan_range */
                 } /* range_analysis */
               }
             ] /* rows_estimation */

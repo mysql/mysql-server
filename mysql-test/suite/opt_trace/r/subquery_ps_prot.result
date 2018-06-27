@@ -1341,6 +1341,10 @@ table2.`col_int_nokey` <> any ( select 5 from t2 ) ) and table1.`pk` in
                     "chosen": false,
                     "cause": "not_single_table"
                   } /* group_index_range */,
+                  "skip_scan_range": {
+                    "chosen": false,
+                    "cause": "not_single_table"
+                  } /* skip_scan_range */,
                   "analyzing_range_alternatives": {
                     "range_scan_alternatives": [
                       {
@@ -1492,6 +1496,10 @@ table2.`col_int_nokey` <> any ( select 5 from t2 ) ) and table1.`pk` in
                         "chosen": false,
                         "cause": "not_single_table"
                       } /* group_index_range */,
+                      "skip_scan_range": {
+                        "chosen": false,
+                        "cause": "not_single_table"
+                      } /* skip_scan_range */,
                       "analyzing_range_alternatives": {
                         "range_scan_alternatives": [
                           {

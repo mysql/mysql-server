@@ -43,7 +43,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN SELECT * FROM t1 WHERE a BETWEEN 1 AND 450 AND b BETWEEN 1 AND 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4	range	PRIMARY,b	b	9	NULL	10	13.09	Using index condition
+1	SIMPLE	t1	p0,p1,p2,p3,p4	range	PRIMARY,b,c	b	9	NULL	10	13.09	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`a` between 1 and 450) and (`test`.`t1`.`b` between 1 and 10))
 SELECT * FROM performance_schema.session_status

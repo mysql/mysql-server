@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,6 +59,7 @@ static const char *traditional_extra_tags[ET_total] = {
     "Open_full_table",                    // ET_OPEN_FULL_TABLE
     "Scanned",                            // ET_SCANNED_DATABASES
     "Using index for group-by",           // ET_USING_INDEX_FOR_GROUP_BY
+    "Using index for skip scan",          // ET_USING_INDEX_FOR_SKIP_SCAN,
     "Distinct",                           // ET_DISTINCT
     "LooseScan",                          // ET_LOOSESCAN
     "Start temporary",                    // ET_START_TEMPORARY

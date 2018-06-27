@@ -333,7 +333,8 @@ class QUICK_SELECT_I {
     QS_TYPE_FULLTEXT = 3,
     QS_TYPE_ROR_INTERSECT = 4,
     QS_TYPE_ROR_UNION = 5,
-    QS_TYPE_GROUP_MIN_MAX = 6
+    QS_TYPE_GROUP_MIN_MAX = 6,
+    QS_TYPE_SKIP_SCAN = 7
   };
 
   /* Get type of this quick select - one of the QS_TYPE_* values */
@@ -994,6 +995,125 @@ class QUICK_SELECT_DESC : public QUICK_RANGE_SELECT {
   List<QUICK_RANGE> rev_ranges;
   List_iterator<QUICK_RANGE> rev_it;
   uint used_key_parts;
+};
+
+/*
+  Index scan for range queries that can use skip scans.
+
+  This class provides a specialized index access method for the queries
+  of the forms:
+
+       SELECT A_1,...,A_k, B_1,...,B_m, C
+         FROM T
+        WHERE
+         EQ(A_1,...,A_k)
+         AND RNG(C);
+
+  where all selected fields are parts of the same index.
+  The class of queries that can be processed by this quick select is fully
+  specified in the description of get_best_skip_scan() in opt_range.cc.
+
+  Since one of the requirements is that all select fields are part of the same
+  index, this class produces only index keys, and not complete records.
+*/
+
+class QUICK_SKIP_SCAN_SELECT : public QUICK_SELECT_I {
+ private:
+  JOIN *join;                 /* Pointer to JOIN object */
+  KEY *index_info;            /* Index for skip scan */
+  SEL_ROOT *index_range_tree; /* Range tree for skip scan */
+  MY_BITMAP column_bitmap;    /* Map of key parts to be read */
+  /*
+    This is an array of array of equality constants with length
+    eq_prefix_key_parts. The length of array eq_key_prefixes[i] is
+    eq_prefix_elements[i].
+
+    For example, an equality predicate like "a IN (1, 2) AND b IN (2, 3, 4)",
+    eq_key_prefixes will contain:
+
+    [
+      [ 1, 2 ],
+      [ 2, 3, 4 ]
+    ]
+
+    eq_prefix_elements will contain:
+    [ 2, 3 ]
+  */
+  uchar ***eq_key_prefixes;
+  uint *eq_prefix_elements;
+  const uint eq_prefix_len; /* Total length of the equality prefix. */
+  uint eq_prefix_key_parts; /* A number of keyparts in skip scan prefix */
+  uchar *eq_prefix;         /* Storage for current equality prefix. */
+
+  /*
+    During skip scan, we will have to iterate through all possible
+    equality prefixes. This is the product of all the elements in
+    eq_prefix_elements. In the above example, there are 2 x 3 = 6 possible
+    equality prefixes.
+
+    To track which prefix we are on, we use the cur_eq_prefix array.
+    For example, the array [1, 1] indicates that the current equality prefix
+    is (2, 3).
+  */
+  uint *cur_eq_prefix;
+  uchar *distinct_prefix; /* Storage for prefix A_1, ... B_m. */
+  uint distinct_prefix_len;
+  uint distinct_prefix_key_parts;
+
+  KEY_PART_INFO *range_key_part; /* The keypart of range condition 'C'. */
+  uint range_key_len;
+  /*
+    Denotes whether the first key for the current equality prefix was
+    retrieved.
+  */
+  bool seen_first_key;
+
+  /* Storage for full lookup key for use with handler::read_range_first/next */
+  uchar *min_range_key;
+  uchar *max_range_key;
+  uchar *min_search_key;
+  uchar *max_search_key;
+  uint range_cond_flag;
+
+  key_range start_key;
+  key_range end_key;
+
+  bool has_aggregate_function;
+
+  bool next_eq_prefix();
+
+ public:
+  MEM_ROOT alloc; /* Memory pool for data in this class. */
+ public:
+  QUICK_SKIP_SCAN_SELECT(TABLE *table, JOIN *join, KEY *index_info, uint index,
+                         KEY_PART_INFO *range_part, SEL_ROOT *index_range_tree,
+                         uint eq_prefix_len, uint eq_prefix_parts,
+                         uint used_key_parts,
+                         const Cost_estimate *read_cost_arg, ha_rows records,
+                         MEM_ROOT *parent_alloc, bool has_aggregate_function);
+  ~QUICK_SKIP_SCAN_SELECT();
+  bool set_range(SEL_ARG *sel_range);
+  int init();
+  void need_sorted_output() {}
+  int reset();
+  int get_next();
+  bool reverse_sorted() const { return false; }
+  bool reverse_sort_possible() const { return false; }
+  bool unique_key_range() { return false; }
+  int get_type() const { return QS_TYPE_SKIP_SCAN; }
+  virtual bool is_loose_index_scan() const { return true; }
+  virtual bool is_agg_loose_index_scan() const {
+    return has_aggregate_function;
+  }
+  void add_keys_and_lengths(String *key_names, String *used_lengths);
+#ifndef DBUG_OFF
+  void dbug_dump(int indent, bool verbose);
+#endif
+  virtual void get_fields_used(MY_BITMAP *used_fields) {
+    for (uint i = 0; i < used_key_parts; i++)
+      bitmap_set_bit(used_fields, index_info->key_part[i].field->field_index);
+  }
+  void add_info_string(String *str);
 };
 
 class QEP_shared_owner;

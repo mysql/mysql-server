@@ -1614,6 +1614,15 @@ EXPLAIN SELECT * FROM t1 WHERE col1 > 10 AND col2 < 88	{
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
                   },
+                  "skip_scan_range": {
+                    "potential_skip_scan_indexes": [
+                      {
+                        "index": "idx1",
+                        "usable": false,
+                        "cause": "prefix_not_const_equality"
+                      }
+                    ]
+                  },
                   "analyzing_range_alternatives": {
                     "range_scan_alternatives": [
                       {

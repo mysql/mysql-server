@@ -117,7 +117,8 @@ static bool update_ref_and_keys(THD *thd, Key_use_array *keyuse,
                                 table_map normal_tables, SELECT_LEX *select_lex,
                                 SARGABLE_PARAM **sargables);
 static bool pull_out_semijoin_tables(JOIN *join);
-static void add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab);
+static void add_loose_index_scan_and_skip_scan_keys(JOIN *join,
+                                                    JOIN_TAB *join_tab);
 static ha_rows get_quick_record_count(THD *thd, JOIN_TAB *tab, ha_rows limit);
 static Item *make_cond_for_table_from_pred(THD *thd, Item *root_cond,
                                            Item *cond, table_map tables,
@@ -5263,10 +5264,12 @@ bool JOIN::estimate_rowcount() {
       tab->worst_seeks = min_worst_seek;
 
     /*
-      Add to tab->const_keys those indexes for which all group fields or
+      Add to tab->const_keys the indexes for which all group fields or
       all select distinct fields participate in one index.
+      Add to tab->skip_scan_keys indexes which can be used for skip
+      scan access if no aggregates are present.
     */
-    add_group_and_distinct_keys(this, tab);
+    add_loose_index_scan_and_skip_scan_keys(this, tab);
 
     /*
       Perform range analysis if there are keys it could use (1).
@@ -5274,7 +5277,8 @@ bool JOIN::estimate_rowcount() {
       Do range analysis if on the inner side of a semi-join (3).
     */
     TABLE_LIST *const tl = tab->table_ref;
-    if (!tab->const_keys.is_clear_all() &&              // (1)
+    if ((!tab->const_keys.is_clear_all() ||
+         !tab->skip_scan_keys.is_clear_all()) &&        // (1)
         (!tl->embedding ||                              // (2)
          (tl->embedding && tl->embedding->sj_cond())))  // (3)
     {
@@ -5533,8 +5537,10 @@ static ha_rows get_quick_record_count(THD *thd, JOIN_TAB *tab, ha_rows limit) {
   // Derived tables aren't filled yet, so no stats are available.
   if (!tl->uses_materialization()) {
     QUICK_SELECT_I *qck;
+    Key_map keys_to_use = tab->const_keys;
+    keys_to_use.merge(tab->skip_scan_keys);
     int error = test_quick_select(
-        thd, tab->const_keys,
+        thd, keys_to_use,
         0,  // empty table_map
         limit,
         false,  // don't force quick range
@@ -7368,7 +7374,8 @@ static void trace_indexes_added_group_distinct(Opt_trace_context *trace,
 }
 
 /**
-  Discover the indexes that might be used for GROUP BY or DISTINCT queries.
+  Discover the indexes that might be used for GROUP BY or DISTINCT queries or
+  indexes that might be used for SKIP SCAN.
 
   If the query has a GROUP BY clause, find all indexes that contain
   all GROUP BY fields, and add those indexes to join_tab->const_keys
@@ -7378,6 +7385,9 @@ static void trace_indexes_added_group_distinct(Opt_trace_context *trace,
   all SELECT fields, and add those indexes to join_tab->const_keys and
   join_tab->keys. This allows later on such queries to be processed by
   a QUICK_GROUP_MIN_MAX_SELECT.
+
+  If the query does not have GROUP BY clause or any aggregate function
+  the function collects possible keys to use for skip scan access.
 
   Note that indexes that are not usable for resolving GROUP
   BY/DISTINCT may also be added in some corner cases. For example, an
@@ -7394,7 +7404,8 @@ static void trace_indexes_added_group_distinct(Opt_trace_context *trace,
     None
 */
 
-static void add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab) {
+static void add_loose_index_scan_and_skip_scan_keys(JOIN *join,
+                                                    JOIN_TAB *join_tab) {
   DBUG_ASSERT(join_tab->const_keys.is_subset(join_tab->keys()));
 
   List<Item_field> indexed_fields;
@@ -7402,6 +7413,26 @@ static void add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab) {
   ORDER *cur_group;
   Item_field *cur_item;
   const char *cause;
+
+  /* Find the indexes that might be used for skip scan queries. */
+  if (hint_table_state(join->thd, join_tab->table_ref, SKIP_SCAN_HINT_ENUM,
+                       OPTIMIZER_SKIP_SCAN) &&
+      join->where_cond && join->primary_tables == 1 && !join->group_list &&
+      !is_indexed_agg_distinct(join, &indexed_fields) &&
+      !join->select_distinct) {
+    join->where_cond->walk(&Item::collect_item_field_processor,
+                           Item::WALK_POSTFIX, (uchar *)&indexed_fields);
+    Key_map possible_keys;
+    possible_keys.set_all();
+    join_tab->skip_scan_keys.clear_all();
+    while ((cur_item = indexed_fields_it++)) {
+      if (cur_item->used_tables() != join_tab->table_ref->map()) return;
+      possible_keys.intersect(cur_item->field->part_of_key);
+    }
+    join_tab->skip_scan_keys.merge(possible_keys);
+    cause = "skip_scan";
+    return;
+  }
 
   if (join->group_list) { /* Collect all query fields referenced in the GROUP
                              clause. */

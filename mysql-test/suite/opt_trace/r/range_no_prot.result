@@ -160,6 +160,15 @@ EXPLAIN SELECT * FROM t1 WHERE key2 < 5 OR key2 > 1020	{
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
                   } /* group_index_range */,
+                  "skip_scan_range": {
+                    "potential_skip_scan_indexes": [
+                      {
+                        "index": "i2",
+                        "usable": false,
+                        "cause": "query_references_nonkey_column"
+                      }
+                    ] /* potential_skip_scan_indexes */
+                  } /* skip_scan_range */,
                   "analyzing_range_alternatives": {
                     "range_scan_alternatives": [
                       {
@@ -342,6 +351,7 @@ EXPLAIN SELECT * FROM t1 WHERE key2 < 5 OR key2 > 1020	{
                   "setup_range_conditions": [
                   ] /* setup_range_conditions */,
                   "group_index_range": "...",
+                  "skip_scan_range": "...",
                   "analyzing_range_alternatives": "...",
                   "chosen_range_access_summary": {
                     "range_access_plan": {
@@ -551,6 +561,20 @@ EXPLAIN SELECT * FROM t1 WHERE key1 < 3 OR key2 > 1020	{
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
                   } /* group_index_range */,
+                  "skip_scan_range": {
+                    "potential_skip_scan_indexes": [
+                      {
+                        "index": "i1",
+                        "usable": false,
+                        "cause": "query_references_nonkey_column"
+                      },
+                      {
+                        "index": "i2",
+                        "usable": false,
+                        "cause": "query_references_nonkey_column"
+                      }
+                    ] /* potential_skip_scan_indexes */
+                  } /* skip_scan_range */,
                   "analyzing_range_alternatives": {
                     "range_scan_alternatives": [
                     ] /* range_scan_alternatives */,
@@ -821,6 +845,10 @@ EXPLAIN SELECT key2, MIN(key2_1) FROM t2 GROUP BY key2	{
                     ] /* ranges */,
                     "chosen": true
                   } /* best_group_range_summary */,
+                  "skip_scan_range": {
+                    "chosen": false,
+                    "cause": "has_group_by"
+                  } /* skip_scan_range */,
                   "chosen_range_access_summary": {
                     "range_access_plan": {
                       "type": "index_group",
@@ -1055,6 +1083,10 @@ EXPLAIN SELECT DISTINCT key2 FROM t2	{
                     ] /* ranges */,
                     "chosen": true
                   } /* best_group_range_summary */,
+                  "skip_scan_range": {
+                    "chosen": false,
+                    "cause": "disjuntive_predicate_present"
+                  } /* skip_scan_range */,
                   "chosen_range_access_summary": {
                     "range_access_plan": {
                       "type": "index_group",
@@ -1335,6 +1367,10 @@ GROUP BY key2	{
                     ] /* ranges */,
                     "chosen": true
                   } /* best_group_range_summary */,
+                  "skip_scan_range": {
+                    "chosen": false,
+                    "cause": "has_group_by"
+                  } /* skip_scan_range */,
                   "analyzing_range_alternatives": {
                     "range_scan_alternatives": [
                       {
@@ -1613,6 +1649,20 @@ EXPLAIN SELECT * FROM t2 WHERE key2 = 1 AND (key2_1 = 1 OR key3 = 5)	{
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
                   } /* group_index_range */,
+                  "skip_scan_range": {
+                    "potential_skip_scan_indexes": [
+                      {
+                        "index": "i2_1",
+                        "usable": false,
+                        "cause": "query_references_nonkey_column"
+                      },
+                      {
+                        "index": "i2_2",
+                        "usable": false,
+                        "cause": "query_references_nonkey_column"
+                      }
+                    ] /* potential_skip_scan_indexes */
+                  } /* skip_scan_range */,
                   "analyzing_range_alternatives": {
                     "range_scan_alternatives": [
                       {
@@ -1868,6 +1918,25 @@ EXPLAIN SELECT * FROM t1 WHERE key2=10 OR key3=3 OR key4 <=> null	{
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
                   } /* group_index_range */,
+                  "skip_scan_range": {
+                    "potential_skip_scan_indexes": [
+                      {
+                        "index": "i2",
+                        "usable": false,
+                        "cause": "query_references_nonkey_column"
+                      },
+                      {
+                        "index": "i3",
+                        "usable": false,
+                        "cause": "query_references_nonkey_column"
+                      },
+                      {
+                        "index": "i4",
+                        "usable": false,
+                        "cause": "query_references_nonkey_column"
+                      }
+                    ] /* potential_skip_scan_indexes */
+                  } /* skip_scan_range */,
                   "analyzing_range_alternatives": {
                     "range_scan_alternatives": [
                     ] /* range_scan_alternatives */,
@@ -2152,7 +2221,11 @@ EXPLAIN SELECT * FROM t2 WHERE key2_1 < 79 OR key2 = 2	{
                   "group_index_range": {
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
-                  } /* group_index_range */
+                  } /* group_index_range */,
+                  "skip_scan_range": {
+                    "chosen": false,
+                    "cause": "disjuntive_predicate_present"
+                  } /* skip_scan_range */
                 } /* range_analysis */
               }
             ] /* rows_estimation */
@@ -2329,6 +2402,20 @@ EXPLAIN SELECT * FROM t2 WHERE key1a = 5 and key1b < 10	{
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
                   } /* group_index_range */,
+                  "skip_scan_range": {
+                    "potential_skip_scan_indexes": [
+                      {
+                        "index": "PRIMARY",
+                        "usable": false,
+                        "cause": "query_references_nonkey_column"
+                      },
+                      {
+                        "index": "i1b",
+                        "usable": false,
+                        "cause": "query_references_nonkey_column"
+                      }
+                    ] /* potential_skip_scan_indexes */
+                  } /* skip_scan_range */,
                   "analyzing_range_alternatives": {
                     "range_scan_alternatives": [
                       {
@@ -2561,6 +2648,20 @@ EXPLAIN SELECT * FROM t2 WHERE (key1a = 5 and key1b < 10 and key1b > 2) or
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
                   } /* group_index_range */,
+                  "skip_scan_range": {
+                    "potential_skip_scan_indexes": [
+                      {
+                        "index": "PRIMARY",
+                        "usable": false,
+                        "cause": "query_references_nonkey_column"
+                      },
+                      {
+                        "index": "i1b",
+                        "usable": false,
+                        "cause": "query_references_nonkey_column"
+                      }
+                    ] /* potential_skip_scan_indexes */
+                  } /* skip_scan_range */,
                   "analyzing_range_alternatives": {
                     "range_scan_alternatives": [
                       {
@@ -2790,6 +2891,20 @@ EXPLAIN SELECT * FROM t2 WHERE (key1b < 10 and key1b > 7) and
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
                   } /* group_index_range */,
+                  "skip_scan_range": {
+                    "potential_skip_scan_indexes": [
+                      {
+                        "index": "PRIMARY",
+                        "usable": false,
+                        "cause": "query_references_nonkey_column"
+                      },
+                      {
+                        "index": "i1b",
+                        "usable": false,
+                        "cause": "query_references_nonkey_column"
+                      }
+                    ] /* potential_skip_scan_indexes */
+                  } /* skip_scan_range */,
                   "analyzing_range_alternatives": {
                     "range_scan_alternatives": [
                       {
@@ -3031,6 +3146,20 @@ EXPLAIN SELECT * FROM t1 WHERE (key1 > 1 OR key2  > 2)	{
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
                   } /* group_index_range */,
+                  "skip_scan_range": {
+                    "potential_skip_scan_indexes": [
+                      {
+                        "index": "i1",
+                        "usable": false,
+                        "cause": "query_references_nonkey_column"
+                      },
+                      {
+                        "index": "i2",
+                        "usable": false,
+                        "cause": "query_references_nonkey_column"
+                      }
+                    ] /* potential_skip_scan_indexes */
+                  } /* skip_scan_range */,
                   "analyzing_range_alternatives": {
                     "range_scan_alternatives": [
                     ] /* range_scan_alternatives */,
@@ -3297,6 +3426,10 @@ WHERE t1.key1=t2.key1a AND t1.key2 > 1020	{
                     "chosen": false,
                     "cause": "not_single_table"
                   } /* group_index_range */,
+                  "skip_scan_range": {
+                    "chosen": false,
+                    "cause": "not_single_table"
+                  } /* skip_scan_range */,
                   "analyzing_range_alternatives": {
                     "range_scan_alternatives": [
                       {
@@ -3567,6 +3700,20 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar'	{
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
                   } /* group_index_range */,
+                  "skip_scan_range": {
+                    "potential_skip_scan_indexes": [
+                      {
+                        "index": "cola",
+                        "usable": false,
+                        "cause": "query_references_nonkey_column"
+                      },
+                      {
+                        "index": "colb",
+                        "usable": false,
+                        "cause": "query_references_nonkey_column"
+                      }
+                    ] /* potential_skip_scan_indexes */
+                  } /* skip_scan_range */,
                   "analyzing_range_alternatives": {
                     "range_scan_alternatives": [
                       {
@@ -3841,6 +3988,15 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'f\no'	{
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
                   } /* group_index_range */,
+                  "skip_scan_range": {
+                    "potential_skip_scan_indexes": [
+                      {
+                        "index": "cola",
+                        "usable": false,
+                        "cause": "query_references_nonkey_column"
+                      }
+                    ] /* potential_skip_scan_indexes */
+                  } /* skip_scan_range */,
                   "analyzing_range_alternatives": {
                     "range_scan_alternatives": [
                       {
@@ -4098,6 +4254,10 @@ EXPLAIN SELECT 1 FROM
                               "chosen": false,
                               "cause": "not_single_table"
                             } /* group_index_range */,
+                            "skip_scan_range": {
+                              "chosen": false,
+                              "cause": "not_single_table"
+                            } /* skip_scan_range */,
                             "analyzing_range_alternatives": {
                               "range_scan_alternatives": [
                                 {
@@ -4437,6 +4597,10 @@ EXPLAIN SELECT 1 FROM
                               "chosen": false,
                               "cause": "not_single_table"
                             } /* group_index_range */,
+                            "skip_scan_range": {
+                              "chosen": false,
+                              "cause": "not_single_table"
+                            } /* skip_scan_range */,
                             "analyzing_range_alternatives": {
                               "range_scan_alternatives": [
                                 {
@@ -4698,6 +4862,20 @@ EXPLAIN SELECT * FROM t1 WHERE i1 > '2' ORDER BY i1, i2	{
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
                   } /* group_index_range */,
+                  "skip_scan_range": {
+                    "potential_skip_scan_indexes": [
+                      {
+                        "index": "k1",
+                        "usable": false,
+                        "cause": "query_references_nonkey_column"
+                      },
+                      {
+                        "index": "k2",
+                        "usable": false,
+                        "cause": "query_references_nonkey_column"
+                      }
+                    ] /* potential_skip_scan_indexes */
+                  } /* skip_scan_range */,
                   "analyzing_range_alternatives": {
                     "range_scan_alternatives": [
                       {
@@ -4845,6 +5023,15 @@ EXPLAIN SELECT * FROM t1 WHERE i1 > '2' ORDER BY i1, i2	{
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
                   } /* group_index_range */,
+                  "skip_scan_range": {
+                    "potential_skip_scan_indexes": [
+                      {
+                        "index": "k2",
+                        "usable": false,
+                        "cause": "query_references_nonkey_column"
+                      }
+                    ] /* potential_skip_scan_indexes */
+                  } /* skip_scan_range */,
                   "analyzing_range_alternatives": {
                     "range_scan_alternatives": [
                       {
@@ -5056,6 +5243,10 @@ EXPLAIN SELECT DISTINCT i1 FROM t1 WHERE i1 >= '1' ORDER BY i1 DESC	{
                     "chosen": false,
                     "cause": "cost"
                   } /* best_group_range_summary */,
+                  "skip_scan_range": {
+                    "chosen": false,
+                    "cause": "has_select_distinct"
+                  } /* skip_scan_range */,
                   "analyzing_range_alternatives": {
                     "range_scan_alternatives": [
                       {
@@ -5365,6 +5556,25 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3	{
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
                   } /* group_index_range */,
+                  "skip_scan_range": {
+                    "potential_skip_scan_indexes": [
+                      {
+                        "index": "PRIMARY",
+                        "usable": false,
+                        "cause": "query_references_nonkey_column"
+                      },
+                      {
+                        "index": "i1_idx",
+                        "usable": false,
+                        "cause": "query_references_nonkey_column"
+                      },
+                      {
+                        "index": "v_idx",
+                        "usable": false,
+                        "cause": "prefix_not_const_equality"
+                      }
+                    ] /* potential_skip_scan_indexes */
+                  } /* skip_scan_range */,
                   "analyzing_range_alternatives": {
                     "range_scan_alternatives": [
                       {
@@ -5524,7 +5734,7 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3	{
 # Chooses ROR intersect
 EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND pk < 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	PRIMARY,i1_idx	i1_idx,PRIMARY	9,4	NULL	1	100.00	Using intersect(i1_idx,PRIMARY); Using where
+1	SIMPLE	t1	NULL	index_merge	PRIMARY,i1_idx,v_idx	i1_idx,PRIMARY	9,4	NULL	1	100.00	Using intersect(i1_idx,PRIMARY); Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where ((`test`.`t1`.`i1` = 1) and (`test`.`t1`.`pk` < 3))
 
@@ -5618,8 +5828,12 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND pk < 3	{
                     },
                     {
                       "index": "v_idx",
-                      "usable": false,
-                      "cause": "not_applicable"
+                      "usable": true,
+                      "key_parts": [
+                        "v",
+                        "i1",
+                        "pk"
+                      ] /* key_parts */
                     }
                   ] /* potential_range_indexes */,
                   "best_covering_index_scan": {
@@ -5633,6 +5847,40 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND pk < 3	{
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
                   } /* group_index_range */,
+                  "skip_scan_range": {
+                    "potential_skip_scan_indexes": [
+                      {
+                        "index": "PRIMARY",
+                        "usable": false,
+                        "cause": "query_references_nonkey_column"
+                      },
+                      {
+                        "index": "i1_idx",
+                        "usable": false,
+                        "cause": "query_references_nonkey_column"
+                      },
+                      {
+                        "index": "v_idx",
+                        "tree_travel_cost": 0.15,
+                        "num_groups": 6,
+                        "rows": 5,
+                        "cost": 2.8019
+                      }
+                    ] /* potential_skip_scan_indexes */
+                  } /* skip_scan_range */,
+                  "best_skip_scan_summary": {
+                    "type": "skip_scan",
+                    "index": "v_idx",
+                    "key_parts_used_for_access": [
+                      "v",
+                      "i1"
+                    ] /* key_parts_used_for_access */,
+                    "range": [
+                      "1 <= i1 <= 1"
+                    ] /* range */,
+                    "chosen": false,
+                    "cause": "cost"
+                  } /* best_skip_scan_summary */,
                   "analyzing_range_alternatives": {
                     "range_scan_alternatives": [
                       {
@@ -5660,6 +5908,11 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND pk < 3	{
                         "rows": 1,
                         "cost": 0.61,
                         "chosen": true
+                      },
+                      {
+                        "index": "v_idx",
+                        "chosen": false,
+                        "cause": "no_valid_range_for_this_index"
                       }
                     ] /* range_scan_alternatives */,
                     "analyzing_roworder_intersect": {
@@ -5930,6 +6183,10 @@ EXPLAIN SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a	{
                     ] /* ranges */,
                     "chosen": true
                   } /* best_group_range_summary */,
+                  "skip_scan_range": {
+                    "chosen": false,
+                    "cause": "has_group_by"
+                  } /* skip_scan_range */,
                   "analyzing_range_alternatives": {
                     "range_scan_alternatives": [
                       {
@@ -6189,6 +6446,20 @@ EXPLAIN SELECT * FROM t1 WHERE c1 = '1' ORDER BY i1	{
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
                   } /* group_index_range */,
+                  "skip_scan_range": {
+                    "potential_skip_scan_indexes": [
+                      {
+                        "index": "k1",
+                        "usable": false,
+                        "cause": "query_references_nonkey_column"
+                      },
+                      {
+                        "index": "k2",
+                        "usable": false,
+                        "cause": "query_references_nonkey_column"
+                      }
+                    ] /* potential_skip_scan_indexes */
+                  } /* skip_scan_range */,
                   "analyzing_range_alternatives": {
                     "range_scan_alternatives": [
                       {
@@ -6453,6 +6724,15 @@ trace
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
                   } /* group_index_range */,
+                  "skip_scan_range": {
+                    "potential_skip_scan_indexes": [
+                      {
+                        "index": "i_b",
+                        "usable": false,
+                        "cause": "query_references_nonkey_column"
+                      }
+                    ] /* potential_skip_scan_indexes */
+                  } /* skip_scan_range */,
                   "analyzing_range_alternatives": {
                     "range_scan_alternatives": [
                       {
@@ -6654,6 +6934,15 @@ trace
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
                   } /* group_index_range */,
+                  "skip_scan_range": {
+                    "potential_skip_scan_indexes": [
+                      {
+                        "index": "i_b",
+                        "usable": false,
+                        "cause": "query_references_nonkey_column"
+                      }
+                    ] /* potential_skip_scan_indexes */
+                  } /* skip_scan_range */,
                   "analyzing_range_alternatives": {
                     "range_scan_alternatives": [
                       {

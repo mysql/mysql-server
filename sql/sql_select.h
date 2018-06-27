@@ -659,6 +659,15 @@ class JOIN_TAB : public QEP_shared_owner {
   /** Keys with constant part. Subset of keys. */
   Key_map const_keys;
   Key_map checked_keys; /**< Keys checked */
+  /**
+    Keys which can be used for skip scan access. We store it
+    separately from tab->const_keys & join_tab->keys() to avoid
+    unnecessary printing of the prossible keys in EXPLAIN output
+    as some of these keys can be marked not usable for skip scan later.
+    More strict check for prossible keys is performed in
+    get_best_skip_scan() function.
+  */
+  Key_map skip_scan_keys;
   Key_map needed_reg;
 
   /**
@@ -738,6 +747,7 @@ inline JOIN_TAB::JOIN_TAB()
       worst_seeks(0.0),
       const_keys(),
       checked_keys(),
+      skip_scan_keys(),
       needed_reg(),
       quick_order_tested(),
       found_records(0),

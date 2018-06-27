@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -76,6 +76,7 @@ struct st_opt_hint_info opt_hint_info[] = {
     {"JOIN_FIXED_ORDER", false, true, false},
     {"INDEX_MERGE", false, false, false},
     {"RESOURCE_GROUP", false, false, false},
+    {"SKIP_SCAN", false, false, false},
     {0, 0, 0, 0}};
 
 /**
@@ -570,10 +571,8 @@ void Opt_hints_table::adjust_key_hints(TABLE_LIST *tr) {
 }
 
 PT_hint *Opt_hints_table::get_complex_hints(opt_hints_enum type) {
-  if (type == INDEX_MERGE_HINT_ENUM) return index_merge.get_pt_hint();
-
-  DBUG_ASSERT(0);
-  return NULL;
+  DBUG_ASSERT(is_compound_key_hint(type));
+  return get_compound_key_hint(type)->get_pt_hint();
 }
 
 /**
@@ -778,17 +777,21 @@ void append_table_name(THD *thd, String *str, const LEX_CSTRING *qb_name,
   }
 }
 
-bool idx_merge_key_enabled(const TABLE *table, uint keyno) {
+bool compound_hint_key_enabled(const TABLE *table, uint keyno,
+                               opt_hints_enum type_arg) {
   Opt_hints_table *table_hints = table->pos_in_table_list->opt_hints_table;
 
-  if (table_hints && table_hints->is_resolved(INDEX_MERGE_HINT_ENUM)) {
-    if (table_hints->index_merge.is_key_map_clear_all())
-      return table_hints->index_merge.get_pt_hint()->switch_on();
+  if (table_hints && table_hints->is_resolved(type_arg)) {
+    if (table_hints->get_compound_key_hint(type_arg)->is_key_map_clear_all())
+      return table_hints->get_compound_key_hint(type_arg)
+          ->get_pt_hint()
+          ->switch_on();
 
-    return table_hints->index_merge.is_set_key_map(keyno) ==
-           table_hints->index_merge.get_pt_hint()->switch_on();
+    return table_hints->get_compound_key_hint(type_arg)->is_set_key_map(
+               keyno) == table_hints->get_compound_key_hint(type_arg)
+                             ->get_pt_hint()
+                             ->switch_on();
   }
-
   return true;
 }
 

@@ -707,10 +707,10 @@ The following options may be given as the first argument:
  engine_condition_pushdown, index_condition_pushdown, mrr,
  mrr_cost_based, materialization, semijoin, loosescan,
  firstmatch, duplicateweedout,
- subquery_materialization_cost_based, block_nested_loop,
- batched_key_access, use_index_extensions,
- condition_fanout_filter, derived_merge} and val is one of
- {on, off, default}
+ subquery_materialization_cost_based, skip_scan,
+ block_nested_loop, batched_key_access,
+ use_index_extensions, condition_fanout_filter,
+ derived_merge} and val is one of {on, off, default}
  --optimizer-trace=name 
  Controls tracing of the Optimizer:
  optimizer_trace=option=val[,option=val...], where option
@@ -1520,7 +1520,7 @@ old-alter-table FALSE
 old-style-user-limits FALSE
 optimizer-prune-level 1
 optimizer-search-depth 62
-optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on
+optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on
 optimizer-trace 
 optimizer-trace-features greedy_search=on,range_optimizer=on,dynamic_range=on,repeated_subselect=on
 optimizer-trace-limit 1

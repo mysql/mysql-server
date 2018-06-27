@@ -75,6 +75,7 @@ static const char *json_extra_tags[ET_total] = {
     "open_full_table",                // ET_OPEN_FULL_TABLE
     "scanned_databases",              // ET_SCANNED_DATABASES
     "using_index_for_group_by",       // ET_USING_INDEX_FOR_GROUP_BY
+    "using_index_for_skip_scan",      // ET_USING_INDEX_FOR_SKIP_SCAN
     "distinct",                       // ET_DISTINCT
     "loosescan",                      // ET_LOOSESCAN
     NULL,                             // ET_START_TEMPORARY

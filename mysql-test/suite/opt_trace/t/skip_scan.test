@@ -1,0 +1,67 @@
+--source include/have_optimizer_trace.inc
+
+let $engine=innodb;
+--source include/skip_scan_data.inc
+
+# Trace test
+SET optimizer_switch = 'skip_scan=on';
+SET optimizer_trace="enabled=on,one_line=off";
+
+# These queries should not do skip scans.
+
+EXPLAIN SELECT a, b, c, d FROM t WHERE a = 2 AND d >= 98 AND e = 2;
+SELECT count(*) FROM information_schema.optimizer_trace WHERE trace LIKE '%query_references_nonkey_column%';
+
+EXPLAIN SELECT a, b, c, d FROM t WHERE a = 5 OR b = 2 AND d >= 98;
+SELECT count(*) FROM information_schema.optimizer_trace WHERE trace LIKE '%disjuntive_predicate_present%';
+
+EXPLAIN SELECT a, b, c, d FROM t WHERE a = 5 OR b = 2 OR d >= 98;
+SELECT count(*) FROM information_schema.optimizer_trace WHERE trace LIKE '%disjuntive_predicate_present%';
+
+EXPLAIN SELECT a, b, c, d FROM t WHERE a = 5 OR d >= 98;
+SELECT count(*) FROM information_schema.optimizer_trace WHERE trace LIKE '%disjuntive_predicate_present%';
+
+EXPLAIN SELECT a, b, c, d FROM t WHERE ((a = 5 AND b = 2) OR a = 2) and d >= 98;
+SELECT count(*) FROM information_schema.optimizer_trace WHERE trace LIKE '%keypart_in_disjunctive_query%';
+
+EXPLAIN SELECT a, b, c, d FROM t WHERE a > 2 AND d >= 98;
+SELECT count(*) FROM information_schema.optimizer_trace WHERE trace LIKE '%prefix_not_const_equality%';
+
+EXPLAIN SELECT a, b, c, d FROM t WHERE a = 2 AND (d >= 98 OR d < 2);
+SELECT count(*) FROM information_schema.optimizer_trace WHERE trace LIKE '%range_predicate_too_complex%';
+
+EXPLAIN SELECT a, b, c, d FROM t WHERE a = 2 AND b = 2;
+SELECT count(*) FROM information_schema.optimizer_trace WHERE trace LIKE '%no_range_predicate%';
+
+EXPLAIN SELECT a, b, c, d FROM t WHERE (a < 1 OR a = 4 OR a = 5) AND b IN (1, 2, 3) AND d >= 98;
+SELECT count(*) FROM information_schema.optimizer_trace WHERE trace LIKE '%prefix_not_const_equality%';
+
+# test for EXPLAIN output, query should do skip scan.
+EXPLAIN SELECT a, b, c, d FROM t WHERE a IN (1, 2, 3, 4, 5) AND b IN (1, 2, 3) AND d >= 98;
+SELECT * FROM information_schema.optimizer_trace;
+
+EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND c > 4 AND d < 3;
+SELECT * FROM information_schema.optimizer_trace;
+
+EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND d < 3;
+SELECT * FROM information_schema.optimizer_trace;
+
+ANALYZE TABLE t UPDATE HISTOGRAM ON d WITH 10 BUCKETS;
+EXPLAIN SELECT b FROM t WHERE d < 2;
+SELECT * FROM information_schema.optimizer_trace;
+
+SET optimizer_trace="enabled=off";
+
+DROP TABLE t;
+
+SET optimizer_switch = 'skip_scan=on';
+SET optimizer_trace="enabled=on,one_line=off";
+
+CREATE TABLE t1 (f1 VARCHAR(10), f2 CHAR(10), f3 INT, KEY(f1, f2, f3));
+INSERT INTO t1 VALUES ('a', 'aaaa', 1);
+# Skip scan can not be used
+EXPLAIN SELECT /*+ SKIP_SCAN(t1) */ count(*) FROM t1 WHERE f1 BETWEEN 'a' and 'a ' AND f3 > 0;
+SELECT count(*) FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE WHERE trace LIKE '%prefix_not_const_equality%';
+DROP TABLE t1;
+
+SET optimizer_trace="enabled=off";

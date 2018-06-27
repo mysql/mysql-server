@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -89,6 +89,8 @@ static bool parse_int(longlong *to, const char *from, size_t from_length)
 %token INDEX_MERGE_HINT
 %token NO_INDEX_MERGE_HINT
 %token SET_VAR_HINT
+%token SKIP_SCAN_HINT
+%token NO_SKIP_SCAN_HINT
 
 /* Other tokens */
 
@@ -493,6 +495,10 @@ key_level_hint_type_on:
           {
             $$= INDEX_MERGE_HINT_ENUM;
           }
+        | SKIP_SCAN_HINT
+          {
+            $$= SKIP_SCAN_HINT_ENUM;
+          }
         ;
 
 key_level_hint_type_off:
@@ -507,6 +513,10 @@ key_level_hint_type_off:
         | NO_INDEX_MERGE_HINT
           {
             $$= INDEX_MERGE_HINT_ENUM;
+          }
+        | NO_SKIP_SCAN_HINT
+          {
+            $$= SKIP_SCAN_HINT_ENUM;
           }
         ;
 

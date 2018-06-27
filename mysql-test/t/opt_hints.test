@@ -41,7 +41,7 @@ SHOW STATUS LIKE 'handler_read%';
 
 --echo # Check statistics with hint
 FLUSH STATUS;
-SELECT /*+ NO_RANGE_OPTIMIZATION(t3 PRIMARY, f2_idx) */ f1 FROM t3 WHERE f1 > 30 AND f1 < 33;
+SELECT /*+ NO_RANGE_OPTIMIZATION(t3) */ f1 FROM t3 WHERE f1 > 30 AND f1 < 33;
 SHOW STATUS LIKE 'handler_read%';
 
 EXPLAIN SELECT f1 FROM t3 WHERE f1 > 30 AND f1 < 33;
@@ -49,7 +49,7 @@ EXPLAIN SELECT f1 FROM t3 WHERE f1 > 30 AND f1 < 33;
 --echo # Should use range access by f2_idx key
 EXPLAIN SELECT /*+ NO_RANGE_OPTIMIZATION(t3 PRIMARY) */ f1 FROM t3 WHERE f1 > 30 AND f1 < 33;
 --echo # Turn off range access for PRIMARY & f2_idx keys
---echo # Should use index access
+--echo # Should use skip scan for f3_idx index
 EXPLAIN SELECT /*+ NO_RANGE_OPTIMIZATION(t3 PRIMARY, f2_idx) */ f1 FROM t3 WHERE f1 > 30 AND f1 < 33;
 --echo # Turn off range access for all keys
 --echo # Should use index access

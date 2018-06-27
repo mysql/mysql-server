@@ -2152,6 +2152,9 @@ Warnings:
 Level	Warning
 Code	1739
 Message	Cannot use range access on index 'PRIMARY' due to type or collation conversion on field 'c'
+Level	Warning
+Code	1739
+Message	Cannot use range access on index 'b' due to type or collation conversion on field 'c'
 Level	Note
 Code	1003
 Message	/* select#1 */ select `test`.`foo2`.`c` AS `c` from `test`.`foo2` where (`test`.`foo2`.`c` > 2)

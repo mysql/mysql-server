@@ -392,7 +392,7 @@ SELECT @trace RLIKE "skipped_due_to_force_index";
 SET optimizer_trace="enabled=off";
 EXPLAIN FORMAT=TRADITIONAL FOR QUERY 'SELECT a1 FROM t1 FORCE INDEX(t1_a1_idx) WHERE a2 > 'a''
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using where
 EXPLAIN FORMAT=JSON FOR QUERY 'SELECT a1 FROM t1 FORCE INDEX(t1_a1_idx) WHERE a2 > 'a''
 EXPLAIN
 {
@@ -404,15 +404,13 @@ EXPLAIN
     "table": {
       "table_name": "t1",
       "access_type": "ALL",
-      "rows_examined_per_scan": 6,
-      "rows_produced_per_join": 6,
-      "filtered": "100.00",
       "using_where": true,
+      "skip_records_in_range_due_to_force": true,
       "cost_info": {
-        "read_cost": "1.75",
-        "eval_cost": "0.60",
-        "prefix_cost": "2.35",
-        "data_read_per_join": "3K"
+        "read_cost": "0.00",
+        "eval_cost": "0.00",
+        "prefix_cost": "0.00",
+        "data_read_per_join": ""
       },
       "used_columns": [
         "a1",

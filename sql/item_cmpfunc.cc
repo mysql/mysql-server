@@ -155,7 +155,7 @@ static int agg_cmp_type(Item_result *type, Item **items, uint nitems) {
 
 static void write_histogram_to_trace(THD *thd, Item_func *item,
                                      const double selectivity) {
-  Opt_trace_object obj(&thd->opt_trace);
+  Opt_trace_object obj(&thd->opt_trace, "histogram_selectivity");
   obj.add("condition", item).add("histogram_selectivity", selectivity);
 }
 

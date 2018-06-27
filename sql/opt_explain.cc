@@ -1275,6 +1275,7 @@ bool Explain_join::explain_qep_tab(size_t tabnum) {
   if (!tab->position()) return false;
   table = tab->table();
   usable_keys = tab->keys();
+  usable_keys.merge(table->possible_quick_keys);
   quick_type = -1;
 
   if (tab->type() == JT_RANGE || tab->type() == JT_INDEX_MERGE) {
@@ -1528,6 +1529,8 @@ bool Explain_join::explain_extra() {
         StringBuffer<64> buff(cs);
         qgs->append_loose_scan_type(&buff);
         if (push_extra(ET_USING_INDEX_FOR_GROUP_BY, buff)) return true;
+      } else if (quick_type == QUICK_SELECT_I::QS_TYPE_SKIP_SCAN) {
+        if (push_extra(ET_USING_INDEX_FOR_SKIP_SCAN)) return true;
       } else {
         if (push_extra(ET_USING_INDEX)) return true;
       }

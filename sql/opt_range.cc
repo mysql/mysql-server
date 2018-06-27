@@ -1391,6 +1391,7 @@ class TABLE_READ_PLAN;
 class TRP_GROUP_MIN_MAX;
 class TRP_RANGE;
 class TRP_ROR_INTERSECT;
+class TRP_SKIP_SCAN;
 
 static SEL_TREE *get_mm_parts(RANGE_OPT_PARAM *param, Item_func *cond_func,
                               Field *field, Item_func::Functype type,
@@ -1421,6 +1422,8 @@ static TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param,
                                                 const Cost_estimate *cost_est);
 static TRP_GROUP_MIN_MAX *get_best_group_min_max(PARAM *param, SEL_TREE *tree,
                                                  const Cost_estimate *cost_est);
+static TRP_SKIP_SCAN *get_best_skip_scan(PARAM *param, SEL_TREE *tree,
+                                         bool force_skip_scan);
 #ifndef DBUG_OFF
 static void print_sel_tree(PARAM *param, SEL_TREE *tree, Key_map *tree_map,
                            const char *msg);
@@ -2556,6 +2559,7 @@ class TABLE_READ_PLAN {
   */
   virtual void trace_basic_info(const PARAM *param,
                                 Opt_trace_object *trace_object) const = 0;
+  virtual bool is_forced_by_hint() { return false; }
 };
 
 /*
@@ -2879,6 +2883,96 @@ void TRP_GROUP_MIN_MAX::trace_basic_info(const PARAM *param,
 }
 
 /*
+  Plan for a QUICK_SKIP_SCAN_SELECT scan.
+*/
+
+class TRP_SKIP_SCAN : public TABLE_READ_PLAN {
+ private:
+  KEY *index_info;                ///< The index chosen for data access
+  uint index;                     ///< The id of the chosen index
+  uint eq_prefix_len;             ///< Length of the equality prefix
+  uint eq_prefix_parts;           ///< Number of parts in the equality prefix
+  KEY_PART_INFO *range_key_part;  ///< The key part corresponding to the range
+                                  ///< condition
+
+  /**
+    The sub-tree corresponding to the range condition
+    (on key part C - for more details see description of get_best_skip_scan()).
+  */
+  SEL_ARG *range_cond;
+  SEL_ROOT *index_range_tree;  ///< The sub-tree corresponding to index_info
+  uint used_key_parts;         ///< Number of index key parts used for access
+  bool forced_by_hint;  ///< TRUE if skip scan is forced by optimizer hint
+  bool has_aggregate_function;  ///< TRUE if there are aggregate functions.
+
+ public:
+  void trace_basic_info(const PARAM *param,
+                        Opt_trace_object *trace_object) const;
+
+  TRP_SKIP_SCAN(KEY *index_info, uint index, SEL_ROOT *index_range_tree,
+                uint eq_prefix_len, uint eq_prefix_parts,
+                KEY_PART_INFO *range_key_part, SEL_ARG *range_cond,
+                uint used_key_parts, bool forced_by_hint, ha_rows read_records,
+                bool has_aggregate_function)
+      : index_info(index_info),
+        index(index),
+        eq_prefix_len(eq_prefix_len),
+        eq_prefix_parts(eq_prefix_parts),
+        range_key_part(range_key_part),
+        range_cond(range_cond),
+        index_range_tree(index_range_tree),
+        used_key_parts(used_key_parts),
+        forced_by_hint(forced_by_hint),
+        has_aggregate_function(has_aggregate_function) {
+    records = read_records;
+  }
+
+  virtual ~TRP_SKIP_SCAN() {}
+
+  QUICK_SELECT_I *make_quick(PARAM *param, bool retrieve_full_rows,
+                             MEM_ROOT *parent_alloc);
+  virtual bool is_forced_by_hint() { return forced_by_hint; }
+};
+
+void TRP_SKIP_SCAN::trace_basic_info(const PARAM *param,
+                                     Opt_trace_object *trace_object) const {
+  trace_object->add_alnum("type", "skip_scan")
+      .add_utf8("index", index_info->name);
+
+  const KEY_PART_INFO *key_part = index_info->key_part;
+  Opt_trace_context *const trace = &param->thd->opt_trace;
+  {
+    Opt_trace_array trace_keyparts(trace, "key_parts_used_for_access");
+    for (uint partno = 0; partno < used_key_parts; partno++) {
+      const KEY_PART_INFO *cur_key_part = key_part + partno;
+      trace_keyparts.add_utf8(cur_key_part->field->field_name);
+    }
+  }
+
+  if (index_range_tree && eq_prefix_parts > 0) {
+    Opt_trace_array trace_range(trace, "prefix ranges");
+    String range_info;
+    range_info.set_charset(system_charset_info);
+    append_range_all_keyparts(&trace_range, NULL, &range_info, index_range_tree,
+                              key_part, false);
+  }
+
+  Opt_trace_array trace_range(trace, "range");
+  {
+    String range_info;
+    range_info.set_charset(system_charset_info);
+    const SEL_ARG *range_part = range_cond->first();
+    {
+      const KEY_PART_INFO *cur_key_part = key_part + range_part->part;
+      append_range(&range_info, cur_key_part, range_part->min_value,
+                   range_part->max_value,
+                   range_part->min_flag | range_part->max_flag);
+    }
+    trace_range.add_utf8(range_info.ptr(), range_info.length());
+  }
+}
+
+/*
   Fill param->needed_fields with bitmap of fields used in the query.
   SYNOPSIS
     fill_used_fields_bitmap()
@@ -3019,6 +3113,7 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
                        (ulong)keys_to_use.to_ulonglong(), (ulong)prev_tables,
                        (ulong)const_tables));
 
+  bool force_skip_scan = false;
   const Cost_model_server *const cost_model = thd->cost_model();
   TABLE *const head = tab->table();
   ha_rows records = head->file->stats.records;
@@ -3198,6 +3293,7 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
 
     TABLE_READ_PLAN *best_trp = NULL;
     TRP_GROUP_MIN_MAX *group_trp;
+    TRP_SKIP_SCAN *skip_scan_trp;
     Cost_estimate best_cost = cost_est;
 
     if (cond) {
@@ -3249,7 +3345,29 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
         grp_summary.add("chosen", false).add_alnum("cause", "cost");
     }
 
-    if (tree) {
+    force_skip_scan = hint_table_state(
+        param.thd, param.table->pos_in_table_list, SKIP_SCAN_HINT_ENUM, 0);
+
+    if (thd->optimizer_switch_flag(OPTIMIZER_SKIP_SCAN) || force_skip_scan) {
+      skip_scan_trp = get_best_skip_scan(&param, tree, force_skip_scan);
+      if (skip_scan_trp) {
+        param.table->quick_condition_rows =
+            min(skip_scan_trp->records, head->file->stats.records);
+        Opt_trace_object summary(trace, "best_skip_scan_summary",
+                                 Opt_trace_context::RANGE_OPTIMIZER);
+        if (unlikely(trace->is_started()))
+          skip_scan_trp->trace_basic_info(&param, &summary);
+
+        if (skip_scan_trp->cost_est < best_cost || force_skip_scan) {
+          summary.add("chosen", true);
+          best_trp = skip_scan_trp;
+          best_cost = best_trp->cost_est;
+        } else
+          summary.add("chosen", false).add_alnum("cause", "cost");
+      }
+    }
+
+    if (tree && (!best_trp || !best_trp->is_forced_by_hint())) {
       /*
         It is possible to use a range-based quick select (but it might be
         slower than 'all' table scan).
@@ -5651,7 +5769,8 @@ static TRP_ROR_INTERSECT *get_best_ror_intersect(
     trace_idx.add_utf8("index",
                        param->table->key_info[(*cur_ror_scan)->keynr].name);
 
-    if (!idx_merge_key_enabled(param->table, (*cur_ror_scan)->keynr)) {
+    if (!compound_hint_key_enabled(param->table, (*cur_ror_scan)->keynr,
+                                   INDEX_MERGE_HINT_ENUM)) {
       trace_idx.add("usable", false).add_alnum("cause", "index_merge_hint");
       cur_ror_scan++;
       continue;
@@ -5724,7 +5843,8 @@ static TRP_ROR_INTERSECT *get_best_ror_intersect(
   {  // Scope for trace object
     Opt_trace_object trace_cpk(trace, "clustered_pk");
     if (cpk_scan && !intersect->is_covering &&
-        idx_merge_key_enabled(param->table, cpk_no)) {
+        compound_hint_key_enabled(param->table, cpk_no,
+                                  INDEX_MERGE_HINT_ENUM)) {
       if (ror_intersect_add(intersect, cpk_scan, true, &trace_cpk, true) &&
           ((intersect->total_cost < min_cost) ||
            (force_index_merge &&
@@ -5834,6 +5954,7 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
   bool use_cheapest_index_merge = false;
   bool force_index_merge =
       idx_merge_hint_state(param->table, &use_cheapest_index_merge);
+
   for (idx = 0; idx < param->keys; idx++) {
     key = tree->keys[idx];
     if (key) {
@@ -5855,7 +5976,8 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
           check_quick_select(param, idx, read_index_only, key, update_tbl_stats,
                              &mrr_flags, &buf_size, &cost);
 
-      if (!idx_merge_key_enabled(param->table, keynr)) {
+      if (!compound_hint_key_enabled(param->table, keynr,
+                                     INDEX_MERGE_HINT_ENUM)) {
         trace_idx.add("chosen", false).add_alnum("cause", "index_merge_hint");
         continue;
       }
@@ -5922,7 +6044,7 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
           if (key->type == SEL_ROOT::Type::MAYBE_KEY)
             trace_idx.add_alnum("cause", "depends_on_unread_values");
           else
-            trace_idx.add_alnum("cause", "unknown");
+            trace_idx.add_alnum("cause", "no_valid_range_for_this_index");
         else
           trace_idx.add_alnum("cause", "cost");
       }
@@ -11121,6 +11243,12 @@ void QUICK_GROUP_MIN_MAX_SELECT::add_info_string(String *str) {
   str->append(')');
 }
 
+void QUICK_SKIP_SCAN_SELECT::add_info_string(String *str) {
+  str->append(STRING_WITH_LEN("index_for_skip_scan("));
+  str->append(index_info->name);
+  str->append(')');
+}
+
 void QUICK_RANGE_SELECT::add_keys_and_lengths(String *key_names,
                                               String *used_lengths) {
   char buf[64];
@@ -13670,6 +13798,1003 @@ void QUICK_GROUP_MIN_MAX_SELECT::add_keys_and_lengths(String *key_names,
 }
 
 /**
+  Construct a new quick select object for queries doing skip scans.
+
+  SYNOPSIS
+    TRP_SKIP_SCAN::make_quick()
+    param              Parameter from test_quick_select
+    retrieve_full_rows ignored
+    parent_alloc       Memory pool to use
+
+  NOTES
+    Make_quick ignores the retrieve_full_rows parameter because
+    QUICK_SKIP_SCAN_SELECT always performs index only scans.
+
+  RETURN
+    New QUICK_SKIP_SCAN_SELECT object if successfully created,
+    NULL otherwise.
+*/
+
+QUICK_SELECT_I *TRP_SKIP_SCAN::make_quick(PARAM *param, bool,
+                                          MEM_ROOT *parent_alloc) {
+  QUICK_SKIP_SCAN_SELECT *quick = NULL;
+  DBUG_ENTER("TRP_SKIP_SCAN::make_quick");
+
+  quick = new QUICK_SKIP_SCAN_SELECT(
+      param->table, param->thd->lex->current_select()->join, index_info, index,
+      range_key_part, index_range_tree, eq_prefix_len, eq_prefix_parts,
+      used_key_parts, &cost_est, records, parent_alloc, has_aggregate_function);
+
+  if (!quick) DBUG_RETURN(NULL);
+
+  if (quick->init()) {
+    delete quick;
+    DBUG_RETURN(NULL);
+  }
+
+  /* Set range populates a QUICK_RANGE object from range_cond. */
+  if (!quick->set_range(range_cond)) {
+    delete quick;
+    DBUG_RETURN(NULL);
+  }
+  quick->forced_by_hint = forced_by_hint;
+  DBUG_RETURN(quick);
+}
+
+static void cost_skip_scan(TABLE *table, uint key, uint distinct_key_parts,
+                           ha_rows quick_prefix_records,
+                           Cost_estimate *cost_est, ha_rows *records,
+                           Item *where_cond, Opt_trace_object *trace_idx);
+
+/**
+  Test if skip scan is applicable and if so, construct a new TRP object.
+
+  DESCRIPTION
+    Test whether a query can be computed via a QUICK_SKIP_SCAN_SELECT.
+    The overall query form should look like this:
+
+       SELECT A_1,...,A_k, B_1,...,B_m, C
+         FROM T
+        WHERE
+         EQ(A_1,...,A_k)
+         AND RNG(C);
+
+    Queries computable via a QUICK_SKIP_SCAN_SELECT must satisfy the
+    following conditions:
+
+    A) Table T has at least one compound index I of the form:
+       I = <A_1,...,A_k, B_1,..., B_m, C ,[D_1,...,D_n]>
+       Keyparts A and D may be empty, but B and C must be non-empty.
+    B) Only one table referenced.
+    C) Cannot have group by/select distinct
+    D) Query must reference fields in the index only.
+    E) The predicates on A_1...A_k must be equality predicates and they need
+       to be constants. This includes the 'IN' operator.
+    F) The query must be a conjunctive query.
+       In other words, it is a AND of ORs:
+       (COND1(kp1) OR COND2(kp1)) AND (COND1(kp2) OR ...) AND ...
+       See get_sel_arg_for_keypart for details.
+    G) There must be a range condition on C.
+    H) Conditions on D columns are allowed. Conditions on D must be in
+       conjunction with range condition on C.
+
+  NOTES
+    If the current query satisfies the conditions above, and if
+    (mem_root! = NULL), then the function constructs and returns a new TRP
+    object, that is later used to construct a new QUICK_SKIP_SCAN_SELECT.
+
+  @param  param     Parameter from test_quick_select
+  @param  tree      Range tree generated by get_mm_tree
+  @param  force_skip_scan  TRUE if skip scan is forced by optimizer hint
+
+  @retval NULL, if skip index scan not applicable,
+          otherwise skip index scan table read plan.
+*/
+
+static TRP_SKIP_SCAN *get_best_skip_scan(PARAM *param, SEL_TREE *tree,
+                                         bool force_skip_scan) {
+  THD *thd = param->thd;
+  JOIN *join = thd->lex->current_select()->join;
+  TABLE *table = param->table;
+  const char *cause = NULL;
+  TRP_SKIP_SCAN *read_plan = NULL;
+  Opt_trace_context *const trace = &param->thd->opt_trace;
+  Cost_estimate best_read_cost;
+  ha_rows best_records = 0;
+  bool has_aggregate_function = false;
+  DBUG_ENTER("get_best_skip_scan");
+  best_read_cost.set_max_cost();
+  Opt_trace_object trace_group(trace, "skip_scan_range",
+                               Opt_trace_context::RANGE_OPTIMIZER);
+
+  if (!join)
+    cause = "no_join";
+  else if (join->primary_tables != 1) /* Query must reference one table. */
+    cause = "not_single_table";
+  else if (table->s->keys == 0) /* There are no indexes to use. */
+    cause = "no_index";
+  else if (join->group_list)
+    cause = "has_group_by";
+  else if (!tree)
+    cause = "disjuntive_predicate_present";
+  else if (join->select_distinct)
+    cause = "has_select_distinct";
+
+  if (cause != NULL) {
+    trace_group.add("chosen", false).add_alnum("cause", cause);
+    DBUG_RETURN(NULL);
+  }
+
+  KEY *index_info = NULL; /* The index chosen for data access. */
+  uint index = 0;
+  KEY_PART_INFO *range_key_part = NULL;
+  SEL_ROOT *index_range_tree = NULL;
+  SEL_ARG *cur_range = NULL;
+  SEL_ARG *range_sel_arg = NULL;
+  uint field_length;
+  uint eq_prefix_len = 0;
+  uint eq_prefix_parts = 0;
+  uint used_key_parts = 0;
+  Cost_estimate min_diff_cost;
+  Opt_trace_array trace_indices(trace, "potential_skip_scan_indexes");
+
+  if (join->sum_funcs[0]) {
+    Item_sum *min_max_item;
+    Item_sum **func_ptr = join->sum_funcs;
+    while ((min_max_item = *(func_ptr++))) {
+      /*
+        TODO: Investigate if this condition could be relaxed in
+        some cases.
+      */
+      if (min_max_item->sum_func() == Item_sum::COUNT_DISTINCT_FUNC ||
+          min_max_item->sum_func() == Item_sum::SUM_DISTINCT_FUNC ||
+          min_max_item->sum_func() == Item_sum::AVG_DISTINCT_FUNC) {
+        trace_group.add("chosen", false)
+            .add_alnum("cause", "has_aggregate_distinct");
+        DBUG_RETURN(NULL);
+      }
+    }
+    has_aggregate_function = true;
+  }
+
+  for (uint cur_param_idx = 0; cur_param_idx < param->keys; ++cur_param_idx) {
+    const uint cur_index = param->real_keynr[cur_param_idx];
+    KEY *const cur_index_info = &table->key_info[cur_index];
+
+    Opt_trace_object trace_idx(trace);
+    trace_idx.add_utf8("index", cur_index_info->name);
+    KEY_PART_INFO *cur_part;
+    KEY_PART_INFO *end_part;
+    Cost_estimate cur_read_cost;
+    ha_rows cur_records;
+    SEL_ARG *cur_range_sel_arg = NULL;
+    SEL_ROOT *cur_index_range_tree = NULL;
+    uint cur_eq_prefix_len = 0;
+    uint cur_eq_prefix_parts = 0;
+    KEY_PART_INFO *cur_range_key_part = NULL;
+    enum {
+      EQUALITY_KEYPART = 0,
+      SKIPPED_KEYPART = 1,
+      RANGE_KEYPART = 2,
+      TRAILING_KEYPART = 3
+    };
+    uint keypart_stage = EQUALITY_KEYPART;
+    uint cur_used_key_parts = 0;
+    uint part = 0;
+    ha_rows quick_prefix_records;
+
+    if (!compound_hint_key_enabled(param->table, cur_index,
+                                   SKIP_SCAN_HINT_ENUM)) {
+      cause = "skip_scan_hint";
+      goto next_index;
+    }
+
+    cur_part = cur_index_info->key_part;
+    end_part = cur_part + actual_key_parts(cur_index_info);
+
+    if (!table->covering_keys.is_set(cur_index)) {
+      cause = "query_references_nonkey_column";
+      goto next_index;
+    }
+
+    /* Extract equality constants that form the prefix. */
+    cur_index_range_tree = get_index_range_tree(cur_index, tree, param);
+    if (cur_index_range_tree == NULL) {
+      cause = "disjuntive_predicate_present";
+      goto next_index;
+    }
+    for (cur_part = cur_index_info->key_part; cur_part != end_part;
+         cur_part++, part++) {
+      SEL_ROOT *cur_range_root = NULL;
+      if (get_sel_root_for_keypart(cur_part->field, cur_index_range_tree,
+                                   &cur_range_root)) {
+        cause = "keypart_in_disjunctive_query";
+        goto next_index;
+      }
+
+      if (cur_range_root && cur_range_root->type != SEL_ROOT::Type::KEY_RANGE) {
+        cause = "not_a_key_range";
+        goto next_index;
+      }
+      // There is no range predicate on current key part.
+      if (cur_range_root == NULL) {
+        if (keypart_stage == EQUALITY_KEYPART ||
+            keypart_stage == RANGE_KEYPART) {
+          keypart_stage++;
+        }
+        continue;
+      }
+
+      cur_range = cur_range_root->root;
+      // There exists a range predicate on the current key part.
+      if (keypart_stage == EQUALITY_KEYPART) {
+        field_length = cur_part->store_length;
+        for (cur_range = cur_range->first(); cur_range;
+             cur_range = cur_range->next) {
+          // NEAR_MIN/NEAR_MAX means a strict inequality.
+          if ((cur_range->min_flag & NO_MIN_RANGE) ||
+              (cur_range->max_flag & NO_MAX_RANGE) ||
+              (cur_range->min_flag & NEAR_MIN) ||
+              (cur_range->max_flag & NEAR_MAX)) {
+            cause = "prefix_not_const_equality";
+            goto next_index;
+          }
+
+          if (!(cur_range->maybe_null() && cur_range->min_value[0] &&
+                cur_range->max_value[0]) &&  // IS NOT NULL
+              memcmp(cur_range->min_value, cur_range->max_value,
+                     field_length) != 0)  // not equality
+          {
+            cause = "prefix_not_const_equality";
+            goto next_index;
+          }
+        }
+        cur_eq_prefix_len += field_length;
+        cur_eq_prefix_parts++;
+      } else if (keypart_stage == SKIPPED_KEYPART) {
+        if (cur_range_root->elements > 1) {
+          cause = "range_predicate_too_complex";
+          goto next_index;
+        }
+        cur_range_key_part = cur_part;
+        cur_range_sel_arg = cur_range;
+        cur_used_key_parts = part + 1;
+        keypart_stage++;
+      }
+    }
+
+    if (keypart_stage < RANGE_KEYPART) {
+      cause = "no_range_predicate";
+      goto next_index;
+    }
+
+    DBUG_ASSERT(cur_used_key_parts >= 2);
+    table->possible_quick_keys.set_bit(cur_index);
+
+    DBUG_ASSERT(cur_index_range_tree);
+    {
+      Cost_estimate dummy_cost;
+      uint mrr_flags = HA_MRR_SORTED;
+      uint mrr_bufsize = 0;
+      /*
+        Calculate number of records returned by prefix equality ranges.
+      */
+      quick_prefix_records =
+          check_quick_select(param, cur_param_idx, true, cur_index_range_tree,
+                             false, &mrr_flags, &mrr_bufsize, &dummy_cost);
+    }
+    cost_skip_scan(table, cur_index, cur_used_key_parts - 1,
+                   quick_prefix_records, &cur_read_cost, &cur_records,
+                   join->where_cond, &trace_idx);
+
+    trace_idx.add("rows", cur_records).add("cost", cur_read_cost);
+
+    min_diff_cost = cur_read_cost;
+    min_diff_cost.multiply(DBL_EPSILON);
+    if (cur_read_cost < (best_read_cost - min_diff_cost)) {
+      index_info = cur_index_info;
+      index = cur_index;
+      best_read_cost = cur_read_cost;
+      best_records = cur_records;
+
+      eq_prefix_len = cur_eq_prefix_len;
+      eq_prefix_parts = cur_eq_prefix_parts;
+      index_range_tree = cur_index_range_tree;
+
+      range_sel_arg = cur_range_sel_arg;
+      range_key_part = cur_range_key_part;
+      used_key_parts = cur_used_key_parts;
+    }
+  next_index:
+    if (cause) {
+      trace_idx.add("usable", false).add_alnum("cause", cause);
+      cause = NULL;
+    }
+  }
+  trace_indices.end();
+
+  if (!index_info) /* No usable index found. */
+    DBUG_RETURN(NULL);
+
+  /* The query passes all tests, so construct a new TRP object. */
+  read_plan = new (param->mem_root) TRP_SKIP_SCAN(
+      index_info, index, index_range_tree, eq_prefix_len, eq_prefix_parts,
+      range_key_part, range_sel_arg, used_key_parts, force_skip_scan,
+      best_records, has_aggregate_function);
+  if (read_plan) {
+    read_plan->cost_est = best_read_cost;
+    read_plan->records = best_records;
+    DBUG_PRINT("info",
+               ("Returning skip scan: cost: %g, records: %lu",
+                read_plan->cost_est.total_cost(), (ulong)read_plan->records));
+  }
+  DBUG_RETURN(read_plan);
+}
+
+/**
+  Compute the cost of a QUICK_SKIP_SCAN_SELECT for a particular index.
+
+  SYNOPSIS
+    cost_skip_scan()
+    table                [in] The table being accessed
+    key                  [in] The index used to access the table
+    distinct_key_parts   [in] Number of key_parts used to get distinct prefix
+    quick_prefix_records [in] Number of records processed by prefix ranges
+    cost_est             [out] The cost to retrieve rows via this quick select
+    records              [out] The number of rows retrieved
+    where_cond           [in] WHERE condition
+    trace_idx            [in] optimizer_trace object
+
+  DESCRIPTION
+    This method computes the access cost of a TRP_SKIP_SCAN instance and
+    the number of rows returned.
+
+  NOTES
+
+    To estimate the size of the groups to read, index statistics
+    from rec_per_key is used. Each equality range decreases
+    number of the groups to read. The total number of processed
+    records from all the groups will be quick_prefix_records if
+    there are equality ranges else it will be the entire table.
+    Number of distinct group is calculated by dividing the
+    number of processed record by the number keys in a group.
+
+    Number of processed records is calculated using following formula:
+
+    records = number_of_distinct_groups * records_per_group * filtering_effect
+
+    where filtering_effect is filtering effect of the range condition.
+
+  RETURN
+    None
+*/
+
+void cost_skip_scan(TABLE *table, uint key, uint distinct_key_parts,
+                    ha_rows quick_prefix_records, Cost_estimate *cost_est,
+                    ha_rows *records, Item *where_cond,
+                    Opt_trace_object *trace_idx) {
+  ha_rows table_records, skip_scan_records;
+  uint num_groups;
+  rec_per_key_t keys_per_group;
+  const KEY *const index_info = &table->key_info[key];
+  DBUG_ENTER("cost_skip_scan");
+
+  table_records = table->file->stats.records;
+  if (quick_prefix_records == HA_POS_ERROR)
+    skip_scan_records = table_records;
+  else
+    skip_scan_records = quick_prefix_records;
+
+  /* Compute the number of keys in a group. */
+  if (index_info->has_records_per_key(distinct_key_parts))
+    // Use index statistics
+    keys_per_group = index_info->records_per_key(distinct_key_parts - 1);
+  else
+    /* If there is no statistics try to guess */
+    keys_per_group = guess_rec_per_key(table, index_info, distinct_key_parts);
+
+  num_groups = (uint)(skip_scan_records / keys_per_group) + 1;
+  set_if_bigger(num_groups, 1);
+
+  /* Calculate filtering effect for the range condition */
+  {
+    rec_per_key_t keys_per_range;
+    table_map used_tables = 0;
+    char buf[MAX_FIELDS / 8];
+    my_bitmap_map *bitbuf =
+        static_cast<my_bitmap_map *>(static_cast<void *>(&buf));
+    MY_BITMAP ignored_fields;
+    bitmap_init(&ignored_fields, bitbuf, table->s->fields, false);
+    bitmap_set_all(&ignored_fields);
+    bitmap_clear_bit(
+        &ignored_fields,
+        index_info->key_part[distinct_key_parts].field->field_index);
+
+    /* Compute the number of records per group for the range. */
+    if (index_info->has_records_per_key(distinct_key_parts))
+      keys_per_range = index_info->records_per_key(distinct_key_parts);
+    else
+      keys_per_range =
+          guess_rec_per_key(table, index_info, distinct_key_parts + 1);
+    /*
+      Calculation of the filtering effect is based on
+      Item_field::get_cond_filter_default_probability() where
+      max distinct values is used as an argument. So number of
+      keys in distinct group is divided by keys_per_range.
+    */
+    float filtering_effect = where_cond->get_filtering_effect(
+        table->in_use, table->pos_in_table_list->map(), used_tables,
+        &ignored_fields,
+        static_cast<double>((uint)keys_per_group / (uint)keys_per_range));
+    *records = skip_scan_records * filtering_effect;
+    set_if_bigger(*records, 1);
+  }
+
+  /* Estimate IO cost. */
+  const Cost_model_table *const cost_model = table->cost_model();
+  Cost_estimate cost_skip_scan =
+      table->file->index_scan_cost(key, num_groups, *records);
+
+  /* CPU cost*/
+  const double tree_height =
+      table_records == 0 ? 1.0 : ceil(log2(double(table_records)));
+  const double tree_traversal_cost = cost_model->key_compare_cost(tree_height);
+  /* Number of re-positions happens twice per group. */
+  trace_idx->add("tree_travel_cost", tree_traversal_cost)
+      .add("num_groups", num_groups);
+  const double cpu_cost =
+      tree_traversal_cost * num_groups * 2 +
+      cost_model->row_evaluate_cost(static_cast<double>(*records)) +
+      cost_model->key_compare_cost(static_cast<double>(*records));
+  cost_skip_scan.add_cpu(cpu_cost);
+
+  *cost_est = cost_skip_scan;
+
+  DBUG_PRINT("info",
+             ("table rows: %lu keys/group: %u result rows: %lu",
+              (ulong)table_records, (uint)keys_per_group, (ulong)*records));
+  DBUG_VOID_RETURN;
+}
+
+/**
+  Construct new quick select for queries that can do skip scans.
+  See get_best_skip_scan() description for more details.
+
+  SYNOPSIS
+    QUICK_SKIP_SCAN_SELECT::QUICK_SKIP_SCAN_SELECT()
+    table              The table being accessed
+    join               Descriptor of the current query
+    index_info         The index chosen for data access
+    use_index          The id of index_info
+    range_part         The keypart belonging to the range condition C
+    index_range_tree   The complete range key
+    eq_prefix_len      Length of the equality prefix key
+    eq_prefix_parts    Number of keyparts in the equality prefix
+    used_key_parts_arg Total number of keyparts A_1,...,C
+    read_cost_arg      Cost of this access method
+    read_records       Number of records returned
+    parent_alloc       Memory pool for this class
+
+  RETURN
+    None
+*/
+
+QUICK_SKIP_SCAN_SELECT::QUICK_SKIP_SCAN_SELECT(
+    TABLE *table, JOIN *join, KEY *index_info, uint use_index,
+    KEY_PART_INFO *range_part, SEL_ROOT *index_range_tree, uint eq_prefix_len,
+    uint eq_prefix_parts, uint used_key_parts_arg,
+    const Cost_estimate *read_cost_arg, ha_rows read_records,
+    MEM_ROOT *parent_alloc, bool has_aggregate_function)
+    : join(join),
+      index_info(index_info),
+      index_range_tree(index_range_tree),
+      eq_prefix_len(eq_prefix_len),
+      eq_prefix_key_parts(eq_prefix_parts),
+      distinct_prefix(NULL),
+      range_key_part(range_part),
+      seen_first_key(false),
+      min_range_key(NULL),
+      max_range_key(NULL),
+      min_search_key(NULL),
+      max_search_key(NULL),
+      has_aggregate_function(has_aggregate_function) {
+  head = table;
+  index = use_index;
+  record = head->record[0];
+  cost_est = *read_cost_arg;
+  records = read_records;
+
+  used_key_parts = used_key_parts_arg;
+  max_used_key_length = 0;
+  distinct_prefix_len = 0;
+  range_cond_flag = 0;
+  KEY_PART_INFO *p = index_info->key_part;
+
+  my_bitmap_map *bitmap;
+  if (!(bitmap = (my_bitmap_map *)my_malloc(key_memory_my_bitmap_map,
+                                            head->s->column_bitmap_size,
+                                            MYF(MY_WME)))) {
+    column_bitmap.bitmap = 0;
+  } else
+    bitmap_init(&column_bitmap, bitmap, head->s->fields, false);
+  bitmap_copy(&column_bitmap, head->read_set);
+
+  for (uint i = 0; i < used_key_parts; i++, p++) {
+    max_used_key_length += p->store_length;
+    /*
+      The last key part contains the subrange scan that we want to execute
+      for every distinct prefix. There is only ever one keypart, so just
+      exclude the last key from the distinct prefix.
+    */
+    if (i + 1 < used_key_parts) {
+      distinct_prefix_len += p->store_length;
+      bitmap_set_bit(&column_bitmap, p->field->field_index);
+    }
+  }
+  distinct_prefix_key_parts = used_key_parts - 1;
+
+  /*
+    See QUICK_GROUP_MIN_MAX_SELECT::QUICK_GROUP_MIN_MAX_SELECT
+    for why parent_alloc should be NULL.
+  */
+  DBUG_ASSERT(!parent_alloc);
+  if (!parent_alloc) {
+    init_sql_alloc(key_memory_quick_group_min_max_select_root, &alloc,
+                   join->thd->variables.range_alloc_block_size, 0);
+    join->thd->mem_root = &alloc;
+  } else
+    ::new (&alloc) MEM_ROOT;  // ensure that it's not used
+}
+
+/**
+  Do post-constructor initialization.
+
+  SYNOPSIS
+    QUICK_SKIP_SCAN_SELECT::init()
+
+  DESCRIPTION
+    The method performs initialization that cannot be done in the constructor
+    such as memory allocations that may fail. It allocates memory for the
+    equality prefix and distinct prefix buffers. It also extracts all equality
+    prefixes from index_range_tree, as well as allocates memory to store them.
+
+  RETURN
+    0      OK
+    other  Error code
+*/
+
+int QUICK_SKIP_SCAN_SELECT::init() {
+  if (distinct_prefix) return 0;
+
+  DBUG_ASSERT(distinct_prefix_key_parts > 0 && distinct_prefix_len > 0);
+  if (!(distinct_prefix = (uchar *)alloc_root(&alloc, distinct_prefix_len)))
+    return 1;
+
+  if (eq_prefix_len > 0) {
+    eq_prefix = (uchar *)alloc_root(&alloc, eq_prefix_len);
+    if (!eq_prefix) return 1;
+  } else {
+    eq_prefix = NULL;
+  }
+
+  if (eq_prefix_key_parts > 0) {
+    if (!(cur_eq_prefix =
+              (uint *)alloc_root(&alloc, eq_prefix_key_parts * sizeof(uint))))
+      return 1;
+    if (!(eq_key_prefixes = (uchar ***)alloc_root(
+              &alloc, eq_prefix_key_parts * sizeof(uchar **))))
+      return 1;
+    if (!(eq_prefix_elements =
+              (uint *)alloc_root(&alloc, eq_prefix_key_parts * sizeof(uint))))
+      return 1;
+
+    const SEL_ARG *cur_range = index_range_tree->root->first();
+    const SEL_ARG *first_range = NULL;
+    const SEL_ROOT *cur_root = index_range_tree;
+    for (uint i = 0; i < eq_prefix_key_parts;
+         i++, cur_range = cur_range->next_key_part->root) {
+      cur_eq_prefix[i] = 0;
+      eq_prefix_elements[i] = cur_root->elements;
+      cur_root = cur_range->next_key_part;
+      DBUG_ASSERT(eq_prefix_elements[i] > 0);
+      if (!(eq_key_prefixes[i] = (uchar **)alloc_root(
+                &alloc, eq_prefix_elements[i] * sizeof(uchar *))))
+        return 1;
+
+      uint j = 0;
+      first_range = cur_range->first();
+      for (cur_range = first_range; cur_range;
+           j++, cur_range = cur_range->next) {
+        KEY_PART_INFO *keypart = index_info->key_part + i;
+        size_t field_length = keypart->store_length;
+        //  Store ranges in the reverse order if key part is descending.
+        uint pos = cur_range->is_ascending ? j : eq_prefix_elements[i] - j - 1;
+
+        if (!(eq_key_prefixes[i][pos] =
+                  (uchar *)alloc_root(&alloc, field_length)))
+          return 1;
+
+        if (cur_range->maybe_null() && cur_range->min_value[0] &&
+            cur_range->max_value[0]) {
+          DBUG_ASSERT(field_length > 0);
+          eq_key_prefixes[i][pos][0] = 0x1;
+        } else {
+          DBUG_ASSERT(memcmp(cur_range->min_value, cur_range->max_value,
+                             field_length) == 0);
+          memcpy(eq_key_prefixes[i][pos], cur_range->min_value, field_length);
+        }
+      }
+      cur_range = first_range;
+      DBUG_ASSERT(j == eq_prefix_elements[i]);
+    }
+  }
+
+  return 0;
+}
+
+QUICK_SKIP_SCAN_SELECT::~QUICK_SKIP_SCAN_SELECT() {
+  DBUG_ENTER("QUICK_SKIP_SCAN_SELECT::~QUICK_SKIP_SCAN_SELECT");
+  if (head->file->inited) head->file->ha_index_or_rnd_end();
+
+  my_free(column_bitmap.bitmap);
+  free_root(&alloc, MYF(0));
+  DBUG_VOID_RETURN;
+}
+
+/**
+  Setup fileds that hold the range condition on key part C.
+
+  SYNOPSIS
+    QUICK_SKIP_SCAN_SELECT::set_range()
+    sel_range  Range object from which the fields will be populated with.
+
+  NOTES
+    This is only the suffix of the whole key, that we use
+    to append to the prefix to get the full key later on.
+  RETURN
+    true on success
+    false otherwise
+*/
+
+bool QUICK_SKIP_SCAN_SELECT::set_range(SEL_ARG *sel_range) {
+  DBUG_ENTER("QUICK_SKIP_SCAN_SELECT::set_range");
+  uchar *min_value, *max_value;
+
+  if (!(sel_range->min_flag & NO_MIN_RANGE) &&
+      !(sel_range->max_flag & NO_MAX_RANGE)) {
+    // IS NULL condition
+    if (sel_range->maybe_null() && sel_range->min_value[0] &&
+        sel_range->max_value[0])
+      range_cond_flag |= NULL_RANGE;
+    // equality condition
+    else if (memcmp(sel_range->min_value, sel_range->max_value,
+                    range_key_part->store_length) == 0)
+      range_cond_flag |= EQ_RANGE;
+  }
+
+  if (sel_range->is_ascending) {
+    range_cond_flag |= sel_range->min_flag | sel_range->max_flag;
+    min_value = sel_range->min_value;
+    max_value = sel_range->max_value;
+  } else {
+    range_cond_flag |= invert_min_flag(sel_range->min_flag) |
+                       invert_max_flag(sel_range->max_flag);
+    min_value = sel_range->max_value;
+    max_value = sel_range->min_value;
+  }
+
+  range_key_len = range_key_part->store_length;
+
+  // Allocate storage for min/max key if they exist.
+  if (!(range_cond_flag & NO_MIN_RANGE)) {
+    if (!(min_range_key = (uchar *)alloc_root(&alloc, range_key_len)))
+      DBUG_RETURN(false);
+    if (!(min_search_key = (uchar *)alloc_root(&alloc, max_used_key_length)))
+      DBUG_RETURN(false);
+
+    memcpy(min_range_key, min_value, range_key_len);
+  }
+  if (!(range_cond_flag & NO_MAX_RANGE)) {
+    if (!(max_range_key = (uchar *)alloc_root(&alloc, range_key_len)))
+      DBUG_RETURN(false);
+    if (!(max_search_key = (uchar *)alloc_root(&alloc, max_used_key_length)))
+      DBUG_RETURN(false);
+
+    memcpy(max_range_key, max_value, range_key_len);
+  }
+
+  DBUG_RETURN(true);
+}
+
+/**
+  Initialize a quick skip scan index select for key retrieval.
+
+  SYNOPSIS
+    QUICK_SKIP_SCAN_SELECT::reset()
+
+  DESCRIPTION
+    Initialize the index chosen for access and initialize what the first
+    equality key prefix should be.
+
+  RETURN
+    0      OK
+    other  Error code
+*/
+
+int QUICK_SKIP_SCAN_SELECT::reset(void) {
+  DBUG_ENTER("QUICK_SKIP_SCAN_SELECT::reset");
+
+  int result;
+  seen_first_key = false;
+  head->set_keyread(true);  // This access path demands index-only reads.
+  MY_BITMAP *const save_read_set = head->read_set;
+
+  head->column_bitmaps_set_no_signal(&column_bitmap, head->write_set);
+  if ((result = head->file->ha_index_init(index, true))) {
+    head->file->print_error(result, MYF(0));
+    DBUG_RETURN(result);
+  }
+
+  // Set the first equality prefix.
+  size_t offset = 0;
+  for (uint i = 0; i < eq_prefix_key_parts; i++) {
+    const uchar *key = eq_key_prefixes[i][0];
+    cur_eq_prefix[i] = 0;
+    uint part_length = (index_info->key_part + i)->store_length;
+    memcpy(eq_prefix + offset, key, part_length);
+    offset += part_length;
+    DBUG_ASSERT(offset <= eq_prefix_len);
+  }
+
+  head->column_bitmaps_set_no_signal(save_read_set, head->write_set);
+  DBUG_RETURN(0);
+}
+
+/**
+  Increments cur_prefix and sets what the next equality prefix should be.
+
+  SYNOPSIS
+    QUICK_SKIP_SCAN_SELECT::next_eq_prefix()
+
+  DESCRIPTION
+    Increments cur_prefix and sets what the next equality prefix should be.
+    This is done in index order, so the increment happens on the last keypart.
+    The key is written to eq_prefix.
+
+  RETURN
+    true   OK
+    false  No more equality key prefixes.
+*/
+
+bool QUICK_SKIP_SCAN_SELECT::next_eq_prefix() {
+  DBUG_ENTER("QUICK_SKIP_SCAN_SELECT::next_eq_prefix");
+  /*
+    Counts at which position we're at in eq_prefix from the back of the
+    string.
+  */
+  size_t reverse_offset = 0;
+
+  // Increment the cur_prefix count.
+  for (uint i = 0; i < eq_prefix_key_parts; i++) {
+    uint part = eq_prefix_key_parts - i - 1;
+    DBUG_ASSERT(cur_eq_prefix[part] < eq_prefix_elements[part]);
+    uint part_length = (index_info->key_part + part)->store_length;
+    reverse_offset += part_length;
+
+    cur_eq_prefix[part]++;
+    const uchar *key =
+        eq_key_prefixes[part][cur_eq_prefix[part] % eq_prefix_elements[part]];
+    memcpy(eq_prefix + eq_prefix_len - reverse_offset, key, part_length);
+    if (cur_eq_prefix[part] == eq_prefix_elements[part]) {
+      cur_eq_prefix[part] = 0;
+      if (part == 0) {
+        // This is the last key part.
+        DBUG_RETURN(false);
+      }
+    } else {
+      break;
+    }
+  }
+
+  DBUG_RETURN(true);
+}
+
+/**
+  Get the next row for skip scan.
+
+  SYNOPSIS
+    QUICK_SKIP_SCAN_SELECT::get_next()
+
+  DESCRIPTION
+    Find the next record in the skip scan. The scan is broken into groups
+    based on distinct A_1,...,B_m. The strategy is to have an outer loop
+    going through all possible A_1,...,A_k. This work is done in
+    next_eq_prefix().
+
+    For each equality prefix that we get from "next_eq_prefix() we loop through
+    all distinct B_1,...,B_m within that prefix. And for each of those groups
+    we do a subrange scan on keypart C.
+
+    The high level algorithm is like so:
+    for (eq_prefix in eq_prefixes)       // (A_1,....A_k)
+      for (distinct_prefix in eq_prefix) // A_1-B_1,...,A_k-B_m
+        do subrange scan within distinct prefix
+          using range_cond               // A_1-B_1-C,...A_k-B_m-C
+
+    But since this is a iterator interface, state needs to be kept between
+    calls. State is stored in eq_prefix, cur_eq_prefix and distinct_prefix.
+
+  NOTES
+    We can be more memory efficient by combining some of these fields. For
+    example, eq_prefix will always be a prefix of distinct_prefix, and
+    distinct_prefix will always be a prefix of min_search_key/max_search_key.
+
+  RETURN
+    0                  on success
+    HA_ERR_END_OF_FILE if returned all keys
+    other              if some error occurred
+*/
+
+int QUICK_SKIP_SCAN_SELECT::get_next() {
+  DBUG_ENTER("QUICK_SKIP_SCAN_SELECT::get_next");
+  int result = HA_ERR_END_OF_FILE;
+  int past_eq_prefix = 0;
+  bool is_prefix_valid = seen_first_key;
+
+  DBUG_ASSERT(distinct_prefix_len + range_key_len == max_used_key_length);
+  do {
+    if (!is_prefix_valid) {
+      MY_BITMAP *const save_read_set = head->read_set;
+      head->column_bitmaps_set_no_signal(&column_bitmap, head->write_set);
+
+      if (!seen_first_key) {
+        if (eq_prefix_key_parts == 0) {
+          result = head->file->ha_index_first(record);
+        } else {
+          result = head->file->ha_index_read_map(
+              record, eq_prefix, make_prev_keypart_map(eq_prefix_key_parts),
+              HA_READ_KEY_OR_NEXT);
+        }
+        seen_first_key = true;
+      } else {
+        result = index_next_different(
+            false /* is_index_scan */, head->file, index_info->key_part, record,
+            distinct_prefix, distinct_prefix_len, distinct_prefix_key_parts);
+      }
+
+      head->column_bitmaps_set_no_signal(save_read_set, head->write_set);
+
+      if (result) goto exit;
+
+      // Save the prefix of this group for subsequent calls.
+      key_copy(distinct_prefix, record, index_info, distinct_prefix_len);
+
+      if (eq_prefix) {
+        past_eq_prefix =
+            key_cmp(index_info->key_part, eq_prefix, eq_prefix_len);
+        DBUG_ASSERT(past_eq_prefix >= 0);
+
+        // We are past the equality prefix, so get the next prefix.
+        if (past_eq_prefix > 0) {
+          bool has_next = next_eq_prefix();
+          if (has_next) {
+            /*
+              Reset seen_first_key so that we can determine the next distinct
+              prefix.
+            */
+            seen_first_key = false;
+            result = HA_ERR_END_OF_FILE;
+            continue;
+          }
+          result = HA_ERR_END_OF_FILE;
+          goto exit;
+        }
+      }
+
+      // We should not be doing a skip scan if there is no range predicate.
+      DBUG_ASSERT(!(range_cond_flag & NO_MIN_RANGE) ||
+                  !(range_cond_flag & NO_MAX_RANGE));
+
+      if (!(range_cond_flag & NO_MIN_RANGE)) {
+        // If there is a minimum key, append to the distinct prefix.
+        memcpy(min_search_key, distinct_prefix, distinct_prefix_len);
+        memcpy(min_search_key + distinct_prefix_len, min_range_key,
+               range_key_len);
+        start_key.key = min_search_key;
+        start_key.length = max_used_key_length;
+        start_key.keypart_map = make_prev_keypart_map(used_key_parts);
+        start_key.flag = (range_cond_flag & (EQ_RANGE | NULL_RANGE))
+                             ? HA_READ_KEY_EXACT
+                             : (range_cond_flag & NEAR_MIN)
+                                   ? HA_READ_AFTER_KEY
+                                   : HA_READ_KEY_OR_NEXT;
+      } else {
+        // If there is no minimum key, just use the distinct prefix.
+        start_key.key = distinct_prefix;
+        start_key.length = distinct_prefix_len;
+        start_key.keypart_map = make_prev_keypart_map(used_key_parts - 1);
+        start_key.flag = HA_READ_KEY_OR_NEXT;
+      }
+
+      /*
+        It is not obvious what the semantics of HA_READ_BEFORE_KEY,
+        HA_READ_KEY_EXACT and HA_READ_AFTER_KEY are for end_key.
+
+        See handler::set_end_range for details on what they do.
+      */
+      if (!(range_cond_flag & NO_MAX_RANGE)) {
+        // If there is a maximum key, append to the distinct prefix.
+        memcpy(max_search_key, distinct_prefix, distinct_prefix_len);
+        memcpy(max_search_key + distinct_prefix_len, max_range_key,
+               range_key_len);
+        end_key.key = max_search_key;
+        end_key.length = max_used_key_length;
+        end_key.keypart_map = make_prev_keypart_map(used_key_parts);
+        //  See comment in quick_range_seq_next for why these flags are set.
+        end_key.flag = (range_cond_flag & NEAR_MAX) ? HA_READ_BEFORE_KEY
+                                                    : HA_READ_AFTER_KEY;
+      } else {
+        // If there is no maximum key, just use the distinct prefix.
+        end_key.key = distinct_prefix;
+        end_key.length = distinct_prefix_len;
+        end_key.keypart_map = make_prev_keypart_map(used_key_parts - 1);
+        end_key.flag = HA_READ_AFTER_KEY;
+      }
+      is_prefix_valid = true;
+
+      result = head->file->ha_read_range_first(
+          &start_key, &end_key, MY_TEST(range_cond_flag & EQ_RANGE),
+          true /* sorted */);
+      if (result) {
+        if (result == HA_ERR_END_OF_FILE) {
+          is_prefix_valid = false;
+          continue;
+        }
+        goto exit;
+      }
+    } else {
+      result = head->file->ha_read_range_next();
+      if (result) {
+        if (result == HA_ERR_END_OF_FILE) {
+          is_prefix_valid = false;
+          continue;
+        }
+        goto exit;
+      }
+    }
+  } while ((result == HA_ERR_KEY_NOT_FOUND || result == HA_ERR_END_OF_FILE));
+
+exit:
+  if (result == HA_ERR_KEY_NOT_FOUND) result = HA_ERR_END_OF_FILE;
+
+  DBUG_RETURN(result);
+}
+
+/**
+  Append comma-separated list of keys this quick select uses to key_names;
+  append comma-separated list of corresponding used lengths to used_lengths.
+
+  SYNOPSIS
+    QUICK_SKIP_SCAN_SELECT::add_keys_and_lengths()
+    key_names    [out] Names of used indexes
+    used_lengths [out] Corresponding lengths of the index names
+
+  DESCRIPTION
+    This method is used by select_describe to extract the names of the
+    indexes used by a quick select.
+
+*/
+
+void QUICK_SKIP_SCAN_SELECT::add_keys_and_lengths(String *key_names,
+                                                  String *used_lengths) {
+  char buf[64];
+  uint length;
+  key_names->append(index_info->name);
+  length = longlong2str(max_used_key_length, buf, 10) - buf;
+  used_lengths->append(buf, length);
+}
+
+/**
   Traverse the R-B range tree for this and later keyparts to see if
   there are at least as many equality ranges as defined by the limit.
 
@@ -14304,6 +15429,38 @@ void QUICK_GROUP_MIN_MAX_SELECT::dbug_dump(int indent, bool verbose) {
   if (min_max_ranges.size() > 0) {
     fprintf(DBUG_FILE, "%*susing %d quick_ranges for MIN/MAX:\n", indent, "",
             static_cast<int>(min_max_ranges.size()));
+  }
+}
+
+void QUICK_SKIP_SCAN_SELECT::dbug_dump(int indent, bool verbose) {
+  fprintf(DBUG_FILE, "%*squick_skip_scan_select: index %s (%d), length: %d\n",
+          indent, "", index_info->name, index, max_used_key_length);
+  if (eq_prefix_len > 0) {
+    fprintf(DBUG_FILE, "%*susing eq_prefix with length %d:\n", indent, "",
+            eq_prefix_len);
+  }
+
+  if (verbose) {
+    char buff1[512];
+    buff1[0] = '\0';
+    String range_result(buff1, sizeof(buff1), system_charset_info);
+
+    if (index_range_tree && eq_prefix_key_parts > 0) {
+      range_result.length(0);
+      char buff2[128];
+      String range_so_far(buff2, sizeof(buff2), system_charset_info);
+      range_so_far.length(0);
+      append_range_all_keyparts(NULL, &range_result, &range_so_far,
+                                index_range_tree, index_info->key_part, false);
+      fprintf(DBUG_FILE, "Prefix ranges: %s\n", range_result.c_ptr());
+    }
+
+    {
+      range_result.length(0);
+      append_range(&range_result, range_key_part, min_range_key, max_range_key,
+                   range_cond_flag);
+      fprintf(DBUG_FILE, "Range: %s\n", range_result.c_ptr());
+    }
   }
 }
 

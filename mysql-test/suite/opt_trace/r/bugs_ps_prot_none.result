@@ -1690,6 +1690,20 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                           "chosen": false,
                                           "cause": "not_group_by_or_distinct"
                                         } /* group_index_range */,
+                                        "skip_scan_range": {
+                                          "potential_skip_scan_indexes": [
+                                            {
+                                              "index": "a",
+                                              "usable": false,
+                                              "cause": "no_range_predicate"
+                                            },
+                                            {
+                                              "index": "a_2",
+                                              "usable": false,
+                                              "cause": "no_range_predicate"
+                                            }
+                                          ] /* potential_skip_scan_indexes */
+                                        } /* skip_scan_range */,
                                         "analyzing_range_alternatives": {
                                           "range_scan_alternatives": [
                                             {

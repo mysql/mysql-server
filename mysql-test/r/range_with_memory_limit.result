@@ -249,6 +249,8 @@ INSERT INTO t1 (art) VALUES ('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'
 select count(*) from t1 where upper(art) = 'J';
 count(*)
 213
+Warnings:
+Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 select count(*) from t1 where art = 'J' or art = 'j';
 count(*)
 602
@@ -1571,7 +1573,11 @@ VALUES ( 1, 1), ( 2, 1), ( 3, 1), ( 4, 1), ( 5, 1),
 (11, 1), (12, 1), (13, 1), (14, 1), (15, 1),
 (16, 1), (17, 1), (18, 1), (19, 1), (20, 1);
 INSERT INTO t2 SELECT a, 2 FROM t2 WHERE b = 1;
+Warnings:
+Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 INSERT INTO t2 SELECT a, 3 FROM t2 WHERE b = 1;
+Warnings:
+Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 INSERT INTO t2 SELECT -1, -1 FROM t2;
 INSERT INTO t2 SELECT -1, -1 FROM t2;
 INSERT INTO t2 SELECT -1, -1 FROM t2;
@@ -2293,6 +2299,8 @@ insert into t2 select null,id*0.0009 from t1;
 select count(val) from t2 ignore index (val) where val > 0.1155;
 count(val)
 128
+Warnings:
+Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 select count(val) from t2 force index (val)  where val > 0.1155;
 count(val)
 128
@@ -3457,6 +3465,7 @@ EXPLAIN SELECT a, b FROM t1 WHERE (a, b) IN ((f1(), 1));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	NULL	x	10	NULL	4098	1.00	Using where; Using index
 Warnings:
+Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = 1) and (`test`.`t1`.`a` = `f1`()))
 DROP FUNCTION f1;
 # The statement immediately below should not use range access.
@@ -3470,6 +3479,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1276	Field or reference 'test.t1o.a' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1o.b' of SELECT #2 was resolved in SELECT #1
+Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 Note	1003	/* select#1 */ select `test`.`t1o`.`a` AS `a`,`test`.`t1o`.`b` AS `b` from `test`.`t1` `t1o` where exists(/* select#2 */ select 1 from `test`.`t1` where ((`test`.`t1`.`a` = `test`.`t1o`.`a`) and (`test`.`t1`.`b` = `test`.`t1o`.`b`)))
 #
 # Tests of dynamic range access
@@ -3809,6 +3819,7 @@ c
 1
 Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
+Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 SELECT (SELECT 1
 FROM t1
 WHERE id > SUM(1)
@@ -3818,6 +3829,7 @@ GROUP BY col1;
 c
 1
 Warnings:
+Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 SELECT (SELECT 1
 FROM t1
@@ -3829,6 +3841,7 @@ c
 1
 Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
+Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 SELECT (SELECT 1
 FROM t1
 WHERE id BETWEEN SUM(1) AND SUM(5)
@@ -3839,6 +3852,7 @@ c
 1
 Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
+Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 SELECT (SELECT 1
 FROM t1
 WHERE SUM(1) BETWEEN COUNT(*) AND id
@@ -3848,6 +3862,7 @@ GROUP BY col1;
 c
 1
 Warnings:
+Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 DROP TABLE t1;
 #
@@ -3899,6 +3914,8 @@ INSERT INTO t1 VALUES (1, 1, 1), (1, 1, 2), (1, 1, 3),
 (1, 1, 4), (1, 1, 5);
 INSERT INTO t1 SELECT c1, 2, c3 FROM t1;
 INSERT INTO t1 SELECT c1, 3, c3 FROM t1 WHERE c2 = 1;
+Warnings:
+Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
