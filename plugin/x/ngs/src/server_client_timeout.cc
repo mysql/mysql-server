@@ -40,8 +40,8 @@ void Server_client_timeout::validate_client_state(
   if (Client_interface::Client_accepted == state ||
       Client_interface::Client_authenticating_first == state) {
     if (client_accept_time <= m_release_all_before_time) {
-      log_info(ER_XPLUGIN_CLIENT_RELEASE_TRIGGERED, client->client_id(),
-               static_cast<int>(state));
+      log_debug("%s: release triggered by timeout in state:%i",
+                client->client_id(), static_cast<int>(state));
       client->on_auth_timeout();
       return;
     }

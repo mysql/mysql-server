@@ -26,7 +26,7 @@ EOF
 
 --let UNIX_SOCKET_REGEX= / \/.*\.(custom|socket) / SOCKET /
 
-call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket ..+/mysqlx.custom. failed, lock file is empty");
+call mtr.add_suppression("Plugin mysqlx reported: .Setup of socket: '..+/mysqlx.custom' failed, lock file is empty");
 --replace_regex /loose-mysqlx-socket=.*custom/loose-mysqlx-socket=SOCKET/
 let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/mysqlx.custom;
 --let $wait_for_unixsocket_status = undefined_value
@@ -38,7 +38,7 @@ let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/mysqlx.c
 
 
 --mkdir $MYSQL_TMP_DIR/mysqlx.dir.socket.lock
-call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket ..+/mysqlx.dir.socket. failed, can't read lock file");
+call mtr.add_suppression("Plugin mysqlx reported: .Setup of socket: '..+/mysqlx.dir.socket' failed, can't read lock file");
 call mtr.add_suppression("Plugin mysqlx reported: .* wasn't allocated by X Plugin ..+/mysqlx.dir.socket.lock");
 --replace_regex /loose-mysqlx-socket=.*socket/loose-mysqlx-socket=SOCKET/
 let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/mysqlx.dir.socket;
@@ -55,7 +55,7 @@ let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/mysqlx.d
 Xinvalid_number
 EOF
 
-call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket ..+/mysqlx.custom. failed, invalid PID in UNIX socket lock file ");
+call mtr.add_suppression("Plugin mysqlx reported: .Setup of socket: '..+/mysqlx.custom' failed, invalid PID in UNIX socket lock file ");
 --replace_regex /loose-mysqlx-socket=.*custom/loose-mysqlx-socket=SOCKET/
 let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/mysqlx.custom;
 --let $wait_for_unixsocket_status = undefined_value

@@ -12,17 +12,17 @@ SET @@global.mysqlx_socket='invalid';
 ERROR HY000: Variable 'mysqlx_socket' is a read only variable
 SET GLOBAL mysqlx_socket=$MYSQL_TMP_DIR/socket_mysqlx.sock;
 ERROR HY000: Variable 'mysqlx_socket' is a read only variable
-call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket \(.+\) failed, the socket file path is empty");
+call mtr.add_suppression("Plugin mysqlx reported: .Setup of socket: '' failed, the socket file path is empty");
 # restart: --loose-mysqlx-socket=
 in main, line 0:ERROR: No such file or directory, while connecting to  SOCKET (code 2002)
 not ok
-call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket \(.+\) failed, can't create lock file /dev/null/mysqlx\.sock\.lock");
+call mtr.add_suppression("Plugin mysqlx reported: .Setup of socket: '\(.+\)' failed, can't create lock file /dev/null/mysqlx\.sock\.lock");
 # restart: --loose-mysqlx-socket=/dev/null/mysqlx.sock
 in main, line 0:ERROR: No such file or directory, while connecting to  SOCKET (code 2002)
 not ok
 in main, line 0:ERROR: Not a directory, while connecting to  SOCKET (code 2002)
 not ok
-call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket \(.+\) failed, lock file wasn't allocated by X Plugin");
+call mtr.add_suppression("Plugin mysqlx reported: .Setup of socket: '\(.+\)' failed, lock file wasn't allocated by X Plugin");
 # restart: --loose-mysqlx-socket= SOCKET
 # restart: --loose-mysqlx-socket= SOCKET
 RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
@@ -33,19 +33,19 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket \(.+\) failed, .bind... on UNIX socket failed with error");
+call mtr.add_suppression("Plugin mysqlx reported: .Setup of socket: '\(.+\)' failed, .bind... on UNIX socket failed with error");
 # restart: --loose-mysqlx-socket= SOCKET
 in main, line 0:ERROR: Connection refused, while connecting to  SOCKET (code 2002)
 not ok
-call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket \(.+\) failed, can't create lock file .+\.lock");
+call mtr.add_suppression("Plugin mysqlx reported: .Setup of socket: '\(.+\)' failed, can't create lock file .+\.lock");
 # restart: --loose-mysqlx-socket= SOCKET
 in main, line 0:ERROR: Permission denied, while connecting to  SOCKET (code 2002)
 not ok
-call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket \(.+\) failed, can't create lock file .*ne/x.sock.lock");
+call mtr.add_suppression("Plugin mysqlx reported: .Setup of socket: '\(.+\)' failed, can't create lock file .*ne/x.sock.lock");
 # restart: --loose-mysqlx-socket= SOCKET
 in main, line 0:ERROR: No such file or directory, while connecting to  SOCKET (code 2002)
 not ok
-call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket \(.+\) failed, the socket file path is too long");
+call mtr.add_suppression("Plugin mysqlx reported: .Setup of socket: '\(.+\)' failed, the socket file path is too long");
 # restart: --loose-mysqlx-socket= SOCKET
 in main, line 0:ERROR: UNIX Socket file name too long, size should be less or equal LENGTH (code 2005)
 not ok

@@ -46,7 +46,7 @@ bool Capability_client_interactive::set(const ::Mysqlx::Datatypes::Any &any) {
   try {
     m_value = ngs::Getter_any::get_numeric_value<bool>(any);
   } catch (const ngs::Error_code &error) {
-    log_error(ER_XPLUGIN_CAPABILITY_CLIENT_INTERACTIVE_FAILED,
+    log_debug("Capability client interactive failed with error: %s",
               error.message.c_str());
     return false;
   }
