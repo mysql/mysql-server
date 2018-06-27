@@ -1,3 +1,4 @@
+call mtr.add_suppression("option 'thread_stack':");
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.

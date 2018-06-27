@@ -9,6 +9,9 @@
 # TEST: SP to test alter table and nested SP calls                          #
 #############################################################################
 
+# clang/UBSAN needs to override the small thread stack in our -master.opt
+call mtr.add_suppression("option 'thread_stack':");
+
 # Includes
 -- source include/have_binlog_format_row.inc
 -- source include/master-slave.inc
