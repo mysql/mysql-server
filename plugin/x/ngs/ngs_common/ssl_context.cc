@@ -94,7 +94,8 @@ bool Ssl_context::activate_tls(Vio_interface *conn,
   unsigned long error;
   auto vio = conn->get_vio();
   if (sslaccept(m_ssl_acceptor, vio, handshake_timeout, &error) != 0) {
-    log_warning(ER_XPLUGIN_CLIENT_SSL_HANDSHAKE_FAILED, (int)error);
+    log_debug("Error during SSL handshake for client connection (%i)",
+              (int)error);
     return false;
   }
 

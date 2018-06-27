@@ -76,7 +76,7 @@ class Unixsocket_creator {
     log_debug("UNIX Socket is %s", unix_socket_file.c_str());
 
     if (unix_socket_file.empty()) {
-      log_info(ER_XPLUGIN_UNIX_SOCKET_NOT_CONFIGURED);
+      log_debug("UNIX socket not configured");
       error_message = "the socket file path is empty";
 
       return listener_socket;
@@ -348,10 +348,10 @@ Listener_unix_socket::Sync_variable_state &Listener_unix_socket::get_state() {
 bool Listener_unix_socket::is_handled_by_socket_event() { return true; }
 
 std::string Listener_unix_socket::get_name_and_configuration() const {
-  std::string result = "UNIX socket (";
+  std::string result = "socket: '";
 
   result += m_unix_socket_path;
-  result += ")";
+  result += "'";
 
   return result;
 }

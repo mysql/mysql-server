@@ -1,4 +1,5 @@
 call mtr.add_suppression("Maximum number of authentication attempts reached, login failed");
+call mtr.add_suppression("Access denied for user .*");
 INSTALL PLUGIN test_plugin_server SONAME 'auth_test_plugin.so';
 INSTALL PLUGIN mysql_no_login SONAME 'mysql_no_login.so';
 CREATE USER xuser_test@localhost

@@ -35,6 +35,7 @@
 
 SET GLOBAL mysqlx_connect_timeout = 300;
 call mtr.add_suppression("Maximum number of authentication attempts reached");
+call mtr.add_suppression("Access denied for user .*");
 
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/mysqlx-enable-ssl.tmp
