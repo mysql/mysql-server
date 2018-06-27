@@ -31,6 +31,28 @@ SELECT @@global.bind_address;
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/shutdown_mysqld.inc
 
+--echo # Check that not existing IP address as a value of
+--echo # the option --bind-address is treated as an error.
+--error 1
+--exec $MYSQLD --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR --no-defaults --secure-file-priv="" --bind-address=128.0.0.1
+
+--let SEARCH_FILE=$MYSQLD_LOG
+--let SEARCH_PATTERN= MY-010262.*Bind on TCP/IP port:.*requested address
+--source include/search_pattern.inc
+
+--remove_file $MYSQLD_LOG
+
+--echo # Check that not existing IP address as one of a value of
+--echo # the option --bind-address is treated as an error.
+--error 1
+--exec $MYSQLD --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR --no-defaults --secure-file-priv="" --bind-address=128.0.0.1,::1
+
+--let SEARCH_FILE=$MYSQLD_LOG
+--let SEARCH_PATTERN= MY-010262.*Bind on TCP/IP port:.*requested address
+--source include/search_pattern.inc
+
+--remove_file $MYSQLD_LOG
+
 --echo #
 --echo # Starting mysqld in the regular mode...
 --echo #
