@@ -201,3 +201,5 @@ rpl_ndb.rpl_ndb_row_implicit_commit_binlog   : BUG#12586131 - fails on SET PASSW
 
 # Below test disabled due to result content mismatch, test needs to be made more stable.
 ndb.ndb_read_location_domain : Bug #27935436 NDB_READ_LOCATION_DOMAIN FAILURE IN PB2.
+# Flaky test
+ndb.ndb_import2 : Bug #28239197 NDB_IMPORT2 FAILS SPORADICALLY IN 7.6
