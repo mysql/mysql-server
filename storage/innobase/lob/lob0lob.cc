@@ -316,7 +316,6 @@ dberr_t btr_store_big_rec_extern_fields(trx_t *trx, btr_pcur_t *pcur,
   BtrContext btr_ctx(btr_mtr, pcur, index, rec, offsets, rec_block, op);
   InsertContext ctx(btr_ctx, big_rec_vec);
 
-#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
   /* All pointers to externally stored columns in the record
   must either be zero or they must be pointers to inherited
   columns, owned by this record or an earlier record version. */
@@ -325,6 +324,16 @@ dberr_t btr_store_big_rec_extern_fields(trx_t *trx, btr_pcur_t *pcur,
         btr_rec_get_field_ref(rec, offsets, big_rec_vec->fields[i].field_no);
 
     ref_t blobref(field_ref);
+
+    /* Before we release latches in a subsequent ctx.check_redolog() call,
+    reset the length to zero.  This is needed to ensure that READ UNCOMMITTED
+    transactions don't read an inconsistent BLOB. */
+    if ((op == OPCODE_UPDATE || op == OPCODE_INSERT_UPDATE) &&
+        blobref.length() > 0) {
+      blobref.set_length(0, btr_mtr);
+    }
+
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
 
     /* Make a in-memory copy of the LOB ref. */
     ref_mem_t ref_mem;
@@ -336,8 +345,9 @@ dberr_t btr_store_big_rec_extern_fields(trx_t *trx, btr_pcur_t *pcur,
     must be zero (will be written in this function). */
     ut_a(op == OPCODE_UPDATE || op == OPCODE_INSERT_UPDATE ||
          blobref.is_inherited() || blobref.is_null());
-  }
+
 #endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
+  }
 
   /* The pcur could be re-positioned.  Commit and restart btr_mtr. */
   ctx.check_redolog();
@@ -776,6 +786,7 @@ ulint btr_copy_externally_stored_field_prefix_func(const dict_index_t *index,
 The clustered index record must be protected by a lock or a page latch.
 @param[in]	index		the clust index in which lob is read.
 @param[out]	len		length of the whole field
+@param[out]	lob_version	LOB version number.
 @param[in]	data		'internally' stored part of the field
                                 containing also the reference to the external
                                 part; must be protected by a lock or a page
@@ -830,18 +841,25 @@ byte *btr_copy_externally_stored_field_func(const dict_index_t *index,
 
     return (buf);
   } else {
-    memcpy(buf, data, local_len);
-
-    ulint fetch_len = 0;
-
     if (extern_len > 0) {
-      fetch_len =
+      /* Copy the local LOB prefix only when the externally stored field is
+      available. In the case of READ UNCOMMITTED isolation level and REDUNDANT
+      or COMPACT row format, it is possible to have a local_len > 0 when the
+      extern_len == 0, because this BLOB is in the process of update.  In
+      such situations, this whole BLOB should be ignored.*/
+      if (local_len > 0) {
+        memcpy(buf, data, local_len);
+      }
+
+      ulint fetch_len =
           lob::read(&rctx, rctx.m_blobref, 0, extern_len, buf + local_len);
+
+      *len = local_len + fetch_len;
+    } else {
+      *len = 0;
     }
 
-    *len = local_len + fetch_len;
-
-    if (lob_version != nullptr) {
+    if (lob_version != nullptr && *len > 0) {
       *lob_version = rctx.m_lob_version;
     }
     return (buf);
