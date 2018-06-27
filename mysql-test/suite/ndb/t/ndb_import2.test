@@ -88,25 +88,18 @@ exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --log-level=1
 --echo # verify t1, t2
 
 # node failure may hit these too
-# expect temporary error which may occur due to node failure
 --disable_warnings
---error 0, ER_GET_TEMPORARY_ERRMSG
+
 select count(*) from t1;
---error 0, ER_GET_TEMPORARY_ERRMSG
 select count(*) from t1ver;
---error 0, ER_GET_TEMPORARY_ERRMSG
 select count(*) from t1 x, t1ver y
 where x.a = y.a and x.b = y.b;
 
---error 0, ER_GET_TEMPORARY_ERRMSG
 select count(*) from t2;
---error 0, ER_GET_TEMPORARY_ERRMSG
 select count(*) from t2ver;
---error 0, ER_GET_TEMPORARY_ERRMSG
 select count(*) from t2 x, t2ver y
 where x.b = y.b;
 
---error 0, ER_GET_TEMPORARY_ERRMSG
 drop table t1, t1ver, t2, t2ver;
 
 --enable_warnings
