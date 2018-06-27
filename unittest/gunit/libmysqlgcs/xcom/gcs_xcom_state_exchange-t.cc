@@ -46,6 +46,12 @@ class mock_gcs_control_interface : public Gcs_control_interface {
   MOCK_METHOD0(get_current_view, Gcs_view *());
   MOCK_CONST_METHOD0(get_local_member_identifier,
                      const Gcs_member_identifier());
+  MOCK_METHOD0(get_minimum_write_concurrency, uint32_t());
+  MOCK_METHOD0(get_maximum_write_concurrency, uint32_t());
+  MOCK_METHOD1(get_write_concurrency,
+               enum_gcs_error(uint32_t &write_concurrency));
+  MOCK_METHOD1(set_write_concurrency,
+               enum_gcs_error(uint32_t write_concurrency));
   MOCK_METHOD1(add_event_listener,
                int(const Gcs_control_event_listener &event_listener));
   MOCK_METHOD1(remove_event_listener, void(int event_listener_handle));

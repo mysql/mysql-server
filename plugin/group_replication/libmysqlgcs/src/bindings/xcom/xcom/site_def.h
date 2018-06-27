@@ -55,6 +55,7 @@ node_no get_prev_maxnodes();
 node_no get_prev_nodeno();
 site_def const *find_site_def(synode_no synode);
 site_def *find_site_def_rw(synode_no synode);
+site_def const *find_next_site_def(synode_no synode);
 node_set detector_node_set(site_def const *site);
 int enough_live_nodes(site_def const *site);
 site_def *begin_site_def(site_def *s);

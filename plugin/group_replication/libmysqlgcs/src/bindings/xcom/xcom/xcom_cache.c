@@ -167,6 +167,12 @@ static int	is_noop(synode_no synode)
 }
 #endif
 
+static int was_machine_executed(pax_machine *p) {
+  int const not_yet_functional = synode_eq(null_synode, get_delivered_msg());
+  int const already_executed = synode_lt(p->synode, get_delivered_msg());
+  return not_yet_functional || already_executed;
+}
+
 /*
 Get a machine for (re)use.
 The machines are statically allocated, and organized in two lists.
@@ -182,7 +188,8 @@ static lru_machine *lru_get() {
   } else {
     /* Find the first non-busy instance in the LRU */
     FWD_ITER(&protected_lru, lru_machine,
-             if (!is_busy_machine(&link_iter->pax)) {
+             if (!is_busy_machine(&link_iter->pax) &&
+                 was_machine_executed(&link_iter->pax)) {
                retval = link_iter;
                /* Since this machine is in in the cache, we need to update
                last_removed_cache */
@@ -190,7 +197,8 @@ static lru_machine *lru_get() {
                break;
              })
   }
-  assert(retval && !is_busy_machine(&retval->pax));
+  assert(retval && !is_busy_machine(&retval->pax) &&
+         was_machine_executed(&retval->pax));
   return retval;
 }
 

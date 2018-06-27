@@ -195,6 +195,8 @@ void set_should_exit_getter(should_exit_getter x);
 
 app_data_ptr init_config_with_group(app_data *a, node_list *nl, cargo_type type,
                                     uint32_t group_id);
+app_data_ptr init_set_event_horizon_msg(app_data *a, uint32_t group_id,
+                                        xcom_event_horizon event_horizon);
 
 /*
  Registers a callback that is called right after
@@ -224,6 +226,12 @@ int xcom_client_remove_node(connection_descriptor *fd, node_list *nl,
 int64_t xcom_client_send_die(connection_descriptor *fd);
 int64_t xcom_client_send_data(uint32_t size, char *data,
                               connection_descriptor *fd);
+xcom_event_horizon xcom_get_minimum_event_horizon();
+xcom_event_horizon xcom_get_maximum_event_horizon();
+int xcom_client_get_event_horizon(connection_descriptor *fd, uint32_t group_id,
+                                  xcom_event_horizon *event_horizon);
+int xcom_client_set_event_horizon(connection_descriptor *fd, uint32_t group_id,
+                                  xcom_event_horizon event_horizon);
 int xcom_client_terminate_and_exit(connection_descriptor *fd);
 int xcom_client_set_cache_limit(connection_descriptor *fd,
                                 uint64_t cache_limit);

@@ -44,6 +44,47 @@ class Gcs_group_management_interface {
   virtual enum_gcs_error modify_configuration(
       const Gcs_interface_parameters &reconfigured_group) = 0;
 
+  /**
+    Retrieves the minimum supported "write concurrency" value.
+  */
+  virtual uint32_t get_minimum_write_concurrency() const = 0;
+
+  /**
+    Retrieves the maximum supported "write concurrency" value.
+  */
+  virtual uint32_t get_maximum_write_concurrency() const = 0;
+
+  /**
+    Retrieves the group's "write concurrency" value.
+
+    @param[out] write_concurrency A reference to where the group's
+                "write concurrency" value will be written to
+
+    @retval GCS_OK if successful and write_concurrency has been written to
+    @retval GCS_NOK if GCS was unable to request the current "write concurrency"
+                    value from the underlying implementation
+  */
+  virtual enum_gcs_error get_write_concurrency(
+      uint32_t &write_concurrency) const = 0;
+
+  /**
+    Reconfigures the group's "write concurrency" value.
+
+    The caller should ensure that the supplied value is between @c
+    minimum_write_concurrency and @c maximum_write_concurrency.
+
+    The method is non-blocking, meaning that it shall only send the request to
+    an underlying GCS. The final result can be polled via @c
+    get_write_concurrency.
+
+    @param write_concurrency The desired "write concurrency" value.
+
+    @retval GCS_OK if successful
+    @retval GCS_NOK if unsuccessful
+
+  */
+  virtual enum_gcs_error set_write_concurrency(uint32_t write_concurrency) = 0;
+
   virtual ~Gcs_group_management_interface(){};
 };
 

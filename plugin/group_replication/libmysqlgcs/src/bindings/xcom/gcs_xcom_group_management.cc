@@ -153,3 +153,29 @@ enum_gcs_error Gcs_xcom_group_management::modify_configuration(
 
   return GCS_OK;
 }
+
+uint32_t Gcs_xcom_group_management::get_minimum_write_concurrency() const {
+  return m_xcom_proxy->xcom_get_minimum_event_horizon();
+}
+
+uint32_t Gcs_xcom_group_management::get_maximum_write_concurrency() const {
+  return m_xcom_proxy->xcom_get_maximum_event_horizon();
+}
+
+enum_gcs_error Gcs_xcom_group_management::get_write_concurrency(
+    uint32_t &event_horizon) const {
+  MYSQL_GCS_LOG_DEBUG(
+      "The member is attempting to retrieve the event horizon.");
+  bool const success =
+      m_xcom_proxy->xcom_get_event_horizon(m_gid_hash, event_horizon);
+  return success ? GCS_OK : GCS_NOK;
+}
+
+enum_gcs_error Gcs_xcom_group_management::set_write_concurrency(
+    uint32_t event_horizon) {
+  MYSQL_GCS_LOG_DEBUG(
+      "The member is attempting to reconfigure the event horizon.");
+  bool const success =
+      m_xcom_proxy->xcom_set_event_horizon(m_gid_hash, event_horizon);
+  return success ? GCS_OK : GCS_NOK;
+}

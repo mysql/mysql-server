@@ -41,6 +41,14 @@ class Gcs_xcom_group_management : public Gcs_group_management_interface {
   enum_gcs_error modify_configuration(
       const Gcs_interface_parameters &reconfigured_group);
 
+  enum_gcs_error get_write_concurrency(uint32_t &event_horizon) const;
+
+  enum_gcs_error set_write_concurrency(uint32_t event_horizon);
+
+  uint32_t get_minimum_write_concurrency() const;
+
+  uint32_t get_maximum_write_concurrency() const;
+
   /**
     Save information on the latest nodes seen by this node so that it
     can safely reconfigure the group if it loses the majority. This

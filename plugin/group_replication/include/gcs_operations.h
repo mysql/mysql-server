@@ -187,6 +187,44 @@ class Gcs_operations {
   int force_members(const char *members);
 
   /**
+    Retrieves the minimum supported "write concurrency" value.
+  */
+  uint32_t get_minimum_write_concurrency() const;
+
+  /**
+    Retrieves the maximum supported "write concurrency" value.
+  */
+  uint32_t get_maximum_write_concurrency() const;
+
+  /**
+    Retrieves the group's "write concurrency" value.
+
+    @param[out] write_concurrency A reference to where the group's "write
+                concurrency" will be written to
+
+    @retval GCS_OK if successful
+    @retval GCS_NOK if unsuccessful
+  */
+  enum enum_gcs_error get_write_concurrency(uint32_t &write_concurrency);
+
+  /**
+    Reconfigures the group's "write concurrency" value.
+
+    The caller should ensure that the supplied value is between @c
+    minimum_write_concurrency and @c maximum_write_concurrency.
+
+    The method is non-blocking, meaning that it shall only send the
+    request to an underlying GCS. The final result can be polled via @c
+    get_write_concurrency.
+
+    @param write_concurrency The desired "write concurrency" value.
+
+    @retval GCS_OK if successful
+    @retval GCS_NOK if unsuccessful
+  */
+  enum enum_gcs_error set_write_concurrency(uint32_t new_write_concurrency);
+
+  /**
    * @return the communication engine being used
    */
   static const std::string &get_gcs_engine();
@@ -197,6 +235,7 @@ class Gcs_operations {
     GCS.
   */
   enum enum_gcs_error do_set_debug_options(std::string &debug_options) const;
+  Gcs_group_management_interface *get_gcs_group_manager() const;
 
   static const std::string gcs_engine;
   Gcs_gr_logger_impl gcs_logger;

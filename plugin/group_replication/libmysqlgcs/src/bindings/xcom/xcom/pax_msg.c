@@ -65,6 +65,7 @@ static pax_msg *init_pax_msg(pax_msg *p, int refcnt, synode_no synode,
   p->receivers = NULL;
   p->a = NULL;
   p->force_delivery = 0;
+  p->event_horizon = EVENT_HORIZON_MIN;
   return p;
 }
 

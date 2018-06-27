@@ -1,0 +1,50 @@
+###############################################################################
+# WL#11512
+# The user must have GROUP_REPLICATION_ADMIN privileges to modify the group's
+# "write concurrency."
+#
+# Test:
+#   0. One server is enough for this test
+#   1. Create user without GROUP_REPLICATION_ADMIN privileges
+#   2. Connect to server using under-privileged user
+#   3. Modifying the group's "write concurrency" should fail due to lack of
+#      privileges
+#   4. Cleanup
+#
+###############################################################################
+
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+--source include/start_and_bootstrap_group_replication.inc
+
+--echo
+--echo # 1. Create user without GROUP_REPLICATION_ADMIN privileges
+
+CREATE USER 'group_rpl_user' IDENTIFIED BY '';
+--connect (con_group_rpl_user,127.0.0.1,group_rpl_user,,test,$MASTER_MYPORT,,)
+
+--echo
+--echo # 2. Connect to server using group_rpl_user
+
+--let $rpl_connection_name= con_group_rpl_user
+--source include/rpl_connection.inc
+
+--echo
+--echo # 3. group_replication_set_write_concurrency should fail due to lack of privileges
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT group_replication_set_write_concurrency(42);
+
+SELECT group_replication_get_write_concurrency();
+
+--echo
+--echo # 4. Cleanup
+
+--let $rpl_connection_name= default
+--source include/rpl_connection.inc
+
+--disconnect con_group_rpl_user
+DROP USER group_rpl_user;
+
+--source include/group_replication_end.inc

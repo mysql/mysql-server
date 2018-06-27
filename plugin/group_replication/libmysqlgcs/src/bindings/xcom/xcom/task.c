@@ -783,19 +783,6 @@ static void iotasks_deinit(iotasks *iot) {
   free_task_env_p_array(&iot->tasks);
 }
 
-#if TASK_DBUG_ON
-static void poll_debug() {
-  int i = 0;
-  for (i = 0; i < iot.nwait; i++) {
-    NDBG(i, d);
-    PTREXP(iot.tasks[i]);
-    NDBG(iot.fd[i].fd, d);
-    NDBG(iot.fd[i].events, d);
-    NDBG(iot.fd[i].revents, d);
-  }
-}
-#endif
-
 static void poll_wakeup(int i) {
   activate(task_unref(get_task_env_p(&iot.tasks, i)));
   set_task_env_p(&iot.tasks, NULL, i);

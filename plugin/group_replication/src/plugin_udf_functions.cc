@@ -25,19 +25,24 @@
 #include <include/mysql/components/services/udf_registration.h>
 #include <mysql/components/my_service.h>
 #include <mysql/plugin.h>
+#include <cinttypes>
+#include "mysql/components/my_service.h"
+#include "mysql/components/services/dynamic_privilege.h"
+#include "mysql/components/services/udf_registration.h"
+#include "mysql/plugin.h"
 #include "plugin/group_replication/include/group_actions/multi_primary_migration_action.h"
 #include "plugin/group_replication/include/group_actions/primary_election_action.h"
 #include "plugin/group_replication/include/plugin.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/debug_sync.h"
 
-typedef std::tuple<const char *, enum Item_result, Udf_func_any, Udf_func_init,
-                   Udf_func_deinit>
-    udf_function_tuple;
+using udf_function_tuple =
+    std::tuple<const char *, enum Item_result, Udf_func_any, Udf_func_init,
+               Udf_func_deinit>;
 
-void log_result_message(Group_action_diagnostics *result_area,
-                        const char *action_name, char *result_message,
-                        unsigned long *length) {
+static void log_result_message(Group_action_diagnostics *result_area,
+                               const char *action_name, char *result_message,
+                               unsigned long *length) {
   switch (result_area->get_execution_message_level()) {
     case Group_action_diagnostics::GROUP_ACTION_LOG_ERROR:
       my_error(ER_GRP_RPL_UDF_ERROR, MYF(ME_ERRORLOG), action_name,
@@ -67,25 +72,65 @@ void log_result_message(Group_action_diagnostics *result_area,
   }
 }
 
-bool check_user_privileges(char *message) {
+/*
+ * Result data type for check_user_privilege.
+ * There are three cases:
+ *
+ * error: There was an error fetching the user's privileges
+ * ok: The user has the required privileges
+ * no_privilege: The user does *not* have the required privileges
+ *
+ * In the no_privilege case, the result contains the user's name and host for
+ * the caller to create an helpful error message.
+ */
+enum class privilege_status { ok, no_privilege, error };
+class privilege_result {
+ public:
+  privilege_status const status;
+  char const *get_user() const {
+    assert(status == privilege_status::no_privilege);
+    return user;
+  }
+  char const *get_host() const {
+    assert(status == privilege_status::no_privilege);
+    return host;
+  }
+  privilege_result(privilege_result const &) = delete;
+  privilege_result(privilege_result &&) = default;
+  privilege_result &operator=(privilege_result const &) = delete;
+  privilege_result &operator=(privilege_result &&) = default;
+  static privilege_result success() {
+    return privilege_result(privilege_status::ok);
+  }
+  static privilege_result error() {
+    return privilege_result(privilege_status::error);
+  }
+  static privilege_result no_privilege(char const *user, char const *host) {
+    return privilege_result(user, host);
+  }
+
+ private:
+  char const *const user;
+  char const *const host;
+  privilege_result(privilege_status status)
+      : status(status), user(nullptr), host(nullptr) {
+    assert(status != privilege_status::no_privilege);
+  }
+  privilege_result(char const *user, char const *host)
+      : status(privilege_status::no_privilege), user(user), host(host) {}
+};
+
+static privilege_result check_user_privileges() {
   THD *thd = current_thd;
 
-  if (!thd) return false;
+  if (thd == nullptr) return privilege_result::error();
 
   // if not a super user
-  if (!(thd->security_context() &&
+  if (!(thd->security_context() != nullptr &&
         thd->security_context()->master_access() & SUPER_ACL)) {
     SERVICE_TYPE(registry) *plugin_reg = mysql_plugin_registry_acquire();
 
-    if (!plugin_reg) {
-      /* purecov: begin inspected */
-      std::stringstream ss;
-      ss << " Error checking the user privileges. Check the log for more "
-            "details or restart the server.";
-      ss.getline(message, MAX_FIELD_WIDTH, '\0');
-      return false;
-      /* purecov: end */
-    }
+    if (plugin_reg == nullptr) return privilege_result::error();
 
     bool has_global_grant = false;
     {
@@ -96,23 +141,43 @@ bool check_user_privileges(char *message) {
             reinterpret_cast<Security_context_handle>(thd->security_context()),
             STRING_WITH_LEN("GROUP_REPLICATION_ADMIN"));
       }
-      /* As my_service goes out of scope the service is unregistered using r */
+      /*
+       * As my_service goes out of scope the service is unregistered using
+       * plugin_reg
+       */
     }
     mysql_plugin_registry_release(plugin_reg);
     if (!has_global_grant) {
-      std::stringstream ss;
-      ss << " User '" << thd->security_context()->priv_user().str << "'@'"
-         << thd->security_context()->priv_host().str
-         << "'. needs SUPER or GROUP_REPLICATION_ADMIN privileges.";
-      ss.getline(message, MAX_FIELD_WIDTH, '\0');
-
-      return false;
+      return privilege_result::no_privilege(
+          thd->security_context()->priv_user().str,
+          thd->security_context()->priv_host().str);
     }
   }  // end if !super_user
-  return true;
+  return privilege_result::success();
 }
 
-bool check_locked_tables(char *message) {
+static void log_privilege_status_result(privilege_result const &privilege,
+                                        char *message) {
+  switch (privilege.status) {
+    case privilege_status::error:
+      // Something is wrong and we were unable to access MySQL services.
+      std::snprintf(
+          message, MYSQL_ERRMSG_SIZE,
+          "Error checking the user privileges. Check the log for more "
+          "details or restart the server.");
+      break;
+    case privilege_status::no_privilege:
+      std::snprintf(
+          message, MYSQL_ERRMSG_SIZE,
+          "User '%s'@'%s' needs SUPER or GROUP_REPLICATION_ADMIN privileges.",
+          privilege.get_user(), privilege.get_host());
+      break;
+    case privilege_status::ok:
+      break;
+  }
+}
+
+static bool check_locked_tables(char *message) {
   THD *thd = current_thd;
 
   if (!thd) return false;
@@ -127,29 +192,22 @@ bool check_locked_tables(char *message) {
   return true;
 }
 
-bool check_member_status(char *message) {
+static bool check_member_status() {
   Mutex_autolock auto_lock_mutex(get_plugin_running_lock());
-  std::string error = "";
-
-  if (!plugin_is_group_replication_running() || local_member_info == NULL ||
-      local_member_info->get_recovery_status() ==
-          Group_member_info::MEMBER_OFFLINE ||
-      local_member_info->get_recovery_status() ==
-          Group_member_info::MEMBER_IN_RECOVERY ||
-      local_member_info->get_recovery_status() ==
-          Group_member_info::MEMBER_ERROR ||
-      (group_partition_handler != NULL &&
-       group_partition_handler->is_member_on_partition())) {
-    error.assign("The member needs to be ONLINE and in a reachable partition.");
+  bool const not_online = local_member_info == nullptr ||
+                          local_member_info->get_recovery_status() !=
+                              Group_member_info::MEMBER_ONLINE;
+  bool const on_partition = group_partition_handler != nullptr &&
+                            group_partition_handler->is_member_on_partition();
+  if (!plugin_is_group_replication_running() || not_online || on_partition) {
+    return false;
   }
-
-  if (error.empty()) return true;
-
-  std::stringstream ss;
-  ss << error;
-  ss.getline(message, MAX_FIELD_WIDTH, '\0');
-  return false;
+  return true;
 }
+
+// single primary
+const char *const member_offline_or_minority_str =
+    "The member needs to be ONLINE and in a reachable partition.";
 
 static char *group_replication_set_as_primary(UDF_INIT *, UDF_ARGS *args,
                                               char *result,
@@ -241,15 +299,21 @@ static bool group_replication_set_as_primary_init(UDF_INIT *initid,
     my_stpcpy(message, "Wrong arguments: You need to specify a server uuid.");
     DBUG_RETURN(1);
   }
-
-  bool has_privileges = check_user_privileges(message);
-  if (!has_privileges) DBUG_RETURN(2);
+  privilege_result privilege = check_user_privileges();
+  bool has_privileges = (privilege.status == privilege_status::ok);
+  if (!has_privileges) {
+    log_privilege_status_result(privilege, message);
+    DBUG_RETURN(2);
+  }
 
   bool has_locked_tables = check_locked_tables(message);
   if (!has_locked_tables) DBUG_RETURN(3);
 
-  bool plugin_online = check_member_status(message);
-  if (!plugin_online) DBUG_RETURN(4);
+  bool plugin_online = check_member_status();
+  if (!plugin_online) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE, member_offline_or_minority_str);
+    DBUG_RETURN(4);
+  }
 
   const char *uuid = args->args[0];
   // We can do this test here for dynamic values (e.g.: SQL query values)
@@ -379,14 +443,21 @@ static bool group_replication_switch_to_single_primary_mode_init(
     DBUG_RETURN(1);
   }
 
-  bool has_privileges = check_user_privileges(message);
-  if (!has_privileges) DBUG_RETURN(2);
+  privilege_result privilege = check_user_privileges();
+  bool has_privileges = (privilege.status == privilege_status::ok);
+  if (!has_privileges) {
+    log_privilege_status_result(privilege, message);
+    DBUG_RETURN(2);
+  }
 
   bool has_locked_tables = check_locked_tables(message);
   if (!has_locked_tables) DBUG_RETURN(3);
 
-  bool plugin_online = check_member_status(message);
-  if (!plugin_online) DBUG_RETURN(4);
+  bool plugin_online = check_member_status();
+  if (!plugin_online) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE, member_offline_or_minority_str);
+    DBUG_RETURN(4);
+  }
 
   // We can do this test here for dynamic values (e.g.: SQL query values)
   if (args->arg_count == 1 && args->args[0] != nullptr) {
@@ -418,6 +489,7 @@ static bool group_replication_switch_to_single_primary_mode_init(
 static void group_replication_switch_to_single_primary_mode_deinit(UDF_INIT *) {
 }
 
+// multi primary
 static char *group_replication_switch_to_multi_primary_mode(
     UDF_INIT *, UDF_ARGS *, char *result, unsigned long *length, char *,
     char *) {
@@ -459,20 +531,152 @@ static bool group_replication_switch_to_multi_primary_mode_init(
     DBUG_RETURN(1);
   }
 
-  bool has_privileges = check_user_privileges(message);
-  if (!has_privileges) DBUG_RETURN(2);
+  privilege_result privilege = check_user_privileges();
+  bool has_privileges = (privilege.status == privilege_status::ok);
+  if (!has_privileges) {
+    log_privilege_status_result(privilege, message);
+    DBUG_RETURN(2);
+  }
 
   bool has_locked_tables = check_locked_tables(message);
   if (!has_locked_tables) DBUG_RETURN(3);
 
-  bool plugin_online = check_member_status(message);
-  if (!plugin_online) DBUG_RETURN(4);
+  bool plugin_online = check_member_status();
+  if (!plugin_online) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE, member_offline_or_minority_str);
+    DBUG_RETURN(4);
+  }
 
   initid->maybe_null = 0;
   DBUG_RETURN(0);
 }
 
 static void group_replication_switch_to_multi_primary_mode_deinit(UDF_INIT *) {}
+
+// write concurrency
+const char *const wc_wrong_nr_args_str = "UDF takes one integer argument.";
+const char *const wc_offline_or_minority_str =
+    "Member must be online and on the majority partition.";
+
+static bool group_replication_get_write_concurrency_init(UDF_INIT *,
+                                                         UDF_ARGS *args,
+                                                         char *message) {
+  bool const failure = true;
+  bool const success = false;
+  if (args->arg_count != 0) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE, "UDF does not take arguments.");
+    return failure;
+  }
+  if (!check_member_status()) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE, wc_offline_or_minority_str);
+    return failure;
+  }
+  return success;
+}
+
+static void group_replication_get_write_concurrency_deinit(UDF_INIT *) {}
+
+static long long group_replication_get_write_concurrency(UDF_INIT *, UDF_ARGS *,
+                                                         char *is_null,
+                                                         char *error) {
+  DBUG_ASSERT(check_member_status());
+  uint32_t write_concurrency = 0;
+  gcs_module->get_write_concurrency(write_concurrency);
+  *is_null = 0;  // result is not null
+  *error = 0;
+  return write_concurrency;
+}
+
+const char *const wc_value_outside_domain_str =
+    "Argument must be between %" PRIu32 " and %" PRIu32 ".";
+
+static bool group_replication_set_write_concurrency_init(UDF_INIT *,
+                                                         UDF_ARGS *args,
+                                                         char *message) {
+  bool const failure = true;
+  bool const success = false;
+  bool const wrong_number_of_args = args->arg_count != 1;
+  bool const wrong_arg_type =
+      !wrong_number_of_args && args->arg_type[0] != INT_RESULT;
+  if (wrong_number_of_args || wrong_arg_type) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE, wc_wrong_nr_args_str);
+    return failure;
+  }
+  if (!check_member_status()) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE, wc_offline_or_minority_str);
+    return failure;
+  }
+  privilege_result privilege = check_user_privileges();
+  log_privilege_status_result(privilege, message);
+  switch (privilege.status) {
+      // Something is wrong and we were unable to access MySQL services.
+    case privilege_status::error:
+    case privilege_status::no_privilege:
+      return failure;
+    case privilege_status::ok:
+      break;
+  }
+  if (args->args[0] != nullptr) {
+    uint32_t new_write_concurrency =
+        *reinterpret_cast<long long *>(args->args[0]);
+    uint32_t min_write_concurrency =
+        gcs_module->get_minimum_write_concurrency();
+    uint32_t max_write_concurrency =
+        gcs_module->get_maximum_write_concurrency();
+    bool const invalid_write_concurrency =
+        new_write_concurrency < min_write_concurrency ||
+        max_write_concurrency < new_write_concurrency;
+    if (invalid_write_concurrency) {
+      std::snprintf(message, MYSQL_ERRMSG_SIZE, wc_value_outside_domain_str,
+                    min_write_concurrency, max_write_concurrency);
+      return failure;
+    }
+  }
+  return success;
+}
+
+static void group_replication_set_write_concurrency_deinit(UDF_INIT *) {}
+
+static char *group_replication_set_write_concurrency(UDF_INIT *, UDF_ARGS *args,
+                                                     char *result,
+                                                     unsigned long *length,
+                                                     char *is_null,
+                                                     char *error) {
+  /* According to sql/udf_example.cc, result has at least 255 bytes */
+  unsigned long constexpr max_safe_length = 255;
+  DBUG_ASSERT(check_member_status());
+  DBUG_ASSERT(check_user_privileges().status == privilege_status::ok);
+  *is_null = 0;  // result is not null
+  *error = 0;
+  uint32_t new_write_concurrency = 0;
+  enum enum_gcs_error gcs_result = GCS_NOK;
+  uint32_t min_write_concurrency = gcs_module->get_minimum_write_concurrency();
+  uint32_t max_write_concurrency = gcs_module->get_maximum_write_concurrency();
+  if (args->args[0] == nullptr) {
+    std::snprintf(result, max_safe_length, wc_wrong_nr_args_str);
+    goto end;
+  }
+  new_write_concurrency = *reinterpret_cast<long long *>(args->args[0]);
+  if (new_write_concurrency < min_write_concurrency ||
+      max_write_concurrency < new_write_concurrency) {
+    std::snprintf(result, max_safe_length, wc_value_outside_domain_str,
+                  min_write_concurrency, max_write_concurrency);
+    goto end;
+  }
+  gcs_result = gcs_module->set_write_concurrency(new_write_concurrency);
+  if (gcs_result == GCS_OK) {
+    std::snprintf(result, max_safe_length,
+                  "UDF is asynchronous, check log or call "
+                  "group_replication_get_write_concurrency().");
+  } else {
+    std::snprintf(
+        result, max_safe_length,
+        "Could not set, please check the error log of group members.");
+  }
+end:
+  *length = strlen(result);
+  return result;
+}
 
 bool install_udf_functions() {
   bool error = false;
@@ -489,6 +693,7 @@ bool install_udf_functions() {
     my_service<SERVICE_TYPE(udf_registration)> service("udf_registration",
                                                        plugin_reg);
     if ((error != service.is_valid())) {
+      // single primary
       udf_function_tuple set_as_primary(
           "group_replication_set_as_primary", Item_result::STRING_RESULT,
           (Udf_func_any)group_replication_set_as_primary,
@@ -500,17 +705,33 @@ bool install_udf_functions() {
           (Udf_func_any)group_replication_switch_to_single_primary_mode,
           group_replication_switch_to_single_primary_mode_init,
           group_replication_switch_to_single_primary_mode_deinit);
+      // multi primary
       udf_function_tuple switch_to_multi_primary_mode(
           "group_replication_switch_to_multi_primary_mode",
           Item_result::STRING_RESULT,
           (Udf_func_any)group_replication_switch_to_multi_primary_mode,
           group_replication_switch_to_multi_primary_mode_init,
           group_replication_switch_to_multi_primary_mode_deinit);
+      // write concurrency
+      udf_function_tuple get_write_concurrency(
+          "group_replication_get_write_concurrency", Item_result::INT_RESULT,
+          reinterpret_cast<Udf_func_any>(
+              group_replication_get_write_concurrency),
+          group_replication_get_write_concurrency_init,
+          group_replication_get_write_concurrency_deinit);
+      udf_function_tuple set_write_concurrency(
+          "group_replication_set_write_concurrency", Item_result::STRING_RESULT,
+          reinterpret_cast<Udf_func_any>(
+              group_replication_set_write_concurrency),
+          group_replication_set_write_concurrency_init,
+          group_replication_set_write_concurrency_deinit);
 
       std::list<udf_function_tuple> function_list;
       function_list.push_back(set_as_primary);
       function_list.push_back(switch_to_single_primary_mode);
       function_list.push_back(switch_to_multi_primary_mode);
+      function_list.push_back(get_write_concurrency);
+      function_list.push_back(set_write_concurrency);
 
       for (udf_function_tuple udf_tuple : function_list) {
         error = service->udf_register(
@@ -527,18 +748,14 @@ bool install_udf_functions() {
       if (error) {
         /* purecov: begin inspected */
         int was_present;
-        for (udf_function_tuple udf_tuple : function_list) {
+        for (udf_function_tuple const &udf_tuple : function_list) {
           // don't care about errors since we are already erroring out
           service->udf_unregister(std::get<0>(udf_tuple), &was_present);
-
-          if (!was_present) break;
         }
         /* purecov: end */
       }
     } else {
-      LogPluginErr(
-          ERROR_LEVEL,
-          ER_GRP_RPL_UDF_REGISTER_SERVICE_ERROR); /* purecov: inspected */
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_UDF_REGISTER_SERVICE_ERROR);
     }
   }
   mysql_plugin_registry_release(plugin_reg);
@@ -565,17 +782,18 @@ bool uninstall_udf_functions() {
       function_list.push_back(
           "group_replication_switch_to_single_primary_mode");
       function_list.push_back("group_replication_switch_to_multi_primary_mode");
+      function_list.push_back("group_replication_get_write_concurrency");
+      function_list.push_back("group_replication_set_write_concurrency");
 
       int was_present;
-      for (const char *udf_name : function_list) {
+      for (char const *const udf_name : function_list) {
         // don't care about the functions not being there
-        error += service->udf_unregister(udf_name, &was_present);
+        error = error || service->udf_unregister(udf_name, &was_present);
       }
     }
 
     if (error) {
-      LogPluginErr(ERROR_LEVEL,
-                   ER_GRP_RPL_UDF_UNREGISTER_ERROR); /* purecov: inspected */
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_UDF_UNREGISTER_ERROR);
     }
   }
   mysql_plugin_registry_release(plugin_reg);

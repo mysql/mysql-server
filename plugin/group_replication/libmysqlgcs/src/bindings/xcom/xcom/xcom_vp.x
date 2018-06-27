@@ -1,4 +1,4 @@
-%/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved. 
+%/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 %
 %   This program is free software; you can redistribute it and/or modify
 %   it under the terms of the GNU General Public License, version 2.0,
@@ -44,6 +44,7 @@ enum cons_type {
   cons_none              /* NOT USED */
 };
 
+typedef uint32_t xcom_event_horizon;
 
 /* VP Number will wrap in 5.8E5 years if we run at 1000000 VP builds per second */
 /* Change to circular hyper int if this is not desirable */
@@ -128,7 +129,9 @@ enum cargo_type {
   disable_arbitrator,
   force_config_type,
   x_terminate_and_exit,
-  set_cache_limit
+  set_cache_limit,
+  get_event_horizon_type,
+  set_event_horizon_type
 };
 
 typedef node_no node_no_array<NSERVERS>;
@@ -190,6 +193,10 @@ union app_u switch(cargo_type c_t){
    node_set present;
  case set_cache_limit:
    uint64_t cache_limit;
+ case get_event_horizon_type:
+   void;
+ case set_event_horizon_type:
+   xcom_event_horizon event_horizon;
  default:
    void;
 };
@@ -300,11 +307,24 @@ struct snapshot{
   uncommitted_list u_list;
 };
 
-struct config{
+struct config_1_2{
 	synode_no start; 	/* Config is active from this message number */
 	synode_no boot_key; /* The message number of the original unified_boot */
 	node_list_1_1 nodes;	/* Set of nodes in this config */
 };
+
+struct config_1_4{
+	synode_no start; 	/* Config is active from this message number */
+	synode_no boot_key; /* The message number of the original unified_boot */
+	node_list_1_1 nodes;	/* Set of nodes in this config */
+	xcom_event_horizon event_horizon;
+};
+
+%#ifndef CONFIG_XDR_TYPEDEF
+%#define CONFIG_XDR_TYPEDEF
+%typedef config_1_4 config;
+%extern  bool_t xdr_config (XDR *, config*);
+%#endif
 
 typedef config *config_ptr;
 typedef config_ptr configs<NSERVERS>;
@@ -365,9 +385,33 @@ struct pax_msg_1_2{
   synode_no delivered_msg; /* Gossip about the last delivered message */
  };
 
+struct pax_msg_1_4{
+  node_no to;             /* To node */
+  node_no from;           /* From node */
+  uint32_t group_id; /* Unique ID shared by our group */
+  synode_no max_synode; /* Gossip about the max real synode */
+  start_t start_type; /* Boot or recovery? */
+  ballot reply_to;    /* Reply to which ballot */
+  ballot proposal;    /* Proposal number */
+  pax_op op;          /* Opcode: prepare, propose, learn, etc */
+  synode_no synode;   /* The message number */
+  pax_msg_type msg_type; /* normal, noop, or multi_noop */
+  bit_set *receivers;
+  /* synode_no unique_id;  */   /* Local, unique ID used to see which message was sent */
+  app_data *a;      /* Payload */
+  snapshot *snap;	/* Snapshot if op == snapshot_op */
+  gcs_snapshot *gcs_snap; /* gcs_snapshot if op == gcs_snapshot_op */
+  client_reply_code cli_err;
+  bool force_delivery; /* Deliver this message even if we do not have majority */
+  int32_t refcnt;
+  synode_no delivered_msg; /* Gossip about the last delivered message */
+  xcom_event_horizon event_horizon; /* Group's event horizon */
+ };
+
+
 %#ifndef PAX_MSG_TYPEDEF
 %#define PAX_MSG_TYPEDEF
-%typedef pax_msg_1_2 pax_msg;
+%typedef pax_msg_1_4 pax_msg;
 %extern  bool_t xdr_pax_msg (XDR *, pax_msg*);
 %#endif
 

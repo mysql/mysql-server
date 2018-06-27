@@ -1,0 +1,114 @@
+CREATE TABLE t1 (i INT);
+INSERT INTO t1 VALUES (NULL);
+INSERT INTO t1 VALUES (9);
+INSERT INTO t1 VALUES (42);
+INSERT INTO t1 VALUES (201);
+include/group_replication.inc [rpl_server_count=2]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+###############################################################################
+# 2. Confirm default value on M1, M2
+[connection server1]
+include/assert.inc [write_concurrency is supposed to be 10 by default]
+[connection server2]
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Could not execute Write_rows event on table test.t2; Duplicate entry '11'*");
+call mtr.add_suppression("The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.");
+call mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression(".*Slave SQL for channel 'group_replication_applier': ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state*");
+SET SESSION sql_log_bin = 1;
+include/assert.inc [write_concurrency is supposed to be 10 by default]
+###############################################################################
+# 3. Increase write_concurrency via M1, confirm on M1, M2
+[connection server1]
+SELECT group_replication_set_write_concurrency(42);
+group_replication_set_write_concurrency(42)
+UDF is asynchronous, check log or call group_replication_get_write_concurrency().
+[connection server2]
+###############################################################################
+# 4. Decrease write_concurrency via M2, confirm on M1, M2
+SELECT group_replication_set_write_concurrency(10);
+group_replication_set_write_concurrency(10)
+UDF is asynchronous, check log or call group_replication_get_write_concurrency().
+[connection server1]
+###############################################################################
+# 5. Confirm invalid calls to group_replication_get_write_concurrency
+SELECT group_replication_get_write_concurrency(1);
+ERROR HY000: Can't initialize function 'group_replication_get_write_concurrency'; UDF does not take arguments.
+SELECT group_replication_get_write_concurrency(1.1);
+ERROR HY000: Can't initialize function 'group_replication_get_write_concurrency'; UDF does not take arguments.
+SELECT group_replication_get_write_concurrency("hehe");
+ERROR HY000: Can't initialize function 'group_replication_get_write_concurrency'; UDF does not take arguments.
+SELECT group_replication_get_write_concurrency(NULL);
+ERROR HY000: Can't initialize function 'group_replication_get_write_concurrency'; UDF does not take arguments.
+###############################################################################
+# 6. Confirm invalid calls to group_replication_set_write_concurrency
+SELECT group_replication_set_write_concurrency();
+ERROR HY000: Can't initialize function 'group_replication_set_write_concurrency'; UDF takes one integer argument.
+SELECT group_replication_set_write_concurrency(NULL);
+ERROR HY000: Can't initialize function 'group_replication_set_write_concurrency'; UDF takes one integer argument.
+SELECT group_replication_set_write_concurrency(1.1);
+ERROR HY000: Can't initialize function 'group_replication_set_write_concurrency'; UDF takes one integer argument.
+SELECT group_replication_set_write_concurrency("hehe");
+ERROR HY000: Can't initialize function 'group_replication_set_write_concurrency'; UDF takes one integer argument.
+SELECT group_replication_set_write_concurrency(9);
+ERROR HY000: Can't initialize function 'group_replication_set_write_concurrency'; Argument must be between 10 and 200.
+SELECT group_replication_set_write_concurrency(4097);
+ERROR HY000: Can't initialize function 'group_replication_set_write_concurrency'; Argument must be between 10 and 200.
+SELECT group_replication_set_write_concurrency(i) FROM t1;
+group_replication_set_write_concurrency(i)
+UDF takes one integer argument.
+Argument must be between 10 and 200.
+UDF is asynchronous, check log or call group_replication_get_write_concurrency().
+Argument must be between 10 and 200.
+[connection server2]
+include/stop_group_replication.inc
+###############################################################################
+# 7. Check that it is not possible to modify/query write_concurrency value when server is in RECOVERING state.
+[connection server1]
+STOP SLAVE SQL_THREAD FOR CHANNEL 'group_replication_applier';
+[connection server2]
+include/start_group_replication.inc
+SELECT group_replication_set_write_concurrency(111);
+ERROR HY000: Can't initialize function 'group_replication_set_write_concurrency'; Member must be online and on the majority partition.
+SELECT group_replication_get_write_concurrency();
+ERROR HY000: Can't initialize function 'group_replication_get_write_concurrency'; Member must be online and on the majority partition.
+###############################################################################
+# 8. Check that it is not possible to update wc value when a member is in ERROR state.
+[connection server1]
+START SLAVE SQL_THREAD FOR CHANNEL 'group_replication_applier';
+Wait until server2 becomes ONLINE
+CREATE TABLE t2 (a INT PRIMARY KEY);
+include/rpl_sync.inc
+[connection server2]
+SET SESSION sql_log_bin=0;
+INSERT INTO t2 values(11);
+SET SESSION sql_log_bin=1;
+[connection server1]
+INSERT INTO t2 values(11);
+[connection server2]
+wait until server2 goes to ERROR state.
+SELECT group_replication_set_write_concurrency(11);
+ERROR HY000: Can't initialize function 'group_replication_set_write_concurrency'; Member must be online and on the majority partition.
+SELECT group_replication_get_write_concurrency();
+ERROR HY000: Can't initialize function 'group_replication_get_write_concurrency'; Member must be online and on the majority partition.
+include/stop_group_replication.inc
+SET SESSION sql_log_bin=0;
+DELETE FROM t2;
+SET SESSION sql_log_bin=1;
+include/start_group_replication.inc
+DROP TABLE t2;
+include/rpl_sync.inc
+###############################################################################
+# 9. Stop GR and try to call group_replication_{get,set}_write_concurrency outside of a group
+[connection server1]
+include/group_replication_end.inc
+SELECT group_replication_get_write_concurrency();
+ERROR HY000: Can't initialize function 'group_replication_get_write_concurrency'; Member must be online and on the majority partition.
+SELECT group_replication_set_write_concurrency(10);
+ERROR HY000: Can't initialize function 'group_replication_set_write_concurrency'; Member must be online and on the majority partition.
+DROP TABLE t1;

@@ -13,7 +13,7 @@
 extern "C" {
 #endif
 
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved. 
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,6 +42,8 @@ enum xcom_proto {
 	x_1_0 = 1,
 	x_1_1 = 2,
 	x_1_2 = 3,
+	x_1_3 = 4,
+	x_1_4 = 5,
 };
 typedef enum xcom_proto xcom_proto;
 
@@ -64,6 +66,8 @@ enum cons_type {
 	cons_none = 2,
 };
 typedef enum cons_type cons_type;
+
+typedef uint32_t xcom_event_horizon;
 
 typedef uint32_t node_no;
 
@@ -162,6 +166,8 @@ enum cargo_type {
 	force_config_type = 18,
 	x_terminate_and_exit = 19,
 	set_cache_limit = 20,
+	get_event_horizon_type = 21,
+	set_event_horizon_type = 22,
 };
 typedef enum cargo_type cargo_type;
 
@@ -212,6 +218,7 @@ struct app_u {
 		trans_data td;
 		node_set present;
 		uint64_t cache_limit;
+		xcom_event_horizon event_horizon;
 	} app_u_u;
 };
 typedef struct app_u app_u;
@@ -334,12 +341,25 @@ struct snapshot {
 };
 typedef struct snapshot snapshot;
 
-struct config {
+struct config_1_2 {
 	synode_no start;
 	synode_no boot_key;
 	node_list_1_1 nodes;
 };
-typedef struct config config;
+typedef struct config_1_2 config_1_2;
+
+struct config_1_4 {
+	synode_no start;
+	synode_no boot_key;
+	node_list_1_1 nodes;
+	xcom_event_horizon event_horizon;
+};
+typedef struct config_1_4 config_1_4;
+#ifndef CONFIG_XDR_TYPEDEF
+#define CONFIG_XDR_TYPEDEF
+typedef config_1_4 config;
+extern bool_t xdr_config (XDR *, config*);
+#endif
 
 typedef config *config_ptr;
 
@@ -404,9 +424,32 @@ struct pax_msg_1_2 {
 	synode_no delivered_msg;
 };
 typedef struct pax_msg_1_2 pax_msg_1_2;
+
+struct pax_msg_1_4 {
+	node_no to;
+	node_no from;
+	uint32_t group_id;
+	synode_no max_synode;
+	start_t start_type;
+	ballot reply_to;
+	ballot proposal;
+	pax_op op;
+	synode_no synode;
+	pax_msg_type msg_type;
+	bit_set *receivers;
+	app_data *a;
+	snapshot *snap;
+	gcs_snapshot *gcs_snap;
+	client_reply_code cli_err;
+	bool_t force_delivery;
+	int32_t refcnt;
+	synode_no delivered_msg;
+	xcom_event_horizon event_horizon;
+};
+typedef struct pax_msg_1_4 pax_msg_1_4;
 #ifndef PAX_MSG_TYPEDEF
 #define PAX_MSG_TYPEDEF
-typedef pax_msg_1_2 pax_msg;
+typedef pax_msg_1_4 pax_msg;
 extern bool_t xdr_pax_msg (XDR *, pax_msg*);
 #endif
 
@@ -418,6 +461,7 @@ extern  bool_t xdr_xcom_proto (XDR *, xcom_proto*);
 extern  bool_t xdr_x_proto_range (XDR *, x_proto_range*);
 extern  bool_t xdr_delivery_status (XDR *, delivery_status*);
 extern  bool_t xdr_cons_type (XDR *, cons_type*);
+extern  bool_t xdr_xcom_event_horizon (XDR *, xcom_event_horizon*);
 extern  bool_t xdr_node_no (XDR *, node_no*);
 extern  bool_t xdr_synode_no (XDR *, synode_no*);
 extern  bool_t xdr_trans_id (XDR *, trans_id*);
@@ -448,13 +492,15 @@ extern  bool_t xdr_pax_op (XDR *, pax_op*);
 extern  bool_t xdr_pax_msg_type (XDR *, pax_msg_type*);
 extern  bool_t xdr_start_t (XDR *, start_t*);
 extern  bool_t xdr_snapshot (XDR *, snapshot*);
-extern  bool_t xdr_config (XDR *, config*);
+extern  bool_t xdr_config_1_2 (XDR *, config_1_2*);
+extern  bool_t xdr_config_1_4 (XDR *, config_1_4*);
 extern  bool_t xdr_config_ptr (XDR *, config_ptr*);
 extern  bool_t xdr_configs (XDR *, configs*);
 extern  bool_t xdr_gcs_snapshot (XDR *, gcs_snapshot*);
 extern  bool_t xdr_client_reply_code (XDR *, client_reply_code*);
 extern  bool_t xdr_pax_msg_1_1 (XDR *, pax_msg_1_1*);
 extern  bool_t xdr_pax_msg_1_2 (XDR *, pax_msg_1_2*);
+extern  bool_t xdr_pax_msg_1_4 (XDR *, pax_msg_1_4*);
 
 #else /* K&R C */
 extern bool_t xdr_xcom_proto ();
@@ -462,6 +508,7 @@ extern bool_t xdr_xcom_proto ();
 extern bool_t xdr_x_proto_range ();
 extern bool_t xdr_delivery_status ();
 extern bool_t xdr_cons_type ();
+extern bool_t xdr_xcom_event_horizon ();
 extern bool_t xdr_node_no ();
 extern bool_t xdr_synode_no ();
 extern bool_t xdr_trans_id ();
@@ -492,13 +539,15 @@ extern bool_t xdr_pax_op ();
 extern bool_t xdr_pax_msg_type ();
 extern bool_t xdr_start_t ();
 extern bool_t xdr_snapshot ();
-extern bool_t xdr_config ();
+extern bool_t xdr_config_1_2 ();
+extern bool_t xdr_config_1_4 ();
 extern bool_t xdr_config_ptr ();
 extern bool_t xdr_configs ();
 extern bool_t xdr_gcs_snapshot ();
 extern bool_t xdr_client_reply_code ();
 extern bool_t xdr_pax_msg_1_1 ();
 extern bool_t xdr_pax_msg_1_2 ();
+extern bool_t xdr_pax_msg_1_4 ();
 
 #endif /* K&R C */
 

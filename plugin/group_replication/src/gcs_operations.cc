@@ -437,4 +437,83 @@ end:
   DBUG_RETURN(error);
 }
 
+Gcs_group_management_interface *Gcs_operations::get_gcs_group_manager() const {
+  std::string const group_name(group_name_var);
+  Gcs_group_identifier const group_id(group_name);
+  Gcs_control_interface *gcs_control = nullptr;
+  Gcs_group_management_interface *gcs_group_manager = nullptr;
+  if (gcs_interface == nullptr || !gcs_interface->is_initialized()) {
+    /* purecov: begin inspected */
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GRP_MEMBER_OFFLINE);
+    goto end;
+    /* purecov: end */
+  }
+  gcs_control = gcs_interface->get_control_session(group_id);
+  if (gcs_control == nullptr || !gcs_control->belongs_to_group()) {
+    /* purecov: begin inspected */
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GCS_INTERFACE_ERROR);
+    goto end;
+    /* purecov: end */
+  }
+  gcs_group_manager = gcs_interface->get_management_session(group_id);
+  if (gcs_group_manager == nullptr) {
+    /* purecov: begin inspected */
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GCS_INTERFACE_ERROR);
+    goto end;
+    /* purecov: end */
+  }
+end:
+  return gcs_group_manager;
+}
+
+enum enum_gcs_error Gcs_operations::get_write_concurrency(
+    uint32_t &write_concurrency) {
+  DBUG_ENTER("Gcs_operations::get_write_concurrency");
+  enum enum_gcs_error result = GCS_NOK;
+  gcs_operations_lock->rdlock();
+  Gcs_group_management_interface *gcs_group_manager = get_gcs_group_manager();
+  if (gcs_group_manager != nullptr) {
+    result = gcs_group_manager->get_write_concurrency(write_concurrency);
+  }
+  gcs_operations_lock->unlock();
+  DBUG_RETURN(result);
+}
+
+enum enum_gcs_error Gcs_operations::set_write_concurrency(
+    uint32_t new_write_concurrency) {
+  DBUG_ENTER("Gcs_operations::set_write_concurrency");
+  enum enum_gcs_error result = GCS_NOK;
+  gcs_operations_lock->wrlock();
+  Gcs_group_management_interface *gcs_group_manager = get_gcs_group_manager();
+  if (gcs_group_manager != nullptr) {
+    result = gcs_group_manager->set_write_concurrency(new_write_concurrency);
+  }
+  gcs_operations_lock->unlock();
+  DBUG_RETURN(result);
+}
+
+uint32_t Gcs_operations::get_minimum_write_concurrency() const {
+  DBUG_ENTER("Gcs_operations::get_minimum_write_concurrency");
+  uint32_t result = 0;
+  gcs_operations_lock->rdlock();
+  Gcs_group_management_interface *gcs_group_manager = get_gcs_group_manager();
+  if (gcs_group_manager != nullptr) {
+    result = gcs_group_manager->get_minimum_write_concurrency();
+  }
+  gcs_operations_lock->unlock();
+  DBUG_RETURN(result);
+}
+
+uint32_t Gcs_operations::get_maximum_write_concurrency() const {
+  DBUG_ENTER("Gcs_operations::get_maximum_write_concurrency");
+  uint32_t result = 0;
+  gcs_operations_lock->rdlock();
+  Gcs_group_management_interface *gcs_group_manager = get_gcs_group_manager();
+  if (gcs_group_manager != nullptr) {
+    result = gcs_group_manager->get_maximum_write_concurrency();
+  }
+  gcs_operations_lock->unlock();
+  DBUG_RETURN(result);
+}
+
 const std::string &Gcs_operations::get_gcs_engine() { return gcs_engine; }

@@ -13,13 +13,13 @@ GRANT GROUP_REPLICATION_ADMIN ON *.* TO 'group_rpl_user2';
 #    commands must fail due to lack of privileges.
 [connection con_group_rpl_user1]
 SELECT group_replication_set_as_primary("MEMBER1_UUID");
-ERROR HY000: Can't initialize function 'group_replication_set_as_primary';  User 'group_rpl_user1'@'%'. needs SUPER or GROUP_REPLICATION_ADMIN privileges.
+ERROR HY000: Can't initialize function 'group_replication_set_as_primary'; User 'group_rpl_user1'@'%' needs SUPER or GROUP_REPLICATION_ADMIN privileges.
 SELECT group_replication_switch_to_multi_primary_mode();
-ERROR HY000: Can't initialize function 'group_replication_switch_to_multi_primary_mode';  User 'group_rpl_user1'@'%'. needs SUPER or GROUP_REPLICATION_ADMIN privileges.
+ERROR HY000: Can't initialize function 'group_replication_switch_to_multi_primary_mode'; User 'group_rpl_user1'@'%' needs SUPER or GROUP_REPLICATION_ADMIN privileges.
 SELECT group_replication_switch_to_single_primary_mode();
-ERROR HY000: Can't initialize function 'group_replication_switch_to_single_primary_mode';  User 'group_rpl_user1'@'%'. needs SUPER or GROUP_REPLICATION_ADMIN privileges.
+ERROR HY000: Can't initialize function 'group_replication_switch_to_single_primary_mode'; User 'group_rpl_user1'@'%' needs SUPER or GROUP_REPLICATION_ADMIN privileges.
 SELECT group_replication_switch_to_single_primary_mode("MEMBER1_UUID");
-ERROR HY000: Can't initialize function 'group_replication_switch_to_single_primary_mode';  User 'group_rpl_user1'@'%'. needs SUPER or GROUP_REPLICATION_ADMIN privileges.
+ERROR HY000: Can't initialize function 'group_replication_switch_to_single_primary_mode'; User 'group_rpl_user1'@'%' needs SUPER or GROUP_REPLICATION_ADMIN privileges.
 
 # 3. Connect to server using group_rpl_user2. Group configuration
 #    commands must not fail.

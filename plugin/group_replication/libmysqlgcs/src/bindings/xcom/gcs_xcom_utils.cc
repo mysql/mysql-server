@@ -29,6 +29,7 @@
 #include <netdb.h>
 #endif
 #include <algorithm>
+#include <cinttypes>
 #include <climits>
 #include <iostream>
 #include <limits>
@@ -167,6 +168,35 @@ int Gcs_xcom_proxy_impl::xcom_client_remove_node(node_list *nl, uint32_t gid) {
       0 otherwise.
     */
     if (fd != NULL) res = ::xcom_client_remove_node(fd, nl, gid) ? false : true;
+  }
+  xcom_release_handler(index);
+  return res;
+}
+
+bool Gcs_xcom_proxy_impl::xcom_client_get_event_horizon(
+    uint32_t gid, xcom_event_horizon &event_horizon) {
+  int index = xcom_acquire_handler();
+  int res = false;
+
+  if (index != -1) {
+    connection_descriptor *fd = m_xcom_handlers[index]->get_fd();
+    if (fd != nullptr) {
+      res = ::xcom_client_get_event_horizon(fd, gid, &event_horizon) == 1;
+    }
+  }
+  xcom_release_handler(index);
+  return res;
+}
+
+bool Gcs_xcom_proxy_impl::xcom_client_set_event_horizon(
+    uint32_t gid, xcom_event_horizon event_horizon) {
+  int index = xcom_acquire_handler();
+  int res = false;
+
+  if (index != -1) {
+    connection_descriptor *fd = m_xcom_handlers[index]->get_fd();
+    if (fd != nullptr)
+      res = ::xcom_client_set_event_horizon(fd, gid, event_horizon);
   }
   xcom_release_handler(index);
   return res;
@@ -791,6 +821,26 @@ int Gcs_xcom_proxy_base::xcom_remove_node(const Gcs_xcom_node_information &node,
   nodes_to_remove.add_node(node);
 
   return xcom_remove_nodes(nodes_to_remove, group_id_hash);
+}
+
+xcom_event_horizon Gcs_xcom_proxy_base::xcom_get_minimum_event_horizon() {
+  return ::xcom_get_minimum_event_horizon();
+}
+
+xcom_event_horizon Gcs_xcom_proxy_base::xcom_get_maximum_event_horizon() {
+  return ::xcom_get_maximum_event_horizon();
+}
+
+bool Gcs_xcom_proxy_base::xcom_get_event_horizon(
+    uint32_t group_id_hash, xcom_event_horizon &event_horizon) {
+  MYSQL_GCS_LOG_DEBUG("Retrieveing event horizon");
+  return xcom_client_get_event_horizon(group_id_hash, event_horizon);
+}
+
+bool Gcs_xcom_proxy_base::xcom_set_event_horizon(
+    uint32_t group_id_hash, xcom_event_horizon event_horizon) {
+  MYSQL_GCS_LOG_DEBUG("Reconfiguring event horizon to %" PRIu32, event_horizon);
+  return xcom_client_set_event_horizon(group_id_hash, event_horizon);
 }
 
 int Gcs_xcom_proxy_base::xcom_force_nodes(Gcs_xcom_nodes &nodes,

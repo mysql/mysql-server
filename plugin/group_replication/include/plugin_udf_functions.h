@@ -23,8 +23,21 @@
 #ifndef PLUGIN_UDF_FUNCTIONS_INCLUDED
 #define PLUGIN_UDF_FUNCTIONS_INCLUDED
 
+/**
+ * Installs the plugin's UDFs.
+ * If there is an error installing any UDF, all installed UDFs are uninstalled.
+ *
+ * @retval true if there was an error
+ * @retval false if all UDFs were installed
+ */
 bool install_udf_functions();
 
+/**
+ * Uninstalls the plugin's UDFs.
+ *
+ * @retval true if there was an error
+ * @retval false if all UDFs were uninstalled
+ */
 bool uninstall_udf_functions();
 
 #endif /* PLUGIN_UDF_FUNCTIONS_INCLUDED */

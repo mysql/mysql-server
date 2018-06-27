@@ -44,6 +44,7 @@ struct site_def {
   xcom_proto x_proto;
   synode_no delivered_msg[NSERVERS];
   double install_time;
+  xcom_event_horizon event_horizon;
 };
 typedef struct site_def site_def;
 

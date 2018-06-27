@@ -72,7 +72,7 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_ssl_transport.h"
 #endif
 
-#define MY_XCOM_PROTO x_1_2
+#define MY_XCOM_PROTO x_1_4
 
 xcom_proto const my_min_xcom_version =
     x_1_0; /* The minimum protocol version I am able to understand */
@@ -2008,6 +2008,8 @@ bool_t xdr_node_list_1_1(XDR *xdrs, node_list_1_1 *objp) {
       return retval;
     case x_1_1:
     case x_1_2:
+    case x_1_3:
+    case x_1_4:
       retval = xdr_array(xdrs, &x, (u_int *)&objp->node_list_len, NSERVERS,
                          sizeof(node_address), (xdrproc_t)xdr_node_address);
       objp->node_list_val = (node_address *)x;
@@ -2038,11 +2040,38 @@ bool_t xdr_pax_msg(XDR *xdrs, pax_msg *objp) {
     case x_1_0:
     case x_1_1:
       if (!xdr_pax_msg_1_1(xdrs, (pax_msg_1_1 *)objp)) return FALSE;
-      if (xdrs->x_op == XDR_DECODE)
+      if (xdrs->x_op == XDR_DECODE) {
         objp->delivered_msg = get_delivered_msg(); /* Use our own minimum */
+        objp->event_horizon = 0; /* Won't be used, so use 0 to spot if it is */
+      }
       return TRUE;
     case x_1_2:
-      return xdr_pax_msg_1_2(xdrs, objp);
+    case x_1_3:
+      if (!xdr_pax_msg_1_2(xdrs, (pax_msg_1_2 *)objp)) return FALSE;
+      if (xdrs->x_op == XDR_DECODE) {
+        objp->event_horizon = 0; /* Won't be used, so use 0 to spot if it is */
+      }
+      return TRUE;
+    case x_1_4:
+      return xdr_pax_msg_1_4(xdrs, objp);
+    default:
+      return FALSE;
+  }
+}
+
+bool_t xdr_config(XDR *xdrs, config *objp) {
+  xcom_proto vx = *((xcom_proto *)xdrs->x_public);
+  // Select protocol encode/decode based on the x_public field of the xdr struct
+  switch (vx) {
+    case x_1_0:
+    case x_1_1:
+    case x_1_2:
+    case x_1_3:
+      if (!xdr_config_1_2(xdrs, (config_1_2 *)objp)) return FALSE;
+      if (xdrs->x_op == XDR_DECODE) objp->event_horizon = EVENT_HORIZON_MIN;
+      return TRUE;
+    case x_1_4:
+      return xdr_config_1_4(xdrs, objp);
     default:
       return FALSE;
   }

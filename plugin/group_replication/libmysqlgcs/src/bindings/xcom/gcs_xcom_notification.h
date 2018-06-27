@@ -613,4 +613,5 @@ class Control_notification : public Parameterized_notification<false> {
   Control_notification(Control_notification const &);
   Control_notification &operator=(Control_notification const &);
 };
+
 #endif  // GCS_XCOM_NOTIFICATION_INCLUDED

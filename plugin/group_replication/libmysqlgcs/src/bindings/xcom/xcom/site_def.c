@@ -185,6 +185,7 @@ site_def const *get_prev_site_def() { return _get_prev_site_def(); }
 
 /* purecov: end */
 
+/* Checks if site->start >= synode. */
 static inline int match_def(site_def const *site, synode_no synode) {
   return site &&
          (synode.group_id == 0 || synode.group_id == site->start.group_id) &&
@@ -217,6 +218,28 @@ site_def *find_site_def_rw(synode_no synode) {
       break;
     }
   assert(!retval ||
+         retval->global_node_set.node_set_len == _get_maxnodes(retval));
+  return retval;
+}
+
+/* Checks if site->start > synode. */
+static inline int start_gt(site_def const *site, synode_no synode) {
+  return site &&
+         (synode.group_id == 0 || synode.group_id == site->start.group_id) &&
+         synode_gt(site->start, synode);
+}
+
+/* Retrieve the first site_def which has start greater than synode. */
+site_def const *find_next_site_def(synode_no synode) {
+  site_def const *retval = NULL;
+  u_int i;
+
+  for (i = site_defs.count; i > 0; i--)
+    if (start_gt(site_defs.site_def_ptr_array_val[i - 1], synode)) {
+      retval = site_defs.site_def_ptr_array_val[i - 1];
+      break;
+    }
+  assert(retval == NULL ||
          retval->global_node_set.node_set_len == _get_maxnodes(retval));
   return retval;
 }
@@ -313,6 +336,13 @@ void init_site_def(u_int n, node_address *names, site_def *site) {
   assert(site->local_node_set.node_set_len == _get_maxnodes(site));
   site->detector_updated = 0;
   site->x_proto = my_xcom_version;
+  /* Inherit latest configuration's event horizon or fallback to default */
+  const site_def *latest_config = get_site_def();
+  if (latest_config != NULL) {
+    site->event_horizon = latest_config->event_horizon;
+  } else {
+    site->event_horizon = EVENT_HORIZON_MIN;
+  }
 }
 
 /* }}} */
@@ -441,6 +471,7 @@ void import_config(gcs_snapshot *gcs_snap) {
       init_site_def(cp->nodes.node_list_len, cp->nodes.node_list_val, site);
       site->start = cp->start;
       site->boot_key = cp->boot_key;
+      site->event_horizon = cp->event_horizon;
       site_install_action(site, app_type);
     }
   }
@@ -464,6 +495,7 @@ gcs_snapshot *export_config() {
                      &cp->nodes);
       cp->start = site->start;
       cp->boot_key = site->boot_key;
+      cp->event_horizon = site->event_horizon;
       DBGOUT(FN; SYCEXP(cp->start); SYCEXP(cp->boot_key));
       gcs_snap->cfg.configs_val[i] = cp;
     }

@@ -220,6 +220,42 @@ class Gcs_xcom_proxy {
                                       uint32_t group_id) = 0;
 
   /**
+    This member function is responsible for retrieving the event horizon of the
+    XCom configuration.
+
+    This function REQUIRES a prior call to @c xcom_open_handlers to establish a
+    connection to XCom.
+
+    @param[in] group_id The identifier of the group from which the event horizon
+               will be retrieved
+    @param[out] event_horizon A reference to where the group's event horizon
+                value will be written to
+
+    @return true if successful and event_horizon was written to, false otherwise
+
+ */
+  virtual bool xcom_client_get_event_horizon(
+      uint32_t group_id, xcom_event_horizon &event_horizon) = 0;
+
+  /**
+    This member function is responsible for triggering the reconfiguration of
+    the event horizon of the XCom configuration. This function is asynchronous,
+    so you need to poll @c xcom_get_event_horizon to actually validate that the
+    reconfiguration was successful.
+
+    This function REQUIRES a prior call to @c xcom_open_handlers to establish a
+    connection to XCom.
+
+    @param event_horizon The desired event horizon value
+    @param group_id The identifier of the group from which the nodes will
+           be removed
+
+    @return true if successful, false otherwise
+ */
+  virtual bool xcom_client_set_event_horizon(
+      uint32_t group_id, xcom_event_horizon event_horizon) = 0;
+
+  /**
     This member function is responsible for pushing data into consensus on
     XCom. The caller is responsible to making sure that there is an open XCom
     session @c xcom_open_handlers and also that the server is  part of the XCom
@@ -439,7 +475,8 @@ class Gcs_xcom_proxy {
 
     This function is mostly used by the locally connecting functions such as
     @c xcom_client_send_data, @c xcom_client_add_node,
-    @c xcom_client_remove_node, @c xcom_client_boot.
+    @c xcom_client_set_event_horizon, @c xcom_client_remove_node,
+    @c xcom_client_boot.
 
     @return a valid handler to communicate with XCom
   */
@@ -628,6 +665,39 @@ class Gcs_xcom_proxy {
                             uint32_t group_id_hash) = 0;
 
   /**
+    Function to retrieve XCOM's minimum supported event horizon value.
+  */
+  virtual xcom_event_horizon xcom_get_minimum_event_horizon() = 0;
+
+  /**
+    Function to retrieve XCOM's maximum supported event horizon value.
+  */
+  virtual xcom_event_horizon xcom_get_maximum_event_horizon() = 0;
+
+  /**
+    Function to retrieve XCOM's event horizon.
+
+    @param[in] group_id_hash Hash of group identifier.
+    @param[out] event_horizon A reference to where the group's event horizon
+                value will be written to
+
+    @return true if successful, false otherwise
+  */
+  virtual bool xcom_get_event_horizon(uint32_t group_id_hash,
+                                      xcom_event_horizon &event_horizon) = 0;
+
+  /**
+    Function to reconfigure XCOM's event horizon.
+
+    @param group_id_hash Hash of group identifier.
+    @param event_horizon Desired event horizon value.
+
+    @return true if successful, false otherwise
+  */
+  virtual bool xcom_set_event_horizon(uint32_t group_id_hash,
+                                      xcom_event_horizon event_horizon) = 0;
+
+  /**
     Function to force the set of nodes in XCOM's configuration.
 
     @param nodes Set of nodes.
@@ -672,6 +742,12 @@ class Gcs_xcom_proxy_base : public Gcs_xcom_proxy {
   int xcom_add_node(connection_descriptor &con,
                     const Gcs_xcom_node_information &node,
                     uint32_t group_id_hash);
+  xcom_event_horizon xcom_get_minimum_event_horizon();
+  xcom_event_horizon xcom_get_maximum_event_horizon();
+  bool xcom_get_event_horizon(uint32_t group_id_hash,
+                              xcom_event_horizon &event_horizon);
+  bool xcom_set_event_horizon(uint32_t group_id_hash,
+                              xcom_event_horizon event_horizon);
   int xcom_force_nodes(Gcs_xcom_nodes &nodes, uint32_t group_id_hash);
 
  private:
@@ -726,6 +802,10 @@ class Gcs_xcom_proxy_impl : public Gcs_xcom_proxy_base {
   int xcom_client_remove_node(connection_descriptor *fd, node_list *nl,
                               uint32_t group_id);
   int xcom_client_remove_node(node_list *nl, uint32_t group_id);
+  bool xcom_client_get_event_horizon(uint32_t group_id,
+                                     xcom_event_horizon &event_horizon);
+  bool xcom_client_set_event_horizon(uint32_t group_id,
+                                     xcom_event_horizon event_horizon);
   int xcom_client_boot(node_list *nl, uint32_t group_id);
   connection_descriptor *xcom_client_open_connection(std::string,
                                                      xcom_port port);

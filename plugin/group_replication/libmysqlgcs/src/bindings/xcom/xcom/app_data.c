@@ -116,6 +116,11 @@ static char *dbg_app_data_single(app_data_ptr a) {
       case view_msg:
         COPY_AND_FREE_GOUT(dbg_node_set(a->body.app_u_u.present));
         break;
+      case get_event_horizon_type:
+        break;
+      case set_event_horizon_type:
+        NDBG(a->body.app_u_u.event_horizon, u);
+        break;
       default:
         STRLIT("unknown type ");
         break;
@@ -209,6 +214,11 @@ app_data_ptr clone_app_data_single(app_data_ptr a) {
       case disable_arbitrator:
       case x_terminate_and_exit:
         break;
+      case get_event_horizon_type:
+        break;
+      case set_event_horizon_type:
+        p->body.app_u_u.event_horizon = a->body.app_u_u.event_horizon;
+        break;
       default: /* Should not happen */
         str = dbg_app_data(a);
         G_ERROR("%s", str);
@@ -277,6 +287,8 @@ size_t app_data_size(app_data const *a) {
     case enable_arbitrator:
     case disable_arbitrator:
     case x_terminate_and_exit:
+    case get_event_horizon_type:
+    case set_event_horizon_type:
       break;
     default: /* Should not happen */
       assert(("No such xcom type" && FALSE));

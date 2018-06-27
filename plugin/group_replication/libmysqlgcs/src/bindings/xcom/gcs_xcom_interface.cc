@@ -1275,6 +1275,22 @@ void cb_xcom_receive_global_view(synode_no config_id, synode_no message_id,
   }
 }
 
+static bool same_members(Gcs_xcom_control &xcom_control,
+                         Gcs_xcom_nodes const *const xcom_nodes) {
+  bool result = false;
+  Gcs_view const *const current_view = xcom_control.get_current_view();
+  if (current_view != nullptr &&
+      current_view->get_members().size() == xcom_nodes->get_size()) {
+    result = true;
+    for (auto const &node : xcom_nodes->get_nodes()) {
+      result = result &&
+               current_view->has_member(node.get_member_id().get_member_id());
+    }
+  }
+  delete current_view;
+  return result;
+}
+
 void do_cb_xcom_receive_global_view(synode_no config_id, synode_no message_id,
                                     Gcs_xcom_nodes *xcom_nodes) {
   Gcs_xcom_interface *intf =
@@ -1340,9 +1356,41 @@ void do_cb_xcom_receive_global_view(synode_no config_id, synode_no message_id,
     is the same or there are new members marked as faulty. The controller
     must be called because it is responsible for removing from the system
     those members that are faulty.
+
+    same_view = true prevents
+    control_if->xcom_receive_global_view(message_id, xcom_nodes, same_view)
+    from firing a new view upwards.
+    We want to filter out a view if:
+
+    a) we have already processed it, or
+    b) it is due to an event horizon reconfiguration.
+
+    We identify situation (a) by comparing the incoming view's config synod
+    against the config synod of the last delivered view.
+    We conclude we are in situation (b) if the incoming view's membership is
+    the same as the last delivered view.
   */
-  bool same_view =
+  // Situation (a).
+  bool const already_processed =
       (last_config_id.group_id != 0 && synode_eq(last_config_id, config_id));
+  // Situation (b).
+  bool const same_nodes = same_members(*xcom_control_if, xcom_nodes);
+
+  bool const same_view = already_processed || same_nodes;
+
+  MYSQL_GCS_TRACE_EXECUTE(if (same_view) {
+    if (already_processed) {
+      MYSQL_GCS_LOG_TRACE(
+          "Received a global view we already processed: { group=%" PRIu32
+          " msgno=%" PRIu64 " node=%" PRIu32 " }",
+          config_id.group_id, config_id.msgno, config_id.node);
+    } else {
+      MYSQL_GCS_LOG_TRACE(
+          "Received a global view due to an event horizon reconfiguration. The "
+          "members are the same");
+    }
+  });
+
   if (!(xcom_control_if->xcom_receive_global_view(message_id, xcom_nodes,
                                                   same_view))) {
     // Copy node set and config id if the view is not rejected...

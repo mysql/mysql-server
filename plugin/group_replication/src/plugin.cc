@@ -1177,7 +1177,8 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info) {
   group_action_coordinator = new Group_action_coordinator();
   group_action_coordinator->register_coordinator_observers();
 
-  if (install_udf_functions()) return 1;
+  bool const error = install_udf_functions();
+  if (error) return 1;
 
   // Initialize the recovery SSL option map
   initialize_ssl_option_map();

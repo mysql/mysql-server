@@ -77,6 +77,7 @@
 
 enum {
   EVENT_HORIZON_MIN = 10,
+  EVENT_HORIZON_MAX = 200,
   MAX_BATCH_SIZE = 0x3fffffff, /* Limit batch size to sensible ? amount */
   MAX_DEAD = 10,
   PROPOSERS = 10 /* The number of proposers on one node */

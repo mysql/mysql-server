@@ -5,28 +5,30 @@
 #
 # Test:
 #   0. This test use one server
-#   1. When plugin is installed the 3 functions shall be registered
+#   1. When plugin is installed the $nr_gr_udfs functions shall be registered
 #   2. After UNINSTALL the plugin all functions shall be unregistered
 #      The unregistered 3 functions must fail to execute
-#   3. After INSTALL the plugin shall register 3 functions
-#   4. After START GROUP_REPLICATION the plugin shall have 3 functions
+#   3. After INSTALL the plugin shall register $nr_gr_udfs functions
+#   4. After START GROUP_REPLICATION the plugin shall have $nr_gr_udfs functions
 #      registered
-#   5. After STOP GROUP_REPLICATION the plugin shall have 3 functions
+#   5. After STOP GROUP_REPLICATION the plugin shall have $nr_gr_udfs functions
 #      registered
 #   6. Cleanup
 #
 ###############################################################################
+
+--let $nr_gr_udfs= 5
 
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --source include/group_replication.inc
 
 --echo
---echo # 1. When plugin is installed the 3 functions shall be registered
+--echo # 1. When plugin is installed the $nr_gr_udfs functions shall be registered
 --let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
---let $assert_text= 'There are 3 UDF functions registered'
---let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.user_defined_functions WHERE udf_name LIKE "group_replication_%", count, 1] = 3
+--let $assert_text= "There are $nr_gr_udfs UDF functions registered"
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.user_defined_functions WHERE udf_name LIKE "group_replication_%", count, 1] = $nr_gr_udfs
 --source include/assert.inc
 
 --let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
@@ -42,7 +44,7 @@
 --source include/assert.inc
 
 --echo
---echo # The unregistered 3 functions must fail to execute
+--echo # The unregistered $nr_gr_udfs functions must fail to execute
 --error ER_SP_DOES_NOT_EXIST
 SELECT group_replication_switch_to_multi_primary_mode();
 
@@ -57,14 +59,20 @@ SELECT group_replication_switch_to_single_primary_mode();
 --error ER_SP_DOES_NOT_EXIST
 --eval SELECT group_replication_set_as_primary("$server1_uuid")
 
+--error ER_SP_DOES_NOT_EXIST
+SELECT group_replication_get_write_concurrency();
+
+--error ER_SP_DOES_NOT_EXIST
+SELECT group_replication_set_write_concurrency(10);
+
 --echo
---echo # 3. After INSTALL the plugin shall register 3 functions
+--echo # 3. After INSTALL the plugin shall register $nr_gr_udfs functions
 
 --source include/install_group_replication_plugin.inc
 --source include/clean_group_replication_install_entry.inc
 
---let $assert_text= 'There are 3 UDF functions registered'
---let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.user_defined_functions WHERE udf_name LIKE "group_replication_%", count, 1] = 3
+--let $assert_text= "There are $nr_gr_udfs UDF functions registered"
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.user_defined_functions WHERE udf_name LIKE "group_replication_%", count, 1] = $nr_gr_udfs
 --source include/assert.inc
 
 --replace_result $_group_replication_group_seeds GROUP_SEEDS
@@ -73,23 +81,23 @@ SELECT group_replication_switch_to_single_primary_mode();
 --eval SET @@global.group_replication_local_address="$_group_replication_local_address"
 
 --echo
---echo # 4. After START GROUP_REPLICATION the plugin shall have 3 functions
+--echo # 4. After START GROUP_REPLICATION the plugin shall have $nr_gr_udfs functions
 --echo #    registered
 
 --source include/start_and_bootstrap_group_replication.inc
 
---let $assert_text= 'There are 3 UDF functions registered'
---let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.user_defined_functions WHERE udf_name LIKE "group_replication_%", count, 1] = 3
+--let $assert_text= "There are $nr_gr_udfs UDF functions registered"
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.user_defined_functions WHERE udf_name LIKE "group_replication_%", count, 1] = $nr_gr_udfs
 --source include/assert.inc
 
 --source include/stop_group_replication.inc
 
 --echo
---echo # 5. After STOP GROUP_REPLICATION the plugin shall have 3 functions
+--echo # 5. After STOP GROUP_REPLICATION the plugin shall have $nr_gr_udfs functions
 --echo #    registered
 
---let $assert_text= 'There are 3 UDF functions registered'
---let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.user_defined_functions WHERE udf_name LIKE "group_replication_%", count, 1] = 3
+--let $assert_text= "There are $nr_gr_udfs UDF functions registered"
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.user_defined_functions WHERE udf_name LIKE "group_replication_%", count, 1] = $nr_gr_udfs
 --source include/assert.inc
 
 --echo
