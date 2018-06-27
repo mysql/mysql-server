@@ -123,7 +123,7 @@ bool Is_simple::eval(const Geometrycollection &g) const {
     auto extension_of_touches = [&](const Geometry &g1, const Geometry &g2) {
       try {
         return touches(&g1, &g2);
-      } catch (null_value_exception) {
+      } catch (const null_value_exception &) {
         return false;
       }
     };
