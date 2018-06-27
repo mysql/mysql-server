@@ -69,8 +69,7 @@ INSERT INTO t1 VALUES (1);
 --echo #
 --echo # Step-6: Grep for the expected error in server log.
 --echo #
---let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
---let $assert_only_after = CURRENT_TEST: group_replication.gr_applier_error
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/gr_applier_error.2.err
 --let $assert_count = 1
 --let $assert_select = failed executing transaction '.*'; Could not execute Write_rows event on table test.t1; Duplicate entry '1' for key 'PRIMARY', Error_code: 1062; handler error HA_ERR_FOUND_DUPP_KEY, Error_code: MY-001062
 --let $assert_text = Found the expected error in group_replication_applier channel.
