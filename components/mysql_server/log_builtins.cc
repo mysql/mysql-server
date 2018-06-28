@@ -45,7 +45,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/log.h"          // make_iso8601_timestamp, log_write_errstream,
                               // log_get_thread_id, mysql_errno_to_symbol,
                               // mysql_symbol_to_errno, log_vmessage,
-                              // error_message_for_error_log, LogVar
+                              // error_message_for_error_log
 #include "sql/mysqld.h"       // opt_log_(timestamps|error_services),
 #include "sql/sql_class.h"    // THD
 
@@ -110,11 +110,6 @@ static mysql_mutex_t THR_LOCK_log_syseventlog;
 static int log_builtins_inited = 0;
 
 /**
-  Variable listeners: check or update?
-*/
-static const char *LOG_VAR_KEY_CHECK = "check";
-
-/**
   Name of the interface that log-services implements.
 */
 #define LOG_SERVICES_PREFIX "log_service"
@@ -132,32 +127,18 @@ static const char *LOG_VAR_KEY_CHECK = "check";
 #define LOG_BUILTINS_SINK "log_sink_internal"
 
 /**
-  We have a built-in default filtering engine, and a built-in
-  log-writer (the "classic" MySQL server log). These are available
-  even without the component framework (before it's initialized,
-  or if it somehow fails). Since these two are special, we need
-  to be able to identify them.
-*/
-typedef enum enum_log_service_builtin_type {
-  LOG_SERVICE_BUILTIN_TYPE_NONE = 0,    ///< not a built-in service
-  LOG_SERVICE_BUILTIN_TYPE_FILTER = 1,  ///< built-in filtering engine
-  LOG_SERVICE_BUILTIN_TYPE_SINK = 2     ///< built-in default writer
-} log_service_builtin_type;
-
-/**
   Finding and acquiring a service in the component framework is
   expensive, and we may use services a log (depending on how many
   events are logged per second), so we cache the relevant data.
   This struct describes a given service.
 */
 struct log_service_cache_entry {
-  char *name;                     ///< name of this service
-  size_t name_len;                ///< service-name's length
-  my_h_service service;           ///< handle (service framework)
-  int opened;                     ///< currently open instances
-  int requested;                  ///< requested instances
-  bool multi_open;                ///< multi-open supported?
-  log_service_builtin_type type;  ///< regular, builtin filter/sink
+  char *name;            ///< name of this service
+  size_t name_len;       ///< service-name's length
+  my_h_service service;  ///< handle (service framework)
+  int opened;            ///< currently open instances
+  int requested;         ///< requested instances
+  int chistics;          ///< multi-open supported, etc.
 };
 
 /**
@@ -190,18 +171,34 @@ struct log_errstream {
 
   @param  name   the name -- either just the component's, or
                  a fully qualified service.component
-  @retval        LOG_SERVICE_BUILTIN_TYPE_(FILTER|SINK|NONE)
+  @retval        if built-in filter: flags for built-in|singleton|filter
+  @retval        if built-in sink:   flags for built-in|singleton|sink
+  @retval        otherwise:          LOG_SERVICE_UNSPECIFIED
 */
-log_service_builtin_type log_service_builtin(char *name) {
+static int log_service_check_if_builtin(char *name) {
   if ((strlen(name) > sizeof(LOG_SERVICES_PREFIX)) && (name[11] == '.') &&
       (0 == strncmp(name, LOG_SERVICES_PREFIX, 11)))
     name += (sizeof(LOG_SERVICES_PREFIX));
 
   if (0 == strncmp(name, LOG_BUILTINS_FILTER, sizeof(LOG_BUILTINS_FILTER)))
-    return LOG_SERVICE_BUILTIN_TYPE_FILTER;
+    return LOG_SERVICE_BUILTIN | LOG_SERVICE_FILTER | LOG_SERVICE_SINGLETON;
   if (0 == strncmp(name, LOG_BUILTINS_SINK, sizeof(LOG_BUILTINS_SINK)))
-    return LOG_SERVICE_BUILTIN_TYPE_SINK;
-  return LOG_SERVICE_BUILTIN_TYPE_NONE;
+    return LOG_SERVICE_BUILTIN | LOG_SERVICE_SINK | LOG_SERVICE_SINGLETON;
+  return LOG_SERVICE_UNSPECIFIED;
+}
+
+/**
+  Test whether given service has *all* of the given characteristics.
+  (See log_service_chistics for a list!)
+
+  @param  sce              service cache entry for the service in question
+  @param  required_flags   flags we're interested in (bitwise or'd)
+
+  @retval                  true if all given flags are present, false otherwise
+*/
+static inline bool log_service_has_characteristics(log_service_cache_entry *sce,
+                                                   int required_flags) {
+  return ((sce->chistics & required_flags) == required_flags);
 }
 
 /**
@@ -1193,147 +1190,6 @@ static int log_sink_trad(void *instance MY_ATTRIBUTE((unused)), log_line *ll) {
 }
 
 /**
-  Broadcast: Call variable set or update function for all active log services.
-
-  @param   ll       log-line data for the service to operate on:
-
-                    If ll->item[1] has a key of LOG_VAR_KEY_CHECK and a
-                    value of 1, we submit the data (in item[0]) to the
-                    log-services for validation:
-
-                      If a service either flags the value as invalid,
-                      or indicates an internal error (out of memory etc.,
-                      in which case it cannot ascertain whether the value
-                      is valid), processing is aborted, and an error response
-                      to the user's SET is sent.
-                      If all services have no objections (because they
-                      consider the value correct or another service's business),
-                      the value is considered acceptable.
-
-                    Otherwise, we submit the data in item[0] to the
-                    log-services for them to update themselves accordingly:
-
-                      The value will be offered to each service in turn,
-                      even if one flags an internal error (out of the return
-                      states of, "updated", "ignored", "update attempted and
-                      failed").
-
-  @retval           "check"  mode: number of services that failed or voted
-  "deny"
-  @retval           "update" mode: number of services that successfully updated
-*/
-static int log_broadcast_sys_var_set(log_line *ll) {
-  int count = 0;
-  log_item *li;
-  bool validate_only;
-
-  DBUG_ASSERT(ll != nullptr);
-  DBUG_ASSERT(ll->count >= 2);
-
-  /*
-    Changing the variable e.g. for Windows eventlog tag calls some Win
-    functions that are marked not thread-safe, so we serialize them here.
-    It's a service we provide to all services (even the ones that consider
-    themselves thread-safe), as this section isn't performance critical --
-    we wouldn't normally expect even just 2 sessions concurrently setting
-    log_stack or log-variables, much less dozens or hundreds of sessions.
-    Therefore, our concern here is to be robust.
-  */
-
-  mysql_rwlock_wrlock(&THR_LOCK_log_stack);
-
-  /*
-    log_line:
-    ll[0] contains the variable key and value
-    ll[1] contains the action name (check or update)
-  */
-  li = &ll->item[1];
-  validate_only =
-      !strcmp(li->key, LOG_VAR_KEY_CHECK) && (li->data.data_integer != 0);
-
-  for (auto &log_service_cache_element : *log_service_cache) {
-    log_service_cache_entry *sce = log_service_cache_element.second.get();
-
-    /*
-      We only broadcast updates of system variables.
-      As such, we only need to broadcast to external
-      (loaded, not built-in) services, as we can handle
-      the built-in ones directly.
-      It is expected that eventually, services will be
-      either internal, or use pluggable system-variables
-      through the appropriate component framework functionality;
-      once that is achieved, this broadcast function may
-      be removed.
-    */
-    if (sce->type == LOG_SERVICE_BUILTIN_TYPE_NONE) {
-      if (sce->service != nullptr) {
-        /*
-          result:
-          -1 if any of the parameters were nonsense; otherwise
-          the return value of the service we queried;
-          by convention:
-
-          variable check:  <0 failure; 0 proceed; >0 value invalid
-
-            - failure: we tried to run our checks, but failed
-            - proceed: we checked the value, and it is valid
-            - invalid: we checked the value, and it is invalid
-
-          variable update: <0 failure; 0 not processed; >0 processed
-
-            - failure:       we tried to update the value, but failed
-            - not processed: no service chose to update itself (as
-                             opposed to "tried to do so, but failed", above)
-            - processed:     one (or more) services updated themselves
-        */
-        int result;
-        SERVICE_TYPE(log_service) * ls;
-
-        ls = reinterpret_cast<SERVICE_TYPE(log_service) *>(sce->service);
-
-        /*
-          If we can't get the pointer, this service counts as failed.
-        */
-        if (ls == nullptr) result = -1;
-
-        /*
-          Call check function or update function in service depending
-          on the parameters we received (in the log_line).
-        */
-        else {
-          result =
-              validate_only ? ls->variable_check(ll) : ls->variable_update(ll);
-        }
-
-        /*
-          Variable checking fails as soon as a single service says it does,
-          or as soon as one fails internally (as this is our opportunity to
-          throw an error to the client for it)
-        */
-        if (validate_only) {
-          if (result != 0) {
-            count++;
-            break;
-          }
-        }
-        /*
-          Variable updating tries all services, even if some fail
-          (which they normally shouldn't, they had time to complain
-          during the check phase).
-        */
-        else if (result > 0) {
-          count++;
-        }
-      }
-    }
-  }
-
-  mysql_rwlock_unlock(&THR_LOCK_log_stack);
-
-  return count;
-}
-
-/**
   Complete, filter, and write submitted log items.
 
   This expects a log_line collection of log-related key/value pairs,
@@ -1518,15 +1374,17 @@ int log_line_submit(log_line *ll) {
       log_service_instance *lsi = log_service_instances;
 
       while ((lsi != nullptr) && ((sce = lsi->sce) != nullptr)) {
-        if (sce->type == LOG_SERVICE_BUILTIN_TYPE_NONE) {
+        if (!(sce->chistics & LOG_SERVICE_BUILTIN)) {
           SERVICE_TYPE(log_service) * ls;
 
           ls = reinterpret_cast<SERVICE_TYPE(log_service) *>(sce->service);
 
           if (ls != nullptr) ls->run(lsi->instance, ll);
-        } else if (sce->type == LOG_SERVICE_BUILTIN_TYPE_FILTER)
+        } else if (log_service_has_characteristics(
+                       sce, (LOG_SERVICE_BUILTIN | LOG_SERVICE_FILTER)))
           log_builtins_filter_run(log_filter_builtin_rules, ll);
-        else if (sce->type == LOG_SERVICE_BUILTIN_TYPE_SINK)
+        else if (log_service_has_characteristics(
+                     sce, (LOG_SERVICE_BUILTIN | LOG_SERVICE_SINK)))
           log_sink_trad(lsi->instance, ll);
 
         lsi = lsi->next;
@@ -1737,7 +1595,7 @@ static log_service_cache_entry *log_service_cache_entry_new(const char *name,
       sce->name = n;
       sce->name_len = name_len;
       sce->service = srv;
-      sce->multi_open = false;
+      sce->chistics = LOG_SERVICE_UNSPECIFIED;
       sce->requested = 0;
       sce->opened = 0;
     }
@@ -1747,20 +1605,28 @@ static log_service_cache_entry *log_service_cache_entry_new(const char *name,
 }
 
 /**
-  Find out whether a given service is a singleton
+  Find out characteristics of a service (e.g. whether it is a singleton)
+  by asking it.
+
+  (See log_service_chistics for a list of possible characteristics!)
 
   @param  service  what service to examine
 
-  @retval true     multiple instances of the given service may be opened
-  @retval false    only one instance  of the given service may be opened
+  @retval a set of log_service_chistics flags
 */
-static bool log_service_multi_open_capable(my_h_service service) {
+static int log_service_get_characteristics(my_h_service service) {
   SERVICE_TYPE(log_service) * ls;
 
   DBUG_ASSERT(service != nullptr);
 
   ls = reinterpret_cast<SERVICE_TYPE(log_service) *>(service);
-  return ((ls->open != nullptr) && (ls->close != nullptr));
+
+  // no information available, default to restrictive
+  if (ls->characteristics == nullptr)
+    return LOG_SERVICE_UNSPECIFIED |
+           LOG_SERVICE_SINGLETON; /* purecov: inspected */
+
+  return ls->characteristics();
 }
 
 /**
@@ -1848,7 +1714,7 @@ int log_builtins_error_stack_flush() {
   lsi = log_service_instances;
 
   while ((lsi != nullptr) && ((sce = lsi->sce) != nullptr)) {
-    if (sce->type == LOG_SERVICE_BUILTIN_TYPE_NONE) {
+    if (!(sce->chistics & LOG_SERVICE_BUILTIN)) {
       SERVICE_TYPE(log_service) *ls = nullptr;
       ls = reinterpret_cast<SERVICE_TYPE(log_service) *>(sce->service);
 
@@ -1868,18 +1734,29 @@ int log_builtins_error_stack_flush() {
 /**
   Set up custom error logging stack.
 
-  @param   conf        The configuration string
-  @param   check_only  if true, report on whether configuration is valid
-                       (i.e. whether all requested services are available),
-                       but do not apply the new configuration.
-                       if false, set the configuration (acquire the necessary
-                       services, update the hash by adding/deleting entries
-                       as necessary)
+  @param        conf        The configuration string
+  @param        check_only  If true, report on whether configuration is valid
+                            (i.e. whether all requested services are available),
+                            but do not apply the new configuration.
+                            if false, set the configuration (acquire the
+                            necessary services, update the hash by
+                            adding/deleting entries as necessary)
+  @param[out]   pos         If an error occurs and this pointer is non-null,
+                            the position in the configuration string where
+                            the error occurred will be written to the
+                            pointed-to size_t.
 
-  @retval              <0   failure
-  @retval              >=0  success
+  @retval              0    success
+  @retval             -1    expected delimiter not found
+  @retval             -2    one or more services not found
+  @retval             -3    failed to create service cache entry
+  @retval             -4    tried to open multiple instances of a singleton
+  @retval             -5    failed to create service instance entry
+  @retval             -6    last element in pipeline should be a sink
+  @retval             -101  service name may not start with a delimiter
+  @retval             -102  delimiters ',' and ';' may not be mixed
 */
-int log_builtins_error_stack(const char *conf, bool check_only) {
+int log_builtins_error_stack(const char *conf, bool check_only, size_t *pos) {
   char buf[128];
   const char *start = conf, *end;
   char delim = '\0';
@@ -1887,8 +1764,9 @@ int log_builtins_error_stack(const char *conf, bool check_only) {
   my_h_service service;
   int rr = 0;
   int count = 0;
-  log_service_cache_entry *sce;
+  log_service_cache_entry *sce = nullptr;
   log_service_instance *lsi;
+  int chistics = LOG_SERVICE_UNSPECIFIED;
 
   mysql_rwlock_wrlock(&THR_LOCK_log_stack);
 
@@ -1903,14 +1781,16 @@ int log_builtins_error_stack(const char *conf, bool check_only) {
     assert(check_only || (sce->opened == 0));
   }
 
+  sce = nullptr;
+
   lsi = nullptr;
   while ((len = log_builtins_stack_get_service_from_var(&start, &end, &delim)) >
          0) {
-    log_service_builtin_type srvtype = LOG_SERVICE_BUILTIN_TYPE_NONE;
+    chistics = LOG_SERVICE_UNSPECIFIED;
 
     // more than one services listed, but no delimiter used (only space)
     if ((++count > 1) && (delim == '\0')) {
-      rr = (int)-(start - conf + 1);  // at least one service not found => fail
+      rr = -1;  // at least one service not found => fail
       goto done;
     }
 
@@ -1923,11 +1803,10 @@ int log_builtins_error_stack(const char *conf, bool check_only) {
 
       // not found in framework, is it a built-in default?
       if (service == nullptr) {
-        srvtype = log_service_builtin(buf);
+        chistics = log_service_check_if_builtin(buf);
 
-        if (srvtype == LOG_SERVICE_BUILTIN_TYPE_NONE) {
-          rr = (int)-(start - conf +
-                      1);  // at least one service not found => fail
+        if (!(chistics & LOG_SERVICE_BUILTIN)) {
+          rr = -2;  // at least one service not found => fail
           goto done;
         }
       }
@@ -1935,27 +1814,17 @@ int log_builtins_error_stack(const char *conf, bool check_only) {
       // make a cache-entry for this service
       if ((sce = log_service_cache_entry_new(start, len, service)) == nullptr) {
         // failed to make cache-entry. if we hold a service handle, release it!
+        /* purecov: begin inspected */
         if (service != nullptr) imp_mysql_server_registry.release(service);
-        rr =
-            (int)-(start - conf + 1);  // at least one service not found => fail
-        goto done;
+        rr = -3;
+        goto done; /* purecov: end */
       }
 
-      sce->type = srvtype;
-
-      switch (srvtype) {
-        case LOG_SERVICE_BUILTIN_TYPE_NONE:
-          sce->multi_open = log_service_multi_open_capable(service);
-          break;
-        case LOG_SERVICE_BUILTIN_TYPE_FILTER:
-          sce->multi_open = false;
-          break;
-        case LOG_SERVICE_BUILTIN_TYPE_SINK:
-          sce->multi_open = false;
-          break;
-        default:
-          DBUG_ASSERT(false);
-      }
+      // service is not built-in, so we know nothing about it. Ask it!
+      if ((sce->chistics = chistics) == LOG_SERVICE_UNSPECIFIED)
+        sce->chistics =
+            log_service_get_characteristics(service) &
+            ~LOG_SERVICE_BUILTIN;  // loaded service can not be built-in
 
       log_service_cache->emplace(string(sce->name, sce->name_len),
                                  cache_entry_with_deleter(sce));
@@ -1967,11 +1836,12 @@ int log_builtins_error_stack(const char *conf, bool check_only) {
 
     if (check_only) {
       // tried to multi-open a service that doesn't support it => fail
-      if ((sce->requested > 1) && (!sce->multi_open)) {
-        rr = (int)-(start - conf + 1);
+      if ((sce->requested > 1) && (sce->chistics & LOG_SERVICE_SINGLETON)) {
+        rr = -4;
         goto done;
       }
-    } else if ((sce->requested == 1) || sce->multi_open) {
+    } else if ((sce->requested == 1) ||
+               !(sce->chistics & LOG_SERVICE_SINGLETON)) {
       log_service_instance *lsi_new = nullptr;
 
       // actually setting this config, so open this instance!
@@ -1989,8 +1859,8 @@ int log_builtins_error_stack(const char *conf, bool check_only) {
         lsi = lsi_new;
       } else  // could not make new instance entry; fail
       {
-        rr = (int)-(start - conf + 1);
-        goto done;
+        rr = -5;   /* purecov: inspected */
+        goto done; /* purecov: inspected */
       }
     }
 
@@ -1999,7 +1869,7 @@ int log_builtins_error_stack(const char *conf, bool check_only) {
       is invalid (i.e. we're trying to multi-open a singleton). As
       this should have been caught in the check phase, we don't
       specfically handle it here; the invalid element is skipped and
-      note added to the instance list; that way, we'll get as close
+      not added to the instance list; that way, we'll get as close
       to a working configuration as possible in our attempt to fail
       somewhat gracefully.
     */
@@ -2007,7 +1877,12 @@ int log_builtins_error_stack(const char *conf, bool check_only) {
     start = end;
   }
 
-  rr = (len < 0) ? ((int)-(start - conf + 1)) : 0;
+  if (len < 0)
+    rr = len - 100;
+  else if ((sce != nullptr) && !(sce->chistics & LOG_SERVICE_SINK))
+    rr = -6;
+  else
+    rr = 0;
 
 done:
   // remove stale entries from cache
@@ -2021,6 +1896,8 @@ done:
   }
 
   mysql_rwlock_unlock(&THR_LOCK_log_stack);
+
+  if (pos != nullptr) *pos = (size_t)(start - conf);
 
   return rr;
 }
@@ -2091,7 +1968,7 @@ int log_builtins_init() {
   else {
     log_builtins_inited++;
 
-    if (log_builtins_error_stack(opt_log_error_services, false) >= 0)
+    if (log_builtins_error_stack(opt_log_error_services, false, nullptr) >= 0)
       log_builtins_inited++;
   }
 
@@ -3034,11 +2911,6 @@ DEFINE_METHOD(size_t, log_builtins_string_imp::substitute,
   3rd party services should not rely on these being here for long.
 */
 
-// Are we shutting down yet?  Windows EventLog needs to know.
-DEFINE_METHOD(bool, log_builtins_tmp_imp::connection_loop_aborted, (void)) {
-  return connection_events_loop_aborted();
-}
-
 DEFINE_METHOD(size_t, log_builtins_tmp_imp::notify_client,
               (void *thd, uint severity, uint code, char *to, size_t n,
                const char *format, ...)) {
@@ -3058,90 +2930,11 @@ DEFINE_METHOD(size_t, log_builtins_tmp_imp::notify_client,
   return ret;
 }
 
-  /*
-    Service: expose syslog/eventlog to other components.
-    3rd party services should not rely on these being here for long,
-    as this may be merged into a possibly mysys API later.
-  */
-
-#ifdef _WIN32
-
-/**
-   Create a key in the Windows registry.
-   We'll setup a "MySQL" key in the EventLog branch (RegCreateKey),
-   set our executable name (GetModuleFileName) as file-name
-   ("EventMessageFile"), then set the message types we expect to
-   be logging ("TypesSupported").
-   If the key does not exist, sufficient privileges will be required
-   to create and configure it.  If the key does exist, opening it
-   should be unprivileged; modifying will fail on insufficient
-   privileges, but that is non-fatal.
-
-  @param key          Name of the event generator.
-                      (Only last part of the key, e.g. "MySQL")
-
-  @return
-     0 Success
-    -1 Error
+/*
+  Service: expose syslog/eventlog to other components.
+  3rd party services should not rely on these being here for long,
+  as this may be merged into a possibly mysys API later.
 */
-
-static const char log_registry_prefix[] =
-    "SYSTEM\\CurrentControlSet\\services\\eventlog\\Application\\";
-
-static int log_eventlog_create_registry_entry(const char *key) {
-  HKEY hRegKey = NULL;
-  DWORD dwError = 0;
-  TCHAR szPath[MAX_PATH];
-  DWORD dwTypes;
-
-  size_t l = sizeof(log_registry_prefix) + strlen(key) + 1;
-  char *buff;
-
-  int ret = 0;
-
-  if ((buff = (char *)my_malloc(PSI_NOT_INSTRUMENTED, l, MYF(0))) == NULL)
-    return -1;
-
-  snprintf(buff, l, "%s%s", log_registry_prefix, key);
-
-  // Opens the event source registry key; creates it first if required.
-  dwError = RegCreateKey(HKEY_LOCAL_MACHINE, buff, &hRegKey);
-
-  my_free(buff);
-
-  if (dwError != ERROR_SUCCESS) {
-    if (dwError == ERROR_ACCESS_DENIED) {
-      my_message_stderr(0,
-                        "Could not create or access the registry key needed "
-                        "for the MySQL application\nto log to the Windows "
-                        "EventLog. Run the application with sufficient\n"
-                        "privileges once to create the key, add the key "
-                        "manually, or turn off\nlogging for that application.",
-                        MYF(0));
-    }
-    return -1;
-  }
-
-  /* Name of the PE module that contains the message resource */
-  GetModuleFileName(NULL, szPath, MAX_PATH);
-
-  /* Register EventMessageFile (DLL/exec containing event identifiers) */
-  dwError = RegSetValueEx(hRegKey, "EventMessageFile", 0, REG_EXPAND_SZ,
-                          (PBYTE)szPath, (DWORD)(strlen(szPath) + 1));
-  if ((dwError != ERROR_SUCCESS) && (dwError != ERROR_ACCESS_DENIED)) ret = -1;
-
-  /* Register supported event types */
-  dwTypes =
-      (EVENTLOG_ERROR_TYPE | EVENTLOG_WARNING_TYPE | EVENTLOG_INFORMATION_TYPE);
-  dwError = RegSetValueEx(hRegKey, "TypesSupported", 0, REG_DWORD,
-                          (LPBYTE)&dwTypes, sizeof dwTypes);
-  if ((dwError != ERROR_SUCCESS) && (dwError != ERROR_ACCESS_DENIED)) ret = -1;
-
-  RegCloseKey(hRegKey);
-
-  return ret;
-}
-#endif
 
 /**
   Wrapper for mysys' my_openlog.
@@ -3160,32 +2953,12 @@ static int log_eventlog_create_registry_entry(const char *key) {
 */
 DEFINE_METHOD(int, log_builtins_syseventlog_imp::open,
               (const char *name, int option, int facility)) {
-  int ret = 0;
+  int ret;
+
   mysql_mutex_lock(&THR_LOCK_log_syseventlog);
-
-#ifndef _WIN32
-  int opts = (option & MY_SYSLOG_PIDS) ? LOG_PID : 0;
-
-  openlog(name, opts | LOG_NDELAY, facility);
-
-#else
-
-  HANDLE hEL_new;
-
-  // OOM failsafe.  Not needed for syslog.
-  if (name == NULL)
-    ret = -1;
-  else if ((log_eventlog_create_registry_entry(name) != 0) ||
-           !(hEL_new = RegisterEventSource(NULL, name)))
-    ret = (hEventLog == NULL) ? -1 : -2;
-  else {
-    // deregister previous
-    if (hEventLog != NULL) DeregisterEventSource(hEventLog);
-    hEventLog = hEL_new;
-  }
-#endif
-
+  ret = my_openlog(name, option, facility);
   mysql_mutex_unlock(&THR_LOCK_log_syseventlog);
+
   return ret;
 }
 
@@ -3203,68 +2976,12 @@ DEFINE_METHOD(int, log_builtins_syseventlog_imp::open,
 */
 DEFINE_METHOD(int, log_builtins_syseventlog_imp::write,
               (enum loglevel level, const char *msg)) {
-  int ret = 0;
+  int ret;
+
   mysql_mutex_lock(&THR_LOCK_log_syseventlog);
-
-#ifdef _WIN32
-  int _level = EVENTLOG_INFORMATION_TYPE;
-  wchar_t buff[MAX_SYSLOG_MESSAGE_SIZE];
-  wchar_t *u16buf = NULL;
-  size_t nchars;
-  uint dummy_errors;
-
-  switch (level) {
-    case INFORMATION_LEVEL:
-    case SYSTEM_LEVEL:
-      _level = EVENTLOG_INFORMATION_TYPE;
-      break;
-    case WARNING_LEVEL:
-      _level = EVENTLOG_WARNING_TYPE;
-      break;
-    case ERROR_LEVEL:
-      _level = EVENTLOG_ERROR_TYPE;
-      break;
-    default:
-      DBUG_ASSERT(false);
-  }
-
-  if (hEventLog) {
-    nchars = my_convert((char *)buff, sizeof(buff) - sizeof(buff[0]),
-                        &my_charset_utf16le_bin, msg, MAX_SYSLOG_MESSAGE_SIZE,
-                        &my_charset_utf8_bin, &dummy_errors);
-
-    // terminate it with NULL
-    buff[nchars / sizeof(wchar_t)] = L'\0';
-    u16buf = buff;
-
-    if (!ReportEventW(hEventLog, _level, 0, MSG_DEFAULT, NULL, 1, 0,
-                      (LPCWSTR *)&u16buf, NULL))
-      ret = -1;
-  }
-
-#else
-  int _level = LOG_INFO;
-
-  switch (level) {
-    case INFORMATION_LEVEL:
-    case SYSTEM_LEVEL:
-      _level = LOG_INFO;
-      break;
-    case WARNING_LEVEL:
-      _level = LOG_WARNING;
-      break;
-    case ERROR_LEVEL:
-      _level = LOG_ERR;
-      break;
-    default:
-      DBUG_ASSERT(false);
-  }
-
-  syslog(_level, "%s", msg);
-
-#endif /* _WIN32 */
-
+  ret = my_syslog(&my_charset_utf8_bin, level, msg);
   mysql_mutex_unlock(&THR_LOCK_log_syseventlog);
+
   return ret;
 }
 
@@ -3277,156 +2994,10 @@ DEFINE_METHOD(int, log_builtins_syseventlog_imp::write,
 */
 DEFINE_METHOD(int, log_builtins_syseventlog_imp::close, (void)) {
   int ret = 0;
+
   mysql_mutex_lock(&THR_LOCK_log_syseventlog);
-
-#ifndef _WIN32
-  closelog();
-#else
-  if ((hEventLog != NULL) && (!DeregisterEventSource(hEventLog))) ret = -1;
-
-  hEventLog = NULL;
-#endif
-
+  ret = my_closelog();
   mysql_mutex_unlock(&THR_LOCK_log_syseventlog);
+
   return ret;
-}
-
-/**
-  Temporary helper class to implement services' system variables
-  handling against until the component framework supports
-  per-component variables.
-*/
-
-/**
-  constructor with variable name
-
-  @param s  the variable's name as a constant string-with-length (LEX_CSTRING)
-*/
-LogVar::LogVar(LEX_CSTRING &s) {
-  this->lv.type = LOG_ITEM_END;
-  this->lv.item_class = LOG_UNTYPED;
-  this->lv.key = s.str;
-  this->lv.alloc = LOG_ITEM_FREE_NONE;
-}
-
-/**
-  sanity check a new value for a system variable handled in a log_service
-
-  @retval true   on failure  (e.g. a service called the value illegitimate)
-  @retval false  on success  (no service had any complaints)
-*/
-int LogVar::check() {
-  int rr;
-  log_line ll;
-
-  memset((void *)&ll, 0, sizeof(log_line));
-
-  ll.count = 1;
-  ll.item[0] = this->lv;
-
-  log_line_item_set_with_key(&ll, LOG_ITEM_GEN_INTEGER, LOG_VAR_KEY_CHECK,
-                             LOG_ITEM_FREE_NONE)
-      ->data_integer = 1;
-
-  rr = log_broadcast_sys_var_set(&ll);
-
-  log_line_item_free_all(&ll);
-
-  return rr != 0;  // if any services complained, signal true for "deny"
-}
-
-/**
-  apply new value to a system variable handled in a log_service
-
-  @retval true   on failure
-  @retval false  on success
-*/
-int LogVar::update() {
-  int rr;
-  log_line ll;
-
-  memset((void *)&ll, 0, sizeof(log_line));
-
-  ll.count = 1;
-  ll.item[0] = this->lv;
-
-  log_line_item_set_with_key(&ll, LOG_ITEM_GEN_INTEGER, LOG_VAR_KEY_CHECK,
-                             LOG_ITEM_FREE_NONE)
-      ->data_integer = 0;
-
-  rr = log_broadcast_sys_var_set(&ll);
-
-  log_line_item_free_all(&ll);
-
-  return rr < 1;  // if no services updated successfully, signal true for error
-}
-
-/**
-  set value (of lex-string type)
-
-  @param v  the value
-
-  @retval   the LogVar, for easy fluent-style chaining.
-*/
-LogVar &LogVar::val(LEX_STRING &v) {
-  this->lv.type = LOG_ITEM_GEN_LEX_STRING;
-  this->lv.item_class = LOG_LEX_STRING;
-  this->lv.data.data_string.str = v.str;
-  this->lv.data.data_string.length = v.length;
-  return *this;
-}
-
-/**
-  set value (of NTBS type)
-
-  @param v  the value
-
-  @retval   the LogVar, for easy fluent-style chaining.
-*/
-LogVar &LogVar::val(const char *v) {
-  this->lv.type = LOG_ITEM_GEN_LEX_STRING;
-  this->lv.item_class = LOG_LEX_STRING;
-  this->lv.data.data_string.str = v;
-  this->lv.data.data_string.length = (v == nullptr) ? 0 : strlen(v);
-  return *this;
-}
-
-/**
-  set value (of long long integer type)
-
-  @param v  the value
-
-  @retval   the LogVar, for easy fluent-style chaining.
-*/
-LogVar &LogVar::val(longlong v) {
-  this->lv.type = LOG_ITEM_GEN_INTEGER;
-  this->lv.item_class = LOG_INTEGER;
-  this->lv.data.data_integer = v;
-  return *this;
-}
-
-/**
-  set value (of double type)
-
-  @param v  the value
-
-  @retval   the LogVar, for easy fluent-style chaining.
-*/
-LogVar &LogVar::val(double v) {
-  this->lv.type = LOG_ITEM_GEN_FLOAT;
-  this->lv.item_class = LOG_FLOAT;
-  this->lv.data.data_float = v;
-  return *this;
-}
-
-/**
-  set non-default service group
-
-  @param g  the group
-
-  @retval   the LogVar, for easy fluent-style chaining.
-*/
-LogVar &LogVar::group(const char *g) {
-  this->service_group = g;
-  return *this;
 }

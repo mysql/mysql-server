@@ -223,8 +223,7 @@ log_builtins_string_imp::malloc, log_builtins_string_imp::strndup,
     log_builtins_string_imp::substitute END_SERVICE_IMPLEMENTATION();
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, log_builtins_tmp)
-log_builtins_tmp_imp::connection_loop_aborted,
-    log_builtins_tmp_imp::notify_client END_SERVICE_IMPLEMENTATION();
+log_builtins_tmp_imp::notify_client END_SERVICE_IMPLEMENTATION();
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, log_builtins_syseventlog)
 log_builtins_syseventlog_imp::open, log_builtins_syseventlog_imp::write,

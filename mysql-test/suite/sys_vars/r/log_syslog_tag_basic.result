@@ -1,4 +1,0 @@
-# THIS NOW REQUIRES THE SYSLOG COMPONENT BEING LOADED.
-#
-# THE TESTS THAT USED TO LIVE HERE ARE NOW PART OF
-#   mysql-test\t\log_components_notwin.test

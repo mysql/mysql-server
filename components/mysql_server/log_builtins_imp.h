@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -173,7 +173,6 @@ class log_builtins_string_imp {
 */
 class log_builtins_tmp_imp {
  public: /* Service Implementations */
-  static DEFINE_METHOD(bool, connection_loop_aborted, (void));
   static DEFINE_METHOD(size_t, notify_client,
                        (void *thd, uint severity, uint code, char *to, size_t n,
                         const char *format, ...))

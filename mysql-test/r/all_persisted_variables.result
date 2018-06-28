@@ -34,15 +34,11 @@ WHERE variable_name NOT IN
 'innodb_ft_user_stopword_table',
 'innodb_tmpdir',
 'innodb_ft_server_stopword_table',
-'rbr_exec_mode',
-'log_syslog',
-'log_syslog_facility',
-'log_syslog_include_pid',
-'log_syslog_tag')
+'rbr_exec_mode')
 AND variable_name NOT LIKE 'ndb_%'
 ORDER BY variable_name;
 
-include/assert.inc ['Expect 558 variables in the table. Due to open Bugs, we are checking for 547']
+include/assert.inc ['Expect 554 variables in the table. Due to open Bugs, we are checking for 547']
 
 # Test SET PERSIST
 

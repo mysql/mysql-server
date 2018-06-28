@@ -52,40 +52,6 @@ static bool run_tests = true;
 log_filter_ruleset *test_rules = nullptr;
 
 /**
-  Variable listener. This is a temporary solution until we have
-  per-component system variables. "check" is where our component
-  can veto.
-
-  @param   ll  a log_line with a list-item describing the variable
-               (name, new value)
-
-  @retval   0  for allow (including when we don't feel the event is for us),
-  @retval  <0  deny (nullptr, malformed structures, etc. -- caller broken?)
-  @retval  >0  deny (user input rejected)
-*/
-DEFINE_METHOD(int, log_service_imp::variable_check,
-              (log_line * ll MY_ATTRIBUTE((unused)))) {
-  return 0;
-}
-
-/**
-  Variable listener. This is a temporary solution until we have
-  per-component system variables. "update" is where we're told
-  to update our state (if the variable concerns us to begin with).
-
-  @param  ll  a log_line with a list-item describing the variable
-              (name, new value)
-
-  @retval  0  the event is not for us
-  @retval <0  for failure
-  @retval >0  for success (at least one item was updated)
-*/
-DEFINE_METHOD(int, log_service_imp::variable_update,
-              (log_line * ll MY_ATTRIBUTE((unused)))) {
-  return 0;
-}
-
-/**
   delete a rule from the given rule-set
 
   @param   rs     the rule-set
@@ -1043,11 +1009,21 @@ DEFINE_METHOD(int, log_service_imp::close,
   return 0;
 }
 
+/**
+  Get characteristics of a log-service.
+
+  @retval  <0        an error occurred
+  @retval  >=0       characteristics (a set of log_service_chistics flags)
+*/
+DEFINE_METHOD(int, log_service_imp::characteristics, (void)) {
+  return LOG_SERVICE_SINK;
+}
+
 /* implementing a service: log_service */
 BEGIN_SERVICE_IMPLEMENTATION(log_sink_test, log_service)
 log_service_imp::run, log_service_imp::flush, log_service_imp::open,
-    log_service_imp::close, log_service_imp::variable_check,
-    log_service_imp::variable_update END_SERVICE_IMPLEMENTATION();
+    log_service_imp::close,
+    log_service_imp::characteristics END_SERVICE_IMPLEMENTATION();
 
 /* component provides: just the log_service service, for now */
 BEGIN_COMPONENT_PROVIDES(log_sink_test)
@@ -1061,7 +1037,7 @@ REQUIRES_SERVICE(log_builtins), REQUIRES_SERVICE(log_builtins_string),
 
 /* component description */
 BEGIN_COMPONENT_METADATA(log_sink_test)
-METADATA("mysql.author", "Oracle Corporation"),
+METADATA("mysql.author", "T.A. Nuernberg, Oracle Corporation"),
     METADATA("mysql.license", "GPL"), METADATA("log_service_type", "sink"),
     END_COMPONENT_METADATA();
 

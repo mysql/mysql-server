@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,6 +38,37 @@
 #include <mysql/components/my_service.h>
 #include <mysql/components/service_implementation.h>
 #include <mysql/components/services/log_shared.h>
+
+/* service helpers */
+typedef enum enum_log_service_chistics {
+  /** We do not have information about this service yet. */
+  LOG_SERVICE_UNSPECIFIED = 0,
+
+  /** Service is read-only -- it guarantees it will not modify the log-event.
+      This information may later be used to e.g. run log-writers in parallel. */
+  LOG_SERVICE_READ_ONLY = 1,
+
+  /** Service is a singleton -- it may occur in the log service pipeline
+      only once. */
+  LOG_SERVICE_SINGLETON = 2,
+
+  /** Service is built-in (and can not be INSTALLed/UNINSTALLed */
+  LOG_SERVICE_BUILTIN = 4,
+
+  /** Service is a source. It adds key/value pairs beyond those in the
+      statement that first created the log-event. Log-sources are not
+      normally READ_ONLY. */
+  LOG_SERVICE_SOURCE = 32,
+
+  /** Service is a filter. A filter should not be the last service in
+      the log service pipeline. */
+  LOG_SERVICE_FILTER = 64,
+
+  /** Service is a sink (usually a log-writer). Sinks will normally
+      not modify the log-event, but be READ_ONLY. */
+  LOG_SERVICE_SINK = 128
+
+} log_service_chistics;
 
 BEGIN_SERVICE_DEFINITION(log_service)
 /**
@@ -103,45 +134,12 @@ DECLARE_METHOD(int, open, (log_line * ll, void **instance));
 DECLARE_METHOD(int, close, (void **instance));
 
 /**
-  Variable listener.  This is a temporary solution until we have
-  per-component system variables.  "check" is called when the user
-  uses SQL statements trying to assign a value to certain server
-  system variables; the function can prevent assignment if e.g.
-  the supplied value has the wrong format.
+  Get characteristics of a log-service.
 
-  If several listeners are registered, an error will be signaled
-  to the user on the SQL level as soon as one service identifies
-  a problem with the value.
-
-  @param   ll  log-line having as first element a list-item
-               describing the variable (name, new value)
-
-  @retval   0  for allow (including when we don't feel the event is for us),
-  @retval  -1  for deny
+  @retval  <0        an error occurred
+  @retval  >=0       characteristics (a set of log_service_chistics flags)
 */
-DECLARE_METHOD(int, variable_check, (log_line * ll));
-
-/**
-  Variable listener.  This is a temporary solution until we have
-  per-component system variables. "update" is called when the user
-  uses SQL statements trying to assign a value to certain server
-  system variables. If we got this far, we have already been called
-  upon to "check" the new value, and have confirmed that it meets
-  the requirements. "update" should now update the internal
-  representation of the value. Since we have already checked the
-  new value, failure should be a rare occurance (out of memory,
-  the operating system did not let us open the new file name, etc.).
-
-  If several listeners are registered, all will currently be called
-  with the new value, even if one of them signals failure.
-
-  @param  ll  log-line having as first element a list-item
-              describing the variable (name, new value)
-
-  @retval  0  for success (including when we don't feel the event is for us),
-  @retval !0  for failure
-*/
-DECLARE_METHOD(int, variable_update, (log_line * ll));
+DECLARE_METHOD(int, characteristics, (void));
 END_SERVICE_DEFINITION(log_service)
 
 #endif

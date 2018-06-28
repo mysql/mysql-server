@@ -1652,9 +1652,6 @@ sub command_line_setup {
     }
   }
 
-  # Disable syslog / EventLog in normal (non-bootstrap) operation.
-  push(@opt_extra_mysqld_opt, "--log-syslog=0");
-
   # Find out type of logging that are being used
   foreach my $arg (@opt_extra_mysqld_opt) {
     if ($arg =~ /binlog[-_]format=(\S+)/) {
@@ -3743,7 +3740,6 @@ sub mysql_install_db {
   my $args;
   mtr_init_args(\$args);
   mtr_add_arg($args, "--no-defaults");
-  mtr_add_arg($args, "--log-syslog=0");
   mtr_add_arg($args, "--initialize-insecure");
   mtr_add_arg($args, "--loose-skip-ndbcluster");
   mtr_add_arg($args, "--tmpdir=%s", "$opt_vardir/tmp/");

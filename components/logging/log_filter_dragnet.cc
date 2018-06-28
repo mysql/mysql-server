@@ -87,7 +87,7 @@ REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_register);
 REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_unregister);
 REQUIRES_SERVICE_PLACEHOLDER(status_variable_registration);
 
-STR_CHECK_ARG(str) sys_var_filter_rules;  ///< limits and default for sysvar
+STR_CHECK_ARG(rules) values_filter_rules;  ///< limits and default for sysvar
 
 static char *log_error_filter_rules = nullptr;  ///< sysvar containing rules
 
@@ -1426,62 +1426,20 @@ done:
 }
 
 /**
-  Variable listener.  This is a temporary solution until we have
-  per-component system variables.  "check" is called when the user
-  uses SQL statements trying to assign a value to certain server
-  system variables; the function can prevent assignment if e.g.
-  the supplied value has the wrong format.
+  Check the proposed value for the component variable which contains
+  the filter rules in human-readable format.
 
-  If several listeners are registered, an error will be signaled
-  to the user on the SQL level as soon as one service identifies
-  a problem with the value.
+  @param  thd      session
+  @param  self     the system variable we're checking
+  @param  save     where to save the resulting intermediate (char *) value
+  @param  value    the value we're validating
 
-  @param   ll  a log_line describing the variable update (name, new value)
-
-  @retval   0  for allow (including when we don't feel the event is for us),
-  @retval  <0  deny (nullptr, malformed structures, etc. -- caller broken?)
-  @retval  >0  deny (user input rejected)
+  @retval false    value OK, go ahead and update system variable (from "save")
+  @retval true     value rejected, do not update variable
 */
-DEFINE_METHOD(int, log_service_imp::variable_check,
-              (log_line * ll MY_ATTRIBUTE((unused)))) {
-  /*
-    We allow changing this even when we're not in the error "stack",
-    so users can configure this service, then enable it, rather than
-    enable it, and have it start logging with perhaps unwanted settings
-    until the user manages to update them.
-  */
-  return 0;
-}
-
-/**
-  Variable listener.  This is a temporary solution until we have
-  per-component system variables. "update" is called when the user
-  uses SQL statements trying to assign a value to certain server
-  system variables. If we got this far, we have already been called
-  upon to "check" the new value, and have confirmed that it meets
-  the requirements. "update" should now update the internal
-  representation of the value. Since we have already checked the
-  new value, failure should be a rare occurance (out of memory,
-  the operating system did not let us open the new file name, etc.).
-
-  If several listeners are registered, all will currently be called
-  with the new value, even if one of them signals failure.
-
-  @param  ll  a list-item describing the variable (name, new value)
-
-  @retval  0  the event is not for us
-  @retval <0  for failure
-  @retval >0  for success (at least one item was updated)
-*/
-DEFINE_METHOD(int, log_service_imp::variable_update,
-              (log_line * ll MY_ATTRIBUTE((unused)))) {
-  return 0;
-}
-
-static int check_var_filter_rules(MYSQL_THD thd MY_ATTRIBUTE((unused)),
+static int check_var_filter_rules(MYSQL_THD thd,
                                   SYS_VAR *self MY_ATTRIBUTE((unused)),
-                                  void *save MY_ATTRIBUTE((unused)),
-                                  struct st_mysql_value *value) {
+                                  void *save, struct st_mysql_value *value) {
   int ret;
   log_filter_ruleset *log_filter_temp_rules;
   const char *state = nullptr;
@@ -1546,7 +1504,7 @@ static int check_var_filter_rules(MYSQL_THD thd MY_ATTRIBUTE((unused)),
   @param  thd      session
   @param  self     the system variable we're changing
   @param  var_ptr  where to save the resulting (char *) value
-  @param  save     pointer to the new value (see check function)
+  @param  save     pointer to the new value (from check function)
 */
 static void update_var_filter_rules(MYSQL_THD thd MY_ATTRIBUTE((unused)),
                                     SYS_VAR *self MY_ATTRIBUTE((unused)),
@@ -1658,6 +1616,16 @@ DEFINE_METHOD(int, log_service_imp::flush,
 }
 
 /**
+  Get characteristics of a log-service.
+
+  @retval  <0        an error occurred
+  @retval  >=0       characteristics (a set of log_service_chistics flags)
+*/
+DEFINE_METHOD(int, log_service_imp::characteristics, (void)) {
+  return LOG_SERVICE_FILTER | LOG_SERVICE_SINGLETON;
+}
+
+/**
   De-initialization method for Component used when unloading the Component.
 
   @return Status of performed operation
@@ -1703,7 +1671,7 @@ mysql_service_status_t log_filter_init() {
   inited = true;
   var_value = new char[LOG_FILTER_DUMP_BUFF_SIZE];
 
-  sys_var_filter_rules.def_val = (char *)LOG_FILTER_DEFAULT_RULES;
+  values_filter_rules.def_val = (char *)LOG_FILTER_DEFAULT_RULES;
 
   log_bi = mysql_service_log_builtins;
   log_bs = mysql_service_log_builtins_string;
@@ -1718,7 +1686,7 @@ mysql_service_status_t log_filter_init() {
           "Error log filter rules (for the dragnet filter "
           "configuration language)",
           check_var_filter_rules, update_var_filter_rules,
-          (void *)&sys_var_filter_rules, (void *)&log_error_filter_rules) ||
+          (void *)&values_filter_rules, (void *)&log_error_filter_rules) ||
       mysql_service_status_variable_registration->register_variable(
           (SHOW_VAR *)&show_var_filter_rules_decompile) ||
       mysql_service_component_sys_variable_register->get_variable(
@@ -1745,13 +1713,12 @@ mysql_service_status_t log_filter_init() {
 
       // try to set default value. if that fails as well, refuse to load.
       if ((rr = log_filter_dragnet_set(log_filter_dragnet_rules,
-                                       sys_var_filter_rules.def_val, &state)) ==
+                                       values_filter_rules.def_val, &state)) ==
           0) {
         char *old = log_error_filter_rules;
         if ((log_error_filter_rules = log_bs->strndup(
-                 sys_var_filter_rules.def_val,
-                 log_bs->length(sys_var_filter_rules.def_val) + 1)) !=
-            nullptr) {
+                 values_filter_rules.def_val,
+                 log_bs->length(values_filter_rules.def_val) + 1)) != nullptr) {
           if (old != nullptr) log_bs->free((void *)old);
           goto success;
         }
@@ -1778,8 +1745,7 @@ success:
 /* implementing a service: log_filter */
 BEGIN_SERVICE_IMPLEMENTATION(log_filter_dragnet, log_service)
 log_service_imp::run, log_service_imp::flush, nullptr, nullptr,
-    log_service_imp::variable_check,
-    log_service_imp::variable_update END_SERVICE_IMPLEMENTATION();
+    log_service_imp::characteristics END_SERVICE_IMPLEMENTATION();
 
 /* component provides: just the log_filter service, for now */
 BEGIN_COMPONENT_PROVIDES(log_filter_dragnet)
@@ -1796,7 +1762,7 @@ REQUIRES_SERVICE(component_sys_variable_register),
 
 /* component description */
 BEGIN_COMPONENT_METADATA(log_filter_dragnet)
-METADATA("mysql.author", "Oracle Corporation"),
+METADATA("mysql.author", "T.A. Nuernberg, Oracle Corporation"),
     METADATA("mysql.license", "GPL"), METADATA("log_service_type", "filter"),
     END_COMPONENT_METADATA();
 

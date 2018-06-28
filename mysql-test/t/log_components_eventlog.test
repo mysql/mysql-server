@@ -14,11 +14,8 @@
 --echo # default, and is not expect to pass on all platforms.
 --echo #
 
-# on systemd systems: journalctl SYSLOG_IDENTIFIER=mysqld-wl9343
-# on syslog  systems: grep mysqld-wl9343 /var/log/messages|cut -d: -f4-
-
 --source include/have_debug.inc
---source include/linux.inc
+--source include/windows.inc
 --source include/have_log_component.inc
 
 let GREP_START=`SELECT DATE_FORMAT(CONVERT_TZ(SYSDATE(6),'SYSTEM','UTC'),'%Y%m%d%H%i%s%f');`;
@@ -72,11 +69,13 @@ SET @@global.log_error_services="log_filter_internal; log_sink_internal";
 SET @@global.syseventlog.tag=DEFAULT;
 SELECT @@global.syseventlog.tag;
 
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+SET GLOBAL syseventlog.include_pid = OFF;
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+SET GLOBAL syseventlog.facility = "local1";
 
 # Check that SET PERSIST retains variable values
 # ---------------------------------------------------------
-SET PERSIST syseventlog.include_pid = OFF;
-SET PERSIST syseventlog.facility = "local1";
 SET PERSIST syseventlog.tag = "wl11828";
 
 --let $log_services="log_filter_internal;log_sink_syseventlog;log_sink_internal"
@@ -84,12 +83,8 @@ SET PERSIST syseventlog.tag = "wl11828";
 --source include/restart_mysqld.inc
 
 # Verify value of the persisted variable
-SELECT @@syseventlog.include_pid;
-SELECT @@syseventlog.facility;
 SELECT @@syseventlog.tag;
 
-RESET PERSIST `syseventlog.include_pid`;
-RESET PERSIST `syseventlog.facility`;
 RESET PERSIST `syseventlog.tag`;
 
 --echo
@@ -98,27 +93,20 @@ RESET PERSIST `syseventlog.tag`;
 # Verify that we accept arguments passed at start-up
 
 --let $log_services="log_filter_internal;log_sink_syseventlog;log_sink_internal"
---let restart_parameters="restart: --no-console --log-error-services=$log_services --syseventlog.include_pid=OFF --syseventlog.facility=local2 --syseventlog.tag=wl11828_2 "
+--let restart_parameters="restart: --no-console --log-error-services=$log_services --syseventlog.tag=wl11828_2 "
 --source include/restart_mysqld.inc
 
 # Verify value of the persisted variable
-SELECT @@syseventlog.include_pid;
-SELECT @@syseventlog.facility;
 SELECT @@syseventlog.tag;
 
 # Verify that we use default settings if invalid arguments are passed
 # at start-up
 
---let LOG_FILE= $MYSQLTEST_VARDIR/tmp/wl11828.err
 --let $log_services="log_filter_internal;log_sink_syseventlog;log_sink_internal"
---let restart_parameters="restart: --no-console --log-error=$LOG_FILE --log-error-services=$log_services --syseventlog.include_pid=PIKA --syseventlog.facility=localZ --syseventlog.tag=wl11828/2 "
-
---replace_result $LOG_FILE LOG_FILE
+--let restart_parameters="restart: --no-console --log-error-services=$log_services --syseventlog.tag=wl11828/2 "
 --source include/restart_mysqld.inc
 
 # Verify value of the persisted variable
-SELECT @@syseventlog.include_pid;
-SELECT @@syseventlog.facility;
 SELECT @@syseventlog.tag;
 
 # Cleanup
@@ -135,27 +123,6 @@ SET @@session.debug="-d,log_error_normalize";
 # SET @@global.log_error_filter_rules=@save_filters;
 
 FLUSH ERROR LOGS;
-
---perl
-   use strict;
-   use JSON;
-
-   my $file= $ENV{'LOG_FILE'} or die("logfile not set");
-   my $result=0;
-
-   open(FILE, "$file") or die("Unable to open $file: $!");
-   while (<FILE>) {
-     my $line = $_;
-
-     if ($line =~ /syseventlog\./) {
-       $line =~ s/.*\]//;
-       print $line;
-     }
-   }
-   close(FILE);
-EOF
-
---remove_file $LOG_FILE
 
 --echo
 --echo ###

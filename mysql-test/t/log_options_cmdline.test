@@ -199,7 +199,7 @@ UNINSTALL COMPONENT "file://component_log_sink_json";
 ##================================================================##
 
 # 5.1 Check that option --dragnet.log_error_filter_rules does
-#     not exist when the component isn't unloaded
+#     not exist when the component isn't loaded
 # ------------------------------------------------------------
 --let LOG_FILE12 = $MYSQLTEST_VARDIR/tmp/test12.err
 --let CMD12 = $MYSQLD --no-defaults --lc-messages-dir=$MYSQL_SHAREDIR --innodb_dedicated_server=OFF --initialize-insecure --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLTEST_VARDIR/tmp/new_datadir --log-error=$LOG_FILE12 --dragnet.log_error_filter_rules=a 2>&1

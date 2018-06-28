@@ -829,8 +829,6 @@ std::atomic<int32> connection_events_loop_aborted_flag;
 static enum_server_operational_state server_operational_state = SERVER_BOOTING;
 char *opt_log_error_suppression_list;
 char *opt_log_error_services;
-bool opt_log_syslog_enable;
-char *opt_log_syslog_tag = NULL;
 char *opt_keyring_migration_user = NULL;
 char *opt_keyring_migration_host = NULL;
 char *opt_keyring_migration_password = NULL;
@@ -839,21 +837,16 @@ char *opt_keyring_migration_source = NULL;
 char *opt_keyring_migration_destination = NULL;
 ulong opt_keyring_migration_port = 0;
 bool migrate_connect_options = 0;
-#ifndef _WIN32
-bool opt_log_syslog_include_pid;
-char *opt_log_syslog_facility;
+uint host_cache_size;
+ulong log_error_verbosity = 3;  // have a non-zero value during early start-up
 
-#else
+#if defined(_WIN32)
 /*
   Thread handle of shutdown event handler thread.
   It is used as argument during thread join.
 */
 my_thread_handle shutdown_restart_thr_handle;
-#endif
-uint host_cache_size;
-ulong log_error_verbosity = 3;  // have a non-zero value during early start-up
 
-#if defined(_WIN32)
 ulong slow_start_timeout;
 bool opt_no_monitor = false;
 #endif
@@ -2058,7 +2051,8 @@ static void clean_up(bool print_message) {
     dependencies are discovered, possibly being divided into separate points
     where all dependencies are still ok.
   */
-  log_builtins_error_stack("log_filter_internal; log_sink_internal", false);
+  log_builtins_error_stack("log_filter_internal; log_sink_internal", false,
+                           nullptr);
 #ifdef HAVE_PSI_THREAD_INTERFACE
   if (!opt_help && !opt_initialize) {
     unregister_pfs_notification_service();
@@ -6215,19 +6209,16 @@ int mysqld_main(int argc, char **argv)
   /*
     Activate loadable error logging components, if any.
   */
-  if (log_builtins_error_stack(opt_log_error_services, true) >= 0) {
+  if (log_builtins_error_stack(opt_log_error_services, true, nullptr) == 0) {
     // Syntax is OK and services exist; let's try to initialize them:
-    int rr = log_builtins_error_stack(opt_log_error_services, false);
+    size_t pos;
 
-    // Well, that didn't work. Print diagnostics and bail.
-    if (rr < 0) {
-      char *problem = opt_log_error_services;
+    if (log_builtins_error_stack(opt_log_error_services, false, &pos) < 0) {
+      char *problem = opt_log_error_services; /* purecov: begin inspected */
       const char *var_name = "log_error_services";
 
-      rr = -(rr + 1);
-
-      if (((size_t)rr) < strlen(opt_log_error_services))
-        problem = &((char *)opt_log_error_services)[rr];
+      if (pos < strlen(opt_log_error_services))
+        problem = &((char *)opt_log_error_services)[pos];
 
       /*
         Try to fall back to default error logging stack.
@@ -6237,7 +6228,9 @@ int mysqld_main(int argc, char **argv)
 
       if (var != nullptr) {
         opt_log_error_services = (char *)var->get_default();
-        if (log_builtins_error_stack(opt_log_error_services, false) >= 0) {
+        if (log_builtins_error_stack(opt_log_error_services, false, nullptr) >=
+            0) {
+          // We found the sys_var, but somehow couldn't set the default!?
           LogErr(ERROR_LEVEL, ER_CANT_START_ERROR_LOG_SERVICE, var_name,
                  problem);
           unireg_abort(MYSQLD_ABORT_EXIT);
@@ -6262,7 +6255,7 @@ int mysqld_main(int argc, char **argv)
         log_write_errstream(buff, len);
 
         unireg_abort(MYSQLD_ABORT_EXIT);
-      }
+      } /* purecov: end */
     }
   } else {
     LogErr(INFORMATION_LEVEL, ER_CANNOT_SET_LOG_ERROR_SERVICES,

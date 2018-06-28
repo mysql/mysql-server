@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,42 +48,6 @@ extern CHARSET_INFO my_charset_utf16le_bin;
 
 #ifndef _WIN32
 #include <syslog.h>
-
-/*
-  Some C libraries offer a variant of this, but we roll our own so we
-  won't have to worry about portability.
-*/
-SYSLOG_FACILITY syslog_facility[] = {
-    {LOG_DAEMON, "daemon"}, /* default for mysqld */
-    {LOG_USER, "user"},     /* default for mysql command-line client */
-
-    {LOG_LOCAL0, "local0"},
-    {LOG_LOCAL1, "local1"},
-    {LOG_LOCAL2, "local2"},
-    {LOG_LOCAL3, "local3"},
-    {LOG_LOCAL4, "local4"},
-    {LOG_LOCAL5, "local5"},
-    {LOG_LOCAL6, "local6"},
-    {LOG_LOCAL7, "local7"},
-
-    /* "just in case" */
-    {LOG_AUTH, "auth"},
-    {LOG_CRON, "cron"},
-    {LOG_KERN, "kern"},
-    {LOG_LPR, "lpr"},
-    {LOG_MAIL, "mail"},
-    {LOG_NEWS, "news"},
-    {LOG_SYSLOG, "syslog"},
-    {LOG_UUCP, "uucp"},
-
-#if defined(LOG_FTP)
-    {LOG_FTP, "ftp"},
-#endif
-#if defined(LOG_AUTHPRIV)
-    {LOG_AUTHPRIV, "authpriv"},
-#endif
-
-    {-1, NULL}};
 #endif
 
 #ifdef _WIN32

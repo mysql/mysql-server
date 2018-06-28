@@ -110,7 +110,6 @@ CREATE TABLE all_vars (id INT PRIMARY KEY AUTO_INCREMENT, var_name VARCHAR(64), 
 # Bug#27523095 - SET PERSIST MANDATORY_ROLES FAILS TO START THE SERVER
 # Bug#27534122 - RBR_EXEC_MODE DOES NOT SUPPORT GLOBAL SCOPE
 # Bug#27534041 - SET GLOBAL INNODB_MONITOR_ENABLE CAUSES SERVER TO CRASH
-# Bug#27534089 - LOG_SYS_* GLOBAL VARIABLES DO NOT WORK WITH SET GLOBAL/PERSIST
 
 INSERT INTO all_vars (var_name, var_value)
 SELECT * FROM performance_schema.global_variables
@@ -121,18 +120,14 @@ WHERE variable_name NOT IN
 'innodb_ft_user_stopword_table',
 'innodb_tmpdir',
 'innodb_ft_server_stopword_table',
-'rbr_exec_mode',
-'log_syslog',
-'log_syslog_facility',
-'log_syslog_include_pid',
-'log_syslog_tag')
+'rbr_exec_mode')
 AND variable_name NOT LIKE 'ndb_%'
 ORDER BY variable_name;
 
 --let $count_vars= `SELECT COUNT(*) FROM all_vars;`
 --echo
---let $assert_text= 'Expect 558 variables in the table. Due to open Bugs, we are checking for 547'
---let $assert_cond= [SELECT COUNT(*) as count FROM all_vars, count, 1] = $total_global_vars-11
+--let $assert_text= 'Expect 554 variables in the table. Due to open Bugs, we are checking for 547'
+--let $assert_cond= [SELECT COUNT(*) as count FROM all_vars, count, 1] = $total_global_vars-7
 --source include/assert.inc
 
 --echo

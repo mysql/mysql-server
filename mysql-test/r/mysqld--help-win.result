@@ -493,17 +493,6 @@ The following options may be given as the first argument:
  Log statements considered unsafe when using statement
  based binary logging.
  (Defaults to on; use --skip-log-statements-unsafe-for-binlog to disable.)
- --log-syslog        Errors, warnings, and similar issues eligible for MySQL's
- error log file may additionally be sent to the host
- operating system's system log ("syslog").
- (Defaults to on; use --skip-log-syslog to disable.)
- --log-syslog-tag=name 
- When logging issues using the host operating system's
- syslog, tag the entries from this particular MySQL server
- with this ident. This will help distinguish entries from
- MySQL servers co-existing on the same host machine. A
- non-empty tag will be appended to the default ident of
- 'mysqld', connected by a hyphen.
  --log-tc=name       Path to transaction coordinator log (used for
  transactions that affect more than one storage engine,
  when binary log is disabled).
@@ -1453,8 +1442,6 @@ log-slave-updates FALSE
 log-slow-admin-statements FALSE
 log-slow-slave-statements FALSE
 log-statements-unsafe-for-binlog TRUE
-log-syslog FALSE
-log-syslog-tag 
 log-tc tc.log
 log-tc-size #####
 log-throttle-queries-not-using-indexes 0

@@ -2038,16 +2038,16 @@ static Sys_var_charptr Sys_log_error(
 
 static bool check_log_error_services(sys_var *self, THD *thd, set_var *var) {
   // test whether syntax is OK and services exist
-  int i;
+  size_t pos;
 
   if (var->save_result.string_value.str == nullptr) return true;
 
-  if ((i = log_builtins_error_stack(var->save_result.string_value.str, true)) <
+  if (log_builtins_error_stack(var->save_result.string_value.str, true, &pos) <
       0) {
     push_warning_printf(
         thd, Sql_condition::SL_WARNING, ER_CANT_SET_ERROR_LOG_SERVICE,
         ER_THD(thd, ER_CANT_SET_ERROR_LOG_SERVICE), self->name.str,
-        &((char *)var->save_result.string_value.str)[-(i + 1)]);
+        &((char *)var->save_result.string_value.str)[pos]);
     return true;
   } else if (strlen(var->save_result.string_value.str) < 1) {
     push_warning_printf(
@@ -2062,15 +2062,14 @@ static bool fix_log_error_services(sys_var *self MY_ATTRIBUTE((unused)),
                                    THD *thd,
                                    enum_var_type type MY_ATTRIBUTE((unused))) {
   // syntax is OK and services exist; try to initialize them!
-  int rr = log_builtins_error_stack(opt_log_error_services, false);
-  if (rr < 0) {
-    rr = -(rr + 1);
-    if (((size_t)rr) < strlen(opt_log_error_services))
+  size_t pos;
+  if (log_builtins_error_stack(opt_log_error_services, false, &pos) < 0) {
+    if (pos < strlen(opt_log_error_services)) /* purecov: begin inspected */
       push_warning_printf(
           thd, Sql_condition::SL_WARNING, ER_CANT_START_ERROR_LOG_SERVICE,
           ER_THD(thd, ER_CANT_START_ERROR_LOG_SERVICE), self->name.str,
-          &((char *)opt_log_error_services)[rr]);
-    return true;
+          &((char *)opt_log_error_services)[pos]);
+    return true; /* purecov: end */
   }
 
   return false;
@@ -2194,83 +2193,6 @@ static Sys_var_bool Sys_log_statements_unsafe_for_binlog(
     "Log statements considered unsafe when using statement based binary "
     "logging.",
     GLOBAL_VAR(opt_log_unsafe_statements), CMD_LINE(OPT_ARG), DEFAULT(true));
-
-/* logging to host OS's syslog */
-
-static bool fix_syslog_enable(sys_var *self, THD *thd MY_ATTRIBUTE((unused)),
-                              enum_var_type type MY_ATTRIBUTE((unused))) {
-  return LogVar(self->name).val((longlong)opt_log_syslog_enable).update();
-}
-
-static Sys_var_bool Sys_log_syslog_enable(
-    "log_syslog",
-    "Errors, warnings, and similar issues eligible for MySQL's error log "
-    "file may additionally be sent to the host operating system's system "
-    "log (\"syslog\").",
-    GLOBAL_VAR(opt_log_syslog_enable), CMD_LINE(OPT_ARG),
-    DEFAULT(true),  // true-when-loaded on either platform
-    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(fix_syslog_enable),
-    DEPRECATED_VAR("--log_error_services"));
-
-static bool fix_syslog_tag(sys_var *self, THD *thd MY_ATTRIBUTE((unused)),
-                           enum_var_type type MY_ATTRIBUTE((unused))) {
-  return LogVar(self->name).val(opt_log_syslog_tag).update();
-}
-
-static bool check_syslog_tag(sys_var *self, THD *THD MY_ATTRIBUTE((unused)),
-                             set_var *var) {
-  if (var->value != nullptr)
-    return LogVar(self->name).val(var->save_result.string_value).check();
-
-  return false;
-}
-
-static Sys_var_charptr Sys_log_syslog_tag(
-    "log_syslog_tag",
-    "When logging issues using the host operating system's syslog, "
-    "tag the entries from this particular MySQL server with this ident. "
-    "This will help distinguish entries from MySQL servers co-existing "
-    "on the same host machine. A non-empty tag will be appended to the "
-    "default ident of 'mysqld', connected by a hyphen.",
-    GLOBAL_VAR(opt_log_syslog_tag), CMD_LINE(REQUIRED_ARG), IN_SYSTEM_CHARSET,
-    DEFAULT(""), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_syslog_tag),
-    ON_UPDATE(fix_syslog_tag));
-
-#ifndef _WIN32
-
-static bool check_syslog_facility(sys_var *self, THD *, set_var *var) {
-  if (var->value != nullptr)
-    return LogVar(self->name).val(var->save_result.string_value).check();
-  return false;
-}
-
-static bool fix_syslog_facility(sys_var *self, THD *thd MY_ATTRIBUTE((unused)),
-                                enum_var_type type MY_ATTRIBUTE((unused))) {
-  return LogVar(self->name).val(opt_log_syslog_facility).update();
-}
-
-static Sys_var_charptr Sys_log_syslog_facility(
-    "log_syslog_facility",
-    "When logging issues using the host operating system's syslog, "
-    "identify as a facility of the given type (to aid in log filtering).",
-    GLOBAL_VAR(opt_log_syslog_facility), CMD_LINE(REQUIRED_ARG),
-    IN_SYSTEM_CHARSET, DEFAULT("daemon"), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-    ON_CHECK(check_syslog_facility), ON_UPDATE(fix_syslog_facility));
-
-static bool fix_syslog_pid(sys_var *self, THD *thd MY_ATTRIBUTE((unused)),
-                           enum_var_type type MY_ATTRIBUTE((unused))) {
-  return LogVar(self->name).val((longlong)opt_log_syslog_include_pid).update();
-}
-
-static Sys_var_bool Sys_log_syslog_log_pid(
-    "log_syslog_include_pid",
-    "When logging issues using the host operating system's syslog, "
-    "include this MySQL server's process ID (PID). This setting does "
-    "not affect MySQL's own error log file.",
-    GLOBAL_VAR(opt_log_syslog_include_pid), CMD_LINE(OPT_ARG), DEFAULT(true),
-    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(fix_syslog_pid));
-
-#endif
 
 static bool update_cached_long_query_time(sys_var *, THD *thd,
                                           enum_var_type type) {

@@ -59,11 +59,13 @@ more than a glorified
                  break;
   }
 
-Anything beyond that in a given source file is usually boilerplate code
-needed by the component framework (which is going to be there no matter
-how simple or complex our actual writer is), code to handle configuration
-variables (if any), and syntactic sugar (escaping characters/entities,
-writing tags, and such).
+Anything beyond that in a given source file is usually either
+boilerplate code needed by the component framework (which is
+going to be there no matter how simple or complex our actual
+writer is) or required by the specific output format the sink
+is intended to generate (writing e.g. JSON rows or XML tags,
+escaping characters/entities in string values, indentation,
+and so on).
 
 
 ERROR MESSAGES THAT AREN'T STRINGS, AND OTHER INSANITY
@@ -174,48 +176,14 @@ class log_service_imp {
     @retval  =0        success
   */
   static DEFINE_METHOD(int, close, (void **instance));
-  /**
-    Variable listener.  This is a temporary solution until we have
-    per-component system variables.  "check" is called when the user
-    uses SQL statements trying to assign a value to certain server
-    system variables; the function can prevent assignment if e.g.
-    the supplied value has the wrong format.
-
-    If several listeners are registered, an error will be signaled
-    to the user on the SQL level as soon as one service identifies
-    a problem with the value.
-
-    @param   ll  a log_line containing a list-item describing the variable
-                 (name, new value)
-
-    @retval   0  for allow (including when we don't feel the event is for us),
-    @retval  <0  deny (nullptr, malformed structures, etc. -- caller broken?)
-    @retval  >0  deny (user input rejected)
-  */
-  static DEFINE_METHOD(int, variable_check, (log_line * ll));
 
   /**
-    Variable listener.  This is a temporary solution until we have
-    per-component system variables. "update" is called when the user
-    uses SQL statements trying to assign a value to certain server
-    system variables. If we got this far, we have already been called
-    upon to "check" the new value, and have confirmed that it meets
-    the requirements. "update" should now update the internal
-    representation of the value. Since we have already checked the
-    new value, failure should be a rare occurrence (out of memory,
-    the operating system did not let us open the new file name, etc.).
+    Get characteristics of a log-service.
 
-    If several listeners are registered, all will currently be called
-    with the new value, even if one of them signals failure.
-
-    @param  ll  a log_line containing a list-item describing the variable
-                (name, new value)
-
-    @retval  0  the event is not for us
-    @retval <0  for failure
-    @retval >0  for success (at least one item was updated)
+    @retval  <0        an error occurred
+    @retval  >=0       characteristics (a set of log_service_chistics flags)
   */
-  static DEFINE_METHOD(int, variable_update, (log_line * ll));
+  static DEFINE_METHOD(int, characteristics, (void));
 };
 
 #endif /* LOG_SERVICE_IMP_H */

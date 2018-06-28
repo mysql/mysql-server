@@ -8602,11 +8602,11 @@ ER_DD_VERSION_INSTALLED
 ER_DD_VERSION_UNSUPPORTED
   eng "Data Dictionary version '%d' not supported."
 
-ER_LOG_SYSLOG_FACILITY_FAIL
+OBSOLETE_ER_LOG_SYSLOG_FACILITY_FAIL
   eng "Failed to set syslog facility to \"%s\", setting to \"%s\" (%d) instead."
 
 ER_LOG_SYSLOG_CANNOT_OPEN
-  eng "Cannot open %s; check privileges, or start server with --log_syslog=0"
+  eng "Cannot open %s; check privileges, or remove syseventlog from --log-error-services!"
 
 ER_LOG_SLOW_CANNOT_OPEN
   eng " either restart the query logging by using \"SET GLOBAL SLOW_QUERY_LOG=ON\" or"
@@ -18262,6 +18262,13 @@ ER_INCORRECT_CURRENT_PASSWORD
 
 ER_MISSING_CURRENT_PASSWORD
   eng "Current password needs to be specified in the REPLACE clause in order to change it."
+
+ER_SERVER_WRONG_VALUE_FOR_VAR
+  eng "Variable '%-.64s' can't be set to the value of '%-.200s'"
+
+ER_COULD_NOT_CREATE_WINDOWS_REGISTRY_KEY
+  eng "%s was unable to create a new Windows registry key %s for %s; continuing to use the previous ident."
+
 #
 # End of 8.0 Server error messages.
 # (Please read comments from the header of this section before adding error

@@ -43,9 +43,15 @@ SELECT @@global.log_error_services;
 SELECT "*** SWITCHING ERROR LOG TO JSON ***";
 INSTALL COMPONENT "file://component_log_sink_json";
 SET @@global.log_error_services="log_filter_internal; log_sink_json;";
+
 --echo # may not start with a delimiter
 --error ER_WRONG_VALUE_FOR_VAR
-SET @@global.log_error_services=";log_filter_internal";
+SET @@global.log_error_services=";log_sink_internal";
+SHOW WARNINGS;
+
+--echo # may not end on a filter
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_error_services="log_sink_internal; log_filter_internal";
 SHOW WARNINGS;
 
 --echo # may not mix delimiters
@@ -56,6 +62,11 @@ SHOW WARNINGS;
 --echo # whitespace alone is no valid delimiter
 --error ER_WRONG_VALUE_FOR_VAR
 SET @@global.log_error_services="log_filter_internal log_sink_internal";
+SHOW WARNINGS;
+
+--echo # unknown component
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_error_services="azundris";
 SHOW WARNINGS;
 
 SELECT "logging as JSON";

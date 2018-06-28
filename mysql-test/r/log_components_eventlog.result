@@ -50,40 +50,22 @@ SET @@global.syseventlog.tag=DEFAULT;
 SELECT @@global.syseventlog.tag;
 @@global.syseventlog.tag
 
-SET PERSIST syseventlog.include_pid = OFF;
-SET PERSIST syseventlog.facility = "local1";
+SET GLOBAL syseventlog.include_pid = OFF;
+ERROR HY000: Unknown system variable 'syseventlog.include_pid'
+SET GLOBAL syseventlog.facility = "local1";
+ERROR HY000: Unknown system variable 'syseventlog.facility'
 SET PERSIST syseventlog.tag = "wl11828";
 # restart: --no-console --log-error-services=log_filter_internal;log_sink_syseventlog;log_sink_internal 
-SELECT @@syseventlog.include_pid;
-@@syseventlog.include_pid
-0
-SELECT @@syseventlog.facility;
-@@syseventlog.facility
-local1
 SELECT @@syseventlog.tag;
 @@syseventlog.tag
 wl11828
-RESET PERSIST `syseventlog.include_pid`;
-RESET PERSIST `syseventlog.facility`;
 RESET PERSIST `syseventlog.tag`;
 
-# restart: --no-console --log-error-services=log_filter_internal;log_sink_syseventlog;log_sink_internal --syseventlog.include_pid=OFF --syseventlog.facility=local2 --syseventlog.tag=wl11828_2 
-SELECT @@syseventlog.include_pid;
-@@syseventlog.include_pid
-0
-SELECT @@syseventlog.facility;
-@@syseventlog.facility
-local2
+# restart: --no-console --log-error-services=log_filter_internal;log_sink_syseventlog;log_sink_internal --syseventlog.tag=wl11828_2 
 SELECT @@syseventlog.tag;
 @@syseventlog.tag
 wl11828_2
-# restart: --no-console --log-error=LOG_FILE --log-error-services=log_filter_internal;log_sink_syseventlog;log_sink_internal --syseventlog.include_pid=PIKA --syseventlog.facility=localZ --syseventlog.tag=wl11828/2 
-SELECT @@syseventlog.include_pid;
-@@syseventlog.include_pid
-0
-SELECT @@syseventlog.facility;
-@@syseventlog.facility
-daemon
+# restart: --no-console --log-error-services=log_filter_internal;log_sink_syseventlog;log_sink_internal --syseventlog.tag=wl11828/2 
 SELECT @@syseventlog.tag;
 @@syseventlog.tag
 
@@ -94,9 +76,6 @@ SET @@session.debug="-d,parser_stmt_to_error_log_with_system_prio";
 SET @@session.debug="-d,parser_stmt_to_error_log";
 SET @@session.debug="-d,log_error_normalize";
 FLUSH ERROR LOGS;
- Variable 'syseventlog.tag' can't be set to the value of 'wl11828/2'
- Variable 'syseventlog.facility' can't be set to the value of 'localZ'
- option 'syseventlog.include-pid': boolean value 'PIKA' was not recognized. Set to OFF.
 
 ###
 ### done

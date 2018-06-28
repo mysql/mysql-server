@@ -23,7 +23,7 @@ let SHUTDOWN_SQL= $MYSQL_TMP_DIR/shutdown.sql;
 # Need to save this as PWD env var is overriden when invoking perl
 let BDIR= $PWD;
 
-let DEFARGS= --no-defaults --innodb_dedicated_server=OFF --explicit_defaults_for_timestamp --socket=$MYSQLD_SOCKET --port=$MYSQLD_PORT --log-syslog=0 --skip-ssl --secure-file-priv="" --datadir=$DDIR;
+let DEFARGS= --no-defaults --innodb_dedicated_server=OFF --explicit_defaults_for_timestamp --socket=$MYSQLD_SOCKET --port=$MYSQLD_PORT --skip-ssl --secure-file-priv="" --datadir=$DDIR;
 
 let INIT_FILE_ARGS= $DEFARGS --log-error=$MYSQLD_LOG --init-file=$SHUTDOWN_SQL;
 let INIT_FILE_ARGS_D= $DEFARGS -D --log-error=$MYSQLD_LOG --init-file=$SHUTDOWN_SQL;
