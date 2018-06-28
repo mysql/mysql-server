@@ -2115,7 +2115,7 @@ private:
   void sendtckeyconf(Signal* signal, UintR TcommitFlag, ApiConnectRecordPtr apiConnectptr);
   void unlinkApiConnect(Ptr<GcpRecord>, Ptr<ApiConnectRecord>);
   void unlinkAndReleaseGcp(Ptr<GcpRecord>);
-  void unlinkReadyTcCon(Signal* signal, ApiConnectRecord* regApiPtr);
+  void unlinkReadyTcCon(ApiConnectRecord* regApiPtr);
   void handleFailedOperation(Signal* signal,
 			     const LqhKeyRef * const lqhKeyRef, 
 			     bool gotLqhKeyRef);

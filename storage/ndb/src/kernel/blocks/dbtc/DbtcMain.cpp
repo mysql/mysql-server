@@ -4467,7 +4467,7 @@ void Dbtc::attrinfoDihReceivedLab(Signal* signal, CacheRecordPtr cachePtr, ApiCo
     releaseKeys(regCachePtr);
     releaseAttrinfo(cachePtr, apiConnectptr.p);
     regApiPtr->lqhkeyreqrec--;
-    unlinkReadyTcCon(signal, apiConnectptr.p);
+    unlinkReadyTcCon(apiConnectptr.p);
     clearCommitAckMarker(regApiPtr, regTcPtr);
     releaseTcCon();
     checkPoolShrinkNeed(DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
@@ -4920,7 +4920,7 @@ void Dbtc::releaseDirtyRead(Signal* signal,
   apiConnectptr.p->tcSendArray[Ttckeyrec + 1] = TcKeyConf::DirtyReadBit | Tnode;
   apiConnectptr.p->tckeyrec = Ttckeyrec + 2;
   
-  unlinkReadyTcCon(signal, apiConnectptr.p);
+  unlinkReadyTcCon(apiConnectptr.p);
   releaseTcCon();
   checkPoolShrinkNeed(DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
                       tcConnectRecord);
@@ -4955,7 +4955,7 @@ void Dbtc::releaseDirtyRead(Signal* signal,
 /* ------------------------------------------------------------------------- */
 /* -------        CHECK IF ALL TC CONNECTIONS ARE COMPLETED          ------- */
 /* ------------------------------------------------------------------------- */
-void Dbtc::unlinkReadyTcCon(Signal* signal, ApiConnectRecord* const regApiPtr)
+void Dbtc::unlinkReadyTcCon(ApiConnectRecord* const regApiPtr)
 {
   LocalTcConnectRecord_fifo tcConList(tcConnectRecord, regApiPtr->tcConnect);
   tcConList.remove(tcConnectptr);
@@ -5513,7 +5513,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
   {
     UintR Tlqhkeyreqrec = regApiPtr.p->lqhkeyreqrec;
     jam();
-    unlinkReadyTcCon(signal, apiConnectptr.p);
+    unlinkReadyTcCon(apiConnectptr.p);
     do_releaseTcCon = true;
     save_tcConnectptr = tcConnectptr;
     regApiPtr.p->lqhkeyreqrec = Tlqhkeyreqrec - 1;
@@ -5572,7 +5572,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     }
     
     /* Ok, all checks passed, release the original locking op */
-    unlinkReadyTcCon(signal, apiConnectptr.p);
+    unlinkReadyTcCon(apiConnectptr.p);
     releaseTcCon();
     checkPoolShrinkNeed(DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
                         tcConnectRecord);
@@ -5590,7 +5590,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     tcConnectRecord.getPtr(tcConnectptr);
 
     /* Release the unlock operation */
-    unlinkReadyTcCon(signal, apiConnectptr.p);
+    unlinkReadyTcCon(apiConnectptr.p);
     do_releaseTcCon = true;
     save_tcConnectptr = tcConnectptr;
 
@@ -7757,7 +7757,7 @@ void Dbtc::releaseApiConCopy(Signal* signal, ApiConnectRecordPtr const apiConnec
 void Dbtc::releaseDirtyWrite(Signal* signal, ApiConnectRecordPtr const apiConnectptr)
 {
   clearCommitAckMarker(apiConnectptr.p, tcConnectptr.p);
-  unlinkReadyTcCon(signal, apiConnectptr.p);
+  unlinkReadyTcCon(apiConnectptr.p);
   releaseTcCon();
   checkPoolShrinkNeed(DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
                       tcConnectRecord);
@@ -7985,7 +7985,7 @@ void Dbtc::execLQHKEYREF(Signal* signal)
          */
         clearCommitAckMarker(regApiPtr, regTcPtr);
 
-        unlinkReadyTcCon(signal, apiConnectptr.p);
+        unlinkReadyTcCon(apiConnectptr.p);
         releaseTcCon();
         checkPoolShrinkNeed(DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
                             tcConnectRecord);
@@ -8032,7 +8032,7 @@ void Dbtc::execLQHKEYREF(Signal* signal)
       bool isIndexOp = regTcPtr->isIndexOp(regTcPtr->m_special_op_flags);
       Uint32 indexOp = tcConnectptr.p->indexOp;
       Uint32 clientData = regTcPtr->clientData;
-      unlinkReadyTcCon(signal, apiConnectptr.p);   /* LINK TC CONNECT RECORD OUT OF  */
+      unlinkReadyTcCon(apiConnectptr.p);   /* LINK TC CONNECT RECORD OUT OF  */
       releaseTcCon();       /* RELEASE THE TC CONNECT RECORD  */
       checkPoolShrinkNeed(DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
                           tcConnectRecord);
