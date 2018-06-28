@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,11 +45,12 @@
  * This is a casual hack to do static memory allocation
  * (needed by NDB)
  */
-#include "../../../../zlib/zutil.h"
-#include "../../../../zlib/zconf.h"
-#include "../../../../zlib/inftrees.h"
-#include "../../../../zlib/inflate.h"
-#include "../../../../zlib/deflate.h"
+#include <zutil.h>
+#include <zlib.h>
+#include <inftrees.h>
+#include <inflate.h>
+#include <deflate.h>
+
 
 #include <util/ndbzio.h>
 
