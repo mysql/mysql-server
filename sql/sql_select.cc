@@ -554,8 +554,13 @@ bool Sql_cmd_dml::execute(THD *thd) {
   }
 
   // Perform statement-specific execution
-  if (execute_inner(thd)) goto err;
+  res = execute_inner(thd);
 
+  // Count the number of statements offloaded to a secondary storage engine.
+  if (using_secondary_storage_engine() && lex->unit->is_executed())
+    ++thd->status_var.secondary_engine_execution_count;
+
+  if (res) goto err;
   DBUG_ASSERT(!thd->is_error());
 
   // Pop ignore / strict error handler

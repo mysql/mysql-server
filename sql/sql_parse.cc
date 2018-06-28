@@ -1324,6 +1324,56 @@ static inline bool is_timer_applicable_to_statement(THD *thd) {
 }
 
 /**
+  Check if a statement was unsuccessfully offloaded to a secondary
+  engine and should be reprepared against the primary storage engine.
+  Restart the statement if this is the case.
+
+  @param thd            the session
+  @param parser_state   the parser state
+  @param query_string   the query to reprepare and execute
+  @param query_length   the length of the query
+*/
+static void check_secondary_engine_statement(THD *thd,
+                                             Parser_state *parser_state,
+                                             const char *query_string,
+                                             size_t query_length) {
+  // There is no need to do anything if the statement was not
+  // offloaded to a secondary storage engine, or if the offloading was
+  // successful.
+  if (thd->lex->m_sql_cmd == nullptr ||
+      !thd->lex->m_sql_cmd->using_secondary_storage_engine() ||
+      !thd->is_error())
+    return;
+
+  // The query cannot be restarted if it had started executing, since
+  // it may have started sending results to the client.
+  if (thd->lex->unit->is_executed()) return;
+
+  // If the error was fatal, or if the query was killed, don't restart it.
+  if (thd->is_fatal_error || thd->is_killed()) return;
+
+  // Forget about the error raised in the first attempt at preparing the query.
+  thd->clear_error();
+
+  // Tell performance schema that the statement is restarted.
+  MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
+  thd->m_statement_psi = MYSQL_START_STATEMENT(
+      &thd->m_statement_state, com_statement_info[thd->get_command()].m_key,
+      thd->db().str, thd->db().length, thd->charset(), nullptr);
+
+  // Reset the statement digest state.
+  thd->m_digest = &thd->m_digest_state;
+  thd->m_digest->reset(thd->m_token_array, max_digest_length);
+
+  // Reset the parser state.
+  thd->set_query(query_string, query_length);
+  parser_state->reset(query_string, query_length);
+
+  // Restart the statement.
+  mysql_parse(thd, parser_state, true /* force_primary_storage_engine */);
+}
+
+/**
   Perform one connection-level (COM_XXXX) command.
 
   @param thd             connection handle
@@ -1601,10 +1651,18 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       thd->profiling->set_query_source(thd->query().str, thd->query().length);
 #endif
 
+      const LEX_CSTRING orig_query = thd->query();
+
       Parser_state parser_state;
       if (parser_state.init(thd, thd->query().str, thd->query().length)) break;
 
-      mysql_parse(thd, &parser_state);
+      mysql_parse(thd, &parser_state, false);
+
+      // Check if the statement failed while being prepared for
+      // execution on a secondary storage engine. If so, reprepare the
+      // statement without using secondary storage engines.
+      check_secondary_engine_statement(thd, &parser_state, orig_query.str,
+                                       orig_query.length);
 
       DBUG_EXECUTE_IF("parser_stmt_to_error_log", {
         LogErr(INFORMATION_LEVEL, ER_PARSER_TRACE, thd->query().str);
@@ -1676,7 +1734,10 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
         thd->set_time(); /* Reset the query start time. */
         parser_state.reset(beginning_of_next_stmt, length);
         /* TODO: set thd->lex->sql_command to SQLCOM_END here */
-        mysql_parse(thd, &parser_state);
+        mysql_parse(thd, &parser_state, false);
+
+        check_secondary_engine_statement(thd, &parser_state,
+                                         beginning_of_next_stmt, length);
       }
 
       /* Need to set error to true for graceful shutdown */
@@ -4812,9 +4873,12 @@ bool create_select_for_variable(Parse_context *pc, const char *var_name) {
 
   @param thd          Current session.
   @param parser_state Parser state.
+  @param force_primary_storage_engine True if the statement should be
+  forced to use primary storage engines only.
 */
 
-void mysql_parse(THD *thd, Parser_state *parser_state) {
+void mysql_parse(THD *thd, Parser_state *parser_state,
+                 bool force_primary_storage_engine) {
   DBUG_ENTER("mysql_parse");
   DBUG_PRINT("mysql_parse", ("query: '%s'", thd->query().str));
 
@@ -4840,6 +4904,9 @@ void mysql_parse(THD *thd, Parser_state *parser_state) {
 
     found_semicolon = parser_state->m_lip.found_semicolon;
   }
+
+  if (force_primary_storage_engine && lex->m_sql_cmd != nullptr)
+    lex->m_sql_cmd->disable_secondary_storage_engine();
 
   if (!err) {
     /*

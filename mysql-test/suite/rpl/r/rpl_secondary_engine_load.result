@@ -4,7 +4,9 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 CALL mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* \\[Repl\\] Slave SQL for channel '':.*Error 'Unknown storage engine 'MOCK'' on query");
+CALL mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* \\[Repl\\] Slave SQL for channel '':.*Error 'Secondary engine operation failed. No secondary engine defined");
 CALL mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* \\[Repl\\] Slave: Unknown storage engine 'MOCK'");
+CALL mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* \\[Repl\\] Slave: Secondary engine operation failed. No secondary engine defined");
 CALL mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* \\[Server\\] Unsafe statement written to the binary log using statement format");
 CALL mtr.add_suppression("The slave coordinator and worker threads are stopped");
 [ Connection Master ]
@@ -25,8 +27,12 @@ t1	CREATE TABLE `t1` (
   `vb` varbinary(32) DEFAULT NULL,
   PRIMARY KEY (`pk`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci SECONDARY_ENGINE=MOCK
+FLUSH STATUS;
 SELECT * FROM t1;
-ERROR 42S02: Table 'test.t1' doesn't exist
+pk	vc	j	b	vb
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
 [ Connection Master ]
 INSERT INTO t1 VALUES(NULL, 'Poodle', '{"key":"value"}', 'Pug', x'1234');
 INSERT INTO t1 VALUES(NULL, 'Labrador', '[{"key":"value"},{"key":"value2"}]', 'Boxer', x'abcd');
@@ -36,8 +42,12 @@ INSERT INTO t1 VALUES(NULL, 'Shiba', '{"1":"one"}', 'Mastiff', x'ffff');
 ALTER TABLE t1 SECONDARY_LOAD;
 include/sync_slave_sql_with_master.inc
 [ Connection Slave ]
+FLUSH STATUS;
 SELECT * FROM t1;
 pk	vc	j	b	vb
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	1
 [ Connection Master ]
 CREATE TABLE t2 LIKE t1;
 INSERT INTO t2 SELECT * FROM t1;
@@ -54,14 +64,61 @@ t2	CREATE TABLE `t2` (
   `vb` varbinary(32) DEFAULT NULL,
   PRIMARY KEY (`pk`)
 ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci SECONDARY_ENGINE=MOCK
+FLUSH STATUS;
 SELECT * FROM t2;
 pk	vc	j	b	vb
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	1
+ALTER TABLE t2 SECONDARY_UNLOAD;
+FLUSH STATUS;
+SELECT * FROM t2;
+pk	vc	j	b	vb
+1	Poodle	{"key": "value"}	Pug	4
+2	Labrador	[{"key": "value"}, {"key": "value2"}]	Boxer	«Í
+3	Beagle	[1, 2, 3]	Pitbull	«Í4
+4	Collie	["ab", "bc", "cd"]	Huskey	²ÃÔ
+5	Shiba	{"1": "one"}	Mastiff	ÿÿ
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
 [ Connection Master ]
+FLUSH STATUS;
+SELECT * FROM t2;
+pk	vc	j	b	vb
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	1
 ALTER TABLE t1 SECONDARY_UNLOAD;
 include/sync_slave_sql_with_master.inc
 [ Connection Slave ]
+FLUSH STATUS;
 SELECT * FROM t1;
-ERROR 42S02: Table 'test.t1' doesn't exist
+pk	vc	j	b	vb
+1	Poodle	{"key": "value"}	Pug	4
+2	Labrador	[{"key": "value"}, {"key": "value2"}]	Boxer	«Í
+3	Beagle	[1, 2, 3]	Pitbull	«Í4
+4	Collie	["ab", "bc", "cd"]	Huskey	²ÃÔ
+5	Shiba	{"1": "one"}	Mastiff	ÿÿ
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
+ALTER TABLE t2 SECONDARY_ENGINE=NULL;
+include/stop_slave_sql.inc
+[ Connection Master ]
+ALTER TABLE t2 SECONDARY_LOAD;
+[ Connection Slave ]
+START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_error.inc [errno=13230]
+ALTER TABLE t2 SECONDARY_ENGINE=MOCK;
+include/start_slave_sql.inc
+include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+FLUSH STATUS;
+SELECT * FROM t2;
+pk	vc	j	b	vb
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	1
 [ Connection Master ]
 ALTER TABLE t1 SECONDARY_ENGINE=NULL;
 include/sync_slave_sql_with_master.inc
@@ -76,6 +133,7 @@ t1	CREATE TABLE `t1` (
   `vb` varbinary(32) DEFAULT NULL,
   PRIMARY KEY (`pk`)
 ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+FLUSH STATUS;
 SELECT * FROM t1;
 pk	vc	j	b	vb
 1	Poodle	{"key": "value"}	Pug	4
@@ -83,6 +141,9 @@ pk	vc	j	b	vb
 3	Beagle	[1, 2, 3]	Pitbull	«Í4
 4	Collie	["ab", "bc", "cd"]	Huskey	²ÃÔ
 5	Shiba	{"1": "one"}	Mastiff	ÿÿ
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
 [ Connection Master ]
 ALTER TABLE t1 SECONDARY_ENGINE=HELLO;
 include/sync_slave_sql_with_master.inc
@@ -122,8 +183,12 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`pk`)
 ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci SECONDARY_ENGINE=MOCK
 ALTER TABLE t1 SECONDARY_LOAD;
+FLUSH STATUS;
 SELECT * FROM t1;
 pk	vc	j	b	vb
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	1
 ALTER TABLE t1 SECONDARY_UNLOAD;
 ALTER TABLE t2 SECONDARY_UNLOAD;
 [ Connection Master ]
@@ -141,8 +206,12 @@ include/wait_for_slave_sql_error.inc [errno=1286]
 INSTALL PLUGIN mock SONAME 'ha_mock.so';
 include/start_slave_sql.inc
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+FLUSH STATUS;
 SELECT * FROM t1;
 pk	vc	j	b	vb
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	1
 [ Connection Master ]
 DROP TABLE t1;
 DROP TABLE t2;

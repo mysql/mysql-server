@@ -20,23 +20,52 @@ CREATE TABLE t_primary_only(id INT PRIMARY KEY, x INT);
 INSERT INTO t_primary_only VALUES (1, 1), (2, 2);
 ALTER TABLE t1 SECONDARY_ENGINE MOCK;
 ALTER TABLE t2 SECONDARY_ENGINE MOCK;
+FLUSH STATUS;
 SELECT * FROM t1;
-ERROR 42S02: Table 'test.t1' doesn't exist
+id	x	y
+1	2	3
+4	5	6
+7	8	9
 PREPARE ps FROM 'SELECT * FROM t1';
-ERROR 42S02: Table 'test.t1' doesn't exist
+EXECUTE ps;
+id	x	y
+1	2	3
+4	5	6
+7	8	9
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
+DROP PREPARE ps;
+FLUSH STATUS;
 ALTER TABLE t1 SECONDARY_LOAD;
 PREPARE ps FROM 'SELECT * FROM t1';
 EXECUTE ps;
 id	x	y
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	1
 ALTER TABLE t1 SECONDARY_UNLOAD;
 EXECUTE ps;
-ERROR 42S02: Table 'test.t1' doesn't exist
+id	x	y
+1	2	3
+4	5	6
+7	8	9
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	1
 ALTER TABLE t1 SECONDARY_UNLOAD;
 EXECUTE ps;
-ERROR 42S02: Table 'test.t1' doesn't exist
+id	x	y
+1	2	3
+4	5	6
+7	8	9
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	1
 DROP PREPARE ps;
 ALTER TABLE t1 SECONDARY_LOAD;
 ALTER TABLE t2 SECONDARY_LOAD;
+FLUSH STATUS;
 SELECT * FROM t1;
 id	x	y
 PREPARE ps FROM 'SELECT * FROM t1';
@@ -51,6 +80,9 @@ FLUSH TABLES;
 EXECUTE ps;
 id	x	y
 DROP PREPARE ps;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	5
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
@@ -59,6 +91,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1`
+FLUSH STATUS;
 SELECT * FROM t1 JOIN t2 USING (id);
 id	x	y	z
 SELECT * FROM t1 WHERE t1.x IN (SELECT t2.z FROM t2);
@@ -76,10 +109,25 @@ id	x	z	id	z
 SELECT SUM(x) FROM v1;
 SUM(x)
 NULL
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	7
+FLUSH STATUS;
 SELECT x FROM t1 FORCE INDEX (t1_x);
-ERROR 42000: Key 't1_x' doesn't exist in table 't1'
+x
+2
+5
+8
 PREPARE ps FROM 'SELECT x FROM t1 FORCE INDEX (t1_x)';
-ERROR 42000: Key 't1_x' doesn't exist in table 't1'
+EXECUTE ps;
+x
+2
+5
+8
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
+FLUSH STATUS;
 PREPARE ps FROM 'SELECT * FROM t1';
 LOCK TABLES t1 READ;
 SELECT * FROM t1;
@@ -97,6 +145,9 @@ id	x	y
 1	2	3
 4	5	6
 7	8	9
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
 UNLOCK TABLES;
 SELECT * FROM t1;
 id	x	y
@@ -105,6 +156,10 @@ id	x	y
 EXECUTE ps;
 id	x	y
 DROP PREPARE ps;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	3
+FLUSH STATUS;
 PREPARE ps FROM 'SELECT * FROM t1';
 BEGIN;
 SELECT * FROM t1;
@@ -118,6 +173,15 @@ id	x	y
 4	5	6
 7	8	9
 COMMIT;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
+EXECUTE ps;
+id	x	y
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	1
+FLUSH STATUS;
 START TRANSACTION;
 SELECT * FROM t1;
 id	x	y
@@ -130,6 +194,15 @@ id	x	y
 4	5	6
 7	8	9
 COMMIT;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
+EXECUTE ps;
+id	x	y
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	1
+FLUSH STATUS;
 SET @@autocommit = 0;
 SELECT * FROM t1;
 id	x	y
@@ -143,10 +216,34 @@ id	x	y
 7	8	9
 SET @@autocommit = 1;
 COMMIT;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
 SELECT * FROM t1;
 id	x	y
 EXECUTE ps;
 id	x	y
+DROP PREPARE ps;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	2
+FLUSH STATUS;
+BEGIN;
+PREPARE ps FROM 'SELECT * FROM t1';
+EXECUTE ps;
+id	x	y
+1	2	3
+4	5	6
+7	8	9
+COMMIT;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
+EXECUTE ps;
+id	x	y
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	1
 DROP PREPARE ps;
 SELECT * FROM t1, t_primary_only tp WHERE t1.id = tp.id;
 id	x	y	id	x
@@ -177,49 +274,110 @@ ALTER TABLE t_partitioned SECONDARY_LOAD;
 SELECT * FROM t_partitioned;
 id	x
 DROP TABLE t_partitioned;
+FLUSH STATUS;
 SELECT * FROM t1;
 PREPARE ps FROM 'SELECT * FROM t1';
 EXECUTE ps;
 SELECT * FROM t1, t_primary_only tp WHERE t1.id = tp.id;
 EXECUTE ps;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+ALTER TABLE t1 SECONDARY_UNLOAD;
+SELECT * FROM t1;
+EXECUTE ps;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+ALTER TABLE t1 SECONDARY_LOAD;
+EXECUTE ps;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 DROP PREPARE ps|
 id	x	y
 id	x	y
 id	x	y	id	x
 1	2	3	1	1
 id	x	y
+Variable_name	Value
+Secondary_engine_execution_count	3
+id	x	y
+1	2	3
+4	5	6
+7	8	9
+id	x	y
+1	2	3
+4	5	6
+7	8	9
+Variable_name	Value
+Secondary_engine_execution_count	3
+id	x	y
+Variable_name	Value
+Secondary_engine_execution_count	4
+FLUSH STATUS;
 PREPARE ps FROM 'SELECT x FROM t1 WHERE id = ?';
 SET @a=1;
 EXECUTE ps USING @a;
 x
 EXECUTE ps USING @a;
 x
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	2
 ALTER TABLE t1 SECONDARY_UNLOAD;
 EXECUTE ps USING @a;
-ERROR 42S02: Table 'test.t1' doesn't exist
+x
+2
 EXECUTE ps USING @a;
-ERROR 42S02: Table 'test.t1' doesn't exist
+x
+2
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	2
 ALTER TABLE t1 SECONDARY_LOAD;
 EXECUTE ps USING @a;
 x
 EXECUTE ps USING @a;
 x
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	4
 DROP PREPARE ps;
+FLUSH STATUS;
 SELECT JSON_EXTRACT(j, '$') FROM
 (SELECT '[]' AS j FROM DUAL UNION ALL SELECT '{}' FROM DUAL) AS dt
 LEFT JOIN t1 ON (TRUE);
 JSON_EXTRACT(j, '$')
 []
 {}
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	1
+FLUSH STATUS;
 SELECT JSON_EXTRACT(j, '$') FROM
 (SELECT '[]' AS j FROM DUAL UNION ALL SELECT 'not-json' FROM DUAL) AS dt
 LEFT JOIN t1 ON (TRUE);
 ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "Invalid value." at position 1.
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	1
+FLUSH STATUS;
+PREPARE ps FROM "SELECT JSON_EXTRACT(j, '$') FROM
+(SELECT '[]' AS j FROM DUAL UNION ALL SELECT 'not-json' FROM DUAL) AS dt
+LEFT JOIN t1 ON (TRUE)";
+EXECUTE ps;
+ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "Invalid value." at position 1.
+EXECUTE ps;
+ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "Invalid value." at position 1.
+DROP PREPARE ps;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	2
+FLUSH STATUS;
 CREATE PROCEDURE p1() SELECT COUNT(*) FROM t1;
 CALL p1();
 COUNT(*)
 3
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
 DROP PROCEDURE p1;
+FLUSH STATUS;
 CREATE TABLE t_with_trigger(x INT);
 CREATE TRIGGER tr AFTER INSERT ON t_with_trigger
 FOR EACH ROW SELECT COUNT(*) FROM t1 INTO @a;
@@ -227,14 +385,22 @@ INSERT INTO t_with_trigger VALUES (1);
 SELECT @a;
 @a
 3
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
 DROP TABLE t_with_trigger;
 CREATE TABLE t_nonexistent(x INT) SECONDARY_ENGINE NONEXISTENT;
 INSERT INTO t_nonexistent VALUES (1);
+FLUSH STATUS;
 SELECT * FROM t_nonexistent;
-ERROR 42000: Unknown storage engine 'NONEXISTENT'
+x
+1
 SELECT * FROM t1 a, t_nonexistent b WHERE a.id = b.x;
 id	x	y	x
 1	2	3	1
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
 DROP TABLE t_nonexistent;
 CREATE TABLE t_case1(x INT) SECONDARY_ENGINE 'MOCK';
 CREATE TABLE t_case2(y INT) SECONDARY_ENGINE 'mock ';
@@ -245,8 +411,12 @@ INSERT INTO t_case3 VALUES (3);
 ALTER TABLE t_case1 SECONDARY_LOAD;
 ALTER TABLE t_case2 SECONDARY_LOAD;
 ALTER TABLE t_case3 SECONDARY_LOAD;
+FLUSH STATUS;
 SELECT * FROM t_case1, t_case2, t_case3;
 x	y	z
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	1
 DROP TABLE t_case1, t_case2, t_case3;
 CREATE TABLE tf(x INT) SECONDARY_ENGINE MOCK;
 INSERT INTO tf VALUES (123);
@@ -262,14 +432,21 @@ BEGIN
 INSERT INTO tf VALUES (234);
 RETURN 1;
 END|
+FLUSH STATUS;
 SELECT f1();
 f1()
 123
 SELECT f2();
 f2()
 1
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
 SELECT * FROM tf;
 x
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	1
 DROP FUNCTION f1;
 DROP FUNCTION f2;
 DROP TABLE tf;

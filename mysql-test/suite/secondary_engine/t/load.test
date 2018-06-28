@@ -72,12 +72,11 @@ while ($i < 10) {
   connection con1;
   --send ALTER TABLE t1 SECONDARY_LOAD; ALTER TABLE t1 SECONDARY_UNLOAD
   connection default;
-  let $j = 0;
-  while ($j < 5) {
-    inc $j;
-    --error 0, ER_NO_SUCH_TABLE
-    SELECT * FROM t1;
-  }
+  SELECT * FROM t1;
+  SELECT * FROM t1;
+  SELECT * FROM t1;
+  SELECT * FROM t1;
+  SELECT * FROM t1;
   connection con1;
   reap;
 }

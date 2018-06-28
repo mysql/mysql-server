@@ -419,6 +419,9 @@ struct System_status_var {
   */
   double last_query_cost;
   ulonglong last_query_partial_plans;
+
+  /// How many queries have been executed on a secondary storage engine.
+  ulonglong secondary_engine_execution_count;
 };
 
 /*

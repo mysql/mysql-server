@@ -96,7 +96,8 @@ bool is_update_query(enum enum_sql_command command);
 bool is_explainable_query(enum enum_sql_command command);
 bool is_log_table_write_query(enum enum_sql_command command);
 bool alloc_query(THD *thd, const char *packet, size_t packet_length);
-void mysql_parse(THD *thd, Parser_state *parser_state);
+void mysql_parse(THD *thd, Parser_state *parser_state,
+                 bool force_primary_storage_engine);
 void mysql_reset_thd_for_next_command(THD *thd);
 bool create_select_for_variable(Parse_context *pc, const char *var_name);
 void create_table_set_open_action_and_adjust_tables(LEX *lex);

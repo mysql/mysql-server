@@ -6391,9 +6391,9 @@ err:
 }
 
 /**
-  Check if the opened tables have a shadow copy in a secondary storage
-  engine. If they all have a shadow copy in the same secondary storage
-  engine, replace the opened tables with their secondary counterparts.
+  Check if a secondary engine can be used to execute the current
+  statement, and if so, replace the opened tables with their secondary
+  counterparts.
 
   @param thd       thread handler
   @param tables    the tables used by the query
@@ -6402,21 +6402,30 @@ err:
 */
 static bool open_secondary_engine_tables(THD *thd, TABLE_LIST *tables,
                                          uint flags) {
+  const LEX *const lex = thd->lex;
+  Sql_cmd *const sql_cmd = lex->m_sql_cmd;
+
   // Only attempt to use a secondary engine if all of these conditions
   // are satisfied:
   //
-  // 1) It is SELECT statement
-  // 2) LOCK TABLES mode is not active
-  // 3) Multi-statement transaction mode is not active
-  // 4) It is a not sub-statement inside a stored procedure
-  // 5) It does not call stored routines
-  if (thd->lex->sql_command != SQLCOM_SELECT ||  // 1
-      thd->locked_tables_mode != LTM_NONE ||     // 2
-      thd->in_multi_stmt_transaction_mode() ||   // 3
-      thd->sp_runtime_ctx != nullptr ||          // 4
-      thd->lex->uses_stored_routines())          // 5
+  // 1) It is a SELECT statement
+  // 2) Use of secondary engine has not been disabled for this statement
+  // 3) LOCK TABLES mode is not active
+  // 4) Multi-statement transaction mode is not active
+  // 5) It is a not sub-statement inside a stored procedure
+  // 6) It does not call stored routines
+  if (sql_cmd == nullptr || lex->sql_command != SQLCOM_SELECT ||  // 1
+      sql_cmd->secondary_storage_engine_disabled() ||             // 2
+      thd->locked_tables_mode != LTM_NONE ||                      // 3
+      thd->in_multi_stmt_transaction_mode() ||                    // 4
+      thd->sp_runtime_ctx != nullptr ||                           // 5
+      lex->uses_stored_routines())                                // 6
     return false;
 
+  // Now check if the opened tables are available in a secondary
+  // storage engine. Only use the secondary tables if all the tables
+  // have a secondary tables, and they are all in the same secondary
+  // storage engine.
   const LEX_STRING *secondary_engine = nullptr;
   for (const TABLE_LIST *tl = tables; tl != nullptr; tl = tl->next_global) {
     // We're only interested in base tables.
@@ -6450,8 +6459,11 @@ static bool open_secondary_engine_tables(THD *thd, TABLE_LIST *tables,
 
   if (secondary_engine == nullptr) {
     // Didn't find a secondary storage engine to use for the query.
+    sql_cmd->disable_secondary_storage_engine();
     return false;
   }
+
+  lex->m_sql_cmd->use_secondary_storage_engine();
 
   // Replace the TABLE objects in the TABLE_LIST with secondary tables.
   Open_table_context ot_ctx(thd, flags | MYSQL_OPEN_SECONDARY_ENGINE);
@@ -6463,6 +6475,12 @@ static bool open_secondary_engine_tables(THD *thd, TABLE_LIST *tables,
     DBUG_ASSERT(tl->table->s->is_secondary());
     tl->table->file->ha_set_primary_handler(primary_table->file);
   }
+
+  // Debug code that injects an error when opening secondary tables.
+  DBUG_EXECUTE_IF("open_secondary_engine_tables_error", {
+    my_error(ER_NO_SUCH_TABLE, MYF(0), "db", "table");
+    return true;
+  });
 
   return false;
 }

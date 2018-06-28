@@ -103,7 +103,9 @@ class Sql_cmd {
 
     @param thd  Current THD.
   */
-  virtual void cleanup(THD *thd MY_ATTRIBUTE((unused))) {}
+  virtual void cleanup(THD *thd MY_ATTRIBUTE((unused))) {
+    m_using_secondary_engine = false;
+  }
 
   /// Set the owning prepared statement
   void set_owner(Prepared_statement *stmt) { m_owner = stmt; }
@@ -137,6 +139,40 @@ class Sql_cmd {
     return false;
   }
 
+  /**
+    Disable use of secondary storage engines in this statement. After
+    a call to this function, the statement will not try to use a
+    secondary storage engine until it is reprepared.
+  */
+  void disable_secondary_storage_engine() {
+    DBUG_ASSERT(!m_using_secondary_engine);
+    m_secondary_engine_enabled = false;
+  }
+
+  /**
+    Has use of secondary storage engines been disabled for this statement?
+  */
+  bool secondary_storage_engine_disabled() const {
+    return !m_secondary_engine_enabled;
+  }
+
+  /**
+    Mark the current statement as using a secondary storage engine.
+    This function must be called before the statement starts opening
+    tables in a secondary engine.
+  */
+  void use_secondary_storage_engine() {
+    DBUG_ASSERT(m_secondary_engine_enabled);
+    m_using_secondary_engine = true;
+  }
+
+  /**
+    Is this statement using a secondary storage engine?
+  */
+  bool using_secondary_storage_engine() const {
+    return m_using_secondary_engine;
+  }
+
  protected:
   Sql_cmd() : m_owner(nullptr), m_prepared(false), prepare_only(true) {}
 
@@ -166,6 +202,20 @@ class Sql_cmd {
   Prepared_statement
       *m_owner;     /// Owning prepared statement, nullptr if non-prep.
   bool m_prepared;  /// True when statement has been prepared
+
+  /**
+    Tells if a secondary storage engine can be used for this
+    statement. If it is false, use of a secondary storage engine will
+    not be considered for executing this statement.
+  */
+  bool m_secondary_engine_enabled{true};
+
+  /**
+    Set to true if the statement is using a secondary storage engine.
+    This property is reset at the start of each execution.
+  */
+  bool m_using_secondary_engine{false};
+
  protected:
   bool prepare_only;  /// @see needs_explicit_preparation
                       /// @todo remove when prepare-once is implemented

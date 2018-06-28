@@ -26,21 +26,25 @@ ALTER TABLE t1 SECONDARY_ENGINE MOCK;
 ALTER TABLE t2 SECONDARY_ENGINE MOCK;
 
 # t1 has not been loaded into the secondary engine yet.
---error ER_NO_SUCH_TABLE
+FLUSH STATUS;
 SELECT * FROM t1;
---error ER_NO_SUCH_TABLE
 PREPARE ps FROM 'SELECT * FROM t1';
+EXECUTE ps;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+DROP PREPARE ps;
 
 # Load and unload t1.
+FLUSH STATUS;
 ALTER TABLE t1 SECONDARY_LOAD;
 PREPARE ps FROM 'SELECT * FROM t1';
 EXECUTE ps;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 ALTER TABLE t1 SECONDARY_UNLOAD;
---error ER_NO_SUCH_TABLE
 EXECUTE ps;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 ALTER TABLE t1 SECONDARY_UNLOAD;
---error ER_NO_SUCH_TABLE
 EXECUTE ps;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 DROP PREPARE ps;
 
 ALTER TABLE t1 SECONDARY_LOAD;
@@ -48,6 +52,7 @@ ALTER TABLE t2 SECONDARY_LOAD;
 
 # The queries should now use the mock engine, which always returns an
 # empty result.
+FLUSH STATUS;
 SELECT * FROM t1;
 PREPARE ps FROM 'SELECT * FROM t1';
 EXECUTE ps;
@@ -57,12 +62,14 @@ SELECT * FROM t1;
 FLUSH TABLES;
 EXECUTE ps;
 DROP PREPARE ps;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 
 # The row count estimate should be available (via the primary table).
 ANALYZE TABLE t1;
 EXPLAIN SELECT * FROM t1;
 
 # Some queries that should use the secondary engine.
+FLUSH STATUS;
 SELECT * FROM t1 JOIN t2 USING (id);
 SELECT * FROM t1 WHERE t1.x IN (SELECT t2.z FROM t2);
 SELECT SUM(x) FROM t1 GROUP BY y;
@@ -71,45 +78,70 @@ SELECT (SELECT MAX(x) FROM t1), (SELECT MIN(z) FROM t2), s FROM
 SELECT * FROM v1;
 SELECT * FROM v1, t2 WHERE v1.id = t2.id;
 SELECT SUM(x) FROM v1;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 
 # A forced index scan cannot be offloaded, since the secondary storage
 # engine doesn't have indexes.
---error ER_KEY_DOES_NOT_EXITS
+FLUSH STATUS;
 SELECT x FROM t1 FORCE INDEX (t1_x);
---error ER_KEY_DOES_NOT_EXITS
 PREPARE ps FROM 'SELECT x FROM t1 FORCE INDEX (t1_x)';
+EXECUTE ps;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 
 # The query should not be offloaded to the secondary engine if LOCK
 # TABLES mode is active.
+FLUSH STATUS;
 PREPARE ps FROM 'SELECT * FROM t1';
 LOCK TABLES t1 READ;
 SELECT * FROM t1;
 EXECUTE ps;
 EXECUTE ps;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 UNLOCK TABLES;
 SELECT * FROM t1;
 EXECUTE ps;
 EXECUTE ps;
 DROP PREPARE ps;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 
 # The query should not be offloaded to the secondary engine in
 # multi-statement transaction mode.
+FLUSH STATUS;
 PREPARE ps FROM 'SELECT * FROM t1';
 BEGIN;
 SELECT * FROM t1;
 EXECUTE ps;
 COMMIT;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+EXECUTE ps;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+FLUSH STATUS;
 START TRANSACTION;
 SELECT * FROM t1;
 EXECUTE ps;
 COMMIT;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+EXECUTE ps;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+FLUSH STATUS;
 SET @@autocommit = 0;
 SELECT * FROM t1;
 EXECUTE ps;
 SET @@autocommit = 1;
 COMMIT;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 SELECT * FROM t1;
 EXECUTE ps;
+DROP PREPARE ps;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+FLUSH STATUS;
+BEGIN;
+PREPARE ps FROM 'SELECT * FROM t1';
+EXECUTE ps;
+COMMIT;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+EXECUTE ps;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 DROP PREPARE ps;
 
 # Queries that access at least one table that is not available in a
@@ -142,60 +174,91 @@ DROP TABLE t_partitioned;
 
 # Multiple queries in a single statement.
 DELIMITER |;
+FLUSH STATUS;
 SELECT * FROM t1;
 PREPARE ps FROM 'SELECT * FROM t1';
 EXECUTE ps;
 SELECT * FROM t1, t_primary_only tp WHERE t1.id = tp.id;
 EXECUTE ps;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+ALTER TABLE t1 SECONDARY_UNLOAD;
+SELECT * FROM t1;
+EXECUTE ps;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+ALTER TABLE t1 SECONDARY_LOAD;
+EXECUTE ps;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 DROP PREPARE ps|
 DELIMITER ;|
 
 # Prepared statement with an argument.
+FLUSH STATUS;
 PREPARE ps FROM 'SELECT x FROM t1 WHERE id = ?';
 SET @a=1;
 EXECUTE ps USING @a;
 EXECUTE ps USING @a;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 ALTER TABLE t1 SECONDARY_UNLOAD;
---error ER_NO_SUCH_TABLE
 EXECUTE ps USING @a;
---error ER_NO_SUCH_TABLE
 EXECUTE ps USING @a;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 ALTER TABLE t1 SECONDARY_LOAD;
 EXECUTE ps USING @a;
 EXECUTE ps USING @a;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 DROP PREPARE ps;
 
 # Test a query that returns multiple rows, even with the mock engine.
+FLUSH STATUS;
 --sorted_result
 SELECT JSON_EXTRACT(j, '$') FROM
 (SELECT '[]' AS j FROM DUAL UNION ALL SELECT '{}' FROM DUAL) AS dt
 LEFT JOIN t1 ON (TRUE);
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 
-# Test a query that fails during execution, after optimization.
+# If an offloaded query fails during execution, after optimization, it
+# is not automatically reprepared.
+FLUSH STATUS;
 --error ER_INVALID_JSON_TEXT_IN_PARAM
 SELECT JSON_EXTRACT(j, '$') FROM
 (SELECT '[]' AS j FROM DUAL UNION ALL SELECT 'not-json' FROM DUAL) AS dt
 LEFT JOIN t1 ON (TRUE);
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+FLUSH STATUS;
+PREPARE ps FROM "SELECT JSON_EXTRACT(j, '$') FROM
+(SELECT '[]' AS j FROM DUAL UNION ALL SELECT 'not-json' FROM DUAL) AS dt
+LEFT JOIN t1 ON (TRUE)";
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+EXECUTE ps;
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+EXECUTE ps;
+DROP PREPARE ps;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 
 # Queries inside a procedure should not be offloaded.
+FLUSH STATUS;
 CREATE PROCEDURE p1() SELECT COUNT(*) FROM t1;
 CALL p1();
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 DROP PROCEDURE p1;
 
 # Queries inside a trigger should not be offloaded.
+FLUSH STATUS;
 CREATE TABLE t_with_trigger(x INT);
 CREATE TRIGGER tr AFTER INSERT ON t_with_trigger
 FOR EACH ROW SELECT COUNT(*) FROM t1 INTO @a;
 INSERT INTO t_with_trigger VALUES (1);
 SELECT @a;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 DROP TABLE t_with_trigger;
 
 # Non-existent secondary engine.
 CREATE TABLE t_nonexistent(x INT) SECONDARY_ENGINE NONEXISTENT;
 INSERT INTO t_nonexistent VALUES (1);
---error ER_UNKNOWN_STORAGE_ENGINE
+FLUSH STATUS;
 SELECT * FROM t_nonexistent;
 SELECT * FROM t1 a, t_nonexistent b WHERE a.id = b.x;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 DROP TABLE t_nonexistent;
 
 # Same secondary engine specified with different case and differing
@@ -209,7 +272,9 @@ INSERT INTO t_case3 VALUES (3);
 ALTER TABLE t_case1 SECONDARY_LOAD;
 ALTER TABLE t_case2 SECONDARY_LOAD;
 ALTER TABLE t_case3 SECONDARY_LOAD;
+FLUSH STATUS;
 SELECT * FROM t_case1, t_case2, t_case3;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 DROP TABLE t_case1, t_case2, t_case3;
 
 # Queries that invoke stored routines should not be offloaded.
@@ -229,10 +294,13 @@ BEGIN
   RETURN 1;
 END|
 DELIMITER ;|
+FLUSH STATUS;
 SELECT f1();
 SELECT f2();
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 --sorted_result
 SELECT * FROM tf;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 DROP FUNCTION f1;
 DROP FUNCTION f2;
 DROP TABLE tf;

@@ -13,7 +13,9 @@
 
 --source include/master-slave.inc
 CALL mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* \\[Repl\\] Slave SQL for channel '':.*Error 'Unknown storage engine 'MOCK'' on query");
+CALL mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* \\[Repl\\] Slave SQL for channel '':.*Error 'Secondary engine operation failed. No secondary engine defined");
 CALL mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* \\[Repl\\] Slave: Unknown storage engine 'MOCK'");
+CALL mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* \\[Repl\\] Slave: Secondary engine operation failed. No secondary engine defined");
 CALL mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* \\[Server\\] Unsafe statement written to the binary log using statement format");
 CALL mtr.add_suppression("The slave coordinator and worker threads are stopped");
 
@@ -43,10 +45,11 @@ CREATE TABLE t1 (pk INT PRIMARY KEY AUTO_INCREMENT, vc VARCHAR(10), j JSON, b BL
 # Check if the table is created with the secondary engine.
 SHOW CREATE TABLE t1;
 
-# Since the table is not offloaded to MOCK engine, it
-# appears to be non-existent.
---error ER_NO_SUCH_TABLE
+# Since the table is not loaded into the MOCK engine, the query is not
+# offloaded.
+FLUSH STATUS;
 SELECT * FROM t1;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 
 --connection master
 --echo [ Connection Master ]
@@ -63,8 +66,10 @@ ALTER TABLE t1 SECONDARY_LOAD;
 --source include/sync_slave_sql_with_master.inc
 --echo [ Connection Slave ]
 
-# Check that the table is offloaded.
+# Check that the query is offloaded.
+FLUSH STATUS;
 SELECT * FROM t1;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 
 --connection master
 --echo [ Connection Master ]
@@ -86,10 +91,24 @@ ALTER TABLE t2 SECONDARY_LOAD;
 # Check that t2 is created with the secondary engine.
 SHOW CREATE TABLE t2;
 
+FLUSH STATUS;
 SELECT * FROM t2;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+
+# Unload the table on slave.
+ALTER TABLE t2 SECONDARY_UNLOAD;
+
+FLUSH STATUS;
+SELECT * FROM t2;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 
 --connection master
 --echo [ Connection Master ]
+
+# Query the table on master.
+FLUSH STATUS;
+SELECT * FROM t2;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 
 # Unload the table from the secondary engine.
 ALTER TABLE t1 SECONDARY_UNLOAD;
@@ -98,8 +117,44 @@ ALTER TABLE t1 SECONDARY_UNLOAD;
 --echo [ Connection Slave ]
 
 # Check that the table is unloaded.
---error ER_NO_SUCH_TABLE
+FLUSH STATUS;
 SELECT * FROM t1;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+
+# Set secondary engine to NULL only on slave.
+ALTER TABLE t2 SECONDARY_ENGINE=NULL;
+
+# Stop slave SQL thread.
+--source include/stop_slave_sql.inc
+
+--connection master
+--echo [ Connection Master ]
+
+# Load the table on master. This operation will fail on slave because it has
+# no secondary engine defined.
+ALTER TABLE t2 SECONDARY_LOAD;
+
+--connection slave
+--echo [ Connection Slave ]
+
+START SLAVE SQL_THREAD;
+
+# Since the secondary engine is not defined, this error is expected.
+--let $slave_sql_errno = convert_error(ER_SECONDARY_ENGINE)
+--source include/wait_for_slave_sql_error.inc
+
+# Change secondary engine to MOCK
+ALTER TABLE t2 SECONDARY_ENGINE=MOCK;
+
+--source include/start_slave_sql.inc
+--let $slave_param= Slave_SQL_Running_State
+--let $slave_param_value= Slave has read all relay log; waiting for more updates
+--source include/wait_for_slave_param.inc
+
+# This should execute on MOCK engine.
+FLUSH STATUS;
+SELECT * FROM t2;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 
 --connection master
 --echo [ Connection Master ]
@@ -112,7 +167,9 @@ ALTER TABLE t1 SECONDARY_ENGINE=NULL;
 
 # Check whether the secondary engine has been changed.
 SHOW CREATE TABLE t1;
+FLUSH STATUS;
 SELECT * FROM t1;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 
 --connection master
 --echo [ Connection Master ]
@@ -135,7 +192,9 @@ ALTER TABLE t1 SECONDARY_ENGINE=NULL;
 ALTER TABLE t1 SECONDARY_ENGINE=MOCK;
 SHOW CREATE TABLE t1;
 ALTER TABLE t1 SECONDARY_LOAD;
+FLUSH STATUS;
 SELECT * FROM t1;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 ALTER TABLE t1 SECONDARY_UNLOAD;
 ALTER TABLE t2 SECONDARY_UNLOAD;
 
@@ -179,7 +238,9 @@ START SLAVE SQL_THREAD;
 --let $slave_param_value= Slave has read all relay log; waiting for more updates
 --source include/wait_for_slave_param.inc
 
+FLUSH STATUS;
 SELECT * FROM t1;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 
 --connection master
 --echo [ Connection Master ]

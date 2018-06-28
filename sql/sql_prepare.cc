@@ -1418,7 +1418,7 @@ void mysqld_stmt_prepare(THD *thd, const char *query, uint length,
       MYSQL_CREATE_PS(stmt, stmt->id, thd->m_statement_psi, stmt->name().str,
                       stmt->name().length, NULL, 0);
 
-  if (stmt->prepare(query, length)) {
+  if (stmt->prepare(query, length, false)) {
     /* Delete this stmt stats from PS table. */
     MYSQL_DESTROY_PS(stmt->m_prepared_stmt);
     /* Statement map deletes statement on erase */
@@ -1663,7 +1663,7 @@ void mysql_sql_stmt_prepare(THD *thd) {
       MYSQL_CREATE_PS(stmt, stmt->id, thd->m_statement_psi, stmt->name().str,
                       stmt->name().length, NULL, 0);
 
-  if (stmt->prepare(query, query_len)) {
+  if (stmt->prepare(query, query_len, false)) {
     /* Delete this stmt stats from PS table. */
     MYSQL_DESTROY_PS(stmt->m_prepared_stmt);
     /* Statement map deletes the statement on erase */
@@ -2373,7 +2373,9 @@ bool Prepared_statement::set_db(const LEX_CSTRING &db_arg) {
     a COM_* command, and SQLCOM_* command, or a stored procedure.
 
   @param query_str             statement text
-  @param query_length
+  @param query_length          the length of the statement text
+  @param force_primary_storage_engine  true if the statement should be forced
+                                       to use primary storage engines only
 
   @note
     Precondition:
@@ -2386,7 +2388,8 @@ bool Prepared_statement::set_db(const LEX_CSTRING &db_arg) {
     thd->mem_root contains unused memory allocated during validation.
 */
 
-bool Prepared_statement::prepare(const char *query_str, size_t query_length) {
+bool Prepared_statement::prepare(const char *query_str, size_t query_length,
+                                 bool force_primary_storage_engine) {
   bool error;
   Query_arena arena_backup;
   Query_arena *old_stmt_arena;
@@ -2473,6 +2476,9 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length) {
   // Bind Sql command object with this prepared statement
   if (lex->m_sql_cmd) lex->m_sql_cmd->set_owner(this);
 
+  if (force_primary_storage_engine && lex->m_sql_cmd != nullptr)
+    lex->m_sql_cmd->disable_secondary_storage_engine();
+
   lex->set_trg_event_type_for_tables();
 
   /*
@@ -2515,6 +2521,10 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length) {
 
   if (error == 0) error = check_prepared_statement(this);
   DBUG_ASSERT(error || !thd->is_error());
+
+  const bool secondary_engine_preparation_error =
+      error && lex->m_sql_cmd != nullptr &&
+      lex->m_sql_cmd->using_secondary_storage_engine();
 
   /*
     Currently CREATE PROCEDURE/TRIGGER/EVENT are prohibited in prepared
@@ -2611,6 +2621,17 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length) {
 
   thd->m_digest = parent_digest;
   thd->m_statement_psi = parent_locker;
+
+  // If the preparation against a secondary storage engine failed with
+  // a non-fatal error, retry the preparation without the secondary
+  // storage engine.
+  if (secondary_engine_preparation_error && !thd->is_fatal_error &&
+      !thd->is_killed()) {
+    DBUG_ASSERT(!force_primary_storage_engine);
+    thd->clear_error();
+    error = prepare(query_str, query_length, true);
+    if (!error) DBUG_ASSERT(!lex->m_sql_cmd->using_secondary_storage_engine());
+  }
 
   DBUG_RETURN(error);
 }
@@ -2738,14 +2759,29 @@ reexecute:
 
   thd->pop_reprepare_observer();
 
+  // Check if we have a non-fatal error and the statement allows reexecution.
   if ((sql_command_flags[lex->sql_command] & CF_REEXECUTION_FRAGILE) && error &&
-      !thd->is_fatal_error && !thd->killed &&
-      reprepare_observer.is_invalidated() &&
-      reprepare_attempt++ < MAX_REPREPARE_ATTEMPTS) {
-    DBUG_ASSERT(thd->get_stmt_da()->mysql_errno() == ER_NEED_REPREPARE);
-    thd->clear_error();
-
-    error = reprepare();
+      !thd->is_fatal_error && !thd->is_killed()) {
+    // If we have an error due to a metadata change, reprepare the
+    // statement and execute it again.
+    if (reprepare_observer.is_invalidated() &&
+        reprepare_attempt++ < MAX_REPREPARE_ATTEMPTS) {
+      DBUG_ASSERT(thd->get_stmt_da()->mysql_errno() == ER_NEED_REPREPARE);
+      thd->clear_error();
+      error = reprepare(false);
+    }
+    // Otherwise, if execution failed during optimization and the
+    // statement used a secondary storage engine, we disable the
+    // secondary storage engine and try again without it.
+    else if (lex->m_sql_cmd != nullptr &&
+             lex->m_sql_cmd->using_secondary_storage_engine() &&
+             !lex->unit->is_executed()) {
+      thd->clear_error();
+      error = reprepare(true);
+      // The reprepared statement should not use a secondary engine.
+      if (!error)
+        DBUG_ASSERT(!lex->m_sql_cmd->using_secondary_storage_engine());
+    }
 
     if (!error) /* Success */
       goto reexecute;
@@ -2802,7 +2838,7 @@ bool Prepared_statement::execute_server_runnable(
   @retval  false  success, the statement has been reprepared
 */
 
-bool Prepared_statement::reprepare() {
+bool Prepared_statement::reprepare(bool force_primary_storage_engine) {
   char saved_cur_db_name_buf[NAME_LEN + 1];
   LEX_STRING saved_cur_db_name = {saved_cur_db_name_buf,
                                   sizeof(saved_cur_db_name_buf)};
@@ -2819,7 +2855,8 @@ bool Prepared_statement::reprepare() {
     return true;
 
   error = ((m_name.str && copy.set_name(m_name)) ||
-           copy.prepare(m_query_string.str, m_query_string.length) ||
+           copy.prepare(m_query_string.str, m_query_string.length,
+                        force_primary_storage_engine) ||
            validate_metadata(&copy));
 
   if (cur_db_changed)

@@ -23,6 +23,7 @@
 #include "storage/secondary_engine_mock/ha_mock.h"
 
 #include <map>
+#include <mutex>
 #include <string>
 #include <tuple>
 #include <type_traits>
@@ -59,7 +60,29 @@ struct MockShare {
 };
 
 // Map from (db_name, table_name) to the MockShare with table state.
-using LoadedTables = std::map<std::pair<std::string, std::string>, MockShare>;
+class LoadedTables {
+  std::map<std::pair<std::string, std::string>, MockShare> m_tables;
+  std::mutex m_mutex;
+
+ public:
+  void add(const std::string &db, const std::string &table) {
+    std::lock_guard<std::mutex> guard(m_mutex);
+    m_tables.emplace(std::piecewise_construct, std::make_tuple(db, table),
+                     std::make_tuple());
+  }
+
+  MockShare *get(const std::string &db, const std::string &table) {
+    std::lock_guard<std::mutex> guard(m_mutex);
+    auto it = m_tables.find(std::make_pair(db, table));
+    return it == m_tables.end() ? nullptr : &it->second;
+  }
+
+  void erase(const std::string &db, const std::string &table) {
+    std::lock_guard<std::mutex> guard(m_mutex);
+    m_tables.erase(std::make_pair(db, table));
+  }
+};
+
 LoadedTables *loaded_tables{nullptr};
 
 }  // namespace
@@ -70,15 +93,15 @@ ha_mock::ha_mock(handlerton *hton, TABLE_SHARE *table_share)
     : handler(hton, table_share) {}
 
 int ha_mock::open(const char *, int, unsigned int, const dd::Table *) {
-  auto it = loaded_tables->find(
-      std::make_pair(table_share->db.str, table_share->table_name.str));
-  if (it == loaded_tables->end()) {
+  MockShare *share =
+      loaded_tables->get(table_share->db.str, table_share->table_name.str);
+  if (share == nullptr) {
     // The table has not been loaded into the secondary storage engine yet.
     my_error(ER_NO_SUCH_TABLE, MYF(0), table_share->db.str,
              table_share->table_name.str);
     return HA_ERR_GENERIC;
   }
-  thr_lock_data_init(&it->second.lock, &m_lock, nullptr);
+  thr_lock_data_init(&share->lock, &m_lock, nullptr);
   return 0;
 }
 
@@ -102,15 +125,12 @@ THR_LOCK_DATA **ha_mock::store_lock(THD *, THR_LOCK_DATA **to,
 
 int ha_mock::load_table(const TABLE &table) {
   DBUG_ASSERT(table.file != nullptr);
-  loaded_tables->emplace(
-      std::piecewise_construct,
-      std::make_tuple(table.s->db.str, table.s->table_name.str),
-      std::make_tuple());
+  loaded_tables->add(table.s->db.str, table.s->table_name.str);
   return 0;
 }
 
 int ha_mock::unload_table(const char *db_name, const char *table_name) {
-  loaded_tables->erase(std::make_pair(db_name, table_name));
+  loaded_tables->erase(db_name, table_name);
   return 0;
 }
 
