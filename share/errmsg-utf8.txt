@@ -7097,6 +7097,13 @@ ER_MISSING_KEY
 #  End of 5.6 error messages.
 #
 
+################################################################################
+# Error numbers 2000 to 2999 are reserved for the client libraries (for
+# errors generated at the client side). Please do not use them for errors
+# generated at the server.
+################################################################################
+reserved-error-section 2000 2999
+
 start-error-number 3000
 
 ER_FILE_CORRUPT
@@ -8562,16 +8569,22 @@ ER_TRANSFORM_TARGET_SRS_MISSING_TOWGS84 22S00
 #  End of 8.0 error messages.
 #
 
+################################################################################
+# Error numbers 5000 to 5999 are reserved for X Plugin. Please do not use
+# them for the other error messages.
+################################################################################
+reserved-error-section 5000 5999
+
 #
-# Start of 8.0 Server error messages
+# Start of 8.0 error messages intended to be logged to the server error log.
 #
-# Error codes used for the server error logging (using logging
-# APIs LogErr/LogEvent/...) should be added to this section.
-# Error codes used for client errors should *not* be added to this section
-# Please add them to the client error messages section.
-# Please note, if the same error message is required for the client and server
-# error logging then add separate error codes for each in their respective
-# sections.
+# Note:
+#     *) Error messages intended to be sent to client should *not* be added here.
+#        Please add them to "8.0 error messages" section.
+#
+#     *) If the same error message is intended to be logged to the server
+#        error log and also sent to the client, add separate error codes:
+#        One for the server error log and another to send to the client.
 #
 start-error-number 10000
 
@@ -18270,7 +18283,11 @@ ER_COULD_NOT_CREATE_WINDOWS_REGISTRY_KEY
   eng "%s was unable to create a new Windows registry key %s for %s; continuing to use the previous ident."
 
 #
-# End of 8.0 Server error messages.
-# (Please read comments from the header of this section before adding error
-#  message here)
+# End of 8.0 error messages intended to be logged to the server error log.
 #
+
+################################################################################
+# Error numbers 50000 to 51999 are reserved. Please do not use them for the
+# other error messages.
+################################################################################
+reserved-error-section 50000 51999

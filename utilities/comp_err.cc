@@ -43,6 +43,8 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <new>
+#include <set>
+#include <utility>
 
 #include "m_ctype.h"
 #include "m_string.h"
@@ -129,6 +131,10 @@ struct errors {
   errors() : msg(PSI_NOT_INSTRUMENTED) {}
 };
 
+// Set of reserved section ranges.
+using err_range = std::pair<uint, uint>;
+std::set<err_range> reserved_sections;
+
 static struct my_option my_long_options[] = {
 #ifdef DBUG_OFF
     {"debug", '#', "This is a non-debug version. Catch this and exit", 0, 0, 0,
@@ -174,6 +180,7 @@ static char *parse_text_line(char *pos);
 static int copy_rows(FILE *to, char *row, int row_nr, long start_pos);
 static char *parse_default_language(char *str);
 static uint parse_error_offset(char *str);
+static bool parse_reserved_error_section(char *str);
 
 static char *skip_delimiters(char *str);
 static char *get_word(char **str);
@@ -524,6 +531,13 @@ static int parse_input_file(const char *file_name, struct errors **top_error,
       rcount = 0; /* Reset count if a fixed number is set. */
       continue;
     }
+    if (is_prefix(str, "reserved-error-section")) {
+      if (parse_reserved_error_section(str)) {
+        fprintf(stderr, "Failed to parse the reserved error section string.\n");
+        DBUG_RETURN(0);
+      }
+      continue;
+    }
     if (is_prefix(str, "default-language")) {
       if (!(default_language = parse_default_language(str))) {
         DBUG_PRINT("info", ("default_slang: %s", default_language));
@@ -617,8 +631,90 @@ static uint parse_error_offset(char *str) {
 
   end = 0;
   ioffset = (uint)my_strtoll10(soffset, &end, &error);
+  for (auto section : reserved_sections) {
+    if (ioffset >= section.first && ioffset <= section.second) {
+      fprintf(stderr,
+              "start-error-number %u overlaps with the reserved section (%u - "
+              "%u).\n",
+              ioffset, section.first, section.second);
+      DBUG_RETURN(0);
+    }
+  }
+
   my_free(soffset);
   DBUG_RETURN(ioffset);
+}
+
+/*
+  Method to parse "reserved-error-section <sec_start> <sec_end>" from the "str".
+
+  @param   str    A line from error message file to parse.
+
+  @retval  false  SUCCESS.
+  @retval  true   FAILURE.
+*/
+static bool parse_reserved_error_section(char *str) {
+  char *offset;
+  char *end;
+  int error;
+  err_range range;
+
+  DBUG_ENTER("parse_reserved_error_section");
+
+  /* skipping the "reserved-error-section" keyword and spaces after it */
+  str = find_end_of_word(str);
+  str = skip_delimiters(str);
+
+  if (!*str)
+    DBUG_RETURN(true); /* Unexpected EOL: No error number after the keyword */
+
+  /* reading the section start number */
+  if (!(offset = get_word(&str))) DBUG_RETURN(true); /* OOM: Fatal error */
+  uint sec_start = static_cast<uint>(my_strtoll10(offset, &end, &error));
+  my_free(offset);
+  DBUG_PRINT("info", ("reserved_range_start: %u", sec_start));
+
+  /* skipping space(s) and/or tabs after the section start number */
+  str = skip_delimiters(str);
+  if (!*str) DBUG_RETURN(true); /* Unexpected EOL: No section end number */
+  DBUG_PRINT("info", ("str: %s", str));
+
+  /* reading the section end number */
+  if (!(offset = get_word(&str))) DBUG_RETURN(true); /* OOM: Fatal error */
+  uint sec_end = static_cast<uint>(my_strtoll10(offset, &end, &error));
+  my_free(offset);
+  DBUG_PRINT("info", ("reserved_range_end: %u", sec_end));
+
+  /* skipping space(s) and/or tabs after the error offset */
+  str = skip_delimiters(str);
+  DBUG_PRINT("info", ("str: %s", str));
+  if (*str) {
+    fprintf(stderr, "The line does not end with an error number.\n");
+    DBUG_RETURN(true);
+  }
+
+  if (sec_start >= sec_end) {
+    fprintf(stderr,
+            "Section start %u should be smaller than the Section end %u.\n",
+            sec_start, sec_end);
+    DBUG_RETURN(true);
+  }
+
+  /* Check if section overlaps with existing reserved sections */
+  for (auto section : reserved_sections) {
+    if (sec_start <= section.second && section.first <= sec_end) {
+      fprintf(
+          stderr,
+          "Section (%u - %u) overlaps with the reserved section (%u - %u).\n",
+          sec_start, sec_end, section.first, section.second);
+      DBUG_RETURN(true);
+    }
+  }
+
+  auto ret = reserved_sections.insert(err_range(sec_start, sec_end));
+  if (!ret.second) DBUG_RETURN(true);
+
+  DBUG_RETURN(false);
 }
 
 /* Parsing of the default language line. e.g. "default-language eng" */
@@ -895,7 +991,19 @@ static struct errors *parse_error_string(char *str, int er_count) {
 
   str = skip_delimiters(str);
 
-  /* getting the code1 */
+  /* getting the error code 1 */
+
+  /* Check if code overlaps with any of the reserved error sections */
+  for (auto section : reserved_sections) {
+    uint new_code = static_cast<uint>(er_offset + er_count);
+    if (new_code >= section.first && new_code <= section.second) {
+      fprintf(
+          stderr,
+          "er_name %s overlaps with the reserved error section (%u - %u).\n",
+          new_error->er_name, section.first, section.second);
+      DBUG_RETURN(0);
+    }
+  }
 
   new_error->d_code = er_offset + er_count;
   DBUG_PRINT("info", ("d_code: %d", new_error->d_code));
