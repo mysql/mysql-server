@@ -1297,9 +1297,7 @@ public:
                                          c_apiConTimersList);
       timers_list.remove(apiConTimers);
       c_apiConTimersPool.release(apiConTimers);
-      Signal signal[1];
-      checkPoolShrinkNeed(signal,
-                          DBTC_API_CONNECT_TIMERS_TRANSIENT_POOL_INDEX,
+      checkPoolShrinkNeed(DBTC_API_CONNECT_TIMERS_TRANSIENT_POOL_INDEX,
                           c_apiConTimersPool);
       if (apiConTimers.p == c_currentApiConTimers)
       {
@@ -2091,8 +2089,8 @@ private:
   void releaseTcCon();
   void releaseTcConnectFail(Signal* signal);
   void releaseTransResources(Signal* signal, ApiConnectRecordPtr apiConnectptr);
-  void checkPoolShrinkNeed(Signal* signal, Uint32 pool_index, const TransientFastSlotPool& pool);
-  void sendPoolShrink(Signal* signal, Uint32 pool_index);
+  void checkPoolShrinkNeed(Uint32 pool_index, const TransientFastSlotPool& pool);
+  void sendPoolShrink(Uint32 pool_index);
   bool seizeApiConnect(Signal* signal, ApiConnectRecordPtr& apiConnectptr);
   bool seizeApiConnectCopy(Signal* signal, ApiConnectRecord* regApiPtr);
   bool seizeApiConnectFail(Signal* signal, ApiConnectRecordPtr& apiConnectptr);
@@ -2829,8 +2827,7 @@ static Uint64 getTransactionMemoryNeed(
 };
 
 #ifndef DBTC_STATE_EXTRACT
-inline void Dbtc::checkPoolShrinkNeed(Signal* signal,
-                                      const Uint32 pool_index,
+inline void Dbtc::checkPoolShrinkNeed(const Uint32 pool_index,
                                       const TransientFastSlotPool& pool)
 {
 #if defined(VM_TRACE) || defined(ERROR_INSERT)
@@ -2839,7 +2836,7 @@ inline void Dbtc::checkPoolShrinkNeed(Signal* signal,
 #endif
   if (pool.may_shrink())
   {
-    sendPoolShrink(signal, pool_index);
+    sendPoolShrink(pool_index);
   }
 }
 #endif

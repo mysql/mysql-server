@@ -1660,8 +1660,7 @@ Dbtc::removeMarkerForFailedAPI(Signal* signal,
                        nodeId};
         simBlockNodeFailure(signal, nodeId, cb);
       }
-      checkPoolShrinkNeed(signal,
-                          DBTC_COMMIT_ACK_MARKER_TRANSIENT_POOL_INDEX,
+      checkPoolShrinkNeed(DBTC_COMMIT_ACK_MARKER_TRANSIENT_POOL_INDEX,
                           m_commitAckMarkerPool);
       return;
     }
@@ -1716,8 +1715,7 @@ Dbtc::removeMarkerForFailedAPI(Signal* signal,
     m_commitAckMarkerHash.next(iter);
   } // for (... i<RT_BREAK ...)
   
-  checkPoolShrinkNeed(signal,
-                      DBTC_COMMIT_ACK_MARKER_TRANSIENT_POOL_INDEX,
+  checkPoolShrinkNeed(DBTC_COMMIT_ACK_MARKER_TRANSIENT_POOL_INDEX,
                       m_commitAckMarkerPool);
 
   // Takes a RT-break to avoid starving other activity
@@ -3044,7 +3042,7 @@ void Dbtc::initApiConnectRec(Signal* signal,
 }//Dbtc::initApiConnectRec()
 
 void
-Dbtc::sendPoolShrink(Signal*, const Uint32 pool_index)
+Dbtc::sendPoolShrink(const Uint32 pool_index)
 {
   const bool need_send = c_transient_pools_shrinking.get(pool_index) == 0;
   c_transient_pools_shrinking.set(pool_index);
@@ -3108,9 +3106,7 @@ Dbtc::releaseCacheRecord(ApiConnectRecordPtr transPtr, CacheRecord* regCachePtr)
   cachePtr.i = regApiPtr->cachePtr;
   c_cacheRecordPool.release(cachePtr);
   regApiPtr->cachePtr = RNIL;
-  Signal signal[1];
-  checkPoolShrinkNeed(signal,
-                      DBTC_CACHE_RECORD_TRANSIENT_POOL_INDEX,
+  checkPoolShrinkNeed(DBTC_CACHE_RECORD_TRANSIENT_POOL_INDEX,
                       c_cacheRecordPool);
 }
 
@@ -4474,8 +4470,7 @@ void Dbtc::attrinfoDihReceivedLab(Signal* signal, CacheRecordPtr cachePtr, ApiCo
     unlinkReadyTcCon(signal, apiConnectptr.p);
     clearCommitAckMarker(regApiPtr, regTcPtr);
     releaseTcCon();
-    checkPoolShrinkNeed(signal,
-                        DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
+    checkPoolShrinkNeed(DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
                         tcConnectRecord);
 
     if (trigOp != RNIL)
@@ -4903,9 +4898,7 @@ void Dbtc::releaseAttrinfo(CacheRecordPtr cachePtr, ApiConnectRecord* const regA
   //---------------------------------------------------
   c_cacheRecordPool.release(cachePtr);
   regApiPtr->cachePtr = RNIL;
-  Signal signal[1];
-  checkPoolShrinkNeed(signal,
-                      DBTC_CACHE_RECORD_TRANSIENT_POOL_INDEX,
+  checkPoolShrinkNeed(DBTC_CACHE_RECORD_TRANSIENT_POOL_INDEX,
                       c_cacheRecordPool);
   return;
 }//Dbtc::releaseAttrinfo()
@@ -4929,8 +4922,7 @@ void Dbtc::releaseDirtyRead(Signal* signal,
   
   unlinkReadyTcCon(signal, apiConnectptr.p);
   releaseTcCon();
-  checkPoolShrinkNeed(signal,
-                      DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
+  checkPoolShrinkNeed(DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
                       tcConnectRecord);
 
   /**
@@ -5582,8 +5574,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     /* Ok, all checks passed, release the original locking op */
     unlinkReadyTcCon(signal, apiConnectptr.p);
     releaseTcCon();
-    checkPoolShrinkNeed(signal,
-                        DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
+    checkPoolShrinkNeed(DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
                         tcConnectRecord);
 
     /* Remove record of original locking op's LQHKEYREQ/CONF
@@ -5707,8 +5698,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
   {
     tcConnectptr = save_tcConnectptr;
     releaseTcCon();
-    checkPoolShrinkNeed(signal,
-                        DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
+    checkPoolShrinkNeed(DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
                         tcConnectRecord);
   }
 }//Dbtc::execLQHKEYCONF()
@@ -7477,8 +7467,7 @@ Dbtc::execTC_COMMIT_ACK(Signal* signal){
   }//if
   sendRemoveMarkers(signal, removedMarker.p, 0);
   m_commitAckMarkerPool.release(removedMarker);
-  checkPoolShrinkNeed(signal,
-                      DBTC_COMMIT_ACK_MARKER_TRANSIENT_POOL_INDEX,
+  checkPoolShrinkNeed(DBTC_COMMIT_ACK_MARKER_TRANSIENT_POOL_INDEX,
                       m_commitAckMarkerPool);
 }
 
@@ -7511,8 +7500,7 @@ Dbtc::sendRemoveMarkers(Signal* signal,
     next_flag = commitAckMarkers.next(iter, 1);
   }
   commitAckMarkers.release();
-  checkPoolShrinkNeed(signal,
-                      DBTC_COMMIT_ACK_MARKER_BUFFER_TRANSIENT_POOL_INDEX,
+  checkPoolShrinkNeed(DBTC_COMMIT_ACK_MARKER_BUFFER_TRANSIENT_POOL_INDEX,
                       c_theCommitAckMarkerBufferPool);
 }
 
@@ -7714,8 +7702,7 @@ void Dbtc::releaseTransResources(Signal* signal, ApiConnectRecordPtr const apiCo
     jam();
     releaseTcCon();
   }
-  checkPoolShrinkNeed(signal,
-                      DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
+  checkPoolShrinkNeed(DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
                       tcConnectRecord);
   handleGcp(signal, apiConnectptr);
   releaseFiredTriggerData(&apiConnectptr.p->theFiredTriggers);
@@ -7760,8 +7747,7 @@ void Dbtc::releaseApiConCopy(Signal* signal, ApiConnectRecordPtr const apiConnec
   regApiPtr->apiConnectkind = ApiConnectRecord::CK_FREE;
   releaseApiConTimer(apiConnectptr);
   c_apiConnectRecordPool.release(apiConnectptr);
-  checkPoolShrinkNeed(signal,
-                      DBTC_API_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
+  checkPoolShrinkNeed(DBTC_API_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
                       c_apiConnectRecordPool);
 }//Dbtc::releaseApiConCopy()
 
@@ -7773,8 +7759,7 @@ void Dbtc::releaseDirtyWrite(Signal* signal, ApiConnectRecordPtr const apiConnec
   clearCommitAckMarker(apiConnectptr.p, tcConnectptr.p);
   unlinkReadyTcCon(signal, apiConnectptr.p);
   releaseTcCon();
-  checkPoolShrinkNeed(signal,
-                      DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
+  checkPoolShrinkNeed(DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
                       tcConnectRecord);
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
   if (regApiPtr->apiConnectstate == CS_START_COMMITTING) {
@@ -8002,8 +7987,7 @@ void Dbtc::execLQHKEYREF(Signal* signal)
 
         unlinkReadyTcCon(signal, apiConnectptr.p);
         releaseTcCon();
-        checkPoolShrinkNeed(signal,
-                            DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
+        checkPoolShrinkNeed(DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
                             tcConnectRecord);
 
         trigger_op_finished(signal, apiConnectptr, RNIL, opPtr.p, 0);
@@ -8050,8 +8034,7 @@ void Dbtc::execLQHKEYREF(Signal* signal)
       Uint32 clientData = regTcPtr->clientData;
       unlinkReadyTcCon(signal, apiConnectptr.p);   /* LINK TC CONNECT RECORD OUT OF  */
       releaseTcCon();       /* RELEASE THE TC CONNECT RECORD  */
-      checkPoolShrinkNeed(signal,
-                          DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
+      checkPoolShrinkNeed(DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
                           tcConnectRecord);
       setApiConTimer(apiConnectptr, ctcTimer, __LINE__);
       if (isIndexOp) {
@@ -9981,8 +9964,7 @@ void Dbtc::timeOutFoundFragLab(Signal* signal, UintR TscanConPtr)
         Local_ScanFragRec_dllist run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
         run.remove(ptr);
         c_scan_frag_pool.release(ptr);
-        checkPoolShrinkNeed(signal,
-                            DBTC_SCAN_FRAGMENT_TRANSIENT_POOL_INDEX,
+        checkPoolShrinkNeed(DBTC_SCAN_FRAGMENT_TRANSIENT_POOL_INDEX,
                             c_scan_frag_pool);
       }
     }
@@ -10491,8 +10473,7 @@ void Dbtc::checkScanActiveInFailedLqh(Signal* signal,
       }
       if (found)
       {
-        checkPoolShrinkNeed(signal,
-                            DBTC_SCAN_FRAGMENT_TRANSIENT_POOL_INDEX,
+        checkPoolShrinkNeed(DBTC_SCAN_FRAGMENT_TRANSIENT_POOL_INDEX,
                             c_scan_frag_pool);
       }
       if (!found)
@@ -10947,12 +10928,9 @@ void Dbtc::releaseMarker(ApiConnectRecord * const regApiPtr)
     m_commitAckMarkerHash.remove(marker);
     m_commitAckMarkerPool.release(marker);
 
-    Signal signal[1];
-    checkPoolShrinkNeed(signal,
-                        DBTC_COMMIT_ACK_MARKER_BUFFER_TRANSIENT_POOL_INDEX,
+    checkPoolShrinkNeed(DBTC_COMMIT_ACK_MARKER_BUFFER_TRANSIENT_POOL_INDEX,
                         c_theCommitAckMarkerBufferPool);
-    checkPoolShrinkNeed(signal,
-                        DBTC_COMMIT_ACK_MARKER_TRANSIENT_POOL_INDEX,
+    checkPoolShrinkNeed(DBTC_COMMIT_ACK_MARKER_TRANSIENT_POOL_INDEX,
                         m_commitAckMarkerPool);
   }
 }
@@ -12406,8 +12384,7 @@ void Dbtc::releaseTakeOver(Signal* signal, ApiConnectRecordPtr const apiConnectp
     jam();
     releaseTcConnectFail(signal);
   }
-  checkPoolShrinkNeed(signal,
-                      DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
+  checkPoolShrinkNeed(DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
                       tcConnectRecord);
   releaseApiConnectFail(signal, apiConnectptr);
 }//Dbtc::releaseTakeOver()
@@ -13321,9 +13298,7 @@ errout:
       c_scan_frag_pool.release(ptr);
     }
   }
-  Signal signal[1];
-  checkPoolShrinkNeed(signal,
-                      DBTC_SCAN_FRAGMENT_TRANSIENT_POOL_INDEX,
+  checkPoolShrinkNeed(DBTC_SCAN_FRAGMENT_TRANSIENT_POOL_INDEX,
                       c_scan_frag_pool);
   return ZSCAN_FRAGREC_ERROR;
 }//Dbtc::initScanrec()
@@ -13787,8 +13762,7 @@ void Dbtc::releaseScanResources(Signal* signal,
     {
       c_scan_frag_pool.release(ptr);
     }
-    checkPoolShrinkNeed(signal,
-                        DBTC_SCAN_FRAGMENT_TRANSIENT_POOL_INDEX,
+    checkPoolShrinkNeed(DBTC_SCAN_FRAGMENT_TRANSIENT_POOL_INDEX,
                         c_scan_frag_pool);
   }
 
@@ -13800,8 +13774,7 @@ void Dbtc::releaseScanResources(Signal* signal,
     {
       m_fragLocationPool.release(ptr);
     }
-    checkPoolShrinkNeed(signal,
-                        DBTC_FRAG_LOCATION_TRANSIENT_POOL_INDEX,
+    checkPoolShrinkNeed(DBTC_FRAG_LOCATION_TRANSIENT_POOL_INDEX,
                         m_fragLocationPool);
   }
 
@@ -13842,8 +13815,7 @@ void Dbtc::releaseScanResources(Signal* signal,
     
   // link into free list
   scanRecordPool.release(scanPtr);
-  checkPoolShrinkNeed(signal,
-                      DBTC_SCAN_RECORD_TRANSIENT_POOL_INDEX,
+  checkPoolShrinkNeed(DBTC_SCAN_RECORD_TRANSIENT_POOL_INDEX,
                       scanRecordPool);
   ndbassert(cConcScanCount > 0);
   cConcScanCount--;
@@ -14262,8 +14234,7 @@ void Dbtc::execSCAN_FRAGREF(Signal* signal)
     Local_ScanFragRec_dllist run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
     run.remove(scanFragptr);
     c_scan_frag_pool.release(scanFragptr);
-    checkPoolShrinkNeed(signal,
-                        DBTC_SCAN_FRAGMENT_TRANSIENT_POOL_INDEX,
+    checkPoolShrinkNeed(DBTC_SCAN_FRAGMENT_TRANSIENT_POOL_INDEX,
                         c_scan_frag_pool);
   }    
   scanError(signal, scanptr, errCode);
@@ -14374,8 +14345,7 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
         Local_ScanFragRec_dllist run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
         run.remove(scanFragptr);
         c_scan_frag_pool.release(scanFragptr);
-        checkPoolShrinkNeed(signal,
-                            DBTC_SCAN_FRAGMENT_TRANSIENT_POOL_INDEX,
+        checkPoolShrinkNeed(DBTC_SCAN_FRAGMENT_TRANSIENT_POOL_INDEX,
                             c_scan_frag_pool);
       }
     }
@@ -14768,8 +14738,7 @@ Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr, bool req_received, A
 	c_scan_frag_pool.release(curr);
       }
     }
-    checkPoolShrinkNeed(signal,
-                        DBTC_SCAN_FRAGMENT_TRANSIENT_POOL_INDEX,
+    checkPoolShrinkNeed(DBTC_SCAN_FRAGMENT_TRANSIENT_POOL_INDEX,
                         c_scan_frag_pool);
   }
   close_scan_req_send_conf(signal, scanPtr, apiConnectptr);
@@ -14900,15 +14869,13 @@ bool Dbtc::sendScanFragReq(Signal* signal,
       jam();
       sections.clear();
       scanError(signal, scanptr, ZGET_DATAREC_ERROR);
-      checkPoolShrinkNeed(signal,
-                          DBTC_FRAG_LOCATION_TRANSIENT_POOL_INDEX,
+      checkPoolShrinkNeed(DBTC_FRAG_LOCATION_TRANSIENT_POOL_INDEX,
                           m_fragLocationPool);
       return false;
     }
     sections.m_ptr[sections.m_cnt++].i = fragIdPtr.i;
   } //MultiFrag
-  checkPoolShrinkNeed(signal,
-                      DBTC_FRAG_LOCATION_TRANSIENT_POOL_INDEX,
+  checkPoolShrinkNeed(DBTC_FRAG_LOCATION_TRANSIENT_POOL_INDEX,
                       m_fragLocationPool);
 
   /* Determine whether this is the last scanFragReq.
@@ -15147,8 +15114,7 @@ void Dbtc::sendScanTabConf(Signal* signal,
       }
     }
   }
-  checkPoolShrinkNeed(signal,
-                      DBTC_SCAN_FRAGMENT_TRANSIENT_POOL_INDEX,
+  checkPoolShrinkNeed(DBTC_SCAN_FRAGMENT_TRANSIENT_POOL_INDEX,
                       c_scan_frag_pool);
   
   bool release = false;
@@ -15492,8 +15458,7 @@ void Dbtc::releaseAbortResources(Signal* signal, ApiConnectRecordPtr const apiCo
     ndbrequire(copyPtr.p->cachePtr == RNIL);
     ndbrequire(copyPtr.p->tcConnect.isEmpty());
     c_apiConnectRecordPool.release(copyPtr);
-    checkPoolShrinkNeed(signal,
-                        DBTC_API_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
+    checkPoolShrinkNeed(DBTC_API_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
                         c_apiConnectRecordPool);
   }
   if (apiConnectptr.p->cachePtr != RNIL)
@@ -15512,8 +15477,7 @@ void Dbtc::releaseAbortResources(Signal* signal, ApiConnectRecordPtr const apiCo
     clearCommitAckMarker(apiConnectptr.p, tcConnectptr.p);
     releaseTcCon();
   }//while
-  checkPoolShrinkNeed(signal,
-                      DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
+  checkPoolShrinkNeed(DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
                       tcConnectRecord);
 
   ndbrequire(apiConnectptr.p->num_commit_ack_markers == 0);
@@ -15647,8 +15611,7 @@ void Dbtc::releaseApiCon(Signal* signal, UintR TapiConnectPtr)
   TlocalApiConnectptr.p->transid[1] = 0;
   releaseApiConTimer(TlocalApiConnectptr);
   c_apiConnectRecordPool.release(TlocalApiConnectptr);
-  checkPoolShrinkNeed(signal,
-                      DBTC_API_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
+  checkPoolShrinkNeed(DBTC_API_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
                       c_apiConnectRecordPool);
 }//Dbtc::releaseApiCon()
 
@@ -15791,9 +15754,7 @@ void Dbtc::unlinkAndReleaseGcp(Ptr<GcpRecord> tmpGcpPtr)
   LocalGcpRecord_list gcp_list(c_gcpRecordPool, c_gcpRecordList);
   gcp_list.removeFirst(tmpGcpPtr);
   c_gcpRecordPool.release(tmpGcpPtr);
-  Signal signal[1];
-  checkPoolShrinkNeed(signal,
-                      DBTC_GCP_RECORD_TRANSIENT_POOL_INDEX,
+  checkPoolShrinkNeed(DBTC_GCP_RECORD_TRANSIENT_POOL_INDEX,
                       c_gcpRecordPool);
 }
 
@@ -18031,11 +17992,9 @@ void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
     LocalAttributeBuffer tmp3(pool, trigPtr.p->afterValues);
     tmp3.release();
     c_theFiredTriggerPool.release(trigPtr);
-    checkPoolShrinkNeed(signal,
-                        DBTC_ATTRIBUTE_BUFFER_TRANSIENT_POOL_INDEX,
+    checkPoolShrinkNeed(DBTC_ATTRIBUTE_BUFFER_TRANSIENT_POOL_INDEX,
                         c_theAttributeBufferPool);
-    checkPoolShrinkNeed(signal,
-                        DBTC_FIRED_TRIGGER_DATA_TRANSIENT_POOL_INDEX,
+    checkPoolShrinkNeed(DBTC_FIRED_TRIGGER_DATA_TRANSIENT_POOL_INDEX,
                         c_theFiredTriggerPool);
   }
 
@@ -19442,9 +19401,7 @@ void Dbtc::releaseIndexOperation(ApiConnectRecord* regApiPtr,
                                     regApiPtr->theSeizedIndexOperations);
   list.remove(indexOpPtr);
   c_theIndexOperationPool.release(indexOpPtr);
-  Signal signal[1];
-  checkPoolShrinkNeed(signal,
-                      DBTC_INDEX_OPERATION_TRANSIENT_POOL_INDEX,
+  checkPoolShrinkNeed(DBTC_INDEX_OPERATION_TRANSIENT_POOL_INDEX,
                       c_theIndexOperationPool);
 }
 
@@ -19474,9 +19431,7 @@ void Dbtc::releaseAllSeizedIndexOperations(ApiConnectRecord* regApiPtr)
 
     c_theIndexOperationPool.release(seizedIndexOpPtr);
   }
-  Signal signal[1];
-  checkPoolShrinkNeed(signal,
-                      DBTC_INDEX_OPERATION_TRANSIENT_POOL_INDEX,
+  checkPoolShrinkNeed(DBTC_INDEX_OPERATION_TRANSIENT_POOL_INDEX,
                       c_theIndexOperationPool);
   jam();
 }
@@ -19727,11 +19682,9 @@ void Dbtc::executeTriggers(Signal* signal, ApiConnectRecordPtr const* transPtr)
 	  tmp3.release();
           list.remove(trigPtr);
           c_theFiredTriggerPool.release(trigPtr);
-          checkPoolShrinkNeed(signal,
-                              DBTC_ATTRIBUTE_BUFFER_TRANSIENT_POOL_INDEX,
+          checkPoolShrinkNeed(DBTC_ATTRIBUTE_BUFFER_TRANSIENT_POOL_INDEX,
                               c_theAttributeBufferPool);
-          checkPoolShrinkNeed(signal,
-                              DBTC_FIRED_TRIGGER_DATA_TRANSIENT_POOL_INDEX,
+          checkPoolShrinkNeed(DBTC_FIRED_TRIGGER_DATA_TRANSIENT_POOL_INDEX,
                               c_theFiredTriggerPool);
         }
 	trigPtr = nextTrigPtr;
@@ -20398,8 +20351,7 @@ Dbtc::fk_scanFromChildTable(Signal* signal,
     ndbrequire(terrorCode != ZOK);
     abortTransFromTrigger(signal, *transPtr, terrorCode);
     releaseTcCon();
-    checkPoolShrinkNeed(signal,
-                        DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
+    checkPoolShrinkNeed(DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
                         tcConnectRecord);
     return;
   }
@@ -20544,8 +20496,7 @@ oom:
   }
   tcConnectptr = tcPtr;
   releaseTcCon();
-  checkPoolShrinkNeed(signal,
-                      DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
+  checkPoolShrinkNeed(DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
                       tcConnectRecord);
   releaseApiCon(signal, scanApiConnectPtr.i);
   abortTransFromTrigger(signal, *transPtr, errorCode);
@@ -20970,8 +20921,7 @@ Dbtc::fk_scanFromChildTable_done(Signal* signal, TcConnectRecordPtr tcPtr)
   }
   tcConnectptr = tcPtr;
   releaseTcCon();
-  checkPoolShrinkNeed(signal,
-                      DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
+  checkPoolShrinkNeed(DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
                       tcConnectRecord);
   releaseApiCon(signal, scanApiConnectPtr.i);
 
@@ -21317,12 +21267,9 @@ void Dbtc::releaseFiredTriggerData(Local_TcFiredTriggerData_fifo::Head*
     tmp3.release();
     c_theFiredTriggerPool.release(trigPtr);
   }
-  Signal signal[1];
-  checkPoolShrinkNeed(signal,
-                      DBTC_ATTRIBUTE_BUFFER_TRANSIENT_POOL_INDEX,
+  checkPoolShrinkNeed(DBTC_ATTRIBUTE_BUFFER_TRANSIENT_POOL_INDEX,
                       c_theAttributeBufferPool);
-  checkPoolShrinkNeed(signal,
-                      DBTC_FIRED_TRIGGER_DATA_TRANSIENT_POOL_INDEX,
+  checkPoolShrinkNeed(DBTC_FIRED_TRIGGER_DATA_TRANSIENT_POOL_INDEX,
                       c_theFiredTriggerPool);
 }
 
