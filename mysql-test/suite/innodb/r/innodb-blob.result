@@ -54,6 +54,7 @@ SELECT @@transaction_isolation;
 READ-UNCOMMITTED
 SELECT a, RIGHT(b,20), RIGHT(c,20) FROM t3;
 a	RIGHT(b,20)	RIGHT(c,20)
+1		ffffffffffffffffffff
 2	gggggggggggggggggggg	hhhhhhhhhhhhhhhhhhhh
 set debug_sync='now SIGNAL go_upd';
 # Connection default:

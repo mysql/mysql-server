@@ -94,7 +94,7 @@ static void row_ext_cache_fill_func(const dict_index_t *index, row_ext_t *ext,
       crashed during the execution of
       btr_free_externally_stored_field(). */
       ext->len[i] = lob::btr_copy_externally_stored_field_prefix(
-          index, buf, ext->max_len, page_size, field, is_sdi, f_len);
+          nullptr, index, buf, ext->max_len, page_size, field, is_sdi, f_len);
     }
   }
 }

@@ -38,10 +38,14 @@ connection default;
         INDEX idx_vj(vj)
         ) ROW_FORMAT=COMPACT;
 
+    set @json_data_a = repeat('a', @page_size * @page_count);
+    set @json_data_b = repeat('b', @page_size * @page_count);
+    set @json_data_c = repeat('c', @page_size * @page_count);
+
     INSERT INTO t VALUES
-        (1, 'aaaa123xx', CONCAT('{ "hash": "the_hash_a", "data": "', REPEAT('a', @page_size * @page_count), '" }'), DEFAULT),
-        (2, 'aaaa1234x', CONCAT('{ "hash": "the_hash_b", "data": "', REPEAT('b', @page_size * @page_count), '" }'), DEFAULT),
-        (3, 'aaaa12345', CONCAT('{ "hash": "the_hash_c", "data": "', REPEAT('c', @page_size * @page_count), '" }'), DEFAULT);
+        (1, 'aaaa123xx', CONCAT('{ "hash": "the_hash_a", "data": "', @json_data_a, '" }'), DEFAULT),
+        (2, 'aaaa1234x', CONCAT('{ "hash": "the_hash_b", "data": "', @json_data_b, '" }'), DEFAULT),
+        (3, 'aaaa12345', CONCAT('{ "hash": "the_hash_c", "data": "', @json_data_c, '" }'), DEFAULT);
 
 #
 # Test 1:
@@ -60,8 +64,9 @@ connection con1;
 connection default;
     SET DEBUG_SYNC='now WAIT_FOR s1';
     SET DEBUG_SYNC='now SIGNAL s2 WAIT_FOR s1';
-    --error ER_INVALID_JSON_BINARY_DATA
-    SELECT * FROM t WHERE vj LIKE 'the_hash_%';
+    SELECT json_extract(j, "$.data")  = @json_data_a FROM t WHERE vj LIKE 'the_hash_a';
+    SELECT json_extract(j, "$.data")  = @json_data_b FROM t WHERE vj LIKE 'the_hash_b';
+    SELECT json_extract(j, "$.data")  = @json_data_c FROM t WHERE vj LIKE 'the_hash_c';
     SET DEBUG_SYNC='now SIGNAL s2';
 
 --echo # Connection con1:
@@ -87,7 +92,6 @@ connection con1;
 connection default;
     SET DEBUG_SYNC='now WAIT_FOR s1';
     SET DEBUG_SYNC='now SIGNAL s2 WAIT_FOR s1';
-    --error ER_INVALID_JSON_BINARY_DATA
     SELECT vj FROM t WHERE c LIKE 'aaaa1234%';
     SET DEBUG_SYNC='now SIGNAL s2';
 

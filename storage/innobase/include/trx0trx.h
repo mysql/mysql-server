@@ -1144,6 +1144,10 @@ struct trx_t {
 #endif            /* UNIV_DEBUG */
   ulint magic_n;
 
+  bool is_read_uncommitted() const {
+    return (isolation_level == READ_UNCOMMITTED);
+  }
+
   bool skip_gap_locks() const {
     switch (isolation_level) {
       case READ_UNCOMMITTED:

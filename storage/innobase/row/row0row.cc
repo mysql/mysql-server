@@ -222,9 +222,9 @@ dtuple_t *row_build_index_entry_low(
           const dict_index_t *clust_index =
               (ext == nullptr ? index->table->first_index() : ext->index);
 
-          dptr = lob::btr_copy_externally_stored_field(clust_index, &dlen,
-                                                       nullptr, dptr, page_size,
-                                                       flen, false, temp_heap);
+          dptr = lob::btr_copy_externally_stored_field(
+              nullptr, clust_index, &dlen, nullptr, dptr, page_size, flen,
+              false, temp_heap);
         } else {
           dptr = static_cast<uchar *>(dfield_get_data(dfield2));
           dlen = dfield_get_len(dfield2);

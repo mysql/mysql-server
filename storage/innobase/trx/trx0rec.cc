@@ -720,7 +720,7 @@ static byte *trx_undo_page_fetch_ext_func(trx_t *trx, dict_index_t *index,
                                           ulint *len) {
   /* Fetch the BLOB. */
   ulint ext_len = lob::btr_copy_externally_stored_field_prefix(
-      index, ext_buf, prefix_len, page_size, field, is_sdi, *len);
+      trx, index, ext_buf, prefix_len, page_size, field, is_sdi, *len);
 
 #ifdef UNIV_DEBUG
   if (ext_len == 0) {
@@ -829,8 +829,8 @@ static void trx_undo_get_mbr_from_ext(trx_t *trx, dict_index_t *index,
   ulint dlen;
   mem_heap_t *heap = mem_heap_create(100);
 
-  dptr = lob::btr_copy_externally_stored_field(index, &dlen, nullptr, field,
-                                               page_size, *len, false, heap);
+  dptr = lob::btr_copy_externally_stored_field(
+      trx, index, &dlen, nullptr, field, page_size, *len, false, heap);
 
   if (dlen <= GEO_DATA_HEADER_SIZE) {
     for (uint i = 0; i < SPDIMS; ++i) {
