@@ -71,7 +71,7 @@ Create Table	CREATE TABLE `Product_Order` (
   PRIMARY KEY (`No`),
   KEY `Product_Category` (`Product_Category`,`Product_Id`),
   KEY `Customer_Id` (`Customer_Id`),
-  CONSTRAINT `product_order_ibfk_1` FOREIGN KEY (`Product_Category`, `Product_Id`) REFERENCES `product` (`category`, `id`) ON UPDATE CASCADE,
+  CONSTRAINT `product_order_ibfk_1` FOREIGN KEY (`Product_Category`, `Product_Id`) REFERENCES `product` (`category`, `id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `product_order_ibfk_2` FOREIGN KEY (`Customer_Id`) REFERENCES `customer` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE Product;
