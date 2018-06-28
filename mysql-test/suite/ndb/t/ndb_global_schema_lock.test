@@ -94,7 +94,7 @@ LOCK TABLES t10 READ;
 # Catch 22, not possible to lock table until created
 --error ER_TABLE_NOT_LOCKED
 CREATE TABLE t1(a int not null primary key);
---error ER_LOCK_OR_ACTIVE_TRANSACTION
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
 RENAME TABLE t10 TO t2;
 # Catch 22, not possible to lock table until created
 --error ER_TABLE_NOT_LOCKED
@@ -117,8 +117,6 @@ LOCK TABLES t10 WRITE;
 # Catch 22, not possible to lock table until created
 --error ER_TABLE_NOT_LOCKED
 CREATE TABLE t1(a int not null primary key);
---error ER_LOCK_OR_ACTIVE_TRANSACTION
-RENAME TABLE t10 TO t2;
 # Catch 22, not possible to lock table until created
 --error ER_TABLE_NOT_LOCKED
 CREATE TABLE t3 LIKE t10;
@@ -131,5 +129,7 @@ TRUNCATE TABLE t10;
 # Catch 22, not possible to lock table until created
 --error ER_TABLE_NOT_LOCKED
 CREATE TABLE t4 AS SELECT * FROM t10;
-DROP TABLE t10;
+# Now allowed due to WL#9826 "Allow RENAME TABLES under LOCK TABLES"
+RENAME TABLE t10 TO t110;
+DROP TABLE t110;
 UNLOCK TABLES;

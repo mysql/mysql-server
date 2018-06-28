@@ -55,7 +55,7 @@ LOCK TABLES t10 READ;
 CREATE TABLE t1(a int not null primary key);
 ERROR HY000: Table 't1' was not locked with LOCK TABLES
 RENAME TABLE t10 TO t2;
-ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+ERROR HY000: Table 't10' was locked with a READ lock and can't be updated
 CREATE TABLE t3 LIKE t10;
 ERROR HY000: Table 't3' was not locked with LOCK TABLES
 ALTER TABLE t10 ADD COLUMN b int default NULL;
@@ -70,8 +70,6 @@ UNLOCK TABLES;
 LOCK TABLES t10 WRITE;
 CREATE TABLE t1(a int not null primary key);
 ERROR HY000: Table 't1' was not locked with LOCK TABLES
-RENAME TABLE t10 TO t2;
-ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 CREATE TABLE t3 LIKE t10;
 ERROR HY000: Table 't3' was not locked with LOCK TABLES
 ALTER TABLE t10 ADD COLUMN b int default NULL;
@@ -84,5 +82,6 @@ TRUNCATE TABLE t10;
 1
 CREATE TABLE t4 AS SELECT * FROM t10;
 ERROR HY000: Table 't4' was not locked with LOCK TABLES
-DROP TABLE t10;
+RENAME TABLE t10 TO t110;
+DROP TABLE t110;
 UNLOCK TABLES;
