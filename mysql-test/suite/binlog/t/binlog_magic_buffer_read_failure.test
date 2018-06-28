@@ -1,0 +1,23 @@
+# ==== Purpose ====
+# This test will set a debug point to ensure that right
+# error message is emitted when the read fails while
+# trying to read the magic buffer from the header of an event
+#
+#  Related bugs and Worklogs
+#
+# Bug#28227243:WRONG ERROR TYPE RETURNED WHEN READ OF MAGIC BUFFER FAILS
+
+--source include/have_log_bin.inc
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+
+CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+
+SET DEBUG='+d,simulate_magic_header_io_failure';
+--error ER_ERROR_WHEN_EXECUTING_COMMAND
+SHOW BINLOG EVENTS;
+SET DEBUG='-d,simulate_magic_header_io_failure';
+
+# Cleanup
+DROP TABLE t1;

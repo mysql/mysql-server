@@ -56,7 +56,9 @@ void IO_CACHE_istream::close() {
 my_off_t IO_CACHE_istream::length() { return my_b_filelength(&m_io_cache); }
 
 ssize_t IO_CACHE_istream::read(unsigned char *buffer, size_t length) {
-  if (my_b_read(&m_io_cache, buffer, length)) return m_io_cache.error;
+  if (my_b_read(&m_io_cache, buffer, length) ||
+      DBUG_EVALUATE_IF("simulate_magic_header_io_failure", 1, 0))
+    return m_io_cache.error;
   return static_cast<longlong>(length);
 }
 

@@ -61,7 +61,7 @@ bool Basic_binlog_ifile::read_binlog_magic() {
   unsigned char magic[BINLOG_MAGIC_SIZE];
 
   if (m_istream->read(magic, BINLOG_MAGIC_SIZE) != BINLOG_MAGIC_SIZE) {
-    return m_error->set_type(Binlog_read_error::BAD_BINLOG_MAGIC);
+    return m_error->set_type(Binlog_read_error::HEADER_IO_FAILURE);
   }
   if (memcmp(magic, BINLOG_MAGIC, BINLOG_MAGIC_SIZE))
     return m_error->set_type(Binlog_read_error::BAD_BINLOG_MAGIC);
