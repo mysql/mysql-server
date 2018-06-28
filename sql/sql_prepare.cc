@@ -549,7 +549,7 @@ static void set_param_str(Item_param *param, uchar **pos, ulong len) {
   param->set_str((const char *)*pos, len);
 }
 
-static void setup_one_conversion_function(THD *thd, Item_param *param,
+static bool setup_one_conversion_function(THD *thd, Item_param *param,
                                           enum enum_field_types param_type) {
   switch (param_type) {
     case MYSQL_TYPE_TINY:
@@ -617,13 +617,21 @@ static void setup_one_conversion_function(THD *thd, Item_param *param,
       param->item_type = Item::STRING_ITEM;
       param->item_result_type = STRING_RESULT;
       break;
+    case MYSQL_TYPE_JSON:
+      // MYSQL_TYPE_JSON is not allowed as Item_param lacks a proper
+      // implementation for val_json.
+      return true;
     default:
-      /*
-        The client library ensures that we won't get any other typecodes
-        except typecodes above and typecodes for string types. Marking
-        label as 'default' lets us to handle malformed packets as well.
-      */
+      // Label 'default' lets us handle string types.
       {
+        // Check enum_field_types type definition
+        if (param_type == MYSQL_TYPE_NEWDATE ||
+            (param_type > MYSQL_TYPE_TIMESTAMP2 &&
+             param_type < MYSQL_TYPE_JSON) ||
+            param_type > MYSQL_TYPE_GEOMETRY)
+          // send error
+          return true;
+
         const CHARSET_INFO *fromcs = thd->variables.character_set_client;
         const CHARSET_INFO *tocs = thd->variables.collation_connection;
         size_t dummy_offset;
@@ -649,6 +657,7 @@ static void setup_one_conversion_function(THD *thd, Item_param *param,
       }
   }
   param->set_data_type(param_type);
+  return false;
 }
 
 /**
@@ -767,10 +776,11 @@ static bool setup_conversion_functions(Prepared_statement *stmt,
   Item_param **end = it + stmt->param_count;
   for (uint i = 0; it < end; ++it, ++i) {
     (**it).unsigned_flag = parameters[i].unsigned_type;
-    setup_one_conversion_function(stmt->thd, *it, parameters[i].type);
+    if (setup_one_conversion_function(stmt->thd, *it, parameters[i].type))
+      DBUG_RETURN(true);
     (**it).sync_clones();
   }
-  DBUG_RETURN(0);
+  DBUG_RETURN(false);
 }
 
 /**

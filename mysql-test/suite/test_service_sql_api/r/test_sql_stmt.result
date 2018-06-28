@@ -4507,6 +4507,34 @@ CLOSE PS
 [CS_TEXT_REPRESENTATION]
 COM_STMT_CLOSE: stmt_id [6]
 ------------------------------------------------------------------
+##################################################################
+Test COM_STMT_EXECUTE with wrong data type
+##################################################################
+CREATE PREPARED STATEMENT
+------------------------------------------------------------------
+[CS_TEXT_REPRESENTATION]
+COM_STMT_PREPARE: query[SELECT CONCAT(9< ?)]
+handle_start_column_metadata
+handle_end_column_metadata
+handle_start_row
+handle_end_row
+handle_start_column_metadata
+handle_end_column_metadata
+handle_start_column_metadata
+handle_end_column_metadata
+------------------------------------------------------------------
+EXECUTE PREPARED STATEMENT WITH PARAMETERS AND CURSOR
+------------------------------------------------------------------
+[CS_TEXT_REPRESENTATION]
+COM_STMT_EXECUTE: stmt_id [7]
+handle_error
+[1210][HY000][Incorrect arguments to mysqld_stmt_execute]
+------------------------------------------------------------------
+CLOSE PS
+------------------------------------------------------------------
+[CS_TEXT_REPRESENTATION]
+COM_STMT_CLOSE: stmt_id [7]
+------------------------------------------------------------------
 ------------------------------------------------------------------
 [CS_TEXT_REPRESENTATION]
 COM_QUERY: query[DROP TABLE IF EXISTS t1]
@@ -9090,6 +9118,34 @@ CLOSE PS
 ------------------------------------------------------------------
 [CS_TEXT_REPRESENTATION]
 COM_STMT_CLOSE: stmt_id [6]
+------------------------------------------------------------------
+##################################################################
+Test COM_STMT_EXECUTE with wrong data type
+##################################################################
+CREATE PREPARED STATEMENT
+------------------------------------------------------------------
+[CS_TEXT_REPRESENTATION]
+COM_STMT_PREPARE: query[SELECT CONCAT(9< ?)]
+handle_start_column_metadata
+handle_end_column_metadata
+handle_start_row
+handle_end_row
+handle_start_column_metadata
+handle_end_column_metadata
+handle_start_column_metadata
+handle_end_column_metadata
+------------------------------------------------------------------
+EXECUTE PREPARED STATEMENT WITH PARAMETERS AND CURSOR
+------------------------------------------------------------------
+[CS_TEXT_REPRESENTATION]
+COM_STMT_EXECUTE: stmt_id [7]
+handle_error
+[1210][HY000][Incorrect arguments to mysqld_stmt_execute]
+------------------------------------------------------------------
+CLOSE PS
+------------------------------------------------------------------
+[CS_TEXT_REPRESENTATION]
+COM_STMT_CLOSE: stmt_id [7]
 ------------------------------------------------------------------
 ------------------------------------------------------------------
 [CS_TEXT_REPRESENTATION]

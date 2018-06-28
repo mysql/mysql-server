@@ -1404,6 +1404,42 @@ static void test_6(MYSQL_SESSION session, void *p) {
   DBUG_VOID_RETURN;
 }
 
+static void test_7(MYSQL_SESSION session, void *p) {
+  DBUG_ENTER("test_7");
+  char buffer[STRING_BUFFER_SIZE];
+
+  Server_context ctx;
+  COM_DATA cmd;
+
+  WRITE_STR("CREATE PREPARED STATEMENT\n");
+  cmd.com_stmt_prepare.query = "SELECT CONCAT(9< ?)";
+  cmd.com_stmt_prepare.length = strlen(cmd.com_stmt_prepare.query);
+  run_cmd(session, COM_STMT_PREPARE, &cmd, &ctx, false, p);
+
+  WRITE_STR("EXECUTE PREPARED STATEMENT WITH PARAMETERS AND CURSOR\n");
+
+  PS_PARAM params[1];
+  params[0].type = MYSQL_TYPE_JSON;
+  params[0].unsigned_type = false;
+  params[0].null_bit = false;
+  params[0].value = (const unsigned char *)"{}";
+  params[0].length = 2;
+
+  cmd.com_stmt_execute.stmt_id = ctx.stmt_id;
+  cmd.com_stmt_execute.open_cursor = true;
+  cmd.com_stmt_execute.has_new_types = false;
+  cmd.com_stmt_execute.parameters = params;
+  cmd.com_stmt_execute.parameter_count = 1;
+  cmd.com_stmt_execute.has_new_types = true;
+
+  run_cmd(session, COM_STMT_EXECUTE, &cmd, &ctx, false, p);
+
+  WRITE_STR("CLOSE PS\n");
+  cmd.com_stmt_close.stmt_id = ctx.stmt_id;
+  run_cmd(session, COM_STMT_CLOSE, &cmd, &ctx, false, p);
+  DBUG_VOID_RETURN;
+}
+
 static void tear_down_test(MYSQL_SESSION session, void *p) {
   DBUG_ENTER("tear_down_test");
 
@@ -1449,6 +1485,7 @@ static struct my_stmt_tests_st my_tests[] = {
     {"Test ps with different data-types", test_4},
     {"Test COM_STMT_SEND_LONG_DATA", test_5},
     {"Test COM_STMT_EXECUTE with SELECT nested in CALL", test_6},
+    {"Test COM_STMT_EXECUTE with wrong data type", test_7},
     {0, 0}};
 
 static void test_sql(void *p) {
