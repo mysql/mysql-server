@@ -1,4 +1,5 @@
 call mtr.add_suppression("Maximum number of authentication attempts reached, login failed");
+call mtr.add_suppression("Access denied for user .*");
 CREATE USER xuser_native@localhost
 IDENTIFIED WITH 'mysql_native_password' BY 'native';
 CREATE USER xuser_sha256@localhost

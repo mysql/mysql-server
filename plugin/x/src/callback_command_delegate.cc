@@ -174,7 +174,7 @@ int Callback_command_delegate::get_null() {
   try {
     if (m_current_row) m_current_row->fields.push_back(NULL);
   } catch (std::exception &e) {
-    log_error(ER_XPLUGIN_FAIL_TO_GET_RESULT_DATA, e.what());
+    log_debug("Error getting result data: %s", e.what());
     return true;
   }
   return false;
@@ -185,7 +185,7 @@ int Callback_command_delegate::get_integer(longlong value) {
     if (m_current_row)
       m_current_row->fields.push_back(ngs::allocate_object<Field_value>(value));
   } catch (std::exception &e) {
-    log_error(ER_XPLUGIN_FAIL_TO_GET_RESULT_DATA, e.what());
+    log_debug("Error getting result data: %s", e.what());
     return true;
   }
   return false;
@@ -198,7 +198,7 @@ int Callback_command_delegate::get_longlong(longlong value,
       m_current_row->fields.push_back(
           ngs::allocate_object<Field_value>(value, unsigned_flag));
   } catch (std::exception &e) {
-    log_error(ER_XPLUGIN_FAIL_TO_GET_RESULT_DATA, e.what());
+    log_debug("Error getting result data: %s", e.what());
     return true;
   }
   return false;
@@ -210,7 +210,7 @@ int Callback_command_delegate::get_decimal(const decimal_t *value) {
       m_current_row->fields.push_back(
           ngs::allocate_object<Field_value>(*value));
   } catch (std::exception &e) {
-    log_error(ER_XPLUGIN_FAIL_TO_GET_RESULT_DATA, e.what());
+    log_debug("Error getting result data: %s", e.what());
     return true;
   }
   return false;
@@ -221,7 +221,7 @@ int Callback_command_delegate::get_double(double value, uint32) {
     if (m_current_row)
       m_current_row->fields.push_back(ngs::allocate_object<Field_value>(value));
   } catch (std::exception &e) {
-    log_error(ER_XPLUGIN_FAIL_TO_GET_RESULT_DATA, e.what());
+    log_debug("Error getting result data: %s", e.what());
     return true;
   }
   return false;
@@ -233,7 +233,7 @@ int Callback_command_delegate::get_date(const MYSQL_TIME *value) {
       m_current_row->fields.push_back(
           ngs::allocate_object<Field_value>(*value));
   } catch (std::exception &e) {
-    log_error(ER_XPLUGIN_FAIL_TO_GET_RESULT_DATA, e.what());
+    log_debug("Error getting result data: %s", e.what());
     return true;
   }
   return false;
@@ -245,7 +245,7 @@ int Callback_command_delegate::get_time(const MYSQL_TIME *value, uint) {
       m_current_row->fields.push_back(
           ngs::allocate_object<Field_value>(*value));
   } catch (std::exception &e) {
-    log_error(ER_XPLUGIN_FAIL_TO_GET_RESULT_DATA, e.what());
+    log_debug("Error getting result data: %s", e.what());
     return true;
   }
   return false;
@@ -257,7 +257,7 @@ int Callback_command_delegate::get_datetime(const MYSQL_TIME *value, uint) {
       m_current_row->fields.push_back(
           ngs::allocate_object<Field_value>(*value));
   } catch (std::exception &e) {
-    log_error(ER_XPLUGIN_FAIL_TO_GET_RESULT_DATA, e.what());
+    log_debug("Error getting result data: %s", e.what());
     return true;
   }
   return false;
@@ -271,7 +271,7 @@ int Callback_command_delegate::get_string(const char *const value,
       m_current_row->fields.push_back(
           ngs::allocate_object<Field_value>(value, length));
   } catch (std::exception &e) {
-    log_error(ER_XPLUGIN_FAIL_TO_GET_RESULT_DATA, e.what());
+    log_debug("Error getting result data: %s", e.what());
     return true;
   }
   return false;
