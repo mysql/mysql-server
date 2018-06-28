@@ -2253,8 +2253,6 @@ EQRefIterator::EQRefIterator(THD *thd, TABLE *table, TABLE_REF *ref,
     This cache element is used when a row is needed after it has been read once,
     unless a key conversion error has occurred, or the cache has been disabled.
 
-  @param qep_tab   JOIN_TAB of the accessed table
-
   @retval  0 - Ok
   @retval -1 - Row not found
   @retval  1 - Error

@@ -61,6 +61,7 @@
   @param table        Table to be accessed
   @param idx          index to scan
   @param reverse      Scan in the reverse direction
+  @param qep_tab      If not NULL, used for record buffer and pushed condition
 
   @retval true   error
   @retval false  success
