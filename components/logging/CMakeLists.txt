@@ -25,8 +25,17 @@ INCLUDE_DIRECTORIES(
 )
 
 REMOVE_DEFINITIONS(-DMYSQL_SERVER)
+
 # TODO: fix all assert usage with side effects.
 REMOVE_DEFINITIONS(-DNDEBUG)
+FOREACH(flag
+    CMAKE_CXX_FLAGS_DEBUG
+    CMAKE_CXX_FLAGS_RELWITHDEBINFO
+    CMAKE_CXX_FLAGS_RELEASE
+    CMAKE_CXX_FLAGS_MINSIZEREL
+    )
+  STRING(REPLACE "-DNDEBUG"  "" "${flag}" "${${flag}}")
+ENDFOREACH()
 
 MYSQL_ADD_COMPONENT(log_sink_syseventlog
   log_sink_syseventlog.cc
