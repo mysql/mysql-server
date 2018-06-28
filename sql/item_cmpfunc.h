@@ -1101,6 +1101,11 @@ class Item_func_nullif final : public Item_bool_func2 {
   }
 
   bool is_null() override;
+  /**
+    This is a workaround for the broken inheritance hierarchy: this should
+    inherit from Item_func instead of Item_bool_func2
+  */
+  bool is_bool_func() const override { return false; }
 };
 
 /* Functions to handle the optimized IN */

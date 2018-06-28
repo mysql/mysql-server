@@ -2105,7 +2105,8 @@ select a, json_array_append( '[]', '$', a is true ) from t_bool_literals order b
 select a, json_array( a is not true ) from t_bool_literals order by a;
 select a, json_array_append( '[]', '$', a is not true ) from t_bool_literals order by a;
 
-# NULLIF which coalesce booleans should evaluate to boolean literals
+# NULLIF which coalesce booleans should evaluate to integer
+# in order to be consistent with CASE WHEN
 select a, json_array(nullif(true, false)  ) from t_bool_literals order by a;
 select a, json_array_append
 (
