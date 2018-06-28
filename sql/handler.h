@@ -714,6 +714,9 @@ given at all. */
 */
 #define HA_CREATE_USED_DEFAULT_COLLATE (1L << 28)
 
+/** SECONDARY_ENGINE used during table create. */
+#define HA_CREATE_USED_SECONDARY_ENGINE (1L << 29)
+
 /*
   End of bits used in used_fields
 */
@@ -1991,6 +1994,9 @@ struct handlerton {
 /* Engine supports packed keys. */
 #define HTON_SUPPORTS_PACKED_KEYS (1 << 13)
 
+/** Engine supports being set as secondary storage engine. */
+#define HTON_SUPPORTS_SECONDARY (1 << 14)
+
 inline bool ddl_is_atomic(const handlerton *hton) {
   return (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) != 0;
 }
@@ -2070,6 +2076,12 @@ struct HA_CREATE_INFO {
   and ignored by the Server layer. */
 
   LEX_STRING encrypt_type;
+
+  /**
+   * Secondary engine of the table.
+   * Is nullptr if no secondary engine defined.
+   */
+  LEX_STRING secondary_engine{nullptr, 0};
 
   const char *data_file_name, *index_file_name;
   const char *alias;
@@ -2332,6 +2344,12 @@ class Alter_inplace_info {
 
   // Rebuild partition
   static const HA_ALTER_FLAGS ALTER_REBUILD_PARTITION = 1ULL << 42;
+
+  // Load into secondary engine.
+  static const HA_ALTER_FLAGS SECONDARY_LOAD = 1ULL << 43;
+
+  // Unload from secondary engine.
+  static const HA_ALTER_FLAGS SECONDARY_UNLOAD = 1ULL << 44;
 
   /**
     Change in index length such that it does not require index rebuild.
@@ -3758,6 +3776,10 @@ class handler {
 
   int ha_create(const char *name, TABLE *form, HA_CREATE_INFO *info,
                 dd::Table *table_def);
+
+  int ha_load_table(const TABLE &table);
+
+  int ha_unload_table(const char *db_name, const char *table_name);
 
   /**
     Submit a dd::Table object representing a core DD table having
@@ -5396,6 +5418,36 @@ class handler {
   virtual int sample_init();
   virtual int sample_next(uchar *buf);
   virtual int sample_end();
+
+  /**
+   * Loads a table into its defined secondary storage engine.
+   *
+   * @param table Table opened in primary storage engine.
+   *
+   * @return 0 if success, error code otherwise.
+   */
+  virtual int load_table(const TABLE &table MY_ATTRIBUTE((unused))) {
+    /* purecov: begin inspected */
+    DBUG_ASSERT(false);
+    return HA_ERR_WRONG_COMMAND;
+    /* purecov: end */
+  }
+
+  /**
+   * Unloads a table from its defined secondary storage engine.
+   *
+   * @param db_name    Database name.
+   * @param table_name Table name.
+   *
+   * @return 0 if success, error code otherwise.
+   */
+  virtual int unload_table(const char *db_name MY_ATTRIBUTE((unused)),
+                           const char *table_name MY_ATTRIBUTE((unused))) {
+    /* purecov: begin inspected */
+    DBUG_ASSERT(false);
+    return HA_ERR_WRONG_COMMAND;
+    /* purecov: end */
+  }
 
  protected:
   virtual int index_read(uchar *buf MY_ATTRIBUTE((unused)),

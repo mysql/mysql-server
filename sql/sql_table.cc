@@ -2378,6 +2378,158 @@ static bool adjust_fk_children_for_parent_drop(
 }
 
 /**
+ * Validates the ALTER TABLE command with respect to any secondary engine
+ * operations.
+ *
+ * @param alter_info  Alter table operations.
+ * @param create_info Table option changes.
+ * @param table       The table that is being altered.
+ *
+ * @return True if invalid, false otherwise.
+ */
+static bool validate_secondary_engine_option(const Alter_info &alter_info,
+                                             const HA_CREATE_INFO &create_info,
+                                             const TABLE &table) {
+  constexpr uint64_t load_or_unload =
+      Alter_info::ALTER_SECONDARY_LOAD | Alter_info::ALTER_SECONDARY_UNLOAD;
+
+  // SECONDARY_LOAD and SECONDARY_UNLOAD operations require the table to have a
+  // secondary engine defined.
+  if (alter_info.flags & load_or_unload &&
+      table.s->secondary_engine.str == nullptr) {
+    my_error(ER_SECONDARY_ENGINE, MYF(0), "No secondary engine defined");
+    return true;
+  }
+
+  // Remaining validation checks apply only to tables with a secondary engine.
+  if (table.s->secondary_engine.str == nullptr) return false;
+
+  // These are the only supported ALTER TABLE operations.
+  constexpr uint64_t supported_alter_operations =
+      load_or_unload | Alter_info::ALTER_OPTIONS;
+
+  // The only table option that may be changed is SECONDARY_ENGINE.
+  constexpr uint64_t supported_table_options = HA_CREATE_USED_SECONDARY_ENGINE;
+
+  if (alter_info.flags & ~supported_alter_operations ||
+      create_info.used_fields & ~supported_table_options) {
+    my_error(ER_SECONDARY_ENGINE_DDL, MYF(0));
+    return true;
+  }
+
+  // Secondary engine of a table must be set to NULL before it can be redefined.
+  if (create_info.secondary_engine.str != nullptr) {
+    my_error(ER_SECONDARY_ENGINE, MYF(0),
+             "Table already has a secondary engine defined");
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Loads a table from its primary engine into its secondary engine.
+ *
+ * @note An MDL_SHARED_READ or stronger lock on the table must have been
+ * acquired prior to calling this function.
+ *
+ * @param thd        Thread handler.
+ * @param table      Table in primary storage engine.
+ * @param alter_info Alter table operations.
+ *
+ * @return True if error, false otherwise.
+ */
+static bool secondary_engine_load_table(THD *thd, const TABLE &table,
+                                        const Alter_info &alter_info) {
+  DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(
+      MDL_key::TABLE, table.s->db.str, table.s->table_name.str,
+      MDL_SHARED_READ));
+  DBUG_ASSERT(table.s->secondary_engine.str != nullptr);
+
+  // SECONDARY_LOAD cannot be used in conjunction with other DDLs.
+  if (alter_info.flags & ~Alter_info::ALTER_SECONDARY_LOAD) {
+    my_error(ER_SECONDARY_ENGINE, MYF(0),
+             "SECONDARY_LOAD must be a standalone action");
+    return true;
+  }
+
+  // The defined secondary engine must be the name of a valid storage engine.
+  plugin_ref plugin =
+      ha_resolve_by_name(thd, &table.s->secondary_engine, false);
+  if (plugin == nullptr) {
+    my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), table.s->secondary_engine.str);
+    return true;
+  }
+
+  // The engine must support being used as a secondary engine.
+  handlerton *hton = plugin_data<handlerton *>(plugin);
+  if (!(hton->flags & HTON_SUPPORTS_SECONDARY)) {
+    my_error(ER_SECONDARY_ENGINE, MYF(0),
+             "Unsupported secondary storage engine");
+    return true;
+  }
+
+  // Get handler to the secondary engine into which the table will be loaded.
+  const bool is_partitioned = table.s->m_part_info != nullptr;
+  unique_ptr_destroy_only<handler> handler(
+      get_new_handler(table.s, is_partitioned, thd->mem_root, hton));
+
+  // Load table from primary into secondary engine.
+  return handler->ha_load_table(table);
+}
+
+/**
+ * Unloads a table from its secondary engine.
+ *
+ * @note An MDL_EXCLUSIVE or stronger lock on the table must have been acquired
+ * prior to calling this function to ensure that the table is not being used by
+ * other clients.
+ *
+ * @param thd        Thread handler.
+ * @param db_name    Database name.
+ * @param table_name Table name.
+ * @param table_def  Table definition.
+ *
+ * @return True if error, false otherwise.
+ */
+static bool secondary_engine_unload_table(THD *thd, const char *db_name,
+                                          const char *table_name,
+                                          const dd::Table &table_def) {
+  DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(
+      MDL_key::TABLE, db_name, table_name, MDL_EXCLUSIVE));
+
+  // Nothing to unload if table has no secondary engine defined.
+  LEX_STRING secondary_engine;
+  if (table_def.options().get("secondary_engine", secondary_engine,
+                              thd->mem_root))
+    return false;
+
+  // Get handlerton of secondary engine. It may happen that no handlerton is
+  // found either if the defined secondary engine is invalid (if so, the table
+  // was never loaded either) or if the secondary engine has been uninstalled
+  // after tables were loaded into it (in which case the tables have already
+  // been unloaded).
+  plugin_ref plugin = ha_resolve_by_name(thd, &secondary_engine, false);
+  if (plugin == nullptr) return false;
+  handlerton *hton = plugin_data<handlerton *>(plugin);
+  if (hton == nullptr) return false;
+
+  // The defined secondary engine is a valid storage engine. However, if the
+  // engine is not a valid secondary engine, no tables have been loaded and
+  // there is nothing to be done.
+  if (!(hton->flags & HTON_SUPPORTS_SECONDARY)) return false;
+
+  // Get handler for table in secondary engine.
+  const bool is_partitioned = table_def.partition_type() != dd::Table::PT_NONE;
+  unique_ptr_destroy_only<handler> handler(
+      get_new_handler(nullptr, is_partitioned, thd->mem_root, hton));
+  if (handler == nullptr) return true;
+
+  // Unload table from secondary engine.
+  return handler->ha_unload_table(db_name, table_name) > 0;
+}
+
+/**
   Auxiliary function which drops single base table.
 
   @param        thd             Thread handler.
@@ -2434,6 +2586,11 @@ static bool drop_base_table(THD *thd, const Drop_tables_ctx &drop_ctx,
     DBUG_ASSERT(true);
     return true;
   }
+
+  // Drop table from secondary engine.
+  if (secondary_engine_unload_table(thd, table->db, table->table_name,
+                                    *table_def))
+    return true; /* purecov: inspected */
 
   handlerton *hton;
   if (dd::table_storage_engine(thd, table_def, &hton)) {
@@ -6747,6 +6904,13 @@ static bool create_table_impl(
     }
   }
 
+  // Secondary engine cannot be defined for temporary tables.
+  if (create_info->secondary_engine.str != nullptr &&
+      create_info->options & HA_LEX_CREATE_TMP_TABLE) {
+    my_error(ER_SECONDARY_ENGINE, MYF(0), "Temporary tables not supported");
+    DBUG_RETURN(true);
+  }
+
   if (set_table_default_charset(thd, create_info, schema)) DBUG_RETURN(true);
 
   const char *alias = table_case_name(create_info, table_name);
@@ -8224,6 +8388,15 @@ bool mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
                                                  &to_table_def))
     DBUG_RETURN(true);
 
+  // Tables with a defined secondary engine cannot be renamed, except if the
+  // renaming is only temporary, which may happen if e.g. ALGORITHM=COPY is
+  // used.
+  if (from_table_def->options().exists("secondary_engine") &&
+      !(flags & FN_IS_TMP)) {
+    my_error(ER_SECONDARY_ENGINE_DDL, MYF(0));
+    DBUG_RETURN(true);
+  }
+
   // Set schema id, table name and hidden attribute.
   to_table_def->set_schema_id(new_schema.id());
   to_table_def->set_name(new_name);
@@ -9234,6 +9407,10 @@ static bool fill_alter_inplace_info(THD *thd, TABLE *table,
     ha_alter_info->handler_flags |= Alter_inplace_info::RECREATE_TABLE;
   if (alter_info->with_validation == Alter_info::ALTER_WITH_VALIDATION)
     ha_alter_info->handler_flags |= Alter_inplace_info::VALIDATE_VIRTUAL_COLUMN;
+  if (alter_info->flags & Alter_info::ALTER_SECONDARY_LOAD)
+    ha_alter_info->handler_flags |= Alter_inplace_info::SECONDARY_LOAD;
+  if (alter_info->flags & Alter_info::ALTER_SECONDARY_UNLOAD)
+    ha_alter_info->handler_flags |= Alter_inplace_info::SECONDARY_UNLOAD;
 
   /*
     Go through fields in old version of table and detect changes to them.
@@ -10360,6 +10537,56 @@ static bool table_is_empty(TABLE *table, bool *is_empty) {
     return true;
   }
   return false;
+}
+
+/**
+ * Handles table alterations related to secondary engine.
+ *
+ * Loads a table into its secondary engine if SECONDARY_LOAD, or unloads a table
+ * from its secondary engine if SECONDARY_UNLOAD or SECONDARY_ENGINE = NULL.
+ *
+ * @param thd               Thread handler.
+ * @param table             Table opened in primary storage engine.
+ * @param alter_info        Alter table information.
+ * @param create_info       Information from the parsing phase about new
+ *                          table properties.
+ * @param table_def         Table definition for the original table.
+ * @param altered_table_def Table definition for the new version of the table.
+ *
+ * @return True if error, false otherwise.
+ */
+static bool alter_secondary_engine(THD *thd, const TABLE_LIST &table,
+                                   const Alter_info &alter_info,
+                                   const HA_CREATE_INFO &create_info,
+                                   const dd::Table *table_def,
+                                   dd::Table *altered_table_def) {
+  // Nothing to do if no secondary engine defined for the table.
+  if (table.table->s->secondary_engine.str == nullptr) return false;
+
+  // Attempt to load table into secondary engine if SECONDARY_LOAD.
+  if (alter_info.flags & Alter_info::ALTER_SECONDARY_LOAD)
+    return secondary_engine_load_table(thd, *table.table, alter_info);
+
+  // Attempt to unload table if SECONDARY_UNLOAD or SECONDARY_ENGINE = NULL.
+  const bool is_unload = alter_info.flags & Alter_info::ALTER_SECONDARY_UNLOAD;
+  const bool is_null =
+      create_info.used_fields & HA_CREATE_USED_SECONDARY_ENGINE &&
+      create_info.secondary_engine.str == nullptr;
+
+  // Nothing to do if not unloading.
+  if (!is_unload && !is_null) return false;
+
+  // The metadata lock on the table must be upgraded to at least MDL_EXCLUSIVE
+  // to ensure it's not used by other clients at the time it is unloaded from
+  // the secondary engine.
+  MDL_ticket *mdl_ticket = table.table->mdl_ticket;
+  if (thd->mdl_context.upgrade_shared_lock(mdl_ticket, MDL_EXCLUSIVE,
+                                           thd->variables.lock_wait_timeout))
+    return true;
+  const bool err = secondary_engine_unload_table(thd, table.db,
+                                                 table.table_name, *table_def);
+  if (is_null && !err) altered_table_def->options().remove("secondary_engine");
+  return err;
 }
 
 /**
@@ -12934,6 +13161,10 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       DBUG_RETURN(true);
   }
 
+  if (validate_secondary_engine_option(*alter_info, *create_info,
+                                       *table_list->table))
+    DBUG_RETURN(true);
+
   if (lock_trigger_names(thd, table_list)) DBUG_RETURN(true);
 
   /*
@@ -13589,6 +13820,10 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
 
     DBUG_ASSERT(table_def);
   }
+
+  if (alter_secondary_engine(thd, *table_list, *alter_info, *create_info,
+                             old_table_def, table_def))
+    goto err_new_table_cleanup;
 
   if (  // Tablespace specified in ALTER
       (create_info->used_fields & HA_CREATE_USED_TABLESPACE) &&
@@ -15168,6 +15403,13 @@ static bool check_engine(THD *thd, const char *db_name, const char *table_name,
     my_error(ER_UNSUPPORTED_ENGINE, MYF(0),
              ha_resolve_storage_engine_name(*new_engine), db_name, table_name);
     *new_engine = NULL;
+    DBUG_RETURN(true);
+  }
+
+  // InnoDB is the only supported engine for a table with a secondary engine.
+  if (create_info->used_fields & HA_CREATE_USED_SECONDARY_ENGINE &&
+      (*new_engine)->db_type != DB_TYPE_INNODB) {
+    my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "SECONDARY_ENGINE");
     DBUG_RETURN(true);
   }
 

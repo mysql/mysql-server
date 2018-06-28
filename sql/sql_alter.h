@@ -254,6 +254,12 @@ class Alter_info {
 
     /// Means that the visibility of an index is changed.
     ALTER_INDEX_VISIBILITY = 1UL << 29,
+
+    /// Set for SECONDARY LOAD
+    ALTER_SECONDARY_LOAD = 1UL << 30,
+
+    /// Set for SECONDARY UNLOAD
+    ALTER_SECONDARY_UNLOAD = 1UL << 31,
   };
 
   enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };

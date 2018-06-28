@@ -2504,6 +2504,11 @@ void HA_CREATE_INFO::init_create_options_from_share(const TABLE_SHARE *share,
     DBUG_ASSERT(!encrypt_type.str);
     encrypt_type = share->encrypt_type;
   }
+
+  if (!(used_fields & HA_CREATE_USED_SECONDARY_ENGINE)) {
+    DBUG_ASSERT(secondary_engine.str == nullptr);
+    secondary_engine = share->secondary_engine;
+  }
 }
 
 /****************************************************************************
@@ -4721,7 +4726,8 @@ enum_alter_inplace_result handler::check_if_supported_inplace_alter(
       Alter_inplace_info::ALTER_RENAME | Alter_inplace_info::RENAME_INDEX |
       Alter_inplace_info::ALTER_INDEX_COMMENT |
       Alter_inplace_info::CHANGE_INDEX_OPTION |
-      Alter_inplace_info::ALTER_COLUMN_INDEX_LENGTH;
+      Alter_inplace_info::ALTER_COLUMN_INDEX_LENGTH |
+      Alter_inplace_info::SECONDARY_LOAD | Alter_inplace_info::SECONDARY_UNLOAD;
 
   /* Is there at least one operation that requires copy algorithm? */
   if (ha_alter_info->handler_flags & ~inplace_offline_operations)
@@ -4816,6 +4822,22 @@ int handler::ha_create(const char *name, TABLE *form, HA_CREATE_INFO *info,
   mark_trx_read_write();
 
   return create(name, form, info, table_def);
+}
+
+/**
+ * Loads a table into its defined secondary storage engine: public interface.
+ *
+ * @sa handler::load_table()
+ */
+int handler::ha_load_table(const TABLE &table) { return load_table(table); }
+
+/**
+ * Unloads a table from its defined secondary storage engine: public interface.
+ *
+ * @sa handler::unload_table()
+ */
+int handler::ha_unload_table(const char *db_name, const char *table_name) {
+  return unload_table(db_name, table_name);
 }
 
 /**

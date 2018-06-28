@@ -1,0 +1,59 @@
+#
+# Load into and unload from secondary engine.
+#
+CREATE TABLE t1 (a INT) SECONDARY_ENGINE MOCK;
+ALTER TABLE t1 SECONDARY_LOAD;
+ALTER TABLE t1 SECONDARY_UNLOAD;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci SECONDARY_ENGINE=MOCK
+DROP TABLE t1;
+#
+# Attempt to load and unload table with no secondary engine.
+#
+CREATE TABLE t1 (a INT);
+ALTER TABLE t1 SECONDARY_LOAD;
+ERROR HY000: Secondary engine operation failed. No secondary engine defined.
+ALTER TABLE t1 SECONDARY_UNLOAD;
+ERROR HY000: Secondary engine operation failed. No secondary engine defined.
+ALTER TABLE t1 SECONDARY_ENGINE NULL;
+DROP TABLE t1;
+#
+# Attempt to unload temporary table with no secondary engine.
+#
+CREATE TEMPORARY TABLE t1 (a INT);
+ALTER TABLE t1 SECONDARY_LOAD;
+ERROR HY000: Secondary engine operation failed. No secondary engine defined.
+ALTER TABLE t1 SECONDARY_UNLOAD;
+ERROR HY000: Secondary engine operation failed. No secondary engine defined.
+ALTER TABLE t1 SECONDARY_ENGINE NULL;
+DROP TABLE t1;
+#
+# Attempt to load into secondary engine in conjunction with other DDL
+# operations.
+#
+CREATE TABLE t1 (a INT) SECONDARY_ENGINE MOCK;
+ALTER TABLE t1 SECONDARY_LOAD, FORCE;
+ERROR HY000: DDLs on a table with a secondary engine defined are not allowed.
+DROP TABLE t1;
+#
+# Perform alterations related to secondary engine using differing
+# algorithms.
+#
+CREATE TABLE t1 (a INT) SECONDARY_ENGINE MOCK;
+ALTER TABLE t1 SECONDARY_LOAD, ALGORITHM=INPLACE;
+ALTER TABLE t1 SECONDARY_UNLOAD, ALGORITHM=INPLACE;
+ALTER TABLE t1 SECONDARY_LOAD, ALGORITHM=COPY;
+ALTER TABLE t1 SECONDARY_UNLOAD, ALGORITHM=COPY;
+ALTER TABLE t1 SECONDARY_ENGINE NULL, ALGORITHM=INPLACE;
+ALTER TABLE t1 SECONDARY_ENGINE MOCK, ALGORITHM=INPLACE;
+ALTER TABLE t1 SECONDARY_ENGINE NULL, ALGORITHM=COPY;
+ALTER TABLE t1 SECONDARY_ENGINE MOCK, ALGORITHM=COPY;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci SECONDARY_ENGINE=MOCK
+DROP TABLE t1;

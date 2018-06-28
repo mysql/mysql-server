@@ -39,6 +39,7 @@ ha_archive                              plugin_output_directory ARCHIVE_PLUGIN
 ha_blackhole                            plugin_output_directory BLACKHOLE_PLUGIN
 ha_federated                            plugin_output_directory FEDERATED_PLUGIN
 ha_partition                            plugin_output_directory PARTITION_PLUGIN  partition
+ha_mock                                 plugin_output_directory MOCK_PLUGIN
 mypluglib                               plugin_output_directory SIMPLE_PARSER
 libpluginmecab                          plugin_output_directory MECAB
 adt_null                                plugin_output_directory AUDIT_NULL

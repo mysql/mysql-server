@@ -53,6 +53,7 @@
                                                //   set_PS_version_for_table
 #include "sql/dd/dd_version.h"                 // DD_VERSION
 #include "sql/dd/properties.h"                 // dd::Properties
+#include "sql/dd/string_type.h"
 #include "sql/dd/types/abstract_table.h"
 #include "sql/dd/types/column.h"               // dd::Column
 #include "sql/dd/types/column_type_element.h"  // dd::Column_type_element
@@ -2019,6 +2020,11 @@ static bool fill_dd_table_from_create_info(
   // Collation ID
   DBUG_ASSERT(create_info->default_table_charset);
   tab_obj->set_collation_id(create_info->default_table_charset->number);
+
+  // Secondary engine.
+  if (create_info->secondary_engine.str != nullptr)
+    table_options->set("secondary_engine",
+                       make_string_type(create_info->secondary_engine));
 
   // TODO-MYSQL_VERSION: We decided not to store MYSQL_VERSION_ID ?
   //

@@ -1336,6 +1336,15 @@ bool PT_create_table_engine_option::contextualize(Table_ddl_parse_context *pc) {
                         &pc->create_info->db_type);
 }
 
+bool PT_create_table_secondary_engine_option::contextualize(
+    Table_ddl_parse_context *pc) {
+  if (super::contextualize(pc)) return true;
+
+  pc->create_info->used_fields |= HA_CREATE_USED_SECONDARY_ENGINE;
+  pc->create_info->secondary_engine = m_secondary_engine;
+  return false;
+}
+
 bool PT_create_stats_auto_recalc_option::contextualize(
     Table_ddl_parse_context *pc) {
   if (super::contextualize(pc)) return true;

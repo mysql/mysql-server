@@ -18297,6 +18297,12 @@ ER_COULD_NOT_CREATE_WINDOWS_REGISTRY_KEY
 ER_SERVER_GTID_UNSAFE_CREATE_DROP_TEMP_TABLE_IN_TRX_IN_SBR
   eng "Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE are not allowed inside a transaction or inside a procedure in a transactional context when @@session.binlog_format=STATEMENT."
 
+ER_SECONDARY_ENGINE
+  eng "Secondary engine operation failed. %s."
+
+ER_SECONDARY_ENGINE_DDL
+  eng "DDLs on a table with a secondary engine defined are not allowed."
+
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #

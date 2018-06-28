@@ -2990,6 +2990,27 @@ class PT_create_table_engine_option : public PT_create_table_option {
 };
 
 /**
+  Node for the @SQL{SECONDARY_ENGINE [=] @B{@<identifier@>|@<string@>|NULL}}
+  table option.
+
+  @ingroup ptn_create_or_alter_table_options
+*/
+class PT_create_table_secondary_engine_option : public PT_create_table_option {
+  using super = PT_create_table_option;
+
+ public:
+  explicit PT_create_table_secondary_engine_option(){};
+  explicit PT_create_table_secondary_engine_option(
+      const LEX_STRING &secondary_engine)
+      : m_secondary_engine(secondary_engine) {}
+
+  bool contextualize(Table_ddl_parse_context *pc) override;
+
+ private:
+  const LEX_STRING m_secondary_engine{nullptr, 0};
+};
+
+/**
   Node for the @SQL{STATS_AUTO_RECALC [=] @B{@<0|1|DEFAULT@>})} table option
 
   @ingroup ptn_create_or_alter_table_options
@@ -3833,6 +3854,21 @@ class PT_alter_table_remove_partitioning : public PT_alter_table_action {
  public:
   PT_alter_table_remove_partitioning()
       : super(Alter_info::ALTER_REMOVE_PARTITIONING) {}
+};
+
+class PT_alter_table_secondary_load : public PT_alter_table_action {
+  using super = PT_alter_table_action;
+
+ public:
+  PT_alter_table_secondary_load() : super(Alter_info::ALTER_SECONDARY_LOAD) {}
+};
+
+class PT_alter_table_secondary_unload : public PT_alter_table_action {
+  using super = PT_alter_table_action;
+
+ public:
+  PT_alter_table_secondary_unload()
+      : super(Alter_info::ALTER_SECONDARY_UNLOAD) {}
 };
 
 class PT_alter_table_standalone_action : public PT_alter_table_action {

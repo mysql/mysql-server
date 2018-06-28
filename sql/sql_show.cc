@@ -1660,6 +1660,11 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       append_unescaped(packet, share->connect_string.str,
                        share->connect_string.length);
     }
+    if (share->secondary_engine.str != nullptr) {
+      packet->append(" SECONDARY_ENGINE=");
+      packet->append(share->secondary_engine.str,
+                     share->secondary_engine.length);
+    }
     append_directory(thd, packet, "DATA", create_info.data_file_name);
     append_directory(thd, packet, "INDEX", create_info.index_file_name);
   }

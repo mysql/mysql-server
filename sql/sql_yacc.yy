@@ -1225,6 +1225,9 @@ void warn_about_deprecated_national(THD *thd)
 %token<keyword> ORGANIZATION_SYM              /* MYSQL */
 %token<keyword> REFERENCE_SYM                 /* MYSQL */
 %token<keyword> OPTIONAL_SYM                  /* MYSQL */
+%token<keyword> SECONDARY_ENGINE_SYM          /* MYSQL */
+%token<keyword> SECONDARY_LOAD_SYM            /* MYSQL */
+%token<keyword> SECONDARY_UNLOAD_SYM          /* MYSQL */
 
 
 /*
@@ -5860,6 +5863,14 @@ create_table_option:
           {
             $$= NEW_PTN PT_create_table_engine_option($3);
           }
+        | SECONDARY_ENGINE_SYM opt_equal NULL_SYM
+          {
+            $$= NEW_PTN PT_create_table_secondary_engine_option();
+          }
+        | SECONDARY_ENGINE_SYM opt_equal ident_or_text
+          {
+            $$= NEW_PTN PT_create_table_secondary_engine_option($3);
+          }
         | MAX_ROWS opt_equal ulonglong_num
           {
             $$= NEW_PTN PT_create_max_rows_option($3);
@@ -7915,6 +7926,14 @@ alter_list_item:
         | ORDER_SYM BY alter_order_list
           {
             $$= NEW_PTN PT_alter_table_order($3);
+          }
+        | SECONDARY_LOAD_SYM
+          {
+            $$= NEW_PTN PT_alter_table_secondary_load;
+          }
+        | SECONDARY_UNLOAD_SYM
+          {
+            $$= NEW_PTN PT_alter_table_secondary_unload;
           }
         ;
 
@@ -13728,6 +13747,9 @@ role_or_ident_keyword:
         | ROLE_SYM
         | ROLLBACK_SYM
         | SAVEPOINT_SYM
+        | SECONDARY_ENGINE_SYM
+        | SECONDARY_LOAD_SYM
+        | SECONDARY_UNLOAD_SYM
         | SECURITY_SYM
         | SERVER_SYM
         | SIGNED_SYM

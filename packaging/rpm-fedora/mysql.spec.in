@@ -673,6 +673,7 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/ha_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/ha_mock.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/innodb_engine.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_udf.so
@@ -698,6 +699,7 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_mock.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/innodb_engine.so

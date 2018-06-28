@@ -160,7 +160,7 @@ my $path_config_file;       # The generated config file, var/my.cnf
 my $path_vardir_trace;      # Unix formatted opt_vardir for trace files
 
 my $DEFAULT_SUITES =
-"main,sys_vars,binlog,binlog_gtid,binlog_nogtid,federated,gis,rpl,rpl_gtid,rpl_nogtid,innodb,innodb_gis,innodb_fts,innodb_zip,innodb_undo,perfschema,funcs_1,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol,sysschema,test_service_sql_api,json,connection_control,test_services,collations,service_udf_registration,service_sys_var_registration,service_status_var_registration,x";
+"main,sys_vars,binlog,binlog_gtid,binlog_nogtid,federated,gis,rpl,rpl_gtid,rpl_nogtid,innodb,innodb_gis,innodb_fts,innodb_zip,innodb_undo,perfschema,funcs_1,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol,sysschema,test_service_sql_api,json,connection_control,test_services,collations,service_udf_registration,service_sys_var_registration,service_status_var_registration,x,secondary_engine";
 
 my $build_thread       = 0;
 my $daemonize_mysqld   = 0;
