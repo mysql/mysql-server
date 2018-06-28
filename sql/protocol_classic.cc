@@ -1361,19 +1361,16 @@ uint Protocol_classic::get_output_pkt_nr() { return m_thd->net.pkt_nr; }
 String *Protocol_classic::get_output_packet() { return &m_thd->packet; }
 
 int Protocol_classic::read_packet() {
-  int ret;
-  if ((input_packet_length = my_net_read(&m_thd->net)) &&
-      input_packet_length != packet_error) {
+  input_packet_length = my_net_read(&m_thd->net);
+  if (input_packet_length != packet_error) {
     DBUG_ASSERT(!m_thd->net.error);
     bad_packet = false;
     input_raw_packet = m_thd->net.read_pos;
     return 0;
-  } else if (m_thd->net.error == 3)
-    ret = 1;
-  else
-    ret = -1;
+  }
+
   bad_packet = true;
-  return ret;
+  return m_thd->net.error == 3 ? 1 : -1;
 }
 
 /* clang-format off */
