@@ -32,7 +32,7 @@ SET GLOBAL mysqlx_socket=$MYSQL_TMP_DIR/socket_mysqlx.sock;
 
 --let UNIX_SOCKET_REGEX= /( |=)\/.*\.(sock|socket)/\1 SOCKET/
 
-call mtr.add_suppression("Plugin mysqlx reported: .Setup of socket: '' failed, the socket file path is empty");
+call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket \(.+\) failed, the socket file path is empty");
 let $restart_parameters = restart: --loose-mysqlx-socket=;
 --let $wait_for_unixsocket_status = undefined_value
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
@@ -42,7 +42,7 @@ let $restart_parameters = restart: --loose-mysqlx-socket=;
 --exec $MYSQLXTEST --socket=$MASTER_X_MYSOCK -ux_root --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.tmp 2>&1
 
 
-call mtr.add_suppression("Plugin mysqlx reported: .Setup of socket: '\(.+\)' failed, can't create lock file /dev/null/mysqlx\.sock\.lock");
+call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket \(.+\) failed, can't create lock file /dev/null/mysqlx\.sock\.lock");
 let $restart_parameters = restart: --loose-mysqlx-socket="/dev/null/mysqlx.sock";
 --let $wait_for_unixsocket_status = undefined_value
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
@@ -57,7 +57,7 @@ let $restart_parameters = restart: --loose-mysqlx-socket="/dev/null/mysqlx.sock"
 
 # Use the same socket as mysqld uses
 # X Plugin should fail with allocation
-call mtr.add_suppression("Plugin mysqlx reported: .Setup of socket: '\(.+\)' failed, lock file wasn't allocated by X Plugin");
+call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket \(.+\) failed, lock file wasn't allocated by X Plugin");
 
 --replace_regex $UNIX_SOCKET_REGEX
 let $restart_parameters = restart: --loose-mysqlx-socket=$MASTER_MYSOCK;
@@ -87,7 +87,7 @@ let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/file.soc
 
 # Try to use directory as UNIX socket
 --let DIR_NAME= d.sock
-call mtr.add_suppression("Plugin mysqlx reported: .Setup of socket: '\(.+\)' failed, .bind... on UNIX socket failed with error");
+call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket \(.+\) failed, .bind... on UNIX socket failed with error");
 --mkdir $MYSQL_TMP_DIR/$DIR_NAME
 --replace_regex $UNIX_SOCKET_REGEX
 let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/$DIR_NAME;
@@ -100,7 +100,7 @@ let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/$DIR_NAM
 
 
 # Try to create a UNIX socket inside directory without permissions to it
-call mtr.add_suppression("Plugin mysqlx reported: .Setup of socket: '\(.+\)' failed, can't create lock file .+\.lock");
+call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket \(.+\) failed, can't create lock file .+\.lock");
 --chmod 0000 $MYSQL_TMP_DIR/$DIR_NAME/
 --replace_regex $UNIX_SOCKET_REGEX
 let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/$DIR_NAME/x.sock;
@@ -113,7 +113,7 @@ let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/$DIR_NAM
 --chmod 0777 $MYSQL_TMP_DIR/$DIR_NAME/
 
 
-call mtr.add_suppression("Plugin mysqlx reported: .Setup of socket: '\(.+\)' failed, can't create lock file .*ne/x.sock.lock");
+call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket \(.+\) failed, can't create lock file .*ne/x.sock.lock");
 --replace_regex $UNIX_SOCKET_REGEX
 # Following directory /no_existing/ was shorten to /ne/
 let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/$DIR_NAME/ne/x.sock;
@@ -126,7 +126,7 @@ let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/$DIR_NAM
 
 
 --mkdir $MYSQL_TMP_DIR/long_dir012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
-call mtr.add_suppression("Plugin mysqlx reported: .Setup of socket: '\(.+\)' failed, the socket file path is too long");
+call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket \(.+\) failed, the socket file path is too long");
 --replace_regex $UNIX_SOCKET_REGEX
 let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/long_dir012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789/x.sock;
 --let $wait_for_unixsocket_status = undefined_value

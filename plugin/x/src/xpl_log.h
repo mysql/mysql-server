@@ -52,8 +52,6 @@ void plugin_log_message(MYSQL_PLUGIN *p, const plugin_log_level, const char *);
 #define log_info(errcode, ...) \
   LogPluginErr(INFORMATION_LEVEL, errcode, ##__VA_ARGS__)
 
-#define log_system(errcode, ...) LogErr(SYSTEM_LEVEL, errcode, ##__VA_ARGS__)
-
 #ifdef XPLUGIN_LOG_DEBUG
 #define log_debug(...) \
   LogPluginErrMsg(INFORMATION_LEVEL, ER_XPLUGIN_ERROR_MSG, ##__VA_ARGS__)
@@ -76,9 +74,6 @@ void plugin_log_message(MYSQL_PLUGIN *p, const plugin_log_level, const char *);
   } while (0)
 #define log_error(...) \
   do {                 \
-  } while (0)
-#define log_system(...) \
-  do {                  \
   } while (0)
 
 #endif  // XPLUGIN_DISABLE_LOG

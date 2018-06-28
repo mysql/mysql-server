@@ -297,7 +297,7 @@ bool Protocol_encoder::flush_buffer() {
 
     const ssize_t result = writter.get_result();
     if (result <= 0) {
-      log_debug("Error writing to client: %s (%i)", strerror(errno), errno);
+      log_info(ER_XPLUGIN_ERROR_WRITING_TO_CLIENT, strerror(errno), errno);
       on_error(errno);
       return false;
     }

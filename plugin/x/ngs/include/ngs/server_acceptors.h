@@ -72,7 +72,7 @@ class Server_acceptors {
   static void mark_as_stopped(Listener_interface *listener);
   static void wait_until_stopped(Listener_interface *listener);
   static void close_listener(Listener_interface *listener);
-  static bool check_listener_status(Listener_interface *listener);
+  static void report_listener_status(Listener_interface *listener);
 
   std::string m_bind_address;
   Listener_interface_ptr m_tcp_socket;

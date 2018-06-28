@@ -109,7 +109,7 @@ void Client::activate_tls() {
                                            real_connect_timeout)) {
     session()->mark_as_tls_session();
   } else {
-    log_debug("%s: Error during SSL handshake", client_id());
+    log_warning(ER_XPLUGIN_SSL_HANDSHAKE_WITH_SERVER_FAILED, client_id());
     disconnect_and_trigger_close();
   }
 }
@@ -216,8 +216,8 @@ void Client::handle_message(Message_request &request) {
     default:
       // invalid message at this time
       m_protocol_monitor->on_error_unknown_msg_type();
-      log_debug("%s: Invalid message %i received during client initialization",
-                client_id(), request.get_message_type());
+      log_info(ER_XPLUGIN_INVALID_MSG_DURING_CLIENT_INIT, client_id(),
+               request.get_message_type());
       m_encoder->send_result(ngs::Fatal(ER_X_BAD_MESSAGE, "Invalid message"));
       m_close_reason = Close_error;
       disconnect_and_trigger_close();
@@ -394,8 +394,7 @@ void Client::on_session_reset(Session_interface &s MY_ATTRIBUTE((unused))) {
 }
 
 void Client::on_server_shutdown() {
-  log_debug("%s: closing client because of shutdown (state: %i)", client_id(),
-            m_state.load());
+  log_info(ER_XPLUGIN_CLOSING_CLIENTS_ON_SHUTDOWN, client_id(), m_state.load());
   // XXX send a server shutdown notice
   disconnect_and_trigger_close();
 }

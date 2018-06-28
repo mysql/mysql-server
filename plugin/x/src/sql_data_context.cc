@@ -108,7 +108,7 @@ bool Sql_data_context::kill() {
         const char *user = MYSQL_SESSION_USER;
         const char *host = MYSQLXSYS_HOST;
         if (security_context_lookup(scontext, user, host, NULL, NULL))
-          log_warning(ER_XPLUGIN_FAILED_TO_SWITCH_SECURITY_CTX, user);
+          log_warning(ER_XPLUGIN_FAILED_TO_SWITCH_SECURITY_CTX_TO_ROOT);
         else {
           COM_DATA data;
           Callback_command_delegate deleg;
@@ -125,8 +125,8 @@ bool Sql_data_context::kill() {
             if (!deleg.get_error())
               ok = true;
             else
-              log_debug("Kill client: %i %s", deleg.get_error().error,
-                        deleg.get_error().message.c_str());
+              log_info(ER_XPLUGIN_CLIENT_KILL_MSG, deleg.get_error().error,
+                       deleg.get_error().message.c_str());
           }
         }
       }

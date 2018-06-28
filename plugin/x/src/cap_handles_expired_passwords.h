@@ -52,8 +52,7 @@ class Cap_handles_expired_passwords : public ngs::Capability_handler {
     try {
       m_value = ngs::Getter_any::get_numeric_value<bool>(any);
     } catch (const ngs::Error_code &error) {
-      log_debug("Capability expired password failed with error: %s",
-                error.message.c_str());
+      log_error(ER_XPLUGIN_CAPABILITY_EXPIRED_PASSWORD, error.message.c_str());
       return false;
     }
     return true;

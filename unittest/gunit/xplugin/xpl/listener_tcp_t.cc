@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -508,7 +508,7 @@ TEST_F(Listener_tcp_testsuite, is_handled_by_socket_event_always_true) {
 TEST_F(Listener_tcp_testsuite, get_name_and_configuration) {
   make_sut(ALL_INTERFACES_6, 2222);
 
-  ASSERT_STREQ("bind-address: '::' port: 2222",
+  ASSERT_STREQ("TCP (bind-address:'::', port:2222)",
                sut->get_name_and_configuration().c_str());
 }
 

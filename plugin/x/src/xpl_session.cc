@@ -94,7 +94,7 @@ ngs::Error_code xpl::Session::init() {
 void xpl::Session::on_kill() {
   if (!m_sql.is_killed()) {
     if (!m_sql.kill())
-      log_debug("%s: Could not interrupt client session", m_client.client_id());
+      log_info(ER_XPLUGIN_FAILED_TO_INTERRUPT_SESSION, m_client.client_id());
   }
 
   on_close(true);

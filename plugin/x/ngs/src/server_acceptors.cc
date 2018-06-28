@@ -28,7 +28,6 @@
 
 #include <stdlib.h>
 #include <algorithm>
-#include <cctype>
 #include <iterator>
 
 #include "plugin/x/ngs/include/ngs/log.h"
@@ -155,22 +154,8 @@ bool Server_acceptors::prepare(On_connection on_connection,
 
   Listener_interfaces listeners = get_array_of_listeners();
 
-  if (!listeners.empty() &&
-      std::all_of(listeners.begin(), listeners.end(),
-                  Server_acceptors::check_listener_status)) {
-    std::string combined_status;
-    std::size_t pos = listeners.size();
-    while (pos > 1) {
-      combined_status += listeners[pos - 1]->get_name_and_configuration() + " ";
-      pos--;
-    }
-    combined_status += listeners[0]->get_name_and_configuration();
-
-    auto first_non_blank_pos = combined_status.find_first_not_of("\t ");
-    combined_status[first_non_blank_pos] =
-        ::toupper(combined_status[first_non_blank_pos]);
-    log_system(ER_XPLUGIN_LISTENER_STATUS_MSG, combined_status.c_str());
-  }
+  std::for_each(listeners.begin(), listeners.end(),
+                Server_acceptors::report_listener_status);
 
   m_prepared = true;
 
@@ -284,7 +269,7 @@ void Server_acceptors::mark_as_stopped(Listener_interface *listener) {
   listener->get_state().set(State_listener_stopped);
 }
 
-bool Server_acceptors::check_listener_status(Listener_interface *listener) {
+void Server_acceptors::report_listener_status(Listener_interface *listener) {
   if (!listener->get_state().is(State_listener_prepared)) {
     log_error(ER_XPLUGIN_LISTENER_SETUP_FAILED,
               listener->get_name_and_configuration().c_str(),
@@ -298,7 +283,9 @@ bool Server_acceptors::check_listener_status(Listener_interface *listener) {
                listener_configuration_variable.c_str());
     }
 
-    return false;
+    return;
   }
-  return true;
+
+  log_info(ER_XPLUGIN_LISTENER_STATUS_MSG,
+           listener->get_name_and_configuration().c_str());
 }

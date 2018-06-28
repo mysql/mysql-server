@@ -138,8 +138,8 @@ bool Session::handle_auth_message(ngs::Message_request &command) {
     m_auth_handler =
         m_client.server().get_auth_handler(authm.mech_name(), this);
     if (!m_auth_handler.get()) {
-      log_debug("%s.%u: Invalid authentication method %s", m_client.client_id(),
-                m_id, authm.mech_name().c_str());
+      log_info(ER_XPLUGIN_INVALID_AUTH_METHOD, m_client.client_id(), m_id,
+               authm.mech_name().c_str());
       m_encoder->send_init_error(ngs::Fatal(ER_NOT_SUPPORTED_AUTH_MODE,
                                             "Invalid authentication method %s",
                                             authm.mech_name().c_str()));
@@ -158,9 +158,8 @@ bool Session::handle_auth_message(ngs::Message_request &command) {
     r = m_auth_handler->handle_continue(authm.auth_data());
   } else {
     m_encoder->get_protocol_monitor().on_error_unknown_msg_type();
-    log_debug(
-        "%s: Unexpected message of type %i received during authentication",
-        m_client.client_id(), type);
+    log_info(ER_XPLUGIN_UNEXPECTED_MSG_DURING_AUTHENTICATION,
+             m_client.client_id(), type);
     m_encoder->send_init_error(ngs::Fatal(ER_X_BAD_MESSAGE, "Invalid message"));
     stop_auth();
     return false;
@@ -172,6 +171,8 @@ bool Session::handle_auth_message(ngs::Message_request &command) {
       break;
 
     case Authentication_interface::Failed:
+      // It is possible to use different auth methods therefore we should not
+      // call on_auth_failure after first failed attemp
       on_auth_failure(r);
       break;
 
@@ -212,10 +213,8 @@ void Session::on_auth_failure(
 
   m_encoder->send_init_error(error_send_back_to_user);
 
-  // It is possible to use different auth methods therefore we should not
-  // stop authentication in such case.
   if (!can_authenticate_again()) {
-    log_info(ER_XPLUGIN_MAX_AUTH_ATTEMPTS_REACHED, m_client.client_id(), m_id);
+    log_error(ER_XPLUGIN_MAX_AUTH_ATTEMPTS_REACHED, m_client.client_id(), m_id);
     stop_auth();
   }
 
@@ -227,14 +226,10 @@ Error_code Session::get_authentication_access_denied_error() const {
   const char *is_using_password = authentication_info.m_was_using_password
                                       ? my_get_err_msg(ER_YES)
                                       : my_get_err_msg(ER_NO);
-  std::string username = authentication_info.m_tried_account_name;
-  std::string hostname = client().client_hostname_or_address();
-  auto result = ngs::SQLError(ER_ACCESS_DENIED_ERROR, username.c_str(),
-                              hostname.c_str(), is_using_password);
 
-  if (can_authenticate_again())
-    log_debug("Try to authenticate again, got: %s", result.message.c_str());
-  return result;
+  return ngs::SQLError(
+      ER_ACCESS_DENIED_ERROR, authentication_info.m_tried_account_name.c_str(),
+      client().client_hostname_or_address(), is_using_password);
 }
 
 bool Session::can_forward_error_code_to_client(const int error_code) {

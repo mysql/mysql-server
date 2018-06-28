@@ -1,5 +1,4 @@
 call mtr.add_suppression("Maximum number of authentication attempts reached");
-call mtr.add_suppression("Access denied for user .*");
 CREATE USER user_to_lock@localhost IDENTIFIED WITH 'caching_sha2_password' BY 'xxx';
 GRANT ALL ON *.* TO user_to_lock@localhost;
 RUN select 1
