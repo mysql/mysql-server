@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -799,6 +799,10 @@ TAPTEST(LogBuffer)
   stop_t2 = true;
   NdbThread_WaitFor(log_threadvar1, NULL);
 
+  NdbThread_Destroy(&log_threadvar1);
+  NdbThread_Destroy(&prod_threadvar1);
+  NdbThread_Destroy(&prod_threadvar2);
+
   printf("\n--------TESTCASE 2 COMPLETE--------\n\n");
 
   printf("--------TESTCASE 3- RANDOM READS & WRITES--------\n\n");
@@ -828,6 +832,10 @@ TAPTEST(LogBuffer)
   {
     assert(total_to_write_t3 == bytes_written_t3);
   }
+
+  NdbThread_Destroy(&log_threadvar2);
+  NdbThread_Destroy(&prod_threadvar3);
+
   printf("\n--------TESTCASE 3 COMPLETE--------\n\n");
 
   delete buf_t1;
