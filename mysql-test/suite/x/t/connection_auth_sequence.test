@@ -10,7 +10,6 @@
 #
 
 call mtr.add_suppression("Maximum number of authentication attempts reached");
-call mtr.add_suppression("Access denied for user .*");
 
 --write_file $MYSQL_TMP_DIR/auth_seq.tmp
 -->import connection_auth_mechanism_memory_helpers.macro

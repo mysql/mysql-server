@@ -57,7 +57,7 @@ void Scheduler_dynamic::launch() {
   int32 int_0 = 0;
   if (m_is_running.compare_exchange_strong(int_0, 1)) {
     create_min_num_workers();
-    log_debug("Scheduler \"%s\" started.", m_name.c_str());
+    log_info(ER_XPLUGIN_SCHEDULER_STARTED, m_name.c_str());
   }
 }
 
@@ -117,7 +117,7 @@ void Scheduler_dynamic::stop() {
       ngs::thread_join(&thread, NULL);
     }
 
-    log_debug("Scheduler \"%s\" stopped.", m_name.c_str());
+    log_info(ER_XPLUGIN_SCHEDULER_STOPPED, m_name.c_str());
   }
 }
 

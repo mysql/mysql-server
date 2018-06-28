@@ -3,7 +3,6 @@
 ## Preamble
 SET GLOBAL mysqlx_connect_timeout = 300;
 call mtr.add_suppression("Maximum number of authentication attempts reached");
-call mtr.add_suppression("Access denied for user .*");
 CREATE USER user1_mysqlx@localhost
 IDENTIFIED WITH 'mysql_native_password' BY 'auth_string1';
 CREATE USER user2_mysqlx@localhost
@@ -537,7 +536,6 @@ SET GLOBAL mysqlx_connect_timeout = DEFAULT;
 ## Preamble
 SET GLOBAL mysqlx_connect_timeout = 300;
 call mtr.add_suppression("Maximum number of authentication attempts reached");
-call mtr.add_suppression("Access denied for user .*");
 CREATE USER user1_mysqlx@localhost
 IDENTIFIED WITH 'sha256_password' BY 'auth_string1';
 CREATE USER user2_mysqlx@localhost
@@ -1071,7 +1069,6 @@ SET GLOBAL mysqlx_connect_timeout = DEFAULT;
 ## Preamble
 SET GLOBAL mysqlx_connect_timeout = 300;
 call mtr.add_suppression("Maximum number of authentication attempts reached");
-call mtr.add_suppression("Access denied for user .*");
 CREATE USER user1_mysqlx@localhost
 IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string1';
 CREATE USER user2_mysqlx@localhost

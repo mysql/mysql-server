@@ -5,7 +5,6 @@
 --source include/xplugin_create_user.inc
 
 call mtr.add_suppression("Maximum number of authentication attempts reached, login failed");
-call mtr.add_suppression("Access denied for user .*");
 
 ## Test starts here
 

@@ -179,7 +179,7 @@ it is guaranteed that it'll run in the acceptor thread.
 */
 bool xpl::Server::on_verify_server_state() {
   if (is_exiting()) {
-    if (!exiting) log_debug("Shutdown triggered by mysqld abort flag");
+    if (!exiting) log_info(ER_XPLUGIN_SHUTDOWN_TRIGGERED);
 
     // closing clients has been moved to other thread
     // this thread have to gracefully shutdown io operations
@@ -363,7 +363,7 @@ int xpl::Server::main(MYSQL_PLUGIN p) {
   } catch (const std::exception &e) {
     if (instance) instance->server().start_failed();
     instance_rwl.unlock();
-    log_error(ER_XPLUGIN_STARTUP_FAILED, e.what());
+    LogPluginErr(ERROR_LEVEL, ER_XPLUGIN_STARTUP_FAILED, e.what());
     return 1;
   }
 
@@ -375,7 +375,8 @@ int xpl::Server::exit(MYSQL_PLUGIN) {
   // acceptor thread exit
   exiting = true;
 
-  log_debug("Exiting");
+  if (nullptr != xpl::plugin_handle)
+    LogPluginErr(INFORMATION_LEVEL, ER_XPLUGIN_SERVER_EXITING);
   if (instance) {
     instance->unregister_udfs();
     instance->unregister_services();
@@ -403,7 +404,8 @@ int xpl::Server::exit(MYSQL_PLUGIN) {
     instance = NULL;
   }
 
-  log_debug("Exit done");
+  if (nullptr != xpl::plugin_handle)
+    LogPluginErr(INFORMATION_LEVEL, ER_XPLUGIN_SERVER_EXITED);
 
   xpl::plugin_handle = nullptr;
 
@@ -462,10 +464,7 @@ void xpl::Server::verify_mysqlx_user_grants(Sql_data_context &context) {
   } while (sql_result.next_row());
 
   if (has_select_on_mysql_user && has_super) {
-    log_debug(
-        "Using %s account for authentication which has all required \
-permissions",
-        MYSQLXSYS_ACCOUNT);
+    log_info(ER_XPLUGIN_USER_ACCOUNT_WITH_ALL_PERMISSIONS, MYSQLXSYS_ACCOUNT);
     return;
   }
 
@@ -473,8 +472,8 @@ permissions",
   // lets accept it, and apply the grants
   if (has_no_privileges && (num_of_grants == 1 ||
                             (num_of_grants == 2 && has_select_on_mysql_user))) {
-    log_warning(ER_XPLUGIN_EXISTING_USER_ACCOUNT_WITH_INCOMPLETE_GRANTS,
-                MYSQLXSYS_ACCOUNT);
+    log_info(ER_XPLUGIN_EXISTING_USER_ACCOUNT_WITH_INCOMPLETE_GRANTS,
+             MYSQLXSYS_ACCOUNT);
     throw ngs::Error(ER_X_MYSQLX_ACCOUNT_MISSING_PERMISSIONS,
                      "%s account without any grants", MYSQLXSYS_ACCOUNT);
   }
@@ -497,9 +496,9 @@ void xpl::Server::net_thread() {
 #endif
 
   if (on_net_startup()) {
-    log_debug("Server starts handling incoming connections");
+    log_info(ER_XPLUGIN_SERVER_STARTS_HANDLING_CONNECTIONS);
     m_server.start();
-    log_debug("Stopped handling incoming connections");
+    log_info(ER_XPLUGIN_SERVER_STOPPED_HANDLING_CONNECTIONS);
   }
 
   ssl_wrapper_thread_cleanup();
@@ -511,16 +510,16 @@ static xpl::Ssl_config choose_ssl_config(const bool mysqld_have_ssl,
                                          const xpl::Ssl_config &mysqld_ssl,
                                          const xpl::Ssl_config &mysqlx_ssl) {
   if (!mysqlx_ssl.is_configured() && mysqld_have_ssl) {
-    log_info(ER_XPLUGIN_USING_SSL_CONF_FROM_SERVER);
+    LogPluginErr(INFORMATION_LEVEL, ER_XPLUGIN_USING_SSL_CONF_FROM_SERVER);
     return mysqld_ssl;
   }
 
   if (mysqlx_ssl.is_configured()) {
-    log_info(ER_XPLUGIN_USING_SSL_CONF_FROM_MYSQLX);
+    LogPluginErr(INFORMATION_LEVEL, ER_XPLUGIN_USING_SSL_CONF_FROM_MYSQLX);
     return mysqlx_ssl;
   }
 
-  log_info(ER_XPLUGIN_FAILED_TO_USE_SSL_CONF);
+  LogPluginErr(INFORMATION_LEVEL, ER_XPLUGIN_FAILED_TO_USE_SSL_CONF);
 
   return xpl::Ssl_config();
 }
@@ -593,9 +592,11 @@ bool xpl::Server::on_net_startup() {
     if (ssl_setup_result) {
       const char *is_wolfssl_or_openssl =
           IS_WOLFSSL_OR_OPENSSL("WolfSSL", "OpenSSL");
-      log_info(ER_XPLUGIN_USING_SSL_FOR_TLS_CONNECTION, is_wolfssl_or_openssl);
+      LogPluginErr(INFORMATION_LEVEL, ER_XPLUGIN_USING_SSL_FOR_TLS_CONNECTION,
+                   is_wolfssl_or_openssl);
     } else {
-      log_info(ER_XPLUGIN_REFERENCE_TO_SECURE_CONN_WITH_XPLUGIN);
+      LogPluginErr(INFORMATION_LEVEL,
+                   ER_XPLUGIN_REFERENCE_TO_SECURE_CONN_WITH_XPLUGIN);
     }
 
     if (instance->server().prepare(ngs::move(ssl_ctx), skip_networking,
@@ -741,7 +742,7 @@ void xpl::Server::unregister_services() const {
     Service_registrator r;
     r.unregister_service(SERVICE_ID(mysql_server, mysqlx_maintenance));
   } catch (const std::exception &e) {
-    log_error(ER_XPLUGIN_FAILED_TO_STOP_SERVICES, e.what());
+    LogPluginErr(ERROR_LEVEL, ER_XPLUGIN_FAILED_TO_STOP_SERVICES, e.what());
   }
 }
 
