@@ -69,7 +69,6 @@ run_ndbapitest_result.inc
 
 # Java related var/tmp generated include files
 have_clusterj_result.inc
-have_ndbjtie_junit_result.inc
 have_connectorj_result.inc
 have_java_result.inc
 
