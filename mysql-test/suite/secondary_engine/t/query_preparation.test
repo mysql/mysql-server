@@ -1,0 +1,256 @@
+--echo #
+--echo # Test that query preparation is able to make plans for executing
+--echo # a query on a secondary storage engine.
+--echo #
+
+--disable_query_log
+eval INSTALL PLUGIN mock SONAME '$MOCK_PLUGIN';
+--enable_query_log
+
+CREATE TABLE t1(id INT PRIMARY KEY, x INT, y INT);
+INSERT INTO t1 VALUES (1, 2, 3), (4, 5, 6), (7, 8, 9);
+CREATE INDEX t1_x ON t1(x);
+--sorted_result
+SELECT * FROM t1;
+
+CREATE TABLE t2(id INT PRIMARY KEY, z INT);
+INSERT INTO t2 VALUES (1, 2), (3, 4), (5, 6);
+
+CREATE VIEW v1 AS SELECT t1.id, t1.x, t2.z FROM t1, t2 WHERE t1.id = t2.id;
+SELECT * FROM v1;
+
+CREATE TABLE t_primary_only(id INT PRIMARY KEY, x INT);
+INSERT INTO t_primary_only VALUES (1, 1), (2, 2);
+
+ALTER TABLE t1 SECONDARY_ENGINE MOCK;
+ALTER TABLE t2 SECONDARY_ENGINE MOCK;
+
+# t1 has not been loaded into the secondary engine yet.
+--error ER_NO_SUCH_TABLE
+SELECT * FROM t1;
+--error ER_NO_SUCH_TABLE
+PREPARE ps FROM 'SELECT * FROM t1';
+
+# Load and unload t1.
+ALTER TABLE t1 SECONDARY_LOAD;
+PREPARE ps FROM 'SELECT * FROM t1';
+EXECUTE ps;
+ALTER TABLE t1 SECONDARY_UNLOAD;
+--error ER_NO_SUCH_TABLE
+EXECUTE ps;
+ALTER TABLE t1 SECONDARY_UNLOAD;
+--error ER_NO_SUCH_TABLE
+EXECUTE ps;
+DROP PREPARE ps;
+
+ALTER TABLE t1 SECONDARY_LOAD;
+ALTER TABLE t2 SECONDARY_LOAD;
+
+# The queries should now use the mock engine, which always returns an
+# empty result.
+SELECT * FROM t1;
+PREPARE ps FROM 'SELECT * FROM t1';
+EXECUTE ps;
+EXECUTE ps;
+FLUSH TABLES;
+SELECT * FROM t1;
+FLUSH TABLES;
+EXECUTE ps;
+DROP PREPARE ps;
+
+# The row count estimate should be available (via the primary table).
+ANALYZE TABLE t1;
+EXPLAIN SELECT * FROM t1;
+
+# Some queries that should use the secondary engine.
+SELECT * FROM t1 JOIN t2 USING (id);
+SELECT * FROM t1 WHERE t1.x IN (SELECT t2.z FROM t2);
+SELECT SUM(x) FROM t1 GROUP BY y;
+SELECT (SELECT MAX(x) FROM t1), (SELECT MIN(z) FROM t2), s FROM
+(SELECT SUM(z) AS s FROM t2) AS dt;
+SELECT * FROM v1;
+SELECT * FROM v1, t2 WHERE v1.id = t2.id;
+SELECT SUM(x) FROM v1;
+
+# A forced index scan cannot be offloaded, since the secondary storage
+# engine doesn't have indexes.
+--error ER_KEY_DOES_NOT_EXITS
+SELECT x FROM t1 FORCE INDEX (t1_x);
+--error ER_KEY_DOES_NOT_EXITS
+PREPARE ps FROM 'SELECT x FROM t1 FORCE INDEX (t1_x)';
+
+# The query should not be offloaded to the secondary engine if LOCK
+# TABLES mode is active.
+PREPARE ps FROM 'SELECT * FROM t1';
+LOCK TABLES t1 READ;
+SELECT * FROM t1;
+EXECUTE ps;
+EXECUTE ps;
+UNLOCK TABLES;
+SELECT * FROM t1;
+EXECUTE ps;
+EXECUTE ps;
+DROP PREPARE ps;
+
+# The query should not be offloaded to the secondary engine in
+# multi-statement transaction mode.
+PREPARE ps FROM 'SELECT * FROM t1';
+BEGIN;
+SELECT * FROM t1;
+EXECUTE ps;
+COMMIT;
+START TRANSACTION;
+SELECT * FROM t1;
+EXECUTE ps;
+COMMIT;
+SET @@autocommit = 0;
+SELECT * FROM t1;
+EXECUTE ps;
+SET @@autocommit = 1;
+COMMIT;
+SELECT * FROM t1;
+EXECUTE ps;
+DROP PREPARE ps;
+
+# Queries that access at least one table that is not available in a
+# secondary engine, should not be offloaded.
+SELECT * FROM t1, t_primary_only tp WHERE t1.id = tp.id;
+PREPARE ps FROM 'SELECT * FROM t1, t_primary_only tp WHERE t1.id = tp.id';
+EXECUTE ps;
+EXECUTE ps;
+DROP PREPARE ps;
+SELECT * FROM t1, t2, t_primary_only tp WHERE t1.id = t2.id AND t2.id = tp.id;
+
+# It should be possible to have tables with an auto-increment column
+# in a secondary engine.
+CREATE TABLE t_with_autoinc(id INT PRIMARY KEY AUTO_INCREMENT, x INT)
+SECONDARY_ENGINE MOCK;
+INSERT INTO t_with_autoinc(x) VALUES (4), (5), (6);
+ALTER TABLE t_with_autoinc SECONDARY_LOAD;
+SELECT * FROM t_with_autoinc;
+DROP TABLE t_with_autoinc;
+
+# Tables that are partitioned in the primary engine can also have
+# secondary tables.
+CREATE TABLE t_partitioned(id INT PRIMARY KEY, x INT)
+SECONDARY_ENGINE MOCK
+PARTITION BY HASH(id);
+INSERT INTO t_partitioned VALUES (1, 2), (2, 3), (3, 4), (4, 5);
+ALTER TABLE t_partitioned SECONDARY_LOAD;
+SELECT * FROM t_partitioned;
+DROP TABLE t_partitioned;
+
+# Multiple queries in a single statement.
+DELIMITER |;
+SELECT * FROM t1;
+PREPARE ps FROM 'SELECT * FROM t1';
+EXECUTE ps;
+SELECT * FROM t1, t_primary_only tp WHERE t1.id = tp.id;
+EXECUTE ps;
+DROP PREPARE ps|
+DELIMITER ;|
+
+# Prepared statement with an argument.
+PREPARE ps FROM 'SELECT x FROM t1 WHERE id = ?';
+SET @a=1;
+EXECUTE ps USING @a;
+EXECUTE ps USING @a;
+ALTER TABLE t1 SECONDARY_UNLOAD;
+--error ER_NO_SUCH_TABLE
+EXECUTE ps USING @a;
+--error ER_NO_SUCH_TABLE
+EXECUTE ps USING @a;
+ALTER TABLE t1 SECONDARY_LOAD;
+EXECUTE ps USING @a;
+EXECUTE ps USING @a;
+DROP PREPARE ps;
+
+# Test a query that returns multiple rows, even with the mock engine.
+--sorted_result
+SELECT JSON_EXTRACT(j, '$') FROM
+(SELECT '[]' AS j FROM DUAL UNION ALL SELECT '{}' FROM DUAL) AS dt
+LEFT JOIN t1 ON (TRUE);
+
+# Test a query that fails during execution, after optimization.
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_EXTRACT(j, '$') FROM
+(SELECT '[]' AS j FROM DUAL UNION ALL SELECT 'not-json' FROM DUAL) AS dt
+LEFT JOIN t1 ON (TRUE);
+
+# Queries inside a procedure should not be offloaded.
+CREATE PROCEDURE p1() SELECT COUNT(*) FROM t1;
+CALL p1();
+DROP PROCEDURE p1;
+
+# Queries inside a trigger should not be offloaded.
+CREATE TABLE t_with_trigger(x INT);
+CREATE TRIGGER tr AFTER INSERT ON t_with_trigger
+FOR EACH ROW SELECT COUNT(*) FROM t1 INTO @a;
+INSERT INTO t_with_trigger VALUES (1);
+SELECT @a;
+DROP TABLE t_with_trigger;
+
+# Non-existent secondary engine.
+CREATE TABLE t_nonexistent(x INT) SECONDARY_ENGINE NONEXISTENT;
+INSERT INTO t_nonexistent VALUES (1);
+--error ER_UNKNOWN_STORAGE_ENGINE
+SELECT * FROM t_nonexistent;
+SELECT * FROM t1 a, t_nonexistent b WHERE a.id = b.x;
+DROP TABLE t_nonexistent;
+
+# Same secondary engine specified with different case and differing
+# number of trailing blanks.
+CREATE TABLE t_case1(x INT) SECONDARY_ENGINE 'MOCK';
+CREATE TABLE t_case2(y INT) SECONDARY_ENGINE 'mock ';
+CREATE TABLE t_case3(z INT) SECONDARY_ENGINE 'MoCk  ';
+INSERT INTO t_case1 VALUES (1);
+INSERT INTO t_case2 VALUES (2);
+INSERT INTO t_case3 VALUES (3);
+ALTER TABLE t_case1 SECONDARY_LOAD;
+ALTER TABLE t_case2 SECONDARY_LOAD;
+ALTER TABLE t_case3 SECONDARY_LOAD;
+SELECT * FROM t_case1, t_case2, t_case3;
+DROP TABLE t_case1, t_case2, t_case3;
+
+# Queries that invoke stored routines should not be offloaded.
+CREATE TABLE tf(x INT) SECONDARY_ENGINE MOCK;
+INSERT INTO tf VALUES (123);
+ALTER TABLE tf SECONDARY_LOAD;
+DELIMITER |;
+CREATE FUNCTION f1() RETURNS INT DETERMINISTIC
+BEGIN
+  DECLARE i INT;
+  SELECT x INTO i FROM tf;
+  RETURN i;
+END|
+CREATE FUNCTION f2() RETURNS INT DETERMINISTIC
+BEGIN
+  INSERT INTO tf VALUES (234);
+  RETURN 1;
+END|
+DELIMITER ;|
+SELECT f1();
+SELECT f2();
+--sorted_result
+SELECT * FROM tf;
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP TABLE tf;
+
+# Drop a table between two executions.
+CREATE TABLE t_dropped (x INT) SECONDARY_ENGINE MOCK;
+ALTER TABLE t_dropped SECONDARY_LOAD;
+PREPARE ps FROM 'SELECT * FROM t_dropped';
+EXECUTE ps;
+DROP TABLE t_dropped;
+--error ER_NO_SUCH_TABLE
+EXECUTE ps;
+DROP PREPARE ps;
+
+# Cleanup.
+DROP VIEW v1;
+DROP TABLE t1, t2, t_primary_only;
+
+--disable_query_log
+UNINSTALL PLUGIN mock;
+--enable_query_log

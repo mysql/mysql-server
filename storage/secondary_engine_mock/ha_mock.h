@@ -65,15 +65,15 @@ class ha_mock : public handler {
 
   int close() override { return 0; }
 
-  int rnd_init(bool) override { return HA_ERR_WRONG_COMMAND; }
+  int rnd_init(bool) override { return 0; }
 
-  int rnd_next(unsigned char *) override { return HA_ERR_WRONG_COMMAND; }
+  int rnd_next(unsigned char *) override { return HA_ERR_END_OF_FILE; }
 
   int rnd_pos(unsigned char *, unsigned char *) override {
     return HA_ERR_WRONG_COMMAND;
   }
 
-  int info(unsigned int) override { return HA_ERR_WRONG_COMMAND; }
+  int info(unsigned int) override;
 
   void position(const unsigned char *) override {}
 

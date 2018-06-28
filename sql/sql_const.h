@@ -33,7 +33,17 @@
 #include "my_inttypes.h"
 
 #define LIBLEN FN_REFLEN - FN_LEN /* Max l{ngd p} dev */
-/* extra 4+4 bytes for slave tmp tables */
+/**
+  The maximum length of a key in the table definition cache.
+
+  The key consists of the schema name, a '\0' character, the table
+  name and a '\0' character. Hence NAME_LEN * 2 + 1 + 1.
+
+  Additionally, the key can be suffixed with either 4 + 4 extra bytes
+  for slave tmp tables, or with a single extra byte for tables in a
+  secondary storage engine. Add 4 + 4 to account for either of these
+  suffixes.
+*/
 #define MAX_DBKEY_LENGTH (NAME_LEN * 2 + 1 + 1 + 4 + 4)
 #define MAX_ALIAS_NAME 256
 #define MAX_FIELD_NAME 34 /* Max colum name length +2 */

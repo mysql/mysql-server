@@ -82,6 +82,16 @@ int ha_mock::open(const char *, int, unsigned int, const dd::Table *) {
   return 0;
 }
 
+int ha_mock::info(unsigned int flags) {
+  // Get the cardinality statistics from the primary storage engine.
+  handler *primary = ha_get_primary_handler();
+  int ret = primary->info(flags);
+  if (ret == 0) {
+    stats.records = primary->stats.records;
+  }
+  return ret;
+}
+
 THR_LOCK_DATA **ha_mock::store_lock(THD *, THR_LOCK_DATA **to,
                                     thr_lock_type lock_type) {
   if (lock_type != TL_IGNORE && m_lock.type == TL_UNLOCK)

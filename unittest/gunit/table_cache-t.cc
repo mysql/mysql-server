@@ -127,7 +127,7 @@ class Mock_share : public TABLE_SHARE {
   Mock_share(const char *key)
       :  // Assertion in some of Table_cache methods check that the
          // version of the share is up-to-date, so make sure it's set.
-        TABLE_SHARE(refresh_version) {
+        TABLE_SHARE(refresh_version, false) {
     /*
       Both table_cache_key and cache_element array are used by
       Table_cache code.

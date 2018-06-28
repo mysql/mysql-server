@@ -126,8 +126,8 @@ void assign_new_table_id(TABLE_SHARE *share);
 uint cached_table_definitions(void);
 size_t get_table_def_key(const TABLE_LIST *table_list, const char **key);
 TABLE_SHARE *get_table_share(THD *thd, const char *db, const char *table_name,
-                             const char *key, size_t key_length,
-                             bool open_view);
+                             const char *key, size_t key_length, bool open_view,
+                             bool open_secondary = false);
 void release_table_share(TABLE_SHARE *share);
 
 TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update,
@@ -185,6 +185,8 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update,
   which represents table open in storage engines can still be used.
 */
 #define MYSQL_OPEN_NO_NEW_TABLE_IN_SE 0x8000
+/** Open a shadow copy of a table from a secondary storage engine. */
+#define MYSQL_OPEN_SECONDARY_ENGINE 0x10000
 
 /** Please refer to the internals manual. */
 #define MYSQL_OPEN_REOPEN                                           \

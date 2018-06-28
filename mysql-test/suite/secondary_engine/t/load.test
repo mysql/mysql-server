@@ -58,6 +58,35 @@ ALTER TABLE t1 SECONDARY_ENGINE MOCK, ALGORITHM=COPY;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
+--echo #
+--echo # Load and unload a table in one session while another session
+--echo # accesses the table concurrently.
+--echo #
+CREATE TABLE t1 (a INT) SECONDARY_ENGINE MOCK;
+--disable_query_log
+--disable_result_log
+connect(con1, localhost, root);
+let $i = 0;
+while ($i < 10) {
+  inc $i;
+  connection con1;
+  --send ALTER TABLE t1 SECONDARY_LOAD; ALTER TABLE t1 SECONDARY_UNLOAD
+  connection default;
+  let $j = 0;
+  while ($j < 5) {
+    inc $j;
+    --error 0, ER_NO_SUCH_TABLE
+    SELECT * FROM t1;
+  }
+  connection con1;
+  reap;
+}
+disconnect con1;
+connection default;
+--enable_query_log
+--enable_result_log
+DROP TABLE t1;
+
 --disable_query_log
 UNINSTALL PLUGIN mock;
 --enable_query_log

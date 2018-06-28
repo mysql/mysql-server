@@ -8615,3 +8615,9 @@ void ha_post_recover(void) {
   (void)plugin_foreach(nullptr, post_recover_handlerton,
                        MYSQL_STORAGE_ENGINE_PLUGIN, nullptr);
 }
+
+void handler::ha_set_primary_handler(handler *primary_handler) {
+  DBUG_ASSERT((ht->flags & HTON_SUPPORTS_SECONDARY) != 0);
+  DBUG_ASSERT(primary_handler->table->s->has_secondary());
+  m_primary_handler = primary_handler;
+}

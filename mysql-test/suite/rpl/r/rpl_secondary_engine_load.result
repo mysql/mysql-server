@@ -1,0 +1,152 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CALL mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* \\[Repl\\] Slave SQL for channel '':.*Error 'Unknown storage engine 'MOCK'' on query");
+CALL mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* \\[Repl\\] Slave: Unknown storage engine 'MOCK'");
+CALL mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* \\[Server\\] Unsafe statement written to the binary log using statement format");
+CALL mtr.add_suppression("The slave coordinator and worker threads are stopped");
+[ Connection Master ]
+INSTALL PLUGIN mock SONAME 'ha_mock.so';
+[ Connection Slave ]
+INSTALL PLUGIN mock SONAME 'ha_mock.so';
+[ Connection Master ]
+CREATE TABLE t1 (pk INT PRIMARY KEY AUTO_INCREMENT, vc VARCHAR(10), j JSON, b BLOB, vb VARBINARY(32)) SECONDARY_ENGINE=MOCK;
+include/sync_slave_sql_with_master.inc
+[ Connection Slave ]
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `vc` varchar(10) DEFAULT NULL,
+  `j` json DEFAULT NULL,
+  `b` blob,
+  `vb` varbinary(32) DEFAULT NULL,
+  PRIMARY KEY (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci SECONDARY_ENGINE=MOCK
+SELECT * FROM t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+[ Connection Master ]
+INSERT INTO t1 VALUES(NULL, 'Poodle', '{"key":"value"}', 'Pug', x'1234');
+INSERT INTO t1 VALUES(NULL, 'Labrador', '[{"key":"value"},{"key":"value2"}]', 'Boxer', x'abcd');
+INSERT INTO t1 VALUES(NULL, 'Beagle', '[1,2,3]', 'Pitbull', x'abcd1234');
+INSERT INTO t1 VALUES(NULL, 'Collie', '["ab","bc","cd"]', 'Huskey', x'1ab2c3d4');
+INSERT INTO t1 VALUES(NULL, 'Shiba', '{"1":"one"}', 'Mastiff', x'ffff');
+ALTER TABLE t1 SECONDARY_LOAD;
+include/sync_slave_sql_with_master.inc
+[ Connection Slave ]
+SELECT * FROM t1;
+pk	vc	j	b	vb
+[ Connection Master ]
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 SELECT * FROM t1;
+ALTER TABLE t2 SECONDARY_LOAD;
+include/sync_slave_sql_with_master.inc
+[ Connection Slave ]
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `vc` varchar(10) DEFAULT NULL,
+  `j` json DEFAULT NULL,
+  `b` blob,
+  `vb` varbinary(32) DEFAULT NULL,
+  PRIMARY KEY (`pk`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci SECONDARY_ENGINE=MOCK
+SELECT * FROM t2;
+pk	vc	j	b	vb
+[ Connection Master ]
+ALTER TABLE t1 SECONDARY_UNLOAD;
+include/sync_slave_sql_with_master.inc
+[ Connection Slave ]
+SELECT * FROM t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+[ Connection Master ]
+ALTER TABLE t1 SECONDARY_ENGINE=NULL;
+include/sync_slave_sql_with_master.inc
+[ Connection Slave ]
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `vc` varchar(10) DEFAULT NULL,
+  `j` json DEFAULT NULL,
+  `b` blob,
+  `vb` varbinary(32) DEFAULT NULL,
+  PRIMARY KEY (`pk`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t1;
+pk	vc	j	b	vb
+1	Poodle	{"key": "value"}	Pug	4
+2	Labrador	[{"key": "value"}, {"key": "value2"}]	Boxer	«Í
+3	Beagle	[1, 2, 3]	Pitbull	«Í4
+4	Collie	["ab", "bc", "cd"]	Huskey	²ÃÔ
+5	Shiba	{"1": "one"}	Mastiff	ÿÿ
+[ Connection Master ]
+ALTER TABLE t1 SECONDARY_ENGINE=HELLO;
+include/sync_slave_sql_with_master.inc
+[ Connection Slave ]
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `vc` varchar(10) DEFAULT NULL,
+  `j` json DEFAULT NULL,
+  `b` blob,
+  `vb` varbinary(32) DEFAULT NULL,
+  PRIMARY KEY (`pk`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci SECONDARY_ENGINE=HELLO
+ALTER TABLE t1 SECONDARY_ENGINE=NULL;
+ALTER TABLE t1 SECONDARY_ENGINE=NADA;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `vc` varchar(10) DEFAULT NULL,
+  `j` json DEFAULT NULL,
+  `b` blob,
+  `vb` varbinary(32) DEFAULT NULL,
+  PRIMARY KEY (`pk`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci SECONDARY_ENGINE=NADA
+ALTER TABLE t1 SECONDARY_ENGINE=NULL;
+ALTER TABLE t1 SECONDARY_ENGINE=MOCK;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `vc` varchar(10) DEFAULT NULL,
+  `j` json DEFAULT NULL,
+  `b` blob,
+  `vb` varbinary(32) DEFAULT NULL,
+  PRIMARY KEY (`pk`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci SECONDARY_ENGINE=MOCK
+ALTER TABLE t1 SECONDARY_LOAD;
+SELECT * FROM t1;
+pk	vc	j	b	vb
+ALTER TABLE t1 SECONDARY_UNLOAD;
+ALTER TABLE t2 SECONDARY_UNLOAD;
+[ Connection Master ]
+ALTER TABLE t1 SECONDARY_ENGINE=NULL;
+ALTER TABLE t1 SECONDARY_ENGINE=MOCK;
+include/sync_slave_sql_with_master.inc
+[ Connection Slave ]
+UNINSTALL PLUGIN mock;
+include/stop_slave_sql.inc
+[ Connection Master ]
+ALTER TABLE t1 SECONDARY_LOAD;
+[ Connection Slave ]
+START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_error.inc [errno=1286]
+INSTALL PLUGIN mock SONAME 'ha_mock.so';
+include/start_slave_sql.inc
+include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+SELECT * FROM t1;
+pk	vc	j	b	vb
+[ Connection Master ]
+DROP TABLE t1;
+DROP TABLE t2;
+UNINSTALL PLUGIN mock;
+include/sync_slave_sql_with_master.inc
+UNINSTALL PLUGIN mock;
+include/rpl_end.inc

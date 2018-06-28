@@ -3460,6 +3460,12 @@ class handler {
   enum_range_scan_direction range_scan_direction;
   int key_compare_result_on_equal;
 
+  /**
+    Pointer to the handler of the table in the primary storage engine,
+    if this handler represents a table in a secondary storage engine.
+  */
+  handler *m_primary_handler{nullptr};
+
  protected:
   KEY_PART_INFO *range_key_part;
   bool eq_range;
@@ -5725,6 +5731,19 @@ class handler {
 
   bool ha_upgrade_table(THD *thd, const char *dbname, const char *table_name,
                         dd::Table *dd_table, TABLE *table_arg);
+
+  /**
+    Store a pointer to the handler of the primary table that
+    corresponds to the secondary table in this handler.
+  */
+  void ha_set_primary_handler(handler *primary_handler);
+
+  /**
+    Get a pointer to a handler for the table in the primary storage
+    engine, if this handler is for a table in a secondary storage
+    engine.
+  */
+  handler *ha_get_primary_handler() const { return m_primary_handler; }
 
  protected:
   Handler_share *get_ha_share_ptr();

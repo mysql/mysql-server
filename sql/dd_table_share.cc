@@ -572,9 +572,25 @@ static row_type dd_get_old_row_format(dd::Table::enum_row_format new_format) {
 /** Fill TABLE_SHARE from dd::Table object */
 static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share,
                                const dd::Table *tab_obj) {
+  dd::Properties *table_options =
+      const_cast<dd::Properties *>(&tab_obj->options());
+
+  // Secondary storage engine.
+  if (table_options->exists("secondary_engine")) {
+    table_options->get("secondary_engine", share->secondary_engine,
+                       &share->mem_root);
+  } else {
+    // If no secondary storage engine is set, the share cannot
+    // represent a table in a secondary engine.
+    DBUG_ASSERT(!share->is_secondary());
+  }
+
   // Read table engine type
-  plugin_ref tmp_plugin =
-      ha_resolve_by_name_raw(thd, lex_cstring_handle(tab_obj->engine()));
+  LEX_CSTRING engine_name = lex_cstring_handle(tab_obj->engine());
+  if (share->is_secondary())
+    engine_name = {share->secondary_engine.str, share->secondary_engine.length};
+
+  plugin_ref tmp_plugin = ha_resolve_by_name_raw(thd, engine_name);
   if (tmp_plugin) {
 #ifndef DBUG_OFF
     handlerton *hton = plugin_data<handlerton *>(tmp_plugin);
@@ -586,7 +602,7 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share,
     plugin_unlock(NULL, share->db_plugin);
     share->db_plugin = my_plugin_lock(NULL, &tmp_plugin);
   } else {
-    my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), tab_obj->engine().c_str());
+    my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), engine_name.str);
     return true;
   }
 
@@ -595,9 +611,6 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share,
   share->db_low_byte_first = true;
 
   // Read other table options
-  dd::Properties *table_options =
-      const_cast<dd::Properties *>(&tab_obj->options());
-
   uint64 option_value;
   bool bool_opt;
 
@@ -724,11 +737,6 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share,
   // Read Encrypt string
   if (table_options->exists("encrypt_type"))
     table_options->get("encrypt_type", share->encrypt_type, &share->mem_root);
-
-  // Secondary storage engine.
-  if (table_options->exists("secondary_engine"))
-    table_options->get("secondary_engine", share->secondary_engine,
-                       &share->mem_root);
 
   return false;
 }
@@ -1007,7 +1015,10 @@ static bool fill_column_from_dd(THD *thd, TABLE_SHARE *share,
   reg_field->gcol_info = gcol_info;
   reg_field->stored_in_db = gcol_info ? gcol_info->get_field_stored() : true;
 
-  if (auto_flags & Field::NEXT_NUMBER)
+  // Auto-increment columns are maintained in the primary storage
+  // engine only. Treat the auto-increment column as a regular column
+  // in the secondary table.
+  if ((auto_flags & Field::NEXT_NUMBER) && share->is_primary())
     share->found_next_number_field = &share->field[field_nr];
 
   // Set field flags
@@ -1390,6 +1401,13 @@ static bool is_spatial_index_usable(const dd::Index &index) {
 
 static bool fill_indexes_from_dd(THD *thd, TABLE_SHARE *share,
                                  const dd::Table *tab_obj) {
+  share->keys_for_keyread.init(0);
+  share->keys_in_use.init();
+  share->visible_indexes.init();
+
+  // Indexes are not available in the secondary storage engine.
+  if (share->is_secondary()) return false;
+
   uint32 primary_key_parts = 0;
 
   bool use_extended_sk = ha_check_storage_engine_flag(
@@ -1416,10 +1434,6 @@ static bool fill_indexes_from_dd(THD *thd, TABLE_SHARE *share,
     // we will simply waste some memory.
     if (idx_obj->ordinal_position() == 1) primary_key_parts = key_parts;
   }
-
-  share->keys_for_keyread.init(0);
-  share->keys_in_use.init();
-  share->visible_indexes.init();
 
   // Allocate and fill KEY objects.
   if (share->keys) {
@@ -1836,6 +1850,11 @@ static bool set_field_list(MEM_ROOT *mem_root, dd::String_type &str,
 static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
                                       const dd::Table *tab_obj) {
   if (tab_obj->partition_type() == dd::Table::PT_NONE) return false;
+
+  // The DD only has information about how the table is partitioned in
+  // the primary storage engine, so don't use this information for
+  // tables in a secondary storage engine.
+  if (share->is_secondary()) return false;
 
   partition_info *part_info;
   part_info = new (&share->mem_root) partition_info;

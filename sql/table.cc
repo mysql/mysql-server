@@ -348,13 +348,16 @@ TABLE_CATEGORY get_table_category(const LEX_STRING &db,
   @param table_name  table name.
   @param key         table cache key (db \0 table_name \0...)
   @param key_length  length of the key
+  @param open_secondary  true if the TABLE_SHARE represents a table
+                         in a secondary storage engine
 
   @return            pointer to allocated table share
     @retval NULL     error (out of memory, too long path name)
 */
 
 TABLE_SHARE *alloc_table_share(const char *db, const char *table_name,
-                               const char *key, size_t key_length) {
+                               const char *key, size_t key_length,
+                               bool open_secondary) {
   MEM_ROOT mem_root;
   TABLE_SHARE *share = NULL;
   char *key_buff, *path_buff;
@@ -388,7 +391,7 @@ TABLE_SHARE *alloc_table_share(const char *db, const char *table_name,
                        &path_buff, path_length + 1, &cache_element_array,
                        table_cache_instances * sizeof(*cache_element_array),
                        NULL)) {
-    new (share) TABLE_SHARE(refresh_version);
+    new (share) TABLE_SHARE(refresh_version, open_secondary);
 
     share->set_table_cache_key(key_buff, key, key_length);
 

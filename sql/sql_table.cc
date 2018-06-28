@@ -2395,14 +2395,13 @@ static bool validate_secondary_engine_option(const Alter_info &alter_info,
 
   // SECONDARY_LOAD and SECONDARY_UNLOAD operations require the table to have a
   // secondary engine defined.
-  if (alter_info.flags & load_or_unload &&
-      table.s->secondary_engine.str == nullptr) {
+  if (alter_info.flags & load_or_unload && !table.s->has_secondary()) {
     my_error(ER_SECONDARY_ENGINE, MYF(0), "No secondary engine defined");
     return true;
   }
 
   // Remaining validation checks apply only to tables with a secondary engine.
-  if (table.s->secondary_engine.str == nullptr) return false;
+  if (!table.s->has_secondary()) return false;
 
   // These are the only supported ALTER TABLE operations.
   constexpr uint64_t supported_alter_operations =
@@ -2444,7 +2443,7 @@ static bool secondary_engine_load_table(THD *thd, const TABLE &table,
   DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(
       MDL_key::TABLE, table.s->db.str, table.s->table_name.str,
       MDL_SHARED_READ));
-  DBUG_ASSERT(table.s->secondary_engine.str != nullptr);
+  DBUG_ASSERT(table.s->has_secondary());
 
   // SECONDARY_LOAD cannot be used in conjunction with other DDLs.
   if (alter_info.flags & ~Alter_info::ALTER_SECONDARY_LOAD) {

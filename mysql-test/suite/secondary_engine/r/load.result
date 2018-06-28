@@ -57,3 +57,9 @@ t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci SECONDARY_ENGINE=MOCK
 DROP TABLE t1;
+#
+# Load and unload a table in one session while another session
+# accesses the table concurrently.
+#
+CREATE TABLE t1 (a INT) SECONDARY_ENGINE MOCK;
+DROP TABLE t1;

@@ -2528,8 +2528,8 @@ void pfs_destroy_cond_v1(PSI_cond *cond) {
   @sa PSI_v1::get_table_share.
 */
 PSI_table_share *pfs_get_table_share_v1(bool temporary, TABLE_SHARE *share) {
-  /* Ignore temporary tables and views. */
-  if (temporary || share->is_view) {
+  /* Ignore temporary tables, views and secondary tables. */
+  if (temporary || share->is_view || share->is_secondary()) {
     return NULL;
   }
   /* An instrumented thread is required, for LF_PINS. */

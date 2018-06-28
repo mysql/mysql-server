@@ -640,8 +640,11 @@ struct TABLE_SHARE {
   /**
     Create a new TABLE_SHARE with the given version number.
     @param version the version of the TABLE_SHARE
+    @param secondary set to true if the TABLE_SHARE represents a table
+                     in a secondary storage engine
   */
-  TABLE_SHARE(unsigned long version) : m_version(version) {}
+  TABLE_SHARE(unsigned long version, bool secondary)
+      : m_version(version), m_secondary(secondary) {}
 
   /*
     A map of [uint, Histogram] values, where the key is the field index. The
@@ -1115,6 +1118,20 @@ struct TABLE_SHARE {
     return --m_ref_count;
   }
 
+  /// Does this TABLE_SHARE represent a table in a primary storage engine?
+  bool is_primary() const { return !m_secondary; }
+
+  /// Does this TABLE_SHARE represent a table in a secondary storage engine?
+  bool is_secondary() const { return m_secondary; }
+
+  /**
+    Does this TABLE_SHARE represent a primary table that has a shadow
+    copy in a secondary storage engine?
+  */
+  bool has_secondary() const {
+    return is_primary() && secondary_engine.str != nullptr;
+  }
+
  private:
   /// How many TABLE objects use this TABLE_SHARE.
   unsigned int m_ref_count{0};
@@ -1125,6 +1142,9 @@ struct TABLE_SHARE {
     close_thread_tables!!!
   */
   unsigned long m_version{0};
+
+  /// Does this TABLE_SHARE represent a table in a secondary storage engine?
+  bool m_secondary{false};
 };
 
 /**
@@ -3634,7 +3654,8 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                           TABLE *outparam, bool is_create_table,
                           const dd::Table *table_def_param);
 TABLE_SHARE *alloc_table_share(const char *db, const char *table_name,
-                               const char *key, size_t key_length);
+                               const char *key, size_t key_length,
+                               bool open_secondary);
 void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
                           size_t key_length, const char *table_name,
                           const char *path, MEM_ROOT *mem_root);
