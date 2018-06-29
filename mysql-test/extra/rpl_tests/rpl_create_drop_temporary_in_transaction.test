@@ -1,0 +1,351 @@
+# ==== Purpose ====
+#
+# Verify that CREATE/DROP TEMPORARY TABLE is allowed in a transaction when
+# @@global.gtid_mode=ON and @@session.binlog_format=ROW/MIXED.
+#
+# ==== Implementation ====
+#
+# 1. Verify that CREATE TEMPORARY TABLE in a single STMT transaction
+#    is not written into binlog after committing the transaction.
+# 2. Verify that DROP TEMPORARY TABLE in a single STMT transaction
+#    is not written into binlog after committing the transaction.
+# 3. Verify that CREATE or DML against TEMPORARY TABLE in a MULTI STMTs
+#    transaction is not written into binlog after committing the
+#    transaction.
+# 4. Verify that DROP TEMPORARY TABLE in a MULTI STMTs transaction
+#    is not written into binlog after committing the transaction.
+# 5. Verify that CREATE TEMPORARY TABLE in a single STMT transaction
+#    is not written into binlog after rolling back the transaction.
+# 6. Verify that DROP TEMPORARY TABLE in a single STMT transaction
+#    is not written into binlog after rolling back the transaction.
+# 7. Verify that CREATE or DML against TEMPORARY TABLE in a MULTI STMTs
+#    transaction is not written into binlog after rolling back the
+#    transaction.
+# 9. Verify that DROP TEMPORARY TABLE in a MULTI STMTs transaction
+#    is not written into binlog after rolling back the transaction.
+# 10. Verify the above nine cases in procedures, since they are also
+#     considered as another form of Multi Statement Transactions.
+#
+# ==== References ====
+#
+# WL#8872: Allow CREATE TEMPORARY/DROP TEMPORARY in transaction when GTID_MODE=ON in RBR
+
+--source include/master-slave.inc
+
+--echo #
+--echo # Verify that CREATE TEMPORARY TABLE in a single STMT transaction
+--echo # is not written into binlog after committing the transaction.
+--echo #
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+BEGIN;
+CREATE TEMPORARY TABLE temp1 (i INT);
+COMMIT;
+--let $binlog_start= $saved_master_pos
+--source include/show_binlog_events.inc
+
+--source include/sync_slave_sql_with_master.inc
+--let $var_value= query_get_value(SHOW STATUS LIKE 'Slave_open_temp_tables', Value, 1)
+--let $assert_text= Slave_open_temp_tables shall be 0
+--let $assert_cond= $var_value = 0
+--source include/assert.inc
+
+--source include/rpl_connection_master.inc
+--echo #
+--echo # Verify that DROP TEMPORARY TABLE in a single STMT transaction
+--echo # is not written into binlog after committing the transaction.
+--echo #
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+BEGIN;
+DROP TEMPORARY TABLE temp1;
+COMMIT;
+--let $binlog_start= $saved_master_pos
+--source include/show_binlog_events.inc
+
+CREATE TABLE t1 (c1 INT);
+--echo #
+--echo # Verify that CREATE or DML against TEMPORARY TABLE in a MULTI STMTs
+--echo # transaction is not written into binlog after committing the
+--echo # transaction.
+--echo #
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+BEGIN;
+INSERT INTO t1 VALUES (1);
+CREATE TEMPORARY TABLE temp1 (i INT);
+INSERT INTO temp1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+COMMIT;
+--let $binlog_start= $saved_master_pos
+--source include/show_binlog_events.inc
+
+--source include/sync_slave_sql_with_master.inc
+--let $var_value= query_get_value(SHOW STATUS LIKE 'Slave_open_temp_tables', Value, 1)
+--let $assert_text= Slave_open_temp_tables shall be 0
+--let $assert_cond= $var_value = 0
+--source include/assert.inc
+
+--source include/rpl_connection_master.inc
+--echo #
+--echo # Verify that DROP TEMPORARY TABLE in a MULTI STMTs transaction
+--echo # is not written into binlog after committing the transaction.
+--echo #
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+BEGIN;
+INSERT INTO t1 VALUES (3);
+INSERT INTO temp1 VALUES (2);
+DROP TEMPORARY TABLE temp1;
+INSERT INTO t1 VALUES (4);
+COMMIT;
+--let $binlog_start= $saved_master_pos
+--source include/show_binlog_events.inc
+
+--source include/sync_slave_sql_with_master.inc
+--let $var_value= query_get_value(SHOW STATUS LIKE 'Slave_open_temp_tables', Value, 1)
+--let $assert_text= Slave_open_temp_tables shall be 0
+--let $assert_cond= $var_value = 0
+--source include/assert.inc
+
+--source include/rpl_connection_master.inc
+--echo #
+--echo # Verify that CREATE TEMPORARY TABLE in a single STMT transaction
+--echo # is not written into binlog after rolling back the transaction.
+--echo #
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+BEGIN;
+CREATE TEMPORARY TABLE temp1 (i INT);
+ROLLBACK;
+--let $binlog_start= $saved_master_pos
+--source include/show_binlog_events.inc
+
+--source include/sync_slave_sql_with_master.inc
+--let $var_value= query_get_value(SHOW STATUS LIKE 'Slave_open_temp_tables', Value, 1)
+--let $assert_text= Slave_open_temp_tables shall be 0
+--let $assert_cond= $var_value = 0
+--source include/assert.inc
+
+--source include/rpl_connection_master.inc
+--echo #
+--echo # Verify that DROP TEMPORARY TABLE in a single STMT transaction
+--echo # is not written into binlog after rolling back the transaction.
+--echo #
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+BEGIN;
+DROP TEMPORARY TABLE temp1;
+ROLLBACK;
+--let $binlog_start= $saved_master_pos
+--source include/show_binlog_events.inc
+
+--echo #
+--echo # Verify that CREATE or DML against TEMPORARY TABLE in a MULTI STMTs
+--echo # transaction is not written into binlog after rolling back the
+--echo # transaction.
+--echo #
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+BEGIN;
+INSERT INTO t1 VALUES (5);
+CREATE TEMPORARY TABLE temp1 (i INT);
+INSERT INTO temp1 VALUES (1);
+INSERT INTO t1 VALUES (6);
+ROLLBACK;
+--let $binlog_start= $saved_master_pos
+--source include/show_binlog_events.inc
+
+--source include/sync_slave_sql_with_master.inc
+--let $var_value= query_get_value(SHOW STATUS LIKE 'Slave_open_temp_tables', Value, 1)
+--let $assert_text= Slave_open_temp_tables shall be 0
+--let $assert_cond= $var_value = 0
+--source include/assert.inc
+
+--source include/rpl_connection_master.inc
+--echo #
+--echo # Verify that DROP TEMPORARY TABLE in a MULTI STMTs transaction
+--echo # is not written into binlog after rolling back the transaction.
+--echo #
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+BEGIN;
+INSERT INTO t1 VALUES (7);
+INSERT INTO temp1 VALUES (2);
+DROP TEMPORARY TABLE temp1;
+INSERT INTO t1 VALUES (8);
+ROLLBACK;
+--let $binlog_start= $saved_master_pos
+--source include/show_binlog_events.inc
+
+--source include/sync_slave_sql_with_master.inc
+--let $var_value= query_get_value(SHOW STATUS LIKE 'Slave_open_temp_tables', Value, 1)
+--let $assert_text= Slave_open_temp_tables shall be 0
+--let $assert_cond= $var_value = 0
+--source include/assert.inc
+
+
+--source include/rpl_connection_master.inc
+# create a procedure
+delimiter //;
+CREATE PROCEDURE sp1 ()
+BEGIN
+  CREATE TEMPORARY TABLE temp1 (i INT);
+END//
+delimiter ;//
+# create a procedure
+delimiter //;
+CREATE PROCEDURE sp2 ()
+BEGIN
+  DROP TEMPORARY TABLE temp1;
+END//
+delimiter ;//
+# create a procedure
+delimiter //;
+CREATE PROCEDURE sp3 ()
+BEGIN
+  INSERT INTO t1 VALUES (9);
+  CREATE TEMPORARY TABLE temp1 (i INT);
+  INSERT INTO temp1 VALUES (1);
+END//
+delimiter ;//
+# create a procedure
+delimiter //;
+CREATE PROCEDURE sp4 ()
+BEGIN
+  INSERT INTO t1 VALUES (10);
+  INSERT INTO temp1 VALUES (2);
+  DROP TEMPORARY TABLE temp1;
+END//
+delimiter ;//
+
+--echo #
+--echo # Verify that CREATE TEMPORARY TABLE in a single STMT procedure
+--echo # is not written into binlog after committing the transaction.
+--echo #
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+START TRANSACTION;
+CALL sp1();
+COMMIT;
+--let $binlog_start= $saved_master_pos
+--source include/show_binlog_events.inc
+
+--source include/sync_slave_sql_with_master.inc
+--let $var_value= query_get_value(SHOW STATUS LIKE 'Slave_open_temp_tables', Value, 1)
+--let $assert_text= Slave_open_temp_tables shall be 0
+--let $assert_cond= $var_value = 0
+--source include/assert.inc
+
+--source include/rpl_connection_master.inc
+--echo #
+--echo # Verify that DROP TEMPORARY TABLE in a single STMT procedure
+--echo # is not written into binlog after committing the transaction.
+--echo #
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+START TRANSACTION;
+CALL sp2();
+COMMIT;
+--let $binlog_start= $saved_master_pos
+--source include/show_binlog_events.inc
+
+--echo #
+--echo # Verify that CREATE or DML against TEMPORARY TABLE in a PROCEDURE
+--echo # is not written into binlog after committing the transaction.
+--echo #
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+START TRANSACTION;
+CALL sp3();
+COMMIT;
+--let $binlog_start= $saved_master_pos
+--source include/show_binlog_events.inc
+
+--source include/sync_slave_sql_with_master.inc
+--let $var_value= query_get_value(SHOW STATUS LIKE 'Slave_open_temp_tables', Value, 1)
+--let $assert_text= Slave_open_temp_tables shall be 0
+--let $assert_cond= $var_value = 0
+--source include/assert.inc
+
+--source include/rpl_connection_master.inc
+--echo #
+--echo # Verify that DROP or DML against TEMPORARY TABLE in a PROCEDURE
+--echo # is not written into binlog after committing the transaction.
+--echo #
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+START TRANSACTION;
+CALL sp4();
+COMMIT;
+--let $binlog_start= $saved_master_pos
+--source include/show_binlog_events.inc
+
+--source include/sync_slave_sql_with_master.inc
+--let $var_value= query_get_value(SHOW STATUS LIKE 'Slave_open_temp_tables', Value, 1)
+--let $assert_text= Slave_open_temp_tables shall be 0
+--let $assert_cond= $var_value = 0
+--source include/assert.inc
+
+--source include/rpl_connection_master.inc
+--echo #
+--echo # Verify that CREATE TEMPORARY TABLE in a single STMT procedure
+--echo # is not written into binlog after rolling back the transaction.
+--echo #
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+START TRANSACTION;
+CALL sp1();
+ROLLBACK;
+--let $binlog_start= $saved_master_pos
+--source include/show_binlog_events.inc
+
+--source include/sync_slave_sql_with_master.inc
+--let $var_value= query_get_value(SHOW STATUS LIKE 'Slave_open_temp_tables', Value, 1)
+--let $assert_text= Slave_open_temp_tables shall be 0
+--let $assert_cond= $var_value = 0
+--source include/assert.inc
+
+--source include/rpl_connection_master.inc
+--echo #
+--echo # Verify that DROP TEMPORARY TABLE in a single STMT procedure
+--echo # is not written into binlog after rolling back the transaction.
+--echo #
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+START TRANSACTION;
+CALL sp2();
+ROLLBACK;
+--let $binlog_start= $saved_master_pos
+--source include/show_binlog_events.inc
+
+--echo #
+--echo # Verify that CREATE or DML against TEMPORARY TABLE in a PROCEDURE
+--echo # is not written into binlog after rolling back the transaction.
+--echo #
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+START TRANSACTION;
+CALL sp3();
+ROLLBACK;
+--let $binlog_start= $saved_master_pos
+--source include/show_binlog_events.inc
+
+--source include/sync_slave_sql_with_master.inc
+--let $var_value= query_get_value(SHOW STATUS LIKE 'Slave_open_temp_tables', Value, 1)
+--let $assert_text= Slave_open_temp_tables shall be 0
+--let $assert_cond= $var_value = 0
+--source include/assert.inc
+
+--source include/rpl_connection_master.inc
+--echo #
+--echo # Verify that DROP or DML against TEMPORARY TABLE in a PROCEDURE
+--echo # is not written into binlog after rolling back the transaction.
+--echo #
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+START TRANSACTION;
+CALL sp4();
+ROLLBACK;
+--let $binlog_start= $saved_master_pos
+--source include/show_binlog_events.inc
+
+--source include/sync_slave_sql_with_master.inc
+--let $var_value= query_get_value(SHOW STATUS LIKE 'Slave_open_temp_tables', Value, 1)
+--let $assert_text= Slave_open_temp_tables shall be 0
+--let $assert_cond= $var_value = 0
+--source include/assert.inc
+
+# Cleanup
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+DROP PROCEDURE sp1;
+DROP PROCEDURE sp2;
+DROP PROCEDURE sp3;
+DROP PROCEDURE sp4;
+
+--source include/rpl_end.inc

@@ -1,0 +1,91 @@
+# ==== Purpose ====
+#
+# Verify that CREATE/DROP TEMPORARY TABLE is allowed in a FUNCTION and TRIGGER
+# when @@global.gtid_mode=ON and @@session.binlog_format=MIXED/ROW/STATEMENT.
+#
+# ==== Implementation ====
+#
+# 1. Function/Trigger with create and drop non trans temp table
+# 2. Function/Trigger with create and drop trans temp table
+# 3. Function/Trigger with just drop temp table
+# 4. Function/Trigger with two create/drop temp tables
+# 5. Function/Trigger with DML operation on trans table followed
+#    by create/drop temp table
+# 6. Function/Trigger with DML operation on non trans table followed
+#    by create/drop temp table
+# 7. Function/Trigger with DML operation on trans table after
+#    create/drop temp table queries
+# 8. Function/Trigger with DML operation on non trans table after
+#    create/drop temp table queries
+# 9. Please see rpl_create_drop_temporary_in_function_or_trigger.test
+#
+# ==== References ====
+#
+# WL#8872: Allow CREATE TEMPORARY/DROP TEMPORARY in transaction when GTID_MODE=ON in RBR
+
+# Initial Setup
+CREATE TABLE trans_table1 (i INT) ENGINE=INNODB;
+INSERT INTO trans_table1 VALUES (1);
+
+CREATE TABLE trans_table2 (i INT) ENGINE=INNODB;
+INSERT INTO trans_table2 VALUES (1);
+
+CREATE TABLE non_trans_table1 (i INT) ENGINE=MYISAM;
+INSERT INTO non_trans_table1 VALUES (1);
+
+CREATE TABLE non_trans_table2 (i INT) ENGINE=MYISAM;
+INSERT INTO non_trans_table2 VALUES (1);
+
+# Case 1: Function/Trigger with create and drop non trans temp table
+--let $func_or_trig_body=CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1;
+--source extra/rpl_tests/rpl_create_drop_temporary_in_function_or_trigger.test
+
+# Case 2: Function/Trigger with create and drop trans temp table
+--let $func_or_trig_body=CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1;
+--source extra/rpl_tests/rpl_create_drop_temporary_in_function_or_trigger.test
+
+# Case 3: Function/Trigger with just drop temp table
+--let $func_or_trig_body=DROP TEMPORARY TABLE IF EXISTS tt1;
+--source extra/rpl_tests/rpl_create_drop_temporary_in_function_or_trigger.test
+
+# Case 4: Function/Trigger with two create/drop temp tables
+--let $func_or_trig_body=CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; CREATE TEMPORARY TABLE tt2(i INT) ENGINE=Innodb; DROP TEMPORARY TABLE IF EXISTS tt1; DROP TEMPORARY TABLE IF EXISTS tt2;
+--source extra/rpl_tests/rpl_create_drop_temporary_in_function_or_trigger.test
+
+# Case 5: Function/Trigger with DML operation on trans table followed by create/drop temp table
+--let $func_or_trig_body=INSERT INTO trans_table1 VALUES (12); CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1;
+--source extra/rpl_tests/rpl_create_drop_temporary_in_function_or_trigger.test
+
+# Case 6: Function/Trigger with DML operation on non trans table followed by create/drop temp table
+--let $func_or_trig_body=INSERT INTO non_trans_table1 VALUES (12); CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1;
+--source extra/rpl_tests/rpl_create_drop_temporary_in_function_or_trigger.test
+
+# Case 7: Function/Trigger with DML operation on trans table after create/drop temp table queries
+--let $func_or_trig_body=CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1; INSERT INTO non_trans_table1 VALUES (12);
+--source extra/rpl_tests/rpl_create_drop_temporary_in_function_or_trigger.test
+
+# Case 8: Function/Trigger with DML operation on non trans table after create/drop temp table queries
+--let $func_or_trig_body=CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1; INSERT INTO trans_table1 VALUES (12);
+--source extra/rpl_tests/rpl_create_drop_temporary_in_function_or_trigger.test
+
+# Sync slave with master before checking diff tables
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_connection_master.inc
+
+# Test that all Slave tables are in sync with Master tables
+--let $diff_tables=master:trans_table1, slave:trans_table1
+--source include/diff_tables.inc
+
+--let $diff_tables=master:trans_table2, slave:trans_table2
+--source include/diff_tables.inc
+
+--let $diff_tables=master:non_trans_table1, slave:non_trans_table1
+--source include/diff_tables.inc
+
+--let $diff_tables=master:non_trans_table2, slave:non_trans_table2
+--source include/diff_tables.inc
+
+# Cleanup
+DROP TABLE trans_table1, trans_table2;
+DROP TABLE non_trans_table1, non_trans_table2;
+--source include/rpl_end.inc

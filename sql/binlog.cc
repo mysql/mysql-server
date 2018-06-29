@@ -9991,16 +9991,17 @@ bool THD::is_ddl_gtid_compatible() {
               (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE) != 0) ||
              (lex->sql_command == SQLCOM_DROP_TABLE && lex->drop_temporary)) {
     /*
-      [CREATE|DROP] TEMPORARY TABLE is unsafe to execute
-      inside a transaction because the table will stay and the
-      transaction will be written to the slave's binary log with the
-      GTID even if the transaction is rolled back.
-      This includes the execution inside Functions and Triggers.
+      When @@session.binlog_format=statement, [CREATE|DROP] TEMPORARY TABLE
+      is unsafe to execute inside a transaction or Procedure, because the
+      [CREATE|DROP] statement on the temporary table will be executed and
+      written into binary log with a GTID even if the transaction or
+      Procedure is rolled back.
     */
-    if (in_multi_stmt_transaction_mode() || in_sub_stmt) {
+    if (variables.binlog_format == BINLOG_FORMAT_STMT &&
+        (in_multi_stmt_transaction_mode() || in_sub_stmt)) {
       bool ret = handle_gtid_consistency_violation(
-          this, ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION,
-          ER_RPL_GTID_UNSAFE_STMT_ON_TEMPORARY_TABLE);
+          this, ER_CLIENT_GTID_UNSAFE_CREATE_DROP_TEMP_TABLE_IN_TRX_IN_SBR,
+          ER_SERVER_GTID_UNSAFE_CREATE_DROP_TEMP_TABLE_IN_TRX_IN_SBR);
       DBUG_RETURN(ret);
     }
   }

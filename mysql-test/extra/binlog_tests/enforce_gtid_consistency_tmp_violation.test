@@ -1,12 +1,21 @@
---let $error_code= ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
---let $error_message= Statement violates GTID consistency: CREATE TEMPORARY
---let $sync_point= before_execute_sql_command
---let $gtid_violation= 1
+# Setting $gtid_violation= 0 and $error_code= 0, because CREATE TEMPORARY or
+# DROP TEMPORARY is allowed inside a transaction when @@global.gtid_mode=ON
+# and @@session.binlog_format=ROW/MIXED in Wl#8872.
+--let $gtid_violation= 0
+--let $error_code= 0
 
 # When CREATE TEMPORARY or DROP TEMPORARY occurs in the middle of a
-# transaction, it is a GTID-violation because these statements do not
-# generate an implicit commit, but cannot be rolled back.  This is
-# regardless of the storage engine.
+# transaction, it is a GTID-violation for @@session.binlog_format=
+# STATEMENT because these statements do not generate an implicit
+# commit, but cannot be rolled back. This is regardless of the
+# storage engine.
+if (`SELECT @@SESSION.binlog_format = 'STATEMENT'`)
+{
+  --let $error_code= ER_CLIENT_GTID_UNSAFE_CREATE_DROP_TEMP_TABLE_IN_TRX_IN_SBR
+  --let $error_message= Statement violates GTID consistency: CREATE TEMPORARY
+  --let $gtid_violation= 1
+}
+--let $sync_point= before_execute_sql_command
 
 # When the created table is myisam, it is considered a
 # non-transactional statement, and therefore logged before the

@@ -1,0 +1,15 @@
+# ==== Purpose ====
+#
+# Verify that CREATE/DROP TEMPORARY TABLE is allowed in a transaction
+# (or PROCEDURE) when @@global.gtid_mode=ON and @@session.binlog_format=ROW.
+#
+# ==== Implementation ====
+#
+# Please see rpl_create_drop_temporary_in_transaction.test
+#
+# ==== References ====
+#
+# WL#8872: Allow CREATE TEMPORARY/DROP TEMPORARY in transaction when GTID_MODE=ON in RBR
+
+--source include/have_binlog_format_row.inc
+--source extra/rpl_tests/rpl_create_drop_temporary_in_transaction.test

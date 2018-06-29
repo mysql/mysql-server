@@ -1,0 +1,142 @@
+# ==== Purpose ====
+#
+# Verify that CREATE/DROP TEMPORARY TABLE in an EVENT is not written into
+# binlog after executing the event when @@session.binlog_format=ROW/MIXED.
+#
+# ==== Implementation ====
+#
+# 1. SET @@session.binlog_format= ROW/MIXED;
+# 2. Verify that CREATE TEMPORARY TABLE in a single STMT EVENT
+#    is not written into binlog after executing the event.
+# 3. Verify that DROP TEMPORARY TABLE in a single STMT EVENT
+#    is not written into binlog after executing the event.
+# 4. Verify that CREATE TEMPORARY TABLE in a MULTI STMTs EVENT
+#    is not written into binlog after executing the event.
+# 5. Verify that DROP TEMPORARY TABLE in a MULTI STMTs EVENT
+#    is not written into binlog after executing the event.
+#
+# ==== References ====
+#
+# WL#8872: Allow CREATE TEMPORARY/DROP TEMPORARY in transaction when GTID_MODE=ON in RBR
+
+--source include/have_binlog_format_mixed_or_row.inc
+--source include/master-slave.inc
+
+--let $naptime= 4
+--echo #
+--echo # Verify that CREATE TEMPORARY TABLE in a single STMT EVENT
+--echo # is not written into binlog after executing the event.
+--echo #
+DELIMITER |;
+CREATE EVENT event1
+ON SCHEDULE EVERY 2 SECOND
+STARTS NOW() ENDS NOW() + INTERVAL 1 SECOND
+ON COMPLETION NOT PRESERVE
+DO BEGIN
+  CREATE TEMPORARY TABLE temp1 (i INT);
+END;|
+DELIMITER ;|
+
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--sleep $naptime
+--let $binlog_start= $saved_master_pos
+# skip two events, print the one next event if it exists
+# (it should not exists in the case).
+--let $binlog_limit= 2, 1
+--source include/show_binlog_events.inc
+
+--source include/sync_slave_sql_with_master.inc
+--let $var_value= query_get_value(SHOW STATUS LIKE 'Slave_open_temp_tables', Value, 1)
+--let $assert_text= Slave_open_temp_tables shall be 0
+--let $assert_cond= $var_value = 0
+--source include/assert.inc
+
+--source include/rpl_connection_master.inc
+--echo #
+--echo # Verify that DROP TEMPORARY TABLE in a single STMT EVENT
+--echo # is not written into binlog after executing the event.
+--echo #
+DELIMITER |;
+CREATE EVENT event1
+ON SCHEDULE EVERY 2 SECOND
+STARTS NOW() ENDS NOW() + INTERVAL 1 SECOND
+ON COMPLETION NOT PRESERVE
+DO BEGIN
+  DROP TEMPORARY TABLE temp1;
+END;|
+DELIMITER ;|
+
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--sleep $naptime
+--let $binlog_start= $saved_master_pos
+# skip two events, print the one next event if it exists
+# (it should not exists in the case).
+--let $binlog_limit= 2, 1
+--source include/show_binlog_events.inc
+
+CREATE TABLE t1 (i INT);
+--echo #
+--echo # Verify that CREATE TEMPORARY TABLE in a MULTI STMTs EVENT
+--echo # is not written into binlog after executing the event.
+--echo #
+DELIMITER |;
+CREATE EVENT event1
+ON SCHEDULE EVERY 2 SECOND
+STARTS NOW() ENDS NOW() + INTERVAL 1 SECOND
+ON COMPLETION NOT PRESERVE
+DO BEGIN
+  CREATE TEMPORARY TABLE temp1 (i INT);
+  INSERT INTO temp1 VALUES (1);
+  INSERT INTO t1 VALUES (2);
+END;|
+DELIMITER ;|
+
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--sleep $naptime
+--let $binlog_start= $saved_master_pos
+# print the top five events.
+--let $binlog_limit= 5
+--source include/show_binlog_events.inc
+
+--source include/sync_slave_sql_with_master.inc
+--let $var_value= query_get_value(SHOW STATUS LIKE 'Slave_open_temp_tables', Value, 1)
+--let $assert_text= Slave_open_temp_tables shall be 0
+--let $assert_cond= $var_value = 0
+--source include/assert.inc
+
+--source include/rpl_connection_master.inc
+--echo #
+--echo # Verify that DROP TEMPORARY TABLE in a MULTI STMTs EVENT
+--echo # is not written into binlog after executing the event.
+--echo #
+DELIMITER |;
+CREATE EVENT event1
+ON SCHEDULE EVERY 2 SECOND
+STARTS NOW() ENDS NOW() + INTERVAL 1 SECOND
+ON COMPLETION NOT PRESERVE
+DO BEGIN
+  INSERT INTO temp1 VALUES (1);
+  DROP TEMPORARY TABLE temp1;
+  INSERT INTO t1 VALUES (4);
+END;|
+DELIMITER ;|
+
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--sleep $naptime
+--let $binlog_start= $saved_master_pos
+# skip two events, print the one next event if it exists
+# (it should not exists in the case).
+--let $binlog_limit= 2, 1
+--source include/show_binlog_events.inc
+
+--source include/sync_slave_sql_with_master.inc
+--let $var_value= query_get_value(SHOW STATUS LIKE 'Slave_open_temp_tables', Value, 1)
+--let $assert_text= Slave_open_temp_tables shall be 0
+--let $assert_cond= $var_value = 0
+--source include/assert.inc
+
+# Cleanup
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+
+--source include/rpl_end.inc

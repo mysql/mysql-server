@@ -6,10 +6,10 @@ SET GLOBAL enforce_gtid_consistency=WARN;
 BEGIN;
 CREATE TEMPORARY TABLE temp1 (a INT);
 Warnings:
-Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
+Warning	3748	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE are not allowed inside a transaction or inside a procedure in a transactional context when @@session.binlog_format=STATEMENT.
 DROP TEMPORARY TABLE temp1;
 Warnings:
-Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
+Warning	3748	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE are not allowed inside a transaction or inside a procedure in a transactional context when @@session.binlog_format=STATEMENT.
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
 Warnings:

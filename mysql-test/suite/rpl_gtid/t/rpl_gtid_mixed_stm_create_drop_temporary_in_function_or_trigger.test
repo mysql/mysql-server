@@ -1,0 +1,16 @@
+# ==== Purpose ====
+#
+# Verify that CREATE/DROP TEMPORARY TABLE is allowed in a FUNCTION and TRIGGER
+# when @@global.gtid_mode=ON and @@session.binlog_format=MIXED/STATEMENT.
+#
+# ==== Implementation ====
+#
+# Please see rpl_gtid_create_drop_temporary_in_function_or_trigger.test
+#
+# ==== References ====
+#
+# WL#8872: Allow CREATE TEMPORARY/DROP TEMPORARY in transaction when GTID_MODE=ON in RBR
+
+--source include/have_binlog_format_mixed_or_statement.inc
+--source include/master-slave.inc
+--source extra/rpl_tests/rpl_gtid_create_drop_temporary_in_function_or_trigger.test

@@ -6759,7 +6759,7 @@ ER_GTID_UNSAFE_NON_TRANSACTIONAL_TABLE
 ER_GTID_UNSAFE_CREATE_SELECT
   eng "Statement violates GTID consistency: CREATE TABLE ... SELECT."
 
-ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
+OBSOLETE_ER_GTID_UNSAFE_CREATE_DROP_TEMP_TABLE_IN_TRANSACTION
   eng "Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions."
 
 ER_GTID_MODE_CAN_ONLY_CHANGE_ONE_STEP_AT_A_TIME
@@ -8573,6 +8573,9 @@ ER_TEMP_TABLE_PREVENTS_SWITCH_GLOBAL_BINLOG_FORMAT
 
 ER_RUNNING_APPLIER_PREVENTS_SWITCH_GLOBAL_BINLOG_FORMAT
   eng "Changing @@global.binlog_format or @@persist.binlog_format is disallowed when any replication channel applier thread is running. You could execute STOP SLAVE SQL_THREAD and try again."
+
+ER_CLIENT_GTID_UNSAFE_CREATE_DROP_TEMP_TABLE_IN_TRX_IN_SBR
+  eng "Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE are not allowed inside a transaction or inside a procedure in a transactional context when @@session.binlog_format=STATEMENT."
 
 #
 #  End of 8.0 error messages.
@@ -17900,7 +17903,7 @@ ER_RPL_GTID_UNSAFE_STMT_ON_NON_TRANS_TABLE
 ER_RPL_GTID_UNSAFE_STMT_CREATE_SELECT
   eng "Statement violates GTID consistency: CREATE TABLE ... SELECT."
 
-ER_RPL_GTID_UNSAFE_STMT_ON_TEMPORARY_TABLE
+OBSOLETE_ER_RPL_GTID_UNSAFE_STMT_ON_TEMPORARY_TABLE
   eng "Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions."
 
 ER_BINLOG_ROW_VALUE_OPTION_IGNORED
@@ -18290,6 +18293,9 @@ ER_SERVER_WRONG_VALUE_FOR_VAR
 
 ER_COULD_NOT_CREATE_WINDOWS_REGISTRY_KEY
   eng "%s was unable to create a new Windows registry key %s for %s; continuing to use the previous ident."
+
+ER_SERVER_GTID_UNSAFE_CREATE_DROP_TEMP_TABLE_IN_TRX_IN_SBR
+  eng "Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE are not allowed inside a transaction or inside a procedure in a transactional context when @@session.binlog_format=STATEMENT."
 
 #
 # End of 8.0 error messages intended to be logged to the server error log.

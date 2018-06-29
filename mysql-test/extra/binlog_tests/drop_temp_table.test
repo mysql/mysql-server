@@ -133,7 +133,7 @@ if (`SELECT @@GLOBAL.binlog_format = 'STATEMENT'`)
 XA START 'idle_when_drop_temp';
 XA END 'idle_when_drop_temp';
 --echo # Verify that explicit DROP TEMPORARY TABLE is rejected in XA_idle
---error ER_XAER_RMFAIL, ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
+--error ER_XAER_RMFAIL, ER_CLIENT_GTID_UNSAFE_CREATE_DROP_TEMP_TABLE_IN_TRX_IN_SBR
 DROP TEMPORARY TABLE IF EXISTS t;
 
 XA ROLLBACK 'idle_when_drop_temp';

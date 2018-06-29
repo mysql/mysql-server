@@ -1,0 +1,21 @@
+# ==== Purpose ====
+#
+# Verify that CREATE/DROP TEMPORARY TABLE in a transaction still causes
+# gtid violation, because it is still disallowed when @@global.gtid_mode=ON
+# and @@session.binlog_format=STATEMENT.
+#
+# ==== Implementation ====
+#
+# Please see extra/binlog_tests/enforce_gtid_consistency_tmp_violation.test
+#
+# ==== References ====
+#
+# WL#8872: Allow CREATE TEMPORARY/DROP TEMPORARY in transaction when GTID_MODE=ON in RBR
+
+# Test sets gtid_mode explicitly so doesn't make sense to run in
+# multiple combinations.
+--source include/no_valgrind_without_big.inc
+--source include/have_binlog_format_statement.inc
+
+--let $test_file= extra/binlog_tests/enforce_gtid_consistency_tmp_violation.test
+--source extra/binlog_tests/enforce_gtid_consistency.test

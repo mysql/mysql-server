@@ -1,0 +1,31 @@
+# ==== Purpose ====
+#
+# Verify that CREATE/DROP TEMPORARY TABLE is not written
+# into binlog when @@session.binlog_format=ROW/MIXED and
+# @@global.gtid_mode=OFF.
+#
+# ==== Implementation ====
+#
+# 1. SET @@session.binlog_format=ROW/MIXED;
+# 2. Verify that CREATE/DROP TEMPORARY TABLE is not written
+#    into binlog when @@global.gtid_mode=OFF.
+#
+# ==== References ====
+#
+# WL#8872: Allow CREATE TEMPORARY/DROP TEMPORARY in transaction when GTID_MODE=ON in RBR
+# Please see ./internal/mysql-test/suite/i_rpl/t/rpl_row_create_drop_temporary_in_transaction.test
+# and mysql-test/suite/rpl/t/rpl_mixed_create_drop_temporary_in_transaction.test.
+
+--source include/have_log_bin.inc
+--source include/have_binlog_format_mixed_or_row.inc
+--source include/have_myisam.inc
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+BEGIN;
+CREATE TEMPORARY TABLE tmp1 (a INT) ENGINE=InnoDB;
+DROP TEMPORARY TABLE tmp1;
+CREATE TEMPORARY TABLE tmp2 (a INT) ENGINE=MyISAM;
+DROP TEMPORARY TABLE tmp2;
+COMMIT;
+--let $assert_text= CREATE/DROP TEMPORARY TABLE is not written into binlog when @@session.binlog_format=ROW/MIXED and @@global.gtid_mode=OFF.
+--let $assert_cond= [SHOW MASTER STATUS, Position, 1] = $saved_master_pos
+--source include/assert.inc
