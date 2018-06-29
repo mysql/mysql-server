@@ -83,6 +83,38 @@ remove_file $MYSQLD_LOG;
 
 
 --echo #
+--echo # Bug #27675647: INVALID INITIALIZATION COMMAND ALLOWED TO DO TOO MUCH WORK
+--echo #
+
+--echo # Run server with --initialize insecure
+--error 1
+--exec $MYSQLD $extra_args --datadir=$DDIR --initialize insecure > $MYSQLD_LOG 2>&1
+
+--echo check for a log message
+--perl
+  use strict;
+  my $log= $ENV{'MYSQLD_LOG'} or die;
+  my $FILE;
+  open(FILE, "$log") or die;
+  while (my $row = <FILE>)
+  {
+    if ($row =~ m/.*Newly created data directory.*is unusable. You can safely remove it/)
+    {
+      print "Message found\n";
+    }
+  }
+  close(FILE);
+EOF
+
+--echo # delete mysqld log
+remove_file $MYSQLD_LOG;
+
+--echo # delete datadir
+--force-rmdir $DDIR
+
+--echo # End of the test for bug #27675647
+
+--echo #
 --echo # Cleanup
 --echo #
 --echo # Restarting the server

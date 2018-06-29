@@ -18395,6 +18395,10 @@ ER_RPL_GTID_UNSAFE_ALTER_ADD_COL_WITH_DEFAULT_EXPRESSION
 ER_UPGRADE_PARSE_ERROR
   eng "Error in parsing %s '%s'.'%s' during upgrade. %s"
 
+ER_DATA_DIRECTORY_UNUSABLE
+  eng "Newly created data directory %s is unusable. You can safely remove it."
+  bg "Новосъздадената директория за базата %s е неизползваема. Можете да я изтриете."
+
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #

@@ -1827,6 +1827,9 @@ static void unireg_abort(int exit_code) {
     sysd::notify("ERRNO=", errno, "\n");
   }
 
+  if (opt_initialize && exit_code)
+    LogErr(ERROR_LEVEL, ER_DATA_DIRECTORY_UNUSABLE, mysql_real_data_home);
+
   // At this point it does not make sense to buffer more messages.
   // Just flush what we have and write directly to stderr.
   flush_error_log_messages();
