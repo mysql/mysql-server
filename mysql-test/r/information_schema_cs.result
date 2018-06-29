@@ -1142,7 +1142,7 @@ FROM information_schema.columns WHERE
 table_schema='information_schema' AND
 (column_type = 'varchar(7)' OR column_type = 'varchar(20)'
  OR column_type = 'varchar(30)')
-GROUP BY column_type ORDER BY num;
+GROUP BY column_type ORDER BY num, column_type;
 COLUMN_TYPE	GROUP_CONCAT(table_schema, '.', table_name ORDER BY table_name)	num
 varchar(30)	information_schema.PROFILING,information_schema.PROFILING	2
 varchar(7)	information_schema.INNODB_TABLESPACES_BRIEF,information_schema.VIEWS	2
