@@ -9079,7 +9079,7 @@ bool Item_type_holder::join_types(THD *, Item *item) {
 
   Item_result merge_type = Field::result_merge_type(data_type());
   if (merge_type == STRING_RESULT) {
-    aggregate_string_properties("UNION", args, 2);
+    if (aggregate_string_properties("UNION", args, 2)) DBUG_RETURN(true);
     /*
       For geometry columns, we must also merge subtypes. If the
       subtypes are different, use GEOMETRY.

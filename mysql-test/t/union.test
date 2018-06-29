@@ -2147,3 +2147,14 @@ SELECT ST_GEOMFROMTEXT('POINT(0 0)')
 UNION
 SELECT * FROM (SELECT NULL) AS a;
 --enable_result_log
+
+--echo #
+--echo # Bug#28237675: ASSERTION IN UNION QUERY WHEN MIXING CHARACTER SETS
+--echo #
+CREATE TABLE t(a VARCHAR(10) CHARSET ASCII);
+# When the literal was convertible to ASCII, the query was successful.
+SELECT _utf8mb4 'a' UNION SELECT a FROM t;
+# When the literal was not convertible to ASCII, it hit an assertion.
+--error ER_CANT_AGGREGATE_2COLLATIONS
+SELECT _utf8mb4 0xC3A6 UNION SELECT a FROM t;
+DROP TABLE t;
