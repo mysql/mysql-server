@@ -34,11 +34,13 @@
 #include "sql/sql_class.h"
 
 struct Slave {
-  THD *thd;
+  uint32_t thread_id;
   Vio *vio;
+  uint server_id;
+  bool net_compress;
+  bool is_leaving;
 
   my_socket sock_fd() const { return vio->mysql_socket.fd; }
-  uint server_id() const { return thd->server_id; }
 };
 
 typedef std::vector<Slave> Slave_vector;
