@@ -695,9 +695,6 @@ int start_monitor() {
     std::string arg;
     arg.resize(wcslen(argv_tmp[i]));  // Do not copy null
     wcstombs(&arg[0], argv_tmp[i], arg.size());
-    if ((i == 2 || i == 1) && get_win_service_ptr()->IsService(arg.c_str()))
-      break;
-
     argv_vec.push_back(arg);
   }
   LocalFree(argv_tmp);

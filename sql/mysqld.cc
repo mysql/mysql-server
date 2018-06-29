@@ -6720,6 +6720,24 @@ int mysqld_main(int argc, char **argv) {
   // Set windows_service value in mysqld
   if (!mysqld_monitor) {
     windows_service = is_monitor_win_service();
+
+    if (windows_service) {
+      if (argc == 2 && Service.IsService(argv[1])) {
+        if (my_strcasecmp(system_charset_info, argv[1], "mysql"))
+          load_default_groups[load_default_groups_sz - 2] = argv[1];
+        argc--;
+
+      } else if (argc == 3 && Service.IsService(argv[2])) {
+        /*
+        mysqld was started as
+        mysqld --defaults-file=my_path\my.ini service-name
+        */
+        if (my_strcasecmp(system_charset_info, argv[2], "mysql"))
+          load_default_groups[load_default_groups_sz - 2] = argv[2];
+        argc--;
+      }
+    }
+
     my_global_argc = argc;
     my_global_argv = argv;
   } else {
