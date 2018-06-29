@@ -44,7 +44,11 @@ The following options may be given as the first argument:
  resolved relative to this
  --big-tables        Allow big result sets by saving all temporary sets on
  file (Solves most 'table full' errors)
- --bind-address=name IP address to bind to.
+ --bind-address=name IP address(es) to bind to. Syntax: address[,address]...,
+ where address can be an IPv4 address, IPv6 address, host
+ name or one of the wildcard values *, ::, 0.0.0.0. In
+ case more than one address is specified in a
+ comma-separated list, wildcard values are not allowed.
  --binlog-cache-size=# 
  The size of the transactional cache for updates to
  transactional engines for the binary log. If you often

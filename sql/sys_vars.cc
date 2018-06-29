@@ -749,7 +749,12 @@ static Sys_var_uint Sys_default_password_lifetime(
     &Plock_default_password_lifetime);
 
 static Sys_var_charptr Sys_my_bind_addr(
-    "bind_address", "IP address to bind to.",
+    "bind_address",
+    "IP address(es) to bind to. Syntax: address[,address]...,"
+    " where address can be an IPv4 address, IPv6 address,"
+    " host name or one of the wildcard values *, ::, 0.0.0.0."
+    " In case more than one address is specified in a"
+    " comma-separated list, wildcard values are not allowed.",
     READ_ONLY NON_PERSIST GLOBAL_VAR(my_bind_addr_str), CMD_LINE(REQUIRED_ARG),
     IN_FS_CHARSET, DEFAULT(MY_BIND_ALL_ADDRESSES));
 
