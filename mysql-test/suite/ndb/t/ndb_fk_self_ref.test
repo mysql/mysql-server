@@ -57,9 +57,10 @@ alter table t1 add constraint fkname
 foreign key (a) references t1(c) on delete restrict on update restrict;
 
 #
-# BUG! (but manual tests 2013-03-19 indicates that innodb has the same bug)
+# Bug#27930382 Foreign key constraint violations, false positive
+# (Manual tests 2018-06-13 indicates that innodb still has the same bug)
 #
-# insert into t1 values (1,1,1,1,1,1);
+insert into t1 values (1,1,1,1,1,1);
 
 --error 1452
 insert into t1 values (2,2,3,3,2,2);
@@ -74,9 +75,10 @@ alter table t1 add constraint fkname
 foreign key (c) references t1(c) on delete restrict on update restrict;
 
 #
-# BUG! (but manual tests 2013-03-19 indicates that innodb has the same bug)
+# Bug#27930382 Foreign key constraint violations, false positive
+# (Manual tests 2018-06-13 indicates that innodb still has the same bug)
 #
-# insert into t1 values (1,1,1,1,1,1);
+insert into t1 values (1,1,1,1,1,1);
 
 alter table t1 drop foreign key fkname;
 delete from t1;
@@ -88,9 +90,10 @@ alter table t1 add constraint fkname
 foreign key (e) references t1(c) on delete restrict on update restrict;
 
 #
-# BUG! (but manual tests 2013-03-19 indicates that innodb has the same bug)
+# Bug#27930382 Foreign key constraint violations, false positive
+# (Manual tests 2018-06-13 indicates that innodb still has the same bug)
 #
-# insert into t1 values (1,1,1,1,1,1);
+insert into t1 values (1,1,1,1,1,1);
 
 --error 1452
 insert into t1 values (2,2,2,2,3,3);

@@ -29,16 +29,19 @@ alter table t1 drop foreign key fkname;
 delete from t1;
 alter table t1 add constraint fkname
 foreign key (a) references t1(c) on delete restrict on update restrict;
+insert into t1 values (1,1,1,1,1,1);
 insert into t1 values (2,2,3,3,2,2);
 ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
 alter table t1 drop foreign key fkname;
 delete from t1;
 alter table t1 add constraint fkname
 foreign key (c) references t1(c) on delete restrict on update restrict;
+insert into t1 values (1,1,1,1,1,1);
 alter table t1 drop foreign key fkname;
 delete from t1;
 alter table t1 add constraint fkname
 foreign key (e) references t1(c) on delete restrict on update restrict;
+insert into t1 values (1,1,1,1,1,1);
 insert into t1 values (2,2,2,2,3,3);
 ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
 alter table t1 drop foreign key fkname;
