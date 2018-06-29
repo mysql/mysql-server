@@ -94,7 +94,7 @@ FOREACH(test ${TESTS})
   ADD_DEPENDENCIES(${test}-t GenError)
 
   IF(NOT MERGE_UNITTESTS)
-    ADD_TEST(${test} ${test}-t)
+    ADD_TEST(${test} ${CMAKE_BINARY_DIR}/runtime_output_directory/${test}-t)
   ENDIF()
 ENDFOREACH()
 

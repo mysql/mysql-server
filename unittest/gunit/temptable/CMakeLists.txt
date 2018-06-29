@@ -60,26 +60,32 @@ IF (MERGE_UNITTESTS)
   ENDIF()
 
   ADD_DEPENDENCIES(merge_temptable_tests-t GenError)
-ELSE()
-  FOREACH(test ${TESTS})
-    SET(SRC_FILES ${test}-t.cc)
-    IF(WIN32)
-      LIST(APPEND SRC_FILES ../../../sql/nt_servc.cc)
-    ENDIF()
 
-    MYSQL_ADD_EXECUTABLE(${test}-t ${SRC_FILES} SKIP_INSTALL ${EXCLUDE_FROM_ALL})
+ENDIF(MERGE_UNITTESTS)
 
-    TARGET_LINK_LIBRARIES(${test}-t sql_main binlog rpl master slave sql_main sql_gis sql_dd)
-    TARGET_LINK_LIBRARIES(${test}-t gunit_large strings dbug mysys)
-    TARGET_LINK_LIBRARIES(${test}-t sql_main binlog rpl master slave sql_main sql_gis sql_dd sql_main sql_gis)
-    TARGET_LINK_LIBRARIES(${test}-t ${ICU_LIBRARIES})
+FOREACH(test ${TESTS})
+  SET(SRC_FILES ${test}-t.cc)
+  IF(WIN32)
+    LIST(APPEND SRC_FILES ../../../sql/nt_servc.cc)
+  ENDIF()
 
-    IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
-      TARGET_LINK_LIBRARIES(${test}-t perfschema)
-    ENDIF()
+  MYSQL_ADD_EXECUTABLE(${test}-t ${SRC_FILES} SKIP_INSTALL ${EXCLUDE_FROM_ALL})
 
-    ADD_DEPENDENCIES(${test}-t GenError)
+  TARGET_LINK_LIBRARIES(${test}-t
+    sql_main binlog rpl master slave sql_main sql_gis sql_dd)
+  TARGET_LINK_LIBRARIES(${test}-t gunit_large strings dbug mysys)
+  TARGET_LINK_LIBRARIES(${test}-t
+    sql_main binlog rpl master slave sql_main sql_gis sql_dd sql_main sql_gis)
+  TARGET_LINK_LIBRARIES(${test}-t ${ICU_LIBRARIES})
 
-    ADD_TEST(${test} ${test}-t)
-  ENDFOREACH()
-ENDIF()
+  IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
+    TARGET_LINK_LIBRARIES(${test}-t perfschema)
+  ENDIF()
+
+  ADD_DEPENDENCIES(${test}-t GenError)
+
+  IF(NOT MERGE_UNITTESTS)
+    ADD_TEST(${test} ${CMAKE_BINARY_DIR}/runtime_output_directory/${test}-t)
+  ENDIF()
+ENDFOREACH()
+

@@ -492,7 +492,7 @@ FOREACH(test ${TESTS})
   TARGET_LINK_LIBRARIES(${test}-t gunit_small sqlgunitlib strings dbug)
   TARGET_LINK_LIBRARIES(${test}-t ${ICU_LIBRARIES})
   IF(NOT MERGE_UNITTESTS)
-    ADD_TEST(${test} ${test}-t)
+    ADD_TEST(${test} ${CMAKE_BINARY_DIR}/runtime_output_directory/${test}-t)
   ENDIF()
 ENDFOREACH()
 
@@ -525,7 +525,7 @@ FOREACH(test ${SERVER_TESTS})
   ENDIF()
 
   IF(NOT MERGE_UNITTESTS)
-    ADD_TEST(${test} ${test}-t)
+    ADD_TEST(${test} ${CMAKE_BINARY_DIR}/runtime_output_directory/${test}-t)
   ENDIF()
 ENDFOREACH()
 
