@@ -28,7 +28,7 @@ SET(TESTS
   allocator
   cell_calculator
   cell
-  handler
+  temptable-handler
   result
 )
 
