@@ -1,0 +1,109 @@
+# ==== Purpose ====
+#
+# Verify that CREATE/DROP TEMPORARY TABLE in functions does not
+# cause replication break in mixed mode and statement mode when
+# when @@global.gtid_mode=ON.
+#
+# ==== Implementation ====
+#
+# 1. Create a function create_temp_table, which has only 'CREATE TEMPORARY TABLE'.
+# 2. Create a function drop_temp_table, which has only 'DROP TEMPORARY TABLE'.
+# 3. Call create_temp_table.
+# 4. Call drop_temp_table.
+# 5. Call create_temp_table.
+# 6. Call drop_temp_table.
+# 7. Verify that a 'function call' top statement is written into binary
+#    log even if the function has only 'DROP TEMPORARY TABLE' and the
+#    replication break issue.
+#
+# ==== References ====
+#
+# Bug #28220751  REPLICATION BREAKS ON CREATE/DROP TEMPORARY TABLE OPERATION WITHIN FUNCTION(MBR)
+# WL#8872: Allow CREATE TEMPORARY/DROP TEMPORARY in transaction when GTID_MODE=ON in RBR
+
+# This test script will be run only in non GR set up.
+--source include/not_group_replication_plugin.inc
+--source include/have_binlog_format_mixed_or_statement.inc
+--source include/master-slave.inc
+
+delimiter //;
+CREATE FUNCTION create_temp_table() RETURNS INT DETERMINISTIC
+BEGIN
+CREATE TEMPORARY TABLE temp1 (i INT);
+return 1;
+END//
+delimiter ;//
+
+delimiter //;
+CREATE FUNCTION drop_temp_table() RETURNS INT DETERMINISTIC
+BEGIN
+DROP TEMPORARY TABLE temp1;
+return 2;
+END//
+delimiter ;//
+
+--echo #
+--echo # Verify that a 'function call' top statement is written into binary
+--echo # log even if the function has only 'DROP TEMPORARY TABLE' and
+--echo # replication runs successfully in the ROLLBACK case.
+--echo #
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+START TRANSACTION;
+SELECT create_temp_table();
+ROLLBACK;
+START TRANSACTION;
+SELECT drop_temp_table();
+ROLLBACK;
+START TRANSACTION;
+SELECT create_temp_table();
+ROLLBACK;
+START TRANSACTION;
+SELECT drop_temp_table();
+ROLLBACK;
+--let $binlog_start= $saved_master_pos
+--source include/show_binlog_events.inc
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_master.inc
+--echo #
+--echo # Verify that a 'function call' top statement is written into binary
+--echo # log even if the function has only 'DROP TEMPORARY TABLE' and
+--echo # replication runs successfully.
+--echo #
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+SELECT create_temp_table();
+SELECT drop_temp_table();
+SELECT create_temp_table();
+SELECT drop_temp_table();
+--let $binlog_start= $saved_master_pos
+--source include/show_binlog_events.inc
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_master.inc
+--echo #
+--echo # Verify that a 'function call' top statement is written into binary
+--echo # log even if the function has only 'DROP TEMPORARY TABLE' and
+--echo # replication runs successfully.
+--echo #
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+START TRANSACTION;
+SELECT create_temp_table();
+COMMIT;
+START TRANSACTION;
+SELECT drop_temp_table();
+COMMIT;
+START TRANSACTION;
+SELECT create_temp_table();
+COMMIT;
+START TRANSACTION;
+SELECT drop_temp_table();
+COMMIT;
+--let $binlog_start= $saved_master_pos
+--source include/show_binlog_events.inc
+--source include/sync_slave_sql_with_master.inc
+
+# Cleanup
+--source include/rpl_connection_master.inc
+DROP FUNCTION create_temp_table;
+DROP FUNCTION drop_temp_table;
+--source include/rpl_end.inc

@@ -1502,6 +1502,19 @@ bool mysql_rm_table(THD *thd, TABLE_LIST *tables, bool if_exists,
     */
     thd->server_status |= SERVER_STATUS_IN_TRANS;
   }
+
+  if (thd->lex->drop_temporary && (thd->in_sub_stmt & SUB_STMT_FUNCTION) &&
+      thd->binlog_evt_union.do_union) {
+    /*
+      This does not write the query into binary log, it just sets
+      thd->binlog_evt_union.unioned_events to true for writing
+      its top function call to the binary log on function exit
+      in mixed mode and statement mode. So this does not cause
+      any error.
+    */
+    write_bin_log(thd, true, thd->query().str, thd->query().length, true);
+  }
+
   my_ok(thd);
   DBUG_RETURN(false);
 }
