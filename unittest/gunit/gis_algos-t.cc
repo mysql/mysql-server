@@ -249,10 +249,6 @@ TEST_F(GeometryManipulationTest, PolygonManipulationTest) {
                      ls0->get_flags(), ls0->get_srid());
   Gis_line_string ls00(*ls0);
 
-  ls = ls;
-  ls00 = ls00;
-  plgn = plgn;
-
   Geometry_buffer buffer3;
   String wkt3, str3;
 

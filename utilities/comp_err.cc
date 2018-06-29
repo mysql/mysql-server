@@ -657,7 +657,6 @@ static bool parse_reserved_error_section(char *str) {
   char *offset;
   char *end;
   int error;
-  err_range range;
 
   DBUG_ENTER("parse_reserved_error_section");
 
