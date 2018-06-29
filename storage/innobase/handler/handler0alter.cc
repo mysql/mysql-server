@@ -1065,14 +1065,16 @@ static void dd_commit_inplace_no_change(const Table *old_dd_tab,
 @param[in]	old_table	MySQL table as it is before the ALTER operation
 @param[in]	altered_table	MySQL table that is being altered
 @param[in]	old_dd_tab	Old dd::Table or dd::Partition
-@param[in,out]	new_dd_tab	New dd::Table or dd::Partition */
+@param[in,out]	new_dd_tab	New dd::Table or dd::Partition
+@param[in]	autoinc		autoinc counter pointer if AUTO_INCREMENT
+                                is defined for the table, otherwise nullptr */
 template <typename Table>
 static void dd_commit_inplace_instant(Alter_inplace_info *ha_alter_info,
                                       THD *thd, trx_t *trx, dict_table_t *table,
                                       const TABLE *old_table,
                                       const TABLE *altered_table,
                                       const Table *old_dd_tab,
-                                      Table *new_dd_tab);
+                                      Table *new_dd_tab, uint64_t *autoinc);
 
 /** Update table level instant metadata in commit phase
 @param[in]	table		InnoDB table object
@@ -1220,7 +1222,10 @@ bool ha_innobase::commit_inplace_alter_table(TABLE *altered_table,
     ut_ad(!res);
     dd_commit_inplace_instant(ha_alter_info, m_user_thd, m_prebuilt->trx,
                               m_prebuilt->table, table, altered_table,
-                              old_dd_tab, new_dd_tab);
+                              old_dd_tab, new_dd_tab,
+                              altered_table->found_next_number_field != nullptr
+                                  ? &m_prebuilt->table->autoinc
+                                  : nullptr);
   } else if (!(ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE) ||
              ctx == nullptr) {
     ut_ad(!res);
@@ -4012,7 +4017,7 @@ static void dd_commit_inplace_instant(Alter_inplace_info *ha_alter_info,
                                       const TABLE *old_table,
                                       const TABLE *altered_table,
                                       const Table *old_dd_tab,
-                                      Table *new_dd_tab) {
+                                      Table *new_dd_tab, uint64_t *autoinc) {
   ut_ad(is_instant(ha_alter_info));
 
   Instant_Type type =
@@ -4055,6 +4060,14 @@ static void dd_commit_inplace_instant(Alter_inplace_info *ha_alter_info,
     case Instant_Type::INSTANT_IMPOSSIBLE:
     default:
       ut_ad(0);
+  }
+
+  if (autoinc != nullptr) {
+    ut_ad(altered_table->found_next_number_field != nullptr);
+    if (!dd_table_is_partitioned(new_dd_tab->table()) ||
+        dd_part_is_first(reinterpret_cast<dd::Partition *>(new_dd_tab))) {
+      dd_set_autoinc(new_dd_tab->table().se_private_data(), *autoinc);
+    }
   }
 }
 
@@ -9963,9 +9976,13 @@ end:
           static_cast<ha_innobase_inplace_ctx *>(ctx_parts->ctx_array[i]);
 
       if (is_instant(ha_alter_info)) {
-        dd_commit_inplace_instant(ha_alter_info, m_user_thd, m_prebuilt->trx,
-                                  m_part_share->get_table_part(i), table,
-                                  altered_table, old_part, new_part);
+        dd_commit_inplace_instant(
+            ha_alter_info, m_user_thd, m_prebuilt->trx,
+            m_part_share->get_table_part(i), table, altered_table, old_part,
+            new_part,
+            altered_table->found_next_number_field != nullptr
+                ? reinterpret_cast<uint64_t *>(&m_part_share->next_auto_inc_val)
+                : nullptr);
       } else if (!(ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE) ||
                  ctx == nullptr) {
         dd_commit_inplace_no_change(old_part, new_part, true);
