@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -180,7 +180,7 @@ TEST_F(Listener_tcp_testsuite,
       .WillOnce(Return(POSIX_FAILURE));
 
   ASSERT_FALSE(sut->setup_listener(nullptr));
-  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_initializing));
+  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_stopped));
 }
 
 TEST_F(
@@ -203,7 +203,7 @@ TEST_F(
       .WillOnce(Return(POSIX_FAILURE));
 
   ASSERT_FALSE(sut->setup_listener(nullptr));
-  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_initializing));
+  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_stopped));
 }
 
 TEST_F(
@@ -222,7 +222,7 @@ TEST_F(
       .WillOnce(Return(POSIX_FAILURE));
 
   ASSERT_FALSE(sut->setup_listener(nullptr));
-  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_initializing));
+  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_stopped));
 }
 
 struct TimeOutAndExpectedRetries {
@@ -268,7 +268,7 @@ TEST_P(Listener_tcp_retry_testsuite,
   EXPECT_CALL(*m_mock_system, freeaddrinfo(&ai));
 
   ASSERT_FALSE(sut->setup_listener(nullptr));
-  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_initializing));
+  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_stopped));
 }
 
 INSTANTIATE_TEST_CASE_P(
@@ -297,7 +297,7 @@ TEST_F(Listener_tcp_testsuite, setup_listener_bind_failure) {
   EXPECT_CALL(*m_mock_system, freeaddrinfo(&ai));
 
   ASSERT_FALSE(sut->setup_listener(nullptr));
-  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_initializing));
+  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_stopped));
 }
 
 TEST_F(Listener_tcp_testsuite, setup_listener_listen_failure) {
@@ -321,7 +321,7 @@ TEST_F(Listener_tcp_testsuite, setup_listener_listen_failure) {
   EXPECT_CALL(*m_mock_system, freeaddrinfo(&ai));
 
   ASSERT_FALSE(sut->setup_listener(nullptr));
-  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_initializing));
+  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_stopped));
 }
 
 TEST_F(Listener_tcp_testsuite, setup_listener_ipv6_success) {
@@ -382,7 +382,7 @@ TEST_F(Listener_tcp_testsuite,
   EXPECT_CALL(*m_mock_system, freeaddrinfo(&ai));
 
   ASSERT_FALSE(sut->setup_listener(nullptr));
-  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_initializing));
+  ASSERT_TRUE(sut->get_state().is(ngs::State_listener_stopped));
 
   // SUT destructor
   ASSERT_NO_FATAL_FAILURE(assert_verify_and_reinitailize_rules());
@@ -497,12 +497,6 @@ TEST_F(Listener_tcp_testsuite, setup_listener_success_evean_socket_opt_fails) {
   // SUT destructor
   ASSERT_NO_FATAL_FAILURE(assert_verify_and_reinitailize_rules());
   EXPECT_CALL(*m_mock_socket, close());
-}
-
-TEST_F(Listener_tcp_testsuite, is_handled_by_socket_event_always_true) {
-  make_sut(ALL_INTERFACES_6);
-
-  ASSERT_TRUE(sut->is_handled_by_socket_event());
 }
 
 TEST_F(Listener_tcp_testsuite, get_name_and_configuration) {

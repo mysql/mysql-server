@@ -253,12 +253,14 @@ void Protocol_encoder::log_protobuf(int8_t type MY_ATTRIBUTE((unused))) {
   log_debug("SEND RAW: Type: %d", type);
 }
 
-void Protocol_encoder::send_notice(const Frame_type type,
+bool Protocol_encoder::send_notice(const Frame_type type,
                                    const Frame_scope scope,
                                    const std::string &data,
                                    const bool force_flush) {
-  if (Frame_type::WARNING == type)
+  if (Frame_type::k_warning == type)
     get_protocol_monitor().on_notice_warning_send();
+  else if (Frame_scope::k_global == scope)
+    get_protocol_monitor().on_notice_global_send();
   else
     get_protocol_monitor().on_notice_other_send();
 
@@ -266,7 +268,7 @@ void Protocol_encoder::send_notice(const Frame_type type,
 
   m_notice_builder.encode_frame(m_buffer.get(), static_cast<int>(type), data,
                                 static_cast<int>(scope));
-  enqueue_buffer(Mysqlx::ServerMessages::NOTICE, force_flush);
+  return enqueue_buffer(Mysqlx::ServerMessages::NOTICE, force_flush);
 }
 
 void Protocol_encoder::send_rows_affected(uint64_t value) {
@@ -290,8 +292,8 @@ bool Protocol_encoder::flush_buffer() {
   if (is_valid_socket) {
     details::Write_visitor writter(m_socket.get());
 
-    m_socket->set_timeout(ngs::Vio_interface::Direction::k_write,
-                          m_write_timeout);
+    m_socket->set_timeout_in_ms(ngs::Vio_interface::Direction::k_write,
+                                m_write_timeout * 1000);
 
     m_buffer->visit_buffers(&writter);
 

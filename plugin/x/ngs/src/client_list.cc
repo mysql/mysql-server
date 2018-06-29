@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,23 +22,25 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include <iterator>
-
 #include "plugin/x/ngs/include/ngs/client_list.h"
 
-using namespace ngs;
+#include <iterator>
+
+#include "plugin/x/src/helper/multithread/rw_lock.h"
+
+namespace ngs {
 
 Client_list::Client_list() : m_clients_lock(KEY_rwlock_x_client_list_clients) {}
 
 Client_list::~Client_list() {}
 
 void Client_list::add(Client_ptr client) {
-  RWLock_writelock guard(m_clients_lock);
+  xpl::RWLock_writelock guard(m_clients_lock);
   m_clients.push_back(client);
 }
 
 void Client_list::remove(const uint64_t client_id) {
-  RWLock_writelock guard(m_clients_lock);
+  xpl::RWLock_writelock guard(m_clients_lock);
   Match_client matcher(client_id);
 
   m_clients.remove_if(matcher);
@@ -55,7 +57,7 @@ bool Client_list::Match_client::operator()(Client_ptr client) {
 }
 
 Client_ptr Client_list::find(uint64_t client_id) {
-  RWLock_readlock guard(m_clients_lock);
+  xpl::RWLock_readlock guard(m_clients_lock);
   Match_client matcher(client_id);
 
   std::list<Client_ptr>::iterator i =
@@ -67,16 +69,18 @@ Client_ptr Client_list::find(uint64_t client_id) {
 }
 
 size_t Client_list::size() {
-  RWLock_readlock guard(m_clients_lock);
+  xpl::RWLock_readlock guard(m_clients_lock);
 
   return m_clients.size();
 }
 
 void Client_list::get_all_clients(std::vector<Client_ptr> &result) {
-  RWLock_readlock guard(m_clients_lock);
+  xpl::RWLock_readlock guard(m_clients_lock);
 
   result.clear();
   result.reserve(m_clients.size());
 
   std::copy(m_clients.begin(), m_clients.end(), std::back_inserter(result));
 }
+
+}  // namespace ngs

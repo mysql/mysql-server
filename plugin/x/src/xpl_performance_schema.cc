@@ -121,7 +121,5 @@ void xpl_init_performance_schema() {
   mysql_memory_register(category, all_x_memory,
                         static_cast<int>(array_elements(all_x_memory)));
 
-  ngs::x_psf_objects_key = KEY_memory_x_objects;
-
 #endif  // HAVE_PSI_INTERFACE
 }

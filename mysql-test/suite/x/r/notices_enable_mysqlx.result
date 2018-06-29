@@ -1,67 +1,127 @@
-check with dropping db which doesn't exists
+
+###
+### General setup for all scenarios
+###
+
+### Scenario 1: Enable group replication notifications
+### Expected notices:
+### - Myself: N/A
+##########################################################################
+
+command ok
+
+### Scenario 2: Execute SQL queries that generate warning notices
+### Expected notices:
+### - Myself: Warnings
+##########################################################################
+
+##
+## Check with dropping db which doesn't exists
+RUN drop database if exists mysqltest
 
 0 rows affected
 Warnings generated:
 NOTE | 1008 | Can't drop database 'mysqltest'; database doesn't exist
-check with dropping table which doesn't exists
+Got expected warning: 1008 
+
+##
+## Check with dropping table which doesn't exists
+RUN drop table if exists test.mysqltest
 
 0 rows affected
 Warnings generated:
 NOTE | 1051 | Unknown table 'test.mysqltest'
-check with show variables like version
+Got expected warning: 1051 
+
+##
+## Check with show variables like version
+RUN show variables like 'versio'
 Variable_name	Value
 0 rows affected
-check with dropping procedure which doesn't exists
+
+##
+## Check with dropping procedure which doesn't exists
+RUN drop procedure if exists test.test_invalid
 
 0 rows affected
 Warnings generated:
 NOTE | 1305 | PROCEDURE test.test_invalid does not exist
-check with dropping function which doesn't exists
+Got expected warning: 1305 
+
+##
+## Check with dropping function which doesn't exists
+RUN drop function if exists test.test_signal_func
 
 0 rows affected
 Warnings generated:
 NOTE | 1305 | FUNCTION test.test_signal_func does not exist
-check with dropping view which doesn't exists
+Got expected warning: 1305 
+
+##
+## Check with dropping view which doesn't exists
+RUN drop view if exists test.v1
 
 0 rows affected
 Warnings generated:
 NOTE | 1051 | Unknown table 'test.v1'
-out of range values for INT,UNSIGN INT
+Got expected warning: 1051 
+
+##
+## Out of range values for INT,UNSIGN INT
+RUN create table test.t1 (c1 INT, c2 INT UNSIGNED)
 
 0 rows affected
+RUN insert ignore into test.t1 values ('21474836461','21474836461')
 
 1 rows affected
 Warnings generated:
 WARNING | 1264 | Out of range value for column 'c1' at row 1
 WARNING | 1264 | Out of range value for column 'c2' at row 1
+Got expected warning: 1264 
+RUN insert ignore into test.t1 values ('-21474836461','-21474836461')
 
 1 rows affected
 Warnings generated:
 WARNING | 1264 | Out of range value for column 'c1' at row 1
 WARNING | 1264 | Out of range value for column 'c2' at row 1
+Got expected warning: 1264 
+RUN drop table test.t1
 
 0 rows affected
-checking double data type
+
+##
+## Checking double data type
+RUN create table test.t1 (grp int, a bigint unsigned, c char(10) not null, d char(10) not null, index grp_idx(grp))
 
 0 rows affected
+RUN insert into test.t1 values (1,1,"a","a")
 
 1 rows affected
+RUN insert into test.t1 values (2,2,"b","a")
 
 1 rows affected
+RUN insert into test.t1 values (2,3,"c","b")
 
 1 rows affected
+RUN insert into test.t1 values (3,4,"E","a")
 
 1 rows affected
+RUN insert into test.t1 values (3,5,"C","b")
 
 1 rows affected
+RUN insert into test.t1 values (3,6,"D","b")
 
 1 rows affected
+RUN insert into test.t1 values (3,7,"d","d")
 
 1 rows affected
+RUN insert into test.t1 values (3,8,"d","d")
 
 1 rows affected
+RUN insert into test.t1 values (3,9,"D","c")
 
 1 rows affected
+RUN select grp,group_concat(a order by a,d-ascii(c)-a) from test.t1 group by grp order by grp
 grp	group_concat(a order by a,d-ascii(c)-a)
 1	1
 2	2,3
@@ -77,6 +137,8 @@ WARNING | 1292 | Truncated incorrect DOUBLE value: 'b'
 WARNING | 1292 | Truncated incorrect DOUBLE value: 'd'
 WARNING | 1292 | Truncated incorrect DOUBLE value: 'd'
 WARNING | 1292 | Truncated incorrect DOUBLE value: 'c'
+Got expected warning: 1292 
+RUN select grp,group_concat(a order by c-ascii(c),a) from test.t1 group by grp order by grp
 grp	group_concat(a order by c-ascii(c),a)
 1	1
 2	3,2
@@ -92,8 +154,11 @@ WARNING | 1292 | Truncated incorrect DOUBLE value: 'D'
 WARNING | 1292 | Truncated incorrect DOUBLE value: 'd'
 WARNING | 1292 | Truncated incorrect DOUBLE value: 'd'
 WARNING | 1292 | Truncated incorrect DOUBLE value: 'D'
+Got expected warning: 1292 
+RUN set group_concat_max_len = 4
 
 0 rows affected
+RUN select grp,group_concat(c order by c) from test.t1 group by grp order by grp
 grp	group_concat(c order by c)
 1	a
 2	b,c
@@ -101,87 +166,138 @@ grp	group_concat(c order by c)
 0 rows affected
 Warnings generated:
 WARNING | 1260 | Row 6 was cut by GROUP_CONCAT()
+Got expected warning: 1260 
+RUN drop table test.t1
 
 0 rows affected
-checking character data type
-Error is returned instead of warning for insert operation with xplugin
+
+##
+## Checking character data type
+## Error is returned instead of warning for insert operation with xplugin
+RUN SET sql_mode = 'NO_ENGINE_SUBSTITUTION'
 
 0 rows affected
+RUN prepare stmt from 'create table test.t1 (a varchar(10) character set utf8)'
 
 0 rows affected
 Statement prepared
 Warnings generated:
 WARNING | 3719 | 'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Got expected warning: 3719 
+RUN execute stmt
 
 0 rows affected
+RUN insert into test.t1 (a) values (repeat('a', 20))
 
 1 rows affected
 Warnings generated:
 WARNING | 1265 | Data truncated for column 'a' at row 1
+Got expected warning: 1265 
+RUN select length(a) from test.t1
 length(a)
 10
 0 rows affected
+RUN drop table test.t1
+
+0 rows affected
+RUN execute stmt
 
 0 rows affected
 
-0 rows affected
-checking directly from IS tables
+##
+## Checking directly from IS tables
+RUN show session variables like 'max_join_size'
 Variable_name	Value
 max_join_size	18446744073709551615
 0 rows affected
+RUN show session variables like 'concurrent_insert'
 Variable_name	Value
 concurrent_insert	AUTO
 0 rows affected
+RUN show session variables like 'default_storage_engine'
 Variable_name	Value
 default_storage_engine	InnoDB
 0 rows affected
-checking errors and warnings with duplicate table
+
+##
+## Checking errors and warnings with duplicate table
+RUN SET SQL_WARNINGS=1
 
 0 rows affected
-checking errors and warnings with duplicate table names
+
+##
+## Checking errors and warnings with duplicate table names
+RUN create table test.dup (a int)
 
 0 rows affected
+RUN create table test.dup (a int)
+While executing create table test.dup (a int):
 Got expected error: Table 'dup' already exists (code 1050)
+RUN show count(*) errors
 @@session.error_count
 1
 0 rows affected
+RUN show errors
 Level	Code	Message
 Error	1050	Table 'dup' already exists
 0 rows affected
-
-0 rows affected
-checking creating table with if not exists
+RUN drop table test.dup
 
 0 rows affected
 
+##
+## Checking creating table with if not exists
+RUN flush status
+
 0 rows affected
+RUN use test
+
+0 rows affected
+RUN create table t1 (a int not null, b int, primary key (a))
+While executing create table t1 (a int not null, b int, primary key (a)):
 Got expected error: Table 't1' already exists (code 1050)
+RUN create table if not exists t1 select 2
 
 0 rows affected
 Warnings generated:
 NOTE | 1050 | Table 't1' already exists
+Got expected warning: 1050 
+RUN select * from t1
 a
 0 rows affected
+RUN create table if not exists t1 select 3 as 'a',4 as 'b'
 
 0 rows affected
 Warnings generated:
 NOTE | 1050 | Table 't1' already exists
+Got expected warning: 1050 
+RUN show status like "Opened_tables"
 Variable_name	Value
 Opened_tables	1
 0 rows affected
+RUN select * from t1
 a
 0 rows affected
+RUN drop table t1
 
 0 rows affected
-try droping mutliplt tables with if exists and check multiple warnings
+
+##
+## Try dropping multiple tables with if exists and check multiple warnings
+RUN use test
 
 0 rows affected
+RUN drop tables if exists t1, t2
 
 0 rows affected
 Warnings generated:
 NOTE | 1051 | Unknown table 'test.t1'
 NOTE | 1051 | Unknown table 'test.t2'
-try checking may warnings
+Got expected warning: 1051 
+
+##
+## Try checking many warnings
+RUN drop tables if exists t1, t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14,t15,t16,t17,t18,t19,t20,t21,t22,t23,t24,t25,t26,t27,t28,t29,t30,a1, a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15,a16,a17,a18,a19,a20,a21,a22,a23,a24,a25,a26,a27,a28,a29,a30,aa1, aa2,aa3,aa4,aa5,aa6,aa7,aa8,aa9,aa10,aa11,aa12,aa13,aa14,aa15,aa16,aa17,aa18,aa19,aa20,aa21,aa22,aa23,aa24,aa25,aa26,aa27,aa28,aa29,aa30,aaaa1, aaaa2,aaaa3,aaaa4,aaaa5,aaaa6,aaaa7,aaaa8,aaaa9,aaaa10,aaaa11,aaaa12,aaaa13,aaaa14,aaaa15,aaaa16,aaaa17,aaaa18,aaaa19,aaaa20,aaaa21,aaaa22,aaaa23,aaaa24,aaaa25,aaaa26,aaaa27,aaaa28,aaaa29,aaaa30
 
 0 rows affected
 Warnings generated:
@@ -305,11 +421,20 @@ NOTE | 1051 | Unknown table 'test.aaaa27'
 NOTE | 1051 | Unknown table 'test.aaaa28'
 NOTE | 1051 | Unknown table 'test.aaaa29'
 NOTE | 1051 | Unknown table 'test.aaaa30'
-dropping same table with if exists and observe error/wrarnings
+Got expected warning: 1051 
+
+##
+## Dropping same table with if exists and observe error/warnings
+RUN drop tables if exists t1,t1
+While executing drop tables if exists t1,t1:
 Got expected error: Not unique table/alias: 't1' (code 1066)
+RUN set max_error_count=65535
 
 0 rows affected
-check more than 64 warnings returned
+
+##
+## Check more than 64 warnings returned
+RUN drop tables if exists t1, t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t12,t13,t14,t15,t16,t17,t18,t19,t20,t21,t22,t23,t24,t25,t26,t27,t28,t29,t30,a1, a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15,a16,a17,a18,a19,a20,a21,a22,a23,a24,a25,a26,a27,a28,a29,a30,aa1, aa2,aa3,aa4,aa5,aa6,aa7,aa8,aa9,aa10,aa11,aa12,aa13,aa14,aa15,aa16,aa17,aa18,aa19,aa20,aa21,aa22,aa23,aa24,aa25,aa26,aa27,aa28,aa29,aa30,aaaa1, aaaa2,aaaa3,aaaa4,aaaa5,aaaa6,aaaa7,aaaa8,aaaa9,aaaa10,aaaa11,aaaa12,aaaa13,aaaa14,aaaa15,aaaa16,aaaa17,aaaa18,aaaa19,aaaa20,aaaa21,aaaa22,aaaa23,aaaa24,aaaa25,aaaa26,aaaa27,aaaa28,aaaa29,aaaa30,bb1, bb2,bb3,bb4,bb5,bb6,bb7,bb8,bb9,bb10,bb11,bb12,bb13,bb14,bb15,bb16,bb17,bb18,bb19,bb20,bb21,bb22,bb23,bb24,bb25,bb26,bb27,bb28,bb29,bb30,b1, b2,b3,b4,b5,b6,b7,b8,b9,b10,b11,b12,b13,b14,b15,b16,b17,b18,b19,b20,b21,b22,b23,b24,b25,b26,b27,b28,b29,b30
 
 0 rows affected
 Warnings generated:
@@ -493,78 +618,120 @@ NOTE | 1051 | Unknown table 'test.b27'
 NOTE | 1051 | Unknown table 'test.b28'
 NOTE | 1051 | Unknown table 'test.b29'
 NOTE | 1051 | Unknown table 'test.b30'
-check no warnings based on max_error_count parameter set
+Got expected warning: 1051 
+
+##
+## Check no warnings based on max_error_count parameter set
+RUN set max_error_count=0
 
 0 rows affected
+RUN drop tables if exists t1,t2
 
 0 rows affected
+RUN set max_error_count=-64
 
 0 rows affected
+RUN show variables like 'max_error_count'
 Variable_name	Value
 max_error_count	0
 0 rows affected
+RUN set max_error_count=64
 
 0 rows affected
-checking creating temporary table when normal and temp table exists
+
+##
+## Checking creating temporary table when normal and temp table exists
+RUN use test
 
 0 rows affected
+RUN create table if not exists t1 (a int) select 2 as a
 
 1 rows affected
 Records: 1  Duplicates: 0  Warnings: 0
+RUN create temporary table t1 (a int) select 2 as a
 
 1 rows affected
 Records: 1  Duplicates: 0  Warnings: 0
+RUN select * from t1
 a
 2
 0 rows affected
+RUN create temporary table if not exists t1 (a int) select 2 as a
 
 0 rows affected
 Warnings generated:
 NOTE | 1050 | Table 't1' already exists
+Got expected warning: 1050 
+RUN select * from t1
 a
 2
 0 rows affected
+RUN drop temporary table t1
+
+0 rows affected
+RUN drop table t1
 
 0 rows affected
 
-0 rows affected
-checking data truncation warnings for default values
+##
+## Checking data truncation warnings for default values
+RUN use test
 
 0 rows affected
+RUN CREATE TABLE t1 SELECT 0.123456789012345678901234567890123456 AS f1
 
 1 rows affected
 Records: 1  Duplicates: 0  Warnings: 1
 Warnings generated:
 NOTE | 1265 | Data truncated for column 'f1' at row 1
+Got expected warning: 1265 
+RUN drop table t1
 
 0 rows affected
-checking data truncation warnings while creating table with expression
+
+##
+## Checking data truncation warnings while creating table with expression
+RUN use test
 
 0 rows affected
+RUN create table t1 as select 5.05 / 0.014
 
 1 rows affected
 Records: 1  Duplicates: 0  Warnings: 1
 Warnings generated:
 NOTE | 1265 | Data truncated for column '5.05 / 0.014' at row 1
-
-0 rows affected
-checking warnings with insert and select operations
-below insert into t1 returns 17775 warnings,checking only limited warnings as test takes more time to render the warnings
+Got expected warning: 1265 
+RUN drop table t1
 
 0 rows affected
 
+##
+## Checking warnings with insert and select operations
+## Below insert into t1 returns 17775 warnings,checking only limited warnings as test takes more time to render the warnings
+RUN use test
+
 0 rows affected
+RUN create table t2 (a char(1))
+
+0 rows affected
+RUN insert into t2 values ('0'),('1'),('2'),('3'),('4'),('5'),('6'),('7')
 
 8 rows affected
 Records: 8  Duplicates: 0  Warnings: 0
+RUN insert into t2 values ('8'),('9'),('A'),('B'),('C'),('D'),('E'),('F')
 
 8 rows affected
 Records: 8  Duplicates: 0  Warnings: 0
+RUN create table t1 (a varchar(2) character set cp932) engine=myisam
 
 0 rows affected
-checking for more than default 64 warnings
+
+##
+## Checking for more than default 64 warnings
+RUN set max_error_count=500
 
 0 rows affected
+RUN insert into t1 select unhex(concat(t24.a, t23.a, t22.a, t21.a)) from t2 t21, t2 t22, t2 t23, t2 t24
 
 65536 rows affected
 Records: 65536  Duplicates: 0  Warnings: 17775
@@ -1069,223 +1236,369 @@ WARNING | 1366 | Incorrect string value: '\xE8' for column 'a' at row 2025
 WARNING | 1366 | Incorrect string value: '\xE9' for column 'a' at row 2026
 WARNING | 1366 | Incorrect string value: '\xEA' for column 'a' at row 2027
 WARNING | 1366 | Incorrect string value: '\xEB' for column 'a' at row 2028
+Got expected warning: 1366 
+RUN set max_error_count=64
+
+0 rows affected
+RUN drop tables t1,t2
 
 0 rows affected
 
-0 rows affected
-checking warnings with prepare and execute statmenets
+##
+## Checking warnings with prepare and execute statements
+RUN use test
 
 0 rows affected
+RUN CREATE TABLE t1(f1 VARCHAR(6) NOT NULL, FULLTEXT KEY(f1), UNIQUE(f1))
 
 0 rows affected
+RUN INSERT INTO t1 VALUES ('test')
 
 1 rows affected
+RUN SELECT 1 FROM t1 WHERE 1 > ALL((SELECT 1 FROM t1 JOIN t1 a ON (MATCH(t1.f1) against ("")) WHERE t1.f1 GROUP BY t1.f1)) xor f1
 1
 1
 0 rows affected
 Warnings generated:
 WARNING | 1292 | Truncated incorrect INTEGER value: 'test'
+Got expected warning: 1292 
+RUN PREPARE stmt FROM 'SELECT 1 FROM t1 WHERE 1 > ALL((SELECT 1 FROM t1 RIGHT OUTER JOIN t1 a ON (MATCH(t1.f1) against ("")) WHERE t1.f1 GROUP BY t1.f1)) xor f1'
 
 0 rows affected
 Statement prepared
+RUN EXECUTE stmt
 1
 1
 0 rows affected
 Warnings generated:
 WARNING | 1292 | Truncated incorrect INTEGER value: 'test'
+Got expected warning: 1292 
+RUN EXECUTE stmt
 1
 1
 0 rows affected
 Warnings generated:
 WARNING | 1292 | Truncated incorrect INTEGER value: 'test'
+Got expected warning: 1292 
+RUN DEALLOCATE PREPARE stmt
 
 0 rows affected
+RUN PREPARE stmt FROM 'SELECT 1 FROM t1 WHERE 1 > ALL((SELECT 1 FROM t1 JOIN t1 a ON (MATCH(t1.f1) against ("")) WHERE t1.f1 GROUP BY t1.f1))'
 
 0 rows affected
 Statement prepared
+RUN EXECUTE stmt
 1
 1
 0 rows affected
+RUN EXECUTE stmt
 1
 1
 0 rows affected
+RUN DEALLOCATE PREPARE stmt
+
+0 rows affected
+RUN drop table t1
 
 0 rows affected
 
-0 rows affected
-checking warnings with group by when sql_mode is no_engine_substitution
+##
+## Checking warnings with group by when sql_mode is no_engine_substitution
+RUN use test
 
 0 rows affected
+RUN SET sql_mode = 'NO_ENGINE_SUBSTITUTION'
 
 0 rows affected
+RUN create table t1 (c1 char(3), c2 char(3))
 
 0 rows affected
+RUN create table t2 (c3 char(3), c4 char(3))
 
 0 rows affected
+RUN insert into t1 values ('aaa', 'bb1'), ('aaa', 'bb2')
 
 2 rows affected
 Records: 2  Duplicates: 0  Warnings: 0
+RUN insert into t2 values ('aaa', 'bb1'), ('aaa', 'bb2')
 
 2 rows affected
 Records: 2  Duplicates: 0  Warnings: 0
+RUN select t1.c1 as c2 from t1, t2 where t1.c2 = t2.c4 group by c2
 c2
 aaa
 aaa
 0 rows affected
 Warnings generated:
 WARNING | 1052 | Column 'c2' in group statement is ambiguous
+Got expected warning: 1052 
+RUN select t1.c1 as c2 from t1, t2 where t1.c2 = t2.c4 group by t1.c1
 c2
 aaa
 0 rows affected
+RUN drop table t1, t2
 
 0 rows affected
-setting back to default of sql_mode
+
+##
+## Setting back to default of sql_mode
+RUN SET sql_mode = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION'
 
 0 rows affected
 Warnings generated:
 WARNING | 3135 | 'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-checking with group by where both error and warnings expected with default sql_mode
+Got expected warning: 3135 
+
+##
+## Checking with group by where both error and warnings expected with default sql_mode
+RUN use test
 
 0 rows affected
+RUN create table t1 (c1 char(3), c2 char(3))
 
 0 rows affected
+RUN create table t2 (c3 char(3), c4 char(3))
 
 0 rows affected
+RUN insert into t1 values ('aaa', 'bb1'), ('aaa', 'bb2')
 
 2 rows affected
 Records: 2  Duplicates: 0  Warnings: 0
+RUN insert into t2 values ('aaa', 'bb1'), ('aaa', 'bb2')
 
 2 rows affected
 Records: 2  Duplicates: 0  Warnings: 0
+RUN select t1.c1 as c2 from t1, t2 where t1.c2 = t2.c4 group by c2
+Warnings generated:
+WARNING | 1052 | Column 'c2' in group statement is ambiguous
+While executing select t1.c1 as c2 from t1, t2 where t1.c2 = t2.c4 group by c2:
 Got expected error: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.c1' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by (code 1055)
-expect both error and warning
-change result file once Bug#21524666 is fixed
+Got expected warning: 1052 
+
+##
+## Expect both error and warning
+RUN select t1.c1 as c2 from t1, t2 where t1.c2 = t2.c4 group by t1.c1
 c2
 aaa
 0 rows affected
-
-0 rows affected
-checking warnings with rollback on non-transactional tables
-
-0 rows affected
+RUN drop table t1, t2
 
 0 rows affected
 
+##
+## Checking warnings with rollback on non-transactional tables
+RUN use test
+
 0 rows affected
+RUN create table t1 (n int not null primary key) engine=myisam
+
+0 rows affected
+RUN begin work
+
+0 rows affected
+RUN insert into t1 values (4)
 
 1 rows affected
+RUN insert into t1 values (5)
 
 1 rows affected
+RUN rollback
 
 0 rows affected
 Warnings generated:
 WARNING | 1196 | Some non-transactional changed tables couldn't be rolled back
+Got expected warning: 1196 
+RUN show warnings
 Level	Code	Message
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 0 rows affected
+RUN show errors
 Level	Code	Message
 0 rows affected
+RUN select @@warning_count,@@error_count
 @@warning_count	@@error_count
 1	0
 0 rows affected
+RUN select * from t1
 n
 4
 5
 0 rows affected
+RUN show warnings
 Level	Code	Message
 0 rows affected
+RUN select @@warning_count
 @@warning_count
 0
 0 rows affected
-
-0 rows affected
-expect 2 warnings for insert related to truncation and incorrect date value
-
-0 rows affected
+RUN drop table t1
 
 0 rows affected
 
+##
+## Expect 2 warnings for insert related to truncation and incorrect date value
+RUN use test
+
 0 rows affected
+RUN set sql_mode=''
+
+0 rows affected
+RUN create table t1 (
+a date not null,
+b mediumtext generated always as ((a not in (a,a))) virtual,
+c timestamp generated always as ((a not in (b,b))) stored not null
+)
+
+0 rows affected
+RUN insert t1(a) values(7777777777)
 
 1 rows affected
 Records: 1  Duplicates: 0  Warnings: 2
 Warnings generated:
 WARNING | 1265 | Data truncated for column 'a' at row 1
 WARNING | 1292 | Incorrect date value: '0' for column 'a' at row 1
+Got expected warnings: 1265 1292 
+RUN drop table t1
+
+0 rows affected
+RUN SET sql_mode = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION'
+
+0 rows affected
+Warnings generated:
+WARNING | 3135 | 'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+Got expected warning: 3135 
+
+##
+## Checking warnings while creating index which is more than row size
+RUN use test
+
+0 rows affected
+RUN create table worklog5743_1(a1 int, a2 TEXT not null) KEY_BLOCK_SIZE=1
+
+0 rows affected
+RUN create table worklog5743_2(a1 int, a2 TEXT not null) KEY_BLOCK_SIZE=2
+
+0 rows affected
+RUN create table worklog5743_4(a1 int, a2 TEXT not null) KEY_BLOCK_SIZE=4
+
+0 rows affected
+RUN create table worklog5743_8(a1 int, a2 TEXT, a3 TEXT) KEY_BLOCK_SIZE=8
 
 0 rows affected
 
-0 rows affected
-checking warnings while creating index which is more than row size
-
-0 rows affected
-
-0 rows affected
-
-0 rows affected
-
-0 rows affected
-
-0 rows affected
-below statement throws warning as Error and actual error is missing
-change result file once Bug#21529270 fixed
+##
+## Below statement throws warning as Error and actual error is missing
+## Change result file once Bug#21529270 fixed
+RUN create index idx1 on worklog5743_1(a2(4000))
+While executing create index idx1 on worklog5743_1(a2(4000)):
 Got expected error: Specified key was too long; max key length is 3072 bytes (code 1071)
+RUN set global innodb_large_prefix=1
+Warnings generated:
+WARNING | 1193 | Unknown system variable 'innodb_large_prefix'
+WARNING | 1193 | Unknown system variable 'innodb_large_prefix'
 While executing set global innodb_large_prefix=1:
 Got expected error: Unknown system variable 'innodb_large_prefix' (code 1193)
+Got expected warning: 1193 
+RUN drop table worklog5743_1
+
+0 rows affected
+RUN drop table worklog5743_2
+
+0 rows affected
+RUN drop table worklog5743_4
+
+0 rows affected
+RUN drop table worklog5743_8
 
 0 rows affected
 
-0 rows affected
+##
+## Checking warnings with different innodb file format
+RUN use test
 
 0 rows affected
+RUN set innodb_strict_mode = off
 
 0 rows affected
-checking warnings with different innodb file format
+RUN set global innodb_file_per_table = 0
 
 0 rows affected
-
-0 rows affected
-
-0 rows affected
+RUN create temporary table t (i int) engine = innodb row_format = compressed
 
 0 rows affected
 Warnings generated:
 WARNING | 1478 | InnoDB: ROW_FORMAT=COMPRESSED is ignored for TEMPORARY TABLE.
 WARNING | 1478 | InnoDB: assuming ROW_FORMAT=DYNAMIC.
+Got expected warning: 1478 
+RUN drop table t
+
+0 rows affected
+RUN set innodb_strict_mode = on
+
+0 rows affected
+RUN set @@global.innodb_file_per_table = 1
 
 0 rows affected
 
-0 rows affected
+##
+## Checking warnings with different innodb row format
+RUN use test
 
 0 rows affected
-checking warnings with different innodb row format
 
-0 rows affected
-expect one Error and Warning
-modify the result file once Bug#21524666 is fixed
+##
+## Expect one Error and Warning
+RUN create table t2 (id int primary key) engine = innodb key_block_size = 9
+Warnings generated:
+WARNING | 1478 | InnoDB: invalid KEY_BLOCK_SIZE = 9. Valid values are [1, 2, 4, 8, 16]
+While executing create table t2 (id int primary key) engine = innodb key_block_size = 9:
 Got expected error: Table storage engine for 't2' doesn't have this option (code 1031)
-expect 2 warnings and 1 Error
-modify the result file once Bug#21524666 is fixed
+Got expected warning: 1478 
+
+##
+## Expect 2 warnings and 1 Error
+RUN create table t2 (id int primary key) engine = innodb key_block_size = 9 row_format = redundant
+Warnings generated:
+WARNING | 1478 | InnoDB: invalid KEY_BLOCK_SIZE = 9. Valid values are [1, 2, 4, 8, 16]
+WARNING | 1478 | InnoDB: cannot specify ROW_FORMAT=REDUNDANT with KEY_BLOCK_SIZE.
+While executing create table t2 (id int primary key) engine = innodb key_block_size = 9 row_format = redundant:
 Got expected error: Table storage engine for 't2' doesn't have this option (code 1031)
-expect 1 warning and 2 Error
-modify the result file once Bug#21524666 is fixed
+Got expected warning: 1478 
+
+##
+## Expect 1 warning and 2 Error
+RUN create table bug46000(`id` int, key `GEN_clust_INDEX`(`id`))engine=innodb
+Warnings generated:
+WARNING | 1280 | Cannot Create Index with name 'GEN_CLUST_INDEX'. The name is reserved for the system default primary index.
+WARNING | 1280 | Incorrect index name 'GEN_CLUST_INDEX'
+WARNING | 1030 | Got error 124 - 'Wrong index given to function' from storage engine
+While executing create table bug46000(`id` int, key `GEN_clust_INDEX`(`id`))engine=innodb:
 Got expected error: Incorrect index name 'GEN_CLUST_INDEX' (code 1280)
-check with show variables like versio and expect warning related to GTID session
+Got expected warnings: 1030 1280 
+
+##
+## Check with show variables like versio and expect warning related to GTID session
+RUN show variables like 'versio'
 Variable_name	Value
 0 rows affected
-check with show variables like versio and expect warning related to GTID session
+
+##
+## Check with show variables like versio and expect warning related to GTID session
+RUN show session variables like 'max_join_size'
 Variable_name	Value
 max_join_size	18446744073709551615
 0 rows affected
+RUN show session variables like 'concurrent_insert'
 Variable_name	Value
 concurrent_insert	AUTO
 0 rows affected
+RUN show session variables like 'default_storage_engine'
 Variable_name	Value
 default_storage_engine	InnoDB
 0 rows affected
-Try to enable fixed notice, should be ok
 
-command ok
+##
+## Verify the notices statistics
 Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 167]
 Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 857]
 Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 0]
@@ -1407,8 +1720,9 @@ command ok
 Try enable produced_message
 
 command ok
-Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 1]
+Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 0]
 Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 0]
+Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 3]
 Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 0]
 Verify [Status variable "Mysqlx_stmt_enable_notices" needs to have a value of 5]
 Verify [Status variable "Mysqlx_stmt_list_notices" needs to have a value of 0]
@@ -1432,8 +1746,9 @@ command ok
 Try enable produced_message
 
 command ok
-Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 1]
+Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 0]
 Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 0]
+Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 3]
 Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 0]
 Verify [Status variable "Mysqlx_stmt_enable_notices" needs to have a value of 5]
 Verify [Status variable "Mysqlx_stmt_list_notices" needs to have a value of 0]
@@ -1446,13 +1761,18 @@ Enable multiple notices both read-only and read-write with single StmtExecute,ex
 command ok
 notice	enabled
 warnings	1
+group_replication/membership/quorum_loss	0
+group_replication/membership/view	0
+group_replication/status/role_change	0
+group_replication/status/state_change	0
 account_expired	1
 generated_insert_id	1
 rows_affected	1
 produced_message	1
 command ok
-Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 1]
+Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 0]
 Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 0]
+Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 3]
 Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 0]
 Verify [Status variable "Mysqlx_stmt_enable_notices" needs to have a value of 1]
 Verify [Status variable "Mysqlx_stmt_list_notices" needs to have a value of 1]
@@ -1480,6 +1800,10 @@ command ok
 listing notices after enabling warnings,account_expired notices
 notice	enabled
 warnings	1
+group_replication/membership/quorum_loss	0
+group_replication/membership/view	0
+group_replication/status/role_change	0
+group_replication/status/state_change	0
 account_expired	1
 generated_insert_id	1
 rows_affected	1
@@ -1488,13 +1812,18 @@ command ok
 listing notices with mixed case
 notice	enabled
 warnings	1
+group_replication/membership/quorum_loss	0
+group_replication/membership/view	0
+group_replication/status/role_change	0
+group_replication/status/state_change	0
 account_expired	1
 generated_insert_id	1
 rows_affected	1
 produced_message	1
 command ok
-Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 3]
+Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 0]
 Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 1]
+Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 5]
 Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 1]
 Verify [Status variable "Mysqlx_stmt_enable_notices" needs to have a value of 2]
 Verify [Status variable "Mysqlx_stmt_list_notices" needs to have a value of 2]
@@ -1509,8 +1838,9 @@ ok
 0 rows affected
 Warnings generated:
 NOTE | 1051 | Unknown table 'mysql.t1'
-Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 3]
+Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 0]
 Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 1]
+Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 5]
 Mysqlx.Ok {
   msg: "bye!"
 }
@@ -1520,8 +1850,9 @@ create user noti@localhost identified by 'noti';
 While executing use mysql:
 Got expected error: Access denied for user 'noti'@'localhost' to database 'mysql' (code 1044)
 Got expected error: No database selected (code 1046)
-Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 1]
+Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 0]
 Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 0]
+Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 3]
 Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 0]
 Verify [Status variable "Mysqlx_stmt_enable_notices" needs to have a value of 0]
 Verify [Status variable "Mysqlx_stmt_list_notices" needs to have a value of 0]

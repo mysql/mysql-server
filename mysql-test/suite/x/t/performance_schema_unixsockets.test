@@ -44,11 +44,13 @@
 -->recvresult
 
 -->repeat 10
+-->echo switched to session NAME_%CON_COUNTER%
 -->setsession NAME_%CON_COUNTER%
 -->closesession
 -->varinc %CON_COUNTER% -1
 -->endrepeat
 
+-->echo switched to session default
 -->setsession
 -->callmacro check_xconnection_count	%CON_COUNTER%
 -->noquiet

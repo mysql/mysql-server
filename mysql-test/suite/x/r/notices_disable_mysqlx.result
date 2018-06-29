@@ -409,6 +409,7 @@ Try Disable produced_message
 Got expected error: Cannot disable notice produced_message (code 5164)
 expect Mysqlx_stmt_disable_notices=5 and remaining are 0
 Variable_name	Value
+Mysqlx_notice_global_sent	0
 Mysqlx_notice_other_sent	1
 Mysqlx_notice_warning_sent	0
 Mysqlx_stmt_disable_notices	5
@@ -433,6 +434,7 @@ Try Disable produced_message
 Got expected error: Cannot disable notice produced_message (code 5164)
 expect Mysqlx_stmt_disable_notices=5 and remaining are 0
 Variable_name	Value
+Mysqlx_notice_global_sent	0
 Mysqlx_notice_other_sent	1
 Mysqlx_notice_warning_sent	0
 Mysqlx_stmt_disable_notices	5
@@ -542,6 +544,10 @@ expect error from account_expired onwards as it is read-only though warnings ret
 Got expected error: Cannot disable notice account_expired (code 5164)
 notice	enabled
 warnings	1
+group_replication/membership/quorum_loss	0
+group_replication/membership/view	0
+group_replication/status/role_change	0
+group_replication/status/state_change	0
 account_expired	1
 generated_insert_id	1
 rows_affected	1
@@ -551,6 +557,10 @@ expect error as disabling account_expired returns error as expected since it is 
 Got expected error: Cannot disable notice account_expired (code 5164)
 notice	enabled
 warnings	1
+group_replication/membership/quorum_loss	0
+group_replication/membership/view	0
+group_replication/status/role_change	0
+group_replication/status/state_change	0
 account_expired	1
 generated_insert_id	1
 rows_affected	1

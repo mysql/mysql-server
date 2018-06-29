@@ -68,7 +68,7 @@ class Protocol_encoder : public Protocol_encoder_interface {
 
   void send_rows_affected(uint64_t value) override;
 
-  void send_notice(const Frame_type type, const Frame_scope scope,
+  bool send_notice(const Frame_type type, const Frame_scope scope,
                    const std::string &data,
                    const bool force_flush = false) override;
 

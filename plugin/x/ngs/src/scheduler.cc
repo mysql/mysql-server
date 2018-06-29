@@ -159,26 +159,6 @@ bool Scheduler_dynamic::post(const Task &task) {
   return false;
 }
 
-bool Scheduler_dynamic::post_and_wait(const Task &task_to_be_posted) {
-  Wait_for_signal future;
-
-  {
-    ngs::Scheduler_dynamic::Task task =
-        ngs::bind(&Wait_for_signal::Signal_when_done::execute,
-                  ngs::allocate_shared<ngs::Wait_for_signal::Signal_when_done>(
-                      ngs::ref(future), task_to_be_posted));
-
-    if (!post(task)) {
-      log_error(ER_XPLUGIN_TASK_SCHEDULING_FAILED);
-      return false;
-    }
-  }
-
-  future.wait();
-
-  return true;
-}
-
 // NOTE: Scheduler takes ownership of monitor.
 void Scheduler_dynamic::set_monitor(Monitor_interface *monitor) {
   m_monitor.reset(monitor);

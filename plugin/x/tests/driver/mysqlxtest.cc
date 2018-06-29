@@ -118,8 +118,8 @@ int client_connect_and_process(const Driver_command_line_options &options,
     context.m_script_stack.push({0, "main"});
 
     cm.connect_default(options.m_cap_expired_password,
-                       options.m_client_interactive, options.m_run_without_auth,
-                       options.m_auth_methods);
+                       options.m_client_interactive,
+                       options.m_run_without_auth);
 
     std::vector<Block_processor_ptr> eaters = create_block_processors(&context);
     int result_code =

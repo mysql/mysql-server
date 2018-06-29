@@ -559,6 +559,9 @@ static SHOW_VAR xpl_plugin_status[] = {
     SESSION_STATUS_VARIABLE_ENTRY_LONGLONG(
         "notice_other_sent", ngs::Common_status_variables::m_notice_other_sent),
     SESSION_STATUS_VARIABLE_ENTRY_LONGLONG(
+        "notice_global_sent",
+        ngs::Common_status_variables::m_notice_global_sent),
+    SESSION_STATUS_VARIABLE_ENTRY_LONGLONG(
         "errors_unknown_message_type",
         ngs::Common_status_variables::m_errors_unknown_message_type),
     GLOBAL_STATUS_VARIABLE_ENTRY_LONGLONG(
@@ -602,6 +605,9 @@ static SHOW_VAR xpl_plugin_status[] = {
         xpl::Global_status_variables::m_active_worker_thread_count),
     GLOBAL_STATUS_VARIABLE_ENTRY_LONGLONG(
         "aborted_clients", xpl::Global_status_variables::m_aborted_clients),
+    GLOBAL_STATUS_VARIABLE_ENTRY_LONGLONG(
+        "notified_by_group_replication",
+        xpl::Global_status_variables::m_notified_by_group_replication),
 
     SESSION_SSL_STATUS_VARIABLE_ENTRY_ARRAY(
         "ssl_cipher_list", xpl::Client::get_status_ssl_cipher_list),

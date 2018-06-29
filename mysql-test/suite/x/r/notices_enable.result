@@ -7810,8 +7810,9 @@ Mysqlx.Error {
 0 rows affected
 
 0 rows affected
-Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 37]
+Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 0]
 Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 32]
+Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 39]
 Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 0]
 Verify [Status variable "Mysqlx_stmt_enable_notices" needs to have a value of 0]
 Verify [Status variable "Mysqlx_stmt_list_notices" needs to have a value of 0]
@@ -7839,8 +7840,9 @@ Try enable produced_message
 Mysqlx.Sql.StmtExecuteOk {
 }
 
-Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 2]
+Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 0]
 Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 0]
+Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 4]
 Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 0]
 Verify [Status variable "Mysqlx_stmt_enable_notices" needs to have a value of 5]
 Verify [Status variable "Mysqlx_stmt_list_notices" needs to have a value of 0]
@@ -7869,8 +7871,9 @@ Try enable produced_message
 Mysqlx.Sql.StmtExecuteOk {
 }
 
-Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 2]
+Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 0]
 Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 0]
+Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 4]
 Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 0]
 Verify [Status variable "Mysqlx_stmt_enable_notices" needs to have a value of 5]
 Verify [Status variable "Mysqlx_stmt_list_notices" needs to have a value of 0]
@@ -7908,6 +7911,26 @@ Mysqlx.Resultset.Row {
 }
 
 Mysqlx.Resultset.Row {
+  field: "group_replication/membership/quorum_loss\000"
+  field: "\000"
+}
+
+Mysqlx.Resultset.Row {
+  field: "group_replication/membership/view\000"
+  field: "\000"
+}
+
+Mysqlx.Resultset.Row {
+  field: "group_replication/status/role_change\000"
+  field: "\000"
+}
+
+Mysqlx.Resultset.Row {
+  field: "group_replication/status/state_change\000"
+  field: "\000"
+}
+
+Mysqlx.Resultset.Row {
   field: "account_expired\000"
   field: "\002"
 }
@@ -7933,8 +7956,9 @@ Mysqlx.Resultset.FetchDone {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
-Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 2]
+Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 0]
 Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 0]
+Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 4]
 Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 0]
 Verify [Status variable "Mysqlx_stmt_enable_notices" needs to have a value of 1]
 Verify [Status variable "Mysqlx_stmt_list_notices" needs to have a value of 1]
@@ -7998,6 +8022,26 @@ Mysqlx.Resultset.Row {
 }
 
 Mysqlx.Resultset.Row {
+  field: "group_replication/membership/quorum_loss\000"
+  field: "\000"
+}
+
+Mysqlx.Resultset.Row {
+  field: "group_replication/membership/view\000"
+  field: "\000"
+}
+
+Mysqlx.Resultset.Row {
+  field: "group_replication/status/role_change\000"
+  field: "\000"
+}
+
+Mysqlx.Resultset.Row {
+  field: "group_replication/status/state_change\000"
+  field: "\000"
+}
+
+Mysqlx.Resultset.Row {
   field: "account_expired\000"
   field: "\002"
 }
@@ -8050,6 +8094,26 @@ Mysqlx.Resultset.Row {
 }
 
 Mysqlx.Resultset.Row {
+  field: "group_replication/membership/quorum_loss\000"
+  field: "\000"
+}
+
+Mysqlx.Resultset.Row {
+  field: "group_replication/membership/view\000"
+  field: "\000"
+}
+
+Mysqlx.Resultset.Row {
+  field: "group_replication/status/role_change\000"
+  field: "\000"
+}
+
+Mysqlx.Resultset.Row {
+  field: "group_replication/status/state_change\000"
+  field: "\000"
+}
+
+Mysqlx.Resultset.Row {
   field: "account_expired\000"
   field: "\002"
 }
@@ -8075,8 +8139,9 @@ Mysqlx.Resultset.FetchDone {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
-Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 4]
+Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 0]
 Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 1]
+Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 6]
 Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 1]
 Verify [Status variable "Mysqlx_stmt_enable_notices" needs to have a value of 2]
 Verify [Status variable "Mysqlx_stmt_list_notices" needs to have a value of 2]
@@ -8102,8 +8167,9 @@ Mysqlx.Notice.Frame {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
-Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 3]
+Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 0]
 Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 1]
+Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 5]
 Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 0]
 Verify [Status variable "Mysqlx_stmt_enable_notices" needs to have a value of 0]
 Verify [Status variable "Mysqlx_stmt_list_notices" needs to have a value of 0]
@@ -8122,8 +8188,9 @@ Mysqlx.Error {
   sql_state: "3D000"
 }
 
-Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 1]
+Verify [Status variable "Mysqlx_notice_global_sent" needs to have a value of 0]
 Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 0]
+Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 3]
 Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 0]
 Verify [Status variable "Mysqlx_stmt_enable_notices" needs to have a value of 0]
 Verify [Status variable "Mysqlx_stmt_list_notices" needs to have a value of 0]

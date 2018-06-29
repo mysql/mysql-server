@@ -20,13 +20,16 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <gtest/gtest.h>
 #include <cstddef>
 #include <thread>
 
-#include "plugin/x/ngs/include/ngs/thread.h"
+#include <gtest/gtest.h>
+#include "my_sys.h"
 
-namespace ngs {
+#include "plugin/x/ngs/include/ngs/thread.h"
+#include "plugin/x/src/helper/multithread/sync_variable.h"
+
+namespace xpl {
 
 namespace test {
 
@@ -36,19 +39,19 @@ const int EXPECTED_VALUE_THRID = 30;
 const int EXPECTED_VALUE_SET = 40;
 const int EXPECTED_VALUE_SET_EXPECT = 50;
 
-class Ngs_sync_variable : public ::testing::Test {
+class Xpl_sync_variable : public ::testing::Test {
  public:
-  Ngs_sync_variable() : m_sut(EXPECTED_VALUE_FIRST), m_thread_ended(false) {}
+  Xpl_sync_variable() : m_sut(EXPECTED_VALUE_FIRST), m_thread_ended(false) {}
 
   static void *start_routine_set(void *data) {
-    Ngs_sync_variable *self = (Ngs_sync_variable *)data;
+    Xpl_sync_variable *self = (Xpl_sync_variable *)data;
     self->set_value();
 
     return NULL;
   }
 
   static void *start_routine_set_and_expect(void *data) {
-    Ngs_sync_variable *self = (Ngs_sync_variable *)data;
+    Xpl_sync_variable *self = (Xpl_sync_variable *)data;
     self->set_value();
     self->m_sut.wait_for(EXPECTED_VALUE_SET_EXPECT);
 
@@ -66,49 +69,49 @@ class Ngs_sync_variable : public ::testing::Test {
   volatile bool m_thread_ended;
 };
 
-TEST_F(Ngs_sync_variable, is_returnConstructorInitializedValue) {
+TEST_F(Xpl_sync_variable, is_returnConstructorInitializedValue) {
   ASSERT_TRUE(m_sut.is(EXPECTED_VALUE_FIRST));
 }
 
-TEST_F(Ngs_sync_variable, is_returnChangedValue) {
+TEST_F(Xpl_sync_variable, is_returnChangedValue) {
   m_sut.set(EXPECTED_VALUE_SECOND);
 
   ASSERT_TRUE(m_sut.is(EXPECTED_VALUE_SECOND));
 }
 
-TEST_F(Ngs_sync_variable, is_returnChangedValue_afterSetWasCalled) {
+TEST_F(Xpl_sync_variable, is_returnChangedValue_afterSetWasCalled) {
   m_sut.set(EXPECTED_VALUE_SECOND);
 
   ASSERT_TRUE(m_sut.is(EXPECTED_VALUE_SECOND));
 }
 
-TEST_F(Ngs_sync_variable, is_exchangeSuccesses_whenCurrentValueMatches) {
+TEST_F(Xpl_sync_variable, is_exchangeSuccesses_whenCurrentValueMatches) {
   ASSERT_TRUE(m_sut.exchange(EXPECTED_VALUE_FIRST, EXPECTED_VALUE_SECOND));
   ASSERT_TRUE(m_sut.is(EXPECTED_VALUE_SECOND));
 }
 
-TEST_F(Ngs_sync_variable, is_exchangeFails_whenCurrentValueDoesntMatches) {
+TEST_F(Xpl_sync_variable, is_exchangeFails_whenCurrentValueDoesntMatches) {
   ASSERT_FALSE(m_sut.exchange(EXPECTED_VALUE_THRID, EXPECTED_VALUE_SECOND));
   ASSERT_FALSE(m_sut.is(EXPECTED_VALUE_SECOND));
   ASSERT_TRUE(m_sut.is(EXPECTED_VALUE_FIRST));
 }
 
-TEST_F(Ngs_sync_variable, wait_returnsRightAway_whenCurrentValueMatches) {
+TEST_F(Xpl_sync_variable, wait_returnsRightAway_whenCurrentValueMatches) {
   m_sut.wait_for(EXPECTED_VALUE_FIRST);
 }
 
-TEST_F(Ngs_sync_variable,
+TEST_F(Xpl_sync_variable,
        wait_returnsRightAway_whenCurrentValueInArrayMatches) {
   int VALUES[] = {EXPECTED_VALUE_SECOND, EXPECTED_VALUE_FIRST};
   m_sut.wait_for(VALUES);
 }
 
-TEST_F(Ngs_sync_variable, wait_returnsRightAway_whenNewValueMatches) {
+TEST_F(Xpl_sync_variable, wait_returnsRightAway_whenNewValueMatches) {
   m_sut.set(EXPECTED_VALUE_SECOND);
   m_sut.wait_for(EXPECTED_VALUE_SECOND);
 }
 
-TEST_F(Ngs_sync_variable, set_returnsOldValue) {
+TEST_F(Xpl_sync_variable, set_returnsOldValue) {
   ASSERT_EQ(EXPECTED_VALUE_FIRST,
             m_sut.set_and_return_old(EXPECTED_VALUE_SET_EXPECT));
   ASSERT_EQ(EXPECTED_VALUE_SET_EXPECT,
@@ -117,16 +120,16 @@ TEST_F(Ngs_sync_variable, set_returnsOldValue) {
             m_sut.set_and_return_old(EXPECTED_VALUE_FIRST));
 }
 
-TEST_F(Ngs_sync_variable,
+TEST_F(Xpl_sync_variable,
        wait_returnsRightAway_whenNewCurrentValueInArrayMatches) {
   int VALUES[] = {EXPECTED_VALUE_SECOND, EXPECTED_VALUE_FIRST};
   m_sut.set(EXPECTED_VALUE_SECOND);
   m_sut.wait_for(VALUES);
 }
 
-TEST_F(Ngs_sync_variable,
+TEST_F(Xpl_sync_variable,
        wait_returnsDelayed_whenThreadChangesValueAndItsExpected) {
-  std::thread t(&Ngs_sync_variable::start_routine_set, this);
+  std::thread t(&Xpl_sync_variable::start_routine_set, this);
   m_sut.wait_for(EXPECTED_VALUE_SET);
   t.join();
 
@@ -134,9 +137,9 @@ TEST_F(Ngs_sync_variable,
 }
 
 TEST_F(
-    Ngs_sync_variable,
+    Xpl_sync_variable,
     wait_returnsDelayed_whenThreadChangesValueAndItsInArrayOfExpectedValues) {
-  std::thread t(&Ngs_sync_variable::start_routine_set_and_expect, this);
+  std::thread t(&Xpl_sync_variable::start_routine_set_and_expect, this);
   int VALUES[] = {EXPECTED_VALUE_SET};
   m_sut.wait_for_and_set(VALUES, EXPECTED_VALUE_SET_EXPECT);
   t.join();
@@ -146,4 +149,4 @@ TEST_F(
 }
 
 }  // namespace test
-}  // namespace ngs
+}  // namespace xpl

@@ -32,9 +32,11 @@ let $old_innodb_lock_wait_timeout= `SELECT @@innodb_lock_wait_timeout`;
 
 -->macro Rollback_sessions
 -->callmacro Expect_data_locks_table_is_not_empty
+-->echo switched to session session1
 -->setsession session1
 -->stmtsql ROLLBACK;
 -->recvresult
+-->echo switched to session session2
 -->setsession session2
 -->stmtsql ROLLBACK;
 -->recvresult
@@ -42,6 +44,7 @@ let $old_innodb_lock_wait_timeout= `SELECT @@innodb_lock_wait_timeout`;
 -->endmacro
 
 -->macro Use_first_transation
+-->echo switched to session session1
 -->setsession session1
 -->callmacro Expect_data_locks_table_is_empty
 -->stmtsql START TRANSACTION;
@@ -50,6 +53,7 @@ let $old_innodb_lock_wait_timeout= `SELECT @@innodb_lock_wait_timeout`;
 
 -->macro Switch_to_second_transaction
 -->callmacro Expect_data_locks_table_is_not_empty
+-->echo switched to session session2
 -->setsession session2
 -->stmtsql START TRANSACTION;
 -->recvresult

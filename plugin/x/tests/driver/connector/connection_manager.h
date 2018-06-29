@@ -54,11 +54,11 @@ class Connection_manager {
 
   void connect_default(const bool send_cap_password_expired = false,
                        const bool client_interactive = false,
-                       const bool no_auth = false,
-                       const std::vector<std::string> &auth_methods = {});
+                       const bool no_auth = false);
   void create(const std::string &name, const std::string &user,
               const std::string &password, const std::string &db,
-              const std::vector<std::string> &auth_methods);
+              const std::vector<std::string> &auth_methods,
+              const bool is_raw_connection);
 
   void abort_active();
   bool is_default_active();
@@ -83,7 +83,7 @@ class Connection_manager {
   Map_name_vs_session m_session_holders;
   Session_holder_ptr m_active_holder;
   std::string m_active_session_name;
-  Connection_options m_connection_options;
+  Connection_options m_default_connection_options;
   Variable_container *m_variables;
   const Console &m_console;
 };

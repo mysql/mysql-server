@@ -37,4 +37,10 @@
 #define HAVE_UNIX_SOCKET(YES, NO) NO
 #endif  // defined(HAVE_SYS_UN_H)
 
+#if defined(HAVE_PSI_INTERFACE)
+#define IS_PSI_AVAILABLE(YES, NO) YES
+#else
+#define IS_PSI_AVAILABLE(YES, NO) NO
+#endif  // defined(HAVE_PSI_INTERFACE)
+
 #endif  // PLUGIN_X_NGS_INCLUDE_NGS_COMMON_CONFIG_H_

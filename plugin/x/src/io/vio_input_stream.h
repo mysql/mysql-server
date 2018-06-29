@@ -49,6 +49,7 @@ class Vio_input_stream : public google::protobuf::io::ZeroCopyInputStream {
   bool peek_data(const void **data, int *size);
   void mark_vio_as_idle();
   void mark_vio_as_active();
+  void clear_io_error() { m_last_io_return_value = 1; }
 
   // ZeroCopyInputStream
  public:

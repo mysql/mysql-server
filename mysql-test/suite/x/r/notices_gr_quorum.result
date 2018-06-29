@@ -1,0 +1,315 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[Setup XPlugin user on connection 'server1']
+[Setup XPlugin user on connection 'server2']
+[Setup XPlugin user on connection 'server3']
+
+## Protocol GR notices enabled - verify delivery of the notices
+##########################################################################
+
+###
+### Sets up the group with three servers
+###
+connecting...
+active session is now 'verify_1'
+connecting...
+active session is now 'server_1'
+connecting...
+active session is now 'server_2'
+connecting...
+active session is now 'server_3'
+[connection server_1]
+RUN SELECT @@SERVER_UUID
+RUN SELECT @@GLOBAL.group_replication_local_address
+RUN SELECT @@GLOBAL.group_replication_group_seeds
+[connection server_2]
+RUN SELECT @@SERVER_UUID
+RUN SELECT @@GLOBAL.group_replication_local_address
+RUN SELECT @@GLOBAL.group_replication_group_seeds
+[connection server_3]
+RUN SELECT @@SERVER_UUID
+RUN SELECT @@GLOBAL.group_replication_local_address
+RUN SELECT @@GLOBAL.group_replication_group_seeds
+[connection server_3]
+RUN SET GLOBAL group_replication_bootstrap_group= 0
+[connection server_2]
+RUN SET GLOBAL group_replication_bootstrap_group= 0
+[connection server_1]
+RUN SET GLOBAL group_replication_bootstrap_group= 0
+[connection server_1]
+[connection server_1]
+RUN SET GLOBAL group_replication_bootstrap_group= 1
+RUN SET GLOBAL group_replication_group_name='%GR_NAME%'
+RUN START GROUP_REPLICATION
+[waiting for member_state to be equal 'ONLINE']
+[connection server_3]
+RUN SET GLOBAL group_replication_bootstrap_group= 0
+[connection server_2]
+RUN SET GLOBAL group_replication_bootstrap_group= 0
+[connection server_1]
+RUN SET GLOBAL group_replication_bootstrap_group= 0
+[connection server_2]
+RUN SET GLOBAL group_replication_group_name='%GR_NAME%'
+RUN START GROUP_REPLICATION
+[waiting for member_state to be equal 'ONLINE']
+[connection server_3]
+RUN SET GLOBAL group_replication_group_name='%GR_NAME%'
+RUN START GROUP_REPLICATION
+[waiting for member_state to be equal 'ONLINE']
+[waiting for '3' members]
+[connection verify_1]
+[Enabling GR notifications]
+
+### Scenario 1: SERVER UNREACHABLE
+### Expected:
+### - Correct Servers: 1 STATE CHANGED (and eventually a VIEW CHANGED)
+### - Failed server:   N/A
+##########################################################
+[Killing and restarting server associated with server_3]
+[connection server_1]
+[waiting for '2' members]
+[ASSERT state_change on 'verify_1' connection]
+[ASSERT view_change on 'verify_1' connection]
+[ASSERT no notices on 'verify_1' connection]
+
+### Scenario 2: MAJORITY UNREACHABLE
+### Expected:
+### - Correct Servers: 1 QUORUM LOST, 1 STATE CHANGED
+### - Failed Servers:  N/A
+##########################################################
+[Killing and restarting server associated with server_2]
+[connection server_1]
+[waiting for concrete member with member_state to be equal 'UNREACHABLE']
+[ASSERT quorum_lost on 'verify_1' connection]
+[ASSERT state_change on 'verify_1' connection]
+[ASSERT no notices on 'verify_1' connection]
+
+### Scenario 3: MAJORITY UNREACHABLE + FORCE MEMBERS
+### Expected:
+### - Correct Servers: 1 VIEW CHANGED
+### - Failed Servers:  N/A
+##########################################################
+[connection server_1]
+RUN SET GLOBAL group_replication_force_members= "%LOCAL_ADDRESS_SERVER_1%"
+[waiting for '1' members]
+RUN SET GLOBAL group_replication_force_members= ""
+[ASSERT view_change on 'verify_1' connection]
+[ASSERT no notices on 'verify_1' connection]
+RUN STOP GROUP_REPLICATION
+RUN SET GLOBAL read_only= FALSE
+
+### Scenario 4: MAJORITY UNREACHABLE + STOP
+### Expected:
+### - Correct Servers: 1 VIEW CHANGED, 1 STATE CHANGED
+### - Failed Servers:  N/A
+##########################################################
+[connection server_1]
+RUN RESET MASTER
+RUN SET @@global.group_replication_group_seeds="%GROUP_SEEDS_SERVER_1%"
+RUN SET @@global.group_replication_local_address="%LOCAL_ADDRESS_SERVER_1%"
+[connection server_1]
+RUN SET GLOBAL group_replication_bootstrap_group= 1
+RUN SET GLOBAL group_replication_group_name='%GR_NAME%'
+RUN START GROUP_REPLICATION
+[waiting for member_state to be equal 'ONLINE']
+[connection server_3]
+RUN SET GLOBAL group_replication_bootstrap_group= 0
+[connection server_2]
+RUN SET GLOBAL group_replication_bootstrap_group= 0
+[connection server_1]
+RUN SET GLOBAL group_replication_bootstrap_group= 0
+[ASSERT view_change on 'verify_1' connection]
+[ASSERT state_change on 'verify_1' connection]
+[ASSERT state_change on 'verify_1' connection]
+[ASSERT no notices on 'verify_1' connection]
+[connection server_2]
+RUN RESET MASTER
+RUN SET @@global.group_replication_group_seeds="%GROUP_SEEDS_SERVER_2%"
+RUN SET @@global.group_replication_local_address="%LOCAL_ADDRESS_SERVER_2%"
+RUN SET GLOBAL group_replication_group_name='%GR_NAME%'
+RUN START GROUP_REPLICATION
+[waiting for member_state to be equal 'ONLINE']
+[ASSERT view_change on 'verify_1' connection]
+[ASSERT state_change on 'verify_1' connection]
+[ASSERT state_change on 'verify_1' connection]
+[ASSERT no notices on 'verify_1' connection]
+[Killing and restarting server associated with server_2]
+[connection server_1]
+[waiting for concrete member with member_state to be equal 'UNREACHABLE']
+[ASSERT quorum_lost on 'verify_1' connection]
+[ASSERT state_change on 'verify_1' connection]
+[ASSERT no notices on 'verify_1' connection]
+RUN STOP GROUP_REPLICATION
+RUN SET GLOBAL read_only= FALSE
+[ASSERT no notices on 'verify_1' connection]
+
+### Cleanup: in xtest
+##########################################################################
+[connection server_1]
+[connection server_2]
+[connection server_3]
+closing session server_3
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+[connection server_2]
+[connection server2]
+[connection server_3]
+[connection server3]
+
+## X Protocol GR notices disabled - verify that X Plugin doesn't send the notices
+##########################################################################
+
+###
+### Sets up the group with three servers
+###
+connecting...
+active session is now 'verify_1'
+connecting...
+active session is now 'server_1'
+connecting...
+active session is now 'server_2'
+connecting...
+active session is now 'server_3'
+[connection server_1]
+RUN SELECT @@SERVER_UUID
+RUN SELECT @@GLOBAL.group_replication_local_address
+RUN SELECT @@GLOBAL.group_replication_group_seeds
+[connection server_2]
+RUN SELECT @@SERVER_UUID
+RUN SELECT @@GLOBAL.group_replication_local_address
+RUN SELECT @@GLOBAL.group_replication_group_seeds
+[connection server_3]
+RUN SELECT @@SERVER_UUID
+RUN SELECT @@GLOBAL.group_replication_local_address
+RUN SELECT @@GLOBAL.group_replication_group_seeds
+[connection server_3]
+RUN SET GLOBAL group_replication_bootstrap_group= 0
+[connection server_2]
+RUN SET GLOBAL group_replication_bootstrap_group= 0
+[connection server_1]
+RUN SET GLOBAL group_replication_bootstrap_group= 0
+[connection server_1]
+[connection server_1]
+RUN SET GLOBAL group_replication_bootstrap_group= 1
+RUN SET GLOBAL group_replication_group_name='%GR_NAME%'
+RUN START GROUP_REPLICATION
+[waiting for member_state to be equal 'ONLINE']
+[connection server_3]
+RUN SET GLOBAL group_replication_bootstrap_group= 0
+[connection server_2]
+RUN SET GLOBAL group_replication_bootstrap_group= 0
+[connection server_1]
+RUN SET GLOBAL group_replication_bootstrap_group= 0
+[connection server_2]
+RUN SET GLOBAL group_replication_group_name='%GR_NAME%'
+RUN START GROUP_REPLICATION
+[waiting for member_state to be equal 'ONLINE']
+[connection server_3]
+RUN SET GLOBAL group_replication_group_name='%GR_NAME%'
+RUN START GROUP_REPLICATION
+[waiting for member_state to be equal 'ONLINE']
+[waiting for '3' members]
+
+### Scenario 1: SERVER UNREACHABLE
+### Expected:
+### - Correct Servers: 1 STATE CHANGED (and eventually a VIEW CHANGED)
+### - Failed server:   N/A
+##########################################################
+[Killing and restarting server associated with server_3]
+[connection server_1]
+[waiting for '2' members]
+[ASSERT no notices on 'verify_1' connection]
+[ASSERT no notices on 'verify_1' connection]
+[ASSERT no notices on 'verify_1' connection]
+
+### Scenario 2: MAJORITY UNREACHABLE
+### Expected:
+### - Correct Servers: 1 QUORUM LOST, 1 STATE CHANGED
+### - Failed Servers:  N/A
+##########################################################
+[Killing and restarting server associated with server_2]
+[connection server_1]
+[waiting for concrete member with member_state to be equal 'UNREACHABLE']
+[ASSERT no notices on 'verify_1' connection]
+[ASSERT no notices on 'verify_1' connection]
+[ASSERT no notices on 'verify_1' connection]
+
+### Scenario 3: MAJORITY UNREACHABLE + FORCE MEMBERS
+### Expected:
+### - Correct Servers: 1 VIEW CHANGED
+### - Failed Servers:  N/A
+##########################################################
+[connection server_1]
+RUN SET GLOBAL group_replication_force_members= "%LOCAL_ADDRESS_SERVER_1%"
+[waiting for '1' members]
+RUN SET GLOBAL group_replication_force_members= ""
+[ASSERT no notices on 'verify_1' connection]
+[ASSERT no notices on 'verify_1' connection]
+RUN STOP GROUP_REPLICATION
+RUN SET GLOBAL read_only= FALSE
+
+### Scenario 4: MAJORITY UNREACHABLE + STOP
+### Expected:
+### - Correct Servers: 1 VIEW CHANGED, 1 STATE CHANGED
+### - Failed Servers:  N/A
+##########################################################
+[connection server_1]
+RUN RESET MASTER
+RUN SET @@global.group_replication_group_seeds="%GROUP_SEEDS_SERVER_1%"
+RUN SET @@global.group_replication_local_address="%LOCAL_ADDRESS_SERVER_1%"
+[connection server_1]
+RUN SET GLOBAL group_replication_bootstrap_group= 1
+RUN SET GLOBAL group_replication_group_name='%GR_NAME%'
+RUN START GROUP_REPLICATION
+[waiting for member_state to be equal 'ONLINE']
+[connection server_3]
+RUN SET GLOBAL group_replication_bootstrap_group= 0
+[connection server_2]
+RUN SET GLOBAL group_replication_bootstrap_group= 0
+[connection server_1]
+RUN SET GLOBAL group_replication_bootstrap_group= 0
+[ASSERT no notices on 'verify_1' connection]
+[ASSERT no notices on 'verify_1' connection]
+[ASSERT no notices on 'verify_1' connection]
+[ASSERT no notices on 'verify_1' connection]
+[connection server_2]
+RUN RESET MASTER
+RUN SET @@global.group_replication_group_seeds="%GROUP_SEEDS_SERVER_2%"
+RUN SET @@global.group_replication_local_address="%LOCAL_ADDRESS_SERVER_2%"
+RUN SET GLOBAL group_replication_group_name='%GR_NAME%'
+RUN START GROUP_REPLICATION
+[waiting for member_state to be equal 'ONLINE']
+[ASSERT no notices on 'verify_1' connection]
+[ASSERT no notices on 'verify_1' connection]
+[ASSERT no notices on 'verify_1' connection]
+[ASSERT no notices on 'verify_1' connection]
+[Killing and restarting server associated with server_2]
+[connection server_1]
+[waiting for concrete member with member_state to be equal 'UNREACHABLE']
+[ASSERT no notices on 'verify_1' connection]
+[ASSERT no notices on 'verify_1' connection]
+[ASSERT no notices on 'verify_1' connection]
+RUN STOP GROUP_REPLICATION
+RUN SET GLOBAL read_only= FALSE
+[ASSERT no notices on 'verify_1' connection]
+
+### Cleanup: in xtest
+##########################################################################
+[connection server_1]
+[connection server_2]
+[connection server_3]
+closing session server_3
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+[connection server_2]
+[connection server2]
+[connection server_3]
+[connection server3]
+include/group_replication_end.inc

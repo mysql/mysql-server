@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -20,33 +20,13 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "plugin/x/src/service_registrator.h"
+#ifndef PLUGIN_X_SRC_SERVICES_MYSQLX_GROUP_MEMBER_STATUS_LISTENER_H_
+#define PLUGIN_X_SRC_SERVICES_MYSQLX_GROUP_MEMBER_STATUS_LISTENER_H_
 
-#include <mysql/service_plugin_registry.h>
-#include <stdexcept>
-#include <string>
+#include <mysql/components/service_implementation.h>
+#include <mysql/components/services/group_member_status_listener.h>
 
-namespace xpl {
+extern SERVICE_TYPE_NO_CONST(group_member_status_listener)
+    SERVICE_IMPLEMENTATION(mysqlx, group_member_status_listener);
 
-Service_registrator::Service_registrator()
-    : m_registry{mysql_plugin_registry_acquire()},
-      m_registrator{"registry_registration", m_registry} {}
-
-Service_registrator::~Service_registrator() {
-  mysql_plugin_registry_release(m_registry);
-}
-
-void Service_registrator::register_service(const Service &s) {
-  if (!m_registrator.is_valid() ||
-      m_registrator->register_service(s.m_name, s.m_service))
-    throw std::runtime_error(std::string("Can't register '") + s.m_name +
-                             "' service");
-}
-
-void Service_registrator::unregister_service(const char *name) {
-  if (!m_registrator.is_valid() || m_registrator->unregister(name))
-    throw std::runtime_error(std::string("Can't unregister '") + name +
-                             "' service");
-}
-
-}  // namespace xpl
+#endif  // PLUGIN_X_SRC_SERVICES_MYSQLX_GROUP_MEMBER_STATUS_LISTENER_H_

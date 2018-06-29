@@ -41,15 +41,17 @@ typedef uint32_t Prepared_stmt_id;
 class Protocol_monitor_interface;
 
 enum class Frame_scope {
-  LOCAL = Mysqlx::Notice::Frame_Scope_LOCAL,
-  GLOBAL = Mysqlx::Notice::Frame_Scope_GLOBAL
+  k_local = Mysqlx::Notice::Frame_Scope_LOCAL,
+  k_global = Mysqlx::Notice::Frame_Scope_GLOBAL
 };
 
 enum class Frame_type {
-  WARNING = Mysqlx::Notice::Frame_Type_WARNING,
-  SESSION_VARIABLE_CHANGED =
+  k_warning = Mysqlx::Notice::Frame_Type_WARNING,
+  k_session_variable_changed =
       Mysqlx::Notice::Frame_Type_SESSION_VARIABLE_CHANGED,
-  SESSION_STATE_CHANGED = Mysqlx::Notice::Frame_Type_SESSION_STATE_CHANGED
+  k_session_state_changed = Mysqlx::Notice::Frame_Type_SESSION_STATE_CHANGED,
+  k_group_replication_state_changed =
+      Mysqlx::Notice::Frame_Type_GROUP_REPLICATION_STATE_CHANGED
 };
 
 struct Encode_column_info {
@@ -91,7 +93,7 @@ class Protocol_encoder_interface {
 
   virtual void send_rows_affected(uint64_t value) = 0;
 
-  virtual void send_notice(const Frame_type type, const Frame_scope scope,
+  virtual bool send_notice(const Frame_type type, const Frame_scope scope,
                            const std::string &data,
                            const bool force_flush = false) = 0;
 

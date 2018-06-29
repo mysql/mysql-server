@@ -23,6 +23,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include "plugin/x/ngs/include/ngs_common/operations_factory.h"
 #include "plugin/x/src/global_timeouts.h"
 #include "plugin/x/src/xpl_client.h"
 #include "plugin/x/src/xpl_server.h"
@@ -39,7 +40,6 @@ using ::testing::Return;
 using ::testing::ReturnPointee;
 using ::testing::ReturnRef;
 using ::testing::SetArrayArgument;
-using ::testing::SetErrnoAndReturn;
 using ::testing::StrictMock;
 using ::testing::_;
 
@@ -72,6 +72,14 @@ class Timers_test_suite : public ::testing::Test {
   MYSQL_SOCKET m_socket{INVALID_SOCKET, nullptr};
 };
 
+ACTION_P2(SetSocketErrnoAndReturn, err, result) {
+  ngs::Operations_factory operations_factory;
+
+  operations_factory.create_system_interface()->set_socket_errno(err);
+
+  return result;
+}
+
 TEST_F(Timers_test_suite,
        read_one_message_non_interactive_client_default_wait_timeout) {
   Message_request mr;
@@ -81,8 +89,9 @@ TEST_F(Timers_test_suite,
   // The timeout value is set from outsie thus the test uses
   // k_interactive_timeout
   Expectation set_timeout_exp = EXPECT_CALL(
-      *mock_vio, set_timeout(Vio_interface::Direction::k_read,
-                             Global_timeouts::Default::k_interactive_timeout));
+      *mock_vio, set_timeout_in_ms(
+                     Vio_interface::Direction::k_read,
+                     Global_timeouts::Default::k_interactive_timeout * 1000));
 
   EXPECT_CALL(*mock_vio, read(_, _))
       .After(set_timeout_exp)
@@ -99,8 +108,9 @@ TEST_F(Timers_test_suite,
        read_one_message_interactive_client_default_interactive_timeout) {
   Message_request mr;
   Expectation set_timeout_exp = EXPECT_CALL(
-      *mock_vio, set_timeout(Vio_interface::Direction::k_read,
-                             Global_timeouts::Default::k_interactive_timeout));
+      *mock_vio, set_timeout_in_ms(
+                     Vio_interface::Direction::k_read,
+                     Global_timeouts::Default::k_interactive_timeout * 1000));
 
   EXPECT_CALL(*mock_vio, read(_, _))
       .After(set_timeout_exp)
@@ -123,7 +133,8 @@ TEST_F(Timers_test_suite,
 
   client.set_wait_timeout(timeouts.interactive_timeout);
 
-  EXPECT_CALL(*temp_vio, set_timeout(Vio_interface::Direction::k_read, 11));
+  EXPECT_CALL(*temp_vio,
+              set_timeout_in_ms(Vio_interface::Direction::k_read, 11 * 1000));
   EXPECT_CALL(*temp_vio, get_mysql_socket()).WillOnce(ReturnRef(m_socket));
   EXPECT_CALL(*temp_vio, read(_, _))
       .WillOnce(DoAll(SetArrayArgument<0>(k_msg.begin(), k_msg.end()),
@@ -142,7 +153,8 @@ TEST_F(Timers_test_suite,
   xpl::test::Mock_ngs_client client(temp_vio, mock_server, /* id */ 1,
                                     &mock_protocol_monitor, timeouts);
 
-  EXPECT_CALL(*temp_vio, set_timeout(Vio_interface::Direction::k_read, 22));
+  EXPECT_CALL(*temp_vio,
+              set_timeout_in_ms(Vio_interface::Direction::k_read, 22 * 1000));
   EXPECT_CALL(*temp_vio, get_mysql_socket()).WillOnce(ReturnRef(m_socket));
   EXPECT_CALL(*temp_vio, read(_, _))
       .WillOnce(DoAll(SetArrayArgument<0>(k_msg.begin(), k_msg.end()),
@@ -157,8 +169,9 @@ TEST_F(Timers_test_suite,
 
 TEST_F(Timers_test_suite, read_one_message_default_read_timeout) {
   EXPECT_CALL(*mock_vio,
-              set_timeout(Vio_interface::Direction::k_read,
-                          Global_timeouts::Default::k_interactive_timeout));
+              set_timeout_in_ms(
+                  Vio_interface::Direction::k_read,
+                  Global_timeouts::Default::k_interactive_timeout * 1000));
 
   // Expected to be called twice - once for header and once for payload
   EXPECT_CALL(*mock_vio, read(_, _))
@@ -173,8 +186,9 @@ TEST_F(Timers_test_suite, read_one_message_default_read_timeout) {
   std::shared_ptr<Protocol_config> conf = std::make_shared<Protocol_config>();
   EXPECT_CALL(mock_server, get_config()).WillRepeatedly(ReturnPointee(&conf));
 
-  EXPECT_CALL(*mock_vio, set_timeout(Vio_interface::Direction::k_read,
-                                     Global_timeouts::Default::k_read_timeout));
+  EXPECT_CALL(*mock_vio, set_timeout_in_ms(
+                             Vio_interface::Direction::k_read,
+                             Global_timeouts::Default::k_read_timeout * 1000));
 
   Message_request mr;
   sut->read_one_message(&mr);
@@ -187,9 +201,11 @@ TEST_F(Timers_test_suite, read_one_message_custom_read_timeout) {
                                     &mock_protocol_monitor, timeouts);
 
   EXPECT_CALL(*temp_vio,
-              set_timeout(Vio_interface::Direction::k_read,
-                          Global_timeouts::Default::k_interactive_timeout));
-  EXPECT_CALL(*temp_vio, set_timeout(Vio_interface::Direction::k_read, 33));
+              set_timeout_in_ms(
+                  Vio_interface::Direction::k_read,
+                  Global_timeouts::Default::k_interactive_timeout * 1000));
+  EXPECT_CALL(*temp_vio,
+              set_timeout_in_ms(Vio_interface::Direction::k_read, 33 * 1000));
   EXPECT_CALL(*temp_vio, get_mysql_socket()).WillOnce(ReturnRef(m_socket));
 
   // Expected to be called twice - once for header and once for payload
@@ -212,11 +228,12 @@ TEST_F(Timers_test_suite, read_one_message_custom_read_timeout) {
 
 TEST_F(Timers_test_suite, read_one_message_failed_read) {
   EXPECT_CALL(*mock_vio,
-              set_timeout(Vio_interface::Direction::k_read,
-                          Global_timeouts::Default::k_interactive_timeout));
+              set_timeout_in_ms(
+                  Vio_interface::Direction::k_read,
+                  Global_timeouts::Default::k_interactive_timeout * 1000));
 
   EXPECT_CALL(*mock_vio, read(_, _))
-      .WillRepeatedly(SetErrnoAndReturn(SOCKET_ETIMEDOUT, -1));
+      .WillRepeatedly(SetSocketErrnoAndReturn(SOCKET_ETIMEDOUT, -1));
   EXPECT_CALL(*mock_vio, set_state(_)).Times(1);
 
   EXPECT_CALL(mock_protocol_monitor, on_receive(_)).Times(0);
@@ -226,10 +243,9 @@ TEST_F(Timers_test_suite, read_one_message_failed_read) {
               set_write_timeout(Global_timeouts::Default::k_write_timeout));
 
   sut->set_encoder(encoder);
-#ifndef _WIN32
+
   EXPECT_CALL(*encoder,
-              send_notice(Frame_type::WARNING, Frame_scope::GLOBAL, _, _));
-#endif
+              send_notice(Frame_type::k_warning, Frame_scope::k_global, _, _));
 
   Message_request mr;
   sut->read_one_message(&mr);
@@ -238,8 +254,9 @@ TEST_F(Timers_test_suite, read_one_message_failed_read) {
 TEST_F(Timers_test_suite, send_message_default_write_timeout) {
   EXPECT_CALL(*mock_vio, get_fd());
   Expectation set_timeout_exp = EXPECT_CALL(
-      *mock_vio, set_timeout(Vio_interface::Direction::k_write,
-                             Global_timeouts::Default::k_write_timeout));
+      *mock_vio,
+      set_timeout_in_ms(Vio_interface::Direction::k_write,
+                        Global_timeouts::Default::k_write_timeout * 1000));
 
   EXPECT_CALL(*mock_vio, write(_, _)).After(set_timeout_exp);
 
@@ -258,7 +275,8 @@ TEST_F(Timers_test_suite, send_message_custom_write_timeout) {
 
   EXPECT_CALL(*temp_vio, get_fd());
   Expectation set_timeout_exp = EXPECT_CALL(
-      *temp_vio, set_timeout(Vio_interface::Direction::k_write, 44));
+      *temp_vio,
+      set_timeout_in_ms(Vio_interface::Direction::k_write, 44 * 1000));
 
   EXPECT_CALL(*temp_vio, write(_, _)).After(set_timeout_exp);
 
@@ -273,9 +291,9 @@ TEST_F(Timers_test_suite, send_message_custom_write_timeout) {
 
 TEST_F(Timers_test_suite, send_message_failed_write) {
   EXPECT_CALL(*mock_vio, get_fd());
-  EXPECT_CALL(*mock_vio,
-              set_timeout(Vio_interface::Direction::k_write,
-                          Global_timeouts::Default::k_write_timeout));
+  EXPECT_CALL(*mock_vio, set_timeout_in_ms(
+                             Vio_interface::Direction::k_write,
+                             Global_timeouts::Default::k_write_timeout * 1000));
 
   ON_CALL(*mock_vio, write(_, _)).WillByDefault(Return(-1));
   EXPECT_CALL(*mock_vio, write(_, _));

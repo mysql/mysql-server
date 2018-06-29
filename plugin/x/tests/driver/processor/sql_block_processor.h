@@ -25,8 +25,8 @@
 #ifndef PLUGIN_X_TESTS_DRIVER_PROCESSOR_SQL_BLOCK_PROCESSOR_H_
 #define PLUGIN_X_TESTS_DRIVER_PROCESSOR_SQL_BLOCK_PROCESSOR_H_
 
-#include <list>
 #include <string>
+#include <vector>
 
 #include "plugin/x/tests/driver/connector/result_fetcher.h"
 #include "plugin/x/tests/driver/processor/block_processor.h"
@@ -42,10 +42,11 @@ class Sql_block_processor : public Block_processor {
   virtual Result feed(std::istream &input, const char *linebuf);
   virtual bool feed_ended_is_state_ok();
 
- private:
+ protected:
   int run_sql_batch(xcl::XSession *conn, const std::string &sql_,
                     const bool be_quiet);
-
+  void handle_warnings(Result_fetcher *fetcher,
+                       std::vector<Warning> *out_warnings_aggregation);
   Execution_context *m_context;
   Connection_manager *m_cm;
   std::string m_rawbuffer;

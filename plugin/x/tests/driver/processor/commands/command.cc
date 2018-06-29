@@ -27,11 +27,20 @@
 #include <algorithm>
 #include <fstream>
 #include <iostream>
+#include <set>
+
+#include <signal.h>
+#include <sys/types.h>
+
+#include "mysqld_error.h"
 
 #include "plugin/x/ngs/include/ngs_common/to_string.h"
+#include "plugin/x/tests/driver/common/message_matcher.h"
 #include "plugin/x/tests/driver/connector/mysqlx_all_msgs.h"
+#include "plugin/x/tests/driver/connector/warning.h"
 #include "plugin/x/tests/driver/formatters/message_formatter.h"
 #include "plugin/x/tests/driver/json_to_any_handler.h"
+#include "plugin/x/tests/driver/parsers/message_parser.h"
 #include "plugin/x/tests/driver/processor/commands/mysqlxtest_error_names.h"
 #include "plugin/x/tests/driver/processor/comment_processor.h"
 #include "plugin/x/tests/driver/processor/indigestion_processor.h"
@@ -104,6 +113,7 @@ Command::Command() {
   m_commands["echo"] = &Command::cmd_echo;
   m_commands["recvtype"] = &Command::cmd_recvtype;
   m_commands["recvok"] = &Command::cmd_recvok;
+  m_commands["recvmessage"] = &Command::cmd_recvmessage;
   m_commands["recverror"] = &Command::cmd_recverror;
   m_commands["recvresult"] = &Command::cmd_recvresult;
   m_commands["recvtovar"] = &Command::cmd_recvtovar;
@@ -122,10 +132,13 @@ Command::Command() {
   m_commands["recv"] = &Command::cmd_recv;
   m_commands["exit"] = &Command::cmd_exit;
   m_commands["abort"] = &Command::cmd_abort;
+  m_commands["shutdown_server"] = &Command::cmd_shutdown_server;
+  m_commands["reconnect"] = &Command::cmd_reconnect;
   m_commands["nowarnings"] = &Command::cmd_nowarnings;
   m_commands["yeswarnings"] = &Command::cmd_yeswarnings;
   m_commands["fatalerrors"] = &Command::cmd_fatalerrors;
   m_commands["nofatalerrors"] = &Command::cmd_nofatalerrors;
+  m_commands["fatalwarnings"] = &Command::cmd_fatalwarnings;
   m_commands["newsession"] = &Command::cmd_newsession;
   m_commands["newsession_plain"] = &Command::cmd_newsession_plain;
   m_commands["newsession_mysql41"] = &Command::cmd_newsession_mysql41;
@@ -133,6 +146,7 @@ Command::Command() {
   m_commands["setsession"] = &Command::cmd_setsession;
   m_commands["closesession"] = &Command::cmd_closesession;
   m_commands["expecterror"] = &Command::cmd_expecterror;
+  m_commands["expectwarnings"] = &Command::cmd_expectwarnings;
   m_commands["measure"] = &Command::cmd_measure;
   m_commands["endmeasure"] = &Command::cmd_endmeasure;
   m_commands["quiet"] = &Command::cmd_quiet;
@@ -249,7 +263,7 @@ Command::Result Command::cmd_recvtype(std::istream &input,
   Message_ptr msg(
       context->session()->get_protocol().recv_single_message(&msgid, &error));
 
-  int number_of_arguments = vargs.size() - 1;
+  int number_of_arguments = static_cast<int>(vargs.size()) - 1;
   if (1 < vargs.size()) {
     if (vargs[number_of_arguments] == CMD_ARG_BE_QUIET) {
       be_quiet = true;
@@ -356,6 +370,74 @@ Command::Result Command::cmd_recvok(std::istream &input,
   return Result::Continue;
 }
 
+Command::Result Command::cmd_recvmessage(std::istream &input,
+                                         Execution_context *context,
+                                         const std::string &args) {
+  if (args.empty()) {
+    context->print_error(
+        "'recvmessage' command, requires at last one argument.\n");
+    return Result::Stop_with_failure;
+  }
+
+  std::string expected_msg_name;
+  std::string expected_msg_body;
+  std::string parsing_error;
+  xcl::XProtocol::Server_message_type_id expected_msgid;
+  std::string tmp = args;
+  context->m_variables->replace(&tmp);
+
+  if (!parser::get_name_and_body_from_text(tmp, &expected_msg_name,
+                                           &expected_msg_body, true)) {
+    context->print_error("Command 'recvmessage' has an invalid argument.\n");
+    context->m_variables->clear_unreplace();
+    return Result::Stop_with_failure;
+  }
+
+  Message_ptr expected_msg{parser::get_server_message_from_text(
+      expected_msg_name, expected_msg_body, &expected_msgid, &parsing_error,
+      true)};
+  if (nullptr == expected_msg.get()) {
+    context->print_error(
+        "Command 'recvmessage' coundn't parse expected message.\n");
+    context->print_error(parsing_error, '\n');
+    context->m_variables->clear_unreplace();
+    return Result::Stop_with_failure;
+  }
+
+  xcl::XError error;
+  xcl::XProtocol::Server_message_type_id out_received_msgid;
+
+  Message_ptr received_msg{
+      context->session()->get_protocol().recv_single_message(
+          &out_received_msgid, &error)};
+
+  if (nullptr == received_msg.get()) {
+    context->print_error("Command 'recvmessage' didn't receive any data.\n");
+    context->print_error("I/O operation ended with error: ", error);
+    context->m_variables->clear_unreplace();
+    return Result::Stop_with_failure;
+  }
+
+  if (!message_match_with_expectations(*expected_msg, *received_msg)) {
+    context->print_error(
+        "Received messages: ", formatter::message_to_text(*received_msg),
+        "\nDoesn't match the expectations: ",
+        formatter::message_to_text(*expected_msg), "\n");
+    context->m_variables->clear_unreplace();
+    return Result::Stop_with_failure;
+  }
+
+  if (context->m_options.m_show_query_result) {
+    const std::string message_in_text = context->m_variables->unreplace(
+        formatter::message_to_text(*received_msg));
+    context->print(message_in_text, "\n");
+  }
+
+  context->m_variables->clear_unreplace();
+
+  return Result::Continue;
+}
+
 Command::Result Command::cmd_recverror(std::istream &input,
                                        Execution_context *context,
                                        const std::string &args) {
@@ -455,6 +537,7 @@ Command::Result Command::cmd_recvresult(std::istream &input,
     if (quiet) columns.erase(i);
 
     Result_fetcher result{context->session()->get_protocol().recv_resultset()};
+    std::vector<Warning> warnings;
 
     const bool force_quiet = !context->m_options.m_show_query_result || quiet;
     print_resultset(context, &result, columns, value_callback, force_quiet);
@@ -472,6 +555,7 @@ Command::Result Command::cmd_recvresult(std::istream &input,
     if (print_colinfo) context->print(result.column_metadata());
 
     context->m_variables->clear_unreplace();
+
     if (!force_quiet) {
       int64_t x = result.affected_rows();
       if (x >= 0)
@@ -492,17 +576,21 @@ Command::Result Command::cmd_recvresult(std::istream &input,
 
       if (!result.info_message().empty())
         context->print(result.info_message(), "\n");
-      {
-        std::vector<Result_fetcher::Warning> warnings(result.get_warnings());
-        if (!warnings.empty()) context->print("Warnings generated:\n");
-        for (auto w = warnings.begin(); w != warnings.end(); ++w) {
-          context->print((w->m_is_note ? "NOTE" : "WARNING"), " | ", w->m_code,
-                         " | ", w->m_text, "\n");
-        }
+
+      auto current_warnings(result.get_warnings());
+
+      if (!current_warnings.empty()) context->print("Warnings generated:\n");
+
+      for (const auto &w : current_warnings) {
+        warnings.push_back(w);
+        context->print(w, "\n");
       }
     }
 
     if (!context->m_expected_error.check_ok()) return Result::Stop_with_failure;
+
+    if (!context->m_expected_warnings.check_warnings(warnings))
+      return Result::Stop_with_failure;
   } catch (xcl::XError &) {
   }
   return Result::Continue;
@@ -872,7 +960,12 @@ Command::Result Command::cmd_system(std::istream &input,
   // -->system (sleep 3; echo "Killing"; ps aux | grep mysqld | egrep -v "gdb
   // .+mysqld" | grep -v  "kdeinit4"| awk '{print($2)}' | xargs kill -s
   // SIGQUIT)&
-  if (0 == system(args.c_str())) return Result::Continue;
+
+  std::string s = args;
+
+  context->m_variables->replace(&s);
+
+  if (0 == system(s.c_str())) return Result::Continue;
 
   return Result::Stop_with_failure;
 }
@@ -1053,6 +1146,104 @@ Command::Result Command::cmd_abort(std::istream &input,
   return Result::Stop_with_success;
 }
 
+static bool kill_process(int pid) {
+  bool killed = true;
+#ifdef _WIN32
+  HANDLE proc;
+  proc = OpenProcess(PROCESS_TERMINATE, false, pid);
+  if (nullptr == proc) return true; /* Process could not be found. */
+
+  if (!TerminateProcess(proc, 201)) killed = false;
+
+  CloseHandle(proc);
+#else
+  killed = (kill(pid, SIGKILL) == 0);
+#endif
+  return killed;
+}
+
+Command::Result Command::cmd_shutdown_server(std::istream &input,
+                                             Execution_context *context,
+                                             const std::string &args) {
+  int timeout_seconds = 0;
+
+  if (args.size() > 0) timeout_seconds = ngs::stoi(args);
+
+  if (0 != timeout_seconds) {
+    context->m_console.print_error(
+        "First argument to 'shutdown_server' command can be only set to "
+        "'0'.\n");
+    return Result::Stop_with_failure;
+  }
+
+  try {
+    std::string pid_file;
+    Backup_and_restore<bool> backup_and_restore_fatal_errors(
+        &context->m_options.m_fatal_errors, true);
+    Backup_and_restore<bool> backup_and_restore_query(
+        &context->m_options.m_show_query_result, false);
+    Backup_and_restore<bool> backup_and_restore_quiet(
+        &context->m_options.m_quiet, true);
+    Backup_and_restore<std::string> backup_and_restore_command_name(
+        &context->m_command_name, "sql");
+
+    try_result(cmd_stmtsql(input, context, "SELECT @@GLOBAL.pid_file"));
+    try_result(cmd_recvresult(input, context, "",
+                              [&pid_file](const std::string result) {
+                                pid_file = result;
+                                return true;
+                              }));
+    try_result(cmd_varfile(input, context, "__%VAR% " + pid_file));
+
+    const auto pid = ngs::stoi(context->m_variables->get("__%VAR%"));
+
+    if (0 == pid) {
+      context->m_console.print_error("Pid-file doesn't contain valid PID.\n");
+      return Result::Stop_with_failure;
+    }
+
+    if (!kill_process(pid)) {
+      context->m_console.print_error("Server coudn't be killed.\n");
+      return Result::Stop_with_failure;
+    }
+  } catch (const Result result) {
+    if (Result::Continue != result) {
+      return Result::Stop_with_failure;
+    }
+  }
+
+  return Result::Continue;
+}
+
+Command::Result Command::cmd_reconnect(std::istream &input,
+                                       Execution_context *context,
+                                       const std::string &args) {
+  auto &holder = context->m_connection->active_holder();
+  xcl::XError error;
+  std::set<int> expected_errors{0,
+                                ER_SERVER_SHUTDOWN,
+                                CR_CONNECTION_ERROR,
+                                CR_CONN_HOST_ERROR,
+                                CR_SERVER_GONE_ERROR,
+                                CR_SERVER_LOST,
+                                ER_ACCESS_DENIED_ERROR,
+                                ER_SECURE_TRANSPORT_REQUIRED};
+
+  do {
+    context->m_connection->active_xconnection()->close();
+    cmd_sleep(input, context, "1");
+    error = holder.reconnect();
+
+    if (0 == expected_errors.count(error.error())) {
+      context->m_console.print_error("Received unexpected error ",
+                                     error.error(), '\n');
+      return Result::Stop_with_failure;
+    }
+  } while (error.error());
+
+  return Result::Continue;
+}
+
 Command::Result Command::cmd_nowarnings(std::istream &input,
                                         Execution_context *context,
                                         const std::string &args) {
@@ -1071,6 +1262,34 @@ Command::Result Command::cmd_fatalerrors(std::istream &input,
                                          Execution_context *context,
                                          const std::string &args) {
   context->m_options.m_fatal_errors = true;
+  return Result::Continue;
+}
+
+Command::Result Command::cmd_fatalwarnings(std::istream &input,
+                                           Execution_context *context,
+                                           const std::string &args) {
+  bool value = true;
+
+  if (!args.empty()) {
+    const static std::map<std::string, bool> allowed_values{
+        {"YES", true},    {"TRUE", true}, {"NO", false},
+        {"FALSE", false}, {"1", true},    {"0", false}};
+
+    std::string upper_case_args;
+
+    for (const auto c : args) {
+      upper_case_args.push_back(toupper(c));
+    }
+
+    if (0 == allowed_values.count(upper_case_args)) {
+      context->m_console.print_error("Argument has invalid value ", args, '\n');
+      return Result::Stop_with_failure;
+    }
+
+    value = allowed_values.at(upper_case_args);
+  }
+
+  context->m_options.m_fatal_warnings = value;
   return Result::Continue;
 }
 
@@ -1144,7 +1363,13 @@ Command::Result Command::do_newsession(
   }
 
   try {
-    context->m_connection->create(name, user, pass, db, auth_methods);
+    const bool is_raw_connection = user == "-";
+
+    context->m_console.print("connecting...\n");
+    context->m_connection->create(name, user, pass, db, auth_methods,
+                                  is_raw_connection);
+    context->m_console.print("active session is now '", name, "'\n");
+
     if (!context->m_expected_error.check_ok()) return Result::Stop_with_failure;
   } catch (xcl::XError &err) {
     if (!context->m_expected_error.check_error(err)) {
@@ -1163,9 +1388,9 @@ Command::Result Command::cmd_setsession(std::istream &input,
   context->m_variables->replace(&s);
 
   if (!s.empty() && (s[0] == ' ' || s[0] == '\t'))
-    context->m_connection->set_active(s.substr(1));
+    context->m_connection->set_active(s.substr(1), context->m_options.m_quiet);
   else
-    context->m_connection->set_active(s);
+    context->m_connection->set_active(s, context->m_options.m_quiet);
   return Result::Continue;
 }
 
@@ -1311,7 +1536,7 @@ Command::Result Command::cmd_varlet(std::istream &input,
 
     if (!context->m_variables->set(name, value)) {
       context->print_error("'varlet' command failed, when setting the '", name,
-                           "' variable.\n");
+                           "' variable to '", value, "'.\n");
 
       return Result::Stop_with_failure;
     }
@@ -1782,6 +2007,39 @@ Command::Result Command::cmd_received(std::istream &input,
   return Result::Continue;
 }
 
+Command::Result Command::cmd_expectwarnings(std::istream &input,
+                                            Execution_context *context,
+                                            const std::string &args) {
+  if (args.empty()) {
+    context->print_error("'expectwarning' command, requires one argument.\n");
+    return Result::Stop_with_failure;
+  }
+
+  try {
+    std::vector<std::string> argl;
+
+    aux::split(argl, args, ",", true);
+
+    for (std::vector<std::string>::const_iterator arg = argl.begin();
+         arg != argl.end(); ++arg) {
+      std::string value = *arg;
+
+      context->m_variables->replace(&value);
+      aux::trim(value);
+
+      const int error_code = mysqlxtest::get_error_code_by_text(value);
+
+      context->m_expected_warnings.expect_warning(error_code);
+    }
+  } catch (const std::exception &e) {
+    context->print_error(e, '\n');
+
+    return Result::Stop_with_failure;
+  }
+
+  return Result::Continue;
+}
+
 bool Command::json_string_to_any(const std::string &json_string,
                                  Any *any) const {
   Json_to_any_handler handler(any);
@@ -1988,6 +2246,11 @@ void print_help_commands() {
                "<eof>/^D)\n";
   std::cout << "-->abort\n";
   std::cout << "  Exit immediately, without performing cleanup\n";
+  std::cout << "-->shutdown_server [timeout]\n";
+  std::cout << "  Shutdown the server associated with current session,\n";
+  std::cout << "  in case when the 'timeout' argument was set to '0'(for ";
+  std::cout << "now it only supported\n";
+  std::cout << "  option), the command kills the server.\n";
   std::cout << "-->nowarnings/-->yeswarnings\n";
   std::cout << "  Whether to print warnings generated by the statement "
                "(default no)\n";
@@ -2009,11 +2272,22 @@ void print_help_commands() {
   std::cout << "  Performs authentication steps expecting an error (use with "
                "--no-auth)\n";
   std::cout << "-->fatalerrors/nofatalerrors\n";
-  std::cout << "  Whether to immediately exit on MySQL errors\n";
-  std::cout << "-->expecterror <errno>\n";
-  std::cout << "  Expect a specific error for the next command and fail if "
-               "something else occurs\n";
-  std::cout << "  Works for: newsession, closesession, recvresult, recvok\n";
+  std::cout << "  Whether to immediately exit on MySQL errors.\n";
+  std::cout << "  All expected errors are ignored.\n";
+  std::cout << "-->fatalwarnings [yes|no|true|false|1|0]\n";
+  std::cout << "  Whether to immediately exit on MySQL warnings.\n";
+  std::cout << "  All expected warnings are ignored.\n";
+  std::cout << "-->expectwarnings <errno>[,<errno>[,<errno>...]]\n";
+  std::cout << "  Expect a specific warning for the next command. Fails if "
+               "warning other than specified occurred.\n";
+  std::cout
+      << "  When this command was not used then all warnings are expected.\n";
+  std::cout << "  Works for: recvresult, SQL\n";
+  std::cout << "-->expecterror <errno>[,<errno>[,<errno>...]]\n";
+  std::cout << "  Expect a specific error for the next command. Fails if "
+               "error other than specified occurred\n";
+  std::cout
+      << "  Works for: newsession, closesession, recvresult, recvok, SQL\n";
   std::cout << "-->newsession <name>\t<user>\t<pass>\t<db>\n";
   std::cout << "  Create a new connection which is going to be authenticate"
                " using sequence of mechanisms (AUTO). Use '-' in place of"
@@ -2027,6 +2301,9 @@ void print_help_commands() {
   std::cout << "-->newsession_plain <name>\t<user>\t<pass>\t<db>\n";
   std::cout << "  Create a new connection which is going to be authenticate"
                " using PLAIN mechanism.\n";
+  std::cout << "-->reconnect\n";
+  std::cout << "  Try to restore the connection/session. Default connection"
+               "  is restored or session established by '-->newsession*'.\n";
   std::cout << "-->setsession <name>\n";
   std::cout << "  Activate the named session\n";
   std::cout << "-->closesession [abort]\n";

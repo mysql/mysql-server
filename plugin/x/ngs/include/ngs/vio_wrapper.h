@@ -28,6 +28,7 @@
 #include "plugin/x/ngs/include/ngs/interface/vio_interface.h"
 #include "plugin/x/ngs/include/ngs/thread.h"
 #include "plugin/x/ngs/include/ngs_common/connection_type.h"
+#include "plugin/x/src/helper/multithread/mutex.h"
 
 namespace ngs {
 
@@ -38,8 +39,8 @@ class Vio_wrapper : public Vio_interface {
   ssize_t read(uchar *buffer, ssize_t bytes_to_send) override;
   ssize_t write(const uchar *buffer, ssize_t bytes_to_send) override;
 
-  void set_timeout(const Direction direction, const uint32_t timeout) override;
-
+  void set_timeout_in_ms(const Direction direction,
+                         const uint64_t timeout) override;
   void set_state(const PSI_socket_state state) override;
   void set_thread_owner() override;
 
@@ -56,7 +57,7 @@ class Vio_wrapper : public Vio_interface {
 
  private:
   Vio *m_vio;
-  Mutex m_shutdown_mutex;
+  xpl::Mutex m_shutdown_mutex;
 };
 
 }  // namespace ngs

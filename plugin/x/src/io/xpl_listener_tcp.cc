@@ -51,7 +51,7 @@ class Tcp_creator {
   ngs::shared_ptr<addrinfo> resolve_bind_address(
       const std::string &bind_address, const unsigned short port,
       std::string &error_message) {
-    struct addrinfo *result = NULL;
+    struct addrinfo *result = nullptr;
     std::string service;
     std::vector<std::string> bind_addresses;
     ngs::String_formatter formatter;
@@ -69,13 +69,13 @@ class Tcp_creator {
       }
     }
 
-    while (!bind_addresses.empty() && NULL == result) {
+    while (!bind_addresses.empty() && nullptr == result) {
       result = resolve_addr_info(bind_addresses.back(), service);
 
       bind_addresses.pop_back();
     }
 
-    if (NULL == result) {
+    if (nullptr == result) {
       error_message = "can't resolve `hostname`";
 
       return ngs::shared_ptr<addrinfo>();
@@ -89,18 +89,18 @@ class Tcp_creator {
   ngs::Socket_interface::Shared_ptr create_and_bind_socket(
       ngs::shared_ptr<addrinfo> ai, const uint32 backlog, int &error_code,
       std::string &error_message) {
-    addrinfo *used_ai = NULL;
+    addrinfo *used_ai = nullptr;
     std::string errstr;
 
     ngs::Socket_interface::Shared_ptr result_socket =
         create_socket_from_addrinfo(ai.get(), KEY_socket_x_tcpip, AF_INET,
                                     &used_ai);
 
-    if (NULL == result_socket.get())
+    if (nullptr == result_socket.get())
       result_socket = create_socket_from_addrinfo(ai.get(), KEY_socket_x_tcpip,
                                                   AF_INET6, &used_ai);
 
-    if (NULL == result_socket.get()) {
+    if (nullptr == result_socket.get()) {
       m_system_interface->get_socket_error_and_message(error_code, errstr);
 
       error_message = ngs::String_formatter()
@@ -185,7 +185,7 @@ class Tcp_creator {
     m_used_address.resize(200, '\0');
 
     if (vio_getnameinfo((const struct sockaddr *)used_ai->ai_addr,
-                        &m_used_address[0], m_used_address.length(), NULL, 0,
+                        &m_used_address[0], m_used_address.length(), nullptr, 0,
                         NI_NUMERICHOST)) {
       m_used_address[0] = '\0';
     }
@@ -200,7 +200,7 @@ class Tcp_creator {
   ngs::Socket_interface::Shared_ptr create_socket_from_addrinfo(
       addrinfo *ai, PSI_socket_key psi_key, const int family,
       addrinfo **used_ai) {
-    for (addrinfo *cur_ai = ai; NULL != cur_ai; cur_ai = cur_ai->ai_next) {
+    for (addrinfo *cur_ai = ai; nullptr != cur_ai; cur_ai = cur_ai->ai_next) {
       if (family != cur_ai->ai_family) continue;
 
       ngs::Socket_interface::Shared_ptr result =
@@ -226,7 +226,7 @@ class Tcp_creator {
   struct addrinfo *resolve_addr_info(const std::string &address,
                                      const std::string service) {
     struct addrinfo hints;
-    struct addrinfo *ai = NULL;
+    struct addrinfo *ai = nullptr;
     memset(&hints, 0, sizeof(hints));
     hints.ai_flags = AI_PASSIVE;
     hints.ai_socktype = SOCK_STREAM;
@@ -237,7 +237,7 @@ class Tcp_creator {
       return ai;
     }
 
-    return NULL;
+    return nullptr;
   }
 
   std::string m_used_address;
@@ -264,8 +264,6 @@ Listener_tcp::~Listener_tcp() {
 }
 
 Listener_tcp::Sync_variable_state &Listener_tcp::get_state() { return m_state; }
-
-bool Listener_tcp::is_handled_by_socket_event() { return true; }
 
 std::string Listener_tcp::get_last_error() { return m_last_error; }
 
@@ -295,8 +293,11 @@ bool Listener_tcp::setup_listener(On_connection on_connection) {
   m_tcp_socket = create_socket();
 
   // create_socket in case of invalid socket or setup failure
-  // is going to return NULL
-  if (NULL == m_tcp_socket.get()) return false;
+  // is going to return nullptr
+  if (nullptr == m_tcp_socket.get()) {
+    close_listener();
+    return false;
+  }
 
   if (m_event.listen(m_tcp_socket, on_connection)) {
     m_state.set(ngs::State_listener_prepared);
@@ -305,6 +306,7 @@ bool Listener_tcp::setup_listener(On_connection on_connection) {
 
   m_last_error = "event dispatcher couldn't register socket";
   m_tcp_socket.reset();
+  close_listener();
 
   return false;
 }
@@ -336,7 +338,7 @@ ngs::Socket_interface::Shared_ptr Listener_tcp::create_socket() {
   ngs::shared_ptr<addrinfo> ai =
       creator.resolve_bind_address(m_bind_address, m_port, m_last_error);
 
-  if (NULL == ai.get()) return ngs::Socket_interface::Shared_ptr();
+  if (nullptr == ai.get()) return ngs::Socket_interface::Shared_ptr();
 
   for (uint32 waited = 0, retry = 1; waited <= m_port_open_timeout; ++retry) {
     result_socket =
@@ -345,7 +347,7 @@ ngs::Socket_interface::Shared_ptr Listener_tcp::create_socket() {
     // Success, lets break the loop
     // `create_and_bind_socket` in case of invalid socket/failure
     //  returns empty pointer
-    if (NULL != result_socket.get()) {
+    if (nullptr != result_socket.get()) {
       m_bind_address = creator.get_used_address();
       break;
     }
@@ -362,6 +364,31 @@ ngs::Socket_interface::Shared_ptr Listener_tcp::create_socket() {
   }
 
   return result_socket;
+}
+
+std::string Listener_tcp::choose_property_value(
+    const std::string &value) const {
+  switch (m_state.get()) {
+    case ngs::State_listener_prepared:
+      return value;
+
+    case ngs::State_listener_running:
+      return value;
+
+    case ngs::State_listener_stopped:
+      return ngs::PROPERTY_NOT_CONFIGURED;
+
+    default:
+      return "";
+  }
+}
+
+void Listener_tcp::report_properties(On_report_properties on_prop) {
+  on_prop(ngs::Server_property_ids::k_tcp_bind_address,
+          choose_property_value(m_bind_address));
+
+  on_prop(ngs::Server_property_ids::k_tcp_port,
+          choose_property_value(std::to_string(m_port)));
 }
 
 }  // namespace xpl

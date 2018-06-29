@@ -28,6 +28,8 @@
 #include "plugin/x/ngs/include/ngs/ngs_error.h"
 #include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
 
+const uint32_t ON_IDLE_TIMEOUT_VALUE = 500;
+
 namespace ngs {
 
 Protocol_decoder::Decode_error::Decode_error() {}
@@ -55,7 +57,8 @@ bool Protocol_decoder::Decode_error::was_error() const {
   return get_logic_error() || was_peer_disconnected() || get_io_error() != 0;
 }
 
-bool Protocol_decoder::read_header(uint8 *message_type, uint32 *message_size) {
+bool Protocol_decoder::read_header(uint8 *message_type, uint32 *message_size,
+                                   Waiting_for_io_interface *wait_for_io) {
   int header_copied = 0;
   int input_size = 0;
   const char *input = nullptr;
@@ -65,13 +68,33 @@ bool Protocol_decoder::read_header(uint8 *message_type, uint32 *message_size) {
   };
 
   int copy_from_input = 0;
+  const bool needs_idle_check = wait_for_io->has_to_report_idle_waiting();
+  const uint64_t io_read_timeout =
+      needs_idle_check ? ON_IDLE_TIMEOUT_VALUE : m_wait_timeout_in_ms;
 
-  m_vio->set_timeout(Vio_interface::Direction::k_read, m_wait_timeout);
+  m_vio->set_timeout_in_ms(Vio_interface::Direction::k_read, io_read_timeout);
+
+  uint64_t total_timeout = 0;
 
   m_vio_input_stream.mark_vio_as_idle();
 
   while (header_copied < 4) {
+    if (needs_idle_check) wait_for_io->on_idle_or_before_read();
+
     if (!m_vio_input_stream.Next((const void **)&input, &input_size)) {
+      int out_error_code = 0;
+      if (m_vio_input_stream.was_io_error(&out_error_code)) {
+        if ((out_error_code == SOCKET_ETIMEDOUT ||
+             out_error_code == SOCKET_EAGAIN) &&
+            needs_idle_check) {
+          total_timeout += ON_IDLE_TIMEOUT_VALUE;
+          if (total_timeout < m_wait_timeout_in_ms) {
+            m_vio_input_stream.clear_io_error();
+
+            continue;
+          }
+        }
+      }
       return false;
     }
 
@@ -93,7 +116,8 @@ bool Protocol_decoder::read_header(uint8 *message_type, uint32 *message_size) {
   if (*message_size > 0) {
     if (input_size == copy_from_input) {
       copy_from_input = 0;
-      m_vio->set_timeout(Vio_interface::Direction::k_read, m_read_timeout);
+      m_vio->set_timeout_in_ms(Vio_interface::Direction::k_read,
+                               m_read_timeout_in_ms);
 
       if (!m_vio_input_stream.Next((const void **)&input, &input_size)) {
         return false;
@@ -111,8 +135,8 @@ bool Protocol_decoder::read_header(uint8 *message_type, uint32 *message_size) {
 }
 
 Protocol_decoder::Decode_error Protocol_decoder::read_and_decode(
-    Message_request *out_message) {
-  const auto result = read_and_decode_impl(out_message);
+    Message_request *out_message, Waiting_for_io_interface *wait_for_io) {
+  const auto result = read_and_decode_impl(out_message, wait_for_io);
   const auto received = static_cast<long>(m_vio_input_stream.ByteCount());
 
   if (received > 0) m_protocol_monitor->on_receive(received);
@@ -121,14 +145,14 @@ Protocol_decoder::Decode_error Protocol_decoder::read_and_decode(
 }
 
 Protocol_decoder::Decode_error Protocol_decoder::read_and_decode_impl(
-    Message_request *out_message) {
+    Message_request *out_message, Waiting_for_io_interface *wait_for_io) {
   uint8 message_type;
   uint32 message_size;
   int io_error = 0;
 
   m_vio_input_stream.reset_byte_count();
 
-  if (!read_header(&message_type, &message_size)) {
+  if (!read_header(&message_type, &message_size, wait_for_io)) {
     m_vio_input_stream.was_io_error(&io_error);
 
     if (0 == io_error) return {true};
@@ -174,12 +198,12 @@ Protocol_decoder::Decode_error Protocol_decoder::read_and_decode_impl(
   return {};
 }
 
-void Protocol_decoder::set_wait_timeout(const uint32 wait_timeout) {
-  m_wait_timeout = wait_timeout;
+void Protocol_decoder::set_wait_timeout(const uint32 wait_timeout_in_seconds) {
+  m_wait_timeout_in_ms = wait_timeout_in_seconds * 1000;
 }
 
-void Protocol_decoder::set_read_timeout(const uint32 read_timeout) {
-  m_read_timeout = read_timeout;
+void Protocol_decoder::set_read_timeout(const uint32 read_timeout_in_seconds) {
+  m_read_timeout_in_ms = read_timeout_in_seconds * 1000;
 }
 
 }  // namespace ngs

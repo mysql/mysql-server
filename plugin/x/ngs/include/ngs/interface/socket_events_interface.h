@@ -29,6 +29,7 @@
 #include <vector>
 
 #include "plugin/x/ngs/include/ngs/thread.h"
+#include "plugin/x/ngs/include/ngs_common/bind.h"
 #include "plugin/x/ngs/include/ngs_common/socket_interface.h"
 
 namespace ngs {

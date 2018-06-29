@@ -36,46 +36,55 @@
 #include "plugin/x/ngs/include/ngs/interface/vio_interface.h"
 #include "plugin/x/ngs/include/ngs/protocol/protocol_config.h"
 #include "plugin/x/ngs/include/ngs/scheduler.h"
-#include "plugin/x/ngs/include/ngs/server_acceptors.h"
 #include "plugin/x/ngs/include/ngs/server_client_timeout.h"
+#include "plugin/x/ngs/include/ngs/socket_acceptors_task.h"
 #include "plugin/x/ngs/include/ngs/vio_wrapper.h"
 #include "plugin/x/src/xpl_log.h"
 
-using namespace ngs;
+namespace ngs {
 
-Server::Server(ngs::shared_ptr<Server_acceptors> acceptors,
-               ngs::shared_ptr<Scheduler_dynamic> accept_scheduler,
+Server::Server(ngs::shared_ptr<Scheduler_dynamic> accept_scheduler,
                ngs::shared_ptr<Scheduler_dynamic> work_scheduler,
                Server_delegate *delegate,
-               ngs::shared_ptr<Protocol_config> config)
+               ngs::shared_ptr<Protocol_config> config,
+               Server_properties *properties, const Server_task_vector &tasks,
+               ngs::shared_ptr<Timeout_callback_interface> timeout_callback)
     : m_timer_running(false),
       m_skip_name_resolve(false),
       m_errors_while_accepting(0),
-      m_acceptors(acceptors),
       m_accept_scheduler(accept_scheduler),
       m_worker_scheduler(work_scheduler),
       m_config(config),
       m_id_generator(new Document_id_generator()),
       m_state(State_initializing),
-      m_delegate(delegate) {}
+      m_delegate(delegate),
+      m_properties(properties),
+      m_tasks(tasks),
+      m_timeout_callback(timeout_callback) {}
 
 bool Server::prepare(std::unique_ptr<Ssl_context_interface> ssl_context,
-                     const bool skip_networking, const bool skip_name_resolve,
-                     const bool use_unix_sockets) {
+                     const bool skip_networking, const bool skip_name_resolve) {
   Listener_interface::On_connection on_connection =
-      ngs::bind(&Server::on_accept, this, ngs::placeholders::_1);
+      [this](Connection_acceptor_interface &acceptor) { on_accept(acceptor); };
 
+  Task_context context(on_connection, skip_networking, m_properties,
+                       &m_client_list);
   m_skip_name_resolve = skip_name_resolve;
   m_ssl_context = ngs::move(ssl_context);
 
-  const bool result =
-      m_acceptors->prepare(on_connection, skip_networking, use_unix_sockets);
+  bool result = true;
+
+  for (auto &task : m_tasks) {
+    result = result && task->prepare(&context);
+  }
 
   if (result) {
     m_state.set(State_running);
 
-    m_acceptors->add_timer(
-        1000, ngs::bind(&Server::on_check_terminated_workers, this));
+    m_timeout_callback->add_callback(1000, [this]() -> bool {
+      this->on_check_terminated_workers();
+      return true;
+    });
 
     return true;
   }
@@ -95,7 +104,10 @@ void Server::run_task(ngs::shared_ptr<Server_task_interface> handler) {
 
 void Server::start_failed() {
   m_state.exchange(State_initializing, State_failure);
-  m_acceptors->abort();
+
+  for (auto &task : m_tasks) {
+    task->stop(Stop_cause::k_abort);
+  }
 }
 
 bool Server::is_running() {
@@ -108,23 +120,17 @@ bool Server::is_terminating() {
 }
 
 void Server::start() {
-  Server_tasks_interfaces handlers =
-      m_acceptors->create_server_tasks_for_listeners();
-  Server_tasks_interfaces::iterator handler_iterator = handlers.begin();
+  if (m_tasks.empty()) return;
 
-  if (handler_iterator == handlers.end()) return;
+  auto task_to_run_in_new_thread = ++m_tasks.begin();
 
-  ngs::shared_ptr<Server_task_interface> handler_to_run_in_current_thread =
-      *(handler_iterator++);
+  while (task_to_run_in_new_thread != m_tasks.end()) {
+    Server_tasks_interface_ptr task = *task_to_run_in_new_thread++;
 
-  while (handlers.end() != handler_iterator) {
-    m_accept_scheduler->post(
-        ngs::bind(&Server::run_task, this, (*handler_iterator)));
-
-    ++handler_iterator;
+    m_accept_scheduler->post([this, task]() { run_task(task); });
   }
 
-  run_task(handler_to_run_in_current_thread);
+  run_task(*m_tasks.begin());
 }
 
 /** Stop the network acceptor loop */
@@ -136,10 +142,15 @@ void Server::stop(const bool is_called_from_timeout_handler) {
   if (State_terminating == m_state.set_and_return_old(State_terminating))
     return;
 
-  m_acceptors->stop(is_called_from_timeout_handler);
+  const Stop_cause cause = is_called_from_timeout_handler
+                               ? Stop_cause::k_server_task_triggered_event
+                               : Stop_cause::k_normal_shutdown;
+
+  for (auto &task : m_tasks) {
+    task->stop(cause);
+  }
 
   close_all_clients();
-
   wait_for_clients_closure();
 
   if (m_worker_scheduler) {
@@ -205,7 +216,7 @@ void Server::start_client_supervision_timer(
 
   m_timer_running = true;
 
-  m_acceptors->add_timer(
+  m_timeout_callback->add_callback(
       static_cast<size_t>(chrono::to_milliseconds(oldest_object_time_ms)),
       ngs::bind(&Server::timeout_for_clients_validation, this));
 }
@@ -359,9 +370,9 @@ void Server::get_authentication_mechanisms(std::vector<std::string> &auth_mech,
   }
 }
 
-void Server::add_timer(const std::size_t delay_ms,
-                       ngs::function<bool()> callback) {
-  m_acceptors->add_timer(delay_ms, callback);
+void Server::add_callback(const std::size_t delay_ms,
+                          ngs::function<bool()> callback) {
+  m_timeout_callback->add_callback(delay_ms, callback);
 }
 
 bool Server::reset_globals() {
@@ -377,3 +388,5 @@ bool Server::reset_globals() {
 
   return true;
 }
+
+}  // namespace ngs

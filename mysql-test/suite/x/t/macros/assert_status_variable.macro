@@ -1,3 +1,7 @@
+# * Wait_for_status_variable
+# * Assert_status_variable
+# * Assert_received_notices
+
 -->macro Wait_for_status_variable  %VARIABLE_NAME%  %EXPECTED_VALUE%
 -->echo Verify [Status variable "%VARIABLE_NAME%" needs to have a value of %EXPECTED_VALUE%]
 wait_for %EXPECTED_VALUE%
@@ -13,11 +17,16 @@ wait_for %EXPECTED_VALUE%
 -->endmacro
 
 
--->macro Assert_recived_notices
+-->macro Assert_received_notices
 -->received Mysqlx.Notice.Warning	%MYSQLXTEST_NO_OF_WARNINGS%
+-->received Mysqlx.Notice.GroupReplicationStateChanged	%MYSQLXTEST_NO_OF_GLOBAL%
+
+-->callmacro Assert_status_variable	Mysqlx_notice_global_sent	%MYSQLXTEST_NO_OF_GLOBAL%
+-->callmacro Assert_status_variable	Mysqlx_notice_warning_sent	%MYSQLXTEST_NO_OF_WARNINGS%
+
 -->received Mysqlx.Notice.Frame	%MYSQLXTEST_NO_OF_OTHER%
 -->varinc %MYSQLXTEST_NO_OF_OTHER% -%MYSQLXTEST_NO_OF_WARNINGS%
+-->varinc %MYSQLXTEST_NO_OF_OTHER% -%MYSQLXTEST_NO_OF_GLOBAL%
 -->callmacro Assert_status_variable	Mysqlx_notice_other_sent	%MYSQLXTEST_NO_OF_OTHER%
--->callmacro Assert_status_variable	Mysqlx_notice_warning_sent	%MYSQLXTEST_NO_OF_WARNINGS%
 -->endmacro
 

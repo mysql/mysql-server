@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,8 @@
 
 #include "decimal.h"
 #include "my_dbug.h"
+
+#include "plugin/x/ngs/include/ngs/interface/notice_output_queue_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
 #include "plugin/x/ngs/include/ngs/protocol/column_info_builder.h"
 #include "plugin/x/ngs/include/ngs/protocol/row_builder.h"
@@ -40,8 +42,12 @@
 using namespace xpl;
 
 Streaming_command_delegate::Streaming_command_delegate(
-    ngs::Protocol_encoder_interface *proto)
-    : m_proto(proto), m_sent_result(false), m_compact_metadata(false) {}
+    ngs::Protocol_encoder_interface *proto,
+    ngs::Notice_output_queue_interface *notice_queue)
+    : m_proto(proto),
+      m_notice_queue(notice_queue),
+      m_sent_result(false),
+      m_compact_metadata(false) {}
 
 Streaming_command_delegate::~Streaming_command_delegate() {}
 
@@ -249,7 +255,13 @@ int Streaming_command_delegate::start_row() {
 int Streaming_command_delegate::end_row() {
   if (m_streaming_metadata) return false;
 
-  if (m_proto->send_row()) return false;
+  if (m_proto->send_row()) {
+    if (m_notice_queue) {
+      const bool dont_force_flush_on_last_item = false;
+      m_notice_queue->encode_queued_items(dont_force_flush_on_last_item);
+    }
+    return false;
+  }
 
   my_message(ER_IO_WRITE_ERROR, "Connection reset by peer", MYF(0));
   return true;

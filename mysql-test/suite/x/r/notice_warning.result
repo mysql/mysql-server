@@ -341,6 +341,26 @@ Mysqlx.Resultset.Row {
 }
 
 Mysqlx.Resultset.Row {
+  field: "group_replication/membership/quorum_loss\000"
+  field: "\000"
+}
+
+Mysqlx.Resultset.Row {
+  field: "group_replication/membership/view\000"
+  field: "\000"
+}
+
+Mysqlx.Resultset.Row {
+  field: "group_replication/status/role_change\000"
+  field: "\000"
+}
+
+Mysqlx.Resultset.Row {
+  field: "group_replication/status/state_change\000"
+  field: "\000"
+}
+
+Mysqlx.Resultset.Row {
   field: "account_expired\000"
   field: "\002"
 }

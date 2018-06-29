@@ -31,6 +31,7 @@
 
 #include "plugin/x/ngs/include/ngs/memory.h"
 #include "plugin/x/ngs/include/ngs/thread.h"
+#include "plugin/x/src/helper/multithread/mutex.h"
 
 #define BUFFER_PAGE_SIZE 4096
 
@@ -151,7 +152,7 @@ class Page_pool {
   int32_t m_pages_cache_max;
   int32_t m_pages_cached;
   const int32_t m_page_size;
-  Mutex m_mutex;
+  xpl::Mutex m_mutex;
   std::atomic<int32_t> m_pages_allocated;
 };
 

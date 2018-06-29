@@ -296,6 +296,15 @@ std::string message_to_text(const Message &message) {
         frame.set_payload(payload_as_text);
         break;
       }
+
+      case ::Mysqlx::Notice::Frame_Type_GROUP_REPLICATION_STATE_CHANGED: {
+        const auto payload_as_text =
+            message_to_text<Mysqlx::Notice::GroupReplicationStateChanged>(
+                frame.payload());
+
+        frame.set_payload(payload_as_text);
+        break;
+      }
     }
 
     printer.PrintToString(frame, &output);

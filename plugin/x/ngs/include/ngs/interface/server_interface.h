@@ -28,6 +28,7 @@
 #include "plugin/x/ngs/include/ngs/interface/authentication_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/document_id_generator_interface.h"
 #include "plugin/x/ngs/include/ngs_common/smart_ptr.h"
+#include "plugin/x/src/helper/multithread/mutex.h"
 
 namespace ngs {
 
@@ -38,7 +39,6 @@ class Protocol_encoder_interface;
 class Scheduler_dynamic;
 class Protocol_encoder;
 class Protocol_config;
-class Mutex;
 class Sql_session_interface;
 class Ssl_context_interface;
 
@@ -57,7 +57,7 @@ class Server_interface {
   virtual Document_id_generator_interface &get_document_id_generator()
       const = 0;
 
-  virtual Mutex &get_client_exit_mutex() = 0;
+  virtual xpl::Mutex &get_client_exit_mutex() = 0;
 
   virtual Ssl_context_interface *ssl_context() const = 0;
 

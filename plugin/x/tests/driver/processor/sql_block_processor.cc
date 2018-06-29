@@ -32,6 +32,7 @@
 
 #include "plugin/x/tests/driver/common/utils_mysql_parsing.h"
 #include "plugin/x/tests/driver/connector/result_fetcher.h"
+#include "plugin/x/tests/driver/connector/warning.h"
 
 Block_processor::Result Sql_block_processor::feed(std::istream &input,
                                                   const char *linebuf) {
@@ -89,61 +90,101 @@ int Sql_block_processor::run_sql_batch(xcl::XSession *conn,
       sql.data(), sql.length(), delimiter, ranges, "\n", input_context_stack);
 
   xcl::XError error;
+  std::vector<Warning> warnings;
 
+  std::unique_ptr<Result_fetcher> result;
   for (const auto &st : ranges) {
     try {
-      if (!be_quiet)
-        m_context->print("RUN ", sql.substr(st.first, st.second), "\n");
+      if (!be_quiet) {
+        auto sql_to_display = m_context->m_variables->unreplace(
+            sql.substr(st.first, st.second), false);
+        m_context->print("RUN ", sql_to_display, "\n");
+      }
 
-      Result_fetcher result(
-          conn->execute_sql(sql.substr(st.first, st.second), &error));
+      result.reset(new Result_fetcher(
+          conn->execute_sql(sql.substr(st.first, st.second), &error)));
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
       do {
         std::stringstream s;
-        s << (&result);
-        m_context->print(m_context->m_variables->unreplace(s.str(), false));
-      } while (result.next_data_set());
+        s << (result.get());
+        if (m_context->m_options.m_show_query_result) {
+          const auto value = m_context->m_variables->unreplace(s.str(), false);
 
-      error = result.get_last_error();
-
-      if (error) throw error;
-
-      const int64_t affected_rows = result.affected_rows();
-
-      if (affected_rows >= 0)
-        m_context->print(affected_rows, " rows affected\n");
-
-      if (result.last_insert_id() > 0)
-        m_context->print("last insert id: ", result.last_insert_id(), "\n");
-
-      if (!result.info_message().empty())
-        m_context->print(result.info_message(), "\n");
-
-      if (m_context->m_options.m_show_warnings) {
-        auto &warnings = result.get_warnings();
-
-        if (!warnings.empty()) m_context->print("Warnings generated:\n");
-
-        for (const auto &w : warnings) {
-          m_context->print((w.m_is_note ? "NOTE" : "WARNING"), " | ", w.m_code,
-                           " | ", w.m_text, "\n");
+          if (!value.empty()) m_context->print(value);
         }
+      } while (result->next_data_set());
+
+      error = result->get_last_error();
+
+      if (error) {
+        throw error;
       }
+
+      if (m_context->m_options.m_show_query_result) {
+        const int64_t affected_rows = result->affected_rows();
+
+        if (affected_rows >= 0)
+          m_context->print(affected_rows, " rows affected\n");
+
+        if (result->last_insert_id() > 0)
+          m_context->print("last insert id: ", result->last_insert_id(), "\n");
+
+        if (!result->info_message().empty())
+          m_context->print(result->info_message(), "\n");
+      }
+
+      handle_warnings(result.get(), &warnings);
     } catch (xcl::XError &err) {
+      handle_warnings(result.get(), &warnings);
       error = err;
       m_context->m_variables->clear_unreplace();
       m_context->print_error("While executing ",
                              sql.substr(st.first, st.second), ":\n");
 
-      if (!m_context->m_expected_error.check_error(err)) return 1;
+      if (!m_context->m_expected_error.check_error(err)) {
+        // We do not need to check the result of check_warnings,
+        // the execution already failed.
+        // The propose of line below is to make the user aware
+        // of other issues by printing info about unexpected
+        // warnings.
+        m_context->m_expected_warnings.check_warnings(warnings);
+        return 1;
+      }
     }
   }
 
-  if (!error) m_context->m_expected_error.check_ok();
+  const bool is_success = !error;
+
+  if (!m_context->m_expected_warnings.check_warnings(warnings)) return 1;
+
+  if (is_success) {
+    if (!m_context->m_expected_error.check_ok()) return 1;
+  }
 
   m_context->m_variables->clear_unreplace();
 
   return 0;
+}
+
+void Sql_block_processor::handle_warnings(
+    Result_fetcher *fetcher, std::vector<Warning> *out_warnings_aggregation) {
+  if (nullptr == fetcher) return;
+
+  auto current_warnings = fetcher->get_warnings();
+
+  for (const auto &w : current_warnings) {
+    out_warnings_aggregation->push_back(w);
+  }
+
+  if (m_context->m_options.m_show_warnings) {
+    if (!current_warnings.empty()) m_context->print("Warnings generated:\n");
+
+    for (const auto &w : current_warnings) {
+      m_context->print(w, "\n");
+    }
+  }
 }

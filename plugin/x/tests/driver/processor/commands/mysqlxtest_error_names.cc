@@ -89,7 +89,8 @@ int try_to_interpret_text_as_error_code(
 }  // namespace
 
 int get_error_code_by_text(const std::string &error_name_or_code) {
-  if ('E' == error_name_or_code.at(0) || 'C' == error_name_or_code.at(0)) {
+  if ('E' == error_name_or_code.at(0) || 'C' == error_name_or_code.at(0) ||
+      'O' == error_name_or_code.at(0) || 'W' == error_name_or_code.at(0)) {
     const mysqlxtest::Error_entry *entry =
         mysqlxtest::get_error_entry_by_name(error_name_or_code);
 

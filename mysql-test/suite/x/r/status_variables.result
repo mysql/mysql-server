@@ -32,6 +32,8 @@ include/assert.inc [No connections were made, Mysqlx_errors_unknown_message_type
 include/assert.inc [No connections were made, Mysqlx_rows_sent must match default value which is 0.]
 include/assert.inc [No connections were made, Mysqlx_notice_warning_sent must match default value which is 0.]
 include/assert.inc [No connections were made, Mysqlx_notice_other_sent must match default value which is 0.]
+include/assert.inc [No connections were made, Mysqlx_notice_global_sent must match default value which is 0.]
+include/assert.inc [No connections were made, Mysqlx_notified_by_group_replication must match default value which is 0.]
 include/assert.inc [No connections were made, Mysqlx_sessions must match default value which is 0.]
 include/assert.inc [No connections were made, Mysqlx_sessions_closed must match default value which is 0.]
 include/assert.inc [No connections were made, Mysqlx_sessions_fatal_error must match default value which is 0.]

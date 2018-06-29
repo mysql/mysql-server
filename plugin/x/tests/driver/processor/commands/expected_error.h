@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,9 +25,12 @@
 #ifndef PLUGIN_X_TESTS_DRIVER_PROCESSOR_COMMANDS_EXPECTED_ERROR_H_
 #define PLUGIN_X_TESTS_DRIVER_PROCESSOR_COMMANDS_EXPECTED_ERROR_H_
 
+#include <functional>
 #include <set>
+#include <vector>
 
 #include "plugin/x/client/mysqlxclient/xerror.h"
+#include "plugin/x/tests/driver/connector/result_fetcher.h"
 #include "plugin/x/tests/driver/formatters/console.h"
 #include "plugin/x/tests/driver/processor/script_stack.h"
 
@@ -37,7 +40,7 @@ class Expected_error {
                  Script_stack *stack)
       : m_fatal_errors(fatal_errors), m_console(console), m_stack(stack) {}
 
-  void expect_errno(int err) { m_expect_errno.insert(err); }
+  void expect_errno(const int err) { m_expect_errno.insert(err); }
   bool check_error(const xcl::XError &err);
   bool check_ok();
 

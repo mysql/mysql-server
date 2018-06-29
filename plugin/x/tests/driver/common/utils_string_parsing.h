@@ -91,8 +91,8 @@ void split(Container_type &result, const std::string &input,
   }
 }
 
-void replace_all(std::string &input, const std::string &to_find,
-                 const std::string &change_to);
+int replace_all(std::string &input, const std::string &to_find,
+                const std::string &change_to);
 
 void trim(std::string &value, const std::string &whitespace = " \t");
 

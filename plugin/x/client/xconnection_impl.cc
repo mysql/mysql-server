@@ -227,14 +227,7 @@ Connection_impl::Connection_impl(std::shared_ptr<Context> context)
       m_ssl_init_error(SSL_INITERR_NOERROR),
       m_context(context) {}
 
-Connection_impl::~Connection_impl() {
-  close();
-
-  if (nullptr != m_vioSslFd) {
-    free_vio_ssl_acceptor_fd(m_vioSslFd);
-    m_vioSslFd = nullptr;
-  }
-}
+Connection_impl::~Connection_impl() { close(); }
 
 XError Connection_impl::connect_to_localhost(const std::string &unix_socket) {
   m_connection_type = Connection_type::Unix_socket;
@@ -647,8 +640,14 @@ void Connection_impl::close() {
   if (m_vio) {
     ::closesocket(vio_fd(m_vio));
     vio_delete(m_vio);
-    m_vio = nullptr;  // memory leak
     m_connected = false;
+    m_ssl_active = false;
+    m_vio = nullptr;
+  }
+
+  if (m_vioSslFd) {
+    free_vio_ssl_acceptor_fd(m_vioSslFd);
+    m_vioSslFd = nullptr;
   }
 }
 

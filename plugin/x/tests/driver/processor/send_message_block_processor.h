@@ -42,8 +42,7 @@ class Send_message_block_processor : public Block_processor {
   bool feed_ended_is_state_ok() override;
 
  protected:
-  virtual std::string get_message_name(const char *linebuf);
-
+  bool is_eating() const;
   virtual int process(const xcl::XProtocol::Client_message_type_id msg_id,
                       const xcl::XProtocol::Message &message);
 
@@ -53,10 +52,6 @@ class Send_message_block_processor : public Block_processor {
       const xcl::XProtocol::Message &msg);
 
   std::string message_to_bindump(const xcl::XProtocol::Message &message);
-
-  xcl::XProtocol::Message *text_to_client_message(
-      const std::string &name, const std::string &data,
-      xcl::XProtocol::Client_message_type_id *msg_id);
 
   Execution_context *m_context;
   std::string m_buffer;

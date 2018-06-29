@@ -43,8 +43,8 @@ class Vio_interface {
   virtual ssize_t read(uchar *buffer, ssize_t bytes_to_send) = 0;
   virtual ssize_t write(const uchar *buffer, ssize_t bytes_to_send) = 0;
 
-  virtual void set_timeout(const Direction direction,
-                           const uint32_t timeout) = 0;
+  virtual void set_timeout_in_ms(const Direction direction,
+                                 const uint64_t timeout) = 0;
 
   virtual void set_state(const PSI_socket_state state) = 0;
   virtual void set_thread_owner() = 0;

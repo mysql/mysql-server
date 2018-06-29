@@ -29,17 +29,24 @@
 #include <string>
 #include <vector>
 
+#include "mq/broker_task.h"
+#include "mq/notice_input_queue.h"
 #include "mysql/plugin.h"
 
 #include "plugin/x/ngs/include/ngs/interface/document_id_generator_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/ssl_context_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/timeout_callback_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/vio_interface.h"
 #include "plugin/x/ngs/include/ngs/memory.h"
 #include "plugin/x/ngs/include/ngs/scheduler.h"
 #include "plugin/x/ngs/include/ngs/server.h"
+#include "plugin/x/ngs/include/ngs/server_properties.h"
 #include "plugin/x/ngs/include/ngs_common/ssl_context_options_interface.h"
 #include "plugin/x/ngs/include/ngs_common/ssl_session_options.h"
 #include "plugin/x/ngs/include/ngs_common/ssl_session_options_interface.h"
+#include "plugin/x/src/helper/multithread/lock_container.h"
+#include "plugin/x/src/helper/multithread/mutex.h"
+#include "plugin/x/src/helper/multithread/rw_lock.h"
 #include "plugin/x/src/mysql_show_variable_wrapper.h"
 #include "plugin/x/src/sha256_password_cache.h"
 #include "plugin/x/src/xpl_client.h"
@@ -59,9 +66,10 @@ typedef ngs::shared_ptr<Server> Server_ptr;
 
 class Server : public ngs::Server_delegate {
  public:
-  Server(ngs::shared_ptr<ngs::Server_acceptors> acceptors,
+  Server(ngs::shared_ptr<ngs::Socket_acceptors_task> acceptors,
          ngs::shared_ptr<ngs::Scheduler_dynamic> wscheduler,
-         ngs::shared_ptr<ngs::Protocol_config> config);
+         ngs::shared_ptr<ngs::Protocol_config> config,
+         ngs::shared_ptr<ngs::Timeout_callback_interface> timeout_callback);
 
   static int main(MYSQL_PLUGIN p);
   static int exit(MYSQL_PLUGIN p);
@@ -76,8 +84,7 @@ class Server : public ngs::Server_delegate {
   std::string get_tcp_bind_address();
   std::string get_tcp_port();
 
-  typedef ngs::Locked_container<Server, ngs::RWLock_readlock, ngs::RWLock>
-      Server_with_lock;
+  typedef Locked_container<Server, RWLock_readlock, RWLock> Server_with_lock;
   typedef ngs::Memory_instrumented<Server_with_lock>::Unique_ptr Server_ptr;
 
   static Server_ptr get_instance() {
@@ -89,6 +96,10 @@ class Server : public ngs::Server_delegate {
 
   SHA256_password_cache &get_sha256_password_cache() {
     return m_sha256_password_cache;
+  }
+
+  Notice_input_queue &get_broker_input_queue() const {
+    return *m_notice_input_queue;
   }
 
   void reset_globals();
@@ -119,6 +130,7 @@ class Server : public ngs::Server_delegate {
 
   virtual void on_client_closed(const ngs::Client_interface &client);
   virtual bool is_terminating() const;
+  std::string get_property(const ngs::Server_property_ids id) const;
 
   void register_services() const;
   void unregister_services() const;
@@ -126,16 +138,17 @@ class Server : public ngs::Server_delegate {
   void unregister_udfs();
 
   static Server *instance;
-  static ngs::RWLock instance_rwl;
+  static RWLock instance_rwl;
   static MYSQL_PLUGIN plugin_ref;
 
   ngs::Client_interface::Client_id m_client_id;
   std::atomic<int> m_num_of_connections;
   ngs::shared_ptr<ngs::Protocol_config> m_config;
-  ngs::shared_ptr<ngs::Server_acceptors> m_acceptors;
   ngs::shared_ptr<ngs::Scheduler_dynamic> m_wscheduler;
   ngs::shared_ptr<ngs::Scheduler_dynamic> m_nscheduler;
-  ngs::Mutex m_accepting_mutex;
+  Mutex m_accepting_mutex;
+  ngs::Server_properties m_properties;
+  std::shared_ptr<Notice_input_queue> m_notice_input_queue;
   ngs::Server m_server;
   std::set<std::string> m_udf_names;
 

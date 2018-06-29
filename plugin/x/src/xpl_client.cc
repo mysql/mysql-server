@@ -217,6 +217,11 @@ void Protocol_monitor::on_notice_other_send() {
       m_client->session());
 }
 
+void Protocol_monitor::on_notice_global_send() {
+  update_status<&ngs::Common_status_variables::m_notice_global_sent>(
+      m_client->session());
+}
+
 void Protocol_monitor::on_error_send() {
   update_status<&ngs::Common_status_variables::m_errors_sent>(
       m_client->session());

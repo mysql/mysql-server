@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -28,16 +28,20 @@ namespace aux {
 
 const std::string ALLOWED_HEX_CHARACTERS = "0123456789abcdef";
 
-void replace_all(std::string &input, const std::string &to_find,
-                 const std::string &change_to) {
-  if (to_find.empty()) return;
+int replace_all(std::string &input, const std::string &to_find,
+                const std::string &change_to) {
+  int replaced = 0;
+  if (to_find.empty()) return 0;
 
   size_t position = input.find(to_find);
 
   while (std::string::npos != position) {
     input.replace(position, to_find.size(), change_to);
     position = input.find(to_find, position + change_to.size());
+    ++replaced;
   }
+
+  return replaced;
 }
 
 void trim(std::string &value, const std::string &whitespace) {

@@ -44,18 +44,18 @@ class Listener_tcp : public ngs::Listener_interface {
                ngs::Socket_events_interface &event, const uint32 backlog);
   ~Listener_tcp();
 
-  bool is_handled_by_socket_event();
+  Sync_variable_state &get_state() override;
+  std::string get_last_error() override;
+  std::string get_name_and_configuration() const override;
+  std::vector<std::string> get_configuration_variables() const override;
 
-  Sync_variable_state &get_state();
-  std::string get_last_error();
-  std::string get_name_and_configuration() const;
-  std::vector<std::string> get_configuration_variables() const;
-
-  bool setup_listener(On_connection on_connection);
-  void close_listener();
-  void loop();
+  bool setup_listener(On_connection on_connection) override;
+  void close_listener() override;
+  void loop() override;
+  void report_properties(On_report_properties on_status) override;
 
  private:
+  std::string choose_property_value(const std::string &value) const;
   Socket_interface_ptr create_socket();
 
   Factory_ptr m_operations_factory;

@@ -32,20 +32,11 @@
 
 #include "plugin/x/client/mysqlxclient/xquery_result.h"
 #include "plugin/x/client/mysqlxclient/xrow.h"
+#include "plugin/x/tests/driver/connector/warning.h"
 
 class Result_fetcher {
  public:
   using XQuery_result_ptr = std::unique_ptr<xcl::XQuery_result>;
-
-  class Warning {
-   public:
-    Warning(const std::string &text, const uint32_t code, const bool is_note)
-        : m_text(text), m_code(code), m_is_note(is_note) {}
-
-    std::string m_text;
-    uint32_t m_code;
-    bool m_is_note;
-  };
 
  public:
   explicit Result_fetcher(XQuery_result_ptr query)
@@ -114,6 +105,8 @@ class Result_fetcher {
 
   const std::vector<Warning> get_warnings() const {
     std::vector<Warning> result;
+
+    if (nullptr == m_query) return {};
 
     for (const auto &warning : m_query->get_warnings()) {
       result.emplace_back(

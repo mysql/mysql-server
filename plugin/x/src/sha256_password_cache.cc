@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,8 @@
  */
 
 #include "plugin/x/src/sha256_password_cache.h"
+
+#include "helper/multithread/rw_lock.h"
 #include "plugin/x/src/xpl_log.h"
 
 namespace xpl {
@@ -36,7 +38,7 @@ SHA256_password_cache::SHA256_password_cache()
   "Upsert" operation is going to cache all account informations passed to it.
 */
 void SHA256_password_cache::enable() {
-  ngs::RWLock_writelock guard(m_cache_lock);
+  RWLock_writelock guard(m_cache_lock);
   m_accepting_input = true;
 }
 
@@ -47,7 +49,7 @@ void SHA256_password_cache::enable() {
   caching account informations.
 */
 void SHA256_password_cache::disable() {
-  ngs::RWLock_writelock guard(m_cache_lock);
+  RWLock_writelock guard(m_cache_lock);
   m_accepting_input = false;
 
   m_password_cache.clear();
@@ -70,7 +72,7 @@ bool SHA256_password_cache::upsert(const std::string &user,
                                    const std::string &value) {
   auto key = create_key(user, host);
   auto optional_hash = create_hash(value);
-  ngs::RWLock_writelock guard(m_cache_lock);
+  RWLock_writelock guard(m_cache_lock);
 
   if (!m_accepting_input) return false;
 
@@ -92,7 +94,7 @@ bool SHA256_password_cache::upsert(const std::string &user,
 */
 bool SHA256_password_cache::remove(const std::string &user,
                                    const std::string &host) {
-  ngs::RWLock_writelock guard(m_cache_lock);
+  RWLock_writelock guard(m_cache_lock);
   return m_password_cache.erase(create_key(user, host));
 }
 
@@ -108,7 +110,7 @@ bool SHA256_password_cache::remove(const std::string &user,
 */
 std::pair<bool, std::string> SHA256_password_cache::get_entry(
     const std::string &user, const std::string &host) const {
-  ngs::RWLock_readlock guard(m_cache_lock);
+  RWLock_readlock guard(m_cache_lock);
 
   if (!m_accepting_input) return {false, ""};
 
@@ -147,7 +149,7 @@ bool SHA256_password_cache::contains(const std::string &user,
   Remove all cache entries.
 */
 void SHA256_password_cache::clear() {
-  ngs::RWLock_writelock guard(m_cache_lock);
+  RWLock_writelock guard(m_cache_lock);
 
   m_password_cache.clear();
 }

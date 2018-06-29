@@ -20,41 +20,33 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef PLUGIN_X_SRC_SERVICE_REGISTRATOR_H_
-#define PLUGIN_X_SRC_SERVICE_REGISTRATOR_H_
+#include "plugin/x/src/services/service_registrator.h"
 
-#include <mysql/components/my_service.h>
-
-#define SERVICE_ID(component, service) #service "." #component
-
-#define SERVICE(component, service)                                  \
-  {                                                                  \
-    SERVICE_ID(component, service),                                  \
-        reinterpret_cast<my_h_service>(&imp_##component##_##service) \
-  }
+#include <mysql/service_plugin_registry.h>
+#include <stdexcept>
+#include <string>
 
 namespace xpl {
 
-class Service_registrator {
- public:
-  struct Service {
-    const char *m_name;
-    my_h_service m_service;
-  };
+Service_registrator::Service_registrator()
+    : m_registry{mysql_plugin_registry_acquire()},
+      m_registrator{"registry_registration", m_registry} {}
 
-  Service_registrator();
-  ~Service_registrator();
-  void register_service(const Service &service);
-  void unregister_service(const char *name);
+Service_registrator::~Service_registrator() {
+  mysql_plugin_registry_release(m_registry);
+}
 
- private:
-  Service_registrator(const Service_registrator &) = delete;
-  const Service_registrator &operator==(const Service_registrator &) = delete;
+void Service_registrator::register_service(const Service &s) {
+  if (!m_registrator.is_valid() ||
+      m_registrator->register_service(s.m_name, s.m_service))
+    throw std::runtime_error(std::string("Can't register '") + s.m_name +
+                             "' service");
+}
 
-  SERVICE_TYPE(registry) * m_registry;
-  my_service<SERVICE_TYPE(registry_registration)> m_registrator;
-};
+void Service_registrator::unregister_service(const char *name) {
+  if (!m_registrator.is_valid() || m_registrator->unregister(name))
+    throw std::runtime_error(std::string("Can't unregister '") + name +
+                             "' service");
+}
 
 }  // namespace xpl
-
-#endif  // PLUGIN_X_SRC_SERVICE_REGISTRATOR_H_

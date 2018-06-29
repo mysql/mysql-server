@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef PLUGIN_X_NGS_INCLUDE_NGS_SERVER_ACCEPTORS_H_
-#define PLUGIN_X_NGS_INCLUDE_NGS_SERVER_ACCEPTORS_H_
+#ifndef PLUGIN_X_NGS_INCLUDE_NGS_SERVER_ACCEPTORS_TASK_H_
+#define PLUGIN_X_NGS_INCLUDE_NGS_SERVER_ACCEPTORS_TASK_H_
 
 #include <string>
 #include <vector>
@@ -32,58 +32,50 @@
 #include "plugin/x/ngs/include/ngs/interface/listener_factory_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/listener_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/server_task_interface.h"
-#include "plugin/x/ngs/include/ngs/socket_events.h"
+#include "plugin/x/ngs/include/ngs/interface/socket_events_interface.h"
 #include "plugin/x/ngs/include/ngs_common/smart_ptr.h"
 
 namespace ngs {
-typedef std::vector<ngs::shared_ptr<Server_task_interface>>
-    Server_tasks_interfaces;
 
-class Server_acceptors {
+class Socket_acceptors_task : public Server_task_interface {
  public:
-  typedef Listener_interface::On_connection On_connection;
+  using On_connection = Listener_interface::On_connection;
 
-  Server_acceptors(Listener_factory_interface &listener_factory,
-                   const std::string &tcp_bind_address, const uint16 tcp_port,
-                   const uint32 tcp_port_open_timeout,
-                   const std::string &unix_socket_file, const uint32 backlog);
+ public:
+  Socket_acceptors_task(Listener_factory_interface &listener_factory,
+                        const std::string &tcp_bind_address,
+                        const uint16 tcp_port,
+                        const uint32 tcp_port_open_timeout,
+                        const std::string &unix_socket_file,
+                        const uint32 backlog,
+                        const std::shared_ptr<Socket_events_interface> &event);
 
-  bool prepare(On_connection on_connection, const bool skip_networking,
-               const bool use_unix_sockets);
-  void abort();
-  void stop(const bool is_called_from_timeout_handler = false);
+  bool prepare(Task_context *context) override;
+  void stop(const Stop_cause cause = Stop_cause::k_normal_shutdown) override;
 
-  bool was_unix_socket_configured();
-  bool was_tcp_server_configured(std::string &bind_address);
-  bool was_prepared() const;
-
-  Server_tasks_interfaces create_server_tasks_for_listeners();
-  void add_timer(const std::size_t delay_ms, ngs::function<bool()> callback);
+ public:
+  void pre_loop() override;
+  void post_loop() override;
+  void loop() override;
 
  private:
-  typedef std::vector<Listener_interface *> Listener_interfaces;
+  using Listener_interfaces = std::vector<Listener_interface *>;
   class Server_task_time_and_event;
 
-  bool prepare_impl(On_connection on_connection, const bool skip_networking,
-                    const bool use_unix_sockets);
+  bool prepare_impl(Task_context *context);
   Listener_interfaces get_array_of_listeners();
 
   static bool is_listener_configured(Listener_interface *listener);
-  static void mark_as_stopped(Listener_interface *listener);
-  static void wait_until_stopped(Listener_interface *listener);
-  static void close_listener(Listener_interface *listener);
-  static void report_listener_status(Listener_interface *listener);
+  static void log_listener_state(Listener_interface *listener);
 
+  std::shared_ptr<Socket_events_interface> m_event;
   std::string m_bind_address;
   Listener_interface_ptr m_tcp_socket;
   Listener_interface_ptr m_unix_socket;
 
   Listener_interface::Sync_variable_state m_time_and_event_state;
-  ngs::shared_ptr<Server_task_time_and_event> m_time_and_event_task;
-  Socket_events m_event;
-  bool m_prepared;
 };
 
 }  // namespace ngs
 
-#endif  // PLUGIN_X_NGS_INCLUDE_NGS_SERVER_ACCEPTORS_H_
+#endif  // PLUGIN_X_NGS_INCLUDE_NGS_SERVER_ACCEPTORS_TASK_H_

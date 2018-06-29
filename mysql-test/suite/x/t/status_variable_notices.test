@@ -16,7 +16,7 @@
 -->stmtsql INSERT IGNORE INTO xtest.tab VALUES ('21474836461')
 -->recvresult
 
--->callmacro Assert_recived_notices
+-->callmacro Assert_received_notices
 EOF
 
 CREATE SCHEMA xtest;

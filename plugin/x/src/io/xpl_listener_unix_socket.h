@@ -35,24 +35,24 @@ namespace xpl {
 
 class Listener_unix_socket : public ngs::Listener_interface {
  public:
-  typedef ngs::Socket_interface::Shared_ptr Socket_ptr;
+  using Socket_ptr = ngs::Socket_interface::Shared_ptr;
 
+ public:
   Listener_unix_socket(
       ngs::Operations_factory_interface::Shared_ptr operations_factory,
       const std::string &unix_socket_path, ngs::Socket_events_interface &event,
       const uint32 backlog);
   ~Listener_unix_socket();
 
-  bool is_handled_by_socket_event();
+  void report_properties(On_report_properties on_prop) override;
+  Sync_variable_state &get_state() override;
+  std::string get_name_and_configuration() const override;
+  std::string get_last_error() override;
+  std::vector<std::string> get_configuration_variables() const override;
 
-  Sync_variable_state &get_state();
-  std::string get_name_and_configuration() const;
-  std::string get_last_error();
-  std::vector<std::string> get_configuration_variables() const;
-
-  bool setup_listener(On_connection on_connection);
-  void close_listener();
-  void loop();
+  bool setup_listener(On_connection on_connection) override;
+  void close_listener() override;
+  void loop() override;
 
  private:
   ngs::Operations_factory_interface::Shared_ptr m_operations_factory;

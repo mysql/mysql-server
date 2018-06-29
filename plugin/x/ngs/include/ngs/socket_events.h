@@ -28,6 +28,7 @@
 #include <vector>
 
 #include "plugin/x/ngs/include/ngs/interface/socket_events_interface.h"
+#include "plugin/x/src/helper/multithread/mutex.h"
 
 struct event_base;
 
@@ -54,7 +55,7 @@ class Socket_events : public Socket_events_interface {
   struct event_base *m_evbase;
   std::vector<Socket_data *> m_socket_events;
   std::vector<Timer_data *> m_timer_events;
-  Mutex m_timers_mutex;
+  xpl::Mutex m_timers_mutex;
 };
 
 }  // namespace ngs

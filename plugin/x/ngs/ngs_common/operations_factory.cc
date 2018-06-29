@@ -145,51 +145,61 @@ class File : public File_interface {
 const int File::INVALID_FILE_DESCRIPTOR = -1;
 
 class System : public System_interface {
-  virtual int unlink(const char *name) {
+  int unlink(const char *name) override {
     return HAVE_UNIX_SOCKET(::unlink(name), 0);
   }
 
-  virtual int get_errno() { return errno; }
+  int get_errno() override { return errno; }
 
-  virtual int get_ppid() { return HAVE_UNIX_SOCKET(::getppid(), 0); }
+  int get_ppid() override { return HAVE_UNIX_SOCKET(::getppid(), 0); }
 
-  virtual int get_pid() { return HAVE_UNIX_SOCKET(::getpid(), 0); }
+  int get_pid() override { return HAVE_UNIX_SOCKET(::getpid(), 0); }
 
-  virtual int kill(int pid, int signal) {
+  int kill(int pid, int signal) override {
     return HAVE_UNIX_SOCKET(::kill(pid, signal), 0);
   }
 
-  virtual int get_socket_errno() { return socket_errno; }
+  int get_socket_errno() override { return socket_errno; }
 
-  virtual void get_socket_error_and_message(int &err, std::string &strerr) {
-    err = socket_errno;
+  void set_socket_errno(const int err) override {
+#if defined(_WIN32)
+    // socket_errno resolved on windows to WASGetLastError which can't be set.
+    WSASetLastError(err);
+#else
+    socket_errno = err;
+#endif  // defined(_WIN32)
+  }
+
+  void get_socket_error_and_message(int &out_err,
+                                    std::string &out_strerr) override {
+    out_err = socket_errno;
 #ifdef _WIN32
-    char *s = NULL;
-    if (0 == FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER |
-                               FORMAT_MESSAGE_FROM_SYSTEM |
-                               FORMAT_MESSAGE_IGNORE_INSERTS,
-                           NULL, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-                           (LPSTR)&s, 0, NULL)) {
+    char *s = nullptr;
+    if (0 == FormatMessage(
+                 FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
+                     FORMAT_MESSAGE_IGNORE_INSERTS,
+                 nullptr, out_err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                 reinterpret_cast<LPSTR>(&s), 0, nullptr)) {
       char text[256];
-      snprintf(text, sizeof(text), "Error %i", err);
-      strerr = text;
+      snprintf(text, sizeof(text), "Error %i", out_err);
+      out_strerr = text;
     } else {
-      strerr = s;
+      out_strerr = s;
       LocalFree(s);
     }
 #else
-    strerr = strerror(err);
+    out_strerr = strerror(out_err);
 #endif
   }
 
-  virtual void freeaddrinfo(addrinfo *ai) { return ::freeaddrinfo(ai); }
+  void freeaddrinfo(addrinfo *ai) override { return ::freeaddrinfo(ai); }
 
-  virtual int getaddrinfo(const char *node, const char *service,
-                          const addrinfo *hints, addrinfo **res) {
+  int getaddrinfo(const char *node, const char *service, const addrinfo *hints,
+                  addrinfo **res) override {
     return ::getaddrinfo(node, service, hints, res);
   }
 
-  virtual void sleep(uint32 seconds) { ::sleep(seconds); }
+  void sleep(uint32 seconds) override { ::sleep(seconds); }
 };
 
 }  // namespace details

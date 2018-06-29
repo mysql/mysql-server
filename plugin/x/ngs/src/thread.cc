@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -24,12 +24,10 @@
 
 #include "plugin/x/ngs/include/ngs/thread.h"
 
-#include <time.h>
+#include <stdexcept>
 
 #include "my_sys.h"  // my_thread_stack_size
-#include "my_systime.h"
 #include "my_thread.h"
-#include "plugin/x/ngs/include/ngs/memory.h"
 
 void ngs::thread_create(PSI_thread_key key MY_ATTRIBUTE((unused)),
                         Thread_t *thread, Start_routine_t func, void *arg) {
@@ -49,51 +47,3 @@ void ngs::thread_create(PSI_thread_key key MY_ATTRIBUTE((unused)),
 int ngs::thread_join(Thread_t *thread, void **ret) {
   return my_thread_join(thread, ret);
 }
-
-ngs::Mutex::Mutex(PSI_mutex_key key MY_ATTRIBUTE((unused))) {
-  mysql_mutex_init(key, &m_mutex, NULL);
-}
-
-ngs::Mutex::~Mutex() { mysql_mutex_destroy(&m_mutex); }
-
-ngs::Mutex::operator mysql_mutex_t *() { return &m_mutex; }
-
-ngs::RWLock::RWLock(PSI_rwlock_key key MY_ATTRIBUTE((unused))) {
-  mysql_rwlock_init(key, &m_rwlock);
-}
-
-ngs::RWLock::~RWLock() { mysql_rwlock_destroy(&m_rwlock); }
-
-ngs::Cond::Cond(PSI_cond_key key MY_ATTRIBUTE((unused))) {
-  mysql_cond_init(key, &m_cond);
-}
-
-ngs::Cond::~Cond() { mysql_cond_destroy(&m_cond); }
-
-void ngs::Cond::wait(Mutex &mutex) { mysql_cond_wait(&m_cond, &mutex.m_mutex); }
-
-int ngs::Cond::timed_wait(Mutex &mutex, unsigned long long nanoseconds) {
-  timespec ts;
-
-  set_timespec_nsec(&ts, nanoseconds);
-
-  return mysql_cond_timedwait(&m_cond, &mutex.m_mutex, &ts);
-}
-
-void ngs::Cond::signal() { mysql_cond_signal(&m_cond); }
-
-void ngs::Cond::signal(Mutex &mutex) {
-  MUTEX_LOCK(lock, mutex);
-
-  signal();
-}
-
-void ngs::Cond::broadcast() { mysql_cond_broadcast(&m_cond); }
-
-void ngs::Cond::broadcast(Mutex &mutex) {
-  MUTEX_LOCK(lock, mutex);
-
-  broadcast();
-}
-
-unsigned int ngs::x_psf_objects_key = 0;

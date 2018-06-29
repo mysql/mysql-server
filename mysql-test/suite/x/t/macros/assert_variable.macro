@@ -7,7 +7,7 @@
 -->endmacro
 
 
--->macro Assert_recived_notices
+-->macro Assert_received_notices
 -->received Mysqlx.Notice.Warning	%MYSQLXTEST_NO_OF_WARNINGS%
 -->received Mysqlx.Notice.Frame	%MYSQLXTEST_NO_OF_OTHER%
 -->varinc %MYSQLXTEST_NO_OF_OTHER% -%MYSQLXTEST_NO_OF_WARNINGS%

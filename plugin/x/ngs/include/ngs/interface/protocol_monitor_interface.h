@@ -33,6 +33,7 @@ class Protocol_monitor_interface {
 
   virtual void on_notice_warning_send() = 0;
   virtual void on_notice_other_send() = 0;
+  virtual void on_notice_global_send() = 0;
   virtual void on_fatal_error_send() = 0;
   virtual void on_init_error_send() = 0;
   virtual void on_row_send() = 0;

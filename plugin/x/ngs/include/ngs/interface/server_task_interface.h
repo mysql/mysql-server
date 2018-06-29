@@ -25,19 +25,57 @@
 #ifndef PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_SERVER_TASK_INTERFACE_H_
 #define PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_SERVER_TASK_INTERFACE_H_
 
-#include "plugin/x/ngs/include/ngs/thread.h"
-#include "violite.h"
+#include <functional>
+
+#include "plugin/x/ngs/include/ngs/client_list.h"
+#include "plugin/x/ngs/include/ngs/server_properties.h"
+#include "plugin/x/ngs/include/ngs_common/smart_ptr.h"
 
 namespace ngs {
 
+class Connection_acceptor_interface;
+
 class Server_task_interface {
  public:
+  class Task_context {
+   public:
+    using On_connection = std::function<void(Connection_acceptor_interface &)>;
+
+   public:
+    Task_context() = default;
+    Task_context(const On_connection &on_connection, const bool skip_networking,
+                 Server_properties *properties, Client_list *client_list)
+        : m_on_connection(on_connection),
+          m_skip_networking(skip_networking),
+          m_properties(properties),
+          m_client_list(client_list) {}
+
+   public:
+    On_connection m_on_connection;
+    bool m_skip_networking;
+    Server_properties *m_properties;
+    Client_list *m_client_list;
+  };
+
+  enum class Stop_cause {
+    k_normal_shutdown,
+    k_abort,
+    k_server_task_triggered_event
+  };
+
+ public:  // Task control function
   virtual ~Server_task_interface() {}
 
+  virtual bool prepare(Task_context *context) = 0;
+  virtual void stop(const Stop_cause) = 0;
+
+ public:  // Worker thread 'enabled' methods
   virtual void pre_loop() = 0;
   virtual void post_loop() = 0;
   virtual void loop() = 0;
 };
+
+using Server_tasks_interface_ptr = ngs::shared_ptr<Server_task_interface>;
 
 }  // namespace ngs
 

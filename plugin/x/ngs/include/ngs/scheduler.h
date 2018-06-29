@@ -32,6 +32,9 @@
 
 #include "plugin/x/ngs/include/ngs/memory.h"
 #include "plugin/x/ngs/include/ngs/thread.h"
+#include "plugin/x/ngs/include/ngs_common/bind.h"
+#include "plugin/x/src/helper/multithread/cond.h"
+#include "plugin/x/src/helper/multithread/mutex.h"
 
 namespace ngs {
 // Scheduler with dynamic thread pool.
@@ -113,7 +116,7 @@ class Scheduler_dynamic {
     }
 
    private:
-    Mutex m_access_mutex;
+    xpl::Mutex m_access_mutex;
     std::list<Element_type> m_list;
   };
 
@@ -137,11 +140,11 @@ class Scheduler_dynamic {
   int32 decrease_tasks_count();
 
   const std::string m_name;
-  Mutex m_worker_pending_mutex;
-  Cond m_worker_pending_cond;
-  Mutex m_thread_exit_mutex;
-  Cond m_thread_exit_cond;
-  Mutex m_post_mutex;
+  xpl::Mutex m_worker_pending_mutex;
+  xpl::Cond m_worker_pending_cond;
+  xpl::Mutex m_thread_exit_mutex;
+  xpl::Cond m_thread_exit_cond;
+  xpl::Mutex m_post_mutex;
   volatile std::atomic<int32> m_is_running;
   volatile std::atomic<int32> m_min_workers_count;
   volatile std::atomic<int32> m_workers_count;

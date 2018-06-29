@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@ FILE(GLOB XTEST_SRC
   "${CMAKE_CURRENT_SOURCE_DIR}/common/*.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/connector/*.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/formatters/*.cc"
+  "${CMAKE_CURRENT_SOURCE_DIR}/parsers/*.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/processor/*.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/processor/commands/*.cc"
 )
@@ -67,8 +68,8 @@ TARGET_LINK_LIBRARIES(${XTEST_EXE_NAME}
   mysys
   strings
   mysqlclient
-  ${MYSQLX_PROTOCOL_FULL_LIB}
   ${MYSQLX_CLIENT_FULL_LIB}
+  ${MYSQLX_PROTOCOL_FULL_LIB}
   ${PROTOBUF_LIBRARY}
 )
 

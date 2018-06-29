@@ -49,6 +49,7 @@ class Global_status_variables : public ngs::Common_status_variables {
   Variable m_accepted_connections_count;
   Variable m_rejected_connections_count;
   Variable m_connection_errors_count;
+  Variable m_notified_by_group_replication;
   Variable m_connection_accept_errors_count;
   Variable m_accepted_sessions_count;
   Variable m_rejected_sessions_count;

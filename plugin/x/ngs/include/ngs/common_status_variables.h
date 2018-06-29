@@ -72,6 +72,7 @@ class Common_status_variables {
   Variable m_rows_sent;
   Variable m_notice_warning_sent;
   Variable m_notice_other_sent;
+  Variable m_notice_global_sent;
   Variable m_errors_unknown_message_type;
   Variable m_crud_create_view;
   Variable m_crud_modify_view;

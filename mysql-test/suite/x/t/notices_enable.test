@@ -814,7 +814,7 @@ Mysqlx.Sql.StmtExecute {
 }
 -->recvresult
 
--->callmacro Assert_recived_notices
+-->callmacro Assert_received_notices
 -->callmacro Assert_status_variable	Mysqlx_stmt_disable_notices	0
 -->callmacro Assert_status_variable	Mysqlx_stmt_enable_notices	1
 -->callmacro Assert_status_variable	Mysqlx_stmt_list_notices	0
@@ -973,7 +973,7 @@ drop table worklog5743_2;
 drop table worklog5743_4;
 drop table worklog5743_8;
 -->endsql
--->callmacro Assert_recived_notices
+-->callmacro Assert_received_notices
 -->callmacro Assert_status_variable	Mysqlx_stmt_disable_notices	0
 -->callmacro Assert_status_variable	Mysqlx_stmt_enable_notices	0
 -->callmacro Assert_status_variable	Mysqlx_stmt_list_notices	0
@@ -1062,7 +1062,7 @@ Mysqlx.Sql.StmtExecute {
 }
 -->recv
 
--->callmacro Assert_recived_notices
+-->callmacro Assert_received_notices
 -->callmacro Assert_status_variable	Mysqlx_stmt_disable_notices	0
 -->callmacro Assert_status_variable	Mysqlx_stmt_enable_notices	5
 -->callmacro Assert_status_variable	Mysqlx_stmt_list_notices	0
@@ -1129,7 +1129,7 @@ Mysqlx.Sql.StmtExecute {
 }
 -->recvuntil Mysqlx.Sql.StmtExecuteOk
 
--->callmacro Assert_recived_notices
+-->callmacro Assert_received_notices
 -->callmacro Assert_status_variable	Mysqlx_stmt_disable_notices	0
 -->callmacro Assert_status_variable	Mysqlx_stmt_enable_notices	1
 -->callmacro Assert_status_variable	Mysqlx_stmt_list_notices	1
@@ -1211,7 +1211,7 @@ Mysqlx.Sql.StmtExecute {
 }
 -->recvuntil Mysqlx.Sql.StmtExecuteOk
 
--->callmacro Assert_recived_notices
+-->callmacro Assert_received_notices
 -->callmacro Assert_status_variable	Mysqlx_stmt_disable_notices	1
 -->callmacro Assert_status_variable	Mysqlx_stmt_enable_notices	2
 -->callmacro Assert_status_variable	Mysqlx_stmt_list_notices	2
@@ -1229,7 +1229,7 @@ Mysqlx.Sql.StmtExecute {
 }
 -->recvuntil Mysqlx.Error
 
--->callmacro Assert_recived_notices
+-->callmacro Assert_received_notices
 -->callmacro Assert_status_variable	Mysqlx_stmt_disable_notices	0
 -->callmacro Assert_status_variable	Mysqlx_stmt_enable_notices	0
 -->callmacro Assert_status_variable	Mysqlx_stmt_list_notices	0
@@ -1246,7 +1246,7 @@ Mysqlx.Sql.StmtExecute {
 }
 -->recvuntil Mysqlx.Sql.StmtExecuteOk
 
--->callmacro Assert_recived_notices
+-->callmacro Assert_received_notices
 -->callmacro Assert_status_variable	Mysqlx_stmt_disable_notices	0
 -->callmacro Assert_status_variable	Mysqlx_stmt_enable_notices	0
 -->callmacro Assert_status_variable	Mysqlx_stmt_list_notices	0

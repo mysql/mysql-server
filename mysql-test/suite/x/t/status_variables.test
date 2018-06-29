@@ -11,7 +11,7 @@
 # Please update the test case when the variable count changes
 # add/remove variable
 let $wait_condition=
-  SELECT COUNT(*)=61 FROM performance_schema.global_status where variable_name like "Mysqlx_%";
+  SELECT COUNT(*)=63 FROM performance_schema.global_status where variable_name like "Mysqlx_%";
 --source include/wait_condition_or_abort.inc
 
 # Values for variables that were overwritten by MTR
@@ -155,6 +155,14 @@ if (`SELECT CONVERT(@@version_compile_os using latin1) IN ("Win32","Win64","Wind
 
 --let $assert_text= No connections were made, Mysqlx_notice_other_sent must match default value which is 0.
 --let $assert_cond= [SHOW STATUS LIKE "Mysqlx_notice_other_sent", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_notice_global_sent must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_notice_global_sent", Value, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= No connections were made, Mysqlx_notified_by_group_replication must match default value which is 0.
+--let $assert_cond= [SHOW STATUS LIKE "Mysqlx_notified_by_group_replication", Value, 1] = 0
 --source include/assert.inc
 
 --let $assert_text= No connections were made, Mysqlx_sessions must match default value which is 0.

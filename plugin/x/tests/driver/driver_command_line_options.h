@@ -49,7 +49,6 @@ class Driver_command_line_options : public Command_line_options {
   bool m_has_file;
   bool m_cap_expired_password;
   bool m_client_interactive;
-  std::vector<std::string> m_auth_methods;
 
   Execution_context::Options m_context_options;
   Console::Options m_console_options;

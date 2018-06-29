@@ -44,6 +44,7 @@ class Protocol_monitor : public ngs::Protocol_monitor_interface {
 
   void on_notice_warning_send() override;
   void on_notice_other_send() override;
+  void on_notice_global_send() override;
   void on_error_send() override;
   void on_fatal_error_send() override;
   void on_init_error_send() override;

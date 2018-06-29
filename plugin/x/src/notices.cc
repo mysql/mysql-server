@@ -14,7 +14,7 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License, version 2.0, for more details.
  *
  * You should have received a copy of the GNU General Public License
@@ -24,6 +24,7 @@
 
 #include "plugin/x/src/notices.h"
 
+#include <string>
 #include <vector>
 
 #include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
@@ -39,65 +40,76 @@ namespace notices {
 
 namespace {
 
-static xpl::Process_resultset::Row *start_warning_row(
-    xpl::Process_resultset::Row *row_data) {
-  row_data->clear();
-  return row_data;
-}
+class Warning_resultset : public xpl::Process_resultset {
+ public:
+  Warning_resultset(ngs::Protocol_encoder_interface *proto,
+                    const bool skip_single_error)
+      : m_proto(proto), m_skip_single_error(skip_single_error) {}
 
-inline Mysqlx::Notice::Warning::Level get_warning_level(
-    const std::string &level) {
-  static const char *const ERROR_STRING = "Error";
-  static const char *const WARNING_STRING = "Warning";
-  if (level == WARNING_STRING) return Mysqlx::Notice::Warning::WARNING;
-  if (level == ERROR_STRING) return Mysqlx::Notice::Warning::ERROR;
-  return Mysqlx::Notice::Warning::NOTE;
-}
+ protected:
+  using Warning = Mysqlx::Notice::Warning;
 
-bool end_warning_row(xpl::Process_resultset::Row *row,
-                     ngs::Protocol_encoder_interface &proto,
-                     bool skip_single_error, std::string &last_error,
-                     unsigned int &num_errors) {
-  typedef Mysqlx::Notice::Warning Warning;
-
-  if (!last_error.empty()) {
-    proto.send_notice(ngs::Frame_type::WARNING, ngs::Frame_scope::LOCAL,
-                      last_error);
-    last_error.clear();
+  Row *start_row() override {
+    m_row.clear();
+    return &m_row;
   }
 
-  std::vector<Callback_command_delegate::Field_value *> &fields = row->fields;
-  if (fields.size() != 3) return false;
+  Warning::Level get_warning_level(const std::string &level) {
+    static const char *const ERROR_STRING = "Error";
+    static const char *const WARNING_STRING = "Warning";
+    if (level == WARNING_STRING) return Warning::WARNING;
+    if (level == ERROR_STRING) return Warning::ERROR;
+    return Warning::NOTE;
+  }
 
-  const Warning::Level level = get_warning_level(*fields[0]->value.v_string);
-
-  Warning warning;
-  warning.set_level(level);
-  warning.set_code(
-      static_cast<google::protobuf::uint32>(fields[1]->value.v_long));
-  warning.set_msg(*fields[2]->value.v_string);
-
-  std::string data;
-  warning.SerializeToString(&data);
-
-  if (level == Warning::ERROR) {
-    ++num_errors;
-    if (skip_single_error && (num_errors <= 1)) {
-      last_error = data;
-      return true;
+  bool end_row(Row *row) override {
+    if (!m_last_error.empty()) {
+      m_proto->send_notice(ngs::Frame_type::k_warning,
+                           ngs::Frame_scope::k_local, m_last_error);
+      m_last_error.clear();
     }
+
+    Field_list &fields = row->fields;
+    if (fields.size() != 3) return false;
+
+    const Warning::Level level = get_warning_level(*fields[0]->value.v_string);
+
+    Warning warning;
+    warning.set_level(level);
+    warning.set_code(
+        static_cast<google::protobuf::uint32>(fields[1]->value.v_long));
+    warning.set_msg(*fields[2]->value.v_string);
+
+    std::string data;
+    warning.SerializeToString(&data);
+
+    if (level == Warning::ERROR) {
+      ++m_num_errors;
+      if (m_skip_single_error && (m_num_errors <= 1)) {
+        m_last_error = data;
+        return true;
+      }
+    }
+
+    m_proto->send_notice(ngs::Frame_type::k_warning, ngs::Frame_scope::k_local,
+                         data);
+    return true;
   }
 
-  proto.send_notice(ngs::Frame_type::WARNING, ngs::Frame_scope::LOCAL, data);
-  return true;
-}
+ private:
+  Row m_row;
+  ngs::Protocol_encoder_interface *m_proto;
+  const bool m_skip_single_error;
+  std::string m_last_error;
+  uint32_t m_num_errors{0u};
+};
 
 inline void send_local_notice(const Mysqlx::Notice::SessionStateChanged &notice,
                               ngs::Protocol_encoder_interface *proto) {
   std::string data;
   notice.SerializeToString(&data);
-  proto->send_notice(ngs::Frame_type::SESSION_STATE_CHANGED,
-                     ngs::Frame_scope::LOCAL, data);
+  proto->send_notice(ngs::Frame_type::k_session_state_changed,
+                     ngs::Frame_scope::k_local, data);
 }
 
 }  // namespace
@@ -105,14 +117,8 @@ inline void send_local_notice(const Mysqlx::Notice::SessionStateChanged &notice,
 ngs::Error_code send_warnings(ngs::Sql_session_interface &da,
                               ngs::Protocol_encoder_interface &proto,
                               bool skip_single_error) {
-  Process_resultset::Row row_data;
   static const std::string q = "SHOW WARNINGS";
-  std::string last_error;
-  unsigned int num_errors = 0u;
-  Process_resultset resultset(
-      ngs::bind(start_warning_row, &row_data),
-      ngs::bind(end_warning_row, ngs::placeholders::_1, ngs::ref(proto),
-                skip_single_error, last_error, num_errors));
+  Warning_resultset resultset(&proto, skip_single_error);
   // send warnings as notices
   return da.execute(q.data(), q.length(), &resultset);
 }
@@ -138,6 +144,7 @@ ngs::Error_code send_generated_insert_id(ngs::Protocol_encoder_interface &proto,
 ngs::Error_code send_rows_affected(ngs::Protocol_encoder_interface &proto,
                                    uint64_t i) {
   proto.send_rows_affected(i);
+
   return ngs::Success();
 }
 

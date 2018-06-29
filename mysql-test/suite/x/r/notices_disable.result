@@ -2713,6 +2713,7 @@ Mysqlx.Error {
 expect Mysqlx_stmt_disable_notices=5 and remaining are 0
 RUN show status like 'Mysqlx%notice%'
 Variable_name	Value
+Mysqlx_notice_global_sent	0
 Mysqlx_notice_other_sent	2
 Mysqlx_notice_warning_sent	0
 Mysqlx_stmt_disable_notices	5
@@ -2833,6 +2834,7 @@ Mysqlx.Error {
 expect Mysqlx_stmt_disable_notices=5 and remaining are 0
 RUN show status like 'Mysqlx%notice%'
 Variable_name	Value
+Mysqlx_notice_global_sent	0
 Mysqlx_notice_other_sent	2
 Mysqlx_notice_warning_sent	0
 Mysqlx_stmt_disable_notices	5
@@ -3168,6 +3170,26 @@ Mysqlx.Resultset.Row {
 }
 
 Mysqlx.Resultset.Row {
+  field: "group_replication/membership/quorum_loss\000"
+  field: "\000"
+}
+
+Mysqlx.Resultset.Row {
+  field: "group_replication/membership/view\000"
+  field: "\000"
+}
+
+Mysqlx.Resultset.Row {
+  field: "group_replication/status/role_change\000"
+  field: "\000"
+}
+
+Mysqlx.Resultset.Row {
+  field: "group_replication/status/state_change\000"
+  field: "\000"
+}
+
+Mysqlx.Resultset.Row {
   field: "account_expired\000"
   field: "\002"
 }
@@ -3279,6 +3301,26 @@ Mysqlx.Resultset.ColumnMetaData {
 Mysqlx.Resultset.Row {
   field: "warnings\000"
   field: "\002"
+}
+
+Mysqlx.Resultset.Row {
+  field: "group_replication/membership/quorum_loss\000"
+  field: "\000"
+}
+
+Mysqlx.Resultset.Row {
+  field: "group_replication/membership/view\000"
+  field: "\000"
+}
+
+Mysqlx.Resultset.Row {
+  field: "group_replication/status/role_change\000"
+  field: "\000"
+}
+
+Mysqlx.Resultset.Row {
+  field: "group_replication/status/state_change\000"
+  field: "\000"
 }
 
 Mysqlx.Resultset.Row {

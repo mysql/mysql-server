@@ -150,7 +150,7 @@ void Message_builder::end_message() {
                     m_start_from - sizeof(google::protobuf::uint32);
   if (static_cast<size_t>(m_size_addr1_size) >=
       sizeof(google::protobuf::uint32)) {
-    // easy case, whole size written into continous memory
+    // easy case, whole size written into continuous memory
     CodedOutputStream::WriteLittleEndian32ToArray(
         msg_size, static_cast<google::protobuf::uint8 *>(m_size_addr1));
   } else {

@@ -40,6 +40,7 @@ xpl::Session::Session(ngs::Client_interface &client,
                       const Session_id session_id)
     : ngs::Session(client, proto, session_id),
       m_sql(proto),
+      m_notice_output_queue(proto, &m_notice_configuration),
       m_was_authenticated(false) {}
 
 xpl::Session::~Session() {

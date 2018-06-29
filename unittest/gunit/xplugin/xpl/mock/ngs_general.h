@@ -100,6 +100,7 @@ class Mock_system : public System_interface {
   MOCK_METHOD0(get_errno, int());
 
   MOCK_METHOD0(get_socket_errno, int());
+  MOCK_METHOD1(set_socket_errno, void(const int));
   MOCK_METHOD2(get_socket_error_and_message, void(int &, std::string &));
 
   MOCK_METHOD1(freeaddrinfo, void(addrinfo *));

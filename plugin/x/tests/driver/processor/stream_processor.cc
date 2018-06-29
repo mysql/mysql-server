@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -35,6 +35,7 @@
 #include "plugin/x/tests/driver/processor/indigestion_processor.h"
 #include "plugin/x/tests/driver/processor/macro_block_processor.h"
 #include "plugin/x/tests/driver/processor/sql_block_processor.h"
+#include "plugin/x/tests/driver/processor/sql_stmt_processor.h"
 
 std::vector<Block_processor_ptr> create_macro_block_processors(
     Execution_context *context) {
@@ -46,6 +47,7 @@ std::vector<Block_processor_ptr> create_macro_block_processors(
   result.push_back(std::make_shared<Command_multiline_processor>(context));
   result.push_back(std::make_shared<Send_message_block_processor>(context));
   result.push_back(std::make_shared<Comment_processor>());
+  result.push_back(std::make_shared<Sql_stmt_processor>(context));
   result.push_back(std::make_shared<Indigestion_processor>(context));
 
   return result;
@@ -62,6 +64,7 @@ std::vector<Block_processor_ptr> create_block_processors(
   result.push_back(std::make_shared<Command_multiline_processor>(context));
   result.push_back(std::make_shared<Send_message_block_processor>(context));
   result.push_back(std::make_shared<Comment_processor>());
+  result.push_back(std::make_shared<Sql_stmt_processor>(context));
   result.push_back(std::make_shared<Indigestion_processor>(context));
 
   return result;

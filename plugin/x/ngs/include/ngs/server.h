@@ -37,13 +37,18 @@
 #include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/server_delegate.h"
 #include "plugin/x/ngs/include/ngs/interface/server_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/server_task_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/sha256_password_cache_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/timeout_callback_interface.h"
 #include "plugin/x/ngs/include/ngs/protocol/protocol_config.h"
 #include "plugin/x/ngs/include/ngs/protocol_encoder.h"
+#include "plugin/x/ngs/include/ngs/server_properties.h"
 #include "plugin/x/ngs/include/ngs/socket_events.h"
 #include "plugin/x/ngs/include/ngs/thread.h"
 #include "plugin/x/ngs/include/ngs_common/bind.h"
 #include "plugin/x/ngs/include/ngs_common/chrono.h"
+#include "plugin/x/src/helper/multithread/mutex.h"
+#include "plugin/x/src/helper/multithread/sync_variable.h"
 
 namespace ngs {
 
@@ -54,10 +59,14 @@ class Server_task_interface;
 class Connection_acceptor_interface;
 class Incoming_queue;
 class Scheduler_dynamic;
-class Server_acceptors;
+class Socket_acceptors_task;
 
 class Server : public Server_interface {
  public:
+  using Task_context = Server_task_interface::Task_context;
+  using Stop_cause = Server_task_interface::Stop_cause;
+  using Server_task_vector = std::vector<Server_tasks_interface_ptr>;
+
   enum State {
     State_initializing,
     State_running,
@@ -65,18 +74,19 @@ class Server : public Server_interface {
     State_terminating
   };
 
-  Server(ngs::shared_ptr<Server_acceptors> acceptors,
-         ngs::shared_ptr<Scheduler_dynamic> accept_scheduler,
+ public:
+  Server(ngs::shared_ptr<Scheduler_dynamic> accept_scheduler,
          ngs::shared_ptr<Scheduler_dynamic> work_scheduler,
-         Server_delegate *delegate, ngs::shared_ptr<Protocol_config> config);
+         Server_delegate *delegate, ngs::shared_ptr<Protocol_config> config,
+         Server_properties *properties, const Server_task_vector &tasks,
+         ngs::shared_ptr<Timeout_callback_interface> timeout_callback);
 
   virtual Ssl_context_interface *ssl_context() const override {
     return m_ssl_context.get();
   }
 
   bool prepare(std::unique_ptr<Ssl_context_interface> ssl_context,
-               const bool skip_networking, const bool skip_name_resolve,
-               const bool use_unix_sockets);
+               const bool skip_networking, const bool skip_name_resolve);
 
   void start();
   void start_failed();
@@ -94,7 +104,7 @@ class Server : public Server_interface {
     return m_worker_scheduler;
   }
   Client_list &get_client_list() { return m_client_list; }
-  Mutex &get_client_exit_mutex() override { return m_client_exit_mutex; }
+  xpl::Mutex &get_client_exit_mutex() override { return m_client_exit_mutex; }
 
   virtual ngs::shared_ptr<Session_interface> create_session(
       Client_interface &client, Protocol_encoder_interface &proto,
@@ -111,7 +121,7 @@ class Server : public Server_interface {
       const bool allowed_only_with_secure_connection);
   void add_sha256_password_cache(SHA256_password_cache_interface *cache);
 
-  void add_timer(const std::size_t delay_ms, ngs::function<bool()> callback);
+  void add_callback(const std::size_t delay_ms, ngs::function<bool()> callback);
   bool reset_globals();
   Document_id_generator_interface &get_document_id_generator() const override {
     return *m_id_generator;
@@ -165,18 +175,21 @@ class Server : public Server_interface {
   uint32 m_errors_while_accepting;
   SHA256_password_cache_interface *m_sha256_password_cache;
 
-  ngs::shared_ptr<Server_acceptors> m_acceptors;
+  ngs::shared_ptr<Socket_acceptors_task> m_acceptors;
   ngs::shared_ptr<Scheduler_dynamic> m_accept_scheduler;
   ngs::shared_ptr<Scheduler_dynamic> m_worker_scheduler;
   ngs::shared_ptr<Protocol_config> m_config;
   ngs::unique_ptr<Document_id_generator_interface> m_id_generator;
 
   std::unique_ptr<Ssl_context_interface> m_ssl_context;
-  Sync_variable<State> m_state;
+  xpl::Sync_variable<State> m_state;
   Auth_handler_map m_auth_handlers;
   Client_list m_client_list;
   Server_delegate *m_delegate;
-  Mutex m_client_exit_mutex;
+  xpl::Mutex m_client_exit_mutex;
+  Server_properties *m_properties;
+  Server_task_vector m_tasks;
+  std::shared_ptr<Timeout_callback_interface> m_timeout_callback;
 };
 
 }  // namespace ngs

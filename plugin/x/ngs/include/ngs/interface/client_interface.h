@@ -28,6 +28,7 @@
 #include "plugin/x/ngs/include/ngs/interface/session_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/vio_interface.h"
 #include "plugin/x/ngs/include/ngs_common/chrono.h"
+#include "plugin/x/src/helper/multithread/mutex.h"
 
 namespace ngs {
 
@@ -62,7 +63,7 @@ class Client_interface {
   virtual void on_server_shutdown() = 0;
 
   virtual void run(const bool skip_resolve_name) = 0;
-  virtual Mutex &get_session_exit_mutex() = 0;
+  virtual xpl::Mutex &get_session_exit_mutex() = 0;
 
  public:
   virtual const char *client_address() const = 0;

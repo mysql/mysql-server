@@ -41,9 +41,27 @@ ssize_t Vio_wrapper::write(const uchar *buffer, ssize_t bytes_to_send) {
   return vio_write(m_vio, buffer, bytes_to_send);
 }
 
-void Vio_wrapper::set_timeout(const Direction direction,
-                              const uint32_t timeout) {
-  vio_timeout(m_vio, static_cast<uint32_t>(direction), timeout);
+void Vio_wrapper::set_timeout_in_ms(const Direction direction,
+                                    const uint64_t timeout_ms) {
+  // VIO can set only timeouts with 1 second resolution.
+  //
+  // Thus if application needs second resolution ten following it
+  // can do following:
+  // vio_timeout(m_vio, static_cast<uint32_t>(direction), timeout_s);
+  //
+  // To get the millisecond resolution, we need to duplicate the logic
+  // from "vio_timeout".
+
+  bool old_mode = m_vio->write_timeout < 0 && m_vio->read_timeout < 0;
+
+  int which = direction == Direction::k_write ? 1 : 0;
+
+  if (which)
+    m_vio->write_timeout = timeout_ms;
+  else
+    m_vio->read_timeout = timeout_ms;
+
+  if (m_vio->timeout) m_vio->timeout(m_vio, which, old_mode);
 }
 
 void Vio_wrapper::set_state(const PSI_socket_state state) {

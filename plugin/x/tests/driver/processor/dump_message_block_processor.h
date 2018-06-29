@@ -35,8 +35,9 @@ class Dump_message_block_processor : public Send_message_block_processor {
   explicit Dump_message_block_processor(Execution_context *context)
       : Send_message_block_processor(context) {}
 
+  Result feed(std::istream &input, const char *linebuf) override;
+
  private:
-  std::string get_message_name(const char *linebuf) override;
   int process(const xcl::XProtocol::Client_message_type_id msg_id,
               const xcl::XProtocol::Message &message) override;
 

@@ -75,7 +75,9 @@ void Crud_command_handler::notice_handling(
 
 void Crud_command_handler::notice_handling_common(
     Session &session, const ngs::Resultset_interface::Info &info) const {
-  if (info.num_warnings > 0 && session.options().get_send_warnings())
+  const auto &notice_config = session.get_notice_configuration();
+  if (info.num_warnings > 0 &&
+      notice_config.is_notice_enabled(ngs::Notice_type::k_warning))
     notices::send_warnings(session.data_context(), session.proto());
 
   if (!info.message.empty())
@@ -213,7 +215,8 @@ ngs::Error_code Crud_command_handler::execute_crud_find(
     Session &session, const Mysqlx::Crud::Find &msg) {
   Expression_generator gen(&m_qb, msg.args(), msg.collection().schema(),
                            is_table_data_model(msg));
-  Streaming_resultset rset(&session.proto(), false);
+  Streaming_resultset rset(&session.proto(), &session.get_notice_output_queue(),
+                           false);
   return execute(session, Find_statement_builder(gen), msg, rset,
                  &ngs::Common_status_variables::m_crud_find,
                  &ngs::Protocol_encoder_interface::send_exec_ok);

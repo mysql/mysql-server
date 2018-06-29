@@ -39,6 +39,7 @@
 #include "plugin/x/ngs/include/ngs/protocol_encoder.h"
 #include "plugin/x/ngs/include/ngs_common/chrono.h"
 #include "plugin/x/src/global_timeouts.h"
+#include "plugin/x/src/helper/multithread/mutex.h"
 #include "plugin/x/src/xpl_system_variables.h"
 
 #ifndef WIN32
@@ -55,7 +56,7 @@ class Client : public Client_interface {
          const Global_timeouts &timeouts);
   virtual ~Client();
 
-  Mutex &get_session_exit_mutex() override { return m_session_exit_mutex; }
+  xpl::Mutex &get_session_exit_mutex() override { return m_session_exit_mutex; }
   Session_interface *session() override { return m_session.get(); }
   ngs::shared_ptr<Session_interface> session_smart_ptr() override {
     return m_session;
@@ -126,7 +127,7 @@ class Client : public Client_interface {
 
   Protocol_monitor_interface *m_protocol_monitor;
 
-  Mutex m_session_exit_mutex;
+  xpl::Mutex m_session_exit_mutex;
 
   enum {
     Not_closing,
@@ -165,9 +166,13 @@ class Client : public Client_interface {
   void set_encoder(ngs::Protocol_encoder_interface *enc);
 
  private:
+  using Waiting_for_io_interface =
+      ngs::Protocol_decoder::Waiting_for_io_interface;
+
   Client(const Client &) = delete;
   Client &operator=(const Client &) = delete;
 
+  Waiting_for_io_interface *get_idle_processing();
   void get_last_error(int *out_error_code, std::string *out_message);
   void shutdown_connection();
 

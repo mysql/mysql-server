@@ -19,8 +19,10 @@
 #define PLUGIN_X_NGS_INCLUDE_NGS_DOCUMENT_ID_GENERATOR_H_
 
 #include <string>
+
 #include "plugin/x/ngs/include/ngs/interface/document_id_generator_interface.h"
 #include "plugin/x/ngs/include/ngs/thread.h"
+#include "plugin/x/src/helper/multithread/mutex.h"
 
 namespace ngs {
 
@@ -34,7 +36,7 @@ class Document_id_generator : public ngs::Document_id_generator_interface {
  private:
   uint64_t m_timestamp;
   uint64_t m_serial;
-  Mutex m_generate_mutex;
+  xpl::Mutex m_generate_mutex;
 };
 
 }  // namespace ngs

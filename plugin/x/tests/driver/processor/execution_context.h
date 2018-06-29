@@ -34,6 +34,7 @@
 #include "plugin/x/tests/driver/connector/connection_manager.h"
 #include "plugin/x/tests/driver/formatters/console.h"
 #include "plugin/x/tests/driver/processor/commands/expected_error.h"
+#include "plugin/x/tests/driver/processor/commands/expected_warnings.h"
 #include "plugin/x/tests/driver/processor/commands/macro.h"
 #include "plugin/x/tests/driver/processor/script_stack.h"
 #include "plugin/x/tests/driver/processor/variable_container.h"
@@ -45,6 +46,7 @@ class Execution_context {
     bool m_bindump{false};
     bool m_show_warnings{false};
     bool m_fatal_errors{true};
+    bool m_fatal_warnings{false};
     bool m_show_query_result{true};
     std::string m_import_path{FN_CURLIB, FN_LIBCHAR, '\0'};
   };
@@ -54,8 +56,11 @@ class Execution_context {
                     Variable_container *variables, const Console &console)
       : m_options(options),
         m_connection(cm),
-        m_expected_error(m_options.m_fatal_errors, console, &m_script_stack),
         m_variables(variables),
+        m_expected_error(m_options.m_fatal_errors, console, &m_script_stack),
+        m_expected_warnings(m_options.m_fatal_errors,
+                            m_options.m_fatal_warnings, console,
+                            &m_script_stack),
         m_console(console) {}
 
   void set_options(const Options &options) { m_options = options; }
@@ -64,8 +69,9 @@ class Execution_context {
   std::string m_command_name;
   Connection_manager *m_connection;
   Script_stack m_script_stack;
-  Expected_error m_expected_error;
   Variable_container *m_variables;
+  Expected_error m_expected_error;
+  Expected_warnings m_expected_warnings;
   const Console &m_console;
   Macro_container m_macros;
 

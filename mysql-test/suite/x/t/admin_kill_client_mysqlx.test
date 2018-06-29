@@ -30,7 +30,7 @@ set password for unpriv@localhost = 'x';
 -->stmtadmin list_clients
 -->recvresult
 
-## switch back to default session
+-->echo switched to session default
 -->setsession
 
 -->stmtadmin list_clients
@@ -66,6 +66,7 @@ set password for unpriv@localhost = 'x';
 -->expecterror 1095
 -->recvresult
 
+-->echo switched to session default
 -->setsession
 
 -->sleep 1;

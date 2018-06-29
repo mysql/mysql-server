@@ -20,8 +20,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-
-
 FILE(GLOB ngs_HDRS
   "${MYSQLX_PROJECT_DIR}/ngs/include/ngs/*.h"
   "${MYSQLX_PROJECT_DIR}/ngs/include/ngs_common/*.h"
@@ -37,6 +35,11 @@ FILE(GLOB ngs_SRC
 )
 
 SET(xplugin_HDRS
+  "${MYSQLX_PROJECT_DIR}/src/helper/multithread/cond.h"
+  "${MYSQLX_PROJECT_DIR}/src/helper/multithread/lock_container.h"
+  "${MYSQLX_PROJECT_DIR}/src/helper/multithread/mutex.h"
+  "${MYSQLX_PROJECT_DIR}/src/helper/multithread/rw_lock.h"
+  "${MYSQLX_PROJECT_DIR}/src/helper/multithread/sync_variable.h"
   "${MYSQLX_PROJECT_DIR}/src/io/xpl_listener_tcp.h"
   "${MYSQLX_PROJECT_DIR}/src/io/xpl_listener_unix_socket.h"
   "${MYSQLX_PROJECT_DIR}/src/io/vio_input_stream.h"
@@ -88,7 +91,8 @@ SET(xplugin_HDRS
   "${MYSQLX_PROJECT_DIR}/src/notices.h"
   "${MYSQLX_PROJECT_DIR}/src/cap_handles_expired_passwords.h"
   "${MYSQLX_PROJECT_DIR}/src/mysql_function_names.h"
-  "${MYSQLX_PROJECT_DIR}/src/service_registrator.h"
+  "${MYSQLX_PROJECT_DIR}/src/services/service_registrator.h"
+  "${MYSQLX_PROJECT_DIR}/src/services/mysqlx_group_membership_listener.h"
   "${MYSQLX_PROJECT_DIR}/src/services/mysqlx_maintenance.h"
   "${MYSQLX_PROJECT_DIR}/src/udf/registrator.h"
   "${MYSQLX_PROJECT_DIR}/src/udf/mysqlx_error.h"
@@ -97,10 +101,26 @@ SET(xplugin_HDRS
 )
 
 SET(xplugin_SRC
-  "${MYSQLX_PROJECT_DIR}/src/xpl_log.cc"
+  "${MYSQLX_PROJECT_DIR}/src/helper/multithread/mutex.cc"
+  "${MYSQLX_PROJECT_DIR}/src/helper/multithread/cond.cc"
+  "${MYSQLX_PROJECT_DIR}/src/helper/multithread/rw_lock.cc"
+  "${MYSQLX_PROJECT_DIR}/src/expect/expect.cc"
+  "${MYSQLX_PROJECT_DIR}/src/expect/expect_stack.cc"
+  "${MYSQLX_PROJECT_DIR}/src/expect/expect_condition_field.cc"
+  "${MYSQLX_PROJECT_DIR}/src/io/xpl_listener_factory.cc"
   "${MYSQLX_PROJECT_DIR}/src/io/xpl_listener_tcp.cc"
   "${MYSQLX_PROJECT_DIR}/src/io/xpl_listener_unix_socket.cc"
   "${MYSQLX_PROJECT_DIR}/src/io/vio_input_stream.cc"
+  "${MYSQLX_PROJECT_DIR}/src/mq/broker_task.cc"
+  "${MYSQLX_PROJECT_DIR}/src/mq/notice_input_queue.cc"
+  "${MYSQLX_PROJECT_DIR}/src/mq/notice_output_queue.cc"
+  "${MYSQLX_PROJECT_DIR}/src/services/service_registrator.cc"
+  "${MYSQLX_PROJECT_DIR}/src/services/mysqlx_group_membership_listener.cc"
+  "${MYSQLX_PROJECT_DIR}/src/services/mysqlx_group_member_status_listener.cc"
+  "${MYSQLX_PROJECT_DIR}/src/services/mysqlx_maintenance.cc"
+  "${MYSQLX_PROJECT_DIR}/src/udf/registrator.cc"
+  "${MYSQLX_PROJECT_DIR}/src/udf/mysqlx_error.cc"
+  "${MYSQLX_PROJECT_DIR}/src/xpl_log.cc"
   "${MYSQLX_PROJECT_DIR}/src/xpl_server.cc"
   "${MYSQLX_PROJECT_DIR}/src/xpl_session.cc"
   "${MYSQLX_PROJECT_DIR}/src/xpl_client.cc"
@@ -109,7 +129,6 @@ SET(xplugin_SRC
   "${MYSQLX_PROJECT_DIR}/src/xpl_regex.cc"
   "${MYSQLX_PROJECT_DIR}/src/xpl_plugin.cc"
   "${MYSQLX_PROJECT_DIR}/src/xpl_performance_schema.cc"
-  "${MYSQLX_PROJECT_DIR}/src/io/xpl_listener_factory.cc"
   "${MYSQLX_PROJECT_DIR}/src/mysql_variables.cc"
   "${MYSQLX_PROJECT_DIR}/src/mysql_function_names.cc"
   "${MYSQLX_PROJECT_DIR}/src/mysql_show_variable_wrapper.cc"
@@ -135,9 +154,6 @@ SET(xplugin_SRC
   "${MYSQLX_PROJECT_DIR}/src/sql_data_result.cc"
   "${MYSQLX_PROJECT_DIR}/src/sql_user_require.cc"
   "${MYSQLX_PROJECT_DIR}/src/json_utils.cc"
-  "${MYSQLX_PROJECT_DIR}/src/expect/expect.cc"
-  "${MYSQLX_PROJECT_DIR}/src/expect/expect_stack.cc"
-  "${MYSQLX_PROJECT_DIR}/src/expect/expect_condition_field.cc"
   "${MYSQLX_PROJECT_DIR}/src/statement_builder.cc"
   "${MYSQLX_PROJECT_DIR}/src/update_statement_builder.cc"
   "${MYSQLX_PROJECT_DIR}/src/find_statement_builder.cc"
@@ -145,10 +161,6 @@ SET(xplugin_SRC
   "${MYSQLX_PROJECT_DIR}/src/view_statement_builder.cc"
   "${MYSQLX_PROJECT_DIR}/src/insert_statement_builder.cc"
   "${MYSQLX_PROJECT_DIR}/src/notices.cc"
-  "${MYSQLX_PROJECT_DIR}/src/service_registrator.cc"
-  "${MYSQLX_PROJECT_DIR}/src/services/mysqlx_maintenance.cc"
-  "${MYSQLX_PROJECT_DIR}/src/udf/registrator.cc"
-  "${MYSQLX_PROJECT_DIR}/src/udf/mysqlx_error.cc"
   "${MYSQLX_PROJECT_DIR}/src/xpl_plugin.cc"
   "${MYSQLX_PROJECT_DIR}/src/xpl_performance_schema.cc"
   ${ngs_SRC}

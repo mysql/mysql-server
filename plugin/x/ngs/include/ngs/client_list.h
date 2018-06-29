@@ -31,6 +31,7 @@
 
 #include "plugin/x/ngs/include/ngs/interface/client_interface.h"
 #include "plugin/x/ngs/include/ngs/thread.h"
+#include "plugin/x/src/helper/multithread/rw_lock.h"
 
 namespace ngs {
 
@@ -74,13 +75,13 @@ class Client_list {
   Client_list(const Client_list &);
   Client_list &operator=(const Client_list &);
 
-  RWLock m_clients_lock;
+  xpl::RWLock m_clients_lock;
   std::list<Client_ptr> m_clients;
 };
 
 template <typename Functor>
 void Client_list::enumerate(Functor &matcher) {
-  RWLock_readlock guard(m_clients_lock);
+  xpl::RWLock_readlock guard(m_clients_lock);
 
   /*
     Matcher can stop enumeration process by returning
@@ -92,7 +93,7 @@ void Client_list::enumerate(Functor &matcher) {
 
 template <typename Functor>
 void Client_list::enumerate(const Functor &matcher) {
-  RWLock_readlock guard(m_clients_lock);
+  xpl::RWLock_readlock guard(m_clients_lock);
 
   /*
     Matcher can stop enumeration process by returning

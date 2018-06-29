@@ -1,0 +1,180 @@
+################################################################
+#
+# This file contains following Group Replication helper macros:
+#
+# * Setsession - SESSION_NAME
+# * Connect_to_instance - SESSION_NAME_PREFIX SERVER_INDEX TCP_PORT
+# * Connect_to_all_mysqld_instances - SESSION_NAME_PREFIX NUMBER_OF_SERVERS_TO_INITIALIZE
+# * GR_clear_bootstrap_group - NUMBER_OF_SERVERS_TO_INITIALIZE
+# * GR_start_and_bootstrap - NUMBER_OF_SERVERS_TO_INITIALIZE GROUP_NAME EXPECTED_STATE
+# * GR_start - GROUP_NAME EXPECTED_STATE
+# * GR_stop
+# * GR_start_applier_sql_thread
+# * GR_stop_applier_sql_thread
+# * GR_wait_for_number_of_members - EXPECTED_NUMBER_OF_MEMBERS
+# * GR_wait_for_member_state - EXPECTED_STATE
+# * GR_wait_for_uuid_and_member_state - UUID EXPECTED_STATE
+#
+
+
+#
+## General macros
+#
+-->macro Setsession	%NAME%
+quiet;
+echo [connection %NAME%];
+setsession %NAME%;
+noquiet;
+-->endmacro
+
+
+-->macro Connect_to_instance	%PREFIX%	%INSTANCE_ID%	%PORT%
+varlet %OPTION_CLIENT_PORT% %PORT%;
+newsession %PREFIX%_%INSTANCE_ID%	%OPTION_CLIENT_USER%;
+-->endmacro
+
+
+-->macro Connect_to_all_mysqld_instances	%PREFIX%	%NUMBER_OF_SERVERS%
+repeat %NUMBER_OF_SERVERS%	%ITERATION%;
+varlet %ITERATION_SESSION% %ITERATION%;
+varinc %ITERATION_SESSION% 1;
+varlet %PORT_NAME% %SERVER_XPORT_%ITERATION_SESSION%%;
+callmacro Connect_to_instance	%PREFIX%	%ITERATION_SESSION%	%PORT_NAME%;
+endrepeat;
+-->endmacro
+
+
+#
+## Group-replication specific macros
+#
+-->macro GR_clear_bootstrap_group %NUMBER_OF_SERVERS%
+noquery_result;
+repeat %NUMBER_OF_SERVERS%	%ITERATION%;
+varlet %__SESSION% %NUMBER_OF_SERVERS%;
+varinc %__SESSION% -%ITERATION%;
+callmacro Setsession	server_%__SESSION%;
+SET GLOBAL group_replication_bootstrap_group= 0;
+endrepeat;
+query_result;
+-->endmacro
+
+
+-->macro GR_start_and_bootstrap	%NUMBER_OF_SERVERS%	%GR_NAME%	%EXPECTED_STATE%
+callmacro Setsession	server_1;
+noquery_result;
+SET GLOBAL group_replication_bootstrap_group= 1;
+query_result;
+callmacro GR_start	%GR_NAME%	%EXPECTED_STATE%;
+callmacro GR_clear_bootstrap_group	%NUMBER_OF_SERVERS%;
+-->endmacro
+
+
+-->macro GR_start	%GR_NAME%	%EXPECTED_STATE%
+noquery_result;
+varsub %GR_NAME%;
+SET GLOBAL group_replication_group_name='%GR_NAME%';
+START GROUP_REPLICATION;
+query_result;
+
+callmacro GR_wait_for_member_state	%EXPECTED_STATE%;
+-->endmacro
+
+
+-->macro GR_stop
+noquery_result;
+STOP GROUP_REPLICATION;
+quiet;
+wait_for 1	SELECT COUNT(*)=1
+               FROM performance_schema.replication_connection_status connection_status
+               WHERE connection_status.channel_name="group_replication_applier"
+                  AND connection_status.service_state="OFF";
+wait_for 1	SELECT @@GLOBAL.super_read_only=1;
+wait_for 1	SELECT @@GLOBAL.read_only=1;
+noquiet;
+SET GLOBAL read_only= FALSE;
+query_result;
+-->endmacro
+
+
+-->macro GR_start_applier_sql_thread
+noquery_result;
+START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+quiet;
+wait_for 1	SELECT service_state="ON"
+                FROM performance_schema.replication_applier_status
+                WHERE channel_name="group_replication_applier";
+noquiet;
+query_result;
+-->endmacro
+
+
+-->macro GR_stop_applier_sql_thread
+noquery_result;
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+quiet;
+wait_for 1	SELECT service_state="OFF"
+                FROM performance_schema.replication_applier_status
+                WHERE channel_name="group_replication_applier";
+noquiet;
+query_result;
+-->endmacro
+
+
+-->macro GR_wait_for_number_of_members	%EXPECTED_NUMBER_OF_MEMBERS%
+echo [waiting for '%EXPECTED_NUMBER_OF_MEMBERS%' members];
+quiet;
+noquery_result;
+wait_for %EXPECTED_NUMBER_OF_MEMBERS%	SELECT COUNT(*)
+                FROM performance_schema.replication_group_members;
+noquiet;
+query_result;
+-->endmacro
+
+
+-->macro GR_wait_for_member_state	%STATE%
+echo [waiting for member_state to be equal '%STATE%'];
+quiet;
+noquery_result;
+wait_for 1	SELECT COUNT(*)=1 FROM performance_schema.replication_group_members
+  WHERE member_id=@@SERVER_UUID AND
+  member_state="%STATE%";
+stmtsql SELECT COUNT(*)=1
+                FROM performance_schema.replication_group_members group_members
+                WHERE group_members.member_id= @@SERVER_UUID
+                  AND group_members.member_state="ONLINE"
+                  AND group_members.member_role = "PRIMARY"
+                  AND group_members.member_version =
+                      (SELECT member_version FROM performance_schema.replication_group_members
+                          ORDER BY member_version ASC LIMIT 1);
+recvtovar %IS_PRIMARY%;
+
+## Workaround for missing 'if' statement in mysqlxtest syntax.
+wait_for 1	SELECT @@GLOBAL.read_only = '0' OR !%IS_PRIMARY%;
+noquiet;
+query_result;
+-->endmacro
+
+
+-->macro GR_wait_for_uuid_and_member_state	%UUID%	%STATE%
+echo [waiting for concrete member with member_state to be equal '%STATE%'];
+quiet;
+noquery_result;
+wait_for 1	SELECT COUNT(*)=1 FROM performance_schema.replication_group_members
+  WHERE member_id='%UUID%' AND
+  member_state="%STATE%";
+stmtsql SELECT COUNT(*)=1
+                FROM performance_schema.replication_group_members group_members
+                WHERE group_members.member_id like '%UUID%'
+                  AND group_members.member_state like "%STATE%"
+                  AND group_members.member_role = "PRIMARY"
+                  AND group_members.member_version =
+                      (SELECT member_version FROM performance_schema.replication_group_members
+                          ORDER BY member_version ASC LIMIT 1);
+recvtovar %IS_PRIMARY%;
+
+## Workaround for missing 'if' statement in mysqlxtest syntax.
+wait_for 1	SELECT @@GLOBAL.read_only = '0' OR !%IS_PRIMARY%;
+noquiet;
+query_result;
+-->endmacro
+

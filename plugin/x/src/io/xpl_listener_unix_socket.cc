@@ -345,8 +345,6 @@ Listener_unix_socket::Sync_variable_state &Listener_unix_socket::get_state() {
   return m_state;
 }
 
-bool Listener_unix_socket::is_handled_by_socket_event() { return true; }
-
 std::string Listener_unix_socket::get_name_and_configuration() const {
   std::string result = "UNIX socket (";
 
@@ -370,21 +368,33 @@ std::string Listener_unix_socket::get_last_error() { return m_last_error; }
 bool Listener_unix_socket::setup_listener(On_connection on_connection) {
   Unixsocket_creator unixsocket_creator(*m_operations_factory);
 
-  if (!m_state.is(ngs::State_listener_initializing)) return false;
+  if (!m_state.is(ngs::State_listener_initializing)) {
+    close_listener();
+    return false;
+  }
 
   m_unix_socket = unixsocket_creator.create_and_bind_unixsocket(
       m_unix_socket_path, m_last_error, m_backlog);
 
-  if (INVALID_SOCKET == m_unix_socket->get_socket_fd()) return false;
+  if (INVALID_SOCKET == m_unix_socket->get_socket_fd()) {
+    close_listener();
+    return false;
+  }
 
-  if (!m_event.listen(m_unix_socket, on_connection)) return false;
+  if (!m_event.listen(m_unix_socket, on_connection)) {
+    close_listener();
+    return false;
+  }
 
   m_state.set(ngs::State_listener_prepared);
+
   return true;
 }
 
 void Listener_unix_socket::close_listener() {
-  m_state.set(ngs::State_listener_stopped);
+  if (ngs::State_listener_stopped ==
+      m_state.set_and_return_old(ngs::State_listener_stopped))
+    return;
 
   if (NULL == m_unix_socket) return;
 
@@ -399,5 +409,23 @@ void Listener_unix_socket::close_listener() {
 }
 
 void Listener_unix_socket::loop() {}
+
+void Listener_unix_socket::report_properties(On_report_properties on_prop) {
+  switch (m_state.get()) {
+    case ngs::State_listener_initializing:
+      on_prop(ngs::Server_property_ids::k_unix_socket, "");
+      break;
+
+    case ngs::State_listener_prepared:
+    case ngs::State_listener_running:  // fall-through
+      on_prop(ngs::Server_property_ids::k_unix_socket, m_unix_socket_path);
+      break;
+
+    case ngs::State_listener_stopped:
+      on_prop(ngs::Server_property_ids::k_unix_socket,
+              ngs::PROPERTY_NOT_CONFIGURED);
+      break;
+  }
+}
 
 }  // namespace xpl

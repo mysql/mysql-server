@@ -24,6 +24,7 @@
 
 #include "plugin/x/src/xpl_dispatcher.h"
 
+#include "plugin/x/ngs/include/ngs/interface/notice_output_queue_interface.h"
 #include "plugin/x/ngs/include/ngs/mysqlx/getter_any.h"
 #include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
 #include "plugin/x/src/admin_cmd_arguments.h"
@@ -45,6 +46,7 @@ class Stmt {
  public:
   ngs::Error_code execute(
       ngs::Sql_session_interface &da, ngs::Protocol_encoder_interface &proto,
+      ngs::Notice_output_queue_interface *notice_queue,
       const bool show_warnings, const bool compact_metadata,
       const std::string &query,
       const ::google::protobuf::RepeatedPtrField<::Mysqlx::Datatypes::Any>
@@ -52,8 +54,8 @@ class Stmt {
     const int args_size = args.size();
 
     if (0 == args_size)
-      return execute(da, proto, show_warnings, compact_metadata, query.data(),
-                     query.length());
+      return execute(da, proto, notice_queue, show_warnings, compact_metadata,
+                     query.data(), query.length());
 
     m_qb.clear();
     m_qb.put(query);
@@ -66,15 +68,16 @@ class Stmt {
       return error;
     }
 
-    return execute(da, proto, show_warnings, compact_metadata,
+    return execute(da, proto, notice_queue, show_warnings, compact_metadata,
                    m_qb.get().data(), m_qb.get().length());
   }
 
   ngs::Error_code execute(ngs::Sql_session_interface &da,
                           ngs::Protocol_encoder_interface &proto,
+                          ngs::Notice_output_queue_interface *notice_queue,
                           const bool show_warnings, const bool compact_metadata,
                           const char *query, std::size_t query_len) {
-    xpl::Streaming_resultset resultset(&proto, compact_metadata);
+    xpl::Streaming_resultset resultset(&proto, notice_queue, compact_metadata);
     ngs::Error_code error = da.execute(query, query_len, &resultset);
     if (!error) {
       const xpl::Streaming_resultset::Info &info = resultset.get_info();
@@ -111,22 +114,26 @@ class Stmt {
 ngs::Error_code on_stmt_execute(xpl::Session &session,
                                 const Mysqlx::Sql::StmtExecute &msg) {
   log_debug("%s: %s", session.client().client_id(), msg.stmt().c_str());
+  auto &notice_config = session.get_notice_configuration();
 
   if (msg.namespace_() == "sql" || !msg.has_namespace_()) {
     session.update_status<&ngs::Common_status_variables::m_stmt_execute_sql>();
-    return Stmt().execute(session.data_context(), session.proto(),
-                          session.options().get_send_warnings(),
-                          msg.compact_metadata(), msg.stmt(), msg.args());
+    return Stmt().execute(
+        session.data_context(), session.proto(),
+        &session.get_notice_output_queue(),
+        notice_config.is_notice_enabled(ngs::Notice_type::k_warning),
+        msg.compact_metadata(), msg.stmt(), msg.args());
   }
 
   if (msg.namespace_() == "xplugin") {
     session
         .update_status<&ngs::Common_status_variables::m_stmt_execute_xplugin>();
-    if (session.options().get_send_xplugin_deprecation()) {
+    if (notice_config.is_notice_enabled(
+            ngs::Notice_type::k_xplugin_deprecation)) {
       xpl::notices::send_message(
           session.proto(),
           "Namespace 'xplugin' is deprecated, please use 'mysqlx' instead");
-      session.options().set_send_xplugin_deprecation(false);
+      notice_config.set_notice(ngs::Notice_type::k_xplugin_deprecation, false);
     }
     xpl::Admin_command_arguments_list args(msg.args());
     return xpl::Admin_command_handler(&session).execute(msg.namespace_(),

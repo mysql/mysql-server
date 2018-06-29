@@ -166,8 +166,6 @@ std::unique_ptr<XQuery_result> Protocol_impl::recv_resultset(
 
   result->get_metadata(out_error);
 
-  if (*out_error) return nullptr;
-
   return result;
 }
 

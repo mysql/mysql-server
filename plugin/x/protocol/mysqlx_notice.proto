@@ -63,6 +63,7 @@ message Frame {
     WARNING = 1;
     SESSION_VARIABLE_CHANGED = 2;
     SESSION_STATE_CHANGED = 3;
+    GROUP_REPLICATION_STATE_CHANGED = 4;
   };
   required uint32 type = 1;
   optional Scope  scope = 2 [ default = GLOBAL ];
@@ -160,5 +161,28 @@ message SessionStateChanged {
   }
   required Parameter param = 1;
   repeated Mysqlx.Datatypes.Scalar value = 2;
+}
+
+// Notify clients about group replication state changes
+//
+// ========================================== ==========
+// :protobuf:msg:`Mysqlx.Notice::Frame` field value
+// ========================================== ==========
+// ``.type``                                  4
+// ``.scope``                                 ``global``
+// ========================================== ==========
+//
+// :param type: type of group replication event
+// :param view_id: view identifier
+message GroupReplicationStateChanged {
+  enum Type {
+    MEMBERSHIP_QUORUM_LOSS = 1;
+    MEMBERSHIP_VIEW_CHANGE = 2;
+    MEMBER_ROLE_CHANGE = 3;
+    MEMBER_STATE_CHANGE = 4;
+  }
+  required uint32 type = 1;
+
+  optional string view_id = 2;
 }
 

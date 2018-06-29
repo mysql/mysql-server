@@ -154,13 +154,13 @@ Driver_command_line_options::Driver_command_line_options(const int argc,
     } else if (check_arg(argv, i, "--no-auth", "-n")) {
       m_run_without_auth = true;
     } else if (check_arg(argv, i, "--plain-auth", NULL)) {
-      m_auth_methods.push_back("PLAIN");
+      m_connection_options.auth_methods.push_back("PLAIN");
     } else if (check_arg(argv, i, "--cached-auth", NULL)) {
-      m_auth_methods.push_back("SHA256_MEMORY");
+      m_connection_options.auth_methods.push_back("SHA256_MEMORY");
     } else if (check_arg(argv, i, "--using-cap-auth", NULL)) {
-      m_auth_methods.push_back("FROM_CAPABILITIES");
+      m_connection_options.auth_methods.push_back("FROM_CAPABILITIES");
     } else if (check_arg(argv, i, "--mysql41-auth", NULL)) {
-      m_auth_methods.push_back("MYSQL41");
+      m_connection_options.auth_methods.push_back("MYSQL41");
     } else if (check_arg_with_value(argv, i, "--debug", NULL, value)) {
 #ifndef DBUG_OFF
       DBUG_PUSH(value);

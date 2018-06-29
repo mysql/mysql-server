@@ -45,7 +45,9 @@ class System_interface {
   virtual int get_pid() = 0;
 
   virtual int get_socket_errno() = 0;
-  virtual void get_socket_error_and_message(int &err, std::string &strerr) = 0;
+  virtual void set_socket_errno(const int err) = 0;
+  virtual void get_socket_error_and_message(int &out_err,
+                                            std::string &out_strerr) = 0;
 
   virtual void freeaddrinfo(addrinfo *ai) = 0;
   virtual int getaddrinfo(const char *node, const char *service,

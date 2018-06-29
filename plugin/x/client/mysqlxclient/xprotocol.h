@@ -585,14 +585,15 @@ class XProtocol {
 
     Create and return an object which already fetched metadata.
     If server returns an error or an I/O error occurred then
-    the result is "nullptr".
+    the function returns a valid object, the reason of doing so
+    is that before the error some warnings could be received.
+    User must have a possibility to investigate the warnings.
 
     @param[out] out_error  in case of error, the method is going to return error
                            code and description
 
     @return Object responsible for fetching "resultset/s" from the server
-      @retval != nullptr  OK
-      @retval == nullptr  error occurred
+      @retval != nullptr  always valid object
   */
   virtual std::unique_ptr<XQuery_result> recv_resultset(XError *out_error) = 0;
 

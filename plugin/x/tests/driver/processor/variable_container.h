@@ -45,12 +45,17 @@ class Variable_container {
   }
 
   void replace(std::string *s) {
-    for (Container::const_iterator sub = m_variables.begin();
-         sub != m_variables.end(); ++sub) {
-      std::string tmp(sub->second->get_value());
+    bool replaced;
+    do {
+      replaced = false;
 
-      aux::replace_all(*s, sub->first, tmp);
-    }
+      for (Container::const_iterator sub = m_variables.begin();
+           sub != m_variables.end(); ++sub) {
+        std::string tmp(sub->second->get_value());
+
+        replaced |= aux::replace_all(*s, sub->first, tmp) > 0;
+      }
+    } while (replaced);
   }
 
   void make_special_variable(const std::string &key,

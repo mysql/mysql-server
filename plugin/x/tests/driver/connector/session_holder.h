@@ -58,6 +58,7 @@ struct Connection_options {
   bool dont_wait_for_disconnect{false};
   bool trace_protocol{false};
   xcl::Internet_protocol ip_mode{xcl::Internet_protocol::V4};
+  std::vector<std::string> auth_methods;
   bool compatible{false};
 
   bool is_ssl_set() const {
@@ -71,21 +72,25 @@ class Session_holder {
   using Frame_type = Mysqlx::Notice::Frame::Type;
 
  public:
-  Session_holder(std::unique_ptr<xcl::XSession> session,
-                 const Console &console);
+  Session_holder(std::unique_ptr<xcl::XSession> session, const Console &console,
+                 const Connection_options &options);
 
   xcl::XSession *get_session();
 
   bool try_get_number_of_received_messages(const std::string message_name,
                                            uint64_t *value) const;
-  xcl::XError setup_session(const Connection_options &options);
-  xcl::XError setup_connection(const Connection_options &options);
-  void setup_ssl(const Connection_options &options);
-  void setup_msg_callbacks(const bool force_trace_protocol);
-
   void remove_notice_handler();
 
+  xcl::XError connect(const bool is_raw_connection);
+  xcl::XError reconnect();
+
  private:
+  xcl::XError setup_session();
+  xcl::XError setup_connection();
+  void setup_ssl();
+  void setup_other_options();
+  void setup_msg_callbacks();
+
   xcl::Handler_result trace_send_messages(
       xcl::XProtocol *protocol,
       const xcl::XProtocol::Client_message_type_id msg_id,
@@ -113,6 +118,8 @@ class Session_holder {
   std::unique_ptr<xcl::XSession> m_session;
   std::map<std::string, uint64_t> m_received_msg_counters;
   const Console &m_console;
+  Connection_options m_options;
+  bool m_is_raw_connection{false};
 };
 
 #endif  // PLUGIN_X_TESTS_DRIVER_CONNECTOR_SESSION_HOLDER_H_
