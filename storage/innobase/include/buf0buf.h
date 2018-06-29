@@ -1432,9 +1432,6 @@ struct buf_block_t {
   and block is always accessed by a
   single thread. */
 #ifndef UNIV_HOTBACKUP
-  bool skip_flush_check;
-  /*!< Skip check in buf_dblwr_check_block
-  during bulk load, protected by lock.*/
 #ifdef UNIV_DEBUG
   /** @name Debug fields */
   /* @{ */
@@ -1443,14 +1440,14 @@ struct buf_block_t {
                          an s-latch here; so we can use the
                          debug utilities in sync0rw */
                          /* @} */
-#endif
-#endif              /* !UNIV_HOTBACKUP */
-  BPageMutex mutex; /*!< mutex protecting this block:
-                    state (also protected by the buffer
-                    pool mutex), io_fix, buf_fix_count,
-                    and accessed; we introduce this new
-                    mutex in InnoDB-5.1 to relieve
-                    contention on the buffer pool mutex */
+#endif                   /* UNIV_DEBUG */
+#endif                   /* !UNIV_HOTBACKUP */
+  BPageMutex mutex;      /*!< mutex protecting this block:
+                         state (also protected by the buffer
+                         pool mutex), io_fix, buf_fix_count,
+                         and accessed; we introduce this new
+                         mutex in InnoDB-5.1 to relieve
+                         contention on the buffer pool mutex */
 
   /** Get the page number of the current buffer block.
   @return page number of the current buffer block. */

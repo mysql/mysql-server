@@ -1,0 +1,25 @@
+#
+# Bug #27802098 - BTRBULK OPERATIONS MIGHT LEAD A PAGE IN HALF INITIALIZED STATE
+#
+# This tests checks if btr bulk operations does not produce invalid pages.
+#
+
+-- source include/have_debug.inc
+-- source include/have_innodb_min_8k.inc
+-- source include/have_innodb_max_16k.inc
+
+# Test Row Format: REDUNDANT.
+let $row_format = REDUNDANT;
+-- source suite/innodb/include/innodb_bulk_inject_errors.inc
+
+# Test Row Format: COMPACT.
+let $row_format = COMPACT;
+-- source suite/innodb/include/innodb_bulk_inject_errors.inc
+
+# Test Row Format: DYNAMIC.
+let $row_format = DYNAMIC;
+-- source suite/innodb/include/innodb_bulk_inject_errors.inc
+
+# Test Row Format: COMPRESSED.
+let $row_format = COMPRESSED;
+-- source suite/innodb/include/innodb_bulk_inject_errors.inc

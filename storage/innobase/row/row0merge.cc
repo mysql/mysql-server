@@ -2082,7 +2082,12 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
           if (clust_btr_bulk == NULL) {
             clust_btr_bulk = UT_NEW_NOKEY(BtrBulk(index[i], trx->id, observer));
 
-            clust_btr_bulk->init();
+            err = clust_btr_bulk->init();
+            if (err != DB_SUCCESS) {
+              UT_DELETE(clust_btr_bulk);
+              clust_btr_bulk = NULL;
+              break;
+            }
           } else {
             clust_btr_bulk->latch();
           }
@@ -2175,12 +2180,13 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
                           trx->error_key_num = i; goto all_done;);
 
           BtrBulk btr_bulk(index[i], trx->id, observer);
-          btr_bulk.init();
+          err = btr_bulk.init();
+          if (err == DB_SUCCESS) {
+            err = row_merge_insert_index_tuples(trx, index[i], old_table, -1,
+                                                NULL, buf, &btr_bulk);
 
-          err = row_merge_insert_index_tuples(trx, index[i], old_table, -1,
-                                              NULL, buf, &btr_bulk);
-
-          err = btr_bulk.finish(err);
+            err = btr_bulk.finish(err);
+          }
 
           DBUG_EXECUTE_IF("row_merge_insert_big_row", err = DB_TOO_BIG_RECORD;);
 
@@ -3669,13 +3675,14 @@ dberr_t row_merge_build_indexes(
 
       if (error == DB_SUCCESS) {
         BtrBulk btr_bulk(sort_idx, trx->id, flush_observer);
-        btr_bulk.init();
+        error = btr_bulk.init();
+        if (error == DB_SUCCESS) {
+          error = row_merge_insert_index_tuples(trx, sort_idx, old_table,
+                                                merge_files[i].fd, block, NULL,
+                                                &btr_bulk, stage);
 
-        error = row_merge_insert_index_tuples(trx, sort_idx, old_table,
-                                              merge_files[i].fd, block, NULL,
-                                              &btr_bulk, stage);
-
-        error = btr_bulk.finish(error);
+          error = btr_bulk.finish(error);
+        }
       }
     }
 

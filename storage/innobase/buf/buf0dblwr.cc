@@ -774,15 +774,6 @@ static void buf_dblwr_check_block(
 {
   ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 
-  /* Following 'if' is added because of an issue with BtrBulk operations where
-  it is possible to have half initialized page and no MTR having latch on it.
-  Once that issue is fixed, following 'if' should be removed */
-  if (block->skip_flush_check ||
-      (page_header_get_field(block->frame, PAGE_HEAP_TOP) ==
-       (UNIV_PAGE_SIZE - 1))) {
-    return;
-  }
-
   switch (fil_page_get_type(block->frame)) {
     case FIL_PAGE_INDEX:
     case FIL_PAGE_RTREE:
