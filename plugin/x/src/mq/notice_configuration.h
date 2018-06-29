@@ -46,7 +46,7 @@ class Notice_configuration : public ngs::Notice_configuration_interface {
   }
 
   bool get_name_by_notice_type(const Notice_type notice_type,
-                               std::string *out_name) const {
+                               std::string *out_name) const override {
     const auto &notice_name_to_type = get_map_of_notice_names();
 
     for (const auto &entry : notice_name_to_type) {
@@ -60,7 +60,7 @@ class Notice_configuration : public ngs::Notice_configuration_interface {
   }
 
   bool get_notice_type_by_name(const std::string &name,
-                               Notice_type *out_notice_type) const {
+                               Notice_type *out_notice_type) const override {
     const auto &notice_name_to_type = get_map_of_notice_names();
     const auto type = notice_name_to_type.find(name);
 
@@ -71,11 +71,12 @@ class Notice_configuration : public ngs::Notice_configuration_interface {
     return true;
   }
 
-  bool is_notice_enabled(const Notice_type notice_type) const {
+  bool is_notice_enabled(const Notice_type notice_type) const override {
     return m_notices[static_cast<int>(notice_type)];
   }
 
-  void set_notice(const Notice_type notice_type, const bool should_be_enabled) {
+  void set_notice(const Notice_type notice_type,
+                  const bool should_be_enabled) override {
     DBUG_ASSERT(notice_type != Notice_type::k_last_element);
     m_notices[static_cast<int>(notice_type)] = should_be_enabled;
 
