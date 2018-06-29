@@ -4245,6 +4245,8 @@ int mysql_execute_command(THD *thd, bool first_level) {
             user->alter_status.use_default_password_lifetime &&
             (user->alter_status.update_password_require_current ==
              Lex_acl_attrib_udyn::UNCHANGED) &&
+            !user->alter_status.update_password_history &&
+            !user->alter_status.update_password_reuse_interval &&
             (thd->lex->ssl_type == SSL_TYPE_NOT_SPECIFIED))
           update_password_only = true;
 
