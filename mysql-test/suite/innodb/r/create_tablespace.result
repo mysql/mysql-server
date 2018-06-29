@@ -512,6 +512,7 @@ CREATE TEMPORARY TABLE t_temp_zip (a int, b text) ROW_FORMAT=compressed TABLESPA
 ERROR HY000: InnoDB: Temporary tablespace `innodb_temporary` cannot contain COMPRESSED tables.
 SHOW WARNINGS;
 Level	Code	Message
+Warning	1478	InnoDB: TABLESPACE=innodb_temporary option is ignored. All temporary tables are created in a session temporary tablespace. This option is deprecated and will be removed in a future release.
 Error	1478	InnoDB: Temporary tablespace `innodb_temporary` cannot contain COMPRESSED tables.
 Error	1031	Table storage engine for 't_temp_zip' doesn't have this option
 #
@@ -1261,7 +1262,10 @@ Level	Code	Message
 Error	1478	InnoDB: Tablespace `innodb_temporary` can only contain TEMPORARY tables.
 Error	1478	Table storage engine 'InnoDB' does not support the create option 'TABLESPACE'
 DROP TABLE t_not_temp;
+SET SESSION innodb_strict_mode=OFF;
 CREATE TEMPORARY TABLE t_my_temp (a int, b text) TABLESPACE=`innodb_temporary`;
+Warnings:
+Warning	1478	InnoDB: TABLESPACE=innodb_temporary option is ignored. All temporary tables are created in a session temporary tablespace. This option is deprecated and will be removed in a future release.
 SHOW CREATE TABLE t_my_temp;
 Table	Create Table
 t_my_temp	CREATE TEMPORARY TABLE `t_my_temp` (
@@ -1269,6 +1273,7 @@ t_my_temp	CREATE TEMPORARY TABLE `t_my_temp` (
   `b` text
 ) /*!50100 TABLESPACE `innodb_temporary` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t_my_temp;
+SET SESSION innodb_strict_mode=ON;
 #
 # Try to create or move a table into the redo tablespace
 # or any tablespace using the reserved `innodb_` prefix.
@@ -1741,12 +1746,14 @@ t_expl_fpt	CREATE TABLE `t_expl_fpt` (
 ) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #
 # Temporary table with an explicitly assigned tmp tablespace.
+SET SESSION innodb_strict_mode=OFF;
 CREATE TEMPORARY TABLE t_expl_tmp (i INT) TABLESPACE innodb_temporary;
-SHOW CREATE TABLE t_expl_tmp;
-Table	Create Table
-t_expl_tmp	CREATE TEMPORARY TABLE `t_expl_tmp` (
-  `i` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `innodb_temporary` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Warnings:
+Warning	1478	InnoDB: TABLESPACE=innodb_temporary option is ignored. All temporary tables are created in a session temporary tablespace. This option is deprecated and will be removed in a future release.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1478	InnoDB: TABLESPACE=innodb_temporary option is ignored. All temporary tables are created in a session temporary tablespace. This option is deprecated and will be removed in a future release.
+SET SESSION innodb_strict_mode=ON;
 #
 # Tables with implicitly assigned tablespaces.
 #
@@ -1799,12 +1806,14 @@ Table	Create Table
 fpt_on_like_t_expl_fpt	CREATE TABLE `fpt_on_like_t_expl_fpt` (
   `i` int(11) DEFAULT NULL
 ) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET SESSION innodb_strict_mode=OFF;
 CREATE TEMPORARY TABLE fpt_on_like_t_expl_tmp LIKE t_expl_tmp;
-SHOW CREATE TABLE fpt_on_like_t_expl_tmp;
-Table	Create Table
-fpt_on_like_t_expl_tmp	CREATE TEMPORARY TABLE `fpt_on_like_t_expl_tmp` (
-  `i` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `innodb_temporary` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Warnings:
+Warning	1478	InnoDB: TABLESPACE=innodb_temporary option is ignored. All temporary tables are created in a session temporary tablespace. This option is deprecated and will be removed in a future release.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1478	InnoDB: TABLESPACE=innodb_temporary option is ignored. All temporary tables are created in a session temporary tablespace. This option is deprecated and will be removed in a future release.
+SET SESSION innodb_strict_mode=OFF;
 # Tablespace not preserved for all source tables that
 # had an implicitly assigned tablesapce.
 CREATE TABLE fpt_on_like_t_impl_sys LIKE t_impl_sys;
@@ -1838,11 +1847,6 @@ fpt_off_like_t_expl_usr	CREATE TABLE `fpt_off_like_t_expl_usr` (
   `i` int(11) DEFAULT NULL
 ) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLE fpt_off_like_t_expl_sys LIKE t_expl_sys;
-SHOW CREATE TABLE fpt_off_like_t_expl_sys;
-Table	Create Table
-fpt_off_like_t_expl_sys	CREATE TABLE `fpt_off_like_t_expl_sys` (
-  `i` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLE fpt_off_like_t_expl_fpt LIKE t_expl_fpt;
 SHOW CREATE TABLE fpt_off_like_t_expl_fpt;
 Table	Create Table
@@ -1850,11 +1854,8 @@ fpt_off_like_t_expl_fpt	CREATE TABLE `fpt_off_like_t_expl_fpt` (
   `i` int(11) DEFAULT NULL
 ) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TEMPORARY TABLE fpt_off_like_t_expl_tmp LIKE t_expl_tmp;
-SHOW CREATE TABLE fpt_off_like_t_expl_tmp;
-Table	Create Table
-fpt_off_like_t_expl_tmp	CREATE TEMPORARY TABLE `fpt_off_like_t_expl_tmp` (
-  `i` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `innodb_temporary` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Warnings:
+Warning	1478	InnoDB: TABLESPACE=innodb_temporary option is ignored. All temporary tables are created in a session temporary tablespace. This option is deprecated and will be removed in a future release.
 # Tablespace not preserved for all source tables that
 # had an implicitly assigned tablesapce.
 CREATE TABLE fpt_off_like_t_impl_sys LIKE t_impl_sys;
@@ -1905,6 +1906,8 @@ t_impl_fpt	CREATE TABLE `t_impl_fpt` (
   `i` int(11) DEFAULT NULL
 ) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t_impl_tmp TABLESPACE innodb_temporary;
+Warnings:
+Warning	1478	InnoDB: TABLESPACE=innodb_temporary option is ignored. All temporary tables are created in a session temporary tablespace. This option is deprecated and will be removed in a future release.
 SHOW CREATE TABLE t_impl_tmp;
 Table	Create Table
 t_impl_tmp	CREATE TEMPORARY TABLE `t_impl_tmp` (
@@ -1925,6 +1928,8 @@ after_alter_like_t_impl_fpt	CREATE TABLE `after_alter_like_t_impl_fpt` (
   `i` int(11) DEFAULT NULL
 ) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TEMPORARY TABLE after_alter_like_t_impl_tmp LIKE t_impl_tmp;
+Warnings:
+Warning	1478	InnoDB: TABLESPACE=innodb_temporary option is ignored. All temporary tables are created in a session temporary tablespace. This option is deprecated and will be removed in a future release.
 SHOW CREATE TABLE after_alter_like_t_impl_tmp;
 Table	Create Table
 after_alter_like_t_impl_tmp	CREATE TEMPORARY TABLE `after_alter_like_t_impl_tmp` (

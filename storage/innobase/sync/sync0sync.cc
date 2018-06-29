@@ -120,6 +120,7 @@ mysql_pfs_key_t trx_undo_mutex_key;
 mysql_pfs_key_t trx_mutex_key;
 mysql_pfs_key_t trx_pool_mutex_key;
 mysql_pfs_key_t trx_pool_manager_mutex_key;
+mysql_pfs_key_t temp_pool_manager_mutex_key;
 mysql_pfs_key_t lock_mutex_key;
 mysql_pfs_key_t lock_wait_mutex_key;
 mysql_pfs_key_t trx_sys_mutex_key;

@@ -189,7 +189,7 @@ drop table t1;
 #    and insert enough data to make it full.
 #    Note that each rollback segment will take one full page
 --echo # test condition of full-temp-tablespace
-let $restart_parameters = restart: --innodb-rollback-segments=32 --innodb_temp_data_file_path=ibtmp1:32M;
+let $restart_parameters = restart: --innodb-rollback-segments=32 --innodb_temp_data_file_path=ibtmp1:64M;
 --source include/restart_mysqld.inc
 #
 create temporary table t1
@@ -207,7 +207,8 @@ END|
 delimiter ;|
 set autocommit=0;
 select count(*) from t1;
---error ER_RECORD_FILE_FULL
+# we now use session temporary tablespaces and they can
+# expanded.
 call populate_t1();
 #
 drop procedure populate_t1;

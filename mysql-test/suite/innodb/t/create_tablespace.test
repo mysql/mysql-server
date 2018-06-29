@@ -812,9 +812,11 @@ ALTER TABLE t_not_temp TABLESPACE=`innodb_temporary`;
 SHOW WARNINGS;
 DROP TABLE t_not_temp;
 
+SET SESSION innodb_strict_mode=OFF;
 CREATE TEMPORARY TABLE t_my_temp (a int, b text) TABLESPACE=`innodb_temporary`;
 SHOW CREATE TABLE t_my_temp;
 DROP TABLE t_my_temp;
+SET SESSION innodb_strict_mode=ON;
 
 --echo #
 --echo # Try to create or move a table into the redo tablespace
@@ -1096,8 +1098,10 @@ CREATE TABLE t_expl_fpt (i INT) TABLESPACE innodb_file_per_table;
 SHOW CREATE TABLE t_expl_fpt;
 --echo #
 --echo # Temporary table with an explicitly assigned tmp tablespace.
+SET SESSION innodb_strict_mode=OFF;
 CREATE TEMPORARY TABLE t_expl_tmp (i INT) TABLESPACE innodb_temporary;
-SHOW CREATE TABLE t_expl_tmp;
+SHOW WARNINGS;
+SET SESSION innodb_strict_mode=ON;
 
 --echo #
 --echo # Tables with implicitly assigned tablespaces.
@@ -1128,8 +1132,10 @@ CREATE TABLE fpt_on_like_t_expl_sys LIKE t_expl_sys;
 SHOW CREATE TABLE fpt_on_like_t_expl_sys;
 CREATE TABLE fpt_on_like_t_expl_fpt LIKE t_expl_fpt;
 SHOW CREATE TABLE fpt_on_like_t_expl_fpt;
+SET SESSION innodb_strict_mode=OFF;
 CREATE TEMPORARY TABLE fpt_on_like_t_expl_tmp LIKE t_expl_tmp;
-SHOW CREATE TABLE fpt_on_like_t_expl_tmp;
+SHOW WARNINGS;
+SET SESSION innodb_strict_mode=OFF;
 
 --echo # Tablespace not preserved for all source tables that
 --echo # had an implicitly assigned tablesapce.
@@ -1149,11 +1155,9 @@ SET GLOBAL innodb_file_per_table= OFF;
 CREATE TABLE fpt_off_like_t_expl_usr LIKE t_expl_usr;
 SHOW CREATE TABLE fpt_off_like_t_expl_usr;
 CREATE TABLE fpt_off_like_t_expl_sys LIKE t_expl_sys;
-SHOW CREATE TABLE fpt_off_like_t_expl_sys;
 CREATE TABLE fpt_off_like_t_expl_fpt LIKE t_expl_fpt;
 SHOW CREATE TABLE fpt_off_like_t_expl_fpt;
 CREATE TEMPORARY TABLE fpt_off_like_t_expl_tmp LIKE t_expl_tmp;
-SHOW CREATE TABLE fpt_off_like_t_expl_tmp;
 
 --echo # Tablespace not preserved for all source tables that
 --echo # had an implicitly assigned tablesapce.

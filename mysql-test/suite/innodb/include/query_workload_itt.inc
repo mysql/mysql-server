@@ -215,4 +215,3 @@ from t13 as outr2 left join
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
 SET @@optimizer_switch=@optimizer_switch_saved;
-

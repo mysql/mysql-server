@@ -232,29 +232,9 @@ DROP TABLESPACE ts1;
 --copy_files_wildcard $MYSQLD_NEW_DATADIR/mtr/ $MYSQLD_OLD_DATADIR/mtr/  *
 
 --echo ## Cleanup the new DATA DIRECTORY *.ibd files
---remove_files_wildcard $MYSQL_TMP_DIR/undo_directory/test *.ibd
---remove_files_wildcard $MYSQL_TMP_DIR/undo_directory/ *.ibd
---rmdir  $MYSQL_TMP_DIR/undo_directory/test
---remove_files_wildcard $MYSQL_TMP_DIR/undo_directory undo*
---rmdir  $MYSQL_TMP_DIR/undo_directory
---remove_files_wildcard $MYSQL_TMP_DIR/data_home_dir/ ts2.ibd
---remove_files_wildcard $MYSQL_TMP_DIR/data_home_dir/ ib_buffer*
---remove_files_wildcard $MYSQL_TMP_DIR/data_home_dir/ ib_log*
---remove_files_wildcard $MYSQL_TMP_DIR/data_home_dir/ ibd*
---rmdir $MYSQL_TMP_DIR/data_home_dir
---remove_files_wildcard $MYSQLD_NEW_DATADIR/test/ *
---remove_files_wildcard $MYSQLD_NEW_DATADIR/sys/ *
---remove_files_wildcard $MYSQLD_NEW_DATADIR/mysql/ *
---remove_files_wildcard $MYSQLD_NEW_DATADIR/mtr/ *
---remove_files_wildcard $MYSQLD_NEW_DATADIR/performance_schema/ *
---rmdir $MYSQLD_NEW_DATADIR/mtr
---rmdir $MYSQLD_NEW_DATADIR/mysql
---rmdir $MYSQLD_NEW_DATADIR/sys
---rmdir $MYSQLD_NEW_DATADIR/test
---rmdir $MYSQLD_NEW_DATADIR/performance_schema
---remove_files_wildcard $MYSQLD_NEW_DATADIR/ *
---rmdir $MYSQLD_NEW_DATADIR
---rmdir $MYSQL_TMP_DIR/new_datadir
+--force-rmdir $MYSQL_TMP_DIR/undo_directory
+--force-rmdir $MYSQL_TMP_DIR/data_home_dir
+--force-rmdir $MYSQL_TMP_DIR/new_datadir
 
 # Test with by providing the relative path
 --echo # Re-start with old --datadir with --innodb-directories as remote *.ibd files are existing.
@@ -314,4 +294,3 @@ DROP TABLE tab4;
 DROP TABLE tab5;
 
 DROP TABLE tab6;
-

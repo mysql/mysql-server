@@ -242,7 +242,7 @@ Fil_path MySQL_datadir_path;
 Fil_path Fil_path::s_null_path;
 
 /** Common InnoDB file extentions */
-const char *dot_ext[] = {"", ".ibd", ".cfg", ".cfp"};
+const char *dot_ext[] = {"", ".ibd", ".cfg", ".cfp", ".ibt"};
 
 /** The number of fsyncs done to the log */
 ulint fil_n_log_flushes = 0;
@@ -2933,7 +2933,8 @@ fil_space_t *Fil_shard::space_create(const char *name, space_id_t space_id,
 #ifndef UNIV_HOTBACKUP
   if (fil_system->is_greater_than_max_id(space_id) &&
       fil_type_is_data(purpose) && !recv_recovery_on &&
-      !dict_sys_t::is_reserved(space_id)) {
+      !dict_sys_t::is_reserved(space_id) &&
+      !fsp_is_system_temporary(space_id)) {
     fil_system->set_maximum_space_id(space);
   }
 #endif /* !UNIV_HOTBACKUP */
@@ -2978,8 +2979,12 @@ fil_space_t *fil_space_create(const char *name, space_id_t space_id,
 
   fil_system->mutex_acquire_all();
 
-  /* Must set back to active before returning from function. */
-  clone_mark_abort(true);
+  if (purpose != FIL_TYPE_TEMPORARY) {
+    /* Mark the close as aborted only while executing a DDL which creates
+    a base table, as any temporary table is ignored while cloning the database.
+    Clone state must be set back to active before returning from function. */
+    clone_mark_abort(true);
+  }
 
   auto shard = fil_system->shard_by_id(space_id);
 
@@ -2989,7 +2994,9 @@ fil_space_t *fil_space_create(const char *name, space_id_t space_id,
     /* Duplicate error. */
     fil_system->mutex_release_all();
 
-    clone_mark_active();
+    if (purpose != FIL_TYPE_TEMPORARY) {
+      clone_mark_active();
+    }
 
     return (nullptr);
   }
@@ -3011,7 +3018,9 @@ fil_space_t *fil_space_create(const char *name, space_id_t space_id,
 
   fil_system->mutex_release_all();
 
-  clone_mark_active();
+  if (purpose != FIL_TYPE_TEMPORARY) {
+    clone_mark_active();
+  }
 
   return (space);
 }
@@ -3659,7 +3668,8 @@ ulint Fil_shard::check_pending_io(const fil_space_t *space,
 dberr_t Fil_shard::space_check_pending_operations(space_id_t space_id,
                                                   fil_space_t *&space,
                                                   char **path) const {
-  ut_ad(!fsp_is_system_or_temp_tablespace(space_id));
+  ut_ad(!fsp_is_system_tablespace(space_id));
+  ut_ad(!fsp_is_global_temporary(space_id));
 
   space = nullptr;
 
@@ -3934,7 +3944,8 @@ dberr_t Fil_shard::space_delete(space_id_t space_id, buf_remove_t buf_remove) {
   char *path = nullptr;
   fil_space_t *space = nullptr;
 
-  ut_ad(!fsp_is_system_or_temp_tablespace(space_id));
+  ut_ad(!fsp_is_system_tablespace(space_id));
+  ut_ad(!fsp_is_global_temporary(space_id));
   ut_ad(!fsp_is_undo_tablespace(space_id));
 
   dberr_t err = space_check_pending_operations(space_id, space, &path);
@@ -3978,7 +3989,7 @@ dberr_t Fil_shard::space_delete(space_id_t space_id, buf_remove_t buf_remove) {
 
   /* If it is a delete then also delete any generated files, otherwise
   when we drop the database the remove directory will fail. */
-  {
+  if (space->purpose != FIL_TYPE_TEMPORARY) {
 #ifdef UNIV_HOTBACKUP
   /* When replaying the operation in MySQL Enterprise
   Backup, we do not try to write any log record. */
@@ -4083,8 +4094,10 @@ dberr_t Fil_shard::space_prepare_for_truncate(space_id_t space_id) {
   char *path = nullptr;
   fil_space_t *space = nullptr;
 
-  ut_ad(!fsp_is_system_or_temp_tablespace(space_id));
-  ut_ad(fsp_is_undo_tablespace(space_id));
+  ut_ad(space_id != TRX_SYS_SPACE);
+  ut_ad(!fsp_is_system_tablespace(space_id));
+  ut_ad(!fsp_is_global_temporary(space_id));
+  ut_ad(fsp_is_undo_tablespace(space_id) || fsp_is_session_temporary(space_id));
 
   dberr_t err = space_check_pending_operations(space_id, space, &path);
 
@@ -4808,7 +4821,7 @@ dberr_t fil_rename_tablespace_by_name(const char *old_name,
   return (fil_system->rename_tablespace_name(old_name, new_name));
 }
 
-/** Create a tablespace file.
+/** Create a tablespace (an IBD or IBT) file
 @param[in]	space_id	Tablespace ID
 @param[in]	name		Tablespace name in dbname/tablename format.
                                 For general tablespaces, the 'dbname/' part
@@ -4817,9 +4830,11 @@ dberr_t fil_rename_tablespace_by_name(const char *old_name,
 @param[in]	flags		Tablespace flags
 @param[in]	size		Initial size of the tablespace file in pages,
                                 must be >= FIL_IBD_FILE_INITIAL_SIZE
+@param[in]	type		FIL_TYPE_TABLESPACE or FIL_TYPE_TEMPORARY
 @return DB_SUCCESS or error code */
-dberr_t fil_ibd_create(space_id_t space_id, const char *name, const char *path,
-                       ulint flags, page_no_t size) {
+static dberr_t fil_create_tablespace(space_id_t space_id, const char *name,
+                                     const char *path, ulint flags,
+                                     page_no_t size, fil_type_t type) {
   pfs_os_file_t file;
   dberr_t err;
   byte *buf2;
@@ -4828,10 +4843,10 @@ dberr_t fil_ibd_create(space_id_t space_id, const char *name, const char *path,
   bool has_shared_space = FSP_FLAGS_GET_SHARED(flags);
   fil_space_t *space = nullptr;
 
-  ut_ad(!fsp_is_system_or_temp_tablespace(space_id));
-  ut_ad(!srv_read_only_mode);
-  ut_a(size >= FIL_IBD_FILE_INITIAL_SIZE);
+  ut_ad(!fsp_is_system_tablespace(space_id));
+  ut_ad(!fsp_is_global_temporary(space_id));
   ut_a(fsp_flags_is_valid(flags));
+  ut_a(type == FIL_TYPE_TEMPORARY || type == FIL_TYPE_TABLESPACE);
 
   const page_size_t page_size(flags);
 
@@ -4846,8 +4861,10 @@ dberr_t fil_ibd_create(space_id_t space_id, const char *name, const char *path,
   }
 
   file = os_file_create(
-      innodb_data_file_key, path, OS_FILE_CREATE | OS_FILE_ON_ERROR_NO_EXIT,
-      OS_FILE_NORMAL, OS_DATA_FILE, srv_read_only_mode, &success);
+      type == FIL_TYPE_TEMPORARY ? innodb_temp_file_key : innodb_data_file_key,
+      path, OS_FILE_CREATE | OS_FILE_ON_ERROR_NO_EXIT, OS_FILE_NORMAL,
+      OS_DATA_FILE, srv_read_only_mode && (type != FIL_TYPE_TEMPORARY),
+      &success);
 
   if (!success) {
     /* The following call will print an error message */
@@ -4998,7 +5015,7 @@ dberr_t fil_ibd_create(space_id_t space_id, const char *name, const char *path,
     return (DB_ERROR);
   }
 
-  space = fil_space_create(name, space_id, flags, FIL_TYPE_TABLESPACE);
+  space = fil_space_create(name, space_id, flags, type);
 
   if (space == nullptr) {
     os_file_close(file);
@@ -5016,7 +5033,8 @@ dberr_t fil_ibd_create(space_id_t space_id, const char *name, const char *path,
   err = (file_node == nullptr) ? DB_ERROR : DB_SUCCESS;
 
 #ifndef UNIV_HOTBACKUP
-  if (err == DB_SUCCESS) {
+  /* Temporary tablespace creation need not be redo logged */
+  if (err == DB_SUCCESS && type != FIL_TYPE_TEMPORARY) {
     const auto &file = space->files.front();
 
     mtr_t mtr;
@@ -5046,6 +5064,39 @@ dberr_t fil_ibd_create(space_id_t space_id, const char *name, const char *path,
   }
 
   return (err);
+}
+
+/** Create a IBD tablespace file.
+@param[in]	space_id	Tablespace ID
+@param[in]	name		Tablespace name in dbname/tablename format.
+                                For general tablespaces, the 'dbname/' part
+                                may be missing.
+@param[in]	path		Path and filename of the datafile to create.
+@param[in]	flags		Tablespace flags
+@param[in]	size		Initial size of the tablespace file in pages,
+                                must be >= FIL_IBD_FILE_INITIAL_SIZE
+@return DB_SUCCESS or error code */
+dberr_t fil_ibd_create(space_id_t space_id, const char *name, const char *path,
+                       ulint flags, page_no_t size) {
+  ut_a(size >= FIL_IBD_FILE_INITIAL_SIZE);
+  ut_ad(!srv_read_only_mode);
+  return (fil_create_tablespace(space_id, name, path, flags, size,
+                                FIL_TYPE_TABLESPACE));
+}
+
+/** Create a session temporary tablespace (IBT) file.
+@param[in]	space_id	Tablespace ID
+@param[in]	name		Tablespace name
+@param[in]	path		Path and filename of the datafile to create.
+@param[in]	flags		Tablespace flags
+@param[in]	size		Initial size of the tablespace file in pages,
+                                must be >= FIL_IBT_FILE_INITIAL_SIZE
+@return DB_SUCCESS or error code */
+dberr_t fil_ibt_create(space_id_t space_id, const char *name, const char *path,
+                       ulint flags, page_no_t size) {
+  ut_a(size >= FIL_IBT_FILE_INITIAL_SIZE);
+  return (fil_create_tablespace(space_id, name, path, flags, size,
+                                FIL_TYPE_TEMPORARY));
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -10073,7 +10124,7 @@ dberr_t Tablespace_dirs::scan(const std::string &in_directories) {
 
     /* Walk the sub-tree of dir. */
 
-    Dir_Walker::walk(real_path_dir, [&](const std::string &path) {
+    Dir_Walker::walk(real_path_dir, true, [&](const std::string &path) {
       /* If it is a file and the suffix matches ".ibd"
       or the undo file name format then store it for
       determining the space ID. */

@@ -3564,8 +3564,9 @@ void os_aio_simulated_put_read_threads_to_sleep() { /* No op on non Windows */
 
 /** Depth first traversal of the directory starting from basedir
 @param[in]	basedir		Start scanning from this directory
+@param[in]      recursive       True if scan should be recursive
 @param[in]	f		Function to call for each entry */
-void Dir_Walker::walk_posix(const Path &basedir, Function &&f) {
+void Dir_Walker::walk_posix(const Path &basedir, bool recursive, Function &&f) {
   using Stack = std::stack<Entry>;
 
   Stack directories;
@@ -3612,7 +3613,7 @@ void Dir_Walker::walk_posix(const Path &basedir, Function &&f) {
 
       path.append(dirent->d_name);
 
-      if (is_directory(path)) {
+      if (is_directory(path) && recursive) {
         directories.push(Entry(path, current.m_depth + 1));
 
       } else {
@@ -4743,9 +4744,10 @@ void AIO::simulated_put_read_threads_to_sleep() {
 
 /** Depth first traversal of the directory starting from basedir
 @param[in]	basedir		Start scanning from this directory
+@param[in]      recursive       true if scan should be recursive
 @param[in]	f		Callback for each entry found
 @param[in,out]	args		Optional arguments for f */
-void Dir_Walker::walk_win32(const Path &basedir, Function &&f) {
+void Dir_Walker::walk_win32(const Path &basedir, bool recursive, Function &&f) {
   using Stack = std::stack<Entry>;
 
   HRESULT res;
@@ -4812,7 +4814,7 @@ void Dir_Walker::walk_win32(const Path &basedir, Function &&f) {
       path.resize(path.size() - 1);
       path.append(dirent.cFileName);
 
-      if (dirent.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+      if ((dirent.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) && recursive) {
         path.append("\\*");
 
         using value_type = Stack::value_type;

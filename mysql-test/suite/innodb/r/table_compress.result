@@ -321,6 +321,7 @@ CREATE TEMPORARY TABLE t1(c1 INT PRIMARY KEY) COMPRESSION="ZLIB" TABLESPACE=inno
 ERROR HY000: Table storage engine for 't1' doesn't have this option
 SHOW WARNINGS;
 Level	Code	Message
+Warning	1478	InnoDB: TABLESPACE=innodb_temporary option is ignored. All temporary tables are created in a session temporary tablespace. This option is deprecated and will be removed in a future release.
 Warning	138	InnoDB: Page Compression is not supported for temporary tables
 Error	1031	Table storage engine for 't1' doesn't have this option
 # CREATE TABLE: COMPRESSION + implicit System Tablespace
@@ -474,6 +475,7 @@ CREATE TEMPORARY TABLE t1(c1 INT PRIMARY KEY) COMPRESSION="ZLIB" TABLESPACE=inno
 ERROR HY000: Table storage engine for 't1' doesn't have this option
 SHOW WARNINGS;
 Level	Code	Message
+Warning	1478	InnoDB: TABLESPACE=innodb_temporary option is ignored. All temporary tables are created in a session temporary tablespace. This option is deprecated and will be removed in a future release.
 Warning	138	InnoDB: Page Compression is not supported for temporary tables
 Error	1031	Table storage engine for 't1' doesn't have this option
 # CREATE TABLE: COMPRESSION + implicit System Tablespace

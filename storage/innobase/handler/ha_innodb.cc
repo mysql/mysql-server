@@ -159,6 +159,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "os0thread.h"
 #include "sql/item.h"
 #include "sql_base.h"
+#include "srv0tmp.h"
 #include "trx0roll.h"
 #include "trx0rseg.h"
 #include "trx0sys.h"
@@ -635,6 +636,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
     PSI_MUTEX_KEY(trx_undo_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(trx_pool_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(trx_pool_manager_mutex, 0, 0, PSI_DOCUMENT_ME),
+    PSI_MUTEX_KEY(temp_pool_manager_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(srv_sys_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(lock_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(lock_wait_mutex, 0, 0, PSI_DOCUMENT_ME),
@@ -1926,6 +1928,8 @@ int convert_error_code_to_mysql(
     case DB_LOCK_NOWAIT:
       my_error(ER_LOCK_NOWAIT, MYF(0));
       return (HA_ERR_NO_WAIT_LOCK);
+    case DB_NO_SESSION_TEMP:
+      return (HA_ERR_NO_SESSION_TEMP);
   }
 }
 
@@ -3753,6 +3757,46 @@ static int innodb_init_params() {
     srv_undo_dir = default_path;
   }
   Fil_path::normalize(srv_undo_dir);
+
+  if (ibt::srv_temp_dir == nullptr) {
+    ibt::srv_temp_dir = default_path;
+  } else {
+    os_file_type_t type;
+    bool exists;
+    if (os_file_status(ibt::srv_temp_dir, &exists, &type)) {
+      if (!exists || type != OS_FILE_TYPE_DIR) {
+        ib::error() << "Invalid innodb_temp_tablespaces_dir: "
+                    << ibt::srv_temp_dir;
+        ib::error() << "Directory doesn't exist or not valid";
+        DBUG_RETURN(HA_ERR_INITIALIZATION);
+      }
+    }
+
+    Fil_path temp_dir(ibt::srv_temp_dir);
+    if (temp_dir.path().empty()) {
+      ib::error() << "Invalid innodb_temp_tablespaces dir: "
+                  << ibt::srv_temp_dir;
+      ib::error() << "Path cannot be empty";
+      DBUG_RETURN(HA_ERR_INITIALIZATION);
+    }
+
+    if (strchr(ibt::srv_temp_dir, ';')) {
+      ib::error() << "Invalid innodb_temp_tablespaces dir: "
+                  << ibt::srv_temp_dir;
+      ib::error() << " Path cannot contain ;";
+      DBUG_RETURN(HA_ERR_INITIALIZATION);
+    }
+
+    if (MySQL_datadir_path.is_ancestor(
+            Fil_path::get_real_path(temp_dir.path()))) {
+      ib::error() << "Invalid innodb_temp_tablespaces dir: "
+                  << ibt::srv_temp_dir;
+      ib::error() << " Path should not be a location within datadir";
+      DBUG_RETURN(HA_ERR_INITIALIZATION);
+    }
+  }
+
+  Fil_path::normalize(ibt::srv_temp_dir);
 
   /* The default dir for log files is the datadir of MySQL */
 
@@ -9931,6 +9975,8 @@ inline MY_ATTRIBUTE((warn_unused_result)) int create_table_info_t::
         DBUG_EXECUTE_IF("ib_ddl_crash_during_create2", DBUG_SUICIDE(););
 
         mem_heap_free(temp_table_heap);
+      } else {
+        dict_mem_table_free(table);
       }
     }
 
@@ -10433,6 +10479,34 @@ bool innobase_is_valid_tablespace_name(bool tablespace_ddl, const char *name) {
 /** Validate TABLESPACE option.
 @return true if valid, false if not. */
 bool create_table_info_t::create_option_tablespace_is_valid() {
+  bool is_temp = m_create_info->options & HA_LEX_CREATE_TMP_TABLE;
+  bool is_file_per_table = tablespace_is_file_per_table(m_create_info);
+  bool is_temp_space =
+      (m_create_info->tablespace &&
+       strcmp(m_create_info->tablespace, dict_sys_t::s_temp_space_name) == 0);
+
+  /* Do not allow creation of a temp table
+  with innodb_file_per_table or innodb_temporary option. */
+  if (is_temp && (is_file_per_table || is_temp_space)) {
+    if (THDVAR(m_thd, strict_mode) && is_file_per_table) {
+      my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
+                      "InnoDB: TABLESPACE=%s option"
+                      " is disallowed for temporary tables"
+                      " with INNODB_STRICT_MODE=ON. This option is"
+                      " deprecated and will be removed in a future release",
+                      MYF(0), m_create_info->tablespace);
+      return (false);
+    }
+
+    /* STRICT mode turned off. Proceed with the execution with
+    a deprecation warning */
+    push_warning_printf(
+        m_thd, Sql_condition::SL_WARNING, ER_ILLEGAL_HA_CREATE_OPTION,
+        "InnoDB: TABLESPACE=%s option is ignored. All temporary tables"
+        " are created in a session temporary tablespace. This option"
+        " is deprecated and will be removed in a future release.",
+        m_create_info->tablespace);
+  }
   if (!m_use_shared_space) {
     if (!m_use_file_per_table) {
       /* System tablespace is being used for table */
@@ -10446,25 +10520,6 @@ bool create_table_info_t::create_option_tablespace_is_valid() {
                         MYF(0));
         return false;
       }
-    }
-
-    /* Do not allow creation of a temp table with innodb_file_per_table
-    option. */
-    if ((m_create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
-        tablespace_is_file_per_table(m_create_info)) {
-      if (THDVAR(m_thd, strict_mode)) {
-        /* Return error if STRICT mode is enabled. */
-        my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
-                        "InnoDB: innodb_file_per_table option"
-                        " not supported for temporary tables.",
-                        MYF(0));
-        return (false);
-      }
-      /* STRICT mode turned off. Proceed with the execution with a warning. */
-      push_warning_printf(
-          m_thd, Sql_condition::SL_WARNING, ER_ILLEGAL_HA_CREATE_OPTION,
-          "InnoDB: innodb_file_per_table option ignored"
-          " while creating temporary table with INNODB_STRICT_MODE=OFF.");
     }
     return (true);
   }
@@ -11330,6 +11385,14 @@ bool create_table_info_t::innobase_table_flags() {
       innodb_row_format = REC_FORMAT_DYNAMIC;
       m_flags2 |= DICT_TF2_INTRINSIC;
     }
+    if (m_use_shared_space && m_create_info->tablespace != nullptr &&
+        strcmp(m_create_info->tablespace, dict_sys_t::s_temp_space_name) == 0) {
+      /* This is possible only with innodb_strict_mode=OFF and we warned that
+      that tablespace=innodb_temporary is ignored. We should instead use
+      session temporary tablespaces */
+      m_use_shared_space = false;
+    }
+
   } else if (m_use_file_per_table) {
     ut_ad(!m_use_shared_space);
     m_flags2 |= DICT_TF2_USE_FILE_PER_TABLE;
@@ -20003,6 +20066,12 @@ static MYSQL_SYSVAR_STR(
     "Directory where undo tablespace files live, this path can be absolute.",
     NULL, NULL, NULL);
 
+static MYSQL_SYSVAR_STR(
+    temp_tablespaces_dir, ibt::srv_temp_dir,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOPERSIST,
+    "Directory where temp tablespace files live, this path can be absolute.",
+    NULL, NULL, NULL);
+
 static MYSQL_SYSVAR_ULONG(undo_tablespaces, srv_undo_tablespaces,
                           PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_NOPERSIST,
                           "Number of undo tablespaces to use. (deprecated)",
@@ -20480,6 +20549,7 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(undo_log_encrypt),
     MYSQL_SYSVAR(rollback_segments),
     MYSQL_SYSVAR(undo_directory),
+    MYSQL_SYSVAR(temp_tablespaces_dir),
     MYSQL_SYSVAR(undo_tablespaces),
     MYSQL_SYSVAR(sync_array_size),
     MYSQL_SYSVAR(compression_failure_threshold_pct),
@@ -20528,8 +20598,8 @@ mysql_declare_plugin(innobase){
     i_s_innodb_ft_being_deleted, i_s_innodb_ft_config,
     i_s_innodb_ft_index_cache, i_s_innodb_ft_index_table, i_s_innodb_tables,
     i_s_innodb_tablestats, i_s_innodb_indexes, i_s_innodb_tablespaces,
-    i_s_innodb_columns, i_s_innodb_virtual,
-    i_s_innodb_cached_indexes
+    i_s_innodb_columns, i_s_innodb_virtual, i_s_innodb_cached_indexes,
+    i_s_innodb_session_temp_tablespaces
 
     mysql_declare_plugin_end;
 

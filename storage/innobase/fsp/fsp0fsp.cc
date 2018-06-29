@@ -255,11 +255,27 @@ bool fsp_is_undo_tablespace(space_id_t space_id) {
   return (false);
 }
 
+/** Check if tablespace is global temporary.
+@param[in]	space_id	tablespace ID
+@return true if tablespace is global temporary. */
+bool fsp_is_global_temporary(space_id_t space_id) {
+  return (space_id == srv_tmp_space.space_id());
+}
+
+/** Check if the tablespace is session temporary.
+@param[in]      space_id        tablespace ID
+@return true if tablespace is a session temporary tablespace. */
+bool fsp_is_session_temporary(space_id_t space_id) {
+  return (space_id > dict_sys_t::s_min_temp_space_id &&
+          space_id <= dict_sys_t::s_max_temp_space_id);
+}
+
 /** Check if tablespace is system temporary.
 @param[in]	space_id	tablespace ID
 @return true if tablespace is system temporary. */
 bool fsp_is_system_temporary(space_id_t space_id) {
-  return (space_id == srv_tmp_space.space_id());
+  return (fsp_is_global_temporary(space_id) ||
+          fsp_is_session_temporary(space_id));
 }
 
 /** Check if checksum is disabled for the given space.
@@ -1050,8 +1066,9 @@ bool fsp_header_init(space_id_t space_id, page_no_t size, mtr_t *mtr,
 
   mlog_write_ull(header + FSP_SEG_ID, 1, mtr);
 
-  fsp_fill_free_list(!fsp_is_system_or_temp_tablespace(space_id), space, header,
-                     mtr);
+  fsp_fill_free_list(
+      !fsp_is_system_tablespace(space_id) && !fsp_is_global_temporary(space_id),
+      space, header, mtr);
 
   /* For encryption tablespace, we need to save the encryption
   info to the page 0. */
@@ -1204,7 +1221,8 @@ MY_ATTRIBUTE((warn_unused_result)) bool fsp_try_extend_data_file_with_pages(
     fil_space_t *space, page_no_t page_no, fsp_header_t *header, mtr_t *mtr) {
   DBUG_ENTER("fsp_try_extend_data_file_with_pages");
 
-  ut_a(!fsp_is_system_or_temp_tablespace(space->id));
+  ut_ad(!fsp_is_system_tablespace(space->id));
+  ut_ad(!fsp_is_global_temporary(space->id));
   ut_d(fsp_space_modify_check(space->id, mtr));
 
   page_no_t size = mach_read_from_4(header + FSP_SIZE);
@@ -1252,7 +1270,7 @@ static UNIV_COLD ulint fsp_try_extend_data_file(fil_space_t *space,
       srv_sys_space.set_tablespace_full_status(true);
     }
     DBUG_RETURN(false);
-  } else if (fsp_is_system_temporary(space->id) &&
+  } else if (fsp_is_global_temporary(space->id) &&
              !srv_tmp_space.can_auto_extend_last_file()) {
     /* We print the error message only once to avoid
     spamming the error log. Note that we don't need
@@ -1275,7 +1293,7 @@ static UNIV_COLD ulint fsp_try_extend_data_file(fil_space_t *space,
   if (space->id == TRX_SYS_SPACE) {
     size_increase = srv_sys_space.get_increment();
 
-  } else if (space->purpose == FIL_TYPE_TEMPORARY) {
+  } else if (fsp_is_global_temporary(space->id)) {
     size_increase = srv_tmp_space.get_increment();
 
   } else {
@@ -1408,10 +1426,11 @@ static void fsp_fill_free_list(bool init_space, fil_space_t *space,
   const page_size_t page_size(flags);
 
   if (size < limit + FSP_EXTENT_SIZE * FSP_FREE_ADD) {
-    if ((!init_space && !fsp_is_system_or_temp_tablespace(space->id)) ||
+    if ((!init_space && !fsp_is_system_tablespace(space->id) &&
+         !fsp_is_global_temporary(space->id)) ||
         (space->id == TRX_SYS_SPACE &&
          srv_sys_space.can_auto_extend_last_file()) ||
-        (fsp_is_system_temporary(space->id) &&
+        (fsp_is_global_temporary(space->id) &&
          srv_tmp_space.can_auto_extend_last_file())) {
       fsp_try_extend_data_file(space, header, mtr);
       size = space->size_in_header;
@@ -1695,7 +1714,8 @@ static MY_ATTRIBUTE((warn_unused_result)) buf_block_t *fsp_alloc_free_page(
     /* It must be that we are extending a single-table tablespace
     whose size is still < 64 pages */
 
-    ut_a(!fsp_is_system_or_temp_tablespace(space));
+    ut_a(!fsp_is_system_tablespace(space));
+    ut_a(!fsp_is_global_temporary(space));
     if (page_no >= FSP_EXTENT_SIZE) {
       ib::error(ER_IB_MSG_417) << "Trying to extend a single-table"
                                   " tablespace "
@@ -2971,7 +2991,8 @@ static bool fsp_reserve_free_pages(fil_space_t *space,
                                    mtr_t *mtr, page_no_t n_pages) {
   xdes_t *descr;
 
-  ut_a(!fsp_is_system_or_temp_tablespace(space->id));
+  ut_a(!fsp_is_system_tablespace(space->id));
+  ut_a(!fsp_is_global_temporary(space->id));
   ut_a(size < FSP_EXTENT_SIZE);
 
   descr = xdes_get_descriptor_with_space_hdr(space_header, space->id, 0, mtr);

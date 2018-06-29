@@ -183,6 +183,7 @@ SET(INNOBASE_SOURCES
 	srv/srv0mon.cc
 	srv/srv0srv.cc
 	srv/srv0start.cc
+	srv/srv0tmp.cc
 	sync/sync0arr.cc
 	sync/sync0rw.cc
 	sync/sync0debug.cc

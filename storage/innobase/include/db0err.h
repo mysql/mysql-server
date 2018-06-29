@@ -57,6 +57,8 @@ enum dberr_t {
                       rollback segment */
   DB_SKIP_LOCKED,     /*!< skip lock */
   DB_LOCK_NOWAIT,     /*!< don't wait lock */
+  DB_NO_SESSION_TEMP, /*!< no session temporary tablespace
+                      could be allocated */
 
   DB_CLUSTER_NOT_FOUND = 30,
   DB_TABLE_NOT_FOUND,

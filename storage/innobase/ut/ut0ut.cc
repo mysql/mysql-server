@@ -582,6 +582,9 @@ const char *ut_strerr(dberr_t num) {
           "Cannot boot server with lower version than that built the "
           "tablespace");
 
+    case DB_NO_SESSION_TEMP:
+      return ("No session temporary tablespace allocated");
+
     case DB_ERROR_UNSET:;
       /* Fall through. */
 

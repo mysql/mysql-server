@@ -1922,13 +1922,16 @@ class Dir_Walker {
 
   /** Depth first traversal of the directory starting from basedir
   @param[in]	basedir		Start scanning from this directory
+  @param[in]    recursive       True if scan should be recursive
   @param[in]	f		Function to call for each entry */
   template <typename F>
-  static void walk(const Path &basedir, F &&f) {
+  static void walk(const Path &basedir, bool recursive, F &&f) {
 #ifdef _WIN32
-    walk_win32(basedir, [&](const Path &path, size_t depth) { f(path); });
+    walk_win32(basedir, recursive,
+               [&](const Path &path, size_t depth) { f(path); });
 #else
-    walk_posix(basedir, [&](const Path &path, size_t depth) { f(path); });
+    walk_posix(basedir, recursive,
+               [&](const Path &path, size_t depth) { f(path); });
 #endif /* _WIN32 */
   }
 
@@ -1952,11 +1955,12 @@ class Dir_Walker {
 
   /** Depth first traversal of the directory starting from basedir
   @param[in]	basedir		Start scanning from this directory
+  @param[in]    recursive       True if scan should be recursive
   @param[in]	f		Function to call for each entry */
 #ifdef _WIN32
-  static void walk_win32(const Path &basedir, Function &&f);
+  static void walk_win32(const Path &basedir, bool recursive, Function &&f);
 #else
-  static void walk_posix(const Path &basedir, Function &&f);
+  static void walk_posix(const Path &basedir, bool recursive, Function &&f);
 #endif /* _WIN32 */
 };
 

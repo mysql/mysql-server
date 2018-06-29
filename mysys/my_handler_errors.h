@@ -1,7 +1,7 @@
 #ifndef MYSYS_MY_HANDLER_ERRORS_INCLUDED
 #define MYSYS_MY_HANDLER_ERRORS_INCLUDED
 
-/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -118,7 +118,8 @@ static const char *handler_error_messages[] = {
     "Compute generate value failed",
     "Row format changed in storage engine",
     "Do not wait for lock",
-    "No more room in disk"};
+    "No more room in disk",
+    "No session temporary tablespace available"};
 
 extern void my_handler_error_register(void);
 extern void my_handler_error_unregister(void);

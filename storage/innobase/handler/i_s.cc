@@ -63,6 +63,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "pars0pars.h"
 #include "srv0mon.h"
 #include "srv0start.h"
+#include "srv0tmp.h"
 #include "trx0i_s.h"
 #include "trx0trx.h"
 #include "ut0new.h"
@@ -6977,6 +6978,212 @@ struct st_mysql_plugin i_s_innodb_cached_indexes = {
     /* plugin version (for SHOW PLUGINS) */
     /* unsigned int */
     STRUCT_FLD(version, i_s_innodb_plugin_version),
+
+    /* SHOW_VAR* */
+    STRUCT_FLD(status_vars, NULL),
+
+    /* SYS_VAR** */
+    STRUCT_FLD(system_vars, NULL),
+
+    /* reserved for dependency checking */
+    /* void* */
+    STRUCT_FLD(__reserved1, NULL),
+
+    /* Plugin flags */
+    /* unsigned long */
+    STRUCT_FLD(flags, 0UL),
+};
+
+/**  INNODB_SESSION_TEMPORARY TABLESPACES   ***********************/
+/* Fields of the dynamic table
+INFORMATION_SCHEMA.INNODB_SESSION_TEMPORARY_TABLESPACES */
+static ST_FIELD_INFO innodb_session_temp_tablespaces_fields_info[] = {
+#define INNODB_SESSION_TEMP_TABLESPACES_ID 0
+    {STRUCT_FLD(field_name, "ID"),
+     STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
+     STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+
+#define INNODB_SESSION_TEMP_TABLESPACES_SPACE 1
+    {STRUCT_FLD(field_name, "SPACE"),
+     STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
+     STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+
+#define INNODB_SESSION_TEMP_TABLESPACES_PATH 2
+    {STRUCT_FLD(field_name, "PATH"),
+     STRUCT_FLD(field_length, OS_FILE_MAX_PATH + 1),
+     STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+
+#define INNODB_SESSION_TEMP_TABLESPACES_SIZE 3
+    {STRUCT_FLD(field_name, "SIZE"),
+     STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
+     STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+
+#define INNODB_SESSION_TEMP_TABLESPACES_STATE 4
+    {STRUCT_FLD(field_name, "STATE"), STRUCT_FLD(field_length, NAME_LEN),
+     STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+
+#define INNODB_SESSION_TEMP_TABLESPACES_PURPOSE 5
+    {STRUCT_FLD(field_name, "PURPOSE"), STRUCT_FLD(field_length, NAME_LEN),
+     STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+
+    END_OF_ST_FIELD_INFO
+
+};
+
+/** Function to fill INFORMATION_SCHEMA.INNODB_SESSION_TEMPORARY_TABLESPACES
+@param[in]	thd		thread
+@param[in]	ts		temp tablespace object
+@param[in,out]	table_to_fill	fill this table
+@return 0 on success */
+static int i_s_innodb_session_temp_tablespaces_fill_one(
+    THD *thd, const ibt::Tablespace *ts, TABLE *table_to_fill) {
+  Field **fields;
+
+  DBUG_ENTER("i_s_dict_fill_innodb_tablespaces");
+
+  fields = table_to_fill->field;
+
+  my_thread_id id = ts->thread_id();
+  OK(fields[INNODB_SESSION_TEMP_TABLESPACES_ID]->store(id, true));
+
+  space_id_t space_id = ts->space_id();
+  OK(fields[INNODB_SESSION_TEMP_TABLESPACES_SPACE]->store(space_id, true));
+
+  std::string path = ts->path();
+  Fil_path::normalize(path);
+
+  OK(field_store_string(fields[INNODB_SESSION_TEMP_TABLESPACES_PATH],
+                        path.c_str()));
+
+  fil_space_t *space = fil_space_get(space_id);
+  size_t size = 0;
+  if (space != nullptr) {
+    page_size_t page_size(space->flags);
+    size = space->size * page_size.physical();
+  }
+  OK(fields[INNODB_SESSION_TEMP_TABLESPACES_SIZE]->store(size, true));
+
+  const char *state = id == 0 ? "INACTIVE" : "ACTIVE";
+
+  OK(field_store_string(fields[INNODB_SESSION_TEMP_TABLESPACES_STATE], state));
+
+  ibt::tbsp_purpose purpose = ts->purpose();
+
+  const char *p =
+      purpose == ibt::TBSP_NONE
+          ? "NONE"
+          : (purpose == ibt::TBSP_USER
+                 ? "USER"
+                 : (purpose == ibt::TBSP_INTRINSIC ? "INTRINSIC" : "SLAVE"));
+
+  OK(field_store_string(fields[INNODB_SESSION_TEMP_TABLESPACES_PURPOSE], p));
+
+  OK(schema_table_store_record(thd, table_to_fill));
+
+  DBUG_RETURN(0);
+}
+
+/** Function to populate INFORMATION_SCHEMA.INNODB_SESSION_TEMPORARY_TABLESPACES
+table. Iterate over the in-memory structure and fill the table
+@param[in]	thd		thread
+@param[in,out]	tables		tables to fill
+@return 0 on success */
+static int i_s_innodb_session_temp_tablespaces_fill(THD *thd,
+                                                    TABLE_LIST *tables,
+                                                    Item *) {
+  DBUG_ENTER("i_s_innodb_session_temp_tablespaces_fill");
+
+  /* deny access to user without PROCESS_ACL privilege */
+  if (check_global_access(thd, PROCESS_ACL)) {
+    DBUG_RETURN(0);
+  }
+
+  /* Allocate one session temp tablespace to avoid allocating a session
+  temp tabelspaces during iteration of session temp tablespaces.
+  This is because we have already acquired session pool mutex and iterating.
+  After acquiring mutex, the I_S query tries to acquire session temp pool
+  mutex again */
+  check_trx_exists(thd);
+  innodb_session_t *innodb_session = thd_to_innodb_session(thd);
+  innodb_session->get_instrinsic_temp_tblsp();
+  auto print = [&](const ibt::Tablespace *ts) {
+    i_s_innodb_session_temp_tablespaces_fill_one(thd, ts, tables->table);
+  };
+
+  ibt::tbsp_pool->iterate_tbsp(print);
+
+  DBUG_RETURN(0);
+}
+
+/** Bind the dynamic table
+INFORMATION_SCHEMA.INNODB_SESSION_TEMPORARY_TABLESPACES
+@param[in,out]	p	table schema object
+@return 0 on success */
+static int innodb_session_temp_tablespaces_init(void *p) {
+  ST_SCHEMA_TABLE *schema;
+
+  DBUG_ENTER("innodb_session_temp_tablespaces_init");
+
+  schema = (ST_SCHEMA_TABLE *)p;
+
+  schema->fields_info = innodb_session_temp_tablespaces_fields_info;
+  schema->fill_table = i_s_innodb_session_temp_tablespaces_fill;
+
+  DBUG_RETURN(0);
+}
+
+struct st_mysql_plugin i_s_innodb_session_temp_tablespaces = {
+    /* the plugin type (a MYSQL_XXX_PLUGIN value) */
+    /* int */
+    STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+
+    /* pointer to type-specific plugin descriptor */
+    /* void* */
+    STRUCT_FLD(info, &i_s_info),
+
+    /* plugin name */
+    /* const char* */
+    STRUCT_FLD(name, "INNODB_SESSION_TEMP_TABLESPACES"),
+
+    /* plugin author (for SHOW PLUGINS) */
+    /* const char* */
+    STRUCT_FLD(author, plugin_author),
+
+    /* general descriptive text (for SHOW PLUGINS) */
+    /* const char* */
+    STRUCT_FLD(descr, "InnoDB Session Temporary tablespaces"),
+
+    /* the plugin license (PLUGIN_LICENSE_XXX) */
+    /* int */
+    STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+
+    /* the function to invoke when plugin is loaded */
+    /* int (*)(void*); */
+    STRUCT_FLD(init, innodb_session_temp_tablespaces_init),
+
+    /* the function to invoke when plugin is un installed */
+    /* int (*)(void*); */
+    NULL,
+
+    /* the function to invoke when plugin is unloaded */
+    /* int (*)(void*); */
+    STRUCT_FLD(deinit, i_s_common_deinit),
+
+    /* plugin version (for SHOW PLUGINS) */
+    /* unsigned int */
+    STRUCT_FLD(version, INNODB_VERSION_SHORT),
 
     /* SHOW_VAR* */
     STRUCT_FLD(status_vars, NULL),

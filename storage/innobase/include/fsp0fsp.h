@@ -677,12 +677,18 @@ void fseg_print(fseg_header_t *header, /*!< in: segment header */
 @return true if it is undo tablespace else false. */
 bool fsp_is_undo_tablespace(space_id_t space_id);
 
+UNIV_INLINE
+bool fsp_is_system_tablespace(space_id_t space_id) {
+  return (space_id == TRX_SYS_SPACE);
+}
+
 /** Check if the space_id is for a system-tablespace (shared + temp).
 @param[in]	space_id	tablespace ID
 @return true if id is a system tablespace, false if not. */
 UNIV_INLINE
 bool fsp_is_system_or_temp_tablespace(space_id_t space_id) {
-  return (space_id == TRX_SYS_SPACE || fsp_is_system_temporary(space_id));
+  return (fsp_is_system_tablespace(space_id) ||
+          fsp_is_system_temporary(space_id));
 }
 
 /** Determine if the space ID is an IBD tablespace, either file_per_table

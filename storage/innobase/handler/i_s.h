@@ -67,5 +67,6 @@ extern struct st_mysql_plugin i_s_innodb_tablespaces;
 extern struct st_mysql_plugin i_s_innodb_datafiles;
 extern struct st_mysql_plugin i_s_innodb_virtual;
 extern struct st_mysql_plugin i_s_innodb_cached_indexes;
+extern struct st_mysql_plugin i_s_innodb_session_temp_tablespaces;
 
 #endif /* i_s_h */

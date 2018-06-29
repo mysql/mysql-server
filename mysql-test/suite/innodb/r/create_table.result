@@ -24,19 +24,18 @@ SET DEBUG ='-d, simulate_max_char_col';
 "Try creating temporary table with innodb_file_per_table option with STRICT mode"
 SET innodb_strict_mode = ON;
 CREATE TEMPORARY TABLE t1(c1 int) TABLESPACE innodb_file_per_table;
-ERROR HY000: InnoDB: innodb_file_per_table option not supported for temporary tables.
+ERROR HY000: InnoDB: TABLESPACE=innodb_file_per_table option is disallowed for temporary tables with INNODB_STRICT_MODE=ON. This option is deprecated and will be removed in a future release
 SELECT COUNT(*) FROM t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
 "Try creating temporary table with innodb_file_per_table option without STRICT mode"
 SET innodb_strict_mode = OFF;
 CREATE TEMPORARY TABLE t1(c1 int) TABLESPACE innodb_file_per_table;
 Warnings:
-Warning	1478	InnoDB: innodb_file_per_table option ignored while creating temporary table with INNODB_STRICT_MODE=OFF.
+Warning	1478	InnoDB: TABLESPACE=innodb_file_per_table option is ignored. All temporary tables are created in a session temporary tablespace. This option is deprecated and will be removed in a future release.
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1478	InnoDB: innodb_file_per_table option ignored while creating temporary table with INNODB_STRICT_MODE=OFF.
+Warning	1478	InnoDB: TABLESPACE=innodb_file_per_table option is ignored. All temporary tables are created in a session temporary tablespace. This option is deprecated and will be removed in a future release.
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
-DROP TABLE t1;
 SET innodb_strict_mode = default;

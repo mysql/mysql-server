@@ -687,6 +687,7 @@ int ha_init_errors(void) {
   SETMSG(HA_ERR_NOT_ALLOWED_COMMAND, ER_DEFAULT(ER_NOT_ALLOWED_COMMAND));
   SETMSG(HA_ERR_COMPUTE_FAILED, "Compute virtual column value failed");
   SETMSG(HA_ERR_DISK_FULL_NOWAIT, ER_DEFAULT(ER_DISK_FULL_NOWAIT));
+  SETMSG(HA_ERR_NO_SESSION_TEMP, ER_DEFAULT(ER_NO_SESSION_TEMP));
   /* Register the error messages for use with my_error(). */
   return my_error_register(get_handler_errmsg, HA_ERR_FIRST, HA_ERR_LAST);
 }
@@ -4201,6 +4202,9 @@ void handler::print_error(int error, myf errflag) {
       DBUG_VOID_RETURN;
     case HA_ERR_NOT_ALLOWED_COMMAND:
       textno = ER_NOT_ALLOWED_COMMAND;
+      break;
+    case HA_ERR_NO_SESSION_TEMP:
+      textno = ER_NO_SESSION_TEMP;
       break;
     default: {
       /* The error was "unknown" to this function.

@@ -92,19 +92,7 @@ DROP TABLESPACE ts1;
 --source include/shutdown_mysqld.inc
 
 # Clean up new datadir while server is OFF
---remove_files_wildcard $MYSQLD_NEW_DATADIR/test/ *.*
---remove_files_wildcard $MYSQLD_NEW_DATADIR/sys/ *.*
---remove_files_wildcard $MYSQLD_NEW_DATADIR/mysql/ *.*
---remove_files_wildcard $MYSQLD_NEW_DATADIR/mtr/ *.*
---remove_files_wildcard $MYSQLD_NEW_DATADIR/performance_schema/ *
---rmdir $MYSQLD_NEW_DATADIR/mtr
---rmdir $MYSQLD_NEW_DATADIR/mysql
---rmdir $MYSQLD_NEW_DATADIR/sys
---rmdir $MYSQLD_NEW_DATADIR/test
---rmdir $MYSQLD_NEW_DATADIR/performance_schema
---remove_files_wildcard $MYSQLD_NEW_DATADIR/ *
---rmdir $MYSQLD_NEW_DATADIR
---rmdir $MYSQL_TMP_DIR/new_datadir
+--force-rmdir $MYSQL_TMP_DIR/new_datadir
 
 --echo # Re-start with old --datadir
 --replace_result $MYSQLD_OLD_DATADIR OLD_DATADIR

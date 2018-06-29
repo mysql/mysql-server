@@ -108,6 +108,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "row0row.h"
 #include "row0sel.h"
 #include "row0upd.h"
+#include "srv0tmp.h"
 #include "trx0purge.h"
 #include "trx0roll.h"
 #include "trx0rseg.h"
@@ -2393,6 +2394,11 @@ files_checked:
     return (srv_init_abort(err));
   }
 
+  err = ibt::open_or_create(create_new_db);
+  if (err != DB_SUCCESS) {
+    return (srv_init_abort(err));
+  }
+
   /* Create the doublewrite buffer to a new tablespace */
   if (buf_dblwr == NULL && !buf_dblwr_create()) {
     return (srv_init_abort(DB_ERROR));
@@ -3014,6 +3020,8 @@ static lsn_t srv_shutdown_log() {
     ut_a(err == DB_SUCCESS);
   }
 
+  ibt::close_files();
+
   fil_close_all_files();
 
   /* Stop Archiver background thread. */
@@ -3053,6 +3061,8 @@ void srv_shutdown() {
 
   /* 2. Make all threads created by InnoDB to exit */
   srv_shutdown_all_bg_threads();
+
+  ibt::delete_pool_manager();
 
   if (srv_monitor_file) {
     fclose(srv_monitor_file);

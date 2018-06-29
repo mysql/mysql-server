@@ -42,7 +42,5 @@ SHOW WARNINGS;
 # Validate temporary table exists
 SELECT COUNT(*) FROM t1;
 
-DROP TABLE t1;
-
 # Reset STRICT mode to default
 SET innodb_strict_mode = default;

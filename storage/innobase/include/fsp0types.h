@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -201,6 +201,16 @@ bool fsp_flags_is_valid(ulint flags) MY_ATTRIBUTE((warn_unused_result, const));
 @param[in]	space_id	tablespace ID
 @return true if tablespace is system temporary. */
 bool fsp_is_system_temporary(space_id_t space_id);
+
+/** Check if a space_id is the system temporary space ID.
+@param[in]	space_id	tablespace ID
+@return true if tablespace is system temporary. */
+bool fsp_is_session_temporary(space_id_t space_id);
+
+/** Check if a space_id is the system temporary space ID.
+@param[in]	space_id	tablespace ID
+@return true if tablespace is system temporary. */
+bool fsp_is_global_temporary(space_id_t space_id);
 
 /** Check if checksum is disabled for the given space.
 @param[in]	space_id	verify is checksum is enabled for given space.

@@ -1,0 +1,406 @@
+# restart: --innodb_temp_tablespaces_dir=MYSQLTEST_VARDIR/tmp/wl11613_dir
+SELECT @@innodb_temp_tablespaces_dir;
+@@innodb_temp_tablespaces_dir
+MYSQLTEST_VARDIR/tmp/wl11613_dir
+# Check the initial number of .ibt files and their size
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
+ID	SPACE	PATH	SIZE	STATE	PURPOSE
+ID	4294566153	MYSQLTEST_VARDIR/tmp/wl11613_dir/temp_1.ibt	81920	INACTIVE	NONE
+ID	4294566154	MYSQLTEST_VARDIR/tmp/wl11613_dir/temp_2.ibt	81920	INACTIVE	NONE
+ID	4294566155	MYSQLTEST_VARDIR/tmp/wl11613_dir/temp_3.ibt	81920	INACTIVE	NONE
+ID	4294566156	MYSQLTEST_VARDIR/tmp/wl11613_dir/temp_4.ibt	81920	INACTIVE	NONE
+ID	4294566157	MYSQLTEST_VARDIR/tmp/wl11613_dir/temp_5.ibt	81920	INACTIVE	NONE
+ID	4294566158	MYSQLTEST_VARDIR/tmp/wl11613_dir/temp_6.ibt	81920	INACTIVE	NONE
+ID	4294566159	MYSQLTEST_VARDIR/tmp/wl11613_dir/temp_7.ibt	81920	INACTIVE	NONE
+ID	4294566160	MYSQLTEST_VARDIR/tmp/wl11613_dir/temp_8.ibt	81920	INACTIVE	NONE
+ID	4294566161	MYSQLTEST_VARDIR/tmp/wl11613_dir/temp_9.ibt	81920	INACTIVE	NONE
+ID	4294566162	MYSQLTEST_VARDIR/tmp/wl11613_dir/temp_10.ibt	98304	ACTIVE	INTRINSIC
+# Check connection_id() of session is populated correctly in
+# ID column of INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES  WHERE ID = connection_id();
+ID	SPACE	PATH	SIZE	STATE	PURPOSE
+ID	4294566162	MYSQLTEST_VARDIR/tmp/wl11613_dir/temp_10.ibt	98304	ACTIVE	INTRINSIC
+# Check the default location of innodb_temp_tablespaces_dir
+# restart
+SELECT @@innodb_temp_tablespaces_dir;
+@@innodb_temp_tablespaces_dir
+#innodb_temp
+SET GLOBAL big_tables=ON;
+# Create a new connection.
+# A session tablespace will be allocated to connection 1
+# for explicit temporary tables and state will be active
+CREATE TEMPORARY TABLE test.t1(a INT, b BLOB);
+CREATE TEMPORARY TABLE test.t2(a INT, b BLOB);
+INSERT INTO t1 values (1, 'hello'), (2, 'hi'), (3, 'wl11613'), (4, 'temp'), (5, 'tablespace');
+INSERT INTO t2 values (1, 'hello'), (2, 'hi'), (3, 'wl11613'), (4, 'temp'), (5, 'tablespace');
+INSERT INTO t1 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t1;
+# Create a new connection.
+# A session tablespace will be allocated to connection 2
+# for explicit temporary tables
+# One more session tablespace will be allocated for intrinsic
+# temporary tables on executing select query from
+# INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES
+# State for both tablespaces would be active
+# The purpose for internal tablespace would be intrinsic
+# The purpose for tablespace for user defined temporary tables
+# would be USER
+# The purpose of inactive(unallocated) tablespaces would be none
+CREATE TEMPORARY TABLE test.t1(a INT, b BLOB);
+CREATE TEMPORARY TABLE test.t2(a INT, b BLOB);
+INSERT INTO t1 values (1, 'hello'), (2, 'hi'), (3, 'wl11613'), (4, 'temp'), (5, 'tablespace');
+INSERT INTO t2 values (1, 'hello'), (2, 'hi'), (3, 'wl11613'), (4, 'temp'), (5, 'tablespace');
+INSERT INTO t1 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t2;
+INSERT INTO t2 SELECT * FROM t1;
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
+ID	SPACE	PATH	SIZE	STATE	PURPOSE
+ID	4294566153	./#innodb_temp/temp_1.ibt	81920	INACTIVE	NONE
+ID	4294566154	./#innodb_temp/temp_2.ibt	81920	INACTIVE	NONE
+ID	4294566155	./#innodb_temp/temp_3.ibt	81920	INACTIVE	NONE
+ID	4294566156	./#innodb_temp/temp_4.ibt	81920	INACTIVE	NONE
+ID	4294566157	./#innodb_temp/temp_5.ibt	81920	INACTIVE	NONE
+ID	4294566158	./#innodb_temp/temp_6.ibt	81920	INACTIVE	NONE
+ID	4294566159	./#innodb_temp/temp_7.ibt	98304	ACTIVE	INTRINSIC
+ID	4294566160	./#innodb_temp/temp_8.ibt	950272	ACTIVE	USER
+ID	4294566161	./#innodb_temp/temp_9.ibt	950272	ACTIVE	USER
+ID	4294566162	./#innodb_temp/temp_10.ibt	98304	ACTIVE	INTRINSIC
+# Ensure entries in information_schema.processlist and
+# information_schema.innodb_session_temp_tablespaces are
+# in sync
+SELECT USER, b.STATE, INFO, SPACE, SIZE, a.STATE, PURPOSE FROM
+INFORMATION_SCHEMA.PROCESSLIST a, INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES b
+WHERE a.ID=b.ID ORDER BY SPACE;
+USER	STATE	INFO	SPACE	SIZE	STATE	PURPOSE
+root	ACTIVE	SELECT USER, b.STATE, INFO, SPACE, SIZE, a.STATE, PURPOSE FROM
+INFORMATION_SCHEMA.PROCESSLIST a, INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES b
+WHERE a.ID=b.ID ORDER BY SPACE	4294566159	114688	executing	INTRINSIC
+root	ACTIVE	SELECT USER, b.STATE, INFO, SPACE, SIZE, a.STATE, PURPOSE FROM
+INFORMATION_SCHEMA.PROCESSLIST a, INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES b
+WHERE a.ID=b.ID ORDER BY SPACE	4294566160	950272	executing	USER
+root	ACTIVE	NULL	4294566161	950272		USER
+root	ACTIVE	NULL	4294566162	98304		INTRINSIC
+# Create a new connection.
+CREATE TEMPORARY TABLE test.t1(a INT, b BLOB);
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
+ID	SPACE	PATH	SIZE	STATE	PURPOSE
+ID	4294566153	./#innodb_temp/temp_1.ibt	81920	INACTIVE	NONE
+ID	4294566154	./#innodb_temp/temp_2.ibt	81920	INACTIVE	NONE
+ID	4294566155	./#innodb_temp/temp_3.ibt	81920	INACTIVE	NONE
+ID	4294566156	./#innodb_temp/temp_4.ibt	81920	INACTIVE	NONE
+ID	4294566157	./#innodb_temp/temp_5.ibt	98304	ACTIVE	INTRINSIC
+ID	4294566158	./#innodb_temp/temp_6.ibt	98304	ACTIVE	USER
+ID	4294566159	./#innodb_temp/temp_7.ibt	131072	ACTIVE	INTRINSIC
+ID	4294566160	./#innodb_temp/temp_8.ibt	950272	ACTIVE	USER
+ID	4294566161	./#innodb_temp/temp_9.ibt	950272	ACTIVE	USER
+ID	4294566162	./#innodb_temp/temp_10.ibt	98304	ACTIVE	INTRINSIC
+# Create a new connection.
+CREATE TEMPORARY TABLE test.t1(a INT, b BLOB);
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
+ID	SPACE	PATH	SIZE	STATE	PURPOSE
+ID	4294566153	./#innodb_temp/temp_1.ibt	81920	INACTIVE	NONE
+ID	4294566154	./#innodb_temp/temp_2.ibt	81920	INACTIVE	NONE
+ID	4294566155	./#innodb_temp/temp_3.ibt	98304	ACTIVE	INTRINSIC
+ID	4294566156	./#innodb_temp/temp_4.ibt	98304	ACTIVE	USER
+ID	4294566157	./#innodb_temp/temp_5.ibt	98304	ACTIVE	INTRINSIC
+ID	4294566158	./#innodb_temp/temp_6.ibt	98304	ACTIVE	USER
+ID	4294566159	./#innodb_temp/temp_7.ibt	131072	ACTIVE	INTRINSIC
+ID	4294566160	./#innodb_temp/temp_8.ibt	950272	ACTIVE	USER
+ID	4294566161	./#innodb_temp/temp_9.ibt	950272	ACTIVE	USER
+ID	4294566162	./#innodb_temp/temp_10.ibt	98304	ACTIVE	INTRINSIC
+# Create a new connection.
+CREATE TEMPORARY TABLE test.t1(a INT, b BLOB);
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
+ID	SPACE	PATH	SIZE	STATE	PURPOSE
+ID	4294566153	./#innodb_temp/temp_1.ibt	98304	ACTIVE	INTRINSIC
+ID	4294566154	./#innodb_temp/temp_2.ibt	98304	ACTIVE	USER
+ID	4294566155	./#innodb_temp/temp_3.ibt	98304	ACTIVE	INTRINSIC
+ID	4294566156	./#innodb_temp/temp_4.ibt	98304	ACTIVE	USER
+ID	4294566157	./#innodb_temp/temp_5.ibt	98304	ACTIVE	INTRINSIC
+ID	4294566158	./#innodb_temp/temp_6.ibt	98304	ACTIVE	USER
+ID	4294566159	./#innodb_temp/temp_7.ibt	131072	ACTIVE	INTRINSIC
+ID	4294566160	./#innodb_temp/temp_8.ibt	950272	ACTIVE	USER
+ID	4294566161	./#innodb_temp/temp_9.ibt	950272	ACTIVE	USER
+ID	4294566162	./#innodb_temp/temp_10.ibt	98304	ACTIVE	INTRINSIC
+# Create a new connection.
+CREATE TEMPORARY TABLE test.t1(a INT, b BLOB);
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
+ID	SPACE	PATH	SIZE	STATE	PURPOSE
+ID	4294566153	./#innodb_temp/temp_1.ibt	98304	ACTIVE	INTRINSIC
+ID	4294566154	./#innodb_temp/temp_2.ibt	98304	ACTIVE	USER
+ID	4294566155	./#innodb_temp/temp_3.ibt	98304	ACTIVE	INTRINSIC
+ID	4294566156	./#innodb_temp/temp_4.ibt	98304	ACTIVE	USER
+ID	4294566157	./#innodb_temp/temp_5.ibt	98304	ACTIVE	INTRINSIC
+ID	4294566158	./#innodb_temp/temp_6.ibt	98304	ACTIVE	USER
+ID	4294566159	./#innodb_temp/temp_7.ibt	131072	ACTIVE	INTRINSIC
+ID	4294566160	./#innodb_temp/temp_8.ibt	950272	ACTIVE	USER
+ID	4294566161	./#innodb_temp/temp_9.ibt	950272	ACTIVE	USER
+ID	4294566162	./#innodb_temp/temp_10.ibt	98304	ACTIVE	INTRINSIC
+ID	4294566163	./#innodb_temp/temp_11.ibt	81920	INACTIVE	NONE
+ID	4294566164	./#innodb_temp/temp_12.ibt	81920	INACTIVE	NONE
+ID	4294566165	./#innodb_temp/temp_13.ibt	81920	INACTIVE	NONE
+ID	4294566166	./#innodb_temp/temp_14.ibt	81920	INACTIVE	NONE
+ID	4294566167	./#innodb_temp/temp_15.ibt	81920	INACTIVE	NONE
+ID	4294566168	./#innodb_temp/temp_16.ibt	81920	INACTIVE	NONE
+ID	4294566169	./#innodb_temp/temp_17.ibt	81920	INACTIVE	NONE
+ID	4294566170	./#innodb_temp/temp_18.ibt	81920	INACTIVE	NONE
+ID	4294566171	./#innodb_temp/temp_19.ibt	98304	ACTIVE	INTRINSIC
+ID	4294566172	./#innodb_temp/temp_20.ibt	98304	ACTIVE	USER
+# Space would now be reclaimed and state for all sessions would be inactive
+# in INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES except for one
+# intrinsic tablespace for default connection when select query from
+# INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACE is executed from
+# default connection
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
+ID	SPACE	PATH	SIZE	STATE	PURPOSE
+ID	4294566153	./#innodb_temp/temp_1.ibt	81920	INACTIVE	NONE
+ID	4294566154	./#innodb_temp/temp_2.ibt	81920	INACTIVE	NONE
+ID	4294566155	./#innodb_temp/temp_3.ibt	81920	INACTIVE	NONE
+ID	4294566156	./#innodb_temp/temp_4.ibt	81920	INACTIVE	NONE
+ID	4294566157	./#innodb_temp/temp_5.ibt	81920	INACTIVE	NONE
+ID	4294566158	./#innodb_temp/temp_6.ibt	81920	INACTIVE	NONE
+ID	4294566159	./#innodb_temp/temp_7.ibt	81920	INACTIVE	NONE
+ID	4294566160	./#innodb_temp/temp_8.ibt	81920	INACTIVE	NONE
+ID	4294566161	./#innodb_temp/temp_9.ibt	81920	INACTIVE	NONE
+ID	4294566162	./#innodb_temp/temp_10.ibt	98304	ACTIVE	INTRINSIC
+ID	4294566163	./#innodb_temp/temp_11.ibt	81920	INACTIVE	NONE
+ID	4294566164	./#innodb_temp/temp_12.ibt	81920	INACTIVE	NONE
+ID	4294566165	./#innodb_temp/temp_13.ibt	81920	INACTIVE	NONE
+ID	4294566166	./#innodb_temp/temp_14.ibt	81920	INACTIVE	NONE
+ID	4294566167	./#innodb_temp/temp_15.ibt	81920	INACTIVE	NONE
+ID	4294566168	./#innodb_temp/temp_16.ibt	81920	INACTIVE	NONE
+ID	4294566169	./#innodb_temp/temp_17.ibt	81920	INACTIVE	NONE
+ID	4294566170	./#innodb_temp/temp_18.ibt	81920	INACTIVE	NONE
+ID	4294566171	./#innodb_temp/temp_19.ibt	81920	INACTIVE	NONE
+ID	4294566172	./#innodb_temp/temp_20.ibt	81920	INACTIVE	NONE
+"List files in #innodb_temp. It should be empty"
+"Check if ibtmp1 exists in datadir. There should be no ibtmp1"
+"Test with invalid values of innodb_temp_tablespaces_dir"
+"invalid abc dir"
+"invalid ./sys/ dir"
+"invalid /wl11613-do-not-exists/ dir"
+"invalid empty "" "
+"invalid #innodb_temp "
+# restart
+"Check if ibtmp1 exists in datadir. It should be recreated on restart"
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
+ID	SPACE	PATH	SIZE	STATE	PURPOSE
+ID	4294566153	./#innodb_temp/temp_1.ibt	81920	INACTIVE	NONE
+ID	4294566154	./#innodb_temp/temp_2.ibt	81920	INACTIVE	NONE
+ID	4294566155	./#innodb_temp/temp_3.ibt	81920	INACTIVE	NONE
+ID	4294566156	./#innodb_temp/temp_4.ibt	81920	INACTIVE	NONE
+ID	4294566157	./#innodb_temp/temp_5.ibt	81920	INACTIVE	NONE
+ID	4294566158	./#innodb_temp/temp_6.ibt	81920	INACTIVE	NONE
+ID	4294566159	./#innodb_temp/temp_7.ibt	81920	INACTIVE	NONE
+ID	4294566160	./#innodb_temp/temp_8.ibt	81920	INACTIVE	NONE
+ID	4294566161	./#innodb_temp/temp_9.ibt	81920	INACTIVE	NONE
+ID	4294566162	./#innodb_temp/temp_10.ibt	98304	ACTIVE	INTRINSIC
+# Simulating disk space full scenario
+# restart: --innodb_temp_tablespaces_dir=.
+SET GLOBAL big_tables=ON;
+SELECT @@innodb_temp_tablespaces_dir;
+@@innodb_temp_tablespaces_dir
+#innodb_temp
+# Create a new connection.
+SET SESSION DEBUG='+d,ibt_pool_exhausted';
+CREATE TEMPORARY TABLE t1 (a INT);
+ERROR HY000: Unable to allocate temporary tablespace for this session
+SET SESSION DEBUG='-d,ibt_pool_exhausted';
+CREATE TABLE t3(a INT, b BLOB);
+INSERT INTO t3 VALUES (1, 'hi'), (2, 'hello');
+SET SESSION DEBUG='+d,ibt_pool_exhausted';
+INSERT INTO t3 SELECT * FROM t3;
+ERROR HY000: Unable to allocate temporary tablespace for this session
+SET SESSION DEBUG='-d,ibt_pool_exhausted';
+# Create Workload and execute queries involving intrinsic tables.
+explain format = json select a from t1 group by b order by sum(a);
+select a from t1 group by b order by sum(a);
+explain format = json select a from t7 group by b order by sum(a);
+select a from t7 group by b order by sum(a);
+explain format = json select sql_big_result distinct * from t1, t2;
+select sql_big_result distinct * from t1, t2;
+explain format = json select sql_big_result t1.b from t1, t2 group by t1.b;
+select sql_big_result t1.b from t1, t2 group by t1.b;
+explain format = json select sql_big_result distinct t1.a from t1, t2 group by t1.b;
+select sql_big_result distinct t1.a from t1, t2 group by t1.b;
+explain format = json select t1.* from t1 inner join t2 on t1.a = t2.a order by t2.a;
+select t1.* from t1 inner join t2 on t1.a = t2.a order by t2.a;
+explain format = json select t1.* from t1, t2 where t1.a = t2.a order by t1.a;
+select t1.* from t1, t2 where t1.a = t2.a order by t1.a;
+explain format = json select t1.* from t1 inner join t2 where t1.a = t2.a group by t1.a;
+select t1.* from t1 inner join t2 where t1.a = t2.a group by t1.a;
+explain format = json select t1.* from t1 inner join t2 where t1.a = t2.a group by t2.a;
+select t1.* from t1 inner join t2 where t1.a = t2.a group by t2.a;
+explain format = json select a from t1 group by a order by a;
+select a from t1 group by a order by a;
+explain format = json select b from t1 group by b order by a;
+select b from t1 group by b order by a;
+explain format = json select distinct t1.a from t1, t2 where  t1.b = t2.b;
+select distinct t1.a from t1, t2 where  t1.b = t2.b;
+explain format = json select distinct a from t1 group by b,a;
+select distinct a from t1 group by b,a;
+set @old_sort_buffer_size = @@sort_buffer_size;
+set @@sort_buffer_size = 32804;
+explain format = json select distinct b from t3 group by a having count(*) > 1;
+select distinct b from t3 group by a having count(*) > 1;
+select distinct b from t3 group by a;
+set @@sort_buffer_size = @old_sort_buffer_size;
+explain format = json select distinct t4.a,e from t4, t1 order by t4.b;
+select distinct t4.a,e from t4, t1 order by t4.b;
+explain format = json select * from t1 union all select * from t2;
+select * from t1 union all select * from t2;
+explain format = json select * from t1 union select * from t2 order by b;
+select * from t1 union select * from t2 order by b;
+explain format = json select tt.* from (select * from t1) as tt;
+select tt.* from (select * from t1) as tt;
+select * from t5;
+explain format = json select b from (select b from t5 where b > 5) tt;
+select b from (select b from t5 where b > 5) tt;
+explain format = json select * from (select b from t1) as t1, (select b from t2) as t2;
+select * from (select b from t1) as t1, (select b from t2) as t2;
+explain format = json select * from t1, (select * from t6) as t where t.a =5;
+select * from t1, (select * from t6) as t where t.a =5;
+explain format = json select * from t1 where t1.a in (select a from t2) ;
+select * from t1 where t1.a in (select a from t2) ;
+set optimizer_switch='materialization=off';
+set optimizer_switch='firstmatch=off';
+set optimizer_switch='loosescan=off';
+explain format = json select * from t1 where t1.a in (select a from t2) ;
+select * from t1 where t1.a in (select a from t2) ;
+set optimizer_switch='default,derived_merge=off';
+explain format = json update t1, t2 set t1.a = 9, t2.a = 10 where t1.b = 'a';
+update t1, t2 set t1.a = 9, t2.a = 10 where t1.b = 'a';
+explain format = json select count(distinct a) from t1;
+select count(distinct a) from t1;
+explain format = json select b, group_concat(a) from t1;
+select b, group_concat(a) from t1;
+select * from t1;
+explain format = json select b, count(a), sum(a), avg(a), std(a),
+min(a), max(a), bit_and(a), bit_or(a) from t1 group by b;
+select b, count(a), sum(a), avg(a), std(a), min(a),
+max(a), bit_and(a), bit_or(a) from t1 group by b;
+select sql_big_result * from performance_schema.global_variables where variable_name like 'internal_tmp_disk_storage_engine';
+select 1 union distinct select 1 union all select 1;
+select alias1.`col_int_key` AS field1 from (t8 as alias1) where (5) in
+(select 7 union select 1) order by alias1.`col_varchar_key` asc;
+select count(table2.col_date_key) as field1 from
+(t10 as table1 inner join
+((t10 as table2 right join
+t9 as table3 on
+((table3.pk = table2.pk) or
+(table3.pk = table2.col_int_key))))
+on ((table3.pk < table2.col_int_nokey)))
+order by field1 ASC;
+select distinct table1.col_varchar_1024_utf8_key as field1
+from t11 as table1 left join t11 as table2 on
+table1.col_varchar_1024_utf8 = table2.col_varchar_1024_latin1_key
+order by field1;
+select t from t12 group by c;
+select count(outr.col_varchar_nokey) AS x
+from t13 as outr2 left join
+(select * from t13) as outr
+on (outr2.col_time_key > outr.col_date_key)
+where outr.pk in
+(select innr.col_int_nokey AS y from
+(select * from t14) as innr2 left join
+(select * from t14) AS innr
+ON (innr2.col_int_nokey = innr.col_int_key)
+where innr.col_varchar_nokey > innr.col_varchar_key
+or not outr.pk > 9)
+or outr.col_varchar_key is null;
+SET @@optimizer_switch=@optimizer_switch_saved;
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
+ID	SPACE	PATH	SIZE	STATE	PURPOSE
+ID	4294566153	./#innodb_temp/temp_1.ibt	81920	INACTIVE	NONE
+ID	4294566154	./#innodb_temp/temp_2.ibt	81920	INACTIVE	NONE
+ID	4294566155	./#innodb_temp/temp_3.ibt	81920	INACTIVE	NONE
+ID	4294566156	./#innodb_temp/temp_4.ibt	81920	INACTIVE	NONE
+ID	4294566157	./#innodb_temp/temp_5.ibt	81920	INACTIVE	NONE
+ID	4294566158	./#innodb_temp/temp_6.ibt	81920	INACTIVE	NONE
+ID	4294566159	./#innodb_temp/temp_7.ibt	81920	INACTIVE	NONE
+ID	4294566160	./#innodb_temp/temp_8.ibt	81920	INACTIVE	NONE
+ID	4294566161	./#innodb_temp/temp_9.ibt	163840	ACTIVE	INTRINSIC
+ID	4294566162	./#innodb_temp/temp_10.ibt	98304	ACTIVE	INTRINSIC
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
+ID	SPACE	PATH	SIZE	STATE	PURPOSE
+ID	4294566153	./#innodb_temp/temp_1.ibt	81920	INACTIVE	NONE
+ID	4294566154	./#innodb_temp/temp_2.ibt	81920	INACTIVE	NONE
+ID	4294566155	./#innodb_temp/temp_3.ibt	81920	INACTIVE	NONE
+ID	4294566156	./#innodb_temp/temp_4.ibt	81920	INACTIVE	NONE
+ID	4294566157	./#innodb_temp/temp_5.ibt	81920	INACTIVE	NONE
+ID	4294566158	./#innodb_temp/temp_6.ibt	81920	INACTIVE	NONE
+ID	4294566159	./#innodb_temp/temp_7.ibt	81920	INACTIVE	NONE
+ID	4294566160	./#innodb_temp/temp_8.ibt	81920	INACTIVE	NONE
+ID	4294566161	./#innodb_temp/temp_9.ibt	81920	INACTIVE	NONE
+ID	4294566162	./#innodb_temp/temp_10.ibt	98304	ACTIVE	INTRINSIC
+drop function func1;
+drop table t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14;
+SET GLOBAL big_tables=default;
+set @@innodb_strict_mode=0;
+CREATE TEMPORARY table t1(a INT) TABLESPACE=innodb_temporary;
+Warnings:
+Warning	1478	InnoDB: TABLESPACE=innodb_temporary option is ignored. All temporary tables are created in a session temporary tablespace. This option is deprecated and will be removed in a future release.
+set @@innodb_strict_mode=1;
+CREATE TEMPORARY table t2(a INT) TABLESPACE=innodb_temporary;
+Warnings:
+Warning	1478	InnoDB: TABLESPACE=innodb_temporary option is ignored. All temporary tables are created in a session temporary tablespace. This option is deprecated and will be removed in a future release.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1478	InnoDB: TABLESPACE=innodb_temporary option is ignored. All temporary tables are created in a session temporary tablespace. This option is deprecated and will be removed in a future release.
+CREATE TEMPORARY TABLE t3 (a INT);
+ALTER TABLE t3 TABLESPACE innodb_temporary;
+Warnings:
+Warning	1478	InnoDB: TABLESPACE=innodb_temporary option is ignored. All temporary tables are created in a session temporary tablespace. This option is deprecated and will be removed in a future release.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1478	InnoDB: TABLESPACE=innodb_temporary option is ignored. All temporary tables are created in a session temporary tablespace. This option is deprecated and will be removed in a future release.
+CREATE TEMPORARY TABLE t4 (a INT) TABLESPACE=innodb_system;
+ERROR HY000: InnoDB: Tablespace `innodb_system` cannot contain TEMPORARY tables.
+CREATE TEMPORARY TABLE t4 (a INT) TABLESPACE=mysql;
+ERROR HY000: The table 't4' may not be created in the reserved tablespace 'mysql'.
+CREATE TABLESPACE tbs ADD DATAFILE 'tbs.ibd' engine=INNODB;
+CREATE TEMPORARY TABLE t4 (a INT) TABLESPACE=tbs;
+ERROR HY000: InnoDB: Tablespace `tbs` cannot contain TEMPORARY tables.
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
+ID	SPACE	PATH	SIZE	STATE	PURPOSE
+ID	4294566153	./#innodb_temp/temp_1.ibt	81920	INACTIVE	NONE
+ID	4294566154	./#innodb_temp/temp_2.ibt	81920	INACTIVE	NONE
+ID	4294566155	./#innodb_temp/temp_3.ibt	81920	INACTIVE	NONE
+ID	4294566156	./#innodb_temp/temp_4.ibt	81920	INACTIVE	NONE
+ID	4294566157	./#innodb_temp/temp_5.ibt	81920	INACTIVE	NONE
+ID	4294566158	./#innodb_temp/temp_6.ibt	81920	INACTIVE	NONE
+ID	4294566159	./#innodb_temp/temp_7.ibt	81920	INACTIVE	NONE
+ID	4294566160	./#innodb_temp/temp_8.ibt	81920	INACTIVE	NONE
+ID	4294566161	./#innodb_temp/temp_9.ibt	147456	ACTIVE	USER
+ID	4294566162	./#innodb_temp/temp_10.ibt	98304	ACTIVE	INTRINSIC
+#########################################################################
+# Cleanup
+#########################################################################
+DROP TABLESPACE tbs;

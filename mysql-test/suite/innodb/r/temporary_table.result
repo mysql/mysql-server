@@ -257,7 +257,7 @@ Tables_in_test
 create temporary table t1 (keyc int, c1 char(100), c2 char(100)) engine = innodb;
 drop table t1;
 # test condition of full-temp-tablespace
-# restart: --innodb-rollback-segments=32 --innodb_temp_data_file_path=ibtmp1:32M
+# restart: --innodb-rollback-segments=32 --innodb_temp_data_file_path=ibtmp1:64M
 create temporary table t1
 (keyc int, c1 char(250), c2 char(250), c3 char(250),
 primary key(keyc, c1, c2, c3)) engine = innodb charset latin1;
@@ -274,7 +274,6 @@ select count(*) from t1;
 count(*)
 0
 call populate_t1();
-ERROR HY000: The table 't1' is full
 drop procedure populate_t1;
 drop table t1;
 create temporary table t (

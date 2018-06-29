@@ -350,6 +350,7 @@ static constexpr const char *auto_event_names[] = {
     "srv0mon",
     "srv0srv",
     "srv0start",
+    "srv0tmp",
     "sync0arr",
     "sync0debug",
     "sync0policy",
