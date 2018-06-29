@@ -56,7 +56,7 @@ insert into t1 select "yesterday_5_";
 create temporary table tmp(a char(100));
 insert into tmp values("see_6_");
 set binlog_format=statement;
-ERROR HY000: Cannot switch out of the row-based binary log format when the session has open temporary tables
+ERROR HY000: Changing @@session.binlog_format is disallowed when the session has open temporary table(s). You could wait until these temporary table(s) are dropped and try again.
 insert into t1 select * from tmp;
 drop temporary table tmp;
 set binlog_format=statement;

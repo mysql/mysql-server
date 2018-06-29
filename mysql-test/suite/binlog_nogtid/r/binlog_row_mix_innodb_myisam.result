@@ -918,5 +918,5 @@ binlog.000001	#	Table_map	#	#	table_id: # (test.t1)
 binlog.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 binlog.000001	#	Query	#	#	COMMIT
 drop trigger trg_del_t2;
-drop table t1,t2,t3,t4,t5;
+drop table t1,t2,t3,t4,t5,tt;
 drop function bug27417;

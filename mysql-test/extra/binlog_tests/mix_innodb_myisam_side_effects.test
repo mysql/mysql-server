@@ -291,5 +291,5 @@ CREATE TABLE t5 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
 
 
 drop trigger trg_del_t2;
-drop table t1,t2,t3,t4,t5;
+drop table t1,t2,t3,t4,t5,tt;
 drop function bug27417;

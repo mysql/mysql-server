@@ -1,0 +1,27 @@
+#
+# 1. Set up masters server_1 and server_3 with server_2 being a slave.
+#
+include/rpl_init.inc [topology=1->2,3->2]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server_2]
+set @saved_binlog_format=@@global.binlog_format;
+SET @@global.binlog_format=STATEMENT;
+ERROR HY000: Changing @@global.binlog_format or @@persist.binlog_format is disallowed when any replication channel applier thread is running. You could execute STOP SLAVE SQL_THREAD and try again.
+include/assert.inc [assert that @@global.binlog_format is not changed]
+SET @@persist.binlog_format=STATEMENT;
+ERROR HY000: Changing @@global.binlog_format or @@persist.binlog_format is disallowed when any replication channel applier thread is running. You could execute STOP SLAVE SQL_THREAD and try again.
+include/assert.inc [assert that @@global.binlog_format is not changed]
+include/rpl_stop_slaves.inc
+SET @@global.binlog_format=STATEMENT;
+include/assert.inc [assert that @@global.binlog_format is set to STATEMENT]
+set global binlog_format=@saved_binlog_format;
+include/assert.inc [assert that @@global.binlog_format is set to @saved_binlog_format]
+include/rpl_start_slaves.inc
+include/rpl_end.inc
+RESET SLAVE ALL FOR CHANNEL 'channel_1';
+RESET SLAVE ALL FOR CHANNEL 'channel_3';

@@ -16,12 +16,12 @@ select @@global.binlog_format, @@session.binlog_format;
 connection slave;
 set @old_global_binlog_format=  @@global.binlog_format;
 set @old_session_binlog_format=  @@session.binlog_format;
+--source include/stop_slave.inc
 SET GLOBAL binlog_format = 'ROW';
 SET SESSION binlog_format = 'ROW';
 select @@global.binlog_format, @@session.binlog_format;
-# restart slave so that slave sql thread's binlog format is re-read
+# start slave so that slave sql thread's binlog format is re-read
 # from @@global.binlog_format
---source include/stop_slave.inc
 --source include/start_slave.inc
 --echo [on master]
 connection master;
@@ -164,8 +164,10 @@ DROP PROCEDURE p2;
 DROP PROCEDURE p3;
 --echo [on slave]
 sync_slave_with_master;
+--source include/stop_slave_sql.inc
 set @@global.binlog_format=  @old_global_binlog_format;
 set @@session.binlog_format=  @old_session_binlog_format;
 
 # End of 5.1 tests
+--let $rpl_only_running_threads= 1
 --source include/rpl_end.inc

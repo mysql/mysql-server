@@ -13,12 +13,12 @@ ROW	ROW
 [on slave]
 set @old_global_binlog_format=  @@global.binlog_format;
 set @old_session_binlog_format=  @@session.binlog_format;
+include/stop_slave.inc
 SET GLOBAL binlog_format = 'ROW';
 SET SESSION binlog_format = 'ROW';
 select @@global.binlog_format, @@session.binlog_format;
 @@global.binlog_format	@@session.binlog_format
 ROW	ROW
-include/stop_slave.inc
 include/start_slave.inc
 # Additional tests for WL#5217 by QA, testplan 1.1
 CREATE TABLE t1 
@@ -192,7 +192,11 @@ a	b
 24	subp3-upd
 3	subp3-upd
 4	subp4-upd
+include/stop_slave_sql.inc
+connection slave;
 set @@global.binlog_format=  @old_global_binlog_format;
+include/start_slave_sql.inc
+connection slave;
 set @@session.binlog_format=  @old_session_binlog_format;
 connection master;
 set @@global.binlog_format=  @old_global_binlog_format;

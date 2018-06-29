@@ -265,6 +265,10 @@ SET @@SESSION.BINLOG_ROW_IMAGE= @old_binlog_row_image;
 --source include/end_replace_combination.inc
 
 --source include/rpl_connection_slave.inc
+# To avoid an error 'ER_RUNNING_APPLIER_PREVENTS_SWITCH_GLOBAL_BINLOG_FORMAT',
+# which will be caused by the following include/end_replace_combination.inc
+--source include/stop_slave_sql.inc
 --source include/end_replace_combination.inc
 
+--let $rpl_only_running_threads= 1
 --source include/rpl_end.inc

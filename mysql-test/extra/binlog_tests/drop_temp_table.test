@@ -64,41 +64,7 @@ if (`SELECT @@GLOBAL.binlog_format = 'STATEMENT'`)
 
 source include/show_binlog_events.inc;
 DROP DATABASE `drop-temp+table-test`;
-
-
-#
-# Bug #54842: DROP TEMPORARY TABLE not binlogged after manual switching binlog format to ROW
-#
-# Sanity test. Checking that implicit DROP event is logged.
-#
-# After BUG#52616, the switch to ROW mode becomes effective even
-# if there are open temporary tables. As such the implicit drop
-# for temporary tables on session closing must be logged.
-#
-
 RESET MASTER;
-
-if (`SELECT @@GLOBAL.binlog_format = 'STATEMENT'`)
-{
-  CREATE TABLE t1 ( i text );
-
-  --connect(con1,localhost,root,,)
-  CREATE TEMPORARY TABLE ttmp1 ( i text );
-  SET @@session.binlog_format='ROW';
-  INSERT INTO t1 VALUES ('1');
-  SELECT @@session.binlog_format;
-  --disconnect con1
-
-  -- connection default
-  --let $wait_binlog_event= DROP
-  --source include/wait_for_binlog_event.inc
-  --let $mask_binlog_commit_events= 1
-  -- source include/show_binlog_events.inc
-  --let $mask_binlog_commit_events= 0
-
-  DROP TABLE t1;
-  RESET MASTER;
-}
 
 # End of 4.1 tests
 
@@ -108,11 +74,6 @@ if (`SELECT @@GLOBAL.binlog_format = 'STATEMENT'`)
 
 --source include/count_sessions.inc
 --connect (con1,localhost,root,,)
-
-SET @saved_binlog_format= @@SESSION.binlog_format;
-SET SESSION binlog_format= STATEMENT;
-CREATE TEMPORARY TABLE temp_needs_logging(a INT) ENGINE=InnoDB;
-SET SESSION binlog_format= @saved_binlog_format;
 
 # Check with both transactional and non-transactional tables as those are logged
 # separately in close_temporary_tables.

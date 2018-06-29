@@ -930,17 +930,63 @@ static bool check_super_outside_trx_outside_sf_outside_sp(sys_var *self,
 static bool binlog_format_check(sys_var *self, THD *thd, set_var *var) {
   if (check_has_super(self, thd, var)) return true;
 
+  if (var->type == OPT_GLOBAL || var->type == OPT_PERSIST) {
+    /*
+      SET @@global.binlog_format and SET @@persist.binlog_format must be
+      disallowed if any replication channel has open temporary table(s).
+      Otherwise DROP TEMPORARY TABLE is written into binary log on slave
+      (which disobeys the simple rule: When @@session.binlog_format=
+       ROW/MIXED, the server must not write CREATE/DROP TEMPORARY TABLE
+      to the binary log) in the following case:
+        slave> SET @@global.binlog_format=STATEMENT;
+        slave> START SLAVE;
+        master> CREATE TEMPORARY TABLE t1(a INT);
+        slave> [wait for t1 to replicate]
+        slave> STOP SLAVE;
+        slave> SET @@global.binlog_format=ROW / SET @@persist.binlog_format=ROW
+        master> DROP TEMPORARY TABLE t1;
+        slave> START SLAVE;
+      Note: SET @@persist_only.binlog_format is not disallowed if any
+      replication channel has temporary table(s), since unlike PERSIST,
+      PERSIST_ONLY does not modify the runtime global system variable value.
+
+      SET @@global.binlog_format and SET @@persist.binlog_format must be
+      disallowed if any replication channel applier is running, because
+      SET @@global.binlog_format does not take effect when any replication
+      channel applier is running. SET @@global.binlog_format takes effect
+      on the channel until its applier is (re)starting.
+      Note: SET @@persist_only.binlog_format is not disallowed if any
+      replication channel applier is running, since unlike PERSIST,
+      PERSIST_ONLY does not modify the runtime global system variable value.
+    */
+    enum_slave_channel_status slave_channel_status =
+        has_any_slave_channel_open_temp_table_or_is_its_applier_running();
+    if (slave_channel_status == SLAVE_CHANNEL_APPLIER_IS_RUNNING) {
+      my_error(ER_RUNNING_APPLIER_PREVENTS_SWITCH_GLOBAL_BINLOG_FORMAT, MYF(0));
+      return true;
+    } else if (slave_channel_status == SLAVE_CHANNEL_HAS_OPEN_TEMPORARY_TABLE) {
+      my_error(ER_TEMP_TABLE_PREVENTS_SWITCH_GLOBAL_BINLOG_FORMAT, MYF(0));
+      return true;
+    }
+  }
+
   if (!var->is_global_persist()) {
     /*
-      If binlog_format='ROW' or 'MIXED' and there are open temporary tables,
-      their CREATE TABLE will not be in the binlog, so we can't toggle to
-      'STATEMENT' in this connection.
+      SET @@session.binlog_format must be disallowed if the session has open
+      temporary table(s). Otherwise DROP TEMPORARY TABLE is written into
+      binary log (which disobeys the simple rule: When
+      @@session.binlog_format=ROW/MIXED, the server must not write
+      CREATE/DROP TEMPORARY TABLE to the binary log) in the following case:
+        SET @@session.binlog_format=STATEMENT;
+        CREATE TEMPORARY TABLE t1 (a INT);
+        SET @@session.binlog_format=ROW;
+        DROP TEMPORARY TABLE t1;
+      And more, if binlog_format=ROW/MIXED and the session has open temporary
+      table(s), these CREATE TEMPORARY TABLE are not written into the binlog,
+      so we can not switch to STATEMENT.
     */
-    if (thd->temporary_tables &&
-        var->save_result.ulonglong_value == BINLOG_FORMAT_STMT &&
-        (thd->variables.binlog_format == BINLOG_FORMAT_MIXED ||
-         thd->variables.binlog_format == BINLOG_FORMAT_ROW)) {
-      my_error(ER_TEMP_TABLE_PREVENTS_SWITCH_OUT_OF_RBR, MYF(0));
+    if (thd->temporary_tables) {
+      my_error(ER_TEMP_TABLE_PREVENTS_SWITCH_SESSION_BINLOG_FORMAT, MYF(0));
       return true;
     }
 

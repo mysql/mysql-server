@@ -2008,7 +2008,9 @@ include/sync_slave_sql_with_master.inc
 #               IF JSON HAS DIFFERENT BINARY FORMAT
 #
 [connection slave]
+include/stop_slave_sql.inc
 include/begin_replace_combination.inc [BOTH.binlog_format=row,mixed,statement -> GLOBAL.slave_rows_search_algorithms=HASH_SCAN,TABLE_SCAN,INDEX_SCAN]
+include/start_slave_sql.inc
 [connection master]
 SET @old_binlog_format = @@SESSION.binlog_format;
 SET SESSION binlog_format = ROW;
@@ -2043,9 +2045,8 @@ include/sync_slave_sql_with_master.inc
 [connection master]
 DROP TABLE t;
 include/sync_slave_sql_with_master.inc
-include/end_replace_combination.inc [BOTH.binlog_format=row,mixed,statement -> GLOBAL.slave_rows_search_algorithms=HASH_SCAN,TABLE_SCAN,INDEX_SCAN]
-[connection slave]
 include/stop_slave.inc
+include/end_replace_combination.inc [BOTH.binlog_format=row,mixed,statement -> GLOBAL.slave_rows_search_algorithms=HASH_SCAN,TABLE_SCAN,INDEX_SCAN]
 include/start_slave.inc
 [connection master]
 SET SESSION binlog_format = @old_binlog_format;

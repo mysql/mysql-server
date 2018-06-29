@@ -1099,3 +1099,54 @@ bool is_any_slave_channel_running(int thread_mask) {
   channel_map.unlock();
   DBUG_RETURN(false);
 }
+
+enum_slave_channel_status
+has_any_slave_channel_open_temp_table_or_is_its_applier_running() {
+  DBUG_ENTER("has_any_slave_channel_open_temp_table_or_is_its_applier_running");
+  Master_info *mi = 0;
+  bool is_applier_running = false;
+  bool has_open_temp_tables = false;
+  mi_map::iterator it;
+
+  channel_map.rdlock();
+
+  mi_map::iterator it_end = channel_map.end();
+  for (it = channel_map.begin(); it != channel_map.end(); ++it) {
+    mi = it->second;
+
+    if (Master_info::is_configured(mi)) {
+      mysql_mutex_lock(&mi->rli->run_lock);
+      is_applier_running = mi->rli->slave_running;
+      if (mi->rli->atomic_channel_open_temp_tables > 0)
+        has_open_temp_tables = true;
+      if (is_applier_running || has_open_temp_tables) {
+        /*
+          Stop acquiring more run_locks and start to release the held
+          run_locks once finding that a slave channel applier thread
+          is running or a slave channel has open temporary table(s),
+          and record the stop position.
+        */
+        it_end = ++it;
+        break;
+      }
+    }
+  }
+
+  /*
+    Release the held run_locks until the stop position recorded in above
+    or the end of the channel_map.
+  */
+  for (it = channel_map.begin(); it != it_end; ++it) {
+    mi = it->second;
+    if (Master_info::is_configured(mi)) mysql_mutex_unlock(&mi->rli->run_lock);
+  }
+
+  channel_map.unlock();
+
+  if (is_applier_running)
+    DBUG_RETURN(SLAVE_CHANNEL_APPLIER_IS_RUNNING);
+  else if (has_open_temp_tables)
+    DBUG_RETURN(SLAVE_CHANNEL_HAS_OPEN_TEMPORARY_TABLE);
+
+  DBUG_RETURN(SLAVE_CHANNEL_NO_APPLIER_RUNNING_AND_NO_OPEN_TEMPORARY_TABLE);
+}

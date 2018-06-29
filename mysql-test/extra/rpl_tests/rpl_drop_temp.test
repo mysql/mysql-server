@@ -96,7 +96,6 @@ SHOW STATUS LIKE 'Slave_open_temp_tables';
 
 --connect(con1,localhost,root,,)
 CREATE TEMPORARY TABLE ttmp1 ( i INT );
-SET SESSION binlog_format='ROW';
 --disconnect con1
 
 -- connection master

@@ -1,0 +1,64 @@
+# ==== Purpose ====
+#
+# Verify that SET @@global.binlog_format and SET @@persist.binlog_format
+# must be disallowed if any replication channel applier is running in msr.
+#
+# ==== Implementation ====
+#
+# 1. Start Multi-source replication, set up masters server_1 and
+#    server_3 with server_2 being a slave.
+# 2. Connect to slave server.
+# 3. Verify that SET @@global.binlog_format must be disallowed
+#    if any replication channel applier is running.
+# 4. Verify that SET @@persist.binlog_format must be disallowed
+#    if any replication channel applier is running.
+# 5. Verify that SET @@global.binlog_format takes effect if
+#    no replication channel applier is running.
+#
+# ==== References ====
+#
+# Wl#8872 Allow CREATE TEMPORARY/DROP TEMPORARY in transaction when GTID_MODE=ON in RBR
+
+# This test script will be run only in non GR set up.
+--source include/not_group_replication_plugin.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+--source include/have_slave_repository_type_table.inc
+# The test script should be run with all binlog mode.
+
+--echo #
+--echo # 1. Set up masters server_1 and server_3 with server_2 being a slave.
+--echo #
+--let $rpl_topology= 1->2,3->2
+--let $rpl_multi_source= 1
+--source include/rpl_init.inc
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+set @saved_binlog_format=@@global.binlog_format;
+--error ER_RUNNING_APPLIER_PREVENTS_SWITCH_GLOBAL_BINLOG_FORMAT
+SET @@global.binlog_format=STATEMENT;
+--let $assert_text= assert that @@global.binlog_format is not changed
+--let $assert_cond= "[select @@global.binlog_format]" = @saved_binlog_format
+--source include/assert.inc
+
+--error ER_RUNNING_APPLIER_PREVENTS_SWITCH_GLOBAL_BINLOG_FORMAT
+SET @@persist.binlog_format=STATEMENT;
+--let $assert_text= assert that @@global.binlog_format is not changed
+--let $assert_cond= "[select @@global.binlog_format]" = @saved_binlog_format
+--source include/assert.inc
+
+--source include/rpl_stop_slaves.inc
+SET @@global.binlog_format=STATEMENT;
+--let $assert_text= assert that @@global.binlog_format is set to STATEMENT
+--let $assert_cond= "[select @@global.binlog_format]" = "STATEMENT"
+--source include/assert.inc
+
+set global binlog_format=@saved_binlog_format;
+--let $assert_text= assert that @@global.binlog_format is set to @saved_binlog_format
+--let $assert_cond= "[select @@global.binlog_format]" = @saved_binlog_format
+--source include/assert.inc
+--source include/rpl_start_slaves.inc
+
+--let $rpl_skip_sync= 1
+--source include/rpl_end.inc

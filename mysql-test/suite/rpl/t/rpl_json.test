@@ -768,7 +768,11 @@ DROP TABLE data,json_data;
 --source include/rpl_connection_slave.inc
 --let $replace_combination_from= BOTH.binlog_format=row,mixed,statement
 --let $replace_combination_to= GLOBAL.slave_rows_search_algorithms=HASH_SCAN,TABLE_SCAN,INDEX_SCAN
+# To avoid an error 'ER_RUNNING_APPLIER_PREVENTS_SWITCH_GLOBAL_BINLOG_FORMAT',
+# which will be caused by the following include/end_replace_combination.inc
+--source include/stop_slave_sql.inc
 --source include/begin_replace_combination.inc
+--source include/start_slave_sql.inc
 --source include/rpl_connection_master.inc
 SET @old_binlog_format = @@SESSION.binlog_format;
 SET SESSION binlog_format = ROW;
@@ -804,11 +808,12 @@ DELETE FROM t;
 DROP TABLE t;
 --source include/sync_slave_sql_with_master.inc
 
+# To avoid an error 'ER_RUNNING_APPLIER_PREVENTS_SWITCH_GLOBAL_BINLOG_FORMAT',
+# which will be caused by the following include/end_replace_combination.inc
+--source include/stop_slave.inc
 # Stop mapping row/mixed/statement to hash_scan/table_scan/index_scan,
 # and restart the slave to make it pick up the change.
 --source include/end_replace_combination.inc
---source include/rpl_connection_slave.inc
---source include/stop_slave.inc
 --source include/start_slave.inc
 --source include/rpl_connection_master.inc
 SET SESSION binlog_format = @old_binlog_format;

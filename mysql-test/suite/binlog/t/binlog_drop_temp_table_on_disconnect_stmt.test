@@ -22,10 +22,6 @@ CREATE TEMPORARY TABLE tmp6 (a INT) ENGINE=MyISAM;
 CREATE TEMPORARY TABLE tmp7 LIKE t1;
 CREATE TEMPORARY TABLE tmp8 LIKE t2;
 
-SET SESSION binlog_format= 'ROW';
-# No DROP should be logged for tmp10
-CREATE TEMPORARY TABLE tmp10 (a INT);
-
 --disconnect con1
 --connection default
 --source include/wait_until_count_sessions.inc

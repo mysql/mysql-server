@@ -963,7 +963,7 @@ binlog.000001	#	User var	#	#	@`b`=_utf8mb4 0x3135 COLLATE utf8mb4_0900_ai_ci
 binlog.000001	#	Execute_load_query	#	#	use `test`; LOAD DATA INFILE '../../std_data/rpl_loaddata.dat' INTO TABLE `t4` FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' (`a`, @`b`) SET `b`= @b + bug27417(2) ;file_id=#
 binlog.000001	#	Query	#	#	ROLLBACK
 drop trigger trg_del_t2;
-drop table t1,t2,t3,t4,t5;
+drop table t1,t2,t3,t4,t5,tt;
 drop function bug27417;
 set @@session.binlog_format=@@global.binlog_format;
 end of tests

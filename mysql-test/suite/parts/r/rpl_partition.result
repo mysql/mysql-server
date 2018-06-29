@@ -13,12 +13,12 @@ select @@global.binlog_format, @@session.binlog_format;
 [on slave]
 set @old_global_binlog_format=  @@global.binlog_format;
 set @old_session_binlog_format=  @@session.binlog_format;
+include/stop_slave.inc
 SET GLOBAL binlog_format = 'ROW';
 SET SESSION binlog_format = 'ROW';
 select @@global.binlog_format, @@session.binlog_format;
 @@global.binlog_format	ROW
 @@session.binlog_format	ROW
-include/stop_slave.inc
 include/start_slave.inc
 [on master]
 CREATE TABLE t1(id MEDIUMINT NOT NULL AUTO_INCREMENT,
@@ -158,6 +158,7 @@ DROP PROCEDURE p1;
 DROP PROCEDURE p2;
 DROP PROCEDURE p3;
 [on slave]
+include/stop_slave_sql.inc
 set @@global.binlog_format=  @old_global_binlog_format;
 set @@session.binlog_format=  @old_session_binlog_format;
 include/rpl_end.inc

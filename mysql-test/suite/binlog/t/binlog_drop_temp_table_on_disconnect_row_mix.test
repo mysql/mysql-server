@@ -11,12 +11,6 @@ CREATE TABLE t2(a INT) ENGINE=MyISAM;
 
 --connect(con1,localhost,root)
 
-SET @saved_binlog_format= @@SESSION.binlog_format;
-# A DROP for tmp10 should be binlogged because CREATE TABLE is
-SET SESSION binlog_format= 'STATEMENT';
-CREATE TEMPORARY TABLE tmp10 (a INT);
-SET SESSION binlog_format= @saved_binlog_format;
-
 # No DROP should be logged for any of the statements below
 CREATE TEMPORARY TABLE tmp1 ENGINE=InnoDB SELECT * FROM t1;
 CREATE TEMPORARY TABLE tmp2 ENGINE=MyISAM SELECT * FROM t2;

@@ -10,12 +10,12 @@ select @@global.binlog_format, @@session.binlog_format;
 connection slave;
 set @old_global_binlog_format=  @@global.binlog_format;
 set @old_session_binlog_format=  @@session.binlog_format;
+--source include/stop_slave.inc
 SET GLOBAL binlog_format = 'ROW';
 SET SESSION binlog_format = 'ROW';
 select @@global.binlog_format, @@session.binlog_format;
-# restart slave so that slave sql thread's binlog format is re-read
+# start slave so that slave sql thread's binlog format is re-read
 # from @@global.binlog_format
---source include/stop_slave.inc
 --source include/start_slave.inc
 
 connection master;
@@ -70,7 +70,9 @@ SELECT * FROM t1 PARTITION (subp4,subp5,subp3) order by b,a;
 --source include/check_slave_is_running.inc
 --sorted_result
 SELECT * FROM t1 PARTITION (subp4,subp5,subp3) order by b,a;
+--source include/stop_slave_sql.inc
 set @@global.binlog_format=  @old_global_binlog_format;
+--source include/start_slave_sql.inc
 set @@session.binlog_format=  @old_session_binlog_format;
 
 connection master;

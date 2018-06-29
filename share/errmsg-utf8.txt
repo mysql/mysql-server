@@ -6008,7 +6008,7 @@ ER_FOREIGN_DUPLICATE_KEY_OLD_UNUSED 23000 S1009
 ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE
         eng "Column count of mysql.%s is wrong. Expected %d, found %d. Created with MySQL %d, now running %d. Please use mysql_upgrade to fix this error."
         ger "Spaltenanzahl von mysql.%s falsch. %d erwartet, aber %d erhalten. Erzeugt mit MySQL %d, jetzt unter %d. Bitte benutzen Sie mysql_upgrade, um den Fehler zu beheben"
-ER_TEMP_TABLE_PREVENTS_SWITCH_OUT_OF_RBR
+OBSOLETE_ER_TEMP_TABLE_PREVENTS_SWITCH_OUT_OF_RBR
         eng "Cannot switch out of the row-based binary log format when the session has open temporary tables"
         ger "Kann nicht aus dem zeilenbasierten Binärlog-Format herauswechseln, wenn die Sitzung offene temporäre Tabellen hat"
 ER_STORED_FUNCTION_PREVENTS_SWITCH_BINLOG_FORMAT
@@ -8564,6 +8564,15 @@ ER_TRANSFORM_SOURCE_SRS_MISSING_TOWGS84 22S00
 
 ER_TRANSFORM_TARGET_SRS_MISSING_TOWGS84 22S00
   eng "Transformation to SRID %u is not supported. The spatial reference system has no TOWGS84 clause."
+
+ER_TEMP_TABLE_PREVENTS_SWITCH_SESSION_BINLOG_FORMAT
+  eng "Changing @@session.binlog_format is disallowed when the session has open temporary table(s). You could wait until these temporary table(s) are dropped and try again."
+
+ER_TEMP_TABLE_PREVENTS_SWITCH_GLOBAL_BINLOG_FORMAT
+  eng "Changing @@global.binlog_format or @@persist.binlog_format is disallowed when any replication channel has open temporary table(s). You could wait until Slave_open_temp_tables = 0 and try again"
+
+ER_RUNNING_APPLIER_PREVENTS_SWITCH_GLOBAL_BINLOG_FORMAT
+  eng "Changing @@global.binlog_format or @@persist.binlog_format is disallowed when any replication channel applier thread is running. You could execute STOP SLAVE SQL_THREAD and try again."
 
 #
 #  End of 8.0 error messages.

@@ -160,8 +160,11 @@ DROP DATABASE db_binlog_ignore;
 
 --connection slave
 SET @save.binlog_format= @@global.binlog_format;
+# To avoid an error 'ER_RUNNING_APPLIER_PREVENTS_SWITCH_GLOBAL_BINLOG_FORMAT',
+# which will be caused by the following include/end_replace_combination.inc
+--source include/stop_slave_sql.inc
 SET @@global.binlog_format= 'row';
-source include/restart_slave_sql.inc;
+source include/start_slave_sql.inc;
 
 --echo ---- Test ----
 
@@ -202,6 +205,9 @@ DROP TEMPORARY TABLE t2;
 --source include/rpl_sync.inc
 
 --connection slave
+# To avoid an error 'ER_RUNNING_APPLIER_PREVENTS_SWITCH_GLOBAL_BINLOG_FORMAT',
+# which will be caused by the following include/end_replace_combination.inc
+--source include/stop_slave_sql.inc
 SET @@global.binlog_format= @save.binlog_format;
 --connection master
 
@@ -212,7 +218,7 @@ SET @@global.binlog_format= @save.binlog_format;
 --connection slave
 SET @save.binlog_format= @@global.binlog_format;
 SET @@global.binlog_format= 'row';
-source include/restart_slave_sql.inc;
+source include/start_slave_sql.inc;
 
 --connection master
 SET @@session.binlog_format= statement;
@@ -250,7 +256,11 @@ DROP TABLE t1;
 --source include/rpl_sync.inc
 
 --connection slave
+# To avoid an error 'ER_RUNNING_APPLIER_PREVENTS_SWITCH_GLOBAL_BINLOG_FORMAT',
+# which will be caused by the following include/end_replace_combination.inc
+--source include/stop_slave_sql.inc
 SET @@global.binlog_format= @save.binlog_format;
+--source include/start_slave_sql.inc
 --connection master
 
 --echo ==== Case 3: explicit empty transaction on master ====

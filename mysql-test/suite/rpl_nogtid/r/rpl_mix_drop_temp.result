@@ -31,7 +31,6 @@ SHOW STATUS LIKE 'Slave_open_temp_tables';
 Variable_name	Value
 Slave_open_temp_tables	0
 CREATE TEMPORARY TABLE ttmp1 ( i INT );
-SET SESSION binlog_format='ROW';
 SHOW STATUS LIKE 'Slave_open_temp_tables';
 Variable_name	Value
 Slave_open_temp_tables	0

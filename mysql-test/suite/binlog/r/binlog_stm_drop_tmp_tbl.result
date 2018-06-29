@@ -43,31 +43,9 @@ binlog.000001	#	Query	#	#	use `drop-temp+table-test`; DROP TABLE IF EXISTS `tmp2
 binlog.000001	#	Query	#	#	use `drop-temp+table-test`; DROP /*!40005 TEMPORARY */ TABLE IF EXISTS `shortn2`,`table:name`,`shortn1`
 DROP DATABASE `drop-temp+table-test`;
 RESET MASTER;
-CREATE TABLE t1 ( i text );
-CREATE TEMPORARY TABLE ttmp1 ( i text );
-SET @@session.binlog_format='ROW';
-INSERT INTO t1 VALUES ('1');
-SELECT @@session.binlog_format;
-@@session.binlog_format
-ROW
-include/show_binlog_events.inc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1 ( i text )
-binlog.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE ttmp1 ( i text )
-binlog.000001	#	Query	#	#	BEGIN
-binlog.000001	#	Table_map	#	#	table_id: # (test.t1)
-binlog.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-binlog.000001	#	Query	#	#	COMMIT
-binlog.000001	#	Query	#	#	use `test`; DROP /*!40005 TEMPORARY */ TABLE IF EXISTS `ttmp1`
-DROP TABLE t1;
-RESET MASTER;
 #
 # Bug 83003: Using temporary tables on slaves increases GTID sequence number
 #
-SET @saved_binlog_format= @@SESSION.binlog_format;
-SET SESSION binlog_format= STATEMENT;
-CREATE TEMPORARY TABLE temp_needs_logging(a INT) ENGINE=InnoDB;
-SET SESSION binlog_format= @saved_binlog_format;
 CREATE TEMPORARY TABLE temp_trx(a INT) ENGINE=InnoDB;
 CREATE TEMPORARY TABLE temp_non_trx(a INT) ENGINE=MyISAM;
 CREATE TEMPORARY TABLE temp_needs_logging_in_stmt(a INT) ENGINE=InnoDB;
@@ -76,11 +54,10 @@ CREATE TEMPORARY TABLE temp_binlog_disabled(a INT) ENGINE=InnoDB;
 SET SESSION sql_log_bin= 1;
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-binlog.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE temp_needs_logging(a INT) ENGINE=InnoDB
 binlog.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE temp_trx(a INT) ENGINE=InnoDB
 binlog.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE temp_non_trx(a INT) ENGINE=MyISAM
 binlog.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE temp_needs_logging_in_stmt(a INT) ENGINE=InnoDB
-binlog.000001	#	Query	#	#	use `test`; DROP /*!40005 TEMPORARY */ TABLE IF EXISTS `temp_needs_logging_in_stmt`,`temp_trx`,`temp_needs_logging`
+binlog.000001	#	Query	#	#	use `test`; DROP /*!40005 TEMPORARY */ TABLE IF EXISTS `temp_needs_logging_in_stmt`,`temp_trx`
 binlog.000001	#	Query	#	#	use `test`; DROP /*!40005 TEMPORARY */ TABLE IF EXISTS `temp_non_trx`
 #
 # BUG#21638823: ASSERTION FAILED:
