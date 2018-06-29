@@ -93,7 +93,8 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
     c_mutexMgr(* this),
     c_counterMgr(* this)
 #ifdef VM_TRACE
-    ,debugOut(*new NdbOut(*new FileOutputStream(globalSignalLoggers.getOutputStream())))
+    ,debugOutFile(globalSignalLoggers.getOutputStream())
+    ,debugOut(debugOutFile)
 #endif
 #ifdef VM_TRACE_TIME
     ,m_currentGsn(0)

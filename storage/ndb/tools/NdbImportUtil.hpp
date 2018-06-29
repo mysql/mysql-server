@@ -593,7 +593,7 @@ public:
   void free_range(Range* r);
   void free_ranges(RangeList& src);
 
-  RangeList* c_ranges_free;
+  RangeList c_ranges_free;
 
   // errormap
 

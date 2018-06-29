@@ -39,6 +39,7 @@
 #include "Pool.hpp"
 #include <NodeInfo.hpp>
 #include <NodeState.hpp>
+#include "OutputStream.hpp"
 #include "GlobalData.hpp"
 #include "LongSignal.hpp"
 #include <SignalLoggerManager.hpp>
@@ -1466,6 +1467,7 @@ public:
 
 #ifdef VM_TRACE
 public:
+  FileOutputStream debugOutFile;
   NdbOut debugOut;
   NdbOut& debugOutStream() { return debugOut; };
   bool debugOutOn();

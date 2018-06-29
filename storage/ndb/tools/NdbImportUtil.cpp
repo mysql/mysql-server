@@ -45,7 +45,6 @@ NdbImportUtil::NdbImportUtil() :
   c_rows_free = new RowList;
   c_rows_free->set_stats(m_util.c_stats, "rows-free");
   c_blobs_free = new BlobList;
-  c_ranges_free = new RangeList;
   add_pseudo_tables();
 }
 
@@ -1720,7 +1719,7 @@ NdbImportUtil::RowMap::get_total(uint64& rows, uint64& reject) const
 NdbImportUtil::Range*
 NdbImportUtil::alloc_range(bool dolock)
 {
-  RangeList& ranges = *c_ranges_free;
+  RangeList& ranges = c_ranges_free;
   if (dolock)
     ranges.lock();
   Range* range = ranges.pop_front();
@@ -1735,7 +1734,7 @@ NdbImportUtil::alloc_range(bool dolock)
 void
 NdbImportUtil::alloc_ranges(uint cnt, RangeList& dst)
 {
-  RangeList& ranges = *c_ranges_free;
+  RangeList& ranges = c_ranges_free;
   ranges.lock();
   for (uint i = 0; i < cnt; i++)
   {
@@ -1748,7 +1747,7 @@ NdbImportUtil::alloc_ranges(uint cnt, RangeList& dst)
 void
 NdbImportUtil::free_range(Range* range)
 {
-  RangeList& ranges = *c_ranges_free;
+  RangeList& ranges = c_ranges_free;
   ranges.lock();
   ranges.push_back(range);
   ranges.unlock();
@@ -1757,7 +1756,7 @@ NdbImportUtil::free_range(Range* range)
 void
 NdbImportUtil::free_ranges(RangeList& src)
 {
-  RangeList& ranges = *c_ranges_free;
+  RangeList& ranges = c_ranges_free;
   ranges.lock();
   ranges.push_back_from(src);
   ranges.unlock();

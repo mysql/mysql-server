@@ -560,6 +560,7 @@ void* thread_consumer1(void* dummy)
   char* flush = (char*)malloc(buf_t2->getSize());
   bytes = buf_t2->get(flush, buf_t2->getSize());
   fwrite(flush, bytes, 1, stdout);
+  free(flush);
 
   // print lost bytes if any
   size_t lost_count = buf_t2->getLostCount();
@@ -591,6 +592,7 @@ void* thread_consumer2(void* dummy)
   char* flush = (char*)malloc(buf_t3->getSize());
   bytes_flushed = buf_t3->get(flush, buf_t3->getSize());
   total_bytes_read_t3 += bytes_flushed;
+  free(flush);
 
   NdbThread_Exit(NULL);
   return NULL;
@@ -805,6 +807,10 @@ TAPTEST(LogBuffer)
   stop_t2 = true;
   NdbThread_WaitFor(log_threadvar1, NULL);
 
+  NdbThread_Destroy(&log_threadvar1);
+  NdbThread_Destroy(&prod_threadvar1);
+  NdbThread_Destroy(&prod_threadvar2);
+
   printf("\n--------TESTCASE 2 COMPLETE--------\n\n");
 
   printf("--------TESTCASE 3- RANDOM READS & WRITES--------\n\n");
@@ -834,6 +840,10 @@ TAPTEST(LogBuffer)
   {
     assert(total_to_write_t3 == bytes_written_t3);
   }
+
+  NdbThread_Destroy(&log_threadvar2);
+  NdbThread_Destroy(&prod_threadvar3);
+
   printf("\n--------TESTCASE 3 COMPLETE--------\n\n");
 
   delete buf_t1;
