@@ -45,6 +45,7 @@
 #include "my_sys.h"
 #include "my_table_map.h"
 #include "my_thread_local.h"
+#include "mysql/psi/mysql_table.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
@@ -2933,6 +2934,14 @@ void Query_result_create::drop_open_table() {
       quick_rm_table(thd, table_type, create_table->db,
                      create_table->table_name, 0);
     }
+#ifdef HAVE_PSI_TABLE_INTERFACE
+    else {
+      /* quick_rm_table() was not called, so remove the P_S table share here. */
+      PSI_TABLE_CALL(drop_table_share)
+      (false, create_table->db, strlen(create_table->db),
+       create_table->table_name, strlen(create_table->table_name));
+    }
+#endif
   }
   DBUG_VOID_RETURN;
 }
