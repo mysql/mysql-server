@@ -2285,3 +2285,15 @@ DROP DATABASE db3;
 --echo # Cleanup
 
 USE test;
+
+--echo
+--echo Bug #27714748: @@PARSER_MAX_MEM_SIZE DOES NOT WORK FOR ROUTINES
+--echo
+
+SET parser_max_mem_size = 10000000; # minimum allowed value
+--let $s = `SELECT REPEAT('x', @@parser_max_mem_size)`
+--disable_query_log
+--error ER_CAPACITY_EXCEEDED
+--eval CREATE PROCEDURE p() SELECT 1 FROM (SELECT '$s') a
+--enable_query_log
+SET parser_max_mem_size = default;

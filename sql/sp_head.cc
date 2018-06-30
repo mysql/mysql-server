@@ -3405,6 +3405,9 @@ void sp_parser_data::start_parsing_sp_body(THD *thd, sp_head *sp) {
   m_saved_free_list = thd->free_list;
 
   thd->mem_root = sp->get_persistent_mem_root();
+  thd->mem_root->set_max_capacity(m_saved_memroot->get_max_capacity());
+  thd->mem_root->set_error_for_capacity_exceeded(
+      m_saved_memroot->get_error_for_capacity_exceeded());
   thd->free_list = NULL;
 }
 
