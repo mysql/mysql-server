@@ -2368,3 +2368,9 @@ ERROR 42000: COLLATION 'cp1251_general_cs' is not valid for CHARACTER SET 'utf8m
 DROP DATABASE db3;
 # Cleanup
 USE test;
+
+Bug #27714748: @@PARSER_MAX_MEM_SIZE DOES NOT WORK FOR ROUTINES
+
+SET parser_max_mem_size = 10000000;
+ERROR HY000: Memory capacity of 10000000 bytes for 'parser_max_mem_size' exceeded. Parser bailed out for this query.
+SET parser_max_mem_size = default;

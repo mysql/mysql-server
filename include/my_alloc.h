@@ -202,6 +202,11 @@ struct MEM_ROOT {
   void set_max_capacity(size_t max_capacity) { m_max_capacity = max_capacity; }
 
   /**
+   * Return maximum capacity for this MEM_ROOT.
+   */
+  size_t get_max_capacity() const { return m_max_capacity; }
+
+  /**
    * Enable/disable error reporting for exceeding the maximum capacity.
    * If error reporting is enabled, an error is flagged to indicate that the
    * capacity is exceeded. However, allocation will still happen for the
@@ -211,6 +216,14 @@ struct MEM_ROOT {
    */
   void set_error_for_capacity_exceeded(bool report_error) {
     m_error_for_capacity_exceeded = report_error;
+  }
+
+  /**
+   * Return whether error is to be reported when
+   * maximum capacity exceeds for MEM_ROOT.
+   */
+  bool get_error_for_capacity_exceeded() const {
+    return m_error_for_capacity_exceeded;
   }
 
   /**
