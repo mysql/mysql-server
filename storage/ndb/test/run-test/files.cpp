@@ -21,6 +21,8 @@
 
 static bool generate_my_cnf(BaseString mycnf, atrt_config& config);
 static bool create_directory(const char* path);
+static bool delete_file_if_exists(const char* path);
+static bool copy_file(const char* src, const char* dst);
 
 bool setup_directories(atrt_config& config, int setup) {
   /**
@@ -183,6 +185,37 @@ static bool generate_my_cnf(BaseString mycnf, atrt_config& config) {
   return true;
 }
 
+bool exists_file(const char* path) {
+  struct stat sbuf;
+  int ret = lstat(path, &sbuf);
+  return ret == 0;
+}
+
+static bool delete_file_if_exists(const char* path) {
+  if (!exists_file(path)) {
+    return true;
+  }
+
+  if (unlink(path) != 0) {
+    g_logger.error("Failed to remove %s", path);
+    return false;
+  }
+
+  return true;
+}
+
+static bool copy_file(const char* src, const char* dst) {
+  BaseString cp;
+  cp.assfmt("cp %s %s", src, dst);
+  to_fwd_slashes(cp);
+  if (sh(cp.c_str()) != 0) {
+    g_logger.error("Failed to '%s'", cp.c_str());
+    return false;
+  }
+
+  return true;
+}
+
 bool setup_files(atrt_config& config, int setup, int sshx) {
   /**
    * 0 = validate
@@ -191,27 +224,20 @@ bool setup_files(atrt_config& config, int setup, int sshx) {
    */
   BaseString mycnf;
   mycnf.assfmt("%s/my.cnf", g_basedir);
+  to_native(mycnf);
 
   if (!create_directory(g_basedir)) {
     return false;
   }
 
   if (mycnf != g_my_cnf) {
-    struct stat sbuf;
-    int ret = lstat(to_native(mycnf).c_str(), &sbuf);
-
-    if (ret == 0) {
-      if (unlink(to_native(mycnf).c_str()) != 0) {
-        g_logger.error("Failed to remove %s", mycnf.c_str());
-        return false;
-      }
+    if (!delete_file_if_exists(mycnf.c_str())) {
+      return false;
     }
 
-    BaseString cp;
-    cp.assfmt("cp %s %s", g_my_cnf, mycnf.c_str());
-    to_fwd_slashes(cp);
-    if (sh(cp.c_str()) != 0) {
-      g_logger.error("Failed to '%s'", cp.c_str());
+    BaseString aux(g_my_cnf);
+    to_native(aux);
+    if (!copy_file(aux.c_str(), mycnf.c_str())) {
       return false;
     }
   }
