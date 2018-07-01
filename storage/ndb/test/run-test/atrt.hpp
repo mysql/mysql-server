@@ -142,6 +142,7 @@ bool sshx(atrt_config&, unsigned procmask);
 bool start(atrt_config&, unsigned procmask);
 
 bool remove_dir(const char*, bool incl = true);
+bool exists_file(const char* path);
 bool connect_hosts(atrt_config&);
 bool connect_ndb_mgm(atrt_config&);
 bool wait_ndb(atrt_config&, int ndb_mgm_node_status);
