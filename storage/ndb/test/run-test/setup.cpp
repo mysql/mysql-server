@@ -786,7 +786,7 @@ static bool pr_check_replication(Properties& props, proc_rule_ctx& ctx, int) {
 
 static bool pr_check_features(Properties& props, proc_rule_ctx& ctx, int) {
   atrt_cluster& cluster = *ctx.m_cluster;
-  if (cluster.m_name == ".atrt"){
+  if (cluster.m_name == ".atrt") {
     // skip cluster and replication features for atrt
     return true;
   }

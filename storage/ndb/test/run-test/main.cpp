@@ -209,7 +209,7 @@ int main(int argc, char **argv) {
     goto end;
   }
 
-  if(!g_config.m_processes.size()) {
+  if (!g_config.m_processes.size()) {
     g_logger.critical("Error: No processes defined in cluster configuration");
     goto end;
   }
@@ -421,7 +421,7 @@ int main(int argc, char **argv) {
       }
 
       if (!is_client_running(g_config)) {
-          break;
+        break;
       }
 
       if (!do_command(g_config)) {
@@ -1070,7 +1070,8 @@ bool stop_process(atrt_process &proc) {
         BaseString msg;
         reply.get("errormessage", msg);
         g_logger.error(
-            "Unable to stop process id: %d host: %s cmd: %s, msg: %s, status: %d",
+            "Unable to stop process id: %d host: %s cmd: %s, "
+            "msg: %s, status: %d",
             proc.m_proc.m_id, proc.m_host->m_hostname.c_str(),
             proc.m_proc.m_path.c_str(), msg.c_str(), status);
         return false;
@@ -1163,7 +1164,7 @@ int check_ndb_or_servers_failures(atrt_config &config) {
     bool isRunning = proc.m_proc.m_status == "running";
     if ((types & proc.m_type) != 0 && !isRunning && !skip) {
       g_logger.critical("%s #%d not running on %s", proc.m_name.c_str(),
-                         proc.m_index, proc.m_host->m_hostname.c_str());
+                        proc.m_index, proc.m_host->m_hostname.c_str());
       failed_processes |= proc.m_type;
     }
   }
@@ -1173,7 +1174,7 @@ int check_ndb_or_servers_failures(atrt_config &config) {
   if ((failed_processes & p_ndb) != 0) {
     return ERR_NDB_FAILED;
   }
-  if((failed_processes & p_servers) != 0) {
+  if ((failed_processes & p_servers) != 0) {
     return ERR_SERVERS_FAILED;
   }
   return 0;
