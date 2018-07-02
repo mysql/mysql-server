@@ -1,4 +1,5 @@
 --source include/have_ndb.inc
+CALL mtr.add_suppression("Incorrect information in file");
 
 if (`select @@log_bin`)
 {

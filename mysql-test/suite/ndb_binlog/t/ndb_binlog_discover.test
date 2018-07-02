@@ -1,6 +1,7 @@
 -- source include/have_ndb.inc
 -- source include/have_binlog_format_mixed_or_row.inc
 
+CALL mtr.add_suppression("Incorrect information in file");
 #
 # Bug #14516 Restart of cluster can cause NDB API replication failure
 #

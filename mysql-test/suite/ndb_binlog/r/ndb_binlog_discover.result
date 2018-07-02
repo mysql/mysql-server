@@ -1,3 +1,4 @@
+CALL mtr.add_suppression("Incorrect information in file");
 create table t2 (a int key) engine=ndb;
 alter table t2 rename t1;
 reset master;

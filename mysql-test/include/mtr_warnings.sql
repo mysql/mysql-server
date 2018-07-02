@@ -97,17 +97,10 @@ SET @@collation_connection = @collation_connection_saved||
 -- Insert patterns that should always be suppressed
 --
 INSERT INTO global_suppressions VALUES
- (".SELECT UNIX_TIMESTAMP... failed on master"),
- ("Aborted connection"),
  ("Client requested master to start replication from position"),
- ("Could not find first log file name in binary log"),
- ("Enabling keys got errno"),
  ("Error reading master configuration"),
  ("Error reading packet"),
  ("Event Scheduler"),
- ("Failed to open log"),
- ("Failed to open the existing master info file"),
- ("Forcing shutdown of [0-9]* plugins"),
  ("Forcing close of thread"),
 
  ("innodb-page-size has been changed"),
@@ -119,19 +112,12 @@ INSERT INTO global_suppressions VALUES
  */
 
  ("Got error [0-9]* when reading table"),
- ("Incorrect definition of table"),
- ("Incorrect information in file"),
- ("InnoDB: Warning: we did not need to do crash recovery"),
- ("Invalid \\(old\\?\\) table or database name"),
  ("Lock wait timeout exceeded"),
  ("Log entry on master is longer than max_allowed_packet"),
  ("unknown option '--loose-"),
  ("unknown variable 'loose-"),
- ("You have forced lower_case_table_names to 0 through a command-line option"),
  ("Setting lower_case_table_names=2"),
  ("NDB Binlog:"),
- ("NDB: failed to setup table"),
- ("NDB: only row based binary logging"),
  ("Neither --relay-log nor --relay-log-index were used"),
  ("Query partially completed"),
  ("Slave I.O thread aborted while waiting for relay log"),
@@ -153,10 +139,7 @@ INSERT INTO global_suppressions VALUES
  ("Slave: The incident LOST_EVENTS occurred on the master"),
  ("Slave: Unknown error.* MY-001105"),
  ("Slave: Can't drop database.* database doesn't exist"),
- ("Sort aborted"),
  ("Time-out in NDB"),
- ("Warning:\s+One can only use the --user.*root"),
- ("Warning:\s+Table:.* on (delete|rename)"),
  ("You have an error in your SQL syntax"),
  ("deprecated"),
  ("description of time zone"),
@@ -170,21 +153,11 @@ INSERT INTO global_suppressions VALUES
 
  ("Statement may not be safe to log in statement format"),
 
- /* innodb foreign key tests that fail in ALTER or RENAME produce this */
- ("InnoDB: Error: in ALTER TABLE `test`.`t[123]`"),
- ("InnoDB: Error: in RENAME TABLE table `test`.`t1`"),
- ("InnoDB: Error: table `test`.`t[123]` does not exist in the InnoDB internal"),
  /* 
     innodb_dedicated_server warning which raised if innodb_buffer_pool_size,
     innodb_log_file_size or innodb_flush_method is specified.
  */
  ("InnoDB: Option innodb_dedicated_server is ignored"),
-
- /*
-   BUG#32080 - Excessive warnings on Solaris: setrlimit could not
-   change the size of core files
-  */
- ("setrlimit could not change the size of core files to 'infinity'"),
 
  ("The slave I.O thread stops because a fatal error is encountered when it tries to get the value of SERVER_UUID variable from master.*"),
  ("The initialization command '.*' failed with the following error.*"),
@@ -196,12 +169,6 @@ INSERT INTO global_suppressions VALUES
 
  /* Added 2009-08-XX after fixing Bug #42408 */
 
- ("Although a path was specified for the --general-log-file option, log tables are used"),
- ("Although a path was specified for the --slow-query-log-file option, log tables are used"),
- ("Backup: Operation aborted"),
- ("Restore: Operation aborted"),
- ("Restore: The grant .* was skipped because the user does not exist"),
- ("The path specified for the variable .* is not a directory or cannot be written:"),
  ("Master server does not support or not configured semi-sync replication, fallback to asynchronous"),
  (": The MySQL server is running with the --secure-backup-file-priv option so it cannot execute this statement"),
  ("Slave: Unknown table 'test.t1' Error_code: 1051"),
@@ -251,11 +218,6 @@ INSERT INTO global_suppressions VALUES
   of events, this warning is emitted.
   */
  ("Slave SQL.*: Coordinator thread of multi-threaded slave is being stopped in the middle of assigning a group of events.*"),
- 
- ("Changed limits: max_open_files: *"),
- ("Changed limits: max_connections: *"),
- ("Changed limits: table_open_cache: *"),
- ("Could not increase number of max_open_files to more than *"),
 
  /*
    Warning message introduced by wl#7706

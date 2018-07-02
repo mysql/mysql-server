@@ -1,3 +1,4 @@
+CALL mtr.add_suppression("Incorrect information in file");
 SET @@session.default_storage_engine = 'InnoDB';
 #
 # Section 1. Wrong column definition options

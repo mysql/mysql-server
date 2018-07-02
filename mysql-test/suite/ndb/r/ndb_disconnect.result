@@ -1,6 +1,7 @@
 #
 # Testing bug#21837074
 #
+CALL mtr.add_suppression("Incorrect information in file");
 create table test.t1(i int primary key) engine=ndb;
 # Restarting all the nodes with 'no start'
 Restarting all nodes "no start"

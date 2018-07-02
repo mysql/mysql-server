@@ -5,7 +5,7 @@
 
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
-
+CALL mtr.add_suppression("Enabling keys got errno");
 #
 # Test bugs in the MyISAM code
 #

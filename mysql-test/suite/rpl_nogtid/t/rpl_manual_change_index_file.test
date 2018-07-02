@@ -1,7 +1,7 @@
 source include/not_windows.inc;
 --source include/not_group_replication_plugin.inc
 source include/master-slave.inc;
-
+CALL mtr.add_suppression("Failed to open log");
 #
 # BUG#28421 Infinite loop on slave relay logs
 # 

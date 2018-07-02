@@ -2,6 +2,7 @@
 --source include/have_myisam.inc
 
 --source include/have_debug.inc
+CALL mtr.add_suppression("Enabling keys got errno");
 
 --echo #
 --echo # BUG#40827 - Killing insert-select to MyISAM can cause table corruption

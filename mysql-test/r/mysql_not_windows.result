@@ -8,6 +8,8 @@ a
 # open_files_limit to too low a value after setrlimit fails to set
 # open_files_limit to 10000000
 CALL mtr.add_suppression("innodb_open_files should not be greater than the open_files_limit.");
+CALL mtr.add_suppression("Changed limits: table_open_cache: *");
+CALL mtr.add_suppression("Could not increase number of max_open_files to more than *");
 SELECT @@open_files_limit = 10000000;
 @@open_files_limit = 10000000
 0

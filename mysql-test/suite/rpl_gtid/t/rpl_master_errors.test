@@ -6,6 +6,7 @@
 --source include/master-slave.inc
 
 call mtr.add_suppression(".* You need to use --log-bin to make .* work.");
+CALL mtr.add_suppression("Failed to open log");
 --sync_slave_with_master
 --source include/stop_slave.inc
 CHANGE MASTER TO MASTER_AUTO_POSITION= 0;

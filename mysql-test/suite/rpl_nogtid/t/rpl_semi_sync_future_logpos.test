@@ -20,6 +20,7 @@
 call mtr.add_suppression("Timeout waiting for reply of binlog*");
 call mtr.add_suppression("Read semi-sync reply network error");
 call mtr.add_suppression("Semi-sync master failed on net_flush.. before waiting for slave reply");
+CALL mtr.add_suppression("Could not find first log file name in binary log");
 
 --source include/rpl_connection_master.inc
 CREATE TABLE t1 (a INT);

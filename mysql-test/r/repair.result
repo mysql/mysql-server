@@ -1,3 +1,4 @@
+CALL mtr.add_suppression("Enabling keys got errno");
 drop table if exists t1;
 create table t1 SELECT 1,"table 1";
 repair table t1 use_frm;
