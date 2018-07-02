@@ -14487,9 +14487,6 @@ int ha_innobase::info_low(uint flag, bool is_analyze) {
     dict_table_stats_unlock(ib_table, RW_S_LATCH);
   }
 
-  /* TODO: create_time code removed since it relied on getting
-  info from the .FRM. This should be handled by I_S changes. */
-
   if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
     goto func_exit;
 

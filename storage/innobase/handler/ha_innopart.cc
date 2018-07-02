@@ -3532,19 +3532,6 @@ int ha_innopart::info_low(uint flag, bool is_analyze) {
     if ((flag & HA_STATUS_NO_LOCK) == 0) {
       dict_table_stats_unlock(ib_table, RW_S_LATCH);
     }
-
-    char path[FN_REFLEN];
-    os_file_stat_t stat_info;
-    /* Use the first partition for create time until new DD. */
-    ib_table = m_part_share->get_table_part(0);
-    snprintf(path, sizeof(path), "%s/%s%s", mysql_data_home,
-             table->s->normalized_path.str, reg_ext);
-
-    unpack_filename(path, path);
-
-    if (os_file_get_status(path, &stat_info, false, true) == DB_SUCCESS) {
-      stats.create_time = (ulong)stat_info.ctime;
-    }
   }
 
   if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
