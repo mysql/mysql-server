@@ -26,6 +26,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 #
 # 1. Initial data.
 #
+call mtr.add_suppression("Timeout waiting for reply of binlog");
 CREATE TABLE t1(c1 INT);
 include/rpl_sync.inc
 #
