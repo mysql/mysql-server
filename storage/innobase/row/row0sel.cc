@@ -2960,7 +2960,7 @@ static MY_ATTRIBUTE((warn_unused_result)) ibool
   ut_ad(!rec_clust || index->is_clustered());
 
   if (UNIV_LIKELY_NULL(prebuilt->blob_heap)) {
-    row_mysql_prebuilt_free_blob_heap(prebuilt);
+    mem_heap_empty(prebuilt->blob_heap);
   }
 
   if (clust_templ_for_sec) {
