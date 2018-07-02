@@ -7825,7 +7825,7 @@ static void test_mem_overun() {
   char buffer[10000], field[10];
   MYSQL_STMT *stmt;
   MYSQL_RES *field_res;
-  int rc, i;
+  int rc;
   ulong length;
 
   myheader("test_mem_overun");
@@ -7838,7 +7838,7 @@ static void test_mem_overun() {
   myquery(rc);
 
   strxmov(buffer, "create table t_mem_overun(", NullS);
-  for (i = 0; i < 1000; i++) {
+  for (unsigned i = 0; i < 1000; i++) {
     sprintf(field, "c%d int", i);
     strxmov(buffer, buffer, field, ", ", NullS);
   }
@@ -7852,7 +7852,7 @@ static void test_mem_overun() {
   myquery(rc);
 
   strxmov(buffer, "insert into t_mem_overun values(", NullS);
-  for (i = 0; i < 1000; i++) {
+  for (int i = 0; i < 1000; i++) {
     strxmov(buffer, buffer, "1, ", NullS);
   }
   length = (ulong)strlen(buffer);
