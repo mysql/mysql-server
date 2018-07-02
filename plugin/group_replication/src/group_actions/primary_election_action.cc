@@ -406,10 +406,12 @@ int Primary_election_action::after_view_change(
   bool is_old_primary_leaving = false;
   bool is_appointed_primary_leaving = false;
   for (Gcs_member_identifier leaving_member : leaving) {
-    is_appointed_primary_leaving =
-        (leaving_member.get_member_id() == appointed_primary_gcs_id);
-    is_old_primary_leaving =
-        (leaving_member.get_member_id() == invoking_member_gcs_id);
+    if (leaving_member.get_member_id() == appointed_primary_gcs_id) {
+      is_appointed_primary_leaving = true;
+    }
+    if (leaving_member.get_member_id() == invoking_member_gcs_id) {
+      is_old_primary_leaving = true;
+    }
   }
 
   if (is_old_primary_leaving) {
@@ -513,6 +515,8 @@ int Primary_election_action::after_view_change(
     Group_member_info *member_info =
         group_member_mgr->get_primary_member_info();
     if (member_info == NULL || is_appointed_primary_leaving) {
+      DBUG_ASSERT(appointed_primary_gcs_id.empty() ||
+                  is_appointed_primary_leaving);
       *skip_primary_election = false;
       std::string new_primary("");
       if (PRIMARY_ELECTION_ACTION_PRIMARY_SWITCH == action_execution_mode) {
