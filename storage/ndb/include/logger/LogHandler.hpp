@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2006, 2008 MySQL AB, 2008 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -86,9 +85,9 @@ public:
    * @param pMsg the log message.
    */
   void append(const char* pCategory, Logger::LoggerLevel level,
-	      const char* pMsg);
+	      const char* pMsg, time_t now);
   void append_impl(const char* pCategory, Logger::LoggerLevel level,
-		   const char* pMsg);
+		   const char* pMsg, time_t now);
 
   /**
    * Returns a default formatted header. It currently has the
@@ -100,7 +99,7 @@ public:
    * @return the header.
    */
   const char* getDefaultHeader(char* pStr, const char* pCategory, 
-			       Logger::LoggerLevel level) const;
+			       Logger::LoggerLevel level, time_t now) const;
   
   /**
    * Returns a default formatted footer. Currently only returns a newline.
@@ -186,7 +185,8 @@ protected:
    * @param pCategory the category to tag the log with.
    * @param level the log level.
    */
-  virtual void writeHeader(const char* category, Logger::LoggerLevel level) = 0;
+  virtual void writeHeader(const char* category, Logger::LoggerLevel level,
+                           time_t now) = 0;
 
   /**
    * Write the message to the log.
@@ -202,7 +202,6 @@ protected:
   virtual void writeFooter() = 0;
   
 private: 
-  time_t m_now;
 
   /** Prohibit */
   LogHandler(const LogHandler&);

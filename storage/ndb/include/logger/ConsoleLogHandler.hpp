@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003, 2005, 2006 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -48,7 +47,8 @@ public:
   virtual bool setParam(const BaseString &param, const BaseString &value);
   
 protected:	
-  virtual void writeHeader(const char* pCategory, Logger::LoggerLevel level);
+  virtual void writeHeader(const char* pCategory, Logger::LoggerLevel level,
+                           time_t now);
   virtual void writeMessage(const char* pMsg);
   virtual void writeFooter();
   NdbOut& _out;

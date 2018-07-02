@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -371,7 +371,8 @@ Logger::log(LoggerLevel logLevel, const char* pMsg, va_list ap) const
     LogHandler* pHandler = NULL;
     while ( (pHandler = m_pHandlerList->next()) != NULL)
     {
-      pHandler->append(m_pCategory, logLevel, buf);
+      time_t now = ::time((time_t*)NULL);
+      pHandler->append(m_pCategory, logLevel, buf, now);
     }
   }
 }
