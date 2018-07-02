@@ -18183,9 +18183,6 @@ ER_IB_MSG_1274
 ER_IB_MSG_1275
   eng "%s"
 
-ER_NO_SESSION_TEMP
-  eng "Unable to allocate temporary tablespace for this session"
-
 ER_TARGET_TS_UNENCRYPTED
   eng "Source tablespace is encrypted but target tablespace is not."
 
@@ -18305,6 +18302,9 @@ ER_SECONDARY_ENGINE
 
 ER_SECONDARY_ENGINE_DDL
   eng "DDLs on a table with a secondary engine defined are not allowed."
+
+ER_NO_SESSION_TEMP
+  eng "Unable to allocate temporary tablespace for this session"
 
 #
 # End of 8.0 error messages intended to be logged to the server error log.
