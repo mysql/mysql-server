@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -48,7 +48,8 @@ public:
   static int printf(Logger::LoggerLevel m_level, const char* source_name,
                     const char* msg, ...) ATTRIBUTE_FORMAT(printf, 3, 4);
 private:
-  virtual void writeHeader(const char* pCategory, Logger::LoggerLevel level);
+  virtual void writeHeader(const char* pCategory, Logger::LoggerLevel level,
+                           time_t now);
   virtual void writeMessage(const char* pMsg);
   virtual void writeFooter();
 
