@@ -163,7 +163,8 @@ std::string Client::resolve_hostname() {
       m_connection->peer_addr(socket_ip_string, socket_port);
 
   if (NULL == addr) {
-    log_error(ER_XPLUGIN_GET_PEER_ADDRESS_FAILED, m_id);
+    log_debug("%s: get peer address failed, can't resolve IP to hostname",
+              m_id);
     return "";
   }
 

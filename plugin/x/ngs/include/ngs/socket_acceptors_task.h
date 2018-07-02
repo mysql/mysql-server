@@ -64,9 +64,14 @@ class Socket_acceptors_task : public Server_task_interface {
 
   bool prepare_impl(Task_context *context);
   Listener_interfaces get_array_of_listeners();
+  void show_startup_log();
 
   static bool is_listener_configured(Listener_interface *listener);
   static void log_listener_state(Listener_interface *listener);
+  static void mark_as_stopped(Listener_interface *listener);
+  static void wait_until_stopped(Listener_interface *listener);
+  static void close_listener(Listener_interface *listener);
+  static bool check_listener_status(Listener_interface *listener);
 
   std::shared_ptr<Socket_events_interface> m_event;
   std::string m_bind_address;

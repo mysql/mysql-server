@@ -269,12 +269,11 @@ std::string Listener_tcp::get_last_error() { return m_last_error; }
 
 std::string Listener_tcp::get_name_and_configuration() const {
   return ngs::String_formatter()
-      .append("TCP (bind-address:'")
+      .append("bind-address: '")
       .append(m_bind_address)
-      .append("', ")
-      .append("port:")
+      .append("' ")
+      .append("port: ")
       .append(m_port)
-      .append(")")
       .get_result();
 }
 

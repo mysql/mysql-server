@@ -7,6 +7,7 @@
 call mtr.add_suppression("Plugin 'mysqlx' will be forced to shutdown");
 call mtr.add_suppression("Internal account mysqlxsys@localhost can't be removed because server is running without user privileges ..skip-grant-tables. switch");
 call mtr.add_suppression("Maximum number of authentication attempts reached");
+call mtr.add_suppression("Access denied for user .*");
 
 --let $USER_CIPHER= --ssl-cipher='DHE-RSA-AES256-SHA'
 

@@ -1,4 +1,5 @@
 call mtr.add_suppression("Maximum number of authentication attempts reached");
+call mtr.add_suppression("Access denied for user .*");
 
 
 #

@@ -502,7 +502,7 @@ TEST_F(Listener_tcp_testsuite, setup_listener_success_evean_socket_opt_fails) {
 TEST_F(Listener_tcp_testsuite, get_name_and_configuration) {
   make_sut(ALL_INTERFACES_6, 2222);
 
-  ASSERT_STREQ("TCP (bind-address:'::', port:2222)",
+  ASSERT_STREQ("bind-address: '::' port: 2222",
                sut->get_name_and_configuration().c_str());
 }
 
