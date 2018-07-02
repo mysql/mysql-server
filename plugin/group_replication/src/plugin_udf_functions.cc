@@ -211,8 +211,9 @@ const char *const member_offline_or_minority_str =
 
 static char *group_replication_set_as_primary(UDF_INIT *, UDF_ARGS *args,
                                               char *result,
-                                              unsigned long *length, char *,
-                                              char *) {
+                                              unsigned long *length,
+                                              unsigned char *,
+                                              unsigned char *) {
   DBUG_ENTER("group_replication_set_as_primary");
 
   size_t ulength = 0;
@@ -354,8 +355,8 @@ static bool group_replication_set_as_primary_init(UDF_INIT *initid,
 static void group_replication_set_as_primary_deinit(UDF_INIT *) {}
 
 static char *group_replication_switch_to_single_primary_mode(
-    UDF_INIT *, UDF_ARGS *args, char *result, unsigned long *length, char *,
-    char *) {
+    UDF_INIT *, UDF_ARGS *args, char *result, unsigned long *length,
+    unsigned char *, unsigned char *) {
   DBUG_ENTER("group_replication_switch_to_single_primary_mode");
 
   if (local_member_info && local_member_info->in_primary_mode()) {
@@ -491,8 +492,8 @@ static void group_replication_switch_to_single_primary_mode_deinit(UDF_INIT *) {
 
 // multi primary
 static char *group_replication_switch_to_multi_primary_mode(
-    UDF_INIT *, UDF_ARGS *, char *result, unsigned long *length, char *,
-    char *) {
+    UDF_INIT *, UDF_ARGS *, char *result, unsigned long *length,
+    unsigned char *, unsigned char *) {
   DBUG_ENTER("group_replication_switch_to_multi_primary_mode");
 
   if (local_member_info && !local_member_info->in_primary_mode()) {
@@ -577,8 +578,8 @@ static bool group_replication_get_write_concurrency_init(UDF_INIT *,
 static void group_replication_get_write_concurrency_deinit(UDF_INIT *) {}
 
 static long long group_replication_get_write_concurrency(UDF_INIT *, UDF_ARGS *,
-                                                         char *is_null,
-                                                         char *error) {
+                                                         unsigned char *is_null,
+                                                         unsigned char *error) {
   DBUG_ASSERT(check_member_status());
   uint32_t write_concurrency = 0;
   gcs_module->get_write_concurrency(write_concurrency);
@@ -640,8 +641,8 @@ static void group_replication_set_write_concurrency_deinit(UDF_INIT *) {}
 static char *group_replication_set_write_concurrency(UDF_INIT *, UDF_ARGS *args,
                                                      char *result,
                                                      unsigned long *length,
-                                                     char *is_null,
-                                                     char *error) {
+                                                     unsigned char *is_null,
+                                                     unsigned char *error) {
   /* According to sql/udf_example.cc, result has at least 255 bytes */
   unsigned long constexpr max_safe_length = 255;
   DBUG_ASSERT(check_member_status());
