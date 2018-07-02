@@ -173,9 +173,10 @@ public:
   virtual off_t getCurrentSize() {return -1;};
   virtual off_t getMaxSize() {return -1;};
 
-protected:
   /** Max length of the header the log. */
   STATIC_CONST( MAX_HEADER_LENGTH = 128 );
+
+protected:
   /** Max lenght of footer in the log. */
   STATIC_CONST( MAX_FOOTER_LENGTH = 128 );
 
