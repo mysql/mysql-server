@@ -1,0 +1,79 @@
+include/rpl_init.inc [topology=1->2,3->2]
+[connection server_2]
+call mtr.add_suppression("There are per-channel replication filter.s. configured for channel '' which does not exist. The filter.s. have been discarded.");
+call mtr.add_suppression("There are per-channel replication filter.s. configured for channel 'channel_3_2' which does not exist. The filter.s. have been discarded.");
+CHANGE MASTER TO MASTER_HOST='localhost', MASTER_PORT=MASTER_PORT, MASTER_USER='root' for CHANNEL '';
+CHANGE MASTER TO MASTER_HOST='localhost', MASTER_PORT=MASTER_PORT_3, MASTER_USER='root' for CHANNEL 'channel_3_2';
+include/start_slave.inc
+
+# Restart slave server to activate replicate-rewrite-db per-channel filter.
+include/rpl_restart_server.inc [server_number=2]
+
+# Check that the replicate-rewrite-db filter has been activated.
+include/assert.inc [Check that the filters have been set properly]
+include/assert.inc [Check that the filters have been set properly]
+
+# Do some transactions on server_1.
+[connection server_1]
+CREATE DATABASE db1;
+CREATE DATABASE rewrite_db1;
+use db1;
+CREATE TABLE t1(a int primary key);
+INSERT INTO t1 values(23);
+CREATE DATABASE db2;
+use db2;
+CREATE TABLE db2.t1(a int primary key);
+INSERT INTO t1 values(23);
+include/sync_slave_sql_with_master.inc [FOR CHANNEL '']
+
+# Check that the replicate-rewrite-db filter has been applied correctly.
+include/assert.inc [Check that the table rewrite_db1.t1 is present.]
+include/assert.inc [Check that the table db1.t1 is not present .]
+include/assert.inc [Check that the table db2.t1 is present.]
+include/assert.inc [Check that the DML on db1.t1 is performed on rewrite_db1.t1 table.]
+include/assert.inc [Check that table db2.t1 has 1 record.]
+
+# Do some transactions on server_3.
+[connection server_3]
+CREATE DATABASE db3;
+CREATE DATABASE rewrite_db3;
+use db3;
+CREATE TABLE t1(a int primary key);
+INSERT INTO t1 values(23);
+CREATE DATABASE db4;
+use db4;
+CREATE TABLE db4.t1(a int primary key);
+INSERT INTO t1 values(23);
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3_2']
+
+# Check that the replicate-rewrite-db filter has been applied correctly.
+include/assert.inc [Check that the table rewrite_db3.t1 is present.]
+include/assert.inc [Check that the table db3.t1 is not present .]
+include/assert.inc [Check that the table db4.t1 is present.]
+include/assert.inc [Check that the DML on db3.t1 is performed on rewrite_db3.t1 table.]
+include/assert.inc [Check that table db4.t1 has 1 record.]
+
+# Cleanup
+[connection server_1]
+DROP DATABASE db1;
+DROP DATABASE rewrite_db1;
+DROP DATABASE db2;
+include/sync_slave_sql_with_master.inc [FOR CHANNEL '']
+[connection server_3]
+DROP DATABASE db3;
+DROP DATABASE rewrite_db3;
+DROP DATABASE db4;
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3_2']
+include/stop_slave.inc [FOR CHANNEL 'channel_3_2']
+include/stop_slave.inc [FOR CHANNEL '']
+RESET SLAVE ALL FOR CHANNEL '';
+RESET SLAVE ALL FOR CHANNEL 'channel_3_2';
+CHANGE MASTER TO MASTER_HOST='localhost',MASTER_PORT=MASTER_PORT,MASTER_USER='root' for CHANNEL 'channel_1';
+CHANGE MASTER TO MASTER_HOST='localhost',MASTER_PORT=MASTER_PORT_3,MASTER_USER='root' for CHANNEL 'channel_3';
+include/rpl_end.inc
+Warnings:
+Note	3084	Replication thread(s) for channel 'channel_1' are already stopped.
+Warnings:
+Note	3084	Replication thread(s) for channel 'channel_3' are already stopped.
+RESET SLAVE ALL FOR CHANNEL 'channel_1';
+RESET SLAVE ALL FOR CHANNEL 'channel_3';
