@@ -36,6 +36,7 @@
 --echo #
 --echo # 1. Initial data.
 --echo #
+call mtr.add_suppression("Timeout waiting for reply of binlog");
 CREATE TABLE t1(c1 INT);
 --source include/rpl_sync.inc
 
