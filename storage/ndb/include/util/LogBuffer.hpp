@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,36 @@
 #include <ndb_global.h>
 
 #include <NdbMutex.h>
+
+class LostMsgHandler
+{
+public:
+  /* Return size in bytes which must be appended to describe the lost messages */
+  virtual size_t getSizeOfLostMsg(size_t lost_bytes, size_t lost_msgs) = 0;
+
+  /* Write lost message summary into the buffer for the lost message summary */
+  virtual bool writeLostMsg(char* buf, size_t buf_size, size_t lost_bytes, size_t lost_msgs) = 0;
+
+  virtual ~LostMsgHandler() {};
+};
+
+class ByteStreamLostMsgHandler : public LostMsgHandler
+{
+private:
+  const char* m_lost_msg_fmt;
+
+public:
+  ByteStreamLostMsgHandler(): m_lost_msg_fmt("\n*** %u BYTES LOST ***\n")
+  {
+  }
+  /* Return size in bytes which must be appended to describe the lost messages */
+  size_t getSizeOfLostMsg(size_t lost_bytes, size_t lost_msgs);
+
+  /* Write lost message summary into the buffer for the lost message summary */
+  bool writeLostMsg(char* buf, size_t buf_size, size_t lost_bytes, size_t lost_msgs);
+
+  ~ByteStreamLostMsgHandler() {}
+};
 
 /**
  * Suitable for multiple producers and multiple consumers that are
@@ -61,8 +91,11 @@ public:
 
   /**
    * @param size Size of log buffer in bytes
+   * @param lost_msg_handler Delegate to handle lost messages
    */
-  explicit LogBuffer(size_t size= 32768);
+  explicit LogBuffer(size_t size= 32768,
+                     LostMsgHandler* lost_msg_handler=
+                         new ByteStreamLostMsgHandler());
 
   ~LogBuffer();
 
@@ -146,7 +179,12 @@ private:
   size_t m_size; // number of bytes used
 
   // number of bytes of data lost since the previous loss
-  size_t m_lost_count;
+  size_t m_lost_bytes;
+
+  // the number of unsuccessful append() calls
+  size_t m_lost_messages;
+
+  LostMsgHandler* m_lost_msg_handler;
 
   NdbMutex *m_mutex;
   struct NdbCondition* m_cond;

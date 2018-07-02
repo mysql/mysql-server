@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2006 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
-    Use is subject to license terms.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,10 +56,11 @@ ConsoleLogHandler::is_open()
 // PROTECTED
 //
 void 
-ConsoleLogHandler::writeHeader(const char* pCategory, Logger::LoggerLevel level)
+ConsoleLogHandler::writeHeader(const char* pCategory, Logger::LoggerLevel level,
+                               time_t now)
 {
-  char str[LogHandler::MAX_HEADER_LENGTH];
-  _out << getDefaultHeader(str, pCategory, level);	
+  char str[MAX_HEADER_LENGTH];
+  _out << getDefaultHeader(str, pCategory, level, now);
 }
 
 void 

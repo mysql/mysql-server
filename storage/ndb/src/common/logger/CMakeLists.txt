@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -27,5 +27,6 @@ ADD_CONVENIENCE_LIBRARY(ndblogger
             ConsoleLogHandler.cpp
 	    SysLogHandler.cpp
             EventLogHandler.cpp
-            FileLogHandler.cpp)
+            FileLogHandler.cpp
+            BufferedLogHandler.cpp)
 TARGET_LINK_LIBRARIES(ndblogger ndbgeneral)
