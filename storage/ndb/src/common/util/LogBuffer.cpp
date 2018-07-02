@@ -21,11 +21,27 @@
 #include <BaseString.hpp>
 #include <basestring_vsnprintf.h>
 
-LogBuffer::LogBuffer(size_t size) :
+size_t
+ByteStreamLostMsgHandler::getSizeOfLostMsg(size_t lost_bytes, size_t lost_msgs)
+{
+  size_t lost_msg_len = basestring_snprintf(NULL, 0, m_lost_msg_fmt, lost_bytes);
+  return lost_msg_len;
+}
+
+bool
+ByteStreamLostMsgHandler::writeLostMsg(char* buf, size_t buf_size, size_t lost_bytes, size_t lost_msgs)
+{
+  basestring_snprintf(buf, buf_size, m_lost_msg_fmt, lost_bytes);
+  return true;
+}
+
+LogBuffer::LogBuffer(size_t size, LostMsgHandler* lost_msg_handler) :
     m_log_buf(0),
     m_max_size(size),
     m_size(0),
-    m_lost_count(0)
+    m_lost_bytes(0),
+    m_lost_messages(0),
+    m_lost_msg_handler(lost_msg_handler)
 {
   m_log_buf = (char*)malloc(size+1);
   assert(m_log_buf != NULL);
@@ -44,6 +60,7 @@ LogBuffer::~LogBuffer()
 {
   assert(checkInvariants());
   free(m_log_buf);
+  delete m_lost_msg_handler;
   NdbCondition_Destroy(m_cond);
   NdbMutex_Destroy(m_mutex);
 }
@@ -144,18 +161,20 @@ LogBuffer::checkForBufferSpace(size_t write_bytes)
 {
   bool ret = true;
   assert(checkInvariants());
-  if(m_lost_count)// there are lost bytes
+  if(m_lost_bytes)// there are lost bytes
   {
+    assert(m_lost_messages != 0);
     char* write_ptr = NULL;
-    const char* lost_msg = "\n*** %u BYTES LOST ***\n";
-    int lost_msg_len = basestring_snprintf(NULL, 0, lost_msg, m_lost_count);
+    int lost_msg_len = m_lost_msg_handler->getSizeOfLostMsg(m_lost_bytes, m_lost_messages);
     assert(lost_msg_len > 0);
 
     // append the lost msg
     if((write_ptr = getWritePtr(write_bytes + lost_msg_len + 1)))
     {
-      basestring_snprintf(write_ptr, lost_msg_len + 1, lost_msg, m_lost_count);
-      m_lost_count = 0; // make lost count 0
+      m_lost_msg_handler->writeLostMsg(write_ptr, lost_msg_len + 1, m_lost_bytes, m_lost_messages);
+      // make lost counts 0
+      m_lost_bytes = 0;
+      m_lost_messages = 0;
       if(write_ptr == m_log_buf && m_write_ptr != m_log_buf)
       {
         // need to wrap the write ptr
@@ -166,7 +185,8 @@ LogBuffer::checkForBufferSpace(size_t write_bytes)
     else
     {
       // no space for lost msg and write_bytes
-      m_lost_count += write_bytes;
+      m_lost_bytes += write_bytes;
+      m_lost_messages += 1;
       ret = false;
     }
   }
@@ -184,30 +204,30 @@ LogBuffer::append(void* buf, size_t write_bytes)
   size_t ret = 0;
   bool buffer_was_empty = (m_size == 0);
 
-  if(write_bytes == 0)
+  if (write_bytes == 0)
   {
     // nothing to be appended
     return ret;
   }
   // preliminary check for space availability
-  if(!checkForBufferSpace(write_bytes))
+  if (!checkForBufferSpace(write_bytes))
   {
     // this append is not possible since there's no space for log message
     return ret;
   }
 
   write_ptr = getWritePtr(write_bytes);
-  if(write_ptr)
+  if (write_ptr)
   {
     memcpy(write_ptr, buf, write_bytes);
-    if(write_ptr == m_log_buf && m_write_ptr != m_log_buf)
+    if (write_ptr == m_log_buf && m_write_ptr != m_log_buf)
     {
       //need to wrap the write ptr
       wrapWritePtr();
     }
     updateWritePtr(write_bytes);
     ret = write_bytes;
-    if(buffer_was_empty)
+    if (buffer_was_empty)
     {
       // signal consumers if log buf was empty previously
       NdbCondition_Signal(m_cond);
@@ -216,7 +236,8 @@ LogBuffer::append(void* buf, size_t write_bytes)
   else
   {
     // insufficient space to write
-    m_lost_count += write_bytes;
+    m_lost_bytes += write_bytes;
+    m_lost_messages += 1;
     ret = 0;
   }
   assert(checkInvariants());
@@ -282,7 +303,8 @@ LogBuffer::append(const char* fmt, va_list ap, size_t len, bool append_ln)
        * Insufficient space to write, lost count doesn't include
        * the null byte at the end of string.
        */
-      m_lost_count += write_bytes - 1;
+      m_lost_bytes += write_bytes - 1;
+      m_lost_messages += 1;
       ret = 0;
     }
   }
@@ -397,7 +419,7 @@ LogBuffer::getSize() const
 size_t
 LogBuffer::getLostCount() const
 {
-  return m_lost_count;
+  return m_lost_bytes;
 }
 
 bool
