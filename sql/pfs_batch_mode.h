@@ -48,7 +48,10 @@ class PFSBatchMode {
   // off batch mode on the rightmost table.
   PFSBatchMode(QEP_TAB *qep_tab, JOIN *join)
       : m_qep_tab(qep_tab), m_join(join) {
-    if (qep_tab->join() == nullptr) {
+    if (qep_tab == nullptr) {
+      // No tables at all.
+      m_enable = false;
+    } else if (qep_tab->join() == nullptr) {
       // The QEP_TAB isn't even part of a join (typically used when sorting
       // data for UPDATE or DELETE), so we can safely enable batch mode.
       m_enable = true;
@@ -72,7 +75,7 @@ class PFSBatchMode {
     // If we have e.g. a LIMIT of a join, the rightmost table could
     // be stuck in PFS batch mode (since the NestedLoopIterator never
     // saw end-of-file), so take it out if needed.
-    if (m_join != nullptr) {
+    if (m_join != nullptr && m_join->qep_tab != nullptr) {
       QEP_TAB *last_qep_tab = &m_join->qep_tab[m_join->primary_tables - 1];
       last_qep_tab->table()->file->end_psi_batch_mode_if_started();
     }

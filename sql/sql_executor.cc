@@ -1831,13 +1831,21 @@ void JOIN::create_iterators() {
   // to true during optimization, and depending on when it was set, it could
   // either mean to aggregate into a temporary table or aggregate on final
   // send.
-  //
-  // Note that tmp_table_param.precomputed_group_by can be set even if we
-  // don't actually have any grouping (e.g., make_tmp_tables_info() does this
-  // even if there are no temporary tables made).
-  if (qep_tab[primary_tables + tmp_tables - 1].next_select == end_send_group ||
-      ((grouped || group_optimized_away) &&
-       tmp_table_param.precomputed_group_by)) {
+  bool do_aggregate;
+  if (primary_tables == 0 && tmp_tables == 0) {
+    // We can't check qep_tab since there's no table, but in this specific case,
+    // it is safe to call get_end_select_func() at this point.
+    do_aggregate = (get_end_select_func() == end_send_group);
+  } else {
+    // Note that tmp_table_param.precomputed_group_by can be set even if we
+    // don't actually have any grouping (e.g., make_tmp_tables_info() does this
+    // even if there are no temporary tables made).
+    do_aggregate = (qep_tab[primary_tables + tmp_tables - 1].next_select ==
+                    end_send_group) ||
+                   ((grouped || group_optimized_away) &&
+                    tmp_table_param.precomputed_group_by);
+  }
+  if (do_aggregate) {
     // Aggregate as we go, with output into a special slice of the same table.
     DBUG_ASSERT(streaming_aggregation || tmp_table_param.precomputed_group_by);
 #ifndef DBUG_OFF
@@ -1894,7 +1902,12 @@ static int ExecuteIteratorQuery(JOIN *join) {
     return 1;
   }
 
-  PFSBatchMode pfs_batch_mode(&join->qep_tab[join->const_tables], join);
+  QEP_TAB *first_qep_tab = nullptr;
+  if (join->qep_tab !=
+      nullptr) {  // NOTE: There can be zero tables in a valid query.
+    first_qep_tab = &join->qep_tab[join->const_tables];
+  }
+  PFSBatchMode pfs_batch_mode(first_qep_tab, join);
   for (;;) {
     int error = join->root_iterator()->Read();
 

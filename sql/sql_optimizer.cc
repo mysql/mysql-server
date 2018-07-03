@@ -396,6 +396,7 @@ int JOIN::optimize() {
     count_field_types(select_lex, &tmp_table_param, all_fields, false, false);
     // Make plan visible for EXPLAIN
     set_plan_state(NO_TABLES);
+    create_iterators();
     DBUG_RETURN(0);
   }
   error = -1;  // Error is sent to client
