@@ -1392,7 +1392,7 @@ static struct my_option my_long_options[] =
   {"batch", 'B',
    "Don't use history file. Disable interactive behavior. (Enables --silent.)",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"binary-as-hex", 'b', "Print binary data as hex", &opt_binhex, &opt_binhex,
+  {"binary-as-hex", 0, "Print binary data as hex", &opt_binhex, &opt_binhex,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
    "Directory for character set files.", &charsets_dir,
