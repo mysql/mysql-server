@@ -4777,7 +4777,8 @@ rec_loop:
     passed to InnoDB when there is no ICP and number of
     loops in row_search_mvcc for rows found but not
     reporting due to search views etc. */
-    if (prev_rec != NULL && prebuilt->m_mysql_handler->end_range != NULL &&
+    if (prev_rec != NULL && !prebuilt->innodb_api &&
+        prebuilt->m_mysql_handler->end_range != NULL &&
         prebuilt->idx_cond == false && end_loop >= 100) {
       dict_index_t *key_index = prebuilt->index;
 
