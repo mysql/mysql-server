@@ -983,6 +983,17 @@ Dbtux::scanFind(ScanOpPtr scanPtr, Frag& frag)
     {
       scan_state = scanNext(scanPtr, false, frag);
     }
+    else
+    {
+      ndbrequire(scan_state == ScanOp::Current);
+      const TreePos treePos = scan.m_scanPos;
+      NodeHandle node(frag);
+      selectNode(c_ctx, node, treePos.m_loc);
+      TreeEnt ent = node.getEnt(treePos.m_pos);
+      const TupLoc tupLoc = ent.m_tupLoc;
+      c_tup->prepare_scan_tux_TUPKEYREQ(tupLoc.getPageId(),
+                                        tupLoc.getPageOffset());
+    }
     Uint32 statOpPtrI = scan.m_statOpPtrI;
     if (likely(scan_state == ScanOp::Current))
     {

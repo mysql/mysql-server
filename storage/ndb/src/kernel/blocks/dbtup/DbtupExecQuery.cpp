@@ -41,6 +41,7 @@
 //#define DEBUG_LCP 1
 //#define DEBUG_DELETE 1
 //#define DEBUG_DELETE_NR 1
+//#define DEBUG_LCP_SKIP_DELETE 1
 //#define DEBUG_LCP_LGMAN 1
 //#define DEBUG_LCP_SKIP_DELETE 1
 #endif
