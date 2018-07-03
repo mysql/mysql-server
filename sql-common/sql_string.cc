@@ -902,22 +902,54 @@ size_t well_formed_copy_nchars(const CHARSET_INFO *to_cs, char *to,
         to_length -= to_cs->mbminlen;
       }
 
-      set_if_smaller(from_length, to_length);
-
+      size_t min_length = min(from_length, to_length);
       /*
         If we operate on a multi-byte fixed-width character set, make
         sure the string wasn't truncated in the middle of a character.
         If so, truncate to a character boundary.
       */
       if (to_cs->mbmaxlen > 1 && to_cs->mbmaxlen == to_cs->mbminlen)
-        from_length -= from_length % to_cs->mbmaxlen;
+        min_length -= min_length % to_cs->mbmaxlen;
 
-      res = to_cs->cset->well_formed_len(to_cs, from, from + from_length,
-                                         nchars, &well_formed_error);
+      res = to_cs->cset->well_formed_len(to_cs, from, from + min_length, nchars,
+                                         &well_formed_error);
       if (res > 0) memmove(to, from, res);
       *from_end_pos = from + res;
-      *well_formed_error_pos = well_formed_error ? from + res : NULL;
-      *cannot_convert_error_pos = NULL;
+
+      /*
+        If we are operating on a multi-byte variable-width character set and
+        "well_formed_error" is set to true, it means the string is not
+        well-formed (either partially or completely). But, in case of a
+        well-formed string whose string length is too long for the destination
+        buffer (i.e to_length), there is a possibility that the string is
+        truncated in the middle of a character, which would break its sequence.
+        This could lead to mistakenly rejecting the string as malformed.
+
+        To resolve this, we check if the full string contains a valid character
+        immediately after the returned end point. If it does, the string was
+        just truncated; if it doesn't, it was actually malformed.
+
+        For example: Consider a well-formed string of 300 bytes, which contained
+        a given three-byte code point at str[254..256]. Furthermore, suppose the
+        destination buffer is 255 bytes long. In this case, well_formed_len()
+        would return 254, so we would need to check the bytes str[254..257] to
+        see if they contain a well-formed character. This second invocation of
+        well_formed_len() would return 2, which takes us across the truncation
+        point, confirming that the problem was indeed truncation and not a
+        malformed code point.
+      */
+      if (well_formed_error && to_cs->mbmaxlen > 1 &&
+          res > min_length - to_cs->mbmaxlen) {
+        const char *from_end = from + min(res + to_cs->mbmaxlen, from_length);
+
+        size_t extra = to_cs->cset->well_formed_len(
+            to_cs, *from_end_pos, from_end, 1, &well_formed_error);
+
+        well_formed_error = (res + extra < min_length);
+      }
+
+      *well_formed_error_pos = well_formed_error ? *from_end_pos : nullptr;
+      *cannot_convert_error_pos = nullptr;
       if (from_offset) res += to_cs->mbminlen;
     }
   } else {
