@@ -30,14 +30,14 @@
 size_t
 ByteStreamLostMsgHandler::getSizeOfLostMsg(size_t lost_bytes, size_t lost_msgs)
 {
-  size_t lost_msg_len = basestring_snprintf(NULL, 0, m_lost_msg_fmt, lost_bytes);
+  size_t lost_msg_len = snprintf(NULL, 0, m_lost_msg_fmt, lost_bytes);
   return lost_msg_len;
 }
 
 bool
 ByteStreamLostMsgHandler::writeLostMsg(char* buf, size_t buf_size, size_t lost_bytes, size_t lost_msgs)
 {
-  basestring_snprintf(buf, buf_size, m_lost_msg_fmt, lost_bytes);
+  snprintf(buf, buf_size, m_lost_msg_fmt, lost_bytes);
   return true;
 }
 

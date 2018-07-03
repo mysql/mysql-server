@@ -16,7 +16,6 @@
 */
 
 #include "BufferedLogHandler.hpp"
-#include <basestring_vsnprintf.h>
 
 struct ThreadData
 {
@@ -202,7 +201,7 @@ size_t
 MessageStreamLostMsgHandler::getSizeOfLostMsg(size_t lost_bytes, size_t lost_msgs)
 {
   size_t lost_msg_len = sizeof(BufferedLogHandler::LogMessageFixedPart) +
-      basestring_snprintf(NULL, 0, m_lost_msg_fmt, lost_msgs) +
+      snprintf(NULL, 0, m_lost_msg_fmt, lost_msgs) +
       strlen(m_category);
   return lost_msg_len;
 }
@@ -216,12 +215,12 @@ MessageStreamLostMsgHandler::writeLostMsg(char* buf, size_t buf_size, size_t los
 
   lost_message_fixedpart.varpart_length[0] = strlen(m_category);
   lost_message_fixedpart.varpart_length[1] =
-      basestring_snprintf(NULL, 0, m_lost_msg_fmt, lost_msgs);
+      snprintf(NULL, 0, m_lost_msg_fmt, lost_msgs);
 
   const size_t sz_fixedpart = sizeof(lost_message_fixedpart);
   memcpy(buf, &lost_message_fixedpart, sz_fixedpart);
   memcpy(buf + sz_fixedpart, m_category, strlen(m_category));
-  basestring_snprintf(buf + sz_fixedpart + strlen(m_category),
+  snprintf(buf + sz_fixedpart + strlen(m_category),
                       lost_message_fixedpart.varpart_length[1],
                       m_lost_msg_fmt, lost_msgs);
   return true;
