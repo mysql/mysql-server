@@ -331,6 +331,8 @@ int Trans_delegate::before_commit(THD *thd, bool all,
   param.rpl_channel_type = thd->rpl_thd_ctx.get_rpl_channel_type();
   param.group_replication_consistency =
       thd->variables.group_replication_consistency;
+  param.original_server_version = &(thd->variables.original_server_version);
+  param.immediate_server_version = &(thd->variables.immediate_server_version);
 
   bool is_real_trans =
       (all || !thd->get_transaction()->is_active(Transaction_ctx::SESSION));

@@ -490,7 +490,8 @@ int validate_plugin_server_requirements(Trans_param *param) {
   Gtid gtid = {fake_sidno, fake_gno};
   Gtid_specification gtid_spec = {ASSIGNED_GTID, gtid};
   Gtid_log_event *gle =
-      new Gtid_log_event(param->server_id, true, 0, 1, true, 0, 0, gtid_spec);
+      new Gtid_log_event(param->server_id, true, 0, 1, true, 0, 0, gtid_spec,
+                         UNKNOWN_SERVER_VERSION, UNKNOWN_SERVER_VERSION);
 
   if (gle->is_valid())
     success++;
@@ -506,7 +507,8 @@ int validate_plugin_server_requirements(Trans_param *param) {
   */
   Gtid_specification anonymous_gtid_spec = {ANONYMOUS_GTID, gtid};
   gle = new Gtid_log_event(param->server_id, true, 0, 1, true, 0, 0,
-                           anonymous_gtid_spec);
+                           anonymous_gtid_spec, UNKNOWN_SERVER_VERSION,
+                           UNKNOWN_SERVER_VERSION);
 
   if (gle->is_valid())
     success++;

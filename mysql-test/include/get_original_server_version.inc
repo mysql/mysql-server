@@ -1,5 +1,5 @@
 # Purpose:
-# To get the original_commit_timestamp value from the
+# To get the original_server_version value from the
 # current connection server's current binlog file for a
 # particular GTID.
 #
@@ -8,10 +8,10 @@
 #
 # Usage:
 # --let $gtid=85e5e835-dcd2-11e3-a2ce-3c970e9d6412:2
-# --source include/get_original_commit_timestamp.inc
+# --source include/get_original_server_version.inc
 #
 # Return Value:
-# $original_commit_timestamp
+# $original_server_version
 #
 
 --let $MYSQLD_DATADIR = `select @@datadir`
@@ -31,8 +31,7 @@ perl;
 
   my $gtid_next_stmt;
   my $prev_gtid_next_stmt;
-  my $prev_prev;
-  my $OCT;
+  my $OSV;
 
   while (my $gtid_next_stmt = <FILE>)
   {
@@ -41,15 +40,14 @@ perl;
     {
       last;
     }
-    $OCT=$prev_prev;
-    $prev_prev=$prev_gtid_next_stmt;
+    $OSV=$prev_gtid_next_stmt;
     $prev_gtid_next_stmt=$gtid_next_stmt;
   }
 
-  $OCT =~ s/.*original_commit_timestamp=([0-9][0-9]*).*/\1/;
+  $OSV =~ s/.*original_server_version=([0-9][0-9]*).*/\1/;
   my $dir = $ENV{'MYSQLTEST_VARDIR'};
   open (OUTPUT, ">$dir/tmp/tar.inc") ;
-  print OUTPUT "--let \$original_commit_timestamp =  $OCT\n";
+  print OUTPUT "--let \$original_server_version =  $OSV\n";
   close (OUTPUT);
 
 EOF

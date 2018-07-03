@@ -6359,3 +6359,17 @@ static Sys_var_bool Sys_binlog_rotate_encryption_master_key_at_startup(
     READ_ONLY GLOBAL_VAR(
         rpl_encryption.get_master_key_rotation_at_startup_var()),
     CMD_LINE(OPT_ARG), DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG);
+
+static Sys_var_uint Sys_original_server_version(
+    "original_server_version",
+    "The version of the server where the transaction was originally executed",
+    SESSION_ONLY(original_server_version), NO_CMD_LINE,
+    VALID_RANGE(0, UNDEFINED_SERVER_VERSION), DEFAULT(UNDEFINED_SERVER_VERSION),
+    BLOCK_SIZE(1), NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_session_admin));
+
+static Sys_var_uint Sys_immediate_server_version(
+    "immediate_server_version",
+    "The server version of the immediate server in the replication topology",
+    SESSION_ONLY(immediate_server_version), NO_CMD_LINE,
+    VALID_RANGE(0, UNDEFINED_SERVER_VERSION), DEFAULT(UNDEFINED_SERVER_VERSION),
+    BLOCK_SIZE(1), NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_session_admin));

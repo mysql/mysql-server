@@ -1543,13 +1543,54 @@ bool MYSQL_BIN_LOG::write_gtid(THD *thd, binlog_cache_data *cache_data,
     }
   }
 
+  uint32_t trx_immediate_server_version =
+      do_server_version_int(::server_version);
+  // Clear the session variable to have cleared states for next transaction.
+  thd->variables.immediate_server_version = UNDEFINED_SERVER_VERSION;
+  DBUG_EXECUTE_IF("fixed_server_version",
+                  trx_immediate_server_version = 888888;);
+  DBUG_EXECUTE_IF("gr_fixed_server_version",
+                  trx_immediate_server_version = 777777;);
+
+  /*
+    When the original_server_version session variable is set to a value
+    other than UNDEFINED_SERVER_VERSION, it means that either the
+    server version is known or the server_version is not known
+    (UNKNOWN_SERVER_VERSION).
+  */
+  uint32_t trx_original_server_version = thd->variables.original_server_version;
+
+  /*
+    When original_server_version == UNDEFINED_SERVER_VERSION, we assume
+    that:
+    a) it is not known if this thread is a slave applier ( = 0 );
+    b) this is a new transaction ( = ::server_version);
+  */
+  if (trx_original_server_version == UNDEFINED_SERVER_VERSION) {
+    /*
+      When applying a transaction using replication, assume that the
+      original server version is not known (the transaction wasn't
+      originated on the current server).
+    */
+    if (thd->slave_thread || thd->is_binlog_applier()) {
+      trx_original_server_version = UNKNOWN_SERVER_VERSION;
+    } else
+    /* Assume that this transaction is original from this server */
+    {
+      trx_original_server_version = trx_immediate_server_version;
+    }
+  } else {
+    // Clear the session variable to have cleared states for next transaction.
+    thd->variables.original_server_version = UNDEFINED_SERVER_VERSION;
+  }
   /*
     Generate and write the Gtid_log_event.
   */
-  Gtid_log_event gtid_event(thd, cache_data->is_trx_cache(), last_committed,
-                            sequence_number, cache_data->may_have_sbr_stmts(),
-                            original_commit_timestamp,
-                            immediate_commit_timestamp);
+  Gtid_log_event gtid_event(
+      thd, cache_data->is_trx_cache(), last_committed, sequence_number,
+      cache_data->may_have_sbr_stmts(), original_commit_timestamp,
+      immediate_commit_timestamp, trx_original_server_version,
+      trx_immediate_server_version);
   // Set the transaction length, based on cache info
   gtid_event.set_trx_length_by_cache_size(cache_data->get_byte_position(),
                                           writer->is_checksum_enabled(),

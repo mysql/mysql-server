@@ -343,7 +343,8 @@ int Certification_handler::handle_transaction_id(Pipeline_event *pevent,
             gle->server_id, gle->is_using_trans_cache(), gle->last_committed,
             gle->sequence_number, gle->may_have_sbr_stmts,
             gle->original_commit_timestamp, gle->immediate_commit_timestamp,
-            gtid_specification);
+            gtid_specification, gle->original_server_version,
+            gle->immediate_server_version);
         // Copy the transaction length to the new event.
         gle_generated->set_trx_length(gle->transaction_length);
 
@@ -528,8 +529,10 @@ int Certification_handler::inject_transactional_events(Pipeline_event *pevent,
    the original_commit_timestamp is the same for a given GTID), this timestamp
    will not be defined.
   */
-  Gtid_log_event *gtid_log_event = new Gtid_log_event(
-      event->server_id, true, 0, 0, true, 0, 0, gtid_specification);
+  uint32_t server_version = do_server_version_int(::server_version);
+  Gtid_log_event *gtid_log_event =
+      new Gtid_log_event(event->server_id, true, 0, 0, true, 0, 0,
+                         gtid_specification, server_version, server_version);
 
   Pipeline_event *gtid_pipeline_event =
       new Pipeline_event(gtid_log_event, fd_event);

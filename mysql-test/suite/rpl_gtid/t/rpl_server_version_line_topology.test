@@ -1,0 +1,166 @@
+#
+# ==== Purpose ====
+#
+# In this test, we check that original_server_version and
+# immediate_server_version are correctly generated and replicated in a
+# server_1 (Master) -> server_2 -> server_3 topology.
+#
+# ==== Implementation ====
+#
+# Considering the above replication topology, we test two scenarios:
+#  Scenario 1: Force server_1 to write as its original_server_version the value
+# 888888, synchronize all three servers and check that the value is replicated
+# unchanged. Also force server_1 to write 888888 as its immediate_server_version
+# to check that the value is written to its binlog but in server_2 and server_3
+# their own server versions are written to the binlog
+#  Scenario 2: Execute a transaction in server_2, synchronize with server_3, and
+# check that the value written to server_2's binlog is the expected one and that
+# it is replicated correctly to server_3. Also check that their
+# immediate_server_versions correspond to their own server version.
+#
+# ==== References ====
+#
+# WL#11879 replicate original server version
+
+
+# test is binlog format agnostic
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+
+# Establish the line topology.
+--let $rpl_topology = 1->2, 2->3
+--source include/rpl_init.inc
+
+# transform server version in format AA.BB.CC[-suffix] into AABBCC
+--write_file $MYSQL_TMP_DIR/get_numerical_server_version.inc
+  --let $server_version = `SELECT @@GLOBAL.version`
+  --let $major_version_number = `SELECT SUBSTRING_INDEX('$server_version', '.', 1)`
+  --let $mid_version_number = `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX('$server_version', '.', 2), '.', -1)`
+  --let $minor_version_number = `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX('$server_version', '-', 1), '.', -1)`
+  --let $numerical_server_version = `SELECT $major_version_number * 10000 + $mid_version_number * 100 + $minor_version_number`
+EOF
+
+--let $rpl_connection_name = server_1
+--source include/rpl_connection.inc
+
+# Scenario 1:
+# force server_1 to write 888888 as its original_server_version to check that
+# the value is replicated unchanged
+# force server_1 to write 888888 as its immediate_server_version to check that
+# the value is written to its binlog but in server_2 and server_3 their own
+# server versions are written to the binlog
+--let $debug_point = fixed_server_version
+--source include/add_debug_point.inc
+
+--let $server_uuid = query_get_value(select @@global.server_uuid, @@global.server_uuid, 1)
+--let $gtid = $server_uuid:1
+
+CREATE TABLE t1 (a INT);
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name = server_1
+--source include/rpl_connection.inc
+--source include/get_original_server_version.inc
+--let $OSV_1 = $original_server_version
+--source include/get_immediate_server_version.inc
+--let $ISV_1 = $immediate_server_version
+
+--let $rpl_connection_name = server_2
+--source include/rpl_connection.inc
+--source include/get_original_server_version.inc
+--let $OSV_2 = $original_server_version
+--source include/get_immediate_server_version.inc
+--let $ISV_2 = $immediate_server_version
+--source $MYSQL_TMP_DIR/get_numerical_server_version.inc
+--let $numerical_server_version_2 = $numerical_server_version
+
+--let $rpl_connection_name = server_3
+--source include/rpl_connection.inc
+--source include/get_original_server_version.inc
+--let $OSV_3 = $original_server_version
+--source include/get_immediate_server_version.inc
+--let $ISV_3 = $immediate_server_version
+--source $MYSQL_TMP_DIR/get_numerical_server_version.inc
+--let $numerical_server_version_3 = $numerical_server_version
+
+--let $assert_text = server_1 original_server_version must be 888888
+--let $assert_cond = $OSV_1 = 888888
+--source include/assert.inc
+
+--let $assert_text = server_2 original_server_version must be equal to server_1
+--let $assert_cond = $OSV_2 = $OSV_1
+--source include/assert.inc
+
+--let $assert_text = server_3 original_server_version must be equal to server_2
+--let $assert_cond = $OSV_3 = $OSV_2
+--source include/assert.inc
+
+--let $assert_text = server_1 immediate_server_version must be 888888
+--let $assert_cond = $ISV_1 = 888888
+--source include/assert.inc
+
+--let $assert_text = server_2 immediate_server_version must be equal its own server version
+--let $assert_cond = $ISV_2 = $numerical_server_version_2
+--source include/assert.inc
+
+--let $assert_text = server_3 immediate_server_version must be equal its own server version
+--let $assert_cond = $ISV_3 = $numerical_server_version_3
+--source include/assert.inc
+
+# Scenario 2:
+# execute a transaction in server_2 to check that the correct value of
+# original_server_version is generated and replicated Also check that their
+# immediate_server_versions correspond to their own server version.
+--let $rpl_connection_name = server_2
+--source include/rpl_connection.inc
+
+--let $server_uuid = query_get_value(select @@global.server_uuid, @@global.server_uuid, 1)
+--let $gtid = $server_uuid:1
+
+INSERT INTO t1 VALUES (1);
+
+# sync server_3 with server_2
+--let $rpl_channel_name =
+--let $sync_slave_connection = server_3
+--source include/sync_slave_sql_with_master.inc
+--let $sync_slave_connection =
+
+--let $rpl_connection_name = server_2
+--source include/rpl_connection.inc
+--source include/get_original_server_version.inc
+--let $OSV_2 = $original_server_version
+--source include/get_immediate_server_version.inc
+--let $ISV_2 = $immediate_server_version
+
+--let $rpl_connection_name = server_3
+--source include/rpl_connection.inc
+--source include/get_original_server_version.inc
+--let $OSV_3 = $original_server_version
+--source include/get_immediate_server_version.inc
+--let $ISV_3 = $immediate_server_version
+
+--let $assert_text = server_2 original_server_version must be equal its own server version
+--let $assert_cond = $numerical_server_version_2 = $OSV_2
+--source include/assert.inc
+
+--let $assert_text = server_3 original_server_version must be equal to server_2
+--let $assert_cond = $OSV_3 = $OSV_2
+--source include/assert.inc
+
+--let $assert_text = server_2 immediate_server_version must be equal its own server version
+--let $assert_cond = $ISV_2 = $numerical_server_version_2
+--source include/assert.inc
+
+--let $assert_text = server_3 immediate_server_version must be equal its own server version
+--let $assert_cond = $ISV_3 = $numerical_server_version_3
+--source include/assert.inc
+
+# cleanup
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--let $debug_point = fixed_server_version
+--source include/remove_debug_point.inc
+DROP TABLE t1;
+--source include/rpl_sync.inc
+--source include/rpl_end.inc
+--remove_file $MYSQL_TMP_DIR/get_numerical_server_version.inc

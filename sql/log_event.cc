@@ -12083,10 +12083,13 @@ Gtid_log_event::Gtid_log_event(THD *thd_arg, bool using_trans,
                                int64 sequence_number_arg,
                                bool may_have_sbr_stmts_arg,
                                ulonglong original_commit_timestamp_arg,
-                               ulonglong immediate_commit_timestamp_arg)
+                               ulonglong immediate_commit_timestamp_arg,
+                               uint32_t original_server_version_arg,
+                               uint32_t immediate_server_version_arg)
     : binary_log::Gtid_event(
           last_committed_arg, sequence_number_arg, may_have_sbr_stmts_arg,
-          original_commit_timestamp_arg, immediate_commit_timestamp_arg),
+          original_commit_timestamp_arg, immediate_commit_timestamp_arg,
+          original_server_version_arg, immediate_server_version_arg),
       Log_event(thd_arg,
                 thd_arg->variables.gtid_next.type == ANONYMOUS_GTID
                     ? LOG_EVENT_IGNORABLE_F
@@ -12119,16 +12122,16 @@ Gtid_log_event::Gtid_log_event(THD *thd_arg, bool using_trans,
   DBUG_VOID_RETURN;
 }
 
-Gtid_log_event::Gtid_log_event(uint32 server_id_arg, bool using_trans,
-                               int64 last_committed_arg,
-                               int64 sequence_number_arg,
-                               bool may_have_sbr_stmts_arg,
-                               ulonglong original_commit_timestamp_arg,
-                               ulonglong immediate_commit_timestamp_arg,
-                               const Gtid_specification spec_arg)
+Gtid_log_event::Gtid_log_event(
+    uint32 server_id_arg, bool using_trans, int64 last_committed_arg,
+    int64 sequence_number_arg, bool may_have_sbr_stmts_arg,
+    ulonglong original_commit_timestamp_arg,
+    ulonglong immediate_commit_timestamp_arg, const Gtid_specification spec_arg,
+    uint32_t original_server_version_arg, uint32_t immediate_server_version_arg)
     : binary_log::Gtid_event(
           last_committed_arg, sequence_number_arg, may_have_sbr_stmts_arg,
-          original_commit_timestamp_arg, immediate_commit_timestamp_arg),
+          original_commit_timestamp_arg, immediate_commit_timestamp_arg,
+          original_server_version_arg, immediate_server_version_arg),
       Log_event(header(), footer(),
                 using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE
                             : Log_event::EVENT_STMT_CACHE,
@@ -12249,6 +12252,12 @@ void Gtid_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) const {
         llstr(original_commit_timestamp, llbuf), print_event_info->delimiter);
   }
 
+  my_b_printf(head, "/*!80014 SET @@session.original_server_version=%u*/%s\n",
+              original_server_version, print_event_info->delimiter);
+
+  my_b_printf(head, "/*!80014 SET @@session.immediate_server_version=%u*/%s\n",
+              immediate_server_version, print_event_info->delimiter);
+
   to_string(buffer);
   my_b_printf(head, "%s%s\n", buffer, print_event_info->delimiter);
 }
@@ -12343,6 +12352,28 @@ uint32 Gtid_log_event::write_body_to_memory(uchar *buffer) {
   uchar *ptr_after_length = net_store_length(ptr_buffer, transaction_length);
   ptr_buffer = ptr_after_length;
 
+  /*
+    We want to modify immediate_server_version with the flag written to its MSB.
+    At the same time, we also want to have the original value to be able to use
+    it in if() later, so we use a temporary variable here.
+  */
+  uint32_t immediate_server_version_with_flag = immediate_server_version;
+
+  if (immediate_server_version != original_server_version)
+    immediate_server_version_with_flag |=
+        (1ULL << ENCODED_SERVER_VERSION_LENGTH);
+  else  // Clear MSB
+    immediate_server_version_with_flag &=
+        ~(1ULL << ENCODED_SERVER_VERSION_LENGTH);
+
+  int4store(ptr_buffer, immediate_server_version_with_flag);
+  ptr_buffer += IMMEDIATE_SERVER_VERSION_LENGTH;
+
+  if (immediate_server_version != original_server_version) {
+    int4store(ptr_buffer, original_server_version);
+    ptr_buffer += ORIGINAL_SERVER_VERSION_LENGTH;
+  }
+
   DBUG_RETURN(ptr_buffer - buffer);
 }
 
@@ -12421,6 +12452,13 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli) {
   enum_gtid_statement_status state = gtid_pre_statement_checks(thd);
   thd->variables.original_commit_timestamp = original_commit_timestamp;
   thd->set_original_commit_timestamp_for_slave_thread();
+  /**
+    Set the original/immediate server version.
+    It will be set to UNKNOWN_SERVER_VERSION if the event does not contain such
+    information.
+   */
+  thd->variables.original_server_version = original_server_version;
+  thd->variables.immediate_server_version = immediate_server_version;
   const_cast<Relay_log_info *>(rli)->started_processing(
       thd->variables.gtid_next.gtid, original_commit_timestamp,
       immediate_commit_timestamp, state == GTID_STATEMENT_SKIP);
@@ -12490,6 +12528,7 @@ void Gtid_log_event::set_trx_length_by_cache_size(ulonglong cache_size,
   transaction_length += LOG_EVENT_HEADER_LEN;
   transaction_length += POST_HEADER_LENGTH;
   transaction_length += get_commit_timestamp_length();
+  transaction_length += get_server_version_length();
   transaction_length += is_checksum_enabled ? BINLOG_CHECKSUM_LEN : 0;
   /*
     Notice that it is not possible to determine the transaction_length field

@@ -374,7 +374,9 @@ Gtid_event::Gtid_event(const char *buf, const Format_description_event *fde)
       may_have_sbr_stmts(true),
       original_commit_timestamp(0),
       immediate_commit_timestamp(0),
-      transaction_length(0) {
+      transaction_length(0),
+      original_server_version(0),
+      immediate_server_version(0) {
   /*
     The layout of the buffer is as follows:
 
@@ -394,6 +396,8 @@ Gtid_event::Gtid_event(const char *buf, const Format_description_event *fde)
     |  7/14 bytes| timestamps*
     +------------+
     |1 to 9 bytes| transaction_length (see net_length_size())
+    +------------+
+    |   4/8 bytes| original/immediate_server_version (see timestamps*)
     +------------+
 
     The 'Flags' field contains gtid flags.
@@ -486,6 +490,26 @@ Gtid_event::Gtid_event(const char *buf, const Format_description_event *fde)
         /* Fetch the transaction length if possible */
         if (READER_CALL(can_read, TRANSACTION_LENGTH_MIN_LENGTH)) {
           READER_TRY_SET(transaction_length, net_field_length_ll);
+        }
+
+        /**
+          Fetch the original/immediate_server_version. Set it to
+          UNDEFINED_SERVER_VERSION if no version can be fetched.
+        */
+        original_server_version = UNDEFINED_SERVER_VERSION;
+        immediate_server_version = UNDEFINED_SERVER_VERSION;
+        if (READER_CALL(can_read, IMMEDIATE_SERVER_VERSION_LENGTH)) {
+          READER_TRY_SET(immediate_server_version, read_and_letoh<uint32_t>);
+          // Check the MSB to determine how to populate original_server_version
+          if ((immediate_server_version &
+               (1ULL << ENCODED_SERVER_VERSION_LENGTH)) != 0) {
+            // Read the original_server_version
+            immediate_server_version &=
+                ~(1ULL << ENCODED_SERVER_VERSION_LENGTH);  // Clear MSB
+            READER_TRY_SET(original_server_version, read_and_letoh<uint32_t>,
+                           ORIGINAL_SERVER_VERSION_LENGTH);
+          } else
+            original_server_version = immediate_server_version;
         }
       }
     }

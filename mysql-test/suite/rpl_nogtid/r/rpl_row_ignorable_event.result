@@ -157,6 +157,8 @@ ROLLBACK/*!*/;
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -180,6 +182,8 @@ create table t1(a int, b int) engine= myisam
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -214,6 +218,8 @@ COMMIT
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -247,6 +253,8 @@ COMMIT
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -276,6 +284,8 @@ COMMIT
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	Xid = #
@@ -289,6 +299,8 @@ create table t2(a int, b int) engine=innodb
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -352,6 +364,8 @@ COMMIT/*!*/;
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -382,6 +396,8 @@ COMMIT
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -412,6 +428,8 @@ COMMIT
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -449,6 +467,8 @@ COMMIT/*!*/;
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -461,6 +481,8 @@ DROP TABLE `t1` /* generated by server */
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0	Xid = #
@@ -473,6 +495,8 @@ DROP TABLE `t2` /* generated by server */
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -485,6 +509,8 @@ create table t3(a int, b int) engine= myisam
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -497,6 +523,8 @@ create table t4(a int, b int) engine= myisam
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -510,6 +538,8 @@ create table t5(a int, b int) engine= myisam
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -540,6 +570,8 @@ COMMIT
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -570,6 +602,8 @@ COMMIT
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -614,6 +648,8 @@ COMMIT
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -644,6 +680,8 @@ COMMIT
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -678,6 +716,8 @@ COMMIT
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -690,6 +730,8 @@ FLUSH TABLES
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -703,6 +745,8 @@ create table t6(a VARCHAR(60)) engine= myisam
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -940,6 +984,8 @@ COMMIT
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -952,6 +998,8 @@ DROP TABLE `t3` /* generated by server */
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -964,6 +1012,8 @@ DROP TABLE `t6` /* generated by server */
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
@@ -976,6 +1026,8 @@ DROP TABLE `t4` /* generated by server */
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0

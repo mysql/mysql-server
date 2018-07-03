@@ -1,0 +1,130 @@
+#
+# ==== Purpose ====
+#
+# In this test we check that the variable immediate_server_version can be
+# correctly set and accessed.
+#
+#
+# ==== References ====
+#
+# WL#11879 replicate original server version
+
+--let $default_value = 999999
+--let $max_value = 999999
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@GLOBAL.immediate_server_version;
+
+--let $ISV = `SELECT @@SESSION.immediate_server_version;`
+--let $assert_text = immediate_server_version must be accessible and have the default value
+--let $assert_cond = $ISV = $default_value
+--source include/assert.inc
+
+# Verify that SHOW VARIABLES works
+SHOW VARIABLES LIKE 'immediate_server_version';
+
+# Check if value can set
+--error ER_LOCAL_VARIABLE
+SET @@GLOBAL.immediate_server_version = 123456;
+
+SET @@SESSION.immediate_server_version = 123456;
+--let $ISV = `SELECT @@SESSION.immediate_server_version;`
+--let $assert_text = immediate_server_version must be equal to the set value
+--let $assert_cond = $ISV = 123456
+--source include/assert.inc
+
+# Check errors for wrong values (different type or not in the range of allowed
+# values)
+
+# This will generate a warning
+SET @@SESSION.immediate_server_version = -123456;
+--let $ISV = `SELECT @@SESSION.immediate_server_version;`
+--let $assert_text = immediate_server_version must be 0
+--let $assert_cond = $ISV = 0
+--source include/assert.inc
+
+# Should be accepted
+SET @@SESSION.immediate_server_version = 0;
+--let $ISV = `SELECT @@SESSION.immediate_server_version;`
+--let $assert_text = immediate_server_version must be 0
+--let $assert_cond = $ISV = 0
+--source include/assert.inc
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@SESSION.immediate_server_version = 123456789012345678901;
+--let $ISV = `SELECT @@SESSION.immediate_server_version;`
+--let $assert_text = immediate_server_version must be 0
+--let $assert_cond = $ISV = 0
+--source include/assert.inc
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@SESSION.immediate_server_version = 'xyz';
+--let $ISV = `SELECT @@SESSION.immediate_server_version;`
+--let $assert_text = immediate_server_version must be 0
+--let $assert_cond = $ISV = 0
+--source include/assert.inc
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@SESSION.immediate_server_version = xyz;
+--let $ISV = `SELECT @@SESSION.immediate_server_version;`
+--let $assert_text = immediate_server_version must be 0
+--let $assert_cond = $ISV = 0
+--source include/assert.inc
+
+# Should give a warning and truncate the value and set it to the maximum value
+SET @@SESSION.immediate_server_version = 36028797018963969;
+--let $ISV = `SELECT @@SESSION.immediate_server_version;`
+--let $assert_text = immediate_server_version must be equal to the maximum value
+--let $assert_cond = $ISV = $max_value
+--source include/assert.inc
+
+# Should give a warning and truncate the value and set it to the maximum value
+SET @@SESSION.immediate_server_version = 18446744073709551615;
+--let $ISV = `SELECT @@SESSION.immediate_server_version;`
+--let $assert_text = immediate_server_version must be equal to the maximum value
+--let $assert_cond = $ISV = $max_value
+--source include/assert.inc
+
+# Should give a error
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@SESSION.immediate_server_version = 18446744073709551616;
+--let $ISV = `SELECT @@SESSION.immediate_server_version;`
+--let $assert_text = immediate_server_version must be equal to the maximum value
+--let $assert_cond = $ISV = $max_value
+--source include/assert.inc
+
+
+# Check if the value in SESSION Table matches value in variable
+
+--let $count =`SELECT @@SESSION.immediate_server_version = VARIABLE_VALUE FROM performance_schema.session_variables WHERE VARIABLE_NAME='immediate_server_version';`
+--let $assert_text = The value in session table matches the one in the variable
+--let $assert_cond = $count = 1
+--source include/assert.inc
+
+--let $count = `SELECT COUNT(@@SESSION.immediate_server_version);`
+--let $assert_text = There is only one variable with this name
+--let $assert_cond = $count = 1
+--source include/assert.inc
+
+--let $count = `SELECT COUNT(VARIABLE_VALUE) FROM performance_schema.session_variables WHERE VARIABLE_NAME='immediate_server_version';`
+--let $assert_text = There is only one variable with this name in the performance schema table
+--let $assert_cond = $count = 1
+--source include/assert.inc
+
+#   Check if immediate_server_version can be accessed with @@ sign
+
+--let $count = `SELECT COUNT(@@immediate_server_version);`
+--let $assert_text = The variable can be accessed with @@ sign
+--let $assert_cond = $count = 1
+--source include/assert.inc
+
+# Check that it's read-only to a NON super privileged
+
+# Create new user without super privilege
+CREATE USER nosuper;
+connect (conn_nosuper,localhost,nosuper,,);
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET SESSION immediate_server_version = 0;
+--disconnect conn_nosuper
+--connection default
+DROP USER nosuper;

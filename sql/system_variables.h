@@ -357,6 +357,18 @@ struct System_variables {
   ulong group_replication_consistency;
 
   bool sql_require_primary_key;
+
+  /**
+    Used in replication to determine the server version of the original server
+    where the transaction was executed.
+  */
+  uint32_t original_server_version;
+
+  /**
+    Used in replication to determine the server version of the immediate server
+    in the replication topology.
+  */
+  uint32_t immediate_server_version;
 };
 
 /**

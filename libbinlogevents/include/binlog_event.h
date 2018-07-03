@@ -144,6 +144,9 @@ const int64_t SEQ_UNINIT = 0;
 */
 const int64_t UNDEFINED_COMMIT_TIMESTAMP = MAX_COMMIT_TIMESTAMP_VALUE;
 
+const uint32_t UNDEFINED_SERVER_VERSION = 999999;
+const uint32_t UNKNOWN_SERVER_VERSION = 0;
+
 /** Setting this flag will mark an event as Ignorable */
 #define LOG_EVENT_IGNORABLE_F 0x80
 
@@ -188,6 +191,22 @@ inline void do_server_version_split(const char *version,
     p = r;
     if (*r == '.') p++;  // skip the dot
   }
+}
+
+/**
+   Transforms the server version from 'XX.YY.ZZ-suffix' into an integer in the
+   format XXYYZZ.
+
+   @param version        String representing server version
+   @return               The server version in the format XXYYZZ
+*/
+inline uint32_t do_server_version_int(const char *version) {
+  unsigned char version_split[3];
+  do_server_version_split(version, version_split);
+  uint32_t ret = static_cast<uint32_t>(version_split[0]) * 10000 +
+                 static_cast<uint32_t>(version_split[1]) * 100 +
+                 static_cast<uint32_t>(version_split[2]);
+  return ret;
 }
 
 /**

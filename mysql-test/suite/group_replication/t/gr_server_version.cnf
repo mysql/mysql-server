@@ -1,0 +1,26 @@
+!include ../my.cnf
+
+[mysqld.1]
+
+[mysqld.2]
+
+[mysqld.3]
+
+[mysqld.4]
+
+
+[ENV]
+SERVER_MYPORT_1=                @mysqld.1.port
+SERVER_MYSOCK_1=                @mysqld.1.socket
+
+[ENV]
+SERVER_MYPORT_2=                @mysqld.2.port
+SERVER_MYSOCK_2=                @mysqld.2.socket
+
+[ENV]
+SERVER_MYPORT_3=                @mysqld.3.port
+SERVER_MYSOCK_3=                @mysqld.3.socket
+
+[ENV]
+SERVER_MYPORT_4=                @mysqld.4.port
+SERVER_MYSOCK_4=                @mysqld.4.socket

@@ -45,8 +45,10 @@ perl;
   open(FILE, "$outfile") or die("Unable to open $outfile: $!\n");
 
   my $gtid_next_stmt;
+  my $prev_gtid_next_stmt;
   my $prev;
   my $prev_prev;
+  my $ICT;
 
    while (my $gtid_next_stmt = <FILE>)
   {
@@ -55,28 +57,30 @@ perl;
     {
       last;
     }
+    $ICT=$prev_prev;
     $prev_prev=$prev;
-    $prev=$gtid_next_stmt;
+    $prev=$prev_gtid_next_stmt;
+    $prev_gtid_next_stmt=$gtid_next_stmt;
   }
 
   if ($readable == 1 )
   {
     if ($only_time == 1)
     {
-      $prev_prev =~ s/.*([0-9][0-9]:[0-9][0-9]:[0-9][0-9]*).*/\1/;
+      $ICT =~ s/.*([0-9][0-9]:[0-9][0-9]:[0-9][0-9]*).*/\1/;
     }
     else
     {
-     $prev_prev =~ s/.*([0-9]{4}-[0-9]*-[0-9]* [0-9][0-9]:[0-9][0-9]:[0-9][0-9]*).*/\1/;
+     $ICT =~ s/.*([0-9]{4}-[0-9]*-[0-9]* [0-9][0-9]:[0-9][0-9]:[0-9][0-9]*).*/\1/;
     }
   }
   else
   {
-    $prev_prev =~ s/.*immediate_commit_timestamp=([0-9][0-9]*).*/\1/;
+    $ICT =~ s/.*immediate_commit_timestamp=([0-9][0-9]*).*/\1/;
   }
   my $dir = $ENV{'MYSQLTEST_VARDIR'};
   open (OUTPUT, ">$dir/tmp/tar.inc") ;
-  print OUTPUT "--let \$immediate_commit_timestamp =  $prev_prev\n";
+  print OUTPUT "--let \$immediate_commit_timestamp =  $ICT\n";
   close (OUTPUT);
 
 EOF

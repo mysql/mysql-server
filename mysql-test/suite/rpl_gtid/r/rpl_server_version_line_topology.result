@@ -1,0 +1,34 @@
+include/rpl_init.inc [topology=1->2, 2->3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server_1]
+# Adding debug point 'fixed_server_version' to @@GLOBAL.debug
+CREATE TABLE t1 (a INT);
+include/rpl_sync.inc
+[connection server_1]
+[connection server_2]
+[connection server_3]
+include/assert.inc [server_1 original_server_version must be 888888]
+include/assert.inc [server_2 original_server_version must be equal to server_1]
+include/assert.inc [server_3 original_server_version must be equal to server_2]
+include/assert.inc [server_1 immediate_server_version must be 888888]
+include/assert.inc [server_2 immediate_server_version must be equal its own server version]
+include/assert.inc [server_3 immediate_server_version must be equal its own server version]
+[connection server_2]
+INSERT INTO t1 VALUES (1);
+include/sync_slave_sql_with_master.inc
+[connection server_2]
+[connection server_3]
+include/assert.inc [server_2 original_server_version must be equal its own server version]
+include/assert.inc [server_3 original_server_version must be equal to server_2]
+include/assert.inc [server_2 immediate_server_version must be equal its own server version]
+include/assert.inc [server_3 immediate_server_version must be equal its own server version]
+[connection server_1]
+# Removing debug point 'fixed_server_version' from @@GLOBAL.debug
+DROP TABLE t1;
+include/rpl_sync.inc
+include/rpl_end.inc

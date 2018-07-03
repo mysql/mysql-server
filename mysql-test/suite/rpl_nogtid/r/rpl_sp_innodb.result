@@ -633,6 +633,8 @@ ROLLBACK/*!*/;
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
@@ -650,6 +652,8 @@ drop database if exists mysqltest1
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -658,6 +662,8 @@ create database mysqltest1
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 use `mysqltest1`/*!*/;
 SET TIMESTAMP=#/*!*/;
@@ -667,6 +673,8 @@ create table t1 (a varchar(100)) engine=innodb
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -681,6 +689,8 @@ end
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -694,6 +704,8 @@ COMMIT/*!*/;
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -707,6 +719,8 @@ COMMIT/*!*/;
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -720,6 +734,8 @@ COMMIT/*!*/;
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -729,6 +745,8 @@ select * from mysqltest1.t1
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -737,6 +755,8 @@ alter procedure foo2 contains sql
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -745,6 +765,8 @@ DROP TABLE `t1` /* generated by server */
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -753,6 +775,8 @@ create table t1 (a int) engine=innodb
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -761,6 +785,8 @@ create table t2 like t1
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -771,6 +797,8 @@ insert into t1 values (15)
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -779,6 +807,8 @@ CREATE USER 'zedjzlcsjhd'@'127.0.0.1' IDENTIFIED WITH 'caching_sha2_password'
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -787,6 +817,8 @@ GRANT EXECUTE, CREATE ROUTINE ON `mysqltest1`.* TO 'zedjzlcsjhd'@'127.0.0.1'
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -795,6 +827,8 @@ GRANT SELECT ON `mysqltest1`.`t1` TO 'zedjzlcsjhd'@'127.0.0.1'
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -803,6 +837,8 @@ GRANT SELECT, INSERT ON `mysqltest1`.`t2` TO 'zedjzlcsjhd'@'127.0.0.1'
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -816,6 +852,8 @@ end
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -829,6 +867,8 @@ COMMIT/*!*/;
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -842,6 +882,8 @@ COMMIT/*!*/;
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -855,6 +897,8 @@ COMMIT/*!*/;
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -863,6 +907,8 @@ alter procedure foo4 sql security invoker
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -876,6 +922,8 @@ COMMIT/*!*/;
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -889,6 +937,8 @@ COMMIT/*!*/;
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -902,6 +952,8 @@ COMMIT/*!*/;
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -910,6 +962,8 @@ alter table t2 add unique (a)
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -918,6 +972,8 @@ drop procedure foo4
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -930,6 +986,8 @@ end
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -938,6 +996,8 @@ drop procedure foo4
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -946,6 +1006,8 @@ drop procedure foo
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -954,6 +1016,8 @@ drop procedure foo2
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -962,6 +1026,8 @@ drop procedure foo3
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -975,6 +1041,8 @@ end
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -991,6 +1059,8 @@ COMMIT
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1004,6 +1074,8 @@ COMMIT/*!*/;
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1017,6 +1089,8 @@ COMMIT/*!*/;
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1025,6 +1099,8 @@ drop function fn1
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1037,6 +1113,8 @@ end
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1050,6 +1128,8 @@ COMMIT/*!*/;
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1063,6 +1143,8 @@ COMMIT/*!*/;
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1075,6 +1157,8 @@ end
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1087,6 +1171,8 @@ end
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1100,6 +1186,8 @@ COMMIT/*!*/;
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.sql_mode=1073741824/*!*/;
@@ -1109,6 +1197,8 @@ alter table t2 add unique (a)
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.sql_mode=1168113696/*!*/;
@@ -1118,6 +1208,8 @@ drop function fn1
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1130,6 +1222,8 @@ end
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1143,6 +1237,8 @@ COMMIT/*!*/;
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1151,6 +1247,8 @@ CREATE DEFINER=`root`@`localhost` trigger trg before insert on t1 for each row s
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1164,6 +1262,8 @@ COMMIT/*!*/;
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1177,6 +1277,8 @@ COMMIT/*!*/;
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1185,6 +1287,8 @@ drop trigger trg
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1198,6 +1302,8 @@ COMMIT/*!*/;
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1208,6 +1314,8 @@ select * from t1
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1216,6 +1324,8 @@ drop procedure foo
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1224,6 +1334,8 @@ drop function fn1
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1232,6 +1344,8 @@ drop database mysqltest1
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1240,6 +1354,8 @@ drop user "zedjzlcsjhd"@127.0.0.1
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 use `test`/*!*/;
 SET TIMESTAMP=#/*!*/;
@@ -1249,6 +1365,8 @@ drop function if exists f1
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1266,6 +1384,8 @@ end
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1274,6 +1394,8 @@ CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW 
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1282,6 +1404,8 @@ create table t1 (a int) engine=innodb
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1295,6 +1419,8 @@ COMMIT/*!*/;
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1303,6 +1429,8 @@ drop view v1
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1311,6 +1439,8 @@ drop function f1
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1319,6 +1449,8 @@ DROP PROCEDURE IF EXISTS p1
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1327,6 +1459,8 @@ DROP TABLE IF EXISTS `t1` /* generated by server */
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1335,6 +1469,8 @@ CREATE TABLE t1(col VARCHAR(10)) engine=innodb
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1344,6 +1480,8 @@ INSERT INTO t1 VALUES(arg)
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1357,6 +1495,8 @@ COMMIT/*!*/;
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1365,6 +1505,8 @@ DROP PROCEDURE p1
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1373,6 +1515,8 @@ DROP PROCEDURE IF EXISTS p1
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1381,6 +1525,8 @@ DROP FUNCTION IF EXISTS f1
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1390,6 +1536,8 @@ SET @a = 1
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1399,6 +1547,8 @@ RETURN 0
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1407,6 +1557,8 @@ DROP PROCEDURE p1
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1415,6 +1567,8 @@ DROP FUNCTION f1
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1423,6 +1577,8 @@ DROP TABLE `t1` /* generated by server */
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1431,6 +1587,8 @@ drop database if exists mysqltest
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1439,6 +1597,8 @@ drop database if exists mysqltest2
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1447,6 +1607,8 @@ create database mysqltest
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1455,6 +1617,8 @@ create database mysqltest2
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 use `mysqltest2`/*!*/;
 SET TIMESTAMP=#/*!*/;
@@ -1464,6 +1628,8 @@ create table t ( t integer ) engine=innodb
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1473,6 +1639,8 @@ begin end
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1486,6 +1654,8 @@ COMMIT/*!*/;
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1498,6 +1668,8 @@ end
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1512,6 +1684,8 @@ COMMIT/*!*/;
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1520,6 +1694,8 @@ drop database mysqltest
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
@@ -1528,6 +1704,8 @@ drop database mysqltest2
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 use `test`/*!*/;
 SET TIMESTAMP=#/*!*/;
@@ -1540,6 +1718,8 @@ end
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 use `mysql`/*!*/;
 SET TIMESTAMP=#/*!*/;
@@ -1553,6 +1733,8 @@ end
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 # immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 /*!80013 SET @@session.sql_require_primary_key=0*//*!*/;

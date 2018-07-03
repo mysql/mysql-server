@@ -180,6 +180,11 @@ typedef struct Trans_param {
   /** value of session wait_timeout, timeout to hold transaction */
   ulong hold_timeout;
 
+  /// pointer to original_server_version
+  uint32_t *original_server_version;
+
+  /// pointer to immediate_server_version
+  uint32_t *immediate_server_version;
 } Trans_param;
 
 /**

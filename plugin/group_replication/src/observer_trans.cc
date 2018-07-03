@@ -376,11 +376,24 @@ int group_replication_trans_before_commit(Trans_param *param) {
     *(param->original_commit_timestamp) = my_micro_time();
   }  // otherwise the transaction did not originate in this server
 
+  *(param->immediate_server_version) = do_server_version_int(::server_version);
+  if (*(param->original_server_version) == UNDEFINED_SERVER_VERSION) {
+    /*
+     Assume that this transaction is original from this server and update status
+     variable so that it won't be re-defined when this GTID is written to the
+     binlog
+    */
+    *(param->original_server_version) = do_server_version_int(::server_version);
+    DBUG_EXECUTE_IF("gr_fixed_server_version",
+                    *(param->original_server_version) = 777777;);
+  }  // otherwise the transaction did not originate in this server
+
   // Notice the GTID of atomic DDL is written to the trans cache as well.
-  gle = new Gtid_log_event(param->server_id, is_dml || param->is_atomic_ddl, 0,
-                           1, may_have_sbr_stmts,
-                           *(param->original_commit_timestamp), 0,
-                           gtid_specification);
+  gle = new Gtid_log_event(
+      param->server_id, is_dml || param->is_atomic_ddl, 0, 1,
+      may_have_sbr_stmts, *(param->original_commit_timestamp), 0,
+      gtid_specification, *(param->original_server_version),
+      *(param->immediate_server_version));
   /*
     GR does not support event checksumming. If GR start to support event
     checksumming, the calculation below should take the checksum payload into

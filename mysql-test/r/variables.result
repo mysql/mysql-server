@@ -2008,9 +2008,11 @@ SET SESSION error_count = @@session.error_count;
 SET SESSION external_user = @@session.external_user;
 SET SESSION gtid_next = @@session.gtid_next;
 SET SESSION identity = @@session.identity;
+SET SESSION immediate_server_version = @@session.immediate_server_version;
 SET SESSION insert_id = @@session.insert_id;
 SET SESSION last_insert_id = @@session.last_insert_id;
 SET SESSION original_commit_timestamp = @@session.original_commit_timestamp;
+SET SESSION original_server_version = @@session.original_server_version;
 SET SESSION proxy_user = @@session.proxy_user;
 SET SESSION pseudo_slave_mode = @@session.pseudo_slave_mode;
 Warnings:
