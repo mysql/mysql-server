@@ -345,6 +345,20 @@ static int mgmd_main(int argc, char** argv)
     mgmd_exit(1);
   }
 
+  /*validation is added to prevent user using
+  wrong short option for --config-file.*/
+  if (opt_ndb_connectstring)
+  {
+    // file path mostly starts with . or /
+    if (strncmp(opt_ndb_connectstring, "/", 1) == 0 ||
+        strncmp(opt_ndb_connectstring, ".", 1) == 0)
+    {
+      fprintf(stderr, "ERROR: --ndb-connectstring can't start with '.' or"
+          " '/'\n");
+      mgmd_exit(1);
+    }
+  }
+
   if (opt_nowait_nodes)
   {
     int res = parse_mask(opt_nowait_nodes, opts.nowait_nodes);
