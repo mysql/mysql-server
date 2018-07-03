@@ -245,7 +245,13 @@ Dbtup::init_page(Fragrecord* regFragPtr, PagePtr pagePtr, Uint32 pageId)
   pagePtr.p->prevList = RNIL;
   pagePtr.p->m_flags = 0;
   Tup_fixsize_page* fix_page = (Tup_fixsize_page*)pagePtr.p;
-  fix_page->clear_small_change_map();
+  /**
+   * A new page is required to be fully scanned the first LCP after
+   * allocation to ensure that we generate DELETE BY ROWID for all
+   * positions that are not yet inserted into, this ensures that
+   * we don't leave deleted rows in change pages after an LCP.
+   */
+  fix_page->set_all_change_map();
   fix_page->clear_max_gci();
 }
 

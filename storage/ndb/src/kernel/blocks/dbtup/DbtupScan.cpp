@@ -1313,6 +1313,19 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
  * ignore the small area change bitmap when we have enough bits set and simply
  * scan all rows, we will still check the large area change bitmap though
  * also in this case.
+ *
+ * One special case we need to be careful with is when a new page has been
+ * allocated. If this new page is reusing a previously used page slot and
+ * thus reusing row ids we need to ensure that we scan the entire page.
+ * This is required to generate DELETE BY ROWID for all row ids not yet
+ * inserted into (there could be old inserts into these row ids in older
+ * LCP data files, so important to remove those to get a consistent LCP.
+ * We solve this by always ensuring that we scan the page the first time
+ * by setting all bits in the change map and thus ensuring that the
+ * m_all_rows is set to true while scanning the page. We could be more
+ * elaborate and only set it on pages that reuse a page slot or we could
+ * even use a bit in the tuple header for it. But this method should be
+ * good enough for now.
  */
 Uint32
 Dbtup::setup_change_page_for_scan(ScanOp& scan,

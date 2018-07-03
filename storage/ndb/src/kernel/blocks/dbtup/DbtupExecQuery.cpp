@@ -4888,8 +4888,16 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
     }
   }
 
-  /* A row is deleted as part of Copy fragment or Restore */
+  /**
+   * A row is deleted as part of Copy fragment or Restore
+   * We need to keep track of the row count also during restore.
+   * We increment number of changed rows, for restore this variable
+   * will be cleared after completing the restore, but it is
+   * important to count it while performing a COPY fragment
+   * operation.
+   */
   fragPtr.p->m_row_count--;
+  fragPtr.p->m_lcp_changed_rows++;
 
   DEB_DELETE_NR(("(%u)nr_delete, tab(%u,%u) row(%u,%u), gci: %u"
                  ", row_count: %llu",
