@@ -27,6 +27,7 @@
 #include <vector>
 
 class Item;
+class JOIN;
 class THD;
 struct TABLE;
 
@@ -130,6 +131,20 @@ class RowIterator {
 
   virtual std::vector<std::string> DebugString() const = 0;
 
+  // If this is the root iterator of a join, points back to the join object.
+  // This has one single purpose: EXPLAIN uses it to be able to get the SELECT
+  // list and print out any subselects in it; they are not children of
+  // the iterator per se, but need to be printed with it.
+  //
+  // We could have stored the list of these extra subselect iterators directly
+  // on the iterator (it breaks the abstraction a bit to refer to JOIN here),
+  // but setting a single pointer is cheaper, especially considering that most
+  // queries are not EXPLAIN queries and we don't want the overhead for them.
+  JOIN *join() const { return m_join; }
+
+  // Should be called by JOIN::create_iterators() only.
+  void set_join(JOIN *join) { m_join = join; }
+
   /**
     Start performance schema batch mode, if supported (otherwise ignored).
 
@@ -159,6 +174,7 @@ class RowIterator {
 
  private:
   THD *const m_thd;
+  JOIN *m_join = nullptr;
 };
 
 class TableRowIterator : public RowIterator {

@@ -54,6 +54,7 @@ SELECT_LEX), by calling explain_unit() for each of them.
 */
 
 #include <string>
+#include <vector>
 
 #include "my_base.h"
 #include "my_sqlcommand.h"
@@ -61,15 +62,17 @@ SELECT_LEX), by calling explain_unit() for each of them.
 #include "sql/opt_explain_format.h"
 #include "sql/parse_tree_node_base.h"
 #include "sql/query_result.h"  // Query_result_send
-#include "sql/sql_cmd.h"       // Sql_cmd
+#include "sql/row_iterator.h"
+#include "sql/sql_cmd.h"  // Sql_cmd
+#include "sql/sql_lex.h"
 #include "sys/types.h"
 
 #include <functional>
 #include <string>
 
 class Item;
+class JOIN;
 class QEP_TAB;
-class RowIterator;
 class SELECT_LEX;
 class SELECT_LEX_UNIT;
 class THD;
@@ -207,5 +210,9 @@ void ForEachSubselect(
     const std::function<void(int select_number, bool is_dependent,
                              bool is_cacheable, RowIterator *iterator)>
         &callback);
+
+// For the given join, return a list of pseudo-children corresponding to
+// subselects in the SELECT list (if any).
+std::vector<RowIterator::Child> GetIteratorsFromSelectList(JOIN *join);
 
 #endif /* OPT_EXPLAIN_INCLUDED */

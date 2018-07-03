@@ -1887,6 +1887,7 @@ void JOIN::create_iterators() {
           PrintQueryPlan(0, iterator.get()).c_str());
 #endif
 
+  iterator->set_join(this);
   m_root_iterator = move(iterator);
 }
 

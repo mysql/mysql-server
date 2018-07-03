@@ -33,12 +33,12 @@ CREATE TABLE t2 ( f2 INT );
 EXPLAIN FORMAT=tree DELETE t1, t2 FROM t1, t2;
 DROP TABLE t1, t2;
 
-# Subquery in SELECT list, which is not shown yet.
+# Subquery in SELECT list.
 CREATE TABLE t1 ( f1 INT );
 INSERT INTO t1 VALUES ( 1 );
 INSERT INTO t1 VALUES ( 2 );
 INSERT INTO t1 VALUES ( 3 );
-EXPLAIN FORMAT=tree SELECT f1, (SELECT MIN(f1) FROM t1 i WHERE i.f1 > t1.f1) FROM t1;
+EXPLAIN FORMAT=tree SELECT f1, (SELECT MIN(f1) FROM t1 i WHERE i.f1 > t1.f1) < 3 FROM t1;
 DROP TABLE t1;
 
 # Index scan.
@@ -172,6 +172,31 @@ INSERT INTO t1 VALUES ( 2 );
 INSERT INTO t1 VALUES ( 3 );
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f1 = ( SELECT MIN(f1) FROM t1 AS i WHERE i.f1 > t1.f1 );
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f1 > ( SELECT f1 FROM t1 LIMIT 1 );
+DROP TABLE t1;
+
+# A subquery in the SELECT list of a condition subquery.
+CREATE TABLE t1 ( f1 INT PRIMARY KEY );
+INSERT INTO t1 VALUES ( 1 );
+INSERT INTO t1 VALUES ( 2 );
+INSERT INTO t1 VALUES ( 3 );
+EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f1 = ( SELECT ( SELECT MIN(f1) FROM t1 AS ii WHERE ii.f1 > t1.f1 ) > i.f1 FROM t1 AS i ) ;
+DROP TABLE t1;
+
+# Deeply nested subqueries in the SELECT list.
+# The addition is to keep the optimizer from flattening out the queries.
+CREATE TABLE t1 ( f1 INT PRIMARY KEY );
+INSERT INTO t1 VALUES ( 1 );
+INSERT INTO t1 VALUES ( 2 );
+INSERT INTO t1 VALUES ( 3 );
+EXPLAIN FORMAT=tree SELECT ( SELECT ( SELECT ( SELECT MIN(f1) FROM t1 i WHERE i.f1 > t1.f1 ) + 1 ) + 1 ) FROM t1;
+DROP TABLE t1;
+
+# A subquery that contains a query we can't execute as iterators.
+CREATE TABLE t1 ( f1 INT PRIMARY KEY );
+INSERT INTO t1 VALUES ( 1 );
+INSERT INTO t1 VALUES ( 2 );
+INSERT INTO t1 VALUES ( 3 );
+EXPLAIN FORMAT=tree SELECT ( SELECT f1 FROM t1 UNION SELECT f1 + 10 FROM t1 LIMIT 1 ) FROM t1;
 DROP TABLE t1;
 
 # Condition pushed before filesort.

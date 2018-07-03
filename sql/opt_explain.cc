@@ -32,6 +32,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
+#include <algorithm>
 #include <atomic>
 #include <limits>
 #include <string>
@@ -2004,6 +2005,8 @@ std::string PrintQueryPlan(int level, RowIterator *iterator) {
     return ret + "<not executable by iterator executor>\n";
   }
 
+  int top_level = level;
+
   for (const string &str : iterator->DebugString()) {
     ret.append(level * 4, ' ');
     ret += "-> ";
@@ -2021,6 +2024,15 @@ std::string PrintQueryPlan(int level, RowIterator *iterator) {
       ret += PrintQueryPlan(level + 1, child.iterator);
     } else {
       ret += PrintQueryPlan(level, child.iterator);
+    }
+  }
+  if (iterator->join() != nullptr) {
+    for (const auto &child : GetIteratorsFromSelectList(iterator->join())) {
+      ret.append(top_level * 4, ' ');
+      ret.append("-> ");
+      ret.append(child.description);
+      ret.append("\n");
+      ret += PrintQueryPlan(top_level + 1, child.iterator);
     }
   }
   return ret;
@@ -2524,4 +2536,33 @@ void ForEachSubselect(
     }
     return false;
   });
+}
+
+vector<RowIterator::Child> GetIteratorsFromSelectList(JOIN *join) {
+  vector<RowIterator::Child> ret;
+  if (join == nullptr) {
+    return ret;
+  }
+
+  for (Item &item : *join->get_current_fields()) {
+    ForEachSubselect(&item, [&ret](int select_number, bool is_dependent,
+                                   bool is_cacheable, RowIterator *iterator) {
+      char description[256];
+      if (is_dependent) {
+        snprintf(description, sizeof(description),
+                 "Select #%d (subquery in projection; dependent)",
+                 select_number);
+      } else if (!is_cacheable) {
+        snprintf(description, sizeof(description),
+                 "Select #%d (subquery in projection; uncacheable)",
+                 select_number);
+      } else {
+        snprintf(description, sizeof(description),
+                 "Select #%d (subquery in projection; run only once)",
+                 select_number);
+      }
+      ret.push_back(RowIterator::Child{iterator, description});
+    });
+  }
+  return ret;
 }

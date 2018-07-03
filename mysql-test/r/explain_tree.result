@@ -41,9 +41,13 @@ CREATE TABLE t1 ( f1 INT );
 INSERT INTO t1 VALUES ( 1 );
 INSERT INTO t1 VALUES ( 2 );
 INSERT INTO t1 VALUES ( 3 );
-EXPLAIN FORMAT=tree SELECT f1, (SELECT MIN(f1) FROM t1 i WHERE i.f1 > t1.f1) FROM t1;
+EXPLAIN FORMAT=tree SELECT f1, (SELECT MIN(f1) FROM t1 i WHERE i.f1 > t1.f1) < 3 FROM t1;
 EXPLAIN
 -> Table scan on t1
+-> Select #2 (subquery in projection; dependent)
+    -> Aggregate: min(i.f1)
+        -> Filter: (i.f1 > t1.f1)
+            -> Table scan on i
 
 Warnings:
 Note	1276	Field or reference 'test.t1.f1' of SELECT #2 was resolved in SELECT #1
@@ -265,6 +269,54 @@ EXPLAIN
     -> Select #2 (subquery in condition; run only once)
         -> Limit: 1 row(s)
             -> Index scan on t1 using PRIMARY
+
+DROP TABLE t1;
+CREATE TABLE t1 ( f1 INT PRIMARY KEY );
+INSERT INTO t1 VALUES ( 1 );
+INSERT INTO t1 VALUES ( 2 );
+INSERT INTO t1 VALUES ( 3 );
+EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f1 = ( SELECT ( SELECT MIN(f1) FROM t1 AS ii WHERE ii.f1 > t1.f1 ) > i.f1 FROM t1 AS i ) ;
+EXPLAIN
+-> Filter: (t1.f1 = (select #2))
+    -> Index scan on t1 using PRIMARY
+    -> Select #2 (subquery in condition; dependent)
+        -> Index scan on i using PRIMARY
+        -> Select #3 (subquery in projection; dependent)
+            -> Aggregate: min(ii.f1)
+                -> Filter: (ii.f1 > t1.f1)
+                    -> Index range scan on ii (re-planned for each iteration)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.f1' of SELECT #3 was resolved in SELECT #1
+DROP TABLE t1;
+CREATE TABLE t1 ( f1 INT PRIMARY KEY );
+INSERT INTO t1 VALUES ( 1 );
+INSERT INTO t1 VALUES ( 2 );
+INSERT INTO t1 VALUES ( 3 );
+EXPLAIN FORMAT=tree SELECT ( SELECT ( SELECT ( SELECT MIN(f1) FROM t1 i WHERE i.f1 > t1.f1 ) + 1 ) + 1 ) FROM t1;
+EXPLAIN
+-> Index scan on t1 using PRIMARY
+-> Select #2 (subquery in projection; dependent)
+    -> Rows fetched before execution
+    -> Select #3 (subquery in projection; dependent)
+        -> Rows fetched before execution
+        -> Select #4 (subquery in projection; dependent)
+            -> Aggregate: min(i.f1)
+                -> Filter: (i.f1 > t1.f1)
+                    -> Index range scan on i (re-planned for each iteration)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.f1' of SELECT #4 was resolved in SELECT #1
+DROP TABLE t1;
+CREATE TABLE t1 ( f1 INT PRIMARY KEY );
+INSERT INTO t1 VALUES ( 1 );
+INSERT INTO t1 VALUES ( 2 );
+INSERT INTO t1 VALUES ( 3 );
+EXPLAIN FORMAT=tree SELECT ( SELECT f1 FROM t1 UNION SELECT f1 + 10 FROM t1 LIMIT 1 ) FROM t1;
+EXPLAIN
+-> Index scan on t1 using PRIMARY
+-> Select #2 (subquery in projection; run only once)
+    <not executable by iterator executor>
 
 DROP TABLE t1;
 CREATE TABLE t1 (a INTEGER, b INTEGER);
