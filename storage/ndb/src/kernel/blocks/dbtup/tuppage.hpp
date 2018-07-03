@@ -139,6 +139,7 @@ struct Tup_fixsize_page
   STATIC_CONST( HEADER_WORDS = 32 );
   STATIC_CONST( DATA_WORDS = File_formats::NDB_PAGE_SIZE_WORDS -
                              HEADER_WORDS );
+  STATIC_CONST( FIRST_BIT_CHANGE_MAP = 24);
   
   Uint32 m_data[DATA_WORDS];
   
@@ -182,6 +183,18 @@ struct Tup_fixsize_page
     map_val >>= 8;
     m_flags = map_val;
   }
+  void set_all_change_map()
+  {
+    m_change_map[0] = 0xFFFFFFFF;
+    m_change_map[1] = 0xFFFFFFFF;
+    m_change_map[2] = 0xFFFFFFFF;
+    m_change_map[3] = 0xFFFFFFFF;
+    Uint32 map_val = 0xFF;
+    map_val <<= Tup_fixsize_page::FIRST_BIT_CHANGE_MAP;
+    Uint32 flags = m_flags;
+    flags |= map_val;
+    m_flags = flags;
+  }
   void set_change_map(Uint32 page_index)
   {
     assert(page_index < Tup_fixsize_page::DATA_WORDS);
@@ -202,7 +215,8 @@ struct Tup_fixsize_page
      * Also set the change map with only 8 bits, one bit per
      * 4 kB.
      */
-    Uint32 large_map_idx = 24 + (page_index >> 10);
+    Uint32 large_map_idx = Tup_fixsize_page::FIRST_BIT_CHANGE_MAP +
+                           (page_index >> 10);
     assert(large_map_idx <= 31);
     map_set_val = 1 << large_map_idx;
     m_flags |= map_set_val;
@@ -211,7 +225,8 @@ struct Tup_fixsize_page
   {
     assert(page_index < Tup_fixsize_page::DATA_WORDS);
     Uint32 map_val = m_flags;
-    Uint32 bit_pos = 24 + (page_index >> 10);
+    Uint32 bit_pos = Tup_fixsize_page::FIRST_BIT_CHANGE_MAP +
+                     (page_index >> 10);
     assert(bit_pos <= 31);
     Uint32 map_get_val = 1 << bit_pos;
     Uint32 map_clear_val = ~map_get_val;
@@ -237,7 +252,7 @@ struct Tup_fixsize_page
   bool get_any_changes()
   {
     Uint32 map_val = m_flags;
-    map_val >>= 24;
+    map_val >>= Tup_fixsize_page::FIRST_BIT_CHANGE_MAP;
 #ifdef VM_TRACE
     if (map_val == 0)
     {
@@ -253,7 +268,7 @@ struct Tup_fixsize_page
     for (Uint32 i = 0; i < 4; i++)
     {
       Uint32 small_map = m_change_map[i];
-      Uint32 bit_pos = 2 * i + 24;
+      Uint32 bit_pos = 2 * i + Tup_fixsize_page::FIRST_BIT_CHANGE_MAP;
       Uint32 bit_val = m_flags & (1 << bit_pos);
       if (bit_val != 0)
       {
@@ -267,7 +282,7 @@ struct Tup_fixsize_page
         if (small_bit_map != 0)
           return false;
       }
-      bit_pos = 2 * i + 24 + 1;
+      bit_pos = 2 * i + Tup_fixsize_page::FIRST_BIT_CHANGE_MAP + 1;
       bit_val = m_flags & (1 << bit_pos);
       if (bit_val != 0)
       {
