@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -108,7 +108,19 @@ set(ADAPTER_SOURCE_FILES
 ###### COMPILER AND LINKER OPTIONS
 
 # Enable asserts:
-remove_definitions(-DNDEBUG)
+REMOVE_DEFINITIONS(-DNDEBUG)
+FOREACH(flag
+    CMAKE_C_FLAGS_DEBUG
+    CMAKE_C_FLAGS_RELWITHDEBINFO
+    CMAKE_C_FLAGS_RELEASE
+    CMAKE_C_FLAGS_MINSIZEREL
+    CMAKE_CXX_FLAGS_DEBUG
+    CMAKE_CXX_FLAGS_RELWITHDEBINFO
+    CMAKE_CXX_FLAGS_RELEASE
+    CMAKE_CXX_FLAGS_MINSIZEREL
+    )
+  STRING(REPLACE "-DNDEBUG"  "" "${flag}" "${${flag}}")
+ENDFOREACH()
 
 if(WIN32) 
   set(ADAPTER_REQUIRED_LIBS ndbclient_static node)

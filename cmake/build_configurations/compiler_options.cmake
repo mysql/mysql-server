@@ -1,4 +1,4 @@
-# Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -35,85 +35,63 @@ ENDIF()
 # Compiler options
 IF(UNIX)  
 
+  IF(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
+    SET(SECTIONS_FLAG "-ffunction-sections -fdata-sections")
+  ELSE()
+    SET(SECTIONS_FLAG)
+  ENDIF()
+
   # Default GCC flags
   IF(CMAKE_COMPILER_IS_GNUCC)
-    SET(COMMON_C_FLAGS               "-g -fno-omit-frame-pointer")
+    SET(COMMON_C_FLAGS               "-fno-omit-frame-pointer")
     # Disable inline optimizations for valgrind testing to avoid false positives
     IF(WITH_VALGRIND)
-      SET(COMMON_C_FLAGS             "-fno-inline ${COMMON_C_FLAGS}")
+      STRING_PREPEND(COMMON_C_FLAGS  "-fno-inline ")
     ENDIF()
     # Disable floating point expression contractions to avoid result differences
     IF(HAVE_C_FLOATING_POINT_FUSED_MADD)
       SET(COMMON_C_FLAGS "${COMMON_C_FLAGS} -ffp-contract=off")
     ENDIF()
     IF(NOT DISABLE_SHARED)
-      SET(COMMON_C_FLAGS             "-fPIC ${COMMON_C_FLAGS}")
+      STRING_PREPEND(COMMON_C_FLAGS  "-fPIC ")
     ENDIF()
-    SET(CMAKE_C_FLAGS_DEBUG          "${COMMON_C_FLAGS}")
-    SET(CMAKE_C_FLAGS_RELWITHDEBINFO "-O2 -ffunction-sections -fdata-sections ${COMMON_C_FLAGS}")
   ENDIF()
   IF(CMAKE_COMPILER_IS_GNUCXX)
-    SET(COMMON_CXX_FLAGS               "-g -fno-omit-frame-pointer -std=c++11")
+    SET(COMMON_CXX_FLAGS               "-std=c++11 -fno-omit-frame-pointer")
     # Disable inline optimizations for valgrind testing to avoid false positives
     IF(WITH_VALGRIND)
-      SET(COMMON_CXX_FLAGS             "-fno-inline ${COMMON_CXX_FLAGS}")
+      STRING_PREPEND(COMMON_CXX_FLAGS  "-fno-inline ")
     ENDIF()
     # Disable floating point expression contractions to avoid result differences
     IF(HAVE_CXX_FLOATING_POINT_FUSED_MADD)
-      SET(COMMON_CXX_FLAGS "${COMMON_CXX_FLAGS} -ffp-contract=off")
+      STRING_APPEND(COMMON_CXX_FLAGS " -ffp-contract=off")
     ENDIF()
     IF(NOT DISABLE_SHARED)
-      SET(COMMON_CXX_FLAGS             "-fPIC ${COMMON_CXX_FLAGS}")
+      STRING_PREPEND(COMMON_CXX_FLAGS "-fPIC ")
     ENDIF()
-    SET(CMAKE_CXX_FLAGS_DEBUG          "${COMMON_CXX_FLAGS}")
-    SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -ffunction-sections -fdata-sections ${COMMON_CXX_FLAGS}")
-    # -std=c++11 must be set
-    SET(CMAKE_CXX_FLAGS_RELEASE        "${CMAKE_CXX_FLAGS_RELEASE} -std=c++11")
   ENDIF()
 
   # Default Clang flags
   IF(CMAKE_C_COMPILER_ID MATCHES "Clang")
-    SET(COMMON_C_FLAGS               "-g -fno-omit-frame-pointer")
+    SET(COMMON_C_FLAGS               "-fno-omit-frame-pointer")
     IF(NOT DISABLE_SHARED)
-      SET(COMMON_C_FLAGS             "-fPIC ${COMMON_C_FLAGS}")
+      STRING_PREPEND(COMMON_C_FLAGS  "-fPIC ")
     ENDIF()
-    SET(CMAKE_C_FLAGS_DEBUG          "${COMMON_C_FLAGS}")
-    SET(CMAKE_C_FLAGS_RELWITHDEBINFO "-O2 -ffunction-sections -fdata-sections ${COMMON_C_FLAGS}")
   ENDIF()
   IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    SET(COMMON_CXX_FLAGS               "-g -fno-omit-frame-pointer -std=c++11")
+    SET(COMMON_CXX_FLAGS               "-std=c++11 -fno-omit-frame-pointer")
     IF(NOT DISABLE_SHARED)
-      SET(COMMON_CXX_FLAGS             "-fPIC ${COMMON_CXX_FLAGS}")
+      STRING_PREPEND(COMMON_CXX_FLAGS  "-fPIC ")
     ENDIF()
-    SET(CMAKE_CXX_FLAGS_DEBUG          "${COMMON_CXX_FLAGS}")
-    SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -ffunction-sections -fdata-sections ${COMMON_CXX_FLAGS}")
-    # -std=c++11 must be set
-    SET(CMAKE_CXX_FLAGS_RELEASE        "${CMAKE_CXX_FLAGS_RELEASE} -std=c++11")
   ENDIF()
 
   # Solaris flags
   IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
-    IF(CMAKE_SYSTEM_VERSION VERSION_GREATER "5.9")
-      # Link mysqld with mtmalloc on Solaris 10 and later
-      SET(WITH_MYSQLD_LDFLAGS "-lmtmalloc" CACHE STRING "")
-    ENDIF() 
-    # Possible changes to the defaults set above for gcc/linux.
-    # Vectorized code dumps core in 32bit mode.
-    IF(CMAKE_COMPILER_IS_GNUCC AND 32BIT)
-      CHECK_C_COMPILER_FLAG("-ftree-vectorize" HAVE_C_FTREE_VECTORIZE)
-      IF(HAVE_C_FTREE_VECTORIZE)
-        SET(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} -fno-tree-vectorize")
-      ENDIF()
-    ENDIF()
-    IF(CMAKE_COMPILER_IS_GNUCXX AND 32BIT)
-      CHECK_CXX_COMPILER_FLAG("-ftree-vectorize" HAVE_CXX_FTREE_VECTORIZE)
-      IF(HAVE_CXX_FTREE_VECTORIZE)
-        SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -fno-tree-vectorize")
-      ENDIF()
-    ENDIF()
+    # Link mysqld with mtmalloc on Solaris 10 and later
+    SET(WITH_MYSQLD_LDFLAGS "-lmtmalloc" CACHE STRING "")
 
     IF(CMAKE_C_COMPILER_ID MATCHES "SunPro")
-      SET(SUNPRO_FLAGS     "-xdebuginfo=no%decl")
+      SET(SUNPRO_FLAGS     "")
       SET(SUNPRO_FLAGS     "${SUNPRO_FLAGS} -xbuiltin=%all")
       SET(SUNPRO_FLAGS     "${SUNPRO_FLAGS} -xlibmil")
       SET(SUNPRO_FLAGS     "${SUNPRO_FLAGS} -xatomic=studio")
@@ -124,31 +102,37 @@ IF(UNIX)
         SET(SUNPRO_FLAGS   "${SUNPRO_FLAGS} -nofstore")
       ENDIF()
 
-      # -std=c++11 must be set
-      SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -std=c++11")
-      IF(NOT DISABLE_SHARED)
-        SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -KPIC")
-      ENDIF()
+      SET(COMMON_C_FLAGS            "${SUNPRO_FLAGS}")
+      SET(COMMON_CXX_FLAGS          "-std=c++11 ${SUNPRO_FLAGS}")
 
-      SET(COMMON_C_FLAGS            "-g ${SUNPRO_FLAGS}")
-      SET(COMMON_CXX_FLAGS          "-g0 -std=c++11 ${SUNPRO_FLAGS}")
-      SET(CMAKE_C_FLAGS_DEBUG       "${COMMON_C_FLAGS}")
-      SET(CMAKE_CXX_FLAGS_DEBUG     "${COMMON_CXX_FLAGS}")
-      SET(CMAKE_C_FLAGS_RELWITHDEBINFO   "-xO3 ${COMMON_C_FLAGS}")
-      SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-xO3 ${COMMON_CXX_FLAGS}")
+      # Reduce size of debug binaries, by omitting function declarations.
+      # Note that we cannot set "-xdebuginfo=no%decl" during feature tests.
+      STRING_APPEND(CMAKE_C_FLAGS_DEBUG            " -xdebuginfo=no%decl")
+      STRING_APPEND(CMAKE_C_FLAGS_RELWITHDEBINFO   " -xdebuginfo=no%decl")
+      STRING_APPEND(CMAKE_CXX_FLAGS_DEBUG          " -xdebuginfo=no%decl")
+      STRING_APPEND(CMAKE_CXX_FLAGS_RELWITHDEBINFO " -xdebuginfo=no%decl")
+
+      # Bugs in SunPro, compile/link error unless we add some debug info.
+      # Errors seem to be related to TLS functions.
+      STRING_APPEND(CMAKE_CXX_FLAGS_MINSIZEREL
+        " -g0 -xdebuginfo=no%line,no%param,no%decl,no%variable,no%tagtype")
+      STRING_APPEND(CMAKE_CXX_FLAGS_RELEASE
+        " -g0 -xdebuginfo=no%line,no%param,no%decl,no%variable,no%tagtype")
     ENDIF()
   ENDIF()
+
+  # Use STRING_PREPEND here, so command-line input can override our defaults.
+  STRING_PREPEND(CMAKE_C_FLAGS                  "${COMMON_C_FLAGS} ")
+  STRING_PREPEND(CMAKE_C_FLAGS_RELWITHDEBINFO   "${SECTIONS_FLAG} ")
+  STRING_PREPEND(CMAKE_C_FLAGS_RELEASE          "${SECTIONS_FLAG} ")
+  STRING_PREPEND(CMAKE_C_FLAGS_MINSIZEREL       "${SECTIONS_FLAG} ")
+
+  STRING_PREPEND(CMAKE_CXX_FLAGS                "${COMMON_CXX_FLAGS} ")
+  STRING_PREPEND(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${SECTIONS_FLAG} ")
+  STRING_PREPEND(CMAKE_CXX_FLAGS_RELEASE        "${SECTIONS_FLAG} ")
+  STRING_PREPEND(CMAKE_CXX_FLAGS_MINSIZEREL     "${SECTIONS_FLAG} ")
+
 ENDIF()
 
-SET(CMAKE_C_FLAGS_DEBUG
-      "${CMAKE_C_FLAGS_DEBUG} ${COMMON_C_WORKAROUND_FLAGS}")
-SET(CMAKE_CXX_FLAGS_DEBUG
-      "${CMAKE_CXX_FLAGS_DEBUG} ${COMMON_CXX_WORKAROUND_FLAGS}")
-SET(CMAKE_C_FLAGS_RELWITHDEBINFO
-      "${CMAKE_C_FLAGS_RELWITHDEBINFO} ${COMMON_C_WORKAROUND_FLAGS}")
-SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO
-      "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} ${COMMON_CXX_WORKAROUND_FLAGS}")
-SET(CMAKE_C_FLAGS_RELEASE
-      "${CMAKE_C_FLAGS_RELEASE} ${COMMON_C_WORKAROUND_FLAGS}")
-SET(CMAKE_CXX_FLAGS_RELEASE
-      "${CMAKE_CXX_FLAGS_RELEASE} ${COMMON_CXX_WORKAROUND_FLAGS}")
+STRING_APPEND(CMAKE_C_FLAGS   " ${COMMON_C_WORKAROUND_FLAGS}")
+STRING_APPEND(CMAKE_CXX_FLAGS " ${COMMON_CXX_WORKAROUND_FLAGS}")

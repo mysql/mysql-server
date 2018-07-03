@@ -43,8 +43,8 @@ ENDIF()
 INCLUDE(${CMAKE_BINARY_DIR}/win/configure.data OPTIONAL)
 
 # avoid running system checks by using pre-cached check results
-# system checks are expensive on VS since every tiny program is to be compiled in 
-# a VC solution.
+# system checks are expensive on VS since every tiny program is to be compiled
+# in a VC solution.
 GET_FILENAME_COMPONENT(_SCRIPT_DIR ${CMAKE_CURRENT_LIST_FILE} PATH)
 INCLUDE(${_SCRIPT_DIR}/WindowsCache.cmake)
 
@@ -121,26 +121,27 @@ IF(MSVC)
     SET(CMAKE_${lang}_FLAGS_RELEASE "${CMAKE_${lang}_FLAGS_RELEASE} /Z7")
   ENDFOREACH()
 
-    FOREACH(flag 
-     CMAKE_C_FLAGS_RELEASE    CMAKE_C_FLAGS_RELWITHDEBINFO 
-     CMAKE_C_FLAGS_DEBUG      CMAKE_C_FLAGS_DEBUG_INIT 
-     CMAKE_CXX_FLAGS_RELEASE  CMAKE_CXX_FLAGS_RELWITHDEBINFO
-     CMAKE_CXX_FLAGS_DEBUG    CMAKE_CXX_FLAGS_DEBUG_INIT)
-     IF(LINK_STATIC_RUNTIME_LIBRARIES)
-       STRING(REPLACE "/MD"  "/MT" "${flag}" "${${flag}}")
-     ENDIF()
-     STRING(REPLACE "/Zi"  "/Z7" "${flag}" "${${flag}}")
-     IF (NOT WIN_DEBUG_NO_INLINE)
-       STRING(REPLACE "/Ob0"  "/Ob1" "${flag}" "${${flag}}")
-     ENDIF()
-     SET("${flag}" "${${flag}} /EHsc")
-    ENDFOREACH()
-  
+  FOREACH(flag
+      CMAKE_C_FLAGS_MINSIZEREL
+      CMAKE_C_FLAGS_RELEASE    CMAKE_C_FLAGS_RELWITHDEBINFO
+      CMAKE_C_FLAGS_DEBUG      CMAKE_C_FLAGS_DEBUG_INIT
+      CMAKE_CXX_FLAGS_MINSIZEREL
+      CMAKE_CXX_FLAGS_RELEASE  CMAKE_CXX_FLAGS_RELWITHDEBINFO
+      CMAKE_CXX_FLAGS_DEBUG    CMAKE_CXX_FLAGS_DEBUG_INIT)
+    IF(LINK_STATIC_RUNTIME_LIBRARIES)
+      STRING(REPLACE "/MD"  "/MT" "${flag}" "${${flag}}")
+    ENDIF()
+    STRING(REPLACE "/Zi"  "/Z7" "${flag}" "${${flag}}")
+    IF (NOT WIN_DEBUG_NO_INLINE)
+      STRING(REPLACE "/Ob0"  "/Ob1" "${flag}" "${${flag}}")
+    ENDIF()
+    SET("${flag}" "${${flag}} /EHsc")
+  ENDFOREACH()
   FOREACH(type EXE SHARED MODULE)
-    SET(CMAKE_${type}_LINKER_FLAGS_DEBUG
-	    "${CMAKE_${type}_LINKER_FLAGS_DEBUG} /INCREMENTAL:NO")
-    SET(CMAKE_${type}_LINKER_FLAGS_RELWITHDEBINFO
-	    "${CMAKE_${type}_LINKER_FLAGS_RELWITHDEBINFO} /INCREMENTAL:NO")
+    FOREACH(config DEBUG RELWITHDEBINFO RELEASE MINSIZEREL)
+      SET(flag "CMAKE_${type}_LINKER_FLAGS_${config}")
+      SET("${flag}" "${${flag}} /INCREMENTAL:NO")
+    ENDFOREACH()
   ENDFOREACH()
 
   IF(NOT CMAKE_C_COMPILER_ID MATCHES "Clang")
@@ -148,7 +149,7 @@ IF(MSVC)
     SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /MP")
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
   ENDIF()
-  
+
   #TODO: update the code and remove the disabled warnings
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4800 /wd4805 /wd4996")
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4800 /wd4805 /wd4996 /we4099")

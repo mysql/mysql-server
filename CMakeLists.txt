@@ -222,6 +222,23 @@ IF(WITH_NDBCLUSTER)
 ENDIF()
 
 PROJECT(${MYSQL_PROJECT_NAME})
+
+MACRO(REPORT_CXX_FLAGS)
+  FOREACH(BUILD_TYPE "" _DEBUG _RELWITHDEBINFO _RELEASE _MINSIZEREL)
+    SET(flag "CMAKE_CXX_FLAGS${BUILD_TYPE}")
+    MESSAGE(STATUS "${flag}: ${${flag}}")
+  ENDFOREACH()
+ENDMACRO()
+
+# STRING(APPEND ...) from cmake VERSION 3.4
+MACRO(STRING_APPEND STRING_VAR INPUT)
+  SET(${STRING_VAR} "${${STRING_VAR}}${INPUT}")
+ENDMACRO()
+
+MACRO(STRING_PREPEND STRING_VAR INPUT)
+  SET(${STRING_VAR} "${INPUT}${${STRING_VAR}}")
+ENDMACRO()
+
 SET(BUILD_IS_SINGLE_CONFIG TRUE)
 MESSAGE(STATUS "CMAKE_GENERATOR: ${CMAKE_GENERATOR}")
 IF(CMAKE_GENERATOR MATCHES "Visual Studio" OR CMAKE_GENERATOR STREQUAL "Xcode")
@@ -382,20 +399,20 @@ ENDMACRO()
 MACRO(MY_SANITIZER_CHECK SAN_OPT ADD_OPTIMIZATION RESULT)
   MY_CHECK_C_COMPILER_FLAG("${SAN_OPT}" C_RESULT)
   MY_CHECK_CXX_COMPILER_FLAG("${SAN_OPT}" CXX_RESULT)
-  IF(C_RESULT AND CXX_RESULT AND ${ADD_OPTIMIZATION})
-    # We switch on basic optimization also for debug builds.
-    # With optimization we may get some warnings, so we switch off -Werror
-    SET(OPT_FLAG " -O1 ")
-  ENDIF()
   IF(C_RESULT AND CXX_RESULT)
-    SET(CMAKE_C_FLAGS_DEBUG
-      "${CMAKE_C_FLAGS_DEBUG} ${SAN_OPT} ${OPT_FLAG} -Wno-error")
-    SET(CMAKE_C_FLAGS_RELWITHDEBINFO
-      "${CMAKE_C_FLAGS_RELWITHDEBINFO} ${SAN_OPT}")
-    SET(CMAKE_CXX_FLAGS_DEBUG
-      "${CMAKE_CXX_FLAGS_DEBUG} ${SAN_OPT} ${OPT_FLAG} -Wno-error")
-    SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO
-      "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} ${SAN_OPT}")
+    STRING_APPEND(CMAKE_C_FLAGS   " ${SAN_OPT}")
+    STRING_APPEND(CMAKE_CXX_FLAGS " ${SAN_OPT}")
+    # We switch on basic optimization also for debug builds.
+    # We disable inlining for stack trace readability.
+    # With optimization we may get some warnings, so we switch off -Werror
+    IF(${ADD_OPTIMIZATION})
+      STRING_APPEND(CMAKE_C_FLAGS   " -O1 -fno-inline")
+      STRING_APPEND(CMAKE_CXX_FLAGS " -O1 -fno-inline")
+      IF(NOT SANITIZE_MAINTAINER_MODE)
+        SET(MYSQL_MAINTAINER_MODE OFF CACHE BOOL
+          "MySQL maintainer-specific development environment" FORCE)
+      ENDIF()
+    ENDIF()
     SET(${RESULT} 1)
   ELSE()
     SET(${RESULT} 0)
@@ -410,14 +427,10 @@ IF(WITH_ASAN)
     # default is /MD, and this code is run before the one in
     # cmake/os/Windows.cmake, which sets /MT for ASAN on Win32 Clang.
     # Just enable it unconditionally; we know it's working.
-    SET(CMAKE_C_FLAGS_DEBUG
-      "${CMAKE_C_FLAGS_DEBUG} -fsanitize=address -fsanitize-address-use-after-scope -Wno-error")
-    SET(CMAKE_C_FLAGS_RELWITHDEBINFO
-      "${CMAKE_C_FLAGS_RELWITHDEBINFO} -fsanitize=address -fsanitize-address-use-after-scope")
-    SET(CMAKE_CXX_FLAGS_DEBUG
-      "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address -fsanitize-address-use-after-scope -Wno-error")
-    SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO
-      "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -fsanitize=address -fsanitize-address-use-after-scope")
+    STRING_APPEND(CMAKE_C_FLAGS
+      " -fsanitize=address -fsanitize-address-use-after-scope")
+    STRING_APPEND(CMAKE_CXX_FLAGS
+      " -fsanitize=address -fsanitize-address-use-after-scope")
     SET(HAVE_ASAN 1)
 
     # Get the path to the ASAN support libraries.
@@ -434,14 +447,8 @@ IF(WITH_ASAN)
         "-fsanitize=address -fsanitize-address-use-after-scope"
         HAVE_SANITIZE_SCOPE)
       IF(WITH_ASAN_SCOPE AND HAVE_SANITIZE_SCOPE)
-        SET(CMAKE_C_FLAGS_DEBUG
-          "${CMAKE_C_FLAGS_DEBUG} -fsanitize-address-use-after-scope")
-        SET(CMAKE_C_FLAGS_RELWITHDEBINFO
-          "${CMAKE_C_FLAGS_RELWITHDEBINFO} -fsanitize-address-use-after-scope")
-        SET(CMAKE_CXX_FLAGS_DEBUG
-          "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize-address-use-after-scope")
-        SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO
-          "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -fsanitize-address-use-after-scope")
+        STRING_APPEND(CMAKE_C_FLAGS   " -fsanitize-address-use-after-scope")
+        STRING_APPEND(CMAKE_CXX_FLAGS " -fsanitize-address-use-after-scope")
       ENDIF()
     ELSE()
       MESSAGE(FATAL_ERROR "Do not know how to enable address sanitizer")
@@ -462,8 +469,7 @@ ENDIF()
 
 OPTION(WITH_UBSAN "Enable undefined behavior sanitizer" OFF)
 IF(WITH_UBSAN)
-  # TRUE: basic optimizations, but disable inlining for stack trace readability.
-  MY_SANITIZER_CHECK("-fsanitize=undefined -fno-inline " TRUE WITH_UBSAN_OK)
+  MY_SANITIZER_CHECK("-fsanitize=undefined" TRUE WITH_UBSAN_OK)
   IF(NOT WITH_UBSAN_OK)
     MESSAGE(FATAL_ERROR
             "Do not know how to enable undefined behavior sanitizer")
@@ -488,30 +494,20 @@ IF(WITH_ASAN AND WITH_MSAN)
 ENDIF()
 
 
-# Always enable debug sync for debug builds.
-SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DENABLED_DEBUG_SYNC")
-SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DENABLED_DEBUG_SYNC")
- 
 # Older versions of ccache must be disabled: export CCACHE_DISABLE=1
 # See http://www.cmake.org/Wiki/CTest/Coverage
 OPTION(ENABLE_GCOV "Enable gcov (debug, Linux builds only)" OFF)
 IF (ENABLE_GCOV AND NOT WIN32 AND NOT APPLE)
-  SET(CMAKE_CXX_FLAGS_DEBUG
-    "${CMAKE_CXX_FLAGS_DEBUG} -fprofile-arcs -ftest-coverage -DHAVE_GCOV")
-  SET(CMAKE_C_FLAGS_DEBUG
-    "${CMAKE_C_FLAGS_DEBUG} -fprofile-arcs -ftest-coverage -DHAVE_GCOV")
-  SET(CMAKE_EXE_LINKER_FLAGS_DEBUG
-    "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -fprofile-arcs -ftest-coverage -lgcov")
+  STRING_APPEND(CMAKE_C_FLAGS   " -fprofile-arcs -ftest-coverage -DHAVE_GCOV")
+  STRING_APPEND(CMAKE_CXX_FLAGS " -fprofile-arcs -ftest-coverage -DHAVE_GCOV")
+  STRING_APPEND(CMAKE_EXE_LINKER_FLAGS " -fprofile-arcs -ftest-coverage -lgcov")
 ENDIF()
 
 OPTION(ENABLE_GPROF "Enable gprof (optimized, Linux builds only)" OFF)
 IF (ENABLE_GPROF AND NOT WIN32 AND NOT APPLE)
-  SET(CMAKE_C_FLAGS_RELWITHDEBINFO
-    "${CMAKE_C_FLAGS_RELWITHDEBINFO} -pg")
-  SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO
-    "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -pg")
-  SET(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO
-    "${CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO} -pg")
+  STRING_APPEND(CMAKE_C_FLAGS " -pg")
+  STRING_APPEND(CMAKE_CXX_FLAGS " -pg")
+  STRING_APPEND(CMAKE_EXE_LINKER_FLAGS " -pg")
 ENDIF()
 
 # Use gold if available and not explicitly disabled.
@@ -554,14 +550,8 @@ IF (USE_LD_GOLD)
 ENDIF()
 
 IF(LINK_RANDOMIZE)
-  SET(CMAKE_C_FLAGS_DEBUG
-    "${CMAKE_C_FLAGS_DEBUG} -ffunction-sections -fdata-sections")
-  SET(CMAKE_C_FLAGS_RELWITHDEBINFO
-    "${CMAKE_C_FLAGS_RELWITHDEBINFO} -ffunction-sections -fdata-sections")
-  SET(CMAKE_CXX_FLAGS_DEBUG
-    "${CMAKE_CXX_FLAGS_DEBUG} -ffunction-sections -fdata-sections")
-  SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO
-    "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -ffunction-sections -fdata-sections")
+  STRING_APPEND(CMAKE_C_FLAGS   " -ffunction-sections -fdata-sections")
+  STRING_APPEND(CMAKE_CXX_FLAGS " -ffunction-sections -fdata-sections")
 
   SET(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -Wl,--sort-section=name")
   SET(CMAKE_CXX_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS} -Wl,--sort-section=name")
@@ -594,12 +584,8 @@ IF(REPRODUCIBLE_BUILD)
     SET(DEBUG_PREFIX_FLAGS "${DEBUG_PREFIX_FLAGS} -gno-record-gcc-switches")
   ENDIF()
 
-  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${DEBUG_PREFIX_FLAGS}")
-  SET(CMAKE_C_FLAGS_RELWITHDEBINFO
-    "${CMAKE_C_FLAGS_RELWITHDEBINFO} ${DEBUG_PREFIX_FLAGS}")
-  SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${DEBUG_PREFIX_FLAGS}")
-  SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO
-    "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} ${DEBUG_PREFIX_FLAGS}")
+  STRING_APPEND(CMAKE_C_FLAGS   " ${DEBUG_PREFIX_FLAGS}")
+  STRING_APPEND(CMAKE_CXX_FLAGS " ${DEBUG_PREFIX_FLAGS}")
 
   SET(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -Wl,--build-id=none")
   SET(CMAKE_CXX_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -Wl,--build-id=none")
@@ -634,11 +620,10 @@ IF(WITH_TEST_TRACE_PLUGIN AND NOT CMAKE_BUILD_TYPE MATCHES "Debug")
           Set WITH_TEST_TRACE_PLUGIN to OFF or WITH_DEBUG to ON.")
 ENDIF()
 
-# Set DBUG_OFF and other optional release-only flags for non-debug project types
+# Set DBUG_OFF for non-debug project types.
 FOREACH(BUILD_TYPE RELEASE RELWITHDEBINFO MINSIZEREL)
   FOREACH(LANG C CXX)
-    SET(CMAKE_${LANG}_FLAGS_${BUILD_TYPE} 
-     "${CMAKE_${LANG}_FLAGS_${BUILD_TYPE}} -DDBUG_OFF")
+    STRING_PREPEND(CMAKE_${LANG}_FLAGS_${BUILD_TYPE} "-DDBUG_OFF ")
   ENDFOREACH()
 ENDFOREACH()
 
@@ -652,9 +637,10 @@ IF(NOT CMAKE_BUILD_TYPE
 ENDIF()
 
 # Add safemutex for debug configurations
+# Enable debug sync for debug builds.
 FOREACH(LANG C CXX)
-  SET(CMAKE_${LANG}_FLAGS_DEBUG
-    "${CMAKE_${LANG}_FLAGS_DEBUG} -DSAFE_MUTEX")
+  STRING_PREPEND(CMAKE_${LANG}_FLAGS_DEBUG "-DENABLED_DEBUG_SYNC ")
+  STRING_PREPEND(CMAKE_${LANG}_FLAGS_DEBUG "-DSAFE_MUTEX ")
 ENDFOREACH()
 
 
@@ -1148,40 +1134,34 @@ ENDIF(DOXYGEN_FOUND)
 
 INCLUDE(CPack)
 
-# C compiler flags consist of:
+# C/CXX compiler flags consist of:
 # CPPFLAGS        Taken from environment, see above.
 # ADD_DEFINITIONS In each individual CMakeLists.txt
-# CMAKE_C_FLAGS   From command line.
+# CMAKE_CXX_FLAGS From command line.
 #                 We extend these in maintainer.cmake
-# ENV{CFLAGS}     From environment, but environment is ignored if
-#                 CMAKE_C_FLAGS is also given on command line
-# CMAKE_C_FLAGS_${CMAKE_BUILD_TYPE}
 #                 We extend these in compiler_options.cmake
+# ENV{CXXFLAGS}   From environment, but environment is ignored if
+#                 CMAKE_CXX_FLAGS is also given on command line
+# CMAKE_CXX_FLAGS_${CMAKE_BUILD_TYPE}, typical initial cmake values:
+#      DEBUG          -g
+#      RELWITHDEBINFO -O2 -g -DNDEBUG
+#      RELEASE        -O3 -DNDEBUG
+#      MINSIZEREL     -Os -DNDEBUG
+#
+# The compiler command line is
+# g++ DEFINITIONS CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_<configuration>
+#
+# So, if you want to use '-O3' for a RELWITHDEBINFO build, you should do:
+# cmake -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="-O3 -g -DNDEBUG"
 #
 # Note that CMakeCache.txt contains cmake builtins for these variables,
-# *not* the values that will actually be used:
-
+# *not* the values that will actually be used, which we report here:
 
 IF(BUILD_IS_SINGLE_CONFIG)
   MESSAGE(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
 ENDIF()
 GET_PROPERTY(cwd_definitions DIRECTORY PROPERTY COMPILE_DEFINITIONS)
 MESSAGE(STATUS "COMPILE_DEFINITIONS: ${cwd_definitions}")
-MESSAGE(STATUS "CMAKE_C_FLAGS: ${CMAKE_C_FLAGS}")
-MESSAGE(STATUS "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
+REPORT_CXX_FLAGS()
 MESSAGE(STATUS "CMAKE_C_LINK_FLAGS: ${CMAKE_C_LINK_FLAGS}")
 MESSAGE(STATUS "CMAKE_CXX_LINK_FLAGS: ${CMAKE_CXX_LINK_FLAGS}")
-IF(CMAKE_BUILD_TYPE AND BUILD_IS_SINGLE_CONFIG)
-  STRING(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKEBT)
-  MESSAGE(STATUS "CMAKE_C_FLAGS_${CMAKEBT}: ${CMAKE_C_FLAGS_${CMAKEBT}}")
-  MESSAGE(STATUS "CMAKE_CXX_FLAGS_${CMAKEBT}: ${CMAKE_CXX_FLAGS_${CMAKEBT}}")
-ENDIF()
-IF(NOT BUILD_IS_SINGLE_CONFIG)
-  MESSAGE(STATUS "CMAKE_C_FLAGS_DEBUG: ${CMAKE_C_FLAGS_DEBUG}")
-  MESSAGE(STATUS "CMAKE_CXX_FLAGS_DEBUG: ${CMAKE_CXX_FLAGS_DEBUG}")
-  MESSAGE(STATUS
-    "CMAKE_C_FLAGS_RELWITHDEBINFO: ${CMAKE_C_FLAGS_RELWITHDEBINFO}")
-  MESSAGE(STATUS
-    "CMAKE_CXX_FLAGS_RELWITHDEBINFO: ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
-ENDIF()
-
