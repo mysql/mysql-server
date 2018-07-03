@@ -13980,6 +13980,14 @@ Backup::calculate_row_change_count(BackupRecordPtr ptr)
     dropped_rows = prev_row_count - row_count;
     decrease_row_change_count = dropped_rows;
   }
+  if (decrease_row_change_count > row_change_count)
+  {
+    g_eventLogger->info("prev_row_count: %llu, row_count: %llu,"
+                        " row_change_count: %llu",
+                        prev_row_count,
+                        row_count,
+                        row_change_count);
+  }
   ndbrequire(decrease_row_change_count <= row_change_count);
 
   row_change_count -= decrease_row_change_count;
