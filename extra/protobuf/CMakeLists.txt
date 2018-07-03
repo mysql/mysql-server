@@ -71,12 +71,7 @@ ENDIF()
 
 # protoc built with clang -fsanitize=undefined dumps core
 IF (HAVE_UBSAN)
-  STRING(REPLACE "-fsanitize=undefined" ""
-    CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
-  STRING(REPLACE "-fsanitize=undefined" ""
-    CMAKE_CXX_FLAGS_DEBUG ${CMAKE_CXX_FLAGS_DEBUG})
-  STRING(REPLACE "-fsanitize=undefined" ""
-    CMAKE_CXX_FLAGS_RELWITHDEBINFO ${CMAKE_CXX_FLAGS_RELWITHDEBINFO})
+  STRING(REPLACE "-fsanitize=undefined" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
 ENDIF()
 
 ADD_DEFINITIONS(-DHAVE_ZLIB)

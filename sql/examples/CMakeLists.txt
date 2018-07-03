@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,10 +20,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DSAFE_MUTEX")
-SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFE_MUTEX")
-
 IF(WITH_EXAMPLE_STORAGE_ENGINE)
-ADD_LIBRARY(example ha_example.cc)
-ADD_DEPENDENCIES(example GenError)
+  ADD_LIBRARY(example ha_example.cc)
+  ADD_DEPENDENCIES(example GenError)
 ENDIF(WITH_EXAMPLE_STORAGE_ENGINE)
