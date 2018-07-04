@@ -45,8 +45,9 @@ struct thread_state {
    * @brief Maintains thread status
    */
   enum thread_state_enum {
-    THREAD_INIT = 0, /**< THREAD_NOT_CREATED */
+    THREAD_NONE = 0, /**< THREAD_NOT_CREATED */
     THREAD_CREATED,  /**< THREAD_CREATED */
+    THREAD_INIT,     /**< THREAD_INIT */
 
     THREAD_RUNNING, /**< THREAD_RUNNING */
 
@@ -58,7 +59,7 @@ struct thread_state {
   thread_state_enum thread_state_var;
 
  public:
-  thread_state() { thread_state_var = thread_state_enum::THREAD_INIT; }
+  thread_state() : thread_state_var(thread_state_enum::THREAD_NONE) {}
 
   void set_running() { thread_state_var = thread_state_enum::THREAD_RUNNING; }
 
@@ -66,22 +67,29 @@ struct thread_state {
     thread_state_var = thread_state_enum::THREAD_TERMINATED;
   }
 
+  void set_initialized() { thread_state_var = thread_state_enum::THREAD_INIT; }
+
   void set_created() { thread_state_var = thread_state_enum::THREAD_CREATED; }
 
-  bool is_running() {
+  bool is_initialized() const {
+    return ((thread_state_var >= thread_state_enum::THREAD_INIT) &&
+            (thread_state_var < thread_state_enum::THREAD_TERMINATED));
+  }
+
+  bool is_running() const {
     return thread_state_var == thread_state_enum::THREAD_RUNNING;
   }
 
-  bool is_alive_not_running() {
+  bool is_alive_not_running() const {
     return thread_state_var < thread_state_enum::THREAD_RUNNING;
   }
 
-  bool is_thread_alive() {
+  bool is_thread_alive() const {
     return ((thread_state_var >= thread_state_enum::THREAD_CREATED) &&
             (thread_state_var < thread_state_enum::THREAD_TERMINATED));
   }
 
-  bool is_thread_dead() { return !is_thread_alive(); }
+  bool is_thread_dead() const { return !is_thread_alive(); }
 };
 
 class Blocked_transaction_handler {

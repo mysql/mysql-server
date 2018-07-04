@@ -201,6 +201,12 @@ void Applier_module::set_applier_thread_context() {
 #ifndef _WIN32
   THD_STAGE_INFO(thd, stage_executing);
 #endif
+
+  DBUG_EXECUTE_IF("group_replication_applier_thread_init_wait", {
+    const char act[] = "now wait_for signal.gr_applier_init_signal";
+    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+  });
+
   applier_thd = thd;
 }
 
@@ -340,6 +346,9 @@ int Applier_module::applier_thread_handle() {
 
   // set the thread context
   set_applier_thread_context();
+  mysql_mutex_lock(&run_lock);
+  applier_thd_state.set_initialized();
+  mysql_mutex_unlock(&run_lock);
 
   Handler_THD_setup_action *thd_conf_action = NULL;
   Format_description_log_event *fde_evt = NULL;
@@ -467,7 +476,6 @@ end:
   clean_applier_thread_context();
 
   mysql_mutex_lock(&run_lock);
-  delete applier_thd;
 
   /*
     Don't overwrite applier_error when stop_applier_thread() doesn't return
@@ -484,6 +492,7 @@ end:
 
   applier_killed_status = false;
   applier_thd_state.set_terminated();
+  delete applier_thd;
   mysql_cond_broadcast(&run_cond);
   mysql_mutex_unlock(&run_lock);
 
@@ -561,20 +570,22 @@ int Applier_module::terminate_applier_thread() {
   while (applier_thd_state.is_thread_alive()) {
     DBUG_PRINT("loop", ("killing group replication applier thread"));
 
-    mysql_mutex_lock(&applier_thd->LOCK_thd_data);
+    if (applier_thd_state.is_initialized()) {
+      mysql_mutex_lock(&applier_thd->LOCK_thd_data);
 
-    if (applier_killed_status)
-      applier_thd->awake(THD::KILL_CONNECTION);
-    else
-      applier_thd->awake(THD::NOT_KILLED);
+      if (applier_killed_status)
+        applier_thd->awake(THD::KILL_CONNECTION);
+      else
+        applier_thd->awake(THD::NOT_KILLED);
 
-    mysql_mutex_unlock(&applier_thd->LOCK_thd_data);
+      mysql_mutex_unlock(&applier_thd->LOCK_thd_data);
 
-    // before waiting for termination, signal the queue to unlock.
-    add_termination_packet();
+      // before waiting for termination, signal the queue to unlock.
+      add_termination_packet();
 
-    // also awake the applier in case it is suspended
-    awake_applier_module();
+      // also awake the applier in case it is suspended
+      awake_applier_module();
+    }
 
     /*
       There is a small chance that thread might miss the first

@@ -124,15 +124,17 @@ int Recovery_module::stop_recovery() {
   while (recovery_thd_state.is_thread_alive()) {
     DBUG_PRINT("loop", ("killing group replication recovery thread"));
 
-    mysql_mutex_lock(&recovery_thd->LOCK_thd_data);
+    if (recovery_thd_state.is_initialized()) {
+      mysql_mutex_lock(&recovery_thd->LOCK_thd_data);
 
-    recovery_thd->awake(THD::NOT_KILLED);
-    mysql_mutex_unlock(&recovery_thd->LOCK_thd_data);
+      recovery_thd->awake(THD::NOT_KILLED);
+      mysql_mutex_unlock(&recovery_thd->LOCK_thd_data);
 
-    // Break the wait for the applier suspension
-    applier_module->interrupt_applier_suspension_wait();
-    // Break the state transfer process
-    recovery_state_transfer.abort_state_transfer();
+      // Break the wait for the applier suspension
+      applier_module->interrupt_applier_suspension_wait();
+      // Break the state transfer process
+      recovery_state_transfer.abort_state_transfer();
+    }
 
     /*
       There is a small chance that thread might miss the first
@@ -289,6 +291,9 @@ int Recovery_module::recovery_thread_handle() {
   int error = 0;
 
   set_recovery_thread_context();
+  mysql_mutex_lock(&run_lock);
+  recovery_thd_state.set_initialized();
+  mysql_mutex_unlock(&run_lock);
 
   // take this before the start method returns
   size_t number_of_members = group_member_mgr->get_number_of_members();
@@ -406,10 +411,10 @@ cleanup:
   clean_recovery_thread_context();
 
   mysql_mutex_lock(&run_lock);
-  delete recovery_thd;
 
   recovery_aborted = true;  // to avoid the start missing signals
   recovery_thd_state.set_terminated();
+  delete recovery_thd;
   mysql_cond_broadcast(&run_cond);
   mysql_mutex_unlock(&run_lock);
 

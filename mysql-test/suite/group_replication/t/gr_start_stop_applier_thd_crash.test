@@ -1,0 +1,102 @@
+###########################################################################
+# Test case to verify that main thread which start group_replication waits
+# for applier thread to properly initialized before calling its termination
+# in case of failure.
+#
+# Test:
+# 0. The test requires two servers M1 & M2.
+# 1. START GROUP_REPLICATION on server1.
+#    Also set group_replication_applier_thread_init_wait
+#    dbug_sync point to make applier thread wait.
+# 2. KILL START GROUP_REPLICATION query and connection,
+#    to simulate CTRL-C/Z'ED `START GROUP_REPLICATION`.
+# 3. Reap the killed command and reset debug point.
+# 4. Restart Group Replication on server1
+# 5. Clean up.
+###########################################################################
+
+--source include/have_debug.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+SET sql_log_bin = 0;
+call mtr.add_suppression("Unblocking the group replication thread waiting for applier to start, as the start group replication was killed.");
+call mtr.add_suppression("Unable to initialize the Group Replication applier module.");
+call mtr.add_suppression("Failed to setup the group replication applier thread.");
+call mtr.add_suppression("Failed to stop the group replication applier thread.");
+call mtr.add_suppression("Info table is not ready to be used.*");
+call mtr.add_suppression("Error writing relay log configuration.");
+SET sql_log_bin = 1;
+
+
+--echo
+--echo # 1. START GROUP_REPLICATION on server1.
+--echo #    Also set group_replication_applier_thread_init_wait
+--echo #    dbug_sync point to make applier thread wait.
+
+--let $connection_id= `SELECT CONNECTION_ID()`
+
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,group_replication_applier_thread_init_wait';
+
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+SET GLOBAL group_replication_bootstrap_group=ON;
+
+--send START GROUP_REPLICATION
+
+
+--echo
+--echo # 2. Wait until applier thread reaches the
+--echo #    group_replication_applier_thread_init_wait debug sync point.
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now'
+--source include/wait_condition.inc
+
+
+--echo
+--echo # 3. KILL START GROUP_REPLICATION query and connection,
+--echo #    to simulate CTRL-C/Z'ED `START GROUP_REPLICATION`.
+
+--replace_result $connection_id CONNECTION_ID
+--eval KILL QUERY $connection_id
+
+--replace_result $connection_id CONNECTION_ID
+--eval KILL $connection_id
+
+
+--echo
+--echo # 4. Reap the killed command and reset debug point.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--error CR_SERVER_LOST
+--reap
+
+--let $rpl_server_number= 1
+--source include/rpl_reconnect.inc
+
+
+--echo
+--echo # 5. Restart Group Replication on server1
+
+SET @@GLOBAL.DEBUG= @debug_save;
+
+# set group_replication_group_name command is failing as the previous start
+# process may still be running so can't use
+# start_and_bootstrap_group_replication.inc.
+START GROUP_REPLICATION;
+
+--let $group_replication_member_state= ONLINE
+--source include/gr_wait_for_member_state.inc
+
+
+--echo
+--echo # 6. Clean Up
+
+--source include/group_replication_end.inc
