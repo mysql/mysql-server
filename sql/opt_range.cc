@@ -14186,10 +14186,10 @@ void cost_skip_scan(TABLE *table, uint key, uint distinct_key_parts,
     skip_scan_records = quick_prefix_records;
 
   /* Compute the number of keys in a group. */
-  if (index_info->has_records_per_key(distinct_key_parts)) {
+  if (index_info->has_records_per_key(distinct_key_parts - 1)) {
     // Use index statistics
     keys_per_group = index_info->records_per_key(distinct_key_parts - 1);
-    if (keys_per_group == REC_PER_KEY_UNKNOWN) keys_per_group = 1.0;
+    DBUG_ASSERT(keys_per_group >= 0);
   } else
     /* If there is no statistics try to guess */
     keys_per_group = guess_rec_per_key(table, index_info, distinct_key_parts);
