@@ -159,6 +159,11 @@ INSERT INTO global_suppressions VALUES
  */
  ("InnoDB: Option innodb_dedicated_server is ignored"),
 
+/*
+  Message seen on debian when built with -DWITH_ASAN=ON
+*/
+ ("setrlimit could not change the size of core files to 'infinity'"),
+
  ("The slave I.O thread stops because a fatal error is encountered when it tries to get the value of SERVER_UUID variable from master.*"),
  ("The initialization command '.*' failed with the following error.*"),
 
