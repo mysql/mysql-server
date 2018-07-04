@@ -169,10 +169,10 @@ void Certifier_broadcast_thread::dispatcher() {
 
   thd->release_resources();
   global_thd_manager_remove_thd(thd);
-  delete thd;
 
   mysql_mutex_lock(&broadcast_run_lock);
   broadcast_thd_state.set_terminated();
+  delete thd;
   mysql_cond_broadcast(&broadcast_run_cond);
   mysql_mutex_unlock(&broadcast_run_lock);
 
