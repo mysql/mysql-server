@@ -508,20 +508,36 @@ static bool load_process(atrt_config& config, atrt_cluster& cluster,
   switch (type) {
     case atrt_process::AP_NDB_MGMD: {
       proc.m_proc.m_name.assfmt("%u-%s", proc_no, "ndb_mgmd");
+      proc.m_proc.m_cwd.assfmt("%sndb_mgmd.%u", dir.c_str(), proc.m_index);
       proc.m_proc.m_path.assign(g_ndb_mgmd_bin_path);
+      proc.m_proc.m_env.appfmt(" MYSQL_GROUP_SUFFIX=%s",
+                               cluster.m_name.c_str());
       proc.m_proc.m_args.assfmt("--defaults-file=%s/my.cnf",
                                 proc.m_host->m_basedir.c_str());
       proc.m_proc.m_args.appfmt(" --defaults-group-suffix=%s",
                                 cluster.m_name.c_str());
-      proc.m_proc.m_args.append(" --nodaemon --mycnf");
+
+      switch (config.m_config_type) {
+        case atrt_config::CNF: {
+          proc.m_proc.m_args.append(" --mycnf");
+          break;
+        }
+        case atrt_config::INI: {
+          proc.m_proc.m_args.assfmt("--config-file=%s/config%s.ini",
+                                    proc.m_host->m_basedir.c_str(),
+                                    cluster.m_name.c_str());
+          break;
+        }
+      }
+      proc.m_proc.m_args.append(" --nodaemon");
       proc.m_proc.m_args.appfmt(" --ndb-nodeid=%u", proc.m_nodeid);
-      proc.m_proc.m_cwd.assfmt("%sndb_mgmd.%u", dir.c_str(), proc.m_index);
       proc.m_proc.m_args.appfmt(" --configdir=%s", proc.m_proc.m_cwd.c_str());
-      proc.m_proc.m_env.appfmt(" MYSQL_GROUP_SUFFIX=%s",
-                               cluster.m_name.c_str());
       break;
     }
     case atrt_process::AP_NDBD: {
+      proc.m_proc.m_name.assfmt("%u-%s", proc_no, "ndbd");
+      proc.m_proc.m_cwd.assfmt("%sndbd.%u", dir.c_str(), proc.m_index);
+
       if (g_mt == 0 || (g_mt == 1 && ((g_mt_rr++) & 1) == 0) ||
           g_ndbmtd_bin_path == 0) {
         proc.m_proc.m_path.assign(g_ndbd_bin_path);
@@ -529,18 +545,18 @@ static bool load_process(atrt_config& config, atrt_cluster& cluster,
         proc.m_proc.m_path.assign(g_ndbmtd_bin_path);
       }
 
-      proc.m_proc.m_name.assfmt("%u-%s", proc_no, "ndbd");
+      proc.m_proc.m_env.appfmt(" MYSQL_GROUP_SUFFIX=%s",
+                               cluster.m_name.c_str());
+
       proc.m_proc.m_args.assfmt("--defaults-file=%s/my.cnf",
                                 proc.m_host->m_basedir.c_str());
       proc.m_proc.m_args.appfmt(" --defaults-group-suffix=%s",
                                 cluster.m_name.c_str());
       proc.m_proc.m_args.append(" --nodaemon -n");
+
       if (!g_restart) proc.m_proc.m_args.append(" --initial");
       if (g_fix_nodeid)
         proc.m_proc.m_args.appfmt(" --ndb-nodeid=%u", proc.m_nodeid);
-      proc.m_proc.m_cwd.assfmt("%sndbd.%u", dir.c_str(), proc.m_index);
-      proc.m_proc.m_env.appfmt(" MYSQL_GROUP_SUFFIX=%s",
-                               cluster.m_name.c_str());
       break;
     }
     case atrt_process::AP_MYSQLD: {
@@ -788,7 +804,7 @@ static bool pr_check_replication(Properties& props, proc_rule_ctx& ctx, int) {
 
 static bool pr_check_features(Properties& props, proc_rule_ctx& ctx, int) {
   atrt_cluster& cluster = *ctx.m_cluster;
-  if (cluster.m_name == ".atrt"){
+  if (cluster.m_name == ".atrt") {
     // skip cluster and replication features for atrt
     return true;
   }

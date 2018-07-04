@@ -15,109 +15,92 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "atrt.hpp"
-#include <portlib/NdbDir.hpp>
 #include <portlib/NdbSleep.h>
+#include <portlib/NdbDir.hpp>
+#include "atrt.hpp"
 
-static bool create_directory(const char * path);
+static bool generate_my_cnf(BaseString mycnf, atrt_config& config);
+static bool create_directory(const char* path);
+static bool delete_file_if_exists(const char* path);
+static bool copy_file(const char* src, const char* dst);
 
-bool
-setup_directories(atrt_config& config, int setup)
-{
+bool setup_directories(atrt_config& config, int setup) {
   /**
    * 0 = validate
    * 1 = setup
    * 2 = setup+clean
    */
-  for (unsigned i = 0; i < config.m_clusters.size(); i++)
-  {
+  for (unsigned i = 0; i < config.m_clusters.size(); i++) {
     atrt_cluster& cluster = *config.m_clusters[i];
-    for (unsigned j = 0; j<cluster.m_processes.size(); j++)
-    {
+    for (unsigned j = 0; j < cluster.m_processes.size(); j++) {
       atrt_process& proc = *cluster.m_processes[j];
-      const char * dir = proc.m_proc.m_cwd.c_str();
+      const char* dir = proc.m_proc.m_cwd.c_str();
       struct stat sbuf;
       int exists = 0;
-      if (lstat(dir, &sbuf) == 0)
-      {
-	if (S_ISDIR(sbuf.st_mode))
-	  exists = 1;
-	else
-	  exists = -1;
+      if (lstat(dir, &sbuf) == 0) {
+        if (S_ISDIR(sbuf.st_mode))
+          exists = 1;
+        else
+          exists = -1;
       }
-      
-      switch(setup){
-      case 0:
-	switch(exists){
-	case 0:
-	  g_logger.error("Could not find directory: %s", dir);
-	  return false;
-	case -1:
-	  g_logger.error("%s is not a directory!", dir);
-	  return false;
-	}
-	break;
-      case 1:
-	if (exists == -1)
-	{
-	  g_logger.error("%s is not a directory!", dir);
-	  return false;
-	}
-	break;
-      case 2:
-	if (exists == 1)
-	{
-	  if (!remove_dir(dir))
-	  {
-	    g_logger.error("Failed to remove %s!", dir);
-	    return false;
-	  }
-	  exists = 0;
-	  break;
-	}
-	else if (exists == -1)
-	{
-	  if (!unlink(dir))
-	  {
-	    g_logger.error("Failed to remove %s!", dir);
-	    return false;
-	  }
-	  exists = 0;
-	}
+
+      switch (setup) {
+        case 0:
+          switch (exists) {
+            case 0:
+              g_logger.error("Could not find directory: %s", dir);
+              return false;
+            case -1:
+              g_logger.error("%s is not a directory!", dir);
+              return false;
+          }
+          break;
+        case 1:
+          if (exists == -1) {
+            g_logger.error("%s is not a directory!", dir);
+            return false;
+          }
+          break;
+        case 2:
+          if (exists == 1) {
+            if (!remove_dir(dir)) {
+              g_logger.error("Failed to remove %s!", dir);
+              return false;
+            }
+            exists = 0;
+            break;
+          } else if (exists == -1) {
+            if (!unlink(dir)) {
+              g_logger.error("Failed to remove %s!", dir);
+              return false;
+            }
+            exists = 0;
+          }
       }
-      if (exists != 1)
-      {
-	if (!create_directory(dir))
-	{
-	  return false;
-	}
+      if (exists != 1) {
+        if (!create_directory(dir)) {
+          return false;
+        }
       }
     }
   }
   return true;
 }
 
-static
-void
-printfile(FILE* out, Properties& props, const char * section, ...)
-  ATTRIBUTE_FORMAT(printf, 3, 4);
+static void printfile(FILE* out, Properties& props, const char* section, ...)
+    ATTRIBUTE_FORMAT(printf, 3, 4);
 
-static
-void
-printfile(FILE* out, Properties& props, const char * section, ...)
-{
-  Properties::Iterator it (&props);
-  const char * name = it.first();
-  if (name)
-  {
+static void printfile(FILE* out, Properties& props, const char* section, ...) {
+  Properties::Iterator it(&props);
+  const char* name = it.first();
+  if (name) {
     va_list ap;
     va_start(ap, section);
     /* const int ret = */ vfprintf(out, section, ap);
     va_end(ap);
     fprintf(out, "\n");
-    
-    for (; name;  name = it.next())
-    {
+
+    for (; name; name = it.next()) {
       const char* val;
       props.get(name, &val);
       fprintf(out, "%s %s\n", name + 2, val);
@@ -127,16 +110,11 @@ printfile(FILE* out, Properties& props, const char * section, ...)
   fflush(out);
 }
 
-static
-char *
-dirname(const char * path)
-{
-  char * s = strdup(path);
+static char* dirname(const char* path) {
+  char* s = strdup(path);
   size_t len = strlen(s);
-  for (size_t i = 1; i<len; i++)
-  {
-    if (s[len - i] == '/')
-    {
+  for (size_t i = 1; i < len; i++) {
+    if (s[len - i] == '/') {
       s[len - i] = 0;
       return s;
     }
@@ -150,9 +128,95 @@ dirname(const char * path)
 #define pclose _pclose
 #endif
 
-bool
-setup_files(atrt_config& config, int setup, int sshx)
-{
+static bool generate_my_cnf(BaseString mycnf, atrt_config& config) {
+  FILE* out = fopen(mycnf.c_str(), "a+");
+  if (out == NULL) {
+    g_logger.error("Failed to open %s for append", mycnf.c_str());
+    return false;
+  }
+
+  time_t now = time(0);
+  fprintf(out, "#\n# Generated by atrt\n");
+  fprintf(out, "# %s\n", ctime(&now));
+
+  for (unsigned i = 0; i < config.m_clusters.size(); i++) {
+    atrt_cluster& cluster = *config.m_clusters[i];
+    printfile(out, cluster.m_options.m_generated, "[mysql_cluster%s]",
+              cluster.m_name.c_str());
+
+    for (unsigned j = 0; j < cluster.m_processes.size(); j++) {
+      atrt_process& proc = *cluster.m_processes[j];
+
+      switch (proc.m_type) {
+        case atrt_process::AP_NDB_MGMD:
+          printfile(out, proc.m_options.m_generated,
+                    "[cluster_config.ndb_mgmd.%d%s]", proc.m_index,
+                    proc.m_cluster->m_name.c_str());
+          break;
+        case atrt_process::AP_NDBD:
+          printfile(out, proc.m_options.m_generated,
+                    "[cluster_config.ndbd.%d%s]", proc.m_index,
+                    proc.m_cluster->m_name.c_str());
+          break;
+        case atrt_process::AP_MYSQLD:
+          printfile(out, proc.m_options.m_generated, "[mysqld.%d%s]",
+                    proc.m_index, proc.m_cluster->m_name.c_str());
+          break;
+        case atrt_process::AP_CLIENT:
+          printfile(out, proc.m_options.m_generated, "[client.%d%s]",
+                    proc.m_index, proc.m_cluster->m_name.c_str());
+          break;
+        case atrt_process::AP_CUSTOM:
+          printfile(out, proc.m_options.m_generated, "[%s.%d%s]",
+                    proc.m_name.c_str(), proc.m_index,
+                    proc.m_cluster->m_name.c_str());
+          break;
+        case atrt_process::AP_NDB_API:
+          // fall-through
+        case atrt_process::AP_ALL:
+          // fall-through
+        case atrt_process::AP_CLUSTER:
+          break;
+      }
+    }
+  }
+
+  fclose(out);
+  return true;
+}
+
+bool exists_file(const char* path) {
+  struct stat sbuf;
+  int ret = lstat(path, &sbuf);
+  return ret == 0;
+}
+
+static bool delete_file_if_exists(const char* path) {
+  if (!exists_file(path)) {
+    return true;
+  }
+
+  if (unlink(path) != 0) {
+    g_logger.error("Failed to remove %s", path);
+    return false;
+  }
+
+  return true;
+}
+
+static bool copy_file(const char* src, const char* dst) {
+  BaseString cp;
+  cp.assfmt("cp %s %s", src, dst);
+  to_fwd_slashes(cp);
+  if (sh(cp.c_str()) != 0) {
+    g_logger.error("Failed to '%s'", cp.c_str());
+    return false;
+  }
+
+  return true;
+}
+
+bool setup_files(atrt_config& config, int setup, int sshx) {
   /**
    * 0 = validate
    * 1 = setup
@@ -160,50 +224,61 @@ setup_files(atrt_config& config, int setup, int sshx)
    */
   BaseString mycnf;
   mycnf.assfmt("%s/my.cnf", g_basedir);
+  to_native(mycnf);
 
-  if (!create_directory(g_basedir))
-  {
+  if (!create_directory(g_basedir)) {
     return false;
   }
 
-  if (mycnf != g_my_cnf)
-  {
-    struct stat sbuf;
-    int ret = lstat(to_native(mycnf).c_str(), &sbuf);
-    
-    if (ret == 0)
-    {
-      if (unlink(to_native(mycnf).c_str()) != 0)
-      {
-	g_logger.error("Failed to remove %s", mycnf.c_str());
-	return false;
-      }
+  if (mycnf != g_my_cnf) {
+    if (!delete_file_if_exists(mycnf.c_str())) {
+      return false;
     }
-    
-    BaseString cp;
-    cp.assfmt("cp %s %s", g_my_cnf, mycnf.c_str());
-    to_fwd_slashes(cp);
-    if (sh(cp.c_str()) != 0)
-    {
-      g_logger.error("Failed to '%s'", cp.c_str());
+
+    BaseString aux(g_my_cnf);
+    to_native(aux);
+    if (!copy_file(aux.c_str(), mycnf.c_str())) {
       return false;
     }
   }
-  
-  if (setup == 2 || config.m_generated)
-  {
+
+  if (config.m_config_type == atrt_config::INI) {
+    for (unsigned i = 0; i < config.m_clusters.size(); i++) {
+      atrt_cluster& cluster = *config.m_clusters[i];
+      const char* cluster_name = cluster.m_name.c_str();
+
+      if (strcmp(cluster_name, ".atrt") == 0) {
+        continue;
+      }
+
+      BaseString dst_config_ini;
+      dst_config_ini.assfmt("%s/config%s.ini", g_basedir, cluster_name);
+      to_native(dst_config_ini);
+
+      if (!delete_file_if_exists(dst_config_ini.c_str())) {
+        return false;
+      }
+
+      BaseString src_config_ini;
+      src_config_ini.assfmt("%s/config%s.ini", g_cwd, cluster_name);
+      to_native(src_config_ini);
+
+      if (!copy_file(src_config_ini.c_str(), dst_config_ini.c_str())) {
+        return false;
+      }
+    }
+  }
+
+  if (setup == 2 || config.m_generated) {
     bool use_mysqld = (g_mysql_install_db_bin_path == NULL);
-    if (!use_mysqld)
-    {
+    if (!use_mysqld) {
       // Even if mysql_install_db exists, prefer use of mysqld if possible
       BaseString tmp;
       tmp.assfmt("%s --help --verbose", g_mysqld_bin_path);
-      FILE *f = popen(tmp.c_str(), "re");
+      FILE* f = popen(tmp.c_str(), "re");
       char buf[1000];
-      while (NULL != fgets(buf, sizeof(buf), f))
-      {
-        if (strncmp(buf, "initialize-insecure ", 20) == 0)
-        {
+      while (NULL != fgets(buf, sizeof(buf), f)) {
+        if (strncmp(buf, "initialize-insecure ", 20) == 0) {
           use_mysqld = true;
         }
       }
@@ -212,67 +287,48 @@ setup_files(atrt_config& config, int setup, int sshx)
     /**
      * Do mysql_install_db
      */
-    for (unsigned i = 0; i < config.m_clusters.size(); i++)
-    {
+    for (unsigned i = 0; i < config.m_clusters.size(); i++) {
       atrt_cluster& cluster = *config.m_clusters[i];
-      for (unsigned j = 0; j<cluster.m_processes.size(); j++)
-      {
-	atrt_process& proc = *cluster.m_processes[j];
-	if (proc.m_type == atrt_process::AP_MYSQLD)
+      for (unsigned j = 0; j < cluster.m_processes.size(); j++) {
+        atrt_process& proc = *cluster.m_processes[j];
+        if (proc.m_type == atrt_process::AP_MYSQLD)
 #ifndef _WIN32
-	{
-	  const char * val;
-	  require(proc.m_options.m_loaded.get("--datadir=", &val));
-	  BaseString tmp;
-          if (use_mysqld)
-          {
-            tmp.assfmt("%s --defaults-file=%s/my.cnf --basedir=%s "
-                         "--datadir=%s --initialize-insecure "
-                         "> %s/mysqld-initialize.log 2>&1",
-                       g_mysqld_bin_path,
-                       g_basedir,
-                       g_prefix,
-                       val,
-                       proc.m_proc.m_cwd.c_str());
-          }
-          else
-          {
+        {
+          const char* val;
+          require(proc.m_options.m_loaded.get("--datadir=", &val));
+          BaseString tmp;
+          if (use_mysqld) {
+            tmp.assfmt(
+                "%s --defaults-file=%s/my.cnf --basedir=%s "
+                "--datadir=%s --initialize-insecure "
+                "> %s/mysqld-initialize.log 2>&1",
+                g_mysqld_bin_path, g_basedir, g_prefix, val,
+                proc.m_proc.m_cwd.c_str());
+          } else {
             assert(g_mysql_install_db_bin_path != NULL);
-            tmp.assfmt("%s --defaults-file=%s/my.cnf --basedir=%s "
-                         "--datadir=%s > %s/mysql_install_db.log 2>&1",
-                       g_mysql_install_db_bin_path,
-                       g_basedir,
-                       g_prefix0,
-                       val,
-                       proc.m_proc.m_cwd.c_str());
+            tmp.assfmt(
+                "%s --defaults-file=%s/my.cnf --basedir=%s "
+                "--datadir=%s > %s/mysql_install_db.log 2>&1",
+                g_mysql_install_db_bin_path, g_basedir, g_prefix0, val,
+                proc.m_proc.m_cwd.c_str());
           }
           to_fwd_slashes(tmp);
-          if (sh(tmp.c_str()) != 0)
-          {
-            if (use_mysqld)
-            {
-              g_logger.error("Failed to mysqld --initialize-insecure for "
-                               "%s, cmd: '%s'",
-                             proc.m_proc.m_cwd.c_str(),
-                             tmp.c_str());
-            }
-            else
-            {
+          if (sh(tmp.c_str()) != 0) {
+            if (use_mysqld) {
+              g_logger.error(
+                  "Failed to mysqld --initialize-insecure for "
+                  "%s, cmd: '%s'",
+                  proc.m_proc.m_cwd.c_str(), tmp.c_str());
+            } else {
               g_logger.error("Failed to mysql_install_db for %s, cmd: '%s'",
-                             proc.m_proc.m_cwd.c_str(),
-                             tmp.c_str());
+                             proc.m_proc.m_cwd.c_str(), tmp.c_str());
             }
             return false;
-          }
-          else
-          {
-            if (use_mysqld)
-            {
+          } else {
+            if (use_mysqld) {
               g_logger.info("mysqld --initialize-insecure for %s",
                             proc.m_proc.m_cwd.c_str());
-            }
-            else
-            {
+            } else {
               g_logger.info("mysql_install_db for %s",
                             proc.m_proc.m_cwd.c_str());
             }
@@ -280,128 +336,67 @@ setup_files(atrt_config& config, int setup, int sshx)
         }
 #else
         {
-          g_logger.info("not running mysqld --initialize-insecure nor "
-                          "mysql_install_db for %s",
-                        proc.m_proc.m_cwd.c_str());
+          g_logger.info(
+              "not running mysqld --initialize-insecure nor "
+              "mysql_install_db for %s",
+              proc.m_proc.m_cwd.c_str());
         }
 #endif
       }
     }
   }
-  
-  FILE * out = NULL;
-  bool retval = true;
-  if (config.m_generated == false)
-  {
-    g_logger.info("Nothing configured...");
+
+  bool skip_my_cnf_generation =
+      config.m_config_type == atrt_config::INI || config.m_generated == false;
+  if (skip_my_cnf_generation) {
+    g_logger.info("Skipping my.cnf generation...");
+  } else {
+    bool ok = generate_my_cnf(mycnf, config);
+    if (!ok) return false;
   }
-  else
-  {
-    out = fopen(mycnf.c_str(), "a+");
-    if (out == 0)
-    {
-      g_logger.error("Failed to open %s for append", mycnf.c_str());
-      return false;
-    }
-    time_t now = time(0);
-    fprintf(out, "#\n# Generated by atrt\n");
-    fprintf(out, "# %s\n", ctime(&now));
-  }
-  
-  for (unsigned i = 0; i < config.m_clusters.size(); i++)
-  {
+
+  for (unsigned i = 0; i < config.m_clusters.size(); i++) {
     atrt_cluster& cluster = *config.m_clusters[i];
-    if (out)
-    {
-      Properties::Iterator it(&cluster.m_options.m_generated);
-      printfile(out, cluster.m_options.m_generated,
-		"[mysql_cluster%s]", cluster.m_name.c_str());
-    }
-      
-    for (unsigned j = 0; j<cluster.m_processes.size(); j++)
-    {
+    for (unsigned j = 0; j < cluster.m_processes.size(); j++) {
       atrt_process& proc = *cluster.m_processes[j];
-      
-      if (out)
-      {
-	switch(proc.m_type){
-	case atrt_process::AP_NDB_MGMD:
-	  printfile(out, proc.m_options.m_generated,
-		    "[cluster_config.ndb_mgmd.%d%s]", 
-		    proc.m_index, proc.m_cluster->m_name.c_str());
-	  break;
-	case atrt_process::AP_NDBD: 
-	  printfile(out, proc.m_options.m_generated,
-		    "[cluster_config.ndbd.%d%s]",
-		    proc.m_index, proc.m_cluster->m_name.c_str());
-	  break;
-	case atrt_process::AP_MYSQLD:
-	  printfile(out, proc.m_options.m_generated,
-		    "[mysqld.%d%s]",
-		    proc.m_index, proc.m_cluster->m_name.c_str());
-	  break;
-	case atrt_process::AP_NDB_API:
-	  break;
-	case atrt_process::AP_CLIENT:
-	  printfile(out, proc.m_options.m_generated,
-		    "[client.%d%s]",
-		    proc.m_index, proc.m_cluster->m_name.c_str());
-	  break;
-  case atrt_process::AP_CUSTOM:
-    printfile(out, proc.m_options.m_generated,
-        "[%s.%d%s]",
-        proc.m_name.c_str(), proc.m_index, proc.m_cluster->m_name.c_str());
-    break;
-	case atrt_process::AP_ALL:
-	case atrt_process::AP_CLUSTER:
-	  abort();
-	}
-      }
-      
+
       /**
        * Create env.sh
        */
       BaseString tmp;
       tmp.assfmt("%s/env.sh", proc.m_proc.m_cwd.c_str());
       to_native(tmp);
-      char **env = BaseString::argify(0, proc.m_proc.m_env.c_str());
-      if (env[0] || proc.m_proc.m_path.length())
-      {
-	Vector<BaseString> keys;
-	FILE *fenv = fopen(tmp.c_str(), "w+");
-	if (fenv == 0)
-	{
-	  g_logger.error("Failed to open %s for writing", tmp.c_str());
-	  retval = false;
-          goto end;
-	}
-	for (size_t k = 0; env[k]; k++)
-	{
-	  tmp = env[k];
-	  ssize_t pos = tmp.indexOf('=');
-	  require(pos > 0);
-	  env[k][pos] = 0;
-	  fprintf(fenv, "%s=\"%s\"\n", env[k], env[k]+pos+1);
-	  keys.push_back(env[k]);
-	  free(env[k]);
-	}
-	if (proc.m_proc.m_path.length())
-	{
-	  fprintf(fenv, "CMD=\"%s", proc.m_proc.m_path.c_str());
-	  if (proc.m_proc.m_args.length())
-	  {
-	    fprintf(fenv, " %s", proc.m_proc.m_args.c_str());
-	  }
-	  fprintf(fenv, "\"\nexport CMD\n");
-	}
+      char** env = BaseString::argify(0, proc.m_proc.m_env.c_str());
+      if (env[0] || proc.m_proc.m_path.length()) {
+        Vector<BaseString> keys;
+        FILE* fenv = fopen(tmp.c_str(), "w+");
+        if (fenv == 0) {
+          g_logger.error("Failed to open %s for writing", tmp.c_str());
+          return false;
+        }
+        for (size_t k = 0; env[k]; k++) {
+          tmp = env[k];
+          ssize_t pos = tmp.indexOf('=');
+          require(pos > 0);
+          env[k][pos] = 0;
+          fprintf(fenv, "%s=\"%s\"\n", env[k], env[k] + pos + 1);
+          keys.push_back(env[k]);
+          free(env[k]);
+        }
+        if (proc.m_proc.m_path.length()) {
+          fprintf(fenv, "CMD=\"%s", proc.m_proc.m_path.c_str());
+          if (proc.m_proc.m_args.length()) {
+            fprintf(fenv, " %s", proc.m_proc.m_args.c_str());
+          }
+          fprintf(fenv, "\"\nexport CMD\n");
+        }
 
         fprintf(fenv, "PATH=");
-        for (int i = 0; g_search_path[i] != 0; i++)
-        {
+        for (int i = 0; g_search_path[i] != 0; i++) {
           fprintf(fenv, "%s/%s:", g_prefix0, g_search_path[i]);
         }
         fprintf(fenv, "$PATH\n");
-	keys.push_back("PATH");
+        keys.push_back("PATH");
 
         {
           /**
@@ -410,7 +405,7 @@ setup_files(atrt_config& config, int setup, int sshx)
            *
            * Use path from libmysqlclient.so
            */
-          char * dir = dirname(g_libmysqlclient_so_path);
+          char* dir = dirname(g_libmysqlclient_so_path);
 #if defined(__MACH__)
           fprintf(fenv, "DYLD_LIBRARY_PATH=%s:$DYLD_LIBRARY_PATH\n", dir);
           keys.push_back("DYLD_LIBRARY_PATH");
@@ -421,22 +416,20 @@ setup_files(atrt_config& config, int setup, int sshx)
           free(dir);
         }
 
-        for (unsigned k = 0; k<keys.size(); k++)
-	  fprintf(fenv, "export %s\n", keys[k].c_str());
+        for (unsigned k = 0; k < keys.size(); k++)
+          fprintf(fenv, "export %s\n", keys[k].c_str());
 
-	fflush(fenv);
-	fclose(fenv);
+        fflush(fenv);
+        fclose(fenv);
       }
       free(env);
 
       {
         tmp.assfmt("%s/ssh-login.sh", proc.m_proc.m_cwd.c_str());
         FILE* fenv = fopen(tmp.c_str(), "w+");
-        if (fenv == 0)
-        {
+        if (fenv == 0) {
           g_logger.error("Failed to open %s for writing", tmp.c_str());
-          retval = false;
-          goto end;
+          return false;
         }
         fprintf(fenv, "#!/bin/sh\n");
         fprintf(fenv, "cd %s\n", proc.m_proc.m_cwd.c_str());
@@ -450,81 +443,61 @@ setup_files(atrt_config& config, int setup, int sshx)
     }
   }
 
-end:
-  if (out)
-  {
-    fclose(out);
-  }
-
-  return retval;
+  return true;
 }
 
-
-static
-bool
-create_directory(const char * path)
-{
+static bool create_directory(const char* path) {
   BaseString native(path);
   to_native(native);
   BaseString tmp(path);
   Vector<BaseString> list;
 
-  if (tmp.split(list, "/") == 0)
-  {
+  if (tmp.split(list, "/") == 0) {
     g_logger.error("Failed to create directory: %s", tmp.c_str());
     return false;
   }
-  
-  BaseString cwd = IF_WIN("","/");
-  for (unsigned i = 0; i < list.size(); i++)
-  {
+
+  BaseString cwd = IF_WIN("", "/");
+  for (unsigned i = 0; i < list.size(); i++) {
     cwd.append(list[i].c_str());
     cwd.append("/");
-    NdbDir::create(cwd.c_str(),
-                   NdbDir::u_rwx() | NdbDir::g_r() | NdbDir::g_x(),
+    NdbDir::create(cwd.c_str(), NdbDir::u_rwx() | NdbDir::g_r() | NdbDir::g_x(),
                    true);
   }
 
   struct stat sbuf;
-  if (lstat(native.c_str(), &sbuf) != 0 ||
-      !S_ISDIR(sbuf.st_mode))
-  {
-    g_logger.error("Failed to create directory: %s (%s)", 
-		   native.c_str(),
-		   cwd.c_str());
+  if (lstat(native.c_str(), &sbuf) != 0 || !S_ISDIR(sbuf.st_mode)) {
+    g_logger.error("Failed to create directory: %s (%s)", native.c_str(),
+                   cwd.c_str());
     return false;
   }
-  
+
   return true;
 }
 
-bool
-remove_dir(const char * path, bool inclusive)
-{
-  if (access(path, 0))
-    return true;
+bool remove_dir(const char* path, bool inclusive) {
+  if (access(path, 0)) return true;
 
   const int max_retries = 20;
   int attempt = 0;
 
-  while(true)
-  {
-    if (NdbDir::remove_recursive(path, !inclusive))
-      return true;
+  while (true) {
+    if (NdbDir::remove_recursive(path, !inclusive)) return true;
 
     attempt++;
-    if (attempt > max_retries)
-    {
+    if (attempt > max_retries) {
       g_logger.error("Failed to remove directory '%s'!", path);
       return false;
     }
 
-    g_logger.warning(" - attempt %d to remove directory '%s' failed "
-                     ", retrying...", attempt, path);
+    g_logger.warning(
+        " - attempt %d to remove directory '%s' failed "
+        ", retrying...",
+        attempt, path);
 
     NdbSleep_MilliSleep(100);
   }
 
-  abort(); // Never reached
+  abort();  // Never reached
   return false;
 }
