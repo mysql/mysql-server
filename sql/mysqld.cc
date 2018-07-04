@@ -476,6 +476,7 @@
 #include "sql/log_event.h"  // Rows_log_event
 #include "sql/log_resource.h"
 #include "sql/mdl.h"
+#include "sql/mdl_context_backup.h"  // mdl_context_backup_manager
 #include "sql/my_decimal.h"
 #include "sql/mysqld_daemon.h"
 #include "sql/mysqld_thd_manager.h"              // Global_THD_manager
@@ -1998,8 +1999,10 @@ static void clean_up(bool print_message) {
 
   if (dd::upgrade_57::in_progress()) delete_dictionary_tablespace();
 
+  Recovered_xa_transactions::destroy();
   delegates_destroy();
   transaction_cache_free();
+  MDL_context_backup_manager::destroy();
   table_def_free();
   mdl_destroy();
   key_caches.delete_elements();
@@ -4791,6 +4794,11 @@ static int init_server_components() {
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
+  if (MDL_context_backup_manager::init()) {
+    LogErr(ERROR_LEVEL, ER_OOM);
+    unireg_abort(MYSQLD_ABORT_EXIT);
+  }
+
   /*
     initialize delegates for extension observers, errors have already
     been reported in the function
@@ -5290,6 +5298,11 @@ static int init_server_components() {
       tc_log = &tc_log_mmap;
   }
 
+  if (Recovered_xa_transactions::init()) {
+    LogErr(ERROR_LEVEL, ER_OOM);
+    unireg_abort(MYSQLD_ABORT_EXIT);
+  }
+
   if (tc_log->open(opt_bin_log ? opt_bin_logname : opt_tc_log_file)) {
     LogErr(ERROR_LEVEL, ER_CANT_INIT_TC_LOG);
     unireg_abort(MYSQLD_ABORT_EXIT);
@@ -5304,6 +5317,18 @@ static int init_server_components() {
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
   ha_post_recover();
+
+  /*
+    Add prepared XA transactions into the cache of XA transactions and acquire
+    mdl lock for every table involved in any of these prepared XA transactions.
+    This step moved away from the function ha_recover() in order to avoid
+    possible suspending on acquiring EXLUSIVE mdl lock on tables inside the
+    function dd::reset_tables_and_tablespaces() when table cache being reset.
+  */
+  if (Recovered_xa_transactions::instance()
+          .recover_prepared_xa_transactions()) {
+    unireg_abort(MYSQLD_ABORT_EXIT);
+  }
 
   /// @todo: this looks suspicious, revisit this /sven
   enum_gtid_mode gtid_mode = get_gtid_mode(GTID_MODE_LOCK_NONE);

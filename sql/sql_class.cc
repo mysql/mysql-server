@@ -36,6 +36,7 @@
 #include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
+#include "mysql/components/services/log_builtins.h"  // LogErr
 #include "mysql/components/services/psi_error_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_error.h"
@@ -59,6 +60,7 @@
 #include "sql/lock.h"                        // mysql_lock_abort_for_thread
 #include "sql/locking_service.h"  // release_all_locking_service_locks
 #include "sql/log_event.h"
+#include "sql/mdl_context_backup.h"  // MDL context backup for XA
 #include "sql/mysqld.h"              // global_system_variables ...
 #include "sql/mysqld_thd_manager.h"  // Global_THD_manager
 #include "sql/psi_memory_key.h"
@@ -889,6 +891,14 @@ void THD::cleanup(void) {
 
   killed = KILL_CONNECTION;
   if (trn_ctx->xid_state()->has_state(XID_STATE::XA_PREPARED)) {
+    /*
+      Return error is not an option as XA is in prepared state and
+      connection is gone. Log the error and continue.
+    */
+    if (MDL_context_backup_manager::instance().create_backup(
+            &mdl_context, xs->get_xid()->key(), xs->get_xid()->key_length())) {
+      LogErr(ERROR_LEVEL, ER_XA_CANT_CREATE_MDL_BACKUP);
+    }
     transaction_cache_detach(trn_ctx);
   } else {
     xs->set_state(XID_STATE::XA_NOTR);

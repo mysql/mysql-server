@@ -1,0 +1,325 @@
+#
+# Bug#22710164 xa with innodb allows a table to be dropped while an xa
+# transaction has dml
+#
+# Enable Lock Instrumentation
+UPDATE performance_schema.setup_instruments SET ENABLED=1 WHERE name='wait/lock/metadata/sql/mdl';
+
+# Test 1: XA Commit after disconnect
+connect  con1, localhost, root, ,test;
+CREATE TABLE t1 (a INT);
+# Query the table t1 in order to load its definition into the data dictionary cache.
+# It is required in order to get consistent result for quering from performance_schema.metadata_locks
+# when the test case is run both with and without the option --ps-protocol
+SELECT * FROM t1;
+a
+XA START 'test';
+INSERT INTO t1 VALUES (10);
+XA END 'test';
+XA PREPARE 'test';
+
+# Close connection and check lock status form different connection.
+disconnect con1;
+connection default;
+SELECT * FROM t1;
+a
+SELECT object_type, object_schema, object_name, lock_type, lock_duration, lock_status FROM performance_schema.metadata_locks WHERE object_schema = 'test';
+object_type	object_schema	object_name	lock_type	lock_duration	lock_status
+TABLE	test	t1	SHARED_WRITE	TRANSACTION	GRANTED
+SHOW TABLES;
+Tables_in_test
+t1
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	4	0	test
+
+# Commit XA and check lock status.
+XA COMMIT 'test';
+SELECT object_type, object_schema, object_name, lock_type, lock_duration, lock_status FROM performance_schema.metadata_locks WHERE object_schema = 'test';
+object_type	object_schema	object_name	lock_type	lock_duration	lock_status
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+SELECT * FROM t1;
+a
+10
+DROP TABLE t1;
+
+# Test 2: XA Rollback after disconnect
+connect  con1, localhost, root, ,test;
+CREATE TABLE t1 (a INT);
+# Query the table t1 in order to load its definition into the data dictionary cache.
+# It is required in order to get consistent result for quering from performance_schema.metadata_locks
+# when the test case is run both with and without the option --ps-protocol
+SELECT * FROM t1;
+a
+XA START 'test';
+INSERT INTO t1 VALUES (10);
+XA END 'test';
+XA PREPARE 'test';
+
+# Close connection and check lock status form different connection.
+disconnect con1;
+connection default;
+SELECT * FROM t1;
+a
+SELECT object_type, object_schema, object_name, lock_type, lock_duration, lock_status FROM performance_schema.metadata_locks WHERE object_schema = 'test';
+object_type	object_schema	object_name	lock_type	lock_duration	lock_status
+TABLE	test	t1	SHARED_WRITE	TRANSACTION	GRANTED
+SHOW TABLES;
+Tables_in_test
+t1
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	4	0	test
+
+# Rollback XA and check lock status.
+XA ROLLBACK 'test';
+SELECT object_type, object_schema, object_name, lock_type, lock_duration, lock_status FROM performance_schema.metadata_locks WHERE object_schema = 'test';
+object_type	object_schema	object_name	lock_type	lock_duration	lock_status
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+SELECT * FROM t1;
+a
+DROP TABLE t1;
+
+# Test 3: Waiting LOCK requests are not granted during lock transfer to backup
+connect  con1, localhost, root, ,test;
+CREATE TABLE t1 (a INT);
+# Query the table t1 in order to load its definition into the data dictionary cache.
+# It is required in order to get consistent result for quering from performance_schema.metadata_locks
+# when the test case is run both with and without the option --ps-protocol
+SELECT * FROM t1;
+a
+XA START 'test';
+INSERT INTO t1 VALUES (10);
+XA END 'test';
+XA PREPARE 'test';
+connect  con2, localhost, root, ,test;
+SELECT * FROM t1;
+a
+DROP TABLE t1;
+connection default;
+
+# Close connection and check lock status form different connection.
+connection con1;
+disconnect con1;
+connection default;
+SELECT object_type, object_schema, object_name, lock_type, lock_duration, lock_status FROM performance_schema.metadata_locks WHERE object_schema = 'test';
+object_type	object_schema	object_name	lock_type	lock_duration	lock_status
+SCHEMA	test	NULL	INTENTION_EXCLUSIVE	TRANSACTION	GRANTED
+TABLE	test	t1	EXCLUSIVE	TRANSACTION	PENDING
+TABLE	test	t1	SHARED_WRITE	TRANSACTION	GRANTED
+SHOW TABLES;
+Tables_in_test
+t1
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	4	0	test
+
+# Commit XA and check lock status.
+XA COMMIT 'test';
+SELECT object_type, object_schema, object_name, lock_type, lock_duration, lock_status FROM performance_schema.metadata_locks WHERE object_schema = 'test';
+object_type	object_schema	object_name	lock_type	lock_duration	lock_status
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+connection con2;
+disconnect con2;
+connection default;
+
+# Test 4: XA Commit after restart
+connect  con1, localhost, root, ,test;
+CREATE TABLE t1 (a INT);
+XA START 'test';
+INSERT INTO t1 VALUES (10);
+XA END 'test';
+XA PREPARE 'test';
+
+# Restart server and check lock status.
+disconnect con1;
+connection default;
+# restart:--log_error_verbosity=1 --performance-schema-instrument='wait/lock/metadata/sql/mdl=1'
+SELECT * FROM t1;
+a
+SELECT object_type, object_schema, object_name, lock_type, lock_duration, lock_status FROM performance_schema.metadata_locks WHERE object_schema = 'test';
+object_type	object_schema	object_name	lock_type	lock_duration	lock_status
+TABLE	test	t1	SHARED_WRITE	TRANSACTION	GRANTED
+SHOW TABLES;
+Tables_in_test
+t1
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	4	0	test
+
+# Commit XA and check lock status.
+XA COMMIT 'test';
+SELECT object_type, object_schema, object_name, lock_type, lock_duration, lock_status FROM performance_schema.metadata_locks WHERE object_schema = 'test';
+object_type	object_schema	object_name	lock_type	lock_duration	lock_status
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+SELECT * FROM t1;
+a
+10
+DROP TABLE t1;
+
+# Test 5: XA Rollback after restart
+connect  con1, localhost, root, ,test;
+CREATE TABLE t1 (a INT);
+XA START 'test';
+INSERT INTO t1 VALUES (10);
+XA END 'test';
+XA PREPARE 'test';
+
+# Restart server and check lock status.
+disconnect con1;
+connection default;
+# restart:--log_error_verbosity=1 --performance-schema-instrument='wait/lock/metadata/sql/mdl=1'
+SELECT * FROM t1;
+a
+SELECT object_type, object_schema, object_name, lock_type, lock_duration, lock_status FROM performance_schema.metadata_locks WHERE object_schema = 'test';
+object_type	object_schema	object_name	lock_type	lock_duration	lock_status
+TABLE	test	t1	SHARED_WRITE	TRANSACTION	GRANTED
+SHOW TABLES;
+Tables_in_test
+t1
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	4	0	test
+
+# Rollback XA and check lock status.
+XA ROLLBACK 'test';
+SELECT object_type, object_schema, object_name, lock_type, lock_duration, lock_status FROM performance_schema.metadata_locks WHERE object_schema = 'test';
+object_type	object_schema	object_name	lock_type	lock_duration	lock_status
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+SELECT * FROM t1;
+a
+DROP TABLE t1;
+
+# Test 6: Multiple XA Transaction in Backup
+# Insert 3 XA into backup, delete in different order, check lock status
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT);
+CREATE TABLE t3 (a INT);
+# Query the tables t1, t2, t3 in order to load their definitions into the data dictionary cache.
+# It is required in order to get consistent result for quering from performance_schema.metadata_locks
+# when the test case is run both with and without the option --ps-protocol
+SELECT * FROM t1;
+a
+SELECT * FROM t2;
+a
+SELECT * FROM t3;
+a
+connect  con1, localhost, root, ,test;
+XA START 'test1';
+INSERT INTO t1 VALUES (10);
+XA END 'test1';
+XA PREPARE 'test1';
+disconnect con1;
+connect  con1, localhost, root, ,test;
+XA START 'test2';
+INSERT INTO t2 VALUES (20);
+XA END 'test2';
+XA PREPARE 'test2';
+disconnect con1;
+connect  con1, localhost, root, ,test;
+XA START 'test3';
+INSERT  INTO t3 VALUES (30);
+XA END 'test3';
+XA PREPARE 'test3';
+disconnect con1;
+connection default;
+SELECT object_type, object_schema, object_name, lock_type, lock_duration, lock_status FROM performance_schema.metadata_locks WHERE object_schema = 'test';
+object_type	object_schema	object_name	lock_type	lock_duration	lock_status
+TABLE	test	t1	SHARED_WRITE	TRANSACTION	GRANTED
+TABLE	test	t2	SHARED_WRITE	TRANSACTION	GRANTED
+TABLE	test	t3	SHARED_WRITE	TRANSACTION	GRANTED
+SHOW TABLES;
+Tables_in_test
+t1
+t2
+t3
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	5	0	test1
+1	5	0	test2
+1	5	0	test3
+
+# Commit second XA and check lock status.
+XA COMMIT 'test2';
+SELECT object_type, object_schema, object_name, lock_type, lock_duration, lock_status FROM performance_schema.metadata_locks WHERE object_schema = 'test';
+object_type	object_schema	object_name	lock_type	lock_duration	lock_status
+TABLE	test	t1	SHARED_WRITE	TRANSACTION	GRANTED
+TABLE	test	t3	SHARED_WRITE	TRANSACTION	GRANTED
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	5	0	test1
+1	5	0	test3
+DROP TABLE t2;
+# Commit First XA
+XA COMMIT 'test1';
+SELECT object_type, object_schema, object_name, lock_type, lock_duration, lock_status FROM performance_schema.metadata_locks WHERE object_schema = 'test';
+object_type	object_schema	object_name	lock_type	lock_duration	lock_status
+TABLE	test	t3	SHARED_WRITE	TRANSACTION	GRANTED
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	5	0	test3
+DROP TABLE t1;
+# Commit Last XA
+XA COMMIT 'test3';
+SELECT object_type, object_schema, object_name, lock_type, lock_duration, lock_status FROM performance_schema.metadata_locks WHERE object_schema = 'test';
+object_type	object_schema	object_name	lock_type	lock_duration	lock_status
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+DROP TABLE t3;
+
+# Test 7: Multiple XA in recovery
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT);
+connect  con1, localhost, root, ,test;
+XA START 'test1';
+INSERT INTO t1 VALUES (10);
+XA END 'test1';
+XA PREPARE 'test1';
+disconnect con1;
+connect  con1, localhost, root, ,test;
+XA START 'test2';
+INSERT INTO t2 VALUES (20);
+XA END 'test2';
+XA PREPARE 'test2';
+disconnect con1;
+
+# Restart server and check lock status.
+connection default;
+# restart:--log_error_verbosity=1 --performance-schema-instrument='wait/lock/metadata/sql/mdl=1'
+SELECT object_type, object_schema, object_name, lock_type, lock_duration, lock_status FROM performance_schema.metadata_locks WHERE object_schema = 'test';
+object_type	object_schema	object_name	lock_type	lock_duration	lock_status
+TABLE	test	t2	SHARED_WRITE	TRANSACTION	GRANTED
+TABLE	test	t1	SHARED_WRITE	TRANSACTION	GRANTED
+SHOW TABLES;
+Tables_in_test
+t1
+t2
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	5	0	test1
+1	5	0	test2
+
+# Commit First XA
+XA COMMIT 'test1';
+SELECT object_type, object_schema, object_name, lock_type, lock_duration, lock_status FROM performance_schema.metadata_locks WHERE object_schema = 'test';
+object_type	object_schema	object_name	lock_type	lock_duration	lock_status
+TABLE	test	t2	SHARED_WRITE	TRANSACTION	GRANTED
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	5	0	test2
+DROP TABLE t1;
+
+# Commit second XA
+XA COMMIT 'test2';
+SELECT object_type, object_schema, object_name, lock_type, lock_duration, lock_status FROM performance_schema.metadata_locks WHERE object_schema = 'test';
+object_type	object_schema	object_name	lock_type	lock_duration	lock_status
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+DROP TABLE t2;
+# Cleanup
+UPDATE performance_schema.setup_instruments SET ENABLED='YES' WHERE name='wait/lock/metadata/sql/mdl';

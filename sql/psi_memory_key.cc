@@ -70,6 +70,7 @@ PSI_memory_key key_memory_QUICK_RANGE_SELECT_mrr_buf_desc;
 PSI_memory_key key_memory_Quick_ranges;
 PSI_memory_key key_memory_READ_INFO;
 PSI_memory_key key_memory_READ_RECORD_cache;
+PSI_memory_key key_memory_Recovered_xa_transactions;
 PSI_memory_key key_memory_Relay_log_info_group_relay_log_name;
 PSI_memory_key key_memory_Row_data_memory_memory;
 PSI_memory_key key_memory_Rpl_info_file_buffer;
@@ -374,6 +375,8 @@ static PSI_memory_info all_server_memory[] = {
     {&key_memory_opt_bin_logname, "opt_bin_logname", PSI_FLAG_ONLY_GLOBAL_STAT,
      0, PSI_DOCUMENT_ME},
     {&key_memory_READ_RECORD_cache, "READ_RECORD_cache", 0, 0, PSI_DOCUMENT_ME},
+    {&key_memory_Recovered_xa_transactions, "Recovered_xa_transactions", 0, 0,
+     PSI_DOCUMENT_ME},
     {&key_memory_Quick_ranges, "Quick_ranges", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_File_query_log_name, "File_query_log::name",
      PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME},
@@ -398,8 +401,7 @@ static PSI_memory_info all_server_memory[] = {
      PSI_DOCUMENT_ME},
     {&key_memory_log_error_stack, "log_error_stack", PSI_FLAG_ONLY_GLOBAL_STAT,
      0, PSI_DOCUMENT_ME},
-    {&key_memory_histograms, "histograms", 0, 0, PSI_DOCUMENT_ME},
-};
+    {&key_memory_histograms, "histograms", 0, 0, PSI_DOCUMENT_ME}};
 
 void register_server_memory_keys() {
   const char *category = "sql";

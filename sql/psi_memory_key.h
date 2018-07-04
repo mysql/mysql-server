@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -92,6 +92,7 @@ extern PSI_memory_key key_memory_QUICK_RANGE_SELECT_mrr_buf_desc;
 extern PSI_memory_key key_memory_Quick_ranges;
 extern PSI_memory_key key_memory_READ_INFO;
 extern PSI_memory_key key_memory_READ_RECORD_cache;
+extern PSI_memory_key key_memory_Recovered_xa_transactions;
 extern PSI_memory_key key_memory_Relay_log_info_group_relay_log_name;
 extern PSI_memory_key key_memory_Row_data_memory_memory;
 extern PSI_memory_key key_memory_Rpl_info_file_buffer;

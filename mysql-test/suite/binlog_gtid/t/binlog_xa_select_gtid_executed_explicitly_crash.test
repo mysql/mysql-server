@@ -72,4 +72,9 @@ XA COMMIT '1';
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 
+--echo # Rollback the XA transaction with xid '1' in order to release
+--echo # MDL lock for the table t1 and so allow the statement DROP TABLE t1
+--echo # to be executed successfully.
+XA ROLLBACK '1';
+
 DROP TABLE t1;

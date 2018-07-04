@@ -347,6 +347,7 @@ SET(SQL_SHARED_SOURCES
   locking_service.cc
   log.cc
   mdl.cc
+  mdl_context_backup.cc
   migrate_keyring.cc
   my_decimal.cc
   mysqld.cc

@@ -128,6 +128,10 @@ class MDL_context_owner {
      However it is OK to use this method in callbacks provided
      by SQL-layer to MDL subsystem (since SQL-layer has full
      access to THD anyway).
+
+     @warning For some derived classes implementation of this method
+              can return nullptr. Calling side must be ready to handle
+              this case.
    */
   virtual THD *get_thd() = 0;
 
@@ -1287,6 +1291,22 @@ class MDL_context {
 
   bool clone_ticket(MDL_request *mdl_request);
 
+  /**
+    Create copy of all granted tickets of particular duration from given
+    context to current context.
+    Used by XA for preserving locks during client disconnect.
+
+    @param ticket_owner  Owner of tickets to be cloned
+    @param duration      MDL lock duration for that tickets are to be cloned
+
+    @retval true   Out of memory or deadlock happened or
+                   lock request was refused by storage engine.
+    @retval false  Success.
+  */
+
+  bool clone_tickets(const MDL_context *ticket_owner,
+                     enum_mdl_duration duration);
+
   void release_all_locks_for_name(MDL_ticket *ticket);
   void release_locks(MDL_release_locks_visitor *visitor);
   void release_lock(MDL_ticket *ticket);
@@ -1307,6 +1327,12 @@ class MDL_context {
   bool has_locks(MDL_key::enum_mdl_namespace mdl_namespace) const;
 
   bool has_locks_waited_for() const;
+
+#ifndef DBUG_OFF
+  bool has_locks(enum_mdl_duration duration) {
+    return !m_ticket_store.is_empty(duration);
+  }
+#endif
 
   MDL_savepoint mdl_savepoint() {
     return MDL_savepoint(m_ticket_store.front(MDL_STATEMENT),

@@ -8577,6 +8577,9 @@ ER_RUNNING_APPLIER_PREVENTS_SWITCH_GLOBAL_BINLOG_FORMAT
 ER_CLIENT_GTID_UNSAFE_CREATE_DROP_TEMP_TABLE_IN_TRX_IN_SBR
   eng "Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE are not allowed inside a transaction or inside a procedure in a transactional context when @@session.binlog_format=STATEMENT."
 
+ER_XA_CANT_CREATE_MDL_BACKUP
+  eng "XA: Failed to take MDL Lock backup of PREPARED XA transaction during client disconnect."
+
 #
 #  End of 8.0 error messages.
 #

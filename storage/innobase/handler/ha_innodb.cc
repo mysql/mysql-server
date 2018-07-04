@@ -1218,9 +1218,10 @@ static int innobase_xa_prepare(handlerton *hton, /*!< in: InnoDB handlerton */
 /** This function is used to recover X/Open XA distributed transactions.
  @return number of prepared transactions stored in xid_list */
 static int innobase_xa_recover(
-    handlerton *hton, /*!< in: InnoDB handlerton */
-    XID *xid_list,    /*!< in/out: prepared transactions */
-    uint len);        /*!< in: number of slots in xid_list */
+    handlerton *hton,         /*!< in: InnoDB handlerton */
+    XA_recover_txn *txn_list, /*!< in/out: prepared transactions */
+    uint len,                 /*!< in: number of slots in xid_list */
+    MEM_ROOT *mem_root);      /*!< in: memory for table names */
 /** This function is used to commit one X/Open XA distributed transaction
  which is in the prepared state
  @return 0 or error number */
@@ -17707,17 +17708,18 @@ static int innobase_xa_prepare(
 /** This function is used to recover X/Open XA distributed transactions.
  @return number of prepared transactions stored in xid_list */
 static int innobase_xa_recover(
-    handlerton *hton, /*!< in: InnoDB handlerton */
-    XID *xid_list,    /*!< in/out: prepared transactions */
-    uint len)         /*!< in: number of slots in xid_list */
+    handlerton *hton,         /*!< in: InnoDB handlerton */
+    XA_recover_txn *txn_list, /*!< in/out: prepared transactions */
+    uint len,                 /*!< in: number of slots in xid_list */
+    MEM_ROOT *mem_root)       /*!< in: memory for table names */
 {
   DBUG_ASSERT(hton == innodb_hton_ptr);
 
-  if (len == 0 || xid_list == NULL) {
+  if (len == 0 || txn_list == nullptr) {
     return (0);
   }
 
-  return (trx_recover_for_mysql(xid_list, len));
+  return (trx_recover_for_mysql(txn_list, len, mem_root));
 }
 
 /** This function is used to commit one X/Open XA distributed transaction

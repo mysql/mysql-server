@@ -27,4 +27,8 @@ ERROR HY000: Lost connection to MySQL server during query
 # gtid_executed table.
 #
 # Restart the master server
+# Rollback the XA transaction with xid '1' in order to release
+# MDL lock for the table t1 and so allow the statement DROP TABLE t1
+# to be executed successfully.
+XA ROLLBACK '1';
 DROP TABLE t1;

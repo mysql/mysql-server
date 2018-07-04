@@ -3293,7 +3293,8 @@ void MDL_lock::object_lock_notify_conflicting_locks(MDL_context *ctx,
   while ((conflicting_ticket = it++)) {
     if (conflicting_ticket->get_ctx() != ctx &&
         (conflicting_ticket->get_type() == MDL_SHARED ||
-         conflicting_ticket->get_type() == MDL_SHARED_HIGH_PRIO)) {
+         conflicting_ticket->get_type() == MDL_SHARED_HIGH_PRIO) &&
+        conflicting_ticket->get_ctx()->get_owner()->get_thd() != nullptr) {
       MDL_context *conflicting_ctx = conflicting_ticket->get_ctx();
 
       /*
@@ -3619,6 +3620,34 @@ err:
     (*p_req)->ticket = NULL;
   }
   return true;
+}
+
+bool MDL_context::clone_tickets(const MDL_context *ticket_owner,
+                                enum_mdl_duration duration) {
+  MDL_ticket *ticket;
+  MDL_ticket_store::List_iterator it_ticket =
+      ticket_owner->m_ticket_store.list_iterator(duration);
+  bool ret = false;
+  MDL_request request;
+
+  while ((ticket = it_ticket++)) {
+    DBUG_ASSERT(ticket->m_lock);
+
+    MDL_REQUEST_INIT_BY_KEY(&request, ticket->get_key(), ticket->get_type(),
+                            duration);
+    request.ticket = ticket;
+    ret = clone_ticket(&request);
+    if (ret) break;
+  }
+
+  if (ret) {
+    Ticket_iterator it_ticket1 = m_ticket_store.list_iterator(duration);
+    while ((ticket = it_ticket1++)) {
+      release_lock(ticket);
+    }
+  }
+
+  return ret;
 }
 
 /**

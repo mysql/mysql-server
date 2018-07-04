@@ -1147,7 +1147,10 @@ static void binlog_trans_log_savepos(THD *thd, my_off_t *pos) {
   DBUG_VOID_RETURN;
 }
 
-static int binlog_dummy_recover(handlerton *, XID *, uint) { return 0; }
+static int binlog_dummy_recover(handlerton *, XA_recover_txn *, uint,
+                                MEM_ROOT *) {
+  return 0;
+}
 
 /**
   Auxiliary class to copy serialized events to the binary log and

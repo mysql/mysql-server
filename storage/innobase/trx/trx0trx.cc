@@ -719,7 +719,7 @@ void trx_resurrect_locks() {
           continue;
         }
 
-        if (trx->state == TRX_STATE_PREPARED) {
+        if (trx->state == TRX_STATE_PREPARED && !dict_table_is_sdi(table->id)) {
           trx->mod_tables.insert(table);
         }
         DICT_TF2_FLAG_SET(table, DICT_TF2_RESURRECT_PREPARED);
@@ -2629,16 +2629,74 @@ dberr_t trx_prepare_for_mysql(trx_t *trx) {
   return (DB_SUCCESS);
 }
 
+/**
+  Get the table name and database name for the given dd_table object.
+
+  @param[in,out]  table Handler table name object pointer.
+  @param[in]      dd_table  Pointer table name DD object.
+  @param[in]      mem_root  Mem_root for space allocation.
+
+  @retval     true   Error, e.g. Memory allocation failure.
+  @retval     false  Success
+*/
+
+static bool get_table_name_info(st_handler_tablename *table,
+                                const dict_table_t *dd_table,
+                                MEM_ROOT *mem_root) {
+  const char *ptr;
+
+  size_t len = dict_get_db_name_len(dd_table->name.m_name);
+  table->db = strmake_root(mem_root, dd_table->name.m_name, len);
+  if (table->db == nullptr) return true;
+
+  ptr = dict_remove_db_name(dd_table->name.m_name);
+  len = ut_strlen(ptr);
+  table->tablename = strmake_root(mem_root, ptr, len);
+  if (table->tablename == nullptr) return true;
+
+  return false;
+}
+
+/**
+  Get prepared transaction info from InnoDB data structure.
+
+  @param[in,out]  txn_list  Handler layer tansaction list.
+  @param[in]      trx       Innodb transaction info.
+  @param[in]      mem_root  Mem_root for space allocation.
+
+  @retval     true          Error, e.g. Memory allocation failure.
+  @retval     false         Success
+*/
+
+static bool get_info_about_prepared_transaction(XA_recover_txn *txn_list,
+                                                const trx_t *trx,
+                                                MEM_ROOT *mem_root) {
+  txn_list->id = *trx->xid;
+  txn_list->mod_tables = new (mem_root) List<st_handler_tablename>();
+  if (!txn_list->mod_tables) return true;
+
+  for (auto dd_table : trx->mod_tables) {
+    st_handler_tablename *table = new (mem_root) st_handler_tablename();
+
+    if (!table || get_table_name_info(table, dd_table, mem_root) ||
+        txn_list->mod_tables->push_back(table, mem_root))
+      return true;
+  }
+  return false;
+}
+
 /** This function is used to find number of prepared transactions and
  their transaction objects for a recovery.
  @return number of prepared transactions stored in xid_list */
-int trx_recover_for_mysql(XID *xid_list, /*!< in/out: prepared transactions */
-                          ulint len)     /*!< in: number of slots in xid_list */
+int trx_recover_for_mysql(
+    XA_recover_txn *txn_list, /*!< in/out: prepared transactions */
+    ulint len,                /*!< in: number of slots in xid_list */
+    MEM_ROOT *mem_root)       /*!< in: memory for table names */
 {
   const trx_t *trx;
   ulint count = 0;
 
-  ut_ad(xid_list);
+  ut_ad(txn_list);
   ut_ad(len);
 
   /* We should set those transactions which are in the prepared state
@@ -2655,7 +2713,8 @@ int trx_recover_for_mysql(XID *xid_list, /*!< in/out: prepared transactions */
     trx_sys->mutex. It may change to PREPARED, but not if
     trx->is_recovered. It may also change to COMMITTED. */
     if (trx_state_eq(trx, TRX_STATE_PREPARED)) {
-      xid_list[count] = *trx->xid;
+      if (get_info_about_prepared_transaction(&txn_list[count], trx, mem_root))
+        break;
 
       if (count == 0) {
         ib::info(ER_IB_MSG_1207) << "Starting recovery for"

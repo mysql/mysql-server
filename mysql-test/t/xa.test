@@ -93,6 +93,8 @@ select * from t1;
 disconnect con1;
 connection default;
 
+xa recover;
+xa rollback 'testb',0x2030405060,11;
 drop table t1;
 
 #
@@ -664,7 +666,6 @@ connection default;
 --echo took for too long.
 --echo todo: consider to make this test dependent on P_S if
 --echo todo: such case will be ever registered.
-xa rollback 'testb',0x2030405060,11;
 
 # There should be no prepared transactions left.
 XA RECOVER;

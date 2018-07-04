@@ -66,9 +66,11 @@ perfschema.innodb_is_data_locks : BUG#27491547 2018-02-08 Marc Alff PERFSCHEMA.I
 
 # rpl_gtid suite tests
 rpl_gtid.rpl_gtid_delete_memory_table_after_start_server : BUG#24351040 2017-08-29 Ivo Roylev.
+rpl_gtid.rpl_gtid_perfschema_applier_xa_status : BUG#27914287 2018-05-30 Dmitry Shulga disabled until the WL#9075 (Performance Schema, XA Transactions) be implemented
 
 # rpl_nogtid suite tests
 rpl_nogtid.rpl_row_binlog_max_cache_size : BUG#14126780 2012-05-29 Vasil Dimov timeout if est number of rows is 3 instead of 4.
+rpl_nogtid.rpl_perfschema_applier_xa_status_check : BUG#27914287 2018-05-30 Dmitry Shulga disabled until the WL#9075 (Performance Schema, XA Transactions) be implemented
 
 # rpl suite tests
 rpl.rpl_io_thd_wait_for_disk_space_stress : BUG#23581287 2017-09-22 Deepthi Disabled until bug is fixed.

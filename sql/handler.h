@@ -93,6 +93,7 @@ struct Tablespace_options;
 struct handlerton;
 
 typedef struct xid_t XID;
+typedef struct st_xarecover_txn XA_recover_txn;
 struct MDL_key;
 
 namespace dd {
@@ -1073,7 +1074,8 @@ typedef int (*rollback_t)(handlerton *hton, THD *thd, bool all);
 
 typedef int (*prepare_t)(handlerton *hton, THD *thd, bool all);
 
-typedef int (*recover_t)(handlerton *hton, XID *xid_list, uint len);
+typedef int (*recover_t)(handlerton *hton, XA_recover_txn *xid_list, uint len,
+                         MEM_ROOT *mem_root);
 
 /** X/Open XA distributed transaction status codes */
 enum xa_status_code {

@@ -60,6 +60,10 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 select * from t1;
 a
 20
+xa recover;
+formatID	gtrid_length	bqual_length	data
+11	5	5	testb 0@P`
+xa rollback 'testb',0x2030405060,11;
 drop table t1;
 drop table if exists t1;
 create table t1(a int, b int, c varchar(20), primary key(a)) engine = innodb;
@@ -253,7 +257,6 @@ xa end 0xABCDEF1234567890, 0x01, 0x02 ;
 xa prepare 0xABCDEF1234567890, 0x01, 0x02 ;
 xa recover convert xid;
 formatID	gtrid_length	bqual_length	data
-11	5	5	0x74657374622030405060
 2	8	1	0xABCDEF123456789001
 xa rollback 0xABCDEF1234567890, 0x01, 0x02 ;
 # Check that XID which has only printable characters are displayed
@@ -263,7 +266,6 @@ xa end 0x4142434445, 0x46, 0x02 ;
 xa prepare 0x4142434445, 0x46, 0x02 ;
 xa recover;
 formatID	gtrid_length	bqual_length	data
-11	5	5	testb 0@P`
 2	5	1	ABCDEF
 xa rollback 0x4142434445, 0x46, 0x02 ;
 #
@@ -392,7 +394,6 @@ Error	1401	XAER_RMERR: Fatal error occurred in the transaction branch - check yo
 xa recover;
 formatID	gtrid_length	bqual_length	data
 1	5	0	test1
-11	5	5	testb 0@P`
 # LOCK error during COMMIT will not alter transaction state.
 xa commit 'test1';
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
@@ -403,19 +404,16 @@ Error	3197	The resource manager is not able to commit the transaction branch at 
 xa recover;
 formatID	gtrid_length	bqual_length	data
 1	5	0	test1
-11	5	5	testb 0@P`
 unlock tables;
 xa rollback 'test1';
 xa recover;
 formatID	gtrid_length	bqual_length	data
-11	5	5	testb 0@P`
 drop table asd;
 There should be practically no error, but in theory
 XAER_NOTA: Unknown XID can be returned if con1 disconnection
 took for too long.
 todo: consider to make this test dependent on P_S if
 todo: such case will be ever registered.
-xa rollback 'testb',0x2030405060,11;
 XA RECOVER;
 formatID	gtrid_length	bqual_length	data
 #
