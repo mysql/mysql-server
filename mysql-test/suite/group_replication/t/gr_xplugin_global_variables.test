@@ -157,7 +157,6 @@ SET @group_replication_recovery_get_public_key_save= @@GLOBAL.group_replication_
 ## Set the GR Variables
 
 --write_file $MYSQL_TMP_DIR/set_variables.tmp
--->sql
 SET GLOBAL group_replication_allow_local_lower_version_join= ON;
 SET GLOBAL group_replication_auto_increment_increment= 5;
 SET GLOBAL group_replication_bootstrap_group= 1;
@@ -177,29 +176,12 @@ SET GLOBAL group_replication_poll_spin_loops= 10;
 SET GLOBAL group_replication_recovery_complete_at= TRANSACTIONS_CERTIFIED;
 SET GLOBAL group_replication_recovery_reconnect_interval= 20;
 SET GLOBAL group_replication_recovery_retry_count= 5;
--->endsql
--->varsub %TEST_DIR%
--->sql
 SET GLOBAL group_replication_recovery_ssl_ca= '%TEST_DIR%/std_data/cacert.pem';
--->endsql
--->varsub %TEST_DIR%
--->sql
 SET GLOBAL group_replication_recovery_ssl_capath= '%TEST_DIR%/std_data';
--->endsql
--->varsub %TEST_DIR%
--->sql
 SET GLOBAL group_replication_recovery_ssl_cert= '%TEST_DIR%/std_data/client-cert.pem';
--->endsql
--->sql
 SET GLOBAL group_replication_recovery_ssl_cipher= 'DHE-RSA-AES256-SHA';
 SET GLOBAL group_replication_recovery_ssl_crl= 'crl-client-revoked.crl';
--->endsql
--->varsub %TEST_DIR%
--->sql
 SET GLOBAL group_replication_recovery_ssl_crlpath= '%TEST_DIR%/std_data';
--->endsql
--->varsub %TEST_DIR%
--->sql
 SET GLOBAL group_replication_recovery_ssl_key= '%TEST_DIR%/std_data/client-key.pem';
 SET GLOBAl group_replication_recovery_ssl_verify_server_cert= ON;
 SET GLOBAL group_replication_recovery_use_ssl= ON;
@@ -207,11 +189,8 @@ SET GLOBAL group_replication_single_primary_mode= ON;
 SET GLOBAL group_replication_ssl_mode= "VERIFY_CA";
 SET GLOBAL group_replication_start_on_boot= ON;
 SET GLOBAL group_replication_recovery_get_public_key= ON;
--->endsql
--->varsub %TEST_DIR%
--->sql
 SET GLOBAL group_replication_recovery_public_key_path= '%TEST_DIR%/std_data/rsa_public_key.pem';
--->endsql
+
 EOF
 
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $xcom_port xcom_port
