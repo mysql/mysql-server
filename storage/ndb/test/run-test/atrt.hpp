@@ -104,6 +104,7 @@ struct atrt_cluster {
 
 struct atrt_config {
   bool m_generated;
+  enum { CNF, INI } m_config_type;
   BaseString m_key;
   BaseString m_replication;
   BaseString m_site;
@@ -140,6 +141,7 @@ bool sshx(atrt_config&, unsigned procmask);
 bool start(atrt_config&, unsigned procmask);
 
 bool remove_dir(const char*, bool incl = true);
+bool exists_file(const char* path);
 bool connect_hosts(atrt_config&);
 bool connect_ndb_mgm(atrt_config&);
 bool wait_ndb(atrt_config&, int ndb_mgm_node_status);
