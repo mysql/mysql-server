@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 */
 
 #include "client/base/message_data.h"
+#include "errmsg.h"
 
 #include "m_ctype.h"
 #include "sql_string.h"
@@ -50,6 +51,24 @@ const char *Message_data::message_type_strings[] = {
 
 const int Message_data::message_type_strings_count =
     static_cast<int>(array_elements(Message_data::message_type_strings));
+
+/**
+  Check if fatal error is encountered that mysql_upgrade cannot ignore.
+  For instance: server is not reachable during upgrade
+
+  @retval
+    true    fatal error is encountered
+    false   otherwise
+*/
+bool Message_data::is_fatal() const {
+  switch (get_code()) {
+    case CR_SERVER_LOST:
+    case CR_SERVER_GONE_ERROR:
+      return true;
+    default:
+      return false;
+  }
+}
 
 void Warning_data::print_error(std::string program_name) const {
   std::cerr << program_name << ": (non fatal) [" << get_message_type_string()
