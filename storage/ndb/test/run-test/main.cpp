@@ -78,6 +78,7 @@ const char *g_prefix = NULL;
 const char *g_prefix0 = NULL;
 const char *g_prefix1 = NULL;
 const char *g_clusters = 0;
+const char *g_config_type = NULL;  // "cnf" or "ini"
 const char *g_site = NULL;
 BaseString g_replicate;
 const char *save_file = 0;
@@ -112,6 +113,7 @@ static struct {
 const char *g_search_path[] = {"bin", "libexec",   "sbin", "scripts",
                                "lib", "lib/mysql", 0};
 static bool find_binaries();
+static bool find_config_ini_files();
 
 static struct my_option g_options[] = {
     {"help", '?', "Display this help and exit.", (uchar **)&g_help,
@@ -122,6 +124,8 @@ static struct my_option g_options[] = {
      REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
     {"clusters", 256, "Cluster", (uchar **)&g_clusters, (uchar **)&g_clusters,
      0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+    {"config-type", 256, "cnf (default) or ini", (uchar **)&g_config_type,
+     (uchar **)&g_config_type, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
     {"mysqld", 256, "atrt mysqld", (uchar **)&g_mysqld_host,
      (uchar **)&g_mysqld_host, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
     {"replicate", 1024, "replicate", (uchar **)&g_dummy, (uchar **)&g_dummy, 0,
@@ -211,6 +215,17 @@ int main(int argc, char **argv) {
     goto end;
   }
 
+  g_config.m_config_type = atrt_config::CNF;
+  if (g_config_type != NULL && strcmp(g_config_type, "ini") == 0) {
+    g_logger.info("Using config.ini for cluster configuration");
+    g_config.m_config_type = atrt_config::INI;
+
+    if (!find_config_ini_files()) {
+      g_logger.critical("Failed to find required config.ini files");
+      goto end;
+    }
+  }
+
   g_config.m_generated = false;
   g_config.m_replication = g_replicate;
   if (!setup_config(g_config, g_mysqld_host)) {
@@ -218,7 +233,7 @@ int main(int argc, char **argv) {
     goto end;
   }
 
-  if(!g_config.m_processes.size()) {
+  if (!g_config.m_processes.size()) {
     g_logger.critical("Error: No processes defined in cluster configuration");
     goto end;
   }
@@ -430,7 +445,7 @@ int main(int argc, char **argv) {
       }
 
       if (!is_client_running(g_config)) {
-          break;
+        break;
       }
 
       if (!do_command(g_config)) {
@@ -1079,7 +1094,8 @@ bool stop_process(atrt_process &proc) {
         BaseString msg;
         reply.get("errormessage", msg);
         g_logger.error(
-            "Unable to stop process id: %d host: %s cmd: %s, msg: %s, status: %d",
+            "Unable to stop process id: %d host: %s cmd: %s, "
+            "msg: %s, status: %d",
             proc.m_proc.m_id, proc.m_host->m_hostname.c_str(),
             proc.m_proc.m_path.c_str(), msg.c_str(), status);
         return false;
@@ -1172,7 +1188,7 @@ int check_ndb_or_servers_failures(atrt_config &config) {
     bool isRunning = proc.m_proc.m_status == "running";
     if ((types & proc.m_type) != 0 && !isRunning && !skip) {
       g_logger.critical("%s #%d not running on %s", proc.m_name.c_str(),
-                         proc.m_index, proc.m_host->m_hostname.c_str());
+                        proc.m_index, proc.m_host->m_hostname.c_str());
       failed_processes |= proc.m_type;
     }
   }
@@ -1182,7 +1198,7 @@ int check_ndb_or_servers_failures(atrt_config &config) {
   if ((failed_processes & p_ndb) != 0) {
     return ERR_NDB_FAILED;
   }
-  if((failed_processes & p_servers) != 0) {
+  if ((failed_processes & p_servers) != 0) {
     return ERR_SERVERS_FAILED;
   }
   return 0;
@@ -1665,6 +1681,29 @@ static bool find_binaries() {
     }
   }
   return ok;
+}
+
+static bool find_config_ini_files() {
+  g_logger.info("Locating config.ini files...");
+
+  BaseString tmp(g_clusters);
+  Vector<BaseString> clusters;
+  tmp.split(clusters, ",");
+
+  bool found = true;
+  for (unsigned int i = 0; i < clusters.size(); i++) {
+    BaseString config_ini_path(g_cwd);
+    const char *cluster_name = clusters[i].c_str();
+    config_ini_path.appfmt("%sconfig%s.ini", PATH_SEPARATOR, cluster_name);
+    to_native(config_ini_path);
+
+    if (!exists_file(config_ini_path.c_str())) {
+      g_logger.critical("Failed to locate '%s'", config_ini_path.c_str());
+      found = false;
+    }
+  }
+
+  return found;
 }
 
 template class Vector<Vector<SimpleCpcClient::Process> >;
