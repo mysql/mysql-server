@@ -6167,3 +6167,17 @@ static Sys_var_bool Sys_show_create_table_verbosity(
     "'SHOW CREATE TABLE'.",
     SESSION_VAR(show_create_table_verbosity), CMD_LINE(OPT_ARG), DEFAULT(false),
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0));
+
+static const char *use_secondary_engine_values[] = {"OFF", "ON", "FORCED",
+                                                    nullptr};
+static Sys_var_enum Sys_use_secondary_engine(
+    "use_secondary_engine",
+    "Controls preparation of SELECT statements against secondary storage "
+    "engine. Valid values: OFF/ON/FORCED. OFF = Prepare only against primary "
+    "storage engine. ON = First prepare against secondary storage engine, "
+    "reprepare against primary storage engine if error. FORCED = Prepare all "
+    "SELECT statements referencing one or more base tables only against "
+    "secondary storage engine.",
+    HINT_UPDATEABLE SESSION_VAR(use_secondary_engine), NO_CMD_LINE,
+    use_secondary_engine_values, DEFAULT(SECONDARY_ENGINE_ON), NO_MUTEX_GUARD,
+    NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr));

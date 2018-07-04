@@ -6402,6 +6402,8 @@ err:
 */
 static bool open_secondary_engine_tables(THD *thd, TABLE_LIST *tables,
                                          uint flags) {
+  if (thd->variables.use_secondary_engine == SECONDARY_ENGINE_OFF) return false;
+
   const LEX *const lex = thd->lex;
   Sql_cmd *const sql_cmd = lex->m_sql_cmd;
 

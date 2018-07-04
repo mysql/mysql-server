@@ -42,7 +42,7 @@ include/assert.inc ['Expect 554 variables in the table. Due to open Bugs, we are
 
 # Test SET PERSIST
 
-include/assert.inc ['Expect 357 persisted variables in the table. Due to open Bugs, we are checking for 351']
+include/assert.inc ['Expect 358 persisted variables in the table. Due to open Bugs, we are checking for 353']
 
 ************************************************************
 * 3. Restart server, it must preserve the persisted variable
@@ -50,9 +50,9 @@ include/assert.inc ['Expect 357 persisted variables in the table. Due to open Bu
 ************************************************************
 # restart
 
-include/assert.inc ['Expect 351 persisted variables in persisted_variables table.']
-include/assert.inc ['Expect 351 persisted variables shown as PERSISTED in variables_info table.']
-include/assert.inc ['Expect 351 persisted variables with matching peristed and global values.']
+include/assert.inc ['Expect 353 persisted variables in persisted_variables table.']
+include/assert.inc ['Expect 353 persisted variables shown as PERSISTED in variables_info table.']
+include/assert.inc ['Expect 353 persisted variables with matching peristed and global values.']
 
 ************************************************************
 * 4. Test RESET PERSIST IF EXISTS. Verify persisted variable

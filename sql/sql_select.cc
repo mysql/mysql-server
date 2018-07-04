@@ -313,6 +313,42 @@ void reset_statement_timer(THD *thd) {
 }
 
 /**
+ * Validates a command with respect to the use_secondary_engine system
+ * variable.
+ *
+ * @param lex Parse tree descriptor.
+ *
+ * @return True if error, false otherwise.
+ */
+static bool validate_use_secondary_engine(const LEX *lex) {
+  const THD *thd = lex->thd;
+  const Sql_cmd *sql_cmd = lex->m_sql_cmd;
+
+  // Statement will use secondary engine, no further validations required.
+  if (sql_cmd->using_secondary_storage_engine()) {
+    DBUG_ASSERT(thd->variables.use_secondary_engine != SECONDARY_ENGINE_OFF);
+    return false;
+  }
+
+  // A query must be executed in secondary engine if all of these conditions are
+  // met:
+  //
+  // 1) use_secondary_engine is FORCED
+  // 2) Is a SELECT statement
+  // 3) Accesses one or more base tables.
+  if (thd->variables.use_secondary_engine == SECONDARY_ENGINE_FORCED &&  // 1
+      sql_cmd->sql_command_code() == SQLCOM_SELECT &&                    // 2
+      lex->table_count >= 1) {                                           // 3
+    my_error(
+        ER_SECONDARY_ENGINE, MYF(0),
+        "use_secondary_engine is FORCED but query could not be executed in "
+        "secondary engine");
+    return true;
+  }
+  return false;
+}
+
+/**
   Prepare a DML statement.
 
   @param thd       thread handler
@@ -508,6 +544,8 @@ bool Sql_cmd_dml::execute(THD *thd) {
       DEBUG_SYNC(thd, "after_table_open");
 #endif
   }
+
+  if (validate_use_secondary_engine(lex)) goto err;
 
   lex->set_exec_started();
 

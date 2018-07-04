@@ -71,6 +71,39 @@ FLUSH STATUS;
 SELECT * FROM t1;
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 
+SET @save_use_secondary_engine = @@use_secondary_engine;
+
+# The query should get executed on the primary engine.
+SET use_secondary_engine = OFF;
+
+FLUSH STATUS;
+SELECT * FROM t1;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+
+# The query should get executed on the secondary engine.
+SET use_secondary_engine = FORCED;
+
+FLUSH STATUS;
+SELECT * FROM t1;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+
+SET use_secondary_engine = @save_use_secondary_engine;
+
+# The query should get executed on secondary engine.
+FLUSH STATUS;
+SELECT /*+SET_VAR(use_secondary_engine=ON)*/ * FROM t1;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+
+# The query should get executed on primary engine.
+FLUSH STATUS;
+SELECT /*+SET_VAR(use_secondary_engine=OFF)*/ * FROM t1;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+
+# The query should get executed on secondary engine.
+FLUSH STATUS;
+SELECT /*+SET_VAR(use_secondary_engine=FORCED)*/ * FROM t1;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+
 --connection master
 --echo [ Connection Master ]
 
@@ -121,7 +154,23 @@ FLUSH STATUS;
 SELECT * FROM t1;
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 
-# Set secondary engine to NULL only on slave.
+# Setting use_secondary_engine to FORCED should throw an error since the table is unloaded.
+SET use_secondary_engine = FORCED;
+
+FLUSH STATUS;
+--error ER_SECONDARY_ENGINE
+SELECT * FROM t1;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+
+SET use_secondary_engine = @save_use_secondary_engine;
+
+# Should execute throw an error.
+FLUSH STATUS;
+--error ER_SECONDARY_ENGINE
+SELECT /*+SET_VAR(use_secondary_engine=FORCED)*/ * FROM t1;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+
+# Set secondary_engine to NULL only on slave.
 ALTER TABLE t2 SECONDARY_ENGINE=NULL;
 
 # Stop slave SQL thread.
@@ -195,6 +244,11 @@ ALTER TABLE t1 SECONDARY_LOAD;
 FLUSH STATUS;
 SELECT * FROM t1;
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+ALTER TABLE t1 SECONDARY_UNLOAD;
+FLUSH STATUS;
+SELECT * FROM t1;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+
 ALTER TABLE t1 SECONDARY_UNLOAD;
 ALTER TABLE t2 SECONDARY_UNLOAD;
 

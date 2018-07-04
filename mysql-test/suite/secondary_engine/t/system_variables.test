@@ -1,0 +1,33 @@
+--echo #
+--echo # Test system variables related to secondary engine.
+--echo #
+
+-- echo # Test use_secondary_engine system variable.
+SET @my_use_secondary_engine = @@use_secondary_engine;
+--echo # Test with an invalid argument.
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@use_secondary_engine = INVALID;
+SELECT @@use_secondary_engine;
+--echo # Test with integer arguments.
+SET @@use_secondary_engine = 0;
+SELECT @@use_secondary_engine;
+SET @@use_secondary_engine = 1;
+SELECT @@use_secondary_engine;
+SET @@use_secondary_engine = 2;
+SELECT @@use_secondary_engine;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@use_secondary_engine = 3;
+SELECT @@use_secondary_engine;
+SET @@use_secondary_engine = "FORCED";
+SELECT @@use_secondary_engine;
+SET @@use_secondary_engine = FORCED;
+SELECT @@use_secondary_engine;
+SET @@use_secondary_engine = "ON";
+SELECT @@use_secondary_engine;
+SET @@use_secondary_engine = ON;
+SELECT @@use_secondary_engine;
+SET @@use_secondary_engine = "OFF";
+SELECT @@use_secondary_engine;
+SET @@use_secondary_engine = OFF;
+SELECT @@use_secondary_engine;
+SET @@use_secondary_engine = @my_use_secondary_engine;

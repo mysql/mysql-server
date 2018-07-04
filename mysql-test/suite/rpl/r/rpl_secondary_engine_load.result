@@ -48,6 +48,50 @@ pk	vc	j	b	vb
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	1
+SET @save_use_secondary_engine = @@use_secondary_engine;
+SET use_secondary_engine = OFF;
+FLUSH STATUS;
+SELECT * FROM t1;
+pk	vc	j	b	vb
+1	Poodle	{"key": "value"}	Pug	4
+2	Labrador	[{"key": "value"}, {"key": "value2"}]	Boxer	«Í
+3	Beagle	[1, 2, 3]	Pitbull	«Í4
+4	Collie	["ab", "bc", "cd"]	Huskey	²ÃÔ
+5	Shiba	{"1": "one"}	Mastiff	ÿÿ
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
+SET use_secondary_engine = FORCED;
+FLUSH STATUS;
+SELECT * FROM t1;
+pk	vc	j	b	vb
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	1
+SET use_secondary_engine = @save_use_secondary_engine;
+FLUSH STATUS;
+SELECT /*+SET_VAR(use_secondary_engine=ON)*/ * FROM t1;
+pk	vc	j	b	vb
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	1
+FLUSH STATUS;
+SELECT /*+SET_VAR(use_secondary_engine=OFF)*/ * FROM t1;
+pk	vc	j	b	vb
+1	Poodle	{"key": "value"}	Pug	4
+2	Labrador	[{"key": "value"}, {"key": "value2"}]	Boxer	«Í
+3	Beagle	[1, 2, 3]	Pitbull	«Í4
+4	Collie	["ab", "bc", "cd"]	Huskey	²ÃÔ
+5	Shiba	{"1": "one"}	Mastiff	ÿÿ
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
+FLUSH STATUS;
+SELECT /*+SET_VAR(use_secondary_engine=FORCED)*/ * FROM t1;
+pk	vc	j	b	vb
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	1
 [ Connection Master ]
 CREATE TABLE t2 LIKE t1;
 INSERT INTO t2 SELECT * FROM t1;
@@ -100,6 +144,20 @@ pk	vc	j	b	vb
 3	Beagle	[1, 2, 3]	Pitbull	«Í4
 4	Collie	["ab", "bc", "cd"]	Huskey	²ÃÔ
 5	Shiba	{"1": "one"}	Mastiff	ÿÿ
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
+SET use_secondary_engine = FORCED;
+FLUSH STATUS;
+SELECT * FROM t1;
+ERROR HY000: Secondary engine operation failed. use_secondary_engine is FORCED but query could not be executed in secondary engine.
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
+SET use_secondary_engine = @save_use_secondary_engine;
+FLUSH STATUS;
+SELECT /*+SET_VAR(use_secondary_engine=FORCED)*/ * FROM t1;
+ERROR HY000: Secondary engine operation failed. use_secondary_engine is FORCED but query could not be executed in secondary engine.
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	0
@@ -189,6 +247,18 @@ pk	vc	j	b	vb
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	1
+ALTER TABLE t1 SECONDARY_UNLOAD;
+FLUSH STATUS;
+SELECT * FROM t1;
+pk	vc	j	b	vb
+1	Poodle	{"key": "value"}	Pug	4
+2	Labrador	[{"key": "value"}, {"key": "value2"}]	Boxer	«Í
+3	Beagle	[1, 2, 3]	Pitbull	«Í4
+4	Collie	["ab", "bc", "cd"]	Huskey	²ÃÔ
+5	Shiba	{"1": "one"}	Mastiff	ÿÿ
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
 ALTER TABLE t1 SECONDARY_UNLOAD;
 ALTER TABLE t2 SECONDARY_UNLOAD;
 [ Connection Master ]
