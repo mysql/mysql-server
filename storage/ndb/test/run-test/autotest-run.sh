@@ -324,6 +324,21 @@ fi
 choose $conf $hosts > d.tmp.$$
 sed -e s,CHOOSE_dir,"$run_dir/run",g < d.tmp.$$ > my.cnf
 
+clusters=`echo ${clusters_arg} | sed s/--clusters=//`
+for cluster_name in ${clusters//,/ }; do
+  conf_base=$(echo "${conf}" | sed 's/\.cnf$//')
+  config_ini="${conf_base}${cluster_name}.ini"
+
+  if [ -f "$config_ini" ]; then
+    [ -r "$config_ini" ] || (echo "Failed to read ${config_ini}" && exit 1)
+
+    choose "$config_ini" $hosts > d.tmp.$$
+    sed -e s,CHOOSE_dir,"$run_dir/run",g < d.tmp.$$ > "config${cluster_name}.ini"
+  fi
+done
+
+rm -f d.tmp.$$
+
 copy_missing_ndbclient_test_programs() {
   (
     export LD_LIBRARY_PATH="${1}/bin:${1}/lib"
