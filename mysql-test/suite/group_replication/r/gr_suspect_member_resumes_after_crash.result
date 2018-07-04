@@ -1,0 +1,85 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Set group_replication_member_expel_timeout to
+#    30 seconds.
+[connection server1]
+SET GLOBAL group_replication_member_expel_timeout = 30;
+[connection server2]
+SET GLOBAL group_replication_member_expel_timeout = 30;
+[connection server3]
+SET GLOBAL group_replication_member_expel_timeout = 30;
+set session sql_log_bin=0;
+call mtr.add_suppression("read failed");
+call mtr.add_suppression("The member was unable to join the group. Local port: *.*");
+call mtr.add_suppression("Timeout on wait for view after joining group");
+set session sql_log_bin=1;
+
+############################################################
+# 2. Create a table and insert some data. Check that
+#    it is replicated to all servers.
+[connection server1]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+INSERT INTO t1 VALUES (1);
+include/rpl_sync.inc
+
+############################################################
+# 3. Crash server 3 and it will restart.
+[connection server3]
+# Kill and restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME
+#
+# Restarting server 3
+include/rpl_reconnect.inc
+
+############################################################
+# 4. Check that all members are still in the group on
+#    servers 1 and 2, which should both be ONLINE.
+#    Server 3 should still be in the group but UNREACHABLE.
+[connection server1]
+[connection server2]
+
+############################################################
+# 5. Insert data into table t1 on server 2 and check that
+#    it is replicated to server 1.
+INSERT INTO t1 VALUES (2);
+[connection server1]
+
+############################################################
+# 6. Restart GR on server 3 and it should fail since its
+#    suspicion still hasn't timed out on other members.
+[connection server3]
+SET GLOBAL group_replication_group_name= "GROUP_REPLICATION_GROUP_NAME";
+SET GLOBAL group_replication_group_seeds= "SERVER1_LOCAL_ADDRESS";
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+
+############################################################
+# 7. Wait until server 3 is expelled from the group.
+[connection server1]
+[connection server2]
+
+############################################################
+# 8. Server 3 was expelled! Start GR on server 3.
+[connection server3]
+include/start_group_replication.inc
+[connection server1]
+[connection server2]
+[connection server3]
+
+############################################################
+# 9. Check that server 3 retrieves the data inserted while
+#    it was suspended. Then, use it to insert new data into
+#    table t1 which should be replicated to servers 1 and 2.
+[connection server3]
+INSERT INTO t1 VALUES (3);
+include/rpl_sync.inc
+include/diff_tables.inc [server1:t1, server2:t1, server3:t1]
+
+############################################################
+# 10. Clean up.
+DROP TABLE t1;
+include/group_replication_end.inc

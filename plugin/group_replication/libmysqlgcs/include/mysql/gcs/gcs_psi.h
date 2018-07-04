@@ -30,6 +30,7 @@
 
 extern PSI_mutex_key key_GCS_MUTEX_Gcs_async_buffer_m_free_buffer_mutex,
     key_GCS_MUTEX_Gcs_suspicions_manager_m_suspicions_mutex,
+    key_GCS_MUTEX_Gcs_suspicions_manager_m_suspicions_parameters_mutex,
     key_GCS_MUTEX_Gcs_xcom_group_management_m_nodes_mutex,
     key_GCS_MUTEX_Gcs_xcom_interface_m_wait_for_ssl_init_mutex,
     key_GCS_MUTEX_Gcs_xcom_engine_m_wait_for_notification_mutex,
@@ -49,7 +50,8 @@ extern PSI_cond_key key_GCS_COND_Gcs_async_buffer_m_wait_for_events_cond,
     key_GCS_COND_Gcs_xcom_view_change_control_m_wait_for_view_cond,
     key_GCS_COND_Gcs_xcom_proxy_impl_m_cond_xcom_ready,
     key_GCS_COND_Gcs_xcom_proxy_impl_m_cond_xcom_comms_status,
-    key_GCS_COND_Gcs_xcom_proxy_impl_m_cond_xcom_exit;
+    key_GCS_COND_Gcs_xcom_proxy_impl_m_cond_xcom_exit,
+    key_GCS_COND_Gcs_suspicions_manager_m_suspicions_cond;
 
 extern PSI_thread_key key_GCS_THD_Gcs_ext_logger_impl_m_consumer,
     key_GCS_THD_Gcs_xcom_engine_m_engine_thread,

@@ -64,7 +64,8 @@ Gcs_xcom_node_information::Gcs_xcom_node_information(
       m_uuid(Gcs_xcom_uuid::create_uuid()),
       m_node_no(VOID_NODE_NO),
       m_alive(alive),
-      m_timestamp(0) {}
+      m_member(false),
+      m_suspicion_creation_timestamp(0) {}
 
 Gcs_xcom_node_information::Gcs_xcom_node_information(
     const std::string &member_id, const Gcs_xcom_uuid &uuid,
@@ -73,13 +74,16 @@ Gcs_xcom_node_information::Gcs_xcom_node_information(
       m_uuid(uuid),
       m_node_no(node_no),
       m_alive(alive),
-      m_timestamp(0) {}
+      m_member(false),
+      m_suspicion_creation_timestamp(0) {}
 
-void Gcs_xcom_node_information::set_timestamp(uint64_t ts) { m_timestamp = ts; }
+void Gcs_xcom_node_information::set_suspicion_creation_timestamp(uint64_t ts) {
+  m_suspicion_creation_timestamp = ts;
+}
 
 /* purecov: begin tested */
-uint64_t Gcs_xcom_node_information::get_timestamp() const {
-  return m_timestamp;
+uint64_t Gcs_xcom_node_information::get_suspicion_creation_timestamp() const {
+  return m_suspicion_creation_timestamp;
 }
 /* purecov: end */
 
@@ -107,9 +111,13 @@ unsigned int Gcs_xcom_node_information::get_node_no() const {
 
 bool Gcs_xcom_node_information::is_alive() const { return m_alive; }
 
+bool Gcs_xcom_node_information::is_member() const { return m_member; }
+
+void Gcs_xcom_node_information::set_member(bool m) { m_member = m; }
+
 bool Gcs_xcom_node_information::has_timed_out(uint64_t now_ts,
                                               uint64_t timeout) {
-  return (m_timestamp + timeout) < now_ts;
+  return (m_suspicion_creation_timestamp + timeout) < now_ts;
 }
 
 Gcs_xcom_uuid Gcs_xcom_uuid::create_uuid() {

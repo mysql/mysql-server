@@ -82,7 +82,8 @@ void do_cb_xcom_receive_global_view(synode_no config_id, synode_no message_id,
 void cb_xcom_comms(int status);
 void cb_xcom_ready(int status);
 void cb_xcom_exit(int status);
-void cb_xcom_fatal_error(int status);
+void cb_xcom_expel(int status);
+void do_cb_xcom_expel();
 
 synode_no cb_xcom_get_app_snap(blob *gcs_snap);
 int cb_xcom_get_should_exit();
@@ -372,12 +373,24 @@ enum_gcs_error Gcs_xcom_interface::configure(
   if (!is_parameters_syntax_correct(validated_params)) return GCS_NOK;
 
   // validate whitelist
-  const std::string *ip_whitelist_str =
-      validated_params.get_parameter("ip_whitelist");
+  std::string *ip_whitelist_reconfigure_str = const_cast<std::string *>(
+      interface_params.get_parameter("reconfigure_ip_whitelist"));
 
-  if (!ip_whitelist_str || !m_ip_whitelist.is_valid(*ip_whitelist_str)) {
-    MYSQL_GCS_LOG_ERROR("The ip_whitelist parameter is not valid")
-    return GCS_NOK;
+  bool should_configure_whitelist = true;
+  if (ip_whitelist_reconfigure_str) {
+    should_configure_whitelist =
+        ip_whitelist_reconfigure_str->compare("on") == 0 ||
+        ip_whitelist_reconfigure_str->compare("true") == 0;
+  }
+
+  if (should_configure_whitelist) {
+    const std::string *ip_whitelist_str =
+        validated_params.get_parameter("ip_whitelist");
+
+    if (!ip_whitelist_str || !m_ip_whitelist.is_valid(*ip_whitelist_str)) {
+      MYSQL_GCS_LOG_ERROR("The ip_whitelist parameter is not valid")
+      return GCS_NOK;
+    }
   }
 
   /*
@@ -403,17 +416,6 @@ enum_gcs_error Gcs_xcom_interface::configure(
   // Mandatory
   if (group_name_str == NULL) {
     MYSQL_GCS_LOG_ERROR("The group_name parameter was not specified.")
-    return GCS_NOK;
-  }
-
-  /*
-    If all of these parameters are NULL, return immediately.
-    Otherwise, clean group interfaces.
-  */
-  if ((local_node_str == NULL) && (peer_nodes_str == NULL) &&
-      (bootstrap_group_str == NULL)) {
-    MYSQL_GCS_LOG_ERROR("The local_node, peer_nodes and bootstrap_group"
-                        << " parameters were not specified.")
     return GCS_NOK;
   }
 
@@ -493,8 +495,10 @@ enum_gcs_error Gcs_xcom_interface::configure(
       static_cast<unsigned int>(atoi(join_sleep_time_str->c_str())));
 
   // Set suspicion configuration parameters
-  configure_suspicions_mgr(validated_params,
-                           xcom_control->get_suspicions_manager());
+  if (GCS_OK == configure_suspicions_mgr(
+                    validated_params, xcom_control->get_suspicions_manager())) {
+    reconfigured |= true;
+  }
 
 end:
   if (error == GCS_NOK || !reconfigured) {
@@ -534,7 +538,7 @@ void Gcs_xcom_interface::finalize_xcom() {
   }
 }
 
-void Gcs_xcom_interface::finalize_gcs_on_error() {
+void Gcs_xcom_interface::make_gcs_leave_group_on_error() {
   Gcs_group_identifier *group_identifier = NULL;
   map<u_long, Gcs_group_identifier *>::iterator xcom_configured_groups_it;
   Gcs_xcom_interface *intf =
@@ -546,7 +550,7 @@ void Gcs_xcom_interface::finalize_gcs_on_error() {
     group_identifier = (*xcom_configured_groups_it).second;
     Gcs_xcom_control *control_if = static_cast<Gcs_xcom_control *>(
         intf->get_control_session(*group_identifier));
-    control_if->do_leave_gcs(Gcs_view::MEMBER_EXPELLED);
+    control_if->do_leave_view();
   }
 }
 
@@ -811,7 +815,7 @@ bool Gcs_xcom_interface::initialize_xcom(
   ::set_xcom_run_cb(cb_xcom_ready);
   ::set_xcom_comms_cb(cb_xcom_comms);
   ::set_xcom_exit_cb(cb_xcom_exit);
-  ::set_xcom_fatal_error_cb(cb_xcom_fatal_error);
+  ::set_xcom_expel_cb(cb_xcom_expel);
   ::set_xcom_socket_accept_cb(cb_xcom_socket_accept);
 
   const std::string *wait_time_str =
@@ -1054,27 +1058,46 @@ enum_gcs_error Gcs_xcom_interface::configure_message_stages(
 
 enum_gcs_error Gcs_xcom_interface::configure_suspicions_mgr(
     Gcs_interface_parameters &p, Gcs_suspicions_manager *mgr) {
-  const std::string *suspicions_timeout_ptr =
-      p.get_parameter("suspicions_timeout");
-  if (suspicions_timeout_ptr != NULL) {
-    mgr->set_timeout_seconds(
-        static_cast<unsigned long>(atoi(suspicions_timeout_ptr->c_str())));
+  enum_gcs_error ret = GCS_NOK;
+  const std::string *non_member_expel_timeout_ptr =
+      p.get_parameter("non_member_expel_timeout");
+  if (non_member_expel_timeout_ptr != NULL) {
+    mgr->set_non_member_expel_timeout_seconds(static_cast<unsigned long>(
+        atoi(non_member_expel_timeout_ptr->c_str())));
+    ret = GCS_OK;
     MYSQL_GCS_LOG_TRACE(
-        "::configure_suspicions_mgr():: Set suspicions timeout to %s seconds",
-        suspicions_timeout_ptr->c_str())
+        "::configure_suspicions_mgr():: Set non-member expel timeout to %s "
+        "seconds",
+        non_member_expel_timeout_ptr->c_str())
+  }
+
+  const std::string *member_expel_timeout_ptr =
+      p.get_parameter("member_expel_timeout");
+  if (member_expel_timeout_ptr != NULL) {
+    mgr->set_member_expel_timeout_seconds(
+        static_cast<unsigned long>(atoi(member_expel_timeout_ptr->c_str())));
+    ret = GCS_OK;
+    MYSQL_GCS_LOG_TRACE(
+        "::configure_suspicions_mgr():: Set member expel timeout to %s "
+        "seconds",
+        member_expel_timeout_ptr->c_str())
   }
 
   const std::string *suspicions_processing_period_ptr =
       p.get_parameter("suspicions_processing_period");
   if (suspicions_processing_period_ptr != NULL) {
-    mgr->set_period(static_cast<unsigned int>(
+    mgr->set_suspicions_processing_period(static_cast<unsigned int>(
         atoi(suspicions_processing_period_ptr->c_str())));
+    ret = GCS_OK;
     MYSQL_GCS_LOG_TRACE(
         "::configure_suspicions_mgr():: Set suspicions processing period to %s "
         "seconds",
         suspicions_processing_period_ptr->c_str());
   }
-  return GCS_OK;
+
+  if (ret == GCS_OK) mgr->wake_suspicions_processing_thread(false);
+
+  return ret;
 }
 
 const Gcs_ip_whitelist &Gcs_xcom_interface::get_ip_whitelist() {
@@ -1255,6 +1278,7 @@ void cb_xcom_receive_global_view(synode_no config_id, synode_no message_id,
 
   if (site->nodeno == VOID_NODE_NO) {
     free_node_set(&nodes);
+    MYSQL_GCS_LOG_DEBUG("Rejecting this view. Invalid site definition.");
     return;
   }
 
@@ -1492,16 +1516,28 @@ void cb_xcom_exit(int status MY_ATTRIBUTE((unused))) {
 }
 
 /**
-  Callback function used by XCom to signal that a 'die_op' has been received,
-  causing XCom to terminate.
+  Callback function used by XCom to signal that a node has left the group
+  because of a `die_op` or a view where the node does not belong to.
  */
-void cb_xcom_fatal_error(int status MY_ATTRIBUTE((unused))) {
-  MYSQL_GCS_LOG_FATAL(
-      "The node has missed messages that can no longer be "
-      "recovered from the other nodes' caches. GCS will now terminate.");
-  Gcs_xcom_interface *iface =
+void cb_xcom_expel(int status MY_ATTRIBUTE((unused))) {
+  Gcs_xcom_notification *notification =
+      new Expel_notification(do_cb_xcom_expel);
+  bool scheduled = gcs_engine->push(notification);
+  if (!scheduled) {
+    MYSQL_GCS_LOG_DEBUG(
+        "Tried to enqueue an expel request but the member is about to stop.")
+    delete notification;
+  } else {
+    MYSQL_GCS_LOG_TRACE("Expel view notification: %p", notification)
+  }
+}
+
+void do_cb_xcom_expel() {
+  Gcs_xcom_interface *intf =
       static_cast<Gcs_xcom_interface *>(Gcs_xcom_interface::get_interface());
-  iface->finalize_gcs_on_error();
+  if (intf) {
+    intf->make_gcs_leave_group_on_error();
+  }
 }
 
 /**

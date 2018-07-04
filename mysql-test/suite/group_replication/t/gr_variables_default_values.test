@@ -66,22 +66,23 @@ SET @@GLOBAL.group_replication_ip_whitelist= default;
 --let $saved_gr_start_on_boot = `SELECT @@GLOBAL.group_replication_start_on_boot;`
 --let $saved_gr_transaction_size_limit = `SELECT @@GLOBAL.group_replication_transaction_size_limit;`
 --let $saved_gr_communication_debug_options = `SELECT @@GLOBAL.group_replication_communication_debug_options;`
---let $saved_gr_unreachable_majority_timeout = `SELECT @@GLOBAL.group_replication_unreachable_majority_timeout`
+--let $saved_gr_unreachable_majority_timeout = `SELECT @@GLOBAL.group_replication_unreachable_majority_timeout;`
 --let $saved_gr_member_weight = `SELECT @@GLOBAL.group_replication_member_weight;`
 --let $saved_gr_recovery_public_key_path = `SELECT @@GLOBAL.group_replication_recovery_public_key_path;`
 --let $saved_gr_recovery_get_public_key = `SELECT @@GLOBAL.group_replication_recovery_get_public_key;`
 --let $saved_gr_exit_state_action = `SELECT @@GLOBAL.group_replication_exit_state_action;`
+--let $saved_gr_member_expel_timeout = `SELECT @@GLOBAL.group_replication_member_expel_timeout;`
 
 --echo #
 --echo # Test Unit#1
 --echo # Set global group replication variables to default.
---echo # Curently there are 45 group replication variables.
+--echo # Curently there are 46 group replication variables.
 --echo #
 
 # Note: If a new GR variable is added or an old GR variable is removed, then
 # update this testcase for the sanity check.
---let $assert_text= There are 45 GR variables at present.
---let $assert_cond= "[SELECT COUNT(*) FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE \\'group_replication%\']" = 45
+--let $assert_text= There are 46 GR variables at present.
+--let $assert_cond= "[SELECT COUNT(*) FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE \\'group_replication%\']" = 46
 --source include/assert.inc
 
 --error ER_WRONG_VALUE_FOR_VAR
@@ -127,6 +128,7 @@ SET @@GLOBAL.group_replication_member_weight= default;
 SET @@GLOBAL.group_replication_recovery_public_key_path= default;
 SET @@GLOBAL.group_replication_recovery_get_public_key= default;
 SET @@GLOBAL.group_replication_exit_state_action= default;
+SET @@GLOBAL.group_replication_member_expel_timeout= default;
 
 --echo #
 --echo # Test Unit#2
@@ -286,6 +288,11 @@ SET @@GLOBAL.group_replication_exit_state_action= default;
 #group_replication_exit_state_action
 --let $assert_text= Default group_replication_exit_state_action is ABORT_SERVER
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_exit_state_action]" = "ABORT_SERVER"
+
+# group_replication_member_expel_timeout
+--let $assert_text= Default group_replication_member_expel_timeout is 0
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_member_expel_timeout]" = 0
+
 --source include/assert.inc
 
 --echo #
@@ -330,6 +337,7 @@ SET @@GLOBAL.group_replication_exit_state_action= default;
 --eval SET @@GLOBAL.group_replication_recovery_public_key_path= "$saved_gr_recovery_public_key_path"
 --eval SET @@GLOBAL.group_replication_recovery_get_public_key= $saved_gr_recovery_get_public_key
 --eval SET @@GLOBAL.group_replication_exit_state_action= $saved_gr_exit_state_action
+--eval SET @@GLOBAL.group_replication_member_expel_timeout= $saved_gr_member_expel_timeout
 --enable_query_log
 
 --source include/group_replication_end.inc

@@ -967,6 +967,8 @@ void fix_parameters_syntax(Gcs_interface_parameters &interface_params) {
       const_cast<std::string *>(interface_params.get_parameter("wait_time"));
   std::string *ip_whitelist_str =
       const_cast<std::string *>(interface_params.get_parameter("ip_whitelist"));
+  std::string *ip_whitelist_reconfigure_str = const_cast<std::string *>(
+      interface_params.get_parameter("reconfigure_ip_whitelist"));
   std::string *join_attempts_str = const_cast<std::string *>(
       interface_params.get_parameter("join_attempts"));
   std::string *join_sleep_time_str = const_cast<std::string *>(
@@ -991,8 +993,15 @@ void fix_parameters_syntax(Gcs_interface_parameters &interface_params) {
     interface_params.add_parameter("wait_time", ss.str());
   }
 
+  bool should_configure_whitelist = true;
+  if (ip_whitelist_reconfigure_str) {
+    should_configure_whitelist =
+        ip_whitelist_reconfigure_str->compare("on") == 0 ||
+        ip_whitelist_reconfigure_str->compare("true") == 0;
+  }
+
   // sets the default ip whitelist
-  if (!ip_whitelist_str) {
+  if (should_configure_whitelist && !ip_whitelist_str) {
     std::stringstream ss;
     std::string iplist;
     std::map<std::string, int> out;
@@ -1076,16 +1085,21 @@ bool is_parameters_syntax_correct(
       interface_params.get_parameter("join_attempts");
   const std::string *join_sleep_time_str =
       interface_params.get_parameter("join_sleep_time");
-  const std::string *suspicions_timeout_str =
-      interface_params.get_parameter("suspicions_timeout");
+  const std::string *non_member_expel_timeout_str =
+      interface_params.get_parameter("non_member_expel_timeout");
   const std::string *suspicions_processing_period_str =
       interface_params.get_parameter("suspicions_processing_period");
+  const std::string *member_expel_timeout_str =
+      interface_params.get_parameter("member_expel_timeout");
+  const std::string *reconfigure_ip_whitelist_str =
+      interface_params.get_parameter("reconfigure_ip_whitelist");
 
   /*
     -----------------------------------------------------
     Checks
     -----------------------------------------------------
    */
+
   // validate group name
   if (group_name_str != NULL && group_name_str->size() == 0) {
     MYSQL_GCS_LOG_ERROR("The group_name parameter (" << group_name_str << ")"
@@ -1229,10 +1243,11 @@ bool is_parameters_syntax_correct(
   }
 
   // validate suspicions parameters
-  if (suspicions_timeout_str && (suspicions_timeout_str->size() == 0 ||
-                                 !is_number(*suspicions_timeout_str))) {
-    MYSQL_GCS_LOG_ERROR("The suspicions_timeout parameter ("
-                        << suspicions_timeout_str << ") is not valid.")
+  if (non_member_expel_timeout_str &&
+      (non_member_expel_timeout_str->size() == 0 ||
+       !is_number(*non_member_expel_timeout_str))) {
+    MYSQL_GCS_LOG_ERROR("The non_member_expel_timeout parameter ("
+                        << non_member_expel_timeout_str << ") is not valid.")
     error = GCS_NOK;
     goto end;
   }
@@ -1253,6 +1268,22 @@ bool is_parameters_syntax_correct(
                         << ") is not valid.")
     error = GCS_NOK;
     goto end;
+  }
+
+  if (member_expel_timeout_str && (member_expel_timeout_str->size() == 0 ||
+                                   !is_number(*member_expel_timeout_str))) {
+    MYSQL_GCS_LOG_ERROR("The member_expel_timeout parameter ("
+                        << member_expel_timeout_str << ") is not valid.")
+    error = GCS_NOK;
+    goto end;
+  }
+
+  // Validate whitelist reconfiguration parameter
+  if (reconfigure_ip_whitelist_str != NULL) {
+    std::string &flag =
+        const_cast<std::string &>(*reconfigure_ip_whitelist_str);
+    error = is_valid_flag("reconfigure_ip_whitelist", flag);
+    if (error == GCS_NOK) goto end;
   }
 
 end:

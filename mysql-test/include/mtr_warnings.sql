@@ -273,6 +273,7 @@ INSERT INTO global_suppressions VALUES
  ("Member with address .* is reachable again."),
  ("The member has resumed contact with a majority of the members in the group.*"),
  ("Members removed from the group.*"),
+ ("Error while sending message for group replication recovery"),
 
  /*
    Warnings/errors related to SSL connection by mysqlx

@@ -614,4 +614,45 @@ class Control_notification : public Parameterized_notification<false> {
   Control_notification &operator=(Control_notification const &);
 };
 
+typedef void(xcom_expel_functor)(void);
+/**
+  Notification used to inform that the node has been expelled or is about
+  to be.
+*/
+class Expel_notification : public Parameterized_notification<false> {
+ public:
+  /**
+    Constructor for Expel_notification.
+
+    @param functor Pointer to a function that contains that actual
+    core of the execution.
+  */
+
+  explicit Expel_notification(xcom_expel_functor *functor);
+
+  /**
+    Destructor for Expel_notification.
+  */
+
+  ~Expel_notification();
+
+ private:
+  /**
+    Task implemented by this notification.
+  */
+
+  void do_execute();
+
+  /*
+    Pointer to a function that contains that actual core of the
+    execution.
+  */
+  xcom_expel_functor *m_functor;
+
+  /*
+    Disabling the copy constructor and assignment operator.
+  */
+  Expel_notification(Expel_notification const &);
+  Expel_notification &operator=(Expel_notification const &);
+};
 #endif  // GCS_XCOM_NOTIFICATION_INCLUDED

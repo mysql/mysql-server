@@ -47,7 +47,7 @@ using std::string;
 extern int ARBITRATOR_HACK;
 
 // Suspicion timeout in 100s of nanoseconds (60 seconds)
-static const uint64_t SUSPICION_TIMEOUT = 60 * 10000000;
+static const uint64_t NON_MEMBER_EXPEL_TIMEOUT = 60 * 10000000;
 
 // Suspicions processing thread period in seconds
 static const unsigned int SUSPICION_PROCESSING_THREAD_PERIOD = 15;
@@ -68,9 +68,6 @@ static void *suspicions_processing_thread(void *ptr) {
 
   while (!is_terminate_suspicion_thread()) {
     mgr->process_suspicions();
-
-    // Sleep
-    My_xp_util::sleep_seconds(mgr->get_period());
   }
 
   My_xp_thread_util::exit(0);
@@ -121,9 +118,11 @@ Gcs_xcom_control::Gcs_xcom_control(
       m_socket_util(socket_util),
       m_join_attempts(0),
       m_join_sleep_time(0),
-      m_suspicions_manager(new Gcs_suspicions_manager(xcom_proxy)),
+      m_suspicions_manager(new Gcs_suspicions_manager(xcom_proxy, this)),
       m_suspicions_processing_thread(),
       m_xcom_running(false),
+      m_leave_view_requested(false),
+      m_leave_view_delivered(false),
       m_boot(boot),
       m_initial_peers(),
       m_view_control(view_control),
@@ -435,6 +434,7 @@ enum_gcs_error Gcs_xcom_control::retry_do_join() {
                       local_port);
 
   m_suspicions_manager->set_groupid_hash(m_gid_hash);
+  m_suspicions_manager->set_my_info(m_local_node_info);
 
   set_terminate_suspicion_thread(false);
 
@@ -530,6 +530,9 @@ enum_gcs_error Gcs_xcom_control::do_leave() {
     return GCS_NOK;
   }
 
+  m_leave_view_delivered = false;
+  m_leave_view_requested = true;
+
   /*
     Request other nodes to remove this one from the membership.
   */
@@ -554,11 +557,6 @@ enum_gcs_error Gcs_xcom_control::do_leave() {
   }
   wait_for_xcom_thread();
 
-  return do_leave_gcs(Gcs_view::OK);
-}
-
-enum_gcs_error Gcs_xcom_control::do_leave_gcs(
-    Gcs_view::Gcs_view_error_code error_code) {
   /*
     There is no need to interact with the local xcom anymore so we
     will can close local handlers.
@@ -581,44 +579,35 @@ enum_gcs_error Gcs_xcom_control::do_leave_gcs(
 
   m_view_control->end_leave();
 
+  do_leave_view();
+
+  /*
+    Delete current view and set it to NULL.
+  */
+  m_view_control->set_current_view(NULL);
+
+  return GCS_OK;
+}
+
+void Gcs_xcom_control::do_leave_view() {
   /*
     There is no need to synchronize here and this method can access
     the current_view member stored in the view controller directly.
   */
   Gcs_view *current_view = m_view_control->get_unsafe_current_view();
 
-  if (current_view == NULL) {
-    /*
-      XCOM has stopped but will not proceed with any view install. The
-      current view might be NULL due to the fact that the view with
-      the join still hasn't been delivered.
-    */
-    MYSQL_GCS_LOG_WARN("The member has left the group but the new view"
-                       << " will not be installed, probably because it has not"
-                       << " been delivered yet.")
-
-    return GCS_OK;
+  if (current_view != NULL && !m_leave_view_delivered) {
+    MYSQL_GCS_LOG_DEBUG("Will install leave view: requested %d, delivered %d",
+                        m_leave_view_requested, m_leave_view_delivered);
+    install_leave_view(m_leave_view_requested ? Gcs_view::OK
+                                              : Gcs_view::MEMBER_EXPELLED);
+    if (m_leave_view_requested) {
+      m_view_control->set_belongs_to_group(false);
+    }
+    m_leave_view_delivered = m_leave_view_requested;
+    MYSQL_GCS_LOG_DEBUG("Installed leave view: requested %d, delivered %d",
+                        m_leave_view_requested, m_leave_view_delivered);
   }
-
-  /*
-    Notify that the node has left the group.
-  */
-  install_leave_view(error_code);
-
-  /*
-    Set that the node does not belong to a group anymore. Note there
-    is a small window when the node does not belong to the group
-    anymore but the view is not NULL.
-  */
-  m_view_control->set_belongs_to_group(false);
-
-  /*
-    Delete current view and set it to NULL.
-  */
-
-  m_view_control->set_current_view(NULL);
-
-  return GCS_OK;
 }
 
 bool Gcs_xcom_control::belongs_to_group() {
@@ -751,8 +740,8 @@ void Gcs_xcom_control::build_left_members(
   }
 }
 
-void Gcs_xcom_control::build_expel_members(
-    std::vector<Gcs_member_identifier *> &expel_members,
+void Gcs_xcom_control::build_member_suspect_nodes(
+    std::vector<Gcs_member_identifier *> &member_suspect_nodes,
     std::vector<Gcs_member_identifier *> &failed_members,
     const std::vector<Gcs_member_identifier> *current_members) {
   std::vector<Gcs_member_identifier *>::iterator failed_members_it;
@@ -762,7 +751,9 @@ void Gcs_xcom_control::build_expel_members(
     If there isn't a set of current members, this means that a view hasn't
     been installed before and nobody will be expelled by this node.
   */
-  if (current_members == NULL) return;
+  if ((current_members == NULL) || current_members->empty() ||
+      failed_members.empty())
+    return;
 
   for (current_members_it = current_members->begin();
        current_members_it != current_members->end(); current_members_it++) {
@@ -775,21 +766,22 @@ void Gcs_xcom_control::build_expel_members(
       be expelled.
     */
     if (failed_members_it != failed_members.end()) {
-      expel_members.push_back(new Gcs_member_identifier(*(*failed_members_it)));
+      member_suspect_nodes.push_back(
+          new Gcs_member_identifier(*(*failed_members_it)));
     }
   }
 }
 
-void Gcs_xcom_control::build_suspect_members(
-    std::vector<Gcs_member_identifier *> &suspect_members,
+void Gcs_xcom_control::build_non_member_suspect_nodes(
+    std::vector<Gcs_member_identifier *> &non_member_suspect_nodes,
     std::vector<Gcs_member_identifier *> &failed_members,
     const std::vector<Gcs_member_identifier> *current_members) {
   std::vector<Gcs_member_identifier *>::iterator failed_members_it;
   std::vector<Gcs_member_identifier>::const_iterator current_members_it;
 
   /*
-    If there isn't a set of failed members, this means that there are no suspect
-    nodes.
+    If there isn't a set of failed members, this means that there are no
+    suspect nodes.
   */
   if ((current_members == NULL) || current_members->empty() ||
       failed_members.empty())
@@ -806,7 +798,7 @@ void Gcs_xcom_control::build_suspect_members(
       becomes a suspect.
     */
     if (current_members_it == current_members->end()) {
-      suspect_members.push_back(
+      non_member_suspect_nodes.push_back(
           new Gcs_member_identifier(*(*failed_members_it)));
     }
   }
@@ -840,9 +832,15 @@ bool Gcs_xcom_control::xcom_receive_local_view(Gcs_xcom_nodes *xcom_nodes) {
 
   // if I am not aware of any view at all
   if (current_view != NULL) {
+    std::vector<Gcs_member_identifier *> alive_members;
+    std::vector<Gcs_member_identifier *> failed_members;
+    std::vector<Gcs_member_identifier *> left_members;
+    std::vector<Gcs_member_identifier *> joined_members;
+    std::vector<Gcs_member_identifier *> non_member_suspect_nodes;
+    std::vector<Gcs_member_identifier *> member_suspect_nodes;
+    std::vector<Gcs_member_identifier *>::iterator it;
     const std::vector<Gcs_member_identifier> &cv_members =
         current_view->get_members();
-
     for (nodes_it = nodes.begin(); nodes_it != nodes.end(); ++nodes_it) {
       /*
         Build the member identifier from the address reported.
@@ -869,11 +867,121 @@ bool Gcs_xcom_control::xcom_receive_local_view(Gcs_xcom_nodes *xcom_nodes) {
       }
     }
 
+    /*
+      Identify which nodes are alive and which are considered faulty.
+
+      Note that there may be new nodes that are marked as faulty because the
+      connections among their peers are still beeing established.
+    */
+    build_total_members(xcom_nodes, alive_members, failed_members);
+
+    /*
+      Build the set of joined members which are all alive members that are not
+      part of the current members.
+
+      In other words, joined = (alive - current).
+    */
+    build_joined_members(joined_members, alive_members, &cv_members);
+
+    /*
+      Build the set of left members which has any member that is part of the
+      current members but it is not in the set of alive or failed members.
+
+      In other words, left = current - (alive \/ failed).
+    */
+    build_left_members(left_members, alive_members, failed_members,
+                       &cv_members);
+
+    /*
+      Build the set of nodes that must be expelled by a killer node. These
+      nodes are those that are part of the current members and are marked
+      as faulty in the view.
+      In other words, left = current /\ failed.
+    */
+    build_member_suspect_nodes(member_suspect_nodes, failed_members,
+                               &cv_members);
+
+    /*
+      Build the set of nodes that are suspicious, i.e., could have failed
+      while entering the group most probably during state exchange.
+      These nodes are those that are not part of the current members and
+      are marked as faulty in the view.
+      In other words, suspect = !current /\ failed.
+    */
+    build_non_member_suspect_nodes(non_member_suspect_nodes, failed_members,
+                                   &cv_members);
+
+    // Remove and add suspicions
+    m_suspicions_manager->process_view(
+        xcom_nodes, alive_members, left_members, member_suspect_nodes,
+        non_member_suspect_nodes, is_killer_node(alive_members));
+
+    MYSQL_GCS_TRACE_EXECUTE(
+        unsigned int node_no = xcom_nodes->get_node_no();
+        for (it = alive_members.begin(); it != alive_members.end(); it++)
+            MYSQL_GCS_LOG_TRACE(
+                "(My node_id is (%u) Node considered alive in the cluster: %s",
+                node_no, (*it)->get_member_id().c_str());
+
+        for (it = failed_members.begin(); it != failed_members.end(); it++)
+            MYSQL_GCS_LOG_TRACE(
+                "(My node_id is (%u) Node considered faulty in the cluster: %s",
+                node_no, (*it)->get_member_id().c_str());
+
+        for (it = left_members.begin(); it != left_members.end(); it++)
+            MYSQL_GCS_LOG_TRACE(
+                "(My node_id is (%d) Node leaving the cluster: %s", node_no,
+                (*it)->get_member_id().c_str());
+
+        for (it = joined_members.begin(); it != joined_members.end(); it++)
+            MYSQL_GCS_LOG_TRACE(
+                "My node_id is (%d) Node joining the cluster: %s", node_no,
+                (*it)->get_member_id().c_str());
+
+        for (it = member_suspect_nodes.begin();
+             it != member_suspect_nodes.end(); it++)
+            MYSQL_GCS_LOG_TRACE(
+                "My node_id is (%d) Member node considered suspicious in the "
+                "cluster: %s",
+                node_no, (*it)->get_member_id().c_str());
+
+        for (it = non_member_suspect_nodes.begin();
+             it != non_member_suspect_nodes.end(); it++)
+            MYSQL_GCS_LOG_TRACE("My node_id is (%d) Non-member node considered "
+                                "suspicious in the cluster: %s",
+                                node_no, (*it)->get_member_id().c_str());)
+
     // always notify local views
     for (callback_it = event_listeners.begin();
          callback_it != event_listeners.end(); callback_it++) {
       callback_it->second.on_suspicions(members, unreachable);
     }
+
+    // clean up tentative sets
+    for (it = left_members.begin(); it != left_members.end(); it++) delete *it;
+    left_members.clear();
+
+    for (it = joined_members.begin(); it != joined_members.end(); it++)
+      delete *it;
+    joined_members.clear();
+
+    for (it = alive_members.begin(); it != alive_members.end(); it++)
+      delete *it;
+    alive_members.clear();
+
+    for (it = failed_members.begin(); it != failed_members.end(); it++)
+      delete *it;
+    failed_members.clear();
+
+    for (it = member_suspect_nodes.begin(); it != member_suspect_nodes.end();
+         it++)
+      delete *it;
+    member_suspect_nodes.clear();
+
+    for (it = non_member_suspect_nodes.begin();
+         it != non_member_suspect_nodes.end(); it++)
+      delete *it;
+    non_member_suspect_nodes.clear();
   }
 end:
   return false;
@@ -925,18 +1033,18 @@ void Gcs_xcom_control::install_leave_view(
   delete new_view_id;
 }
 
-bool Gcs_xcom_control::is_considered_faulty(
+bool Gcs_xcom_control::is_this_node_in(
     std::vector<Gcs_member_identifier *> *failed_members) {
-  bool is_faulty = false;
+  bool is_in_vector = false;
 
   std::vector<Gcs_member_identifier *>::iterator it;
 
-  for (it = failed_members->begin(); it != failed_members->end() && !is_faulty;
-       ++it) {
-    is_faulty = (*(*it) == m_local_node_info->get_member_id());
+  for (it = failed_members->begin();
+       it != failed_members->end() && !is_in_vector; ++it) {
+    is_in_vector = (*(*it) == m_local_node_info->get_member_id());
   }
 
-  return is_faulty;
+  return is_in_vector;
 }
 
 bool Gcs_xcom_control::xcom_receive_global_view(synode_no message_id,
@@ -949,8 +1057,8 @@ bool Gcs_xcom_control::xcom_receive_global_view(synode_no message_id,
   std::vector<Gcs_member_identifier *> failed_members;
   std::vector<Gcs_member_identifier *> left_members;
   std::vector<Gcs_member_identifier *> joined_members;
-  std::vector<Gcs_member_identifier *> expel_members;
-  std::vector<Gcs_member_identifier *> suspect_members;
+  std::vector<Gcs_member_identifier *> non_member_suspect_nodes;
+  std::vector<Gcs_member_identifier *> member_suspect_nodes;
   std::vector<Gcs_member_identifier *>::iterator it;
 
   std::string group_name(m_gid->get_group_id());
@@ -1003,7 +1111,8 @@ bool Gcs_xcom_control::xcom_receive_global_view(synode_no message_id,
     as faulty in the view.
     In other words, left = current /\ failed.
   */
-  build_expel_members(expel_members, failed_members, current_members);
+  build_member_suspect_nodes(member_suspect_nodes, failed_members,
+                             current_members);
 
   /*
     Build the set of nodes that are suspicious, i.e., could have failed
@@ -1012,11 +1121,13 @@ bool Gcs_xcom_control::xcom_receive_global_view(synode_no message_id,
     are marked as faulty in the view.
     In other words, suspect = !current /\ failed.
   */
-  build_suspect_members(suspect_members, failed_members, current_members);
+  build_non_member_suspect_nodes(non_member_suspect_nodes, failed_members,
+                                 current_members);
 
   // Remove and add suspicions
-  m_suspicions_manager->process_view(xcom_nodes, alive_members, expel_members,
-                                     suspect_members);
+  m_suspicions_manager->process_view(
+      xcom_nodes, alive_members, left_members, member_suspect_nodes,
+      non_member_suspect_nodes, is_killer_node(alive_members));
 
   /*
    We save the information on the nodes reported by the global view.
@@ -1025,12 +1136,6 @@ bool Gcs_xcom_control::xcom_receive_global_view(synode_no message_id,
    such information to the view.
    */
   m_xcom_group_management->set_xcom_nodes(*xcom_nodes);
-
-  /*
-    Note that this code may try to kill the same node several times.
-    Although this may generate additional traffic, there is no harm.
-  */
-  exclude_from_view(expel_members, alive_members);
 
   MYSQL_GCS_TRACE_EXECUTE(
       unsigned int node_no = xcom_nodes->get_node_no();
@@ -1053,21 +1158,39 @@ bool Gcs_xcom_control::xcom_receive_global_view(synode_no message_id,
           MYSQL_GCS_LOG_TRACE("My node_id is (%d) Node joining the cluster: %s",
                               node_no, (*it)->get_member_id().c_str());
 
-      for (it = expel_members.begin(); it != expel_members.end(); it++)
+      for (it = member_suspect_nodes.begin(); it != member_suspect_nodes.end();
+           it++)
           MYSQL_GCS_LOG_TRACE(
-              "My node_id is (%d) Node being expelled from the cluster: %s",
+              "My node_id is (%d) Member node considered suspicious in the "
+              "cluster: %s",
               node_no, (*it)->get_member_id().c_str());
 
-      for (it = suspect_members.begin(); it != suspect_members.end(); it++)
-          MYSQL_GCS_LOG_TRACE("My node_id is (%d) Node considered suspicious "
-                              "in the cluster: %s",
+      for (it = non_member_suspect_nodes.begin();
+           it != non_member_suspect_nodes.end(); it++)
+          MYSQL_GCS_LOG_TRACE("My node_id is (%d) Non-member node considered "
+                              "suspicious in the cluster: %s",
                               node_no, (*it)->get_member_id().c_str());)
+
+  const Gcs_xcom_node_information *node_info =
+      xcom_nodes->get_node(m_local_node_info->get_member_id());
+
+  if ((current_view != NULL) &&
+      ((NULL == node_info) || is_this_node_in(&left_members))) {
+    MYSQL_GCS_LOG_TRACE(
+        "::xcom_receive_global_view()::I'm node %s and I'm not in the view! "
+        "Installing leave view: MEMBER_EXPELLED!",
+        m_local_node_info->get_member_id().get_member_id().c_str())
+    install_leave_view(Gcs_view::MEMBER_EXPELLED);
+    ret = true;
+    free_built_members = true;
+    goto end;
+  }
 
   /*
     If nobody has joined or left the group, there is no need to install any
-    view. This fact is denoted by the same_view flag and the execution only gets
-    so far because we may have to kill some faulty members. Note that the code
-    could be optimized but we are focused on correctness for now and any
+    view. This fact is denoted by the same_view flag and the execution only
+    gets so far because we may have to kill some faulty members. Note that the
+    code could be optimized but we are focused on correctness for now and any
     possible optimization will be handled in the future.
 
     Views that contain a node marked as faulty are also ignored. This is done
@@ -1094,10 +1217,6 @@ bool Gcs_xcom_control::xcom_receive_global_view(synode_no message_id,
         static_cast<long long unsigned>(failed_members.size()),
         static_cast<long long unsigned>(joined_members.size()),
         static_cast<long long unsigned>(left_members.size()));
-
-    if (current_view != NULL && is_considered_faulty(&failed_members)) {
-      install_leave_view(Gcs_view::MEMBER_EXPELLED);
-    }
 
     ret = true;
     free_built_members = true;
@@ -1173,13 +1292,15 @@ end:
       delete *it;
     failed_members.clear();
 
-    for (it = expel_members.begin(); it != expel_members.end(); it++)
+    for (it = member_suspect_nodes.begin(); it != member_suspect_nodes.end();
+         it++)
       delete *it;
-    expel_members.clear();
+    member_suspect_nodes.clear();
 
-    for (it = suspect_members.begin(); it != suspect_members.end(); it++)
+    for (it = non_member_suspect_nodes.begin();
+         it != non_member_suspect_nodes.end(); it++)
       delete *it;
-    suspect_members.clear();
+    non_member_suspect_nodes.clear();
   }
 
   return ret;
@@ -1246,8 +1367,8 @@ void Gcs_xcom_control::process_control_message(Gcs_message *msg,
     MYSQL_GCS_LOG_TRACE("::process_control_message()::Install new view")
 
     /*
-     Check if all members have a protocol version number that is compatible with
-     the current protocol version number in use.
+      Check if all members have a protocol version number that is compatible
+      with the current protocol version number in use.
      */
     assert(m_state_exchange->compute_incompatible_protocol_members().size() ==
            0);
@@ -1274,46 +1395,6 @@ void Gcs_xcom_control::process_control_message(Gcs_message *msg,
   }
 
   delete msg;
-}
-
-void Gcs_xcom_control::exclude_from_view(
-    const std::vector<Gcs_member_identifier *> &to_exclude,
-    const std::vector<Gcs_member_identifier *> &alive_members) {
-  if (to_exclude.empty()) return;
-
-  /*
-   Check if the node is the one that can act as a leader and remove other nodes.
-   */
-  bool should_i_kill = is_killer_node(alive_members);
-
-  if (should_i_kill) {
-    std::vector<Gcs_member_identifier> new_to_exclude_members;
-    std::transform(to_exclude.cbegin(), to_exclude.cend(),
-                   std::back_inserter(new_to_exclude_members),
-                   [](Gcs_member_identifier *value) -> Gcs_member_identifier {
-                     return *value;
-                   });
-
-    exclude_from_view(new_to_exclude_members);
-  }
-}
-
-void Gcs_xcom_control::exclude_from_view(
-    const std::vector<Gcs_member_identifier> &to_exclude_members) {
-  if (to_exclude_members.empty()) return;
-
-  MYSQL_GCS_LOG_INFO(
-      "Removing members from the group that have failed or are incompatible.")
-
-  /*
-    Define the nodes to be removed from the current view according to the nodes
-    in the to_exclude vector.
-  */
-  Gcs_xcom_nodes to_remove_members;
-  m_xcom_group_management->get_xcom_nodes(to_remove_members,
-                                          to_exclude_members);
-  m_xcom_proxy->xcom_remove_nodes(to_remove_members, m_gid_hash);
-  assert(to_remove_members.get_size() == to_exclude_members.size());
 }
 
 void Gcs_xcom_control::install_view(
@@ -1458,19 +1539,30 @@ void Gcs_xcom_control::clear_peer_nodes() {
   }
 }
 
-Gcs_suspicions_manager::Gcs_suspicions_manager(Gcs_xcom_proxy *proxy)
+Gcs_suspicions_manager::Gcs_suspicions_manager(Gcs_xcom_proxy *proxy,
+                                               Gcs_xcom_control *ctrl)
     : m_proxy(proxy),
-      m_period(SUSPICION_PROCESSING_THREAD_PERIOD),
-      m_timeout(SUSPICION_TIMEOUT),
+      m_control_if(ctrl),
+      m_suspicions_processing_period(SUSPICION_PROCESSING_THREAD_PERIOD),
+      m_non_member_expel_timeout(NON_MEMBER_EXPEL_TIMEOUT),
+      m_member_expel_timeout(0),
       m_gid_hash(0),
       m_suspicions(),
-      m_suspicions_mutex() {
+      m_suspicions_mutex(),
+      m_suspicions_cond(),
+      m_suspicions_parameters_mutex(),
+      m_is_killer_node(false) {
   m_suspicions_mutex.init(
       key_GCS_MUTEX_Gcs_suspicions_manager_m_suspicions_mutex, NULL);
+  m_suspicions_cond.init(key_GCS_COND_Gcs_suspicions_manager_m_suspicions_cond);
+  m_suspicions_parameters_mutex.init(
+      key_GCS_MUTEX_Gcs_suspicions_manager_m_suspicions_parameters_mutex, NULL);
 }
 
 Gcs_suspicions_manager::~Gcs_suspicions_manager() {
   m_suspicions_mutex.destroy();
+  m_suspicions_cond.destroy();
+  m_suspicions_parameters_mutex.destroy();
 }
 
 void Gcs_suspicions_manager::remove_suspicions(
@@ -1494,79 +1586,179 @@ void Gcs_suspicions_manager::remove_suspicions(
 void Gcs_suspicions_manager::process_view(
     Gcs_xcom_nodes *xcom_nodes,
     std::vector<Gcs_member_identifier *> alive_nodes,
-    std::vector<Gcs_member_identifier *> expel_nodes,
-    std::vector<Gcs_member_identifier *> suspect_nodes) {
-  m_suspicions_mutex.lock();
-  // If list of suspicions isn't empty remove suspicion
-  if (!m_suspicions.empty()) {
-    if (!alive_nodes.empty()) {
-      remove_suspicions(alive_nodes);
-    }
+    std::vector<Gcs_member_identifier *> left_nodes,
+    std::vector<Gcs_member_identifier *> member_suspect_nodes,
+    std::vector<Gcs_member_identifier *> non_member_suspect_nodes,
+    bool is_killer_node) {
+  bool should_wake_up_manager = false;
 
-    if (!expel_nodes.empty()) {
-      remove_suspicions(expel_nodes);
-    }
+  m_suspicions_mutex.lock();
+
+  m_is_killer_node = is_killer_node;
+
+  m_has_majority =
+      2 * (member_suspect_nodes.size() + non_member_suspect_nodes.size()) <
+      xcom_nodes->get_nodes().size();
+
+  /*
+    Suspicions are removed for members that are alive. Therefore, the
+    remove_suspicions method is only invoked if the group has any active members
+    and if there are any stored suspicions.
+  */
+  if (!m_suspicions.empty() && !alive_nodes.empty()) {
+    remove_suspicions(alive_nodes);
   }
 
-  if (!suspect_nodes.empty()) add_suspicions(xcom_nodes, suspect_nodes);
+  /*
+    Suspicions are removed for members that have already left the group.
+    Therefore, the remove_suspicions method is only invoked if any members left
+    the group and if there are any stored suspicions.
+  */
+  if (!m_suspicions.empty() && !left_nodes.empty()) {
+    remove_suspicions(left_nodes);
+  }
 
+  if (!non_member_suspect_nodes.empty() || !member_suspect_nodes.empty()) {
+    should_wake_up_manager = add_suspicions(
+        xcom_nodes, non_member_suspect_nodes, member_suspect_nodes);
+  }
+
+  if (should_wake_up_manager) {
+    m_suspicions_cond.signal();
+  }
   m_suspicions_mutex.unlock();
 }
 
-void Gcs_suspicions_manager::add_suspicions(
+bool Gcs_suspicions_manager::add_suspicions(
     Gcs_xcom_nodes *xcom_nodes,
-    std::vector<Gcs_member_identifier *> suspect_nodes) {
-  // Get current timestamp
-  uint64_t current_ts = My_xp_util::getsystime();
+    std::vector<Gcs_member_identifier *> non_member_suspect_nodes,
+    std::vector<Gcs_member_identifier *> member_suspect_nodes) {
   const Gcs_xcom_node_information *xcom_node = NULL;
   std::vector<Gcs_member_identifier *>::iterator susp_it;
+  bool member_suspicions_added = false;
 
-  for (susp_it = suspect_nodes.begin(); susp_it != suspect_nodes.end();
-       ++susp_it) {
+  // Get current timestamp
+  uint64_t current_ts = My_xp_util::getsystime();
+
+  for (susp_it = non_member_suspect_nodes.begin();
+       susp_it != non_member_suspect_nodes.end(); ++susp_it) {
     if ((xcom_node = m_suspicions.get_node(*(*susp_it))) == NULL) {
-      MYSQL_GCS_LOG_DEBUG("add_suspicions: Adding suspicion for %s",
-                          (*susp_it)->get_member_id().c_str())
+      MYSQL_GCS_LOG_DEBUG(
+          "add_suspicions: Adding non-member expel suspicion for %s",
+          (*susp_it)->get_member_id().c_str())
       xcom_node = xcom_nodes->get_node(*(*susp_it));
-      const_cast<Gcs_xcom_node_information *>(xcom_node)->set_timestamp(
-          current_ts);
+      const_cast<Gcs_xcom_node_information *>(xcom_node)
+          ->set_suspicion_creation_timestamp(current_ts);
+      const_cast<Gcs_xcom_node_information *>(xcom_node)->set_member(false);
       m_suspicions.add_node(*xcom_node);
     } else {
       // Otherwise, ignore node
       MYSQL_GCS_LOG_TRACE(
-          "add_suspicions: Not adding suspicion for %s. Already a suspect!",
+          "add_suspicions: Not adding non-member expel suspicion for %s. "
+          "Already a suspect!",
           (*susp_it)->get_member_id().c_str())
     }
   }
+
+  for (susp_it = member_suspect_nodes.begin();
+       susp_it != member_suspect_nodes.end(); ++susp_it) {
+    if ((xcom_node = m_suspicions.get_node(*(*susp_it))) == NULL) {
+      MYSQL_GCS_LOG_DEBUG(
+          "add_suspicions: Adding member expel suspicion for %s",
+          (*susp_it)->get_member_id().c_str())
+      xcom_node = xcom_nodes->get_node(*(*susp_it));
+      const_cast<Gcs_xcom_node_information *>(xcom_node)
+          ->set_suspicion_creation_timestamp(current_ts);
+      const_cast<Gcs_xcom_node_information *>(xcom_node)->set_member(true);
+      m_suspicions.add_node(*xcom_node);
+      member_suspicions_added = true;
+    } else {
+      // Otherwise, ignore node
+      MYSQL_GCS_LOG_TRACE(
+          "add_suspicions: Not adding member expel suspicion for %s. Already a "
+          "suspect!",
+          (*susp_it)->get_member_id().c_str())
+    }
+  }
+
+  return member_suspicions_added;
 }
 
 void Gcs_suspicions_manager::process_suspicions() {
+  int wait_ret = 0;
+  struct timespec ts;
+
   m_suspicions_mutex.lock();
+  My_xp_util::set_timespec(&ts, get_suspicions_processing_period());
+
+  const struct timespec *new_ts = &ts;
+
+  wait_ret = m_suspicions_cond.timed_wait(m_suspicions_mutex.get_native_mutex(),
+                                          new_ts);
+
+  if (wait_ret == EINVAL) {
+    MYSQL_GCS_LOG_ERROR(
+        "process_suspicions: The sleeping period for suspicions manager thread "
+        "is invalid!");
+  } else if (wait_ret != ETIMEDOUT) {
+    MYSQL_GCS_LOG_TRACE(
+        "process_suspicions: Suspicions manager thread was awaken to process "
+        "new suspicions!");
+  }
+
+  run_process_suspicions(false);
+
+  m_suspicions_mutex.unlock();
+}
+
+void Gcs_suspicions_manager::run_process_suspicions(bool lock) {
+  if (lock) m_suspicions_mutex.lock();
 
   if (m_suspicions.empty()) {
-    m_suspicions_mutex.unlock();
+    if (lock) m_suspicions_mutex.unlock();
     return;
   }
 
   // List of nodes to remove
   Gcs_xcom_nodes nodes_to_remove;
 
+  bool force_remove = false;
+
+  uint64_t node_timeout;
+
   // Get current timestamp
   uint64_t current_ts = My_xp_util::getsystime();
+
+  // Get suspicions timeouts
+  uint64_t non_member_expel_timeout = get_non_member_expel_timeout();
+  uint64_t member_expel_timeout = get_member_expel_timeout();
 
   // Cycle through the suspicions
   std::vector<Gcs_xcom_node_information>::iterator susp_it;
   std::vector<Gcs_xcom_node_information> nodes = m_suspicions.get_nodes();
 
   for (susp_it = nodes.begin(); susp_it != nodes.end(); ++susp_it) {
+    node_timeout = (*susp_it).is_member() ? member_expel_timeout
+                                          : non_member_expel_timeout;
+
     /*
-      For each timed out suspicion, add node to expel list
-      and remove suspicion object from list.
+      For each timed out suspicion, add node to expel list and remove suspicion
+      object from list.
     */
-    if ((*susp_it).has_timed_out(current_ts, m_timeout)) {
+    if ((*susp_it).has_timed_out(current_ts, node_timeout)) {
       /* purecov: begin tested */
-      MYSQL_GCS_LOG_TRACE(
-          "process_suspicions: Suspect %s has timed out! Expelling...",
-          (*susp_it).get_member_id().get_member_id().c_str())
+      MYSQL_GCS_LOG_TRACE("process_suspicions: Suspect %s has timed out!",
+                          (*susp_it).get_member_id().get_member_id().c_str())
+
+      /*
+        Check if this suspicion targets the current node and enable force_remove
+        so it can remove itself.
+      */
+      if ((*susp_it).get_member_id().get_member_id() ==
+          m_my_info->get_member_id().get_member_id()) {
+        force_remove = true;
+      }
+
       nodes_to_remove.add_node(*susp_it);
       m_suspicions.remove_node(*susp_it);
       /* purecov: end */
@@ -1576,35 +1768,111 @@ void Gcs_suspicions_manager::process_suspicions() {
     }
   }
 
-  m_suspicions_mutex.unlock();
+  if (((m_is_killer_node && m_has_majority) || force_remove) &&
+      (nodes_to_remove.get_size() > 0)) {
+    MYSQL_GCS_LOG_TRACE(
+        "process_suspicions: Expelling suspects that timed out!");
+    int remove_ret = m_proxy->xcom_remove_nodes(nodes_to_remove, m_gid_hash);
+    if (force_remove && (remove_ret == 1)) {
+      // Failed to remove myself from the group so will install leave view
+      m_control_if->install_leave_view(Gcs_view::MEMBER_EXPELLED);
+    }
+  }
 
-  if (nodes_to_remove.get_size() > 0)
-    m_proxy->xcom_remove_nodes(nodes_to_remove, m_gid_hash);
+  if (lock) m_suspicions_mutex.unlock();
 }
 
-unsigned int Gcs_suspicions_manager::get_period() const { return m_period; }
+unsigned int Gcs_suspicions_manager::get_suspicions_processing_period() {
+  unsigned int ret;
+  m_suspicions_parameters_mutex.lock();
+  ret = m_suspicions_processing_period;
+  m_suspicions_parameters_mutex.unlock();
+  return ret;
+}
 
-void Gcs_suspicions_manager::set_period(unsigned int sec) {
-  m_period = sec;
+void Gcs_suspicions_manager::set_suspicions_processing_period(
+    unsigned int sec) {
+  m_suspicions_parameters_mutex.lock();
+  m_suspicions_processing_period = sec;
   MYSQL_GCS_LOG_DEBUG("Set suspicions processing period to %u seconds.", sec)
+  m_suspicions_parameters_mutex.unlock();
 }
 
 /* purecov: begin deadcode */
-uint64_t Gcs_suspicions_manager::get_timeout() const { return m_timeout; }
+uint64_t Gcs_suspicions_manager::get_non_member_expel_timeout() {
+  uint64_t ret;
+  m_suspicions_parameters_mutex.lock();
+  ret = m_non_member_expel_timeout;
+  m_suspicions_parameters_mutex.unlock();
+  return ret;
+}
 /* purecov: end */
 
-void Gcs_suspicions_manager::set_timeout_seconds(unsigned long sec) {
-  m_timeout = sec * 10000000ul;
-  MYSQL_GCS_LOG_DEBUG("Set suspicions timeout to %lu seconds ( %lu  ns).", sec,
-                      m_timeout * 100);
+void Gcs_suspicions_manager::set_non_member_expel_timeout_seconds(
+    unsigned long sec) {
+  m_suspicions_parameters_mutex.lock();
+  m_non_member_expel_timeout = sec * 10000000ul;
+  MYSQL_GCS_LOG_DEBUG("Set non-member expel timeout to %lu seconds (%lu  ns).",
+                      sec, m_non_member_expel_timeout * 100);
+  m_suspicions_parameters_mutex.unlock();
+}
+
+uint64_t Gcs_suspicions_manager::get_member_expel_timeout() {
+  uint64_t ret;
+  m_suspicions_parameters_mutex.lock();
+  ret = m_member_expel_timeout;
+  m_suspicions_parameters_mutex.unlock();
+  return ret;
+}
+
+void Gcs_suspicions_manager::set_member_expel_timeout_seconds(
+    unsigned long sec) {
+  m_suspicions_parameters_mutex.lock();
+  m_member_expel_timeout = sec * 10000000ul;
+  MYSQL_GCS_LOG_DEBUG("Set member expel timeout to %lu seconds (%lu  ns).", sec,
+                      m_member_expel_timeout * 100);
+  m_suspicions_parameters_mutex.unlock();
 }
 
 void Gcs_suspicions_manager::set_groupid_hash(unsigned int gid_h) {
   m_gid_hash = gid_h;
 }
 
-/* purecov: begin tested */
 const Gcs_xcom_nodes &Gcs_suspicions_manager::get_suspicions() const {
   return m_suspicions;
 }
-/* purecov: end */
+
+void Gcs_suspicions_manager::wake_suspicions_processing_thread(bool terminate) {
+  m_suspicions_mutex.lock();
+
+  MYSQL_GCS_LOG_DEBUG("wake_suspicions_processing_thread: Locked mutex!");
+
+  // Set if suspicions processing thread should terminate
+  set_terminate_suspicion_thread(terminate);
+
+  // Wake up suspicions processing thread
+  int ret = m_suspicions_cond.signal();
+  MYSQL_GCS_LOG_DEBUG(
+      "wake_suspicions_processing_thread: Signaled cond! Return= %d", ret);
+
+  m_suspicions_mutex.unlock();
+  MYSQL_GCS_LOG_DEBUG("wake_suspicions_processing_thread: Unlocked mutex!");
+}
+
+void Gcs_suspicions_manager::set_my_info(Gcs_xcom_node_information *node_info) {
+  m_my_info = node_info;
+}
+
+void Gcs_suspicions_manager::inform_on_majority(bool majority) {
+  m_suspicions_mutex.lock();
+  m_has_majority = majority;
+  m_suspicions_mutex.unlock();
+}
+
+bool Gcs_suspicions_manager::has_majority() {
+  bool ret;
+  m_suspicions_mutex.lock();
+  ret = m_has_majority;
+  m_suspicions_mutex.unlock();
+  return ret;
+}

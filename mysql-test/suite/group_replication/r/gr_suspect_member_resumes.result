@@ -1,0 +1,82 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Set group_replication_member_expel_timeout to
+#    300 seconds.
+[connection server1]
+SET GLOBAL group_replication_member_expel_timeout = 300;
+SELECT @@GLOBAL.group_replication_member_expel_timeout;
+@@GLOBAL.group_replication_member_expel_timeout
+300
+[connection server2]
+SET GLOBAL group_replication_member_expel_timeout = 300;
+SELECT @@GLOBAL.group_replication_member_expel_timeout;
+@@GLOBAL.group_replication_member_expel_timeout
+300
+[connection server3]
+SET GLOBAL group_replication_member_expel_timeout = 300;
+SELECT @@GLOBAL.group_replication_member_expel_timeout;
+@@GLOBAL.group_replication_member_expel_timeout
+300
+
+############################################################
+# 2. Create a table and insert some data. Check that
+#    it is replicated to all servers.
+[connection server1]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+INSERT INTO t1 VALUES (1);
+include/rpl_sync.inc
+
+############################################################
+# 3. Suspend server 3 by sending signal SIGSTOP to it.
+#    This will make server 3 not answer to "I am alive"
+#    GCS messages and it will eventually be considered
+#    faulty.
+[connection server3]
+# Get server 3 pid.
+SET SESSION sql_log_bin= 0;
+CREATE TABLE pid_table(pid_no INT);
+LOAD DATA LOCAL INFILE 'pid_file' INTO TABLE pid_table;
+DROP TABLE pid_table;
+SET SESSION sql_log_bin= 1;
+# Suspending server 3...
+
+############################################################
+# 4. Check that all members are still in the group on
+#    servers 1 and 2, which should both be ONLINE.
+#    Server 3 should still be in the group but UNREACHABLE.
+[connection server1]
+[connection server2]
+
+############################################################
+# 5. Insert data into table t1 on server 2 and check that
+#    it is replicated to server 1.
+INSERT INTO t1 VALUES (2);
+[connection server1]
+
+############################################################
+# 6. Resume server 3 by sending a signal SIGCONT to it.
+#    Server should change to ONLINE state.
+[connection server3]
+# Send signal SIGCONT to server 3.
+[connection server1]
+[connection server2]
+[connection server3]
+
+############################################################
+# 7. Check that server 3 retrieves the data inserted while
+#    it was suspended. Then, insert new data into table t1
+#    which should be replicated to servers 1 and 2.
+[connection server3]
+INSERT INTO t1 VALUES (3);
+include/rpl_sync.inc
+include/diff_tables.inc [server1:t1, server2:t1, server3:t1]
+
+############################################################
+# 8. Clean up.
+DROP TABLE t1;
+include/group_replication_end.inc

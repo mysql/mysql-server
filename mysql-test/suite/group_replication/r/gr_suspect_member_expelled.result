@@ -1,0 +1,47 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+#
+# Set group_replication_member_expel_timeout to 15 seconds
+[connection server1]
+SET GLOBAL group_replication_member_expel_timeout = 15;
+SELECT @@GLOBAL.group_replication_member_expel_timeout;
+@@GLOBAL.group_replication_member_expel_timeout
+15
+[connection server2]
+SET GLOBAL group_replication_member_expel_timeout = 15;
+SELECT @@GLOBAL.group_replication_member_expel_timeout;
+@@GLOBAL.group_replication_member_expel_timeout
+15
+[connection server3]
+SET GLOBAL group_replication_member_expel_timeout = 15;
+SELECT @@GLOBAL.group_replication_member_expel_timeout;
+@@GLOBAL.group_replication_member_expel_timeout
+15
+#
+# Crash server 3
+# Kill and restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME
+# Restarting server 3
+include/rpl_reconnect.inc
+#
+# Check that all members are still in the group on servers 1 and 2,
+# which should be ONLINE. Server 3 should still be in the group but
+# UNREACHABLE
+[connection server1]
+[connection server2]
+#
+# Check that server 3 has been removed from the group by servers 1 and 2
+[connection server1]
+[connection server2]
+#
+# Restarting GR on server3
+[connection server3]
+include/start_group_replication.inc
+#
+# Check that all 3 members are alive and online again in the group
+[connection server1]
+[connection server2]
+[connection server3]
+include/group_replication_end.inc

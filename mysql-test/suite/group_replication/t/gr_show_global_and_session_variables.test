@@ -29,12 +29,12 @@
 --sleep 30
 
 --echo
---echo # Test#1: Basic check that there are 45 GR variables.
+--echo # Test#1: Basic check that there are 46 GR variables.
 
 # Note: If a new GR variable is added or an old GR variable is removed, then
 # update this testcase for the sanity check.
---let $assert_text= There are 45 GR variables at present.
---let $assert_cond= "[SELECT COUNT(*) FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE \\'group_replication%\']" = 45
+--let $assert_text= There are 46 GR variables at present.
+--let $assert_cond= "[SELECT COUNT(*) FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE \\'group_replication%\']" = 46
 --source include/assert.inc
 
 # Take backup of GR variables
@@ -74,6 +74,7 @@
 --let $saved_gr_recovery_public_key_path = `SELECT @@GLOBAL.group_replication_recovery_public_key_path;`
 --let $saved_gr_recovery_get_public_key = `SELECT @@GLOBAL.group_replication_recovery_get_public_key;`
 --let $saved_gr_exit_state_action = `SELECT @@GLOBAL.group_replication_exit_state_action;`
+--let $saved_gr_member_expel_timeout = `SELECT @@GLOBAL.group_replication_member_expel_timeout`
 --enable_query_log
 
 --echo
@@ -150,6 +151,8 @@ SET @@SESSION.group_replication_recovery_public_key_path= "";
 SET @@SESSION.group_replication_recovery_get_public_key= 1;
 --error ER_GLOBAL_VARIABLE
 SET @@SESSION.group_replication_exit_state_action= "READ_ONLY";
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_member_expel_timeout= 120;
 
 # GR variables should be set at GLOBAL level.
 # Set values to GLOBAL GR variables to test further.
@@ -189,6 +192,7 @@ SET GLOBAL group_replication_member_weight= 70;
 eval SET GLOBAL group_replication_recovery_public_key_path= '$MYSQL_TEST_DIR/std_data/rsa_public_key.pem';
 SET GLOBAL group_replication_recovery_get_public_key= ON;
 SET GLOBAL group_replication_exit_state_action= "READ_ONLY";
+SET GLOBAL group_replication_member_expel_timeout= 1000;
 
 --enable_query_log
 
@@ -791,6 +795,23 @@ SET GLOBAL group_replication_exit_state_action= "READ_ONLY";
 
 --let $assert_text= Verify SESSION value of group_replication_exit_state_action
 --let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_exit_state_action\', VARIABLE_VALUE, 1]" = "READ_ONLY"
+
+# group_replication_member_expel_timeout
+--let $assert_text= Verify GLOBAL value of group_replication_member_expel_timeout
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_member_expel_timeout\', Value, 1]" = 1000
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_member_expel_timeout
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_member_expel_timeout\', VARIABLE_VALUE, 1]" = 1000
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_member_expel_timeout
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_member_expel_timeout\', Value, 1]" = 1000
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_member_expel_timeout
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_member_expel_timeout\', VARIABLE_VALUE, 1]" = 1000
+
 --source include/assert.inc
 
 --echo
@@ -834,6 +855,7 @@ SET GLOBAL group_replication_exit_state_action= "READ_ONLY";
 --eval SET @@GLOBAL.group_replication_recovery_public_key_path= "$saved_gr_recovery_public_key_path"
 --eval SET @@GLOBAL.group_replication_recovery_get_public_key= $saved_gr_recovery_get_public_key
 --eval SET @@GLOBAL.group_replication_exit_state_action= $saved_gr_exit_state_action
+--eval SET @@GLOBAL.group_replication_member_expel_timeout= $saved_gr_member_expel_timeout
 --enable_query_log
 
 --source include/group_replication_end.inc

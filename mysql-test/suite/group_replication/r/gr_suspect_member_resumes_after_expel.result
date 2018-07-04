@@ -1,0 +1,112 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Set group_replication_member_expel_timeout to
+#    5 seconds.
+[connection server1]
+SET GLOBAL group_replication_member_expel_timeout = 5;
+SELECT @@GLOBAL.group_replication_member_expel_timeout;
+@@GLOBAL.group_replication_member_expel_timeout
+5
+[connection server2]
+SET GLOBAL group_replication_member_expel_timeout = 5;
+SELECT @@GLOBAL.group_replication_member_expel_timeout;
+@@GLOBAL.group_replication_member_expel_timeout
+5
+[connection server3]
+SET GLOBAL group_replication_member_expel_timeout = 5;
+SELECT @@GLOBAL.group_replication_member_expel_timeout;
+@@GLOBAL.group_replication_member_expel_timeout
+5
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Member was expelled from the group due to network failures, changing member status to ERROR.");
+call mtr.add_suppression("\\[GCS\\] read failed");
+call mtr.add_suppression("On shutdown there was a timeout receiving a view change. This can lead to a possible inconsistent state. Check the log for more details");
+SET SESSION sql_log_bin = 1;
+
+############################################################
+# 2. Create a table and insert some data. Check that
+#    it is replicated to all servers.
+[connection server1]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+INSERT INTO t1 VALUES (1);
+include/rpl_sync.inc
+
+############################################################
+# 3. Suspend server 3 by sending signal SIGSTOP to it.
+#    This will make server 3 not answer to "I am alive"
+#    GCS messages and it will eventually be considered
+#    faulty.
+[connection server3]
+# Get server 3 pid.
+SET SESSION sql_log_bin= 0;
+CREATE TABLE pid_table(pid_no INT);
+LOAD DATA LOCAL INFILE 'pid_file' INTO TABLE pid_table;
+DROP TABLE pid_table;
+SET SESSION sql_log_bin= 1;
+# Suspending server 3...
+
+############################################################
+# 4. Check that all members are still in the group on
+#    servers 1 and 2, which should both be ONLINE.
+#    Server 3 should still be in the group but UNREACHABLE.
+[connection server1]
+[connection server2]
+
+############################################################
+# 5. After some time, server 3 should have been expelled
+#    from the group.
+[connection server1]
+[connection server2]
+
+############################################################
+# 6. Insert data into table t1 on server 2 and check that
+#    it is replicated to server 1.
+[connection server2]
+INSERT INTO t1 VALUES (2);
+[connection server1]
+
+############################################################
+# 7. Resume server 3 by sending a signal SIGCONT to it.
+#    Server 3 should change to ERROR state.
+[connection server3]
+# Send signal SIGCONT to server 3.
+#
+# Check that the returning member enters the error state since it was
+# expelled from the group.
+[connection server3]
+#
+# Check that the 2 remaining members are alive and online in the group
+[connection server1]
+[connection server2]
+
+############################################################
+# 8. Restart GR on server 3
+[connection server3]
+include/stop_group_replication.inc
+include/start_group_replication.inc
+
+############################################################
+# 9. Server 3 should be back in the group
+[connection server1]
+[connection server2]
+[connection server3]
+
+############################################################
+# 10.Check that server 3 retrieves the data inserted by
+#    server 2 while it was suspended. Then, insert new
+#    data into table t1 which should be replicated to
+#    servers 1 and 2.
+[connection server3]
+INSERT INTO t1 VALUES (3);
+include/rpl_sync.inc
+include/diff_tables.inc [server1:t1, server2:t1, server3:t1]
+
+############################################################
+# 11.Clean up.
+DROP TABLE t1;
+include/group_replication_end.inc

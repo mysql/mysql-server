@@ -1,0 +1,219 @@
+#######################################################################################
+# WL11570 - GR: options to defer member eviction after a suspicion
+#
+# This test illustrates that a group does not evict a member if it does not have the
+# majority of its members active.
+#
+# In a group of 4 servers, we set the member_expel_timeout to 30 seconds and suspend
+# one of them. After 15 seconds we suspend another node for 20 seconds until the
+# first suspended node's suspicion times out, but since the group has no majority,
+# this suspicion is discarded and a new suspicion for the first node is created
+# at the time the second suspended node resumes.
+# This suspicion times out and the first suspended node is expelled from the group.
+# This node is then resumed, and it enters an error state.
+#
+# Test :
+# 0. This test requires a group with 4 servers with
+#    group-replication-member-expel-timeout=30.
+# 1. Start GR on all members.
+# 2. Suspend server 3 by sending a signal SIGSTOP to it.
+#    This will make server 3 not answer to "I am alive" GCS messages and it will
+#    eventually be considered faulty.
+# 3. Check that all members are still in the group on servers 1, 2 and 4, which should
+#    all be ONLINE.
+#    Server 3 should still be in the group but UNREACHABLE.
+# 4. Wait for 15 seconds and suspend server 4.
+#    This will make server 4 not answer to "I am alive" GCS messages and it will
+#    eventually be considered faulty.
+# 5. Check that all members are still in the group on servers 1 and 2, which should
+#    both be ONLINE.
+#    Servers 3 and 4 should still be in the group but UNREACHABLE.
+# 6. Wait for 20 seconds so the suspicion on server 3 times out and resume server 4
+#    by sending asignal SIGCONT to it.
+# 7. Check that all members are still in the group on servers 1, 2 and 4, which should
+#    all be ONLINE.
+#    Server 3 should still be in the group but UNREACHABLE.
+# 8. Wait until the group evicts server 3.
+# 9. Resume server 3 by sending a signal SIGCONT to it. Server 3 should not be in the
+#    group anymore and should go into ERROR state.
+#######################################################################################
+
+# Don't test this under valgrind, memory leaks will occur
+--source include/not_valgrind.inc
+--source include/linux.inc
+--source include/force_restart.inc
+
+--source include/have_group_replication_plugin.inc
+--let $rpl_server_count= 4
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Start GR on on all servers.
+
+--echo #
+--echo # Get server 1 pid.
+SET SESSION sql_log_bin= 0;
+CREATE TABLE pid_table(pid_no INT);
+--let $pid_file= `SELECT @@GLOBAL.pid_file`
+--replace_result $pid_file pid_file
+--eval LOAD DATA LOCAL INFILE '$pid_file' INTO TABLE pid_table
+--let $server1_pid=`SELECT pid_no FROM pid_table`
+DROP TABLE pid_table;
+SET SESSION sql_log_bin= 1;
+
+--source include/start_and_bootstrap_group_replication.inc
+--let $local_address_server1= `SELECT @@GLOBAL.group_replication_local_address`
+
+--echo
+--echo # Start GR on server 2.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+--let $local_address_server2= `SELECT @@GLOBAL.group_replication_local_address`
+
+--echo
+--echo # Start GR on server 3.
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Member was expelled from the group due to network failures, changing member status to ERROR");
+call mtr.add_suppression("\\[GCS\\] read failed");
+call mtr.add_suppression("On shutdown there was a timeout receiving a view change. This can lead to a possible inconsistent state. Check the log for more details");
+SET SESSION sql_log_bin= 1;
+
+--echo
+--echo # Get server 3 pid.
+SET SESSION sql_log_bin= 0;
+CREATE TABLE pid_table(pid_no INT);
+--let $pid_file= `SELECT @@GLOBAL.pid_file`
+--replace_result $pid_file pid_file
+--eval LOAD DATA LOCAL INFILE '$pid_file' INTO TABLE pid_table
+--let $server3_pid=`SELECT pid_no FROM pid_table`
+DROP TABLE pid_table;
+SET SESSION sql_log_bin= 1;
+
+--source include/start_group_replication.inc
+--let $local_address_server3= `SELECT @@GLOBAL.group_replication_local_address`
+
+--echo
+--echo # Start GR on server 4.
+--let $rpl_connection_name= server4
+--source include/rpl_connection.inc
+
+--echo
+--echo # Get server 4 pid.
+SET SESSION sql_log_bin= 0;
+CREATE TABLE pid_table(pid_no INT);
+--let $pid_file= `SELECT @@GLOBAL.pid_file`
+--replace_result $pid_file pid_file
+--eval LOAD DATA LOCAL INFILE '$pid_file' INTO TABLE pid_table
+--let $server4_pid=`SELECT pid_no FROM pid_table`
+DROP TABLE pid_table;
+SET SESSION sql_log_bin= 1;
+
+--source include/start_group_replication.inc
+--let $local_address_server4= `SELECT @@GLOBAL.group_replication_local_address`
+
+
+--echo
+--echo ############################################################
+--echo # 2. Suspend server 3 by sending signal SIGSTOP to it.
+--echo #    This will make server 3 not answer to "I am alive"
+--echo #    GCS messages and it will eventually be considered
+--echo #    faulty.
+--exec kill -19 $server3_pid
+
+
+--echo
+--echo ############################################################
+--echo # 3. Check that all members are still in the group on
+--echo #    servers 1, 2 and 4, which should all be ONLINE.
+--echo #    Server 3 should still be in the group but UNREACHABLE.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
+--source include/wait_condition.inc
+let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_members where MEMBER_STATE="UNREACHABLE";
+--source include/wait_condition.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4. Wait for 15 seconds and suspend server 4.
+--echo #    This will make server 4 not answer to "I am alive"
+--echo #    GCS messages and it will eventually be considered
+--echo #    faulty.
+--sleep 15
+--exec kill -19 $server4_pid
+
+
+--echo
+--echo ############################################################
+--echo # 5. Check that all members are still in the group on
+--echo #    servers 1 and 2, which should both be ONLINE.
+--echo #    Servers 3 and 4 should still be in the group but
+--echo #    UNREACHABLE.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
+--source include/wait_condition.inc
+let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members where MEMBER_STATE="UNREACHABLE";
+--source include/wait_condition.inc
+
+
+--echo
+--echo ############################################################
+--echo # 6. Wait for 20 seconds so the suspicion on server 3 times
+--echo #    out and resume server 4 by sending asignal SIGCONT to
+--echo #    it.
+--sleep 20
+--exec kill -18 $server4_pid
+
+
+--echo
+--echo ############################################################
+--echo # 7. Check that all members are still in the group on
+--echo #    servers 1, 2 and 4, which should all be ONLINE.
+--echo #    Server 3 should still be in the group but UNREACHABLE.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
+--source include/wait_condition.inc
+let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_members where MEMBER_STATE="UNREACHABLE";
+--source include/wait_condition.inc
+
+
+--echo
+--echo ############################################################
+--echo # 8. Wait until the group evicts server 3.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
+--source include/wait_condition.inc
+let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members;
+--source include/wait_condition.inc
+
+
+--echo
+--echo ############################################################
+--echo # 9. Resume server 3 by sending a signal SIGCONT to it.
+--echo #    Server 3 should not be in the group anymore and should
+--echo #    go into ERROR state.
+--exec kill -18 $server3_pid
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
+--source include/wait_condition.inc
+let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members;
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_members where MEMBER_STATE="ERROR";
+--source include/wait_condition.inc
+
+--source include/group_replication_end.inc

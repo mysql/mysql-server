@@ -179,10 +179,10 @@ class Gcs_xcom_interface : public Gcs_interface {
   void finalize_xcom();
 
   /**
-    Triggers the termination of GCS when an error has caused XCom to terminate
+    Makes GCS leave the group when an error has caused XCom to terminate
     unexpectedly.
    */
-  void finalize_gcs_on_error();
+  void make_gcs_leave_group_on_error();
 
   /**
     Used to initialize SSL assuming that the necessary parameters have already

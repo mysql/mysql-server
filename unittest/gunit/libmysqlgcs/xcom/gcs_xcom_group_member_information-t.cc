@@ -232,11 +232,11 @@ TEST_F(GcsNodeInformationTest, TestGcsNodeInformation) {
 
   /*
     Set the timestamp and check whether it has timed out:
-    (m_timestamp + timeout) < now_ts
+    (m_suspicion_creation_timestamp + suspicion_timeout) < now_ts
   */
-  node_1.set_timestamp(1 /* Set the m_timestamp */);
+  node_1.set_suspicion_creation_timestamp(1 /* Set the m_timestamp */);
   ASSERT_TRUE(node_1.has_timed_out(3 /* now_ts */, 1 /* timeout */));
-  ASSERT_EQ(node_1.get_timestamp(), 1);
+  ASSERT_EQ(node_1.get_suspicion_creation_timestamp(), 1);
 
   /*
     Check whether the constructor:

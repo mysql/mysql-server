@@ -1,0 +1,95 @@
+include/group_replication.inc [rpl_server_count=4]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Start GR on on all servers.
+#
+# Get server 1 pid.
+SET SESSION sql_log_bin= 0;
+CREATE TABLE pid_table(pid_no INT);
+LOAD DATA LOCAL INFILE 'pid_file' INTO TABLE pid_table;
+DROP TABLE pid_table;
+SET SESSION sql_log_bin= 1;
+include/start_and_bootstrap_group_replication.inc
+
+# Start GR on server 2.
+[connection server2]
+include/start_group_replication.inc
+
+# Start GR on server 3.
+[connection server3]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Member was expelled from the group due to network failures, changing member status to ERROR");
+call mtr.add_suppression("\\[GCS\\] read failed");
+call mtr.add_suppression("On shutdown there was a timeout receiving a view change. This can lead to a possible inconsistent state. Check the log for more details");
+SET SESSION sql_log_bin= 1;
+
+# Get server 3 pid.
+SET SESSION sql_log_bin= 0;
+CREATE TABLE pid_table(pid_no INT);
+LOAD DATA LOCAL INFILE 'pid_file' INTO TABLE pid_table;
+DROP TABLE pid_table;
+SET SESSION sql_log_bin= 1;
+include/start_group_replication.inc
+
+# Start GR on server 4.
+[connection server4]
+
+# Get server 4 pid.
+SET SESSION sql_log_bin= 0;
+CREATE TABLE pid_table(pid_no INT);
+LOAD DATA LOCAL INFILE 'pid_file' INTO TABLE pid_table;
+DROP TABLE pid_table;
+SET SESSION sql_log_bin= 1;
+include/start_group_replication.inc
+
+############################################################
+# 2. Suspend server 3 by sending signal SIGSTOP to it.
+#    This will make server 3 not answer to "I am alive"
+#    GCS messages and it will eventually be considered
+#    faulty.
+
+############################################################
+# 3. Check that all members are still in the group on
+#    servers 1, 2 and 4, which should all be ONLINE.
+#    Server 3 should still be in the group but UNREACHABLE.
+[connection server2]
+
+############################################################
+# 4. Wait for 15 seconds and suspend server 4.
+#    This will make server 4 not answer to "I am alive"
+#    GCS messages and it will eventually be considered
+#    faulty.
+
+############################################################
+# 5. Check that all members are still in the group on
+#    servers 1 and 2, which should both be ONLINE.
+#    Servers 3 and 4 should still be in the group but
+#    UNREACHABLE.
+[connection server2]
+
+############################################################
+# 6. Wait for 20 seconds so the suspicion on server 3 times
+#    out and resume server 4 by sending asignal SIGCONT to
+#    it.
+
+############################################################
+# 7. Check that all members are still in the group on
+#    servers 1, 2 and 4, which should all be ONLINE.
+#    Server 3 should still be in the group but UNREACHABLE.
+[connection server2]
+
+############################################################
+# 8. Wait until the group evicts server 3.
+[connection server2]
+
+############################################################
+# 9. Resume server 3 by sending a signal SIGCONT to it.
+#    Server 3 should not be in the group anymore and should
+#    go into ERROR state.
+[connection server2]
+[connection server3]
+include/group_replication_end.inc

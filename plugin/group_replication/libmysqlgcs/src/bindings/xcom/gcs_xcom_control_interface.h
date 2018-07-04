@@ -54,6 +54,8 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_transport.h"
 #include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
 
+class Gcs_xcom_control;
+
 /**
   @class Gcs_suspicions_manager
 
@@ -67,9 +69,11 @@ class Gcs_suspicions_manager {
     Constructor for Gcs_suspicions_manager, which sets m_proxy with the
     received pointer parameter.
     @param[in] proxy Pointer to Gcs_xcom_proxy
+    @param[in] ctrl Pointer to Gcs_xcom_control
   */
 
-  explicit Gcs_suspicions_manager(Gcs_xcom_proxy *proxy);
+  explicit Gcs_suspicions_manager(Gcs_xcom_proxy *proxy,
+                                  Gcs_xcom_control *ctrl);
 
   /**
     Destructor for Gcs_suspicions_manager.
@@ -79,21 +83,30 @@ class Gcs_suspicions_manager {
 
   /**
     Invoked by Gcs_xcom_control::xcom_receive_global_view, it invokes the
-    remove_suspicions method for the alive_nodes and expel_nodes parameters,
+    remove_suspicions method for the alive_nodes and left_nodes parameters,
     if they're not empty, neither m_suspicions. It also invokes the
-    add_suspicions method if the suspect_nodes parameter isn't empty.
+    add_suspicions method if the non_member_suspect_nodes and
+    member_suspect_nodes parameter aren't empty.
 
     @param[in] xcom_nodes List of all nodes (i.e. alive or dead) with low level
                           information such as timestamp, unique identifier, etc
     @param[in] alive_nodes List of the nodes that currently belong to the group
-    @param[in] expel_nodes List of nodes to expel from the group
-    @param[in] suspect_nodes List of nodes to suspect
+    @param[in] left_nodes List of the nodes that have left the group
+    @param[in] non_member_suspect_nodes List of joining nodes to add to
+                                        m_suspicions
+    @param[in] member_suspect_nodes List of previously active nodes to add to
+                                    m_suspicions
+    @param[in] is_killer_node Indicates if node should remove suspect members
+                              from the group
   */
 
-  void process_view(Gcs_xcom_nodes *xcom_nodes,
-                    std::vector<Gcs_member_identifier *> alive_nodes,
-                    std::vector<Gcs_member_identifier *> expel_nodes,
-                    std::vector<Gcs_member_identifier *> suspect_nodes);
+  void process_view(
+      Gcs_xcom_nodes *xcom_nodes,
+      std::vector<Gcs_member_identifier *> alive_nodes,
+      std::vector<Gcs_member_identifier *> left_nodes,
+      std::vector<Gcs_member_identifier *> member_suspect_nodes,
+      std::vector<Gcs_member_identifier *> non_member_suspect_nodes,
+      bool is_killer_node);
 
   /**
     Invoked periodically by the suspicions processing thread, it picks a
@@ -102,6 +115,16 @@ class Gcs_suspicions_manager {
   */
 
   void process_suspicions();
+
+  /**
+    Invoked periodically by the suspicions processing thread, it picks a
+    timestamp and verifies which suspect nodes should be removed as they
+    have timed out.
+
+    @param[in] lock Whether lock should be acquired or not
+  */
+
+  void run_process_suspicions(bool lock);
 
   /**
     Retrieves current list of suspicions.
@@ -113,7 +136,7 @@ class Gcs_suspicions_manager {
     Retrieves suspicion thread period in seconds.
   */
 
-  unsigned int get_period() const;
+  unsigned int get_suspicions_processing_period();
 
   /**
     Sets the period or sleep time, between iterations, for the suspicion
@@ -121,21 +144,37 @@ class Gcs_suspicions_manager {
     @param[in] sec Suspicion thread period
   */
 
-  void set_period(unsigned int sec);
+  void set_suspicions_processing_period(unsigned int sec);
 
   /**
-    Retrieves suspicion timeout in 100s of nanoseconds.
+    Retrieves non-member expel timeout in 100s of nanoseconds.
+    @return Non-member expel timeout
   */
 
-  uint64_t get_timeout() const;
+  uint64_t get_non_member_expel_timeout();
 
   /**
-    Sets the time interval to wait before removing the suspect nodes
-    from the cluster.
+    Sets the time interval to wait before removing non-member nodes marked to
+    be expelled from the cluster.
     @param[in] sec Suspicions timeout in seconds
   */
 
-  void set_timeout_seconds(unsigned long sec);
+  void set_non_member_expel_timeout_seconds(unsigned long sec);
+
+  /**
+    Retrieves member expel timeout in 100s of nanoseconds.
+    @return Member expel timeout
+  */
+
+  uint64_t get_member_expel_timeout();
+
+  /**
+    Sets the time interval to wait before removing member nodes marked to be
+    expelled from the cluster.
+    @param[in] sec Expel suspicions timeout in seconds
+  */
+
+  void set_member_expel_timeout_seconds(unsigned long sec);
 
   /**
     Sets the hash for the current group identifier.
@@ -143,6 +182,37 @@ class Gcs_suspicions_manager {
   */
 
   void set_groupid_hash(unsigned int gid_h);
+
+  /**
+    Sets the information for this node
+    @param[in] node_info Information on this node
+  */
+
+  void set_my_info(Gcs_xcom_node_information *node_info);
+
+  /**
+    Auxiliary method to wake the suspicions processing thread and set if it
+    should terminate or not.
+    @param[in] terminate Signals if thread should terminate
+  */
+
+  void wake_suspicions_processing_thread(bool terminate);
+
+  /**
+    Auxiliary method to inform the suspicions manager that this node is in
+    a group with the majority of the configured nodes.
+    @param[in] majority Signals if the group has the majority of the nodes
+                        alive
+  */
+
+  void inform_on_majority(bool majority);
+
+  /**
+    Auxiliary method to retrieve if the suspicions manager has the majority
+    enabled.
+    @return majority
+  */
+  bool has_majority();
 
  private:
   /**
@@ -160,26 +230,42 @@ class Gcs_suspicions_manager {
 
     @param[in] xcom_nodes List of all nodes (i.e. alive or dead) with low level
                           information such as timestamp, unique identifier, etc
-    @param[in] suspect_nodes List of nodes to add to m_suspicions
+    @param[in] non_member_suspect_nodes List of joining nodes to add to
+                                        m_suspicions
+    @param[in] member_suspect_nodes List of previously active nodes to add to
+                                    m_suspicions
+    @return Indicates if new suspicions were added
   */
 
-  void add_suspicions(Gcs_xcom_nodes *xcom_nodes,
-                      std::vector<Gcs_member_identifier *> suspect_nodes);
+  bool add_suspicions(
+      Gcs_xcom_nodes *xcom_nodes,
+      std::vector<Gcs_member_identifier *> non_member_suspect_nodes,
+      std::vector<Gcs_member_identifier *> member_suspect_nodes);
 
-  /**
+  /*
     XCom proxy pointer
   */
   Gcs_xcom_proxy *m_proxy;
 
-  /**
+  /*
+    XCom control interface pointer
+  */
+  Gcs_xcom_control *m_control_if;
+
+  /*
     Suspicions processing thread period in seconds
   */
-  unsigned int m_period;
+  unsigned int m_suspicions_processing_period;
 
-  /**
-    Suspicion timeout stored in 100s of nanoseconds
+  /*
+    Non-member expel timeout stored in 100s of nanoseconds
   */
-  uint64_t m_timeout;
+  uint64_t m_non_member_expel_timeout;
+
+  /*
+    Member expel timeout stored in 100s of nanoseconds
+  */
+  uint64_t m_member_expel_timeout;
 
   /*
    Group ID hash
@@ -191,8 +277,35 @@ class Gcs_suspicions_manager {
   */
   Gcs_xcom_nodes m_suspicions;
 
-  // Mutex to control access to m_suspicions
+  /*
+    Mutex to control access to m_suspicions
+  */
   My_xp_mutex_impl m_suspicions_mutex;
+
+  /*
+    Condition used to wake up suspicions thread
+  */
+  My_xp_cond_impl m_suspicions_cond;
+
+  /*
+    Mutex to control access to suspicions parameters
+  */
+  My_xp_mutex_impl m_suspicions_parameters_mutex;
+
+  /*
+    Signals if node should remove suspect nodes from group.
+  */
+  bool m_is_killer_node;
+
+  /*
+    Pointer to this node's information
+  */
+  Gcs_xcom_node_information *m_my_info;
+
+  /*
+    Signals if group has a majority of alive nodes.
+  */
+  bool m_has_majority;
 
   /*
     Disabling the copy constructor and assignment operator.
@@ -266,12 +379,10 @@ class Gcs_xcom_control : public Gcs_control_interface {
   enum_gcs_error do_leave();
 
   /**
-    Terminates GCS only (assumes that XCom has already exited). Stops the
-    suspicions manager and installs the leave view indicated in 'error_code'.
-
-    @param error_code The leave view to be installed.
+    Sends a leave view message to informat that XCOM has already exited or
+    is about to do so.
   */
-  enum_gcs_error do_leave_gcs(Gcs_view::Gcs_view_error_code error_code);
+  void do_leave_view();
 
   bool belongs_to_group();
 
@@ -309,6 +420,12 @@ class Gcs_xcom_control : public Gcs_control_interface {
                             to deliver the message
   */
   bool xcom_receive_local_view(Gcs_xcom_nodes *xcom_nodes);
+
+  /*
+    This method is called in order to inform that the node has left the
+    group or is about to do so.
+  */
+  bool xcom_receive_leave();
 
   /**
     Process a message from the control interface and if necessary delegate it
@@ -386,6 +503,15 @@ class Gcs_xcom_control : public Gcs_control_interface {
   void set_join_behavior(unsigned int join_attempts,
                          unsigned int join_sleep_time);
 
+  /**
+    Notify that the current member has left the group and whether it left
+    gracefully or not.
+
+    @param[in] error_code that identifies whether there was any error
+               when the view was received.
+  */
+  void install_leave_view(Gcs_view::Gcs_view_error_code error_code);
+
  private:
   void init_me();
 
@@ -408,13 +534,13 @@ class Gcs_xcom_control : public Gcs_control_interface {
       std::vector<Gcs_member_identifier *> &alive_members,
       const std::vector<Gcs_member_identifier> *current_members);
 
-  void build_expel_members(
-      std::vector<Gcs_member_identifier *> &expel_members,
+  void build_member_suspect_nodes(
+      std::vector<Gcs_member_identifier *> &member_suspect_nodes,
       std::vector<Gcs_member_identifier *> &failed_members,
       const std::vector<Gcs_member_identifier> *current_members);
 
-  void build_suspect_members(
-      std::vector<Gcs_member_identifier *> &suspect_members,
+  void build_non_member_suspect_nodes(
+      std::vector<Gcs_member_identifier *> &non_member_suspect_nodes,
       std::vector<Gcs_member_identifier *> &failed_members,
       const std::vector<Gcs_member_identifier> *current_members);
 
@@ -440,28 +566,6 @@ class Gcs_xcom_control : public Gcs_control_interface {
   void build_member_list(std::set<Gcs_member_identifier *> *origin,
                          std::vector<Gcs_member_identifier> *to_fill);
 
-  /*
-   Immediately exclude nodes from the current view, when those nodes are
-   considered dead or are not compatible with the previous set of members, for
-   example.
-
-   @param[in] to_exclude Set of members to exclude from the current view.
-   @param[in] alive_members Set of members alive in the current view.
-   */
-  void exclude_from_view(
-      const std::vector<Gcs_member_identifier *> &to_exclude,
-      const std::vector<Gcs_member_identifier *> &alive_members);
-
-  /*
-   Immediately exclude nodes from the current view, when those nodes are
-   considered dead or are not compatible with the previous set of members, for
-   example.
-
-   @param[in] to_exclude Set of members to exclude from the current view.
-   */
-  void exclude_from_view(
-      const std::vector<Gcs_member_identifier> &to_exclude_members);
-
   /**
     Makes all the necessary arrangements to install a new view in the binding
     and in all registered client applications.
@@ -484,22 +588,11 @@ class Gcs_xcom_control : public Gcs_control_interface {
       Gcs_view::Gcs_view_error_code error_code = Gcs_view::OK);
 
   /**
-    Check whether the current member is in the vector of failed members
-    and in this case is considered faulty.
+    Check whether the current member is in the received vector of members.
 
-    @param[in] failed_members failed members
+    @param[in] members list of members
   */
-  bool is_considered_faulty(
-      std::vector<Gcs_member_identifier *> *failed_members);
-
-  /**
-    Notify that the current member has left the group and whether it left
-    gracefully or not.
-
-    @param[in] error_code that identifies whether there was any error
-               when the view was received.
-  */
-  void install_leave_view(Gcs_view::Gcs_view_error_code error_code);
+  bool is_this_node_in(std::vector<Gcs_member_identifier *> *members);
 
   // The group that this interface pertains
   Gcs_group_identifier *m_gid;
@@ -556,6 +649,17 @@ class Gcs_xcom_control : public Gcs_control_interface {
     and leave are processed.
   */
   bool m_xcom_running;
+
+  /*
+    Whether it was requested to make the node leave the group or not.
+  */
+  bool m_leave_view_requested;
+
+  /*
+    Whether a view saying that the node has voluntarily left the group
+    was delivered or not.
+  */
+  bool m_leave_view_delivered;
 
   /* Whether this site boots the group or not. */
   bool m_boot;

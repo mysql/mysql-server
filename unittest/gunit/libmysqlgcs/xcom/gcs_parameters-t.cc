@@ -50,8 +50,9 @@ class GcsParametersTest : public GcsBaseTest {
     m_params.add_parameter("compression", "on");
     m_params.add_parameter("compression_threshold", "1024");
     m_params.add_parameter("ip_whitelist", "127.0.0.1,192.168.1.0/24");
-    m_params.add_parameter("suspicions_timeout", "5");
+    m_params.add_parameter("non_member_expel_timeout", "5");
     m_params.add_parameter("suspicions_processing_period", "25");
+    m_params.add_parameter("member_expel_timeout", "120");
     m_params.add_parameter("join_attempts", "3");
     m_params.add_parameter("join_sleep_time", "5");
   }
@@ -319,13 +320,20 @@ TEST_F(GcsParametersTest, InvalidLocalNode_IP_not_found) {
   *p = save;
 }
 
-TEST_F(GcsParametersTest, InvalidSuspicionsTimeout) {
-  std::string *p =
-      const_cast<std::string *>(m_params.get_parameter("suspicions_timeout"));
+TEST_F(GcsParametersTest, InvalidNonMemberExpelTimeout) {
+  std::string *p = const_cast<std::string *>(
+      m_params.get_parameter("non_member_expel_timeout"));
   std::string save = *p;
 
   *p = "Invalid";
   do_check_params();
+
+  *p = "-1";
+  do_check_params();
+
+  *p = "3.5";
+  do_check_params();
+
   *p = save;
 }
 
@@ -336,6 +344,30 @@ TEST_F(GcsParametersTest, InvalidSuspicionsProcessingPeriod) {
 
   *p = "Invalid";
   do_check_params();
+
+  *p = "-1";
+  do_check_params();
+
+  *p = "3.5";
+  do_check_params();
+
+  *p = save;
+}
+
+TEST_F(GcsParametersTest, InvalidMemberExpelTimeout) {
+  std::string *p =
+      const_cast<std::string *>(m_params.get_parameter("member_expel_timeout"));
+  std::string save = *p;
+
+  *p = "Invalid";
+  do_check_params();
+
+  *p = "-1";
+  do_check_params();
+
+  *p = "3.5";
+  do_check_params();
+
   *p = save;
 }
 

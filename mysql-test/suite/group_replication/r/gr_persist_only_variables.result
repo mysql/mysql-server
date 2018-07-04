@@ -44,6 +44,7 @@ SET PERSIST_ONLY group_replication_group_seeds = @@GLOBAL.group_replication_grou
 SET PERSIST_ONLY group_replication_gtid_assignment_block_size = @@GLOBAL.group_replication_gtid_assignment_block_size;
 SET PERSIST_ONLY group_replication_ip_whitelist = @@GLOBAL.group_replication_ip_whitelist;
 SET PERSIST_ONLY group_replication_local_address = @@GLOBAL.group_replication_local_address;
+SET PERSIST_ONLY group_replication_member_expel_timeout = @@GLOBAL.group_replication_member_expel_timeout;
 SET PERSIST_ONLY group_replication_member_weight = @@GLOBAL.group_replication_member_weight;
 SET PERSIST_ONLY group_replication_poll_spin_loops = @@GLOBAL.group_replication_poll_spin_loops;
 SET PERSIST_ONLY group_replication_recovery_complete_at = @@GLOBAL.group_replication_recovery_complete_at;
@@ -66,7 +67,7 @@ SET PERSIST_ONLY group_replication_start_on_boot = @@GLOBAL.group_replication_st
 SET PERSIST_ONLY group_replication_transaction_size_limit = @@GLOBAL.group_replication_transaction_size_limit;
 SET PERSIST_ONLY group_replication_unreachable_majority_timeout = @@GLOBAL.group_replication_unreachable_majority_timeout;
 
-include/assert.inc ['Expect 45 persisted variables.']
+include/assert.inc ['Expect 46 persisted variables.']
 
 ############################################################
 # 2. Restart server, it must bootstrap the group and preserve
@@ -75,9 +76,9 @@ include/assert.inc ['Expect 45 persisted variables.']
 include/rpl_reconnect.inc
 include/gr_wait_for_member_state.inc
 
-include/assert.inc ['Expect 45 persisted variables in persisted_variables table.']
-include/assert.inc ['Expect 45 persisted variables shown as PERSISTED in variables_info table.']
-include/assert.inc ['Expect 37 persisted variables with matching persisted and global values.']
+include/assert.inc ['Expect 46 persisted variables in persisted_variables table.']
+include/assert.inc ['Expect 46 persisted variables shown as PERSISTED in variables_info table.']
+include/assert.inc ['Expect 38 persisted variables with matching persisted and global values.']
 
 ############################################################
 # 3. Test RESET PERSIST IF EXISTS.
@@ -106,6 +107,7 @@ RESET PERSIST IF EXISTS group_replication_group_seeds;
 RESET PERSIST IF EXISTS group_replication_gtid_assignment_block_size;
 RESET PERSIST IF EXISTS group_replication_ip_whitelist;
 RESET PERSIST IF EXISTS group_replication_local_address;
+RESET PERSIST IF EXISTS group_replication_member_expel_timeout;
 RESET PERSIST IF EXISTS group_replication_member_weight;
 RESET PERSIST IF EXISTS group_replication_poll_spin_loops;
 RESET PERSIST IF EXISTS group_replication_recovery_complete_at;

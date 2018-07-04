@@ -1,0 +1,22 @@
+!include ../my.cnf
+
+[mysqld]
+log-error-verbosity=3
+loose-group-replication-member-expel-timeout=30
+
+[mysqld.1]
+local-infile=       true
+
+[mysqld.2]
+
+[mysqld.3]
+local-infile=       true
+
+[mysqld.4]
+local-infile=       true
+
+[ENV]
+SERVER_MYPORT_3=		@mysqld.3.port
+SERVER_MYSOCK_3=		@mysqld.3.socket
+SERVER_MYPORT_4=		@mysqld.4.port
+SERVER_MYSOCK_4=		@mysqld.4.socket

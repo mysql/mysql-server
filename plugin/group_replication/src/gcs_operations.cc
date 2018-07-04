@@ -117,6 +117,18 @@ enum enum_gcs_error Gcs_operations::configure(
   DBUG_RETURN(error);
 }
 
+enum enum_gcs_error Gcs_operations::reconfigure(
+    const Gcs_interface_parameters &parameters) {
+  DBUG_ENTER("Gcs_operations::reconfigure");
+  enum enum_gcs_error error = GCS_NOK;
+  gcs_operations_lock->wrlock();
+
+  if (gcs_interface != NULL) error = gcs_interface->configure(parameters);
+
+  gcs_operations_lock->unlock();
+  DBUG_RETURN(error);
+}
+
 enum enum_gcs_error Gcs_operations::do_set_debug_options(
     std::string &debug_options) const {
   int64_t res_debug_options;

@@ -24,11 +24,12 @@ include/start_and_bootstrap_group_replication.inc
 #    setup_instruments table, and that the corresponding
 #    instances are in the mutex_instances and
 #    cond_instances tables after starting the GR.
-include/assert.inc ['There should be 21 GCS instrumented mutex and cond entries in the setup_instruments table after starting the GR']
+include/assert.inc ['There should be 23 GCS instrumented mutex and cond entries in the setup_instruments table after starting the GR']
 SELECT * FROM performance_schema.setup_instruments WHERE (NAME LIKE "wait/synch/mutex/group_rpl/GCS_%" OR NAME LIKE "wait/synch/cond/group_rpl/GCS_%") ORDER BY NAME;
 NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
 wait/synch/cond/group_rpl/GCS_Gcs_async_buffer::m_free_buffer_cond	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/GCS_Gcs_async_buffer::m_wait_for_events_cond	YES	YES	singleton	0	NULL
+wait/synch/cond/group_rpl/GCS_Gcs_suspicions_manager::m_suspicions_cond	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/GCS_Gcs_xcom_engine::m_wait_for_notification_cond	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/GCS_Gcs_xcom_interface::m_wait_for_ssl_init_cond	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/GCS_Gcs_xcom_proxy_impl::m_cond_xcom_comms_status	YES	YES	singleton	0	NULL
@@ -37,6 +38,7 @@ wait/synch/cond/group_rpl/GCS_Gcs_xcom_proxy_impl::m_cond_xcom_ready	YES	YES	sin
 wait/synch/cond/group_rpl/GCS_Gcs_xcom_view_change_control::m_wait_for_view_cond	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/GCS_Gcs_async_buffer::m_free_buffer_mutex	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/GCS_Gcs_suspicions_manager::m_suspicions_mutex	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/GCS_Gcs_suspicions_manager::m_suspicions_parameters_mutex	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/GCS_Gcs_xcom_engine::m_wait_for_notification_mutex	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/GCS_Gcs_xcom_group_management::m_nodes_mutex	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/GCS_Gcs_xcom_interface::m_wait_for_ssl_init_mutex	YES	YES	singleton	0	NULL
@@ -48,22 +50,24 @@ wait/synch/mutex/group_rpl/GCS_Gcs_xcom_view_change_control::m_current_view_mute
 wait/synch/mutex/group_rpl/GCS_Gcs_xcom_view_change_control::m_joining_leaving_mutex	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/GCS_Gcs_xcom_view_change_control::m_wait_for_view_mutex	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/GCS_Xcom_handler::m_lock	YES	YES	singleton	0	NULL
-include/assert.inc ['There should be 8 GCS instrumented cond entries in the cond_instances table after starting the GR']
+include/assert.inc ['There should be 9 GCS instrumented cond entries in the cond_instances table after starting the GR']
 SELECT NAME FROM performance_schema.cond_instances WHERE NAME LIKE "wait/synch/cond/group_rpl/GCS_%" ORDER BY NAME;
 NAME
 wait/synch/cond/group_rpl/GCS_Gcs_async_buffer::m_free_buffer_cond
 wait/synch/cond/group_rpl/GCS_Gcs_async_buffer::m_wait_for_events_cond
+wait/synch/cond/group_rpl/GCS_Gcs_suspicions_manager::m_suspicions_cond
 wait/synch/cond/group_rpl/GCS_Gcs_xcom_engine::m_wait_for_notification_cond
 wait/synch/cond/group_rpl/GCS_Gcs_xcom_interface::m_wait_for_ssl_init_cond
 wait/synch/cond/group_rpl/GCS_Gcs_xcom_proxy_impl::m_cond_xcom_comms_status
 wait/synch/cond/group_rpl/GCS_Gcs_xcom_proxy_impl::m_cond_xcom_exit
 wait/synch/cond/group_rpl/GCS_Gcs_xcom_proxy_impl::m_cond_xcom_ready
 wait/synch/cond/group_rpl/GCS_Gcs_xcom_view_change_control::m_wait_for_view_cond
-include/assert.inc ['There should be 18 GCS instrumented mutex entries in the mutex_instances table after starting the GR']
+include/assert.inc ['There should be 19 GCS instrumented mutex entries in the mutex_instances table after starting the GR']
 SELECT NAME FROM performance_schema.mutex_instances WHERE NAME LIKE "wait/synch/mutex/group_rpl/GCS_%" ORDER BY NAME;
 NAME
 wait/synch/mutex/group_rpl/GCS_Gcs_async_buffer::m_free_buffer_mutex
 wait/synch/mutex/group_rpl/GCS_Gcs_suspicions_manager::m_suspicions_mutex
+wait/synch/mutex/group_rpl/GCS_Gcs_suspicions_manager::m_suspicions_parameters_mutex
 wait/synch/mutex/group_rpl/GCS_Gcs_xcom_engine::m_wait_for_notification_mutex
 wait/synch/mutex/group_rpl/GCS_Gcs_xcom_group_management::m_nodes_mutex
 wait/synch/mutex/group_rpl/GCS_Gcs_xcom_interface::m_wait_for_ssl_init_mutex
@@ -91,11 +95,12 @@ include/stop_group_replication.inc
 #    setup_instruments table, and that no corresponding
 #    instances remain in the mutex_instances and
 #    cond_instances tables after stopping the GR.
-include/assert.inc ['There should be the same 21 GCS instrumented mutex and cond entries in the setup_instruments table after stopping the GR']
+include/assert.inc ['There should be the same 23 GCS instrumented mutex and cond entries in the setup_instruments table after stopping the GR']
 SELECT * FROM performance_schema.setup_instruments WHERE (NAME LIKE "wait/synch/mutex/group_rpl/GCS_%" OR NAME LIKE "wait/synch/cond/group_rpl/GCS_%") ORDER BY NAME;
 NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
 wait/synch/cond/group_rpl/GCS_Gcs_async_buffer::m_free_buffer_cond	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/GCS_Gcs_async_buffer::m_wait_for_events_cond	YES	YES	singleton	0	NULL
+wait/synch/cond/group_rpl/GCS_Gcs_suspicions_manager::m_suspicions_cond	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/GCS_Gcs_xcom_engine::m_wait_for_notification_cond	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/GCS_Gcs_xcom_interface::m_wait_for_ssl_init_cond	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/GCS_Gcs_xcom_proxy_impl::m_cond_xcom_comms_status	YES	YES	singleton	0	NULL
@@ -104,6 +109,7 @@ wait/synch/cond/group_rpl/GCS_Gcs_xcom_proxy_impl::m_cond_xcom_ready	YES	YES	sin
 wait/synch/cond/group_rpl/GCS_Gcs_xcom_view_change_control::m_wait_for_view_cond	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/GCS_Gcs_async_buffer::m_free_buffer_mutex	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/GCS_Gcs_suspicions_manager::m_suspicions_mutex	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/GCS_Gcs_suspicions_manager::m_suspicions_parameters_mutex	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/GCS_Gcs_xcom_engine::m_wait_for_notification_mutex	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/GCS_Gcs_xcom_group_management::m_nodes_mutex	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/GCS_Gcs_xcom_interface::m_wait_for_ssl_init_mutex	YES	YES	singleton	0	NULL

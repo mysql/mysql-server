@@ -23,6 +23,7 @@
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_view.h"
 
 #include <stddef.h>
+#include <iostream>
 
 Gcs_view::Gcs_view(const std::vector<Gcs_member_identifier> &members,
                    const Gcs_view_identifier &view_id,

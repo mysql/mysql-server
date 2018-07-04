@@ -107,6 +107,7 @@ static mysql_mutex_t force_members_running_mutex;
 bool bootstrap_group_var = false;
 ulong poll_spin_loops_var = 0;
 ulong ssl_mode_var = 0;
+ulong member_expel_timeout_var = 0;
 
 const char *ssl_mode_values[] = {"DISABLED", "REQUIRED", "VERIFY_CA",
                                  "VERIFY_IDENTITY", (char *)0};
@@ -1462,6 +1463,10 @@ int configure_group_communication(st_server_ssl_variables *ssl_variables) {
   poll_spin_loops_stream_buffer << poll_spin_loops_var;
   gcs_module_parameters.add_parameter("poll_spin_loops",
                                       poll_spin_loops_stream_buffer.str());
+  std::stringstream member_expel_timeout_stream_buffer;
+  member_expel_timeout_stream_buffer << member_expel_timeout_var;
+  gcs_module_parameters.add_parameter("member_expel_timeout",
+                                      member_expel_timeout_stream_buffer.str());
 
   // Compression parameter
   if (compression_threshold_var > 0) {
@@ -1579,7 +1584,7 @@ int configure_group_communication(st_server_ssl_variables *ssl_variables) {
                group_name_var, local_address_var, group_seeds_var,
                bootstrap_group_var ? "true" : "false", poll_spin_loops_var,
                compression_threshold_var, ip_whitelist_var,
-               communication_debug_options_var);
+               communication_debug_options_var, member_expel_timeout_var);
 
   DBUG_RETURN(0);
 }
@@ -2745,6 +2750,38 @@ static void update_member_weight(MYSQL_THD, SYS_VAR *, void *var_ptr,
   DBUG_VOID_RETURN;
 }
 
+static void update_member_expel_timeout(MYSQL_THD, SYS_VAR *, void *var_ptr,
+                                        const void *save) {
+  DBUG_ENTER("update_member_expel_timeout");
+
+  if (plugin_running_mutex_trylock()) DBUG_VOID_RETURN;
+
+  (*(ulong *)var_ptr) = (*(ulong *)save);
+  ulong in_val = *static_cast<const ulong *>(save);
+  Gcs_interface_parameters gcs_module_parameters;
+
+  if (group_name_var == NULL) {
+    mysql_mutex_unlock(&plugin_running_mutex);
+    DBUG_VOID_RETURN;
+  }
+
+  gcs_module_parameters.add_parameter("group_name",
+                                      std::string(group_name_var));
+
+  std::stringstream member_expel_timeout_stream_buffer;
+  member_expel_timeout_stream_buffer << in_val;
+  gcs_module_parameters.add_parameter("member_expel_timeout",
+                                      member_expel_timeout_stream_buffer.str());
+  gcs_module_parameters.add_parameter("reconfigure_ip_whitelist", "false");
+
+  if (gcs_module != NULL) {
+    gcs_module->reconfigure(gcs_module_parameters);
+  }
+
+  mysql_mutex_unlock(&plugin_running_mutex);
+  DBUG_VOID_RETURN;
+}
+
 // Base plugin variables
 
 static MYSQL_SYSVAR_STR(group_name,     /* name */
@@ -2825,6 +2862,20 @@ static MYSQL_SYSVAR_ULONG(
     0,    /* min */
     ~0UL, /* max */
     0     /* block */
+);
+
+static MYSQL_SYSVAR_ULONG(
+    member_expel_timeout,                                  /* name */
+    member_expel_timeout_var,                              /* var */
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var */
+    "The period of time, in seconds, that a member waits before "
+    "expelling any member suspected of failing from the group.",
+    check_sysvar_ulong_timeout,  /* check func. */
+    update_member_expel_timeout, /* update func. */
+    0,                           /* default */
+    0,                           /* min */
+    LONG_TIMEOUT,                /* max */
+    0                            /* block */
 );
 
 // Recovery module variables
@@ -3407,6 +3458,7 @@ static SYS_VAR *group_replication_system_vars[] = {
     MYSQL_SYSVAR(flow_control_period),
     MYSQL_SYSVAR(flow_control_hold_percent),
     MYSQL_SYSVAR(flow_control_release_percent),
+    MYSQL_SYSVAR(member_expel_timeout),
     NULL,
 };
 

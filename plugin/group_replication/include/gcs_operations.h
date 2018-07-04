@@ -98,6 +98,17 @@ class Gcs_operations {
   enum enum_gcs_error configure(const Gcs_interface_parameters &parameters);
 
   /**
+    Reconfigure the GCS interface, i.e. update its configuration parameters.
+
+    @param[in] parameters The configuration parameters
+
+    @return the operation status
+      @retval 0      OK
+      @retval !=0    Error
+  */
+  enum enum_gcs_error reconfigure(const Gcs_interface_parameters &parameters);
+
+  /**
     Configure the debug options that shall be used by GCS.
 
     @param debug_options Set of debug options separated by comma
