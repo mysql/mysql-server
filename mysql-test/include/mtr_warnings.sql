@@ -220,6 +220,12 @@ INSERT INTO global_suppressions VALUES
  ("Slave SQL.*: Coordinator thread of multi-threaded slave is being stopped in the middle of assigning a group of events.*"),
 
  /*
+  Warning messages seen on Fedora and older Debian and Ubuntu versions
+ */
+ ("Changed limits: max_open_files: *"),
+ ("Changed limits: table_open_cache: *"),
+
+ /*
    Warning message introduced by wl#7706
  */
  ("CA certificate .* is self signed"),
