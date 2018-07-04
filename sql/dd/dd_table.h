@@ -395,5 +395,14 @@ bool get_field_datetime_precision(Create_field *field,
 
 using Encrypt_result = ResultType<bool>;
 Encrypt_result is_tablespace_encrypted(THD *thd, const dd::Table &t);
+
+/**
+  Predicate which indicates if the table has real (non-hidden) primary key.
+
+  @param t table to check
+  @return true if a non-hidden index has type dd::Index::IT_PRIMARY
+ */
+bool has_primary_key(const Table &t);
+
 }  // namespace dd
 #endif  // DD_TABLE_INCLUDED

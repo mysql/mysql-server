@@ -3521,6 +3521,11 @@ bool Query_log_event::write(Basic_ostream *ostream) {
     start += 2;
   }
 
+  if (thd) {
+    *start++ = Q_SQL_REQUIRE_PRIMARY_KEY;
+    *start++ = thd->variables.sql_require_primary_key;
+  }
+
   /*
     NOTE: When adding new status vars, please don't forget to update
     the MAX_SIZE_LOG_EVENT_STATUS in log_event.h
@@ -4185,6 +4190,10 @@ void Query_log_event::print_query_header(
     print_event_info->default_collation_for_utf8mb4_number =
         default_collation_for_utf8mb4_number;
   }
+  if (sql_require_primary_key != print_event_info->sql_require_primary_key) {
+    my_b_printf(file, "/*!80013 SET @@session.sql_require_primary_key=%d*/%s\n",
+                sql_require_primary_key, print_event_info->delimiter);
+  }
 }
 
 void Query_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) const {
@@ -4516,6 +4525,12 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         // as default collation for utf8mb4 (versions 5.7-)
         thd->variables.default_collation_for_utf8mb4 =
             &my_charset_utf8mb4_general_ci;
+
+      if (sql_require_primary_key != 0xff) {
+        DBUG_ASSERT(sql_require_primary_key == 0 ||
+                    sql_require_primary_key == 1);
+        thd->variables.sql_require_primary_key = sql_require_primary_key;
+      }
 
       thd->table_map_for_update = (table_map)table_map_for_update;
 
@@ -12992,6 +13007,7 @@ PRINT_EVENT_INFO::PRINT_EVENT_INFO()
       lc_time_names_number(~0),
       charset_database_number(ILLEGAL_CHARSET_INFO_NUMBER),
       default_collation_for_utf8mb4_number(ILLEGAL_CHARSET_INFO_NUMBER),
+      sql_require_primary_key(0xff),
       thread_id(0),
       thread_id_printed(false),
       base64_output_mode(BASE64_OUTPUT_UNSPEC),

@@ -350,6 +350,8 @@ struct System_variables {
 
   /** Used for controlling preparation of queries against secondary engine. */
   ulong use_secondary_engine;
+
+  bool sql_require_primary_key;
 };
 
 /**

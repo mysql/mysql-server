@@ -611,9 +611,6 @@ DROP TABLE t1;
 --remove_files_wildcard $EXPORT_DIR t*
 
 
---echo # Remove 'export' folder created at the beginning of test file.
---force-rmdir $EXPORT_DIR
-
 --echo #
 --echo # Bug#25914953 ASSERTION FAILED: M_THD->GET_TRANSACTION()->
 --echo # IS_EMPTY(TRANSACTION_CTX::STMT)
@@ -623,4 +620,35 @@ DROP TABLE t1;
 START TRANSACTION WITH CONSISTENT SNAPSHOT;
 --error ER_IMP_NO_FILES_MATCHED
 IMPORT TABLE FROM '';
+
+--echo #
+--echo # Bug#17468242/Wl#11807: Provide an option to prevent creation of tables
+--echo # without a unique/pk
+--echo # Ensure that a PK-less table cannot be imported when
+--echo # sql_require_primary_key is set
+
+CREATE TABLE t1 (i INT) ENGINE=MYISAM;
+
+FLUSH TABLES WITH READ LOCK;
+--echo # Copy t1 files to export dir
+--copy_files_wildcard $MYSQLD_DATADIR/test/ $EXPORT_DIR t*
+UNLOCK TABLES;
+DROP TABLE t1;
+
+--echo # Copy files back into datadir
+--copy_files_wildcard $EXPORT_DIR $MYSQLD_DATADIR/test/ t*
+
+SET SESSION sql_require_primary_key= ON;
+--error ER_TABLE_WITHOUT_PK
+IMPORT TABLE FROM 't1_*.sdi';
+--remove_files_wildcard $MYSQLD_DATADIR/test/ t*
+
+SET SESSION sql_require_primary_key= OFF;
+--echo # Clean SDI files in \$EXPORT_DIR
+--remove_files_wildcard $EXPORT_DIR t*
+
+--echo # Remove 'export' folder created at the beginning of test file.
+--force-rmdir $EXPORT_DIR
+
+
 

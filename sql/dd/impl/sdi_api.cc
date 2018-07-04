@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,6 +35,7 @@
 #include "sql/auth/auth_common.h"            // CREATE_ACL
 #include "sql/dd/cache/dictionary_client.h"  // dd::Dictionary_client
 #include "sql/dd/dd.h"
+#include "sql/dd/dd_table.h"        // has_primary_key()
 #include "sql/dd/impl/sdi.h"        // dd::deserialize
 #include "sql/dd/impl/sdi_utils.h"  // dd::sdi_utils::handle_errors
 #include "sql/dd/impl/types/object_table_definition_impl.h"  // Object_table_definition::fs_collation()
@@ -90,6 +91,12 @@ bool Import_target::load(THD *thd, String_type *shared_buffer) {
 
   if (dd::deserialize(thd, *shared_buffer, m_table_object.get(),
                       &m_schema_name_in_sdi)) {
+    return true;
+  }
+
+  if (!dd::has_primary_key(*m_table_object) &&
+      thd->variables.sql_require_primary_key) {
+    my_error(ER_TABLE_WITHOUT_PK, MYF(0));
     return true;
   }
 

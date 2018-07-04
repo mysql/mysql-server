@@ -151,6 +151,8 @@ if ($proceed_with_check_of_files) {
   # "rpl.rpl_extra_row_data" will fail.
   SET @sql_log_bin_save = @@sql_log_bin;
   SET SESSION sql_log_bin = 0;
+  # Checking needs to create temporary tables without primary key
+  SET SESSION sql_require_primary_key = 0;
 
   USE test;
 

@@ -127,7 +127,8 @@
    /* type, microseconds */ +1U + 32 * 3 + 1 +                                \
    60 /* type, user_len, user, host_len, host */ + 1U +                       \
    1 /* type, explicit_def..ts*/ + 1U + 8 /* type, xid of DDL */ + 1U +       \
-   2 /* type, default_collation_for_utf8mb4_number */)
+   2 /* type, default_collation_for_utf8mb4_number */ +                       \
+   1 /* sql_require_primary_key */)
 
 /**
    Uninitialized timestamp value (for either last committed or sequence number).

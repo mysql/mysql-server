@@ -430,6 +430,7 @@ struct PRINT_EVENT_INFO {
   uint lc_time_names_number;
   uint charset_database_number;
   uint default_collation_for_utf8mb4_number;
+  uint8_t sql_require_primary_key;
   my_thread_id thread_id;
   bool thread_id_printed;
 

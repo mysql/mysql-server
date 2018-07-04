@@ -1,0 +1,26 @@
+# This test case is binary log format agnostic
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+# 
+# Testing replication of sql_require_primary_key system variable
+# (WL#11807)
+#
+
+# Create a table without pk on master
+CREATE TABLE t1 (c1 INT, c2 TEXT);
+--source include/sync_slave_sql_with_master.inc
+
+# Assert that table was replicated to the slave
+SHOW CREATE TABLE t1;
+
+# Client session on slave shall fail to create pk less table by default
+--error ER_TABLE_WITHOUT_PK
+CREATE TABLE t2 (c1 INT, c2 TEXT);
+
+
+--source include/rpl_connection_master.inc
+
+# Cleanup
+DROP TABLE t1;
+--source include/rpl_end.inc

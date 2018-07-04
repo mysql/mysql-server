@@ -70,6 +70,7 @@ SELECT @@global.slave_net_timeout;
 SET PERSIST sort_buffer_size=256000;
 SET PERSIST max_heap_table_size=999424, slave_net_timeout=124;
 SET PERSIST long_query_time= 8.3452;
+SET PERSIST sql_require_primary_key= true;
 
 --echo # Restart server
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -85,11 +86,13 @@ SELECT @@global.sort_buffer_size;
 SELECT @@global.max_heap_table_size;
 SELECT @@global.slave_net_timeout;
 SELECT @@global.long_query_time;
+SELECT @@global.sql_require_primary_key;
 
 --echo # modify existing persisted variables
 SET PERSIST sort_buffer_size=156000,max_connections= 52;
 SET PERSIST max_heap_table_size=887808, slave_net_timeout=160;
 SET PERSIST long_query_time= 7.8102;
+SET PERSIST sql_require_primary_key= false;
 
 --echo # Restart server
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -105,6 +108,7 @@ SELECT @@global.sort_buffer_size;
 SELECT @@global.max_heap_table_size;
 SELECT @@global.slave_net_timeout;
 SELECT @@global.long_query_time;
+SELECT @@global.sql_require_primary_key;
 
 SELECT @@global.max_user_connections;
 SELECT @@global.max_execution_time;
@@ -113,6 +117,7 @@ SELECT @@global.max_execution_time;
 SET PERSIST sort_buffer_size=256000;
 SET PERSIST max_heap_table_size=999424, slave_net_timeout=124;
 SET PERSIST long_query_time= 2.999999;
+SET PERSIST sql_require_primary_key= true;
 SET @@persist.max_execution_time=44000, @@persist.max_user_connections=30;
 
 --echo # Restart server
@@ -130,12 +135,14 @@ SELECT @@global.slave_net_timeout;
 SELECT @@global.max_user_connections;
 SELECT @@global.max_execution_time;
 SELECT @@global.long_query_time;
+SELECT @@global.sql_require_primary_key;
 
 --echo # reset persisted variables
 RESET PERSIST sort_buffer_size;
 RESET PERSIST max_heap_table_size;
 RESET PERSIST max_execution_time;
 RESET PERSIST max_user_connections;
+RESET PERSIST sql_require_primary_key;
 
 --echo # Restart server
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -155,6 +162,7 @@ SELECT @@global.max_connections;
 SELECT @@global.server_id;
 SELECT @@global.general_log;
 SELECT @@global.concurrent_insert;
+SELECT @@global.sql_require_primary_key;
 
 --echo # reset persisted variables and add new
 RESET PERSIST slave_net_timeout;

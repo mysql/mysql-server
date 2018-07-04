@@ -1222,6 +1222,10 @@ The following options may be given as the first argument:
  replication.
  --sql-mode=name     Syntax: sql-mode=mode[,mode[,mode...]]. See the manual
  for the complete list of valid sql modes
+ --sql-require-primary-key 
+ When set, tables must be created with a primary key, and
+ an existing primary key cannot be removed with 'ALTER
+ TABLE'. Attempts to do so will result in an error.
  --stored-program-cache=# 
  The soft upper limit for number of cached stored routines
  for one connection.
@@ -1638,6 +1642,7 @@ slow-query-log FALSE
 sort-buffer-size 262144
 sporadic-binlog-dump-fail FALSE
 sql-mode ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+sql-require-primary-key FALSE
 stored-program-cache 256
 stored-program-definition-cache 256
 super-read-only FALSE

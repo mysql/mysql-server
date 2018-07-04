@@ -82,7 +82,8 @@ Query_event::Query_event(
       explicit_defaults_ts(TERNARY_UNSET),
       mts_accessed_dbs(0),
       ddl_xid(INVALID_XID),
-      default_collation_for_utf8mb4_number(0) {}
+      default_collation_for_utf8mb4_number(0),
+      sql_require_primary_key(0xff) {}
 
 /**
   Utility function for the Query_event constructor.
@@ -131,7 +132,8 @@ Query_event::Query_event(const char *buf, const Format_description_event *fde,
       explicit_defaults_ts(TERNARY_UNSET),
       mts_accessed_dbs(OVER_MAX_DBS_IN_EVENT_MTS),
       ddl_xid(INVALID_XID),
-      default_collation_for_utf8mb4_number(0) {
+      default_collation_for_utf8mb4_number(0),
+      sql_require_primary_key(0xff) {
   BAPI_ENTER("Query_event::Query_event(const char*, ...)");
   READER_TRY_INITIALIZATION;
   READER_ASSERT_POSITION(fde->common_header_len);
@@ -319,6 +321,9 @@ Query_event::Query_event(const char *buf, const Format_description_event *fde,
       case Q_DEFAULT_COLLATION_FOR_UTF8MB4:
         READER_TRY_SET(default_collation_for_utf8mb4_number,
                        read_and_letoh<uint16_t>);
+        break;
+      case Q_SQL_REQUIRE_PRIMARY_KEY:
+        READER_TRY_SET(sql_require_primary_key, read<uint8_t>);
         break;
       default:
         /* That's why you must write status vars in growing order of code */

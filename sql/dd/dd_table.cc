@@ -2601,4 +2601,11 @@ Encrypt_result is_tablespace_encrypted(THD *thd, const Table &t) {
       });
   return {error, encrypted};
 }
+
+bool has_primary_key(const Table &t) {
+  auto &ic = t.indexes();
+  return std::any_of(ic.begin(), ic.end(), [](const Index *ix) {
+    return ix->type() == Index::IT_PRIMARY && !ix->is_hidden();
+  });
+}
 }  // namespace dd

@@ -40,6 +40,8 @@ regexp_stack_limit
 regexp_time_limit
 regexp_time_limit
 resultset_metadata
+sql_require_primary_key
+sql_require_primary_key
 tls_version
 tls_version
 use_secondary_engine

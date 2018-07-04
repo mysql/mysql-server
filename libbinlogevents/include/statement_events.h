@@ -414,6 +414,12 @@ const uint64_t INVALID_XID = 0xffffffffffffffffULL;
         slave.
     </td>
   </tr>
+  <tr>
+    <td>sql_require_primary_key</td>
+    <td>Q_SQL_REQUIRE_PRIMARY_KEY</td>
+    <td>1 byte integer</td>
+    <td>Value of the config variable sql_require_primary_key</td>
+  </tr>
   </table>
 
   @subsection Query_event_notes_on_previous_versions Notes on Previous Versions
@@ -506,7 +512,12 @@ class Query_event : public Binary_log_event {
       This variable stores the default collation for the utf8mb4 character set.
       Used to support cross-version replication.
     */
-    Q_DEFAULT_COLLATION_FOR_UTF8MB4
+    Q_DEFAULT_COLLATION_FOR_UTF8MB4,
+
+    /*
+      Replicate sql_require_primary_key.
+    */
+    Q_SQL_REQUIRE_PRIMARY_KEY
   };
   const char *query;
   const char *db;
@@ -620,6 +631,7 @@ class Query_event : public Binary_log_event {
   uint64_t ddl_xid;
   /* Default collation for the utf8mb4 set. Used in cross-version replication */
   uint16_t default_collation_for_utf8mb4_number;
+  uint8_t sql_require_primary_key;
   /**
     The constructor will be used while creating a Query_event, to be
     written to the binary log.

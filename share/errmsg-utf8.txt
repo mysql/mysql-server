@@ -8580,6 +8580,10 @@ ER_CLIENT_GTID_UNSAFE_CREATE_DROP_TEMP_TABLE_IN_TRX_IN_SBR
 ER_XA_CANT_CREATE_MDL_BACKUP
   eng "XA: Failed to take MDL Lock backup of PREPARED XA transaction during client disconnect."
 
+ER_TABLE_WITHOUT_PK
+  eng "Unable to create a table without PK, when system variable 'sql_require_primary_key' is set. Add a PK to the table or unset this variable to avoid this message. Note that tables without PK can cause performance problems in row-based replication, so please consult your DBA before changing this setting."
+
+
 #
 #  End of 8.0 error messages.
 #

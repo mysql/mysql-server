@@ -6181,3 +6181,15 @@ static Sys_var_enum Sys_use_secondary_engine(
     HINT_UPDATEABLE SESSION_VAR(use_secondary_engine), NO_CMD_LINE,
     use_secondary_engine_values, DEFAULT(SECONDARY_ENGINE_ON), NO_MUTEX_GUARD,
     NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr));
+
+static Sys_var_bool Sys_sql_require_primary_key{
+    "sql_require_primary_key",
+    "When set, tables must be created with a primary key, and an existing "
+    "primary key cannot be removed with 'ALTER TABLE'. Attempts to do so "
+    "will result in an error.",
+    HINT_UPDATEABLE SESSION_VAR(sql_require_primary_key),
+    CMD_LINE(OPT_ARG),
+    DEFAULT(false),
+    NO_MUTEX_GUARD,
+    IN_BINLOG,
+    ON_CHECK(check_has_super)};

@@ -30,11 +30,13 @@ SET @@session.character_set_client=255,@@session.collation_connection=255,@@sess
 SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 /*!80005 SET @@session.default_collation_for_utf8mb4=255*//*!*/;
+/*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
 BEGIN
 /*!*/;
 SET @`v`:=_ucs2 0x006100620063 COLLATE `ucs2_general_ci`/*!*/;
 use `test`/*!*/;
 SET TIMESTAMP=#/*!*/;
+/*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
 insert into t2 values (@v)
 /*!*/;
 COMMIT/*!*/;

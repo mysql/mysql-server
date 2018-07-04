@@ -68,4 +68,35 @@ SET SESSION debug= '-d,skip_dd_table_access_check';
 #     Data Dictionary initialization error found 1 times.
 # 6.6 Delete bootstrap file and datadir.
 #
+# 7. Try initialize and start with --require-primary-key
+#
+# Bug#17468242/Wl#11807: Provide an option to prevent creation of tables
+# without a unique/pk
+#
+# Check that this option can be set on command line without compromising
+# bootstrap
+# ------------------------------------------------------
+# 7.1 Create bootstrap file.
+# 7.2 First start the server with --initialize
+# 7.3 Restart the server against DDIR.
+# 7.4 Connect as root.
+CREATE TABLE t1(i INT);
+ERROR HY000: Unable to create a table without PK, when system variable 'sql_require_primary_key' is set. Add a PK to the table or unset this variable to avoid this message. Note that tables without PK can cause performance problems in row-based replication, so please consult your DBA before changing this setting.
+# 7.5 Shut server down.
+# 7.6 Close the test connection.
+# 7.7 Delete bootstrap file, log file and datadir.
+# ------------------------------------------------------
+# Check that this option can be set on command line without
+# compromising restart against the normal datadir, without
+# initialize
+# ------------------------------------------------------
+# 8.1 Restart the server without initialize against the normal datadir
+# 8.2 Connect as root.
+# Verify that the system variable is in effect
+CREATE TABLE t1(i INT);
+ERROR HY000: Unable to create a table without PK, when system variable 'sql_require_primary_key' is set. Add a PK to the table or unset this variable to avoid this message. Note that tables without PK can cause performance problems in row-based replication, so please consult your DBA before changing this setting.
+# 8.3 Shut server down.
+# 8.4 Close the test connection.
+# 8.5 Delete log file.
+#
 # Cleanup: Restarting the server against default datadir.

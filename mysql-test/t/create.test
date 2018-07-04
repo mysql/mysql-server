@@ -1978,3 +1978,108 @@ DROP TABLE t3;
 DROP TABLE t2;
 DROP TABLE t1;
 DROP TABLE t0;
+
+
+--echo # Bug#17468242/Wl#11807: Provide an option to prevent creation of tables
+--echo # without a unique/pk
+--echo #
+
+SET GLOBAL sql_require_primary_key= ON;
+SELECT @@global.sql_require_primary_key;
+
+--echo # Checking variable at session level
+--echo # Should not affect this session
+SELECT @@session.sql_require_primary_key;
+CREATE TABLE t1(i INT);
+CREATE TABLE t2(i INT PRIMARY KEY, j INT);
+ALTER TABLE t2 DROP COLUMN i;
+
+DROP TABLE t2;
+DROP TABLE t1;
+
+--echo # Create new connection which will inherit global setting
+connect(con1, localhost, root);
+
+SELECT @@session.sql_require_primary_key;
+--error ER_TABLE_WITHOUT_PK
+CREATE TABLE t1(i INT);
+CREATE TABLE t1(i INT PRIMARY KEY, j INT);
+--error ER_TABLE_WITHOUT_PK
+ALTER TABLE t1 DROP COLUMN i;
+
+DROP TABLE t1;
+
+--echo # Overdide inherited global setting locally
+SET SESSION sql_require_primary_key= OFF;
+
+SELECT @@session.sql_require_primary_key;
+CREATE TABLE t1(i INT);
+CREATE TABLE t2(i INT PRIMARY KEY, j INT);
+ALTER TABLE t2 DROP COLUMN i;
+
+DROP TABLE t2;
+DROP TABLE t1;
+
+--echo # Verify CREATE LIKE
+CREATE TABLE t1(i INT);
+
+SET SESSION sql_require_primary_key= ON;
+
+--error ER_TABLE_WITHOUT_PK
+CREATE TABLE t2 LIKE t1;
+
+--echo # Verify CREATE AS SELECT ...
+CREATE TABLE t3 (I INT PRIMARY KEY);
+
+--error ER_TABLE_WITHOUT_PK
+CREATE TABLE t4 AS SELECT 1;
+
+--error ER_TABLE_WITHOUT_PK
+CREATE TABLE t4 AS SELECT * FROM t1;
+
+--echo # PK attribute is not propagated by CREATE AS
+--error ER_TABLE_WITHOUT_PK
+CREATE TABLE t4 AS SELECT * FROM t3;
+
+--echo # PK attribute specified explicitly is ok
+CREATE TABLE t4(i INT PRIMARY KEY) AS SELECT * FROM t3;
+SHOW CREATE TABLE t4;
+
+--echo # Drop and add PK in same ALTER statement should be ok
+CREATE TABLE t5(i INT PRIMARY KEY, j INT);
+ALTER TABLE t5 DROP PRIMARY KEY, ADD CONSTRAINT PRIMARY KEY (j);
+
+--echo # Restriction also applies to temporary tables
+--error ER_TABLE_WITHOUT_PK
+CREATE TEMPORARY TABLE t6(i INT);
+ 
+--echo # Cleanup
+DROP TABLE t5;
+DROP TABLE t4;
+DROP TABLE t3;
+DROP TABLE t1;
+
+disconnect con1;
+connection default;
+
+--echo # Create user without SUPER privilege.
+CREATE USER subuser@localhost;
+REVOKE SUPER ON *.* FROM subuser@localhost;
+#GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO subuser@localhost;
+
+--echo # Connect as user subuser@localhost;
+connect (con_sub,localhost,subuser,,);
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET SESSION sql_require_primary_key= OFF;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET GLOBAL sql_require_primary_key= OFF;
+
+connection default;
+disconnect con_sub;
+DROP USER subuser@localhost;
+
+SET GLOBAL sql_require_primary_key= OFF;
+
+
+
+

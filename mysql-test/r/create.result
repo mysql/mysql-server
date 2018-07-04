@@ -2125,3 +2125,85 @@ DROP TABLE t3;
 DROP TABLE t2;
 DROP TABLE t1;
 DROP TABLE t0;
+# Bug#17468242/Wl#11807: Provide an option to prevent creation of tables
+# without a unique/pk
+#
+SET GLOBAL sql_require_primary_key= ON;
+SELECT @@global.sql_require_primary_key;
+@@global.sql_require_primary_key
+1
+# Checking variable at session level
+# Should not affect this session
+SELECT @@session.sql_require_primary_key;
+@@session.sql_require_primary_key
+0
+CREATE TABLE t1(i INT);
+CREATE TABLE t2(i INT PRIMARY KEY, j INT);
+ALTER TABLE t2 DROP COLUMN i;
+DROP TABLE t2;
+DROP TABLE t1;
+# Create new connection which will inherit global setting
+SELECT @@session.sql_require_primary_key;
+@@session.sql_require_primary_key
+1
+CREATE TABLE t1(i INT);
+ERROR HY000: Unable to create a table without PK, when system variable 'sql_require_primary_key' is set. Add a PK to the table or unset this variable to avoid this message. Note that tables without PK can cause performance problems in row-based replication, so please consult your DBA before changing this setting.
+CREATE TABLE t1(i INT PRIMARY KEY, j INT);
+ALTER TABLE t1 DROP COLUMN i;
+ERROR HY000: Unable to create a table without PK, when system variable 'sql_require_primary_key' is set. Add a PK to the table or unset this variable to avoid this message. Note that tables without PK can cause performance problems in row-based replication, so please consult your DBA before changing this setting.
+DROP TABLE t1;
+# Overdide inherited global setting locally
+SET SESSION sql_require_primary_key= OFF;
+SELECT @@session.sql_require_primary_key;
+@@session.sql_require_primary_key
+0
+CREATE TABLE t1(i INT);
+CREATE TABLE t2(i INT PRIMARY KEY, j INT);
+ALTER TABLE t2 DROP COLUMN i;
+DROP TABLE t2;
+DROP TABLE t1;
+# Verify CREATE LIKE
+CREATE TABLE t1(i INT);
+SET SESSION sql_require_primary_key= ON;
+CREATE TABLE t2 LIKE t1;
+ERROR HY000: Unable to create a table without PK, when system variable 'sql_require_primary_key' is set. Add a PK to the table or unset this variable to avoid this message. Note that tables without PK can cause performance problems in row-based replication, so please consult your DBA before changing this setting.
+# Verify CREATE AS SELECT ...
+CREATE TABLE t3 (I INT PRIMARY KEY);
+CREATE TABLE t4 AS SELECT 1;
+ERROR HY000: Unable to create a table without PK, when system variable 'sql_require_primary_key' is set. Add a PK to the table or unset this variable to avoid this message. Note that tables without PK can cause performance problems in row-based replication, so please consult your DBA before changing this setting.
+CREATE TABLE t4 AS SELECT * FROM t1;
+ERROR HY000: Unable to create a table without PK, when system variable 'sql_require_primary_key' is set. Add a PK to the table or unset this variable to avoid this message. Note that tables without PK can cause performance problems in row-based replication, so please consult your DBA before changing this setting.
+# PK attribute is not propagated by CREATE AS
+CREATE TABLE t4 AS SELECT * FROM t3;
+ERROR HY000: Unable to create a table without PK, when system variable 'sql_require_primary_key' is set. Add a PK to the table or unset this variable to avoid this message. Note that tables without PK can cause performance problems in row-based replication, so please consult your DBA before changing this setting.
+# PK attribute specified explicitly is ok
+CREATE TABLE t4(i INT PRIMARY KEY) AS SELECT * FROM t3;
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `I` int(11) NOT NULL,
+  PRIMARY KEY (`I`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Drop and add PK in same ALTER statement should be ok
+CREATE TABLE t5(i INT PRIMARY KEY, j INT);
+ALTER TABLE t5 DROP PRIMARY KEY, ADD CONSTRAINT PRIMARY KEY (j);
+# Restriction also applies to temporary tables
+CREATE TEMPORARY TABLE t6(i INT);
+ERROR HY000: Unable to create a table without PK, when system variable 'sql_require_primary_key' is set. Add a PK to the table or unset this variable to avoid this message. Note that tables without PK can cause performance problems in row-based replication, so please consult your DBA before changing this setting.
+# Cleanup
+DROP TABLE t5;
+DROP TABLE t4;
+DROP TABLE t3;
+DROP TABLE t1;
+# Create user without SUPER privilege.
+CREATE USER subuser@localhost;
+REVOKE SUPER ON *.* FROM subuser@localhost;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
+# Connect as user subuser@localhost;
+SET SESSION sql_require_primary_key= OFF;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SET GLOBAL sql_require_primary_key= OFF;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+DROP USER subuser@localhost;
+SET GLOBAL sql_require_primary_key= OFF;

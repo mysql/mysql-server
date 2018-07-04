@@ -239,6 +239,83 @@ EOF
 remove_file $BOOTSTRAP_SQL;
 --force-rmdir $DDIR
 
+
+--echo #
+--echo # 7. Try initialize and start with --require-primary-key
+--echo #
+--echo # Bug#17468242/Wl#11807: Provide an option to prevent creation of tables
+--echo # without a unique/pk
+--echo #
+--echo # Check that this option can be set on command line without compromising
+--echo # bootstrap
+--echo # ------------------------------------------------------
+
+let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_bootstrap_7.log;
+let ENV_MYSQLD_LOG= $MYSQLD_LOG;
+
+--echo # 7.1 Create bootstrap file.
+write_file $BOOTSTRAP_SQL;
+  CREATE SCHEMA test;
+EOF
+
+--echo # 7.2 First start the server with --initialize
+--exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR --sql-require-primary-key=ON --init-file=$BOOTSTRAP_SQL
+
+--echo # 7.3 Restart the server against DDIR.
+--exec echo "restart: --datadir=$DDIR --no-console --log-error=$MYSQLD_LOG --sql-require-primary-key=ON" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # 7.4 Connect as root.
+connect(root_con,localhost,root,,mysql);
+
+--error ER_TABLE_WITHOUT_PK
+CREATE TABLE t1(i INT);
+
+--echo # 7.5 Shut server down.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo # 7.6 Close the test connection.
+connection default;
+disconnect root_con;
+
+--echo # 7.7 Delete bootstrap file, log file and datadir.
+remove_file $BOOTSTRAP_SQL;
+remove_file $MYSQLD_LOG;
+--force-rmdir $DDIR
+
+--echo # ------------------------------------------------------
+--echo # Check that this option can be set on command line without
+--echo # compromising restart against the normal datadir, without
+--echo # initialize
+--echo # ------------------------------------------------------
+
+--echo # 8.1 Restart the server without initialize against the normal datadir
+--exec echo "restart: --no-console --log-error=$MYSQLD_LOG --sql-require-primary-key=ON" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # 8.2 Connect as root.
+connect(root_con,localhost,root,,mysql);
+
+--echo # Verify that the system variable is in effect
+--error ER_TABLE_WITHOUT_PK
+CREATE TABLE t1(i INT);
+
+--echo # 8.3 Shut server down.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo # 8.4 Close the test connection.
+connection default;
+disconnect root_con;
+
+--echo # 8.5 Delete log file.
+remove_file $MYSQLD_LOG;
+
 --echo #
 --echo # Cleanup: Restarting the server against default datadir.
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
