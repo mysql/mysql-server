@@ -116,7 +116,11 @@
 if ($replace_combination_from)
 {
   --let $replace_combination_on_all_servers= 1
+  # To avoid an error 'ER_RUNNING_APPLIER_PREVENTS_SWITCH_GLOBAL_BINLOG_FORMAT',
+  # which will be caused by the following include/begin_replace_combination.inc.
+  --source include/rpl_stop_slaves.inc
   --source include/begin_replace_combination.inc
+  --source include/rpl_start_slaves.inc
 }
 
 
@@ -134,7 +138,15 @@ if ($replace_combination_from)
 --let $base64_con= server_7
 --let $decoded_con= server_8
 
+--connection $base64_con
+call mtr.add_suppression("Changed limits: max_open_files:*");
+CALL mtr.add_suppression("Changed limits: table_open_cache: *");
+--connection $decoded_con
+call mtr.add_suppression("Changed limits: max_open_files:*");
+CALL mtr.add_suppression("Changed limits: table_open_cache: *");
 --connection $master_con
+call mtr.add_suppression("Changed limits: max_open_files:*");
+CALL mtr.add_suppression("Changed limits: table_open_cache: *");
 
 # Enable PARTIAL_JSON on all servers, set binlog_row_image=MINIMAL on
 # all servers except server_2 and server_3.
