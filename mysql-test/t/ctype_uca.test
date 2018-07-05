@@ -618,3 +618,28 @@ SELECT SQL_BIG_RESULT DISTINCT f1 FROM t1;
 
 DROP TABLE t1;
 SET NAMES DEFAULT;
+
+--echo #
+--echo # Bug #27578340: INCONSISTENT RESULTS FOR SELECTS FROM TABLE WITH CHAR(N) COLUMN
+--echo #                AND NO_PAD COLLATION
+--echo #
+CREATE TABLE t1 (
+    f1 CHAR(20) COLLATE utf8mb4_0900_ai_ci  # A NO PAD collation.
+);
+INSERT INTO t1 VALUES ('ABC  ');
+INSERT INTO t1 VALUES ('XYZ');
+INSERT INTO t1 VALUES ('XYZ ');
+INSERT INTO t1 VALUES ('ABC ');
+
+--echo #
+--echo # We should get the same results with and without an index.
+--echo # The former should match both XYZ values, the latter should match nothing.
+--echo # This is because CHAR conceptually never stores trailing spaces (in MySQL).
+--echo #
+SELECT CONCAT(f1, '|') FROM t1 WHERE f1 = 'XYZ';
+SELECT CONCAT(f1, '|') FROM t1 WHERE f1 = 'XYZ ';
+CREATE INDEX f1_index ON t1 ( f1 );
+SELECT CONCAT(f1, '|') FROM t1 WHERE f1 = 'XYZ';
+SELECT CONCAT(f1, '|') FROM t1 WHERE f1 = 'XYZ ';
+
+DROP TABLE t1;

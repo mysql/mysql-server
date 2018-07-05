@@ -4022,7 +4022,7 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar'	{
 
 EXPLAIN SELECT * FROM t1 WHERE cola = 'f\no';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	cola	cola	12	const	1	100.00	NULL
+1	SIMPLE	t1	NULL	ref	cola	cola	12	const	1	100.00	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`cola` AS `cola`,`test`.`t1`.`colb` AS `colb`,`test`.`t1`.`filler` AS `filler` from `test`.`t1` where (`test`.`t1`.`cola` = 'f\no')
 
@@ -4215,14 +4215,16 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'f\no'	{
               {
                 "table": "`t1`",
                 "original_table_condition": "(`t1`.`cola` = 'f\\no')",
-                "final_table_condition   ": null
+                "final_table_condition   ": "(`t1`.`cola` = 'f\\no')"
               }
             ] /* finalizing_table_conditions */
           },
           {
             "refine_plan": [
               {
-                "table": "`t1`"
+                "table": "`t1`",
+                "pushed_index_condition": "(`t1`.`cola` = 'f\\no')",
+                "table_condition_attached": null
               }
             ] /* refine_plan */
           }

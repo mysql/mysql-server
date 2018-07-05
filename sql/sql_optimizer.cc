@@ -8009,15 +8009,18 @@ static bool test_if_ref(Item_field *left_item, Item *right_item) {
            - When we search "WHERE field=value" without indexes,
              the "field" side is converted from float to double by
              Field_float::val_real(), then two doubles are compared.
-          Note about string data types: All currently existing
-          collations have "PAD SPACE" style. If we introduce "NO PAD"
-          collations this function must return false for such
-          collations, because trailing space compression for indexes
-          makes the table value and the index value not equal to each
-          other in "NO PAD" collations. As index lookup strips
-          trailing spaces, it can return false candidates. Further
-          comparison of the actual table values is required.
         */
+        if (field->type() == MYSQL_TYPE_STRING &&
+            field->charset()->pad_attribute == NO_PAD) {
+          /*
+            For "NO PAD" collations on CHAR columns, this function must return
+            false, because removal of trailing space in CHAR columns makes the
+            table value and the index value compare differently. As the column
+            strips trailing spaces, it can return false candidates. Further
+            comparison of the actual table values is required.
+           */
+          return false;
+        }
         if (!((field->type() == MYSQL_TYPE_STRING ||  // 1
                field->type() == MYSQL_TYPE_VARCHAR) &&
               field->binary()) &&

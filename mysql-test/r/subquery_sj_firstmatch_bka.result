@@ -7144,7 +7144,7 @@ EXPLAIN
             "Language",
             "Percentage"
           ],
-          "attached_condition": "(`test`.`t3`.`Percentage` > 10)"
+          "attached_condition": "((`test`.`t3`.`Language` = 'English') and (`test`.`t3`.`Percentage` > 10))"
         }
       }
     ]

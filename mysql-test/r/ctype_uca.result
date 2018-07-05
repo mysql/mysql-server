@@ -7549,3 +7549,33 @@ f1
 é
 DROP TABLE t1;
 SET NAMES DEFAULT;
+#
+# Bug #27578340: INCONSISTENT RESULTS FOR SELECTS FROM TABLE WITH CHAR(N) COLUMN
+#                AND NO_PAD COLLATION
+#
+CREATE TABLE t1 (
+f1 CHAR(20) COLLATE utf8mb4_0900_ai_ci  # A NO PAD collation.
+);
+INSERT INTO t1 VALUES ('ABC  ');
+INSERT INTO t1 VALUES ('XYZ');
+INSERT INTO t1 VALUES ('XYZ ');
+INSERT INTO t1 VALUES ('ABC ');
+#
+# We should get the same results with and without an index.
+# The former should match both XYZ values, the latter should match nothing.
+# This is because CHAR conceptually never stores trailing spaces (in MySQL).
+#
+SELECT CONCAT(f1, '|') FROM t1 WHERE f1 = 'XYZ';
+CONCAT(f1, '|')
+XYZ|
+XYZ|
+SELECT CONCAT(f1, '|') FROM t1 WHERE f1 = 'XYZ ';
+CONCAT(f1, '|')
+CREATE INDEX f1_index ON t1 ( f1 );
+SELECT CONCAT(f1, '|') FROM t1 WHERE f1 = 'XYZ';
+CONCAT(f1, '|')
+XYZ|
+XYZ|
+SELECT CONCAT(f1, '|') FROM t1 WHERE f1 = 'XYZ ';
+CONCAT(f1, '|')
+DROP TABLE t1;
