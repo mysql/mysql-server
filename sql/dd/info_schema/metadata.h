@@ -71,6 +71,11 @@ namespace info_schema {
     constraint name to use utf8_tolower_ci.
 
   - WL#11864 Implement I_S.VIEW_TABLE_USAGE and I_S.VIEW_ROUTINE_USAGE
+
+  - WL#1075 adds one column to INFORMATION_SCHEMA.STATISTICS: "EXPRESSION".
+    This column prints out the expression for functional key parts, or SQL NULL
+    if it is a regular key part. For functional key parts, COLUMN_NAME is set to
+    SQL NULL.
 */
 
 static const uint IS_DD_VERSION = 80012;

@@ -402,3 +402,13 @@ ALTER TABLE t1 DROP COLUMN col3;
 ALTER TABLE t1 DROP INDEX idx;
 ALTER TABLE t1 DROP COLUMN col3;
 DROP TABLE t1;
+
+--echo # Check that INFORMATION_SCHEMA.KEY_COLUMN_USAGE doesn't reveal any
+--echo # functional indexes, since this view provides information about columns
+--echo # and a functional index does not represent a column per se.
+CREATE TABLE t (
+  col1 INT
+, UNIQUE INDEX regular_index (col1)
+, UNIQUE INDEX functional_index ((ABS(col1))));
+SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE table_name = "t";
+DROP TABLE t;

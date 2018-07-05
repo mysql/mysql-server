@@ -681,3 +681,14 @@ ERROR HY000: Cannot drop column 'col3' because it is used by a functional index.
 ALTER TABLE t1 DROP INDEX idx;
 ALTER TABLE t1 DROP COLUMN col3;
 DROP TABLE t1;
+# Check that INFORMATION_SCHEMA.KEY_COLUMN_USAGE doesn't reveal any
+# functional indexes, since this view provides information about columns
+# and a functional index does not represent a column per se.
+CREATE TABLE t (
+col1 INT
+, UNIQUE INDEX regular_index (col1)
+, UNIQUE INDEX functional_index ((ABS(col1))));
+SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE table_name = "t";
+CONSTRAINT_NAME
+regular_index
+DROP TABLE t;
