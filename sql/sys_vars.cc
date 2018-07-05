@@ -2442,22 +2442,6 @@ static Sys_var_ulonglong Sys_max_heap_table_size(
     VALID_RANGE(16384, (ulonglong) ~(intptr)0), DEFAULT(16 * 1024 * 1024),
     BLOCK_SIZE(1024));
 
-static ulong mdl_locks_cache_size_unused;
-static Sys_var_ulong Sys_metadata_locks_cache_size(
-    "metadata_locks_cache_size", "Has no effect, deprecated",
-    READ_ONLY GLOBAL_VAR(mdl_locks_cache_size_unused),
-    CMD_LINE(REQUIRED_ARG, OPT_MDL_CACHE_SIZE), VALID_RANGE(1, 1024 * 1024),
-    DEFAULT(1024), BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-    ON_UPDATE(0), DEPRECATED_VAR(""));
-
-static ulong mdl_locks_hash_partitions_unused;
-static Sys_var_ulong Sys_metadata_locks_hash_instances(
-    "metadata_locks_hash_instances", "Has no effect, deprecated",
-    READ_ONLY GLOBAL_VAR(mdl_locks_hash_partitions_unused),
-    CMD_LINE(REQUIRED_ARG, OPT_MDL_HASH_INSTANCES), VALID_RANGE(1, 1024),
-    DEFAULT(8), BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-    ON_UPDATE(0), DEPRECATED_VAR(""));
-
 // relies on DBUG_ASSERT(sizeof(my_thread_id) == 4);
 static Sys_var_uint Sys_pseudo_thread_id(
     "pseudo_thread_id", "This variable is for internal server use",

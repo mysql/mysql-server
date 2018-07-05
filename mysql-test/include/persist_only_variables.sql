@@ -1,4 +1,4 @@
-# Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -54,8 +54,6 @@ set @@persist_only.innodb_use_native_aio=1;
 set @@persist_only.innodb_write_io_threads=4;
 set @@persist_only.log_slave_updates=0;
 set @@persist_only.max_digest_length=1024;
-set @@persist_only.metadata_locks_cache_size=1024;
-set @@persist_only.metadata_locks_hash_instances=8;
 set @@persist_only.myisam_recover_options='OFF';
 set @@persist_only.ngram_token_size=2;
 set @@persist_only.old=0;

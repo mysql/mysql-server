@@ -47,8 +47,6 @@ set @@persist_only.innodb_use_native_aio=1;
 set @@persist_only.innodb_write_io_threads=4;
 set @@persist_only.log_slave_updates=0;
 set @@persist_only.max_digest_length=1024;
-set @@persist_only.metadata_locks_cache_size=1024;
-set @@persist_only.metadata_locks_hash_instances=8;
 set @@persist_only.myisam_recover_options='OFF';
 set @@persist_only.ngram_token_size=2;
 set @@persist_only.old=0;
@@ -112,7 +110,7 @@ set @@persist_only.report_user=NULL;
 # Must return 100 rows.
 SELECT count(*) from performance_schema.persisted_variables;
 count(*)
-96
+94
 # Restart server
 CALL mtr.add_suppression("Plugin audit_log reported *");
 # Both queries must return 100 rows.
@@ -153,8 +151,6 @@ innodb_use_native_aio	1
 innodb_write_io_threads	4
 log_slave_updates	0
 max_digest_length	1024
-metadata_locks_cache_size	1024
-metadata_locks_hash_instances	8
 myisam_recover_options	OFF
 ngram_token_size	2
 old	0
@@ -250,8 +246,6 @@ innodb_use_native_aio
 innodb_write_io_threads
 log_slave_updates
 max_digest_length
-metadata_locks_cache_size
-metadata_locks_hash_instances
 myisam_recover_options
 ngram_token_size
 old
