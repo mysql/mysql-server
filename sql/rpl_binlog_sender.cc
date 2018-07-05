@@ -1036,7 +1036,7 @@ int Binlog_sender::send_format_description_event(File_reader *reader,
 
 int Binlog_sender::has_previous_gtid_log_event(File_reader *reader,
                                                bool *found) {
-  uchar *event;
+  uchar *event = nullptr;
   uint32 event_len;
   *found = false;
 
