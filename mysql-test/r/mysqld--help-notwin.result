@@ -603,10 +603,6 @@ The following options may be given as the first argument:
  After this many write locks, allow some read locks to run
  in between
  --memlock           Lock mysqld in memory.
- --metadata-locks-cache-size=# 
- Has no effect, deprecated
- --metadata-locks-hash-instances=# 
- Has no effect, deprecated
  --min-examined-row-limit=# 
  Don't write queries to slow log that examine fewer rows
  than that
@@ -1479,8 +1475,6 @@ max-sp-recursion-depth 0
 max-user-connections 0
 max-write-lock-count 18446744073709551615
 memlock FALSE
-metadata-locks-cache-size 1024
-metadata-locks-hash-instances 8
 min-examined-row-limit 0
 myisam-block-size 1024
 myisam-data-pointer-size 6

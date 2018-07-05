@@ -9113,13 +9113,6 @@ bool mysqld_get_one_option(int optid,
     case OPT_TABLE_DEFINITION_CACHE:
       table_definition_cache_specified = true;
       break;
-    case OPT_MDL_CACHE_SIZE:
-      push_deprecated_warn_no_replacement(NULL, "--metadata_locks_cache_size");
-      break;
-    case OPT_MDL_HASH_INSTANCES:
-      push_deprecated_warn_no_replacement(NULL,
-                                          "--metadata_locks_hash_instances");
-      break;
     case OPT_SKIP_INNODB:
       LogErr(WARNING_LEVEL, ER_INNODB_MANDATORY);
       break;
