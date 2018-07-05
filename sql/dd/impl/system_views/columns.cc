@@ -112,7 +112,10 @@ Columns::Columns() {
       "   IF (col.is_auto_increment=TRUE,"
       "        CONCAT(IFNULL(CONCAT('on update ', col.update_option, ' '),''),"
       "                'auto_increment'),"
-      "       IFNULL(CONCAT('on update ', col.update_option),'')),"
+      "       CONCAT_WS(' ',"
+      "                 IF(LENGTH(col.default_option), 'DEFAULT_GENERATED', "
+      "                    NULL),"
+      "                 CONCAT('on update ', col.update_option))),"
       "  IF(col.is_virtual, 'VIRTUAL GENERATED', 'STORED GENERATED'))");
   m_target_def.add_field(
       FIELD_PRIVILEGES, "PRIVILEGES",

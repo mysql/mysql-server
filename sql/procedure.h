@@ -1,7 +1,7 @@
 #ifndef PROCEDURE_INCLUDED
 #define PROCEDURE_INCLUDED
 
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,6 +48,14 @@ class Item_proc : public Item {
   virtual void set(const char *str, size_t length, const CHARSET_INFO *cs) = 0;
   virtual void set(longlong nr) = 0;
   void set(const char *str) { set(str, strlen(str), default_charset()); }
+  bool check_function_as_value_generator(uchar *args) override {
+    Check_function_as_value_generator_parameters *func_arg =
+        pointer_cast<Check_function_as_value_generator_parameters *>(args);
+    func_arg->err_code = func_arg->is_gen_col
+                             ? ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
+                             : ER_DEFAULT_VAL_GENERATED_FUNCTION_IS_NOT_ALLOWED;
+    return true;
+  }
 };
 
 class Item_proc_int : public Item_proc {
@@ -75,6 +83,14 @@ class Item_proc_int : public Item_proc {
     return get_date_from_int(ltime, fuzzydate);
   }
   bool get_time(MYSQL_TIME *ltime) override { return get_time_from_int(ltime); }
+  bool check_function_as_value_generator(uchar *args) override {
+    Check_function_as_value_generator_parameters *func_arg =
+        pointer_cast<Check_function_as_value_generator_parameters *>(args);
+    func_arg->err_code = func_arg->is_gen_col
+                             ? ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
+                             : ER_DEFAULT_VAL_GENERATED_FUNCTION_IS_NOT_ALLOWED;
+    return true;
+  }
 };
 
 class Item_proc_string : public Item_proc {

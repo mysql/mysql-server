@@ -1928,6 +1928,7 @@ Field *sp_head::create_result_field(size_t field_max_length,
                  pointer_cast<uchar *>(const_cast<char *>("")));
 
   field->gcol_info = m_return_field_def.gcol_info;
+  field->m_default_val_expr = m_return_field_def.m_default_val_expr;
   field->stored_in_db = m_return_field_def.stored_in_db;
   if (field) field->init(table);
 

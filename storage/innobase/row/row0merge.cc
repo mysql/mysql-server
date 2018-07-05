@@ -35,6 +35,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <math.h>
 #include <sys/types.h>
 
+#include <sql_class.h>
 #include "btr0bulk.h"
 #include "dict0crea.h"
 #include "fsp0sysspace.h"
@@ -3584,9 +3585,15 @@ dberr_t row_merge_build_indexes(
     }
   }
 
-  /* Reset the MySQL row buffer that is used when reporting
-  duplicate keys. */
+  /* Reset the MySQL row buffer that is used when reporting duplicate keys.
+  Return needs to be checked since innobase_rec_reset tries to evaluate
+  set_default() which can also be a function and might return errors */
   innobase_rec_reset(table);
+
+  if (table->in_use->is_error()) {
+    error = DB_COMPUTE_VALUE_FAILED;
+    goto func_exit;
+  }
 
   /* Read clustered index of the table and create files for
   secondary index entries for merge sort */

@@ -1933,7 +1933,7 @@ start_entry:
             if (!is_identifier($2, "PARSE_GCOL_EXPR"))
               MYSQL_YYABORT;
 
-            auto gcol_info= NEW_PTN Generated_column;
+            auto gcol_info= NEW_PTN Value_generator;
             if (gcol_info == NULL)
               MYSQL_YYABORT; // OOM
             ITEMIZE($4, &$4);
@@ -3270,8 +3270,8 @@ sp_fdparam:
                                       NULL, NULL, &NULL_STR, 0,
                                       $2->get_interval_list(),
                                       cs ? cs : thd->variables.collation_database,
-                                      $3 != nullptr,
-                                      $2->get_uint_geom_type(), nullptr, {},
+                                      $3 != nullptr, $2->get_uint_geom_type(),
+                                      nullptr, nullptr, {},
                                       dd::Column::enum_hidden_type::HT_VISIBLE))
             {
               MYSQL_YYABORT;
@@ -3331,8 +3331,8 @@ sp_pdparam:
                                       NULL, NULL, &NULL_STR, 0,
                                       $3->get_interval_list(),
                                       cs ? cs : thd->variables.collation_database,
-                                      $4 != nullptr,
-                                      $3->get_uint_geom_type(), nullptr, {},
+                                      $4 != nullptr, $3->get_uint_geom_type(),
+                                      nullptr, nullptr, {},
                                       dd::Column::enum_hidden_type::HT_VISIBLE))
             {
               MYSQL_YYABORT;
@@ -3461,8 +3461,8 @@ sp_decl:
                                         NULL, NULL, &NULL_STR, 0,
                                         $3->get_interval_list(),
                                         cs ? cs : thd->variables.collation_database,
-                                        $4 != nullptr,
-                                        $3->get_uint_geom_type(), nullptr, {},
+                                        $4 != nullptr, $3->get_uint_geom_type(),
+                                        nullptr, nullptr, {},
                                         dd::Column::enum_hidden_type::HT_VISIBLE))
               {
                 MYSQL_YYABORT;
@@ -6553,6 +6553,10 @@ column_attribute:
           {
             $$= NEW_PTN PT_default_column_attr($2);
           }
+        | DEFAULT_SYM '(' expr ')'
+          {
+            $$= NEW_PTN PT_generated_default_val_column_attr($3);
+          }
         | ON_SYM UPDATE_SYM now
           {
             $$= NEW_PTN PT_on_update_column_attr(static_cast<uint8>($3));
@@ -7916,6 +7920,10 @@ alter_list_item:
         | ALTER opt_column ident SET_SYM DEFAULT_SYM signed_literal
           {
             $$= NEW_PTN PT_alter_table_set_default($3.str, $6);
+          }
+        |  ALTER opt_column ident SET_SYM DEFAULT_SYM '(' expr ')'
+          {
+            $$= NEW_PTN PT_alter_table_set_default($3.str, $7);
           }
         | ALTER opt_column ident DROP DEFAULT_SYM
           {
@@ -15748,9 +15756,9 @@ sf_tail:
                                             $9->get_type_flags(), NULL, NULL, &NULL_STR, 0,
                                             $9->get_interval_list(),
                                             cs ? cs : YYTHD->variables.collation_database,
-                                            $10 != nullptr,
-                                            $9->get_uint_geom_type(), nullptr,
-                                            {}, dd::Column::enum_hidden_type::HT_VISIBLE))
+                                            $10 != nullptr, $9->get_uint_geom_type(),
+                                            nullptr, nullptr, {},
+                                            dd::Column::enum_hidden_type::HT_VISIBLE))
             {
               MYSQL_YYABORT;
             }

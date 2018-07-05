@@ -190,7 +190,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
-t1	timestamp	NO		CURRENT_TIMESTAMP	
+t1	timestamp	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED
 t2	datetime	YES		NULL	
 t3	timestamp	NO		0000-00-00 00:00:00	
 drop table t1;
@@ -241,7 +241,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
-t1	timestamp	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP
+t1	timestamp	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP
 t2	datetime	YES		NULL	
 drop table t1;
 create table t1 (t1 timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, t2 datetime, t3 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00');
@@ -267,7 +267,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
-t1	timestamp	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP
+t1	timestamp	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP
 t2	datetime	YES		NULL	
 t3	timestamp	NO		0000-00-00 00:00:00	
 drop table t1;
@@ -293,7 +293,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
-t1	timestamp	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP
+t1	timestamp	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP
 t2	datetime	YES		NULL	
 truncate table t1;
 insert into t1 values ('2004-04-01 00:00:00', '2004-04-01 00:00:00');

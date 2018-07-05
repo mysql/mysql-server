@@ -634,7 +634,7 @@ DROP TABLE t1;
 --echo #
 --echo # It cannot be used as a generated column.
 --echo #
---error ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
+--error ER_GENERATED_COLUMN_NAMED_FUNCTION_IS_NOT_ALLOWED
 CREATE TABLE digest_gcol (
   query VARCHAR ( 100 ),
   digest VARCHAR ( 32 ) GENERATED ALWAYS AS ( statement_digest(query) )
@@ -755,7 +755,7 @@ SET NAMES DEFAULT;
 --echo #
 --echo # It cannot be used as a generated column.
 --echo #
---error ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
+--error ER_GENERATED_COLUMN_NAMED_FUNCTION_IS_NOT_ALLOWED
 CREATE TABLE digest_gcol (
   query VARCHAR ( 100 ),
   digest VARCHAR ( 32 ) GENERATED ALWAYS AS ( digest_gcol (query) )

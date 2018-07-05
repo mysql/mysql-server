@@ -411,9 +411,9 @@ static bool fix_generated_columns_for_upgrade(THD *thd,
       // Field has generated col information.
       if (sql_field->gcol_info && (*field_ptr)->gcol_info)
       {
-        if (unpack_gcol_info(thd, table, *field_ptr,
-                             false, &error_reported))
-        {
+        if (unpack_value_generator(
+            thd, table, *field_ptr, &(*field_ptr)->gcol_info, false, false,
+            &error_reported)) {
           error= false;
           break;
         }

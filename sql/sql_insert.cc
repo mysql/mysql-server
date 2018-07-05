@@ -616,8 +616,6 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd) {
     }
   }  // Statement plan is available within these braces
 
-  DBUG_ASSERT(has_error == thd->get_stmt_da()->is_error());
-
   /*
     Now all rows are inserted.  Time to update logs and sends response to
     user
@@ -907,6 +905,66 @@ static void prepare_for_positional_update(TABLE *table, TABLE_LIST *tables) {
   return;
 }
 
+static bool allocate_column_bitmap(TABLE *table, MY_BITMAP **bitmap) {
+  DBUG_ENTER("allocate_column_bitmap");
+  const uint number_bits = table->s->fields;
+  MY_BITMAP *the_struct;
+  my_bitmap_map *the_bits;
+
+  DBUG_ASSERT(current_thd == table->in_use);
+  if (multi_alloc_root(table->in_use->mem_root, &the_struct, sizeof(MY_BITMAP),
+                       &the_bits, bitmap_buffer_size(number_bits),
+                       NULL) == NULL)
+    DBUG_RETURN(true);
+
+  if (bitmap_init(the_struct, the_bits, number_bits, false) != 0)
+    DBUG_RETURN(true);
+
+  *bitmap = the_struct;
+
+  DBUG_RETURN(false);
+}
+
+bool get_default_columns(TABLE *table, MY_BITMAP **m_function_default_columns) {
+  if (allocate_column_bitmap(table, m_function_default_columns)) return true;
+  /*
+    Find columns with function default on insert or update, mark them in
+    bitmap.
+  */
+  for (uint i = 0; i < table->s->fields; ++i) {
+    Field *f = table->field[i];
+    // if it's a default expression
+    if (f->has_insert_default_general_value_expression()) {
+      bitmap_set_bit(*m_function_default_columns, f->field_index);
+    }
+  }
+
+  // Remove from map the fields that are explicitly specified
+  bitmap_subtract(*m_function_default_columns, table->write_set);
+
+  // If no bit left exit
+  if (bitmap_is_clear_all(*m_function_default_columns)) return false;
+
+  // For each default function that is used restore the flags
+  for (uint i = 0; i < table->s->fields; ++i) {
+    Field *f = table->field[i];
+    if (bitmap_is_set(*m_function_default_columns, i)) {
+      DBUG_ASSERT(f->m_default_val_expr != nullptr);
+      // restore binlog safety flags
+      table->in_use->lex->set_stmt_unsafe_flags(
+          f->m_default_val_expr->get_stmt_unsafe_flags());
+      // Mark the columns the expression reads in the table's read_set
+      for (uint j = 0; j < table->s->fields; j++) {
+        if (bitmap_is_set(&f->m_default_val_expr->base_columns_map, j)) {
+          bitmap_set_bit(table->read_set, j);
+        }
+      }
+    }
+  }
+
+  return false;
+}
+
 /**
   Prepare items in INSERT statement
 
@@ -1086,7 +1144,8 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
     if (check_valid_table_refs(table_list, *values, map))
       DBUG_RETURN(true); /* purecov: inspected */
 
-    if (insert_table->has_gcol() &&
+    if ((insert_table->has_gcol() ||
+         insert_table->gen_def_fields_ptr != nullptr) &&
         validate_gc_assignment(&insert_field_list, values, insert_table))
       DBUG_RETURN(true);
   }
@@ -1106,6 +1165,9 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
   if ((insert_into_view || insert_field_list.elements == 0) &&
       (select_insert || value_count > 0))
     bitmap_set_all(insert_table->write_set);
+
+  MY_BITMAP *function_default_columns = nullptr;
+  get_default_columns(insert_table, &function_default_columns);
 
   if (duplicates == DUP_UPDATE) {
     // Setup the columns to be updated
@@ -1240,7 +1302,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
       DBUG_RETURN(true);
     }
 
-    if (insert_table->has_gcol() &&
+    if ((insert_table->has_gcol() || insert_table->gen_def_fields_ptr) &&
         validate_gc_assignment(&insert_field_list,
                                unit->get_unit_column_types(), insert_table))
       DBUG_RETURN(true);
@@ -1900,7 +1962,8 @@ bool check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
 
   for (Field **field = entry->field; *field; field++) {
     if (!bitmap_is_set(write_set, (*field)->field_index) &&
-        ((*field)->flags & NO_DEFAULT_VALUE_FLAG) &&
+        (((*field)->flags & NO_DEFAULT_VALUE_FLAG) &&
+         ((*field)->m_default_val_expr == nullptr)) &&
         ((*field)->real_type() != MYSQL_TYPE_ENUM)) {
       bool view = false;
       if (table_list) {

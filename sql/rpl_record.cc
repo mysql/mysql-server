@@ -945,7 +945,8 @@ int prepare_record(TABLE *const table, const MY_BITMAP *cols,
         push_warning_printf(
             current_thd, Sql_condition::SL_WARNING, ER_NO_DEFAULT_FOR_FIELD,
             ER_THD(current_thd, ER_NO_DEFAULT_FOR_FIELD), f->field_name);
-      } else if (f->has_insert_default_function()) {
+      } else if (f->has_insert_default_datetime_value_expression() ||
+                 f->has_insert_default_general_value_expression()) {
         f->set_default();
       }
     }

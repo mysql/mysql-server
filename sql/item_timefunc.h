@@ -1,7 +1,7 @@
 #ifndef ITEM_TIMEFUNC_INCLUDED
 #define ITEM_TIMEFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -464,13 +464,16 @@ class Item_func_unix_timestamp final : public Item_timeval_func {
     return false;
   }
   bool val_timeval(struct timeval *tm) override;
-  bool check_gcol_func_processor(uchar *) override
-  /*
-    TODO: Allow UNIX_TIMESTAMP called with an argument to be a part
-    of the expression for a generated column
-  */
-  {
-    return true;
+
+  bool check_function_as_value_generator(uchar *p_arg) override {
+    /*
+      TODO: Allow UNIX_TIMESTAMP called with an argument to be a part
+      of the expression for a generated column too.
+    */
+    Check_function_as_value_generator_parameters *func_arg =
+        pointer_cast<Check_function_as_value_generator_parameters *>(p_arg);
+    func_arg->banned_function_name = func_name();
+    return func_arg->is_gen_col;
   }
 };
 
@@ -1029,7 +1032,12 @@ class Item_func_curtime : public Item_time_func {
     DBUG_ASSERT(fixed == 1);
     return cached_time.val_str(&str_value);
   }
-  bool check_gcol_func_processor(uchar *) override { return true; }
+  bool check_function_as_value_generator(uchar *args) override {
+    Check_function_as_value_generator_parameters *func_arg =
+        pointer_cast<Check_function_as_value_generator_parameters *>(args);
+    func_arg->banned_function_name = func_name();
+    return func_arg->is_gen_col;
+  }
 };
 
 class Item_func_curtime_local final : public Item_func_curtime {
@@ -1082,7 +1090,12 @@ class Item_func_curdate : public Item_date_func {
     DBUG_ASSERT(fixed == 1);
     return cached_time.val_str(&str_value);
   }
-  bool check_gcol_func_processor(uchar *) override { return true; }
+  bool check_function_as_value_generator(uchar *args) override {
+    Check_function_as_value_generator_parameters *func_arg =
+        pointer_cast<Check_function_as_value_generator_parameters *>(args);
+    func_arg->banned_function_name = func_name();
+    return func_arg->is_gen_col;
+  }
 };
 
 class Item_func_curdate_local final : public Item_func_curdate {
@@ -1139,7 +1152,12 @@ class Item_func_now : public Item_datetime_func {
     DBUG_ASSERT(fixed == 1);
     return cached_time.val_str(&str_value);
   }
-  bool check_gcol_func_processor(uchar *) override { return true; }
+  bool check_function_as_value_generator(uchar *args) override {
+    Check_function_as_value_generator_parameters *func_arg =
+        pointer_cast<Check_function_as_value_generator_parameters *>(args);
+    func_arg->banned_function_name = func_name();
+    return func_arg->is_gen_col;
+  }
 };
 
 class Item_func_now_local : public Item_func_now {

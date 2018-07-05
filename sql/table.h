@@ -73,6 +73,7 @@ class COND_EQUAL;
 class Field_json;
 /* Structs that defines the TABLE */
 class File_parser;
+class Value_generator;
 class GRANT_TABLE;
 class Handler_share;
 class Index_hint;
@@ -815,7 +816,10 @@ struct TABLE_SHARE {
   uint next_number_keypart{0};    /* autoinc keypart number in a key */
   bool error{false};              /* error during open_table_def() */
   uint column_bitmap_size{0};
-  uint vfields{0};               /* Number of generated fields */
+  /// Number of generated fields
+  uint vfields{0};
+  /// Number of fields having the default value generated
+  uint gen_def_field_count{0};
   bool system{false};            /* Set if system table (one record) */
   bool db_low_byte_first{false}; /* Portable row format */
   bool crashed{false};
@@ -1355,8 +1359,12 @@ struct TABLE {
 
   Field *next_number_field{nullptr};       /* Set if next_number is activated */
   Field *found_next_number_field{nullptr}; /* Set on open */
-  Field **vfield{nullptr};                 /* Pointer to generated fields*/
-  Field *hash_field{nullptr};              /* Field used by unique constraint */
+  /// Pointer to generated columns
+  Field **vfield{nullptr};
+  /// Pointer to fields having the default value generated
+  Field **gen_def_fields_ptr{nullptr};
+  /// Field used by unique constraint
+  Field *hash_field{nullptr};
   Field *fts_doc_id_field{nullptr}; /* Set if FTS_DOC_ID field is present */
 
   /* Table's triggers, 0 if there are no of them */
@@ -1612,7 +1620,7 @@ struct TABLE {
   void mark_columns_needed_for_insert(THD *thd);
   void mark_columns_per_binlog_row_image(THD *thd);
   void mark_generated_columns(bool is_update);
-  bool is_field_used_by_generated_columns(uint field_index);
+  bool is_field_used_by_generated_columns(uint field_index, int *error_no);
   void mark_gcol_in_maps(Field *field);
   void column_bitmaps_set(MY_BITMAP *read_set_arg, MY_BITMAP *write_set_arg);
   inline void column_bitmaps_set_no_signal(MY_BITMAP *read_set_arg,
@@ -1811,24 +1819,41 @@ struct TABLE {
   const Cost_model_table *cost_model() const { return &m_cost_model; }
 
   /**
-    Fix table's generated columns' (GC) expressions
+    Fix table's generated columns' (GC) and/or default expressions
 
-    @details When a table is opened from the dictionary, the GCs' expressions
-    are fixed during opening (see fix_fields_gcol_func()). After query
-    execution, Item::cleanup() is called on them (see cleanup_gc_items()). When
-    the table is opened from the table cache, the GCs need to be fixed again
-    and this function does that.
+    @details When a table is opened from the dictionary, the Value Generator
+    expressions are fixed during opening (see fix_value_generators_fields()).
+    After query execution, Item::cleanup() is called on them
+    (see cleanup_value_generator_items()). When the table is opened from the
+    table cache, the Value Generetor(s) need to be fixed again and this
+    function does that.
 
     @param[in] thd     the current thread
     @return true if error, else false
   */
-  bool refix_gc_items(THD *thd);
+  bool refix_value_generator_items(THD *thd);
+
+  /**
+    Helper function for refix_value_generator_items() that fixes one column's
+    expression (be it GC or default expression).
+
+    @param[in] thd           current thread
+    @param[in,out] g_expr    the expression who's items needs to be fixed
+    @param[in] table         the table it blongs to
+    @param[in] field         the column it blongs to
+    @param[in] is_gen_col    if it is a generated column or default expression
+
+    @return true if error, else false
+  */
+  bool refix_inner_value_generator_items(THD *thd, Value_generator *g_expr,
+                                         Field *field, TABLE *table,
+                                         bool is_gen_col);
 
   /**
     Clean any state in items associated with generated columns to be ready for
     the next statement.
   */
-  void cleanup_gc_items();
+  void cleanup_value_generator_items();
 
 #ifndef DBUG_OFF
   void set_tmp_table_seq_id(uint arg) { tmp_table_seq_id = arg; }
@@ -3626,14 +3651,17 @@ static inline void dbug_tmp_restore_column_maps(
 void init_mdl_requests(TABLE_LIST *table_list);
 
 /**
-   Unpack the definition of a virtual column. Parses the text obtained from
-   TABLE_SHARE and produces an Item.
+   Unpacks the definition of a generated column or default expression passed as
+   argument. Parses the text obtained from TABLE_SHARE and produces an Item.
 
   @param thd                  Thread handler
   @param table                Table with the checked field
   @param field                Pointer to Field object
+  @param val_generator        The virtual column or default expr to be parsed.
   @param is_create_table      Indicates that table is opened as part
                               of CREATE or ALTER and does not yet exist in SE
+  @param is_gen_col           Indicates if the expression is a column or just
+                              an expression for the default value.
   @param error_reported       updated flag for the caller that no other error
                               messages are to be generated.
 
@@ -3641,8 +3669,10 @@ void init_mdl_requests(TABLE_LIST *table_list);
   @retval false Success.
 */
 
-bool unpack_gcol_info(THD *thd, TABLE *table, Field *field,
-                      bool is_create_table, bool *error_reported);
+bool unpack_value_generator(THD *thd, TABLE *table, Field *field,
+                            Value_generator **val_generator,
+                            bool is_create_table, bool is_gen_col,
+                            bool *error_reported);
 
 /**
    Unpack the partition expression. Parse the partition expression

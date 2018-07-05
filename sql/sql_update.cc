@@ -1406,7 +1406,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
   for (TABLE_LIST *tl = select->leaf_tables; tl; tl = tl->next_leaf) {
     tl->updating = tl->map() & tables_for_update;
     if (tl->updating) {
-      if (tl->table->vfield &&
+      if ((tl->table->vfield || tl->table->gen_def_fields_ptr != nullptr) &&
           validate_gc_assignment(update_fields, update_value_list, tl->table))
         DBUG_RETURN(true); /* purecov: inspected */
 

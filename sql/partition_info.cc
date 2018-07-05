@@ -350,6 +350,18 @@ bool partition_info::can_prune_insert(THD *thd, enum_duplicates duplic,
     }
   }
 
+  /*
+    Can't prune partitions over generated default expresssions, as their values
+    are calculated much later.
+  */
+  if (table->gen_def_fields_ptr) {
+    Field **fld;
+    for (fld = table->gen_def_fields_ptr; *fld; fld++) {
+      if (bitmap_is_set(&full_part_field_set, (*fld)->field_index))
+        DBUG_RETURN(false);
+    }
+  }
+
   if (table->found_next_number_field) {
     /*
       If the field is used in the partitioning expression, we cannot prune.

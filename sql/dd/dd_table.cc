@@ -270,8 +270,19 @@ static void prepare_default_value_string(uchar *buf, TABLE *table,
 
   if (f->gcol_info || !has_default) return;
 
+  // If we have DEFAULT (expression)
+  if (field.m_default_val_expr) {
+    // Convert from Basic_string to String
+    String default_val_expr(col_obj->default_option().c_str(),
+                            col_obj->default_option().length(),
+                            &my_charset_bin);
+    // convert the expression stored in default_option to UTF8
+    convert_and_print(&default_val_expr, def_value, system_charset_info);
+    return;
+  }
+
   // If we have DEFAULT NOW()
-  if (f->has_insert_default_function()) {
+  if (f->has_insert_default_datetime_value_expression()) {
     def_value->copy(STRING_WITH_LEN("CURRENT_TIMESTAMP"), system_charset_info);
     if (f->decimals() > 0) def_value->append_parenthesized(f->decimals());
 
@@ -569,9 +580,18 @@ bool fill_dd_columns_from_create_fields(THD *thd, dd::Abstract_table *tab_obj,
 
     col_obj->set_auto_increment((field->auto_flags & Field::NEXT_NUMBER) != 0);
 
+    // Handle generated default
+    if (field->m_default_val_expr) {
+      char buffer[128];
+      String default_val_expr(buffer, sizeof(buffer), &my_charset_bin);
+      // Convert the expression from Item* to text
+      field->m_default_val_expr->print_expr(thd, &default_val_expr);
+      col_obj->set_default_option(
+          dd::String_type(default_val_expr.ptr(), default_val_expr.length()));
+    }
+
     // Handle generated columns
     if (field->gcol_info) {
-      col_obj->set_virtual(!field->stored_in_db);
       /*
         It is important to normalize the expression's text into the DD, to
         make it independent from sql_mode. For example, 'a||b' means 'a OR b'
@@ -581,6 +601,7 @@ bool fill_dd_columns_from_create_fields(THD *thd, dd::Abstract_table *tab_obj,
        */
       char buffer[128];
       String gc_expr(buffer, sizeof(buffer), &my_charset_bin);
+      col_obj->set_virtual(!field->stored_in_db);
       field->gcol_info->print_expr(thd, &gc_expr);
       col_obj->set_generation_expression(
           dd::String_type(gc_expr.ptr(), gc_expr.length()));

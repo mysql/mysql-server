@@ -522,10 +522,10 @@ DROP TABLE t;
 #
 CREATE TABLE t(b BLOB);
 ALTER TABLE t ADD COLUMN c INT GENERATED ALWAYS AS ((1,1)) VIRTUAL;
-ERROR HY000: Expression of generated column 'c' contains a disallowed function.
+ERROR HY000: Expression of generated column 'c' cannot refer to a row value.
 DROP TABLE t;
 CREATE TABLE t(b BLOB, c INT GENERATED ALWAYS AS ((1,1)) VIRTUAL);
-ERROR HY000: Expression of generated column 'c' contains a disallowed function.
+ERROR HY000: Expression of generated column 'c' cannot refer to a row value.
 #
 # Bug#21929967 GCOLS: GCOL VALUE CHANGES WHEN SESSION CHANGES SQL_MODE
 #

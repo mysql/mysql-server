@@ -566,14 +566,10 @@ void copy_integer(uchar *to, size_t to_length, const uchar *from,
 }
 
 /**
-  This class is used for recording the information of
-  generated column. It will be created during define a
-  generated column or the table is opened.
-
-  If one field contains such an object, it means the field
-  is a genereated one.
+  Used for storing information associated with generated column or default
+  values generated from expression.
 */
-class Generated_column {
+class Value_generator {
  public:
   /**
     Item representing the generation expression.
@@ -586,18 +582,28 @@ class Generated_column {
   Item *expr_item;
   /**
     Text of the expression. Used in only one case:
-    - the text read from the DD is put into the Generated_column::expr_str of
+    - the text read from the DD is put into the Value_generator::expr_str of
     the Field of the TABLE_SHARE; then this expr_str is used as source
     to produce expr_item for the Field of every TABLE derived from this
     TABLE_SHARE.
   */
   LEX_STRING expr_str;
+
+  /**
+    Bit field indicating the type of statement for binary logging.
+    It needs to be saved because this is determined only once when it is parsed
+    but it needs to be set on the lex for each statement that uses this
+    value generator. And since unpacking is done once on table open, it will
+    be set for the rest of the statements in refix_inner_value_generator_items.
+  */
+  uint32 m_backup_binlog_stmt_flags{0};
+
   /* It's used to free the items created in parsing generated expression */
   Item *item_free_list;
   /// Bitmap records base columns which a generated column depends on.
   MY_BITMAP base_columns_map;
 
-  Generated_column()
+  Value_generator()
       : expr_item(0),
         item_free_list(0),
         field_type(MYSQL_TYPE_LONG),
@@ -607,10 +613,24 @@ class Generated_column {
     expr_str.str = NULL;
     expr_str.length = 0;
   };
-  ~Generated_column() {}
+  ~Value_generator() {}
   enum_field_types get_real_type() const { return field_type; }
 
   void set_field_type(enum_field_types fld_type) { field_type = fld_type; }
+
+  /**
+     Set the binary log flags in m_backup_binlog_stmt_flags
+     @param backup_binlog_stmt_flags the falgs to be backed up
+  */
+  void backup_stmt_unsafe_flags(uint32 backup_binlog_stmt_flags) {
+    m_backup_binlog_stmt_flags = backup_binlog_stmt_flags;
+  }
+
+  /**
+    Get the binary log flags from m_backup_binlog_stmt_flags
+    @return the flags backed up by unpack_value_generator
+  */
+  uint32 get_stmt_unsafe_flags() { return m_backup_binlog_stmt_flags; }
 
   bool get_field_stored() const { return stored_in_db; }
   void set_field_stored(bool stored) { stored_in_db = stored; }
@@ -660,23 +680,52 @@ class Generated_column {
 
 class Proto_field {
  public:
-  virtual ~Proto_field() {}
+  virtual ~Proto_field() = default;
   virtual bool send_binary(Protocol *protocol) = 0;
   virtual bool send_text(Protocol *protocol) = 0;
 };
 
 class Field : public Proto_field {
-  Field(const Item &); /* Prevent use of these */
-  void operator=(Field &);
-
  public:
-  bool has_insert_default_function() const { return auto_flags & DEFAULT_NOW; }
+  Field(const Item &) = delete;
+  void operator=(Field &) = delete;
 
-  bool has_update_default_function() const {
+  /**
+    Checks if the field is marked as having a general expression to generate
+    default values.
+
+     @retval true  The field has general expression as default
+     @retval false The field doesn't have any general expression as default
+  */
+  bool has_insert_default_general_value_expression() const {
+    return auto_flags & GENERATED_FROM_EXPRESSION;
+  }
+
+  /**
+    Checks if the field is marked as having a datetime value expression to
+    generate default values on inserts.
+
+    @retval true  The field has datetime expression as default
+    @retval false The field doesn't have a datime value expression as default
+  */
+  bool has_insert_default_datetime_value_expression() const {
+    return auto_flags & DEFAULT_NOW;
+  }
+
+  /**
+    Checks if the field is marked as having a datetime value expression to
+    generate default values on updates.
+
+    @retval true  The field has datetime expression as default for on update
+    @retval false The field doesn't have a datime value expression as default
+                  for on update
+  */
+  bool has_update_default_datetime_value_expression() const {
     return auto_flags & ON_UPDATE_NOW;
   }
 
-  uchar *ptr;  // Position to field in record
+  /// Holds the position to the field in record
+  uchar *ptr;
 
  private:
   dd::Column::enum_hidden_type m_hidden;
@@ -737,15 +786,20 @@ class Field : public Proto_field {
   /**
     Flags for Proto_field::auto_flags / Create_field::auto_flags bitmaps.
 
-    @note NEXT_NUMBER and DEFAULT_NOW/ON_UPDATE_NOW flags are
-          never set at the same time.
+    @note NEXT_NUMBER and DEFAULT_NOW/ON_UPDATE_NOW/GENERATED flags should
+          never be set at the same time. Also DEFAULT_NOW and GENERATED
+          should not be set at the same time.
+
+    @warning The values of this enum are used as bit masks for uchar
+    Field::auto_flags.
   */
   enum enum_auto_flags {
     NONE = 0,
-    NEXT_NUMBER = 1,  // AUTO_INCREMENT
-    DEFAULT_NOW = 2,  // DEFAULT CURRENT_TIMESTAMP
-    ON_UPDATE_NOW = 4
-  };  // ON UPDATE CURRENT_TIMESTAMP
+    NEXT_NUMBER = 1,               ///<  AUTO_INCREMENT
+    DEFAULT_NOW = 2,               ///<  DEFAULT CURRENT_TIMESTAMP
+    ON_UPDATE_NOW = 4,             ///<  ON UPDATE CURRENT_TIMESTAMP
+    GENERATED_FROM_EXPRESSION = 8  ///<  DEFAULT (expression)
+  };
 
   enum geometry_type {
     GEOM_GEOMETRY = 0,
@@ -809,7 +863,7 @@ class Field : public Proto_field {
 
  public:
   /* Generated column data */
-  Generated_column *gcol_info;
+  Value_generator *gcol_info{nullptr};
   /*
     Indication that the field is phycically stored in tables
     rather than just generated on SQL queries.
@@ -818,6 +872,9 @@ class Field : public Proto_field {
   bool stored_in_db;
   bool is_gcol() const { return gcol_info; }
   bool is_virtual_gcol() const { return gcol_info && !stored_in_db; }
+
+  /// Holds the expression to be used to generate default values.
+  Value_generator *m_default_val_expr{nullptr};
 
   /**
     Sets the hidden type for this field.
@@ -4318,7 +4375,7 @@ class Create_field {
 
      @see Create_field::auto_flags
   */
-  Item *def;
+  Item *constant_default;
   enum enum_field_types sql_type;
   /*
     At various stages in execution this can be length of field in bytes or
@@ -4385,7 +4442,7 @@ class Create_field {
   uint pack_length_override{0};
 
   /* Generated column expression information */
-  Generated_column *gcol_info;
+  Value_generator *gcol_info{nullptr};
   /*
     Indication that the field is phycically stored in tables
     rather than just generated on SQL queries.
@@ -4393,6 +4450,8 @@ class Create_field {
   */
   bool stored_in_db;
 
+  /// Holds the expression to be used to generate default values.
+  Value_generator *m_default_val_expr{nullptr};
   Nullable<gis::srid_t> m_srid;
 
   Create_field()
@@ -4409,7 +4468,8 @@ class Create_field {
         */
         treat_bit_as_char(false),
         pack_length_override(0),
-        stored_in_db(false) {}
+        stored_in_db(false),
+        m_default_val_expr(nullptr) {}
   Create_field(Field *field, Field *orig_field);
 
   /* Used to make a clone of this object for ALTER/CREATE TABLE */
@@ -4433,8 +4493,9 @@ class Create_field {
             Item *default_value, Item *on_update_value, LEX_STRING *comment,
             const char *change, List<String> *interval_list,
             const CHARSET_INFO *cs, bool has_explicit_collation,
-            uint uint_geom_type, Generated_column *gcol_info,
-            Nullable<gis::srid_t> srid, dd::Column::enum_hidden_type hidden);
+            uint uint_geom_type, Value_generator *gcol_info,
+            Value_generator *default_val_expr, Nullable<gis::srid_t> srid,
+            dd::Column::enum_hidden_type hidden);
 
   ha_storage_media field_storage_type() const {
     return (ha_storage_media)((flags >> FIELD_FLAGS_STORAGE_MEDIA) & 3);
@@ -4637,5 +4698,20 @@ inline bool is_blob(enum_field_types sql_type) {
   a functional index; the expression is allocated on the THD's MEM_ROOT.
 */
 const char *get_field_name_or_expression(THD *thd, const Field *field);
+
+/*
+  Perform per item-type checks to determine if the expression is
+  allowed for a generated column or default value expression.
+  Note that validation of the specific function is done later in
+  procedures open_table_from_share and fix_value_generators_fields
+
+  @param expr         the expression to check for validity
+  @param column_name  used for error reporting
+  @param is_gen_col   weather it is a GCOL or a default value expression
+  @return  false if ok, true otherwise
+*/
+bool pre_validate_value_generator_expr(Value_generator *expr,
+                                       const char *column_name,
+                                       bool is_gen_col);
 
 #endif /* FIELD_INCLUDED */

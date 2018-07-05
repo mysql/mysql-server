@@ -1,0 +1,1002 @@
+#
+# CREATE TABLE - column with func as DEFAULT then test DROP column.
+#
+CREATE TABLE t1 (i int, b JSON DEFAULT (JSON_OBJECT("key", i)));
+INSERT INTO t1(i) VALUES (1);
+INSERT INTO t1 SET i = 10;
+INSERT INTO t1(i, b) VALUES (2, DEFAULT);
+INSERT INTO t1 SET i = 20, b = DEFAULT;
+INSERT INTO t1(i, b) VALUES (3, JSON_OBJECT("key", 3));
+INSERT INTO t1 SET i = 30, b = JSON_OBJECT("key", 30);
+SELECT * FROM t1;
+i	b
+1	{"key": 1}
+10	{"key": 10}
+2	{"key": 2}
+20	{"key": 20}
+3	{"key": 3}
+30	{"key": 30}
+ALTER TABLE t1 DROP COLUMN b;
+DROP TABLE t1;
+#
+# CREATE TABLE - column with INDEX and func as DEFAULT
+#
+CREATE TABLE t1 (i int, b char(255) DEFAULT (md5(i)), INDEX (b(10)));
+INSERT INTO t1(i) VALUES (1);
+INSERT INTO t1(i, b) VALUES (2, DEFAULT);
+INSERT INTO t1(i, b) VALUES (3, "some string");
+SELECT * FROM t1;
+i	b
+1	c4ca4238a0b923820dcc509a6f75849b
+2	c81e728d9d4c2f636f067f89cc14862c
+3	some string
+DROP TABLE t1;
+#
+# Test ALTER table ADD column with DEFAULT
+#
+CREATE TABLE t1 (i int);
+INSERT INTO t1(i) VALUES (1),(2);
+ALTER TABLE t1 ADD COLUMN b JSON DEFAULT (JSON_OBJECT("key",i));
+INSERT INTO t1(i) VALUES (3);
+INSERT INTO t1(i, b) VALUES (4, DEFAULT);
+INSERT INTO t1(i, b) VALUES (5, JSON_OBJECT("key", 5));
+SELECT * FROM t1;
+i	b
+1	{"key": 1}
+2	{"key": 2}
+3	{"key": 3}
+4	{"key": 4}
+5	{"key": 5}
+DROP TABLE t1;
+#
+# Test ALTER table ADD column with DEFAULT then ALTER TABLE SET DEFAULT func
+#
+CREATE TABLE t1 (i int);
+INSERT INTO t1(i) VALUES (1),(2);
+ALTER TABLE t1 ADD COLUMN b JSON;
+ALTER TABLE t1 ALTER COLUMN b SET DEFAULT (JSON_OBJECT("key",i));
+INSERT INTO t1(i) VALUES (3);
+INSERT INTO t1(i, b) VALUES (4, DEFAULT);
+INSERT INTO t1(i, b) VALUES (5, JSON_OBJECT("key", 5));
+SELECT * FROM t1;
+i	b
+1	NULL
+2	NULL
+3	{"key": 3}
+4	{"key": 4}
+5	{"key": 5}
+DROP TABLE t1;
+#
+# Test ALTER table CHANGE column
+#
+CREATE TABLE t1 (i int);
+INSERT INTO t1(i) VALUES (1),(2);
+ALTER TABLE t1 ADD COLUMN b JSON DEFAULT (JSON_ARRAY());
+INSERT INTO t1(i) VALUES (4);
+ALTER TABLE t1 CHANGE COLUMN b new_b JSON DEFAULT (JSON_OBJECT("key",i));
+INSERT INTO t1(i) VALUES (5);
+INSERT INTO t1(i, new_b) VALUES (6, DEFAULT);
+INSERT INTO t1(i, new_b) VALUES (7, JSON_OBJECT("key", 7));
+SELECT * FROM t1;
+i	new_b
+1	[]
+2	[]
+4	[]
+5	{"key": 5}
+6	{"key": 6}
+7	{"key": 7}
+DROP TABLE t1;
+CREATE TABLE t1 (i int, b int DEFAULT (123 * 1));
+ALTER TABLE t1 CHANGE COLUMN i new_i JSON DEFAULT (JSON_ARRAY(b));
+ERROR HY000: Default value expression of column 'new_i' can refer only to generated columns and columns with default value expressions defined prior to it.
+DROP TABLE t1;
+#
+# Test ALTER table MODIFY column
+#
+CREATE TABLE t1 (i int);
+INSERT INTO t1(i) VALUES (1),(2);
+ALTER TABLE t1 ADD COLUMN b JSON DEFAULT (JSON_ARRAY());
+INSERT INTO t1(i) VALUES (4);
+ALTER TABLE t1 MODIFY COLUMN b JSON DEFAULT (JSON_OBJECT("key",i)) FIRST;
+INSERT INTO t1(i) VALUES (5);
+INSERT INTO t1(i, b) VALUES (6, DEFAULT);
+INSERT INTO t1(i, b) VALUES (7, JSON_OBJECT("key", 7));
+SELECT * FROM t1;
+b	i
+[]	1
+[]	2
+[]	4
+{"key": 5}	5
+{"key": 6}	6
+{"key": 7}	7
+DROP TABLE t1;
+CREATE TABLE t1 (i int, b int DEFAULT (123 * 1));
+ALTER TABLE t1 MODIFY COLUMN i JSON DEFAULT (JSON_ARRAY(b)) FIRST;
+ERROR HY000: Default value expression of column 'i' can refer only to generated columns and columns with default value expressions defined prior to it.
+DROP TABLE t1;
+#
+# Column order with expression or literal as default value
+#
+CREATE TABLE t1 (i JSON DEFAULT (JSON_ARRAY(b)), b int DEFAULT 123);
+DROP TABLE t1;
+CREATE TABLE t1 (b int DEFAULT 123, i JSON DEFAULT (JSON_ARRAY(b)));
+DROP TABLE t1;
+CREATE TABLE t1 (i JSON DEFAULT (JSON_ARRAY(b)), b int DEFAULT (123 * 1));
+ERROR HY000: Default value expression of column 'i' can refer only to generated columns and columns with default value expressions defined prior to it.
+CREATE TABLE t1 (b int DEFAULT (123 * 1), i JSON DEFAULT (JSON_ARRAY(b)));
+DROP TABLE t1;
+#
+# Test CREATE TABLE with column without default then SET a DEFAULT.
+# ALSO TEST DROP DEFAULT
+#
+CREATE TABLE t1 (i int, b JSON);
+INSERT INTO t1(i) VALUES (1),(2);
+ALTER TABLE t1 ALTER COLUMN b SET DEFAULT (JSON_OBJECT("key",i));
+INSERT INTO t1(i) VALUES (3);
+INSERT INTO t1(i, b) VALUES (4, DEFAULT);
+INSERT INTO t1(i, b) VALUES (5, JSON_OBJECT("key", 5));
+ALTER TABLE t1 ALTER COLUMN b DROP DEFAULT;
+INSERT INTO t1(i, b) VALUES (6, NULL);
+SELECT * FROM t1;
+i	b
+1	NULL
+2	NULL
+3	{"key": 3}
+4	{"key": 4}
+5	{"key": 5}
+6	NULL
+DROP TABLE t1;
+#
+# Test func as DEFAULT with auto_increment
+#
+CREATE TABLE t1 (id int(11) PRIMARY KEY auto_increment,
+f1 JSON DEFAULT (JSON_OBJECT("key", id)));
+ERROR HY000: Default value expression of column 'f1' cannot refer to an auto-increment column.
+#
+# Test with not-allowed function
+#
+CREATE TABLE t1 (a varchar(64), b varchar(1024) DEFAULT (load_file(a)));
+ERROR HY000: Default value expression of column 'b' contains a disallowed function: load_file.
+#
+# Test func as DEFAULT with different order
+#
+CREATE TABLE t1 (f1 JSON DEFAULT (JSON_OBJECT("key", id)), id int(11));
+INSERT INTO t1(id) VALUES(1), (2), (3);
+SELECT * FROM t1;
+f1	id
+{"key": 1}	1
+{"key": 2}	2
+{"key": 3}	3
+DROP TABLE t1;
+#
+# Test function set as DEFAULT value which exceeds size
+#
+CREATE TABLE t1 (id char(2) DEFAULT (uuid()));
+INSERT INTO t1 VALUES (),(),();
+ERROR 22001: Data too long for column 'id' at row 1
+DROP TABLE t1;
+#
+# Test generated funcs with default value.
+#
+CREATE TABLE t3 (a INT PRIMARY KEY,
+b INT GENERATED ALWAYS AS (-a) VIRTUAL UNIQUE DEFAULT (-1 * 128));
+ERROR HY000: Incorrect usage of DEFAULT and generated column
+CREATE TABLE t3 (a INT PRIMARY KEY,
+c INT GENERATED ALWAYS AS (-a) STORED DEFAULT (-1 * 128));
+ERROR HY000: Incorrect usage of DEFAULT and generated column
+#
+# Test SHOW CREATE TABLE, DESCRIBE TABLE and CREATE as SELECT
+#
+CREATE TABLE t1 (id char(36) DEFAULT (uuid()));
+INSERT INTO t1 VALUES (),(),();
+CREATE TABLE t2 as SELECT * from t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` char(36) DEFAULT (uuid())
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t3 LIKE t1;
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `id` char(36) DEFAULT (uuid())
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT LENGTH(id) FROM t1;
+LENGTH(id)
+36
+36
+36
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` char(36) DEFAULT (uuid())
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW COLUMNS FROM t1;
+Field	Type	Null	Key	Default	Extra
+id	char(36)	YES		uuid()	DEFAULT_GENERATED
+DESCRIBE t1;
+Field	Type	Null	Key	Default	Extra
+id	char(36)	YES		uuid()	DEFAULT_GENERATED
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+#
+# Create table with DEFAULT()
+#
+CREATE TABLE t3 (a INT PRIMARY KEY,
+d INT DEFAULT (-a + 1),
+c INT DEFAULT (DEFAULT(d))
+);
+ERROR HY000: DEFAULT function cannot be used with default value expressions
+#
+# DROP column that it depends on
+#
+CREATE TABLE t3 (a INT PRIMARY KEY,
+d INT DEFAULT (-a + 1),
+c INT DEFAULT (-d)
+);
+SELECT DEFAULT(d) from t3;
+ERROR HY000: DEFAULT function cannot be used with default value expressions
+SELECT DEFAULT(c) from t3;
+ERROR HY000: DEFAULT function cannot be used with default value expressions
+ALTER TABLE t3 DROP COLUMN d;
+ERROR HY000: Column 'd' of table 't3' has a default value expression dependency and cannot be dropped.
+DROP TABLE t3;
+#
+# Test UTF8
+#
+CREATE TABLE `t1` (i varchar(200) DEFAULT (_utf8mb4"\U+1F9DB♀"));
+SELECT COLUMN_NAME, COLUMN_DEFAULT, DATA_TYPE, EXTRA, GENERATION_EXPRESSION
+FROM information_schema.columns WHERE table_name= "t1";
+COLUMN_NAME	COLUMN_DEFAULT	DATA_TYPE	EXTRA	GENERATION_EXPRESSION
+i	_utf8mb4\'U+1F9DBâ\'	varchar	DEFAULT_GENERATED	
+INSERT INTO t1 values (),();
+SELECT * from t1;
+i
+U+1F9DB♀
+U+1F9DB♀
+DESCRIBE t1;
+Field	Type	Null	Key	Default	Extra
+i	varchar(200)	YES		_utf8mb4\'U+1F9DBâ\'	DEFAULT_GENERATED
+DROP TABLE t1;
+#
+# Test with REPLACE INTO ..
+#
+CREATE TABLE test (
+id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+data VARCHAR(64) DEFAULT NULL,
+something VARCHAR(64) NOT NULL DEFAULT (CONCAT ('[', data, ']')),
+PRIMARY KEY (id)
+);
+REPLACE INTO test VALUES (1, 'Old', DEFAULT);
+SELECT * FROM test;
+id	data	something
+1	Old	[Old]
+REPLACE INTO test VALUES (1, 'New', DEFAULT);
+SELECT * FROM test;
+id	data	something
+1	New	[New]
+DROP TABLE test;
+#
+# TINYBLOB  tests
+#
+CREATE TABLE t(i INT, b TINYBLOB  DEFAULT (repeat('b', i)));
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `i` int(11) DEFAULT NULL,
+  `b` tinyblob DEFAULT (repeat(_utf8mb4'b',`i`))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t values(254, DEFAULT);
+INSERT INTO t values(255, DEFAULT);
+INSERT INTO t values(256, DEFAULT);
+ERROR 22001: Data too long for column 'b' at row 1
+SELECT i, length(b) FROM t;
+i	length(b)
+254	254
+255	255
+DROP TABLE t;
+CREATE TABLE t(i INT);
+INSERT INTO t values(254), (255), (256);
+ALTER TABLE t ADD COLUMN b TINYBLOB DEFAULT (repeat('b', i));
+ERROR 22001: Data too long for column 'b' at row 3
+SELECT * FROM t;
+i
+254
+255
+256
+DELETE FROM t where i = 256;
+ALTER TABLE t ADD COLUMN b TINYBLOB;
+SELECT i, length(b) FROM t;
+i	length(b)
+254	NULL
+255	NULL
+ALTER TABLE t ALTER COLUMN b SET DEFAULT (repeat('b', i));
+SELECT i, length(b) FROM t;
+i	length(b)
+254	NULL
+255	NULL
+INSERT INTO t values(254, DEFAULT);
+INSERT INTO t values(255, DEFAULT);
+INSERT INTO t values(256, DEFAULT);
+ERROR 22001: Data too long for column 'b' at row 1
+ALTER TABLE t ALTER COLUMN b DROP DEFAULT;
+INSERT INTO t(i) values(128);
+ERROR HY000: Field 'b' doesn't have a default value
+SELECT i, length(b) FROM t;
+i	length(b)
+254	NULL
+255	NULL
+254	254
+255	255
+DROP TABLE t;
+#
+# MEDIUMBLOB  tests
+#
+SET GLOBAL max_allowed_packet = 1073741824;
+CREATE TABLE t(i BIGINT, b MEDIUMBLOB  DEFAULT (repeat('b', i)));
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `i` bigint(20) DEFAULT NULL,
+  `b` mediumblob DEFAULT (repeat(_utf8mb4'b',`i`))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t values(16777214, DEFAULT);
+INSERT INTO t values(16777215, DEFAULT);
+INSERT INTO t values(16777216, DEFAULT);
+ERROR 22001: Data too long for column 'b' at row 1
+SELECT i, length(b) FROM t;
+i	length(b)
+16777214	16777214
+16777215	16777215
+DROP TABLE t;
+CREATE TABLE t(i BIGINT);
+INSERT INTO t values(16777214), (16777215), (16777216);
+ALTER TABLE t ADD COLUMN b MEDIUMBLOB DEFAULT (repeat('b', i));
+ERROR 22001: Data too long for column 'b' at row 3
+SELECT * FROM t;
+i
+16777214
+16777215
+16777216
+DELETE FROM t where i = 16777216;
+ALTER TABLE t ADD COLUMN b MEDIUMBLOB;
+SELECT i, length(b) FROM t;
+i	length(b)
+16777214	NULL
+16777215	NULL
+ALTER TABLE t ALTER COLUMN b SET DEFAULT (repeat('b', i));
+SELECT i, length(b) FROM t;
+i	length(b)
+16777214	NULL
+16777215	NULL
+INSERT INTO t values(16777214, DEFAULT);
+INSERT INTO t values(16777215, DEFAULT);
+INSERT INTO t values(16777216, DEFAULT);
+ERROR 22001: Data too long for column 'b' at row 1
+ALTER TABLE t ALTER COLUMN b DROP DEFAULT;
+INSERT INTO t(i) values(128);
+ERROR HY000: Field 'b' doesn't have a default value
+SELECT i, length(b) FROM t;
+i	length(b)
+16777214	NULL
+16777215	NULL
+16777214	16777214
+16777215	16777215
+DROP TABLE t;
+SET GLOBAL max_allowed_packet=default;
+#
+# tests with BLOB
+#
+CREATE TABLE t(i INT, b BLOB DEFAULT (repeat('b', i)));
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `i` int(11) DEFAULT NULL,
+  `b` blob DEFAULT (repeat(_utf8mb4'b',`i`))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t values(65534, DEFAULT);
+INSERT INTO t values(65535, DEFAULT);
+INSERT INTO t values(65536, DEFAULT);
+ERROR 22001: Data too long for column 'b' at row 1
+SELECT i, length(b) FROM t;
+i	length(b)
+65534	65534
+65535	65535
+DROP TABLE t;
+CREATE TABLE t(i INT);
+INSERT INTO t values(65534), (65535), (65536);
+ALTER TABLE t ADD COLUMN b BLOB DEFAULT (repeat('b', i));
+ERROR 22001: Data too long for column 'b' at row 3
+SELECT * FROM t;
+i
+65534
+65535
+65536
+DELETE FROM t where i = 65536;
+ALTER TABLE t ADD COLUMN b BLOB;
+SELECT i, length(b) FROM t;
+i	length(b)
+65534	NULL
+65535	NULL
+ALTER TABLE t ALTER COLUMN b SET DEFAULT (repeat('b', i));
+SELECT i, length(b) FROM t;
+i	length(b)
+65534	NULL
+65535	NULL
+INSERT INTO t values(65534, DEFAULT);
+INSERT INTO t values(65535, DEFAULT);
+INSERT INTO t values(65536, DEFAULT);
+ERROR 22001: Data too long for column 'b' at row 1
+ALTER TABLE t ALTER COLUMN b DROP DEFAULT;
+INSERT INTO t(i) values(128);
+ERROR HY000: Field 'b' doesn't have a default value
+SELECT i, length(b) FROM t;
+i	length(b)
+65534	NULL
+65535	NULL
+65534	65534
+65535	65535
+DROP TABLE t;
+#
+# MEDIUMBLOB  tests
+# max value for max_allowed_packet is 1073741824 which is < 4294967295
+#
+CREATE TABLE t(i BIGINT, b LONGBLOB  DEFAULT (repeat('b', i)));
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `i` bigint(20) DEFAULT NULL,
+  `b` longblob DEFAULT (repeat(_utf8mb4'b',`i`))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t values(4294967295, DEFAULT);
+ERROR HY000: Result of repeat() was larger than max_allowed_packet (67108864) - truncated
+DROP TABLE t;
+CREATE TABLE t(i INT, b BLOB DEFAULT (repeat('b', i)));
+INSERT INTO t values(65534, DEFAULT);
+INSERT INTO t values(65535, DEFAULT);
+INSERT INTO t values(65536, DEFAULT);
+ERROR 22001: Data too long for column 'b' at row 1
+SELECT i, length(b) FROM t;
+i	length(b)
+65534	65534
+65535	65535
+DROP TABLE t;
+CREATE TABLE t(i INT);
+INSERT INTO t values(65534), (65535), (65536);
+ALTER TABLE t ADD COLUMN b BLOB DEFAULT (repeat('b', i));
+ERROR 22001: Data too long for column 'b' at row 3
+SELECT * FROM t;
+i
+65534
+65535
+65536
+DELETE FROM t where i = 65536;
+ALTER TABLE t ADD COLUMN b BLOB;
+SELECT i, length(b) FROM t;
+i	length(b)
+65534	NULL
+65535	NULL
+ALTER TABLE t ALTER COLUMN b SET DEFAULT (repeat('b', i));
+SELECT i, length(b) FROM t;
+i	length(b)
+65534	NULL
+65535	NULL
+INSERT INTO t values(65534, DEFAULT);
+INSERT INTO t values(65535, DEFAULT);
+INSERT INTO t values(65536, DEFAULT);
+ERROR 22001: Data too long for column 'b' at row 1
+ALTER TABLE t ALTER COLUMN b DROP DEFAULT;
+INSERT INTO t(i) values(128);
+ERROR HY000: Field 'b' doesn't have a default value
+SELECT i, length(b) FROM t;
+i	length(b)
+65534	NULL
+65535	NULL
+65534	65534
+65535	65535
+DROP TABLE t;
+#
+# Test other functions
+#
+CREATE TABLE t(i INT, b VARCHAR(20) DEFAULT (repeat('b', i)));
+INSERT INTO t values(14, DEFAULT);
+INSERT INTO t values(16, DEFAULT);
+SELECT * FROM t;
+i	b
+14	bbbbbbbbbbbbbb
+16	bbbbbbbbbbbbbbbb
+DROP TABLE t;
+CREATE TABLE t1(a INT PRIMARY KEY, b GEOMETRY NOT NULL DEFAULT
+(ST_GEOMFROMTEXT('LINESTRING(0 0,9.299720368548e18 0,0 0,0 0)')));
+INSERT INTO t1 VALUES(1, DEFAULT);
+INSERT INTO t1 VALUES(2, DEFAULT);
+INSERT INTO t1 VALUES(3, (ST_GEOMFROMTEXT('LINESTRING(0 0,9.2234818 0,0 0,0 0)')));
+SELECT a, ST_AsText(b) FROM t1;
+a	ST_AsText(b)
+1	LINESTRING(0 0,9.299720368548e18 0,0 0,0 0)
+2	LINESTRING(0 0,9.299720368548e18 0,0 0,0 0)
+3	LINESTRING(0 0,9.2234818 0,0 0,0 0)
+DROP TABLE t1;
+#
+# Test with TIMESTAMP with and without ON UPDATE
+#
+CREATE TABLE t1 (a INT, b TIMESTAMP DEFAULT (TIMESTAMPADD(MINUTE, 1,'2003-01-02'))
+ON UPDATE NOW());
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` timestamp NULL DEFAULT ((_utf8mb4'2003-01-02' + interval 1 minute)) ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1(a) VALUES (5);
+SELECT * FROM t1;
+a	b
+5	2003-01-02 00:01:00
+SET timestamp= 1038401397;
+UPDATE t1 SET a = 10 WHERE a = 5;
+SELECT * FROM t1;
+a	b
+10	2002-11-27 15:49:57
+DROP TABLE t1;
+CREATE TABLE t1 (a INT, b TIMESTAMP NOT NULL DEFAULT (TIMESTAMPADD(MINUTE, 1,'2003-01-02')));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` timestamp NOT NULL DEFAULT ((_utf8mb4'2003-01-02' + interval 1 minute))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+insert into t1(a) values (1);
+DROP TABLE t1;
+CREATE TABLE t1 (a INT, c TIMESTAMP DEFAULT (TIMESTAMPADD(MINUTE, 5,'2003-01-02')));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `c` timestamp NULL DEFAULT ((_utf8mb4'2003-01-02' + interval 5 minute))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1(a) VALUES (5),(6);
+ALTER TABLE t1 ADD COLUMN d TIMESTAMP DEFAULT (TIMESTAMPADD(MINUTE, 10,'2003-01-03')) ON UPDATE CURRENT_TIMESTAMP;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `c` timestamp NULL DEFAULT ((_utf8mb4'2003-01-02' + interval 5 minute)),
+  `d` timestamp NULL DEFAULT ((_utf8mb4'2003-01-03' + interval 10 minute)) ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * from t1;
+a	c	d
+5	2003-01-02 00:05:00	2003-01-03 00:10:00
+6	2003-01-02 00:05:00	2003-01-03 00:10:00
+UPDATE t1 SET a = 10 WHERE a = 5;
+SELECT * from t1;
+a	c	d
+10	2003-01-02 00:05:00	2002-11-27 15:49:57
+6	2003-01-02 00:05:00	2003-01-03 00:10:00
+ALTER TABLE t1 DROP COLUMN d;
+ALTER TABLE t1 ADD COLUMN d TIMESTAMP DEFAULT (TIMESTAMPADD(MINUTE, 15,'2003-01-04'));
+SELECT * from t1;
+a	c	d
+10	2003-01-02 00:05:00	2003-01-04 00:15:00
+6	2003-01-02 00:05:00	2003-01-04 00:15:00
+DROP TABLE t1;
+#
+# Check default expressions together with Generated Columns
+#
+CREATE TABLE t1 (i INT, b char(255) DEFAULT (md5(i)));
+SHOW COLUMNS FROM t1;
+Field	Type	Null	Key	Default	Extra
+i	int(11)	YES		NULL	
+b	char(255)	YES		md5(`i`)	DEFAULT_GENERATED
+INSERT INTO t1(i) VALUES (1);
+INSERT INTO t1(i, b) VALUES (2, DEFAULT);
+INSERT INTO t1(i, b) VALUES (3, "some string");
+INSERT INTO t1(i, b) VALUES (NULL, DEFAULT);
+SELECT * FROM t1;
+i	b
+1	c4ca4238a0b923820dcc509a6f75849b
+2	c81e728d9d4c2f636f067f89cc14862c
+3	some string
+NULL	NULL
+DROP TABLE t1;
+CREATE TABLE t1 (i INT, b char(255) DEFAULT (md5(i)), j INT GENERATED ALWAYS AS (i*2));
+SHOW COLUMNS FROM t1;
+Field	Type	Null	Key	Default	Extra
+i	int(11)	YES		NULL	
+b	char(255)	YES		md5(`i`)	DEFAULT_GENERATED
+j	int(11)	YES		NULL	VIRTUAL GENERATED
+INSERT INTO t1(i) VALUES (1);
+INSERT INTO t1(i, b) VALUES (2, DEFAULT);
+INSERT INTO t1(i, b) VALUES (3, "some string");
+INSERT INTO t1(i, b) VALUES (NULL, DEFAULT);
+SELECT * FROM t1;
+i	b	j
+1	c4ca4238a0b923820dcc509a6f75849b	2
+2	c81e728d9d4c2f636f067f89cc14862c	4
+3	some string	6
+NULL	NULL	NULL
+DROP TABLE t1;
+#
+# Make sure there's no memory leaking after failed ALTER TABLE.
+# (coverage for err tag in open_table_from_share)
+#
+CREATE TABLE t(a int);
+ALTER TABLE t ADD COLUMN b int DEFAULT(
+date_sub(a, INTERVAL A MONTH));
+ALTER TABLE t ADD COLUMN c int DEFAULT (SUM(a));
+ERROR HY000: Invalid use of group function
+DROP TABLE t;
+# Function that are now allowed.
+# result is not shown as the data is non-deterministic
+CREATE TABLE t1 (b double DEFAULT (rand()));
+INSERT INTO t1 VALUES ();
+SELECT * FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (a varchar(30), b VARCHAR(100) DEFAULT (statement_digest(a)));
+INSERT INTO t1 (a) VALUES ("SELECT 1;");
+SELECT * FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (a varchar(30), b varchar(100) DEFAULT (statement_digest_text(a)));
+INSERT INTO t1 (a) VALUES ("SELECT 2;");
+SELECT * FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (a datetime DEFAULT (curdate()));
+INSERT INTO t1 VALUES ();
+SELECT * FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (a datetime DEFAULT (current_date()));
+INSERT INTO t1 VALUES ();
+SELECT * FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (a datetime DEFAULT (current_date));
+INSERT INTO t1 VALUES ();
+SELECT * FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (a datetime DEFAULT (current_time()));
+INSERT INTO t1 VALUES ();
+SELECT * FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (a datetime DEFAULT (current_time));
+INSERT INTO t1 VALUES ();
+SELECT * FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (a datetime DEFAULT (current_timestamp()));
+INSERT INTO t1 VALUES ();
+SELECT * FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (a datetime DEFAULT (current_timestamp));
+INSERT INTO t1 VALUES ();
+SELECT * FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (a datetime DEFAULT (localtime()));
+INSERT INTO t1 VALUES ();
+SELECT * FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (a datetime DEFAULT (localtime));
+INSERT INTO t1 VALUES ();
+SELECT * FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (a datetime DEFAULT (curtime()));
+INSERT INTO t1 VALUES ();
+SELECT * FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (a datetime, b varchar(10) DEFAULT (localtimestamp()));
+INSERT INTO t1(a) VALUES (now());
+Warnings:
+Error	1406	Data too long for column 'b' at row 1
+SELECT * FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (a datetime, b varchar(10) DEFAULT (localtimestamp));
+INSERT INTO t1(a) VALUES (now());
+Warnings:
+Error	1406	Data too long for column 'b' at row 1
+SELECT * FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (a datetime, b varchar(10) DEFAULT (now()));
+INSERT INTO t1(a) VALUES (now());
+Warnings:
+Error	1406	Data too long for column 'b' at row 1
+SELECT * FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (b varchar(100) DEFAULT (sysdate()));
+INSERT INTO t1() VALUES ();
+SELECT * FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (a datetime, b datetime DEFAULT (unix_timestamp()));
+INSERT INTO t1(a) VALUES (now());
+Warnings:
+Error	1292	Incorrect datetime value: '1038401397' for column 'b' at row 1
+SELECT * FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (a datetime, b datetime DEFAULT (utc_date()));
+INSERT INTO t1(a) VALUES (now());
+SELECT * FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (a datetime, b datetime DEFAULT (utc_time()));
+INSERT INTO t1(a) VALUES (now());
+SELECT * FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (a datetime, b datetime DEFAULT (utc_timestamp()));
+INSERT INTO t1(a) VALUES (now());
+SELECT * FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (a int DEFAULT (connection_id()));
+INSERT INTO t1 VALUES ();
+SELECT * FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (a varchar(1024), b varchar(1024) DEFAULT (database()));
+INSERT INTO t1 VALUES ();
+SELECT * FROM t1;
+DROP TABLE t1;
+# Function that are still not allowed
+CREATE TABLE t1 (a varchar(64), b varchar(1024) DEFAULT (load_file(a)));
+ERROR HY000: Default value expression of column 'b' contains a disallowed function: load_file.
+CREATE TABLE t1 (a varchar(1024), b varchar(1024) DEFAULT (found_rows()));
+ERROR HY000: Default value expression of column 'b' contains a disallowed function: found_rows.
+CREATE TABLE t1 (a varchar(1024), b varchar(1024) DEFAULT (get_lock(a,10)));
+ERROR HY000: Default value expression of column 'b' contains a disallowed function: get_lock.
+CREATE TABLE t1 (a varchar(1024), b varchar(1024) DEFAULT (is_free_lock(a)));
+ERROR HY000: Default value expression of column 'b' contains a disallowed function: is_free_lock.
+CREATE TABLE t1 (a varchar(1024), b varchar(1024) DEFAULT (is_used_lock(a)));
+ERROR HY000: Default value expression of column 'b' contains a disallowed function: is_used_lock.
+CREATE TABLE t1 (a int DEFAULT (last_insert_id()));
+ERROR HY000: Default value expression of column 'a' contains a disallowed function: last_insert_id.
+CREATE TABLE t1 (a int DEFAULT (row_count()));
+ERROR HY000: Default value expression of column 'a' contains a disallowed function: row_count.
+CREATE TABLE t1 (a int, b int DEFAULT (sleep(a)));
+ERROR HY000: Default value expression of column 'b' contains a disallowed function: sleep.
+CREATE TABLE t1 (a varchar(32) DEFAULT (current_user()));
+ERROR HY000: Default value expression of column 'a' contains a disallowed function: current_user.
+CREATE TABLE t1 (a varchar(32) DEFAULT (session_user()));
+ERROR HY000: Default value expression of column 'a' contains a disallowed function: user.
+CREATE TABLE t1 (a varchar(1024), b varchar(1024) DEFAULT (version()));
+ERROR HY000: Default value expression of column 'b' contains a disallowed function: version().
+CREATE TABLE t1 (id char(40) DEFAULT (uuid()) DEFAULT 4);
+ERROR 42000: Invalid default value for 'id'
+CREATE TABLE t1 (id char(40) DEFAULT 4 DEFAULT (uuid()));
+ERROR 42000: Invalid default value for 'id'
+CREATE TABLE t1 (id char(40) DEFAULT 4 DEFAULT (uuid()) DEFAULT 10);
+ERROR 42000: Invalid default value for 'id'
+CREATE TABLE t1 (id char(40) DEFAULT 4 DEFAULT 5);
+DROP TABLE t1;
+CREATE FUNCTION CURRENT_TIMESTAMPfoo() RETURNS INT BEGIN RETURN 1; END|
+CREATE TABLE t1 (a INT DEFAULT (CURRENT_TIMESTAMPfoo()));
+ERROR HY000: Default value expression of column 'a' contains a disallowed function: `CURRENT_TIMESTAMPfoo`.
+DROP FUNCTION CURRENT_TIMESTAMPfoo;
+CREATE TABLE t1 (a VARCHAR(32) DEFAULT (NAME_CONST('test',1)));
+ERROR HY000: Default value expression of column 'a' contains a disallowed function.
+CREATE TABLE t1 (a VARCHAR(32) DEFAULT ((1,1)));
+ERROR HY000: Default value expression of column 'a' cannot refer to a row value.
+CREATE TABLE t1 (a VARCHAR(1024), b VARCHAR(1024) DEFAULT (VALUES(a)));
+ERROR HY000: Default value expression of column 'b' contains a disallowed function: values.
+#
+# Stored procedures/functions
+#
+CREATE PROCEDURE p1()
+BEGIN
+SELECT 42;
+END //
+CREATE FUNCTION f1()
+RETURNS INT
+BEGIN
+RETURN 42;
+END //
+CREATE TABLE t1 (a INT DEFAULT (p1()));
+ERROR HY000: Default value expression of column 'a' contains a disallowed function: `p1`.
+CREATE TABLE t1 (a INT DEFAULT (f1()));
+ERROR HY000: Default value expression of column 'a' contains a disallowed function: `f1`.
+CREATE TABLE t1 (a INT DEFAULT (1 + f1()));
+ERROR HY000: Default value expression of column 'a' contains a disallowed function: `f1`.
+CREATE TABLE t1 (a INT);
+ALTER TABLE t1 ADD COLUMN b INT DEFAULT (1 + f1());
+ERROR HY000: Default value expression of column 'b' contains a disallowed function: `f1`.
+ALTER TABLE t1 ALTER COLUMN a SET DEFAULT (1 + f1());
+ERROR HY000: Default value expression of column 'a' contains a disallowed function: `f1`.
+DROP TABLE t1;
+DROP PROCEDURE p1;
+DROP FUNCTION f1;
+#
+# UDFs
+#
+DROP FUNCTION IF EXISTS metaphon;
+Warnings:
+Note	1305	FUNCTION test.metaphon does not exist
+CREATE FUNCTION metaphon RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
+CREATE TABLE t1 (a VARCHAR(128) DEFAULT (metaphon("testval")));
+ERROR HY000: Default value expression of column 'a' contains a disallowed function: metaphon.
+CREATE TABLE t1 (a VARCHAR(128) DEFAULT (concat("1", metaphon("testval"))));
+ERROR HY000: Default value expression of column 'a' contains a disallowed function: metaphon.
+CREATE TABLE t1 (a VARCHAR(100));
+ALTER TABLE t1 ADD COLUMN b VARCHAR(256) DEFAULT (concat("1", metaphon("testval")));
+ERROR HY000: Statement is unsafe because it uses a system function that may return a different value on the slave.
+ALTER TABLE t1 ALTER COLUMN a SET DEFAULT (concat("1", metaphon("testval")));
+ERROR HY000: Default value expression of column 'a' contains a disallowed function: metaphon.
+DROP TABLE t1;
+DROP FUNCTION metaphon;
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT, b INT DEFAULT (select count(*) from t1));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'select count(*) from t1))' at line 1
+CREATE TABLE t2 (a INT, b INT DEFAULT (select * from t1));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'select * from t1))' at line 1
+CREATE TABLE t2 (a INT, b INT DEFAULT (select 1));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'select 1))' at line 1
+DROP TABLE t1;
+SET @my_var= "something";
+CREATE TABLE t1 (i INT, b VARCHAR(256) DEFAULT (@my_var));
+ERROR HY000: Default value expression of column 'b' cannot refer user or system variables.
+CREATE TABLE t1 (i INT, b VARCHAR(256) DEFAULT (@my_var + 1));
+ERROR HY000: Default value expression of column 'b' cannot refer user or system variables.
+CREATE TABLE t1 (i INT, b VARCHAR(256) DEFAULT (@@global.sort_buffer_size));
+ERROR HY000: Default value expression of column 'b' cannot refer user or system variables.
+CREATE TABLE t1 (i INT, b VARCHAR(256) DEFAULT (@@session.sort_buffer_size));
+ERROR HY000: Default value expression of column 'b' cannot refer user or system variables.
+CREATE TABLE t1(i INT);
+ALTER TABLE t1 ADD COLUMN b VARCHAR(256) DEFAULT (@@session.sort_buffer_size);
+ERROR HY000: Default value expression of column 'b' cannot refer user or system variables.
+ALTER TABLE t1 ADD COLUMN b VARCHAR(256) DEFAULT (@@global.sort_buffer_size);
+ERROR HY000: Default value expression of column 'b' cannot refer user or system variables.
+ALTER TABLE t1 ADD COLUMN b VARCHAR(256) DEFAULT (@my_var);
+ERROR HY000: Default value expression of column 'b' cannot refer user or system variables.
+ALTER TABLE t1 ADD COLUMN b VARCHAR(256) DEFAULT (@my_var + 1);
+ERROR HY000: Default value expression of column 'b' cannot refer user or system variables.
+ALTER TABLE t1 ALTER COLUMN i SET DEFAULT (@@session.sort_buffer_size);
+ERROR HY000: Default value expression of column 'i' cannot refer user or system variables.
+ALTER TABLE t1 ALTER COLUMN i SET DEFAULT (@@global.sort_buffer_size);
+ERROR HY000: Default value expression of column 'i' cannot refer user or system variables.
+ALTER TABLE t1 ALTER COLUMN i SET DEFAULT (@my_var);
+ERROR HY000: Default value expression of column 'i' cannot refer user or system variables.
+ALTER TABLE t1 ALTER COLUMN i SET DEFAULT (@my_var + 1);
+ERROR HY000: Default value expression of column 'i' cannot refer user or system variables.
+DROP TABLE t1;
+CREATE TABLE t2 (i INT, j DOUBLE DEFAULT (i)) PARTITION BY KEY(j) PARTITIONS 4;
+INSERT INTO t2(i) VALUES (1),(2);
+DROP TABLE t2;
+#
+# Bug#28075950 	WL#9418: INCORRECT ERROR THROWN WHEN DEFAULT() IS USED WITHIN DEFAULT CLAUSE
+#
+CREATE TABLE t2 (i INT, j DOUBLE DEFAULT (SQRT(i)),
+k DOUBLE DEFAULT (DEFAULT(j)));
+ERROR HY000: DEFAULT function cannot be used with default value expressions
+#
+# Bug#28075770 	WL#9418: INCORRECT ERROR THROWN WHEN DEFAULT COLUMN IS MADE PRIMARY KEY
+#
+create table t1 ( i int, j int default ( i * i ), primary key(j));
+insert into t1 (i) values (4), (5);
+insert into t1 values (4, DEFAULT), (5, DEFAULT);
+ERROR 23000: Duplicate entry '16' for key 'PRIMARY'
+insert into t1 values (6, DEFAULT), (7, DEFAULT);
+select * from t1;
+i	j
+4	16
+5	25
+6	36
+7	49
+DROP TABLE t1;
+#
+# Bug#28016783 	WL#9418: SIG6 IN MY_EVAL_GCOLUMN_EXPR_HELPER() AT SQL/HANDLER.CC
+#
+CREATE TABLE IF NOT EXISTS D1 (i2 INT DEFAULT 568447044, d1 DOUBLE,
+d2 DOUBLE DEFAULT 0.0, c2 CHAR(255),
+def2 DOUBLE DEFAULT( i2 DIV d2 ),
+v1 INT AS ( d2 = c2 % ASIN( d1 ) > i2 ) VIRTUAL);
+INSERT ignore INTO D1 (  i2, d1, d2, c2, def2)
+VALUES ( 1548385958 , d1 ,128158532 , 0.0 , DEFAULT);
+ALTER TABLE D1 ADD UNIQUE KEY uidx ( def2 , v1 , d2 );
+ERROR 22012: Division by 0
+DROP TABLE D1;
+CREATE TABLE IF NOT EXISTS D1 (def2 DOUBLE DEFAULT( 100 DIV 0 ),
+v1 INT AS (1) VIRTUAL);
+INSERT IGNORE INTO D1 (def2) VALUES (1);
+ALTER TABLE D1 ADD UNIQUE KEY uidx ( def2 , v1 );
+ERROR 22012: Division by 0
+DROP TABLE D1;
+#
+# Bug#28046624 	WL#9418: INCORRECT BEHAVIOR OF DEFAULT WITH MODIFY COLUMN
+#
+CREATE TABLE t1 ( i int, j int DEFAULT (i) ) ;
+INSERT INTO t1(i) VALUES (4),(5),(6) ;
+SELECT * FROM t1 ;
+i	j
+4	4
+5	5
+6	6
+ALTER TABLE t1 MODIFY COLUMN j DOUBLE DEFAULT(i*i);
+SELECT * FROM t1 ;
+i	j
+4	4
+5	5
+6	6
+INSERT INTO t1(i) VALUES (7);
+SELECT * FROM t1 ;
+i	j
+4	4
+5	5
+6	6
+7	49
+DROP TABLE t1;
+CREATE TABLE t2 ( i int, j int DEFAULT (i) ) ;
+INSERT INTO t2(i) VALUES (4),(5),(6) ;
+SELECT * FROM t2 ;
+i	j
+4	4
+5	5
+6	6
+ALTER TABLE t2 MODIFY COLUMN j INT DEFAULT(i*i);
+SELECT * FROM t2 ;
+i	j
+4	4
+5	5
+6	6
+INSERT INTO t2(i) VALUES (7);
+ALTER TABLE t2 MODIFY COLUMN j DOUBLE DEFAULT(i*100);
+INSERT INTO t2(i) VALUES (8);
+SELECT * FROM t2 ;
+i	j
+4	4
+5	5
+6	6
+7	49
+8	800
+DROP TABLE t2;
+#
+# BUG#28040739 - WL#9418: INCORRECT ERROR THROWN WITH RENAME COLUMN
+#
+CREATE TABLE t1 ( i INT, j INT DEFAULT( i * i) ) ;
+# "Unknown column 'i' in 'default value expression'"
+ALTER TABLE t1 RENAME COLUMN i to i1 ;
+ERROR 42S22: Unknown column 'i' in 'default value expression'
+DROP TABLE t1;
+CREATE TABLE t1 ( i INT, j INT DEFAULT (i * i) ) ;
+# "Unknown column 'i' in 'default value expression'"
+ALTER TABLE t1 CHANGE COLUMN i i1 DOUBLE DEFAULT ( 4 * 4 ) ;
+ERROR 42S22: Unknown column 'i' in 'default value expression'
+DROP TABLE t1;
+create table t1 (i int, j double DEFAULT (i * i) ) ;
+# "Unknown column 'z' in 'default value expression'"
+alter table t1 add column k double DEFAULT (SQRT(z)) ;
+ERROR 42S22: Unknown column 'z' in 'default value expression'
+DROP TABLE t1;
+CREATE TABLE t1 (
+i1 INTEGER,
+i2 INTEGER DEFAULT (i1 + i1)
+);
+INSERT INTO t1 (i1, i2) SELECT 5, 6;
+INSERT INTO t1 (i1) SELECT 5;
+INSERT INTO t1 (i1) SELECT 5 ON DUPLICATE KEY UPDATE i2= 4;
+INSERT INTO t1 (i1) SELECT 5 ON DUPLICATE KEY UPDATE i2= DEFAULT;
+SELECT * FROM t1;
+i1	i2
+5	6
+5	10
+5	10
+5	10
+DROP TABLE t1;
+CREATE TABLE t1 (
+i1 INTEGER,
+i2 INTEGER DEFAULT (i1 + RAND())
+);
+INSERT INTO t1 (i1, i2) SELECT 5, 6;
+INSERT INTO t1 (i1) SELECT 5;
+INSERT INTO t1 (i1) SELECT 5 ON DUPLICATE KEY UPDATE i2= 4;
+INSERT INTO t1 (i1) SELECT 5 ON DUPLICATE KEY UPDATE i2= DEFAULT;
+SELECT count(*) FROM t1;
+count(*)
+4
+DROP TABLE t1;
+CREATE TABLE t1 (a INT UNIQUE DEFAULT (PI() + 3), b INT DEFAULT (-a));
+INSERT INTO t1 (a) VALUES (1), (2);
+SELECT * FROM t1;
+a	b
+1	-1
+2	-2
+INSERT INTO t1(a) VALUES (1) ON DUPLICATE KEY UPDATE a=DEFAULT;
+SELECT * FROM t1;
+a	b
+2	-2
+6	-1
+DELETE FROM t1 WHERE a = 6;
+UPDATE t1 SET a=DEFAULT WHERE a=2;
+SELECT * FROM t1;
+a	b
+6	-2
+DROP TABLE t1;

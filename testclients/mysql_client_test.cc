@@ -6965,7 +6965,7 @@ static void test_explain_bug() {
       result, 5, "Extra", "Extra",
       mysql_get_server_version(mysql) <= 50000 ? MYSQL_TYPE_STRING
                                                : MYSQL_TYPE_VAR_STRING,
-      0, 0, "", mysql_get_server_version(mysql) <= 50602 ? 27 : 57, 0);
+      0, 0, "", mysql_get_server_version(mysql) <= 50602 ? 27 : 60, 0);
 
   mysql_free_result(result);
   mysql_stmt_close(stmt);

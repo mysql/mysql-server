@@ -3545,7 +3545,7 @@ struct LEX : public Query_tables_list {
   LEX_USER *grant_user;
   LEX_ALTER alter_password;
   THD *thd;
-  Generated_column *gcol_info;
+  Value_generator *gcol_info;
 
   /* Optimizer hints */
   Opt_hints_global *opt_hints_global;
@@ -4175,7 +4175,7 @@ class Gcol_expr_parser_state : public Parser_state {
  public:
   Gcol_expr_parser_state();
 
-  Generated_column *result;
+  Value_generator *result;
 };
 
 /**

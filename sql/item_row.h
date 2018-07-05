@@ -1,7 +1,7 @@
 #ifndef ITEM_ROW_INCLUDED
 #define ITEM_ROW_INCLUDED
 
-/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -139,7 +139,7 @@ class Item_row : public Item {
   bool check_cols(uint c) override;
   bool null_inside() override { return with_null; };
   void bring_value() override;
-  bool check_gcol_func_processor(uchar *) override { return false; }
+  bool check_function_as_value_generator(uchar *) override { return false; }
 };
 
 #endif /* ITEM_ROW_INCLUDED */

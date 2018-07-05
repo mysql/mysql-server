@@ -69,6 +69,7 @@ class PT_column_attr_base : public Parse_tree_node_tmpl<Column_parse_context> {
   virtual void apply_alter_info_flags(uint *) const {}
   virtual void apply_comment(LEX_STRING *) const {}
   virtual void apply_default_value(Item **) const {}
+  virtual void apply_gen_default_value(Value_generator **){};
   virtual void apply_on_update_value(Item **) const {}
   virtual void apply_srid_modifier(Nullable<gis::srid_t> *) const {}
   virtual bool apply_collation(const CHARSET_INFO **to MY_ATTRIBUTE((unused)),
@@ -340,6 +341,38 @@ class PT_srid_column_attr : public PT_column_attr_base {
   void apply_srid_modifier(Nullable<gis::srid_t> *srid) const override {
     *srid = m_srid;
   }
+};
+
+/// Node for the generated default value, column attribute
+class PT_generated_default_val_column_attr : public PT_column_attr_base {
+  typedef PT_column_attr_base super;
+
+ public:
+  PT_generated_default_val_column_attr(Item *expr) {
+    m_default_value_expression.expr_item = expr;
+    m_default_value_expression.set_field_stored(true);
+  }
+
+  void apply_gen_default_value(
+      Value_generator **default_value_expression) override {
+    *default_value_expression = &m_default_value_expression;
+  }
+
+  bool contextualize(Column_parse_context *pc) override {
+    // GC and default value expressions are mutually exclusive and thus only
+    // one is allowed to be present on the same column definition.
+    if (pc->is_generated) {
+      my_error(ER_WRONG_USAGE, MYF(0), "DEFAULT", "generated column");
+      return true;
+    }
+    Parse_context expr_pc(pc->thd, pc->select);
+    return super::contextualize(pc) ||
+           m_default_value_expression.expr_item->itemize(
+               &expr_pc, &m_default_value_expression.expr_item);
+  }
+
+ private:
+  Value_generator m_default_value_expression;
 };
 
 // Type nodes:
@@ -685,7 +718,9 @@ class PT_field_def_base : public Parse_tree_node {
   LEX_STRING comment;
   Item *default_value;
   Item *on_update_value;
-  Generated_column *gcol_info;
+  Value_generator *gcol_info;
+  /// Holds the expression to generate default values
+  Value_generator *default_val_info;
   Nullable<gis::srid_t> m_srid;
 
  protected:
@@ -698,6 +733,7 @@ class PT_field_def_base : public Parse_tree_node {
         default_value(NULL),
         on_update_value(NULL),
         gcol_info(NULL),
+        default_val_info(nullptr),
         type_node(type_node) {}
 
  public:
@@ -725,6 +761,7 @@ class PT_field_def_base : public Parse_tree_node {
         attr->apply_alter_info_flags(&alter_info_flags);
         attr->apply_comment(&comment);
         attr->apply_default_value(&default_value);
+        attr->apply_gen_default_value(&default_val_info);
         attr->apply_on_update_value(&on_update_value);
         attr->apply_srid_modifier(&m_srid);
         if (attr->apply_collation(&charset, &has_explicit_collation))
@@ -783,7 +820,7 @@ class PT_generated_field_def : public PT_field_def_base {
         expr->itemize(&pc, &expr))
       return true;
 
-    gcol_info = new (pc.thd->mem_root) Generated_column;
+    gcol_info = new (pc.mem_root) Value_generator;
     if (gcol_info == NULL) return true;  // OOM
     gcol_info->expr_item = expr;
     if (virtual_or_stored == Virtual_or_stored::STORED)

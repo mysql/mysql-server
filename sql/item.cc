@@ -735,6 +735,20 @@ bool Item_ident::itemize(Parse_context *pc, Item **res) {
   return false;
 }
 
+bool Item::check_function_as_value_generator(uchar *args) {
+  Check_function_as_value_generator_parameters *func_arg =
+      pointer_cast<Check_function_as_value_generator_parameters *>(args);
+  Item_func *func_item = nullptr;
+  if (type() == Item::FUNC_ITEM &&
+      ((func_item = down_cast<Item_func *>(this)))) {
+    func_arg->banned_function_name = func_item->func_name();
+  }
+  func_arg->err_code = func_arg->is_gen_col
+                           ? ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
+                           : ER_DEFAULT_VAL_GENERATED_FUNCTION_IS_NOT_ALLOWED;
+  return true;
+}
+
 void Item_ident::cleanup() {
   DBUG_ENTER("Item_ident::cleanup");
   Item::cleanup();
@@ -824,25 +838,34 @@ bool Item_field::find_item_in_field_list_processor(uchar *arg) {
   return false;
 }
 
-bool Item_field::check_gcol_func_processor(uchar *int_arg) {
-  int *args = reinterpret_cast<int *>(int_arg);
-  int fld_idx = args[0];
+bool Item_field::check_function_as_value_generator(uchar *args) {
+  Check_function_as_value_generator_parameters *func_args =
+      pointer_cast<Check_function_as_value_generator_parameters *>(args);
+  int fld_idx = func_args->col_index;
+  bool is_gen_col = func_args->is_gen_col;
   DBUG_ASSERT(field);
-  // Don't allow GC to refer itself or another GC that is defined after it.
-  if (field->gcol_info && field->field_index >= fld_idx) {
-    args[1] = ER_GENERATED_COLUMN_NON_PRIOR;
+  /*
+    Don't allow the GC (or default expression) to refer itself or another GC
+    (or default expressions) that is defined after it.
+  */
+  if ((field->is_gcol() ||
+       field->has_insert_default_general_value_expression()) &&
+      field->field_index >= fld_idx) {
+    func_args->err_code = is_gen_col ? ER_GENERATED_COLUMN_NON_PRIOR
+                                     : ER_DEFAULT_VAL_GENERATED_NON_PRIOR;
     return true;
   }
   /*
-    If a generated column depends on an auto_increment column:
-    - calculation of the generated column's value is done before
-    write_row(),
+    If a generated column or default expression depends on an auto_increment
+    column:
+    - calculation of the generated value is done before write_row(),
     - but the auto_increment value is determined in write_row() by the
     engine.
     So this case is forbidden.
   */
   if (field->flags & AUTO_INCREMENT_FLAG) {
-    args[1] = ER_GENERATED_COLUMN_REF_AUTO_INC;
+    func_args->err_code = is_gen_col ? ER_GENERATED_COLUMN_REF_AUTO_INC
+                                     : ER_DEFAULT_VAL_GENERATED_REF_AUTO_INC;
     return true;
   }
 
@@ -7742,22 +7765,27 @@ bool Item_default_value::fix_fields(THD *thd, Item **) {
     fixed = 1;
     return false;
   }
-  if (!arg->fixed && arg->fix_fields(thd, &arg)) goto error;
+  if (!arg->fixed && arg->fix_fields(thd, &arg)) return true;
 
   real_arg = arg->real_item();
   if (real_arg->type() != FIELD_ITEM) {
     my_error(ER_NO_DEFAULT_FOR_FIELD, MYF(0), arg->item_name.ptr());
-    goto error;
+    return true;
   }
 
   field_arg = (Item_field *)real_arg;
   if (field_arg->field->flags & NO_DEFAULT_VALUE_FLAG) {
     my_error(ER_NO_DEFAULT_FOR_FIELD, MYF(0), field_arg->field->field_name);
-    goto error;
+    return true;
+  }
+
+  if (field_arg->field->has_insert_default_general_value_expression()) {
+    my_error(ER_DEFAULT_AS_VAL_GENERATED, MYF(0));
+    return true;
   }
 
   def_field = field_arg->field->clone();
-  if (def_field == NULL) goto error;
+  if (def_field == nullptr) return true;
 
   def_field->move_field_offset(def_field->table->default_values_offset());
   set_field(def_field);
@@ -7766,9 +7794,6 @@ bool Item_default_value::fix_fields(THD *thd, Item **) {
   cached_table = table_ref;
 
   return false;
-
-error:
-  return true;
 }
 
 void Item_default_value::print(String *str, enum_query_type query_type) {
@@ -7784,7 +7809,8 @@ void Item_default_value::print(String *str, enum_query_type query_type) {
 type_conversion_status Item_default_value::save_in_field_inner(
     Field *field_arg, bool no_conversions) {
   if (!arg) {
-    if (field_arg->flags & NO_DEFAULT_VALUE_FLAG &&
+    if ((field_arg->flags & NO_DEFAULT_VALUE_FLAG &&
+         field_arg->m_default_val_expr == nullptr) &&
         field_arg->real_type() != MYSQL_TYPE_ENUM) {
       if (field_arg->reset()) {
         my_error(ER_CANT_CREATE_GEOMETRY_OBJECT, MYF(0));
@@ -7807,6 +7833,19 @@ type_conversion_status Item_default_value::save_in_field_inner(
       }
       return TYPE_ERR_BAD_VALUE;
     }
+
+    // If this DEFAULT's value is actually an expression, mark the columns
+    // it uses for reading. For inserts where the name is not explicitly
+    // mentioned, this is set in COPY_INFO::get_function_default_columns
+    if (field_arg->has_insert_default_general_value_expression()) {
+      for (uint j = 0; j < field_arg->table->s->fields; j++) {
+        if (bitmap_is_set(&field_arg->m_default_val_expr->base_columns_map,
+                          j)) {
+          bitmap_set_bit(field_arg->table->read_set, j);
+        }
+      }
+    }
+
     field_arg->set_default();
     return field_arg->validate_stored_val(current_thd);
   }

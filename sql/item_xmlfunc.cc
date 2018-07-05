@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -222,6 +222,12 @@ class Item_nodeset_func : public Item_str_func {
     return false;
   }
   const char *func_name() const override { return "nodeset"; }
+  bool check_function_as_value_generator(uchar *args) override {
+    Check_function_as_value_generator_parameters *func_arg =
+        pointer_cast<Check_function_as_value_generator_parameters *>(args);
+    func_arg->banned_function_name = func_name();
+    return true;
+  }
 };
 
 /* Returns an XML root */
@@ -510,6 +516,13 @@ class Item_nodeset_to_const_comparator final : public Item_bool_func {
       }
     }
     return 0;
+  }
+
+  bool check_function_as_value_generator(uchar *args) override {
+    Check_function_as_value_generator_parameters *func_arg =
+        pointer_cast<Check_function_as_value_generator_parameters *>(args);
+    func_arg->banned_function_name = func_name();
+    return true;
   }
 };
 

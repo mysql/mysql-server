@@ -58,7 +58,7 @@ ushort	smallint(5) unsigned zerofill	NULL	NO	MUL	00000		select,insert,update,ref
 umedium	mediumint(8) unsigned	NULL	NO	MUL	0		select,insert,update,references	
 ulong	int(11) unsigned	NULL	NO	MUL	0		select,insert,update,references	
 ulonglong	bigint(13) unsigned	NULL	NO	MUL	0		select,insert,update,references	
-time_stamp	timestamp	NULL	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP	select,insert,update,references	
+time_stamp	timestamp	NULL	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP	select,insert,update,references	
 date_field	date	NULL	YES		NULL		select,insert,update,references	
 time_field	time	NULL	YES		NULL		select,insert,update,references	
 date_time	datetime	NULL	YES		NULL		select,insert,update,references	
@@ -233,7 +233,7 @@ ushort	smallint(5) unsigned zerofill	NULL	NO		00000		select,insert,update,refere
 umedium	mediumint(8) unsigned	NULL	NO	MUL	0		select,insert,update,references	
 ulong	int(11) unsigned	NULL	NO	MUL	0		select,insert,update,references	
 ulonglong	bigint(13) unsigned	NULL	NO	MUL	0		select,insert,update,references	
-time_stamp	timestamp	NULL	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP	select,insert,update,references	
+time_stamp	timestamp	NULL	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP	select,insert,update,references	
 date_field	char(10)	utf8mb4_0900_ai_ci	YES		NULL		select,insert,update,references	
 time_field	time	NULL	YES		NULL		select,insert,update,references	
 date_time	datetime	NULL	YES		NULL		select,insert,update,references	
@@ -259,7 +259,7 @@ ushort	smallint(5) unsigned zerofill	NULL	NO		00000		select,insert,update,refere
 umedium	mediumint(8) unsigned	NULL	NO		0		select,insert,update,references	
 ulong	int(11) unsigned	NULL	NO		0		select,insert,update,references	
 ulonglong	bigint(13) unsigned	NULL	NO		0		select,insert,update,references	
-time_stamp	timestamp	NULL	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP	select,insert,update,references	
+time_stamp	timestamp	NULL	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP	select,insert,update,references	
 date_field	char(10)	utf8mb4_0900_ai_ci	YES		NULL		select,insert,update,references	
 time_field	time	NULL	YES		NULL		select,insert,update,references	
 date_time	datetime	NULL	YES		NULL		select,insert,update,references	

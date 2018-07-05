@@ -3746,7 +3746,8 @@ bool prepare_pack_create_field(THD *thd, Create_field *sql_field,
     case MYSQL_TYPE_LONG_BLOB:
     case MYSQL_TYPE_JSON:
       sql_field->length = 8;  // Unireg field length
-      DBUG_ASSERT(sql_field->auto_flags == Field::NONE);
+      DBUG_ASSERT(sql_field->auto_flags == Field::NONE ||
+                  sql_field->auto_flags == Field::GENERATED_FROM_EXPRESSION);
       break;
     case MYSQL_TYPE_VARCHAR:
       if (table_flags & HA_NO_VARCHAR) {
@@ -3931,7 +3932,7 @@ void promote_first_timestamp_column(List<Create_field> *column_definitions) {
         column_definition->sql_type == MYSQL_TYPE_TIMESTAMP2)   //  ms TIMESTAMP
     {
       if ((column_definition->flags & NOT_NULL_FLAG) != 0 &&  // NOT NULL,
-          column_definition->def == NULL &&        // no constant default,
+          column_definition->constant_default == NULL &&  // no constant default
           column_definition->gcol_info == NULL &&  // not a generated column
           column_definition->auto_flags == Field::NONE)  // no function default
       {
@@ -4104,12 +4105,12 @@ static bool prepare_set_field(THD *thd, Create_field *sql_field) {
     }
   }
 
-  if (sql_field->def != NULL) {
+  if (sql_field->constant_default != NULL) {
     char *not_used;
     uint not_used2;
     bool not_found = false;
     String str;
-    String *def = sql_field->def->val_str(&str);
+    String *def = sql_field->constant_default->val_str(&str);
     if (def == NULL) /* SQL "NULL" maps to NULL */
     {
       if ((sql_field->flags & NOT_NULL_FLAG) != 0) {
@@ -4166,9 +4167,9 @@ static bool prepare_enum_field(THD *thd, Create_field *sql_field) {
     sql_field->interval = create_typelib(thd->mem_root, sql_field);
   }
 
-  if (sql_field->def != NULL) {
+  if (sql_field->constant_default != NULL) {
     String str;
-    String *def = sql_field->def->val_str(&str);
+    String *def = sql_field->constant_default->val_str(&str);
     if (def == NULL) /* SQL "NULL" maps to NULL */
     {
       if ((sql_field->flags & NOT_NULL_FLAG) != 0) {
@@ -4243,7 +4244,8 @@ bool prepare_create_field(THD *thd, HA_CREATE_INFO *create_info,
     Convert the default value from client character
     set into the column character set if necessary.
   */
-  if (sql_field->def && save_cs != sql_field->def->collation.collation &&
+  if (sql_field->constant_default &&
+      save_cs != sql_field->constant_default->collation.collation &&
       (sql_field->sql_type == MYSQL_TYPE_VAR_STRING ||
        sql_field->sql_type == MYSQL_TYPE_STRING ||
        sql_field->sql_type == MYSQL_TYPE_SET ||
@@ -4258,9 +4260,10 @@ bool prepare_create_field(THD *thd, HA_CREATE_INFO *create_info,
       pointer in the parsed tree of a prepared statement or a
       stored procedure statement.
     */
-    sql_field->def = sql_field->def->safe_charset_converter(thd, save_cs);
+    sql_field->constant_default =
+        sql_field->constant_default->safe_charset_converter(thd, save_cs);
 
-    if (sql_field->def == NULL) {
+    if (sql_field->constant_default == NULL) {
       /* Could not convert */
       my_error(ER_INVALID_DEFAULT, MYF(0), sql_field->field_name);
       DBUG_RETURN(true);
@@ -4342,7 +4345,7 @@ bool prepare_create_field(THD *thd, HA_CREATE_INFO *create_info,
             file->ha_table_flags() & HA_CAN_BIT_FIELD)
           create_info->null_bits -= sql_field->length & 7;
 
-        sql_field->def = dup_field->def;
+        sql_field->constant_default = dup_field->constant_default;
         sql_field->sql_type = dup_field->sql_type;
 
         /*
@@ -4374,6 +4377,7 @@ bool prepare_create_field(THD *thd, HA_CREATE_INFO *create_info,
         sql_field->create_length_to_internal_length();
         sql_field->interval = dup_field->interval;
         sql_field->gcol_info = dup_field->gcol_info;
+        sql_field->m_default_val_expr = dup_field->m_default_val_expr;
         sql_field->stored_in_db = dup_field->stored_in_db;
         it.remove();  // Remove first (create) definition
         (*select_field_pos)--;
@@ -4729,7 +4733,8 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
            Default constant value assigned due to implicit promotion of second
            timestamp column is removed.
       */
-      if (!sql_field->def && !(sql_field->flags & AUTO_INCREMENT_FLAG) &&
+      if (!sql_field->constant_default &&
+          !(sql_field->flags & AUTO_INCREMENT_FLAG) &&
           !(real_type_with_now_as_default(sql_field->sql_type) &&
             (sql_field->auto_flags & Field::DEFAULT_NOW))) {
         sql_field->flags |= NO_DEFAULT_VALUE_FLAG;
@@ -6711,7 +6716,7 @@ static bool add_functional_index_to_create_list(THD *thd, Key_spec *key_spec,
   cr->hidden = dd::Column::enum_hidden_type::HT_HIDDEN_SQL;
   cr->stored_in_db = false;
 
-  Generated_column *gcol_info = new (thd->mem_root) Generated_column();
+  Value_generator *gcol_info = new (thd->mem_root) Value_generator();
   gcol_info->expr_item = kp->get_expression();
   gcol_info->set_field_stored(false);
   gcol_info->set_field_type(cr->sql_type);
@@ -7091,7 +7096,7 @@ bool mysql_prepare_create_table(
       !thd->variables.explicit_defaults_for_timestamp) {
     it.rewind();
     while ((sql_field = it++)) {
-      if (!sql_field->def && !sql_field->gcol_info &&
+      if (!sql_field->constant_default && !sql_field->gcol_info &&
           is_timestamp_type(sql_field->sql_type) &&
           (sql_field->flags & NOT_NULL_FLAG) &&
           !(sql_field->auto_flags & Field::DEFAULT_NOW)) {
@@ -7248,7 +7253,7 @@ static bool prepare_blob_field(THD *thd, Create_field *sql_field) {
     /* Convert long VARCHAR columns to TEXT or BLOB */
     char warn_buff[MYSQL_ERRMSG_SIZE];
 
-    if (sql_field->def || thd->is_strict_mode()) {
+    if (sql_field->constant_default || thd->is_strict_mode()) {
       my_error(ER_TOO_BIG_FIELDLENGTH, MYF(0), sql_field->field_name,
                static_cast<ulong>(MAX_FIELD_VARCHARLENGTH /
                                   sql_field->charset->mbmaxlen));
@@ -10106,7 +10111,7 @@ static bool fill_alter_inplace_info(THD *thd, TABLE *table,
         if (new_field->is_virtual_gcol())
           ha_alter_info->handler_flags |=
               Alter_inplace_info::ADD_VIRTUAL_COLUMN;
-        else if (new_field->gcol_info)
+        else if (new_field->gcol_info || new_field->m_default_val_expr)
           ha_alter_info->handler_flags |=
               Alter_inplace_info::ADD_STORED_GENERATED_COLUMN;
         else
@@ -11784,7 +11789,8 @@ static bool upgrade_old_temporal_types(THD *thd, Alter_info *alter_info) {
   create_it.rewind();
   while ((def = create_it++)) {
     enum enum_field_types sql_type;
-    Item *default_value = def->def, *update_value = NULL;
+    Item *default_value = def->constant_default;
+    Item *update_value = nullptr;
 
     /*
        Set CURRENT_TIMESTAMP as default/update value based on
@@ -11824,7 +11830,8 @@ static bool upgrade_old_temporal_types(THD *thd, Alter_info *alter_info) {
         temporal_field->init(thd, def->field_name, sql_type, NULL, NULL,
                              (def->flags & NOT_NULL_FLAG), default_value,
                              update_value, &def->comment, def->change, NULL,
-                             NULL, false, 0, NULL, def->m_srid, def->hidden))
+                             NULL, false, 0, NULL, nullptr, def->m_srid,
+                             def->hidden))
       DBUG_RETURN(true);
 
     temporal_field->field = def->field;
@@ -12113,15 +12120,21 @@ static bool alter_column_name_or_default(Alter_info *alter_info,
   // Setup the field.
   switch (alter->change_type()) {
     case Alter_column::Type::SET_DEFAULT: {
-      DBUG_ASSERT(alter->def);
+      DBUG_ASSERT(alter->def || alter->m_default_val_expr);
 
       // Assign new default.
-      def->def = alter->def;
+      def->constant_default = alter->def;
+      def->m_default_val_expr = alter->m_default_val_expr;
 
-      if (def->flags & BLOB_FLAG) {
+      if (alter->def && def->flags & BLOB_FLAG) {
         my_error(ER_BLOB_CANT_HAVE_DEFAULT, MYF(0), def->field_name);
         DBUG_RETURN(true);
       }
+
+      if (alter->m_default_val_expr != nullptr &&
+          pre_validate_value_generator_expr(alter->m_default_val_expr,
+                                            alter->name, false))
+        DBUG_RETURN(true);
 
       // Default value is not permitted for generated columns
       if (def->field->is_gcol()) {
@@ -12136,8 +12149,9 @@ static bool alter_column_name_or_default(Alter_info *alter_info,
         appropriately.
        */
       if (real_type_with_now_as_default(def->sql_type)) {
-        DBUG_ASSERT((def->auto_flags &
-                     ~(Field::DEFAULT_NOW | Field::ON_UPDATE_NOW)) == 0);
+        DBUG_ASSERT(
+            (def->auto_flags & ~(Field::DEFAULT_NOW | Field::ON_UPDATE_NOW |
+                                 Field::GENERATED_FROM_EXPRESSION)) == 0);
         def->auto_flags &= ~Field::DEFAULT_NOW;
       }
     } break;
@@ -12145,13 +12159,9 @@ static bool alter_column_name_or_default(Alter_info *alter_info,
     case Alter_column::Type::DROP_DEFAULT: {
       DBUG_ASSERT(!alter->def);
 
-      if (def->flags & BLOB_FLAG) {
-        my_error(ER_BLOB_CANT_HAVE_DEFAULT, MYF(0), def->field_name);
-        DBUG_RETURN(true);
-      }
-
       // Mark field to have no default.
-      def->def = nullptr;
+      def->constant_default = nullptr;
+      def->m_default_val_expr = nullptr;
       def->flags |= NO_DEFAULT_VALUE_FLAG;
     } break;
 
@@ -12188,21 +12198,24 @@ static bool is_field_used_by_functional_index(TABLE *table, uint field_index) {
   MY_BITMAP *save_old_read_set = table->read_set;
   table->read_set = &dependent_fields;
 
-  for (Field **vfield_ptr = table->vfield; *vfield_ptr; vfield_ptr++) {
-    Field *tmp_vfield = *vfield_ptr;
-    if (!tmp_vfield->is_field_for_functional_index()) {
-      continue;
-    }
+  if (table->vfield != nullptr) {
+    for (Field **vfield_ptr = table->vfield; *vfield_ptr; vfield_ptr++) {
+      Field *tmp_vfield = *vfield_ptr;
+      if (!tmp_vfield->is_field_for_functional_index()) {
+        continue;
+      }
 
-    DBUG_ASSERT(tmp_vfield->gcol_info && tmp_vfield->gcol_info->expr_item);
-    Mark_field mark_fld(MARK_COLUMNS_TEMP);
-    tmp_vfield->gcol_info->expr_item->walk(
-        &Item::mark_field_in_map, Item::WALK_PREFIX, (uchar *)&mark_fld);
-    if (bitmap_is_set(table->read_set, field_index)) {
-      table->read_set = save_old_read_set;
-      return true;
+      DBUG_ASSERT(tmp_vfield->gcol_info && tmp_vfield->gcol_info->expr_item);
+      Mark_field mark_fld(MARK_COLUMNS_TEMP);
+      tmp_vfield->gcol_info->expr_item->walk(
+          &Item::mark_field_in_map, Item::WALK_PREFIX, (uchar *)&mark_fld);
+      if (bitmap_is_set(table->read_set, field_index)) {
+        table->read_set = save_old_read_set;
+        return true;
+      }
     }
   }
+
   table->read_set = save_old_read_set;
   return false;
 }
@@ -12275,19 +12288,20 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
           create_info->auto_increment_value = 0;
           create_info->used_fields |= HA_CREATE_USED_AUTO;
         }
+
+        int error_no;
         /*
-          If a generated column is dependent on this column, this column
-          cannot be dropped.
+          If a generated column or a default expression is dependent
+          on this column, this column cannot be dropped.
         */
-        if (table->vfield &&
-            table->is_field_used_by_generated_columns(field->field_index)) {
+        if (table->is_field_used_by_generated_columns(field->field_index,
+                                                      &error_no)) {
           // Check if the field is referenced by a functional index.
           if (is_field_used_by_functional_index(table, field->field_index)) {
             my_error(ER_CANNOT_DROP_COLUMN_FUNCTIONAL_INDEX, MYF(0),
                      field->field_name);
           } else {
-            my_error(ER_DEPENDENT_BY_GENERATED_COLUMN, MYF(0),
-                     field->field_name);
+            my_error(error_no, MYF(0), field->field_name, table->alias);
           }
           DBUG_RETURN(true);
         }
@@ -15773,10 +15787,35 @@ static int copy_data_between_tables(
       save_in_field() that should be treated as errors, we can remove
       to check thd->is_error() below.
     */
-    if ((to->vfield && update_generated_write_fields(to->write_set, to)) ||
-        thd->is_error()) {
+    if ((update_generated_write_fields(to->write_set, to)) || thd->is_error()) {
       error = 1;
       break;
+    }
+
+    Field **field_ptr;
+    if (to->gen_def_fields_ptr) {
+      // Iterate over generated default fields in the table
+      for (field_ptr = to->gen_def_fields_ptr; *field_ptr; field_ptr++) {
+        Field *current_col = (*field_ptr);
+        Field *from_column = from->field[current_col->field_index];
+        // Update those fields that are marked in the bitmap but only if the
+        // column did not exist before (add column)
+        if (current_col->m_default_val_expr->expr_item &&
+            bitmap_is_set(to->write_set, current_col->field_index) &&
+            (from_column == nullptr)) {
+          // Generate the actual value for the default expression
+          bool err_ret =
+              current_col->m_default_val_expr->expr_item->save_in_field(
+                  current_col, false);
+          if (err_ret && to->in_use->is_error()) error = true;
+          if (to->fields_set_during_insert)
+            bitmap_set_bit(to->fields_set_during_insert,
+                           current_col->field_index);
+        }
+      }
+      if (error) {
+        break;
+      }
     }
 
     error = to->file->ha_write_row(to->record[0]);

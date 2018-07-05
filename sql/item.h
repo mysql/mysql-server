@@ -471,6 +471,20 @@ struct Name_resolution_context {
   }
 };
 
+/**
+  Struct used to pass around arguments to/from
+  check_function_as_value_generator
+*/
+struct Check_function_as_value_generator_parameters {
+  /// the order of the column in table
+  int col_index;
+  /// the error code found during check(if any)
+  int err_code;
+  /// if it is a generated column
+  bool is_gen_col;
+  /// the name of the function which is not allowed
+  const char *banned_function_name;
+};
 /*
   Store and restore the current state of a name resolution context.
 */
@@ -2268,18 +2282,17 @@ class Item : public Parse_tree_node {
   virtual bool check_valid_arguments_processor(uchar *) { return false; }
 
   /**
-    Check if an expression/function is allowed for a virtual column
+    Check if this item is allowed for a virtual column or inside a
+    default expression. Should be overridden in child classes.
 
-    @param[in,out] int_arg  An array of two integers. Used only for
-    Item_field. The first cell passes the field's number in the table. The
-    second cell is an out parameter containing the error code.
+    @param[in,out] args  Due to the limitation of Item::walk()
+    it is declared as a pointer to uchar, underneath there's a actually a
+    structure of type Check_function_as_value_generator_parameters.
+    It is used mainly in Item_field.
 
     @returns true if function is not accepted
    */
-  virtual bool check_gcol_func_processor(
-      uchar *int_arg MY_ATTRIBUTE((unused))) {
-    return true;
-  }
+  virtual bool check_function_as_value_generator(uchar *args);
 
   /**
     Check if a generated expression depends on DEFAULT function.
@@ -2702,7 +2715,7 @@ class Item_basic_constant : public Item {
 
   void set_used_tables(table_map map) { used_table_map = map; }
   table_map used_tables() const override { return used_table_map; }
-  bool check_gcol_func_processor(uchar *) override { return false; }
+  bool check_function_as_value_generator(uchar *) override { return false; }
   /* to prevent drop fixed flag (no need parent cleanup call) */
   void cleanup() override {
     /*
@@ -3289,7 +3302,7 @@ class Item_field : public Item_ident {
   bool find_field_processor(uchar *arg) override {
     return pointer_cast<Field *>(arg) == field;
   }
-  bool check_gcol_func_processor(uchar *int_arg) override;
+  bool check_function_as_value_generator(uchar *args) override;
   bool mark_field_in_map(uchar *arg) override {
     auto mark_field = pointer_cast<Mark_field *>(arg);
     bool rc = Item::mark_field_in_map(mark_field, field);
@@ -3474,7 +3487,14 @@ class Item_null_result final : public Item_null {
   }
   bool check_partition_func_processor(uchar *) override { return true; }
   Item_result result_type() const override { return res_type; }
-  bool check_gcol_func_processor(uchar *) override { return true; }
+  bool check_function_as_value_generator(uchar *args) override {
+    Check_function_as_value_generator_parameters *func_arg =
+        pointer_cast<Check_function_as_value_generator_parameters *>(args);
+    func_arg->banned_function_name = "NULL";
+    // This should not happen as SELECT statements are not allowed.
+    DBUG_ASSERT(false);
+    return true;
+  }
   enum Type type() const override { return NULL_RESULT_ITEM; }
 };
 
@@ -3644,6 +3664,15 @@ class Item_param final : public Item, private Settable_routine_parameter {
 
   void make_field(Send_field *field) override;
 
+  bool check_function_as_value_generator(uchar *args) override {
+    Check_function_as_value_generator_parameters *func_arg =
+        pointer_cast<Check_function_as_value_generator_parameters *>(args);
+    func_arg->err_code = func_arg->is_gen_col
+                             ? ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
+                             : ER_DEFAULT_VAL_GENERATED_FUNCTION_IS_NOT_ALLOWED;
+    return true;
+  }
+
  private:
   Send_field *m_out_param_info;
   /**
@@ -3765,7 +3794,7 @@ class Item_int : public Item_num {
   }
   bool eq(const Item *, bool) const override;
   bool check_partition_func_processor(uchar *) override { return false; }
-  bool check_gcol_func_processor(uchar *) override { return false; }
+  bool check_function_as_value_generator(uchar *) override { return false; }
 };
 
 /**
@@ -4211,7 +4240,12 @@ class Item_static_string_func : public Item_string {
   }
 
   bool check_partition_func_processor(uchar *) override { return true; }
-  bool check_gcol_func_processor(uchar *) override { return true; }
+  bool check_function_as_value_generator(uchar *args) override {
+    Check_function_as_value_generator_parameters *func_arg =
+        pointer_cast<Check_function_as_value_generator_parameters *>(args);
+    func_arg->banned_function_name = func_name.ptr();
+    return true;
+  }
 };
 
 /* for show tables */
@@ -4232,6 +4266,14 @@ class Item_blob final : public Item_partition_func_safe_string {
     set_data_type(MYSQL_TYPE_BLOB);
   }
   enum Type type() const override { return TYPE_HOLDER; }
+  bool check_function_as_value_generator(uchar *args) override {
+    Check_function_as_value_generator_parameters *func_arg =
+        pointer_cast<Check_function_as_value_generator_parameters *>(args);
+    func_arg->err_code = func_arg->is_gen_col
+                             ? ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
+                             : ER_DEFAULT_VAL_GENERATED_FUNCTION_IS_NOT_ALLOWED;
+    return true;
+  }
 };
 
 /**
@@ -4393,7 +4435,7 @@ class Item_result_field : public Item {
     Added here, to the parent class of both Item_func and Item_sum.
   */
   virtual const char *func_name() const = 0;
-  bool check_gcol_func_processor(uchar *) override { return false; }
+  bool check_function_as_value_generator(uchar *) override { return false; }
   bool mark_field_in_map(uchar *arg) override {
     bool rc = Item::mark_field_in_map(arg);
     if (result_field)  // most likely result_field will be read too
@@ -4583,6 +4625,14 @@ class Item_ref : public Item_ident {
 
   bool repoint_const_outer_ref(uchar *arg) override;
   bool contains_alias_of_expr(uchar *arg) override;
+  bool check_function_as_value_generator(uchar *args) override {
+    Check_function_as_value_generator_parameters *func_arg =
+        pointer_cast<Check_function_as_value_generator_parameters *>(args);
+    func_arg->err_code = func_arg->is_gen_col
+                             ? ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
+                             : ER_DEFAULT_VAL_GENERATED_FUNCTION_IS_NOT_ALLOWED;
+    return true;
+  }
 };
 
 /**
@@ -5001,6 +5051,12 @@ class Item_copy : public Item {
     return error_json();
   }
   /* purecov: end */
+  bool check_function_as_value_generator(uchar *args) override {
+    Check_function_as_value_generator_parameters *func_arg =
+        pointer_cast<Check_function_as_value_generator_parameters *>(args);
+    func_arg->banned_function_name = "values";
+    return true;
+  }
 };
 
 /**
@@ -5276,7 +5332,12 @@ class Item_insert_value final : public Item_field {
            arg->walk(processor, walk, args) ||
            ((walk & WALK_POSTFIX) && (this->*processor)(args));
   }
-  bool check_gcol_func_processor(uchar *) override { return true; }
+  bool check_function_as_value_generator(uchar *args) override {
+    Check_function_as_value_generator_parameters *func_arg =
+        pointer_cast<Check_function_as_value_generator_parameters *>(args);
+    func_arg->banned_function_name = "values";
+    return true;
+  }
 };
 
 /**
@@ -5341,6 +5402,15 @@ class Item_trigger_field final : public Item_field,
   Item *get_tmp_table_item(THD *thd) override { return copy_or_same(thd); }
   void cleanup() override;
   void set_required_privilege(bool rw) override;
+
+  bool check_function_as_value_generator(uchar *args) override {
+    Check_function_as_value_generator_parameters *func_arg =
+        pointer_cast<Check_function_as_value_generator_parameters *>(args);
+    func_arg->err_code = func_arg->is_gen_col
+                             ? ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
+                             : ER_DEFAULT_VAL_GENERATED_FUNCTION_IS_NOT_ALLOWED;
+    return true;
+  }
 
  private:
   bool set_value(THD *thd, sp_rcontext *ctx, Item **it) override;
@@ -5508,7 +5578,14 @@ class Item_cache : public Item_basic_constant {
   bool is_null() override {
     return value_cached ? null_value : example->is_null();
   }
-  bool check_gcol_func_processor(uchar *) override { return true; }
+  bool check_function_as_value_generator(uchar *args) override {
+    Check_function_as_value_generator_parameters *func_arg =
+        pointer_cast<Check_function_as_value_generator_parameters *>(args);
+    func_arg->banned_function_name = "cached item";
+    // This should not happen as SELECT statements are not allowed.
+    DBUG_ASSERT(false);
+    return true;
+  }
   Item_result result_type() const override {
     if (!example) return INT_RESULT;
     return Field::result_merge_type(example->data_type());
@@ -5787,6 +5864,14 @@ class Item_type_holder final : public Item {
     Item::make_field(field);
     // Item_type_holder is used for unions and effectively sends Fields
     field->field = true;
+  }
+  bool check_function_as_value_generator(uchar *args) override {
+    Check_function_as_value_generator_parameters *func_arg =
+        pointer_cast<Check_function_as_value_generator_parameters *>(args);
+    func_arg->err_code = func_arg->is_gen_col
+                             ? ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
+                             : ER_DEFAULT_VAL_GENERATED_FUNCTION_IS_NOT_ALLOWED;
+    return true;
   }
 };
 

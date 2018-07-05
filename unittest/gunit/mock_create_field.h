@@ -59,6 +59,7 @@ class Mock_create_field : public Create_field {
          false,          // bool has_explicit_collation,
          0,              // uint fld_geom_type
          nullptr,        // gcol info
+         nullptr,        // gen default val
          {},             // Nullable<gis::srid_t> srid
          dd::Column::enum_hidden_type::HT_VISIBLE);  // Visible
   }

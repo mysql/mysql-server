@@ -629,7 +629,7 @@ def	test	tb4	f217	42	NULL	YES	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double uns
 def	test	tb4	f218	43	NULL	YES	date	NULL	NULL	NULL	NULL	NULL	NULL	NULL	date			select,insert,update,references			NULL
 def	test	tb4	f219	44	NULL	YES	time	NULL	NULL	NULL	NULL	0	NULL	NULL	time			select,insert,update,references			NULL
 def	test	tb4	f220	45	NULL	YES	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime			select,insert,update,references			NULL
-def	test	tb4	f221	46	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references			NULL
+def	test	tb4	f221	46	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		DEFAULT_GENERATED on update CURRENT_TIMESTAMP	select,insert,update,references			NULL
 def	test	tb4	f222	47	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references			NULL
 def	test	tb4	f223	48	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references			NULL
 def	test	tb4	f224	49	NULL	YES	year	NULL	NULL	NULL	NULL	NULL	NULL	NULL	year(4)			select,insert,update,references			NULL

@@ -1296,7 +1296,7 @@ static void mark_temp_tables_as_free_for_reuse(THD *thd) {
   for (TABLE *table = thd->temporary_tables; table; table = table->next) {
     if ((table->query_id == thd->query_id) && !table->open_by_handler) {
       mark_tmp_table_for_reuse(table);
-      table->cleanup_gc_items();
+      table->cleanup_value_generator_items();
       table->cleanup_partial_update();
     }
   }
@@ -1569,7 +1569,7 @@ void close_thread_tables(THD *thd) {
         table->query_id == thd->query_id) {
       DBUG_ASSERT(table->file);
       if (table->db_stat) table->file->extra(HA_EXTRA_DETACH_CHILDREN);
-      table->cleanup_gc_items();
+      table->cleanup_value_generator_items();
       table->cleanup_partial_update();
     }
   }

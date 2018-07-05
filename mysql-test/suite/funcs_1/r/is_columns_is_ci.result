@@ -36,7 +36,7 @@ def	information_schema	COLUMNS	CHARACTER_SET_NAME	14	NULL	YES	varchar	64	192	NUL
 def	information_schema	COLUMNS	COLLATION_NAME	15	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	COLUMNS	COLUMN_TYPE	16	NULL	NO	mediumtext	16777215	16777215	NULL	NULL	NULL	utf8	utf8_bin	mediumtext			select			NULL
 def	information_schema	COLUMNS	COLUMN_KEY	17	NULL	NO	enum	3	9	NULL	NULL	NULL	utf8	utf8_bin	enum('','PRI','UNI','MUL')			select			NULL
-def	information_schema	COLUMNS	EXTRA	18	NULL	YES	varchar	57	171	NULL	NULL	NULL	utf8	utf8_bin	varchar(57)			select			NULL
+def	information_schema	COLUMNS	EXTRA	18	NULL	YES	varchar	60	180	NULL	NULL	NULL	utf8	utf8_bin	varchar(60)			select			NULL
 def	information_schema	COLUMNS	PRIVILEGES	19	NULL	YES	varchar	154	462	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(154)			select			NULL
 def	information_schema	COLUMNS	COLUMN_COMMENT	20	NULL	NO	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select			NULL
 def	information_schema	COLUMNS	GENERATION_EXPRESSION	21	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_bin	longtext			select			NULL
@@ -484,7 +484,7 @@ NULL	information_schema	COLUMNS	DATETIME_PRECISION	int	NULL	NULL	NULL	NULL	int(1
 3.0000	information_schema	COLUMNS	COLLATION_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 1.0000	information_schema	COLUMNS	COLUMN_TYPE	mediumtext	16777215	16777215	utf8	utf8_bin	mediumtext
 3.0000	information_schema	COLUMNS	COLUMN_KEY	enum	3	9	utf8	utf8_bin	enum('','PRI','UNI','MUL')
-3.0000	information_schema	COLUMNS	EXTRA	varchar	57	171	utf8	utf8_bin	varchar(57)
+3.0000	information_schema	COLUMNS	EXTRA	varchar	60	180	utf8	utf8_bin	varchar(60)
 3.0000	information_schema	COLUMNS	PRIVILEGES	varchar	154	462	utf8	utf8_general_ci	varchar(154)
 1.0000	information_schema	COLUMNS	COLUMN_COMMENT	text	65535	65535	utf8	utf8_bin	text
 1.0000	information_schema	COLUMNS	GENERATION_EXPRESSION	longtext	4294967295	4294967295	utf8	utf8_bin	longtext

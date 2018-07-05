@@ -3614,6 +3614,20 @@ bool validate_gc_assignment(List<Item> *fields, List<Item> *values,
     // Skip fields that are hidden from the user.
     if (rfield->is_hidden_from_user()) continue;
 
+    // If any of the explicit values is DEFAULT
+    if (rfield->m_default_val_expr &&
+        value->type() == Item::DEFAULT_VALUE_ITEM) {
+      // Restore the statement safety flag to current lex
+      table->in_use->lex->set_stmt_unsafe_flags(
+          rfield->m_default_val_expr->get_stmt_unsafe_flags());
+      // Mark the columns that this expression reads to rthe ead_set
+      for (uint j = 0; j < table->s->fields; j++) {
+        if (bitmap_is_set(&rfield->m_default_val_expr->base_columns_map, j)) {
+          bitmap_set_bit(table->read_set, j);
+        }
+      }
+    }
+
     /* skip non marked fields */
     if (!bitmap_is_set(bitmap, rfield->field_index)) continue;
     if (rfield->gcol_info && value->type() != Item::DEFAULT_VALUE_ITEM) {

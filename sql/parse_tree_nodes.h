@@ -3829,15 +3829,31 @@ class PT_alter_table_set_default final : public PT_alter_table_action {
  public:
   PT_alter_table_set_default(const char *col_name, Item *opt_default_expr)
       : super(Alter_info::ALTER_CHANGE_COLUMN_DEFAULT),
-        m_alter_column(col_name, opt_default_expr) {}
+        m_name(col_name),
+        m_expr(opt_default_expr) {}
 
   bool contextualize(Table_ddl_parse_context *pc) override {
-    return (super::contextualize(pc) || itemize_safe(pc, &m_alter_column.def) ||
-            pc->alter_info->alter_list.push_back(&m_alter_column));
+    if (super::contextualize(pc) || itemize_safe(pc, &m_expr)) return true;
+    Alter_column *alter_column;
+    if (m_expr == nullptr || m_expr->basic_const_item()) {
+      alter_column = new (pc->mem_root) Alter_column(m_name, m_expr);
+    } else {
+      auto vg = new (pc->mem_root) Value_generator;
+      if (vg == nullptr) return true;  // OOM
+      vg->expr_item = m_expr;
+      vg->set_field_stored(true);
+      alter_column = new (pc->mem_root) Alter_column(m_name, vg);
+    }
+    if (alter_column == nullptr ||
+        pc->alter_info->alter_list.push_back(alter_column)) {
+      return true;  // OOM
+    }
+    return false;
   }
 
  private:
-  Alter_column m_alter_column;
+  const char *m_name;
+  Item *m_expr;
 };
 
 class PT_alter_table_index_visible final : public PT_alter_table_action {

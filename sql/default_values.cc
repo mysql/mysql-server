@@ -237,10 +237,11 @@ bool prepare_default_value(THD *thd, uchar *buf, const TABLE &table,
   // Set if the field may be NULL.
   if (!(field.flags & NOT_NULL_FLAG)) regfield->set_null();
 
-  if (field.def) {
+  if (field.constant_default) {
     // Pointless to store the value of a function as it may not be constant.
-    DBUG_ASSERT(field.def->type() != Item::FUNC_ITEM);
-    type_conversion_status res = field.def->save_in_field(regfield, true);
+    DBUG_ASSERT(field.constant_default->type() != Item::FUNC_ITEM);
+    type_conversion_status res =
+        field.constant_default->save_in_field(regfield, true);
     if (res != TYPE_OK && res != TYPE_NOTE_TIME_TRUNCATED &&
         res != TYPE_NOTE_TRUNCATED) {
       // Clear current error and report ER_INVALID_DEFAULT.

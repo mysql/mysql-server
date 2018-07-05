@@ -10007,6 +10007,30 @@ bool THD::is_ddl_gtid_compatible() {
           ER_SERVER_GTID_UNSAFE_CREATE_DROP_TEMP_TABLE_IN_TRX_IN_SBR);
       DBUG_RETURN(ret);
     }
+  } else if (lex->sql_command == SQLCOM_ALTER_TABLE &&
+             (lex->alter_info->flags & Alter_info::ALTER_ADD_COLUMN)) {
+    bool ret = true;
+    const Create_field *create_field;
+    List_iterator<Create_field> list_it(lex->alter_info->create_list);
+
+    while ((create_field = list_it++)) {
+      if (create_field->m_default_val_expr) {
+        // ALTER TABLE .. DEFAULT (NDF function) should be rejected for mixed
+        // or row binlog_format. For statement binlog_format it should be
+        // allowed to continue (and go to the GTID enforcement verification)
+        if ((variables.option_bits & OPTION_BIN_LOG) &&
+            (variables.binlog_format != BINLOG_FORMAT_STMT) &&
+            sp_runtime_ctx == NULL && !binlog_evt_union.do_union &&
+            lex->get_stmt_unsafe_flags()) {
+          my_error(ER_BINLOG_UNSAFE_SYSTEM_FUNCTION, MYF(0));
+          DBUG_RETURN(false);
+        }
+        ret = handle_gtid_consistency_violation(
+            this, ER_GTID_UNSAFE_ALTER_ADD_COL_WITH_DEFAULT_EXPRESSION,
+            ER_RPL_GTID_UNSAFE_ALTER_ADD_COL_WITH_DEFAULT_EXPRESSION);
+      }
+    }
+    DBUG_RETURN(ret);
   }
   DBUG_RETURN(true);
 }

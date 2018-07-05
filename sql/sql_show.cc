@@ -1113,7 +1113,7 @@ static void append_directory(THD *thd, String *packet, const char *dir_type,
 static bool print_on_update_clause(Field *field, String *val, bool lcase) {
   DBUG_ASSERT(val->charset()->mbminlen == 1);
   val->length(0);
-  if (field->has_update_default_function()) {
+  if (field->has_update_default_datetime_value_expression()) {
     if (lcase)
       val->copy(STRING_WITH_LEN("on update "), val->charset());
     else
@@ -1125,28 +1125,33 @@ static bool print_on_update_clause(Field *field, String *val, bool lcase) {
   return false;
 }
 
-static bool print_default_clause(Field *field, String *def_value, bool quoted) {
+static bool print_default_clause(THD *thd, Field *field, String *def_value,
+                                 bool quoted) {
   enum enum_field_types field_type = field->type();
-
-  const bool has_now_default = field->has_insert_default_function();
-  const bool has_default = (field_type != FIELD_TYPE_BLOB &&
-                            !(field->flags & NO_DEFAULT_VALUE_FLAG) &&
+  const bool has_default = (!(field->flags & NO_DEFAULT_VALUE_FLAG) &&
                             !(field->auto_flags & Field::NEXT_NUMBER));
 
   if (field->gcol_info) return false;
 
   def_value->length(0);
   if (has_default) {
-    if (has_now_default)
-    /*
-      We are using CURRENT_TIMESTAMP instead of NOW because it is the SQL
-      standard.
-    */
-    {
+    if (field->has_insert_default_general_value_expression()) {
+      def_value->append("(");
+      char buffer[128];
+      String s(buffer, sizeof(buffer), system_charset_info);
+      field->m_default_val_expr->print_expr(thd, &s);
+      def_value->append(s);
+      def_value->append(")");
+    } else if (field->has_insert_default_datetime_value_expression()) {
+      /*
+        We are using CURRENT_TIMESTAMP instead of NOW because it is the SQL
+        standard.
+      */
       def_value->append(STRING_WITH_LEN("CURRENT_TIMESTAMP"));
       if (field->decimals() > 0)
         def_value->append_parenthesized(field->decimals());
-    } else if (!field->is_null()) {  // Not null by default
+      // Not null by default and not a BLOB
+    } else if (!field->is_null() && field_type != FIELD_TYPE_BLOB) {
       char tmp[MAX_FIELD_WIDTH];
       String type(tmp, sizeof(tmp), field->charset());
       if (field_type == MYSQL_TYPE_BIT) {
@@ -1172,10 +1177,10 @@ static bool print_default_clause(Field *field, String *def_value, bool quoted) {
           def_value->append(def_val.ptr(), def_val.length());
       } else if (quoted)
         def_value->append(STRING_WITH_LEN("''"));
-    } else if (field->maybe_null() && quoted)
+    } else if (field->maybe_null() && quoted && field_type != FIELD_TYPE_BLOB)
       def_value->append(STRING_WITH_LEN("NULL"));  // Null as default
     else
-      return 0;
+      return false;
   }
   return has_default;
 }
@@ -1401,7 +1406,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
         break;
     }
 
-    if (print_default_clause(field, &def_value, true)) {
+    if (print_default_clause(thd, field, &def_value, true)) {
       packet->append(STRING_WITH_LEN(" DEFAULT "));
       packet->append(def_value.ptr(), def_value.length(), system_charset_info);
     }
@@ -3861,7 +3866,7 @@ static int get_schema_tmp_table_columns_record(THD *thd, TABLE_LIST *tables,
         (const char *)pos, strlen((const char *)pos), cs);
 
     // COLUMN_DEFAULT
-    if (print_default_clause(field, &type, false)) {
+    if (print_default_clause(thd, field, &type, false)) {
       table->field[TMP_TABLE_COLUMNS_COLUMN_DEFAULT]->store(type.ptr(),
                                                             type.length(), cs);
       table->field[TMP_TABLE_COLUMNS_COLUMN_DEFAULT]->set_notnull();
@@ -4135,7 +4140,7 @@ static int get_schema_tmp_table_keys_record(THD *thd, TABLE_LIST *tables,
 
       // Expression for functional key parts
       if (key_info->key_part->field->is_hidden_from_user()) {
-        Generated_column *gcol = key_info->key_part->field->gcol_info;
+        Value_generator *gcol = key_info->key_part->field->gcol_info;
 
         table->field[TMP_TABLE_KEYS_EXPRESSION]->store(
             gcol->expr_str.str, gcol->expr_str.length, cs);

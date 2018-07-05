@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -265,9 +265,9 @@ TEST_F(CopyInfoTest, setFunctionDefaults) {
   StrictMock<Mock_field> b(Field::DEFAULT_NOW | Field::ON_UPDATE_NOW);
   StrictMock<Mock_field> c(Field::DEFAULT_NOW | Field::ON_UPDATE_NOW);
 
-  EXPECT_TRUE(a.has_update_default_function());
-  EXPECT_TRUE(b.has_update_default_function());
-  EXPECT_TRUE(c.has_update_default_function());
+  EXPECT_TRUE(a.has_update_default_datetime_value_expression());
+  EXPECT_TRUE(b.has_update_default_datetime_value_expression());
+  EXPECT_TRUE(c.has_update_default_datetime_value_expression());
 
   Fake_TABLE table(&a, &b, &c);
 

@@ -1091,6 +1091,12 @@ class Item_sum_hybrid_field : public Item_result_field {
     */
     return Item::mark_field_in_map(pointer_cast<Mark_field *>(arg), field);
   }
+  bool check_function_as_value_generator(uchar *args) override {
+    Check_function_as_value_generator_parameters *func_arg =
+        pointer_cast<Check_function_as_value_generator_parameters *>(args);
+    func_arg->banned_function_name = func_name();
+    return true;
+  }
 };
 
 /**
@@ -1296,6 +1302,14 @@ class Item_variance_field : public Item_sum_num_field {
     DBUG_ASSERT(0);
     return "variance_field";
   }
+  bool check_function_as_value_generator(uchar *args) override {
+    Check_function_as_value_generator_parameters *func_arg =
+        pointer_cast<Check_function_as_value_generator_parameters *>(args);
+    func_arg->err_code = func_arg->is_gen_col
+                             ? ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
+                             : ER_DEFAULT_VAL_GENERATED_FUNCTION_IS_NOT_ALLOWED;
+    return true;
+  }
 };
 
 /*
@@ -1419,6 +1433,14 @@ class Item_std_field final : public Item_variance_field {
   const char *func_name() const override {
     DBUG_ASSERT(0);
     return "std_field";
+  }
+  bool check_function_as_value_generator(uchar *args) override {
+    Check_function_as_value_generator_parameters *func_arg =
+        pointer_cast<Check_function_as_value_generator_parameters *>(args);
+    func_arg->err_code = func_arg->is_gen_col
+                             ? ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
+                             : ER_DEFAULT_VAL_GENERATED_FUNCTION_IS_NOT_ALLOWED;
+    return true;
   }
 };
 

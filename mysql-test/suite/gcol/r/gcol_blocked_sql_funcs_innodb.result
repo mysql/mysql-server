@@ -1,137 +1,137 @@
 SET @@session.default_storage_engine = 'InnoDB';
 # RAND()
 create table t1 (b double generated always as (rand()) virtual);
-ERROR HY000: Expression of generated column 'b' contains a disallowed function.
+ERROR HY000: Expression of generated column 'b' contains a disallowed function: rand.
 # LOAD_FILE()
 create table t1 (a varchar(64), b varchar(1024) generated always as (load_file(a)) virtual);
-ERROR HY000: Expression of generated column 'b' contains a disallowed function.
+ERROR HY000: Expression of generated column 'b' contains a disallowed function: load_file.
 # CURDATE()
 create table t1 (a datetime generated always as (curdate()) virtual);
-ERROR HY000: Expression of generated column 'a' contains a disallowed function.
+ERROR HY000: Expression of generated column 'a' contains a disallowed function: curdate.
 # CURRENT_DATE(), CURRENT_DATE
 create table t1 (a datetime generated always as (current_date) virtual);
-ERROR HY000: Expression of generated column 'a' contains a disallowed function.
+ERROR HY000: Expression of generated column 'a' contains a disallowed function: curdate.
 create table t1 (a datetime generated always as (current_date()) virtual);
-ERROR HY000: Expression of generated column 'a' contains a disallowed function.
+ERROR HY000: Expression of generated column 'a' contains a disallowed function: curdate.
 # CURRENT_TIME(), CURRENT_TIME
 create table t1 (a datetime generated always as (current_time) virtual);
-ERROR HY000: Expression of generated column 'a' contains a disallowed function.
+ERROR HY000: Expression of generated column 'a' contains a disallowed function: curtime.
 create table t1 (a datetime generated always as (current_time()) virtual);
-ERROR HY000: Expression of generated column 'a' contains a disallowed function.
+ERROR HY000: Expression of generated column 'a' contains a disallowed function: curtime.
 # CURRENT_TIMESTAMP(), CURRENT_TIMESTAMP
 create table t1 (a datetime generated always as (current_timestamp()) virtual);
-ERROR HY000: Expression of generated column 'a' contains a disallowed function.
+ERROR HY000: Expression of generated column 'a' contains a disallowed function: now.
 create table t1 (a datetime generated always as (current_timestamp) virtual);
-ERROR HY000: Expression of generated column 'a' contains a disallowed function.
+ERROR HY000: Expression of generated column 'a' contains a disallowed function: now.
 # CURTIME()
 create table t1 (a datetime generated always as (curtime()) virtual);
-ERROR HY000: Expression of generated column 'a' contains a disallowed function.
+ERROR HY000: Expression of generated column 'a' contains a disallowed function: curtime.
 # LOCALTIME(), LOCALTIME
 create table t1 (a datetime, b varchar(10) generated always as (localtime()) virtual);
-ERROR HY000: Expression of generated column 'b' contains a disallowed function.
+ERROR HY000: Expression of generated column 'b' contains a disallowed function: now.
 create table t1 (a datetime, b varchar(10) generated always as (localtime) virtual);
-ERROR HY000: Expression of generated column 'b' contains a disallowed function.
+ERROR HY000: Expression of generated column 'b' contains a disallowed function: now.
 # LOCALTIMESTAMP, LOCALTIMESTAMP()(v4.0.6)
 create table t1 (a datetime, b varchar(10) generated always as (localtimestamp()) virtual);
-ERROR HY000: Expression of generated column 'b' contains a disallowed function.
+ERROR HY000: Expression of generated column 'b' contains a disallowed function: now.
 create table t1 (a datetime, b varchar(10) generated always as (localtimestamp) virtual);
-ERROR HY000: Expression of generated column 'b' contains a disallowed function.
+ERROR HY000: Expression of generated column 'b' contains a disallowed function: now.
 # NOW()
 create table t1 (a datetime, b varchar(10) generated always as (now()) virtual);
-ERROR HY000: Expression of generated column 'b' contains a disallowed function.
+ERROR HY000: Expression of generated column 'b' contains a disallowed function: now.
 # STATEMENT_DIGEST
 create table t1 (a int, b int generated always as (statement_digest(a)) virtual);
-ERROR HY000: Expression of generated column 'b' contains a disallowed function.
+ERROR HY000: Expression of generated column 'b' contains a disallowed function: statement_digest.
 # STATEMENT_DIGEST_TEXT
 create table t1 (a int, b int generated always as (statement_digest_text(a)) virtual);
-ERROR HY000: Expression of generated column 'b' contains a disallowed function.
+ERROR HY000: Expression of generated column 'b' contains a disallowed function: statement_digest_text.
 # SYSDATE()
 create table t1 (a int, b varchar(10) generated always as (sysdate()) virtual);
-ERROR HY000: Expression of generated column 'b' contains a disallowed function.
+ERROR HY000: Expression of generated column 'b' contains a disallowed function: sysdate.
 # UNIX_TIMESTAMP()
 create table t1 (a datetime, b datetime generated always as (unix_timestamp()) virtual);
-ERROR HY000: Expression of generated column 'b' contains a disallowed function.
+ERROR HY000: Expression of generated column 'b' contains a disallowed function: unix_timestamp.
 # UTC_DATE()
 create table t1 (a datetime, b datetime generated always as (utc_date()) virtual);
-ERROR HY000: Expression of generated column 'b' contains a disallowed function.
+ERROR HY000: Expression of generated column 'b' contains a disallowed function: utc_date.
 # UTC_TIME()
 create table t1 (a datetime, b datetime generated always as (utc_time()) virtual);
-ERROR HY000: Expression of generated column 'b' contains a disallowed function.
+ERROR HY000: Expression of generated column 'b' contains a disallowed function: utc_time.
 # UTC_TIMESTAMP()
 create table t1 (a datetime, b datetime generated always as (utc_timestamp()) virtual);
-ERROR HY000: Expression of generated column 'b' contains a disallowed function.
+ERROR HY000: Expression of generated column 'b' contains a disallowed function: utc_timestamp.
 # MATCH()
 # BENCHMARK()
 create table t1 (a varchar(1024), b varchar(1024) generated always as (benchmark(a,3)) virtual);
-ERROR HY000: Expression of generated column 'b' contains a disallowed function.
+ERROR HY000: Expression of generated column 'b' contains a disallowed function: benchmark.
 # CONNECTION_ID()
 create table t1 (a int generated always as (connection_id()) virtual);
-ERROR HY000: Expression of generated column 'a' contains a disallowed function.
+ERROR HY000: Expression of generated column 'a' contains a disallowed function: connection_id.
 # CURRENT_USER(), CURRENT_USER
 create table t1 (a varchar(32) generated always as (current_user()) virtual);
-ERROR HY000: Expression of generated column 'a' contains a disallowed function.
+ERROR HY000: Expression of generated column 'a' contains a disallowed function: current_user.
 create table t1 (a varchar(32) generated always as (current_user) virtual);
-ERROR HY000: Expression of generated column 'a' contains a disallowed function.
+ERROR HY000: Expression of generated column 'a' contains a disallowed function: current_user.
 # DATABASE()
 create table t1 (a varchar(1024), b varchar(1024) generated always as (database()) virtual);
-ERROR HY000: Expression of generated column 'b' contains a disallowed function.
+ERROR HY000: Expression of generated column 'b' contains a disallowed function: database.
 # FOUND_ROWS()
 create table t1 (a varchar(1024), b varchar(1024) generated always as (found_rows()) virtual);
-ERROR HY000: Expression of generated column 'b' contains a disallowed function.
+ERROR HY000: Expression of generated column 'b' contains a disallowed function: found_rows.
 # GET_LOCK()
 create table t1 (a varchar(1024), b varchar(1024) generated always as (get_lock(a,10)) virtual);
-ERROR HY000: Expression of generated column 'b' contains a disallowed function.
+ERROR HY000: Expression of generated column 'b' contains a disallowed function: get_lock.
 # IS_FREE_LOCK()
 create table t1 (a varchar(1024), b varchar(1024) generated always as (is_free_lock(a)) virtual);
-ERROR HY000: Expression of generated column 'b' contains a disallowed function.
+ERROR HY000: Expression of generated column 'b' contains a disallowed function: is_free_lock.
 # IS_USED_LOCK()
 create table t1 (a varchar(1024), b varchar(1024) generated always as (is_used_lock(a)) virtual);
-ERROR HY000: Expression of generated column 'b' contains a disallowed function.
+ERROR HY000: Expression of generated column 'b' contains a disallowed function: is_used_lock.
 # LAST_INSERT_ID()
 create table t1 (a int generated always as (last_insert_id()) virtual);
-ERROR HY000: Expression of generated column 'a' contains a disallowed function.
+ERROR HY000: Expression of generated column 'a' contains a disallowed function: last_insert_id.
 # MASTER_POS_WAIT()
 create table t1 (a varchar(32), b int generated always as (master_pos_wait(a,0,2)) virtual);
-ERROR HY000: Expression of generated column 'b' contains a disallowed function.
+ERROR HY000: Expression of generated column 'b' contains a disallowed function: master_pos_wait.
 # NAME_CONST()
 create table t1 (a varchar(32) generated always as (name_const('test',1)) virtual);
 ERROR HY000: Expression of generated column 'a' contains a disallowed function.
 # RELEASE_LOCK()
 create table t1 (a varchar(32), b int generated always as (release_lock(a)) virtual);
-ERROR HY000: Expression of generated column 'b' contains a disallowed function.
+ERROR HY000: Expression of generated column 'b' contains a disallowed function: release_lock.
 # ROW_COUNT()
 create table t1 (a int generated always as (row_count()) virtual);
-ERROR HY000: Expression of generated column 'a' contains a disallowed function.
+ERROR HY000: Expression of generated column 'a' contains a disallowed function: row_count.
 # SCHEMA()
 create table t1 (a varchar(32) generated always as (schema()) virtual);
-ERROR HY000: Expression of generated column 'a' contains a disallowed function.
+ERROR HY000: Expression of generated column 'a' contains a disallowed function: database.
 # SESSION_USER()
 create table t1 (a varchar(32) generated always as (session_user()) virtual);
-ERROR HY000: Expression of generated column 'a' contains a disallowed function.
+ERROR HY000: Expression of generated column 'a' contains a disallowed function: user.
 # SLEEP()
 create table t1 (a int, b int generated always as (sleep(a)) virtual);
-ERROR HY000: Expression of generated column 'b' contains a disallowed function.
+ERROR HY000: Expression of generated column 'b' contains a disallowed function: sleep.
 # SYSTEM_USER()
 create table t1 (a varchar(32) generated always as (system_user()) virtual);
-ERROR HY000: Expression of generated column 'a' contains a disallowed function.
+ERROR HY000: Expression of generated column 'a' contains a disallowed function: user.
 # USER()
 create table t1 (a varchar(1024), b varchar(1024) generated always as (user()) virtual);
-ERROR HY000: Expression of generated column 'b' contains a disallowed function.
+ERROR HY000: Expression of generated column 'b' contains a disallowed function: user.
 # UUID_SHORT()
 create table t1 (a varchar(1024) generated always as (uuid_short()) virtual);
-ERROR HY000: Expression of generated column 'a' contains a disallowed function.
+ERROR HY000: Expression of generated column 'a' contains a disallowed function: uuid_short.
 # UUID()
 create table t1 (a varchar(1024) generated always as (uuid()) virtual);
-ERROR HY000: Expression of generated column 'a' contains a disallowed function.
+ERROR HY000: Expression of generated column 'a' contains a disallowed function: uuid.
 # VALUES()
 create table t1 (a varchar(1024), b varchar(1024) generated always as (values(a)) virtual);
-ERROR HY000: Expression of generated column 'b' contains a disallowed function.
+ERROR HY000: Expression of generated column 'b' contains a disallowed function: values.
 # VERSION()
 create table t1 (a varchar(1024), b varchar(1024) generated always as (version()) virtual);
-ERROR HY000: Expression of generated column 'b' contains a disallowed function.
+ERROR HY000: Expression of generated column 'b' contains a disallowed function: version().
 # ENCRYPT()
 create table t1 (a varchar(1024), b varchar(1024) generated always as (encrypt(a)) virtual);
-ERROR HY000: Expression of generated column 'b' contains a disallowed function.
+ERROR HY000: Expression of generated column 'b' contains a disallowed function: `encrypt`.
 # Stored procedures
 create procedure p1()
 begin
@@ -143,14 +143,14 @@ begin
 return 1;
 end //
 create table t1 (a int generated always as (p1()) virtual);
-ERROR HY000: Expression of generated column 'a' contains a disallowed function.
+ERROR HY000: Expression of generated column 'a' contains a disallowed function: `p1`.
 create table t1 (a int generated always as (f1()) virtual);
-ERROR HY000: Expression of generated column 'a' contains a disallowed function.
+ERROR HY000: Expression of generated column 'a' contains a disallowed function: `f1`.
 drop procedure p1;
 drop function f1;
 # Unknown functions
 create table t1 (a int generated always as (f1()) virtual);
-ERROR HY000: Expression of generated column 'a' contains a disallowed function.
+ERROR HY000: Expression of generated column 'a' contains a disallowed function: `f1`.
 #
 # GROUP BY FUNCTIONS
 #
@@ -210,7 +210,7 @@ ERROR HY000: Invalid use of group function
 #
 # UpdateXML()
 create table t1 (a varchar(1024), b varchar(1024) generated always as (UpdateXML(a,'/a','<e>fff</e>')) virtual);
-ERROR HY000: Expression of generated column 'b' contains a disallowed function.
+ERROR HY000: Expression of generated column 'b' contains a disallowed function: updatexml.
 #
 # Sub-selects
 #
@@ -234,14 +234,14 @@ drop table t1;
 create table t1 (a int);
 alter table t1 add column r blob generated always
 as (match(a) against ('' in boolean mode)) virtual;
-ERROR HY000: Expression of generated column 'r' contains a disallowed function.
+ERROR HY000: Expression of generated column 'r' contains a disallowed function: match.
 drop table t1;
 #
 # Bug#26279884 : VIRTUAL COLUMNS ALLOW DEPRECATED FUNCTION TO BE USED
 #
 # JSON_MERGE()
 CREATE TABLE t2(a JSON, b JSON, c JSON  GENERATED ALWAYS AS  (JSON_MERGE(a,b)));
-ERROR HY000: Expression of generated column 'c' contains a disallowed function.
+ERROR HY000: Expression of generated column 'c' contains a disallowed function: json_merge_preserve.
 DROP VIEW  IF EXISTS v1,v2;
 DROP TABLE IF EXISTS t1,t2,t3;
 DROP PROCEDURE IF EXISTS p1;

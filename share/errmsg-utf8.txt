@@ -8618,6 +8618,44 @@ ER_WRONG_KEY_COLUMN_FUNCTIONAL_INDEX
 
 ER_FUNCTIONAL_INDEX_ON_FIELD
   eng "Functional index on a column is not supported. Consider using a regular index instead."
+ER_GENERATED_COLUMN_NAMED_FUNCTION_IS_NOT_ALLOWED
+  eng "Expression of generated column '%s' contains a disallowed function: %s."
+
+ER_GENERATED_COLUMN_ROW_VALUE
+  eng "Expression of generated column '%s' cannot refer to a row value."
+
+ER_GENERATED_COLUMN_VARIABLES
+  eng "Expression of generated column '%s' cannot refer user or system variables."
+
+ER_DEPENDENT_BY_DEFAULT_GENERATED_VALUE
+  eng "Column '%s' of table '%s' has a default value expression dependency and cannot be dropped."
+
+ER_DEFAULT_VAL_GENERATED_NON_PRIOR
+  eng "Default value expression of column '%s' can refer only to generated columns and columns with default value expressions defined prior to it."
+
+ER_DEFAULT_VAL_GENERATED_REF_AUTO_INC
+  eng "Default value expression of column '%s' cannot refer to an auto-increment column."
+
+ER_DEFAULT_VAL_GENERATED_FUNCTION_IS_NOT_ALLOWED
+  eng "Default value expression of column '%s' contains a disallowed function."
+
+ER_DEFAULT_VAL_GENERATED_NAMED_FUNCTION_IS_NOT_ALLOWED
+  eng "Default value expression of column '%s' contains a disallowed function: %s."
+
+ER_DEFAULT_VAL_GENERATED_ROW_VALUE
+  eng "Default value expression of column '%s' cannot refer to a row value."
+
+ER_DEFAULT_VAL_GENERATED_VARIABLES
+  eng "Default value expression of column '%s' cannot refer user or system variables."
+
+ER_DEFAULT_AS_VAL_GENERATED
+  eng "DEFAULT function cannot be used with default value expressions"
+
+ER_UNSUPPORTED_ACTION_ON_DEFAULT_VAL_GENERATED
+  eng "'%s' is not supported for default value expressions."
+
+ER_GTID_UNSAFE_ALTER_ADD_COL_WITH_DEFAULT_EXPRESSION
+  eng "Statement violates GTID consistency: ALTER TABLE ... ADD COLUMN .. with expression as DEFAULT."
 
 #
 #  End of 8.0 error messages.
@@ -18350,6 +18388,9 @@ ER_NO_SESSION_TEMP
 
 ER_XPLUGIN_FAILED_TO_SWITCH_SECURITY_CTX
   eng "Unable to switch security context to user: %s"
+
+ER_RPL_GTID_UNSAFE_ALTER_ADD_COL_WITH_DEFAULT_EXPRESSION
+  eng "Statement violates GTID consistency: ALTER TABLE ... ADD COLUMN .. with expression as DEFAULT."
 
 #
 # End of 8.0 error messages intended to be logged to the server error log.

@@ -760,6 +760,51 @@ static uint column_preamble_bits(const dd::Column *col_obj) {
   return result;
 }
 
+inline void get_auto_flags(const dd::Column &col_obj, uint &auto_flags) {
+  /*
+    For DEFAULT it is possible to have CURRENT_TIMESTAMP or a
+    generation expression.
+  */
+  if (!col_obj.default_option().empty()) {
+    // We're only matching the prefix because there may be parameters
+    // e.g. CURRENT_TIMESTAMP(6). Regular strings won't match as they
+    // are preceded by the charset and CURRENT_TIMESTAMP as a default
+    // expression gets converted to now().
+    if (col_obj.default_option().compare(0, 17, "CURRENT_TIMESTAMP") == 0) {
+      // The only allowed patterns are "CURRENT_TIMESTAMP" and
+      // "CURRENT_TIMESTAP(<integer>)". Stored functions with names
+      // starting with "CURRENT_TIMESTAMP" should be filtered out before
+      // we get here.
+      DBUG_ASSERT(
+          col_obj.default_option().size() == 17 ||
+          (col_obj.default_option().size() >= 20 &&
+           col_obj.default_option()[17] == '(' &&
+           col_obj.default_option()[col_obj.default_option().size() - 1] ==
+               ')'));
+
+      auto_flags |= Field::DEFAULT_NOW;
+    } else {
+      auto_flags |= Field::GENERATED_FROM_EXPRESSION;
+    }
+  }
+
+  /*
+    For ON UPDATE the only option which is supported
+    at this point is CURRENT_TIMESTAMP.
+  */
+  if (!col_obj.update_option().empty()) auto_flags |= Field::ON_UPDATE_NOW;
+
+  if (col_obj.is_auto_increment()) auto_flags |= Field::NEXT_NUMBER;
+
+  /*
+    Columns can't have AUTO_INCREMENT and DEFAULT/ON UPDATE CURRENT_TIMESTAMP at
+    the same time.
+  */
+  DBUG_ASSERT(!((auto_flags & (Field::DEFAULT_NOW | Field::ON_UPDATE_NOW |
+                               Field::GENERATED_FROM_EXPRESSION)) != 0 &&
+                (auto_flags & Field::NEXT_NUMBER) != 0));
+}
+
 static Field *make_field(const dd::Column &col_obj, const CHARSET_INFO *charset,
                          TABLE_SHARE *share, uchar *ptr, uchar *null_pos,
                          size_t null_bit) {
@@ -770,23 +815,7 @@ static Field *make_field(const dd::Column &col_obj, const CHARSET_INFO *charset,
 
   // Reconstruct auto_flags
   auto auto_flags = static_cast<uint>(Field::NONE);
-
-  /*
-    The only value for DEFAULT and ON UPDATE options which we support
-    at this point is CURRENT_TIMESTAMP.
-  */
-  if (!col_obj.default_option().empty()) auto_flags |= Field::DEFAULT_NOW;
-  if (!col_obj.update_option().empty()) auto_flags |= Field::ON_UPDATE_NOW;
-
-  if (col_obj.is_auto_increment()) auto_flags |= Field::NEXT_NUMBER;
-
-  /*
-    Columns can't have AUTO_INCREMENT and DEFAULT/ON UPDATE CURRENT_TIMESTAMP at
-    the same time.
-  */
-  DBUG_ASSERT(
-      !((auto_flags & (Field::DEFAULT_NOW | Field::ON_UPDATE_NOW)) != 0 &&
-        (auto_flags & Field::NEXT_NUMBER) != 0));
+  get_auto_flags(col_obj, auto_flags);
 
   // Read Interval TYPELIB
   TYPELIB *interval = nullptr;
@@ -869,7 +898,6 @@ static bool fill_column_from_dd(THD *thd, TABLE_SHARE *share,
                                 uint null_bit_pos, uchar *rec_pos,
                                 uint field_nr) {
   char *name = NULL;
-  uchar auto_flags;
   enum_field_types field_type;
   const CHARSET_INFO *charset = NULL;
   Field *reg_field;
@@ -893,24 +921,8 @@ static bool fill_column_from_dd(THD *thd, TABLE_SHARE *share,
   field_type = dd_get_old_field_type(col_obj->type());
 
   // Reconstruct auto_flags
-  auto_flags = Field::NONE;
-
-  /*
-    The only value for DEFAULT and ON UPDATE options which we support
-    at this point is CURRENT_TIMESTAMP.
-  */
-  if (!col_obj->default_option().empty()) auto_flags |= Field::DEFAULT_NOW;
-  if (!col_obj->update_option().empty()) auto_flags |= Field::ON_UPDATE_NOW;
-
-  if (col_obj->is_auto_increment()) auto_flags |= Field::NEXT_NUMBER;
-
-  /*
-    Columns can't have AUTO_INCREMENT and DEFAULT/ON UPDATE CURRENT_TIMESTAMP at
-    the same time.
-  */
-  DBUG_ASSERT(
-      !((auto_flags & (Field::DEFAULT_NOW | Field::ON_UPDATE_NOW)) != 0 &&
-        (auto_flags & Field::NEXT_NUMBER) != 0));
+  auto auto_flags = static_cast<uint>(Field::NONE);
+  get_auto_flags(*col_obj, auto_flags);
 
   bool treat_bit_as_char = false;
   if (field_type == MYSQL_TYPE_BIT)
@@ -984,12 +996,19 @@ static bool fill_column_from_dd(THD *thd, TABLE_SHARE *share,
     }
   }
 
-  // Handle generated columns;
-  Generated_column *gcol_info = NULL;
-  if (!col_obj->is_generation_expression_null()) {
-    gcol_info = new (&share->mem_root) Generated_column();
+  //
+  // Create FIELD
+  //
+  reg_field =
+      make_field(*col_obj, charset, share, rec_pos, null_pos, null_bit_pos);
+  reg_field->field_index = field_nr;
+  reg_field->stored_in_db = true;
 
-    // Is GC virtual or stored ?
+  // Handle generated columns
+  if (!col_obj->is_generation_expression_null()) {
+    Value_generator *gcol_info = new (&share->mem_root) Value_generator();
+
+    // Set if GC is virtual or stored
     gcol_info->set_field_stored(!col_obj->is_virtual());
 
     // Read generation expression.
@@ -1004,18 +1023,28 @@ static bool fill_column_from_dd(THD *thd, TABLE_SHARE *share,
     gcol_info->dup_expr_str(&share->mem_root, gc_expr.c_str(),
                             gc_expr.length());
     share->vfields++;
+    reg_field->gcol_info = gcol_info;
+    reg_field->stored_in_db = gcol_info->get_field_stored();
   }
 
-  //
-  // Create FIELD
-  //
+  // Handle default values generated from expression
+  if (auto_flags & Field::GENERATED_FROM_EXPRESSION) {
+    Value_generator *default_val_expr =
+        new (&share->mem_root) Value_generator();
 
-  reg_field =
-      make_field(*col_obj, charset, share, rec_pos, null_pos, null_bit_pos);
+    // DEFAULT GENERATED is always stored
+    default_val_expr->set_field_stored(true);
 
-  reg_field->field_index = field_nr;
-  reg_field->gcol_info = gcol_info;
-  reg_field->stored_in_db = gcol_info ? gcol_info->get_field_stored() : true;
+    // Read generation expression.
+    dd::String_type default_val_expr_str = col_obj->default_option();
+
+    // Copy the expression's text into reg_field which is stored on TABLE_SHARE.
+    default_val_expr->dup_expr_str(&share->mem_root,
+                                   default_val_expr_str.c_str(),
+                                   default_val_expr_str.length());
+    share->gen_def_field_count++;
+    reg_field->m_default_val_expr = default_val_expr;
+  }
 
   // Auto-increment columns are maintained in the primary storage
   // engine only. Treat the auto-increment column as a regular column
@@ -1080,6 +1109,7 @@ static bool fill_columns_from_dd(THD *thd, TABLE_SHARE *share,
   share->field = (Field **)alloc_root(&share->mem_root, (uint)fields_size);
   memset(share->field, 0, fields_size);
   share->vfields = 0;
+  share->gen_def_field_count = 0;
 
   // Iterate through all the columns.
   uchar *null_flags MY_ATTRIBUTE((unused));

@@ -1638,7 +1638,7 @@ CREATE TABLE digest_gcol (
 query VARCHAR ( 100 ),
 digest VARCHAR ( 32 ) GENERATED ALWAYS AS ( statement_digest(query) )
 );
-ERROR HY000: Expression of generated column 'digest' contains a disallowed function.
+ERROR HY000: Expression of generated column 'digest' contains a disallowed function: statement_digest.
 #
 # The statement_digest_text() native function.
 #
@@ -1781,7 +1781,7 @@ CREATE TABLE digest_gcol (
 query VARCHAR ( 100 ),
 digest VARCHAR ( 32 ) GENERATED ALWAYS AS ( digest_gcol (query) )
 );
-ERROR HY000: Expression of generated column 'digest' contains a disallowed function.
+ERROR HY000: Expression of generated column 'digest' contains a disallowed function: `digest_gcol`.
 #
 # Test of multibyte characters.
 #

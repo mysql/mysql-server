@@ -1,7 +1,7 @@
 #ifndef ITEM_XMLFUNC_INCLUDED
 #define ITEM_XMLFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,7 +49,7 @@ class Item_xml_str_func : public Item_str_func {
   }
   bool resolve_type(THD *thd) override;
   String *parse_xml(String *raw_xml, String *parsed_xml_buf);
-  bool check_gcol_func_processor(uchar *) override { return false; }
+  bool check_function_as_value_generator(uchar *) override { return false; }
 
  protected:
   /**
@@ -82,7 +82,12 @@ class Item_func_xml_update final : public Item_xml_str_func {
       : Item_xml_str_func(pos, a, b, c) {}
   const char *func_name() const override { return "updatexml"; }
   String *val_str(String *) override;
-  bool check_gcol_func_processor(uchar *) override { return true; }
+  bool check_function_as_value_generator(uchar *args) override {
+    Check_function_as_value_generator_parameters *func_arg =
+        pointer_cast<Check_function_as_value_generator_parameters *>(args);
+    func_arg->banned_function_name = func_name();
+    return true;
+  }
 };
 
 #endif /* ITEM_XMLFUNC_INCLUDED */

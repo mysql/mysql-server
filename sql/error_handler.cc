@@ -340,6 +340,7 @@ bool Functional_index_error_handler::handle_condition(
                m_functional_index_name.c_str());
       return true;
     }
+    case ER_GENERATED_COLUMN_NAMED_FUNCTION_IS_NOT_ALLOWED:
     case ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED: {
       my_error(ER_FUNCTIONAL_INDEX_FUNCTION_IS_NOT_ALLOWED, MYF(0),
                m_functional_index_name.c_str());

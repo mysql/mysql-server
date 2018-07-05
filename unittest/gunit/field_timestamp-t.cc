@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,30 +51,30 @@ class FieldTimestampTest : public ::testing::Test {
 TEST_F(FieldTimestampTest, hasInsertDefaultFunction) {
   {
     Mock_field_timestamp field_dn(Field::DEFAULT_NOW);
-    EXPECT_TRUE(field_dn.has_insert_default_function());
+    EXPECT_TRUE(field_dn.has_insert_default_datetime_value_expression());
   }
   {
     Mock_field_timestamp field_un(Field::ON_UPDATE_NOW);
-    EXPECT_FALSE(field_un.has_insert_default_function());
+    EXPECT_FALSE(field_un.has_insert_default_datetime_value_expression());
   }
   {
     Mock_field_timestamp field_dnun(Field::DEFAULT_NOW | Field::ON_UPDATE_NOW);
-    EXPECT_TRUE(field_dnun.has_insert_default_function());
+    EXPECT_TRUE(field_dnun.has_insert_default_datetime_value_expression());
   }
 }
 
 TEST_F(FieldTimestampTest, hasUpdateDefaultFunction) {
   {
     Mock_field_timestamp field_dn(Field::DEFAULT_NOW);
-    EXPECT_FALSE(field_dn.has_update_default_function());
+    EXPECT_FALSE(field_dn.has_update_default_datetime_value_expression());
   }
   {
     Mock_field_timestamp field_un(Field::ON_UPDATE_NOW);
-    EXPECT_TRUE(field_un.has_update_default_function());
+    EXPECT_TRUE(field_un.has_update_default_datetime_value_expression());
   }
   {
     Mock_field_timestamp field_dnun(Field::DEFAULT_NOW | Field::ON_UPDATE_NOW);
-    EXPECT_TRUE(field_dnun.has_update_default_function());
+    EXPECT_TRUE(field_dnun.has_update_default_datetime_value_expression());
   }
 }
 

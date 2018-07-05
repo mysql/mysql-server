@@ -5104,6 +5104,8 @@ bool mysql_test_parse_for_slave(THD *thd) {
   @param has_explicit_collation Column has an explicit COLLATE attribute.
   @param uint_geom_type         The GIS type of the field.
   @param gcol_info              The generated column data or NULL.
+  @param default_val_expr       The expression for generating default values,
+                                if there is one, or nullptr.
   @param opt_after              The name of the field to add after or
                                 the @see first_keyword pointer to insert first.
   @param srid                   The SRID for this column (only relevant if this
@@ -5120,8 +5122,9 @@ bool Alter_info::add_field(THD *thd, const LEX_STRING *field_name,
                            LEX_STRING *comment, const char *change,
                            List<String> *interval_list, const CHARSET_INFO *cs,
                            bool has_explicit_collation, uint uint_geom_type,
-                           Generated_column *gcol_info, const char *opt_after,
-                           Nullable<gis::srid_t> srid,
+                           Value_generator *gcol_info,
+                           Value_generator *default_val_expr,
+                           const char *opt_after, Nullable<gis::srid_t> srid,
                            dd::Column::enum_hidden_type hidden) {
   Create_field *new_field;
   uint8 datetime_precision = decimals ? atoi(decimals) : 0;
@@ -5186,6 +5189,12 @@ bool Alter_info::add_field(THD *thd, const LEX_STRING *field_name,
     }
   }
 
+  // Avoid having sequential definitions for DEFAULT in combination with expr
+  if (default_val_expr && default_value) {
+    my_error(ER_INVALID_DEFAULT, MYF(0), field_name->str);
+    DBUG_RETURN(true);
+  }
+
   if (on_update_value && (!real_type_with_now_on_update(type) ||
                           on_update_value->decimals != datetime_precision)) {
     my_error(ER_INVALID_ON_UPDATE, MYF(0), field_name->str);
@@ -5202,7 +5211,8 @@ bool Alter_info::add_field(THD *thd, const LEX_STRING *field_name,
       new_field->init(thd, field_name->str, type, length, decimals,
                       type_modifier, default_value, on_update_value, comment,
                       change, interval_list, cs, has_explicit_collation,
-                      uint_geom_type, gcol_info, srid, hidden))
+                      uint_geom_type, gcol_info, default_val_expr, srid,
+                      hidden))
     DBUG_RETURN(1);
 
   create_list.push_back(new_field);
