@@ -7020,7 +7020,7 @@ void Dbacc::execACC_SCANREQ(Signal* signal) //Direct Executed
 void Dbacc::execNEXT_SCANREQ(Signal* signal) 
 {
   Uint32 tscanNextFlag;
-  jamEntry();
+  jamEntryDebug();
   scanPtr.i = signal->theData[0];
   operationRecPtr.i = signal->theData[1];
   tscanNextFlag = signal->theData[2];

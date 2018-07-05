@@ -11635,7 +11635,6 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
 
   setup_scan_pointers_from_tc_con(tcConnectptr);
   scanptr.p->scanTcWaiting = cLqhTimeOutCount;
-
   /* ------------------------------------------------------------------
    * If close flag is set this scan should be closed
    * If we are waiting for SCAN_NEXTREQ set flag to stop scanning and 
@@ -12012,6 +12011,18 @@ void Dblqh::closeScanRequestLab(Signal* signal,
        *  SET COMPLETION STATUS AND WAIT FOR OPPORTUNITY TO STOP THE SCAN.
        * ------------------------------------------------------------------- */
       scanPtr->scanCompletedStatus = ZTRUE;
+      return;
+    case ScanRecord::WAIT_START_QUEUED_SCAN:
+      jam();
+      /**
+       * We are currently starting up a queued scan, need to retain
+       * scan record until this signal arrives back.
+       */
+      tupScanCloseConfLab(signal, tcConnectptr);
+      return;
+    case ScanRecord::QUIT_START_QUEUE_SCAN:
+      jam();
+      ndbrequire(scanPtr->scanState != ScanRecord::QUIT_START_QUEUE_SCAN);
       return;
     case ScanRecord::WAIT_ACC_SCAN:
       jam();
@@ -14009,37 +14020,58 @@ void Dblqh::tupScanCloseConfLab(Signal* signal,
     jam();
     sendScanFragConf(signal, ZSCAN_FRAG_CLOSED, tcConnectptr.p);
   }//if
-  {
-    ScanRecordPtr restart;
-    bool restart_flag = finishScanrec(signal, restart, tcConnectptr);
-    releaseScanrec(signal);
-    tcConnectptr.p->tcScanRec = RNIL;
-    deleteTransidHash(signal, tcConnectptr);
-    releaseOprec(signal, tcConnectptr.p);
-    releaseTcrec(signal, tcConnectptr);
-    if (restart_flag)
-    {
-      jam();
-      restart.p->scanState = ScanRecord::WAIT_ACC_SCAN;
-      signal->theData[0] = ZSTART_QUEUED_SCAN;
-      signal->theData[1] = restart.i;
-      sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
-    }
-  }
+  handle_finish_scan(signal, tcConnectptr);
 }//Dblqh::tupScanCloseConfLab()
+
+void Dblqh::handle_finish_scan(Signal* signal,
+                               TcConnectionrecPtr tcConnectptr)
+{
+  ScanRecordPtr restart;
+  bool restart_flag = finishScanrec(signal, restart, tcConnectptr);
+  if (likely(scanptr.p->scanState != ScanRecord::WAIT_START_QUEUED_SCAN))
+  {
+    releaseScanrec(signal);
+  }
+  else
+  {
+    /**
+     * We are waiting for a START QUEUED SCAN signal (CONTINUEB).
+     * Until this has arrived we cannot release the scan record.
+     */
+    jam();
+    scanptr.p->scanState = ScanRecord::QUIT_START_QUEUE_SCAN;
+  }
+  tcConnectptr.p->tcScanRec = RNIL;
+  deleteTransidHash(signal, tcConnectptr);
+  releaseOprec(signal, tcConnectptr.p);
+  releaseTcrec(signal, tcConnectptr);
+  if (restart_flag)
+  {
+    jam();
+    restart.p->scanState = ScanRecord::WAIT_START_QUEUED_SCAN;
+    signal->theData[0] = ZSTART_QUEUED_SCAN;
+    signal->theData[1] = restart.i;
+    sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+  }
+}
 
 void Dblqh::restart_queued_scan(Signal* signal, Uint32 scanPtrI)
 {
+  ScanRecordPtr loc_scanptr;
+  loc_scanptr.i = scanPtrI;
+  c_scanRecordPool.getPtr(loc_scanptr);
+  if (loc_scanptr.p->scanState == ScanRecord::QUIT_START_QUEUE_SCAN)
+  {
+    jam();
+    scanptr = loc_scanptr;
+    releaseScanrec(signal);
+    return;
+  }
+  ndbrequire(loc_scanptr.p->scanState == ScanRecord::WAIT_START_QUEUED_SCAN);
+  ndbrequire(loc_scanptr.p->copyPtr == RNIL);
   setup_scan_pointers(scanPtrI);
   m_scan_direct_count = ZMAX_SCAN_DIRECT_COUNT - 8;
   // Hiding read only version in outer scope
-  ndbrequire(scanptr.p->copyPtr == RNIL);
-  if (unlikely(scanptr.p->scanCompletedStatus == ZTRUE))
-  {
-    jam();
-    closeScanLab(signal, m_tc_connect_ptr.p);
-    return;
-  }
   continueAfterReceivingAllAiLab(signal, m_tc_connect_ptr);
   return;
 }
@@ -14413,7 +14445,7 @@ bool Dblqh::finishScanrec(Signal* signal,
                                        fragptr.p->m_queuedAccScans);
     jam();
     ndbrequire(reserved == 0);
-    queue.release(scanptr);
+    queue.remove(scanptr);
     return false;
   }
 
@@ -14446,7 +14478,7 @@ bool Dblqh::finishScanrec(Signal* signal,
     if (reserved == 0)
     {
       jamDebug();
-      scans.release(scanptr);
+      scans.remove(scanptr);
     }
     else
     {
@@ -14561,6 +14593,10 @@ void Dblqh::releaseScanrec(Signal* signal)
   scanPtr->scanType = ScanRecord::ST_IDLE;
   scanPtr->scanTcWaiting = 0;
   scanPtr->scan_lastSeen = __LINE__;
+  if (scanPtr->m_reserved == 0)
+  {
+    c_scanRecordPool.release(scanptr);
+  }
 }//Dblqh::releaseScanrec()
 
 /* ------------------------------------------------------------------------
@@ -16212,22 +16248,7 @@ void Dblqh::tupCopyCloseConfLab(Signal* signal,
     }//if
   }//if
   releaseActiveCopy(signal);
-  {
-    ScanRecordPtr restart;
-    bool restart_flag = finishScanrec(signal, restart, tcConnectptr);
-    releaseScanrec(signal);
-    tcConnectptr.p->tcScanRec = RNIL;
-    releaseOprec(signal, tcConnectptr.p);
-    releaseTcrec(signal, tcConnectptr);
-    if (restart_flag)
-    {
-      jam();
-      restart.p->scanState = ScanRecord::WAIT_ACC_SCAN;
-      signal->theData[0] = ZSTART_QUEUED_SCAN;
-      signal->theData[1] = restart.i;
-      sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
-    }
-  }
+  handle_finish_scan(signal, tcConnectptr);
 }//Dblqh::tupCopyCloseConfLab()
 
 /*---------------------------------------------------------------------------*/
@@ -28407,6 +28428,8 @@ Dblqh::match_and_print(Signal* signal, Ptr<TcConnectionrec> tcRec)
     case ScanRecord::WAIT_CLOSE_COPY:
     case ScanRecord::WAIT_TUPKEY_COPY:
     case ScanRecord::WAIT_LQHKEY_COPY:
+    case ScanRecord::WAIT_START_QUEUED_SCAN:
+    case ScanRecord::QUIT_START_QUEUE_SCAN:
       BaseString::snprintf(state, sizeof(state), "%u", sp.p->scanState);
       break;
     }
