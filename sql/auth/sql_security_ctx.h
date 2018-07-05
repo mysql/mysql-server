@@ -446,7 +446,7 @@ class Security_context {
 
   bool m_executed_drop_policy;
   bool m_has_drop_policy;
-  std::function<void(Security_context *)> m_drop_policy;
+  std::unique_ptr<std::function<void(Security_context *)>> m_drop_policy;
 };
 
 /**

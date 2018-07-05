@@ -89,14 +89,14 @@ bool Security_context::has_executed_drop_policy(void) {
 
 void Security_context::execute_drop_policy(void) {
   if (m_has_drop_policy && !m_executed_drop_policy) {
-    m_drop_policy(this);
+    (*m_drop_policy)(this);
     m_executed_drop_policy = true;
   }
 }
 
 void Security_context::set_drop_policy(
     const std::function<void(Security_context *)> &func) {
-  m_drop_policy = func;
+  m_drop_policy.reset(new std::function<void(Security_context *)>(func));
   m_has_drop_policy = true;
   m_executed_drop_policy = false;
 }
@@ -104,7 +104,7 @@ void Security_context::set_drop_policy(
 void Security_context::destroy() {
   DBUG_ENTER("Security_context::destroy");
   if (m_has_drop_policy && !m_executed_drop_policy) {
-    m_drop_policy(this);
+    (*m_drop_policy)(this);
   }
   if (m_acl_map) {
     DBUG_PRINT(
