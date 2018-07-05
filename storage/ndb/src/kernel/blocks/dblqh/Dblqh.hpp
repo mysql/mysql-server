@@ -507,7 +507,9 @@ public:
       WAIT_TUPKEY_COPY = 8,
       WAIT_LQHKEY_COPY = 9,
       IN_QUEUE = 10,
-      COPY_FRAG_HALTED = 11
+      COPY_FRAG_HALTED = 11,
+      WAIT_START_QUEUED_SCAN = 12,
+      QUIT_START_QUEUE_SCAN = 13
     };
     enum ScanType {
       ST_IDLE = 0,
@@ -2706,6 +2708,7 @@ private:
   bool finishScanrec(Signal* signal,
                      ScanRecordPtr &restart,
                      TcConnectionrecPtr);
+  void handle_finish_scan(Signal*, TcConnectionrecPtr);
   void releaseScanrec(Signal* signal);
   void seizeScanrec(Signal* signal);
   Uint32 sendKeyinfo20(Signal* signal, ScanRecord *, TcConnectionrec *);
