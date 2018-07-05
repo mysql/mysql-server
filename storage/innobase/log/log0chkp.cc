@@ -611,15 +611,24 @@ static void log_wait_for_checkpoint(const log_t &log, lsn_t requested_lsn) {
 
   auto stop_condition = [&log, requested_lsn](bool) {
 
-    /* We need to wake up page cleaners, as we could have
-    dirty page that stops checkpoint from advancing. */
-
-    log_preflush_pool_modified_pages(log, requested_lsn);
-
     return (log.last_checkpoint_lsn.load() >= requested_lsn);
   };
 
   ut_wait_for(0, 100, stop_condition);
+}
+
+void log_request_checkpoint(log_t &log, bool sync, lsn_t lsn) {
+  log_preflush_pool_modified_pages(log, lsn);
+
+  log_checkpointer_mutex_enter(log);
+
+  log_request_checkpoint_low(log, lsn);
+
+  log_checkpointer_mutex_exit(log);
+
+  if (sync) {
+    log_wait_for_checkpoint(log, lsn);
+  }
 }
 
 void log_request_checkpoint(log_t &log, bool sync) {
@@ -682,9 +691,9 @@ static void log_preflush_pool_modified_pages(const log_t &log,
   } else {
     new_oldest += log_buffer_flush_order_lag(log);
 
-    /* better to wait for being flushed by page cleaner */
+    /* Wake up page cleaner asking to perform sync flush
+    (unless user explicitly disabled sync-flushes). */
     if (srv_flush_sync) {
-      /* wake page cleaner for IO burst */
       buf_flush_request_force(new_oldest);
     }
   }
@@ -695,7 +704,7 @@ static bool log_consider_sync_flush(log_t &log) {
 
   const lsn_t oldest_lsn = log.available_for_checkpoint_lsn;
 
-  const lsn_t current_lsn = log_get_lsn(log);
+  lsn_t current_lsn = log_get_lsn(log);
 
   lsn_t flush_up_to = oldest_lsn;
 
@@ -705,10 +714,21 @@ static bool log_consider_sync_flush(log_t &log) {
     return (false);
   }
 
+  const sn_t margin = log_free_check_margin(log);
+
+  current_lsn =
+      log_translate_sn_to_lsn(log_translate_lsn_to_sn(current_lsn) + margin);
+
   if (current_lsn - oldest_lsn > log.max_modified_age_sync) {
     ut_a(current_lsn > log.max_modified_age_sync);
 
     flush_up_to = current_lsn - log.max_modified_age_sync;
+  }
+
+  const lsn_t requested_checkpoint_lsn = log.requested_checkpoint_lsn;
+
+  if (requested_checkpoint_lsn > flush_up_to) {
+    flush_up_to = requested_checkpoint_lsn;
   }
 
   if (flush_up_to > oldest_lsn) {
@@ -776,9 +796,12 @@ static bool log_should_checkpoint(log_t &log) {
   ut_a(last_checkpoint_lsn <= oldest_lsn);
   ut_a(oldest_lsn <= current_lsn);
 
-  const auto dict_persist_margin = log.dict_persist_margin.load();
+  const sn_t margin = log_free_check_margin(log);
 
-  checkpoint_age = current_lsn - last_checkpoint_lsn + dict_persist_margin;
+  current_lsn =
+      log_translate_sn_to_lsn(log_translate_lsn_to_sn(current_lsn) + margin);
+
+  checkpoint_age = current_lsn - last_checkpoint_lsn;
 
   checkpoint_time_elapsed = log_checkpoint_time_elapsed(log);
 
@@ -963,9 +986,7 @@ void log_update_limits(log_t &log) {
 
   sn_t limit_for_start = std::min(sn_file_limit, limit_for_end);
 
-  sn_t margins = 0;
-  margins += log.concurrency_margin.load();
-  margins += log.dict_persist_margin.load();
+  const sn_t margins = log_free_check_margin(log);
 
   if (margins >= limit_for_start) {
     limit_for_start = 0;

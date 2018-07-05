@@ -2290,20 +2290,26 @@ static ulint af_get_pct_for_dirty() {
  @return percent of io_capacity to flush to manage redo space */
 static ulint af_get_pct_for_lsn(lsn_t age) /*!< in: current age of LSN. */
 {
-  const lsn_t redo_capacity = log_sys->lsn_capacity_for_writer;
+  const lsn_t log_margin =
+      log_translate_sn_to_lsn(log_free_check_margin(*log_sys));
 
-  lsn_t max_async_age;
+  ut_a(log_sys->lsn_capacity_for_free_check > log_margin);
+
+  const lsn_t log_capacity = log_sys->lsn_capacity_for_free_check - log_margin;
+
   lsn_t lsn_age_factor;
-  lsn_t af_lwm = (srv_adaptive_flushing_lwm * redo_capacity) / 100;
+  lsn_t af_lwm = (srv_adaptive_flushing_lwm * log_capacity) / 100;
 
   if (age < af_lwm) {
     /* No adaptive flushing. */
     return (0);
   }
 
-  max_async_age = log_get_max_modified_age_async();
+  auto limit_for_age = log_get_max_modified_age_async();
+  ut_a(limit_for_age >= log_margin);
+  limit_for_age -= log_margin;
 
-  if (age < max_async_age && !srv_adaptive_flushing) {
+  if (age < limit_for_age && !srv_adaptive_flushing) {
     /* We have still not reached the max_async point and
     the user has disabled adaptive flushing. */
     return (0);
@@ -2313,7 +2319,7 @@ static ulint af_get_pct_for_lsn(lsn_t age) /*!< in: current age of LSN. */
   1) User has enabled adaptive flushing
   2) User may have disabled adaptive flushing but we have reached
   max_async_age. */
-  lsn_age_factor = (age * 100) / max_async_age;
+  lsn_age_factor = (age * 100) / limit_for_age;
 
   ut_ad(srv_max_io_capacity >= srv_io_capacity);
   return (static_cast<ulint>(((srv_max_io_capacity / srv_io_capacity) *

@@ -723,6 +723,11 @@ at the provided sn, in both the log buffer and in the log files.
 @param[in]	end_sn    end of the range of sn values */
 void log_wait_for_space(log_t &log, sn_t end_sn);
 
+/** Calculates margin which has to be used in log_free_check() call,
+when checking if user thread should wait for more space in redo log.
+@return size of the margin to use */
+sn_t log_free_check_margin(const log_t &log);
+
 /** Waits until there is free space in log files which includes
 concurrency margin required for all threads. You should rather
 use log_free_check().
@@ -776,10 +781,17 @@ It will try to enable the redo log encryption and write the metadata to
 redo log file header if the innodb_undo_log_encrypt is ON. */
 void log_enable_encryption_if_set();
 
-/** Requests a new checkpoint write for lsn which is currently available
-for checkpointing (the lsn is updated in log checkpointer thread).
+/** Requests a sharp checkpoint write for provided or greater lsn.
 @param[in,out]	log	redo log
-@param[in]	sync	true -> wait until the write is finished */
+@param[in]	sync	true -> wait until it is finished
+@param[in]  lsn   lsn for which we need checkpoint (or greater chkp) */
+void log_request_checkpoint(log_t &log, bool sync, lsn_t lsn);
+
+/** Requests a fuzzy checkpoint write (for lsn currently available
+for checkpointing).
+@param[in,out]	log	redo log
+@param[in]	sync	true -> wait until it is finished
+pages */
 void log_request_checkpoint(log_t &log, bool sync);
 
 /** Make a checkpoint at the current lsn. Reads current lsn and waits
