@@ -3156,7 +3156,8 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
       TODO During the optimization phase we should evaluate only inexpensive
            single-lookup subqueries.
     */
-    if (check_stack_overrun(thd, 3 * STACK_MIN_SIZE + sizeof(PARAM), NULL))
+    uchar buff[STACK_BUFF_ALLOC];
+    if (check_stack_overrun(thd, 3 * STACK_MIN_SIZE + sizeof(PARAM), buff))
       DBUG_RETURN(0);  // Fatal error flag is set
 
     /* set up parameter that is passed to all functions */
