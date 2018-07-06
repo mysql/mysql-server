@@ -11,11 +11,11 @@
 # WL#9418  Permit default value to be a function or expression, support for LOBs
 #
 
---source include/have_binlog_format_statement.inc
+--source include/have_binlog_format_mixed_or_row.inc
 --source include/master-slave.inc
 
 CALL mtr.add_suppression('Statement violates GTID consistency:');
-CALL mtr.add_suppression('Unsafe statement written to the binary log');
+CALL mtr.add_suppression('Statement is unsafe because it uses a system function that may return a different value on the slave.');
 
 SET @start_global_value = @@GLOBAL.GTID_MODE;
 SET @start_enforce_gtid_consistency= @@GLOBAL.ENFORCE_GTID_CONSISTENCY;
@@ -25,10 +25,14 @@ SET @start_gtid_next= @@SESSION.GTID_NEXT;
 CREATE TABLE t2 (i VARCHAR(36));
 
 --echo #
---echo # (GLOBAL GTID_MODE=OFF) + (ENFORCE_GTID_CONSISTENCY=OFF) => No Warning/Error
+--echo # (GLOBAL GTID_MODE=OFF) + (ENFORCE_GTID_CONSISTENCY=OFF) => No Warning
 --echo #
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
 ALTER TABLE t2 ADD COLUMN a char(36) DEFAULT (PI());
+--echo #
+--echo # (GLOBAL GTID_MODE=OFF) + (ENFORCE_GTID_CONSISTENCY=OFF) + mixed/row replication => Error
+--echo #
+--error ER_BINLOG_UNSAFE_SYSTEM_FUNCTION
 ALTER TABLE t2 ADD COLUMN b char(36) DEFAULT (RAND());
 
 --echo #
@@ -36,6 +40,8 @@ ALTER TABLE t2 ADD COLUMN b char(36) DEFAULT (RAND());
 --echo #
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = WARN;
 ALTER TABLE t2 ADD COLUMN c char(36) DEFAULT (PI());
+--echo # (GLOBAL GTID_MODE=OFF) + (ENFORCE_GTID_CONSISTENCY=WARN) + mixed/row replication => Error
+--error ER_BINLOG_UNSAFE_SYSTEM_FUNCTION
 ALTER TABLE t2 ADD COLUMN d char(36) DEFAULT (RAND());
 
 --echo #
@@ -44,7 +50,7 @@ ALTER TABLE t2 ADD COLUMN d char(36) DEFAULT (RAND());
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
 --error ER_GTID_UNSAFE_ALTER_ADD_COL_WITH_DEFAULT_EXPRESSION
 ALTER TABLE t2 ADD COLUMN e char(36) DEFAULT (PI());
---error ER_GTID_UNSAFE_ALTER_ADD_COL_WITH_DEFAULT_EXPRESSION
+--error ER_BINLOG_UNSAFE_SYSTEM_FUNCTION
 ALTER TABLE t2 ADD COLUMN f char(36) DEFAULT (RAND());
 
 --echo #
@@ -56,7 +62,7 @@ SET @@GLOBAL.GTID_MODE = ON_PERMISSIVE;
 SET @@SESSION.GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
 --error ER_GTID_UNSAFE_ALTER_ADD_COL_WITH_DEFAULT_EXPRESSION
 ALTER TABLE t2 ADD COLUMN g char(36) DEFAULT (PI());
---error ER_GTID_UNSAFE_ALTER_ADD_COL_WITH_DEFAULT_EXPRESSION
+--error ER_BINLOG_UNSAFE_SYSTEM_FUNCTION
 ALTER TABLE t2 ADD COLUMN f char(36) DEFAULT (RAND());
 # Release GTID ownership
 ROLLBACK;
@@ -68,7 +74,7 @@ SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
 --echo # (GTID_NEXT=UUID:NUMBER) => Error
 --error ER_GTID_UNSAFE_ALTER_ADD_COL_WITH_DEFAULT_EXPRESSION
 ALTER TABLE t2 ADD COLUMN h char(36) DEFAULT (PI());
---error ER_GTID_UNSAFE_ALTER_ADD_COL_WITH_DEFAULT_EXPRESSION
+--error ER_BINLOG_UNSAFE_SYSTEM_FUNCTION
 ALTER TABLE t2 ADD COLUMN f char(36) DEFAULT (RAND());
 
 --echo #
@@ -78,7 +84,7 @@ SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
 SET GLOBAL GTID_MODE = ON;
 --error ER_GTID_UNSAFE_ALTER_ADD_COL_WITH_DEFAULT_EXPRESSION
 ALTER TABLE t2 ADD COLUMN i char(36) DEFAULT (PI());
---error ER_GTID_UNSAFE_ALTER_ADD_COL_WITH_DEFAULT_EXPRESSION
+--error ER_BINLOG_UNSAFE_SYSTEM_FUNCTION
 ALTER TABLE t2 ADD COLUMN f char(36) DEFAULT (RAND());
 
 --echo # Reset to initial values
