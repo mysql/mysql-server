@@ -5,9 +5,11 @@
 --echo # ... FOR CHANNEL.
 --echo #
 --echo # Verify RESET SLAVE and RESET SLAVE FOR CHANNEL
---echo # - deletes all relay log files of named channels.
+--echo # - deletes all relay log files of named channels and reinitializes
+--echo # them.
 --echo # - For default channel, it restart the relay log from .000001
 --echo # - retains replication filters of the channel.
+--echo # - For named channel, it restart the relay log from ch.000001
 --echo # - retains all replication filters from all replication channels.
 --echo #
 --echo # Verify that "'RESET SLAVE ALL FOR CHANNEL '<channel_name>'" removes
@@ -94,7 +96,7 @@ eval RESET SLAVE FOR CHANNEL "ch1";
 SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
 SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
 
-# all files of "ch1" are removed
+# all files of "ch1" are deleted and recreated.
 --list_files $datadir *ch1*
 
 --echo #
@@ -119,7 +121,7 @@ RESET SLAVE;
 SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
 SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
 
-# all files of "ch2" are removed
+# all files of "ch2" are deleted and recreated.
 --list_files $datadir *ch2*
 
 --echo #
@@ -133,10 +135,8 @@ SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM perfo
 --file_exists $relay_log_basename.000001
 
 --echo #
---echo # Recreate channels "ch1" and "ch2" files again.
+--echo # Relay log files for all channels are recreated automatically.
 --echo #
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "ch1";
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=11 FOR CHANNEL "ch2";
 
 # Check that files exist.
 --let $relay_log_base_name= `SELECT @@GLOBAL.relay_log_basename`

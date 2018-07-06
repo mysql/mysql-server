@@ -16,14 +16,15 @@
 ################################################################################
 
 
-# This test does crashes servers, thence we skip it on valgrind.
+# This test does crashes servers, thence we skip it on asan and valgrind.
+--source include/not_asan.inc
 --source include/not_valgrind.inc
 --source include/big_test.inc
 --source include/force_restart.inc
---source include/have_group_replication_plugin.inc
+--source ../inc/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --let $rpl_server_count= 3
---source include/group_replication.inc
+--source ../inc/group_replication.inc
 
 #
 # Phase 1: Start group replication on two servers
@@ -31,7 +32,7 @@
 
 --connection server2
 --echo server2
---source include/start_and_bootstrap_group_replication.inc
+--source ../inc/start_and_bootstrap_group_replication.inc
 
 # Add some data for recovery
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
@@ -44,7 +45,7 @@ INSERT INTO t1 VALUES (1);
 
 --connection server2
 --let $group_replication_number_of_members= 2
---source include/gr_wait_for_number_of_members.inc
+--source ../inc/gr_wait_for_number_of_members.inc
 
 #
 # Phase 2: Stop replication on server 1
@@ -144,7 +145,7 @@ RESET SLAVE ALL;
 # kill server 1
 --let $restart_parameters=restart:--group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds
 --replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
---source include/kill_and_restart_mysqld.inc
+--source ../inc/kill_and_restart_mysqld.inc
 
 #Needed as we are not using rpl_restart_server.inc
 --let $rpl_server_number= 1
@@ -157,7 +158,7 @@ RESET SLAVE ALL;
 
 --let $group_replication_member_state= UNREACHABLE
 --let $group_replication_member_id= $member1_uuid
---source include/gr_wait_for_member_state.inc
+--source ../inc/gr_wait_for_member_state.inc
 
 # unblock the group, since server1 has gone away and
 # there were only two in the group - majority lost
@@ -169,12 +170,12 @@ RESET SLAVE ALL;
 --enable_query_log
 
 --let $group_replication_number_of_members= 1
---source include/gr_wait_for_number_of_members.inc
+--source ../inc/gr_wait_for_number_of_members.inc
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 # Wait for the slave channel start
---let $rpl_channel_name= 'channel_1'
+--let $rpl_channel_name= channel_1
 --source include/wait_for_slave_to_start.inc
 --let $rpl_channel_name=
 
@@ -206,4 +207,4 @@ CHANGE MASTER TO MASTER_AUTO_POSITION=0 FOR CHANNEL "channel_1";
 --source include/start_group_replication.inc
 
 --let $skip_restore_connection= 0
---source include/group_replication_end.inc
+--source ../inc/group_replication_end.inc
