@@ -29,10 +29,10 @@
 namespace ngs {
 
 const std::array<Notice_type, 4> Notice_descriptor::dispatchables{
-    Notice_type::k_group_replication_quorum_loss,
-    Notice_type::k_group_replication_view_changed,
-    Notice_type::k_group_replication_member_role_changed,
-    Notice_type::k_group_replication_member_state_changed};
+    {Notice_type::k_group_replication_quorum_loss,
+     Notice_type::k_group_replication_view_changed,
+     Notice_type::k_group_replication_member_role_changed,
+     Notice_type::k_group_replication_member_state_changed}};
 
 Notice_descriptor::Notice_descriptor(const Notice_type notice_type,
                                      const std::string &payload)
