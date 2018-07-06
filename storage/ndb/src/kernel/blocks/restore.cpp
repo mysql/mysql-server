@@ -190,7 +190,7 @@ Restore::execREAD_CONFIG_REQ(Signal* signal)
    */
   NewVARIABLE *bat = allocateBat(1);
   bat[0].WA = &m_lcp_ctl_file_data[0][0];
-  bat[0].nrr = 2 * BackupFormat::NDB_LCP_CTL_FILE_SIZE_BIG;
+  bat[0].nrr = 2 * LCP_CTL_FILE_DATA_SIZE;
 
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
@@ -1331,7 +1331,7 @@ Restore::open_ctl_file_done_conf(Signal *signal, FilePtr file_ptr)
   /**
    * Data will be written from m_lcp_ctl_file_data as prepared by Bat */
   req->data.memoryAddress.memoryOffset =
-    file_ptr.p->m_ctl_file_no * BackupFormat::NDB_LCP_CTL_FILE_SIZE_BIG;
+    file_ptr.p->m_ctl_file_no * LCP_CTL_FILE_DATA_SIZE;
   req->data.memoryAddress.fileOffset = 0;
   req->data.memoryAddress.size = BackupFormat::NDB_LCP_CTL_FILE_SIZE_BIG;
 
