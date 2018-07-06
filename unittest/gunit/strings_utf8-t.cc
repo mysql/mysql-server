@@ -30,6 +30,8 @@
 #include "sql/sql_class.h"
 #include "sql/strfunc.h"  // casedn
 
+using std::min;
+
 namespace strings_utf8_unittest {
 
 class StringsUTF8Test : public ::testing::Test {
@@ -795,5 +797,47 @@ TEST(UCAWildCmpTest, UCA900WildCmp_AS_CI) {
   EXPECT_FALSE(uca_wildcmp(cs, "a\\bcd", "Ǎḅçd"));
   EXPECT_TRUE(uca_wildcmp(cs, "Ǎḅdbçd", "ǎ%Çd"));
   EXPECT_FALSE(uca_wildcmp(cs, "Ǎḅeçd", "a%bd"));
+}
+
+static bool test_well_formed_copy_nchars(const CHARSET_INFO *to_cs,
+                                         const CHARSET_INFO *from_cs,
+                                         const char *input_str) {
+  char output_str[260];
+  const char *well_formed_error_pos;
+  const char *cannot_convert_error_pos;
+  const char *from_end_pos;
+  bool well_formed = true;
+
+  size_t input_strlen = strlen(input_str);
+  // TINYTEXT field max length is 255
+  size_t output_strlen = min<size_t>(input_strlen, 255);
+
+  well_formed_copy_nchars(to_cs, output_str, output_strlen, from_cs, input_str,
+                          input_strlen, output_strlen, &well_formed_error_pos,
+                          &cannot_convert_error_pos, &from_end_pos);
+
+  if (well_formed_error_pos) well_formed = false;
+
+  return well_formed;
+}
+
+TEST(WellFormedCopy, TooLongWellFormed) {
+  EXPECT_TRUE(test_well_formed_copy_nchars(
+      &my_charset_utf8mb4_0900_ai_ci, &my_charset_utf8mb4_0900_ai_ci,
+      u8"ÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅ"
+      u8"ÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅÅ"
+      u8"ÅÅÅÅÅ"));
+}
+
+TEST(WellFormedCopy, NotWellFormed) {
+  // Contains a character outside the BMP, which is not valid UTF-32.
+  EXPECT_FALSE(test_well_formed_copy_nchars(
+      &my_charset_utf32_unicode_ci, &my_charset_bin, "\xff\xff\xff\xff"));
+}
+
+TEST(WellFormedCopy, WellFormed) {
+  EXPECT_TRUE(test_well_formed_copy_nchars(
+      &my_charset_utf8mb4_0900_ai_ci, &my_charset_utf8mb4_0900_ai_ci,
+      u8"でもっとも普及しているオープンソースデータベースソフトウ"));
 }
 }  // namespace strings_utf8_unittest
