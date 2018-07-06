@@ -352,6 +352,12 @@ int plugin_group_replication_start()
 
   Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
 
+  DBUG_EXECUTE_IF("group_replication_wait_on_start",
+                 {
+                   const char act[]= "now signal signal.start_waiting wait_for signal.start_continue";
+                   DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+                 });
+
   if (plugin_is_group_replication_running())
     DBUG_RETURN(GROUP_REPLICATION_ALREADY_RUNNING);
   if (check_if_server_properly_configured())
@@ -815,6 +821,12 @@ int plugin_group_replication_stop()
 
   Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
 
+  DBUG_EXECUTE_IF("group_replication_wait_on_stop",
+                 {
+                   const char act[]= "now signal signal.stop_waiting wait_for signal.stop_continue";
+                   DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+                 });
+
   /*
     We delete the delayed initialization object here because:
 
@@ -986,7 +998,7 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info)
 
   plugin_info_ptr= plugin_info;
 
-  if (group_replication_init(group_replication_plugin_name))
+  if (group_replication_init())
   {
     /* purecov: begin inspected */
     log_message(MY_ERROR_LEVEL,
@@ -1036,7 +1048,7 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info)
   init_compatibility_manager();
 
   plugin_is_auto_starting= start_group_replication_at_boot_var;
-  if (start_group_replication_at_boot_var && group_replication_start())
+  if (start_group_replication_at_boot_var && plugin_group_replication_start())
   {
     log_message(MY_ERROR_LEVEL,
                 "Unable to start Group Replication on boot");
@@ -1054,10 +1066,9 @@ int plugin_group_replication_deinit(void *p)
   plugin_is_being_uninstalled= true;
   int observer_unregister_error= 0;
 
-  //plugin_group_replication_stop will be called from this method stack
-  if (group_replication_cleanup())
+  if (plugin_group_replication_stop())
     log_message(MY_ERROR_LEVEL,
-                "Failure when cleaning Group Replication server state");
+                "Failure when stopping Group Replication on plugin uninstall");
 
   if (group_member_mgr != NULL)
   {
@@ -1567,7 +1578,7 @@ static int check_if_server_properly_configured()
   //Struct that holds startup and runtime requirements
   Trans_context_info startup_pre_reqs;
 
-  get_server_startup_prerequirements(startup_pre_reqs, true);
+  get_server_startup_prerequirements(startup_pre_reqs, !plugin_is_auto_starting);
 
   if(!startup_pre_reqs.binlog_enabled)
   {

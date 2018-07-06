@@ -1,0 +1,64 @@
+################################################################################
+# This test confirms that when STOP GR and select
+# performance_schema.replication_connection_status query is executed
+# concurrently, no deadlock happens.
+#
+# Test:
+# 0. The test requires one server.
+# 1. Block Stop Group Replication
+# 2. Wait for debug sync to be reached and then execute select query
+# 3. SIGNAL STOP GR to resume processing
+# 4. Confirm Group Replication is stopped
+# 5. Cleanup
+#
+################################################################################
+--source ../inc/have_group_replication_plugin.inc
+--source ../inc/group_replication.inc
+
+--echo
+--echo # 1. Block Stop Group Replication
+--echo
+
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,group_replication_wait_on_stop';
+
+--send STOP GROUP_REPLICATION
+
+
+--echo
+--echo # 2. Wait for debug sync to be reached and then execute select query
+--echo
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+SET DEBUG_SYNC= "now WAIT_FOR signal.stop_waiting";
+
+SELECT COUNT(*) FROM performance_schema.replication_connection_status;
+
+
+--echo
+--echo # 3. SIGNAL STOP GR to resume processing
+--echo
+
+SET DEBUG_SYNC= 'now SIGNAL signal.stop_continue';
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--reap
+
+
+--echo
+--echo # 4. Confirm Group Replication is stopped
+--echo
+
+--let $group_replication_member_state= OFFLINE
+--source ../inc/gr_wait_for_member_state.inc
+
+
+--echo
+--echo # 5. Cleanup
+--echo
+
+SET @@GLOBAL.DEBUG= @debug_save;
+--source ../inc/group_replication_end.inc
