@@ -171,19 +171,28 @@ struct log_errstream {
 
   @param  name   the name -- either just the component's, or
                  a fully qualified service.component
+  @param  len    the length of the aforementioned name
   @retval        if built-in filter: flags for built-in|singleton|filter
   @retval        if built-in sink:   flags for built-in|singleton|sink
   @retval        otherwise:          LOG_SERVICE_UNSPECIFIED
 */
-static int log_service_check_if_builtin(char *name) {
-  if ((strlen(name) > sizeof(LOG_SERVICES_PREFIX)) && (name[11] == '.') &&
-      (0 == strncmp(name, LOG_SERVICES_PREFIX, 11)))
-    name += (sizeof(LOG_SERVICES_PREFIX));
+static int log_service_check_if_builtin(const char *name, size_t len) {
+  const size_t builtin_len = sizeof(LOG_SERVICES_PREFIX) - 1;
 
-  if (0 == strncmp(name, LOG_BUILTINS_FILTER, sizeof(LOG_BUILTINS_FILTER)))
+  if ((len > (builtin_len + 1)) && (name[builtin_len] == '.') &&
+      (0 == strncmp(name, LOG_SERVICES_PREFIX, builtin_len))) {
+    name += builtin_len;
+    len -= builtin_len;
+  }
+
+  if ((len == sizeof(LOG_BUILTINS_FILTER) - 1) &&
+      (0 == strncmp(name, LOG_BUILTINS_FILTER, len)))
     return LOG_SERVICE_BUILTIN | LOG_SERVICE_FILTER | LOG_SERVICE_SINGLETON;
-  if (0 == strncmp(name, LOG_BUILTINS_SINK, sizeof(LOG_BUILTINS_SINK)))
+
+  if ((len == sizeof(LOG_BUILTINS_SINK) - 1) &&
+      (0 == strncmp(name, LOG_BUILTINS_SINK, len)))
     return LOG_SERVICE_BUILTIN | LOG_SERVICE_SINK | LOG_SERVICE_SINGLETON;
+
   return LOG_SERVICE_UNSPECIFIED;
 }
 
@@ -1522,21 +1531,20 @@ done:
 /**
   Look up a log service by name (in the service registry).
 
-  @param        name    name of the component (will be auto-qualified)
+  @param        name    name of the component
   @param        len     length of that name
-  @param[out]   buf     buffer to qualify the name in
-  @param        bufsiz  size of that buffer
 
   @retval               a handle to that service.
 */
-static my_h_service log_service_get_by_name(const char *name, size_t len,
-                                            char *buf, size_t bufsiz) {
+static my_h_service log_service_get_by_name(const char *name, size_t len) {
+  char buf[128];
   my_h_service service = nullptr;
   size_t needed;
 
-  needed = snprintf(buf, bufsiz, LOG_SERVICES_PREFIX ".%.*s", (int)len, name);
+  needed =
+      snprintf(buf, sizeof(buf), LOG_SERVICES_PREFIX ".%.*s", (int)len, name);
 
-  if (needed > bufsiz) return service;
+  if (needed > sizeof(buf)) return service;
 
   if ((!imp_mysql_server_registry.acquire(buf, &service)) &&
       (service != nullptr)) {
@@ -1757,7 +1765,6 @@ int log_builtins_error_stack_flush() {
   @retval             -102  delimiters ',' and ';' may not be mixed
 */
 int log_builtins_error_stack(const char *conf, bool check_only, size_t *pos) {
-  char buf[128];
   const char *start = conf, *end;
   char delim = '\0';
   long len;
@@ -1797,19 +1804,21 @@ int log_builtins_error_stack(const char *conf, bool check_only, size_t *pos) {
     // find current service name in service-cache
     auto it = log_service_cache->find(string(start, len));
 
-    // not found in cache; ask component framework
+    // not found in cache; is it a built-in default?
     if (it == log_service_cache->end()) {
-      service = log_service_get_by_name(start, len, buf, sizeof(buf));
+      chistics = log_service_check_if_builtin(start, len);
 
-      // not found in framework, is it a built-in default?
-      if (service == nullptr) {
-        chistics = log_service_check_if_builtin(buf);
+      // not a built-in; ask component framework
+      if (!(chistics & LOG_SERVICE_BUILTIN)) {
+        service = log_service_get_by_name(start, len);
 
-        if (!(chistics & LOG_SERVICE_BUILTIN)) {
+        // not found in framework, signal failure
+        if (service == nullptr) {
           rr = -2;  // at least one service not found => fail
           goto done;
         }
-      }
+      } else
+        service = nullptr;
 
       // make a cache-entry for this service
       if ((sce = log_service_cache_entry_new(start, len, service)) == nullptr) {
