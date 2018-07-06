@@ -48,7 +48,7 @@
 %{!?compilation_comment_debug:   %global compilation_comment_debug MySQL Community Server - GPL - Debug}
 %{!?src_base:                    %global src_base mysql%{?cluster:-cluster-gpl}}
 
-%global src_dir               %{src_base}-@VERSION_SRC@
+%global src_dir               %{src_base}-@VERSION@
 
 # multiarch
 %global multiarchs            ppc %{power64} %{ix86} x86_64 %{sparc}
@@ -94,7 +94,7 @@ Name:           mysql%{?cluster:-cluster}-%{product_suffix}
 Summary:        A very fast and reliable SQL database server
 Group:          Applications/Databases
 Version:        @MYSQL_NO_DASH_VERSION@
-Release:        0.1@MYSQL_VERSION_EXTRA_DOT@%{?commercial:.1}%{?dist}
+Release:        1@MYSQL_VERSION_EXTRA_DOT@%{?commercial:.1}%{?dist}
 License:        Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. All rights reserved. Under %{?license_type} license as shown in the Description field.
 Source0:        https://cdn.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src_dir}.tar.gz
 URL:            http://www.mysql.com/
@@ -553,9 +553,6 @@ mkdir debug
            -DSYSTEMD_SERVICE_NAME="mysql" \
            -DSYSTEMD_PID_DIR="/var/run/mysql" \
 %endif
-%if 0%{?cluster}
-           -DWITH_NDBCLUSTER=1 \
-%endif
 %if 0%{?ndb_nodejs_path:1}
            -DNDB_NODEJS_PATH=%{ndb_nodejs_path} \
 %endif
@@ -598,9 +595,6 @@ mkdir release
            -DWITH_SYSTEMD=1 \
            -DSYSTEMD_SERVICE_NAME="mysql" \
            -DSYSTEMD_PID_DIR="/var/run/mysql" \
-%endif
-%if 0%{?cluster}
-           -DWITH_NDBCLUSTER=1 \
 %endif
 %if 0%{?ndb_nodejs_path:1}
            -DNDB_NODEJS_PATH=%{ndb_nodejs_path} \
@@ -818,7 +812,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/ha_example.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/ha_mock.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/innodb_engine.so
@@ -843,7 +836,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_example.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_mock.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/innodb_engine.so
@@ -890,6 +882,12 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_aws.so
 %endif
 %endif
+%attr(644, root, root) %{_datadir}/mysql-*/fill_help_tables.sql
+%attr(644, root, root) %{_datadir}/mysql-*/mysql_sys_schema.sql
+%attr(644, root, root) %{_datadir}/mysql-*/mysql_system_tables.sql
+%attr(644, root, root) %{_datadir}/mysql-*/mysql_system_tables_data.sql
+%attr(644, root, root) %{_datadir}/mysql-*/mysql_system_users.sql
+%attr(644, root, root) %{_datadir}/mysql-*/mysql_test_data_timezone.sql
 %attr(644, root, root) %{_datadir}/mysql-*/mysql-log-rotate
 %attr(644, root, root) %{_datadir}/mysql-*/dictionary.txt
 %attr(644, root, root) %{_datadir}/mysql-*/innodb_memcached_config.sql
@@ -1226,8 +1224,8 @@ fi
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
 %attr(755, root, root) %{_bindir}/mcc_config.py
-%{_datadir}/mysql-*/mcc/
-%exclude %{_datadir}/mysql-*/mcc/tst/
+%{_datadir}/mysql/mcc/
+%exclude %{_datadir}/mysql/mcc/tst/
 
 %files memcached
 %defattr(-, root, root, -)
@@ -1235,7 +1233,7 @@ fi
 %attr(755, root, root) %{_bindir}/memclient
 %attr(755, root, root) %{_sbindir}/memcached
 %attr(755, root, root) %{_libdir}/mysql/ndb_engine.so
-%{_datadir}/mysql-*/memcache-api/
+%{_datadir}/mysql/memcache-api/
 
 %files ndbclient
 %defattr(-, root, root, -)
@@ -1252,13 +1250,13 @@ fi
 %files nodejs
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
-%{_datadir}/mysql-*/nodejs/
+%{_datadir}/mysql/nodejs/
 %endif
 
 %files java
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
-%{_datadir}/mysql-*/java/
+%{_datadir}/mysql/java/
 %endif # cluster
 
 %if 0%{?commercial}
@@ -1270,14 +1268,15 @@ fi
 %endif
 
 %changelog
-* Wed Jun 13 2018 Bjorn Munch <bjorn.munch@oracle.com> - 8.0.13-1
-- Adapt to numbered share directory for NDB files
-- Add support for SLES 15
-
-* Mon Mar 12 2018 Erlend Dahl <erlend.dahl@oracle.com> - 8.0.12-0.1
+* Mon Mar 12 2018 Erlend Dahl <erlend.dahl@oracle.com> - 8.0.11-1
+- Removed milestone marker
 - Move mysqlx to default plugin
 - Add component_mysqlx_global_reset.so
-- Change the global milestone to 'dmr'
+- No longer need to remove obsoleted mysqltest man pages
+- Add perl modules for test subpackage
+- Fixed the package names for GA release
+
+* Thu Dec 07 2017 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.4-0.1
 - Add meb as sub package
 - Remove obsoleted mysqltest man pages
 - Include udf_example.so in test package

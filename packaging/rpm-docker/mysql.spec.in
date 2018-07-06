@@ -36,7 +36,7 @@
 %{!?compilation_comment_debug:   %global compilation_comment_debug MySQL Community Server - GPL - Debug}
 %{!?src_base:                    %global src_base mysql%{?cluster:-cluster-gpl}}
 
-%global src_dir               %{src_base}-@VERSION_SRC@
+%global src_dir               %{src_base}-@VERSION@
 
 %global license_files_server  %{src_dir}/LICENSE %{src_dir}/README
 
@@ -50,7 +50,7 @@ Name:           mysql%{?cluster:-cluster}-%{product_suffix}-minimal
 Summary:        A very fast and reliable SQL database server
 Group:          Applications/Databases
 Version:        @MYSQL_NO_DASH_VERSION@
-Release:        0.1@MYSQL_VERSION_EXTRA_DOT@%{?commercial:.1}%{?dist}
+Release:        1@MYSQL_VERSION_EXTRA_DOT@%{?commercial:.1}%{?dist}
 License:        Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. All rights reserved. Under %{?license_type} license as shown in the Description field.
 URL:            http://www.mysql.com/
 Packager:       MySQL Release Engineering <mysql-build@oss.oracle.com>
@@ -164,9 +164,6 @@ mkdir release
            -DWITH_NUMA=OFF \
            %{?mecab_option} \
            -DWITH_SSL=system \
-%if 0%{?cluster}
-           -DWITH_NDBCLUSTER=1 \
-%endif
 %if 0%{?with_meb:1}
            -DWITH_MEB=1 \
 %endif
@@ -241,7 +238,7 @@ for p in auth.so auth_test_plugin.so authentication_ldap_sasl.so \
          component_test_status_var_service_str.so\
          component_test_status_var_service_unreg_only.so\
          component_test_system_variable_source.so\
-         daemon_example.ini ha_example.so ha_mock.so libdaemon_example.so \
+         daemon_example.ini ha_example.so libdaemon_example.so \
          pfs_example_plugin_employee.so qa_auth_client.so qa_auth_interface.so \
          qa_auth_server.so replication_observers_example_plugin.so \
          test_security_context.so test_services_plugin_registry.so \
@@ -382,6 +379,12 @@ rm -r $(readlink var) var
 %{_datadir}/mysql-*/swedish/
 %{_datadir}/mysql-*/ukrainian/
 %attr(644, root, root) %{_datadir}/mysql-*/errmsg-utf8.txt
+%attr(644, root, root) %{_datadir}/mysql-*/fill_help_tables.sql
+%attr(644, root, root) %{_datadir}/mysql-*/mysql_system_tables.sql
+%attr(644, root, root) %{_datadir}/mysql-*/mysql_system_tables_data.sql
+%attr(644, root, root) %{_datadir}/mysql-*/mysql_system_users.sql
+%attr(644, root, root) %{_datadir}/mysql-*/mysql_sys_schema.sql
+%attr(644, root, root) %{_datadir}/mysql-*/mysql_test_data_timezone.sql
 %attr(644, root, root) %{_datadir}/mysql-*/dictionary.txt
 %attr(644, root, root) %{_datadir}/mysql-*/innodb_memcached_config.sql
 %attr(644, root, root) %{_datadir}/mysql-*/install_rewriter.sql
@@ -408,9 +411,12 @@ rm -r $(readlink var) var
 %dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
 %changelog
-* Mon Mar 12 2018 Erlend Dahl <erlend.dahl@oracle.com> - 8.0.12-0.1
-- Change the global milestone to 'dmr'
+* Mon Mar 12 2018 Erlend Dahl <erlend.dahl@oracle.com> - 8.0.11-1
+- Removed milestone marker
 - Move mysqlx to default plugin
+- Fixed the package names for GA release
+
+* Thu Dec 07 2017 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.4-0.1
 - Add mysqlbackup
 - Add keyring_encrypted_file.so plugin
 - Do not package udf_example.so
