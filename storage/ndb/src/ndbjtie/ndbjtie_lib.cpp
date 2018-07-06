@@ -190,12 +190,14 @@ public:
       if (stat != 0) {
         PRINT_ERROR_CODE("ndb_init() returned: ", stat);
         ndb_end(0);
+        m_mutex.unlock();
         return 1;
       }
       VERBOSE("... initialized the NDBAPI resources");
       VERBOSE("initializing the MySQL Utilities resources ...");
       CharsetMap::init();
       VERBOSE("... initialized the MySQL Utilities resources");
+      m_mutex.unlock();
       return 0;
       is_init = true;
     }
