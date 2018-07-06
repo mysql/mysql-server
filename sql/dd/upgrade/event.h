@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,8 @@
 #ifndef DD_UPGRADE__EVENT_H_INCLUDED
 #define DD_UPGRADE__EVENT_H_INCLUDED
 
+#include "sql/dd/string_type.h"
+
 class THD;
 
 namespace dd {
@@ -37,6 +39,22 @@ namespace upgrade_57 {
   @retval true   ON FAILURE
 */
 bool migrate_events_to_dd(THD *thd);
+
+/**
+  Helper function to create a stored procedure from an event body.
+
+  @param[in]  thd             Thread handle.
+  @param[in]  name            Name of the event.
+  @param[in]  name_len        Length of the name of the event.
+  @param[in]  body            Body of the event.
+  @param[in]  body_len        Length of the body of the event.
+  @param[out] sp_sql          Stored procedure SQL string.
+
+  @retval false  ON SUCCESS
+  @retval true   ON FAILURE
+*/
+bool build_event_sp(THD *thd, const char *name, size_t name_len,
+                    const char *body, size_t body_len, dd::String_type *sp_sql);
 
 }  // namespace upgrade_57
 }  // namespace dd

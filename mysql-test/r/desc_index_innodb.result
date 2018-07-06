@@ -39,7 +39,7 @@ explain select * from t1 order by a desc, b asc;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	NULL	a_desc_b_asc	10	NULL	#	#	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`a` desc,`test`.`t1`.`b` asc
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`a` desc,`test`.`t1`.`b`
 select * from t1 order by a desc, b asc;
 a	b
 6	1
@@ -58,7 +58,7 @@ explain select * from t1 order by a asc;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	NULL	a_asc_b_desc	10	NULL	#	#	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`a` asc
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`a`
 select * from t1 order by a asc, b desc;
 a	b
 NULL	NULL
@@ -77,7 +77,7 @@ explain select * from t1 order by a asc, b desc;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	NULL	a_asc_b_desc	10	NULL	#	#	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`a` asc,`test`.`t1`.`b` desc
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`a`,`test`.`t1`.`b` desc
 select * from t1 order by a asc, b desc;
 a	b
 NULL	NULL
@@ -112,43 +112,37 @@ NULL	NULL
 5	1
 6	1
 # For GROUP BY optimizer can pick any order for column,
-# unless it's explicitly specified
 explain select * from t1 group by a, b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	a_desc_b_asc,a_asc_b_desc	a_desc_b_asc	10	NULL	#	#	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` group by `test`.`t1`.`a`,`test`.`t1`.`b`
-explain select * from t1 group by a asc, b;
+explain select * from t1 group by a, b order by a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	a_desc_b_asc,a_asc_b_desc	a_asc_b_desc	10	NULL	#	#	Using index
 Warnings:
-Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` group by `test`.`t1`.`a` asc,`test`.`t1`.`b`
-explain select * from t1 group by a desc, b;
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` group by `test`.`t1`.`a`,`test`.`t1`.`b` order by `test`.`t1`.`a`
+explain select * from t1 group by a , b order by a desc;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	a_desc_b_asc,a_asc_b_desc	a_desc_b_asc	10	NULL	#	#	Using index
 Warnings:
-Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` group by `test`.`t1`.`a` desc,`test`.`t1`.`b`
-explain select * from t1 group by a, b asc;
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` group by `test`.`t1`.`a` desc,`test`.`t1`.`b` order by `test`.`t1`.`a` desc
+explain select * from t1 group by a, b order by a desc, b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	a_desc_b_asc,a_asc_b_desc	a_desc_b_asc	10	NULL	#	#	Using index
 Warnings:
-Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` group by `test`.`t1`.`a`,`test`.`t1`.`b` asc
-explain select * from t1 group by a, b desc;
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` group by `test`.`t1`.`a` desc,`test`.`t1`.`b` order by `test`.`t1`.`a` desc,`test`.`t1`.`b`
+explain select * from t1 group by a, b order by a asc, b desc;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	a_desc_b_asc,a_asc_b_desc	a_asc_b_desc	10	NULL	#	#	Using index
 Warnings:
-Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` group by `test`.`t1`.`a`,`test`.`t1`.`b` desc
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` group by `test`.`t1`.`a`,`test`.`t1`.`b` desc order by `test`.`t1`.`a`,`test`.`t1`.`b` desc
 alter table t1 drop index a_asc_b_desc;
-explain select * from t1 group by a asc, b;
+explain select * from t1 group by a, b order by a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	a_desc_b_asc	a_desc_b_asc	10	NULL	#	#	Backward index scan; Using index
 Warnings:
-Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` group by `test`.`t1`.`a` asc,`test`.`t1`.`b`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` group by `test`.`t1`.`a`,`test`.`t1`.`b` order by `test`.`t1`.`a`
 explain select distinct a from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	a_desc_b_asc	a_desc_b_asc	5	NULL	#	#	Using index for group-by
@@ -182,7 +176,7 @@ explain select * from t1 order by a asc;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	NULL	a_desc_b_asc	10	NULL	#	#	Backward index scan; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`a` asc
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`a`
 select * from t1 order by a asc, b desc;
 a	b
 NULL	NULL
@@ -201,7 +195,7 @@ explain select * from t1 order by a asc, b desc;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	NULL	a_desc_b_asc	10	NULL	#	#	Backward index scan; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`a` asc,`test`.`t1`.`b` desc
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`a`,`test`.`t1`.`b` desc
 select * from t1 order by a asc, b desc;
 a	b
 NULL	NULL
@@ -240,7 +234,7 @@ explain select * from t1 order by a asc, b asc;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	NULL	a_desc_b_asc	10	NULL	#	#	Using index; Using filesort
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`a` asc,`test`.`t1`.`b` asc
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`a`,`test`.`t1`.`b`
 select * from t1 order by a asc, b asc;
 a	b
 NULL	NULL
@@ -1428,7 +1422,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	range	PRIMARY,k3	k3	9	NULL	11	100.00	Using where; Using index; Using temporary; Using filesort
 1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `field1` from `test`.`t1` left join `test`.`t1` `t2` on((`test`.`t2`.`pk` = `test`.`t1`.`pk`)) where (isnull(`test`.`t1`.`col_int_key`) and (`test`.`t1`.`pk` <> 4)) group by `field1` having (`field1` <> 6) order by `field1` asc
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `field1` from `test`.`t1` left join `test`.`t1` `t2` on((`test`.`t2`.`pk` = `test`.`t1`.`pk`)) where (isnull(`test`.`t1`.`col_int_key`) and (`test`.`t1`.`pk` <> 4)) group by `field1` having (`field1` <> 6) order by `field1`
 EXPLAIN UPDATE t1
 SET t1.pk = pk + 1000
 WHERE ( t1 . col_int_key IS  NULL AND t1 . pk != 4 )
@@ -1436,7 +1430,7 @@ ORDER BY pk ASC LIMIT 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	range	PRIMARY,k3	PRIMARY	4	const	24	100.00	Using where; Backward index scan; Using temporary
 Warnings:
-Note	1003	update `test`.`t1` set `test`.`t1`.`pk` = (`test`.`t1`.`pk` + 1000) where (isnull(`test`.`t1`.`col_int_key`) and (`test`.`t1`.`pk` <> 4)) order by `test`.`t1`.`pk` asc limit 3
+Note	1003	update `test`.`t1` set `test`.`t1`.`pk` = (`test`.`t1`.`pk` + 1000) where (isnull(`test`.`t1`.`col_int_key`) and (`test`.`t1`.`pk` <> 4)) order by `test`.`t1`.`pk` limit 3
 DROP TABLE t1;
 #
 #

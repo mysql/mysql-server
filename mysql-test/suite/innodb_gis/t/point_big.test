@@ -99,7 +99,7 @@ CHECK TABLE gis_point;
 SELECT COUNT(*), ST_AsText(p1), ST_AsText(p2) FROM gis_point GROUP BY p1, p2;
 
 SELECT COUNT(*), ST_AsText(p1) FROM gis_point WHERE ST_Intersection(@ls1, @ls2) = p1 GROUP BY p1;
-SELECT COUNT(*), ST_AsText(p1) FROM gis_point WHERE MBRWithin(p1, @poly1) GROUP BY p1 ASC;
+SELECT COUNT(*), ST_AsText(p1) FROM gis_point WHERE MBRWithin(p1, @poly1) GROUP BY p1 ORDER BY p1;
 SELECT COUNT(*), ST_AsText(p2) FROM gis_point WHERE ST_Contains(@poly2, p2) GROUP BY p2;
 SELECT COUNT(*), ST_AsText(p2) FROM gis_point WHERE ST_Equals(p2, @p1) GROUP BY p2;
 SELECT COUNT(*), ST_AsText(p1) FROM gis_point WHERE ST_TOUCHES(@poly3, p1) AND MBRWithin(p2, @poly4) GROUP BY p1;
@@ -204,11 +204,11 @@ GROUP BY p1, p2;
 
 SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point GROUP BY p1, p2;
 SELECT COUNT(*), ST_AsText(p1) FROM gis_point WHERE ST_Intersection(@ls1, @ls2) = p1 GROUP BY p1;
-SELECT COUNT(*), ST_AsText(p1) FROM gis_point WHERE MBRWithin(p1, @poly1) GROUP BY p1 ASC;
-SELECT COUNT(*), ST_AsText(p2) FROM gis_point WHERE ST_Contains(@poly2, p2) GROUP BY p2 ASC;
+SELECT COUNT(*), ST_AsText(p1) FROM gis_point WHERE MBRWithin(p1, @poly1) GROUP BY p1 ORDER BY p1;
+SELECT COUNT(*), ST_AsText(p2) FROM gis_point WHERE ST_Contains(@poly2, p2) GROUP BY p2 ORDER BY p2;
 SELECT COUNT(*), ST_AsText(p2) FROM gis_point WHERE ST_Equals(p2, @p1) GROUP BY p2;
 SELECT COUNT(*), ST_AsText(p1) FROM gis_point WHERE ST_TOUCHES(@poly3, p1) AND MBRWithin(p2, @poly4) GROUP BY p1;
-SELECT COUNT(*), ST_AsText(p1), ST_AsText(p2) FROM gis_point WHERE ST_Contains(@mpoly, p1) GROUP BY p1 ASC, p2 ASC;
+SELECT COUNT(*), ST_AsText(p1), ST_AsText(p2) FROM gis_point WHERE ST_Contains(@mpoly, p1) GROUP BY p1, p2 ORDER BY p1, p2;
 SELECT COUNT(*), ST_AsText(p1), ST_AsText(p2) FROM gis_point WHERE ST_Contains(@mpoly, p1) AND NOT MBRWithin(p1, @mpoly) GROUP BY p1, p2;
 
 CHECK TABLE gis_point;

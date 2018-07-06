@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,26 @@
 class THD;
 
 namespace dd {
+class Table;
+}
+
+namespace dd {
+namespace bootstrap {
+
+/**
+  Validate all the triggers of the given table.
+
+  @param[in]  thd                        Thread handle.
+  @param[in]  schema_name                Pointer for database name.
+  @param[in]  table                      Triggers of the table to be checked.
+
+  @retval false  ON SUCCESS
+  @retval true   ON FAILURE
+*/
+bool invalid_triggers(THD *thd, const char *schema_name,
+                      const dd::Table &table);
+}  // namespace bootstrap
+
 namespace upgrade_57 {
 
 /**

@@ -2016,7 +2016,7 @@ EXPLAIN DELETE   FROM t1 ORDER BY a ASC, b ASC LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using filesort
 Warnings:
-Note	1003	delete from `test`.`t1` order by `test`.`t1`.`a` asc,`test`.`t1`.`b` asc limit 1
+Note	1003	delete from `test`.`t1` order by `test`.`t1`.`a`,`test`.`t1`.`b` limit 1
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -2038,7 +2038,7 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Note	1003	delete from `test`.`t1` order by `test`.`t1`.`a` asc,`test`.`t1`.`b` asc limit 1
+Note	1003	delete from `test`.`t1` order by `test`.`t1`.`a`,`test`.`t1`.`b` limit 1
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -2074,7 +2074,7 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` order by `test`.`t1`.`a` asc,`test`.`t1`.`b` asc limit 1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` order by `test`.`t1`.`a`,`test`.`t1`.`b` limit 1
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	3

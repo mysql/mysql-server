@@ -565,53 +565,44 @@ attainments
 fanatic
 measures
 rightfulness
-select distinct fld3,count(*) from t2 group by companynr asc, fld3 asc limit 10;
-fld3	count(*)
-affixed	1
-and	1
-annoyers	1
-Anthony	1
-assayed	1
-assurers	1
-attendants	1
-bedlam	1
-bedpost	1
-boasted	1
-Warnings:
-Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
-Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
+select distinct companynr, fld3,count(*) from t2 group by companynr, fld3 order by companynr, fld3 limit 10;
+companynr	fld3	count(*)
+00	affixed	1
+00	and	1
+00	annoyers	1
+00	Anthony	1
+00	assayed	1
+00	assurers	1
+00	attendants	1
+00	bedlam	1
+00	bedpost	1
+00	boasted	1
 SET BIG_TABLES=1;
-select distinct fld3,count(*) from t2 group by companynr asc, fld3 asc limit 10;
-fld3	count(*)
-affixed	1
-and	1
-annoyers	1
-Anthony	1
-assayed	1
-assurers	1
-attendants	1
-bedlam	1
-bedpost	1
-boasted	1
-Warnings:
-Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
-Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
+select distinct companynr, fld3,count(*) from t2 group by companynr, fld3 order by companynr, fld3 limit 10;
+companynr	fld3	count(*)
+00	affixed	1
+00	and	1
+00	annoyers	1
+00	Anthony	1
+00	assayed	1
+00	assurers	1
+00	attendants	1
+00	bedlam	1
+00	bedpost	1
+00	boasted	1
 SET BIG_TABLES=0;
-select distinct fld3,repeat("a",length(fld3)),count(*) from t2 group by companynr asc,fld3 asc limit 100,10;
-fld3	repeat("a",length(fld3))	count(*)
-circus	aaaaaa	1
-cited	aaaaa	1
-Colombo	aaaaaaa	1
-congresswoman	aaaaaaaaaaaaa	1
-contrition	aaaaaaaaaa	1
-corny	aaaaa	1
-cultivation	aaaaaaaaaaa	1
-definiteness	aaaaaaaaaaaa	1
-demultiplex	aaaaaaaaaaa	1
-disappointing	aaaaaaaaaaaaa	1
-Warnings:
-Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
-Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
+select distinct companynr, fld3,repeat("a",length(fld3)),count(*) from t2 group by companynr ,fld3 order by companynr, fld3 limit 100,10;
+companynr	fld3	repeat("a",length(fld3))	count(*)
+29	chancellor	aaaaaaaaaa	1
+29	Chippewa	aaaaaaaa	1
+29	circumference	aaaaaaaaaaaaa	1
+29	circus	aaaaaa	1
+29	cited	aaaaa	1
+29	Colombo	aaaaaaa	1
+29	congresswoman	aaaaaaaaaaaaa	1
+29	contrition	aaaaaaaaaa	1
+29	corny	aaaaa	1
+29	cultivation	aaaaaaaaaaa	1
 select distinct companynr,rtrim(space(512+companynr)) from t3 order by 1,2;
 companynr	rtrim(space(512+companynr))
 37	
@@ -1578,16 +1569,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	9.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `count(*)`,min(`test`.`t2`.`fld4`) AS `min(fld4)`,max(`test`.`t2`.`fld4`) AS `max(fld4)`,sum(`test`.`t2`.`fld1`) AS `sum(fld1)`,avg(`test`.`t2`.`fld1`) AS `avg(fld1)`,std(`test`.`t2`.`fld1`) AS `std(fld1)`,variance(`test`.`t2`.`fld1`) AS `variance(fld1)` from `test`.`t2` where ((`test`.`t2`.`companynr` = 34) and (`test`.`t2`.`fld4` <> ''))
-select companynr,count(*),min(fld4),max(fld4),sum(fld1),avg(fld1),std(fld1),variance(fld1) from t2 group by companynr asc limit 3;
+select companynr,count(*),min(fld4),max(fld4),sum(fld1),avg(fld1),std(fld1),variance(fld1) from t2 group by companynr order by companynr limit 3;
 companynr	count(*)	min(fld4)	max(fld4)	sum(fld1)	avg(fld1)	std(fld1)	variance(fld1)
 00	82	Anthony	windmills	10355753	126289.6707	115550.97568479746	13352027981.708656
 29	95	abut	wetness	14473298	152350.5053	8368.547956641249	70032594.90260443
 34	70	absentee	vest	17788966	254128.0857	3272.5939722090234	10709871.306938833
-Warnings:
-Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 select
 companynr,t2nr,count(price),sum(price),min(price),max(price),avg(price) from
-t3 where companynr = 37 group by companynr asc,t2nr asc limit 10;
+t3 where companynr = 37 group by companynr,t2nr order by companynr, t2nr limit 10;
 companynr	t2nr	count(price)	sum(price)	min(price)	max(price)	avg(price)
 37	1	1	5987435	5987435	5987435	5987435.0000
 37	2	1	28357832	28357832	28357832	28357832.0000
@@ -1599,12 +1588,9 @@ companynr	t2nr	count(price)	sum(price)	min(price)	max(price)	avg(price)
 37	22	1	28357832	28357832	28357832	28357832.0000
 37	23	1	39654943	39654943	39654943	39654943.0000
 37	31	1	5987435	5987435	5987435	5987435.0000
-Warnings:
-Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
-Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 select /*! SQL_SMALL_RESULT */
 companynr,t2nr,count(price),sum(price),min(price),max(price),avg(price) from
-t3 where companynr = 37 group by companynr asc,t2nr asc limit 10;
+t3 where companynr = 37 group by companynr,t2nr order by companynr, t2nr limit 10;
 companynr	t2nr	count(price)	sum(price)	min(price)	max(price)	avg(price)
 37	1	1	5987435	5987435	5987435	5987435.0000
 37	2	1	28357832	28357832	28357832	28357832.0000
@@ -1616,9 +1602,6 @@ companynr	t2nr	count(price)	sum(price)	min(price)	max(price)	avg(price)
 37	22	1	28357832	28357832	28357832	28357832.0000
 37	23	1	39654943	39654943	39654943	39654943.0000
 37	31	1	5987435	5987435	5987435	5987435.0000
-Warnings:
-Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
-Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 select companynr,count(price),sum(price),min(price),max(price),avg(price) from t3 group by companynr ;
 companynr	count(price)	sum(price)	min(price)	max(price)	avg(price)
 37	12543	309394878010	5987435	39654943	24666736.6667

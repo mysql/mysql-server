@@ -280,17 +280,17 @@ explain select * from t1 where v='a';
 
 # GROUP BY
 
-select v,count(*) from t1 group by v asc limit 9;
-select v,count(t) from t1 group by v asc limit 10;
-select v,count(c) from t1 group by v asc limit 10;
-select sql_big_result trim(v),count(t) from t1 group by v asc limit 10;
-select sql_big_result trim(v),count(c) from t1 group by v asc limit 10;
-select c,count(*) from t1 group by c asc limit 10;
-select c,count(t) from t1 group by c asc limit 10;
-select sql_big_result c,count(t) from t1 group by c asc limit 10;
-select t,count(*) from t1 group by t asc limit 10;
-select t,count(t) from t1 group by t asc limit 10;
-select sql_big_result trim(t),count(t) from t1 group by t asc limit 10;
+select v,count(*) from t1 group by v order by v limit 9;
+select v,count(t) from t1 group by v order by v limit 10;
+select v,count(c) from t1 group by v order by v limit 10;
+select sql_big_result trim(v),count(t) from t1 group by v order by v limit 10;
+select sql_big_result trim(v),count(c) from t1 group by v order by v limit 10;
+select c,count(*) from t1 group by c order by c limit 10;
+select c,count(t) from t1 group by c order by c limit 10;
+select sql_big_result c,count(t) from t1 group by c order by c limit 10;
+select t,count(*) from t1 group by t order by t limit 10;
+select t,count(t) from t1 group by t order by t limit 10;
+select sql_big_result trim(t),count(t) from t1 group by t order by t limit 10;
 drop table t1;
 
 #

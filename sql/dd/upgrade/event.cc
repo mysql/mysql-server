@@ -426,7 +426,6 @@ static bool set_status_and_interval_for_event(THD *thd, TABLE *table,
    Create an entry in the DD for the event by reading all the
    event attributes stored in 'mysql.event' table.
 */
-
 static bool migrate_event_to_dd(THD *thd, TABLE *event_table) {
   char *ptr;
   MYSQL_TIME time;
@@ -518,6 +517,16 @@ static bool migrate_event_to_dd(THD *thd, TABLE *event_table) {
 
   load_event_creation_context(thd, event_table, &et_parse_data);
 
+  dd::String_type event_sql;
+  if (build_event_sp(thd, et_parse_data.name.str, et_parse_data.name.length,
+                     event_body.str, event_body.length, &event_sql) ||
+      invalid_sql(thd, et_parse_data.dbname.str, event_sql)) {
+    LogErr(ERROR_LEVEL, ER_UPGRADE_PARSE_ERROR, "Event",
+           et_parse_data.dbname.str, et_parse_data.name.str,
+           Syntax_error_handler::error_message());
+    return false;
+  }
+
   // Disable autocommit option in thd variable
   Disable_autocommit_guard autocommit_guard(thd);
 
@@ -596,7 +605,8 @@ bool migrate_events_to_dd(THD *thd) {
   if (migrate_event_to_dd(thd, event_table)) goto err;
 
   // Read the next row in 'event' table via index.
-  while (!(error = event_table->file->ha_index_next(event_table->record[0]))) {
+  while (!(error = event_table->file->ha_index_next(event_table->record[0])) &&
+         !Syntax_error_handler::has_too_many_errors()) {
     if (migrate_event_to_dd(thd, event_table)) goto err;
   }
 
@@ -606,11 +616,32 @@ bool migrate_events_to_dd(THD *thd) {
   }
 
   my_tz_free();
-  return false;
+  return Syntax_error_handler::has_errors();
 
 err:
   my_tz_free();
   return true;
+}
+
+/**
+  Helper function to create a stored procedure from an event body.
+*/
+bool build_event_sp(THD *thd, const char *name, size_t name_len,
+                    const char *body, size_t body_len,
+                    dd::String_type *sp_sql) {
+  const uint STATIC_SQL_LENGTH = 44;
+  String temp(STATIC_SQL_LENGTH + name_len + body_len);
+
+  temp.append(C_STRING_WITH_LEN("CREATE "));
+  temp.append(C_STRING_WITH_LEN("PROCEDURE "));
+
+  append_identifier(thd, &temp, name, name_len);
+
+  temp.append(C_STRING_WITH_LEN("() SQL SECURITY INVOKER "));
+  temp.append(body, body_len);
+
+  *sp_sql = temp.ptr();
+  return false;
 }
 
 }  // namespace upgrade_57

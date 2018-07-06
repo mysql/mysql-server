@@ -3377,7 +3377,6 @@ bool SELECT_LEX::setup_group(THD *thd) {
   DBUG_ASSERT(group_list.elements);
 
   thd->where = "group statement";
-  int has_explicit = 0;
   for (ORDER *group = group_list.first; group; group = group->next) {
     if (find_order_in_list(thd, base_ref_items, get_table_list(), group,
                            fields_list, all_fields, true))
@@ -3394,12 +3393,6 @@ bool SELECT_LEX::setup_group(THD *thd) {
       my_error(ER_WRONG_GROUP_FIELD, MYF(0), "GROUPING function");
       DBUG_RETURN(true);
     }
-
-    has_explicit += group->is_explicit;
-  }
-  if (has_explicit && m_windows.elements > 0) {
-    my_error(ER_WINDOW_NO_GROUP_ORDER, MYF(0));
-    DBUG_RETURN(true);
   }
   DBUG_RETURN(false);
 }

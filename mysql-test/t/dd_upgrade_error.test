@@ -145,5 +145,59 @@ let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
 --remove_file $MYSQL_TMP_DIR/data57_enum.zip
 --force-rmdir $MYSQL_TMP_DIR/data57_enum
 
+--echo # ------------------------------------------------------------------
+--echo # Check upgrade from 5.7 when events/triggers/views/routines contain GROUP BY DESC.
+--echo # ------------------------------------------------------------------
+
+--echo # Set different path for --datadir
+let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57_upgrade_groupby_desc;
+
+--echo # DB server which was started above is not running, no need for shutdown
+
+--echo # Copy the remote tablespace & DB zip files from suite location to working location.
+--copy_file $MYSQLTEST_VARDIR/std_data/data57_upgrade_groupby_desc.zip $MYSQL_TMP_DIR/data57_upgrade_groupby_desc.zip
+
+--echo # Check that the file exists in the working folder.
+--file_exists $MYSQL_TMP_DIR/data57_upgrade_groupby_desc.zip
+
+--echo # Unzip the zip file.
+--exec unzip -qo $MYSQL_TMP_DIR/data57_upgrade_groupby_desc.zip -d $MYSQL_TMP_DIR
+
+--echo #
+--echo # Upgrade tests for WL#8693
+--echo #
+
+--echo # Starting the DB server will fail since the data dir contains
+--echo # events/triggers/views/routines contain GROUP BY DESC
+let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
+--error 1
+--exec $MYSQLD --no-defaults $extra_args --innodb_dedicated_server=OFF --secure-file-priv="" --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR1
+
+--let SEARCH_PATTERN= Trigger 'trigger_groupby_desc' has an error in its body
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= Error in parsing Triggers from t1.TRG file
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= Error in parsing Event 'test'.'event_groupby_desc' during upgrade
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= Error in parsing Routine 'test'.'function_groupby_desc' during upgrade
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= Error in parsing Routine 'test'.'procedure_groupby_desc' during upgrade
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= Error in parsing View 'test'.'view_groupby_desc' during upgrade
+--source include/search_pattern.inc
+
+--let SEARCH_PATTERN= Failed to Populate DD tables.
+--source include/search_pattern.inc
+
+--echo # Remove copied files
+--remove_file $MYSQLD_LOG
+--remove_file $MYSQL_TMP_DIR/data57_upgrade_groupby_desc.zip
+--force-rmdir $MYSQL_TMP_DIR/data57_upgrade_groupby_desc
+
 --echo # Restart the server with default options.
 --source include/start_mysqld.inc

@@ -228,7 +228,6 @@ class PT_order_expr : public Parse_tree_node, public ORDER {
   PT_order_expr(Item *item_arg, enum_order dir) {
     item_ptr = item_arg;
     direction = (dir == ORDER_DESC) ? ORDER_DESC : ORDER_ASC;
-    is_explicit = (dir != ORDER_NOT_RELEVANT);
   }
 
   virtual bool contextualize(Parse_context *pc) {

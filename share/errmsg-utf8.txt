@@ -8112,7 +8112,7 @@ ER_WINDOW_NESTED_WINDOW_FUNC_USE_IN_WINDOW_SPEC
 ER_WINDOW_ROWS_INTERVAL_USE
   eng "Window '%s': INTERVAL can only be used with RANGE frames."
 
-ER_WINDOW_NO_GROUP_ORDER
+ER_WINDOW_NO_GROUP_ORDER_UNUSED
   eng "ASC or DESC with GROUP BY isn't allowed with window functions; put ASC or DESC in ORDER BY"
 
 ER_WINDOW_EXPLAIN_JSON
@@ -11018,7 +11018,7 @@ ER_EVENT_CANT_OPEN_TABLE_MYSQL_EVENT
   eng "Failed to open mysql.event Table."
 
 ER_CANT_PARSE_STORED_ROUTINE_BODY
-  eng "Parsing '%s.%s' routine body failed. Creating routine without parsing routine body"
+  eng "Parsing '%s.%s' routine body failed.%s"
 
 ER_CANT_OPEN_TABLE_MYSQL_PROC
   eng "Failed to open mysql.proc Table."
@@ -18391,6 +18391,9 @@ ER_XPLUGIN_FAILED_TO_SWITCH_SECURITY_CTX
 
 ER_RPL_GTID_UNSAFE_ALTER_ADD_COL_WITH_DEFAULT_EXPRESSION
   eng "Statement violates GTID consistency: ALTER TABLE ... ADD COLUMN .. with expression as DEFAULT."
+
+ER_UPGRADE_PARSE_ERROR
+  eng "Error in parsing %s '%s'.'%s' during upgrade. %s"
 
 #
 # End of 8.0 error messages intended to be logged to the server error log.

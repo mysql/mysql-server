@@ -139,7 +139,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 100	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1` asc,`t1`.`f0` limit 100"
+            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1`,`t1`.`f0` limit 100"
           }
         ]
       }
@@ -217,7 +217,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 100	{
           {
             "optimizing_distinct_group_by_order_by": {
               "simplifying_order_by": {
-                "original_clause": "`t1`.`f1` asc,`t1`.`f0`",
+                "original_clause": "`t1`.`f1`,`t1`.`f0`",
                 "items": [
                   {
                     "item": "`t1`.`f1`"
@@ -227,7 +227,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 100	{
                   }
                 ],
                 "resulting_clause_is_simple": true,
-                "resulting_clause": "`t1`.`f1` asc,`t1`.`f0`"
+                "resulting_clause": "`t1`.`f1`,`t1`.`f0`"
               }
             }
           },
@@ -332,7 +332,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1` asc,`t1`.`f0` limit 30"
+            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1`,`t1`.`f0` limit 30"
           }
         ]
       }
@@ -407,7 +407,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
           {
             "optimizing_distinct_group_by_order_by": {
               "simplifying_order_by": {
-                "original_clause": "`t1`.`f1` asc,`t1`.`f0`",
+                "original_clause": "`t1`.`f1`,`t1`.`f0`",
                 "items": [
                   {
                     "item": "`t1`.`f1`"
@@ -417,7 +417,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
                   }
                 ],
                 "resulting_clause_is_simple": true,
-                "resulting_clause": "`t1`.`f1` asc,`t1`.`f0`"
+                "resulting_clause": "`t1`.`f1`,`t1`.`f0`"
               }
             }
           },
@@ -492,7 +492,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 0	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1` asc,`t1`.`f0` limit 0"
+            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1`,`t1`.`f0` limit 0"
           }
         ]
       }
@@ -1738,7 +1738,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1` asc,`t1`.`f0` limit 30"
+            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1`,`t1`.`f0` limit 30"
           }
         ]
       }
@@ -1816,7 +1816,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
           {
             "optimizing_distinct_group_by_order_by": {
               "simplifying_order_by": {
-                "original_clause": "`t1`.`f1` asc,`t1`.`f0`",
+                "original_clause": "`t1`.`f1`,`t1`.`f0`",
                 "items": [
                   {
                     "item": "`t1`.`f1`"
@@ -1826,7 +1826,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
                   }
                 ],
                 "resulting_clause_is_simple": true,
-                "resulting_clause": "`t1`.`f1` asc,`t1`.`f0`"
+                "resulting_clause": "`t1`.`f1`,`t1`.`f0`"
               }
             }
           },
@@ -1901,7 +1901,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 0	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1` asc,`t1`.`f0` limit 0"
+            "expanded_query": "/* select#1 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f1`,`t1`.`f0` limit 0"
           }
         ]
       }

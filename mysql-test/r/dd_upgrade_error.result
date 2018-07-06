@@ -43,5 +43,26 @@ Pattern "Error in processing generated columns for table test.t_gcol_dep" found
 Pattern "No database selected" not found
 Pattern "Incorrect column name 'a123456789012345678901234567890123456789012345678901234567890123456789'" found
 # Remove copied files
+# ------------------------------------------------------------------
+# Check upgrade from 5.7 when events/triggers/views/routines contain GROUP BY DESC.
+# ------------------------------------------------------------------
+# Set different path for --datadir
+# DB server which was started above is not running, no need for shutdown
+# Copy the remote tablespace & DB zip files from suite location to working location.
+# Check that the file exists in the working folder.
+# Unzip the zip file.
+#
+# Upgrade tests for WL#8693
+#
+# Starting the DB server will fail since the data dir contains
+# events/triggers/views/routines contain GROUP BY DESC
+Pattern "Trigger 'trigger_groupby_desc' has an error in its body" found
+Pattern "Error in parsing Triggers from t1.TRG file" found
+Pattern "Error in parsing Event 'test'.'event_groupby_desc' during upgrade" found
+Pattern "Error in parsing Routine 'test'.'function_groupby_desc' during upgrade" found
+Pattern "Error in parsing Routine 'test'.'procedure_groupby_desc' during upgrade" found
+Pattern "Error in parsing View 'test'.'view_groupby_desc' during upgrade" found
+Pattern "Failed to Populate DD tables." found
+# Remove copied files
 # Restart the server with default options.
 # restart

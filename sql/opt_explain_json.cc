@@ -1228,8 +1228,6 @@ class window_ctx : public join_ctx {
                                 ord->used_alias);
           if (ord->direction == ORDER_DESC)
             str.append(STRING_WITH_LEN(" desc"));
-          else if (ord->is_explicit)
-            str.append(STRING_WITH_LEN(" asc"));
           sort_order.add_utf8(str.ptr(), str.length());
         }
       }

@@ -44,9 +44,11 @@
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_file.h"  // mysql_file_open
 #include "mysql/udf_registration_types.h"
+#include "mysql_version.h"  // MYSQL_VERSION_ID
 #include "mysqld_error.h"
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
 #include "sql/dd/dd_schema.h"                // dd::schema_exists
+#include "sql/dd/impl/bootstrap_ctx.h"       // dd::DD_bootstrap_ctx
 #include "sql/dd/impl/bootstrapper.h"        // execute_query
 #include "sql/dd/impl/dictionary_impl.h"     // dd::Dictionary_impl
 #include "sql/dd/impl/sdi.h"                 // sdi::store()
@@ -80,8 +82,94 @@ class Table;
 }  // namespace dd
 
 namespace dd {
-namespace upgrade_57 {
 
+namespace bootstrap {
+
+template <typename T, typename CLOS>
+bool examine_each(std::vector<const T *> *list, CLOS &&clos) {
+  for (const T *item : *list) {
+    DBUG_ASSERT(item != nullptr);
+    clos(item);
+    if (upgrade_57::Syntax_error_handler::has_too_many_errors()) return true;
+  }
+  return false;
+}
+
+bool do_server_upgrade_checks(THD *thd) {
+  if (!DD_bootstrap_ctx::instance().is_server_upgrade()) return false;
+  bool error = false;
+
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  std::vector<const dd::Schema *> schema_vector;
+  if (thd->dd_client()->fetch_global_components(&schema_vector))
+    return dd::end_transaction(thd, true);
+
+  upgrade_57::Syntax_error_handler error_handler;
+  thd->push_internal_handler(&error_handler);
+
+  for (const dd::Schema *schema : schema_vector) {
+    std::vector<const dd::Table *> tables;
+    error = thd->dd_client()->fetch_schema_components(schema, &tables);
+
+    if (error || examine_each(&tables, [&](const dd::Table *table) {
+          (void)invalid_triggers(thd, schema->name().c_str(), *table);
+        }))
+      break;
+
+    std::vector<const dd::Event *> events;
+    error = thd->dd_client()->fetch_schema_components(schema, &events);
+
+    if (error || examine_each(&events, [&](const dd::Event *event) {
+          dd::String_type sql;
+          if (upgrade_57::build_event_sp(thd, event->name().c_str(),
+                                         event->name().size(),
+                                         event->definition().c_str(),
+                                         event->definition().size(), &sql) ||
+              upgrade_57::invalid_sql(thd, schema->name().c_str(), sql))
+            LogErr(ERROR_LEVEL, ER_UPGRADE_PARSE_ERROR, "Event",
+                   schema->name().c_str(), event->name().c_str(),
+                   upgrade_57::Syntax_error_handler::error_message());
+          return false;
+        }))
+      break;
+
+    std::vector<const dd::Routine *> routines;
+    error = thd->dd_client()->fetch_schema_components(schema, &routines);
+
+    if (error || examine_each(&routines, [&](const dd::Routine *routine) {
+          if (invalid_routine(thd, *schema, *routine))
+            LogErr(ERROR_LEVEL, ER_UPGRADE_PARSE_ERROR, "Routine",
+                   schema->name().c_str(), routine->name().c_str(),
+                   upgrade_57::Syntax_error_handler::error_message());
+          return false;
+        }))
+      break;
+
+    std::vector<const dd::View *> views;
+    error = thd->dd_client()->fetch_schema_components(schema, &views);
+
+    if (error || examine_each(&views, [&](const dd::View *view) {
+          if (upgrade_57::invalid_sql(thd, schema->name().c_str(),
+                                      view->definition()))
+            LogErr(ERROR_LEVEL, ER_UPGRADE_PARSE_ERROR, "View",
+                   schema->name().c_str(), view->name().c_str(),
+                   upgrade_57::Syntax_error_handler::error_message());
+          return false;
+        }))
+      break;
+  }
+
+  thd->pop_internal_handler();
+  if (error || upgrade_57::Syntax_error_handler::has_errors())
+    return dd::end_transaction(thd, true);
+
+  DD_bootstrap_ctx::instance().set_actual_server_version(MYSQL_VERSION_ID);
+  return false;
+}
+
+}  // namespace bootstrap
+
+namespace upgrade_57 {
 /*
   The variable is used to differentiate between a normal server restart
   and server upgrade.
@@ -1114,12 +1202,15 @@ bool fill_dd_and_finalize(THD *thd) {
     return true;
   }
 
+  Syntax_error_handler error_handler;
+  thd->push_internal_handler(&error_handler);
   // Upgrade schema and tables, create view without resolving dependency
   for (it = db_name.begin(); it != db_name.end(); it++) {
     bool exists = false;
     dd::schema_exists(thd, it->c_str(), &exists);
 
     if (!exists && migrate_schema_to_dd(thd, it->c_str())) {
+      thd->pop_internal_handler();
       terminate(thd);
       return true;
     }
@@ -1156,6 +1247,7 @@ bool fill_dd_and_finalize(THD *thd) {
 
   // Reset error log output behavior.
   bootstrap_error_handler.set_log_error(true);
+  thd->pop_internal_handler();
 
   DBUG_EXECUTE_IF("dd_upgrade_stage_3",
                   /*

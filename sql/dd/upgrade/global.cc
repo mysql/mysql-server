@@ -31,6 +31,7 @@
 #include "sql/handler.h"
 #include "sql/sql_base.h"
 #include "sql/sql_class.h"
+#include "sql/sql_lex.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
 
@@ -85,5 +86,38 @@ Routine_event_context_guard::~Routine_event_context_guard() {
 
 bool Bootstrap_error_handler::m_log_error = true;
 bool Bootstrap_error_handler::abort_on_error = false;
+uint Syntax_error_handler::parse_error_count = 0;
+bool Syntax_error_handler::is_parse_error = false;
+dd::String_type Syntax_error_handler::reason = "";
+
+bool invalid_sql(THD *thd, const char *dbname, const dd::String_type &sql) {
+  bool error = false;
+  Parser_state *old = thd->m_parser_state;
+  Parser_state parser_state;
+
+  if (parser_state.init(thd, sql.c_str(), sql.size())) return true;
+
+  LEX_CSTRING old_db = thd->db();
+  LEX lex, *lex_saved = thd->lex;
+
+  thd->reset_db(to_lex_cstring(dbname));
+  thd->lex = &lex;
+  lex_start(thd);
+
+  thd->m_parser_state = &parser_state;
+  parser_state.m_lip.m_digest = NULL;
+
+  if (thd->sql_parser())
+    error = (thd->get_stmt_da()->mysql_errno() == ER_PARSE_ERROR);
+
+  lex_end(thd->lex);
+  thd->lex = lex_saved;
+  thd->reset_db(old_db);
+  thd->m_parser_state = old;
+  thd->clear_error();
+
+  return error;
+}
+
 }  // namespace upgrade_57
 }  // namespace dd

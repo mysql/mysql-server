@@ -262,22 +262,22 @@ CREATE TABLE t1 (
 
 INSERT INTO t1 VALUES (1,1,1),(2,2,2),(2,1,1),(3,3,3),(4,3,3),(5,3,3),(6,3,3),(7,3,3);
 ANALYZE TABLE t1;
-explain select userid,count(*) from t1 group by userid desc;
-explain select userid,count(*) from t1 group by userid desc order by null;
-select userid,count(*) from t1 group by userid desc;
-select userid,count(*) from t1 group by userid desc having (count(*)+1) IN (4,3);
-select userid,count(*) from t1 group by userid desc having 3  IN (1,COUNT(*));
-explain select spid,count(*) from t1 where spid between 1 and 2 group by spid desc;
+explain select userid,count(*) from t1 group by userid order by userid desc;
+explain select userid,count(*) from t1 group by userid order by null;
+select userid,count(*) from t1 group by userid order by userid desc;
+select userid,count(*) from t1 group by userid having (count(*)+1) IN (4,3) order by userid desc;
+select userid,count(*) from t1 group by userid having 3  IN (1,COUNT(*)) order by userid desc;
+explain select spid,count(*) from t1 where spid between 1 and 2 group by spid order by spid desc;
 explain select spid,count(*) from t1 where spid between 1 and 2 group by spid;
 explain select spid,count(*) from t1 where spid between 1 and 2 group by spid order by null;
 select spid,count(*) from t1 where spid between 1 and 2 group by spid;
-select spid,count(*) from t1 where spid between 1 and 2 group by spid desc;
-explain select sql_big_result spid,sum(userid) from t1 group by spid desc;
-explain select sql_big_result spid,sum(userid) from t1 group by spid desc order by null;
-select sql_big_result spid,sum(userid) from t1 group by spid desc;
-explain select sql_big_result score,count(*) from t1 group by score desc;
-explain select sql_big_result score,count(*) from t1 group by score desc order by null;
-select sql_big_result score,count(*) from t1 group by score desc;
+select spid,count(*) from t1 where spid between 1 and 2 group by spid order by spid desc;
+explain select sql_big_result spid,sum(userid) from t1 group by spid order by spid desc;
+explain select sql_big_result spid,sum(userid) from t1 group by spid order by null;
+select sql_big_result spid,sum(userid) from t1 group by spid order by spid desc;
+explain select sql_big_result score,count(*) from t1 group by score order by score desc;
+explain select sql_big_result score,count(*) from t1 group by score order by null;
+select sql_big_result score,count(*) from t1 group by score order by score desc;
 drop table t1;
 
 # not purely group_by bug, but group_by is involved...
@@ -301,12 +301,12 @@ SELECT binary a FROM t1 GROUP BY 1;
 SELECT binary a,count(*) FROM t1 GROUP BY 1;
 # Do the same tests with MyISAM temporary tables
 SET BIG_TABLES=1;
-SELECT a FROM t1 GROUP BY a ASC;
-SELECT a,count(*) FROM t1 GROUP BY a ASC;
-SELECT a FROM t1 GROUP BY binary a ASC;
-SELECT a,count(*) FROM t1 GROUP BY binary a ASC;
-SELECT binary a FROM t1 GROUP BY 1 ASC;
-SELECT binary a,count(*) FROM t1 GROUP BY 1 ASC;
+SELECT a FROM t1 GROUP BY a ORDER BY a;
+SELECT a,count(*) FROM t1 GROUP BY a ORDER BY a;
+SELECT a FROM t1 GROUP BY binary a ORDER BY binary a;
+SELECT a,count(*) FROM t1 GROUP BY binary a ORDER BY binary a;
+SELECT binary a FROM t1 GROUP BY 1 ORDER BY 1;
+SELECT binary a,count(*) FROM t1 GROUP BY 1 ORDER BY 1;
 SET BIG_TABLES=0;
 
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
@@ -463,11 +463,8 @@ CREATE TABLE t1 (
 );
 INSERT INTO t1 VALUES (1,1),(2,2),(1,1),(3,3),(3,3),(3,3),(3,3),(3,3);
 ANALYZE TABLE t1;
-# Here we select unordered GROUP BY into a temporary talbe, 
-# and then sort it with filesort (GROUP BY in MySQL 
-# implies sorted order of results)
-SELECT userid,count(*) FROM t1 GROUP BY userid DESC;
-EXPLAIN SELECT userid,count(*) FROM t1 GROUP BY userid DESC;
+SELECT userid,count(*) FROM t1 GROUP BY userid ORDER BY userid DESC;
+EXPLAIN SELECT userid,count(*) FROM t1 GROUP BY userid ORDER BY userid DESC;
 DROP TABLE t1;
 CREATE TABLE t1 (
   i int(11) default NULL,
@@ -1671,7 +1668,8 @@ GROUP BY field1, field2;
 
 SELECT SQL_BIG_RESULT tbl1.col1 AS field1, tbl2.col1 AS field2
 FROM t1 as tbl1, t1 as tbl2 
-GROUP BY field1 ASC, field2 ASC 
+GROUP BY field1, field2
+ORDER BY field1, field2
 LIMIT 3;
 
 DROP VIEW v1;
@@ -2754,7 +2752,7 @@ DROP TABLE t;
 CREATE TABLE t(d DATE, i INT);
 INSERT INTO t VALUES(NULL,1),('2017-01-14',3);
 SELECT WEEK(d)/10, GROUP_CONCAT(i) FROM t GROUP BY WEEK(d)/10;
-SELECT WEEK(d)/10, GROUP_CONCAT(i) FROM t GROUP BY WEEK(d)/10 DESC;
+SELECT WEEK(d)/10, GROUP_CONCAT(i) FROM t GROUP BY WEEK(d)/10 ORDER BY WEEK(d)/10 DESC;
 DROP TABLE t;
 
 --echo #
@@ -2783,3 +2781,41 @@ SELECT (SELECT a) AS col1, COUNT(b) FROM t GROUP BY -col1 WITH ROLLUP;
 DROP TABLE t;
 --inc $i
 }
+
+--echo #
+--echo # WL#8963: REMOVAL OF NON STANDARD GROUP BY ASC/DESC
+--echo #
+
+CREATE TABLE t1 (i INTEGER NOT NULL, j INTEGER NOT NULL, key(i,j));
+INSERT INTO t1 VALUES (1,2),(1,4),(1,3),(2,5),(5,3),(2,6),(6,2);
+
+#Check for syntax errors
+--error 1064
+SELECT i, SUM(j) FROM t1 GROUP BY i ASC;
+--error 1064
+SELECT i, SUM(j) FROM t1 GROUP BY i DESC;
+
+#Should use the index
+--replace_column 10 # 11 #
+EXPLAIN SELECT i, SUM(j) FROM t1 GROUP BY i;
+SELECT i, SUM(j) FROM t1 GROUP BY i;
+
+#Should use the index - order by in this case will be moved to group by
+--replace_column 10 # 11 #
+EXPLAIN SELECT i, SUM(j) FROM t1 GROUP BY i ORDER BY i;
+SELECT i, SUM(j) FROM t1 GROUP BY i ORDER BY i;
+
+#Should use index for group by and filesort for order by
+--replace_column 10 # 11 #
+EXPLAIN SELECT i, SUM(j) FROM t1 GROUP BY i ORDER BY SUM(j);
+SELECT i, SUM(j) FROM t1 GROUP BY i ORDER BY SUM(j);
+
+ALTER TABLE t1 ADD UNIQUE INDEX (i,j);
+
+#Test for code which removed group by when it is on unique columns
+EXPLAIN SELECT i FROM t1 GROUP BY j,i ORDER BY i,j;
+SELECT i, SUM(j) FROM t1 GROUP BY j,i ORDER BY i,j;
+
+DROP TABLE t1;
+
+--echo # End of tests for WL#8693

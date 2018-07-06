@@ -115,11 +115,6 @@ class ORDER_with_src {
   Explain_sort_clause src;  ///< origin of order list
 
  private:
-  /**
-    True means that sort direction (ASC/DESC) could be ignored. Used for
-    picking index for ordering dataset for DISTINCT or GROUP BY.
-  */
-  bool ignore_order;
   int flags;  ///< bitmap of Explain_sort_property
 
  public:
@@ -128,7 +123,6 @@ class ORDER_with_src {
   ORDER_with_src(ORDER *order_arg, Explain_sort_clause src_arg)
       : order(order_arg),
         src(src_arg),
-        ignore_order(src_arg == ESC_ORDER_BY ? false : true),
         flags(order_arg ? ESP_EXISTS : ESP_none) {}
 
   /**
@@ -175,12 +169,6 @@ class ORDER_with_src {
     DBUG_ASSERT(order);
     return flags;
   }
-  /**
-    Inform optimizer that ASC/DESC direction of this list should be
-    honored.
-  */
-  void force_order() { ignore_order = false; }
-  bool can_ignore_order() { return ignore_order; }
 };
 
 class JOIN {
@@ -241,7 +229,6 @@ class JOIN {
         simple_order(false),
         simple_group(false),
         m_ordered_index_usage(ORDERED_INDEX_VOID),
-        no_order(false),
         skip_sort_order(false),
         need_tmp_before_win(false),
         keyuse_array(thd->mem_root),
@@ -482,11 +469,6 @@ class JOIN {
     ORDERED_INDEX_ORDER_BY   // Use index for ORDER BY
   } m_ordered_index_usage;
 
-  /**
-    Is set only in case if we have a GROUP BY clause
-    and no ORDER BY after constant elimination of 'order'.
-  */
-  bool no_order;
   /**
     Is set if we have a GROUP BY and we have ORDER BY on a constant or when
     sorting isn't required.

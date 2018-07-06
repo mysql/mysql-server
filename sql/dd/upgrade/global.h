@@ -29,6 +29,7 @@
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "sql/dd/string_type.h"
+#include "sql/error_handler.h"  // Internal_error_handler
 #include "sql/item_create.h"
 #include "sql/sql_class.h"
 #include "sql/sql_servers.h"
@@ -166,6 +167,52 @@ class Bootstrap_error_handler {
   static bool m_log_error;
   static bool abort_on_error;
 };
+
+/**
+  This class keeps a count of all the syntax errors that occured while parsing
+  views, routines, events or triggers. This count is used along with
+  MAX_SERVER_CHECK_FAILS to exit upgrade.
+*/
+class Syntax_error_handler : public Internal_error_handler {
+ public:
+  virtual bool handle_condition(THD *, uint sql_errno, const char *,
+                                Sql_condition::enum_severity_level *,
+                                const char *msg) {
+    if (sql_errno == ER_PARSE_ERROR) {
+      parse_error_count++;
+      is_parse_error = true;
+      reason = msg;
+    } else {
+      is_parse_error = false;
+      reason = "";
+    }
+    return false;
+  }
+
+  static bool has_too_many_errors() {
+    return parse_error_count > MAX_SERVER_CHECK_FAILS;
+  }
+
+  static bool has_errors() { return parse_error_count > 0; }
+
+  static const char *error_message() { return reason.c_str(); }
+
+  static uint parse_error_count;
+  static bool is_parse_error;
+  static const uint MAX_SERVER_CHECK_FAILS = 50;
+  static dd::String_type reason;
+};
+
+/**
+ * @brief Validate the SQL string provided.
+ *
+ * @param thd       Thread handle
+ * @param dbname    The database used in the SQL string's context.
+ * @param sql       The SQL string to be validated
+ * @return true
+ * @return false
+ */
+bool invalid_sql(THD *thd, const char *dbname, const dd::String_type &sql);
 
 }  // namespace upgrade_57
 }  // namespace dd

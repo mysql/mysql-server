@@ -8759,7 +8759,8 @@ BEGIN
     SELECT '2012-03-01 01:00:00',       2,       1       FROM dual
     ) AS t2
   WHERE t2.c2 = t1.c2
-  GROUP BY c1 ASC, c2 ASC
+  GROUP BY c1 , c2
+  ORDER BY c1 , c2
   ;
 END|
 

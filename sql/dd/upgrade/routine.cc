@@ -39,7 +39,9 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "sql/dd/types/schema.h"
 #include "sql/dd/upgrade/global.h"
+#include "sql/dd_sp.h"  // prepare_sp_chistics_from_dd_routine
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/key.h"
@@ -60,6 +62,49 @@
 #include "thr_lock.h"
 
 namespace dd {
+namespace bootstrap {
+
+/**
+  Validate a dd::Routine object.
+*/
+bool invalid_routine(THD *thd, const dd::Schema &schema,
+                     const dd::Routine &routine) {
+  upgrade_57::Routine_event_context_guard guard(thd);
+  sp_head *sp = nullptr;
+  st_sp_chistics chistics;
+  prepare_sp_chistics_from_dd_routine(&routine, &chistics);
+
+  dd::String_type return_type_str;
+  prepare_return_type_string_from_dd_routine(thd, &routine, &return_type_str);
+
+  // Create SP creation context to be used in db_load_routine()
+  Stored_program_creation_ctx *creation_ctx =
+      Stored_routine_creation_ctx::create_routine_creation_ctx(&routine);
+
+  thd->variables.character_set_client = creation_ctx->get_client_cs();
+  thd->variables.collation_connection = creation_ctx->get_connection_cl();
+  thd->update_charset();
+
+  enum_sp_return_code error = db_load_routine(
+      thd,
+      routine.type() == dd::Routine::RT_FUNCTION ? enum_sp_type::FUNCTION
+                                                 : enum_sp_type::PROCEDURE,
+      schema.name().c_str(), schema.name().size(), routine.name().c_str(),
+      routine.name().size(), &sp, routine.sql_mode(),
+      routine.parameter_str().c_str(), return_type_str.c_str(),
+      routine.definition().c_str(), &chistics, routine.definer_user().c_str(),
+      routine.definer_host().c_str(), routine.created(true),
+      routine.last_altered(true), creation_ctx);
+
+  if (sp != nullptr)  // To be safe
+    sp_head::destroy(sp);
+
+  if (error) return (thd->get_stmt_da()->mysql_errno() == ER_PARSE_ERROR);
+  thd->clear_error();
+  return false;
+}
+}  // namespace bootstrap
+
 namespace upgrade_57 {
 
 static Check_table_intact table_intact;
@@ -393,9 +438,15 @@ static bool migrate_routine_to_dd(THD *thd, TABLE *proc_table) {
       warning if the routine does not belong to sys schema. Sys schema routines
       will get fixed when mysql_upgrade is executed.
     */
-    if (strcmp(sp_db_str.str, "sys") != 0)
+    if (strcmp(sp_db_str.str, "sys") != 0) {
+      if (Syntax_error_handler::is_parse_error) {
+        LogErr(ERROR_LEVEL, ER_UPGRADE_PARSE_ERROR, "Routine", sp_db_str.str,
+               sp_name_str.str, Syntax_error_handler::error_message());
+        return false;
+      }
       LogErr(WARNING_LEVEL, ER_CANT_PARSE_STORED_ROUTINE_BODY, sp_db_str.str,
-             sp_name_str.str);
+             sp_name_str.str, " Creating routine without parsing routine body");
+    }
 
     LEX_CSTRING sr_body;
     if (routine_type == enum_sp_type::FUNCTION)
@@ -482,7 +533,8 @@ bool migrate_routines_to_dd(THD *thd) {
 
   // Read one record from mysql.proc table and
   // migrate it until all records are finished
-  while (!(error = proc_table->file->ha_index_next(proc_table->record[0]))) {
+  while (!(error = proc_table->file->ha_index_next(proc_table->record[0])) &&
+         !Syntax_error_handler::has_too_many_errors()) {
     if (migrate_routine_to_dd(thd, proc_table)) return true;
   }
 
@@ -491,7 +543,7 @@ bool migrate_routines_to_dd(THD *thd) {
     return true;
   }
 
-  return false;
+  return Syntax_error_handler::has_errors();
 }
 
 }  // namespace upgrade_57

@@ -1305,7 +1305,7 @@ Extra	Using where; Using index
 Warnings:
 Level	Note
 Code	1003
-Message	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = 2) order by `test`.`t1`.`a` asc
+Message	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = 2) order by `test`.`t1`.`a`
 SELECT * FROM t1 WHERE b=2 ORDER BY a ASC;
 a	b
 2	2
@@ -1347,7 +1347,7 @@ Extra	Using index
 Warnings:
 Level	Note
 Code	1003
-Message	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`b` asc,`test`.`t1`.`a` asc
+Message	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`b`,`test`.`t1`.`a`
 SELECT * FROM t1 ORDER BY b ASC, a ASC;
 a	b
 1	1
@@ -1391,7 +1391,7 @@ Extra	Using index; Using filesort
 Warnings:
 Level	Note
 Code	1003
-Message	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`b` asc,`test`.`t1`.`a` desc
+Message	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`b`,`test`.`t1`.`a` desc
 SELECT * FROM t1 ORDER BY b ASC, a DESC;
 a	b
 1	1
@@ -1413,7 +1413,7 @@ Extra	Using index; Using filesort
 Warnings:
 Level	Note
 Code	1003
-Message	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`b` desc,`test`.`t1`.`a` asc
+Message	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`b` desc,`test`.`t1`.`a`
 SELECT * FROM t1 ORDER BY b DESC, a ASC;
 a	b
 2	2

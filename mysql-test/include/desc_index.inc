@@ -38,21 +38,20 @@ explain select * from t1 group by a,b order by a, b desc;
 select * from t1 group by a,b order by a, b desc;
 
 --echo # For GROUP BY optimizer can pick any order for column,
---echo # unless it's explicitly specified
 --replace_column 10 # 11 #
 explain select * from t1 group by a, b;
 --replace_column 10 # 11 #
-explain select * from t1 group by a asc, b;
+explain select * from t1 group by a, b order by a;
 --replace_column 10 # 11 #
-explain select * from t1 group by a desc, b;
+explain select * from t1 group by a , b order by a desc;
 --replace_column 10 # 11 #
-explain select * from t1 group by a, b asc;
+explain select * from t1 group by a, b order by a desc, b;
 --replace_column 10 # 11 #
-explain select * from t1 group by a, b desc;
+explain select * from t1 group by a, b order by a asc, b desc;
 
 alter table t1 drop index a_asc_b_desc;
 --replace_column 10 # 11 #
-explain select * from t1 group by a asc, b;
+explain select * from t1 group by a, b order by a;
 
 --replace_column 10 # 11 #
 explain select distinct a from t1;

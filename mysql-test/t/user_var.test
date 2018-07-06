@@ -232,11 +232,11 @@ insert into t1 values
   (1, "a", 1.5, 1.6), (1, "a", 1.5, 1.6), (2, "b", 2.5, 2.6),
   (3, "c", 3.5, 3.6), (4, "d", 4.5, 4.6), (1, "a", 1.5, 1.6),
   (3, "c", 3.5, 3.6), (1, "a", 1.5, 1.6);
-select @a:=f1, count(f1) from t1 group by 1 desc;
-select @a:=f1, count(f1) from t1 group by 1 asc;
-select @a:=f2, count(f2) from t1 group by 1 desc;
-select @a:=f3, count(f3) from t1 group by 1 desc;
-select @a:=f4, count(f4) from t1 group by 1 desc;
+select @a:=f1, count(f1) from t1 group by 1 order by 1 desc;
+select @a:=f1, count(f1) from t1 group by 1 order by 1 asc;
+select @a:=f2, count(f2) from t1 group by 1 order by 1 desc;
+select @a:=f3, count(f3) from t1 group by 1 order by 1 desc;
+select @a:=f4, count(f4) from t1 group by 1 order by 1 desc;
 drop table t1;
 
 #

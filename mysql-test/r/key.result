@@ -607,14 +607,13 @@ FROM t1
 ORDER BY (
 SELECT 1 AS c2
 FROM t1
-GROUP BY GREATEST(LAST_INSERT_ID(), t1.a) ASC
+GROUP BY GREATEST(LAST_INSERT_ID(), t1.a)
+ORDER BY GREATEST(LAST_INSERT_ID(), t1.a)
 LIMIT 1);
 c1
 1
 1
 1
-Warnings:
-Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 DROP TABLE t1;
 CREATE TABLE t1 (a INT, b INT, INDEX (a,b)) engine=myisam;
 INSERT INTO t1 (a, b)

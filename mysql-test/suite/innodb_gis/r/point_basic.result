@@ -34,22 +34,17 @@ POINT(100.32374832 101.23741821)	POINT(100.32374832 101.23741821)
 POINT(105.34523342 103.18492302)	POINT(100.32374832 101.23741821)
 POINT(100.32374832 101.23741821)	POINT(200.32247328 101.86728201)
 POINT(100.32374832 101.23741821)	POINT(100.32374832 101.98527111)
-EXPLAIN SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point GROUP BY p1 ASC, p2 ASC;
+EXPLAIN SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point GROUP BY p1, p2 ORDER by p1, p2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gis_point	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using temporary; Using filesort
 Warnings:
-Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
-Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
-Note	1003	/* select#1 */ select st_astext(`test`.`gis_point`.`p1`) AS `ST_AsText(p1)`,st_astext(`test`.`gis_point`.`p2`) AS `ST_AsText(p2)` from `test`.`gis_point` group by `test`.`gis_point`.`p1` asc,`test`.`gis_point`.`p2` asc
-SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point GROUP BY p1 ASC, p2 ASC;
+Note	1003	/* select#1 */ select st_astext(`test`.`gis_point`.`p1`) AS `ST_AsText(p1)`,st_astext(`test`.`gis_point`.`p2`) AS `ST_AsText(p2)` from `test`.`gis_point` group by `test`.`gis_point`.`p1`,`test`.`gis_point`.`p2` order by `test`.`gis_point`.`p1`,`test`.`gis_point`.`p2`
+SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point GROUP BY p1,p2 ORDER BY p1,p2;
 ST_AsText(p1)	ST_AsText(p2)
 POINT(100.32374832 101.23741821)	POINT(100.32374832 101.98527111)
 POINT(100.32374832 101.23741821)	POINT(100.32374832 101.23741821)
 POINT(100.32374832 101.23741821)	POINT(200.32247328 101.86728201)
 POINT(105.34523342 103.18492302)	POINT(100.32374832 101.23741821)
-Warnings:
-Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
-Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 EXPLAIN SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point ORDER BY p1, p2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gis_point	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using filesort

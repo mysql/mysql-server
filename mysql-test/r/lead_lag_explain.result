@@ -3599,7 +3599,7 @@ EXPLAIN
           "name": "w",
           "using_filesort": true,
           "filesort_key": [
-            "`d` asc"
+            "`d`"
           ],
           "frame_buffer": {
             "using_temporary_table": true
@@ -3638,7 +3638,7 @@ EXPLAIN
 Warnings:
 Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
 Note	3599	Window function 'lag' ignores the frame clause of window 'w' and aggregates over the whole partition
-Note	1003	/* select#1 */ select `test`.`t1`.`d` AS `d`,sum(`test`.`t1`.`d`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt`,lead(`test`.`t1`.`d`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`d`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`d` asc ROWS BETWEEN 2 PRECEDING AND 1 PRECEDING) 
+Note	1003	/* select#1 */ select `test`.`t1`.`d` AS `d`,sum(`test`.`t1`.`d`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt`,lead(`test`.`t1`.`d`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`d`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`d` ROWS BETWEEN 2 PRECEDING AND 1 PRECEDING) 
 EXPLAIN FORMAT=JSON SELECT d, SUM(d) OVER w `sum`, COUNT(*) OVER w cnt,
 LEAD(d, 2) OVER w le2,
 LAG(d, 2) OVER w la2 FROM t1
@@ -3656,7 +3656,7 @@ EXPLAIN
           "name": "w",
           "using_filesort": true,
           "filesort_key": [
-            "`d` asc"
+            "`d`"
           ],
           "frame_buffer": {
             "using_temporary_table": true
@@ -3695,7 +3695,7 @@ EXPLAIN
 Warnings:
 Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
 Note	3599	Window function 'lag' ignores the frame clause of window 'w' and aggregates over the whole partition
-Note	1003	/* select#1 */ select `test`.`t1`.`d` AS `d`,sum(`test`.`t1`.`d`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt`,lead(`test`.`t1`.`d`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`d`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`d` asc ROWS BETWEEN 1 FOLLOWING AND 2 FOLLOWING) 
+Note	1003	/* select#1 */ select `test`.`t1`.`d` AS `d`,sum(`test`.`t1`.`d`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt`,lead(`test`.`t1`.`d`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`d`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`d` ROWS BETWEEN 1 FOLLOWING AND 2 FOLLOWING) 
 EXPLAIN FORMAT=JSON SELECT d, SUM(d) OVER w `sum`, COUNT(*) OVER w cnt,
 LEAD(d, 2) OVER w le2,
 LAG(d, 2) OVER w la2 FROM t1
@@ -4586,7 +4586,7 @@ EXPLAIN
           "name": "w",
           "using_filesort": true,
           "filesort_key": [
-            "`id` asc"
+            "`id`"
           ],
           "frame_buffer": {
             "using_temporary_table": true,
@@ -4626,7 +4626,7 @@ EXPLAIN
 Warnings:
 Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
 Note	3599	Window function 'lag' ignores the frame clause of window 'w' and aggregates over the whole partition
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,sum(`test`.`t1`.`id`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt`,lead(`test`.`t1`.`id`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`id`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`id` asc ROWS BETWEEN 2 PRECEDING AND 1 PRECEDING) 
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,sum(`test`.`t1`.`id`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt`,lead(`test`.`t1`.`id`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`id`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`id` ROWS BETWEEN 2 PRECEDING AND 1 PRECEDING) 
 EXPLAIN FORMAT=JSON SELECT id, SUM(id) OVER w `sum`, COUNT(*) OVER w cnt,
 LEAD(id, 2) OVER w le2,
 LAG(id, 2) OVER w la2 FROM t1
@@ -4644,7 +4644,7 @@ EXPLAIN
           "name": "w",
           "using_filesort": true,
           "filesort_key": [
-            "`id` asc"
+            "`id`"
           ],
           "frame_buffer": {
             "using_temporary_table": true,
@@ -4684,7 +4684,7 @@ EXPLAIN
 Warnings:
 Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
 Note	3599	Window function 'lag' ignores the frame clause of window 'w' and aggregates over the whole partition
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,sum(`test`.`t1`.`id`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt`,lead(`test`.`t1`.`id`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`id`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`id` asc ROWS BETWEEN 1 FOLLOWING AND 2 FOLLOWING) 
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,sum(`test`.`t1`.`id`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt`,lead(`test`.`t1`.`id`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`id`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`id` ROWS BETWEEN 1 FOLLOWING AND 2 FOLLOWING) 
 EXPLAIN FORMAT=JSON SELECT id, SUM(id) OVER w `sum`, COUNT(*) OVER w cnt,
 LEAD(id, 2) OVER w le2,
 LAG(id, 2) OVER w la2 FROM t1
@@ -5355,7 +5355,7 @@ EXPLAIN
           "name": "w",
           "using_filesort": true,
           "filesort_key": [
-            "`d` asc"
+            "`d`"
           ],
           "frame_buffer": {
             "using_temporary_table": true
@@ -5399,7 +5399,7 @@ Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggr
 Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
 Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
 Note	3599	Window function 'lag' ignores the frame clause of window 'w' and aggregates over the whole partition
-Note	1003	/* select#1 */ select `test`.`t1`.`d` AS `d`,sum(`test`.`t1`.`d`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt`,lead(`test`.`t1`.`d`,3) OVER `w` AS `le3`,first_value(`test`.`t1`.`d`) OVER `w` AS `fv`,lead(`test`.`t1`.`d`,1) OVER `w` AS `le1`,lead(`test`.`t1`.`d`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`d`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`d` asc ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) 
+Note	1003	/* select#1 */ select `test`.`t1`.`d` AS `d`,sum(`test`.`t1`.`d`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt`,lead(`test`.`t1`.`d`,3) OVER `w` AS `le3`,first_value(`test`.`t1`.`d`) OVER `w` AS `fv`,lead(`test`.`t1`.`d`,1) OVER `w` AS `le1`,lead(`test`.`t1`.`d`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`d`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`d` ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) 
 many nth_value calls on one window, optimized path
 EXPLAIN FORMAT=JSON SELECT id, SUM(d) OVER w `sum`, COUNT(*) OVER w cnt,
 LEAD(id, 3) OVER w le3,
@@ -5421,7 +5421,7 @@ EXPLAIN
           "name": "w",
           "using_filesort": true,
           "filesort_key": [
-            "`id` asc"
+            "`id`"
           ],
           "frame_buffer": {
             "using_temporary_table": true
@@ -5466,7 +5466,7 @@ Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggr
 Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
 Note	3599	Window function 'lead' ignores the frame clause of window 'w' and aggregates over the whole partition
 Note	3599	Window function 'lag' ignores the frame clause of window 'w' and aggregates over the whole partition
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,sum(`test`.`t1`.`d`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt`,lead(`test`.`t1`.`id`,3) OVER `w` AS `le3`,first_value(`test`.`t1`.`id`) OVER `w` AS `fv`,lead(`test`.`t1`.`id`,1) OVER `w` AS `le1`,lead(`test`.`t1`.`id`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`id`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`id` asc ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) 
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,sum(`test`.`t1`.`d`) OVER `w` AS `sum`,count(0) OVER `w` AS `cnt`,lead(`test`.`t1`.`id`,3) OVER `w` AS `le3`,first_value(`test`.`t1`.`id`) OVER `w` AS `fv`,lead(`test`.`t1`.`id`,1) OVER `w` AS `le1`,lead(`test`.`t1`.`id`,2) OVER `w` AS `le2`,lag(`test`.`t1`.`id`,2) OVER `w` AS `la2` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`id` ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) 
 DROP TABLE t1;
 Check interference with other two pass window functions
 CREATE TABLE t(i INT);

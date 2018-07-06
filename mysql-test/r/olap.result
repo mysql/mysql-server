@@ -104,7 +104,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`product` AS `product`,`test`.`t1`.`country_id` AS `country_id`,`test`.`t1`.`year` AS `year`,sum(`test`.`t1`.`profit`) AS `SUM(profit)` from `test`.`t1` group by `test`.`t1`.`product`,`test`.`t1`.`country_id`,`test`.`t1`.`year` with rollup
 SELECT product, country_id , SUM(profit) FROM t1
-GROUP BY product desc, country_id WITH ROLLUP;
+GROUP BY product, country_id WITH ROLLUP
+ORDER BY product DESC, GROUPING (country_id), country_id;
 product	country_id	SUM(profit)
 TV	1	400
 TV	2	200
@@ -118,8 +119,6 @@ Calculator	1	125
 Calculator	2	150
 Calculator	NULL	275
 NULL	NULL	7785
-Warnings:
-Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 SELECT product, country_id , year, SUM(profit) FROM t1
 GROUP BY product, country_id, year WITH ROLLUP LIMIT 5;
 product	country_id	year	SUM(profit)
@@ -862,12 +861,10 @@ CREATE TABLE t1(a INT);
 INSERT INTO t1 VALUES(0);
 INSERT INTO t1 VALUES(1);
 SELECT NOT EXISTS (SELECT 1) FROM t1 JOIN t1 a USING(a)
-GROUP BY 1 DESC WITH ROLLUP;
+GROUP BY 1 WITH ROLLUP ORDER BY 1 DESC;
 NOT EXISTS (SELECT 1)
 0
 NULL
-Warnings:
-Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 DROP TABLE t1;
 #
 # Tests for WL#1979 - IMPLEMENTATION OF GROUPING FUNCTION

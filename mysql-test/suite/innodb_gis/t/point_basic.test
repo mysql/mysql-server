@@ -33,8 +33,8 @@ INSERT INTO gis_point VALUES
 EXPLAIN SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point GROUP BY p1, p2;
 SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point GROUP BY p1, p2;
 
-EXPLAIN SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point GROUP BY p1 ASC, p2 ASC;
-SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point GROUP BY p1 ASC, p2 ASC;
+EXPLAIN SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point GROUP BY p1, p2 ORDER by p1, p2;
+SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point GROUP BY p1,p2 ORDER BY p1,p2;
 
 EXPLAIN SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point ORDER BY p1, p2;
 SELECT ST_AsText(p1), ST_AsText(p2) FROM gis_point ORDER BY p1, p2;

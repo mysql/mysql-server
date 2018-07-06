@@ -26,6 +26,7 @@
 #include <set>
 
 #include "my_inttypes.h"        // uint
+#include "mysql_version.h"      // MYSQL_VERSION_ID
 #include "sql/dd/dd_version.h"  // DD_VERSION
 #include "sql/mysqld.h"         // opt_initialize
 
@@ -68,6 +69,7 @@ static std::set<uint> supported_dd_versions = {DD_VERSION_80011,
 class DD_bootstrap_ctx {
  private:
   uint m_actual_dd_version = 0;
+  uint m_actual_server_version = 0;
   Stage m_stage = Stage::NOT_STARTED;
 
  public:
@@ -90,6 +92,12 @@ class DD_bootstrap_ctx {
 
   uint get_actual_dd_version() const { return m_actual_dd_version; }
 
+  void set_actual_server_version(uint actual_server_version) {
+    m_actual_server_version = actual_server_version;
+  }
+
+  uint get_actual_server_version() const { return m_actual_server_version; }
+
   bool actual_dd_version_is(uint compare_actual_dd_version) const {
     return (m_actual_dd_version == compare_actual_dd_version);
   }
@@ -100,6 +108,10 @@ class DD_bootstrap_ctx {
 
   bool is_upgrade() const {
     return !opt_initialize && (m_actual_dd_version < dd::DD_VERSION);
+  }
+
+  bool is_server_upgrade() const {
+    return !opt_initialize && (m_actual_server_version < MYSQL_VERSION_ID);
   }
 
   bool is_upgrade_from_before(uint compare_actual_dd_version) const {

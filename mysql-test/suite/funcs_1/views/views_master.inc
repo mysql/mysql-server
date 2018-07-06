@@ -197,12 +197,12 @@ Insert into t1  values (500,9866);
 
 #(10)
     CREATE or REPLACE VIEW v1 AS select f59
-    from tb2 group by f59 asc;
+    from tb2 group by f59 order by f59;
     select * FROM v1 order by f59 limit 0,10;
 
 #(11)
     CREATE or REPLACE VIEW v1 AS select f59
-    from tb2 group by f59 desc;
+    from tb2 group by f59 order by f59 desc;
     select * FROM v1 order by f59 limit 0,10;
 
 #(12)

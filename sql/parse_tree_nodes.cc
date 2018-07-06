@@ -147,6 +147,10 @@ bool PT_group::contextualize(Parse_context *pc) {
 
   select->group_list = group_list->value;
 
+  // group by does not have to provide ordering
+  ORDER *group = select->group_list.first;
+  for (; group; group = group->next) group->direction = ORDER_NOT_RELEVANT;
+
   // Ensure we're resetting parsing place of the right select
   DBUG_ASSERT(select->parsing_place == CTX_GROUP_BY);
   select->parsing_place = CTX_NONE;

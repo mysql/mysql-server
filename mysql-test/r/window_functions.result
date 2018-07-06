@@ -281,10 +281,6 @@ INSERT INTO t1 VALUES (10, NULL);
 INSERT INTO t1 VALUES (11, NULL);
 CREATE TABLE ss(c CHAR(1));
 INSERT INTO ss VALUES ('M');
-SELECT sex, AVG(id), ROW_NUMBER() OVER w FROM t1
-GROUP BY sex ASC
-WINDOW w AS () ORDER BY sex DESC;
-ERROR HY000: ASC or DESC with GROUP BY isn't allowed with window functions; put ASC or DESC in ORDER BY
 This is grouped aggregate in conjunction with a streaming wfs
 SELECT sex, AVG(id), ROW_NUMBER() OVER w FROM t1
 GROUP BY sex
@@ -479,12 +475,11 @@ NULL	10.5000	1
 M	3.0000	2
 NULL	5.1429	3
 SELECT sex, AVG(id) FROM t1
-GROUP BY sex ASC WITH ROLLUP
-HAVING (sex='M' OR sex IS NULL) AND AVG(id)=3.0;
+GROUP BY sex WITH ROLLUP
+HAVING (sex='M' OR sex IS NULL) AND AVG(id)=3.0
+ORDER BY GROUPING(sex), sex;
 sex	AVG(id)
 M	3.0000
-Warnings:
-Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 SELECT sex, AVG(id), ROW_NUMBER() OVER w FROM t1
 GROUP BY sex WITH ROLLUP
 HAVING (sex='M' OR sex IS NULL) AND AVG(id)=3.0

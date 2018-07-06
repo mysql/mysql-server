@@ -530,7 +530,7 @@ explain
 select t1.a, count(t2.p) as count
   from t1 left join t2 on t1.a=t2.a and t2.p % 2 = 1 group by t1.a;
 select t1.a, count(t2.p) as count
-  from t1 left join t2 on t1.a=t2.a and t2.p % 2 = 1 group by t1.a asc;
+  from t1 left join t2 on t1.a=t2.a and t2.p % 2 = 1 group by t1.a order by t1.a;
 drop table t1, t2;
 
 --echo #

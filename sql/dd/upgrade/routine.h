@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,27 @@
 class THD;
 
 namespace dd {
+class Routine;
+class Schema;
+}  // namespace dd
+
+namespace dd {
+namespace bootstrap {
+
+/**
+  Validate a dd::Routine object.
+
+  @param[in]  thd        Thread handle.
+  @param[in]  schema     Schema in which the routine belongs.
+  @param[in]  routine    Routine to be validated.
+
+  @retval false  ON SUCCESS
+  @retval true   ON FAILURE
+*/
+bool invalid_routine(THD *thd, const dd::Schema &schema,
+                     const dd::Routine &routine);
+}  // namespace bootstrap
+
 namespace upgrade_57 {
 
 /**

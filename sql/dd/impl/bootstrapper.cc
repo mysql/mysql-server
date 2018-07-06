@@ -286,11 +286,24 @@ bool initialize_dd_properties(THD *thd) {
     initialize the DD_bootstrap_ctx with the relevant version number.
   */
   uint actual_version = dd::DD_VERSION;
+  uint actual_server_version = MYSQL_VERSION_ID;
 
   bootstrap::DD_bootstrap_ctx::instance().set_actual_dd_version(actual_version);
+  bootstrap::DD_bootstrap_ctx::instance().set_actual_server_version(
+      actual_server_version);
 
   if (!opt_initialize) {
     bool exists = false;
+    bool exists_server = false;
+    if (dd::tables::DD_properties::instance().get(
+            thd, "MYSQLD_VERSION", &actual_server_version, &exists_server) ||
+        !exists_server)
+      return true;
+
+    if (actual_server_version != MYSQL_VERSION_ID)
+      bootstrap::DD_bootstrap_ctx::instance().set_actual_server_version(
+          actual_server_version);
+
     // Check 'DD_version' too in order to catch an upgrade from 8.0.3.
     if (dd::tables::DD_properties::instance().get(thd, "DD_VERSION",
                                                   &actual_version, &exists) ||
@@ -2288,8 +2301,9 @@ bool restart(THD *thd) {
       create_tables(thd, nullptr) || sync_meta_data(thd) ||
       DDSE_dict_recover(thd, DICT_RECOVERY_RESTART_SERVER,
                         d->get_actual_dd_version(thd)) ||
-      upgrade_tables(thd) || repopulate_charsets_and_collations(thd) ||
-      verify_contents(thd) || update_versions(thd)) {
+      bootstrap::do_server_upgrade_checks(thd) || upgrade_tables(thd) ||
+      repopulate_charsets_and_collations(thd) || verify_contents(thd) ||
+      update_versions(thd)) {
     return true;
   }
 

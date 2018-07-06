@@ -1144,35 +1144,8 @@ bool JOIN::optimize_distinct_group_order() {
                                    (void *)group_list)) {
       /*
         We have found that grouping can be removed since groups correspond to
-        only one row anyway, but we still have to guarantee correct result
-        order. The line below effectively rewrites the query from GROUP BY
-        <fields> to ORDER BY <fields>. There are three exceptions:
-        - if skip_sort_order is set (see above), then we can simply skip
-          GROUP BY;
-        - if IN(subquery), likewise (see remove_redundant_subquery_clauses())
-        - we can only rewrite ORDER BY if the ORDER BY fields are 'compatible'
-          with the GROUP BY ones, i.e. either one is a prefix of another.
-          We only check if the ORDER BY is a prefix of GROUP BY. In this case
-          test_if_subpart() copies the ASC/DESC attributes from the original
-          ORDER BY fields.
-          If GROUP BY is a prefix of ORDER BY, then it is safe to leave
-          'order' as is.
-       */
-      if (order && test_if_subpart(group_list, order)) {
-        order = group_list;
-        // Inform EXPLAIN that we sort for ORDER and care about ASC/DESC
-        order.src = ESC_ORDER_BY;
-        order.force_order();
-        trace_opt.add("group_by_is_on_unique", true)
-            .add("changed_group_by_to_order_by", true);
-      }
-
-      /*
-        If we have an IGNORE INDEX FOR GROUP BY(fields) clause, this must be
-        rewritten to IGNORE INDEX FOR ORDER BY(fields).
+        only one row anyway.
       */
-      best_ref[0]->table()->keys_in_use_for_order_by =
-          best_ref[0]->table()->keys_in_use_for_group_by;
       group_list = 0;
       grouped = false;
     }
@@ -1231,7 +1204,15 @@ bool JOIN::optimize_distinct_group_order() {
           m_select_limit == HA_POS_ERROR || (order && !skip_sort_order)) {
         /*  Change DISTINCT to GROUP BY */
         select_distinct = 0;
-        no_order = !order;
+        /*
+          group_list was created with ORDER BY clause as prefix and
+          replaces it. So it must respect ordering. If there is no
+          ORDER BY, GROUP BY need not have to provide order.
+        */
+        if (!order) {
+          for (ORDER *group = group_list; group; group = group->next)
+            group->direction = ORDER_NOT_RELEVANT;
+        }
         if (all_order_fields_used && skip_sort_order && order) {
           /*
             Force MySQL to read the table in sorted order to get result in
@@ -1272,17 +1253,16 @@ bool JOIN::optimize_distinct_group_order() {
   send_group_parts = tmp_table_param.group_parts; /* Save org parts */
 
   /*
-    Grouping orders row; so if windowing or ROLLUP doesn't change this
-    order, and ORDER BY is a prefix of GROUP BY, ORDER BY is useless.
-    Also true if the result is one row.
+     If ORDER BY is a prefix of GROUP BY and if windowing or ROLLUP
+     doesn't change this order, ORDER BY can be removed and we can
+     enforce GROUP BY to provide order.
+     Also true if the result is one row.
   */
   if ((test_if_subpart(group_list, order) && !m_windows_sort &&
        select_lex->olap != ROLLUP_TYPE) ||
       (!group_list && tmp_table_param.sum_func_count)) {
     if (order) {
       order = 0;
-      // now GROUP BY also should provide proper order
-      group_list.force_order();
       trace_opt.add("removed_order_by", true);
     }
     if (is_indexed_agg_distinct(this, NULL)) streaming_aggregation = false;
@@ -1476,9 +1456,7 @@ int test_if_order_by_key(ORDER_with_src *order_src, TABLE *table, uint idx,
 
     if (key_part->field != field || !field->part_of_sortkey.is_set(idx))
       DBUG_RETURN(0);
-    // We need proper ordering when order is explicitly specified for GROUP
-    // BY and always for ORDER BY
-    if (order->is_explicit || !order_src->can_ignore_order()) {
+    if (order->direction != ORDER_NOT_RELEVANT) {
       const enum_order keypart_order =
           (key_part->key_part_flag & HA_REVERSE_SORT) ? ORDER_DESC : ORDER_ASC;
       /* set flag to 1 if we can use read-next on key, else to -1 */
@@ -8751,7 +8729,6 @@ static bool make_join_select(JOIN *join, Item *cond) {
               */
               if (tab->quick() && tab->quick()->index != MAX_KEY) {
                 const uint ref_key = tab->quick()->index;
-                join->order.force_order();
                 bool skip_quick;
                 read_direction = test_if_order_by_key(
                     &join->order, tab->table(), ref_key, NULL, &skip_quick);

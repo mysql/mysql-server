@@ -105,6 +105,35 @@ class Table;
 }  // namespace dd
 
 namespace dd {
+namespace bootstrap {
+
+/**
+  Validate all the triggers of the given table.
+*/
+bool invalid_triggers(THD *thd, const char *schema_name,
+                      const dd::Table &table) {
+  if (!table.has_trigger()) return false;
+  List<::Trigger> triggers;
+  if (dd::load_triggers(thd, thd->mem_root, schema_name, table.name().c_str(),
+                        table, &triggers))
+    return true;
+  for (::Trigger &t : triggers) {
+    if (t.parse(thd, false) || t.has_parse_error()) {
+      LogEvent()
+          .type(LOG_TYPE_ERROR)
+          .subsys(LOG_SUBSYSTEM_TAG)
+          .prio(ERROR_LEVEL)
+          .errcode(ER_UPGRADE_PARSE_ERROR)
+          .verbatim(t.get_parse_error_message());
+      thd->clear_error();
+    }
+    sp_head::destroy(t.get_sp());
+    if (upgrade_57::Syntax_error_handler::has_too_many_errors()) return true;
+  }
+  return upgrade_57::Syntax_error_handler::has_errors();
+}
+}  // namespace bootstrap
+
 namespace upgrade_57 {
 
 /*
@@ -846,6 +875,9 @@ static bool fix_view_cols_and_deps(THD *thd, TABLE_LIST *view_ref,
         LogErr(ERROR_LEVEL, ER_DD_UPGRADE_VIEW_COLUMN_NAME_TOO_LONG,
                db_name.c_str(), view_name.c_str());
         error = true;
+      } else if (Syntax_error_handler::is_parse_error) {
+        LogErr(ERROR_LEVEL, ER_UPGRADE_PARSE_ERROR, "View", db_name.c_str(),
+               view_name.c_str(), Syntax_error_handler::error_message());
       } else {
         LogErr(WARNING_LEVEL, ER_DD_CANT_RESOLVE_VIEW, db_name.c_str(),
                view_name.c_str());
@@ -1017,10 +1049,26 @@ static bool fill_partition_info_for_upgrade(THD *thd, TABLE_SHARE *share,
   return false;
 }
 
+static bool invalid_triggers(Table_trigger_dispatcher *d,
+                             List<::Trigger> &triggers) {
+  if (!d->check_for_broken_triggers()) return false;
+  for (::Trigger &t : triggers) {
+    if (t.has_parse_error()) {
+      LogEvent()
+          .type(LOG_TYPE_ERROR)
+          .subsys(LOG_SUBSYSTEM_TAG)
+          .prio(ERROR_LEVEL)
+          .errcode(ER_UPGRADE_PARSE_ERROR)
+          .verbatim(t.get_parse_error_message());
+    }
+    sp_head::destroy(t.get_sp());
+  }
+  return true;
+}
+
 /**
   Add triggers to table
 */
-
 static bool add_triggers_to_table(THD *thd, TABLE *table,
                                   const String_type &schema_name,
                                   const String_type &table_name) {
@@ -1034,11 +1082,14 @@ static bool add_triggers_to_table(THD *thd, TABLE *table,
     }
     Table_trigger_dispatcher *d = Table_trigger_dispatcher::create(table);
 
+    Bootstrap_error_handler error_handler;
+    error_handler.set_log_error(false);
     d->parse_triggers(thd, &m_triggers, true);
-    if (d->check_for_broken_triggers()) {
-      LogErr(WARNING_LEVEL, ER_TRG_CANT_PARSE, table_name.c_str());
+    if (invalid_triggers(d, m_triggers)) {
+      LogErr(ERROR_LEVEL, ER_TRG_CANT_PARSE, table_name.c_str());
       return true;
     }
+    error_handler.set_log_error(true);
 
     List_iterator<::Trigger> it(m_triggers);
     /*
@@ -1690,7 +1741,9 @@ bool migrate_all_frm_to_dd(THD *thd, const char *dbname,
     LogErr(ERROR_LEVEL, ER_CANT_OPEN_DIR, path.c_str());
     return true;
   }
-  for (i = 0; i < (uint)a->number_off_files; i++) {
+  for (i = 0; i < (uint)a->number_off_files &&
+              !Syntax_error_handler::has_too_many_errors();
+       i++) {
     String_type file;
 
     file.assign(a->dir_entry[i].name);

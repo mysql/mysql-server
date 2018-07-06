@@ -146,11 +146,6 @@ INSERT INTO t1 VALUES (11, NULL);
 CREATE TABLE ss(c CHAR(1));
 INSERT INTO ss VALUES ('M');
 
---error ER_WINDOW_NO_GROUP_ORDER
-SELECT sex, AVG(id), ROW_NUMBER() OVER w FROM t1
-    GROUP BY sex ASC
-    WINDOW w AS () ORDER BY sex DESC;
-
 --echo This is grouped aggregate in conjunction with a streaming wfs
 SELECT sex, AVG(id), ROW_NUMBER() OVER w FROM t1
     GROUP BY sex
@@ -250,8 +245,9 @@ GROUP BY sex WITH ROLLUP HAVING sex='M' OR sex IS NULL
 WINDOW w AS ();
 
 SELECT sex, AVG(id) FROM t1
-   GROUP BY sex ASC WITH ROLLUP
-   HAVING (sex='M' OR sex IS NULL) AND AVG(id)=3.0;
+   GROUP BY sex WITH ROLLUP
+   HAVING (sex='M' OR sex IS NULL) AND AVG(id)=3.0
+   ORDER BY GROUPING(sex), sex;
 
 SELECT sex, AVG(id), ROW_NUMBER() OVER w FROM t1
    GROUP BY sex WITH ROLLUP

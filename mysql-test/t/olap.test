@@ -50,7 +50,8 @@ ANALYZE TABLE t1;
 EXPLAIN SELECT product, country_id , year, SUM(profit)
 FROM t1 GROUP BY product, country_id, year WITH ROLLUP;
 SELECT product, country_id , SUM(profit) FROM t1
-GROUP BY product desc, country_id WITH ROLLUP;
+GROUP BY product, country_id WITH ROLLUP
+ORDER BY product DESC, GROUPING (country_id), country_id;
 
 # limit
 SELECT product, country_id , year, SUM(profit) FROM t1
@@ -494,7 +495,7 @@ CREATE TABLE t1(a INT);
 INSERT INTO t1 VALUES(0);
 INSERT INTO t1 VALUES(1);
 SELECT NOT EXISTS (SELECT 1) FROM t1 JOIN t1 a USING(a)
-GROUP BY 1 DESC WITH ROLLUP;
+GROUP BY 1 WITH ROLLUP ORDER BY 1 DESC;
 DROP TABLE t1;
 
 --echo #

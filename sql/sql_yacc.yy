@@ -11248,6 +11248,7 @@ group_list:
           }
         ;
 
+
 olap_opt:
           /* empty */   { $$= UNSPECIFIED_OLAP_TYPE; }
         | WITH_ROLLUP_SYM { $$= ROLLUP_TYPE; }
@@ -13455,12 +13456,6 @@ grouping_expr:
           expr
           {
             $$= NEW_PTN PT_order_expr($1, ORDER_NOT_RELEVANT);
-          }
-        | expr ordering_direction
-          {
-            push_deprecated_warn(YYTHD, "GROUP BY with ASC/DESC",
-                                 "GROUP BY ... ORDER BY ... ASC/DESC");
-            $$= NEW_PTN PT_order_expr($1, $2);
           }
         ;
 

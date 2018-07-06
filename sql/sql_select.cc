@@ -3179,13 +3179,21 @@ void count_field_types(SELECT_LEX *select_lex, Temp_table_param *param,
 */
 
 bool test_if_subpart(ORDER *a, ORDER *b) {
-  for (; a && b; a = a->next, b = b->next) {
-    if ((*a->item)->eq(*b->item, 1))
-      a->direction = b->direction;
+  ORDER *first = a;
+  ORDER *second = b;
+  for (; first && second; first = first->next, second = second->next) {
+    if ((*first->item)->eq(*second->item, 1))
+      continue;
     else
       return 0;
   }
-  return !b;
+  // If the second argument is not subpart of the first return false
+  if (second) return 0;
+  // Else assign the direction of the second argument to the first
+  else {
+    for (; a && b; a = a->next, b = b->next) a->direction = b->direction;
+    return 1;
+  }
 }
 
 /**
@@ -3939,19 +3947,16 @@ bool JOIN::make_tmp_tables_info() {
     }
 
     if (exec_tmp_table->group) {  // Already grouped
-      if (!order && !no_order && !skip_sort_order) {
-        if (!group_list.can_ignore_order())
-          order = group_list; /* order by group */
-        else {
-          /*
-            Check whether an order was explicitly specified on a GROUP BY
-            column. If so, we have to use filesort.
-          */
-          for (ORDER *ord = group_list; ord; ord = ord->next)
-            if (ord->is_explicit) {
-              order = group_list; /* order by group */
-              break;
-            }
+                                  /*
+                                    Check if group by has to respect ordering. If true, move group by to
+                                    order by.
+                                  */
+      if (!order && !skip_sort_order) {
+        for (ORDER *group = group_list; group; group = group->next) {
+          if (group->direction != ORDER_NOT_RELEVANT) {
+            order = group_list; /* order by group */
+            break;
+          }
         }
       }
       group_list = NULL;

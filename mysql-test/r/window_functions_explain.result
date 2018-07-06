@@ -2159,7 +2159,7 @@ EXPLAIN
           "using_filesort": true,
           "filesort_key": [
             "`sex`",
-            "`id` asc"
+            "`id`"
           ],
           "functions": [
             "rank"
@@ -2190,7 +2190,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`sex` AS `sex`,`test`.`t1`.`id` AS `id`,rank() OVER (PARTITION BY `test`.`t1`.`sex` ORDER BY `test`.`t1`.`id` asc )  AS `RANK() OVER (PARTITION BY sex ORDER BY id ASC)` from `test`.`t1`
+Note	1003	/* select#1 */ select `test`.`t1`.`sex` AS `sex`,`test`.`t1`.`id` AS `id`,rank() OVER (PARTITION BY `test`.`t1`.`sex` ORDER BY `test`.`t1`.`id` )  AS `RANK() OVER (PARTITION BY sex ORDER BY id ASC)` from `test`.`t1`
 EXPLAIN FORMAT=JSON SELECT sex, id, SUM(id) OVER w summ, RANK() OVER w `rank` FROM t1
 WINDOW w AS (PARTITION BY sex ORDER BY id ASC ROWS UNBOUNDED PRECEDING);
 EXPLAIN
@@ -2207,7 +2207,7 @@ EXPLAIN
           "using_filesort": true,
           "filesort_key": [
             "`sex`",
-            "`id` asc"
+            "`id`"
           ],
           "functions": [
             "sum",
@@ -2240,7 +2240,7 @@ EXPLAIN
 }
 Warnings:
 Note	3599	Window function 'rank' ignores the frame clause of window 'w' and aggregates over the whole partition
-Note	1003	/* select#1 */ select `test`.`t1`.`sex` AS `sex`,`test`.`t1`.`id` AS `id`,sum(`test`.`t1`.`id`) OVER `w` AS `summ`,rank() OVER `w` AS `rank` from `test`.`t1` window `w` AS (PARTITION BY `test`.`t1`.`sex` ORDER BY `test`.`t1`.`id` asc ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) 
+Note	1003	/* select#1 */ select `test`.`t1`.`sex` AS `sex`,`test`.`t1`.`id` AS `id`,sum(`test`.`t1`.`id`) OVER `w` AS `summ`,rank() OVER `w` AS `rank` from `test`.`t1` window `w` AS (PARTITION BY `test`.`t1`.`sex` ORDER BY `test`.`t1`.`id` ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) 
 EXPLAIN FORMAT=JSON SELECT sex, id, SUM(id) OVER w summ, RANK() OVER w `rank` FROM t1
 WINDOW w AS (PARTITION BY sex ORDER BY id ASC ROWS UNBOUNDED PRECEDING) ORDER BY summ;
 EXPLAIN
@@ -2263,7 +2263,7 @@ EXPLAIN
             "using_filesort": true,
             "filesort_key": [
               "`sex`",
-              "`id` asc"
+              "`id`"
             ],
             "functions": [
               "sum",
@@ -2297,7 +2297,7 @@ EXPLAIN
 }
 Warnings:
 Note	3599	Window function 'rank' ignores the frame clause of window 'w' and aggregates over the whole partition
-Note	1003	/* select#1 */ select `test`.`t1`.`sex` AS `sex`,`test`.`t1`.`id` AS `id`,sum(`test`.`t1`.`id`) OVER `w` AS `summ`,rank() OVER `w` AS `rank` from `test`.`t1` window `w` AS (PARTITION BY `test`.`t1`.`sex` ORDER BY `test`.`t1`.`id` asc ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)  order by `summ`
+Note	1003	/* select#1 */ select `test`.`t1`.`sex` AS `sex`,`test`.`t1`.`id` AS `id`,sum(`test`.`t1`.`id`) OVER `w` AS `summ`,rank() OVER `w` AS `rank` from `test`.`t1` window `w` AS (PARTITION BY `test`.`t1`.`sex` ORDER BY `test`.`t1`.`id` ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)  order by `summ`
 CREATE TABLE t(d decimal(10,2), date DATE);
 INSERT INTO t values  (10.4, '2002-06-09'),
 (20.5, '2002-06-09'),
@@ -5971,7 +5971,7 @@ EXPLAIN
           "using_temporary_table": true,
           "using_filesort": true,
           "filesort_key": [
-            "`id` asc"
+            "`id`"
           ],
           "functions": [
             "row_number"
@@ -6013,7 +6013,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select ((((row_number() OVER `w1` * 5) - 1) DIV count(0) OVER `w2`) + 1) AS `cnt` from `test`.`t1` window `w1` AS (ORDER BY `test`.`t1`.`id` asc ) , `w2` AS () 
+Note	1003	/* select#1 */ select ((((row_number() OVER `w1` * 5) - 1) DIV count(0) OVER `w2`) + 1) AS `cnt` from `test`.`t1` window `w1` AS (ORDER BY `test`.`t1`.`id` ) , `w2` AS () 
 EXPLAIN FORMAT=JSON SELECT  (ROW_NUMBER() OVER w1 * 5 - 1) DIV (COUNT(*) OVER w2) + 1 AS ntile_manually,
 COUNT(*) OVER w3
 FROM t1 WINDOW w1 AS (ORDER BY id ASC),
@@ -6033,7 +6033,7 @@ EXPLAIN
           "using_temporary_table": true,
           "using_filesort": true,
           "filesort_key": [
-            "`id` asc"
+            "`id`"
           ],
           "functions": [
             "row_number"
@@ -6087,7 +6087,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select ((((row_number() OVER `w1` * 5) - 1) DIV count(0) OVER `w2`) + 1) AS `ntile_manually`,count(0) OVER `w3` AS `COUNT(*) OVER w3` from `test`.`t1` window `w1` AS (ORDER BY `test`.`t1`.`id` asc ) , `w2` AS () , `w3` AS () 
+Note	1003	/* select#1 */ select ((((row_number() OVER `w1` * 5) - 1) DIV count(0) OVER `w2`) + 1) AS `ntile_manually`,count(0) OVER `w3` AS `COUNT(*) OVER w3` from `test`.`t1` window `w1` AS (ORDER BY `test`.`t1`.`id` ) , `w2` AS () , `w3` AS () 
 NTILE in combination with a frame that doesn't cover current row (was bug)
 EXPLAIN FORMAT=JSON SELECT id, ROW_NUMBER() OVER w, SUM(id) OVER w, NTILE(5) OVER w FROM t1
 WINDOW w AS (ORDER BY id ROWS BETWEEN UNBOUNDED PRECEDING AND 2 PRECEDING);
@@ -12920,7 +12920,7 @@ EXPLAIN
           "name": "w",
           "using_filesort": true,
           "filesort_key": [
-            "`id` asc"
+            "`id`"
           ],
           "frame_buffer": {
             "using_temporary_table": true,
@@ -12956,7 +12956,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,count(`test`.`t1`.`id`) OVER `w` AS `count(id) over w`,count(0) OVER `w` AS `count(*) over w`,first_value(`test`.`t1`.`id`) OVER `w` AS `FIRST_VALUE(id) OVER w` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`id` asc RANGE BETWEEN 2 PRECEDING AND 1 PRECEDING) 
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,count(`test`.`t1`.`id`) OVER `w` AS `count(id) over w`,count(0) OVER `w` AS `count(*) over w`,first_value(`test`.`t1`.`id`) OVER `w` AS `FIRST_VALUE(id) OVER w` from `test`.`t1` window `w` AS (ORDER BY `test`.`t1`.`id` RANGE BETWEEN 2 PRECEDING AND 1 PRECEDING) 
 EXPLAIN FORMAT=JSON SELECT id, count(id) over w, count(*) over w, FIRST_VALUE(id) OVER w FROM t1
 WINDOW w AS (ORDER BY id DESC RANGE BETWEEN 2 PRECEDING AND 1 PRECEDING);
 EXPLAIN
@@ -15532,43 +15532,7 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t`.`i` AS `i` from `test`.`t` group by `test`.`t`.`i`
-EXPLAIN FORMAT=JSON SELECT * FROM t GROUP BY i ASC;
-EXPLAIN
-{
-  "query_block": {
-    "select_id": 1,
-    "cost_info": {
-      "query_cost": "44.25"
-    },
-    "grouping_operation": {
-      "using_temporary_table": true,
-      "using_filesort": true,
-      "cost_info": {
-        "sort_cost": "40.00"
-      },
-      "table": {
-        "table_name": "t",
-        "access_type": "ALL",
-        "rows_examined_per_scan": 40,
-        "rows_produced_per_join": 40,
-        "filtered": "100.00",
-        "cost_info": {
-          "read_cost": "0.25",
-          "eval_cost": "4.00",
-          "prefix_cost": "4.25",
-          "data_read_per_join": "320"
-        },
-        "used_columns": [
-          "i"
-        ]
-      }
-    }
-  }
-}
-Warnings:
-Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
-Note	1003	/* select#1 */ select `test`.`t`.`i` AS `i` from `test`.`t` group by `test`.`t`.`i` asc
-EXPLAIN FORMAT=JSON SELECT * FROM t GROUP BY i ASC ORDER BY i DESC;
+EXPLAIN FORMAT=JSON SELECT * FROM t GROUP BY i ORDER BY i DESC;
 EXPLAIN
 {
   "query_block": {
@@ -15605,7 +15569,6 @@ EXPLAIN
   }
 }
 Warnings:
-Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 Note	1003	/* select#1 */ select `test`.`t`.`i` AS `i` from `test`.`t` group by `test`.`t`.`i` desc order by `test`.`t`.`i` desc
 EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER () FROM t;
 EXPLAIN
@@ -16247,8 +16210,73 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select row_number() OVER (PARTITION BY `test`.`t`.`i` )  AS `ROW_NUMBER() OVER (PARTITION BY i)`,sum(`test`.`t`.`i`) OVER (ORDER BY `test`.`t`.`i` desc )  AS `SUM(i) OVER (ORDER BY i DESC)` from `test`.`t` group by `test`.`t`.`i`
-EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t GROUP BY i ASC;
-ERROR HY000: ASC or DESC with GROUP BY isn't allowed with window functions; put ASC or DESC in ORDER BY
+EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t GROUP BY i;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "84.25"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "definition_position": 1,
+          "using_temporary_table": true,
+          "using_filesort": true,
+          "filesort_key": [
+            "`i`"
+          ],
+          "functions": [
+            "row_number"
+          ]
+        },
+        {
+          "name": "<unnamed window>",
+          "definition_position": 2,
+          "last_executed_window": true,
+          "using_filesort": true,
+          "filesort_key": [
+            "`i` desc"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "sum"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "80.00"
+      },
+      "grouping_operation": {
+        "using_temporary_table": true,
+        "using_filesort": false,
+        "table": {
+          "table_name": "t",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 40,
+          "rows_produced_per_join": 40,
+          "filtered": "100.00",
+          "cost_info": {
+            "read_cost": "0.25",
+            "eval_cost": "4.00",
+            "prefix_cost": "4.25",
+            "data_read_per_join": "320"
+          },
+          "used_columns": [
+            "i"
+          ]
+        }
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select row_number() OVER (PARTITION BY `test`.`t`.`i` )  AS `ROW_NUMBER() OVER (PARTITION BY i)`,sum(`test`.`t`.`i`) OVER (ORDER BY `test`.`t`.`i` desc )  AS `SUM(i) OVER (ORDER BY i DESC)` from `test`.`t` group by `test`.`t`.`i`
 Could be optimized further to drop final ordering
 EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t GROUP BY i ORDER BY i DESC;
 EXPLAIN
