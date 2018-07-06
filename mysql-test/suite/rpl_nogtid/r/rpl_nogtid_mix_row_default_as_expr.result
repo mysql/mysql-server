@@ -1,21 +1,9 @@
-# ==== Purpose ====
-#
-# Test errors/warnings for Unsafe statement generated inside DEFAULT expression
-#
-# ==== Implementation ====
-#
-# CREATE TABLE with DEFAULT expression defined by a non-deterministic function
-#
-# ==== References ====
-# WL#9418  Permit default value to be a function or expression, support for LOBs
-#
-
---source include/have_binlog_format_mixed_or_row.inc
---source include/master-slave.inc
-
-call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
-
---echo # Create tables on master
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+# Create tables on master
 CREATE TABLE v1 (i VARCHAR(36) DEFAULT (RAND()), j VARCHAR(36) DEFAULT (PI()));
 INSERT INTO v1(i, j) VALUES ("a","b");
 INSERT INTO v1 VALUES ("a","b");
@@ -25,7 +13,6 @@ INSERT INTO v1(j) VALUES ("b");
 INSERT INTO v1(i,j) VALUES (DEFAULT,"b");
 INSERT INTO v1() VALUES();
 DROP TABLE v1;
-
 CREATE TABLE t1(
 id INTEGER NOT NULL AUTO_INCREMENT,
 token VARCHAR(255) DEFAULT (UUID()),
@@ -35,31 +22,35 @@ KEY token (token)
 INSERT INTO t1 VALUES (3, "abc"), (DEFAULT, DEFAULT);
 INSERT INTO t1 VALUES (1, "abc"), (2, "def");
 DROP TABLE t1;
-
-
 CREATE TABLE t2 (i VARCHAR(36) DEFAULT (UUID()));
-
 INSERT INTO t2(i) VALUES('MySQL');
 INSERT INTO t2(i) VALUES(DEFAULT);
 INSERT INTO t2() VALUES();
-
-# random values
 SELECT COUNT(*) from t2;
-
+COUNT(*)
+3
 SET @start_enforce_gtid_consistency = @@GLOBAL.ENFORCE_GTID_CONSISTENCY;
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = WARN;
 CALL mtr.add_suppression('Statement violates GTID consistency:');
 ALTER TABLE t2 ADD COLUMN c char(36) DEFAULT (PI());
+Warnings:
+Warning	3775	Statement violates GTID consistency: ALTER TABLE ... ADD COLUMN .. with expression as DEFAULT.
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = @start_enforce_gtid_consistency;
-
---source include/sync_slave_sql_with_master.inc
---echo [ slave connection ]
-
+include/sync_slave_sql_with_master.inc
+[ slave connection ]
 SHOW TABLES;
+Tables_in_test
+t2
 SHOW CREATE TABLE t2 ;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `i` varchar(36) DEFAULT (uuid()),
+  `c` char(36) DEFAULT (pi())
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT COUNT(*) from t2;
-
---echo # clean up
---source include/rpl_connection_master.inc
+COUNT(*)
+3
+# clean up
+[connection master]
 DROP TABLE t2;
---source include/rpl_end.inc
+include/rpl_end.inc

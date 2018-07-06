@@ -5,22 +5,17 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 CALL mtr.add_suppression('Statement violates GTID consistency:');
 CALL mtr.add_suppression('Unsafe statement written to the binary log');
-CALL mtr.add_suppression('Statement is unsafe because it uses a system function that may return a different value on the slave.');
 SET @start_global_value = @@GLOBAL.GTID_MODE;
 SET @start_enforce_gtid_consistency= @@GLOBAL.ENFORCE_GTID_CONSISTENCY;
 SET @start_gtid_next= @@SESSION.GTID_NEXT;
 # Create tables on master
 CREATE TABLE t2 (i VARCHAR(36));
 #
-# (GLOBAL GTID_MODE=OFF) + (ENFORCE_GTID_CONSISTENCY=OFF) => No Warning/Error
+# (GLOBAL GTID_MODE=OFF) + (ENFORCE_GTID_CONSISTENCY=OFF) => No Warning/Warning
 #
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = OFF;
 ALTER TABLE t2 ADD COLUMN a char(36) DEFAULT (PI());
-#
-# (GLOBAL GTID_MODE=OFF) + (ENFORCE_GTID_CONSISTENCY=OFF) + mixed/row replication => Error
-#
 ALTER TABLE t2 ADD COLUMN b char(36) DEFAULT (RAND());
-ERROR HY000: Statement is unsafe because it uses a system function that may return a different value on the slave.
 #
 # (GLOBAL GTID_MODE=OFF) + (ENFORCE_GTID_CONSISTENCY=WARN) => Warning
 #
@@ -28,9 +23,9 @@ SET GLOBAL ENFORCE_GTID_CONSISTENCY = WARN;
 ALTER TABLE t2 ADD COLUMN c char(36) DEFAULT (PI());
 Warnings:
 Warning	3775	Statement violates GTID consistency: ALTER TABLE ... ADD COLUMN .. with expression as DEFAULT.
-# (GLOBAL GTID_MODE=OFF) + (ENFORCE_GTID_CONSISTENCY=WARN) + mixed/row replication => Error
 ALTER TABLE t2 ADD COLUMN d char(36) DEFAULT (RAND());
-ERROR HY000: Statement is unsafe because it uses a system function that may return a different value on the slave.
+Warnings:
+Warning	3775	Statement violates GTID consistency: ALTER TABLE ... ADD COLUMN .. with expression as DEFAULT.
 #
 # (GLOBAL GTID_MODE=OFF) + (ENFORCE_GTID_CONSISTENCY=ON) => Error
 #
@@ -38,7 +33,7 @@ SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
 ALTER TABLE t2 ADD COLUMN e char(36) DEFAULT (PI());
 ERROR HY000: Statement violates GTID consistency: ALTER TABLE ... ADD COLUMN .. with expression as DEFAULT.
 ALTER TABLE t2 ADD COLUMN f char(36) DEFAULT (RAND());
-ERROR HY000: Statement is unsafe because it uses a system function that may return a different value on the slave.
+ERROR HY000: Statement violates GTID consistency: ALTER TABLE ... ADD COLUMN .. with expression as DEFAULT.
 #
 # (GTID_NEXT=UUID:NUMBER) => Error
 #
@@ -49,7 +44,7 @@ SET @@SESSION.GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
 ALTER TABLE t2 ADD COLUMN g char(36) DEFAULT (PI());
 ERROR HY000: Statement violates GTID consistency: ALTER TABLE ... ADD COLUMN .. with expression as DEFAULT.
 ALTER TABLE t2 ADD COLUMN f char(36) DEFAULT (RAND());
-ERROR HY000: Statement is unsafe because it uses a system function that may return a different value on the slave.
+ERROR HY000: Statement violates GTID consistency: ALTER TABLE ... ADD COLUMN .. with expression as DEFAULT.
 ROLLBACK;
 #
 # (GTID_NEXT=AUTOMATIC) => Error
@@ -59,7 +54,7 @@ SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
 ALTER TABLE t2 ADD COLUMN h char(36) DEFAULT (PI());
 ERROR HY000: Statement violates GTID consistency: ALTER TABLE ... ADD COLUMN .. with expression as DEFAULT.
 ALTER TABLE t2 ADD COLUMN f char(36) DEFAULT (RAND());
-ERROR HY000: Statement is unsafe because it uses a system function that may return a different value on the slave.
+ERROR HY000: Statement violates GTID consistency: ALTER TABLE ... ADD COLUMN .. with expression as DEFAULT.
 #
 # (GTID_MODE=ON) => Error
 #
@@ -68,7 +63,7 @@ SET GLOBAL GTID_MODE = ON;
 ALTER TABLE t2 ADD COLUMN i char(36) DEFAULT (PI());
 ERROR HY000: Statement violates GTID consistency: ALTER TABLE ... ADD COLUMN .. with expression as DEFAULT.
 ALTER TABLE t2 ADD COLUMN f char(36) DEFAULT (RAND());
-ERROR HY000: Statement is unsafe because it uses a system function that may return a different value on the slave.
+ERROR HY000: Statement violates GTID consistency: ALTER TABLE ... ADD COLUMN .. with expression as DEFAULT.
 # Reset to initial values
 SET GLOBAL GTID_MODE = ON_PERMISSIVE;
 SET GLOBAL GTID_MODE = OFF_PERMISSIVE;
