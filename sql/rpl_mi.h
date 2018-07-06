@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -559,6 +559,9 @@ class Master_info : public Rpl_info, public Gtid_mode_copy {
     @param thd the THD object of current thread
   */
   void wait_until_no_reference(THD *thd);
+
+  /* Set true when the Master_info object was cleared by a RESET SLAVE */
+  bool reset;
 
   /**
     Sync flushed_relay_log_info with current relay log coordinates.

@@ -504,7 +504,7 @@ int init_slave() {
       mi = it->second;
 
       /* If server id is not set, start_slave_thread() will say it */
-      if (Master_info::is_configured(mi)) {
+      if (Master_info::is_configured(mi) && mi->rli->inited) {
         /* same as in start_slave() cache the global var values into rli's
          * members */
         mi->rli->opt_slave_parallel_workers = opt_mts_slave_parallel_workers;
@@ -519,6 +519,9 @@ int init_slave() {
           LogErr(ERROR_LEVEL, ER_FAILED_TO_START_SLAVE_THREAD,
                  mi->get_channel());
         }
+      } else {
+        LogErr(INFORMATION_LEVEL, ER_FAILED_TO_START_SLAVE_THREAD,
+               mi->get_channel());
       }
     }
   }
@@ -583,7 +586,9 @@ bool start_slave(THD *thd) {
       mi = it->second;
 
       channel_configured =
-          mi && mi->inited && mi->host[0];  // channel properly configured.
+          mi &&                      // Master_info exists
+          (mi->inited || mi->reset)  // It is inited or was reset
+          && mi->host[0];            // host is set
 
       if (channel_configured) {
         if (start_slave(thd, &thd->lex->slave_connection, &thd->lex->mi,
@@ -9059,7 +9064,7 @@ int reset_slave(THD *thd) {
 
   Master_info *mi = 0;
   int result = 0;
-  mi_map::iterator it;
+  mi_map::iterator it, gr_channel_map_it;
   if (thd->lex->reset_slave_info.all) {
     /* First do reset_slave for default channel */
     mi = channel_map.get_default_channel_mi();
@@ -9078,6 +9083,24 @@ int reset_slave(THD *thd) {
         break;
       it = channel_map.begin();
     }
+    /* RESET group replication specific channels */
+    gr_channel_map_it = channel_map.begin(GROUP_REPLICATION_CHANNEL);
+    while (gr_channel_map_it != channel_map.end(GROUP_REPLICATION_CHANNEL)) {
+      mi = gr_channel_map_it->second;
+      DBUG_ASSERT(mi);
+      /*
+        We cannot RESET a group replication channel while the group
+        replication is running.
+      */
+      if (is_group_replication_running()) {
+        my_error(ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0),
+                 "RESET SLAVE ALL FOR CHANNEL", mi->get_channel());
+        DBUG_RETURN(1);
+      }
+      if ((result = reset_slave(thd, mi, thd->lex->reset_slave_info.all)))
+        break;
+      gr_channel_map_it = channel_map.begin(GROUP_REPLICATION_CHANNEL);
+    }
   } else {
     it = channel_map.begin();
     while (it != channel_map.end()) {
@@ -9086,6 +9109,25 @@ int reset_slave(THD *thd) {
       if ((result = reset_slave(thd, mi, thd->lex->reset_slave_info.all)))
         break;
       it++;
+    }
+    /*
+      RESET group replication specific channels.
+
+      We cannot RESET a group replication channel while the group
+      replication is running.
+    */
+    gr_channel_map_it = channel_map.begin(GROUP_REPLICATION_CHANNEL);
+    while (gr_channel_map_it != channel_map.end(GROUP_REPLICATION_CHANNEL)) {
+      mi = gr_channel_map_it->second;
+      DBUG_ASSERT(mi);
+      if (is_group_replication_running()) {
+        my_error(ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0),
+                 "RESET SLAVE FOR CHANNEL", mi->get_channel());
+        DBUG_RETURN(1);
+      }
+      if ((result = reset_slave(thd, mi, thd->lex->reset_slave_info.all)))
+        break;
+      gr_channel_map_it++;
     }
   }
   DBUG_RETURN(result);
@@ -9111,7 +9153,8 @@ int reset_slave(THD *thd, Master_info *mi, bool reset_all) {
   const char *errmsg = "Unknown error occured while reseting slave";
   DBUG_ENTER("reset_slave");
 
-  bool no_init_after_delete = false;
+  bool is_default_channel =
+      strcmp(mi->get_channel(), channel_map.get_default_channel()) == 0;
 
   /*
     RESET SLAVE command should ignore 'read-only' and 'super_read_only'
@@ -9135,16 +9178,8 @@ int reset_slave(THD *thd, Master_info *mi, bool reset_all) {
   ha_reset_slave(thd);
 
   // delete relay logs, clear relay log coordinates
-
-  /*
-     For named channels, we have to delete the index and log files
-     and not init them
-  */
-  if (strcmp(mi->get_channel(), channel_map.get_default_channel()))
-    no_init_after_delete = true;
-
   if ((error = mi->rli->purge_relay_logs(thd, 1 /* just reset */, &errmsg,
-                                         no_init_after_delete))) {
+                                         reset_all && !is_default_channel))) {
     my_error(ER_RELAY_LOG_FAIL, MYF(0), errmsg);
     error = ER_RELAY_LOG_FAIL;
     unlock_slave_threads(mi);
@@ -9161,7 +9196,26 @@ int reset_slave(THD *thd, Master_info *mi, bool reset_all) {
     mi->channel_unlock();
     goto err;
   }
-  if (!reset_all) mi->init_master_log_pos();
+  if (!reset_all) {
+    mi->init_master_log_pos();
+    mi->master_uuid[0] = 0;
+    /*
+      This shall prevent the channel to vanish if server is restarted
+      after this RESET SLAVE and before the channel be started.
+    */
+    mysql_mutex_lock(&mi->data_lock);
+    if (mi->reset && opt_mi_repository_id == INFO_REPOSITORY_TABLE &&
+        opt_rli_repository_id == INFO_REPOSITORY_TABLE &&
+        (mi->flush_info(true))) {
+      error = ER_MASTER_INFO;
+      my_error(ER_MASTER_INFO, MYF(0));
+      mysql_mutex_unlock(&mi->data_lock);
+      unlock_slave_threads(mi);
+      mi->channel_unlock();
+      goto err;
+    }
+    mysql_mutex_unlock(&mi->data_lock);
+  }
 
   unlock_slave_threads(mi);
 
