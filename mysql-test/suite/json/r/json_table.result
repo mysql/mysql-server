@@ -1808,3 +1808,56 @@ t1	CREATE TABLE `t1` (
   `value` bigint(20) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
+#
+# Bug#28255453: VIEW USING JSON_TABLE FAILS IF NO SCHEMA IS SELECTED
+#
+CREATE VIEW test.v AS SELECT * FROM JSON_TABLE('[1,2,3]', '$[*]' COLUMNS (num INT PATH '$[0]')) AS jt;
+SELECT * FROM test.v;
+num
+1
+2
+3
+DROP VIEW test.v;
+# Check that a user without access to the schema 'foo' cannot query
+# a JSON_TABLE view in that schema.
+CREATE SCHEMA foo;
+CREATE VIEW foo.v AS SELECT * FROM JSON_TABLE('[1,2,3]', '$[*]' COLUMNS (num INT PATH '$[0]')) AS jt;
+CREATE USER foo@localhost;
+SELECT * FROM foo.v;
+ERROR 42000: SELECT command denied to user 'foo'@'localhost' for table 'v'
+DROP USER foo@localhost;
+DROP SCHEMA foo;
+# Check that a user with access to the schema 'foo' can do a SELECT with
+# a JSON_TABLE function.
+CREATE SCHEMA foo;
+CREATE USER foo@localhost;
+GRANT EXECUTE ON foo.* TO foo@localhost;
+SELECT 1 FROM JSON_TABLE('[1,2,3]', '$[*]' COLUMNS (num INT PATH '$.a')) AS jt;
+1
+1
+1
+1
+DROP USER foo@localhost;
+DROP SCHEMA foo;
+#
+# Bug#27923406 ERROR 1142 (42000) WHEN USING JSON_TABLE
+#
+CREATE SCHEMA my_schema;
+CREATE USER foo@localhost;
+GRANT EXECUTE ON my_schema.* TO foo@localhost;
+SELECT
+*
+FROM
+JSON_TABLE(
+'[{"x":2,"y":"8"},{"x":"3","y":"7"},{"x":"4","y":6}]',
+"$[*]" COLUMNS(
+xval VARCHAR(100) PATH "$.x",
+yval VARCHAR(100) PATH "$.y"
+    )
+) AS  jt1;
+xval	yval
+2	8
+3	7
+4	6
+DROP USER foo@localhost;
+DROP SCHEMA my_schema;

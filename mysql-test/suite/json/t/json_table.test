@@ -1146,3 +1146,63 @@ CREATE TABLE t1 AS SELECT id, value FROM
   AS json;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#28255453: VIEW USING JSON_TABLE FAILS IF NO SCHEMA IS SELECTED
+--echo #
+connect (conn1,localhost,root,,*NO-ONE*);
+CREATE VIEW test.v AS SELECT * FROM JSON_TABLE('[1,2,3]', '$[*]' COLUMNS (num INT PATH '$[0]')) AS jt;
+SELECT * FROM test.v;
+DROP VIEW test.v;
+
+--echo # Check that a user without access to the schema 'foo' cannot query
+--echo # a JSON_TABLE view in that schema.
+CREATE SCHEMA foo;
+CREATE VIEW foo.v AS SELECT * FROM JSON_TABLE('[1,2,3]', '$[*]' COLUMNS (num INT PATH '$[0]')) AS jt;
+
+CREATE USER foo@localhost;
+connect (con1,localhost,foo,,);
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT * FROM foo.v;
+
+connection default;
+disconnect con1;
+DROP USER foo@localhost;
+DROP SCHEMA foo;
+
+--echo # Check that a user with access to the schema 'foo' can do a SELECT with
+--echo # a JSON_TABLE function.
+CREATE SCHEMA foo;
+CREATE USER foo@localhost;
+GRANT EXECUTE ON foo.* TO foo@localhost;
+connect (con1,localhost,foo,,foo);
+SELECT 1 FROM JSON_TABLE('[1,2,3]', '$[*]' COLUMNS (num INT PATH '$.a')) AS jt;
+connection default;
+disconnect con1;
+DROP USER foo@localhost;
+DROP SCHEMA foo;
+
+--echo #
+--echo # Bug#27923406 ERROR 1142 (42000) WHEN USING JSON_TABLE
+--echo #
+CREATE SCHEMA my_schema;
+
+CREATE USER foo@localhost;
+GRANT EXECUTE ON my_schema.* TO foo@localhost;
+connect (con1,localhost,foo,,my_schema);
+
+SELECT
+  *
+FROM
+  JSON_TABLE(
+    '[{"x":2,"y":"8"},{"x":"3","y":"7"},{"x":"4","y":6}]',
+    "$[*]" COLUMNS(
+      xval VARCHAR(100) PATH "$.x",
+      yval VARCHAR(100) PATH "$.y"
+    )
+  ) AS  jt1;
+
+connection default;
+disconnect con1;
+DROP USER foo@localhost;
+DROP SCHEMA my_schema;
