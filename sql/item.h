@@ -3381,7 +3381,7 @@ class Item_field : public Item_ident {
   bool alias_name_used() const override {
     return m_alias_of_expr ||
            // maybe the qualifying table was given an alias ("t1 AS foo"):
-           (field ? field->table->alias_name_used : false);
+           (field && field->table && field->table->alias_name_used);
   }
 
   bool repoint_const_outer_ref(uchar *arg) override;
