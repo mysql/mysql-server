@@ -18,6 +18,7 @@ CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_USER="root", MASTER_PASSWORD=""
 include/assert.inc ['The group replication applier channel is present']
 include/assert.inc ['The slave channel is present']
 RESET SLAVE ALL;
+ERROR HY000: RESET SLAVE ALL FOR CHANNEL cannot be performed on channel 'group_replication_applier'.
 include/assert.inc ['The group replication applier channel is still present']
 include/assert.inc ['The group replication applier channel is ON']
 include/assert.inc ['The slave channel is not present']
@@ -33,5 +34,25 @@ include/start_group_replication.inc
 INSERT INTO t1 VALUES (5);
 include/rpl_sync.inc
 include/assert.inc [The table should contain 5 elements]
+server2
+Vefiry that group replication channels are present
+include/assert.inc ['The group replication applier channel is present']
+include/assert.inc ['The group replication recovery channel is present']
+include/stop_group_replication.inc
+RESET SLAVE command clears master and slave info repositories and will flush master info
+RESET SLAVE;
+include/assert.inc ['mysql.slave_relay_log_info contains no group replication channel information']
+include/assert.inc ['mysql.slave_master_info contains flushed group replication channel information']
+include/start_group_replication.inc
+include/assert.inc ['The group replication applier and recovery channel are present']
+include/stop_group_replication.inc
+RESET SLAVE ALL;
+include/assert.inc ['mysql.slave_relay_log_info does not contrain group replication channel information']
+include/assert.inc ['mysql.slave_master_info does not contrain group replication channel information']
+CHANGE MASTER TO MASTER_USER="root" FOR CHANNEL "group_replication_recovery";
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_group_replication.inc
 DROP TABLE t1;
 include/group_replication_end.inc
