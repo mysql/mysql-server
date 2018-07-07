@@ -42,7 +42,7 @@
 %global compatsrc             https://cdn.mysql.com/Downloads/MySQL-5.6/mysql-%{compatver}.tar.gz
 %endif
 
-%global src_dir               %{src_base}-@VERSION@
+%global src_dir               %{src_base}-@VERSION_SRC@
 
 # No debuginfo for now
 %if 0%{?nodebuginfo}
@@ -65,7 +65,7 @@ Name:           mysql-%{product_suffix}
 Summary:        A very fast and reliable SQL database server
 Group:          Applications/Databases
 Version:        @MYSQL_NO_DASH_VERSION@
-Release:        1@MYSQL_VERSION_EXTRA_DOT@%{?dist}
+Release:        0.1@MYSQL_VERSION_EXTRA_DOT@%{?dist}
 License:        Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. All rights reserved. Under %{?license_type} license as shown in the Description field.
 Source0:        https://cdn.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src_dir}.tar.gz
 Source1:        https://downloads.sourceforge.net/boost/@BOOST_PACKAGE_NAME@.tar.bz2
@@ -449,6 +449,9 @@ mkdir debug
            -DCMAKE_C_FLAGS="$optflags" \
            -DCMAKE_CXX_FLAGS="$optflags" \
            -DWITH_SYSTEMD=1 \
+%if 0%{?with_cluster:1}
+           -DWITH_NDBCLUSTER=1 \
+%endif
 %if 0%{?ndb_nodejs_path:1}
            -DNDB_NODEJS_PATH=%{ndb_nodejs_path} \
 %endif
@@ -485,6 +488,9 @@ mkdir release
            -DCMAKE_C_FLAGS="%{optflags}" \
            -DCMAKE_CXX_FLAGS="%{optflags}" \
            -DWITH_SYSTEMD=1 \
+%if 0%{?with_cluster:1}
+           -DWITH_NDBCLUSTER=1 \
+%endif
 %if 0%{?ndb_nodejs_path:1}
            -DNDB_NODEJS_PATH=%{ndb_nodejs_path} \
 %endif
@@ -667,6 +673,7 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/ha_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/ha_mock.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/innodb_engine.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_udf.so
@@ -692,6 +699,7 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_mock.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/innodb_engine.so
@@ -707,12 +715,6 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/version_token.so
 
-%attr(644, root, root) %{_datadir}/mysql-*/fill_help_tables.sql
-%attr(644, root, root) %{_datadir}/mysql-*/mysql_sys_schema.sql
-%attr(644, root, root) %{_datadir}/mysql-*/mysql_system_tables.sql
-%attr(644, root, root) %{_datadir}/mysql-*/mysql_system_tables_data.sql
-%attr(644, root, root) %{_datadir}/mysql-*/mysql_system_users.sql
-%attr(644, root, root) %{_datadir}/mysql-*/mysql_test_data_timezone.sql
 %attr(644, root, root) %{_datadir}/mysql-*/mysql-log-rotate
 %attr(644, root, root) %{_datadir}/mysql-*/dictionary.txt
 %attr(644, root, root) %{_datadir}/mysql-*/innodb_memcached_config.sql
@@ -999,17 +1001,10 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %endif # compatlib
 
 %changelog
-* Mon Mar 12 2018 Erlend Dahl <erlend.dahl@oracle.com> - 8.0.11-1
-- Removed milestone marker
+* Mon Mar 12 2018 Bjorn Munch <bjorn.munch@oracle.com> - 8.0.12-0.1
 - Move mysqlx to default plugin
 - Add component_mysqlx_global_reset.so
-- No longer need to remove obsoleted mysqltest man pages
-- Add perl modules for test subpackage
-- Fixed the package names for GA release
-
-* Thu Dec 07 2017 Bjorn Munch <bjorn.munch@oracle.com> - 8.0.4-0.1
-- Remove obsoleted mysqltest man pages
-- Do not pass SSL option to 5.6 compat build, just use bundled
+- Change the global milestone to 'dmr'
 - Add component_validate_password component
 - Include udf_example.so in test package
 - Remove obsoleted mysqltest man pages
