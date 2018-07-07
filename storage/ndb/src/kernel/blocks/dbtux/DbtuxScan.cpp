@@ -24,6 +24,7 @@
 void
 Dbtux::prepare_scan_ctx(Uint32 scanPtrI)
 {
+  jamDebug();
   FragPtr fragPtr;
   ScanOpPtr scanPtr;
   IndexPtr indexPtr;
@@ -42,6 +43,7 @@ Dbtux::prepare_scan_ctx(Uint32 scanPtrI)
 void
 Dbtux::prepare_build_ctx(TuxCtx& ctx, FragPtr fragPtr)
 {
+  jamDebug();
   IndexPtr indexPtr;
   ctx.fragPtr = fragPtr;
   indexPtr.i = fragPtr.p->m_indexId;
@@ -57,6 +59,7 @@ Dbtux::prepare_build_ctx(TuxCtx& ctx, FragPtr fragPtr)
 void
 Dbtux::prepare_scan_bounds()
 {
+  jamDebug();
   ScanOp& scan = *c_ctx.scanPtr.p;
   const Index& index = *c_ctx.indexPtr.p;
   
@@ -666,6 +669,12 @@ Dbtux::continue_scan(Signal *signal,
       {
         jam();
         // we cannot see deleted tuple (assert only)
+        g_eventLogger->info("(%u) Refused tab(%u,%u) row(%u,%u)",
+                            instance(),
+                            scan.m_tableId,
+                            frag.m_fragId,
+                            lkey1,
+                            lkey2);
         ndbassert(false);
         // skip it
         scan.m_state = ScanOp::Next;
@@ -985,6 +994,7 @@ Dbtux::scanFind(ScanOpPtr scanPtr, Frag& frag)
     }
     else
     {
+      jamDebug();
       ndbrequire(scan_state == ScanOp::Current);
       const TreePos treePos = scan.m_scanPos;
       NodeHandle node(frag);
@@ -993,6 +1003,7 @@ Dbtux::scanFind(ScanOpPtr scanPtr, Frag& frag)
       const TupLoc tupLoc = ent.m_tupLoc;
       c_tup->prepare_scan_tux_TUPKEYREQ(tupLoc.getPageId(),
                                         tupLoc.getPageOffset());
+      c_ctx.m_current_ent = ent;
     }
     Uint32 statOpPtrI = scan.m_statOpPtrI;
     if (likely(scan_state == ScanOp::Current))

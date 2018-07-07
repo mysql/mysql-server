@@ -253,7 +253,7 @@ Dbtup::tuxReadPk(Uint32* fragPtrP_input,
   req_struct.m_tuple_ptr = (Tuple_header*)ptr;
   
   int ret = 0;
-  if (! (req_struct.m_tuple_ptr->m_header_bits & Tuple_header::FREE))
+  if (likely(! (req_struct.m_tuple_ptr->m_header_bits & Tuple_header::FREE)))
   {
     req_struct.check_offset[MM]= tablePtrP->get_check_offset(MM);
     req_struct.check_offset[DD]= tablePtrP->get_check_offset(DD);
@@ -264,7 +264,7 @@ Dbtup::tuxReadPk(Uint32* fragPtrP_input,
     ndbrequire(descr_start + (num_attr << ZAD_LOG_SIZE) <= cnoOfTabDescrRec);
     req_struct.attr_descr= tab_descr; 
 
-    if(req_struct.m_tuple_ptr->m_header_bits & Tuple_header::ALLOC)
+    if (unlikely(req_struct.m_tuple_ptr->m_header_bits & Tuple_header::ALLOC))
     {
       Uint32 opPtrI= req_struct.m_tuple_ptr->m_operation_ptr_i;
       Operationrec* opPtrP= c_operation_pool.getPtr(opPtrI);
@@ -302,11 +302,18 @@ Dbtup::tuxReadPk(Uint32* fragPtrP_input,
       }
       ndbrequire((int)i == ret);
       ret -= numAttrs;
-    } else {
+    }
+    else
+    {
+      jam();
       return ret;
     }
   }
-  if (tablePtrP->m_bits & Tablerec::TR_RowGCI)
+  else
+  {
+    jam();
+  }
+  if (likely(tablePtrP->m_bits & Tablerec::TR_RowGCI))
   {
     dataOut[ret] = *req_struct.m_tuple_ptr->get_mm_gci(tablePtrP);
   }

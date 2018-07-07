@@ -31,17 +31,17 @@ extern EventLogger *g_eventLogger;
 
 #ifdef VM_TRACE
 //#define DEBUG_LCP 1
-//#define DEBUG_ROW_COUNT_DEL 1
-//#define DEBUG_ROW_COUNT_INS 1
 //#define DEBUG_LCP_SKIP_DELETE_EXTRA 1
-//#define DEBUG_DELETE_EXTRA 1
 //#define DEBUG_INSERT_EXTRA 1
 //#define DEBUG_LCP_DEL 1
 //#define DEBUG_LCP_SKIP 1
 //#define DEBUG_LCP_SKIP_DELETE 1
 //#define DEBUG_LCP_SCANNED_BIT 1
 //#define DEBUG_PGMAN 1
+//#define DEBUG_ROW_COUNT_DEL 1
+//#define DEBUG_ROW_COUNT_INS 1
 //#define DEBUG_DELETE 1
+//#define DEBUG_DELETE_EXTRA 1
 #endif
 
 #ifdef DEBUG_LCP
@@ -141,6 +141,10 @@ void Dbtup::execTUP_DEALLOCREQ(Signal* signal)
     } else {
       free_fix_rec(regFragPtr.p, regTabPtr.p, &tmp, (Fix_page*)pagePtr.p);
     }
+  }
+  else
+  {
+    jam();
   }
 }
 
@@ -1050,14 +1054,15 @@ Dbtup::commit_operation(Signal* signal,
     Local_key rowid = regOperPtr->m_tuple_location;
     rowid.m_page_no = pagePtr.p->frag_page_id;
     g_eventLogger->info("(%u) tab(%u,%u) Inserted row(%u,%u)"
-                        ", bits: %x, row_count = %llu",
+                        ", bits: %x, row_count = %llu, tuple_ptr: %p",
                         instance(),
                         regFragPtr->fragTableId,
                         regFragPtr->fragmentId,
                         rowid.m_page_no,
                         rowid.m_page_idx,
                         tuple_ptr->m_header_bits,
-                        regFragPtr->m_row_count);
+                        regFragPtr->m_row_count,
+                        tuple_ptr);
 #endif
   }
   else
