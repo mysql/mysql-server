@@ -166,7 +166,8 @@ extern EventLogger * g_eventLogger;
 
 // Use LQH_DEBUG to print messages that should be
 // seen only when we debug the product
-#ifdef VM_TRACE
+//#define USE_LQH_DEBUG
+#ifdef USE_LQH_DEBUG
 #define LQH_DEBUG(x) ndbout << "DBLQH: "<< x << endl;
 static
 NdbOut &
@@ -11376,12 +11377,14 @@ void Dblqh::setup_scan_pointers(Uint32 scanPtrI)
   c_tup->prepare_tab_pointers(loc_prim_tab_fragptr.p->tupFragptr);
   if (likely(loc_scanptr.p->scanStoredProcId != RNIL))
   {
+    jamDebug();
     Uint32 storedProcLen =
       c_tup->copyAttrinfo(loc_scanptr.p->scanStoredProcId);
     ndbassert(loc_scanptr.p->scanAiLength == storedProcLen);
   }
   if (likely(loc_scanptr.p->scanAccPtr != RNIL))
   {
+    jamDebug();
     block->prepare_scan_ctx(loc_scanptr.p->scanAccPtr);
   }
 }

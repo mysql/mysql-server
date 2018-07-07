@@ -430,7 +430,19 @@ Dbtux::readTablePk(TreeEnt ent, Uint32* pkData, unsigned& pkSize)
                              pkData,
                              true);
   jamEntry();
-  ndbrequire(ret > 0);
+  if (unlikely(ret <= 0))
+  {
+    Frag& frag = *c_ctx.fragPtr.p;
+    Uint32 lkey1, lkey2;
+    getTupAddr(frag, ent, lkey1, lkey2);
+    g_eventLogger->info("(%u) readTablePk error tab(%u,%u) row(%u,%u)",
+                        instance(),
+                        frag.m_tableId,
+                        frag.m_fragId,
+                        lkey1,
+                        lkey2);
+    ndbrequire(ret > 0);
+  }
   pkSize = ret;
 }
 

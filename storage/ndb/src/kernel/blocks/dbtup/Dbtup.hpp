@@ -4258,6 +4258,7 @@ Dbtup::get_all_tup_ptrs(Uint32 indexFragPtrI,
                         Uint32 &attrDataOffset,
                         Uint32 &tuxFixHeaderSize)
 {
+  jamDebug();
   FragrecordPtr indexFragPtr;
   indexFragPtr.i= indexFragPtrI;
   ptrCheckGuard(indexFragPtr, cnoOfFragrec, fragrecord);
