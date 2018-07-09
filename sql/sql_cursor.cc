@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -187,7 +187,6 @@ bool mysql_open_cursor(THD *thd, Query_result *result,
     }
 
     *pcursor = materialized_cursor;
-    thd->stmt_arena->cleanup_stmt();
   }
 
 end:
@@ -211,7 +210,7 @@ void Server_side_cursor::operator delete(void *ptr,
     it out before freeing, to avoid writing into freed memory during the
     free process.
   */
-  MEM_ROOT own_root = std::move(*cursor->mem_root);
+  MEM_ROOT own_root = std::move(*cursor->m_arena.mem_root);
 
   TRASH(ptr, size);
   free_root(&own_root, MYF(0));
@@ -251,7 +250,7 @@ int Materialized_cursor::send_result_set_metadata(
   Item *item_org;
   Item *item_dst;
 
-  thd->set_n_backup_active_arena(this, &backup_arena);
+  thd->swap_query_arena(m_arena, &backup_arena);
 
   if ((rc = table->fill_item_list(&item_list))) goto end;
 
@@ -281,7 +280,7 @@ int Materialized_cursor::send_result_set_metadata(
   rc = result->send_result_set_metadata(item_list, Protocol::SEND_NUM_ROWS);
 
 end:
-  thd->restore_active_arena(this, &backup_arena);
+  thd->swap_query_arena(backup_arena, &m_arena);
   /* Check for thd->is_error() in case of OOM */
   return rc || thd->is_error();
 }
@@ -291,7 +290,7 @@ int Materialized_cursor::open(JOIN *join MY_ATTRIBUTE((unused))) {
   int rc;
   Query_arena backup_arena;
 
-  thd->set_n_backup_active_arena(this, &backup_arena);
+  thd->swap_query_arena(m_arena, &backup_arena);
 
   /* Create a list of fields and start sequential scan. */
 
@@ -299,7 +298,7 @@ int Materialized_cursor::open(JOIN *join MY_ATTRIBUTE((unused))) {
   rc = !rc && table->file->ha_rnd_init(true);
   is_rnd_inited = !rc;
 
-  thd->restore_active_arena(this, &backup_arena);
+  thd->swap_query_arena(backup_arena, &m_arena);
 
   /* Commit or rollback metadata in the client-server protocol. */
 
@@ -362,14 +361,15 @@ bool Materialized_cursor::fetch(ulong num_rows) {
 
 void Materialized_cursor::close() {
   /* Free item_list items */
-  free_items();
+  m_arena.free_items();
   if (is_rnd_inited) (void)table->file->ha_rnd_end();
   /*
     We need to grab table->mem_root to prevent free_tmp_table from freeing:
     the cursor object was allocated in this memory. The mem_root will be
     freed in Materialized_cursor::operator delete.
   */
-  mem_root = new (&table->s->mem_root) MEM_ROOT(std::move(table->s->mem_root));
+  m_arena.mem_root =
+      new (&table->s->mem_root) MEM_ROOT(std::move(table->s->mem_root));
   free_tmp_table(table->in_use, table);
   table = 0;
 }

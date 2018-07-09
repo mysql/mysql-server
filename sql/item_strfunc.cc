@@ -737,8 +737,7 @@ class Thd_parse_modifier {
     // remainder of the execution of the statement the buffer should be free
     // to use.
     m_digest_state.reset(thd->m_token_array, get_max_digest_length());
-    m_arena.set_query_arena(thd);
-    thd->set_query_arena(&m_arena);
+    m_arena.set_query_arena(*thd);
     thd->lex = &m_lex;
     lex_start(thd);
   }
@@ -746,7 +745,7 @@ class Thd_parse_modifier {
   ~Thd_parse_modifier() {
     lex_end(&m_lex);
     m_thd->lex = m_backed_up_lex;
-    m_thd->set_query_arena(&m_arena);
+    m_thd->set_query_arena(m_arena);
     m_thd->m_parser_state = m_saved_parser_state;
     m_thd->m_digest = m_saved_digest;
   }

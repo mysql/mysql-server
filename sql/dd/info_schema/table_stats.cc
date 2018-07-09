@@ -649,7 +649,7 @@ ulonglong Table_statistics::read_stat_by_open_table(
   Query_arena *old_arena = thd->stmt_arena;
   thd->stmt_arena = &i_s_arena;
   Query_arena backup_arena;
-  thd->set_n_backup_active_arena(&i_s_arena, &backup_arena);
+  thd->swap_query_arena(i_s_arena, &backup_arena);
 
   LEX temp_lex, *lex;
   LEX *old_lex = thd->lex;
@@ -873,7 +873,7 @@ end:
   thd->lex = old_lex;
 
   thd->stmt_arena = old_arena;
-  thd->restore_active_arena(&i_s_arena, &backup_arena);
+  thd->swap_query_arena(backup_arena, &i_s_arena);
 
   thd->restore_backup_open_tables_state(&open_tables_state_backup);
 

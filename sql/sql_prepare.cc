@@ -938,7 +938,7 @@ bool mysql_test_show(Prepared_statement *stmt, TABLE_LIST *tables) {
   DBUG_ASSERT(!lex->is_explain());
 
   if (!lex->result) {
-    if (!(lex->result = new (stmt->mem_root) Query_result_send(thd)))
+    if (!(lex->result = new (stmt->m_arena.mem_root) Query_result_send(thd)))
       goto error; /* purecov: inspected */
   }
 
@@ -1008,7 +1008,7 @@ static bool mysql_test_set_fields(Prepared_statement *stmt, TABLE_LIST *tables,
   THD *thd = stmt->thd;
   set_var_base *var;
   DBUG_ENTER("mysql_test_set_fields");
-  DBUG_ASSERT(stmt->is_stmt_prepare());
+  DBUG_ASSERT(stmt->m_arena.is_stmt_prepare());
 
   if (tables &&
       check_table_access(thd, SELECT_ACL, tables, false, UINT_MAX, false))
@@ -1129,7 +1129,7 @@ static bool mysql_test_create_view(Prepared_statement *stmt) {
   TABLE_LIST *view = lex->unlink_first_table(&link_to_local);
   TABLE_LIST *tables = lex->query_tables;
   DBUG_ENTER("mysql_test_create_view");
-  DBUG_ASSERT(stmt->is_stmt_prepare());
+  DBUG_ASSERT(stmt->m_arena.is_stmt_prepare());
 
   if (create_view_precheck(thd, tables, view, lex->create_view_mode)) goto err;
 
@@ -1482,7 +1482,7 @@ bool mysql_stmt_precheck(THD *thd, const COM_DATA *com_data,
       if (com_data->com_stmt_send_long_data.param_number >=
           (*stmt)->param_count) {
         /* Error will be sent in execute call */
-        (*stmt)->state = Query_arena::STMT_ERROR;
+        (*stmt)->m_arena.set_state(Query_arena::STMT_ERROR);
         (*stmt)->last_errno = ER_WRONG_ARGUMENTS;
         sprintf((*stmt)->last_error, ER_THD(thd, ER_WRONG_ARGUMENTS),
                 "mysql_stmt_precheck");
@@ -1954,7 +1954,7 @@ void mysqld_stmt_fetch(THD *thd, Prepared_statement *stmt, ulong num_rows) {
     DBUG_VOID_RETURN;
   }
 
-  thd->stmt_arena = stmt;
+  thd->stmt_arena = &stmt->m_arena;
   Statement_backup stmt_backup;
   stmt_backup.set_thd_to_ps(thd, stmt);
 
@@ -1999,7 +1999,7 @@ void mysqld_stmt_reset(THD *thd, Prepared_statement *stmt) {
   */
   reset_stmt_params(stmt);
 
-  stmt->state = Query_arena::STMT_PREPARED;
+  stmt->m_arena.set_state(Query_arena::STMT_PREPARED);
 
   query_logger.general_log_print(thd, thd->get_command(), NullS);
 
@@ -2089,7 +2089,7 @@ void mysql_stmt_get_longdata(THD *thd, Prepared_statement *stmt,
   Item_param *param = stmt->param_array[param_number];
   param->set_longdata((char *)str, length);
   if (thd->get_stmt_da()->is_error()) {
-    stmt->state = Query_arena::STMT_ERROR;
+    stmt->m_arena.set_state(Query_arena::STMT_ERROR);
     stmt->last_errno = thd->get_stmt_da()->mysql_errno();
     snprintf(stmt->last_error, sizeof(stmt->last_error), "%.*s",
              MYSQL_ERRMSG_SIZE - 1, thd->get_stmt_da()->message_text());
@@ -2243,7 +2243,7 @@ end:
 ****************************************************************************/
 
 Prepared_statement::Prepared_statement(THD *thd_arg)
-    : Query_arena(&main_mem_root, STMT_INITIALIZED),
+    : m_arena(&main_mem_root, Query_arena::STMT_INITIALIZED),
       thd(thd_arg),
       param_array(nullptr),
       cursor(nullptr),
@@ -2308,7 +2308,7 @@ Prepared_statement::~Prepared_statement() {
     We have to call free on the items even if cleanup is called as some items,
     like Item_param, don't free everything until free_items()
   */
-  free_items();
+  m_arena.free_items();
   if (lex) {
     DBUG_ASSERT(lex->sphead == NULL);
     lex_end(lex);
@@ -2323,7 +2323,7 @@ void Prepared_statement::cleanup_stmt() {
   DBUG_ENTER("Prepared_statement::cleanup_stmt");
   DBUG_PRINT("enter", ("stmt: %p", this));
 
-  cleanup_items(item_list());
+  cleanup_items(m_arena.item_list());
   thd->cleanup_after_query();
   thd->rollback_item_tree_changes();
 
@@ -2332,8 +2332,8 @@ void Prepared_statement::cleanup_stmt() {
 
 bool Prepared_statement::set_name(const LEX_CSTRING &name_arg) {
   m_name.length = name_arg.length;
-  m_name.str =
-      static_cast<char *>(memdup_root(mem_root, name_arg.str, name_arg.length));
+  m_name.str = static_cast<char *>(
+      memdup_root(m_arena.mem_root, name_arg.str, name_arg.length));
   return m_name.str == NULL;
 }
 
@@ -2350,7 +2350,7 @@ bool Prepared_statement::set_name(const LEX_CSTRING &name_arg) {
 bool Prepared_statement::set_db(const LEX_CSTRING &db_arg) {
   /* Remember the current database. */
   if (db_arg.str && db_arg.length) {
-    m_db.str = this->strmake(db_arg.str, db_arg.length);
+    m_db.str = m_arena.strmake(db_arg.str, db_arg.length);
     m_db.length = db_arg.length;
   } else {
     m_db = NULL_CSTR;
@@ -2405,7 +2405,7 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length,
   */
   thd->status_var.com_stmt_prepare++;
 
-  if (!(lex = new (mem_root) st_lex_local)) DBUG_RETURN(true);
+  if (!(lex = new (m_arena.mem_root) st_lex_local)) DBUG_RETURN(true);
 
   if (set_db(thd->db())) DBUG_RETURN(true);
 
@@ -2416,12 +2416,12 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length,
   Statement_backup stmt_backup;
   stmt_backup.set_thd_to_ps(thd, this);
   stmt_backup.save_rlb(thd);
-  thd->set_n_backup_active_arena(this, &arena_backup);
+  thd->swap_query_arena(m_arena, &arena_backup);
 
   if (alloc_query(thd, query_str, query_length)) {
     stmt_backup.restore_thd(thd, this);
     stmt_backup.restore_rlb(thd);
-    thd->restore_active_arena(this, &arena_backup);
+    thd->swap_query_arena(arena_backup, &m_arena);
     DBUG_RETURN(true);
   }
 
@@ -2430,13 +2430,13 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length,
   }
 
   old_stmt_arena = thd->stmt_arena;
-  thd->stmt_arena = this;
+  thd->stmt_arena = &m_arena;
 
   Parser_state parser_state;
   if (parser_state.init(thd, thd->query().str, thd->query().length)) {
     stmt_backup.restore_thd(thd, this);
     stmt_backup.restore_rlb(thd);
-    thd->restore_active_arena(this, &arena_backup);
+    thd->swap_query_arena(arena_backup, &m_arena);
     thd->stmt_arena = old_stmt_arena;
     DBUG_RETURN(true);
   }
@@ -2496,7 +2496,7 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length,
     transformation can be reused on execute, we set again thd->mem_root from
     stmt->mem_root (see setup_wild for one place where we do that).
   */
-  thd->restore_active_arena(this, &arena_backup);
+  thd->swap_query_arena(arena_backup, &m_arena);
 
   /*
     If called from a stored procedure, ensure that we won't rollback
@@ -2572,7 +2572,7 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length,
   if (error == 0) {
     setup_set_params();
     lex->context_analysis_only &= ~CONTEXT_ANALYSIS_ONLY_PREPARE;
-    state = Query_arena::STMT_PREPARED;
+    m_arena.set_state(Query_arena::STMT_PREPARED);
     flags &= ~(uint)IS_IN_USE;
 
     /*
@@ -2717,7 +2717,7 @@ bool Prepared_statement::execute_loop(String *expanded_query,
   int reprepare_attempt = 0;
 
   /* Check if we got an error when sending long data */
-  if (state == Query_arena::STMT_ERROR) {
+  if (m_arena.get_state() == Query_arena::STMT_ERROR) {
     my_message(last_errno, last_error, MYF(0));
     return true;
   }
@@ -2799,21 +2799,21 @@ bool Prepared_statement::execute_server_runnable(
   Item_change_list save_change_list;
   thd->change_list.move_elements_to(&save_change_list);
 
-  state = STMT_REGULAR_EXECUTION;
+  m_arena.set_state(Query_arena::STMT_REGULAR_EXECUTION);
 
-  if (!(lex = new (mem_root) st_lex_local)) return true;
+  if (!(lex = new (m_arena.mem_root) st_lex_local)) return true;
 
   Statement_backup stmt_backup;
   stmt_backup.set_thd_to_ps(thd, this);
   stmt_backup.save_rlb(thd);
-  thd->set_n_backup_active_arena(this, &arena_backup);
-  thd->stmt_arena = this;
+  thd->swap_query_arena(m_arena, &arena_backup);
+  thd->stmt_arena = &m_arena;
 
   error = server_runnable->execute_server_code(thd);
 
   thd->cleanup_after_query();
 
-  thd->restore_active_arena(this, &arena_backup);
+  thd->swap_query_arena(arena_backup, &m_arena);
   stmt_backup.restore_thd(thd, this);
   stmt_backup.restore_rlb(thd);
   thd->stmt_arena = save_stmt_arena;
@@ -2869,9 +2869,6 @@ bool Prepared_statement::reprepare(bool force_primary_storage_engine) {
 
     swap_prepared_statement(&copy);
     swap_parameter_array(param_array, copy.param_array, param_count);
-#ifndef DBUG_OFF
-    is_reprepared = true;
-#endif
     /*
       Clear possible warnings during reprepare, it has to be completely
       transparent to the user. We use clear_warning_info() since
@@ -2930,16 +2927,15 @@ void Prepared_statement::swap_prepared_statement(Prepared_statement *copy) {
   std::swap(main_mem_root, copy->main_mem_root);
 
   /* Swap the arenas */
-  tmp_arena.set_query_arena(this);
-  set_query_arena(copy);
-  copy->set_query_arena(&tmp_arena);
+  m_arena.swap_query_arena(copy->m_arena, &tmp_arena);
+  copy->m_arena.set_query_arena(tmp_arena);
 
   /* Swap the statement attributes */
   std::swap(lex, copy->lex);
   std::swap(m_query_string, copy->m_query_string);
 
   /* Swap mem_roots back, they must continue pointing at the main_mem_roots */
-  std::swap(mem_root, copy->mem_root);
+  std::swap(m_arena.mem_root, copy->m_arena.mem_root);
   /*
     Swap the old and the new parameters array. The old array
     is allocated in the old arena.
@@ -3088,7 +3084,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor) {
     to the arena of the statement.
   */
   old_stmt_arena = thd->stmt_arena;
-  thd->stmt_arena = this;
+  thd->stmt_arena = &m_arena;
   bool error = reinit_stmt_before_use(thd, lex);
 
   /*
@@ -3104,9 +3100,9 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor) {
       lex->safe_to_cache_query = 0;
       // Initialize Query_result_send before opening the cursor
       if (thd->is_classic_protocol())
-        result = new (mem_root) Query_fetch_protocol_binary(thd);
+        result = new (m_arena.mem_root) Query_fetch_protocol_binary(thd);
       else
-        result = new (mem_root) Query_result_send(thd);
+        result = new (m_arena.mem_root) Query_result_send(thd);
       if (!result) {
         error = true;  // OOM
       } else if ((error = mysql_open_cursor(thd, result, &cursor))) {
@@ -3174,7 +3170,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor) {
   // Assert that if an error, the cursor and the result are deallocated.
   DBUG_ASSERT(!error || (cursor == nullptr && result == nullptr));
 
-  if (!cursor) cleanup_stmt();
+  cleanup_stmt();
 
   /*
    Note that we cannot call restore_thd() here as that would overwrite
@@ -3194,7 +3190,8 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor) {
   /* Restore the original rewritten query. */
   stmt_backup.restore_rlb(thd);
 
-  if (state == Query_arena::STMT_PREPARED) state = Query_arena::STMT_EXECUTED;
+  if (m_arena.get_state() == Query_arena::STMT_PREPARED)
+    m_arena.set_state(Query_arena::STMT_EXECUTED);
 
   if (error == 0 && this->lex->sql_command == SQLCOM_CALL)
     thd->get_protocol()->send_parameters(&this->lex->param_list,

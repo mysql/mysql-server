@@ -408,14 +408,13 @@ bool sp_rcontext::set_variable(THD *thd, Field *field, Item **value) {
 Item_cache *sp_rcontext::create_case_expr_holder(THD *thd,
                                                  const Item *item) const {
   Item_cache *holder;
-  Query_arena current_arena;
+  Query_arena backup_arena;
 
-  thd->set_n_backup_active_arena(thd->sp_runtime_ctx->callers_arena,
-                                 &current_arena);
+  thd->swap_query_arena(*thd->sp_runtime_ctx->callers_arena, &backup_arena);
 
   holder = Item_cache::get_cache(item);
 
-  thd->restore_active_arena(thd->sp_runtime_ctx->callers_arena, &current_arena);
+  thd->swap_query_arena(backup_arena, thd->sp_runtime_ctx->callers_arena);
 
   return holder;
 }

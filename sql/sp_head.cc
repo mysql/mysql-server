@@ -1691,8 +1691,7 @@ void sp_head::destroy(sp_head *sp) {
 }
 
 sp_head::sp_head(MEM_ROOT &&mem_root, enum_sp_type type)
-    : Query_arena(&main_mem_root, STMT_INITIALIZED_FOR_SP),
-      m_type(type),
+    : m_type(type),
       m_flags(0),
       m_chistics(NULL),
       m_sql_mode(0),
@@ -1894,8 +1893,6 @@ sp_head::~sp_head() {
 
   ::destroy(m_root_parsing_ctx);
 
-  free_items();
-
   /*
     If we have non-empty LEX stack then we just came out of parser with
     error. Now we should delete all auxiliary LEXes and restore original
@@ -1946,7 +1943,8 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
   Query_arena *old_arena;
   /* per-instruction arena */
   MEM_ROOT execute_mem_root;
-  Query_arena execute_arena(&execute_mem_root, STMT_INITIALIZED_FOR_SP),
+  Query_arena execute_arena(&execute_mem_root,
+                            Query_arena::STMT_INITIALIZED_FOR_SP),
       backup_arena;
   query_id_t old_query_id;
   LEX *old_lex;
@@ -2094,7 +2092,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
     Switch to per-instruction arena here. We can do it since we cleanup
     arena after every instruction.
   */
-  thd->set_n_backup_active_arena(&execute_arena, &backup_arena);
+  thd->swap_query_arena(execute_arena, &backup_arena);
 
   /*
     Save callers arena in order to store instruction results and out
@@ -2143,7 +2141,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
       during the first execution (for example expanding of '*' or the
       items made during other permanent subquery transformations).
     */
-    thd->stmt_arena = i;
+    thd->stmt_arena = &i->m_arena;
 
     /*
       Will write this SP statement into binlog separately.
@@ -2183,7 +2181,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
 
     thd->m_digest = parent_digest;
 
-    cleanup_items(i->item_list());
+    cleanup_items(i->m_arena.item_list());
 
     /*
       If we've set thd->user_var_events_alloc to mem_root of this SP
@@ -2232,7 +2230,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
 
   /* Restore arena. */
 
-  thd->restore_active_arena(&execute_arena, &backup_arena);
+  thd->swap_query_arena(backup_arena, &execute_arena);
 
   thd->sp_runtime_ctx
       ->pop_all_cursors();  // To avoid memory leaks after an error
@@ -2247,7 +2245,6 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
   thd->pop_reprepare_observer();
 
   thd->stmt_arena = old_arena;
-  state = STMT_EXECUTED;
 
   if (err_status && thd->is_error() && !caller_da->is_error()) {
     /*
@@ -2426,7 +2423,7 @@ bool sp_head::execute_trigger(THD *thd, const LEX_CSTRING &db_name,
   */
   init_sql_alloc(key_memory_sp_head_call_root, &call_mem_root,
                  MEM_ROOT_BLOCK_SIZE, 0);
-  thd->set_n_backup_active_arena(&call_arena, &backup_arena);
+  thd->swap_query_arena(call_arena, &backup_arena);
 
   sp_rcontext *trigger_runtime_ctx =
       sp_rcontext::create(thd, m_root_parsing_ctx, NULL);
@@ -2451,7 +2448,7 @@ bool sp_head::execute_trigger(THD *thd, const LEX_CSTRING &db_name,
 #endif
 
 err_with_cleanup:
-  thd->restore_active_arena(&call_arena, &backup_arena);
+  thd->swap_query_arena(backup_arena, &call_arena);
 
   m_security_ctx.restore_security_context(thd, save_ctx);
 
@@ -2511,13 +2508,13 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   */
   init_sql_alloc(key_memory_sp_head_call_root, &call_mem_root,
                  MEM_ROOT_BLOCK_SIZE, 0);
-  thd->set_n_backup_active_arena(&call_arena, &backup_arena);
+  thd->swap_query_arena(call_arena, &backup_arena);
 
   sp_rcontext *func_runtime_ctx =
       sp_rcontext::create(thd, m_root_parsing_ctx, return_value_fld);
 
   if (!func_runtime_ctx) {
-    thd->restore_active_arena(&call_arena, &backup_arena);
+    thd->swap_query_arena(backup_arena, &call_arena);
     err_status = true;
     goto err_with_cleanup;
   }
@@ -2530,7 +2527,7 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
     memory which they will allocate during calculation long after
     this function call will be finished (e.g. in Item::cleanup()).
   */
-  thd->restore_active_arena(&call_arena, &backup_arena);
+  thd->swap_query_arena(backup_arena, &call_arena);
 
   /*
     Pass arguments.
@@ -2626,7 +2623,7 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
           sp_rcontext and allocate all these objects (and sp_rcontext
           itself) on it directly rather than juggle with arenas.
   */
-  thd->set_n_backup_active_arena(&call_arena, &backup_arena);
+  thd->swap_query_arena(call_arena, &backup_arena);
 
 #ifdef HAVE_PSI_SP_INTERFACE
   PSI_sp_locker_state psi_state;
@@ -2639,7 +2636,7 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   MYSQL_END_SP(locker);
 #endif
 
-  thd->restore_active_arena(&call_arena, &backup_arena);
+  thd->swap_query_arena(backup_arena, &call_arena);
 
   if (need_binlog_call) {
     mysql_bin_log.stop_union_events(thd);
@@ -2992,13 +2989,13 @@ void sp_head::set_info(longlong created, longlong modified,
                        st_sp_chistics *chistics, sql_mode_t sql_mode) {
   m_created = created;
   m_modified = modified;
-  m_chistics = (st_sp_chistics *)memdup_root(mem_root, (char *)chistics,
+  m_chistics = (st_sp_chistics *)memdup_root(&main_mem_root, (char *)chistics,
                                              sizeof(*chistics));
   if (m_chistics->comment.length == 0)
     m_chistics->comment.str = 0;
   else
-    m_chistics->comment.str = strmake_root(mem_root, m_chistics->comment.str,
-                                           m_chistics->comment.length);
+    m_chistics->comment.str = strmake_root(
+        &main_mem_root, m_chistics->comment.str, m_chistics->comment.length);
   m_sql_mode = sql_mode;
 }
 
@@ -3017,10 +3014,12 @@ void sp_head::set_definer(const char *definer, size_t definerlen) {
 
 void sp_head::set_definer(const LEX_CSTRING &user_name,
                           const LEX_CSTRING &host_name) {
-  m_definer_user.str = strmake_root(mem_root, user_name.str, user_name.length);
+  m_definer_user.str =
+      strmake_root(&main_mem_root, user_name.str, user_name.length);
   m_definer_user.length = user_name.length;
 
-  m_definer_host.str = strmake_root(mem_root, host_name.str, host_name.length);
+  m_definer_host.str =
+      strmake_root(&main_mem_root, host_name.str, host_name.length);
   m_definer_host.length = host_name.length;
 }
 
@@ -3050,7 +3049,7 @@ bool sp_head::add_instr(THD *thd, sp_instr *instr) {
     the first execution. It points to the memory root of the
     entire stored procedure, as their life span is equal.
   */
-  instr->mem_root = get_persistent_mem_root();
+  instr->m_arena.mem_root = get_persistent_mem_root();
 
   return m_instructions.push_back(instr);
 }
@@ -3456,7 +3455,7 @@ void sp_parser_data::process_new_sp_instr(THD *thd, sp_instr *i) {
     Next SP-instruction should start its own free-list from the scratch.
   */
 
-  i->set_item_list(thd->item_list());
+  i->m_arena.set_item_list(thd->item_list());
 
   thd->reset_item_list();
 }

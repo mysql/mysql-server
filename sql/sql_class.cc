@@ -1688,14 +1688,16 @@ void Query_arena::free_items() {
   DBUG_VOID_RETURN;
 }
 
-void Query_arena::set_query_arena(const Query_arena *set) {
-  mem_root = set->mem_root;
-  set_item_list(set->item_list());
-  state = set->state;
+void Query_arena::set_query_arena(const Query_arena &set) {
+  mem_root = set.mem_root;
+  set_item_list(set.item_list());
+  state = set.state;
 }
 
-void Query_arena::cleanup_stmt() {
-  DBUG_ASSERT(!"Query_arena::cleanup_stmt() not implemented");
+void Query_arena::swap_query_arena(const Query_arena &source,
+                                   Query_arena *backup) {
+  backup->set_query_arena(*this);
+  set_query_arena(source);
 }
 
 void THD::end_statement() {
@@ -1711,29 +1713,6 @@ void THD::end_statement() {
     Don't free mem_root, as mem_root is freed in the end of dispatch_command
     (once for any command).
   */
-  DBUG_VOID_RETURN;
-}
-
-void THD::set_n_backup_active_arena(Query_arena *set, Query_arena *backup) {
-  DBUG_ENTER("THD::set_n_backup_active_arena");
-  DBUG_ASSERT(backup->is_backup_arena == false);
-
-  backup->set_query_arena(this);
-  set_query_arena(set);
-#ifndef DBUG_OFF
-  backup->is_backup_arena = true;
-#endif
-  DBUG_VOID_RETURN;
-}
-
-void THD::restore_active_arena(Query_arena *set, Query_arena *backup) {
-  DBUG_ENTER("THD::restore_active_arena");
-  DBUG_ASSERT(backup->is_backup_arena);
-  set->set_query_arena(this);
-  set_query_arena(backup);
-#ifndef DBUG_OFF
-  backup->is_backup_arena = false;
-#endif
   DBUG_VOID_RETURN;
 }
 

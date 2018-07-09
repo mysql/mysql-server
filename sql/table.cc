@@ -2557,7 +2557,7 @@ bool unpack_value_generator(THD *thd, TABLE *table, Field *field,
   Query_arena *backup_stmt_arena_ptr = thd->stmt_arena;
   Query_arena backup_arena;
   Query_arena gcol_arena(&table->mem_root, Query_arena::STMT_REGULAR_EXECUTION);
-  thd->set_n_backup_active_arena(&gcol_arena, &backup_arena);
+  thd->swap_query_arena(gcol_arena, &backup_arena);
   thd->stmt_arena = &gcol_arena;
   ulong save_old_privilege = thd->want_privilege;
   thd->want_privilege = 0;
@@ -2623,7 +2623,7 @@ bool unpack_value_generator(THD *thd, TABLE *table, Field *field,
   thd->lex = old_lex;
   (*val_generator)->backup_stmt_unsafe_flags(new_lex.get_stmt_unsafe_flags());
   thd->stmt_arena = backup_stmt_arena_ptr;
-  thd->restore_active_arena(&gcol_arena, &backup_arena);
+  thd->swap_query_arena(backup_arena, &gcol_arena);
   (*val_generator)->item_list = gcol_arena.item_list();
   thd->want_privilege = save_old_privilege;
   thd->lex->expr_allows_subselect = save_allow_subselects;
@@ -2637,7 +2637,7 @@ parse_err:
   lex_end(thd->lex);
   thd->lex = old_lex;
   thd->stmt_arena = backup_stmt_arena_ptr;
-  thd->restore_active_arena(&gcol_arena, &backup_arena);
+  thd->swap_query_arena(backup_arena, &gcol_arena);
   thd->variables.character_set_client = old_character_set_client;
   thd->want_privilege = save_old_privilege;
   thd->lex->expr_allows_subselect = save_allow_subselects;
@@ -2689,7 +2689,7 @@ bool unpack_partition_info(THD *thd, TABLE *outparam, TABLE_SHARE *share,
   Query_arena backup_arena;
   Query_arena part_func_arena(&outparam->mem_root,
                               Query_arena::STMT_INITIALIZED);
-  thd->set_n_backup_active_arena(&part_func_arena, &backup_arena);
+  thd->swap_query_arena(part_func_arena, &backup_arena);
   thd->stmt_arena = &part_func_arena;
   bool tmp;
   bool work_part_info_used;
@@ -2699,7 +2699,7 @@ bool unpack_partition_info(THD *thd, TABLE *outparam, TABLE_SHARE *share,
       is_create_table, engine_type, &work_part_info_used);
   if (tmp) {
     thd->stmt_arena = backup_stmt_arena_ptr;
-    thd->restore_active_arena(&part_func_arena, &backup_arena);
+    thd->swap_query_arena(backup_arena, &part_func_arena);
     return true;
   }
   outparam->part_info->is_auto_partitioned = share->auto_partitioned;
@@ -2711,7 +2711,7 @@ bool unpack_partition_info(THD *thd, TABLE *outparam, TABLE_SHARE *share,
   if (!work_part_info_used)
     tmp = fix_partition_func(thd, outparam, is_create_table);
   thd->stmt_arena = backup_stmt_arena_ptr;
-  thd->restore_active_arena(&part_func_arena, &backup_arena);
+  thd->swap_query_arena(backup_arena, &part_func_arena);
   if (!tmp) {
     if (work_part_info_used)
       tmp = fix_partition_func(thd, outparam, is_create_table);
@@ -4123,7 +4123,7 @@ bool TABLE::refix_inner_value_generator_items(THD *thd, Value_generator *g_expr,
     Query_arena gcol_arena(&mem_root, Query_arena::STMT_REGULAR_EXECUTION);
     if (!g_expr->permanent_changes_completed &&
         !thd->lex->is_ps_or_view_context_analysis()) {
-      thd->set_n_backup_active_arena(&gcol_arena, &backup_arena);
+      thd->swap_query_arena(gcol_arena, &backup_arena);
       thd->stmt_arena = &gcol_arena;
     }
 
@@ -4142,7 +4142,7 @@ bool TABLE::refix_inner_value_generator_items(THD *thd, Value_generator *g_expr,
         !thd->lex->is_ps_or_view_context_analysis()) {
       // Switch back to the original stmt_arena.
       thd->stmt_arena = backup_stmt_arena_ptr;
-      thd->restore_active_arena(&gcol_arena, &backup_arena);
+      thd->swap_query_arena(backup_arena, &gcol_arena);
 
       // Append the new items to the original item_free_list.
       Item *item = g_expr->item_list;

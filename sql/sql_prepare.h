@@ -327,10 +327,11 @@ class Server_side_cursor;
   Prepared_statement: a statement that can contain placeholders.
 */
 
-class Prepared_statement final : public Query_arena {
+class Prepared_statement final {
   enum flag_values { IS_IN_USE = 1, IS_SQL_PREPARE = 2 };
 
  public:
+  Query_arena m_arena;
   THD *thd;
   Item_param **param_array;
   Server_side_cursor *cursor;
@@ -383,7 +384,6 @@ class Prepared_statement final : public Query_arena {
  public:
   Prepared_statement(THD *thd_arg);
   virtual ~Prepared_statement();
-  virtual void cleanup_stmt();
   bool set_name(const LEX_CSTRING &name);
   const LEX_CSTRING &name() const { return m_name; }
   void close_cursor();
@@ -404,6 +404,7 @@ class Prepared_statement final : public Query_arena {
   bool set_parameters(String *expanded_query);
 
  private:
+  void cleanup_stmt();
   void setup_set_params();
   bool set_db(const LEX_CSTRING &db_length);
 

@@ -191,7 +191,7 @@ static bool subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str) {
   Prealloced_array<Item_splocal *, 16> sp_vars_uses(PSI_NOT_INSTRUMENTED);
 
   /* Find all instances of Item_splocal used in this statement */
-  for (Item *item = instr->item_list(); item; item = item->next) {
+  for (Item *item = instr->m_arena.item_list(); item; item = item->next) {
     if (item->is_splocal()) {
       Item_splocal *item_spl = (Item_splocal *)item;
       if (item_spl->pos_in_query) sp_vars_uses.push_back(item_spl);
@@ -501,9 +501,9 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd, uint *nextp,
   DBUG_ASSERT(error || m_lex->is_exec_started());
 
   if (reprepare_error || sp_instr_error_handler.cts_table_exists_error)
-    thd->stmt_arena->state = Query_arena::STMT_INITIALIZED_FOR_SP;
+    thd->stmt_arena->set_state(Query_arena::STMT_INITIALIZED_FOR_SP);
   else if (m_lex->is_exec_started())
-    thd->stmt_arena->state = Query_arena::STMT_EXECUTED;
+    thd->stmt_arena->set_state(Query_arena::STMT_EXECUTED);
 
   /*
     Merge here with the saved parent's values
@@ -571,10 +571,10 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp) {
     initiated. Also set the statement query arena to the lex mem_root.
   */
   MEM_ROOT *execution_mem_root = thd->mem_root;
-  Query_arena parse_arena(&m_lex_mem_root, thd->stmt_arena->state);
+  Query_arena parse_arena(&m_lex_mem_root, thd->stmt_arena->get_state());
 
   thd->mem_root = &m_lex_mem_root;
-  thd->stmt_arena->set_query_arena(&parse_arena);
+  thd->stmt_arena->set_query_arena(parse_arena);
 
   // Prepare parser state. It can be done just before parse_sql(), do it here
   // only to simplify exit in case of failure (out-of-memory error).
@@ -648,7 +648,7 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp) {
 
     // Append newly created Items to the list of Items, owned by this
     // instruction.
-    set_item_list(thd->item_list());
+    m_arena.set_item_list(thd->item_list());
   }
 
   // Restore THD::lex.
@@ -775,7 +775,7 @@ void sp_lex_instr::cleanup_before_parsing(THD *thd) {
     Destroy items in the instruction's free list before re-parsing the
     statement query string (and thus, creating new items).
   */
-  free_items();
+  m_arena.free_items();
 
   // Remove previously stored trigger-field items.
   sp_head *sp = thd->sp_runtime_ctx->sp;
@@ -1532,7 +1532,7 @@ bool sp_instr_copen::execute(THD *thd, uint *nextp) {
   // item list, and we can cleanup after each open.
 
   Query_arena *stmt_arena_saved = thd->stmt_arena;
-  thd->stmt_arena = push_instr;
+  thd->stmt_arena = &push_instr->m_arena;
 
   // Switch to the cursor's lex and execute sp_instr_cpush::exec_core().
   // sp_instr_cpush::exec_core() is *not* executed during
@@ -1543,7 +1543,7 @@ bool sp_instr_copen::execute(THD *thd, uint *nextp) {
 
   // Cleanup the query's items.
 
-  cleanup_items(push_instr->item_list());
+  cleanup_items(push_instr->m_arena.item_list());
 
   // Restore Statement Arena.
 

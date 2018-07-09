@@ -42,7 +42,7 @@
 #include "sql/field.h"
 #include "sql/mem_root_array.h"  // Mem_root_array
 #include "sql/set_var.h"
-#include "sql/sql_class.h"  // Query_arena
+#include "sql/sql_class.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/system_variables.h"
@@ -401,7 +401,7 @@ struct SP_TABLE;
   sp_head represents one instance of a stored program. It might be of any type
   (stored procedure, function, trigger, event).
 */
-class sp_head : private Query_arena {
+class sp_head {
  public:
   /** Possible values of m_flags */
   enum {
@@ -580,7 +580,7 @@ class sp_head : private Query_arena {
   Stored_program_creation_ctx *get_creation_ctx() { return m_creation_ctx; }
 
   void set_creation_ctx(Stored_program_creation_ctx *creation_ctx) {
-    m_creation_ctx = creation_ctx->clone(mem_root);
+    m_creation_ctx = creation_ctx->clone(&main_mem_root);
   }
 
   /// Set the body-definition start position.
@@ -861,13 +861,6 @@ class sp_head : private Query_arena {
   */
   MEM_ROOT *get_persistent_mem_root() const {
     return const_cast<MEM_ROOT *>(&main_mem_root);
-  }
-
-  /**
-    @return currently used mem-root.
-  */
-  MEM_ROOT *get_current_mem_root() const {
-    return const_cast<MEM_ROOT *>(mem_root);
   }
 
   /**

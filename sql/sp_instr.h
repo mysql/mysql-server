@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -99,15 +99,15 @@ class sp_branch_instr {
   Base class for every SP-instruction. sp_instr defines interface and provides
   base implementation.
 */
-class sp_instr : public Query_arena, public sp_printable {
+class sp_instr : public sp_printable {
  public:
   sp_instr(uint ip, sp_pcontext *ctx)
-      : Query_arena(0, STMT_INITIALIZED_FOR_SP),
+      : m_arena(nullptr, Query_arena::STMT_INITIALIZED_FOR_SP),
         m_marked(false),
         m_ip(ip),
         m_parsing_ctx(ctx) {}
 
-  virtual ~sp_instr() { free_items(); }
+  virtual ~sp_instr() { m_arena.free_items(); }
 
   /**
     Execute this instruction
@@ -191,6 +191,8 @@ class sp_instr : public Query_arena, public sp_printable {
     return NULL;
   }
 
+  Query_arena m_arena;
+
  protected:
   /// Show if this instruction is reachable within the SP
   /// (used by SP-optimizer).
@@ -238,7 +240,7 @@ class sp_lex_instr : public sp_instr {
       the items, then freeing the memroot, frees the items. Also free the
       items allocated on heap as well.
     */
-    if (alloc_root_inited(&m_lex_mem_root)) free_items();
+    if (alloc_root_inited(&m_lex_mem_root)) m_arena.free_items();
   }
 
   /**
@@ -1225,18 +1227,6 @@ class sp_instr_cpush : public sp_lex_instr {
   /////////////////////////////////////////////////////////////////////////
 
   virtual void print(String *str);
-
-  /////////////////////////////////////////////////////////////////////////
-  // Query_arena implementation.
-  /////////////////////////////////////////////////////////////////////////
-
-  /**
-    This call is used to cleanup the instruction when a sensitive
-    cursor is closed. For now stored procedures always use materialized
-    cursors and the call is not used.
-  */
-  virtual void cleanup_stmt() { /* no op */
-  }
 
   /////////////////////////////////////////////////////////////////////////
   // sp_instr implementation.

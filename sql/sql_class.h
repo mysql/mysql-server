@@ -223,15 +223,6 @@ typedef struct rpl_event_coordinates {
 
 #define THD_CHECK_SENTRY(thd) DBUG_ASSERT(thd->dbug_sentry == THD_SENTRY_MAGIC)
 
-/* The following macro is to make init of Query_arena simpler */
-#ifndef DBUG_OFF
-#define INIT_ARENA_DBUG_INFO \
-  is_backup_arena = 0;       \
-  is_reprepared = false;
-#else
-#define INIT_ARENA_DBUG_INFO
-#endif
-
 class Query_arena {
  private:
   /*
@@ -242,10 +233,6 @@ class Query_arena {
 
  public:
   MEM_ROOT *mem_root;  // Pointer to current memroot
-#ifndef DBUG_OFF
-  bool is_backup_arena; /* True if this arena is used for backup. */
-  bool is_reprepared;
-#endif
   /*
     The states reflects three different life cycles for three
     different types of statements:
@@ -275,37 +262,41 @@ class Query_arena {
        statement memroot. At the end of this execution, state should change to
        STMT_EXECUTED.
   */
+ private:
   enum_state state;
 
+ public:
   Query_arena(MEM_ROOT *mem_root_arg, enum enum_state state_arg)
-      : m_item_list(nullptr), mem_root(mem_root_arg), state(state_arg) {
-    INIT_ARENA_DBUG_INFO;
-  }
+      : m_item_list(nullptr), mem_root(mem_root_arg), state(state_arg) {}
+
   /*
     This constructor is used only when Query_arena is created as
     backup storage for another instance of Query_arena.
   */
-  Query_arena() { INIT_ARENA_DBUG_INFO; }
+  Query_arena()
+      : m_item_list(nullptr), mem_root(nullptr), state(STMT_INITIALIZED) {}
 
-  virtual ~Query_arena(){};
+  virtual ~Query_arena() = default;
 
   Item *item_list() const { return m_item_list; }
   void reset_item_list() { m_item_list = nullptr; }
   void set_item_list(Item *item) { m_item_list = item; }
   void add_item(Item *item);
   void free_items();
-  inline bool is_stmt_prepare() const { return state == STMT_INITIALIZED; }
-  inline bool is_stmt_prepare_or_first_sp_execute() const {
+  void set_state(enum_state state_arg) { state = state_arg; }
+  enum_state get_state() const { return state; }
+  bool is_stmt_prepare() const { return state == STMT_INITIALIZED; }
+  bool is_stmt_prepare_or_first_sp_execute() const {
     return (int)state < (int)STMT_PREPARED;
   }
-  inline bool is_stmt_prepare_or_first_stmt_execute() const {
+  bool is_stmt_prepare_or_first_stmt_execute() const {
     return (int)state <= (int)STMT_PREPARED;
   }
   /// @returns true if a regular statement, ie not prepared and not stored proc
   bool is_regular() const { return state == STMT_REGULAR_EXECUTION; }
 
-  inline void *alloc(size_t size) { return alloc_root(mem_root, size); }
-  inline void *mem_calloc(size_t size) {
+  void *alloc(size_t size) { return alloc_root(mem_root, size); }
+  void *mem_calloc(size_t size) {
     void *ptr;
     if ((ptr = alloc_root(mem_root, size))) memset(ptr, 0, size);
     return ptr;
@@ -313,19 +304,17 @@ class Query_arena {
   template <typename T>
   T *alloc_typed() {
     void *m = alloc(sizeof(T));
-    return m == NULL ? NULL : new (m) T;
+    return m == nullptr ? nullptr : new (m) T;
   }
   template <typename T>
   T *memdup_typed(const T *mem) {
     return static_cast<T *>(memdup_root(mem_root, mem, sizeof(T)));
   }
-  inline char *mem_strdup(const char *str) {
-    return strdup_root(mem_root, str);
-  }
-  inline char *strmake(const char *str, size_t size) const {
+  char *mem_strdup(const char *str) { return strdup_root(mem_root, str); }
+  char *strmake(const char *str, size_t size) const {
     return strmake_root(mem_root, str, size);
   }
-  inline void *memdup(const void *str, size_t size) {
+  void *memdup(const void *str, size_t size) {
     return memdup_root(mem_root, str, size);
   }
 
@@ -334,10 +323,16 @@ class Query_arena {
 
     @param set A Query_arena from which members are copied.
   */
-  void set_query_arena(const Query_arena *set);
+  void set_query_arena(const Query_arena &set);
 
-  /* Close the active state associated with execution of this statement */
-  virtual void cleanup_stmt();
+  /**
+    Copy the current arena to `backup` and set the current
+    arena to match `source`
+
+    @param source A Query_arena from which members are copied.
+    @param backup A Query_arena to which members are first saved.
+  */
+  void swap_query_arena(const Query_arena &source, Query_arena *backup);
 };
 
 class Prepared_statement;
@@ -2903,8 +2898,6 @@ class THD : public MDL_context_owner,
   void restore_backup_open_tables_state(Open_tables_backup *backup);
   void reset_sub_statement_state(Sub_statement_state *backup, uint new_state);
   void restore_sub_statement_state(Sub_statement_state *backup);
-  void set_n_backup_active_arena(Query_arena *set, Query_arena *backup);
-  void restore_active_arena(Query_arena *set, Query_arena *backup);
 
  public:
   /**
@@ -4022,7 +4015,7 @@ class Prepared_stmt_arena_holder {
       : m_thd(thd), m_arena(NULL) {
     if (activate_now_if_needed && !m_thd->stmt_arena->is_regular() &&
         m_thd->mem_root != m_thd->stmt_arena->mem_root) {
-      m_thd->set_n_backup_active_arena(m_thd->stmt_arena, &m_backup);
+      m_thd->swap_query_arena(*m_thd->stmt_arena, &m_backup);
       m_arena = m_thd->stmt_arena;
     }
   }
@@ -4032,7 +4025,7 @@ class Prepared_stmt_arena_holder {
     been activated.
   */
   ~Prepared_stmt_arena_holder() {
-    if (is_activated()) m_thd->restore_active_arena(m_arena, &m_backup);
+    if (is_activated()) m_thd->swap_query_arena(m_backup, m_arena);
   }
 
   bool is_activated() const { return m_arena != NULL; }

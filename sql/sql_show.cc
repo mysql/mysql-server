@@ -3360,7 +3360,7 @@ static bool fill_schema_table_by_open(
   */
   old_arena = thd->stmt_arena;
   thd->stmt_arena = &i_s_arena;
-  thd->set_n_backup_active_arena(&i_s_arena, &backup_arena);
+  thd->swap_query_arena(i_s_arena, &backup_arena);
 
   /* Prepare temporary LEX. */
   thd->lex = lex = &temp_lex;
@@ -3498,7 +3498,7 @@ end:
   thd->lex = old_lex;
 
   thd->stmt_arena = old_arena;
-  thd->restore_active_arena(&i_s_arena, &backup_arena);
+  thd->swap_query_arena(backup_arena, &i_s_arena);
 
   DBUG_RETURN(result);
 }

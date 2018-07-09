@@ -3576,20 +3576,6 @@ void assign_new_table_id(TABLE_SHARE *share) {
   DBUG_VOID_RETURN;
 }
 
-#ifndef DBUG_OFF
-/* Cause a spurious statement reprepare for debug purposes. */
-static bool inject_reprepare(THD *thd) {
-  Reprepare_observer *reprepare_observer = thd->get_reprepare_observer();
-
-  if (reprepare_observer && !thd->stmt_arena->is_reprepared) {
-    (void)reprepare_observer->report_error(thd);
-    return true;
-  }
-
-  return false;
-}
-#endif
-
 /**
   Compare metadata versions of an element obtained from the table
   definition cache and its corresponding node in the parse tree.
@@ -3639,8 +3625,6 @@ static bool check_and_update_table_version(THD *thd, TABLE_LIST *tables,
     /* Always maintain the latest version and type */
     tables->set_table_ref_id(table_share);
   }
-
-  DBUG_EXECUTE_IF("reprepare_each_statement", return inject_reprepare(thd););
   return false;
 }
 
