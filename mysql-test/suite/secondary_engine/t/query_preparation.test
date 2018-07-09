@@ -486,6 +486,22 @@ SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 DROP TABLE t1;
 SET @@use_secondary_engine = @my_use_secondary_engine;
 
+--echo #
+--echo # Bug#28311801: THE GLOBAL VALUE OF SECONDARY_ENGINE_EXECUTION_COUNT
+--echo #               IS ALWAYS ZERO
+--echo #
+CREATE TABLE t (x INT) SECONDARY_ENGINE MOCK;
+ALTER TABLE t SECONDARY_LOAD;
+let $count_before = query_get_value(
+  SHOW GLOBAL STATUS LIKE 'Secondary_engine_execution_count', Value, 1);
+SELECT * FROM t;
+FLUSH STATUS;
+let $count_after = query_get_value(
+  SHOW GLOBAL STATUS LIKE 'Secondary_engine_execution_count', Value, 1);
+expr $execution_count = $count_after - $count_before;
+eval SELECT $execution_count;
+DROP TABLE t;
+
 --disable_query_log
 UNINSTALL PLUGIN mock;
 --enable_query_log

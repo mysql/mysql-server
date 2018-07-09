@@ -693,3 +693,16 @@ Variable_name	Value
 Secondary_engine_execution_count	2
 DROP TABLE t1;
 SET @@use_secondary_engine = @my_use_secondary_engine;
+#
+# Bug#28311801: THE GLOBAL VALUE OF SECONDARY_ENGINE_EXECUTION_COUNT
+#               IS ALWAYS ZERO
+#
+CREATE TABLE t (x INT) SECONDARY_ENGINE MOCK;
+ALTER TABLE t SECONDARY_LOAD;
+SELECT * FROM t;
+x
+FLUSH STATUS;
+SELECT 1;
+1
+1
+DROP TABLE t;
