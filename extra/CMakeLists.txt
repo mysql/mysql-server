@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,7 +15,6 @@
 
 INCLUDE_DIRECTORIES(
 ${CMAKE_SOURCE_DIR}/include 
-${ZLIB_INCLUDE_DIR}
 # Following is for perror, in case NDB is compiled in.
 ${CMAKE_SOURCE_DIR}/storage/ndb/include
 ${CMAKE_BINARY_DIR}/storage/ndb/include
