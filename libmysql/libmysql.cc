@@ -3098,7 +3098,8 @@ static void fetch_long_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
       volatile double data;
       if (is_unsigned) {
         data = ulonglong2double(value);
-        *param->error = ((ulonglong)value) != ((ulonglong)data);
+        *param->error =
+            data >= ULLONG_MAX || ((ulonglong)value) != ((ulonglong)data);
       } else {
         data = (double)value;
         *param->error = value != ((longlong)data);
@@ -3163,15 +3164,24 @@ static void fetch_float_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
         (See http://gcc.gnu.org/bugzilla/show_bug.cgi?id=323 for details)
         Sic: AFAIU it does not guarantee to work.
       */
-      if (param->is_unsigned)
+      if (param->is_unsigned) {
+        if (value < 0.0) {
+          *param->error = true;
+          break;
+        }
         *buffer = (uint8)value;
-      else
+      } else {
         *buffer = (int8)value;
+      }
       *param->error = val64 != (param->is_unsigned ? (double)((uint8)*buffer)
                                                    : (double)((int8)*buffer));
       break;
     case MYSQL_TYPE_SHORT:
       if (param->is_unsigned) {
+        if (value < 0.0) {
+          *param->error = true;
+          break;
+        }
         ushort data = (ushort)value;
         shortstore(buffer, data);
       } else {
@@ -3184,6 +3194,10 @@ static void fetch_float_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
       break;
     case MYSQL_TYPE_LONG:
       if (param->is_unsigned) {
+        if (value < 0.0) {
+          *param->error = true;
+          break;
+        }
         uint32 data = (uint32)value;
         longstore(buffer, data);
       } else {
@@ -3196,6 +3210,10 @@ static void fetch_float_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
       break;
     case MYSQL_TYPE_LONGLONG:
       if (param->is_unsigned) {
+        if (value < 0.0) {
+          *param->error = true;
+          break;
+        }
         ulonglong data = (ulonglong)value;
         longlongstore(buffer, data);
       } else {
