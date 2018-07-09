@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -185,7 +185,6 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_BINARY_DIR}/include
 
   # Util library includes
-  ${ZLIB_INCLUDE_DIR}
   ${EDITLINE_INCLUDE_DIR})
 
 # The root of storage/ndb/
