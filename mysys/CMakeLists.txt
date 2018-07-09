@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,7 +13,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-INCLUDE_DIRECTORIES(${ZLIB_INCLUDE_DIR} ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/mysys)
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/mysys)
 
 SET(MYSYS_SOURCES  array.c charset-def.c charset.c checksum.c
 				errors.c hash.c list.c mf_cache.c mf_dirname.c mf_fn_ext.c
