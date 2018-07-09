@@ -600,7 +600,8 @@ Dbtux::moveScanList(NodeHandle& node, unsigned pos)
         debugOut << "At pos=" << pos << " " << node << endl;
       }
 #endif
-      Frag& frag = *c_fragPool.getPtr(scanPtr.p->m_fragPtrI);
+      prepare_move_scan_ctx(scanPtr);
+      Frag& frag = *c_ctx.fragPtr.p;
       scanNext(scanPtr, true, frag);
       ndbrequire(! (scanPos.m_loc == node.m_loc && scanPos.m_pos == pos));
     }

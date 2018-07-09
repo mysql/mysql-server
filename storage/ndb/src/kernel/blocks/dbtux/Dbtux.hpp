@@ -73,7 +73,6 @@ public:
   virtual ~Dbtux();
 
   void prepare_scan_ctx(Uint32 scanPtrI);
-  void prepare_scan_bounds();
   // pointer to TUP and LQH instance in this thread
   Dbtup* c_tup;
   Dblqh* c_lqh;
@@ -736,6 +735,14 @@ private:
                     unsigned idir,
                     const KeyBoundArray& searchBound,
                     TreePos& treePos);
+
+  /**
+   * Prepare methods
+   * These methods are setting up variables that are precomputed to avoid having
+   * to compute those every time we need them.
+   */
+  void prepare_scan_bounds(const ScanOp *scanPtrP, const Index *indexPtrP);
+  void prepare_move_scan_ctx(ScanOpPtr scanPtr);
 
   /*
    * DbtuxCmp.cpp

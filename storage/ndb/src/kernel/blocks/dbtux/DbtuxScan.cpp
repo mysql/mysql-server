@@ -37,7 +37,16 @@ Dbtux::prepare_scan_ctx(Uint32 scanPtrI)
   c_ctx.fragPtr = fragPtr;
   c_indexPool.getPtr(indexPtr);
   c_ctx.indexPtr = indexPtr;
-  prepare_scan_bounds();
+  prepare_scan_bounds(scanPtr.p, indexPtr.p);
+  prepare_all_tup_ptrs(c_ctx);
+}
+
+void
+Dbtux::prepare_move_scan_ctx(ScanOpPtr scanPtr)
+{
+  Index *indexPtrP = c_ctx.indexPtr.p;
+  c_ctx.scanPtr = scanPtr;
+  prepare_scan_bounds(scanPtr.p, indexPtrP);
 }
 
 void
@@ -49,7 +58,7 @@ Dbtux::prepare_build_ctx(TuxCtx& ctx, FragPtr fragPtr)
   indexPtr.i = fragPtr.p->m_indexId;
   c_indexPool.getPtr(indexPtr);
   ctx.indexPtr = indexPtr;
-  const Index& index = *ctx.indexPtr.p;
+  const Index& index = *indexPtr.p;
   const DescHead& descHead = getDescHead(index);
   const AttributeHeader* keyAttrs = getKeyAttrs(descHead);
   ctx.keyAttrs = (Uint32*)keyAttrs;
@@ -57,11 +66,11 @@ Dbtux::prepare_build_ctx(TuxCtx& ctx, FragPtr fragPtr)
 }
 
 void
-Dbtux::prepare_scan_bounds()
+Dbtux::prepare_scan_bounds(const ScanOp *scanPtrP, const Index *indexPtrP)
 {
   jamDebug();
-  ScanOp& scan = *c_ctx.scanPtr.p;
-  const Index& index = *c_ctx.indexPtr.p;
+  const ScanOp& scan = *scanPtrP;
+  const Index& index = *indexPtrP;
   
   const unsigned idir = scan.m_descending;
   const ScanBound& scanBound = scan.m_scanBound[1 - idir];
@@ -79,14 +88,12 @@ Dbtux::prepare_scan_bounds()
                      key_data,
                      scanBound.m_side);
     (void)searchBoundArray;
-
   }
   const DescHead& descHead = getDescHead(index);
   const AttributeHeader* keyAttrs = getKeyAttrs(descHead);
   c_ctx.keyAttrs = (Uint32*)keyAttrs;
   c_ctx.descending = scan.m_descending;
   c_ctx.scanBoundCnt = scanBound.m_cnt;
-  prepare_all_tup_ptrs(c_ctx);
 }
 
 void
@@ -432,7 +439,8 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
     req->errorCode = scan.m_errorCode;
     return;
   }
-  prepare_scan_bounds();
+  prepare_scan_bounds(scanPtr.p, c_ctx.indexPtr.p);
+  prepare_all_tup_ptrs(c_ctx);
   // no error
   req->errorCode = 0;
 }
