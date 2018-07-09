@@ -75,9 +75,6 @@
 
 #include <SignalSender.hpp>
 
-#include <LogBuffer.hpp>
-#include <BufferedLogHandler.hpp>
-
 int g_errorInsert = 0;
 #define ERROR_INSERTED(x) (g_errorInsert == x)
 
@@ -254,8 +251,7 @@ MgmtSrvr::MgmtSrvr(const MgmtOpts& opts) :
   m_event_listner(this),
   m_master_node(0),
   _logLevelThread(NULL),
-  m_version_string(ndbGetOwnVersionString()),
-  m_async_cluster_logging(false)
+  m_version_string(ndbGetOwnVersionString())
 {
   DBUG_ENTER("MgmtSrvr::MgmtSrvr");
 
@@ -576,7 +572,6 @@ MgmtSrvr::start()
     DBUG_RETURN(false);
   }
 
-  set_async_cluster_logging(true);
   /* Start config manager */
   if (!m_config_manager->start())
   {
@@ -595,11 +590,6 @@ MgmtSrvr::start()
   DBUG_RETURN(true);
 }
 
-void
-MgmtSrvr::set_async_cluster_logging(bool async_cluster_logging)
-{
-  m_async_cluster_logging = true;
-}
 
 void
 MgmtSrvr::configure_eventlogger(const BaseString& logdestination) const
@@ -626,30 +616,8 @@ MgmtSrvr::configure_eventlogger(const BaseString& logdestination) const
     if(type == "FILE")
     {
       char *default_file_name= NdbConfig_ClusterLogFileName(_ownNodeId);
-      FileLogHandler* file_handler = new FileLogHandler(default_file_name);
+      handler = new FileLogHandler(default_file_name);
       free(default_file_name);
-
-      if(m_async_cluster_logging)
-      {
-        /**
-         *  Log to a buffered log handler, and pass the file log handler
-         *  as the destination log handler.
-         */
-        file_handler->parseParams(params);
-        if (!file_handler->is_open() &&
-            !file_handler->open())
-        {
-          ndbout_c("INTERNAL ERROR: Could not create log handler for: '%s'",
-                   logdestinations[i].c_str());
-          continue;
-        }
-
-        handler = new BufferedLogHandler(file_handler);
-      }
-      else
-      {
-        handler = file_handler;
-      }
     }
     else if(type == "CONSOLE")
     {
