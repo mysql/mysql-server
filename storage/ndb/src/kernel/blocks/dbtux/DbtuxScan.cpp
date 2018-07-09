@@ -206,13 +206,10 @@ void
 Dbtux::execACC_CHECK_SCAN(Signal* signal)
 {
   jamEntryDebug();
-  const AccCheckScan reqCopy = *(const AccCheckScan*)signal->getDataPtr();
-  const AccCheckScan* const req = &reqCopy;
-  ScanOpPtr scanPtr;
-  scanPtr.i = req->accPtr;
-  c_scanOpPool.getPtr(scanPtr);
+  const AccCheckScan *req = (const AccCheckScan*)signal->getDataPtr();
+  ScanOpPtr scanPtr = c_ctx.scanPtr;
   ScanOp& scan = *scanPtr.p;
-  Frag& frag = *c_fragPool.getPtr(scan.m_fragPtrI);
+  Frag& frag = *c_ctx.fragPtr.p;
 #ifdef VM_TRACE
   if (debugFlags & DebugScan) {
     debugOut << "ACC_CHECK_SCAN scan " << scanPtr.i << " " << scan << endl;
@@ -245,8 +242,7 @@ void
 Dbtux::execACC_SCANREQ(Signal* signal)
 {
   jamEntry();
-  const AccScanReq reqCopy = *(const AccScanReq*)signal->getDataPtr();
-  const AccScanReq* const req = &reqCopy;
+  const AccScanReq *req = (const AccScanReq*)signal->getDataPtr();
   Uint32 errorCode = 0;
   ScanOpPtr scanPtr;
   scanPtr.i = RNIL;
@@ -275,8 +271,11 @@ Dbtux::execACC_SCANREQ(Signal* signal)
     // must be normal DIH/TC fragment
     TreeHead& tree = frag.m_tree;
     // check for empty fragment
-    if (tree.m_root == NullTupLoc) {
+    if (tree.m_root == NullTupLoc)
+    {
       jam();
+      scanPtr.p = NULL;
+      c_ctx.scanPtr = scanPtr; // Ensure crash if we try to use pointer.
       AccScanConf* const conf = (AccScanConf*)signal->getDataPtrSend();
       conf->scanPtr = req->senderData;
       conf->accPtr = RNIL;
