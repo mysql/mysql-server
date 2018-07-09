@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -382,6 +382,12 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/include)
 
 # Add bundled or system zlib.
 MYSQL_CHECK_ZLIB_WITH_COMPRESS()
+IF(BUILD_BUNDLED_ZLIB)
+  INCLUDE_DIRECTORIES(SYSTEM
+    ${CMAKE_CURRENT_SOURCE_DIR}/zlib
+    ${CMAKE_CURRENT_BINARY_DIR}/zlib
+    )
+ENDIF()
 # Optionally add bundled yassl/taocrypt or system openssl.
 MYSQL_CHECK_SSL()
 # Add readline or libedit.
