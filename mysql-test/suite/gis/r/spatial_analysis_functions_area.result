@@ -239,3 +239,27 @@ DROP TABLE gis_geometrycollection;
 # Assume SRID 10 is not defined.
 DO ST_AREA(x'0A000000010100000000000000000000000000000000000000');
 ERROR SR001: There's no spatial reference system with SRID 10.
+#
+# Bug#28301552 ASSERTION FAILED: STD::ISFINITE(*RESULT)
+#
+DO ST_Area(
+POLYGON(
+LINESTRING(
+POINT(4.271317e+307,-18656),
+POINT(-29177,-15475),
+POINT(8554,3430),
+POINT(4.271317e+307,-18656)
+)
+)
+);
+ERROR 22003: Result value is out of range in 'st_area'
+DO ST_Area(POLYGON(
+LINESTRING(
+POINT(3006,-15963),
+POINT(-17919,-15105),
+POINT(9.466488e+307,1.280303e+308),
+POINT(3006,-15963)
+)
+)
+);
+ERROR 22003: Result value is out of range in 'st_area'
