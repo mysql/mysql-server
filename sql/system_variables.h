@@ -421,6 +421,9 @@ struct System_status_var {
   /* Number of statements sent from the client. */
   ulonglong questions;
 
+  /// How many queries have been executed on a secondary storage engine.
+  ulonglong secondary_engine_execution_count;
+
   ulong com_other;
   ulong com_stat[(uint)SQLCOM_END];
 
@@ -431,9 +434,6 @@ struct System_status_var {
   */
   double last_query_cost;
   ulonglong last_query_partial_plans;
-
-  /// How many queries have been executed on a secondary storage engine.
-  ulonglong secondary_engine_execution_count;
 };
 
 /*
@@ -441,7 +441,7 @@ struct System_status_var {
   used as a global counter. It marks the end of a contiguous block of counters
   that can be iteratively totaled. See add_to_status().
 */
-#define LAST_STATUS_VAR questions
+#define LAST_STATUS_VAR secondary_engine_execution_count
 
 /*
   This must reference the FIRST ulonglong variable in system_status_var that is
