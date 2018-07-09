@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,15 +14,11 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
 
 MACRO (MYSQL_USE_BUNDLED_ZLIB)
-  SET(ZLIB_LIBRARY  zlib)
-  SET(ZLIB_INCLUDE_DIR  ${CMAKE_SOURCE_DIR}/zlib)
+  SET(BUILD_BUNDLED_ZLIB 1)
+  SET(ZLIB_LIBRARY zlib CACHE INTERNAL "Bundled zlib library")
   SET(ZLIB_FOUND  TRUE)
   SET(WITH_ZLIB "bundled" CACHE STRING "Use bundled zlib")
   ADD_SUBDIRECTORY(zlib)
-  GET_TARGET_PROPERTY(src zlib SOURCES)
-  FOREACH(file ${src})
-    SET(ZLIB_SOURCES ${ZLIB_SOURCES} ${CMAKE_SOURCE_DIR}/zlib/${file})
-  ENDFOREACH()
 ENDMACRO()
 
 # MYSQL_CHECK_ZLIB_WITH_COMPRESS
@@ -37,15 +33,10 @@ ENDMACRO()
 
 MACRO (MYSQL_CHECK_ZLIB_WITH_COMPRESS)
 
-  IF(CMAKE_SYSTEM_NAME STREQUAL "OS400" OR 
-     CMAKE_SYSTEM_NAME STREQUAL "AIX" OR
-     CMAKE_SYSTEM_NAME STREQUAL "Windows")
-    # Use bundled zlib on some platforms by default (system one is too
-    # old or not existent)
+    # For NDBCLUSTER: Use bundled zlib by default
     IF (NOT WITH_ZLIB)
       SET(WITH_ZLIB "bundled"  CACHE STRING "By default use bundled zlib on this platform")
     ENDIF()
-  ENDIF()
   
   IF(WITH_ZLIB STREQUAL "bundled")
     MYSQL_USE_BUNDLED_ZLIB()
