@@ -679,10 +679,10 @@ inline bool is_param_long_data_type(Item_param *param) {
   @note
     with_log is set when one of slow or general logs are open.
     Logging of prepared statements in all cases is performed
-    by means of conventional queries: if parameter
-    data was supplied from C API, each placeholder in the query is
-    replaced with its actual value; if we're logging a [Dynamic] SQL
-    prepared statement, parameter markers are replaced with variable names.
+    by means of regular queries: if parameter data was supplied from C API,
+    each placeholder in the query is replaced with its actual value;
+    if we're logging a [Dynamic] SQL prepared statement, parameter markers
+    are replaced with variable names.
     Example:
     @verbatim
      mysqld_stmt_prepare("UPDATE t1 SET a=a*1.25 WHERE a=?")
@@ -2323,7 +2323,7 @@ void Prepared_statement::cleanup_stmt() {
   DBUG_ENTER("Prepared_statement::cleanup_stmt");
   DBUG_PRINT("enter", ("stmt: %p", this));
 
-  cleanup_items(free_list);
+  cleanup_items(item_list());
   thd->cleanup_after_query();
   thd->rollback_item_tree_changes();
 
@@ -2379,7 +2379,7 @@ bool Prepared_statement::set_db(const LEX_CSTRING &db_arg) {
 
   @note
     Precondition:
-    The caller must ensure that thd->change_list and thd->free_list
+    The caller must ensure that thd->change_list and thd->item_list
     is empty: this function will not back them up but will free
     in the end of its execution.
 
@@ -2514,7 +2514,7 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length,
   error |= thd->is_error();
 
   /*
-   The only case where we should have items in the thd->free_list is
+   The only case where we should have items in the thd->item_list is
    after stmt->set_params_from_vars(), which may in some cases create
    Item_null objects.
   */
@@ -2734,11 +2734,11 @@ bool Prepared_statement::execute_loop(String *expanded_query,
 
 reexecute:
   /*
-    If the free_list is not empty, we'll wrongly free some externally
+    If the item_list is not empty, we'll wrongly free some externally
     allocated items when cleaning up after validation of the prepared
     statement.
   */
-  DBUG_ASSERT(thd->free_list == NULL);
+  DBUG_ASSERT(thd->item_list() == NULL);
 
   /*
     Install the metadata observer. If some metadata version is
@@ -2799,7 +2799,7 @@ bool Prepared_statement::execute_server_runnable(
   Item_change_list save_change_list;
   thd->change_list.move_elements_to(&save_change_list);
 
-  state = STMT_CONVENTIONAL_EXECUTION;
+  state = STMT_REGULAR_EXECUTION;
 
   if (!(lex = new (mem_root) st_lex_local)) return true;
 
@@ -3044,7 +3044,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor) {
   DBUG_ASSERT(thd->change_list.is_empty());
 
   /*
-   The only case where we should have items in the thd->free_list is
+   The only case where we should have items in the thd->m_item_list is
    after stmt->set_params_from_vars(), which may in some cases create
    Item_null objects.
   */

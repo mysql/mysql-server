@@ -598,14 +598,14 @@ class Value_generator {
   */
   uint32 m_backup_binlog_stmt_flags{0};
 
-  /* It's used to free the items created in parsing generated expression */
-  Item *item_free_list;
+  /// List of all items created when parsing and resolving generated expression
+  Item *item_list;
   /// Bitmap records base columns which a generated column depends on.
   MY_BITMAP base_columns_map;
 
   Value_generator()
-      : expr_item(0),
-        item_free_list(0),
+      : expr_item(nullptr),
+        item_list(nullptr),
         field_type(MYSQL_TYPE_LONG),
         stored_in_db(false),
         num_non_virtual_base_cols(0),

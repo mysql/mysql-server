@@ -233,29 +233,31 @@ typedef struct rpl_event_coordinates {
 #endif
 
 class Query_arena {
- public:
+ private:
   /*
-    List of items created in the parser for this query. Every item puts
-    itself to the list on creation (see Item::Item() for details))
+    List of items created for this query. Every item adds itself to the list
+    on creation (see Item::Item() for details)
   */
-  Item *free_list;
+  Item *m_item_list;
+
+ public:
   MEM_ROOT *mem_root;  // Pointer to current memroot
 #ifndef DBUG_OFF
   bool is_backup_arena; /* True if this arena is used for backup. */
   bool is_reprepared;
 #endif
   /*
-    The states relfects three diffrent life cycles for three
+    The states reflects three different life cycles for three
     different types of statements:
     Prepared statement: STMT_INITIALIZED -> STMT_PREPARED -> STMT_EXECUTED.
     Stored procedure:   STMT_INITIALIZED_FOR_SP -> STMT_EXECUTED.
-    Other statements:   STMT_CONVENTIONAL_EXECUTION never changes.
+    Other statements:   STMT_REGULAR_EXECUTION never changes.
   */
   enum enum_state {
     STMT_INITIALIZED = 0,
     STMT_INITIALIZED_FOR_SP = 1,
     STMT_PREPARED = 2,
-    STMT_CONVENTIONAL_EXECUTION = 3,
+    STMT_REGULAR_EXECUTION = 3,
     STMT_EXECUTED = 4,
     STMT_ERROR = -1
   };
@@ -276,7 +278,7 @@ class Query_arena {
   enum_state state;
 
   Query_arena(MEM_ROOT *mem_root_arg, enum enum_state state_arg)
-      : free_list(0), mem_root(mem_root_arg), state(state_arg) {
+      : m_item_list(nullptr), mem_root(mem_root_arg), state(state_arg) {
     INIT_ARENA_DBUG_INFO;
   }
   /*
@@ -287,6 +289,11 @@ class Query_arena {
 
   virtual ~Query_arena(){};
 
+  Item *item_list() const { return m_item_list; }
+  void reset_item_list() { m_item_list = nullptr; }
+  void set_item_list(Item *item) { m_item_list = item; }
+  void add_item(Item *item);
+  void free_items();
   inline bool is_stmt_prepare() const { return state == STMT_INITIALIZED; }
   inline bool is_stmt_prepare_or_first_sp_execute() const {
     return (int)state < (int)STMT_PREPARED;
@@ -294,9 +301,8 @@ class Query_arena {
   inline bool is_stmt_prepare_or_first_stmt_execute() const {
     return (int)state <= (int)STMT_PREPARED;
   }
-  inline bool is_conventional() const {
-    return state == STMT_CONVENTIONAL_EXECUTION;
-  }
+  /// @returns true if a regular statement, ie not prepared and not stored proc
+  bool is_regular() const { return state == STMT_REGULAR_EXECUTION; }
 
   inline void *alloc(size_t size) { return alloc_root(mem_root, size); }
   inline void *mem_calloc(size_t size) {
@@ -330,7 +336,6 @@ class Query_arena {
   */
   void set_query_arena(const Query_arena *set);
 
-  void free_items();
   /* Close the active state associated with execution of this statement */
   virtual void cleanup_stmt();
 };
@@ -763,9 +768,9 @@ class THD : public MDL_context_owner,
     return Query_arena::is_stmt_prepare_or_first_stmt_execute();
   }
 
-  inline bool is_conventional() const {
+  inline bool is_regular() const {
     DBUG_ASSERT(0);
-    return Query_arena::is_conventional();
+    return Query_arena::is_regular();
   }
 
  public:
@@ -4015,7 +4020,7 @@ class Prepared_stmt_arena_holder {
   */
   Prepared_stmt_arena_holder(THD *thd, bool activate_now_if_needed = true)
       : m_thd(thd), m_arena(NULL) {
-    if (activate_now_if_needed && !m_thd->stmt_arena->is_conventional() &&
+    if (activate_now_if_needed && !m_thd->stmt_arena->is_regular() &&
         m_thd->mem_root != m_thd->stmt_arena->mem_root) {
       m_thd->set_n_backup_active_arena(m_thd->stmt_arena, &m_backup);
       m_arena = m_thd->stmt_arena;

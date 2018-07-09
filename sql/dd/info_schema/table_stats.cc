@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -645,8 +645,7 @@ ulonglong Table_statistics::read_stat_by_open_table(
   Open_tables_backup open_tables_state_backup;
   thd->reset_n_backup_open_tables_state(&open_tables_state_backup, 0);
 
-  Query_arena i_s_arena(thd->mem_root,
-                        Query_arena::STMT_CONVENTIONAL_EXECUTION);
+  Query_arena i_s_arena(thd->mem_root, Query_arena::STMT_REGULAR_EXECUTION);
   Query_arena *old_arena = thd->stmt_arena;
   thd->stmt_arena = &i_s_arena;
   Query_arena backup_arena;
@@ -856,7 +855,7 @@ end:
   lex_end(thd->lex);
 
   // Free items, before restoring backup_arena below.
-  DBUG_ASSERT(i_s_arena.free_list == NULL);
+  DBUG_ASSERT(i_s_arena.item_list() == NULL);
   thd->free_items();
 
   /*

@@ -2139,7 +2139,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
 
     /*
       We have to set thd->stmt_arena before executing the instruction
-      to store in the instruction free_list all new items, created
+      to store in the instruction item list all new items, created
       during the first execution (for example expanding of '*' or the
       items made during other permanent subquery transformations).
     */
@@ -2183,7 +2183,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
 
     thd->m_digest = parent_digest;
 
-    if (i->free_list) cleanup_items(i->free_list);
+    cleanup_items(i->item_list());
 
     /*
       If we've set thd->user_var_events_alloc to mem_root of this SP
@@ -3400,13 +3400,13 @@ bool sp_head::set_security_ctx(THD *thd, Security_context **save_ctx) {
 
 void sp_parser_data::start_parsing_sp_body(THD *thd, sp_head *sp) {
   m_saved_memroot = thd->mem_root;
-  m_saved_free_list = thd->free_list;
+  m_saved_item_list = thd->item_list();
 
   thd->mem_root = sp->get_persistent_mem_root();
   thd->mem_root->set_max_capacity(m_saved_memroot->get_max_capacity());
   thd->mem_root->set_error_for_capacity_exceeded(
       m_saved_memroot->get_error_for_capacity_exceeded());
-  thd->free_list = NULL;
+  thd->reset_item_list();
 }
 
 bool sp_parser_data::add_backpatch_entry(sp_branch_instr *i, sp_label *label) {
@@ -3446,17 +3446,17 @@ void sp_parser_data::do_cont_backpatch(uint dest) {
 
 void sp_parser_data::process_new_sp_instr(THD *thd, sp_instr *i) {
   /*
-    thd->free_list should be cleaned here because it's implicitly expected
+    thd->m_item_list should be cleaned here because it's implicitly expected
     that that process_new_sp_instr() (called from sp_head::add_instr) is
     called as the last action after parsing the SP-instruction's SQL query.
 
-    Thus, at this point thd->free_list contains all Item-objects, created for
+    Thus, at this point THD's item list contains all Item-objects, created for
     this SP-instruction.
 
     Next SP-instruction should start its own free-list from the scratch.
   */
 
-  i->free_list = thd->free_list;
+  i->set_item_list(thd->item_list());
 
-  thd->free_list = NULL;
+  thd->reset_item_list();
 }

@@ -727,7 +727,7 @@ class Thd_parse_modifier {
  public:
   Thd_parse_modifier(THD *thd)
       : m_thd(thd),
-        m_arena(&m_mem_root, Query_arena::STMT_CONVENTIONAL_EXECUTION),
+        m_arena(&m_mem_root, Query_arena::STMT_REGULAR_EXECUTION),
         m_backed_up_lex(thd->lex),
         m_saved_parser_state(thd->m_parser_state),
         m_saved_digest(thd->m_digest) {

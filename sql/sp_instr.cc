@@ -177,7 +177,7 @@ class Cmp_splocal_locations
 
   @param thd        Current thread.
   @param instr      Instruction (we look for Item_splocal instances in
-                    instr->free_list)
+                    instr->item_list)
   @param query_str  Original query string
 
   @retval false on success.
@@ -191,7 +191,7 @@ static bool subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str) {
   Prealloced_array<Item_splocal *, 16> sp_vars_uses(PSI_NOT_INSTRUMENTED);
 
   /* Find all instances of Item_splocal used in this statement */
-  for (Item *item = instr->free_list; item; item = item->next) {
+  for (Item *item = instr->item_list(); item; item = item->next) {
     if (item->is_splocal()) {
       Item_splocal *item_spl = (Item_splocal *)item;
       if (item_spl->pos_in_query) sp_vars_uses.push_back(item_spl);
@@ -584,11 +584,11 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp) {
   if (parser_state.init(thd, sql_query.c_ptr(), sql_query.length()))
     return NULL;
 
-  // Switch THD::free_list. It's used to remember the newly created set of Items
-  // during parsing. We should clean those items after each execution.
+  // Switch THD's item list. It is used to remember the newly created set
+  // of Items during parsing. We should clean those items after each execution.
 
-  Item *execution_free_list = thd->free_list;
-  thd->free_list = NULL;
+  Item *execution_item_list = thd->item_list();
+  thd->reset_item_list();
 
   // Create a new LEX and intialize it.
 
@@ -648,7 +648,7 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp) {
 
     // Append newly created Items to the list of Items, owned by this
     // instruction.
-    free_list = thd->free_list;
+    set_item_list(thd->item_list());
   }
 
   // Restore THD::lex.
@@ -659,10 +659,10 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp) {
   LEX *expr_lex = thd->lex;
   thd->lex = lex_saved;
 
-  // Restore execution mem-root and THD::free_list.
+  // Restore execution mem-root and item list.
 
   thd->mem_root = execution_mem_root;
-  thd->free_list = execution_free_list;
+  thd->set_item_list(execution_item_list);
 
   // That's it.
 
@@ -1528,8 +1528,8 @@ bool sp_instr_copen::execute(THD *thd, uint *nextp) {
   sp_instr_cpush *push_instr = c->get_push_instr();
 
   // Switch Statement Arena to the sp_instr_cpush object. It contains the
-  // free_list of the query, so new items (if any) are stored in the right
-  // free_list, and we can cleanup after each open.
+  // item list of the query, so new items (if any) are stored in the right
+  // item list, and we can cleanup after each open.
 
   Query_arena *stmt_arena_saved = thd->stmt_arena;
   thd->stmt_arena = push_instr;
@@ -1543,7 +1543,7 @@ bool sp_instr_copen::execute(THD *thd, uint *nextp) {
 
   // Cleanup the query's items.
 
-  if (push_instr->free_list) cleanup_items(push_instr->free_list);
+  cleanup_items(push_instr->item_list());
 
   // Restore Statement Arena.
 

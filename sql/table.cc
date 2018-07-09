@@ -2556,8 +2556,7 @@ bool unpack_value_generator(THD *thd, TABLE *table, Field *field,
   */
   Query_arena *backup_stmt_arena_ptr = thd->stmt_arena;
   Query_arena backup_arena;
-  Query_arena gcol_arena(&table->mem_root,
-                         Query_arena::STMT_CONVENTIONAL_EXECUTION);
+  Query_arena gcol_arena(&table->mem_root, Query_arena::STMT_REGULAR_EXECUTION);
   thd->set_n_backup_active_arena(&gcol_arena, &backup_arena);
   thd->stmt_arena = &gcol_arena;
   ulong save_old_privilege = thd->want_privilege;
@@ -2625,7 +2624,7 @@ bool unpack_value_generator(THD *thd, TABLE *table, Field *field,
   (*val_generator)->backup_stmt_unsafe_flags(new_lex.get_stmt_unsafe_flags());
   thd->stmt_arena = backup_stmt_arena_ptr;
   thd->restore_active_arena(&gcol_arena, &backup_arena);
-  (*val_generator)->item_free_list = gcol_arena.free_list;
+  (*val_generator)->item_list = gcol_arena.item_list();
   thd->want_privilege = save_old_privilege;
   thd->lex->expr_allows_subselect = save_allow_subselects;
 
@@ -2679,7 +2678,7 @@ bool unpack_partition_info(THD *thd, TABLE *outparam, TABLE_SHARE *share,
     set the memory root to be the memory root of the table since we
     call the parser and fix_fields which both can allocate memory for
     item objects. We keep the arena to ensure that we can release the
-    free_list when closing the table object.
+    item list when closing the table object.
     SEE Bug #21658
   */
 
@@ -2717,7 +2716,7 @@ bool unpack_partition_info(THD *thd, TABLE *outparam, TABLE_SHARE *share,
     if (work_part_info_used)
       tmp = fix_partition_func(thd, outparam, is_create_table);
   }
-  outparam->part_info->item_free_list = part_func_arena.free_list;
+  outparam->part_info->item_list = part_func_arena.item_list();
   // TODO: Compare with share->part_info for validation of code!
   DBUG_ASSERT(!share->m_part_info || share->m_part_info->column_list ==
                                          outparam->part_info->column_list);
@@ -3141,14 +3140,14 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
 err:
   if (!error_reported) open_table_error(thd, share, error, my_errno());
   destroy(outparam->file);
-  if (outparam->part_info) free_items(outparam->part_info->item_free_list);
+  if (outparam->part_info) free_items(outparam->part_info->item_list);
   if (outparam->vfield) {
     for (Field **vfield = outparam->vfield; *vfield; vfield++)
-      free_items((*vfield)->gcol_info->item_free_list);
+      free_items((*vfield)->gcol_info->item_list);
   }
   if (outparam->gen_def_fields_ptr) {
     for (Field **gen_def = outparam->gen_def_fields_ptr; *gen_def; gen_def++)
-      free_items((*gen_def)->m_default_val_expr->item_free_list);
+      free_items((*gen_def)->m_default_val_expr->item_list);
   }
   outparam->file = 0;  // For easier error checking
   outparam->db_stat = 0;
@@ -3174,9 +3173,9 @@ int closefrm(TABLE *table, bool free_share) {
   table->alias = 0;
   if (table->field) {
     for (Field **ptr = table->field; *ptr; ptr++) {
-      if ((*ptr)->gcol_info) free_items((*ptr)->gcol_info->item_free_list);
+      if ((*ptr)->gcol_info) free_items((*ptr)->gcol_info->item_list);
       if ((*ptr)->m_default_val_expr)
-        free_items((*ptr)->m_default_val_expr->item_free_list);
+        free_items((*ptr)->m_default_val_expr->item_list);
       destroy(*ptr);
     }
     table->field = 0;
@@ -3185,9 +3184,9 @@ int closefrm(TABLE *table, bool free_share) {
   table->file = 0; /* For easier errorchecking */
   if (table->part_info) {
     /* Allocated through table->mem_root, freed below */
-    free_items(table->part_info->item_free_list);
-    table->part_info->item_free_list = 0;
-    table->part_info = 0;
+    free_items(table->part_info->item_list);
+    table->part_info->item_list = nullptr;
+    table->part_info = nullptr;
   }
   if (free_share) {
     if (table->s->tmp_table == NO_TMP_TABLE)
@@ -4121,7 +4120,7 @@ bool TABLE::refix_inner_value_generator_items(THD *thd, Value_generator *g_expr,
     */
     Query_arena *backup_stmt_arena_ptr = thd->stmt_arena;
     Query_arena backup_arena;
-    Query_arena gcol_arena(&mem_root, Query_arena::STMT_CONVENTIONAL_EXECUTION);
+    Query_arena gcol_arena(&mem_root, Query_arena::STMT_REGULAR_EXECUTION);
     if (!g_expr->permanent_changes_completed &&
         !thd->lex->is_ps_or_view_context_analysis()) {
       thd->set_n_backup_active_arena(&gcol_arena, &backup_arena);
@@ -4146,9 +4145,9 @@ bool TABLE::refix_inner_value_generator_items(THD *thd, Value_generator *g_expr,
       thd->restore_active_arena(&gcol_arena, &backup_arena);
 
       // Append the new items to the original item_free_list.
-      Item *item = g_expr->item_free_list;
+      Item *item = g_expr->item_list;
       while (item->next) item = item->next;
-      item->next = gcol_arena.free_list;
+      item->next = gcol_arena.item_list();
 
       // Permanent changes to the item_tree are completed.
       g_expr->permanent_changes_completed = true;
@@ -4167,12 +4166,12 @@ bool TABLE::refix_inner_value_generator_items(THD *thd, Value_generator *g_expr,
 void TABLE::cleanup_value_generator_items() {
   if (gen_def_fields_ptr)
     for (Field **vfield_ptr = gen_def_fields_ptr; *vfield_ptr; vfield_ptr++)
-      cleanup_items((*vfield_ptr)->m_default_val_expr->item_free_list);
+      cleanup_items((*vfield_ptr)->m_default_val_expr->item_list);
 
   if (!has_gcol()) return;
 
   for (Field **vfield_ptr = vfield; *vfield_ptr; vfield_ptr++)
-    cleanup_items((*vfield_ptr)->gcol_info->item_free_list);
+    cleanup_items((*vfield_ptr)->gcol_info->item_list);
 }
 
 /**

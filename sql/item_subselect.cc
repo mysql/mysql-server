@@ -391,7 +391,7 @@ bool Item_in_subselect::finalize_exists_transform(SELECT_LEX *select_lex) {
     avoid this constraint, we change the SELECT list only if this is not a
     prepared statement.
   */
-  if (unit->thd->stmt_arena->is_conventional())  // not prepared stmt
+  if (unit->thd->stmt_arena->is_regular())  // not prepared stmt
   {
     uint cnt = select_lex->item_list.elements;
     select_lex->item_list.empty();

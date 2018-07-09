@@ -133,10 +133,8 @@ Item::Item()
   contextualized = true;
 #endif  // DBUG_OFF
 
-  // Put item in free list so that we can free all items at end
-  THD *const thd = current_thd;
-  next = thd->free_list;
-  thd->free_list = this;
+  // Put item into global list so that we can free all items at end
+  current_thd->add_item(this);
 }
 
 Item::Item(THD *thd, Item *item)
@@ -166,8 +164,8 @@ Item::Item(THD *thd, Item *item)
   contextualized = true;
 #endif  // DBUG_OFF
 
-  next = thd->free_list;  // Put in free list
-  thd->free_list = this;
+  // Add item to global list
+  thd->add_item(this);
 }
 
 Item::Item(const POS &)
@@ -580,9 +578,8 @@ bool Item::itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
   if (super::contextualize(pc)) return true;
 
-  /* Put item in free list so that we can free all items at end */
-  next = pc->thd->free_list;
-  pc->thd->free_list = this;
+  // Add item to global list
+  pc->thd->add_item(this);
   /*
     Item constructor can be called during execution other then SQL_COM
     command => we should check pc->select on zero

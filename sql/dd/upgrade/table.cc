@@ -581,7 +581,7 @@ class Table_upgrade_guard {
   handler *m_handler;
   bool m_is_table_open;
   LEX *m_lex_saved;
-  Item *m_free_list_saved;
+  Item *m_item_list_saved;
 
  public:
   void update_handler(handler *handler) { m_handler = handler; }
@@ -603,8 +603,8 @@ class Table_upgrade_guard {
       objects stored in THD::free_list during table upgrade are deallocated in
       the destructor of the class.
     */
-    m_free_list_saved = thd->free_list;
-    m_thd->free_list = nullptr;
+    m_item_list_saved = thd->item_list();
+    m_thd->reset_item_list();
   }
 
   ~Table_upgrade_guard() {
@@ -612,12 +612,11 @@ class Table_upgrade_guard {
     m_thd->work_part_info = 0;
 
     // Free item list for partitions
-    if (m_table->s->m_part_info)
-      free_items(m_table->s->m_part_info->item_free_list);
+    if (m_table->s->m_part_info) free_items(m_table->s->m_part_info->item_list);
 
     // Free items allocated during table upgrade and restore old free list.
     m_thd->free_items();
-    m_thd->free_list = m_free_list_saved;
+    m_thd->set_item_list(m_item_list_saved);
 
     // Restore thread lex
     if (m_lex_saved != nullptr) {
@@ -633,7 +632,7 @@ class Table_upgrade_guard {
     */
     if (m_table->s->field) {
       for (Field **ptr = m_table->s->field; *ptr; ptr++) {
-        if ((*ptr)->gcol_info) free_items((*ptr)->gcol_info->item_free_list);
+        if ((*ptr)->gcol_info) free_items((*ptr)->gcol_info->item_list);
       }
     }
 
@@ -1044,7 +1043,7 @@ static bool fill_partition_info_for_upgrade(THD *thd, TABLE_SHARE *share,
       For this scenario, free_items() will be called by destructor of
       Table_upgrade_guard.
     */
-    share->m_part_info->item_free_list = table->part_info->item_free_list;
+    share->m_part_info->item_list = table->part_info->item_list;
   }
   return false;
 }

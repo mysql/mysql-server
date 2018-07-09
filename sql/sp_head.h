@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -163,14 +163,14 @@ class sp_parser_data {
         m_body_start_ptr(NULL),
         m_cont_level(0),
         m_saved_memroot(NULL),
-        m_saved_free_list(NULL) {}
+        m_saved_item_list(NULL) {}
 
   ///////////////////////////////////////////////////////////////////////
 
   /**
     Start parsing a stored program body statement.
 
-    This method switches THD::mem_root and THD::free_list in order to parse
+    This method switches THD::mem_root and THD::m_item_list in order to parse
     SP-body. The current values are kept to be restored after the body
     statement is parsed.
 
@@ -182,7 +182,7 @@ class sp_parser_data {
   /**
     Finish parsing of a stored program body statement.
 
-    This method switches THD::mem_root and THD::free_list back when SP-body
+    This method switches THD::mem_root and THD::m_item_list back when SP-body
     parsing is completed.
 
     @param thd  Thread context.
@@ -203,10 +203,10 @@ class sp_parser_data {
 
     thd->free_items();
     thd->mem_root = m_saved_memroot;
-    thd->free_list = m_saved_free_list;
+    thd->set_item_list(m_saved_item_list);
 
     m_saved_memroot = NULL;
-    m_saved_free_list = NULL;
+    m_saved_item_list = NULL;
   }
 
   /**
@@ -389,8 +389,8 @@ class sp_parser_data {
   /// THD's memroot.
   MEM_ROOT *m_saved_memroot;
 
-  /// THD's free-list.
-  Item *m_saved_free_list;
+  /// THD's item list.
+  Item *m_saved_item_list;
 };
 
 ///////////////////////////////////////////////////////////////////////////

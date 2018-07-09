@@ -94,7 +94,7 @@ class Stack_allocated_item : public Item_class {
   Stack_allocated_item(int value) : Item_class(value) {
     // Undo what Item::Item() does.
     THD *thd = current_thd;
-    thd->free_list = this->next;
+    thd->set_item_list(this->next);
     this->next = NULL;
   }
 };

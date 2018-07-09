@@ -3337,7 +3337,7 @@ static bool fill_schema_table_by_open(
     ST_SCHEMA_TABLE *schema_table, LEX_STRING *orig_db_name,
     LEX_STRING *orig_table_name, Open_tables_backup *open_tables_state_backup,
     bool can_deadlock) {
-  Query_arena i_s_arena(mem_root, Query_arena::STMT_CONVENTIONAL_EXECUTION),
+  Query_arena i_s_arena(mem_root, Query_arena::STMT_REGULAR_EXECUTION),
       backup_arena, *old_arena;
   LEX *old_lex = thd->lex, temp_lex, *lex;
   LEX_CSTRING db_name_lex_cstr, table_name_lex_cstr;
@@ -3466,7 +3466,7 @@ end:
   lex_end(thd->lex);
 
   // Free items, before restoring backup_arena below.
-  DBUG_ASSERT(i_s_arena.free_list == NULL);
+  DBUG_ASSERT(i_s_arena.item_list() == NULL);
   thd->free_items();
 
   /*

@@ -345,7 +345,7 @@ void Open_tables_state::reset_open_tables_state() {
 }
 
 THD::THD(bool enable_plugins)
-    : Query_arena(&main_mem_root, STMT_CONVENTIONAL_EXECUTION),
+    : Query_arena(&main_mem_root, STMT_REGULAR_EXECUTION),
       mark_used_columns(MARK_COLUMNS_READ),
       want_privilege(0),
       main_lex(new LEX),
@@ -1671,13 +1671,18 @@ void THD::rollback_item_tree_changes() {
   DBUG_VOID_RETURN;
 }
 
+void Query_arena::add_item(Item *item) {
+  item->next = m_item_list;
+  m_item_list = item;
+}
+
 void Query_arena::free_items() {
   Item *next;
   DBUG_ENTER("Query_arena::free_items");
   /* This works because items are allocated with sql_alloc() */
-  for (; free_list; free_list = next) {
-    next = free_list->next;
-    free_list->delete_self();
+  for (; m_item_list; m_item_list = next) {
+    next = m_item_list->next;
+    m_item_list->delete_self();
   }
   /* Postcondition: free_list is 0 */
   DBUG_VOID_RETURN;
@@ -1685,7 +1690,7 @@ void Query_arena::free_items() {
 
 void Query_arena::set_query_arena(const Query_arena *set) {
   mem_root = set->mem_root;
-  free_list = set->free_list;
+  set_item_list(set->item_list());
   state = set->state;
 }
 
@@ -1700,7 +1705,7 @@ void THD::end_statement() {
   //@todo Check lifetime of Query_result objects.
   // delete lex->result;
   lex->result = NULL;  // Prepare for next statement
-  /* Note that free_list is freed in cleanup_after_query() */
+  /* Note that item list is freed in cleanup_after_query() */
 
   /*
     Don't free mem_root, as mem_root is freed in the end of dispatch_command
@@ -2736,7 +2741,7 @@ THD::Transaction_state::~Transaction_state() { delete m_query_tables_list; }
 
 void THD::change_item_tree(Item **place, Item *new_value) {
   /* TODO: check for OOM condition here */
-  if (!stmt_arena->is_conventional()) {
+  if (!stmt_arena->is_regular()) {
     DBUG_PRINT("info", ("change_item_tree place %p old_value %p new_value %p",
                         place, *place, new_value));
     if (new_value)

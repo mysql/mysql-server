@@ -4129,7 +4129,7 @@ void SELECT_LEX::fix_prepare_information_for_order(
 void SELECT_LEX::fix_prepare_information(THD *thd) {
   if (!first_execution) return;
   first_execution = false;
-  if (thd->stmt_arena->is_conventional()) return;
+  if (thd->stmt_arena->is_regular()) return;
   if (group_list.first)
     fix_prepare_information_for_order(thd, &group_list, &group_list_ptrs);
   if (order_list.first)
@@ -4286,7 +4286,7 @@ static bool get_optimizable_join_conditions(THD *thd,
         get_optimizable_join_conditions(thd, nested_join->join_list))
       return true;
     Item *const jc = table->join_cond();
-    if (jc && !thd->stmt_arena->is_conventional()) {
+    if (jc && !thd->stmt_arena->is_regular()) {
       table->set_join_cond_optim(jc->copy_andor_structure(thd));
       if (!table->join_cond_optim()) return true;
     } else
@@ -4319,13 +4319,13 @@ bool SELECT_LEX::get_optimizable_conditions(THD *thd, Item **new_where,
     So if we are here, this should hold:
   */
   DBUG_ASSERT(!(join && join->is_optimized()));
-  if (m_where_cond && !thd->stmt_arena->is_conventional()) {
+  if (m_where_cond && !thd->stmt_arena->is_regular()) {
     *new_where = m_where_cond->copy_andor_structure(thd);
     if (!*new_where) return true;
   } else
     *new_where = m_where_cond;
   if (new_having) {
-    if (m_having_cond && !thd->stmt_arena->is_conventional()) {
+    if (m_having_cond && !thd->stmt_arena->is_regular()) {
       *new_having = m_having_cond->copy_andor_structure(thd);
       if (!*new_having) return true;
     } else

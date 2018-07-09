@@ -275,7 +275,7 @@ class partition_info {
   Item *part_expr;
   Item *subpart_expr;
 
-  Item *item_free_list;
+  Item *item_list;
 
   /*
     Bitmaps of partitions used by the current query.
@@ -297,7 +297,7 @@ class partition_info {
       locked, so that it can unlock them later). In case of LOCK TABLES it will
       lock all partitions, and keep them locked while lock_partitions can
       change for each statement under LOCK TABLES.
-    * Freed at the same time item_free_list is freed.
+    * Freed at the same time item_list is freed.
   */
   MY_BITMAP read_partitions;
   MY_BITMAP lock_partitions;
@@ -411,7 +411,7 @@ class partition_info {
         restore_subpart_field_ptrs(NULL),
         part_expr(NULL),
         subpart_expr(NULL),
-        item_free_list(NULL),
+        item_list(NULL),
         bitmaps_are_initialized(false),
         list_array(NULL),
         err_value(0),
