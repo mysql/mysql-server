@@ -3346,8 +3346,10 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   }
 #ifdef ERROR_INSERT
   if (ErrorSignalReceive == DBTC)
+  {
     DEBUG("Max segments to seize : " 
           << ErrorMaxSegmentsToSeize);
+  }
 #endif
 
   /* Key and attribute lengths are passed in the header for 
