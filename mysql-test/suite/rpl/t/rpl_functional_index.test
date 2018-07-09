@@ -77,8 +77,9 @@ CREATE TABLE t1 (col1 INT, UNIQUE INDEX idx ((col1 + col1)));
 INSERT INTO t1 (col1) VALUES (1);
 
 --connection master
-call mtr.add_suppression("Slave SQL for channel '': Could not execute Write_rows event on table test.t1");
-call mtr.add_suppression("Slave SQL for channel '': Error 'Duplicate entry '2' for key 'idx'' on query");
+call mtr.add_suppression("Slave SQL for channel '': .*Could not execute Write_rows event on table test.t1");
+call mtr.add_suppression("Slave SQL for channel '': .*Error 'Duplicate entry '2'");
+call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 INSERT INTO t1 (col1) VALUES (1), (2);
 
 --connection slave

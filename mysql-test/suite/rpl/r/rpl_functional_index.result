@@ -94,8 +94,9 @@ SET @@session.binlog_row_image= @start_row_image_value;
 CREATE TABLE t1 (col1 INT, UNIQUE INDEX idx ((col1 + col1)));
 include/sync_slave_sql_with_master.inc
 INSERT INTO t1 (col1) VALUES (1);
-call mtr.add_suppression("Slave SQL for channel '': Could not execute Write_rows event on table test.t1");
-call mtr.add_suppression("Slave SQL for channel '': Error 'Duplicate entry '2' for key 'idx'' on query");
+call mtr.add_suppression("Slave SQL for channel '': .*Could not execute Write_rows event on table test.t1");
+call mtr.add_suppression("Slave SQL for channel '': .*Error 'Duplicate entry '2'");
+call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 INSERT INTO t1 (col1) VALUES (1), (2);
 include/wait_for_slave_sql_error.inc [errno=1062]
 DELETE FROM t1;
