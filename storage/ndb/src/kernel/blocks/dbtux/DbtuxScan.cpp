@@ -21,6 +21,77 @@
 
 #define JAM_FILE_ID 371
 
+/**
+ * To speed up query processing we calculate a number of variables
+ * as part of our context while processing scan operations.
+ *
+ * This method is called every time we come back from a real-time
+ * break from LQH to setup all needed context to scan a range in
+ * TUX.
+ *
+ * These variables are:
+ * --------------------
+ * c_ctx.scanPtr
+ *   This is the pointer and i-value of the scan record
+ *
+ * c_ctx.fragPtr
+ *   This is the pointer and i-value of the table fragment being
+ *   scanned, this is the fragment record in TUX.
+ *
+ * c_ctx.indexPtr
+ *   This is the pointer and i-value of the index fragment record
+ *   currently being scanned. There can be multiple indexes on one
+ *   fragment.
+ *
+ * The following variables are setup using the prepare_scan_bounds method:
+ * .......................................................................
+ * c_ctx.searchScanDataArray
+ *   This is a KeyDataArray object (NdbPack::DataArray) representing
+ *   the right part of the boundary of the range scan.
+ *
+ * c_ctx.searchScanBoundArray
+ *   This is the KeyBoundArray object (NdbPack::BoundArray) also
+ *   representing the right part of the boundary of the range scan.
+ *   It contains the above KeyDataArray and also the scan direction
+ *   (whether we are scanning ascending or descending).
+ * The above two are only set if the boundary has at least one
+ * column that is bounded. A full table scan with order would not
+ * have any boundary and those would not be set since
+ * c_ctx.scanBoundCnt is set to 0.
+ *
+ * c_ctx.keyAttrs
+ *   This is the pointer to the Attrinfo array used to read the key
+ *   values from TUP. It is calculated from information in the
+ *   index fragment record.
+ * c_ctx.descending
+ *   This represents information about ascending or descending scan
+ *   derived from the scan object.
+ * c_ctx.scanBoundCnt
+ *   This represents the number of columns involved in the boundary
+ *   condition the scan uses.
+ *
+ * The following variables are setup through the prepare_all_tup_ptrs method:
+ * ..........................................................................
+ * c_ctx.tupIndexFragPtr
+ *   This is a pointer that points to the index fragment record for the index
+ *   scanned within TUP. These TUP pointers are represented as Uint32* pointers
+ *   in TUX to avoid having to include Dbtup.hpp in TUX.
+ * c_ctx.tupIndexTablePtr
+ *   This is a pointer that points to the index table record within TUP.
+ * c_ctx.tupRealFragPtr
+ *   This is a pointer that points to the fragment record in TUP of the
+ *   table fragment being scanned.
+ * c_ctx.tupRealTablePtr
+ *   This is a pointer that points to the table record in TUP of the table
+ *   being scanned.
+ * c_ctx.tuxFixHeaderSize
+ *   This variable contains the header size of the tuples used for index
+ *   nodes. These index nodes are stored in special index tables in TUP.
+ * c_ctx.attrDataOffset
+ *   This variable contains the offset within the data part of the index
+ *   node where the actual node starts.
+ */
+
 void
 Dbtux::prepare_scan_ctx(Uint32 scanPtrI)
 {
@@ -41,6 +112,22 @@ Dbtux::prepare_scan_ctx(Uint32 scanPtrI)
   prepare_all_tup_ptrs(c_ctx);
 }
 
+/**
+ * We are preparing to call scanNext to move a scan forward
+ * since the scan stopped on a row that is now being deleted.
+ * At this point we have already called prepare_build_ctx.
+ * Thus we need only setup the
+ * c_ctx.scanPtr and the variables setup in the method
+ * prepare_scan_bounds. Even the c_ctx.keyAttrs isn't
+ * necessary (setup in prepare_scan_bounds), it is kept to
+ * avoid having to call an extra method in the more
+ * common path coming from prepare_scan_ctx.
+ *
+ * We cannot call this method when we are performing a
+ * multi-threaded index build operation. This can only
+ * happen during a restart and during a restart a node
+ * cannot execute any scan operation.
+ */
 void
 Dbtux::prepare_move_scan_ctx(ScanOpPtr scanPtr)
 {
@@ -49,6 +136,13 @@ Dbtux::prepare_move_scan_ctx(ScanOpPtr scanPtr)
   prepare_scan_bounds(scanPtr.p, indexPtrP);
 }
 
+/**
+ * This method is called either from building of an index
+ * or when updating an index from execTUX_MAINT_REQ. It sets
+ * up the variables needed index reorganisations. There is
+ * no scan boundary in this case, there is only a key boundary,
+ * but this is setup the caller of this method.
+ */
 void
 Dbtux::prepare_build_ctx(TuxCtx& ctx, FragPtr fragPtr)
 {
@@ -65,6 +159,18 @@ Dbtux::prepare_build_ctx(TuxCtx& ctx, FragPtr fragPtr)
   prepare_all_tup_ptrs(ctx);
 }
 
+/**
+ * This method is called from prepare_scan_ctx after a real-time break has
+ * happened and we need to setup the scan context again.
+ *
+ * It is also called at start of a fragment scan setup from
+ * execTUX_BOUND_INFO.
+ *
+ * We also need to call it before moving the scan ahead after a row was
+ * deleted while we were processing a scan on the tuple. This code calls
+ * scanNext and moves to the next row and thus we need to setup this part
+ * of the scan context there as well.
+ */
 void
 Dbtux::prepare_scan_bounds(const ScanOp *scanPtrP, const Index *indexPtrP)
 {

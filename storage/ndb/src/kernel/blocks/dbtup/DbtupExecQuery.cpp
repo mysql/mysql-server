@@ -680,6 +680,8 @@ Dbtup::disk_page_load_scan_callback(Signal* signal,
   CPU cache miss and so performing this as early as possible will
   decrease the time for cache misses later in the process. Tests using
   Sysbench indicates that this prefetch gains about 5% in performance.
+
+  See DblqhMain.cpp for more documentation of prepare_* methods.
 */
 
 void Dbtup::prepare_tab_pointers(Uint32 frag_id)

@@ -11308,6 +11308,95 @@ void Dblqh::setup_key_pointers(Uint32 tcIndex)
   c_tup->prepare_op_pointer(tcConnectptr.p->tupConnectrec);
 }
 
+/**
+ * After a real-time break it is necessary to setup the scan context
+ * to avoid having to recompute these variables every time we need them.
+ *
+ * At reception of SCAN_FRAGREQ the scan context is setup bit by bit
+ * rather than in one method since we don't have access to all variables
+ * at start of the SCAN_FRAGREQ.
+ *
+ * The following variables are computed:
+ *
+ * scanptr
+ *   This is the pointer and i-value stored in LQH block object for the scan
+ *   record.
+ * fragptr
+ *   This is pointer and i-value stored in LQH block object for the index
+ *   fragment being scanned.
+ * prim_tab_fragptr
+ *   This is pointer and i-value stored in LQH block object for the table
+ *   fragment being scanned.
+ * m_tc_connect_ptr
+ *   This is the pointer and i-value of the TC connect record used by the scan
+ *   record. There is always one TC connect record attached to each active scan
+ *   record.
+ *
+ * TUP variables setup by prepare_op_pointer:
+ * ..........................................
+ *
+ * prepare_op_pointer
+ *   The pointer and i-value of the operation record that is connected to
+ *   TC connect record in LQH.
+ *
+ * TUP variables setup by prepare_tab_pointers:
+ * ............................................
+ *
+ * prepare_fragptr
+ *   The pointer and i-value of the table fragment record used by the scan.
+ * prepare_tabptr
+ *   The pointer and i-value of the table record used by the scan.
+ *
+ * TUP variable setup by copyAttrinfo:
+ * ...................................
+ * The Attrinfo that contains the scan stored procedure is an Attrinfo program.
+ * It is stored in signal segments while being executed. When TUP executes the
+ * scan the Attrinfo program must be moved to a linear array. This linear array
+ * is the cinBuffer variable in TUP. Using a linear array simplifies the code in
+ * TUP greatly. Avoiding to copy this for each row we scan saves a lot of
+ * computations.
+ *
+ * The method prepare_scan_ctx calls a method in ACC, TUP or TUX. This method sets
+ * up the scan context for the block where the scan is performed. ACC is used for
+ * full table scans. TUP is used for LCP scans and Node Restart scans. TUP can also
+ * be called for full table scans from the NDB API (but not from SQL). TUX is used
+ * for all range scans and represents the majority of the scans performed.
+ * These methods describe what context they setup.
+ * TUX scan context setup is described in DbtuxScan.cpp.
+ *
+ * Additional TUP variables to setup before calling execTUPKEYREQ
+ * --------------------------------------------------------------
+ * execTUPKEYREQ is used to read, update, delete, insert and read for scan rows
+ * in TUP.
+ * Before we can call this method we must also setup a few additional variables:
+ *
+ * prepare_pageptr
+ *   This is the pointer and i-value of the page where the fixed part of the row
+ *   resides.
+ * prepare_tuple_ptr
+ *   This is a pointer to the start of the tuple in the fixed part of the row.
+ * prepare_page_no
+ *   This is the physical page number of the fixed size page of the row.
+ *
+ * These are setup differently dependent on from where we come:
+ * prepareTUPKEYREQ
+ * ................
+ *   This method is called after a real-time break for key operations. It also sets
+ *   up prepare_tabptr and prepare_fragptr.
+ * prepare_scanTUPKEYREQ
+ * .....................
+ *   This method is used when preparing to call execTUPKEYREQ from scans in TUP and
+ *   ACC. This method gets a page id that is a logical page id since TUP has the
+ *   logical page id since it scans in row id order and ACC stores the logical page
+ *   id of the row. TUX stores the physical page id of the row instead to speed up
+ *   things since it only requires the physical page id when reading the row.
+ * prepare_scan_tux_TUPKEYREQ
+ * ..........................
+ *   Used when preparing to call execTUPKEYREQ from TUX scans.
+ *
+ * All these methods also try to prefetch the fixed part of the row to avoid cache
+ * miss waits.
+ */
 void Dblqh::setup_scan_pointers_from_tc_con(TcConnectionrecPtr tcConnectptr)
 {
   /**
