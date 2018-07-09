@@ -6298,6 +6298,7 @@ static int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited) {
 
   if (n == 0 && rli->mts_recovery_group_cnt == 0) {
     rli->workers.clear();
+    rli->clear_processing_trx();
     goto end;
   }
 
