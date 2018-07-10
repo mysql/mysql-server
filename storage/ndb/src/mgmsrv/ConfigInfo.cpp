@@ -638,7 +638,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     0,
     ConfigInfo::CI_INT,
-    "0",
+    "1",
     "0",
     "1" },
 
