@@ -16,12 +16,6 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 include/rpl_default_connections.inc
 ######## INITIALIZE ########
-call mtr.add_suppression("Changed limits: max_open_files:*");
-CALL mtr.add_suppression("Changed limits: table_open_cache: *");
-call mtr.add_suppression("Changed limits: max_open_files:*");
-CALL mtr.add_suppression("Changed limits: table_open_cache: *");
-call mtr.add_suppression("Changed limits: max_open_files:*");
-CALL mtr.add_suppression("Changed limits: table_open_cache: *");
 include/rpl_for_each_server_stmt.inc [SET @@SESSION.BINLOG_ROW_IMAGE = MINIMAL;
 SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS = PARTIAL_JSON;
 SET @@GLOBAL.BINLOG_ROW_IMAGE = MINIMAL;
