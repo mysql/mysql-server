@@ -20,8 +20,8 @@
 #include "sql/gis/area.h"
 #include "sql/gis/area_functor.h"
 
-#include <math.h>              // isfinite
 #include <boost/geometry.hpp>  // boost::geometry
+#include <cmath>               // isfinite
 
 #include "my_dbug.h"                                // DBUG_ASSERT
 #include "my_inttypes.h"                            // MYF
@@ -85,7 +85,7 @@ bool area(const dd::Spatial_reference_system *srs, const Geometry *g,
     else
       *result = Area()(*g);
 
-    if (!isfinite(*result)) {
+    if (!std::isfinite(*result)) {
       my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "Result", func_name);
       return true;
     }
