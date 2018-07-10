@@ -171,12 +171,12 @@ attr2 INT,
 attr3 VARCHAR(10)
 ) ENGINE=ndbcluster;
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	pk1	A	0	NULL	NULL		BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	pk1	A	0	NULL	NULL		BTREE			YES	NULL
 INSERT INTO t1 VALUES (9410,9412, NULL, '9412'), (9411,9413, 17, '9413');
 SHOW INDEX FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
-t1	0	PRIMARY	1	pk1	A	0	NULL	NULL		BTREE			YES
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	pk1	A	0	NULL	NULL		BTREE			YES	NULL
 SELECT pk1 FROM t1 ORDER BY pk1;
 pk1
 9410
