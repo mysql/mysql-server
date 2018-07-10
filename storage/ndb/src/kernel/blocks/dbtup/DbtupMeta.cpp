@@ -996,7 +996,7 @@ void Dbtup::getFragmentrec(FragrecordPtr& regFragPtr,
                            Uint32 fragId,
                            Tablerec* const regTabPtr)
 {
-#if defined(VM_TRACE) || defined(ERROR_INSERT)
+#if defined(VM_TRACE) || defined(ERROR_INSERT) || defined(EXTRA_JAM)
   EmulatedJamBuffer* const jamBuf = getThrJamBuf();
 #endif
 
