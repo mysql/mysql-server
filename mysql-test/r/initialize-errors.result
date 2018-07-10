@@ -19,6 +19,15 @@ CREATE DATABASE test;
 # delete mysqld log
 # delete datadir
 #
+# Bug #27675647: INVALID INITIALIZATION COMMAND ALLOWED TO DO TOO MUCH WORK
+#
+# Run server with --initialize insecure
+check for a log message
+Message found
+# delete mysqld log
+# delete datadir
+# End of the test for bug #27675647
+#
 # Cleanup
 #
 # Restarting the server
