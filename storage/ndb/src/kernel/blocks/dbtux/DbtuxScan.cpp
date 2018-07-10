@@ -868,18 +868,16 @@ Dbtux::continue_scan(Signal *signal,
     Uint32 lkey2 = tupLoc.getPageOffset();
     conf->localKey[0] = lkey1;
     conf->localKey[1] = lkey2;
-#ifdef VM_TRACE
     /**
-     * We need another call to make sure that ndbassert's are
-     * correct even if we called prepare_scan_TUPKEYREQ and
-     * set an original page id as row id when performing a
-     * lock request through ACC between here and before
-     * scanCheck.
-     * No need to do this in production code since it is ok
-     * to call prepare methods several times on the same row.
+     * We can arrive here from a delayed CONTINUEB signal from
+     * LQH when we are waiting for a locked row and we now
+     * acquired the lock. To ensure that we have properly
+     * setup for execution of execTUPKEYREQ we call
+     * prepare_scan_tux_TUPKEYREQ here even if we already did
+     * it from ACC. Also needed to ensure proper operation of
+     * ndbassert's in debug mode.
      */
     c_tup->prepare_scan_tux_TUPKEYREQ(lkey1, lkey2);
-#endif
     // add key info
     // next time look for next entry
     scan.m_state = ScanOp::Next;
