@@ -8435,7 +8435,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	ndb_user_test	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	4	test.ndb_order_test.user_id	1	100.00	Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	Cannot push table 'ndb_user_test' as child of table 'ndb_order_test'. Doing so would prevent using join buffer for table 'ndb_user_test'.
-Note	1003	/* select#1 */ select `test`.`ndb_order_test`.`user_id` AS `user_id`,`test`.`ndb_order_test`.`node_id` AS `node_id`,`test`.`ndb_order_test`.`sort_number` AS `sort_number`,`test`.`ndb_user_test`.`name` AS `name` from `test`.`ndb_order_test` join `test`.`ndb_user_test` where ((`test`.`ndb_user_test`.`user_id` = `test`.`ndb_order_test`.`user_id`) and (`test`.`ndb_order_test`.`node_id` = 68)) order by `test`.`ndb_order_test`.`sort_number` asc
+Note	1003	/* select#1 */ select `test`.`ndb_order_test`.`user_id` AS `user_id`,`test`.`ndb_order_test`.`node_id` AS `node_id`,`test`.`ndb_order_test`.`sort_number` AS `sort_number`,`test`.`ndb_user_test`.`name` AS `name` from `test`.`ndb_order_test` join `test`.`ndb_user_test` where ((`test`.`ndb_user_test`.`user_id` = `test`.`ndb_order_test`.`user_id`) and (`test`.`ndb_order_test`.`node_id` = 68)) order by `test`.`ndb_order_test`.`sort_number`
 SELECT *
 FROM ndb_order_test JOIN ndb_user_test USING (user_id)
 WHERE node_id = 68
