@@ -31,3 +31,13 @@ SELECT @@use_secondary_engine;
 SET @@use_secondary_engine = OFF;
 SELECT @@use_secondary_engine;
 SET @@use_secondary_engine = @my_use_secondary_engine;
+
+--echo #
+--echo # Bug#28319475: MAKE USE_SECONDARY_ENGINE SESSION-ONLY AND NONPERSISTENT
+--echo #
+--error ER_LOCAL_VARIABLE
+SET GLOBAL use_secondary_engine = ON;
+--error ER_LOCAL_VARIABLE
+SET PERSIST use_secondary_engine = ON;
+--error ER_LOCAL_VARIABLE
+SET PERSIST_ONLY use_secondary_engine = ON;

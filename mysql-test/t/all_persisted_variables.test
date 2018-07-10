@@ -39,7 +39,7 @@
 --source include/have_binlog_format_row.inc
 
 let $total_global_vars=`SELECT COUNT(*) FROM performance_schema.global_variables where variable_name NOT LIKE 'ndb_%'`;
-let $total_persistent_vars=359;
+let $total_persistent_vars=358;
 
 --echo ***************************************************************
 --echo * 0. Verify that variables present in performance_schema.global

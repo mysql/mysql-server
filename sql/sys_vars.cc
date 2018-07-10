@@ -6162,7 +6162,7 @@ static Sys_var_enum Sys_use_secondary_engine(
     "reprepare against primary storage engine if error. FORCED = Prepare all "
     "SELECT statements referencing one or more base tables only against "
     "secondary storage engine.",
-    HINT_UPDATEABLE SESSION_VAR(use_secondary_engine), NO_CMD_LINE,
+    HINT_UPDATEABLE SESSION_ONLY(use_secondary_engine), NO_CMD_LINE,
     use_secondary_engine_values, DEFAULT(SECONDARY_ENGINE_ON), NO_MUTEX_GUARD,
     NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr));
 
