@@ -8480,19 +8480,36 @@ bool Fil_system::encryption_rotate_in_a_shard(Fil_shard *shard) {
       continue;
     }
 
-    mtr_t mtr;
-    mtr_start(&mtr);
-    mtr_x_lock_space(space, &mtr);
     /* Rotate the encrypted tablespaces. */
     if (space->encryption_type != Encryption::NONE) {
       memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE);
 
+      MDL_ticket *mdl_ticket = nullptr;
+      /* Take MDL on UNDO tablespace to make it mutually exclusive with
+      UNDO tablespace truncation. For other tablespaces MDL is not required
+      here. */
+      if (fsp_is_undo_tablespace(space->id)) {
+        while (dd::acquire_exclusive_tablespace_mdl(
+            current_thd, space->name, false, &mdl_ticket, false)) {
+          os_thread_sleep(20);
+        }
+        ut_ad(mdl_ticket != nullptr);
+      }
+
+      mtr_t mtr;
+      mtr_start(&mtr);
       if (!fsp_header_rotate_encryption(space, encrypt_info, &mtr)) {
         mtr_commit(&mtr);
+        if (mdl_ticket != nullptr) {
+          dd_release_mdl(mdl_ticket);
+        }
         return (false);
       }
+      mtr_commit(&mtr);
+      if (mdl_ticket != nullptr) {
+        dd_release_mdl(mdl_ticket);
+      }
     }
-    mtr_commit(&mtr);
 
     DBUG_EXECUTE_IF("ib_crash_during_rotation_for_encryption", DBUG_SUICIDE(););
   }

@@ -41,6 +41,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "my_dbug.h"
 
 #ifndef UNIV_HOTBACKUP
+#include "current_thd.h"
+#include "dict0dd.h"
 #include "mach0data.h"
 #include "mtr0log.h"
 #include "srv0mon.h"
@@ -1745,11 +1747,22 @@ bool trx_undo_truncate_tablespace(undo::Truncate *undo_trunc)
   bool success = true;
   space_id_t space_id = undo_trunc->get_marked_space_id();
 
+  /* Step-0: Take EXPLICIT MDL lock on UNOD tablespace. */
+  fil_space_t *space = fil_space_get(space_id);
+  ut_ad(space != nullptr);
+  MDL_ticket *mdl_ticket = nullptr;
+  while (dd::acquire_exclusive_tablespace_mdl(current_thd, space->name, false,
+                                              &mdl_ticket, false)) {
+    os_thread_sleep(20);
+  }
+  ut_ad(mdl_ticket != nullptr);
+
   /* Step-1: Truncate tablespace. */
   success =
       fil_truncate_tablespace(space_id, SRV_UNDO_TABLESPACE_SIZE_IN_PAGES);
 
   if (!success) {
+    dd_release_mdl(mdl_ticket);
     return (success);
   }
 
@@ -1834,6 +1847,7 @@ bool trx_undo_truncate_tablespace(undo::Truncate *undo_trunc)
 
   undo_trunc->rsegs()->x_unlock();
 
+  dd_release_mdl(mdl_ticket);
   return (success);
 }
 
