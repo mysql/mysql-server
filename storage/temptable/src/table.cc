@@ -53,7 +53,6 @@ Table::Table(TABLE *mysql_table, bool all_columns_are_fixed_size)
       m_mysql_row_length(mysql_table->s->rec_buff_length),
       m_index_entries(m_allocator),
       m_insert_undo(m_allocator),
-      m_modified_indexes(m_allocator),
       m_columns(m_allocator),
       m_mysql_table_share(mysql_table->s) {
   const size_t number_of_indexes = mysql_table->s->keys;
@@ -94,7 +93,6 @@ Table::Table(TABLE *mysql_table, bool all_columns_are_fixed_size)
   indexes_create();
 
   m_insert_undo.reserve(number_of_indexes);
-  m_modified_indexes.reserve(number_of_indexes);
 }
 
 Table::~Table() {
@@ -170,6 +168,19 @@ Result Table::update(const unsigned char *mysql_row_old,
   }
 #endif /* DBUG_OFF */
 
+  /* Index update is unsupported.
+  See bug #27978968: TEMPTABLE::TABLE::UPDATE MAY CORRUPT THE TABLE
+  for a commit that removed the support (as at that moment it was
+  a dead code). */
+  if (indexed()) {
+    if (is_index_update_needed(mysql_row_old, mysql_row_new)) {
+      /* Assert to make it easier to catch potential problem during tests */
+      DBUG_ASSERT(false);
+      my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "update of indexes");
+      return Result::UNSUPPORTED;
+    }
+  }
+
   /* For rows that does not have fixed size the contents are swapped
    * between this row and the target_row. That guaranteed the buffer
    * memory will be released at the end of function (if needed).
@@ -186,35 +197,6 @@ Result Table::update(const unsigned char *mysql_row_old,
     }
   }
 
-  /* We update `target_row` to `mysql_row_new` inplace in `m_rows` and in each
-   * index by delete & insert. */
-
-  if (!indexed()) {
-    if (m_all_columns_are_fixed_size) {
-      memcpy(target_row, mysql_row_new, m_mysql_row_length);
-    } else {
-      Row *row = reinterpret_cast<Row *>(target_row);
-      Row::swap(*row, tmp_row);
-    }
-    return Result::OK;
-  }
-
-  DBUG_ASSERT(m_modified_indexes.size() == 0);
-
-  /* As update is writing new data to same row and indexes holds
-   * only pointers to the rows it is required to remove the row
-   * from indexes before the change is done.
-   *
-   * As some indexes may be untouched (the indexed columns were not
-   * modified) the modified indexes (for which entries were removed)
-   * are stored in m_modified_indexes and used later when row is being
-   * inserted into index. */
-  indexes_find_modified(mysql_row_old, mysql_row_new);
-
-  if (indexes_remove_modified(target_row) != Result::OK) {
-    return Result::TABLE_CORRUPT;
-  }
-
   /* Update the target row contents. */
   if (m_all_columns_are_fixed_size) {
     memcpy(target_row, mysql_row_new, m_mysql_row_length);
@@ -223,31 +205,7 @@ Result Table::update(const unsigned char *mysql_row_old,
     Row::swap(*row, tmp_row);
   }
 
-  /* Insert into indexes for which entries were removed. */
-  Result ret = indexes_insert_modified(target_row);
-  if (ret != Result::OK) {
-    /* Insert failed (e.g. due to duplicated key). State must be restored. */
-
-    /* Restore row contents. */
-    if (m_all_columns_are_fixed_size) {
-      memcpy(target_row, mysql_row_old, m_mysql_row_length);
-    } else {
-      Row *row = reinterpret_cast<Row *>(target_row);
-      Row::swap(*row, tmp_row);
-    }
-
-    /* Restore indexes contents. */
-    if (indexes_insert_modified(target_row) != Result::OK) {
-      /* It should be always possible to restore previous state (it was
-       * valid before modifications). */
-      DBUG_ABORT();
-      return Result::TABLE_CORRUPT;
-    }
-  }
-
-  m_modified_indexes.clear();
-
-  return ret;
+  return Result::OK;
 }
 
 Result Table::remove(const unsigned char *mysql_row_must_be,
@@ -326,30 +284,19 @@ void Table::indexes_destroy() {
   m_index_entries.clear();
 }
 
-void Table::indexes_find_modified(const unsigned char *mysql_row_old,
-                                  const unsigned char *mysql_row_new) {
-  DBUG_ASSERT(m_modified_indexes.size() == 0);
-
+bool Table::is_index_update_needed(const unsigned char *mysql_row_old,
+                                   const unsigned char *mysql_row_new) const {
   for (auto &entry : m_index_entries) {
     Index *index = entry.m_index;
 
     const Indexed_cells indexed_cells_old(mysql_row_old, *index);
     const Indexed_cells indexed_cells_new(mysql_row_new, *index);
 
-    if (Indexed_cells_equal_to(*index)(indexed_cells_old, indexed_cells_new)) {
-      DBUG_ASSERT(Indexed_cells_hash(*index)(indexed_cells_old) ==
-                  Indexed_cells_hash(*index)(indexed_cells_new));
-      /* No need to remove this index because its columns are not affected by
-       * the update. If the cell is case insensitive and the update is changing
-       * it from 'a' to 'A' for example, then we will enter here and not update
-       * the index, which is fine. The index only contains a pointer to the row
-       * inside Table::m_rows and as long as the comparisons (== < >) and hash
-       * return the same results (and they do for 'a' and 'A') there is no need
-       * to delete & reinsert into the index. */
-    } else {
-      m_modified_indexes.push_back(index);
+    if (!Indexed_cells_equal_to(*index)(indexed_cells_old, indexed_cells_new)) {
+      return true;
     }
   }
+  return false;
 }
 
 Result Table::indexes_insert(Storage::Element *row) {
@@ -384,46 +331,6 @@ Result Table::indexes_insert(Storage::Element *row) {
     /* Undo the above insertions. */
     for (size_t i = 0; i < m_insert_undo.size(); ++i) {
       Index *index = m_index_entries[i].m_index;
-      const Cursor &target = m_insert_undo[i];
-      index->erase(target);
-    }
-  }
-
-  m_insert_undo.clear();
-
-  return ret;
-}
-
-Result Table::indexes_insert_modified(Storage::Element *row) {
-  Result ret = Result::OK;
-
-  DBUG_ASSERT(m_insert_undo.empty());
-
-  for (auto index : m_modified_indexes) {
-    Cursor insert_position;
-
-    Indexed_cells indexed_cells =
-        m_all_columns_are_fixed_size
-            ? Indexed_cells{static_cast<unsigned char *>(row), *index}
-            : Indexed_cells{*static_cast<Row *>(row), *index};
-
-    ret = index->insert(indexed_cells, &insert_position);
-    if (ret != Result::OK) {
-      break;
-    }
-
-    /* Only bother with postponing undo operations if we have more than one
-     * index. If we are here and have just one index, then we know that the
-     * operation succeeded and this loop is not going to iterate anymore. */
-    if (m_modified_indexes.size() > 1) {
-      m_insert_undo.emplace_back(insert_position);
-    }
-  }
-
-  if (ret != Result::OK) {
-    /* Undo the above insertions. */
-    for (size_t i = 0; i < m_insert_undo.size(); ++i) {
-      Index *index = m_modified_indexes[i];
       const Cursor &target = m_insert_undo[i];
       index->erase(target);
     }
@@ -473,42 +380,6 @@ Result Table::indexes_remove(Storage::Element *row) {
   }
 
   return result;
-}
-
-Result Table::indexes_remove_modified(Storage::Element *row) {
-  Result ret = Result::OK;
-
-  for (auto index : m_modified_indexes) {
-    Cursor first;
-    Cursor after_last;
-
-    Indexed_cells cells =
-        m_all_columns_are_fixed_size
-            ? Indexed_cells{static_cast<unsigned char *>(row), *index}
-            : Indexed_cells{*static_cast<Row *>(row), *index};
-
-    if (index->lookup(cells, &first, &after_last) != Index::Lookup::FOUND) {
-      ret = Result::TABLE_CORRUPT;
-      break;
-    }
-
-    bool found = false;
-
-    for (Cursor c = first; c != after_last; ++c) {
-      if (c.row() == row) {
-        index->erase(c);
-        found = true;
-        break;
-      }
-    }
-
-    if (!found) {
-      ret = Result::TABLE_CORRUPT;
-      break;
-    }
-  }
-
-  return ret;
 }
 
 thread_local Tables tables;

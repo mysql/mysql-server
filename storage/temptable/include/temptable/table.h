@@ -139,16 +139,12 @@ class Table {
   /** Destroy the indexes in `m_index_entries`. */
   void indexes_destroy();
 
-  void indexes_find_modified(const unsigned char *mysql_row_old,
-                             const unsigned char *mysql_row_new);
+  bool is_index_update_needed(const unsigned char *mysql_row_old,
+                              const unsigned char *mysql_row_new) const;
 
   Result indexes_insert(Storage::Element *row);
 
-  Result indexes_insert_modified(Storage::Element *row);
-
   Result indexes_remove(Storage::Element *row);
-
-  Result indexes_remove_modified(Storage::Element *row);
 
   /** Allocator for all members that need dynamic memory allocation. */
   Allocator<uint8_t> m_allocator;
@@ -165,8 +161,6 @@ class Table {
   std::vector<Index_entry, Allocator<Index_entry>> m_index_entries;
 
   std::vector<Cursor, Allocator<Cursor>> m_insert_undo;
-
-  std::vector<Index *, Allocator<Index *>> m_modified_indexes;
 
   Columns m_columns;
 
@@ -213,7 +207,6 @@ inline Table &Table::operator=(Table &&rhs) {
   /* No need to move - these are only scratch pads
    * used by methods. */
   m_insert_undo.reserve(m_index_entries.size());
-  m_modified_indexes.reserve(m_index_entries.size());
 
   return *this;
 }
