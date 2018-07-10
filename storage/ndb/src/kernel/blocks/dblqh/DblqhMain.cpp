@@ -11425,12 +11425,15 @@ void Dblqh::setup_scan_pointers_from_tc_con(TcConnectionrecPtr tcConnectptr)
   c_tup->prepare_tab_pointers(loc_prim_tab_fragptr.p->tupFragptr);
   if (likely(loc_scanptr.p->scanStoredProcId != RNIL))
   {
+    jamDebug();
     Uint32 storedProcLen =
       c_tup->copyAttrinfo(loc_scanptr.p->scanStoredProcId);
+    (void)storedProcLen;
     ndbassert(loc_scanptr.p->scanAiLength == storedProcLen);
   }
   if (likely(loc_scanptr.p->scanAccPtr != RNIL))
   {
+    jamDebug();
     block->prepare_scan_ctx(loc_scanptr.p->scanAccPtr);
   }
 }
@@ -11469,6 +11472,7 @@ void Dblqh::setup_scan_pointers(Uint32 scanPtrI)
     jamDebug();
     Uint32 storedProcLen =
       c_tup->copyAttrinfo(loc_scanptr.p->scanStoredProcId);
+    (void)storedProcLen;
     ndbassert(loc_scanptr.p->scanAiLength == storedProcLen);
   }
   if (likely(loc_scanptr.p->scanAccPtr != RNIL))

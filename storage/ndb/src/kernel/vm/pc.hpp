@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,7 +30,7 @@
  * To enable jamDebug and its siblings in a production simply
  * remove the comment and get EXTRA_JAM defined.
  */
-//#define EXTRA_JAM 1
+#define EXTRA_JAM 1
 
 #ifdef NO_EMULATED_JAM
 
