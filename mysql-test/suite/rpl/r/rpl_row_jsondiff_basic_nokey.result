@@ -19,12 +19,6 @@ include/rpl_stop_slaves.inc
 include/begin_replace_combination.inc [BOTH.BINLOG_FORMAT=ROW,MIXED -> GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS=TABLE_SCAN,HASH_SCAN]
 include/rpl_start_slaves.inc
 ######## INITIALIZE ########
-call mtr.add_suppression("Changed limits: max_open_files:*");
-CALL mtr.add_suppression("Changed limits: table_open_cache: *");
-call mtr.add_suppression("Changed limits: max_open_files:*");
-CALL mtr.add_suppression("Changed limits: table_open_cache: *");
-call mtr.add_suppression("Changed limits: max_open_files:*");
-CALL mtr.add_suppression("Changed limits: table_open_cache: *");
 include/rpl_for_each_server_stmt.inc [SET @@SESSION.BINLOG_ROW_IMAGE = MINIMAL;
 SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS = PARTIAL_JSON;
 SET @@GLOBAL.BINLOG_ROW_IMAGE = MINIMAL;

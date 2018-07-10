@@ -138,15 +138,7 @@ if ($replace_combination_from)
 --let $base64_con= server_7
 --let $decoded_con= server_8
 
---connection $base64_con
-call mtr.add_suppression("Changed limits: max_open_files:*");
-CALL mtr.add_suppression("Changed limits: table_open_cache: *");
---connection $decoded_con
-call mtr.add_suppression("Changed limits: max_open_files:*");
-CALL mtr.add_suppression("Changed limits: table_open_cache: *");
 --connection $master_con
-call mtr.add_suppression("Changed limits: max_open_files:*");
-CALL mtr.add_suppression("Changed limits: table_open_cache: *");
 
 # Enable PARTIAL_JSON on all servers, set binlog_row_image=MINIMAL on
 # all servers except server_2 and server_3.
