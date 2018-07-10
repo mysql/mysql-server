@@ -232,18 +232,18 @@ mysqltest: At line 1: Extra delimiter ";" found
 mysqltest: At line 1: Spurious text after `query` expression
 mysqltest: At line 1: Spurious text after `query` expression
 mysqltest: At line 2: Spurious text after `query` expression
-mysqltest: At line 1: Missing argument(s) to 'error'
-mysqltest: At line 1: Missing argument(s) to 'error'
+mysqltest: At line 1: Missing argument(s) to 'error' command.
+mysqltest: At line 1: Missing argument(s) to 'error' command.
 mysqltest: At line 1: The sqlstate definition must start with an uppercase S.
-mysqltest: At line 1: The error name definition must start with an uppercase E or C.
-mysqltest: At line 1: Invalid argument to error: '9eeeee', the errno may only consist of digits[0-9]
-mysqltest: At line 1: Invalid argument to error: '1sssss', the errno may only consist of digits[0-9]
+mysqltest: At line 1: The error name definition must start with an uppercase C or E.
+mysqltest: At line 1: Invalid argument '9eeeee' to 'error' command, the argument may consist of either symbolic error names or error codes.
+mysqltest: At line 1: Invalid argument '1sssss' to 'error' command, the argument may consist of either symbolic error names or error codes.
 mysqltest: At line 1: The sqlstate must be exactly 5 chars long.
 mysqltest: At line 1: The sqlstate may only consist of digits[0-9] and _uppercase_ letters.
 mysqltest: At line 1: The sqlstate must be exactly 5 chars long.
 mysqltest: At line 1: Unknown SQL error name 'E9999'.
-mysqltest: At line 1: Invalid argument to error: '999e9', the errno may only consist of digits[0-9]
-mysqltest: At line 1: Invalid argument to error: '9b', the errno may only consist of digits[0-9]
+mysqltest: At line 1: Invalid argument '999e9' to 'error' command, the argument may consist of either symbolic error names or error codes.
+mysqltest: At line 1: Invalid argument '9b' to 'error' command, the argument may consist of either symbolic error names or error codes.
 mysqltest: At line 1: Too many errorcodes specified.
 DROP TABLE table_does_not_exist;
 ERROR 42S02: Unknown table 'test.table_does_not_exist'
@@ -1665,3 +1665,318 @@ mysqltest: Test ended with test case execution disabled.
 SELECT 1 AS res;
 res
 1
+#
+# WL11832: MTR: Enhance [disable|enable]_warnings commands to
+#          disable or enable a specific list of warnings
+#
+SET @old_sql_mode = @@sql_mode;
+SET @@sql_mode = 'NO_ENGINE_SUBSTITUTION';
+CREATE TABLE t1 (
+c1 DOUBLE NOT NULL AUTO_INCREMENT,
+c2 INT,
+c3 DECIMAL(2) UNSIGNED,
+c4 DECIMAL,
+PRIMARY KEY (c1)
+);
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+DELETE FROM t1;
+
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+DELETE FROM t1;
+ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE,ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+ER_TRUNCATED_WRONG_VALUE,ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+
+ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+DELETE FROM t1;
+
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+DELETE FROM t1;
+
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1264	Out of range value for column 'c3' at row 1
+DELETE FROM t1;
+ER_WARN_DATA_OUT_OF_RANGE
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+DELETE FROM t1;
+ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE,ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+
+ER_WARN_DATA_OUT_OF_RANGE,ER_TRUNCATED_WRONG_VALUE
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+DELETE FROM t1;
+
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+SET @@sql_mode = @old_sql_mode;
+DROP TABLE t1;
+DROP TABLE IF EXISTS t1;
+include/mtr.test
+DROP TABLE IF EXISTS t1;
+Warnings:
+Note	1051	Unknown table 'test.t1'
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t1;
+Warnings:
+Note	1051	Unknown table 'test.t1'
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t1;
+Warnings:
+Note	1051	Unknown table 'test.t1'
+include/mtr.test
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t1;
+Warnings:
+Note	1051	Unknown table 'test.t1'
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t1;
+Warnings:
+Note	1051	Unknown table 'test.t1'
+mysqltest: At line 1: Invalid argument '1264' to 'disable_warnings' command, list of disabled or enabled warnings may only consist of symbolic error names.
+mysqltest: At line 1: Invalid argument 'ER_TRUNCATED_WRONG_VALUE,1264' to 'disable_warnings' command, list of disabled or enabled warnings may only consist of symbolic error names.
+mysqltest: At line 1: Unknown SQL error name 'ERR_TRUNCATED_WRONG_VALUE'.
+mysqltest: At line 1: Invalid argument '1264' to 'enable_warnings' command, list of disabled or enabled warnings may only consist of symbolic error names.
+mysqltest: At line 1: Invalid argument 'ER_TRUNCATED_WRONG_VALUE,1264' to 'enable_warnings' command, list of disabled or enabled warnings may only consist of symbolic error names.
+mysqltest: At line 1: Unknown SQL error name 'ERR_TRUNCATED_WRONG_VALUE'.
+mysqltest: The test didn't enable all the disabled warnings, enable all of them before end of the test.
+mysqltest: The test didn't enable all the disabled warnings, enable all of them before end of the test.
+mysqltest: The test didn't enable all the disabled warnings, enable all of them before end of the test.
+mysqltest: At line 1: Query 'DROP TABLE IF EXISTS t2' didn't generate any of the expected warning(s) 'ER_TRUNCATED_WRONG_VALUE'.
+mysqltest: At line 1: Second argument to 'disable_warnings' command should always be "ONCE" keyword.
+mysqltest: At line 1: Second argument to 'enable_warnings' command should always be "ONCE" keyword.
+mysqltest: At line 1: Warning list argument to command 'disable_warnings' can't be an empty string.
+mysqltest: At line 1: Warning list argument to command 'enable_warnings' can't be an empty string.
+mysqltest: At line 1: Query 'DROP TABLE IF EXISTS t_unknown' didn't generate any of the expected warning(s) 'ER_YES'.
+#
+# BUG#28218057: ENABLE_WARNINGS WORKS WITH "ONCE" WITH FIRST ARGUMENT
+#               OF WARNING LIST AS EMPTY
+#
+ER_NON_UNIQ_ERROR,ER_BAD_TABLE_ERROR
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t1;
+Warnings:
+Note	1051	Unknown table 'test.t1'
+
+mysqltest: At line 12: Warning list argument to command 'enable_warnings' can't be an empty string.
+#
+# BUG#28759823: DISABLE/ENABLE_WARNINGS COMMANDS SHOULDN'T ALLOW COMMA
+#               AT THE END
+#
+mysqltest: At line 1: Invalid argument 'ER_YES,ER_NO,' to 'disable_warnings' command.
+mysqltest: At line 1: Invalid argument 'ER_YES,ER_NO,' to 'enable_warnings' command.
+#
+# BUG#28765320: REPEATED "--DISABLE_WARNINGS <WARN_1> ONCE" STATEMENT RESULTS
+#               --DISABLE_WARNINGS
+#
+SET @old_sql_mode = @@sql_mode;
+SET @@sql_mode = 'NO_ENGINE_SUBSTITUTION';
+CREATE TABLE t1 (
+c1 DOUBLE NOT NULL AUTO_INCREMENT,
+c2 INT,
+c3 DECIMAL(2) UNSIGNED,
+c4 DECIMAL,
+PRIMARY KEY (c1)
+);
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1366	Incorrect decimal value: 'aaa' for column 'c4' at row 1
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1264	Out of range value for column 'c3' at row 1
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+Warning	1292	Truncated incorrect INTEGER value: '9.223372036854776e18'
+DELETE FROM t1;
+INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
+Warnings:
+Warning	1264	Out of range value for column 'c3' at row 1
+DELETE FROM t1;
+SET @@sql_mode = @old_sql_mode;
+DROP TABLE t1;

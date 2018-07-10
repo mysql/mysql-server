@@ -29,6 +29,7 @@
 
 #include "client/mysqltest/error_names.h"
 #include "client/mysqltest/expected_errors.h"
+#include "client/mysqltest/expected_warnings.h"
 #include "client/mysqltest/secondary_engine.h"
 #include "client/mysqltest/utils.h"
 
@@ -37,7 +38,7 @@
 #include <functional>
 #include <limits>
 #include <new>
-#include <string>
+#include <sstream>
 #ifdef _WIN32
 #include <thread>  // std::thread
 #endif
@@ -143,8 +144,14 @@
 
 extern CHARSET_INFO my_charset_utf16le_bin;
 
-static void signal_handler(int sig);
-static bool get_one_option(int optid, const struct my_option *, char *argument);
+// List of error codes specified with 'error' command.
+Expected_errors *expected_errors = new Expected_errors();
+
+// List of warnings disabled with 'disable_warnings' command.
+Expected_warnings *disabled_warnings = new Expected_warnings();
+
+// List of warnings enabled with 'enable_warnings' command.
+Expected_warnings *enabled_warnings = new Expected_warnings();
 
 enum {
   OPT_CHANGE_PROPAGATION = OPT_MAX_CLIENT_OPTION,
@@ -226,26 +233,26 @@ static HANDLE stacktrace_request_event = NULL;
 static std::thread wait_for_stacktrace_request_event_thread;
 #endif
 
-/* Info on properties that can be set with --enable_X and --disable_X */
-
-struct property {
-  bool *var;            /* Actual variable */
-  bool set;             /* Has been set for ONE command */
-  bool old;             /* If set, thus is the old value */
-  bool reverse;         /* Variable is true if disabled */
-  const char *env_name; /* Env. variable name */
+/// Info on properties that can be set with '--disable_X' and
+/// '--disable_X' commands.
+struct Property {
+  bool *var;             // Actual variable
+  bool set;              // Has been set for ONCE command
+  bool old;              // If set, thus is the old value
+  bool reverse;          // Variable is true if disabled
+  const char *env_name;  // Environment variable name
 };
 
-static struct property prop_list[] = {
-    {&abort_on_error, 0, 1, 0, "$ENABLED_ABORT_ON_ERROR"},
-    {&disable_connect_log, 0, 1, 1, "$ENABLED_CONNECT_LOG"},
-    {&disable_info, 0, 1, 1, "$ENABLED_INFO"},
-    {&display_session_track_info, 0, 1, 1, "$ENABLED_STATE_CHANGE_INFO"},
-    {&display_metadata, 0, 0, 0, "$ENABLED_METADATA"},
-    {&ps_protocol_enabled, 0, 0, 0, "$ENABLED_PS_PROTOCOL"},
-    {&disable_query_log, 0, 0, 1, "$ENABLED_QUERY_LOG"},
-    {&disable_result_log, 0, 0, 1, "$ENABLED_RESULT_LOG"},
-    {&disable_warnings, 0, 0, 1, "$ENABLED_WARNINGS"}};
+static struct Property prop_list[] = {
+    {&abort_on_error, 0, 1, 0, "$ENABLE_ABORT_ON_ERROR"},
+    {&disable_connect_log, 0, 1, 1, "$ENABLE_CONNECT_LOG"},
+    {&disable_info, 0, 1, 1, "$ENABLE_INFO"},
+    {&display_session_track_info, 0, 1, 1, "$ENABLE_STATE_CHANGE_INFO"},
+    {&display_metadata, 0, 0, 0, "$ENABLE_METADATA"},
+    {&ps_protocol_enabled, 0, 0, 0, "$ENABLE_PS_PROTOCOL"},
+    {&disable_query_log, 0, 0, 1, "$ENABLE_QUERY_LOG"},
+    {&disable_result_log, 0, 0, 1, "$ENABLE_RESULT_LOG"},
+    {&disable_warnings, 0, 0, 1, "$ENABLE_WARNINGS"}};
 
 static bool once_property = false;
 
@@ -538,9 +545,6 @@ const char *command_names[] = {
     "reset_connection",
 
     0};
-
-// Vector to store the list of error codes specified with '--error' command
-Expected_errors *expected_errors = new Expected_errors();
 
 struct st_command {
   char *query, *query_buf, *first_argument, *last_argument, *end;
@@ -1336,7 +1340,9 @@ static void free_used_memory() {
   // Delete the exptected errors pointer
   delete expected_errors;
 
-  delete secondary_engine;
+  // Delete disabled and enabled warning list
+  delete disabled_warnings;
+  delete enabled_warnings;
 
   if (connections) close_connections();
   close_files();
@@ -2169,40 +2175,99 @@ static void var_set_errno(int sql_errno) {
   var_set_string("$mysql_errname", get_errname_from_code(sql_errno));
 }
 
-/* Functions to handle --disable and --enable properties */
+/// Variable '$DISABLED_WARNINGS_LIST' contains comma separated list
+/// of disabled warnings and variable '$ENABLED_WARNINGS_LIST' contains
+/// comma separated list of enabled warnings.
+///
+/// Update the value of these two variables with the latest list of
+/// disabled and enabled warnings. The value of these variables will be
+/// empty if there are no disabled or enabled warnings.
+///
+/// These variables will  always contain the latest list of disabled
+/// and enabled warnings, and can be referenced inside a test or inside
+/// a test utility file to access the current list of disabled or
+/// enabled warnings.
+static void update_disabled_enabled_warnings_list_var() {
+  // Update '$DISABLED_WARNINGS_LIST' variable
+  std::string disabled_warning_list = disabled_warnings->warnings_list();
+  var_set_string("DISABLED_WARNINGS_LIST", disabled_warning_list.c_str());
 
-static void set_once_property(enum_prop prop, bool val) {
-  property &pr = prop_list[prop];
-  pr.set = 1;
-  pr.old = *pr.var;
-  *pr.var = val;
-  var_set_int(pr.env_name, (val != pr.reverse));
+  // Update '$ENABLED_WARNINGS_LIST' variable
+  std::string enabled_warning_list = enabled_warnings->warnings_list();
+  var_set_string("ENABLED_WARNINGS_LIST", enabled_warning_list.c_str());
+}
+
+/// Set a property value to either 0 or 1 for a disable_X or a enable_X
+/// command, and the new value set will be applicable for next statement
+/// only. After that, property value will be reset back to the old value.
+///
+/// @param property Enum value representing a Property
+/// @param value    Value for the property, either 0 or 1
+static void set_once_property(enum_prop property, bool value) {
+  Property &prop = prop_list[property];
+  prop.set = 1;
+  prop.old = *prop.var;
+  *prop.var = value;
+  var_set_int(prop.env_name, (value != prop.reverse));
   once_property = true;
 }
 
-static void set_property(st_command *command, enum_prop prop, bool val) {
-  char *p = command->first_argument;
-  if (p && !std::strcmp(p, "ONCE")) {
-    command->last_argument = p + 4;
-    set_once_property(prop, val);
-    return;
-  }
-  property &pr = prop_list[prop];
-  *pr.var = val;
-  pr.set = 0;
-  var_set_int(pr.env_name, (val != pr.reverse));
-}
+/// Set a property value to either 0 or 1 for a disable_X or a enable_X
+/// command.
+///
+/// @param command  Pointer to the st_command structure which holds the
+///                 arguments and information for the command.
+/// @param property Enum value representing a Property
+/// @param value    Value for the property, either 0 or 1
+static void set_property(st_command *command, enum_prop property, bool value) {
+  char *arg = command->first_argument;
 
-void revert_properties() {
-  if (!once_property) return;
-  for (int i = 0; i < (int)P_MAX; i++) {
-    property &pr = prop_list[i];
-    if (pr.set) {
-      *pr.var = pr.old;
-      pr.set = 0;
-      var_set_int(pr.env_name, (pr.old != pr.reverse));
+  // If "ONCE" argument is specified, the new value for the property is
+  // set for next statement only. After that, property value will be
+  // reset back to the old value.
+  if (arg) {
+    // "ONCE" is the second argument to 'disable_warnings/enable_warnings'
+    // command.
+    if (((command->type == Q_DISABLE_WARNINGS ||
+          command->type == Q_ENABLE_WARNINGS) &&
+         std::strstr(arg, "ONCE") != NULL) ||
+        !std::strcmp(arg, "ONCE")) {
+      command->last_argument = arg + std::strlen(arg);
+      set_once_property(property, value);
+      return;
     }
   }
+
+  Property &prop = prop_list[property];
+  prop.set = 0;
+  *prop.var = value;
+  var_set_int(prop.env_name, (value != prop.reverse));
+}
+
+/// Reset property value to the old value for all properties which are
+/// set for the next statement only, i.e properties specified using
+/// keyword "ONCE" argument.
+void revert_properties() {
+  if (!once_property) return;
+
+  for (std::size_t i = 0; i < P_MAX; i++) {
+    Property &prop = prop_list[i];
+    if (prop.set) {
+      *prop.var = prop.old;
+      prop.set = 0;
+      var_set_int(prop.env_name, (prop.old != prop.reverse));
+    }
+  }
+
+  // Remove warnings which are disabled or enabled for the next
+  // statement only.
+  disabled_warnings->update_list();
+  enabled_warnings->update_list();
+
+  // Update $DISABLED_WARNINGS_LIST and $ENABLED_WARNINGS_LIST
+  // variable value.
+  update_disabled_enabled_warnings_list_var();
+
   once_property = false;
 }
 
@@ -5384,114 +5449,361 @@ end:
   if (error) handle_command_error(command, error);
 }
 
-/// Get the error code corresponding to an error string or to a
-/// SQLSTATE string.
+/// Evaluate the warning list argument specified with either
+/// disable_warnings or enable_warnings command and replace the
+/// variables with actual values if there exist any.
+///
+/// @param command     Pointer to the st_command structure which holds
+///                    the arguments and information for the command.
+/// @param ds_warnings DYNAMIC_STRING object containing the argument.
+///
+/// @retval Evaluated string after replacing the variables with values.
+const char *eval_warning_argument(struct st_command *command,
+                                  DYNAMIC_STRING *ds_warnings) {
+  dynstr_trunc(ds_warnings, ds_warnings->length);
+  do_eval(ds_warnings, command->first_argument, command->end, false);
+  return ds_warnings->str;
+}
+
+/// Check if second argument "ONCE" to disable_warnings or enable_warnings
+/// command is specified. If yes, filter out the keyword "ONCE" from the
+/// argument string.
+///
+/// @param ds_property   DYNAMIC_STRING object containing the second argument
+/// @param warn_argument String to store the argument string containing only
+///                      the list of warnings.
+///
+/// @retval True if the second argument is specified, false otherwise.
+static bool check_and_filter_once_property(DYNAMIC_STRING ds_property,
+                                           std::string *warn_argument) {
+  if (ds_property.length) {
+    // Second argument exists, and it should be "ONCE" keyword.
+    if (std::strcmp(ds_property.str, "ONCE"))
+      die("Second argument to '%s' command should always be \"ONCE\" keyword.",
+          command_names[curr_command->type - 1]);
+
+    // Filter out the keyword and save only the warnings.
+    std::size_t position = warn_argument->find(" ONCE");
+    DBUG_ASSERT(position != std::string::npos);
+    warn_argument->erase(position, 5);
+    return true;
+  }
+
+  return false;
+}
+
+/// Handle disabling of warnings.
+///
+/// * If all warnings are disabled, don't add the warning to disabled
+///   warning list.
+/// * If there exist enabled warnings, remove the disabled warning from
+///   the list of enabled warnings.
+/// * If all the warnings are enabled or if there exist disabled warnings,
+///   add or append the new warning to the list of disabled warnings.
+///
+/// @param warning_code Warning code
+/// @param warning      Warning string
+/// @param once_prop    Flag specifying whether a property should be set
+///                     for next statement only.
+static void handle_disable_warnings(std::uint32_t warning_code,
+                                    std::string warning, bool once_prop) {
+  if (enabled_warnings->count()) {
+    // Remove the warning from list of enabled warnings.
+    enabled_warnings->remove_warning(warning_code, once_prop);
+  } else if (!disable_warnings || disabled_warnings->count()) {
+    // Add the warning to list of expected warnings only if all the
+    // warnings are not disabled.
+    disabled_warnings->add_warning(warning_code, warning.c_str(), once_prop);
+  }
+}
+
+/// Handle enabling of warnings.
+///
+/// * If all the warnings are enabled, don't add the warning to enabled
+///   warning list.
+/// * If there exist disabled warnings, remove the enabled warning from
+///   the list of disabled warnings.
+/// * If all the warnings are disabled or if there exist enabled warnings,
+///   add or append the new warning to the list of enabled warnings.
+///
+/// @param warning_code Warning code
+/// @param warning      Warning string
+/// @param once_prop    Flag specifying whether a property should be set
+///                     for next statement only.
+static void handle_enable_warnings(std::uint32_t warning_code,
+                                   std::string warning, bool once_prop) {
+  if (disabled_warnings->count()) {
+    // Remove the warning from list of disabled warnings.
+    disabled_warnings->remove_warning(warning_code, once_prop);
+  } else if (disabled_warnings) {
+    // All the warnings are disabled, enable only the warnings specified
+    // in the argument.
+    enabled_warnings->add_warning(warning_code, warning.c_str(), once_prop);
+  }
+}
+
+/// Get an error code corresponding to a warning name. The warning name
+/// specified is in symbolic error name format.
+///
+/// @param command       Pointer to the st_command structure which holds the
+///                      arguments and information for the command.
+/// @param warn_argument String containing warning argument
+/// @param once_prop     Flag specifying whether a property should be set for
+///                      next statement only.
+static void get_warning_codes(struct st_command *command,
+                              std::string warn_argument, bool once_prop) {
+  std::string warning;
+  std::stringstream warnings(warn_argument);
+
+  if (!my_isalnum(charset_info, warn_argument.back())) {
+    die("Invalid argument '%s' to '%s' command.", command->first_argument,
+        command_names[command->type - 1]);
+  }
+
+  while (std::getline(warnings, warning, ',')) {
+    // Remove any space in a string representing a warning.
+    warning.erase(remove_if(warning.begin(), warning.end(), isspace),
+                  warning.end());
+
+    // Check if a warning name is a valid symbolic error name.
+    if (warning.front() == 'E' || warning.front() == 'W') {
+      int warning_code = get_errcode_from_name(warning);
+      if (warning_code == -1)
+        die("Unknown SQL error name '%s'.", warning.c_str());
+      if (command->type == Q_DISABLE_WARNINGS)
+        handle_disable_warnings(warning_code, warning, once_prop);
+      else if (command->type == Q_ENABLE_WARNINGS) {
+        handle_enable_warnings(warning_code, warning, once_prop);
+        // If disable_warnings flag is set, and there are no disabled or
+        // enabled warnings, set the disable_warnings flag to 0.
+        if (disable_warnings) {
+          if (!disabled_warnings->count() && !enabled_warnings->count())
+            set_property(command, P_WARN, 0);
+        }
+      }
+    } else {
+      // Invalid argument, should only consist of warnings specified in
+      // symbolic error name format.
+      die("Invalid argument '%s' to '%s' command, list of disabled or enabled "
+          "warnings may only consist of symbolic error names.",
+          command->first_argument, command_names[command->type - 1]);
+    }
+  }
+}
+
+/// Parse the warning list argument specified with disable_warnings or
+/// enable_warnings command. Check if the second argument "ONCE" is
+/// specified, if yes, set once_property flag.
 ///
 /// @param command Pointer to the st_command structure which holds the
 ///                arguments and information for the command.
-static void do_get_errcodes(struct st_command *command) {
-  DBUG_ENTER("do_get_errcodes");
+///
+/// @retval True if second argument "ONCE" is specified, false otherwise.
+static bool parse_warning_list_argument(struct st_command *command) {
+  DYNAMIC_STRING ds_warnings, ds_property;
+  const struct command_arg warning_args[] = {
+      {"Warnings", ARG_STRING, false, &ds_warnings,
+       "Comma separated list of warnings to be disabled or enabled."},
+      {"Property", ARG_STRING, false, &ds_property,
+       "Keyword \"ONCE\" repesenting the property should be set for next "
+       "statement only."}};
 
-  char *p = command->first_argument;
-  if (!*p) die("Missing argument(s) to 'error'");
+  check_command_args(command, command->first_argument, warning_args,
+                     sizeof(warning_args) / sizeof(struct command_arg), ' ');
 
-  char *next;
-  do {
-    char *end;
+  // Waning list argument can't be an empty string.
+  if (!ds_warnings.length)
+    die("Warning list argument to command '%s' can't be an empty string.",
+        command_names[command->type - 1]);
 
-    // Skip leading spaces
-    while (*p && *p == ' ') p++;
+  // Evaluate warning list argument and replace the variables with
+  // actual values
+  std::string warn_argument = eval_warning_argument(command, &ds_warnings);
 
-    /* Find end */
-    end = p;
-    while (*end && *end != ',' && *end != ' ') end++;
-    next = end;
+  // Set once_prop flag to true if keyword "ONCE" is specified as an
+  // argument to a disable_warnings or a enable_warnings command.
+  // Filter this keyword from the argument string and save only the
+  // list of warnings.
+  bool once_prop = check_and_filter_once_property(ds_property, &warn_argument);
 
-    // Code to handle variables passed to mysqltest
-    if (*p == '$') {
-      const char *fin = NULL;
-      VAR *var = var_get(p, &fin, 0, 0);
-      p = var->str_val;
-      end = p + var->str_val_len;
+  // Free all the DYNAMIC_STRING objects created
+  free_dynamic_strings(&ds_warnings, &ds_property);
+
+  // Get warning codes
+  get_warning_codes(command, warn_argument, once_prop);
+
+  return once_prop;
+}
+
+/// Create a list of disabled warnings that should be suppressed for
+/// the next statements until enabled by enable_warnings command.
+///
+/// disable_warnings command can take an optional argument specifying
+/// a warning or a comma separated list of warnings to be disabled.
+/// The warnings specified should be in symbolic error name format.
+///
+/// disable_warnings command can also take a second optional argument,
+/// which when specified will suppress the warnings for next statement
+/// only. The second argument must be a "ONCE" keyword.
+///
+/// @param command Pointer to the st_command structure which holds the
+///                arguments and information for the command.
+static void do_disable_warnings(struct st_command *command) {
+  // Revert the previously set properties
+  if (once_property) revert_properties();
+
+  // Check if disable_warnings command has warning list argument.
+  if (!*command->first_argument) {
+    // disable_warnings without an argument, disable all the warnings.
+    if (disabled_warnings->count()) disabled_warnings->clear_list();
+    if (enabled_warnings->count()) enabled_warnings->clear_list();
+
+    // Update the environment variables containing the list of disabled
+    // and enabled warnings.
+    update_disabled_enabled_warnings_list_var();
+
+    // Set 'disable_warnings' property value to 1
+    set_property(command, P_WARN, 1);
+    return;
+  } else {
+    // Parse the warning list argument specified with disable_warnings
+    // command.
+    parse_warning_list_argument(command);
+
+    // Update the environment variables containing the list of disabled
+    // and enabled warnings.
+    update_disabled_enabled_warnings_list_var();
+
+    // Set 'disable_warnings' property value to 1
+    set_property(command, P_WARN, 1);
+  }
+
+  command->last_argument = command->end;
+}
+
+/// Create a list of enabled warnings that should be enabled for the
+/// next statements until disabled by disable_warnings command.
+///
+/// enable_warnings command can take an optional argument specifying
+/// a warning or a comma separated list of warnings to be enabled. The
+/// warnings specified should be in symbolic error name format.
+///
+/// enable_warnings command can also take a second optional argument,
+/// which when specified will enable the warnings for next statement
+/// only. The second argument must be a "ONCE" keyword.
+///
+/// @param command Pointer to the st_command structure which holds the
+///                arguments and information for the command.
+static void do_enable_warnings(struct st_command *command) {
+  // Revert the previously set properties
+  if (once_property) revert_properties();
+
+  bool once_prop = false;
+  if (!*command->first_argument) {
+    // enable_warnings without an argument, enable all the warnings.
+    if (disabled_warnings->count()) disabled_warnings->clear_list();
+    if (enabled_warnings->count()) enabled_warnings->clear_list();
+
+    // Update the environment variables containing the list of disabled
+    // and enabled warnings.
+    update_disabled_enabled_warnings_list_var();
+
+    // Set 'disable_warnings' property value to 0
+    set_property(command, P_WARN, 0);
+  } else {
+    // Parse the warning list argument specified with enable_warnings command.
+    once_prop = parse_warning_list_argument(command);
+
+    // Update the environment variables containing the list of disabled and
+    // enabled warnings.
+    update_disabled_enabled_warnings_list_var();
+  }
+
+  // Call set_once_property() to set once_propetry flag.
+  if (disable_warnings && once_prop) set_once_property(P_WARN, 1);
+
+  command->last_argument = command->end;
+}
+
+/// Create a list of error values that the next statement is expected
+/// to return. Each error must be an error number or an SQLSTATE value
+/// or a symbolic error name representing an error.
+///
+/// SQLSTATE value must start with 'S'. It is also possible to specify
+/// client errors with 'error' command.
+///
+/// @code
+/// --error 1064
+/// --error S42S01
+/// --error ER_TABLE_EXISTS_ERROR,ER_PARSE_ERROR
+/// --error CR_SERVER_GONE_ERROR
+/// @endcode
+///
+/// @param command Pointer to the st_command structure which holds the
+///                arguments and information for the command.
+static void do_error(struct st_command *command) {
+  if (!*command->first_argument) die("Missing argument(s) to 'error' command.");
+
+  std::string error;
+  std::stringstream errors(command->first_argument);
+
+  // Get error codes
+  while (std::getline(errors, error, ',')) {
+    // Remove any space from the string representing an error.
+    error.erase(remove_if(error.begin(), error.end(), isspace), error.end());
+
+    // Code to handle a variable containing an error.
+    if (error.front() == '$') {
+      const char *varname_end = NULL;
+      VAR *var = var_get(error.c_str(), &varname_end, 0, 0);
+      error.assign(var->str_val);
     }
 
-    if (*p == 'S') {
+    if (error.front() == 'S') {
       // SQLSTATE string
-      //   - Must be SQLSTATE_LENGTH long
-      //   - May contain only digits[0-9] and _uppercase_ letters
-      std::string sqlstate;
+      //   * Must be SQLSTATE_LENGTH long
+      //   * May contain only digits[0-9] and _uppercase_ letters
 
       // Step pass 'S' character
-      p++;
+      error = error.substr(1, error.length());
 
-      if ((end - p) != SQLSTATE_LENGTH)
+      if (error.length() != SQLSTATE_LENGTH)
         die("The sqlstate must be exactly %d chars long.", SQLSTATE_LENGTH);
 
-      sqlstate.assign(p, SQLSTATE_LENGTH);
-
-      // Check sqlstate string validity
-      while (*p && p < end) {
-        if (my_isdigit(charset_info, *p) || my_isupper(charset_info, *p))
-          p++;
-        else
-          die("The sqlstate may only consist of digits[0-9] "
-              "and _uppercase_ letters.");
+      // Check the validity of an SQLSTATE string.
+      for (std::size_t i = 0; i < error.length(); i++) {
+        if (!my_isdigit(charset_info, error[i]) &&
+            !my_isupper(charset_info, error[i]))
+          die("The sqlstate may only consist of digits[0-9] and _uppercase_ "
+              "letters.");
       }
-
-      expected_errors->add_error(0, sqlstate.c_str(), ERR_SQLSTATE);
-      DBUG_PRINT("info", ("ERR_SQLSTATE: %s", sqlstate.c_str()));
-    } else if (*p == 's') {
+      expected_errors->add_error(error.c_str(), ERR_SQLSTATE);
+    } else if (error.front() == 's') {
       die("The sqlstate definition must start with an uppercase S.");
     }
-    // Code to handle --error <error_string>.
     // Checking for both server error names as well as client error names.
-    else if (*p == 'E' || *p == 'C') {
-      // Error name string
-      DBUG_PRINT("info", ("Error name: %s", p));
-      std::string error_name(p, int(end - p));
-      int error_code = get_errcode_from_name(error_name);
-      if (error_code == -1)
-        die("Unknown SQL error name '%s'.", error_name.c_str());
-      expected_errors->add_error(error_code, "00000", ERR_ERRNO);
-    } else if (*p == 'e' || *p == 'c') {
-      die("The error name definition must start with an uppercase E or C.");
+    else if (error.front() == 'C' || error.front() == 'E') {
+      // Code to handle --error <error_string>.
+      int error_code = get_errcode_from_name(error);
+      if (error_code == -1) die("Unknown SQL error name '%s'.", error.c_str());
+      expected_errors->add_error(error_code, ERR_ERRNO);
+    } else if (error.front() == 'c' || error.front() == 'e') {
+      die("The error name definition must start with an uppercase C or E.");
     } else {
-      char *start = p;
-      long val;
-
-      // Check that the string passed to str2int only contain digits
-      while (*p && p != end) {
-        if (!my_isdigit(charset_info, *p))
-          die("Invalid argument to error: '%s', the errno may only consist "
-              "of digits[0-9]",
-              command->first_argument);
-        p++;
-      }
-
-      // Convert the sting to int
-      if (!str2int(start, 10, (long)INT_MIN, (long)INT_MAX, &val))
-        die("Invalid argument to error: '%s'.", command->first_argument);
-
-      expected_errors->add_error((unsigned int)val, "00000", ERR_ERRNO);
-      DBUG_PRINT("info", ("ERR_ERRNO: %d", (unsigned int)val));
+      // Check that the string passed to error command contains only digits.
+      int error_code = get_int_val(error.c_str());
+      if (error_code == -1)
+        die("Invalid argument '%s' to 'error' command, the argument may "
+            "consist of either symbolic error names or error codes.",
+            command->first_argument);
+      expected_errors->add_error((std::uint32_t)error_code, ERR_ERRNO);
     }
 
     if (expected_errors->count() >= MAX_ERROR_COUNT)
       die("Too many errorcodes specified.");
+  }
 
-    // Set pointer to the end of the last error code
-    p = next;
-
-    // Find next ','
-    while (*p && *p != ',') p++;
-
-    // Step past ','
-    if (*p) p++;
-  } while (*p);
-
-  command->last_argument = p;
-  DBUG_PRINT("info", ("Expected errors: %zu", expected_errors->count()));
-  DBUG_VOID_RETURN;
+  command->last_argument = command->end;
 }
 
 /*
@@ -7580,64 +7892,158 @@ static void append_table_headings(DYNAMIC_STRING *ds, MYSQL_FIELD *field,
   dynstr_append_mem(ds, "\n", 1);
 }
 
-/*
-  Fetch warnings from server and append to ds
+/// Check whether a given warning is in list of disabled or enabled warnings.
+///
+/// @param warnings      List of either disabled or enabled warnings.
+/// @param error         Error number
+/// @param warning_found Boolean value, should be set to true if warning
+///                      is found in the list, false otherwise.
+///
+/// @retval True if the given warning is present in the list, and
+///         ignore flag for that warning is not set, false otherwise.
+static bool match_warnings(Expected_warnings *warnings, std::uint32_t error,
+                           bool *warning_found) {
+  bool match_found = false;
+  std::vector<std::unique_ptr<Warning>>::iterator warning = warnings->begin();
 
-  RETURN VALUE
-  Number of warnings appended to ds
-*/
+  for (; warning != warnings->end(); warning++) {
+    if ((*warning)->warning_code() == error) {
+      *warning_found = true;
+      if (!(*warning)->ignore_warning()) {
+        match_found = true;
+        break;
+      }
+    }
+  }
 
+  return match_found;
+}
+
+/// Handle one warning which occurred during execution of a query.
+///
+/// @param ds      DYNAMIC_STRING object to store the warnings.
+/// @param warning Warning string
+///
+/// @retval True if a warning is found in the list of disabled or enabled
+///         warnings, false otherwise.
+static bool handle_one_warning(DYNAMIC_STRING *ds, std::string warning) {
+  // Each line of show warnings output contains information about
+  // error level, error code and the error/warning message separated
+  // by '\t'. Parse each line from the show warnings output to
+  // extract the error code and compare it with list of expected
+  // warnings.
+  bool warning_found = false;
+  std::string error_code;
+  std::stringstream warn_msg(warning);
+
+  while (std::getline(warn_msg, error_code, '\t')) {
+    int errcode = get_int_val(error_code.c_str());
+    if (errcode != -1) {
+      if (disabled_warnings->count()) {
+        // Print the warning if it doesn't match with any of the
+        // disabled warnings.
+        if (!match_warnings(disabled_warnings, errcode, &warning_found)) {
+          dynstr_append_mem(ds, warning.c_str(), warning.length());
+          dynstr_append_mem(ds, "\n", 1);
+        }
+      } else if (enabled_warnings->count()) {
+        if (match_warnings(enabled_warnings, errcode, &warning_found)) {
+          dynstr_append_mem(ds, warning.c_str(), warning.length());
+          dynstr_append_mem(ds, "\n", 1);
+        }
+      }
+    }
+  }
+
+  return warning_found;
+}
+
+/// Handle warnings which occurred during execution of a query.
+///
+/// @param ds          DYNAMIC_STRING object to store the warnings.
+/// @param ds_warnings String containing all the generated warnings.
+static void handle_warnings(DYNAMIC_STRING *ds, const char *ds_warnings) {
+  bool warning_found = false;
+  std::string warning;
+  std::stringstream warnings(ds_warnings);
+
+  // Set warning_found only if at least one of the warning exist
+  // in expected list of warnings.
+  while (std::getline(warnings, warning))
+    if (handle_one_warning(ds, warning)) warning_found = true;
+
+  // Throw an error and abort the test run if a query generates warnings
+  // which are not listed as expected.
+  if (!warning_found) {
+    std::string warning_list;
+
+    if (disabled_warnings->count())
+      warning_list = disabled_warnings->warnings_list();
+    else if (enabled_warnings->count())
+      warning_list = enabled_warnings->warnings_list();
+
+    die("Query '%s' didn't generate any of the expected warning(s) '%s'.",
+        curr_command->query, warning_list.c_str());
+  }
+}
+
+/// Fetch warnings generated by server while executing a query and
+/// append them to warnings buffer 'ds'.
+///
+/// @param ds    DYNAMIC_STRING object to store the warnings
+/// @param mysql mysql handle object
+///
+/// @retval Number of warnings appended to ds
 static int append_warnings(DYNAMIC_STRING *ds, MYSQL *mysql) {
-  uint count;
-  MYSQL_RES *warn_res;
-  DBUG_ENTER("append_warnings");
+  unsigned int count;
+  if (!(count = mysql_warning_count(mysql))) return 0;
 
-  if (!(count = mysql_warning_count(mysql))) DBUG_RETURN(0);
-
-  /*
-    If one day we will support execution of multi-statements
-    through PS API we should not issue SHOW WARNINGS until
-    we have not read all results...
-  */
+  // If one day we will support execution of multi-statements
+  // through PS API we should not issue SHOW WARNINGS until
+  // we have not read all results.
   DBUG_ASSERT(!mysql_more_results(mysql));
 
+  MYSQL_RES *warn_res;
   if (mysql_real_query(mysql, "SHOW WARNINGS", 13))
     die("Error running query \"SHOW WARNINGS\": %s", mysql_error(mysql));
 
   if (!(warn_res = mysql_store_result(mysql)))
     die("Warning count is %u but didn't get any warnings", count);
 
-  append_result(ds, warn_res);
+  DYNAMIC_STRING ds_warnings;
+  init_dynamic_string(&ds_warnings, "", 1024, 1024);
+  append_result(&ds_warnings, warn_res);
   mysql_free_result(warn_res);
 
-  DBUG_PRINT("warnings", ("%s", ds->str));
+  if (disable_warnings &&
+      (disabled_warnings->count() || enabled_warnings->count()))
+    handle_warnings(ds, ds_warnings.str);
+  else if (!disable_warnings)
+    dynstr_append_mem(ds, ds_warnings.str, ds_warnings.length);
 
-  DBUG_RETURN(count);
+  dynstr_free(&ds_warnings);
+  return ds->length;
 }
 
-/*
-  Run query using MySQL C API
-
-  SYNOPSIS
-    run_query_normal()
-    mysql	mysql handle
-    command	current command pointer
-    flags	flags indicating if we should SEND and/or REAP
-    query	query string to execute
-    query_len	length query string to execute
-    ds		output buffer where to store result form query
-*/
-
+/// Run query using MySQL C API
+///
+/// @param cn          Connection object
+/// @param command     Pointer to the st_command structure which holds the
+///                    arguments and information for the command.
+/// @param flags       Flags indicating if we should SEND and/or REAP.
+/// @param query       Query string
+/// @param query_len   Length of the query string
+/// @param ds          Output buffer to store the query result.
+/// @param ds_warnings Buffer to store the warnings generated while
+///                    executing the query.
 static void run_query_normal(struct st_connection *cn,
                              struct st_command *command, int flags, char *query,
                              size_t query_len, DYNAMIC_STRING *ds,
                              DYNAMIC_STRING *ds_warnings) {
-  MYSQL_RES *res = 0;
+  int error = 0;
+  std::uint32_t counter = 0;
   MYSQL *mysql = &cn->mysql;
-  int err = 0, counter = 0;
-  DBUG_ENTER("run_query_normal");
-  DBUG_PRINT("enter", ("flags: %d", flags));
-  DBUG_PRINT("enter", ("query: '%-.60s'", query));
+  MYSQL_RES *res = 0;
 
   if (opt_change_propagation != -1) {
     secondary_engine->match_statement(query, expected_errors->count());
@@ -7650,36 +8056,31 @@ static void run_query_normal(struct st_connection *cn,
   }
 
   if (flags & QUERY_SEND_FLAG) {
-    /*
-      Send the query
-    */
+    // Send the query
     if (mysql_send_query(&cn->mysql, query, static_cast<ulong>(query_len))) {
       handle_error(command, mysql_errno(mysql), mysql_error(mysql),
                    mysql_sqlstate(mysql), ds);
       goto end;
     }
   }
+
   if (!(flags & QUERY_REAP_FLAG)) {
     cn->pending = true;
-    DBUG_VOID_RETURN;
+    return;
   }
 
   do {
-    /*
-      When  on first result set, call mysql_read_query_result to retrieve
-      answer to the query sent earlier
-    */
+    // When  on first result set, call mysql_read_query_result to
+    // retrieve answer to the query sent earlier.
     if ((counter == 0) && mysql_read_query_result(&cn->mysql)) {
-      /* we've failed to collect the result set */
+      // We've failed to collect the result set.
       cn->pending = true;
       handle_error(command, mysql_errno(mysql), mysql_error(mysql),
                    mysql_sqlstate(mysql), ds);
       goto end;
     }
 
-    /*
-      Store the result of the query if it will return any fields
-    */
+    // Store the result of the query if it will return any fields.
     if (mysql_field_count(mysql) && ((res = mysql_store_result(mysql)) == 0)) {
       handle_error(command, mysql_errno(mysql), mysql_error(mysql),
                    mysql_sqlstate(mysql), ds);
@@ -7689,7 +8090,7 @@ static void run_query_normal(struct st_connection *cn,
     if (!disable_result_log) {
       if (res) {
         MYSQL_FIELD *fields = mysql_fetch_fields(res);
-        uint num_fields = mysql_num_fields(res);
+        std::uint32_t num_fields = mysql_num_fields(res);
 
         if (display_metadata) append_metadata(ds, fields, num_fields);
 
@@ -7699,21 +8100,19 @@ static void run_query_normal(struct st_connection *cn,
         append_result(ds, res);
       }
 
-      /*
-        Need to call mysql_affected_rows() before the "new"
-        query to find the warnings.
-      */
+      // Need to call mysql_affected_rows() before the "new"
+      // query to find the warnings.
       if (!disable_info)
         append_info(ds, mysql_affected_rows(mysql), mysql_info(mysql));
 
       if (display_session_track_info) append_session_track_info(ds, mysql);
 
-      /*
-        Add all warnings to the result. We can't do this if we are in
-        the middle of processing results from multi-statement, because
-        this will break protocol.
-      */
-      if (!disable_warnings && !mysql_more_results(mysql)) {
+      // Add all warnings to the result. We can't do this if we are in
+      // the middle of processing results from multi-statement, because
+      // this will break protocol.
+      if ((!disable_warnings || disabled_warnings->count() ||
+           enabled_warnings->count()) &&
+          !mysql_more_results(mysql)) {
         if (append_warnings(ds_warnings, mysql) || ds_warnings->length) {
           dynstr_append_mem(ds, "Warnings:\n", 10);
           dynstr_append_mem(ds, ds_warnings->str, ds_warnings->length);
@@ -7726,27 +8125,28 @@ static void run_query_normal(struct st_connection *cn,
       res = 0;
     }
     counter++;
-  } while (!(err = mysql_next_result(mysql)));
-  if (err > 0) {
-    /* We got an error from mysql_next_result, maybe expected */
+  } while (!(error = mysql_next_result(mysql)));
+
+  if (error > 0) {
+    // We got an error from mysql_next_result, maybe expected.
     handle_error(command, mysql_errno(mysql), mysql_error(mysql),
                  mysql_sqlstate(mysql), ds);
     goto end;
   }
-  DBUG_ASSERT(err == -1); /* Successful and there are no more results */
 
-  /* If we come here the query is both executed and read successfully */
+  // Successful and there are no more results.
+  DBUG_ASSERT(error == -1);
+
+  // If we come here the query is both executed and read successfully.
   handle_no_error(command);
   revert_properties();
 
 end:
-
   cn->pending = false;
-  /*
-    We save the return code (mysql_errno(mysql)) from the last call sent
-    to the server into the mysqltest builtin variable $mysql_errno. This
-    variable then can be used from the test case itself.
-  */
+
+  // We save the return code (mysql_errno(mysql)) from the last call sent
+  // to the server into the mysqltest builtin variable $mysql_errno. This
+  // variable then can be used from the test case itself.
   var_set_errno(mysql_errno(mysql));
 
   if (opt_change_propagation != -1 && secondary_engine->statement_type()) {
@@ -7755,35 +8155,27 @@ end:
     if (secondary_engine->run_load_statements(mysql, ignore_errors))
       die("Original query '%s'.", query);
   }
-
-  DBUG_VOID_RETURN;
 }
 
-/*
-  Run query using prepared statement C API
-
-  SYNPOSIS
-  run_query_stmt
-  mysql - mysql handle
-  command - currrent command pointer
-  query - query string to execute
-  query_len - length query string to execute
-  ds - output buffer where to store result form query
-
-  RETURN VALUE
-  error - function will not return
-*/
-
+/// Run query using prepared statement C API
+///
+/// @param mysql       mysql handle
+/// @param command     Pointer to the st_command structure which holds the
+///                    arguments and information for the command.
+/// @param query       Query string
+/// @param query_len   Length of the query string
+/// @param ds          Output buffer to store the query result.
+/// @param ds_warnings Buffer to store the warnings generated while
+///                    executing the query.
 static void run_query_stmt(MYSQL *mysql, struct st_command *command,
                            char *query, size_t query_len, DYNAMIC_STRING *ds,
                            DYNAMIC_STRING *ds_warnings) {
-  MYSQL_RES *res = NULL; /* Note that here 'res' is meta data result set */
+  // Init a new stmt if it's not already one created for this connection.
   MYSQL_STMT *stmt;
-  int err = 0;
-  DYNAMIC_STRING ds_prepare_warnings = DYNAMIC_STRING();
-  DYNAMIC_STRING ds_execute_warnings = DYNAMIC_STRING();
-  DBUG_ENTER("run_query_stmt");
-  DBUG_PRINT("query", ("'%-.60s'", query));
+  if (!(stmt = cur_con->stmt)) {
+    if (!(stmt = mysql_stmt_init(mysql))) die("unable to init stmt structure");
+    cur_con->stmt = stmt;
+  }
 
   if (opt_change_propagation != -1) {
     secondary_engine->match_statement(query, expected_errors->count());
@@ -7795,71 +8187,60 @@ static void run_query_stmt(MYSQL *mysql, struct st_command *command,
     }
   }
 
-  /*
-    Init a new stmt if it's not already one created for this connection
-  */
-  if (!(stmt = cur_con->stmt)) {
-    if (!(stmt = mysql_stmt_init(mysql))) die("unable to init stmt structure");
-    cur_con->stmt = stmt;
-  }
+  DYNAMIC_STRING ds_prepare_warnings;
+  DYNAMIC_STRING ds_execute_warnings;
 
-  /* Init dynamic strings for warnings */
-  if (!disable_warnings) {
+  // Init dynamic strings for warnings.
+  if (!disable_warnings || disabled_warnings->count() ||
+      enabled_warnings->count()) {
     init_dynamic_string(&ds_prepare_warnings, NULL, 0, 256);
     init_dynamic_string(&ds_execute_warnings, NULL, 0, 256);
   }
 
-  /*
-    Prepare the query
-  */
+  // Note that here 'res' is meta data result set
+  MYSQL_RES *res = NULL;
+  int err = 0;
+
+  // Prepare the query
   if (mysql_stmt_prepare(stmt, query, static_cast<ulong>(query_len))) {
     handle_error(command, mysql_stmt_errno(stmt), mysql_stmt_error(stmt),
                  mysql_stmt_sqlstate(stmt), ds);
     goto end;
   }
 
-  /*
-    Get the warnings from mysql_stmt_prepare and keep them in a
-    separate string
-  */
-  if (!disable_warnings) append_warnings(&ds_prepare_warnings, mysql);
+  // Get the warnings from mysql_stmt_prepare and keep them in a
+  // separate string.
+  if (!disable_warnings || disabled_warnings->count() ||
+      enabled_warnings->count())
+    append_warnings(&ds_prepare_warnings, mysql);
 
-  /*
-    No need to call mysql_stmt_bind_param() because we have no
-    parameter markers.
-  */
-
+  // No need to call mysql_stmt_bind_param() because we have no
+  // parameter markers.
   if (cursor_protocol_enabled) {
-    /*
-      Use cursor when retrieving result
-    */
-    ulong type = CURSOR_TYPE_READ_ONLY;
+    // Use cursor when retrieving result.
+    unsigned long type = CURSOR_TYPE_READ_ONLY;
     if (mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (void *)&type))
       die("mysql_stmt_attr_set(STMT_ATTR_CURSOR_TYPE) failed': %d %s",
           mysql_stmt_errno(stmt), mysql_stmt_error(stmt));
   }
 
-  /*
-    Execute the query
-  */
+  // Execute the query
   if (mysql_stmt_execute(stmt)) {
     handle_error(command, mysql_stmt_errno(stmt), mysql_stmt_error(stmt),
                  mysql_stmt_sqlstate(stmt), ds);
     goto end;
   }
 
-  /*
-    When running in cursor_protocol get the warnings from execute here
-    and keep them in a separate string for later.
-  */
-  if (cursor_protocol_enabled && !disable_warnings)
+  // When running in cursor_protocol get the warnings from execute here
+  // and keep them in a separate string for later.
+  if (cursor_protocol_enabled &&
+      (!disable_warnings || disabled_warnings->count() ||
+       enabled_warnings->count()))
     append_warnings(&ds_execute_warnings, mysql);
 
-  /*
-    We instruct that we want to update the "max_length" field in
-    mysql_stmt_store_result(), this is our only way to know how much
-    buffer to allocate for result data
-  */
+  // We instruct that we want to update the "max_length" field in
+  // mysql_stmt_store_result(), this is our only way to know how much
+  // buffer to allocate for result data
   {
     bool one = 1;
     if (mysql_stmt_attr_set(stmt, STMT_ATTR_UPDATE_MAX_LENGTH, (void *)&one))
@@ -7868,11 +8249,9 @@ static void run_query_stmt(MYSQL *mysql, struct st_command *command,
   }
 
   do {
-    /*
-      If we got here the statement succeeded and was expected to do so,
-      get data. Note that this can still give errors found during execution!
-      Store the result of the query if if will return any fields
-    */
+    // If we got here the statement succeeded and was expected to do so,
+    // get data. Note that this can still give errors found during execution.
+    // Store the result of the query if if will return any fields
     if (mysql_stmt_field_count(stmt) && mysql_stmt_store_result(stmt)) {
       handle_error(command, mysql_stmt_errno(stmt), mysql_stmt_error(stmt),
                    mysql_stmt_sqlstate(stmt), ds);
@@ -7880,16 +8259,14 @@ static void run_query_stmt(MYSQL *mysql, struct st_command *command,
     }
 
     if (!disable_result_log) {
-      /*
-        Not all statements creates a result set. If there is one we can
-        now create another normal result set that contains the meta
-        data. This set can be handled almost like any other non prepared
-        statement result set.
-      */
+      // Not all statements creates a result set. If there is one we can
+      // now create another normal result set that contains the meta
+      // data. This set can be handled almost like any other non prepared
+      // statement result set.
       if ((res = mysql_stmt_result_metadata(stmt)) != NULL) {
-        /* Take the column count from meta info */
+        // Take the column count from meta info
         MYSQL_FIELD *fields = mysql_fetch_fields(res);
-        uint num_fields = mysql_num_fields(res);
+        std::uint32_t num_fields = mysql_num_fields(res);
 
         if (display_metadata) append_metadata(ds, fields, num_fields);
 
@@ -7898,49 +8275,47 @@ static void run_query_stmt(MYSQL *mysql, struct st_command *command,
 
         append_stmt_result(ds, stmt, fields, num_fields);
 
-        /* Free normal result set with meta data */
+        // Free normal result set with meta data
         mysql_free_result(res);
 
-        /*
-          Clear prepare warnings if there are execute warnings,
-          since they are probably duplicated.
-        */
+        // Clear prepare warnings if there are execute warnings,
+        // since they are probably duplicated.
         if (ds_execute_warnings.length || mysql->warning_count)
           dynstr_set(&ds_prepare_warnings, NULL);
       } else {
-        /*
-          This is a query without resultset
-        */
+        // This is a query without resultset
       }
 
-      /*
-        Fetch info before fetching warnings, since it will be reset
-        otherwise.
-      */
-
+      // Fetch info before fetching warnings, since it will be reset
+      // otherwise.
       if (!disable_info)
         append_info(ds, mysql_affected_rows(stmt->mysql), mysql_info(mysql));
 
       if (display_session_track_info) append_session_track_info(ds, mysql);
 
-      /*
-        Add all warnings to the result. We can't do this if we are in
-        the middle of processing results from multi-statement, because
-        this will break protocol.
-      */
-      if (!disable_warnings && !mysql_more_results(stmt->mysql)) {
-        /* Get the warnings from execute */
-
-        /* Append warnings to ds - if there are any */
-        if (append_warnings(&ds_execute_warnings, mysql) ||
-            ds_execute_warnings.length || ds_prepare_warnings.length ||
+      // Add all warnings to the result. We can't do this if we are in
+      // the middle of processing results from multi-statement, because
+      // this will break protocol.
+      if ((!disable_warnings || disabled_warnings->count() ||
+           enabled_warnings->count()) &&
+          !mysql_more_results(stmt->mysql)) {
+        // Get the warnings from execute. Append warnings to ds,
+        // if there are any.
+        append_warnings(&ds_execute_warnings, mysql);
+        if (ds_execute_warnings.length || ds_prepare_warnings.length ||
             ds_warnings->length) {
           dynstr_append_mem(ds, "Warnings:\n", 10);
+
+          // Append warnings if exist any
           if (ds_warnings->length)
             dynstr_append_mem(ds, ds_warnings->str, ds_warnings->length);
+
+          // Append prepare warnings if exist any
           if (ds_prepare_warnings.length)
             dynstr_append_mem(ds, ds_prepare_warnings.str,
                               ds_prepare_warnings.length);
+
+          // Append execute warnings if exist any
           if (ds_execute_warnings.length)
             dynstr_append_mem(ds, ds_execute_warnings.str,
                               ds_execute_warnings.length);
@@ -7950,31 +8325,29 @@ static void run_query_stmt(MYSQL *mysql, struct st_command *command,
   } while ((err = mysql_stmt_next_result(stmt)) == 0);
 
   if (err > 0) {
-    /* We got an error from mysql_stmt_next_result, maybe expected */
+    // We got an error from mysql_stmt_next_result, maybe expected.
     handle_error(command, mysql_stmt_errno(stmt), mysql_stmt_error(stmt),
                  mysql_stmt_sqlstate(stmt), ds);
     goto end;
   }
 
-  /* If we got here the statement was both executed and read successfully */
+  // If we got here the statement was both executed and read successfully.
   handle_no_error(command);
 
 end:
-  if (!disable_warnings) {
+  if (!disable_warnings || disabled_warnings->count() ||
+      enabled_warnings->count()) {
     dynstr_free(&ds_prepare_warnings);
     dynstr_free(&ds_execute_warnings);
   }
   revert_properties();
 
-  /*
-    We save the return code (mysql_stmt_errno(stmt)) from the last call sent
-    to the server into the mysqltest builtin variable $mysql_errno. This
-    variable then can be used from the test case itself.
-  */
-
+  // We save the return code (mysql_stmt_errno(stmt)) from the last call sent
+  // to the server into the mysqltest builtin variable $mysql_errno. This
+  // variable then can be used from the test case itself.
   var_set_errno(mysql_stmt_errno(stmt));
 
-  /* Close the statement if - no reconnect, need new prepare */
+  // Close the statement if no reconnect, need new prepare.
   if (mysql->reconnect) {
     mysql_stmt_close(stmt);
     cur_con->stmt = NULL;
@@ -7986,8 +8359,6 @@ end:
     if (secondary_engine->run_load_statements(mysql, ignore_errors))
       die("Original query '%s'.", query);
   }
-
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -8785,13 +9156,13 @@ int main(int argc, char **argv) {
   var_set_int("$JSON_EXPLAIN_PROTOCOL", json_explain_protocol);
   var_set_int("$CURSOR_PROTOCOL", cursor_protocol);
 
-  var_set_int("$ENABLED_QUERY_LOG", 1);
-  var_set_int("$ENABLED_ABORT_ON_ERROR", 1);
-  var_set_int("$ENABLED_RESULT_LOG", 1);
-  var_set_int("$ENABLED_CONNECT_LOG", 0);
-  var_set_int("$ENABLED_WARNINGS", 1);
-  var_set_int("$ENABLED_INFO", 0);
-  var_set_int("$ENABLED_METADATA", 0);
+  var_set_int("$ENABLE_QUERY_LOG", 1);
+  var_set_int("$ENABLE_ABORT_ON_ERROR", 1);
+  var_set_int("$ENABLE_RESULT_LOG", 1);
+  var_set_int("$ENABLE_CONNECT_LOG", 0);
+  var_set_int("$ENABLE_WARNINGS", 1);
+  var_set_int("$ENABLE_INFO", 0);
+  var_set_int("$ENABLE_METADATA", 0);
 
   DBUG_PRINT("info",
              ("result_file: '%s'", result_file_name ? result_file_name : ""));
@@ -8926,7 +9297,7 @@ int main(int argc, char **argv) {
 
     if (command->type == Q_ERROR && expected_errors->count())
       // Delete all the error codes from previous 'error' command.
-      expected_errors->clear_error_list();
+      expected_errors->clear_list();
 
     if (testcase_disabled && command->type != Q_ENABLE_TESTCASE &&
         command->type != Q_DISABLE_TESTCASE) {
@@ -9005,10 +9376,10 @@ int main(int argc, char **argv) {
           set_property(command, P_CONNECT, 1);
           break;
         case Q_ENABLE_WARNINGS:
-          set_property(command, P_WARN, 0);
+          do_enable_warnings(command);
           break;
         case Q_DISABLE_WARNINGS:
-          set_property(command, P_WARN, 1);
+          do_disable_warnings(command);
           break;
         case Q_ENABLE_INFO:
           set_property(command, P_INFO, 0);
@@ -9221,7 +9592,7 @@ int main(int argc, char **argv) {
           command->last_argument = command->end;
           break;
         case Q_ERROR:
-          do_get_errcodes(command);
+          do_error(command);
           break;
         case Q_REPLACE:
           do_get_replace(command);
@@ -9423,7 +9794,7 @@ int main(int argc, char **argv) {
         command->type != Q_IF && command->type != Q_END_BLOCK) {
       // As soon as any non "error" command or comment has been executed,
       // the array with expected errors should be cleared
-      expected_errors->clear_error_list();
+      expected_errors->clear_list();
     }
 
     if (command_executed != last_command_executed || command->used_replace) {
@@ -9461,6 +9832,10 @@ int main(int argc, char **argv) {
   verbose_msg("... Done processing test commands.");
 
   if (testcase_disabled) die("Test ended with test case execution disabled.");
+
+  if (disable_warnings || disabled_warnings->count())
+    die("The test didn't enable all the disabled warnings, enable "
+        "all of them before end of the test.");
 
   bool empty_result = false;
 

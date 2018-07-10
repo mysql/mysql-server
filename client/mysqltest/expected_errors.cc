@@ -44,8 +44,12 @@ std::vector<unsigned int> Expected_errors::errors() {
   return errors;
 }
 
-void Expected_errors::add_error(std::uint32_t error_code, const char *sqlstate,
-                                error_type type) {
-  std::unique_ptr<Error> new_error(new Error(error_code, sqlstate, type));
+void Expected_errors::add_error(const char *sqlstate, error_type type) {
+  std::unique_ptr<Error> new_error(new Error(0, sqlstate, type));
+  m_errors.push_back(std::move(new_error));
+}
+
+void Expected_errors::add_error(std::uint32_t error_code, error_type type) {
+  std::unique_ptr<Error> new_error(new Error(error_code, "00000", type));
   m_errors.push_back(std::move(new_error));
 }

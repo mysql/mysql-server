@@ -23,61 +23,16 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA.
 
-/// @file
-///
-/// This file declares the Error class.
+#include "client/mysqltest/error.h"
 
-#include <cstring>
 #include <memory>
 #include <string>
 #include <vector>
 
-#include "mysql_com.h"  // SQLSTATE_LENGTH
-
 #define MAX_ERROR_COUNT 20
 
-enum error_type { ERR_ERRNO = 1, ERR_SQLSTATE };
-
-/// Class representing an error code.
-///
-/// Contains following information
-///   - Error code
-///   - Error type
-///   - SQLSTATE
-///
-/// If an error type value is
-///   - ERR_ERRNO, then SQLSTATE value is "00000"
-///   - ERR_SQLSTATE, the error code value is 0
-class Error {
- public:
-  Error(std::uint32_t error_code, const char *sqlstate, error_type type) {
-    this->m_error_code = error_code;
-    this->m_type = type;
-    std::strcpy(this->m_sqlstate, sqlstate);
-  }
-
-  /// Return a sqlstate for an error.
-  ///
-  /// @retval SQLSTATE string
-  const char *sqlstate() { return m_sqlstate; }
-
-  /// Return an error code
-  ///
-  /// @retval Error code
-  std::uint32_t error_code() { return m_error_code; }
-
-  /// Return an error type
-  ///
-  /// @retval Error type (ERR_ERRNO or ERR_SQLSTATE)
-  error_type type() { return m_type; }
-
- private:
-  char m_sqlstate[SQLSTATE_LENGTH + 1];  // '\0' terminated string
-  error_type m_type;
-  std::uint32_t m_error_code;
-};
-
-/// List of error codes passed to a mysqltest command like '--error'.
+/// Class representing a list of error codes passed as argument to
+/// mysqltest command <code>--error</code>.
 class Expected_errors {
  public:
   typedef std::vector<std::unique_ptr<Error>>::iterator iterator;
@@ -104,6 +59,8 @@ class Expected_errors {
   std::size_t count() { return m_errors.size(); }
 
   /// Return list of error codes
+  ///
+  /// @retval List of error codes
   std::string error_list();
 
   /// Return list of error codes in the list
@@ -118,14 +75,18 @@ class Expected_errors {
 
   /// Add a new error to the existing list of errors.
   ///
+  /// @param sqlstate SQLSTATE string
+  /// @param type     Error type
+  void add_error(const char *sqlstate, error_type type);
+
+  /// Add a new error to the existing list of errors.
+  ///
   /// @param error_code Error number
-  /// @param sqlstate   SQLSTATE string
   /// @param type       Error type
-  void add_error(std::uint32_t error_code, const char *sqlstate,
-                 error_type type);
+  void add_error(std::uint32_t error_code, error_type type);
 
   /// Delete all errors from the vector.
-  void clear_error_list() { m_errors.clear(); }
+  void clear_list() { m_errors.clear(); }
 
  private:
   // List containing expected errors
