@@ -25,6 +25,7 @@
 #ifndef UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_NGS_GENERAL_H_
 #define UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_NGS_GENERAL_H_
 
+#include "plugin/x/ngs/include/ngs/interface/listener_factory_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/socket_events_interface.h"
 #include "plugin/x/ngs/include/ngs_common/operations_factory_interface.h"
 #include "plugin/x/ngs/include/ngs_common/socket_interface.h"
@@ -139,6 +140,36 @@ class Mock_socket_events : public Socket_events_interface {
   MOCK_METHOD2(add_timer, void(const std::size_t, ngs::function<bool()>));
   MOCK_METHOD0(loop, void());
   MOCK_METHOD0(break_loop, void());
+};
+
+class Mock_listener_factory_interface : public Listener_factory_interface {
+ public:
+  MOCK_METHOD3(create_unix_socket_listener_ptr,
+               Listener_interface *(const std::string &unix_socket_path,
+                                    Socket_events_interface &event,
+                                    const uint32 backlog));
+
+  MOCK_METHOD5(create_tcp_socket_listener_ptr,
+               Listener_interface *(std::string &bind_address,
+                                    const unsigned short port,
+                                    const uint32 port_open_timeout,
+                                    Socket_events_interface &event,
+                                    const uint32 backlog));
+
+  Listener_interface_ptr create_unix_socket_listener(
+      const std::string &unix_socket_path, Socket_events_interface &event,
+      const uint32 backlog) {
+    return Listener_interface_ptr{
+        create_unix_socket_listener_ptr(unix_socket_path, event, backlog)};
+  }
+
+  Listener_interface_ptr create_tcp_socket_listener(
+      std::string &bind_address, const unsigned short port,
+      const uint32 port_open_timeout, Socket_events_interface &event,
+      const uint32 backlog) {
+    return Listener_interface_ptr{create_tcp_socket_listener_ptr(
+        bind_address, port, port_open_timeout, event, backlog)};
+  }
 };
 
 }  // namespace test

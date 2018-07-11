@@ -51,10 +51,10 @@ class Server_task_interface {
           m_client_list(client_list) {}
 
    public:
-    On_connection m_on_connection;
-    bool m_skip_networking;
-    Server_properties *m_properties;
-    Client_list *m_client_list;
+    On_connection m_on_connection = [](Connection_acceptor_interface &) {};
+    bool m_skip_networking = false;
+    Server_properties *m_properties = nullptr;
+    Client_list *m_client_list = nullptr;
   };
 
   enum class Stop_cause {
