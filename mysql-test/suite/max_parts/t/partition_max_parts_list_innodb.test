@@ -15,6 +15,7 @@
 # Engine specific settings and requirements
 
 call mtr.add_suppression("A long semaphore wait");
+call mtr.add_suppression("Could not increase number of max_open_files");
 
 ##### Storage engine to be tested
 let $engine= 'InnoDB';
