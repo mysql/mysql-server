@@ -3024,9 +3024,6 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
     c_default_hashmap_size = NDB_DEFAULT_HASHMAP_BUCKETS;
   }
 
-  m_use_checksum = 1;
-  ndb_mgm_get_int_parameter(p, CFG_DB_USE_CHECKSUM, &m_use_checksum);
-
   Pool_context pc;
   pc.m_block = this;
 
@@ -5668,13 +5665,9 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
   TableRecordPtr tablePtr;
   Uint32 schemaFileId;
   switch (parseP->requestType) {
-  case DictTabInfo::CreateTableFromAPI: {
+  case DictTabInfo::CreateTableFromAPI:
+  {
     jam();
-    if (!m_use_checksum)
-    {
-      jam();
-      c_tableDesc.RowChecksumFlag = 0;
-    }
   }
   case DictTabInfo::AlterTableFromAPI:{
     jam();
