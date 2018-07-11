@@ -1,0 +1,297 @@
+# Test rename table with fulltext index crash/recovery rollback. The table should be renamed from one database to another so that all tablepsace of aux tables would be renamed too..
+CREATE DATABASE db_a;
+CREATE DATABASE db_b;
+CREATE TABLE db_a.t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, FULLTEXT KEY b_k(b));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_rename_space_log_1';
+RENAME TABLE db_a.t1 to db_b.t2;
+SET SESSION DEBUG = '-d,ddl_log_crash_before_rename_space_log_1';
+DROP TABLE db_a.t1;
+CREATE TABLE db_a.t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, FULLTEXT KEY b_k(b));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_rename_space_log_2';
+RENAME TABLE db_a.t1 to db_b.t2;
+SET SESSION DEBUG = '-d,ddl_log_crash_before_rename_space_log_2';
+DROP TABLE db_a.t1;
+CREATE TABLE db_a.t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, FULLTEXT KEY b_k(b));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_rename_space_log_3';
+RENAME TABLE db_a.t1 to db_b.t2;
+SET SESSION DEBUG = '-d,ddl_log_crash_before_rename_space_log_3';
+DROP TABLE db_a.t1;
+CREATE TABLE db_a.t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, FULLTEXT KEY b_k(b));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_rename_space_log_4';
+RENAME TABLE db_a.t1 to db_b.t2;
+SET SESSION DEBUG = '-d,ddl_log_crash_before_rename_space_log_4';
+DROP TABLE db_a.t1;
+CREATE TABLE db_a.t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, FULLTEXT KEY b_k(b));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_rename_space_log_5';
+RENAME TABLE db_a.t1 to db_b.t2;
+SET SESSION DEBUG = '-d,ddl_log_crash_before_rename_space_log_5';
+DROP TABLE db_a.t1;
+CREATE TABLE db_a.t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, FULLTEXT KEY b_k(b));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_rename_space_log_6';
+RENAME TABLE db_a.t1 to db_b.t2;
+SET SESSION DEBUG = '-d,ddl_log_crash_before_rename_space_log_6';
+DROP TABLE db_a.t1;
+CREATE TABLE db_a.t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, FULLTEXT KEY b_k(b));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_rename_space_log_7';
+RENAME TABLE db_a.t1 to db_b.t2;
+SET SESSION DEBUG = '-d,ddl_log_crash_before_rename_space_log_7';
+DROP TABLE db_a.t1;
+CREATE TABLE db_a.t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, FULLTEXT KEY b_k(b));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_rename_space_log_8';
+RENAME TABLE db_a.t1 to db_b.t2;
+SET SESSION DEBUG = '-d,ddl_log_crash_before_rename_space_log_8';
+DROP TABLE db_a.t1;
+CREATE TABLE db_a.t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, FULLTEXT KEY b_k(b));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_rename_space_log_9';
+RENAME TABLE db_a.t1 to db_b.t2;
+SET SESSION DEBUG = '-d,ddl_log_crash_before_rename_space_log_9';
+DROP TABLE db_a.t1;
+CREATE TABLE db_a.t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, FULLTEXT KEY b_k(b));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_rename_space_log_10';
+RENAME TABLE db_a.t1 to db_b.t2;
+SET SESSION DEBUG = '-d,ddl_log_crash_before_rename_space_log_10';
+DROP TABLE db_a.t1;
+CREATE TABLE db_a.t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, FULLTEXT KEY b_k(b));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_rename_space_log_11';
+RENAME TABLE db_a.t1 to db_b.t2;
+SET SESSION DEBUG = '-d,ddl_log_crash_before_rename_space_log_11';
+DROP TABLE db_a.t1;
+CREATE TABLE db_a.t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, FULLTEXT KEY b_k(b));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_rename_space_log_12';
+RENAME TABLE db_a.t1 to db_b.t2;
+SET SESSION DEBUG = '-d,ddl_log_crash_before_rename_space_log_12';
+DROP TABLE db_a.t1;
+CREATE TABLE db_a.t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, FULLTEXT KEY b_k(b));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_before_rename_space_log_13';
+RENAME TABLE db_a.t1 to db_b.t2;
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_before_rename_space_log_13';
+DROP TABLE db_b.t2;
+CREATE TABLE db_a.t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, FULLTEXT KEY b_k(b));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_log_1';
+RENAME TABLE db_a.t1 to db_b.t2;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_log_1';
+DROP TABLE db_a.t1;
+CREATE TABLE db_a.t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, FULLTEXT KEY b_k(b));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_log_2';
+RENAME TABLE db_a.t1 to db_b.t2;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_log_2';
+DROP TABLE db_a.t1;
+CREATE TABLE db_a.t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, FULLTEXT KEY b_k(b));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_log_3';
+RENAME TABLE db_a.t1 to db_b.t2;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_log_3';
+DROP TABLE db_a.t1;
+CREATE TABLE db_a.t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, FULLTEXT KEY b_k(b));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_log_4';
+RENAME TABLE db_a.t1 to db_b.t2;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_log_4';
+DROP TABLE db_a.t1;
+CREATE TABLE db_a.t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, FULLTEXT KEY b_k(b));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_log_5';
+RENAME TABLE db_a.t1 to db_b.t2;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_log_5';
+DROP TABLE db_a.t1;
+CREATE TABLE db_a.t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, FULLTEXT KEY b_k(b));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_log_6';
+RENAME TABLE db_a.t1 to db_b.t2;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_log_6';
+DROP TABLE db_a.t1;
+CREATE TABLE db_a.t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, FULLTEXT KEY b_k(b));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_log_7';
+RENAME TABLE db_a.t1 to db_b.t2;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_log_7';
+DROP TABLE db_a.t1;
+CREATE TABLE db_a.t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, FULLTEXT KEY b_k(b));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_log_8';
+RENAME TABLE db_a.t1 to db_b.t2;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_log_8';
+DROP TABLE db_a.t1;
+CREATE TABLE db_a.t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, FULLTEXT KEY b_k(b));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_log_9';
+RENAME TABLE db_a.t1 to db_b.t2;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_log_9';
+DROP TABLE db_a.t1;
+CREATE TABLE db_a.t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, FULLTEXT KEY b_k(b));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_log_10';
+RENAME TABLE db_a.t1 to db_b.t2;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_log_10';
+DROP TABLE db_a.t1;
+CREATE TABLE db_a.t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, FULLTEXT KEY b_k(b));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_log_11';
+RENAME TABLE db_a.t1 to db_b.t2;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_log_11';
+DROP TABLE db_a.t1;
+CREATE TABLE db_a.t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, FULLTEXT KEY b_k(b));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_log_12';
+RENAME TABLE db_a.t1 to db_b.t2;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_log_12';
+DROP TABLE db_a.t1;
+CREATE TABLE db_a.t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, FULLTEXT KEY b_k(b));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_log_13';
+RENAME TABLE db_a.t1 to db_b.t2;
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_log_13';
+DROP TABLE db_b.t2;
+CREATE TABLE db_a.t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, FULLTEXT KEY b_k(b));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_delete_1';
+RENAME TABLE db_a.t1 to db_b.t2;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_delete_1';
+DROP TABLE db_a.t1;
+CREATE TABLE db_a.t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, FULLTEXT KEY b_k(b));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_delete_2';
+RENAME TABLE db_a.t1 to db_b.t2;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_delete_2';
+DROP TABLE db_a.t1;
+CREATE TABLE db_a.t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, FULLTEXT KEY b_k(b));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_delete_3';
+RENAME TABLE db_a.t1 to db_b.t2;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_delete_3';
+DROP TABLE db_a.t1;
+CREATE TABLE db_a.t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, FULLTEXT KEY b_k(b));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_delete_4';
+RENAME TABLE db_a.t1 to db_b.t2;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_delete_4';
+DROP TABLE db_a.t1;
+CREATE TABLE db_a.t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, FULLTEXT KEY b_k(b));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_delete_5';
+RENAME TABLE db_a.t1 to db_b.t2;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_delete_5';
+DROP TABLE db_a.t1;
+CREATE TABLE db_a.t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, FULLTEXT KEY b_k(b));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_delete_6';
+RENAME TABLE db_a.t1 to db_b.t2;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_delete_6';
+DROP TABLE db_a.t1;
+CREATE TABLE db_a.t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, FULLTEXT KEY b_k(b));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_delete_7';
+RENAME TABLE db_a.t1 to db_b.t2;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_delete_7';
+DROP TABLE db_a.t1;
+CREATE TABLE db_a.t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, FULLTEXT KEY b_k(b));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_delete_8';
+RENAME TABLE db_a.t1 to db_b.t2;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_delete_8';
+DROP TABLE db_a.t1;
+CREATE TABLE db_a.t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, FULLTEXT KEY b_k(b));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_delete_9';
+RENAME TABLE db_a.t1 to db_b.t2;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_delete_9';
+DROP TABLE db_a.t1;
+CREATE TABLE db_a.t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, FULLTEXT KEY b_k(b));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_delete_10';
+RENAME TABLE db_a.t1 to db_b.t2;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_delete_10';
+DROP TABLE db_a.t1;
+CREATE TABLE db_a.t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, FULLTEXT KEY b_k(b));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_delete_11';
+RENAME TABLE db_a.t1 to db_b.t2;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_delete_11';
+DROP TABLE db_a.t1;
+CREATE TABLE db_a.t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, FULLTEXT KEY b_k(b));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_delete_12';
+RENAME TABLE db_a.t1 to db_b.t2;
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_delete_12';
+DROP TABLE db_a.t1;
+CREATE TABLE db_a.t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, FULLTEXT KEY b_k(b));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_delete_13';
+RENAME TABLE db_a.t1 to db_b.t2;
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_delete_13';
+DROP TABLE db_b.t2;
+CREATE TABLE db_a.t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, FULLTEXT KEY b_k(b));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_before_post_ddl';
+RENAME TABLE db_a.t1 to db_b.t2;
+SET SESSION DEBUG = '-d,ddl_log_before_post_ddl';
+DROP TABLE db_b.t2;
+CREATE TABLE db_a.t1
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, FULLTEXT KEY b_k(b));
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
+SET SESSION DEBUG = '+d,ddl_log_crash_after_replay_1';
+RENAME TABLE db_a.t1 to db_b.t2;
+# No such crash injection, statement did not crash, cleaning up
+SET SESSION DEBUG = '-d,ddl_log_crash_after_replay_1';
+DROP TABLE db_b.t2;
+SET GLOBAL innodb_ddl_log_crash_reset_debug = 0;
+DROP DATABASE db_a;
+DROP DATABASE db_b;

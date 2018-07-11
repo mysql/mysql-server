@@ -1,0 +1,41 @@
+--source include/have_debug.inc
+--source include/not_valgrind.inc
+--source include/not_crashrep.inc
+
+--disable_query_log
+CALL mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Tablespace .*, name '.*', file '*.*' is missing!");
+CALL mtr.add_suppression("Operating system error number .* in a file operation.");
+CALL mtr.add_suppression("The error means the system cannot find the path specified.");
+call mtr.add_suppression("Cannot open datafile for read-only: .*");
+--enable_query_log
+
+--echo # Test rename table with fulltext index crash/recovery rollback. The table should be renamed from one database to another so that all tablepsace of aux tables would be renamed too..
+
+LET $innodb_ddl_log_crash_reset_debug_orig = `SELECT @@innodb_ddl_log_crash_reset_debug`;
+CREATE DATABASE db_a;
+CREATE DATABASE db_b;
+
+let $table_name= db_a.t1;
+let $rename_table_name= db_b.t2;
+
+let $create_statement= CREATE TABLE $table_name
+(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(100), c INT NOT NULL, FULLTEXT KEY b_k(b));
+
+let $insert_statement= INSERT INTO $table_name VALUES (1, "Filler1", 1),
+(2, "filler2", 2), (3, "FILLER3", 3), (4, "Filler4", 4), (5, "5", 5),
+(6, "filler6", 6);
+
+let $test_free= 0;
+let $test_delete= 0;
+let $test_rename= 1;
+let $test_drop= 0;
+let $rename_flag= 1;
+
+--disable_result_log
+let $crash_statement= RENAME TABLE $table_name to $rename_table_name;
+--source ../mysql-test/suite/innodb/include/ddl_crash_statement.inc
+
+eval SET GLOBAL innodb_ddl_log_crash_reset_debug = $innodb_ddl_log_crash_reset_debug_orig;
+
+DROP DATABASE db_a;
+DROP DATABASE db_b;

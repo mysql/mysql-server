@@ -1331,7 +1331,8 @@ static dberr_t fts_drop_table(trx_t *trx, const char *table_name,
 static MY_ATTRIBUTE((warn_unused_result)) dberr_t fts_rename_one_aux_table(
     const char *new_name,           /*!< in: new parent tbl name */
     const char *fts_table_old_name, /*!< in: old aux tbl name */
-    trx_t *trx)                     /*!< in: transaction */
+    trx_t *trx,                     /*!< in: transaction */
+    bool replay)                    /*!< Whether in replay stage */
 {
   char fts_table_new_name[MAX_TABLE_NAME_LEN];
   ulint new_db_name_len = dict_get_db_name_len(new_name);
@@ -1353,7 +1354,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t fts_rename_one_aux_table(
 
   dberr_t error;
   error = row_rename_table_for_mysql(fts_table_old_name, fts_table_new_name,
-                                     nullptr, trx, true);
+                                     nullptr, trx, replay);
 
   if (error == DB_SUCCESS) {
     /* Update dd tablespace filename. */
@@ -1365,7 +1366,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t fts_rename_one_aux_table(
     table->acquire();
     mutex_exit(&dict_sys->mutex);
 
-    if (!dd_rename_fts_table(table, fts_table_old_name)) {
+    if (!replay && !dd_rename_fts_table(table, fts_table_old_name)) {
       ut_ad(0);
     }
 
@@ -1381,7 +1382,9 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t fts_rename_one_aux_table(
  @return DB_SUCCESS or error code */
 dberr_t fts_rename_aux_tables(dict_table_t *table,  /*!< in: user Table */
                               const char *new_name, /*!< in: new table name */
-                              trx_t *trx)           /*!< in: transaction */
+                              trx_t *trx,           /*!< in: transaction */
+                              bool replay)          /*!< in: Whether in replay
+                                                        stage */
 {
   ulint i;
   fts_table_t fts_table;
@@ -1397,7 +1400,7 @@ dberr_t fts_rename_aux_tables(dict_table_t *table,  /*!< in: user Table */
 
     fts_get_table_name(&fts_table, old_table_name);
 
-    err = fts_rename_one_aux_table(new_name, old_table_name, trx);
+    err = fts_rename_one_aux_table(new_name, old_table_name, trx, replay);
 
     if (err != DB_SUCCESS) {
       return (err);
@@ -1422,7 +1425,7 @@ dberr_t fts_rename_aux_tables(dict_table_t *table,  /*!< in: user Table */
 
       fts_get_table_name(&fts_table, old_table_name);
 
-      err = fts_rename_one_aux_table(new_name, old_table_name, trx);
+      err = fts_rename_one_aux_table(new_name, old_table_name, trx, replay);
 
       DBUG_EXECUTE_IF("fts_rename_failure", err = DB_DEADLOCK;);
 

@@ -1591,7 +1591,7 @@ void Log_DDL::replay_rename_table_log(table_id_t table_id, const char *old_name,
   trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 
   dberr_t err;
-  err = row_rename_table_for_mysql(old_name, new_name, NULL, trx, false);
+  err = row_rename_table_for_mysql(old_name, new_name, NULL, trx, true);
 
   dict_table_t *table;
   table = dd_table_open_on_name_in_mem(new_name, true);

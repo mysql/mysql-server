@@ -12431,7 +12431,7 @@ int innobase_basic_ddl::rename_impl(THD *thd, const char *from, const char *to,
   row_mysql_lock_data_dictionary(trx);
 
   error = row_rename_table_for_mysql(norm_from, norm_to, &to_table->table(),
-                                     trx, true);
+                                     trx, false);
 
   row_mysql_unlock_data_dictionary(trx);
 
