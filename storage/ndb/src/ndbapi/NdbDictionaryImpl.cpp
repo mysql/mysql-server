@@ -661,7 +661,7 @@ NdbTableImpl::init(){
   m_logging= true;
   m_temporary = false;
   m_row_gci = true;
-  m_row_checksum = true;
+  m_row_checksum = 1;
   m_force_var_part = false;
   m_has_default_values = false;
   m_kvalue= 6;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -225,11 +225,11 @@ public:
   Uint64 m_max_rows;
   Uint64 m_min_rows;
   Uint32 m_default_no_part_flag;
+  Uint32 m_row_checksum;
   bool m_linear_flag;
   bool m_logging;
   bool m_temporary;
   bool m_row_gci;
-  bool m_row_checksum;
   bool m_force_var_part;
   bool m_has_default_values; 
   bool m_read_backup;

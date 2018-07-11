@@ -146,7 +146,6 @@ Dbtux::prepare_move_scan_ctx(ScanOpPtr scanPtr)
 void
 Dbtux::prepare_build_ctx(TuxCtx& ctx, FragPtr fragPtr)
 {
-  jamDebug();
   IndexPtr indexPtr;
   ctx.fragPtr = fragPtr;
   indexPtr.i = fragPtr.p->m_indexId;

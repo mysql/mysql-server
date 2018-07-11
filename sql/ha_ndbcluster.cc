@@ -92,6 +92,7 @@ static uint opt_ndb_nodeid;
 static my_bool opt_ndb_read_backup;
 static ulong opt_ndb_data_node_neighbour;
 static my_bool opt_ndb_fully_replicated;
+static ulong opt_ndb_row_checksum;
 
 #define MYSQL_VERSION_NDB_DEFAULT_COLUMN_FORMAT_DYNAMIC 50711
 enum ndb_default_colum_format_enum {
@@ -10924,6 +10925,7 @@ int ha_ndbcluster::create(const char *name,
   {
     DBUG_PRINT("info", ("ndb_sys_table true"));
   }
+  tab.setRowChecksum(opt_ndb_row_checksum);
   tab.setSingleUserMode(single_user_mode);
 
   if (!is_alter)
@@ -20304,6 +20306,20 @@ static MYSQL_SYSVAR_UINT(
   0 /* block */
 );
 
+static MYSQL_SYSVAR_ULONG(
+  row_checksum,                            /* name */
+  opt_ndb_row_checksum,                    /* var  */
+  PLUGIN_VAR_OPCMDARG,
+  "Create tables with a row checksum, this checks for HW issues at the"
+  "expense of performance",
+  NULL,                              /* check func. */
+  NULL,                              /* update func. */
+  1,                                 /* default */
+  0,                                 /* min */
+  1,                                 /* max */
+  0                                  /* block */
+);
+
 static MYSQL_SYSVAR_BOOL(
   fully_replicated,                        /* name */
   opt_ndb_fully_replicated,                /* var  */
@@ -20756,6 +20772,7 @@ static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(read_backup),
   MYSQL_SYSVAR(data_node_neighbour),
   MYSQL_SYSVAR(fully_replicated),
+  MYSQL_SYSVAR(row_checksum),
 #ifndef DBUG_OFF
   MYSQL_SYSVAR(dbg_check_shares),
 #endif
