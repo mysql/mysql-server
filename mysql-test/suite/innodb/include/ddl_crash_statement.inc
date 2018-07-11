@@ -1,6 +1,6 @@
 
 let $get_create_template=1;
-
+let $final_table_name = $table_name;
 # Test for FREE TREE
 if ($test_free)
 {
@@ -99,7 +99,15 @@ if ($test_rename)
     eval SET SESSION DEBUG = '+d,ddl_log_crash_before_rename_space_log_$crash_count';
     --source ../mysql-test/suite/innodb/include/ddl_crash.inc
     eval SET SESSION DEBUG = '-d,ddl_log_crash_before_rename_space_log_$crash_count';
-    --eval DROP TABLE $table_name
+    let $drop_table_name = $table_name;
+    if ($rename_flag)
+    {
+      if ($did_crash == 0)
+      {
+        let $drop_table_name = $rename_table_name;
+      }
+    }
+    --eval DROP TABLE $drop_table_name
     inc $crash_count;
   }
 
@@ -112,7 +120,15 @@ if ($test_rename)
     eval SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_log_$crash_count';
     --source ../mysql-test/suite/innodb/include/ddl_crash.inc
     eval SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_log_$crash_count';
-    --eval DROP TABLE $table_name
+    let $drop_table_name = $table_name;
+    if ($rename_flag)
+    {
+      if ($did_crash == 0)
+      {
+        let $drop_table_name = $rename_table_name;
+      }
+    }
+    --eval DROP TABLE $drop_table_name
     inc $crash_count;
   }
 
@@ -125,7 +141,15 @@ if ($test_rename)
     eval SET SESSION DEBUG = '+d,ddl_log_crash_after_rename_space_delete_$crash_count';
     --source ../mysql-test/suite/innodb/include/ddl_crash.inc
     eval SET SESSION DEBUG = '-d,ddl_log_crash_after_rename_space_delete_$crash_count';
-    --eval DROP TABLE $table_name
+    let $drop_table_name = $table_name;
+    if ($rename_flag)
+    {
+      if ($did_crash == 0)
+      {
+        let $drop_table_name = $rename_table_name;
+      }
+    }
+    --eval DROP TABLE $drop_table_name
     inc $crash_count;
   }
 }
@@ -156,8 +180,12 @@ if ($test_drop)
 --eval $insert_statement
 --eval SELECT * FROM $table_name LIMIT 1
 --eval $crash_statement
-let $create_template= query_get_value(SHOW CREATE TABLE $table_name, Create Table, 1);
---eval DROP TABLE $table_name
+if ($rename_flag)
+{
+  let $final_table_name = $rename_table_name;
+}
+let $create_template= query_get_value(SHOW CREATE TABLE $final_table_name, Create Table, 1);
+--eval DROP TABLE $final_table_name
 
 --enable_result_log
 --enable_query_log
@@ -171,7 +199,7 @@ SET GLOBAL innodb_ddl_log_crash_reset_debug = 1;
 eval SET SESSION DEBUG = '+d,ddl_log_before_post_ddl';
 --source ../mysql-test/suite/innodb/include/ddl_crash.inc
 eval SET SESSION DEBUG = '-d,ddl_log_before_post_ddl';
---eval DROP TABLE $table_name
+--eval DROP TABLE $final_table_name
 
 # Test for REPLAY
 let $crash_count=1;
@@ -183,7 +211,6 @@ while ($did_crash)
   eval SET SESSION DEBUG = '+d,ddl_log_crash_after_replay_$crash_count';
   --source ../mysql-test/suite/innodb/include/ddl_crash.inc
   eval SET SESSION DEBUG = '-d,ddl_log_crash_after_replay_$crash_count';
-  --eval DROP TABLE $table_name
+  --eval DROP TABLE $final_table_name
   inc $crash_count;
 }
-

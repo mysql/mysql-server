@@ -869,7 +869,9 @@ dberr_t fts_drop_index(dict_table_t *table, dict_index_t *index, trx_t *trx,
  @return DB_SUCCESS or error code */
 dberr_t fts_rename_aux_tables(dict_table_t *table,  /*!< in: user Table */
                               const char *new_name, /*!< in: new table name */
-                              trx_t *trx);          /*!< in: transaction */
+                              trx_t *trx,           /*!< in: transaction */
+                              bool replay);         /*!< Whether in replay
+                                                    stage */
 
 /** Check indexes in the fts->indexes is also present in index cache and
  table->indexes list

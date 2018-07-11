@@ -4106,11 +4106,11 @@ bool row_is_mysql_tmp_table_name(
 @param[in]	new_name	new table name
 @param[in]	dd_table	dd::Table for new table
 @param[in,out]	trx		transaction
-@param[in]	log		whether to write rename table log
+@param[in]	replay		whether in replay stage
 @return error code or DB_SUCCESS */
 dberr_t row_rename_table_for_mysql(const char *old_name, const char *new_name,
                                    const dd::Table *dd_table, trx_t *trx,
-                                   bool log) {
+                                   bool replay) {
   dict_table_t *table = NULL;
   ibool dict_locked = FALSE;
   dberr_t err = DB_ERROR;
@@ -4190,7 +4190,7 @@ dberr_t row_rename_table_for_mysql(const char *old_name, const char *new_name,
 
   if (dict_table_has_fts_index(table) &&
       !dict_tables_have_same_db(old_name, new_name)) {
-    err = fts_rename_aux_tables(table, new_name, trx);
+    err = fts_rename_aux_tables(table, new_name, trx, replay);
   }
   if (err != DB_SUCCESS) {
     if (err == DB_DUPLICATE_KEY) {
