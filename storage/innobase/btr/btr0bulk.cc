@@ -179,14 +179,16 @@ dberr_t PageBulk::insert(const dtuple_t *tuple, const big_rec_t *big_rec,
 
   /* Insert the record.*/
   insert(rec, offsets);
+  ut_ad(m_modified);
 
   dberr_t err = DB_SUCCESS;
 
   if (big_rec) {
+    /* The page must be valid as MTR may be committed
+    during LOB insertion. */
+    finish();
     err = storeExt(big_rec, offsets);
   }
-
-  ut_ad(m_modified);
 
   return err;
 }
@@ -252,8 +254,11 @@ void PageBulk::insert(const rec_t *rec, ulint *offsets) {
   m_modified = true;
 }
 
-/** Mark end of insertion to the page. Scan all records to set page dirs,
-and set page header members.
+/** Mark end of insertion to the page. Scan records to set page dirs,
+and set page header members. The scan is incremental (slots and records
+which assignment could be "finalized" are not checked again. Check the
+m_slotted_rec_no usage, note it could be reset in some cases like
+during split.
 Note: we refer to page_copy_rec_list_end_to_created_page. */
 void PageBulk::finish() {
   ut_ad(!dict_index_is_spatial(m_index));

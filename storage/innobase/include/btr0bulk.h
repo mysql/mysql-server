@@ -122,8 +122,12 @@ class PageBulk {
                  ulint rec_size, ulint n_ext)
       MY_ATTRIBUTE((warn_unused_result));
 
-  /** Mark end of insertion to the page. Scan all records to set page
-  dirs, and set page header members. */
+  /** Mark end of insertion to the page. Scan records to set page dirs,
+  and set page header members. The scan is incremental (slots and records
+  which assignment could be "finalized" are not checked again. Check the
+  m_slotted_rec_no usage, note it could be reset in some cases like
+  during split.
+  Note: we refer to page_copy_rec_list_end_to_created_page. */
   void finish();
 
   /** Commit mtr for a page
