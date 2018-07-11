@@ -65,6 +65,7 @@ sql session close session 6.
 sql session close session 7.
 sql session close session 8.
 deinit thread
+SET GLOBAL general_log = 'OFF';
 ##########################################
 # Check general log file
 ##########################################

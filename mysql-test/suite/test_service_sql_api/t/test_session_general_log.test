@@ -19,7 +19,7 @@ SET GLOBAL general_log = 'ON';
 --echo ##########################################
 --replace_result $TEST_SESSION_IN_THD TEST_SESSION_IN_THD
 eval INSTALL PLUGIN test_session_in_thd SONAME '$TEST_SESSION_IN_THD';
---sleep 5
+# --sleep 5
 SELECT plugin_name FROM information_schema.plugins WHERE plugin_name LIKE 'test_session_in_thd';
 
 --echo ##########################################
@@ -36,6 +36,8 @@ let $wait_condition=SELECT count(*)=0 FROM information_schema.plugins WHERE plug
 let $MYSQLD_DATADIR= `select @@datadir`;
 cat_file $MYSQLD_DATADIR/test_session_in_thd.log;
 remove_file $MYSQLD_DATADIR/test_session_in_thd.log;
+
+SET GLOBAL general_log = 'OFF';
 
 --echo ##########################################
 --echo # Check general log file
