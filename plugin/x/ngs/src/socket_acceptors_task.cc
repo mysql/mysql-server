@@ -104,7 +104,7 @@ bool Socket_acceptors_task::prepare(
   properties[ngs::Server_property_ids::k_number_of_interfaces] =
       std::to_string(listeners.size());
 
-  context->m_properties->swap(properties);
+  if (context && context->m_properties) context->m_properties->swap(properties);
   show_startup_log();
 
   return result;
@@ -134,21 +134,25 @@ void Socket_acceptors_task::stop(const Stop_cause cause) {
 void Socket_acceptors_task::show_startup_log() {
   Listener_interfaces listeners = get_array_of_listeners();
 
-  std::string combined_status;
   std::size_t pos = listeners.size();
-  while (pos > 1) {
-    const auto listener = listeners[pos - 1];
-    if (listener->get_state().is(State_listener_prepared))
-      combined_status += listener->get_name_and_configuration() + " ";
-    pos--;
-  }
-  if (listeners[0]->get_state().is(State_listener_prepared))
-    combined_status += listeners[0]->get_name_and_configuration();
+  if (pos != 0) {
+    std::string combined_status;
+    while (pos > 1) {
+      const auto listener = listeners[pos - 1];
+      if (listener->get_state().is(State_listener_prepared))
+        combined_status += listener->get_name_and_configuration() + " ";
+      pos--;
+    }
+    if (listeners[0]->get_state().is(State_listener_prepared))
+      combined_status += listeners[0]->get_name_and_configuration();
 
-  auto first_non_blank_pos = combined_status.find_first_not_of("\t ");
-  combined_status[first_non_blank_pos] =
-      ::toupper(combined_status[first_non_blank_pos]);
-  log_system(ER_XPLUGIN_LISTENER_STATUS_MSG, combined_status.c_str());
+    auto first_non_blank_pos = combined_status.find_first_not_of("\t ");
+    if (first_non_blank_pos != std::string::npos) {
+      combined_status[first_non_blank_pos] =
+          ::toupper(combined_status[first_non_blank_pos]);
+    }
+    log_system(ER_XPLUGIN_LISTENER_STATUS_MSG, combined_status.c_str());
+  }
 }
 
 Socket_acceptors_task::Listener_interfaces
