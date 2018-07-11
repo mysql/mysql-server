@@ -74,9 +74,9 @@ STOP SLAVE SQL_THREAD FOR CHANNEL 'group_replication_applier';
 [connection server2]
 include/start_group_replication.inc
 SELECT group_replication_set_write_concurrency(111);
-ERROR HY000: Can't initialize function 'group_replication_set_write_concurrency'; Member must be online and on the majority partition.
+ERROR HY000: Can't initialize function 'group_replication_set_write_concurrency'; Member must be ONLINE and in the majority partition.
 SELECT group_replication_get_write_concurrency();
-ERROR HY000: Can't initialize function 'group_replication_get_write_concurrency'; Member must be online and on the majority partition.
+ERROR HY000: Can't initialize function 'group_replication_get_write_concurrency'; Member must be ONLINE and in the majority partition.
 ###############################################################################
 # 8. Check that it is not possible to update wc value when a member is in ERROR state.
 [connection server1]
@@ -93,9 +93,9 @@ INSERT INTO t2 values(11);
 [connection server2]
 wait until server2 goes to ERROR state.
 SELECT group_replication_set_write_concurrency(11);
-ERROR HY000: Can't initialize function 'group_replication_set_write_concurrency'; Member must be online and on the majority partition.
+ERROR HY000: Can't initialize function 'group_replication_set_write_concurrency'; Member must be ONLINE and in the majority partition.
 SELECT group_replication_get_write_concurrency();
-ERROR HY000: Can't initialize function 'group_replication_get_write_concurrency'; Member must be online and on the majority partition.
+ERROR HY000: Can't initialize function 'group_replication_get_write_concurrency'; Member must be ONLINE and in the majority partition.
 include/stop_group_replication.inc
 SET SESSION sql_log_bin=0;
 DELETE FROM t2;
@@ -108,7 +108,7 @@ include/rpl_sync.inc
 [connection server1]
 include/group_replication_end.inc
 SELECT group_replication_get_write_concurrency();
-ERROR HY000: Can't initialize function 'group_replication_get_write_concurrency'; Member must be online and on the majority partition.
+ERROR HY000: Can't initialize function 'group_replication_get_write_concurrency'; Member must be ONLINE and in the majority partition.
 SELECT group_replication_set_write_concurrency(10);
-ERROR HY000: Can't initialize function 'group_replication_set_write_concurrency'; Member must be online and on the majority partition.
+ERROR HY000: Can't initialize function 'group_replication_set_write_concurrency'; Member must be ONLINE and in the majority partition.
 DROP TABLE t1;

@@ -144,7 +144,7 @@
 --echo #    group specifying the server uuid, it will not execute and print an
 --echo #    information message
 
---let $expected_message= "Already in single-primary mode. Did you meant to use group_replication_set_as_primary."
+--let $expected_message= "Already in single-primary mode. Did you mean to use group_replication_set_as_primary?"
 --replace_result $server2_uuid MEMBER2_UUID
 --let $message= `SELECT group_replication_switch_to_single_primary_mode("$server1_uuid")`
 

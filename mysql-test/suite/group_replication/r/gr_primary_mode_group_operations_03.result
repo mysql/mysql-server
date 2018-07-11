@@ -85,7 +85,7 @@ include/assert.inc ["The message must be: The requested uuid is not a member of 
 include/assert.inc ["The message must be: Wrong arguments: You need to specify a server uuid."]
 include/assert.inc ["The message must be: Wrong arguments: You need to specify a server uuid."]
 include/assert.inc ["The message must be: Mode switched to single-primary successfully."]
-include/assert.inc ["The message must be: Already in single-primary mode. Did you meant to use group_replication_set_as_primary."]
+include/assert.inc ["The message must be: Already in single-primary mode. Did you mean to use group_replication_set_as_primary?"]
 
 # Test group_replication_switch_to_multi_primary_mode output.
 SELECT group_replication_switch_to_multi_primary_mode(b) FROM test.t1 ORDER BY a LIMIT 1;

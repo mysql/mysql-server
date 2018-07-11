@@ -41,7 +41,7 @@ include/assert.inc ["The message should be: "The group is already on single-prim
 # 8. Execute set switch to single primary mode on a single primary
 #    group specifying the server uuid, it will not execute and print an
 #    information message
-include/assert.inc ["The message should be: "Already in single-primary mode. Did you meant to use group_replication_set_as_primary.""]
+include/assert.inc ["The message should be: "Already in single-primary mode. Did you mean to use group_replication_set_as_primary?""]
 
 # 9. Execute set switch to multi primary mode on a single primary
 #    group, it will be complete successfully and print an information message

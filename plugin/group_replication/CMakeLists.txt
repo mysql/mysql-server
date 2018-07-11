@@ -46,7 +46,6 @@ SET(GROUP_REPLICATION_SOURCES
   src/plugin.cc
   src/plugin_psi.cc
   src/plugin_utils.cc
-  src/plugin_udf_functions.cc
   src/ps_information.cc
   src/recovery.cc
   src/recovery_channel_state_observer.cc
@@ -84,6 +83,11 @@ SET(GROUP_REPLICATION_SOURCES
   src/sql_service/sql_service_command.cc
   src/services/notification/notification.cc
   src/services/registry.cc
+  src/udf/udf_multi_primary.cc
+  src/udf/udf_registration.cc
+  src/udf/udf_single_primary.cc
+  src/udf/udf_utils.cc
+  src/udf/udf_write_concurrency.cc
 )
 
 SET(GMS_LISTENER_SERVICE_TEST_SOURCES
