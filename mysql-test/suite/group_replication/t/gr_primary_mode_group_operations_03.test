@@ -166,7 +166,7 @@ INSERT INTO test.tspm VALUES (2, "The requested uuid is not a member of the grou
 INSERT INTO test.tspm VALUES (3, "Wrong arguments: You need to specify a server uuid.");
 INSERT INTO test.tspm VALUES (4, "Wrong arguments: You need to specify a server uuid.");
 INSERT INTO test.tspm VALUES (5, "Mode switched to single-primary successfully.");
-INSERT INTO test.tspm VALUES (6, "Already in single-primary mode. Did you meant to use group_replication_set_as_primary.");
+INSERT INTO test.tspm VALUES (6, "Already in single-primary mode. Did you mean to use group_replication_set_as_primary?");
 --enable_query_log
 --source include/rpl_sync.inc
 

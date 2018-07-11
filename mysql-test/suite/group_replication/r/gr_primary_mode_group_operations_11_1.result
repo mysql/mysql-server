@@ -34,11 +34,11 @@ The requested member is already the current group primary.
 # Execute a switch to single primary mode that must be a no-op
 SELECT group_replication_switch_to_single_primary_mode("MEMBER1_UUID");
 group_replication_switch_to_single_primary_mode("MEMBER1_UUID")
-Already in single-primary mode. Did you meant to use group_replication_set_as_primary.
+Already in single-primary mode. Did you mean to use group_replication_set_as_primary?
 
 SELECT group_replication_switch_to_single_primary_mode("MEMBER2_UUID");
 group_replication_switch_to_single_primary_mode("MEMBER2_UUID")
-Already in single-primary mode. Did you meant to use group_replication_set_as_primary.
+Already in single-primary mode. Did you mean to use group_replication_set_as_primary?
 
 SELECT group_replication_switch_to_single_primary_mode();
 group_replication_switch_to_single_primary_mode()

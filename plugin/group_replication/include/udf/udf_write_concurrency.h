@@ -20,24 +20,23 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef PLUGIN_UDF_FUNCTIONS_INCLUDED
-#define PLUGIN_UDF_FUNCTIONS_INCLUDED
+#ifndef PLUGIN_GR_INCLUDE_UDF_WRITE_CONCURRENCY_H
+#define PLUGIN_GR_INCLUDE_UDF_WRITE_CONCURRENCY_H
+
+#include "plugin/group_replication/include/udf/udf_descriptor.h"
 
 /**
- * Installs the plugin's UDFs.
- * If there is an error installing any UDF, all installed UDFs are uninstalled.
+ * Returns the descriptor of the "group_replication_get_write_concurrency" UDF.
  *
- * @retval true if there was an error
- * @retval false if all UDFs were installed
+ * @returns the descriptor of the "group_replication_get_write_concurrency" UDF
  */
-bool install_udf_functions();
+udf_descriptor get_write_concurrency_udf();
 
 /**
- * Uninstalls the plugin's UDFs.
+ * Returns the descriptor of the "group_replication_set_write_concurrency" UDF.
  *
- * @retval true if there was an error
- * @retval false if all UDFs were uninstalled
+ * @returns the descriptor of the "group_replication_set_write_concurrency" UDF
  */
-bool uninstall_udf_functions();
+udf_descriptor set_write_concurrency_udf();
 
-#endif /* PLUGIN_UDF_FUNCTIONS_INCLUDED */
+#endif /* PLUGIN_GR_INCLUDE_UDF_WRITE_CONCURRENCY_H */

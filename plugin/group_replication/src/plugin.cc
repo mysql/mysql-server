@@ -32,7 +32,7 @@
 #include "plugin/group_replication/include/observer_trans.h"
 #include "plugin/group_replication/include/pipeline_stats.h"
 #include "plugin/group_replication/include/plugin.h"
-#include "plugin/group_replication/include/plugin_udf_functions.h"
+#include "plugin/group_replication/include/udf/udf_registration.h"
 
 #ifndef DBUG_OFF
 #include "plugin/group_replication/include/services/notification/impl/gms_listener_test.h"
@@ -1178,7 +1178,7 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info) {
   group_action_coordinator = new Group_action_coordinator();
   group_action_coordinator->register_coordinator_observers();
 
-  bool const error = install_udf_functions();
+  bool const error = register_udfs();
   if (error) return 1;
 
   // Initialize the recovery SSL option map
@@ -1294,7 +1294,7 @@ int plugin_group_replication_deinit(void *p) {
     auto_increment_handler = NULL;
   }
 
-  uninstall_udf_functions();
+  unregister_udfs();
 
   mysql_mutex_destroy(&plugin_running_mutex);
   mysql_mutex_destroy(&force_members_running_mutex);

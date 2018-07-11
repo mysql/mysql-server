@@ -15,13 +15,13 @@ The group is already on multi-primary mode.
 # 2. Executing a mode change or primary election on an OFFLINE member
 #    must fail.
 SELECT group_replication_set_as_primary("MEMBER1_UUID");
-ERROR HY000: Can't initialize function 'group_replication_set_as_primary'; The member needs to be ONLINE and in a reachable partition.
+ERROR HY000: Can't initialize function 'group_replication_set_as_primary'; Member must be ONLINE and in the majority partition.
 SELECT group_replication_switch_to_multi_primary_mode();
-ERROR HY000: Can't initialize function 'group_replication_switch_to_multi_primary_mode'; The member needs to be ONLINE and in a reachable partition.
+ERROR HY000: Can't initialize function 'group_replication_switch_to_multi_primary_mode'; Member must be ONLINE and in the majority partition.
 SELECT group_replication_switch_to_single_primary_mode();
-ERROR HY000: Can't initialize function 'group_replication_switch_to_single_primary_mode'; The member needs to be ONLINE and in a reachable partition.
+ERROR HY000: Can't initialize function 'group_replication_switch_to_single_primary_mode'; Member must be ONLINE and in the majority partition.
 SELECT group_replication_switch_to_single_primary_mode("MEMBER1_UUID");
-ERROR HY000: Can't initialize function 'group_replication_switch_to_single_primary_mode'; The member needs to be ONLINE and in a reachable partition.
+ERROR HY000: Can't initialize function 'group_replication_switch_to_single_primary_mode'; Member must be ONLINE and in the majority partition.
 
 # 3. Stop applier thread on server1 so server2 stays on recovering.
 [connection server1]
@@ -33,13 +33,13 @@ STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
 [connection server2]
 include/start_group_replication.inc
 SELECT group_replication_set_as_primary("MEMBER1_UUID");
-ERROR HY000: Can't initialize function 'group_replication_set_as_primary'; The member needs to be ONLINE and in a reachable partition.
+ERROR HY000: Can't initialize function 'group_replication_set_as_primary'; Member must be ONLINE and in the majority partition.
 SELECT group_replication_switch_to_multi_primary_mode();
-ERROR HY000: Can't initialize function 'group_replication_switch_to_multi_primary_mode'; The member needs to be ONLINE and in a reachable partition.
+ERROR HY000: Can't initialize function 'group_replication_switch_to_multi_primary_mode'; Member must be ONLINE and in the majority partition.
 SELECT group_replication_switch_to_single_primary_mode();
-ERROR HY000: Can't initialize function 'group_replication_switch_to_single_primary_mode'; The member needs to be ONLINE and in a reachable partition.
+ERROR HY000: Can't initialize function 'group_replication_switch_to_single_primary_mode'; Member must be ONLINE and in the majority partition.
 SELECT group_replication_switch_to_single_primary_mode("MEMBER1_UUID");
-ERROR HY000: Can't initialize function 'group_replication_switch_to_single_primary_mode'; The member needs to be ONLINE and in a reachable partition.
+ERROR HY000: Can't initialize function 'group_replication_switch_to_single_primary_mode'; Member must be ONLINE and in the majority partition.
 
 # 5. Start applier sql thread on server1 to enable server2 to join the
 #    group.
@@ -61,13 +61,13 @@ INSERT INTO test.t1 VALUES (1);
 [connection server2]
 include/gr_wait_for_member_state.inc
 SELECT group_replication_set_as_primary("MEMBER1_UUID");
-ERROR HY000: Can't initialize function 'group_replication_set_as_primary'; The member needs to be ONLINE and in a reachable partition.
+ERROR HY000: Can't initialize function 'group_replication_set_as_primary'; Member must be ONLINE and in the majority partition.
 SELECT group_replication_switch_to_multi_primary_mode();
-ERROR HY000: Can't initialize function 'group_replication_switch_to_multi_primary_mode'; The member needs to be ONLINE and in a reachable partition.
+ERROR HY000: Can't initialize function 'group_replication_switch_to_multi_primary_mode'; Member must be ONLINE and in the majority partition.
 SELECT group_replication_switch_to_single_primary_mode();
-ERROR HY000: Can't initialize function 'group_replication_switch_to_single_primary_mode'; The member needs to be ONLINE and in a reachable partition.
+ERROR HY000: Can't initialize function 'group_replication_switch_to_single_primary_mode'; Member must be ONLINE and in the majority partition.
 SELECT group_replication_switch_to_single_primary_mode("MEMBER1_UUID");
-ERROR HY000: Can't initialize function 'group_replication_switch_to_single_primary_mode'; The member needs to be ONLINE and in a reachable partition.
+ERROR HY000: Can't initialize function 'group_replication_switch_to_single_primary_mode'; Member must be ONLINE and in the majority partition.
 
 # Rectify the cause of error and bring back member ONLINE.
 include/stop_group_replication.inc
@@ -98,13 +98,13 @@ include/gr_wait_for_member_state.inc
 # 9. Executing a mode change or primary election on a network partition
 #    must fail.
 SELECT group_replication_set_as_primary("MEMBER1_UUID");
-ERROR HY000: Can't initialize function 'group_replication_set_as_primary'; The member needs to be ONLINE and in a reachable partition.
+ERROR HY000: Can't initialize function 'group_replication_set_as_primary'; Member must be ONLINE and in the majority partition.
 SELECT group_replication_switch_to_multi_primary_mode();
-ERROR HY000: Can't initialize function 'group_replication_switch_to_multi_primary_mode'; The member needs to be ONLINE and in a reachable partition.
+ERROR HY000: Can't initialize function 'group_replication_switch_to_multi_primary_mode'; Member must be ONLINE and in the majority partition.
 SELECT group_replication_switch_to_single_primary_mode();
-ERROR HY000: Can't initialize function 'group_replication_switch_to_single_primary_mode'; The member needs to be ONLINE and in a reachable partition.
+ERROR HY000: Can't initialize function 'group_replication_switch_to_single_primary_mode'; Member must be ONLINE and in the majority partition.
 SELECT group_replication_switch_to_single_primary_mode("MEMBER1_UUID");
-ERROR HY000: Can't initialize function 'group_replication_switch_to_single_primary_mode'; The member needs to be ONLINE and in a reachable partition.
+ERROR HY000: Can't initialize function 'group_replication_switch_to_single_primary_mode'; Member must be ONLINE and in the majority partition.
 
 # 10. Cleanup.
 [connection server_1]

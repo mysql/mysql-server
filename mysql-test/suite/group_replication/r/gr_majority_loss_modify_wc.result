@@ -27,9 +27,9 @@ member2 @ server1 is marked as UNREACHABLE
 # Step 4 Unsuccessfully call to group_replication_set_write_concurrency(_) on blocked server (M1).
 [connection server1]
 SELECT group_replication_set_write_concurrency(42);
-ERROR HY000: Can't initialize function 'group_replication_set_write_concurrency'; Member must be online and on the majority partition.
+ERROR HY000: Can't initialize function 'group_replication_set_write_concurrency'; Member must be ONLINE and in the majority partition.
 SELECT group_replication_get_write_concurrency();
-ERROR HY000: Can't initialize function 'group_replication_get_write_concurrency'; Member must be online and on the majority partition.
+ERROR HY000: Can't initialize function 'group_replication_get_write_concurrency'; Member must be ONLINE and in the majority partition.
 
 ############################################################
 # Step 5 Unblock the group with the alive member (M1).
