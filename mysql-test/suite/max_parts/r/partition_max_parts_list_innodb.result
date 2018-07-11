@@ -1,4 +1,5 @@
 call mtr.add_suppression("A long semaphore wait");
+call mtr.add_suppression("Could not increase number of max_open_files");
 create table t2 (a int) engine='InnoDB'
 partition by list (a) (
 PARTITION p0 VALUES IN (0,1,2,3),
