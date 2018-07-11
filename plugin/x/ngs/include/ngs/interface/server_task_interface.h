@@ -42,7 +42,9 @@ class Server_task_interface {
     using On_connection = std::function<void(Connection_acceptor_interface &)>;
 
    public:
-    Task_context() = default;
+    Task_context() {
+      m_on_connection = [](Connection_acceptor_interface &) {};
+    }
     Task_context(const On_connection &on_connection, const bool skip_networking,
                  Server_properties *properties, Client_list *client_list)
         : m_on_connection(on_connection),
@@ -51,7 +53,7 @@ class Server_task_interface {
           m_client_list(client_list) {}
 
    public:
-    On_connection m_on_connection = [](Connection_acceptor_interface &) {};
+    On_connection m_on_connection;  // = [](Connection_acceptor_interface &) {};
     bool m_skip_networking = false;
     Server_properties *m_properties = nullptr;
     Client_list *m_client_list = nullptr;
