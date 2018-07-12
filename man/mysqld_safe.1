@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqld_safe\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 04/04/2018
+.\"      Date: 07/12/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLD_SAFE\FR" "1" "04/04/2018" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQLD_SAFE\FR" "1" "07/12/2018" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -77,7 +77,7 @@ Many of the options to
 \fBmysqld_safe\fR
 are the same as the options to
 \fBmysqld\fR\&. See
-Section\ \&5.1.4, \(lqServer Command Options\(rq\&.
+Section\ \&5.1.6, \(lqServer Command Options\(rq\&.
 .PP
 Options unknown to
 \fBmysqld_safe\fR
@@ -703,7 +703,7 @@ syslog; messages are written to an error log file\&.
 .sp
 When
 syslog
-is used, the
+is used for error logging, the
 daemon\&.err
 facility/severity is used for all log messages\&.
 .sp
@@ -744,7 +744,7 @@ Using this option to control
 logging is deprecated\&. Use the server
 log_syslog_tag
 system variable instead\&. See
-Section\ \&5.4.2, \(lqThe Error Log\(rq\&.
+Section\ \&5.4.2.3, \(lqError Logging to the System Log\(rq\&.
 .RE
 .sp
 .RS 4
@@ -978,7 +978,7 @@ logging from
 is deprecated\&. Use the server\*(Aqs native
 syslog
 support instead\&. For more information, see
-Section\ \&5.4.2, \(lqThe Error Log\(rq\&.
+Section\ \&5.4.2.3, \(lqError Logging to the System Log\(rq\&.
 .sp .5v
 .RE
 .SH "COPYRIGHT"

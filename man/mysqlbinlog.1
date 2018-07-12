@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlbinlog\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 04/04/2018
+.\"      Date: 07/12/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLBINLOG\FR" "1" "04/04/2018" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQLBINLOG\FR" "1" "07/12/2018" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -42,7 +42,7 @@ utility\&. You can also use
 \fBmysqlbinlog\fR
 to display the contents of relay log files written by a slave server in a replication setup because relay logs have the same format as binary logs\&. The binary log and relay log are discussed further in
 Section\ \&5.4.4, \(lqThe Binary Log\(rq, and
-Section\ \&18.2.4, \(lqReplication Relay and Status Logs\(rq\&.
+Section\ \&17.2.4, \(lqReplication Relay and Status Logs\(rq\&.
 .PP
 Invoke
 \fBmysqlbinlog\fR
@@ -73,7 +73,7 @@ shell> \fBmysqlbinlog binlog\&.0000003\fR
 .PP
 The output includes events contained in
 binlog\&.000003\&. For statement\-based logging, event information includes the SQL statement, the ID of the server on which it was executed, the timestamp when the statement was executed, how much time it took, and so forth\&. For row\-based logging, the event indicates a row change rather than an SQL statement\&. See
-Section\ \&18.2.1, \(lqReplication Formats\(rq, for information about logging modes\&.
+Section\ \&17.2.1, \(lqReplication Formats\(rq, for information about logging modes\&.
 .PP
 Events are preceded by header comments that provide additional information\&. For example:
 .sp
@@ -314,22 +314,22 @@ T}:T{
 --binlog-row-event-max-size=#
 T}
 T{
-\fBType\fR (64-bit platforms)
+\fBType\fR
 T}:T{
 numeric
 T}
 T{
-\fBDefault\fR (64-bit platforms)
+\fBDefault Value\fR
 T}:T{
 4294967040
 T}
 T{
-\fBMinimum\fR (64-bit platforms)
+\fBMinimum Value\fR
 T}:T{
 256
 T}
 T{
-\fBMaximum\fR (64-bit platforms)
+\fBMaximum Value\fR
 T}:T{
 18446744073709547520
 T}
@@ -1367,6 +1367,87 @@ Section\ \&6.4.2, \(lqCommand Options for Encrypted Connections\(rq\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-ssl\-fips\-mode={OFF|ON|STRICT}\fR
+Controls whether to enable FIPS mode on the client side\&. The
+\fB\-\-ssl\-fips\-mode\fR
+option differs from other
+\fB\-\-ssl\-\fR\fB\fIxxx\fR\fR
+options in that it is not used to establish encrypted connections, but rather to affect which cryptographic operations are permitted\&. See
+Section\ \&6.6, \(lqFIPS Support\(rq\&.
+.sp
+These
+\fB\-\-ssl\-fips\-mode\fR
+values are permitted:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+OFF: Disable FIPS mode\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+ON: Enable FIPS mode\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+STRICT: Enable
+\(lqstrict\(rq
+FIPS mode\&.
+.RE
+.sp
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+If the OpenSSL FIPS Object Module is not available, the only permitted value for
+\fB\-\-ssl\-fips\-mode\fR
+is
+OFF\&. In this case, setting
+\fB\-\-ssl\-fips\-mode\fR
+to
+ON
+or
+STRICT
+causes the client to produce a warning at startup and to operate in non\-FIPS mode\&.
+.sp .5v
+.RE
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-start\-datetime=\fR\fB\fIdatetime\fR\fR
 .sp
 Start reading the binary log at the first event having a timestamp equal to or later than the
@@ -1685,7 +1766,7 @@ option, it displays only those events with an offset in the binary log greater t
 option (to be able to say, for example,
 \(lqroll forward my databases to how they were today at 10:30 a\&.m\&.\(rq)\&.
 .PP
-If you have more than one binary log to execute on the MySQL server, the safe method is to process them all using a single connection to the server\&. Here is an example that demonstrates what may be
+\fBProcessing multiple files\fR. If you have more than one binary log to execute on the MySQL server, the safe method is to process them all using a single connection to the server\&. Here is an example that demonstrates what may be
 \fIunsafe\fR:
 .sp
 .if n \{\
@@ -1737,7 +1818,48 @@ shell> \fBmysql \-u root \-p \-e "source /tmp/statements\&.sql"\fR
 .RE
 .\}
 .PP
+From MySQL 8\&.0\&.12, you can also supply multiple binary log files to
 \fBmysqlbinlog\fR
+as streamed input using a shell pipe\&. An archive of compressed binary log files can be decompressed and provided directly to
+\fBmysqlbinlog\fR\&. In this example,
+binlog\-files_1\&.gz
+contains multiple binary log files for processing\&. The pipeline extracts the contents of
+binlog\-files_1\&.gz, pipes the binary log files to
+\fBmysqlbinlog\fR
+as standard input, and pipes the output of
+\fBmysqlbinlog\fR
+into the
+\fBmysql\fR
+client for execution:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBgzip \-cd binlog\-files_1\&.gz | \&./mysqlbinlog \- | \&./mysql \-uroot\ \& \-p\fR
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+You can specify more than one archive file, for example:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBgzip \-cd binlog\-files_1\&.gz binlog\-files_2\&.gz | \&./mysqlbinlog \- | \&./mysql \-uroot\ \& \-p\fR
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+For streamed input, do not use
+\-\-stop\-position, because
+\fBmysqlbinlog\fR
+cannot identify the last log file to apply this option\&.
+.PP
+\fBLOAD DATA INFILE operations\fR. \fBmysqlbinlog\fR
 can produce output that reproduces a
 LOAD DATA INFILE
 operation without the original data file\&.
@@ -1824,7 +1946,7 @@ ROLLBACK;
 .RE
 .\}
 .PP
-Hex dump output currently contains the elements in the following list\&. This format is subject to change\&. (For more information about binary log format, see
+Hex dump output currently contains the elements in the following list\&. This format is subject to change\&. For more information about binary log format, see
 \m[blue]\fBMySQL Internals: The Binary Log\fR\m[]\&\s-2\u[1]\d\s+2\&.
 .sp
 .RS 4
@@ -1861,265 +1983,7 @@ in hexadecimal\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-Type: The event type code\&. In the example shown,
-\*(Aq0f\*(Aq
-indicates a
-FORMAT_DESCRIPTION_EVENT\&. The following table lists the possible type codes\&.
-.TS
-allbox tab(:);
-lB lB lB.
-T{
-Type
-T}:T{
-Name
-T}:T{
-Meaning
-T}
-.T&
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l.
-T{
-00
-T}:T{
-UNKNOWN_EVENT
-T}:T{
-This event should never be present in the log.
-T}
-T{
-01
-T}:T{
-START_EVENT_V3
-T}:T{
-This indicates the start of a log file written by MySQL 4 or earlier.
-T}
-T{
-02
-T}:T{
-QUERY_EVENT
-T}:T{
-The most common type of events. These contain statements executed on the
-                  master.
-T}
-T{
-03
-T}:T{
-STOP_EVENT
-T}:T{
-Indicates that master has stopped.
-T}
-T{
-04
-T}:T{
-ROTATE_EVENT
-T}:T{
-Written when the master switches to a new log file.
-T}
-T{
-05
-T}:T{
-INTVAR_EVENT
-T}:T{
-Used for AUTO_INCREMENT values or when the
-                  LAST_INSERT_ID()
-                  function is used in the statement.
-T}
-T{
-06
-T}:T{
-LOAD_EVENT
-T}:T{
-Used for LOAD DATA
-                  INFILE in MySQL 3.23.
-T}
-T{
-07
-T}:T{
-SLAVE_EVENT
-T}:T{
-Reserved for future use.
-T}
-T{
-08
-T}:T{
-CREATE_FILE_EVENT
-T}:T{
-Used for LOAD DATA
-                  INFILE statements. This indicates the start
-                  of execution of such a statement. A temporary file is
-                  created on the slave. Used in MySQL 4 only.
-T}
-T{
-09
-T}:T{
-APPEND_BLOCK_EVENT
-T}:T{
-Contains data for use in a
-                  LOAD DATA
-                  INFILE statement. The data is stored in the
-                  temporary file on the slave.
-T}
-T{
-0a
-T}:T{
-EXEC_LOAD_EVENT
-T}:T{
-Used for LOAD DATA
-                  INFILE statements. The contents of the
-                  temporary file is stored in the table on the slave.
-                  Used in MySQL 4 only.
-T}
-T{
-0b
-T}:T{
-DELETE_FILE_EVENT
-T}:T{
-Rollback of a LOAD DATA
-                  INFILE statement. The temporary file should
-                  be deleted on the slave.
-T}
-T{
-0c
-T}:T{
-NEW_LOAD_EVENT
-T}:T{
-Used for LOAD DATA
-                  INFILE in MySQL 4 and earlier.
-T}
-T{
-0d
-T}:T{
-RAND_EVENT
-T}:T{
-Used to send information about random values if the
-                  RAND() function is used
-                  in the statement.
-T}
-T{
-0e
-T}:T{
-USER_VAR_EVENT
-T}:T{
-Used to replicate user variables.
-T}
-T{
-0f
-T}:T{
-FORMAT_DESCRIPTION_EVENT
-T}:T{
-This indicates the start of a log file written by MySQL 5 or later.
-T}
-T{
-10
-T}:T{
-XID_EVENT
-T}:T{
-Event indicating commit of an XA transaction.
-T}
-T{
-11
-T}:T{
-BEGIN_LOAD_QUERY_EVENT
-T}:T{
-Used for LOAD DATA
-                  INFILE statements in MySQL 5 and later.
-T}
-T{
-12
-T}:T{
-EXECUTE_LOAD_QUERY_EVENT
-T}:T{
-Used for LOAD DATA
-                  INFILE statements in MySQL 5 and later.
-T}
-T{
-13
-T}:T{
-TABLE_MAP_EVENT
-T}:T{
-Information about a table definition. Used in MySQL 5.1.5 and later.
-T}
-T{
-14
-T}:T{
-PRE_GA_WRITE_ROWS_EVENT
-T}:T{
-Row data for a single table that should be created. Used in MySQL 5.1.5
-                  to 5.1.17.
-T}
-T{
-15
-T}:T{
-PRE_GA_UPDATE_ROWS_EVENT
-T}:T{
-Row data for a single table that needs to be updated. Used in MySQL
-                  5.1.5 to 5.1.17.
-T}
-T{
-16
-T}:T{
-PRE_GA_DELETE_ROWS_EVENT
-T}:T{
-Row data for a single table that should be deleted. Used in MySQL 5.1.5
-                  to 5.1.17.
-T}
-T{
-17
-T}:T{
-WRITE_ROWS_EVENT
-T}:T{
-Row data for a single table that should be created. Used in MySQL 5.1.18
-                  and later.
-T}
-T{
-18
-T}:T{
-UPDATE_ROWS_EVENT
-T}:T{
-Row data for a single table that needs to be updated. Used in MySQL
-                  5.1.18 and later.
-T}
-T{
-19
-T}:T{
-DELETE_ROWS_EVENT
-T}:T{
-Row data for a single table that should be deleted. Used in MySQL 5.1.18
-                  and later.
-T}
-T{
-1a
-T}:T{
-INCIDENT_EVENT
-T}:T{
-Something out of the ordinary happened. Added in MySQL 5.1.18.
-T}
-.TE
-.sp 1
+Type: The event type code\&.
 .RE
 .sp
 .RS 4
@@ -2163,61 +2027,7 @@ Master Pos: The position of the next event in the original master log file\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-Flags: 16 flags\&. The following flags are used\&. The others are reserved for future use\&.
-.TS
-allbox tab(:);
-lB lB lB.
-T{
-Flag
-T}:T{
-Name
-T}:T{
-Meaning
-T}
-.T&
-l l l
-l l l
-l l l
-l l l.
-T{
-01
-T}:T{
-LOG_EVENT_BINLOG_IN_USE_F
-T}:T{
-Log file correctly closed. (Used only in
-                  FORMAT_DESCRIPTION_EVENT.) If this
-                  flag is set (if the flags are, for example,
-                  '01 00') in a
-                  FORMAT_DESCRIPTION_EVENT, the log
-                  file has not been properly closed. Most probably this
-                  is because of a master crash (for example, due to
-                  power failure).
-T}
-T{
-02
-T}:T{
-T}:T{
-Reserved for future use.
-T}
-T{
-04
-T}:T{
-LOG_EVENT_THREAD_SPECIFIC_F
-T}:T{
-Set if the event is dependent on the connection it was executed in (for
-                  example, '04 00'), for example, if
-                  the event uses temporary tables.
-T}
-T{
-08
-T}:T{
-LOG_EVENT_SUPPRESS_USE_F
-T}:T{
-Set in some circumstances when the event is not dependent on the default
-                  database.
-T}
-.TE
-.sp 1
+Flags: Event flag values\&.
 .RE
 .SH "MYSQLBINLOG ROW EVENT DISPLAY"
 .PP

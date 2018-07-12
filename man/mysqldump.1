@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqldump\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 04/04/2018
+.\"      Date: 07/12/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLDUMP\FR" "1" "04/04/2018" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQLDUMP\FR" "1" "07/12/2018" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -321,7 +321,7 @@ InnoDB
 backups with minimal disruption; it can also back up tables from
 MyISAM
 and other storage engines; and it provides a number of convenient options to accommodate different backup scenarios\&. See
-Section\ \&30.2, \(lqMySQL Enterprise Backup Overview\(rq\&.
+Section\ \&29.2, \(lqMySQL Enterprise Backup Overview\(rq\&.
 .RE
 .PP
 \fBmysqldump\fR
@@ -684,6 +684,87 @@ Options that begin with
 \fB\-\-ssl\fR
 specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
 Section\ \&6.4.2, \(lqCommand Options for Encrypted Connections\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-ssl\-fips\-mode={OFF|ON|STRICT}\fR
+Controls whether to enable FIPS mode on the client side\&. The
+\fB\-\-ssl\-fips\-mode\fR
+option differs from other
+\fB\-\-ssl\-\fR\fB\fIxxx\fR\fR
+options in that it is not used to establish encrypted connections, but rather to affect which cryptographic operations are permitted\&. See
+Section\ \&6.6, \(lqFIPS Support\(rq\&.
+.sp
+These
+\fB\-\-ssl\-fips\-mode\fR
+values are permitted:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+OFF: Disable FIPS mode\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+ON: Enable FIPS mode\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+STRICT: Enable
+\(lqstrict\(rq
+FIPS mode\&.
+.RE
+.sp
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+If the OpenSSL FIPS Object Module is not available, the only permitted value for
+\fB\-\-ssl\-fips\-mode\fR
+is
+OFF\&. In this case, setting
+\fB\-\-ssl\-fips\-mode\fR
+to
+ON
+or
+STRICT
+causes the client to produce a warning at startup and to operate in non\-FIPS mode\&.
+.sp .5v
+.RE
 .RE
 .sp
 .RS 4
@@ -1397,7 +1478,7 @@ respectively\&. These are the master server coordinates from which the slave sho
 .ps -1
 .br
 Inconsistencies in the sequence of transactions from the relay log which have been executed can cause the wrong position to be used\&. See
-Section\ \&18.4.1.34, \(lqReplication and Transaction Inconsistencies\(rq
+Section\ \&17.4.1.34, \(lqReplication and Transaction Inconsistencies\(rq
 for more information\&.
 .sp .5v
 .RE
@@ -1657,9 +1738,9 @@ options\&.
 .\}
 \fB\-\-compatible=\fR\fB\fIname\fR\fR
 .sp
-Produce output that is more compatible with other database systems or with older MySQL servers\&. As of MySQL 8\&.0\&.11, the only permitted value for this option is
+Produce output that is more compatible with other database systems or with older MySQL servers\&. The only permitted value for this option is
 ansi, which has the same meaning as the corresponding option for setting the server SQL mode\&. See
-Section\ \&5.1.8, \(lqServer SQL Modes\(rq\&.
+Section\ \&5.1.10, \(lqServer SQL Modes\(rq\&.
 .RE
 .sp
 .RS 4
@@ -2204,7 +2285,7 @@ Multiple triggers are permitted\&.
 dumps triggers in activation order so that when the dump file is reloaded, triggers are created in the same activation order\&. However, if a
 \fBmysqldump\fR
 dump file contains multiple triggers for a table that have the same trigger event and action time, an error occurs for attempts to load the dump file into an older server that does not support multiple triggers\&. (For a workaround, see
-Section\ \&2.10.2.1, \(lqChanges Affecting Downgrades from MySQL 8.0\(rq; you can convert triggers to be compatible with older servers\&.)
+\m[blue]\fBChanges Affecting Downgrades from MySQL 5\&.7\fR\m[]\&\s-2\u[1]\d\s+2; you can convert triggers to be compatible with older servers\&.)
 .RE
 .sp
 .RS 4
@@ -2881,6 +2962,12 @@ This documentation is distributed in the hope that it will be useful, but WITHOU
 .PP
 You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
 .sp
+.SH "NOTES"
+.IP " 1." 4
+Changes Affecting Downgrades from MySQL 5.7
+.RS 4
+\%http://dev.mysql.com/doc/refman/5.7/en/downgrading-to-previous-series.html
+.RE
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,
 which may already be installed locally and which is also available

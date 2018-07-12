@@ -2,12 +2,12 @@
 .\"     Title: \fBperror\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 04/04/2018
+.\"      Date: 07/12/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBPERROR\FR" "1" "04/04/2018" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBPERROR\FR" "1" "07/12/2018" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -34,27 +34,8 @@ perror \- explain error codes
 \fBperror [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fIerrorcode\fR\fR\fB \&.\&.\&.\fR
 .SH "DESCRIPTION"
 .PP
-For most system errors, MySQL displays, in addition to an internal text message, the system error code in one of the following styles:
-.sp
-.if n \{\
-.RS 4
-.\}
-.nf
-message \&.\&.\&. (errno: #)
-message \&.\&.\&. (Errcode: #)
-.fi
-.if n \{\
-.RE
-.\}
-.PP
-You can find out what the error code means by examining the documentation for your system or by using the
 \fBperror\fR
-utility\&.
-.PP
-\fBperror\fR
-prints a description for a system error code or for a storage engine (table handler) error code\&.
-.PP
-Invoke
+displays the error message for MySQL or operating system error codes\&. Invoke
 \fBperror\fR
 like this:
 .sp
@@ -68,15 +49,42 @@ shell> \fBperror [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fIerrorcode\fR\fR\fB \&.\&.\
 .RE
 .\}
 .PP
-Example:
+\fBperror\fR
+attempts to be flexible in understanding its arguments\&. For example, for the
+ER_WRONG_VALUE_FOR_VAR
+error,
+\fBperror\fR
+understands any of these arguments:
+\fB1231\fR,
+001231,
+MY\-1231, or
+MY\-001231, or
+ER_WRONG_VALUE_FOR_VAR\&.
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-shell> \fBperror 13 64\fR
+shell> \fBperror 1231\fR
+MySQL error code MY\-001231 (ER_WRONG_VALUE_FOR_VAR): Variable \*(Aq%\-\&.64s\*(Aq can\*(Aqt be set to the value of \*(Aq%\-\&.200s\*(Aq
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+If an error number is in the range where MySQL and operating system errors overlap,
+\fBperror\fR
+displays both error messages:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBperror 1 13\fR
+OS error code   1:  Operation not permitted
+MySQL error code MY\-000001: Can\*(Aqt create/write to file \*(Aq%s\*(Aq (OS errno %d \- %s)
 OS error code  13:  Permission denied
-OS error code  64:  Machine is not on the network
+MySQL error code MY\-000013: Can\*(Aqt get stat of \*(Aq%s\*(Aq (OS errno %d \- %s)
 .fi
 .if n \{\
 .RE
