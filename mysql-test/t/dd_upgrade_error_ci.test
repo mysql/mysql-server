@@ -1,5 +1,11 @@
 --source include/have_case_insensitive_file_system.inc
 
+--let ZIP_FILE= $MYSQLTEST_VARDIR/std_data/data80011_upgrade_groupby_desc_ci_win.zip
+if (`SELECT CONVERT(@@version_compile_os USING LATIN1) RLIKE '^(osx|macos)'`)
+{
+    --let ZIP_FILE= $MYSQLTEST_VARDIR/std_data/data80011_upgrade_groupby_desc_ci_mac.zip
+}
+
 --echo # Stop DB server which was created by MTR default
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/shutdown_mysqld.inc
@@ -14,7 +20,7 @@ let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data80011_upgrade_groupby_desc_ci;
 --echo # DB server which was started above is not running, no need for shutdown
 
 --echo # Copy the remote tablespace & DB zip files from suite location to working location.
---copy_file $MYSQLTEST_VARDIR/std_data/data80011_upgrade_groupby_desc_ci.zip $MYSQL_TMP_DIR/data80011_upgrade_groupby_desc_ci.zip
+--copy_file $ZIP_FILE $MYSQL_TMP_DIR/data80011_upgrade_groupby_desc_ci.zip
 
 --echo # Check that the file exists in the working folder.
 --file_exists $MYSQL_TMP_DIR/data80011_upgrade_groupby_desc_ci.zip

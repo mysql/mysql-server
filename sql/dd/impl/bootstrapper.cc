@@ -295,14 +295,6 @@ bool initialize_dd_properties(THD *thd) {
   if (!opt_initialize) {
     bool exists = false;
     bool exists_server = false;
-    if (dd::tables::DD_properties::instance().get(
-            thd, "MYSQLD_VERSION", &actual_server_version, &exists_server) ||
-        !exists_server)
-      return true;
-
-    if (actual_server_version != MYSQL_VERSION_ID)
-      bootstrap::DD_bootstrap_ctx::instance().set_actual_server_version(
-          actual_server_version);
 
     // Check 'DD_version' too in order to catch an upgrade from 8.0.3.
     if (dd::tables::DD_properties::instance().get(thd, "DD_VERSION",
@@ -344,6 +336,15 @@ bool initialize_dd_properties(THD *thd) {
       }
     }
     /* purecov: end */
+
+    if (dd::tables::DD_properties::instance().get(
+            thd, "MYSQLD_VERSION", &actual_server_version, &exists_server) ||
+        !exists_server)
+      return true;
+
+    if (actual_server_version != MYSQL_VERSION_ID)
+      bootstrap::DD_bootstrap_ctx::instance().set_actual_server_version(
+          actual_server_version);
 
     /*
       Reject restarting with a changed LCTN setting, since the collation
