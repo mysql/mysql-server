@@ -3257,6 +3257,10 @@ case SQLCOM_PREPARE:
       /* Push Strict_error_handler */
       if (!thd->lex->is_ignore() && thd->is_strict_mode())
         thd->push_internal_handler(&strict_handler);
+
+      Partition_in_shared_ts_error_handler partition_in_shared_ts_handler;
+      thd->push_internal_handler(&partition_in_shared_ts_handler);
+
       /* regular create */
       if (create_info.options & HA_LEX_CREATE_TABLE_LIKE)
       {
@@ -3270,6 +3274,9 @@ case SQLCOM_PREPARE:
         res= mysql_create_table(thd, create_table,
                                 &create_info, &alter_info);
       }
+
+      thd->pop_internal_handler();
+
       /* Pop Strict_error_handler */
       if (!thd->lex->is_ignore() && thd->is_strict_mode())
         thd->pop_internal_handler();

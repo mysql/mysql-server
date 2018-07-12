@@ -2739,6 +2739,12 @@ ha_innopart::create(
 				     tablespace_name);
 
 	DBUG_ENTER("ha_innopart::create");
+
+        if (is_shared_tablespace(create_info->tablespace)) {
+		push_deprecated_warn_no_replacement(
+			ha_thd(), PARTITION_IN_SHARED_TABLESPACE_WARNING);
+        }
+
 	ut_ad(create_info != NULL);
 	ut_ad(m_part_info == form->part_info);
 	ut_ad(table_share != NULL);
@@ -2858,6 +2864,11 @@ ha_innopart::create(
 		set_create_info_dir(part_elem, create_info);
 
 		if (!form->part_info->is_sub_partitioned()) {
+			if (is_shared_tablespace(part_elem->tablespace_name)) {
+				push_deprecated_warn_no_replacement(
+					ha_thd(), PARTITION_IN_SHARED_TABLESPACE_WARNING);
+			}
+
 			error = info.prepare_create_table(partition_name);
 			if (error != 0) {
 				goto cleanup;
@@ -2877,6 +2888,11 @@ ha_innopart::create(
 
 			while ((sub_elem = sub_it++)) {
 				ut_ad(sub_elem->partition_name != NULL);
+
+				if (is_shared_tablespace(sub_elem->tablespace_name)) {
+					push_deprecated_warn_no_replacement(
+						ha_thd(), PARTITION_IN_SHARED_TABLESPACE_WARNING);
+				}
 
 				/* 'table' will be
 				<name>#P#<part_name>#SP#<subpart_name>.
@@ -4411,6 +4427,11 @@ ha_innopart::create_new_partition(
 			"InnoDB: DATA DIRECTORY cannot be used"
 			" with a TABLESPACE assignment.", MYF(0));
 		DBUG_RETURN(HA_WRONG_CREATE_OPTION);
+	}
+
+	if (tablespace_is_shared_space(create_info)) {
+		push_deprecated_warn_no_replacement(
+			ha_thd(), PARTITION_IN_SHARED_TABLESPACE_WARNING);
 	}
 
 	error = ha_innobase::create(norm_name, table, create_info);

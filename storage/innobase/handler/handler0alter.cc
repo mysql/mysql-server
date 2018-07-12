@@ -9096,6 +9096,12 @@ ha_innopart::prepare_inplace_alter_table(
 
 	thd = ha_thd();
 
+	if (ha_alter_info->create_info->used_fields & HA_CREATE_USED_TABLESPACE
+	    && tablespace_is_shared_space(ha_alter_info->create_info)) {
+		push_deprecated_warn_no_replacement(
+			ha_thd(), PARTITION_IN_SHARED_TABLESPACE_WARNING);
+	}
+
 	/* Clean up all ins/upd nodes. */
 	clear_ins_upd_nodes();
 	/* Based on Sql_alloc class, return NULL for new on failure. */
