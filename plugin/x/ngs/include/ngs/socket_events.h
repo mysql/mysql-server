@@ -36,6 +36,12 @@ namespace ngs {
 
 class Socket_events : public Socket_events_interface {
  public:
+#ifdef _WIN32
+  // mimick evutil_socket_t in libevent-2.x
+  using socket_type = intptr_t;
+#else
+  using socket_type = int;
+#endif
   Socket_events();
   ~Socket_events();
 
@@ -47,8 +53,8 @@ class Socket_events : public Socket_events_interface {
   void break_loop();
 
  private:
-  static void timeout_call(int sock, short which, void *arg);
-  static void socket_data_avaiable(int sock, short which, void *arg);
+  static void timeout_call(socket_type sock, short which, void *arg);
+  static void socket_data_avaiable(socket_type sock, short which, void *arg);
 
   struct Timer_data;
   struct Socket_data;

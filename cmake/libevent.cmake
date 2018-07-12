@@ -22,10 +22,12 @@
 
 MACRO (MYSQL_USE_BUNDLED_LIBEVENT)
   SET(WITH_LIBEVENT "bundled" CACHE STRING "Use bundled libevent library")
-  SET(LIBEVENT_LIBRARY  event)
-  SET(LIBEVENT_INCLUDE_DIR  ${CMAKE_SOURCE_DIR}/extra/libevent)
+  SET(LIBEVENT_LIBRARIES  event)
+  SET(LIBEVENT_INCLUDE_DIRS
+    "${CMAKE_SOURCE_DIR}/extra/libevent/include"
+    "${CMAKE_BINARY_DIR}/extra/libevent/include")
   SET(LIBEVENT_FOUND  TRUE)
-  ADD_DEFINITIONS("-DHAVE_LIBEVENT1")
+  ADD_DEFINITIONS("-DHAVE_LIBEVENT2")
   ADD_SUBDIRECTORY(extra/libevent)
 ENDMACRO()
 
@@ -36,7 +38,7 @@ ENDMACRO()
 # If this is set,we use bindled libevent
 # If this is not set,search for system libevent. 
 # if system libevent is not found, use bundled copy
-# LIBEVENT_LIBRARIES, LIBEVENT_INCLUDE_DIR
+# LIBEVENT_LIBRARIES, LIBEVENT_INCLUDE_DIRS
 # are set after this macro has run
 
 MACRO (MYSQL_CHECK_LIBEVENT)
@@ -90,7 +92,7 @@ MACRO (MYSQL_CHECK_LIBEVENT)
       IF (LIBEVENT2_INCLUDE_DIR)
         ADD_DEFINITIONS("-DHAVE_LIBEVENT2")
       ELSE()
-        ADD_DEFINITIONS("-DHAVE_LIBEVENT1")
+        MESSAGE(SEND_ERROR "Found libevent libraries, but can not find appropriate event2/ directory in include paths. Install the development package of libevent 2.x")
       ENDIF()
     ELSE()
       IF(WITH_LIBEVENT STREQUAL "system")
