@@ -1,0 +1,45 @@
+################################################################################
+# Validate that GR correctly identifies a invalid group name on server start.
+#
+# Test:
+# 0. The test requires one server: M1.
+# 1. Restart server1 with --group_replication_group_name="",
+#    GR will be unable to start.
+# 2. Clean up.
+################################################################################
+--source include/have_group_replication_plugin.inc
+--source include/force_restart.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 1. Restart server1 with --group_replication_group_name="",
+--echo #    GR will be unable to start.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("The group name '' is not a valid UUID");
+call mtr.add_suppression("Unable to start Group Replication on boot");
+SET SESSION sql_log_bin= 1;
+
+--let $allow_rpl_inited= 1
+--let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $restart_parameters=restart:--group_replication_group_name="" --group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_bootstrap_group=1 --group_replication_start_on_boot=1
+--replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
+--source include/restart_mysqld.inc
+
+# Needed as we are not using rpl_restart_server.inc
+--let $rpl_server_number= 1
+--source include/rpl_reconnect.inc
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_members WHERE member_state="OFFLINE";
+--source include/wait_condition_or_abort.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. Clean up.
+--source include/group_replication_end.inc
