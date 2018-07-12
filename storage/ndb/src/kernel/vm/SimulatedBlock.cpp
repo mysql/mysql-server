@@ -128,12 +128,6 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
 
   CLEAR_ERROR_INSERT_VALUE;
 
-#ifdef VM_TRACE
-  m_global_variables = new Ptr<void> * [1];
-  m_global_variables[0] = 0;
-  m_global_variables_save = 0;
-#endif
-
 #ifndef NDBD_MULTITHREADED
   /* Ndbd, init from GlobalScheduler */
   m_pHighResTimer = globalScheduler.getHighResTimerPtr();
@@ -197,12 +191,6 @@ SimulatedBlock::~SimulatedBlock()
   freeBat();
 #ifdef VM_TRACE_TIME
   printTimes(stdout);
-#endif
-
-#ifdef VM_TRACE
-  enable_global_variables();
-  delete [] m_global_variables;
-  m_global_variables = 0;
 #endif
 
   if (theInstanceList != 0) {
@@ -3933,43 +3921,46 @@ SimulatedBlock::execFSAPPENDREF(Signal* signal)
   fsRefError(signal, __LINE__, "File system append failed");
 }
 
-#ifdef VM_TRACE
-static Ptr<void> * m_empty_global_variables[] = { 0 };
+#if defined(USE_INIT_GLOBAL_VARIABLES)
 void
 SimulatedBlock::disable_global_variables()
 {
-  m_global_variables_save = m_global_variables;
-  m_global_variables = m_empty_global_variables;
+#ifdef NDBD_MULTITHREADED
+  mt_disable_global_variables(m_threadId);
+#endif
 }
 
 void
 SimulatedBlock::enable_global_variables()
 {
-  if (m_global_variables == m_empty_global_variables)
-  {
-    m_global_variables = m_global_variables_save;
-  }
+#ifdef NDBD_MULTITHREADED
+  mt_enable_global_variables(m_threadId);
+#endif
 }
 
 void
-SimulatedBlock::clear_global_variables(){
-  Ptr<void> ** tmp = m_global_variables;
-  while(* tmp != 0){
-    (* tmp)->i = RNIL;
-    (* tmp)->p = 0;
-    tmp++;
-  }
+SimulatedBlock::init_global_ptrs(void ** tmp, size_t cnt)
+{
+#ifdef NDBD_MULTITHREADED
+  mt_init_global_variables_ptr_instances(m_threadId, tmp, cnt);
+#endif
 }
 
 void
-SimulatedBlock::init_globals_list(void ** tmp, size_t cnt){
-  m_global_variables = new Ptr<void> * [cnt+1];
-  for(size_t i = 0; i<cnt; i++){
-    m_global_variables[i] = (Ptr<void>*)tmp[i];
-  }
-  m_global_variables[cnt] = 0;
+SimulatedBlock::init_global_uint32_ptrs(void ** tmp, size_t cnt)
+{
+#ifdef NDBD_MULTITHREADED
+  mt_init_global_variables_uint32_ptr_instances(m_threadId, tmp, cnt);
+#endif
 }
 
+void
+SimulatedBlock::init_global_uint32(void ** tmp, size_t cnt)
+{
+#ifdef NDBD_MULTITHREADED
+  mt_init_global_variables_uint32_instances(m_threadId, tmp, cnt);
+#endif
+}
 #endif
 
 Uint32

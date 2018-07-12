@@ -187,6 +187,26 @@ void Dblqh::initData()
 
 void Dblqh::initRecords() 
 {
+#if defined(USE_INIT_GLOBAL_VARIABLES)
+  {
+    void* tmp[] = { 
+      &addfragptr,
+      &fragptr,
+      &prim_tab_fragptr,
+      &gcpPtr,
+      &lcpPtr,
+      &logPartPtr,
+      &logFilePtr,
+      &lfoPtr,
+      &logPagePtr,
+      &pageRefPtr,
+      &scanptr,
+      &tabptr,
+      &m_tc_connect_ptr,
+    }; 
+    init_global_ptrs(tmp, sizeof(tmp)/sizeof(tmp[0]));
+  }
+#endif
   // Records with dynamic sizes
   addFragRecord = (AddFragRecord*)allocRecord("AddFragRecord",
 					      sizeof(AddFragRecord), 
@@ -554,27 +574,6 @@ Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
 
   initData();
 
-#ifdef VM_TRACE
-  {
-    void* tmp[] = { 
-      &addfragptr,
-      &fragptr,
-      &prim_tab_fragptr,
-      &gcpPtr,
-      &lcpPtr,
-      &logPartPtr,
-      &logFilePtr,
-      &lfoPtr,
-      &logPagePtr,
-      &pageRefPtr,
-      &scanptr,
-      &tabptr,
-      &m_tc_connect_ptr,
-    }; 
-    init_globals_list(tmp, sizeof(tmp)/sizeof(tmp[0]));
-  }
-#endif
-  
 }//Dblqh::Dblqh()
 
 Dblqh::~Dblqh() 

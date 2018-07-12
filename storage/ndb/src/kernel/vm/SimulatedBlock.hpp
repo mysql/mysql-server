@@ -1423,10 +1423,10 @@ public:
   Uint32 m_currentGsn;
 #endif
 
-#ifdef VM_TRACE
-  Ptr<void> **m_global_variables, **m_global_variables_save;
-  void clear_global_variables();
-  void init_globals_list(void ** tmp, size_t cnt);
+#if defined (USE_INIT_GLOBAL_VARIABLES)
+  void init_global_ptrs(void ** tmp, size_t cnt);
+  void init_global_uint32_ptrs(void ** tmp, size_t cnt);
+  void init_global_uint32(void ** tmp, size_t cnt);
   void disable_global_variables();
   void enable_global_variables();
 #endif
@@ -1544,9 +1544,6 @@ SimulatedBlock::executeFunction_async(GlobalSignalNumber gsn,
                                       Signal *signal)
 {
   ExecFunction f = theExecArray[gsn];
-#ifdef VM_TRACE
-  clear_global_variables();
-#endif
   if (unlikely(gsn > MAX_GSN))
   {
     handle_execute_error(gsn);

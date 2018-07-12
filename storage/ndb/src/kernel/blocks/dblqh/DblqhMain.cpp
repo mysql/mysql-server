@@ -1171,7 +1171,7 @@ void Dblqh::startphase1Lab(Signal* signal, Uint32 _dummy, Uint32 ownNodeId)
              * initialize one file at a time if using OM_INIT
              */
             jam();
-#ifdef VM_TRACE
+#if defined(USE_INIT_GLOBAL_VARIABLES)
             if (m_use_om_init)
             {
               jam();
@@ -20882,7 +20882,7 @@ void Dblqh::checkInitCompletedLab(Signal* signal)
     }//if
   }
 
-#ifdef VM_TRACE
+#if defined(USE_INIT_GLOBAL_VARIABLES)
   enable_global_variables();
 #endif
   g_eventLogger->info("LDM(%u): Completed REDO initialisation",
