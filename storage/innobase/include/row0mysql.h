@@ -413,11 +413,12 @@ dberr_t row_drop_database_for_mysql(const char *name, trx_t *trx, ulint *found);
 @param[in]	new_name	new table name
 @param[in]	dd_table	dd::Table for new table
 @param[in,out]	trx		transaction
-@param[in]	log		whether to write rename table log
+@param[in]      replay          whether in replay stage
 @return error code or DB_SUCCESS */
 dberr_t row_rename_table_for_mysql(const char *old_name, const char *new_name,
                                    const dd::Table *dd_table, trx_t *trx,
-                                   bool log) MY_ATTRIBUTE((warn_unused_result));
+                                   bool replay)
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Scans an index for either COOUNT(*) or CHECK TABLE.
  If CHECK TABLE; Checks that the index contains entries in an ascending order,
