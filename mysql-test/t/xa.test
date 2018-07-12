@@ -90,7 +90,9 @@ xa start 'zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz';
 
 select * from t1;
 
+--connection con1
 disconnect con1;
+--source include/wait_until_disconnected.inc
 connection default;
 
 xa recover;
