@@ -155,17 +155,6 @@ Dbtup::Dbtup(Block_context& ctx, Uint32 instanceNumber)
   initData();
   CLEAR_ERROR_INSERT_VALUE;
 
-#ifdef VM_TRACE
-{
-  void* tmp[] = {
-    &prepare_fragptr,
-    &prepare_tabptr,
-    &prepare_oper_ptr,
-  };
-  init_globals_list(tmp, sizeof(tmp)/sizeof(tmp[0]));
-}
-#endif
-
   RSS_OP_COUNTER_INIT(cnoOfFreeFragoprec);
   RSS_OP_COUNTER_INIT(cnoOfFreeFragrec);
   RSS_OP_COUNTER_INIT(cnoOfFreeTabDescrRec);
@@ -547,6 +536,17 @@ void Dbtup::initRecords()
     m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
 
+#if defined(USE_INIT_GLOBAL_VARIABLES)
+  {
+    void* tmp[] =
+    {
+      &prepare_fragptr,
+      &prepare_tabptr,
+      &prepare_oper_ptr,
+    };
+    init_global_ptrs(tmp, sizeof(tmp)/sizeof(tmp[0]));
+  }
+#endif
   // Records with dynamic sizes
   void* ptr = m_ctx.m_mm.get_memroot();
   c_page_pool.set((Page*)ptr, (Uint32)~0);
