@@ -30,24 +30,24 @@ macro(event_fuzzy_version_from_git)
 	set(EVENT_GIT___VERSION_PATCH 8)
 	set(EVENT_GIT___VERSION_STAGE "stable")
 
-	find_package(Git)
-
-	if (GIT_FOUND)
-		execute_process(
-			COMMAND
-				${GIT_EXECUTABLE} describe --abbrev=0
-			WORKING_DIRECTORY
-				${PROJECT_SOURCE_DIR}
-			RESULT_VARIABLE
-				GITRET
-			OUTPUT_VARIABLE
-				GITVERSION)
-
-			if (GITRET EQUAL 0)
-				string(REGEX REPLACE "^release-([0-9]+)\\.([0-9]+)\\.([0-9]+)-(.*)"       "\\1" EVENT_GIT___VERSION_MAJOR ${GITVERSION})
-				string(REGEX REPLACE "^release-([0-9]+)\\.([0-9]+)\\.([0-9]+)-(.*)"       "\\2" EVENT_GIT___VERSION_MINOR ${GITVERSION})
-				string(REGEX REPLACE "^release-([0-9]+)\\.([0-9]+)\\.([0-9]+)-(.*)"       "\\3" EVENT_GIT___VERSION_PATCH ${GITVERSION})
-				string(REGEX REPLACE "^release-([0-9]+)\\.([0-9]+)\\.([0-9]+)-([aA-zZ]+)" "\\4" EVENT_GIT___VERSION_STAGE ${GITVERSION})
-			endif()
-		endif()
+## 	find_package(Git)
+## 
+## 	if (GIT_FOUND)
+## 		execute_process(
+## 			COMMAND
+## 				${GIT_EXECUTABLE} describe --abbrev=0
+## 			WORKING_DIRECTORY
+## 				${PROJECT_SOURCE_DIR}
+## 			RESULT_VARIABLE
+## 				GITRET
+## 			OUTPUT_VARIABLE
+## 				GITVERSION)
+## 
+## 			if (GITRET EQUAL 0)
+## 				string(REGEX REPLACE "^release-([0-9]+)\\.([0-9]+)\\.([0-9]+)-(.*)"       "\\1" EVENT_GIT___VERSION_MAJOR ${GITVERSION})
+## 				string(REGEX REPLACE "^release-([0-9]+)\\.([0-9]+)\\.([0-9]+)-(.*)"       "\\2" EVENT_GIT___VERSION_MINOR ${GITVERSION})
+## 				string(REGEX REPLACE "^release-([0-9]+)\\.([0-9]+)\\.([0-9]+)-(.*)"       "\\3" EVENT_GIT___VERSION_PATCH ${GITVERSION})
+## 				string(REGEX REPLACE "^release-([0-9]+)\\.([0-9]+)\\.([0-9]+)-([aA-zZ]+)" "\\4" EVENT_GIT___VERSION_STAGE ${GITVERSION})
+## 			endif()
+## 		endif()
 endmacro()
