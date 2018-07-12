@@ -34,6 +34,23 @@
 
 namespace temptable_test {
 
+#ifdef DBUG_OFF
+
+/* In release builds there will be an error reported as well
+as my_error generated. */
+#define EXPECT_UPDATE_UNSUPPORTED(x)                                 \
+  m_server_initializer.set_expected_error(ER_CHECK_NOT_IMPLEMENTED); \
+  EXPECT_EQ(x, HA_ERR_UNSUPPORTED);                                  \
+  m_server_initializer.set_expected_error(0);
+
+#else
+
+/* In debug builds there will be an assert. */
+#define EXPECT_UPDATE_UNSUPPORTED(x) \
+  EXPECT_DEATH_IF_SUPPORTED(x, ".*Assertion .*false.* failed.*");
+
+#endif
+
 // To use a test fixture, derive a class from testing::Test.
 class Handler_test : public testing::Test {
  protected:
@@ -48,8 +65,10 @@ class Handler_test : public testing::Test {
 
   handlerton *hton() { return &m_temptable_handlerton; }
 
- private:
+ protected:
   my_testing::Server_initializer m_server_initializer;
+
+ private:
   handlerton m_temptable_handlerton;
 
   void init_handlerton() {
@@ -72,7 +91,7 @@ TEST_F(Handler_test, SimpleTableCreate) {
   const char *table_name = "t1";
 
   Table_helper table_helper(table_name, thd());
-  table_helper.add_field_long("val1", false, false);
+  table_helper.add_field_long("col0", false, false);
   table_helper.finalize();
 
   temptable::Handler handler(hton(), table_helper.table_share());
@@ -90,8 +109,8 @@ TEST_F(Handler_test, SimpleTableOpsFixedSize) {
   const char *table_name = "t1";
 
   Table_helper table_helper(table_name, thd());
-  table_helper.add_field_long("val1", false, false);
-  table_helper.add_field_long("val2", true, false);
+  table_helper.add_field_long("col0", false, false);
+  table_helper.add_field_long("col1", true, false);
   table_helper.finalize();
 
   temptable::Handler handler(hton(), table_helper.table_share());
@@ -141,7 +160,7 @@ TEST_F(Handler_test, SimpleTableOpsVarSize) {
   const char *table_name = "t1";
 
   Table_helper table_helper(table_name, thd());
-  table_helper.add_field_varstring("val1", 20, false);
+  table_helper.add_field_varstring("col0", 20, false);
   table_helper.finalize();
 
   temptable::Handler handler(hton(), table_helper.table_share());
@@ -183,71 +202,9 @@ TEST_F(Handler_test, SingleIndex) {
   const char *table_name = "t1";
 
   Table_helper table_helper(table_name, thd());
-  table_helper.add_field_long("val1", false, false);
+  table_helper.add_field_long("col0", false, false);
+  table_helper.add_field_long("col1", false, false);
   table_helper.add_index(HA_KEY_ALG_HASH, true, {0});
-  table_helper.finalize();
-
-  temptable::Handler handler(hton(), table_helper.table_share());
-  table_helper.set_handler(&handler);
-
-  EXPECT_EQ(handler.create(table_name, table_helper.table(), nullptr, nullptr),
-            0);
-  EXPECT_EQ(handler.open(table_name, 0, 0, nullptr), 0);
-
-  /* Insert (success). */
-  table_helper.field<Field_long>(0)->store(1, false);
-  EXPECT_EQ(handler.write_row(table_helper.record_0()), 0);
-
-  table_helper.field<Field_long>(0)->store(2, false);
-  EXPECT_EQ(handler.write_row(table_helper.record_0()), 0);
-
-  table_helper.field<Field_long>(0)->store(3, false);
-  EXPECT_EQ(handler.write_row(table_helper.record_0()), 0);
-
-  /* Insert (duplicate key). */
-  table_helper.field<Field_long>(0)->store(2, false);
-  EXPECT_EQ(handler.write_row(table_helper.record_0()), HA_ERR_FOUND_DUPP_KEY);
-
-  /* Update (duplicate row). */
-  EXPECT_EQ(handler.rnd_init(false), 0);
-  EXPECT_EQ(handler.rnd_next(table_helper.record_1()), 0);
-  table_helper.copy_record_1_to_0();
-  auto old_value = table_helper.field<Field_long>(0)->val_int();
-  auto new_value = (old_value == 1) ? 2 : 1;
-  table_helper.field<Field_long>(0)->store(new_value, false);
-  EXPECT_EQ(
-      handler.update_row(table_helper.record_1(), table_helper.record_0()),
-      HA_ERR_FOUND_DUPP_KEY);
-  EXPECT_EQ(handler.rnd_end(), 0);
-
-  /* Update (success). */
-  EXPECT_EQ(handler.rnd_init(false), 0);
-  EXPECT_EQ(handler.rnd_next(table_helper.record_1()), 0);
-  table_helper.field<Field_long>(0)->store(10, false);
-  EXPECT_EQ(
-      handler.update_row(table_helper.record_1(), table_helper.record_0()), 0);
-  EXPECT_EQ(handler.rnd_end(), 0);
-
-  /* Delete one row. */
-  EXPECT_EQ(handler.rnd_init(false), 0);
-  EXPECT_EQ(handler.rnd_next(table_helper.record_1()), 0);
-  EXPECT_EQ(handler.delete_row(table_helper.record_1()), 0);
-  EXPECT_EQ(handler.rnd_end(), 0);
-
-  EXPECT_EQ(handler.close(), 0);
-  EXPECT_EQ(handler.delete_table(table_name, nullptr), 0);
-}
-
-TEST_F(Handler_test, MultiIndex) {
-  const char *table_name = "t1";
-
-  Table_helper table_helper(table_name, thd());
-  table_helper.add_field_long("val1", false, false);
-  table_helper.add_field_long("val2", false, false);
-  table_helper.add_index(HA_KEY_ALG_HASH, true, {0});
-  table_helper.add_index(HA_KEY_ALG_BTREE, true, {1});
-  table_helper.add_index(HA_KEY_ALG_HASH, false, {0, 1});
-  table_helper.add_index(HA_KEY_ALG_BTREE, false, {0, 1});
   table_helper.finalize();
 
   temptable::Handler handler(hton(), table_helper.table_share());
@@ -271,20 +228,91 @@ TEST_F(Handler_test, MultiIndex) {
   EXPECT_EQ(handler.write_row(table_helper.record_0()), 0);
 
   /* Insert (duplicate key). */
-  table_helper.field<Field_long>(0)->store(4, false);
+  table_helper.field<Field_long>(0)->store(2, false);
   table_helper.field<Field_long>(1)->store(2, false);
   EXPECT_EQ(handler.write_row(table_helper.record_0()), HA_ERR_FOUND_DUPP_KEY);
 
-  /* Update (duplicate row). */
+  /* Update (duplicate row) - verify unsupported error/assert is generated. */
+  EXPECT_EQ(handler.rnd_init(false), 0);
+  EXPECT_EQ(handler.rnd_next(table_helper.record_1()), 0);
+  table_helper.copy_record_1_to_0();
+  auto old_value = table_helper.field<Field_long>(0)->val_int();
+  auto new_value = (old_value == 1) ? 2 : 1;
+  table_helper.field<Field_long>(0)->store(new_value, false);
+  EXPECT_UPDATE_UNSUPPORTED(
+      handler.update_row(table_helper.record_1(), table_helper.record_0()));
+  EXPECT_EQ(handler.rnd_end(), 0);
+
+  /* Update (success). */
+  EXPECT_EQ(handler.rnd_init(false), 0);
+  EXPECT_EQ(handler.rnd_next(table_helper.record_1()), 0);
+  table_helper.copy_record_1_to_0();
+  table_helper.field<Field_long>(1)->store(10, false);
+  EXPECT_EQ(
+      handler.update_row(table_helper.record_1(), table_helper.record_0()), 0);
+  EXPECT_EQ(handler.rnd_end(), 0);
+
+  /* Delete one row. */
+  EXPECT_EQ(handler.rnd_init(false), 0);
+  EXPECT_EQ(handler.rnd_next(table_helper.record_1()), 0);
+  EXPECT_EQ(handler.delete_row(table_helper.record_1()), 0);
+  EXPECT_EQ(handler.rnd_end(), 0);
+
+  EXPECT_EQ(handler.close(), 0);
+  EXPECT_EQ(handler.delete_table(table_name, nullptr), 0);
+}
+
+TEST_F(Handler_test, MultiIndex) {
+  const char *table_name = "t1";
+
+  Table_helper table_helper(table_name, thd());
+  table_helper.add_field_long("col0", false, false);
+  table_helper.add_field_long("col1", false, false);
+  table_helper.add_field_long("col2", false, false);
+  table_helper.add_index(HA_KEY_ALG_HASH, true, {0});
+  table_helper.add_index(HA_KEY_ALG_BTREE, true, {1});
+  table_helper.add_index(HA_KEY_ALG_HASH, false, {0, 1});
+  table_helper.add_index(HA_KEY_ALG_BTREE, false, {0, 1});
+  table_helper.finalize();
+
+  temptable::Handler handler(hton(), table_helper.table_share());
+  table_helper.set_handler(&handler);
+
+  EXPECT_EQ(handler.create(table_name, table_helper.table(), nullptr, nullptr),
+            0);
+  EXPECT_EQ(handler.open(table_name, 0, 0, nullptr), 0);
+
+  /* Insert (success). */
+  table_helper.field<Field_long>(0)->store(1, false);
+  table_helper.field<Field_long>(1)->store(1, false);
+  table_helper.field<Field_long>(2)->store(1, false);
+  EXPECT_EQ(handler.write_row(table_helper.record_0()), 0);
+
+  table_helper.field<Field_long>(0)->store(2, false);
+  table_helper.field<Field_long>(1)->store(2, false);
+  table_helper.field<Field_long>(2)->store(2, false);
+  EXPECT_EQ(handler.write_row(table_helper.record_0()), 0);
+
+  table_helper.field<Field_long>(0)->store(3, false);
+  table_helper.field<Field_long>(1)->store(3, false);
+  table_helper.field<Field_long>(2)->store(3, false);
+  EXPECT_EQ(handler.write_row(table_helper.record_0()), 0);
+
+  /* Insert (duplicate key). */
+  table_helper.field<Field_long>(0)->store(4, false);
+  table_helper.field<Field_long>(1)->store(2, false);
+  table_helper.field<Field_long>(2)->store(9, false);
+  EXPECT_EQ(handler.write_row(table_helper.record_0()), HA_ERR_FOUND_DUPP_KEY);
+
+  /* Update (duplicate row) - verify unsupported error/assert is generated. */
   EXPECT_EQ(handler.rnd_init(false), 0);
   EXPECT_EQ(handler.rnd_next(table_helper.record_1()), 0);
   table_helper.copy_record_1_to_0();
   auto old_value1 = table_helper.field<Field_long>(1)->val_int();
   auto new_value1 = (old_value1 == 1) ? 2 : 1;
   table_helper.field<Field_long>(1)->store(new_value1, false);
-  EXPECT_EQ(
-      handler.update_row(table_helper.record_1(), table_helper.record_0()),
-      HA_ERR_FOUND_DUPP_KEY);
+  EXPECT_UPDATE_UNSUPPORTED(
+      handler.update_row(table_helper.record_1(), table_helper.record_0()));
   EXPECT_EQ(handler.rnd_end(), 0);
 
   EXPECT_EQ(handler.rnd_init(false), 0);
@@ -294,16 +322,15 @@ TEST_F(Handler_test, MultiIndex) {
   auto new_value2 = (old_value2 == 1) ? 2 : 1;
   table_helper.field<Field_long>(0)->store(100, false);
   table_helper.field<Field_long>(1)->store(new_value2, false);
-  EXPECT_EQ(
-      handler.update_row(table_helper.record_1(), table_helper.record_0()),
-      HA_ERR_FOUND_DUPP_KEY);
+  EXPECT_UPDATE_UNSUPPORTED(
+      handler.update_row(table_helper.record_1(), table_helper.record_0()));
   EXPECT_EQ(handler.rnd_end(), 0);
 
   /* Update (success). */
   EXPECT_EQ(handler.rnd_init(false), 0);
   EXPECT_EQ(handler.rnd_next(table_helper.record_1()), 0);
-  table_helper.field<Field_long>(0)->store(10, false);
-  table_helper.field<Field_long>(1)->store(10, false);
+  table_helper.copy_record_1_to_0();
+  table_helper.field<Field_long>(2)->store(99, false);
   EXPECT_EQ(
       handler.update_row(table_helper.record_1(), table_helper.record_0()), 0);
   EXPECT_EQ(handler.rnd_end(), 0);
@@ -322,8 +349,9 @@ TEST_F(Handler_test, MultiIndexVarchar) {
   const char *table_name = "t1";
 
   Table_helper table_helper(table_name, thd());
-  table_helper.add_field_varstring("val1", 20, false);
-  table_helper.add_field_varstring("val2", 20, false);
+  table_helper.add_field_varstring("col0", 20, false);
+  table_helper.add_field_varstring("col1", 20, false);
+  table_helper.add_field_varstring("col2", 20, false);
   table_helper.add_index(HA_KEY_ALG_HASH, true, {0});
   table_helper.add_index(HA_KEY_ALG_BTREE, true, {1});
   table_helper.add_index(HA_KEY_ALG_HASH, false, {0, 1});
@@ -340,31 +368,34 @@ TEST_F(Handler_test, MultiIndexVarchar) {
   /* Insert (success). */
   table_helper.field<Field_varstring>(0)->store(1, false);
   table_helper.field<Field_varstring>(1)->store(1, false);
+  table_helper.field<Field_varstring>(2)->store(1, false);
   EXPECT_EQ(handler.write_row(table_helper.record_0()), 0);
 
   table_helper.field<Field_varstring>(0)->store(2, false);
   table_helper.field<Field_varstring>(1)->store(2, false);
+  table_helper.field<Field_varstring>(2)->store(2, false);
   EXPECT_EQ(handler.write_row(table_helper.record_0()), 0);
 
   table_helper.field<Field_varstring>(0)->store(3, false);
   table_helper.field<Field_varstring>(1)->store(3, false);
+  table_helper.field<Field_varstring>(2)->store(3, false);
   EXPECT_EQ(handler.write_row(table_helper.record_0()), 0);
 
   /* Insert (duplicate key). */
   table_helper.field<Field_varstring>(0)->store(4, false);
   table_helper.field<Field_varstring>(1)->store(2, false);
+  table_helper.field<Field_varstring>(2)->store(9, false);
   EXPECT_EQ(handler.write_row(table_helper.record_0()), HA_ERR_FOUND_DUPP_KEY);
 
-  /* Update (duplicate row). */
+  /* Update (duplicate row) - verify unsupported error/assert is generated. */
   EXPECT_EQ(handler.rnd_init(false), 0);
   EXPECT_EQ(handler.rnd_next(table_helper.record_1()), 0);
   table_helper.copy_record_1_to_0();
   auto old_value1 = table_helper.field<Field_varstring>(1)->val_int();
   auto new_value1 = (old_value1 == 1) ? 2 : 1;
   table_helper.field<Field_varstring>(1)->store(new_value1, false);
-  EXPECT_EQ(
-      handler.update_row(table_helper.record_1(), table_helper.record_0()),
-      HA_ERR_FOUND_DUPP_KEY);
+  EXPECT_UPDATE_UNSUPPORTED(
+      handler.update_row(table_helper.record_1(), table_helper.record_0()));
   EXPECT_EQ(handler.rnd_end(), 0);
 
   EXPECT_EQ(handler.rnd_init(false), 0);
@@ -374,16 +405,15 @@ TEST_F(Handler_test, MultiIndexVarchar) {
   auto new_value2 = (old_value2 == 1) ? 2 : 1;
   table_helper.field<Field_varstring>(0)->store(100, false);
   table_helper.field<Field_varstring>(1)->store(new_value2, false);
-  EXPECT_EQ(
-      handler.update_row(table_helper.record_1(), table_helper.record_0()),
-      HA_ERR_FOUND_DUPP_KEY);
+  EXPECT_UPDATE_UNSUPPORTED(
+      handler.update_row(table_helper.record_1(), table_helper.record_0()));
   EXPECT_EQ(handler.rnd_end(), 0);
 
   /* Update (success). */
   EXPECT_EQ(handler.rnd_init(false), 0);
   EXPECT_EQ(handler.rnd_next(table_helper.record_1()), 0);
-  table_helper.field<Field_varstring>(0)->store(10, false);
-  table_helper.field<Field_varstring>(1)->store(10, false);
+  table_helper.copy_record_1_to_0();
+  table_helper.field<Field_varstring>(2)->store(99, false);
   EXPECT_EQ(
       handler.update_row(table_helper.record_1(), table_helper.record_0()), 0);
   EXPECT_EQ(handler.rnd_end(), 0);
@@ -402,7 +432,7 @@ TEST_F(Handler_test, IndexOnOff) {
   const char *table_name = "t1";
 
   Table_helper table_helper(table_name, thd());
-  table_helper.add_field_long("val1", false, false);
+  table_helper.add_field_long("col0", false, false);
   table_helper.add_index(HA_KEY_ALG_HASH, true, {0});
   table_helper.finalize();
 
