@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_config_editor\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 04/04/2018
+.\"      Date: 07/12/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_CONFIG_EDITOR\FR" "1" "04/04/2018" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQL_CONFIG_EDITOR\FR" "1" "07/12/2018" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -36,12 +36,12 @@ mysql_config_editor \- configure authentication information for connecting to My
 .PP
 The
 \fBmysql_config_editor\fR
-utility enables you to store authentication credentials in an encrypted login path file named
+utility enables you to store authentication credentials in an obfuscated login path file named
 \&.mylogin\&.cnf\&. The file location is the
 %APPDATA%\eMySQL
 directory on Windows and the current user\*(Aqs home directory on non\-Windows systems\&. The file can be read later by MySQL client programs to obtain authentication credentials for connecting to MySQL Server\&.
 .PP
-The unencrypted format of the
+The unobfuscated format of the
 \&.mylogin\&.cnf
 login path file consists of option groups, similar to other option files\&. Each option group in
 \&.mylogin\&.cnf
@@ -53,7 +53,7 @@ which is a group that permits only certain options:
 \fBpassword\fR,
 \fBport\fR
 and
-\fBsocket\fR\&. Think of a login path option group as a set of options that specify which MySQL server to connect to and which account to authenticate as\&. Here is an unencrypted example:
+\fBsocket\fR\&. Think of a login path option group as a set of options that specify which MySQL server to connect to and which account to authenticate as\&. Here is an unobfuscated example:
 .sp
 .if n \{\
 .RS 4
@@ -185,22 +185,22 @@ is present\&.
 .RE
 .PP
 \fBmysql_config_editor\fR
-encrypts the
+obfuscates the
 \&.mylogin\&.cnf
-file so it cannot be read as cleartext, and its contents when decrypted by client programs are used only in memory\&. In this way, passwords can be stored in a file in non\-cleartext format and used later without ever needing to be exposed on the command line or in an environment variable\&.
+file so it cannot be read as cleartext, and its contents when unobfuscated by client programs are used only in memory\&. In this way, passwords can be stored in a file in non\-cleartext format and used later without ever needing to be exposed on the command line or in an environment variable\&.
 \fBmysql_config_editor\fR
 provides a
 print
 command for displaying the login path file contents, but even in this case, password values are masked so as never to appear in a way that other users can see them\&.
 .PP
-The encryption used by
+The obfuscation used by
 \fBmysql_config_editor\fR
 prevents passwords from appearing in
 \&.mylogin\&.cnf
-as cleartext and provides a measure of security by preventing inadvertent password exposure\&. For example, if you display a regular unencrypted
+as cleartext and provides a measure of security by preventing inadvertent password exposure\&. For example, if you display a regular unobfuscated
 my\&.cnf
 option file on the screen, any passwords it contains are visible for anyone to see\&. With
-\&.mylogin\&.cnf, that is not true\&. But the encryption used will not deter a determined attacker and you should not consider it unbreakable\&. A user who can gain system administration privileges on your machine to access your files could decrypt the
+\&.mylogin\&.cnf, that is not true\&. But the obfuscation used will not deter a determined attacker and you should not consider it unbreakable\&. A user who can gain system administration privileges on your machine to access your files could unobfuscate the
 \&.mylogin\&.cnf
 file with some effort\&.
 .PP
@@ -629,7 +629,7 @@ shell> \fBmysql_config_editor \fR\fB\fIcommand\fR\fR\fB \-\-help\fR
 .\}
 print [\fIoptions\fR]
 .sp
-Print the contents of the login path file in unencrypted form, with the exception that passwords are displayed as
+Print the contents of the login path file in unobfuscated form, with the exception that passwords are displayed as
 *****\&.
 .sp
 The default login path name is

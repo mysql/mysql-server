@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 04/04/2018
+.\"      Date: 07/12/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\FR" "1" "04/04/2018" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQL\FR" "1" "07/12/2018" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -59,7 +59,7 @@ mysql_store_result()\&.
 .br
 .PP
 Alternatively, MySQL Shell offers access to the X DevAPI\&. For details, see
-Chapter\ \&19, MySQL Shell User Guide\&.
+\m[blue]\fBMySQL Shell 8\&.0 (part of MySQL 8\&.0)\fR\m[]\&\s-2\u[1]\d\s+2\&.
 .sp .5v
 .RE
 .PP
@@ -228,8 +228,7 @@ option\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-binary\-as\-hex\fR,
-\fB\-b\fR
+\fB\-\-binary\-as\-hex\fR
 .sp
 When this option is given,
 \fBmysql\fR
@@ -722,7 +721,7 @@ Produce HTML output\&.
 Ignore spaces after function names\&. The effect of this is described in the discussion for the
 IGNORE_SPACE
 SQL mode (see
-Section\ \&5.1.8, \(lqServer SQL Modes\(rq)\&.
+Section\ \&5.1.10, \(lqServer SQL Modes\(rq)\&.
 .RE
 .sp
 .RS 4
@@ -1393,6 +1392,87 @@ Section\ \&6.4.2, \(lqCommand Options for Encrypted Connections\(rq\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-ssl\-fips\-mode={OFF|ON|STRICT}\fR
+Controls whether to enable FIPS mode on the client side\&. The
+\fB\-\-ssl\-fips\-mode\fR
+option differs from other
+\fB\-\-ssl\-\fR\fB\fIxxx\fR\fR
+options in that it is not used to establish encrypted connections, but rather to affect which cryptographic operations are permitted\&. See
+Section\ \&6.6, \(lqFIPS Support\(rq\&.
+.sp
+These
+\fB\-\-ssl\-fips\-mode\fR
+values are permitted:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+OFF: Disable FIPS mode\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+ON: Enable FIPS mode\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+STRICT: Enable
+\(lqstrict\(rq
+FIPS mode\&.
+.RE
+.sp
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+If the OpenSSL FIPS Object Module is not available, the only permitted value for
+\fB\-\-ssl\-fips\-mode\fR
+is
+OFF\&. In this case, setting
+\fB\-\-ssl\-fips\-mode\fR
+to
+ON
+or
+STRICT
+causes the client to produce a warning at startup and to operate in non\-FIPS mode\&.
+.sp .5v
+.RE
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-syslog\fR,
 \fB\-j\fR
 .sp
@@ -1874,8 +1954,8 @@ is set to something other than the default of
 ;, instances of that character are sent to the server without interpretation\&. However, the server itself still interprets
 ;
 as a statement delimiter and processes statements accordingly\&. This behavior on the server side comes into play for multiple\-statement execution (see
-Section\ \&28.7.19, \(lqC API Multiple Statement Execution Support\(rq), and for parsing the body of stored procedures and functions, triggers, and events (see
-Section\ \&24.1, \(lqDefining Stored Programs\(rq)\&.
+Section\ \&27.7.19, \(lqC API Multiple Statement Execution Support\(rq), and for parsing the body of stored procedures and functions, triggers, and events (see
+Section\ \&23.1, \(lqDefining Stored Programs\(rq)\&.
 .RE
 .sp
 .RS 4
@@ -2117,8 +2197,8 @@ Reset the connection to clear the session state\&.
 Resetting a connection has effects similar to
 mysql_change_user()
 or an auto\-reconnect except that the connection is not closed and reopened, and re\-authentication is not done\&. See
-Section\ \&28.7.7.3, \(lqmysql_change_user()\(rq) and see
-Section\ \&28.7.24, \(lqC API Automatic Reconnection Control\(rq)\&.
+Section\ \&27.7.7.3, \(lqmysql_change_user()\(rq) and see
+Section\ \&27.7.24, \(lqC API Automatic Reconnection Control\(rq)\&.
 .sp
 This example shows how
 resetconnection
@@ -2168,6 +2248,8 @@ Read the named file and executes the statements contained therein\&. On Windows,
 /
 or
 \e\e\&.
+.sp
+Quote characters are taken as part of the file name itself\&. For best results, the name should not include space characters\&.
 .RE
 .sp
 .RS 4
@@ -3149,7 +3231,7 @@ command,
 uses it as a search string to access server\-side help from the contents of the MySQL Reference Manual\&. The proper operation of this command requires that the help tables in the
 mysql
 database be initialized with help topic information (see
-Section\ \&5.1.11, \(lqServer-Side Help\(rq)\&.
+Section\ \&5.1.13, \(lqServer-Side Help\(rq)\&.
 .PP
 If there is no match for the search string, the search fails:
 .sp
@@ -3589,7 +3671,7 @@ SET sql_safe_updates=1, sql_select_limit=1000, max_join_size=1000000;
 .\}
 .PP
 See
-Section\ \&5.1.5, \(lqServer System Variables\(rq\&.
+Section\ \&5.1.7, \(lqServer System Variables\(rq\&.
 .PP
 The
 SET
@@ -3711,7 +3793,7 @@ client with the
 option\&.
 .PP
 For more information about auto\-reconnect and its effect on state information when a reconnection occurs, see
-Section\ \&28.7.24, \(lqC API Automatic Reconnection Control\(rq\&.
+Section\ \&27.7.24, \(lqC API Automatic Reconnection Control\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
@@ -3723,6 +3805,12 @@ This documentation is distributed in the hope that it will be useful, but WITHOU
 .PP
 You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
 .sp
+.SH "NOTES"
+.IP " 1." 4
+MySQL Shell 8.0 (part of MySQL 8.0)
+.RS 4
+\%http://dev.mysql.com/doc/mysql-shell/8.0/en/
+.RE
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,
 which may already be installed locally and which is also available
