@@ -1399,7 +1399,7 @@ static int remove_sql_mode(char* sql_mode, const char* replace_mode,
   }
   else {
     const char *next = start + replace_len + 1;
-    strcpy(start, next);
+    memmove(start, next, strlen(next) + 1);
   }
   return 0;
 }
