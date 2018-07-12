@@ -20,6 +20,8 @@ SHOW BINLOG EVENTS;
 SET debug = "-d,simulate_allocate_failure";
 
 SET debug = "+d,simulate_seek_failure";
+# Replace the numeric value of start_pos to make it future change proof
+--replace_result $start_pos START_POS
 --error ER_ERROR_WHEN_EXECUTING_COMMAND
 eval SHOW BINLOG EVENTS FROM $start_pos;
 SET debug = "-d,simulate_seek_failure";
