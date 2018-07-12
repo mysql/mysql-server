@@ -916,7 +916,11 @@ partitions 3
 (partition x1 tablespace ts1,
 partition x2 tablespace ts2,
 partition x3 tablespace ts3);
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 CREATE TABLE t2 LIKE t1;
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -953,6 +957,8 @@ partitions 3
 (partition x1 values in (1,2,9,4) tablespace ts1,
 partition x2 values in (3, 11, 5, 7) tablespace ts2,
 partition x3 values in (16, 8, 5+19, 70-43) tablespace ts3);
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -976,6 +982,8 @@ partitions 3
 (partition x1 values in (1,2,9,4) tablespace ts1,
 partition x2 values in (3, 11, 5, 7) tablespace ts2,
 partition x3 values in (16, 8, 5+19, 70-43) tablespace ts3);
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -998,6 +1006,8 @@ partition by list (b*a)
 (partition x1 values in (1) tablespace ts1,
 partition x2 values in (3, 11, 5, 7) tablespace ts2,
 partition x3 values in (16, 8, 5+19, 70-43) tablespace ts3);
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

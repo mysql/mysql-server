@@ -320,6 +320,9 @@ static const char* innobase_change_buffering_values[IBUF_USE_COUNT] = {
 	"all"		/* IBUF_USE_ALL */
 };
 
+/* Deprecation warning text */
+const char PARTITION_IN_SHARED_TABLESPACE_WARNING[] =
+  "InnoDB : A table partition in a shared tablespace";
 
 /* This tablespace name is reserved by InnoDB in order to explicitly
 create a file_per_table tablespace for the table. */

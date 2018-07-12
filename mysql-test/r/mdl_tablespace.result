@@ -865,6 +865,8 @@ ENGINE=InnoDB
 PARTITION BY RANGE (a)
 PARTITIONS 1
 (PARTITION P1 VALUES LESS THAN (2) TABLESPACE ts1);
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 #############################################
 # Case1: Checking TRUNCATE TABLE
 # Sending 'TRUNCATE TABLE t1;'
@@ -900,6 +902,8 @@ CREATE TABLE t3 ( a INT NOT NULL, PRIMARY KEY (a)) ENGINE=InnoDB PARTITION BY RA
 SET DEBUG_SYNC= 'now WAIT_FOR got_lock';
 SET DEBUG_SYNC= 'now SIGNAL cont';
 # Reaping 'CREATE TABLE'
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 #############################################
 # Case5: Checking CREATE TABLE LIKE
 SET DEBUG_SYNC= 'RESET';
@@ -911,6 +915,8 @@ CREATE TABLE t4 LIKE t3;;
 SET DEBUG_SYNC= 'now WAIT_FOR got_lock';
 SET DEBUG_SYNC= 'now SIGNAL cont';
 # Reaping 'CREATE TABLE LIKE'
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 #############################################
 # Case6: Checking ALTER TABLE ... PARTITION
 CREATE TABLESPACE ts2 ADD DATAFILE 'ts2.ibd';
@@ -923,6 +929,8 @@ ALTER TABLE t2 ADD PARTITION (partition p2 values less than (4) tablespace ts2);
 SET DEBUG_SYNC= 'now WAIT_FOR got_lock';
 SET DEBUG_SYNC= 'now SIGNAL cont';
 # Reaping 'ALTER TABLE'
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 #############################################
 # Case7: Checking LOCK TABLE t2 WRITE
 SET DEBUG_SYNC= 'RESET';

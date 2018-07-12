@@ -1061,6 +1061,8 @@ PRIMARY KEY (`f1`,`f4`)
 PARTITION BY LIST (`f4`)
 (PARTITION p0 VALUES IN (0) ENGINE = InnoDB,
 PARTITION p1 VALUES IN (1) DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_tblspc' ENGINE = InnoDB);
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1133,6 +1135,8 @@ PRIMARY KEY (`f1`,`f4`)
 PARTITION BY LIST (`f4`)
 (PARTITION p0 VALUES IN (0) TABLESPACE ts1 ENGINE = InnoDB,
 PARTITION p1 VALUES IN (1) TABLESPACE ts2 ENGINE = InnoDB);
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1171,6 +1175,8 @@ PARTITION BY LIST (`f4`)
 PARTITION p1 VALUES IN (1) TABLESPACE innodb_file_per_table DATA DIRECTORY='MYSQL_TMP_DIR/temp_dir' ENGINE = InnoDB,
 PARTITION p2 VALUES IN (2) TABLESPACE innodb_file_per_table ENGINE = InnoDB,
 PARTITION p3 VALUES IN (3) TABLESPACE innodb_system ENGINE = InnoDB);
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
