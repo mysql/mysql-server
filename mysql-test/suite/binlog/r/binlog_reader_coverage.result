@@ -11,7 +11,7 @@ SHOW BINLOG EVENTS;
 ERROR HY000: Error when executing command SHOW BINLOG EVENTS: memory allocation failed reading log event
 SET debug = "-d,simulate_allocate_failure";
 SET debug = "+d,simulate_seek_failure";
-SHOW BINLOG EVENTS FROM 339;
+SHOW BINLOG EVENTS FROM START_POS;
 ERROR HY000: Error when executing command SHOW BINLOG EVENTS: I/O error reading log event
 SET debug = "-d,simulate_seek_failure";
 SET debug = "+d,simulate_ostream_write_failure";
