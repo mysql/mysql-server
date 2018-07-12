@@ -16,11 +16,10 @@ CALL mtr.add_suppression( "Got error from storage engine while refreshing " ||
 INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
 VALUES ( 'SELECT "Rewrite"', 'SELECT "Rewritten"' );
 SET GLOBAL debug= '+d,dbug.block_do_refresh';
-SHOW PROCESSLIST;
-Id	User	Host	db	Command	Time	State	Info
-<id>	event_scheduler	<host>	<db>	<command>	<time>	<state>	<info>
-<id>	root	<host>	<db>	<command>	<time>	<state>	<info>
-<id>	root	<host>	<db>	<command>	<time>	<state>	<info>
+# Two root connections are supposed to show here
+SELECT COUNT(user) FROM information_schema.processlist WHERE user LIKE 'root';
+COUNT(user)
+2
 # We have to do this in order to avoid deadlock on the memory table's
 # mutex.
 SET @@global.rewriter_enabled = OFF;
@@ -28,11 +27,10 @@ CALL query_rewrite.flush_rewrite_rules();
 # We don't care if we time out here, as long as we manage to restart the
 # server.
 SET debug_sync = 'now WAIT_FOR parked';
-SHOW PROCESSLIST;
-Id	User	Host	db	Command	Time	State	Info
-<id>	event_scheduler	<host>	<db>	<command>	<time>	<state>	<info>
-<id>	root	<host>	<db>	<command>	<time>	<state>	<info>
-<id>	root	<host>	<db>	<command>	<time>	<state>	<info>
+# Two root connections are supposed to show here
+SELECT COUNT(user) FROM information_schema.processlist WHERE user LIKE 'root';
+COUNT(user)
+2
 #
 # Restart the server
 #
@@ -41,10 +39,10 @@ Rewritten
 Rewritten
 Warnings:
 Note	1105	Query 'SELECT 'Rewrite'' rewritten to 'SELECT "Rewritten"' by a query rewrite plugin
-SHOW PROCESSLIST;
-Id	User	Host	db	Command	Time	State	Info
-<id>	event_scheduler	<host>	<db>	<command>	<time>	<state>	<info>
-<id>	root	<host>	<db>	<command>	<time>	<state>	<info>
+# One root connection is supposed to show here, as the rewrite thread is now gone
+SELECT COUNT(user) FROM information_schema.processlist WHERE user LIKE 'root';
+COUNT(user)
+1
 SET @@global.rewriter_enabled = DEFAULT;
 Warnings:
 Warning	1620	Plugin is busy and will be uninstalled on shutdown
