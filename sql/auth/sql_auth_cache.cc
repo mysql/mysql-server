@@ -1338,6 +1338,8 @@ void notify_flush_event(THD *thd) {
 static bool reload_roles_cache(THD *thd, TABLE_LIST *tablelst) {
   DBUG_ENTER("reload_roles_cache");
   DBUG_ASSERT(tablelst);
+  sql_mode_t old_sql_mode = thd->variables.sql_mode;
+  thd->variables.sql_mode &= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
 
   /*
     Attempt to reload the role cache only if the role_edges and
@@ -1345,9 +1347,11 @@ static bool reload_roles_cache(THD *thd, TABLE_LIST *tablelst) {
   */
   if ((tablelst[0].table) && (tablelst[1].table) &&
       populate_roles_caches(thd, tablelst)) {
+    thd->variables.sql_mode = old_sql_mode;
     DBUG_RETURN(true);
   }
 
+  thd->variables.sql_mode = old_sql_mode;
   DBUG_RETURN(false);
 }
 
@@ -2265,6 +2269,7 @@ bool acl_reload(THD *thd, bool locked) {
 
     init_check_host();
     delete swap_dynamic_privileges_map(old_dyn_priv_map);
+    if (!old_dyn_priv_map) dynamic_privileges_init();
   } else {
     free_root(&old_mem, MYF(0));
     delete old_acl_users;
