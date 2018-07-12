@@ -8574,8 +8574,8 @@ mt_init_global_variables_uint32_ptr_instances(Uint32 self,
   for (size_t i = 0; i < cnt; i++)
   {
     Uint32 inx = selfptr->m_global_variables_uint32_ptr_instances;
-    selfptr->m_global_variables_ptrs[inx] = tmp[i];
-    selfptr->m_global_variables_ptr_instances = inx + 1;
+    selfptr->m_global_variables_uint32_ptrs[inx] = tmp[i];
+    selfptr->m_global_variables_uint32_ptr_instances = inx + 1;
   }
 }
 
@@ -8589,8 +8589,8 @@ mt_init_global_variables_uint32_instances(Uint32 self,
   for (size_t i = 0; i < cnt; i++)
   {
     Uint32 inx = selfptr->m_global_variables_uint32_instances;
-    selfptr->m_global_variables_ptrs[inx] = tmp[i];
-    selfptr->m_global_variables_ptr_instances = inx + 1;
+    selfptr->m_global_variables_uint32[inx] = tmp[i];
+    selfptr->m_global_variables_uint32_instances = inx + 1;
   }
 }
 #endif

@@ -543,8 +543,26 @@ void Dbtup::initRecords()
       &prepare_fragptr,
       &prepare_tabptr,
       &prepare_oper_ptr,
+      &prepare_pageptr,
+      &m_curr_tabptr,
+      &m_curr_fragptr,
     };
     init_global_ptrs(tmp, sizeof(tmp)/sizeof(tmp[0]));
+  }
+  {
+    void * tmp[] =
+    {
+      &prepare_page_idx,
+      &prepare_page_no,
+    };
+    init_global_uint32(tmp, sizeof(tmp)/sizeof(tmp[0]));
+  }
+  {
+    void * tmp[] =
+    {
+      &prepare_tuple_ptr,
+    };
+    init_global_uint32_ptrs(tmp, sizeof(tmp)/sizeof(tmp[0]));
   }
 #endif
   // Records with dynamic sizes
