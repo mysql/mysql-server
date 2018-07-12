@@ -227,6 +227,36 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
   Uint32 nStatTriggerScale;
   Uint32 nStatUpdateDelay;
 
+#if defined(USE_INIT_GLOBAL_VARIABLES)
+  {
+    void* tmp[] = {
+      &c_ctx.scanPtr,
+      &c_ctx.indexPtr,
+      &c_ctx.fragPtr,
+    }; 
+    init_global_ptrs(tmp, sizeof(tmp)/sizeof(tmp[0]));
+  }
+  {
+    void* tmp[] = {
+      &c_ctx.keyAttrs,
+      &c_ctx.tupIndexFragPtr,
+      &c_ctx.tupIndexTablePtr,
+      &c_ctx.tupRealFragPtr,
+      &c_ctx.tupRealTablePtr,
+    }; 
+    init_global_uint32_ptrs(tmp, sizeof(tmp)/sizeof(tmp[0]));
+  }
+  {
+    void* tmp[] = {
+      &c_ctx.scanBoundCnt,
+      &c_ctx.descending,
+      &c_ctx.attrDataOffset,
+      &c_ctx.tuxFixHeaderSize,
+      &c_ctx.m_current_ent,
+    }; 
+    init_global_uint32(tmp, sizeof(tmp)/sizeof(tmp[0]));
+  }
+#endif
   const ndb_mgm_configuration_iterator * p = 
     m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);

@@ -257,7 +257,7 @@ Dbtup::corruptedTupleDetected(KeyReqStruct *req_struct, Tablerec *regTabPtr)
   Uint32 header_bits = req_struct->m_tuple_ptr->m_header_bits;
   Uint32 tableId = req_struct->fragPtrP->fragTableId;
   Uint32 fragId = req_struct->fragPtrP->fragmentId;
-  Uint32 page_id = prepare_frag_page_id;
+  Uint32 page_id = req_struct->frag_page_id;
   Uint32 page_idx = prepare_page_idx;
 
   ndbout_c("Tuple corruption detected, checksum: 0x%x, header_bits: 0x%x"
@@ -747,7 +747,6 @@ void Dbtup::prepare_scanTUPKEYREQ(Uint32 page_id, Uint32 page_idx)
   {
     register Uint32 fixed_part_size_in_words =
       prepare_tabptr.p->m_offsets[MM].m_fix_header_size;
-    prepare_frag_page_id = page_id;
     page_id = getRealpid(prepare_fragptr.p, page_id);
     key.m_page_no = page_id;
     key.m_page_idx = page_idx;
