@@ -45,6 +45,5 @@ sql_require_primary_key
 tls_version
 tls_version
 use_secondary_engine
-use_secondary_engine
 drop table t1;
 drop table t2;

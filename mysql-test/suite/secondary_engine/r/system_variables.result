@@ -52,3 +52,12 @@ SELECT @@use_secondary_engine;
 @@use_secondary_engine
 OFF
 SET @@use_secondary_engine = @my_use_secondary_engine;
+#
+# Bug#28319475: MAKE USE_SECONDARY_ENGINE SESSION-ONLY AND NONPERSISTENT
+#
+SET GLOBAL use_secondary_engine = ON;
+ERROR HY000: Variable 'use_secondary_engine' is a SESSION variable and can't be used with SET GLOBAL
+SET PERSIST use_secondary_engine = ON;
+ERROR HY000: Variable 'use_secondary_engine' is a SESSION variable and can't be used with SET GLOBAL
+SET PERSIST_ONLY use_secondary_engine = ON;
+ERROR HY000: Variable 'use_secondary_engine' is a SESSION variable and can't be used with SET GLOBAL
