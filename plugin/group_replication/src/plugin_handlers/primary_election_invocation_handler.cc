@@ -118,7 +118,8 @@ int Primary_election_handler::execute_primary_election(
       LogPluginErr(WARNING_LEVEL,
                    ER_GRP_RPL_NO_SUITABLE_PRIMARY_MEM); /* purecov: inspected */
     }
-    group_events_observation_manager->after_primary_election("", false, mode);
+    group_events_observation_manager->after_primary_election(
+        "", false, mode, PRIMARY_ELECTION_NO_CANDIDATES_ERROR);
     if (enable_server_read_mode(PSESSION_DEDICATED_THREAD)) {
       LogPluginErr(WARNING_LEVEL,
                    ER_GRP_RPL_ENABLE_READ_ONLY_FAILED); /* purecov: inspected */
@@ -270,6 +271,7 @@ int Primary_election_handler::legacy_primary_election(
     */
     internal_primary_election(primary_uuid, LEGACY_ELECTION_PRIMARY);
   } else {
+    set_election_running(false);
     LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_SRV_SECONDARY_MEM,
                  primary_member_info->get_hostname().c_str(),
                  primary_member_info->get_port());

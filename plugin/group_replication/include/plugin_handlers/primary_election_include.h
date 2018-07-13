@@ -37,4 +37,12 @@ enum enum_primary_election_mode {
   ELECTION_MODE_END = 3         // Enum end
 };
 
+/** Enum for election errors */
+enum enum_primary_election_error {
+  PRIMARY_ELECTION_NO_ERROR = 0,             // No errors
+  PRIMARY_ELECTION_NO_CANDIDATES_ERROR = 1,  // No candidates for election
+  PRIMARY_ELECTION_PROCESS_ERROR = 2,  // There was a problem in the election
+  PRIMARY_ELECTION_ERROR_END = 3       // Enum end
+};
+
 #endif /* PRIMARY_ELECTION_INCLUDE_INCLUDED */

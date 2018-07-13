@@ -5,10 +5,16 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection server1]
 
 # 1. Start group replication on server1 and bootstrap group
+set session sql_log_bin=0;
+call mtr.add_suppression("The function 'group_replication_switch_to_multi_primary_mode' failed. The group has a member with a version that does not support group coordinated operations.");
+set session sql_log_bin=1;
 include/start_and_bootstrap_group_replication.inc
 
 # 2. Configure server2 with lower version, and start group replication
 [connection server2]
+set session sql_log_bin=0;
+call mtr.add_suppression("Error while executing a group configuration operation: The group has a member with a version that does not support group coordinated operations.");
+set session sql_log_bin=1;
 SET @@GLOBAL.DEBUG= '+d,group_replication_legacy_election_version';
 include/start_group_replication.inc
 
@@ -47,7 +53,12 @@ include/gr_assert_secondary_member.inc
 # 10. Check the messages logged were for legacy elections.
 include/assert_grep.inc [Found the messages for two elections]
 
-# 11. Cleanup
+# 11. Check also that an action cannot be executed
+#     when a member with an older version is present.
+SELECT group_replication_switch_to_multi_primary_mode();
+ERROR HY000: The function 'group_replication_switch_to_multi_primary_mode' failed. The group has a member with a version that does not support group coordinated operations.
+
+# 12. Cleanup
 [connection server2]
 include/stop_group_replication.inc
 SET @@GLOBAL.DEBUG= '-d,group_replication_legacy_election_version';

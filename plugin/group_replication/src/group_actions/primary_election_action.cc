@@ -403,6 +403,8 @@ int Primary_election_action::after_view_change(
     return 0;
   }
 
+  if (single_election_action_aborted) return 0;
+
   bool is_old_primary_leaving = false;
   bool is_appointed_primary_leaving = false;
   for (Gcs_member_identifier leaving_member : leaving) {
@@ -586,9 +588,19 @@ int Primary_election_action::after_primary_election(std::string elected_uuid,
                                                     enum_primary_election_mode,
                                                     int error) {
   // We are leaving the group but we can speed up the process
-  if (error) {
+  if (error == PRIMARY_ELECTION_PROCESS_ERROR) {
     error_on_primary_election = true; /* purecov: inspected */
     stop_action_execution(false);     /* purecov: inspected */
+  }
+
+  // No candidates? Just abort
+  if (error == PRIMARY_ELECTION_NO_CANDIDATES_ERROR) {
+    /* purecov: begin inspected */
+    mysql_mutex_lock(&notification_lock);
+    single_election_action_aborted = true;
+    mysql_cond_broadcast(&notification_cond);
+    mysql_mutex_unlock(&notification_lock);
+    /* purecov: end */
   }
 
   if (did_primary_change || (!appointed_primary_uuid.empty() &&

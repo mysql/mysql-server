@@ -114,7 +114,7 @@ Primary_election_validation_handler::validate_primary_version(
     if (member_info.second->get_member_version().get_version() <
         PRIMARY_ELECTION_LEGACY_ALGORITHM_VERSION) {
       error_msg.assign(
-          "The group contains a member of version that does not"
+          "The group has a member with a version that does not"
           " support appointed elections.");
       return INVALID_PRIMARY;
     }

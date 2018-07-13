@@ -6,7 +6,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 
 # 1. Use debug point to decrease minor version
 set session sql_log_bin=0;
-call mtr.add_suppression("Error while executing a group configuration operation: The group contains a member which version does not support group coordinated operations.");
+call mtr.add_suppression("Error while executing a group configuration operation: The group has a member with a version that does not support group coordinated operations.");
 set session sql_log_bin=1;
 SET @@GLOBAL.DEBUG= '+d,group_replication_legacy_election_version';
 
@@ -16,16 +16,16 @@ include/start_and_bootstrap_group_replication.inc
 # 3. Join server2 to group
 [connection server2]
 set session sql_log_bin=0;
-call mtr.add_suppression("The function 'group_replication_switch_to_single_primary_mode' failed. The group contains a member which version does not support group coordinated operations.");
+call mtr.add_suppression("The function 'group_replication_switch_to_single_primary_mode' failed. The group has a member with a version that does not support group coordinated operations.");
 set session sql_log_bin=1;
 include/start_group_replication.inc
 
 # 4. Executing switch to single primary mode will fail due to the version of
 #    one of the members
 SELECT group_replication_switch_to_single_primary_mode();
-ERROR HY000: The function 'group_replication_switch_to_single_primary_mode' failed. The group contains a member which version does not support group coordinated operations.
+ERROR HY000: The function 'group_replication_switch_to_single_primary_mode' failed. The group has a member with a version that does not support group coordinated operations.
 SELECT group_replication_switch_to_single_primary_mode("MEMBER2_UUID");
-ERROR HY000: The function 'group_replication_switch_to_single_primary_mode' failed. The group contains a member which version does not support group coordinated operations.
+ERROR HY000: The function 'group_replication_switch_to_single_primary_mode' failed. The group has a member with a version that does not support group coordinated operations.
 
 # 5. Cleanup
 [connection server1]

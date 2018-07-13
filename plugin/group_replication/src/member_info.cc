@@ -95,7 +95,8 @@ Group_member_info::Group_member_info(const uchar *data, size_t len)
       gcs_member_id(NULL),
       member_version(NULL),
       unreachable(false),
-      lower_case_table_names(DEFAULT_NOT_RECEIVED_LOWER_CASE_TABLE_NAMES) {
+      lower_case_table_names(DEFAULT_NOT_RECEIVED_LOWER_CASE_TABLE_NAMES),
+      is_action_running(false) {
   decode(data, len);
 }
 
