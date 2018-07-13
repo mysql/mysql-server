@@ -389,6 +389,7 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
   ScanOpPtr scanPtr = c_ctx.scanPtr;
   ScanOp& scan = *scanPtr.p;
   const Index& index = *c_ctx.indexPtr.p;
+
   // compiler warning unused: const DescHead& descHead = getDescHead(index);
   // compiler warning unused: const KeyType* keyTypes = getKeyTypes(descHead);
   // data passed in Signal
@@ -396,13 +397,15 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
   Uint32 boundLen = req->boundAiLength;
   Uint32 boundOffset = 0;
   // initialize stats scan
-  if (unlikely(scan.m_statOpPtrI != RNIL)) {
+  if (unlikely(scan.m_statOpPtrI != RNIL))
+  {
     // stats options before bounds
     StatOpPtr statPtr;
     statPtr.i = scan.m_statOpPtrI;
     c_statOpPool.getPtr(statPtr);
     Uint32 usedLen = 0;
-    if (statScanInit(statPtr, boundData, boundLen, &usedLen) == -1) {
+    if (unlikely(statScanInit(statPtr, boundData, boundLen, &usedLen) == -1))
+    {
       jam();
       ndbrequire(scan.m_errorCode != 0);
       req->errorCode = scan.m_errorCode;
@@ -413,8 +416,9 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
     boundOffset += usedLen;
   }
   // extract lower and upper bound in separate passes
-  for (unsigned idir = 0; idir <= 1; idir++) {
-    jam();
+  for (unsigned idir = 0; idir <= 1; idir++)
+  {
+    jamDebug();
     struct BoundInfo {
       int type2;      // with EQ -> LE/GE
       Uint32 offset;  // word offset in signal data
@@ -426,42 +430,48 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
     const Uint32* const data = &boundData[boundOffset];
     Uint32 offset = 0;
     while (offset + 2 <= boundLen) {
-      jam();
+      jamDebug();
       const Uint32 type = data[offset];
       const AttributeHeader* ah = (const AttributeHeader*)&data[offset + 1];
       const Uint32 attrId = ah->getAttributeId();
       const Uint32 byteSize = ah->getByteSize();
       const Uint32 dataSize = ah->getDataSize();
       // check type
-      if (unlikely(type > 4)) {
+      if (unlikely(type > 4))
+      {
         jam();
         scan.m_errorCode = TuxBoundInfo::InvalidAttrInfo;
         req->errorCode = scan.m_errorCode;
         return;
       }
       Uint32 type2 = type;
-      if (type2 == 4) {
-        jam();
+      if (type2 == 4)
+      {
+        jamDebug();
         type2 = (idir << 1); // LE=0 GE=2
       }
       // check if attribute belongs to this bound
-      if ((type2 & 0x2) == (idir << 1)) {
-        if (unlikely(attrId >= index.m_numAttrs)) {
+      if ((type2 & 0x2) == (idir << 1))
+      {
+        if (unlikely(attrId >= index.m_numAttrs))
+        {
           jam();
           scan.m_errorCode = TuxBoundInfo::InvalidAttrInfo;
           req->errorCode = scan.m_errorCode;
           return;
         }
         // mark entries in any gap as undefined
-        while (maxAttrId <= attrId) {
-          jam();
+        while (maxAttrId <= attrId)
+        {
+          jamDebug();
           BoundInfo& b = boundInfo[maxAttrId];
           b.type2 = -1;
           maxAttrId++;
         }
         BoundInfo& b = boundInfo[attrId];
         // duplicate no longer allowed (wl#4163)
-        if (unlikely(b.type2 != -1)) {
+        if (unlikely(b.type2 != -1))
+        {
           jam();
           scan.m_errorCode = TuxBoundInfo::InvalidBounds;
           req->errorCode = scan.m_errorCode;
@@ -474,7 +484,8 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
       // jump to next
       offset += 2 + dataSize;
     }
-    if (unlikely(offset != boundLen)) {
+    if (unlikely(offset != boundLen))
+    {
       jam();
       scan.m_errorCode = TuxBoundInfo::InvalidAttrInfo;
       req->errorCode = scan.m_errorCode;
@@ -486,12 +497,14 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
     searchBoundData.set_buf(c_ctx.c_searchKey, MaxAttrDataSize << 2);
     int strict = 0; // 0 or 1
     Uint32 i;
-    for (i = 0; i < maxAttrId; i++) {
-      jam();
+    for (i = 0; i < maxAttrId; i++)
+    {
+      jamDebug();
       const BoundInfo& b = boundInfo[i];
        // check for gap or strict bound before last
        strict = (b.type2 & 0x1);
-       if (unlikely(b.type2 == -1 || (i + 1 < maxAttrId && strict))) {
+       if (unlikely(b.type2 == -1 || (i + 1 < maxAttrId && strict)))
+       {
          jam();
          scan.m_errorCode = TuxBoundInfo::InvalidBounds;
          req->errorCode = scan.m_errorCode;
@@ -499,7 +512,8 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
        }
        Uint32 len;
        if (unlikely(searchBoundData.add_poai(&data[b.offset], &len) == -1 ||
-           b.bytes != len)) {
+           b.bytes != len))
+       {
          jam();
          scan.m_errorCode = TuxBoundInfo::InvalidCharFormat;
          req->errorCode = scan.m_errorCode;
@@ -507,12 +521,14 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
        }
     }
     int side = 0;
-    if (maxAttrId != 0) {
+    if (maxAttrId != 0)
+    {
       // arithmetic is faster
       // side = (idir == 0 ? (strict ? +1 : -1) : (strict ? -1 : +1));
       side = (-1) * (1 - 2 * strict) * (1 - 2 * int(idir));
     }
-    if (unlikely(searchBound.finalize(side) == -1)) {
+    if (unlikely(searchBound.finalize(side) == -1))
+    {
       jam();
       scan.m_errorCode = TuxBoundInfo::InvalidCharFormat;
       req->errorCode = scan.m_errorCode;
@@ -528,7 +544,8 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
       const Uint32* data = (const Uint32*)searchBoundData.get_data_buf();
       Uint32 size = (searchBoundData.get_data_len() + 3) / 4;
       bool ok = b.append(data, size);
-      if (unlikely(!ok)) {
+      if (unlikely(!ok))
+      {
         jam();
         scan.m_errorCode = TuxBoundInfo::OutOfBuffers;
         req->errorCode = scan.m_errorCode;
@@ -688,6 +705,17 @@ Dbtux::continue_scan(Signal *signal,
     }
 #endif
     scan.m_errorCode = AccScanRef::TuxIndexNotOnline;
+  }
+  if (unlikely(scan.m_errorCode != 0))
+  {
+    jamDebug();
+    NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
+    conf->scanPtr = scan.m_userPtr;
+    conf->accOperationPtr = RNIL;
+    conf->fragId = RNIL;
+    signal->setLength(NextScanConf::SignalLengthNoTuple);
+    c_lqh->exec_next_scan_conf(signal);
+    return;
   }
   if (scan.m_state == ScanOp::First)
   {
@@ -1192,7 +1220,7 @@ Dbtux::scanNext(ScanOpPtr scanPtr, bool fromMaintReq, Frag& frag)
   ScanOp& scan = *scanPtr.p;
   // cannot be moved away from tuple we have locked
 #if defined VM_TRACE || defined ERROR_INSERT
-  ndbrequire(scan.m_state != ScanOp::Locked);
+  ndbrequire(fromMaintReq || scan.m_state != ScanOp::Locked);
 #else
   ndbassert(fromMaintReq || scan.m_state != ScanOp::Locked);
 #endif
@@ -1410,11 +1438,6 @@ Dbtux::scanCheck(ScanOp& scan, TreeEnt ent)
 {
   jamDebug();
   Uint32 scanBoundCnt = c_ctx.scanBoundCnt;
-  if (unlikely(scan.m_errorCode != 0))
-  {
-    jam();
-    return false;
-  }
   int ret = 0;
   if (likely(scanBoundCnt != 0))
   {
