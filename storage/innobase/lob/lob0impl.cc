@@ -344,15 +344,15 @@ dberr_t z_insert_chunk(dict_index_t *index, z_first_page_t &first, trx_t *trx,
 
   ut_a(ret == Z_OK);
 
-  strm.avail_in = len;
+  strm.avail_in = static_cast<uInt>(len);
   strm.next_in = blob;
 
   /* It is possible that the compressed stream is actually bigger.  So
   making use of this call to find it out for sure. */
-  const ulint max_buf = deflateBound(&strm, len);
+  const ulint max_buf = deflateBound(&strm, static_cast<uLong>(len));
 
   std::unique_ptr<byte[]> tmpbuf(new byte[max_buf]);
-  strm.avail_out = max_buf;
+  strm.avail_out = static_cast<uInt>(max_buf);
   strm.next_out = tmpbuf.get();
 
   ret = deflate(&strm, Z_FINISH);
@@ -1062,7 +1062,7 @@ ulint read(ReadContext *ctx, ref_t ref, ulint offset, ulint len, byte *buf) {
   first_page_t first_page(&mtr, ctx->m_index);
   first_page.load_s(page_id, ctx->m_page_size);
 
-  ulint page_type = first_page.get_page_type();
+  page_type_t page_type = first_page.get_page_type();
 
   if (page_type == FIL_PAGE_TYPE_BLOB || page_type == FIL_PAGE_SDI_BLOB) {
     mtr_commit(&mtr);

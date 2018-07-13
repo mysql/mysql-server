@@ -447,7 +447,7 @@ dberr_t replace(InsertContext &ctx, trx_t *trx, dict_index_t *index, ref_t ref,
     cur_entry.load_x(node_loc);
     first_page.load_x(first_page_id, page_size);
 
-    ulint cur_page_no = cur_entry.get_page_no();
+    page_no_t cur_page_no = cur_entry.get_page_no();
 
     buf_block_t *new_block = nullptr;
 

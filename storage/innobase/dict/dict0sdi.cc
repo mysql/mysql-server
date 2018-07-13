@@ -369,8 +369,8 @@ bool dict_sdi_set(handlerton *hton, const dd::Tablespace &tablespace,
   Sdi_Compressor compressor(static_cast<uint32_t>(sdi_len), sdi);
   compressor.compress();
 
-  err = ib_sdi_set(space_id, &ib_sdi_key, sdi_len, compressor.get_comp_len(),
-                   compressor.get_data(), trx);
+  err = ib_sdi_set(space_id, &ib_sdi_key, static_cast<uint32_t>(sdi_len),
+                   compressor.get_comp_len(), compressor.get_data(), trx);
 
   DBUG_EXECUTE_IF("sdi_set_failure",
                   dict_sdi_report_error(operation, table, tablespace);

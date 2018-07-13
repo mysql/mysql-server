@@ -755,7 +755,7 @@ byte *dfield_t::blobref() const {
   return (static_cast<byte *>(data) + len - BTR_EXTERN_FIELD_REF_SIZE);
 }
 
-ulint dfield_t::lob_version() const {
+uint32_t dfield_t::lob_version() const {
   ut_ad(ext);
   byte *field_ref = blobref();
 

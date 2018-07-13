@@ -610,7 +610,7 @@ void rec_copy_prefix_to_dtuple(
 @param[in]	n_fields	number of fields in the record
 @return	length of specified number of fields */
 UNIV_INLINE
-uint8_t rec_get_n_fields_length(uint16_t n_fields);
+uint8_t rec_get_n_fields_length(ulint n_fields);
 
 /** Set the number of fields for one new style leaf page record.
 This is only needed for table after instant ADD COLUMN.

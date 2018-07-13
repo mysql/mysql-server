@@ -419,7 +419,7 @@ struct z_index_entry_t {
   }
 
   /** Get the LOB version. */
-  ulint get_lob_version() const {
+  uint32_t get_lob_version() const {
     return (mach_read_from_4(m_node + OFFSET_LOB_VERSION));
   }
 

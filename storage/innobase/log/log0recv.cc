@@ -1038,7 +1038,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   constexpr ulint CKP2 = LOG_CHECKPOINT_2;
 
   for (auto i = CKP1; i <= CKP2; i += CKP2 - CKP1) {
-    log_files_header_read(log, i);
+    log_files_header_read(log, static_cast<uint32_t>(i));
 
     if (!recv_check_log_header_checksum(buf)) {
       DBUG_PRINT("ib_log", ("invalid checkpoint, at %lu, checksum %x", i,
@@ -3506,7 +3506,7 @@ dberr_t recv_recovery_from_checkpoint_start(log_t &log, lsn_t flush_lsn) {
     return (err);
   }
 
-  log_files_header_read(log, max_cp_field);
+  log_files_header_read(log, static_cast<uint32_t>(max_cp_field));
 
   lsn_t checkpoint_lsn;
   checkpoint_no_t checkpoint_no;

@@ -319,8 +319,9 @@ UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ulint
   n_v_fields = v_entry ? dtuple_get_n_v_fields(v_entry) : 0;
 
   if (n_fields > 0) {
-    n_null = index->has_instant_cols() ? index->get_n_nullable_before(n_fields)
-                                       : index->n_nullable;
+    n_null = index->has_instant_cols()
+                 ? index->get_n_nullable_before(static_cast<uint32_t>(n_fields))
+                 : index->n_nullable;
   }
 
   if (index->has_instant_cols() && status != nullptr) {
@@ -705,8 +706,9 @@ bool rec_convert_dtuple_to_rec_comp(rec_t *rec, const dict_index_t *index,
   ut_ad(temp || dict_table_is_comp(index->table));
 
   if (n_fields != 0) {
-    n_null = index->has_instant_cols() ? index->get_n_nullable_before(n_fields)
-                                       : index->n_nullable;
+    n_null = index->has_instant_cols()
+                 ? index->get_n_nullable_before(static_cast<uint32_t>(n_fields))
+                 : index->n_nullable;
   }
 
   if (temp) {
@@ -1288,7 +1290,7 @@ ibool rec_validate(
   uint16_t n_defaults = 0;
 
   ut_a(rec);
-  n_fields = rec_offs_n_fields(offsets);
+  n_fields = static_cast<uint16_t>(rec_offs_n_fields(offsets));
 
   if ((n_fields == 0) || (n_fields > REC_MAX_N_FIELDS)) {
     ib::error(ER_IB_MSG_925) << "Record has " << n_fields << " fields";

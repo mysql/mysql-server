@@ -2835,7 +2835,7 @@ int ha_innopart::truncate_impl(const char *name, TABLE *form,
   THD *thd = ha_thd();
   trx_t *trx = check_trx_exists(thd);
   char partition_name[FN_REFLEN];
-  uint16_t table_name_len;
+  size_t table_name_len;
   bool has_autoinc = false;
   int error = 0;
 
@@ -2910,10 +2910,10 @@ int ha_innopart::truncate_partition_low(dd::Table *dd_table) {
   int error = 0;
   const char *table_name = table->s->normalized_path.str;
   char partition_name[FN_REFLEN];
-  uint16_t table_name_len;
+  size_t table_name_len;
   THD *thd = ha_thd();
   trx_t *trx = check_trx_exists(thd);
-  uint16_t i = 0;
+  uint part_num = 0;
   uint64_t autoinc = 0;
   bool truncate_all = (m_part_info->num_partitions_used() == m_tot_parts);
 
@@ -2952,7 +2952,7 @@ int ha_innopart::truncate_partition_low(dd::Table *dd_table) {
       autoinc = part_table->autoinc_persisted;
     }
 
-    if (!m_part_info->is_partition_used(i++)) {
+    if (!m_part_info->is_partition_used(part_num++)) {
       continue;
     }
 

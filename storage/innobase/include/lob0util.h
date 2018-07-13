@@ -82,7 +82,7 @@ struct basic_page_t {
     return (mach_read_from_4(frame() + FIL_PAGE_NEXT));
   }
 
-  ulint get_page_type() const {
+  page_type_t get_page_type() const {
     return (mach_read_from_2(frame() + FIL_PAGE_TYPE));
   }
 

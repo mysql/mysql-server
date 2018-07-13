@@ -1156,7 +1156,7 @@ ulint ref_t::get_lob_page_info(const dict_index_t *index,
   block = buf_page_get(page_id_t(ref_mem.m_space_id, ref_mem.m_page_no),
                        page_size, RW_S_LATCH, &mtr);
 
-  ulint page_type = block->get_page_type();
+  page_type_t page_type = block->get_page_type();
 
   switch (page_type) {
     case FIL_PAGE_TYPE_LOB_FIRST: {
@@ -1195,7 +1195,7 @@ void ref_t::mark_not_partially_updatable(trx_t *trx, mtr_t *mtr,
   block = buf_page_get(page_id_t(ref_mem.m_space_id, ref_mem.m_page_no),
                        page_size, RW_X_LATCH, mtr);
 
-  ulint page_type = block->get_page_type();
+  page_type_t page_type = block->get_page_type();
 
   switch (page_type) {
     case FIL_PAGE_TYPE_LOB_FIRST: {

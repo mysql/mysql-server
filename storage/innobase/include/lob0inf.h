@@ -155,7 +155,7 @@ dberr_t apply_undolog(mtr_t *mtr, trx_t *trx, dict_index_t *index, ref_t ref,
 @return always returns DB_SUCCESS. */
 dberr_t get_info(ref_t &ref, dict_index_t *index, ulint &lob_version,
                  trx_id_t &last_trx_id, undo_no_t &last_undo_no,
-                 ulint &page_type, mtr_t *mtr);
+                 page_type_t &page_type, mtr_t *mtr);
 
 /** Validate the size of the given LOB.
 @param[in]	lob_size	expected size of the LOB, mostly obtained from

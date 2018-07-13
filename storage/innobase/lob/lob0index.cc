@@ -163,7 +163,7 @@ fil_addr_t index_entry_t::get_self() const {
   }
   page_t *frame = page_align(m_node);
   page_no_t page_no = mach_read_from_4(frame + FIL_PAGE_OFFSET);
-  ulint offset = m_node - frame;
+  uint32_t offset = static_cast<uint32_t>(m_node - frame);
   ut_ad(offset < UNIV_PAGE_SIZE);
 
   return (fil_addr_t(page_no, offset));

@@ -1659,7 +1659,7 @@ static ulint trx_purge_attach_undo_recs(const ulint n_purge_threads,
         table_exists.push_back(node->is_table_id_exists(tid));
       }
 
-      int N = std::count(table_exists.begin(), table_exists.end(), true);
+      ptrdiff_t N = std::count(table_exists.begin(), table_exists.end(), true);
       ut_ad(N == 0 || N == 1);
     }
   }
