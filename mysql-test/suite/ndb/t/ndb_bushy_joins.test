@@ -14,6 +14,12 @@
 # the test as experience has shown that 'rows' estimates
 # may vary depending on OS, compiler and .. phase of moon.
 #
+# '--replace_regex /(\(`test`.`parent`.`b` is not null\))
+# ( and \(`test`.`parent`.`b` is not null\))+/\1/' and similar
+# replaces are used throughout the testcase as a workaround to
+# fix the effects of Bug#26484136. These should be removed once
+# the bug gets fixed.
+#
 ########################################################
 
 --source include/have_ndb.inc
@@ -165,12 +171,14 @@ set ndb_join_pushdown = on;
 -- echo ===============================
 -- echo Run single instance of 'query1' 
 -- echo ===============================
+--replace_regex /(\(`test`.`parent`.`b` is not null\))( and \(`test`.`parent`.`b` is not null\))+/\1/
 eval explain $query1;
 eval $query1;
 
 -- echo ===============================
 -- echo Run single instance of 'query2' 
 -- echo ===============================
+--replace_regex /(\(`test`.`parent`.`b` is not null\))( and \(`test`.`parent`.`b` is not null\))+/\1/ /(\(`test`.`c1`.`c` is not null\))( and \(`test`.`c1`.`c` is not null\))+/\1/ /(\(`test`.`c2`.`c` is not null\))( and \(`test`.`c2`.`c` is not null\))+/\1/ /(\(`test`.`c3`.`c` is not null\))( and \(`test`.`c3`.`c` is not null\))+/\1/ /(\(`test`.`c4`.`c` is not null\))( and \(`test`.`c4`.`c` is not null\))+/\1/
 eval explain $query2;
 eval $query2;
 
@@ -178,6 +186,7 @@ eval $query2;
 -- echo Run single instance of 'query3' 
 -- echo ===============================
 --replace_column 10 ### 11 ###
+--replace_regex /(\(`test`.`parent`.`b` is not null\))( and \(`test`.`parent`.`b` is not null\))+/\1/
 eval explain $query3;
 eval $query3;
 
@@ -185,6 +194,7 @@ eval $query3;
 -- echo Run single instance of 'query4' 
 -- echo ===============================
 --replace_column 10 ### 11 ###
+--replace_regex /(\(`test`.`parent`.`b` is not null\))( and \(`test`.`parent`.`b` is not null\))+/\1/
 eval explain $query4;
 eval $query4;
 
@@ -193,6 +203,7 @@ eval $query4;
 -- echo Run multiple 'query1' in parallel 
 -- echo =================================
 let $query = $query1;
+--replace_regex /(\(`test`.`parent`.`b` is not null\))( and \(`test`.`parent`.`b` is not null\))+/\1/
 eval explain $query;
 connection j1;
 send_eval $query;
@@ -213,6 +224,7 @@ reap;
 -- echo Run multiple 'query2' in parallel 
 -- echo =================================
 let $query = $query2;
+--replace_regex /(\(`test`.`parent`.`b` is not null\))( and \(`test`.`parent`.`b` is not null\))+/\1/ /(\(`test`.`c1`.`c` is not null\))( and \(`test`.`c1`.`c` is not null\))+/\1/ /(\(`test`.`c2`.`c` is not null\))( and \(`test`.`c2`.`c` is not null\))+/\1/ /(\(`test`.`c3`.`c` is not null\))( and \(`test`.`c3`.`c` is not null\))+/\1/ /(\(`test`.`c4`.`c` is not null\))( and \(`test`.`c4`.`c` is not null\))+/\1/
 eval explain $query;
 connection j1;
 send_eval $query;
@@ -234,6 +246,7 @@ reap;
 -- echo =================================
 let $query = $query3;
 --replace_column 10 ### 11 ###
+--replace_regex /(\(`test`.`parent`.`b` is not null\))( and \(`test`.`parent`.`b` is not null\))+/\1/
 eval explain $query;
 connection j1;
 send_eval $query;
@@ -255,6 +268,7 @@ reap;
 -- echo =================================
 let $query = $query4;
 --replace_column 10 ### 11 ###
+--replace_regex /(\(`test`.`parent`.`b` is not null\))( and \(`test`.`parent`.`b` is not null\))+/\1/
 eval explain $query;
 connection j1;
 send_eval $query;
@@ -410,6 +424,7 @@ eval $query2;
 -- echo Run single instance of 'query4' 
 -- echo ===============================
 --replace_column 10 ### 11 ###
+--replace_regex /(\(`test`.`parent`.`b` is not null\))( and \(`test`.`parent`.`b` is not null\))+/\1/
 eval explain $query4;
 eval $query4;
 
@@ -459,6 +474,7 @@ reap;
 -- echo =================================
 let $query = $query4;
 --replace_column 10 ### 11 ###
+--replace_regex /(\(`test`.`parent`.`b` is not null\))( and \(`test`.`parent`.`b` is not null\))+/\1/
 eval explain $query;
 connection j1;
 send_eval $query;
