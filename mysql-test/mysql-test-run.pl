@@ -1776,27 +1776,22 @@ sub command_line_setup {
 
   # Check if "parallel" options is set
   if (not defined $opt_parallel) {
-    if ($opt_start or $opt_start_dirty) {
-      # Set parallel value to 1
-      $opt_parallel = 1;
-    } else {
-      # Set parallel value to "auto"
-      $opt_parallel = "auto";
-    }
+    # Set parallel value to 1
+    $opt_parallel = 1;
   } else {
-    my $flag = 0;
+    my $valid_parallel_value = 1;
     # Check if parallel value is a positive number or "auto".
     if ($opt_parallel =~ /^[0-9]+$/) {
       # Numeric value, can't be less than '1'
-      $flag = 1 if ($opt_parallel < 1);
+      $valid_parallel_value = 0 if ($opt_parallel < 1);
     } else {
       # String value and should be "auto"
-      $flag = 1 if ($opt_parallel ne "auto");
+      $valid_parallel_value = 0 if ($opt_parallel ne "auto");
     }
 
     mtr_error("Invalid value '$opt_parallel' for '--parallel' option, " .
               "use 'auto' or a positive number.")
-      if $flag;
+      if !$valid_parallel_value;
   }
 
   # Set the "tmp" directory
@@ -7053,9 +7048,7 @@ Misc options
                         'not_parallel.inc' are marked as 'non-parallel' tests.
   nounit-tests          Do not run unit tests. Normally run if configured
                         and if not running named tests/suites.
-  parallel=N            Run tests in N parallel threads. The default value is
-                        "auto", which is equal to the number of CPUs in the
-                        machine.
+  parallel=N            Run tests in N parallel threads. The default value is 1.
                         Use parallel=auto for auto-setting of N.
   reorder               Reorder tests to get fewer server restarts.
   repeat=N              Run each test N number of times, in parallel if
