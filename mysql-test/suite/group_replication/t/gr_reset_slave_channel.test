@@ -256,7 +256,7 @@ INSERT INTO t1 VALUES (5);
 
 --source include/stop_group_replication.inc
 
---echo RESET SLAVE command clears master and slave info repositories and will reinitialize them
+--echo RESET SLAVE command clears master and slave info repositories and will flush master info
 RESET SLAVE;
 
 --let $assert_text= 'mysql.slave_relay_log_info contains no group replication channel information'

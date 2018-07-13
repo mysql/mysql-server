@@ -39,7 +39,7 @@ Vefiry that group replication channels are present
 include/assert.inc ['The group replication applier channel is present']
 include/assert.inc ['The group replication recovery channel is present']
 include/stop_group_replication.inc
-RESET SLAVE command clears master and slave info repositories and will reinitialize them
+RESET SLAVE command clears master and slave info repositories and will flush master info
 RESET SLAVE;
 include/assert.inc ['mysql.slave_relay_log_info contains no group replication channel information']
 include/assert.inc ['mysql.slave_master_info contains flushed group replication channel information']
