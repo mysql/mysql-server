@@ -418,7 +418,7 @@ bool Group_action_coordinator::handle_action_start_message(
   if (member_from_invalid_version(all_members_info)) {
     awake_coordinator_on_error(
         action_info,
-        "The group contains a member which version does not support group "
+        "The group has a member with a version that does not support group "
         "coordinated operations.",
         is_message_sender, false);
     error = 1;

@@ -289,7 +289,7 @@ end:
 
   if (error && !election_process_aborted) {
     group_events_observation_manager->after_primary_election(
-        primary_uuid, true, election_mode, error);
+        primary_uuid, true, election_mode, PRIMARY_ELECTION_PROCESS_ERROR);
     kill_transactions_and_leave_on_election_error(err_msg);
   }
 
