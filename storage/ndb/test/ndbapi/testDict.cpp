@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3726,11 +3726,11 @@ RandSchemaOp::alter_table(Ndb* ndb, Obj* obj)
       g_err << pDict->getNdbError() << endl;
       return NDBT_FAILED;
     }
-    pDict->invalidateTable(pOld->getName());
     if (strcmp(pOld->getName(), tNew.getName()))
     {
       obj->m_name.assign(tNew.getName());
     }
+    pDict->invalidateTable(pOld->getName());
   }
 
   return NDBT_OK;
