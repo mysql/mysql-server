@@ -91,6 +91,7 @@ static NDB_TICKS startTime;
 //#define DEBUG_EXTENDED_LCP_STAT 1
 //#define DEBUG_REDO_CONTROL 1
 //#define DEBUG_REDO_CONTROL_DETAIL 1
+//#define DEBUG_LCP_DD 1
 #endif
 
 #ifdef DEBUG_REDO_CONTROL
@@ -109,6 +110,12 @@ static NDB_TICKS startTime;
 #define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP(arglist) do { } while (0)
+#endif
+
+#ifdef DEBUG_LCP_DD
+#define DEB_LCP_DD(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LCP_DD(arglist) do { } while (0)
 #endif
 
 #ifdef DEBUG_LCP_DEL_FILES
@@ -14760,12 +14767,12 @@ Backup::execSYNC_PAGE_CACHE_CONF(Signal *signal)
   ndbrequire(conf->tableId == tabPtr.p->tableId);
   ndbrequire(conf->fragmentId == fragPtr.p->fragmentId);
 
-  DEB_LCP(("(%u)Completed SYNC_PAGE_CACHE_CONF for tab(%u,%u)"
-                      ", diskDataExistFlag: %u",
-                      instance(),
-                      tabPtr.p->tableId,
-                      fragPtr.p->fragmentId,
-                      conf->diskDataExistFlag));
+  DEB_LCP_DD(("(%u)Completed SYNC_PAGE_CACHE_CONF for tab(%u,%u)"
+              ", diskDataExistFlag: %u",
+             instance(),
+             tabPtr.p->tableId,
+             fragPtr.p->fragmentId,
+             conf->diskDataExistFlag));
 
   ptr.p->m_wait_disk_data_sync = false;
   if (!conf->diskDataExistFlag)
