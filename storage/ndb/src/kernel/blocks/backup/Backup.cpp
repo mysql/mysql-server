@@ -12835,8 +12835,7 @@ Backup::lcp_read_ctl_file_done(Signal* signal, BackupRecordPtr ptr)
 
   Uint32 maxGci = MAX(maxGciCompleted, maxGciWritten);
   if ((maxGci < fragPtr.p->createGci &&
-       maxGci != 0 &&
-       createTableVersion < lqhCreateTableVersion) ||
+       maxGci != 0) ||
        (c_initial_start_lcp_not_done_yet &&
         (ptr.p->preparePrevLocalLcpId != 0 ||
          ptr.p->preparePrevLcpId != 0)))
