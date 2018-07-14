@@ -11287,6 +11287,8 @@ Dblqh::get_scan_api_op_ptr(Uint32 scan_api_ptr_i)
  *    We handle this special case by sending a CONTINUEB to ourselves
  *    and checking that no one completed the scan while we were
  *    in the job buffer.
+ * 12) During scan in disk page order we can end up in
+ *     disk_page_tup_scan_callback after retrieving the disk page.
  */
 void Dblqh::setup_key_pointers(Uint32 tcIndex)
 {

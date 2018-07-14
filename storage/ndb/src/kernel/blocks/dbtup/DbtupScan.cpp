@@ -3048,6 +3048,7 @@ Dbtup::disk_page_tup_scan_callback(Signal* signal, Uint32 scanPtrI, Uint32 page_
   ScanOpPtr scanPtr;
   c_scanOpPool.getPtr(scanPtr, scanPtrI);
   ScanOp& scan = *scanPtr.p;
+  c_lqh->setup_scan_pointers(scan.m_userPtr);
   ScanPos& pos = scan.m_scanPos;
   // get cache page
   Ptr<GlobalPage> gptr;
