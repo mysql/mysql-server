@@ -1,7 +1,7 @@
 # create bootstrap file
 # Stop the MTR default DB server
 # Run the bootstrap command
-# restart: --datadir=MYSQLD_DATADIR --innodb_log_file_size=LOG_FILE_SIZE --innodb_log_files_in_group=2 --innodb_undo_tablespaces=2
+# restart: --datadir=MYSQLD_DATADIR --innodb_log_file_size=LOG_FILE_SIZE --innodb_log_files_in_group=2
 CREATE TABLE t1 (a INT);
 CREATE TABLE t2 (a INT PRIMARY KEY, b BLOB);
 CREATE TABLE t3 (a INT PRIMARY KEY, b SMALLINT, c TEXT, d JSON, UNIQUE KEY k1(b), KEY k2(b, c(20)));
@@ -107,7 +107,7 @@ CREATE TABLE t18(హి  INT, శరెెనిక BLOB);
 # Check SDI from t15.ibd
 # Check SDI from system tablespace(has 16,17)
 # Check SDI from t18.ibd
-# restart: --datadir=MYSQLD_DATADIR --innodb_log_file_size=LOG_FILE_SIZE --innodb_log_files_in_group=2 --innodb_undo_tablespaces=2
+# restart: --datadir=MYSQLD_DATADIR --innodb_log_file_size=LOG_FILE_SIZE --innodb_log_files_in_group=2
 # ALTER TABLE t1, ADD COLUMN. Verify SDI shows the newly added column
 ALTER TABLE t1 ADD COLUMN b INT;
 # ALTER TABLE t2, ADD INDEX, Verify SDI shows the newly added index
@@ -154,6 +154,10 @@ ERROR HY000: Tablespace is missing for table `sdi`.`t1`.
 ALTER TABLE sdi.t1 RENAME COLUMN i to j;
 ERROR HY000: Tablespace is missing for table `sdi`.`t1`.
 ALTER TABLESPACE ts1 RENAME to ts2;
-ERROR HY000: Tablespace is missing for table ts1.
+ERROR HY000: Failed to alter: TABLESPACE ts1
+SHOW WARNINGS;
+Level	Code	Message
+Error	1533	Failed to alter: TABLESPACE ts1
+Error	1812	Tablespace is missing for table ts1.
 DROP DATABASE sdi;
 DROP TABLESPACE ts1;

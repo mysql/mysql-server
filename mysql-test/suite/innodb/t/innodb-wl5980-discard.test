@@ -8,6 +8,7 @@
 LET $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
 
 # Set up some variables
+--disable_query_log
 LET $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
 LET $MYSQLD_DATADIR = `select @@datadir`;
 LET $data_directory_clause = DATA DIRECTORY='$MYSQL_TMP_DIR/alt_dir';
@@ -418,6 +419,9 @@ SHOW CREATE TABLE t5980c;
 SHOW CREATE TABLE t5980d;
 
 --source suite/innodb/include/show_i_s_tables.inc
+# Mask the table name because the order of these 4 warning
+# messages is not predictable.
+LET $EXTRA_I_S_FILES_REGEX=/t5980[a-d]+/t5980#/;
 --source suite/innodb/include/show_i_s_tablespaces.inc
 
 --echo ### files in MYSQLD_DATADIR/test
@@ -567,6 +571,7 @@ SHOW CREATE TABLE t5980b;
 
 --source suite/innodb/include/show_i_s_tables.inc
 --source suite/innodb/include/show_i_s_tablespaces.inc
+LET $EXTRA_I_S_FILES_REGEX=;
 
 --echo ### files in MYSQLD_DATADIR/test
 --list_files $MYSQLD_DATADIR/test

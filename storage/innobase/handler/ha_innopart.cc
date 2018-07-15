@@ -38,6 +38,7 @@ Created Nov 22, 2013 Mattias Jonsson */
 #include <my_check_opt.h>
 #include <mysqld.h>
 #include <sql_acl.h>
+#include <sql_backup_lock.h>
 #include <sql_class.h>
 #include <sql_show.h>
 #include <sql_table.h>
@@ -2660,7 +2661,7 @@ int ha_innopart::set_dd_discard_attribute(dd::Table *table_def, bool discard) {
 
     dd_filename_to_spacename(table->name.m_name, &space_name);
 
-    if (dd::acquire_exclusive_tablespace_mdl(thd, space_name.c_str(), false)) {
+    if (dd_tablespace_get_mdl(space_name.c_str())) {
       ut_a(false);
     }
 
@@ -2670,7 +2671,8 @@ int ha_innopart::set_dd_discard_attribute(dd::Table *table_def, bool discard) {
 
     ut_a(dd_space != NULL);
 
-    dd_tablespace_set_discard(dd_space, discard);
+    dd_tablespace_set_state(
+        dd_space, (discard ? DD_SPACE_STATE_DISCARDED : DD_SPACE_STATE_NORMAL));
 
     if (client->update(dd_space)) {
       ut_a(false);
@@ -2685,7 +2687,7 @@ int ha_innopart::set_dd_discard_attribute(dd::Table *table_def, bool discard) {
     }
   }
 
-  /* Set discard flag. */
+  /* Set discard flag for the table. */
   dd::Properties &p = table_def->table().se_private_data();
   p.set_bool(dd_table_key_strings[DD_TABLE_DISCARD], discard);
 

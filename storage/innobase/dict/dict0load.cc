@@ -1504,7 +1504,7 @@ space_id_t dict_check_sys_tables(bool validate) {
     ulint fsp_flags = dict_tf_to_fsp_flags(flags);
     /* Set tablespace encryption flag */
     if (flags2 & DICT_TF2_ENCRYPTION_FILE_PER_TABLE) {
-      fsp_flags |= FSP_FLAGS_MASK_ENCRYPTION;
+      FSP_FLAGS_SET_ENCRYPTION(fsp_flags);
     }
 
     dberr_t err =
@@ -1995,7 +1995,7 @@ void dict_save_data_dir_path(dict_table_t *table, char *filepath) {
   ut_ad(mutex_own(&dict_sys->mutex));
   ut_ad(DICT_TF_HAS_DATA_DIR(table->flags));
   ut_ad(table->data_dir_path == nullptr);
-  ut_a(Fil_path::has_ibd_suffix(filepath));
+  ut_a(Fil_path::has_suffix(IBD, filepath));
 
   /* Ensure this filepath is not the default filepath. */
   char *default_filepath = Fil_path::make("", table->name.m_name, IBD);
@@ -2009,7 +2009,7 @@ void dict_save_data_dir_path(dict_table_t *table, char *filepath) {
     size_t pathlen = strlen(filepath);
 
     ut_a(pathlen < OS_FILE_MAX_PATH);
-    ut_a(Fil_path::has_ibd_suffix(filepath));
+    ut_a(Fil_path::has_suffix(IBD, filepath));
 
     char *data_dir_path = mem_heap_strdup(table->heap, filepath);
 
@@ -2242,7 +2242,7 @@ void dict_load_tablespace(dict_table_t *table, mem_heap_t *heap,
   ulint fsp_flags = dict_tf_to_fsp_flags(table->flags);
   /* Set tablespace encryption flag */
   if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_ENCRYPTION_FILE_PER_TABLE)) {
-    fsp_flags |= FSP_FLAGS_MASK_ENCRYPTION;
+    FSP_FLAGS_SET_ENCRYPTION(fsp_flags);
   }
 
   /* This dict_load_tablespace() is only used on old 5.7 database during

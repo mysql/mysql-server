@@ -643,8 +643,8 @@ create logfile group ndb_lg1 add undofile 'ndb_undo1.dat' initial_size=32M engin
 ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'CREATE/ALTER/DROP LOGFILE GROUP'
 create logfile group ndb_lg1 add undofile 'ndb_undo1.dat' engine=myisam;
 ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'CREATE/ALTER/DROP LOGFILE GROUP'
-create logfile group ndb_lg1 add undofile 'ndb_undo1.dat';
-ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'LOGFILE GROUP'
+create logfile group ndb_lg1 add undofile 'ndb_undo1.dat' engine=innodb;
+ERROR HY000: Feature LOGFILE GROUP is unsupported (by InnoDB).
 create tablespace ndb_ts1 add datafile 'ndb_ts1.dat' use logfile group ndb_lg1 engine=myisam initial_size=32M;
 ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'CREATE TABLESPACE'
 create tablespace ndb_ts1 add datafile 'ndb_ts1.dat' use logfile group ndb_lg1 engine=myisam;

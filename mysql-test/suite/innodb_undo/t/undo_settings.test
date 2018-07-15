@@ -1,0 +1,458 @@
+--echo # This test changes undo related settings both at runtime, between restarts,
+--echo # and also after crashes.
+--echo # Note that innodb_undo_tablespaces is now fixed at 2 so only
+--echo # innodb_rollback_segments is tested here.
+
+--source include/have_innodb_default_undo_tablespaces.inc
+
+SET DEFAULT_STORAGE_ENGINE=InnoDB;
+let MYSQLD_DATADIR=`select @@datadir`;
+let PAGE_SIZE=`select @@innodb_page_size`;
+let ORIG_ROLLBACK_SEGMENTS=`select @@innodb_rollback_segments`;
+SET GLOBAL innodb_monitor_enable='module_buffer_page';
+SET GLOBAL innodb_monitor_enable='trx_rseg_current_size';
+
+--echo #
+--echo # Create tables and check the default values.
+--echo #
+
+CREATE TABLESPACE `ts1` ADD DATAFILE 'ts1.ibd';
+CREATE TABLE t1 (a INT, b TEXT) TABLESPACE=`ts1`;
+CREATE TABLE t2 (a INT, b TEXT) TABLESPACE=`innodb_system`;
+CREATE TABLE t3 (a INT, b TEXT) TABLESPACE=`innodb_file_per_table`;
+
+connect (con1,localhost,root);
+--echo # Connection 1
+INSERT INTO t1 VALUES (1, repeat('a',15));
+INSERT INTO t2 VALUES (1, repeat('a',15));
+INSERT INTO t3 VALUES (1, repeat('a',15));
+SELECT * FROM t1 ORDER BY a;
+SELECT COUNT(*) FROM t2;
+SELECT COUNT(*) FROM t3;
+
+connect (con2,localhost,root);
+--echo # Connection 2
+SELECT * FROM t1 ORDER BY a;
+SELECT COUNT(*) FROM t2;
+SELECT COUNT(*) FROM t3;
+XA START 'x1';
+INSERT INTO t1 VALUES (101, repeat('x1 ',5));
+INSERT INTO t2 VALUES (101, repeat('x1 ',5));
+INSERT INTO t3 VALUES (101, repeat('x1 ',5));
+
+connection default;
+--echo # Connection default
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+SHOW GLOBAL STATUS LIKE '%undo%';
+SELECT NAME, ROW_FORMAT, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+       WHERE name LIKE '%undo%' ORDER BY NAME;
+SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
+       WHERE FILE_NAME LIKE '%undo%' ORDER BY TABLESPACE_NAME;
+--echo # Directory listing of UNDO tablespace files
+--list_files $MYSQLD_DATADIR undo_0*
+
+--echo #
+--echo # Change number of UNDO tablespaces from 2 to 3 while online.
+--echo #
+CREATE UNDO TABLESPACE `undo_003` ADD DATAFILE 'undo_003.ibu';
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+SHOW GLOBAL STATUS LIKE '%undo%';
+SELECT NAME, ROW_FORMAT, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+       WHERE name LIKE '%undo%' ORDER BY NAME;
+SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
+       WHERE FILE_NAME LIKE '%undo%' ORDER BY TABLESPACE_NAME;
+--echo # Directory listing of UNDO tablespace files
+--list_files $MYSQLD_DATADIR undo_0*
+
+connection con1;
+--echo # Connection 1
+BEGIN;
+INSERT INTO t1 VALUES (2, repeat('b',15));
+INSERT INTO t2 VALUES (2, repeat('b',15));
+INSERT INTO t3 VALUES (2, repeat('b',15));
+
+connection con2;
+--echo # Connection 2
+XA END 'x1';
+XA PREPARE 'x1';
+XA COMMIT 'x1';
+SELECT * FROM t1 ORDER BY a;
+SELECT COUNT(*) FROM t2;
+SELECT COUNT(*) FROM t3;
+XA START 'x2';
+INSERT INTO t1 VALUES (102, repeat('x2 ',5));
+INSERT INTO t2 VALUES (102, repeat('x2 ',5));
+INSERT INTO t3 VALUES (102, repeat('x2 ',5));
+XA END 'x2';
+
+connection default;
+--echo # Connection default
+
+--echo #
+--echo # Change number of UNDO tablespaces from 3 to 4 while online.
+--echo # Change number of Rollback Segments from 1 to 4 while online.
+--echo #
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+SET GLOBAL innodb_rollback_segments=4;
+
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+CREATE UNDO TABLESPACE `undo_004` ADD DATAFILE 'undo_004.ibu';
+
+SHOW GLOBAL STATUS LIKE '%undo%';
+SELECT NAME, ROW_FORMAT, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+       WHERE name LIKE '%undo%' ORDER BY NAME;
+SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
+       WHERE FILE_NAME LIKE '%undo%' ORDER BY TABLESPACE_NAME;
+--echo # Directory listing of UNDO tablespace files
+--list_files $MYSQLD_DATADIR undo_0*
+
+SELECT * FROM t1 ORDER BY a;
+SELECT COUNT(*) FROM t2;
+SELECT COUNT(*) FROM t3;
+
+connection con1;
+--echo # Connection 1
+COMMIT;
+SELECT * FROM t1 ORDER BY a;
+SELECT COUNT(*) FROM t2;
+SELECT COUNT(*) FROM t3;
+INSERT INTO t1 VALUES (3, repeat('c',15));
+INSERT INTO t2 VALUES (3, repeat('c',15));
+INSERT INTO t3 VALUES (3, repeat('c',15));
+
+connection con2;
+--echo # Connection 2
+XA PREPARE 'x2';
+XA COMMIT 'x2';
+SELECT * FROM t1 ORDER BY a;
+SELECT COUNT(*) FROM t2;
+SELECT COUNT(*) FROM t3;
+XA START 'x3';
+INSERT INTO t1 VALUES (103, repeat('x3 ',5));
+INSERT INTO t2 VALUES (103, repeat('x3 ',5));
+INSERT INTO t3 VALUES (103, repeat('x3 ',5));
+XA END 'x3';
+XA PREPARE 'x3';
+XA COMMIT 'x3';
+SELECT * FROM t1 ORDER BY a;
+SELECT COUNT(*) FROM t2;
+SELECT COUNT(*) FROM t3;
+connection default;
+--echo # Connection default
+SELECT * FROM t1 ORDER BY a;
+SELECT COUNT(*) FROM t2;
+SELECT COUNT(*) FROM t3;
+
+--echo #
+--echo # Change number of active UNDO tablespaces from 4 to 2 while online.
+--echo # Change number of Rollback Segments from 4 to 2 while online.
+--echo #
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+SET GLOBAL innodb_rollback_segments=2;
+
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+ALTER UNDO TABLESPACE `undo_003` SET INACTIVE;
+ALTER UNDO TABLESPACE `undo_004` SET INACTIVE;
+let $wait_timeout= 300; # Override default 30 seconds with 300.
+let $wait_condition= SELECT count(*) = 2 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+                     WHERE SPACE_TYPE = 'Undo' AND STATE = 'empty';
+source include/wait_condition.inc;
+
+SHOW GLOBAL STATUS LIKE '%undo%';
+SELECT NAME, ROW_FORMAT, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+       WHERE name LIKE '%undo%' ORDER BY NAME;
+SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
+       WHERE FILE_NAME LIKE '%undo%' ORDER BY TABLESPACE_NAME;
+--echo # Directory listing of UNDO tablespace files
+--list_files $MYSQLD_DATADIR undo_0*
+
+INSERT INTO t1 VALUES (4, repeat('d',15));
+INSERT INTO t2 VALUES (4, repeat('d',15));
+INSERT INTO t3 VALUES (4, repeat('d',15));
+SELECT * FROM t1 ORDER BY a;
+SELECT COUNT(*) FROM t2;
+SELECT COUNT(*) FROM t3;
+
+--echo #
+--echo # Change number of UNDO tablespaces from 2 to 5 while online.
+--echo # Change number of Rollback Segments from 2 to 5 while online.
+--echo #
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+SHOW GLOBAL STATUS LIKE '%undo%';
+
+SET GLOBAL innodb_rollback_segments=5;
+ALTER UNDO TABLESPACE `undo_003` SET ACTIVE;
+ALTER UNDO TABLESPACE `undo_004` SET ACTIVE;
+CREATE UNDO TABLESPACE `undo_005` ADD DATAFILE 'undo_005.ibu';
+
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+SHOW GLOBAL STATUS LIKE '%undo%';
+SELECT NAME, ROW_FORMAT, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+       WHERE name LIKE '%undo%' ORDER BY NAME;
+SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
+       WHERE FILE_NAME LIKE '%undo%' ORDER BY TABLESPACE_NAME;
+--echo # Directory listing of UNDO tablespace files
+--list_files $MYSQLD_DATADIR undo_0*
+
+connection con1;
+--echo # Connection 1
+INSERT INTO t1 VALUES (5, repeat('e',15));
+INSERT INTO t2 VALUES (5, repeat('e',15));
+INSERT INTO t3 VALUES (5, repeat('e',15));
+
+connection default;
+--echo # Connection default
+disconnect con1;
+disconnect con2;
+SELECT * FROM t1 ORDER BY a;
+SELECT COUNT(*) FROM t2;
+SELECT COUNT(*) FROM t3;
+
+--echo #
+--echo # Shutdown mysqld cleanly.
+--echo # Delete one of the implicit UNDO tablespaces.
+--echo # Change number of Rollback Segments from 5 to 6 while offline.
+--echo # Restart mysqld with these larger settings.
+--echo #
+--source include/shutdown_mysqld.inc
+--remove_file $MYSQLD_DATADIR/undo_001
+
+let $restart_parameters = restart: --innodb_rollback_segments=6;
+--source include/start_mysqld.inc
+
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+SHOW GLOBAL STATUS LIKE '%undo%';
+SELECT NAME, ROW_FORMAT, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+       WHERE name LIKE '%undo%' ORDER BY NAME;
+SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
+       WHERE FILE_NAME LIKE '%undo%' ORDER BY TABLESPACE_NAME;
+--echo # Directory listing of UNDO tablespace files
+--list_files $MYSQLD_DATADIR undo_0*
+
+--echo #
+--echo # Shutdown mysqld cleanly.
+--echo # Change number of Rollback Segments from 6 to 4 while offline.
+--echo # Restart mysqld with these smaller settings.
+--echo #
+ALTER UNDO TABLESPACE `undo_003` SET INACTIVE;
+let $wait_timeout= 300; # Override default 30 seconds with 300.
+let $wait_condition= SELECT STATE = 'empty'
+                     FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+                     WHERE NAME LIKE 'undo_003';
+source include/wait_condition.inc;
+
+--source include/shutdown_mysqld.inc
+let $restart_parameters = restart: --innodb_rollback_segments=4;
+--source include/start_mysqld.inc
+
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+SHOW GLOBAL STATUS LIKE '%undo%';
+SELECT NAME, ROW_FORMAT, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+       WHERE name LIKE '%undo%' ORDER BY NAME;
+SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
+       WHERE FILE_NAME LIKE '%undo%' ORDER BY TABLESPACE_NAME;
+--echo # Directory listing of UNDO tablespace files
+--list_files $MYSQLD_DATADIR undo_0*
+
+--echo #
+--echo # Kill and restart mysqld with one less active undo tablespace
+--echo # and less rollback segments=2.
+--echo #
+ALTER UNDO TABLESPACE `undo_004` SET INACTIVE;
+let $wait_timeout= 300; # Override default 30 seconds with 300.
+let $wait_condition= SELECT STATE = 'empty'
+                     FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+                     WHERE NAME LIKE 'undo_004';
+source include/wait_condition.inc;
+
+connect (con1,localhost,root);
+--echo # Connection 1
+SELECT * FROM t1 ORDER BY a;
+SELECT COUNT(*) FROM t2;
+SELECT COUNT(*) FROM t3;
+BEGIN;
+INSERT INTO t1  VALUES (6, repeat('f',15));
+INSERT INTO t2  VALUES (6, repeat('f',15));
+INSERT INTO t3  VALUES (6, repeat('f',15));
+
+--echo # Connection default
+connection default;
+let $restart_parameters = restart: --innodb_rollback_segments=2;
+--source include/kill_and_restart_mysqld.inc
+disconnect con1;
+
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+SHOW GLOBAL STATUS LIKE '%undo%';
+SELECT NAME, ROW_FORMAT, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+       WHERE name LIKE '%undo%' ORDER BY NAME;
+SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
+       WHERE FILE_NAME LIKE '%undo%' ORDER BY TABLESPACE_NAME;
+--echo # Directory listing of UNDO tablespace files
+--list_files $MYSQLD_DATADIR undo_0*
+SELECT * FROM t1 ORDER BY a;
+SELECT COUNT(*) FROM t2;
+SELECT COUNT(*) FROM t3;
+
+--echo #
+--echo # Kill and restart mysqld with more undo tablespaces=6 and more rollback segments=7.
+--echo #
+connect (con1,localhost,root);
+--echo # Connection 1
+BEGIN;
+INSERT INTO t1  VALUES (7, repeat('g',15));
+INSERT INTO t2  VALUES (7, repeat('g',15));
+INSERT INTO t3  VALUES (7, repeat('g',15));
+connection default;
+--echo # Connection default
+ALTER UNDO TABLESPACE `undo_003` SET ACTIVE;
+ALTER UNDO TABLESPACE `undo_004` SET ACTIVE;
+CREATE UNDO TABLESPACE `undo_006` ADD DATAFILE 'undo_006.ibu';
+SHOW WARNINGS;
+let $restart_parameters = restart: --innodb_rollback_segments=7;
+--source include/kill_and_restart_mysqld.inc
+disconnect con1;
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+SHOW GLOBAL STATUS LIKE '%undo%';
+SELECT NAME, ROW_FORMAT, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+       WHERE name LIKE '%undo%' ORDER BY NAME;
+SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
+       WHERE FILE_NAME LIKE '%undo%' ORDER BY TABLESPACE_NAME;
+--echo # Directory listing of UNDO tablespace files
+--list_files $MYSQLD_DATADIR undo_0*
+SELECT * FROM t1 ORDER BY a;
+SELECT COUNT(*) FROM t2;
+SELECT COUNT(*) FROM t3;
+
+--echo #
+--echo # Restart mysqld in read-only mode with more rollback segments=8.
+--echo #
+connect (con1,localhost,root);
+--echo # Connection 1
+INSERT INTO t1  VALUES (8, repeat('h',15));
+INSERT INTO t2  VALUES (8, repeat('h',15));
+INSERT INTO t3  VALUES (8, repeat('h',15));
+connection default;
+--echo # Connection default
+SELECT * FROM t1 ORDER BY a;
+SELECT COUNT(*) FROM t2;
+SELECT COUNT(*) FROM t3;
+let $restart_parameters = restart: --innodb_read_only  --innodb_rollback_segments=8;
+--source include/restart_mysqld.inc
+disconnect con1;
+--error ER_OPEN_AS_READONLY
+CREATE UNDO TABLESPACE `undo_007` ADD DATAFILE 'undo_007.ibu';
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+SHOW GLOBAL STATUS LIKE '%undo%';
+SELECT NAME, ROW_FORMAT, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+       WHERE name LIKE '%undo%' ORDER BY NAME;
+SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
+       WHERE FILE_NAME LIKE '%undo%' ORDER BY TABLESPACE_NAME;
+--echo # Directory listing of UNDO tablespace files
+--list_files $MYSQLD_DATADIR undo_0*
+SET GLOBAL innodb_rollback_segments=8;
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+SET GLOBAL innodb_rollback_segments=3;
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+SELECT * FROM t1 ORDER BY a;
+SELECT COUNT(*) FROM t2;
+SELECT COUNT(*) FROM t3;
+
+--echo #
+--echo # Restart mysqld in force_recovery mode with more rollback segments=8.
+--echo #
+let $restart_parameters = restart: --innodb_force_recovery=1 --innodb_rollback_segments=8;
+--source include/restart_mysqld.inc
+--error ER_INNODB_READ_ONLY
+CREATE UNDO TABLESPACE `undo_007` ADD DATAFILE 'undo_007.ibu';
+SHOW GLOBAL STATUS LIKE '%undo%';
+SELECT NAME, ROW_FORMAT, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+       WHERE name LIKE '%undo%' ORDER BY NAME;
+SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
+       WHERE FILE_NAME LIKE '%undo%' ORDER BY TABLESPACE_NAME;
+--echo # Directory listing of UNDO tablespace files
+--list_files $MYSQLD_DATADIR undo_0*
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+SET GLOBAL innodb_rollback_segments=8;
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+SET GLOBAL innodb_rollback_segments=3;
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+SELECT * FROM t1 ORDER BY a;
+SELECT COUNT(*) FROM t2;
+SELECT COUNT(*) FROM t3;
+
+--echo #
+--echo # Use SET PERSIST to change rollback segments=11
+--echo # and make some undo logs that must be rolled back on restart.
+--echo #
+let $restart_parameters = restart: --innodb_rollback_segments=8;
+--source include/restart_mysqld.inc
+BEGIN;
+INSERT INTO t1  VALUES (9, repeat('i',15));
+INSERT INTO t2  VALUES (9, repeat('i',15));
+INSERT INTO t3  VALUES (9, repeat('i',15));
+SET PERSIST innodb_rollback_segments=11;
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+INSERT INTO t1  VALUES (10, repeat('j',15));
+INSERT INTO t2  VALUES (10, repeat('j',15));
+INSERT INTO t3  VALUES (10, repeat('j',15));
+
+--echo #
+--echo # Restart in normal mode with default undo tablespaces and rollback segments.
+--echo # The persisted settings will be set just after startup.
+--echo #
+let $restart_parameters = restart;
+--source include/restart_mysqld.inc
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+SHOW GLOBAL STATUS LIKE '%undo%';
+SELECT NAME, ROW_FORMAT, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+       WHERE name LIKE '%undo%' ORDER BY NAME;
+SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
+       WHERE FILE_NAME LIKE '%undo%' ORDER BY TABLESPACE_NAME;
+--echo # Directory listing of UNDO tablespace files
+--list_files $MYSQLD_DATADIR undo_0*
+SELECT * FROM t1 ORDER BY a;
+SELECT COUNT(*) FROM t2;
+SELECT COUNT(*) FROM t3;
+INSERT INTO t1  VALUES (11, repeat('k',15));
+INSERT INTO t2  VALUES (11, repeat('k',15));
+INSERT INTO t3  VALUES (11, repeat('k',15));
+SELECT * FROM t1 ORDER BY a;
+SELECT COUNT(*) FROM t2;
+SELECT COUNT(*) FROM t3;
+
+--echo #
+--echo # Cleanup
+--echo #
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLESPACE ts1;
+ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
+ALTER UNDO TABLESPACE undo_004 SET INACTIVE;
+ALTER UNDO TABLESPACE undo_005 SET INACTIVE;
+ALTER UNDO TABLESPACE undo_006 SET INACTIVE;
+let $wait_timeout= 300; # Override default 30 seconds with 300.
+let $wait_condition= SELECT count(*) = 4 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+                     WHERE SPACE_TYPE = 'Undo' AND STATE = 'empty';
+source include/wait_condition.inc;
+DROP UNDO TABLESPACE undo_003;
+DROP UNDO TABLESPACE undo_004;
+DROP UNDO TABLESPACE undo_005;
+DROP UNDO TABLESPACE undo_006;
+
+SET PERSIST innodb_rollback_segments=default;
+SET GLOBAL innodb_fast_shutdown=0;
+--source include/shutdown_mysqld.inc
+--remove_files_wildcard $MYSQLD_DATADIR undo_0*
+let $restart_parameters = restart: --innodb_rollback_segments=$ORIG_ROLLBACK_SEGMENTS;
+--source include/start_mysqld.inc
+
+--disable_query_log
+call mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode");
+call mtr.add_suppression("\\[Warning\\].*InnoDB: Cannot set innodb_rollback_segments to [8,3] when in read-only mode");
+call mtr.add_suppression("\\[Warning\\].*InnoDB: Cannot set innodb_rollback_segments to [8,3] when in innodb_force_recovery > 0");
+call mtr.add_suppression("\\[Warning\\].*Skip updating information_schema metadata in InnoDB read-only mode");
+call mtr.add_suppression("\\[Warning\\].*Skipped updating resource group metadata in InnoDB read only mode.");
+call mtr.add_suppression("\\[Warning\\].*Doublewrite page .* could not be restored. File name unknown for tablespace ID");
+--enable_query_log
+

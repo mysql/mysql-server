@@ -1,0 +1,17 @@
+--echo #
+--echo # WL#6965: Truncate UNDO logs during recovery.
+--echo #
+
+# Setup this test
+--source suite/innodb_undo/include/truncate_recover_setup.inc
+
+--echo #
+--echo # 5. Crash after header page, before Rollback Segments
+--echo #
+let $debug_point="+d,ib_undo_trunc_before_rsegs";
+let SEARCH_PATTERN = ib_undo_trunc_before_rsegs;
+--source suite/innodb_undo/include/truncate_recover_run.inc
+
+# Cleanup this test
+--source suite/innodb_undo/include/truncate_recover_cleanup.inc
+

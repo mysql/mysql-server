@@ -335,7 +335,7 @@ a	b	c	d
         "name": "test/t1",
         "comment": "",
         "options": "",
-        "se_private_data": "flags=X;id=Y;server_version=Z;space_version=M;",
+        "se_private_data": "flags=X;id=Y;server_version=Z;space_version=M;state=normal;",
         "engine": "InnoDB",
         "files": [
             {

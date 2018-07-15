@@ -5788,7 +5788,7 @@ static int i_s_dict_fill_innodb_indexes(THD *thd, const dict_index_t *index,
 
   OK(fields[SYS_INDEX_NUM_FIELDS]->store(index->n_fields));
 
-  /* FIL_NULL is ULINT32_UNDEFINED */
+  /* FIL_NULL is UINT32_UNDEFINED */
   if (index->page == FIL_NULL) {
     OK(fields[SYS_INDEX_PAGE_NO]->store(-1));
   } else {
@@ -6506,27 +6506,32 @@ static ST_FIELD_INFO innodb_tablespaces_fields_info[] = {
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
      STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
 
+#define INNODB_TABLESPACES_STATE 13
+    {STRUCT_FLD(field_name, "STATE"), STRUCT_FLD(field_length, 10),
+     STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+
     END_OF_ST_FIELD_INFO
 
 };
 
 /** Function to fill INFORMATION_SCHEMA.INNODB_TABLESPACES with information
 collected by scanning INNODB_TABLESPACESS table.
-@param[in]	thd		thread
-@param[in]	space		space ID
-@param[in]	name		tablespace name
-@param[in]	flags		tablespace flags
-@param[in]	server_version	server version
-@param[in]	space_version	tablespace version
-@param[in]	is_encrypted	true if tablespace is encrypted
-@param[in,out]	table_to_fill	fill this table
+@param[in]      thd             thread
+@param[in]      space_id        space ID
+@param[in]      name            tablespace name
+@param[in]      flags           tablespace flags
+@param[in]      server_version  server version
+@param[in]      space_version   tablespace version
+@param[in]      is_encrypted    true if tablespace is encrypted
+@param[in]      state           tablespace state
+@param[in,out]  table_to_fill   fill this table
 @return 0 on success */
-static int i_s_dict_fill_innodb_tablespaces(THD *thd, space_id_t space,
-                                            const char *name, ulint flags,
-                                            uint32 server_version,
-                                            uint32 space_version,
-                                            bool is_encrypted,
-                                            TABLE *table_to_fill) {
+static int i_s_dict_fill_innodb_tablespaces(
+    THD *thd, space_id_t space_id, const char *name, ulint flags,
+    uint32 server_version, uint32 space_version, bool is_encrypted,
+    const char *state, TABLE *table_to_fill) {
   Field **fields;
   ulint atomic_blobs = FSP_FLAGS_HAS_ATOMIC_BLOBS(flags);
   bool is_compressed = FSP_FLAGS_GET_ZIP_SSIZE(flags);
@@ -6544,7 +6549,9 @@ static int i_s_dict_fill_innodb_tablespaces(THD *thd, space_id_t space,
   snprintf(version_str, NAME_LEN, ULINTPF "." ULINTPF "." ULINTPF,
            major_version, minor_version, patch_version);
 
-  if (fsp_is_system_or_temp_tablespace(space)) {
+  if (fsp_is_undo_tablespace(space_id)) {
+    row_format = "Undo";
+  } else if (fsp_is_system_or_temp_tablespace(space_id)) {
     row_format = "Compact or Redundant";
   } else if (fsp_is_shared_tablespace(flags) && !is_compressed) {
     row_format = "Any";
@@ -6556,7 +6563,9 @@ static int i_s_dict_fill_innodb_tablespaces(THD *thd, space_id_t space,
     row_format = "Compact or Redundant";
   }
 
-  if (fsp_is_system_or_temp_tablespace(space)) {
+  if (fsp_is_undo_tablespace(space_id)) {
+    space_type = "Undo";
+  } else if (fsp_is_system_or_temp_tablespace(space_id)) {
     space_type = "System";
   } else if (fsp_is_shared_tablespace(flags)) {
     space_type = "General";
@@ -6566,7 +6575,7 @@ static int i_s_dict_fill_innodb_tablespaces(THD *thd, space_id_t space,
 
   fields = table_to_fill->field;
 
-  OK(fields[INNODB_TABLESPACES_SPACE]->store(space, true));
+  OK(fields[INNODB_TABLESPACES_SPACE]->store(space_id, true));
 
   OK(field_store_string(fields[INNODB_TABLESPACES_NAME], name));
 
@@ -6592,14 +6601,14 @@ static int i_s_dict_fill_innodb_tablespaces(THD *thd, space_id_t space,
   char *filepath = NULL;
   if (FSP_FLAGS_HAS_DATA_DIR(flags) || FSP_FLAGS_GET_SHARED(flags)) {
     mutex_enter(&dict_sys->mutex);
-    filepath = fil_space_get_first_path(space);
+    filepath = fil_space_get_first_path(space_id);
     mutex_exit(&dict_sys->mutex);
   }
 
   if (filepath == NULL) {
     if (strstr(name, dict_sys_t::s_file_per_table_name) != 0) {
       mutex_enter(&dict_sys->mutex);
-      filepath = fil_space_get_first_path(space);
+      filepath = fil_space_get_first_path(space_id);
       mutex_exit(&dict_sys->mutex);
     } else {
       filepath = Fil_path::make_ibd_from_table_name(name);
@@ -6649,6 +6658,8 @@ static int i_s_dict_fill_innodb_tablespaces(THD *thd, space_id_t space,
 
   OK(fields[INNODB_TABLESPACES_ALLOC_SIZE]->store(file.m_alloc_size, true));
 
+  OK(field_store_string(fields[INNODB_TABLESPACES_STATE], state));
+
   OK(schema_table_store_record(thd, table_to_fill));
 
   DBUG_RETURN(0);
@@ -6690,12 +6701,13 @@ static int i_s_innodb_tablespaces_fill_table(THD *thd, TABLE_LIST *tables,
     uint32 server_version;
     uint32 space_version;
     bool is_encrypted = false;
+    dd::String_type state;
 
     /* Extract necessary information from a INNODB_TABLESPACES
     row */
     ret = dd_process_dd_tablespaces_rec(heap, rec, &space, &name, &flags,
                                         &server_version, &space_version,
-                                        &is_encrypted, dd_spaces);
+                                        &is_encrypted, state, dd_spaces);
 
     mtr_commit(&mtr);
     mutex_exit(&dict_sys->mutex);
@@ -6703,7 +6715,7 @@ static int i_s_innodb_tablespaces_fill_table(THD *thd, TABLE_LIST *tables,
     if (ret && space != 0) {
       i_s_dict_fill_innodb_tablespaces(thd, space, name, flags, server_version,
                                        space_version, is_encrypted,
-                                       tables->table);
+                                       state.c_str(), tables->table);
     }
 
     mem_heap_empty(heap);

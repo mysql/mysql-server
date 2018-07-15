@@ -140,7 +140,7 @@ bool Sql_cmd_create_table::execute(THD *thd) {
   */
   if (create_info.tablespace) {
     if (validate_tablespace_name_length(create_info.tablespace) ||
-        validate_tablespace_name(false, create_info.tablespace,
+        validate_tablespace_name(TS_CMD_NOT_DEFINED, create_info.tablespace,
                                  create_info.db_type))
       return true;
 

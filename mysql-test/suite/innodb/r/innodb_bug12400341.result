@@ -10,9 +10,6 @@ innodb_thread_concurrency	0
 show variables like "innodb_file_per_table";
 Variable_name	Value
 innodb_file_per_table	ON
-show variables like "innodb_undo_tablespaces";
-Variable_name	Value
-innodb_undo_tablespaces	2
 show variables like "innodb_rollback_segments";
 Variable_name	Value
 innodb_rollback_segments	1

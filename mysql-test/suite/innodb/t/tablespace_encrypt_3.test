@@ -9,9 +9,9 @@
 --source include/have_debug.inc
 
 --disable_query_log
-call mtr.add_suppression("ibd can't be decrypted , please confirm the keyfile is match and keyring plugin is loaded.");
-call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] \\[[^]]*\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] InnoDB: Check keyring plugin fail, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[ERROR\\].*ibd can't be decrypted, please confirm the keyfile is match and keyring plugin is loaded");
+call mtr.add_suppression("\\[ERROR\\] .* Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[ERROR\\] .* Check keyring plugin fail, please check the keyring plugin is loaded.");
 --enable_query_log
 
 --echo #########################################################################
@@ -175,6 +175,13 @@ SELECT * FROM t1 LIMIT 10;
 --echo # Cleanup #
 --echo ###########
 --disconnect con1
+--echo # In order to drop these encrypted objects we need to restart with keyring pluging loaded.
+let $restart_parameters = restart:
+--early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --performance-schema-consumer-events-stages-current=ON --performance-schema-events-stages-history-size=1000;
+
+--source include/restart_mysqld_no_echo.inc
+
+SELECT COUNT(*) FROM t1;
 DROP TABLE t1;
 DROP TABLESPACE encrypt_ts;
 remove_file $MYSQL_TMP_DIR/mysecret_keyring;

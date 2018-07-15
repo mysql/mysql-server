@@ -1224,6 +1224,8 @@ void warn_about_deprecated_national(THD *thd)
 %token<keyword> DESCRIPTION_SYM               /* MYSQL */
 %token<keyword> ORGANIZATION_SYM              /* MYSQL */
 %token<keyword> REFERENCE_SYM                 /* MYSQL */
+%token<keyword> ACTIVE_SYM                    /* MYSQL */
+%token<keyword> INACTIVE_SYM                  /* MYSQL */
 %token<keyword> OPTIONAL_SYM                  /* MYSQL */
 %token<keyword> SECONDARY_ENGINE_SYM          /* MYSQL */
 %token<keyword> SECONDARY_LOAD_SYM            /* MYSQL */
@@ -1836,6 +1838,7 @@ void warn_about_deprecated_national(THD *thd)
                    tablespace_option_list opt_tablespace_options
                    alter_tablespace_option_list opt_alter_tablespace_options
                    opt_drop_ts_options drop_ts_option_list
+                   undo_tablespace_option_list opt_undo_tablespace_options
 
 %type <alter_table_standalone_action> standalone_alter_commands
 
@@ -1861,6 +1864,7 @@ void warn_about_deprecated_national(THD *thd)
         drop_ts_option
         logfile_group_option
         tablespace_option
+        undo_tablespace_option
         ts_option_autoextend_size
         ts_option_comment
         ts_option_engine
@@ -1881,6 +1885,9 @@ void warn_about_deprecated_national(THD *thd)
 %type <load_set_list> load_data_set_list opt_load_data_set_spec
 
 %type <sql_cmd_srs_attributes> srs_attributes
+
+%type <alter_tablespace_type> undo_tablespace_state
+
 
 %%
 
@@ -2012,6 +2019,7 @@ simple_statement:
         | alter_resource_group_stmt
         | alter_server_stmt             { $$= nullptr; }
         | alter_tablespace_stmt         { $$= nullptr; }
+        | alter_undo_tablespace_stmt    { $$= nullptr; }
         | alter_table_stmt
         | alter_user_stmt               { $$= nullptr; }
         | alter_view_stmt               { $$= nullptr; }
@@ -2044,6 +2052,7 @@ simple_statement:
         | drop_server_stmt              { $$= nullptr; }
         | drop_srs_stmt
         | drop_tablespace_stmt          { $$= nullptr; }
+        | drop_undo_tablespace_stmt     { $$= nullptr; }
         | drop_table_stmt               { $$= nullptr; }
         | drop_trigger_stmt             { $$= nullptr; }
         | drop_user_stmt                { $$= nullptr; }
@@ -2763,6 +2772,26 @@ create:
             auto cmd= NEW_PTN Sql_cmd_create_tablespace{$3, $5, $6, pc};
             if (!cmd)
               MYSQL_YYABORT; /* purecov: inspected */ //OOM
+            Lex->m_sql_cmd= cmd;
+            Lex->sql_command= SQLCOM_ALTER_TABLESPACE;
+          }
+        | CREATE UNDO_SYM TABLESPACE_SYM ident ADD ts_datafile
+          opt_undo_tablespace_options
+          {
+            auto pc= NEW_PTN Alter_tablespace_parse_context{YYTHD};
+            if (pc == NULL)
+              MYSQL_YYABORT; // OOM
+
+            if ($7 != NULL)
+            {
+              if (YYTHD->is_error() || contextualize_array(pc, $7))
+                MYSQL_YYABORT;
+            }
+
+            auto cmd= NEW_PTN Sql_cmd_create_undo_tablespace{
+              CREATE_UNDO_TABLESPACE, $4, $6, pc};
+            if (!cmd)
+              MYSQL_YYABORT; //OOM
             Lex->m_sql_cmd= cmd;
             Lex->sql_command= SQLCOM_ALTER_TABLESPACE;
           }
@@ -5202,6 +5231,30 @@ alter_tablespace_option:
 	| ts_option_encryption
         ;
 
+opt_undo_tablespace_options:
+          /* empty */ { $$= NULL; }
+        | undo_tablespace_option_list
+        ;
+
+undo_tablespace_option_list:
+          undo_tablespace_option
+          {
+            $$= NEW_PTN Mem_root_array<PT_alter_tablespace_option_base*>(YYMEM_ROOT);
+            if ($$ == NULL || $$->push_back($1))
+              MYSQL_YYABORT; // OOM
+          }
+        | undo_tablespace_option_list opt_comma undo_tablespace_option
+          {
+            $$= $1;
+            if ($$->push_back($3))
+              MYSQL_YYABORT; // OOM
+          }
+        ;
+
+undo_tablespace_option:
+          ts_option_engine
+        ;
+
 opt_logfile_group_options:
           /* empty */ { $$= NULL; }
         | logfile_group_option_list
@@ -5260,6 +5313,11 @@ alter_logfile_group_option:
 
 ts_datafile:
           DATAFILE_SYM TEXT_STRING_sys { $$= $2; }
+        ;
+
+undo_tablespace_state:
+          ACTIVE_SYM   { $$= ALTER_UNDO_TABLESPACE_SET_ACTIVE; }
+        | INACTIVE_SYM { $$= ALTER_UNDO_TABLESPACE_SET_INACTIVE; }
         ;
 
 lg_undofile:
@@ -7370,6 +7428,30 @@ alter_tablespace_stmt:
             if (!Lex->m_sql_cmd)
               MYSQL_YYABORT; // OOM
 
+            Lex->sql_command= SQLCOM_ALTER_TABLESPACE;
+          }
+        ;
+
+alter_undo_tablespace_stmt:
+          ALTER UNDO_SYM TABLESPACE_SYM ident SET_SYM undo_tablespace_state
+          opt_undo_tablespace_options
+          {
+            auto pc= NEW_PTN Alter_tablespace_parse_context{YYTHD};
+            if (pc == NULL)
+              MYSQL_YYABORT; // OOM
+
+            if ($7 != NULL)
+            {
+              if (YYTHD->is_error() || contextualize_array(pc, $7))
+                MYSQL_YYABORT;
+            }
+
+            auto cmd= NEW_PTN Sql_cmd_alter_undo_tablespace{
+              ALTER_UNDO_TABLESPACE, $4,
+              {nullptr, 0}, pc, $6};
+            if (!cmd)
+              MYSQL_YYABORT; //OOM
+            Lex->m_sql_cmd= cmd;
             Lex->sql_command= SQLCOM_ALTER_TABLESPACE;
           }
         ;
@@ -11682,6 +11764,28 @@ drop_tablespace_stmt:
             Lex->m_sql_cmd= cmd;
             Lex->sql_command= SQLCOM_ALTER_TABLESPACE;
           }
+        
+drop_undo_tablespace_stmt:
+          DROP UNDO_SYM TABLESPACE_SYM ident opt_undo_tablespace_options
+          {
+            auto pc= NEW_PTN Alter_tablespace_parse_context{YYTHD};
+            if (pc == NULL)
+              MYSQL_YYABORT; // OOM
+
+            if ($5 != NULL)
+            {
+              if (YYTHD->is_error() || contextualize_array(pc, $5))
+                MYSQL_YYABORT;
+            }
+
+            auto cmd= NEW_PTN Sql_cmd_drop_undo_tablespace{
+              DROP_UNDO_TABLESPACE, $4, {nullptr, 0},  pc};
+            if (!cmd)
+              MYSQL_YYABORT; // OOM
+            Lex->m_sql_cmd= cmd;
+            Lex->sql_command= SQLCOM_ALTER_TABLESPACE;
+          }
+        ;
 
 drop_logfile_stmt:
           DROP LOGFILE_SYM GROUP_SYM ident opt_drop_ts_options
@@ -13820,6 +13924,7 @@ label_keyword:
 // These are the non-reserved keywords which may be used for roles or SP labels.
 role_or_label_keyword:
           ACTION
+        | ACTIVE_SYM
         | ADDDATE_SYM
         | ADMIN_SYM
         | AFTER_SYM
@@ -13867,7 +13972,6 @@ role_or_label_keyword:
         | CONSTRAINT_SCHEMA_SYM
         | CONTEXT_SYM
         | CPU_SYM
-        | ENCRYPTION_SYM
         /*
           Although a reserved keyword in SQL:2003 (and :2008),
           not reserved in MySQL per WL#2111 specification.
@@ -13893,6 +13997,7 @@ role_or_label_keyword:
         | DUPLICATE_SYM
         | DYNAMIC_SYM
         | ENABLE_SYM
+        | ENCRYPTION_SYM
         | ENDS_SYM
         | ENGINES_SYM
         | ENGINE_SYM
@@ -13936,6 +14041,7 @@ role_or_label_keyword:
         | INITIAL_SIZE_SYM
         | INSERT_METHOD
         | INSTANCE_SYM
+        | INACTIVE_SYM
         | INVOKER_SYM
         | IO_SYM
         | IPC_SYM

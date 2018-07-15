@@ -12,13 +12,13 @@ LET $MYSQLD_DATADIR = `select @@datadir`;
 
 --disable_query_log
 # Suppress errors about too long filenames in error log.
-call mtr.add_suppression("\\[ERROR\\].* Operating system error number .* in a file operation.");
-call mtr.add_suppression("\\[ERROR\\].* Error number .* means '.*'");
-call mtr.add_suppression("\\[ERROR\\].* Cannot create file .*");
-call mtr.add_suppression("\\[ERROR\\].* File .* 'create' returned OS error .*");
-call mtr.add_suppression("\\[ERROR\\].* File .* 'delete' returned OS error .*");
-call mtr.add_suppression("\\[ERROR\\].* File .* 'stat' returned OS error .*");
-call mtr.add_suppression("\\[WARNING\\].* '.*' name too long, can't delete!");
+call mtr.add_suppression("\\[Warning\\] .* '.*' name too long, can't delete!");
+call mtr.add_suppression("\\[ERROR\\] .* Operating system error number .* in a file operation.");
+call mtr.add_suppression("\\[ERROR\\] .* Error number .* means '.*'");
+call mtr.add_suppression("\\[ERROR\\] .* Cannot create file .*");
+call mtr.add_suppression("\\[ERROR\\] .* File .* 'create' returned OS error .*");
+call mtr.add_suppression("\\[ERROR\\] .* File .* 'delete' returned OS error .*");
+call mtr.add_suppression("\\[ERROR\\] .* File .* 'stat' returned OS error .*");
 --enable_query_log
 
 --echo #

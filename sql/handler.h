@@ -758,9 +758,11 @@ enum ts_command_type {
   ALTER_LOGFILE_GROUP = 3,
   DROP_TABLESPACE = 4,
   DROP_LOGFILE_GROUP = 5,
-  // FUTURE: Remove these as they are never used, execpt as case labels in SE
   CHANGE_FILE_TABLESPACE = 6,
-  ALTER_ACCESS_MODE_TABLESPACE = 7
+  ALTER_ACCESS_MODE_TABLESPACE = 7,
+  CREATE_UNDO_TABLESPACE = 8,
+  ALTER_UNDO_TABLESPACE = 9,
+  DROP_UNDO_TABLESPACE = 10
 };
 
 enum ts_alter_tablespace_type {
@@ -768,7 +770,9 @@ enum ts_alter_tablespace_type {
   ALTER_TABLESPACE_ADD_FILE = 1,
   ALTER_TABLESPACE_DROP_FILE = 2,
   ALTER_TABLESPACE_RENAME = 3,
-  ALTER_TABLESPACE_OPTIONS = 4
+  ALTER_TABLESPACE_OPTIONS = 4,
+  ALTER_UNDO_TABLESPACE_SET_ACTIVE = 5,
+  ALTER_UNDO_TABLESPACE_SET_INACTIVE = 6
 };
 
 /**
@@ -1190,7 +1194,7 @@ typedef uint (*partition_flags_t)();
     @retval == false: The tablespace name is invalid.
     @retval == true:  The tablespace name is valid.
 */
-typedef bool (*is_valid_tablespace_name_t)(bool tablespace_ddl,
+typedef bool (*is_valid_tablespace_name_t)(ts_command_type ts_cmd,
                                            const char *tablespace_name);
 
 /**

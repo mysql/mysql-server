@@ -1433,7 +1433,6 @@ void srv_mon_set_module_control(
 @return size in pages */
 static ulint srv_mon_get_rseg_size(void) {
   ulint value = 0;
-  ulong cur_spaces = srv_undo_tablespaces;
   ulong cur_rsegs = srv_rollback_segments;
 
   /* Rollback segments used in the temporary tablespace */
@@ -1445,10 +1444,6 @@ static ulint srv_mon_get_rseg_size(void) {
 
   undo::spaces->s_lock();
   for (auto undo_space : undo::spaces->m_spaces) {
-    if (undo_space->num() > cur_spaces) {
-      break;
-    }
-
     for (auto rseg : *undo_space->rsegs()) {
       if (rseg->id >= cur_rsegs) {
         break;

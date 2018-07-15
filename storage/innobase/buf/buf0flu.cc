@@ -3509,7 +3509,9 @@ FlushObserver::FlushObserver(space_id_t space_id, trx_t *trx,
   }
 
 #ifdef FLUSH_LIST_OBSERVER_DEBUG
-  ib::info(ER_IB_MSG_130) << "FlushObserver constructor: " << m_trx->id;
+  ib::info(ER_IB_MSG_130) << "FlushObserver constructor: space_id=" << space_id
+                          << ", trx_id="
+                          << (m_trx == nullptr ? TRX_ID_MAX : trx->id);
 #endif /* FLUSH_LIST_OBSERVER_DEBUG */
 }
 
@@ -3521,14 +3523,16 @@ FlushObserver::~FlushObserver() {
   UT_DELETE(m_removed);
 
 #ifdef FLUSH_LIST_OBSERVER_DEBUG
-  ib::info(ER_IB_MSG_131) << "FlushObserver deconstructor: " << m_trx->id;
+  ib::info(ER_IB_MSG_131) << "FlushObserver deconstructor: space_id="
+                          << space_id << ", trx_id="
+                          << (m_trx == nullptr ? TRX_ID_MAX : trx->id);
 #endif /* FLUSH_LIST_OBSERVER_DEBUG */
 }
 
 /** Check whether trx is interrupted
 @return true if trx is interrupted */
 bool FlushObserver::check_interrupted() {
-  if (trx_is_interrupted(m_trx)) {
+  if (m_trx != nullptr && trx_is_interrupted(m_trx)) {
     interrupted();
 
     return (true);

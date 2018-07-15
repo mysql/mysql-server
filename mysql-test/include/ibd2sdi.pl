@@ -44,7 +44,7 @@ sub ibd2sdi_replace() {
     $_=~ s/("name": "innodb_file_per_table.)[0-9]+"/$1X"/g;
 
     # Remove id output in se_prvate_data of dd::Tablespace
-    $_=~ s/("se_private_data": "flags=)([0-9]+)(;id=)([0-9]+)(;server_version=)([0-9]+)(;space_version=)([0-9]+);"/$1X$3Y$5Z$7M;"/g;
+    $_=~ s/("se_private_data": "flags=)([0-9]+)(;id=)([0-9]+)(;server_version=)([0-9]+)(;space_version=)([0-9]+);/$1X$3Y$5Z$7M;/g;
 
     # Remove any version id
     $_=~ s/("[a-z_]+_version_id": )[0-9]+/$1X/g;
@@ -118,7 +118,7 @@ sub ibd2sdi_replace_system() {
     $_=~ s/("name": "innodb_file_per_table.)[0-9]+"/$1X"/g;
 
     # Remove id output in se_prvate_data of dd::Tablespace
-    $_=~ s/("se_private_data": "flags=)([0-9]+)(;id=)([0-9]+)(;server_version=)([0-9]+)(;space_version=)([0-9]+);"/$1X$3Y$5Z$7M;"/g;
+    $_=~ s/("se_private_data": "flags=)([0-9]+)(;id=)([0-9]+)(;server_version=)([0-9]+)(;space_version=)([0-9]+);/$1X$3Y$5Z$7M;/g;
 
     # Remove any version id
     $_=~ s/("[a-z_]+_version_id": )[0-9]+/$1X/g;
@@ -189,7 +189,7 @@ sub ibd2sdi_replace_mysql() {
     $_=~ s/("name": "innodb_file_per_table.)[0-9]+"/$1X"/g;
 
     # Remove id output in se_prvate_data of dd::Tablespace
-    $_=~ s/("se_private_data": "flags=)([0-9]+)(;id=)([0-9]+)(;server_version=)([0-9]+)(;space_version=)([0-9]+);"/$1X$3Y$5Z$7M;"/g;
+    $_=~ s/("se_private_data": "flags=)([0-9]+)(;id=)([0-9]+)(;server_version=)([0-9]+)(;space_version=)([0-9]+);/$1X$3Y$5Z$7M;/g;
 
     # Remove any version id
     $_=~ s/("[a-z_]+_version_id": )[0-9]+/$1X/g;

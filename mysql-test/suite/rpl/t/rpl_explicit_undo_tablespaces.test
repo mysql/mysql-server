@@ -1,0 +1,232 @@
+# *************************************************************
+# wl#9509: Test the functionality of explicit undo tablespaces.
+# Show that CREATE/ALTER/DROP UNDO TABLESPACE do not replicate.
+# *************************************************************
+--source include/master-slave.inc
+
+call mtr.add_suppression("InnoDB: Cannot drop undo tablespace \\'undo_003\\' because it is active. Please do: ALTER UNDO TABLESPACE undo_003 SET INACTIVE");
+call mtr.add_suppression("\\[InnoDB\\] InnoDB: Log writer is waiting for checkpointer to to catch up lag: 9433600 bytes.*");
+
+--echo [Connection Master]
+--connection master
+
+CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
+CREATE UNDO TABLESPACE undo_004 ADD DATAFILE 'undo_004.ibu';
+
+# Check metadata info on master
+SELECT name,space_type,state
+       FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+       WHERE space_type = 'Undo' ORDER BY name;
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+# Check metadata info on slave
+SELECT name,space_type,state
+       FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+       WHERE space_type = 'Undo' ORDER BY name;
+
+--echo [Connection Master]
+--connection master
+
+# Check currently active undo tablespace, cannot be dropped
+--error ER_DROP_FILEGROUP_FAILED
+DROP UNDO TABLESPACE undo_003;
+SHOW WARNINGS;
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+# Check currently active undo tablespace, cannot be dropped
+--error ER_TABLESPACE_MISSING_WITH_NAME
+DROP UNDO TABLESPACE undo_003;
+SHOW WARNINGS;
+
+--echo [Connection Master]
+--connection master
+
+# Check implicit undo tablespace inactive
+ALTER UNDO TABLESPACE innodb_undo_001 SET INACTIVE;
+ALTER UNDO TABLESPACE innodb_undo_002 SET INACTIVE;
+
+# Wait until implicit undo tablespace become empty
+let $wait_condition= SELECT count(*) = 2 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+                     WHERE space_type = 'Undo' AND state = 'empty';
+source include/wait_condition.inc;
+
+# Check metadata info on master
+SELECT name,space_type,state
+       FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+       WHERE space_type = 'Undo' ORDER BY name;
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+# Show that the slave has only 2 implicit undo tablespaces.
+SELECT name,space_type,state
+       FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+       WHERE space_type = 'Undo' ORDER BY name;
+
+# Show that the only one of them can be made inactive at a time.
+ALTER UNDO TABLESPACE innodb_undo_001 SET INACTIVE;
+
+# Wait until implicit undo tablespace become empty
+let $wait_condition= SELECT count(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+                     WHERE space_type = 'Undo' AND state = 'empty';
+source include/wait_condition.inc;
+
+--error ER_DISALLOWED_OPERATION
+ALTER UNDO TABLESPACE innodb_undo_002 SET INACTIVE;
+
+ALTER UNDO TABLESPACE innodb_undo_001 SET ACTIVE;
+ALTER UNDO TABLESPACE innodb_undo_002 SET INACTIVE;
+
+# Wait until implicit undo tablespace become empty
+let $wait_condition= SELECT count(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+                     WHERE space_type = 'Undo' AND state = 'empty';
+source include/wait_condition.inc;
+
+--error ER_DISALLOWED_OPERATION
+ALTER UNDO TABLESPACE innodb_undo_001 SET INACTIVE;
+
+# Check metadata info on slave
+SELECT name,space_type,state
+       FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+       WHERE space_type = 'Undo' ORDER BY name;
+
+ALTER UNDO TABLESPACE innodb_undo_002 SET ACTIVE;
+
+--echo [Connection Master]
+--connection master
+
+# Create tables while implicit undo tablespaces are inactive
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' Engine=InnoDB;
+CREATE TABLE tab1(c1 int, c2 varchar(10)) TABLESPACE=ts1;
+INSERT INTO tab1 VALUES(1, 'VISH');
+CREATE TABLE tab2(c1 int , c2 varchar(10)) Engine=InnoDB;
+INSERT INTO tab2 VALUES(2, 'VISH');
+CREATE INDEX ix1 ON tab1(c2) USING BTREE;
+CREATE INDEX ix2 ON tab2(c2) ;
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+# Check the tables on slave
+SHOW CREATE TABLE tab1;
+SHOW CREATE TABLE tab2;
+
+SELECT * FROM tab1;
+SELECT * FROM tab2;
+
+--echo [Connection Master]
+--connection master
+
+ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
+
+# Wait until implicit undo tablespace become empty
+let $wait_condition= SELECT count(*) = 3 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+                     WHERE space_type = 'Undo' AND state = 'empty';
+source include/wait_condition.inc;
+
+# Check always 1 undo tablespace must be in active state
+--error ER_DISALLOWED_OPERATION
+ALTER UNDO TABLESPACE undo_004 SET INACTIVE;
+SHOW WARNINGS;
+
+# Check implicit undo tablespaces can not be dropped
+--error ER_WRONG_TABLESPACE_NAME
+DROP UNDO TABLESPACE innodb_undo_001;
+
+# Check metadata info on master
+SELECT name,space_type,state
+       FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+       WHERE space_type = 'Undo' ORDER BY name;
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+--error ER_TABLESPACE_MISSING_WITH_NAME
+ALTER UNDO TABLESPACE undo_004 SET INACTIVE;
+SHOW WARNINGS;
+
+# Check metadata info on slave
+SELECT name,space_type,state
+       FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+       WHERE space_type = 'Undo' ORDER BY name;
+
+# Check implicit undo tablespaces can not be dropped
+--error ER_WRONG_TABLESPACE_NAME
+DROP UNDO TABLESPACE innodb_undo_001;
+
+--echo [Connection Master]
+--connection master
+
+# Check implicit undo tablespace active
+ALTER UNDO TABLESPACE innodb_undo_001 SET ACTIVE;
+ALTER UNDO TABLESPACE innodb_undo_002 SET ACTIVE;
+
+# Check metadata info on master
+SELECT name,space_type,state
+       FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+       WHERE space_type = 'Undo' ORDER BY name;
+
+# Clean up
+DROP TABLE tab1;
+DROP table tab2;
+DROP TABLESPACE ts1;
+
+# Drop explicit undo tablespace
+DROP UNDO TABLESPACE undo_003;
+
+# Check explicit undo tablespace inactive
+ALTER UNDO TABLESPACE undo_004 SET INACTIVE;
+
+# Wait until implicit undo tablespace become empty
+let $wait_condition= SELECT count(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+                     WHERE space_type = 'Undo' AND state = 'empty';
+source include/wait_condition.inc;
+
+# Check metadata info on master
+SELECT name,space_type,state
+       FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+       WHERE space_type = 'Undo';
+
+# Check relative paths disallow on master
+--error ER_WRONG_FILE_NAME
+CREATE UNDO TABLESPACE undo_003 ADD DATAFILE '../undo_003.ibu';
+--replace_result \\ /
+SHOW WARNINGS;
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+# Check metadata info on master
+SELECT name,space_type,state
+       FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+       WHERE space_type = 'Undo';
+
+# Check relative paths disallow on slave
+--error ER_WRONG_FILE_NAME
+CREATE UNDO TABLESPACE undo_003 ADD DATAFILE '../undo_003.ibu';
+--replace_result \\ /
+SHOW WARNINGS;
+
+--echo [Connection Master]
+--connection master
+
+DROP UNDO TABLESPACE undo_004;
+
+# Check metadata info on master
+SELECT name,space_type,state
+       FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+       WHERE space_type = 'Undo';
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+# Check metadata info on slave
+SELECT name,space_type,state
+       FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+       WHERE space_type = 'Undo';
+
+--source include/rpl_end.inc

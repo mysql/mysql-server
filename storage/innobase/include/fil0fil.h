@@ -49,7 +49,15 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <list>
 #include <vector>
 
-extern const char general_space_name[];
+/** This tablespace name is used internally during file discovery to open a
+general tablespace before the data dictionary is recovered and available. */
+static constexpr char general_space_name[] = "innodb_general";
+
+/** This tablespace name is used as the prefix for implicit undo tablespaces
+and during file discovery to open an undo tablespace before the DD is
+recovered and available. */
+static constexpr char undo_space_name[] = "innodb_undo";
+
 extern volatile bool recv_recovery_on;
 
 #ifdef UNIV_HOTBACKUP
@@ -311,7 +319,7 @@ constexpr size_t FIL_SPACE_MAGIC_N = 89472;
 constexpr size_t FIL_NODE_MAGIC_N = 89389;
 
 /** Common InnoDB file extentions */
-enum ib_file_suffix { NO_EXT = 0, IBD = 1, CFG = 2, CFP = 3, IBT = 4 };
+enum ib_file_suffix { NO_EXT = 0, IBD = 1, CFG = 2, CFP = 3, IBT = 4, IBU = 5 };
 
 extern const char *dot_ext[];
 
@@ -319,6 +327,7 @@ extern const char *dot_ext[];
 #define DOT_CFG dot_ext[CFG]
 #define DOT_CFP dot_ext[CFP]
 #define DOT_IBT dot_ext[IBT]
+#define DOT_IBU dot_ext[IBU]
 
 #ifdef _WIN32
 /* Initialization of m_abs_path() produces warning C4351:
@@ -353,21 +362,30 @@ class Fil_path {
 
 #endif /* __SUNPRO_CC */
 
+  /** Various types of file paths. */
+  enum path_type { absolute, relative, file_name_only, invalid };
+
   /** Default constructor. Defaults to MySQL_datadir_path.  */
   Fil_path();
 
   /** Constructor
-  @param[in]	path		Path, not necessarily NUL terminated
-                                  It's the callers responsibility to
-                                  ensure that the path is normalized.
-  @param[in]	len		Length of path */
-  Fil_path(const char *path, size_t len);
+  @param[in]  path            Path, not necessarily NUL terminated
+  @param[in]  len             Length of path
+  @param[in]  normalize_path  If false, it's the callers responsibility to
+                              ensure that the path is normalized. */
+  explicit Fil_path(const char *path, size_t len, bool normalize_path = false);
 
   /** Constructor
-  @param[in]	path	pathname (may also include the file basename)
-                                  It's the callers responsibility to
-                                  ensure that the path is normalized. */
-  explicit Fil_path(const std::string &path);
+  @param[in]  path            Path, not necessarily NUL terminated
+  @param[in]  normalize_path  If false, it's the callers responsibility to
+                              ensure that the path is normalized. */
+  explicit Fil_path(const char *path, bool normalize_path = false);
+
+  /** Constructor
+  @param[in]  path            pathname (may also include the file basename)
+  @param[in]  normalize_path  If false, it's the callers responsibility to
+                              ensure that the path is normalized. */
+  explicit Fil_path(const std::string &path, bool normalize_path = false);
 
   /** Destructor */
   ~Fil_path();
@@ -449,15 +467,6 @@ class Fil_path {
     return (m_abs_path);
   }
 
-  /** @return true if the path is an absolute path. */
-  bool is_absolute_path() const MY_ATTRIBUTE((warn_unused_result)) {
-    if (m_path.empty()) {
-      return (false);
-    }
-
-    return (is_absolute_path(m_path));
-  }
-
   /** This validation is only for ':'.
   @return true if the path is valid. */
   bool is_valid() const MY_ATTRIBUTE((warn_unused_result));
@@ -495,31 +504,58 @@ class Fil_path {
     return (path1.abs_path().compare(path2.abs_path()) == 0);
   }
 
+  /** @return true if the path is an absolute path. */
+  bool is_relative_path() const MY_ATTRIBUTE((warn_unused_result)) {
+    return (type_of_path(m_path) == relative);
+  }
+
+  /** @return true if the path is an absolute path. */
+  bool is_absolute_path() const MY_ATTRIBUTE((warn_unused_result)) {
+    return (type_of_path(m_path) == absolute);
+  }
+
   /** Determine if a path is an absolute path or not.
   @param[in]	path		OS directory or file path to evaluate
   @retval true if an absolute path
   @retval false if a relative path */
-  static bool is_absolute_path(const std::string &path)
+  static bool is_absolute_path(const std::string &path) {
+    return (type_of_path(path) == absolute);
+  }
+
+  /** Determine if a path is an absolute path or not.
+  @param[in]	path		OS directory or file path to evaluate
+  @retval true if an absolute path
+  @retval false if a relative path */
+  static path_type type_of_path(const std::string &path)
       MY_ATTRIBUTE((warn_unused_result)) {
     if (path.empty()) {
-      return (false);
-
-    } else if (path.at(0) == '\\' || path.at(0) == '/') {
-      /* Any string that starts with an OS_SEPARATOR is
-      an absolute path. This includes any OS and even
-      paths like "\\Host\share" on Windows. */
-
-      return (true);
+      return (invalid);
     }
+
+    /* The most likely type is a file name only with no separators. */
+    if (path.find('\\', 0) == std::string::npos &&
+        path.find('/', 0) == std::string::npos) {
+      return (file_name_only);
+    }
+
+    /* Any string that starts with an OS_SEPARATOR is
+    an absolute path. This includes any OS and even
+    paths like "\\Host\share" on Windows. */
+    if (path.at(0) == '\\' || path.at(0) == '/') {
+      return (absolute);
+    }
+
 #ifdef _WIN32
     /* Windows may have an absolute path like 'A:\' */
     if (path.length() >= 3 && isalpha(path.at(0)) && path.at(1) == ':' &&
         (path.at(2) == '\\' || path.at(2) == '/')) {
-      return (true);
+      return (absolute);
     }
 #endif /* _WIN32 */
 
-    return (false);
+    /* Since it contains separators and is not an absolute path,
+    it must be a relative path. */
+    return (relative);
   }
 
   /* Check if the path is prefixed with pattern.
@@ -583,12 +619,13 @@ class Fil_path {
   static bool is_undo_tablespace_name(const std::string &name)
       MY_ATTRIBUTE((warn_unused_result));
 
-  /** Check if the file has the .ibd suffix
+  /** Check if the file has the the specified suffix
+  @param[in]	sfx		suffix to look for
   @param[in]	path		Filename to check
   @return true if it has the the ".ibd" suffix. */
-  static bool has_ibd_suffix(const std::string &path) {
-    static const char suffix[] = ".ibd";
-    static constexpr auto len = sizeof(suffix) - 1;
+  static bool has_suffix(ib_file_suffix sfx, const std::string &path) {
+    const auto suffix = dot_ext[sfx];
+    size_t len = strlen(suffix);
 
     return (path.size() >= len &&
             path.compare(path.size() - len, len, suffix) == 0);
@@ -1131,6 +1168,15 @@ std::string fil_system_open_fetch(space_id_t space_id)
 @param[in]	size_in_pages	Truncate size.
 @return true if truncate was successful. */
 bool fil_truncate_tablespace(space_id_t space_id, page_no_t size_in_pages)
+    MY_ATTRIBUTE((warn_unused_result));
+
+/** Truncate the tablespace to needed size with a new space_id.
+@param[in]  old_space_id   Tablespace ID to truncate
+@param[in]  new_space_id   Tablespace ID to for the new file
+@param[in]  size_in_pages  Truncate size.
+@return true if truncate was successful. */
+bool fil_replace_tablespace(space_id_t old_space_id, space_id_t new_space_id,
+                            page_no_t size_in_pages)
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Closes a single-table tablespace. The tablespace must be cached in the
@@ -1758,16 +1804,17 @@ dberr_t fil_open_for_business(bool read_only_mode)
 @return true if path is known to InnoDB */
 bool fil_check_path(const std::string &path) MY_ATTRIBUTE((warn_unused_result));
 
-/** Get the list of directories that InnoDB will search on startup.
+/** Get the list of directories that datafiles can reside in.
 @return the list of directories 'dir1;dir2;....;dirN' */
 std::string fil_get_dirs() MY_ATTRIBUTE((warn_unused_result));
 
-/** Rename a tablespace by its name only
+/** Rename a tablespace.  Use the space_id to find the shard.
+@param[in]	space_id	tablespace ID
 @param[in]	old_name	old tablespace name
 @param[in]	new_name	new tablespace name
 @return DB_SUCCESS on success */
-dberr_t fil_rename_tablespace_by_name(const char *old_name,
-                                      const char *new_name)
+dberr_t fil_rename_tablespace_by_id(space_id_t space_id, const char *old_name,
+                                    const char *new_name)
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Free the data structures required for recovery. */

@@ -1,0 +1,264 @@
+--echo #
+--echo # WL#6965: Truncate explicitly created UNDO logs.
+--echo #
+
+# This test uses debug settings like innodb_purge_stop_now.
+--source include/have_debug.inc
+
+# Valgrind would complain about memory leaks when we crash on purpose.
+--source include/not_valgrind.inc
+
+# Avoid CrashReporter popup on Mac
+--source include/not_crashrep.inc
+
+--source include/big_test.inc
+--source include/have_innodb_default_undo_tablespaces.inc
+
+--echo # Create 2 explicit undo tablespaces.
+CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
+CREATE UNDO TABLESPACE undo_004 ADD DATAFILE 'undo_004.ibu';
+
+--echo # Make the 2 implicit undo tablespaces inactive.
+ALTER UNDO TABLESPACE innodb_undo_001 SET INACTIVE;
+ALTER UNDO TABLESPACE innodb_undo_002 SET INACTIVE;
+let $wait_timeout= 300; # Override default 30 seconds with 300.
+let $wait_condition= SELECT count(*) = 2 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+                     WHERE SPACE_TYPE = 'Undo' AND STATE = 'empty';
+source include/wait_condition.inc;
+
+SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+       WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
+
+################################################################################
+# Test-case will test following scenarios.
+#
+# 1. Perform enough DML action so that undo tablespace sizes grow beyond
+#    set threshold and then wait and see if it is being truncated.
+#
+################################################################################
+
+#-----------------------------------------------------------------------------
+#
+# create test-bed
+#
+let MYSQLD_DATADIR = `select @@datadir`;
+
+#-----------------------------------------------------------------------------
+#
+# 1. Perform enough DML action so that undo tablespace sizes grow beyond
+#    set threshold and then wait and see if it is being truncated.
+#
+
+# Storing the initial sizes of the tablespaces before DML action
+
+SET GLOBAL innodb_purge_stop_now=ON;
+
+let CHECKFILE = $MYSQLTEST_VARDIR/tmp/check.txt;
+
+perl;
+($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$init1)
+	= stat("$ENV{MYSQLD_DATADIR}/undo_001");
+($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$init2)
+	= stat("$ENV{MYSQLD_DATADIR}/undo_002");
+($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$init3)
+	= stat("$ENV{MYSQLD_DATADIR}/undo_003.ibu");
+($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$init4)
+	= stat("$ENV{MYSQLD_DATADIR}/undo_004.ibu");
+open(OUT, ">$ENV{CHECKFILE}") || die;
+print OUT "let \$init1= $init1;\n";
+print OUT "let \$init2= $init2;\n";
+print OUT "let \$init3= $init3;\n";
+print OUT "let \$init4= $init4;\n";
+close(OUT);
+EOF
+--source $CHECKFILE
+
+# Start of the first transaction that performs sufficient DML action
+--connect(con1,localhost,root,,test)
+--connection con1
+
+create table t1(
+  keyc int,
+  c1 char(255),
+  c2 char(255),
+  c3 char(255),
+  c4 char(255),
+  c5 char(255),
+  c6 char(255),
+  primary key(keyc)) engine = innodb;
+
+delimiter |;
+CREATE PROCEDURE populate_t1()
+BEGIN
+        DECLARE i INT DEFAULT 1;
+        while (i <= 20000) DO
+                insert into t1 values (i, 'a', 'b', 'c', 'd', 'e', 'f' );
+                SET i = i + 1;
+        END WHILE;
+END |
+delimiter ;|
+
+call populate_t1();
+delete from t1 where keyc < 10000;
+update t1 set c1 = 'mysql' where  keyc > 10000;
+update t1 set c2 = 'mysql' where  keyc > 10000;
+update t1 set c3= 'mysql' where keyc > 10000;
+update t1 set c4= 'mysql' where keyc > 10000;
+update t1 set c5= 'mysql' where keyc > 10000;
+update t1 set c6= 'mysql' where keyc > 10000;
+
+# Starting a new transaction for both tablespaces to get utilized
+--connect(con2,localhost,root,,test)
+--connection con2
+
+create table t2 (
+  keyc int,
+  c1 char(255),
+  c2 char(255),
+  c3 char(255),
+  c4 char(255),
+  c5 char(255),
+  c6 char(255),
+  primary key(keyc)) engine = innodb;
+
+delimiter |;
+CREATE PROCEDURE populate_t2()
+BEGIN
+        DECLARE i INT DEFAULT 1;
+        while (i <= 20000) DO
+                insert into t2 values (i, 'a', 'b', 'c', 'd', 'e', 'f' );
+                SET i = i + 1;
+        END WHILE;
+END |
+delimiter ;|
+
+call populate_t2();
+delete from t2 where keyc < 10000;
+update t2 set c1 = 'mysql' where  keyc > 10000;
+update t2 set c2 = 'mysql' where  keyc > 10000;
+update t2 set c3= 'mysql' where keyc > 10000;
+update t2 set c4= 'mysql' where keyc > 10000;
+update t2 set c5= 'mysql' where keyc > 10000;
+update t2 set c6= 'mysql' where keyc > 10000;
+
+--connection default
+
+# Cleanup
+drop PROCEDURE populate_t1;
+drop PROCEDURE populate_t2;
+drop table t1, t2;
+--disconnect con1
+--disconnect con2
+
+# Creating a file check.txt to record information about tablespace sizes
+let CHECKFILE = $MYSQLTEST_VARDIR/tmp/check.txt;
+
+# Storing the sizes of both tablespaces before server shutdown
+perl;
+($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$before1)
+	= stat("$ENV{MYSQLD_DATADIR}/undo_001");
+($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$before2)
+	= stat("$ENV{MYSQLD_DATADIR}/undo_002");
+($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$before3)
+	= stat("$ENV{MYSQLD_DATADIR}/undo_003.ibu");
+($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$before4)
+	= stat("$ENV{MYSQLD_DATADIR}/undo_004.ibu");
+open(OUT, ">$ENV{CHECKFILE}") || die;
+print OUT "let \$before1= $before1;\n";
+print OUT "let \$before2= $before2;\n";
+print OUT "let \$before3= $before3;\n";
+print OUT "let \$before4= $before4;\n";
+close(OUT);
+EOF
+
+# Sourcing file check.txt to compare initial sizes with sizes after DML action
+--source $CHECKFILE
+
+if($init1 != $before1)
+{
+   echo Size increase happened for undo_001: Initial Size: $init1  Before shutdown: $before1;
+}
+if($init2 != $before2)
+{
+   echo Size increase happened for undo_002: Initial Size: $init2  Before shutdown: $before2;
+}
+if($init3 == $before3)
+{
+   echo Size increase did not happen for undo_003.ibu: Initial Size: $init3  Before shutdown: $before3;
+}
+if($init4 == $before4)
+{
+   echo Size increase did not happen for undo_004.ibu: Initial Size: $init4  Before shutdown: $before4;
+}
+
+SET GLOBAL innodb_purge_run_now=ON;
+
+# Shutting down the server
+SET GLOBAL innodb_fast_shutdown=0;
+--let $shutdown_server_timeout= 300
+--source include/shutdown_mysqld.inc
+
+# Storing the sizes of both tablespaces after server shutdown
+perl;
+($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$after1)
+	= stat("$ENV{MYSQLD_DATADIR}/undo_001");
+($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$after2)
+	= stat("$ENV{MYSQLD_DATADIR}/undo_002");
+($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$after3)
+	= stat("$ENV{MYSQLD_DATADIR}/undo_003.ibu");
+($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$after4)
+	= stat("$ENV{MYSQLD_DATADIR}/undo_004.ibu");
+open(OUT, ">$ENV{CHECKFILE}") || die;
+print OUT "let \$after1= $after1;\n";
+print OUT "let \$after2= $after2;\n";
+print OUT "let \$after3= $after3;\n";
+print OUT "let \$after4= $after4;\n";
+close(OUT);
+EOF
+
+# Sourcing the file to check whether truncation happened
+--source $CHECKFILE
+
+# Checking the sizes before and after the server shutdown
+if ($after1 != $init1)
+{
+   echo After Truncation size is wrong for undo_001: Initial Size: $init1  Before shutdown: $before1  After shutdown: $after1;
+}
+if ($after2 != $init2)
+{
+   echo After Truncation size is wrong for undo_002: Initial Size: $init2  Before shutdown: $before2  After shutdown: $after2;
+}
+if ($after3 != $init3)
+{
+   echo Truncation did not happen for undo_003.ibu: Initial Size: $init3  Before shutdown: $before3  After shutdown: $after3;
+}
+if ($after4 != $init4)
+{
+   echo Truncation did not happen for undo_004.ibu: Initial Size: $init4  Before shutdown: $before4  After shutdown: $after4;
+}
+
+--echo #
+--echo # Cleanup
+--echo #
+
+--let $restart_parameters=
+--source include/start_mysqld.inc
+--remove_file $CHECKFILE
+
+SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+       WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
+
+ALTER UNDO TABLESPACE innodb_undo_001 SET ACTIVE;
+ALTER UNDO TABLESPACE innodb_undo_002 SET ACTIVE;
+ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
+ALTER UNDO TABLESPACE undo_004 SET INACTIVE;
+let $wait_timeout= 300; # Override default 30 seconds with 300.
+let $wait_condition= SELECT count(*) = 2 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+                     WHERE SPACE_TYPE = 'Undo' AND STATE = 'empty';
+source include/wait_condition.inc;
+
+SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+       WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
+DROP UNDO TABLESPACE undo_003;
+DROP UNDO TABLESPACE undo_004;
+

@@ -1242,8 +1242,10 @@ void recv_apply_hashed_log_recs(log_t &log, bool allow_ibuf) {
 
     if (space.first != TRX_SYS_SPACE &&
         !fil_tablespace_open_for_recovery(space.first)) {
-      /* Tablespace was dropped. */
-      ut_ad(!fil_tablespace_lookup_for_recovery(space.first));
+      /* Tablespace was dropped. It should not have been scanned unless it
+      is an undo space that was under construction. */
+      ut_ad(!fil_tablespace_lookup_for_recovery(space.first) ||
+            fsp_is_undo_tablespace(space.first));
 
       dropped = true;
     } else {

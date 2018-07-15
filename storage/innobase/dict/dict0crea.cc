@@ -209,7 +209,7 @@ dberr_t dict_build_tablespace_for_table(dict_table_t *table, trx_t *trx) {
 
     /* For file-per-table tablespace, set encryption flag */
     if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_ENCRYPTION_FILE_PER_TABLE)) {
-      fsp_flags |= FSP_FLAGS_MASK_ENCRYPTION;
+      FSP_FLAGS_SET_ENCRYPTION(fsp_flags);
     }
 
     if (DICT_TF_HAS_DATA_DIR(table->flags)) {

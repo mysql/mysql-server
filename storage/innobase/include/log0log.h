@@ -790,8 +790,7 @@ void log_request_checkpoint(log_t &log, bool sync, lsn_t lsn);
 /** Requests a fuzzy checkpoint write (for lsn currently available
 for checkpointing).
 @param[in,out]	log	redo log
-@param[in]	sync	true -> wait until it is finished
-pages */
+@param[in]	sync	true -> wait until it is finished */
 void log_request_checkpoint(log_t &log, bool sync);
 
 /** Make a checkpoint at the current lsn. Reads current lsn and waits

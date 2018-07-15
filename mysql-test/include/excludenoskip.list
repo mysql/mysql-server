@@ -125,6 +125,11 @@ have_lo0_local_scope.inc
 # html#sysvar_have_statement_timeout
 have_statement_timeout.inc
 
+# 4.8 Tests which include this will always fail if it uses a database that
+# contains more than 2 InnoDB undo tablespaces.  That can be done using
+# --bootstrap=--init-file=std_data/explicit_undo_32.sql
+have_innodb_default_undo_tablespaces.inc
+
 # 5.0 Different protocols
 # Reason for inclusion: Tests should run only with supported protocols and
 # skip on others.

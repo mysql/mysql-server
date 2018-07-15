@@ -3,7 +3,7 @@ call mtr.add_suppression("ERROR 1118 \\(42000\\) at line 106: Row size too large
 # create bootstrap file
 # Run the bootstrap command with page size 32k
 # Start the DB server with page size 32k
-# restart: --innodb_page_size=32K --datadir=MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2
+# restart: --innodb_page_size=32K --datadir=MYSQLD_DATADIR1 --innodb_log_file_size=15M --innodb_log_files_in_group=2
 USE test;
 SELECT @@innodb_page_size;
 @@innodb_page_size
@@ -98,7 +98,7 @@ count(*)
 DROP DATABASE test;
 # Run the bootstrap command with page size 16k
 # Start the DB server with page size 16k
-# restart: --innodb_page_size=16K --datadir=MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2
+# restart: --innodb_page_size=16K --datadir=MYSQLD_DATADIR1 --innodb_log_file_size=15M --innodb_log_files_in_group=2
 SELECT @@innodb_page_size;
 @@innodb_page_size
 16384
@@ -119,7 +119,7 @@ ERROR 42S02: Table 'test.tab3' doesn't exist
 DROP DATABASE test;
 # Run the bootstrap command with page size 64k
 # Start the DB server with page size 64k
-# restart: --innodb_page_size=64K --datadir=MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2
+# restart: --innodb_page_size=64K --datadir=MYSQLD_DATADIR1 --innodb_log_file_size=15M --innodb_log_files_in_group=2
 SELECT @@innodb_page_size;
 @@innodb_page_size
 65536

@@ -7283,6 +7283,7 @@ rollback_trx:
           static_cast<ha_innobase_inplace_ctx *>(*pctx);
 
       DBUG_ASSERT(ctx->need_rebuild());
+
       /* Check for any possible problems for any
       file operations that will be performed in
       commit_cache_rebuild(). */

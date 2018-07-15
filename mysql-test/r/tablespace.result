@@ -277,11 +277,11 @@ DROP TABLESPACE mysql;
 ERROR 42000: InnoDB: `mysql` is a reserved tablespace name.
 # 1.2 Create/drop implicit tablespaces.
 CREATE TABLESPACE `innodb_file_per_table.2` ADD DATAFILE 'f.ibd' ENGINE InnoDB;
-ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
+ERROR 42000: InnoDB: Tablespace names starting with `innodb_` are reserved.
 DROP TABLESPACE `innodb_file_per_table.2`;
 ERROR HY000: Tablespace innodb_file_per_table.2 doesn't exist.
 CREATE TABLESPACE innodb_file_per_table_whatever ADD DATAFILE 'f.ibd' ENGINE InnoDB;
-ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
+ERROR 42000: InnoDB: Tablespace names starting with `innodb_` are reserved.
 DROP TABLESPACE innodb_file_per_table_whatever;
 ERROR HY000: Tablespace innodb_file_per_table_whatever doesn't exist.
 CREATE TABLESPACE innodb_file_per_table ADD DATAFILE 'f.ibd' ENGINE InnoDB;
@@ -303,10 +303,10 @@ t2	CREATE TABLE `t2` (
   `i` int(11) DEFAULT NULL
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLE t_bad (i INTEGER) TABLESPACE `innodb_file_per_table.2` ENGINE InnoDB;
-ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
+ERROR 42000: InnoDB: Tablespace names starting with `innodb_` are reserved.
 # 2.2 Alter table.
 ALTER TABLE t2 TABLESPACE `innodb_file_per_table.2`;
-ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
+ERROR 42000: InnoDB: Tablespace names starting with `innodb_` are reserved.
 # This is valid since MyISAM does not care:
 ALTER TABLE t2 TABLESPACE `innodb_file_per_table.2` ENGINE MyISAM;
 SHOW CREATE TABLE t2;
@@ -323,7 +323,7 @@ t1	CREATE TABLE `t1` (
 ) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Changing only engine back to InnoDB now will be rejected for t2:
 ALTER TABLE t2 ENGINE InnoDB;
-ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
+ERROR 42000: InnoDB: Tablespace names starting with `innodb_` are reserved.
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -376,7 +376,7 @@ CREATE TABLE t_part_bad (i INTEGER) PARTITION BY RANGE(i)
 PARTITIONS 2 (
 PARTITION p0 VALUES LESS THAN(100) TABLESPACE `innodb_file_per_table.2`,
 PARTITION p1 VALUES LESS THAN(200));
-ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
+ERROR 42000: InnoDB: Tablespace names starting with `innodb_` are reserved.
 CREATE TABLE t_part (i INTEGER) TABLESPACE innodb_file_per_table PARTITION BY RANGE(i)
 PARTITIONS 2 (
 PARTITION p0 VALUES LESS THAN(100),
@@ -426,18 +426,18 @@ SUBPARTITION BY HASH (`i`)
  (SUBPARTITION sp10 ENGINE = InnoDB,
   SUBPARTITION sp11 ENGINE = InnoDB)) */
 ALTER TABLE t_part TABLESPACE `innodb_file_per_table.2`;
-ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
+ERROR 42000: InnoDB: Tablespace names starting with `innodb_` are reserved.
 ALTER TABLE t_subpart TABLESPACE `innodb_file_per_table.2`;
-ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
+ERROR 42000: InnoDB: Tablespace names starting with `innodb_` are reserved.
 ALTER TABLE t_part REORGANIZE PARTITION p1 INTO
 (PARTITION p1 VALUES LESS THAN (300) TABLESPACE `innodb_file_per_table.2`);
-ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
+ERROR 42000: InnoDB: Tablespace names starting with `innodb_` are reserved.
 ALTER TABLE t_subpart REORGANIZE PARTITION p1 INTO
 (PARTITION p1 VALUES LESS THAN (300) TABLESPACE `innodb_file_per_table.2`);
-ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
+ERROR 42000: InnoDB: Tablespace names starting with `innodb_` are reserved.
 ALTER TABLE t_subpart REORGANIZE PARTITION s11 INTO
 (PARTITION s11 TABLESPACE `innodb_file_per_table.2`);
-ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
+ERROR 42000: InnoDB: Tablespace names starting with `innodb_` are reserved.
 DROP TABLE t_part;
 DROP TABLE t_subpart;
 #
@@ -466,9 +466,9 @@ ERROR 42000: InnoDB: `innodb_temporary` is a reserved tablespace name.
 ALTER TABLESPACE mysql RENAME TO ts3;
 ERROR 42000: InnoDB: `mysql` is a reserved tablespace name.
 ALTER TABLESPACE ts RENAME TO `innodb_file_per_table.2`;
-ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
+ERROR 42000: InnoDB: Tablespace names starting with `innodb_` are reserved.
 ALTER TABLESPACE ts RENAME TO innodb_file_per_table_whatever;
-ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
+ERROR 42000: InnoDB: Tablespace names starting with `innodb_` are reserved.
 ALTER TABLESPACE ts RENAME TO innodb_file_per_table;
 ERROR 42000: InnoDB: `innodb_file_per_table` is a reserved tablespace name.
 #
@@ -561,11 +561,20 @@ CREATE TABLESPACE ts1 ADD DATAFILE 'df1.ibd';
 SET default_storage_engine=myisam;
 # No need to add ENGINE - looked up in DD
 ALTER TABLESPACE ts1 ADD DATAFILE 'df2.ibd';
-ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE ... ADD DATAFILE
+ERROR HY000: Failed to alter: TABLESPACE ts1
+SHOW WARNINGS;
+Level	Code	Message
+Error	1533	Failed to alter: TABLESPACE ts1
+Error	1178	The storage engine for the table doesn't support ALTER TABLESPACE ... ADD DATAFILE
 # Specifying correct ENGINE is allowed, but triggers deprecation
 # warning
 ALTER TABLESPACE ts1 ADD DATAFILE 'df2.ibd' ENGINE=INNODB;
-ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE ... ADD DATAFILE
+ERROR HY000: Failed to alter: TABLESPACE ts1
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1681	'ENGINE tablespace option' is deprecated and will be removed in a future release.
+Error	1533	Failed to alter: TABLESPACE ts1
+Error	1178	The storage engine for the table doesn't support ALTER TABLESPACE ... ADD DATAFILE
 # Specifying a different ENGINE than the one stored in the DD is an
 # error
 ALTER TABLESPACE ts1 ADD DATAFILE 'df2.ibd' ENGINE=MYISAM;

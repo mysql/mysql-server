@@ -59,8 +59,7 @@ inline bool os_thread_any_active() {
 /** Frees OS thread management data structures. */
 inline void os_thread_close() {
   if (os_thread_any_active()) {
-    ib::warn() << "Some (" << os_thread_count.load(std::memory_order_relaxed)
-               << ") threads are still active";
+    ib::warn(ER_IB_MSG_1274, os_thread_count.load(std::memory_order_relaxed));
   }
 }
 

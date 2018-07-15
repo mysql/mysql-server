@@ -8618,6 +8618,7 @@ ER_WRONG_KEY_COLUMN_FUNCTIONAL_INDEX
 
 ER_FUNCTIONAL_INDEX_ON_FIELD
   eng "Functional index on a column is not supported. Consider using a regular index instead."
+
 ER_GENERATED_COLUMN_NAMED_FUNCTION_IS_NOT_ALLOWED
   eng "Expression of generated column '%s' contains a disallowed function: %s."
 
@@ -14419,28 +14420,28 @@ ER_IB_MSG_85
 ER_IB_MSG_86
   eng "%s"
 
-ER_IB_MSG_87
+OBSOLETE_ER_IB_MSG_87
   eng "%s"
 
-ER_IB_MSG_88
+OBSOLETE_ER_IB_MSG_88
   eng "%s"
 
-ER_IB_MSG_89
+OBSOLETE_ER_IB_MSG_89
   eng "%s"
 
-ER_IB_MSG_90
+OBSOLETE_ER_IB_MSG_90
   eng "%s"
 
-ER_IB_MSG_91
+OBSOLETE_ER_IB_MSG_91
   eng "%s"
 
-ER_IB_MSG_92
+OBSOLETE_ER_IB_MSG_92
   eng "%s"
 
-ER_IB_MSG_93
+OBSOLETE_ER_IB_MSG_93
   eng "%s"
 
-ER_IB_MSG_94
+OBSOLETE_ER_IB_MSG_94
   eng "%s"
 
 ER_IB_MSG_95
@@ -14497,22 +14498,22 @@ ER_IB_MSG_111
 ER_IB_MSG_112
   eng "%s"
 
-ER_IB_MSG_113
+OBSOLETE_ER_IB_MSG_113
   eng "%s"
 
-ER_IB_MSG_114
+OBSOLETE_ER_IB_MSG_114
   eng "%s"
 
-ER_IB_MSG_115
+OBSOLETE_ER_IB_MSG_115
   eng "%s"
 
-ER_IB_MSG_116
+OBSOLETE_ER_IB_MSG_116
   eng "%s"
 
-ER_IB_MSG_117
+OBSOLETE_ER_IB_MSG_117
   eng "%s"
 
-ER_IB_MSG_118
+OBSOLETE_ER_IB_MSG_118
   eng "%s"
 
 ER_IB_MSG_119
@@ -14975,7 +14976,7 @@ ER_IB_MSG_271
   eng "%s"
 
 ER_IB_MSG_272
-  eng "Table flags are %lx in the data dictionary but the flags in file %s  are %lx!"
+  eng "Table flags are 0x%lx in the data dictionary but the flags in file %s  are 0x%lx!"
 
 ER_IB_MSG_273
   eng "Can't read encryption key from file %s!"
@@ -15211,7 +15212,7 @@ ER_IB_MSG_349
 ER_IB_MSG_350
   eng "%s"
 
-ER_IB_MSG_351
+OBSOLETE_ER_IB_MSG_351
   eng "%s"
 
 ER_IB_MSG_352
@@ -15247,7 +15248,7 @@ ER_IB_MSG_361
 ER_IB_MSG_362
   eng "%s"
 
-ER_IB_MSG_363
+OBSOLETE_ER_IB_MSG_363
   eng "%s"
 
 ER_IB_MSG_364
@@ -15358,7 +15359,7 @@ ER_IB_MSG_398
 ER_IB_MSG_399
   eng "%s"
 
-ER_IB_MSG_400
+OBSOLETE_ER_IB_MSG_400
   eng "%s"
 
 ER_IB_MSG_401
@@ -15883,13 +15884,13 @@ ER_IB_MSG_573
 ER_IB_MSG_574
   eng "%s"
 
-ER_IB_MSG_575
+OBSOLETE_ER_IB_MSG_575
   eng "%s"
 
-ER_IB_MSG_576
+OBSOLETE_ER_IB_MSG_576
   eng "%s"
 
-ER_IB_MSG_577
+OBSOLETE_ER_IB_MSG_577
   eng "%s"
 
 ER_IB_MSG_578
@@ -16150,94 +16151,94 @@ ER_IB_MSG_662
 ER_IB_MSG_663
   eng "%s"
 
-ER_IB_MSG_664
+OBSOLETE_ER_IB_MSG_664
   eng "The transaction log size is too large for innodb_log_buffer_size (%lu >= %lu / 2). Trying to extend it."
 
-ER_IB_MSG_665
+OBSOLETE_ER_IB_MSG_665
   eng "innodb_log_buffer_size was extended to %lu bytes."
 
-ER_IB_MSG_666
+OBSOLETE_ER_IB_MSG_666
   eng "The transaction log files are too small for the single transaction log (size=%lu). So, the last checkpoint age might exceed the log group capacity %llu."
 
-ER_IB_MSG_667
+OBSOLETE_ER_IB_MSG_667
   eng "The age of the last checkpoint is %llu, which exceeds the log group capacity %llu."
 
-ER_IB_MSG_668
+OBSOLETE_ER_IB_MSG_668
   eng "Cannot continue operation. ib_logfiles are too small for innodb_thread_concurrency %lu. The combined size of ib_logfiles should be bigger than 200 kB * innodb_thread_concurrency. To get mysqld to start up, set innodb_thread_concurrency in my.cnf to a lower value, for example, to 8. After an ERROR-FREE shutdown of mysqld you can adjust the size of ib_logfiles. %s"
 
-ER_IB_MSG_669
+OBSOLETE_ER_IB_MSG_669
   eng "Redo log was encrypted, but keyring plugin is not loaded."
 
-ER_IB_MSG_670
+OBSOLETE_ER_IB_MSG_670
   eng "Read redo log encryption metadata successful."
 
-ER_IB_MSG_671
+OBSOLETE_ER_IB_MSG_671
   eng "Can't set redo log tablespace encryption metadata."
 
-ER_IB_MSG_672
+OBSOLETE_ER_IB_MSG_672
   eng "Cannot read the encryption information in log file header, please check if keyring plugin loaded and the key file exists."
 
-ER_IB_MSG_673
+OBSOLETE_ER_IB_MSG_673
   eng "Can't set redo log tablespace to be encrypted in read-only mode."
 
-ER_IB_MSG_674
+OBSOLETE_ER_IB_MSG_674
   eng "Can't set redo log tablespace to be encrypted."
 
-ER_IB_MSG_675
+OBSOLETE_ER_IB_MSG_675
   eng "Can't set redo log tablespace to be encrypted."
 
-ER_IB_MSG_676
+OBSOLETE_ER_IB_MSG_676
   eng "Redo log encryption is enabled."
 
-ER_IB_MSG_677
+OBSOLETE_ER_IB_MSG_677
   eng "Flush Waiting for archiver to to catch up lag LSN: %llu"
 
-ER_IB_MSG_678
+OBSOLETE_ER_IB_MSG_678
   eng "Flush overwriting data to archive - wait too long (1 minute) lag LSN: %llu"
 
-ER_IB_MSG_679
+OBSOLETE_ER_IB_MSG_679
   eng "%s"
 
-ER_IB_MSG_680
+OBSOLETE_ER_IB_MSG_680
   eng "Starting shutdown..."
 
-ER_IB_MSG_681
+OBSOLETE_ER_IB_MSG_681
   eng "Waiting for %s to exit"
 
-ER_IB_MSG_682
+OBSOLETE_ER_IB_MSG_682
   eng "Waiting for %lu active transactions to finish"
 
-ER_IB_MSG_683
+OBSOLETE_ER_IB_MSG_683
   eng "Waiting for master thread to be suspended"
 
-ER_IB_MSG_684
+OBSOLETE_ER_IB_MSG_684
   eng "Waiting for page_cleaner to finish flushing of buffer pool"
 
-ER_IB_MSG_685
+OBSOLETE_ER_IB_MSG_685
   eng "Pending checkpoint_writes: %lu. Pending log flush writes: %lu."
 
-ER_IB_MSG_686
+OBSOLETE_ER_IB_MSG_686
   eng "Waiting for %lu buffer page I/Os to complete"
 
-ER_IB_MSG_687
+OBSOLETE_ER_IB_MSG_687
   eng "MySQL has requested a very fast shutdown without flushing the InnoDB buffer pool to data files. At the next mysqld startup InnoDB will do a crash recovery!"
 
-ER_IB_MSG_688
+OBSOLETE_ER_IB_MSG_688
   eng "Background thread %s woke up during shutdown"
 
-ER_IB_MSG_689
+OBSOLETE_ER_IB_MSG_689
   eng "Waiting for archiver to finish archiving page and log"
 
-ER_IB_MSG_690
+OBSOLETE_ER_IB_MSG_690
   eng "Background thread %s woke up during shutdown"
 
-ER_IB_MSG_691
+OBSOLETE_ER_IB_MSG_691
   eng "Waiting for dirty buffer pages to be flushed"
 
-ER_IB_MSG_692
+OBSOLETE_ER_IB_MSG_692
   eng "Log sequence number at shutdown %llu is lower than at startup %llu!"
 
-ER_IB_MSG_693
+OBSOLETE_ER_IB_MSG_693
   eng "Waiting for archiver to finish archiving page and log"
 
 ER_IB_MSG_694
@@ -16264,10 +16265,10 @@ ER_IB_MSG_700
 ER_IB_MSG_701
   eng "%s"
 
-ER_IB_MSG_702
+OBSOLETE_ER_IB_MSG_702
   eng "Invalid redo log header checksum."
 
-ER_IB_MSG_703
+OBSOLETE_ER_IB_MSG_703
   eng "Unsupported redo log format (%lu). The redo log was created before MySQL 5.7.9"
 
 ER_IB_MSG_704
@@ -17315,22 +17316,22 @@ ER_IB_MSG_1051
   eng "Can't set undo tablespace(s) to be encrypted in read-only-mode."
 
 ER_IB_MSG_1052
-  eng "Can't set undo tablespace number %lu to be encrypted."
+  eng "Can't set undo tablespace '%s' to be encrypted."
 
 ER_IB_MSG_1053
-  eng "Can't set undo tablespace number %lu to be encrypted. Failed to write header page."
+  eng "Can't set undo tablespace '%s' to be encrypted. Failed to write header page."
 
 ER_IB_MSG_1054
-  eng "Can't set undo tablespace number %lu to be encrypted. Error %d - %s"
+  eng "Can't set undo tablespace '%s' to be encrypted. Error %d - %s"
 
 ER_IB_MSG_1055
-  eng "Encryption is enabled for undo tablespace number %lu."
+  eng "Encryption is enabled for undo tablespace '%s'."
 
 ER_IB_MSG_1056
-  eng "Can't rotate encryption on undo tablespace number %lu."
+  eng "Can't rotate encryption on undo tablespace '%s'."
 
 ER_IB_MSG_1057
-  eng "Encryption is enabled for undo tablespace number %lu."
+  eng "Encryption is enabled for undo tablespace '%s'."
 
 ER_IB_MSG_1058
   eng "os_file_get_status() failed on '%s'. Can't determine file permissions."
@@ -17369,7 +17370,7 @@ ER_IB_MSG_1069
   eng "Unable to open '%s'."
 
 ER_IB_MSG_1070
-  eng "Cannot create construction log file for undo tablespace ID=%lu"
+  eng "Cannot create construction log file '%s' for undo tablespace '%s'."
 
 ER_IB_MSG_1071
   eng "Creating UNDO Tablespace %s"
@@ -17396,7 +17397,7 @@ ER_IB_MSG_1078
   eng "Cannot recover a truncated undo tablespace in read-only mode"
 
 ER_IB_MSG_1079
-  eng "Reconstructing undo tablespace number %lu"
+  eng "Reconstructing undo tablespace number %lu."
 
 ER_IB_MSG_1080
   eng "Cannot create %s because %s already uses Space ID=%lu! Did you change innodb_undo_directory?"
@@ -17423,10 +17424,10 @@ ER_IB_MSG_1087
   eng "Cannot continue InnoDB startup in %s mode because there are no existing undo tablespaces found."
 
 ER_IB_MSG_1088
-  eng "Could not create undo tablespace number %lu"
+  eng "Could not create undo tablespace '%s'."
 
 ER_IB_MSG_1089
-  eng "Error %d - %s - opening newly created undo tablespace number %lu"
+  eng "Error %d - %s - opening newly created undo tablespace '%s'."
 
 ER_IB_MSG_1090
   eng "Created %lu undo tablespaces."
@@ -17438,7 +17439,7 @@ ER_IB_MSG_1092
   eng "Encryption is enabled for undo tablespace number %lu."
 
 ER_IB_MSG_1093
-  eng "nable to initialize the header page in undo tablespace number %lu."
+  eng "Unable to initialize the header page in undo tablespace number %lu."
 
 ER_IB_MSG_1094
   eng "Cannot delete old undo tablespaces because they contain undo logs for XA PREPARED transactions."
@@ -17672,13 +17673,13 @@ ER_IB_MSG_1170
   eng "%s"
 
 ER_IB_MSG_1171
-  eng "%s"
+  eng "Cannot create truncate log for undo tablespace '%s'."
 
 ER_IB_MSG_1172
   eng "%s"
 
 ER_IB_MSG_1173
-  eng "%s"
+  eng "Failed to truncate undo tablespace '%s'."
 
 ER_IB_MSG_1174
   eng "%s"
@@ -17848,7 +17849,7 @@ ER_IB_MSG_1228
 ER_IB_MSG_1229
   eng "%s"
 
-ER_IB_MSG_1230
+OBSOLETE_ER_IB_MSG_1230
   eng "%s"
 
 ER_IB_MSG_1231
@@ -17920,7 +17921,7 @@ ER_IB_MSG_1252
 ER_IB_MSG_1253
   eng "%s"
 
-ER_IB_MSG_1254
+OBSOLETE_ER_IB_MSG_1254
   eng "%s"
 
 ER_IB_MSG_1255
@@ -18258,7 +18259,7 @@ ER_SYS_VAR_NOT_FOUND
   eng "Variable name '%s' not found."
 
 ER_IB_MSG_1274
-  eng "%s"
+  eng ""Some (%d) threads are still active"
 
 ER_IB_MSG_1275
   eng "%s"
@@ -18266,16 +18267,16 @@ ER_IB_MSG_1275
 ER_TARGET_TS_UNENCRYPTED
   eng "Source tablespace is encrypted but target tablespace is not."
 
-ER_IB_MSG_1276
-  eng "%s"
+ER_IB_MSG_WAIT_FOR_ENCRYPT_THREAD
+  eng "Waiting for tablespace_alter_encrypt_thread to to exit"
 
 ER_IB_MSG_1277
   eng "%s"
 
-ER_IB_MSG_1278
+ER_IB_MSG_NO_ENCRYPT_PROGRESS_FOUND
   eng "%s"
 
-ER_IB_MSG_1279
+ER_IB_MSG_RESUME_OP_FOR_SPACE
   eng "%s"
 
 ER_IB_MSG_1280
@@ -18398,6 +18399,66 @@ ER_UPGRADE_PARSE_ERROR
 ER_DATA_DIRECTORY_UNUSABLE
   eng "Newly created data directory %s is unusable. You can safely remove it."
   bg "Новосъздадената директория за базата %s е неизползваема. Можете да я изтриете."
+
+ER_IB_MSG_FAILED_TO_ALLOCATE_WAIT
+  eng "Failed to allocate memory for a pool of size %d bytes. Will wait for %d seconds for a thread to free a resource."
+
+ER_IB_MSG_NUM_POOLS
+ eng "Number of pools: %lu"
+
+ER_IB_MSG_USING_UNDO_SPACE
+  eng "Using undo tablespace '%s'."
+
+ER_IB_MSG_FAIL_TO_SAVE_SPACE_STATE
+  eng "%s Unable to save the current state of tablespace '%s' to the data dictionary"
+
+ER_IB_MSG_MAX_UNDO_SPACES_REACHED
+  eng "Cannot create undo tablespace %s at %s because %d undo tablespaces already exist."
+
+ER_IB_MSG_ERROR_OPENING_NEW_UNDO_SPACE
+  eng "Error %d opening newly created undo tablespace %s."
+
+ER_IB_MSG_FAILED_SDI_Z_BUF_ERROR
+  eng "SDI Compression failed, Z_BUF_ERROR"
+
+ER_IB_MSG_FAILED_SDI_Z_MEM_ERROR
+  eng "SDI Compression failed, Z_MEM_ERROR"
+
+ER_IB_MSG_SDI_Z_STREAM_ERROR
+  eng "SDI Compression failed, Z_STREAM_ERROR"
+
+ER_IB_MSG_SDI_Z_UNKNOWN_ERROR
+  eng "%s"
+
+ER_IB_MSG_FOUND_WRONG_UNDO_SPACE
+  eng "Expected to find undo tablespace '%s' for Space ID=%lu, but found '%s' instead!  Did you change innodb_undo_directory?"
+
+ER_IB_MSG_NOT_END_WITH_IBU
+  eng "Cannot use %s as an undo tablespace because it does not end with '.ibu'."
+
+ER_IB_MSG_UNDO_TRUNC_EMPTY_FILE
+  eng "ib_undo_trunc_empty_file"
+
+ER_IB_MSG_UNDO_TRUNC_BEFOR_DD_UPDATE
+  eng "ib_undo_trunc_before_dd_update"
+
+ER_IB_MSG_UNDO_TRUNC_BEFORE_UNDO_LOGGING
+  eng "ib_undo_trunc_before_done_logging"
+
+ER_IB_MSG_UNDO_TRUNK_BEFORE_RSEG
+  eng "ib_undo_trunc_before_rsegs"
+
+ER_IB_MSG_FAILED_TO_FINISH_TRUNCATE
+  eng "%s Failed to finish truncating Undo Tablespace '%s'"
+
+ER_IB_MSG_DEPRECATED_INNODB_UNDO_TABLESPACES
+  eng "The setting INNODB_UNDO_TABLESPACES is deprecated and is no longer used.  InnoDB always creates 2 undo tablespaces to start with. If you need more, please use CREATE UNDO TABLESPACE."
+
+ER_IB_MSG_DIR_DOES_NOT_EXIST
+  eng "The directory '%s' does not exist."
+
+ER_IB_MSG_LOCK_FREE_HASH_USAGE_STATS
+  eng "%s"
 
 #
 # End of 8.0 error messages intended to be logged to the server error log.

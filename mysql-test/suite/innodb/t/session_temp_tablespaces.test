@@ -26,15 +26,13 @@ let $restart_parameters = "restart: --innodb_temp_tablespaces_dir=$MYSQLTEST_VAR
 SELECT @@innodb_temp_tablespaces_dir;
 
 --echo # Check the initial number of .ibt files and their size
---replace_column 1 ID
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
+SELECT PATH, SIZE, STATE, PURPOSE FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
 
 --echo # Check connection_id() of session is populated correctly in
 --echo # ID column of INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES
---replace_column 1 ID
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES  WHERE ID = connection_id();
+SELECT PATH, SIZE, STATE, PURPOSE FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES  WHERE ID = connection_id();
 
 --echo # Check the default location of innodb_temp_tablespaces_dir
 let $restart_parameters=;
@@ -113,15 +111,14 @@ INSERT INTO t2 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t2;
 INSERT INTO t2 SELECT * FROM t1;
 
---replace_column 1 ID
 --replace_regex /\\#innodb_temp\\temp/\/#innodb_temp\/temp/
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
+SELECT PATH, SIZE, STATE, PURPOSE FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
 
 --echo # Ensure entries in information_schema.processlist and
 --echo # information_schema.innodb_session_temp_tablespaces are
 --echo # in sync
 
-SELECT USER, b.STATE, INFO, SPACE, SIZE, a.STATE, PURPOSE FROM
+SELECT USER, b.STATE, INFO, SIZE, a.STATE, PURPOSE FROM
   INFORMATION_SCHEMA.PROCESSLIST a, INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES b
   WHERE a.ID=b.ID ORDER BY SPACE;
 
@@ -133,27 +130,24 @@ connect (con3, localhost, root,,);
 connection con3;
 
 CREATE TEMPORARY TABLE test.t1(a INT, b BLOB);
---replace_column 1 ID
 --replace_regex /\\#innodb_temp\\temp/\/#innodb_temp\/temp/
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
+SELECT PATH, SIZE, STATE, PURPOSE FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
 
 --echo # Create a new connection.
 connect (con4, localhost, root,,);
 connection con4;
 
 CREATE TEMPORARY TABLE test.t1(a INT, b BLOB);
---replace_column 1 ID
 --replace_regex /\\#innodb_temp\\temp/\/#innodb_temp\/temp/
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
+SELECT PATH, SIZE, STATE, PURPOSE FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
 
 --echo # Create a new connection.
 connect (con5, localhost, root,,);
 connection con5;
 
 CREATE TEMPORARY TABLE test.t1(a INT, b BLOB);
---replace_column 1 ID
 --replace_regex /\\#innodb_temp\\temp/\/#innodb_temp\/temp/
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
+SELECT PATH, SIZE, STATE, PURPOSE FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
 
 --echo # Create a new connection.
 connect (con6, localhost, root,,);
@@ -165,9 +159,8 @@ CREATE TEMPORARY TABLE test.t1(a INT, b BLOB);
 # On executing select query from INNODB_SESSION_TEMP_TABLESPACES,
 # new set of 10 ibt files would be created
 
---replace_column 1 ID
 --replace_regex /\\#innodb_temp\\temp/\/#innodb_temp\/temp/
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
+SELECT PATH, SIZE, STATE, PURPOSE FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
 
 disconnect con1;
 disconnect con2;
@@ -186,9 +179,8 @@ connection default;
 let $wait_timeout= 20;
 let $wait_condition= SELECT COUNT(*) = 1 from INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES WHERE STATE = 'ACTIVE';
 --source include/wait_condition.inc
---replace_column 1 ID
 --replace_regex /\\#innodb_temp\\temp/\/#innodb_temp\/temp/
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
+SELECT PATH, SIZE, STATE, PURPOSE FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
 
 --source include/shutdown_mysqld.inc
 --echo "List files in #innodb_temp. It should be empty"
@@ -239,9 +231,8 @@ let $restart_parameters=;
 test contents
 EOF
 
---replace_column 1 ID
 --replace_regex /\\#innodb_temp\\temp/\/#innodb_temp\/temp/
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
+SELECT PATH, SIZE, STATE, PURPOSE FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
 
 --echo # Simulating disk space full scenario
 --let $restart_parameters="restart: --innodb_temp_tablespaces_dir=."
@@ -285,16 +276,14 @@ let $wl6737_auto_inc = auto_increment;
 --enable_query_log
 --enable_result_log
 
---replace_column 1 ID
 --replace_regex /\\#innodb_temp\\temp/\/#innodb_temp\/temp/
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
+SELECT PATH, SIZE, STATE, PURPOSE FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
 
 disconnect con1;
 connection default;
 --sleep 2
---replace_column 1 ID
 --replace_regex /\\#innodb_temp\\temp/\/#innodb_temp\/temp/
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
+SELECT PATH, SIZE, STATE, PURPOSE FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
 
 --source suite/innodb/include/drop_workload_itt.inc
 SET GLOBAL big_tables=default;
@@ -323,9 +312,8 @@ CREATE TABLESPACE tbs ADD DATAFILE 'tbs.ibd' engine=INNODB;
 CREATE TEMPORARY TABLE t4 (a INT) TABLESPACE=tbs;
 
 
---replace_column 1 ID
 --replace_regex /\\#innodb_temp\\temp/\/#innodb_temp\/temp/
-SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
+SELECT PATH, SIZE, STATE, PURPOSE FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES ORDER BY SPACE;
 
 --echo #########################################################################
 --echo # Cleanup

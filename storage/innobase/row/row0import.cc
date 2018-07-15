@@ -3663,7 +3663,7 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
 
   ulint fsp_flags = dict_tf_to_fsp_flags(table->flags);
   if (table->encryption_key != NULL) {
-    fsp_flags |= FSP_FLAGS_MASK_ENCRYPTION;
+    FSP_FLAGS_SET_ENCRYPTION(fsp_flags);
   }
 
   std::string tablespace_name;

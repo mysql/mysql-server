@@ -50,27 +50,26 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 CREATE TABLESPACE `test/s_bad` ADD DATAFILE 's_bad.ibd';
 ERROR 42000: InnoDB: A general tablespace name cannot contain '/'.
 CREATE TABLESPACE `s_too_long_file_name` ADD DATAFILE '../xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.ibd';
-ERROR HY000: Incorrect File Name '../xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.ibd'.
+ERROR HY000: CREATE TABLESPACE data file must be in one of these directories './;MYSQL_TMP_DIR/'.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3121	Incorrect File Name '../xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.ibd'.
 Error	3121	CREATE TABLESPACE data file must be in one of these directories './;MYSQL_TMP_DIR/'.
 Error	1528	Failed to create TABLESPACE s_too_long_file_name
-Error	1031	Table storage engine for 's_too_long_file_name' doesn't have this option
+Error	3121	Incorrect File Name '../xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.ibd'.
 CREATE TABLESPACE s_bad ADD DATAFILE 's_bad.ibd' FILE_BLOCK_SIZE=1k FILE_BLOCK_SIZE=2k;
 ERROR HY000: It is not allowed to specify FILE_BLOCK_SIZE more than once
 CREATE TABLESPACE s_bad ADD DATAFILE 's_bad.ibd' FILE_BLOCK_SIZE=3k;
 ERROR HY000: InnoDB does not support FILE_BLOCK_SIZE=3072
 CREATE TABLESPACE s_bad ADD DATAFILE 's_bad.ibd' FILE_BLOCK_SIZE=65k;
 ERROR HY000: InnoDB does not support FILE_BLOCK_SIZE=66560
-CREATE TABLESPACE `s_bad` ADD DATAFILE 'sub/dir/////s_bad.ibd';
-ERROR HY000: Incorrect File Name 'sub/dir/////s_bad.ibd'.
+CREATE TABLESPACE `s_bad` ADD DATAFILE '../sub/dir/////s_bad.ibd';
+ERROR HY000: The directory does not exist.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3121	Incorrect File Name 'sub/dir/////s_bad.ibd'.
 Error	3121	The directory does not exist.
+Error	3121	CREATE TABLESPACE data file must be in one of these directories './;MYSQL_TMP_DIR/'.
 Error	1528	Failed to create TABLESPACE s_bad
-Error	1031	Table storage engine for 's_bad' doesn't have this option
+Error	3121	Incorrect File Name '../sub/dir/////s_bad.ibd'.
 DROP TABLESPACE 's_bad';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''s_bad'' at line 1
 DROP TABLESPACE "s_bad";
@@ -231,10 +230,10 @@ ERROR 42000: InnoDB: `innodb_temporary` is a reserved tablespace name.
 CREATE TABLESPACE `InnoDB_Temporary` ADD DATAFILE 's_InnoDB_Temporary.ibd';
 DROP TABLESPACE `InnoDB_Temporary`;
 CREATE TABLESPACE `innodb_custom` ADD DATAFILE 's_bad.ibd';
-ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
+ERROR 42000: InnoDB: Tablespace names starting with `innodb_` are reserved.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3119	InnoDB: A general tablespace name cannot start with `innodb_`.
+Error	3119	InnoDB: Tablespace names starting with `innodb_` are reserved.
 Error	3119	Incorrect tablespace name `innodb_custom`
 DROP TABLESPACE `innodb_custom`;
 ERROR HY000: Tablespace innodb_custom doesn't exist.
@@ -270,26 +269,30 @@ CREATE TABLESPACE `s1_#_hash` ADD DATAFILE 's1_#_hash.ibd';
 CREATE TABLESPACE s1_remote ADD DATAFILE 'MYSQL_TMP_DIR/s1.ibd.ibd';
 CREATE TABLESPACE s2_remote ADD DATAFILE 'MYSQL_TMP_DIR/s2_#_dir/../s2_#_dir/s2.ibd';
 CREATE TABLESPACE s_bad ADD DATAFILE '.ibd';
-ERROR HY000: Incorrect File Name '.ibd'.
+ERROR HY000: The ADD DATAFILE filepath does not have a proper filename.
 SHOW WARNINGS;
 Level	Code	Message
+Error	3121	The ADD DATAFILE filepath does not have a proper filename.
+Error	1528	Failed to create TABLESPACE s_bad
 Error	3121	Incorrect File Name '.ibd'.
-Error	1528	Failed to create TABLESPACE s_bad
-Error	1031	Table storage engine for 's_bad' doesn't have this option
-CREATE TABLESPACE s_bad ADD DATAFILE 's_dir/s_subdir/.ibd';
-ERROR HY000: Incorrect File Name 's_dir/s_subdir/.ibd'.
+CREATE TABLESPACE s_bad ADD DATAFILE '../s_dir/s_subdir/.ibd';
+ERROR HY000: The ADD DATAFILE filepath does not have a proper filename.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3121	Incorrect File Name 's_dir/s_subdir/.ibd'.
+Error	3121	The ADD DATAFILE filepath does not have a proper filename.
+Error	3121	The directory does not exist.
+Error	3121	CREATE TABLESPACE data file must be in one of these directories './;MYSQL_TMP_DIR/'.
 Error	1528	Failed to create TABLESPACE s_bad
-Error	1031	Table storage engine for 's_bad' doesn't have this option
-CREATE TABLESPACE s_bad ADD DATAFILE 's_dir/s_bad.ibs';
-ERROR HY000: An IBD filepath must end with `.ibd`.
+Error	3121	Incorrect File Name '../s_dir/s_subdir/.ibd'.
+CREATE TABLESPACE s_bad ADD DATAFILE '../s_dir/s_bad.ibs';
+ERROR HY000: The ADD DATAFILE filepath must end with '.ibd'.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3121	An IBD filepath must end with `.ibd`.
+Error	3121	The ADD DATAFILE filepath must end with '.ibd'.
+Error	3121	The directory does not exist.
+Error	3121	CREATE TABLESPACE data file must be in one of these directories './;MYSQL_TMP_DIR/'.
 Error	1528	Failed to create TABLESPACE s_bad
-Error	1031	Table storage engine for 's_bad' doesn't have this option
+Error	3121	Incorrect File Name '../s_dir/s_bad.ibs'.
 CREATE TABLESPACE s_bad ADD DATAFILE 'c:s_bad.ibd';
 ERROR HY000: Incorrect File Name 'c:s_bad.ibd'.
 SHOW WARNINGS;
@@ -297,23 +300,15 @@ Level	Code	Message
 Error	3121	Incorrect File Name 'c:s_bad.ibd'.
 Error	3121	Invalid use of ':'.
 Error	1528	Failed to create TABLESPACE s_bad
-Error	1031	Table storage engine for 's_bad' doesn't have this option
-CREATE TABLESPACE s_bad ADD DATAFILE 'cc:/s_bad.ibd';
-ERROR HY000: Incorrect File Name 'cc:/s_bad.ibd'.
+Error	3121	Incorrect File Name 'c:s_bad.ibd'.
+CREATE TABLESPACE s_bad ADD DATAFILE 'drive:s_bad.ibd';
+ERROR HY000: Incorrect File Name 'drive:s_bad.ibd'.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3121	Incorrect File Name 'cc:/s_bad.ibd'.
+Error	3121	Incorrect File Name 'drive:s_bad.ibd'.
 Error	3121	Invalid use of ':'.
 Error	1528	Failed to create TABLESPACE s_bad
-Error	1031	Table storage engine for 's_bad' doesn't have this option
-CREATE TABLESPACE s_bad ADD DATAFILE './drive:/s_bad.ibd';
-ERROR HY000: Incorrect File Name './drive:/s_bad.ibd'.
-SHOW WARNINGS;
-Level	Code	Message
-Error	3121	Incorrect File Name './drive:/s_bad.ibd'.
-Error	3121	Invalid use of ':'.
-Error	1528	Failed to create TABLESPACE s_bad
-Error	1031	Table storage engine for 's_bad' doesn't have this option
+Error	3121	Incorrect File Name 'drive:s_bad.ibd'.
 #
 # Try to create a tablespace where a same-named directory and file exist.
 #
@@ -321,7 +316,7 @@ CREATE TABLESPACE s4_def ADD DATAFILE 'MYSQL_TMP_DIR/tablespace.ibd/s4.ibd';
 CREATE TABLESPACE s5_def ADD DATAFILE 'MYSQL_TMP_DIR/tablespace.ibd/s4.ibd';
 ERROR HY000: Duplicate file name for tablespace 's5_def'
 CREATE TABLESPACE s6_def ADD DATAFILE 'MYSQL_TMP_DIR/tablespace.ibd';
-ERROR HY000: Failed to create TABLESPACE s6_def
+ERROR HY000: The ADD DATAFILE filepath already exists.
 === information_schema.innodb_tablespaces and innodb_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 s_def	General	DEFAULT	0	Any	s_def.ibd
@@ -800,14 +795,14 @@ DROP TABLESPACE s_bad;
 CREATE LOGFILE GROUP s_bad;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 CREATE LOGFILE GROUP s_bad ADD UNDOFILE 'undo_1.dat';
-ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'LOGFILE GROUP'
+ERROR HY000: Feature LOGFILE GROUP is unsupported (by InnoDB).
 ALTER LOGFILE GROUP s_bad;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 ALTER LOGFILE GROUP s_bad ADD UNDOFILE 'undo_1.dat'
       INITIAL_SIZE = 100M, NO_WAIT;
-ERROR 42000: The storage engine for the table doesn't support CREATE/ALTER/DROP LOGFILE GROUP
+ERROR HY000: Feature LOGFILE GROUP is unsupported (by InnoDB).
 DROP LOGFILE GROUP s_bad;
-ERROR 42000: The storage engine for the table doesn't support CREATE/ALTER/DROP LOGFILE GROUP
+ERROR HY000: Feature LOGFILE GROUP is unsupported (by InnoDB).
 #
 # Checking ALTER TABLESPACE (only NDB in 5.7)
 #
@@ -815,17 +810,41 @@ CREATE TABLESPACE s_bad ADD DATAFILE 's_bad.ibd';
 ALTER TABLESPACE s_bad;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 ALTER TABLESPACE s_bad ADD DATAFILE 'bad2.ibd';
-ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE ... ADD DATAFILE
+ERROR HY000: Failed to alter: TABLESPACE s_bad
+SHOW WARNINGS;
+Level	Code	Message
+Error	1533	Failed to alter: TABLESPACE s_bad
+Error	1178	The storage engine for the table doesn't support ALTER TABLESPACE ... ADD DATAFILE
 ALTER TABLESPACE s_bad DROP DATAFILE 's_bad.ibd';
-ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE ... DROP DATAFILE
+ERROR HY000: Failed to alter: TABLESPACE s_bad
+SHOW WARNINGS;
+Level	Code	Message
+Error	1533	Failed to alter: TABLESPACE s_bad
+Error	1178	The storage engine for the table doesn't support ALTER TABLESPACE ... DROP DATAFILE
 ALTER TABLESPACE s_bad ADD DATAFILE 'bad2.ibd' INITIAL_SIZE = 1G;
-ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE ... ADD DATAFILE
+ERROR HY000: Failed to alter: TABLESPACE s_bad
+SHOW WARNINGS;
+Level	Code	Message
+Error	1533	Failed to alter: TABLESPACE s_bad
+Error	1178	The storage engine for the table doesn't support ALTER TABLESPACE ... ADD DATAFILE
 ALTER TABLESPACE s_def ADD DATAFILE 'bad2.ibd' NO_WAIT;
-ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE ... ADD DATAFILE
+ERROR HY000: Failed to alter: TABLESPACE s_def
+SHOW WARNINGS;
+Level	Code	Message
+Error	1533	Failed to alter: TABLESPACE s_def
+Error	1178	The storage engine for the table doesn't support ALTER TABLESPACE ... ADD DATAFILE
 ALTER TABLESPACE s_bad DROP DATAFILE 's_bad.ibd' INITIAL_SIZE = 1G;
-ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE ... DROP DATAFILE
+ERROR HY000: Failed to alter: TABLESPACE s_bad
+SHOW WARNINGS;
+Level	Code	Message
+Error	1533	Failed to alter: TABLESPACE s_bad
+Error	1178	The storage engine for the table doesn't support ALTER TABLESPACE ... DROP DATAFILE
 ALTER TABLESPACE s_bad DROP DATAFILE 's_bad.ibd' NO_WAIT;
-ERROR 42000: The storage engine for the table doesn't support ALTER TABLESPACE ... DROP DATAFILE
+ERROR HY000: Failed to alter: TABLESPACE s_bad
+SHOW WARNINGS;
+Level	Code	Message
+Error	1533	Failed to alter: TABLESPACE s_bad
+Error	1178	The storage engine for the table doesn't support ALTER TABLESPACE ... DROP DATAFILE
 #
 # Undocumented ALTER TABLESPACE syntax which was removed by wl#8972
 #
@@ -1279,29 +1298,29 @@ SET SESSION innodb_strict_mode=ON;
 # or any tablespace using the reserved `innodb_` prefix.
 #
 CREATE TABLE t_data (a int, b text) TABLESPACE=`innodb_redo_log`;
-ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
+ERROR 42000: InnoDB: Tablespace names starting with `innodb_` are reserved.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3119	InnoDB: A general tablespace name cannot start with `innodb_`.
+Error	3119	InnoDB: Tablespace names starting with `innodb_` are reserved.
 Error	3119	Incorrect tablespace name `innodb_redo_log`
 CREATE TABLE t_data (a int, b text) TABLESPACE=`innodb_anything`;
-ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
+ERROR 42000: InnoDB: Tablespace names starting with `innodb_` are reserved.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3119	InnoDB: A general tablespace name cannot start with `innodb_`.
+Error	3119	InnoDB: Tablespace names starting with `innodb_` are reserved.
 Error	3119	Incorrect tablespace name `innodb_anything`
 CREATE TABLE t_data (a int, b text) TABLESPACE s_def;
 ALTER TABLE t_data TABLESPACE=`innodb_redo_log`;
-ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
+ERROR 42000: InnoDB: Tablespace names starting with `innodb_` are reserved.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3119	InnoDB: A general tablespace name cannot start with `innodb_`.
+Error	3119	InnoDB: Tablespace names starting with `innodb_` are reserved.
 Error	3119	Incorrect tablespace name `innodb_redo_log`
 ALTER TABLE t_data TABLESPACE=`innodb_anything`;
-ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
+ERROR 42000: InnoDB: Tablespace names starting with `innodb_` are reserved.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3119	InnoDB: A general tablespace name cannot start with `innodb_`.
+Error	3119	InnoDB: Tablespace names starting with `innodb_` are reserved.
 Error	3119	Incorrect tablespace name `innodb_anything`
 DROP TABLE t_data;
 #
@@ -1664,9 +1683,10 @@ Level	Code	Message
 Warning	1836	InnoDB: Running in read-only mode
 Error	1036	Table 'tablespaces' is read only
 DROP TABLESPACE s1;
-ERROR HY000: Failed to drop TABLESPACE s1
+ERROR HY000: Changes to undo tablespaces are not allowed in read_only mode
 SHOW WARNINGS;
 Level	Code	Message
+Error	1874	Changes to undo tablespaces are not allowed in read_only mode
 Error	1529	Failed to drop TABLESPACE s1
 Error	1874	InnoDB is in read only mode.
 # Restart in normal mode for cleanup.

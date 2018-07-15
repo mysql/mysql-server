@@ -168,7 +168,7 @@ mysql_pfs_key_t trx_purge_latch_key;
 even if their corresponding performance schema define is set. And this
 PFS_NOT_INSTRUMENTED is used as the key value to identify those objects that
 would be excluded from instrumentation.*/
-mysql_pfs_key_t PFS_NOT_INSTRUMENTED(ULINT32_UNDEFINED);
+mysql_pfs_key_t PFS_NOT_INSTRUMENTED(UINT32_UNDEFINED);
 
 /** For monitoring active mutexes */
 MutexMonitor *mutex_monitor;

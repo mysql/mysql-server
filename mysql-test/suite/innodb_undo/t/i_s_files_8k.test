@@ -5,7 +5,6 @@
 --echo #
 
 --echo # Mysqld is initialized in this test with with:
---echo # --innodb_undo_tablespaces=16
 --echo # --innodb_rollback_segments=1
 --echo # --bootstrap --innodb_page_size=8k
 

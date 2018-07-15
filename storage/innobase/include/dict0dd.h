@@ -36,7 +36,6 @@ Data dictionary interface */
 #include "univ.i"
 
 #ifndef UNIV_HOTBACKUP
-#include <dd/properties.h>
 #include "dd/cache/dictionary_client.h"
 #include "dd/dd.h"
 #include "dd/dd_schema.h"
@@ -63,6 +62,11 @@ Data dictionary interface */
 #ifndef UNIV_HOTBACKUP
 class THD;
 class MDL_ticket;
+
+/** DD functions return false for success and true for failure
+because that is the way the server functions are defined. */
+#define DD_SUCCESS false
+#define DD_FAILURE true
 
 /** Handler name for InnoDB */
 static constexpr char handler_name[] = "InnoDB";
@@ -149,14 +153,36 @@ enum dd_space_keys {
   DD_SPACE_FLAGS,
   /** Tablespace identifier */
   DD_SPACE_ID,
-  /** Discard attribute */
-  DD_SPACE_DISCARD,
   /** Server version */
   DD_SPACE_SERVER_VERSION,
   /** TABLESPACE_VERSION */
   DD_SPACE_VERSION,
+  /** Current state attribute */
+  DD_SPACE_STATE,
   /** Sentinel */
   DD_SPACE__LAST
+};
+
+/** Values for InnoDB private key "state" for dd::Tablespace */
+enum dd_space_states {
+  /** Normal IBD tablespace */
+  DD_SPACE_STATE_NORMAL,
+  /** Discarded IBD tablespace */
+  DD_SPACE_STATE_DISCARDED,
+  /** Corrupted IBD tablespace */
+  DD_SPACE_STATE_CORRUPTED,
+  /** Active undo tablespace */
+  DD_SPACE_STATE_ACTIVE,
+  /** Inactive undo tablespace being truncated, selected
+  explicitly by ALTER UNDO TABLESPACE SET INACTIVE.
+  Note: the DD is not updated when an undo space is selected
+  for truncation implicitly by the purge thread. */
+  DD_SPACE_STATE_INACTIVE,
+  /** Inactive undo tablespace being truncated, selected
+  explicitly by ALTER UNDO TABLESPACE SET INACTIVE. */
+  DD_SPACE_STATE_EMPTY,
+  /** Sentinel */
+  DD_SPACE_STATE__LAST
 };
 
 /** InnoDB implicit tablespace name or prefix, which should be same to
@@ -166,7 +192,18 @@ static constexpr char reserved_implicit_name[] = "innodb_file_per_table";
 /** InnoDB private key strings for dd::Tablespace.
 @see dd_space_keys */
 const char *const dd_space_key_strings[DD_SPACE__LAST] = {
-    "flags", "id", "discard", "server_version", "space_version"};
+    "flags", "id", "server_version", "space_version", "state"};
+
+/** InnoDB private value strings for key string "state" in dd::Tablespace.
+@see dd_space_state_values */
+const char *const dd_space_state_values[DD_SPACE_STATE__LAST] = {
+    "normal",    /* for IBD spaces */
+    "discarded", /* for IBD spaces */
+    "corrupted", /* for IBD spaces */
+    "active",    /* for undo spaces*/
+    "inactive",  /* for undo spaces */
+    "empty"      /* for undo spaces */
+};
 
 /** InnoDB private key strings for dd::Table. @see dd_table_keys */
 const char *const dd_table_key_strings[DD_TABLE__LAST] = {
@@ -557,9 +594,11 @@ void dd_update_v_cols(dd::Table *dd_table, table_id_t id);
 
 /** Write metadata of a tablespace to dd::Tablespace
 @param[in,out]	dd_space	dd::Tablespace
-@param[in]	tablespace	InnoDB tablespace object */
-void dd_write_tablespace(dd::Tablespace *dd_space,
-                         const Tablespace &tablespace);
+@param[in]	space_id	InnoDB tablespace ID
+@param[in]	fsp_flags	InnoDB tablespace flags
+@param[in]	state		InnoDB tablespace state */
+void dd_write_tablespace(dd::Tablespace *dd_space, space_id_t space_id,
+                         ulint fsp_flags, dd_space_states state);
 
 /** Add fts doc id column and index to new table
 when old table has hidden fts doc id without fulltext index
@@ -709,22 +748,26 @@ bool dd_process_dd_indexes_rec_simple(mem_heap_t *heap, const rec_t *rec,
                                       space_index_t *index_id,
                                       space_id_t *space_id,
                                       dict_table_t *dd_indexes);
+
 /** Process one mysql.tablespaces record and get info
-@param[in]	heap		temp memory heap
-@param[in,out]	rec		mysql.tablespaces record
-@param[in,out]	space_id	space id
-@param[in,out]	name		space name
-@param[in,out]	flags		space flags
-@param[in,out]	server_version	space server version
-@param[in,out]	space_version	space server version
-@param[in,out]	is_encrypted	true if tablespace is encrypted
-@param[in]	dd_spaces	dict_table_t obj of mysql.tablespaces
-@retval true if index is filled */
+@param[in]      heap            temp memory heap
+@param[in,out]  rec	            mysql.tablespaces record
+@param[in,out]	space_id        space id
+@param[in,out]  name            space name
+@param[in,out]  flags           space flags
+@param[in,out]  server_version  server version
+@param[in,out]  space_version   space version
+@param[in,out]  is_encrypted    true if tablespace is encrypted
+@param[in,out]  state           space state
+@param[in]      dd_spaces       dict_table_t obj of mysql.tablespaces
+@return true if data is retrived */
 bool dd_process_dd_tablespaces_rec(mem_heap_t *heap, const rec_t *rec,
                                    space_id_t *space_id, char **name,
                                    uint *flags, uint32 *server_version,
                                    uint32 *space_version, bool *is_encrypted,
+                                   dd::String_type &state,
                                    dict_table_t *dd_spaces);
+
 /** Make sure the data_dir_path is saved in dict_table_t if DATA DIRECTORY
 was used. Try to read it from the fil_system first, then from new dd.
 @tparam		Table		dd::Table or dd::Partition
@@ -911,9 +954,9 @@ void dd_filename_to_spacename(const char *space_name,
 @param[in]	filename	filename of this tablespace
 @param[in]	discarded	true if this tablespace was discarded
 @param[in,out]	dd_space_id	dd_space_id
-@retval	false	on success
-@retval	true	on failure */
-bool create_dd_tablespace(dd::cache::Dictionary_client *dd_client, THD *thd,
+@retval false on success
+@retval true on failure */
+bool dd_create_tablespace(dd::cache::Dictionary_client *dd_client, THD *thd,
                           const char *dd_space_name, space_id_t space_id,
                           ulint flags, const char *filename, bool discarded,
                           dd::Object_id &dd_space_id);
@@ -1022,7 +1065,8 @@ const char *get_row_format_name(enum row_type row_format);
 /** Get the file name of a tablespace.
 @param[in]	dd_space	Tablespace metadata
 @return file name */
-inline const char *dd_tablespace_get_filename(const dd::Tablespace *dd_space) {
+UNIV_INLINE
+const char *dd_tablespace_get_filename(const dd::Tablespace *dd_space) {
   ut_ad(dd_space->id() != dd::INVALID_OBJECT_ID);
   ut_ad(dd_space->files().size() == 1);
   return ((*dd_space->files().begin())->filename().c_str());
@@ -1083,9 +1127,45 @@ char *dd_get_referenced_table(const char *name, const char *database_name,
                               ulint table_name_len, dict_table_t **table,
                               MDL_ticket **mdl, mem_heap_t *heap);
 
-/** Set Discard attribute in se_private_data of tablespace
+/** Set state attribute in se_private_data of tablespace
 @param[in,out]	dd_space	dd::Tablespace object
-@param[in]	discard		true if discarded, else false */
+@param[in]	state		value to set for key 'state' */
+void dd_tablespace_set_state(dd::Tablespace *dd_space, dd_space_states state);
+
+/** Set Space ID and state attribute in se_private_data of mysql.tablespaces
+for the named tablespace.
+@param[in]  space_name  tablespace name
+@param[in]  space_id    tablespace id
+@param[in]  state       value to set for key 'state'
+@return DB_SUCCESS or DD_FAILURE. */
+bool dd_tablespace_set_id_and_state(const char *tablespace_name,
+                                    space_id_t space_id, dd_space_states state);
+
+/** Get the state attribute from se_private_data of mysql.tablespaces
+for the named tablespace.
+@param[in]	space_name	space name
+@return value associated with the key 'state' */
+dd_space_states dd_tablespace_get_state_by_name(const char *space_name);
+
+/** Get the discarded state from se_private_data of tablespace
+@param[in]	dd_space	dd::Tablespace object */
+bool dd_tablespace_is_discarded(const dd::Tablespace *dd_space);
+
+/** Get the MDL for the named tablespace.  The mdl_ticket pointer can
+be provided if it is needed by the caller.  If for_trx is set to false,
+then the caller must explicitly release that ticket with dd_release_mdl().
+Otherwise, it will ne released with the transaction.
+@param[in]  space_name  tablespace name
+@param[in]  mdl_ticket  tablespace MDL ticket, default to nullptr
+@param[in]  for_trx     How long will the MDL be held. defaults to true for
+                        MDL_TRANSACTION, false for MDL_EXPLICIT
+@return DB_SUCCESS or DD_FAILURE. */
+bool dd_tablespace_get_mdl(const char *space_name,
+                           MDL_ticket **mdl_ticket = nullptr,
+                           bool for_trx = true);
+/** Set discard attribute value in se_private_dat of tablespace
+@param[in]  dd_space  dd::Tablespace object
+@param[in]  discard   true if discarded, else false */
 void dd_tablespace_set_discard(dd::Tablespace *dd_space, bool discard);
 
 /** Get discard attribute value stored in se_private_dat of tablespace
@@ -1098,6 +1178,7 @@ bool dd_tablespace_get_discard(const dd::Tablespace *dd_space);
 /** Release the MDL held by the given ticket.
 @param[in]  mdl_ticket  tablespace MDL ticket */
 void dd_release_mdl(MDL_ticket *mdl_ticket);
+
 #endif /* !UNIV_HOTBACKUP */
 
 /** Update all InnoDB tablespace cache objects. This step is done post

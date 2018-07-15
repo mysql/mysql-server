@@ -988,19 +988,24 @@ If an rseg is not marked for undo tablespace truncation, we assign
 it to a transaction. We increment trx_ref_count to keep the purge
 thread from truncating the undo tablespace that contains this rseg
 until the transaction is done with it.
-@param[in]	target_undo_tablespaces
-                                number of undo tablespaces to use when
-                                calculating which rseg to assign.
 @return assigned rollback segment instance */
-static trx_rseg_t *get_next_redo_rseg_from_undo_spaces(
-    ulong target_undo_tablespaces) {
+static trx_rseg_t *get_next_redo_rseg_from_undo_spaces() {
   undo::Tablespace *undo_space;
-  ulong target_rollback_segments = srv_rollback_segments;
+
+  /* The number of undo tablespaces cannot be changed while
+  we have this s_lock. */
+  undo::spaces->s_lock();
+
+  /* Use all known undo tablespaces.  Some may be inactive. */
+  ulint target_undo_tablespaces = undo::spaces->size();
 
   ut_ad(target_undo_tablespaces > 0);
-  ut_d(undo::spaces->s_lock());
-  ut_ad(target_undo_tablespaces <= undo::spaces->size());
-  ut_d(undo::spaces->s_unlock());
+
+  /* The number of rollback segments may be changed at any instant.
+  So use the value at this instant.  Rollback segments are never
+  deleted from an rseg list, so srv_rollback_segments is always
+  less than rsegs->size(). */
+  ulint target_rollback_segments = srv_rollback_segments;
 
   static ulint rseg_counter = 0;
   trx_rseg_t *rseg = nullptr;
@@ -1022,36 +1027,27 @@ static trx_rseg_t *get_next_redo_rseg_from_undo_spaces(
 
     undo_space = undo::spaces->at(spaces_slot);
 
+    /* Avoid any rseg that resides in a tablespace that has been made
+    inactive either explicitly or by being marked for truncate. We do
+    not want to wait here on an x_lock for an rseg in an undo tablespace
+    that is being truncated.  So check this first without the latch.
+    It could be set immediately after this, but that is a very short gap
+    and the get_active() call below will use an rseg->s_lock. */
+    if (!undo_space->is_active_no_latch()) {
+      continue;
+    }
+
+    /* This is done here because we know the rsegs() pointer is good. */
     ut_ad(target_rollback_segments <= undo_space->rsegs()->size());
 
-    /* Avoid any rseg that resides in a tablespace that has
-    been marked for truncate. This is possible only if there
-    are at least 2 UNDO tablespaces active.
-    We do not want to wait below on an s_lock for an rseg in
-    an undo tablespace that is being truncated.  So check
-    this first.  It could be set immediately after this, but
-    that is a very short gap, compared to the time it takes
-    to truncate an undo tablespace.*/
-    if (undo_space->rsegs()->is_inactive()) {
-      rseg = nullptr;
-      continue;
-    }
-
     /* Check again with a shared lock. */
-    undo_space->rsegs()->s_lock();
-    if (undo_space->rsegs()->is_inactive()) {
-      rseg = nullptr;
-      undo_space->rsegs()->s_unlock();
+    rseg = undo_space->get_active(rseg_slot);
+    if (rseg == nullptr) {
       continue;
     }
-
-    /* Mark the chosen rseg so that it will not be selected
-    for UNDO truncation. */
-    rseg = undo_space->rsegs()->at(rseg_slot);
-    rseg->trx_ref_count++;
-
-    undo_space->rsegs()->s_unlock();
   }
+
+  undo::spaces->s_unlock();
 
   ut_ad(rseg->trx_ref_count > 0);
 
@@ -1101,14 +1097,10 @@ static trx_rseg_t *get_next_redo_rseg_from_trx_sys() {
 We assume that the assigned slots are not contiguous and have gaps.
 @return assigned rollback segment instance */
 static trx_rseg_t *get_next_redo_rseg() {
-  /* Since this global value can change at any instant, use the
-  value at this instant. */
-  ulong target = srv_undo_tablespaces;
-
-  if (target == 0) {
+  if (!trx_sys->rsegs.is_empty()) {
     return (get_next_redo_rseg_from_trx_sys());
   } else {
-    return (get_next_redo_rseg_from_undo_spaces(target));
+    return (get_next_redo_rseg_from_undo_spaces());
   }
 }
 

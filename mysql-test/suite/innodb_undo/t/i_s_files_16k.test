@@ -1,12 +1,48 @@
 --source include/not_valgrind.inc
+--source include/have_innodb_default_undo_tablespaces.inc
 
 --echo #
 --echo # WL7943 Implement INFORMATION_SCHEMA.FILES
 --echo #
 
 --echo # Mysqld is initialized in this test with with:
---echo # --innodb_undo_tablespaces=32
 --echo # --innodb_rollback_segments=1
 --echo # --bootstrap --innodb_page_size=16k
+--echo # 2 implicit and 30 explicit undo tablespaces
+
+let $name = undo_;
+let $exten = ibu;
+let $cnt = 3;
+while ($cnt <= 32)
+{
+let $name1 = $name$cnt;
+let $datafile = $name$cnt.$exten;
+eval CREATE UNDO TABLESPACE $name1 ADD DATAFILE '$datafile';
+inc $cnt;
+}
 
 --source suite/innodb_undo/include/i_s_files.inc
+
+--echo # Set all explicit undo tablespaces to inacitve.
+let $cnt = 3;
+while ($cnt <= 32)
+{
+let $name1 = $name$cnt;
+eval ALTER UNDO TABLESPACE $name1 SET INACTIVE; 
+inc $cnt;
+}
+
+--echo # Wait for all explicit undo tablespaces to become empty.
+let $wait_timeout= 300; # Override default 30 seconds with 300.
+let $wait_condition= SELECT count(*) = 30 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+                     WHERE SPACE_TYPE = 'Undo' AND STATE = 'empty';
+source include/wait_condition.inc;
+
+--echo # Drop all explicit undo tablespaces.
+let $cnt = 3;
+while ($cnt <= 32)
+{
+let $name1 = $name$cnt;
+eval DROP UNDO TABLESPACE $name1; 
+inc $cnt;
+}

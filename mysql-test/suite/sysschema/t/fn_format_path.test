@@ -6,7 +6,6 @@
 
 # Save current server option values;
 let $page_size = `select @@innodb_page_size`;
-let $innodb_undo_tablespaces = `select @@innodb_undo_tablespaces`;
 let $MYSQLD_BASEDIR= `select @@basedir`;
 
 # Create custom datadir
@@ -24,14 +23,14 @@ CREATE DATABASE test DEFAULT CHARACTER SET latin1;
 EOF
 
 # Set the bootstrap parameter with new innodb_undo_directory
-let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure $KEYRING_PLUGIN_OPT --lc_messages_dir=$MYSQL_SHAREDIR --innodb-page-size=$page_size --innodb-undo-tablespaces=$innodb_undo_tablespaces --basedir=$MYSQLD_BASEDIR --datadir=$CUSTOM_DATADIR --innodb_log_file_size=5M --innodb_log_files_in_group=2 --innodb_undo_directory=$MYSQLTEST_VARDIR/tmp/innodb_undo --init-file=$BOOTSTRAP_SQL --secure-file-priv="" </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
+let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure $KEYRING_PLUGIN_OPT --lc_messages_dir=$MYSQL_SHAREDIR --innodb-page-size=$page_size --basedir=$MYSQLD_BASEDIR --datadir=$CUSTOM_DATADIR --innodb_log_file_size=15M --innodb_log_files_in_group=2 --innodb_undo_directory=$MYSQLTEST_VARDIR/tmp/innodb_undo --init-file=$BOOTSTRAP_SQL --secure-file-priv="" </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
 
 # Run the bootstrap command
 --exec $NEW_CMD
 
 # Start the DB server with new datadir, innodb_data_home_dir, innodb_log_group_home_dir and innodb_undo_directory
---replace_result $CUSTOM_DATADIR CUSTOM_DATADIR $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $innodb_undo_tablespaces innodb_undo_tablespaces
---let $restart_parameters="restart: --datadir=$CUSTOM_DATADIR --innodb_data_home_dir=$MYSQLTEST_VARDIR/tmp/innodb --innodb_log_group_home_dir=$MYSQLTEST_VARDIR/tmp/innodb_logs --innodb_undo_directory=$MYSQLTEST_VARDIR/tmp/innodb_undo --innodb_undo_tablespaces=$innodb_undo_tablespaces"
+--replace_result $CUSTOM_DATADIR CUSTOM_DATADIR $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--let $restart_parameters="restart: --datadir=$CUSTOM_DATADIR --innodb_data_home_dir=$MYSQLTEST_VARDIR/tmp/innodb --innodb_log_group_home_dir=$MYSQLTEST_VARDIR/tmp/innodb_logs --innodb_undo_directory=$MYSQLTEST_VARDIR/tmp/innodb_undo"
 --source include/start_mysqld.inc
 
 # Passing NULL should return NULL

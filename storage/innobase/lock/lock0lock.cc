@@ -2111,7 +2111,7 @@ bool RecLock::jump_queue(lock_t *lock, const lock_t *conflict_lock) {
   ut_ad(trx_mutex_own(m_trx));
   ut_ad(conflict_lock->trx != m_trx);
   ut_ad(trx_is_high_priority(m_trx));
-  ut_ad(m_rec_id.m_heap_no != ULINT32_UNDEFINED);
+  ut_ad(m_rec_id.m_heap_no != UINT32_UNDEFINED);
 
   bool high_priority = false;
 

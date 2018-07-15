@@ -354,15 +354,12 @@ dberr_t row_mysql_lock_table(
     const char *op_info) /*!< in: string for trx->op_info */
     MY_ATTRIBUTE((warn_unused_result));
 
-/** Drop a single-table tablespace as part of dropping or renaming a table.
+/** Drop a tablespace as part of dropping or renaming a table.
 This deletes the fil_space_t if found and the file on disk.
 @param[in]	space_id	Tablespace ID
-@param[in]	tablename	Table name, same as the tablespace name
 @param[in]	filepath	File path of tablespace to delete
 @return error code or DB_SUCCESS */
-dberr_t row_drop_single_table_tablespace(space_id_t space_id,
-                                         const char *tablename,
-                                         const char *filepath);
+dberr_t row_drop_tablespace(space_id_t space_id, const char *filepath);
 
 /** Drop a table for MySQL. If the data dictionary was not already locked
 by the transaction, the transaction will be committed.  Otherwise, the

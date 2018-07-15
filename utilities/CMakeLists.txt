@@ -152,10 +152,12 @@ IF(WITH_INNOBASE_STORAGE_ENGINE)
     ENDIF()
   ENDIF(NOT MSVC)
 
-  # Add path to the InnoDB headers
+  # Add path to the InnoDB headers and DD
   INCLUDE_DIRECTORIES(
-    ${CMAKE_SOURCE_DIR}/storage/innobase/
+    ${CMAKE_SOURCE_DIR}/storage/innobase
     ${CMAKE_SOURCE_DIR}/storage/innobase/include
+    ${CMAKE_SOURCE_DIR}/sql
+    ${CMAKE_SOURCE_DIR}/libbinlogevents/include
   )
 
   # We use the InnoDB code directly in case the code changes.

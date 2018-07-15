@@ -3664,19 +3664,16 @@ dberr_t row_drop_table_from_cache(dict_table_t *table, trx_t *trx) {
   return (DB_SUCCESS);
 }
 
-/** Drop a single-table tablespace as part of dropping or renaming a table.
+/** Drop a tablespace as part of dropping or renaming a table.
 This deletes the fil_space_t if found and the file on disk.
 @param[in]	space_id	Tablespace ID
-@param[in]	tablename	Table name, same as the tablespace name
 @param[in]	filepath	File path of tablespace to delete
 @return error code or DB_SUCCESS */
-dberr_t row_drop_single_table_tablespace(space_id_t space_id,
-                                         const char *tablename,
-                                         const char *filepath) {
+dberr_t row_drop_tablespace(space_id_t space_id, const char *filepath) {
   dberr_t err = DB_SUCCESS;
 
   /* If the tablespace is not in the cache, just delete the file. */
-  if (!fil_space_exists_in_mem(space_id, tablename, true, false, NULL, 0)) {
+  if (!fil_space_exists_in_mem(space_id, nullptr, true, false, NULL, 0)) {
     /* Force a delete of any discarded or temporary files. */
     if (fil_delete_file(filepath)) {
       ib::info(ER_IB_MSG_989) << "Removed datafile " << filepath;

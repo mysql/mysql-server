@@ -4653,7 +4653,7 @@ static dberr_t os_file_get_status_win32(const char *path,
 
     stat_info->block_size = (stat_info->block_size <= 4096)
                                 ? stat_info->block_size * 16
-                                : ULINT32_UNDEFINED;
+                                : UINT32_UNDEFINED;
   } else {
     stat_info->type = OS_FILE_TYPE_UNKNOWN;
   }

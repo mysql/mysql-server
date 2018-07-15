@@ -75,7 +75,7 @@ bool validate_tablespace_name_length(const char *tablespace_name);
 
   SE specific validation is done by the SE by invoking a handlerton method.
 
-  @param tablespace_ddl         Whether this is tablespace DDL or not.
+  @param ts_cmd                 Whether this is tablespace DDL or not.
   @param tablespace_name        Name of the tablespace
   @param engine                 Handlerton for the tablespace.
 
@@ -83,7 +83,8 @@ bool validate_tablespace_name_length(const char *tablespace_name);
   @retval  true    Error encountered and reported.
 */
 
-bool validate_tablespace_name(bool tablespace_ddl, const char *tablespace_name,
+bool validate_tablespace_name(ts_command_type ts_cmd,
+                              const char *tablespace_name,
                               const handlerton *engine);
 
 /**
@@ -99,8 +100,8 @@ class Sql_cmd_tablespace : public Sql_cmd /* purecov: inspected */
   /**
     Creates shared base object.
 
-    @param name
-    @param options
+    @param  name      name of tablespace
+    @param  options   additional options to statement
    */
   Sql_cmd_tablespace(const LEX_STRING &name, const Tablespace_options *options);
 
@@ -125,10 +126,10 @@ class Sql_cmd_create_tablespace final
   /**
     Creates execution class instance for create tablespace statement.
 
-    @param tsname name of tablespace
-    @param dfname name of data file
-    @param lfgname name of logfile group (may be {nullptr, 0})
-    @param options additional options to statement
+    @param  tsname    name of tablespace
+    @param  dfname    name of data file
+    @param  lfgname   name of logfile group (may be {nullptr, 0})
+    @param  options   additional options to statement
   */
   Sql_cmd_create_tablespace(const LEX_STRING &tsname, const LEX_STRING &dfname,
                             const LEX_STRING &lfgname,
@@ -185,9 +186,9 @@ class Sql_cmd_alter_tablespace_add_datafile final
   /**
     Creates execution class instance for add datafile statement.
 
-    @param tsname name of tablespace
-    @param dfname name of data file to add
-    @param options additional options to statement
+    @param  tsname    name of tablespace
+    @param  dfname    name of data file to add
+    @param  options   additional options to statement
   */
   Sql_cmd_alter_tablespace_add_datafile(const LEX_STRING &tsname,
                                         const LEX_STRING &dfname,
@@ -207,9 +208,9 @@ class Sql_cmd_alter_tablespace_drop_datafile final
   /**
     Creates execution class instance for drop datafile statement.
 
-    @param tsname name of tablespace
-    @param dfname name of data file to drop
-    @param options additional options to statement
+    @param  tsname    name of tablespace
+    @param  dfname    name of data file to drop
+    @param  options   additional options to statement
   */
   Sql_cmd_alter_tablespace_drop_datafile(const LEX_STRING &tsname,
                                          const LEX_STRING &dfname,
@@ -238,11 +239,94 @@ class Sql_cmd_alter_tablespace_rename final
 };
 
 /**
+  Execution class for CREATE UNDO TABLESPACE
+ */
+class Sql_cmd_create_undo_tablespace final : public Sql_cmd {
+  const ts_command_type m_cmd;
+  const LEX_STRING m_undo_tablespace_name;
+  const LEX_STRING m_datafile_name;
+  const Tablespace_options *m_options;
+
+ public:
+  /**
+    Creates execution class instance for undo tablespace statements.
+
+    @param  cmd_type  subcommand passed to se
+    @param  utsname   name of undo tablespace
+    @param  dfname    name of data file
+    @param  options   additional options to statemente
+   */
+  Sql_cmd_create_undo_tablespace(const ts_command_type cmd_type,
+                                 const LEX_STRING &utsname,
+                                 const LEX_STRING &dfname,
+                                 const Tablespace_options *options);
+
+  bool execute(THD *) override;
+  enum_sql_command sql_command_code() const override;
+};
+
+/**
+  Execution class for ALTER UNDO TABLESPACE
+ */
+class Sql_cmd_alter_undo_tablespace final : public Sql_cmd {
+  const ts_command_type m_cmd;
+  const LEX_STRING m_undo_tablespace_name;
+  const LEX_STRING m_datafile_name;
+  const ts_alter_tablespace_type m_at_type;
+  const Tablespace_options *m_options;
+
+ public:
+  /**
+    Creates execution class instance for undo tablespace statements.
+
+    @param  cmd_type  subcommand passed to se
+    @param  utsname   name of undo tablespace
+    @param  dfname    name of data file
+    @param  options   additional options to statemente
+    @param  at_type   alter tablespace subcommand passed to se
+   */
+  Sql_cmd_alter_undo_tablespace(
+      const ts_command_type cmd_type, const LEX_STRING &utsname,
+      const LEX_STRING &dfname, const Tablespace_options *options,
+      ts_alter_tablespace_type at_type = TS_ALTER_TABLESPACE_TYPE_NOT_DEFINED);
+
+  bool execute(THD *) override;
+  enum_sql_command sql_command_code() const override;
+};
+
+/**
+  Execution class for DROP UNDO TABLESPACE
+ */
+class Sql_cmd_drop_undo_tablespace final : public Sql_cmd {
+  const ts_command_type m_cmd;
+  const LEX_STRING m_undo_tablespace_name;
+  const LEX_STRING m_datafile_name;
+  const Tablespace_options *m_options;
+
+ public:
+  /**
+    Creates execution class instance for drop undo tablespace statements.
+
+    @param  cmd_type  subcommand passed to se
+    @param  utsname   name of undo tablespace
+    @param  dfname    name of data file
+    @param  options   additional options to statemente
+   */
+  Sql_cmd_drop_undo_tablespace(const ts_command_type cmd_type,
+                               const LEX_STRING &utsname,
+                               const LEX_STRING &dfname,
+                               const Tablespace_options *options);
+
+  bool execute(THD *) override;
+  enum_sql_command sql_command_code() const override;
+};
+
+/**
   Execution class for CREATE/DROP/ALTER LOGFILE GROUP ...
  */
 class Sql_cmd_logfile_group final : public Sql_cmd /* purecov: inspected */
 {
-  ts_command_type m_cmd;
+  const ts_command_type m_cmd;
   const LEX_STRING m_logfile_group_name;
   const LEX_STRING m_undofile_name;
   const Tablespace_options *m_options;
@@ -256,7 +340,7 @@ class Sql_cmd_logfile_group final : public Sql_cmd /* purecov: inspected */
     @param options additional options to statement
     @param undofile_name name of undo file
    */
-  Sql_cmd_logfile_group(ts_command_type cmd_type,
+  Sql_cmd_logfile_group(const ts_command_type cmd_type,
                         const LEX_STRING &logfile_group_name,
                         const Tablespace_options *options,
                         const LEX_STRING &undofile_name = {nullptr, 0});

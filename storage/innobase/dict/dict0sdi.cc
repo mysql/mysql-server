@@ -172,7 +172,7 @@ bool dict_sdi_get_keys(const dd::Tablespace &tablespace,
 #if 0 /* TODO: Enable in WL#9761 */
 	uint32	space_id;
 
-	if (dd_tablespace_get_discard(&tablespace)) {
+	if (dd_tablespace_is_discarded(&tablespace)) {
 		/* sdi_get_keys shouldn't be called on discarded tablespaces.*/
 		ut_ad(0);
 	}
@@ -224,7 +224,7 @@ bool dict_sdi_get(const dd::Tablespace &tablespace,
 			<< ")";
 	);
 
-	if (dd_tablespace_get_discard(&tablespace)) {
+	if (dd_tablespace_is_discarded(&tablespace)) {
 		/* sdi_get shouldn't be called on discarded tablespaces.*/
 		ut_ad(0);
 	}
@@ -308,7 +308,7 @@ bool dict_sdi_set(handlerton *hton, const dd::Tablespace &tablespace,
   /* Used for testing purpose for DDLs from Memcached */
   DBUG_EXECUTE_IF("skip_sdi", return (false););
 
-  if (dd_tablespace_get_discard(&tablespace)) {
+  if (dd_tablespace_is_discarded(&tablespace)) {
     /* Claim success. */
     return (false);
   }
@@ -415,7 +415,7 @@ bool dict_sdi_delete(const dd::Tablespace &tablespace, const dd::Table *table,
   /* Used for testing purpose for DDLs from Memcached */
   DBUG_EXECUTE_IF("skip_sdi", return (false););
 
-  if (dd_tablespace_get_discard(&tablespace)) {
+  if (dd_tablespace_is_discarded(&tablespace)) {
     /* Claim success. */
     return (false);
   }

@@ -1,0 +1,58 @@
+# ***************************************************************
+# Sanity checking of explicit undo tablespaces
+# Check CREATE,ALTER and DROP undo tablespaces are working
+# ***************************************************************
+--source ../mysql-test/include/xplugin_preamble.inc
+
+create user insertsqluser@localhost identified by 'insertsqluser';
+grant all on *.* to insertsqluser@localhost;
+
+--write_file $MYSQL_TMP_DIR/mysqlx-undo_sql.tmp
+-->sql
+
+DROP SCHEMA if EXISTS mysqlxplugin;
+CREATE SCHEMA mysqlxplugin;
+USE mysqlxplugin;
+
+CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
+
+SELECT name,space_type,state FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+                             WHERE space_type = 'Undo';
+
+ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
+
+CREATE TABLE tab2(c1 int , c2 varchar(10)) Engine=InnoDB;
+INSERT INTO tab2 VALUES(2, 'VISH');
+CREATE INDEX ix1 ON tab2(c2) USING BTREE;
+
+SELECT * FROM tab2;
+
+-->endsql
+EOF
+
+--exec $MYSQLXTEST -u insertsqluser --password='insertsqluser' --file=$MYSQL_TMP_DIR/mysqlx-undo_sql.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-undo_sql.tmp
+
+# Check metadata info
+let $wait_condition= SELECT count(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+                     WHERE NAME LIKE '%undo_%' AND STATE = 'empty';
+source include/wait_condition.inc;
+
+SELECT name,space_type,state FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+                             WHERE space_type = 'Undo';
+
+--write_file $MYSQL_TMP_DIR/mysqlx-undo_sql.tmp
+-->sql
+
+USE mysqlxplugin;
+DROP TABLE tab2;
+DROP UNDO TABLESPACE undo_003;
+DROP SCHEMA if EXISTS mysqlxplugin;
+DROP USER insertsqluser@localhost;
+
+-->endsql
+EOF
+
+--exec $MYSQLXTEST -u insertsqluser --password='insertsqluser' --file=$MYSQL_TMP_DIR/mysqlx-undo_sql.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-undo_sql.tmp
+--remove_files_wildcard $MYSQL_TMP_DIR [mysqlx.1*]

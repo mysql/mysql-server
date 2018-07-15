@@ -49,15 +49,15 @@ class Sdi_Compressor {
     switch (
         compress2(m_comp_sdi, &zlen, src, static_cast<uLong>(m_src_len), 6)) {
       case Z_BUF_ERROR:
-        ib::fatal() << "Compression failed, Z_BUF_ERROR";
+        ib::fatal(ER_IB_MSG_FAILED_SDI_Z_BUF_ERROR);
         break;
 
       case Z_MEM_ERROR:
-        ib::fatal() << "Compression failed, Z_MEM_ERROR";
+        ib::fatal(ER_IB_MSG_FAILED_SDI_Z_MEM_ERROR);
         break;
 
       case Z_STREAM_ERROR:
-        ib::fatal() << "Compression failed, Z_STREAM_ERROR";
+        ib::fatal(ER_IB_MSG_SDI_Z_STREAM_ERROR);
         break;
 
       case Z_OK:
@@ -65,7 +65,7 @@ class Sdi_Compressor {
         break;
 
       default:
-        ib::fatal() << "Compression failed, UNKNOWN_ERROR";
+        ib::fatal(ER_IB_MSG_SDI_Z_UNKNOWN_ERROR);
         break;
     }
   }

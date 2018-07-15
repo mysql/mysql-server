@@ -287,12 +287,12 @@ dberr_t btr_root_adjust_on_import(
       /* We remove SDI flag from space flags temporarily for
       comparison because the space flags derived from table
       flags will not have SDI flag */
-      fsp_flags &= ~FSP_FLAGS_MASK_SDI;
+      FSP_FLAGS_UNSET_SDI(fsp_flags);
 
       /* As encryption is not a table property, we don't keep
       any encryption property related flag in table. Thus
       exclude encryption flag as well. */
-      fsp_flags &= ~FSP_FLAGS_MASK_ENCRYPTION;
+      FSP_FLAGS_UNSET_ENCRYPTION(fsp_flags);
 
       err = fsp_flags_are_equal(flags, fsp_flags) ? DB_SUCCESS : DB_CORRUPTION;
     }
@@ -4742,7 +4742,7 @@ dberr_t btr_sdi_create_index(space_id_t space_id, bool dict_locked) {
   ut_ad(mach_read_from_4(page + FSP_HEADER_OFFSET + FSP_SPACE_FLAGS) ==
         fsp_flags);
 
-  fsp_flags = FSP_FLAGS_SET_SDI(fsp_flags);
+  FSP_FLAGS_SET_SDI(fsp_flags);
   mlog_write_ulint(FSP_HEADER_OFFSET + FSP_SPACE_FLAGS + page, fsp_flags,
                    MLOG_4BYTES, &mtr);
 

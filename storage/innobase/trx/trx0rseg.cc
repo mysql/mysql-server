@@ -299,22 +299,29 @@ void trx_rsegs_init(purge_pq_t *purge_queue) {
     if (page_no != FIL_NULL) {
       space_id = trx_sysf_rseg_get_space(sys_header, slot, &mtr);
 
-      /* Create the trx_rseg_t object.
-      Note that all tablespaces with rollback segments
-      use univ_page_size. (system, temp & undo) */
-      rseg = trx_rseg_mem_create(slot, space_id, page_no, univ_page_size,
-                                 purge_queue, &mtr);
+      if (!undo::is_active_truncate_log_present(undo::id2num(space_id))) {
+        /* Create the trx_rseg_t object.
+        Note that all tablespaces with rollback segments
+        use univ_page_size. (system, temp & undo) */
+        rseg = trx_rseg_mem_create(slot, space_id, page_no, univ_page_size,
+                                   purge_queue, &mtr);
 
-      ut_a(rseg->id == slot);
+        ut_a(rseg->id == slot);
 
-      trx_sys->rsegs.push_back(rseg);
+        trx_sys->rsegs.push_back(rseg);
+      }
     }
     mtr.commit();
   }
 
-  undo::spaces->x_lock();
+  undo::spaces->s_lock();
   for (auto undo_space : undo::spaces->m_spaces) {
+    /* Remember the size of the purge queue before processing this
+    undo tablespace. */
+    size_t purge_queue_size = purge_queue->size();
+
     undo_space->rsegs()->x_lock();
+
     for (slot = 0; slot < FSP_MAX_ROLLBACK_SEGMENTS; slot++) {
       page_no = trx_rseg_get_page_no(undo_space->id(), slot);
 
@@ -340,8 +347,19 @@ void trx_rsegs_init(purge_pq_t *purge_queue) {
       mtr.commit();
     }
     undo_space->rsegs()->x_unlock();
+
+    /* If there are no undo logs in this explicit undo tablespace at
+    startup, mark it empty so that it will not be used until the state
+    recorded in the DD can be applied in apply_dd_undo_state(). */
+    if (undo_space->num() > FSP_IMPLICIT_UNDO_TABLESPACES &&
+        !undo_space->is_empty()) {
+      size_t cur_size = purge_queue->size();
+      if (purge_queue_size == cur_size) {
+        undo_space->set_empty();
+      }
+    }
   }
-  undo::spaces->x_unlock();
+  undo::spaces->s_unlock();
 }
 
 /** Create a rollback segment in the given tablespace. This could be either
@@ -352,6 +370,8 @@ the system tablespace, the temporary tablespace, or an undo tablespace.
 page_no_t trx_rseg_create(space_id_t space_id, ulint rseg_id) {
   mtr_t mtr;
   fil_space_t *space = fil_space_get(space_id);
+
+  log_free_check();
 
   mtr_start(&mtr);
 
@@ -435,39 +455,31 @@ trx_rseg_t *Rsegs::find(ulint rseg_id) {
 1. Find or create (trx_rseg_create) the requested number of rollback segments.
 2. Make sure each rollback segment is tracked in memory (trx_rseg_mem_create).
 All existing rollback segments were found earlier in trx_rsegs_init().
-This will add new ones if we need them according to the
-target_undo_tablespaces and target_rollback_segments, we will build them in
-the tablespace and in memory.
+This will add new ones if we need them according to target_rsegs.
 @param[in]	space_id	tablespace ID that should contain rollback
                                 segments
-@param[in]	target_spaces	target number of undo tablespaces
 @param[in]	target_rsegs	target number of rollback segments per
                                 tablespace
-@param[in]	rsegs		list of rsegs to add to */
-bool trx_rseg_add_rollback_segments(space_id_t space_id, ulong target_spaces,
-                                    ulong target_rsegs, Rsegs *rsegs) {
+@param[in]	rsegs		list of rsegs to add to
+@param[in,out] n_total_created  A running total of rollback segment created in
+undo tablespaces
+@return true if all rsegs are added, false if not. */
+bool trx_rseg_add_rollback_segments(space_id_t space_id, ulong target_rsegs,
+                                    Rsegs *rsegs, ulint *n_total_created) {
   bool success = true;
-  bool creating_rsegs = false;
   mtr_t mtr;
   page_no_t page_no;
   trx_rseg_t *rseg;
-  ulong n_existing = 0;
-  ulong n_created = 0;
-  ulong n_tracked = 0;
+  ulint n_existing = 0;
+  ulint n_created = 0;
+  ulint n_tracked = 0;
 
-  enum space_type_t { TEMP, SYSTEM, UNDO } type;
+  enum space_type_t { TEMP, UNDO } type;
 
-  if (fsp_is_undo_tablespace(space_id)) {
-    type = UNDO;
-    creating_rsegs = (target_spaces > 0);
-  } else if (space_id == TRX_SYS_SPACE) {
-    type = SYSTEM;
-    creating_rsegs = (target_spaces == 0);
-  } else {
-    ut_ad(fsp_is_system_temporary(space_id));
-    type = TEMP;
-    creating_rsegs = false;
-  }
+  ut_ad(space_id != TRX_SYS_SPACE);
+
+  type = (fsp_is_undo_tablespace(space_id) ? UNDO : TEMP);
+  ut_ad(type == UNDO || fsp_is_system_temporary(space_id));
 
   /* Protect against two threads trying to add rollback segments
   at the same time. */
@@ -479,11 +491,6 @@ bool trx_rseg_add_rollback_segments(space_id_t space_id, ulong target_spaces,
     }
 
     ulint rseg_id = num;
-    if (type == SYSTEM) {
-      mtr.start();
-      rseg_id = trx_sysf_rseg_find_free(&mtr);
-      mtr.commit();
-    }
 
     /* If the rseg object exists, move to the next rseg_id. */
     rseg = rsegs->find(rseg_id);
@@ -498,9 +505,6 @@ bool trx_rseg_add_rollback_segments(space_id_t space_id, ulong target_spaces,
     if (type == UNDO) {
       page_no = trx_rseg_get_page_no(space_id, rseg_id);
 
-    } else if (type == SYSTEM) {
-      page_no = trx_sysf_rseg_find_page_no(rseg_id);
-
     } else {
       /* There is no durable list of rollback segments in
       the temporary tablespace. Since it was not found in
@@ -511,22 +515,20 @@ bool trx_rseg_add_rollback_segments(space_id_t space_id, ulong target_spaces,
 
     if (page_no == FIL_NULL) {
       /* Create the missing rollback segment if allowed. */
-      if (type == TEMP ||
-          (!srv_read_only_mode && srv_force_recovery == 0 && creating_rsegs)) {
+      if (type == TEMP || (!srv_read_only_mode && srv_force_recovery == 0)) {
         page_no = trx_rseg_create(space_id, rseg_id);
         if (page_no == FIL_NULL) {
           /* There may not be enough space in
-          the system or temporary tablespace
-          since it is possible to limit their
-          size. */
-          ut_ad(type != UNDO);
+          the temporary tablespace since it is
+          possible to limit its size. */
+          ut_ad(type == TEMP);
           continue;
         }
         n_created++;
       } else {
-        /* trx_rseg_create() is being prevented in
-        a SYSTEM or UNDO tablespace. Don't try to
-        create any more. */
+        /* trx_rseg_create() is being prevented
+        in an UNDO tablespace. Don't try to create
+        any more. */
         break;
       }
     } else {
@@ -556,29 +558,12 @@ bool trx_rseg_add_rollback_segments(space_id_t space_id, ulong target_spaces,
     }
   }
 
-  /* TEMP and UNDO Rsegs are always added to in order of rseg_id so
-  they never need to be sorted.  But the SYSTEM Rsegs might initially
-  have a 32 slot gap if it was created by an earlier engine.  New
-  rollback segments might be added in that gap. So the SYSTEM Rseg
-  list is the only one that needs to be sorted. */
-  if (type == SYSTEM) {
-    rsegs->sort();
-  }
-
   rsegs->x_unlock();
-
-  if (n_created > 0 && type != TEMP && !srv_read_only_mode &&
-      srv_force_recovery == 0) {
-    log_make_latest_checkpoint();
-  }
 
   std::ostringstream loc;
   switch (type) {
     case UNDO:
       loc << "undo tablespace number " << undo::id2num(space_id);
-      break;
-    case SYSTEM:
-      loc << "the system tablespace";
       break;
     case TEMP:
       loc << "the temporary tablespace";
@@ -601,7 +586,7 @@ bool trx_rseg_add_rollback_segments(space_id_t space_id, ulong target_spaces,
       srv_rollback_segments =
           ut_min(srv_rollback_segments, static_cast<ulong>(n_known));
 
-    } else if (creating_rsegs) {
+    } else {
       ib::warn(ER_IB_MSG_1192)
           << "Could not create all " << target_rsegs << " rollback segments in "
           << loc.str() << ". Only " << n_known << " are active.";
@@ -629,6 +614,10 @@ bool trx_rseg_add_rollback_segments(space_id_t space_id, ulong target_spaces,
         << loc.str() << ".";
   }
 
+  if (n_total_created != nullptr) {
+    n_total_created += n_created;
+  }
+
   return (success);
 }
 
@@ -636,20 +625,20 @@ bool trx_rseg_add_rollback_segments(space_id_t space_id, ulong target_spaces,
 srv_rollback_segments of them.  Use any rollback segment that already
 exists so that the purge_queue can be filled and processed with any
 existing undo log. If the rollback segments do not exist in this
-tablespace and we need them according to the target_undo_tablespaces
-and target_rollback_segments, build them in the tablespace.
-@param[in]	target_undo_tablespaces		target number of undo
-                                                tablespaces
+tablespace and we need them according to target_rollback_segments,
+then build them in the tablespace.
 @param[in]	target_rollback_segments	new number of rollback
                                                 segments per space
 @return true if all necessary rollback segments and trx_rseg_t objects
 were created. */
-bool trx_rseg_adjust_rollback_segments(ulong target_undo_tablespaces,
-                                       ulong target_rollback_segments) {
+bool trx_rseg_adjust_rollback_segments(ulong target_rollback_segments) {
+  /** The number of rollback segments created in the datafile. */
+  ulint n_total_created = 0;
+
   /* Make sure Temporary Tablespace has enough rsegs. */
-  if (!trx_rseg_add_rollback_segments(
-          srv_tmp_space.space_id(), target_undo_tablespaces,
-          target_rollback_segments, &(trx_sys->tmp_rsegs))) {
+  if (!trx_rseg_add_rollback_segments(srv_tmp_space.space_id(),
+                                      target_rollback_segments,
+                                      &(trx_sys->tmp_rsegs), nullptr)) {
     return (false);
   }
 
@@ -659,30 +648,50 @@ bool trx_rseg_adjust_rollback_segments(ulong target_undo_tablespaces,
   }
 
   /* Adjust the number of rollback segments in each Undo Tablespace
-  whether or not it is currently active. */
-  if (target_undo_tablespaces > 0) {
-    undo::spaces->s_lock();
-    for (auto undo_space : undo::spaces->m_spaces) {
+  whether or not it is currently active. If rollback segments are written
+  to the tablespace, they will be checkpointed. But we cannot hold
+  undo::spaces->s_lock while doing a checkpoint because of latch order
+  violation.  So traverse the list by ID. */
+  undo::spaces->s_lock();
+  for (auto undo_space : undo::spaces->m_spaces) {
+    if (!trx_rseg_add_rollback_segments(
+            undo_space->id(), target_rollback_segments, undo_space->rsegs(),
+            &n_total_created)) {
       undo::spaces->s_unlock();
-
-      if (!trx_rseg_add_rollback_segments(
-              undo_space->id(), target_undo_tablespaces,
-              target_rollback_segments, undo_space->rsegs())) {
-        return (false);
-      }
-      undo::spaces->s_lock();
-    }
-    undo::spaces->s_unlock();
-  }
-
-  /* System tablespace */
-  if (target_undo_tablespaces == 0) {
-    if (!trx_rseg_add_rollback_segments(TRX_SYS_SPACE, target_undo_tablespaces,
-                                        target_rollback_segments,
-                                        &(trx_sys->rsegs))) {
       return (false);
     }
   }
+  undo::spaces->s_unlock();
+
+  /* Make sure these rollback segments are checkpointed. */
+  if (n_total_created > 0 && !srv_read_only_mode && srv_force_recovery == 0) {
+    log_make_latest_checkpoint();
+  }
+
+  return (true);
+}
+
+/** Create the requested number of Rollback Segments in the undo tablespace
+and add them to the Rsegs object.
+@param[in]  space_id                  undo tablespace ID
+@param[in]  target_rollback_segments  number of rollback segments per space
+@return true if all necessary rollback segments and trx_rseg_t objects
+were created. */
+bool trx_rseg_init_rollback_segments(space_id_t space_id,
+                                     ulong target_rollback_segments) {
+  /** The number of rollback segments created in the datafile. */
+  ulint n_total_created = 0;
+
+  undo::spaces->s_lock();
+  space_id_t space_num = undo::id2num(space_id);
+  undo::Tablespace *undo_space = undo::spaces->find(space_num);
+  undo::spaces->s_unlock();
+
+  if (!trx_rseg_add_rollback_segments(space_id, target_rollback_segments,
+                                      undo_space->rsegs(), &n_total_created)) {
+    return (false);
+  }
+
   return (true);
 }
 
@@ -768,13 +777,6 @@ void trx_rseg_upgrade_undo_tablespaces() {
   }
 
   mtr_commit(&mtr);
-
-  /* After upgrading, undo tablespaces track their own rsegs.
-  Clear the list of rsegs in old undo tablespaces. */
-  trx_sys->rsegs.x_lock();
-  trx_sys->rsegs.clear();
-  ut_ad(trx_sys->rsegs.size() == 0);
-  trx_sys->rsegs.x_unlock();
 }
 
 /** Create the file page for the rollback segment directory in an undo
@@ -788,9 +790,6 @@ void trx_rseg_array_create(space_id_t space_id, mtr_t *mtr) {
   page_t *page;
   byte *ptr;
   ulint len;
-
-  fil_space_t *space = fil_space_get(space_id);
-  mtr_x_lock_space(space, mtr);
 
   /* Create the fseg directory file block in a new allocated file segment */
   block = fseg_create(space_id, 0,

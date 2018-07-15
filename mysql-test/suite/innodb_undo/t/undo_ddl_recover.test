@@ -1,0 +1,86 @@
+--echo #
+--echo # Test recovery when a crash happens during undo tablespace DDL.
+--echo #
+
+# This test uses debug insertion points.
+--source include/have_debug.inc
+
+# Valgrind would complain about memory leaks when we crash on purpose.
+--source include/not_valgrind.inc
+
+# Start with just 2 undo tablespaces.
+--source include/have_innodb_default_undo_tablespaces.inc
+
+--echo #
+--echo # Create ando populate the test-bed for Undo DDL Recover tests
+--echo #
+let SEARCH_FILE = $MYSQLTEST_VARDIR/log/mysqld.1.err;
+--let $_server_id= `SELECT @@server_id`
+--let $_expect_file_name= $MYSQLTEST_VARDIR/tmp/mysqld.$_server_id.expect
+
+CREATE TABLE t1 (c1 INT, c2 TEXT, c3 TEXT, PRIMARY KEY(c1));
+
+delimiter |;
+CREATE PROCEDURE populate_t1()
+BEGIN
+  DECLARE i INT DEFAULT 1;
+  WHILE (i <= 100) DO
+    INSERT INTO t1 VALUES (i, repeat('a', i * 100), repeat('b', 10000 - (i * 100)));
+    SET i = i + 1;
+  END WHILE;
+END |
+delimiter ;|
+
+CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
+
+CALL populate_t1();
+
+DELETE FROM t1 WHERE (c1 % 5 = 0);
+UPDATE t1 SET c2 = 'mysql' WHERE  (c1 % 4 = 0);
+UPDATE t1 SET c3 = 'oracle' WHERE (c1 % 3 = 0);
+
+ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
+
+let $wait_timeout = 600; # Override default 30 seconds with 300.
+let $wait_condition = SELECT count(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+                     WHERE SPACE_TYPE = 'Undo' AND STATE = 'empty';
+source include/wait_condition.inc;
+
+SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+       WHERE SPACE_TYPE = 'Undo';
+SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
+       WHERE FILE_NAME LIKE '%undo%' ORDER BY TABLESPACE_NAME;
+
+--echo #
+--echo # Crash before deleting the tablespace file during the DDL_LOG apply.
+--echo #
+let $insert_statement = INSERT INTO t1 VALUES (1001, 'mysql', 'oracle');
+let $table_name = t1;
+let $final_table_name = t1;
+let $crash_statement = DROP UNDO TABLESPACE undo_003;
+SET GLOBAL DEBUG = "+d,ddl_log_replay_delete_space_crash_before_drop";
+--source ../mysql-test/suite/innodb/include/ddl_crash.inc
+SET GLOBAL DEBUG = "-d,ddl_log_replay_delete_space_crash_before_drop";
+
+SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+       WHERE SPACE_TYPE = 'Undo';
+SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
+       WHERE FILE_NAME LIKE '%undo%' ORDER BY TABLESPACE_NAME;
+
+--echo #
+--echo # Cleanup
+--echo #
+
+DROP PROCEDURE populate_t1;
+DROP TABLE t1;
+let $MYSQLD_DATADIR = `select @@datadir`;
+
+--source include/shutdown_mysqld.inc
+--remove_files_wildcard $MYSQLD_DATADIR *.ibu
+--source include/start_mysqld.inc
+
+--disable_query_log
+call mtr.add_suppression("Doublewrite page .* could not be restored");
+--enable_query_log
+
+

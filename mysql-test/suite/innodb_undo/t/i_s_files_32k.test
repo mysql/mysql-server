@@ -1,12 +1,42 @@
 --source include/not_valgrind.inc
+--source include/have_innodb_default_undo_tablespaces.inc
 
 --echo #
 --echo # WL7943 Implement INFORMATION_SCHEMA.FILES
 --echo #
 
 --echo # Mysqld is initialized in this test with with:
---echo # --innodb_undo_tablespaces=64
 --echo # --innodb_rollback_segments=1
 --echo # --bootstrap --innodb_page_size=32k
+--echo # 2 implicit and 6 explicit undo tablespaces
+
+CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
+CREATE UNDO TABLESPACE undo_004 ADD DATAFILE 'undo_004.ibu';
+CREATE UNDO TABLESPACE undo_005 ADD DATAFILE 'undo_005.ibu';
+CREATE UNDO TABLESPACE undo_006 ADD DATAFILE 'undo_006.ibu';
+CREATE UNDO TABLESPACE undo_007 ADD DATAFILE 'undo_007.ibu';
+CREATE UNDO TABLESPACE undo_008 ADD DATAFILE 'undo_008.ibu';
 
 --source suite/innodb_undo/include/i_s_files.inc
+
+--echo # Set all explicit undo tablespaces to inacitve.
+ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
+ALTER UNDO TABLESPACE undo_004 SET INACTIVE;
+ALTER UNDO TABLESPACE undo_005 SET INACTIVE;
+ALTER UNDO TABLESPACE undo_006 SET INACTIVE;
+ALTER UNDO TABLESPACE undo_007 SET INACTIVE;
+ALTER UNDO TABLESPACE undo_008 SET INACTIVE;
+
+--echo # Wait for all explicit undo tablespaces to become empty.
+let $wait_timeout= 300; # Override default 30 seconds with 300.
+let $wait_condition= SELECT count(*) = 6 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+                     WHERE SPACE_TYPE = 'Undo' AND STATE = 'empty';
+source include/wait_condition.inc;
+
+--echo # Drop all explicit undo tablespaces.
+DROP UNDO TABLESPACE undo_003;
+DROP UNDO TABLESPACE undo_004;
+DROP UNDO TABLESPACE undo_005;
+DROP UNDO TABLESPACE undo_006;
+DROP UNDO TABLESPACE undo_007;
+DROP UNDO TABLESPACE undo_008;

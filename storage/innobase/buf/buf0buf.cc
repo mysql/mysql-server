@@ -1427,7 +1427,7 @@ static bool buf_page_realloc(buf_pool_t *buf_pool, buf_block_t *block) {
     memset(block->frame + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, 0xff, 4);
     UNIV_MEM_INVALID(block->frame, UNIV_PAGE_SIZE);
     buf_block_set_state(block, BUF_BLOCK_REMOVE_HASH);
-    block->page.id.reset(ULINT32_UNDEFINED, ULINT32_UNDEFINED);
+    block->page.id.reset(UINT32_UNDEFINED, UINT32_UNDEFINED);
 
     /* Relocate buf_pool->flush_list. */
     if (block->page.oldest_modification) {

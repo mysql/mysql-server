@@ -85,17 +85,22 @@ referenced by the TRX_SYS page.
 @return error code */
 dberr_t srv_undo_tablespaces_upgrade();
 
-/** Update the number of active undo tablespaces.
-@param[in]	target		target value for srv_undo_tablespaces
-@return error code */
-dberr_t srv_undo_tablespaces_update(ulong target);
-
 /** Start InnoDB.
 @param[in]	create_new_db		Whether to create a new database
 @param[in]	scan_directories	Scan directories for .ibd files for
                                         recovery "dir1;dir2; ... dirN"
 @return DB_SUCCESS or error code */
 dberr_t srv_start(bool create_new_db, const std::string &scan_directories);
+
+/** Fix up an undo tablespace if it was in the process of being truncated
+when the server crashed. This is the second call and is done after the DD
+is available so now we know the space_name, file_name and previous space_id.
+@param[in]  space_name  undo tablespace name
+@param[in]  file_name   undo tablespace file name
+@param[in]  space_id    undo tablespace ID
+@return error code */
+dberr_t srv_undo_tablespace_fixup(const char *space_name, const char *file_name,
+                                  space_id_t space_id);
 
 /** On a restart, initialize the remaining InnoDB subsystems so that
 any tables (including data dictionary tables) can be accessed. */

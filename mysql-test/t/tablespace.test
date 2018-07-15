@@ -501,13 +501,15 @@ let DEFAULT_STORAGE_ENGINE= `select @@default_storage_engine`;
 SET default_storage_engine=myisam;
 
 --echo # No need to add ENGINE - looked up in DD
---error ER_CHECK_NOT_IMPLEMENTED
+--error ER_ALTER_FILEGROUP_FAILED
 ALTER TABLESPACE ts1 ADD DATAFILE 'df2.ibd';
+SHOW WARNINGS;
 
 --echo # Specifying correct ENGINE is allowed, but triggers deprecation
 --echo # warning
---error ER_CHECK_NOT_IMPLEMENTED
+--error ER_ALTER_FILEGROUP_FAILED
 ALTER TABLESPACE ts1 ADD DATAFILE 'df2.ibd' ENGINE=INNODB;
+SHOW WARNINGS;
 
 --echo # Specifying a different ENGINE than the one stored in the DD is an
 --echo # error

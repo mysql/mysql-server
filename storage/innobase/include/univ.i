@@ -445,18 +445,18 @@ typedef long int lint;
 #endif
 
 /** The 'undefined' value for a ulint */
-#define ULINT_UNDEFINED ((ulint)(-1))
+constexpr ulint ULINT_UNDEFINED = -1;
 
-#define ULONG_UNDEFINED ((ulong)(-1))
+constexpr ulong ULONG_UNDEFINED = -1;
 
-/** The 'undefined' value for a ib_uint64_t */
-#define UINT64_UNDEFINED ((ib_uint64_t)(-1))
+/** The 'undefined' value for a  64-bit unsigned integer */
+constexpr uint64_t UINT64_UNDEFINED = -1;
+
+/** The 'undefined' value for a  32-bit unsigned integer */
+constexpr uint32_t UINT32_UNDEFINED = -1;
 
 /** The bitmask of 32-bit unsigned integer */
 #define ULINT32_MASK 0xFFFFFFFF
-
-/** The undefined 32-bit unsigned integer */
-constexpr uint32_t ULINT32_UNDEFINED = ULINT32_MASK;
 
 /** Maximum value for a ulint */
 #define ULINT_MAX ((ulint)(-2))
@@ -496,7 +496,7 @@ has the SQL NULL as its value. NOTE that because we assume that the length
 of a field is a 32-bit integer when we store it, for example, to an undo log
 on disk, we must have also this number fit in 32 bits, also in 64-bit
 computers! */
-#define UNIV_SQL_NULL ULINT32_UNDEFINED
+#define UNIV_SQL_NULL UINT32_UNDEFINED
 
 /** Flag to indicate a field which was added instantly */
 #define UNIV_SQL_ADD_COL_DEFAULT (UNIV_SQL_NULL - 1)

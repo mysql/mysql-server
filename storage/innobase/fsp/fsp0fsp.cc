@@ -701,7 +701,7 @@ static void fsp_space_modify_check(space_id_t id, const mtr_t *mtr) {
       ut_a(fsp_is_system_temporary(id) ||
            fil_space_get_flags(id) == ULINT_UNDEFINED ||
            type == FIL_TYPE_TEMPORARY || type == FIL_TYPE_IMPORT ||
-           fil_space_is_redo_skipped(id) || undo::is_inactive(id));
+           fil_space_is_redo_skipped(id) || !undo::is_active(id, false));
     }
 #endif /* UNIV_DEBUG */
       return;
@@ -4156,7 +4156,7 @@ dberr_t fsp_alter_encrypt_tablespace(THD *thd, space_id_t space_id,
       space->encryption_op_in_progress = ENCRYPTION;
 
       /* Update Encryption flag for tablespace */
-      space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
+      FSP_FLAGS_SET_ENCRYPTION(space->flags);
     } else {
       /* Assert that tablespace is encrypted */
       ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
@@ -4179,7 +4179,7 @@ dberr_t fsp_alter_encrypt_tablespace(THD *thd, space_id_t space_id,
       space->encryption_op_in_progress = UNENCRYPTION;
 
       /* Update Encryption flag for tablespace */
-      space->flags &= ~FSP_FLAGS_MASK_ENCRYPTION;
+      FSP_FLAGS_UNSET_ENCRYPTION(space->flags);
 
       /* Don't erase Encryption info from page 0 yet */
     }
@@ -4223,7 +4223,7 @@ dberr_t fsp_alter_encrypt_tablespace(THD *thd, space_id_t space_id,
       ut_ad(space->encryption_op_in_progress == UNENCRYPTION);
 
       /* Update Encryption flag for tablespace */
-      space->flags &= ~FSP_FLAGS_MASK_ENCRYPTION;
+      FSP_FLAGS_UNSET_ENCRYPTION(space->flags);
 
       /* Don't erase Encryption information from page 0 yet */
     }
@@ -4246,7 +4246,7 @@ all_done:
   /* For unencryption, if server crashed, before tablespace flags were flushed
   on disk. Set them now. */
   if (in_recovery && !to_encrypt) {
-    space->flags &= ~FSP_FLAGS_MASK_ENCRYPTION;
+    FSP_FLAGS_UNSET_ENCRYPTION(space->flags);
   }
 
   /* If it was an Unencryption operation */
@@ -4416,17 +4416,17 @@ static dberr_t resume_alter_encrypt_tablespace(THD *thd) {
         !(operation & UNENCRYPTION_IN_PROGRESS)) {
       /* There are two possibilities:
       1. Crash happened even before operation/progress
-         was written to page 0. Nohting to do.
+         was written to page 0. Nothing to do.
       2. Crash happened after (un)encryption was done and progress/operation
          was reset but before DD is updated.
       Update DD in that case. */
-      ib::info(ER_IB_MSG_1278) << "No operation/progress found."
-                                  " Updating DD for tablespace "
-                               << space->name << ":" << space_id << ".";
+      ib::info(ER_IB_MSG_NO_ENCRYPT_PROGRESS_FOUND)
+          << "No operation/progress found. Updating DD for tablespace "
+          << space->name << ":" << space_id << ".";
       goto update_dd;
     }
 
-    ib::info(ER_IB_MSG_1279)
+    ib::info(ER_IB_MSG_RESUME_OP_FOR_SPACE)
         << "Resuming " << operation_name[operation] << " for tablespace "
         << space->name << ":" << space_id << " from page " << progress + 1;
 
@@ -4455,9 +4455,9 @@ static dberr_t resume_alter_encrypt_tablespace(THD *thd) {
       page_t *page = buf_block_get_frame(block);
       ulint latest_fsp_flags = fsp_header_get_flags(page);
       if (FSP_FLAGS_GET_ENCRYPTION(latest_fsp_flags)) {
-        space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
+        FSP_FLAGS_SET_ENCRYPTION(space->flags);
       } else {
-        space->flags &= ~FSP_FLAGS_MASK_ENCRYPTION;
+        FSP_FLAGS_UNSET_ENCRYPTION(space->flags);
       }
       ut_ad(space->flags == latest_fsp_flags);
       mtr_commit(&mtr);
@@ -4470,19 +4470,21 @@ static dberr_t resume_alter_encrypt_tablespace(THD *thd) {
 
       space->encryption_op_in_progress = NONE;
 
-    /* In case of crash/recovery, following has to be set explicitly
-        - DD tablespace flags.
-        - DD encryption option value. */
-    retry:
-      if (dd::acquire_exclusive_tablespace_mdl(thd, space->name, false)) {
+      /* In case of crash/recovery, following has to be set explicitly
+          - DD tablespace flags.
+          - DD encryption option value. */
+      while (
+          acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout)) {
         os_thread_sleep(20);
-        goto retry;
       }
 
-      if (client->acquire_for_modification<dd::Tablespace>(space->name,
-                                                           &recv_dd_space)) {
+      while (dd::acquire_exclusive_tablespace_mdl(thd, space->name, false)) {
         os_thread_sleep(20);
-        goto retry;
+      }
+
+      while (client->acquire_for_modification<dd::Tablespace>(space->name,
+                                                              &recv_dd_space)) {
+        os_thread_sleep(20);
       }
 
       if (!FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
@@ -4504,10 +4506,9 @@ static dberr_t resume_alter_encrypt_tablespace(THD *thd) {
 
       /* Pass 'true' for 'release_mdl_on_commit' parameter because we want
       transactional locks to be released only in case of successful commit */
-      if (dd::commit_or_rollback_tablespace_change(thd, recv_dd_space, false,
-                                                   true)) {
+      while (dd::commit_or_rollback_tablespace_change(thd, recv_dd_space, false,
+                                                      true)) {
         os_thread_sleep(20);
-        goto retry;
       }
 
       ib::info(ER_IB_MSG_1281)

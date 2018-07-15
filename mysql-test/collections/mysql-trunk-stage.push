@@ -10,15 +10,9 @@ perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90  --para
 # Run all default suites with ps-protocol
 perl mysql-test-run.pl --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=ps --vardir=var-ps --ps-protocol --no-skip
 
-
-# Run with innodb page size 4k
-perl mysql-test-run.pl --timer  --force --parallel=auto --comment=innodb_4k_size --vardir=var-innodb-4k --experimental=collections/default.experimental --suite=innodb --mysqld=--innodb-page-size=4k --no-skip
-
-
-# Run default suites with innodb_undo_tablespace set to > 0
-perl mysql-test-run.pl --timer --force --parallel=auto --comment=innodb_undo-2  --vardir=innodb-undo-2 --experimental=collections/default.experimental --mysqld=--innodb_undo_tablespaces=2 --bootstrap --innodb_undo_tablespaces=2 --no-skip
-# Run innodb suites with innodb_undo_table_spaces >0  and different pagesizes
-perl mysql-test-run.pl --timer  --force --parallel=auto --comment=innodb_undo_5_64k --vardir=var-innodb-undo-5-64k --experimental=collections/default.experimental --suite=innodb_undo,innodb_zip,innodb --mysqld=--innodb_undo_tablespaces=5 --mysqld=--innodb-page-size=64k --no-skip --max-test-fail=30
+# Run innodb suites with different pagesizes
+perl mysql-test-run.pl --timer  --force --parallel=auto --comment=innodb_4k --vardir=var-innodb-4k --experimental=collections/default.experimental --suite=innodb_undo,innodb_zip,innodb --mysqld=--innodb-page-size=4k --no-skip --max-test-fail=30
+perl mysql-test-run.pl --timer  --force --parallel=auto --comment=innodb_64k --vardir=var-innodb-64k --experimental=collections/default.experimental --suite=innodb_undo,innodb_zip,innodb --mysqld=--innodb-page-size=64k --no-skip --max-test-fail=30
 
 # Additional modes for rpl. Multi-Threaded Slave
 perl mysql-test-run.pl --timer  --force --parallel=auto --comment=rpl_binlog_n_mix_MTS --vardir=var-mts-rpl-binlog-n_mix --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --suite=rpl,rpl_gtid,rpl_nogtid --no-skip --max-test-fail=30

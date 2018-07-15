@@ -1,19 +1,15 @@
-SET GLOBAL innodb_undo_tablespaces=2;
-SET GLOBAL innodb_rollback_segments=1;
-SET GLOBAL innodb_undo_log_truncate=1;
-SET GLOBAL innodb_max_undo_log_size=10485760;
-SET GLOBAL innodb_purge_rseg_truncate_frequency=1;
+#
+# WL#6965: Truncate UNDO logs.
+#
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+Variable_name	Value
+innodb_rollback_segments	1
+SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
+NAME	SPACE_TYPE	STATE
+innodb_undo_001	Undo	active
+innodb_undo_002	Undo	active
 SET GLOBAL innodb_purge_stop_now=ON;
-SET GLOBAL innodb_stats_auto_recalc=OFF;
-SHOW VARIABLES LIKE 'innodb_undo_tablespaces';
-Variable_name	Value
-innodb_undo_tablespaces	2
-SHOW VARIABLES LIKE 'innodb_rollback_segments';
-Variable_name	Value
-innodb_rollback_segments	1
-SHOW VARIABLES LIKE 'innodb_rollback_segments';
-Variable_name	Value
-innodb_rollback_segments	1
 create table t1(
 keyc int,
 c1 char(255),
@@ -31,7 +27,6 @@ insert into t1 values (i, 'a', 'b', 'c', 'd', 'e', 'f' );
 SET i = i + 1;
 END WHILE;
 END |
-begin;
 call populate_t1();
 delete from t1 where keyc < 10000;
 update t1 set c1 = 'mysql' where  keyc > 10000;
@@ -57,7 +52,6 @@ insert into t2 values (i, 'a', 'b', 'c', 'd', 'e', 'f' );
 SET i = i + 1;
 END WHILE;
 END |
-begin;
 call populate_t2();
 delete from t2 where keyc < 10000;
 update t2 set c1 = 'mysql' where  keyc > 10000;
@@ -66,11 +60,12 @@ update t2 set c3= 'mysql' where keyc > 10000;
 update t2 set c4= 'mysql' where keyc > 10000;
 update t2 set c5= 'mysql' where keyc > 10000;
 update t2 set c6= 'mysql' where keyc > 10000;
-commit;
-commit;
 drop PROCEDURE populate_t1;
 drop PROCEDURE populate_t2;
 drop table t1, t2;
 SET GLOBAL innodb_purge_run_now=ON;
 SET GLOBAL innodb_fast_shutdown=0;
+#
+# Cleanup
+#
 # restart

@@ -1,0 +1,18 @@
+--echo #
+--echo # WL#6965: Truncate UNDO logs during recovery.
+--echo #
+
+# Setup this test
+--source suite/innodb_undo/include/truncate_recover_setup.inc
+
+--echo #
+--echo # 6. Crash just before the pages written to this
+--echo #    undo tablespace are flushed from the buffer pool.
+--echo #
+let $debug_point="+d,ib_undo_trunc_before_buf_flush";
+let SEARCH_PATTERN = ib_undo_trunc_before_buf_flush;
+--source suite/innodb_undo/include/truncate_recover_run.inc
+
+# Cleanup this test
+--source suite/innodb_undo/include/truncate_recover_cleanup.inc
+

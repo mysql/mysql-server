@@ -177,26 +177,39 @@ inline bool log_needs_free_check() {
   return (sn > log.sn_limit_for_start.load());
 }
 
+/** Call this function before starting a mini-transaction.  It will check
+for space in the redo log. It assures there is at least
+concurrency_safe_free_margin.  If the space is not available, this will
+wait until it is. Therefore it is important that the caller does not hold
+any latch that may be called by the page cleaner or log flush process.
+This includes any page block or file space latch. */
 inline void log_free_check() {
   log_t &log = *log_sys;
 
 #ifdef UNIV_DEBUG
-  /* During row_log_table_apply(), this function will be called while we
-  are holding some latches. This is OK, as long as we are not holding
-  any latches on buffer blocks. */
-
+  /* This function may be called while holding some latches. This is OK,
+  as long as we are not holding any latches on buffer blocks or file spaces.
+  The following latches are not held by any thread that frees up redo log
+  space. */
   static const latch_level_t latches[] = {
-      SYNC_DICT,           /* dict_sys->mutex during
-                           commit_try_rebuild() */
-      SYNC_DICT_OPERATION, /* dict_operation_lock X-latch during
-                           commit_try_rebuild() */
+      SYNC_NO_ORDER_CHECK, /* used for non-labeled latches */
+      SYNC_RSEGS,          /* rsegs->x_lock in trx_rseg_create() */
+      SYNC_UNDO_DDL,       /* undo::ddl_mutex */
+      SYNC_UNDO_SPACES,    /* undo::spaces::m_latch */
+      SYNC_FTS_CACHE,      /* fts_cache_t::lock */
+      SYNC_DICT,           /* dict_sys->mutex in commit_try_rebuild() */
+      SYNC_DICT_OPERATION, /* X-latch in commit_try_rebuild() */
       SYNC_INDEX_TREE      /* index->lock */
   };
 
   sync_allowed_latches check(latches,
                              latches + sizeof(latches) / sizeof(*latches));
 
-  ut_a(!sync_check_iterate(check));
+  if (sync_check_iterate(check)) {
+    ib::error()
+        << "log_free_check() was called while holding an un-listed latch.";
+    ut_error;
+  }
 #endif /* UNIV_DEBUG */
 
   /** We prefer to wait now for the space in log file, because now

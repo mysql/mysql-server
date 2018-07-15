@@ -2854,7 +2854,7 @@ bool validate_partition_tablespace_names(partition_info *part_info,
 
     // Check tablespace names from partition elements, if used.
     if (part_elem->tablespace_name &&
-        validate_tablespace_name(false, part_elem->tablespace_name,
+        validate_tablespace_name(TS_CMD_NOT_DEFINED, part_elem->tablespace_name,
                                  part_elem_engine))
       return true;
 
@@ -2868,8 +2868,8 @@ bool validate_partition_tablespace_names(partition_info *part_info,
 
       // Check tablespace name from sub-partition elements, if used.
       if (sub_elem->tablespace_name &&
-          validate_tablespace_name(false, sub_elem->tablespace_name,
-                                   sub_elem_engine))
+          validate_tablespace_name(TS_CMD_NOT_DEFINED,
+                                   sub_elem->tablespace_name, sub_elem_engine))
         return true;
     }
   }

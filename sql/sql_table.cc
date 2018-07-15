@@ -13847,7 +13847,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       // Check the tablespace/engine combination.
       DBUG_ASSERT(target_handlerton);
       if (target_tablespace != nullptr &&
-          validate_tablespace_name(false, target_tablespace, target_handlerton))
+          validate_tablespace_name(TS_CMD_NOT_DEFINED, target_tablespace,
+                                   target_handlerton))
         DBUG_RETURN(true);
     }
 

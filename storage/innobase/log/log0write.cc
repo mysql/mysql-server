@@ -2403,7 +2403,7 @@ bool log_read_encryption() {
       space flag. Otherwise, we just fill the encryption
       information to space object for decrypting old
       redo log blocks. */
-      space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
+      FSP_FLAGS_SET_ENCRYPTION(space->flags);
       err = fil_set_encryption(space->id, Encryption::AES, key, iv);
 
       if (err == DB_SUCCESS) {
@@ -2522,7 +2522,7 @@ void log_enable_encryption_if_set() {
                                 << " tablespace to be"
                                 << " encrypted.";
     } else {
-      space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
+      FSP_FLAGS_SET_ENCRYPTION(space->flags);
       err = fil_set_encryption(space->id, Encryption::AES, key, iv);
       if (err != DB_SUCCESS) {
         srv_redo_log_encrypt = false;

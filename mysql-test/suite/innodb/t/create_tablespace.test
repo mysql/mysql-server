@@ -80,6 +80,7 @@ CREATE TABLESPACE test/s_bad ADD DATAFILE 's_bad.ibd';
 --error ER_WRONG_TABLESPACE_NAME
 CREATE TABLESPACE `test/s_bad` ADD DATAFILE 's_bad.ibd';
 LET $TWOFIFTYFIVE=../xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --error ER_WRONG_FILE_NAME
 eval CREATE TABLESPACE `s_too_long_file_name` ADD DATAFILE '$TWOFIFTYFIVE.ibd';
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
@@ -90,8 +91,10 @@ CREATE TABLESPACE s_bad ADD DATAFILE 's_bad.ibd' FILE_BLOCK_SIZE=1k FILE_BLOCK_S
 CREATE TABLESPACE s_bad ADD DATAFILE 's_bad.ibd' FILE_BLOCK_SIZE=3k;
 --error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TABLESPACE s_bad ADD DATAFILE 's_bad.ibd' FILE_BLOCK_SIZE=65k;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --error ER_WRONG_FILE_NAME
-CREATE TABLESPACE `s_bad` ADD DATAFILE 'sub/dir/////s_bad.ibd';
+CREATE TABLESPACE `s_bad` ADD DATAFILE '../sub/dir/////s_bad.ibd';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW WARNINGS;
 # Show that those directories were not created.
 --mkdir $MYSQLD_DATADIR/sub
@@ -264,23 +267,28 @@ eval CREATE TABLESPACE s2_remote ADD DATAFILE '$MYSQL_TMP_DIR/s2_#_dir/../s2_#_d
 --error ER_WRONG_FILE_NAME
 CREATE TABLESPACE s_bad ADD DATAFILE '.ibd';
 SHOW WARNINGS;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --error ER_WRONG_FILE_NAME
-CREATE TABLESPACE s_bad ADD DATAFILE 's_dir/s_subdir/.ibd';
+CREATE TABLESPACE s_bad ADD DATAFILE '../s_dir/s_subdir/.ibd';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW WARNINGS;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --error ER_WRONG_FILE_NAME
-CREATE TABLESPACE s_bad ADD DATAFILE 's_dir/s_bad.ibs';
+CREATE TABLESPACE s_bad ADD DATAFILE '../s_dir/s_bad.ibs';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW WARNINGS;
 
 # A colon is always rejected on Linux, but it could be part of a valid absolute path on Windows.
 # These should be rejected even on Windows.
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --error ER_WRONG_FILE_NAME
 CREATE TABLESPACE s_bad ADD DATAFILE 'c:s_bad.ibd';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW WARNINGS;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --error ER_WRONG_FILE_NAME
-CREATE TABLESPACE s_bad ADD DATAFILE 'cc:/s_bad.ibd';
-SHOW WARNINGS;
---error ER_WRONG_FILE_NAME
-CREATE TABLESPACE s_bad ADD DATAFILE './drive:/s_bad.ibd';
+CREATE TABLESPACE s_bad ADD DATAFILE 'drive:s_bad.ibd';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW WARNINGS;
 
 --echo #
@@ -292,7 +300,7 @@ eval CREATE TABLESPACE s4_def ADD DATAFILE '$MYSQL_TMP_DIR/tablespace.ibd/s4.ibd
 --error ER_TABLESPACE_DUP_FILENAME
 eval CREATE TABLESPACE s5_def ADD DATAFILE '$MYSQL_TMP_DIR/tablespace.ibd/s4.ibd';
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
---error ER_CREATE_FILEGROUP_FAILED
+--error ER_WRONG_FILE_NAME
 eval CREATE TABLESPACE s6_def ADD DATAFILE '$MYSQL_TMP_DIR/tablespace.ibd';
 
 --source suite/innodb/include/show_i_s_tablespaces.inc
@@ -610,14 +618,14 @@ DROP TABLESPACE s_bad;
 --echo #
 --error ER_PARSE_ERROR
 CREATE LOGFILE GROUP s_bad;
---error ER_ILLEGAL_HA_CREATE_OPTION
+--error ER_FEATURE_UNSUPPORTED
 CREATE LOGFILE GROUP s_bad ADD UNDOFILE 'undo_1.dat';
 --error ER_PARSE_ERROR
 ALTER LOGFILE GROUP s_bad;
---error ER_CHECK_NOT_IMPLEMENTED
+--error ER_FEATURE_UNSUPPORTED
 ALTER LOGFILE GROUP s_bad ADD UNDOFILE 'undo_1.dat'
       INITIAL_SIZE = 100M, NO_WAIT;
---error ER_CHECK_NOT_IMPLEMENTED
+--error ER_FEATURE_UNSUPPORTED
 DROP LOGFILE GROUP s_bad;
 
 --echo #
@@ -628,20 +636,29 @@ CREATE TABLESPACE s_bad ADD DATAFILE 's_bad.ibd';
 --error ER_PARSE_ERROR
 ALTER TABLESPACE s_bad;
 
---error ER_CHECK_NOT_IMPLEMENTED
+--error ER_ALTER_FILEGROUP_FAILED
 ALTER TABLESPACE s_bad ADD DATAFILE 'bad2.ibd';
---error ER_CHECK_NOT_IMPLEMENTED
+SHOW WARNINGS;
+
+--error ER_ALTER_FILEGROUP_FAILED
 ALTER TABLESPACE s_bad DROP DATAFILE 's_bad.ibd';
+SHOW WARNINGS;
 
---error ER_CHECK_NOT_IMPLEMENTED
+--error ER_ALTER_FILEGROUP_FAILED
 ALTER TABLESPACE s_bad ADD DATAFILE 'bad2.ibd' INITIAL_SIZE = 1G;
---error ER_CHECK_NOT_IMPLEMENTED
-ALTER TABLESPACE s_def ADD DATAFILE 'bad2.ibd' NO_WAIT;
+SHOW WARNINGS;
 
---error ER_CHECK_NOT_IMPLEMENTED
+--error ER_ALTER_FILEGROUP_FAILED
+ALTER TABLESPACE s_def ADD DATAFILE 'bad2.ibd' NO_WAIT;
+SHOW WARNINGS;
+
+--error ER_ALTER_FILEGROUP_FAILED
 ALTER TABLESPACE s_bad DROP DATAFILE 's_bad.ibd' INITIAL_SIZE = 1G;
---error ER_CHECK_NOT_IMPLEMENTED
+SHOW WARNINGS;
+
+--error ER_ALTER_FILEGROUP_FAILED
 ALTER TABLESPACE s_bad DROP DATAFILE 's_bad.ibd' NO_WAIT;
+SHOW WARNINGS;
 
 --echo #
 --echo # Undocumented ALTER TABLESPACE syntax which was removed by wl#8972
@@ -1028,7 +1045,7 @@ let $restart_parameters = restart: --innodb_read_only --innodb-directories=$MYSQ
 --error ER_OPEN_AS_READONLY
 CREATE TABLESPACE s2 ADD DATAFILE 's2.ibd' ENGINE InnoDB;
 SHOW WARNINGS;
---error ER_DROP_FILEGROUP_FAILED
+--error ER_INNODB_READ_ONLY
 DROP TABLESPACE s1;
 SHOW WARNINGS;
 
@@ -1205,9 +1222,9 @@ DROP TABLESPACE s1;
 SET GLOBAL innodb_file_per_table= DEFAULT;
 
 --disable_query_log
-call mtr.add_suppression("\\[Warning\\].*Skip re-populating collations and character sets tables in InnoDB read-only mode");
-call mtr.add_suppression("\\[Warning\\].*Skip updating information_schema metadata in InnoDB read-only mode");
-call mtr.add_suppression("\\[Warning\\].*Skipped updating resource group metadata in InnoDB read only mode");
+call mtr.add_suppression("\\[Warning\\].* Skip re-populating collations and character sets tables in InnoDB read-only mode");
+call mtr.add_suppression("\\[Warning\\].* Skip updating information_schema metadata in InnoDB read-only mode");
+call mtr.add_suppression("\\[Warning\\].* Skipped updating resource group metadata in InnoDB read only mode");
 call mtr.add_suppression("\\[Warning\\].* '.*tablespace.ibd' is a directory, can't delete!");
 call mtr.add_suppression("\\[ERROR\\].* File .* 'delete' returned OS error .*");
 call mtr.add_suppression("\\[ERROR\\].* File .* 'stat' returned OS error .*");
@@ -1219,5 +1236,6 @@ call mtr.add_suppression("\\[ERROR\\].* Error number .* means");
 call mtr.add_suppression("\\[ERROR\\].* Cannot create file");
 call mtr.add_suppression("\\[ERROR\\].* Invalid use of ':' in");
 call mtr.add_suppression("\\[ERROR\\].* The file .* already exists though the corresponding table did not exist.");
+call mtr.add_suppression("\\[ERROR\\].* The directory '.*' does not exist");
 --enable_query_log
 

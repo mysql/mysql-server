@@ -25,10 +25,12 @@
 
 #include "my_compiler.h"
 #include "sql/dd/string_type.h"  // dd::String_type
+#include "sql/dd/types/tablespace.h"
 
 class THD;
 class MDL_ticket;
 class Plugin_table;
+// class Tablespace;
 
 namespace dd {
 

@@ -7194,7 +7194,7 @@ Acquistion order of SDI MDL and SDI table has to be in same
 order:
 
 1. dd_sdi_acquire_exclusive_mdl
-2. row_drop_table_from_cache()/innobase_drop_tablespace()
+2. row_drop_table_from_cache()/innodb_drop_tablespace()
    ->dict_sdi_remove_from_cache()->dd_table_open_on_id()
 
 In purge:
@@ -7251,7 +7251,7 @@ Acquistion order of SDI MDL and SDI table has to be in same
 order:
 
 1. dd_sdi_acquire_exclusive_mdl
-2. row_drop_table_from_cache()/innobase_drop_tablespace()
+2. row_drop_table_from_cache()/innodb_drop_tablespace()
    ->dict_sdi_remove_from_cache()->dd_table_open_on_id()
 
 In purge:

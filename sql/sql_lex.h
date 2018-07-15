@@ -2360,6 +2360,7 @@ union YYSTYPE {
     PT_item_list *set_expr_list;
     List<String> *set_expr_str_list;
   } load_set_list;
+  ts_alter_tablespace_type alter_tablespace_type;
   Sql_cmd_srs_attributes *sql_cmd_srs_attributes;
 };
 

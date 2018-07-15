@@ -528,6 +528,8 @@ static void log_test_general_close() {
 
   dict_ind_free();
 
+  undo_spaces_deinit();
+
   os_aio_free();
 
   que_close();

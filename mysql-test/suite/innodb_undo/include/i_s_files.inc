@@ -87,11 +87,3 @@ FROM information_schema.files WHERE file_name LIKE '%t1%';
 --echo #
 DROP TABLE t1;
 DROP PROCEDURE populate_t1;
-
-# InnoDB does not delete existing undo tablespaces when the current
-# number is reduced.  Delete all current undo tablespaces and create 2.
---source include/shutdown_mysqld.inc
---remove_files_wildcard $MYSQLD_DATADIR undo_*
---let $restart_parameters="restart: --innodb_undo_tablespaces=2"
---source include/start_mysqld.inc
-

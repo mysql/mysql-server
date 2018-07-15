@@ -196,7 +196,7 @@ dberr_t Tablespace::add_datafile(const char *datafile_added) {
   /* The path provided ends in ".ibd".  This was assured by
   validate_create_tablespace_info() */
   ut_d(const char *dot = strrchr(datafile_added, '.'));
-  ut_ad(dot != NULL && Fil_path::has_ibd_suffix(dot));
+  ut_ad(dot != NULL && Fil_path::has_suffix(IBD, dot));
 
   std::string filepath{datafile_added};
 

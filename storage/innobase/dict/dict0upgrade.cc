@@ -24,6 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 #include "dict0upgrade.h"
+#include <sql_backup_lock.h>
 #include <sql_class.h>
 #include <sql_show.h>
 #include <sql_table.h>
@@ -192,7 +193,7 @@ static dd::Tablespace *dd_upgrade_get_tablespace(
                                     << name;);
 
   /* MDL on tablespace name */
-  if (dd::acquire_exclusive_tablespace_mdl(thd, name, false)) {
+  if (dd_tablespace_get_mdl(name)) {
     ut_a(false);
   }
 
@@ -745,7 +746,7 @@ static bool dd_upgrade_partitions(THD *thd, const char *norm_name,
       /* If table is discarded, set discarded attribute in tablespace
       object */
       if (dict_table_is_discarded(part_table)) {
-        dd_tablespace_set_discard(dd_space, true);
+        dd_tablespace_set_state(dd_space, DD_SPACE_STATE_DISCARDED);
         if (dd_client->update(dd_space)) {
           ut_ad(0);
         }
@@ -897,7 +898,7 @@ bool dd_upgrade_table(THD *thd, const char *db_name, const char *table_name,
     /* If table is discarded, set discarded attribute in tablespace
     object */
     if (dict_table_is_discarded(ib_table)) {
-      dd_tablespace_set_discard(dd_space, true);
+      dd_tablespace_set_state(dd_space, DD_SPACE_STATE_DISCARDED);
       if (dd_client->update(dd_space)) {
         ut_ad(0);
       }
@@ -1043,6 +1044,12 @@ static uint32_t dd_upgrade_register_tablespace(
                DD_SPACE_CURRENT_SRV_VERSION);
   p.set_uint32(dd_space_key_strings[DD_SPACE_VERSION],
                DD_SPACE_CURRENT_SPACE_VERSION);
+
+  dd_space_states state =
+      (fsp_is_undo_tablespace(upgrade_space->id) ? DD_SPACE_STATE_ACTIVE
+                                                 : DD_SPACE_STATE_NORMAL);
+  p.set(dd_space_key_strings[DD_SPACE_STATE], dd_space_state_values[state]);
+
   dd::Tablespace_file *dd_file = dd_space->add_file();
 
   dd_file->set_filename(upgrade_space->path);

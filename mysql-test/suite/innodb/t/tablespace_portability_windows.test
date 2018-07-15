@@ -21,4 +21,7 @@ SET DEFAULT_STORAGE_ENGINE=InnoDB;
 # files have been disabled and fil_ibd_open() only looks for a file in one place.
 # --source suite/innodb/include/tablespace_portability.inc
 
+--disable_query_log
+call mtr.add_suppression("\\[ERROR\\].*InnoDB: The directory '.*' does not exist");
+--enable_query_log
 

@@ -40,6 +40,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "os0file.h"
 #include "page0page.h"
 #include "srv0start.h"
+#include "trx0purge.h"
 #include "ut0new.h"
 
 #ifdef UNIV_HOTBACKUP
@@ -278,9 +279,10 @@ void Datafile::set_name(const char *name) {
     m_name = mem_strdup(name);
   } else if (fsp_is_file_per_table(m_space_id, m_flags)) {
     m_name = fil_path_to_space_name(m_filepath);
+#ifndef UNIV_HOTBACKUP
   } else if (fsp_is_undo_tablespace(m_space_id)) {
-    undo::Tablespace undo_space(m_space_id);
-    m_name = mem_strdup(undo_space.space_name());
+    m_name = undo::make_space_name(m_space_id);
+#endif /* !UNIV_HOTBACKUP */
   } else {
 #ifndef UNIV_HOTBACKUP
     /* Give this general tablespace a temporary name. */
@@ -652,11 +654,9 @@ dberr_t Datafile::validate_first_page(space_id_t space_id, lsn_t *flush_lsn,
     if (!fsp_header_get_encryption_key(m_flags, m_encryption_key,
                                        m_encryption_iv, m_first_page)) {
       ib::error(ER_IB_MSG_401)
-          << "Encryption information in"
-          << " datafile: " << m_filepath << " can't be decrypted"
-          << " , please confirm the keyfile"
-          << " is match and keyring plugin"
-          << " is loaded.";
+          << "Encryption information in datafile: " << m_filepath
+          << " can't be decrypted, please confirm the "
+             "keyfile is match and keyring plugin is loaded.";
 
       m_is_valid = false;
       free_first_page();

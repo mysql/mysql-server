@@ -1048,6 +1048,18 @@ static SHOW_VAR innodb_status_variables[] = {
     {"truncated_status_writes",
      (char *)&export_vars.innodb_truncated_status_writes, SHOW_LONG,
      SHOW_SCOPE_GLOBAL},
+    {"undo_tablespaces_total",
+     (char *)&export_vars.innodb_undo_tablespaces_total, SHOW_LONG,
+     SHOW_SCOPE_GLOBAL},
+    {"undo_tablespaces_implicit",
+     (char *)&export_vars.innodb_undo_tablespaces_implicit, SHOW_LONG,
+     SHOW_SCOPE_GLOBAL},
+    {"undo_tablespaces_explicit",
+     (char *)&export_vars.innodb_undo_tablespaces_explicit, SHOW_LONG,
+     SHOW_SCOPE_GLOBAL},
+    {"undo_tablespaces_active",
+     (char *)&export_vars.innodb_undo_tablespaces_active, SHOW_LONG,
+     SHOW_SCOPE_GLOBAL},
 #ifdef UNIV_DEBUG
     {"purge_trx_id_age", (char *)&export_vars.innodb_purge_trx_id_age,
      SHOW_LONG, SHOW_SCOPE_GLOBAL},
@@ -1238,11 +1250,11 @@ static xa_status_code innobase_rollback_by_xid(
                       identification */
 
 /** Check tablespace name validity.
-@param[in]	tablespace_ddl	whether this is tablespace DDL or not
-@param[in]	name		name to check
-@retval false	invalid name
-@retval true	valid name */
-static bool innobase_is_valid_tablespace_name(bool tablespace_ddl,
+@param[in]     ts_cmd  whether this is tablespace DDL or not
+@param[in]     name    name to check
+@retval false  invalid name
+@retval true   valid name */
+static bool innobase_is_valid_tablespace_name(ts_command_type ts_cmd,
                                               const char *name);
 
 /** This API handles CREATE, ALTER & DROP commands for InnoDB tablespaces.
@@ -2932,6 +2944,60 @@ static bool innobase_ddse_dict_init(dict_init_mode_t dict_init_mode,
                                     List<const dd::Object_table> *tables,
                                     List<const Plugin_tablespace> *tablespaces);
 
+/** Save the state of undo tablespaces from the dd to the undo::Tablespace
+@param[in]	space_id	tablespace ID
+@param[in]	space_name	tablespace name
+@return true if success and falso if the undo tablespace state is not saved. */
+bool apply_dd_undo_state(space_id_t space_id, const char *space_name) {
+  bool success = true;
+  space_id_t space_num = undo::id2num(space_id);
+
+  if (!fsp_is_undo_tablespace(space_id)) {
+    return (success);
+  }
+
+  /* Get the state of undo tablespaces from the DD. */
+  dd_space_states state = dd_tablespace_get_state_by_name(space_name);
+
+  undo::spaces->s_lock();
+
+  undo::Tablespace *undo_space = undo::spaces->find(space_num);
+
+  switch (state) {
+    case DD_SPACE_STATE_ACTIVE:
+      /* Explicit undo spaces with no undo logs are set empty during
+      startup to avoid getting undo. */
+      if (undo_space->is_empty()) {
+        undo_space->set_active();
+      }
+      ut_ad(undo_space->is_active());
+      break;
+    case DD_SPACE_STATE_INACTIVE:
+      undo_space->set_inactive_explicit();
+      /* It is the responsibility of the purge thread to empty this undo
+      tablespace, truncate it, and then mark it empty. Set the rseg truncate
+      frequency to 1 and wake up the purge thread so that it gets started
+      immediately and continues until it is done. */
+      purge_sys->undo_trunc.set_rseg_truncate_frequency(1);
+      srv_wake_purge_thread_if_not_active();
+
+      break;
+    case DD_SPACE_STATE_EMPTY:
+      undo_space->set_empty();
+      break;
+    case DD_SPACE_STATE_NORMAL:
+    case DD_SPACE_STATE_DISCARDED:
+    case DD_SPACE_STATE_CORRUPTED:
+    case DD_SPACE_STATE__LAST:
+      success = false;
+      break;
+  }
+
+  undo::spaces->s_unlock();
+
+  return (success);
+}
+
 /** Initialize the set of hard coded DD table ids.
 @param[in]	dd_table_id		Table id of DD table. */
 static void innobase_dict_register_dd_table_id(dd::Object_id dd_table_id);
@@ -3092,22 +3158,40 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
       }
     }
 
+    /* System and temp files are tracked and opened separately. */
+    if (fsp_is_system_or_temp_tablespace(space_id)) {
+      continue;
+    }
+
+    /* Get the filename for this tablespace. */
+    const auto file = *tablespace->files().begin();
+    std::string dd_path{file->filename().c_str()};
+    const char *filename = dd_path.c_str();
+
+    /* If the trunc log file is still around, this undo tablespace needs to be
+    rebuilt now. */
+    if (srv_undo_tablespace_fixup(space_name, filename, space_id) !=
+        DB_SUCCESS) {
+      ib::error(ER_IB_MSG_FAILED_TO_FINISH_TRUNCATE, prefix.c_str(),
+                space_name);
+      continue;
+    }
+
+    /* If IBD tablespaces exist in mem correctly, we can continue. */
+    if (fil_space_exists_in_mem(space_id, space_name, false, true, heap, 0)) {
+      if (!apply_dd_undo_state(space_id, space_name)) {
+        ib::warn(ER_IB_MSG_FAIL_TO_SAVE_SPACE_STATE, prefix.c_str(),
+                 space_name);
+      }
+      continue;
+    }
+
     /* Non-IBD datafiles are tracked and opened separately. */
     if (!fsp_is_ibd_tablespace(space_id)) {
       continue;
     }
 
-    /* If this IBD tablespace exists in memory correctly,
-    we can continue. */
-    if (fil_space_exists_in_mem(space_id, space_name, false, true, heap, 0)) {
-      continue;
-    }
-
     /* Check if any IBD files are moved, deleted or missing. */
-
-    const auto file = *tablespace->files().begin();
-    std::string dd_path{file->filename().c_str()};
-    const char *filename = dd_path.c_str();
     std::string new_path;
 
     /* Just in case this dictionary was ported between
@@ -3288,7 +3372,7 @@ static bool predefine_tablespace(dd::cache::Dictionary_client *dd_client,
                                  const char *name, const char *filename) {
   dd::Object_id dd_space_id;
 
-  return (create_dd_tablespace(dd_client, thd, name, space_id, flags, filename,
+  return (dd_create_tablespace(dd_client, thd, name, space_id, flags, filename,
                                false, dd_space_id));
 }
 
@@ -3419,9 +3503,12 @@ static bool innobase_dict_recover(dict_recovery_mode_t dict_recovery_mode,
       if (predefine_tablespace(client, thd, dict_sys_t::s_temp_space_id,
                                srv_tmp_space.flags(),
                                dict_sys_t::s_temp_space_name,
-                               dict_sys_t::s_temp_space_file_name) ||
-          predefine_undo_tablespaces(client, thd)) {
-        return (true);
+                               dict_sys_t::s_temp_space_file_name)) {
+        return (DD_FAILURE);
+      }
+
+      if (predefine_undo_tablespaces(client, thd)) {
+        return (DD_FAILURE);
       }
 
       break;
@@ -3627,6 +3714,25 @@ static
 
 /** Minimum expected tablespace size. (5M) */
 static const ulint MIN_EXPECTED_TABLESPACE_SIZE = 5 * 1024 * 1024;
+
+/** Validate innodb_undo_tablespaces. Log a warning if it was set
+explicitly. */
+static void innodb_undo_tablespaces_deprecate() {
+  acquire_sysvar_source_service();
+  if (sysvar_source_svc != nullptr) {
+    static const char *variable_name = "innodb_undo_tablespaces";
+    enum enum_variable_source source;
+    if (!sysvar_source_svc->get(
+            variable_name, static_cast<unsigned int>(strlen(variable_name)),
+            &source)) {
+      if (source != COMPILED) {
+        ib::warn(ER_IB_MSG_DEPRECATED_INNODB_UNDO_TABLESPACES);
+        srv_undo_tablespaces = FSP_IMPLICIT_UNDO_TABLESPACES;
+      }
+    }
+  }
+  release_sysvar_source_service();
+}
 
 /** Initialize and normalize innodb_buffer_pool_size. */
 static void innodb_buffer_pool_size_init() {
@@ -4090,7 +4196,7 @@ static int innodb_init_params() {
 
   /* Create the filespace flags. */
   predefined_flags = fsp_flags_init(univ_page_size, false, false, true, false);
-  predefined_flags = FSP_FLAGS_SET_SDI(predefined_flags);
+  FSP_FLAGS_SET_SDI(predefined_flags);
 
   srv_sys_space.set_flags(predefined_flags);
 
@@ -4126,6 +4232,8 @@ static int innodb_init_params() {
   }
 
   innodb_buffer_pool_size_init();
+
+  innodb_undo_tablespaces_deprecate();
 
   /* Set the original value back to show in help. */
   if (srv_buf_pool_size_org != 0) {
@@ -4552,8 +4660,10 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
   prepare it along with innodb system tablespace for server.
   Tell server that these two hardcoded tablespaces exist.  */
   if (!ret) {
-    const size_t len = 30 + sizeof("id=;flags=;server_version=;space_version=");
-    const char *fmt = "id=%u;flags=%u;server_version=%u;space_version=%u";
+    const size_t len =
+        30 + sizeof("id=;flags=;server_version=;space_version=;state=normal");
+    const char *fmt =
+        "id=%u;flags=%u;server_version=%u;space_version=%u;state=normal";
     static char se_private_data_innodb_system[len];
     static char se_private_data_dd[len];
     snprintf(se_private_data_innodb_system, len, fmt, TRX_SYS_SPACE,
@@ -10406,10 +10516,11 @@ bool create_table_info_t::create_option_data_directory_is_valid() {
 }
 
 /** Validate the tablespace name provided for a tablespace DDL
+@param[in]	ts_command	tablespace command type
 @param[in]	name		A proposed tablespace name
-@param[in]	for_table	Caller is putting a table here
 @return MySQL handler error code like HA_... */
-static int validate_tablespace_name(const char *name, bool for_table) {
+static int validate_tablespace_name(ts_command_type ts_command,
+                                    const char *name) {
   int err = 0;
 
   /* This prefix is reserved by InnoDB for use in internal tablespace
@@ -10418,7 +10529,11 @@ static int validate_tablespace_name(const char *name, bool for_table) {
 
   /* Validation at the SQL layer should already be completed at this
   stage.  Re-assert that the length is valid. */
-  ut_ad(!validate_tablespace_name_length(name));
+  if (validate_tablespace_name_length(name)) {
+    my_printf_error(ER_WRONG_TABLESPACE_NAME,
+                    "InnoDB: `Tablespace name %s` is too long.", MYF(0), name);
+    return (HA_WRONG_CREATE_OPTION);
+  }
 
   /* The tablespace name cannot start with `innodb_`. */
   if (strlen(name) >= sizeof(reserved_space_name_prefix) - 1 &&
@@ -10430,7 +10545,7 @@ static int validate_tablespace_name(const char *name, bool for_table) {
         0 == strcmp(name, dict_sys_t::s_temp_space_name)) {
       /* Allow these names if the caller is putting a
       table into one of these by CREATE/ALTER TABLE */
-      if (!for_table) {
+      if (ts_command != TS_CMD_NOT_DEFINED) {
         my_printf_error(ER_WRONG_TABLESPACE_NAME,
                         "InnoDB: `%s` is a reserved"
                         " tablespace name.",
@@ -10438,17 +10553,21 @@ static int validate_tablespace_name(const char *name, bool for_table) {
         err = HA_WRONG_CREATE_OPTION;
       }
     } else {
-      my_printf_error(ER_WRONG_TABLESPACE_NAME,
-                      "InnoDB: A general tablespace"
-                      " name cannot start with `%s`.",
-                      MYF(0), reserved_space_name_prefix);
-      err = HA_WRONG_CREATE_OPTION;
+      /* Allow an implicit undo tablespace to be set
+      active or inactive. */
+      if (ts_command != ALTER_UNDO_TABLESPACE) {
+        my_printf_error(ER_WRONG_TABLESPACE_NAME,
+                        "InnoDB: Tablespace names starting"
+                        " with `%s` are reserved.",
+                        MYF(0), reserved_space_name_prefix);
+        err = HA_WRONG_CREATE_OPTION;
+      }
     }
   }
   /* TODO: Replace the string literal below by a proper string constant
   representing the DD tablespace name. */
   else if (0 == strcmp(name, "mysql")) {
-    if (!for_table) {
+    if (ts_command != TS_CMD_NOT_DEFINED) {
       my_printf_error(ER_WRONG_TABLESPACE_NAME,
                       "InnoDB: `mysql` is a reserved"
                       " tablespace name.",
@@ -10469,13 +10588,9 @@ static int validate_tablespace_name(const char *name, bool for_table) {
   return (err);
 }
 
-/** Check tablespace name validity.
-@param[in]	tablespace_ddl	whether this is tablespace DDL or not
-@param[in]	name		name to check
-@retval false	invalid name
-@retval true	valid name */
-bool innobase_is_valid_tablespace_name(bool tablespace_ddl, const char *name) {
-  return (validate_tablespace_name(name, !tablespace_ddl) == 0);
+bool innobase_is_valid_tablespace_name(ts_command_type ts_cmd,
+                                       const char *name) {
+  return (0 == validate_tablespace_name(ts_cmd, name));
 }
 
 /** Validate TABLESPACE option.
@@ -10527,7 +10642,8 @@ bool create_table_info_t::create_option_tablespace_is_valid() {
   }
 
   /* Name validation should be ensured from the SQL layer. */
-  ut_ad(validate_tablespace_name(m_create_info->tablespace, true) == 0);
+  ut_ad(0 == validate_tablespace_name(TS_CMD_NOT_DEFINED,
+                                      m_create_info->tablespace));
 
   /* Look up the tablespace name in the fil_system. */
   space_id_t space_id = fil_space_get_id_by_name(m_create_info->tablespace);
@@ -10537,6 +10653,14 @@ bool create_table_info_t::create_option_tablespace_is_valid() {
                     "InnoDB: A general tablespace named"
                     " `%s` cannot be found.",
                     MYF(0), m_create_info->tablespace);
+    return (false);
+  }
+
+  if (fsp_is_undo_tablespace(space_id)) {
+    my_printf_error(ER_WRONG_TABLESPACE_NAME,
+                    "InnoDB: An undo tablespace cannot contain tables.",
+                    MYF(0));
+
     return (false);
   }
 
@@ -11554,10 +11678,6 @@ void create_table_info_t::set_tablespace_type(
                            tablespace_is_file_per_table(m_create_info);
 
   bool is_temp = m_create_info->options & HA_LEX_CREATE_TMP_TABLE;
-
-  /* Note whether this table will be created using a shared,
-  general or system tablespace. */
-  m_use_shared_space = tablespace_is_shared_space(m_create_info);
 
   /* Ignore the current innodb_file_per_table setting if we are
   creating a temporary table or if the
@@ -13338,10 +13458,11 @@ int ha_innobase::delete_table(const char *name, const dd::Table *table_def) {
 
 /** Validate the parameters in st_alter_tablespace
 before using them in InnoDB tablespace functions.
+@param[in]	type		Type os tablespace being validated
 @param[in]	thd		Connection
 @param[in]	alter_info	How to do the command.
 @return MySQL handler error code like HA_... */
-static int validate_create_tablespace_info(THD *thd,
+static int validate_create_tablespace_info(ib_file_suffix type, THD *thd,
                                            st_alter_tablespace *alter_info) {
   /* The parser ensures that these fields are provided. */
   ut_a(alter_info->data_file_name != nullptr);
@@ -13352,10 +13473,9 @@ static int validate_create_tablespace_info(THD *thd,
   }
 
   /* Name validation should be ensured from the SQL layer. */
-  ut_ad(validate_tablespace_name(alter_info->tablespace_name, false) == 0);
+  ut_ad(0 == validate_tablespace_name(alter_info->ts_cmd_type,
+                                      alter_info->tablespace_name));
 
-  /* From this point forward, push a warning for each problem found
-  instead of returning immediately*/
   int error = 0;
 
   /* Make sure the tablespace is not already open. */
@@ -13372,7 +13492,7 @@ static int validate_create_tablespace_info(THD *thd,
     error = HA_ERR_TABLESPACE_EXISTS;
   }
 
-  if (alter_info->file_block_size) {
+  if (type == IBD && alter_info->file_block_size) {
     /* Check for a bad file block size. */
     if (!ut_is_2pow(alter_info->file_block_size) ||
         alter_info->file_block_size < UNIV_ZIP_SIZE_MIN ||
@@ -13405,33 +13525,7 @@ static int validate_create_tablespace_info(THD *thd,
   }
 
   /* Validate the ADD DATAFILE name. */
-  Fil_path filepath{alter_info->data_file_name};
-
-  /* It must end with '.ibd' and contain a basename of at least
-  1 character before the.ibd extension. */
-
-  ulint dirname_len = dirname_length(filepath);
-  const char *basename = filepath + dirname_len;
-  auto basename_len = strlen(basename);
-
-  if (basename_len <= 4 || !Fil_path::has_ibd_suffix(basename)) {
-    if (basename_len <= 4) {
-      my_error(ER_WRONG_FILE_NAME, MYF(0), filepath.path().c_str());
-    } else {
-      my_printf_error(ER_WRONG_FILE_NAME,
-                      "An IBD filepath must end with `.ibd`.", MYF(0));
-    }
-
-    return (HA_WRONG_CREATE_OPTION);
-  }
-
-  if (!filepath.is_valid()) {
-    my_error(ER_WRONG_FILE_NAME, MYF(0), filepath.path().c_str());
-
-    my_printf_error(ER_WRONG_FILE_NAME, "Invalid use of ':'.", MYF(0));
-
-    return (HA_WRONG_CREATE_OPTION);
-  }
+  Fil_path filepath(alter_info->data_file_name, true);
 
 #ifndef _WIN32
   /* On Non-Windows platforms, '\\' is a valid file name character.
@@ -13444,15 +13538,63 @@ static int validate_create_tablespace_info(THD *thd,
   }
 #endif /* _WIN32 */
 
-  Fil_path dirpath{alter_info->data_file_name, dirname_len};
+  /* Undo Tablespace filenames cannot be relative paths because
+  it would be unclear what they are relative to. */
+  if (type == IBU && filepath.is_relative_path()) {
+    my_printf_error(ER_WRONG_FILE_NAME,
+                    "The ADD DATAFILE filepath for an UNDO TABLESPACE"
+                    " cannot be a relative path.",
+                    MYF(0));
 
-  if (dirpath.len() > 0 && !dirpath.is_directory_and_exists()) {
+    error = HA_ERR_WRONG_FILE_NAME;
+  }
+
+  /* The filepath must end with a valid suffix and contain a basename of at
+  least 1 character before the suffix. */
+  ulint dirname_len = dirname_length(filepath);
+  const char *basename = filepath + dirname_len;
+  auto basename_len = strlen(basename);
+
+  if (basename_len <= 4) {
+    my_printf_error(
+        ER_WRONG_FILE_NAME,
+        "The ADD DATAFILE filepath does not have a proper filename.", MYF(0));
+    error = HA_ERR_WRONG_FILE_NAME;
+  }
+
+  if (!Fil_path::has_suffix(type, basename)) {
+    my_printf_error(ER_WRONG_FILE_NAME,
+                    "The ADD DATAFILE filepath must end with '%s'.", MYF(0),
+                    dot_ext[type]);
+    error = HA_ERR_WRONG_FILE_NAME;
+  }
+
+  if (!filepath.is_valid()) {
     my_error(ER_WRONG_FILE_NAME, MYF(0), filepath.path().c_str());
 
+    my_printf_error(ER_WRONG_FILE_NAME, "Invalid use of ':'.", MYF(0));
+
+    return (HA_ERR_WRONG_FILE_NAME);
+  }
+
+  /* If this file does already exists, we cannot use this filename. */
+  bool exist;
+  os_file_type_t os_type;
+  os_file_status(filepath.path().c_str(), &exist, &os_type);
+  if (exist) {
+    my_printf_error(ER_WRONG_FILE_NAME,
+                    "The ADD DATAFILE filepath already exists.", MYF(0));
+    error = HA_ERR_WRONG_FILE_NAME;
+  }
+
+  Fil_path dirpath(alter_info->data_file_name, dirname_len, true);
+
+  if (dirpath.len() > 0 && !dirpath.is_directory_and_exists()) {
+    ib::error(ER_IB_MSG_DIR_DOES_NOT_EXIST, dirpath.path().c_str());
     my_printf_error(ER_WRONG_FILE_NAME, "The directory does not exist.",
                     MYF(0));
 
-    return (HA_WRONG_CREATE_OPTION);
+    error = HA_ERR_WRONG_FILE_NAME;
   }
 
   /* CREATE TABLESPACE...ADD DATAFILE must be under a path that InnoDB
@@ -13460,27 +13602,22 @@ static int validate_create_tablespace_info(THD *thd,
   if (dirpath.len() > 0 && !fil_check_path(dirpath.path())) {
     std::string paths = fil_get_dirs();
 
-    my_error(ER_WRONG_FILE_NAME, MYF(0), filepath.path().c_str());
-
     my_printf_error(ER_WRONG_FILE_NAME,
-                    "CREATE TABLESPACE data file must be in one of"
+                    "CREATE %sTABLESPACE data file must be in one of"
                     " these directories '%s'.",
-                    MYF(0), paths.c_str());
+                    MYF(0), (type == IBU ? "UNDO " : ""), paths.c_str());
 
-    error = HA_WRONG_CREATE_OPTION;
+    error = HA_ERR_WRONG_FILE_NAME;
   }
 
-  /* CREATE TABLESPACE...ADD DATAFILE can be inside but not under
-  the datadir.*/
-  if (MySQL_datadir_path.is_ancestor(dirpath)) {
-    my_error(ER_WRONG_FILE_NAME, MYF(0), filepath.path().c_str());
-
+  /* General tablespaces can be inside but not under the datadir.*/
+  if (type == IBD && MySQL_datadir_path.is_ancestor(dirpath)) {
     my_printf_error(ER_WRONG_FILE_NAME,
                     "CREATE TABLESPACE data file cannot be under the"
                     " datadir.",
                     MYF(0));
 
-    error = HA_WRONG_CREATE_OPTION;
+    error = HA_ERR_WRONG_FILE_NAME;
   }
 
   return (error);
@@ -13492,15 +13629,14 @@ static int validate_create_tablespace_info(THD *thd,
 @param[in]	alter_info	How to do the command
 @param[in,out]	dd_space	Tablespace metadata
 @return MySQL error code*/
-static int innobase_create_tablespace(handlerton *hton, THD *thd,
-                                      st_alter_tablespace *alter_info,
-                                      dd::Tablespace *dd_space) {
-  trx_t *trx;
+static int innodb_create_tablespace(handlerton *hton, THD *thd,
+                                    st_alter_tablespace *alter_info,
+                                    dd::Tablespace *dd_space) {
   int error;
   Tablespace tablespace;
   ulint fsp_flags = 0;
 
-  DBUG_ENTER("innobase_create_tablespace");
+  DBUG_ENTER("innodb_create_tablespace");
   DBUG_ASSERT(hton == innodb_hton_ptr);
 
   ut_ad(alter_info->tablespace_name == dd_space->name());
@@ -13508,7 +13644,7 @@ static int innobase_create_tablespace(handlerton *hton, THD *thd,
                dd_tablespace_get_filename(dd_space)) == 0);
 
   /* Be sure the input parameters are valid before continuing. */
-  error = validate_create_tablespace_info(thd, alter_info);
+  error = validate_create_tablespace_info(IBD, thd, alter_info);
   if (error) {
     DBUG_RETURN(error);
   }
@@ -13521,12 +13657,10 @@ static int innobase_create_tablespace(handlerton *hton, THD *thd,
     DBUG_RETURN(convert_error_code_to_mysql(err, 0, NULL));
   }
 
-  /* Get the transaction associated with the current thd and make
-  sure it will not block this DDL. */
-  trx = check_trx_exists(thd);
-
+  /* Get the transaction associated with the current thd. */
+  trx_t *trx = check_trx_exists(thd);
+  TrxInInnoDB trx_in_innodb(trx);
   trx_start_if_not_started(trx, true);
-
   ++trx->will_lock;
 
   row_mysql_lock_data_dictionary(trx);
@@ -13585,74 +13719,21 @@ static int innobase_create_tablespace(handlerton *hton, THD *thd,
   if (err == DB_SUCCESS) {
     err = btr_sdi_create_index(tablespace.space_id(), true);
     if (err == DB_SUCCESS) {
-      fsp_flags = FSP_FLAGS_SET_SDI(fsp_flags);
+      FSP_FLAGS_SET_SDI(fsp_flags);
       tablespace.set_flags(fsp_flags);
+
+      /* Make sure the DD has the space_id and the flags. */
+      dd_write_tablespace(dd_space, tablespace.space_id(), tablespace.flags(),
+                          DD_SPACE_STATE_NORMAL);
     }
   }
 
 error_exit:
   if (err != DB_SUCCESS) {
     error = convert_error_code_to_mysql(err, 0, NULL);
-  } else {
-    dd_write_tablespace(dd_space, tablespace);
   }
 
   row_mysql_unlock_data_dictionary(trx);
-
-  DBUG_RETURN(error);
-}
-
-/** DROP a tablespace.
-@param[in]	hton		Handlerton of InnoDB
-@param[in]	thd		Connection
-@param[in]	alter_info	How to do the command
-@param[in]	dd_space	Tablespace metadata
-@return MySQL error code*/
-static int innobase_drop_tablespace(handlerton *hton, THD *thd,
-                                    st_alter_tablespace *alter_info,
-                                    const dd::Tablespace *dd_space) {
-  trx_t *trx;
-  int error = 0;
-  space_id_t space_id = SPACE_UNKNOWN;
-
-  DBUG_ENTER("innobase_drop_tablespace");
-  DBUG_ASSERT(hton == innodb_hton_ptr);
-
-  ut_ad(alter_info->tablespace_name == dd_space->name());
-
-  if (srv_read_only_mode) {
-    DBUG_RETURN(HA_ERR_INNODB_READ_ONLY);
-  }
-
-  /* Name validation should be ensured from the SQL layer. */
-  ut_ad(validate_tablespace_name(alter_info->tablespace_name, false) == 0);
-
-  /* Be sure that this tablespace is known and valid. */
-  if (dd_space->se_private_data().get_uint32(dd_space_key_strings[DD_SPACE_ID],
-                                             &space_id) ||
-      space_id == SPACE_UNKNOWN) {
-    DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
-  }
-
-  /* Get the transaction associated with the current thd and make sure
-  it will not block this DDL. */
-  trx = check_trx_exists(thd);
-
-  trx_start_if_not_started(trx, true);
-
-  /* Acquire Exclusive MDL on SDI table of tablespace.
-  This is to prevent concurrent purge on SDI table */
-  MDL_ticket *sdi_mdl = nullptr;
-  dberr_t err = dd_sdi_acquire_exclusive_mdl(thd, space_id, &sdi_mdl);
-  if (err != DB_SUCCESS) {
-    error = convert_error_code_to_mysql(err, 0, NULL);
-    DBUG_RETURN(error);
-  }
-
-  ++trx->will_lock;
-
-  log_ddl->write_delete_space_log(
-      trx, NULL, space_id, dd_tablespace_get_filename(dd_space), true, false);
 
   DBUG_RETURN(error);
 }
@@ -13686,7 +13767,8 @@ static int innobase_alter_encrypt_tablespace(handlerton *hton, THD *thd,
   }
 
   /* Name validation should be ensured from the SQL layer. */
-  ut_ad(validate_tablespace_name(alter_info->tablespace_name, false) == 0);
+  ut_ad(0 == validate_tablespace_name(alter_info->ts_cmd_type,
+                                      alter_info->tablespace_name));
 
   /* Be sure that this tablespace is known and valid. */
   if (old_dd_space->se_private_data().get_uint32(
@@ -13774,6 +13856,481 @@ static int innobase_alter_encrypt_tablespace(handlerton *hton, THD *thd,
   DBUG_RETURN(error);
 }
 
+/** ALTER an undo tablespace.
+@param[in]	hton		Handlerton of InnoDB
+@param[in]	thd		Connection
+@param[in]	alter_info	How to do the command
+@param[in]	old_dd_space	Tablespace metadata
+@param[in]	new_dd_space	Tablespace metadata
+@return MySQL error code*/
+static int innodb_alter_tablespace(handlerton *hton, THD *thd,
+                                   st_alter_tablespace *alter_info,
+                                   const dd::Tablespace *old_dd_space,
+                                   dd::Tablespace *new_dd_space) {
+  space_id_t space_id = SPACE_UNKNOWN;
+  ulint old_size, new_size;
+
+  DBUG_ENTER("innodb_alter_tablespace");
+  DBUG_ASSERT(hton == innodb_hton_ptr);
+
+  if (alter_info->ts_alter_tablespace_type != ALTER_TABLESPACE_RENAME &&
+      alter_info->ts_alter_tablespace_type != ALTER_TABLESPACE_OPTIONS) {
+    DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
+  }
+
+  if (alter_info->ts_alter_tablespace_type == ALTER_TABLESPACE_OPTIONS &&
+      !new_dd_space->options().exists("encryption")) {
+    DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
+  }
+
+  /* Name validation should be ensured from the SQL layer. */
+  ut_ad(0 == validate_tablespace_name(ALTER_TABLESPACE,
+                                      alter_info->tablespace_name));
+
+  /* Be sure that this tablespace is known and valid. */
+  if (old_dd_space->se_private_data().get_uint32(
+          dd_space_key_strings[DD_SPACE_ID], &space_id) ||
+      space_id == SPACE_UNKNOWN || fil_space_get_size(space_id) == 0) {
+    DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
+  }
+
+  if (fsp_is_undo_tablespace(space_id)) {
+    my_printf_error(ER_WRONG_TABLESPACE_NAME,
+                    "Cannot ALTER TABLESPACE `%s` because it is an undo "
+                    "tablespace.  Please use ALTER UNDO TABLESPACE.",
+                    MYF(0), alter_info->tablespace_name);
+
+    DBUG_RETURN(HA_ERR_NOT_ALLOWED_COMMAND);
+  }
+
+  /* ALTER_TABLESPACE_OPTIONS; ENCRYPTION */
+  if (alter_info->ts_alter_tablespace_type == ALTER_TABLESPACE_OPTIONS) {
+    ut_ad(new_dd_space->options().exists("encryption"));
+    DBUG_RETURN(innobase_alter_encrypt_tablespace(hton, thd, alter_info,
+                                                  old_dd_space, new_dd_space));
+  }
+
+  /* ALTER_TABLESPACE_RENAME */
+  const char *from = old_dd_space->name().c_str();
+  const char *to = new_dd_space->name().c_str();
+  ut_ad(ut_strcmp(from, to) != 0);
+
+  dberr_t err = fil_rename_tablespace_by_id(space_id, from, to);
+  if (err != DB_SUCCESS) {
+    DBUG_RETURN(convert_error_code_to_mysql(err, 0, NULL));
+  }
+
+  /* Rename any in-memory cached table->tablespace */
+  dict_table_t *table = nullptr;
+  mutex_enter(&dict_sys->mutex);
+  for (table = UT_LIST_GET_FIRST(dict_sys->table_LRU); table;
+       table = UT_LIST_GET_NEXT(table_LRU, table)) {
+    if (table->tablespace && strcmp(from, table->tablespace) == 0) {
+      old_size = mem_heap_get_size(table->heap);
+
+      table->tablespace = mem_heap_strdupl(table->heap, to, strlen(to));
+
+      new_size = mem_heap_get_size(table->heap);
+      dict_sys->size += new_size - old_size;
+    }
+  }
+
+  for (table = UT_LIST_GET_FIRST(dict_sys->table_non_LRU); table;
+       table = UT_LIST_GET_NEXT(table_LRU, table)) {
+    if (table->tablespace && strcmp(from, table->tablespace) == 0) {
+      old_size = mem_heap_get_size(table->heap);
+
+      table->tablespace = mem_heap_strdupl(table->heap, to, strlen(to));
+
+      new_size = mem_heap_get_size(table->heap);
+      dict_sys->size += new_size - old_size;
+    }
+  }
+
+  mutex_exit(&dict_sys->mutex);
+
+  DBUG_RETURN(0);
+}
+
+/** DROP a tablespace.
+@param[in]	hton		Handlerton of InnoDB
+@param[in]	thd		Connection
+@param[in]	alter_info	How to do the command
+@param[in]	dd_space	Tablespace metadata
+@return MySQL error code*/
+static int innodb_drop_tablespace(handlerton *hton, THD *thd,
+                                  st_alter_tablespace *alter_info,
+                                  const dd::Tablespace *dd_space) {
+  int error = 0;
+  space_id_t space_id = SPACE_UNKNOWN;
+
+  DBUG_ENTER("innodb_drop_tablespace");
+  DBUG_ASSERT(hton == innodb_hton_ptr);
+
+  auto dd_space_name = dd_space->name();
+
+  ut_ad(alter_info->tablespace_name == dd_space->name());
+
+  /* Name validation should be ensured from the SQL layer. */
+  ut_ad(0 ==
+        validate_tablespace_name(DROP_TABLESPACE, alter_info->tablespace_name));
+
+  /* Be sure that this tablespace is known and valid. */
+  if (dd_space->se_private_data().get_uint32(dd_space_key_strings[DD_SPACE_ID],
+                                             &space_id) ||
+      space_id == SPACE_UNKNOWN) {
+    DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
+  }
+
+  if (fsp_is_undo_tablespace(space_id)) {
+    my_printf_error(ER_WRONG_TABLESPACE_NAME,
+                    "Cannot DROP TABLESPACE `%s` because it is an undo "
+                    "tablespace.  Please use DROP UNDO TABLESPACE.",
+                    MYF(0), alter_info->tablespace_name);
+
+    DBUG_RETURN(HA_ERR_NOT_ALLOWED_COMMAND);
+  }
+
+  if (fil_space_get_flags(space_id) == ULINT_UNDEFINED) {
+    /* The DD knows about it but the actual tablespace is missing.
+    Allow it to be dropped from the DD. */
+    DBUG_RETURN(0);
+  }
+
+  /* Get the transaction associated with the current thd. */
+  trx_t *trx = check_trx_exists(thd);
+  TrxInInnoDB trx_in_innodb(trx);
+  trx_start_if_not_started(trx, true);
+  ++trx->will_lock;
+
+  /* Acquire Exclusive MDL on SDI table of tablespace.
+  This is to prevent concurrent purge on SDI table */
+  MDL_ticket *sdi_mdl = nullptr;
+  dberr_t err = dd_sdi_acquire_exclusive_mdl(thd, space_id, &sdi_mdl);
+  if (err != DB_SUCCESS) {
+    error = convert_error_code_to_mysql(err, 0, NULL);
+    DBUG_RETURN(error);
+  }
+
+  log_ddl->write_delete_space_log(
+      trx, NULL, space_id, dd_tablespace_get_filename(dd_space), true, false);
+
+  DBUG_RETURN(error);
+}
+
+/** CREATE an undo tablespace.
+@param[in]	hton		Handlerton of InnoDB
+@param[in]	thd		Connection
+@param[in]	alter_info	How to do the command
+@param[in,out]	dd_space	Tablespace metadata
+@return MySQL error code*/
+static int innodb_create_undo_tablespace(handlerton *hton, THD *thd,
+                                         st_alter_tablespace *alter_info,
+                                         dd::Tablespace *dd_space) {
+  int error = 0;
+  dberr_t err;
+  ulint flags;
+
+  DBUG_ENTER("innodb_create_undo_tablespace");
+  DBUG_ASSERT(hton == innodb_hton_ptr);
+
+  ut_ad(alter_info->tablespace_name == dd_space->name());
+  ut_ad(strcmp(alter_info->data_file_name,
+               dd_tablespace_get_filename(dd_space)) == 0);
+
+  /* Be sure the input parameters are valid before continuing. */
+  error = validate_create_tablespace_info(IBU, thd, alter_info);
+  if (error) {
+    DBUG_RETURN(error);
+  }
+
+  /* Create the tablespace object. */
+
+  /* Serialize all undo tablespace DDLs */
+  mutex_enter(&(undo::ddl_mutex));
+
+  /* Get the transaction associated with the current thd and make
+  sure it will not block this DDL. */
+  check_trx_exists(thd);
+
+  /* Allocate a new transaction for this DDL */
+  trx_t *trx = innobase_trx_allocate(thd);
+  trx_start_if_not_started(trx, true);
+  ++trx->will_lock;
+
+  /* Find the next available undo space number and mark it in-use. */
+  space_id_t space_id = undo::get_next_available_space_num();
+  if (space_id == SPACE_UNKNOWN ||
+      undo::spaces->size() == FSP_MAX_UNDO_TABLESPACES) {
+    /* All available explicit undo tablespaces have been used. */
+    ib::error(ER_IB_MSG_MAX_UNDO_SPACES_REACHED, alter_info->tablespace_name,
+              alter_info->data_file_name, FSP_MAX_UNDO_TABLESPACES);
+    error = HA_ERR_TABLESPACE_EXISTS;
+    trx_rollback_for_mysql(trx);
+    goto cleanup;
+  }
+
+  err = srv_undo_tablespace_create(alter_info->tablespace_name,
+                                   alter_info->data_file_name, space_id);
+
+  if (err != DB_SUCCESS) {
+    error = convert_error_code_to_mysql(err, 0, NULL);
+    trx_rollback_for_mysql(trx);
+    goto cleanup;
+  }
+
+  innobase_commit_low(trx);
+
+  /* Make sure the DD has the space_id and the flags. */
+  flags = fsp_flags_init(univ_page_size, false, false, false, false);
+  dd_write_tablespace(dd_space, space_id, flags, DD_SPACE_STATE_ACTIVE);
+
+  /* Mark the undo tablespace 'active' in undo::spaces. */
+  undo::set_active(space_id);
+
+cleanup:
+  trx_free_for_mysql(trx);
+
+  mutex_exit(&(undo::ddl_mutex));
+
+  DBUG_RETURN(error);
+}
+
+/** ALTER an undo tablespace to ACTIVE.
+@param[in]	hton		Handlerton of InnoDB
+@param[in]	thd		Connection
+@param[in]	undo_space	Undo Tablespace object
+@param[in]	dd_state	Current state in the DD.
+@param[in]	dd_space	Tablespace metadata
+@return MySQL error code*/
+static int innodb_alter_undo_tablespace_active(handlerton *hton, THD *thd,
+                                               undo::Tablespace *undo_space,
+                                               dd::String_type dd_state,
+                                               dd::Tablespace *dd_space) {
+  /* Change the state of the undo tablespace.
+  ALTER UNDO TABLESPACE is idempotent. */
+  if (dd_state != dd_space_state_values[DD_SPACE_STATE_ACTIVE]) {
+    dd_tablespace_set_state(dd_space, DD_SPACE_STATE_ACTIVE);
+  }
+
+  /* Start using this undo tablespace. */
+  undo_space->alter_active();
+
+  return (0);
+}
+
+/** ALTER an undo tablespace to INACTIVE.
+@param[in]	hton		Handlerton of InnoDB
+@param[in]	thd		Connection
+@param[in]	undo_space	Undo Tablespace object
+@param[in]	dd_state	Current state in the DD.
+@param[in]	dd_space	Tablespace metadata
+@return MySQL error code*/
+static int innodb_alter_undo_tablespace_inactive(handlerton *hton, THD *thd,
+                                                 undo::Tablespace *undo_space,
+                                                 dd::String_type dd_state,
+                                                 dd::Tablespace *dd_space) {
+  /* Return OK if there is nothing to do. */
+  if (dd_state != dd_space_state_values[DD_SPACE_STATE_ACTIVE] &&
+      !undo_space->is_active() && !undo_space->is_inactive_implicit()) {
+    return (0);
+  }
+
+  /* There must remain at least 1 active undo tablespace. */
+  ulint num_active = 0;
+  for (auto undo_ts : undo::spaces->m_spaces) {
+    num_active += (undo_ts->is_active() ? 1 : 0);
+  }
+  if (num_active < 2) {
+    my_printf_error(ER_DISALLOWED_OPERATION,
+                    "Cannot set %s inactive since there is only 1"
+                    " undo tablespace currently active,",
+                    MYF(0), undo_space->space_name());
+
+    return (HA_ERR_NOT_ALLOWED_COMMAND);
+  }
+
+  /* Change the state of the undo tablespace.
+  ALTER UNDO TABLESPACE is idempotent. */
+  if (dd_state == dd_space_state_values[DD_SPACE_STATE_ACTIVE]) {
+    dd_tablespace_set_state(dd_space, DD_SPACE_STATE_INACTIVE);
+  }
+
+  /* Apply this to new transactions. */
+  undo_space->set_inactive_explicit();
+
+  /* It is the responsibility of the purge thread to empty this undo
+  tablespace, truncate it, and then mark it empty. Set the rseg truncate
+  frequency to 1 and wake up the purge thread so that it gets started
+  immediately and continues until it is done. */
+  purge_sys->undo_trunc.set_rseg_truncate_frequency(1);
+  srv_wake_purge_thread_if_not_active();
+
+  return (0);
+}
+
+/** ALTER an undo tablespace. Either make it ACTIVE or INACTIVE.
+@param[in]	hton		Handlerton of InnoDB
+@param[in]	thd		Connection
+@param[in]	alter_info	How to do the command
+@param[in]	dd_space	Tablespace metadata
+@return MySQL error code*/
+static int innodb_alter_undo_tablespace(handlerton *hton, THD *thd,
+                                        st_alter_tablespace *alter_info,
+                                        dd::Tablespace *dd_space) {
+  space_id_t space_id = SPACE_UNKNOWN;
+
+  DBUG_ENTER("innodb_alter_undo_tablespace");
+  DBUG_ASSERT(hton == innodb_hton_ptr);
+
+  ut_ad(alter_info->tablespace_name == dd_space->name());
+
+  /* Name validation should be ensured from the SQL layer. */
+  ut_ad(0 == validate_tablespace_name(ALTER_UNDO_TABLESPACE,
+                                      alter_info->tablespace_name));
+
+  /* Be sure that this tablespace is known and valid. */
+  if (dd_space->se_private_data().get_uint32(dd_space_key_strings[DD_SPACE_ID],
+                                             &space_id) ||
+      space_id == SPACE_UNKNOWN || fil_space_get_size(space_id) == 0) {
+    DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
+  }
+
+  if (!fsp_is_undo_tablespace(space_id)) {
+    my_printf_error(ER_WRONG_TABLESPACE_NAME,
+                    "Cannot ALTER UNDO TABLESPACE `%s` because it is a "
+                    "general tablespace.  Please use ALTER TABLESPACE.",
+                    MYF(0), alter_info->tablespace_name);
+
+    DBUG_RETURN(HA_ERR_NOT_ALLOWED_COMMAND);
+  }
+
+  /* Get the current state of the undo tablespace from the DD. */
+  const dd::Properties &p = dd_space->se_private_data();
+  ut_ad(p.exists(dd_space_key_strings[DD_SPACE_STATE]));
+  dd::String_type dd_state;
+  p.get(dd_space_key_strings[DD_SPACE_STATE], dd_state);
+
+  /* Serialize all undo tablespace DDLs */
+  mutex_enter(&(undo::ddl_mutex));
+
+  /* Get the current undo_space object. */
+  undo::spaces->s_lock();
+  space_id_t space_num = undo::id2num(space_id);
+  undo::Tablespace *undo_space = undo::spaces->find(space_num);
+
+  /* ALTER UNDO TABLESPACE is idempotent. */
+  int err = 0;
+  switch (alter_info->ts_alter_tablespace_type) {
+    case ALTER_UNDO_TABLESPACE_SET_ACTIVE:
+      err = innodb_alter_undo_tablespace_active(hton, thd, undo_space, dd_state,
+                                                dd_space);
+      break;
+
+    case ALTER_UNDO_TABLESPACE_SET_INACTIVE:
+      err = innodb_alter_undo_tablespace_inactive(hton, thd, undo_space,
+                                                  dd_state, dd_space);
+      break;
+
+    default:
+      err = HA_ADMIN_NOT_IMPLEMENTED;
+  }
+
+  undo::spaces->s_unlock();
+
+  mutex_exit(&(undo::ddl_mutex));
+
+  DBUG_RETURN(err);
+}
+
+/** DROP an undo tablespace.
+@param[in]	hton		Handlerton of InnoDB
+@param[in]	thd		Connection
+@param[in]	alter_info	How to do the command
+@param[in]	dd_space	Tablespace metadata
+@return MySQL error code*/
+static int innodb_drop_undo_tablespace(handlerton *hton, THD *thd,
+                                       st_alter_tablespace *alter_info,
+                                       const dd::Tablespace *dd_space) {
+  int error = 0;
+  space_id_t space_id = SPACE_UNKNOWN;
+
+  DBUG_ENTER("innodb_drop_undo_tablespace");
+  DBUG_ASSERT(hton == innodb_hton_ptr);
+
+  ut_ad(alter_info->tablespace_name == dd_space->name());
+
+  /* Name validation should be ensured from the SQL layer. */
+  ut_ad(0 == validate_tablespace_name(DROP_UNDO_TABLESPACE,
+                                      alter_info->tablespace_name));
+
+  /* Be sure that this tablespace is known and valid. */
+  if (dd_space->se_private_data().get_uint32(dd_space_key_strings[DD_SPACE_ID],
+                                             &space_id) ||
+      space_id == SPACE_UNKNOWN) {
+    DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
+  }
+
+  if (!fsp_is_undo_tablespace(space_id)) {
+    my_printf_error(ER_WRONG_TABLESPACE_NAME,
+                    "Cannot DROP UNDO TABLESPACE `%s` because it is a "
+                    "general tablespace.  Please use DROP TABLESPACE.",
+                    MYF(0), alter_info->tablespace_name);
+
+    DBUG_RETURN(HA_ERR_NOT_ALLOWED_COMMAND);
+  }
+
+  /* Serialize all undo tablespace DDLs */
+  mutex_enter(&(undo::ddl_mutex));
+
+  undo::spaces->x_lock();
+  space_id_t space_num = undo::id2num(space_id);
+  undo::Tablespace *undo_space = undo::spaces->find(space_num);
+
+  /* Verify that the undo tablespace is explicit, has been
+  altered inactive and is now empty. */
+  if (undo_space->is_implicit() || !undo_space->is_empty()) {
+    ib::error err;
+    err << "Cannot drop undo tablespace '" << undo_space->space_name();
+    if (undo_space->is_implicit()) {
+      err << "' because it was not created explicitly.";
+    } else if (undo_space->is_active() || undo_space->is_inactive_implicit()) {
+      err << "' because it is active. "
+          << "Please do: ALTER UNDO TABLESPACE " << undo_space->space_name()
+          << " SET INACTIVE;";
+    } else {
+      err << "' because it is still being truncated."
+             " Please try again later.";
+    }
+
+    undo::spaces->x_unlock();
+    mutex_exit(&(undo::ddl_mutex));
+
+    DBUG_RETURN(HA_ERR_TABLESPACE_IS_NOT_EMPTY);
+  }
+
+  /* Invalidate buffer pool pages belonging to this undo tablespace before
+  dropping it. */
+  buf_LRU_flush_or_remove_pages(space_id, BUF_REMOVE_ALL_NO_WRITE, NULL);
+
+  /* Empty and inactive, take it out of view. */
+  std::string file_name{undo_space->file_name()};
+  undo::spaces->drop(undo_space);
+  undo::spaces->x_unlock();
+
+  /* Get the transaction associated with the current thd and write a
+  delete_space record to the DDL_LOG. */
+  trx_t *trx = check_trx_exists(thd);
+  TrxInInnoDB trx_in_innodb(trx);
+  trx_start_if_not_started(trx, true);
+  ++trx->will_lock;
+  log_ddl->write_delete_space_log(trx, NULL, space_id, file_name.c_str(), true,
+                                  false);
+
+  mutex_exit(&(undo::ddl_mutex));
+  DBUG_RETURN(error);
+}
+
 /** This API handles CREATE, ALTER & DROP commands for InnoDB tablespaces.
 @param[in]	hton		Handlerton of InnoDB
 @param[in]	thd		Connection
@@ -13791,96 +14348,115 @@ static int innobase_alter_tablespace(handlerton *hton, THD *thd,
   int error = 0; /* return zero for success */
   DBUG_ENTER("innobase_alter_tablespace");
 
+  if (srv_read_only_mode || srv_force_recovery > 0) {
+    my_printf_error(ER_INNODB_READ_ONLY,
+                    "Changes to undo tablespaces are not allowed in"
+                    " %s mode",
+                    MYF(0),
+                    (srv_read_only_mode ? "read_only" : "force_recovery"));
+    error = HA_ERR_INNODB_READ_ONLY;
+    goto handle_error;
+  }
+
   switch (alter_info->ts_cmd_type) {
-    const char *from;
-    const char *to;
-    dberr_t err;
     case CREATE_TABLESPACE:
       ut_ad(new_ts_def != NULL);
-      error = innobase_create_tablespace(hton, thd, alter_info, new_ts_def);
+      error = innodb_create_tablespace(hton, thd, alter_info, new_ts_def);
+      break;
+
+    case ALTER_TABLESPACE:
+      ut_ad(old_ts_def != NULL);
+      ut_ad(new_ts_def != NULL);
+      error = innodb_alter_tablespace(hton, thd, alter_info, old_ts_def,
+                                      new_ts_def);
       break;
 
     case DROP_TABLESPACE:
       ut_ad(old_ts_def != NULL);
-      error = innobase_drop_tablespace(hton, thd, alter_info, old_ts_def);
+      error = innodb_drop_tablespace(hton, thd, alter_info, old_ts_def);
       break;
 
-    case ALTER_TABLESPACE:
-      if (alter_info->ts_alter_tablespace_type == ALTER_TABLESPACE_RENAME) {
-        from = old_ts_def->name().c_str();
-        to = new_ts_def->name().c_str();
+    case CREATE_UNDO_TABLESPACE:
+      error = innodb_create_undo_tablespace(hton, thd, alter_info, new_ts_def);
+      break;
 
-        ut_ad(ut_strcmp(from, to) != 0);
-        err = fil_rename_tablespace_by_name(from, to);
+    case ALTER_UNDO_TABLESPACE:
+      ut_ad(new_ts_def != NULL);
+      error = innodb_alter_undo_tablespace(hton, thd, alter_info, new_ts_def);
+      break;
 
-        /* Rename any in-memory cached table->tablespace */
-        if (err == DB_SUCCESS) {
-          dict_table_t *table = nullptr;
-          mutex_enter(&dict_sys->mutex);
-          for (table = UT_LIST_GET_FIRST(dict_sys->table_LRU); table;
-               table = UT_LIST_GET_NEXT(table_LRU, table)) {
-            if (table->tablespace && strcmp(from, table->tablespace) == 0) {
-              ulint old_size = mem_heap_get_size(table->heap);
-              table->tablespace = mem_heap_strdupl(table->heap, to, strlen(to));
-              ulint new_size = mem_heap_get_size(table->heap);
-              dict_sys->size += new_size - old_size;
-            }
-          }
-
-          for (table = UT_LIST_GET_FIRST(dict_sys->table_non_LRU); table;
-               table = UT_LIST_GET_NEXT(table_LRU, table)) {
-            if (table->tablespace && strcmp(from, table->tablespace) == 0) {
-              ulint old_size = mem_heap_get_size(table->heap);
-              table->tablespace = mem_heap_strdupl(table->heap, to, strlen(to));
-              ulint new_size = mem_heap_get_size(table->heap);
-              dict_sys->size += new_size - old_size;
-            }
-          }
-          mutex_exit(&dict_sys->mutex);
-        }
-
-        error = convert_error_code_to_mysql(err, 0, NULL);
-        break;
-      }
-      if (alter_info->ts_alter_tablespace_type == ALTER_TABLESPACE_OPTIONS) {
-        /* If ALTER Encryption */
-        if (new_ts_def->options().exists("encryption")) {
-          error = innobase_alter_encrypt_tablespace(hton, thd, alter_info,
-                                                    old_ts_def, new_ts_def);
-        }
-        break;
-      }
-      // fallthrough
+    case DROP_UNDO_TABLESPACE:
+      ut_ad(old_ts_def != NULL);
+      error = innodb_drop_undo_tablespace(hton, thd, alter_info, old_ts_def);
+      break;
 
     default:
       error = HA_ADMIN_NOT_IMPLEMENTED;
   }
 
+handle_error:
   if (error) {
     /* These are the most common message params */
-    const char *object_type = "TABLESPACE";
-    const char *object = alter_info->tablespace_name;
+    const char *ibd_type = "TABLESPACE";
+    const char *undo_type = "UNDO TABLESPACE";
+    ib_uint32_t code = ER_CREATE_FILEGROUP_FAILED;
+    const char *subject = ibd_type;
 
     /* Modify those params as needed. */
     switch (alter_info->ts_cmd_type) {
-      case DROP_TABLESPACE:
-        ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_DROP_FILEGROUP_FAILED, "%s %s",
-                object_type, object);
-        break;
       case CREATE_TABLESPACE:
-        ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_CREATE_FILEGROUP_FAILED, "%s %s",
-                object_type, object);
-        break;
-      case CREATE_LOGFILE_GROUP:
-        my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0), innobase_hton_name,
-                 "LOGFILE GROUP");
         break;
       case ALTER_TABLESPACE:
+        code = ER_ALTER_FILEGROUP_FAILED;
+        break;
+      case DROP_TABLESPACE:
+        code = ER_DROP_FILEGROUP_FAILED;
+        break;
+      case CREATE_UNDO_TABLESPACE:
+        subject = undo_type;
+        break;
+      case ALTER_UNDO_TABLESPACE:
+        code = ER_ALTER_FILEGROUP_FAILED;
+        subject = undo_type;
+        break;
+      case DROP_UNDO_TABLESPACE:
+        code = ER_DROP_FILEGROUP_FAILED;
+        subject = undo_type;
+        break;
+      case CREATE_LOGFILE_GROUP:
+      case DROP_LOGFILE_GROUP:
+      case ALTER_LOGFILE_GROUP:
+        subject = "LOGFILE GROUP";
+        break;
+      case ALTER_ACCESS_MODE_TABLESPACE:
+        subject = "ACCESS MODE";
+        break;
+      case CHANGE_FILE_TABLESPACE:
+        subject = "CHANGE FILE";
+        break;
+      case TS_CMD_NOT_DEFINED:
+        subject = "UNKNOWN";
+        break;
+    }
+
+    switch (alter_info->ts_cmd_type) {
+      case CREATE_TABLESPACE:
+      case ALTER_TABLESPACE:
+      case DROP_TABLESPACE:
+      case CREATE_UNDO_TABLESPACE:
+      case ALTER_UNDO_TABLESPACE:
+      case DROP_UNDO_TABLESPACE:
+        ib_errf(thd, IB_LOG_LEVEL_ERROR, code, "%s %s", subject,
+                alter_info->tablespace_name);
+        break;
+
+      case CREATE_LOGFILE_GROUP:
       case ALTER_ACCESS_MODE_TABLESPACE:
       case DROP_LOGFILE_GROUP:
       case ALTER_LOGFILE_GROUP:
       case CHANGE_FILE_TABLESPACE:
       case TS_CMD_NOT_DEFINED:
+        my_error(ER_FEATURE_UNSUPPORTED, MYF(0), subject, "by InnoDB");
         break;
     }
   }
@@ -13902,6 +14478,7 @@ int ha_innobase::rename_table(const char *from, const char *to,
                               dd::Table *to_table_def) {
   THD *thd = ha_thd();
   trx_t *trx = check_trx_exists(thd);
+  TrxInInnoDB trx_in_innodb(trx);
 
   DBUG_ENTER("ha_innobase::rename_table");
   ut_ad(from_table_def->se_private_id() == to_table_def->se_private_id());
@@ -18704,40 +19281,17 @@ static void innodb_reset_all_monitor_update(THD *thd, SYS_VAR *var,
   innodb_monitor_update(thd, var_ptr, save, MONITOR_RESET_ALL_VALUE, TRUE);
 }
 
-/** Update the number of undo tablespaces active when the system variable
-innodb_undo_tablespaces is changed.
-This function is registered as a callback with MySQL.
+/** Validate the value of innodb_undo_tablespaces global variable. This function
+is registered as a callback with MySQL.
 @param[in]	thd       thread handle
 @param[in]	var       pointer to system variable
 @param[in]	var_ptr   where the formal string goes
 @param[in]	save      immediate result from check function */
-static void innodb_undo_tablespaces_update(THD *thd, SYS_VAR *var,
-                                           void *var_ptr, const void *save) {
-  ulong target = *static_cast<const ulong *>(save);
-
-  if (srv_undo_tablespaces == target) {
-    return;
-  }
-
-  if (srv_read_only_mode) {
-    ib::warn(ER_IB_MSG_575) << "Cannot set innodb_undo_tablespaces to "
-                            << target << " when in read-only mode.";
-    return;
-  }
-
-  if (srv_force_recovery > 0) {
-    ib::warn(ER_IB_MSG_576) << "Cannot set innodb_undo_tablespaces to "
-                            << target << " when in innodb_force_recovery > 0.";
-    return;
-  }
-
-  if (srv_undo_tablespaces_update(target) != DB_SUCCESS) {
-    ib::warn(ER_IB_MSG_577)
-        << "Failed to set innodb_undo_tablespaces to " << target << ".";
-    return;
-  }
-
-  srv_undo_tablespaces = target;
+static void innodb_undo_tablespaces_update(
+    THD *thd MY_ATTRIBUTE((unused)), SYS_VAR *var MY_ATTRIBUTE((unused)),
+    void *var_ptr MY_ATTRIBUTE((unused)),
+    const void *save MY_ATTRIBUTE((unused))) {
+  innodb_undo_tablespaces_deprecate();
 }
 
 /** Update the number of rollback segments per tablespace when the
@@ -18767,13 +19321,18 @@ static void innodb_rollback_segments_update(THD *thd, SYS_VAR *var,
     return;
   }
 
-  if (!trx_rseg_adjust_rollback_segments(srv_undo_tablespaces, target)) {
+  /* Serialize this adjustment with all undo tablespace DDLs. */
+  mutex_enter(&(undo::ddl_mutex));
+
+  if (!trx_rseg_adjust_rollback_segments(target)) {
     ib::warn(ER_IB_MSG_580)
         << "Failed to set innodb_rollback_segments to " << target;
     return;
   }
 
   srv_rollback_segments = target;
+
+  mutex_exit(&(undo::ddl_mutex));
 }
 
 /** Parse and enable InnoDB monitor counters during server startup.
@@ -20076,9 +20635,9 @@ static MYSQL_SYSVAR_ULONG(undo_tablespaces, srv_undo_tablespaces,
                           PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_NOPERSIST,
                           "Number of undo tablespaces to use. (deprecated)",
                           NULL, innodb_undo_tablespaces_update,
-                          FSP_MIN_UNDO_TABLESPACES,     /* Default seting */
-                          FSP_MIN_UNDO_TABLESPACES,     /* Minimum value */
-                          FSP_MAX_UNDO_TABLESPACES, 0); /* Maximum value */
+                          FSP_IMPLICIT_UNDO_TABLESPACES, /* Default seting */
+                          FSP_MIN_UNDO_TABLESPACES,      /* Minimum value */
+                          FSP_MAX_UNDO_TABLESPACES, 0);  /* Maximum value */
 
 static MYSQL_SYSVAR_ULONGLONG(
     max_undo_log_size, srv_max_undo_tablespace_size, PLUGIN_VAR_OPCMDARG,

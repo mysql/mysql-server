@@ -1,7 +1,7 @@
 #
 # Test for IBD2SDI tool
 #
-# restart: --datadir=MYSQLD_DATADIR1 --innodb_data_file_path=ibdata1:16M;ibdata2:20M:autoextend --innodb_log_file_size=5M --innodb_log_files_in_group=2
+# restart: --datadir=MYSQLD_DATADIR1 --innodb_data_file_path=ibdata1:16M;ibdata2:20M:autoextend --innodb_log_file_size=15M --innodb_log_files_in_group=2
 set global innodb_limit_optimistic_insert_debug = 2;
 INSERT INTO cache_policies VALUES('cache_policy', 'innodb_only',
 'innodb_only', 'innodb_only', 'innodb_only');
@@ -786,7 +786,7 @@ ibd2sdi: [ERROR] unknown variable 'tpe=0'.
 [ERROR] ibd2sdi:  Bytes read was 0.
 [ERROR] ibd2sdi: The first page num 0 of this datafile MYSQLD_DATADIR1/ibdata1 is not equal to last page num 1023 + 1 of previous data file. Skipping this tablespace.
 [ERROR] ibd2sdi: Multiple tablespaces passed. Please specify only one tablespace.
-# restart: --datadir=MYSQLD_DATADIR1 --innodb_data_file_path=ibdata1:16M;ibdata2:20M:autoextend --innodb_log_file_size=5M --innodb_log_files_in_group=2
+# restart: --datadir=MYSQLD_DATADIR1 --innodb_data_file_path=ibdata1:16M;ibdata2:20M:autoextend --innodb_log_file_size=15M --innodb_log_files_in_group=2
 DROP TABLE t2;
 SET GLOBAL innodb_limit_optimistic_insert_debug = default;
 # ----------------------------------------------
@@ -924,7 +924,7 @@ ibd2sdi: [ERROR] unknown variable 'tpe=0'.
 #
 # Bug#23036141 - IBD2SDI DOESN'T WORK IF ANY DATAFILE IS SMALLER THAN PREVIOUS DATAFILE
 #
-# restart: --datadir=MYSQLD_DATADIR1 --innodb_data_file_path=ibdata1:16M;ibdata2:2M:autoextend --innodb_log_file_size=5M --innodb_log_files_in_group=2
+# restart: --datadir=MYSQLD_DATADIR1 --innodb_data_file_path=ibdata1:16M;ibdata2:2M:autoextend --innodb_log_file_size=15M --innodb_log_files_in_group=2
 INSERT INTO cache_policies VALUES('cache_policy', 'innodb_only',
 'innodb_only', 'innodb_only', 'innodb_only');
 INSERT INTO config_options VALUES('separator', '|');

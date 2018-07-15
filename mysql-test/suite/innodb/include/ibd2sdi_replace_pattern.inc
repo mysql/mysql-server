@@ -29,7 +29,7 @@
 --let p10=/("name": "innodb_file_per_table.)[0-9]+"/\1X"/
 
 # Remove id output in se_prvate_data of dd::Tablespace
---let $p11=/("se_private_data": ")(discard=[0-1];)*(flags=)([0-9]+)(;id=)([0-9]+)(;server_version=)([0-9]+)(;space_version=)([0-9]+);"/\1\3X\5Y\7Z\9M;"/
+--let $p11=/("se_private_data": ")(discard=[0-1];)*(flags=)([0-9]+)(;id=)([0-9]+)(;server_version=)([0-9]+)(;space_version=)([0-9]+);/\1\3X\5Y\7Z\9M;/
 
 # Remove version id
 --let $p12=/("[a-z_]+_version_id": )[0-9]+/\1X/

@@ -582,7 +582,7 @@ class fatal : public logger {
   @param[in]	args		Variable length argument list */
   template <class... Args>
   explicit fatal(int err, Args &&... args) : logger(ERROR_LEVEL, err) {
-    m_oss << "[FATAL]";
+    m_oss << "[FATAL] ";
 
     m_oss << msg(err, std::forward<Args>(args)...);
   }

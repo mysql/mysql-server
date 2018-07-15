@@ -757,8 +757,8 @@ DROP TABLE t1, t2, t3;
 create logfile group ndb_lg1 add undofile 'ndb_undo1.dat' initial_size=32M engine=myisam; 
 -- error ER_ILLEGAL_HA_CREATE_OPTION
 create logfile group ndb_lg1 add undofile 'ndb_undo1.dat' engine=myisam;
--- error ER_ILLEGAL_HA_CREATE_OPTION
-create logfile group ndb_lg1 add undofile 'ndb_undo1.dat';
+-- error ER_FEATURE_UNSUPPORTED
+create logfile group ndb_lg1 add undofile 'ndb_undo1.dat' engine=innodb;
 
 -- error ER_ILLEGAL_HA_CREATE_OPTION
 create tablespace ndb_ts1 add datafile 'ndb_ts1.dat' use logfile group ndb_lg1 engine=myisam initial_size=32M;
