@@ -119,6 +119,12 @@ option(EVENT__DISABLE_THREAD_SUPPORT
 option(EVENT__DISABLE_OPENSSL
     "Define if libevent should build without support for OpenSSL encrpytion" OFF)
 
+IF(WITH_SSL STREQUAL "wolfssl")
+  MESSAGE(STATUS "This version of libevent does not support the wolfssl  SSL library")
+  SET(EVENT__DISABLE_OPENSSL ON CACHE INTERNAL "" FORCE)
+  SET(EVENT__DISABLE_OPENSSL 1)
+ENDIF()
+
 option(EVENT__DISABLE_BENCHMARK
     "Defines if libevent should build without the benchmark exectuables" ON)
 
@@ -680,7 +686,8 @@ if(EVENT__HAVE_EVENT_PORTS)
 endif()
 
 if (NOT EVENT__DISABLE_OPENSSL)
-    find_package(OpenSSL REQUIRED)
+#   SSL is configured in cmake/ssl.cmake
+#   find_package(OpenSSL REQUIRED)
 
     set(EVENT__HAVE_OPENSSL 1)
 
@@ -710,17 +717,17 @@ if (NOT EVENT__DISABLE_THREAD_SUPPORT)
     endif()
 endif()
 
-if (NOT EVENT__DISABLE_REGRESS)
-    # Zlib is only used for testing.
-    find_package(ZLIB)
-
-    if (ZLIB_LIBRARY AND ZLIB_INCLUDE_DIR)
-        include_directories(${ZLIB_INCLUDE_DIRS})
-
-        set(EVENT__HAVE_LIBZ 1)
-        list(APPEND LIB_APPS ${ZLIB_LIBRARIES})
-    endif()
-endif()
+## if (NOT EVENT__DISABLE_REGRESS)
+##     # Zlib is only used for testing.
+##     find_package(ZLIB)
+## 
+##     if (ZLIB_LIBRARY AND ZLIB_INCLUDE_DIR)
+##         include_directories(${ZLIB_INCLUDE_DIRS})
+## 
+##         set(EVENT__HAVE_LIBZ 1)
+##         list(APPEND LIB_APPS ${ZLIB_LIBRARIES})
+##     endif()
+## endif()
 
 set(SRC_EXTRA
     event_tagging.c
@@ -869,464 +876,464 @@ endif (EVENT__BUILD_SHARED_LIBRARIES)
 # Samples.
 #
 
-if (NOT EVENT__DISABLE_SAMPLES)
-    set(SAMPLES
-        dns-example
-        event-read-fifo
-        hello-world
-        signal-test
-        http-server
-        http-connect
-        time-test)
-
-    if (NOT EVENT__DISABLE_OPENSSL AND OPENSSL_LIBRARIES)
-        set(CMAKE_REQUIRED_LIBRARIES ${OPENSSL_LIBRARIES})
-        CHECK_FUNCTION_EXISTS_EX(ERR_remove_thread_state EVENT__HAVE_ERR_REMOVE_THREAD_STATE)
-        set(CMAKE_REQUIRED_LIBRARIES "")
-
-        # Special sample with more than one file.
-        add_executable(https-client
-            sample/https-client.c
-            sample/openssl_hostname_validation.c
-            sample/hostcheck.c)
-
-        target_link_libraries(https-client
-                    event_extra
-                    ${LIB_APPS}
-                    ${LIB_PLATFORM})
-
-        add_dependencies(https-client event_extra)
-
-        # Requires OpenSSL.
-        list(APPEND SAMPLES le-proxy)
-    endif()
-
-    foreach(SAMPLE ${SAMPLES})
-        add_executable(${SAMPLE}
-                    sample/${SAMPLE}.c)
-
-        target_link_libraries(${SAMPLE}
-                    event_extra
-                    ${LIB_APPS}
-                    ${LIB_PLATFORM})
-
-        add_dependencies(${SAMPLE} event_extra)
-    endforeach()
-
-    if (WIN32)
-        target_sources(dns-example PUBLIC
-                       WIN32-Code/getopt.c
-                       WIN32-Code/getopt_long.c)
-    endif()
-endif()
-
-if (NOT EVENT__DISABLE_BENCHMARK)
-    foreach (BENCHMARK bench bench_cascade bench_http bench_httpclient)
-        set(BENCH_SRC test/${BENCHMARK}.c)
-
-        if (WIN32)
-            list(APPEND BENCH_SRC
-                            WIN32-Code/getopt.c
-                            WIN32-Code/getopt_long.c)
-        endif()
-
-        add_executable(${BENCHMARK} ${BENCH_SRC})
-
-        target_link_libraries(${BENCHMARK}
-                    event_extra
-                    ${LIB_PLATFORM})
-
-        add_dependencies(${BENCHMARK} event_extra)
-    endforeach()
-endif()
-
-if (NOT EVENT__DISABLE_TESTS)
-    #
-    # Generate Regress tests.
-    #
-    if (NOT EVENT__DISABLE_REGRESS)
-
-        # (We require python2 to generate the regress tests)
-        foreach (PY python2.6 python2.7 python2)
-            unset(FIND_PYTHON2 CACHE)
-            find_program(FIND_PYTHON2 ${PY})
-            if (FIND_PYTHON2)
-                set(PYTHON_EXECUTABLE "${PY}")
-                break()
-            endif()
-        endforeach()
-        find_package(PythonInterp)
-
-        if (PYTHONINTERP_FOUND AND PYTHON_VERSION_STRING VERSION_LESS "3.0.0")
-            set(__FOUND_USABLE_PYTHON 1)
-        endif()
-
-        if (__FOUND_USABLE_PYTHON)
-            message(STATUS "Generating regress tests...")
-
-            add_definitions(-DTINYTEST_LOCAL)
-
-            add_custom_command(
-                OUTPUT
-                    ${CMAKE_CURRENT_SOURCE_DIR}/test/regress.gen.c
-                    ${CMAKE_CURRENT_SOURCE_DIR}/test/regress.gen.h
-                DEPENDS
-                    event_rpcgen.py
-                    test/regress.rpc
-                COMMAND ${PYTHON_EXECUTABLE} ../event_rpcgen.py regress.rpc
-                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/test)
-
-            list(APPEND SRC_REGRESS
-                test/regress.c
-                test/regress.gen.c
-                test/regress.gen.h
-                test/regress_buffer.c
-                test/regress_bufferevent.c
-                test/regress_dns.c
-                test/regress_et.c
-                test/regress_finalize.c
-                test/regress_http.c
-                test/regress_listener.c
-                test/regress_main.c
-                test/regress_minheap.c
-                test/regress_rpc.c
-                test/regress_testutils.c
-                test/regress_testutils.h
-                test/regress_util.c
-                test/tinytest.c
-                ${SRC_CORE}
-                ${SRC_EXTRA})
-
-            if (WIN32)
-                list(APPEND SRC_REGRESS test/regress_iocp.c)
-                if (NOT EVENT__DISABLE_THREAD_SUPPORT)
-                    list(APPEND SRC_REGRESS test/regress_thread.c)
-                endif()
-            endif()
-
-            if (CMAKE_USE_PTHREADS_INIT)
-                list(APPEND SRC_REGRESS test/regress_thread.c)
-            endif()
-
-            if (ZLIB_LIBRARY AND ZLIB_INCLUDE_DIR)
-                list(APPEND SRC_REGRESS test/regress_zlib.c)
-            endif()
-
-            if (OPENSSL_LIBRARIES)
-                list(APPEND SRC_REGRESS test/regress_ssl.c)
-            endif()
-
-            add_executable(regress ${SRC_REGRESS})
-
-            # While building the test suite we don't want the visibility
-            # header trying to "dllimport" the symbols on windows (it
-            # generates a ton of warnings due to different link
-            # attributes for all of the symbols)
-            SET_TARGET_PROPERTIES(regress
-                            PROPERTIES COMPILE_DEFINITIONS
-              "EVENT_BUILDING_REGRESS_TEST=1")
-
-            target_link_libraries(regress
-                            ${LIB_APPS}
-                            ${LIB_PLATFORM})
-        else()
-            message(WARNING "No suitable Python interpreter found, cannot generate regress tests!")
-        endif()
-    endif()
-
-    #
-    # Test programs.
-    #
-        # all of these, including the cmakelists.txt should be moved
-        # into the dirctory 'tests' first.
-        #
-        # doing this, we can remove all the DISABLE_TESTS stuff, and simply
-        # do something like:
-        #
-        # add_custom_targets(tests)
-        # add_executable(... EXCLUDE_FROM_ALL ...c)
-        # add_dependencis(tests testa testb testc)
-        # add_test(....)
-        #
-        # then you can just run 'make tests' instead of them all
-        # auto-compile|running
-        # - ellzey
-    set(TESTPROGS   test-changelist
-                    test-eof
-                    test-fdleak
-                    test-init
-                    test-time
-                    test-weof)
-
-    set(ALL_TESTPROGS
-            ${TESTPROGS}
-            test-dumpevents
-            test-ratelim)
-
-    # Create test program executables.
-    foreach (TESTPROG ${ALL_TESTPROGS})
-        add_executable(${TESTPROG}
-                    test/${TESTPROG}.c)
-
-        target_link_libraries(${TESTPROG}
-                    ${EVENT_EXTRA_FOR_TEST}
-                    ${LIB_PLATFORM})
-
-        add_dependencies(${TESTPROG}
-                    ${EVENT_EXTRA_FOR_TEST})
-    endforeach()
-
-    #
-    # We run all tests with the different backends turned on one at a time.
-    #
-
-    # Add event backends based on system introspection result.
-    set(BACKENDS "")
-
-    if (EVENT__HAVE_EPOLL)
-        list(APPEND BACKENDS EPOLL)
-    endif()
-
-    if (EVENT__HAVE_SELECT)
-        list(APPEND BACKENDS SELECT)
-    endif()
-
-    if (EVENT__HAVE_POLL)
-        list(APPEND BACKENDS POLL)
-    endif()
-
-    if (EVENT__HAVE_KQUEUE)
-        list(APPEND BACKENDS KQUEUE)
-    endif()
-
-    if (EVENT__HAVE_EVENT_PORTS)
-        list(APPEND BACKENDS EVPORT)
-    endif()
-
-    if (EVENT__HAVE_DEVPOLL)
-        list(APPEND BACKENDS DEVPOLL)
-    endif()
-
-    if (WIN32)
-        list(APPEND BACKENDS WIN32)
-    endif()
-
-
-    # Default environment variables turns off all event systems,
-    # then we enable each one, one at a time when creating the tests.
-    set(DEFAULT_TEST_ENV_VARS "EVENT_SHOW_METHOD=1;")
-    foreach(BACKEND ${BACKENDS})
-        set(BACKEND_ENV_VAR "EVENT_NO${BACKEND}=1")
-        list(APPEND DEFAULT_TEST_ENV_VARS "${BACKEND_ENV_VAR}")
-    endforeach()
-
-    # Macro that creates the ctest test for a backend.
-    macro(add_backend_test BACKEND_TEST_NAME ENV_VARS)
-        set(TEST_NAMES "")
-
-        foreach (TESTPROG ${TESTPROGS})
-            set(TEST_NAME ${TESTPROG}__${BACKEND_TEST_NAME})
-
-            add_test(${TEST_NAME}
-                            ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TESTPROG})
-
-            list(APPEND TEST_NAMES ${TEST_NAME})
-
-            set_tests_properties(${TEST_NAME}
-                            PROPERTIES ENVIRONMENT "${ENV_VARS}")
-        endforeach()
-
-        # Dump events test.
-        if (__FOUND_USABLE_PYTHON)
-            set(TEST_NAME test-dumpevents__${BACKEND_TEST_NAME})
-
-            add_test(${TEST_NAME}
-                            ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-dumpevents |
-                            ${PYTHON_EXECUTABLE}
-                            ${CMAKE_CURRENT_SOURCE_DIR}/test/check-dumpevents.py)
-
-            set_tests_properties(${TEST_NAME}
-                            PROPERTIES ENVIRONMENT "${ENV_VARS}")
-        else()
-            message(WARNING "test-dumpevents will be run without output check since python was not found!")
-            set(TEST_NAME test-dumpevents__${BACKEND_TEST_NAME}_no_check)
-
-            add_test(${TEST_NAME}
-                            ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-dumpevents)
-
-            set_tests_properties(${TEST_NAME}
-                            PROPERTIES ENVIRONMENT "${ENV_VARS}")
-        endif()
-
-        # Regress tests.
-        if (NOT EVENT__DISABLE_REGRESS AND __FOUND_USABLE_PYTHON)
-            set(TEST_NAME regress__${BACKEND_TEST_NAME})
-
-            add_test(${TEST_NAME}
-                            ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/regress)
-
-            set_tests_properties(${TEST_NAME}
-                            PROPERTIES ENVIRONMENT "${ENV_VARS}")
-
-            add_test(${TEST_NAME}_debug
-                            ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/regress)
-
-            set_tests_properties(${TEST_NAME}_debug
-                            PROPERTIES ENVIRONMENT "${ENV_VARS};EVENT_DEBUG_MODE=1")
-        endif()
-    endmacro()
-
-    # Add the tests for each backend.
-    foreach(BACKEND ${BACKENDS})
-        # Enable this backend only.
-        set(BACKEND_ENV_VARS ${DEFAULT_TEST_ENV_VARS})
-        list(REMOVE_ITEM BACKEND_ENV_VARS EVENT_NO${BACKEND}=1)
-
-        # Epoll has some extra settings.
-        if (${BACKEND} STREQUAL "EPOLL")
-            add_backend_test(timerfd_${BACKEND}
-                            "${BACKEND_ENV_VARS};EVENT_PRECISE_TIMER=1")
-
-            add_backend_test(changelist_${BACKEND}
-                            "${BACKEND_ENV_VARS};EVENT_EPOLL_USE_CHANGELIST=yes")
-
-            add_backend_test(timerfd_changelist_${BACKEND}
-                            "${BACKEND_ENV_VARS};EVENT_EPOLL_USE_CHANGELIST=yes;EVENT_PRECISE_TIMER=1")
-        else()
-            add_backend_test(${BACKEND} "${BACKEND_ENV_VARS}")
-        endif()
-    endforeach()
-
-    #
-    # Rate limiter tests.
-    #
-
-    # Group limits, no connection limit.
-        set(RL_BIN  ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-ratelim)
-
-    add_test(test-ratelim__group_lim
-                ${RL_BIN}
-                -g 30000
-                -n 30
-                -t 100
-                --check-grouplimit 1000
-                --check-stddev 100)
-
-    # Connection limit, no group limit.
-    add_test(test-ratelim__con_lim
-                ${RL_BIN}
-                -c 1000
-                -n 30
-                -t 100
-                --check-connlimit 50
-                --check-stddev 50)
-
-    # Connection limit and group limit.
-    add_test(test-ratelim__group_con_lim
-                ${RL_BIN}
-                -c 1000
-                -g 30000
-                -n 30
-                -t 100
-                --check-grouplimit 1000
-                --check-connlimit 50
-                --check-stddev 50)
-
-    # Connection limit and group limit with independent drain.
-    add_test(test-ratelim__group_con_lim_drain
-                ${RL_BIN}
-                -c 1000
-                -g 35000
-                -n 30
-                -t 100
-                -G 500
-                --check-grouplimit 1000
-                --check-connlimit 50
-                --check-stddev 50)
-
-    # Add a "make verify" target, same as for autoconf.
-    # (Important! This will unset all EVENT_NO* environment variables.
-    #  If they are set in the shell the tests are running using simply "ctest" or "make test" will fail)
-    if (WIN32)
-        # Windows doesn't have "unset". But you can use "set VAR=" instead.
-        # We need to guard against the possibility taht EVENT_NOWIN32 is set, and all test failing
-        # since no event backend being available.
-        file(TO_NATIVE_PATH ${CMAKE_CTEST_COMMAND} WINDOWS_CTEST_COMMAND)
-
-        file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/tmp/verify_tests.bat
-            "
-            set EVENT_NOWIN32=
-            \"${WINDOWS_CTEST_COMMAND}\"
-            ")
-
-        message(STATUS "${WINDOWS_CTEST_COMMAND}")
-
-        file(COPY ${CMAKE_CURRENT_BINARY_DIR}/tmp/verify_tests.bat
-            DESTINATION
-                            ${CMAKE_CURRENT_BINARY_DIR}
-            FILE_PERMISSIONS
-                            OWNER_READ
-                            OWNER_WRITE
-                            OWNER_EXECUTE
-                            GROUP_READ
-                            GROUP_EXECUTE
-                            WORLD_READ WORLD_EXECUTE)
-
-        file(TO_NATIVE_PATH
-                    "${CMAKE_CURRENT_BINARY_DIR}/verify_tests.bat" VERIFY_PATH)
-
-        add_custom_target(verify COMMAND "${VERIFY_PATH}"
-                        DEPENDS event ${ALL_TESTPROGS})
-    else()
-        # On some platforms doing exec(unset) as CMake does won't work, so make sure
-        # we run the unset command in a shell instead.
-        # First we write the script contents.
-        file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/tmp/verify_tests.sh
-            "
-            #!/bin/bash
-            unset EVENT_NOEPOLL; unset EVENT_NOPOLL; unset EVENT_NOSELECT; unset EVENT_NOWIN32; unset EVENT_NOEVPORT; unset EVENT_NOKQUEUE; unset EVENT_NODEVPOLL
-            ${CMAKE_CTEST_COMMAND}
-            ")
-
-        # Then we copy the file (this allows us to set execute permission on it)
-        file(COPY ${CMAKE_CURRENT_BINARY_DIR}/tmp/verify_tests.sh
-            DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
-            FILE_PERMISSIONS
-                            OWNER_READ
-                            OWNER_WRITE
-                            OWNER_EXECUTE
-                            GROUP_READ
-                            GROUP_EXECUTE
-                            WORLD_READ
-                            WORLD_EXECUTE)
-
-        # Create the target that runs the script.
-        add_custom_target(verify
-                    COMMAND
-                        ${CMAKE_CURRENT_BINARY_DIR}/verify_tests.sh
-          DEPENDS
-                        event
-                        ${ALL_TESTPROGS})
-    endif()
-
-    if (NOT EVENT__DISABLE_REGRESS AND __FOUND_USABLE_PYTHON)
-        add_dependencies(verify regress)
-    endif()
-
-    if (EVENT__COVERAGE)
-        include(CodeCoverage)
-
-        setup_target_for_coverage(
-            verify_coverage # Coverage target name "make verify_coverage"
-            make            # Test runner.
-            coverage        # Output directory.
-            verify)         # Arguments passed to test runner. "make verify"
-    endif()
-
-    enable_testing()
-
-    include(CTest)
-endif()
+## if (NOT EVENT__DISABLE_SAMPLES)
+##     set(SAMPLES
+##         dns-example
+##         event-read-fifo
+##         hello-world
+##         signal-test
+##         http-server
+##         http-connect
+##         time-test)
+## 
+##     if (NOT EVENT__DISABLE_OPENSSL AND OPENSSL_LIBRARIES)
+##         set(CMAKE_REQUIRED_LIBRARIES ${OPENSSL_LIBRARIES})
+##         CHECK_FUNCTION_EXISTS_EX(ERR_remove_thread_state EVENT__HAVE_ERR_REMOVE_THREAD_STATE)
+##         set(CMAKE_REQUIRED_LIBRARIES "")
+## 
+##         # Special sample with more than one file.
+##         add_executable(https-client
+##             sample/https-client.c
+##             sample/openssl_hostname_validation.c
+##             sample/hostcheck.c)
+## 
+##         target_link_libraries(https-client
+##                     event_extra
+##                     ${LIB_APPS}
+##                     ${LIB_PLATFORM})
+## 
+##         add_dependencies(https-client event_extra)
+## 
+##         # Requires OpenSSL.
+##         list(APPEND SAMPLES le-proxy)
+##     endif()
+## 
+##     foreach(SAMPLE ${SAMPLES})
+##         add_executable(${SAMPLE}
+##                     sample/${SAMPLE}.c)
+## 
+##         target_link_libraries(${SAMPLE}
+##                     event_extra
+##                     ${LIB_APPS}
+##                     ${LIB_PLATFORM})
+## 
+##         add_dependencies(${SAMPLE} event_extra)
+##     endforeach()
+## 
+##     if (WIN32)
+##         target_sources(dns-example PUBLIC
+##                        WIN32-Code/getopt.c
+##                        WIN32-Code/getopt_long.c)
+##     endif()
+## endif()
+
+## if (NOT EVENT__DISABLE_BENCHMARK)
+##     foreach (BENCHMARK bench bench_cascade bench_http bench_httpclient)
+##         set(BENCH_SRC test/${BENCHMARK}.c)
+## 
+##         if (WIN32)
+##             list(APPEND BENCH_SRC
+##                             WIN32-Code/getopt.c
+##                             WIN32-Code/getopt_long.c)
+##         endif()
+## 
+##         add_executable(${BENCHMARK} ${BENCH_SRC})
+## 
+##         target_link_libraries(${BENCHMARK}
+##                     event_extra
+##                     ${LIB_PLATFORM})
+## 
+##         add_dependencies(${BENCHMARK} event_extra)
+##     endforeach()
+## endif()
+
+## if (NOT EVENT__DISABLE_TESTS)
+##     #
+##     # Generate Regress tests.
+##     #
+##     if (NOT EVENT__DISABLE_REGRESS)
+## 
+##         # (We require python2 to generate the regress tests)
+##         foreach (PY python2.6 python2.7 python2)
+##             unset(FIND_PYTHON2 CACHE)
+##             find_program(FIND_PYTHON2 ${PY})
+##             if (FIND_PYTHON2)
+##                 set(PYTHON_EXECUTABLE "${PY}")
+##                 break()
+##             endif()
+##         endforeach()
+##         find_package(PythonInterp)
+## 
+##         if (PYTHONINTERP_FOUND AND PYTHON_VERSION_STRING VERSION_LESS "3.0.0")
+##             set(__FOUND_USABLE_PYTHON 1)
+##         endif()
+## 
+##         if (__FOUND_USABLE_PYTHON)
+##             message(STATUS "Generating regress tests...")
+## 
+##             add_definitions(-DTINYTEST_LOCAL)
+## 
+##             add_custom_command(
+##                 OUTPUT
+##                     ${CMAKE_CURRENT_SOURCE_DIR}/test/regress.gen.c
+##                     ${CMAKE_CURRENT_SOURCE_DIR}/test/regress.gen.h
+##                 DEPENDS
+##                     event_rpcgen.py
+##                     test/regress.rpc
+##                 COMMAND ${PYTHON_EXECUTABLE} ../event_rpcgen.py regress.rpc
+##                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/test)
+## 
+##             list(APPEND SRC_REGRESS
+##                 test/regress.c
+##                 test/regress.gen.c
+##                 test/regress.gen.h
+##                 test/regress_buffer.c
+##                 test/regress_bufferevent.c
+##                 test/regress_dns.c
+##                 test/regress_et.c
+##                 test/regress_finalize.c
+##                 test/regress_http.c
+##                 test/regress_listener.c
+##                 test/regress_main.c
+##                 test/regress_minheap.c
+##                 test/regress_rpc.c
+##                 test/regress_testutils.c
+##                 test/regress_testutils.h
+##                 test/regress_util.c
+##                 test/tinytest.c
+##                 ${SRC_CORE}
+##                 ${SRC_EXTRA})
+## 
+##             if (WIN32)
+##                 list(APPEND SRC_REGRESS test/regress_iocp.c)
+##                 if (NOT EVENT__DISABLE_THREAD_SUPPORT)
+##                     list(APPEND SRC_REGRESS test/regress_thread.c)
+##                 endif()
+##             endif()
+## 
+##             if (CMAKE_USE_PTHREADS_INIT)
+##                 list(APPEND SRC_REGRESS test/regress_thread.c)
+##             endif()
+## 
+##             if (ZLIB_LIBRARY AND ZLIB_INCLUDE_DIR)
+##                 list(APPEND SRC_REGRESS test/regress_zlib.c)
+##             endif()
+## 
+##             if (OPENSSL_LIBRARIES)
+##                 list(APPEND SRC_REGRESS test/regress_ssl.c)
+##             endif()
+## 
+##             add_executable(regress ${SRC_REGRESS})
+## 
+##             # While building the test suite we don't want the visibility
+##             # header trying to "dllimport" the symbols on windows (it
+##             # generates a ton of warnings due to different link
+##             # attributes for all of the symbols)
+##             SET_TARGET_PROPERTIES(regress
+##                             PROPERTIES COMPILE_DEFINITIONS
+##               "EVENT_BUILDING_REGRESS_TEST=1")
+## 
+##             target_link_libraries(regress
+##                             ${LIB_APPS}
+##                             ${LIB_PLATFORM})
+##         else()
+##             message(WARNING "No suitable Python interpreter found, cannot generate regress tests!")
+##         endif()
+##     endif()
+## 
+##     #
+##     # Test programs.
+##     #
+##         # all of these, including the cmakelists.txt should be moved
+##         # into the dirctory 'tests' first.
+##         #
+##         # doing this, we can remove all the DISABLE_TESTS stuff, and simply
+##         # do something like:
+##         #
+##         # add_custom_targets(tests)
+##         # add_executable(... EXCLUDE_FROM_ALL ...c)
+##         # add_dependencis(tests testa testb testc)
+##         # add_test(....)
+##         #
+##         # then you can just run 'make tests' instead of them all
+##         # auto-compile|running
+##         # - ellzey
+##     set(TESTPROGS   test-changelist
+##                     test-eof
+##                     test-fdleak
+##                     test-init
+##                     test-time
+##                     test-weof)
+## 
+##     set(ALL_TESTPROGS
+##             ${TESTPROGS}
+##             test-dumpevents
+##             test-ratelim)
+## 
+##     # Create test program executables.
+##     foreach (TESTPROG ${ALL_TESTPROGS})
+##         add_executable(${TESTPROG}
+##                     test/${TESTPROG}.c)
+## 
+##         target_link_libraries(${TESTPROG}
+##                     ${EVENT_EXTRA_FOR_TEST}
+##                     ${LIB_PLATFORM})
+## 
+##         add_dependencies(${TESTPROG}
+##                     ${EVENT_EXTRA_FOR_TEST})
+##     endforeach()
+## 
+##     #
+##     # We run all tests with the different backends turned on one at a time.
+##     #
+## 
+##     # Add event backends based on system introspection result.
+##     set(BACKENDS "")
+## 
+##     if (EVENT__HAVE_EPOLL)
+##         list(APPEND BACKENDS EPOLL)
+##     endif()
+## 
+##     if (EVENT__HAVE_SELECT)
+##         list(APPEND BACKENDS SELECT)
+##     endif()
+## 
+##     if (EVENT__HAVE_POLL)
+##         list(APPEND BACKENDS POLL)
+##     endif()
+## 
+##     if (EVENT__HAVE_KQUEUE)
+##         list(APPEND BACKENDS KQUEUE)
+##     endif()
+## 
+##     if (EVENT__HAVE_EVENT_PORTS)
+##         list(APPEND BACKENDS EVPORT)
+##     endif()
+## 
+##     if (EVENT__HAVE_DEVPOLL)
+##         list(APPEND BACKENDS DEVPOLL)
+##     endif()
+## 
+##     if (WIN32)
+##         list(APPEND BACKENDS WIN32)
+##     endif()
+## 
+## 
+##     # Default environment variables turns off all event systems,
+##     # then we enable each one, one at a time when creating the tests.
+##     set(DEFAULT_TEST_ENV_VARS "EVENT_SHOW_METHOD=1;")
+##     foreach(BACKEND ${BACKENDS})
+##         set(BACKEND_ENV_VAR "EVENT_NO${BACKEND}=1")
+##         list(APPEND DEFAULT_TEST_ENV_VARS "${BACKEND_ENV_VAR}")
+##     endforeach()
+## 
+##     # Macro that creates the ctest test for a backend.
+##     macro(add_backend_test BACKEND_TEST_NAME ENV_VARS)
+##         set(TEST_NAMES "")
+## 
+##         foreach (TESTPROG ${TESTPROGS})
+##             set(TEST_NAME ${TESTPROG}__${BACKEND_TEST_NAME})
+## 
+##             add_test(${TEST_NAME}
+##                             ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TESTPROG})
+## 
+##             list(APPEND TEST_NAMES ${TEST_NAME})
+## 
+##             set_tests_properties(${TEST_NAME}
+##                             PROPERTIES ENVIRONMENT "${ENV_VARS}")
+##         endforeach()
+## 
+##         # Dump events test.
+##         if (__FOUND_USABLE_PYTHON)
+##             set(TEST_NAME test-dumpevents__${BACKEND_TEST_NAME})
+## 
+##             add_test(${TEST_NAME}
+##                             ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-dumpevents |
+##                             ${PYTHON_EXECUTABLE}
+##                             ${CMAKE_CURRENT_SOURCE_DIR}/test/check-dumpevents.py)
+## 
+##             set_tests_properties(${TEST_NAME}
+##                             PROPERTIES ENVIRONMENT "${ENV_VARS}")
+##         else()
+##             message(WARNING "test-dumpevents will be run without output check since python was not found!")
+##             set(TEST_NAME test-dumpevents__${BACKEND_TEST_NAME}_no_check)
+## 
+##             add_test(${TEST_NAME}
+##                             ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-dumpevents)
+## 
+##             set_tests_properties(${TEST_NAME}
+##                             PROPERTIES ENVIRONMENT "${ENV_VARS}")
+##         endif()
+## 
+##         # Regress tests.
+##         if (NOT EVENT__DISABLE_REGRESS AND __FOUND_USABLE_PYTHON)
+##             set(TEST_NAME regress__${BACKEND_TEST_NAME})
+## 
+##             add_test(${TEST_NAME}
+##                             ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/regress)
+## 
+##             set_tests_properties(${TEST_NAME}
+##                             PROPERTIES ENVIRONMENT "${ENV_VARS}")
+## 
+##             add_test(${TEST_NAME}_debug
+##                             ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/regress)
+## 
+##             set_tests_properties(${TEST_NAME}_debug
+##                             PROPERTIES ENVIRONMENT "${ENV_VARS};EVENT_DEBUG_MODE=1")
+##         endif()
+##     endmacro()
+## 
+##     # Add the tests for each backend.
+##     foreach(BACKEND ${BACKENDS})
+##         # Enable this backend only.
+##         set(BACKEND_ENV_VARS ${DEFAULT_TEST_ENV_VARS})
+##         list(REMOVE_ITEM BACKEND_ENV_VARS EVENT_NO${BACKEND}=1)
+## 
+##         # Epoll has some extra settings.
+##         if (${BACKEND} STREQUAL "EPOLL")
+##             add_backend_test(timerfd_${BACKEND}
+##                             "${BACKEND_ENV_VARS};EVENT_PRECISE_TIMER=1")
+## 
+##             add_backend_test(changelist_${BACKEND}
+##                             "${BACKEND_ENV_VARS};EVENT_EPOLL_USE_CHANGELIST=yes")
+## 
+##             add_backend_test(timerfd_changelist_${BACKEND}
+##                             "${BACKEND_ENV_VARS};EVENT_EPOLL_USE_CHANGELIST=yes;EVENT_PRECISE_TIMER=1")
+##         else()
+##             add_backend_test(${BACKEND} "${BACKEND_ENV_VARS}")
+##         endif()
+##     endforeach()
+## 
+##     #
+##     # Rate limiter tests.
+##     #
+## 
+##     # Group limits, no connection limit.
+##         set(RL_BIN  ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-ratelim)
+## 
+##     add_test(test-ratelim__group_lim
+##                 ${RL_BIN}
+##                 -g 30000
+##                 -n 30
+##                 -t 100
+##                 --check-grouplimit 1000
+##                 --check-stddev 100)
+## 
+##     # Connection limit, no group limit.
+##     add_test(test-ratelim__con_lim
+##                 ${RL_BIN}
+##                 -c 1000
+##                 -n 30
+##                 -t 100
+##                 --check-connlimit 50
+##                 --check-stddev 50)
+## 
+##     # Connection limit and group limit.
+##     add_test(test-ratelim__group_con_lim
+##                 ${RL_BIN}
+##                 -c 1000
+##                 -g 30000
+##                 -n 30
+##                 -t 100
+##                 --check-grouplimit 1000
+##                 --check-connlimit 50
+##                 --check-stddev 50)
+## 
+##     # Connection limit and group limit with independent drain.
+##     add_test(test-ratelim__group_con_lim_drain
+##                 ${RL_BIN}
+##                 -c 1000
+##                 -g 35000
+##                 -n 30
+##                 -t 100
+##                 -G 500
+##                 --check-grouplimit 1000
+##                 --check-connlimit 50
+##                 --check-stddev 50)
+## 
+##     # Add a "make verify" target, same as for autoconf.
+##     # (Important! This will unset all EVENT_NO* environment variables.
+##     #  If they are set in the shell the tests are running using simply "ctest" or "make test" will fail)
+##     if (WIN32)
+##         # Windows doesn't have "unset". But you can use "set VAR=" instead.
+##         # We need to guard against the possibility taht EVENT_NOWIN32 is set, and all test failing
+##         # since no event backend being available.
+##         file(TO_NATIVE_PATH ${CMAKE_CTEST_COMMAND} WINDOWS_CTEST_COMMAND)
+## 
+##         file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/tmp/verify_tests.bat
+##             "
+##             set EVENT_NOWIN32=
+##             \"${WINDOWS_CTEST_COMMAND}\"
+##             ")
+## 
+##         message(STATUS "${WINDOWS_CTEST_COMMAND}")
+## 
+##         file(COPY ${CMAKE_CURRENT_BINARY_DIR}/tmp/verify_tests.bat
+##             DESTINATION
+##                             ${CMAKE_CURRENT_BINARY_DIR}
+##             FILE_PERMISSIONS
+##                             OWNER_READ
+##                             OWNER_WRITE
+##                             OWNER_EXECUTE
+##                             GROUP_READ
+##                             GROUP_EXECUTE
+##                             WORLD_READ WORLD_EXECUTE)
+## 
+##         file(TO_NATIVE_PATH
+##                     "${CMAKE_CURRENT_BINARY_DIR}/verify_tests.bat" VERIFY_PATH)
+## 
+##         add_custom_target(verify COMMAND "${VERIFY_PATH}"
+##                         DEPENDS event ${ALL_TESTPROGS})
+##     else()
+##         # On some platforms doing exec(unset) as CMake does won't work, so make sure
+##         # we run the unset command in a shell instead.
+##         # First we write the script contents.
+##         file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/tmp/verify_tests.sh
+##             "
+##             #!/bin/bash
+##             unset EVENT_NOEPOLL; unset EVENT_NOPOLL; unset EVENT_NOSELECT; unset EVENT_NOWIN32; unset EVENT_NOEVPORT; unset EVENT_NOKQUEUE; unset EVENT_NODEVPOLL
+##             ${CMAKE_CTEST_COMMAND}
+##             ")
+## 
+##         # Then we copy the file (this allows us to set execute permission on it)
+##         file(COPY ${CMAKE_CURRENT_BINARY_DIR}/tmp/verify_tests.sh
+##             DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
+##             FILE_PERMISSIONS
+##                             OWNER_READ
+##                             OWNER_WRITE
+##                             OWNER_EXECUTE
+##                             GROUP_READ
+##                             GROUP_EXECUTE
+##                             WORLD_READ
+##                             WORLD_EXECUTE)
+## 
+##         # Create the target that runs the script.
+##         add_custom_target(verify
+##                     COMMAND
+##                         ${CMAKE_CURRENT_BINARY_DIR}/verify_tests.sh
+##           DEPENDS
+##                         event
+##                         ${ALL_TESTPROGS})
+##     endif()
+## 
+##     if (NOT EVENT__DISABLE_REGRESS AND __FOUND_USABLE_PYTHON)
+##         add_dependencies(verify regress)
+##     endif()
+## 
+##     if (EVENT__COVERAGE)
+##         include(CodeCoverage)
+## 
+##         setup_target_for_coverage(
+##             verify_coverage # Coverage target name "make verify_coverage"
+##             make            # Test runner.
+##             coverage        # Output directory.
+##             verify)         # Arguments passed to test runner. "make verify"
+##     endif()
+## 
+##     enable_testing()
+## 
+##     include(CTest)
+## endif()
 
 #
 # Installation preparation.
