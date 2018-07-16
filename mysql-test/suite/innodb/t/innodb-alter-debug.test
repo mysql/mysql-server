@@ -76,3 +76,31 @@ drop table t1;
 
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
+
+--echo #
+--echo # Bug #27753193  ASSERTION `PREBUILT->TRX->ERROR_KEY_NUM <
+--echo #                HA_ALTER_INFO->KEY_COUNT'
+
+CREATE TABLE t1 (a INT, UNIQUE KEY(a));
+INSERT INTO t1 VALUES (1);
+
+SET DEBUG_SYNC = 'row_log_table_apply1_before signal S1 WAIT_FOR S2';
+--send OPTIMIZE TABLE t1;
+
+CONNECT (con1,localhost,root,,);
+CONNECTION con1;
+SET DEBUG_SYNC = 'now WAIT_FOR S1';
+--error ER_DUP_ENTRY
+INSERT INTO t1 VALUES (1);
+SET DEBUG_SYNC = 'now SIGNAL S2';
+
+CONNECTION default;
+--echo /* reap */ OPTIMIZE TABLE t1;
+--reap
+DISCONNECT con1;
+SET DEBUG_SYNC='RESET';
+
+DROP TABLE t1;
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
