@@ -9845,7 +9845,7 @@ Rows_log_event::row_operations_scan_and_key_setup()
       DBUG_ASSERT (m_key_index < MAX_KEY);
       // Allocate buffer for key searches
       m_key= (uchar*)my_malloc(key_memory_log_event,
-                               MAX_KEY_LENGTH, MYF(MY_WME));
+                               m_key_info->key_length, MYF(MY_WME));
       if (!m_key)
         error= HA_ERR_OUT_OF_MEM;
       goto err;
