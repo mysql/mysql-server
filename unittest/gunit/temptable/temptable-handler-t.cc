@@ -47,7 +47,7 @@ as my_error generated. */
 
 /* In debug builds there will be an assert. */
 #define EXPECT_UPDATE_UNSUPPORTED(x) \
-  EXPECT_DEATH_IF_SUPPORTED(x, ".*Assertion .*false.* failed.*");
+  EXPECT_DEATH_IF_SUPPORTED(x, ".*Assertion .*");
 
 #endif
 
@@ -199,6 +199,8 @@ TEST_F(Handler_test, SimpleTableOpsVarSize) {
 }
 
 TEST_F(Handler_test, SingleIndex) {
+  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
+
   const char *table_name = "t1";
 
   Table_helper table_helper(table_name, thd());
@@ -263,6 +265,8 @@ TEST_F(Handler_test, SingleIndex) {
 }
 
 TEST_F(Handler_test, MultiIndex) {
+  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
+
   const char *table_name = "t1";
 
   Table_helper table_helper(table_name, thd());
@@ -346,6 +350,8 @@ TEST_F(Handler_test, MultiIndex) {
 }
 
 TEST_F(Handler_test, MultiIndexVarchar) {
+  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
+
   const char *table_name = "t1";
 
   Table_helper table_helper(table_name, thd());
