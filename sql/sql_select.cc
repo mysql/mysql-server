@@ -1794,7 +1794,7 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
       store_key *s_key =
           get_store_key(thd, keyuse, join->const_table_map,
                         &keyinfo->key_part[part_no], key_buff, maybe_null);
-      if (unlikely(!s_key || thd->is_fatal_error)) DBUG_RETURN(true);
+      if (unlikely(!s_key || thd->is_fatal_error())) DBUG_RETURN(true);
 
       if (keyuse->used_tables) /* Comparing against a non-constant. */
         j->ref().key_copy[part_no] = s_key;
@@ -4166,7 +4166,7 @@ bool JOIN::make_tmp_tables_info() {
     const bool need_distinct = !(qep_tab && qep_tab[0].quick() &&
                                  qep_tab[0].quick()->is_agg_loose_index_scan());
     if (prepare_sum_aggregators(sum_funcs, need_distinct)) DBUG_RETURN(true);
-    if (setup_sum_funcs(thd, sum_funcs) || thd->is_fatal_error)
+    if (setup_sum_funcs(thd, sum_funcs) || thd->is_fatal_error())
       DBUG_RETURN(true);
     // And now set it as input for next phases:
     set_ref_item_slice(REF_SLICE_ORDERED_GROUP_BY);

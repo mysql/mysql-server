@@ -799,7 +799,7 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show) {
   const char *sqlstate = new_stmt_da.returned_sqlstate();
 
   /* In case of a fatal error, set it into the original DA.*/
-  if (thd->is_fatal_error) {
+  if (thd->is_fatal_error()) {
     first_da->set_error_status(sql_errno, message, sqlstate);
     DBUG_RETURN(true);
   }

@@ -1136,7 +1136,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
                      item->is_result_field()));
 
       if (!new_field) {
-        DBUG_ASSERT(thd->is_fatal_error);
+        DBUG_ASSERT(thd->is_fatal_error());
         goto err;  // Got OOM
       }
       /*
@@ -1348,7 +1348,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
         Field_longlong(sizeof(ulonglong), false, "<hash_field>", true);
     if (!field) {
       /* purecov: begin inspected */
-      DBUG_ASSERT(thd->is_fatal_error);
+      DBUG_ASSERT(thd->is_fatal_error());
       goto err;  // Got OOM
       /* purecov: end */
     }
@@ -1596,8 +1596,8 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
     param->keyinfo = hash_key;
   }
 
-  if (thd->is_fatal_error)  // If end of memory
-    goto err;               /* purecov: inspected */
+  if (thd->is_fatal_error())  // If end of memory
+    goto err;                 /* purecov: inspected */
 
   set_real_row_type(table);
 
@@ -1715,7 +1715,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
     Field_longlong *field = new (&share->mem_root)
         Field_longlong(sizeof(ulonglong), false, "<hash_field>", true);
     if (!field) {
-      DBUG_ASSERT(thd->is_fatal_error);
+      DBUG_ASSERT(thd->is_fatal_error());
       goto err;  // Got OOM
     }
     // Mark hash_field as NOT NULL
@@ -1841,7 +1841,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
     table->key_info->name = (char *)"weedout_key";
   }
 
-  if (thd->is_fatal_error)  // If end of memory
+  if (thd->is_fatal_error())  // If end of memory
     goto err;
 
   set_real_row_type(table);

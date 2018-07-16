@@ -2900,7 +2900,7 @@ bool subselect_single_select_engine::exec() {
     join->exec();
     unit->set_executed();
 
-    rc = join->error || thd->is_fatal_error;
+    rc = join->error || thd->is_fatal_error();
   }
 
   thd->where = save_where;
@@ -3680,7 +3680,7 @@ bool subselect_hash_sj_engine::exec() {
     JOIN *join = materialize_engine->select_lex->join;
 
     join->exec();
-    if ((res = join->error || thd->is_fatal_error)) goto err;
+    if ((res = join->error || thd->is_fatal_error())) goto err;
 
     /*
       TODO:

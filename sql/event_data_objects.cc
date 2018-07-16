@@ -1008,7 +1008,7 @@ bool Event_job_data::construct_sp_sql(THD *thd, String *sp_sql) {
 
   sp_sql->append(m_definition.str, m_definition.length);
 
-  DBUG_RETURN(thd->is_fatal_error);
+  DBUG_RETURN(thd->is_fatal_error());
 }
 
 /**
@@ -1093,7 +1093,7 @@ bool Event_job_data::execute(THD *thd, bool drop) {
     thd->m_statement_psi = NULL;
     if (parse_sql(thd, &parser_state, m_creation_ctx)) {
       LogErr(ERROR_LEVEL, ER_EVENT_ERROR_DURING_COMPILATION,
-             thd->is_fatal_error ? "fatal " : "", m_schema_name.str,
+             thd->is_fatal_error() ? "fatal " : "", m_schema_name.str,
              m_event_name.str);
       thd->m_digest = parent_digest;
       thd->m_statement_psi = parent_locker;
@@ -1130,7 +1130,7 @@ bool Event_job_data::execute(THD *thd, bool drop) {
   }
 
 end:
-  if (drop && !thd->is_fatal_error) {
+  if (drop && !thd->is_fatal_error()) {
     /*
       We must do it here since here we're under the right authentication
       ID of the event definer.

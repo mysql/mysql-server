@@ -354,8 +354,8 @@ bool Sql_cmd_create_or_drop_index_base::execute(THD *thd) {
   HA_CREATE_INFO create_info;
   Alter_info alter_info(*m_alter_info, thd->mem_root);
 
-  if (thd->is_fatal_error) /* out of memory creating a copy of alter_info */
-    return true;           // OOM
+  if (thd->is_fatal_error()) /* out of memory creating a copy of alter_info */
+    return true;             // OOM
 
   if (check_one_table_access(thd, INDEX_ACL, all_tables)) return true;
   /*

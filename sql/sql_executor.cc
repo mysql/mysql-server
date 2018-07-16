@@ -6215,7 +6215,7 @@ bool change_refs_to_tmp_fields(THD *thd, Ref_item_array ref_item_array,
   for (uint i = 0; i < border; i++) itr++;
   itr.sublist(res_selected_fields, elements);
 
-  DBUG_RETURN(thd->is_fatal_error);
+  DBUG_RETURN(thd->is_fatal_error());
 }
 
 /**

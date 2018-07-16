@@ -604,7 +604,7 @@ err:
 
     my_printf_error(ER_FILSORT_ABORT, "%s: %s", MYF(0), msg, cause);
 
-    if (thd->is_fatal_error) {
+    if (thd->is_fatal_error()) {
       LogEvent()
           .type(LOG_TYPE_ERROR)
           .subsys(LOG_SUBSYSTEM_TAG)

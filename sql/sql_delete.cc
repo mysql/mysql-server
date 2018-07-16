@@ -906,7 +906,7 @@ bool Query_result_delete::optimize() {
 
   if (select->has_ft_funcs() && init_ftfuncs(thd, select)) DBUG_RETURN(true);
 
-  DBUG_RETURN(thd->is_fatal_error != 0);
+  DBUG_RETURN(thd->is_fatal_error());
 }
 
 void Query_result_delete::cleanup() {

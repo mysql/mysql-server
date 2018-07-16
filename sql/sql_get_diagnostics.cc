@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -100,7 +100,7 @@ bool Sql_cmd_get_diagnostics::execute(THD *thd) {
   const char *sqlstate = new_stmt_da.returned_sqlstate();
 
   /* In case of a fatal error, set it into the original DA.*/
-  if (thd->is_fatal_error) {
+  if (thd->is_fatal_error()) {
     first_da->set_error_status(sql_errno, message, sqlstate);
     DBUG_RETURN(true);
   }

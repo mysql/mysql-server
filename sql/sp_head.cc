@@ -2206,7 +2206,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
     uint error_num = 0;
     if (thd->is_error()) error_num = thd->get_stmt_da()->mysql_errno();
 #endif
-    if (!thd->is_fatal_error && !thd->killed &&
+    if (!thd->is_fatal_error() && !thd->killed &&
         thd->sp_runtime_ctx->handle_sql_condition(thd, &ip, i)) {
       err_status = false;
 #ifdef HAVE_PSI_ERROR_INTERFACE
@@ -2217,7 +2217,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
     /* Reset sp_rcontext::end_partial_result_set flag. */
     thd->sp_runtime_ctx->end_partial_result_set = false;
 
-  } while (!err_status && !thd->killed && !thd->is_fatal_error);
+  } while (!err_status && !thd->killed && !thd->is_fatal_error());
 
 #if defined(ENABLED_PROFILING)
   thd->profiling->finish_current_query();

@@ -2258,6 +2258,8 @@ class THD : public MDL_context_owner,
   bool slave_thread;
 
   uchar password;
+
+ private:
   /**
     Set to true if execution of the current compound statement
     can not continue. In particular, disables activation of
@@ -2265,7 +2267,9 @@ class THD : public MDL_context_owner,
     Reset in the end of processing of the current user request, in
     @see mysql_reset_thd_for_next_command().
   */
-  bool is_fatal_error;
+  bool m_is_fatal_error;
+
+ public:
   /**
     Set by a storage engine to request the entire
     transaction (that possibly spans multiple engines) to
@@ -2306,7 +2310,6 @@ class THD : public MDL_context_owner,
   bool charset_is_system_charset, charset_is_collation_connection;
   bool charset_is_character_set_filesystem;
   bool enable_slow_log; /* enable slow log for current statement */
-  bool got_warning;     /* Set on call to push_warning() */
   /* set during loop of derived table processing */
   bool derived_tables_processing;
   // Set while parsing INFORMATION_SCHEMA system views.
@@ -2744,11 +2747,8 @@ class THD : public MDL_context_owner,
     set any error, it sets a property of the error, so must be
     followed or prefixed with my_error().
   */
-  inline void fatal_error() {
-    DBUG_ASSERT(get_stmt_da()->is_error() || killed);
-    is_fatal_error = 1;
-    DBUG_PRINT("error", ("Fatal error set"));
-  }
+  void fatal_error() { m_is_fatal_error = true; }
+  bool is_fatal_error() const { return m_is_fatal_error; }
   /**
     true if there is an error in the error stack.
 
@@ -3449,6 +3449,7 @@ class THD : public MDL_context_owner,
   */
   void push_internal_handler(Internal_error_handler *handler);
 
+ private:
   /**
     Handle a sql condition.
     @param sql_errno the condition error number
@@ -3461,6 +3462,7 @@ class THD : public MDL_context_owner,
                         Sql_condition::enum_severity_level *level,
                         const char *msg);
 
+ public:
   /**
     Remove the error handler last pushed.
   */
@@ -3520,18 +3522,19 @@ class THD : public MDL_context_owner,
   friend void my_message_sql(uint, const char *, myf);
 
   /**
-    Raise a generic SQL condition.
+    Raise a generic SQL condition. Also calls mysql_audit_notify() unless
+    the condition is handled by a SQL condition handler.
+
     @param sql_errno the condition error number
     @param sqlstate the condition SQLSTATE
     @param level the condition level
     @param msg the condition message text
-    @param use_condition_handler Invoke the handle_condition.
+    @param fatal_error should the fatal_error flag be set?
     @return The condition raised, or NULL
   */
   Sql_condition *raise_condition(uint sql_errno, const char *sqlstate,
                                  Sql_condition::enum_severity_level level,
-                                 const char *msg,
-                                 bool use_condition_handler = true);
+                                 const char *msg, bool fatal_error = false);
 
  public:
   void set_command(enum enum_server_command command);

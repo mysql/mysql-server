@@ -234,7 +234,7 @@ bool Sql_cmd_alter_table::execute(THD *thd) {
 
   DBUG_ENTER("Sql_cmd_alter_table::execute");
 
-  if (thd->is_fatal_error) /* out of memory creating a copy of alter_info */
+  if (thd->is_fatal_error()) /* out of memory creating a copy of alter_info */
     DBUG_RETURN(true);
 
   {

@@ -2625,7 +2625,7 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length,
   // If the preparation against a secondary storage engine failed with
   // a non-fatal error, retry the preparation without the secondary
   // storage engine.
-  if (secondary_engine_preparation_error && !thd->is_fatal_error &&
+  if (secondary_engine_preparation_error && !thd->is_fatal_error() &&
       !thd->is_killed()) {
     DBUG_ASSERT(!force_primary_storage_engine);
     thd->clear_error();
@@ -2761,7 +2761,7 @@ reexecute:
 
   // Check if we have a non-fatal error and the statement allows reexecution.
   if ((sql_command_flags[lex->sql_command] & CF_REEXECUTION_FRAGILE) && error &&
-      !thd->is_fatal_error && !thd->is_killed()) {
+      !thd->is_fatal_error() && !thd->is_killed()) {
     // If we have an error due to a metadata change, reprepare the
     // statement and execute it again.
     if (reprepare_observer.is_invalidated() &&

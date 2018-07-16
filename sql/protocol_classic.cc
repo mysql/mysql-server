@@ -1051,7 +1051,7 @@ static bool write_eof_packet(THD *thd, NET *net, uint server_status,
       because if 'is_fatal_error' is set the server is not going to execute
       other queries (see the if test in dispatch_command / COM_QUERY)
     */
-    if (thd->is_fatal_error) server_status &= ~SERVER_MORE_RESULTS_EXISTS;
+    if (thd->is_fatal_error()) server_status &= ~SERVER_MORE_RESULTS_EXISTS;
     int2store(buff + 3, server_status);
     error = my_net_write(net, buff, 5);
   } else

@@ -2341,7 +2341,6 @@ bool partition_info::fix_column_value_functions(THD *thd, part_elem_value *val,
         uchar *val_ptr;
         uint len = field->pack_length();
         sql_mode_t save_sql_mode;
-        bool save_got_warning;
 
         if (!(column_item = get_column_item(column_item, field))) {
           result = true;
@@ -2349,10 +2348,9 @@ bool partition_info::fix_column_value_functions(THD *thd, part_elem_value *val,
         }
         save_sql_mode = thd->variables.sql_mode;
         thd->variables.sql_mode = 0;
-        save_got_warning = thd->got_warning;
-        thd->got_warning = 0;
-        result = (column_item->save_in_field(field, true) || thd->got_warning);
-        thd->got_warning = save_got_warning;
+        uint cond_count = thd->get_stmt_da()->cond_count();
+        result = (column_item->save_in_field(field, true) ||
+                  (cond_count != thd->get_stmt_da()->cond_count()));
         thd->variables.sql_mode = save_sql_mode;
         if (result) {
           my_error(ER_WRONG_TYPE_COLUMN_VALUE_ERROR, MYF(0));

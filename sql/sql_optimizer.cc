@@ -1224,7 +1224,7 @@ bool JOIN::optimize_distinct_group_order() {
         trace_opt.add("changed_distinct_to_group_by", true);
       } else
         group_list = 0;
-    } else if (thd->is_fatal_error)  // End of memory
+    } else if (thd->is_fatal_error())  // End of memory
       DBUG_RETURN(true);
   }
   simple_group = 0;

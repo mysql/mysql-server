@@ -4204,7 +4204,7 @@ static int fill_open_tables(THD *thd, TABLE_LIST *tables, Item *) {
   CHARSET_INFO *cs = system_charset_info;
   OPEN_TABLE_LIST *open_list;
   if (!(open_list = list_open_tables(thd, thd->lex->select_lex->db, wild)) &&
-      thd->is_fatal_error)
+      thd->is_fatal_error())
     DBUG_RETURN(1);
 
   for (; open_list; open_list = open_list->next) {

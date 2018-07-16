@@ -1831,7 +1831,7 @@ bool Slave_worker::retry_transaction(uint start_relay_number,
       DBUG_RETURN(true);
 
     if (trans_retries >= slave_trans_retries) {
-      thd->is_fatal_error = 1;
+      thd->fatal_error();
       c_rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
                     "worker thread retried transaction %lu time(s) "
                     "in vain, giving up. Consider raising the value of "

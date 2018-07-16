@@ -88,7 +88,7 @@ bool Sql_cmd_alter_table_exchange_partition::execute(THD *thd) {
 
   DBUG_ENTER("Sql_cmd_alter_table_exchange_partition::execute");
 
-  if (thd->is_fatal_error) /* out of memory creating a copy of alter_info */
+  if (thd->is_fatal_error()) /* out of memory creating a copy of alter_info */
     DBUG_RETURN(true);
 
   /* also check the table to be exchanged with the partition */

@@ -392,13 +392,12 @@ THD::THD(bool enable_plugins)
       next_to_commit(NULL),
       binlog_need_explicit_defaults_ts(false),
       kill_immunizer(NULL),
-      is_fatal_error(0),
+      m_is_fatal_error(false),
       transaction_rollback_request(0),
       is_fatal_sub_stmt_error(false),
       rand_used(0),
       time_zone_used(0),
       in_lock_tables(0),
-      got_warning(false),
       derived_tables_processing(false),
       parsing_system_view(false),
       sp_runtime_ctx(NULL),
@@ -686,8 +685,7 @@ struct timeval THD::query_start_timeval_trunc(uint decimals) {
 
 Sql_condition *THD::raise_condition(uint sql_errno, const char *sqlstate,
                                     Sql_condition::enum_severity_level level,
-                                    const char *msg,
-                                    bool use_condition_handler) {
+                                    const char *msg, bool fatal_error) {
   DBUG_ENTER("THD::raise_condition");
 
   if (!(variables.option_bits & OPTION_SQL_NOTES) &&
@@ -700,16 +698,28 @@ Sql_condition *THD::raise_condition(uint sql_errno, const char *sqlstate,
   if (msg == NULL) msg = ER_THD(this, sql_errno);
   if (sqlstate == NULL) sqlstate = mysql_errno_to_sqlstate(sql_errno);
 
-  MYSQL_LOG_ERROR(sql_errno, PSI_ERROR_OPERATION_RAISED);
-  if (use_condition_handler &&
-      handle_condition(sql_errno, sqlstate, &level, msg))
-    DBUG_RETURN(NULL);
+  if (fatal_error) {
+    // Only makes sense for errors
+    DBUG_ASSERT(level == Sql_condition::SL_ERROR);
+    this->fatal_error();
+  }
 
-  if (level == Sql_condition::SL_NOTE || level == Sql_condition::SL_WARNING)
-    got_warning = true;
+  MYSQL_LOG_ERROR(sql_errno, PSI_ERROR_OPERATION_RAISED);
+  if (handle_condition(sql_errno, sqlstate, &level, msg)) DBUG_RETURN(NULL);
 
   Diagnostics_area *da = get_stmt_da();
   if (level == Sql_condition::SL_ERROR) {
+    /*
+      Reporting an error invokes audit API call that notifies the error
+      to the plugin. Audit API that generate the error adds a protection
+      (condition handler) that prevents entering infinite recursion, when
+      a plugin signals error, when already handling the error.
+
+      mysql_audit_notify() must therefore be called after handle_condition().
+    */
+    mysql_audit_notify(this, AUDIT_EVENT(MYSQL_AUDIT_GENERAL_ERROR), sql_errno,
+                       msg, strlen(msg));
+
     is_slave_error = true;  // needed to catch query errors during replication
 
     if (!da->is_error()) {
@@ -724,7 +734,7 @@ Sql_condition *THD::raise_condition(uint sql_errno, const char *sqlstate,
     memory errors can occur if raised by SIGNAL/RESIGNAL statement.
   */
   Sql_condition *cond = NULL;
-  if (!(is_fatal_error &&
+  if (!(is_fatal_error() &&
         (sql_errno == EE_OUTOFMEMORY || sql_errno == ER_OUTOFMEMORY ||
          sql_errno == ER_STD_BAD_ALLOC_ERROR))) {
     cond = da->push_warning(this, sql_errno, sqlstate, level, msg);

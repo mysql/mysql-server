@@ -330,7 +330,6 @@ static void *handle_bootstrap(void *arg) {
   thd->thread_stack = (char *)&thd;
   if (my_thread_init() || thd->store_globals()) {
     close_connection(thd, ER_OUT_OF_RESOURCES);
-    thd->fatal_error();
     bootstrap_error = true;
     thd->get_protocol_classic()->end_net();
   } else {

@@ -1350,7 +1350,7 @@ static void check_secondary_engine_statement(THD *thd,
   if (thd->lex->unit->is_executed()) return;
 
   // If the error was fatal, or if the query was killed, don't restart it.
-  if (thd->is_fatal_error || thd->is_killed()) return;
+  if (thd->is_fatal_error() || thd->is_killed()) return;
 
   // Forget about the error raised in the first attempt at preparing the query.
   thd->clear_error();
@@ -4757,7 +4757,8 @@ void THD::reset_for_next_command() {
   thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt = 0;
 
   thd->query_start_usec_used = false;
-  thd->is_fatal_error = thd->time_zone_used = 0;
+  thd->m_is_fatal_error = false;
+  thd->time_zone_used = 0;
   /*
     Clear the status flag that are expected to be cleared at the
     beginning of each SQL statement.
@@ -5033,7 +5034,7 @@ void mysql_parse(THD *thd, Parser_state *parser_state,
 
     DBUG_ASSERT(thd->is_error());
     DBUG_PRINT("info",
-               ("Command aborted. Fatal_error: %d", thd->is_fatal_error));
+               ("Command aborted. Fatal_error: %d", thd->is_fatal_error()));
   }
 
   THD_STAGE_INFO(thd, stage_freeing_items);
@@ -6828,7 +6829,7 @@ bool parse_sql(THD *thd, Parser_state *parser_state,
 
   /* That's it. */
 
-  ret_value = mysql_parse_status || thd->is_fatal_error;
+  ret_value = mysql_parse_status || thd->is_fatal_error();
 
   if ((ret_value == 0) && (parser_state->m_digest_psi != NULL)) {
     /*

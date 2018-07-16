@@ -734,7 +734,7 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
         - we take only 3 attempts to reprepare the query, otherwise we might end
           up in the endless loop.
     */
-    if (stmt_reprepare_observer && !thd->is_fatal_error && !thd->killed &&
+    if (stmt_reprepare_observer && !thd->is_fatal_error() && !thd->killed &&
         thd->get_stmt_da()->mysql_errno() == ER_NEED_REPREPARE &&
         reprepare_attempt++ < 3) {
       DBUG_ASSERT(stmt_reprepare_observer->is_invalidated());

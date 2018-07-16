@@ -4776,7 +4776,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
     /*
       Other cases: mostly we expected no error and get one.
     */
-    else if (thd->is_slave_error || thd->is_fatal_error) {
+    else if (thd->is_slave_error || thd->is_fatal_error()) {
       if (!is_silent_error(thd)) {
         rli->report(ERROR_LEVEL, actual_error,
                     "Error '%s' on query. Default database: '%s'. Query: '%s'",
@@ -9126,7 +9126,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
 
     if (open_and_lock_tables(thd, rli->tables_to_lock, 0)) {
       uint actual_error = thd->get_stmt_da()->mysql_errno();
-      if (thd->is_slave_error || thd->is_fatal_error) {
+      if (thd->is_slave_error || thd->is_fatal_error()) {
         if (ignored_error_code(actual_error)) {
           if (log_error_verbosity > 2)
             rli->report(WARNING_LEVEL, actual_error,
