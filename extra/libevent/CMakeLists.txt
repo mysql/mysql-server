@@ -119,6 +119,12 @@ option(EVENT__DISABLE_THREAD_SUPPORT
 option(EVENT__DISABLE_OPENSSL
     "Define if libevent should build without support for OpenSSL encrpytion" OFF)
 
+IF(WITH_SSL STREQUAL "wolfssl")
+  MESSAGE(STATUS "This version of libevent does not support the wolfssl  SSL library")
+  SET(EVENT__DISABLE_OPENSSL ON CACHE INTERNAL "" FORCE)
+  SET(EVENT__DISABLE_OPENSSL 1)
+ENDIF()
+
 option(EVENT__DISABLE_BENCHMARK
     "Defines if libevent should build without the benchmark exectuables" ON)
 
@@ -680,7 +686,8 @@ if(EVENT__HAVE_EVENT_PORTS)
 endif()
 
 if (NOT EVENT__DISABLE_OPENSSL)
-    find_package(OpenSSL REQUIRED)
+#   SSL is configured in cmake/ssl.cmake
+#   find_package(OpenSSL REQUIRED)
 
     set(EVENT__HAVE_OPENSSL 1)
 
