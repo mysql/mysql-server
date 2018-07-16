@@ -223,8 +223,7 @@ sub fix_std_data {
 }
 
 sub ssl_supported {
-  my ($self) = @_;
-  return $self->{ARGS}->{ssl};
+  return $::ssl_supported;
 }
 
 sub fix_ssl_disabled {

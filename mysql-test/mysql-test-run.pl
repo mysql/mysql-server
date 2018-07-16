@@ -96,7 +96,6 @@ my $opt_max_connections;
 my $opt_ps_protocol;
 my $opt_report_features;
 my $opt_skip_core;
-my $opt_skip_ssl;
 my $opt_skip_test_list;
 my $opt_sleep;
 my $opt_sp_protocol;
@@ -206,7 +205,6 @@ our $opt_non_parallel_test;
 our $opt_record;
 our $opt_report_unstable_tests;
 our $opt_ssl;
-our $opt_ssl_supported;
 our $opt_suite_opt;
 our $opt_summary_report;
 our $opt_vardir;
@@ -274,6 +272,7 @@ our $experimental_test_cases = [];
 our $glob_debugger           = 0;
 our $group_replication       = 0;
 our $ndbcluster_enabled      = 0;
+our $ssl_supported           = 1;
 
 our @share_locations;
 
@@ -1328,7 +1327,7 @@ sub command_line_setup {
     'json-explain-protocol' => \$opt_json_explain_protocol,
     'opt-trace-protocol'    => \$opt_trace_protocol,
     'ps-protocol'           => \$opt_ps_protocol,
-    'skip-ssl'              => \$opt_skip_ssl,
+    'skip-ssl'              => sub { $opt_ssl = 0; $ssl_supported = 0; },
     'sp-protocol'           => \$opt_sp_protocol,
     'ssl|with-openssl'      => \$opt_ssl,
     'view-protocol'         => \$opt_view_protocol,
@@ -2027,9 +2026,9 @@ sub command_line_setup {
 
   mtr_report("Checking supported features...");
 
-  check_ndbcluster_support(\%mysqld_variables);
-  check_ssl_support(\%mysqld_variables);
   check_debug_support(\%mysqld_variables);
+  check_ndbcluster_support(\%mysqld_variables);
+  check_ssl_support();
 
   executable_setup();
 }
@@ -3021,30 +3020,6 @@ sub check_running_as_root () {
   unlink($test_file);
 }
 
-sub check_ssl_support ($) {
-  my $mysqld_variables = shift;
-
-  if ($opt_skip_ssl) {
-    mtr_report(" - skipping SSL");
-    $opt_ssl_supported = 0;
-    $opt_ssl           = 0;
-    return;
-  }
-
-  if (!($mysqld_variables->{'ssl'} || $mysqld_variables->{'have_ssl'})) {
-    if ($opt_ssl) {
-      mtr_error("Couldn't find support for SSL");
-      return;
-    }
-    mtr_report(" - skipping SSL, mysqld not compiled with SSL");
-    $opt_ssl_supported = 0;
-    $opt_ssl           = 0;
-    return;
-  }
-  mtr_report(" - SSL connections supported");
-  $opt_ssl_supported = 1;
-}
-
 sub check_debug_support ($) {
   my $mysqld_variables = shift;
 
@@ -3059,8 +3034,17 @@ sub check_debug_support ($) {
     }
     return;
   }
-  mtr_report(" - binaries are debug compiled");
+  mtr_report(" - Binaries are debug compiled");
   $debug_compiled_binaries = 1;
+}
+
+# Check if SSL support is enabled.
+sub check_ssl_support {
+  if (!$opt_ssl and !$ssl_supported) {
+    mtr_report(" - Skipping SSL");
+  } elsif ($opt_ssl and !$ssl_supported) {
+    $ssl_supported = 1;
+  }
 }
 
 # Helper function to handle configuration-based subdirectories which
@@ -4377,20 +4361,19 @@ sub run_testcase ($) {
       mtr_verbose("Generating my.cnf from '$tinfo->{template_path}'");
 
       # Generate new config file from template
-      $config = My::ConfigFactory->new_config(
-        { basedir             => $basedir,
-          testdir             => $glob_mysql_test_dir,
-          template_path       => $tinfo->{template_path},
-          extra_template_path => $tinfo->{extra_template_path},
-          vardir              => $opt_vardir,
-          tmpdir              => $opt_tmpdir,
-          baseport            => $baseport,
-          mysqlxbaseport      => $mysqlx_baseport,
-          #hosts          => [ 'host1', 'host2' ],
-          user     => $opt_user,
-          password => '',
-          ssl      => $opt_ssl_supported,
-        });
+      $config =
+        My::ConfigFactory->new_config(
+                         { basedir             => $basedir,
+                           baseport            => $baseport,
+                           extra_template_path => $tinfo->{extra_template_path},
+                           mysqlxbaseport      => $mysqlx_baseport,
+                           password            => '',
+                           template_path       => $tinfo->{template_path},
+                           testdir             => $glob_mysql_test_dir,
+                           tmpdir              => $opt_tmpdir,
+                           user                => $opt_user,
+                           vardir              => $opt_vardir,
+                         });
 
       # Write the new my.cnf
       $config->save($path_config_file);
