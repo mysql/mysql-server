@@ -1664,6 +1664,7 @@ row_log_table_apply_insert_low(
 	}
 
 	do {
+		n_index++;
 		if (!(index = dict_table_get_next_index(index))) {
 			break;
 		}
@@ -2284,6 +2285,8 @@ func_exit_committed:
 	}
 
 	while ((index = dict_table_get_next_index(index)) != NULL) {
+
+		n_index++;
 		if (error != DB_SUCCESS) {
 			break;
 		}

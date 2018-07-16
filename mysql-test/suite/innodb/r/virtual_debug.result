@@ -125,10 +125,10 @@ SET DEBUG_SYNC = 'now SIGNAL go_ahead';
 /* connection default */ optimize table t;
 Table	Op	Msg_type	Msg_text
 test.t	optimize	note	Table does not support optimize, doing recreate + analyze instead
-test.t	optimize	error	Duplicate entry 'NULL' for key 'b'
+test.t	optimize	error	Duplicate entry 'NULL' for key 'c'
 test.t	optimize	status	Operation failed
 Warnings:
-Error	1062	Duplicate entry 'NULL' for key 'b'
+Error	1062	Duplicate entry 'NULL' for key 'c'
 SELECT c FROM t;
 c
 1
