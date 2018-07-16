@@ -1,5 +1,7 @@
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
+# Some parts of the test require enabled binary log.
+--source include/have_log_bin.inc
 
 --echo #
 --echo # Bug#22653180:ASSERT DD::CACHE::SHARED_MULTI_MAP<T>::
