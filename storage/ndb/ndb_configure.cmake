@@ -1,5 +1,5 @@
 
-# Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -228,10 +228,9 @@ IF(NOT DEFINED WITH_ZLIB)
   # Hardcode use of the bundled zlib if not set by MySQL
   MESSAGE(STATUS "Using bundled zlib (hardcoded)")
   SET(ZLIB_LIBRARY zlib)
-  SET(ZLIB_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/zlib)
+  INCLUDE_DIRECTORIES(SYSTEM ${CMAKE_SOURCE_DIR}/zlib)
 ENDIF()
 NDB_REQUIRE_VARIABLE(ZLIB_LIBRARY)
-NDB_REQUIRE_VARIABLE(ZLIB_INCLUDE_DIR)
 
 IF(WITH_CLASSPATH)
   MESSAGE(STATUS "Using supplied classpath: ${WITH_CLASSPATH}")
