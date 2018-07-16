@@ -87,6 +87,7 @@ changeStartPartitionedTimeout(NDBT_Context *ctx, NDBT_Step *step)
       break;
     }
     g_err << "Restarting nodes to apply config change" << endl;
+    sleep(3); //Give MGM server time to restart
     if (restarter.restartAll())
     {
       g_err << "Failed to restart nodes." << endl;
@@ -6708,6 +6709,7 @@ setConfigValueAndRestartNode(NdbMgmd *mgmd, Uint32 key, Uint32 value, int nodeId
       return NDBT_FAILED;
     }
     g_err << "Restarting node to apply config change..." << endl;
+    sleep(3); //Give MGM server time to restart
     if (restarter->restartOneDbNode(nodeId, false, false, true))
     {
       g_err << "Failed to restart node." << endl;
