@@ -9058,7 +9058,7 @@ enum_field_types Item_type_holder::real_data_type(Item *item) {
     false  OK
 */
 
-bool Item_type_holder::join_types(THD *, Item *item) {
+bool Item_type_holder::join_types(THD *thd, Item *item) {
   DBUG_ENTER("Item_type_holder::join_types");
   DBUG_PRINT("info:",
              ("was type %d len %d, dec %d name %s", data_type(), max_length,
@@ -9071,7 +9071,29 @@ bool Item_type_holder::join_types(THD *, Item *item) {
     correct conversion from existing item types to aggregated type.
   */
   Item *item_copy = Item_copy::create(this);
-  Item *args[] = {item_copy, item};
+
+  /*
+    Down the call stack when calling aggregate_string_properties(), we might
+    end up in THD::change_item_tree() if we for instance need to convert the
+    character set on one side of a union:
+
+      SELECT "foo" UNION SELECT CONVERT("foo" USING utf8mb3);
+    might be converted into:
+      SELECT CONVERT("foo" USING utf8mb3) UNION
+      SELECT CONVERT("foo" USING utf8mb3);
+
+    If we are in a prepared statement or a stored routine (any non-conventional
+    query that needs rollback of any item tree modifications), we neeed to
+    remember what Item we changed ("foo" in this case) and where that Item is
+    located (in the "args" array in this case) so we can roll back the changes
+    done to the Item tree when the execution is done. When we enter the rollback
+    code (THD::rollback_item_tree_changes()), the location of the Item need to
+    be accessible, so that is why the "args" array must be allocated on a
+    MEM_ROOT and not on the stack. Note that THD::change_item_tree() isn't
+    necessary, since the Item array we are modifying isn't a part of the
+    original Item tree.
+  */
+  Item **args = new (thd->mem_root) Item *[2]{item_copy, item};
   aggregate_type(make_array(&args[0], 2));
   // UNION with ENUM/SET fields requires type information from real_data_type()
   set_data_type(real_type_to_type(Field::field_type_merge(
