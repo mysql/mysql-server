@@ -134,7 +134,7 @@
     <Custom Action="SetInstallDir2" After="AppSearch">INSTALLDIR2</Custom> 
     </InstallUISequence>
    
-    <Property Id="QtRemoveService" Value="&quot;cmd.exe&quot; /S /V:ON /C &quot;echo off &amp; for /F &quot;tokens=*&quot; %i in ('sc query ^| FIND &quot;SERVICE_NAME:&quot;') do (set j=%i &amp; set j=!j:~14! &amp; sc qc !j! | FIND &quot;C:\Program Files\MySQL\MySQL Server 5.6\bin\&quot; >NUL &amp; IF errorlevel 0 IF NOT errorlevel 1 (sc stop !j! > NUL &amp; ( for /L %k IN (1,1,20) do (sc query !j! | FIND &quot;STATE&quot; | FIND &quot;STOPPED&quot; >NUL &amp; (IF errorlevel 0 IF errorlevel 1 timeout /t 5 /nobreak >NUL)) )&amp; sc delete !j!  ) ) &quot;"/>
+    <Property Id="QtRemoveService" Value="&quot;cmd.exe&quot; /S /V:ON /C &quot;echo off &amp; for /F &quot;tokens=*&quot; %i in ('sc query ^| FIND &quot;SERVICE_NAME:&quot;') do (set j=%i &amp; set j=!j:~14! &amp; sc qc !j! | FIND &quot;C:\Program Files\MySQL\MySQL Server 8.0\bin\&quot; >NUL &amp; IF errorlevel 0 IF NOT errorlevel 1 (sc stop !j! > NUL &amp; ( for /L %k IN (1,1,20) do (sc query !j! | FIND &quot;STATE&quot; | FIND &quot;STOPPED&quot; >NUL &amp; (IF errorlevel 0 IF errorlevel 1 timeout /t 5 /nobreak >NUL)) )&amp; sc delete !j!  ) ) &quot;"/>
     <CustomAction Id="QtRemoveService" BinaryKey="WixCA" DllEntry="WixQuietExec"
             Execute="deferred" Return="check" Impersonate="no"/>
     <InstallExecuteSequence>
@@ -191,5 +191,4 @@
     <!--CPACK_WIX_INCLUDES -->
     @CPACK_WIX_INCLUDES@
   </Product>
-
 </Wix>
