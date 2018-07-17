@@ -346,23 +346,30 @@ Dbtup::dealloc_tuple(Signal* signal,
   c_lqh->add_delete_size(average_row_size);
   if (bits & Tuple_header::DISK_PART)
   {
-    jam();
-    Local_key disk;
-    memcpy(&disk, ptr->get_disk_ref_ptr(regTabPtr), sizeof(disk));
-    PagePtr tmpptr;
-    ndbrequire(pagePtr.i != RNIL);
-    Local_key rowid = regOperPtr->m_tuple_location;
-    rowid.m_page_no = page->frag_page_id;
-    tmpptr.i = pagePtr.i;
-    tmpptr.p = reinterpret_cast<Page*>(pagePtr.p);
-    disk_page_free(signal,
-                   regTabPtr,
-                   regFragPtr, 
-		   &disk,
-                   tmpptr,
-                   gci_hi,
-                   &rowid,
-                   regOperPtr->m_undo_buffer_space);
+    if (likely(pagePtr.i != RNIL))
+    {
+      jam();
+      ndbassert(c_lqh->is_restore_phase_done());
+      Local_key disk;
+      memcpy(&disk, ptr->get_disk_ref_ptr(regTabPtr), sizeof(disk));
+      PagePtr tmpptr;
+      Local_key rowid = regOperPtr->m_tuple_location;
+      rowid.m_page_no = page->frag_page_id;
+      tmpptr.i = pagePtr.i;
+      tmpptr.p = reinterpret_cast<Page*>(pagePtr.p);
+      disk_page_free(signal,
+                     regTabPtr,
+                     regFragPtr, 
+		     &disk,
+                     tmpptr,
+                     gci_hi,
+                     &rowid,
+                     regOperPtr->m_undo_buffer_space);
+    }
+    else
+    {
+      ndbrequire(!c_lqh->is_restore_phase_done());
+    }
   }
   
   if (! (bits & (Tuple_header::LCP_SKIP |

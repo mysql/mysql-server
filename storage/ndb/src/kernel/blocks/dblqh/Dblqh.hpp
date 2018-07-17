@@ -3982,10 +3982,18 @@ public:
   Uint32 get_committed_mbytes(LogPartRecord*);
   void increment_committed_mbytes(LogPartRecord*, TcConnectionrec*);
   void decrement_committed_mbytes(LogPartRecord*, TcConnectionrec*);
+  bool is_restore_phase_done();
 #endif
 };
 
 #ifndef DBLQH_STATE_EXTRACT
+
+inline
+bool
+Dblqh::is_restore_phase_done()
+{
+  return (csrExecUndoLogState != EULS_IDLE);
+}
 
 inline
 bool
