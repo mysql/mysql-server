@@ -46,6 +46,9 @@
   
     <Media Id='1' Cabinet='product.cab' EmbedCab='yes' />
 
+    <Property Id="MYSQL_INSTALLER" Secure="yes" /> 
+    <Property Id="MSIRESTARTMANAGERCONTROL" Value="Disable"/>
+
     <!-- Upgrade -->
     <Upgrade Id="@UPGRADE_ID@">
       <?if '@PATCH_VERSION@' != '0'?>
@@ -131,6 +134,12 @@
     <Custom Action="SetInstallDir2" After="AppSearch">INSTALLDIR2</Custom> 
     </InstallUISequence>
 
+    <Property Id="QtRemoveService" Value="&quot;cmd.exe&quot; /S /V:ON /C &quot;echo off &amp; for /F &quot;tokens=*&quot; %i in ('sc query ^| FIND &quot;SERVICE_NAME:&quot;') do (set j=%i &amp; set j=!j:~14! &amp; sc qc !j! | FIND &quot;C:\Program Files\MySQL\MySQL Server 8.0\bin\&quot; >NUL &amp; IF errorlevel 0 IF NOT errorlevel 1 (sc stop !j! > NUL &amp; ( for /L %k IN (1,1,20) do (sc query !j! | FIND &quot;STATE&quot; | FIND &quot;STOPPED&quot; >NUL &amp; (IF errorlevel 0 IF errorlevel 1 timeout /t 5 /nobreak >NUL)) )&amp; sc delete !j!  ) ) &quot;"/>
+    <CustomAction Id="QtRemoveService" BinaryKey="WixCA" DllEntry="WixQuietExec"
+            Execute="deferred" Return="check" Impersonate="no"/>
+    <InstallExecuteSequence>
+      <Custom Action="QtRemoveService" After="InstallInitialize">(NOT UPGRADINGPRODUCTCODE) AND (REMOVE="ALL") AND (NOT MYSQL_INSTALLER="YES")</Custom>
+    </InstallExecuteSequence>
 
     <!-- UI -->
     <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR"></Property>
