@@ -288,11 +288,11 @@ SET @@GLOBAL.group_replication_member_expel_timeout= default;
 #group_replication_exit_state_action
 --let $assert_text= Default group_replication_exit_state_action is ABORT_SERVER
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_exit_state_action]" = "ABORT_SERVER"
+--source include/assert.inc
 
 # group_replication_member_expel_timeout
 --let $assert_text= Default group_replication_member_expel_timeout is 0
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_member_expel_timeout]" = 0
-
 --source include/assert.inc
 
 --echo #
