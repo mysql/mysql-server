@@ -163,9 +163,10 @@ void Event_worker_thread::print_warnings(THD *thd, Event_job_data *et) {
 */
 
 bool post_init_event_thread(THD *thd) {
-  if (my_thread_init() || thd->store_globals()) {
+  if (my_thread_init()) {
     return true;
   }
+  thd->store_globals();
 
   Global_THD_manager *thd_manager = Global_THD_manager::get_instance();
   thd_manager->add_thd(thd);

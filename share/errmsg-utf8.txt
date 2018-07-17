@@ -11104,7 +11104,7 @@ ER_EVENT_CANT_GET_LOCK_FOR_DROPPING_EVENT
 ER_EVENT_UNABLE_TO_DROP_EVENT
   eng "Unable to drop event %s from schema %s"
 
-ER_BINLOG_ATTACHING_THREAD_MEMORY_FINALLY_AVAILABLE
+OBSOLETE_ER_BINLOG_ATTACHING_THREAD_MEMORY_FINALLY_AVAILABLE
   eng "Server overcomes the temporary 'out of memory' in '%d' tries while attaching to session thread during the group commit phase."
 
 ER_BINLOG_CANT_RESIZE_CACHE

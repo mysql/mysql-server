@@ -328,11 +328,12 @@ static void *handle_bootstrap(void *arg) {
 
   /* The following must be called before DBUG_ENTER */
   thd->thread_stack = (char *)&thd;
-  if (my_thread_init() || thd->store_globals()) {
+  if (my_thread_init()) {
     close_connection(thd, ER_OUT_OF_RESOURCES);
     bootstrap_error = true;
     thd->get_protocol_classic()->end_net();
   } else {
+    thd->store_globals();
     Global_THD_manager *thd_manager = Global_THD_manager::get_instance();
     thd_manager->add_thd(thd);
 

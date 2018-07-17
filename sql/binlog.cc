@@ -145,7 +145,6 @@ using std::string;
 #define LIMIT_UNSAFE_WARNING_ACTIVATION_TIMEOUT 50
 // number of limit unsafe warnings after which the suppression will be activated
 #define LIMIT_UNSAFE_WARNING_ACTIVATION_THRESHOLD_COUNT 50
-#define MAX_SESSION_ATTACH_TRIES 10
 
 static ulonglong limit_unsafe_suppression_start_time = 0;
 static bool unsafe_warning_suppression_is_activated = false;
@@ -408,10 +407,6 @@ class Thd_backup_and_restore {
  public:
   /**
     Try to attach the POSIX thread to a session.
-    - This function attaches the POSIX thread to a session
-    in MAX_SESSION_ATTACH_TRIES tries when encountering
-    'out of memory' error, and terminates the server after
-    failed in MAX_SESSION_ATTACH_TRIES tries.
 
     @param[in] backup_thd    The thd to restore to when object is destructed.
     @param[in] new_thd       The thd to attach to.
@@ -427,44 +422,7 @@ class Thd_backup_and_restore {
     m_backup_thd->restore_globals();
 
     m_new_thd->thread_stack = m_backup_thd->thread_stack;
-
-    int i = 0;
-    /*
-      Attach the POSIX thread to a session in MAX_SESSION_ATTACH_TRIES
-      tries when encountering 'out of memory' error.
-    */
-    while (i < MAX_SESSION_ATTACH_TRIES) {
-      /*
-        Currently attach_to(...) returns ER_OUTOFMEMORY or 0. So
-        we continue to attach the POSIX thread when encountering
-        the ER_OUTOFMEMORY error. Please take care other error
-        returned from attach_to(...) in future.
-      */
-      if (!attach_to(new_thd)) {
-        if (i > 0)
-          LogErr(WARNING_LEVEL,
-                 ER_BINLOG_ATTACHING_THREAD_MEMORY_FINALLY_AVAILABLE, i + 1);
-        break;
-      }
-      /* Sleep 1 microsecond per try to avoid temporary 'out of memory' */
-      my_sleep(1);
-      i++;
-    }
-    /*
-      Terminate the server after failed to attach the POSIX thread
-      to a session in MAX_SESSION_ATTACH_TRIES tries.
-    */
-    if (MAX_SESSION_ATTACH_TRIES == i) {
-      my_safe_print_system_time();
-      my_safe_printf_stderr("%s",
-                            "[Fatal] Out of memory while attaching to "
-                            "session thread during the group commit phase. "
-                            "Data consistency between master and slave can "
-                            "be guaranteed after server restarts.\n");
-      _exit(MYSQLD_FAILURE_EXIT);
-    }
-    DBUG_ASSERT(!check_stack_overrun(m_new_thd, STACK_MIN_SIZE,
-                                     reinterpret_cast<uchar *>(&i)));
+    m_new_thd->store_globals();
   }
 
   /**
@@ -480,27 +438,10 @@ class Thd_backup_and_restore {
     m_new_thd->thread_stack = m_new_thd_old_thread_stack;
 
     // Reset the global variables to the original state.
-    if (unlikely(m_backup_thd->store_globals()))
-      DBUG_ASSERT(0);  // Out of memory?!
+    m_backup_thd->store_globals();
   }
 
  private:
-  /**
-    Attach the POSIX thread to a session.
-   */
-  int attach_to(THD *thd) {
-    if (DBUG_EVALUATE_IF("simulate_session_attach_error", 1, 0) ||
-        unlikely(thd->store_globals())) {
-      /*
-        Indirectly uses pthread_setspecific, which can only return
-        ENOMEM or EINVAL. Since store_globals are using correct keys,
-        the only alternative is out of memory.
-      */
-      return ER_OUTOFMEMORY;
-    }
-    return 0;
-  }
-
   THD *m_backup_thd;
   THD *m_new_thd;
   my_thread_t m_new_thd_old_real_id;

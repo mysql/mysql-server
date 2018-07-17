@@ -875,18 +875,8 @@ bool Srv_session::attach() {
   set_attached(new_stack);
 
   // This will install our new THD object as current_thd
-  if (thd.store_globals()) {
-    DBUG_PRINT("error", ("Error while storing globals"));
+  thd.store_globals();
 
-    if (old_thd) old_thd->store_globals();
-
-#ifdef HAVE_PSI_THREAD_INTERFACE
-    set_psi(old_thd);
-#endif
-
-    set_detached();
-    DBUG_RETURN(true);
-  }
   Srv_session *old_session = server_session_list.find(old_thd);
 
   /* Really detach only if we are sure everything went fine */

@@ -223,12 +223,7 @@ static THD *init_new_thd(Channel_info *channel_info) {
     stack overruns.
   */
   thd_set_thread_stack(thd, (char *)&thd);
-  if (thd->store_globals()) {
-    close_connection(thd, ER_OUT_OF_RESOURCES);
-    thd->release_resources();
-    delete thd;
-    return NULL;
-  }
+  thd->store_globals();
 
   return thd;
 }

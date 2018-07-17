@@ -1306,7 +1306,7 @@ void THD::notify_shared_lock(MDL_context_owner *ctx_in_use,
   sql_alloc() and the structure for the net buffer
 */
 
-bool THD::store_globals() {
+void THD::store_globals() {
   /*
     Assert that thread_stack is initialized: it's necessary to be able
     to track stack overrun.
@@ -1331,8 +1331,6 @@ bool THD::store_globals() {
   set_my_thread_var_id(m_thread_id);
 #endif
   real_id = my_thread_self();  // For debugging
-
-  return false;
 }
 
 /*

@@ -49,7 +49,7 @@ class partition_info;
   @param              bound          True if bound to a physical thread.
   @param              psi_key        Instrumentation key for the thread.
 */
-int thd_init(THD *thd, char *stack_start, bool bound, PSI_thread_key psi_key);
+void thd_init(THD *thd, char *stack_start, bool bound, PSI_thread_key psi_key);
 
 /**
   Create a THD and do proper initialization of it.

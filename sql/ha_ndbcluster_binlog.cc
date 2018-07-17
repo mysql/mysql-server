@@ -460,11 +460,7 @@ ndb_create_thd(char * stackptr)
   THD_CHECK_SENTRY(thd);
 
   thd->thread_stack= stackptr; /* remember where our stack is */
-  if (thd->store_globals())
-  {
-    delete thd;
-    DBUG_RETURN(0);
-  }
+  thd->store_globals();
 
   thd->init_query_mem_roots();
   thd->set_command(COM_DAEMON);
@@ -6861,11 +6857,7 @@ Ndb_binlog_thread::do_run()
   thd->set_new_thread_id();
 
   thd->thread_stack= (char*) &thd; /* remember where our stack is */
-  if (thd->store_globals())
-  {
-    delete thd;
-    DBUG_VOID_RETURN;
-  }
+  thd->store_globals();
 
   thd->set_command(COM_DAEMON);
   thd->system_thread= SYSTEM_THREAD_NDBCLUSTER_BINLOG;
