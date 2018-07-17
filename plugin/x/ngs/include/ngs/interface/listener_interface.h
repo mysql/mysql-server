@@ -27,10 +27,10 @@
 
 #include <vector>
 
-#include "plugin/x//src/helper/multithread/sync_variable.h"
 #include "plugin/x/ngs/include/ngs/server_properties.h"
 #include "plugin/x/ngs/include/ngs/thread.h"
 #include "plugin/x/ngs/include/ngs_common/bind.h"
+#include "plugin/x/src/helper/multithread/sync_variable.h"
 #include "violite.h"
 
 namespace ngs {
