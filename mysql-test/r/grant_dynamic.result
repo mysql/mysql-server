@@ -974,5 +974,6 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; GRANT SELECT ON *.* TO 'u1'@'%'
 binlog.000001	#	Query	#	#	use `test`; GRANT DELETE, PERSIST_RO_VARIABLES_ADMIN ON *.* TO 'u1'@'%' WITH GRANT OPTION
 binlog.000001	#	Query	#	#	use `test`; GRANT GRANT OPTION ON *.* TO 'u1'@'%' WITH GRANT OPTION
-RESET MASTER;
 DROP USER u1;
+RESET MASTER;
+RESET SLAVE ALL;
