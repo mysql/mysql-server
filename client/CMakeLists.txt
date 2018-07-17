@@ -44,6 +44,7 @@ SET(MYSQLTEST_SRC
   mysqltest/error_names.cc
   mysqltest/expected_errors.cc
   mysqltest/expected_warnings.cc
+  mysqltest/logfile.cc
   mysqltest/secondary_engine.cc
   mysqltest/utils.cc
 )

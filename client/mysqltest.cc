@@ -30,6 +30,7 @@
 #include "client/mysqltest/error_names.h"
 #include "client/mysqltest/expected_errors.h"
 #include "client/mysqltest/expected_warnings.h"
+#include "client/mysqltest/logfile.h"
 #include "client/mysqltest/secondary_engine.h"
 #include "client/mysqltest/utils.h"
 
@@ -83,7 +84,6 @@
 #include "my_default.h"
 #include "my_dir.h"
 #include "my_inttypes.h"
-#include "my_io.h"
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_stacktrace.h"
@@ -246,6 +246,8 @@ static HANDLE mysqltest_thread;
 static HANDLE stacktrace_request_event = NULL;
 static std::thread wait_for_stacktrace_request_event_thread;
 #endif
+
+Logfile log_file;
 
 /// Info on properties that can be set with '--disable_X' and
 /// '--disable_X' commands.
@@ -1105,155 +1107,6 @@ static void mysql_free_result_wrapper(MYSQL_RES *result) {
 
 /* async client test code (end) */
 
-class LogFile {
-  FILE *m_file;
-  char m_file_name[FN_REFLEN];
-  size_t m_bytes_written;
-
- public:
-  LogFile() : m_file(NULL), m_bytes_written(0) {
-    memset(m_file_name, 0, sizeof(m_file_name));
-  }
-
-  ~LogFile() { close(); }
-
-  const char *file_name() const { return m_file_name; }
-  size_t bytes_written() const { return m_bytes_written; }
-
-  void open(const char *dir, const char *name, const char *ext) {
-    DBUG_ENTER("LogFile::open");
-    DBUG_PRINT("enter", ("dir: '%s', name: '%s'", dir, name));
-    if (!name) {
-      m_file = stdout;
-      DBUG_VOID_RETURN;
-    }
-
-    fn_format(m_file_name, name, dir, ext,
-              *dir ? MY_REPLACE_DIR | MY_REPLACE_EXT : MY_REPLACE_EXT);
-
-    DBUG_PRINT("info", ("file_name: %s", m_file_name));
-
-    if ((m_file = fopen(m_file_name, "wb+")) == NULL)
-      die("Failed to open log file %s, errno: %d", m_file_name, errno);
-
-    DBUG_VOID_RETURN;
-  }
-
-  void close() {
-    if (m_file) {
-      if (m_file != stdout)
-        fclose(m_file);
-      else
-        fflush(m_file);
-    }
-    m_file = NULL;
-  }
-
-  void flush() {
-    if (m_file) {
-      if (fflush(m_file))
-        die("Failed to flush '%s', errno: %d", m_file_name, errno);
-    }
-  }
-
-  void write(DYNAMIC_STRING *ds) {
-    DBUG_ENTER("LogFile::write");
-    DBUG_ASSERT(m_file);
-
-    if (ds->length == 0) DBUG_VOID_RETURN;
-    DBUG_ASSERT(ds->str);
-
-    if (fwrite(ds->str, 1, ds->length, m_file) != ds->length)
-      die("Failed to write %lu bytes to '%s', errno: %d",
-          (unsigned long)ds->length, m_file_name, errno);
-    m_bytes_written += ds->length;
-    DBUG_VOID_RETURN;
-  }
-
-  void show_tail(uint lines) {
-    DBUG_ENTER("LogFile::show_tail");
-
-    if (!m_file || m_file == stdout) DBUG_VOID_RETURN;
-
-    if (lines == 0) DBUG_VOID_RETURN;
-    lines++;
-
-    int show_offset = 0;
-    char buf[256];
-    size_t bytes;
-    bool found_bof = false;
-
-    /* Search backward in file until "lines" newline has been found */
-    while (lines && !found_bof) {
-      show_offset -= sizeof(buf);
-      while (fseek(m_file, show_offset, SEEK_END) != 0 && show_offset < 0) {
-        found_bof = true;
-        // Seeking before start of file
-        show_offset++;
-      }
-
-      if ((bytes = fread(buf, 1, sizeof(buf), m_file)) <= 0) {
-        // ferror=0 will happen here if no queries executed yet
-        if (ferror(m_file))
-          fprintf(stderr,
-                  "Failed to read from '%s', errno: %d, feof:%d, ferror:%d\n",
-                  m_file_name, errno, feof(m_file), ferror(m_file));
-        DBUG_VOID_RETURN;
-      }
-
-      DBUG_PRINT("info",
-                 ("Read %lu bytes from file, buf: %.*s", (unsigned long)bytes,
-                  static_cast<int>(sizeof(buf)), buf));
-
-      char *show_from = buf + bytes;
-      while (show_from > buf && lines > 0) {
-        show_from--;
-        if (*show_from == '\n') lines--;
-      }
-      if (show_from != buf) {
-        // The last new line was found in this buf, adjust offset
-        show_offset += static_cast<int>(show_from - buf) + 1;
-        DBUG_PRINT("info", ("adjusted offset to %d", show_offset));
-      }
-      DBUG_PRINT("info", ("show_offset: %d", show_offset));
-    }
-
-    fprintf(stderr, "\nThe result from queries just before the failure was:\n");
-
-    DBUG_PRINT("info", ("show_offset: %d", show_offset));
-    if (!lines) {
-      fprintf(stderr, "< snip >\n");
-
-      if (fseek(m_file, show_offset, SEEK_END) != 0) {
-        fprintf(stderr, "Failed to seek to position %d in '%s', errno: %d",
-                show_offset, m_file_name, errno);
-        DBUG_VOID_RETURN;
-      }
-
-    } else {
-      DBUG_PRINT("info", ("Showing the whole file"));
-      if (fseek(m_file, 0L, SEEK_SET) != 0) {
-        fprintf(stderr, "Failed to seek to pos 0 in '%s', errno: %d",
-                m_file_name, errno);
-        DBUG_VOID_RETURN;
-      }
-    }
-
-    while ((bytes = fread(buf, 1, sizeof(buf), m_file)) > 0) {
-      if (fwrite(buf, 1, bytes, stderr) != bytes) {
-        perror("fwrite");
-      }
-    }
-    fflush(stderr);
-
-    DBUG_VOID_RETURN;
-  }
-};
-
-LogFile log_file;
-LogFile temp_log_file;
-LogFile progress_file;
-
 void replace_dynstr_append_mem(DYNAMIC_STRING *ds, const char *val, size_t len);
 void replace_dynstr_append(DYNAMIC_STRING *ds, const char *val);
 void replace_dynstr_append_uint(DYNAMIC_STRING *ds, uint val);
@@ -1910,7 +1763,7 @@ void die(const char *fmt, ...) {
 
   fflush(stderr);
 
-  log_file.show_tail(opt_tail_lines);
+  if (result_file_name) log_file.show_tail(opt_tail_lines);
 
   // Help debugging by displaying any warnings that might have
   // been produced prior to the error.
@@ -4690,54 +4543,49 @@ static void do_cat_file(struct st_command *command) {
   DBUG_VOID_RETURN;
 }
 
-/*
-  SYNOPSIS
-  do_diff_files
-  command	called command
-
-  DESCRIPTION
-  diff_files <file1> <file2>;
-
-  Fails if the two files differ.
-
-*/
-
+/// Compare the two files.
+///
+/// Success if 2 files are same, failure if the files are different or
+/// either file does not exist.
+///
+/// @code
+/// diff_files <file1> <file2>;
+/// @endcode
+///
+/// @param command Pointer to the st_command structure which holds the
+///                arguments and information for the command.
 static void do_diff_files(struct st_command *command) {
-  int error = 0;
-  static DYNAMIC_STRING ds_filename;
+  static DYNAMIC_STRING ds_filename1;
   static DYNAMIC_STRING ds_filename2;
+
   const struct command_arg diff_file_args[] = {
-      {"file1", ARG_STRING, true, &ds_filename, "First file to diff"},
+      {"file1", ARG_STRING, true, &ds_filename1, "First file to diff"},
       {"file2", ARG_STRING, true, &ds_filename2, "Second file to diff"}};
-  DBUG_ENTER("do_diff_files");
 
   check_command_args(command, command->first_argument, diff_file_args,
                      sizeof(diff_file_args) / sizeof(struct command_arg), ' ');
 
-  if (access(ds_filename.str, F_OK) != 0)
-    die("command \"diff_files\" failed, file '%s' does not exist",
-        ds_filename.str);
+  if (access(ds_filename1.str, F_OK) != 0)
+    die("Command \"diff_files\" failed, file '%s' does not exist.",
+        ds_filename1.str);
 
   if (access(ds_filename2.str, F_OK) != 0)
-    die("command \"diff_files\" failed, file '%s' does not exist",
+    die("Command \"diff_files\" failed, file '%s' does not exist.",
         ds_filename2.str);
 
-  if ((error = compare_files(ds_filename.str, ds_filename2.str)) &&
+  int error = 0;
+  if ((error = compare_files(ds_filename1.str, ds_filename2.str)) &&
       match_expected_error(command, error, NULL) < 0) {
-    /* Compare of the two files failed, append them to output
-       so the failure can be analyzed, but only if it was not
-       expected to fail.
-    */
-    show_diff(&ds_res, ds_filename.str, ds_filename2.str);
-    log_file.write(&ds_res);
-    log_file.flush();
+    // Compare of the two files failed, append them to output so the
+    // failure can be analyzed, but only if it was not expected to fail.
+    show_diff(&ds_res, ds_filename1.str, ds_filename2.str);
+    if (log_file.write(ds_res.str, ds_res.length) || log_file.flush())
+      cleanup_and_exit(1);
     dynstr_set(&ds_res, 0);
   }
 
-  dynstr_free(&ds_filename);
-  dynstr_free(&ds_filename2);
+  free_dynamic_strings(&ds_filename1, &ds_filename2);
   handle_command_error(command, error);
-  DBUG_VOID_RETURN;
 }
 
 static struct st_connection *find_connection_by_name(const char *name) {
@@ -9185,47 +9033,44 @@ static void get_command_type(struct st_command *command) {
   DBUG_VOID_RETURN;
 }
 
-/*
-  Record how many milliseconds it took to execute the test file
-  up until the current line and write it to .progress file
+/// Record how many milliseconds it took to execute the test file
+/// up until the current line and write it to .progress file.
+///
+/// @param progress_file Logfile object to store the progress information
+/// @param line          Line number of the progress file where the progress
+///                      information should be recorded.
+static void mark_progress(Logfile progress_file, int line) {
+  static unsigned long long int progress_start = 0;
+  unsigned long long int timer = timer_now();
 
-*/
-
-static void mark_progress(struct st_command *command MY_ATTRIBUTE((unused)),
-                          int line) {
-  static ulonglong progress_start = 0;  // < Beware
-  DYNAMIC_STRING ds_progress;
-
-  char buf[32], *end;
-  ulonglong timer = timer_now();
   if (!progress_start) progress_start = timer;
-  timer -= progress_start;
+  timer = timer - progress_start;
 
-  if (init_dynamic_string(&ds_progress, "", 256, 256)) die("Out of memory");
+  std::string str_progress;
 
-  /* Milliseconds since start */
-  end = longlong2str(timer, buf, 10);
-  dynstr_append_mem(&ds_progress, buf, (int)(end - buf));
-  dynstr_append_mem(&ds_progress, "\t", 1);
+  // Milliseconds since start
+  std::string str_timer = std::to_string(timer);
+  str_progress.append(str_timer);
+  str_progress.append("\t");
 
-  /* Parser line number */
-  end = int10_to_str(line, buf, 10);
-  dynstr_append_mem(&ds_progress, buf, (int)(end - buf));
-  dynstr_append_mem(&ds_progress, "\t", 1);
+  // Parse the line number
+  std::string str_line = std::to_string(line);
+  str_progress.append(str_line);
+  str_progress.append("\t");
 
-  /* Filename */
-  dynstr_append(&ds_progress, cur_file->file_name);
-  dynstr_append_mem(&ds_progress, ":", 1);
+  // Filename
+  str_progress.append(cur_file->file_name);
+  str_progress.append(":");
 
-  /* Line in file */
-  end = int10_to_str(cur_file->lineno, buf, 10);
-  dynstr_append_mem(&ds_progress, buf, (int)(end - buf));
+  // Line in file
+  str_line = std::to_string(cur_file->lineno);
+  str_progress.append(str_line);
+  str_progress.append("\n");
 
-  dynstr_append_mem(&ds_progress, "\n", 1);
-
-  progress_file.write(&ds_progress);
-
-  dynstr_free(&ds_progress);
+  if (progress_file.write(str_progress.c_str(), str_progress.length()) ||
+      progress_file.flush()) {
+    cleanup_and_exit(1);
+  }
 }
 
 #ifdef HAVE_STACKTRACE
@@ -9522,29 +9367,39 @@ int main(int argc, char **argv) {
     cur_file->lineno = 1;
   }
 
-  log_file.open(opt_logdir, result_file_name, ".log");
+  if (log_file.open(opt_logdir, result_file_name, ".log")) cleanup_and_exit(1);
+
   verbose_msg("Logging to '%s'.", log_file.file_name());
   enable_async_client = use_async_client;
 
-  /*
-    Creating a temporary log file using current file name if
-    result file doesn't exist
-  */
-  if (!result_file_name) {
-    if (std::strcmp(cur_file->file_name, "<stdin>"))
-      temp_log_file.open(opt_logdir, cur_file->file_name, ".log");
-    else
-      temp_log_file.open(opt_logdir, "stdin", ".log");
+  // Creating a log file using current file name if result file doesn't exist.
+  if (result_file_name) {
+    if (log_file.open(opt_logdir, result_file_name, ".log"))
+      cleanup_and_exit(1);
+  } else {
+    if (std::strcmp(cur_file->file_name, "<stdin>")) {
+      if (log_file.open(opt_logdir, cur_file->file_name, ".log"))
+        cleanup_and_exit(1);
+    } else {
+      if (log_file.open(opt_logdir, "stdin", ".log")) cleanup_and_exit(1);
+    }
   }
 
+  // File to store the progress
+  Logfile progress_file;
+
   if (opt_mark_progress) {
-    if (result_file_name)
-      progress_file.open(opt_logdir, result_file_name, ".progress");
-    else {
-      if (std::strcmp(cur_file->file_name, "<stdin>"))
-        progress_file.open(opt_logdir, cur_file->file_name, ".progress");
-      else
-        progress_file.open(opt_logdir, "stdin", ".progress");
+    if (result_file_name) {
+      if (progress_file.open(opt_logdir, result_file_name, ".progress"))
+        cleanup_and_exit(1);
+    } else {
+      if (std::strcmp(cur_file->file_name, "<stdin>")) {
+        if (progress_file.open(opt_logdir, cur_file->file_name, ".progress"))
+          cleanup_and_exit(1);
+      } else {
+        if (progress_file.open(opt_logdir, "stdin", ".progress"))
+          cleanup_and_exit(1);
+      }
     }
     verbose_msg("Tracing progress in '%s'.", progress_file.file_name());
   }
@@ -10166,22 +10021,23 @@ int main(int argc, char **argv) {
     last_command_executed = command_executed;
 
     parser.current_line += current_line_inc;
-    if (opt_mark_progress) mark_progress(command, parser.current_line);
+    if (opt_mark_progress) mark_progress(progress_file, parser.current_line);
 
-    /* Write result from command to log file immediately */
-    log_file.write(&ds_res);
-    log_file.flush();
+    // Write result from command to log file immediately.
+    if (log_file.write(ds_res.str, ds_res.length) || log_file.flush())
+      cleanup_and_exit(1);
 
     if (!result_file_name) {
-      temp_log_file.write(&ds_res);
-      temp_log_file.flush();
+      std::fwrite(ds_res.str, 1, ds_res.length, stdout);
+      std::fflush(stdout);
     }
+
     dynstr_set(&ds_res, 0);
   }
 
   log_file.close();
 
-  if (!result_file_name) temp_log_file.close();
+  if (opt_mark_progress) progress_file.close();
 
   start_lineno = 0;
   verbose_msg("... Done processing test commands.");
