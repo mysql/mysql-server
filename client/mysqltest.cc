@@ -752,8 +752,9 @@ class LogFile {
         DBUG_VOID_RETURN;
       }
 
-      DBUG_PRINT("info", ("Read %lu bytes from file, buf: %s",
-                          (unsigned long)bytes, buf));
+      DBUG_PRINT("info",
+                 ("Read %lu bytes from file, buf: %.*s", (unsigned long)bytes,
+                  static_cast<int>(sizeof(buf)), buf));
 
       char *show_from = buf + bytes;
       while (show_from > buf && lines > 0) {
