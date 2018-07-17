@@ -227,6 +227,41 @@ ENDIF()
 
 PROJECT(${MYSQL_PROJECT_NAME})
 
+GET_FILENAME_COMPONENT(REALPATH_CMAKE_SOURCE_DIR ${CMAKE_SOURCE_DIR} REALPATH)
+GET_FILENAME_COMPONENT(REALPATH_CMAKE_BINARY_DIR ${CMAKE_BINARY_DIR} REALPATH)
+
+MESSAGE(STATUS "Source directory ${REALPATH_CMAKE_SOURCE_DIR}")
+MESSAGE(STATUS "Binary directory ${REALPATH_CMAKE_BINARY_DIR}")
+
+# IN PB2 we have a few configurations which are built in-source (e.g. doxygen).
+IF(DEFINED ENV{PB2WORKDIR})
+  OPTION(FORCE_INSOURCE_BUILD "Allow in-source build" ON)
+ELSE()
+  OPTION(FORCE_INSOURCE_BUILD "Allow in-source build" OFF)
+ENDIF()
+
+# https://gitlab.kitware.com/cmake/community/wikis/FAQ
+# cmake-does-not-generate-a-make-distclean-target-why
+# Why disallow in-source build?
+# Basically because 'make clean' or 'make distclean' do not work.
+# So if you do a 'git pull' you may end up with a developer sandbox
+# that no longer works as expected (CMakeCache.txt and other
+# generated/configured files may contain data which is no longer valid)
+IF(${REALPATH_CMAKE_SOURCE_DIR} STREQUAL ${REALPATH_CMAKE_BINARY_DIR})
+  IF(FORCE_INSOURCE_BUILD)
+    MESSAGE(WARNING "This is an in-source build")
+  ELSE()
+    MESSAGE(FATAL_ERROR
+      "Please do not build in-source. "
+      "Out-of source builds are highly recommended: "
+      "you can have multiple builds for the same source, "
+      "and there is an easy way to do cleanup, "
+      "simply remove the build directory "
+      "(note that 'make clean' or 'make distclean' does *not* work) "
+      "\nYou *can* force in-source build by invoking cmake with -DFORCE_INSOURCE_BUILD=1")
+  ENDIF()
+ENDIF()
+
 MACRO(REPORT_CXX_FLAGS)
   FOREACH(BUILD_TYPE "" _DEBUG _RELWITHDEBINFO _RELEASE _MINSIZEREL)
     SET(flag "CMAKE_CXX_FLAGS${BUILD_TYPE}")

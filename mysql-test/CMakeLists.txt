@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -133,16 +133,19 @@ MACRO(PROCESS_COLLECTION_INCLUDE collin collection)
   ENDFOREACH()
 ENDMACRO()
 
-FILE(GLOB infiles "collections/*.in")
-FOREACH(collin ${infiles})
-  STRING(REPLACE ".in" "" collection ${collin})
-  STRING(REPLACE ".in" ".done" colldone ${collin})
-  # Only generate file once
-  IF(NOT EXISTS ${colldone})
-    PROCESS_COLLECTION_INCLUDE(${collin} ${collection})
-    FILE(APPEND ${colldone} "${collin}\n")
-  ENDIF()
-ENDFOREACH()
+# For internal testing in PB2, append collections files
+IF(DEFINED ENV{PB2WORKDIR})
+  FILE(GLOB infiles "collections/*.in")
+  FOREACH(collin ${infiles})
+    STRING(REPLACE ".in" "" collection ${collin})
+    STRING(REPLACE ".in" ".done" colldone ${collin})
+    # Only generate file once
+    IF(NOT EXISTS ${colldone})
+      PROCESS_COLLECTION_INCLUDE(${collin} ${collection})
+      FILE(APPEND ${colldone} "${collin}\n")
+    ENDIF()
+  ENDFOREACH()
+ENDIF()
 
 # With different MAX_INDEXES values, server might behave differently in
 # certain cases. 'max_indexes.inc' file should be updated accordingly to
