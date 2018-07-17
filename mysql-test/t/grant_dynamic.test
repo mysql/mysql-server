@@ -605,5 +605,6 @@ GRANT PERSIST_RO_VARIABLES_ADMIN, DELETE ON *.* TO u1 WITH GRANT OPTION;
 --source include/show_binlog_events.inc
 GRANT GRANT OPTION ON *.* TO u1;
 --source include/show_binlog_events.inc
-RESET MASTER;
 DROP USER u1;
+RESET MASTER;
+RESET SLAVE ALL;
