@@ -795,6 +795,7 @@ SET GLOBAL group_replication_member_expel_timeout= 1000;
 
 --let $assert_text= Verify SESSION value of group_replication_exit_state_action
 --let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_exit_state_action\', VARIABLE_VALUE, 1]" = "READ_ONLY"
+--source include/assert.inc
 
 # group_replication_member_expel_timeout
 --let $assert_text= Verify GLOBAL value of group_replication_member_expel_timeout

@@ -225,6 +225,7 @@ include/assert.inc [Verify SESSION value of group_replication_recovery_get_publi
 include/assert.inc [Verify GLOBAL value of group_replication_exit_state_action]
 include/assert.inc [Verify GLOBAL value of group_replication_exit_state_action]
 include/assert.inc [Verify SESSION value of group_replication_exit_state_action]
+include/assert.inc [Verify SESSION value of group_replication_exit_state_action]
 include/assert.inc [Verify GLOBAL value of group_replication_member_expel_timeout]
 include/assert.inc [Verify GLOBAL value of group_replication_member_expel_timeout]
 include/assert.inc [Verify SESSION value of group_replication_member_expel_timeout]

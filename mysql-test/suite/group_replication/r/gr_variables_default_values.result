@@ -104,6 +104,7 @@ include/assert.inc [Default group_replication_unreachable_majority_timeout is 0]
 include/assert.inc [Default group_replication_member_weight is 50]
 include/assert.inc [Default group_replication_recovery_public_key_path is ""(EMPTY)]
 include/assert.inc [Default group_replication_recovery_get_public_key is OFF/0]
+include/assert.inc [Default group_replication_exit_state_action is ABORT_SERVER]
 include/assert.inc [Default group_replication_member_expel_timeout is 0]
 #
 # Clean up
