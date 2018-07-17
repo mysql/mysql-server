@@ -3221,7 +3221,7 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
     if (!want_access) continue;  // ok
 
     if (!(~t_ref->grant.privilege & want_access) || t_ref->is_derived() ||
-        t_ref->schema_table)
+        t_ref->is_table_function() || t_ref->schema_table)
       continue;
 
     if (is_temporary_table(t_ref)) {

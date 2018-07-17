@@ -1763,3 +1763,24 @@ value	cumulfreq
 バ	0.75
 パ	1
 DROP TABLE t1;
+#
+# Bug#28254268: JSON_TABLE() FUNCTION REJECTS SELECT PERMISSIONS
+#
+CREATE DATABASE db2;
+USE db2;
+CREATE TABLE t1 (c JSON);
+INSERT INTO t1 VALUES('[1,2,3]');
+CREATE USER user1@localhost;
+GRANT SELECT ON db2.t1 TO user1@localhost;
+USE db2;
+SELECT t1.c FROM t1;
+c
+[1, 2, 3]
+SELECT jt.* FROM t1, JSON_TABLE(t1.c, '$[*]' COLUMNS (num INT PATH '$[0]'))
+AS jt;
+num
+1
+2
+3
+DROP USER user1@localhost;
+DROP DATABASE db2;
