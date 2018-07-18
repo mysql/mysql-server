@@ -4,8 +4,10 @@
 # *************************************************************
 --source include/master-slave.inc
 
-call mtr.add_suppression("InnoDB: Cannot drop undo tablespace \\'undo_003\\' because it is active. Please do: ALTER UNDO TABLESPACE undo_003 SET INACTIVE");
-call mtr.add_suppression("\\[InnoDB\\] InnoDB: Log writer is waiting for checkpointer to to catch up lag: 9433600 bytes.*");
+--disable_query_log
+call mtr.add_suppression("Cannot drop undo tablespace \\'undo_003\\' because it is active. Please do: ALTER UNDO TABLESPACE undo_003 SET INACTIVE");
+call mtr.add_suppression("\\[InnoDB\\] Log writer is waiting for checkpointer to to catch up lag: 9433600 bytes.*");
+--enable_query_log
 
 --echo [Connection Master]
 --connection master

@@ -3,8 +3,6 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-call mtr.add_suppression("InnoDB: Cannot drop undo tablespace \\'undo_003\\' because it is active. Please do: ALTER UNDO TABLESPACE undo_003 SET INACTIVE");
-call mtr.add_suppression("\\[InnoDB\\] InnoDB: Log writer is waiting for checkpointer to to catch up lag: 9433600 bytes.*");
 [Connection Master]
 CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
 CREATE UNDO TABLESPACE undo_004 ADD DATAFILE 'undo_004.ibu';

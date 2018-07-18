@@ -22,6 +22,6 @@ SET DEFAULT_STORAGE_ENGINE=InnoDB;
 # --source suite/innodb/include/tablespace_portability.inc
 
 --disable_query_log
-call mtr.add_suppression("\\[ERROR\\].*InnoDB: The directory '.*' does not exist");
+call mtr.add_suppression("\\[ERROR\\].* The directory '.*' does not exist");
 --enable_query_log
 

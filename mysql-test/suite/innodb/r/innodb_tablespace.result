@@ -555,7 +555,6 @@ DROP TABLE t1;
 # Bug#27903881 [MYSQL 8.0 GA RELEASE & DEBUG BUILD]
 # FIL_SPACE_GET(TABLE->SPACE) != __NULL
 #
-call mtr.add_suppression("\\[Warning\\] InnoDB: Missing .ibd file for table `test`\.`t1` .* ");
 CREATE TABLE t1(c1 INT,c2 CHAR,c3 DATE)PARTITION BY HASH(DAYOFWEEK(c3));
 ALTER TABLE t1 DISCARD TABLESPACE;
 FLUSH TABLES t1 FOR EXPORT;
