@@ -127,8 +127,11 @@ class Group_member_info : public Plugin_gcs_message {
     // Length of the payload item: 1 bytes
     PIT_GROUP_ACTION_RUNNING = 16,
 
+    // Length of the payload item: 1 bytes
+    PIT_PRIMARY_ELECTION_RUNNING = 17,
+
     // No valid type codes can appear after this one.
-    PIT_MAX = 17
+    PIT_MAX = 18
   };
 
   /*
@@ -434,9 +437,20 @@ class Group_member_info : public Plugin_gcs_message {
 
   /**
     Sets if the member is currently running a group action
-    @param is_runnning is a action running
+    @param is_runnning is an action running
   */
   void set_is_group_action_running(bool is_running);
+
+  /**
+    @return is a primary election running in this member
+  */
+  bool is_primary_election_running();
+
+  /**
+    Sets if the member is currently running a primary election
+    @param is_runnning is an election running
+  */
+  void set_is_primary_election_running(bool is_running);
 
  protected:
   void encode_payload(std::vector<unsigned char> *buffer) const;
@@ -459,7 +473,8 @@ class Group_member_info : public Plugin_gcs_message {
   bool conflict_detection_enable;
   uint member_weight;
   uint lower_case_table_names;
-  bool is_action_running;
+  bool group_action_running;
+  bool primary_election_running;
 };
 
 /*

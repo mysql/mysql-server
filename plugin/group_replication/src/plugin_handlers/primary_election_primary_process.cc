@@ -381,7 +381,6 @@ int Primary_election_primary_process::before_message_handling(
 
     if (single_primary_msg_type ==
         Single_primary_message::SINGLE_PRIMARY_QUEUE_APPLIED_MESSAGE) {
-      primary_election_handler->set_election_running(false);
       mysql_mutex_lock(&election_lock);
       election_process_ending = true;
       waiting_on_queue_applied_message = true;
