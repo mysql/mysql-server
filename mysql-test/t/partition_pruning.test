@@ -6,6 +6,7 @@
 # Skipping the test when log-bin is enabled and binlog_format due to unsafe statement:
 # LIMIT clause.
 --source include/not_binlog_format_statement.inc
+--source include/have_innodb_min_8k.inc
 
 --source include/no_valgrind_without_big.inc
 let $verify_without_partitions=0;
@@ -57,6 +58,7 @@ ALTER TABLE t1 REMOVE PARTITIONING;
 }
 
 INSERT INTO t1 VALUES (-1),(0),(1),(2),(3),(4),(5),(6),(7),(8);
+ANALYZE TABLE t1;
 
 SELECT * FROM t1 WHERE a < 1;
 --replace_column 10 #
@@ -179,6 +181,7 @@ ALTER TABLE t1 REMOVE PARTITIONING;
 }
 
 INSERT INTO t1 VALUES (-1),(0),(1),(2),(3),(4),(5),(6),(7);
+ANALYZE TABLE t1;
 
 SELECT * FROM t1 WHERE a < 1;
 --replace_column 10 #
@@ -368,6 +371,7 @@ INSERT INTO t1 VALUES (1, '2009-01-01'), (1, '2009-04-01'), (2, '2009-04-01'),
   (1, '2009-04-02'), (2, '2009-04-02'), (1, '2009-04-02 23:59:59'),
   (1, '2009-04-03'), (2, '2009-04-03'), (1, '2009-04-04'), (2, '2009-04-04'),
   (1, '2009-04-05'), (1, '2009-04-06'), (1, '2009-04-07');
+ANALYZE TABLE t1;
 --replace_column 10 #
 EXPLAIN SELECT * FROM t1 WHERE b < CAST('2009-04-03' AS DATETIME);
 --replace_column 10 #
@@ -484,6 +488,7 @@ INSERT INTO t1 VALUES (1, '2009-01-01'), (1, '2009-04-01'), (2, '2009-04-01'),
   (1, '2009-04-02'), (2, '2009-04-02'), (1, '2009-04-03'), (2, '2009-04-03'),
   (1, '2009-04-04'), (2, '2009-04-04'), (1, '2009-04-05'), (1, '2009-04-06'),
   (1, '2009-04-07');
+ANALYZE TABLE t1;
 --replace_column 10 #
 EXPLAIN SELECT * FROM t1 WHERE b < CAST('2009-04-03' AS DATETIME);
 --replace_column 10 #
@@ -599,6 +604,7 @@ INSERT INTO t1 VALUES (1, '2009-01-01'), (1, '2009-04-01'), (2, '2009-04-01'),
   (1, '2009-04-02'), (2, '2009-04-02'), (1, '2009-04-02 23:59:59'),
   (1, '2009-04-03'), (2, '2009-04-03'), (1, '2009-04-04'), (2, '2009-04-04'),
   (1, '2009-04-05'), (1, '2009-04-06'), (1, '2009-04-07');
+ANALYZE TABLE t1;
 --replace_column 10 #
 EXPLAIN SELECT * FROM t1 WHERE b < CAST('2009-04-03' AS DATETIME);
 --replace_column 10 #
@@ -714,6 +720,7 @@ INSERT INTO t1 VALUES (1, '2009-01-01'), (1, '2009-04-01'), (2, '2009-04-01'),
   (1, '2009-04-02'), (2, '2009-04-02'), (1, '2009-04-03'), (2, '2009-04-03'),
   (1, '2009-04-04'), (2, '2009-04-04'), (1, '2009-04-05'), (1, '2009-04-06'),
   (1, '2009-04-07');
+ANALYZE TABLE t1;
 --replace_column 10 #
 EXPLAIN SELECT * FROM t1 WHERE b < CAST('2009-04-03' AS DATETIME);
 --replace_column 10 #
@@ -826,6 +833,7 @@ if ($verify_without_partitions)
 ALTER TABLE t1 REMOVE PARTITIONING;
 }
 INSERT INTO t1 VALUES (1, '2009-01-01'), (2, NULL);
+ANALYZE TABLE t1;
 --echo # test with an invalid date, which lead to item->null_value is set.
 --replace_column 10 #
 EXPLAIN SELECT * FROM t1 WHERE b < CAST('2009-04-99' AS DATETIME);
@@ -860,6 +868,7 @@ if ($verify_without_partitions)
 ALTER TABLE t1 REMOVE PARTITIONING;
 }
 insert into t1 values (1),(2),(3);
+ANALYZE TABLE t1;
 --replace_column 10 #
 explain select * from t1 where a=5 and a=6;
 drop table t1;
@@ -873,6 +882,7 @@ if ($verify_without_partitions)
 ALTER TABLE t1 REMOVE PARTITIONING;
 }
 insert into t1 values (1),(2),(3);
+ANALYZE TABLE t1;
 
 --replace_column 10 #
 explain select * from t1 where a=1;
@@ -891,6 +901,7 @@ if ($verify_without_partitions)
 ALTER TABLE t2 REMOVE PARTITIONING;
 }
 insert into t2 values (1,1),(2,2),(3,3);
+ANALYZE TABLE t2;
 
 --replace_column 10 #
 explain select * from t2 where a=1;
@@ -913,6 +924,7 @@ if ($verify_without_partitions)
 ALTER TABLE t3 REMOVE PARTITIONING;
 }
 insert into t3 values (5),(15);
+ANALYZE TABLE t3;
 
 --replace_column 10 #
 explain select * from t3 where a=11;
@@ -933,6 +945,7 @@ if ($verify_without_partitions)
 ALTER TABLE t4 REMOVE PARTITIONING;
 }
 insert into t4 values (10,2), (10,4);
+ANALYZE TABLE t4;
 
 # empty OR one
 --replace_column 10 #
@@ -972,6 +985,7 @@ ALTER TABLE t5 REMOVE PARTITIONING;
 }
 
 insert into t5 values (10,2,0,0), (10,4,0,0), (10,2,0,1), (10,4,0,1);
+ANALYZE TABLE t5;
 --replace_column 10 #
 explain select * from t5;
 
@@ -1014,6 +1028,7 @@ if ($verify_without_partitions)
 ALTER TABLE t6 REMOVE PARTITIONING;
 }
 insert into t6 values (1),(3),(5);
+ANALYZE TABLE t6;
 
 --replace_column 10 #
 explain select * from t6 where a <  1;
@@ -1055,6 +1070,7 @@ if ($verify_without_partitions)
 ALTER TABLE t6 REMOVE PARTITIONING;
 }
 insert into t6 values (1),(3),(5);
+ANALYZE TABLE t6;
 
 --replace_column 10 #
 explain select * from t6 where a <  1;
@@ -1095,6 +1111,7 @@ if ($verify_without_partitions)
 ALTER TABLE t7 REMOVE PARTITIONING;
 }
 insert into t7 values (10),(30),(50);
+ANALYZE TABLE t7;
 
 # leftmost intervals
 --replace_column 10 #
@@ -1162,6 +1179,7 @@ if ($verify_without_partitions)
 ALTER TABLE t7 REMOVE PARTITIONING;
 }
 insert into t7 values (10),(30),(50);
+ANALYZE TABLE t7;
 
 # leftmost intervals
 --replace_column 10 #
@@ -1226,6 +1244,7 @@ if ($verify_without_partitions)
 ALTER TABLE t8 REMOVE PARTITIONING;
 }
 insert into t8 values ('1985-05-05'),('1995-05-05');
+ANALYZE TABLE t8;
 
 --replace_column 10 #
 explain select * from t8 where a < '1980-02-02';
@@ -1241,6 +1260,7 @@ if ($verify_without_partitions)
 ALTER TABLE t9 REMOVE PARTITIONING;
 }
 insert into t9 values ('2005-05-05'), ('2005-04-04');
+ANALYZE TABLE t9;
 
 --replace_column 10 #
 explain select * from t9 where a <  '2004-12-19';
@@ -1275,6 +1295,7 @@ if ($verify_without_partitions)
 ALTER TABLE t1 REMOVE PARTITIONING;
 }
 insert into t1 values (1),(2),(3);
+ANALYZE TABLE t1;
 --replace_column 10 #
 explain select * from t1 where a1 > 3;
 --replace_column 10 #
@@ -1297,6 +1318,7 @@ if ($verify_without_partitions)
 ALTER TABLE t3 REMOVE PARTITIONING;
 }
 insert into t3 values (1,1),(2,2),(3,3);
+ANALYZE TABLE t3;
 
 --replace_column 10 #
 explain select * from t3 where a=2 or b=1;
@@ -1313,6 +1335,7 @@ if ($verify_without_partitions)
 ALTER TABLE t1 REMOVE PARTITIONING;
 }
 insert into t1 values (1),(2);
+ANALYZE TABLE t1;
 --replace_column 10 #
 explain select * from t1 where a is null;
 
@@ -1329,6 +1352,7 @@ if ($verify_without_partitions)
 ALTER TABLE t1 REMOVE PARTITIONING;
 }
 insert into t1 values (1,1),(2,2),(3,3),(4,4);
+ANALYZE TABLE t1;
 
 --replace_column 10 #
 explain
@@ -1348,6 +1372,7 @@ if ($verify_without_partitions)
 ALTER TABLE t1 REMOVE PARTITIONING;
 }
 insert into t1 values (1),(2),(3);
+ANALYZE TABLE t1;
 --replace_column 10 #
 explain select * from t1 where a >  1 and a < 3;
 --replace_column 10 #
@@ -1371,6 +1396,7 @@ if ($verify_without_partitions)
 ALTER TABLE t1 REMOVE PARTITIONING;
 }
 insert into t1 values (1,1),(2,2),(3,3);
+ANALYZE TABLE t1;
 
 --replace_column 10 #
 explain select * from t1 where b >  1 and b < 3;
@@ -1392,6 +1418,7 @@ if ($verify_without_partitions)
 ALTER TABLE t1 REMOVE PARTITIONING;
 }
 insert into t1 values (1),(1),(2),(2),(3),(4),(3),(4);
+ANALYZE TABLE t1;
 
 --echo # This won't do any table access
 --let $q = update t1 set a=100 where a=5
@@ -1475,10 +1502,12 @@ show status like 'Handler_external_lock';
 --sorted_result
 select * from t1;
 insert into t1 values (1), (1);
+ANALYZE TABLE t1;
 
 --echo # Same as above multi-table UPDATE/DELETE
 create table t2 like t1;
 insert into t2 select * from t1;
+ANALYZE TABLE t2;
 
 --let $q = update t1,t2 set t1.a=1000, t2.a=1000 where t1.a=5 and t2.a=5
 --replace_column 10 #
@@ -1540,6 +1569,7 @@ CREATE TABLE `t2` (
 
 insert into t2 select A.a + 10*(B.a + 10* C.a) from t1 A, t1 B, t1 C ;
 insert into t1 select a from t2;
+ANALYZE TABLE t1;
 
 drop table t2;
 CREATE TABLE `t2` (
@@ -1569,6 +1599,7 @@ insert into t2 select a,2 from t1 where a >= 200 and a < 400;
 insert into t2 select a,3 from t1 where a >= 400 and a < 600;
 insert into t2 select a,4 from t1 where a >= 600 and a < 800;
 insert into t2 select a,5 from t1 where a >= 800 and a < 1001;
+ANALYZE TABLE t2;
 
 --let $q =  select * from t2
 --replace_column 10 #
@@ -1857,6 +1888,7 @@ if ($verify_without_partitions)
 ALTER TABLE t1 REMOVE PARTITIONING;
 }
 insert into t1 set f_int1 = null;
+ANALYZE TABLE t1;
 
 select * from t1 where f_int1 is null;
 --replace_column 10 #
@@ -1880,6 +1912,7 @@ ALTER TABLE t1 REMOVE PARTITIONING;
 }
 insert into t1 values (1,1),(1,2),(1,3),(1,4),
   (2,1),(2,2),(2,3),(2,4);
+ANALYZE TABLE t1;
 --replace_column 10 #
 explain select * from t1 where a=1 AND (b=1 OR b=2);
 drop table t1;
@@ -1899,6 +1932,7 @@ ALTER TABLE t1 REMOVE PARTITIONING;
 }
 insert into t1 values (1,1),(1,2),(1,3),(1,4),
   (2,1),(2,2),(2,3),(2,4), (NULL,1);
+ANALYZE TABLE t1;
 
 --replace_column 10 #
 explain select * from t1 where a IS NULL AND (b=1 OR b=2);
@@ -1923,6 +1957,7 @@ if ($verify_without_partitions)
 ALTER TABLE t1 REMOVE PARTITIONING;
 }
 insert into t1 values (NULL), (0),(1),(2),(3),(4),(5),(6);
+ANALYZE TABLE t1;
 --replace_column 10 #
 explain select * from t1 where a is null or a < 2;
 drop table t1;
@@ -1938,6 +1973,7 @@ ALTER TABLE t1 REMOVE PARTITIONING;
 }
 
 insert into t1 values (0),(1),(null);
+ANALYZE TABLE t1;
 
 select count(*) from t1 where s1 < 0 or s1 is null;
 --replace_column 10 #
@@ -1990,6 +2026,7 @@ ALTER TABLE t2 REMOVE PARTITIONING;
 }
 
 insert into t2 values (1,1),(2,2);
+ANALYZE TABLE t2;
 
 --vertical_results
 --replace_column 10 #
@@ -2020,6 +2057,7 @@ ALTER TABLE t1 REMOVE PARTITIONING;
 insert into t1 values (5),(15),(105),(1005);
 insert into t1 values (18446744073709551000+1);
 insert into t1 values (18446744073709551614-1);
+ANALYZE TABLE t1;
 
 --replace_column 10 #
 explain select * from t1 where a < 10;
@@ -2071,7 +2109,9 @@ ALTER TABLE t2 REMOVE PARTITIONING;
 }
 
 insert into t1 values (0x20), (0x20), (0x41), (0x41), (0xFE), (0xFE);
+ANALYZE TABLE t1;
 insert into t2 values (0x20), (0x20), (0x41), (0x41), (0xFE), (0xFE);
+ANALYZE TABLE t2;
 --replace_column 10 #
 explain select * from t1 where a=0;
 --replace_column 10 #
@@ -2112,6 +2152,7 @@ ALTER TABLE t1 REMOVE PARTITIONING;
 
 insert into t1 values (9),(19),(0xFFFF0000FFFF000-1), (0xFFFF0000FFFFFFF-1);
 insert into t1 values (9),(19),(0xFFFF0000FFFF000-1), (0xFFFF0000FFFFFFF-1);
+ANALYZE TABLE t1;
 
 --replace_column 10 #
 explain select * from t1 where
@@ -2136,6 +2177,7 @@ if ($verify_without_partitions)
 ALTER TABLE t1 REMOVE PARTITIONING;
 }
 insert into t1 values (-15),(-5),(5),(15),(-15),(-5),(5),(15);
+ANALYZE TABLE t1;
 --replace_column 10 #
 explain select * from t1 where a>-2 and a <=0;
 drop table t1;
@@ -2158,6 +2200,7 @@ INSERT INTO t1 VALUES ('2007-03-01 12:00:00');
 INSERT INTO t1 VALUES ('2007-03-07 12:00:00');
 INSERT INTO t1 VALUES ('2007-03-08 12:00:00');
 INSERT INTO t1 VALUES ('2007-03-15 12:00:00');
+ANALYZE TABLE t1;
 -- echo must use p0 only:
 --replace_column 10 #
 explain select * from t1 where recdate < '2007-03-08 00:00:00';
@@ -2176,6 +2219,7 @@ INSERT INTO t1 VALUES ('2005-03-01 12:00:00');
 INSERT INTO t1 VALUES ('2005-03-01 12:00:00');
 INSERT INTO t1 VALUES ('2006-03-01 12:00:00');
 INSERT INTO t1 VALUES ('2006-03-01 12:00:00');
+ANALYZE TABLE t1;
 
 -- echo must use p0 only:
 --replace_column 10 #
@@ -2198,6 +2242,7 @@ if ($verify_without_partitions)
 ALTER TABLE t0 REMOVE PARTITIONING;
 }
 insert into t1 select A.a + 10*B.a from t0 A, t0 B;
+ANALYZE TABLE t1;
 
 # this will use interval_via_walking
 --replace_column 10 #
@@ -2221,6 +2266,7 @@ PARTITION BY LIST COLUMNS (c2)
  PARTITION p2 VALUES IN (3,4));
 INSERT INTO t1 VALUES (1, 1, 1, 1), (2, 3, 1, 1);
 INSERT INTO t1 VALUES (1, 2, 1, 1), (2, 4, 1, 1);
+ANALYZE TABLE t1;
 SELECT * FROM t1 WHERE c1 = 1 AND c2 < 1;
 SELECT * FROM t1 WHERE c1 = 1 AND c2 <= 1;
 SELECT * FROM t1 WHERE c1 = 1 AND c2 = 1;
