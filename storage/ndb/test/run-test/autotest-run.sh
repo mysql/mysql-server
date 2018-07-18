@@ -26,7 +26,7 @@
 ##############
 
 save_args=$*
-VERSION="autotest-run.sh version 1.19"
+VERSION="autotest-run.sh version 1.20"
 
 DATE=`date '+%Y-%m-%d'`
 if [ `uname -s` != "SunOS" ]
@@ -73,6 +73,7 @@ do
                 --conf=*) conf=`echo $1 | sed s/--conf=//`;;
                 --version) echo $VERSION; exit;;
 	        --suite=*) RUN=`echo $1 | sed s/--suite=//`;;
+          --suite-suffix=*) suite_suffix=`echo $1 | sed s/--suite-suffix=//`;;
 	        --run-dir=*) run_dir=`echo $1 | sed s/--run-dir=//`;;
 	        --install-dir=*) install_dir=`echo $1 | sed s/--install-dir=//`;;
 	        --install-dir0=*) install_dir0=`echo $1 | sed s/--install-dir0=//`;;
@@ -204,10 +205,12 @@ else
   ndb_cpcc=`which ndb_cpcc`
 fi
 
-test_file=$test_dir/$RUN-tests.txt
+if [ -n "${suite_suffix}" ]; then
+  suite_suffix="--${suite_suffix}"
+fi
 
-if [ ! -f "$test_file" ]
-then
+test_file="${test_dir}/${RUN}${suite_suffix}-tests.txt"
+if [ ! -f "$test_file" ]; then
     echo "Cant find testfile: $test_file"
     exit 1
 fi
@@ -393,7 +396,7 @@ if [ ${atrt_conf_status} -ne 0 ]; then
 else
     args="${atrt_defaults_group_suffix_arg}"
     args="$args --report-file=report.txt"
-    args="$args --testcase-file=$test_dir/$RUN-tests.txt"
+    args="$args --testcase-file=${test_file}"
     args="$args ${baseport_arg}"
     args="$args ${site_arg} ${clusters_arg}"
     args="$args $prefix"
