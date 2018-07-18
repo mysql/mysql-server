@@ -1165,13 +1165,11 @@ sub collect_one_test_case {
     }
   }
 
-  if ($tinfo->{'need_ssl'}) {
-    # This is a test that needs ssl
-    if (!$::opt_ssl_supported) {
-      # SSL is not supported, skip it
-      skip_test($tinfo, "No SSL support");
-      return $tinfo;
-    }
+  # Check for a test that need SSL
+  if ($tinfo->{'need_ssl'} and !$::opt_ssl_supported) {
+    # SSL is not supported, skip it
+    skip_test($tinfo, "No SSL support");
+    return $tinfo;
   }
 
   # Check for group replication tests
