@@ -100,6 +100,8 @@ use mtr_results;
 use IO::Socket::INET;
 use IO::Select;
 
+push @INC, ".";
+
 require "lib/mtr_process.pl";
 require "lib/mtr_io.pl";
 require "lib/mtr_gcov.pl";
