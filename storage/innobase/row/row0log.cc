@@ -1472,6 +1472,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   }
 
   do {
+    n_index++;
     if (!(index = index->next())) {
       break;
     }
@@ -2047,6 +2048,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_log_table_apply_update(
   }
 
   while ((index = index->next()) != NULL) {
+    n_index++;
     if (error != DB_SUCCESS) {
       break;
     }
