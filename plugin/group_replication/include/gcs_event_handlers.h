@@ -234,6 +234,15 @@ class Plugin_gcs_events_handler : public Gcs_communication_event_listener,
   bool is_group_running_a_configuration_change() const;
 
   /**
+    Check if the group is running a primary election
+
+    @return
+      @retval false  no primary election is running
+      @retval true   a primary election is running
+  */
+  bool is_group_running_a_primary_election() const;
+
+  /**
     This method submits a request to leave the group
   */
   void leave_group_on_error() const;

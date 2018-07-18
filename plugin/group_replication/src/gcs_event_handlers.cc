@@ -307,6 +307,7 @@ void Plugin_gcs_events_handler::handle_single_primary_message(
     Single_primary_action_packet *single_primary_action =
         new Single_primary_action_packet(
             Single_primary_action_packet::QUEUE_APPLIED);
+    primary_election_handler->set_election_running(false);
     this->applier_module->add_single_primary_action_packet(
         single_primary_action);
   }
@@ -777,6 +778,11 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view &new_view,
     update_member_status(
         new_view.get_joined_members(), Group_member_info::MEMBER_IN_RECOVERY,
         Group_member_info::MEMBER_OFFLINE, Group_member_info::MEMBER_END);
+
+    /** Is an election running while I'm joining?*/
+    primary_election_handler->set_election_running(
+        is_group_running_a_primary_election());
+
     /**
       Set the read mode if not set during start (auto-start)
     */
@@ -1062,9 +1068,11 @@ sending:
 
   std::vector<uchar> data;
 
-  // alert joiners that an action is running
+  // alert joiners that an action or election is running
   local_member_info->set_is_group_action_running(
       group_action_coordinator->is_group_action_running());
+  local_member_info->set_is_primary_election_running(
+      primary_election_handler->is_an_election_running());
   Group_member_info *local_member_copy =
       new Group_member_info(*local_member_info);
   Group_member_info_manager_message *group_info_message =
@@ -1429,6 +1437,22 @@ bool Plugin_gcs_events_handler::is_group_running_a_configuration_change()
   delete all_members;
 
   return is_action_running;
+}
+
+bool Plugin_gcs_events_handler::is_group_running_a_primary_election() const {
+  bool is_election_running = false;
+  std::vector<Group_member_info *> *all_members =
+      group_member_mgr->get_all_members();
+  for (Group_member_info *member_info : *all_members) {
+    if (member_info->is_primary_election_running()) {
+      is_election_running = true;
+      break;
+    }
+  }
+  for (Group_member_info *member_info : *all_members) delete member_info;
+  delete all_members;
+
+  return is_election_running;
 }
 
 void Plugin_gcs_events_handler::leave_group_on_error() const {

@@ -389,7 +389,6 @@ int Primary_election_secondary_process::before_message_handling(
 
     if (single_primary_msg_type ==
         Single_primary_message::SINGLE_PRIMARY_QUEUE_APPLIED_MESSAGE) {
-      primary_election_handler->set_election_running(false);
       mysql_mutex_lock(&election_lock);
       waiting_on_old_primary_transactions = false;
       mysql_cond_broadcast(&election_cond);

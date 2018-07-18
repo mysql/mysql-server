@@ -55,7 +55,8 @@ Group_member_info::Group_member_info(
       conflict_detection_enable(false),
       member_weight(member_weight_arg),
       lower_case_table_names(lower_case_table_names_arg),
-      is_action_running(false) {
+      group_action_running(false),
+      primary_election_running(false) {
   gcs_member_id = new Gcs_member_identifier(gcs_member_id_arg);
   member_version = new Member_version(member_version_arg.get_version());
 
@@ -84,7 +85,8 @@ Group_member_info::Group_member_info(Group_member_info &other)
       conflict_detection_enable(other.is_conflict_detection_enabled()),
       member_weight(other.get_member_weight()),
       lower_case_table_names(other.get_lower_case_table_names()),
-      is_action_running(other.is_group_action_running()) {
+      group_action_running(other.is_group_action_running()),
+      primary_election_running(other.is_primary_election_running()) {
   gcs_member_id =
       new Gcs_member_identifier(other.get_gcs_member_id().get_member_id());
   member_version = new Member_version(other.get_member_version().get_version());
@@ -96,7 +98,8 @@ Group_member_info::Group_member_info(const uchar *data, size_t len)
       member_version(NULL),
       unreachable(false),
       lower_case_table_names(DEFAULT_NOT_RECEIVED_LOWER_CASE_TABLE_NAMES),
-      is_action_running(false) {
+      group_action_running(false),
+      primary_election_running(false) {
   decode(data, len);
 }
 
@@ -172,9 +175,13 @@ void Group_member_info::encode_payload(
     MySQL 8.0+ payloads
   */
 
-  char is_action_running_aux = is_action_running ? '1' : '0';
+  char is_action_running_aux = group_action_running ? '1' : '0';
   encode_payload_item_char(buffer, PIT_GROUP_ACTION_RUNNING,
                            is_action_running_aux);
+
+  char is_election_running_aux = primary_election_running ? '1' : '0';
+  encode_payload_item_char(buffer, PIT_PRIMARY_ELECTION_RUNNING,
+                           is_election_running_aux);
 
   DBUG_VOID_RETURN;
 }
@@ -275,7 +282,16 @@ void Group_member_info::decode_payload(const unsigned char *buffer,
         if (slider + payload_item_length <= end) {
           unsigned char is_action_running_aux = *slider;
           slider += payload_item_length;
-          is_action_running = (is_action_running_aux == '1') ? true : false;
+          group_action_running = (is_action_running_aux == '1') ? true : false;
+        }
+        break;
+
+      case PIT_PRIMARY_ELECTION_RUNNING:
+        if (slider + payload_item_length <= end) {
+          unsigned char is_election_running_aux = *slider;
+          slider += payload_item_length;
+          primary_election_running =
+              (is_election_running_aux == '1') ? true : false;
         }
         break;
     }
@@ -412,10 +428,20 @@ void Group_member_info::set_member_weight(uint new_member_weight) {
 
 uint Group_member_info::get_member_weight() { return member_weight; }
 
-bool Group_member_info::is_group_action_running() { return is_action_running; }
+bool Group_member_info::is_group_action_running() {
+  return group_action_running;
+}
 
 void Group_member_info::set_is_group_action_running(bool is_running) {
-  is_action_running = is_running;
+  group_action_running = is_running;
+}
+
+bool Group_member_info::is_primary_election_running() {
+  return primary_election_running;
+}
+
+void Group_member_info::set_is_primary_election_running(bool is_running) {
+  primary_election_running = is_running;
 }
 
 bool Group_member_info::operator==(Group_member_info &other) {
