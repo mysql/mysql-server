@@ -2039,9 +2039,11 @@ dberr_t srv_start(bool create_new_db, const std::string &scan_directories) {
 
   fsp_init();
   pars_init();
-  clone_init();
+  err = clone_init();
+  if (err != DB_SUCCESS) {
+    return (srv_init_abort(err));
+  }
   arch_init();
-
   recv_sys_create();
   recv_sys_init(buf_pool_get_curr_size());
   trx_sys_create();

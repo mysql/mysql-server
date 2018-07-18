@@ -18460,6 +18460,12 @@ ER_IB_MSG_DIR_DOES_NOT_EXIST
 ER_IB_MSG_LOCK_FREE_HASH_USAGE_STATS
   eng "%s"
 
+ER_CLONE_REMOTE_ERROR
+  eng "Clone Remote Error: %.512s."
+
+ER_CLONE_PROTOCOL_ERROR
+  eng "Clone Protocol Error: %.512s."
+
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #

@@ -1181,7 +1181,7 @@ void warn_about_deprecated_national(THD *thd)
 %token  PERSIST_ONLY_SYM              /* MYSQL */
 %token<keyword> HISTOGRAM_SYM         /* MYSQL */
 %token<keyword> BUCKETS_SYM           /* MYSQL */
-%token<keyword> REMOTE_SYM            /* MYSQL */
+%token<keyword> OBSOLETE_TOKEN_930    /* was: REMOTE_SYM */
 %token<keyword> CLONE_SYM             /* MYSQL */
 %token  CUME_DIST_SYM                 /* SQL-2003-R */
 %token  DENSE_RANK_SYM                /* SQL-2003-R */
@@ -1274,6 +1274,7 @@ void warn_about_deprecated_national(THD *thd)
         opt_constraint
         ts_datafile lg_undofile /*lg_redofile*/ opt_logfile_group_name
         opt_describe_column
+        opt_datadir_ssl
 
 %type <lex_cstr>
         opt_table_alias
@@ -1484,7 +1485,6 @@ void warn_about_deprecated_national(THD *thd)
 %type <is_not_empty> opt_convert_xid opt_ignore opt_linear opt_bin_mod
         opt_if_not_exists opt_temporary
         opt_grant_option opt_with_admin_option
-        opt_for_replication
         opt_full opt_extended
         opt_ignore_leaves
         opt_local
@@ -14161,7 +14161,6 @@ role_or_label_keyword:
         | RELAY_LOG_POS_SYM
         | RELAYLOG_SYM
         | RELAY_THREAD
-        | REMOTE_SYM
         | REORGANIZE_SYM
         | REPEATABLE_SYM
         | REPLICATE_DO_DB
@@ -16152,29 +16151,62 @@ import_stmt:
 Clone local/remote replica statements.
 
 **************************************************************************/
-
 clone_stmt:
           CLONE_SYM LOCAL_SYM
           DATA_SYM DIRECTORY_SYM opt_equal TEXT_STRING_filesystem
           {
             Lex->sql_command= SQLCOM_CLONE;
-            Lex->m_sql_cmd= NEW_PTN Sql_cmd_clone_local($6.str);
+            Lex->m_sql_cmd= NEW_PTN Sql_cmd_clone(to_lex_cstring($6));
             if (Lex->m_sql_cmd == nullptr)
               MYSQL_YYABORT;
           }
-        | CLONE_SYM REMOTE_SYM opt_for_replication
-          DATA_SYM DIRECTORY_SYM opt_equal TEXT_STRING_filesystem
+
+        | CLONE_SYM INSTANCE_SYM FROM user ':' ulong_num
+          IDENTIFIED_SYM BY TEXT_STRING_sys
+          opt_datadir_ssl
           {
             Lex->sql_command= SQLCOM_CLONE;
-            Lex->m_sql_cmd= NEW_PTN Sql_cmd_clone_remote($3, $7.str);
+            /* Reject space characters around ':' */
+            if (@6.raw.start - @4.raw.end != 1) {
+              YYTHD->syntax_error_at(@5);
+              MYSQL_YYABORT;
+            }
+            $4->auth.str= $9.str;
+            $4->auth.length= $9.length;
+            $4->uses_identified_by_clause= true;
+            Lex->contains_plaintext_password= true;
+
+            Lex->m_sql_cmd= NEW_PTN Sql_cmd_clone($4, $6, to_lex_cstring($10));
+
             if (Lex->m_sql_cmd == nullptr)
               MYSQL_YYABORT;
           }
         ;
 
-opt_for_replication:
-          /* empty */         { $$= false; }
-        | FOR_SYM REPLICATION { $$= true; }
+opt_datadir_ssl:
+          opt_ssl
+          {
+            $$= null_lex_str;
+          }
+        | DATA_SYM DIRECTORY_SYM opt_equal TEXT_STRING_filesystem opt_ssl
+          {
+            $$= $4;
+          }
+        ;
+
+opt_ssl:
+          /* empty */
+          {
+            Lex->ssl_type= SSL_TYPE_NOT_SPECIFIED;
+          }
+        | REQUIRE_SYM SSL_SYM
+          {
+            Lex->ssl_type= SSL_TYPE_SPECIFIED;
+          }
+        | REQUIRE_SYM NO_SYM SSL_SYM
+          {
+            Lex->ssl_type= SSL_TYPE_NONE;
+          }
         ;
 
 resource_group_types:

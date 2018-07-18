@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 #include <stddef.h>
 #include <set>
 
+#include "clone_handler.h"
 #include "lex_string.h"
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
@@ -398,36 +399,83 @@ class Sql_cmd_alter_instance : public Sql_cmd {
 };
 
 /**
-  Sql_cmd_clone_local implements the CLONE LOCAL ... statement.
+  Sql_cmd_clone implements CLONE ... statement.
 */
 
-class Sql_cmd_clone_local : public Sql_cmd {
-  const char *clone_dir;
-
+class Sql_cmd_clone : public Sql_cmd {
  public:
-  explicit Sql_cmd_clone_local(const char *clone_dir) : clone_dir(clone_dir) {}
+  /** Construct clone command for clone server */
+  explicit Sql_cmd_clone()
+      : m_host(),
+        m_port(),
+        m_user(),
+        m_passwd(),
+        m_data_dir(),
+        m_clone(),
+        m_is_local(false) {}
+
+  /** Construct clone command for clone client
+  @param[in]  user_info user, password and remote host information
+  @param[in]  port port for remote server
+  @param[in]  data_dir data directory to clone */
+  explicit Sql_cmd_clone(LEX_USER *user_info, ulong port, LEX_CSTRING data_dir);
+
+  /** Construct clone command for local clone
+  @param[in]  data_dir data directory to clone */
+  explicit Sql_cmd_clone(LEX_CSTRING data_dir)
+      : m_host(),
+        m_port(),
+        m_user(),
+        m_passwd(),
+        m_data_dir(data_dir),
+        m_clone(),
+        m_is_local(true) {}
 
   virtual enum_sql_command sql_command_code() const { return SQLCOM_CLONE; }
 
   virtual bool execute(THD *thd);
-};
 
-/**
-  Sql_cmd_clone_remote implements the CLONE REMOTE ... statement.
-*/
+  /** Execute clone server.
+  @param[in] thd server session
+  @return true, if error */
+  bool execute_server(THD *thd);
 
-class Sql_cmd_clone_remote : public Sql_cmd {
-  const bool is_for_replication;
-  const char *clone_dir;
+  /** Load clone plugin for clone server.
+  @param[in] thd server session
+  @return true, if error */
+  bool load(THD *thd);
 
- public:
-  explicit Sql_cmd_clone_remote(const bool is_for_replication,
-                                const char *clone_dir)
-      : is_for_replication(is_for_replication), clone_dir(clone_dir) {}
+  /** Re-write clone statement to hide password.
+  @param[in,out] thd server session */
+  void rewrite(THD *thd);
 
-  virtual enum_sql_command sql_command_code() const { return SQLCOM_CLONE; }
+  /** @return true, if it is local clone command */
+  bool is_local() const { return (m_is_local); }
 
-  virtual bool execute(THD *thd);
+ private:
+  /** Remote server IP */
+  LEX_CSTRING m_host;
+
+  /** Remote server port */
+  const ulong m_port;
+
+  /** User name for remote connection */
+  LEX_CSTRING m_user;
+
+  /** Password for remote connection */
+  LEX_CSTRING m_passwd;
+
+  /** Data directory for cloned data */
+  LEX_CSTRING m_data_dir;
+
+  /** Clone handle in server */
+  Clone_handler *m_clone;
+
+  /** Loaded clone plugin reference */
+  plugin_ref m_plugin;
+
+  /** If it is local clone operation */
+  bool m_is_local;
 };
 
 /**

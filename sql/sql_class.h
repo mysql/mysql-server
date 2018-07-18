@@ -1678,6 +1678,9 @@ class THD : public MDL_context_owner,
 
   Vio *active_vio = {nullptr};
 
+  /* Active network vio for clone remote connection. */
+  Vio *clone_vio = {nullptr};
+
   /*
     This is to track items changed during execution of a prepared
     statement/stored procedure. It's created by
@@ -2458,6 +2461,24 @@ class THD : public MDL_context_owner,
     m_SSL = NULL;
     mysql_mutex_unlock(&LOCK_thd_data);
   }
+
+  /** Set active clone network Vio for remote clone.
+  @param[in] vio network vio */
+  inline void set_clone_vio(Vio *vio) {
+    mysql_mutex_lock(&LOCK_thd_data);
+    clone_vio = vio;
+    mysql_mutex_unlock(&LOCK_thd_data);
+  }
+
+  /** Clear clone network Vio for remote clone. */
+  inline void clear_clone_vio() {
+    mysql_mutex_lock(&LOCK_thd_data);
+    clone_vio = nullptr;
+    mysql_mutex_unlock(&LOCK_thd_data);
+  }
+
+  /** Shutdown clone vio, if active. */
+  void shutdown_clone_vio();
 
   enum_vio_type get_vio_type();
 

@@ -1121,6 +1121,9 @@ void THD::awake(THD::killed_state state_to_set) {
   THD_CHECK_SENTRY(this);
   mysql_mutex_assert_owner(&LOCK_thd_data);
 
+  /* Shutdown clone vio always, to wake up clone waiting for remote. */
+  shutdown_clone_vio();
+
   /*
     If THD is in kill immune mode (i.e. operation on new DD tables is in
     progress) then just save state_to_set with THD::kill_immunizer object.
@@ -1244,6 +1247,9 @@ void THD::disconnect(bool server_shutdown) {
   Vio *vio = NULL;
 
   mysql_mutex_lock(&LOCK_thd_data);
+
+  /* Shutdown clone vio always, to wake up clone waiting for remote. */
+  shutdown_clone_vio();
 
   /*
     If thread is in kill immune mode (i.e. operation on new DD tables
@@ -1622,6 +1628,16 @@ void THD::shutdown_active_vio() {
     vio_shutdown(active_vio);
     active_vio = 0;
     m_SSL = NULL;
+  }
+  DBUG_VOID_RETURN;
+}
+
+void THD::shutdown_clone_vio() {
+  DBUG_ENTER("shutdown_clone_vio");
+  mysql_mutex_assert_owner(&LOCK_thd_data);
+  if (clone_vio != nullptr) {
+    vio_shutdown(clone_vio);
+    clone_vio = nullptr;
   }
   DBUG_VOID_RETURN;
 }

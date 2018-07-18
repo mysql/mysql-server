@@ -1521,6 +1521,7 @@ static void server_component_init() {
   mysql_comp_status_var_services_init();
   mysql_comp_system_variable_source_init();
   mysql_backup_lock_service_init();
+  clone_protocol_service_init();
   mysql_security_context_init();
   mysql_server_ongoing_transactions_query_init();
 }
@@ -3629,6 +3630,9 @@ static void init_sql_statement_info() {
   sql_statement_info[(uint)SQLCOM_END].m_flags = 0;
   sql_statement_info[(uint)SQLCOM_END].m_documentation =
       "Invalid SQL queries (syntax error).";
+
+  /* "statement/sql/clone" will mutate to clone plugin statement */
+  sql_statement_info[(uint)SQLCOM_CLONE].m_flags = PSI_FLAG_MUTABLE;
 }
 
 static void init_com_statement_info() {
@@ -3646,6 +3650,9 @@ static void init_com_statement_info() {
       "SQL query just received from the network. "
       "At this point, the real statement type is unknown, "
       "the type will be refined after SQL parsing.";
+
+  /* "statement/com/clone" will mutate to clone plugin statement */
+  com_statement_info[(uint)COM_CLONE].m_flags = PSI_FLAG_MUTABLE;
 }
 #endif
 
@@ -10507,8 +10514,17 @@ static void init_server_psi_keys(void) {
 
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   init_sql_statement_info();
-  count = static_cast<int>(array_elements(sql_statement_info));
+
+  /* Register [0 .. SQLCOM_CLONE - 1] as "statement/sql/..." */
+  count = (int)SQLCOM_CLONE;
   mysql_statement_register(category, sql_statement_info, count);
+
+  /* Exclude SQLCOM_CLONE as it mutates and is registered as abstract. */
+  count = (int)SQLCOM_END - (int)SQLCOM_CLONE;
+  mysql_statement_register(category, &sql_statement_info[(int)SQLCOM_CLONE + 1],
+                           count);
+  category = "abstract";
+  mysql_statement_register(category, &sql_statement_info[(int)SQLCOM_CLONE], 1);
 
   init_sp_psi_keys();
 
@@ -10523,18 +10539,22 @@ static void init_server_psi_keys(void) {
   count = (int)COM_QUERY;
   mysql_statement_register(category, com_statement_info, count);
 
-  /*
-    Register [COM_QUERY + 1 .. COM_END] as "statement/com/..."
-  */
-  count = (int)COM_END - (int)COM_QUERY;
+  /* Exclude COM_CLONE as it would mutate */
+  count = (int)COM_CLONE - (int)COM_QUERY - 1;
   mysql_statement_register(category, &com_statement_info[(int)COM_QUERY + 1],
                            count);
-
+  /*
+    Register [COM_CLONE + 1 .. COM_END] as "statement/com/..."
+  */
+  count = (int)COM_END - (int)COM_CLONE;
+  mysql_statement_register(category, &com_statement_info[(int)COM_CLONE + 1],
+                           count);
   category = "abstract";
   /*
     Register [COM_QUERY] as "statement/abstract/com_query"
   */
   mysql_statement_register(category, &com_statement_info[(int)COM_QUERY], 1);
+  mysql_statement_register(category, &com_statement_info[(int)COM_CLONE], 1);
 
   /*
     When a new packet is received,

@@ -208,8 +208,8 @@ dberr_t arch_init();
 void arch_free();
 
 /** Start archiver background thread.
-@return true if successful */
-bool start_archiver_background();
+@return error code */
+int start_archiver_background();
 
 class Arch_Group;
 class Arch_Log_Sys;
@@ -408,11 +408,6 @@ class Arch_Group {
   @param[in,out]	stop_lsn	stop lsn for client
   @param[out]	blk_len		last block length */
   void adjust_end_lsn(lsn_t &stop_lsn, uint32_t &blk_len);
-
-  /** Adjust redo copy length to end of file. This is used
-  in debug mode to archive only till end of file.
-  @param[in,out]	length	data to copy in bytes */
-  void adjust_copy_length(uint32_t &length);
 
 #endif /* UNIV_DEBUG */
 
@@ -635,10 +630,7 @@ class Arch_Log_Sys {
 
   /** Get LSN up to which redo is archived
   @return last archived redo LSN */
-  lsn_t get_archived_lsn() {
-    ut_ad(log_writer_mutex_own(*log_sys));
-    return (m_archived_lsn);
-  }
+  lsn_t get_archived_lsn() { return (m_archived_lsn.load()); }
 
   /** Get current redo log archive group
   @return current archive group */
@@ -652,8 +644,8 @@ class Arch_Log_Sys {
   @param[out]	header		redo log header
   @param[in]	is_durable	if client needs durable archiving
   @return error code */
-  dberr_t start(Arch_Group *&group, lsn_t &start_lsn, byte *header,
-                bool is_durable);
+  int start(Arch_Group *&group, lsn_t &start_lsn, byte *header,
+            bool is_durable);
 
   /** Stop redo log archiving.
   If other clients are there, the client is detached from
@@ -663,8 +655,8 @@ class Arch_Log_Sys {
   @param[out]	log_blk		redo log trailer block
   @param[in,out]	blk_len		length in bytes
   @return error code */
-  dberr_t stop(Arch_Group *group, lsn_t &stop_lsn, byte *log_blk,
-               uint32_t &blk_len);
+  int stop(Arch_Group *group, lsn_t &stop_lsn, byte *log_blk,
+           uint32_t &blk_len);
 
   /** Force to abort the archiver (state becomes ARCH_STATE_ABORT). */
   void force_abort();
@@ -703,7 +695,7 @@ class Arch_Log_Sys {
   We need to wait till current log sys LSN during archive stop.
   @param[in]	target_lsn	target archive LSN to wait for
   @return error code */
-  dberr_t wait_archive_complete(lsn_t target_lsn);
+  int wait_archive_complete(lsn_t target_lsn);
 
   /** Update checkpoint LSN and related information in redo
   log header block.
@@ -736,7 +728,7 @@ class Arch_Log_Sys {
   Arch_State m_state;
 
   /** System has archived log up to this LSN */
-  lsn_t m_archived_lsn;
+  atomic_lsn_t m_archived_lsn;
 
   /** List of log archive groups */
   Arch_Grp_List m_group_list;
@@ -927,8 +919,8 @@ class Arch_Page_Sys {
   @param[out]	start_pos	Start position in archived data
   @param[in]	is_durable	if client needs durable archiving
   @return error code */
-  dberr_t start(Arch_Group **group, lsn_t *start_lsn, Arch_Page_Pos *start_pos,
-                bool is_durable);
+  int start(Arch_Group **group, lsn_t *start_lsn, Arch_Page_Pos *start_pos,
+            bool is_durable);
 
   /** Stop dirty page ID archiving.
   If other clients are there, the client is detached from
@@ -937,7 +929,7 @@ class Arch_Page_Sys {
   @param[out]	stop_lsn	stop lsn for client
   @param[out]	stop_pos	stop position in archived data
   @return error code */
-  dberr_t stop(Arch_Group *group, lsn_t *stop_lsn, Arch_Page_Pos *stop_pos);
+  int stop(Arch_Group *group, lsn_t *stop_lsn, Arch_Page_Pos *stop_pos);
 
   /** Release the current group from client.
   @param[in]	group		group the client is attached to
@@ -988,6 +980,12 @@ class Arch_Page_Sys {
 
   /** Release page ID archiver operatiion  mutex */
   void arch_oper_mutex_exit() { mutex_exit(&m_oper_mutex); }
+
+  /** @return operation mutex */
+  ib_mutex_t *get_oper_mutex() { return (&m_oper_mutex); }
+
+  /** @return true if in abort state */
+  bool is_abort() { return (m_state == ARCH_STATE_ABORT); }
 
   /** Disable copy construction */
   Arch_Page_Sys(Arch_Page_Sys const &) = delete;

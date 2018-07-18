@@ -673,6 +673,7 @@ extern PSI_stage_info srv_stage_alter_tablespace_encryption;
 
 /** Performance schema stage event for monitoring buffer pool load progress. */
 extern PSI_stage_info srv_stage_buffer_pool_load;
+#endif /* HAVE_PSI_STAGE_INTERFACE */
 
 /** Performance schema stage event for monitoring clone file copy progress. */
 extern PSI_stage_info srv_stage_clone_file_copy;
@@ -682,7 +683,6 @@ extern PSI_stage_info srv_stage_clone_redo_copy;
 
 /** Performance schema stage event for monitoring clone page copy progress. */
 extern PSI_stage_info srv_stage_clone_page_copy;
-#endif /* HAVE_PSI_STAGE_INTERFACE */
 
 #ifndef _WIN32
 /** Alternatives for the file flush option in Unix.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,3 +47,4 @@
 #define VERSION_srv_session_service 0x0100
 #define VERSION_mysql_keyring_service 0x0100
 #define VERSION_plugin_registry_service 0x100
+#define VERSION_clone_protocol_service 0x100

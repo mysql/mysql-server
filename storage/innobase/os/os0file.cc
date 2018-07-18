@@ -3229,6 +3229,8 @@ pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
 
 #ifdef USE_FILE_LOCK
   if (!read_only && *success && create_mode != OS_FILE_OPEN_RAW &&
+      /* Don't acquire file lock while cloning files. */
+      type != OS_CLONE_DATA_FILE && type != OS_CLONE_LOG_FILE &&
       os_file_lock(file.m_file, name)) {
     if (create_mode == OS_FILE_OPEN_RETRY) {
       ib::info(ER_IB_MSG_780) << "Retrying to lock the first data file";
@@ -4211,9 +4213,10 @@ pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
 
   if (!read_only) {
     access |= GENERIC_WRITE;
+  }
 
-  } else if (type == OS_CLONE_LOG_FILE || type == OS_CLONE_DATA_FILE) {
-    /* Clone must allow concurrent write to file. */
+  /* Clone must allow concurrent write to file. */
+  if (type == OS_CLONE_LOG_FILE || type == OS_CLONE_DATA_FILE) {
     share_mode |= FILE_SHARE_WRITE;
   }
 

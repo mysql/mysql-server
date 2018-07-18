@@ -538,7 +538,6 @@ static const SYMBOL symbols[] = {
     {SYM("RELAY_THREAD", RELAY_THREAD)},
     {SYM("RELEASE", RELEASE_SYM)},
     {SYM("RELOAD", RELOAD)},
-    {SYM("REMOTE", REMOTE_SYM)},
     {SYM("REMOVE", REMOVE_SYM)},
     {SYM("RENAME", RENAME)},
     {SYM("REORGANIZE", REORGANIZE_SYM)},

@@ -3018,14 +3018,14 @@ fil_space_t *fil_space_create(const char *name, space_id_t space_id,
 
   DBUG_EXECUTE_IF("fil_space_create_failure", return (nullptr););
 
-  fil_system->mutex_acquire_all();
-
   if (purpose != FIL_TYPE_TEMPORARY) {
-    /* Mark the close as aborted only while executing a DDL which creates
+    /* Mark the clone as aborted only while executing a DDL which creates
     a base table, as any temporary table is ignored while cloning the database.
     Clone state must be set back to active before returning from function. */
     clone_mark_abort(true);
   }
+
+  fil_system->mutex_acquire_all();
 
   auto shard = fil_system->shard_by_id(space_id);
 

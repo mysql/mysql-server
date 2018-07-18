@@ -1004,6 +1004,8 @@ void log_buffer_flush_to_disk(log_t &log, bool sync) {
 
 void log_buffer_get_last_block(log_t &log, lsn_t &last_lsn, byte *last_block,
                                uint32_t &block_len) {
+  ut_ad(last_block != nullptr);
+
   /* We acquire x-lock for the log buffer to prevent:
           a) resize of the log buffer
           b) overwrite of the fragment which we are copying */
@@ -1015,12 +1017,6 @@ void log_buffer_get_last_block(log_t &log, lsn_t &last_lsn, byte *last_block,
   have finished writing to the log buffer. */
 
   last_lsn = log_get_lsn(log);
-
-  if (last_block == nullptr) {
-    block_len = 0;
-    log_buffer_x_lock_exit(log);
-    return;
-  }
 
   byte *buf = log.buf;
 
@@ -1036,12 +1032,6 @@ void log_buffer_get_last_block(log_t &log, lsn_t &last_lsn, byte *last_block,
   const auto data_len = last_lsn % OS_FILE_LOG_BLOCK_SIZE;
 
   ut_ad(data_len >= LOG_BLOCK_HDR_SIZE);
-
-  if (data_len <= LOG_BLOCK_HDR_SIZE) {
-    block_len = 0;
-    log_buffer_x_lock_exit(log);
-    return;
-  }
 
   /* The next_checkpoint_no is protected by the x-lock too. */
 

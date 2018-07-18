@@ -92,6 +92,7 @@ enum enum_server_command {
   COM_DAEMON,
   COM_BINLOG_DUMP_GTID,
   COM_RESET_CONNECTION, /**< See @ref page_protocol_com_reset_connection */
+  COM_CLONE,
   /* don't forget to update const char *command_name[] in sql_parse.cc */
 
   /* Must be last */

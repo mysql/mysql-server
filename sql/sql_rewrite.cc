@@ -281,6 +281,11 @@ bool rewrite_query(THD *thd, Consumer_type type, Rewrite_params *params) {
     case SQLCOM_PREPARE:
       rw.reset(new Rewriter_prepare(thd, type));
       break;
+    case SQLCOM_CLONE: {
+      auto clone_cmd = dynamic_cast<Sql_cmd_clone *>(thd->lex->m_sql_cmd);
+      clone_cmd->rewrite(thd);
+      break;
+    }
     default: /* unhandled query types are legal. */
       break;
   }

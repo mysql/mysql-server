@@ -3637,8 +3637,16 @@ dberr_t recv_recovery_from_checkpoint_start(log_t &log, lsn_t flush_lsn) {
 
   log.recovered_lsn = recovered_lsn;
 
-  if (log.scanned_lsn < checkpoint_lsn || log.scanned_lsn < recv_max_page_lsn) {
-    ib::error(ER_IB_MSG_737, log.scanned_lsn, checkpoint_lsn);
+  /* If it is at block boundary, add header size. */
+  auto check_scanned_lsn = log.scanned_lsn;
+  if (check_scanned_lsn % OS_FILE_LOG_BLOCK_SIZE == 0) {
+    check_scanned_lsn += LOG_BLOCK_HDR_SIZE;
+  }
+
+  if (check_scanned_lsn < checkpoint_lsn ||
+      check_scanned_lsn < recv_max_page_lsn) {
+    ib::error(ER_IB_MSG_737, log.scanned_lsn, checkpoint_lsn,
+              recv_max_page_lsn);
   }
 
   if (recovered_lsn < checkpoint_lsn) {

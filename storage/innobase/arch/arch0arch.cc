@@ -466,8 +466,8 @@ void Arch_File_Ctx::build_dir_name(lsn_t dir_lsn, char *buffer, uint length) {
 }
 
 /** Start archiver background thread.
-@return true if successful */
-bool start_archiver_background() {
+@return error code */
+int start_archiver_background() {
   bool ret;
   char errbuf[MYSYS_STRERROR_SIZE];
 
@@ -480,9 +480,11 @@ bool start_archiver_background() {
   } else {
     my_error(ER_CANT_CREATE_FILE, MYF(0), ARCH_DIR, errno,
              my_strerror(errbuf, sizeof(errbuf), errno));
+
+    return (ER_CANT_CREATE_FILE);
   }
 
-  return (ret);
+  return (0);
 }
 
 /** Archiver background thread */

@@ -571,6 +571,9 @@ const char *ut_strerr(dberr_t num) {
     case DB_INVALID_ENCRYPTION_META:
       return ("Invalid encryption meta-data information");
 
+    case DB_ABORT_INCOMPLETE_CLONE:
+      return ("Incomplete cloned data directory");
+
     case DB_SERVER_VERSION_LOW:
       return (
           "Cannot boot server with lower version than that built the "

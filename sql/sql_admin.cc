@@ -64,6 +64,7 @@
 #include "sql/keycaches.h"  // get_key_cache
 #include "sql/lock.h"       // acquire_shared_global_read_lock()
 #include "sql/log.h"
+#include "sql/log_event.h"
 #include "sql/mdl.h"
 #include "sql/mysqld.h"             // key_file_misc
 #include "sql/partition_element.h"  // PART_ADMIN
@@ -1613,11 +1614,24 @@ bool Sql_cmd_alter_instance::execute(THD *thd) {
   DBUG_RETURN(res);
 }
 
-bool Sql_cmd_clone_local::execute(THD *thd) {
-  plugin_ref plugin;
+Sql_cmd_clone::Sql_cmd_clone(LEX_USER *user_info, ulong port,
+                             LEX_CSTRING data_dir)
+    : m_port(port), m_data_dir(data_dir), m_clone(), m_is_local(false) {
+  m_host = user_info->host;
+  m_user = user_info->user;
+  m_passwd = user_info->auth;
+}
 
-  DBUG_ENTER("Sql_cmd_clone_local::execute");
-  DBUG_PRINT("admin", ("CLONE type = local, DIR = %s", clone_dir));
+bool Sql_cmd_clone::execute(THD *thd) {
+  DBUG_ENTER("Sql_cmd_clone::execute");
+
+  if (is_local()) {
+    DBUG_PRINT("admin", ("CLONE type = local, DIR = %s", m_data_dir.str));
+
+  } else {
+    DBUG_PRINT("admin", ("CLONE type = remote, DIR = %s",
+                         (m_data_dir.str == nullptr) ? "" : m_data_dir.str));
+  }
 
   auto sctx = thd->security_context();
 
@@ -1626,30 +1640,74 @@ bool Sql_cmd_clone_local::execute(THD *thd) {
     DBUG_RETURN(true);
   }
 
-  Clone_handler *clone = clone_plugin_lock(thd, &plugin);
+  if (m_data_dir.str == nullptr) {
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "clone to current data directory");
+    DBUG_RETURN(true);
+  }
 
-  if (clone == nullptr) {
+  DBUG_ASSERT(m_clone == nullptr);
+  m_clone = clone_plugin_lock(thd, &m_plugin);
+
+  if (m_clone == nullptr) {
     my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), "clone");
     DBUG_RETURN(true);
   }
 
-  if (clone->clone_local(thd, clone_dir) != 0) {
-    clone_plugin_unlock(thd, plugin);
+  if (is_local()) {
+    auto err = m_clone->clone_local(thd, m_data_dir.str);
+    clone_plugin_unlock(thd, m_plugin);
+
+    if (err != 0) {
+      DBUG_RETURN(true);
+    }
+
+    my_ok(thd);
+    DBUG_RETURN(false);
+  }
+
+  DBUG_ASSERT(!is_local());
+
+  enum mysql_ssl_mode ssl_mode = SSL_MODE_DISABLED;
+
+  if (thd->lex->ssl_type == SSL_TYPE_NONE) {
+    ssl_mode = SSL_MODE_DISABLED;
+  } else if (thd->lex->ssl_type == SSL_TYPE_SPECIFIED) {
+    ssl_mode = SSL_MODE_REQUIRED;
+  } else {
+    DBUG_ASSERT(thd->lex->ssl_type == SSL_TYPE_NOT_SPECIFIED);
+    ssl_mode = SSL_MODE_PREFERRED;
+  }
+
+  auto err = m_clone->clone_remote_client(
+      thd, m_host.str, static_cast<uint>(m_port), m_user.str, m_passwd.str,
+      m_data_dir.str, ssl_mode);
+  clone_plugin_unlock(thd, m_plugin);
+  m_clone = nullptr;
+
+  /* Set active VIO as clone plugin might have reset it */
+  if (thd->is_classic_protocol()) {
+    NET *net = thd->get_protocol_classic()->get_net();
+    thd->set_active_vio(net->vio);
+  }
+
+  if (err != 0) {
     DBUG_RETURN(true);
   }
 
-  clone_plugin_unlock(thd, plugin);
+  /* Check for KILL after setting active VIO */
+  if (thd->killed != THD::NOT_KILLED) {
+    my_error(ER_QUERY_INTERRUPTED, MYF(0));
+    DBUG_RETURN(true);
+  }
 
   my_ok(thd);
   DBUG_RETURN(false);
 }
 
-bool Sql_cmd_clone_remote::execute(THD *thd) {
-  plugin_ref plugin;
-
-  DBUG_ENTER("Sql_cmd_clone_remote::execute");
-  DBUG_PRINT("admin", ("CLONE type = remote, DIR = %s, FOR REPLICATION = %d",
-                       clone_dir, is_for_replication));
+bool Sql_cmd_clone::load(THD *thd) {
+  DBUG_ENTER("Sql_cmd_clone::load");
+  DBUG_ASSERT(m_clone == nullptr);
+  DBUG_ASSERT(!is_local());
 
   auto sctx = thd->security_context();
 
@@ -1658,22 +1716,99 @@ bool Sql_cmd_clone_remote::execute(THD *thd) {
     DBUG_RETURN(true);
   }
 
-  Clone_handler *clone = clone_plugin_lock(thd, &plugin);
+  m_clone = clone_plugin_lock(thd, &m_plugin);
 
-  if (clone == nullptr) {
+  if (m_clone == nullptr) {
     my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), "clone");
     DBUG_RETURN(true);
   }
 
-  if (clone->clone_remote_client(thd, clone_dir)) {
-    clone_plugin_unlock(thd, plugin);
-    DBUG_RETURN(true);
-  }
-
-  clone_plugin_unlock(thd, plugin);
-
   my_ok(thd);
   DBUG_RETURN(false);
+}
+
+bool Sql_cmd_clone::execute_server(THD *thd) {
+  DBUG_ENTER("Sql_cmd_clone::execute_server");
+  DBUG_ASSERT(!is_local());
+
+  bool ret = false;
+  auto net = thd->get_protocol_classic()->get_net();
+  auto sock = net->vio->mysql_socket;
+
+  Diagnostics_area clone_da(false);
+
+  thd->push_diagnostics_area(&clone_da);
+
+  auto err = m_clone->clone_remote_server(thd, sock);
+
+  if (err == 0) {
+    my_ok(thd);
+  }
+
+  thd->pop_diagnostics_area();
+
+  if (err != 0) {
+    auto da = thd->get_stmt_da();
+
+    da->set_overwrite_status(true);
+
+    da->set_error_status(clone_da.mysql_errno(), clone_da.message_text(),
+                         clone_da.returned_sqlstate());
+    da->push_warning(thd, clone_da.mysql_errno(), clone_da.returned_sqlstate(),
+                     Sql_condition::SL_ERROR, clone_da.message_text());
+    ret = true;
+  }
+
+  clone_plugin_unlock(thd, m_plugin);
+  m_clone = nullptr;
+
+  DBUG_RETURN(ret);
+}
+
+void Sql_cmd_clone::rewrite(THD *thd) {
+  /* No password for local clone. */
+  if (is_local()) {
+    return;
+  }
+
+  String *rlb = &thd->rewritten_query;
+  rlb->append(STRING_WITH_LEN("CLONE INSTANCE FROM "));
+
+  /* Append user name. */
+  String user(m_user.str, m_user.length, system_charset_info);
+  append_query_string(thd, system_charset_info, &user, rlb);
+
+  /* Append host name. */
+  rlb->append(STRING_WITH_LEN("@"));
+  String host(m_host.str, m_host.length, system_charset_info);
+  append_query_string(thd, system_charset_info, &host, rlb);
+
+  /* Append port number. */
+  rlb->append(STRING_WITH_LEN(":"));
+  String num_buffer(42);
+  num_buffer.set((longlong)m_port, &my_charset_bin);
+  rlb->append(num_buffer);
+
+  /* Append password clause. */
+  rlb->append(STRING_WITH_LEN(" IDENTIFIED BY <secret>"));
+
+  /* Append data directory clause. */
+  if (m_data_dir.str != nullptr) {
+    rlb->append(STRING_WITH_LEN(" DATA DIRECTORY = "));
+    String dir(m_data_dir.str, m_data_dir.length, system_charset_info);
+    append_query_string(thd, system_charset_info, &dir, rlb);
+  }
+
+  /* Append SSL information. */
+  if (thd->lex->ssl_type == SSL_TYPE_NONE) {
+    rlb->append(STRING_WITH_LEN(" REQUIRES NO SSL"));
+
+  } else if (thd->lex->ssl_type == SSL_TYPE_SPECIFIED) {
+    rlb->append(STRING_WITH_LEN(" REQUIRES SSL"));
+  }
+
+  /* Set the query to be displayed in SHOW PROCESSLIST */
+  thd->set_query(rlb->c_ptr_safe(), rlb->length());
 }
 
 bool Sql_cmd_create_role::execute(THD *thd) {

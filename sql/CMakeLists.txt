@@ -264,6 +264,7 @@ SET(SQL_GIS_SOURCES
 
 SET(MYSQL_SERVER_SUB_COMPONENT_SOURCES
   server_component/backup_lock_service.cc
+  server_component/clone_protocol_service.cc
   server_component/mysql_string_service.cc
   server_component/persistent_dynamic_loader.cc
   server_component/component_sys_var_service.cc

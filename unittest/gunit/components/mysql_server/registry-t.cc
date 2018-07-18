@@ -21,9 +21,13 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <gtest/gtest.h>
+#include <mysql.h>
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/my_service.h>
 #include <mysql/components/service_implementation.h>
+#include <mysql/components/services/mysql_socket_bits.h>
+#include <mysql/components/services/psi_statement_bits.h>
+#include <mysql/components/services/psi_thread_bits.h>
 #include <mysql/mysql_lex_string.h>
 #include <stddef.h>
 
@@ -32,6 +36,7 @@
 #include <component_status_var_service.h>
 #include <component_sys_var_service.h>
 #include <mysql/components/services/backup_lock_service.h>
+#include <mysql/components/services/clone_protocol_service.h>
 #include <mysql/components/services/component_sys_var_service.h>
 #include <mysql/components/services/ongoing_transaction_query_service.h>
 #include <mysql/components/services/persistent_dynamic_loader.h>
@@ -144,6 +149,46 @@ DEFINE_BOOL_METHOD(mysql_acquire_backup_lock,
 }
 
 DEFINE_BOOL_METHOD(mysql_release_backup_lock, (MYSQL_THD)) { return true; }
+
+DEFINE_METHOD(void, mysql_clone_start_statement,
+              (THD *&, PSI_thread_key, PSI_statement_key)) {
+  return;
+}
+
+DEFINE_METHOD(void, mysql_clone_finish_statement, (THD *)) { return; }
+
+DEFINE_METHOD(MYSQL *, mysql_clone_connect,
+              (THD *, const char *, uint, const char *, const char *,
+               mysql_clone_ssl_context *, MYSQL_SOCKET *)) {
+  return nullptr;
+}
+
+DEFINE_METHOD(int, mysql_clone_send_command,
+              (THD *, MYSQL *, bool, uchar, uchar *, size_t)) {
+  return 0;
+}
+
+DEFINE_METHOD(int, mysql_clone_get_response,
+              (THD *, MYSQL *, bool, uint32_t, uchar **, size_t *)) {
+  return 0;
+}
+
+DEFINE_METHOD(int, mysql_clone_kill, (MYSQL *, MYSQL *)) { return 0; }
+
+DEFINE_METHOD(void, mysql_clone_disconnect, (THD *, MYSQL *, bool, bool)) {
+  return;
+}
+
+DEFINE_METHOD(int, mysql_clone_get_command,
+              (THD *, uchar *, uchar **, size_t *)) {
+  return 0;
+}
+
+DEFINE_METHOD(int, mysql_clone_send_response, (THD *, uchar *, size_t)) {
+  return 0;
+}
+
+DEFINE_METHOD(int, mysql_clone_send_error, (THD *, uchar, bool)) { return 0; }
 
 DEFINE_BOOL_METHOD(mysql_security_context_imp::get,
                    (void *, Security_context_handle *)) {

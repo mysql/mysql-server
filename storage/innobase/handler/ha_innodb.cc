@@ -4355,8 +4355,10 @@ static int innodb_init(void *p) {
 
   /* Initialize handler clone interfaces for. */
 
+  innobase_hton->clone_interface.clone_capability = innodb_clone_get_capability;
   innobase_hton->clone_interface.clone_begin = innodb_clone_begin;
   innobase_hton->clone_interface.clone_copy = innodb_clone_copy;
+  innobase_hton->clone_interface.clone_ack = innodb_clone_ack;
   innobase_hton->clone_interface.clone_end = innodb_clone_end;
 
   innobase_hton->clone_interface.clone_apply_begin = innodb_clone_apply_begin;

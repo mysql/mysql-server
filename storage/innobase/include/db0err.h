@@ -187,6 +187,9 @@ enum dberr_t {
   DB_INVALID_ENCRYPTION_META, /*!< Invalid encrytion metadata in
                               page 0. */
 
+  /** Incomplete cloned directory */
+  DB_ABORT_INCOMPLETE_CLONE,
+
   /* The following are partial failure codes */
   DB_FAIL = 1000,
   DB_OVERFLOW,

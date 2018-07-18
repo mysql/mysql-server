@@ -86,8 +86,9 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql_version.h"
 #include "sql/auth/auth_acls.h"
-#include "sql/auth/auth_common.h"                      // validate_user_plugins
-#include "sql/binlog.h"                                // mysql_bin_log
+#include "sql/auth/auth_common.h"  // validate_user_plugins
+#include "sql/binlog.h"            // mysql_bin_log
+#include "sql/clone_handler.h"
 #include "sql/conn_handler/connection_handler_impl.h"  // Per_thread_connection_handler
 #include "sql/conn_handler/connection_handler_manager.h"  // Connection_handler_manager
 #include "sql/conn_handler/socket_connection.h"  // MY_BIND_ALL_ADDRESSES
@@ -565,6 +566,7 @@ static Sys_var_long Sys_pfs_events_stages_history_size(
   - SQLCOM_END for all regular "statement/sql/...",
   - 1 for "statement/sql/error", for invalid enum_sql_command.
   - SP_PSI_STATEMENT_INFO_COUNT for "statement/sp/...".
+  - CLONE_PSI_STATEMENT_COUNT for "statement/clone/...".
   - 1 for "statement/rpl/relay_log", for replicated statements.
   - 1 for "statement/scheduler/event", for scheduled events.
 */
@@ -574,7 +576,7 @@ static Sys_var_ulong Sys_pfs_max_statement_classes(
     READ_ONLY GLOBAL_VAR(pfs_param.m_statement_class_sizing),
     CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 256),
     DEFAULT((ulong)SQLCOM_END + (ulong)COM_END + 5 +
-            SP_PSI_STATEMENT_INFO_COUNT),
+            SP_PSI_STATEMENT_INFO_COUNT + CLONE_PSI_STATEMENT_COUNT),
     BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_events_statements_history_long_size(

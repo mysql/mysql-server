@@ -231,6 +231,7 @@ const LEX_STRING command_name[] = {
     {C_STRING_WITH_LEN("Daemon")},
     {C_STRING_WITH_LEN("Binlog Dump GTID")},
     {C_STRING_WITH_LEN("Reset Connection")},
+    {C_STRING_WITH_LEN("clone")},
     {C_STRING_WITH_LEN("Error")}  // Last command number
 };
 
@@ -1398,6 +1399,8 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
   DBUG_ENTER("dispatch_command");
   DBUG_PRINT("info", ("command: %d", command));
 
+  Sql_cmd_clone *clone_cmd = nullptr;
+
   /* SHOW PROFILE instrumentation, begin */
 #if defined(ENABLED_PROFILING)
   thd->profiling->start_new_query();
@@ -1524,6 +1527,21 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       thd->status_var.com_other++;
       thd->cleanup_connection();
       my_ok(thd);
+      break;
+    }
+    case COM_CLONE: {
+      thd->status_var.com_other++;
+
+      /* Try loading clone plugin */
+      clone_cmd = new (thd->mem_root) Sql_cmd_clone();
+
+      if (clone_cmd && clone_cmd->load(thd)) {
+        clone_cmd = nullptr;
+      }
+
+      thd->lex->m_sql_cmd = clone_cmd;
+      thd->lex->sql_command = SQLCOM_CLONE;
+
       break;
     }
     case COM_CHANGE_USER: {
@@ -2018,6 +2036,13 @@ done:
   thd->update_slow_query_status();
   if (thd->killed) thd->send_kill_message();
   thd->send_statement_status();
+
+  /* After sending response, switch to clone protocol */
+  if (clone_cmd != nullptr) {
+    DBUG_ASSERT(command == COM_CLONE);
+    error = clone_cmd->execute_server(thd);
+  }
+
   thd->rpl_thd_ctx.session_gtids_ctx().notify_after_response_packet(thd);
 
   if (!thd->is_error() && !thd->killed)

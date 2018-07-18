@@ -39,6 +39,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "my_inttypes.h"
 #include "my_sys.h"  // my_error
 #include "mysql_backup_lock.h"
+#include "mysql_clone_protocol.h"
 #include "mysql_ongoing_transaction_query.h"
 #include "mysql_string_service.h"
 #include "mysqld_error.h"
@@ -257,6 +258,12 @@ BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_backup_lock)
 mysql_acquire_backup_lock,
     mysql_release_backup_lock END_SERVICE_IMPLEMENTATION();
 
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, clone_protocol)
+mysql_clone_start_statement, mysql_clone_finish_statement, mysql_clone_connect,
+    mysql_clone_send_command, mysql_clone_get_response, mysql_clone_kill,
+    mysql_clone_disconnect, mysql_clone_get_command, mysql_clone_send_response,
+    mysql_clone_send_error END_SERVICE_IMPLEMENTATION();
+
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_thd_security_context)
 mysql_security_context_imp::get,
     mysql_security_context_imp::set END_SERVICE_IMPLEMENTATION();
@@ -315,6 +322,7 @@ PROVIDES_SERVICE(mysql_server, registry),
     PROVIDES_SERVICE(mysql_server, status_variable_registration),
     PROVIDES_SERVICE(mysql_server, system_variable_source),
     PROVIDES_SERVICE(mysql_server, mysql_backup_lock),
+    PROVIDES_SERVICE(mysql_server, clone_protocol),
     PROVIDES_SERVICE(mysql_server, mysql_thd_security_context),
     PROVIDES_SERVICE(mysql_server, mysql_security_context_factory),
     PROVIDES_SERVICE(mysql_server,

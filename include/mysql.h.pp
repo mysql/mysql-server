@@ -82,6 +82,7 @@ enum enum_server_command {
   COM_DAEMON,
   COM_BINLOG_DUMP_GTID,
   COM_RESET_CONNECTION,
+  COM_CLONE,
   COM_END
 };
 enum SERVER_STATUS_flags_enum {

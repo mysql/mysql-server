@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -90,8 +90,8 @@
 #ifdef HAVE_PSI_STAGE_INTERFACE
 #define mysql_end_stage inline_mysql_end_stage
 #else
-#define mysql_end_stage \
-  do {                  \
+#define mysql_end_stage() \
+  do {                    \
   } while (0)
 #endif
 

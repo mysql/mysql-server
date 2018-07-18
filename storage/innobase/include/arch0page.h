@@ -40,7 +40,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 @param[in]	buff		buffer with page IDs
 @param[in]	num_pages	number of page IDs in buffer
 @return error code */
-using Page_Arch_Cbk = dberr_t(void *ctx, byte *buff, uint num_pages);
+using Page_Arch_Cbk = int(void *ctx, byte *buff, uint num_pages);
 
 /** Dirty page archiver client context */
 class Page_Arch_Client_Ctx {
@@ -49,10 +49,10 @@ class Page_Arch_Client_Ctx {
   Page_Arch_Client_Ctx() : m_state(ARCH_CLIENT_STATE_INIT) {}
 
   /** Start dirty page tracking and archiving */
-  dberr_t start();
+  int start();
 
   /** Stop dirty page tracking and archiving */
-  dberr_t stop();
+  int stop();
 
   /** Get archived page Ids
   @param[in]	cbk_func	called repeatedly with page ID buffer
@@ -60,8 +60,8 @@ class Page_Arch_Client_Ctx {
   @param[in]	buff		buffer to fill page IDs
   @param[in]	buf_len		buffer length in bytes
   @return error code */
-  dberr_t get_pages(Page_Arch_Cbk *cbk_func, void *cbk_ctx, byte *buff,
-                    uint buf_len);
+  int get_pages(Page_Arch_Cbk *cbk_func, void *cbk_ctx, byte *buff,
+                uint buf_len);
 
   /** Release archived data so that system can purge it */
   void release();
@@ -72,8 +72,7 @@ class Page_Arch_Client_Ctx {
   @param[in]	read_len	length of data to read
   @param[in]	read_buff	buffer to read page IDs
   @return error code */
-  dberr_t get_from_file(Arch_Page_Pos *read_pos, uint read_len,
-                        byte *read_buff);
+  int get_from_file(Arch_Page_Pos *read_pos, uint read_len, byte *read_buff);
 
  private:
   /** Page archiver client state */

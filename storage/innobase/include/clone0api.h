@@ -36,59 +36,97 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef UNIV_HOTBACKUP
 #include "handler.h"
 
+/** Get capability flags for clone operation
+@param[out]	flags	capability flag */
+void innodb_clone_get_capability(Ha_clone_flagset &flags);
+
 /** Begin copy from source database
 @param[in]	hton	handlerton for SE
 @param[in]	thd	server thread handle
 @param[in,out]	loc	locator
 @param[in,out]	loc_len	locator length
+@param[out]	task_id	task identifier
 @param[in]	type	clone type
+@param[in]	mode	mode for starting clone
 @return error code */
-int innodb_clone_begin(handlerton *hton, THD *thd, byte *&loc, uint &loc_len,
-                       Ha_clone_type type);
+int innodb_clone_begin(handlerton *hton, THD *thd, const byte *&loc,
+                       uint &loc_len, uint &task_id, Ha_clone_type type,
+                       Ha_clone_mode mode);
 
 /** Copy data from source database in chunks via callback
 @param[in]	hton	handlerton for SE
 @param[in]	thd	server thread handle
 @param[in]	loc	locator
+@param[in]	loc_len	locator length in bytes
+@param[in]	task_id	task identifier
 @param[in]	cbk	callback interface for sending data
 @return error code */
-int innodb_clone_copy(handlerton *hton, THD *thd, byte *loc, Ha_clone_cbk *cbk);
+int innodb_clone_copy(handlerton *hton, THD *thd, const byte *loc, uint loc_len,
+                      uint task_id, Ha_clone_cbk *cbk);
+
+/** Acknowledge data to source database
+@param[in]	hton	handlerton for SE
+@param[in]	thd	server thread handle
+@param[in]	loc	locator
+@param[in]	loc_len	locator length in bytes
+@param[in]	task_id	task identifier
+@param[in]	in_err	inform any error occurred
+@param[in]	cbk	callback interface for receiving data
+@return error code */
+int innodb_clone_ack(handlerton *hton, THD *thd, const byte *loc, uint loc_len,
+                     uint task_id, int in_err, Ha_clone_cbk *cbk);
 
 /** End copy from source database
 @param[in]	hton	handlerton for SE
 @param[in]	thd	server thread handle
 @param[in]	loc	locator
+@param[in]	loc_len	locator length in bytes
+@param[in]	task_id	task identifier
+@param[in]	in_err	error code when ending after error
 @return error code */
-int innodb_clone_end(handlerton *hton, THD *thd, byte *loc);
+int innodb_clone_end(handlerton *hton, THD *thd, const byte *loc, uint loc_len,
+                     uint task_id, int in_err);
 
 /** Begin apply to destination database
 @param[in]	hton		handlerton for SE
 @param[in]	thd		server thread handle
 @param[in,out]	loc		locator
 @param[in,out]	loc_len		locator length
+@param[out]	task_id		task identifier
+@param[in]	mode		mode for starting clone
 @param[in]	data_dir	target data directory
 @return error code */
-int innodb_clone_apply_begin(handlerton *hton, THD *thd, byte *&loc,
-                             uint &loc_len, const char *data_dir);
+int innodb_clone_apply_begin(handlerton *hton, THD *thd, const byte *&loc,
+                             uint &loc_len, uint &task_id, Ha_clone_mode mode,
+                             const char *data_dir);
 
 /** Apply data to destination database in chunks via callback
 @param[in]	hton	handlerton for SE
 @param[in]	thd	server thread handle
 @param[in]	loc	locator
+@param[in]	loc_len	locator length in bytes
+@param[in]	task_id	task identifier
+@param[in]	in_err	inform any error occurred
 @param[in]	cbk	callback interface for receiving data
 @return error code */
-int innodb_clone_apply(handlerton *hton, THD *thd, byte *loc,
+int innodb_clone_apply(handlerton *hton, THD *thd, const byte *loc,
+                       uint loc_len, uint task_id, int in_err,
                        Ha_clone_cbk *cbk);
 
 /** End apply to destination database
 @param[in]	hton	handlerton for SE
 @param[in]	thd	server thread handle
 @param[in]	loc	locator
+@param[in]	loc_len	locator length in bytes
+@param[in]	task_id	task identifier
+@param[in]	in_err	error code when ending after error
 @return error code */
-int innodb_clone_apply_end(handlerton *hton, THD *thd, byte *loc);
+int innodb_clone_apply_end(handlerton *hton, THD *thd, const byte *loc,
+                           uint loc_len, uint task_id, int in_err);
 
-/** Initialize Clone system */
-void clone_init();
+/** Initialize Clone system
+@return inndodb error code */
+dberr_t clone_init();
 
 /** Uninitialize Clone system */
 void clone_free();

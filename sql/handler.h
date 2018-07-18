@@ -33,6 +33,7 @@
 #include <sys/types.h>
 #include <time.h>
 #include <algorithm>
+#include <bitset>
 #include <random>  // std::mt19937
 #include <set>
 #include <string>
@@ -853,10 +854,28 @@ enum enum_schema_tables {
 enum ha_stat_type { HA_ENGINE_STATUS, HA_ENGINE_LOGS, HA_ENGINE_MUTEX };
 enum ha_notification_type : int { HA_NOTIFY_PRE_EVENT, HA_NOTIFY_POST_EVENT };
 
+/** Clone start operation mode */
+enum Ha_clone_mode {
+  /** Start a new clone operation */
+  HA_CLONE_MODE_START,
+
+  /** Re-start a clone operation after failure */
+  HA_CLONE_MODE_RESTART,
+
+  /** Add a new task to a running clone operation */
+  HA_CLONE_MODE_ADD_TASK,
+
+  /** Get version for transfer data format */
+  HA_CLONE_MODE_VERSION,
+
+  /** Max value for clone mode */
+  HA_CLONE_MODE_MAX
+};
+
 /** Clone operation types. */
-enum Ha_clone_type {
+enum Ha_clone_type : size_t {
   /** Caller must block all write operation to the SE. */
-  HA_CLONE_BLOCKING = 1,
+  HA_CLONE_BLOCKING,
 
   /** For transactional SE, archive redo to support concurrent dml */
   HA_CLONE_REDO,
@@ -866,8 +885,19 @@ enum Ha_clone_type {
 
   /** For transactional SE, use both page tracking and redo to optimize
   clone with concurrent dml. Currently supported by Innodb. */
-  HA_CLONE_HYBRID
+  HA_CLONE_HYBRID,
+
+  /** SE supports multiple threads for clone */
+  HA_CLONE_MULTI_TASK,
+
+  /** SE supports restarting clone after network failure */
+  HA_CLONE_RESTART,
+
+  /** Maximum value of clone type */
+  HA_CLONE_TYPE_MAX
 };
+
+using Ha_clone_flagset = std::bitset<HA_CLONE_TYPE_MAX>;
 
 /** File reference for clone */
 struct Ha_clone_file {
@@ -893,6 +923,18 @@ struct Ha_clone_file {
 
 /* Abstract callback interface to stream data back to the caller. */
 class Ha_clone_cbk {
+ protected:
+  /** Constructor to initialize members. */
+  Ha_clone_cbk()
+      : m_hton(),
+        m_loc_idx(),
+        m_client_buff_size(),
+        m_data_desc(),
+        m_desc_len(),
+        m_src_name(),
+        m_dest_name(),
+        m_flag() {}
+
  public:
   /** Callback providing data from current position of a
   file descriptor of specific length.
@@ -945,7 +987,7 @@ class Ha_clone_cbk {
   data transferred by the callbacks.
   @param[in]  desc  serialized data descriptor
   @param[in]  len   length of the descriptor byte stream  */
-  void set_data_desc(uchar *desc, uint len) {
+  void set_data_desc(const uchar *desc, uint len) {
     m_data_desc = desc;
     m_desc_len = len;
   }
@@ -954,7 +996,7 @@ class Ha_clone_cbk {
   data transferred by the callbacks.
   @param[out]  lenp  length of the descriptor byte stream
   @return pointer to the serialized data descriptor */
-  uchar *get_data_desc(uint *lenp) {
+  const uchar *get_data_desc(uint *lenp) {
     if (lenp != nullptr) {
       *lenp = m_desc_len;
     }
@@ -981,7 +1023,7 @@ class Ha_clone_cbk {
   /** Clear all flags set by SE */
   void clear_flags() { m_flag = 0; }
 
-  /* Mark that ACK is needed for the data transfer before returning
+  /** Mark that ACK is needed for the data transfer before returning
   from callback. Set by SE. */
   void set_ack() { m_flag |= HA_CLONE_ACK; }
 
@@ -989,7 +1031,7 @@ class Ha_clone_cbk {
   @return true if ACK is needed */
   bool is_ack_needed() { return (m_flag & HA_CLONE_ACK); }
 
-  /* Mark that the file descriptor is opened for read/write
+  /** Mark that the file descriptor is opened for read/write
   with OS buffer cache. For O_DIRECT, the flag is not set. */
   void set_os_buffer_cache() { m_flag |= HA_CLONE_FILE_CACHE; }
 
@@ -998,6 +1040,12 @@ class Ha_clone_cbk {
   if SE is using O_DIRECT. This improves data copy performance.
   @return true if O_DIRECT is not used */
   bool is_os_buffer_cache() { return (m_flag & HA_CLONE_FILE_CACHE); }
+
+  /** Mark that the file can be transferred with zero copy. */
+  void set_zero_copy() { m_flag |= HA_CLONE_ZERO_COPY; }
+
+  /** Check if zero copy optimization is suggested. */
+  bool is_zero_copy() { return (m_flag & HA_CLONE_ZERO_COPY); }
 
  private:
   /** Handlerton for the SE */
@@ -1010,7 +1058,7 @@ class Ha_clone_cbk {
   uint m_client_buff_size;
 
   /** SE's Serialized data descriptor */
-  uchar *m_data_desc;
+  const uchar *m_data_desc;
   uint m_desc_len;
 
   /** Current source file name */
@@ -1027,6 +1075,9 @@ class Ha_clone_cbk {
 
   /** Data file is opened for read/write with OS buffer cache. */
   const int HA_CLONE_FILE_CACHE = 0x02;
+
+  /** Data file can be transferred with zero copy. */
+  const int HA_CLONE_ZERO_COPY = 0x04;
 };
 
 /* handlerton methods */
@@ -1717,26 +1768,105 @@ typedef bool (*get_tablespace_statistics_t)(
     const dd::Properties &ts_se_private_data, ha_tablespace_statistics *stats);
 
 /* Database physical clone interfaces */
-using Clone_begin_t = int (*)(handlerton *hton, THD *thd, uchar *&loc,
-                              uint &loc_len, Ha_clone_type type);
 
-using Clone_copy_t = int (*)(handlerton *hton, THD *thd, uchar *loc,
-                             Ha_clone_cbk *desc);
+/** Get capability flags for clone operation
+@param[out]     flags   capability flag */
+using Clone_capability_t = void (*)(Ha_clone_flagset &flags);
 
-using Clone_end_t = int (*)(handlerton *hton, THD *thd, uchar *loc);
+/** Begin copy from source database
+@param[in]      hton    handlerton for SE
+@param[in]      thd     server thread handle
+@param[in,out]  loc     locator
+@param[in,out]  loc_len locator length
+@param[out]     task_id task identifier
+@param[in]      type    clone type
+@param[in]      mode    mode for starting clone
+@return error code */
+using Clone_begin_t = int (*)(handlerton *hton, THD *thd, const uchar *&loc,
+                              uint &loc_len, uint &task_id, Ha_clone_type type,
+                              Ha_clone_mode mode);
 
-using Clone_apply_begin_t = int (*)(handlerton *hton, THD *thd, uchar *&loc,
-                                    uint &loc_len, const char *data_dir);
+/** Copy data from source database in chunks via callback
+@param[in]      hton    handlerton for SE
+@param[in]      thd     server thread handle
+@param[in]      loc     locator
+@param[in]      loc_len locator length in bytes
+@param[in]      task_id task identifier
+@param[in]      cbk     callback interface for sending data
+@return error code */
+using Clone_copy_t = int (*)(handlerton *hton, THD *thd, const uchar *loc,
+                             uint loc_len, uint task_id, Ha_clone_cbk *cbk);
 
-using Clone_apply_t = int (*)(handlerton *hton, THD *thd, uchar *loc,
-                              Ha_clone_cbk *desc);
+/** Acknowledge data transfer to source database
+@param[in]      hton    handlerton for SE
+@param[in]      thd     server thread handle
+@param[in]      loc     locator
+@param[in]      loc_len locator length in bytes
+@param[in]      task_id task identifier
+@param[in]      in_err  inform any error occurred
+@param[in]      cbk     callback interface
+@return error code */
+using Clone_ack_t = int (*)(handlerton *hton, THD *thd, const uchar *loc,
+                            uint loc_len, uint task_id, int in_err,
+                            Ha_clone_cbk *cbk);
 
-using Clone_apply_end_t = int (*)(handlerton *hton, THD *thd, uchar *loc);
+/** End copy from source database
+@param[in]      hton    handlerton for SE
+@param[in]      thd     server thread handle
+@param[in]      loc     locator
+@param[in]	loc_len	locator length in bytes
+@param[in]      task_id task identifier
+@param[in]      in_err  error code when ending after error
+@return error code */
+using Clone_end_t = int (*)(handlerton *hton, THD *thd, const uchar *loc,
+                            uint loc_len, uint task_id, int in_err);
+
+/** Begin apply to destination database
+@param[in]      hton            handlerton for SE
+@param[in]      thd             server thread handle
+@param[in,out]  loc             locator
+@param[in,out]  loc_len         locator length
+@param[in]      task_id         task identifier
+@param[in]      mode            mode for starting clone
+@param[in]      data_dir        target data directory
+@return error code */
+using Clone_apply_begin_t = int (*)(handlerton *hton, THD *thd,
+                                    const uchar *&loc, uint &loc_len,
+                                    uint &task_id, Ha_clone_mode mode,
+                                    const char *data_dir);
+
+/** Apply data to destination database in chunks via callback
+@param[in]      hton    handlerton for SE
+@param[in]      thd     server thread handle
+@param[in]      loc     locator
+@param[in]	loc_len	locator length in bytes
+@param[in]      task_id task identifier
+@param[in]      in_err  inform any error occurred
+@param[in]      cbk     callback interface for receiving data
+@return error code */
+using Clone_apply_t = int (*)(handlerton *hton, THD *thd, const uchar *loc,
+                              uint loc_len, uint task_id, int in_err,
+                              Ha_clone_cbk *cbk);
+
+/** End apply to destination database
+@param[in]      hton    handlerton for SE
+@param[in]      thd     server thread handle
+@param[in]      loc     locator
+@param[in]	loc_len	locator length in bytes
+@param[in]      task_id task identifier
+@param[in]      in_err  error code when ending after error
+@return error code */
+using Clone_apply_end_t = int (*)(handlerton *hton, THD *thd, const uchar *loc,
+                                  uint loc_len, uint task_id, int in_err);
 
 struct Clone_interface_t {
+  /* Get clone capabilities of an SE */
+  Clone_capability_t clone_capability;
+
   /* Interfaces to copy data. */
   Clone_begin_t clone_begin;
   Clone_copy_t clone_copy;
+  Clone_ack_t clone_ack;
   Clone_end_t clone_end;
 
   /* Interfaces to apply data. */

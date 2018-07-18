@@ -30,6 +30,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
  *******************************************************/
 
 #include "arch0page.h"
+#include "clone0clone.h"
 #include "srv0start.h"
 
 /** Memory block size */
@@ -84,12 +85,10 @@ const uint ARCH_PAGE_RESET_THRESHOLD = ARCH_BLK_PAGE_ID_SIZE * 128;
 const uint ARCH_PAGE_FILE_CAPACITY = 8 * 1024;
 
 /** Start dirty page tracking and archiving */
-dberr_t Page_Arch_Client_Ctx::start() {
-  dberr_t err;
+int Page_Arch_Client_Ctx::start() {
+  auto err = arch_page_sys->start(&m_group, &m_start_lsn, &m_start_pos, false);
 
-  err = arch_page_sys->start(&m_group, &m_start_lsn, &m_start_pos, false);
-
-  if (err != DB_SUCCESS) {
+  if (err != 0) {
     return (err);
   }
 
@@ -99,16 +98,14 @@ dberr_t Page_Arch_Client_Ctx::start() {
                          << m_start_lsn << ", checkpoint LSN : "
                          << log_sys->last_checkpoint_lsn.load();
 
-  return (DB_SUCCESS);
+  return (0);
 }
 
 /** Stop dirty page tracking and archiving */
-dberr_t Page_Arch_Client_Ctx::stop() {
-  dberr_t err;
+int Page_Arch_Client_Ctx::stop() {
+  auto err = arch_page_sys->stop(m_group, &m_stop_lsn, &m_stop_pos);
 
-  err = arch_page_sys->stop(m_group, &m_stop_lsn, &m_stop_pos);
-
-  if (err != DB_SUCCESS) {
+  if (err != 0) {
     return (err);
   }
 
@@ -118,7 +115,7 @@ dberr_t Page_Arch_Client_Ctx::stop() {
                          << ", checkpoint LSN : "
                          << log_sys->last_checkpoint_lsn.load();
 
-  return (DB_SUCCESS);
+  return (0);
 }
 
 /** Get page IDs from archived file
@@ -126,22 +123,18 @@ dberr_t Page_Arch_Client_Ctx::stop() {
 @param[in]	read_len	length of data to read
 @param[in]	read_buff	buffer to read page IDs
 @return error code */
-dberr_t Page_Arch_Client_Ctx::get_from_file(Arch_Page_Pos *read_pos,
-                                            uint read_len, byte *read_buff) {
-  dberr_t err;
+int Page_Arch_Client_Ctx::get_from_file(Arch_Page_Pos *read_pos, uint read_len,
+                                        byte *read_buff) {
   char errbuf[MYSYS_STRERROR_SIZE];
-
-  uint file_index;
   char file_name[MAX_ARCH_PAGE_FILE_NAME_LEN];
 
   /* Build file name */
-  file_index =
+  auto file_index =
       static_cast<uint>(read_pos->m_block_num / ARCH_PAGE_FILE_CAPACITY);
 
   m_group->get_file_name(file_index, file_name, MAX_ARCH_PAGE_FILE_NAME_LEN);
 
   /* Find offset to read from. */
-  pfs_os_file_t file;
   os_offset_t offset;
   bool success;
 
@@ -150,14 +143,14 @@ dberr_t Page_Arch_Client_Ctx::get_from_file(Arch_Page_Pos *read_pos,
   offset += read_pos->m_offset;
 
   /* Open file in read only mode. */
-  file = os_file_create(innodb_arch_file_key, file_name, OS_FILE_OPEN,
-                        OS_FILE_NORMAL, OS_CLONE_LOG_FILE, true, &success);
+  auto file = os_file_create(innodb_arch_file_key, file_name, OS_FILE_OPEN,
+                             OS_FILE_NORMAL, OS_CLONE_LOG_FILE, true, &success);
 
   if (!success) {
     my_error(ER_CANT_OPEN_FILE, MYF(0), file_name, errno,
              my_strerror(errbuf, sizeof(errbuf), errno));
 
-    return (DB_CANNOT_OPEN_FILE);
+    return (ER_CANT_OPEN_FILE);
   }
 
   /* Read from file to the user buffer. */
@@ -166,16 +159,18 @@ dberr_t Page_Arch_Client_Ctx::get_from_file(Arch_Page_Pos *read_pos,
   request.disable_compression();
   request.clear_encrypted();
 
-  err = os_file_read(request, file, read_buff, offset, read_len);
+  auto db_err = os_file_read(request, file, read_buff, offset, read_len);
 
   os_file_close(file);
 
-  if (err != DB_SUCCESS) {
+  if (db_err != DB_SUCCESS) {
     my_error(ER_ERROR_ON_READ, MYF(0), file_name, errno,
              my_strerror(errbuf, sizeof(errbuf), errno));
+
+    return (ER_ERROR_ON_READ);
   }
 
-  return (err);
+  return (0);
 }
 
 /** Get archived page Ids.
@@ -186,17 +181,16 @@ copy from archived files.
 @param[in]	buff		buffer to fill page IDs
 @param[in]	buf_len		buffer length in bytes
 @return error code */
-dberr_t Page_Arch_Client_Ctx::get_pages(Page_Arch_Cbk *cbk_func, void *cbk_ctx,
-                                        byte *buff, uint buf_len) {
-  dberr_t err = DB_SUCCESS;
+int Page_Arch_Client_Ctx::get_pages(Page_Arch_Cbk *cbk_func, void *cbk_ctx,
+                                    byte *buff, uint buf_len) {
+  int err = 0;
   bool success;
   uint num_pages;
   uint read_len;
-  Arch_Page_Pos cur_pos;
 
   ut_ad(m_state == ARCH_CLIENT_STATE_STOPPED);
 
-  cur_pos = m_start_pos;
+  auto cur_pos = m_start_pos;
 
   while (true) {
     ut_ad(cur_pos.m_block_num <= m_stop_pos.m_block_num);
@@ -207,7 +201,7 @@ dberr_t Page_Arch_Client_Ctx::get_pages(Page_Arch_Cbk *cbk_func, void *cbk_ctx,
         ut_ad(false);
         my_error(ER_INTERNAL_ERROR, MYF(0), "Wrong Archiver page offset");
 
-        err = DB_ERROR;
+        err = ER_INTERNAL_ERROR;
         break;
       }
 
@@ -223,7 +217,7 @@ dberr_t Page_Arch_Client_Ctx::get_pages(Page_Arch_Cbk *cbk_func, void *cbk_ctx,
 
         my_error(ER_INTERNAL_ERROR, MYF(0), "Wrong Archiver page offset");
 
-        err = DB_ERROR;
+        err = ER_INTERNAL_ERROR;
         break;
       }
 
@@ -247,7 +241,7 @@ dberr_t Page_Arch_Client_Ctx::get_pages(Page_Arch_Cbk *cbk_func, void *cbk_ctx,
       /* The buffer is overwritten. Read from file. */
       err = get_from_file(&cur_pos, read_len, buff);
 
-      if (err != DB_SUCCESS) {
+      if (err != 0) {
         return (err);
       }
     }
@@ -257,7 +251,7 @@ dberr_t Page_Arch_Client_Ctx::get_pages(Page_Arch_Cbk *cbk_func, void *cbk_ctx,
 
     err = cbk_func(cbk_ctx, buff, num_pages);
 
-    if (err != DB_SUCCESS) {
+    if (err != 0) {
       return (err);
     }
   }
@@ -283,38 +277,51 @@ void Page_Arch_Client_Ctx::release() {
 /** Wait till the block is flushed and is ready for write
 @return true, if the block is flushed */
 bool Arch_Block::wait_flush() {
-  uint count = 0;
+  ut_ad(mutex_own(arch_page_sys->get_oper_mutex()));
 
-  while (m_state == ARCH_BLOCK_READY_TO_FLUSH) {
+  if (m_state == ARCH_BLOCK_READY_TO_FLUSH) {
     /* Need to wait for flush. We don't expect it
     to happen normally. With no duplicate page ID
     dirty page growth should be very slow. */
-
-    arch_page_sys->arch_oper_mutex_exit();
     os_event_set(archiver_thread_event);
 
-    /* Sleep for 100ms */
-    os_thread_sleep(100000);
+    bool is_timeout = false;
+    int alert_count = 0;
 
-    ++count;
+    auto err = Clone_Sys::wait_default(
+        [&](bool alert, bool &result) {
 
-    if (count % 50 == 0) {
-      ib::warn(ER_IB_MSG_22) << "Page Tracking Write: Waiting"
-                                " for archiver to flush blocks.";
+          ut_ad(mutex_own(arch_page_sys->get_oper_mutex()));
+          result = (m_state == ARCH_BLOCK_READY_TO_FLUSH);
 
-      if (count > 600) {
-        /* Wait too long - 1 minutes */
-        return (false);
-      }
-    }
+          int err2 = 0;
+          if (srv_shutdown_state == SRV_SHUTDOWN_LAST_PHASE ||
+              srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS ||
+              arch_page_sys->is_abort()) {
+            err2 = ER_QUERY_INTERRUPTED;
 
-    if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+          } else if (result) {
+            os_event_set(archiver_thread_event);
+            if (alert && ++alert_count == 12) {
+              alert_count = 0;
+              ib::info(ER_IB_MSG_22) << "Clone Page Tracking: waiting "
+                                        "for block to flush";
+            }
+          }
+          return (err2);
+        },
+        arch_page_sys->get_oper_mutex(), is_timeout);
+
+    if (err != 0) {
+      return (false);
+
+    } else if (is_timeout) {
+      ut_ad(false);
+      ib::warn(ER_IB_MSG_22) << "Clone Page Tracking: wait for block flush "
+                                "timed out";
       return (false);
     }
-
-    arch_page_sys->arch_oper_mutex_enter();
   }
-
   return (true);
 }
 
@@ -543,14 +550,17 @@ void Arch_Page_Sys::track_page(buf_page_t *bpage, lsn_t track_lsn,
     /* Can possibly loop only two times. */
     if (count >= 2) {
       if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+        arch_oper_mutex_exit();
         return;
       }
 
       ut_ad(false);
-
       ib::warn(ER_IB_MSG_23) << "Fail to add page for tracking."
                              << " Space ID: " << bpage->id.space()
                              << " Page NO: " << bpage->id.page_no();
+
+      m_state = ARCH_STATE_ABORT;
+      arch_oper_mutex_exit();
       return;
     }
 
@@ -591,7 +601,6 @@ void Arch_Page_Sys::track_page(buf_page_t *bpage, lsn_t track_lsn,
       continue;
     }
   }
-
   arch_oper_mutex_exit();
 }
 
@@ -631,36 +640,48 @@ for it to come to idle state.
 @return true, if successful
         false, if needs to abort */
 bool Arch_Page_Sys::wait_idle() {
-  uint count = 0;
+  ut_ad(mutex_own(&m_mutex));
 
-  while (m_state == ARCH_STATE_PREPARE_IDLE) {
-    arch_mutex_exit();
-
+  if (m_state == ARCH_STATE_PREPARE_IDLE) {
     os_event_set(archiver_thread_event);
+    bool is_timeout = false;
+    int alert_count = 0;
 
-    /* Sleep for 100ms. */
-    os_thread_sleep(100000);
+    auto err = Clone_Sys::wait_default(
+        [&](bool alert, bool &result) {
 
-    ++count;
+          ut_ad(mutex_own(&m_mutex));
+          result = (m_state == ARCH_STATE_PREPARE_IDLE);
 
-    if (count % 50 == 0) {
-      ib::info(ER_IB_MSG_24) << "Page Tracking IDLE: Waiting for"
-                                " archiver to flush last blocks.";
+          if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+            return (ER_QUERY_INTERRUPTED);
+          }
 
-      if (count > 600) {
-        /* Wait too long - 1 minute */
-        ib::error(ER_IB_MSG_25) << "Page Tracking wait too long";
-        return (false);
-      }
+          if (result) {
+            os_event_set(archiver_thread_event);
+
+            /* Print messages every 1 minute - default is 5 seconds. */
+            if (alert && ++alert_count == 12) {
+              alert_count = 0;
+              ib::info(ER_IB_MSG_24) << "Page Tracking start: waiting for "
+                                        "idle state.";
+            }
+          }
+          return (0);
+        },
+        &m_mutex, is_timeout);
+
+    if (err == 0 && is_timeout) {
+      ut_ad(false);
+      err = ER_INTERNAL_ERROR;
+      ib::info(ER_IB_MSG_25) << "Page Tracking start: wait for idle state "
+                                "timed out";
     }
 
-    if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+    if (err != 0) {
       return (false);
     }
-
-    arch_mutex_enter();
   }
-
   return (true);
 }
 
@@ -784,9 +805,8 @@ is attached to current group.
 @param[out]	start_pos	Start position in archived data
 @param[in]	is_durable	if client needs durable archiving
 @return error code */
-dberr_t Arch_Page_Sys::start(Arch_Group **group, lsn_t *start_lsn,
-                             Arch_Page_Pos *start_pos, bool is_durable) {
-  dberr_t err = DB_SUCCESS;
+int Arch_Page_Sys::start(Arch_Group **group, lsn_t *start_lsn,
+                         Arch_Page_Pos *start_pos, bool is_durable) {
   bool start_archiver = true;
   bool attach_to_current = false;
 
@@ -806,20 +826,24 @@ dberr_t Arch_Page_Sys::start(Arch_Group **group, lsn_t *start_lsn,
 
   /* Wait for idle state, if preparing to idle. */
   if (!wait_idle()) {
+    int err = 0;
+
     if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
-      my_error(ER_QUERY_INTERRUPTED, MYF(0));
+      err = ER_QUERY_INTERRUPTED;
+      my_error(err, MYF(0));
     } else {
-      my_error(ER_INTERNAL_ERROR, MYF(0), "Page Archiver wait too long");
+      err = ER_INTERNAL_ERROR;
+      my_error(err, MYF(0), "Page Archiver wait too long");
     }
 
-    return (DB_ERROR);
+    return (err);
   }
 
   switch (m_state) {
     case ARCH_STATE_ABORT:
       arch_mutex_exit();
       my_error(ER_QUERY_INTERRUPTED, MYF(0));
-      return (DB_INTERRUPTED);
+      return (ER_QUERY_INTERRUPTED);
 
     case ARCH_STATE_IDLE:
     case ARCH_STATE_INIT:
@@ -861,18 +885,23 @@ dberr_t Arch_Page_Sys::start(Arch_Group **group, lsn_t *start_lsn,
     arch_mutex_exit();
 
     my_error(ER_OUTOFMEMORY, MYF(0), ARCH_PAGE_BLK_SIZE);
-    return (DB_OUT_OF_MEMORY);
+    return (ER_OUTOFMEMORY);
   }
 
   /* Start archiver background task. */
-  if (start_archiver && !start_archiver_background()) {
+  if (start_archiver) {
     ut_ad(!attach_to_current);
-    arch_oper_mutex_exit();
-    arch_mutex_exit();
 
-    ib::error(ER_IB_MSG_26) << "Could not start"
-                            << " Archiver background task";
-    return (DB_ERROR);
+    auto err = start_archiver_background();
+
+    if (err != 0) {
+      arch_oper_mutex_exit();
+      arch_mutex_exit();
+
+      ib::error(ER_IB_MSG_26) << "Could not start "
+                              << "Archiver background task";
+      return (err);
+    }
   }
 
   /* Create a new archive group. */
@@ -894,20 +923,20 @@ dberr_t Arch_Page_Sys::start(Arch_Group **group, lsn_t *start_lsn,
       arch_mutex_exit();
 
       my_error(ER_OUTOFMEMORY, MYF(0), sizeof(Arch_Group));
-      return (DB_OUT_OF_MEMORY);
+      return (ER_OUTOFMEMORY);
     }
 
     /* Initialize archiver file context. */
-    err = m_current_group->init_file_ctx(
+    auto db_err = m_current_group->init_file_ctx(
         ARCH_DIR, ARCH_PAGE_DIR, ARCH_PAGE_FILE, 0,
         static_cast<ib_uint64_t>(ARCH_PAGE_BLK_SIZE) * ARCH_PAGE_FILE_CAPACITY);
 
-    if (err != DB_SUCCESS) {
+    if (db_err != DB_SUCCESS) {
       arch_oper_mutex_exit();
       arch_mutex_exit();
 
       my_error(ER_OUTOFMEMORY, MYF(0), sizeof(Arch_File_Ctx));
-      return (err);
+      return (ER_OUTOFMEMORY);
     }
 
     m_group_list.push_back(m_current_group);
@@ -947,7 +976,7 @@ dberr_t Arch_Page_Sys::start(Arch_Group **group, lsn_t *start_lsn,
   /* Make sure all written pages are synced to disk. */
   log_request_checkpoint(*log_sys, false);
 
-  return (DB_SUCCESS);
+  return (0);
 }
 
 /** Stop dirty page ID archiving.
@@ -957,19 +986,15 @@ the current group.
 @param[out]	stop_lsn	stop lsn for client
 @param[out]	stop_pos	stop position in archived data
 @return error code */
-dberr_t Arch_Page_Sys::stop(Arch_Group *group, lsn_t *stop_lsn,
-                            Arch_Page_Pos *stop_pos) {
-  dberr_t err = DB_SUCCESS;
-  Arch_Block *cur_blk;
-  uint count = 0;
-
+int Arch_Page_Sys::stop(Arch_Group *group, lsn_t *stop_lsn,
+                        Arch_Page_Pos *stop_pos) {
   arch_mutex_enter();
 
   log_buffer_x_lock_enter(*log_sys);
 
   *stop_lsn = log_get_lsn(*log_sys);
 
-  count = group->detach(*stop_lsn);
+  auto count = group->detach(*stop_lsn);
 
   /* If no other active client, let the system get into
   idle state. */
@@ -986,7 +1011,7 @@ dberr_t Arch_Page_Sys::stop(Arch_Group *group, lsn_t *stop_lsn,
 
     *stop_pos = m_write_pos;
 
-    cur_blk = m_data.get_block(&m_write_pos);
+    auto cur_blk = m_data.get_block(&m_write_pos);
 
     /* If any page ID is written to current page, let it flush. */
     if (m_write_pos.m_offset > ARCH_PAGE_BLK_HEADER_LENGTH) {
@@ -1003,9 +1028,11 @@ dberr_t Arch_Page_Sys::stop(Arch_Group *group, lsn_t *stop_lsn,
     *stop_pos = m_write_pos;
   }
 
+  int err = 0;
+
   if (m_state == ARCH_STATE_ABORT) {
     my_error(ER_QUERY_INTERRUPTED, MYF(0));
-    err = DB_INTERRUPTED;
+    err = ER_QUERY_INTERRUPTED;
   }
 
   arch_oper_mutex_exit();
@@ -1044,17 +1071,15 @@ data to disk by calling it repeatedly over time.
 @param[out]	wait	true, if no more data to archive
 @return true, if archiving is aborted */
 bool Arch_Page_Sys::archive(bool *wait) {
-  bool set_idle;
-  bool is_abort;
-
   Arch_Page_Pos cur_pos;
   Arch_Page_Pos end_pos;
 
   Arch_Block *cur_blk;
   dberr_t err;
 
-  is_abort = (srv_shutdown_state == SRV_SHUTDOWN_LAST_PHASE ||
-              srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS);
+  auto is_abort = (srv_shutdown_state == SRV_SHUTDOWN_LAST_PHASE ||
+                   srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS ||
+                   m_state == ARCH_STATE_ABORT);
 
   arch_oper_mutex_enter();
 
@@ -1074,9 +1099,10 @@ bool Arch_Page_Sys::archive(bool *wait) {
     return (false);
   }
 
+  /* ARCH_STATE_ABORT is set for flush timeout which is asserted in debug. */
   ut_ad(m_state == ARCH_STATE_ACTIVE || m_state == ARCH_STATE_PREPARE_IDLE);
 
-  set_idle = (m_state == ARCH_STATE_PREPARE_IDLE);
+  auto set_idle = (m_state == ARCH_STATE_PREPARE_IDLE);
 
   cur_pos = m_flush_pos;
   end_pos = m_write_pos;

@@ -33,6 +33,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <time.h>
 
+#include "arch0arch.h"
 #include "buf0buf.h"
 #include "dict0mem.h"
 #include "ibuf0ibuf.h"
@@ -804,6 +805,10 @@ static monitor_info_t innodb_counter_info[] = {
     {"log_lsn_current", "log", "Current LSN value",
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT),
      MONITOR_DEFAULT_START, MONITOR_OVLD_LSN_CURRENT},
+
+    {"log_lsn_archived", "log", "Archived LSN value",
+     static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT),
+     MONITOR_DEFAULT_START, MONITOR_OVLD_LSN_ARCHIVED},
 
     {"log_lsn_checkpoint_age", "log",
      "Current LSN value minus LSN at last checkpoint",
@@ -1804,6 +1809,15 @@ void srv_mon_process_existing_counter(
     case MONITOR_OVLD_LSN_CURRENT:
       value = (mon_type_t)log_get_lsn(*log_sys);
       break;
+
+    case MONITOR_OVLD_LSN_ARCHIVED: {
+      auto arch_lsn = arch_log_sys->get_archived_lsn();
+      if (arch_lsn == LSN_MAX) {
+        value = 0;
+      } else {
+        value = static_cast<mon_type_t>(arch_lsn);
+      }
+    } break;
 
     case MONITOR_OVLD_LSN_BUF_DIRTY_PAGES_ADDED:
       value = (mon_type_t)log_buffer_dirty_pages_added_up_to_lsn(*log_sys);

@@ -60,6 +60,8 @@ void mysql_security_context_init();
 void mysql_backup_lock_service_init();
 void mysql_server_ongoing_transactions_query_init();
 
+void clone_protocol_service_init();
+
 /* implementation of the built-in components */
 
 /**
