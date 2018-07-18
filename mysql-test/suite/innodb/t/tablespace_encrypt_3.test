@@ -9,9 +9,9 @@
 --source include/have_debug.inc
 
 --disable_query_log
-call mtr.add_suppression("\\[ERROR\\].*ibd can't be decrypted, please confirm the keyfile is match and keyring plugin is loaded");
-call mtr.add_suppression("\\[ERROR\\] .* Encryption can't find master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("\\[ERROR\\] .* Check keyring plugin fail, please check the keyring plugin is loaded.");
+call mtr.add_suppression("ibd can't be decrypted, please confirm the keyfile is match and keyring plugin is loaded.");
+call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] \\[[^]]*\\] Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Check keyring plugin fail, please check the keyring plugin is loaded.");
 --enable_query_log
 
 --echo #########################################################################

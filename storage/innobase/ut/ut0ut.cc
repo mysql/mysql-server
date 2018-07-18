@@ -58,12 +58,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "mysql/components/services/log_builtins.h"
 #include "sql/derror.h"
 
-#ifndef UNIV_NO_ERR_MSGS
-#if defined(__SUNPRO_CC)
-const char *ib::logger::PREFIX = "InnoDB: ";
-#endif /*  __SUNPRO_CC */
-#endif /* !UNIV_NO_ERR_MSGS */
-
 #ifdef _WIN32
 using time_fn = VOID(WINAPI *)(_Out_ LPFILETIME);
 static time_fn ut_get_system_time_as_file_time = GetSystemTimeAsFileTime;

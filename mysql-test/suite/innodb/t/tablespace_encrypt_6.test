@@ -18,8 +18,8 @@
 call mtr.add_suppression("\\[ERROR\\].*ibd can't be decrypted, please confirm the keyfile is match and keyring plugin is loaded");
 call mtr.add_suppression("\\[ERROR\\].*Plugin keyring_file reported: 'keyring_file initialization failure.");
 call mtr.add_suppression("\\[ERROR\\].*Plugin keyring_file reported: 'File .*keyring' not found .*");
-call mtr.add_suppression("\\[ERROR\\] .*\\[[^]]*\\] \\[[^]]*\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("\\[ERROR\\] .* Check keyring plugin fail, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Check keyring plugin fail, please check the keyring plugin is loaded.");
 -- enable_query_log
 
 --echo #########################################################################
