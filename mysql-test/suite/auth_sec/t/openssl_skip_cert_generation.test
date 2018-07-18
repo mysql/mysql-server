@@ -9,7 +9,7 @@ call mtr.add_suppression("Failed to setup SSL");
 call mtr.add_suppression("SSL error: SSL_CTX_set_default_verify_paths failed");
 
 # We let our server restart attempts write to the file $server_log.
-let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
+let server_log= $MYSQLTEST_VARDIR/log/openssl_skip_cert_generation.err;
 # $server_log has to be processed by include/search_pattern.inc which
 # contains Perl code requiring that the environment variable SEARCH_FILE points
 # to this file.
@@ -21,11 +21,9 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --shutdown_server
 --source include/wait_until_disconnected.inc
 
---remove_file $server_log 10
-
 --remove_file $MYSQLTEST_VARDIR/mysqld.1/data/ca.pem
 
---exec echo "restart:--auto_generate_certs --sha256_password_auto_generate_rsa_keys=0 --log-error-verbosity=3" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart:--log-error=$server_log --auto_generate_certs --sha256_password_auto_generate_rsa_keys=0 --log-error-verbosity=3" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
@@ -47,7 +45,7 @@ let SEARCH_PATTERN= Skipping generation of SSL certificates as certificate files
 --remove_file $MYSQLTEST_VARDIR/mysqld.1/data/client-cert.pem
 --remove_file $MYSQLTEST_VARDIR/mysqld.1/data/client-key.pem
 
---exec echo "restart:--auto_generate_certs=0 --sha256_password_auto_generate_rsa_keys=0" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart:--log-error=$server_log --auto_generate_certs=0 --sha256_password_auto_generate_rsa_keys=0" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
@@ -56,6 +54,3 @@ let SEARCH_PATTERN= Skipping generation of SSL certificates as certificate files
 --echo # Clean-up
 
 connection default;
---disable_warnings
---source include/force_restart.inc
---enable_warnings
