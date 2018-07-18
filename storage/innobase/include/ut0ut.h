@@ -421,14 +421,6 @@ class logger {
 
  protected:
 #ifndef UNIV_NO_ERR_MSGS
-  /** String prefix for all log messages. */
-#if defined(__SUNPRO_CC)
-  static const char *PREFIX;
-#else
-  /** String prefix for all log messages. */
-  static constexpr const char *PREFIX = "InnoDB: ";
-#endif /* __SUNPRO_CC */
-
   /** Format an error message.
   @param[in]	err	Error code from errmsg-*.txt.
   @param[in]	args	Variable length argument list */
@@ -465,7 +457,6 @@ class logger {
        snprintf(buf, sizeof(buf), str);
     */
 
-    m_oss << PREFIX;
     m_oss << msg(err, "");
   }
 
@@ -476,15 +467,12 @@ class logger {
   template <class... Args>
   explicit logger(loglevel level, int err, Args &&... args)
       : m_err(err), m_level(level) {
-    m_oss << PREFIX;
     m_oss << msg(err, std::forward<Args>(args)...);
   }
 
   /** Constructor
   @param[in]	level		Log error level */
-  explicit logger(loglevel level) : m_err(ER_IB_MSG_0), m_level(level) {
-    m_oss << PREFIX;
-  }
+  explicit logger(loglevel level) : m_err(ER_IB_MSG_0), m_level(level) {}
 
 #endif /* !UNIV_NO_ERR_MSGS */
 };

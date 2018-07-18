@@ -5,8 +5,8 @@
 --echo #
 
 --disable_query_log
-call mtr.add_suppression("InnoDB: sdi_delete failed: tablespace_id:");
-call mtr.add_suppression("InnoDB: Cannot save table statistics for table");
+call mtr.add_suppression("sdi_delete failed: tablespace_id:");
+call mtr.add_suppression("Cannot save table statistics for table");
 --enable_query_log
 
 create table t1(c1 int primary key, c2 char(1), c3 int unsigned);
