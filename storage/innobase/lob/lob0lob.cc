@@ -287,9 +287,11 @@ struct Being_modified {
     /* All pointers to externally stored columns in the record
     must either be zero or they must be pointers to inherited
     columns, owned by this record or an earlier record version. */
-    dict_index_t *index = m_pcur->index();
     rec_t *rec = btr_pcur_get_rec(m_pcur);
+#ifdef UNIV_DEBUG
+    dict_index_t *index = m_pcur->index();
     rec_offs_make_valid(rec, index, m_offsets);
+#endif /* UNIV_DEBUG */
     for (uint i = 0; i < m_big_rec_vec->n_fields; i++) {
       ulint field_no = m_big_rec_vec->fields[i].field_no;
       byte *field_ref = btr_rec_get_field_ref(rec, m_offsets, field_no);
@@ -320,9 +322,11 @@ struct Being_modified {
 
   /** Destructor.  Clear the "being modified" bit in LOB references. */
   ~Being_modified() {
-    dict_index_t *index = m_pcur->index();
     rec_t *rec = btr_pcur_get_rec(m_pcur);
+#ifdef UNIV_DEBUG
+    dict_index_t *index = m_pcur->index();
     rec_offs_make_valid(rec, index, m_offsets);
+#endif /* UNIV_DEBUG */
     for (uint i = 0; i < m_big_rec_vec->n_fields; i++) {
       ulint field_no = m_big_rec_vec->fields[i].field_no;
       byte *field_ref = btr_rec_get_field_ref(rec, m_offsets, field_no);

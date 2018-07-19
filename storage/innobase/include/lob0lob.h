@@ -528,6 +528,7 @@ dberr_t btr_store_big_rec_extern_fields(trx_t *trx, btr_pcur_t *pcur,
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Copies an externally stored field of a record to mem heap.
+@param[in]	trx		the current transaction.
 @param[in]	index		the clustered index
 @param[in]	rec		record in a clustered index; must be
                                 protected by a lock or a page latch
