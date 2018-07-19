@@ -29,10 +29,12 @@
 --source include/group_replication.inc
 
 set sql_log_bin=0;
-call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] \\[[^]]*\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
+--disable_query_log
+call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] \\[[^]]*\\] Encryption can't find master key, please check the keyring plugin is loaded.");
 call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Plugin keyring_file reported: 'Error while loading keyring content*");
 call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Plugin keyring_file reported: 'keyring_file initialization failure.*");
 call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Plugin keyring_file reported: 'File .*keyring' not found .*");
+--enable_query_log
 set sql_log_bin=1;
 
 # Scenario 1
@@ -70,7 +72,8 @@ INSERT INTO t2 VALUEs(2,2);
 --source include/rpl_connection.inc
 
 set sql_log_bin=0;
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded*");
+--disable_query_log
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Encryption can't find master key, please check the keyring plugin is loaded*");
 call mtr.add_suppression(".*Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.");
 call mtr.add_suppression(".*Slave SQL for channel 'group_replication_applier': Error 'Can't find master key from keyring, please check keyring plugin is loaded.' on query*");
 call mtr.add_suppression(".*Slave SQL for channel 'group_replication_applier': ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state*");
@@ -83,6 +86,7 @@ call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Plugin keyring_fil
 call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Plugin keyring_file reported: 'keyring_file initialization failure.*");
 call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Plugin keyring_file reported: 'File .*keyring' not found .*");
 call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] \\[[^]]*\\] Plugin group_replication reported: 'Message received while the plugin is not ready, message discarded'*");
+--enable_query_log
 set sql_log_bin=1;
 
 # Check that keyring plugin is not installed
