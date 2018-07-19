@@ -2473,8 +2473,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   dict_index_t *index = const_cast<dict_index_t *>(dup->index);
   dict_table_t *new_table = index->online_log->table;
   dict_index_t *new_index = new_table->first_index();
-  uint16_t n_fields = dict_index_get_n_fields(index);
-  uint16_t n_unique = dict_index_get_n_unique(new_index) + 2;
+  ulint n_fields = dict_index_get_n_fields(index);
+  ulint n_unique = dict_index_get_n_unique(new_index) + 2;
   const ulint i = 1 + REC_OFFS_HEADER_SIZE + ut_max(n_fields, n_unique);
   const ulint trx_id_col =
       dict_col_get_clust_pos(index->table->get_sys_col(DATA_TRX_ID), index);

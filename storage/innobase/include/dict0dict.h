@@ -753,7 +753,7 @@ dberr_t dict_index_add_to_cache_w_vcol(dict_table_t *table, dict_index_t *index,
  including fields added by the dictionary system.
  @return number of fields */
 UNIV_INLINE
-uint16_t dict_index_get_n_fields(
+ulint dict_index_get_n_fields(
     const dict_index_t *index) /*!< in: an internal
                                representation of index (in
                                the dictionary cache) */
@@ -764,7 +764,7 @@ uint16_t dict_index_get_n_fields(
  returned by dict_index_get_n_unique_in_tree.
  @return number of fields */
 UNIV_INLINE
-uint16_t dict_index_get_n_unique(
+ulint dict_index_get_n_unique(
     const dict_index_t *index) /*!< in: an internal representation
                                of index (in the dictionary cache) */
     MY_ATTRIBUTE((warn_unused_result));
@@ -773,7 +773,7 @@ uint16_t dict_index_get_n_unique(
  we also take multiversioning into account.
  @return number of fields */
 UNIV_INLINE
-uint16_t dict_index_get_n_unique_in_tree(
+ulint dict_index_get_n_unique_in_tree(
     const dict_index_t *index) /*!< in: an internal representation
                                of index (in the dictionary cache) */
     MY_ATTRIBUTE((warn_unused_result));
