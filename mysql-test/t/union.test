@@ -2158,3 +2158,24 @@ SELECT _utf8mb4 'a' UNION SELECT a FROM t;
 --error ER_CANT_AGGREGATE_2COLLATIONS
 SELECT _utf8mb4 0xC3A6 UNION SELECT a FROM t;
 DROP TABLE t;
+
+--echo #
+--echo # Bug#27849293 INVALID WRITE IN SYSSCHEMA.PR_DIAGNOSTICS
+--echo #
+--echo # Note that this bug can only be seen when running with valgrind.
+PREPARE stmt FROM "SELECT 'foo' UNION ALL SELECT ?";
+SET @param = CONVERT('bar' USING utf8mb3);
+EXECUTE stmt USING @param;
+SET @param = CONVERT('BAR' USING utf8mb4);
+EXECUTE stmt USING @param;
+SET @param = CONVERT('foo' USING ucs2);
+EXECUTE stmt USING @param;
+DEALLOCATE PREPARE stmt;
+
+PREPARE stmt FROM 'SELECT "foo", "foo2" UNION SELECT CONVERT("bar" USING utf8mb3), "bar2" UNION SELECT "foobar", CONVERT("foobar2" USING utf8mb3)';
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+CREATE PROCEDURE p1() SELECT "foo", "foo2" UNION SELECT CONVERT("bar" USING utf8mb3), "bar2" UNION SELECT "foobar", CONVERT("foobar2" USING utf8mb3);
+CALL p1();
+DROP PROCEDURE p1;

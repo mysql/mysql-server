@@ -3095,3 +3095,38 @@ a
 SELECT _utf8mb4 0xC3A6 UNION SELECT a FROM t;
 ERROR HY000: Illegal mix of collations (utf8mb4_0900_ai_ci,COERCIBLE) and (ascii_general_ci,IMPLICIT) for operation 'UNION'
 DROP TABLE t;
+#
+# Bug#27849293 INVALID WRITE IN SYSSCHEMA.PR_DIAGNOSTICS
+#
+# Note that this bug can only be seen when running with valgrind.
+PREPARE stmt FROM "SELECT 'foo' UNION ALL SELECT ?";
+SET @param = CONVERT('bar' USING utf8mb3);
+EXECUTE stmt USING @param;
+foo
+foo
+bar
+SET @param = CONVERT('BAR' USING utf8mb4);
+EXECUTE stmt USING @param;
+foo
+foo
+BAR
+SET @param = CONVERT('foo' USING ucs2);
+EXECUTE stmt USING @param;
+foo
+foo
+foo
+DEALLOCATE PREPARE stmt;
+PREPARE stmt FROM 'SELECT "foo", "foo2" UNION SELECT CONVERT("bar" USING utf8mb3), "bar2" UNION SELECT "foobar", CONVERT("foobar2" USING utf8mb3)';
+EXECUTE stmt;
+foo	foo2
+foo	foo2
+bar	bar2
+foobar	foobar2
+DEALLOCATE PREPARE stmt;
+CREATE PROCEDURE p1() SELECT "foo", "foo2" UNION SELECT CONVERT("bar" USING utf8mb3), "bar2" UNION SELECT "foobar", CONVERT("foobar2" USING utf8mb3);
+CALL p1();
+foo	foo2
+foo	foo2
+bar	bar2
+foobar	foobar2
+DROP PROCEDURE p1;
