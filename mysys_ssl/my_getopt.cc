@@ -35,6 +35,8 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <array>
+#include <bitset>
+#include <type_traits>
 
 #include "m_ctype.h"
 #include "m_string.h"
@@ -934,74 +936,113 @@ bool getopt_compare_strings(const char *s, const char *t, uint length) {
   function: eval_num_suffix
 
   Transforms a number with a suffix to real number. Suffix can
-  be k|K for kilo, m|M for mega or g|G for giga.
+  be:
+  * k|K for kilo
+  * m|M for mega
+  * g|G for giga
+  * t|T for tera
+  * p|P for peta
+  * e|E for exa
+
+ @tparam LLorULL longlong or ulonglong
+ @param  [in]  argument    string containing number, plus possible suffix.
+ @param  [out] error       set to non-zero in case of conversion errors.
+ @param  [in]  option_name used for better error reporting in case of errors.
 */
 
-static longlong eval_num_suffix(char *argument, int *error, char *option_name) {
+template <typename LLorULL>
+LLorULL eval_num_suffix(const char *argument, int *error,
+                        const char *option_name) {
   char *endchar;
-  longlong num;
+  LLorULL num;
+  ulonglong result = 0;
 
   *error = 0;
   errno = 0;
-  num = my_strtoll(argument, &endchar, 10);
+  // Note: some platforms leave errno == 0, others set it to EINVAL
+  // for input "X"
+  if (std::is_unsigned<LLorULL>::value)
+    num = my_strtoull(argument, &endchar, 10);
+  else
+    num = my_strtoll(argument, &endchar, 10);
+
+  if (*endchar == '\0' && errno == 0) return num;
+
+  bool is_negative = false;
+  // Avoid left-shift of negative values.
+  if (std::is_signed<LLorULL>::value && num < 0) {
+    is_negative = true;
+    if (static_cast<long long>(num) == LLONG_MIN)
+      errno = ERANGE;  // This will overflow
+    else
+      num = -num;
+  }
+
+  unsigned long long ull_num = num;
+
+  const size_t num_input_bits = std::bitset<64>(ull_num).count();
+
+  if (errno != ERANGE) {
+    switch (*endchar) {
+      case 'k':
+      case 'K':
+        result = ull_num << 10;
+        break;
+      case 'm':
+      case 'M':
+        result = ull_num << 20;
+        break;
+      case 'g':
+      case 'G':
+        result = ull_num << 30;
+        break;
+      case 't':
+      case 'T':
+        result = ull_num << 40;
+        break;
+      case 'p':
+      case 'P':
+        result = ull_num << 50;
+        break;
+      case 'e':
+      case 'E':
+        result = ull_num << 60;
+        break;
+      default:
+        my_message_local(ERROR_LEVEL, EE_UNKNOWN_SUFFIX_FOR_VARIABLE, *endchar,
+                         option_name, argument);
+        *error = 1;
+        return 0;
+    }
+  }
+
+  const size_t num_output_bits = std::bitset<64>(result).count();
+
+  // Check over/underflow for signed values.
+  if (std::is_signed<LLorULL>::value) {
+    if (is_negative) {
+      if (result > LLONG_MAX + 1ULL) errno = ERANGE;
+    } else {
+      if (result > LLONG_MAX) errno = ERANGE;
+    }
+  }
+
+  // If we have lost some bits, then there is overflow.
+  if (num_input_bits != num_output_bits) {
+    errno = ERANGE;
+  }
+
   if (errno == ERANGE) {
-    my_getopt_error_reporter(ERROR_LEVEL, EE_INCORRECT_INT_VALUE_FOR_OPTION,
-                             argument);
-    *error = 1;
-    return 0;
-  }
-  if (*endchar == 'k' || *endchar == 'K')
-    num *= 1024L;
-  else if (*endchar == 'm' || *endchar == 'M')
-    num *= 1024L * 1024L;
-  else if (*endchar == 'g' || *endchar == 'G')
-    num *= 1024L * 1024L * 1024L;
-  else if (*endchar) {
-    my_message_local(ERROR_LEVEL, EE_UNKNOWN_SUFFIX_FOR_VARIABLE, *endchar,
-                     option_name, argument);
-    *error = 1;
-    return 0;
-  }
-  return num;
-}
+    const uint ecode = std::is_unsigned<LLorULL>::value
+                           ? EE_INCORRECT_UINT_VALUE_FOR_OPTION
+                           : EE_INCORRECT_INT_VALUE_FOR_OPTION;
 
-/**
-  function: eval_num_suffix_ull
-  This is the same as eval_num_suffix, but is meant for unsigned long long
-  values. Transforms an unsigned number with a suffix to real number. Suffix can
-  be k|K for kilo, m|M for mega or g|G for giga.
-  @param [in]        argument      argument value for option_name
-  @param [in, out]   error         error no.
-  @param [in]        option_name   name of option
-*/
-
-static ulonglong eval_num_suffix_ull(char *argument, int *error,
-                                     char *option_name) {
-  char *endchar;
-  ulonglong num;
-
-  *error = 0;
-  errno = 0;
-  num = my_strtoull(argument, &endchar, 10);
-  if (errno == ERANGE) {
-    my_getopt_error_reporter(ERROR_LEVEL, EE_INCORRECT_UINT_VALUE_FOR_OPTION,
-                             argument);
+    my_getopt_error_reporter(ERROR_LEVEL, ecode, argument);
     *error = 1;
     return 0;
   }
-  if (*endchar == 'k' || *endchar == 'K')
-    num *= 1024L;
-  else if (*endchar == 'm' || *endchar == 'M')
-    num *= 1024L * 1024L;
-  else if (*endchar == 'g' || *endchar == 'G')
-    num *= 1024L * 1024L * 1024L;
-  else if (*endchar) {
-    my_message_local(ERROR_LEVEL, EE_UNKNOWN_SUFFIX_FOR_VARIABLE, *endchar,
-                     option_name, argument);
-    *error = 1;
-    return 0;
-  }
-  return num;
+  if (is_negative) return -result;
+  return result;
 }
 
 /*
@@ -1016,7 +1057,7 @@ static ulonglong eval_num_suffix_ull(char *argument, int *error,
 */
 
 static longlong getopt_ll(char *arg, const struct my_option *optp, int *err) {
-  longlong num = eval_num_suffix(arg, err, (char *)optp->name);
+  longlong num = eval_num_suffix<longlong>(arg, err, (char *)optp->name);
   return getopt_ll_limit_value(num, optp, NULL);
 }
 
@@ -1113,7 +1154,7 @@ static ulonglong getopt_ull(char *arg, const struct my_option *optp, int *err) {
                              EE_ADJUSTED_ULONGLONG_VALUE_FOR_OPTION, optp->name,
                              arg, ullstr(num, buf));
   } else
-    num = eval_num_suffix_ull(arg, err, (char *)optp->name);
+    num = eval_num_suffix<ulonglong>(arg, err, (char *)optp->name);
 
   return getopt_ull_limit_value(num, optp, NULL);
 }
