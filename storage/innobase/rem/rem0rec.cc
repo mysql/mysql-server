@@ -739,7 +739,9 @@ bool rec_convert_dtuple_to_rec_comp(rec_t *rec, const dict_index_t *index,
         }
         break;
       case REC_STATUS_NODE_PTR:
-        ut_ad(n_fields == dict_index_get_n_unique_in_tree_nonleaf(index) + 1);
+        ut_ad(n_fields ==
+              static_cast<ulint>(
+                  dict_index_get_n_unique_in_tree_nonleaf(index) + 1));
         n_node_ptr_field = n_fields - 1;
         n_null = index->n_instant_nullable;
         break;
