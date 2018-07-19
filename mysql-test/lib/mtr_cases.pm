@@ -1166,7 +1166,7 @@ sub collect_one_test_case {
   }
 
   # Check for a test that need SSL
-  if ($tinfo->{'need_ssl'} and !$::opt_ssl_supported) {
+  if ($tinfo->{'need_ssl'} and !$::ssl_supported) {
     # SSL is not supported, skip it
     skip_test($tinfo, "No SSL support");
     return $tinfo;
