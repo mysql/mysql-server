@@ -111,18 +111,6 @@ MACRO(ADD_IMPORTED_LIBRARY TARGET LOC)
     )
 ENDMACRO()
 
-# Write content to file, using CONFIGURE_FILE
-# The advantage compared to FILE(WRITE) is that timestamp
-# does not change if file already has the same content
-MACRO(CONFIGURE_FILE_CONTENT content file)
-  SET(CMAKE_CONFIGURABLE_FILE_CONTENT
-    "${content}\n")
-  CONFIGURE_FILE(
-    ${MYSQL_CMAKE_SCRIPT_DIR}/configurable_file_content.in
-    ${file}
-    @ONLY)
-ENDMACRO()
-
 # Create libs from libs.
 # Merge static libraries, creates shared libraries out of convenience libraries.
 MACRO(MERGE_LIBRARIES_SHARED)
