@@ -1001,7 +1001,7 @@ static byte *trx_undo_report_blob_update(page_t *undo_page, dict_index_t *index,
   trx_id_t last_trx_id;
   undo_no_t last_undo_no;
   ulint lob_version;
-  ulint f_page_type;
+  page_type_t f_page_type;
 
   /* Obtain LOB info. */
   lob::get_info(ref, index, lob_version, last_trx_id, last_undo_no, f_page_type,

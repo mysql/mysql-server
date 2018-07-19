@@ -4039,7 +4039,8 @@ dict_table_t *dd_open_table_one(dd::cache::Dictionary_client *client,
 
       uint32 dd_fsp_flags;
       if (dd_table->tablespace_id() == dict_sys_t::s_dd_space_id) {
-        dd_fsp_flags = dict_tf_to_fsp_flags(m_table->flags);
+        dd_fsp_flags =
+            static_cast<uint32>(dict_tf_to_fsp_flags(m_table->flags));
       } else {
         ut_ad(dd_space != nullptr);
         dd_space->se_private_data().get_uint32(

@@ -1461,7 +1461,7 @@ struct buf_block_t {
 
   /** Get the page type of the current buffer block.
   @return page type of the current buffer block. */
-  ulint get_page_type() const {
+  page_type_t get_page_type() const {
     return (mach_read_from_2(frame + FIL_PAGE_TYPE));
   }
 

@@ -111,7 +111,7 @@ inline uint32_t log_block_get_data_len(const byte *log_block) {
   return (mach_read_from_2(log_block + LOG_BLOCK_HDR_DATA_LEN));
 }
 
-inline void log_block_set_data_len(byte *log_block, uint32_t len) {
+inline void log_block_set_data_len(byte *log_block, ulint len) {
   mach_write_to_2(log_block + LOG_BLOCK_HDR_DATA_LEN, len);
 }
 

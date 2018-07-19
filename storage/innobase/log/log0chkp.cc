@@ -549,7 +549,8 @@ void log_create_first_checkpoint(log_t &log, lsn_t lsn) {
 
   block_offset = log_files_real_offset_for_lsn(log, block_lsn);
 
-  log_files_header_flush(log, block_offset / log.file_size, block_lsn);
+  uint32_t nth_file = static_cast<uint32_t>(block_offset / log.file_size);
+  log_files_header_flush(log, nth_file, block_lsn);
 
   /* Write the first, empty log block. */
   std::memset(block, 0x00, OS_FILE_LOG_BLOCK_SIZE);

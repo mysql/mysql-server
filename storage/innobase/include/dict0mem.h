@@ -1096,7 +1096,7 @@ struct dict_index_t {
   nth field
   @param[in]	nth	nth field to check */
   uint32_t get_n_nullable_before(uint32_t nth) const {
-    ulint nullable = n_nullable;
+    uint32_t nullable = n_nullable;
 
     ut_ad(nth <= n_fields);
 
@@ -1172,7 +1172,7 @@ struct dict_index_t {
   @param[in]	nth	nth field to get
   @param[in,out]	length	length of the default value
   @return	the default value data of nth field */
-  const byte *get_nth_default(uint16_t nth, ulint *length) const {
+  const byte *get_nth_default(ulint nth, ulint *length) const {
     ut_ad(nth < n_fields);
     ut_ad(get_instant_fields() <= nth);
     const dict_col_t *col = get_col(nth);
@@ -2021,7 +2021,7 @@ detect this and will eventually quit sooner. */
   happens.
   @return	the number of user columns as described above */
   uint16_t get_instant_cols() const {
-    return (n_instant_cols - get_n_sys_cols());
+    return static_cast<uint16_t>(n_instant_cols - get_n_sys_cols());
   }
 
   /** Check whether the table is corrupted.
@@ -2072,17 +2072,17 @@ detect this and will eventually quit sooner. */
   in the dictionary cache.
   @return number of user-defined (e.g., not ROW_ID) non-virtual columns
   of a table */
-  ulint get_n_user_cols() const {
+  uint16_t get_n_user_cols() const {
     ut_ad(magic_n == DICT_TABLE_MAGIC_N);
 
-    return (n_cols - get_n_sys_cols());
+    return (static_cast<uint16_t>(n_cols) - get_n_sys_cols());
   }
 
   /** Gets the number of system columns in a table.
   For intrinsic table on ROW_ID column is added for all other
   tables TRX_ID and ROLL_PTR are all also appeneded.
   @return number of system (e.g., ROW_ID) columns of a table */
-  ulint get_n_sys_cols() const {
+  uint16_t get_n_sys_cols() const {
     ut_ad(magic_n == DICT_TABLE_MAGIC_N);
 
     return (is_intrinsic() ? DATA_ITT_N_SYS_COLS : DATA_N_SYS_COLS);

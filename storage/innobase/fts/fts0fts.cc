@@ -3368,7 +3368,7 @@ static void fts_fetch_doc_from_rec(
   ulint num_field;
   const dict_field_t *ifield;
   const dict_col_t *col;
-  ulint clust_pos;
+  uint16_t clust_pos;
   ulint i;
   ulint doc_len = 0;
   ulint processed_doc = 0;
@@ -3389,7 +3389,7 @@ static void fts_fetch_doc_from_rec(
   for (i = 0; i < num_field; i++) {
     ifield = index->get_field(i);
     col = ifield->col;
-    clust_pos = dict_col_get_clust_pos(col, clust_index);
+    clust_pos = static_cast<uint16_t>(dict_col_get_clust_pos(col, clust_index));
 
     if (!get_doc->index_cache->charset) {
       get_doc->index_cache->charset = fts_get_charset(ifield->col->prtype);

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -182,7 +182,7 @@ std::ostream &z_index_entry_t::print_pages(std::ostream &out) const {
     buf_block_t *block = buf_page_get(page_id_t(space_id, page_no), page_size,
                                       RW_S_LATCH, m_mtr);
 
-    ulint type = block->get_page_type();
+    page_type_t type = block->get_page_type();
     out << "[page_no=" << page_no << ", type=" << block->get_page_type_str()
         << "]";
 
@@ -203,7 +203,7 @@ fil_addr_t z_index_entry_t::get_self() const {
   }
   page_t *frame = page_align(m_node);
   page_no_t page_no = mach_read_from_4(frame + FIL_PAGE_OFFSET);
-  ulint offset = m_node - frame;
+  uint32_t offset = static_cast<uint32_t>(m_node - frame);
   ut_ad(offset < UNIV_PAGE_SIZE);
   return (fil_addr_t(page_no, offset));
 }

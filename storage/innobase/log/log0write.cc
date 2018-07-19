@@ -1042,7 +1042,8 @@ static void start_next_file(log_t &log, lsn_t start_lsn) {
   ut_a(real_offset + OS_FILE_LOG_BLOCK_SIZE <= log.files_real_capacity);
 
   /* Flush header of the new log file. */
-  log_files_header_flush(log, real_offset / log.file_size, start_lsn);
+  uint32_t nth_file = static_cast<uint32_t>(real_offset / log.file_size);
+  log_files_header_flush(log, nth_file, start_lsn);
 
   /* Update following members of log:
   - current_file_lsn,

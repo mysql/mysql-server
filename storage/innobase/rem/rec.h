@@ -230,7 +230,7 @@ ulint rec_get_bit_field_1(
 
 /** Gets a bit field from within 2 bytes. */
 UNIV_INLINE
-ulint rec_get_bit_field_2(
+uint16_t rec_get_bit_field_2(
     const rec_t *rec, /*!< in: pointer to record origin */
     ulint offs,       /*!< in: offset from the origin down */
     ulint mask,       /*!< in: mask used to filter bits */
@@ -295,10 +295,10 @@ ulint rec_get_info_bits_temp(const rec_t *rec) {
 /** The following function is used to get the number of fields
  in an old-style record, which is stored in the rec
  @return number of data fields */
-UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ulint
+UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) uint16_t
     rec_get_n_fields_old_raw(const rec_t *rec) /*!< in: physical record */
 {
-  ulint ret;
+  uint16_t ret;
 
   ut_ad(rec);
 
@@ -459,7 +459,7 @@ field is a field added after an instant ADD COLUMN
 @param[in]	offs	Last offset before current field
 @return The offset of the specified field */
 UNIV_INLINE
-uint64_t rec_get_instant_offset(const dict_index_t *index, uint16_t n,
+uint64_t rec_get_instant_offset(const dict_index_t *index, ulint n,
                                 uint64_t offs) {
   ut_ad(index->has_instant_cols());
 
@@ -511,10 +511,11 @@ UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ibool rec_offs_validate(
     }
   }
   if (index) {
-    ulint max_n_fields;
+    uint16_t max_n_fields;
     ut_ad((ulint)index == offsets[3]);
-    max_n_fields = ut_max(dict_index_get_n_fields(index),
-                          dict_index_get_n_unique_in_tree(index) + 1);
+    uint16_t n_fields = dict_index_get_n_fields(index);
+    uint16_t n_unique_in_tree = dict_index_get_n_unique_in_tree(index) + 1;
+    max_n_fields = ut_max(n_fields, n_unique_in_tree);
     if (!comp && rec != nullptr && rec_get_n_fields_old_raw(rec) < i) {
       ut_a(index->has_instant_cols());
     }
@@ -707,7 +708,7 @@ void rec_init_offsets_comp_ordinary(
     ulint *offsets)            /*!< in/out: array of offsets;
                                in: n=rec_offs_n_fields(offsets) */
 {
-  ulint i = 0;
+  uint16_t i = 0;
   ulint offs = 0;
   ulint any_ext = 0;
   uint16_t n_null = 0;
@@ -744,7 +745,7 @@ void rec_init_offsets_comp_ordinary(
   do {
     const dict_field_t *field = index->get_field(i);
     const dict_col_t *col = field->col;
-    ulint len;
+    uint64_t len;
 
     if (i >= non_default_fields) {
       ut_ad(index->has_instant_cols());

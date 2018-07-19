@@ -1118,7 +1118,7 @@ ulint rec_get_converted_size(
 UNIV_INLINE
 ulint rec_fold(const rec_t *rec, const ulint *offsets, ulint n_fields,
                ulint n_bytes, ulint fold, const dict_index_t *index) {
-  ulint i;
+  uint16_t i;
   const byte *data;
   ulint len;
   ulint n_fields_rec;
@@ -1167,7 +1167,7 @@ ulint rec_fold(const rec_t *rec, const ulint *offsets, ulint n_fields,
 @param[in]	n_fields	number of fields in the record
 @return	length of specified number of fields */
 UNIV_INLINE
-uint8_t rec_get_n_fields_length(uint16_t n_fields) {
+uint8_t rec_get_n_fields_length(ulint n_fields) {
   return (n_fields > REC_N_FIELDS_ONE_BYTE_MAX ? 2 : 1);
 }
 

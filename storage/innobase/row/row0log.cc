@@ -676,7 +676,7 @@ new table, not latched */
   dtuple_set_n_fields_cmp(tuple, dict_index_get_n_unique(index));
 
   if (rec_get_1byte_offs_flag(rec)) {
-    for (ulint i = 0; i < index->n_fields; i++) {
+    for (uint16_t i = 0; i < index->n_fields; i++) {
       dfield_t *dfield;
       ulint len;
       const void *field;
@@ -687,7 +687,7 @@ new table, not latched */
       dfield_set_data(dfield, field, len);
     }
   } else {
-    for (ulint i = 0; i < index->n_fields; i++) {
+    for (uint16_t i = 0; i < index->n_fields; i++) {
       dfield_t *dfield;
       ulint len;
       const void *field;
@@ -2473,9 +2473,9 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   dict_index_t *index = const_cast<dict_index_t *>(dup->index);
   dict_table_t *new_table = index->online_log->table;
   dict_index_t *new_index = new_table->first_index();
-  const ulint i = 1 + REC_OFFS_HEADER_SIZE +
-                  ut_max(dict_index_get_n_fields(index),
-                         dict_index_get_n_unique(new_index) + 2);
+  uint16_t n_fields = dict_index_get_n_fields(index);
+  uint16_t n_unique = dict_index_get_n_unique(new_index) + 2;
+  const ulint i = 1 + REC_OFFS_HEADER_SIZE + ut_max(n_fields, n_unique);
   const ulint trx_id_col =
       dict_col_get_clust_pos(index->table->get_sys_col(DATA_TRX_ID), index);
   const ulint new_trx_id_col =

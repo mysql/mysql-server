@@ -264,7 +264,7 @@ class Filesort_buffer {
   /// Pointer to the beginning of each record.
   std::vector<uchar *> m_record_pointers;
 
-  uint m_max_record_length;  ///< Worst-case length of each record.
+  size_t m_max_record_length;  ///< Worst-case length of each record.
 
   /// Maximum number of bytes we are allowed to allocate in all.
   size_t m_max_size_in_bytes;

@@ -397,7 +397,7 @@ inline uint32_t log_block_get_data_len(const byte *log_block);
 /** Sets the log block data length.
 @param[in,out]	log_block	log block
 @param[in]	len		data length (@see log_block_get_data_len) */
-inline void log_block_set_data_len(byte *log_block, uint32_t len);
+inline void log_block_set_data_len(byte *log_block, ulint len);
 
 /** Gets an offset to the beginning of the first group of log records
 in a given log block.

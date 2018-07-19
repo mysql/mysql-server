@@ -753,7 +753,7 @@ dberr_t dict_index_add_to_cache_w_vcol(dict_table_t *table, dict_index_t *index,
  including fields added by the dictionary system.
  @return number of fields */
 UNIV_INLINE
-ulint dict_index_get_n_fields(
+uint16_t dict_index_get_n_fields(
     const dict_index_t *index) /*!< in: an internal
                                representation of index (in
                                the dictionary cache) */
@@ -764,7 +764,7 @@ ulint dict_index_get_n_fields(
  returned by dict_index_get_n_unique_in_tree.
  @return number of fields */
 UNIV_INLINE
-ulint dict_index_get_n_unique(
+uint16_t dict_index_get_n_unique(
     const dict_index_t *index) /*!< in: an internal representation
                                of index (in the dictionary cache) */
     MY_ATTRIBUTE((warn_unused_result));
@@ -773,7 +773,7 @@ ulint dict_index_get_n_unique(
  we also take multiversioning into account.
  @return number of fields */
 UNIV_INLINE
-ulint dict_index_get_n_unique_in_tree(
+uint16_t dict_index_get_n_unique_in_tree(
     const dict_index_t *index) /*!< in: an internal representation
                                of index (in the dictionary cache) */
     MY_ATTRIBUTE((warn_unused_result));
@@ -789,7 +789,7 @@ include page no field.
 @param[in]	index	index
 @return number of fields */
 UNIV_INLINE
-ulint dict_index_get_n_unique_in_tree_nonleaf(const dict_index_t *index)
+uint16_t dict_index_get_n_unique_in_tree_nonleaf(const dict_index_t *index)
     MY_ATTRIBUTE((warn_unused_result));
 /** Gets the number of user-defined ordering fields in the index. In the
  internal representation we add the row id to the ordering fields to make all

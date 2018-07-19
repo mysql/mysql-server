@@ -425,7 +425,7 @@ struct dfield_t {
 
   /** Obtain the LOB version number, if this is an externally
   stored field. */
-  ulint lob_version() const;
+  uint32_t lob_version() const;
 
   dfield_t()
       : data(nullptr), ext(0), spatial_status(0), len(0), type({0, 0, 0, 0}) {}

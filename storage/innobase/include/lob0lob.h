@@ -357,7 +357,7 @@ struct ref_t {
 
   /** Read the LOB version from the blob reference.
   @return the LOB version number. */
-  ulint version() const {
+  uint32_t version() const {
     return (mach_read_from_4(m_ref + BTR_EXTERN_VERSION));
   }
 

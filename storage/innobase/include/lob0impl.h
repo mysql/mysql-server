@@ -616,7 +616,7 @@ struct z_frag_entry_t {
   fil_addr_t get_self_addr() const {
     page_t *frame = page_align(m_node);
     page_no_t page_no = mach_read_from_4(frame + FIL_PAGE_OFFSET);
-    ulint offset = m_node - frame;
+    uint16_t offset = static_cast<uint16_t>(m_node - frame);
     ut_ad(offset < UNIV_PAGE_SIZE);
     return (fil_addr_t(page_no, offset));
   }
@@ -813,12 +813,12 @@ struct z_index_page_t {
   }
 
   /** Get the page number. */
-  ulint get_page_no() const {
+  page_no_t get_page_no() const {
     return (mach_read_from_4(frame() + FIL_PAGE_OFFSET));
   }
 
   /** Get the next page number. */
-  ulint get_next_page_no() const {
+  page_no_t get_next_page_no() const {
     return (mach_read_from_4(frame() + FIL_PAGE_NEXT));
   }
 
@@ -1032,12 +1032,12 @@ struct z_frag_node_page_t {
   }
 
   /** Get the page number. */
-  ulint get_page_no() const {
+  page_no_t get_page_no() const {
     return (mach_read_from_4(frame() + FIL_PAGE_OFFSET));
   }
 
   /** Get the next page number. */
-  ulint get_next_page_no() const {
+  page_no_t get_next_page_no() const {
     return (mach_read_from_4(frame() + FIL_PAGE_NEXT));
   }
 
@@ -1712,12 +1712,12 @@ struct z_frag_page_t {
     mlog_write_ulint(ptr, FIL_PAGE_TYPE_ZLOB_FRAG, MLOG_2BYTES, m_mtr);
   }
 
-  ulint get_page_type() const {
+  page_type_t get_page_type() const {
     return (mach_read_from_2(frame() + FIL_PAGE_TYPE));
   }
 
   const char *get_page_type_str() const {
-    ulint type = get_page_type();
+    page_type_t type = get_page_type();
     ut_a(type == FIL_PAGE_TYPE_ZLOB_FRAG);
     return ("FIL_PAGE_TYPE_ZLOB_FRAG");
   }

@@ -112,7 +112,7 @@ dberr_t get_affected_index_entries(const ref_t &ref, dict_index_t *index,
 
 #ifdef UNIV_DEBUG
   {
-    ulint page_type = first_page.get_page_type();
+    page_type_t page_type = first_page.get_page_type();
     ut_ad(page_type == FIL_PAGE_TYPE_LOB_FIRST);
   }
 #endif /* UNIV_DEBUG */
@@ -181,7 +181,7 @@ dberr_t get_affected_index_entries(const ref_t &ref, dict_index_t *index,
 @return always returns DB_SUCCESS. */
 dberr_t get_info(ref_t &ref, dict_index_t *index, ulint &lob_version,
                  trx_id_t &last_trx_id, undo_no_t &last_undo_no,
-                 ulint &page_type, mtr_t *mtr) {
+                 page_type_t &page_type, mtr_t *mtr) {
   page_no_t first_page_no = ref.page_no();
   space_id_t space_id = ref.space_id();
   const page_size_t page_size = dict_table_page_size(index->table);

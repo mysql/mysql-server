@@ -405,7 +405,7 @@ buf_block_t *z_first_page_t::load_x(const page_id_t &page_id,
 #ifdef UNIV_DEBUG
   /* Dump the page into the log file, if the page type is not matching
   one of the first page types. */
-  ulint page_type = get_page_type();
+  page_type_t page_type = get_page_type();
 
   switch (page_type) {
     case FIL_PAGE_TYPE_ZBLOB:
