@@ -338,14 +338,14 @@ UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) uint16_t
     ut_ad(static_cast<uint16_t>(dict_index_get_n_fields(index)) > n_uniq + 1);
     if (n > n_uniq + 1) {
 #ifdef UNIV_DEBUG
-      uint16_t rec_diff = dict_index_get_n_fields(index) - n;
-      uint16_t col_diff = index->table->n_cols - index->table->n_instant_cols;
+      ulint rec_diff = dict_index_get_n_fields(index) - n;
+      ulint col_diff = index->table->n_cols - index->table->n_instant_cols;
       ut_ad(rec_diff <= col_diff);
       if (n != dict_index_get_n_fields(index)) {
         ut_ad(index->has_instant_cols());
       }
 #endif /* UNIV_DEBUG */
-      n = dict_index_get_n_fields(index);
+      n = static_cast<uint16_t>(dict_index_get_n_fields(index));
     }
   }
 
@@ -511,10 +511,10 @@ UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ibool rec_offs_validate(
     }
   }
   if (index) {
-    uint16_t max_n_fields;
+    ulint max_n_fields;
     ut_ad((ulint)index == offsets[3]);
-    uint16_t n_fields = dict_index_get_n_fields(index);
-    uint16_t n_unique_in_tree = dict_index_get_n_unique_in_tree(index) + 1;
+    ulint n_fields = dict_index_get_n_fields(index);
+    ulint n_unique_in_tree = dict_index_get_n_unique_in_tree(index) + 1;
     max_n_fields = ut_max(n_fields, n_unique_in_tree);
     if (!comp && rec != nullptr && rec_get_n_fields_old_raw(rec) < i) {
       ut_a(index->has_instant_cols());
@@ -626,7 +626,8 @@ UNIV_INLINE
 uint16_t rec_init_null_and_len_temp(const rec_t *rec, const dict_index_t *index,
                                     const byte **nulls, const byte **lens,
                                     uint16_t *n_null) {
-  uint16_t non_default_fields = dict_index_get_n_fields(index);
+  uint16_t non_default_fields =
+      static_cast<uint16_t>(dict_index_get_n_fields(index));
 
   *nulls = rec - 1;
 
@@ -668,7 +669,8 @@ UNIV_INLINE
 uint16_t rec_init_null_and_len_comp(const rec_t *rec, const dict_index_t *index,
                                     const byte **nulls, const byte **lens,
                                     uint16_t *n_null) {
-  uint16_t non_default_fields = dict_index_get_n_fields(index);
+  uint16_t non_default_fields =
+      static_cast<uint16_t>(dict_index_get_n_fields(index));
 
   *nulls = rec - (REC_N_NEW_EXTRA_BYTES + 1);
 
