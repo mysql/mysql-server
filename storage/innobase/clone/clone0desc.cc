@@ -167,8 +167,9 @@ uint32_t *Chnunk_Bitmap::reset(uint32_t max_bits, mem_heap_t *heap) {
   m_bits = max_bits;
 
   if (max_bits <= capacity()) {
-    memset(m_bitmap, 0, size());
-
+    if (m_bitmap != nullptr && size() > 0) {
+      memset(m_bitmap, 0, size());
+    }
     return (nullptr);
   }
 
