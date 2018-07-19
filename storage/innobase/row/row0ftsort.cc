@@ -755,8 +755,8 @@ loop:
       if (dfield_is_ext(dfield)) {
         dict_index_t *clust_index = old_table->first_index();
         doc.text.f_str = lob::btr_copy_externally_stored_field(
-            clust_index, &doc.text.f_len, nullptr, data, page_size, data_len,
-            false, blob_heap);
+            nullptr, clust_index, &doc.text.f_len, nullptr, data, page_size,
+            data_len, false, blob_heap);
       } else {
         doc.text.f_str = data;
         doc.text.f_len = data_len;

@@ -138,7 +138,7 @@ static ibool row_sel_sec_rec_is_for_blob(
   }
 
   len = lob::btr_copy_externally_stored_field_prefix(
-      table->first_index(), buf, prefix_len,
+      trx, table->first_index(), buf, prefix_len,
       dict_tf_get_page_size(table->flags), clust_field,
       dict_table_is_sdi(table->id), clust_len);
 
@@ -306,7 +306,7 @@ static dberr_t row_sel_sec_rec_is_for_clust_rec(
       geo data to generate the MBR for comparing. */
       if (rec_offs_nth_extern(clust_offs, clust_pos)) {
         dptr = lob::btr_copy_externally_stored_field(
-            clust_index, &clust_len, nullptr, dptr,
+            trx, clust_index, &clust_len, nullptr, dptr,
             dict_tf_get_page_size(sec_index->table->flags), len,
             dict_index_is_sdi(sec_index), heap);
       }
@@ -489,8 +489,8 @@ static void row_sel_fetch_columns(
         heap = mem_heap_create(1);
 
         data = lob::btr_rec_copy_externally_stored_field(
-            index, rec, offsets, dict_table_page_size(index->table), field_no,
-            &len, nullptr, dict_index_is_sdi(index), heap);
+            trx, index, rec, offsets, dict_table_page_size(index->table),
+            field_no, &len, nullptr, dict_index_is_sdi(index), heap);
 
         /* data == NULL means that the
         externally stored field was not
@@ -2815,8 +2815,8 @@ static MY_ATTRIBUTE((warn_unused_result)) ibool
     size_t lob_version = 0;
 
     data = lob::btr_rec_copy_externally_stored_field(
-        clust_index, rec, offsets, page_size, field_no, &len, &lob_version,
-        dict_index_is_sdi(index), heap);
+        prebuilt->trx, clust_index, rec, offsets, page_size, field_no, &len,
+        &lob_version, dict_index_is_sdi(index), heap);
 
     if (UNIV_UNLIKELY(!data)) {
       /* The externally stored field was not written

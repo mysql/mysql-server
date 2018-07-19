@@ -21447,7 +21447,7 @@ dfield_t *innobase_get_computed_value(
       }
 
       data = lob::btr_copy_externally_stored_field(
-          clust_index, &len, nullptr, data, page_size,
+          thd_to_trx(thd), clust_index, &len, nullptr, data, page_size,
           dfield_get_len(row_field), false, *local_heap);
     }
 

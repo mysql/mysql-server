@@ -1006,7 +1006,7 @@ static dberr_t row_log_table_get_pk_col(trx_t *trx, dict_index_t *index,
     blob_field = static_cast<byte *>(mem_heap_alloc(heap, field_len));
 
     len = lob::btr_copy_externally_stored_field_prefix(
-        index, blob_field, field_len, page_size, field, false, len);
+        nullptr, index, blob_field, field_len, page_size, field, false, len);
 
     if (len >= max_len + 1) {
       return (DB_TOO_BIG_INDEX_COL);
@@ -1360,8 +1360,8 @@ static MY_ATTRIBUTE((warn_unused_result))
       TABLE trx is not the owner of this LOB. So instead
       of passing current trx, a nullptr is passed for trx.*/
       data = lob::btr_rec_copy_externally_stored_field(
-          index, mrec, offsets, dict_table_page_size(index->table), i, &len,
-          nullptr, false, heap);
+          nullptr, index, mrec, offsets, dict_table_page_size(index->table), i,
+          &len, nullptr, false, heap);
 
       ut_a(data);
       dfield_set_data(dfield, data, len);

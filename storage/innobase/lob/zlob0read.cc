@@ -54,6 +54,12 @@ ulint z_read(ReadContext *ctx, lob::ref_t ref, ulint offset, ulint len,
     return (0);
   }
 
+  if (ref.is_being_modified()) {
+    /* This should happen only for READ UNCOMMITTED transactions. */
+    ut_ad(ctx->assert_read_uncommitted());
+    return (0);
+  }
+
   const uint32_t lob_version = ref.offset();
 
   fil_addr_t old_node_loc = fil_addr_null;

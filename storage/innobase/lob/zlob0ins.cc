@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -95,6 +95,7 @@ void zInserter::update_length_in_blobref(big_rec_field_t &field) {
 
   ref_t blobref(field_ref);
   blobref.set_length(m_stream.total_in, nullptr);
+  blobref.set_being_modified(false);
 
   if (!m_ctx->is_bulk()) {
     m_ctx->zblob_write_blobref(field_no, &m_blob_mtr);

@@ -430,8 +430,8 @@ static void row_merge_buf_redundant_convert_func(
                 field_ref_zero, BTR_EXTERN_FIELD_REF_SIZE));
 
     byte *data = lob::btr_copy_externally_stored_field(
-        clust_index, &ext_len, nullptr, field_data, page_size, field_len,
-        is_sdi, heap);
+        nullptr, clust_index, &ext_len, nullptr, field_data, page_size,
+        field_len, is_sdi, heap);
 
     ut_ad(ext_len < len);
 
@@ -2825,10 +2825,12 @@ static void row_merge_copy_blobs_func(trx_t *trx, const dict_index_t *index,
                   field_ref_zero, BTR_EXTERN_FIELD_REF_SIZE));
 
       data = lob::btr_copy_externally_stored_field(
-          index, &len, nullptr, field_data, page_size, field_len, is_sdi, heap);
+          nullptr, index, &len, nullptr, field_data, page_size, field_len,
+          is_sdi, heap);
     } else {
       data = lob::btr_rec_copy_externally_stored_field(
-          index, mrec, offsets, page_size, i, &len, nullptr, is_sdi, heap);
+          nullptr, index, mrec, offsets, page_size, i, &len, nullptr, is_sdi,
+          heap);
     }
 
     /* Because we have locked the table, any records

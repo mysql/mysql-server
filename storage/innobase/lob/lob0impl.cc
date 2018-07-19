@@ -500,6 +500,7 @@ dberr_t z_insert(InsertContext *ctx, trx_t *trx, ref_t &ref,
 
   ref.update(space_id, first_page_no, 1, 0);
   ref.set_length(len, 0);
+  ref.set_being_modified(false);
 
   ctx->make_nth_extern(field->field_no);
 
@@ -1040,6 +1041,12 @@ ulint read(ReadContext *ctx, ref_t ref, ulint offset, ulint len, byte *buf) {
 
   if (avail_lob == 0) {
     DBUG_RETURN(0);
+  }
+
+  if (ref.is_being_modified()) {
+    /* This should happen only for READ UNCOMMITTED transactions. */
+    ut_ad(ctx->assert_read_uncommitted());
+    return (0);
   }
 
   ut_ad(ctx->m_index->is_clustered());

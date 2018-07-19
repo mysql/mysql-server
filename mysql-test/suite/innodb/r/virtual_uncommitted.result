@@ -25,10 +25,13 @@ INDEX idx_a(a),
 INDEX idx_c(c),
 INDEX idx_vj(vj)
 ) ROW_FORMAT=COMPACT;
+set @json_data_a = repeat('a', @page_size * @page_count);
+set @json_data_b = repeat('b', @page_size * @page_count);
+set @json_data_c = repeat('c', @page_size * @page_count);
 INSERT INTO t VALUES
-(1, 'aaaa123xx', CONCAT('{ "hash": "the_hash_a", "data": "', REPEAT('a', @page_size * @page_count), '" }'), DEFAULT),
-(2, 'aaaa1234x', CONCAT('{ "hash": "the_hash_b", "data": "', REPEAT('b', @page_size * @page_count), '" }'), DEFAULT),
-(3, 'aaaa12345', CONCAT('{ "hash": "the_hash_c", "data": "', REPEAT('c', @page_size * @page_count), '" }'), DEFAULT);
+(1, 'aaaa123xx', CONCAT('{ "hash": "the_hash_a", "data": "', @json_data_a, '" }'), DEFAULT),
+(2, 'aaaa1234x', CONCAT('{ "hash": "the_hash_b", "data": "', @json_data_b, '" }'), DEFAULT),
+(3, 'aaaa12345', CONCAT('{ "hash": "the_hash_c", "data": "', @json_data_c, '" }'), DEFAULT);
 # Connection con1:
 SET DEBUG_SYNC='blob_write_middle_after_check SIGNAL s1 WAIT_FOR s2 EXECUTE 2';
 BEGIN;
@@ -37,8 +40,14 @@ UPDATE t SET j=json_set(j,'$.hash','"the_hash_x"') WHERE a=2;
 # Connection default:
 SET DEBUG_SYNC='now WAIT_FOR s1';
 SET DEBUG_SYNC='now SIGNAL s2 WAIT_FOR s1';
-SELECT * FROM t WHERE vj LIKE 'the_hash_%';
-ERROR HY000: The JSON binary value contains invalid data.
+SELECT json_extract(j, "$.data")  = @json_data_a FROM t WHERE vj LIKE 'the_hash_a';
+json_extract(j, "$.data")  = @json_data_a
+1
+SELECT json_extract(j, "$.data")  = @json_data_b FROM t WHERE vj LIKE 'the_hash_b';
+json_extract(j, "$.data")  = @json_data_b
+SELECT json_extract(j, "$.data")  = @json_data_c FROM t WHERE vj LIKE 'the_hash_c';
+json_extract(j, "$.data")  = @json_data_c
+1
 SET DEBUG_SYNC='now SIGNAL s2';
 # Connection con1:
 ROLLBACK;
@@ -51,7 +60,9 @@ UPDATE t SET j=json_set(j,'$.hash','"the_hash_x"') WHERE a=2;
 SET DEBUG_SYNC='now WAIT_FOR s1';
 SET DEBUG_SYNC='now SIGNAL s2 WAIT_FOR s1';
 SELECT vj FROM t WHERE c LIKE 'aaaa1234%';
-ERROR HY000: The JSON binary value contains invalid data.
+vj
+the_hash_c
+NULL
 SET DEBUG_SYNC='now SIGNAL s2';
 # Connection con1:
 ROLLBACK;
