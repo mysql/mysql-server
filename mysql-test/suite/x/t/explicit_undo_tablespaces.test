@@ -34,6 +34,7 @@ EOF
 --remove_file $MYSQL_TMP_DIR/mysqlx-undo_sql.tmp
 
 # Check metadata info
+let $wait_timeout= 300; # Override default 30 seconds with 300.
 let $wait_condition= SELECT count(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
                      WHERE NAME LIKE '%undo_%' AND STATE = 'empty';
 source include/wait_condition.inc;

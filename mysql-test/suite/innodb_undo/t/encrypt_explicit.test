@@ -56,6 +56,7 @@ ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
 ALTER UNDO TABLESPACE undo_004 SET INACTIVE;
 
 # Wait until implicit undo tablespace become empty
+let $wait_timeout= 300; # Override default 30 seconds with 300.
 let $wait_condition= SELECT count(*) = 2 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
                      WHERE NAME LIKE '%undo%' AND STATE = 'empty';
 source include/wait_condition.inc;

@@ -1239,14 +1239,14 @@ void Clone_Task_Manager::reinit_apply_state(const byte *ref_loc, uint ref_len,
   temp_locator.m_metadata_transferred = m_transferred_file_meta;
 
   auto len = temp_locator.m_header.m_length;
-  len += m_chunk_info.get_serialized_length(0);
+  len += static_cast<uint>(m_chunk_info.get_serialized_length(0));
 
   if (len > alloc_len) {
     /* Allocate for more for possible reuse */
     len = CLONE_DESC_MAX_BASE_LEN;
     ut_ad(len >= temp_locator.m_header.m_length);
 
-    len += m_chunk_info.get_serialized_length(64);
+    len += static_cast<uint>(m_chunk_info.get_serialized_length(64));
 
     auto heap = m_clone_snapshot->lock_heap();
 

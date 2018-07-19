@@ -229,7 +229,7 @@ uint32_t Chnunk_Bitmap::get_min_unset_bit() {
 
   ut_ad(index < 32);
 
-  return_bit += index;
+  return_bit += static_cast<uint32_t>(index);
 
   /* Change from 0 to 1 based index */
   ++return_bit;
@@ -263,7 +263,7 @@ uint32_t Chnunk_Bitmap::get_max_set_bit() {
   }
 
   --block_index;
-  return_bit = block_index * 32;
+  return_bit = static_cast<uint32_t>(block_index * 32);
 
   auto val = m_bitmap[block_index];
   ut_ad(val != 0);
@@ -281,7 +281,7 @@ uint32_t Chnunk_Bitmap::get_max_set_bit() {
 
   } while (++index < 32);
 
-  return_bit += block_index;
+  return_bit += static_cast<uint32_t>(block_index);
 
   /* Change from 0 to 1 based index */
   ++return_bit;
