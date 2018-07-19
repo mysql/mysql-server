@@ -9050,6 +9050,7 @@ enum_field_types Item_type_holder::real_data_type(Item *item) {
   Find field type which can carry current Item_type_holder type and
   type of given Item.
 
+  @param thd     the thread/connection descriptor
   @param item    given item to join its parameters with this item ones
 
   @retval
