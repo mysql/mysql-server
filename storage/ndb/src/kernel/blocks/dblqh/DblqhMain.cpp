@@ -20214,6 +20214,7 @@ void Dblqh::checkInitCompletedLab(Signal* signal)
                       " logPart = %u",
                       instance(),
                       logPartPtr.i);
+  crExecUndoLogState = EULS_COMPLETED;
 /*---------------------------------------------------------------------------*/
 /* WE HAVE NOW INITIALISED ALL FILES IN THIS LOG PART. WE CAN NOW SET THE    */
 /* THE LOG LAP TO ONE SINCE WE WILL START WITH LOG LAP ONE. LOG LAP = ZERO   */
