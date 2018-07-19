@@ -1,12 +1,41 @@
-#! /bin/sh
+#! /bin/bash
 
-rm -f TAGS
+# Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+
+tagstyle=${1:-etags}
+
+common_opts="--langmap=C++:+.ic,YACC:+.yy -I MY_ATTRIBUTE+"
+case $tagstyle in
+    "etags") tagfile=TAGS
+             tagopt="-e $common_opts"
+             ;;
+    "ctags") tagfile=tags
+             tagopt="--fields=+l $common_opts"
+             ;;
+    *) echo "$0 [etags|ctags]"
+       exit 1
+       ;;
+esac
+
+rm -f $tagfile
 filter='\.cpp$\|\.cc$\|\.c$\|\.h$\|sql_yacc\.yy$\|\.hpp$\|\.ic$'
 
 list="find . -type f"
 git rev-parse >/dev/null 2>/dev/null && list="git ls-files"
 
-$list |grep $filter |while read f; 
-do
-	 etags -o TAGS --append $f
-done
+ctags $tagopt -o $tagfile $( $list | grep $filter )
+
+echo "wrote file `pwd`/$tagfile"
