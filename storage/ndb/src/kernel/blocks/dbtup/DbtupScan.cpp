@@ -1388,6 +1388,7 @@ Dbtup::setup_change_page_for_scan(ScanOp& scan,
     return ZSCAN_FOUND_PAGE_END;
   }
   Uint32 num_changes = fix_page->get_num_changes();
+  num_changes = 16;
   if (num_changes <= 15)
   {
     jam();
