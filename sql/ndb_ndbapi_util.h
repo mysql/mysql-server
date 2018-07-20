@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -106,6 +106,11 @@ bool ndb_table_has_tablespace(const NdbDictionary::Table* ndbtab);
 const char* ndb_table_tablespace_name(const NdbDictionary::Table* ndbtab);
 
 
-
+/**
+ * @brief Checks if an error has occurred in a ndbapi call
+ * @param dict  NDB Dictionary
+ * @return true if error has occurred, false if not
+ */
+bool ndb_dict_check_NDB_error(NdbDictionary::Dictionary* dict);
 
 #endif

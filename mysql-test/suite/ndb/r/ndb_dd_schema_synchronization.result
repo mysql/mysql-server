@@ -1,0 +1,137 @@
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'lg1_undofile.dat'
+  INITIAL_SIZE 1M
+UNDO_BUFFER_SIZE = 1M
+ENGINE=NDB;
+CREATE TABLESPACE ts1
+ADD DATAFILE 'ts1_datafile.dat'
+  USE LOGFILE GROUP lg1
+INITIAL_SIZE 2M
+ENGINE NDB;
+CREATE TABLESPACE ts2
+ADD DATAFILE 'ts2_datafile.dat'
+  USE LOGFILE GROUP lg1
+INITIAL_SIZE 2M
+ENGINE NDB;
+CREATE TABLESPACE ts3
+ADD DATAFILE 'ts3_datafile.dat'
+  USE LOGFILE GROUP lg1
+INITIAL_SIZE 2M
+ENGINE NDB;
+SELECT name, engine FROM mysql.tablespaces WHERE engine='ndbcluster';
+name	engine
+lg1	ndbcluster
+ts1	ndbcluster
+ts2	ndbcluster
+ts3	ndbcluster
+SELECT file_name FROM mysql.tablespace_files WHERE file_name LIKE '%dat';
+file_name
+lg1_undofile.dat
+ts1_datafile.dat
+ts2_datafile.dat
+ts3_datafile.dat
+"Start Backup"
+ALTER TABLESPACE ts1
+DROP DATAFILE 'ts1_datafile.dat';
+DROP TABLESPACE ts1;
+ALTER TABLESPACE ts2
+DROP DATAFILE 'ts2_datafile.dat';
+DROP TABLESPACE ts2;
+ALTER TABLESPACE ts3
+DROP DATAFILE 'ts3_datafile.dat';
+DROP TABLESPACE ts3;
+DROP LOGFILE GROUP lg1
+ENGINE=NDB;
+"Restore backup"
+# restart
+# restart
+SELECT name, engine from mysql.tablespaces WHERE engine='ndbcluster';
+name	engine
+lg1	ndbcluster
+ts1	ndbcluster
+ts2	ndbcluster
+ts3	ndbcluster
+SELECT file_name FROM mysql.tablespace_files WHERE file_name LIKE '%dat';
+file_name
+lg1_undofile.dat
+ts1_datafile.dat
+ts2_datafile.dat
+ts3_datafile.dat
+"server2 before shutdown"
+SELECT name, engine from mysql.tablespaces WHERE engine='ndbcluster';
+name	engine
+lg1	ndbcluster
+ts1	ndbcluster
+ts2	ndbcluster
+ts3	ndbcluster
+SELECT file_name FROM mysql.tablespace_files WHERE file_name LIKE '%dat';
+file_name
+lg1_undofile.dat
+ts1_datafile.dat
+ts2_datafile.dat
+ts3_datafile.dat
+ALTER TABLESPACE ts1
+DROP DATAFILE 'ts1_datafile.dat';
+DROP TABLESPACE ts1;
+CREATE TABLESPACE ts1
+ADD DATAFILE 'ts1_datafile.dat'
+  USE LOGFILE GROUP lg1
+INITIAL_SIZE 2M
+ENGINE NDB;
+ALTER TABLESPACE ts2
+ADD DATAFILE 'ts2_datafile2.dat';
+ALTER TABLESPACE ts3
+ADD DATAFILE 'ts3_datafile2.dat';
+ALTER TABLESPACE ts3
+DROP DATAFILE 'ts3_datafile.dat';
+ALTER LOGFILE GROUP lg1
+ADD UNDOFILE 'lg1_undofile2.dat'
+  ENGINE=NDB;
+"server1 before reconnecting server2"
+SELECT name, engine from mysql.tablespaces WHERE engine='ndbcluster';
+name	engine
+lg1	ndbcluster
+ts1	ndbcluster
+ts2	ndbcluster
+ts3	ndbcluster
+SELECT file_name FROM mysql.tablespace_files WHERE file_name LIKE '%dat';
+file_name
+lg1_undofile.dat
+lg1_undofile2.dat
+ts1_datafile.dat
+ts2_datafile.dat
+ts2_datafile2.dat
+ts3_datafile2.dat
+"server2 after reconnect"
+SELECT name, engine from mysql.tablespaces WHERE engine='ndbcluster';
+name	engine
+lg1	ndbcluster
+ts1	ndbcluster
+ts2	ndbcluster
+ts3	ndbcluster
+SELECT file_name FROM mysql.tablespace_files WHERE file_name LIKE '%dat';
+file_name
+lg1_undofile.dat
+lg1_undofile2.dat
+ts1_datafile.dat
+ts2_datafile.dat
+ts2_datafile2.dat
+ts3_datafile2.dat
+ALTER TABLESPACE ts1
+DROP DATAFILE 'ts1_datafile.dat';
+DROP TABLESPACE ts1;
+ALTER TABLESPACE ts2
+DROP DATAFILE 'ts2_datafile.dat';
+ALTER TABLESPACE ts2
+DROP DATAFILE 'ts2_datafile2.dat';
+DROP TABLESPACE ts2;
+ALTER TABLESPACE ts3
+DROP DATAFILE 'ts3_datafile2.dat';
+DROP TABLESPACE ts3;
+DROP LOGFILE GROUP lg1
+ENGINE=NDB;
+"server1 after reconnect"
+SELECT name, engine from mysql.tablespaces WHERE engine='ndbcluster';
+name	engine
+SELECT file_name FROM mysql.tablespace_files WHERE file_name LIKE '%dat';
+file_name

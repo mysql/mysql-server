@@ -2388,8 +2388,7 @@ int ha_ndbcluster::get_metadata(THD *thd, const dd::Table* table_def)
     if (tab->getTablespace(&id))
     {
       NdbDictionary::Tablespace ts= dict->getTablespace(id);
-      NdbError ndberr= dict->getNdbError();
-      if (ndberr.classification == NdbError::NoError)
+      if (ndb_dict_check_NDB_error(dict))
       {
         const char *tablespace= ts.getName();
         const size_t tablespace_len= strlen(tablespace);
@@ -17854,8 +17853,7 @@ int ndbcluster_get_tablespace(THD* thd,
   if (tab->getTablespace(&id))
   {
     NdbDictionary::Tablespace ts= dict->getTablespace(id);
-    NdbError ndberr= dict->getNdbError();
-    if (ndberr.classification == NdbError::NoError)
+    if (ndb_dict_check_NDB_error(dict))
     {
       const char *tablespace= ts.getName();
       DBUG_ASSERT(tablespace);
@@ -17987,10 +17985,10 @@ int ndbcluster_alter_tablespace(handlerton*,
     is_tablespace = true;
 
     /*
-     * Set se_private_data for the tablespace. This is required later
-     * in order to populate the I_S.FILES table
+     * Set se_private_id and se_private_data for the tablespace
      */
-
+    ndb_dd_disk_data_set_object_id_and_version(new_ts_def, object_id,
+                                               object_version);
     ndb_dd_disk_data_set_object_type(new_ts_def, object_type::TABLESPACE);
 
     break;
@@ -18039,8 +18037,7 @@ int ndbcluster_alter_tablespace(handlerton*,
     {
       NdbDictionary::Tablespace ts= dict->getTablespace(alter_info->tablespace_name);
       NdbDictionary::Datafile df= dict->getDatafile(0, alter_info->data_file_name);
-      const NdbError ndberr= dict->getNdbError();
-      if(ndberr.classification != NdbError::NoError)
+      if(ndb_dict_check_NDB_error(dict))
       {
         errmsg = " NO SUCH FILE"; // mapping all errors to "NO SUCH FILE"
         goto ndberror;
@@ -18154,7 +18151,8 @@ int ndbcluster_alter_tablespace(handlerton*,
 
     Ndb_dd_client dd_client(thd);
     const char* logfile_group_name= alter_info->logfile_group_name;
-    const char* undo_file_name= alter_info->undo_file_name;
+    std::vector<std::string> undo_file_names;
+    undo_file_names.push_back(alter_info->undo_file_name);
 
     // Acquire MDL locks on logfile group and add entry to DD
     const bool lock_logfile_group_result=
@@ -18169,7 +18167,10 @@ int ndbcluster_alter_tablespace(handlerton*,
 
     const bool install_logfile_group_result=
         dd_client.install_logfile_group(logfile_group_name,
-                                        undo_file_name);
+                                        undo_file_names,
+                                        object_id,
+                                        object_version,
+                                        false /* force_overwrite */ );
     if (!install_logfile_group_result)
     {
       DBUG_PRINT("warning",("Logfile Group %s could not be stored in DD",
@@ -18431,7 +18432,7 @@ bool ndbcluster_get_tablespace_statistics(const char *tablespace_name,
      * nodes, using the first available data node is acceptable.
      */
     NdbDictionary::Undofile uf= dict->getUndofile(-1, file_name);
-    if (dict->getNdbError().classification != NdbError::NoError)
+    if (ndb_dict_check_NDB_error(dict))
     {
       ndb_my_error(&dict->getNdbError());
       DBUG_RETURN(true);
@@ -18439,7 +18440,7 @@ bool ndbcluster_get_tablespace_statistics(const char *tablespace_name,
 
     NdbDictionary::LogfileGroup lfg=
       dict->getLogfileGroup(uf.getLogfileGroup());
-    if (dict->getNdbError().classification != NdbError::NoError)
+    if (ndb_dict_check_NDB_error(dict))
     {
       ndb_my_error(&dict->getNdbError());
       DBUG_RETURN(true);
@@ -18492,7 +18493,7 @@ bool ndbcluster_get_tablespace_statistics(const char *tablespace_name,
      * nodes, using the first available data node is acceptable.
      */
     NdbDictionary::Datafile df= dict->getDatafile(-1, file_name);
-    if (dict->getNdbError().classification != NdbError::NoError)
+    if (ndb_dict_check_NDB_error(dict))
     {
       ndb_my_error(&dict->getNdbError());
       DBUG_RETURN(true);
@@ -18500,7 +18501,7 @@ bool ndbcluster_get_tablespace_statistics(const char *tablespace_name,
 
     NdbDictionary::Tablespace ts=
       dict->getTablespace(df.getTablespace());
-    if (dict->getNdbError().classification != NdbError::NoError)
+    if (ndb_dict_check_NDB_error(dict))
     {
       ndb_my_error(&dict->getNdbError());
       DBUG_RETURN(true);

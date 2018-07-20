@@ -25,6 +25,8 @@
 #ifndef NDB_DD_DISK_DATA_H
 #define NDB_DD_DISK_DATA_H
 
+#include <vector>
+
 #include "sql/dd/properties.h"
 
 namespace dd {
@@ -37,6 +39,24 @@ namespace dd {
   prefixed with ndb_dd_disk_data
 */
 
+
+/*
+   Save the disk data object's id and version in the definition
+*/
+void
+ndb_dd_disk_data_set_object_id_and_version(dd::Tablespace* object_def,
+                                           int object_id, int object_version);
+
+
+/*
+  Return the definition's object id and version
+*/
+bool
+ndb_dd_disk_data_get_object_id_and_version(
+    const dd::Tablespace* object_def,
+    int& object_id, int& object_version);
+
+
 enum object_type
 {
   TABLESPACE,
@@ -48,7 +68,7 @@ enum object_type
 void ndb_dd_disk_data_set_object_type(dd::Properties &se_private_data,
                                       const enum object_type type);
 
-void ndb_dd_disk_data_set_object_type(dd::Tablespace* tablespace_def,
+void ndb_dd_disk_data_set_object_type(dd::Tablespace* object_def,
                                       const enum object_type type);
 
 /*
@@ -58,10 +78,17 @@ bool
 ndb_dd_disk_data_get_object_type(const dd::Properties &se_private_data,
                                  enum object_type &type);
 
+
 /*
-  Add undo log file to the logfile group
+  Add undo/data file to logfile group/tablespace
 */
-void ndb_dd_disk_data_add_undo_file(dd::Tablespace* logfile_group,
-                                    const char* undo_file_name);
+void ndb_dd_disk_data_add_file(dd::Tablespace* object_def,
+                               const char* file_name);
+
+/*
+  Retrieve file names belonging to the disk data object
+*/
+void ndb_dd_disk_data_get_file_names(const dd::Tablespace* object_def,
+                                     std::vector<std::string>& file_names);
 
 #endif

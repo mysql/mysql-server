@@ -149,7 +149,10 @@ Ndb_dd_client::mdl_lock_logfile_group(const char* logfile_group_name)
   MDL_request grl_request;
 
   // If protection against GRL can't be acquired, err out early.
-  if (m_thd->global_read_lock.can_acquire_protection()) return false;
+  if (m_thd->global_read_lock.can_acquire_protection())
+  {
+    return false;
+  }
 
   MDL_REQUEST_INIT(&logfile_group_request,
                    MDL_key::TABLESPACE, "", logfile_group_name,
@@ -177,6 +180,49 @@ Ndb_dd_client::mdl_lock_logfile_group(const char* logfile_group_name)
 
   return true;
 }
+
+
+bool
+Ndb_dd_client::mdl_lock_tablespace(const char* tablespace_name)
+{
+  MDL_request_list mdl_requests;
+  MDL_request tablespace_request;
+  MDL_request backup_lock_request;
+  MDL_request grl_request;
+
+  // If protection against GRL can't be acquired, err out early.
+  if (m_thd->global_read_lock.can_acquire_protection())
+  {
+    return false;
+  }
+
+  MDL_REQUEST_INIT(&tablespace_request,
+                   MDL_key::TABLESPACE, "", tablespace_name,
+                   MDL_EXCLUSIVE, MDL_EXPLICIT);
+  MDL_REQUEST_INIT(&backup_lock_request,
+                   MDL_key::BACKUP_LOCK, "", "", MDL_INTENTION_EXCLUSIVE,
+                   MDL_EXPLICIT);
+  MDL_REQUEST_INIT(&grl_request, MDL_key::GLOBAL, "", "",
+                   MDL_INTENTION_EXCLUSIVE, MDL_EXPLICIT);
+
+  mdl_requests.push_front(&tablespace_request);
+  mdl_requests.push_front(&backup_lock_request);
+  mdl_requests.push_front(&grl_request);
+
+  if (m_thd->mdl_context.acquire_locks(&mdl_requests,
+                                       m_thd->variables.lock_wait_timeout))
+  {
+    return false;
+  }
+
+  // Remember tickets of the acquired mdl locks
+  m_acquired_mdl_tickets.push_back(tablespace_request.ticket);
+  m_acquired_mdl_tickets.push_back(backup_lock_request.ticket);
+  m_acquired_mdl_tickets.push_back(grl_request.ticket);
+
+  return true;
+}
+
 
 bool
 Ndb_dd_client::mdl_locks_acquire_exclusive(const char* schema_name,
@@ -850,9 +896,206 @@ bool Ndb_dd_client::lookup_tablespace_id(const char* tablespace_name,
   DBUG_RETURN(true);
 }
 
+
+bool
+Ndb_dd_client::get_tablespace(const char *tablespace_name,
+                              const dd::Tablespace **tablespace_def)
+{
+  if (m_client->acquire(tablespace_name, tablespace_def))
+  {
+    return false;
+  }
+  return true;
+}
+
+
+bool Ndb_dd_client::fetch_ndb_tablespace_names(
+    std::unordered_set<std::string>& names)
+{
+  DBUG_ENTER("Ndb_dd_client::fetch_ndb_tablespace_names");
+
+  std::vector<const dd::Tablespace*> tablespaces;
+  if (m_client->fetch_global_components<dd::Tablespace>(&tablespaces))
+  {
+    DBUG_RETURN(false);
+  }
+
+  for (const dd::Tablespace* tablespace: tablespaces)
+  {
+    if (tablespace->engine() != "ndbcluster")
+    {
+      // Skip non-NDB objects
+      continue;
+    }
+
+    // Find out type of object
+    object_type type;
+
+    ndb_dd_disk_data_get_object_type(tablespace->se_private_data(), type);
+
+    if (type != object_type::TABLESPACE)
+    {
+      // Skip logfile groups
+      continue;
+    }
+
+    // Acquire lock in DD
+    if (!mdl_lock_tablespace(tablespace->name().c_str()))
+    {
+      // Failed to acquire MDL lock
+      DBUG_RETURN(false);
+    }
+
+    names.insert(tablespace->name().c_str());
+  }
+  DBUG_RETURN(true);
+}
+
+
+bool
+Ndb_dd_client::install_tablespace(const char* tablespace_name,
+                                  const std::vector<std::string>&
+                                    data_file_names,
+                                  int tablespace_id,
+                                  int tablespace_version,
+                                  bool force_overwrite)
+{
+  DBUG_ENTER("Ndb_dd_client::install_tablespace");
+
+  if (force_overwrite)
+  {
+    if (!drop_tablespace(tablespace_name))
+    {
+      DBUG_ASSERT(false);
+      return false;
+    }
+  }
+
+  std::unique_ptr<dd::Tablespace>
+         tablespace(dd::create_object<dd::Tablespace>());
+
+  // Set name
+  tablespace->set_name(tablespace_name);
+
+  // Engine type
+  tablespace->set_engine("ndbcluster");
+
+  // Add data files
+  for (const auto data_file_name : data_file_names)
+  {
+    ndb_dd_disk_data_add_file(tablespace.get(),
+                              data_file_name.c_str());
+  }
+
+  // Assign id and version
+  ndb_dd_disk_data_set_object_id_and_version(tablespace.get(),
+                                             tablespace_id,
+                                             tablespace_version);
+
+  // Assign object type as tablespace
+  ndb_dd_disk_data_set_object_type(tablespace.get()->se_private_data(),
+                                   object_type::TABLESPACE);
+
+  // Write changes to dictionary.
+  if (m_client->store(tablespace.get()))
+  {
+    DBUG_RETURN(false);
+  }
+
+  DBUG_RETURN(true);
+
+}
+
+
+bool
+Ndb_dd_client::drop_tablespace(const char* tablespace_name)
+
+{
+  DBUG_ENTER("Ndb_dd_client::drop_tablespace");
+
+  const dd::Tablespace *existing= nullptr;
+  if (m_client->acquire(tablespace_name, &existing))
+  {
+    DBUG_RETURN(false);
+  }
+
+  if (existing == nullptr)
+  {
+    // Tablespace does not exist
+    DBUG_RETURN(false);
+  }
+
+  if (m_client->drop(existing))
+  {
+    DBUG_RETURN(false);
+  }
+
+  DBUG_RETURN(true);
+}
+
+
+bool
+Ndb_dd_client::get_logfile_group(const char *logfile_group_name,
+                                 const dd::Tablespace **logfile_group_def)
+{
+  if (m_client->acquire(logfile_group_name, logfile_group_def))
+  {
+    return false;
+  }
+  return true;
+}
+
+
+bool Ndb_dd_client::fetch_ndb_logfile_group_names(
+    std::unordered_set<std::string>& names)
+{
+  DBUG_ENTER("Ndb_dd_client::fetch_ndb_logfile_group_names");
+
+  std::vector<const dd::Tablespace*> tablespaces;
+  if (m_client->fetch_global_components<dd::Tablespace>(&tablespaces))
+  {
+    DBUG_RETURN(false);
+  }
+
+  for (const dd::Tablespace* tablespace: tablespaces)
+  {
+    if (tablespace->engine() != "ndbcluster")
+    {
+      // Skip non-NDB objects
+      continue;
+    }
+
+    // Find out type of object
+    object_type type;
+
+    ndb_dd_disk_data_get_object_type(tablespace->se_private_data(), type);
+
+    if (type != object_type::LOGFILE_GROUP)
+    {
+      // Skip tablespaces
+      continue;
+    }
+
+    // Acquire lock in DD
+    if (!mdl_lock_logfile_group(tablespace->name().c_str()))
+    {
+      // Failed to acquire MDL lock
+      DBUG_RETURN(false);
+    }
+
+    names.insert(tablespace->name().c_str());
+  }
+  DBUG_RETURN(true);
+}
+
+
 bool
 Ndb_dd_client::install_logfile_group(const char* logfile_group_name,
-                                     const char* undo_file_name)
+                                     const std::vector<std::string>&
+                                       undo_file_names,
+                                     int logfile_group_id,
+                                     int logfile_group_version,
+                                     bool force_overwrite)
 {
   DBUG_ENTER("Ndb_dd_client::install_logfile_group");
 
@@ -865,6 +1108,15 @@ Ndb_dd_client::install_logfile_group(const char* logfile_group_name,
    * logfile groups in terms of metadata structure
    */
 
+  if (force_overwrite)
+  {
+    if (!drop_logfile_group(logfile_group_name))
+    {
+      DBUG_ASSERT(false);
+      return false;
+    }
+  }
+
   std::unique_ptr<dd::Tablespace>
          logfile_group(dd::create_object<dd::Tablespace>());
 
@@ -874,8 +1126,17 @@ Ndb_dd_client::install_logfile_group(const char* logfile_group_name,
   // Engine type
   logfile_group->set_engine("ndbcluster");
 
-  // Add undofile
-  ndb_dd_disk_data_add_undo_file(logfile_group.get(), undo_file_name);
+  // Add undofiles
+  for (const auto undo_file_name : undo_file_names)
+  {
+    ndb_dd_disk_data_add_file(logfile_group.get(),
+                              undo_file_name.c_str());
+  }
+
+  // Assign id and version
+  ndb_dd_disk_data_set_object_id_and_version(logfile_group.get(),
+                                             logfile_group_id,
+                                             logfile_group_version);
 
   // Assign object type as logfile group
   ndb_dd_disk_data_set_object_type(logfile_group.get()->se_private_data(),
@@ -906,7 +1167,7 @@ Ndb_dd_client::install_undo_file(const char* logfile_group_name,
   if (!new_logfile_group_def)
     DBUG_RETURN(false);
 
-  ndb_dd_disk_data_add_undo_file(new_logfile_group_def, undo_file_name);
+  ndb_dd_disk_data_add_file(new_logfile_group_def, undo_file_name);
 
   // Write changes to dictionary.
   if (m_client->update(new_logfile_group_def))

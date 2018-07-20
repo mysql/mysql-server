@@ -18,4 +18,3 @@ insert into t1 values
 drop table t1;
 alter tablespace ts1 drop datafile 'data1.dat';
 drop tablespace ts1;
-drop logfile group initial_lg1 engine = ndb;

@@ -1,0 +1,228 @@
+--source include/have_multi_ndb.inc
+--source include/have_debug.inc
+--source suite/ndb/include/backup_restore_setup.inc
+
+# Create logfile group
+CREATE LOGFILE GROUP lg1
+  ADD UNDOFILE 'lg1_undofile.dat'
+  INITIAL_SIZE 1M
+  UNDO_BUFFER_SIZE = 1M
+  ENGINE=NDB;
+
+# Create tablespaces using the logfile group
+CREATE TABLESPACE ts1
+  ADD DATAFILE 'ts1_datafile.dat'
+  USE LOGFILE GROUP lg1
+  INITIAL_SIZE 2M
+  ENGINE NDB;
+
+CREATE TABLESPACE ts2
+  ADD DATAFILE 'ts2_datafile.dat'
+  USE LOGFILE GROUP lg1
+  INITIAL_SIZE 2M
+  ENGINE NDB;
+
+CREATE TABLESPACE ts3
+  ADD DATAFILE 'ts3_datafile.dat'
+  USE LOGFILE GROUP lg1
+  INITIAL_SIZE 2M
+  ENGINE NDB;
+
+--disable_query_log ONCE
+SET SESSION debug= '+d,skip_dd_table_access_check';
+# Uncomment the below line (here and in other places) to look at se_private_data
+# which has id and version. It's something of interest in this test but unfortunately
+# non-deterministic
+# SELECT id, name, se_private_data, engine FROM mysql.tablespaces WHERE engine='ndbcluster';
+--sorted_result
+SELECT name, engine FROM mysql.tablespaces WHERE engine='ndbcluster';
+SELECT file_name FROM mysql.tablespace_files WHERE file_name LIKE '%dat';
+
+# Scenario 1:
+# Tablespaces and logfile group exist in NDB but not DD.
+# This is done by taking a backup, dropping the objects
+# and then restoring the backup. The synchronization
+# install the objects on both server1 and server2
+
+--echo "Start Backup"
+--exec $NDB_MGM -e "start backup" >> $NDB_TOOLS_OUTPUT
+
+ALTER TABLESPACE ts1
+  DROP DATAFILE 'ts1_datafile.dat';
+DROP TABLESPACE ts1;
+
+ALTER TABLESPACE ts2
+  DROP DATAFILE 'ts2_datafile.dat';
+DROP TABLESPACE ts2;
+
+ALTER TABLESPACE ts3
+  DROP DATAFILE 'ts3_datafile.dat';
+DROP TABLESPACE ts3;
+
+DROP LOGFILE GROUP lg1
+  ENGINE=NDB;
+
+--disable_query_log
+--source include/ndb_backup_id.inc
+--enable_query_log
+
+--echo "Restore backup"
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -m -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+let $mysqld_name=mysqld.1.1;
+--source include/restart_mysqld.inc
+
+connection server2;
+let $mysqld_name=mysqld.2.1;
+--source include/restart_mysqld.inc
+
+connection server1;
+
+--disable_query_log ONCE
+SET SESSION debug= '+d,skip_dd_table_access_check';
+# SELECT id, name, se_private_data, engine from mysql.tablespaces WHERE engine='ndbcluster';
+--sorted_result
+SELECT name, engine from mysql.tablespaces WHERE engine='ndbcluster';
+SELECT file_name FROM mysql.tablespace_files WHERE file_name LIKE '%dat';
+
+# Scenario 2:
+# DD contains outdated metadata when compared to NDB Dictionary.
+# a) DROP and then re-CREATE logfile group and tablespace in server1 while
+#    server2 is down (to prevent schema distribution). When server2 reconnects
+#    it detects a change in version and the logfile group is reinstalled
+# b) ALTER tablespace/logfile group in server1 while server2 is down
+
+connection server2;
+
+--disable_query_log ONCE
+SET SESSION debug= '+d,skip_dd_table_access_check';
+--echo "server2 before shutdown"
+# SELECT id, name, se_private_data, engine from mysql.tablespaces WHERE engine='ndbcluster';
+--sorted_result
+SELECT name, engine from mysql.tablespaces WHERE engine='ndbcluster';
+SELECT file_name FROM mysql.tablespace_files WHERE file_name LIKE '%dat';
+
+# Write file to make mysql-test-run.pl expect the restart, but don't start
+# it until it's told to
+--write_file $MYSQLTEST_VARDIR/tmp/mysqld.2.1.expect
+wait
+EOF
+# Send shutdown to the connected server and give
+# it 30 seconds to die before zapping it.
+shutdown_server 30;
+# Check if server is gone
+--source include/wait_until_disconnected.inc
+
+connection server1;
+
+ALTER TABLESPACE ts1
+  DROP DATAFILE 'ts1_datafile.dat';
+DROP TABLESPACE ts1;
+
+CREATE TABLESPACE ts1
+  ADD DATAFILE 'ts1_datafile.dat'
+  USE LOGFILE GROUP lg1
+  INITIAL_SIZE 2M
+  ENGINE NDB;
+
+ALTER TABLESPACE ts2
+  ADD DATAFILE 'ts2_datafile2.dat';
+
+ALTER TABLESPACE ts3
+  ADD DATAFILE 'ts3_datafile2.dat';
+ALTER TABLESPACE ts3
+  DROP DATAFILE 'ts3_datafile.dat';
+
+ALTER LOGFILE GROUP lg1
+  ADD UNDOFILE 'lg1_undofile2.dat'
+  ENGINE=NDB;
+
+--echo "server1 before reconnecting server2"
+# SELECT id, name, se_private_data, engine from mysql.tablespaces WHERE engine='ndbcluster';
+--sorted_result
+SELECT name, engine from mysql.tablespaces WHERE engine='ndbcluster';
+SELECT file_name FROM mysql.tablespace_files WHERE file_name LIKE '%dat';
+
+connection server2;
+# Write file to make mysql-test-run.pl start up the server again
+--append_file $MYSQLTEST_VARDIR/tmp/mysqld.2.1.expect
+restart
+EOF
+# Turn on reconnect
+--enable_reconnect
+# Call script that will poll the server waiting for it to be back online again
+--source include/wait_until_connected_again.inc
+# Turn off reconnect again
+--disable_reconnect
+
+--echo "server2 after reconnect"
+
+--disable_query_log ONCE
+SET SESSION debug= '+d,skip_dd_table_access_check';
+# SELECT id, name, se_private_data, engine from mysql.tablespaces WHERE engine='ndbcluster';
+--sorted_result
+SELECT name, engine from mysql.tablespaces WHERE engine='ndbcluster';
+SELECT file_name FROM mysql.tablespace_files WHERE file_name LIKE '%dat';
+
+# Scenario 3:
+# Logfile group and tablespaces exist in DD but not NDB. This
+# is achieved by dropping the objects fron server2 while
+# server1 is down. server2 then drops the objects when
+# it reconnects to the cluster
+
+connection server1;
+
+# Write file to make mysql-test-run.pl expect the restart, but don't start
+# it until it's told to
+--write_file $MYSQLTEST_VARDIR/tmp/mysqld.1.1.expect
+wait
+EOF
+# Send shutdown to the connected server and give
+# it 30 seconds to die before zapping it
+shutdown_server 30;
+# Check if server is gone
+--source include/wait_until_disconnected.inc
+
+connection server2;
+
+ALTER TABLESPACE ts1
+  DROP DATAFILE 'ts1_datafile.dat';
+DROP TABLESPACE ts1;
+
+ALTER TABLESPACE ts2
+  DROP DATAFILE 'ts2_datafile.dat';
+ALTER TABLESPACE ts2
+  DROP DATAFILE 'ts2_datafile2.dat';
+DROP TABLESPACE ts2;
+
+ALTER TABLESPACE ts3
+  DROP DATAFILE 'ts3_datafile2.dat';
+DROP TABLESPACE ts3;
+
+DROP LOGFILE GROUP lg1
+  ENGINE=NDB;
+
+connection server1;
+
+# Write file to make mysql-test-run.pl start up the server again
+--append_file $MYSQLTEST_VARDIR/tmp/mysqld.1.1.expect
+restart
+EOF
+# Turn on reconnect
+--enable_reconnect
+# Call script that will poll the server waiting for it to be back online again
+--source include/wait_until_connected_again.inc
+# Turn off reconnect again
+--disable_reconnect
+
+--echo "server1 after reconnect"
+
+--disable_query_log ONCE
+SET SESSION debug= '+d,skip_dd_table_access_check';
+# SELECT id, name, se_private_data, engine from mysql.tablespaces WHERE engine='ndbcluster';
+SELECT name, engine from mysql.tablespaces WHERE engine='ndbcluster';
+SELECT file_name FROM mysql.tablespace_files WHERE file_name LIKE '%dat';
+
+--source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

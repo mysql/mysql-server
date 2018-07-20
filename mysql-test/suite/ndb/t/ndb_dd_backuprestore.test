@@ -55,6 +55,10 @@ ENGINE =NDB;
 
 -- source include/ndb_restore_master.inc
 
+# Trigger schema synchronization to add table_space1 and log_group1 to DD
+let $mysqld_name=mysqld.1.1;
+--source include/restart_mysqld.inc
+
 SELECT COUNT(*) FROM test.t1; 
 
 SELECT pk1, c2, c3,  hex(c4) FROM test.t1 ORDER BY pk1 LIMIT 5;
@@ -127,6 +131,10 @@ ENGINE =NDB;
 
 -- source include/ndb_restore_master.inc
 
+# Trigger schema synchronization to add table_space1 and log_group1 to DD
+let $mysqld_name=mysqld.1.1;
+--source include/restart_mysqld.inc
+
 SELECT COUNT(*) FROM test.t1;
 
 SELECT pk1, c2, c3,  hex(c4) FROM test.t1 ORDER BY pk1 LIMIT 5; 
@@ -186,17 +194,17 @@ SHOW CREATE TABLE test.t5;
 SHOW CREATE TABLE test.t6;
 --enable_warnings
 
-SELECT * FROM information_schema.partitions WHERE table_name= 't1'; 
+SELECT table_name, partition_name, partition_ordinal_position, partition_method, partition_expression FROM information_schema.partitions WHERE table_name= 't1'; 
 
-SELECT * FROM information_schema.partitions WHERE table_name= 't2'; 
+SELECT table_name, partition_name, partition_ordinal_position, partition_method, partition_expression FROM information_schema.partitions WHERE table_name= 't2'; 
 
-SELECT * FROM information_schema.partitions WHERE table_name= 't3'; 
+SELECT table_name, partition_name, partition_ordinal_position, partition_method, partition_expression, partition_description FROM information_schema.partitions WHERE table_name= 't3'; 
 
-SELECT * FROM information_schema.partitions WHERE table_name= 't4'; 
+SELECT table_name, partition_name, partition_ordinal_position, partition_method, partition_expression FROM information_schema.partitions WHERE table_name= 't4'; 
 
-SELECT * FROM information_schema.partitions WHERE table_name= 't5'; 
+SELECT table_name, partition_name, partition_ordinal_position, partition_method, partition_expression FROM information_schema.partitions WHERE table_name= 't5'; 
 
-SELECT * FROM information_schema.partitions WHERE table_name= 't6';
+SELECT table_name, partition_name, partition_ordinal_position, partition_method, partition_expression, partition_description FROM information_schema.partitions WHERE table_name= 't6';
 
 
 let $j= 500;
@@ -260,6 +268,9 @@ ENGINE =NDB;
 
 -- source include/ndb_restore_master.inc
 
+# Trigger schema synchronization
+let $mysqld_name=mysqld.1.1;
+--source include/restart_mysqld.inc
 
 --disable_warnings
 SHOW CREATE TABLE test.t1;
@@ -275,23 +286,17 @@ SHOW CREATE TABLE test.t5;
 SHOW CREATE TABLE test.t6;
 --enable_warnings
 
---replace_column 13 0 14 0 15 0 16 NULL 18 0
-SELECT * FROM information_schema.partitions WHERE table_name= 't1'; 
+SELECT table_name, partition_name, partition_ordinal_position, partition_method, partition_expression FROM information_schema.partitions WHERE table_name= 't1';
 
---replace_column 13 0 14 0 15 0 16 NULL 18 0
-SELECT * FROM information_schema.partitions WHERE table_name= 't2'; 
+SELECT table_name, partition_name, partition_ordinal_position, partition_method, partition_expression FROM information_schema.partitions WHERE table_name= 't2';
 
---replace_column 13 0 14 0 15 0 16 NULL 18 0
-SELECT * FROM information_schema.partitions WHERE table_name= 't3'; 
+SELECT table_name, partition_name, partition_ordinal_position, partition_method, partition_expression, partition_description FROM information_schema.partitions WHERE table_name= 't3';
 
---replace_column 13 0 14 0 15 0 16 NULL 18 0
-SELECT * FROM information_schema.partitions WHERE table_name= 't4'; 
+SELECT table_name, partition_name, partition_ordinal_position, partition_method, partition_expression FROM information_schema.partitions WHERE table_name= 't4';
 
---replace_column 13 0 14 0 15 0 16 NULL 18 0
-SELECT * FROM information_schema.partitions WHERE table_name= 't5'; 
+SELECT table_name, partition_name, partition_ordinal_position, partition_method, partition_expression FROM information_schema.partitions WHERE table_name= 't5';
 
---replace_column 13 0 14 0 15 0 16 NULL 18 0
-SELECT * FROM information_schema.partitions WHERE table_name= 't6'; 
+SELECT table_name, partition_name, partition_ordinal_position, partition_method, partition_expression, partition_description FROM information_schema.partitions WHERE table_name= 't6';
 
 SELECT COUNT(*) FROM test.t1; 
 

@@ -162,3 +162,10 @@ ndb_table_tablespace_name(const NdbDictionary::Table* ndbtab)
   }
   return tablespace_name;
 }
+
+
+bool
+ndb_dict_check_NDB_error(NdbDictionary::Dictionary* dict)
+{
+  return (dict->getNdbError().code != 0);
+}
