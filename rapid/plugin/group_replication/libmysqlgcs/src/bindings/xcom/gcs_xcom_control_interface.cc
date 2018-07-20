@@ -154,6 +154,8 @@ Gcs_xcom_control(Gcs_xcom_group_member_information *group_member_information,
   m_join_attempts(0),
   m_join_sleep_time(0),
   m_xcom_running(false),
+  m_leave_view_requested(false),
+  m_leave_view_delivered(false),
   m_boot(boot),
   m_initial_peers(),
   m_view_control(view_control),
@@ -684,6 +686,9 @@ enum_gcs_error Gcs_xcom_control::do_leave()
     return GCS_NOK;
   }
 
+  m_leave_view_delivered = false;
+  m_leave_view_requested = true;
+
   m_xcom_proxy->xcom_client_remove_node(&m_node_list_me, m_gid_hash);
 
   /*
@@ -737,43 +742,7 @@ enum_gcs_error Gcs_xcom_control::do_leave()
 
   m_view_control->end_leave();
 
-  /*
-    There is no need to synchronize here and this method can access
-    the current_view member stored in the view controller directly.
-  */
-  Gcs_view *current_view= m_view_control->get_unsafe_current_view();
-
-  if(current_view == NULL)
-  {
-    /*
-      XCOM has stopped but will not proceed with any view install. The
-      current view might be NULL due to the fact that the view with
-      the join still hasn't been delivered.
-    */
-    MYSQL_GCS_LOG_WARN("The member has left the group but the new view" <<
-                       " will not be installed, probably because it has not" <<
-                       " been delivered yet.")
-    /*
-      If the node leaves and joins within a 5 second window, it may not
-      get a global view. See BUG#23718481.
-    */
-    My_xp_util::sleep_seconds(5);
-
-    return GCS_OK;
-  }
-
-  /*
-    Notify that the node has left the group because someone has
-    requested to do so.
-  */
-  install_leave_view(Gcs_view::OK);
-
-  /*
-    Set that the node does not belong to a group anymore. Note there
-    is a small window when the node does not belong to the group
-    anymore but the view is not NULL.
-  */
-  m_view_control->set_belongs_to_group(false);
+  do_leave_view();
 
   /*
     Delete current view and set it to NULL.
@@ -789,6 +758,30 @@ enum_gcs_error Gcs_xcom_control::do_leave()
   return GCS_OK;
 }
 
+void Gcs_xcom_control::do_leave_view() {
+  /*
+    There is no need to synchronize here and this method can access
+    the current_view member stored in the view controller directly.
+  */
+  Gcs_view *current_view = m_view_control->get_unsafe_current_view();
+
+  if (current_view != NULL && !m_leave_view_delivered) {
+    MYSQL_GCS_LOG_DEBUG("Will install leave view: requested " <<
+                        m_leave_view_requested << ", delivered " <<
+                        m_leave_view_delivered);
+    install_leave_view(m_leave_view_requested ? Gcs_view::OK
+                                              : Gcs_view::MEMBER_EXPELLED);
+    if (m_leave_view_requested) {
+      m_view_control->set_belongs_to_group(false);
+    }
+
+    m_leave_view_delivered = m_leave_view_requested;
+
+    MYSQL_GCS_LOG_DEBUG("Installed leave view: requested " <<
+                        m_leave_view_requested << ", delivered " <<
+                        m_leave_view_delivered);
+  }
+}
 
 bool Gcs_xcom_control::belongs_to_group()
 {

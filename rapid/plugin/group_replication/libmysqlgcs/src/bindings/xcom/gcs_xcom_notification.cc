@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -127,6 +127,16 @@ void Local_view_notification::do_execute()
 {
   (*m_functor)(m_message_id, m_xcom_nodes);
 }
+
+
+Expel_notification::Expel_notification(xcom_expel_functor *functor)
+    : m_functor(functor) {}
+
+
+Expel_notification::~Expel_notification() {}
+
+
+void Expel_notification::do_execute() { (*m_functor)(); }
 
 
 Control_notification::Control_notification(xcom_control_functor* functor,

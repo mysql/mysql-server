@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -165,6 +165,11 @@ public:
 
   void finalize_xcom();
 
+  /**
+    Triggers the termination of GCS when an error has caused XCom to terminate
+    unexpectedly.
+  */
+  void make_gcs_leave_group_on_error();
 
   /**
     Used to initialize SSL assuming that the necessary parameters have already
