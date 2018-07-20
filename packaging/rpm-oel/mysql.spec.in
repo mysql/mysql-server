@@ -102,9 +102,9 @@ Source7:        %{compatsrc}
 Source10:       https://downloads.sourceforge.net/boost/@BOOST_PACKAGE_NAME@.tar.bz2
 Source90:       filter-provides.sh
 Source91:       filter-requires.sh
-%ifarch aarch64
-BuildRequires:  gcc7
-BuildRequires:  gcc7-c++
+%if 0%{?ol7} && "%{?_arch}" == "aarch64"
+BuildRequires:  oracle-armtoolset-1-gcc
+BuildRequires:  oracle-armtoolset-1-gcc-c++
 %else
 BuildRequires:  devtoolset-7-gcc
 BuildRequires:  devtoolset-7-gcc-c++

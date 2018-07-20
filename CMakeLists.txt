@@ -85,6 +85,7 @@ IF (NOT MAX_INDEXES)
 ELSEIF(MAX_INDEXES MATCHES "^[0-9]+[Uu]?$")
   # MAX_INDEXES should be unsigned, so add the U suffix if it's missing.
   STRING(REGEX REPLACE "^([0-9]+).*$" "\\1U" MAX_INDEXES "${MAX_INDEXES}")
+  MESSAGE(STATUS "Configuring with MAX_INDEXES = ${MAX_INDEXES}")
 ELSE()
   MESSAGE(FATAL_ERROR "MAX_INDEXES should be an unsigned integer.")
 ENDIF(NOT MAX_INDEXES)
@@ -96,7 +97,6 @@ ELSEIF(MAX_INDEXES LESS 64)
   MESSAGE(WARNING "MAX_INDEXES option ignored because it is less than 64.")
   SET(MAX_INDEXES 64U)
 ENDIF()
-MESSAGE(STATUS "Configuring with MAX_INDEXES = ${MAX_INDEXES}")
 
 # We choose to provide WITH_DEBUG as alias to standard CMAKE_BUILD_TYPE=Debug
 # which turns out to be not trivial, as this involves synchronization 
@@ -131,6 +131,7 @@ ENDIF()
 # We need to look for gcc before calling PROJECT below.
 OPTION(FORCE_UNSUPPORTED_COMPILER "Disable compiler version checks" OFF)
 MARK_AS_ADVANCED(WITHOUT_SERVER DISABLE_SHARED FORCE_UNSUPPORTED_COMPILER)
+
 IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
     AND NOT CMAKE_C_COMPILER AND NOT CMAKE_CXX_COMPILER)
   # Cannot INCLUDE(CMakeDetermineSystem) prior to PROJECT initialization below.
@@ -143,41 +144,44 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
           MY_HOST_SYSTEM_VERSION MATCHES "\\.el[67](uek)?\\.")
         MESSAGE(STATUS
           "This is ${MY_HOST_SYSTEM_NAME} version ${MY_HOST_SYSTEM_VERSION}")
-        FIND_PROGRAM(MY_GCC_COMPILER gcc)
-        IF (MY_GCC_COMPILER)
-          MESSAGE(STATUS "gcc is ${MY_GCC_COMPILER}")
-          MESSAGE(STATUS
-            "We probably need /opt/rh/devtoolset-7/root/usr/bin/gcc")
-          EXECUTE_PROCESS(COMMAND ${MY_GCC_COMPILER} -dumpversion
-            OUTPUT_VARIABLE MY_GCC_VERSION)
-          IF(MY_GCC_VERSION VERSION_LESS 5.0)
-            MESSAGE(STATUS "${MY_GCC_COMPILER} is version ${MY_GCC_VERSION}")
-            FIND_PROGRAM(ALTERNATIVE_GCC gcc
-              NO_DEFAULT_PATH
-              PATHS "/opt/rh/devtoolset-7/root/usr/bin")
-            FIND_PROGRAM(ALTERNATIVE_GPP g++
-              NO_DEFAULT_PATH
-              PATHS "/opt/rh/devtoolset-7/root/usr/bin")
-            # On ARM there is no /opt/rh/devtoolset-7/ look for /usr/bin/gcc7
-            FIND_PROGRAM(ALTERNATIVE_GCC gcc7
-              NO_DEFAULT_PATH
-              PATHS "/usr/bin")
-            FIND_PROGRAM(ALTERNATIVE_GPP g++7
-              NO_DEFAULT_PATH
-              PATHS "/usr/bin")
-            IF(ALTERNATIVE_GCC AND ALTERNATIVE_GPP)
-              SET(CMAKE_C_COMPILER ${ALTERNATIVE_GCC})
-              SET(CMAKE_CXX_COMPILER ${ALTERNATIVE_GPP})
-              MESSAGE(STATUS "Using ${ALTERNATIVE_GCC}")
-              MESSAGE(STATUS "Using ${ALTERNATIVE_GPP}")
-            ELSE()
-              MESSAGE(WARNING "Could not find devtoolset gcc")
-            ENDIF()
-          ENDIF()
+        MESSAGE(STATUS "We probably need some devtoolset compiler")
+
+        FIND_PROGRAM(ALTERNATIVE_GCC gcc
+          NO_DEFAULT_PATH
+          PATHS "/opt/rh/devtoolset-7/root/usr/bin")
+        FIND_PROGRAM(ALTERNATIVE_GPP g++
+          NO_DEFAULT_PATH
+          PATHS "/opt/rh/devtoolset-7/root/usr/bin")
+        FIND_PROGRAM(ALTERNATIVE_ENABLE enable
+          NO_DEFAULT_PATH
+          PATHS "/opt/rh/devtoolset-7/")
+        # On Oracle Linux ARM64 there is no /opt/rh/devtoolset-7
+        # look in /opt/oracle/oracle-armtoolset-1/root/usr/bin
+        FIND_PROGRAM(ALTERNATIVE_GCC gcc
+          NO_DEFAULT_PATH
+          PATHS "/opt/oracle/oracle-armtoolset-1/root/usr/bin")
+        FIND_PROGRAM(ALTERNATIVE_GPP g++
+          NO_DEFAULT_PATH
+          PATHS "/opt/oracle/oracle-armtoolset-1/root/usr/bin")
+        FIND_PROGRAM(ALTERNATIVE_ENABLE enable
+          NO_DEFAULT_PATH
+          PATHS "/opt/oracle/oracle-armtoolset-1/")
+        IF(ALTERNATIVE_GCC AND ALTERNATIVE_GPP)
+          SET(CMAKE_C_COMPILER ${ALTERNATIVE_GCC})
+          SET(CMAKE_CXX_COMPILER ${ALTERNATIVE_GPP})
+          MESSAGE(STATUS "Using ${ALTERNATIVE_GCC}")
+          MESSAGE(STATUS "Using ${ALTERNATIVE_GPP}")
+        ELSE()
+          MESSAGE(WARNING "Could not find devtoolset gcc")
         ENDIF()
       ENDIF()
     ENDIF()
   ENDIF()
+ENDIF()
+
+IF(ALTERNATIVE_ENABLE)
+  GET_FILENAME_COMPONENT(ALTERNATIVE_ENABLE_DIR ${ALTERNATIVE_ENABLE} PATH)
+  SET(DEVTOOLSET_ROOT "${ALTERNATIVE_ENABLE_DIR}/root")
 ENDIF()
 
 # Optionally set project name, e.g.
@@ -237,6 +241,19 @@ ENDMACRO()
 
 MACRO(STRING_PREPEND STRING_VAR INPUT)
   SET(${STRING_VAR} "${INPUT}${${STRING_VAR}}")
+ENDMACRO()
+
+# Write content to file, using CONFIGURE_FILE
+# The advantage compared to FILE(WRITE) is that timestamp
+# does not change if file already has the same content
+SET(MYSQL_CMAKE_SCRIPT_DIR "${CMAKE_SOURCE_DIR}/cmake")
+MACRO(CONFIGURE_FILE_CONTENT content file)
+  SET(CMAKE_CONFIGURABLE_FILE_CONTENT
+    "${content}\n")
+  CONFIGURE_FILE(
+    ${MYSQL_CMAKE_SCRIPT_DIR}/configurable_file_content.in
+    ${file}
+    @ONLY)
 ENDMACRO()
 
 SET(BUILD_IS_SINGLE_CONFIG TRUE)
@@ -315,6 +332,8 @@ ENDIF()
 IF(WITH_DEFAULT_FEATURE_SET)
   INCLUDE(${CMAKE_SOURCE_DIR}/cmake/build_configurations/feature_set.cmake)
 ENDIF()
+
+INCLUDE(CMakePushCheckState)
 
 # Add macros
 INCLUDE(character_sets)
@@ -765,13 +784,13 @@ IF(WITH_LTO)
   # On some platforms (Fedora) we *must* use gcc-ar / gcc-ranlib
   # to get the right plugins for supporting -flto output from gcc.
   IF(CMAKE_COMPILER_IS_GNUCC AND CMAKE_COMPILER_IS_GNUCXX)
-    IF(ALTERNATIVE_GCC AND ALTERNATIVE_GPP)
+    IF(ALTERNATIVE_ENABLE)
       FIND_PROGRAM(GCC_AR_EXECUTABLE gcc-ar
         NO_DEFAULT_PATH
-        PATHS "/opt/rh/devtoolset-7/root/usr/bin")
+        PATHS "${DEVTOOLSET_ROOT}/usr/bin")
       FIND_PROGRAM(GCC_RANLIB_EXECUTABLE gcc-ranlib
         NO_DEFAULT_PATH
-        PATHS "/opt/rh/devtoolset-7/root/usr/bin")
+        PATHS "${DEVTOOLSET_ROOT}/usr/bin")
     ELSE()
       FIND_PROGRAM(GCC_AR_EXECUTABLE gcc-ar)
       FIND_PROGRAM(GCC_RANLIB_EXECUTABLE gcc-ranlib)
