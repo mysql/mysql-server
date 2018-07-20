@@ -1046,7 +1046,7 @@ ulint read(ReadContext *ctx, ref_t ref, ulint offset, ulint len, byte *buf) {
   if (ref.is_being_modified()) {
     /* This should happen only for READ UNCOMMITTED transactions. */
     ut_ad(ctx->assert_read_uncommitted());
-    return (0);
+    DBUG_RETURN(0);
   }
 
   ut_ad(ctx->m_index->is_clustered());
