@@ -1308,7 +1308,7 @@ int main(int argc, char *argv[]) {
     my_end(0);
     return EXIT_FAILURE;
   }
-  glob_buffer.mem_realloc(512);
+  glob_buffer.mem_realloc((status.batch) ? batch_io_size : 512);
   completion_hash_init(&ht, 128);
   init_alloc_root(PSI_NOT_INSTRUMENTED, &hash_mem_root, 16384, 0);
   memset(&mysql, 0, sizeof(mysql));
@@ -2543,7 +2543,7 @@ static bool add_line(String &buffer, char *line, size_t line_length,
       length++;
     }
     if (buffer.length() + length >= buffer.alloced_length())
-      buffer.mem_realloc(buffer.length() + length + IO_SIZE);
+      buffer.mem_realloc(buffer.length() + length + batch_io_size);
     if ((!*ml_comment || preserve_comments) && buffer.append(line, length))
       DBUG_RETURN(1);
   }
