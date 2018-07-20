@@ -157,6 +157,7 @@ Gcs_xcom_engine::~Gcs_xcom_engine() {
 
 void Gcs_xcom_engine::initialize(
     xcom_initialize_functor *functor MY_ATTRIBUTE((unused))) {
+  MYSQL_GCS_LOG_DEBUG("Gcs_xcom_engine::initialize invoked!");
   assert(m_notification_queue.empty());
   assert(m_schedule);
   m_engine_thread.create(key_GCS_THD_Gcs_xcom_engine_m_engine_thread, NULL,
@@ -164,6 +165,7 @@ void Gcs_xcom_engine::initialize(
 }
 
 void Gcs_xcom_engine::finalize(xcom_finalize_functor *functor) {
+  MYSQL_GCS_LOG_DEBUG("Gcs_xcom_engine::finalize invoked!");
   push(new Finalize_notification(this, functor));
   m_engine_thread.join(NULL);
   assert(m_notification_queue.empty());

@@ -117,6 +117,12 @@ class Gcs_suspicions_manager {
   void process_suspicions();
 
   /**
+    Clear all suspicions. Invoked when node is leaving the group.
+  */
+
+  void clear_suspicions();
+
+  /**
     Invoked periodically by the suspicions processing thread, it picks a
     timestamp and verifies which suspect nodes should be removed as they
     have timed out.
@@ -384,6 +390,11 @@ class Gcs_xcom_control : public Gcs_control_interface {
   */
   void do_leave_view();
 
+  /**
+    Request other members to remove node from the group.
+  */
+  void do_remove_node_from_group();
+
   bool belongs_to_group();
 
   Gcs_view *get_current_view();
@@ -593,6 +604,19 @@ class Gcs_xcom_control : public Gcs_control_interface {
     @param[in] members list of members
   */
   bool is_this_node_in(std::vector<Gcs_member_identifier *> *members);
+
+  /**
+    Cycle through peers_list and try to open a connection to the peer, if it
+    isn't the node itself.
+
+    @param[in] local_node_ip String with the IP and port of the local node
+    @param[in] peers_list list of the peers
+
+    @return connection descriptor to a peer
+  */
+  connection_descriptor *get_connection_to_node(
+      std::string local_node_ip,
+      std::vector<Gcs_xcom_node_address *> *peers_list);
 
   // The group that this interface pertains
   Gcs_group_identifier *m_gid;

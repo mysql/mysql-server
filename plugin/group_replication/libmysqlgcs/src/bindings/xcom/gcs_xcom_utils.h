@@ -632,6 +632,18 @@ class Gcs_xcom_proxy {
                                 uint32_t group_id_hash) = 0;
 
   /**
+    Function to remove a set of nodes from XCOM.
+
+    @param con Connection to a node that will carry on the request.
+    @param nodes Set of nodes to remove.
+    @param group_id_hash Hash of group identifier.
+  */
+
+  virtual int xcom_remove_nodes(connection_descriptor &con,
+                                Gcs_xcom_nodes &nodes,
+                                uint32_t group_id_hash) = 0;
+
+  /**
     Function to remove a node from XCOM.
 
     @param node Node information.
@@ -735,6 +747,8 @@ class Gcs_xcom_proxy_base : public Gcs_xcom_proxy {
 
   int xcom_boot_node(Gcs_xcom_node_information &node, uint32_t group_id_hash);
   int xcom_remove_nodes(Gcs_xcom_nodes &nodes, uint32_t group_id_hash);
+  int xcom_remove_nodes(connection_descriptor &con, Gcs_xcom_nodes &nodes,
+                        uint32_t group_id_hash);
   int xcom_remove_node(const Gcs_xcom_node_information &node,
                        uint32_t group_id_hash);
   int xcom_add_nodes(connection_descriptor &con, Gcs_xcom_nodes &nodes,

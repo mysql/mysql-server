@@ -550,6 +550,7 @@ void Gcs_xcom_interface::make_gcs_leave_group_on_error() {
     group_identifier = (*xcom_configured_groups_it).second;
     Gcs_xcom_control *control_if = static_cast<Gcs_xcom_control *>(
         intf->get_control_session(*group_identifier));
+    control_if->do_remove_node_from_group();
     control_if->do_leave_view();
   }
 }
@@ -1528,7 +1529,8 @@ void cb_xcom_expel(int status MY_ATTRIBUTE((unused))) {
         "Tried to enqueue an expel request but the member is about to stop.")
     delete notification;
   } else {
-    MYSQL_GCS_LOG_TRACE("Expel view notification: %p", notification)
+    MYSQL_GCS_LOG_TRACE("%ul Expel view notification: %p",
+                        My_xp_util::getsystime(), notification)
   }
 }
 

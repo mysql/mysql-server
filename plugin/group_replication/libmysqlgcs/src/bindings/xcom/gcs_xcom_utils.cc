@@ -932,6 +932,20 @@ int Gcs_xcom_proxy_base::xcom_add_node(connection_descriptor &con,
   return xcom_add_nodes(con, nodes_to_add, group_id_hash);
 }
 
+int Gcs_xcom_proxy_base::xcom_remove_nodes(connection_descriptor &con,
+                                           Gcs_xcom_nodes &nodes,
+                                           uint32_t group_id_hash) {
+  node_list nl;
+  int ret = 1;
+
+  if (serialize_nodes_information(nodes, nl)) {
+    ret = xcom_client_remove_node(&con, &nl, group_id_hash);
+  }
+  free_nodes_information(nl);
+
+  return ret;
+}
+
 bool is_valid_hostname(const std::string &server_and_port) {
   std::string::size_type delim_pos = server_and_port.find_last_of(":");
   std::string s_port =
