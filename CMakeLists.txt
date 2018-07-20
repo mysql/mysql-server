@@ -336,6 +336,8 @@ IF(WITH_DEFAULT_FEATURE_SET)
   INCLUDE(${CMAKE_SOURCE_DIR}/cmake/build_configurations/feature_set.cmake)
 ENDIF()
 
+INCLUDE(CMakePushCheckState)
+
 # Add macros
 INCLUDE(character_sets)
 INCLUDE(cpu_info)

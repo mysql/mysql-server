@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,9 @@ INCLUDE(CheckIncludeFile)
 include(CheckFunctionExists)
 CHECK_INCLUDE_FILES(term.h HAVE_TERM_H)
 
-SET(CMAKE_REQUIRED_LIBRARIES ${CURSES_LIBRARY})
+CMAKE_PUSH_CHECK_STATE()
+LIST(APPEND CMAKE_REQUIRED_LIBRARIES ${CURSES_LIBRARY})
+
 CHECK_CXX_SOURCE_COMPILES("
 #include <term.h>
 int main()
@@ -48,7 +50,7 @@ IF(NOT HAVE_DECL_TGOTO)
   ENDIF()
 ENDIF()
 
-SET(CMAKE_REQUIRED_LIBRARIES)
+CMAKE_POP_CHECK_STATE()
 
 
 

@@ -221,11 +221,11 @@ endif()
 # Winsock.
 if(WIN32)
     set(CMAKE_EXTRA_INCLUDE_FILES winsock2.h ws2tcpip.h)
-    set(CMAKE_REQUIRED_LIBRARIES  ws2_32.lib)
+    LIST(APPEND CMAKE_REQUIRED_LIBRARIES  ws2_32.lib)
     set(CMAKE_REQUIRED_DEFINITIONS -FIwinsock2.h -FIws2tcpip.h)
 endif()
 if (SOLARIS)
-    set(CMAKE_REQUIRED_LIBRARIES socket nsl)
+    LIST(APPEND CMAKE_REQUIRED_LIBRARIES socket nsl)
 endif()
 
 # Check if _GNU_SOURCE is available.
