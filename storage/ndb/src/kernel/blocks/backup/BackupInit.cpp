@@ -254,7 +254,7 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   ndb_mgm_get_int_parameter(p, CFG_DB_ENABLE_PARTIAL_LCP,
                             &m_enable_partial_lcp);
 
-  m_enable_redo_control = 1; /* Default to enabled */
+  m_enable_redo_control = 0; /* Default to disabled */
   ndb_mgm_get_int_parameter(p, CFG_DB_ENABLE_REDO_CONTROL,
                             &m_enable_redo_control);
 
