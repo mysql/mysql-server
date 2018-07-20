@@ -81,6 +81,8 @@ void      do_cb_xcom_receive_global_view(synode_no config_id,
 void      cb_xcom_comms(int status);
 void      cb_xcom_ready(int status);
 void      cb_xcom_exit(int status);
+void      cb_xcom_expel(int status);
+
 synode_no cb_xcom_get_app_snap(blob *gcs_snap);
 void      cb_xcom_handle_app_snap(blob *gcs_snap);
 int       cb_xcom_socket_accept(int fd, site_def const *xcom_config);
@@ -466,6 +468,23 @@ void Gcs_xcom_interface::finalize_xcom()
   }
 }
 
+void Gcs_xcom_interface::make_gcs_leave_group_on_error()
+{
+  Gcs_group_identifier *group_identifier = NULL;
+  map<u_long, Gcs_group_identifier *>::iterator xcom_configured_groups_it;
+  Gcs_xcom_interface *intf =
+      static_cast<Gcs_xcom_interface *>(Gcs_xcom_interface::get_interface());
+
+  for (xcom_configured_groups_it = m_xcom_configured_groups.begin();
+       xcom_configured_groups_it != m_xcom_configured_groups.end();
+       xcom_configured_groups_it++)
+  {
+    group_identifier = (*xcom_configured_groups_it).second;
+    Gcs_xcom_control *control_if = static_cast<Gcs_xcom_control *>(
+        intf->get_control_session(*group_identifier));
+    control_if->do_leave_view();
+  }
+}
 
 enum_gcs_error Gcs_xcom_interface::finalize()
 {
@@ -787,6 +806,7 @@ initialize_xcom(const Gcs_interface_parameters &interface_params)
   ::set_xcom_run_cb(cb_xcom_ready);
   ::set_xcom_comms_cb(cb_xcom_comms);
   ::set_xcom_exit_cb(cb_xcom_exit);
+  ::set_xcom_expel_cb(cb_xcom_expel);
   ::set_xcom_socket_accept_cb(cb_xcom_socket_accept);
 
   const std::string *wait_time_str=
@@ -1470,6 +1490,31 @@ void cb_xcom_exit(int status MY_ATTRIBUTE((unused)))
     xcom_proxy->xcom_signal_exit();
 }
 
+void do_cb_xcom_expel() {
+  Gcs_xcom_interface *intf =
+      static_cast<Gcs_xcom_interface *>(Gcs_xcom_interface::get_interface());
+  if (intf) {
+    intf->make_gcs_leave_group_on_error();
+  }
+}
+
+/*
+  Callback function used by XCom to signal that a node has left the group
+  because of a `die_op` or a view where the node does not belong to.
+*/
+void cb_xcom_expel(int status MY_ATTRIBUTE((unused))) {
+  Gcs_xcom_notification *notification =
+      new Expel_notification(do_cb_xcom_expel);
+
+  bool scheduled = gcs_engine->push(notification);
+  if (!scheduled) {
+    MYSQL_GCS_LOG_DEBUG(
+        "Tried to enqueue an expel request but the member is about to stop.")
+    delete notification;
+  } else {
+    MYSQL_GCS_LOG_TRACE("Expel view notification: " << notification)
+  }
+}
 
 void cb_xcom_logger(int level, const char *message)
 {
