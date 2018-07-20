@@ -1,0 +1,78 @@
+--replace_result $TEST_SERVICES_HOST_APPLICATION_SIGNAL_PLUGIN TEST_SERVICES_HOST_APPLICATION_SIGNAL_PLUGIN
+eval INSTALL PLUGIN test_services_host_application_signal SONAME "$TEST_SERVICES_HOST_APPLICATION_SIGNAL_PLUGIN";
+
+let $log_error_= `SELECT @@GLOBAL.log_error`;
+if($log_error_ == "stderr")
+{
+  let $log_error_ = $MYSQLTEST_VARDIR/log/mysqld.1.err;
+}
+let SEARCH_FILE=$log_error_;
+let BASEDIR= `select @@basedir`;
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+let $MYSQL_BASEDIR= `SELECT @@basedir`;
+let $MYSQL_SOCKET= `SELECT @@socket`;
+let $MYSQL_TIMEZONE= `SELECT @@time_zone`;
+let $MYSQL_PIDFILE= `SELECT @@pid_file`;
+let $MYSQL_PORT= `SELECT @@port`;
+let $MYSQL_MESSAGESDIR= `SELECT @@lc_messages_dir`;
+let extra_opts=--defaults-file=$MYSQLTEST_VARDIR/my.cnf --defaults-group-suffix=".1" --console;
+
+--echo # Test for bad service id
+SELECT test_shutdown_signal_udf(2);
+
+
+--echo # shutdown the server from mtr.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo # restart the server.
+--exec echo "restart:" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # start the sql client and test the shutdown UDF with 0
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec $MYSQL -e "SELECT test_shutdown_signal_udf(0);" 2>&1
+--source include/wait_until_disconnected.inc
+
+--echo # Search for the message in the log
+let SEARCH_PATTERN=Received SHUTDOWN from user .internal signal component service;
+--source include/search_pattern.inc
+
+--echo # restart the server
+--exec echo "restart:" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # start the sql client and test the shutdown UDF with 1
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec $MYSQL -e "SELECT test_shutdown_signal_udf(1);" 2>&1
+--source include/wait_until_disconnected.inc
+
+--echo # Search for the message in the log
+let SEARCH_PATTERN=Received SHUTDOWN from user .internal signal component service;
+--source include/search_pattern.inc
+
+--echo # restart server.
+--exec echo "restart:" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # Stop DB server which was created by MTR default
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/shutdown_mysqld.inc
+
+--echo # Trying the shutdown at init option
+--exec $MYSQLD $extra_opts $TEST_SERVICES_HOST_APPLICATION_SIGNAL_PLUGIN_OPT --test_services_host_application_signal_shutdown_at_init=1
+
+--echo # Search for the message in the log
+let SEARCH_PATTERN=Received SHUTDOWN from user .internal signal component service;
+--source include/search_pattern.inc
+
+--echo # restart server.
+--exec echo "restart:" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+UNINSTALL PLUGIN test_services_host_application_signal;

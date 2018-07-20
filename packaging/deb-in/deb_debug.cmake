@@ -106,6 +106,7 @@ usr/lib/mysql/plugin/debug/component_test_string_service_long.so
 usr/lib/mysql/plugin/debug/component_test_pfs_notification.so
 usr/lib/mysql/plugin/debug/component_test_pfs_resource_group.so
 usr/lib/mysql/plugin/debug/component_test_udf_registration.so
+usr/lib/mysql/plugin/debug/component_test_host_application_signal.so
 usr/lib/mysql/plugin/debug/component_udf_reg_3_func.so
 usr/lib/mysql/plugin/debug/component_udf_reg_avg_func.so
 usr/lib/mysql/plugin/debug/component_udf_reg_int_func.so
@@ -151,6 +152,7 @@ usr/lib/mysql/plugin/debug/test_udf_services.so
 usr/lib/mysql/plugin/debug/udf_example.so
 usr/lib/mysql/plugin/debug/test_security_context.so
 usr/lib/mysql/plugin/debug/test_services_plugin_registry.so
+usr/lib/mysql/plugin/debug/test_services_host_application_signal.so
 usr/lib/mysql/plugin/debug/component_test_status_var_service.so
 usr/lib/mysql/plugin/debug/component_test_status_var_service_int.so
 usr/lib/mysql/plugin/debug/component_test_status_var_service_reg_only.so

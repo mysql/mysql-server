@@ -1195,6 +1195,16 @@ mysql_cond_t COND_start_signal_handler;
 mysql_mutex_t LOCK_keyring_operations;
 
 bool mysqld_server_started = false;
+/**
+  Set to true to signal at startup if the process must die.
+
+  Needed because kill_mysql() will not do anything before
+  the server is fully initialized. Thus it now just sets this
+  flag to on and exits. And then mysqld_main() will check if
+  the flag is on at the right place and exit the process if it
+  is.
+*/
+static bool mysqld_process_must_end_at_startup = false;
 
 /* replication parameters, if master_host is not NULL, we are a slave */
 uint report_port = 0;
@@ -1524,6 +1534,7 @@ static void server_component_init() {
   clone_protocol_service_init();
   mysql_security_context_init();
   mysql_server_ongoing_transactions_query_init();
+  host_application_signal_imp_init();
 }
 
 /**
@@ -1799,6 +1810,10 @@ bool signal_restart_server() {
 void kill_mysql(void) {
   DBUG_ENTER("kill_mysql");
 
+  if (!mysqld_server_started) {
+    mysqld_process_must_end_at_startup = true;
+    DBUG_VOID_RETURN;
+  }
 #if defined(_WIN32)
   {
     if (!SetEvent(hEventShutdown)) {
@@ -6387,6 +6402,7 @@ int mysqld_main(int argc, char **argv)
 #ifdef _WIN32
   create_shutdown_and_restart_thread();
 #endif
+  if (mysqld_process_must_end_at_startup) unireg_abort(MYSQLD_SUCCESS_EXIT);
   start_handle_manager();
 
   create_compress_gtid_table_thread();

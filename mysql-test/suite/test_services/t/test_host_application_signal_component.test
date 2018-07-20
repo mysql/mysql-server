@@ -1,0 +1,51 @@
+INSTALL COMPONENT "file://component_test_host_application_signal";
+
+let $log_error_= `SELECT @@GLOBAL.log_error`;
+if($log_error_ == "stderr")
+{
+  let $log_error_ = $MYSQLTEST_VARDIR/log/mysqld.1.err;
+}
+let SEARCH_FILE=$log_error_;
+
+--echo # Test for bad service id
+SELECT test_shutdown_signal(2);
+
+--echo # shutdown the server from mtr.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo # restart the server.
+--exec echo "restart:" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # start the sql client and test the shutdown UDF with 0
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec $MYSQL -e "SELECT test_shutdown_signal(0);" 2>&1
+--source include/wait_until_disconnected.inc
+
+--echo # Search for the message in the log
+let SEARCH_PATTERN=Received SHUTDOWN from user .internal signal component service;
+--source include/search_pattern.inc
+
+--echo # restart the server
+--exec echo "restart:" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # start the sql client and test the shutdown UDF with 1
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec $MYSQL -e "SELECT test_shutdown_signal(1);" 2>&1
+--source include/wait_until_disconnected.inc
+
+--echo # Search for the message in the log
+let SEARCH_PATTERN=Received SHUTDOWN from user .internal signal component service;
+--source include/search_pattern.inc
+
+--echo # restart server.
+--exec echo "restart:" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+UNINSTALL COMPONENT "file://component_test_host_application_signal";

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -46,100 +46,232 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "server_component.h"
 
 /**
-  @page PAGE_COMPONENTS MySQL Component extensions subsystem
+  @page PAGE_COMPONENTS Component Subsystem
 
-  The Components are meant to replace older plugin infrastructure. They should
-  be used to expose both the server internal and external Components
-  functionality through a common registry as implementations of interfaces.
-  These interfaces are called Services, and they may implemented by some Service
-  Implementations.
-  A group of bounded, possibly inter-dependent Service Implementations are held
-  in Components. All Components are meant to communicate with each other only
-  using the Component subsystem, using supplied Service Registry. This should
-  be kept really strict to not undermine any of the Component subsystem design
-  advantages.
-  The Component have ability to use other (possibly earlier unknown)
-  implementations of other Components that implement specified, well-known and
-  stable Services, which are known to the Component.
-  The Component can have a list of the Services it requires to load
-  successfully, for which for each exactly one Service Implementation must be
-  provided.
+  The component subsystem is designed to overcome some of the architectural
+  issues of the plugin subsystem, namely:
+  1. Plugins can only "talk" to the server and not with other plugins
+  2. Plugins have access to the server symbols and can call them directly,
+    i.e. no encapsulation
+  3. There's no explicit set of dependencies of a plugin, thus it's
+    hard to initialize them properly
+  4. Plusing require a running server to operate.
 
-  See more:
+  The component infrastructure aims at allowing the MySQL server subsystems
+  to be encapsulated into a set of logical components. Additional components
+  may be added to a running server to extend its functionality.
 
-  @subpage PAGE_COMPONENTS_SERVICE
+  Components can be linked either dynamically or statically.
 
-  @subpage PAGE_COMPONENTS_REGISTRY
+  Each component will provide implementations of an extensive set of named
+  APIs, services, that other components can consume. To facilitate this
+  there will be a registry of all services available to all components.
 
-  @subpage PAGE_COMPONENTS_DYNAMIC_LOADER
+  Each component will communicate with other components only through
+  services and will explicitly state the services it provides and consumes.
 
-  @subpage PAGE_COMPONENTS_COMPONENT
+  The infrastructure will enable components to override and complement
+  other components through re-implementing the relevant service APIs.
 
+  Once there's a critical mass of such components exposing their functionality
+  and consuming the services they need through named service APIs this will
+  allow additional loadable components to take advantage of all the
+  functionality they need without having to carve in specialized APIs into the
+  monolithic server code for each new need.
+
+  The infrastructure described here is mostly orthogonal to the ongoing
+  activity on modularizing the MySQL Server. However, properly defined modules
+  and interfaces in the Server, allows server functionality to easily be
+  exposed as services where it makes sense.
+
+  @subpage PAGE_COMPONENTS_CONCEPTS
+
+  @section sect_components_services_inventory
+
+  To the @ref group_components_services_inventory
+*/
+
+/**
+  @defgroup group_components_services_inventory Component Services Inventory
+
+  This is a group of all component service APIs
+
+  See @ref PAGE_COMPONENTS_SERVICE for explanation of what a component service
+  is
+*/
+
+/**
+
+  @page PAGE_COMPONENTS_CONCEPTS Component Subsystem Concepts
+
+  These are the building blocks of the component subsystem:
+
+  - @subpage PAGE_COMPONENTS_SERVICE
+  - @subpage PAGE_COMPONENTS_REGISTRY
+  - @subpage PAGE_COMPONENTS_DYNAMIC_LOADER
+  - @subpage PAGE_COMPONENTS_COMPONENT
+
+  To understand how the component subsystem interacts with the
+  binary it's hosted in and with the server in specific read:
+
+  - @subpage page_components_layering
+  - @subpage page_components_layering_plugins
+*/
+
+/**
   @page PAGE_COMPONENTS_DYNAMIC_LOADER The Dynamic Loader Service
 
-  @section introduction Introduction
+  @section sect_components_dyloader_introduction Introduction
 
-  The Dynamic Loader Service is one of the core Services of the MySQL Component
-  subsystem. It is responsible for handling Components, load, register their
-  Service Implementations, resolve dependencies and provide Service
-  implementation for these dependencies. It is also responsible to revert effect
-  of load operation in mostly reverse order, in unload method().
+  The dynamic loader Service is one of the core Services of the MySQL
+  Component subsystem. It is responsible for loading new components,
+  register the services they implement, resolve dependencies and provide
+  service implementations for these dependencies to the component.
+  It is also responsible for unloading components, effectively reversing
+  the effect of load operation in mostly reverse order, in unload
+  method().
 
-  Macros to help define Components are listed in component_implementation.h.
+  Macros to help define components are listed in component_implementation.h.
 
-  Components are not reference counted, as they consist only of the Service
-  Implementations, once all these are free we can unload the Component.
+  To use the provided services a reference to the required service
+  implementation must be obtained from the registry: either explicitly via
+  calling the registry service methods or implicitly by declaring it into the
+  component's metadata so that the dynamic loader can satisfy that dependency
+  at component load time.
+  Once the service reference is no longer needed the reference to it must be
+  released. The registry keeps reference counts for each service
+  implementation it lists to track if a service implementation is used
+  or not.
 
-  Internally, the Components structure shares with Service Implementations a
-  common code for the metadata storage.
+  Components are not reference counted, as they do not communicate with other
+  components in any other way but via service references.
+  And since service implementations are reference counted the dynamic loader
+  can reliably detect if all service implementations a component provides
+  are unused and can safely unload the component.
 
-  @section component_urn Component URN and scheme.
+  @section sect_components_dyloader_component_urn Component URN and schemes.
 
-  It allows Components from multiple sources to be loaded. Each Component is
-  specified by a URN of "scheme://path", where "scheme" defines which Dynamic
-  Loader Scheme Service to use to acquire Component and retrieve an info
-  structure on it. Single URN location can contain several Components. This is
-  the case for a standard usage of dynamic libraries.
+  Component names are structured in such a way that allows components
+  from multiple sources to be loaded. Each component is
+  specified by a URN of "scheme://path", where "scheme" defines which
+  dynamic loader scheme service to use to acquire the component definition.
+  Single URNs can contain several components.
 
-  Basic Dynamic Loader Scheme Service Implementation is defined for the
-  "file://" scheme (in the dynamic_loader_scheme_file.cc),
-  which accepts a path to dynamic library to load Components
-  from using the system API. An additional Service Implementation, the Path
-  Filter Dynamic Loader "file://" Scheme Service Implementation is provided for
-  the "file://" scheme as wrapper on any already registered, that assumes a path
-  argument is just a filename without extension and limits plug-ins to be loaded
-  only from MySQL plug-ins directory.
+  A basic dynamic loader scheme service is implemented for the
+  "file://" scheme (see @ref dynamic_loader_scheme_file.cc),
+  which accepts a path to a dynamic library to load components
+  from using the OS dynamic library APIs. This dynamic loader scheme
+  implementation does not rely on any server functionality and hence can
+  be placed into the component infrastructure core (a.k.a. the mimimal
+  chassis).
+
+  An additional service implementation, the path filter dynamic Loader
+  "file://" scheme service implementation, is provided for the "file://"
+  scheme as wrapper on any already registered file scheme dynamic loader
+  service implementation, that assumes a path argument is just a filename
+  without extension and limits shared libraries to be loadable only from
+  the MySQL server plug-in directory. The filter is implemented as a
+  separate service implementation as it requires access to the server
+  internal variables (the plugin directory path) and is hence implemented
+  into the server component. This also demonstrates how other components
+  can reimplement functionality provided by a component via setting a new
+  default implementation of a service they want to re-implement.
 
   @section builtin_scheme The "builtin://" Scheme.
 
-  The Dynamic Loader Scheme Service for "builtin://" was designed, to include
-  Components that were meant to be statically linked into MySQL executable, but
-  to comply with the Components requirements, that is mainly to assure
-  Components are not dependable an any other Component in ways not meant by the
-  Components subsystem, i.e. not through the Service Registry. This should be
-  assured by creating separate Components in separate dynamic libraries. This
-  leads to no need for "builtin://" Scheme, as there will be the only one
-  Component linked statically into MySQL Server executable.
+  The dynamic loader scheme service for "builtin://" was designed to
+  include components that were meant to be statically linked into MySQL
+  executable, but to comply with the components requirements, that is mainly
+  to assure components do not interact with any other component in ways not
+  meant by the components subsystem, i.e. not through the services in the
+  service registry.
+  This is easily asserted by housing components in separate dynamic
+  libraries. This makes the "builtin://" scheme, a bit of a bad practice as
+  it breaks the safeguard of having only one component in a OS binary.
+  Thus currently the scheme name is reserved but no implementation of it is
+  provided.
 
-  @section future_of_the_core The future on the core Service Implementations of
-  the Component subsystem.
-
-  For now the core of the Components subsystem, i.e. the Service Registry and
-  Dynamic Loader Services are implemented inside the Component in the MySQL
-  executable. However, it is desired to extract that core part into separate
-  Component. This will be possible, as MySQL-related Service Implementations
-  like the Persistent Dynamic Loader and Path Filter Dynamic Loader "file://"
-  Scheme were already separated from the core Service Implementations. Also, to
-  be able to extract the core Service Implementations it is needed to create
-  some kind of session-carrying Service and logging Service on which the core
-  Service Implementations would depend, and for which MySQL will deliver
-  Service Implementations customized for MySQL needs.
-
-  See more:
-
-  mysql_persistent_dynamic_loader_imp
-
+  @sa mysql_persistent_dynamic_loader_imp,
   mysql_dynamic_loader_scheme_file_path_filter_imp
+*/
+/**
+  @page page_components_layering Component Infrastructure Layers
+
+  @section sect_components_minimal_chassis The Minimal Chassis
+
+  The core of the component infrastructure is the so called "minimal chassis".
+  It consists of implementations of the registry and the dynamic loader.
+  These are enough to bootstrap the subsystem and do not require any extra
+  functionality.
+
+  The minimal chassis can theoretically be embedded into any binary (be it
+  an executable or a shared library) and can be used to provide extensibility
+  to it. Hence it can even be isolated into a standalone library.
+
+  However the minimal chassis is currently is statically linked into the
+  server executable. Since the minimal chassis is logically independent it
+  can (and is) initialized very early in the server bootstrap process.
+
+  The minimal chassis lacks an impelmentation of persistent storage, i.e.
+  every time it's bootstraped it will only contain the registry and the
+  dynamic loader services. While this is a good basis it lacks a central
+  functionality expected from a mysql server extension system: keep a
+  persisted list of extensions that are to be loaded automatically into
+  the infrastructure in an orderly way to provide the functionality
+  contained in them to server users.
+
+  Hence an extra logical layer is added on top of the minimal chassis:
+
+  @section sect_components_layering_server_component The Server Component
+
+  The server component is currently the whole of the server binary code.
+  It's not loaded dynamically (as any ordinary component is) since it's
+  embedded into the same OS binary as the minimal chassis: the mysql server
+  executable binary.
+  As any other component the server component too can expose any of the
+  functionality it encapsulates via the service implementations it provides to
+  the other components in the component infrastructure.
+
+  The server component is initialized relatively late in the bootstrap process:
+  when all of the server is initialized and it's ready to "go" (i.e. accept
+  client connections). At that time the component persistency table is read
+  and all of the component sets defined in it are loaded and initialized.
+
+  Note that, albeit being in the same binary (component) the server
+  component and the minimal chassis are and should remain two distinct
+  layers. Mostly to allow safe reuse of the minimal chassis in other
+  binaries.
+
+  Hence the elements of the minimal chassis are implemented in
+  components/mysql-server and the implementations of services the
+  server component provides are to be found in sql/server_component/
+*/
+
+/**
+  @page page_components_layering_plugins Components and Plugins
+
+  An important question to answer is what is the relationship between
+  components and plugins. To the end user these both look the same: a way
+  to dynamically extend the functionality of the server.
+  And that is a sought-after resemblance.
+
+  But architecturally the two are very distinct.
+
+  Components are self-contained code containers that interact with
+  other code exclusively by implementing and consuming
+  services via the registry.
+
+  Plugins do implement plugin APIs and may choose to call plugin service
+  APIs exposed by the server. But in reality they have access to all of
+  the server binary global symbols. So most if not all plugins choose to
+  use these instead of confining themselves into the (admitedly limited
+  set of) plugin APIs available.
+
+  The above makes plugins an integral part of the server codebase, more
+  specifically of the server component.
+
+  @attention Plugins are dynamically loadable bits of the
+  @ref sect_components_layering_server_component
 */
 
 static PSI_rwlock_key key_rwlock_LOCK_dynamic_loader;

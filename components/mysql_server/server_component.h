@@ -61,6 +61,7 @@ void mysql_backup_lock_service_init();
 void mysql_server_ongoing_transactions_query_init();
 
 void clone_protocol_service_init();
+void host_application_signal_imp_init();
 
 /* implementation of the built-in components */
 

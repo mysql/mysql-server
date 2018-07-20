@@ -231,6 +231,7 @@ for p in auth.so auth_test_plugin.so authentication_ldap_sasl.so \
          component_udf_reg_int_same_func.so component_udf_reg_avg_func.so \
          component_udf_reg_only_3_func.so component_udf_reg_int_func.so \
          component_udf_reg_real_func.so component_test_udf_registration.so \
+         component_test_host_application_signal \
          component_udf_unreg_3_func.so component_udf_unreg_int_func.so \
          component_udf_unreg_real_func.so component_test_component_sys_var_service.so \
          component_test_sys_var_service_int.so component_test_sys_var_service.so \
@@ -245,6 +246,7 @@ for p in auth.so auth_test_plugin.so authentication_ldap_sasl.so \
          pfs_example_plugin_employee.so qa_auth_client.so qa_auth_interface.so \
          qa_auth_server.so replication_observers_example_plugin.so \
          test_security_context.so test_services_plugin_registry.so \
+         test_services_host_application_signal.so \
          udf_example.so  component_mysqlx_global_reset.so \
          test_udf_services.so component_test_backup_lock_service.so ; do
     rm -f %{buildroot}%{_libdir}/mysql/plugin/$p
@@ -408,6 +410,10 @@ rm -r $(readlink var) var
 %dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
 %changelog
+* Wed Jul 18 2018 Georgi Kodinov <georgi.kodinov@oracle.com> - 8.0.13-1
+- Added test_services_host_application_signal.so test plugin
+- Added component_test_host_application_signal.so test component
+
 * Mon Mar 12 2018 Erlend Dahl <erlend.dahl@oracle.com> - 8.0.12-0.1
 - Change the global milestone to 'dmr'
 - Move mysqlx to default plugin

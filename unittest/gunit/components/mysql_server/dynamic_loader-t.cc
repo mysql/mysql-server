@@ -45,6 +45,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <system_variable_source_imp.h>
 
 #include "components/mysql_server/persistent_dynamic_loader.h"
+#include "host_application_signal_imp.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_inttypes.h"
@@ -58,6 +59,11 @@ extern mysql_component_t COMPONENT_REF(mysql_server);
 
 struct mysql_component_t *mysql_builtin_components[] = {
     &COMPONENT_REF(mysql_server), 0};
+
+DEFINE_BOOL_METHOD(mysql_component_host_application_signal_imp::signal,
+                   (int, void *)) {
+  return true;
+}
 
 DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
                    (void *, const char *[], int)) {

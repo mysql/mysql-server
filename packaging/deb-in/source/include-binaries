@@ -45,6 +45,7 @@ debian/extra/pfs_example_plugin_employee-plugin
 debian/extra/component_test_pfs_notification-plugin
 debian/extra/component_test_pfs_resource_group-plugin
 debian/extra/component_test_udf_registration-plugin
+debian/extra/component_test_host_application_signal-plugin
 debian/extra/component_udf_reg_3_func-plugin
 debian/extra/component_udf_reg_avg_func-plugin
 debian/extra/component_udf_reg_int_func-plugin
@@ -113,6 +114,7 @@ debian/extra/test_udf_services-plugin
 debian/extra/udf_example-plugin
 debian/extra/test_security_context-plugin
 debian/extra/test_services_plugin_registry-plugin
+debian/extra/test_services_host_application_signal-plugin
 debian/extra/validate_password-plugin
 debian/extra/version_token-plugin
 debian/extra/connection_control-plugin

@@ -272,6 +272,7 @@ SET(MYSQL_SERVER_SUB_COMPONENT_SOURCES
   server_component/ongoing_transaction_query_service.cc
   server_component/system_variable_source_imp.cc
   server_component/security_context_imp.cc
+  server_component/host_application_signal_imp.cc
   )
 
 SET(SQL_SHARED_SOURCES

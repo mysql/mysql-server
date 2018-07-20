@@ -842,6 +842,7 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_pfs_notification.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_pfs_resource_group.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_udf_registration.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_host_application_signal.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_udf_reg_3_func.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_udf_reg_avg_func.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_udf_reg_int_func.so
@@ -892,6 +893,7 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_server.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/test_security_context.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/test_services_plugin_registry.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/test_services_host_application_signal.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/test_udf_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/udf_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_mysqlx_global_reset.so
@@ -911,6 +913,7 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_pfs_notification.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_pfs_resource_group.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_udf_registration.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_host_application_signal.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_udf_reg_3_func.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_udf_reg_avg_func.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_udf_reg_int_func.so
@@ -962,6 +965,7 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_server.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_security_context.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_services_plugin_registry.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_services_host_application_signal.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_mysqlx_global_reset.so
 
 %if 0%{?compatlib}
@@ -1001,7 +1005,14 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %endif # compatlib
 
 %changelog
+* Wed Jul 18 2018 Georgi Kodinov <georgi.kodinov@oracle.com> - 8.0.13-1
+- Added test_services_host_application_signal test plugin
+- Added component_test_host_application_signal.so test component
+
 * Mon Mar 12 2018 Bjorn Munch <bjorn.munch@oracle.com> - 8.0.12-0.1
+
+* Mon Mar 12 2018 Erlend Dahl <erlend.dahl@oracle.com> - 8.0.11-1
+- Removed milestone marker
 - Move mysqlx to default plugin
 - Add component_mysqlx_global_reset.so
 - Change the global milestone to 'dmr'

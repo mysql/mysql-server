@@ -40,6 +40,7 @@ usr/lib/mysql/plugin/pfs_example_plugin_employee.so
 usr/lib/mysql/plugin/component_test_pfs_notification.so
 usr/lib/mysql/plugin/component_test_pfs_resource_group.so
 usr/lib/mysql/plugin/component_test_udf_registration.so
+usr/lib/mysql/plugin/component_test_host_application_signal.so
 usr/lib/mysql/plugin/component_udf_reg_3_func.so
 usr/lib/mysql/plugin/component_udf_reg_avg_func.so
 usr/lib/mysql/plugin/component_udf_reg_int_func.so
@@ -96,6 +97,7 @@ usr/lib/mysql/plugin/test_udf_services.so
 usr/lib/mysql/plugin/udf_example.so
 usr/lib/mysql/plugin/test_security_context.so
 usr/lib/mysql/plugin/test_services_plugin_registry.so
+usr/lib/mysql/plugin/test_services_host_application_signal.so
 usr/lib/mysql/plugin/component_mysqlx_global_reset.so
 @DEB_INSTALL_DEBUG_TEST_PLUGINS@
 # test suite

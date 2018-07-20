@@ -46,6 +46,7 @@
 #include <server_component.h>
 #include <system_variable_source_imp.h>
 
+#include "host_application_signal_imp.h"
 #include "lex_string.h"
 #include "my_compiler.h"
 #include "my_io.h"
@@ -57,6 +58,11 @@ extern mysql_component_t COMPONENT_REF(mysql_server);
 
 struct mysql_component_t *mysql_builtin_components[] = {
     &COMPONENT_REF(mysql_server), 0};
+
+DEFINE_BOOL_METHOD(mysql_component_host_application_signal_imp::signal,
+                   (int, void *)) {
+  return true;
+}
 
 DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
                    (void *, const char *[], int)) {

@@ -124,3 +124,7 @@ component_test_system_variable_source plugin_output_directory TEST_SYSTEM_VARIAB
 
 # password validation component
 component_validate_password     plugin_output_directory  VALIDATE_PASSWORD_COMPONENT
+
+# test application signal
+component_test_host_application_signal  plugin_output_directory  TEST_HOST_APPLICATION_SIGNAL_COMPONENT
+test_services_host_application_signal  plugin_output_directory  TEST_SERVICES_HOST_APPLICATION_SIGNAL_PLUGIN
