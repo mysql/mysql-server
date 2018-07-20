@@ -1651,24 +1651,20 @@ int Clone_Task_Manager::change_state(Clone_Task *task,
 
   mutex_enter(&m_state_mutex);
 
-  /* Check for error from other tasks */
+  /* Check for error from other tasks. Must finish the state transition
+  even in case of an error. */
   err = handle_error_other_task(task->m_has_thd);
-
-  if (err != 0) {
-    mutex_exit(&m_state_mutex);
-    return (err);
-  }
 
   m_current_state = m_next_state;
   m_next_state = CLONE_SNAPSHOT_NONE;
 
   --m_num_tasks_transit;
-  ut_ad(m_num_tasks_transit == 0);
-
+  /* In case of error, the other tasks might have exited. */
+  ut_ad(m_num_tasks_transit == 0 || err != 0);
   m_num_tasks_transit = 0;
 
   /* For restart, m_num_tasks_finished may not be up to date */
-  ut_ad(m_num_tasks_finished == m_num_tasks);
+  ut_ad(m_num_tasks_finished == m_num_tasks || err != 0);
   m_num_tasks_finished = 0;
 
   ut_d(task->m_ignore_sync = false);
@@ -1679,7 +1675,7 @@ int Clone_Task_Manager::change_state(Clone_Task *task,
 
   mutex_exit(&m_state_mutex);
 
-  return (0);
+  return (err);
 }
 
 int Clone_Task_Manager::check_state(Clone_Task *task, Snapshot_State new_state,
