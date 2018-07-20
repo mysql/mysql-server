@@ -1,6 +1,6 @@
 # Global Setup
 call mtr.add_suppression("Failed to setup SSL");
-call mtr.add_suppression("SSL error: SSL_CTX_set_default_verify_paths failed");
+call mtr.add_suppression(".*SSL_CTX_set_default_verify_paths failed");
 # Case 1 : Enable SSL automatically if ca.pem, server-cert.pem and
 #          sever-key.pem are present in data directory
 # Copy SSL certificates before restarting.

@@ -7,9 +7,9 @@
 
 --echo # Global Setup
 call mtr.add_suppression("Failed to setup SSL");
-call mtr.add_suppression("SSL error: SSL_CTX_set_default_verify_paths failed");
+call mtr.add_suppression(".*SSL_CTX_set_default_verify_paths failed");
 let DATADIR_LOCATION=$MYSQLTEST_VARDIR/mysqld.1/data;
-let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
+let server_log= $MYSQLTEST_VARDIR/log/ssl_auto_detect.err;
 let SEARCH_FILE= $server_log;
 
 
@@ -24,15 +24,13 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --shutdown_server
 --source include/wait_until_disconnected.inc
 
---remove_file $server_log 25
-
 --echo # Copy SSL certificates before restarting.
 --echo # They should be picked up automatically by server.
 --copy_file std_data/cacert.pem $DATADIR_LOCATION/ca.pem
 --copy_file std_data/server-cert.pem $DATADIR_LOCATION/server-cert.pem
 --copy_file std_data/server-key.pem $DATADIR_LOCATION/server-key.pem
 
---exec echo "restart: --log-error-verbosity=3" > $restart_file
+--exec echo "restart:--log-error=$server_log --log-error-verbosity=3" > $restart_file
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
@@ -81,7 +79,7 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --echo # Remove one of the certificates/keys.
 --remove_file $DATADIR_LOCATION/server-key.pem
 
---exec echo "restart" > $restart_file
+--exec echo "restart: --log-error=$server_log" > $restart_file
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
@@ -113,7 +111,7 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 
 --copy_file std_data/server-key.pem $DATADIR_LOCATION/server-key.pem
 
---exec echo "restart: --ssl-cipher=DHE-RSA-AES256-SHA --log-error-verbosity=3 --console" > $restart_file
+--exec echo "restart: --log-error=$server_log --ssl-cipher=DHE-RSA-AES256-SHA --log-error-verbosity=3 " > $restart_file
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
@@ -141,7 +139,5 @@ let SEARCH_PATTERN= CA certificate .* is self signed.;
 
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
-
---source include/force_restart.inc
 
 #------------------------------------------------------------------------------

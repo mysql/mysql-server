@@ -8,9 +8,9 @@
 
 --echo # Global Setup
 call mtr.add_suppression("Failed to setup SSL");
-call mtr.add_suppression("SSL error: SSL_CTX_set_default_verify_paths failed");
+call mtr.add_suppression(".*SSL_CTX_set_default_verify_paths failed");
 let DATADIR_LOCATION=$MYSQLTEST_VARDIR/mysqld.1/data;
-let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
+let server_log= $MYSQLTEST_VARDIR/log/ssl_auto_detect_openssl.err;
 let CERTDIR_LOCATION=$MYSQLTEST_VARDIR/tmp/certs;
 let CADIR_LOCATION=$MYSQLTEST_VARDIR/tmp/certs/cacerts;
 
@@ -40,9 +40,7 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --shutdown_server
 --source include/wait_until_disconnected.inc
 
---remove_file $server_log 25
-
---exec echo "restart: --ssl-capath=$CADIR_LOCATION --ssl-ca=$CADIR_LOCATION/ca.pem --ssl-cert=$CERTDIR_LOCATION/server-cert.pem --ssl-key=$CERTDIR_LOCATION/server-key.pem" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart: --log-error=$server_log --ssl-capath=$CADIR_LOCATION --ssl-ca=$CADIR_LOCATION/ca.pem --ssl-cert=$CERTDIR_LOCATION/server-cert.pem --ssl-key=$CERTDIR_LOCATION/server-key.pem" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
@@ -69,6 +67,5 @@ let SEARCH_PATTERN= CA certificate .*ca2.pem is self signed.;
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
 
---source include/force_restart.inc
 
 #------------------------------------------------------------------------------
