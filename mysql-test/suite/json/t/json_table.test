@@ -1112,3 +1112,37 @@ FROM INFORMATION_SCHEMA.COLUMN_STATISTICS,
              c double PATH '$[1]')) hist
 WHERE column_name = "col2";
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#27856835 JSON_TABLE RETURNS WRONG DATATYPE WHEN INT-VALUE IS GRATER
+--echo #              THAN (2^31-1)
+--echo #
+SELECT id FROM JSON_TABLE('[{"id":"9223372036854775807"}]', '$[*]' COLUMNS
+(id BIGINT PATH '$.id')) AS json;
+
+--echo # As we currently have no way of telling if a JSON string value is
+--echo # signed or unsigned, this value will overflow.
+SELECT id FROM JSON_TABLE('[{"id":"9223372036854775808"}]', '$[*]' COLUMNS
+(id BIGINT PATH '$.id')) AS json;
+
+--echo # Here the JSON value is a NUMERIC value, and we thus know if the value
+--echo # is signed or unsigned.
+SELECT id FROM JSON_TABLE('[{"id":9223372036854775808}]', '$[*]' COLUMNS
+(id BIGINT PATH '$.id')) AS json;
+
+--echo # If we tell the JSON table column to be unsigned, we get to store the
+--echo # full value correctly.
+SELECT id FROM JSON_TABLE('[{"id":"9223372036854775808"}]', '$[*]' COLUMNS
+(id BIGINT UNSIGNED PATH '$.id')) AS json;
+
+SELECT id FROM JSON_TABLE('[{"id":"2147483648"}]', '$[*]' COLUMNS
+(id INT UNSIGNED PATH '$.id')) AS json;
+
+--echo # Check that we preserve the signedness of the columns.
+CREATE TABLE t1 AS SELECT id, value FROM
+  JSON_TABLE('[{"id":9223372036854775808, "value":9223372036854775807}]',
+             '$[*]' COLUMNS (id BIGINT UNSIGNED PATH '$.id',
+                             value BIGINT PATH '$.value'))
+  AS json;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;

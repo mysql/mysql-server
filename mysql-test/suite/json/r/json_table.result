@@ -1763,3 +1763,48 @@ value	cumulfreq
 バ	0.75
 パ	1
 DROP TABLE t1;
+#
+# Bug#27856835 JSON_TABLE RETURNS WRONG DATATYPE WHEN INT-VALUE IS GRATER
+#              THAN (2^31-1)
+#
+SELECT id FROM JSON_TABLE('[{"id":"9223372036854775807"}]', '$[*]' COLUMNS
+(id BIGINT PATH '$.id')) AS json;
+id
+9223372036854775807
+# As we currently have no way of telling if a JSON string value is
+# signed or unsigned, this value will overflow.
+SELECT id FROM JSON_TABLE('[{"id":"9223372036854775808"}]', '$[*]' COLUMNS
+(id BIGINT PATH '$.id')) AS json;
+id
+-9223372036854775808
+# Here the JSON value is a NUMERIC value, and we thus know if the value
+# is signed or unsigned.
+SELECT id FROM JSON_TABLE('[{"id":9223372036854775808}]', '$[*]' COLUMNS
+(id BIGINT PATH '$.id')) AS json;
+id
+NULL
+Warnings:
+Warning	1264	Out of range value for column 'id' at row 1
+# If we tell the JSON table column to be unsigned, we get to store the
+# full value correctly.
+SELECT id FROM JSON_TABLE('[{"id":"9223372036854775808"}]', '$[*]' COLUMNS
+(id BIGINT UNSIGNED PATH '$.id')) AS json;
+id
+9223372036854775808
+SELECT id FROM JSON_TABLE('[{"id":"2147483648"}]', '$[*]' COLUMNS
+(id INT UNSIGNED PATH '$.id')) AS json;
+id
+2147483648
+# Check that we preserve the signedness of the columns.
+CREATE TABLE t1 AS SELECT id, value FROM
+JSON_TABLE('[{"id":9223372036854775808, "value":9223372036854775807}]',
+'$[*]' COLUMNS (id BIGINT UNSIGNED PATH '$.id',
+value BIGINT PATH '$.value'))
+AS json;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint(20) unsigned DEFAULT NULL,
+  `value` bigint(20) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
