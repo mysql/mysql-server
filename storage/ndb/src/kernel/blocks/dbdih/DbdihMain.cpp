@@ -1362,7 +1362,6 @@ void Dbdih::execREAD_CONFIG_REQ(Signal* signal)
     ndb_mgm_get_int_parameter(p, CFG_DB_2PASS_INR,
                               &val);
     c_2pass_inr = val ? true : false;
-    c_2pass_inr = false;
   }
 
   /**

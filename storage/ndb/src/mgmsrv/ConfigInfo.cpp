@@ -2068,7 +2068,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_BOOL,
-    "false",
+    "true",
     "false",                     /* Min */
     "true"                       /* Max */
   },
