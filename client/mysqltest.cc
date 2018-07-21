@@ -1081,7 +1081,7 @@ static void check_command_args(struct st_command *command,
 /// If caller needs to know whether the list was empty, they should
 /// check the value of expected_errors.count.
 static int match_expected_error(struct st_command *command,
-                                unsigned int err_errno,
+                                std::uint32_t err_errno,
                                 const char *err_sqlstate) {
   std::uint8_t index = 0;
 
@@ -1091,17 +1091,17 @@ static int match_expected_error(struct st_command *command,
 
   // Iterate over list of expected errors
   for (; error != expected_errors->end(); error++) {
-    // Check if error type is ERR_ERRNO
-    if ((*error)->error_code() == err_errno && (*error)->type() == ERR_ERRNO)
-      return index;
-
-    // Check if error type is ERR_SQLSTATE
-    if ((*error)->type() == ERR_SQLSTATE) {
-      // NULL is quite likely, but not in conjunction with a SQL-state expect.
-      if (unlikely(err_sqlstate == NULL))
+    if ((*error)->type() == ERR_ERRNO) {
+      // Error type is ERR_ERRNO
+      if ((*error)->error_code() == err_errno) return index;
+    } else if ((*error)->type() == ERR_SQLSTATE) {
+      // Error type is ERR_SQLSTATE. NULL is quite likely, but not in
+      // conjunction with a SQL-state expect.
+      if (unlikely(err_sqlstate == NULL)) {
         die("Expecting a SQLSTATE (%s) from query '%s' which cannot produce "
             "one.",
             (*error)->sqlstate(), command->query);
+      }
 
       if (!std::strncmp((*error)->sqlstate(), err_sqlstate, SQLSTATE_LENGTH))
         return index;
@@ -1125,7 +1125,7 @@ static int match_expected_error(struct st_command *command,
 /// @note
 /// If there is an unexpected error, this function will abort mysqltest
 /// immediately.
-void handle_error(struct st_command *command, unsigned int err_errno,
+void handle_error(struct st_command *command, std::uint32_t err_errno,
                   const char *err_error, const char *err_sqlstate,
                   DYNAMIC_STRING *ds) {
   DBUG_ENTER("handle_error");
@@ -1170,13 +1170,16 @@ void handle_error(struct st_command *command, unsigned int err_errno,
     dynstr_append_mem(ds, "\n", 1);
   }
 
-  if (expected_errors->count() > 0) {
-    if (expected_errors->type() == ERR_ERRNO)
-      die("Query '%s' failed with wrong errno %d: '%s', instead of %d.",
-          command->query, err_errno, err_error, expected_errors->error_code());
-    else
-      die("Query '%s' failed with wrong sqlstate %s: '%s', instead of %s.",
-          command->query, err_sqlstate, err_error, expected_errors->sqlstate());
+  if (expected_errors->count()) {
+    if (expected_errors->count() == 1) {
+      die("Query '%s' failed with wrong error %d: '%s', should have failed "
+          "with error '%s'.",
+          command->query, err_errno, err_error, expected_errors->error_list());
+    } else {
+      die("Query '%s' failed with wrong error %d: '%s', should have failed "
+          "with any of '%s' errors.",
+          command->query, err_errno, err_error, expected_errors->error_list());
+    }
   }
 
   revert_properties();
@@ -1188,76 +1191,91 @@ void handle_error(struct st_command *command, unsigned int err_errno,
 /// Abort test run if the query succeeds and was expected to fail with
 /// an error.
 ///
-/// @param command  Pointer to the st_command structure which holds the
-///                 arguments and information for the command.
+/// @param command Pointer to the st_command structure which holds the
+///                arguments and information for the command.
 void handle_no_error(struct st_command *command) {
   DBUG_ENTER("handle_no_error");
 
   if (expected_errors->count()) {
-    if (expected_errors->type() == ERR_ERRNO &&
-        expected_errors->error_code() != 0) {
-      // Error code we wanted was != 0, i.e. not an expected success.
-      die("Query '%s' succeeded, should have failed with errno %d.",
-          command->query, expected_errors->error_code());
-    } else if (expected_errors->type() == ERR_SQLSTATE &&
-               strcmp(expected_errors->sqlstate(), "00000") != 0) {
-      // SQLSTATE we wanted was != "00000", i.e. not an expected success
-      die("Query '%s' succeeded, should have failed with sqlstate %s.",
-          command->query, expected_errors->sqlstate());
+    int index = match_expected_error(command, 0, "00000");
+    if (index == -1) {
+      if (expected_errors->count() == 1) {
+        die("Query '%s' succeeded, should have failed with error '%s'",
+            command->query, expected_errors->error_list());
+      } else {
+        die("Query '%s' succeeded, should have failed with any of '%s' errors.",
+            command->query, expected_errors->error_list());
+      }
     }
   }
 
   DBUG_VOID_RETURN;
 }
 
+/// Save error code returned by a mysqltest command in '$__error'
+/// variable.
+///
+/// @param error Error code
+static void save_error_code(std::uint32_t error) {
+  char error_value[10];
+  size_t error_length = std::snprintf(error_value, 10, "%u", error);
+  error_value[error_length > 9 ? 9 : error_length] = '0';
+  const char *var_name = "__error";
+  var_set(var_name, var_name + 7, error_value, error_value + error_length);
+}
+
 /// Handle errors which occurred during execution of mysqltest commands
 /// like 'move_file', 'remove_file' etc which are used to perform file
 /// system operations.
 ///
-/// @param command  Pointer to the st_command structure which holds the
-///                 arguments and information for the command.
-/// @param error    Error number
+/// @param command Pointer to the st_command structure which holds the
+///                arguments and information for the command.
+/// @param error   Error number
 ///
 /// @note
 /// If there is an unexpected error, this function will abort mysqltest
 /// client immediately.
 static void handle_command_error(struct st_command *command,
-                                 unsigned int error) {
+                                 std::uint32_t error) {
   DBUG_ENTER("handle_command_error");
   DBUG_PRINT("enter", ("error: %d", error));
 
-  if (error != 0) {
-    if (command->abort_on_error)
-      die("Command \"%s\" failed with error %d. my_errno=%d.",
-          command_names[command->type - 1], error, my_errno());
+  if (error != 0 && command->abort_on_error) {
+    die("Command \"%s\" failed with error %d. my_errno=%d.",
+        command_names[command->type - 1], error, my_errno());
+  }
 
-    int i = match_expected_error(command, error, NULL);
-
-    if (i >= 0) {
-      DBUG_PRINT("info", ("Command \"%s\" failed with expected error: %u.",
-                          command_names[command->type - 1], error));
-      goto end;
+  if (expected_errors->count()) {
+    int index = match_expected_error(command, error, NULL);
+    if (index == -1) {
+      if (error != 0) {
+        if (expected_errors->count() == 1) {
+          die("Command \"%s\" failed with wrong error: %d, my_errno=%d. should "
+              "have failed with error '%s'.",
+              command_names[command->type - 1], error, my_errno(),
+              expected_errors->error_list());
+        } else {
+          die("Command \"%s\" failed with wrong error: %d, my_errno=%d. should "
+              "have failed with any of '%s' errors.",
+              command_names[command->type - 1], error, my_errno(),
+              expected_errors->error_list());
+        }
+      } else {
+        // Command succeeded, should have failed with an error
+        if (expected_errors->count() == 1) {
+          die("Command \"%s\" succeeded, should have failed with error '%s'.",
+              command_names[command->type - 1], expected_errors->error_list());
+        } else {
+          die("Command \"%s\" succeeded, should have failed with any of '%s' "
+              "errors.",
+              command_names[command->type - 1], expected_errors->error_list());
+        }
+      }
     }
-
-    if (expected_errors->count() > 0)
-      die("Command \"%s\" failed with wrong error: %d, my_errno=%d.",
-          command_names[command->type - 1], error, my_errno());
-  } else if (expected_errors->count() && expected_errors->type() == ERR_ERRNO &&
-             expected_errors->error_code() != 0) {
-    // Command succeeded, should have failed with an error
-    die("Command \"%s\" succeeded, should have failed with errno %d.",
-        command_names[command->type - 1], expected_errors->error_code());
   }
 
-end:
   // Save the error code
-  {
-    const char var_name[] = "__error";
-    char buf[10];
-    size_t err_len = snprintf(buf, 10, "%u", error);
-    buf[err_len > 9 ? 9 : err_len] = '0';
-    var_set(var_name, var_name + 7, buf, buf + err_len);
-  }
+  save_error_code(error);
 
   revert_properties();
   DBUG_VOID_RETURN;
@@ -2961,60 +2979,27 @@ static void do_exec(struct st_command *command, bool run_in_background) {
     }
   }
 
+  std::uint32_t status = 0;
   int error = pclose(res_file);
+
   if (error > 0) {
 #ifdef _WIN32
-    uint status = WEXITSTATUS(error);
+    status = WEXITSTATUS(error);
 #else
-    uint status = 0;
     // Do the same as many shells here: show SIGKILL as 137
     if (WIFEXITED(error))
       status = WEXITSTATUS(error);
     else if (WIFSIGNALED(error))
       status = 0x80 + WTERMSIG(error);
 #endif
-
-    if (command->abort_on_error) {
-      log_msg("exec of '%s' failed, error: %d, status: %d, errno: %d",
-              ds_cmd.str, error, status, errno);
-      dynstr_free(&ds_cmd);
-      die("Command \"%s\" failed\n\nOutput from before failure:\n%s\n",
-          command->first_argument, ds_res.str);
-    }
-
-    DBUG_PRINT("info", ("error: %d, status: %d", error, status));
-
-    int i = match_expected_error(command, status, NULL);
-
-    if (i >= 0)
-      DBUG_PRINT("info", ("Command \"%s\" failed with expected error: %d.",
-                          command->first_argument, status));
-    else {
-      dynstr_free(&ds_cmd);
-      if (expected_errors->count() > 0)
-        die("Command \"%s\" failed with wrong error: %d.",
-            command->first_argument, status);
-    }
-  } else if (expected_errors->count() && expected_errors->type() == ERR_ERRNO &&
-             expected_errors->error_code() != 0) {
-    // Error code we wanted was != 0, i.e. not an expected success
-    log_msg("exec of '%s failed, error: %d, errno: %d.", ds_cmd.str, error,
-            errno);
-    dynstr_free(&ds_cmd);
-    die("Command \"%s\" succeeded, should have failed with errno %d.",
-        command->first_argument, expected_errors->error_code());
-  }
-
-  // Save error code
-  {
-    const char var_name[] = "__error";
-    char buf[10];
-    size_t err_len = snprintf(buf, 10, "%u", error);
-    buf[err_len > 9 ? 9 : err_len] = '0';
-    var_set(var_name, var_name + 7, buf, buf + err_len);
   }
 
   dynstr_free(&ds_cmd);
+  handle_command_error(command, status);
+
+  // Save error code
+  save_error_code(error);
+
   DBUG_VOID_RETURN;
 }
 

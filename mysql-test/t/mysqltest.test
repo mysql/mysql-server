@@ -4204,3 +4204,24 @@ EOF
 --error 1
 --exec $MYSQL_TEST -x $MYSQLTEST_VARDIR/tmp/wl11811.test 2>&1
 --remove_file $MYSQLTEST_VARDIR/tmp/wl11811.test
+
+--echo #
+--echo # BUG#28358835: MYSQLTEST: --ERROR IGNORES '0' IF ITS NOT THE FIRST
+--echo #               ERROR CODE
+--echo #
+
+# Execute a command using exec
+--error 1,0
+--exec exit 0
+
+# SQL query
+--error ER_NO,ER_YES,0
+SELECT 1 AS res;
+
+# mysqltest command
+--write_file $MYSQLTEST_VARDIR/tmp/bug28358835.tmp
+BUG#28358835
+EOF
+
+--error 1,0
+--remove_file $MYSQLTEST_VARDIR/tmp/bug28358835.tmp
