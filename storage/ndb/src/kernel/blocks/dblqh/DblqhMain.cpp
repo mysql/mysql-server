@@ -14851,10 +14851,11 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
       jam();
       /**
        * The non-transaction scan is really only a "normal" tup scan
-       *   committed read, and don't disable disk-scan
+       *   committed read.
        */
       //AccScanReq::setLockMode(sig_request_info, 0);
       AccScanReq::setReadCommittedFlag(sig_request_info, 1);
+      AccScanReq::setNoDiskScanFlag(sig_request_info, 1);
       scanPtr->readCommitted = 1;
     }
     req->requestInfo = sig_request_info;
