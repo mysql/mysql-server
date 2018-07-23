@@ -57,7 +57,10 @@ static struct proc_option f_options[] = {
     {"--PortNumber=", atrt_process::AP_NDB_MGMD, 0},
     {"--datadir=", atrt_process::AP_MYSQLD, 0},
     {"--socket=", atrt_process::AP_MYSQLD | atrt_process::AP_CLIENT, 0},
-    {"--port=", atrt_process::AP_MYSQLD | atrt_process::AP_CLIENT, 0},
+    {"--port=",
+     atrt_process::AP_MYSQLD | atrt_process::AP_CLIENT |
+         atrt_process::AP_CUSTOM,
+     0},
     {"--host=", atrt_process::AP_CLIENT, 0},
     {"--server-id=", atrt_process::AP_MYSQLD, PO_REP},
     {"--log-bin", atrt_process::AP_MYSQLD, PO_REP_MASTER},
@@ -346,14 +349,19 @@ bool load_deployment_options_for_process(atrt_cluster& cluster,
 
   proc.m_proc.m_path.assign(bin_path);
 
-  if (args) proc.m_proc.m_args.assign(args);
+  if (args) {
+    proc.m_proc.m_args.appfmt(" %s", args);
+  }
 
-  if (generate_port) {
+  const char* port_arg = "--port=";
+  const char* val;
+  if (generate_port && !proc.m_options.m_loaded.get(port_arg, &val)) {
     BaseString portno;
     portno.assfmt("%d", g_baseport + proc.m_procno);
 
-    proc.m_proc.m_args.appfmt(" --port=%s", portno.c_str());
-    proc.m_options.m_generated.put("--port", portno.c_str());
+    proc.m_proc.m_args.appfmt(" %s%s", port_arg, portno.c_str());
+    proc.m_options.m_generated.put(port_arg, portno.c_str());
+    proc.m_options.m_loaded.put(port_arg, portno.c_str());
   }
 
   return true;
@@ -487,6 +495,12 @@ static bool load_process(atrt_config& config, atrt_cluster& cluster,
       if (g_fix_nodeid) proc.m_nodeid = cluster.m_next_nodeid++;
       break;
     case atrt_process::AP_CUSTOM:
+      buf[0].assfmt("%s%s", proc.m_name.c_str(), cluster.m_name.c_str());
+      groups[0] = buf[0].c_str();
+
+      buf[1].assfmt("%s.%u%s", proc.m_name.c_str(), idx,
+                    cluster.m_name.c_str());
+      groups[1] = buf[1].c_str();
       break;
     default:
       g_logger.critical("Unhandled process type: %d", type);
@@ -604,6 +618,12 @@ static bool load_process(atrt_config& config, atrt_cluster& cluster,
       proc.m_proc.m_name.assfmt("%u-%s", proc_no, proc.m_name.c_str());
       proc.m_proc.m_cwd.assfmt("%s%s.%u", dir.c_str(), proc.m_name.c_str(),
                                proc.m_index);
+
+      const char* port_arg = "--port=";
+      const char* val;
+      if (proc.m_options.m_loaded.get(port_arg, &val)) {
+        proc.m_proc.m_args.assfmt("%s%s", port_arg, val);
+      }
       break;
     }
     case atrt_process::AP_ALL:
@@ -673,14 +693,16 @@ static bool pr_set_customprocs_connectstring(Properties&, proc_rule_ctx&, int);
 static proc_rule f_rules[] = {
     {atrt_process::AP_CLUSTER, pr_check_features, 0},
     {atrt_process::AP_MYSQLD, pr_check_replication, 0},
-    {(atrt_process::AP_ALL & ~atrt_process::AP_CLIENT), pr_proc_options,
-     ~(PO_REP | PO_NDB)},
-    {(atrt_process::AP_ALL & ~atrt_process::AP_CLIENT), pr_proc_options,
-     PO_REP},
+    {(atrt_process::AP_ALL & ~atrt_process::AP_CLIENT &
+      ~atrt_process::AP_CUSTOM),
+     pr_proc_options, ~(PO_REP | PO_NDB)},
+    {(atrt_process::AP_ALL & ~atrt_process::AP_CLIENT &
+      ~atrt_process::AP_CUSTOM),
+     pr_proc_options, PO_REP},
     {atrt_process::AP_CLIENT, pr_fix_client, 0},
     {atrt_process::AP_CLUSTER, pr_fix_ndb_connectstring, 0},
     {atrt_process::AP_MYSQLD, pr_set_ndb_connectstring, 0},
-    {atrt_process::AP_ALL, pr_check_proc, 0},
+    {atrt_process::AP_ALL & ~atrt_process::AP_CUSTOM, pr_check_proc, 0},
     {atrt_process::AP_CLUSTER, pr_set_customprocs_connectstring, 0},
     {0, 0, 0}};
 
@@ -1066,8 +1088,10 @@ static bool pr_set_customprocs_connectstring(Properties& props,
       host_list.assign(proc->m_host->m_hostname);
     }
 
+    const char* port_arg = "--port=";
     const char* portno;
-    if (proc->m_options.m_generated.get("--port", &portno)) {
+    if (proc->m_options.m_loaded.get(port_arg, &portno) ||
+        proc->m_options.m_generated.get(port_arg, &portno)) {
       host_list.appfmt(":%s", portno);
     }
 
