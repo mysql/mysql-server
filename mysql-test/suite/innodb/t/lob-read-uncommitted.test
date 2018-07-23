@@ -1,5 +1,6 @@
 --source include/have_debug.inc
 --source include/count_sessions.inc
+--source include/have_innodb_max_16k.inc
 
 --echo #
 --echo # Bug #27624990 ASSERTION `FALSE' FAILED AT BOOL WRAPPER_TO_STRING() IN SQL/JSON_DOM.CC
