@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-   Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -95,7 +95,7 @@
         <configuration>
           <forkmode>once</forkmode>
           <argLine>-Xshare:off -Djava.library.path=${ndbclient.lib}</argLine>
-<!-- The following line is for debugging
+          <!-- The following line is for debugging
           <argLine>-Djava.library.path=${ndbj.jnilib} -Xdebug -Xnoagent -Djava.compiler=NONE -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=8787</argLine>
           -->
           <systemProperties>
@@ -104,21 +104,6 @@
               <value>logging.properties</value>
             </property>
           </systemProperties>
-            <!-- The following doesn't work because system properties are set
-             ! only after the vm is forked, which is too late for the
-             ! property java.library.path.
-          <systemProperties>
-            <property>
-              <name>java.library.path</name>
-              <value>/Users/clr/ndb/clusterj/trunk/clusterj/target/classes/.libs</value>
-            </property>
-          </systemProperties>
-          !-->
-          <excludes>
-	    <!-- skip these failing tests -->
-            <exclude>**/TimestampAsSqlTimestampTypesTest.java</exclude>
-            <exclude>**/TimestampAsUtilDateTypesTest.java</exclude>
-          </excludes>
         </configuration>
       </plugin>
       <plugin>
@@ -129,7 +114,7 @@
         <configuration>
           <instructions>
             <Export-Package>com.mysql.clusterj.tie.*</Export-Package>
-            <Import-Package>sun.misc,com.mysql.clusterj,com.mysql.clusterj.core, com.mysql.clusterj.core.metadata,com.mysql.clusterj.core.store,com.mysql.clusterj.core.spi,com.mysql.clusterj.core.util,com.mysql.ndbjtie.mysql,com.mysql.ndbjtie.ndbapi</Import-Package>
+            <Import-Package>com.mysql.clusterj,com.mysql.clusterj.core, com.mysql.clusterj.core.metadata,com.mysql.clusterj.core.store,com.mysql.clusterj.core.spi,com.mysql.clusterj.core.util,com.mysql.ndbjtie.mysql,com.mysql.ndbjtie.ndbapi</Import-Package>
           </instructions>
         </configuration>
       </plugin>
