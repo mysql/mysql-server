@@ -26,7 +26,7 @@
 ##############
 
 save_args=$*
-VERSION="autotest-run.sh version 1.20"
+VERSION="autotest-run.sh version 1.21"
 
 DATE=`date '+%Y-%m-%d'`
 if [ `uname -s` != "SunOS" ]
@@ -75,6 +75,8 @@ do
 	        --suite=*) RUN=`echo $1 | sed s/--suite=//`;;
           --suite-suffix=*) suite_suffix=`echo $1 | sed s/--suite-suffix=//`;;
 	        --run-dir=*) run_dir=`echo $1 | sed s/--run-dir=//`;;
+          --custom-atrt=*) custom_atrt=`echo $1 | sed s/--custom-atrt=//`;;
+          --custom-cpcc=*) custom_cpcc=`echo $1 | sed s/--custom-cpcc=//`;;
 	        --install-dir=*) install_dir=`echo $1 | sed s/--install-dir=//`;;
 	        --install-dir0=*) install_dir0=`echo $1 | sed s/--install-dir0=//`;;
 	        --install-dir1=*) install_dir1=`echo $1 | sed s/--install-dir1=//`;;
@@ -195,13 +197,30 @@ test_dir=$install_dir/mysql-test/ndb
 # Check if executables in $install_dir0 is executable at current
 # platform, they could be built for another kind of platform
 unset NDB_CPCC_HOSTS
-if ${install_dir}/bin/ndb_cpcc 2>/dev/null ; then
-  # Use atrt and ndb_cpcc from test build
+
+if [ -n "$custom_atrt" ];
+then
+  echo "Using custom atrt ${custom_atrt}"
+  atrt="${custom_atrt}"
+elif ${install_dir}/bin/ndb_cpcc 2>/dev/null
+then
+  echo "Using atrt from test build"
   atrt="${test_dir}/atrt"
+else
+  echo "Note: Cross platform testing, atrt used from server path" >&2
+  atrt=`which atrt`
+fi
+
+if [ -n "$custom_cpcc" ];
+then
+  echo "Using custom ndb_cpcc ${custom_cpcc}"
+  ndb_cpcc="${custom_cpcc}"
+elif ${install_dir}/bin/ndb_cpcc 2>/dev/null
+then
+  echo "Using ndb_cpcc from test build"
   ndb_cpcc="${install_dir}/bin/ndb_cpcc"
 else
-  echo "Note: Cross platform testing, atrt and ndb_cpcc is not used from test build" >&2
-  atrt=`which atrt`
+  echo "Note: Cross platform testing, ndb_cpcc used from server path" >&2
   ndb_cpcc=`which ndb_cpcc`
 fi
 
