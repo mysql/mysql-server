@@ -3370,7 +3370,8 @@ sub memcached_start {
   my $found_so = my_find_file(
     $bindir,
     [ "storage/ndb/memcache",    # source or build
-      "lib", "lib64"
+      "lib", "lib64",
+      "lib/mysql", "lib64/mysql"
     ],                           # install
     "ndb_engine.so",
     NOT_REQUIRED);
@@ -3477,6 +3478,7 @@ sub memcached_load_metadata($) {
   my $sql_script = my_find_file(
     $bindir,
     [ "share/mysql/memcache-api",    # RPM install
+      "share/mysql-8.0/memcache-api",# RPM (8.0)
       "share/memcache-api",          # Other installs
       "scripts"                      # Build tree
     ],
