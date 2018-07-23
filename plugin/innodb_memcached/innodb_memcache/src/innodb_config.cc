@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -35,6 +35,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "my_compiler.h"
 
 #include "innodb_api.h"
 #include "innodb_cb_api.h"
@@ -163,7 +165,7 @@ static bool innodb_read_cache_policy(
   ib_crsr_t idx_crsr = NULL;
   ib_tpl_t tpl = NULL;
   ib_err_t err = DB_SUCCESS;
-  int n_cols;
+  int n_cols MY_ATTRIBUTE((unused));
   int i;
   ib_ulint_t data_len;
   ib_col_meta_t col_meta;
@@ -279,7 +281,7 @@ static bool innodb_read_config_option(
   ib_crsr_t idx_crsr = NULL;
   ib_tpl_t tpl = NULL;
   ib_err_t err = DB_SUCCESS;
-  int n_cols;
+  int n_cols MY_ATTRIBUTE((unused));
   int i;
   ib_ulint_t data_len;
   ib_col_meta_t col_meta;

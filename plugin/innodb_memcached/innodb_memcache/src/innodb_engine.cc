@@ -52,6 +52,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #include "innodb_cb_api.h"
 #include "innodb_engine.h"
 #include "innodb_engine_private.h"
+#include "my_compiler.h"
 #include "my_thread.h"
 
 /** Define also present in daemon/memcached.h */
@@ -625,7 +626,7 @@ static void innodb_conn_clean_data(
   }
 
   if (conn_data->crsr_trx) {
-    ib_err_t err;
+    ib_err_t err MY_ATTRIBUTE((unused));
     innodb_cb_trx_commit(conn_data->crsr_trx);
     err = ib_cb_trx_release(conn_data->crsr_trx);
     assert(err == DB_SUCCESS);
@@ -2024,7 +2025,7 @@ search_done:
   if (result->extra_col_value) {
     int i;
     char *c_value;
-    char *value_end;
+    char *value_end MY_ATTRIBUTE((unused));
     unsigned int total_len = 0;
     char int_buf[MAX_INT_CHAR_LEN];
     ib_ulint_t new_len;
