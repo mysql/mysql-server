@@ -4387,7 +4387,8 @@ class Create_field {
     for most of the types, or of bytes for BLOBs or numeric types.
   */
   size_t char_length;
-  uint decimals, flags;
+  uint decimals;
+  uint flags{0};
   size_t pack_length, key_length;
   /**
     Bitmap of flags indicating if field value should be auto-generated
