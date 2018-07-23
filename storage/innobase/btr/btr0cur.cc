@@ -854,7 +854,11 @@ void btr_cur_search_to_nth_level(
     default:
       if (!srv_read_only_mode) {
         if (s_latch_by_caller) {
-          ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_S));
+          /* The BTR_ALREADY_S_LATCHED indicates that the index->lock has been
+           * taken either in RW_S_LATCH or RW_SX_LATCH mode. */
+          ut_ad(rw_lock_own_flagged(dict_index_get_lock(index),
+                                    RW_LOCK_FLAG_S | RW_LOCK_FLAG_SX));
+
         } else if (!modify_external) {
           /* BTR_SEARCH_TREE is intended to be used with
           BTR_ALREADY_S_LATCHED */

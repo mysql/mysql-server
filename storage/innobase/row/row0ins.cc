@@ -2822,7 +2822,13 @@ dberr_t row_ins_sec_index_entry_low(ulint flags, ulint mode,
   This prevents a concurrent change of index->online_status.
   The memory object cannot be freed as long as we have an open
   reference to the table, or index->table->n_ref_count > 0. */
-  const bool check = !index->is_committed();
+  bool check = !index->is_committed();
+
+  DBUG_EXECUTE_IF("idx_mimic_not_committed", {
+    check = true;
+    mode = BTR_MODIFY_TREE;
+  });
+
   if (check) {
     DEBUG_SYNC_C("row_ins_sec_index_enter");
     if (mode == BTR_MODIFY_LEAF) {
