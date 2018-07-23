@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -166,7 +166,8 @@ bool connect_mysqld(atrt_process& proc) {
     return false;
   }
 
-  for (size_t i = 0; i < 20; i++) {
+  const int retries = 20;
+  for (size_t i = 0; i < retries; i++) {
     if (port) {
       mysql_protocol_type val = MYSQL_PROTOCOL_TCP;
       mysql_options(&proc.m_mysql, MYSQL_OPT_PROTOCOL, &val);
@@ -176,14 +177,15 @@ bool connect_mysqld(atrt_process& proc) {
                            0)) {
       return true;
     }
+    g_logger.warning("Failed to connect: %s", mysql_error(&proc.m_mysql));
     g_logger.info("Retrying connect to %s:%u 3s",
                   proc.m_host->m_hostname.c_str(), atoi(port));
     NdbSleep_SecSleep(3);
   }
 
-  g_logger.error("Failed to connect to mysqld err: >%s< >%s:%u:%s<",
-                 mysql_error(&proc.m_mysql), proc.m_host->m_hostname.c_str(),
-                 port ? atoi(port) : 0, socket ? socket : "<null>");
+  g_logger.error("Giving up attempt to connect to Host: %s; Port: %u;"
+                 "Socket: %s after %d retries", proc.m_host->m_hostname.c_str(),
+                 port ? atoi(port) : 0, socket ? socket : "<null>",retries);
   return false;
 }
 
