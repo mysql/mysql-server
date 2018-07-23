@@ -556,8 +556,6 @@ bool Sql_cmd_dml::execute(THD *thd) {
 
   thd->clear_current_query_costs();
 
-  thd->current_changed_rows = 0;
-
   if (is_data_change_stmt()) {
     // Replication may require extra check of data change statements
     if (run_before_dml_hook(thd)) goto err;

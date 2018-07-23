@@ -1600,15 +1600,11 @@ class THD : public MDL_context_owner,
   class Attachable_trx {
    public:
     Attachable_trx(THD *thd, Attachable_trx *prev_trx);
-    Attachable_trx(THD *thd, Attachable_trx *prev_trx,
-                   enum_reset_lex reset_lex);
     virtual ~Attachable_trx();
     Attachable_trx *get_prev_attachable_trx() const {
       return m_prev_attachable_trx;
     };
     virtual bool is_read_only() const { return true; }
-
-    void init();
 
    protected:
     /// THD instance.
@@ -1647,10 +1643,9 @@ class THD : public MDL_context_owner,
   class Attachable_trx_rw : public Attachable_trx {
    public:
     bool is_read_only() const { return false; }
-    Attachable_trx_rw(THD *thd, Attachable_trx *prev_trx = NULL);
+    explicit Attachable_trx_rw(THD *thd);
 
    private:
-    XID_STATE::xa_states m_xa_state_saved;
     Attachable_trx_rw(const Attachable_trx_rw &);
     Attachable_trx_rw &operator=(const Attachable_trx_rw &);
   };
@@ -1863,11 +1858,6 @@ class THD : public MDL_context_owner,
   */
   ulonglong current_found_rows;
 
-  /**
-    Number of rows changed in currently executing statement.
-    Applicable for UPDATE statements only.
-  */
-  ulonglong current_changed_rows;
   /*
     Indicate if the gtid_executed table is being operated implicitly
     within current transaction. This happens because we are inserting
@@ -2928,8 +2918,6 @@ class THD : public MDL_context_owner,
   */
   void begin_attachable_ro_transaction();
 
-  void begin_attachable_transaction(enum_reset_lex reset_lex);
-
   /**
     Start a read-write attachable transaction.
     All the read-only class' requirements apply.
@@ -2937,15 +2925,6 @@ class THD : public MDL_context_owner,
     declaration.
   */
   void begin_attachable_rw_transaction();
-
-  /**
-    Start a read-write attachable transaction to write
-    to  mysql.table_stats and mysql.index_stats. All the
-    requirements and restrictions to Attachable_trx apply.
-    Additional requirements are documented along the class
-    declaration.
-  */
-  void begin_attachable_rw_i_s_transaction();
 
   /**
     End an active attachable transaction. Applies to both the read-only
@@ -2960,20 +2939,22 @@ class THD : public MDL_context_owner,
     @return true if there is an active attachable transaction.
   */
   bool is_attachable_ro_transaction_active() const {
-    return m_attachable_trx != NULL && m_attachable_trx->is_read_only();
+    return m_attachable_trx != nullptr && m_attachable_trx->is_read_only();
   }
 
   /**
     @return true if there is an active attachable transaction.
   */
   bool is_attachable_transaction_active() const {
-    return m_attachable_trx != NULL;
+    return m_attachable_trx != nullptr;
   }
 
   /**
     @return true if there is an active rw attachable transaction.
   */
-  bool is_attachable_rw_transaction_active() const;
+  bool is_attachable_rw_transaction_active() const {
+    return m_attachable_trx != nullptr && !m_attachable_trx->is_read_only();
+  }
 
  public:
   /*

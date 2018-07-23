@@ -146,19 +146,6 @@ THD::Attachable_trx::Attachable_trx(THD *thd, Attachable_trx *prev_trx)
       m_reset_lex(RESET_LEX),
       m_prev_attachable_trx(prev_trx),
       m_trx_state() {
-  init();
-}
-
-THD::Attachable_trx::Attachable_trx(THD *thd, Attachable_trx *prev_trx,
-                                    enum_reset_lex reset_lex)
-    : m_thd(thd),
-      m_reset_lex(reset_lex),
-      m_prev_attachable_trx(prev_trx),
-      m_trx_state() {
-  init();
-}
-
-void THD::Attachable_trx::init() {
   // Save the transaction state.
 
   m_trx_state.backup(m_thd);
@@ -284,6 +271,13 @@ THD::Attachable_trx::~Attachable_trx() {
     m_thd->lex->restore_backup_query_tables_list(
         m_trx_state.m_query_tables_list);
   }
+}
+
+THD::Attachable_trx_rw::Attachable_trx_rw(THD *thd)
+    : Attachable_trx(thd, nullptr) {
+  m_thd->tx_read_only = false;
+  m_thd->lex->sql_command = SQLCOM_END;
+  thd->get_transaction()->xid_state()->set_state(XID_STATE::XA_NOTR);
 }
 
 void THD::enter_stage(const PSI_stage_info *new_stage,
@@ -446,7 +440,6 @@ THD::THD(bool enable_plugins)
   m_sent_row_count = 0L;
   current_found_rows = 0;
   previous_found_rows = 0;
-  current_changed_rows = 0;
   is_operating_gtid_table_implicitly = false;
   is_operating_substatement_implicitly = false;
   m_row_count_func = -1;
@@ -1887,20 +1880,12 @@ void THD::begin_attachable_ro_transaction() {
   m_attachable_trx = new Attachable_trx(this, m_attachable_trx);
 }
 
-void THD::begin_attachable_transaction(enum_reset_lex reset_lex) {
-  m_attachable_trx = new Attachable_trx(this, m_attachable_trx, reset_lex);
-}
-
 void THD::end_attachable_transaction() {
   Attachable_trx *prev_trx = m_attachable_trx->get_prev_attachable_trx();
   delete m_attachable_trx;
   // Restore attachable transaction which was active before we started
   // the one which just has ended. NULL in most cases.
   m_attachable_trx = prev_trx;
-}
-
-bool THD::is_attachable_rw_transaction_active() const {
-  return m_attachable_trx != NULL && !m_attachable_trx->is_read_only();
 }
 
 void THD::begin_attachable_rw_transaction() {
@@ -2712,14 +2697,6 @@ bool THD::is_current_stmt_binlog_row_enabled_with_write_set_extraction() const {
 bool THD::Query_plan::is_single_table_plan() const {
   assert_plan_is_locked_if_other();
   return lex->m_sql_cmd->is_single_table_plan();
-}
-
-THD::Attachable_trx_rw::Attachable_trx_rw(THD *thd, Attachable_trx *prev_trx)
-    : Attachable_trx(thd, prev_trx) {
-  m_thd->tx_read_only = false;
-  m_thd->lex->sql_command = SQLCOM_END;
-  m_xa_state_saved = m_thd->get_transaction()->xid_state()->get_state();
-  thd->get_transaction()->xid_state()->set_state(XID_STATE::XA_NOTR);
 }
 
 const String THD::normalized_query() {

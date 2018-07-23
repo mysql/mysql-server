@@ -1002,7 +1002,6 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
   }
   thd->check_for_truncated_fields = CHECK_FIELD_IGNORE;
   thd->current_found_rows = found_rows;
-  thd->current_changed_rows = updated_rows;
   // Following test is disabled, as we get RQG errors that are hard to debug
   // DBUG_ASSERT((error >= 0) == thd->is_error());
   DBUG_RETURN(error >= 0 || thd->is_error());
@@ -2473,7 +2472,6 @@ bool Query_result_update::send_eof() {
   id = thd->arg_of_last_insert_id_function
            ? thd->first_successful_insert_id_in_prev_stmt
            : 0;
-  thd->current_changed_rows = updated_rows;
 
   snprintf(buff, sizeof(buff), ER_THD(thd, ER_UPDATE_INFO), (long)found_rows,
            (long)updated_rows,
