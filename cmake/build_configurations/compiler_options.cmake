@@ -107,15 +107,8 @@ IF(UNIX)
 
       # Reduce size of debug binaries, by omitting function declarations.
       # Note that we cannot set "-xdebuginfo=no%decl" during feature tests.
-      # Linking errors for merge_large_tests-t with Studio 12.6
-      # -g0 is the same as -g, except that inlining is enabled.
-      IF(${CC_MINOR_VERSION} EQUAL 15)
-        STRING_APPEND(CMAKE_C_FLAGS_DEBUG          " -g0 -xdebuginfo=no%decl")
-        STRING_APPEND(CMAKE_CXX_FLAGS_DEBUG        " -g0 -xdebuginfo=no%decl")
-      ELSE()
-        STRING_APPEND(CMAKE_C_FLAGS_DEBUG          " -xdebuginfo=no%decl")
-        STRING_APPEND(CMAKE_CXX_FLAGS_DEBUG        " -xdebuginfo=no%decl")
-      ENDIF()
+      STRING_APPEND(CMAKE_C_FLAGS_DEBUG            " -xdebuginfo=no%decl")
+      STRING_APPEND(CMAKE_CXX_FLAGS_DEBUG          " -xdebuginfo=no%decl")
       STRING_APPEND(CMAKE_C_FLAGS_RELWITHDEBINFO   " -xdebuginfo=no%decl")
       STRING_APPEND(CMAKE_CXX_FLAGS_RELWITHDEBINFO " -xdebuginfo=no%decl")
 
