@@ -223,10 +223,10 @@ int log_syslog_open() {
 
   if (ret == -2) {
     log_bi->message(/* purecov: inspected */
-                    LOG_TYPE_ERROR, LOG_ITEM_LOG_PRIO, ERROR_LEVEL,
+                    LOG_TYPE_ERROR, LOG_ITEM_LOG_PRIO, (longlong)ERROR_LEVEL,
                     LOG_ITEM_LOG_LOOKUP,
-                    ER_COULD_NOT_CREATE_WINDOWS_REGISTRY_KEY, MY_NAME, ident,
-                    "logging");
+                    (longlong)ER_COULD_NOT_CREATE_WINDOWS_REGISTRY_KEY, MY_NAME,
+                    ident, "logging");
   }
 
   return ret;
@@ -498,8 +498,9 @@ static int sysvar_install_tag(void) {
   */
 
   if ((rr = var_check_tag(var_value)))
-    log_bi->message(LOG_TYPE_ERROR, LOG_ITEM_LOG_PRIO, WARNING_LEVEL,
-                    LOG_ITEM_LOG_LOOKUP, ER_SERVER_WRONG_VALUE_FOR_VAR,
+    log_bi->message(LOG_TYPE_ERROR, LOG_ITEM_LOG_PRIO, (longlong)WARNING_LEVEL,
+                    LOG_ITEM_LOG_LOOKUP,
+                    (longlong)ER_SERVER_WRONG_VALUE_FOR_VAR,
                     MY_NAME "." OPT_TAG, var_value);
 
   /*
@@ -624,8 +625,9 @@ static int sysvar_install_fac(void) {
   */
 
   if ((rr = var_check_fac(var_value)))
-    log_bi->message(LOG_TYPE_ERROR, LOG_ITEM_LOG_PRIO, WARNING_LEVEL,
-                    LOG_ITEM_LOG_LOOKUP, ER_SERVER_WRONG_VALUE_FOR_VAR,
+    log_bi->message(LOG_TYPE_ERROR, LOG_ITEM_LOG_PRIO, (longlong)WARNING_LEVEL,
+                    LOG_ITEM_LOG_LOOKUP,
+                    (longlong)ER_SERVER_WRONG_VALUE_FOR_VAR,
                     MY_NAME "." OPT_FAC, var_value);
 
   /*
@@ -871,8 +873,9 @@ mysql_service_status_t log_service_init() {
 
 fail:
   /* purecov: begin inspected */
-  log_bi->message(LOG_TYPE_ERROR, LOG_ITEM_LOG_PRIO, ERROR_LEVEL,
-                  LOG_ITEM_LOG_LOOKUP, ER_LOG_SYSLOG_CANNOT_OPEN, LOG_TYPE);
+  log_bi->message(LOG_TYPE_ERROR, LOG_ITEM_LOG_PRIO, (longlong)ERROR_LEVEL,
+                  LOG_ITEM_LOG_LOOKUP, (longlong)ER_LOG_SYSLOG_CANNOT_OPEN,
+                  LOG_TYPE);
 
   log_service_exit();
   return true; /* purecov: end */
