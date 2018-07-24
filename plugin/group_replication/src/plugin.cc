@@ -1855,9 +1855,7 @@ static int check_group_name_string(const char *str, bool is_var_update) {
 
   if (!binary_log::Uuid::is_valid(str, length)) {
     if (!is_var_update) {
-      /* purecov: begin inspected */
-      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GRP_NAME_IS_NOT_VALID_UUID);
-      /* purecov: end */
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GRP_NAME_IS_NOT_VALID_UUID, str);
     } else
       my_message(ER_WRONG_VALUE_FOR_VAR, "The group name is not a valid UUID",
                  MYF(0));
