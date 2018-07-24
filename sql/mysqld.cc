@@ -6402,7 +6402,13 @@ int mysqld_main(int argc, char **argv)
 #ifdef _WIN32
   create_shutdown_and_restart_thread();
 #endif
-  if (mysqld_process_must_end_at_startup) unireg_abort(MYSQLD_SUCCESS_EXIT);
+  if (mysqld_process_must_end_at_startup) {
+#if !defined(_WIN32)
+    if (opt_daemonize) mysqld::runtime::signal_parent(pipe_write_fd, 1);
+#endif
+    unireg_abort(MYSQLD_SUCCESS_EXIT);
+  }
+
   start_handle_manager();
 
   create_compress_gtid_table_thread();
