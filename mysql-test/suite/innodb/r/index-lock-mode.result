@@ -1,0 +1,16 @@
+create table t1 (f1 int primary key, f2 int, unique key k1(f2)) engine=innodb;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) NOT NULL,
+  `f2` int(11) DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  UNIQUE KEY `k1` (`f2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+insert into t1(f1, f2) values (1, 10);
+insert into t1(f1, f2) values (2, 55);
+set debug = '+d,idx_mimic_not_committed';
+update t1 set f2 = 55 where f1 = 1;
+ERROR 23000: Duplicate entry '55' for key 'k1'
+set debug = '-d,idx_mimic_not_committed';
+drop table t1;
