@@ -266,7 +266,7 @@ int Group_action_coordinator::coordinate_action_execution(
     execution_info->set_execution_message(
         Group_action_diagnostics::GROUP_ACTION_LOG_ERROR,
         "There was a problem sending the configuration action"
-        "proposal to the group. Check the plugin status.");
+        " proposal to the group. Check the plugin status.");
     action_proposed = false;
     delete start_message;
     error = 2;
@@ -682,7 +682,7 @@ int Group_action_coordinator::signal_action_terminated() {
     current_executing_action->execution_message_area->set_execution_message(
         Group_action_diagnostics::GROUP_ACTION_LOG_ERROR,
         "There was a problem sending the configuration operation"
-        "end message to the group. Check the plugin status.");
+        " end message to the group. Check the plugin status.");
     delete end_message;
     return 1;
     /* purecov: end */
