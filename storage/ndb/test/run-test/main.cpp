@@ -37,6 +37,7 @@
 #include "my_alloc.h" // MEM_ROOT
 
 #define PATH_SEPARATOR DIR_SEPARATOR
+#define TESTCASE_RETRIES_THRESHOLD_WARNING 5
 
 /** Global variables */
 static const char progname[] = "ndb_atrt";
@@ -334,77 +335,6 @@ int main(int argc, char **argv) {
    */
   g_logger.debug("Entering main loop");
   while (!feof(g_test_case_file)) {
-    /**
-     * Do we need to restart ndb
-     */
-    if (restart) {
-      restart = false;
-      g_logger.info("(Re)starting server processes...");
-
-      if (!stop_processes(g_config, ~0)) {
-        g_logger.critical("Failed to stop all processes");
-        goto end;
-      }
-
-      g_logger.info("Waiting for all processes to stop...");
-      if (!wait_for_processes_to_stop(g_config, ~0)) {
-        g_logger.critical("Fail to stop all processes");
-        goto end;
-      }
-
-      if (!setup_directories(g_config, 2)) {
-        g_logger.critical("Failed to setup directories");
-        goto end;
-      }
-
-      if (!setup_files(g_config, 2, 1)) {
-        g_logger.critical("Failed to setup files");
-        goto end;
-      }
-
-      if (!setup_hosts(g_config)) {
-        g_logger.critical("Failed to setup hosts");
-        goto end;
-      }
-
-      g_logger.debug("Setup complete, starting servers");
-      if (!start(g_config, p_ndb | p_servers)) {
-        g_logger.critical("Failed to start server processes");
-        g_logger.info("Gathering logs and saving them as test %u", test_no);
-
-        int tmp;
-        if (!gather_result(g_config, &tmp)) {
-          g_logger.critical("Failed to gather results");
-          goto cleanup;
-        }
-
-        if (g_report_file != 0) {
-          fprintf(g_report_file, "%s ; %d ; %d ; %d\n", "start servers",
-                  test_no, ERR_FAILED_TO_START, 0);
-          fflush(g_report_file);
-        }
-
-        BaseString resdir;
-        resdir.assfmt("result.%d", test_no);
-        remove_dir(resdir.c_str(), true);
-
-        if (rename("result", resdir.c_str()) != 0) {
-          g_logger.critical("Failed to rename %s as %s", "result",
-                            resdir.c_str());
-          goto cleanup;
-        }
-        goto cleanup;
-      }
-
-      if (!setup_db(g_config)) {
-        g_logger.critical("Failed to setup database");
-        goto cleanup;
-      }
-
-      g_logger.info("All servers start completed");
-    }
-
-    // const int start_line = lineno;
     atrt_testcase test_case;
     const int num_element_lines =
         read_test_case(g_test_case_file, test_case, lineno);
@@ -419,76 +349,160 @@ int main(int argc, char **argv) {
     }
     g_logger.info("#%d - %s", test_no, test_case.m_name.c_str());
 
-    // Assign processes to programs
-    if (!setup_test_case(g_config, test_case)) {
-      g_logger.critical("Failed to setup test case");
-      goto cleanup;
-    }
-
-    if (!start_processes(g_config, p_clients)) {
-      g_logger.critical("Failed to start client processes");
-      goto cleanup;
-    }
-
     int result = 0;
+    time_t elapsed;
+    int testruns;
+    int total_runs = 1 + test_case.m_max_retries;
+    for (testruns = 1; testruns <= total_runs; testruns++) {
+      if (testruns > 1) {
+        g_logger.info("Retrying test #%d - '%s', attempt (%d/%d)", test_no,
+                      test_case.m_name.c_str(), testruns - 1,
+                      test_case.m_max_retries);
+      }
 
-    const time_t start = time(0);
-    time_t now = start;
-    do {
-      if (!update_status(g_config, atrt_process::AP_ALL)) {
-        g_logger.critical("Failed to get updated status for all processes");
+      /**
+      * Do we need to restart ndb
+      */
+      if (restart) {
+        restart = false;
+        g_logger.info("(Re)starting server processes...");
+
+        if (!stop_processes(g_config, ~0)) {
+          g_logger.critical("Failed to stop all processes");
+          goto end;
+        }
+
+        g_logger.info("Waiting for all processes to stop...");
+        if (!wait_for_processes_to_stop(g_config, ~0)) {
+          g_logger.critical("Fail to stop all processes");
+          goto end;
+        }
+
+        if (!setup_directories(g_config, 2)) {
+          g_logger.critical("Failed to setup directories");
+          goto end;
+        }
+
+        if (!setup_files(g_config, 2, 1)) {
+          g_logger.critical("Failed to setup files");
+          goto end;
+        }
+
+        if (!setup_hosts(g_config)) {
+          g_logger.critical("Failed to setup hosts");
+          goto end;
+        }
+
+        g_logger.debug("Setup complete, starting servers");
+        if (!start(g_config, p_ndb | p_servers)) {
+          g_logger.critical("Failed to start server processes");
+          g_logger.info("Gathering logs and saving them as test %u", test_no);
+
+          int tmp;
+          if (!gather_result(g_config, &tmp)) {
+            g_logger.critical("Failed to gather results");
+            goto cleanup;
+          }
+
+          if (g_report_file != 0) {
+            fprintf(g_report_file, "%s ; %d ; %d ; %d ; %d\n", "start servers",
+                    test_no, ERR_FAILED_TO_START, 0, 0);
+            fflush(g_report_file);
+          }
+
+          BaseString resdir;
+          resdir.assfmt("result.%d", test_no);
+          remove_dir(resdir.c_str(), true);
+
+          if (rename("result", resdir.c_str()) != 0) {
+            g_logger.critical("Failed to rename %s as %s", "result",
+                              resdir.c_str());
+            goto cleanup;
+          }
+          goto cleanup;
+        }
+
+        if (!setup_db(g_config)) {
+          g_logger.critical("Failed to setup database");
+          goto cleanup;
+        }
+
+        g_logger.info("All servers start completed");
+      }
+
+      // Assign processes to programs
+      if (!setup_test_case(g_config, test_case)) {
+        g_logger.critical("Failed to setup test case");
         goto cleanup;
       }
 
-      if ((result = check_ndb_or_servers_failures(g_config))) {
-        break;
+      if (!start_processes(g_config, p_clients)) {
+        g_logger.critical("Failed to start client processes");
+        goto cleanup;
       }
 
-      if (!is_client_running(g_config)) {
-        break;
+      const time_t start = time(0);
+      time_t now = start;
+      do {
+        if (!update_status(g_config, atrt_process::AP_ALL)) {
+          g_logger.critical("Failed to get updated status for all processes");
+          goto cleanup;
+        }
+
+        if ((result = check_ndb_or_servers_failures(g_config))) {
+          break;
+        }
+
+        if (!is_client_running(g_config)) {
+          break;
+        }
+
+        if (!do_command(g_config)) {
+          result = ERR_COMMAND_FAILED;
+          g_logger.critical("Failure on client command execution");
+          break;
+        }
+
+        now = time(0);
+        if (now > (start + test_case.m_max_time)) {
+          g_logger.debug("Timed out");
+          result = ERR_MAX_TIME_ELAPSED;
+          g_logger.info("Timeout '%s' after %ld seconds",
+                        test_case.m_name.c_str(), test_case.m_max_time);
+          break;
+        }
+        NdbSleep_SecSleep(1);
+      } while (true);
+
+      elapsed = time(0) - start;
+      if (!stop_processes(g_config, p_clients)) {
+        g_logger.critical("Failed to stop client processes");
+        goto cleanup;
       }
 
-      if (!do_command(g_config)) {
-        result = ERR_COMMAND_FAILED;
-        g_logger.critical("Failure on client command execution");
-        break;
+      if (!wait_for_processes_to_stop(g_config, p_clients)) {
+        g_logger.critical("Failed to stop client processes");
+        goto cleanup;
       }
 
-      now = time(0);
-      if (now > (start + test_case.m_max_time)) {
-        g_logger.debug("Timed out");
-        result = ERR_MAX_TIME_ELAPSED;
-        g_logger.info("Timeout '%s' after %ld seconds",
-                      test_case.m_name.c_str(), test_case.m_max_time);
-        break;
+      int tmp, *rp = result ? &tmp : &result;
+      if (!gather_result(g_config, rp)) {
+        g_logger.critical("Failed to gather result after test run");
+        goto end;
       }
-      NdbSleep_SecSleep(1);
-    } while (true);
 
-    const time_t elapsed = time(0) - start;
-
-    if (!stop_processes(g_config, p_clients)) {
-      g_logger.critical("Failed to stop client processes");
-      goto cleanup;
+      g_logger.info("#%d %s(%d)", test_no, (result == 0 ? "OK" : "FAILED"),
+                    result);
+      if (result == 0) {
+        break;
+      } else {
+        restart = true;
+      }
     }
-
-    if (!wait_for_processes_to_stop(g_config, p_clients)) {
-      g_logger.critical("Failed to stop client processes");
-      goto cleanup;
-    }
-
-    int tmp, *rp = result ? &tmp : &result;
-    if (!gather_result(g_config, rp)) {
-      g_logger.critical("Failed to gather result after test run");
-      goto end;
-    }
-
-    g_logger.info("#%d %s(%d)", test_no, (result == 0 ? "OK" : "FAILED"),
-                  result);
 
     if (g_report_file != 0) {
-      fprintf(g_report_file, "%s ; %d ; %d ; %ld\n", test_case.m_name.c_str(),
-              test_no, result, elapsed);
+      fprintf(g_report_file, "%s ; %d ; %d ; %ld ; %d\n",
+              test_case.m_name.c_str(), test_no, result, elapsed, testruns);
       fflush(g_report_file);
     }
 
@@ -519,10 +533,6 @@ int main(int argc, char **argv) {
     if (reset_config(g_config)) {
       restart = true;
     }
-
-    if (result != 0) {
-      restart = true;
-    }
     test_no++;
   }
   return_code = 0;
@@ -535,8 +545,8 @@ cleanup:
 end:
   g_logger.info("Finishing, result: %d", return_code);
   if (return_code != 0 && g_report_file != 0) {
-    fprintf(g_report_file, "%s ; %d ; %d ; %d\n", "critical error", test_no,
-            ERR_FAILED_TO_START, 0);
+    fprintf(g_report_file, "%s ; %d ; %d ; %d ; %d\n", "critical error",
+            test_no, ERR_FAILED_TO_START, 0, 0);
     fflush(g_report_file);
   }
   if (g_report_file != 0) {
@@ -1387,6 +1397,23 @@ int read_test_case(FILE *file, atrt_testcase &tc, int &line) {
     tc.m_name.assign(mt);
     used_elements++;
   }
+
+  tc.m_max_retries = 0;
+  if (p.get("max-retries", &mt)) {
+    tc.m_max_retries = atoi(mt);
+    used_elements++;
+  }
+
+  if (tc.m_max_retries < 0) {
+    g_logger.error("No of retries must not be less than zero for test '%s'",
+                   tc.m_name.c_str());
+    return -4;
+  }
+
+  if (tc.m_max_retries > TESTCASE_RETRIES_THRESHOLD_WARNING)
+    g_logger.warning(
+        "No of retries should be less than or equal to %d for test '%s'",
+        TESTCASE_RETRIES_THRESHOLD_WARNING, tc.m_name.c_str());
 
   if (used_elements != elements) {
     g_logger.critical(
