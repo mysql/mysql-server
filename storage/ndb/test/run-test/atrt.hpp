@@ -121,6 +121,7 @@ struct atrt_testcase {
   time_t m_max_time;
   BaseString m_name;
   BaseString m_mysqld_options;
+  int m_max_retries;
 
   struct Command {
     atrt_process::Type m_cmd_type;
