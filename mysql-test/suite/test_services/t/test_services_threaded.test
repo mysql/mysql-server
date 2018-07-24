@@ -1,9 +1,10 @@
 #--source include/have_daemon_example_plugin.inc
 
-# Restart of server and removal of log file to get deterministic results.
---source include/shutdown_mysqld.inc
---remove_file $MYSQLTEST_VARDIR/log/mysqld.1.err
---source include/start_mysqld.inc
+# Restart of server to get deterministic results.
+--let server_log= $MYSQLTEST_VARDIR/log/test_services_threaded.err
+--let $restart_parameters="restart: --log-error=$server_log"
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--source include/restart_mysqld.inc
 
 call mtr.add_suppression("This is a warning from test plugin");
 call mtr.add_suppression("This is an error from test plugin");
@@ -36,8 +37,7 @@ SET @@global.log_error_verbosity= @orig_log_error_verbosity;
 --echo ------ Service: LogPluginErr ----------------------------
 CREATE TABLE t1 (c1 varchar(30), c2 TEXT, c3 TEXT, c4 TEXT);
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/log/mysqld.1.err' INTO TABLE t1 
+eval LOAD DATA LOCAL INFILE '$server_log' INTO TABLE t1
      FIELDS TERMINATED BY ' [';
    SELECT replace(concat('[',c2,' [',c3,' [',c4),'\r','') AS msg FROM t1 WHERE c4 LIKE '%test_services_threaded%';
 DROP TABLE IF EXISTS t1;
-

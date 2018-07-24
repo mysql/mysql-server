@@ -1,4 +1,4 @@
-# restart
+# restart: --log-error=MYSQLTEST_VARDIR/log/test_services_threaded.err
 call mtr.add_suppression("This is a warning from test plugin");
 call mtr.add_suppression("This is an error from test plugin");
 SET @orig_log_error_verbosity= @@global.log_error_verbosity;
@@ -15,7 +15,7 @@ UNINSTALL PLUGIN test_services_threaded;
 SET @@global.log_error_verbosity= @orig_log_error_verbosity;
 ------ Service: LogPluginErr ----------------------------
 CREATE TABLE t1 (c1 varchar(30), c2 TEXT, c3 TEXT, c4 TEXT);
-LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/log/mysqld.1.err' INTO TABLE t1 
+LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/log/test_services_threaded.err' INTO TABLE t1
 FIELDS TERMINATED BY ' [';
 SELECT replace(concat('[',c2,' [',c3,' [',c4),'\r','') AS msg FROM t1 WHERE c4 LIKE '%test_services_threaded%';
 msg
