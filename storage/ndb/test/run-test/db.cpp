@@ -166,7 +166,7 @@ bool connect_mysqld(atrt_process& proc) {
     return false;
   }
 
-  const int retries = 20;
+  const unsigned int retries = 20;
   for (size_t i = 0; i < retries; i++) {
     if (port) {
       mysql_protocol_type val = MYSQL_PROTOCOL_TCP;
