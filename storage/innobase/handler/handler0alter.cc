@@ -6281,10 +6281,28 @@ static void innobase_rename_or_enlarge_columns_cache(
       ulint col_n = is_virtual ? num_v : i - num_v;
 
       if ((*fp)->is_equal(cf) == IS_EQUAL_PACK_LENGTH) {
+        dict_col_t *col;
+
         if (is_virtual) {
-          dict_table_get_nth_v_col(user_table, col_n)->m_col.len = cf->length;
+          col = &dict_table_get_nth_v_col(user_table, col_n)->m_col;
         } else {
-          user_table->get_col(col_n)->len = cf->length;
+          col = user_table->get_col(col_n);
+        }
+        col->len = cf->length;
+
+        if (cf->sql_type == MYSQL_TYPE_STRING &&
+            (*fp)->charset()->number != cf->charset->number) {
+          ulint old_charset = (*fp)->charset()->number;
+          ulint new_charset = cf->charset->number;
+          ut_ad(dtype_get_charset_coll(col->prtype) == old_charset);
+
+          col->prtype =
+              dtype_form_prtype(col->prtype - (old_charset << 16), new_charset);
+          ulint mbminlen;
+          ulint mbmaxlen;
+
+          dtype_get_mblen(col->mtype, col->prtype, &mbminlen, &mbmaxlen);
+          col->mbminmaxlen = DATA_MBMINMAXLEN(mbminlen, mbmaxlen);
         }
       }
 

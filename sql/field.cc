@@ -121,6 +121,107 @@ const char field_separator = ',';
 #define FIELDTYPE_TEAR_TO (MYSQL_TYPE_JSON - 1)
 #define FIELDTYPE_NUM (FIELDTYPE_TEAR_FROM + (255 - FIELDTYPE_TEAR_TO))
 
+namespace {
+/**
+   Predicate to determine if a field type change prevents alter
+   from being done inplace.
+
+   @param from - existing Field object.
+   @param to   - Create_field object describing new version of field.
+
+   @return true if alter cannot be done inplace due to specified
+   condition, false otherwise.
+*/
+bool sql_type_prevents_inplace(const Field &from, const Create_field &to) {
+  return to.sql_type != from.real_type();
+}
+
+/**
+   Predicate to determine if a length change prevents alter from being
+   done inplace. Length cannot decrease and cannot cross the 256 byte
+   row format barrier.
+
+   @param from - existing Field object.
+   @param to   - Create_field object describing new version of field.
+
+   @return true if alter cannot be done inplace due to specified
+   condition, false otherwise.
+*/
+bool length_prevents_inplace(const Field &from, const Create_field &to) {
+  DBUG_PRINT("inplace", ("stmt: %s", current_thd->query().str));
+
+  DBUG_PRINT("inplace", ("from: field_length:%u, pack_length():%u, "
+                         "row_pack_length():%u, max_display_length():%u",
+                         from.field_length, from.pack_length(),
+                         from.row_pack_length(), from.max_display_length()));
+
+  DBUG_PRINT("inplace",
+             ("to: length:%lu, pack_length:%lu", to.length, to.pack_length));
+
+  return (to.pack_length < from.pack_length() ||
+          (to.length >= 256 && from.row_pack_length() < 256));
+}
+
+/**
+   Predicate to determine if charset change prevents alter from being
+   done inplace. Inplace can only be done when changing to binary, or
+   from UTF8MB3 to UTF8MB4.
+
+   @note ASCII cannot be converted to UTF-8 inplace because inserting
+   non-ascii values into an ASCII column only trigger a warning not an
+   error.
+
+   @param from - existing Field object.
+   @param to   - Create_field object describing new version of field.
+
+   @return true if alter cannot be done inplace due to specified
+   condition, false otherwise.
+*/
+bool charset_prevents_inplace(const Field_str &from, const Create_field &to) {
+  if (my_charset_same(to.charset, from.charset()) ||
+      my_charset_same(to.charset, &my_charset_bin)) {
+    return false;
+  }
+  return (0 != strcmp(to.charset->csname, MY_UTF8MB4) ||
+          0 != strcmp(from.charset()->csname, MY_UTF8MB3));
+}
+
+/**
+   Predicate to determine if a collation change prevents alter from
+   being done inplace. A collation change will only prevent inplace if
+   the column is indexed.
+
+   @note Pointer equality is assumed for collations.
+
+   @param from - existing Field object.
+   @param to   - Create_field object describing new version of field.
+
+   @return true if alter cannot be done inplace due to specified
+   condition, false otherwise.
+*/
+bool collation_prevents_inplace(const Field_str &from, const Create_field &to) {
+  return (from.m_indexed && to.charset->coll != from.charset()->coll);
+}
+
+/**
+   Predicate to determine if the difference between a Field and the
+   new Create_field prevents alter from being done
+   inplace. Convenience wrapper for the preceeding predicates.
+
+   @param from - existing Field object.
+   @param to   - Create_field object describing new version of field.
+
+   @return true if alter cannot be done inplace due to specified
+   condition, false otherwise.
+*/
+bool change_prevents_inplace(const Field_str &from, const Create_field &to) {
+  return sql_type_prevents_inplace(from, to) ||
+         length_prevents_inplace(from, to) ||
+         charset_prevents_inplace(from, to) ||
+         collation_prevents_inplace(from, to);
+}
+}  // namespace
+
 inline int field_type2index(enum_field_types field_type) {
   field_type = real_type_to_type(field_type);
   DBUG_ASSERT(field_type < FIELDTYPE_TEAR_FROM ||
@@ -1066,6 +1167,9 @@ void Field::set_tmp_null() {
             : current_thd->check_for_truncated_fields;
 }
 
+uint Field::is_equal(const Create_field *new_field) {
+  return (real_type() == new_field->sql_type);
+}
 /**
   Return type of which can carry value of both given types in UNION result.
 
@@ -1712,7 +1816,7 @@ bool Field::send_binary(Protocol *protocol) {
    master's field size, @c false otherwise.
 */
 bool Field::compatible_field_size(uint field_metadata, Relay_log_info *, uint16,
-                                  int *order_var) {
+                                  int *order_var) const {
   uint const source_size = pack_length_from_metadata(field_metadata);
   uint const destination_size = row_pack_length();
   DBUG_PRINT("debug", ("real_type: %d, source_size: %u, destination_size: %u",
@@ -1843,7 +1947,7 @@ size_t Field::last_null_byte() const {
   return bytes;
 }
 
-void Field::make_field(Send_field *field) {
+void Field::make_field(Send_field *field) const {
   if (orig_table && orig_table->s->db.str && *orig_table->s->db.str) {
     field->db_name = orig_table->s->db.str;
     if (orig_table->pos_in_table_list &&
@@ -1970,7 +2074,7 @@ Field_str::Field_str(uchar *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
   char_length_cache = char_length();
 }
 
-void Field_str::make_field(Send_field *field) {
+void Field_str::make_field(Send_field *field) const {
   Field::make_field(field);
   field->decimals = 0;
 }
@@ -2073,7 +2177,7 @@ bool Field::optimize_range(uint idx, uint part) {
 }
 
 Field *Field::new_field(MEM_ROOT *root, TABLE *new_table,
-                        bool keep_type MY_ATTRIBUTE((unused))) {
+                        bool keep_type MY_ATTRIBUTE((unused))) const {
   Field *tmp = clone(root);
   if (tmp == NULL) return 0;
 
@@ -2134,7 +2238,7 @@ void Field_null::sql_type(String &res) const {
   This is an number stored as a pre-space (or pre-zero) string
 ****************************************************************************/
 
-type_conversion_status Field_decimal::reset(void) {
+type_conversion_status Field_decimal::reset() {
   Field_decimal::store(STRING_WITH_LEN("0"), &my_charset_bin);
   return TYPE_OK;
 }
@@ -2561,7 +2665,7 @@ type_conversion_status Field_decimal::store(longlong nr, bool unsigned_val) {
   return TYPE_OK;
 }
 
-double Field_decimal::val_real(void) {
+double Field_decimal::val_real() {
   ASSERT_COLUMN_MARKED_FOR_READ;
   int not_used;
   char *end_not_used;
@@ -2569,7 +2673,7 @@ double Field_decimal::val_real(void) {
                     &not_used);
 }
 
-longlong Field_decimal::val_int(void) {
+longlong Field_decimal::val_int() {
   ASSERT_COLUMN_MARKED_FOR_READ;
   int not_used;
   if (unsigned_flag)
@@ -2728,7 +2832,7 @@ Field *Field_new_decimal::create_from_item(Item *item) {
       len, item->maybe_null, item->item_name.ptr(), dec, item->unsigned_flag);
 }
 
-type_conversion_status Field_new_decimal::reset(void) {
+type_conversion_status Field_new_decimal::reset() {
   store_value(&decimal_zero);
   return TYPE_OK;
 }
@@ -2904,7 +3008,7 @@ type_conversion_status Field_new_decimal::store_time(
   return store_value(date2my_decimal(ltime, &decimal_value));
 }
 
-double Field_new_decimal::val_real(void) {
+double Field_new_decimal::val_real() {
   ASSERT_COLUMN_MARKED_FOR_READ;
   double dbl;
   my_decimal decimal_value;
@@ -2912,7 +3016,7 @@ double Field_new_decimal::val_real(void) {
   return dbl;
 }
 
-longlong Field_new_decimal::val_int(void) {
+longlong Field_new_decimal::val_int() {
   ASSERT_COLUMN_MARKED_FOR_READ;
   longlong i;
   my_decimal decimal_value;
@@ -3003,7 +3107,7 @@ int Field_new_decimal::do_save_field_metadata(uchar *metadata_ptr) {
 
    @returns The size of the field based on the field metadata.
 */
-uint Field_new_decimal::pack_length_from_metadata(uint field_metadata) {
+uint Field_new_decimal::pack_length_from_metadata(uint field_metadata) const {
   uint const source_precision = (field_metadata >> 8U) & 0x00ff;
   uint const source_decimal = field_metadata & 0x00ff;
   uint const source_size =
@@ -3028,7 +3132,7 @@ uint Field_new_decimal::pack_length_from_metadata(uint field_metadata) {
 */
 bool Field_new_decimal::compatible_field_size(uint field_metadata,
                                               Relay_log_info *, uint16,
-                                              int *order_var) {
+                                              int *order_var) const {
   uint const source_precision = (field_metadata >> 8U) & 0x00ff;
   uint const source_decimal = field_metadata & 0x00ff;
   int order = compare(source_precision, precision);
@@ -3175,13 +3279,13 @@ type_conversion_status Field_tiny::store(longlong nr, bool unsigned_val) {
   return error;
 }
 
-double Field_tiny::val_real(void) {
+double Field_tiny::val_real() {
   ASSERT_COLUMN_MARKED_FOR_READ;
   int tmp = unsigned_flag ? (int)ptr[0] : (int)((signed char *)ptr)[0];
   return (double)tmp;
 }
 
-longlong Field_tiny::val_int(void) {
+longlong Field_tiny::val_int() {
   ASSERT_COLUMN_MARKED_FOR_READ;
   int tmp = unsigned_flag ? (int)ptr[0] : (int)((signed char *)ptr)[0];
   return (longlong)tmp;
@@ -3338,7 +3442,7 @@ type_conversion_status Field_short::store(longlong nr, bool unsigned_val) {
   return error;
 }
 
-double Field_short::val_real(void) {
+double Field_short::val_real() {
   ASSERT_COLUMN_MARKED_FOR_READ;
   short j;
 #ifdef WORDS_BIGENDIAN
@@ -3350,7 +3454,7 @@ double Field_short::val_real(void) {
   return unsigned_flag ? (double)(unsigned short)j : (double)j;
 }
 
-longlong Field_short::val_int(void) {
+longlong Field_short::val_int() {
   ASSERT_COLUMN_MARKED_FOR_READ;
   short j;
 #ifdef WORDS_BIGENDIAN
@@ -3529,13 +3633,13 @@ type_conversion_status Field_medium::store(longlong nr, bool unsigned_val) {
   return error;
 }
 
-double Field_medium::val_real(void) {
+double Field_medium::val_real() {
   ASSERT_COLUMN_MARKED_FOR_READ;
   long j = unsigned_flag ? (long)uint3korr(ptr) : sint3korr(ptr);
   return (double)j;
 }
 
-longlong Field_medium::val_int(void) {
+longlong Field_medium::val_int() {
   ASSERT_COLUMN_MARKED_FOR_READ;
   long j = unsigned_flag ? (long)uint3korr(ptr) : sint3korr(ptr);
   return (longlong)j;
@@ -3703,7 +3807,7 @@ type_conversion_status Field_long::store(longlong nr, bool unsigned_val) {
   return error;
 }
 
-double Field_long::val_real(void) {
+double Field_long::val_real() {
   ASSERT_COLUMN_MARKED_FOR_READ;
   int32 j;
 #ifdef WORDS_BIGENDIAN
@@ -3715,7 +3819,7 @@ double Field_long::val_real(void) {
   return unsigned_flag ? (double)(uint32)j : (double)j;
 }
 
-longlong Field_long::val_int(void) {
+longlong Field_long::val_int() {
   ASSERT_COLUMN_MARKED_FOR_READ;
   int32 j;
   /* See the comment in Field_long::store(long long) */
@@ -3905,7 +4009,7 @@ type_conversion_status Field_longlong::store(longlong nr, bool unsigned_val) {
   return error;
 }
 
-double Field_longlong::val_real(void) {
+double Field_longlong::val_real() {
   ASSERT_COLUMN_MARKED_FOR_READ;
   longlong j;
 #ifdef WORDS_BIGENDIAN
@@ -3922,7 +4026,7 @@ double Field_longlong::val_real(void) {
   return (double)j;
 }
 
-longlong Field_longlong::val_int(void) {
+longlong Field_longlong::val_int() {
   ASSERT_COLUMN_MARKED_FOR_READ;
   longlong j;
 #ifdef WORDS_BIGENDIAN
@@ -4080,7 +4184,7 @@ type_conversion_status Field_float::store(longlong nr, bool unsigned_val) {
                                          : (double)nr);
 }
 
-double Field_float::val_real(void) {
+double Field_float::val_real() {
   ASSERT_COLUMN_MARKED_FOR_READ;
   float j;
 #ifdef WORDS_BIGENDIAN
@@ -4092,7 +4196,7 @@ double Field_float::val_real(void) {
   return ((double)j);
 }
 
-longlong Field_float::val_int(void) {
+longlong Field_float::val_int() {
   float j;
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first) {
@@ -4312,7 +4416,7 @@ type_conversion_status Field_real::store_decimal(const my_decimal *dm) {
   return store(dbl);
 }
 
-double Field_double::val_real(void) {
+double Field_double::val_real() {
   ASSERT_COLUMN_MARKED_FOR_READ;
   double j;
 #ifdef WORDS_BIGENDIAN
@@ -4324,7 +4428,7 @@ double Field_double::val_real(void) {
   return j;
 }
 
-longlong Field_double::val_int(void) {
+longlong Field_double::val_int() {
   ASSERT_COLUMN_MARKED_FOR_READ;
   double j;
   longlong res;
@@ -5580,9 +5684,9 @@ bool Field_year::send_binary(Protocol *protocol) {
   return protocol->store_short(tmp);
 }
 
-double Field_year::val_real(void) { return (double)Field_year::val_int(); }
+double Field_year::val_real() { return (double)Field_year::val_int(); }
 
-longlong Field_year::val_int(void) {
+longlong Field_year::val_int() {
   ASSERT_COLUMN_MARKED_FOR_READ;
   DBUG_ASSERT(field_length == 2 || field_length == 4);
   int tmp = (int)ptr[0];
@@ -6143,14 +6247,23 @@ bool Field::gcol_expr_is_equal(const Create_field *field) const {
   return gcol_info->expr_item->eq(field->gcol_info->expr_item, true);
 }
 
-uint Field::is_equal(const Create_field *new_field) {
-  return (new_field->sql_type == real_type());
-}
-
 uint Field_str::is_equal(const Create_field *new_field) {
-  return ((new_field->sql_type == real_type()) &&
-          new_field->charset == field_charset &&
-          new_field->length == max_display_length());
+  if (change_prevents_inplace(*this, *new_field)) {
+    return IS_EQUAL_NO;
+  }
+
+  size_t new_char_len = new_field->length / new_field->charset->mbmaxlen;
+  if (new_char_len != char_length()  // Changed char len cannot be done
+                                     // inplace due to padding
+  ) {
+    return IS_EQUAL_NO;
+  }
+
+  if (new_field->charset == field_charset) {
+    return IS_EQUAL_YES;
+  }
+
+  return IS_EQUAL_PACK_LENGTH;
 }
 
 type_conversion_status Field_string::store(longlong nr, bool unsigned_val) {
@@ -6173,7 +6286,7 @@ uint32 Field_longstr::max_data_length() const {
   return field_length + (field_length > 255 ? 2 : 1);
 }
 
-double Field_string::val_real(void) {
+double Field_string::val_real() {
   ASSERT_COLUMN_MARKED_FOR_READ;
   int error;
   char *end;
@@ -6194,7 +6307,7 @@ double Field_string::val_real(void) {
   return result;
 }
 
-longlong Field_string::val_int(void) {
+longlong Field_string::val_int() {
   ASSERT_COLUMN_MARKED_FOR_READ;
   int error;
   char *end;
@@ -6249,7 +6362,7 @@ my_decimal *Field_string::val_decimal(my_decimal *decimal_value) {
 }
 
 struct Check_field_param {
-  Field *field;
+  const Field *field;
 };
 
 static bool check_field_for_37426(const void *param_arg) {
@@ -6263,7 +6376,7 @@ static bool check_field_for_37426(const void *param_arg) {
 
 bool Field_string::compatible_field_size(uint field_metadata,
                                          Relay_log_info *rli_arg, uint16 mflags,
-                                         int *order_var) {
+                                         int *order_var) const {
   const Check_field_param check_param = {this};
   if (!is_mts_worker(rli_arg->info_thd) &&
       rpl_master_has_bug(rli_arg, 37426, true, check_field_for_37426,
@@ -6491,7 +6604,7 @@ size_t Field_string::get_key_image(uchar *buff, size_t length, imagetype) {
 }
 
 Field *Field_string::new_field(MEM_ROOT *root, TABLE *new_table,
-                               bool keep_type) {
+                               bool keep_type) const {
   Field *field;
   if (type() != MYSQL_TYPE_VAR_STRING || keep_type)
     field = Field::new_field(root, new_table, keep_type);
@@ -6579,7 +6692,7 @@ type_conversion_status Field_varstring::store(longlong nr, bool unsigned_val) {
   return Field_varstring::store(buff, length, field_charset);
 }
 
-double Field_varstring::val_real(void) {
+double Field_varstring::val_real() {
   ASSERT_COLUMN_MARKED_FOR_READ;
   int error;
   char *end;
@@ -6599,7 +6712,7 @@ double Field_varstring::val_real(void) {
   return result;
 }
 
-longlong Field_varstring::val_int(void) {
+longlong Field_varstring::val_int() {
   ASSERT_COLUMN_MARKED_FOR_READ;
   int error;
   char *end;
@@ -6727,7 +6840,7 @@ void Field_varstring::sql_type(String &res) const {
   res.length(length);
 }
 
-uint32 Field_varstring::data_length(uint row_offset) {
+uint32 Field_varstring::data_length(uint row_offset) const {
   return length_bytes == 1 ? (uint32) * (ptr + row_offset)
                            : uint2korr(ptr + row_offset);
 }
@@ -6842,7 +6955,7 @@ int Field_varstring::cmp_binary(const uchar *a_ptr, const uchar *b_ptr,
 }
 
 Field *Field_varstring::new_field(MEM_ROOT *root, TABLE *new_table,
-                                  bool keep_type) {
+                                  bool keep_type) const {
   Field_varstring *res =
       (Field_varstring *)Field::new_field(root, new_table, keep_type);
   if (res) res->length_bytes = length_bytes;
@@ -6862,17 +6975,16 @@ Field *Field_varstring::new_key_field(MEM_ROOT *root, TABLE *new_table,
 }
 
 uint Field_varstring::is_equal(const Create_field *new_field) {
-  if (new_field->sql_type == real_type() &&
-      new_field->charset == field_charset) {
-    if (new_field->length == max_display_length()) return IS_EQUAL_YES;
-    DBUG_ASSERT(0 == (new_field->length % field_charset->mbmaxlen));
-    DBUG_ASSERT(0 == (max_display_length() % field_charset->mbmaxlen));
-    if (new_field->length > max_display_length() &&
-        ((new_field->length <= 255 && max_display_length() <= 255) ||
-         (new_field->length > 255 && max_display_length() > 255)))
-      return IS_EQUAL_PACK_LENGTH;  // VARCHAR, longer variable length
+  if (change_prevents_inplace(*this, *new_field)) {
+    return IS_EQUAL_NO;
   }
-  return IS_EQUAL_NO;
+
+  if (new_field->charset == field_charset &&
+      new_field->pack_length == pack_length()) {
+    return IS_EQUAL_YES;
+  }
+
+  return IS_EQUAL_PACK_LENGTH;
 }
 
 void Field_varstring::hash(ulong *nr, ulong *nr2) {
@@ -6941,7 +7053,8 @@ void Field_blob::store_length(uchar *i_ptr, uint i_packlength, uint32 i_number,
 }
 
 uint32 Field_blob::get_length(const uchar *pos, uint packlength_arg,
-                              bool low_byte_first MY_ATTRIBUTE((unused))) {
+                              bool low_byte_first
+                                  MY_ATTRIBUTE((unused))) const {
   switch (packlength_arg) {
     case 1:
       return (uint32)pos[0];
@@ -7088,7 +7201,7 @@ type_conversion_status Field_blob::store(longlong nr, bool unsigned_val) {
   return Field_blob::store(value.ptr(), value.length(), cs);
 }
 
-double Field_blob::val_real(void) {
+double Field_blob::val_real() {
   ASSERT_COLUMN_MARKED_FOR_READ;
   int not_used;
   char *end_not_used, *blob;
@@ -7102,7 +7215,7 @@ double Field_blob::val_real(void) {
   return my_strntod(cs, blob, length, &end_not_used, &not_used);
 }
 
-longlong Field_blob::val_int(void) {
+longlong Field_blob::val_int() {
   ASSERT_COLUMN_MARKED_FOR_READ;
   int not_used;
   char *blob;
@@ -7390,10 +7503,25 @@ uint Field_blob::max_packed_col_length() {
 }
 
 uint Field_blob::is_equal(const Create_field *new_field) {
-  return (
-      (new_field->sql_type == get_blob_type_from_length(max_data_length())) &&
-      new_field->charset == field_charset &&
-      new_field->pack_length == pack_length());
+  // Can't use change_prevents_inplace() here as it uses
+  // sql_type_prevents_inplace() which checks real_type(), and
+  // Field_blob::real_type() does NOT return the actual blob type as
+  // one could expect, so we have to check against
+  // get_blob_type_from_length(max_data_length() instead.
+  // length_prevents_inplace() is less strict than pack_length
+  // equality so would be redundant here.
+  if (new_field->sql_type != get_blob_type_from_length(max_data_length()) ||
+      new_field->pack_length != pack_length() ||
+      charset_prevents_inplace(*this, *new_field) ||
+      collation_prevents_inplace(*this, *new_field)) {
+    return IS_EQUAL_NO;
+  }
+
+  if (new_field->charset == field_charset) {
+    return IS_EQUAL_YES;
+  }
+
+  return IS_EQUAL_PACK_LENGTH;
 }
 
 void Field_geom::sql_type(String &res) const {
@@ -8111,7 +8239,7 @@ type_conversion_status Field_enum::store(longlong nr, bool) {
   return error;
 }
 
-double Field_enum::val_real(void) { return (double)Field_enum::val_int(); }
+double Field_enum::val_real() { return (double)Field_enum::val_int(); }
 
 my_decimal *Field_enum::val_decimal(my_decimal *decimal_value) {
   ASSERT_COLUMN_MARKED_FOR_READ;
@@ -8119,7 +8247,7 @@ my_decimal *Field_enum::val_decimal(my_decimal *decimal_value) {
   return decimal_value;
 }
 
-longlong Field_enum::val_int(void) {
+longlong Field_enum::val_int() {
   ASSERT_COLUMN_MARKED_FOR_READ;
   switch (packlength) {
     case 1:
@@ -8251,7 +8379,8 @@ void Field_enum::sql_type(String &res) const {
   res.append(')');
 }
 
-Field *Field_enum::new_field(MEM_ROOT *root, TABLE *new_table, bool keep_type) {
+Field *Field_enum::new_field(MEM_ROOT *root, TABLE *new_table,
+                             bool keep_type) const {
   Field_enum *res = (Field_enum *)Field::new_field(root, new_table, keep_type);
   if (res) res->typelib = copy_typelib(root, typelib);
   return res;
@@ -8379,7 +8508,7 @@ void Field_set::sql_type(String &res) const {
     0  if the fields are unequally defined
 */
 
-bool Field::eq_def(Field *field) {
+bool Field::eq_def(const Field *field) const {
   if (real_type() != field->real_type() || charset() != field->charset() ||
       pack_length() != field->pack_length())
     return 0;
@@ -8407,7 +8536,7 @@ static bool compare_type_names(const CHARSET_INFO *charset, TYPELIB *t1,
   returns 1 if the fields are equally defined
 */
 
-bool Field_enum::eq_def(Field *field) {
+bool Field_enum::eq_def(const Field *field) const {
   TYPELIB *values;
 
   if (!Field::eq_def(field)) return false;
@@ -8430,29 +8559,50 @@ bool Field_enum::eq_def(Field *field) {
 */
 
 uint Field_enum::is_equal(const Create_field *new_field) {
-  TYPELIB *values = new_field->interval;
-
   /*
     The fields are compatible if they have the same flags,
     type, charset and have the same underlying length.
   */
-  if (new_field->sql_type != real_type() ||
-      new_field->charset != field_charset ||
-      new_field->pack_length != pack_length())
+  if (change_prevents_inplace(*this, *new_field)) {
+    DBUG_PRINT("inplace", ("change_prevents_inplace() -> IS_EQUAL_NO"));
     return IS_EQUAL_NO;
+  }
+  // Assert - either the charset is unchanged or the change is
+  // inplace-compatible.
+
+  TYPELIB *new_typelib = new_field->interval;
 
   /*
     Changing the definition of an ENUM or SET column by adding a new
     enumeration or set members to the end of the list of valid member
     values only alters table metadata and not table data.
   */
-  if (typelib->count > values->count) return IS_EQUAL_NO;
-
-  /* Check whether there are modification before the end. */
-  if (!compare_type_names(field_charset, typelib, new_field->interval))
+  if (typelib->count > new_typelib->count) {
+    DBUG_PRINT("inplace", ("(typelib->count > new_typelib->count) -> "
+                           "IS_EQUAL_NO"));
     return IS_EQUAL_NO;
+  }
 
-  return IS_EQUAL_YES;
+  /* Check whether there are modification before the end. Since we
+     know that the charset change (if there is one) is
+     inplace-compatible, it is safe to perform the comparison using the
+     new charset.
+  */
+  if (!compare_type_names(new_field->charset, typelib, new_typelib)) {
+    DBUG_PRINT("inplace", ("!compare_type_names() -> IS_EQUAL_NO"));
+    return IS_EQUAL_NO;
+  }
+
+  DBUG_PRINT("inplace",
+             ("Field_enum::is_equal() -> %s",
+              (new_field->pack_length == pack_length() ? "IS_EQUAL_YES"
+                                                       : "IS_EQUAL_NO")));
+
+  // Can't return IS_EQUAL_PACK_LENGTH here as using inplace leads to
+  // assert when trying to insert set elements that use bits outside
+  // the original length:
+  // Assertion failure: rem0rec.cc:408:len <= fixed_len thread 140301224261376
+  return (new_field->pack_length == pack_length() ? IS_EQUAL_YES : IS_EQUAL_NO);
 }
 
 uchar *Field_enum::pack(uchar *to, const uchar *from, uint max_length,
@@ -8510,7 +8660,7 @@ const uchar *Field_enum::unpack(uchar *to, const uchar *from, uint,
   @return
   returns 1 if the fields are equally defined
 */
-bool Field_num::eq_def(Field *field) {
+bool Field_num::eq_def(const Field *field) const {
   if (!Field::eq_def(field)) return 0;
   Field_num *from_num = (Field_num *)field;
 
@@ -8698,9 +8848,9 @@ type_conversion_status Field_bit::store_decimal(const my_decimal *val) {
   return has_overflow ? TYPE_WARN_OUT_OF_RANGE : res;
 }
 
-double Field_bit::val_real(void) { return (double)Field_bit::val_int(); }
+double Field_bit::val_real() { return (double)Field_bit::val_int(); }
 
-longlong Field_bit::val_int(void) {
+longlong Field_bit::val_int() {
   ASSERT_COLUMN_MARKED_FOR_READ;
   ulonglong bits = 0;
   if (bit_len) {
@@ -8843,7 +8993,7 @@ int Field_bit::do_save_field_metadata(uchar *metadata_ptr) {
 
    @returns The size of the field based on the field metadata.
 */
-uint Field_bit::pack_length_from_metadata(uint field_metadata) {
+uint Field_bit::pack_length_from_metadata(uint field_metadata) const {
   uint const from_len = (field_metadata >> 8U) & 0x00ff;
   uint const from_bit_len = field_metadata & 0x00ff;
   uint const source_size = from_len + ((from_bit_len > 0) ? 1 : 0);
@@ -8868,7 +9018,7 @@ uint Field_bit::pack_length_from_metadata(uint field_metadata) {
 */
 bool Field_bit::compatible_field_size(uint field_metadata,
                                       Relay_log_info *MY_ATTRIBUTE((unused)),
-                                      uint16 mflags, int *order_var) {
+                                      uint16 mflags, int *order_var) const {
   DBUG_ENTER("Field_bit::compatible_field_size");
   DBUG_ASSERT((field_metadata >> 16) == 0);
   uint from_bit_len = 8 * (field_metadata >> 8) + (field_metadata & 0xff);
@@ -9068,7 +9218,7 @@ void Field_bit_as_char::sql_type(String &res) const {
   Convert create_field::length from number of characters to number of bytes.
 */
 
-void Create_field::create_length_to_internal_length(void) {
+void Create_field::create_length_to_internal_length() {
   uint precision = 0;
   switch (sql_type) {
     case MYSQL_TYPE_TINY_BLOB:
@@ -10145,7 +10295,7 @@ bool Field_blob::copy_blob_value(MEM_ROOT *mem_root) {
     length
 */
 
-uint32 Field_blob::max_display_length() {
+uint32 Field_blob::max_display_length() const {
   switch (packlength) {
     case 1:
       return 255 * field_charset->mbmaxlen;
@@ -10558,12 +10708,12 @@ void Field_blob::store_length(uchar *i_ptr, uint i_packlength,
   store_length(i_ptr, i_packlength, i_number, table->s->db_low_byte_first);
 }
 
-uint32 Field_blob::get_length(uint row_offset) {
+uint32 Field_blob::get_length(uint row_offset) const {
   return get_length(ptr + row_offset, this->packlength,
                     table->s->db_low_byte_first);
 }
 
-uint32 Field_blob::get_length(const uchar *ptr_arg) {
+uint32 Field_blob::get_length(const uchar *ptr_arg) const {
   return get_length(ptr_arg, this->packlength, table->s->db_low_byte_first);
 }
 
@@ -10596,7 +10746,9 @@ uint32 Create_field_wrapper::pack_length() const {
   return calc_pack_length(m_field->sql_type, m_field->length);
 }
 
-uint32 Create_field_wrapper::max_display_length() { return m_field->length; }
+uint32 Create_field_wrapper::max_display_length() const {
+  return m_field->length;
+}
 
 /**
   Generate a Create_field from an Item.
