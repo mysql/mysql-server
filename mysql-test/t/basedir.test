@@ -8,6 +8,7 @@
 
 let $MYSQLD_SOCKET= `SELECT @@socket`;
 let $MYSQLD_PORT= `SELECT @@port`;
+let $MTR_DATADIR= `SELECT @@datadir`;
 
 --echo # Shutdown mysqld which is started by mtr.
 --let $_server_id= `SELECT @@server_id`
@@ -20,13 +21,14 @@ let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
 let MYSQLD_OUT= $MYSQL_TMP_DIR/server.out;
 let DDIR=       $MYSQL_TMP_DIR/basedir_test;
 let SHUTDOWN_SQL= $MYSQL_TMP_DIR/shutdown.sql;
+
 # Need to save this as PWD env var is overriden when invoking perl
 let BDIR= $PWD;
 
 let DEFARGS= --no-defaults --innodb_dedicated_server=OFF --explicit_defaults_for_timestamp --socket=$MYSQLD_SOCKET --port=$MYSQLD_PORT --skip-ssl --secure-file-priv="" --datadir=$DDIR;
 
 let INIT_FILE_ARGS= $DEFARGS --log-error=$MYSQLD_LOG --init-file=$SHUTDOWN_SQL;
-let INIT_FILE_ARGS_D= $DEFARGS -D --log-error=$MYSQLD_LOG --init-file=$SHUTDOWN_SQL;
+let INIT_FILE_ARGS_D= --no-defaults --innodb_dedicated_server=OFF --explicit_defaults_for_timestamp --socket=$MYSQLD_SOCKET --port=$MYSQLD_PORT --skip-ssl --secure-file-priv="" --datadir=$MTR_DATADIR -D --log-error=$MYSQLD_LOG;
 
 write_file $SHUTDOWN_SQL;
   SHUTDOWN;
@@ -171,6 +173,7 @@ EOF
 
 --echo #
 --echo # Try using -D with relative path
+
 --perl
   use strict;
   use File::Basename;
@@ -203,6 +206,23 @@ EOF
   }
   close(MYSQLD_OUT);
 EOF
+
+--echo # Wait for daemon server to start
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+--echo # Execute a query to see that it is running OK
+SHOW DATABASES;
+
+--echo # Shutdown daemon
+--let $_daemon_id= `SELECT @@server_id`
+--let $_expect_file_name= $MYSQLTEST_VARDIR/tmp/mysqld.$_daemon_id.expect
+--exec echo "wait" > $_expect_file_name
+--shutdown_server
+
+--echo # Wait until daemon is gone
+--source include/wait_until_disconnected.inc
 
 --echo #
 --echo # Cleanup

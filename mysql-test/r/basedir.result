@@ -26,6 +26,18 @@
 # Look for [ERROR] in error log (there should be none):
 # Look for output (there should be none):
 # Supressing output for initialize:
+# Wait for daemon server to start
+# Execute a query to see that it is running OK
+SHOW DATABASES;
+Database
+information_schema
+mtr
+mysql
+performance_schema
+sys
+test
+# Shutdown daemon
+# Wait until daemon is gone
 #
 # Cleanup
 #
