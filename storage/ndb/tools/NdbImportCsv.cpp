@@ -718,7 +718,7 @@ NdbImportCsv::Parse::pop_state()
 void
 NdbImportCsv::Parse::do_parse()
 {
-  log2("do_parse");
+  log_2("do_parse");
   m_input.free_line_list(m_input.m_line_list);
   m_input.free_line_list(m_line_list);
   m_input.free_field_list(m_field_list);
@@ -904,7 +904,7 @@ NdbImportCsv::Parse::do_error(const char* msg)
   if (m_last_token != 0)
   {
     const Buf& buf = m_input.m_buf;
-    log2("parse error at buf:" << buf);
+    log_2("parse error at buf:" << buf);
     uint64 abspos = m_input.m_startpos + buf.m_pos;
     uint64 abslineno = m_input.m_startlineno + m_line_list.cnt();
     m_util.set_error_data(m_error, __LINE__, 0,
