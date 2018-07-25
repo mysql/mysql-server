@@ -12542,10 +12542,11 @@ Dblqh::check_send_scan_hb_rep(Signal* signal,
       tcPtrP->tcTimer = Uint32(now);
     }      
 
-    Uint32 save[3];
+    Uint32 save[4];
     save[0] = signal->theData[0];
     save[1] = signal->theData[1];
     save[2] = signal->theData[2];
+    save[3] = signal->getLength();
 
     signal->theData[0] = tcPtrP->clientConnectrec;
     signal->theData[1] = tcPtrP->transid[0];
@@ -12556,6 +12557,7 @@ Dblqh::check_send_scan_hb_rep(Signal* signal,
     signal->theData[0] = save[0];
     signal->theData[1] = save[1];
     signal->theData[2] = save[2];
+    signal->setLength(save[3]);
   }
 }
 
