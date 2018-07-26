@@ -2203,7 +2203,8 @@ double Item_func_pow::val_real() {
   double val2 = args[1]->val_real();
   if ((null_value = (args[0]->null_value || args[1]->null_value)))
     return 0.0; /* purecov: inspected */
-  return check_float_overflow(pow(value, val2));
+  const double pow_result = pow(value, val2);
+  return check_float_overflow(pow_result);
 }
 
 // Trigonometric functions

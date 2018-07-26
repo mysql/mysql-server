@@ -636,7 +636,10 @@ class Item_real_func : public Item_func {
   my_decimal *val_decimal(my_decimal *decimal_value) override;
   longlong val_int() override {
     DBUG_ASSERT(fixed);
-    return (longlong)rint(val_real());
+    const double realval = val_real();
+    // Rounding error, llrint() may return LLONG_MIN.
+    const longlong retval = realval == LLONG_MAX ? LLONG_MAX : llrint(realval);
+    return retval;
   }
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override {
     return get_date_from_real(ltime, fuzzydate);
