@@ -67,3 +67,4 @@ SELECT * FROM child;
 DROP TABLE child;
 DROP TABLE parent;
 let NDB_RESTORE=;
+--remove_file $NDB_TOOLS_OUTPUT

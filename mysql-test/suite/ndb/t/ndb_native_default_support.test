@@ -764,3 +764,4 @@ drop table t1;
 
 --source suite/ndb/include/restore_ndb_read_backup.inc
 --source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

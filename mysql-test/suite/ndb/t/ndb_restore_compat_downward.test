@@ -102,3 +102,4 @@ drop table t1;
 --error 0
 --exec $NDB_RESTORE -b 2 -n 2 -m --core-file=0 --include-databases=ham --skip-unknown-objects --skip-broken-objects $backup_data_dir/bug54613 >> $NDB_TOOLS_OUTPUT
 --source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

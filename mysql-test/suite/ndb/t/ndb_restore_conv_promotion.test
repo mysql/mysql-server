@@ -294,3 +294,4 @@ select * from subject order by pk;
 drop table subject;
 --source suite/ndb/include/backup_restore_cleanup.inc
 # End of testcase for WL4197
+--remove_file $NDB_TOOLS_OUTPUT

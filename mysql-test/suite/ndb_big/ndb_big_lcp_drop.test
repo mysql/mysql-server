@@ -55,3 +55,4 @@ insert into t3 values (1,1),(2,2),(3,3),(4,4);
 -- disable_warnings
 drop table t1;
 -- enable_warnings
+--remove_file $NDB_TOOLS_OUTPUT

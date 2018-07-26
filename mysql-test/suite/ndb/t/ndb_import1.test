@@ -199,5 +199,6 @@ EOF
 --remove_files_wildcard $MYSQLTEST_VARDIR/tmp t*.dump
 --remove_files_wildcard $MYSQLTEST_VARDIR/tmp t*genrej
 --remove_file $MYSQLTEST_VARDIR/tmp/ndb_import1.inc
+--remove_file $NDB_TOOLS_OUTPUT
 
 # vim:set ft=perl:

@@ -68,3 +68,4 @@ drop table t1;
 --error 1
 --exec $NDB_WAITER --ndb-connectstring=no_such_host --connect-retry-delay=1 --connect-retries=3
 --source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

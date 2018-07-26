@@ -620,3 +620,4 @@ drop tablespace ts1;
 drop logfile group lg1
 engine=ndb;
 --source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

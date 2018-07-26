@@ -1068,3 +1068,4 @@ insert into t1 values (4,3,3,3,3);
 delete from t1;
 
 drop table t1;
+--remove_file $NDB_TOOLS_OUTPUT

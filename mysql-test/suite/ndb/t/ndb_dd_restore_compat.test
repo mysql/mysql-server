@@ -38,3 +38,4 @@ drop tablespace ts;
 drop logfile group lg
 engine ndb;
 --source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

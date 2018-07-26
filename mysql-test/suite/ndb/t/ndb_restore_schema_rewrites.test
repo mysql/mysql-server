@@ -412,3 +412,4 @@ DROP DATABASE db0;
 DROP DATABASE db1;
 DROP DATABASE db2;
 --source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

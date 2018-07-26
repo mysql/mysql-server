@@ -321,3 +321,4 @@ update t1 set val = 11111 where id > 0;
 show warnings;
 SET SESSION debug=@save_debug;
 drop table t1;
+--remove_file $NDB_TOOLS_OUTPUT

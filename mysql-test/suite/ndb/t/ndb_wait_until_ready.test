@@ -100,3 +100,4 @@ let $wait_condition = select count(*) = 4
 let $wait_timeout = 6;
 --source include/wait_condition.inc
 
+--remove_file $NDB_TOOLS_OUTPUT

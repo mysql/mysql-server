@@ -157,3 +157,4 @@ DROP LOGFILE GROUP lg_1
 ENGINE NDBCLUSTER;
 
 enable_query_log;
+--remove_file $NDB_TOOLS_OUTPUT

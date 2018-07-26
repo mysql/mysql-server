@@ -32,3 +32,4 @@ call mtr.add_suppression("cluster disconnect An incident event has been written"
 # Start cluster, should cause node 2 to fail
 --exec $NDB_MGM --no-defaults --verbose=0 -e "all start"
 --exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" --wait-nodes=2,4 >> $NDB_TOOLS_OUTPUT
+--remove_file $NDB_TOOLS_OUTPUT

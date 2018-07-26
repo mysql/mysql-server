@@ -516,3 +516,4 @@ ENGINE =NDB;
 --source suite/ndb/include/backup_restore_cleanup.inc
 
 ## end of test ##
+--remove_file $NDB_TOOLS_OUTPUT

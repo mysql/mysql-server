@@ -978,3 +978,4 @@ select *
 # use a hard limit as it will grow when someone add a new error message
 select count(*) > 700
   from ndbinfo.error_messages;
+--remove_file $NDB_TOOLS_OUTPUT

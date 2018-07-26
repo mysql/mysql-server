@@ -35,3 +35,4 @@ insert into t2 values (2,1);
 drop table t2;
 drop table t1;
 -- enable_warnings
+--remove_file $NDB_TOOLS_OUTPUT

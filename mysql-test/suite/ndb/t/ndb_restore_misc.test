@@ -691,3 +691,4 @@ delete from mysql.ndb_apply_status;
 select count(1) from mysql.ndb_apply_status where server_id=0;
 drop table t1;
 --source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

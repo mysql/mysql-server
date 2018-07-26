@@ -109,3 +109,4 @@ if (`select max(used_pages) > 1.15 * @data_memory_pages
 }
 
 drop table t2;
+--remove_file $NDB_TOOLS_OUTPUT

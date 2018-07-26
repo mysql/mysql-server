@@ -95,3 +95,4 @@ SELECT * FROM t3;
 
 DROP TABLE t3;
 let NDB_RESTORE=;
+--remove_file $NDB_TOOLS_OUTPUT

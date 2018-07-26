@@ -349,3 +349,4 @@ drop table db2.tab1, db2.tab2;
 drop database db1;
 drop database db2;
 --source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

@@ -412,3 +412,4 @@ DROP TABLE t1;
 
 set @is_enable = @is_enable_default;
 source ndb_index_stat_enable.inc;
+--remove_file $NDB_TOOLS_OUTPUT

@@ -947,3 +947,4 @@ rollback;
 drop table test.t1;
 
 drop view ndbinfo.ordered_locks;
+--remove_file $NDB_TOOLS_OUTPUT

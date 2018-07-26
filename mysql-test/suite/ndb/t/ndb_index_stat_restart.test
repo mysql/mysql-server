@@ -90,3 +90,4 @@ connection mysqld2;
 --disable_query_log ONCE
 call mtr.add_suppression("cluster disconnect An incident event has been written");
 --source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

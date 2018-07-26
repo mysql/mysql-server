@@ -72,3 +72,4 @@ while($mysql_errno)
 --echo "Backup complete, backup buffer usage should return to zero"
 select count(*) from ndbinfo.logbuffers where log_type like "BACKUP%" and used > 0;
 --source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

@@ -789,3 +789,4 @@ drop table grp_hssesmusersstoredbytenant;
 
 drop table grp_hssesmusersstoredbytenant;
 --source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

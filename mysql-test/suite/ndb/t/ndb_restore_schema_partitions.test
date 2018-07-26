@@ -388,3 +388,4 @@ echo 520093696,<the_backup_id>;
 --source suite/ndb/include/backup_restore_cleanup.inc
 
 # End of 4.1 tests
+--remove_file $NDB_TOOLS_OUTPUT

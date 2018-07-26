@@ -161,3 +161,4 @@ drop table t1;
 
 # End of 5.0 tests
 
+--remove_file $NDB_TOOLS_OUTPUT

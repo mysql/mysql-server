@@ -53,3 +53,4 @@ DROP TABLE test.t1;
 set @@global.ndb_default_column_format = @old_ndcf;
 DROP DATABASE BANK;
 --source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

@@ -146,3 +146,4 @@ sleep 10;
 
 DROP TABLE t1;
 DROP DATABASE mysqltest;
+--remove_file $NDB_TOOLS_OUTPUT

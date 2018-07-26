@@ -340,3 +340,4 @@ DROP LOGFILE GROUP log_group1 ENGINE = NDB;
 #End 5.1 test case
 
 
+--remove_file $NDB_TOOLS_OUTPUT

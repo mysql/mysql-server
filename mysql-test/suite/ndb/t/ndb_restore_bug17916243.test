@@ -33,3 +33,4 @@ select a1,crc32(b2) from t1,t2 where a1=a2 order by a1;
 drop table t1,t2;
 
 --source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

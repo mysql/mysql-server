@@ -407,3 +407,4 @@ diff_files $MYSQLTEST_VARDIR/tmp/RPL_DD_ADV_M.sql $MYSQLTEST_VARDIR/tmp/RPL_DD_A
 # End 5.1 test case
 --source include/rpl_end.inc
 --source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

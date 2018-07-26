@@ -173,3 +173,4 @@ drop table t1,t2;
 --source suite/ndb/t/ndb_dbug_tc_select_3.inc
 
 --source suite/ndb/include/restore_ndb_read_backup.inc
+--remove_file $NDB_TOOLS_OUTPUT

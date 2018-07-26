@@ -196,3 +196,4 @@ SELECT ST_AsText(t_geometrycollection), ST_AsText(t_geometry) FROM t_gis ORDER b
 
 DROP TABLE t_num,t_datetime,t_string_1,t_string_2,t_gis;
 --source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

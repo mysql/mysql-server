@@ -237,7 +237,6 @@ EOF
       AND filename NOT LIKE 'file_list_%.flist'
       AND filename NOT LIKE 'mysqld%.expect'
       AND filename NOT LIKE 'bootstrap.log'
-      AND filename NOT LIKE 'ndb_testrun.log'
       AND filename NOT LIKE 'run_ndbapitest_result.inc'
       AND filename NOT LIKE 'test_%.log'
       AND filename NOT LIKE 'clusterj.properties'

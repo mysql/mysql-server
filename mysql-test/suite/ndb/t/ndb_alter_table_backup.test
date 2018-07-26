@@ -48,3 +48,4 @@ SELECT * FROM t1 WHERE a = 1 or a = 10 or a = 20 or a = 30 ORDER BY a;
 DROP TABLE t1;
 --source suite/ndb/include/backup_restore_cleanup.inc
 # End of 5.1 Test Case
+--remove_file $NDB_TOOLS_OUTPUT
