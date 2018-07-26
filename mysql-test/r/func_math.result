@@ -1370,3 +1370,12 @@ truncate(
 -9223372036854775808
 )
 0
+#
+# Bug#28401869 ARM BUILD ALLOWS NUMERIC VALUES OUT OF BOUNDS
+#
+select cast(pow(2,63) as signed) as pp;
+pp
+9223372036854775807
+select 1-cast(pow(2,63) as signed) as qq;
+qq
+-9223372036854775806
