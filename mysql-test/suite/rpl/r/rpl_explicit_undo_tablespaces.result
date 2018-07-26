@@ -56,19 +56,15 @@ name	space_type	state
 innodb_undo_001	Undo	active
 innodb_undo_002	Undo	active
 ALTER UNDO TABLESPACE innodb_undo_001 SET INACTIVE;
+ERROR HY000: Cannot set innodb_undo_001 inactive since there would be less than 2 undo tablespaces left active.
 ALTER UNDO TABLESPACE innodb_undo_002 SET INACTIVE;
-ERROR HY000: Cannot set innodb_undo_002 inactive since there is only 1 undo tablespace currently active,
-ALTER UNDO TABLESPACE innodb_undo_001 SET ACTIVE;
-ALTER UNDO TABLESPACE innodb_undo_002 SET INACTIVE;
-ALTER UNDO TABLESPACE innodb_undo_001 SET INACTIVE;
-ERROR HY000: Cannot set innodb_undo_001 inactive since there is only 1 undo tablespace currently active,
+ERROR HY000: Cannot set innodb_undo_002 inactive since there would be less than 2 undo tablespaces left active.
 SELECT name,space_type,state
 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
 WHERE space_type = 'Undo' ORDER BY name;
 name	space_type	state
 innodb_undo_001	Undo	active
-innodb_undo_002	Undo	empty
-ALTER UNDO TABLESPACE innodb_undo_002 SET ACTIVE;
+innodb_undo_002	Undo	active
 [Connection Master]
 CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' Engine=InnoDB;
 CREATE TABLE tab1(c1 int, c2 varchar(10)) TABLESPACE=ts1;
@@ -101,11 +97,17 @@ c1	c2
 2	VISH
 [Connection Master]
 ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
-ALTER UNDO TABLESPACE undo_004 SET INACTIVE;
-ERROR HY000: Cannot set undo_004 inactive since there is only 1 undo tablespace currently active,
+ERROR HY000: Cannot set undo_003 inactive since there would be less than 2 undo tablespaces left active.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3655	Cannot set undo_004 inactive since there is only 1 undo tablespace currently active,
+Error	3655	Cannot set undo_003 inactive since there would be less than 2 undo tablespaces left active.
+Error	1533	Failed to alter: UNDO TABLESPACE undo_003
+Error	3655	ALTER UNDO TABLEPSPACE operation is disallowed on undo_003 
+ALTER UNDO TABLESPACE undo_004 SET INACTIVE;
+ERROR HY000: Cannot set undo_004 inactive since there would be less than 2 undo tablespaces left active.
+SHOW WARNINGS;
+Level	Code	Message
+Error	3655	Cannot set undo_004 inactive since there would be less than 2 undo tablespaces left active.
 Error	1533	Failed to alter: UNDO TABLESPACE undo_004
 Error	3655	ALTER UNDO TABLEPSPACE operation is disallowed on undo_004 
 DROP UNDO TABLESPACE innodb_undo_001;
@@ -116,7 +118,7 @@ WHERE space_type = 'Undo' ORDER BY name;
 name	space_type	state
 innodb_undo_001	Undo	empty
 innodb_undo_002	Undo	empty
-undo_003	Undo	empty
+undo_003	Undo	active
 undo_004	Undo	active
 include/sync_slave_sql_with_master.inc
 [Connection Slave]
@@ -142,13 +144,14 @@ WHERE space_type = 'Undo' ORDER BY name;
 name	space_type	state
 innodb_undo_001	Undo	active
 innodb_undo_002	Undo	active
-undo_003	Undo	empty
+undo_003	Undo	active
 undo_004	Undo	active
 DROP TABLE tab1;
 DROP table tab2;
 DROP TABLESPACE ts1;
-DROP UNDO TABLESPACE undo_003;
+ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
 ALTER UNDO TABLESPACE undo_004 SET INACTIVE;
+DROP UNDO TABLESPACE undo_003;
 SELECT name,space_type,state
 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
 WHERE space_type = 'Undo';

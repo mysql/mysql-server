@@ -11,10 +11,14 @@ CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
 CREATE UNDO TABLESPACE undo_004 ADD DATAFILE 'undo_004.ibu';
 CREATE UNDO TABLESPACE undo_005 ADD DATAFILE 'undo_005.ibu';
 ALTER UNDO TABLESPACE innodb_undo_001 SET INACTIVE;
+let $wait_timeout= 300; # Override default 30 seconds with 300.
+let $wait_condition= SELECT count(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+                     WHERE NAME = 'innodb_undo_001' AND STATE = 'empty';
+source include/wait_condition.inc;
 ALTER UNDO TABLESPACE innodb_undo_002 SET INACTIVE;
-let $wait_timeout= 600; # Override default 30 seconds with 600.
-let $wait_condition= SELECT count(*) = 2 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
-                     WHERE SPACE_TYPE = 'Undo' AND STATE = 'empty';
+let $wait_timeout= 300; # Override default 30 seconds with 300.
+let $wait_condition= SELECT count(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+                     WHERE NAME = 'innodb_undo_002' AND STATE = 'empty';
 source include/wait_condition.inc;
 SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
        WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;

@@ -42,11 +42,12 @@ ALTER UNDO TABLESPACE innodb_undo_001 SET INACTIVE;
 ALTER UNDO TABLESPACE innodb_undo_002 SET INACTIVE;
 ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
 ALTER UNDO TABLESPACE undo_004 SET INACTIVE;
+ERROR HY000: Cannot set undo_004 inactive since there would be less than 2 undo tablespaces left active.
 ALTER UNDO TABLESPACE undo_005 SET INACTIVE;
-ERROR HY000: Cannot set undo_005 inactive since there is only 1 undo tablespace currently active,
+ERROR HY000: Cannot set undo_005 inactive since there would be less than 2 undo tablespaces left active.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3655	Cannot set undo_005 inactive since there is only 1 undo tablespace currently active,
+Error	3655	Cannot set undo_005 inactive since there would be less than 2 undo tablespaces left active.
 Error	1533	Failed to alter: UNDO TABLESPACE undo_005
 Error	3655	ALTER UNDO TABLEPSPACE operation is disallowed on undo_005 
 SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
@@ -55,7 +56,7 @@ NAME	SPACE_TYPE	STATE
 innodb_undo_001	Undo	empty
 innodb_undo_002	Undo	empty
 undo_003	Undo	empty
-undo_004	Undo	empty
+undo_004	Undo	active
 undo_005	Undo	active
 ALTER UNDO TABLESPACE innodb_undo_001 SET ACTIVE;
 ALTER UNDO TABLESPACE innodb_undo_002 SET ACTIVE;
@@ -65,20 +66,20 @@ NAME	SPACE_TYPE	STATE
 innodb_undo_001	Undo	active
 innodb_undo_002	Undo	active
 undo_003	Undo	empty
-undo_004	Undo	empty
+undo_004	Undo	active
 undo_005	Undo	active
 #
 # Show that SET ACTIVE and SET INACTIVE are indempotent.
+#
+ALTER UNDO TABLESPACE undo_003 SET ACTIVE;
+ALTER UNDO TABLESPACE undo_003 SET ACTIVE;
+ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
+ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
+#
 # SET the explicit tablespaces INACTIVE.
 #
-ALTER UNDO TABLESPACE undo_004 SET ACTIVE;
-ALTER UNDO TABLESPACE undo_004 SET ACTIVE;
-ALTER UNDO TABLESPACE undo_004 SET INACTIVE;
 ALTER UNDO TABLESPACE undo_004 SET INACTIVE;
 ALTER UNDO TABLESPACE undo_005 SET INACTIVE;
-#
-# Wait for all explicit undo tablespaces to become empty.
-#
 SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
 WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
 NAME	SPACE_TYPE	STATE

@@ -14131,28 +14131,36 @@ static int innodb_alter_undo_tablespace_inactive(handlerton *hton, THD *thd,
                                                  undo::Tablespace *undo_space,
                                                  dd::String_type dd_state,
                                                  dd::Tablespace *dd_space) {
-  /* Return OK if there is nothing to do. */
-  if (dd_state != dd_space_state_values[DD_SPACE_STATE_ACTIVE] &&
-      !undo_space->is_active() && !undo_space->is_inactive_implicit()) {
+  /* If it is already empty, just return. */
+  if (undo_space->is_empty()) {
     return (0);
   }
 
-  /* There must remain at least 1 active undo tablespace. */
-  ulint num_active = 0;
-  for (auto undo_ts : undo::spaces->m_spaces) {
-    num_active += (undo_ts->is_active() ? 1 : 0);
-  }
-  if (num_active < 2) {
-    my_printf_error(ER_DISALLOWED_OPERATION,
-                    "Cannot set %s inactive since there is only 1"
-                    " undo tablespace currently active,",
-                    MYF(0), undo_space->space_name());
+  if (undo_space->is_active()) {
+    /* There must be at least 2 active undo tablespaces besides the one we
+    are trying to make inactive explicitly. One of those two could be in
+    the process of being implicitly truncated.  So if one other space is
+    inactive_implicit, then it is being truncated and will be put back
+    to active before this undo_space is truncated. */
+    ulint other_active_spaces = 0;
+    for (auto undo_ts : undo::spaces->m_spaces) {
+      if (undo_ts != undo_space &&
+          (undo_ts->is_active() || undo_ts->is_inactive_implicit())) {
+        other_active_spaces++;
+      }
+    }
 
-    return (HA_ERR_NOT_ALLOWED_COMMAND);
+    if (other_active_spaces < 2) {
+      my_printf_error(ER_DISALLOWED_OPERATION,
+                      "Cannot set %s inactive since there would be"
+                      " less than 2 undo tablespaces left active.",
+                      MYF(0), undo_space->space_name());
+
+      return (HA_ERR_NOT_ALLOWED_COMMAND);
+    }
   }
 
-  /* Change the state of the undo tablespace.
-  ALTER UNDO TABLESPACE is idempotent. */
+  /* Make sure the DD shows inactive if it is active. */
   if (dd_state == dd_space_state_values[DD_SPACE_STATE_ACTIVE]) {
     dd_tablespace_set_state(dd_space, DD_SPACE_STATE_INACTIVE);
   }

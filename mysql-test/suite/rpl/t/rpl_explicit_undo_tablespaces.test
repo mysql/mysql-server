@@ -69,34 +69,18 @@ SELECT name,space_type,state
        FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
        WHERE space_type = 'Undo' ORDER BY name;
 
-# Show that the only one of them can be made inactive at a time.
-ALTER UNDO TABLESPACE innodb_undo_001 SET INACTIVE;
-
-# Wait until implicit undo tablespace become empty
-let $wait_condition= SELECT count(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
-                     WHERE space_type = 'Undo' AND state = 'empty';
-source include/wait_condition.inc;
-
---error ER_DISALLOWED_OPERATION
-ALTER UNDO TABLESPACE innodb_undo_002 SET INACTIVE;
-
-ALTER UNDO TABLESPACE innodb_undo_001 SET ACTIVE;
-ALTER UNDO TABLESPACE innodb_undo_002 SET INACTIVE;
-
-# Wait until implicit undo tablespace become empty
-let $wait_condition= SELECT count(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
-                     WHERE space_type = 'Undo' AND state = 'empty';
-source include/wait_condition.inc;
-
+# Show that they cannot be ade inactive because there always needs to be
+# at least 2 active undo tablespaces so that they can be implicitly
+# truncated one at a time..
 --error ER_DISALLOWED_OPERATION
 ALTER UNDO TABLESPACE innodb_undo_001 SET INACTIVE;
+--error ER_DISALLOWED_OPERATION
+ALTER UNDO TABLESPACE innodb_undo_002 SET INACTIVE;
 
 # Check metadata info on slave
 SELECT name,space_type,state
        FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
        WHERE space_type = 'Undo' ORDER BY name;
-
-ALTER UNDO TABLESPACE innodb_undo_002 SET ACTIVE;
 
 --echo [Connection Master]
 --connection master
@@ -123,19 +107,15 @@ SELECT * FROM tab2;
 --echo [Connection Master]
 --connection master
 
+# Check that there are always 2 undo tablespaces in the active state.
+--error ER_DISALLOWED_OPERATION
 ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
-
-# Wait until implicit undo tablespace become empty
-let $wait_condition= SELECT count(*) = 3 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
-                     WHERE space_type = 'Undo' AND state = 'empty';
-source include/wait_condition.inc;
-
-# Check always 1 undo tablespace must be in active state
+SHOW WARNINGS;
 --error ER_DISALLOWED_OPERATION
 ALTER UNDO TABLESPACE undo_004 SET INACTIVE;
 SHOW WARNINGS;
 
-# Check implicit undo tablespaces can not be dropped
+# Check that implicit undo tablespaces can not be dropped
 --error ER_WRONG_TABLESPACE_NAME
 DROP UNDO TABLESPACE innodb_undo_001;
 
@@ -177,16 +157,17 @@ DROP TABLE tab1;
 DROP table tab2;
 DROP TABLESPACE ts1;
 
-# Drop explicit undo tablespace
-DROP UNDO TABLESPACE undo_003;
-
 # Check explicit undo tablespace inactive
+ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
 ALTER UNDO TABLESPACE undo_004 SET INACTIVE;
 
-# Wait until implicit undo tablespace become empty
-let $wait_condition= SELECT count(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+# Wait until the implicit undo tablespaces become empty
+let $wait_condition= SELECT count(*) = 2 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
                      WHERE space_type = 'Undo' AND state = 'empty';
 source include/wait_condition.inc;
+
+# Drop one of the two explicit undo tablespaces
+DROP UNDO TABLESPACE undo_003;
 
 # Check metadata info on master
 SELECT name,space_type,state
@@ -216,6 +197,7 @@ SHOW WARNINGS;
 --echo [Connection Master]
 --connection master
 
+# Drop the second explicit undo tablespace
 DROP UNDO TABLESPACE undo_004;
 
 # Check metadata info on master

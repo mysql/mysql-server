@@ -2,7 +2,7 @@
 # Test recovery when a crash happens during undo tablespace DDL.
 #
 #
-# Create ando populate the test-bed for Undo DDL Recover tests
+# Create and populate the test-bed for Undo DDL Recover tests
 #
 CREATE TABLE t1 (c1 INT, c2 TEXT, c3 TEXT, PRIMARY KEY(c1));
 CREATE PROCEDURE populate_t1()

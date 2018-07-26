@@ -12,7 +12,7 @@
 --source include/have_innodb_default_undo_tablespaces.inc
 
 --echo #
---echo # Create ando populate the test-bed for Undo DDL Recover tests
+--echo # Create and populate the test-bed for Undo DDL Recover tests
 --echo #
 let SEARCH_FILE = $MYSQLTEST_VARDIR/log/mysqld.1.err;
 --let $_server_id= `SELECT @@server_id`
@@ -40,10 +40,9 @@ UPDATE t1 SET c2 = 'mysql' WHERE  (c1 % 4 = 0);
 UPDATE t1 SET c3 = 'oracle' WHERE (c1 % 3 = 0);
 
 ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
-
-let $wait_timeout = 600; # Override default 30 seconds with 300.
+let $wait_timeout = 600; # Override default 30 seconds with 600.
 let $wait_condition = SELECT count(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
-                     WHERE SPACE_TYPE = 'Undo' AND STATE = 'empty';
+                     WHERE NAME = 'undo_003' AND STATE = 'empty';
 source include/wait_condition.inc;
 
 SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
