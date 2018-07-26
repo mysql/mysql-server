@@ -84,8 +84,9 @@ class Session_scheduler : public ngs::Scheduler_dynamic {
 
 #if defined(__APPLE__) || defined(HAVE_PTHREAD_SETNAME_NP)
     char thread_name[16];
-    static int worker = 0;
-    snprintf(thread_name, sizeof(thread_name), "xpl_worker%i", worker++);
+    static std::atomic<int> worker{0};
+    int worker_num = worker++;
+    snprintf(thread_name, sizeof(thread_name), "xpl_worker%i", worker_num);
 #ifdef __APPLE__
     pthread_setname_np(thread_name);
 #else
@@ -129,7 +130,7 @@ class Worker_scheduler_monitor
 
 xpl::Server *xpl::Server::instance;
 xpl::RWLock xpl::Server::instance_rwl;
-bool xpl::Server::exiting = false;
+std::atomic<bool> xpl::Server::exiting{false};
 
 xpl::Server::Server(
     ngs::shared_ptr<ngs::Socket_acceptors_task> acceptors,

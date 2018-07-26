@@ -152,7 +152,7 @@ class Server : public ngs::Server_delegate {
   ngs::Server m_server;
   std::set<std::string> m_udf_names;
 
-  static bool exiting;
+  static std::atomic<bool> exiting;
   static bool is_exiting();
 
   SHA256_password_cache m_sha256_password_cache;
