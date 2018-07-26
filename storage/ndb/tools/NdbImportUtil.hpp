@@ -73,7 +73,7 @@ typedef NdbImport::Error Error;
   } while (0)
 
 #define log1(x) logN(x, 1)
-#define log2(x) logN(x, 2)
+#define log_2(x) logN(x, 2)
 
 #if defined(VM_TRACE) || defined(TEST_NDBIMPORT)
 #define log3(x) logN(x, 3)

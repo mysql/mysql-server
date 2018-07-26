@@ -2745,7 +2745,7 @@ NdbImportUtil::Stats::create(const char* name, uint parent, uint flags)
     Stat* stat = find(name);
     if (stat != 0)
     {
-      log2("use existing " << stat->m_name << " id=" << stat->m_id);
+      log_2("use existing " << stat->m_name.str() << " id=" << stat->m_id);
       unlock();
       return stat;
     }
@@ -2755,7 +2755,7 @@ NdbImportUtil::Stats::create(const char* name, uint parent, uint flags)
   uint id = m_stats.size();
   Stat* stat = new Stat(*this, id, name, parent, parentlevel + 1, flags);
   m_stats.push_back(stat);
-  log2("created stat id=" << stat->m_id << " name=" << stat->m_name);
+  log_2("created stat id=" << stat->m_id << " name=" << stat->m_name);
   validate();
   unlock();
   return stat;
