@@ -71,6 +71,11 @@ ENDIF()
 set(JAR "${JAVA_NDB_VERSION}.jar")
 set(JTIE_MYJAPI_JAR "${CMAKE_CURRENT_BINARY_DIR}/jtie-test-myjapi-${JAR}")
 
+IF(WITH_ASAN)
+  MESSAGE(STATUS "Skipping java tests for ASAN builds")
+  RETURN()
+ENDIF()
+
 ADD_TEST(
   NAME test_jtie_myjapi
   COMMAND

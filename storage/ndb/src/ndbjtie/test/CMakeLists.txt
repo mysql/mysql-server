@@ -80,6 +80,11 @@ SET(MYJAPI_TEST_JAR "${MYJAPI_TEST_DIR}/jtie-test-myjapi-${JAVA_NDB_VERSION}.jar
 SET(UNLOAD_TEST_DIR "${NDBJTIE_DIR}/jtie/test/unload")
 SET(UNLOAD_TEST_JAR "${UNLOAD_TEST_DIR}/jtie-test-unload-${JAVA_NDB_VERSION}.jar")
 
+IF(WITH_ASAN)
+  MESSAGE(STATUS "Skipping java tests for ASAN builds")
+  RETURN()
+ENDIF()
+
 ADD_TEST(
   NAME test_ndbjtie_mutils
   COMMAND
