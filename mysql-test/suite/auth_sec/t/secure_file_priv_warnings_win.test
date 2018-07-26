@@ -1,7 +1,6 @@
---source include/no_valgrind_without_big.inc
 --source include/windows.inc
 
-let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
+let server_log= $MYSQLTEST_VARDIR/log/secure_file_priv_warnings_win.err;
 let SEARCH_FILE= $server_log;
 
 --echo #-----------------------------------------------------------------------
@@ -14,9 +13,7 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --shutdown_server
 --source include/wait_until_disconnected.inc
 
---remove_file $server_log 10
-
---exec echo "restart: --secure-file-priv=$MYSQLTEST_VARDIR/mysqld.1/Data" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart: --log-error=$server_log --secure-file-priv=$MYSQLTEST_VARDIR/mysqld.1/Data" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
@@ -27,9 +24,5 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --echo #              Consider choosing a different directory.
 let SEARCH_PATTERN= Insecure configuration for --secure-file-priv: Data directory is accessible through --secure-file-priv. Consider choosing a different directory.;
 --source include/search_pattern.inc
-
---disable_warnings
---source include/force_restart.inc
---enable_warnings
 
 --echo #-----------------------------------------------------------------------
