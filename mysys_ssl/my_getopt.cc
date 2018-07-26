@@ -1049,8 +1049,9 @@ LLorULL eval_num_suffix(const char *argument, int *error,
   function: getopt_ll
 
   Evaluates and returns the value that user gave as an argument
-  to a variable. Recognizes (case insensitive) K as KILO, M as MEGA
-  and G as GIGA bytes. Some values must be in certain blocks, as
+  to a variable. Recognizes (case insensitive) K as KILO, M as MEGA,
+  G as GIGA, T as in TERA, P as PETA and E as EXA bytes.
+  Some values must be in certain blocks, as
   defined in the given my_option struct, this function will check
   that those values are honored.
   In case of an error, set error value in *err.
