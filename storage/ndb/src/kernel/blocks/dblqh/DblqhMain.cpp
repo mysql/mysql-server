@@ -12706,7 +12706,7 @@ void Dblqh::commitReqLab(Signal* signal,
 /* IT IS A READ OPERATION OR OTHER OPERATION THAT DO NOT USE THE LOG.        */
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-/* THE LOG HAS NOT BEEN WRITTEN SINCE THE LOG FLAG WAS FALSE. THIS CAN OCCUR */
+/* THE LOG HAS NOT BEEN WRITTEN SINCE THE LOG FLAG WAS false. THIS CAN OCCUR */
 /* WHEN WE ARE STARTING A NEW FRAGMENT.                                      */
 /*---------------------------------------------------------------------------*/
       regTcPtr->logWriteState = TcConnectionrec::NOT_STARTED;
@@ -14035,7 +14035,7 @@ void Dblqh::continueAbortLab(Signal* signal,
      * IT IS A READ OPERATION OR OTHER OPERATION THAT DO NOT USE THE LOG.
      * ------------------------------------------------------------------ */
     /* ------------------------------------------------------------------
-     * THE LOG HAS NOT BEEN WRITTEN SINCE THE LOG FLAG WAS FALSE. 
+     * THE LOG HAS NOT BEEN WRITTEN SINCE THE LOG FLAG WAS false.
      * THIS CAN OCCUR WHEN WE ARE STARTING A NEW FRAGMENT.
      * ------------------------------------------------------------------ */
     regTcPtr->logWriteState = TcConnectionrec::NOT_STARTED;
@@ -15548,7 +15548,7 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
   }
   
   /* --------------------------------------------------------------------
-   * If scanLockHold = TRUE we need to unlock previous round of 
+   * If scanLockHold = true we need to unlock previous round of
    * scanned records.
    * scanReleaseLocks will set states for this and send a NEXT_SCANREQ.
    * When confirm signal NEXT_SCANCONF arrives we call 
@@ -15566,7 +15566,7 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
   }//if
 
   /* -----------------------------------------------------------------------
-   * We end up here when scanLockHold = FALSE or no rows was locked from 
+   * We end up here when scanLockHold = false or no rows was locked from
    * previous round. 
    * Simply continue scanning.
    * ----------------------------------------------------------------------- */
@@ -22081,7 +22081,7 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
      */
     lcpPtr.p->currentPrepareFragment.lcpFragOrd.lcpId = c_lcpId;
     lcpPtr.p->currentPrepareFragment.lcpFragOrd.keepGci = lcpFragOrd->keepGci;
-    lcpPtr.p->currentPrepareFragment.lcpFragOrd.lastFragmentFlag = FALSE;
+    lcpPtr.p->currentPrepareFragment.lcpFragOrd.lastFragmentFlag = false;
     /* These should be set before each LCP fragment execution */
     lcpPtr.p->currentPrepareFragment.lcpFragOrd.tableId = RNIL;
     lcpPtr.p->currentPrepareFragment.lcpFragOrd.fragmentId = RNIL;
@@ -24050,7 +24050,7 @@ void Dblqh::initGcpRecLab(Signal* signal)
   for (Ti = clogPartFileSize; Ti < NDB_MAX_LOG_PARTS; Ti++) {
     gcpPtr.p->gcpFilePtr[Ti] = ZNIL;
     gcpPtr.p->gcpPageNo[Ti] = ZNIL;
-    gcpPtr.p->gcpSyncReady[Ti] = FALSE;
+    gcpPtr.p->gcpSyncReady[Ti] = false;
     gcpPtr.p->gcpWordNo[Ti] = ZNIL;
   }
 }//Dblqh::initGcpRecLab()

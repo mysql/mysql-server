@@ -2740,7 +2740,7 @@ NdbDictionaryImpl::putTable(NdbTableImpl *impl)
     m_globalHash->alter_table_rep(old->m_internalName,
                                   impl->m_id,
                                   impl->m_version,
-                                  FALSE);
+                                  false);
   }
   m_globalHash->put(impl->m_internalName, impl);
   m_globalHash->unlock();

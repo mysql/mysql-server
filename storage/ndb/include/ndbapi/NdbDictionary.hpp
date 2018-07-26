@@ -1239,7 +1239,7 @@ public:
     Uint32 getPartitionId(Uint32 hashvalue) const ;
 
     /*
-     * Return TRUE if any of the columns in the table have a 
+     * Return true if any of the columns in the table have a
      * non NULL default value defined
      */ 
     bool hasDefaultValues() const;
@@ -2557,8 +2557,8 @@ public:
      * Table instance to new definition is supported
      * @param f Table to alter
      * @param t New definition of table
-     * @return  TRUE supported      <br>
-     *          FALSE not supported <br>
+     * @return  true supported      <br>
+     *          false not supported <br>
      */
     bool supportedAlterTable(const Table & f, const Table & t);
 

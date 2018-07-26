@@ -1042,7 +1042,7 @@ ndbd_run(bool foreground, int report_fd,
     _snprintf(shutdown_event_name, sizeof(shutdown_event_name),
               "ndbd_shutdown_%d", GetCurrentProcessId());
 
-    g_shutdown_event = CreateEvent(NULL, TRUE, FALSE, shutdown_event_name);
+    g_shutdown_event = CreateEvent(NULL, true, false, shutdown_event_name);
     if (g_shutdown_event == NULL)
     {
       g_eventLogger->error("Failed to create shutdown event, error: %d",

@@ -176,7 +176,7 @@ AsyncIoThread::run()
       }
       if (yield_flag)
       {
-        if (NdbThread_yield_rt(theThreadPtr, TRUE))
+        if (NdbThread_yield_rt(theThreadPtr, true))
         {
           m_real_time = false;
         }

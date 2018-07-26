@@ -42,7 +42,7 @@ public:
     m_log_parts(0),
     m_type(INVALID),
     m_connectCount(0),
-    m_connected(FALSE)
+    m_connected(false)
   {}
 
   /**

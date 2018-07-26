@@ -1341,7 +1341,7 @@ Configuration::setAllRealtimeScheduler()
       if (setRealtimeScheduler(threadInfo[i].pThread,
                                threadInfo[i].type,
                                _realtimeScheduler,
-                               FALSE))
+                               false))
         return;
     }
   }
@@ -1578,7 +1578,7 @@ Configuration::addThread(struct NdbThread* pThread,
   bool real_time;
   if (single_threaded)
   {
-    setRealtimeScheduler(pThread, type, _realtimeScheduler, TRUE);
+    setRealtimeScheduler(pThread, type, _realtimeScheduler, true);
   }
   else if (type == WatchDogThread ||
            type == SocketClientThread ||
@@ -1598,7 +1598,7 @@ Configuration::addThread(struct NdbThread* pThread,
        * breaks.
        */
       real_time = m_thr_config.do_get_realtime_wd();
-      setRealtimeScheduler(pThread, type, real_time, TRUE);
+      setRealtimeScheduler(pThread, type, real_time, true);
     }
     /**
      * main threads are set in ThreadConfig::ipControlLoop
@@ -1642,13 +1642,13 @@ Configuration::yield_main(Uint32 index, bool start)
     if (start)
       setRealtimeScheduler(threadInfo[index].pThread,
                            threadInfo[index].type,
-                           FALSE,
-                           FALSE);
+                           false,
+                           false);
     else
       setRealtimeScheduler(threadInfo[index].pThread,
                            threadInfo[index].type,
-                           TRUE,
-                           FALSE);
+                           true,
+                           false);
   }
 }
 

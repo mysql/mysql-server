@@ -38,7 +38,7 @@ void NdbSleep_MicroSleep(int microseconds)
   LARGE_INTEGER liDueTime;
   liDueTime.QuadPart = -10LL * microseconds;
 
-  HANDLE hTimer = CreateWaitableTimer(NULL, TRUE, NULL);
+  HANDLE hTimer = CreateWaitableTimer(NULL, true, NULL);
   if (NULL == hTimer ||
       !SetWaitableTimer(hTimer, &liDueTime, 0, NULL, NULL, 0) ||
       WaitForSingleObject(hTimer, INFINITE) != WAIT_OBJECT_0)

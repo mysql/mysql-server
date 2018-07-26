@@ -110,7 +110,7 @@ SHM_Transporter::connectClient(Uint32 timeOutMillis)
   {
     char szName[32];
     sprintf(szName, "ndb%lu", shmKey);
-    hFileMapping = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, szName);
+    hFileMapping = OpenFileMapping(FILE_MAP_ALL_ACCESS, false, szName);
 
     if(!hFileMapping)
     {

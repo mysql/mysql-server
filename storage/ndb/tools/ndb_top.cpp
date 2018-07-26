@@ -448,7 +448,7 @@ get_one_option(int optid,
     break;
   }
   }
-  return FALSE;
+  return false;
 }
 
 #define SORT_ORDER_ENTRIES 128

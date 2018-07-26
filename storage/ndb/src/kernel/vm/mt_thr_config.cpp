@@ -2503,7 +2503,7 @@ THRConfigApplier::do_bind(NdbThread* thread,
       res = Ndb_LockCPUSet(thread,
                            &core_cpu_ids[0],
                            num_core_cpus,
-                           FALSE);
+                           false);
     }
     else
     {
@@ -2528,7 +2528,7 @@ THRConfigApplier::do_bind(NdbThread* thread,
       res = Ndb_LockCPUSet(thread,
                            &core_cpu_ids[0],
                            num_core_cpus,
-                           TRUE);
+                           true);
     }
     else
     {
@@ -2536,7 +2536,7 @@ THRConfigApplier::do_bind(NdbThread* thread,
       res = Ndb_LockCPUSet(thread,
                            &cpu_ids,
                            (Uint32)1,
-                           TRUE);
+                           true);
     }
   }
   else if (thr->m_bind_type == T_Thread::B_CPUSET_BIND ||
@@ -2558,12 +2558,12 @@ THRConfigApplier::do_bind(NdbThread* thread,
     if (thr->m_bind_type == T_Thread::B_CPUSET_EXCLUSIVE_BIND)
     {
       /* Bind to a CPU set exclusively */
-      is_exclusive = TRUE;
+      is_exclusive = true;
     }
     else
     {
       /* Bind to a CPU set non-exclusively */
-      is_exclusive = FALSE;
+      is_exclusive = false;
     }
     res = Ndb_LockCPUSet(thread,
                          cpu_ids,

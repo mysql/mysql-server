@@ -1879,7 +1879,7 @@ struct thr_send_thread_instance
                m_kernel_time_os(0),
                m_elapsed_time_os(0),
                m_measured_spintime(0),
-               m_awake(FALSE),
+               m_awake(false),
                m_first_trp(0),
                m_last_trp(0),
                m_next_is_high_prio_trp(false),
@@ -1987,7 +1987,7 @@ struct thr_send_thread_instance
   bool data_available() const
   {
     rmb();
-    return (m_more_trps == TRUE);
+    return (m_more_trps == true);
   }
 
   bool check_pending_data()
@@ -2252,7 +2252,7 @@ public:
     }
     for (Uint32 i = 0; i < MAX_NTRANSPORTERS; i++)
     {
-      m_trp_state[i].m_neighbour_trp = FALSE;
+      m_trp_state[i].m_neighbour_trp = false;
     }
   }
   void setNeighbourNode(NodeId nodeId)
@@ -2271,7 +2271,7 @@ public:
     {
       Uint32 this_id = id[index];
       Uint32 send_instance = get_send_instance(this_id);
-      m_trp_state[this_id].m_neighbour_trp = TRUE;
+      m_trp_state[this_id].m_neighbour_trp = true;
       for (Uint32 i = 0; i < MAX_NEIGHBOURS; i++)
       {
         require(m_send_threads[send_instance].m_neighbour_trps[i] != this_id);
@@ -2346,7 +2346,7 @@ mt_send_thread_main(void *thr_arg)
 }
 
 thr_send_threads::thr_send_threads()
-  : m_started_threads(FALSE),
+  : m_started_threads(false),
     m_node_overload_status((OverloadStatus)LIGHT_LOAD_CONST)
 {
   struct thr_repository *rep = g_thr_repository;
@@ -2356,9 +2356,9 @@ thr_send_threads::thr_send_threads()
     m_trp_state[i].m_next = 0;
     m_trp_state[i].m_data_available = 0;
     m_trp_state[i].m_thr_no_sender = Uint16(NO_OWNER_THREAD);
-    m_trp_state[i].m_send_overload = FALSE;
+    m_trp_state[i].m_send_overload = false;
     m_trp_state[i].m_micros_delayed = 0;
-    m_trp_state[i].m_neighbour_trp = FALSE;
+    m_trp_state[i].m_neighbour_trp = false;
     m_trp_state[i].m_overload_counter = 0;
     NdbTick_Invalidate(&m_trp_state[i].m_inserted_time);
   }
@@ -2570,7 +2570,7 @@ thr_send_threads::start_send_threads()
         m_send_threads[i].m_thread,
         SendThread);
   }
-  m_started_threads = TRUE;
+  m_started_threads = true;
 }
 
 struct thr_send_thread_instance*
@@ -2607,7 +2607,7 @@ thr_send_threads::insert_trp(TrpId trp_id,
   struct thr_send_trps &trp_state = m_trp_state[trp_id];
 
   send_instance->m_more_trps = true;
-  /* Ensure the lock free ::data_available see 'm_more_trps == TRUE' */
+  /* Ensure the lock free ::data_available see 'm_more_trps == true' */
   wmb();
 
   if (trp_state.m_neighbour_trp)
@@ -2659,7 +2659,7 @@ thr_send_threads::set_overload_delay(TrpId trp_id,
 {
   struct thr_send_trps &trp_state = m_trp_state[trp_id];
   assert(trp_state.m_data_available > 0);
-  trp_state.m_send_overload = TRUE;
+  trp_state.m_send_overload = true;
   trp_state.m_micros_delayed = delay_usec;
   trp_state.m_inserted_time = now;
   trp_state.m_overload_counter++;
@@ -2702,7 +2702,7 @@ thr_send_threads::check_delay_expired(TrpId trp_id, NDB_TICKS now)
   {
     trp_state.m_inserted_time = now;
     trp_state.m_micros_delayed = 0;
-    trp_state.m_send_overload = FALSE;
+    trp_state.m_send_overload = false;
     return 0;
   }
 
@@ -3208,12 +3208,12 @@ yield_rt_break(NdbThread *thread,
   Configuration * conf = globalEmulatorData.theConfiguration;
   conf->setRealtimeScheduler(thread,
                              type,
-                             FALSE,
-                             FALSE);
+                             false,
+                             false);
   conf->setRealtimeScheduler(thread,
                              type,
                              real_time,
-                             FALSE);
+                             false);
 }
 
 static void
@@ -3242,7 +3242,7 @@ check_real_time_break(NDB_TICKS now,
      * other threads and processes gets a chance to be scheduled
      * if we run for an extended time.
      */
-    yield_rt_break(thread, type, TRUE);
+    yield_rt_break(thread, type, true);
     *yield_time = now;
   }
 }
@@ -3804,7 +3804,7 @@ thr_send_threads::run_send_thread(Uint32 instance_no)
   require(succ);
 
   NdbMutex_Lock(this_send_thread->send_thread_mutex);
-  this_send_thread->m_awake = FALSE;
+  this_send_thread->m_awake = false;
   NdbMutex_Unlock(this_send_thread->send_thread_mutex);
 
   NDB_TICKS yield_ticks;
@@ -3851,7 +3851,7 @@ thr_send_threads::run_send_thread(Uint32 instance_no)
     }
     this_send_thread->m_exec_time += exec_time;
     this_send_thread->m_sleep_time += sleep_time;
-    this_send_thread->m_awake = TRUE;
+    this_send_thread->m_awake = true;
 
     /**
      * If waited for a specific transporter, reinsert it such that
@@ -3925,7 +3925,7 @@ thr_send_threads::run_send_thread(Uint32 instance_no)
     } // while (get_trp()...)
 
     /* No more trps having data to send right now, prepare to sleep */
-    this_send_thread->m_awake = FALSE;
+    this_send_thread->m_awake = false;
     const Uint32 trp_wait = (trp_id != 0) ?
       m_trp_state[trp_id].m_micros_delayed : 0;
     NdbMutex_Unlock(this_send_thread->send_thread_mutex);
@@ -6526,7 +6526,7 @@ void handle_scheduling_decisions(thr_data *selfptr,
     sendpacked(selfptr, signal);
     selfptr->m_watchdog_counter = 6;
     flush_all_local_signals_and_wakeup(selfptr);
-    pending_send = do_send(selfptr, FALSE, FALSE);
+    pending_send = do_send(selfptr, false, false);
     selfptr->m_watchdog_counter = 20;
     send_sum = 0;
     flush_sum = 0;
@@ -7244,7 +7244,7 @@ calculate_max_signals_parameters(thr_data *selfptr)
       selfptr->m_max_signals_before_send_flush = 10;
       break;
     default:
-      assert(FALSE);
+      assert(false);
   }
   return;
 }
@@ -7533,7 +7533,7 @@ mt_receiver_thread_main(void *thr_arg)
       check_congestion(selfptr);
     }
 
-    const bool pending_send = do_send(selfptr, TRUE, FALSE);
+    const bool pending_send = do_send(selfptr, true, false);
 
     watchDogCounter = 7;
 
@@ -7787,7 +7787,7 @@ loop:
     if (pending_send)
     {
       /* About to sleep, _must_ send now. */
-      pending_send = do_send(selfptr, TRUE, TRUE);
+      pending_send = do_send(selfptr, true, true);
       send_sum = 0;
       flush_sum = 0;
     }
@@ -8003,7 +8003,7 @@ mt_job_thread_main(void *thr_arg)
       {
         /* About to sleep, _must_ send now. */
         flush_all_local_signals_and_wakeup(selfptr);
-        pending_send = do_send(selfptr, TRUE, TRUE);
+        pending_send = do_send(selfptr, true, true);
         send_sum = 0;
         flush_sum = 0;
       }

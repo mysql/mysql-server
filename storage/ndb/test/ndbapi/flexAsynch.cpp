@@ -1220,7 +1220,7 @@ createTables(Ndb* pMyNdb)
       {
         NdbDictionary::Index ndb_index(indexName[i][j]);
         ndb_index.setType(NdbDictionary::Index::OrderedIndex);
-        ndb_index.setLogging(FALSE);
+        ndb_index.setLogging(false);
         if (ndb_index.setTable(tableName[i]))
         {
           ndbout << "setTableError " << errno << endl;

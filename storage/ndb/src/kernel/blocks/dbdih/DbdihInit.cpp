@@ -87,7 +87,7 @@ void Dbdih::initData()
   c_blockCommit    = false;
   c_blockCommitNo  = 1;
   cntrlblockref    = RNIL;
-  c_set_initial_start_flag = FALSE;
+  c_set_initial_start_flag = false;
   c_sr_wait_to = false;
   c_2pass_inr = false;
   c_handled_master_take_over_copy_gci = 0;

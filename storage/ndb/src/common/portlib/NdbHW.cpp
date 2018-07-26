@@ -1215,7 +1215,7 @@ get_processor_data(LOGICAL_PROCESSOR_RELATIONSHIP relationship,
   {
     DWORD res = glpi(relationship, buf, &buf_len);
 
-    if (res == FALSE) 
+    if (!res)
     {
       if (GetLastError() == ERROR_INSUFFICIENT_BUFFER) 
       {
@@ -1239,7 +1239,7 @@ get_processor_data(LOGICAL_PROCESSOR_RELATIONSHIP relationship,
     }
     else
     {
-       done = TRUE;
+       done = true;
     }
   }
   return buf;
@@ -1318,7 +1318,7 @@ static int Ndb_ReloadHWInfo(struct ndb_hwinfo *hwinfo)
     return -1;
   }
 
-  BOOL done = FALSE;
+  BOOL done = false;
   PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX buf = nullptr;
   PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX ptr = nullptr;
   DWORD buf_len = 0;

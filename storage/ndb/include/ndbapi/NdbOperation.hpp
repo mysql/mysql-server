@@ -1440,7 +1440,7 @@ protected:
   */
   const class NdbTableImpl* m_accessTable;
 
-  // Set to TRUE when a tuple key attribute has been defined. 
+  // Set to true when a tuple key attribute has been defined.
   Uint32	    theTupleKeyDefined[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY][3];
 
   Uint32	    theTotalNrOfKeyWordInSignal;     // The total number of

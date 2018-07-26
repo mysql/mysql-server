@@ -615,21 +615,21 @@ static bool analyse_nodegroup_map(const char *ng_map_str,
   {
     if (!local_str)
     {
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     }
     local_str= analyse_one_map(local_str, &source_ng, &dest_ng);
     if (!local_str)
     {
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     }
     if (insert_ng_map(ng_map, source_ng, dest_ng))
     {
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     }
     if (!(*local_str))
       break;
-  } while (TRUE);
-  DBUG_RETURN(FALSE);
+  } while (true);
+  DBUG_RETURN(false);
 }
 
 static bool parse_remap_option(const BaseString option,

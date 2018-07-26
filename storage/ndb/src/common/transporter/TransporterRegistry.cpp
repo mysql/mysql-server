@@ -209,7 +209,7 @@ TransporterReceiveData::epoll_add(Transporter *t)
     int ret_val, error;
 
     if (!ndb_socket_valid(sock_fd))
-      return FALSE;
+      return false;
 
     event_poll.data.u32 = t->getTransporterIndex();
     event_poll.events = EPOLLIN;

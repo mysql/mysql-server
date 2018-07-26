@@ -891,10 +891,10 @@ NdbEventOperationImpl::execSUB_TABLE_DATA(const NdbApiSignal * signal,
   m_buffer.append(ptr[i].p, 4 * ptr[i].sz);
   
   if(!signal->isLastFragment()){
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
   }  
   
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(true);
 }
 
 

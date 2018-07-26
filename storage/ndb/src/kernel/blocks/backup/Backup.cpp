@@ -2955,9 +2955,9 @@ Backup::execDUMP_STATE_ORD(Signal* signal)
         OperationRecord & op = filePtr.p->operation;
         Uint32 *tmp = NULL;
         Uint32 sz = 0;
-        bool eof = FALSE;
+        bool eof = false;
         bool ready = op.dataBuffer.getReadPtr(&tmp, &sz, &eof);
-        ndbout_c("ready: %s  eof: %s", ready ? "TRUE" : "FALSE", eof ? "TRUE" : "FALSE");
+        ndbout_c("ready: %s  eof: %s", ready ? "true" : "false", eof ? "true" : "false");
       }
     }
     return;
@@ -9685,7 +9685,7 @@ Backup::check_min_buf_size(BackupRecordPtr ptr, OperationRecord &op)
       jam();
       Uint32 *tmp = NULL;
       Uint32 sz = 0;
-      bool eof = FALSE;
+      bool eof = false;
       BackupFilePtr loopFilePtr;
       c_backupFilePool.getPtr(loopFilePtr, ptr.p->dataFilePtr[i]);
       OperationRecord & loop_op = loopFilePtr.p->operation;
@@ -9701,7 +9701,7 @@ Backup::check_min_buf_size(BackupRecordPtr ptr, OperationRecord &op)
     jam();
     Uint32 *tmp = NULL;
     Uint32 sz = 0;
-    bool eof = FALSE;
+    bool eof = false;
     return op.dataBuffer.getReadPtr(&tmp, &sz, &eof);
   }
 }
@@ -10591,7 +10591,7 @@ Backup::checkFile(Signal* signal, BackupFilePtr filePtr)
   OperationRecord & op = filePtr.p->operation;
   Uint32 *tmp = NULL;
   Uint32 sz = 0;
-  bool eof = FALSE;
+  bool eof = false;
   bool ready = op.dataBuffer.getReadPtr(&tmp, &sz, &eof);
 
 #if 0

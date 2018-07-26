@@ -65,12 +65,12 @@ NdbCondition_initialize()
 
   if ((res = clock_gettime(clock_id, &tick_time)) != 0)
   {
-    assert(FALSE);
+    assert(false);
     goto nogo;
   }
   if ((res = pthread_condattr_init(&attr)) != 0)
   {
-    assert(FALSE);
+    assert(false);
     goto nogo;
   }
   condattr_init = 1;

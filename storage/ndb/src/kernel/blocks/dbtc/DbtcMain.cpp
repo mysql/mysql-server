@@ -7920,7 +7920,7 @@ void Dbtc::execLQHKEYREF(Signal* signal)
   {
     /*-----------------------------------------------------------------------
      * WE HAVE TO CHECK THAT THE TRANSACTION IS STILL VALID. FIRST WE CHECK 
-     * THAT THE LQH IS STILL CONNECTED TO A TC, IF THIS HOLDS TRUE THEN THE 
+     * THAT THE LQH IS STILL CONNECTED TO A TC, IF THIS HOLDS true THEN THE
      * TC MUST BE CONNECTED TO AN API CONNECT RECORD. 
      * WE MUST ENSURE THAT THE TRANSACTION ID OF THIS API CONNECT 
      * RECORD IS STILL THE SAME AS THE ONE LQHKEYREF REFERS TO. 
@@ -8936,7 +8936,7 @@ void Dbtc::abort010Lab(Signal* signal, ApiConnectRecordPtr const apiConnectptr)
 /*       EVEN IF NO NODE OF THIS PARTICULAR NODE NUMBER NEEDS ABORTION WE   */
 /*       MUST ENSURE THAT ALL NODES ARE CHECKED. THUS A FAULTY NODE DOES    */
 /*       NOT MEAN THAT ALL NODES IN AN OPERATION IS ABORTED. FOR THIS REASON*/
-/*       WE SET THE TCONTINUE_ABORT TO TRUE WHEN A FAULTY NODE IS DETECTED. */
+/*       WE SET THE TCONTINUE_ABORT TO true WHEN A FAULTY NODE IS DETECTED. */
 /*--------------------------------------------------------------------------*/
 void Dbtc::abort015Lab(Signal* signal, ApiConnectRecordPtr const apiConnectptr)
 {
@@ -17564,7 +17564,7 @@ void Dbtc::execDBINFO_SCANREQ(Signal *signal)
     for ( ; hostPtr.i < MAX_NODES; hostPtr.i++)
     {
       ptrCheckGuard(hostPtr, chostFilesize, hostRecord);
-      if (hostPtr.p->time_tracked == FALSE)
+      if (hostPtr.p->time_tracked == false)
         continue;
       for (Uint32 i = first_index; i < TIME_TRACK_HISTOGRAM_RANGES; i++)
       {
@@ -22892,7 +22892,7 @@ Dbtc::time_track_init_histogram_limits(void)
   {
     hostPtr.i = node;
     ptrCheckGuard(hostPtr, chostFilesize, hostRecord);
-    hostPtr.p->time_tracked = FALSE;
+    hostPtr.p->time_tracked = false;
     for (Uint32 i = 0; i < TIME_TRACK_HISTOGRAM_RANGES; i++)
     {
       hostPtr.p->time_track_scan_histogram[i] = 0;
@@ -22959,7 +22959,7 @@ Dbtc::time_track_complete_scan(ScanRecord * const scanPtr,
   hostPtr.i = apiNodeId;
   ptrCheckGuard(hostPtr, chostFilesize, hostRecord);
   hostPtr.p->time_track_scan_histogram[pos]++;
-  hostPtr.p->time_tracked = TRUE;
+  hostPtr.p->time_tracked = true;
 }
 
 void
@@ -22972,7 +22972,7 @@ Dbtc::time_track_complete_scan_error(ScanRecord * const scanPtr,
   hostPtr.i = apiNodeId;
   ptrCheckGuard(hostPtr, chostFilesize, hostRecord);
   hostPtr.p->time_track_scan_error_histogram[pos]++;
-  hostPtr.p->time_tracked = TRUE;
+  hostPtr.p->time_tracked = true;
 }
 
 void
@@ -22997,12 +22997,12 @@ Dbtc::time_track_complete_index_key_operation(
   apiHostPtr.i = apiNodeId;
   ptrCheckGuard(apiHostPtr, chostFilesize, hostRecord);
   apiHostPtr.p->time_track_index_key_histogram[pos]++;
-  apiHostPtr.p->time_tracked = TRUE;
+  apiHostPtr.p->time_tracked = true;
 
   dbHostPtr.i = dbNodeId;
   ptrCheckGuard(dbHostPtr, chostFilesize, hostRecord);
   dbHostPtr.p->time_track_index_key_histogram[pos]++;
-  dbHostPtr.p->time_tracked = TRUE;
+  dbHostPtr.p->time_tracked = true;
 }
 
 void
@@ -23039,8 +23039,8 @@ Dbtc::time_track_complete_key_operation(
     apiHostPtr.p->time_track_write_key_histogram[pos]++;
     dbHostPtr.p->time_track_write_key_histogram[pos]++;
   }
-  apiHostPtr.p->time_tracked = TRUE;
-  dbHostPtr.p->time_tracked = TRUE;
+  apiHostPtr.p->time_tracked = true;
+  dbHostPtr.p->time_tracked = true;
 }
 
 void
@@ -23060,8 +23060,8 @@ Dbtc::time_track_complete_key_operation_error(
 
   apiHostPtr.p->time_track_key_error_histogram[pos]++;
   dbHostPtr.p->time_track_key_error_histogram[pos]++;
-  apiHostPtr.p->time_tracked = TRUE;
-  dbHostPtr.p->time_tracked = TRUE;
+  apiHostPtr.p->time_tracked = true;
+  dbHostPtr.p->time_tracked = true;
 }
 
 void
@@ -23086,7 +23086,7 @@ Dbtc::time_track_complete_scan_frag(
   hostPtr.i = dbNodeId;
   ptrCheckGuard(hostPtr, chostFilesize, hostRecord);
   hostPtr.p->time_track_scan_frag_histogram[pos]++;
-  hostPtr.p->time_tracked = TRUE;
+  hostPtr.p->time_tracked = true;
 }
 
 void
@@ -23112,7 +23112,7 @@ Dbtc::time_track_complete_scan_frag_error(
   hostPtr.i = dbNodeId;
   ptrCheckGuard(hostPtr, chostFilesize, hostRecord);
   hostPtr.p->time_track_scan_frag_error_histogram[pos]++;
-  hostPtr.p->time_tracked = TRUE;
+  hostPtr.p->time_tracked = true;
 }
 
 void
@@ -23126,7 +23126,7 @@ Dbtc::time_track_complete_transaction(ApiConnectRecord* const regApiPtr)
   hostPtr.i = apiNodeId;
   ptrCheckGuard(hostPtr, chostFilesize, hostRecord);
   hostPtr.p->time_track_transaction_histogram[pos]++;
-  hostPtr.p->time_tracked = TRUE;
+  hostPtr.p->time_tracked = true;
 }
 
 void
@@ -23149,7 +23149,7 @@ Dbtc::time_track_complete_transaction_error(
   hostPtr.i = apiNodeId;
   ptrCheckGuard(hostPtr, chostFilesize, hostRecord);
   hostPtr.p->time_track_transaction_error_histogram[pos]++;
-  hostPtr.p->time_tracked = TRUE;
+  hostPtr.p->time_tracked = true;
 }
 
 void

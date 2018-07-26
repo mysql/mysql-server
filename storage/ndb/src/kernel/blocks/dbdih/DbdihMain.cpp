@@ -2039,7 +2039,7 @@ void Dbdih::execNDB_STTOR(Signal* signal)
       jam();
       globalData.m_restart_seq = SYSFILE->m_restart_seq = 1;
       g_eventLogger->info("Starting with m_restart_seq set to 1");
-      c_set_initial_start_flag = TRUE; // In sysfile...
+      c_set_initial_start_flag = true; // In sysfile...
     }
 
     if (cstarttype == NodeState::ST_INITIAL_START) {
@@ -2775,7 +2775,7 @@ void Dbdih::execSTART_MECONF(Signal* signal)
   if (getNodeActiveStatus(getOwnNodeId()) == Sysfile::NS_Configured)
   {
     jam();
-    c_set_initial_start_flag = FALSE;
+    c_set_initial_start_flag = false;
   }
 }//Dbdih::execSTART_MECONF()
 
@@ -13664,7 +13664,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
             inc_node_or_group(node_index, NGPtr.p->nodeCount);
             ndbrequire(node_index < noOfReplicas);
             (*next_replica_node)[NGPtr.i][log_part_id] = node_index;
-            tmp_next_replica_node_set[NGPtr.i][log_part_id] = TRUE;
+            tmp_next_replica_node_set[NGPtr.i][log_part_id] = true;
             break;
           }
         }
@@ -22766,7 +22766,7 @@ Dbdih::sendLCP_COMPLETE_REP(Signal* signal){
       c_lcpState.m_participatingLQH.get(getOwnNodeId()))
   {
     jam();
-    c_set_initial_start_flag = FALSE;
+    c_set_initial_start_flag = false;
   }
 }
 

@@ -1475,7 +1475,7 @@ Uint32 BackupRestore::map_ng(Uint32 ng) const
 bool BackupRestore::map_nodegroups(Uint32 *ng_array, Uint32 no_parts) const
 {
   Uint32 i;
-  bool mapped = FALSE;
+  bool mapped = false;
   DBUG_ENTER("map_nodegroups");
 
   assert(no_parts < MAX_NDB_PARTITIONS);
@@ -1484,7 +1484,7 @@ bool BackupRestore::map_nodegroups(Uint32 *ng_array, Uint32 no_parts) const
     Uint32 ng;
     ng = map_ng(ng_array[i]);
     if (ng != ng_array[i])
-      mapped = TRUE;
+      mapped = true;
     ng_array[i] = ng;
   }
   DBUG_RETURN(mapped);
@@ -1506,8 +1506,8 @@ bool BackupRestore::search_replace(char *search_str, char **new_data,
 {
   uint search_str_len = (uint)strlen(search_str);
   uint inx = 0;
-  bool in_delimiters = FALSE;
-  bool escape_char = FALSE;
+  bool in_delimiters = false;
+  bool escape_char = false;
   char start_delimiter = 0;
   DBUG_ENTER("search_replace");
 
@@ -1517,34 +1517,34 @@ bool BackupRestore::search_replace(char *search_str, char **new_data,
     copy_byte(data, new_data, new_data_len);
     if (escape_char)
     {
-      escape_char = FALSE;
+      escape_char = false;
     }
     else if (in_delimiters)
     {
       if (c == start_delimiter)
-        in_delimiters = FALSE;
+        in_delimiters = false;
     }
     else if (c == '\'' || c == '\"')
     {
-      in_delimiters = TRUE;
+      in_delimiters = true;
       start_delimiter = c;
     }
     else if (c == '\\')
     {
-      escape_char = TRUE;
+      escape_char = true;
     }
     else if (c == search_str[inx])
     {
       inx++;
       if (inx == search_str_len)
       {
-        bool found = FALSE;
+        bool found = false;
         uint number = 0;
         while (*data != end_data)
         {
           if (isdigit(**data))
           {
-            found = TRUE;
+            found = true;
             number = (10 * number) + (**data);
             if (number > MAX_NDB_NODES)
               break;
@@ -1571,19 +1571,19 @@ bool BackupRestore::search_replace(char *search_str, char **new_data,
               **new_data = digits[no_digits];
               *new_data_len+=1;
             }
-            DBUG_RETURN(FALSE); 
+            DBUG_RETURN(false);
           }
           else
             break;
           (*data)++;
         }
-        DBUG_RETURN(TRUE);
+        DBUG_RETURN(true);
       }
     }
     else
       inx = 0;
   } while (*data < end_data);
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 bool BackupRestore::map_in_frm(char *new_data, const char *data,
@@ -1624,9 +1624,9 @@ bool BackupRestore::map_in_frm(char *new_data, const char *data,
   {
     copy_byte(&data, &new_data, new_data_len);
   } while (data < end_data);
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 error:
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(true);
 }
 
 
@@ -1670,12 +1670,12 @@ bool BackupRestore::translate_frm(NdbDictionary::Table *table) const
   const uint extra_growth = no_parts * 4;
   if ((new_data = (char*) malloc(data_len + extra_growth)))
   {
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
   if (map_in_frm(new_data, (const char*)data, (uint)data_len, &new_data_len))
   {
     free(new_data);
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
   const int set_result =
       table->setExtraMetadata(1, // version 1 for frm
@@ -1683,7 +1683,7 @@ bool BackupRestore::translate_frm(NdbDictionary::Table *table) const
   if (set_result != 0)
   {
     free(new_data);
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   // NOTE! the memory allocated in 'new_data' is not released here
@@ -1692,7 +1692,7 @@ bool BackupRestore::translate_frm(NdbDictionary::Table *table) const
   // NOTE! the usage of this function and its functionality is described in
   // BUG25449055 NDB_RESTORE TRANSLATE FRM FOR USERDEFINED PARTITIOING TABLES
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 #include <signaldata/DictTabInfo.hpp>
