@@ -12,6 +12,8 @@
 # 5. Cleanup
 #
 ################################################################################
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
 --source ../inc/have_group_replication_plugin.inc
 --source ../inc/group_replication.inc
 
