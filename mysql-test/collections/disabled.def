@@ -23,19 +23,6 @@ federated.federated_transactions : BUG#11746899 Transactions do not work.
 funcs_1.is_basics_mixed @darwin  : BUG#25882809 2017-04-12 INCORRECT RESULT WHEN USING SUBQUERY ON TOP OF VIEW.
 funcs_1.is_basics_mixed @windows : BUG#25882809 2017-04-12 INCORRECT RESULT WHEN USING SUBQUERY ON TOP OF VIEW.
 
-# group replication suite tests
-group_replication.gr_primary_mode_group_operations_08 @darwin                    : BUG#27955595 2018-07-11 Nuno
-group_replication.gr_primary_mode_group_operations_28 @darwin                    : BUG#27955595 2018-07-11 Nuno
-group_replication.gr_primary_mode_group_operations_29 @darwin                    : BUG#27955595 2018-07-11 Nuno
-group_replication.gr_primary_mode_group_operations_29_1 @darwin                  : BUG#27955595 2018-07-11 Nuno
-group_replication.gr_primary_mode_group_operations_31 @darwin                    : BUG#27955595 2018-07-11 Nuno
-group_replication.gr_primary_mode_group_operations_43 @darwin                    : BUG#27955595 2018-07-11 Nuno
-group_replication.gr_primary_mode_group_operations_force_members @darwin         : BUG#27955595 2018-07-11 Nuno
-group_replication.gr_primary_mode_group_operations_local_election_error @darwin  : BUG#27955595 2018-07-11 Nuno
-group_replication.gr_primary_mode_group_operations_net_partition_1 @darwin       : BUG#27955595 2018-07-11 Nuno
-group_replication.gr_primary_mode_group_operations_net_partition_2 @darwin       : BUG#27955595 2018-07-11 Nuno
-group_replication.gr_primary_mode_group_operations_net_partition_4 @darwin       : BUG#27955595 2018-07-11 Nuno
-
 # innodb suite tests
 innodb.analyze_table @solaris         : BUG#22607584 2016-03-01 Shaohua Failing too often on PB2 due to timeout.
 innodb.log_corruption @darwin         : BUG#27760219 2018-03-27 Anitha Test fails consistently on freebsd and Mac after WL#11009.

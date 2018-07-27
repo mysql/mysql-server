@@ -100,7 +100,6 @@ bool Plugin_gcs_view_modification_notifier::is_cancelled() {
 
 bool Plugin_gcs_view_modification_notifier::wait_for_view_modification(
     long timeout) {
-  struct timespec ts;
   int result = 0;
 
   mysql_mutex_lock(&wait_for_view_mutex);
@@ -109,6 +108,7 @@ bool Plugin_gcs_view_modification_notifier::wait_for_view_modification(
                   { view_changing = false; };);
 
   while (view_changing && !cancelled_view_change) {
+    struct timespec ts;
     set_timespec(&ts, timeout);
     result =
         mysql_cond_timedwait(&wait_for_view_cond, &wait_for_view_mutex, &ts);
