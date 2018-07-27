@@ -5214,7 +5214,7 @@ btr_cur_pessimistic_delete(
 	ulint		level;
 	mem_heap_t*	heap;
 	ulint*		offsets;
-	bool		allow_merge;/* if true, implies we have taken appropriate page
+	bool		allow_merge = true; /* if true, implies we have taken appropriate page
 			latches needed to merge this page.*/
 #ifdef UNIV_DEBUG
 	bool		parent_latched	= false;
@@ -5366,7 +5366,10 @@ btr_cur_pessimistic_delete(
 
 	btr_search_update_hash_on_delete(cursor);
 
-	if (page_is_leaf(page)) {
+	if (page_is_leaf(page) || dict_index_is_spatial(index)) {
+	/* Set allow merge to true for spatial indexes as the tree is X
+        locked incase of delete operation on spatial indexes thus avoiding
+        possibility of upward locking.*/
 		allow_merge = true;
 	} else {
 		allow_merge = btr_cur_will_modify_tree(index,page,BTR_INTENTION_DELETE,

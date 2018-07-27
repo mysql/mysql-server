@@ -3683,3 +3683,106 @@ ERROR 22004: Invalid use of NULL value
 ALTER TABLE t2 MODIFY fld0 POINT NOT NULL;
 ERROR 22004: Invalid use of NULL value
 DROP TABLE t1, t2;
+#
+# BUG#26848813: INDEXED COLUMN CAN'T BE CHANGED FROM VARCHAR(15)
+#               TO VARCHAR(40) INSTANTANEOUSLY
+SET @orig_sql_mode= @@sql_mode;
+SET @orig_innodb_large_prefix= @@global.innodb_large_prefix;
+SET GLOBAL innodb_large_prefix= ON;
+Warnings:
+Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
+# Tests where an error is reported under strict mode when the index
+# limit exceeds the maximum supported length by SE.
+CREATE TABLE t1 (fld1 VARCHAR(768), KEY(fld1)) CHARSET latin1 ENGINE =InnoDB
+ROW_FORMAT= COMPACT;
+ERROR 42000: Specified key was too long; max key length is 767 bytes
+CREATE TABLE t2 (fld1 VARCHAR(3073), KEY(fld1)) CHARSET latin1 ENGINE= InnoDB;
+ERROR 42000: Specified key was too long; max key length is 3072 bytes
+# Test with innodb prefix indexes where the index limit is 767 bytes
+CREATE TABLE t1 (fld1 VARCHAR(767), KEY(fld1)) CHARSET latin1 ENGINE=INNODB
+ROW_FORMAT=COMPACT;
+ALTER TABLE t1 MODIFY fld1 VARCHAR(768), ALGORITHM= INPLACE;
+ERROR 42000: Specified key was too long; max key length is 767 bytes
+ALTER TABLE t1 MODIFY fld1 VARCHAR(768), ALGORITHM= COPY;
+ERROR 42000: Specified key was too long; max key length is 767 bytes
+# Test with innodb prefix indexes where the index limit is 3072 bytes
+CREATE TABLE t2 (fld1 VARCHAR(3072), KEY(fld1)) CHARSET latin1 ENGINE=INNODB
+ROW_FORMAT=DYNAMIC;
+ALTER TABLE t2 MODIFY fld1 VARCHAR(3073), ALGORITHM= INPLACE;
+ERROR 42000: Specified key was too long; max key length is 3072 bytes
+ALTER TABLE t2 MODIFY fld1 VARCHAR(3073), ALGORITHM= COPY;
+ERROR 42000: Specified key was too long; max key length is 3072 bytes
+# Tests with innodb_large_prefix disabled and strict mode.
+SET GLOBAL innodb_large_prefix= OFF;
+Warnings:
+Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
+CREATE TABLE t3 (fld1 VARCHAR(3072), KEY(fld1)) CHARSET latin1 ENGINE= InnoDB;
+ERROR 42000: Specified key was too long; max key length is 767 bytes
+DROP TABLE t1, t2;
+SET sql_mode= '';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+SET GLOBAL innodb_large_prefix= ON;
+Warnings:
+Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
+# Test where the indexes are truncated to fit the index limit and
+# a warning is reported under non-strict mode when the index exceeds
+# the SE limit.
+CREATE TABLE t1 (fld1 VARCHAR(768), KEY(fld1)) ENGINE= InnoDB
+ROW_FORMAT=COMPACT;
+Warnings:
+Warning	1071	Specified key was too long; max key length is 767 bytes
+CREATE TABLE t2 (fld1 VARCHAR(3073), KEY(fld1)) ENGINE= InnoDB;
+Warnings:
+Warning	1071	Specified key was too long; max key length is 3072 bytes
+# Test with innodb prefix indexes where the index limit is 767 bytes.
+CREATE TABLE t3 (fld1 VARCHAR(767), KEY(fld1))ENGINE=INNODB ROW_FORMAT=COMPACT;
+ALTER TABLE t3 MODIFY fld1 VARCHAR(768), ALGORITHM= INPLACE;
+Warnings:
+Warning	1071	Specified key was too long; max key length is 767 bytes
+ALTER TABLE t3 MODIFY fld1 VARCHAR(800), ALGORITHM= COPY;
+# Test with innodb prefix indexes where the index limit is 3072 bytes.
+CREATE TABLE t4 (fld1 VARCHAR(3072), KEY(fld1))ENGINE=INNODB
+ROW_FORMAT=DYNAMIC;
+ALTER TABLE t4 MODIFY fld1 VARCHAR(3073), ALGORITHM= INPLACE;
+Warnings:
+Warning	1071	Specified key was too long; max key length is 3072 bytes
+ALTER TABLE t4 MODIFY fld1 VARCHAR(3074), ALGORITHM= COPY;
+# For unique and primary keys, an error is reported even in non-strict
+# mode.
+CREATE TABLE t5(fld1 VARCHAR(768) PRIMARY KEY) ENGINE= InnoDB
+ROW_FORMAT=COMPACT;
+ERROR 42000: Specified key was too long; max key length is 767 bytes
+CREATE TABLE t5(fld1 VARCHAR(3073), UNIQUE KEY(fld1)) ENGINE= InnoDB;
+ERROR 42000: Specified key was too long; max key length is 3072 bytes
+# Tests with innodb_large_prefix disabled and strict mode.
+SET GLOBAL innodb_large_prefix= OFF;
+Warnings:
+Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
+CREATE TABLE t5 (fld1 VARCHAR(3072), KEY(fld1)) CHARSET latin1 ENGINE= InnoDB;
+Warnings:
+Warning	1071	Specified key was too long; max key length is 767 bytes
+DROP TABLE t1, t2, t3, t4, t5;
+SET sql_mode= @orig_sql_mode;
+SET GLOBAL innodb_large_prefix= ON;
+# Tests added for coverage.
+CREATE TABLE t1(fld1 VARCHAR(3), KEY(fld1)) ENGINE=MYISAM;
+# Conversion of unpacked keys to packed keys reports
+# error for INPLACE Alter.
+ALTER TABLE t1 MODIFY fld1 VARCHAR(10), ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+# Succeeds with index rebuild.
+ALTER TABLE t1 MODIFY fld1 VARCHAR(10), ALGORITHM=COPY;
+# Succeeds since the row format is dynamic.
+CREATE TABLE t2(fld1 VARCHAR(768), KEY(fld1)) ENGINE= InnoDB ROW_FORMAT= DYNAMIC;
+# An error is reported when the index exceeds the column size
+# in both strict and non-strict mode.
+ALTER TABLE t2 ADD INDEX idx1(fld1(769));
+ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
+SET sql_mode= '';
+ALTER TABLE t2 ADD INDEX idx1(fld1(769));
+ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
+# Cleanup.
+DROP TABLE t1, t2;
+SET sql_mode= @orig_sql_mode;
+SET GLOBAL innodb_large_prefix= @orig_innodb_large_prefix;
