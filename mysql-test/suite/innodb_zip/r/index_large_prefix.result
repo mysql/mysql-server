@@ -494,11 +494,11 @@ drop table worklog5743;
 ### Test 6 ###
 create table worklog5743(a TEXT not null, primary key (a(1000)))
 row_format=compact;
-ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
+ERROR 42000: Specified key was too long; max key length is 767 bytes
 create table worklog5743(a TEXT)
 row_format=compact;
 create index idx on worklog5743(a(768));
-ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
+ERROR 42000: Specified key was too long; max key length is 767 bytes
 create index idx on worklog5743(a(767));
 insert into worklog5743 values(repeat("a", 20000));
 begin;
@@ -546,12 +546,12 @@ drop table worklog5743;
 SET sql_mode= default;
 create table worklog5743(a TEXT not null) ROW_FORMAT=REDUNDANT;
 create index idx on worklog5743(a(768));
-ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
+ERROR 42000: Specified key was too long; max key length is 767 bytes
 create index idx2 on worklog5743(a(767));
 drop table worklog5743;
 create table worklog5743(a TEXT not null) ROW_FORMAT=COMPACT;
 create index idx on worklog5743(a(768));
-ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
+ERROR 42000: Specified key was too long; max key length is 767 bytes
 create index idx2 on worklog5743(a(767));
 drop table worklog5743;
 SET GLOBAL innodb_file_per_table=1;
