@@ -276,11 +276,11 @@ int Group_action_coordinator::coordinate_action_execution(
 
   delete start_message;
 
-  struct timespec abstime;
-  set_timespec(&abstime, 1);
-
   while (!local_action_terminating && !action_execution_error &&
          !thread_killed()) {
+    struct timespec abstime;
+    set_timespec(&abstime, 1);
+
     mysql_cond_timedwait(&coordinator_process_condition,
                          &coordinator_process_lock, &abstime);
   }

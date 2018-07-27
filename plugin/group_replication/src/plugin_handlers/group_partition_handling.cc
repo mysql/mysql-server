@@ -261,13 +261,13 @@ int Group_partition_handling::partition_thread_handler() {
   mysql_cond_broadcast(&run_cond);
   mysql_mutex_unlock(&run_lock);
 
-  struct timespec abstime;
   bool timeout = false;
 
   longlong timeout_remaining_time = timeout_on_unreachable;
 
   mysql_mutex_lock(&trx_termination_aborted_lock);
   while (!timeout && !partition_handling_aborted) {
+    struct timespec abstime;
     set_timespec(&abstime, 2);
     mysql_cond_timedwait(&trx_termination_aborted_cond,
                          &trx_termination_aborted_lock, &abstime);

@@ -489,9 +489,6 @@ end:
 int Applier_module::initialize_applier_thread() {
   DBUG_ENTER("Applier_module::initialize_applier_thd");
 
-  struct timespec abstime;
-  set_timespec(&abstime, 1);
-
   // avoid concurrency calls against stop invocations
   mysql_mutex_lock(&run_lock);
 
@@ -516,6 +513,10 @@ int Applier_module::initialize_applier_thread() {
       LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_UNBLOCK_WAITING_THD);
       break;
     }
+
+    struct timespec abstime;
+    set_timespec(&abstime, 1);
+
     mysql_cond_timedwait(&run_cond, &run_lock, &abstime);
   }
 

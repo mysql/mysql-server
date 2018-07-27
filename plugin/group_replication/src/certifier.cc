@@ -138,7 +138,6 @@ void Certifier_broadcast_thread::dispatcher() {
   mysql_cond_broadcast(&broadcast_run_cond);
   mysql_mutex_unlock(&broadcast_run_lock);
 
-  struct timespec abstime;
   while (!aborted) {
     // Broadcast Transaction identifiers every 30 seconds
     if (broadcast_counter % 30 == 0) {
@@ -156,6 +155,7 @@ void Certifier_broadcast_thread::dispatcher() {
       mysql_mutex_unlock(&broadcast_dispatcher_lock); /* purecov: inspected */
       break;                                          /* purecov: inspected */
     }
+    struct timespec abstime;
     set_timespec(&abstime, 1);
     mysql_cond_timedwait(&broadcast_dispatcher_cond, &broadcast_dispatcher_lock,
                          &abstime);
