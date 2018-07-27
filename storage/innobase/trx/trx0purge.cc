@@ -1002,10 +1002,13 @@ static void trx_purge_initiate_truncate(purge_iter_t *limit,
                   ib::info(ER_IB_MSG_1168) << "ib_undo_trunc_before_checkpoint";
                   DBUG_SUICIDE(););
 
-  /* After truncate if server crashes then redo logging done for this
-  undo tablespace might not stand valid as tablespace has been
-  truncated. */
-  log_make_latest_checkpoint();
+  /* Since we are about to delete the current file, invalidate all
+  its buffer pages from the buffer pool. */
+  FlushObserver *old_space_flush_observer = UT_NEW_NOKEY(
+      FlushObserver(undo_trunc->get_marked_space_id(), nullptr, nullptr));
+  old_space_flush_observer->interrupted();
+  old_space_flush_observer->flush();
+  UT_DELETE(old_space_flush_observer);
 
   ib::info(ER_IB_MSG_1169) << "Truncating UNDO tablespace number "
                            << undo::id2num(undo_trunc->get_marked_space_id());
@@ -1043,7 +1046,11 @@ static void trx_purge_initiate_truncate(purge_iter_t *limit,
                       << "ib_undo_trunc_before_ddl_log_end";
                   DBUG_SUICIDE(););
 
-  log_make_latest_checkpoint();
+  /* Flush all the buffer pages for this new undo tablespace to disk. */
+  FlushObserver *new_space_flush_observer = UT_NEW_NOKEY(
+      FlushObserver(undo_trunc->get_marked_space_id(), nullptr, nullptr));
+  new_space_flush_observer->flush();
+  UT_DELETE(new_space_flush_observer);
 
   undo::done_logging(undo_trunc->get_marked_space_id());
 
