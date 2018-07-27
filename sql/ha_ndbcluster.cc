@@ -14549,7 +14549,8 @@ uint ha_ndbcluster::max_supported_key_length() const
 {
   return NDB_MAX_KEY_SIZE;
 }
-uint ha_ndbcluster::max_supported_key_part_length() const
+uint ha_ndbcluster::max_supported_key_part_length(HA_CREATE_INFO
+                                 *create_info MY_ATTRIBUTE((unused))) const
 {
   return NDB_MAX_KEY_SIZE;
 }
