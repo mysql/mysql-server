@@ -3007,6 +3007,15 @@ class Validate_files {
   using Tablespaces = std::vector<const dd::Tablespace *>;
   using Const_iter = Tablespaces::const_iterator;
 
+  /* This is the maximum number of tablespaces that can be handled by
+  a single thread.  If more than that, the tablespaces will be divided
+  up between up to 8 threads. */
+  const size_t MAX_TABLESPACES_PER_THREAD = 50000;
+
+  /* If therea are more than MAX_TABLESPACES_PER_THREAD scanned, then
+  the work will be distributed among up to this many parallel threads. */
+  const size_t MAX_THREADS = 8;
+
  public:
   /** Constructor */
   Validate_files()
@@ -3034,12 +3043,13 @@ class Validate_files {
 
  private:
   /** Validate the tablespace filenames.
-  @param[in]	begin		Start of the slice
-  @param[in]	end		End of the slice
-  @param[in]	thread_id	Thread ID
-  @param[in]	moved_count	Number of files that were moved */
+  @param[in]  begin        Start of the slice
+  @param[in]  end          End of the slice
+  @param[in]  thread_id    Thread ID
+  @param[in]  moved_count  Number of files that were moved
+  @param[in]  thd          thread handle */
   void check(const Const_iter &begin, const Const_iter &end, size_t thread_id,
-             size_t *moved_count);
+             size_t *moved_count, THD *thd);
 
   /** @return true if there were failures. */
   bool failed() const { return (m_n_errors.load() != 0); }
@@ -3068,19 +3078,20 @@ class Validate_files {
 };
 
 /** Validate the tablespace filenames.
-@param[in]	begin		Start of the slice
-@param[in]	end		End of the slice
-@param[in]	thread_id	Thread ID
-@param[in]	moved_count	Number of files that were moved */
+@param[in]  begin       Start of the slice
+@param[in]  end         End of the slice
+@param[in]  thread_id   Thread ID
+@param[in]  moved_count Number of files that were moved
+@param[in]  thd         thread handle */
 void Validate_files::check(const Const_iter &begin, const Const_iter &end,
-                           size_t thread_id, size_t *moved_count) {
+                           size_t thread_id, size_t *moved_count, THD *thd) {
   const auto sys_space_name = dict_sys_t::s_sys_space_name;
 
   size_t count = 0;
   bool print_msg = false;
   auto start_time = ut_time();
   auto heap = mem_heap_create(FN_REFLEN * 2 + 1);
-
+  current_thd = thd;
   const bool validate = recv_needed_recovery && srv_force_recovery == 0;
 
   std::string prefix;
@@ -3099,12 +3110,13 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
     if (ut_time() - start_time >= PRINT_INTERVAL_SECS) {
       std::ostringstream msg;
 
-      msg << prefix << "Checked " << count << "/" << (end - begin)
+      msg << prefix << "Validated " << count << "/" << (end - begin)
           << " tablespaces";
 
       if (*moved_count > 0) {
         msg << ", moved count " << moved_count;
       }
+      msg << " so far.";
 
       ib::info(ER_IB_MSG_525) << msg.str();
 
@@ -3274,10 +3286,8 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
     }
   }
 
-  if (!print_msg) {
-    ib::info(ER_IB_MSG_531) << prefix << "Validated " << count << "/"
-                            << (end - begin) << "  tablespaces";
-  }
+  ib::info(ER_IB_MSG_531) << prefix << "Validated " << count << "/"
+                          << (end - begin) << "  tablespaces";
 
   mem_heap_free(heap);
 }
@@ -3287,22 +3297,25 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
 @return DB_SUCCESS if all OK */
 dberr_t Validate_files::validate(const Tablespaces &tablespaces,
                                  size_t *moved_count) {
-  m_n_threads = tablespaces.size() / 50000;
+  m_n_threads = tablespaces.size() / MAX_TABLESPACES_PER_THREAD;
 
-  if (m_n_threads > 8) {
-    m_n_threads = 8;
+  if (m_n_threads > MAX_THREADS) {
+    m_n_threads = MAX_THREADS;
   }
 
   using std::placeholders::_1;
   using std::placeholders::_2;
   using std::placeholders::_3;
   using std::placeholders::_4;
+  using std::placeholders::_5;
 
   std::function<void(const Validate_files::Const_iter &,
-                     const Validate_files::Const_iter &, size_t, size_t *)>
-      check = std::bind(&Validate_files::check, this, _1, _2, _3, _4);
+                     const Validate_files::Const_iter &, size_t, size_t *,
+                     THD *)>
+      check = std::bind(&Validate_files::check, this, _1, _2, _3, _4, _5);
 
-  par_for(PFS_NOT_INSTRUMENTED, tablespaces, m_n_threads, check, moved_count);
+  par_for(PFS_NOT_INSTRUMENTED, tablespaces, m_n_threads, check, moved_count,
+          current_thd);
 
   if (failed()) {
     return (DB_ERROR);

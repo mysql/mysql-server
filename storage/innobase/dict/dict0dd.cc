@@ -5713,7 +5713,12 @@ for the named tablespace.
 dd_space_states dd_tablespace_get_state_by_name(const char *space_name) {
   dd::String_type dd_state;
 
+  /* If current_thd is not set, then we cannot access the DD */
   THD *thd = current_thd;
+  if (thd == nullptr) {
+    ut_ad(0);
+    return (DD_SPACE_STATE__LAST);
+  }
   dd::cache::Dictionary_client *dc = dd::get_dd_client(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser{dc};
 
