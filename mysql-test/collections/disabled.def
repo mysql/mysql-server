@@ -46,6 +46,10 @@ main.read_many_rows_innodb : BUG#11748886 2010-11-15 mattiasj report already exi
 # Disabled due to InnoDB issues
 main.internal_tmp_disk_storage_engine : BUG#26917416 2017-04-13 Allen Disabled it since it's failing on pb2.
 
+# Upgrade tests failing frequently on Solaris
+main.mysql_upgrade                    @solaris : Bug#28146052 2018-07-30 Erlend
+main.mysql_upgrade_slave_master_info  @solaris : Bug#28146052 2018-07-30 Erlend
+
 # max_parts suite tests
 max_parts.innodb-import-partition-1                         : BUG#27413612 Ashish Fails consistently on hudson jobs. Disabled until bug is fixed.
 # max_parts.innodb_partition_open_files_limit @linux          : BUG#27924122 2018-04-25 Horst Disabled on Linux, only.
