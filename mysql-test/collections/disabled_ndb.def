@@ -24,6 +24,27 @@ ndb_binlog.ndb_binlog_restore : Need WL#10167 On the fly frm translation.
 # Problem with alter table while MDL lock is held on other mysqld
 ndb_ddl.alter_open_trans: Need WL#10164 Schema dist prepare phase
 
+# ndb_memcache suite tests
+ndb_memcache.basic           : BUG#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
+ndb_memcache.external_values : BUG#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
+ndb_memcache.lib_ascii       : BUG#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
+ndb_memcache.lib_binary      : BUG#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
+ndb_memcache.math1           : BUG#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
+ndb_memcache.math2           : BUG#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
+ndb_memcache.math3           : BUG#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
+ndb_memcache.mpart_key       : BUG#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
+ndb_memcache.reconf1         : BUG#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
+ndb_memcache.tsv1            : BUG#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
+ndb_memcache.tsv2            : BUG#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
+ndb_memcache.ttls_flags      : BUG#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
+ndb_memcache.type_binary     : BUG#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
+ndb_memcache.type_char       : BUG#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
+ndb_memcache.type_numeric    : BUG#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
+ndb_memcache.type_signed     : BUG#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
+ndb_memcache.type_temporal   : BUG#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
+ndb_memcache.type_unsigned   : BUG#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
+ndb_memcache.unique_idx      : BUG#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
+
 # ndb_rpl suite tests
 ndb_rpl.ndb_dist_priv_ndb                  : BUG#22826700 TEST NDB_RPL.NDB_DIST_PRIV_NDB FAILS
 ndb_rpl.ndb_rpl_basic                      : Need WL#10665 Extend size of extra table metadata
