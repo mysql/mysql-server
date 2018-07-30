@@ -3018,13 +3018,24 @@ end:
 	DBUG_RETURN(error);
 
 cleanup:
-	trx_rollback_for_mysql(info.trx());
+    trx_rollback_for_mysql(info.trx());
 
-	row_mysql_unlock_data_dictionary(info.trx());
+    row_mysql_unlock_data_dictionary(info.trx());
 
-	trx_free_for_mysql(info.trx());
+    ulint dummy;
+    char norm_name[FN_REFLEN];
 
-	DBUG_RETURN(error);
+    normalize_table_name(norm_name, name);
+
+    uint lent = (uint)strlen(norm_name);
+    ut_a(lent < FN_REFLEN);
+    norm_name[lent] = '#';
+    norm_name[lent + 1] = 0;
+
+    row_drop_database_for_mysql(norm_name, info.trx(), &dummy);
+
+    trx_free_for_mysql(info.trx());
+    DBUG_RETURN(error);
 }
 
 /** Discards or imports an InnoDB tablespace.
