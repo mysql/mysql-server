@@ -380,6 +380,7 @@ INCLUDE(re2)
 INCLUDE(icu)
 INCLUDE(libevent)
 INCLUDE(ssl)
+INCLUDE(sasl)
 INCLUDE(readline)
 INCLUDE(protobuf)
 INCLUDE(mysql_version)
@@ -911,6 +912,8 @@ MYSQL_CHECK_LZMA()
 MYSQL_CHECK_RE2()
 # Add icu library
 MYSQL_CHECK_ICU()
+# Add SASL library
+MYSQL_CHECK_SASL()
 # Add protoc and libprotobuf
 IF(NOT WITHOUT_SERVER)
   MYSQL_CHECK_PROTOBUF()
