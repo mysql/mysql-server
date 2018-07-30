@@ -203,6 +203,7 @@ INCLUDE(zlib)
 INCLUDE(lz4)
 INCLUDE(libevent)
 INCLUDE(ssl)
+INCLUDE(sasl)
 INCLUDE(readline)
 INCLUDE(protobuf)
 INCLUDE(mysql_version)
@@ -542,6 +543,8 @@ MYSQL_CHECK_EDITLINE()
 MYSQL_CHECK_LIBEVENT()
 # Add lz4 library
 MYSQL_CHECK_LZ4()
+# Add SASL library
+MYSQL_CHECK_SASL()
 # Add protoc and libprotobuf
 IF(NOT WITHOUT_SERVER)
   MYSQL_CHECK_PROTOBUF()
