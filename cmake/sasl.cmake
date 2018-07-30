@@ -1,4 +1,4 @@
-# Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -42,12 +42,12 @@ MACRO (MYSQL_CHECK_SASL)
   IF (NOT WITH_SASL OR WITH_SASL STREQUAL "system")
     FIND_SYSTEM_SASL()
     IF (NOT SYSTEM_SASL_FOUND)
-      MESSAGE(STATUS "Cannot find system sasl libraries.") 
+      MESSAGE(STATUS "Cannot find system sasl libraries.")
       SET(SASL_LIBRARY "")
     ENDIF()
   ELSE()
     FIND_LIBRARY(SASL_LIBRARY
-                 NAMES "sasl2" "sasl"
+                 NAMES "sasl2" "sasl" "libsasl"
                  PATHS ${WITH_SASL} ${WITH_SASL}/lib
                  NO_DEFAULT_PATH
                  NO_CMAKE_ENVIRONMENT_PATH
