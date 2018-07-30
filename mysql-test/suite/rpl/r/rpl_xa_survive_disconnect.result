@@ -33,10 +33,10 @@ include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `mtr`; INSERT INTO test_suppressions (pattern) VALUES ( NAME_CONST('pattern',_utf8mb4'Found 2 prepared XA transactions' COLLATE 'utf8mb4_0900_ai_ci'))
-master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `mtr`; INSERT INTO test_suppressions (pattern) VALUES ( NAME_CONST('pattern',_utf8mb4'Statement is unsafe because it is being used inside a XA transaction' COLLATE 'utf8mb4_0900_ai_ci'))
-master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v_processlist` AS SELECT * FROM performance_schema.threads where type = 'FOREGROUND'
 master-bin.000001	#	Query	#	#	CREATE DATABASE d1
 master-bin.000001	#	Query	#	#	CREATE DATABASE d2

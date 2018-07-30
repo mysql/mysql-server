@@ -924,6 +924,11 @@ sub process_opts_file {
         next;
       }
 
+      if ($opt eq "--nowarnings") {
+        $tinfo->{'skip_check_warnings'} = 1;
+        next;
+      }
+
       # Ok, this was a real option, add it
       push(@{ $tinfo->{$opt_name} }, $opt);
     }

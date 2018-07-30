@@ -30,7 +30,7 @@ use mtr||
 --
 CREATE TABLE test_suppressions (
   pattern VARCHAR(255)
-) ENGINE=MyISAM||
+)||
 
 
 --
@@ -64,7 +64,7 @@ SET @@collation_connection = @collation_connection_saved||
 --
 CREATE TABLE global_suppressions (
   pattern VARCHAR(255)
-) ENGINE=MyISAM||
+)||
 
 
 -- Declare a trigger that makes sure

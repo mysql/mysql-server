@@ -4525,7 +4525,10 @@ sub run_testcase ($) {
     if ($proc eq $test) {
       my $res = $test->exit_status();
 
-      if ($res == 0 and $opt_warnings and check_warnings($tinfo)) {
+        if ($res == 0 and
+            $opt_warnings and
+            not defined $tinfo->{'skip_check_warnings'} and
+            check_warnings($tinfo)) {
         # Test case succeeded, but it has produced unexpected warnings,
         # continue in $res == 1
         $res = 1;

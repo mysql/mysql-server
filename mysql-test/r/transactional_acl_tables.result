@@ -1,3 +1,8 @@
+CALL mtr.add_suppression("Storage engine '.*' does not support system tables. \\[mysql.*\\]");
+CALL mtr.add_suppression("Column count of mysql.* is wrong. "
+                         "Expected .*, found .*. "
+                         "The table is probably corrupted");
+CALL mtr.add_suppression("Cannot load from mysql.*. The table is probably corrupted");
 #
 # WL7158: Move privilege system tables from MyISAM to InnoDB
 #
@@ -1714,11 +1719,6 @@ Column_priv) SELECT Host, Db, User, Table_name, Grantor, Timestamp, Table_priv, 
 FROM mysql.tables_priv_bak;
 COMMIT;
 CREATE TABLE t1 (a INT);
-call mtr.add_suppression("Storage engine '.*' does not support system tables. \\[mysql.*\\]");
-call mtr.add_suppression("Column count of mysql.* is wrong. "
-                         "Expected .*, found .*. "
-                         "The table is probably corrupted");
-call mtr.add_suppression("Cannot load from mysql.*. The table is probably corrupted");
 call mtr.add_suppression("mysql.user has no `Event_priv` column at position 28");
 
 # Shutting down mysqld...

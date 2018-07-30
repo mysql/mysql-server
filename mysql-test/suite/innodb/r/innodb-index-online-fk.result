@@ -120,6 +120,8 @@ test/child	a2
 SELECT NAME FROM information_schema.INNODB_TABLES WHERE NAME not like 'sys\/%'
   AND name NOT LIKE 'mysql\/%';
 NAME
+mtr/test_suppressions
+mtr/global_suppressions
 test/parent
 test/child
 INSERT INTO child VALUES(5,4);
@@ -305,6 +307,8 @@ test/child	a2
 SELECT NAME FROM information_schema.INNODB_TABLES WHERE NAME not like 'sys\/%'
   AND name NOT LIKE 'mysql\/%';
 NAME
+mtr/test_suppressions
+mtr/global_suppressions
 test/parent
 test/child
 ALTER TABLE child ADD PRIMARY KEY idx (a3), CHANGE a1 a3 INT,
@@ -324,6 +328,8 @@ test/child	a3
 SELECT NAME FROM information_schema.INNODB_TABLES WHERE NAME not like 'sys\/%'
   AND name NOT LIKE 'mysql\/%';
 NAME
+mtr/test_suppressions
+mtr/global_suppressions
 test/parent
 test/child
 SHOW CREATE TABLE child;
@@ -354,6 +360,8 @@ test/child	a2
 SELECT NAME FROM information_schema.INNODB_TABLES WHERE NAME not like 'sys\/%'
   AND name NOT LIKE 'mysql\/%';
 NAME
+mtr/test_suppressions
+mtr/global_suppressions
 test/parent
 test/child
 SHOW CREATE TABLE child;
@@ -384,6 +392,8 @@ test/child	a3
 SELECT NAME FROM information_schema.INNODB_TABLES WHERE NAME not like 'sys\/%'
   AND name NOT LIKE 'mysql\/%';
 NAME
+mtr/test_suppressions
+mtr/global_suppressions
 test/parent
 test/child
 SHOW CREATE TABLE child;

@@ -8,7 +8,7 @@ AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 AND df.path NOT LIKE '%undo%'
 AND df.path NOT LIKE '._mysql_%'
-ORDER BY t.space;
+ORDER BY t.name;
 
 CREATE TABLE tr (
 id INT NOT NULL AUTO_INCREMENT,

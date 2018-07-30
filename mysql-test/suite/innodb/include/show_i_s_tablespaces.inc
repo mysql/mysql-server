@@ -19,7 +19,7 @@ SELECT s.name 'Space_Name',
 	AND s.name NOT LIKE 'mysql/%'
 	AND s.name NOT LIKE 'sys/%'
 	AND s.name NOT LIKE '%undo%'
-	ORDER BY s.space;
+	ORDER BY s.name;
 
 # This SELECT will not show UNDO or TEMPORARY tablespaces
 --echo === information_schema.files ===
@@ -41,5 +41,5 @@ SELECT	s.name 'Space_Name',
 	AND s.name NOT LIKE 'sys/%'
 	AND s.name NOT LIKE 'innodb_temporary'
 	AND s.name NOT LIKE '%undo%'
-	ORDER BY f.file_id;
+	ORDER BY s.name;
 --enable_query_log

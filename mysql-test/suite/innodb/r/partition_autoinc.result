@@ -48,16 +48,18 @@ AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 AND df.path NOT LIKE '%undo%'
 AND df.path NOT LIKE '._mysql_%'
-ORDER BY t.space;
+ORDER BY t.name;
 LOWER(path)
+./mtr/global_suppressions.ibd
+./mtr/test_suppressions.ibd
 ./sys/sys_config.ibd
-./test/tr.ibd
 ./test/t1#p#p0.ibd
 ./test/t1#p#p1.ibd
 ./test/t1#p#p2.ibd
 ./test/t1#p#p3.ibd
 ./test/t1#p#p4.ibd
 ./test/t1#p#p5.ibd
+./test/tr.ibd
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -84,10 +86,11 @@ AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 AND df.path NOT LIKE '%undo%'
 AND df.path NOT LIKE '._mysql_%'
-ORDER BY t.space;
+ORDER BY t.name;
 LOWER(path)
+./mtr/global_suppressions.ibd
+./mtr/test_suppressions.ibd
 ./sys/sys_config.ibd
-./test/tr.ibd
 ./test/t1#p#p0.ibd
 ./test/t1#p#p1.ibd
 ./test/t1#p#p2.ibd
@@ -96,6 +99,7 @@ LOWER(path)
 ./test/t1#p#p5.ibd
 ./test/t1#p#p6.ibd
 ./test/t1#p#p7.ibd
+./test/tr.ibd
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -186,13 +190,15 @@ AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 AND df.path NOT LIKE '%undo%'
 AND df.path NOT LIKE '._mysql_%'
-ORDER BY t.space;
+ORDER BY t.name;
 LOWER(path)
+./mtr/global_suppressions.ibd
+./mtr/test_suppressions.ibd
 ./sys/sys_config.ibd
-./test/tr.ibd
 ./test/t1#p#p0.ibd
 ./test/t1#p#p1.ibd
 ./test/t1#p#p3.ibd
+./test/tr.ibd
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -217,12 +223,14 @@ AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 AND df.path NOT LIKE '%undo%'
 AND df.path NOT LIKE '._mysql_%'
-ORDER BY t.space;
+ORDER BY t.name;
 LOWER(path)
+./mtr/global_suppressions.ibd
+./mtr/test_suppressions.ibd
 ./sys/sys_config.ibd
-./test/tr.ibd
 ./test/t1#p#p0.ibd
 ./test/t1#p#p1.ibd
+./test/tr.ibd
 SELECT MAX(id) AS `Expect 6` FROM t1;
 Expect 6
 6
@@ -248,13 +256,15 @@ AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 AND df.path NOT LIKE '%undo%'
 AND df.path NOT LIKE '._mysql_%'
-ORDER BY t.space;
+ORDER BY t.name;
 LOWER(path)
+./mtr/global_suppressions.ibd
+./mtr/test_suppressions.ibd
 ./sys/sys_config.ibd
-./test/tr.ibd
 ./test/t1#p#p0.ibd
 ./test/t1#p#p1.ibd
 ./test/t1#p#p3.ibd
+./test/tr.ibd
 ALTER TABLE t1 ALGORITHM = INPLACE, DROP PARTITION p0;
 SELECT LOWER(path) FROM information_schema.innodb_tablespaces AS `t`, information_schema.innodb_datafiles AS `df`
 WHERE t.space = df.space
@@ -262,12 +272,14 @@ AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 AND df.path NOT LIKE '%undo%'
 AND df.path NOT LIKE '._mysql_%'
-ORDER BY t.space;
+ORDER BY t.name;
 LOWER(path)
+./mtr/global_suppressions.ibd
+./mtr/test_suppressions.ibd
 ./sys/sys_config.ibd
-./test/tr.ibd
 ./test/t1#p#p1.ibd
 ./test/t1#p#p3.ibd
+./test/tr.ibd
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -303,11 +315,13 @@ AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 AND df.path NOT LIKE '%undo%'
 AND df.path NOT LIKE '._mysql_%'
-ORDER BY t.space;
+ORDER BY t.name;
 LOWER(path)
+./mtr/global_suppressions.ibd
+./mtr/test_suppressions.ibd
 ./sys/sys_config.ibd
-./test/tr.ibd
 ./test/t1#p#p1.ibd
+./test/tr.ibd
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -352,16 +366,18 @@ AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 AND df.path NOT LIKE '%undo%'
 AND df.path NOT LIKE '._mysql_%'
-ORDER BY t.space;
+ORDER BY t.name;
 LOWER(path)
+./mtr/global_suppressions.ibd
+./mtr/test_suppressions.ibd
 ./sys/sys_config.ibd
-./test/tr.ibd
 ./test/t1#p#p0.ibd
 ./test/t1#p#p1.ibd
 ./test/t1#p#p2.ibd
 ./test/t1#p#p3.ibd
 ./test/t1#p#p4.ibd
 ./test/t1#p#p5.ibd
+./test/tr.ibd
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -383,10 +399,11 @@ AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 AND df.path NOT LIKE '%undo%'
 AND df.path NOT LIKE '._mysql_%'
-ORDER BY t.space;
+ORDER BY t.name;
 LOWER(path)
+./mtr/global_suppressions.ibd
+./mtr/test_suppressions.ibd
 ./sys/sys_config.ibd
-./test/tr.ibd
 ./test/t1#p#p0.ibd
 ./test/t1#p#p1.ibd
 ./test/t1#p#p2.ibd
@@ -395,6 +412,7 @@ LOWER(path)
 ./test/t1#p#p5.ibd
 ./test/t1#p#p6.ibd
 ./test/t1#p#p7.ibd
+./test/tr.ibd
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -453,16 +471,18 @@ AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 AND df.path NOT LIKE '%undo%'
 AND df.path NOT LIKE '._mysql_%'
-ORDER BY t.space;
+ORDER BY t.name;
 LOWER(path)
+./mtr/global_suppressions.ibd
+./mtr/test_suppressions.ibd
 ./sys/sys_config.ibd
-./test/tr.ibd
 ./test/t1#p#p0.ibd
 ./test/t1#p#p1.ibd
 ./test/t1#p#p2.ibd
 ./test/t1#p#p3.ibd
 ./test/t1#p#p4.ibd
 ./test/t1#p#p5.ibd
+./test/tr.ibd
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -494,12 +514,14 @@ AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 AND df.path NOT LIKE '%undo%'
 AND df.path NOT LIKE '._mysql_%'
-ORDER BY t.space;
+ORDER BY t.name;
 LOWER(path)
+./mtr/global_suppressions.ibd
+./mtr/test_suppressions.ibd
 ./sys/sys_config.ibd
-./test/tr.ibd
 ./test/t1#p#p0.ibd
 ./test/t1#p#p1.ibd
+./test/tr.ibd
 # restart
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -567,16 +589,18 @@ AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 AND df.path NOT LIKE '%undo%'
 AND df.path NOT LIKE '._mysql_%'
-ORDER BY t.space;
+ORDER BY t.name;
 LOWER(path)
+./mtr/global_suppressions.ibd
+./mtr/test_suppressions.ibd
 ./sys/sys_config.ibd
-./test/tr.ibd
-./test/t1#p#p2.ibd
-./test/t1#p#p3.ibd
 ./test/t1#p#p01.ibd
 ./test/t1#p#p02.ibd
 ./test/t1#p#p11.ibd
 ./test/t1#p#p12.ibd
+./test/t1#p#p2.ibd
+./test/t1#p#p3.ibd
+./test/tr.ibd
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -620,10 +644,11 @@ AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 AND df.path NOT LIKE '%undo%'
 AND df.path NOT LIKE '._mysql_%'
-ORDER BY t.space;
+ORDER BY t.name;
 LOWER(path)
+./mtr/global_suppressions.ibd
+./mtr/test_suppressions.ibd
 ./sys/sys_config.ibd
-./test/tr.ibd
 ./test/t1#p#p01.ibd
 ./test/t1#p#p02.ibd
 ./test/t1#p#p11.ibd
@@ -632,6 +657,7 @@ LOWER(path)
 ./test/t1#p#p22.ibd
 ./test/t1#p#p31.ibd
 ./test/t1#p#p32.ibd
+./test/tr.ibd
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -680,18 +706,20 @@ AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 AND df.path NOT LIKE '%undo%'
 AND df.path NOT LIKE '._mysql_%'
-ORDER BY t.space;
+ORDER BY t.name;
 LOWER(path)
+./mtr/global_suppressions.ibd
+./mtr/test_suppressions.ibd
 ./sys/sys_config.ibd
-./test/tr.ibd
+./test/t1#p#p01.ibd
+./test/t1#p#p02.ibd
 ./test/t1#p#p11.ibd
 ./test/t1#p#p12.ibd
 ./test/t1#p#p21.ibd
 ./test/t1#p#p22.ibd
-./test/t1#p#p01.ibd
-./test/t1#p#p02.ibd
 ./test/t1#p#p31.ibd
 ./test/t1#p#p32.ibd
+./test/tr.ibd
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -774,15 +802,17 @@ AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 AND df.path NOT LIKE '%undo%'
 AND df.path NOT LIKE '._mysql_%'
-ORDER BY t.space;
+ORDER BY t.name;
 LOWER(path)
+./mtr/global_suppressions.ibd
+./mtr/test_suppressions.ibd
 ./sys/sys_config.ibd
-./test/tr.ibd
 ./test/t1#p#p0.ibd
 ./test/t1#p#p1.ibd
 ./test/t1#p#p2.ibd
-./test/tp.ibd
 ./test/t1#p#p3.ibd
+./test/tp.ibd
+./test/tr.ibd
 SHOW CREATE TABLE tp;
 Table	Create Table
 tp	CREATE TABLE `tp` (
@@ -819,15 +849,17 @@ AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 AND df.path NOT LIKE '%undo%'
 AND df.path NOT LIKE '._mysql_%'
-ORDER BY t.space;
+ORDER BY t.name;
 LOWER(path)
+./mtr/global_suppressions.ibd
+./mtr/test_suppressions.ibd
 ./sys/sys_config.ibd
-./test/tr.ibd
 ./test/t1#p#p0.ibd
 ./test/t1#p#p1.ibd
 ./test/t1#p#p2.ibd
 ./test/t1#p#p3.ibd
 ./test/tp.ibd
+./test/tr.ibd
 SHOW CREATE TABLE tp;
 Table	Create Table
 tp	CREATE TABLE `tp` (
@@ -928,10 +960,11 @@ AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 AND df.path NOT LIKE '%undo%'
 AND df.path NOT LIKE '._mysql_%'
-ORDER BY t.space;
+ORDER BY t.name;
 LOWER(path)
+./mtr/global_suppressions.ibd
+./mtr/test_suppressions.ibd
 ./sys/sys_config.ibd
-./test/tr.ibd
 ./test/t1#p#p0#sp#sp00.ibd
 ./test/t1#p#p0#sp#sp01.ibd
 ./test/t1#p#p1#sp#sp10.ibd
@@ -940,6 +973,7 @@ LOWER(path)
 ./test/t1#p#p2#sp#sp21.ibd
 ./test/t1#p#p3#sp#sp30.ibd
 ./test/t1#p#p3#sp#sp31.ibd
+./test/tr.ibd
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -997,16 +1031,18 @@ AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 AND df.path NOT LIKE '%undo%'
 AND df.path NOT LIKE '._mysql_%'
-ORDER BY t.space;
+ORDER BY t.name;
 LOWER(path)
+./mtr/global_suppressions.ibd
+./mtr/test_suppressions.ibd
 ./sys/sys_config.ibd
-./test/tr.ibd
 ./test/t1#p#p0#sp#sp00.ibd
 ./test/t1#p#p0#sp#sp01.ibd
 ./test/t1#p#p1#sp#sp10.ibd
 ./test/t1#p#p1#sp#sp11.ibd
 ./test/t1#p#p2#sp#sp20.ibd
 ./test/t1#p#p2#sp#sp21.ibd
+./test/tr.ibd
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1065,10 +1101,11 @@ AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 AND df.path NOT LIKE '%undo%'
 AND df.path NOT LIKE '._mysql_%'
-ORDER BY t.space;
+ORDER BY t.name;
 LOWER(path)
+./mtr/global_suppressions.ibd
+./mtr/test_suppressions.ibd
 ./sys/sys_config.ibd
-./test/tr.ibd
 ./test/t1#p#p0#sp#sp00.ibd
 ./test/t1#p#p0#sp#sp01.ibd
 ./test/t1#p#p1#sp#sp10.ibd
@@ -1077,6 +1114,7 @@ LOWER(path)
 ./test/t1#p#p21#sp#sp211.ibd
 ./test/t1#p#p22#sp#sp220.ibd
 ./test/t1#p#p22#sp#sp221.ibd
+./test/tr.ibd
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1110,14 +1148,16 @@ AND t.space_type = 'Single'
 AND df.path NOT LIKE './mysql/%'
 AND df.path NOT LIKE '%undo%'
 AND df.path NOT LIKE '._mysql_%'
-ORDER BY t.space;
+ORDER BY t.name;
 LOWER(path)
+./mtr/global_suppressions.ibd
+./mtr/test_suppressions.ibd
 ./sys/sys_config.ibd
-./test/tr.ibd
 ./test/t1#p#p1#sp#sp10.ibd
 ./test/t1#p#p1#sp#sp11.ibd
 ./test/t1#p#p22#sp#sp220.ibd
 ./test/t1#p#p22#sp#sp221.ibd
+./test/tr.ibd
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

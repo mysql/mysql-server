@@ -10,6 +10,7 @@ CREATE TABLE test_jfg.test (a int unsigned NOT NULL PRIMARY KEY);
 RENAME TABLE test_jfg.test TO test_jfg2.test;
 SELECT * FROM INFORMATION_SCHEMA.INNODB_DATAFILES  WHERE PATH LIKE "%test%";
 SPACE	PATH
+#	./mtr/test_suppressions.ibd
 #	./test_jfg2/test.ibd
 DROP DATABASE test_jfg;
 # restart
@@ -21,6 +22,7 @@ RENAME TABLE abc_def.test TO abc_def2.test1;
 SELECT * FROM INFORMATION_SCHEMA.INNODB_DATAFILES WHERE PATH LIKE "%test%";
 SPACE	PATH
 #	./abc_def2/test1.ibd
+#	./mtr/test_suppressions.ibd
 DROP DATABASE abc_def;
 # restart
 DROP DATABASE abc_def2;

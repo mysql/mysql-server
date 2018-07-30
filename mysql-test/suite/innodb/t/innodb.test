@@ -31,6 +31,8 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 call mtr.add_suppression("Cannot add field .* in table .* because after adding it, the row size is");
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* in ALTER TABLE `test`.`t1`");
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* in RENAME TABLE table `test`.`t1`");
+call mtr.add_suppression("Cannot delete/update rows with cascading foreign key constraints that exceed max depth of 15. Please drop excessive foreign constraints and try again");
+
 
 SET @innodb_thread_sleep_delay_orig = @@innodb_thread_sleep_delay;
 
@@ -1056,7 +1058,6 @@ DROP TABLE t2,t1;
 #
 # test for FK cascade depth limit
 #
-call mtr.add_suppression("Cannot delete/update rows with cascading foreign key constraints that exceed max depth of 15. Please drop excessive foreign constraints and try again");
 
 create table t1(
 	id int primary key,
