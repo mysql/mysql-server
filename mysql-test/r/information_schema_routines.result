@@ -883,8 +883,6 @@ USE test;
 #
 SELECT @@sql_mode INTO @old_sql_mode;
 SET sql_mode = 'pad_char_to_full_length';
-Warnings:
-Warning	3090	Changing sql mode 'PAD_CHAR_TO_FULL_LENGTH' is deprecated. It will be removed in a future release.
 CREATE FUNCTION f() RETURNS INT RETURN 1;
 # Must not assert
 SHOW FUNCTION STATUS;

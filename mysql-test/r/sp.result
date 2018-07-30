@@ -6879,8 +6879,6 @@ DROP FUNCTION f1;
 drop procedure if exists p;
 set @old_mode= @@sql_mode;
 set @@sql_mode= cast(pow(2,33)-1 as unsigned integer) & ~0x1003ff00;
-Warnings:
-Warning	3090	Changing sql mode 'PAD_CHAR_TO_FULL_LENGTH' is deprecated. It will be removed in a future release.
 select @@sql_mode into @full_mode;
 create procedure p() begin end;
 call p();

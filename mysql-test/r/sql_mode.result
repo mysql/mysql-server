@@ -395,8 +395,6 @@ select @@sql_mode;
 @@sql_mode
 REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
 set sql_mode=PAD_CHAR_TO_FULL_LENGTH;
-Warnings:
-Warning	3090	Changing sql mode 'PAD_CHAR_TO_FULL_LENGTH' is deprecated. It will be removed in a future release.
 create table t1 (a int auto_increment primary key, b char(5));
 insert into t1 (b) values('a'),('b\t'),('c ');
 select concat('x',b,'x') from t1;
@@ -415,8 +413,6 @@ SET @@SQL_MODE=@OLD_SQL_MODE;
 create user mysqltest_32753@localhost;
 set @OLD_SQL_MODE=@@SESSION.SQL_MODE;
 set session sql_mode='PAD_CHAR_TO_FULL_LENGTH';
-Warnings:
-Warning	3090	Changing sql mode 'PAD_CHAR_TO_FULL_LENGTH' is deprecated. It will be removed in a future release.
 flush privileges;
 select current_user();
 current_user()
@@ -439,8 +435,6 @@ GRANT ALL ON t1 TO 'user_PCTFL'@'localhost','user_no_PCTFL'@'localhost';
 GRANT SELECT(f1) ON t2 TO 'user_PCTFL'@'localhost','user_no_PCTFL'@'localhost';
 SET @OLD_SQL_MODE = @@SESSION.SQL_MODE;
 SET SESSION SQL_MODE = 'PAD_CHAR_TO_FULL_LENGTH';
-Warnings:
-Warning	3090	Changing sql mode 'PAD_CHAR_TO_FULL_LENGTH' is deprecated. It will be removed in a future release.
 DROP USER 'user_PCTFL'@'localhost';
 SET SESSION SQL_MODE = @OLD_SQL_MODE;
 DROP USER 'user_no_PCTFL'@'localhost';

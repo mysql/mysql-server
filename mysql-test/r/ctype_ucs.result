@@ -1225,8 +1225,6 @@ drop table t1;
 CREATE TABLE t1 (s1 CHAR(5) CHARACTER SET UCS2);
 INSERT INTO t1 VALUES ('a');
 SET @@sql_mode=pad_char_to_full_length;
-Warnings:
-Warning	3090	Changing sql mode 'PAD_CHAR_TO_FULL_LENGTH' is deprecated. It will be removed in a future release.
 SELECT HEX(s1) FROM t1;
 HEX(s1)
 00610020002000200020
