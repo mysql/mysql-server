@@ -394,8 +394,11 @@ struct alignas(INNOBASE_CACHE_LINE_SIZE) log_t {
 
       /** @{ */
 
-      /** Mutex which can be used to pause log closer thread. */
-      ib_mutex_t closer_mutex;
+      /** Event used by the log closer thread to wait for tasks. */
+      os_event_t closer_event;
+
+  /** Mutex which can be used to pause log closer thread. */
+  ib_mutex_t closer_mutex;
 
   /** Padding after the log closer thread and before the memory used
   for communication between the log flusher and notifier threads. */
