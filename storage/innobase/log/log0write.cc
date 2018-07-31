@@ -1827,7 +1827,7 @@ static void log_flush_update_stats(log_t &log) {
   /* Note that this code is inspired by similar logic in buf0flu.cc */
 
   static uint64_t iterations = 0;
-  static Log_clock_point prev_time;
+  static Log_clock_point prev_time{};
   static lsn_t prev_lsn;
   static lsn_t lsn_avg_rate = 0;
   static Log_clock::duration fsync_max_time;
@@ -1838,6 +1838,8 @@ static void log_flush_update_stats(log_t &log) {
   Log_clock::duration fsync_time;
 
   fsync_time = log.last_flush_end_time - log.last_flush_start_time;
+
+  ut_a(fsync_time.count() >= 0);
 
   fsync_max_time = std::max(fsync_max_time, fsync_time);
 
@@ -1852,9 +1854,16 @@ static void log_flush_update_stats(log_t &log) {
 
   if (prev_time == Log_clock_point{}) {
     prev_time = log.last_flush_start_time;
+    prev_lsn = log.flushed_to_disk_lsn.load();
   }
 
   const Log_clock_point curr_time = log.last_flush_end_time;
+
+  if (curr_time < prev_time) {
+    /* Time was moved backward since we set prev_time.
+    We cannot determine how much time passed since then. */
+    prev_time = curr_time;
+  }
 
   auto time_elapsed =
       std::chrono::duration_cast<std::chrono::seconds>(curr_time - prev_time)
@@ -1923,6 +1932,15 @@ static void log_flush_low(log_t &log) {
   }
 
   log.last_flush_end_time = Log_clock::now();
+
+  if (log.last_flush_end_time < log.last_flush_start_time) {
+    /* Time was moved backward after we set start_time.
+    Let assume that the fsync operation was instant.
+
+    We move start_time backward, because we don't want
+    it to remain in the future. */
+    log.last_flush_start_time = log.last_flush_end_time;
+  }
 
   LOG_SYNC_POINT("log_flush_before_flushed_to_disk_lsn");
 
@@ -2006,12 +2024,26 @@ void log_flusher(log_t *log_ptr) {
     auto max_spins = srv_log_flusher_spin_delay;
 
     if (srv_flush_log_at_trx_commit != 1) {
-      const auto time_elapsed = Log_clock::now() - log.last_flush_start_time;
+      const auto current_time = Log_clock::now();
+
+      ut_ad(log.last_flush_end_time >= log.last_flush_start_time);
+
+      if (current_time < log.last_flush_end_time) {
+        /* Time was moved backward, possibly by a lot, so we need to
+        adjust the last_flush times, because otherwise we could stop
+        flushing every innodb_flush_log_at_timeout for a while. */
+        log.last_flush_start_time = current_time;
+        log.last_flush_end_time = current_time;
+      }
+
+      const auto time_elapsed = current_time - log.last_flush_start_time;
 
       using us = std::chrono::microseconds;
 
       const auto time_elapsed_us =
           std::chrono::duration_cast<us>(time_elapsed).count();
+
+      ut_a(time_elapsed_us >= 0);
 
       const auto flush_every = srv_flush_log_at_timeout;
 
