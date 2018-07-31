@@ -44,7 +44,7 @@ ADD_TEST(
   NAME test_jtie_unload
   COMMAND
   ${Java_JAVA_EXECUTABLE_PATH} ${Java_JAVA_ARCH_OPT} "-ea" "-Xcheck:jni"
-  "-classpath" "${JTIE_TEST_UNLOAD_JAR}:${JTIE_MYJAPI_JAR}"
+  "-classpath" "${JTIE_TEST_UNLOAD_JAR}${JAVA_SEPERATOR}${JTIE_MYJAPI_JAR}"
   "-Djava.library.path=${JTIE_MYJAPI_DIR}/${JAVA_SUBDIR}"
   "-Dcom.mysql.jtie.test.MyLoadUnloadTest.target_package_prefixes=test.,myjapi."
   "-Dcom.mysql.jtie.test.MyLoadUnloadTest.target_class_name=test.MyJapiTest"

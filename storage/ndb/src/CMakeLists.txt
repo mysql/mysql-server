@@ -75,6 +75,12 @@ ELSE()
   $<$<CONFIG:Debug>:Debug>$<$<CONFIG:RelWithDebInfo>:RelWithDebInfo>)
 ENDIF()
 
+IF(WIN32)
+  SET(JAVA_SEPERATOR ";")
+ELSE()
+  set(JAVA_SEPERATOR :)
+ENDIF()
+
 SET(NDBJTIE_LIB)
 IF(HAVE_JDK)
   ADD_SUBDIRECTORY(ndbjtie)
