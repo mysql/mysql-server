@@ -1805,6 +1805,9 @@ void log_writer(log_t *log_ptr) {
 
   log.writer_thread_alive.store(false);
 
+  os_event_set(log.write_notifier_event);
+  os_event_set(log.flusher_event);
+
   log_writer_mutex_exit(log);
 }
 
@@ -2017,8 +2020,15 @@ void log_flusher(log_t *log_ptr) {
       if (time_elapsed_us < flush_every_us) {
         log_flusher_mutex_exit(log);
 
-        os_event_wait_time_low(log.flusher_event,
-                               flush_every_us - time_elapsed_us, 0);
+        if (log.writer_thread_alive.load()) {
+          /* If log.writer_thread_alive became false just now, we would
+          have the flusher_event set, because: the only place where we
+          can reset is just before fsync and after writer_thread_alive
+          is set to false, the flusher_event is set. */
+
+          os_event_wait_time_low(log.flusher_event,
+                                 flush_every_us - time_elapsed_us, 0);
+        }
 
         log_flusher_mutex_enter(log);
       }
@@ -2142,7 +2152,7 @@ void log_write_notifier(log_t *log_ptr) {
     }
   }
 
-  log_ptr->write_notifier_thread_alive.store(false);
+  log.write_notifier_thread_alive.store(false);
 
   log_write_notifier_mutex_exit(log);
 }
@@ -2243,7 +2253,7 @@ void log_flush_notifier(log_t *log_ptr) {
     }
   }
 
-  log_ptr->flush_notifier_thread_alive.store(false);
+  log.flush_notifier_thread_alive.store(false);
 
   log_flush_notifier_mutex_exit(log);
 }
@@ -2306,7 +2316,8 @@ void log_closer(log_t *log_ptr) {
       max_spins = 0;
     }
 
-    ut_wait_for(max_spins, srv_log_closer_timeout, stop_condition);
+    os_event_wait_for(log.closer_event, max_spins, srv_log_closer_timeout,
+                      stop_condition);
 
     /* Check if we should close the thread. */
     if (log.should_stop_threads.load() && !log.flusher_thread_alive.load() &&
@@ -2352,6 +2363,8 @@ void log_closer(log_t *log_ptr) {
   }
 
   log.closer_thread_alive.store(false);
+
+  os_event_set(log.checkpointer_event);
 
   log_closer_mutex_exit(log);
 }
