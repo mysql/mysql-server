@@ -605,11 +605,11 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref) {
     }
   } else {
     /* Base table case. */
-    if (thd->locked_tables_mode && thd->locked_tables_list.reopen_tables(thd))
-      thd->locked_tables_list.unlink_all_closed_tables(thd, NULL, 0);
-
     if ((hton->flags & HTON_SUPPORTS_ATOMIC_DDL) && hton->post_ddl)
       hton->post_ddl(thd);
+
+    if (thd->locked_tables_mode && thd->locked_tables_list.reopen_tables(thd))
+      thd->locked_tables_list.unlink_all_closed_tables(thd, NULL, 0);
   }
 
   /*
