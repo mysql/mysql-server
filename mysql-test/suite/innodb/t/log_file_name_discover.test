@@ -13,6 +13,9 @@ CREATE DATABASE discover;
 use discover;
 
 # Stop the once a second checkpoint
+SET GLOBAL debug="+d,periodical_checkpoint_disabled";
+
+# Do not perform background activities in master thread
 SET GLOBAL innodb_master_thread_disabled_debug=1;
 
 # Check if we can recover from a crash when a full checkpoint happens

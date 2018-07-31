@@ -812,7 +812,12 @@ static bool log_should_checkpoint(log_t &log) {
           c) it was requested to have greater checkpoint_lsn,
              and oldest_lsn allows to satisfy the request */
 
-  if ((log.periodical_checkpoints_enabled &&
+  bool periodical_checkpoint_disabled = false;
+
+  DBUG_EXECUTE_IF("periodical_checkpoint_disabled",
+                  periodical_checkpoint_disabled = true;);
+
+  if ((log.periodical_checkpoints_enabled && !periodical_checkpoint_disabled &&
        checkpoint_time_elapsed >= srv_log_checkpoint_every * 1000ULL) ||
       checkpoint_age >= log.max_checkpoint_age_async ||
       (requested_checkpoint_lsn > last_checkpoint_lsn &&
