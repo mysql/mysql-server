@@ -110,6 +110,15 @@ class Table_impl : public Abstract_table_impl, virtual public Table {
 
  public:
   /////////////////////////////////////////////////////////////////////////
+  // is_temporary.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual bool is_temporary() const { return m_is_temporary; }
+  virtual void set_is_temporary(bool is_temporary) {
+    m_is_temporary = is_temporary;
+  }
+
+  /////////////////////////////////////////////////////////////////////////
   // collation.
   /////////////////////////////////////////////////////////////////////////
 
@@ -499,6 +508,7 @@ class Table_impl : public Abstract_table_impl, virtual public Table {
   uint m_last_checked_for_upgrade_version_id = 0;
   std::unique_ptr<Properties> m_se_private_data;
   enum_row_format m_row_format;
+  bool m_is_temporary;
 
   // - Partitioning related fields.
 

@@ -2294,6 +2294,8 @@ std::unique_ptr<dd::Table> create_tmp_table(
   // Create dd::Table object.
   std::unique_ptr<dd::Table> tab_obj(sch_obj.create_table(thd));
 
+  tab_obj->set_is_temporary(true);
+
   if (fill_dd_table_from_create_info(thd, tab_obj.get(), table_name,
                                      sch_obj.name(), create_info, create_fields,
                                      keyinfo, keys, keys_onoff, NULL, 0, file))
