@@ -83,6 +83,7 @@ Table_impl::Table_impl()
     : m_se_private_id(INVALID_OBJECT_ID),
       m_se_private_data(new Properties_impl()),
       m_row_format(RF_FIXED),
+      m_is_temporary(false),
       m_partition_type(PT_NONE),
       m_default_partitioning(DP_NONE),
       m_subpartition_type(ST_NONE),
@@ -462,6 +463,9 @@ bool Table_impl::store_attributes(Raw_record *r) {
   //   - Store NULL in default subpartitioning if not set.
   //
 
+  // Temporary table definitions are never persisted.
+  DBUG_ASSERT(!m_is_temporary);
+
   // Store last_checked_for_upgrade_version_id only if we're not upgrading
   if (!bootstrap::DD_bootstrap_ctx::instance().is_upgrade_from_before(
           bootstrap::DD_VERSION_80013) &&
@@ -505,6 +509,9 @@ bool Table_impl::store_attributes(Raw_record *r) {
 ///////////////////////////////////////////////////////////////////////////
 
 void Table_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const {
+  // Temporary table definitions are never persisted.
+  DBUG_ASSERT(!m_is_temporary);
+
   w->StartObject();
   Abstract_table_impl::serialize(wctx, w);
   write(w, m_se_private_id, STRING_WITH_LEN("se_private_id"));
@@ -593,6 +600,7 @@ void Table_impl::debug_print(String_type &outb) const {
      << "m_se_private_data " << m_se_private_data->raw_string() << "; "
      << "m_se_private_id: {OID: " << m_se_private_id << "}; "
      << "m_row_format: " << m_row_format << "; "
+     << "m_is_temporary: " << m_is_temporary << "; "
      << "m_tablespace: {OID: " << m_tablespace_id << "}; "
      << "m_partition_type " << m_partition_type << "; "
      << "m_default_partitioning " << m_default_partitioning << "; "
@@ -943,6 +951,7 @@ Table_impl::Table_impl(const Table_impl &src)
       m_se_private_data(Properties_impl::parse_properties(
           src.m_se_private_data->raw_string())),
       m_row_format(src.m_row_format),
+      m_is_temporary(src.m_is_temporary),
       m_partition_type(src.m_partition_type),
       m_partition_expression(src.m_partition_expression),
       m_partition_expression_utf8(src.m_partition_expression_utf8),
