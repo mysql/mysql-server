@@ -1,6 +1,7 @@
 SET GLOBAL innodb_file_per_table=ON;
 CREATE DATABASE discover;
 use discover;
+SET GLOBAL debug="+d,periodical_checkpoint_disabled";
 SET GLOBAL innodb_master_thread_disabled_debug=1;
 SET SESSION debug="+d,fil_ibd_create_log";
 CREATE TABLE discover.t1(c INT) engine=InnoDB;
