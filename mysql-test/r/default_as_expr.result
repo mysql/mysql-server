@@ -88,7 +88,7 @@ i	new_b
 DROP TABLE t1;
 CREATE TABLE t1 (i int, b int DEFAULT (123 * 1));
 ALTER TABLE t1 CHANGE COLUMN i new_i JSON DEFAULT (JSON_ARRAY(b));
-ERROR HY000: Default value expression of column 'new_i' can refer only to generated columns and columns with default value expressions defined prior to it.
+ERROR HY000: Default value expression of column 'new_i' cannot refer to a column defined after it if that column is a generated column or has an expression as default value.
 DROP TABLE t1;
 #
 # Test ALTER table MODIFY column
@@ -112,7 +112,7 @@ b	i
 DROP TABLE t1;
 CREATE TABLE t1 (i int, b int DEFAULT (123 * 1));
 ALTER TABLE t1 MODIFY COLUMN i JSON DEFAULT (JSON_ARRAY(b)) FIRST;
-ERROR HY000: Default value expression of column 'i' can refer only to generated columns and columns with default value expressions defined prior to it.
+ERROR HY000: Default value expression of column 'i' cannot refer to a column defined after it if that column is a generated column or has an expression as default value.
 DROP TABLE t1;
 #
 # Column order with expression or literal as default value
@@ -122,7 +122,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (b int DEFAULT 123, i JSON DEFAULT (JSON_ARRAY(b)));
 DROP TABLE t1;
 CREATE TABLE t1 (i JSON DEFAULT (JSON_ARRAY(b)), b int DEFAULT (123 * 1));
-ERROR HY000: Default value expression of column 'i' can refer only to generated columns and columns with default value expressions defined prior to it.
+ERROR HY000: Default value expression of column 'i' cannot refer to a column defined after it if that column is a generated column or has an expression as default value.
 CREATE TABLE t1 (b int DEFAULT (123 * 1), i JSON DEFAULT (JSON_ARRAY(b)));
 DROP TABLE t1;
 #
@@ -680,32 +680,24 @@ CREATE TABLE t1 (a datetime DEFAULT (curtime()));
 INSERT INTO t1 VALUES ();
 SELECT * FROM t1;
 DROP TABLE t1;
-CREATE TABLE t1 (a datetime, b varchar(10) DEFAULT (localtimestamp()));
+CREATE TABLE t1 (a datetime, b varchar(20) DEFAULT (localtimestamp()));
 INSERT INTO t1(a) VALUES (now());
-Warnings:
-Error	1406	Data too long for column 'b' at row 1
 SELECT * FROM t1;
 DROP TABLE t1;
-CREATE TABLE t1 (a datetime, b varchar(10) DEFAULT (localtimestamp));
+CREATE TABLE t1 (a datetime, b varchar(20) DEFAULT (localtimestamp));
 INSERT INTO t1(a) VALUES (now());
-Warnings:
-Error	1406	Data too long for column 'b' at row 1
 SELECT * FROM t1;
 DROP TABLE t1;
-CREATE TABLE t1 (a datetime, b varchar(10) DEFAULT (now()));
+CREATE TABLE t1 (a datetime, b varchar(20) DEFAULT (now()));
 INSERT INTO t1(a) VALUES (now());
-Warnings:
-Error	1406	Data too long for column 'b' at row 1
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1 (b varchar(100) DEFAULT (sysdate()));
 INSERT INTO t1() VALUES ();
 SELECT * FROM t1;
 DROP TABLE t1;
-CREATE TABLE t1 (a datetime, b datetime DEFAULT (unix_timestamp()));
-INSERT INTO t1(a) VALUES (now());
-Warnings:
-Error	1292	Incorrect datetime value: '1038401397' for column 'b' at row 1
+CREATE TABLE t1 (a datetime, b INT DEFAULT (unix_timestamp()));
+INSERT INTO t1() VALUES ();
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1 (a datetime, b datetime DEFAULT (utc_date()));
@@ -807,8 +799,6 @@ ERROR HY000: Default value expression of column 'a' contains a disallowed functi
 CREATE TABLE t1 (a VARCHAR(128) DEFAULT (concat("1", metaphon("testval"))));
 ERROR HY000: Default value expression of column 'a' contains a disallowed function: metaphon.
 CREATE TABLE t1 (a VARCHAR(100));
-ALTER TABLE t1 ADD COLUMN b VARCHAR(256) DEFAULT (concat("1", metaphon("testval")));
-ERROR HY000: Statement is unsafe because it uses a system function that may return a different value on the slave.
 ALTER TABLE t1 ALTER COLUMN a SET DEFAULT (concat("1", metaphon("testval")));
 ERROR HY000: Default value expression of column 'a' contains a disallowed function: metaphon.
 DROP TABLE t1;
@@ -999,4 +989,10 @@ UPDATE t1 SET a=DEFAULT WHERE a=2;
 SELECT * FROM t1;
 a	b
 6	-2
+DROP TABLE t1;
+CREATE TABLE t1 (a datetime, b varchar(10) DEFAULT (localtimestamp()));
+INSERT INTO t1(a) VALUES (now());
+ERROR 22001: Data too long for column 'b' at row 1
+SELECT * FROM t1;
+a	b
 DROP TABLE t1;

@@ -616,6 +616,8 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd) {
     }
   }  // Statement plan is available within these braces
 
+  DBUG_ASSERT(has_error == thd->get_stmt_da()->is_error());
+
   /*
     Now all rows are inserted.  Time to update logs and sends response to
     user
@@ -1592,7 +1594,7 @@ bool write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update) {
   save_read_set = table->read_set;
   save_write_set = table->write_set;
 
-  info->set_function_defaults(table);
+  if (info->set_function_defaults(table)) DBUG_RETURN(true);
 
   const enum_duplicates duplicate_handling = info->get_duplicate_handling();
 

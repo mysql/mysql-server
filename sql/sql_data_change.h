@@ -1,6 +1,6 @@
 #ifndef SQL_DATA_CHANGE_INCLUDED
 #define SQL_DATA_CHANGE_INCLUDED
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -254,19 +254,23 @@ class COPY_INFO {
   enum_duplicates get_duplicate_handling() const { return handle_duplicates; }
 
   /**
-     Assigns function default values to columns of the supplied table. This
-     function cannot fail, but COPY_INFO::get_function_default_columns() must
-     be called beforehand.
+     Assigns function default values to columns of the supplied table.
 
-     @note COPY_INFO::add_function_default_columns() must be called prior to
-     invoking this function.
+     @note COPY_INFO::get_function_default_columns() and
+     COPY_INFO::add_function_default_columns() must be called prior to invoking
+     this function.
 
      @param table  The table to which columns belong.
 
      @note It is assumed that all columns in this COPY_INFO are resolved to the
      table.
+
+     @retval false Success.
+     @retval true Some error happened while executing the default expression.
+                  my_error has already been called so the calling function
+                  only needs to bail out.
   */
-  virtual void set_function_defaults(TABLE *table);
+  bool set_function_defaults(TABLE *table);
 
   /**
      Adds the columns that are bound to receive default values from a function

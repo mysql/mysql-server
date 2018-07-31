@@ -132,13 +132,13 @@ bool COPY_INFO::get_function_default_columns(TABLE *table) {
   DBUG_RETURN(false);
 }
 
-void COPY_INFO::set_function_defaults(TABLE *table) {
+bool COPY_INFO::set_function_defaults(TABLE *table) {
   DBUG_ENTER("COPY_INFO::set_function_defaults");
 
   DBUG_ASSERT(m_function_default_columns != NULL);
 
   /* Quick reject test for checking the case when no defaults are invoked. */
-  if (bitmap_is_clear_all(m_function_default_columns)) DBUG_VOID_RETURN;
+  if (bitmap_is_clear_all(m_function_default_columns)) DBUG_RETURN(false);
 
   for (uint i = 0; i < table->s->fields; ++i)
     if (bitmap_is_set(m_function_default_columns, i)) {
@@ -151,6 +151,8 @@ void COPY_INFO::set_function_defaults(TABLE *table) {
           table->field[i]->evaluate_update_default_function();
           break;
       }
+      // If there was an error while executing the default expression
+      if (table->in_use->is_error()) DBUG_RETURN(true);
     }
 
   /**
@@ -166,7 +168,7 @@ void COPY_INFO::set_function_defaults(TABLE *table) {
     update_generated_write_fields(table->write_set, table);
   }
 
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(false);
 }
 
 bool COPY_INFO::ignore_last_columns(TABLE *table, uint count) {
