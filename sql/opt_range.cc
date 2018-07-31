@@ -14225,10 +14225,12 @@ void cost_skip_scan(TABLE *table, uint key, uint distinct_key_parts,
       max distinct values is used as an argument. So number of
       keys in distinct group is divided by keys_per_range.
     */
+    double max_distinct_values =
+        static_cast<double>((uint)keys_per_group / (uint)keys_per_range);
+    set_if_bigger(max_distinct_values, 1.0);
     float filtering_effect = where_cond->get_filtering_effect(
         table->in_use, table->pos_in_table_list->map(), used_tables,
-        &ignored_fields,
-        static_cast<double>((uint)keys_per_group / (uint)keys_per_range));
+        &ignored_fields, max_distinct_values);
     *records = skip_scan_records * filtering_effect;
     set_if_bigger(*records, 1);
   }
