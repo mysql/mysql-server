@@ -18466,6 +18466,8 @@ ER_CLONE_REMOTE_ERROR
 ER_CLONE_PROTOCOL_ERROR
   eng "Clone Protocol Error: %.512s."
 
+ER_LDAP_AUTH_USER_GROUP_SEARCH_ROOT_BIND
+  eng "Group search rebinding via root DN: %s "
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #
