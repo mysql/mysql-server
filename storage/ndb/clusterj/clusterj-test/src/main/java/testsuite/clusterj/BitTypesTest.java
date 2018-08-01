@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
+import java.math.BigInteger;
 
 import testsuite.clusterj.model.BitTypes;
 import testsuite.clusterj.model.IdBase;
@@ -351,7 +352,9 @@ public class BitTypesTest extends AbstractClusterJModelTest {
             if (value.length() == 0) {
                 value = "0";
             }
-            return Integer.parseInt(value);
+            /* parsing 32 bit array into int will throw exception in Java 8.
+               so load it into long and then convert it to int. */
+            return (int)Long.parseLong(value);
         }
     });
 
@@ -372,7 +375,9 @@ public class BitTypesTest extends AbstractClusterJModelTest {
             if (value.length() == 0) {
                 value = "0";
             }
-            return Long.parseLong(value);
+            /* parsing 64 bit array into long will throw exception in Java 8.
+               So load it into BigInt and then convert it to long. */
+            return new BigInteger(value).longValue();
         }
     });
 
