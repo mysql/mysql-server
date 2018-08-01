@@ -1,6 +1,5 @@
 /*
-   Copyright 2010 Sun Microsystems, Inc.
-   All rights reserved. Use is subject to license terms.
+   Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +21,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+
+import org.junit.Ignore;
 
 import testsuite.clusterj.model.DatetimeAsSqlTimestampTypes;
 import testsuite.clusterj.model.IdBase;
@@ -86,6 +87,7 @@ public class DatetimeAsSqlTimestampTypesTest extends AbstractClusterJModelTest {
         return new Timestamp(getMillisFor(1980, 0, i + 1, 0, 0, j));
     }
 
+    @Ignore("Bug#28424366 : test fails with newer Connector/J")
     public void testWriteJDBCReadNDB() {
         writeJDBCreadNDB();
         failOnError();
@@ -99,14 +101,15 @@ public class DatetimeAsSqlTimestampTypesTest extends AbstractClusterJModelTest {
     public void testWriteJDBCReadJDBC() {
         writeJDBCreadJDBC();
         failOnError();
-   }
+    }
 
+    @Ignore("Bug#28424366 : test fails with newer Connector/J")
     public void testWriteNDBReadJDBC() {
         writeNDBreadJDBC();
         failOnError();
-   }
+    }
 
-   static ColumnDescriptor not_null_hash = new ColumnDescriptor
+    static ColumnDescriptor not_null_hash = new ColumnDescriptor
             ("datetime_not_null_hash", new InstanceHandler() {
         public void setFieldValue(IdBase instance, Object value) {
             ((DatetimeAsSqlTimestampTypes)instance).setDatetime_not_null_hash((Timestamp)value);
