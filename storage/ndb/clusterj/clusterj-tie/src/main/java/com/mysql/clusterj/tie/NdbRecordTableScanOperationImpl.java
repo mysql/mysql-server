@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,6 +35,8 @@ public class NdbRecordTableScanOperationImpl extends NdbRecordScanOperationImpl 
         getScanOptions();
         // create the ndb scan operation
         ndbOperation = clusterTransaction.scanTable(ndbRecordValues.getNdbRecord(), mask, scanOptions);
+        // set the NdbBlob for all active blob columns so that scans will read blob columns
+        activateBlobs();
         clusterTransaction.postExecuteCallback(new Runnable() {
             public void run() {
                 freeResourcesAfterExecute();

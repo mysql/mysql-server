@@ -1,4 +1,4 @@
--- Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights
+-- Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights
 -- reserved.
 --
 -- This program is free software; you can redistribute it and/or
@@ -278,9 +278,12 @@ CREATE TABLE b0 (
 drop table if exists blobtypes;
 create table blobtypes (
  id int not null primary key,
+ id_null_none int,
+ id_null_hash int,
 
  blobbytes blob,
- blobstream blob
+
+ unique key idx_id_null_hash (id_null_hash) using hash
 
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
 
