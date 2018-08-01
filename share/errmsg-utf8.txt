@@ -18399,6 +18399,8 @@ ER_DATA_DIRECTORY_UNUSABLE
   eng "Newly created data directory %s is unusable. You can safely remove it."
   bg "Новосъздадената директория за базата %s е неизползваема. Можете да я изтриете."
 
+ER_LDAP_AUTH_USER_GROUP_SEARCH_ROOT_BIND
+  eng "Group search rebinding via root DN: %s "
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #
