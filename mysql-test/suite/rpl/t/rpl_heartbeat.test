@@ -246,6 +246,16 @@ CHANGE MASTER TO MASTER_RETRY_COUNT= 3;
 
 --source include/stop_slave.inc
 RESET SLAVE;
+RESET MASTER;
+
+--let $MASTER_AUTO_POSITION=MASTER_AUTO_POSITION=0
+if (`SELECT @@GLOBAL.gtid_mode = 'ON'`)
+{
+  --let $MASTER_AUTO_POSITION=MASTER_AUTO_POSITION=1
+}
+--replace_result $MASTER_AUTO_POSITION MASTER_AUTO_POSITION
+--eval CHANGE MASTER TO $MASTER_AUTO_POSITION
+
 --source include/start_slave.inc
 
 --let $assert_cond= [SELECT  HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration] = 10.000
@@ -270,6 +280,14 @@ eval CHANGE MASTER TO MASTER_HOST= 'localhost', MASTER_PORT= $MASTER_MYPORT;
 CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD = 10;
 --source include/start_slave.inc
 
+# The DROP TABLE below is a transaction that will make MTS to be synced
+# properly on very slow systems.
+--connection master
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+--source include/sync_slave_sql_with_master.inc
+
 --source include/stop_slave.inc
 eval CHANGE MASTER TO MASTER_HOST= '127.0.0.1';
 --source include/start_slave.inc
@@ -277,6 +295,14 @@ eval CHANGE MASTER TO MASTER_HOST= '127.0.0.1';
 --let $assert_cond= [SELECT  HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration] = $default_heartbeat_period
 --let $assert_text= heartbeat_interval should reset to default on changing host.
 --source include/assert.inc
+
+# The DROP TABLE below is a transaction that will make MTS to be synced
+# properly on very slow systems.
+--connection master
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+--source include/sync_slave_sql_with_master.inc
 
 --echo #
 --echo # Change from default to make sure changing PORT resets heartbeat_interval
@@ -287,6 +313,14 @@ eval CHANGE MASTER TO MASTER_HOST= '127.0.0.1';
 CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD = 10;
 --source include/start_slave.inc
 
+# The DROP TABLE below is a transaction that will make MTS to be synced
+# properly on very slow systems.
+--connection master
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+--source include/sync_slave_sql_with_master.inc
+
 --source include/stop_slave.inc
 --replace_result $MASTER_MYPORT MASTER_PORT
 eval CHANGE MASTER TO MASTER_PORT= $MASTER_MYPORT;
@@ -295,6 +329,14 @@ eval CHANGE MASTER TO MASTER_PORT= $MASTER_MYPORT;
 --let $assert_cond= [SELECT  HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration] = $default_heartbeat_period
 --let $assert_text= heartbeat_interval should reset to default on changing port.
 --source include/assert.inc
+
+# The DROP TABLE below is a transaction that will make MTS to be synced
+# properly on very slow systems.
+--connection master
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+--source include/sync_slave_sql_with_master.inc
 
 --echo #
 --echo # Change from default to make sure changing HOST and PORT resets
@@ -308,6 +350,14 @@ eval CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_PORT= $MASTER_MYPORT;
 --let $assert_cond= [SELECT  HEARTBEAT_INTERVAL FROM performance_schema.replication_connection_configuration] = $default_heartbeat_period
 --let $assert_text= heartbeat_interval should reset to default on changing host and port.
 --source include/assert.inc
+
+# The DROP TABLE below is a transaction that will make MTS to be synced
+# properly on very slow systems.
+--connection master
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+--source include/sync_slave_sql_with_master.inc
 
 --source include/stop_slave.inc
 RESET SLAVE ALL;

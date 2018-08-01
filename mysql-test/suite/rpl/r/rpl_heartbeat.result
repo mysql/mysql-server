@@ -96,6 +96,8 @@ include/stop_slave.inc
 Warnings:
 Note	3084	Replication thread(s) for channel '' are already stopped.
 RESET SLAVE;
+RESET MASTER;
+CHANGE MASTER TO MASTER_AUTO_POSITION;
 include/start_slave.inc
 include/assert.inc [HEARTBEAT_INTERVAL should still be 10.000 after RESET SLAVE.]
 include/stop_slave_io.inc
@@ -109,10 +111,14 @@ include/assert.inc [HEARTBEAT_INTERVAL should reset to default.]
 include/stop_slave_io.inc
 CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD = 10;
 include/start_slave.inc
+DROP TABLE IF EXISTS t1;
+include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_HOST= '127.0.0.1';
 include/start_slave.inc
 include/assert.inc [heartbeat_interval should reset to default on changing host.]
+DROP TABLE IF EXISTS t1;
+include/sync_slave_sql_with_master.inc
 #
 # Change from default to make sure changing PORT resets heartbeat_interval
 # to default.
@@ -120,10 +126,14 @@ include/assert.inc [heartbeat_interval should reset to default on changing host.
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD = 10;
 include/start_slave.inc
+DROP TABLE IF EXISTS t1;
+include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_PORT= MASTER_PORT;
 include/start_slave.inc
 include/assert.inc [heartbeat_interval should reset to default on changing port.]
+DROP TABLE IF EXISTS t1;
+include/sync_slave_sql_with_master.inc
 #
 # Change from default to make sure changing HOST and PORT resets
 # heartbeat_period to default.
@@ -132,6 +142,8 @@ include/stop_slave.inc
 CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_PORT= MASTER_PORT;
 include/start_slave.inc
 include/assert.inc [heartbeat_interval should reset to default on changing host and port.]
+DROP TABLE IF EXISTS t1;
+include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 RESET SLAVE ALL;
 include/assert.inc [heartbeat_interval should reset to zero by RESET SLAVE ALL.]
