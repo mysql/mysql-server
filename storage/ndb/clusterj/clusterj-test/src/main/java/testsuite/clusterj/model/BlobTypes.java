@@ -1,6 +1,5 @@
 /*
-   Copyright 2010 Sun Microsystems, Inc.
-   All rights reserved. Use is subject to license terms.
+   Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,9 +26,9 @@ import com.mysql.clusterj.annotation.PrimaryKey;
 drop table if exists blobtypes;
 create table blobtypes (
  id int not null primary key,
+ id_null_none int,
 
- blobbytes blob,
- blobstream blob,
+ blobbytes blob
 
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
 
@@ -44,12 +43,11 @@ public interface BlobTypes extends IdBase {
     int getId();
     void setId(int id);
 
+    int getId_null_none();
+    void setId_null_none(int id);
+
     @Lob
     byte[] getBlobbytes();
     void setBlobbytes(byte[] value);
-
-//    @Lob
-//    InputStream getBlobstream();
-//    void setBlobstream(InputStream value);
 
 }
