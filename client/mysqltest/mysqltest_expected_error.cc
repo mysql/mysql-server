@@ -22,6 +22,8 @@
 
 #include "client/mysqltest/mysqltest_expected_error.h"
 
+#include <string>
+
 const char *Expected_errors::error_list() {
   std::string error_list;
 
