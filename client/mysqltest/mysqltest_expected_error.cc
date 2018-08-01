@@ -22,6 +22,20 @@
 
 #include "client/mysqltest/mysqltest_expected_error.h"
 
+const char *Expected_errors::error_list() {
+  std::string error_list;
+
+  for (std::size_t i = 0; i < m_errors.size(); i++) {
+    if (i > 0) error_list.append(",");
+    if (m_errors.at(i)->type() == ERR_ERRNO)
+      error_list.append(std::to_string(m_errors.at(i)->error_code()));
+    else
+      error_list.append(m_errors.at(i)->sqlstate());
+  }
+
+  return error_list.c_str();
+}
+
 void Expected_errors::add_error(std::uint32_t error_code, const char *sqlstate,
                                 error_type type) {
   std::unique_ptr<Error> new_error(new Error(error_code, sqlstate, type));

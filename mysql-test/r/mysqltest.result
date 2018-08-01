@@ -13,11 +13,11 @@ ERROR 42S22: Unknown column 'friedrich' in 'field list'
 select otto from (select 1 as otto) as t1;
 otto
 1
-mysqltest: At line 1: Query 'select otto from (select 1 as otto) as t1' succeeded, should have failed with sqlstate 42S22.
+mysqltest: At line 1: Query 'select otto from (select 1 as otto) as t1' succeeded, should have failed with error '42S22'
 mysqltest: At line 1: Expecting a SQLSTATE (00000) from query 'remove_file MYSQLTEST_VARDIR/tmp/test_nonexistent.tmp' which cannot produce one.
 select friedrich from (select 1 as otto) as t1;
 ERROR 42S22: Unknown column 'friedrich' in 'field list'
-mysqltest: At line 1: Query 'select friedrich from (select 1 as otto) as t1' failed with wrong sqlstate 42S22: 'Unknown column 'friedrich' in 'field list'', instead of 00000.
+mysqltest: At line 1: Query 'select friedrich from (select 1 as otto) as t1' failed with wrong error 1054: 'Unknown column 'friedrich' in 'field list'', should have failed with error '00000'.
 select otto from (select 1 as otto) as t1;
 otto
 1
@@ -151,7 +151,7 @@ ER_NO_SUCH_TABLE
 select 1146 as "after_!errno_masked_error" ;
 after_!errno_masked_error
 1146
-mysqltest: At line 1: Query 'select 3 from t1' failed with wrong errno 1146: 'Table 'test.t1' doesn't exist', instead of 1000.
+mysqltest: At line 1: Query 'select 3 from t1' failed with wrong error 1146: 'Table 'test.t1' doesn't exist', should have failed with error '1000'.
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
  is empty
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'nonsense' at line 1
@@ -164,7 +164,7 @@ after_--enable_abort_on_error
 1064
 select 3 from t1 ;
 ERROR 42S02: Table 'test.t1' doesn't exist
-mysqltest: At line 1: Query 'select 3 from t1' failed with wrong errno 1146: 'Table 'test.t1' doesn't exist', instead of 1064.
+mysqltest: At line 1: Query 'select 3 from t1' failed with wrong error 1146: 'Table 'test.t1' doesn't exist', should have failed with error '1064'.
 garbage;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
 select 2;
@@ -1658,3 +1658,10 @@ mysqltest: At line 1: Bug number mentioned in 'disable_testcase BUG#AAAA' comman
 mysqltest: At line 3: Test case is already disabled.
 mysqltest: At line 4: Test case is already enabled.
 mysqltest: Test ended with test case execution disabled.
+#
+# BUG#28358835: MYSQLTEST: --ERROR IGNORES '0' IF ITS NOT THE FIRST
+#               ERROR CODE
+#
+SELECT 1 AS res;
+res
+1

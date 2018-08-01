@@ -85,6 +85,9 @@ class Expected_errors {
   iterator begin() { return m_errors.begin(); }
   iterator end() { return m_errors.end(); }
 
+  /// Return list of error codes
+  const char *error_list();
+
   /// Returns length of the list containing errors.
   std::size_t count() { return m_errors.size(); }
 
@@ -93,9 +96,6 @@ class Expected_errors {
 
   /// Returns error type of the first error in the list.
   error_type type() { return m_errors[0]->type(); }
-
-  /// Returns sqlstate of the first error in the list.
-  const char *sqlstate() { return m_errors[0]->sqlstate(); }
 
   /// Add a new error to the existing list of errors.
   ///
