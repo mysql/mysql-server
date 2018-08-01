@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -49,7 +49,6 @@ create index idx_timestamp_not_null_btree on timestamptypes(timestamp_not_null_b
 create unique index idx_timestamp_not_null_both on timestamptypes(timestamp_not_null_both);
 
  */
-@Ignore("writeJDBCreadNDB got failure to match column data for row 1 column 3 Expected: Tue Jan 01 01:01:02 CET 1980 actual: Mon Dec 31 23:01:02 CET 1979")
 public class TimestampAsUtilDateTypesTest extends AbstractClusterJModelTest {
 
     @Override
@@ -91,15 +90,17 @@ public class TimestampAsUtilDateTypesTest extends AbstractClusterJModelTest {
         return new Date(getMillisFor(1980, 0, 1, i, i, j));
     }
 
+    @Ignore("Bug#28424366 : test fails with newer Connector/J")
     public void testWriteJDBCReadNDB() {
         writeJDBCreadNDB();
         failOnError();
     }
 
+    @Ignore("Bug#28424366 : test fails with newer Connector/J")
     public void testWriteNDBReadJDBC() {
         writeNDBreadJDBC();
         failOnError();
-   }
+    }
 
     public void testWriteJDBCReadJDBC() {
         writeJDBCreadJDBC();
@@ -109,9 +110,9 @@ public class TimestampAsUtilDateTypesTest extends AbstractClusterJModelTest {
     public void testWriteNDBReadNDB() {
         writeNDBreadNDB();
         failOnError();
-   }
+    }
 
-   static ColumnDescriptor not_null_hash = new ColumnDescriptor
+    static ColumnDescriptor not_null_hash = new ColumnDescriptor
             ("timestamp_not_null_hash", new InstanceHandler() {
         public void setFieldValue(IdBase instance, Object value) {
             ((TimestampAsUtilDateTypes)instance).setTimestamp_not_null_hash((Date)value);
