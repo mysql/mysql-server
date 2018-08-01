@@ -1,6 +1,5 @@
 /*
-   Copyright 2010 Sun Microsystems, Inc.
-   Use is subject to license terms.
+   Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +28,9 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Time;
+
+import org.junit.Ignore;
+
 import testsuite.clusterj.model.IdBase;
 import testsuite.clusterj.model.TimeAsSqlTimeTypes;
 
@@ -92,6 +94,7 @@ public class TimeAsSqlTimeTypesTest extends AbstractClusterJModelTest {
         return new Time(getMillisFor(0, i, i, j));
     }
 
+    @Ignore("Bug#28424366 : test fails with newer Connector/J")
     public void testWriteJDBCReadNDB() {
         writeJDBCreadNDB();
         failOnError();
@@ -102,17 +105,19 @@ public class TimeAsSqlTimeTypesTest extends AbstractClusterJModelTest {
         failOnError();
     }
 
+    @Ignore("Bug#28424366 : test fails with newer Connector/J")
     public void testWriteJDBCReadJDBC() {
         writeJDBCreadJDBC();
         failOnError();
-   }
+    }
 
+    @Ignore("Bug#28424366 : test fails with newer Connector/J")
     public void testWriteNDBReadJDBC() {
         writeNDBreadJDBC();
         failOnError();
-   }
+    }
 
-   static ColumnDescriptor not_null_hash = new ColumnDescriptor
+    static ColumnDescriptor not_null_hash = new ColumnDescriptor
             ("time_not_null_hash", new InstanceHandler() {
         public void setFieldValue(IdBase instance, Object value) {
             ((TimeAsSqlTimeTypes)instance).setTime_not_null_hash((Time)value);
