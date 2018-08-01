@@ -327,7 +327,7 @@ LogBuffer::get(char* buf, size_t buf_size, uint timeout_ms)
   }
 
   // Wait until there's something in the buffer or until timeout
-  while((m_size == 0) && (cond_ret == 0))
+  while((m_size == 0) && (cond_ret == 0) && (m_stop == false))
   {
     /**
      * Log buffer is empty, block until signal is received
@@ -420,6 +420,14 @@ size_t
 LogBuffer::getLostCount() const
 {
   return m_lost_bytes;
+}
+
+void
+LogBuffer::stop()
+{
+  Guard g(m_mutex);
+  m_stop = true;
+  NdbCondition_Signal(m_cond);
 }
 
 bool
