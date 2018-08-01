@@ -36,6 +36,7 @@ public class QueryBlobTypesTest extends AbstractQueryTest {
             BlobTypes b = session.newInstance(BlobTypes.class);
             b.setId(i);
             b.setId_null_none(i);
+            b.setId_null_hash(i);
             b.setBlobbytes(getByteArray(i));
             instances.add(b);
         }
@@ -52,6 +53,18 @@ public class QueryBlobTypesTest extends AbstractQueryTest {
         testUpdate(7);
         testDelete(5);
         testDelete(8);
+        failOnError();
+    }
+
+    /** Test the 'equal' query using BlobTypes.id_null_hash, which has a
+     * unique index defined. Blob columns are fetched during scan and
+     * verified.
+     */
+    public void testUniqueIndexScan() {
+        // query for existing rows
+        equalQuery("id_null_hash", "idx_id_null_hash", 5, 5);
+        // query for non-existing rows
+        equalQuery("id_null_hash", "idx_id_null_hash", 20);
         failOnError();
     }
 
@@ -83,6 +96,10 @@ public class QueryBlobTypesTest extends AbstractQueryTest {
         greaterThanAndLessEqualQuery(propertyName, expectedIndex, 2, 4, 3, 4);
         greaterEqualAndLessThanQuery(propertyName, expectedIndex, 2, 4, 2, 3);
         greaterThanAndLessThanQuery(propertyName, expectedIndex, 2, 4, 3);
+
+        // Run queries for records that doesn't exist
+        equalQuery(propertyName, expectedIndex, 20);
+        betweenQuery(propertyName, expectedIndex, 21, 40);
     }
 
     /** Test the ability to update the instance acquired by query.
