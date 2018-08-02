@@ -56,5 +56,12 @@ flush logs;
 include/sync_slave_io_with_master.inc
 # Check the 'slave-relay-bin.000007' and 'slave-relay-bin.000008'
 # files are created after execute 'flush logs' statement.
+FLUSH SLOW LOGS;
+ERROR HY000: File not found (Errcode: ##)
+FLUSH GENERAL LOGS;
+ERROR HY000: File not found (Errcode: ##)
+include/assert.inc [assert that the above events are not written to binlog]
+include/show_binlog_events.inc
+include/sync_slave_io_with_master.inc
 include/start_slave_sql.inc
 include/rpl_end.inc
