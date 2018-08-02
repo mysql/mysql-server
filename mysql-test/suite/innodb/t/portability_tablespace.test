@@ -217,10 +217,11 @@ SELECT * FROM tab2;
 
 SELECT * FROM tab3;
 
-let $wait_timeout= 300; # Override default 30 seconds with 300.
-let $wait_condition= SELECT count(*) = 2 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
-                     WHERE space_type = 'Undo' AND state = 'empty';
-source include/wait_condition.inc;
+let $inactive_undo_space = innodb_undo_001;
+source include/wait_until_undo_space_is_empty.inc;
+let $inactive_undo_space = innodb_undo_002;
+source include/wait_until_undo_space_is_empty.inc;
+
 SELECT name,space_type,state FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE space_type = 'Undo';
 
 ALTER UNDO TABLESPACE innodb_undo_001 SET ACTIVE;
@@ -298,12 +299,12 @@ SHOW CREATE TABLE tab5;
 
 # Set implicit undo tablespaces inactive
 ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
-ALTER UNDO TABLESPACE undo_004 SET INACTIVE;
+let $inactive_undo_space = undo_003;
+source include/wait_until_undo_space_is_empty.inc;
 
-let $wait_timeout= 300; # Override default 30 seconds with 300.
-let $wait_condition= SELECT count(*) = 2 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
-                     WHERE space_type = 'Undo' AND STATE = 'empty';
-source include/wait_condition.inc;
+ALTER UNDO TABLESPACE undo_004 SET INACTIVE;
+let $inactive_undo_space = undo_004;
+source include/wait_until_undo_space_is_empty.inc;
 
 SELECT name,space_type,state FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE space_type = 'Undo';
 

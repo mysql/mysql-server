@@ -152,11 +152,11 @@ SET GLOBAL innodb_rollback_segments=2;
 
 SHOW VARIABLES LIKE 'innodb_rollback_segments';
 ALTER UNDO TABLESPACE `undo_003` SET INACTIVE;
+let $inactive_undo_space = undo_003;
+source include/wait_until_undo_space_is_empty.inc;
 ALTER UNDO TABLESPACE `undo_004` SET INACTIVE;
-let $wait_timeout= 300; # Override default 30 seconds with 300.
-let $wait_condition= SELECT count(*) = 2 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
-                     WHERE SPACE_TYPE = 'Undo' AND STATE = 'empty';
-source include/wait_condition.inc;
+let $inactive_undo_space = undo_004;
+source include/wait_until_undo_space_is_empty.inc;
 
 SHOW GLOBAL STATUS LIKE '%undo%';
 SELECT NAME, ROW_FORMAT, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
@@ -235,11 +235,8 @@ SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
 --echo # Restart mysqld with these smaller settings.
 --echo #
 ALTER UNDO TABLESPACE `undo_003` SET INACTIVE;
-let $wait_timeout= 300; # Override default 30 seconds with 300.
-let $wait_condition= SELECT STATE = 'empty'
-                     FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
-                     WHERE NAME LIKE 'undo_003';
-source include/wait_condition.inc;
+let $inactive_undo_space = undo_003;
+source include/wait_until_undo_space_is_empty.inc;
 
 --source include/shutdown_mysqld.inc
 let $restart_parameters = restart: --innodb_rollback_segments=4;
@@ -259,11 +256,8 @@ SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
 --echo # and less rollback segments=2.
 --echo #
 ALTER UNDO TABLESPACE `undo_004` SET INACTIVE;
-let $wait_timeout= 300; # Override default 30 seconds with 300.
-let $wait_condition= SELECT STATE = 'empty'
-                     FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
-                     WHERE NAME LIKE 'undo_004';
-source include/wait_condition.inc;
+let $inactive_undo_space = undo_004;
+source include/wait_until_undo_space_is_empty.inc;
 
 connect (con1,localhost,root);
 --echo # Connection 1
@@ -431,10 +425,14 @@ ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
 ALTER UNDO TABLESPACE undo_004 SET INACTIVE;
 ALTER UNDO TABLESPACE undo_005 SET INACTIVE;
 ALTER UNDO TABLESPACE undo_006 SET INACTIVE;
-let $wait_timeout= 300; # Override default 30 seconds with 300.
-let $wait_condition= SELECT count(*) = 4 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
-                     WHERE SPACE_TYPE = 'Undo' AND STATE = 'empty';
-source include/wait_condition.inc;
+let $inactive_undo_space = undo_003;
+source include/wait_until_undo_space_is_empty.inc;
+let $inactive_undo_space = undo_004;
+source include/wait_until_undo_space_is_empty.inc;
+let $inactive_undo_space = undo_005;
+source include/wait_until_undo_space_is_empty.inc;
+let $inactive_undo_space = undo_006;
+source include/wait_until_undo_space_is_empty.inc;
 DROP UNDO TABLESPACE undo_003;
 DROP UNDO TABLESPACE undo_004;
 DROP UNDO TABLESPACE undo_005;

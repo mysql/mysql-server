@@ -28,10 +28,18 @@ ALTER UNDO TABLESPACE undo_007 SET INACTIVE;
 ALTER UNDO TABLESPACE undo_008 SET INACTIVE;
 
 --echo # Wait for all explicit undo tablespaces to become empty.
-let $wait_timeout= 300; # Override default 30 seconds with 300.
-let $wait_condition= SELECT count(*) = 6 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
-                     WHERE SPACE_TYPE = 'Undo' AND STATE = 'empty';
-source include/wait_condition.inc;
+let $inactive_undo_space = undo_003;
+source include/wait_until_undo_space_is_empty.inc;
+let $inactive_undo_space = undo_004;
+source include/wait_until_undo_space_is_empty.inc;
+let $inactive_undo_space = undo_005;
+source include/wait_until_undo_space_is_empty.inc;
+let $inactive_undo_space = undo_006;
+source include/wait_until_undo_space_is_empty.inc;
+let $inactive_undo_space = undo_007;
+source include/wait_until_undo_space_is_empty.inc;
+let $inactive_undo_space = undo_008;
+source include/wait_until_undo_space_is_empty.inc;
 
 --echo # Drop all explicit undo tablespaces.
 DROP UNDO TABLESPACE undo_003;

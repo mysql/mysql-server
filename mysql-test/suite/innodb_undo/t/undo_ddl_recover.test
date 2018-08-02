@@ -40,10 +40,8 @@ UPDATE t1 SET c2 = 'mysql' WHERE  (c1 % 4 = 0);
 UPDATE t1 SET c3 = 'oracle' WHERE (c1 % 3 = 0);
 
 ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
-let $wait_timeout = 600; # Override default 30 seconds with 600.
-let $wait_condition = SELECT count(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
-                     WHERE NAME = 'undo_003' AND STATE = 'empty';
-source include/wait_condition.inc;
+let $inactive_undo_space = undo_003;
+source include/wait_until_undo_space_is_empty.inc;
 
 SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
        WHERE SPACE_TYPE = 'Undo';

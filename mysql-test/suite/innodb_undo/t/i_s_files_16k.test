@@ -10,15 +10,13 @@
 --echo # --bootstrap --innodb_page_size=16k
 --echo # 2 implicit and 30 explicit undo tablespaces
 
-let $name = undo_;
-let $exten = ibu;
 let $cnt = 3;
 while ($cnt <= 32)
 {
-let $name1 = $name$cnt;
-let $datafile = $name$cnt.$exten;
-eval CREATE UNDO TABLESPACE $name1 ADD DATAFILE '$datafile';
-inc $cnt;
+  let $undo_space_name = undo_$cnt;
+  let $datafile = undo_$cnt.ibu;
+  eval CREATE UNDO TABLESPACE $undo_space_name ADD DATAFILE '$datafile';
+  inc $cnt;
 }
 
 --source suite/innodb_undo/include/i_s_files.inc
@@ -27,22 +25,25 @@ inc $cnt;
 let $cnt = 3;
 while ($cnt <= 32)
 {
-let $name1 = $name$cnt;
-eval ALTER UNDO TABLESPACE $name1 SET INACTIVE; 
-inc $cnt;
+  let $undo_space_name = undo_$cnt;
+  eval ALTER UNDO TABLESPACE $undo_space_name SET INACTIVE; 
+  inc $cnt;
 }
 
 --echo # Wait for all explicit undo tablespaces to become empty.
-let $wait_timeout= 300; # Override default 30 seconds with 300.
-let $wait_condition= SELECT count(*) = 30 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
-                     WHERE SPACE_TYPE = 'Undo' AND STATE = 'empty';
-source include/wait_condition.inc;
+let $cnt = 3;
+while ($cnt <= 32)
+{
+  let $inactive_undo_space = undo_$cnt;
+  source include/wait_until_undo_space_is_empty.inc;
+  inc $cnt;
+}
 
 --echo # Drop all explicit undo tablespaces.
 let $cnt = 3;
 while ($cnt <= 32)
 {
-let $name1 = $name$cnt;
-eval DROP UNDO TABLESPACE $name1; 
-inc $cnt;
+  let $undo_space_name = undo_$cnt;
+  eval DROP UNDO TABLESPACE $undo_space_name; 
+  inc $cnt;
 }

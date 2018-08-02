@@ -43,6 +43,11 @@ ALTER UNDO TABLESPACE innodb_undo_002 SET INACTIVE;
 ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
 ALTER UNDO TABLESPACE undo_004 SET INACTIVE;
 ERROR HY000: Cannot set undo_004 inactive since there would be less than 2 undo tablespaces left active.
+SHOW WARNINGS;
+Level	Code	Message
+Error	3655	Cannot set undo_004 inactive since there would be less than 2 undo tablespaces left active.
+Error	1533	Failed to alter: UNDO TABLESPACE undo_004
+Error	3655	ALTER UNDO TABLEPSPACE operation is disallowed on undo_004 
 ALTER UNDO TABLESPACE undo_005 SET INACTIVE;
 ERROR HY000: Cannot set undo_005 inactive since there would be less than 2 undo tablespaces left active.
 SHOW WARNINGS;
@@ -73,6 +78,7 @@ undo_005	Undo	active
 #
 ALTER UNDO TABLESPACE undo_003 SET ACTIVE;
 ALTER UNDO TABLESPACE undo_003 SET ACTIVE;
+ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
 ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
 ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
 #

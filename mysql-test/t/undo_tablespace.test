@@ -31,11 +31,8 @@ ALTER UNDO TABLESPACE undo_003 SET ACTIVE ENGINE InnoDB;
 
 ALTER UNDO TABLESPACE undo_003 SET INACTIVE ENGINE InnoDB;
 
-let $wait_timeout= 300; # Override default 30 seconds with 300.
-let $wait_condition= SELECT STATE = 'empty'
-                     FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
-                     WHERE NAME LIKE 'undo_003';
-source include/wait_condition.inc;
+let $inactive_undo_space = undo_003;
+source include/wait_until_undo_space_is_empty.inc;
 
 DROP UNDO TABLESPACE undo_003 ENGINE InnoDB;
 

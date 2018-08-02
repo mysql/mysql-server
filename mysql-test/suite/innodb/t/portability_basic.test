@@ -80,16 +80,12 @@ SELECT * FROM tab1;
 SELECT * FROM tab2;
 
 ALTER UNDO TABLESPACE innodb_undo_001 SET INACTIVE;
-let $wait_timeout= 300; # Override default 30 seconds with 300.
-let $wait_condition= SELECT count(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
-                     WHERE NAME = 'innodb_undo_001' AND STATE = 'empty';
-source include/wait_condition.inc;
+let $inactive_undo_space = innodb_undo_001;
+source include/wait_until_undo_space_is_empty.inc;
 
 ALTER UNDO TABLESPACE innodb_undo_002 SET INACTIVE;
-let $wait_timeout= 300; # Override default 30 seconds with 300.
-let $wait_condition= SELECT count(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
-                     WHERE NAME = 'innodb_undo_002' AND STATE = 'empty';
-source include/wait_condition.inc;
+let $inactive_undo_space = innodb_undo_002;
+source include/wait_until_undo_space_is_empty.inc;
 
 SELECT name,space_type,state 
        FROM INFORMATION_SCHEMA.INNODB_TABLESPACES 
@@ -117,16 +113,12 @@ ALTER UNDO TABLESPACE innodb_undo_001 SET ACTIVE;
 ALTER UNDO TABLESPACE innodb_undo_002 SET ACTIVE;
 
 ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
-let $wait_timeout= 300; # Override default 30 seconds with 300.
-let $wait_condition= SELECT count(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
-                     WHERE NAME = 'undo_003' AND STATE = 'empty';
-source include/wait_condition.inc;
+let $inactive_undo_space = undo_003;
+source include/wait_until_undo_space_is_empty.inc;
 
 ALTER UNDO TABLESPACE undo_004 SET INACTIVE;
-let $wait_timeout= 300; # Override default 30 seconds with 300.
-let $wait_condition= SELECT count(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
-                     WHERE NAME = 'undo_004' AND STATE = 'empty';
-source include/wait_condition.inc;
+let $inactive_undo_space = undo_004;
+source include/wait_until_undo_space_is_empty.inc;
 
 SELECT name,space_type,state 
        FROM INFORMATION_SCHEMA.INNODB_TABLESPACES 
@@ -163,16 +155,12 @@ SELECT name,space_type,state
        WHERE space_type = 'Undo';
 
 ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
-let $wait_timeout= 300; # Override default 30 seconds with 300.
-let $wait_condition= SELECT count(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
-                     WHERE NAME = 'undo_003' AND STATE = 'empty';
-source include/wait_condition.inc;
+let $inactive_undo_space = undo_003;
+source include/wait_until_undo_space_is_empty.inc;
 
 ALTER UNDO TABLESPACE undo_004 SET INACTIVE;
-let $wait_timeout= 300; # Override default 30 seconds with 300.
-let $wait_condition= SELECT count(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
-                     WHERE NAME = 'undo_004' AND STATE = 'empty';
-source include/wait_condition.inc;
+let $inactive_undo_space = undo_004;
+source include/wait_until_undo_space_is_empty.inc;
 
 SELECT name,space_type,state 
        FROM INFORMATION_SCHEMA.INNODB_TABLESPACES 

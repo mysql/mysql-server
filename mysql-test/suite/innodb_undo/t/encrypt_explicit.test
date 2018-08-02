@@ -53,13 +53,12 @@ CREATE UNDO TABLESPACE undo_004 ADD DATAFILE 'undo_004.ibu';
 
 # Check ALTER and DROP with encrypt undo tablespaces
 ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
-ALTER UNDO TABLESPACE undo_004 SET INACTIVE;
+let $inactive_undo_space = undo_003;
+source include/wait_until_undo_space_is_empty.inc;
 
-# Wait until implicit undo tablespace become empty
-let $wait_timeout= 300; # Override default 30 seconds with 300.
-let $wait_condition= SELECT count(*) = 2 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
-                     WHERE NAME LIKE '%undo%' AND STATE = 'empty';
-source include/wait_condition.inc;
+ALTER UNDO TABLESPACE undo_004 SET INACTIVE;
+let $inactive_undo_space = undo_004;
+source include/wait_until_undo_space_is_empty.inc;
 
 DELETE FROM tab2;
 DROP UNDO TABLESPACE undo_003;
