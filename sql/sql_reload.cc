@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -132,10 +132,12 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
     }
 
   if ((options & REFRESH_SLOW_LOG) && opt_slow_log)
-    logger.flush_slow_log();
+    if (logger.flush_slow_log())
+      result= 1;
 
   if ((options & REFRESH_GENERAL_LOG) && opt_log)
-    logger.flush_general_log();
+    if (logger.flush_general_log())
+      result= 1;
 
   if (options & REFRESH_ENGINE_LOG)
     if (ha_flush_logs(NULL))
