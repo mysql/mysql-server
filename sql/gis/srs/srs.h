@@ -93,6 +93,10 @@ enum class Axis_direction : std::uint8_t {
 /// Superclass for all spatial reference systems.
 class Spatial_reference_system {
  public:
+  Spatial_reference_system() = default;
+  Spatial_reference_system(const Spatial_reference_system &) = default;
+  Spatial_reference_system(Spatial_reference_system &&) = default;
+
   virtual ~Spatial_reference_system() {}
 
   /**

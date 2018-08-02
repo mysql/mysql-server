@@ -1,7 +1,7 @@
 #ifndef SQL_GIS_BOX_H_INCLUDED
 #define SQL_GIS_BOX_H_INCLUDED
 
-// Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,13 @@ namespace gis {
 /// Used by computations on minimum bounding boxes (MBRs).
 class Box {
  public:
-  virtual ~Box(){};
+  Box() = default;
+  Box(const Box &) = default;
+  Box(Box &&) = default;
+  Box &operator=(const Box &) = default;
+  Box &operator=(Box &&) = default;
+
+  virtual ~Box() {}
 
   /// Gets the coordinate system.
   ///

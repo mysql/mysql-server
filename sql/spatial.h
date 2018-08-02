@@ -752,8 +752,6 @@ class Geometry {
   */
   class Flags_t {
    public:
-    Flags_t(const Flags_t &o) { memcpy(this, &o, sizeof(o)); }
-
     Flags_t() {
       memset(this, 0, sizeof(*this));
       bo = wkb_ndr;
@@ -2165,6 +2163,8 @@ class Gis_line_string : public Gis_wkb_vector<Gis_point> {
   }
 
   Gis_line_string(const self &ls) : base_type(ls) {}
+
+  Gis_line_string &operator=(const Gis_line_string &) = default;
 };
 
 /*
@@ -2188,6 +2188,8 @@ class Gis_polygon_ring : public Gis_wkb_vector<Gis_point> {
   // Coordinate data type, closed-ness and direction will never change, thus no
   // need for the template version of copy constructor.
   Gis_polygon_ring(const self &r) : base(r) {}
+
+  Gis_polygon_ring &operator=(const Gis_polygon_ring &) = default;
 
   Gis_polygon_ring()
       : base(NULL, 0, Flags_t(Geometry::wkb_linestring, 0), default_srid,
