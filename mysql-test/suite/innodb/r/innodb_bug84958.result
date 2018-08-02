@@ -1,0 +1,69 @@
+#
+# Bug #84958 InnoDB's MVCC has O(N^2) behaviors
+# https://bugs.mysql.com/bug.php?id=84958
+#
+# Set up the test with a procedure and a function.
+#
+CREATE PROCEDURE insert_n(start int, end int)
+BEGIN
+DECLARE i INT DEFAULT start;
+WHILE i <= end do
+INSERT INTO t1 VALUES (1, 2, 3) ON DUPLICATE KEY UPDATE c = i;
+SET i = i + 1;
+END WHILE;
+END~~
+CREATE FUNCTION num_pages_get()
+RETURNS INT
+BEGIN
+DECLARE ret INT;
+SELECT number_pages_get FROM information_schema.innodb_buffer_pool_stats INTO ret;
+RETURN ret;
+END~~
+#
+# Create a table with one record in it and start an RR transaction
+#
+CREATE TABLE t1 (a INT, b INT, c INT, PRIMARY KEY(a,b), KEY (b,c));
+BEGIN;
+SELECT * FROM t1;
+a	b	c
+#
+# Create 100 newer record versions in con2 and con3
+#
+INSERT INTO t1 VALUES (1, 2, 3) ON DUPLICATE KEY UPDATE c = NULL;
+CALL insert_n(1, 50);;
+CALL insert_n(51, 100);;
+INSERT INTO t1 VALUES (1, 2, 1) ON DUPLICATE KEY UPDATE c = NULL;
+#
+# Connect to default and record how many pages were accessed
+# when selecting the record using the secondary key.
+#
+SET @num_pages_1 = num_pages_get();
+SELECT * FROM t1 force index (b);
+a	b	c
+SET @num_pages_2= num_pages_get();
+SELECT @num_pages_2 - @num_pages_1 < 500;
+@num_pages_2 - @num_pages_1 < 500
+1
+#
+# Commit and show the final record.
+#
+SELECT * FROM t1;
+a	b	c
+SELECT * FROM t1 force index (b);
+a	b	c
+COMMIT;
+SELECT * FROM t1 force index (b);
+a	b	c
+1	2	NULL
+SELECT * FROM t1;
+a	b	c
+1	2	NULL
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+#
+# Cleanup
+#
+DROP TABLE t1;
+DROP PROCEDURE insert_n;
+DROP FUNCTION num_pages_get;
