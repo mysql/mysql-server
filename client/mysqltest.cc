@@ -1174,11 +1174,13 @@ void handle_error(struct st_command *command, std::uint32_t err_errno,
     if (expected_errors->count() == 1) {
       die("Query '%s' failed with wrong error %d: '%s', should have failed "
           "with error '%s'.",
-          command->query, err_errno, err_error, expected_errors->error_list());
+          command->query, err_errno, err_error,
+          expected_errors->error_list().c_str());
     } else {
       die("Query '%s' failed with wrong error %d: '%s', should have failed "
           "with any of '%s' errors.",
-          command->query, err_errno, err_error, expected_errors->error_list());
+          command->query, err_errno, err_error,
+          expected_errors->error_list().c_str());
     }
   }
 
@@ -1201,10 +1203,10 @@ void handle_no_error(struct st_command *command) {
     if (index == -1) {
       if (expected_errors->count() == 1) {
         die("Query '%s' succeeded, should have failed with error '%s'",
-            command->query, expected_errors->error_list());
+            command->query, expected_errors->error_list().c_str());
       } else {
         die("Query '%s' succeeded, should have failed with any of '%s' errors.",
-            command->query, expected_errors->error_list());
+            command->query, expected_errors->error_list().c_str());
       }
     }
   }
@@ -1253,22 +1255,24 @@ static void handle_command_error(struct st_command *command,
           die("Command \"%s\" failed with wrong error: %d, my_errno=%d. should "
               "have failed with error '%s'.",
               command_names[command->type - 1], error, my_errno(),
-              expected_errors->error_list());
+              expected_errors->error_list().c_str());
         } else {
           die("Command \"%s\" failed with wrong error: %d, my_errno=%d. should "
               "have failed with any of '%s' errors.",
               command_names[command->type - 1], error, my_errno(),
-              expected_errors->error_list());
+              expected_errors->error_list().c_str());
         }
       } else {
         // Command succeeded, should have failed with an error
         if (expected_errors->count() == 1) {
           die("Command \"%s\" succeeded, should have failed with error '%s'.",
-              command_names[command->type - 1], expected_errors->error_list());
+              command_names[command->type - 1],
+              expected_errors->error_list().c_str());
         } else {
           die("Command \"%s\" succeeded, should have failed with any of '%s' "
               "errors.",
-              command_names[command->type - 1], expected_errors->error_list());
+              command_names[command->type - 1],
+              expected_errors->error_list().c_str());
         }
       }
     }
