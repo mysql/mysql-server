@@ -876,7 +876,9 @@ void recv_sys_free() {
   if (!srv_read_only_mode) {
     ut_ad(!recv_recovery_on);
     ut_ad(!recv_writer_thread_active);
-    os_event_reset(buf_flush_event);
+    if (buf_flush_event != nullptr) {
+      os_event_reset(buf_flush_event);
+    }
     os_event_set(recv_sys->flush_start);
   }
 

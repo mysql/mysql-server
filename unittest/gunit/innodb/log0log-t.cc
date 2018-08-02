@@ -31,8 +31,6 @@
 #include "fil0fil.h"
 #include "log0log.h"
 #include "log0recv.h"
-#include "que0que.h"   /* que_close() */
-#include "row0mysql.h" /* row_mysql_close() */
 #include "srv0srv.h"
 #include "srv0start.h" /* srv_is_being_started */
 #include "ut0byte.h"
@@ -141,10 +139,11 @@ static bool log_test_general_init() {
   srv_n_read_io_threads = 1;
   srv_n_write_io_threads = 1;
 
-  srv_boot();
-
+  sync_check_init(srv_max_n_threads);
+  recv_sys_var_init();
+  os_thread_open();
+  ut_crc32_init();
   os_create_block_cache();
-
   clone_init();
 
   const size_t max_n_pending_sync_ios = 100;
@@ -521,22 +520,12 @@ static void log_test_run() {
       LOG_TEST_N_THREADS);
 }
 
-void dict_ind_free();
-
 static void log_test_general_close() {
-  trx_pool_close();
-
-  dict_ind_free();
+  clone_free();
 
   undo_spaces_deinit();
 
   os_aio_free();
-
-  que_close();
-
-  row_mysql_close();
-
-  srv_free();
 
   fil_close_all_files();
 
@@ -554,13 +543,6 @@ static void log_test_general_close() {
 
 static void log_test_close() {
   log_t &log = *log_sys;
-
-  clone_free();
-
-  /* If log_stop_background_threads did not provide this
-  guarantee then we would need to ask for flush here. */
-
-  // log_buffer_flush_to_disk(log);
 
   log_stop_background_threads(log);
 
@@ -661,46 +643,25 @@ for context switch. However that's good enough for now. */
                                         std::move(sync_point_handler));
 }
 
-static void test_combinations(const std::string &group1,
-                              const std::string &group2) {
-  for (auto pt1 : log_sync_points[group1]) {
-    for (auto pt2 : log_sync_points[group2]) {
-      log_test.reset(new Log_test);
-
-      configure_delay_for_sync_point(pt1, 20, 20);
-      configure_delay_for_sync_point(pt2, 20, 20);
-
-      execute_test();
-    }
-  }
-}
-
-static void test_random_delays(const std::vector<std::string> &groups) {
-  log_test.reset(new Log_test);
-
-  for (auto group : groups) {
-    for (auto pt : log_sync_points[group]) {
-      configure_delay_for_sync_point(pt, 0, 20);
-    }
-  }
-
-  execute_test();
-}
-
 static void test_single(const std::string &group) {
+  const uint64_t max_delay =
+      std::max(uint64_t{10}, uint64_t{500 / log_sync_points[group].size()});
+
   for (auto pt : log_sync_points[group]) {
     log_test.reset(new Log_test);
 
-    configure_delay_for_sync_point(pt, 20, 20);
+    configure_delay_for_sync_point(pt, 10, max_delay);
 
     execute_test();
   }
-}
 
-static void test_pair(const std::string &group1, const std::string &group2) {
-  test_combinations(group1, group2);
+  log_test.reset(new Log_test);
 
-  test_random_delays({group1, group2});
+  for (auto pt : log_sync_points[group]) {
+    configure_delay_for_sync_point(pt, 0, 500);
+  }
+
+  execute_test();
 }
 
 class Log_test_disturber {
@@ -823,26 +784,3 @@ TEST(log0log, log_users) { test_single("log_users"); }
 TEST(log0log, log_closer) { test_single("log_closer"); }
 
 TEST(log0log, log_checkpointer) { test_single("log_checkpointer"); }
-
-TEST(log0log, log_buffer_reserve_vs_log_writer) {
-  test_pair("log_buffer_reserve", "log_writer");
-}
-
-TEST(log0log, log_buffer_write_vs_log_writer) {
-  test_pair("log_buffer_write", "log_writer");
-}
-
-TEST(log0log, log_buffer_write_vs_checkpoints) {
-  test_combinations("log_buffer_write", "log_closer");
-  test_combinations("log_buffer_write", "log_checkpointer");
-
-  test_random_delays({"log_buffer_write", "log_closer", "log_checkpointer"});
-}
-
-TEST(log0log, log_flush_notify) {
-  test_combinations("log_users", "log_flusher");
-  test_combinations("log_flusher", "log_flush_notifier");
-  test_combinations("log_flush_notifier", "log_users");
-
-  test_random_delays({"log_users", "log_flusher", "log_flush_notifier"});
-}
