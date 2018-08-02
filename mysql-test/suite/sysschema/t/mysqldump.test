@@ -20,7 +20,8 @@ SHOW DATABASES;
 # Finally reload the sys schema to return to normal
 # Filter out ndb_binlog_index to mask differences due to running with or
 # without ndb.
---replace_regex /mysql.ndb_binlog_index.*$//
+# Also, equalize the two OK status returns from upgrade.
+--replace_regex /mysql.ndb_binlog_index.*$// /Table is already up to date/OK/
 --exec $MYSQL_UPGRADE --skip-verbose --force
 SHOW DATABASES;
 
