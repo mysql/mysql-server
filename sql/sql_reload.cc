@@ -137,10 +137,10 @@ bool handle_reload_request(THD *thd, unsigned long options, TABLE_LIST *tables,
   }
 
   if ((options & REFRESH_SLOW_LOG) && opt_slow_log)
-    query_logger.reopen_log_file(QUERY_LOG_SLOW);
+    if (query_logger.reopen_log_file(QUERY_LOG_SLOW)) result = 1;
 
   if ((options & REFRESH_GENERAL_LOG) && opt_general_log)
-    query_logger.reopen_log_file(QUERY_LOG_GENERAL);
+    if (query_logger.reopen_log_file(QUERY_LOG_GENERAL)) result = 1;
 
   if (options & REFRESH_ENGINE_LOG) {
     if (ha_flush_logs()) {
