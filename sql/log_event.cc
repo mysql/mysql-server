@@ -4185,7 +4185,7 @@ void Query_log_event::print_query_header(
       print_event_info->default_collation_for_utf8mb4_number) {
     if (default_collation_for_utf8mb4_number)
       my_b_printf(
-          file, "/*!80005 SET @@session.default_collation_for_utf8mb4=%d*/%s\n",
+          file, "/*!80011 SET @@session.default_collation_for_utf8mb4=%d*/%s\n",
           default_collation_for_utf8mb4_number, print_event_info->delimiter);
     print_event_info->default_collation_for_utf8mb4_number =
         default_collation_for_utf8mb4_number;
