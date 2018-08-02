@@ -1620,6 +1620,8 @@ static void trx_flush_log_if_needed(
 {
   trx->op_info = "flushing log";
 
+  DEBUG_SYNC_C("trx_flush_log_if_needed");
+
   if (trx->ddl_operation || trx->ddl_must_flush) {
     log_write_up_to(*log_sys, lsn, true);
   } else {
@@ -2205,7 +2207,11 @@ dberr_t trx_commit_for_mysql(trx_t *trx) /*!< in/out: transaction */
 void trx_commit_complete_for_mysql(trx_t *trx) /*!< in/out: transaction */
 {
   if (trx->id != 0 || !trx->must_flush_log_later ||
-      thd_requested_durability(trx->mysql_thd) == HA_IGNORE_DURABILITY) {
+      (thd_requested_durability(trx->mysql_thd) == HA_IGNORE_DURABILITY &&
+       !trx->ddl_must_flush)) {
+    /* If we removed trx->ddl_must_flush from condition above, we would
+    need to take care of fixing innobase_flush_logs for a scenario in
+    which srv_flush_log_at_trx_commit == 0. */
     return;
   }
 
