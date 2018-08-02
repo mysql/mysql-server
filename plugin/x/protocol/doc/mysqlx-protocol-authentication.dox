@@ -1,0 +1,97 @@
+/*
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ */
+
+/** @page mysqlx_protocol_authentication Authentication
+
+
+Topics in this section:
+
+- @ref authentication_PLAIN
+- @ref authentication_EXTERNAL
+- @ref authentication_MYSQL41
+
+Authentication is implemented according to RFC;
+[RFC 4422](https://tools.ietf.org/html/rfc4422.html) (SASL):
+
+@par service-name
+    ``mysql`` (see
+    http://www.iana.org/assignments/gssapi-service-names/gssapi-service-names.xhtml)
+
+@par mechanism-negotiation
+    @ref Mysqlx_Connection_CapabilitiesGet "@c CapabilitiesGet "
+
+@par messages
+    1. @ref Mysqlx_Session_AuthenticateStart "@c AuthenticateStart "
+
+    2. @ref Mysqlx_Session_AuthenticateContinue "@c AuthenticateContinue "
+
+    3. @ref Mysqlx_Error "@c Error "
+
+    4. @ref Mysqlx_Session_AuthenticateOk "@c AuthenticateOk "
+
+
+
+PLAIN Authentication {#authentication_PLAIN}
+====================
+
+
+@startuml "PLAIN Authentication"
+== Authentication ==
+
+Client -> Server: AuthenticateStart(mech="PLAIN", auth_data="\0foo\0bar")
+Server --> Client: AuthenticateOk
+@enduml
+
+EXTERNAL Authentication {#authentication_EXTERNAL}
+=======================
+
+@startuml "EXTERNAL Authentication"
+== Authentication ==
+
+Client -> Server: AuthenticateStart(mech="EXTERNAL", initial_response="")
+Server --> Client: AuthenticateOk
+@enduml
+
+
+MYSQL41 Authentication {#authentication_MYSQL41}
+======================
+
+MYSQL41 authentication is:
+
+-  supported by MySQL 4.1 and later
+
+-  a challenge/response protocol using SHA1
+
+-  similar to CRAM-MD5 
+   (RFC; [RFC 2195](https://tools.ietf.org/html/rfc2195.html))
+
+@code{unparsed}
+    1. C:
+    2. S: challenge
+    3. C: [ authzid ] \0 authcid \0 response \0
+    4. S: AuthenticateOk
+@endcode
+
+@par authzid
+    empty
+
+@par authcid
+    user name
+
+@par challenge
+    server side, one time random challenge
+
+@par response
+    ``HEX(SHA1(password) ^ SHA1(challenge + SHA1(SHA1(password))))``
+
+@startuml "MYSQL41 Authentication"
+== Authentication ==
+
+Client -> Server: AuthenticateStart(mech="MYSQL41")
+Server --> Client: AuthenticateContinue(auth_data="98765432100123456789")
+Client --> Server: AuthenticateContinue(auth_data="\0myuser\09876543210987654321098765432109876543210\0")
+Server --> Client: AuthenticateOk
+@enduml
+
+*/

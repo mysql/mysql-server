@@ -1,0 +1,299 @@
+/*
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ */
+
+/** @page mysqlx_protocol_lifecycle Life Cycle
+
+ Topics in this section:
+
+ - @ref lifecycle_Connection
+ - @ref lifecycle_Session
+ - @ref lifecycle_Stages_of_Session_Setup
+ - @ref lifecycle_Authentication
+ - @ref lifecycle_Pipelining
+ - @ref lifecycle_Max_Message_Length
+ - @ref lifecycle_Extensions
+
+The following list describes some of the terms introduced in this
+section:
+
+@par Transport
+    Transport layer that exchanges data: TCP sockets, Unix Sockets,
+    Named Pipes, TLS, and so on.
+
+@par Connection
+    A lower-level connection between two Endpoints.
+
+@par Session
+    The session maintains the state. User-Variables, Temporary Tables,
+    and so on.
+
+@par Messages
+    @ref mysqlx_protocol_messages "Messages" are exchanged between
+    Endpoints. On a higher level they build a sequence of Messages with
+    a initial and final Message.
+
+@par Endpoints
+    A client or a server.
+
+Connection {#lifecycle_Connection}
+==========
+
+A default connection supports:
+
+-  supports connection capability negotiation via
+   @ref Mysqlx_Connection_CapabilitiesGet "@c CapabilitiesGet "
+   and
+   @ref Mysqlx_Connection_CapabilitiesSet "@c CapabilitiesSet "
+
+-  must support at least one of the following:
+
+   -  @ref lifecycle_TLS_Extension "TLS Extension"
+      and PLAIN
+      @ref mysqlx_protocol_authentication "Authentication"
+      or
+
+   -  @ref lifecycle_TLS_Extension "TLS Extension"
+      and EXTERNAL
+      @ref mysqlx_protocol_authentication "Authentication"
+      or
+
+   -  MYSQL41
+      @ref mysqlx_protocol_authentication "Authentication"
+      or another challenge response authentication mechanism
+
+Session {#lifecycle_Session}
+=======
+
+A session owns state like:
+
+-  current schema
+
+-  current character set
+
+-  temporary tables
+
+-  user variables
+
+-  open transactions
+
+A session is used by the server and the protocol to manage state.
+
+Sessions are:
+
+-  opened with
+   @ref Mysqlx_Session_AuthenticateStart "@c AuthenticateStart "
+
+-  reset with @ref Mysqlx_Session_Reset "@c Reset "
+
+-  closed with @ref Mysqlx_Session_Close "@c Close "
+
+Closing a session releases all session related data.
+
+
+
+Stages of Session Setup {#lifecycle_Stages_of_Session_Setup}
+=======================
+
+After a client connects to the server it:
+
+-  may ask for the servers capabilities with
+   @ref Mysqlx_Connection_CapabilitiesGet "@c CapabilitiesGet "
+
+-  may ask the server to use optional protocol features with
+   @ref Mysqlx_Connection_CapabilitiesSet "@c CapabilitiesSet "
+
+-  MUST authenticate
+
+-  may send commands
+
+@startuml "Stages of Session Setup"
+== Negotiation ==
+Client -> Server: CapabilitiesGet()
+Server --> Client: { "tls": 0, ... }
+
+Client -> Server: CapabilitiesSet({"tls" : 1})
+Server --> Client: Ok
+
+== Authentication ==
+Client -> Server: AuthenticateStart(mech="MYSQL41", ...)
+Server --> Client: AuthenticateContinue(auth_data="...")
+Client -> Server: AuthenticateContinue(auth_data="...")
+Server --> Client: AuthenticateOk()
+
+== Commands ==
+...
+@enduml
+
+In the **Negotiation** step the client checks which features the server
+supports on the protocol side.
+
+After a successful finish of the **Authentication** step the previous
+Session is discarded and a new Session is created.
+
+Further **Command** Messages run within a Session.
+
+
+
+Authentication {#lifecycle_Authentication}
+==============
+
+@ref mysqlx_protocol_authentication "Authentication"
+supports several authentication mechanisms that can be discovered with
+@ref Mysqlx_Connection_CapabilitiesGet "@c CapabilitiesGet ".
+
+``authentication.mechanisms``
+
+Server-side supported SASL mechanism:
+
+-  before TLS connection established: ``[]``
+
+-  after TLS connection established: ``["EXTERNAL", "PLAIN" ]``
+
+Required mechanisms:
+
+-  EXTERNAL (X.509 client certificates) RFC;
+   [RFC 4422\#appendix-A](https://tools.ietf.org/html/rfc4422.html#appendix-A)
+   (required)
+
+-  PLAIN (over SSL) RFC; [RFC 4616](https://tools.ietf.org/html/rfc4616.html)
+   (required)
+
+Other known mechanisms:
+
+-  MYSQL41 (MySQL 4.1 auth mechanism)
+
+@startuml Authentication
+Client -> Server: AuthenticateStart()
+loop
+Server --> Client: AuthenticateContinue()
+Client -> Server: AuthenticateContinue()
+end
+alt
+Server --> Client: Error()
+else
+Server --> Client: AuthenticateOk()
+end
+@enduml
+
+
+Pipelining {#lifecycle_Pipelining}
+==========
+
+The messages may be pipelined:
+
+-  the client may send the messages without waiting for a reply first
+
+-  the client should only send messages which safely trigger an Error
+   packet
+
+For the server it is no difference if the messages from client where
+sent in a bulk or if the client waited. The network and send/receive
+buffers of the Operation System will act as queue.
+
+@ref mysqlx_protocol_expectations "Expectations" help to control the
+behavior of following messages if a pipelined message fails.
+
+@par Tip
+    For more information, see @ref mysqlx_protocol_implementation
+    "Implementation Notes".
+
+
+Max Message Length {#lifecycle_Max_Message_Length}
+==================
+
+If the server receives a message that is larger than the current *Max
+Message Length*, then it **MUST** close the connection.
+
+``message.maxSendLength``
+
+@ref Mysqlx_Connection_CapabilitiesGet "@c CapabilitiesGet "
+    -  ``1048576``: current max message length 1Mbyte
+
+@ref Mysqlx_Connection_CapabilitiesSet "@c CapabilitiesSet "
+    -  ``2097152``: asks to increase the max message length to
+       2Mbyte
+
+``message.maxReceiveLength``
+
+@ref Mysqlx_Connection_CapabilitiesGet "@c CapabilitiesGet "
+    -  ``1048576``: current max receiving message length 1Mbyte
+
+@ref Mysqlx_Connection_CapabilitiesSet "@c CapabilitiesSet "
+    -  ``2097152``: asks to increase the max receiving message
+       length to 2Mbyte
+
+@note
+    As clients and servers may have to buffer the entire message before
+    it can be processed these limits allow protect against excessive
+    resource usage.
+
+Extensions {#lifecycle_Extensions}
+==========
+
+If the result of
+@ref Mysqlx_Connection_CapabilitiesGet "@c CapabilitiesGet "
+contains a extension key from the table below it supports the feature.
+
+| Name     | Extension                                    |
+|----------|----------------------------------------------|
+| ``tls``  | @ref lifecycle_TLS_Extension "TLS Extension" |
+
+@note
+    More extensions can be added in future iterations as long as they
+    are announced in ``CapabilitiesGet()`` and documented.
+
+
+## TLS Extension {#lifecycle_TLS_Extension}
+
+The client may assume that the server supports a set of features by
+default and skip the @ref Mysqlx_Connection_CapabilitiesGet "@c CapabilitiesGet "
+step:
+
+-  if the TLS extension isn't supported, then the
+   @ref Mysqlx_Connection_CapabilitiesSet "@c CapabilitiesSet " will
+   fail
+
+-  if it is supported, then it will succeed
+
+@code{cucumber}
+    Feature: extensions
+      Scenario: connecting with TLS, fast path
+        Given a client side X.509 certificate is provided with user name "foo"
+        And client certificate is valid
+        When connecting with TLS established
+        Then handshake should be single-step
+@endcode
+
+@startuml "TLS extension"
+== Negotiation ==
+Client -> Server: CapabilitiesSet({"tls" : 1})
+Server --> Client: Ok
+note over Client, Server: TLS handshake
+
+== Authentication ==
+Client -> Server: AuthenticateStart(mech="EXTERNAL")
+Server --> Client: AuthenticateOk()
+
+== Commands ==
+...
+@enduml
+
+@ref Mysqlx_Connection_CapabilitiesGet "@c CapabilitiesGet "
+    -  ``0``: supported, not in use
+
+    -  ``1``: supported, in use
+
+@ref Mysqlx_Connection_CapabilitiesSet "@c CapabilitiesSet "
+    -  ``1``: switch to TLS connection after server-side Ok
+
+    If the server doesn't support the capability, then it will return an
+    error.
+
+@note
+    Disabling TLS on a connection may not be supported by the server
+    and should result in an error.
+
+
+
+*/

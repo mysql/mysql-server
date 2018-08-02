@@ -1,0 +1,1910 @@
+/*
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ */
+
+/** @page mysqlx_protocol_messages Messages
+
+
+Topics in this section:
+
+-  @ref messages_Message_Structure
+-  @ref messages_Message_Sequence
+-  @ref messages_Common_Messages
+-  @ref messages_Connection
+-  @ref messages_Session
+-  @ref messages_Expectations
+-  @ref messages_CRUD
+-  @ref messages_SQL
+-  @ref messages_Resultset
+-  @ref messages_Expressions
+-  @ref messages_Datatypes
+
+
+This section provides detailed information about how X %Protocol
+defines messages.
+
+Message Structure {#messages_Message_Structure}
+=================
+
+Messages have a:
+
+-  4 byte *length* (little endian)
+
+-  1 byte *message type*
+
+-  a ``message_payload`` of length ``.length - 1``
+
+@par Mysqlx.Message
+    Container of all messages that are exchanged between client and server.
+    @n@b Parameters
+-  ``length`` -- length of the whole message
+
+-  ``message_type`` -- type of the ``message_payload``
+
+-  ``message_payload`` -- the message's payload encoded using
+   [`Google Protobuf`](https://code.google.com/p/protobuf/) if
+   not otherwise noted.
+
+@code{unparsed}
+struct {
+  uint32          length;
+  uint8           message_type;
+  opaque          message_payload[Message.length - 1];
+} Message;
+@endcode
+
+@note
+    The ``message_payload`` is generated from the protobuf files using
+    ``protoc``:
+  @code{shell}
+  $ protoc --cpp_out=protodir mysqlx*.proto
+  @endcode
+-  [``mysqlx.proto``](https://github.com/mysql/mysql-server/tree/5.7/rapid/plugin/x/protocol/mysqlx.proto)
+-  [``mysqlx_connection.proto``](https://github.com/mysql/mysql-server/tree/5.7/rapid/plugin/x/protocol/mysqlx_connection.proto)
+-  [``mysqlx_session.proto``](https://github.com/mysql/mysql-server/tree/5.7/rapid/plugin/x/protocol/mysqlx_session.proto>)
+-  [``mysqlx_crud.proto``](https://github.com/mysql/mysql-server/tree/5.7/rapid/plugin/x/protocol/mysqlx_crud.proto>)
+-  [``mysqlx_sql.proto``](https://github.com/mysql/mysql-server/tree/5.7/rapid/plugin/x/protocol/mysqlx_sql.proto>)
+-  [``mysqlx_resultset.proto``](https://github.com/mysql/mysql-server/tree/5.7/rapid/plugin/x/protocol/mysqlx_resultset.proto>)
+-  [``mysqlx_expr.proto``](https://github.com/mysql/mysql-server/tree/5.7/rapid/plugin/x/protocol/mysqlx_expr.proto>)
+-  [``mysqlx_datatypes.proto``](https://github.com/mysql/mysql-server/tree/5.7/rapid/plugin/x/protocol/mysqlx_datatypes.proto>)
+-  [``mysqlx_expect.proto``](https://github.com/mysql/mysql-server/tree/5.7/rapid/plugin/x/protocol/mysqlx_expect.proto>)
+-  [``mysqlx_notice.proto``](https://github.com/mysql/mysql-server/tree/5.7/rapid/plugin/x/protocol/mysqlx_notice.proto>)
+
+@par
+
+@note
+    The ``message_type`` can be taken from the
+    @ref Mysqlx_ClientMessages "@c ClientMessages "
+    for client-messages and from
+    @ref Mysqlx_ServerMessages "@c ServerMessages " of
+    server-side messages.
+    @n In ``C++`` they are exposed in ``mysqlx.pb.h`` in the
+    ``ClientMessages`` class.
+    @code{unparsed}
+    ClientMessages.MsgCase.kMsgConGetCap
+    ClientMessages.kMsgConGetCapFieldNumber
+    @endcode
+
+Message Sequence {#messages_Message_Sequence}
+================
+
+Messages usually appear in a sequence. Each initial message (one
+referenced by @ref Mysqlx_ClientMessages "@c ClientMessages ") is
+associated with a set of possible following messages.
+
+A message sequence either:
+
+-  finishes successfully if it reaches its end-state or
+
+-  is aborted with a @ref messages_Error_Message "Error Message"
+
+At any time in between local @ref messages_Notices "Notices"
+may be sent by the server as part of the message sequence.
+
+Global @ref messages_Notices "Notices" may be sent by the
+server at any time.
+
+Common Messages {#messages_Common_Messages}
+===============
+
+## Error Message {#messages_Error_Message}
+
+After the client sent the initial message, the server may send a
+@ref Mysqlx_Error "@c Error " message at any time to terminate the
+current message sequence.
+
+### package Mysqlx:: {#Mysqlx_}
+
+#### message Mysqlx::ClientMessages {#Mysqlx_ClientMessages}
+
+IDs of messages that can be sent from client to the server.
+
+@note
+  This message is never sent on the wire. It is only used to let ``protoc``:
+  -  generate constants
+  -  check for uniqueness
+
+@code{unparsed}
+    message ClientMessages {
+      enum Type {
+        CON_CAPABILITIES_GET = 1;
+        CON_CAPABILITIES_SET = 2;
+        CON_CLOSE = 3;
+
+        SESS_AUTHENTICATE_START = 4;
+        SESS_AUTHENTICATE_CONTINUE  = 5;
+        SESS_RESET = 6;
+        SESS_CLOSE = 7;
+
+        SQL_STMT_EXECUTE = 12;
+
+        CRUD_FIND = 17;
+        CRUD_INSERT = 18;
+        CRUD_UPDATE = 19;
+        CRUD_DELETE = 20;
+
+        EXPECT_OPEN = 24;
+        EXPECT_CLOSE = 25;
+      }
+    }
+@endcode
+
+
+#### message Mysqlx::ServerMessages {#Mysqlx_ServerMessages}
+
+IDs of messages that can be sent from server to client.
+
+@note
+   This message is never sent on the wire. It is only used to let ``protoc``:
+   -  generate constants
+   -  check for uniqueness
+
+@code{unparsed}
+    message ServerMessages {
+      enum Type {
+        OK = 0;
+        ERROR = 1;
+
+        CONN_CAPABILITIES = 2;
+
+        SESS_AUTHENTICATE_CONTINUE = 3;
+        SESS_AUTHENTICATE_OK = 4;
+
+        // NOTICE has to stay at 11 forever
+        NOTICE = 11;
+
+        RESULTSET_COLUMN_META_DATA = 12;
+        RESULTSET_ROW = 13;
+        RESULTSET_FETCH_DONE = 14;
+        RESULTSET_FETCH_SUSPENDED = 15;
+        RESULTSET_FETCH_DONE_MORE_RESULTSETS = 16;
+
+        SQL_STMT_EXECUTE_OK = 17;
+        RESULTSET_FETCH_DONE_MORE_OUT_PARAMS = 18;
+      };
+    }
+@endcode
+
+#### message Mysqlx::Ok {#Mysqlx_Ok}
+
+Generic Ok message.
+
+@code{unparsed}
+    message Ok {
+      optional string msg = 1;
+    }
+@endcode
+
+#### message Mysqlx::Error {#Mysqlx_Error}
+
+Generic Error message.
+
+A ``severity`` of ``ERROR`` indicates the current message
+sequence is aborted for the given error and the session is ready
+for more.
+
+In case of a ``FATAL`` error message the client should not
+expect the server to continue handling any further messages and
+should close the connection.
+
+@par Param severity
+     severity of the error message
+
+@par Param code
+     error-code
+
+@par Param sql\_state
+     SQL state
+
+@par Param msg
+     human-readable error message
+
+@code{unparsed}
+    message Error {
+      optional Severity severity = 1 [ default = ERROR ];
+      required uint32 code = 2;
+      required string sql_state = 4;
+      required string msg = 3;
+
+      enum Severity {
+        ERROR = 0;
+        FATAL = 1;
+      };
+    }
+@endcode
+
+
+## Notices {#messages_Notices}
+
+@par Tip
+    For more information, see @ref mysqlx_protocol_notices "Notices".
+
+The server may send notices
+@ref Mysqlx_Notice_Frame "@c Frame "
+to the client at any time.
+
+A notice can be:
+
+-  global (``.scope == GLOBAL``) or
+
+-  belong to the currently executed @ref messages_Message_Sequence
+   (``.scope == LOCAL + message sequence is active``):
+
+@note
+    If the Server sends a ``LOCAL`` notice while no message sequence is
+    active, the Notice should be ignored.
+
+### package Mysqlx.Notice:: {#Mysqlx_Notice}
+
+A notice:
+
+-  is sent from the server to the client
+
+-  may be global or relate to the current message sequence
+
+#### message Mysqlx.Notice::Frame {#Mysqlx_Notice_Frame}
+
+Common Frame for all Notices
+
+| .type                                                                 | Value |
+|-----------------------------------------------------------------------|------ |
+| @ref Mysqlx_Notice_Warning "@c Warning "                               | 1     |
+| @ref Mysqlx_Notice_SessionVariableChanged "@c SessionVariableChanged " | 2     |
+| @ref Mysqlx_Notice_SessionStateChanged "@c SessionStateChanged "       | 3     |
+
+@par Param type
+     the type of the payload
+
+@par Param payload
+     the payload of the notification
+
+@par Param scope
+     global or local notification
+
+@code{unparsed}
+  message Frame {
+      enum Scope {
+        GLOBAL = 1;
+        LOCAL = 2;
+      };
+      required uint32 type = 1;
+      optional Scope  scope = 2 [ default = GLOBAL ];
+      optional bytes payload = 3;
+    }
+@endcode
+
+#### message Mysqlx.Notice::Warning {#Mysqlx_Notice_Warning}
+Server-side warnings and notes
+
+@par ``.scope`` == ``local``
+     ``.level``, ``.code`` and ``.msg`` map the content of:
+@code{sql}
+        SHOW WARNINGS
+@endcode
+
+@par ``.scope`` == ``global``
+    (undefined) Will be used for global, unstructured messages like:
+
+    -  server is shutting down
+
+    -  a node disconnected from group
+
+    -  schema or table dropped
+
+| @ref Mysqlx_Notice_Frame "@c Frame " Field  | Value                   |
+|--------------------------------------------|-------------------------|
+| ``.type``                                  | 1                       |
+| ``.scope``                                 | ``local`` or ``global`` |
+
+@par Param level
+    warning level: Note or Warning
+
+@par Param code
+    warning code
+
+@par Param msg
+    warning message
+
+@code{unparsed}
+    message Warning {
+      enum Level {
+        NOTE = 1;
+        WARNING = 2;
+        ERROR = 3;
+      };
+      optional Level  level = 1 [ default = WARNING ];
+      required uint32 code = 2;
+      required string msg = 3;
+    }
+@endcode
+
+
+#### message Mysqlx.Notice::SessionVariableChanged {#Mysqlx_Notice_SessionVariableChanged}
+
+Notify clients about changes to the current session variables.
+
+Every change to a variable that is accessible through:
+
+@code{sql}
+    SHOW SESSION VARIABLES
+@endcode
+
+| @ref Mysqlx_Notice_Frame "@c Frame " Field | Value    |
+|-------------------------------------------|----------|
+| ``.type``                                 | 2        |
+| ``.scope``                                | ``local``|
+
+@par Param namespace
+    namespace that param belongs to
+
+@par Param param
+    name of the variable
+
+@par Param value
+    the changed value of param
+
+@code{unparsed}
+    message SessionVariableChanged {
+      required string param = 1;
+      optional Mysqlx.Datatypes.Scalar value = 2;
+    }
+@endcode
+
+
+#### message Mysqlx.Notice::SessionStateChanged {#Mysqlx_Notice_SessionStateChanged}
+
+Notify clients about changes to the internal session state.
+
+| @ref Mysqlx_Notice_Frame "@c Frame " Field  | Value    |
+|-----------------------------------  -------|----------|
+| ``.type``                                  | 3        |
+| ``.scope``                                 | ``local``|
+
+@par Param param
+    @par Parameter key
+
+@par Param value
+    updated value
+
+@code{unparsed}
+    message SessionStateChanged {
+      enum Parameter {
+         CURRENT_SCHEMA = 1;
+         ACCOUNT_EXPIRED = 2;
+         GENERATED_INSERT_ID = 3;
+         ROWS_AFFECTED = 4;
+         ROWS_FOUND = 5;
+         ROWS_MATCHED = 6;
+         TRX_COMMITTED = 7;
+         TRX_ROLLEDBACK = 9;
+         PRODUCED_MESSAGE = 10;
+         CLIENT_ID_ASSIGNED = 11;
+         // .. more to be added
+      }
+      required Parameter param = 1;
+      optional Mysqlx.Datatypes.Scalar value = 2;
+    }
+@endcode
+
+Connection {#messages_Connection}
+==========
+
+## package Mysqlx.Connection:: {#Mysqlx_Connection}
+
+### message Mysqlx.Connection::Capability {#Mysqlx_Connection_Capability}
+
+A tuple of a ``name`` and a
+@ref Mysqlx_Datatypes_Any "@c Any ":
+
+@code{unparsed}
+    message Capability {
+      required string name = 1;
+      required Mysqlx.Datatypes.Any value = 2;
+    }
+@endcode
+
+
+### message Mysqlx.Connection::Capabilities {#Mysqlx_Connection_Capabilities}
+Capabilities:
+
+@code{unparsed}
+    message Capabilities {
+      repeated Capability capabilities = 1;
+    }
+@endcode
+
+
+### message Mysqlx.Connection::CapabilitiesGet {#Mysqlx_Connection_CapabilitiesGet}
+Get supported connection capabilities and their current state.
+
+Returns
+    @ref Mysqlx_Connection_Capabilities "@c Capabilities " or
+    @ref Mysqlx_Error "@c Error "
+
+@code{unparsed}
+    message CapabilitiesGet {
+    };
+@endcode
+
+
+### message Mysqlx.Connection::CapabilitiesSet {#Mysqlx_Connection_CapabilitiesSet}
+
+Set connection capabilities atomically.
+
+Only provided values are changed, other values are left
+unchanged. If any of the changes fails, all changes are
+discarded.
+
+Precondition
+    active sessions == 0
+
+Returns
+    @ref Mysqlx_Ok "@c Ok "
+    or
+    @ref Mysqlx_Error "@c Error "
+
+@code{unparsed}
+    message CapabilitiesSet {
+      required Capabilities capabilities = 1;
+    };
+@endcode
+
+
+### message Mysqlx.Connection::Close {#Mysqlx_Connection_Close}
+
+Announce to the server that the client wants to close the
+connection.
+
+It discards any session state of the server.
+
+Returns
+    @ref Mysqlx_Ok "@c Ok "
+
+@code{unparsed}
+    message Close {
+    };
+@endcode
+
+
+Session {#messages_Session}
+=======
+
+## package Mysqlx.Session:: {#Mysqlx_Session}
+
+Messages to manage sessions.
+
+@startuml "Messages for Sessions"
+== session start ==
+Client -> Server: AuthenticateStart
+opt
+Server --> Client: AuthenticateContinue
+Client --> Server: AuthenticateContinue
+end
+alt
+Server --> Client: AuthenticateOk
+else
+Server --> Client: Error
+end
+...
+== session reset ==
+Client -> Server: Reset
+Server --> Client: Ok
+== session end ==
+Client -> Server: Close
+Server --> Client: Ok
+@enduml
+
+
+### message Mysqlx.Session::AuthenticateStart {#Mysqlx_Session_AuthenticateStart}
+
+The initial message send from the client to the server to start
+the authentication process.
+
+@par Param mech\_name
+    authentication mechanism name
+
+@par Param auth\_data
+    authentication data
+
+@par Param initial\_response
+    initial response
+
+Returns
+    @ref Mysqlx_Session_AuthenticateContinue "@c AuthenticateContinue "
+
+@code{unparsed}
+    message AuthenticateStart {
+      required string mech_name = 1;
+      optional bytes auth_data = 2;
+      optional bytes initial_response = 3;
+    }
+@endcode
+
+
+### message Mysqlx.Session::AuthenticateContinue {#Mysqlx_Session_AuthenticateContinue}
+Send by client or server after an
+@ref Mysqlx_Session_AuthenticateStart "@c AuthenticateStart "
+to exchange more authentication data.
+
+@par Param auth\_data
+    authentication data
+
+Returns
+    @ref Mysqlx_Session_AuthenticateContinue "@c AuthenticateContinue "
+
+@code{unparsed}
+    message AuthenticateContinue {
+      required bytes auth_data = 1;
+    }
+@endcode
+
+
+### message Mysqlx.Session::AuthenticateOk {#Mysqlx_Session_AuthenticateOk}
+Sent by the server after successful authentication.
+
+@par Param auth\_data
+    authentication data
+
+@code{unparsed}
+    message AuthenticateOk {
+      optional bytes auth_data = 1;
+    }
+@endcode
+
+
+### message Mysqlx.Session::Reset {#Mysqlx_Session_Reset}
+Reset the current session.
+
+Returns
+    @ref Mysqlx_Ok "@c Ok "
+
+@code{unparsed}
+    message Reset {
+    }
+@endcode
+
+
+### message Mysqlx.Session::Close {#Mysqlx_Session_Close}
+Close the current session.
+
+Returns
+    @ref Mysqlx_Ok "@c Ok "
+
+@code{unparsed}
+    message Close {
+    }
+@endcode
+
+
+Expectations {#messages_Expectations}
+============
+
+@par Tip
+    For more information, see @ref mysqlx_protocol_expectations "Expectations".
+
+Expect {#messages_Expect}
+======
+
+## package Mysqlx.Expect:: {#Mysqlx_Expect}
+
+Expect operations
+
+
+### message Mysqlx.Expect::Open {#Mysqlx_Expect_Open}
+Open an Expect block and set/unset the conditions that have to
+be fulfilled.
+
+If any of the conditions fail, all enclosed messages will fail
+with a ``Mysqlx.Error`` message.
+
+Returns
+    @ref Mysqlx_Ok "@c Ok " on success,
+    @ref Mysqlx_Error "@c Error " on error
+
+@code{unparsed}
+message Open {
+  message Condition {
+    enum ConditionOperation {
+      // set the condition
+      //
+      // set, if not set
+      // overwrite, if set
+      EXPECT_OP_SET = 0;
+      // unset the condition
+      EXPECT_OP_UNSET = 1;
+    };
+    required uint32 condition_key = 1;
+    optional bytes condition_value = 2;
+    optional ConditionOperation op = 3 [ default = EXPECT_OP_SET ];
+  };
+  enum CtxOperation {
+    // copy the operations from the parent Expect-block
+    EXPECT_CTX_COPY_PREV = 0;
+    // start with a empty set of operations
+    EXPECT_CTX_EMPTY = 1;
+  };
+  optional CtxOperation op = 1 [ default = EXPECT_CTX_COPY_PREV ];
+  repeated Condition cond = 2;
+}
+@endcode
+
+
+### message Mysqlx.Expect::Close {#Mysqlx_Expect_Close}
+Close a Expect block.
+
+Closing a Expect block restores the state of the previous Expect
+block for the following messages.
+
+Returns
+    @ref Mysqlx_Ok "@c Ok " on success,
+    @ref Mysqlx_Error "@c Error " on error
+
+@code{unparsed}
+    message Close {
+    }
+@endcode
+
+CRUD {#messages_CRUD}
+====
+
+The CRUD operations work in a similar fashion as the SQL statements
+below:
+
+-  prepare the CRUD operation
+
+-  execute the operation
+
+-  get the description of the result
+
+-  fetch the rows in batches
+
+-  close the prepared operation
+
+@startuml "Messages for CRUD"
+client -> server: PrepareFind
+server --> client: PreparedStmt::PrepareOk
+...
+client -> server: PreparedStmt::Execute
+server --> client: result
+...
+client -> server: Cursor::FetchResultset
+server --> client: result
+...
+client -> server: PreparedStmt::Close
+server --> client: Ok
+@enduml
+
+
+## package Mysqlx.Crud:: {#Mysqlx_Crud}
+    Basic CRUD operations.
+
+
+### message Mysqlx.Crud::Column {#Mysqlx_Crud_Column}
+Column definition:
+
+@code{unparsed}
+    message Column {
+      optional string name = 1;
+      optional string alias = 2;
+      repeated Mysqlx.Expr.DocumentPathItem document_path = 3;
+    }
+@endcode
+
+
+### message Mysqlx.Crud::Projection {#Mysqlx_Crud_Projection}
+A projection.
+
+@par Param source
+    the expression identifying an element from the source data
+    which can include a column identifier or any expression
+
+@par Param alias
+    optional alias. Required for DOCUMENTs (clients may use the
+    source string as default)
+
+@code{unparsed}
+    message Projection {
+        required Mysqlx.Expr.Expr source = 1;
+        optional string alias = 2;
+    }
+@endcode
+
+
+### message Mysqlx.Crud::Collection {#Mysqlx_Crud_Collection}
+Collection:
+
+@code{unparsed}
+    message Collection {
+      required string name = 1;
+      optional string schema = 2;
+    }
+@endcode
+
+
+### message Mysqlx.Crud::Limit {#Mysqlx_Crud_Limit}
+Limit
+
+@par Param row\_count
+    maximum rows to filter
+
+@par Param offset
+    maximum rows to skip before applying the row\_count
+
+@code{unparsed}
+    message Limit {
+      required uint64 row_count = 1;
+      optional uint64 offset = 2;
+    }
+@endcode
+
+
+### message Mysqlx.Crud::Order {#Mysqlx_Crud_Order}
+Sort order:
+
+@code{unparsed}
+    message Order {
+      enum Direction {
+        ASC = 1;
+        DESC = 2;
+      };
+
+      required Mysqlx.Expr.Expr expr = 1;
+      optional Direction direction = 2 [ default=ASC ];
+    }
+@endcode
+
+
+### message Mysqlx.Crud::UpdateOperation {#Mysqlx_Crud_UpdateOperation}
+Update operations.
+
+@par Param source
+    specification of the value to be updated:
+
+    -  if data\_model is TABLE, then a column name may be
+       specified
+
+       -  if the column type is JSON, then a document\_path can
+          be specified additionally
+
+    -  if the data\_model is DOCUMENT, then only document paths are allowed
+
+@note In both cases, schema\_name and table\_name must be not set.
+
+@par Param operation
+    the type of operation to be performed
+
+@par Param value
+    an expression to be computed as the new value for the
+    operation
+
+@code{unparsed}
+    message UpdateOperation {
+      enum UpdateType {
+        SET = 1;            // only allowed for TABLE
+        ITEM_REMOVE = 2;    // no value (removes the identified path from a object or array)
+        ITEM_SET = 3;       // sets the new value on the identified path
+        ITEM_REPLACE = 4;   // replaces a value if the path exists
+        ITEM_MERGE = 5;     // source and value must be documents
+        ARRAY_INSERT = 6;   // insert the value in the array at the index identified in the source path
+        ARRAY_APPEND = 7;   // append the value on the array at the identified path
+      }
+      required Mysqlx.Expr.ColumnIdentifier source = 1;
+      required UpdateType operation = 2;
+      optional Mysqlx.Expr.Expr value = 3;
+    }
+@endcode
+
+
+### message Mysqlx.Crud::Find {#Mysqlx_Crud_Find}
+Find Documents/Rows in a Collection/Table.
+
+@startuml "Find Operation"
+client -> server: Find
+... one or more Resultset ...
+@enduml
+
+@par Param collection
+    collection to insert into
+
+@par Param data\_model
+    data model that the operations refer to
+
+@par Param projection
+    list of column projections that shall be returned
+
+@par Param args
+    values for parameters used in filter expression
+
+@par Param criteria
+    filter criteria
+
+@par Param limit
+    numbers of rows that shall be skipped and returned
+
+@par Param order
+    sort-order in which the rows/document shall be returned in
+
+@par Param grouping
+    column expression list for aggregation (GROUP BY)
+
+@par Param grouping\_criteria
+    filter criteria for aggregated groups
+
+Returns
+    @ref Mysqlx_Resultset "@c Mysqlx.Resultset"
+
+@code{unparsed}
+    message Find {
+      required Collection collection = 2;
+
+      optional DataModel data_model = 3;
+      repeated Projection projection = 4;
+      optional Mysqlx.Expr.Expr criteria = 5;
+      repeated Mysqlx.Datatypes.Scalar args = 11;
+      optional Limit limit = 6;
+      repeated Order order = 7;
+      repeated Mysqlx.Expr.Expr grouping = 8;
+      optional Mysqlx.Expr.Expr grouping_criteria = 9;
+    };
+@endcode
+
+
+### message Mysqlx.Crud::Insert {#Mysqlx_Crud_Insert}
+Insert documents/rows into a collection/table.
+
+@par Param collection
+    collection to insert into
+
+@par Param data\_model
+    data model that the operations refer to
+
+@par Param projection
+    name of the columns to insert data into (empty if
+    data\_model is DOCUMENT)
+
+@par Param row
+    set of rows to insert into the collection/table (a single
+    expression with a JSON document literal or an OBJECT
+    expression)
+
+@par Param args
+    values for parameters used in row expressions
+
+Returns
+    @ref Mysqlx_Resultset "@c Mysqlx.Resultset"
+
+@code{unparsed}
+    message Insert {
+      required Collection collection = 1;
+
+      optional DataModel data_model = 2;
+      repeated Column projection = 3;
+
+      message TypedRow {
+        repeated Mysqlx.Expr.Expr field = 1;
+      };
+      repeated TypedRow row = 4;
+      repeated Mysqlx.Datatypes.Scalar args = 5;
+    };
+@endcode
+
+
+### message Mysqlx.Crud::Update {#Mysqlx_Crud_Update}
+Update documents/rows in a collection/table.
+
+@par Param collection
+    collection to change
+
+@par Param data\_model
+    data model that the operations refer to
+
+@par Param criteria
+    filter expression to match rows that the operations will
+    apply on
+
+@par Param args
+    values for parameters used in filter expression
+
+@par Param limit
+    limits the number of rows to match
+
+@par Param order
+    specifies order of matched rows
+
+@par Param operation
+    list of operations to be applied. Valid operations will
+    depend on the data\_model.
+
+Returns
+    @ref Mysqlx_Resultset "@c Mysqlx.Resultset"
+
+@code{unparsed}
+    message Update {
+      required Collection collection = 2;
+
+      optional DataModel data_model = 3;
+      optional Mysqlx.Expr.Expr criteria = 4;
+      repeated Mysqlx.Datatypes.Scalar args = 8;
+      optional Limit limit = 5;
+      repeated Order order = 6;
+
+      repeated UpdateOperation operation = 7;
+    };
+@endcode
+
+
+### message Mysqlx.Crud::Delete {#Mysqlx_Crud_Delete}
+Delete documents/rows from a Collection/Table.
+
+@par Param collection
+    collection to change
+
+@par Param data\_model
+    data model that the operations refer to
+
+@par Param criteria
+    filter expression to match rows that the operations will
+    apply on
+
+@par Param args
+    values for parameters used in filter expression
+
+@par Param limit
+    limits the number of rows to match
+
+@par Param order
+    specifies order of matched rows
+
+Returns
+    @ref Mysqlx_Resultset "@c Mysqlx.Resultset"
+
+@code{unparsed}
+    message Delete {
+      required Collection collection = 1;
+
+      optional DataModel data_model = 2;
+      optional Mysqlx.Expr.Expr criteria = 3;
+      repeated Mysqlx.Datatypes.Scalar args = 6;
+      optional Limit limit = 4;
+      repeated Order order = 5;
+    };
+@endcode
+
+
+
+SQL {#messages_SQL}
+===
+
+-  Prepare the statement for execution
+
+-  Execute the statement
+
+-  Get a description of the rows
+
+-  Fetch the rows in batches
+
+-  Close the prepared operation
+
+@note
+    As the ``stmt-id`` and ``cursor-id`` is assigned by the client, the
+    client can pipeline the messages and assume that all the steps
+    succeed. In case one command creates an error, all following
+    commands should fail too and therefore it is possible to relate the
+    errors to the right messages.
+
+
+@startuml "Messages for SQL"
+client -> server: Sql::StmtPrepare
+server --> client: PreparedStmt::PrepareOk
+...
+client -> server: PreparedStmt::ExecuteIntoCursor
+server --> client: result
+...
+client -> server: Cursor::FetchResultset
+server --> client: result
+...
+client -> server: PreparedStmt::Close
+server --> client: Ok
+@enduml
+
+
+
+## package Mysqlx.Sql:: {#Mysqlx_Sql}
+Messages of the MySQL Package.
+
+
+### message Mysqlx.Sql::StmtExecute {#Mysqlx_Sql_StmtExecute}
+Execute a statement in the given namespace.
+
+@startuml "Execute Statements"
+client -> server: StmtExecute
+... zero or more Resultsets ...
+server --> client: StmtExecuteOk
+@enduml
+
+Notices:
+    This message may generate a notice containing WARNINGs
+    generated by its execution. This message may generate a
+    notice containing INFO messages generated by its execution.
+
+@par Param namespace
+    namespace of the statement to be executed
+
+@par Param stmt
+    statement that shall be executed.
+
+@par Param args
+    values for wildcard replacements
+
+@par Param compact\_metadata
+    send only type information for ``ColumnMetadata``, skipping
+    names and others
+
+Returns
+    -  zero or one
+       @ref Mysqlx_Resultset "@c Mysqlx.Resultset" followed
+       by @ref Mysqlx_Sql_StmtExecuteOk "@c StmtExecuteOk "
+
+@code{unparsed}
+    message StmtExecute {
+      optional string namespace = 3 [ default = "sql" ];
+      required bytes stmt = 1;
+      repeated Mysqlx.Datatypes.Any args = 2;
+      optional bool compact_metadata = 4 [ default = false ];
+    }
+@endcode
+
+
+### message Mysqlx.Sql::StmtExecuteOk {#Mysqlx_Sql_StmtExecuteOk}
+Statement executed successful:
+
+@code{unparsed}
+    message StmtExecuteOk {
+    }
+@endcode
+
+
+Result Set {#messages_Resultset}
+==========
+
+## package Mysqlx.Resultset:: {#Mysqlx_Resultset}
+
+### message Mysqlx.Resultset::FetchDoneMoreOutParams {#Mysqlx_Resultset_FetchDoneMoreOutParams}
+Resultsets are finished, OUT paramset is next:
+
+@code{unparsed}
+    message FetchDoneMoreOutParams {
+    }
+@endcode
+
+
+### message Mysqlx.Resultset::FetchDoneMoreResultsets {#Mysqlx_Resultset_FetchDoneMoreResultsets}
+Resultset and out-params are finished, but more resultsets
+available:
+
+@code{unparsed}
+    message FetchDoneMoreResultsets {
+    }
+@endcode
+
+
+### message Mysqlx.Resultset::FetchDone {#Mysqlx_Resultset_FetchDone}
+All resultsets are finished:
+
+@code{unparsed}
+    message FetchDone {
+    }
+@endcode
+
+
+### message Mysqlx.Resultset::ColumnMetaData {#Mysqlx_Resultset_ColumnMetaData}
+Metadata of a column.
+
+@note
+    The encoding used for the different ``bytes`` fields in the
+    meta data is externally controlled. See also:
+    https://dev.mysql.com/doc/refman/5.0/en/charset-connection.html
+
+@par
+
+@note
+    The server may not set the ``original_{table|name}`` fields
+    if they are equal to the plain ``{table|name}`` field.
+
+@note
+    A client has to reconstruct it like:
+    @code{py}
+        if .original_name is empty and .name is not empty:
+          .original_name = .name
+
+        if .original_table is empty and .table is not empty:
+          .original_table = .table
+    @endcode
+
+@par
+
+@note
+    ``Compact metadata format`` can be requested by the client.
+    In that case, only ``.type`` is set and all other fields are
+    empty.
+
+@par Param type
+    Expected data type of Mysqlx.Resultset.Row per SQL Type for
+    non-NULL values:
+
+ | SQL Type          | .type     | .length | .frac\_dig | .flags | .charset |
+ |-------------------|-----------|---------|------------|--------|----------|
+ | TINY              | SINT      | x       |            |        |          |
+ | TINY UNSIGNED     | UINT      | x       |            | x      |          |
+ | SHORT             | SINT      | x       |            |        |          |
+ | SHORT UNSIGNED    | UINT      | x       |            | x      |          |
+ | INT24             | SINT      | x       |            |        |          |
+ | INT24 UNSIGNED    | UINT      | x       |            | x      |          |
+ | INT               | SINT      | x       |            |        |          |
+ | INT UNSIGNED      | UINT      | x       |            | x      |          |
+ | LONGLONG          | SINT      | x       |            |        |          |
+ | LONGLONG UNSIGNED | UINT      | x       |            | x      |          |
+ | DOUBLE            | DOUBLE    | x       | x          | x      |          |
+ | FLOAT             | FLOAT     | x       | x          | x      |          |
+ | DECIMAL           | DECIMAL   | x       | x          | x      |          |
+ | VARCHAR,CHAR,...  | BYTES     | x       |            | x      | x        |
+ | GEOMETRY          | BYTES     |         |            |        |          |
+ | TIME              | TIME      | x       |            |        |          |
+ | DATE              | DATETIME  | x       |            |        |          |
+ | DATETIME          | DATETIME  | x       |            |        |          |
+ | YEAR              | UINT      | x       |            | x      |          |
+ | TIMESTAMP         | DATETIME  | x       |            |        |          |
+ | SET               | SET       |         |            |        | x        |
+ | ENUM              | ENUM      |         |            |        | x        |
+ | NULL              | BYTES     |         |            |        |          |
+ | BIT               | BIT       | x       |            |        |          |
+
+@note
+     The SQL "NULL" value is sent as an empty field value in
+     @ref Mysqlx_Resultset_Row "@c Row ".
+
+@par Tip
+     The protobuf encoding of primitive data types is described in
+     https://developers.google.com/protocol-buffers/docs/encoding
+
++ SINT
+
+   - ``.length`` @n
+        Maximum number of displayable decimal digits (including
+        minus sign) of the type.
+        @note
+            The valid range is 0-255, but usually you'll see 1-20.
+
+        | SQL Type         | Maximum Digits per Type |
+        |------------------|-------------------------|
+        | TINY SIGNED      | 4                       |
+        | SHORT SIGNED     | 6                       |
+        | INT24 SIGNED     | 8                       |
+        | INT SIGNED       | 11                      |
+        | LONGLONG SIGNED  | 20                      |
+
+        @par Tip
+            Definition of ``M`` are in
+            https://dev.mysql.com/doc/refman/5.5/en/numeric-type-overview.html.
+
+   - ``value``@n
+        Variable length encoded signed 64 integer.
+
++ UINT
+
+   - ``.flags & 1`` (zerofill) @n
+        The client has to left pad with 0's up to .length.
+
+   - ``.length`` @n
+        Maximum number of displayable decimal digits of the
+        type.
+       @note
+            The valid range is 0-255, but usually you'll see
+            1-20.
+
+        | SQL Type             | max digits per type |
+        |----------------------|---------------------|
+        | TINY UNSIGNED        | 3                   |
+        | SHORT UNSIGNED       | 5                   |
+        | INT24 UNSIGNED       | 8                   |
+        | INT UNSIGNED         | 10                  |
+        | LONGLONG UNSIGNED    | 20                  |
+
+        @par Tip
+            Definition of ``M`` are in
+            https://dev.mysql.com/doc/refman/5.5/en/numeric-type-overview.html.
+
+   - ``value`` @n
+        Variable length encoded unsigned 64 integer.
+
++ BIT
+
+   - ``.length`` @n
+        Maximum number of displayable binary digits.
+        @note
+            The valid range for M of the ``BIT`` type is 1 - 64.
+
+        @par Tip
+            https://dev.mysql.com/doc/refman/5.5/en/numeric-type-overview.html
+
+   - ``value`` @n
+        Variable length encoded unsigned 64 integer.
+
++ DOUBLE
+
+   - ``.length`` @n
+        Maximum number of displayable decimal digits (including
+        the decimal point and ``.fractional_digits``).
+
+   - ``.fractional_digits`` @n
+        Maximum number of displayable decimal digits following
+        the decimal point.
+
+   - ``value``@n
+        Encoded as protobuf's 'double'.
+
++ FLOAT
+
+   - ``.length``@n
+        Maximum number of displayable decimal digits (including
+        the decimal point and ``.fractional_digits``).
+
+   - ``.fractional_digits``@n
+        Maximum number of displayable decimal digits following
+        the decimal point.
+
+   - ``value``@n
+        Encoded as protobuf's 'float'.
+
++ BYTES, ENUM
+    @note
+        BYTES is used for all opaque byte strings that may have a charset:
+        -  TINYBLOB, BLOB, MEDIUMBLOB, LONGBLOB
+        -  TINYTEXT, TEXT, MEDIUMTEXT, LONGTEXT
+        -  VARCHAR, VARBINARY
+        -  CHAR, BINARY
+        -  ENUM
+
+   - ``.length``@n
+        Maximum length of characters of the underlying type.
+
+   - ``.flags & 1`` (rightpad) @n
+        If the length of the field is less than ``.length``, the
+        receiver is supposed to add padding characters to the
+        right end of the string. If the ``.charset`` is
+        "binary", the padding character is ``0x00``, otherwise
+        it is a space character as defined by that character
+        set.
+        | SQL Type      | .length  | .charset  | .flags   |
+        |---------------|----------|-----------|----------|
+        | TINYBLOB      | 256      | binary    |          |
+        | BLOB          | 65535    | binary    |          |
+        | VARCHAR(32)   | 32       | utf8      |          |
+        | VARBINARY(32) | 32       | utf8\_bin |          |
+        | BINARY(32)    | 32       | binary    | rightpad |
+        | CHAR(32)      | 32       | utf8      | rightpad |
+
+   - ``value``
+        Sequence of bytes with added one extra ``0x00`` byte at
+        the end. To obtain the original string, the extra
+        ``0x00`` should be removed. The length of the string can
+        be acquired with protobuf's field ``length()`` method:
+
+        ``length of sequence-of-bytes = length-of-field - 1``
+        @note
+            The extra byte allows to distinguish between a NULL
+            and empty byte sequence.
+
++ TIME
+
+    A time value.
+
+   - ``value``@n
+        The following bytes sequence:
+
+        ``negate [ hour [ minutes [ seconds [ useconds ]]]]``
+
+        -  negate - one byte, should be one of: 0x00 for "+",
+           0x01 for "-"
+
+        -  hour - optional variable length encoded unsigned64
+           value for the hour
+
+        -  minutes - optional variable length encoded unsigned64
+           value for the minutes
+
+        -  seconds - optional variable length encoded unsigned64
+           value for the seconds
+
+        -  useconds - optional variable length encoded
+           unsigned64 value for the microseconds
+
+            @par Tip
+            The protobuf encoding in
+            https://developers.google.com/protocol-buffers/docs/encoding.
+
+            @note
+            Hour, minutes, seconds, and useconds are optional if
+            all the values to the right are 0.
+
+        Example: ``0x00 -> +00:00:00.000000``
+
++ DATETIME
+
+    A date or date and time value.
+
+   - ``value`` @n
+        A sequence of variants, arranged as follows:
+
+        ``| year | month | day | [ | hour | [ | minutes | [ | seconds | [ | useconds | ]]]]``
+
+        -  year - variable length encoded unsigned64 value for
+           the year
+
+        -  month - variable length encoded unsigned64 value for
+           the month
+
+        -  day - variable length encoded unsigned64 value for
+           the day
+
+        -  hour - optional variable length encoded unsigned64
+           value for the hour
+
+        -  minutes - optional variable length encoded unsigned64
+           value for the minutes
+
+        -  seconds - optional variable length encoded unsigned64
+           value for the seconds
+
+        -  useconds - optional variable length encoded
+           unsigned64 value for the microseconds
+           @note
+            Hour, minutes, seconds, useconds are optional if all
+            the values to the right are 0.
+
+   - ``.flags``@n
+    | Name          | Position |
+    |---------------|----------|
+    | is\_timestamp | 1        |
+
++ DECIMAL
+
+    An arbitrary length number. The number is encoded as a
+    single byte indicating the position of the decimal point
+    followed by the Packed BCD encoded number. Packed BCD is
+    used to simplify conversion to and from strings and other
+    native arbitrary precision math data types. See also: packed
+    BCD in https://en.wikipedia.org/wiki/Binary-coded_decimal
+
+   - ``.length``
+        Maximum number of displayable decimal digits
+        (*excluding* the decimal point and sign, but including
+        ``.fractional_digits``).
+        @note
+            Should be in the range of 1 - 65.
+
+   - ``.fractional_digits``
+        The decimal digits to display out of length.
+        @note
+            Should be in the range of 0 - 30.
+
+    ``value``
+        The following bytes sequence:
+
+        ``scale | BCD+ sign [0x00]?``
+
+        -  scale - 8bit scale value (number of decimal digit after the '.')
+
+        -  BCD - BCD encoded digits (4 bits for each digit)
+
+        -  sign - sign encoded on 4 bits (0xc = "+", 0xd = "-")
+
+        -  0x0 - last 4bits if length(digits) % 2 == 0
+
+        Example: ``x04 0x12 0x34 0x01
+                                        0xd0 -> -12.3401``
+
++ SET
+
+    A list of strings representing a SET of values.
+
+   - ``value``@n
+        A sequence of 0 or more of protobuf's bytes (length
+        prepended octets) or one of the special sequences with a
+        predefined meaning listed below.
+
+        Example (length of the bytes array shown in brackets):
+            -  ``[0]`` - the NULL value
+
+            -  ``[1] 0x00`` - a set containing a blank string ''
+
+            -  ``[1] 0x01`` - this would be an invalid value,
+               but is to be treated as the empty set
+
+            -  ``[2] 0x01
+                                                         0x00``
+               - a set with a single item, which is the '0'
+               character
+
+            -  ``[8] 0x03 F O O 0x03 B A R`` -
+               a set with 2 items: FOO,BAR
+
+@par Param name
+    name of the column
+
+@par Param original\_name
+    name of the column before an alias was applied
+
+@par Param table
+    name of the table the column originates from
+
+@par Param original\_table
+    name of the table the column originates from before an alias
+    was applied
+
+@par Param schema
+    schema the column originates from
+
+@par Param catalog
+    catalog the schema originates from
+    @note
+        As there is current no support for catalogs in MySQL,
+        don't expect this field to be set. In the MySQL C/S
+        protocol the field had the value ``def`` all the time.
+
+@par Param fractional\_digits
+    displayed factional decimal digits for floating point and
+    fixed point numbers
+
+@par Param length
+    maximum count of displayable characters of .type
+
+@par Param flags
+    ``.type`` specific flags
+    | Type    | Value  | Description  |
+    |---------|--------|--------------|
+    | UINT    | 0x0001 | zerofill     |
+    | DOUBLE  | 0x0001 | unsigned     |
+    | FLOAT   | 0x0001 | unsigned     |
+    | DECIMAL | 0x0001 | unsigned     |
+    | BYTES   | 0x0001 | rightpad     |
+
+    | Value  | Description     |
+    |--------|-----------------|
+    | 0x0010 | NOT\_NULL       |
+    | 0x0020 | PRIMARY\_KEY    |
+    | 0x0040 | UNIQUE\_KEY     |
+    | 0x0080 | MULTIPLE\_KEY   |
+    | 0x0100 | AUTO\_INCREMENT |
+
+    default: 0
+
+@par Param content\_type
+    a hint about the higher-level encoding of a BYTES field
+    | Type   | Value  | Description             |
+    |--------|--------|-------------------------|
+    | BYTES  | 0x0001 | GEOMETRY (WKB encoding) |
+    | BYTES  | 0x0002 | JSON (text encoding)    |
+    | BYTES  | 0x0003 | XML (text encoding)     |
+
+    @note
+        This list isn't comprehensive. As guideline: the field's
+        value is expected to pass a validator check on client
+        and server if this field is set. If the server adds more
+        internal data types that rely on BLOB storage like image
+        manipulation, seeking into complex types in BLOBs, and
+        more types will be added.
+
+@code{unparsed}
+    message ColumnMetaData {
+      enum FieldType {
+        SINT     = 1;
+        UINT     = 2;
+
+        DOUBLE   = 5;
+        FLOAT    = 6;
+
+        BYTES    = 7;
+
+        TIME     = 10;
+        DATETIME = 12;
+        SET      = 15;
+        ENUM     = 16;
+        BIT      = 17;
+
+        DECIMAL  = 18;
+      }
+
+      // datatype of the field in a row
+      required FieldType type = 1;
+      optional bytes name = 2;
+      optional bytes original_name = 3;
+
+      optional bytes table = 4;
+      optional bytes original_table = 5;
+
+      optional bytes schema = 6;
+      optional bytes catalog = 7;
+
+      optional uint64 collation = 8;
+
+      optional uint32 fractional_digits = 9;
+
+      optional uint32 length = 10;
+
+      optional uint32 flags = 11;
+
+      optional uint32 content_type = 12;
+    }
+@endcode
+
+
+### message Mysqlx.Resultset::Row {#Mysqlx_Resultset_Row}
+Row in a Resultset.
+
+A row is represented as a list of fields encoded as byte blobs.
+Value of each field is encoded as sequence of bytes using
+encoding appropriate for the type of the value given by
+``ColumnMetadata``, as specified in the
+@ref Mysqlx_Resultset_ColumnMetaData "@c ColumnMetaData "
+description.
+
+@code{unparsed}
+    message Row {
+      repeated bytes field = 1;
+    }
+@endcode
+
+
+Expressions {#messages_Expressions}
+===========
+
+## package Mysqlx.Expr:: {#Mysqlx_Expr}
+    Expression syntax
+
+    expr is the fundamental structure in various places of the SQL
+    language:
+
+    -  ``SELECT <expr> AS ...``
+
+    -  ``WHERE <expr>``
+
+    The structures can be used to:
+
+    -  build an Item-tree in the MySQL Server
+
+    -  generate SQL from it
+
+    -  use as filter condition in CRUD ``Find()``, ``Update()``, and
+       ``Delete()`` calls.
+
+
+### message Mysqlx.Expr::Expr {#Mysqlx_Expr_Expr}
+Expressions
+
+The "root" of the expression tree.
+
+If expression type is PLACEHOLDER, then it refers to the value
+of a parameter specified when executing a statement (see args
+field of StmtExecute command). Field position (which must be
+present for such an expression) gives 0-based position of the
+@par Parameter in the parameter list.
+
+@code{unparsed}
+    message Expr {
+      enum Type {
+        IDENT          = 1;
+        LITERAL        = 2;
+        VARIABLE       = 3;
+        FUNC_CALL      = 4;
+        OPERATOR       = 5;
+        PLACEHOLDER    = 6;
+        OBJECT         = 7;
+        ARRAY          = 8;
+      };
+
+      required Type type = 1;
+
+      optional ColumnIdentifier identifier = 2;
+      optional string       variable = 3;
+      optional Mysqlx.Datatypes.Scalar literal = 4;
+      optional FunctionCall function_call = 5;
+      optional Operator     operator = 6;
+      optional uint32       position = 7;
+      optional Object       object = 8;
+      optional Array        array = 9;
+    }
+@endcode
+
+
+### message Mysqlx.Expr::Identifier {#Mysqlx_Expr_Identifier}
+Identifier: name, schema.name
+
+@code{unparsed}
+    message Identifier {
+      required string name = 1;
+      optional string schema_name = 2;
+    }
+@endcode
+
+
+### message Mysqlx.Expr::DocumentPathItem {#Mysqlx_Expr_DocumentPathItem}
+DocumentPathItem
+
+@code{unparsed}
+    message DocumentPathItem {
+      enum Type {
+        MEMBER = 1;             // .member
+        MEMBER_ASTERISK = 2;    // .*
+        ARRAY_INDEX = 3;        // [index]
+        ARRAY_INDEX_ASTERISK = 4; // [*]
+        DOUBLE_ASTERISK = 5;    // **
+      };
+      required Type type = 1;
+      optional string value = 2;
+      optional uint32 index = 3;
+    }
+@endcode
+
+
+### message Mysqlx.Expr::ColumnIdentifier {#Mysqlx_Expr_ColumnIdentifier}
+col\_identifier (table): col@@doc_path, tbl.col@@doc_path col,
+tbl.col, schema.tbl.col col\_identifier (document): doc\_path
+
+@code{unparsed}
+    message ColumnIdentifier {
+      repeated Mysqlx.Expr.DocumentPathItem document_path = 1;
+      optional string name = 2;
+      optional string table_name = 3;
+      optional string schema_name = 4;
+    }
+@endcode
+
+
+### message Mysqlx.Expr::FunctionCall {#Mysqlx_Expr_FunctionCall}
+Function call: ``func(a, b, "1", 3)``
+
+@code{unparsed}
+    message FunctionCall {
+      required Identifier name = 1;
+      repeated Expr param = 2;
+    }
+@endcode
+
+
+### message Mysqlx.Expr::Operator {#Mysqlx_Expr_Operator}
+Operator: ``<<(a, b)``
+
+@note
+    Non-authoritative list of operators implemented (case sensitive):
+@note
+    Nullary
+        -  ``*``
+        -  ``default``
+@note
+    Unary
+        -  ``!``
+        -  ``sign_plus``
+        -  ``sign_minus``
+        -  ``~``
+@note
+    Binary
+        -  ``&&``
+        -  ``||``
+        -  ``xor``
+        -  ``==``
+        -  ``!=``
+        -  ``>``
+        -  ``>=``
+        -  ``<``
+        -  ``<=``
+        -  ``&``
+        -  ``|``
+        -  ``^``
+        -  ``<<``
+        -  ``>>``
+        -  ``+``
+        -  ``-``
+        -  ``*``
+        -  ``/``
+        -  ``div``
+        -  ``%``
+        -  ``is``
+        -  ``is_not``
+        -  ``regexp``
+        -  ``not_regexp``
+        -  ``like``
+        -  ``not_like``
+        -  ``cast``
+@note
+    Using special representation, with more than 2 params
+        -  ``in`` (param[0] IN (param[1], param[2], ...))
+        -  ``not_in`` (param[0] NOT IN (param[1], param[2],
+           ...))
+@note
+    Ternary
+        -  ``between``
+        -  ``between_not``
+        -  ``date_add``
+        -  ``date_sub``
+@note
+    Units for date\_add/date\_sub
+        -  ``MICROSECOND``
+        -  ``SECOND``
+        -  ``MINUTE``
+        -  ``HOUR``
+        -  ``DAY``
+        -  ``WEEK``
+        -  ``MONTH``
+        -  ``QUARTER``
+        -  ``YEAR``
+        -  ``SECOND_MICROSECOND``
+        -  ``MINUTE_MICROSECOND``
+        -  ``MINUTE_SECOND``
+        -  ``HOUR_MICROSECOND``
+        -  ``HOUR_SECOND``
+        -  ``HOUR_MINUTE``
+        -  ``DAY_MICROSECOND``
+        -  ``DAY_SECOND``
+        -  ``DAY_MINUTE``
+        -  ``DAY_HOUR``
+@note
+    Types for cast
+        -  ``BINARY[(N)]``
+        -  ``CHAR[(N)]``
+        -  ``DATE``
+        -  ``DATETIME``
+        -  ``DECIMAL[(M[,D])]``
+        -  ``JSON``
+        -  ``SIGNED [INTEGER]``
+        -  ``TIME``
+        -  ``UNSIGNED [INTEGER]``
+
+@par
+
+@code{unparsed}
+    message Operator {
+      required string name = 1;
+      repeated Expr param = 2;
+    }
+@endcode
+
+
+### message Mysqlx.Expr::Object {#Mysqlx_Expr_Object}
+An object (with expression values).
+
+@code{unparsed}
+    message Object {
+      message ObjectField {
+        required string key = 1;
+        required Expr value = 2;
+      }
+
+      repeated ObjectField fld = 1;
+    }
+@endcode
+
+
+### message Mysqlx.Expr::Array {#Mysqlx_Expr_Array}
+An array of expressions.
+
+@code{unparsed}
+    message Array {
+      repeated Expr value = 1;
+    }
+@endcode
+
+
+Data Types {#messages_Datatypes}
+==========
+
+## package Mysqlx.Datatypes:: {#Mysqlx_Datatypes}
+
+### message Mysqlx.Datatypes::Scalar {#Mysqlx_Datatypes_Scalar}
+
+A scalar.
+
+@code{unparsed}
+    message Scalar {
+      // a string with a charset/collation
+      message String {
+        required bytes value = 1;
+        optional uint64 collation = 2;
+      };
+
+    // an opaque octet sequence, with an optional content_type
+    // See ``Mysqlx.Resultset.ColumnMetadata`` for list of known values.
+    message Octets {
+      required bytes value = 1;
+      optional uint32 content_type = 2;
+    };
+
+      enum Type {
+        V_SINT = 1;
+        V_UINT = 2;
+        V_NULL = 3;
+        V_OCTETS = 4;
+        V_DOUBLE = 5;
+        V_FLOAT = 6;
+        V_BOOL  = 7;
+        V_STRING  = 8;
+      };
+
+      required Type type = 1;
+
+      optional sint64 v_signed_int = 2;
+      optional uint64 v_unsigned_int = 3;
+      // 4 is unused, was Null which doesn't have a storage anymore
+      optional Octets v_octets = 5;
+      optional double v_double = 6;
+      optional float  v_float = 7;
+      optional bool   v_bool = 8;
+      optional String v_string = 9;
+    }
+@endcode
+
+
+### message Mysqlx.Datatypes::Object {#Mysqlx_Datatypes_Object}
+An object.
+
+@code{unparsed}
+    message Object {
+      message ObjectField {
+        required string key = 1;
+        required Any value = 2;
+      }
+
+      repeated ObjectField fld = 1;
+    }
+@endcode
+
+
+### message Mysqlx.Datatypes::Array {#Mysqlx_Datatypes_Array}
+An Array.
+
+@code{unparsed}
+    message Array {
+      repeated Any value = 1;
+    }
+@endcode
+
+
+### message Mysqlx.Datatypes::Any {#Mysqlx_Datatypes_Any}
+A helper to allow all field types.
+
+@code{unparsed}
+    message Any {
+      enum Type {
+        SCALAR = 1;
+        OBJECT = 2;
+        ARRAY  = 3;
+      };
+
+      required Type type = 1;
+
+      optional Scalar scalar = 2;
+      optional Object obj    = 3;
+      optional Array  array  = 4;
+    }
+@endcode
+*/

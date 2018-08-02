@@ -1,0 +1,175 @@
+/*
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ */
+
+/** @page mysqlx_protocol_notices Notices
+
+Topics in this section:
+
+- @ref notices_Global_Notices
+- @ref notices_Local_Notices
+
+Notices are a way to send axillary data from the server to the client
+that can be:
+
+-  global
+
+-  local to the current message sequence
+
+Notices don't affect the state of the current message sequence, that
+means: the client is may ignore notices and still be able to properly
+understand the message sequence.
+
+Global Notices {#notices_Global_Notices}
+==============
+
+Global Notices are sent by the server in case of events happen that are
+unrelated to the currently active message sequence:
+
+-  server is shutting down
+
+-  node disconnected from group
+
+-  schema or table dropped
+
+-  binlog events
+
+## Server Shutting Down
+
+The server indicates that it shuts down in a clean way.
+
+## Node Disconnected from Group
+
+The slave stopped to replicate changes from the master/group and may
+contain stale information.
+
+@note
+    Checking for ``SHOW SLAVE STATUS`` and ``io_thread`` and
+    ``sql_thread`` leads to a race condition for the following query.
+    One would have to check after query of the slave is still running to
+    see if it didn't stop in between.
+
+## Schema or Table Dropped/Altered/...
+
+If a client maintains a cache of recent queries + resultsets it would
+improve the caching behavior if the client would be notified if a
+underlying table or schema was dropped, changed, and so on.
+
+Local Notices {#notices_Local_Notices}
+=============
+
+Local Notices are related to the currently active Message Sequence like:
+
+-  Committed Transaction IDs
+
+-  Transaction State Changes
+
+-  SQL warnings @ref Mysqlx_Notice_Warning "@c Warning "
+
+-  @ref notices_Session_Variable_Changed "session variable
+   changed"  and @ref #notices_Session_State_Changed
+   "session state changed"
+
+## Session Variable Changed {#notices_Session_Variable_Changed}
+
+Via
+@ref Mysqlx_Notice_SessionVariableChanged "@c SessionVariableChanged "
+
+It allows intermediates to track state changes on the clients session
+that may be otherwise unnoticeable like:
+
+@code{sql}
+    CREATE PROCEDURE init() BEGIN
+      SET @@sql_mode=ANSI;
+    END
+@endcode
+
+Session variable changes are usually done from the client via
+``SET @@...`` or ``SELECT @@... :=
+        1``, but can also be done via:
+
+-  stored procedures
+
+-  triggers
+
+-  connection setup
+
+   -  ``@@character_set_server``
+@note
+    Part of this functionality is provided in the MySQL C/S %Protocol via
+    ``WL#4797`` ``SESSION_SYSVAR_TRACKER`` and the initial handshake
+    packet.
+
+## Session State Changed {#notices_Session_State_Changed}
+
+Via @ref Mysqlx_Notice_SessionStateChanged "@c SessionStateChanged ".
+
+-  Account Expired while
+   @ref mysqlx_protocol_authentication "Authentication"
+
+-  current schema changes: ``USE ...``
+
+-  sever-side generated primary keys (like ``AUTO_INCREMENT``)
+
+-  rows-found, rows-matched, rows-affected
+
+@par CURRENT_SCHEMA
+    Sent after statement that changes the current schema like
+    ``USE ...``
+
+@par GENERATED_INSERT_ID
+    Sent after an ID was created by an INSERT-operation.
+@note
+        Multiple ``GENERATED_INSERT_ID`` notices may be sent per message
+        sequence. Stored Procedures, Multi-Row INSERTs, and so on.
+
+@par ROWS_FOUND
+    Rows that would be found if ``LIMIT`` wasn't applied (see
+    ``SQL_CALC_FOUND_ROWS``)
+
+@par ROWS_AFFECTED
+    Rows affected by a modifying statement
+
+@par ROWS_MATCHED
+    Rows matched by the criteria of a modifying statement (``UPDATE``,
+    ``INSERT``, ``DELETE``, ...)
+@note
+        ``ROWS_AFFECTED`` and ``ROWS_MATCHED`` where sent in the MySQL
+        C/S %Protocol as plain text ``info`` for a ``OK`` packet after an
+        ``UPDATE``:
+@code{unparsed}
+            Rows matched: 0  Changed: 0  Warnings: 0
+@endcode
+
+@par ACCOUNT_EXPIRED
+    Sent after a successful authentication before
+    @ref Mysqlx_Session_AuthenticateOk "@c AuthenticateOk "
+
+@par TRX_COMMITTED
+    Sent after a transaction was committed. .value may contain a
+    transaction identifier.
+@note
+        Used to track implicit, explicit and auto commits.
+
+@see http://dev.mysql.com/doc/en/innodb-implicit-commit.html
+
+@par TRX_ROLLEDBACK
+    Sent after a transaction was rolled back.
+    @note
+        Used to track implicit and explicit rollback operations.
+
+@see  http://dev.mysql.com/doc/en/innodb-implicit-commit.html
+
+@par SESSION_ID
+    Sent after a session ID is assigned by the server.
+@note
+    The MySQL C/S provided some of this information via functions:
+| Parameter             | [Information Functions](https://dev.mysql.com/doc/en/information-functions.html)|
+|-----------------------|---------------------------------------------------------------------------------|
+| CURRENT_SCHEMA        | DATABASE()                                                                      |
+| GENERATED_INSERT_ID   | LAST_INSERT_ID()                                                                |
+| ROWS_FOUND            | FOUND_ROWS()                                                                    |
+| ROWS_AFFECTED         | ROW_COUNT()                                                                     |
+| SESSION_ID            | CONNECTION_ID()                                                                 |
+
+*/

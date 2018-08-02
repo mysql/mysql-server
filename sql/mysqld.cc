@@ -196,6 +196,101 @@
     - @subpage page_protocol_connection_lifecycle
 */
 
+
+/** @page mysqlx_protocol X %Protocol
+
+@par Topics in this section:
+
+- @subpage mysqlx_protocol_lifecycle
+- @subpage mysqlx_protocol_authentication
+- @subpage mysqlx_protocol_messages
+- @subpage mysqlx_protocol_expectations
+- @subpage mysqlx_protocol_notices
+- @subpage mysqlx_protocol_xplugin
+- @subpage mysqlx_protocol_use_cases
+- @subpage mysqlx_protocol_implementation
+- @subpage mysqlx_protocol_comparison
+
+
+The X %Protocol is implemented by the X Plugin and the following
+MySQL clients support the protocol:
+
+-  MYSQLXSHELL
+
+-  MySQL for Visual Studio 2.0.2 or higher
+
+-  MySQL Connector/J 6.0.2 or higher
+
+-  MySQL Connector/Net 7.0.2 or higher
+
+-  MySQL Connector/Node.js
+
+The following figure shows usage of the X %Protocol between MYSQLXSHELL and
+MySQL Server 5.7.12 or higher with the X %Plugin enabled.
+The object _X %Protocol_ on this figure represents rather some concept
+than an implementation object. The aim is to show its role in the process
+of information exchange between the client and the server.
+
+@startuml "X Protocol Overview"
+actor "User"
+box "MySQLx Shell"
+participant "X DevAPI" as devapi
+participant "X Protocol" as xclproto
+end box
+
+box "MySQL Server"
+participant "X Plugin" as xpl
+participant "X Protocol" as xplproto
+participant "Server" as serv
+end box
+
+User -> devapi: Request
+activate devapi
+devapi -> xclproto: Encode request
+activate xclproto
+
+xclproto --> devapi
+deactivate xclproto
+
+devapi -> xpl: Receive request << Network (TCP) >>
+activate xpl
+
+xpl -> xplproto: Decode request
+activate xplproto
+
+xplproto --> xpl
+deactivate xplproto
+
+xpl -> serv: Execute request
+activate serv
+
+serv --> xpl
+deactivate serv
+
+xpl --> devapi: << Network (TCP) >>
+deactivate xpl
+
+devapi --> User
+deactivate devapi
+...
+@enduml
+
+The documentation is based on the source files such as:
+
+-  [``mysqlx.proto``](https://github.com/mysql/mysql-server/tree/5.7/rapid/plugin/x/protocol/mysqlx.proto)
+-  [``mysqlx_connection.proto``](https://github.com/mysql/mysql-server/tree/5.7/rapid/plugin/x/protocol/mysqlx_connection.proto)
+-  [``mysqlx_session.proto``](https://github.com/mysql/mysql-server/tree/5.7/rapid/plugin/x/protocol/mysqlx_session.proto>)
+-  [``mysqlx_crud.proto``](https://github.com/mysql/mysql-server/tree/5.7/rapid/plugin/x/protocol/mysqlx_crud.proto>)
+-  [``mysqlx_sql.proto``](https://github.com/mysql/mysql-server/tree/5.7/rapid/plugin/x/protocol/mysqlx_sql.proto>)
+-  [``mysqlx_resultset.proto``](https://github.com/mysql/mysql-server/tree/5.7/rapid/plugin/x/protocol/mysqlx_resultset.proto>)
+-  [``mysqlx_expr.proto``](https://github.com/mysql/mysql-server/tree/5.7/rapid/plugin/x/protocol/mysqlx_expr.proto>)
+-  [``mysqlx_datatypes.proto``](https://github.com/mysql/mysql-server/tree/5.7/rapid/plugin/x/protocol/mysqlx_datatypes.proto>)
+-  [``mysqlx_expect.proto``](https://github.com/mysql/mysql-server/tree/5.7/rapid/plugin/x/protocol/mysqlx_expect.proto>)
+-  [``mysqlx_notice.proto``](https://github.com/mysql/mysql-server/tree/5.7/rapid/plugin/x/protocol/mysqlx_notice.proto>)
+
+*/
+
+
 /**
   @page PAGE_SQL_EXECUTION SQL Query Execution
 
