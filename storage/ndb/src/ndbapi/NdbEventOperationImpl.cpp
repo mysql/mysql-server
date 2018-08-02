@@ -1424,9 +1424,7 @@ NdbEventBuffer::~NdbEventBuffer()
     const Uint32 unmap_sz = mem_block->alloced_size();
     m_total_alloc -= unmap_sz;
     m_mem_block_head = mem_block->m_next;
-#ifndef NDEBUG
-    memset(mem_block, 0x11, unmap_sz);
-#endif
+    mem_block->destruct();
 
 #if defined(USE_MMAP)
     require(my_munmap(mem_block, unmap_sz) == 0);
@@ -1440,9 +1438,7 @@ NdbEventBuffer::~NdbEventBuffer()
     m_total_alloc -= unmap_sz;
     m_mem_block_free = mem_block->m_next;
     m_mem_block_free_sz -= mem_block->get_size();
-#ifndef NDEBUG
-    memset(mem_block, 0x11, unmap_sz);
-#endif
+    mem_block->destruct();
 
 #if defined(USE_MMAP)
     require(my_munmap(mem_block, unmap_sz) == 0);
@@ -3573,9 +3569,7 @@ void NdbEventBuffer::remove_consumed_memory(MonotonicEpoch consumed_epoch)  //Ne
       const Uint32 alloced_sz = mem_block->alloced_size();
       assert(m_total_alloc >= alloced_sz);
       m_total_alloc -= alloced_sz;
-#ifndef NDEBUG
-      memset(mem_block, 0x11, alloced_sz);
-#endif
+      mem_block->destruct();
 
 #if defined(USE_MMAP)
       require(my_munmap(mem_block, alloced_sz) == 0);

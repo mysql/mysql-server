@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -167,6 +167,16 @@ public:
     m_next = NULL;
   }
 
+  void destruct()
+  {
+#ifndef NDEBUG
+    // Shredd the memory if debugging
+    memset(m_data, 0x11, m_size);
+    m_used = 0;
+    m_expiry_epoch = MonotonicEpoch::min;
+#endif
+  }
+
   // Allocate a chunk of memory from this MemoryBlock
   void* alloc(unsigned size)
   {
@@ -207,9 +217,9 @@ public:
 
   EventMemoryBlock *m_next;   // Next memory block
 
+private:
   char m_data[1];
 
-private:
   // Calculates usable size of m_data given total size 'full_sz'
   Uint32 data_size(Uint32 full_sz)
   {

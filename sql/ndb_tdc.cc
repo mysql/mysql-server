@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -65,7 +65,6 @@ ndb_tdc_close_cached_table(THD* thd, const char* dbname, const char* tabname)
   // NOTE! initializes only the minimal part of TABLE_LIST
   // required for calling close_cached_tables()
   TABLE_LIST table_list;
-  memset(&table_list, 0, sizeof(table_list));
   table_list.db= (char *)dbname;
   table_list.alias= table_list.table_name= (char *)tabname;
 

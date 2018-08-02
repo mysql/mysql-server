@@ -42,6 +42,24 @@ IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
       SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-${warning}")
     ENDIF()
   ENDFOREACH()
+  ##################
+  # Temporary C++ 8 workarounds:
+  # (not supported for C, so only set CXX_FLAGS)
+  FOREACH(warning
+          # Workaround for bug#28387760, also failed other places then in NdbEvent*
+          "class-memaccess"
+          # Other warnings causing problems in gcc 8
+	  "cast-function-type"
+	  "ignored-qualifiers"
+    )
+    STRING(REPLACE "-" "_" warning_ ${warning})
+    STRING(TOUPPER ${warning_} WARNING)
+    CHECK_C_COMPILER_FLAG("-W${warning}" HAVE_${WARNING})
+    CHECK_CXX_COMPILER_FLAG("-W${warning}" HAVE_${WARNING})
+    IF(HAVE_${WARNING})
+      SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-${warning}")
+    ENDIF()
+  ENDFOREACH()
 ENDIF()
 
 ADD_SUBDIRECTORY(common)
