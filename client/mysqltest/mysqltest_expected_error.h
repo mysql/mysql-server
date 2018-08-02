@@ -29,6 +29,7 @@
 
 #include <cstring>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "mysql_com.h"  // SQLSTATE_LENGTH
@@ -85,11 +86,11 @@ class Expected_errors {
   iterator begin() { return m_errors.begin(); }
   iterator end() { return m_errors.end(); }
 
-  /// Return list of error codes
-  const char *error_list();
-
   /// Returns length of the list containing errors.
   std::size_t count() { return m_errors.size(); }
+
+  /// Return list of error codes
+  std::string error_list();
 
   /// Returns error code of the first error in the list.
   std::uint32_t error_code() { return m_errors[0]->error_code(); }
