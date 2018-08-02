@@ -41,5 +41,3 @@ perl mysql-test-run.pl --timer --force  --comment=memcached --vardir=var-memcach
 # Group Replication
 perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication --vardir=var-group_replication --suite=group_replication --experimental=collections/default.experimental
 
-# cross_plugin_test
-perl mysql-test-run.pl --timer --force --parallel=6 --comment=cross_plugin_test --vardir=var-cross_plugin_test --suite=cross_plugin_test --experimental=collections/default.experimental
