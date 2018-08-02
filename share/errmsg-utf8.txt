@@ -18468,6 +18468,13 @@ ER_CLONE_PROTOCOL_ERROR
 
 ER_LDAP_AUTH_USER_GROUP_SEARCH_ROOT_BIND
   eng "Group search rebinding via root DN: %s "
+
+ER_CLONE_INFO_CLIENT
+  eng "Client: %.512s."
+
+ER_CLONE_INFO_SERVER
+  eng "Server: %.512s."
+
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #

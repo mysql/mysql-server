@@ -591,6 +591,11 @@ void buf_dblwr_process() {
   page_no_t page_no_dblwr = 0;
   recv_dblwr_t &dblwr = recv_sys->dblwr;
 
+  /* For cloned database double write pages should be ignored. */
+  if (recv_sys->is_cloned_db) {
+    dblwr.pages.clear();
+  }
+
   for (auto i = dblwr.pages.begin(); i != dblwr.pages.end();
        ++i, ++page_no_dblwr) {
     const byte *page = *i;

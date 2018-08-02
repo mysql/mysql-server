@@ -3527,6 +3527,11 @@ static bool innobase_dict_recover(dict_recovery_mode_t dict_recovery_mode,
         return (true);
       }
 
+      /* We might need to fix tables for CSV and MyISAM SE */
+      if (recv_sys->is_cloned_db && fix_cloned_tables(thd)) {
+        return (true);
+      }
+
       srv_dict_recover_on_restart();
   }
 
