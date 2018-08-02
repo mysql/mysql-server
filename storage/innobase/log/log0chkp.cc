@@ -675,6 +675,10 @@ bool log_make_latest_checkpoint() {
 
 static void log_preflush_pool_modified_pages(const log_t &log,
                                              lsn_t new_oldest) {
+  if (log_test != nullptr) {
+    return;
+  }
+
   /* A flush is urgent: we have to do a synchronous flush,
   because the oldest dirty page is too old.
 

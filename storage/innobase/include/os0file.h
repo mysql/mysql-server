@@ -1731,10 +1731,10 @@ void meb_free_block_cache();
 and allocates the memory in each block to hold BUFFER_BLOCK_SIZE
 of data.
 
-This function is called by InnoDB during AIO init (os_aio_init()).
-It is also by MEB while applying the redo logs on TDE tablespaces, the
-"Blocks" allocated in this block_cache are used to hold the decrypted page
-data. */
+This function is called by InnoDB during srv_start().
+It is also called by MEB while applying the redo logs on TDE tablespaces,
+the "Blocks" allocated in this block_cache are used to hold the decrypted
+page data. */
 void os_create_block_cache();
 
 /** Initializes the asynchronous io system. Creates one array each for ibuf
