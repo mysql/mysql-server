@@ -4790,6 +4790,11 @@ static bool innobase_flush_logs(handlerton *hton, bool binlog_group_flush) {
     /* innodb_flush_log_at_trx_commit=0
     (write and sync once per second).
     Do not flush the redo log during binlog group commit. */
+
+    /* This could be unsafe if we grouped at least one DDL transaction,
+    and we removed !trx->ddl_must_flush from condition which is checked
+    inside trx_commit_complete_for_mysql() when we decide if we could
+    skip the flush. */
     DBUG_RETURN(false);
   }
 
