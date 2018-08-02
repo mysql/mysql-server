@@ -3088,7 +3088,6 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
   const auto sys_space_name = dict_sys_t::s_sys_space_name;
 
   size_t count = 0;
-  bool print_msg = false;
   auto start_time = ut_time();
   auto heap = mem_heap_create(FN_REFLEN * 2 + 1);
   current_thd = thd;
@@ -3121,8 +3120,6 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
       ib::info(ER_IB_MSG_525) << msg.str();
 
       start_time = ut_time();
-
-      print_msg = true;
     }
 
     if (tablespace->engine() != innobase_hton_name) {
