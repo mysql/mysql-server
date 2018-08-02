@@ -5,6 +5,7 @@
 # value using mysql
 
 --source suite/ndb_memcache/include/have_memcache.inc
+--echo NDB_MEMCACHED_STARTED=$NDB_MEMCACHED_STARTED
 
 --perl
 

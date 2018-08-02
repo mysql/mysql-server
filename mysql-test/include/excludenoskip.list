@@ -182,6 +182,10 @@ not_group_replication_plugin.inc
 # Linux, Solaris and OS X platforms.
 have_memcached_plugin.inc
 
+# 13.1 NDB Memcached is not available on all PB2 builds. The ndb_memcache
+# suite should only be run if all required components have been found.
+have_memcache.inc
+
 # 14.0 MTR tests that runs only with specific rpl modes:
 
 # 14.1 Some rpl tests can run only with MTS_LC, MTS_DB and Non MTS
