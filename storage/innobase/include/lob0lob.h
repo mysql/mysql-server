@@ -285,11 +285,12 @@ struct ref_t {
     mlog_write_ulint(m_ref + BTR_EXTERN_LEN, byte_val, MLOG_1BYTE, mtr);
   }
 
-  /** Set the being_modified flag in the field reference.  This
-  modification is not required to be redo logged.
-  @param[in]	modifying	true, if blob is being modified.*/
-  void set_being_modified(bool modifying) {
-    ulint byte_val = mach_read_from_1(m_ref + BTR_EXTERN_LEN);
+  /** Set the being_modified flag in the field reference.
+  @param[in,out]	ref	the LOB reference
+  @param[in]	modifying	true, if blob is being modified.
+  @param[in]	mtr	the mini-transaction context.*/
+  static void set_being_modified(byte *ref, bool modifying, mtr_t *mtr) {
+    ulint byte_val = mach_read_from_1(ref + BTR_EXTERN_LEN);
 
     if (modifying) {
       byte_val |= BTR_EXTERN_BEING_MODIFIED_FLAG;
@@ -297,7 +298,14 @@ struct ref_t {
       byte_val &= ~BTR_EXTERN_BEING_MODIFIED_FLAG;
     }
 
-    mach_write_to_1(m_ref + BTR_EXTERN_LEN, byte_val);
+    mlog_write_ulint(ref + BTR_EXTERN_LEN, byte_val, MLOG_1BYTE, mtr);
+  }
+
+  /** Set the being_modified flag in the field reference.
+  @param[in]	modifying	true, if blob is being modified.
+  @param[in]	mtr	the mini-transaction context.*/
+  void set_being_modified(bool modifying, mtr_t *mtr) {
+    set_being_modified(m_ref, modifying, mtr);
   }
 
   /** Check if the current blob is being modified

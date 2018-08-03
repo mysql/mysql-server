@@ -1195,6 +1195,10 @@ struct dict_index_t {
     srid_is_valid = srid_is_valid_value;
     srid = srid_value;
   }
+
+  /** Check if the underlying table is compressed.
+  @return true if compressed, false otherwise. */
+  bool is_compressed() const;
 };
 
 /** The status of online index creation */
@@ -1482,6 +1486,10 @@ typedef std::vector<row_prebuilt_t *> temp_prebuilt_vec;
 /** Data structure for a database table.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_table_create(). */
 struct dict_table_t {
+  /** Check if the table is compressed.
+  @return true if compressed, false otherwise. */
+  bool is_compressed() const { return (DICT_TF_GET_ZIP_SSIZE(flags) != 0); }
+
   /** Get reference count.
   @return current value of n_ref_count */
   inline uint64_t get_ref_count() const;
@@ -2151,6 +2159,10 @@ detect this and will eventually quit sooner. */
   /** Determine if the table can support instant ADD COLUMN */
   inline bool support_instant_add() const;
 };
+
+inline bool dict_index_t::is_compressed() const {
+  return (table->is_compressed());
+}
 
 /** Persistent dynamic metadata type, there should be 1 to 1
 relationship between the metadata and the type. Please keep them in order
