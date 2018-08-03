@@ -211,10 +211,12 @@ Obsoletes:      MySQL-server < %{version}-%{release}
 Obsoletes:      mysql < %{version}-%{release}
 Obsoletes:      mysql-tools < %{version}-%{release}
 Obsoletes:      mariadb-bench
-Obsoletes:      mariadb-server
-Obsoletes:      mariadb-galera-server
 Obsoletes:      mariadb-embedded
 Obsoletes:      mariadb-embedded-devel
+Obsoletes:      mariadb-galera
+Obsoletes:      mariadb-galera-server
+Obsoletes:      mariadb-server
+Obsoletes:      mariadb-tools
 Provides:       mysql = %{version}-%{release}
 Provides:       mysql-tools = %{version}-%{release}
 %if 0%{?systemd}
@@ -274,6 +276,7 @@ Obsoletes:      MySQL-client < %{version}-%{release}
 Provides:       mysql-client = %{version}-%{release}
 Obsoletes:      mysql-client < %{version}-%{release}
 Obsoletes:      mariadb
+Obsoletes:      mariadb-client
 Conflicts:      otherproviders(mysql-client)
 
 %description    client
