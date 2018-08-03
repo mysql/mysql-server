@@ -564,7 +564,8 @@ sub collect_one_suite($$$$) {
           "share/mysql-test/suite",
         ],
         [ $suite, "mtr" ],
-        ($suite =~ /^i_/));
+        # Allow reference to no-existing suite in PB2
+        ($suite =~ /^i_/ || defined $ENV{PB2WORKDIR}));
       return unless $suitedir;
     }
     mtr_verbose("suitedir: $suitedir");
