@@ -163,13 +163,13 @@ file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-relay-bin.000008;
 # Make FLUSH <individual> LOGS fail by changing
 # the permissions of the slow log and general log.
 --let $slow_log= `SELECT @@global.slow_query_log_file`
---exec chmod 000 $slow_log
+--chmod 0000 $slow_log
 --replace_regex /.*File .* not found .*/File not found (Errcode: ##)/
 --error 29
 FLUSH SLOW LOGS;
 
 --let $general_log= `SELECT @@global.general_log_file`
---exec chmod 000 $general_log
+--chmod 0000 $general_log
 --replace_regex /.*File .* not found .*/File not found (Errcode: ##)/
 --error 29
 FLUSH GENERAL LOGS;
@@ -182,8 +182,8 @@ FLUSH GENERAL LOGS;
 --source include/show_binlog_events.inc
 
 # Restore permissions
---exec chmod 644 $slow_log
---exec chmod 644 $general_log
+--chmod 0644 $slow_log
+--chmod 0644 $general_log
 
 --source include/sync_slave_io_with_master.inc
 --source include/start_slave_sql.inc
