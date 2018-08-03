@@ -137,6 +137,4 @@ class Sql_data_context : public ngs::Sql_session_interface {
 
 }  // namespace xpl
 
-#undef MYSQL_CLIENT
-
 #endif  // PLUGIN_X_SRC_SQL_DATA_CONTEXT_H_
