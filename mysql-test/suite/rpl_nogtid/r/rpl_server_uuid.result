@@ -63,7 +63,7 @@ include/rpl_restart_server.inc [server_number=1]
 # Master's UUID and server_id will not be cleared if both master_port
 # and master_host are not changed.
 -----------------------------------------------------------------------------
-START SLAVE IO_THREAD;
+include/start_slave_io.inc
 include/wait_for_slave_param.inc [Master_UUID]
 include/stop_slave.inc
 
@@ -73,7 +73,7 @@ include/check_slave_param.inc [Master_UUID]
 include/check_slave_param.inc [Master_Server_Id]
 CHANGE MASTER TO MASTER_PORT= MASTER_PORT,
 MASTER_LOG_FILE= 'MASTER_LOG_FILE', MASTER_LOG_POS= MASTER_POS;
-START SLAVE IO_THREAD;
+include/start_slave_io.inc
 include/wait_for_slave_param.inc [Master_UUID]
 
 # Only change MASTER_HOST
@@ -84,7 +84,7 @@ include/check_slave_param.inc [Master_UUID]
 include/check_slave_param.inc [Master_Server_Id]
 CHANGE MASTER TO MASTER_HOST= '127.0.0.1',
 MASTER_LOG_FILE= 'MASTER_LOG_FILE', MASTER_LOG_POS= MASTER_POS;
-START SLAVE IO_THREAD;
+include/start_slave_io.inc
 include/wait_for_slave_param.inc [Master_UUID]
 
 # Both MASTER_HOST and MASTER_PORT are changed
@@ -95,7 +95,7 @@ include/check_slave_param.inc [Master_UUID]
 include/check_slave_param.inc [Master_Server_Id]
 CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_PORT= MASTER_PORT,
 MASTER_LOG_FILE= 'MASTER_LOG_FILE', MASTER_LOG_POS= MASTER_POS;
-START SLAVE IO_THREAD;
+include/start_slave_io.inc
 include/wait_for_slave_param.inc [Master_UUID]
 
 # Both MASTER_HOST and MASTER_PORT are NOT changed
