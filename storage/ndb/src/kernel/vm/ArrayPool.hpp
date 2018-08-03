@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,17 +53,51 @@ public:
   typedef T Type;
   typedef void (CallBack)(ArrayPool<T>& pool);
 
-  /* 
-    'seizeErrorHandler' is called in case of out of memory errors. Observe 
-    that the pool is not locked when seizeErrorHandler is called.
+  /**
+    'seizeErrorFunc' is called in case of out of memory errors. Observe
+    that the pool is not locked when seizeErrorFunc is called.
     A function pointer rather than a virtual function is used here, because 
     a virtual function would require explicit instantiations of ArrayPool for 
     all T types. That would again require all T types to define the nextChunk, 
     lastChunk and chunkSize fields. This is curently not the case.
+
+    Instead an (abstract) ErrorHandler class is instantiated to store the
+    'seizeErrorFunc' pointer. The ErrorHandler class contain the
+    virtual 'failure()' function which calls 'seizeErrorFunc' upon
+    a seize-failure  This allowes for sub classes of ArrayPool to
+    specify error-funcs with different signatures, thus avoiding any
+    type cast problems related to this.
   */
-  explicit ArrayPool(CallBack* seizeErrorHandler=NULL);
+  explicit ArrayPool(CallBack* seizeErrorFunc=nullptr)
+    : ArrayPool(new ErrorHandlerImpl(seizeErrorFunc, *this))
+  {}
+
   ~ArrayPool();
-  
+
+  class ErrorHandler {
+  public:
+    virtual ~ErrorHandler() {};
+    virtual void failure() const = 0;
+  };
+
+  class ErrorHandlerImpl : public ErrorHandler {
+  public:
+    ErrorHandlerImpl(CallBack* f, ArrayPool<T>& p) :
+      func(f), pool(p)
+    {};
+    virtual ~ErrorHandlerImpl() {};
+
+    virtual void failure() const {
+      if (func != nullptr) {
+        (*func)(pool);
+      }
+    }
+
+  private:
+    CallBack* func;
+    ArrayPool<T>& pool;
+  };
+
   /**
    * Set the size of the pool
    *
@@ -195,6 +229,7 @@ public:
 
 protected:
   friend class Array<T>;
+  explicit ArrayPool(const ErrorHandler* errorHandler);
 
   /**
    * Allocate <b>n</b> consecutive object from pool
@@ -267,12 +302,12 @@ protected:
 #endif
   void * alloc_ptr;
   // Call this function if a seize request fails.
-  CallBack* const seizeErrHand;
+  const ErrorHandler* const seizeErrHand;
 };
 
 template <class T>
 inline
-ArrayPool<T>::ArrayPool(CallBack* seizeErrorHandler):
+ArrayPool<T>::ArrayPool(const ErrorHandler* seizeErrorHandler):
   seizeErrHand(seizeErrorHandler)
 {
   firstFree = RNIL;
@@ -301,6 +336,7 @@ ArrayPool<T>::~ArrayPool(){
     theAllocatedBitmask = 0;
 #endif
   }
+  delete seizeErrHand;
 }
   
 /**
@@ -789,10 +825,7 @@ ArrayPool<T>::seize(Ptr<T> & ptr){
   }
   ptr.i = RNIL;
   ptr.p = NULL;
-  if (seizeErrHand != NULL)
-  {
-    (*seizeErrHand)(*this);
-  }
+  seizeErrHand->failure();
   return false;
 }
 
@@ -845,10 +878,7 @@ ArrayPool<T>::seizeId(Ptr<T> & ptr, Uint32 i){
   }
   ptr.i = RNIL;
   ptr.p = NULL;
-  if (seizeErrHand != NULL)
-  {
-    (*seizeErrHand)(*this);
-  }
+  seizeErrHand->failure();
   return false;
 }
 
@@ -885,10 +915,7 @@ ArrayPool<T>::seizeN(Uint32 n){
     curr = theArray[curr].nextPool;
   }
   if(sz != n){
-    if (seizeErrHand != NULL)
-    {
-      (*seizeErrHand)(*this);
-    }
+    seizeErrHand->failure();
     return RNIL;
   }
   const Uint32 base = curr - n;
@@ -946,7 +973,7 @@ ArrayPool<T>::releaseN(Uint32 base, Uint32 n){
 	BitmaskImpl::clear(bitmaskSz, theAllocatedBitmask, i);
       } else {
 	/**
-	 * Relesing a already released element
+	 * Releasing an already released element
 	 */
 	ErrorReporter::handleAssert("ArrayPool<T>::release", __FILE__, __LINE__);
 	return;
@@ -985,7 +1012,7 @@ ArrayPool<T>::releaseList(Uint32 n, Uint32 first, Uint32 last){
 	  BitmaskImpl::clear(bitmaskSz, theAllocatedBitmask, tmp);
 	} else {
 	  /**
-	   * Relesing a already released element
+	   * Releasing an already released element
 	   */
 	  ErrorReporter::handleAssert("ArrayPool<T>::releaseList", 
 				      __FILE__, __LINE__);
@@ -1032,7 +1059,7 @@ ArrayPool<T>::release(Uint32 _i){
 	return;
       }
       /**
-       * Relesing a already released element
+       * Releasing an already released element
        */
       ErrorReporter::handleAssert("ArrayPool<T>::release", __FILE__, __LINE__);
     }
@@ -1081,7 +1108,7 @@ ArrayPool<T>::releaseLast(Uint32 _i){
 	return;
       }
       /**
-       * Relesing a already released element
+       * Releasing an already released element
        */
       ErrorReporter::handleAssert("ArrayPool<T>::releaseLast", __FILE__, __LINE__);
     }
@@ -1126,7 +1153,7 @@ ArrayPool<T>::release(Ptr<T> & ptr){
 	return;
       }
       /**
-       * Relesing a already released element
+       * Releasing an already released element
        */
       ErrorReporter::handleAssert("ArrayPool<T>::release", __FILE__, __LINE__);
     }
@@ -1177,7 +1204,7 @@ ArrayPool<T>::releaseLast(Ptr<T> & ptr)
 	return;
       }
       /**
-       * Relesing a already released element
+       * Releasing an already released element
        */
       ErrorReporter::handleAssert("ArrayPool<T>::releaseLast", __FILE__, __LINE__);
     }
@@ -1200,13 +1227,28 @@ template <class T>
 class CachedArrayPool : public ArrayPool<T>
 {
 public:
-//  typedef typename ArrayPool<T>::Cache Cache;
-  // typedef typename ArrayPool<T>::CallBack CallBack;
   typedef void (CallBack)(CachedArrayPool<T>& pool);
-//  typedef typename ArrayPool<T>::LockFun LockFun;
-//  CachedArrayPool():ArrayPool<T>(NULL){}
-  explicit CachedArrayPool(CallBack* seizeErrorHandler=NULL)
-              : ArrayPool<T>(reinterpret_cast<typename ArrayPool<T>::CallBack*>(seizeErrorHandler)) { }
+  explicit CachedArrayPool(CallBack* seizeErrorFunc=nullptr)
+    : ArrayPool<T>(new ErrorHandlerImpl(seizeErrorFunc, *this))
+  {}
+
+  class ErrorHandlerImpl : public ArrayPool<T>::ErrorHandler {
+  public:
+    ErrorHandlerImpl(CallBack* f, CachedArrayPool<T>& p) :
+      func(f), pool(p)
+    {};
+    virtual ~ErrorHandlerImpl() {};
+
+    virtual void failure() const {
+      if (func != nullptr) {
+        (*func)(pool);
+      }
+    }
+
+  private:
+    CallBack* func;
+    CachedArrayPool<T>& pool;
+  };
 
   void setChunkSize(Uint32 sz);
 #ifdef ARRAY_CHUNK_GUARD
@@ -1294,6 +1336,9 @@ inline
 void
 CachedArrayPool<T>::checkChunks()
 {
+  T * const& theArray = this->theArray;
+  const Uint32 firstFree = this->firstFree;
+  Uint32 * const& theAllocatedBitmask = this->theAllocatedBitmask;
 #ifdef ARRAY_GUARD
   bool const& chunk = this->chunk;
   assert(chunk == true);
@@ -1333,11 +1378,9 @@ CachedArrayPool<T>::seizeChunk(Uint32 & cnt, Ptr<T> & ptr)
 #ifdef ARRAY_GUARD
   Uint32 & bitmaskSz = this->bitmaskSz;
   Uint32 * const& theAllocatedBitmask = this->theAllocatedBitmask;
-#endif
-typename ArrayPool<T>::  CallBack const* const& seizeErrHand = this->seizeErrHand;
-#ifdef ARRAY_GUARD
   bool const& chunk = this->chunk;
   assert(chunk == true);
+  (void)chunk; //Avoid 'unused warning'
 #endif
 
 #ifdef ARRAY_CHUNK_GUARD
@@ -1400,10 +1443,7 @@ this->    decNoFree(save - tmp);
   }
 
   ptr.p = NULL;
-  if (seizeErrHand != NULL)
-  {
-    (*seizeErrHand)(*this);
-  }
+  this->seizeErrHand->failure();
   return false;
 }
 
@@ -1422,6 +1462,7 @@ CachedArrayPool<T>::releaseChunk(Uint32 cnt, Uint32 first, Uint32 last)
 #ifdef ARRAY_GUARD
   bool const& chunk = this->chunk;
   assert(chunk == true);
+  (void)chunk; //Avoid 'unused warning'
 #endif
 
 #ifdef ARRAY_CHUNK_GUARD
@@ -1446,7 +1487,7 @@ CachedArrayPool<T>::releaseChunk(Uint32 cnt, Uint32 first, Uint32 last)
         BitmaskImpl::clear(bitmaskSz, theAllocatedBitmask, tmp);
       } else {
         /**
-         * Relesing a already released element
+         * Releasing an already released element
          */
         ErrorReporter::handleAssert("ArrayPool<T>::releaseList", 
                                     __FILE__, __LINE__);
@@ -1492,10 +1533,7 @@ CachedArrayPool<T>::seize(LockFun l, Cache& c, Ptr<T> & p)
     DUMP("LOCKED", "\n");
     return true;
   }
-  if (this->seizeErrHand != NULL)
-  {
-    (*this->seizeErrHand)(*this);
-  }
+  this->seizeErrHand->failure();
   return false;
 }
 

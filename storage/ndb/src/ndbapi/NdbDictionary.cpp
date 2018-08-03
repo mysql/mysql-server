@@ -3551,7 +3551,7 @@ NdbDictionary::printFormattedValue(NdbOut& out,
       break;
     }
     case NdbDictionary::Column::Mediumunsigned:
-      out << (const Uint32) uint3korr(val_p);
+      out << (static_cast<Uint32>(uint3korr(val_p)));
       break;
     case NdbDictionary::Column::Smallunsigned:
       out << *((const Uint16*) val);

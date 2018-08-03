@@ -48,9 +48,6 @@ IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   FOREACH(warning
           # Workaround for bug#28387760, also failed other places then in NdbEvent*
           "class-memaccess"
-          # Other warnings causing problems in gcc 8
-	  "cast-function-type"
-	  "ignored-qualifiers"
     )
     STRING(REPLACE "-" "_" warning_ ${warning})
     STRING(TOUPPER ${warning_} WARNING)
