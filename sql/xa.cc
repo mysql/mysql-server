@@ -1518,6 +1518,15 @@ bool applier_reset_xa_trans(THD *thd) {
   XID_STATE *xid_state = trn_ctx->xid_state();
 
   /*
+    Return error is not an option as XA is in prepared state and
+    connection is gone. Log the error and continue.
+  */
+  if (MDL_context_backup_manager::instance().create_backup(
+          &thd->mdl_context, xid_state->get_xid()->key(),
+          xid_state->get_xid()->key_length())) {
+    LogErr(ERROR_LEVEL, ER_XA_CANT_CREATE_MDL_BACKUP);
+  }
+  /*
     In the following the server transaction state gets reset for
     a slave applier thread similarly to xa_commit logics
     except commit does not run.
