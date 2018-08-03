@@ -135,7 +135,7 @@ connection master;
 --echo # and master_host are not changed.
 --echo -----------------------------------------------------------------------------
 connection slave;
-START SLAVE IO_THREAD;
+--source include/start_slave_io.inc
 --let $slave_param= Master_UUID
 --let $slave_param_value= $original_master_uuid
 --source include/wait_for_slave_param.inc
@@ -158,7 +158,7 @@ CHANGE MASTER TO MASTER_PORT= 1111;
 --replace_result $old_master_log_file MASTER_LOG_FILE $MASTER_MYPORT MASTER_PORT $old_master_log_pos MASTER_POS
 eval CHANGE MASTER TO MASTER_PORT= $MASTER_MYPORT,
        MASTER_LOG_FILE= '$old_master_log_file', MASTER_LOG_POS= $old_master_log_pos;
-START SLAVE IO_THREAD;
+--source include/start_slave_io.inc
 --let $slave_param= Master_UUID
 --let $slave_param_value= $original_master_uuid
 --source include/wait_for_slave_param.inc
@@ -181,7 +181,7 @@ CHANGE MASTER TO MASTER_HOST= 'localhost';
 --replace_result $old_master_log_file MASTER_LOG_FILE $MASTER_MYPORT MASTER_PORT $old_master_log_pos MASTER_POS
 eval CHANGE MASTER TO MASTER_HOST= '127.0.0.1',
        MASTER_LOG_FILE= '$old_master_log_file', MASTER_LOG_POS= $old_master_log_pos;
-START SLAVE IO_THREAD;
+--source include/start_slave_io.inc
 --let $slave_param= Master_UUID
 --let $slave_param_value= $original_master_uuid
 --source include/wait_for_slave_param.inc
@@ -202,7 +202,7 @@ CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_PORT= 1111;
 --replace_result $old_master_log_file MASTER_LOG_FILE $MASTER_MYPORT MASTER_PORT $old_master_log_pos MASTER_POS
 eval CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_PORT= $MASTER_MYPORT,
        MASTER_LOG_FILE= '$old_master_log_file', MASTER_LOG_POS= $old_master_log_pos;
-START SLAVE IO_THREAD;
+--source include/start_slave_io.inc
 --let $slave_param= Master_UUID
 --let $slave_param_value= $original_master_uuid
 --source include/wait_for_slave_param.inc
