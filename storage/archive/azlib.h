@@ -200,6 +200,9 @@ extern "C" {
 #define AZ_BUFSIZE_READ 32768
 #define AZ_BUFSIZE_WRITE 16384
 
+/* Required system variables */
+extern int srv_compression_level;
+
 typedef struct azio_stream {
   z_stream stream;
   int z_err;                     /* error code for last stream operation */

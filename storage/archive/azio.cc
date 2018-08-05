@@ -64,7 +64,8 @@ extern "C" PSI_file_key arch_key_file_data;
 */
 int az_open(azio_stream *s, const char *path, int Flags, File fd) {
   int err;
-  int level = Z_DEFAULT_COMPRESSION; /* compression level */
+  /* compression level. Subtract 1 to convert to Zlib levels. */
+  int level = srv_compression_level - 1;
   int strategy = Z_DEFAULT_STRATEGY; /* compression strategy */
 
   memset(s, 0, sizeof(azio_stream));
