@@ -100,7 +100,6 @@
 
 
   TODO:
-   Allow users to set compression level.
    Allow adjustable block size.
    Implement versioning, should be easy.
    Allow for errors, find a way to mark bad rows.
