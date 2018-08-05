@@ -211,6 +211,11 @@ static void init_archive_psi_keys(void) {
 static const char *ha_archive_exts[] = {ARZ, NullS};
 
 /*
+  Archive system variables
+*/
+int srv_compression_level = 0;  // Zlib compression level
+
+/*
   Initialize the archive handler.
 
   SYNOPSIS
@@ -1589,6 +1594,39 @@ bool ha_archive::check_if_incompatible_data(HA_CREATE_INFO *info,
   return COMPATIBLE_DATA_YES;
 }
 
+/*
+  Update the archive_compression_level system variable
+*/
+static void archive_compression_level_update(
+  THD *thd,
+  SYS_VAR *var,
+  void* var_ptr,
+  const void *save)
+{
+  int in_val = *static_cast<const int *>(save);
+  srv_compression_level = in_val;
+}
+
+/*
+  Compression level used by Zlib. I have shifted Zlib's default levels
+  up by one because the settings table doesn't support signed integers.
+*/
+static MYSQL_SYSVAR_INT(compression_level, srv_compression_level,
+  PLUGIN_VAR_RQCMDARG,
+  "Compression level used by Zlib for archive files."
+  " 0 is Zlib's defualt. Levels 1-10 go in order of increasing compression,"
+  " where 1 is no compression at all.",
+  NULL, archive_compression_level_update, 0, 0,
+  10, 0);
+
+/*
+  System variables list
+*/
+static SYS_VAR *archive_system_variables[] = {
+  MYSQL_SYSVAR(compression_level),
+  NULL
+};
+
 struct st_mysql_storage_engine archive_storage_engine = {
     MYSQL_HANDLERTON_INTERFACE_VERSION};
 
@@ -1604,7 +1642,7 @@ mysql_declare_plugin(archive){
     NULL,            /* Plugin Deinit */
     0x0300 /* 3.0 */,
     NULL, /* status variables                */
-    NULL, /* system variables                */
+    archive_system_variables, /* system variables */
     NULL, /* config options                  */
     0,    /* flags                           */
 } mysql_declare_plugin_end;
