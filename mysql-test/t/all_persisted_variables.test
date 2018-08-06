@@ -27,7 +27,7 @@
 # Out of all, 358 are global persistent variable. In future, if a new global
 # persistent variable is added, it is the responsibility of the Dev to
 # edit this variable.
-#      -> $total_persistent_var=358
+#      -> $total_persistent_var=359
 ################################################################################
 
 --echo ***********************************************************************
@@ -39,7 +39,7 @@
 --source include/have_binlog_format_row.inc
 
 let $total_global_vars=`SELECT COUNT(*) FROM performance_schema.global_variables where variable_name NOT LIKE 'ndb_%'`;
-let $total_persistent_vars=358;
+let $total_persistent_vars=359;
 
 --echo ***************************************************************
 --echo * 0. Verify that variables present in performance_schema.global

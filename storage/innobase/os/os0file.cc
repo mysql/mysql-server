@@ -97,6 +97,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #include <data0type.h>
 #endif /* UNIV_HOTBACKUP */
 
+/* Flush after each os_fsync_threshold bytes */
+unsigned long long os_fsync_threshold = 0;
+
 /** Insert buffer segment id */
 static const ulint IO_IBUF_SEGMENT = 0;
 
@@ -5379,6 +5382,24 @@ bool os_file_set_size(const char *name, pfs_os_file_t file, os_offset_t offset,
     if ((current_size + n_bytes) / (100 << 20) != current_size / (100 << 20)) {
       fprintf(stderr, " %lu00",
               (ulong)((current_size + n_bytes) / (100 << 20)));
+    }
+
+    /* Flush after each os_fsync_threhold bytes */
+    if (flush && os_fsync_threshold != 0) {
+      if ((current_size + n_bytes) / os_fsync_threshold !=
+          current_size / os_fsync_threshold) {
+        DBUG_EXECUTE_IF("flush_after_reaching_threshold",
+                        std::cerr << os_fsync_threshold
+                                  << " bytes being flushed at once"
+                                  << std::endl;);
+
+        bool ret = os_file_flush(file);
+
+        if (!ret) {
+          ut_free(buf2);
+          return (false);
+        }
+      }
     }
 
     current_size += n_bytes;
