@@ -24,6 +24,7 @@
 
 #include "my_inttypes.h"
 #include "mysql/components/services/log_builtins.h"
+#include "mysql/components/services/my_host_application_signal.h"
 #include "plugin/group_replication/include/plugin.h"
 
 using std::vector;
@@ -87,8 +88,8 @@ void log_primary_member_details() {
 
 void abort_plugin_process(const char *message) {
   LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_PLUGIN_ABORT, message);
-#if !defined(DBUG_OFF)
-  DBUG_SUICIDE();
-#endif
-  abort();
+  if (my_host_application_signal_shutdown(get_plugin_registry())) {
+    // If the shutdown failed then abort the server.
+    abort();
+  }
 }

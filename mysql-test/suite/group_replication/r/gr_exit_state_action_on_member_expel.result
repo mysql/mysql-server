@@ -16,6 +16,10 @@ DROP TABLE pid_table;
 call mtr.add_suppression("Member was expelled from the group due to network failures, changing member status to ERROR.");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
 call mtr.add_suppression("Fatal error during execution of Group Replication");
+call mtr.add_suppression("Error, maximum number of retries exceeded when waiting for the internal server session state to be operating");
+call mtr.add_suppression("Failed to establish an internal server connection to execute plugin operations");
+call mtr.add_suppression("On shutdown there was a timeout receiving a view change. This can lead to a possible inconsistent state. Check the log for more details");
+call mtr.add_suppression(".* read failed");
 SET SESSION sql_log_bin = 1;
 
 #########################################################################

@@ -23,14 +23,7 @@
 # 7) Cleanup.
 #
 ################################################################################
-# By including have_debug.inc we make sure that we are using the debug version
-# of the server. This is needed because in the debug version (the one without
-# DBUG_OFF defined) the abort_plugin_process() function calls DBUG_SUICIDE()
-# which does not send a SIGABRT to itself but a SIGKILL instead (and in this way
-# MTR won't assume the process crashed).
---source include/have_debug.inc
 --source include/big_test.inc
---source include/not_valgrind.inc
 --source include/have_group_replication_plugin.inc
 
 --echo

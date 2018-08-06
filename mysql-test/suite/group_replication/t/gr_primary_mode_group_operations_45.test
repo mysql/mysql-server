@@ -83,7 +83,9 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_read_mode_error';
 --source include/rpl_connection.inc
 
 set session sql_log_bin=0;
-call mtr.add_suppression("The plugin encountered a critical error and will abort: Cannot enable the super read only mode on a secondary member");
+call mtr.add_suppression("The plugin encountered a critical error and will abort: Cannot enable the super read only mode on a secondary member.*");
+call mtr.add_suppression("Error, maximum number of retries exceeded when waiting for the internal server session state to be operating");
+call mtr.add_suppression("Failed to establish an internal server connection to execute plugin operations");
 set session sql_log_bin=1;
 
 --let $rpl_group_replication_single_primary_mode=1

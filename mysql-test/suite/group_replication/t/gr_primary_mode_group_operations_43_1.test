@@ -36,6 +36,8 @@ set session sql_log_bin=0;
 call mtr.add_suppression("A configuration change was killed in this member. The member will now leave the group as its configuration may have diverged.");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 call mtr.add_suppression("The plugin encountered a critical error and will abort: Fatal error during a Group Replication configuration change. *");
+call mtr.add_suppression("Error while executing a group configuration operation: This operation ended in error as it was not possible to wait for the execution of the plugin queued transactions");
+
 set session sql_log_bin=1;
 
 SET @@GLOBAL.group_replication_exit_state_action = ABORT_SERVER;

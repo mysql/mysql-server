@@ -1703,6 +1703,8 @@ void set_single_primary_mode_var(bool option) {
   single_primary_mode_var = option;
 }
 
+SERVICE_TYPE(registry) * get_plugin_registry() { return reg_srv; }
+
 /*
   This method is used to accomplish the startup validations of the plugin
   regarding system configuration.

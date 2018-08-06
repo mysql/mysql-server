@@ -131,6 +131,7 @@ void set_enforce_update_everywhere_checks(bool option);
 void set_single_primary_mode_var(bool option);
 void set_auto_increment_handler_values();
 void reset_auto_increment_handler_values(bool force_reset = false);
+SERVICE_TYPE(registry) * get_plugin_registry();
 
 // Plugin public methods
 int plugin_group_replication_init(MYSQL_PLUGIN plugin_info);
