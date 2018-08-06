@@ -527,12 +527,16 @@ sub main {
     unshift(@$tests, $tinfo);
   }
 
+  my $num_tests = @$tests;
+  if ($num_tests == 0) {
+    mtr_report("No tests found, terminating");
+    exit(0);
+  }
+
   initialize_servers();
 
-  my $num_tests = @$tests;
-
   # Limit parallel workers to number of tests to avoid idle workers
-  $opt_parallel = $num_tests if ($num_tests > 0 and $opt_parallel > $num_tests);
+  $opt_parallel = $num_tests if $opt_parallel > $num_tests;
   $ENV{MTR_PARALLEL} = $opt_parallel;
   mtr_report("Using parallel: $opt_parallel");
 
