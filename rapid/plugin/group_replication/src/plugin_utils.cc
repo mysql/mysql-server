@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -85,4 +85,13 @@ void log_primary_member_details()
       delete primary_member_info;
     }
   }
+}
+
+void abort_plugin_process(const char *message)
+{
+  log_message(MY_ERROR_LEVEL, "The plugin encountered a critical error and will abort: %s", message);
+#if !defined(DBUG_OFF)
+  DBUG_SUICIDE();
+#endif
+  abort();
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,8 @@
 #include <mysql/group_replication_priv.h>
 
 void log_primary_member_details();
+
+void abort_plugin_process(const char *message);
 
 class Blocked_transaction_handler
 {

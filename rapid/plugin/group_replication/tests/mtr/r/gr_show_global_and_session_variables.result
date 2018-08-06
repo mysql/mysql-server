@@ -7,8 +7,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 include/start_and_bootstrap_group_replication.inc
 include/stop_group_replication.inc
 
-# Test#1: Basic check that there are 35 GR variables.
-include/assert.inc [There are 35 GR variables at present.]
+# Test#1: Basic check that there are 36 GR variables.
+include/assert.inc [There are 36 GR variables at present.]
 
 # Test#2: Verify that all the group replication variables are GLOBAL variables.
 SET @@SESSION.group_replication_allow_local_disjoint_gtids_join= 1;
@@ -75,6 +75,8 @@ SET @@SESSION.group_replication_unreachable_majority_timeout= 10240;
 ERROR HY000: Variable 'group_replication_unreachable_majority_timeout' is a GLOBAL variable and should be set with SET GLOBAL
 SET @@SESSION.group_replication_member_weight= 80;
 ERROR HY000: Variable 'group_replication_member_weight' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@SESSION.group_replication_exit_state_action= "READ_ONLY";
+ERROR HY000: Variable 'group_replication_exit_state_action' is a GLOBAL variable and should be set with SET GLOBAL
 Warnings:
 Warning	1681	'group_replication_allow_local_disjoint_gtids_join' is deprecated and will be removed in a future release.
 
@@ -210,6 +212,10 @@ include/assert.inc [Verify GLOBAL value of group_replication_member_weight]
 include/assert.inc [Verify GLOBAL value of group_replication_member_weight]
 include/assert.inc [Verify SESSION value of group_replication_member_weight]
 include/assert.inc [Verify SESSION value of group_replication_member_weight]
+include/assert.inc [Verify GLOBAL value of group_replication_exit_state_action]
+include/assert.inc [Verify GLOBAL value of group_replication_exit_state_action]
+include/assert.inc [Verify SESSION value of group_replication_exit_state_action]
+include/assert.inc [Verify SESSION value of group_replication_exit_state_action]
 
 # Clean up
 include/stop_group_replication.inc

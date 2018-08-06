@@ -1,0 +1,98 @@
+
+#########################################################################
+# 0) Setup group of 3 members (M1, M2 and M3).
+#########################################################################
+
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server2]
+[connection server2]
+SET sql_log_bin = 0;
+call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': Error 'Table 't1'*");
+call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': Worker [0-9] failed executing transaction*");
+call mtr.add_suppression("Error writing relay log configuration.");
+call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': ... The slave coordinator and worker threads are stopped,*");
+call mtr.add_suppression("Slave: Table 't1' already exists Error_code:*");
+call mtr.add_suppression("The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.");
+call mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.");
+call mtr.add_suppression("Unable to confirm whether the server has left the group or not. Check performance_schema.replication_group_members to check group membership information.");
+call mtr.add_suppression("There was a previous plugin error while the member joined the group. The member will now exit the group.");
+call mtr.add_suppression("On shutdown there was a timeout receiving a view change. This can lead to a possible inconsistent state. Check the log for more details");
+SET sql_log_bin = 1;
+
+#########################################################################
+# 1) Stop the applier on M2.
+#########################################################################
+
+[connection server2]
+include/gr_stop_applier_sql_thread.inc
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+
+#########################################################################
+# 2) Replicate TRX from M1 to M2 but without M2 applying it.
+#########################################################################
+
+[connection server1]
+CREATE TABLE t1 (a INT PRIMARY KEY);
+[connection server2]
+
+#########################################################################
+# 3) Stop GR on M2.
+#########################################################################
+
+include/stop_group_replication.inc
+
+#########################################################################
+# 4) Start GR on M2 again so he tries to join the group.
+#########################################################################
+
+SET SESSION sql_log_bin = 0;
+CREATE TABLE t1 (a INT PRIMARY KEY);
+SET SESSION sql_log_bin = 1;
+START GROUP_REPLICATION;
+Got one of the listed errors
+include/assert_grep.inc [The applier should error out trying to create an already existing table]
+include/assert_grep.inc [The applier should error out trying to create an already existing table]
+include/assert_grep.inc [The applier should error out trying to create an already existing table]
+include/gr_wait_for_member_state.inc
+[connection server1]
+include/rpl_gr_wait_for_number_of_members.inc
+
+#########################################################################
+# 5) Set group_replication_exit_state_action sysvar to ABORT_SERVER on
+# M2.
+#########################################################################
+
+[connection server2]
+SET @group_replication_exit_state_action_saved = @@GLOBAL.group_replication_exit_state_action;
+SET GLOBAL group_replication_exit_state_action = ABORT_SERVER;
+
+#########################################################################
+# 6) Start GR on M2 again, so he tries to join the group. M2 should
+# not abort.
+#########################################################################
+
+START GROUP_REPLICATION;
+Got one of the listed errors
+include/assert_grep.inc [The applier should error out trying to create an already existing table]
+include/assert_grep.inc [The applier should error out trying to create an already existing table]
+include/assert_grep.inc [The applier should error out trying to create an already existing table]
+include/gr_wait_for_member_state.inc
+[connection server1]
+include/rpl_gr_wait_for_number_of_members.inc
+
+#########################################################################
+# 7) Cleanup.
+#########################################################################
+
+[connection server1]
+DROP TABLE t1;
+[connection server2]
+SET SESSION sql_log_bin = 0;
+DROP TABLE t1;
+SET SESSION sql_log_bin = 1;
+SET GLOBAL group_replication_exit_state_action = @group_replication_exit_state_action_saved;
+include/group_replication_end.inc
