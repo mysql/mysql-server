@@ -375,8 +375,16 @@ int Recovery_state_transfer::establish_donor_connection() {
   while (error != 0 && !recovery_aborted) {
     mysql_mutex_lock(&donor_selection_lock);
 
+    DBUG_EXECUTE_IF("gr_reset_max_connection_attempts_to_donors", {
+      if (donor_connection_retry_count == 3) {
+        const char act[] =
+            "now signal signal.connection_attempt_3 wait_for "
+            "signal.reset_recovery_retry_count_done";
+        DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+      }
+    };);
     // max number of retries reached, abort
-    if (donor_connection_retry_count == max_connection_attempts_to_donors) {
+    if (donor_connection_retry_count >= max_connection_attempts_to_donors) {
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_MAXIMUM_CONNECTION_RETRIES_REACHED);
       mysql_mutex_unlock(&donor_selection_lock);
       DBUG_RETURN(error);
