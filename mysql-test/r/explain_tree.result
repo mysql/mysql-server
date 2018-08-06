@@ -451,3 +451,43 @@ EXPLAIN
 
 DROP TABLE t1;
 DROP TABLE t2;
+CREATE TABLE t1 (i INTEGER);
+CREATE TABLE t2 (i INTEGER);
+EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE (t1.i) IN (SELECT t2.i FROM t2);
+EXPLAIN
+-> Nested loop semijoin
+    -> Table scan on t1
+    -> Filter: (t2.i = t1.i)
+        -> Table scan on t2
+
+DROP TABLE t1, t2;
+CREATE TABLE t1 (pk INTEGER PRIMARY KEY, i INTEGER);
+CREATE TABLE t2 (pk INTEGER PRIMARY KEY, i INTEGER);
+CREATE TABLE t3 (i INTEGER);
+CREATE TABLE t4 (i INTEGER);
+INSERT INTO t1 VALUES (2, 3);
+INSERT INTO t2 VALUES (4, 5);
+EXPLAIN FORMAT=tree SELECT * FROM t1,t2 WHERE (t1.i) IN (SELECT t3.i FROM t3,t4) AND t1.pk = 2 AND t2.pk = 4;
+EXPLAIN
+-> Limit: 1 row(s)
+    -> Nested loop inner join
+        -> Filter: (t3.i = '3')
+            -> Table scan on t3
+        -> Table scan on t4
+
+DROP TABLE t1, t2, t3, t4;
+CREATE TABLE t1 (i INTEGER);
+CREATE TABLE t2 (i INTEGER);
+CREATE TABLE t3 (i INTEGER, j INTEGER);
+EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE t1.i IN ( SELECT i FROM t2 LEFT JOIN t3 USING (i) WHERE t3.j = 1234 OR t3.j IS NULL );
+EXPLAIN
+-> Nested loop semijoin
+    -> Table scan on t1
+    -> Filter: ((t3.j = 1234) or (t3.j is null))
+        -> Nested loop left join
+            -> Filter: (t2.i = t1.i)
+                -> Table scan on t2
+            -> Filter: (t2.i = t3.i)
+                -> Table scan on t3
+
+DROP TABLE t1, t2, t3;

@@ -467,13 +467,19 @@ int NestedLoopIterator::Read() {
     // An inner row has been found.
 
     if (m_join_type == JoinType::ANTI) {
-      // Anti-joins should stop scanning the inner side as soon as we see a row.
+      // Anti-joins should stop scanning the inner side as soon as we see a row,
+      // without returning that row.
       m_state = NEEDS_OUTER_ROW;
       continue;
     }
 
-    // We have a new row.
-    m_state = READING_INNER_ROWS;
+    // We have a new row. Semijoins should stop after the first row;
+    // regular joins (inner and outer) should go on to scan the rest.
+    if (m_join_type == JoinType::SEMI) {
+      m_state = NEEDS_OUTER_ROW;
+    } else {
+      m_state = READING_INNER_ROWS;
+    }
     return 0;
   }
 }
@@ -486,6 +492,8 @@ vector<string> NestedLoopIterator::DebugString() const {
       return {"Nested loop left join"};
     case JoinType::ANTI:
       return {"Nested loop anti-join"};
+    case JoinType::SEMI:
+      return {"Nested loop semijoin"};
     default:
       DBUG_ASSERT(false);
       return {"Nested loop <error>"};

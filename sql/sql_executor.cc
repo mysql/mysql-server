@@ -1187,8 +1187,8 @@ unique_ptr_destroy_only<RowIterator> CreateNestedLoopIterator(
     THD *thd, unique_ptr_destroy_only<RowIterator> left_iterator,
     unique_ptr_destroy_only<RowIterator> right_iterator, JoinType join_type,
     bool pfs_batch_mode) {
-  if (join_type == JoinType::ANTI) {
-    // This does not make sense as an optimization for antijoins.
+  if (join_type == JoinType::ANTI || join_type == JoinType::SEMI) {
+    // This does not make sense as an optimization for anti- or semijoins.
     pfs_batch_mode = false;
   }
 
@@ -1235,6 +1235,12 @@ static Item_func_trig_cond *GetTriggerCondOrNull(Item *item) {
     return nullptr;
   }
 }
+
+enum CallingContext {
+  TOP_LEVEL,
+  DIRECTLY_UNDER_SEMIJOIN,
+  DIRECTLY_UNDER_OUTER_JOIN
+};
 
 /**
   For historical reasons, derived table materialization and temporary
@@ -1365,8 +1371,8 @@ void SplitConditions(Item *condition, vector<Item *> *predicates_below_join,
 
 /**
   For a given slice of the table list, build up the iterator tree corresponding
-  to the tables in that slice. Currently only handles inner and outer joins,
-  not semijoins (“first match”).
+  to the tables in that slice. It handles inner and outer joins, as well as
+  semijoins (“first match”).
 
   The join tree in MySQL is generally a left-deep tree of inner joins,
   so we can start at the left, make an inner join against the next table,
@@ -1376,6 +1382,17 @@ void SplitConditions(Item *condition, vector<Item *> *predicates_below_join,
   set in some, but not all, of the other tables in the slice.) If so, we call
   ourselves recursively with that slice, put it as the right (inner) arm of
   an outer join, and then continue with our inner join.
+
+  Similarly, if a table N has set “first match” to table M (ie., jump back to
+  table M whenever we see a non-filtered record in table N), then there is a
+  subslice from [M+1,N] that we need to process recursively before putting it
+  as the right side of a semijoin. Every semijoin can be implemented with a
+  LIMIT 1, but for clarity and performance, we prefer to use a NestedLoopJoin
+  with a special SEMI join type whenever possible. Sometimes, we have no choice,
+  though (see the comments below). Note that we cannot use first_sj_inner() for
+  detecting semijoins, as it is not updated when tables are reordered by the
+  join optimizer. Outer joins and semijoins can nest, so we need to take some
+  care to make sure that we pick the outermost structure to recurse on.
 
   Conditions are a bit tricky. Conceptually, SQL evaluates conditions only
   after all tables have been joined; however, for efficiency reasons, we want
@@ -1390,6 +1407,10 @@ void SplitConditions(Item *condition, vector<Item *> *predicates_below_join,
     tree for (exclusive)
   @param qep_tabs the full list of tables we are joining
   @param thd the THD to allocate the iterators on
+  @param calling_context what situation we have immediately around is in the
+    tree (ie., whether we are called to resolve the inner part of an outer
+    join, a semijoin, etc.); mostly used to avoid infinite recursion where we
+    would process e.g. the same semijoin over and over again
   @param pending_conditions if nullptr, we are not at the right (inner) side of
     any outer join and can evaluate conditions immediately. If not, we need to
     push any WHERE predicates to that vector and evaluate them only after joins.
@@ -1400,6 +1421,7 @@ void SplitConditions(Item *condition, vector<Item *> *predicates_below_join,
  */
 static unique_ptr_destroy_only<RowIterator> ConnectJoins(
     plan_idx first_idx, plan_idx last_idx, QEP_TAB *qep_tabs, THD *thd,
+    CallingContext calling_context,
     vector<PendingCondition> *pending_conditions,
     vector<PendingInvalidator> *pending_invalidators) {
   DBUG_ASSERT(last_idx > first_idx);
@@ -1410,12 +1432,13 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
   // A special case: If we are at the top but the first table is an outer
   // join, we implicitly have one or more const tables to the left side
   // of said join.
-  bool is_top_level_outer_join = false;
+  bool is_top_level_outer_join =
+      calling_context == TOP_LEVEL &&
+      qep_tabs[first_idx].last_inner() != NO_PLAN_IDX;
+
   vector<PendingCondition> top_level_pending_conditions;
   vector<PendingInvalidator> top_level_pending_invalidators;
-  if (pending_conditions == nullptr &&
-      qep_tabs[first_idx].last_inner() != NO_PLAN_IDX) {
-    is_top_level_outer_join = true;
+  if (is_top_level_outer_join) {
     iterator.reset(new (thd->mem_root)
                        FakeSingleRowIterator(thd, /*examined_rows=*/nullptr));
     pending_conditions = &top_level_pending_conditions;
@@ -1425,26 +1448,84 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
   // NOTE: i is advanced in in one of two ways:
   //
   //  - If we have an inner join, it will be incremented near the bottom of the
-  //  loop,
-  //    as we can process inner join tables one by one.
-  //  - If not (ie., we have an outer join), we will process the sub-join
-  //  recursively,
-  //    and thus move it past the end of said sub-join.
+  //    loop, as we can process inner join tables one by one.
+  //  - If not (ie., we have an outer join or semijoin), we will process
+  //    the sub-join recursively, and thus move it past the end of said
+  //    sub-join.
   for (plan_idx i = first_idx; i < last_idx;) {
     QEP_TAB *qep_tab = &qep_tabs[i];
 
-    if (iterator != nullptr && qep_tab->last_inner() != NO_PLAN_IDX) {
-      // Outer join, consisting of a subtree (possibly of only one table),
-      // so we send the entire subtree down to a recursive invocation
+    bool is_outer_join = qep_tab->last_inner() != NO_PLAN_IDX &&
+                         qep_tab->last_inner() < last_idx;
+    plan_idx outer_join_end =
+        qep_tab->last_inner() + 1;  // Only valid if is_outer_join.
+
+    // See if this table marks the end of the left side of a semijoin.
+    bool is_semijoin = false;
+    plan_idx semijoin_end = NO_PLAN_IDX;
+    for (plan_idx j = i; j < last_idx; ++j) {
+      if (qep_tabs[j].firstmatch_return == i - 1) {
+        is_semijoin = true;
+        semijoin_end = j + 1;
+        break;
+      }
+    }
+
+    // Occasionally, a subslice may be designated as the right side of both a
+    // semijoin _and_ an outer join. This is a fairly odd construction,
+    // as it means exactly one row is generated no matter what (negating the
+    // point of a semijoin in the first place), and typically happens as the
+    // result of the join optimizer reordering tables that have no real bearing
+    // on the query, such as ... WHERE t1 IN ( t2.i FROM t2 LEFT JOIN t3 )
+    // with the ordering t2, t1, t3 (t3 will now be in such a situation).
+    //
+    // Nominally, these tables should be optimized away, but this is not the
+    // right place for that, so we solve it by adding a LIMIT 1 and then
+    // treating the slice as a normal outer join.
+    bool add_limit_1 = false;
+    if (is_semijoin && is_outer_join && semijoin_end == outer_join_end) {
+      add_limit_1 = true;
+      is_semijoin = false;
+    }
+
+    // We may have detected both a semijoin and an outer join starting at
+    // this table. Decide which one is the outermost that is not already
+    // processed, so that we recurse in the right order.
+    if (calling_context == DIRECTLY_UNDER_SEMIJOIN && i == first_idx &&
+        semijoin_end == last_idx) {
+      is_semijoin = false;
+    } else if (calling_context == DIRECTLY_UNDER_OUTER_JOIN && i == first_idx &&
+               outer_join_end == last_idx) {
+      is_outer_join = false;
+    }
+    if (is_semijoin && is_outer_join) {
+      if (outer_join_end > semijoin_end) {
+        is_semijoin = false;
+      } else if (semijoin_end > outer_join_end) {
+        is_outer_join = false;
+      } else {
+        DBUG_ASSERT(false);
+      }
+    }
+
+    if (is_outer_join || is_semijoin) {
+      // Outer or semijoin, consisting of a subtree (possibly of only one
+      // table), so we send the entire subtree down to a recursive invocation
       // and then join the returned root into our existing tree.
+      const plan_idx join_end = is_semijoin ? semijoin_end : outer_join_end;
       unique_ptr_destroy_only<RowIterator> subtree_iterator;
       vector<PendingCondition> subtree_pending_conditions;
       vector<PendingInvalidator> subtree_pending_invalidators;
-      if (pending_conditions != nullptr) {
+      if (is_semijoin) {
+        // Semijoins don't have special handling of WHERE, so simply recurse.
+        subtree_iterator =
+            ConnectJoins(i, join_end, qep_tabs, thd, DIRECTLY_UNDER_SEMIJOIN,
+                         pending_conditions, pending_invalidators);
+      } else if (pending_conditions != nullptr) {
         // We are already on the right (inner) side of an outer join,
         // so we need to keep deferring WHERE predicates.
         subtree_iterator =
-            ConnectJoins(i, qep_tab->last_inner() + 1, qep_tabs, thd,
+            ConnectJoins(i, join_end, qep_tabs, thd, DIRECTLY_UNDER_OUTER_JOIN,
                          pending_conditions, pending_invalidators);
 
         // Pick out any conditions that should be directly above this join
@@ -1472,9 +1553,9 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       } else {
         // We can check the WHERE predicates on this table right away
         // after the join (and similarly, set up invalidators).
-        subtree_iterator = ConnectJoins(i, qep_tab->last_inner() + 1, qep_tabs,
-                                        thd, &subtree_pending_conditions,
-                                        &subtree_pending_invalidators);
+        subtree_iterator = ConnectJoins(
+            i, join_end, qep_tabs, thd, DIRECTLY_UNDER_OUTER_JOIN,
+            &subtree_pending_conditions, &subtree_pending_invalidators);
       }
 
       JoinType join_type;
@@ -1483,15 +1564,37 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
         // anti-join optimizations if we are not already on the right (inner)
         // side of another outer join. Otherwise, we would cause the higher-up
         // outer join to create NULL rows where there should be none.
+        DBUG_ASSERT(!is_semijoin);
         join_type =
             (pending_conditions == nullptr) ? JoinType::ANTI : JoinType::OUTER;
       } else {
-        join_type = JoinType::OUTER;
+        join_type = is_semijoin ? JoinType::SEMI : JoinType::OUTER;
       }
 
-      iterator = CreateNestedLoopIterator(
-          thd, move(iterator), move(subtree_iterator), join_type,
-          qep_tab->pfs_batch_update(qep_tab->join()));
+      // If the entire slice is a semijoin (e.g. because we are semijoined
+      // against all the const tables, or because we're a semijoin within an
+      // outer join), solve it by using LIMIT 1.
+      //
+      // If the entire slice is an outer join, we've solved that in a more
+      // roundabout way; see is_top_level_outer_join above.
+      if (iterator == nullptr) {
+        DBUG_ASSERT(is_semijoin);
+        add_limit_1 = true;
+      }
+
+      if (add_limit_1) {
+        subtree_iterator.reset(new (thd->mem_root) LimitOffsetIterator(
+            thd, move(subtree_iterator), /*limit=*/1, /*offset=*/0,
+            /*count_all_rows=*/false, /*skipped_rows=*/nullptr));
+      }
+
+      if (iterator == nullptr) {
+        iterator = move(subtree_iterator);
+      } else {
+        iterator = CreateNestedLoopIterator(
+            thd, move(iterator), move(subtree_iterator), join_type,
+            qep_tab->pfs_batch_update(qep_tab->join()));
+      }
 
       iterator = PossiblyAttachFilterIterator(move(iterator),
                                               subtree_pending_conditions, thd);
@@ -1505,7 +1608,7 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
             CreateInvalidatorIterator(thd, invalidator.qep_tab, move(iterator));
       }
 
-      i = qep_tab->last_inner() + 1;
+      i = join_end;
       continue;
     }
 
@@ -1603,7 +1706,8 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       // each new row on the left side of the join, so it's probably not worth
       // it.
       if (qep_tab->not_used_in_distinct && pending_conditions == nullptr &&
-          i == static_cast<plan_idx>(qep_tab->join()->primary_tables - 1)) {
+          i == static_cast<plan_idx>(qep_tab->join()->primary_tables - 1) &&
+          !add_limit_1) {
         table_iterator.reset(new (thd->mem_root) LimitOffsetIterator(
             thd, move(table_iterator), /*limit=*/1, /*offset=*/0,
             /*count_all_rows=*/false, /*skipped_rows=*/nullptr));
@@ -1657,7 +1761,8 @@ void JOIN::create_iterators() {
 
   // The new executor engine can't do materialized tables (except
   // materialized derived tables in some cases, and materialization
-  // at the very end), recursive CTEs, semijoins, loose scan or BNL/BKA.
+  // at the very end), recursive CTEs, some forms of semijoins,
+  // loose scan or BNL/BKA.
   // Revert to the old one if they show up.
   for (unsigned table_idx = const_tables; table_idx < tables; ++table_idx) {
     QEP_TAB *qep_tab = &this->qep_tab[table_idx];
@@ -1707,9 +1812,8 @@ void JOIN::create_iterators() {
       // Recursive CTE.
       return;
     }
-    if (qep_tab->do_firstmatch() || qep_tab->do_loosescan() ||
-        qep_tab->starts_weedout() || qep_tab->finishes_weedout() ||
-        qep_tab->needs_duplicate_removal) {
+    if (qep_tab->do_loosescan() || qep_tab->starts_weedout() ||
+        qep_tab->finishes_weedout() || qep_tab->needs_duplicate_removal) {
       return;
     }
   }
@@ -1748,8 +1852,8 @@ void JOIN::create_iterators() {
                                               vector<Item *>{where_cond}, thd);
     }
   } else {
-    iterator = ConnectJoins(const_tables, primary_tables, qep_tab, thd, nullptr,
-                            nullptr);
+    iterator = ConnectJoins(const_tables, primary_tables, qep_tab, thd,
+                            TOP_LEVEL, nullptr, nullptr);
   }
 
   // Deal with any materialization happening at the end (typically for sorting,
