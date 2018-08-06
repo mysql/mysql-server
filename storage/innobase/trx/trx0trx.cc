@@ -2546,11 +2546,11 @@ static void trx_prepare(trx_t *trx) /*!< in/out: transaction */
   Recovered transactions cannot. */
   ut_a(!trx->is_recovered);
 
+  DBUG_EXECUTE_IF("ib_trx_crash_during_xa_prepare_step", DBUG_SUICIDE(););
+
   if (trx->rsegs.m_redo.rseg != NULL && trx_is_redo_rseg_updated(trx)) {
     lsn = trx_prepare_low(trx, &trx->rsegs.m_redo, false);
   }
-
-  DBUG_EXECUTE_IF("ib_trx_crash_during_xa_prepare_step", DBUG_SUICIDE(););
 
   if (trx->rsegs.m_noredo.rseg != NULL && trx_is_temp_rseg_updated(trx)) {
     trx_prepare_low(trx, &trx->rsegs.m_noredo, true);
