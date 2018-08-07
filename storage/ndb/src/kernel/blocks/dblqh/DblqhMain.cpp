@@ -13124,6 +13124,8 @@ Dblqh::next_scanconf_tupkeyreq(Signal* signal,
     const Uint32 transId1 = regTcPtr->transid[0];
     const Uint32 transId2 = regTcPtr->transid[1];
 
+    tupKeyReq->deferred_constraints = 0;
+    tupKeyReq->disable_fk_checks = 0;
     tupKeyReq->triggers =
       (regTcPtr->m_flags & TcConnectionrec::OP_NO_TRIGGERS) ?
       TupKeyReq::OP_NO_TRIGGERS :

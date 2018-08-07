@@ -866,11 +866,21 @@ struct Operationrec {
      *         sent as an event. Example op is OPTIMIZE table,
      *         which uses ZUPDATE to move varpart values physically.
      */
+    unsigned int m_triggers : 2;
+
+    /*
+     * The TupKeyReq requested the after<Op>Triggers to be deferred.
+     * Thus, the *constraints* defined in this trigger list should be
+     * deferred until FIRE_TRIG_REQ arrives.
+     * Note that this does not affect the triggers *declared* as deferred
+     * ('no action') which are managed in the deferred<Op>Triggers and
+     * always deferred until commit time (FIRE_TRIG_REQ)
+     */
+    unsigned int m_deferred_constraints : 1;
 
     /* No foreign keys should be checked for this operation.
      * No fk triggers will be fired.  
      */
-    unsigned int m_triggers : 2;
     unsigned int m_disable_fk_checks : 1;
     unsigned int m_tuple_existed_at_start : 1;
   };
