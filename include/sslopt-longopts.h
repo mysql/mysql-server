@@ -173,7 +173,7 @@
      0},
     {"ssl-fips-mode",
      OPT_SSL_FIPS_MODE,
-     "SSL FIPS mode to use, "
+     "SSL FIPS mode (applies only for OpenSSL); "
 #ifndef HAVE_WOLFSSL
      "permitted values are: OFF, ON, STRICT",
 #else
