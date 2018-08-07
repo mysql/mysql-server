@@ -8,19 +8,19 @@
 
 # 1. Repeat of daily runs
 # Default suites (in modes binlog format stmt/mixed/row)
-perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=normal-debug-big  --vardir=var-normal-debug-big  --report-features --mysqld=--innodb_autoextend_increment=64 --unit-tests-report --skip-ndb
+perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90 --debug-server --parallel=auto --comment=normal-debug-big  --vardir=var-normal-debug-big  --report-features --mysqld=--innodb_autoextend_increment=64 --unit-tests-report --skip-ndb
 # ps-protocol
-perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=ps-debug-big --vardir=var-ps-debug-big  --ps-protocol --skip-ndb
+perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90 --debug-server --parallel=auto --comment=ps-debug-big --vardir=var-ps-debug-big  --ps-protocol --skip-ndb
 
 # 2. Run the ndbcluster suite only(separately for better report in the CI tool).
-perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=ndbcluster --vardir=var-ndbcluster --suite=ndbcluster
+perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90 --debug-server --parallel=auto --comment=ndbcluster --vardir=var-ndbcluster --suite=ndbcluster
 # ps-protocol
-perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=ndbcluster_ps --vardir=var-ndbcluster-ps --ps-protocol --suite=ndbcluster
+perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90 --debug-server --parallel=auto --comment=ndbcluster_ps --vardir=var-ndbcluster-ps --ps-protocol --suite=ndbcluster
 
 # 3. Run the suites that are not part of the default - funcs_2, stress, jp, nist
-perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=60 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=funcs2-debug  --vardir=var-funcs2-big  --suite=funcs_2
-perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=stress-debug-big --vardir=var-stress-debug-big  --suite=stress
-perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=jp-debug-big --vardir=var-jp-debug-big --suite=jp
-perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=nist-debug-big --vardir=var-nist-debug-big --suite=nist
-perl mysql-test-run.pl --force --timer --testcase-timeout=60 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=nist+ps-debug --vardir=var-ps_nist-debug  --suite=nist  --ps-protocol
+perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=60 --debug-server --parallel=auto --comment=funcs2-debug  --vardir=var-funcs2-big  --suite=funcs_2
+perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60 --debug-server --parallel=auto --comment=stress-debug-big --vardir=var-stress-debug-big  --suite=stress
+perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60 --debug-server --parallel=auto --comment=jp-debug-big --vardir=var-jp-debug-big --suite=jp
+perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60 --debug-server --parallel=auto --comment=nist-debug-big --vardir=var-nist-debug-big --suite=nist
+perl mysql-test-run.pl --force --timer --testcase-timeout=60 --debug-server --parallel=auto --comment=nist+ps-debug --vardir=var-ps_nist-debug  --suite=nist  --ps-protocol
 

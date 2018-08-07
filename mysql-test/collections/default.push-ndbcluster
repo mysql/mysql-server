@@ -4,42 +4,42 @@
 # in the mysql database. This test run detects typical problems caused by these
 # additions. This should be the _identical_ and same 'all-default-debug' as on
 # the other builds making it easy to compare and spot any differences.
-perl mysql-test-run.pl --timer --debug-server --force --parallel=auto --comment=all-default-debug --vardir=var-all-default --skip-combinations --experimental=collections/default.experimental --unit-tests-report --no-skip --skip-ndb
+perl mysql-test-run.pl --timer --debug-server --force --parallel=auto --comment=all-default-debug --vardir=var-all-default --skip-combinations --unit-tests-report --no-skip --skip-ndb
 
 # Run the ndbcluster suite only(separately for better report in the CI tool).
-perl mysql-test-run.pl --timer --force --parallel=auto --comment=ndbcluster --vardir=var-ndbcluster --experimental=collections/default.experimental --suite=ndbcluster
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=ndbcluster --vardir=var-ndbcluster --suite=ndbcluster
 
 # Run the gcol_ndb suite only(separately for better report in the CI tool).
 # The tests in the gcol_ndb suite use the include files present in the gcol
 # suite.
-perl mysql-test-run.pl --timer --force --parallel=auto --comment=gcol_ndb --vardir=var-gcol-ndb --experimental=collections/default.experimental --suite=gcol_ndb
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=gcol_ndb --vardir=var-gcol-ndb --suite=gcol_ndb
 
 # Run the NDB memcache plugin tests.
-perl mysql-test-run.pl --timer --force --parallel=auto --comment=ndb_memcache --vardir=var-memc-ndb --experimental=collections/default.experimental --suite=ndb_memcache
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=ndb_memcache --vardir=var-memc-ndb --suite=ndb_memcache
 
 # Run the meb and meb_ptr suites
-perl mysql-test-run.pl --timer --force --parallel=auto --comment=MEB --vardir=var-meb --experimental=collections/default.experimental --suite=meb,meb_ptr
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=MEB --vardir=var-meb --suite=meb,meb_ptr
 
 # Run the group_replication suite
-perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication --vardir=var-group_replication --suite=group_replication --experimental=collections/default.experimental
+perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication --vardir=var-group_replication --suite=group_replication
 
 # Run the audit_log suite
-perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=audit_log --vardir=var_audit_log --suite=audit_log --experimental=collections/default.experimental  --max-test-fail=0
+perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=audit_log --vardir=var_audit_log --suite=audit_log  --max-test-fail=0
 
 # Run the clone suite
-perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=clone-debug --vardir=var-clone-debug --suite=clone --experimental=collections/default.experimental
+perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=clone-debug --vardir=var-clone-debug --suite=clone
 
 # Run the firewall suite
-perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=firewall --vardir=var_firewall --suite=firewall --experimental=collections/default.experimental  --max-test-fail=0
+perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=firewall --vardir=var_firewall --suite=firewall  --max-test-fail=0
 
 # Run the authentication_ldap suite
-perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=ldap --vardir=var-ldap --suite=authentication_ldap --experimental=collections/default.experimental --max-test-fail=0
+perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=ldap --vardir=var-ldap --suite=authentication_ldap --max-test-fail=0
 
 # Run the openssl_udf suite
-perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=openssl_udf --vardir=var_openssl_udf --suite=openssl_udf --experimental=collections/default.experimental  --max-test-fail=0
+perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=openssl_udf --vardir=var_openssl_udf --suite=openssl_udf  --max-test-fail=0
 
 # Run the thread_pool suite
-perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=thread_pool --vardir=var-thread_pool --suite=thread_pool --experimental=collections/default.experimental  --max-test-fail=0
+perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=thread_pool --vardir=var-thread_pool --suite=thread_pool  --max-test-fail=0
 
 # Run the windows-authentication-plugin suite
-perl mysql-test-run.pl --timer --force --parallel=auto --comment=windows-authentication-plugin --vardir=var-windows-authentication-plugin --suite=windows-authentication-plugin --experimental=collections/default.experimental  --max-test-fail=0
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=windows-authentication-plugin --vardir=var-windows-authentication-plugin --suite=windows-authentication-plugin  --max-test-fail=0
