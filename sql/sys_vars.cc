@@ -4131,7 +4131,12 @@ static const char *ssl_fips_mode_names[] = {"OFF", "ON", "STRICT", 0};
 #endif
 static Sys_var_enum Sys_ssl_fips_mode(
     "ssl_fips_mode",
-    "ssl fips mode, permitted values are OFF, ON, STRICT (Only for openssl)",
+    "SSL FIPS mode (applies only for OpenSSL); "
+#ifndef HAVE_WOLFSSL
+    "permitted values are: OFF, ON, STRICT",
+#else
+    "permitted values are: OFF",
+#endif
     GLOBAL_VAR(opt_ssl_fips_mode), SSL_OPT(OPT_SSL_FIPS_MODE),
     ssl_fips_mode_names, DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(NULL),
