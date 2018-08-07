@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -766,6 +766,7 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
      op_struct.op_bit_fields = regOperPtr->op_struct.op_bit_fields;
      const Uint32 TrequestInfo= tupKeyReq->request;
      const Uint32 disable_fk_checks = tupKeyReq->disable_fk_checks;
+     const Uint32 deferred_constraints = tupKeyReq->deferred_constraints;
      const Uint32 triggers = tupKeyReq->triggers;
 
      regOperPtr->m_copy_tuple_location.setNull();
@@ -773,6 +774,7 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
      op_struct.bit_field.m_gci_written = 0;
      op_struct.bit_field.m_triggers = triggers;
      op_struct.bit_field.m_disable_fk_checks = disable_fk_checks;
+     op_struct.bit_field.m_deferred_constraints = deferred_constraints;
      op_struct.bit_field.m_reorg = TupKeyReq::getReorgFlag(TrequestInfo);
      op_struct.bit_field.tupVersion= ZNIL;
 
