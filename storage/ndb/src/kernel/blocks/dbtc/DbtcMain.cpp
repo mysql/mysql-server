@@ -5801,10 +5801,6 @@ void Dbtc::diverify010Lab(Signal* signal)
                         (ApiConnectRecord::TF_INDEX_OP_RETURN |
                          ApiConnectRecord::TF_TRIGGER_PENDING)));
 
-  ndbassert(!tc_testbit(regApiPtr->m_flags,
-                        (ApiConnectRecord::TF_INDEX_OP_RETURN |
-                         ApiConnectRecord::TF_TRIGGER_PENDING)));
-
   if (regApiPtr->lqhkeyreqrec)
   {
     if (TfirstfreeApiConnectCopy != RNIL) {
@@ -16774,15 +16770,19 @@ void Dbtc::execDROP_TRIG_IMPL_REQ(Signal* signal)
   const Uint32 senderRef = req->senderRef;
   const Uint32 senderData = req->senderData;
 
+  /* Using a IgnoreAlloc variant of getPtr to make the lookup safe.
+   * The validity of the trigger should be checked subsequently.
+   */
   DefinedTriggerPtr triggerPtr;
   triggerPtr.i = req->triggerId;
+  c_theDefinedTriggers.getPool().getPtrIgnoreAlloc(triggerPtr);
 
-  if (ERROR_INSERTED(8035) ||
-      ((triggerPtr.p = c_theDefinedTriggers.getPtr(req->triggerId)) == NULL))
+  // If triggerIds don't match, the trigger has probably already been dropped.
+  if (triggerPtr.p->triggerId != req->triggerId || ERROR_INSERTED(8035))
   {
     jam();
     CLEAR_ERROR_INSERT_VALUE;
-    // Failed to find find trigger record
+    // Failed to find trigger record
     DropTrigImplRef* ref = (DropTrigImplRef*)signal->getDataPtrSend();
 
     ref->senderRef = reference();
@@ -16820,7 +16820,8 @@ void Dbtc::execDROP_TRIG_IMPL_REQ(Signal* signal)
     c_theDefinedTriggers.release(triggerPtr.p->oldTriggerIds[1]);
   }
 
-  // Release trigger record
+  // Mark trigger record as dropped/invalid and release it
+  triggerPtr.p->triggerId = 0xffffffff;
   c_theDefinedTriggers.release(triggerPtr);
 
   DropTrigImplConf* conf = (DropTrigImplConf*)signal->getDataPtrSend();
@@ -18915,7 +18916,7 @@ void Dbtc::executeTriggers(Signal* signal, ApiConnectRecordPtr* transPtr)
       }
       return;
       // No more triggers, continue transaction after last executed trigger has
-      // reurned (in execLQHKEYCONF or execLQHKEYREF)
+      // returned (in execLQHKEYCONF or execLQHKEYREF)
     } else {
 
       jam();
@@ -18970,12 +18971,17 @@ bool Dbtc::executeTrigger(Signal* signal,
                           ApiConnectRecordPtr* transPtr,
                           TcConnectRecordPtr* opPtr)
 {
-  TcDefinedTriggerData* definedTriggerData;
+  /* Using a IgnoreAlloc variant of getPtr to make the lookup safe.
+   * The validity of the trigger should be checked subsequently.
+   */
+  DefinedTriggerPtr definedTriggerPtr;
+  definedTriggerPtr.i = firedTriggerData->triggerId;
+  c_theDefinedTriggers.getPool().getPtrIgnoreAlloc(definedTriggerPtr);
 
-  if ((definedTriggerData = 
-       c_theDefinedTriggers.getPtr(firedTriggerData->triggerId)) 
-      != NULL)
+  // If triggerIds don't match, the trigger has been dropped -> skip trigger exec.
+  if (likely(definedTriggerPtr.p->triggerId == firedTriggerData->triggerId))
   {
+    TcDefinedTriggerData* const definedTriggerData = definedTriggerPtr.p;
     transPtr->p->pendingTriggers--;
     switch(firedTriggerData->triggerType) {
     case(TriggerType::SECONDARY_INDEX):
