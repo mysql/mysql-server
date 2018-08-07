@@ -4662,6 +4662,11 @@
       <tt>`--nowarnings`</tt>
 
       Do not look for and report errors and warning in the server logs.
+
+      @note
+      In addition to being passed as a command-line option,
+      <b>`--nowarnings`</b> can also be passed in the <b>.opt</b> file of
+      a test case.
     </li>
 
     <li>
