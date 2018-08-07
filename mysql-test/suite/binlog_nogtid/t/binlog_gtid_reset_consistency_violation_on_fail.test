@@ -1,0 +1,70 @@
+# ==== Purpose ====
+#
+# The purpose of this test is to ensure that the server properly restores a
+# previous state or preserves a new state, for GTID consistency violation,
+# whenever a statement execution succeeds or fails.
+#
+# ==== Requirements ====
+#
+# R1. If a statement fails to execute successfully, the overall state observed
+#     prior to the statement execution must be kept after the failure.
+# R2. If a statement executes successfully, the overall state observed after the
+#     statement execution must be kept.
+#
+# ==== Implementation ====
+#
+# -- TEST CASES --
+#
+# TC1. Test if GTID consistency state is rolled back after failure
+# ----------------------------------------------------------------
+# 1) Place an XA transaction in the prepare state.
+# 2) Try to create a temporary table.
+# 3) Test if the execution state prior to the failure is restored, using
+#    DEBUG_SYNC.
+# 4) Commit the transaction.
+#
+# TC2. Test if GTID consistency state is persisted after success
+# --------------------------------------------------------------
+# 1) Try to create a temporary table.
+# 2) Test if the execution state after the successful execution is persisted,
+#    using DEBUG_SYNC.
+#
+# ==== References ====
+#
+# BUG#27903831 [MYSQL 8.0 GA DEBUG BUILD] ASSERTION
+# `!THD->HAS_GTID_CONSISTENCY_VIOLATION
+
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_binlog_format_statement.inc
+
+--echo # TC1. Test if GTID consistency state is rolled back after failure
+--echo # ----------------------------------------------------------------
+# 1) Place an XA transaction in the prepare state.
+XA START 'xa1';
+XA END 'xa1';
+XA PREPARE 'xa1';
+SET DEBUG_SYNC='restore_previous_state_after_statement_failed SIGNAL failure';
+# 2) Try to create a temporary table.
+--error ER_XAER_RMFAIL
+CREATE TEMPORARY TABLE t1 (c INT) ENGINE=InnoDB;
+# 3) Test if the `Rpl_state_guard` instance restored the execution state prior
+#    to the failure, using DEBUG_SYNC.
+SET DEBUG_SYNC='now WAIT_FOR failure';
+# 4) Commit the transaction.
+SET @@SESSION.GTID_NEXT='ANONYMOUS';
+XA COMMIT 'xa1';
+
+--echo # TC2. Test if GTID consistency state is persisted after success
+--echo # --------------------------------------------------------------
+SET DEBUG_SYNC='persist_new_state_after_statement_succeeded SIGNAL success';
+# 1) Try to create a temporary table.
+CREATE TEMPORARY TABLE t1 (c INT) ENGINE=InnoDB;
+# 2) Test if the `Rpl_state_guard` instance persisted the execution state after
+#    the successful execution, using DEBUG_SYNC.
+SET DEBUG_SYNC='now WAIT_FOR success';
+#
+
+DROP TABLE t1;
+SET DEBUG_SYNC='RESET';
