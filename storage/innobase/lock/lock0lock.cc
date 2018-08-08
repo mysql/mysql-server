@@ -4377,8 +4377,11 @@ void lock_trx_release_read_locks(trx_t *trx, bool only_gap) {
     /* Release GAP lock from Next Key lock */
     lock_remove_gap_lock(lock);
 
-    /* Grant locks */
-    lock_rec_grant(lock, false);
+    /* Grant locks. Current CATS implementation does not grant locks for records
+    for which the bit is already cleared in the bitmap, and lock_remove_gap_lock
+    might have reset the PAGE_HEAP_NO_SUPREMUM-th bit. So, to ensure that trxs
+    waiting for lock on supremum are properly woken up we need to use FCFS. */
+    lock_rec_grant(lock, true);
 
     lock = next_lock;
 
