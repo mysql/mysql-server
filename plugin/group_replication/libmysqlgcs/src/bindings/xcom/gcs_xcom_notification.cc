@@ -87,17 +87,19 @@ void Status_notification::do_execute() { (*m_functor)(m_status); }
 
 Global_view_notification::Global_view_notification(
     xcom_global_view_functor *functor, synode_no config_id,
-    synode_no message_id, Gcs_xcom_nodes *xcom_nodes)
+    synode_no message_id, Gcs_xcom_nodes *xcom_nodes,
+    xcom_event_horizon event_horizon)
 
     : m_functor(functor),
       m_config_id(config_id),
       m_message_id(message_id),
-      m_xcom_nodes(xcom_nodes) {}
+      m_xcom_nodes(xcom_nodes),
+      m_event_horizon(event_horizon) {}
 
 Global_view_notification::~Global_view_notification() {}
 
 void Global_view_notification::do_execute() {
-  (*m_functor)(m_config_id, m_message_id, m_xcom_nodes);
+  (*m_functor)(m_config_id, m_message_id, m_xcom_nodes, m_event_horizon);
 }
 
 Local_view_notification::Local_view_notification(
