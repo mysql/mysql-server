@@ -5061,8 +5061,13 @@ st_init_objects(ST_Con& c, NDBT_Context* ctx)
     const char** indspec = NDBT_Tables::getIndexes(tab.name);
 
     while (indspec != 0 && *indspec != 0) {
-      char ind_name[ST_MAX_NAME_SIZE + 20];
-      sprintf(ind_name, "%sX%d", tab.name, tab.indcount);
+      char ind_name[ST_MAX_NAME_SIZE];
+      int ind_len = snprintf(ind_name,
+                             ST_MAX_NAME_SIZE,
+                             "%sX%d",
+                             tab.name,
+                             tab.indcount);
+      require(ind_len < ST_MAX_NAME_SIZE);
       tab.indlist->push_back(new ST_Ind("sys", ind_name));
       ST_Ind& ind = *tab.indlist->back();
       ind.tab = &tab;
@@ -5077,8 +5082,12 @@ st_init_objects(ST_Con& c, NDBT_Context* ctx)
         pInd->setType((NdbDictionary::Index::Type)ind.type);
         tab.induniquecount++;
 
-        { char trg_name[ST_MAX_NAME_SIZE + 20];
-          sprintf(trg_name, "NDB$INDEX_<%s>_UI", ind.name);
+        { char trg_name[ST_MAX_NAME_SIZE];
+          int trg_len = snprintf(trg_name,
+                                 ST_MAX_NAME_SIZE,
+                                 "NDB$INDEX_<%s>_UI",
+                                 ind.name);
+          require(trg_len < ST_MAX_NAME_SIZE);
           ind.trglist->push_back(new ST_Trg("", trg_name));
           ST_Trg& trg = *ind.trglist->back();
           trg.ind = &ind;
@@ -5092,8 +5101,12 @@ st_init_objects(ST_Con& c, NDBT_Context* ctx)
         pInd->setType((NdbDictionary::Index::Type)ind.type);
         tab.indorderedcount++;
 
-        { char trg_name[ST_MAX_NAME_SIZE + 20];
-          sprintf(trg_name, "NDB$INDEX_<%s>_CUSTOM", ind.name);
+        { char trg_name[ST_MAX_NAME_SIZE];
+          int trg_len = snprintf(trg_name,
+                                 ST_MAX_NAME_SIZE,
+                                 "NDB$INDEX_<%s>_CUSTOM",
+                                 ind.name);
+          require(trg_len < ST_MAX_NAME_SIZE);
           ind.trglist->push_back(new ST_Trg("", trg_name));
           ST_Trg& trg = *ind.trglist->back();
           trg.ind = &ind;
