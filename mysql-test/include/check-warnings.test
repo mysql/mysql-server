@@ -46,7 +46,7 @@ create temporary table error_log (
   `row` int auto_increment primary key,
   suspicious int default 1,
   file_name varchar(255),
-  line varchar(2048) charset latin1 default null
+  line varchar(2500) charset latin1 default null
 );
 COMMIT;
 

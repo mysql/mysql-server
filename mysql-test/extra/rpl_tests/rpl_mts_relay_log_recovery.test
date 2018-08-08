@@ -43,9 +43,9 @@
 # should be successful.
 
 --source extra/rpl_tests/rpl_generate_mts_gap.test
+CALL mtr.add_suppression("Recovery from master pos");
 
 --source include/rpl_connection_slave.inc
-CALL mtr.add_suppression("Recovery from master pos");
 # Kill the slave server
 --source include/kill_mysqld.inc
 
@@ -53,7 +53,6 @@ CALL mtr.add_suppression("Recovery from master pos");
 --let $rpl_server_number= 2
 --let $rpl_server_parameters= --skip_slave_start=$skip_slave_start_var --sync_master_info=1 --relay-log-recovery=1
 --source include/rpl_start_server.inc
-
 --exec echo "After restart gaps should be filled."
 
 --let $assert_text= Table d1.t should contain 2 rows.
