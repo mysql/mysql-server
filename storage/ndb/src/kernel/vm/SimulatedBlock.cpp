@@ -92,12 +92,12 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
     c_segmentedFragmentSendList(c_fragmentSendPool),
     c_mutexMgr(* this),
     c_counterMgr(* this)
+#ifdef VM_TRACE_TIME
+    ,m_currentGsn(0)
+#endif
 #ifdef VM_TRACE
     ,debugOutFile(globalSignalLoggers.getOutputStream())
     ,debugOut(debugOutFile)
-#endif
-#ifdef VM_TRACE_TIME
-    ,m_currentGsn(0)
 #endif
 {
   m_threadId = 0;
