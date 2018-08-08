@@ -2360,6 +2360,7 @@ sub mysql_client_test_arguments(){
   my $exe;
   # mysql_client_test executable may _not_ exist
   $exe= mtr_exe_maybe_exists(vs_config_dirs('testclients', 'mysql_client_test'),
+                             "$path_client_bindir/mysql_client_test",
 			     "$basedir/testclients/mysql_client_test",
 			     "$basedir/bin/mysql_client_test");
   return "" unless $exe;
