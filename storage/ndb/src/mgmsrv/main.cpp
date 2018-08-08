@@ -406,6 +406,7 @@ static int mgmd_main(int argc, char** argv)
 
   while (!g_StopServer)
   {
+    NdbOut_Init();
     mgm= new MgmtSrvr(opts);
     if (mgm == NULL) {
       g_eventLogger->critical("Out of memory, couldn't create MgmtSrvr");
