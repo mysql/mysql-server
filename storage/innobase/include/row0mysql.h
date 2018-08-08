@@ -772,9 +772,8 @@ struct row_prebuilt_t {
   for this MySQL TABLE object */
   bool m_temp_read_shared;
 
-  /** Whether there is tree modifying operation happened on a
-  temprorary(intrinsic) table index tree. In this case, it could be split,
-  but no shrink. */
+  /** Whether tree modifying operation happened on a temporary (intrinsic)
+  table index tree. In this case, it could be split, but no shrink. */
   bool m_temp_tree_modified;
 
   /** The MySQL table object */
