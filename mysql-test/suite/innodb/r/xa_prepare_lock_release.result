@@ -2,6 +2,71 @@
 # Bug#27189701 INNODB: EARLY RELEASE OF GAP LOCKS FOR RC
 # ISOLATION [XA PREPARE]
 #
+# establishing connection cats0
+# establishing connection cats1
+# establishing connection cats2
+# establishing connection cats3
+# establishing connection cats4
+# establishing connection cats5
+# establishing connection cats6
+# establishing connection cats7
+# establishing connection cats8
+# establishing connection cats9
+# establishing connection cats10
+# establishing connection cats11
+# establishing connection cats12
+# establishing connection cats13
+# establishing connection cats14
+# establishing connection cats15
+# establishing connection cats16
+# establishing connection cats17
+# establishing connection cats18
+# establishing connection cats19
+# establishing connection cats20
+# establishing connection cats21
+# establishing connection cats22
+# establishing connection cats23
+# establishing connection cats24
+# establishing connection cats25
+# establishing connection cats26
+# establishing connection cats27
+# establishing connection cats28
+# establishing connection cats29
+# establishing connection cats30
+# establishing connection cats31
+# establishing connection cats32
+# wating for cats1
+# wating for cats2
+# wating for cats3
+# wating for cats4
+# wating for cats5
+# wating for cats6
+# wating for cats7
+# wating for cats8
+# wating for cats9
+# wating for cats10
+# wating for cats11
+# wating for cats12
+# wating for cats13
+# wating for cats14
+# wating for cats15
+# wating for cats16
+# wating for cats17
+# wating for cats18
+# wating for cats19
+# wating for cats20
+# wating for cats21
+# wating for cats22
+# wating for cats23
+# wating for cats24
+# wating for cats25
+# wating for cats26
+# wating for cats27
+# wating for cats28
+# wating for cats29
+# wating for cats30
+# wating for cats31
+# wating for cats32
 CREATE TABLE t1 (col1 INT PRIMARY KEY, col2 int);
 Connection: default
 SET DEBUG='+d,ib_force_release_gap_lock_prepare';
@@ -12,7 +77,9 @@ col1	col2
 # Update empty table acquire GAP lock on supremum
 UPDATE t1 SET col2 = 100 where col1 = 10;
 Connection: con1
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL con1_will_wait';
 INSERT INTO t1 values(10, 100);
+SET DEBUG_SYNC = 'now WAIT_FOR con1_will_wait';
 Connection: default
 XA END 'lock_trx';
 XA PREPARE 'lock_trx';
@@ -54,3 +121,36 @@ col1	col2
 25	150
 SET DEBUG='-d,ib_force_release_gap_lock_prepare';
 DROP TABLE t1;
+# cleaning up connection cats0
+# cleaning up connection cats1
+# cleaning up connection cats2
+# cleaning up connection cats3
+# cleaning up connection cats4
+# cleaning up connection cats5
+# cleaning up connection cats6
+# cleaning up connection cats7
+# cleaning up connection cats8
+# cleaning up connection cats9
+# cleaning up connection cats10
+# cleaning up connection cats11
+# cleaning up connection cats12
+# cleaning up connection cats13
+# cleaning up connection cats14
+# cleaning up connection cats15
+# cleaning up connection cats16
+# cleaning up connection cats17
+# cleaning up connection cats18
+# cleaning up connection cats19
+# cleaning up connection cats20
+# cleaning up connection cats21
+# cleaning up connection cats22
+# cleaning up connection cats23
+# cleaning up connection cats24
+# cleaning up connection cats25
+# cleaning up connection cats26
+# cleaning up connection cats27
+# cleaning up connection cats28
+# cleaning up connection cats29
+# cleaning up connection cats30
+# cleaning up connection cats31
+# cleaning up connection cats32
