@@ -3328,6 +3328,15 @@ static void handle_ack_prepare(site_def const *site, pax_machine *p,
   MAY_DBG(FN; if (p->proposer.msg) BALCEXP(p->proposer.msg->proposal);
           BALCEXP(p->proposer.bal); BALCEXP(m->reply_to);
           BALCEXP(p->proposer.sent_prop); SYCEXP(m->synode));
+  /*
+    If the node is preparing a Noop for another node's slot, it is possible
+    that the leader of the slot has since proposed a value. Hence, there is
+    no need to move forward if we know that the value has been accepted. This
+    also prevents changing the size of a learned pax_machine, which would
+    cause inconsistent reporting of memory usage in P_S.
+  */
+  if (finished(p)) return;
+
   if (m->from != VOID_NODE_NO &&
       eq_ballot(p->proposer.bal, m->reply_to)) { /* answer to my prepare */
     handle_simple_ack_prepare(site, p, m);
