@@ -52,8 +52,18 @@ ndb.ndb_alter_table                     : Need WL#10665 Extend size of extra tab
 ndb.ndb_dbug_lock                       : SEAGULL gsl locking order
 ndb.ndb_insert                          : Bug#16021097 INSERT .. SELECT WITH KEY VIOLATION DOES NOT FAIL
 ndb.ndb_restore_schema_tolerance        : Need WL#10665 Extend size of extra table metadata
-ndb.ndb_restore_undolog                 : Need WL#12172 Schema distribution synchronization of tablespaces and logfile groups
+ndb.ndb_restore_undolog                 : Need WL#12172 Schema distribution synchronization of tablespaces and logfile groups, Bug#28478897 UPDATE CHECKED IN BACKUPS THAT ARE RESTORED IN VARIOUS TESTS
 ndb.ndb_row_count                       : BUG#16021097 INSERT .. SELECT WITH KEY VIOLATION DOES NOT FAIL
+
+# Problem with restoring tables with obsolete metadata like old temporal types
+ndb.ndb_alter_table_backup              : Bug#28478897 UPDATE CHECKED IN BACKUPS THAT ARE RESTORED IN VARIOUS TESTS
+ndb.ndb_dd_restore_check_tablespace_mdl : Bug#28478897 UPDATE CHECKED IN BACKUPS THAT ARE RESTORED IN VARIOUS TESTS
+ndb.ndb_dd_restore_compat               : Bug#28478897 UPDATE CHECKED IN BACKUPS THAT ARE RESTORED IN VARIOUS TESTS
+ndb.ndb_native_default_support          : Bug#28478897 UPDATE CHECKED IN BACKUPS THAT ARE RESTORED IN VARIOUS TESTS
+ndb.ndb_restore_compat_endianness       : Bug#28478897 UPDATE CHECKED IN BACKUPS THAT ARE RESTORED IN VARIOUS TESTS
+ndb.ndb_wl946_pre                       : Bug#28478897 UPDATE CHECKED IN BACKUPS THAT ARE RESTORED IN VARIOUS TESTS
+ndb.ndb_wl946_post                      : Bug#28478897 UPDATE CHECKED IN BACKUPS THAT ARE RESTORED IN VARIOUS TESTS
+ndb.ndb_restore_compat_downward         : Bug#28478897 UPDATE CHECKED IN BACKUPS THAT ARE RESTORED IN VARIOUS TESTS
 
 # Test which timeout most likely due to mismatches in shares etc.
 ndb.ndb_spj_dict : Need WL#9185 MySQL Cluster support for new DD.
