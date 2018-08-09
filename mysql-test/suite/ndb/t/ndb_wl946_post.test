@@ -2,10 +2,6 @@
 --source suite/ndb/include/have_little_endian.inc
 --source suite/ndb/include/backup_restore_setup.inc
 
---disable_warnings
-drop table if exists t1;
---enable_warnings
-
 # test ndb_restore between old types and new types of precision 0
 # uses table definition and data from wl_946_pre.test
 
@@ -28,6 +24,8 @@ insert into t1 (a) values (0);
 select * from t1;
 delete from t1;
 
+let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/backups;
+
 --echo # restore data from wl946_pre with promote
 --exec $NDB_RESTORE -b 1 -n 1 -r --promote-attributes $backup_data_dir/wl946_pre >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b 1 -n 2 -r --promote-attributes $backup_data_dir/wl946_pre >> $NDB_TOOLS_OUTPUT
@@ -43,6 +41,11 @@ drop table t1;
 
 --echo # restore meta from backup
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -m --print-meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+# Restart mysqld to trigger schema distribution synchronization
+let $mysqld_name=mysqld.1.1;
+--source include/restart_mysqld.inc
+
 --disable_warnings
 show create table t1;
 --enable_warnings
@@ -62,6 +65,11 @@ drop table t1;
 # restore table with old types
 --echo # restore meta wl946_pre
 --exec $NDB_RESTORE -b 1 -n 1 -m --print-meta $backup_data_dir/wl946_pre >> $NDB_TOOLS_OUTPUT
+
+# Restart mysqld to trigger schema distribution synchronization
+let $mysqld_name=mysqld.1.1;
+--source include/restart_mysqld.inc
+
 # datetime,timestamp default wrong on solaris (probably bug#53818)
 # show create table t1;
 --source show_attributes.inc

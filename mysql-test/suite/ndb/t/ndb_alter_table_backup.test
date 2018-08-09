@@ -16,19 +16,17 @@ let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/backups;
 #
 # Restore backup files (from little endian)
 #
---disable_warnings
-USE test;
-DROP TABLE IF EXISTS t1;
---enable_warnings
 --echo *********************************
 --echo * restore tables w/ new column from little endian
 --echo *********************************
 --exec $NDB_RESTORE -b 1 -n 1 -m -r $backup_data_dir/51_d2_le >> $NDB_TOOLS_OUTPUT 2>&1
 --exec $NDB_RESTORE -b 1 -n 2 -r $backup_data_dir/51_d2_le >> $NDB_TOOLS_OUTPUT 2>&1
-SHOW TABLES;
---disable_warnings
+
+# Restart mysqld to trigger schema synchronization
+let $mysqld_name=mysqld.1.1;
+--source include/restart_mysqld.inc
+
 SHOW CREATE TABLE t1;
---enable_warnings
 SELECT * FROM t1 WHERE a = 1 or a = 10 or a = 20 or a = 30 ORDER BY a;
 DROP TABLE t1;
 
@@ -40,12 +38,13 @@ DROP TABLE t1;
 --echo *********************************
 --exec $NDB_RESTORE -b 1 -n 1 -m -r $backup_data_dir/51_d2_be >> $NDB_TOOLS_OUTPUT 2>&1
 --exec $NDB_RESTORE -b 1 -n 2 -r $backup_data_dir/51_d2_be >> $NDB_TOOLS_OUTPUT 2>&1
-SHOW TABLES;
---disable_warnings
+
+# Restart mysqld to trigger schema synchronization
+let $mysqld_name=mysqld.1.1;
+--source include/restart_mysqld.inc
+
 SHOW CREATE TABLE t1;
---enable_warnings
 SELECT * FROM t1 WHERE a = 1 or a = 10 or a = 20 or a = 30 ORDER BY a;
 DROP TABLE t1;
 --source suite/ndb/include/backup_restore_cleanup.inc
-# End of 5.1 Test Case
 --remove_file $NDB_TOOLS_OUTPUT

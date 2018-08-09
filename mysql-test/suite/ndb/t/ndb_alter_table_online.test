@@ -10,10 +10,6 @@
 --source include/have_multi_ndb.inc
 --source suite/ndb/include/backup_restore_setup.inc
 
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
-
 # Create utiltity table used to hold the output from ndb_show_table
 CREATE TEMPORARY TABLE IF NOT EXISTS ndb_show_tables_results (
   id INT,
@@ -140,6 +136,26 @@ select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' 
 DROP TABLE t1;
 
 --echo *******************************
+--echo * Add column c as NULLABLE TIMESTAMP online
+--echo *******************************
+
+CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ROW_FORMAT=DYNAMIC ENGINE NDB;
+INSERT INTO t1 values (1,1);
+
+--source ndb_show_tables_result.inc
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+
+ALTER TABLE t1 algorithm=inplace, ADD c TIMESTAMP;
+--source ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+
+INSERT INTO t1 values (2,2,'2007-09-19 18:46:02');
+SELECT * FROM t1 ORDER BY a;
+UPDATE t1 SET c = '2007-10-22 16:35:06' where a = 2;
+SELECT * FROM t1 ORDER BY a;
+DROP TABLE t1;
+
+--echo *******************************
 --echo * The following ALTER operations are not supported on-line
 --echo *******************************
 --echo * Not supported Test#1
@@ -231,29 +247,6 @@ INSERT INTO t1 values (1,1);
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
-ALTER TABLE t1 algorithm=inplace, ADD c TIMESTAMP;
---source ndb_show_tables_result.inc
-select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
-
-ALTER TABLE t1 ADD c TIMESTAMP DEFAULT '2014-11-27 22:45:17';
-
-INSERT INTO t1 values (2,2,'2007-09-19 18:46:02');
-SELECT * FROM t1 ORDER BY a;
-UPDATE t1 SET c = '2007-10-22 16:35:06' where a = 2;
-SELECT * FROM t1 ORDER BY a;
-DROP TABLE t1;
-
---echo *******************************
---echo * Not supported Test#6
---echo *******************************
-
-CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ROW_FORMAT=DYNAMIC ENGINE NDB;
-INSERT INTO t1 values (1,1);
-
---source ndb_show_tables_result.inc
-set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
-
---error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t1 algorithm=inplace, ADD c CHAR(19) NOT NULL;
 --source ndb_show_tables_result.inc
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
@@ -267,7 +260,7 @@ SELECT * FROM t1 ORDER BY a;
 DROP TABLE t1;
 
 --echo *******************************
---echo * Not supported Test#7
+--echo * Not supported Test#6
 --echo *******************************
 
 CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ROW_FORMAT=DYNAMIC ENGINE NDB;
@@ -290,7 +283,7 @@ SELECT * FROM t1 ORDER BY a;
 DROP TABLE t1;
 
 --echo *******************************
---echo * Not supported Test#8
+--echo * Not supported Test#7
 --echo * Ndb doesn't support renaming attributes on-line
 --echo *******************************
 
@@ -529,6 +522,10 @@ DROP TABLE t1;
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -m -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
+# Restart mysqld to trigger schema distribution synchronization
+let $mysqld_name=mysqld.1.1;
+--source include/restart_mysqld.inc
+
 source show_varpart.inc;
 
 DROP TABLE t1;
@@ -659,7 +656,7 @@ ALTER TABLE t1 algorithm=inplace, ADD b INT;
 
 --enable_warnings
 
-DROP TABLE t1, ndb_show_tables_results;
+DROP TABLE t1;
 
 #
 # test alter of table with many attributes
@@ -673,7 +670,7 @@ while ($i)
   let $separator=,;
   dec $i;
 }
-let $sql=$sql, c501 varchar(10000);
+let $sql=$sql, c501 varchar(10000) character set latin1;
 let $sql=$sql, primary key using hash(c1)) engine=ndb;
 eval $sql; # eval the sql and create the table
 

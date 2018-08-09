@@ -182,6 +182,11 @@ source show_varpart.inc;
 drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -m -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+# Restart mysqld to trigger schema distribution synchronization
+let $mysqld_name=mysqld.1.1;
+--source include/restart_mysqld.inc
+
 # check that force varpart is preserved by ndb_restore
 # t3_c has ROW_FORMAT=FIXED i.e. ForceVarPart=0
 let $show_varpart_table=t3_c;
@@ -295,6 +300,10 @@ drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -m -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
+# Restart mysqld to trigger schema distribution synchronization
+let $mysqld_name=mysqld.1.1;
+--source include/restart_mysqld.inc
+
 select count(*) from t1;
 select count(*) from t1_c;
 select count(*)
@@ -364,6 +373,10 @@ select count(*)
 drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -m -r --ndb-nodegroup_map "(0,0)" --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+# Restart mysqld to trigger schema distribution synchronization
+let $mysqld_name=mysqld.1.1;
+--source include/restart_mysqld.inc
 
 select count(*) from t1;
 select count(*) from t1_c;
@@ -459,6 +472,11 @@ drop table t2_c,t11_c,t12_c;
 # Only part of tables is restored, it should work
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -m -r --print --print_meta $NDB_BACKUPS-$the_backup_id test t11_c >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUPS-$the_backup_id test t11_c >> $NDB_TOOLS_OUTPUT
+
+# Restart mysqld to trigger schema distribution synchronization
+let $mysqld_name=mysqld.1.1;
+--source include/restart_mysqld.inc
+
 #Should only t11_c is restored
 SELECT * FROM t11_c ORDER BY c1;
 
@@ -515,9 +533,12 @@ show create table t1;
 drop table t1;
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -m -r --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
---disable_warnings
+
+# Restart mysqld to trigger schema distribution synchronization
+let $mysqld_name=mysqld.1.1;
+--source include/restart_mysqld.inc
+
 show create table t1;
---enable_warnings
 drop table t1;
 
 #
@@ -526,6 +547,11 @@ drop table t1;
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -m -r --print_meta --disable-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r --print_meta --disable-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 1 --rebuild-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+# Restart mysqld to trigger schema distribution synchronization
+let $mysqld_name=mysqld.1.1;
+--source include/restart_mysqld.inc
+
 drop table t1;
 
 #
@@ -586,7 +612,7 @@ while ($i)
   let $separator=,;
   dec $i;
 }
-let $sql=$sql, c500 varchar(11000);
+let $sql=$sql, c500 varchar(11000) CHARACTER SET latin1;
 let $sql=$sql, primary key using hash(c1)) engine=ndb;
 eval $sql; # eval the sql and create the table
 
@@ -688,6 +714,11 @@ drop table t1;
 delete from mysql.ndb_apply_status;
 --exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 -m $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 2 --restore-epoch $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+# Restart mysqld to trigger schema distribution synchronization
+let $mysqld_name=mysqld.1.1;
+--source include/restart_mysqld.inc
+
 select count(1) from mysql.ndb_apply_status where server_id=0;
 drop table t1;
 --source suite/ndb/include/backup_restore_cleanup.inc

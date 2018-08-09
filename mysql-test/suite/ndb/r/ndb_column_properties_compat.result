@@ -1,6 +1,6 @@
-DROP DATABASE IF EXISTS BANK;
 CREATE DATABASE BANK default charset=latin1 default collate=latin1_bin;
 USE BANK;
+# restart
 ALTER TABLE ACCOUNT MODIFY`OWNER` int(11) unsigned NOT NULL COLUMN_FORMAT FIXED;
 Now there should be two warnings of implicit COLUMN_FORMAT conversion
 SHOW WARNINGS;

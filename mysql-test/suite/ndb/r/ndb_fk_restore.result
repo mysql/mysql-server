@@ -1,4 +1,3 @@
-drop table if exists t2, t1;
 # bug#16285826
 create table t1 (
 a1 int primary key
@@ -21,7 +20,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a2`),
   KEY `xb2` (`b2`),
   CONSTRAINT `fkb2a1` FOREIGN KEY (`b2`) REFERENCES `t1` (`a1`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 ndb_show_tables completed.....
 
@@ -52,7 +51,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a2`),
   KEY `xb2` (`b2`),
   CONSTRAINT `fkb2a1` FOREIGN KEY (`b2`) REFERENCES `t1` (`a1`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 ndb_show_tables completed.....
 
@@ -84,7 +83,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a2`),
   KEY `xb2` (`b2`),
   CONSTRAINT `fkb2a1` FOREIGN KEY (`b2`) REFERENCES `t1` (`a1`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster AUTO_INCREMENT=83 DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster AUTO_INCREMENT=83 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 ndb_show_tables completed.....
 
@@ -115,7 +114,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a2`),
   KEY `xb2` (`b2`),
   CONSTRAINT `fkb2a1` FOREIGN KEY (`b2`) REFERENCES `t1` (`a1`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster AUTO_INCREMENT=97 DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster AUTO_INCREMENT=83 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 ndb_show_tables completed.....
 
@@ -160,7 +159,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a2`),
   KEY `xb2c2` (`b2`,`c2`),
   CONSTRAINT `fkb2a1` FOREIGN KEY (`b2`) REFERENCES `t1` (`a1`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster AUTO_INCREMENT=83 DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster AUTO_INCREMENT=83 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 ndb_show_tables completed.....
 
@@ -192,7 +191,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a2`),
   KEY `xb2c2` (`b2`,`c2`),
   CONSTRAINT `fkb2a1` FOREIGN KEY (`b2`) REFERENCES `t1` (`a1`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster AUTO_INCREMENT=97 DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster AUTO_INCREMENT=83 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 ndb_show_tables completed.....
 
@@ -245,7 +244,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a2`),
   KEY `xb2c2` (`b2`,`c2`),
   CONSTRAINT `fkb2c2c1b1` FOREIGN KEY (`b2`,`c2`) REFERENCES `t1` (`c1`,`b1`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster AUTO_INCREMENT=38 DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster AUTO_INCREMENT=38 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 ndb_show_tables completed.....
 
@@ -277,7 +276,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a2`),
   KEY `xb2c2` (`b2`,`c2`),
   CONSTRAINT `fkb2c2c1b1` FOREIGN KEY (`b2`,`c2`) REFERENCES `t1` (`c1`,`b1`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster AUTO_INCREMENT=65 DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster AUTO_INCREMENT=38 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 ndb_show_tables completed.....
 
@@ -309,7 +308,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a2`),
   KEY `xb2c2` (`b2`,`c2`),
   CONSTRAINT `fkb2c2c1b1` FOREIGN KEY (`b2`,`c2`) REFERENCES `t1` (`c1`,`b1`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster AUTO_INCREMENT=66 DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster AUTO_INCREMENT=39 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 ndb_show_tables completed.....
 
@@ -364,7 +363,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a2`),
   KEY `xb2c2` (`b2`,`c2`),
   CONSTRAINT `fkb2c2c1b1` FOREIGN KEY (`b2`,`c2`) REFERENCES `t1` (`c1`,`b1`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 ndb_show_tables completed.....
 
@@ -397,7 +396,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a2`),
   KEY `xb2c2` (`b2`,`c2`),
   CONSTRAINT `fkb2c2c1b1` FOREIGN KEY (`b2`,`c2`) REFERENCES `t1` (`c1`,`b1`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 ndb_show_tables completed.....
 
@@ -436,7 +435,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a2`),
   KEY `xb2c2` (`b2`,`c2`),
   CONSTRAINT `fkb2c2b1c1` FOREIGN KEY (`b2`,`c2`) REFERENCES `t1` (`b1`,`c1`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster AUTO_INCREMENT=38 DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster AUTO_INCREMENT=38 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 ndb_show_tables completed.....
 
@@ -469,7 +468,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a2`),
   KEY `xb2c2` (`b2`,`c2`),
   CONSTRAINT `fkb2c2b1c1` FOREIGN KEY (`b2`,`c2`) REFERENCES `t1` (`b1`,`c1`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster AUTO_INCREMENT=65 DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster AUTO_INCREMENT=38 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 ndb_show_tables completed.....
 
@@ -511,6 +510,7 @@ a1 int primary key
 # take backup and drop the tables
 drop table db1.t2, db1.t1, db2.t1;
 # now try restoring only the database db2
+# restart
 # verify the tables present
 show tables from db2;
 Tables_in_db2
@@ -520,9 +520,10 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a1` int(11) NOT NULL,
   PRIMARY KEY (`a1`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table db2.t1;
 # restore particular table and check for fk problem
+# restart
 # verify the tables present
 show tables from db1;
 Tables_in_db1
@@ -535,13 +536,13 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a1` int(11) NOT NULL,
   PRIMARY KEY (`a1`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table db2.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a1` int(11) NOT NULL,
   PRIMARY KEY (`a1`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table db1.t1, db2.t1;
 # verify that restoring table with FK whose parent doesn't exist, fails
 # cleanup

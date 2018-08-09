@@ -20,11 +20,6 @@ let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/backups;
 # TIMSTAMP NO NULL to be created
 set sql_mode=(select replace(@@sql_mode,'NO_ZERO_DATE',''));
 
---disable_warnings
-DROP TABLE IF EXISTS t1,bit1;
-DROP DATABASE IF EXISTS mysqltest;
---enable_warnings
-
 CREATE DATABASE mysqltest;
 USE mysqltest;
 ###############################################################
@@ -161,8 +156,15 @@ DROP TABLE IF EXISTS t1, bit1;
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -A -m  -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -A -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
---sorted_result
-SHOW TABLES;
+# Restart mysqld to trigger schema synchronization
+let $mysqld_name=mysqld.1.1;
+--source include/restart_mysqld.inc
+
+# Turn off STRICT mode since test intentionally generate warnings
+# while inserting rows without default values.
+# NOTE! one test at the end turns STRICT back on for a while
+--source suite/ndb/include/turn_off_strict_sql_mode.inc
+
 --let $ndb_desc_opts= -d mysqltest t1
 --source suite/ndb/include/ndb_desc_print.inc
 --let $ndb_desc_opts= -d mysqltest bit1
@@ -183,8 +185,11 @@ DROP TABLE IF EXISTS t1, bit1;
 
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -A -m  -r --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -A -r --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
---sorted_result
-SHOW TABLES;
+
+# Restart mysqld to trigger schema synchronization
+let $mysqld_name=mysqld.1.1;
+--source include/restart_mysqld.inc
+
 --replace_column 1 MAX_VALUE 12 CURRENT_TIMESTAMP
 SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c, ch2 FROM t1 WHERE i >= (SELECT MAX(i) FROM t1) ORDER BY i;
 
@@ -219,8 +224,11 @@ DROP DATABASE mysqltest;
 --source suite/ndb/include/ndb_desc_print.inc
 
 USE test;
---sorted_result
-SHOW TABLES;
+
+# Restart mysqld to trigger schema synchronization
+let $mysqld_name=mysqld.1.1;
+--source include/restart_mysqld.inc
+
 # SHOW CREATE TABLE t1; # Disabled til bug#53539 fixed as it show junk on big-endian
 --disable_warnings
 SHOW CREATE TABLE bit1;

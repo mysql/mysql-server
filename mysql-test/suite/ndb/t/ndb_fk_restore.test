@@ -1,10 +1,6 @@
 -- source include/have_ndb.inc
 -- source suite/ndb/include/backup_restore_setup.inc
 
--- disable_warnings
-drop table if exists t2, t1;
--- enable_warnings
-
 # bug#16285826 - NDB_RESTORE -M DOES NOT RESTORE FK CONSTRAINTS
 -- echo # bug#16285826
 
@@ -191,6 +187,10 @@ drop table db1.t2, db1.t1, db2.t1;
 -- echo # now try restoring only the database db2
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -m -r --include-databases=db2 --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
+# Restart mysqld to trigger schema distribution synchronization
+let $mysqld_name=mysqld.1.1;
+--source include/restart_mysqld.inc
+
 -- echo # verify the tables present
 show tables from db2;
 --disable_warnings
@@ -200,6 +200,10 @@ drop table db2.t1;
 
 -- echo # restore particular table and check for fk problem
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -m -r --include-tables=db1.t1,db2.t1 --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+# Restart mysqld to trigger schema distribution synchronization
+let $mysqld_name=mysqld.1.1;
+--source include/restart_mysqld.inc
 
 -- echo # verify the tables present
 show tables from db1;

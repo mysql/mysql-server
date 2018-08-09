@@ -16,15 +16,15 @@ let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/backups;
 # Bug #18594 ndb_restore log boken in 5.1
 #
 
---disable_warnings
-DROP DATABASE IF EXISTS BANK;
---enable_warnings
 CREATE DATABASE BANK default charset=latin1 default collate=latin1_bin;
 --exec $NDB_RESTORE -b 1 -n 1 -p 1 -m -r $backup_data_dir/51 >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -e -b 1 -n 2 -p 1 -r $backup_data_dir/51 >> $NDB_TOOLS_OUTPUT
 USE BANK;
---sorted_result
-SHOW TABLES;
+
+# Restart mysqld to trigger schema distribution synchronization
+let $mysqld_name=mysqld.1.1;
+--source include/restart_mysqld.inc
+
 SELECT * FROM GL            ORDER BY TIME,ACCOUNT_TYPE;
 SELECT * FROM ACCOUNT       ORDER BY ACCOUNT_ID;
 SELECT COUNT(*) FROM TRANSACTION;
@@ -68,6 +68,11 @@ SELECT * FROM SYSTEM_VALUES ORDER BY SYSTEM_VALUES_ID;
 SELECT * FROM mysql.ndb_apply_status WHERE server_id=0;
 --exec $NDB_RESTORE -b 2 -n 1 -m -p 1 -s -r $backup_data_dir/50 >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b 2 -n 2 -p 1 -s -r $backup_data_dir/50 >> $NDB_TOOLS_OUTPUT
+
+# Restart mysqld to trigger schema distribution synchronization
+let $mysqld_name=mysqld.1.1;
+--source include/restart_mysqld.inc
+
 SELECT * FROM DESCRIPTION ORDER BY USERNAME;
 --exec $NDB_DESC --no-defaults -d BANK DESCRIPTION | grep SHORT_VAR
 --exec $NDB_DESC --no-defaults -d BANK DESCRIPTION | grep MEDIUM_VAR
@@ -81,6 +86,10 @@ DROP TABLE ACCOUNT_TYPE;
 
 --exec $NDB_RESTORE -b 1 -n 2 -m $backup_data_dir/packed >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b 1 -n 2 -p 1 -r $backup_data_dir/packed >> $NDB_TOOLS_OUTPUT
+
+# Restart mysqld to trigger schema distribution synchronization
+let $mysqld_name=mysqld.1.1;
+--source include/restart_mysqld.inc
 
 SELECT * FROM GL            ORDER BY TIME,ACCOUNT_TYPE;
 SELECT * FROM ACCOUNT       ORDER BY ACCOUNT_ID;

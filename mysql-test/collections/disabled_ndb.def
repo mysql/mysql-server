@@ -18,7 +18,8 @@ gcol_ndb.gcol_column_def_options_ndb : BUG#26609059 2017-08-10 Bin, PB2 failures
 ndb_big.smoke : Not ready for automated testing yet.
 
 # ndb_binlog suite tests
-ndb_binlog.ndb_binlog_restore : Need WL#10167 On the fly frm translation.
+# Problem with missing binlog events after restore
+ndb_binlog.ndb_binlog_restore : Need WL#9185 MySQL Cluster support for new DD.
 
 # ndb_ddl suite tests
 # Problem with alter table while MDL lock is held on other mysqld
@@ -48,29 +49,11 @@ ndb_rpl.ndb_rpl_dist_priv : Need WL#9185 MySQL Cluster support for new DD.
 
 # ndb suite tests
 ndb.ndb_alter_table                     : Need WL#10665 Extend size of extra table metadata
-ndb.ndb_alter_table_backup              : Need WL#10167 On the fly frm translation
-ndb.ndb_column_properties_compat        : Need WL#10167 On the fly frm translation
 ndb.ndb_dbug_lock                       : SEAGULL gsl locking order
-ndb.ndb_dd_restore_check_tablespace_mdl : Need WL#10167 On the fly frm translation
-ndb.ndb_dd_restore_compat               : Need WL#10167 On the fly frm translation
 ndb.ndb_insert                          : Bug#16021097 INSERT .. SELECT WITH KEY VIOLATION DOES NOT FAIL
-ndb.ndb_native_default_support          : Need WL#10167 On the fly frm translation
-ndb.ndb_restore_compat_compression      : Need WL#10167 On the fly frm translation
-ndb.ndb_restore_compat_downward         : Need WL#10167 On the fly frm translation
-ndb.ndb_restore_compat_endianness       : Need WL#10167 On the fly frm translation
-ndb.ndb_restore_conv_more               : Need WL#10167 On the fly frm translation
-ndb.ndb_restore_misc                    : Need WL#10167 On the fly frm translation
 ndb.ndb_restore_schema_tolerance        : Need WL#10665 Extend size of extra table metadata
-ndb.ndb_restore_undolog                 : Need WL#10167 On the fly frm translation
+ndb.ndb_restore_undolog                 : Need WL#12172 Schema distribution synchronization of tablespaces and logfile groups
 ndb.ndb_row_count                       : BUG#16021097 INSERT .. SELECT WITH KEY VIOLATION DOES NOT FAIL
-ndb.ndb_statistics0                     : Need WL#10167 On the fly frm translation
-ndb.ndb_wl946_post                      : Need WL#10167 On the fly frm translation
-ndb.ndb_wl946_pre                       : Need WL#10167 On the fly frm translation
-
-# Tests does not autotect tables created from NdbApi tools(like ndb_restore)
-ndb.ndb_alter_table_online     : Need WL#9185 MySQL Cluster support for new DD
-ndb.ndb_fk_restore             : Need WL#9185 MySQL Cluster support for new DD
-ndb.ndb_restore_schema_subsets : Need WL#9185 MySQL Cluster support for new DD
 
 # Test which timeout most likely due to mismatches in shares etc.
 ndb.ndb_spj_dict : Need WL#9185 MySQL Cluster support for new DD.

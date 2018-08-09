@@ -436,14 +436,13 @@ let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/backups;
 ##### Restore backup files (from little endian) ######
 ######################################################
 
---disable_warnings
-USE test;
-DROP TABLE IF EXISTS t_num,t_datetime,t_string_1,t_string_2,t_gis,t_string_3,t_string_4,t_string_5;
---enable_warnings
 --exec $NDB_RESTORE -b 1 -n 1 -m -r $backup_data_dir/51_undolog_le >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b 1 -n 2 -r $backup_data_dir/51_undolog_le >> $NDB_TOOLS_OUTPUT
---sorted_result
-SHOW TABLES;
+
+# Restart mysqld to trigger schema distribution synchronization
+let $mysqld_name=mysqld.1.1;
+--source include/restart_mysqld.inc
+
 --disable_warnings
 SHOW CREATE TABLE t_num;
 SHOW CREATE TABLE t_datetime;
@@ -482,8 +481,11 @@ ENGINE =NDB;
 USE test;
 --exec $NDB_RESTORE -b 1 -n 1 -m -r $backup_data_dir/51_undolog_be >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b 1 -n 2 -r $backup_data_dir/51_undolog_be >> $NDB_TOOLS_OUTPUT
---sorted_result
-SHOW TABLES;
+
+# Restart mysqld to trigger schema distribution synchronization
+let $mysqld_name=mysqld.1.1;
+--source include/restart_mysqld.inc
+
 --disable_warnings
 SHOW CREATE TABLE t_num;
 SHOW CREATE TABLE t_datetime;
