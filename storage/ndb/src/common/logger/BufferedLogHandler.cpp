@@ -66,6 +66,7 @@ BufferedLogHandler::BufferedLogHandler(LogHandler* dest_loghandler)
 BufferedLogHandler::~BufferedLogHandler()
 {
   m_stop_logging = true;
+  m_logbuf->stop();
   NdbThread_WaitFor(m_log_threadvar, NULL);
   NdbThread_Destroy(&m_log_threadvar);
   delete m_logbuf;

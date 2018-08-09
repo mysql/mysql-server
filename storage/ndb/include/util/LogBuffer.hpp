@@ -153,6 +153,13 @@ public:
    */
   size_t getLostCount() const;
 
+  /**
+   * get() can get blocked for some time if there's no data in the log buffer.
+   * This function immediately unblocks the calling thread by waking up and
+   * returning from the get() call if it's blocked.
+   * It also makes future calls to get() non-blocking.
+   */
+  void stop();
 
 private:
   char* m_log_buf; // pointer to the start of log buffer memory
@@ -188,6 +195,7 @@ private:
 
   NdbMutex *m_mutex;
   struct NdbCondition* m_cond;
+  bool m_stop;
 
   /**
    * Given a number of bytes to write to the log buffer,

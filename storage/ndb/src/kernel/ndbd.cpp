@@ -1124,6 +1124,7 @@ ndbd_run(bool foreground, int report_fd,
    */
   void* dummy_return_status;
   thread_args.stop = true;
+  logBuf->stop();
   NdbThread_WaitFor(log_threadvar, &dummy_return_status);
   globalEmulatorData.theConfiguration->removeThread(log_threadvar);
   NdbThread_Destroy(&log_threadvar);
