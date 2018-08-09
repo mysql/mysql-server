@@ -1571,7 +1571,7 @@ sub command_line_setup {
   my $path_share = $path_language;
 
   @share_locations =
-    ("share/mysql", "share/mysql-" . $mysql_base_version, "share");
+    ("share/mysql-" . $mysql_base_version, "share/mysql", "share");
 
   $path_charsetsdir = my_find_dir($basedir, \@share_locations, "charsets");
 
