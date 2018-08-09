@@ -170,6 +170,7 @@ DROP DATABASE mysqltest_db;
 SET @@sql_mode= @org_mode;
 use test;
 
+RESET MASTER;
 --echo 
 --echo #End of Test for Bug#12601974 
 
