@@ -68,6 +68,9 @@ ndb.ndb_restore_compat_downward         : Bug#28478897 UPDATE CHECKED IN BACKUPS
 # Problem with row size too large
 ndb.ndb_restore_conv_more : Bug#28479282 NDB_RESTORE_CONV_MORE TEST FAILS WITH 'ROW SIZE TOO LARGE'
 
+# Problem with ndb_index_stat tables missing from DD
+ndb.ndb_statistics0 : Bug#27543602 NDB_INDEX_STAT* TABLES ARE MISSING FROM DD AFTER AN INITIAL SYSTEM RESTART
+
 # Test which timeout most likely due to mismatches in shares etc.
 ndb.ndb_spj_dict : Need WL#9185 MySQL Cluster support for new DD.
 
