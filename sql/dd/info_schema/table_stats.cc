@@ -655,6 +655,7 @@ ulonglong Table_statistics::read_stat_by_open_table(
   LEX temp_lex, *lex;
   LEX *old_lex = thd->lex;
   thd->lex = lex = &temp_lex;
+  thd->lex->m_IS_table_stats.set_read_stats_by_open(true);
 
   lex_start(thd);
   lex->context_analysis_only = CONTEXT_ANALYSIS_ONLY_VIEW;

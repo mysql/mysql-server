@@ -271,6 +271,9 @@ class Table_statistics {
     return false;
   }
 
+  /// Check if open table in progress.
+  bool is_reading_stats_by_open() const { return m_read_stats_by_open; }
+
  private:
   /**
     Read dynamic table/index statistics from SE API's OR by reading
@@ -377,6 +380,9 @@ class Table_statistics {
   /// Get checksum
   ulonglong get_checksum() const { return m_checksum; }
 
+  /// Set open table in progress.
+  void set_read_stats_by_open(bool status) { m_read_stats_by_open = status; }
+
  private:
   // The cache key
   String_type m_key;  // Format '<db_name>.<table_name>'
@@ -386,6 +392,15 @@ class Table_statistics {
 
   // Table checksum value retrieved from SE.
   ulonglong m_checksum;
+
+  /*
+    Status if opening a table is in progress to read statistics.
+
+    This is used by heap table, to avoid write a command "DELETE FROM
+    TABLE" to binlog just after server restart. See open_table_entry_fini()
+    for more info.
+  */
+  bool m_read_stats_by_open;
 
  public:
   // Cached statistics.
