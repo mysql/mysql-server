@@ -5,6 +5,9 @@
 --echo # Check that the hidden generated column is not included in the binlog
 --echo # regardless of binlog_row_image
 
+# Clear the binlog
+RESET MASTER;
+
 SET @start_row_image_value = @@session.binlog_row_image;
 
 CREATE TABLE t1 (col1 INT, col2 INT NOT NULL, col3 INT, col4 INT, UNIQUE INDEX ((ABS(col2))));
