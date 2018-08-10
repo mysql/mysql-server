@@ -22,6 +22,8 @@
 # 9. Clean up.
 #######################################################################################
 
+# Don't test this under valgrind, memory leaks will occur
+--source include/not_valgrind.inc
 # Test involves sending SIGSTOP and SIGCONT signals using kill Linux command.
 --source include/linux.inc
 --source include/big_test.inc
