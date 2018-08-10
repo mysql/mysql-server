@@ -1,5 +1,5 @@
 "Test SHOW PROCESSLIST, column INFO"
 show processlist;
 Id	User	Host	db	Command	Time	State	Info
-ID	event_scheduler	HOST	NULL	Daemon	TIME	Waiting on empty queue	NULL
+ID	event_scheduler	HOST	NULL	Daemon	TIME	WAITING	NULL
 ID	root	HOST	test	Query	TIME	starting	show processlist
