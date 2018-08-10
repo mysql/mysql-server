@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1416,6 +1416,15 @@ typedef Ptr<HostBuffer> HostBufferPtr;
      data. In the case of abort, the varpart must then be shrunk. For a
      MM_GROWN tuple, the original size is stored in the last word of the
      varpart until commit.
+
+     DELETE_WAIT: When a tuple has been marked to be deleted, the tuple header
+     has the DELETE_WAIT bit set. Note that DELETE_WAIT means that the tuple
+     hasn't actually been deleted. When a tuple has been deleted, it is marked
+     with the FREE flag and DELETE_WAIT is reset.
+     The need for DELETE_WAIT arises due to the real-time break between the
+     marking of the tuple and the actual deletion of the tuple for disk data
+     rows. This information would be useful for reads since they'd know the
+     proper state of the row. (Related Bug #27584165)
     */
     STATIC_CONST( TUP_VERSION_MASK = 0xFFFF );
     STATIC_CONST( COPY_TUPLE  = 0x00010000 ); // Is this a copy tuple
@@ -1430,6 +1439,7 @@ typedef Ptr<HostBuffer> HostBufferPtr;
     STATIC_CONST( LCP_SKIP    = 0x01000000 ); // Should not be returned in LCP
     STATIC_CONST( VAR_PART    = 0x04000000 ); // Is there a varpart
     STATIC_CONST( REORG_MOVE  = 0x08000000 );
+    STATIC_CONST( DELETE_WAIT = 0x20000000 ); // Waiting for delete tuple page
 
     Tuple_header() {}
     Uint32 get_tuple_version() const { 

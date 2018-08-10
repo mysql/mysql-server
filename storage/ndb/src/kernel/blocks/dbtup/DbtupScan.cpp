@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1118,7 +1118,8 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
 	  {
 	    jam();
             thbits = th->m_header_bits;
-	    if (! (thbits & Tuple_header::FREE))
+      if (! ((thbits & Tuple_header::FREE) ||
+             (thbits & Tuple_header::DELETE_WAIT)))
 	    {
               goto found_tuple;
 	    } 
@@ -1135,7 +1136,8 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
 	    if ((foundGCI = *th->get_mm_gci(tablePtr.p)) > scanGCI ||
                 foundGCI == 0)
 	    {
-	      if (! (thbits & Tuple_header::FREE))
+	      if (! ((thbits & Tuple_header::FREE) ||
+	             (thbits & Tuple_header::DELETE_WAIT)))
 	      {
 		jam();
 		goto found_tuple;
@@ -1229,7 +1231,8 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
 	  if ((foundGCI = *th->get_mm_gci(tablePtr.p)) > scanGCI ||
               foundGCI == 0)
 	  {
-	    if (! (thbits & Tuple_header::FREE))
+      if (! ((thbits & Tuple_header::FREE) ||
+             (thbits & Tuple_header::DELETE_WAIT)))
 	      break;
 	  }
 	}
