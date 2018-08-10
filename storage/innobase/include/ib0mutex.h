@@ -39,8 +39,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0rnd.h"
 #include "ut0ut.h"
 
-#include <atomic>
-
 /** OS mutex for tracking lock/unlock for debugging */
 template <template <typename> class Policy = NoPolicy>
 struct OSTrackMutex {
@@ -224,7 +222,7 @@ struct TTASFutexMutex {
     them up. Reset the lock state to unlocked so that waiting
     threads can test for success. */
 
-    std::atomic_thread_fence(std::memory_order_acquire);
+    os_rmb;
 
     if (state() == MUTEX_STATE_WAITERS) {
       m_lock_word = MUTEX_STATE_UNLOCKED;
@@ -322,7 +320,7 @@ struct TTASFutexMutex {
   @return value of lock word before locking. */
   lock_word_t ttas(uint32_t max_spins, uint32_t max_delay,
                    uint32_t &n_spins) UNIV_NOTHROW {
-    std::atomic_thread_fence(std::memory_order_acquire);
+    os_rmb;
 
     for (n_spins = 0; n_spins < max_spins; ++n_spins) {
       if (!is_locked()) {
@@ -453,7 +451,7 @@ struct TTASMutex {
     uint32_t i = 0;
     const uint32_t step = max_spins;
 
-    std::atomic_thread_fence(std::memory_order_acquire);
+    os_rmb;
 
     do {
       while (is_locked()) {
@@ -499,7 +497,7 @@ struct TTASEventMutex {
     ut_ad(!((ulint)&m_lock_word % sizeof(ulint)));
   }
 
-  ~TTASEventMutex() UNIV_NOTHROW { ut_ad(!m_lock_word.load()); }
+  ~TTASEventMutex() UNIV_NOTHROW { ut_ad(m_lock_word == MUTEX_STATE_UNLOCKED); }
 
   /** Called when the mutex is "created". Note: Not from the constructor
   but when the mutex is initialised.
@@ -507,8 +505,8 @@ struct TTASEventMutex {
   @param[in]	filename	File where mutex was created
   @param[in]	line		Line in filename */
   void init(latch_id_t id, const char *filename, uint32_t line) UNIV_NOTHROW {
-    ut_a(m_event == nullptr);
-    ut_a(!m_lock_word.load(std::memory_order_relaxed));
+    ut_a(m_event == 0);
+    ut_a(m_lock_word == MUTEX_STATE_UNLOCKED);
 
     m_event = os_event_create(sync_latch_get_name(id));
 
@@ -519,7 +517,7 @@ struct TTASEventMutex {
   its desctructor will be called on exit(). We can't call
   os_event_destroy() at that stage. */
   void destroy() UNIV_NOTHROW {
-    ut_ad(!m_lock_word.load(std::memory_order_relaxed));
+    ut_ad(m_lock_word == MUTEX_STATE_UNLOCKED);
 
     /* We have to free the event before InnoDB shuts down. */
     os_event_destroy(m_event);
@@ -530,16 +528,25 @@ struct TTASEventMutex {
 
   /** Try and lock the mutex. Note: POSIX returns 0 on success.
   @return true on success */
-  bool try_lock() UNIV_NOTHROW {
-    bool expected = false;
-    return (m_lock_word.compare_exchange_strong(expected, true));
-  }
+  bool try_lock() UNIV_NOTHROW { return (tas_lock()); }
 
   /** Release the mutex. */
   void exit() UNIV_NOTHROW {
-    m_lock_word.store(false, std::memory_order_release);
+    /* A problem: we assume that mutex_reset_lock word
+    is a memory barrier, that is when we read the waiters
+    field next, the read must be serialized in memory
+    after the reset. A speculative processor might
+    perform the read first, which could leave a waiting
+    thread hanging indefinitely.
 
-    if (m_waiters.load(std::memory_order_acquire)) {
+    Our current solution call every second
+    sync_arr_wake_threads_if_sema_free()
+    to wake up possible hanging threads if they are missed
+    in mutex_signal_object. */
+
+    tas_unlock();
+
+    if (m_waiters != 0) {
       signal();
     }
   }
@@ -556,10 +563,8 @@ struct TTASEventMutex {
     }
   }
 
-  /** @return true if locked. */
-  bool state() const UNIV_NOTHROW {
-    return (m_lock_word.load(std::memory_order_relaxed));
-  }
+  /** @return the lock state. */
+  lock_word_t state() const UNIV_NOTHROW { return (m_lock_word); }
 
   /** The event that the mutex will wait in sync0arr.cc
   @return even instance */
@@ -567,7 +572,7 @@ struct TTASEventMutex {
 
   /** @return true if locked by some thread */
   bool is_locked() const UNIV_NOTHROW {
-    return (m_lock_word.load(std::memory_order_relaxed));
+    return (m_lock_word != MUTEX_STATE_UNLOCKED);
   }
 
 #ifdef UNIV_DEBUG
@@ -631,6 +636,8 @@ struct TTASEventMutex {
     uint32_t n_waits = 0;
     const uint32_t step = max_spins;
 
+    os_rmb;
+
     for (;;) {
       /* If the lock was free then try and acquire it. */
 
@@ -672,37 +679,46 @@ struct TTASEventMutex {
   }
 
   /** @return the value of the m_waiters flag */
-  lock_word_t waiters() UNIV_NOTHROW {
-    return (m_waiters.load(std::memory_order_relaxed));
-  }
+  lock_word_t waiters() UNIV_NOTHROW { return (m_waiters); }
 
   /** Note that there are threads waiting on the mutex */
   void set_waiters() UNIV_NOTHROW {
-    m_waiters.store(true, std::memory_order_release);
+    m_waiters = 1;
+    os_wmb;
   }
 
   /** Note that there are no threads waiting on the mutex */
   void clear_waiters() UNIV_NOTHROW {
-    m_waiters.store(false, std::memory_order_release);
+    m_waiters = 0;
+    os_wmb;
   }
+
+  /** Try and acquire the lock using TestAndSet.
+  @return	true if lock succeeded */
+  bool tas_lock() UNIV_NOTHROW {
+    return (TAS(&m_lock_word, MUTEX_STATE_LOCKED) == MUTEX_STATE_UNLOCKED);
+  }
+
+  /** In theory __sync_lock_release should be used to release the lock.
+  Unfortunately, it does not work properly alone. The workaround is
+  that more conservative __sync_lock_test_and_set is used instead. */
+  void tas_unlock() UNIV_NOTHROW { TAS(&m_lock_word, MUTEX_STATE_UNLOCKED); }
 
   /** Wakeup any waiting thread(s). */
   void signal() UNIV_NOTHROW;
 
  private:
   /** Disable copying */
-  TTASEventMutex(TTASEventMutex &&) = delete;
-  TTASEventMutex(const TTASEventMutex &) = delete;
-  TTASEventMutex &operator=(TTASEventMutex &&) = delete;
-  TTASEventMutex &operator=(const TTASEventMutex &) = delete;
+  TTASEventMutex(const TTASEventMutex &);
+  TTASEventMutex &operator=(const TTASEventMutex &);
 
   /** lock_word is the target of the atomic test-and-set instruction
   when atomic operations are enabled. */
-  std::atomic_bool m_lock_word;
+  lock_word_t m_lock_word;
 
-  /** true if there are (or may be) threads waiting
+  /** Set to 0 or 1. 1 if there are (or may be) threads waiting
   in the global wait array for this mutex to be released. */
-  std::atomic_bool m_waiters;
+  lock_word_t m_waiters;
 
   /** Used by sync0arr.cc for the wait queue */
   os_event_t m_event;
