@@ -7,6 +7,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 include/start_and_bootstrap_group_replication.inc
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("The request to add .*:[0-9]* to the group has been rejected because it is aimed at another group");
+call mtr.add_suppression("The request to remove .*:[0-9]* from the group has been rejected because it is aimed at another group");
 SET SESSION sql_log_bin= 1;
 [connection server2]
 SET SESSION sql_log_bin= 0;
