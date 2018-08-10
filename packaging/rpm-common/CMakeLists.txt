@@ -1,4 +1,4 @@
-# Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -30,10 +30,11 @@ ENDIF()
 
 SET(bindir "${CMAKE_INSTALL_PREFIX}/${INSTALL_BINDIR}")
 
-FOREACH(cfile my.cnf mysql.logrotate)
+FOREACH(cfile my.cnf mysql.logrotate mysqlrouter.conf)
   CONFIGURE_FILE(${cfile}.in ${CMAKE_CURRENT_BINARY_DIR}/${cfile} @ONLY)
 ENDFOREACH()
 
-FOREACH(cfile filter-provides.sh filter-requires.sh mysql_config.sh my_config.h)
+FOREACH(cfile filter-provides.sh filter-requires.sh mysql_config.sh my_config.h
+        mysqlrouter.init mysqlrouter.service mysqlrouter.tmpfiles.d)
   CONFIGURE_FILE(${cfile} ${CMAKE_CURRENT_BINARY_DIR}/${cfile} COPYONLY)
 ENDFOREACH()

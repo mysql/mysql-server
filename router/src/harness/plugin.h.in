@@ -1,0 +1,556 @@
+/*
+  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+*/
+
+#ifndef MYSQL_HARNESS_PLUGIN_INCLUDED
+#define MYSQL_HARNESS_PLUGIN_INCLUDED
+
+#include "harness_export.h"
+
+#include "my_compiler.h"
+
+#include <cstdlib>
+#include <cstdint>
+
+namespace mysql_harness {
+
+/* Forward declarations */
+struct AppInfo;
+class Config;
+class ConfigSection;
+class PluginFuncEnv;
+
+/** @defgroup Harness_API Harness API
+ *
+ * Harness API provides a set of functions that can be called from 4 plugin
+ * functions (`start()`, `stop()`, `init()`, `deinit()`). Each call requires
+ * `PluginFuncEnv*` as first argument - this is an opaque pointer that is passed
+ * to plugin function in its argument list.
+ *
+ * @note Not all API functions can be called from all plugin functions. See
+ * description of each function for details.
+ *
+ * @{
+ */
+
+/**
+ * This is a list of pre-defined error types, which can be used in
+ * set_error() API call. Select the one that best-describes your situation.
+ * As a rule of thumb, use one of kConfig* if the error occurs due to
+ * configuration issue, or kRuntimeError otherwise.
+ *
+ * Since plugin functions are not allowed to throw, it is recommended to
+ * surround your plugin function code with try/catch blocks, and catching
+ * (in addition to any specific exceptions) all exceptions
+ * (using the "catch (...) { .. }" block). In this catch block, using
+ * kUndefinedError is recommended.
+ *
+ * @note There is another enum missing from table below (kNoError),
+ * it is internal to MySQL Router, DO NOT USE it in your plugin.
+ */
+enum HARNESS_EXPORT ErrorType {
+  // internal to MySQL Router project, DO NOT USE THIS in your plugin
+  kNoError = 0,             // uninitialized error value
+
+  // API
+  kRuntimeError = 1,        /**< runtime error */
+  kConfigInvalidArgument,   /**< configuration error */
+  kConfigSyntaxError,       /**< configuration syntax error */
+  kUndefinedError,          /**< typically set from plugin's general safeguard
+                                 ('catch (...) {..}' block) */
+};
+
+/** @brief Returns error to Harness
+ *
+ * Function callable from: `init()`, `start()`, `stop()`, `deinit()`
+ *
+ * Plugin functions cannot throw nor return a value. To communicate failure,
+ * this function should be called.
+ *
+ * Calling this function not only passes the error type and string back to
+ * Harness, but also implies that the function has failed. The converse is also
+ * true: not calling this function prior to exiting the function implies
+ * success.  This distinction is important, because Harness may take certain
+ * actions based on the status returned by each function.
+ *
+ * @param env Pointer to PluginFuncEnv object passed to plugin function
+ * @param error_type One of the pre-defined error codes
+ * @param fmt format-string of error-msg to get logged
+ * It can be NULL, but it's recommended to provide a meaningful message.
+ */
+void HARNESS_EXPORT set_error(mysql_harness::PluginFuncEnv* env,
+                    mysql_harness::ErrorType error_type,
+                    const char* fmt, ...) noexcept
+#ifdef __GNUC__
+__attribute__((format(printf, 3, 4)))
+#endif
+  ;
+
+/** @brief Checks whether plugin shutdown was requested
+ *
+ * Function callable from: `start()`
+ *
+ * Since plugin is running in its own thread (inside its `start()` function),
+ * it needs to be notified when Harness wants it to shut down.  Harness
+ * provides two notification mechanisms: blocking and non-blocking. The plugin
+ * developer can choose the one that is most convenient.
+ *
+ * This is the non-blocking version. It should be regularly polled by `start()`,
+ * and upon returning false, `start()` should shut down the plugin and exit.
+ *
+ * @param env Pointer to PluginFuncEnv object passed to plugin function
+ * @return "running" flag. If true, `start()` may continue running, if false,
+ * `start()` should shut down
+ */
+bool HARNESS_EXPORT is_running(const mysql_harness::PluginFuncEnv* env) noexcept;
+
+/** @brief Blocks until shutdown is requested (or optionally timeout)
+ *
+ * Function callable from: `start()`
+ *
+ * Since plugin is running in its own thread (inside its `start()` function),
+ * it needs to be notified when Harness wants it to shut down.  Harness
+ * provides two notification mechanisms: blocking and non-blocking. The plugin
+ * developer can choose the one that is most convenient.
+ *
+ * This is the blocking version. It is a responsive and efficient functional
+ * equivalent of:
+ * @code
+ *
+ *   while (is_running(env)) {
+ *     // sleep a little bit or break on timeout
+ *   }
+ *
+ * @endcode
+ * @param env Pointer to PluginFuncEnv object passed to plugin function
+ * @param milliseconds Timeout in milliseconds, 0 = wait forever
+ * @return true if stop was requested, false on timeout
+ */
+bool HARNESS_EXPORT wait_for_stop(const mysql_harness::PluginFuncEnv* env,
+                                  uint32_t milliseconds) noexcept;
+
+/** @brief Clears "running flag" to induce plugin shutdown
+ *
+ * Function callable from: `start()`
+ *
+ * There may be occassions when the plugin needs to request its own shutdown
+ * (typically after it detects an error). In such case, this function should
+ * be called - it will set the "running" flag to false. Subsequent calls to
+ * is_running() and wait_for_stop() will reflect this new setting.
+ *
+ * @note This only sets "running" flag for the plugin that calls this. Other
+ * plugins have their own "running" flags, which means they are unaffected.
+ *
+ * @param env Pointer to PluginFuncEnv object passed to plugin function
+ */
+
+void HARNESS_EXPORT clear_running(mysql_harness::PluginFuncEnv* env) noexcept;
+
+/** @brief Retrieves information from Harness
+ *
+ * function callable from: `init()`, `deinit()`
+ *
+ * This function returns an AppInfo object, which provides further plugin environment
+ * information.
+ *
+ * @param env Pointer to env object passed to plugin function
+ * @return Pointer to AppInfo object
+ */
+const HARNESS_EXPORT AppInfo* get_app_info(const mysql_harness::PluginFuncEnv* env) noexcept;
+
+/** @brief Retrieves information from Harness
+ *
+ * function callable from: `start()`, `stop()`
+ *
+ * This function returns a ConfigSection object, which provides further
+ * plugin environment information.
+ *
+ * @param env Pointer to PluginFuncEnv object passed to plugin function
+ * @return Pointer to ConfigSection object
+ */
+const HARNESS_EXPORT ConfigSection* get_config_section(const mysql_harness::PluginFuncEnv* env) noexcept;
+
+/**@}*/
+
+
+
+/**
+ * Structure with information about the harness.
+ *
+ * @ingroup Loader
+ *
+ * This structure is made available to plugins so that they can get
+ * information about the plugin harness.
+ *
+ * @note We are intentionally using C calls here to avoid issues with
+ * symbol conversions and calling conventions. The file can be
+ * included both as a C and C++ file.
+ *
+ */
+
+struct AppInfo {
+  /**
+   * Program name.
+   *
+   * Name of the application.
+   */
+
+  const char *program;
+
+  /**
+   * Directory name for plugins.
+   *
+   * Name of the directory where extensions can be found and it
+   * depends on how the harness was installed. In a typical
+   * installation with installation prefix `/` it will be
+   * `/var/lib/mysql/<name>`.
+   */
+
+  const char *plugin_folder;
+
+
+  /**
+   * Directory name for log files.
+   *
+   * Name of the directory where log files should be placed. In a
+   * typical installation with installation prefix `/` this will be
+   * `/var/log/<name>`.
+   */
+
+  const char *logging_folder;
+
+  /**
+   * Directory name for run files.
+   *
+   * Name of the directory where run files should be placed. In a
+   * typical installation with installation prefix `/` this will be
+   * `/var/run/<name>`.
+   */
+
+  const char *runtime_folder;
+
+  /**
+   * Directory name for data files.
+   *
+   * Name of the directory where data files should be placed. In a
+   * typical installation with installation prefix `/` this will be
+   * `/var/lib/<name>`.
+   */
+
+  const char *data_folder;
+
+
+  /**
+   * Directory name for configuration files.
+   *
+   * Name of the directory where run files should be placed. In a
+   * typical installation with installation prefix `/` this will be
+   * `/etc/<name>`.
+   */
+
+  const char *config_folder;
+
+
+  /**
+   * Configuration information.
+   */
+
+  const Config* config;
+
+};
+
+
+/**
+ * Structure containing information about the plugin.
+ *
+ * @ingroup Loader
+ *
+ * The name of the plugin is give by the filename.
+ */
+
+struct Plugin {
+  /**
+   * Version of the plugin interface the plugin was built for.
+   *
+   * This field contain the ABI version the plugin was built for and
+   * is checked when loading the plugin to determine if the structure
+   * can be safely read. It shall normally be set to
+   * `PLUGIN_ABI_VERSION`, which is the version of the ABI that is
+   * being used.
+   *
+   * The least significant byte contain the minor version, the second
+   * least significant byte contain the major version of the
+   * interface. The most significant two bytes are unused and should
+   * be set to zero.
+   *
+   * @note Whenever new callbacks are added but none of the existing
+   * ones are changed, the minor version will be stepped. If the
+   * existing functions are changed in an incompatible way (something
+   * that could break the calling conventions for a platform), the
+   * major version will be stepped. Typically, the major version have
+   * to be stepped whenever parameters to existing functions are
+   * changed, but there are exceptions.
+   *
+   * @see PLUGIN_ABI_VERSION
+   */
+
+  uint32_t abi_version;
+
+
+  /**
+   * Architecture descriptor.
+   *
+   * A descriptor for the architecture the plugin was build
+   * for. Normally, `ARCHITECTURE_DESCRIPTOR` should be used.
+   *
+   * The architecture descriptor is a string that contain information
+   * about the architecture the plugin is being compiled with. It need
+   * to match the architecture of the harness.
+   *
+   * The architecture is a C string containing four slash-separated
+   * fields (or a star to denote that this is not checked):
+   *
+   * - CPU
+   * - Operating system
+   * - Naming scheme and calling conventions (essentially the compiler
+   *   and version of compiler being used to build the solution).
+   * - Runtime
+   *
+   * @see ARCHITECTURE_DESCRIPTOR
+   */
+
+  const char* arch_descriptor;
+
+
+  /**
+   * Brief description of plugin, to show in listings.
+   */
+
+  const char *brief;
+
+
+  /**
+   * Plugin version.
+   *
+   * Version of the plugin, given as a version number.
+   *
+   * @see VERSION_NUMBER
+   */
+  uint32_t plugin_version;
+
+  /**
+   * Array of names of required plugins.
+   *
+   * Length is given as the number of elements in the array and the
+   * array contain the names of the required plugins as C strings.
+   *
+   * A typical use is:
+   * @code
+   * const char *requires[] = {
+   *   "first",
+   *   "second",
+   * };
+   *
+   * Plugin my_plugin = {
+   *   ...
+   *   sizeof(requires)/sizeof(*requires),
+   *   requires,
+   *   ...
+   * };
+   * @endcode
+   */
+
+  size_t requires_length;
+  const char **requires;
+
+
+  /**
+   * Array of names of plugins it conflicts with.
+   *
+   * The array is defined in a similar way to how the `requires` array
+   * is defined.
+   */
+
+  size_t conflicts_length;
+  const char **conflicts;
+
+
+  /**
+   * Module initialization function.
+   *
+   * This function is called after the module is loaded. The pointer
+   * can be NULL, in which case no initialization takes place.
+   *
+   * @pre All modules that is in the list of required modules have
+   * their @c init() function called before this modules init
+   * function.
+   *
+   * @param env Pointer to PluginFuncEnv object, which is the basis of
+   * all communication with harness. Please see its documentation
+   * for more information. Particularly, calling get_app_info(env)
+   * will provide information about harness this module was loaded into.
+   *
+   * @note This function must not throw (it is not declared with 'noexcept'
+   * due to certain technical limitations)
+   */
+
+  void (*init)(PluginFuncEnv* env); // not allowed to throw!
+
+
+  /**
+   * Module deinitialization function.
+   *
+   * This function is called after module threads have exited but
+   * before the module is unloaded.
+   *
+   * @pre All `deinit` functions in modules will required by this
+   * module are called after the `deinit` function of this module
+   * have exited.
+   *
+   * @param env Pointer to PluginFuncEnv object, which is the basis of
+   * all communication with harness. Please see its documentation
+   * for more information. Particularly, calling get_app_info(env)
+   * will provide information about harness this module was loaded into.
+   *
+   * @note This function must not throw (it is not declared with 'noexcept'
+   * due to certain technical limitations)
+   */
+
+  void (*deinit)(PluginFuncEnv* env); // not allowed to throw!
+
+
+  /**
+   * Module thread start function.
+   *
+   * If this field is non-NULL, the plugin will be assigned a new
+   * thread and the start function will be called. The start functions
+   * of different plugins are called in an arbitrary order, so no
+   * expectations on the start order should be made.
+   * This function must respect harness' notification to stop running,
+   * and exit when notified. It shall regularly poll a "running" flag
+   * exposed by harness (see is_running() and wait_for_stop()), it may
+   * also clear this flag via clear_running() if it needs to.
+   *
+   * @param env Pointer to PluginFuncEnv object, which is the basis of
+   * all communication with harness. Please see its documentation
+   * for more information. Particularly, calling get_config_section(
+   * env) will provide pointer to the section that is being started.
+   * You can find both the name and the key in this section object.
+   *
+   * @note This function must not throw (it is not declared with 'noexcept'
+   * due to certain technical limitations)
+   */
+
+  void (*start)(PluginFuncEnv* env);  // not allowed to throw!
+
+
+  /**
+   * Module thread stop (notification) function.
+   *
+   * This function is called when stopping start(). Since start() runs
+   * in a different thread, no assumptions should be made on whether
+   * stop() runs before, during or after start() exits. Also, the
+   * stop() functions of different plugins are called in an arbitrary
+   * order, so no expectations on stop() calling order should be made.
+   *
+   * @note this function does not cause the plugin running start() to
+   * exit - harness uses another mechanism to facilitate that. Instead,
+   * this function is called *in addition* to stopping the start() function,
+   * as a courtesy notification call, should that be useful.
+   *
+   * @note unlike start(), which runs in its own thread, stop() runs in
+   * harness' thread
+   *
+   * @note under certain circumstances, `stop()` may overlap execution
+   * with `start()`, or even be called before `start()`. stop() must be
+   * able to deal with all such cases.
+   *
+   * @param env Pointer to PluginFuncEnv object, which is the basis of
+   * all communication with harness. Please see its documentation
+   * for more information. Particularly, calling get_config_section(
+   * env) will provide pointer to the section that is being started.
+   * You can find both the name and the key in this section object.
+   *
+   * @note This function must not throw (it is not declared with 'noexcept'
+   * due to certain technical limitations)
+   */
+
+  void (*stop)(PluginFuncEnv* env); // not allowed to throw!
+};
+
+
+/**
+ * Current version of the library.
+ *
+ * @ingroup Loader
+ *
+ * This constant is the version of the plugin interface in use. This
+ * should be used when initializing the module structure.
+ *
+ * @see Plugin
+ */
+
+const uint32_t PLUGIN_ABI_VERSION = 0x0200;
+
+/**
+ * Default architecture descriptor.
+ *
+ * @ingroup Loader
+ */
+const char* const ARCHITECTURE_DESCRIPTOR = "@MYSQL_HARNESS_ARCH_CPU@/@MYSQL_HARNESS_ARCH_OS@/@MYSQL_HARNESS_ARCH_COMPILER@/@MYSQL_HARNESS_ARCH_RUNTIME@";
+
+/**
+ * Macro to create a version number from a major, minor and patch version.
+ *
+ * @ingroup Loader
+ */
+#define VERSION_NUMBER(MAJ, MIN, PAT) \
+  ((((MAJ) & 0xFF) << 24) | (((MIN) & 0xFF) << 16) | ((PAT) & 0xFFFF))
+
+/**
+ * Macros to extract major/minor/patch version from the full version number.
+ *
+ * @ingroup Loader
+ */
+#define VERSION_MAJOR(VER) (((VER) >> 24) & 0xFF)
+#define VERSION_MINOR(VER) (((VER) >> 16) & 0xFF)
+#define VERSION_PATCH(VER) ((VER) & 0xFFFF)
+
+/**
+ * Macro to create ABI version number from a major and minor version.
+ *
+ * @ingroup Loader
+ */
+#define ABI_VERSION_NUMBER(MAJ, MIN) \
+  ((((MAJ) & 0xFF) << 8) | ((MIN) & 0xFF))
+
+/**
+ * Macros to extract major/minor version from the full ABI version number.
+ *
+ * @ingroup Loader
+ */
+#define ABI_VERSION_MAJOR(VER) (((VER) >> 8) & 0xFF)
+#define ABI_VERSION_MINOR(VER) ((VER) & 0xFF)
+}
+
+#endif /* MYSQL_HARNESS_PLUGIN_INCLUDED */

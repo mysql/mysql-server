@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -41,6 +41,34 @@
 
 INCLUDE(cmake_parse_arguments)
 
+FUNCTION(SET_PATH_TO_SSL target target_out_dir)
+  IF(APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
+    IF(BUILD_IS_SINGLE_CONFIG)
+      ADD_CUSTOM_COMMAND(TARGET ${target} POST_BUILD
+        COMMAND install_name_tool -change
+              "${CRYPTO_VERSION}" "@loader_path/../lib/${CRYPTO_VERSION}"
+              $<TARGET_FILE_NAME:${target}>
+        COMMAND install_name_tool -change
+              "${OPENSSL_VERSION}" "@loader_path/../lib/${OPENSSL_VERSION}"
+              $<TARGET_FILE_NAME:${target}>
+        WORKING_DIRECTORY ${target_out_dir}
+      )
+    ELSE()
+      ADD_CUSTOM_COMMAND(TARGET ${target} POST_BUILD
+        COMMAND install_name_tool -change
+            "${CRYPTO_VERSION}"
+            "@loader_path/../../lib/${CMAKE_CFG_INTDIR}/${CRYPTO_VERSION}"
+        $<TARGET_FILE_NAME:${target}>
+        COMMAND install_name_tool -change
+            "${OPENSSL_VERSION}"
+            "@loader_path/../../lib/${CMAKE_CFG_INTDIR}/${OPENSSL_VERSION}"
+        $<TARGET_FILE_NAME:${target}>
+        WORKING_DIRECTORY ${target_out_dir}/${CMAKE_CFG_INTDIR}
+      )
+    ENDIF()
+  ENDIF()
+ENDFUNCTION()
+
 FUNCTION (MYSQL_ADD_EXECUTABLE)
   # Pass-through arguments for ADD_EXECUTABLE
   MYSQL_PARSE_ARGUMENTS(ARG
@@ -63,31 +91,7 @@ FUNCTION (MYSQL_ADD_EXECUTABLE)
   ADD_VERSION_INFO(${target} EXECUTABLE sources)
   ADD_EXECUTABLE(${target} ${ARG_WIN32} ${sources})
 
-  IF(APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
-    IF(BUILD_IS_SINGLE_CONFIG)
-      ADD_CUSTOM_COMMAND(TARGET ${target} POST_BUILD
-        COMMAND install_name_tool -change
-              "${CRYPTO_VERSION}" "@loader_path/../lib/${CRYPTO_VERSION}"
-              $<TARGET_FILE_NAME:${target}>
-        COMMAND install_name_tool -change
-              "${OPENSSL_VERSION}" "@loader_path/../lib/${OPENSSL_VERSION}"
-              $<TARGET_FILE_NAME:${target}>
-        WORKING_DIRECTORY ${TARGET_RUNTIME_OUTPUT_DIRECTORY}
-      )
-    ELSE()
-      ADD_CUSTOM_COMMAND(TARGET ${target} POST_BUILD
-        COMMAND install_name_tool -change
-            "${CRYPTO_VERSION}"
-            "@loader_path/../../lib/${CMAKE_CFG_INTDIR}/${CRYPTO_VERSION}"
-        $<TARGET_FILE_NAME:${target}>
-        COMMAND install_name_tool -change
-            "${OPENSSL_VERSION}"
-            "@loader_path/../../lib/${CMAKE_CFG_INTDIR}/${OPENSSL_VERSION}"
-        $<TARGET_FILE_NAME:${target}>
-        WORKING_DIRECTORY ${TARGET_RUNTIME_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}
-      )
-    ENDIF()
-  ENDIF()
+  SET_PATH_TO_SSL(${target} ${TARGET_RUNTIME_OUTPUT_DIRECTORY})
 
   IF(ARG_EXCLUDE_FROM_ALL)
 #   MESSAGE(STATUS "EXCLUDE_FROM_ALL ${target}")

@@ -28,6 +28,5 @@ IF(UNIX)
 
   # Left in current directory, to be taken during build
   CONFIGURE_FILE(mysql.spec.in ${CMAKE_CURRENT_BINARY_DIR}/${SPECFILENAME} @ONLY)
-
 ENDIF()
 

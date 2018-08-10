@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -30,7 +30,9 @@ FUNCTION(GENERATE_XERRORS FILE_NAME VARIABLE_NAME_DEFINES VARIABLE_NAME_ENTRIES)
   SET(${VARIABLE_NAME_ENTRIES} ${RESULT_ENTRIES} PARENT_SCOPE)
 ENDFUNCTION()
 
-SET(MYSQLX_GENERATE_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
+# Those files are also used by the MySQLRouter so we need to cache the path
+# so that they could be accessed from there
+SET(MYSQLX_GENERATE_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated" CACHE STRING "MYSQLX_GENERATE_DIR")
 
 GENERATE_XERRORS(${MYSQLX_PROJECT_DIR}/ngs/include/ngs/ngs_error.h NGS_ERROR NGS_ERROR_NAMES)
 GENERATE_XERRORS(${MYSQLX_PROJECT_DIR}/src/xpl_error.h XPL_ERROR XPL_ERROR_NAMES)

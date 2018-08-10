@@ -94,6 +94,7 @@ override_dh_installinit:
 	dh_systemd_enable --name=mysql
 	dh_installinit --name=mysql -- defaults 19 21
 	dh_installinit --name=mysql@ -- disable
+	dh_installinit --name=mysqlrouter -- defaults 19 21
 	dh_systemd_start --restart-after-upgrade
 	touch $@
 
