@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
 */
 
 #include <ndb_global.h>
+#include "NdbSleep.h"
 
 #ifdef _WIN32
 #include <io.h>
@@ -144,6 +145,7 @@ void CPCD::Process::monitor()
       {
         m_pid = bad_pid;
         m_status = STOPPED;
+        removePid();
       }
       else if (time(NULL) > m_stopping_time + m_stop_timeout)
       {
@@ -589,6 +591,32 @@ int CPCD::Process::start() {
    *    take care of that.
    */
   logger.info("Starting %d: %s", m_id, m_name.c_str());
+
+  /* Check if there is a left over pid file.
+   * If so and process runs with written pid, let it run and fail starting new process.
+   * If no process runs with written pid, remove pid file.
+   */
+  if (readPid() >= 0) {
+    if (isRunning()) {
+      logger.error("Fail starting %d.  Old pid file found.  Leave running "
+                   "process (pid %d) running.\n",
+                   m_id,
+                   m_pid);
+      m_status = STOPPED;
+      m_pid = bad_pid;
+      return -1;
+    }
+    else {
+      logger.info("While starting %d.  Found old pid file with no running "
+                  "process (pid %d). Removing pid file!\n",
+                  m_id,
+                  m_pid);
+      m_status = STOPPED;
+      m_pid = bad_pid;
+      removePid();
+    }
+  }
+
   m_status = STARTING;
 
   int pid = -1;
@@ -670,15 +698,59 @@ int CPCD::Process::start() {
       return -1;
   }
 
-  while (readPid() < 0) {
-    sched_yield();
-  }
+  const int max_retries = 3;
+  for (int retries = max_retries; retries > 0; retries--) {
+    while (readPid() < 0) {
+      sched_yield();
+    }
 
-  errno = 0;
-  pid_t pgid = IF_WIN(-1, getpgid(pid));
+    errno = 0;
+    pid_t pgid = IF_WIN(-1, getpgid(pid));
 
-  if (pgid != -1 && pgid != m_pid) {
-    logger.error("pgid and m_pid don't match: %d %d (%d)", pgid, m_pid, pid);
+    if (pgid == -1 || pgid == m_pid) {
+      if (retries < max_retries)
+      {
+        logger.info("Retry reading pid file succeeded: cpcd pid %d: forked "
+                    "pgid %d pid %d: file m_pid %d",
+                    getpid(),
+                    pgid,
+                    pid,
+                    m_pid);
+      }
+      break;
+    }
+
+    /* retry */
+
+    // For processtype PERMANENT pid and pgid must be -1 so never enter here.
+    require(m_processType == TEMPORARY);
+    logger.error("pgid and m_pid don't match: cpcd pid %d: forked pgid %d "
+                 "pid %d: file m_pid %d",
+                 getpid(),
+                 pgid,
+                 pid,
+                 m_pid);
+
+    if (retries == 1) {
+      /* Last try reading pid file failed.
+       * For TEMPORARY where pid of started process is known, kill it.
+       */
+#ifndef _WIN32
+      logger.error("After pid file mismatch, forced kill of forked process "
+                   "group (pgid %d).",
+                   pgid);
+      kill(-pgid, 9);
+#endif
+      logger.error("After pid file mismatch, stop started process %d "
+                   "(pid %d).",
+                   m_id,
+                   m_pid);
+      stop();
+      return -1;
+    }
+
+    m_pid = bad_pid;
+    NdbSleep_SecSleep(1);
   }
 
   if (isRunning())
