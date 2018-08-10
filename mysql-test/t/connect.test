@@ -450,6 +450,66 @@ DROP USER wl6587@localhost;
 --echo # -- End of 5.6 tests
 --echo # ------------------------------------------------------------------
 
+--echo #
+--echo # BUG#27539838: NOT ALL ABORTED CONNECTS ARE REPORTED TO ERROR.LOG
+--echo #               PROPERLY
+--echo #
+
+--let LOG_ERR=$MYSQLTEST_VARDIR/tmp/myerror.err
+--let SEARCH_FILE=$MYSQLTEST_VARDIR/tmp/myerror.err
+
+--let restart_parameters="restart: --log-error=$LOG_ERR --log-error-verbosity=3"
+--replace_result $LOG_ERR LOG_ERR
+--source include/restart_mysqld.inc
+
+SHOW STATUS LIKE 'Aborted_connects';
+
+--echo
+--echo # Case 1: Connection attempt by an invalid user
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(con1,localhost,newuser,,);
+
+--let SEARCH_PATTERN= Access denied for user 'newuser'@'localhost' \(using password: NO\)
+--source include/search_pattern_in_file.inc
+
+--echo
+--echo # Case 2: Connection attempt by a valid user with incorrect password
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(con1,localhost,root,1234,);
+
+--let SEARCH_PATTERN= Access denied for user 'root'@'localhost' \(using password: YES\)
+--source include/search_pattern_in_file.inc
+
+# Creating a dummy database and an user with no privileges to access that database
+--connection default
+CREATE DATABASE test1;
+CREATE USER 'new1'@'localhost';
+
+--echo
+--echo # Case 3: Connection attempt by a valid user with no privileges to access a database
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_DBACCESS_DENIED_ERROR
+connect(con1,localhost,new1,,test1);
+
+--let SEARCH_PATTERN= Access denied for user 'new1'@'localhost' to database 'test1'
+--source include/search_pattern_in_file.inc
+
+--echo
+--echo # Case 4: SSL connection attempt without necessary certificates
+--error 1
+--exec $MYSQL --user=root --ssl-mode=VERIFY_CA
+
+--let SEARCH_PATTERN= Got an error reading communication packets
+--source include/search_pattern_in_file.inc
+
+SHOW STATUS LIKE 'Aborted_connects';
+
+# Cleanup
+DROP USER 'new1'@'localhost';
+DROP DATABASE test1;
+--remove_file $LOG_ERR
 
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
