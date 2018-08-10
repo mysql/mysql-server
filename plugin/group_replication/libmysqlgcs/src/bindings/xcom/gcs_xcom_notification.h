@@ -444,7 +444,8 @@ class Status_notification : public Parameterized_notification<false> {
   Status_notification &operator=(Status_notification const &);
 };
 
-typedef void(xcom_global_view_functor)(synode_no, synode_no, Gcs_xcom_nodes *);
+typedef void(xcom_global_view_functor)(synode_no, synode_no, Gcs_xcom_nodes *,
+                                       xcom_event_horizon);
 /**
   Notification used to inform there have been change to the configuration,
   i.e. nodes have been added, removed or considered dead/faulty.
@@ -465,7 +466,8 @@ class Global_view_notification : public Parameterized_notification<false> {
 
   explicit Global_view_notification(xcom_global_view_functor *functor,
                                     synode_no config_id, synode_no message_id,
-                                    Gcs_xcom_nodes *xcom_nodes);
+                                    Gcs_xcom_nodes *xcom_nodes,
+                                    xcom_event_horizon event_horizon);
 
   /**
     Destructor for Global_view_notification.
@@ -502,6 +504,11 @@ class Global_view_notification : public Parameterized_notification<false> {
     the message.
   */
   Gcs_xcom_nodes *m_xcom_nodes;
+
+  /*
+    Event horizon of the configuration.
+  */
+  xcom_event_horizon m_event_horizon;
 
   /*
     Disabling the copy constructor and assignment operator.

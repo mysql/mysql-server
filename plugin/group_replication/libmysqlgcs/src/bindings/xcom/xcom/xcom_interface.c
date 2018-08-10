@@ -122,7 +122,8 @@ void deliver_view_msg(site_def const *site) {
 void deliver_global_view_msg(site_def const *site, synode_no message_id) {
   if (site) {
     xcom_receive_global_view(site->start, message_id,
-                             clone_node_set(site->global_node_set));
+                             clone_node_set(site->global_node_set),
+                             site->event_horizon);
   }
 }
 

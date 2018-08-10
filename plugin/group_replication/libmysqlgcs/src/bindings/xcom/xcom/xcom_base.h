@@ -171,7 +171,8 @@ typedef void (*xcom_local_view_receiver)(synode_no message_id, node_set nodes);
 void set_xcom_local_view_receiver(xcom_local_view_receiver x);
 
 typedef void (*xcom_global_view_receiver)(synode_no config_id,
-                                          synode_no message_id, node_set nodes);
+                                          synode_no message_id, node_set nodes,
+                                          xcom_event_horizon);
 void set_xcom_global_view_receiver(xcom_global_view_receiver x);
 
 void set_xcom_logger(xcom_logger x);
