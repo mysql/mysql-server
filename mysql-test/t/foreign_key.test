@@ -3368,6 +3368,143 @@ ALTER TABLE child DROP KEY fk_s, ADD COLUMN j INT, ADD KEY (fk, j);
 ALTER TABLE self DROP KEY fk_s, ADD COLUMN j INT, ADD KEY(fk, j);
 DROP TABLES self, child, parent;
 
+--echo #
+--echo # 4) Check how foreign keys involving partitioned tables are handled.
+--echo #
+
+--echo #
+--echo # 4.a) Creation of partitioned child table, addition of foreign key to
+--echo #      partitioned table and attempt to partition child table in a
+--echo #      foreign key should all lead to errors (since InnoDB doesn't
+--echo #      support foreign keys involving partitioned tables yet).
+CREATE TABLE parent (pk INT PRIMARY KEY);
+--error ER_FOREIGN_KEY_ON_PARTITIONED
+CREATE TABLE child (pk INT PRIMARY KEY, fk INT, FOREIGN KEY (fk) REFERENCES parent(pk))
+  PARTITION BY KEY (pk) PARTITIONS 20;
+
+CREATE TABLE child (pk INT PRIMARY KEY, fk INT) PARTITION BY KEY (pk) PARTITIONS 20;
+--error ER_FOREIGN_KEY_ON_PARTITIONED
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent(pk);
+DROP TABLE child;
+
+CREATE TABLE child (pk INT PRIMARY KEY, fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FOREIGN_KEY_ON_PARTITIONED
+ALTER TABLE child PARTITION BY KEY (pk) PARTITIONS 20;
+
+--echo #
+--echo # 4.b) Attempt to partition parent table in a foreign key,
+--echo #      attempt to create table with foreign key referencing
+--echo #      partitioned table and addition of foreign key with
+--echo #      partitioned parent should all lead to errors as well.
+--error ER_FOREIGN_KEY_ON_PARTITIONED
+ALTER TABLE parent PARTITION BY KEY (pk) PARTITIONS 20;
+DROP TABLES child, parent;
+
+CREATE TABLE parent (pk INT PRIMARY KEY) PARTITION BY KEY (pk) PARTITIONS 20;
+--error ER_FOREIGN_KEY_ON_PARTITIONED
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+
+CREATE TABLE child (fk INT);
+--error ER_FOREIGN_KEY_ON_PARTITIONED
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent(pk);
+DROP TABLES child, parent;
+
+--echo #
+--echo # 4.c) Addition of partitioned parent for previously orphan foreign key
+--echo #      should result in error as well.
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE orphan (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+SET FOREIGN_KEY_CHECKS=1;
+--error ER_FOREIGN_KEY_ON_PARTITIONED
+CREATE TABLE parent (pk INT PRIMARY KEY) PARTITION BY KEY (pk) PARTITIONS 20;
+
+CREATE TABLE parent0 (pk INT PRIMARY KEY) PARTITION BY KEY (pk) PARTITIONS 20;
+--error ER_FOREIGN_KEY_ON_PARTITIONED
+RENAME TABLE parent0 TO parent;
+
+--error ER_FOREIGN_KEY_ON_PARTITIONED
+ALTER TABLE parent0 RENAME TO parent;
+--error ER_FOREIGN_KEY_ON_PARTITIONED
+ALTER TABLE parent0 RENAME TO parent, ADD COLUMN j INT, ALGORITHM=COPY;
+--error ER_FOREIGN_KEY_ON_PARTITIONED
+ALTER TABLE parent0 RENAME TO parent, ADD COLUMN j INT, ALGORITHM=INPLACE;
+DROP TABLES orphan, parent0;
+
+--echo #
+--echo # 4.d) ALTER TABLE which ADD/DROP FOREIGN KEY and change table's
+--echo #      partitioning status at the same time.
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (pk INT PRIMARY KEY, fk INT,
+                    CONSTRAINT c FOREIGN KEY (fk) REFERENCES parent(pk));
+--echo # Dropping foreign key and adding partitioning is OK.
+ALTER TABLE child DROP FOREIGN KEY c PARTITION BY KEY (pk) PARTITIONS 20;
+--echo # Adding foreign key and removing partitioning is OK.
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent(pk) REMOVE PARTITIONING;
+DROP TABLES child, parent;
+CREATE TABLE self (pk INT PRIMARY KEY, fk INT,
+                   CONSTRAINT c FOREIGN KEY (fk) REFERENCES self(pk));
+--echo # Dropping foreign key and adding partitioning is OK.
+ALTER TABLE self DROP FOREIGN KEY c PARTITION BY KEY (pk) PARTITIONS 20;
+--echo # Adding foreign key and removing partitioning should be OK.
+--echo # However, the below statement fails due to bug#28486106 in InnoDB code.
+--error ER_CANNOT_ADD_FOREIGN
+ALTER TABLE self ADD FOREIGN KEY (fk) REFERENCES self(pk) REMOVE PARTITIONING;
+DROP TABLES self;
+
+--echo #
+--echo # 5) Check how parent table in different storage engine is handled.
+--echo #
+--echo # We handle it in the same way as if table was missing to be compatible
+--echo # with pre-8.0 versions.
+
+--echo #
+--echo # 5.a) Attempt to create table with a foreign key or to add foreign key
+--echo #      to already xisting table which reference parent in different SE
+--echo #      should fail in FOREIGN_KEY_CHECKS=1 mode.
+CREATE TABLE bad_parent (pk INT PRIMARY KEY) ENGINE=MyISAM;
+--error ER_FK_CANNOT_OPEN_PARENT
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES bad_parent(pk));
+
+CREATE TABLE child (fk INT);
+--error ER_FK_CANNOT_OPEN_PARENT
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES bad_parent(pk);
+
+--echo #
+--echo # 5.b) However, in FOREIGN_KEY_CHECKS=0 mode this is allowed.
+--echo #      Referenced table is considered missing and existing table
+--echo #      in a wrong SE is not considered as real parent.
+SET FOREIGN_KEY_CHECKS = 0;
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES bad_parent(pk);
+DROP TABLE child;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES bad_parent(pk));
+SET FOREIGN_KEY_CHECKS = 1;
+--echo # Bad parent can be dropped just fine even in FOREIGN_KEY_CHECKS=1 mode.
+DROP TABLE bad_parent;
+DROP TABLE child;
+
+--echo #
+--echo # 5.c) Attempt to change SE for table participating in foreign key
+--echo #      should lead to error.
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_ROW_IS_REFERENCED
+ALTER TABLE child ENGINE=MyISAM;
+--error ER_ROW_IS_REFERENCED
+ALTER TABLE parent ENGINE=MyISAM;
+DROP TABLES child, parent;
+
+--echo #
+--echo # 5.d) It is possible to add "parent" in wrong SE to orphan foreign key.
+--echo #      However, it won't be considered as real parent.
+SET FOREIGN_KEY_CHECKS = 0;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES bad_parent(pk));
+SET FOREIGN_KEY_CHECKS = 1;
+CREATE TABLE bad_parent (pk INT PRIMARY KEY) ENGINE=MyISAM;
+--echo # It is possible to break bad parent even in FOREIGN_KEY_CHECKS=1 mode.
+ALTER TABLE bad_parent DROP COLUMN pk, ADD COLUMN i INT;
+DROP TABLE bad_parent;
+DROP TABLE child;
+
 
 --echo #
 --echo # WL#8910: Ensure foreign key error does not reveal information about

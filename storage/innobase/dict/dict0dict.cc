@@ -4223,13 +4223,21 @@ col_loop1:
     if (success && my_isspace(cs, *ptr1)) {
       ptr2 = dict_accept(cs, ptr1, "BY", &success);
       if (success) {
-        my_error(ER_FOREIGN_KEY_ON_PARTITIONED, MYF(0));
+        /*
+          SQL-layer disallows foreign keys on partitioned tables
+          unless storage engine supports such FKs explicitly.
+        */
+        ut_ad(0);
         return (DB_CANNOT_ADD_CONSTRAINT);
       }
     }
   }
   if (dict_table_is_partition(table)) {
-    my_error(ER_FOREIGN_KEY_ON_PARTITIONED, MYF(0));
+    /*
+      This is ALTER TABLE which adds foreign key to partitioned table.
+      SQL-layer should have blocked this already.
+    */
+    ut_ad(0);
     return (DB_CANNOT_ADD_CONSTRAINT);
   }
 
@@ -4313,7 +4321,6 @@ col_loop1:
   if (referenced_table && dict_table_is_partition(referenced_table)) {
     /* How could one make a referenced table to be a partition? */
     ut_ad(0);
-    my_error(ER_FOREIGN_KEY_ON_PARTITIONED, MYF(0));
     return (DB_CANNOT_ADD_CONSTRAINT);
   }
 

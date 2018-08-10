@@ -446,6 +446,7 @@ bool prepare_create_field(THD *thd, HA_CREATE_INFO *create_info,
   @param create_info               Create information (like MAX_ROWS).
   @param alter_info                List of columns and indexes to create
   @param file                      The handler for the new table.
+  @param is_partitioned            Indicates whether table is partitioned.
   @param[out] key_info_buffer      An array of KEY structs for the indexes.
   @param[out] key_count            The number of elements in the array.
   @param[out] fk_key_info_buffer   An array of FOREIGN_KEY structs for the
@@ -472,8 +473,9 @@ bool prepare_create_field(THD *thd, HA_CREATE_INFO *create_info,
 bool mysql_prepare_create_table(
     THD *thd, const char *error_schema_name, const char *error_table_name,
     HA_CREATE_INFO *create_info, Alter_info *alter_info, handler *file,
-    KEY **key_info_buffer, uint *key_count, FOREIGN_KEY **fk_key_info_buffer,
-    uint *fk_key_count, FOREIGN_KEY *existing_fks, uint existing_fks_count,
+    bool is_partitioned, KEY **key_info_buffer, uint *key_count,
+    FOREIGN_KEY **fk_key_info_buffer, uint *fk_key_count,
+    FOREIGN_KEY *existing_fks, uint existing_fks_count,
     const dd::Table *existing_fks_table, uint fk_max_generated_name_number,
     int select_field_count, bool find_parent_keys);
 

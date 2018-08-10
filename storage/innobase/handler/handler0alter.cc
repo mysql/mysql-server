@@ -9594,7 +9594,11 @@ enum_alter_inplace_result ha_innopart::check_if_supported_inplace_alter(
 
   /* Not supporting these for partitioned tables yet! */
 
-  /* FK not yet supported. */
+  /*
+    FK not yet supported. SQL-layer blocks most of such changes.
+    We resort to COPY algorithm for a few which are still allowed
+    (e.g. REMOVE PARTITIONING and ADD FOREIGN KEY at the same time).
+  */
   if (ha_alter_info->handler_flags & (Alter_inplace_info::ADD_FOREIGN_KEY |
                                       Alter_inplace_info::DROP_FOREIGN_KEY)) {
     ha_alter_info->unsupported_reason =
