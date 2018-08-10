@@ -1174,7 +1174,15 @@ bool auth_plugin_supports_expiration(const char *plugin_name) {
   a helper function to report an access denied error in all the proper places
 */
 static void login_failed_error(THD *thd, MPVIO_EXT *mpvio, int passwd_used) {
-  if (passwd_used == 2) {
+  if (thd->is_error()) {
+    LogEvent()
+        .prio(INFORMATION_LEVEL)
+        .errcode(ER_ABORTING_USER_CONNECTION)
+        .subsys(LOG_SUBSYSTEM_TAG)
+        .verbatim(thd->get_stmt_da()->message_text());
+  }
+
+  else if (passwd_used == 2) {
     my_error(ER_ACCESS_DENIED_NO_PASSWORD_ERROR, MYF(0),
              mpvio->auth_info.user_name, mpvio->auth_info.host_or_ip);
     query_logger.general_log_print(
@@ -3049,8 +3057,7 @@ int acl_authenticate(THD *thd, enum_server_command command) {
 
     if (parse_com_change_user_packet(thd, &mpvio,
                                      mpvio.protocol->get_packet_length())) {
-      if (!thd->is_error())
-        login_failed_error(thd, &mpvio, mpvio.auth_info.password_used);
+      login_failed_error(thd, &mpvio, mpvio.auth_info.password_used);
       server_mpvio_update_thd(thd, &mpvio);
       DBUG_RETURN(1);
     }
@@ -3155,8 +3162,7 @@ int acl_authenticate(THD *thd, enum_server_command command) {
                       mpvio.auth_info.authenticated_as, mpvio.db.str, thd,
                       command);
     }
-    if (!thd->is_error())
-      login_failed_error(thd, &mpvio, mpvio.auth_info.password_used);
+    login_failed_error(thd, &mpvio, mpvio.auth_info.password_used);
     DBUG_RETURN(1);
   }
 
@@ -3193,8 +3199,7 @@ int acl_authenticate(THD *thd, enum_server_command command) {
         Host_errors errors;
         errors.m_proxy_user = 1;
         inc_host_errors(mpvio.ip, &errors);
-        if (!thd->is_error())
-          login_failed_error(thd, &mpvio, mpvio.auth_info.password_used);
+        login_failed_error(thd, &mpvio, mpvio.auth_info.password_used);
         DBUG_RETURN(1);
       }
 
@@ -3212,8 +3217,7 @@ int acl_authenticate(THD *thd, enum_server_command command) {
         Host_errors errors;
         errors.m_proxy_user_acl = 1;
         inc_host_errors(mpvio.ip, &errors);
-        if (!thd->is_error())
-          login_failed_error(thd, &mpvio, mpvio.auth_info.password_used);
+        login_failed_error(thd, &mpvio, mpvio.auth_info.password_used);
         DBUG_RETURN(1);
       }
       acl_user = acl_proxy_user->copy(thd->mem_root);
@@ -3272,7 +3276,7 @@ int acl_authenticate(THD *thd, enum_server_command command) {
       Host_errors errors;
       errors.m_ssl = 1;
       inc_host_errors(mpvio.ip, &errors);
-      if (!thd->is_error()) login_failed_error(thd, &mpvio, thd->password);
+      login_failed_error(thd, &mpvio, thd->password);
       DBUG_RETURN(1);
     }
 
@@ -3396,6 +3400,7 @@ int acl_authenticate(THD *thd, enum_server_command command) {
       Host_errors errors;
       errors.m_default_database = 1;
       inc_host_errors(mpvio.ip, &errors);
+      login_failed_error(thd, &mpvio, mpvio.auth_info.password_used);
       DBUG_RETURN(1);
     }
   }
