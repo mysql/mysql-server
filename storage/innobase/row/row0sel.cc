@@ -3966,6 +3966,8 @@ dberr_t row_search_no_mvcc(byte *buf, page_cur_mode_t mode,
                            row_prebuilt_t *prebuilt, ulint match_mode,
                            ulint direction) {
   dict_index_t *index = prebuilt->index;
+  ut_ad(index->table->is_intrinsic());
+
   const dtuple_t *search_tuple = prebuilt->search_tuple;
   btr_pcur_t *pcur = prebuilt->pcur;
   Row_sel_get_clust_rec_for_mysql row_sel_get_clust_rec_for_mysql;
@@ -4032,28 +4034,24 @@ dberr_t row_search_no_mvcc(byte *buf, page_cur_mode_t mode,
       if (err != DB_SUCCESS) {
         return (err); /* purecov: inspected */
       }
-    } else if (index->last_sel_cur->invalid || prebuilt->m_temp_tree_modified) {
-      /* Index tree has changed and so active cached cursor
-      is no more valid. Re-set it based on the last selected
-      position. */
-      index->last_sel_cur->release();
-      /* FIXME: this could come from a rnd_pos(), we will
-      need to adjust the search mode */
-      if (prebuilt->m_temp_tree_modified) {
-        if (direction == ROW_SEL_NEXT && pcur->search_mode == PAGE_CUR_GE) {
-          pcur->search_mode = PAGE_CUR_G;
-        }
-        prebuilt->m_temp_tree_modified = false;
-      }
-      mtr_start(mtr);
 
-      dict_disable_redo_if_temporary(index->table, mtr);
+    } else if (index->last_sel_cur->invalid || prebuilt->m_temp_tree_modified) {
+      /* Index tree has changed and so active cached cursor is no more valid.
+      Re-set it based on the last selected position. */
+      index->last_sel_cur->release();
+      prebuilt->m_temp_tree_modified = false;
+
+      if (direction == ROW_SEL_NEXT && pcur->search_mode == PAGE_CUR_GE) {
+        pcur->search_mode = PAGE_CUR_G;
+      }
+
+      mtr_start(mtr);
+      mtr_set_log_mode(mtr, MTR_LOG_NO_REDO);
 
       mem_heap_t *heap = mem_heap_create(256);
-      dtuple_t *tuple;
 
-      tuple = dict_index_build_data_tuple(index, pcur->old_rec,
-                                          pcur->old_n_fields, heap);
+      dtuple_t *tuple = dict_index_build_data_tuple(index, pcur->old_rec,
+                                                    pcur->old_n_fields, heap);
 
       btr_pcur_open_with_no_init(index, tuple, pcur->search_mode,
                                  BTR_SEARCH_LEAF, pcur, 0, mtr);
