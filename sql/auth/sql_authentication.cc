@@ -460,7 +460,11 @@ bool auth_plugin_supports_expiration(const char *plugin_name)
 static void login_failed_error(MPVIO_EXT *mpvio, int passwd_used)
 {
   THD *thd= current_thd;
-  if (passwd_used == 2)
+
+  if (thd->is_error())
+    sql_print_information("%s", thd->get_stmt_da()->message_text());
+
+  else if (passwd_used == 2)
   {
     my_error(ER_ACCESS_DENIED_NO_PASSWORD_ERROR, MYF(0),
              mpvio->auth_info.user_name,
@@ -2196,8 +2200,7 @@ acl_authenticate(THD *thd, enum_server_command command)
     if (parse_com_change_user_packet(&mpvio,
                                      mpvio.protocol->get_packet_length()))
     {
-      if (!thd->is_error())
-        login_failed_error(&mpvio, mpvio.auth_info.password_used);
+      login_failed_error(&mpvio, mpvio.auth_info.password_used);
       server_mpvio_update_thd(thd, &mpvio);
       DBUG_RETURN(1);
     }
@@ -2315,8 +2318,7 @@ acl_authenticate(THD *thd, enum_server_command command)
       acl_log_connect(mpvio.auth_info.user_name, mpvio.auth_info.host_or_ip,
         mpvio.auth_info.authenticated_as, mpvio.db.str, thd, command);
     }
-    if (!thd->is_error())
-      login_failed_error(&mpvio, mpvio.auth_info.password_used);
+    login_failed_error(&mpvio, mpvio.auth_info.password_used);
     DBUG_RETURN (1);
   }
 
@@ -2355,8 +2357,7 @@ acl_authenticate(THD *thd, enum_server_command command)
         Host_errors errors;
         errors.m_proxy_user= 1;
         inc_host_errors(mpvio.ip, &errors);
-        if (!thd->is_error())
-          login_failed_error(&mpvio, mpvio.auth_info.password_used);
+        login_failed_error(&mpvio, mpvio.auth_info.password_used);
         DBUG_RETURN(1);
       }
 
@@ -2375,8 +2376,7 @@ acl_authenticate(THD *thd, enum_server_command command)
         Host_errors errors;
         errors.m_proxy_user_acl= 1;
         inc_host_errors(mpvio.ip, &errors);
-        if (!thd->is_error())
-          login_failed_error(&mpvio, mpvio.auth_info.password_used);
+        login_failed_error(&mpvio, mpvio.auth_info.password_used);
         mysql_mutex_unlock(&acl_cache->lock);
         DBUG_RETURN(1);
       }
@@ -2414,8 +2414,7 @@ acl_authenticate(THD *thd, enum_server_command command)
       Host_errors errors;
       errors.m_ssl= 1;
       inc_host_errors(mpvio.ip, &errors);
-      if (!thd->is_error())
-        login_failed_error(&mpvio, thd->password);
+      login_failed_error(&mpvio, thd->password);
       DBUG_RETURN(1);
     }
 
@@ -2541,6 +2540,7 @@ acl_authenticate(THD *thd, enum_server_command command)
       Host_errors errors;
       errors.m_default_database= 1;
       inc_host_errors(mpvio.ip, &errors);
+      login_failed_error(&mpvio, mpvio.auth_info.password_used);
       DBUG_RETURN(1);
     }
   }
