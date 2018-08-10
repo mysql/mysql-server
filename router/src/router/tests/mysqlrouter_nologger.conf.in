@@ -1,0 +1,5 @@
+[DEFAULT]
+logging_folder = @ROUTER_RUNTIME_DIR@/log
+plugin_folder = @HARNESS_PLUGIN_OUTPUT_DIRECTORY@
+runtime_folder = @ROUTER_RUNTIME_DIR@
+config_folder = @ROUTER_RUNTIME_DIR@

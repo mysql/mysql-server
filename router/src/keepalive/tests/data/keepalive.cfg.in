@@ -1,0 +1,13 @@
+
+# Configuration file for Keepalive plugin tests
+
+[DEFAULT]
+logging_folder = {prefix}/var/log/keepalive
+plugin_folder = @HARNESS_PLUGIN_OUTPUT_DIRECTORY@
+runtime_folder = {prefix}/var/run/{program}
+config_folder = {prefix}/var/run/{program}
+data_folder = {prefix}/var/lib/{program}
+
+[keepalive]
+interval = 1
+runs = 2

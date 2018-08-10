@@ -1,0 +1,65 @@
+/*
+  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+*/
+
+// Generated from config.h.in
+
+// MySQL Router version
+#define MYSQL_ROUTER_VERSION "@MySQLRouter_VERSION@"
+#define MYSQL_ROUTER_VERSION_MAJOR @MySQLRouter_VERSION_MAJOR@
+#define MYSQL_ROUTER_VERSION_MINOR @MySQLRouter_VERSION_MINOR@
+#define MYSQL_ROUTER_VERSION_PATCH @MySQLRouter_VERSION_PATCH@
+#define MYSQL_ROUTER_VERSION_EDITION "@PROJECT_COMPILATION_COMMENT@"
+
+// Package information
+#define MYSQL_ROUTER_PACKAGE_NAME "@MYSQL_ROUTER_NAME@"
+#define MYSQL_ROUTER_PACKAGE_PLATFORM "@PLATFORM@"
+#define MYSQL_ROUTER_PACKAGE_ARCH_CPU "@CMAKE_SYSTEM_PROCESSOR@"
+#define MYSQL_ROUTER_PACKAGE_ARCH_64BIT @ARCH_64BIT@
+
+// Defaults
+#define CONFIG_FILES R"cfg(@CONFIG_FILES@)cfg"
+#define MYSQL_ROUTER_BINARY_FOLDER "@ROUTER_BINDIR@"
+#define MYSQL_ROUTER_PLUGIN_FOLDER "@ROUTER_PLUGINDIR@"
+#define MYSQL_ROUTER_CONFIG_FOLDER "@ROUTER_CONFIGDIR@"
+#define MYSQL_ROUTER_RUNTIME_FOLDER "@ROUTER_RUNTIMEDIR@"
+#define MYSQL_ROUTER_LOGGING_FOLDER "@ROUTER_LOGDIR@"
+#define MYSQL_ROUTER_DATA_FOLDER "@ROUTER_DATADIR@"
+
+// Plaform specific
+#cmakedefine SIZEOF_VOIDP     @SIZEOF_VOIDP@
+#cmakedefine SIZEOF_CHARP     @SIZEOF_CHARP@
+#cmakedefine SIZEOF_LONG      @SIZEOF_LONG@
+#cmakedefine SIZEOF_SHORT     @SIZEOF_SHORT@
+#cmakedefine SIZEOF_INT       @SIZEOF_INT@
+#cmakedefine SIZEOF_LONG_LONG @SIZEOF_LONG_LONG@
+#cmakedefine SIZEOF_OFF_T     @SIZEOF_OFF_T@
+#cmakedefine SIZEOF_TIME_T    @SIZEOF_TIME_T@
+
+/* Endianess */
+#cmakedefine WORDS_BIGENDIAN 1
+
+#cmakedefine WITH_UNIT_TESTS
+
+// Platform specific libraries
+#cmakedefine HAVE_PRLIMIT 1

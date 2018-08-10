@@ -220,10 +220,17 @@ ELSEIF(DEB_CODENAME STREQUAL "xenial")
   SET (DEB_CONTROL_BDEPS ", dh-apparmor, dh-systemd (>=1.5)")
   SET (DEB_INSTALL_SOURCE_XZ "../*.tar.xz usr/src/mysql/")
   SET (DEB_RULES_INSTALL_APPARMOR
-    "install -g root -o root -m 0644 -D debian/extra/apparmor-profile debian/tmp/etc/apparmor.d/usr.sbin.mysqld")
+    "
+	install -g root -o root -m 0644 -D debian/extra/apparmor-profile debian/tmp/etc/apparmor.d/usr.sbin.mysqld
+	install -g root -o root -m 0644 -D debian/extra/apparmor-profile-router debian/tmp/etc/apparmor.d/usr.bin.mysqlrouter
+")
   SET (DEB_RULES_APPARMOR_LOAD
-    "dh_apparmor -pmysql-${DEB_PRODUCTNAME}-server --profile-name=usr.sbin.mysqld")
+  "
+	dh_apparmor -pmysql-${DEB_PRODUCTNAME}-server --profile-name=usr.sbin.mysqld
+	dh_apparmor -pmysql-router-${DEB_PRODUCTNAME} --profile-name=usr.bin.mysqlrouter
+  ")
   SET (DEB_INSTALL_SERVER_APPARMOR "etc/apparmor.d/usr.sbin.mysqld")
+  SET (DEB_INSTALL_ROUTER_APPARMOR "etc/apparmor.d/usr.bin.mysqlrouter")
   SET (DEB_INIT_APPARMOR "/lib/apparmor/profile-load usr.sbin.mysqld")
   SET (DEB_CONTROL_DBGSYM ${DEB_CONTROL_DBGSYM_DEFAULT})
   SET (DEB_RULES_STRIP ${DEB_RULES_STRIP_DEFAULT})
@@ -232,10 +239,17 @@ ELSEIF(DEB_CODENAME STREQUAL "bionic")
   SET (DEB_CONTROL_BDEPS ", dh-apparmor, dh-systemd (>=1.5)")
   SET (DEB_INSTALL_SOURCE_XZ "../*.tar.xz usr/src/mysql/")
   SET (DEB_RULES_INSTALL_APPARMOR
-    "install -g root -o root -m 0644 -D debian/extra/apparmor-profile debian/tmp/etc/apparmor.d/usr.sbin.mysqld")
+  "
+	install -g root -o root -m 0644 -D debian/extra/apparmor-profile debian/tmp/etc/apparmor.d/usr.sbin.mysqld
+	install -g root -o root -m 0644 -D debian/extra/apparmor-profile-router debian/tmp/etc/apparmor.d/usr.bin.mysqlrouter
+  ")
   SET (DEB_RULES_APPARMOR_LOAD
-    "dh_apparmor -pmysql-${DEB_PRODUCTNAME}-server --profile-name=usr.sbin.mysqld")
+  "
+	dh_apparmor -pmysql-${DEB_PRODUCTNAME}-server --profile-name=usr.sbin.mysqld
+	dh_apparmor -pmysql-router-${DEB_PRODUCTNAME} --profile-name=usr.bin.mysqlrouter
+  ")
   SET (DEB_INSTALL_SERVER_APPARMOR "etc/apparmor.d/usr.sbin.mysqld")
+  SET (DEB_INSTALL_ROUTER_APPARMOR "etc/apparmor.d/usr.bin.mysqlrouter")
   SET (DEB_INIT_APPARMOR "/lib/apparmor/profile-load usr.sbin.mysqld")
   SET (DEB_CONTROL_DBGSYM "")
   SET (DEB_RULES_STRIP "")
@@ -248,6 +262,7 @@ ELSEIF(DEB_CODENAME STREQUAL "cosmic")
   SET (DEB_RULES_APPARMOR_LOAD
     "dh_apparmor -pmysql-${DEB_PRODUCTNAME}-server --profile-name=usr.sbin.mysqld")
   SET (DEB_INSTALL_SERVER_APPARMOR "etc/apparmor.d/usr.sbin.mysqld")
+  SET (DEB_INSTALL_ROUTER_APPARMOR "etc/apparmor.d/usr.bin.mysqlrouter")
   SET (DEB_INIT_APPARMOR "/lib/apparmor/profile-load usr.sbin.mysqld")
   SET (DEB_CONTROL_DBGSYM "")
   SET (DEB_RULES_STRIP "")
@@ -257,6 +272,9 @@ ELSE()
   RETURN()
 ENDIF()
 
+IF (NOT DEFINED DEB_NOROUTER)
+  INCLUDE(deb_router.cmake)
+ENDIF()
 IF (WITH_NDBCLUSTER)
   INCLUDE(deb_ndb.cmake)
 ENDIF()
@@ -276,7 +294,7 @@ IF(DEB_INSTALL_SERVER_SYSTEMD STREQUAL "")
 	LIST(REMOVE_ITEM SOURCEFILES "mysql-packagesource-server.mysql.service.in")
 ENDIF()
 FOREACH (SOURCEFILE ${SOURCEFILES})
-  STRING(REGEX REPLACE "-packagesource-" "-${DEB_PRODUCTNAME}-"
+  STRING(REGEX REPLACE "-packagesource" "-${DEB_PRODUCTNAME}"
     TMPFILE ${SOURCEFILE})
   # Strip away the input file endings from the destination filenames
   STRING(REGEX REPLACE ".in$" "" TMPFILE ${TMPFILE})

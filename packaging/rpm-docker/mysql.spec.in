@@ -157,6 +157,8 @@ mkdir release
            -DWITH_INNODB_MEMCACHED=1 \
            -DINSTALL_LIBDIR="%{_lib}/mysql" \
            -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
+           -DROUTER_INSTALL_LIBDIR="%{_lib}" \
+           -DROUTER_INSTALL_PLUGINDIR="%{_lib}/mysqlrouter" \
            -DINSTALL_MYSQLTESTDIR="" \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DMYSQLX_UNIX_ADDR="/var/run/mysqld/mysqlx.sock" \
@@ -205,7 +207,7 @@ for f in innochecksum ibd2sdi myisamchk myisam_ftdump myisamlog myisampack \
          mysql_config_editor mysqld_multi mysqld_safe mysqldumpslow mysqlimport \
          mysql_secure_installation mysqlshow mysqlslap mysqltest mysqlxtest \
          perror resolveip  resolve_stack_dump lz4_decompress \
-         zlib_decompress; do
+         zlib_decompress mysqlrouter mysqlrouter_plugin_info ; do
     rm -f %{buildroot}%{_bindir}/$f
 done
 
@@ -254,6 +256,10 @@ done
 
 rm -f %{buildroot}%{_libdir}/mysql/plugin/libtest_*.so
 rm -f %{buildroot}%{_libdir}/pkgconfig/mysqlclient.pc
+
+rm -rf %{buildroot}%{_libdir}/mysqlrouter
+rm -rf %{buildroot}%{_libdir}/libmysqlharness*
+rm -rf %{buildroot}%{_libdir}/libmysqlrouter*
 
 # No need for these scripts
 rm -f %{buildroot}%{_datadir}/mysql-*/{mysql.server,mysqld_multi.server,mysql-log-rotate}

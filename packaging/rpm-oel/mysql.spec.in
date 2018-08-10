@@ -491,6 +491,45 @@ This package contains the MySQL server as an embedded library with
 compatibility for applications using version %{compatlib} of the library.
 %endif
 
+%package  -n   mysql-router-%{product_suffix}
+Summary:       MySQL Router
+Group:         Applications/Databases
+Provides:      mysql-router = %{version}-%{release}
+Obsoletes:     mysql-router < %{version}-%{release}
+%if 0%{?commercial}
+Obsoletes:     mysql-router-community < %{version}-%{release}
+%endif
+%description -n mysql-router-%{product_suffix}
+The MySQL(TM) Router software delivers a fast, multi-threaded way of
+routing connections from MySQL Clients to MySQL Servers. MySQL is a
+trademark of Oracle.
+
+The MySQL software has Dual Licensing, which means you can use the
+MySQL software free of charge under the GNU General Public License
+(http://www.gnu.org/licenses/). You can also purchase commercial MySQL
+licenses from Oracle and/or its affiliates if you do not wish to be
+bound by the terms of the GPL. See the chapter "Licensing and Support"
+in the manual for further info.
+
+The MySQL web site (http://www.mysql.com/) provides the latest news
+and information about the MySQL software. Also please see the
+documentation and the manual for more information.
+
+%package   -n   mysql-router-%{product_suffix}-devel
+Summary:        Development header files and libraries for MySQL Router
+Group:          Applications/Databases
+Provides:       mysql-router-devel = %{version}-%{release}
+Obsoletes:      mysql-router-devel < %{version}-%{release}
+%if 0%{?commercial}
+Obsoletes:      mysql-router-community-devel < %{version}-%{release}
+Requires:       mysql-router-commercial = %{version}-%{release}
+%else
+Requires:       mysql-router-community = %{version}-%{release}
+%endif
+%description -n mysql-router-%{product_suffix}-devel
+This package contains the development header files and libraries
+necessary to develop MySQL Router applications.
+
 %if 0%{?cluster}
 %package        management-server
 Summary:        MySQL Cluster Management Server Daemon
@@ -708,6 +747,8 @@ mkdir debug
            -DWITH_INNODB_MEMCACHED=1 \
            -DINSTALL_LIBDIR="%{_lib}/mysql" \
            -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin/debug" \
+           -DROUTER_INSTALL_LIBDIR="%{_lib}" \
+           -DROUTER_INSTALL_PLUGINDIR="%{_lib}/mysqlrouter" \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DMYSQLX_UNIX_ADDR="/var/run/mysqld/mysqlx.sock" \
            -DFEATURE_SET="%{feature_set}" \
@@ -752,6 +793,8 @@ mkdir release
            -DWITH_INNODB_MEMCACHED=1 \
            -DINSTALL_LIBDIR="%{_lib}/mysql" \
            -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
+           -DROUTER_INSTALL_LIBDIR="%{_lib}" \
+           -DROUTER_INSTALL_PLUGINDIR="%{_lib}/mysqlrouter" \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DMYSQLX_UNIX_ADDR="/var/run/mysqld/mysqlx.sock" \
            -DFEATURE_SET="%{feature_set}" \
@@ -789,6 +832,10 @@ install -d -m 0755 %{buildroot}/var/run/mysqld
 install -d -m 0750 %{buildroot}/var/lib/mysql-files
 install -d -m 0750 %{buildroot}/var/lib/mysql-keyring
 
+# Router directories
+install -d -m 0755 %{buildroot}/var/log/mysqlrouter
+install -d -m 0755 %{buildroot}/var/run/mysqlrouter
+
 # Install all binaries
 cd $MBD/release
 make DESTDIR=%{buildroot} install
@@ -812,6 +859,13 @@ mv %{buildroot}/%{_bindir}/mysql_config %{buildroot}/%{_bindir}/mysql_config-%{_
 install -p -m 0755 packaging/rpm-common/mysql_config.sh %{buildroot}/%{_bindir}/mysql_config
 %endif
 
+%if 0%{?systemd}
+install -D -p -m 0644 packaging/rpm-common/mysqlrouter.service %{buildroot}%{_unitdir}/mysqlrouter.service
+install -D -p -m 0644 packaging/rpm-common/mysqlrouter.tmpfiles.d %{buildroot}%{_tmpfilesdir}/mysqlrouter.conf
+%else
+install -D -p -m 0755 packaging/rpm-common/mysqlrouter.init %{buildroot}%{_sysconfdir}/init.d/mysqlrouter
+%endif
+install -D -p -m 0644 packaging/rpm-common/mysqlrouter.conf %{buildroot}%{_sysconfdir}/mysqlrouter/mysqlrouter.conf
 
 # Remove files pages we explicitly do not want to package
 rm -rf %{buildroot}%{_infodir}/mysql.info*
@@ -825,6 +879,10 @@ rm -f %{buildroot}%{_datadir}/mysql-*/audit_log_filter_win_install.sql
 # rm -f %{buildroot}%{_mandir}/man1/<manpage>.1
 
 # Remove removed manpages here until they are removed from the docs repo
+
+# remove some unwanted router files
+rm -rf %{buildroot}/%{_libdir}/libmysqlharness.{a,so}
+rm -rf %{buildroot}/%{_libdir}/libmysqlrouter.so
 
 %check
 %if 0%{?runselftest} || 0%{?with_unittests}
@@ -891,6 +949,39 @@ fi
 %endif
 
 %{?el7:%postun embedded-compat -p /sbin/ldconfig}
+
+%pre -n mysql-router-%{product_suffix}
+/usr/sbin/groupadd -r mysqlrouter >/dev/null 2>&1 || :
+/usr/sbin/useradd -M -N -g mysqlrouter -r -d /var/lib/mysqlrouter -s /bin/false \
+    -c "MySQL Router" mysqlrouter >/dev/null 2>&1 || :
+
+%post -n mysql-router-%{product_suffix}
+/sbin/ldconfig
+%if 0%{?systemd}
+%systemd_post mysqlrouter.service
+%else
+/sbin/chkconfig --add mysqlrouter
+%endif # systemd
+
+%preun -n mysql-router-%{product_suffix}
+%if 0%{?systemd}
+%systemd_preun mysqlrouter.service
+%else
+if [ "$1" = 0 ]; then
+    /sbin/service mysqlrouter stop >/dev/null 2>&1 || :
+    /sbin/chkconfig --del mysqlrouter
+fi
+%endif # systemd
+
+%postun -n mysql-router-%{product_suffix}
+/sbin/ldconfig
+%if 0%{?systemd}
+%systemd_postun_with_restart mysqlrouter.service
+%else
+if [ $1 -ge 1 ]; then
+    /sbin/service mysqlrouter condrestart >/dev/null 2>&1 || :
+fi
+%endif # systemd
 
 %files server
 %defattr(-, root, root, -)
@@ -1459,6 +1550,26 @@ fi
 %attr(755, root, root) %{_bindir}/mysqlbackup
 %endif
 
+%files -n mysql-router-%{product_suffix}
+%defattr(-, root, root, -)
+%doc %{src_dir}/packaging/router/README.txt  %{src_dir}/packaging/router/License.txt
+%dir %{_sysconfdir}/mysqlrouter
+%config(noreplace) %{_sysconfdir}/mysqlrouter/mysqlrouter.conf
+%{_bindir}/mysqlrouter
+%{_bindir}/mysqlrouter_plugin_info
+%if 0%{?systemd}
+%{_unitdir}/mysqlrouter.service
+%{_tmpfilesdir}/mysqlrouter.conf
+%else
+%{_sysconfdir}/init.d/mysqlrouter
+%endif
+%{_libdir}/libmysqlharness.so.*
+%{_libdir}/libmysqlrouter.so.*
+%dir %{_libdir}/mysqlrouter
+%{_libdir}/mysqlrouter/*.so
+%dir %attr(755, mysqlrouter, mysqlrouter) /var/log/mysqlrouter
+%dir %attr(755, mysqlrouter, mysqlrouter) /var/run/mysqlrouter
+
 %changelog
 * Wed Jul 18 2018 Georgi Kodinov <georgi.kodinov@oracle.com> - 8.0.13-1
 - Added test_services_host_application_signal test plugin
@@ -1478,6 +1589,7 @@ fi
 - Add License Book, remove COPYING
 - No longer need to remove obsoleted mysqltest man pages
 - Add perl modules for test subpackage
+- Add router as subpackage
 
 * Fri Jul 28 2017 Horst Hunger <horst.hunger@oracle.com> - 8.0.3-0.1
 - Add component_test_status_var_service plugin

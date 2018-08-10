@@ -1,0 +1,39 @@
+# vim:syntax=apparmor
+
+#include <tunables/global>
+
+/usr/bin/mysqlrouter {
+  #include <abstractions/base>
+  #include <abstractions/nameservice>
+  #include <abstractions/user-tmp>
+
+# Allow system resource access
+  /sys/devices/system/cpu/ r,
+  capability sys_resource,
+  capability dac_override,
+  capability setuid,
+  capability setgid,
+  capability chown,
+  capability fowner,
+
+# Allow config access
+  /etc/mysqlrouter/** rw,
+  /var/lib/mysqlrouter/keyring rw,
+
+# Allow runtime files such as PID-file
+  /var/run/mysqlrouter/mysqlrouter.pid rw,
+
+# Allow read/ write to /tmp
+  /tmp/ r,
+  /tmp/* rw,
+
+# Allow execution of MySQL Router binary
+  /usr/bin/mysqlrouter mr,
+
+# Allow plugin access
+  /usr/lib/@DEB_HOST_MULTIARCH@/mysqlrouter/*.so mr,
+
+# Allow log file access
+  /var/log/mysqlrouter/ rw,
+  /var/log/mysqlrouter/** rw,
+}
