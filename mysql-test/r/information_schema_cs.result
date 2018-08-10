@@ -2639,3 +2639,12 @@ tcons.constraint_schema = rcons.constraint_schema AND
 tcons.constraint_name = rcons.unique_constraint_name;
 COUNT(*) = 0
 1
+#
+# Bug#27729859 QUERYING THE KEYWORDS TABLE FAILS UNLESS THERE IS A
+#              DEFAULT DATABASE
+#
+# Connect without a schema name, and see that we can query the KEYWORDS
+# view.
+SELECT COUNT(*) > 0 FROM INFORMATION_SCHEMA.KEYWORDS;
+COUNT(*) > 0
+1

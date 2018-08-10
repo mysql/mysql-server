@@ -2417,3 +2417,16 @@ SELECT COUNT(*) = 0
   ON tcons.constraint_catalog = rcons.constraint_catalog AND
   tcons.constraint_schema = rcons.constraint_schema AND
   tcons.constraint_name = rcons.unique_constraint_name;
+
+--echo #
+--echo # Bug#27729859 QUERYING THE KEYWORDS TABLE FAILS UNLESS THERE IS A
+--echo #              DEFAULT DATABASE
+--echo #
+
+--echo # Connect without a schema name, and see that we can query the KEYWORDS
+--echo # view.
+connect (conn1,localhost,root,,*NO-ONE*);
+connection conn1;
+SELECT COUNT(*) > 0 FROM INFORMATION_SCHEMA.KEYWORDS;
+connection default;
+disconnect conn1;

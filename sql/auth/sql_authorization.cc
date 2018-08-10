@@ -1699,6 +1699,12 @@ bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *all_tables) {
 
 bool check_single_table_access(THD *thd, ulong privilege,
                                TABLE_LIST *all_tables, bool no_errors) {
+  if (all_tables->is_internal()) {
+    // Optimizer internal tables does not need any privilege checking.
+    all_tables->set_privileges(privilege);
+    return false;
+  }
+
   Security_context *backup_ctx = thd->security_context();
 
   /* we need to switch to the saved context (if any) */
@@ -3220,8 +3226,8 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
     want_access &= ~sctx->master_access();
     if (!want_access) continue;  // ok
 
-    if (!(~t_ref->grant.privilege & want_access) || t_ref->is_derived() ||
-        t_ref->is_table_function() || t_ref->schema_table)
+    if (!(~t_ref->grant.privilege & want_access) || t_ref->is_internal() ||
+        t_ref->schema_table)
       continue;
 
     if (is_temporary_table(t_ref)) {
@@ -3461,9 +3467,9 @@ bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST *table_ref,
 
   DBUG_ASSERT(want_privilege);
 
-  if (is_temporary_table(table_ref) || table_ref->is_derived() ||
-      table_ref->is_table_function()) {
-    // Tmp table,table function or derived table: no need to evaluate privileges
+  if (is_temporary_table(table_ref) || table_ref->is_internal()) {
+    // Temporary table or optimizer internal table: no need to evaluate
+    // privileges
     DBUG_RETURN(false);
   } else if (table_ref->is_view() || table_ref->field_translation) {
     /* View or derived information schema table. */
