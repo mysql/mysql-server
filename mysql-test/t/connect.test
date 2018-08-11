@@ -497,7 +497,8 @@ connect(con1,localhost,new1,,test1);
 --let SEARCH_PATTERN= Got an error reading communication packets
 --source include/search_pattern.inc
 
-SHOW STATUS LIKE 'Aborted_connects';
+# Uncomment the below statement when BUG#28490126 is fixed.
+# SHOW STATUS LIKE 'Aborted_connects';
 
 # Cleanup
 DROP USER 'new1'@'localhost';

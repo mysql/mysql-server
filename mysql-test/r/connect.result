@@ -377,8 +377,5 @@ Pattern "Access denied for user 'new1'@'localhost' to database 'test1'" found
 
 # Case 4: SSL connection attempt without necessary certificates
 Pattern "Got an error reading communication packets" found
-SHOW STATUS LIKE 'Aborted_connects';
-Variable_name	Value
-Aborted_connects	4
 DROP USER 'new1'@'localhost';
 DROP DATABASE test1;
