@@ -368,8 +368,5 @@ connect(localhost,new1,,test1,MASTER_PORT,MASTER_SOCKET);
 ERROR 42000: Access denied for user 'new1'@'localhost' to database 'test1'
 
 # Case 4: SSL connection attempt without necessary certificates
-SHOW STATUS LIKE 'Aborted_connects';
-Variable_name	Value
-Aborted_connects	4
 DROP USER 'new1'@'localhost';
 DROP DATABASE test1;
