@@ -3449,6 +3449,126 @@ ALTER TABLE child DROP KEY fk_s, ADD COLUMN j INT, ADD KEY (fk, j);
 ALTER TABLE self DROP KEY fk_s, ADD COLUMN j INT, ADD KEY(fk, j);
 DROP TABLES self, child, parent;
 #
+# 4) Check how foreign keys involving partitioned tables are handled.
+#
+#
+# 4.a) Creation of partitioned child table, addition of foreign key to
+#      partitioned table and attempt to partition child table in a
+#      foreign key should all lead to errors (since InnoDB doesn't
+#      support foreign keys involving partitioned tables yet).
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (pk INT PRIMARY KEY, fk INT, FOREIGN KEY (fk) REFERENCES parent(pk))
+PARTITION BY KEY (pk) PARTITIONS 20;
+ERROR HY000: Foreign keys are not yet supported in conjunction with partitioning
+CREATE TABLE child (pk INT PRIMARY KEY, fk INT) PARTITION BY KEY (pk) PARTITIONS 20;
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent(pk);
+ERROR HY000: Foreign keys are not yet supported in conjunction with partitioning
+DROP TABLE child;
+CREATE TABLE child (pk INT PRIMARY KEY, fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+ALTER TABLE child PARTITION BY KEY (pk) PARTITIONS 20;
+ERROR HY000: Foreign keys are not yet supported in conjunction with partitioning
+#
+# 4.b) Attempt to partition parent table in a foreign key,
+#      attempt to create table with foreign key referencing
+#      partitioned table and addition of foreign key with
+#      partitioned parent should all lead to errors as well.
+ALTER TABLE parent PARTITION BY KEY (pk) PARTITIONS 20;
+ERROR HY000: Foreign keys are not yet supported in conjunction with partitioning
+DROP TABLES child, parent;
+CREATE TABLE parent (pk INT PRIMARY KEY) PARTITION BY KEY (pk) PARTITIONS 20;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Foreign keys are not yet supported in conjunction with partitioning
+CREATE TABLE child (fk INT);
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent(pk);
+ERROR HY000: Foreign keys are not yet supported in conjunction with partitioning
+DROP TABLES child, parent;
+#
+# 4.c) Addition of partitioned parent for previously orphan foreign key
+#      should result in error as well.
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE orphan (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+SET FOREIGN_KEY_CHECKS=1;
+CREATE TABLE parent (pk INT PRIMARY KEY) PARTITION BY KEY (pk) PARTITIONS 20;
+ERROR HY000: Foreign keys are not yet supported in conjunction with partitioning
+CREATE TABLE parent0 (pk INT PRIMARY KEY) PARTITION BY KEY (pk) PARTITIONS 20;
+RENAME TABLE parent0 TO parent;
+ERROR HY000: Foreign keys are not yet supported in conjunction with partitioning
+ALTER TABLE parent0 RENAME TO parent;
+ERROR HY000: Foreign keys are not yet supported in conjunction with partitioning
+ALTER TABLE parent0 RENAME TO parent, ADD COLUMN j INT, ALGORITHM=COPY;
+ERROR HY000: Foreign keys are not yet supported in conjunction with partitioning
+ALTER TABLE parent0 RENAME TO parent, ADD COLUMN j INT, ALGORITHM=INPLACE;
+ERROR HY000: Foreign keys are not yet supported in conjunction with partitioning
+DROP TABLES orphan, parent0;
+#
+# 4.d) ALTER TABLE which ADD/DROP FOREIGN KEY and change table's
+#      partitioning status at the same time.
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (pk INT PRIMARY KEY, fk INT,
+CONSTRAINT c FOREIGN KEY (fk) REFERENCES parent(pk));
+# Dropping foreign key and adding partitioning is OK.
+ALTER TABLE child DROP FOREIGN KEY c PARTITION BY KEY (pk) PARTITIONS 20;
+# Adding foreign key and removing partitioning is OK.
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent(pk) REMOVE PARTITIONING;
+DROP TABLES child, parent;
+CREATE TABLE self (pk INT PRIMARY KEY, fk INT,
+CONSTRAINT c FOREIGN KEY (fk) REFERENCES self(pk));
+# Dropping foreign key and adding partitioning is OK.
+ALTER TABLE self DROP FOREIGN KEY c PARTITION BY KEY (pk) PARTITIONS 20;
+# Adding foreign key and removing partitioning should be OK.
+# However, the below statement fails due to bug#28486106 in InnoDB code.
+ALTER TABLE self ADD FOREIGN KEY (fk) REFERENCES self(pk) REMOVE PARTITIONING;
+ERROR HY000: Cannot add foreign key constraint
+DROP TABLES self;
+#
+# 5) Check how parent table in different storage engine is handled.
+#
+# We handle it in the same way as if table was missing to be compatible
+# with pre-8.0 versions.
+#
+# 5.a) Attempt to create table with a foreign key or to add foreign key
+#      to already xisting table which reference parent in different SE
+#      should fail in FOREIGN_KEY_CHECKS=1 mode.
+CREATE TABLE bad_parent (pk INT PRIMARY KEY) ENGINE=MyISAM;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES bad_parent(pk));
+ERROR HY000: Failed to open the referenced table 'bad_parent'
+CREATE TABLE child (fk INT);
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES bad_parent(pk);
+ERROR HY000: Failed to open the referenced table 'bad_parent'
+#
+# 5.b) However, in FOREIGN_KEY_CHECKS=0 mode this is allowed.
+#      Referenced table is considered missing and existing table
+#      in a wrong SE is not considered as real parent.
+SET FOREIGN_KEY_CHECKS = 0;
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES bad_parent(pk);
+DROP TABLE child;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES bad_parent(pk));
+SET FOREIGN_KEY_CHECKS = 1;
+# Bad parent can be dropped just fine even in FOREIGN_KEY_CHECKS=1 mode.
+DROP TABLE bad_parent;
+DROP TABLE child;
+#
+# 5.c) Attempt to change SE for table participating in foreign key
+#      should lead to error.
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+ALTER TABLE child ENGINE=MyISAM;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ALTER TABLE parent ENGINE=MyISAM;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+DROP TABLES child, parent;
+#
+# 5.d) It is possible to add "parent" in wrong SE to orphan foreign key.
+#      However, it won't be considered as real parent.
+SET FOREIGN_KEY_CHECKS = 0;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES bad_parent(pk));
+SET FOREIGN_KEY_CHECKS = 1;
+CREATE TABLE bad_parent (pk INT PRIMARY KEY) ENGINE=MyISAM;
+# It is possible to break bad parent even in FOREIGN_KEY_CHECKS=1 mode.
+ALTER TABLE bad_parent DROP COLUMN pk, ADD COLUMN i INT;
+DROP TABLE bad_parent;
+DROP TABLE child;
+#
 # WL#8910: Ensure foreign key error does not reveal information about
 #          parent table for which user has no access privileges.
 #

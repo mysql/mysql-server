@@ -5838,6 +5838,7 @@ bool prepare_fk_parent_key(handlerton *hton, const dd::Table *parent_table_def,
   @param alter_info          Alter_info structure describing ALTER TABLE.
   @param db                  Database name.
   @param table_name          Table name.
+  @param is_partitioned      Indicates whether table is partitioned.
   @param key_info_buffer     Array of indexes.
   @param key_count           Number of indexes.
   @param fk_key              Parser info about new FK to prepare.
@@ -5856,8 +5857,9 @@ bool prepare_fk_parent_key(handlerton *hton, const dd::Table *parent_table_def,
 
 static bool prepare_foreign_key(THD *thd, HA_CREATE_INFO *create_info,
                                 Alter_info *alter_info, const char *db,
-                                const char *table_name, KEY *key_info_buffer,
-                                uint key_count, const Foreign_key_spec *fk_key,
+                                const char *table_name, bool is_partitioned,
+                                KEY *key_info_buffer, uint key_count,
+                                const Foreign_key_spec *fk_key,
                                 bool se_supports_fks, bool find_parent_key,
                                 uint *fk_max_generated_name_number,
                                 FOREIGN_KEY *fk_info) {
@@ -5956,6 +5958,18 @@ static bool prepare_foreign_key(THD *thd, HA_CREATE_INFO *create_info,
   }
 
   if (find_parent_key) {
+    /*
+      Check if we are trying to add foreign key to partitioned table
+      and table's storage engine doesn't support foreign keys over
+      partitioned tables.
+    */
+    if (is_partitioned &&
+        (!create_info->db_type->partition_flags ||
+         create_info->db_type->partition_flags() & HA_CANNOT_PARTITION_FK)) {
+      my_error(ER_FOREIGN_KEY_ON_PARTITIONED, MYF(0));
+      DBUG_RETURN(true);
+    }
+
     if (find_fk_supporting_key(create_info->db_type, alter_info,
                                key_info_buffer, key_count,
                                fk_info) == nullptr) {
@@ -6007,7 +6021,7 @@ static bool prepare_foreign_key(THD *thd, HA_CREATE_INFO *create_info,
       /*
         FK which references other table than one on which it is defined.
 
-        Check that table exists as the first step.
+        Check that table exists and its storage engine as the first step.
       */
       const dd::Table *parent_table_def = nullptr;
 
@@ -6015,7 +6029,12 @@ static bool prepare_foreign_key(THD *thd, HA_CREATE_INFO *create_info,
                                     &parent_table_def))
         DBUG_RETURN(true);
 
-      if (parent_table_def == nullptr) {
+      handlerton *parent_hton = nullptr;
+      if (parent_table_def != nullptr &&
+          dd::table_storage_engine(thd, parent_table_def, &parent_hton))
+        DBUG_RETURN(true);
+
+      if (parent_table_def == nullptr || create_info->db_type != parent_hton) {
         if (!(thd->variables.option_bits & OPTION_NO_FOREIGN_KEY_CHECKS)) {
           my_error(ER_FK_CANNOT_OPEN_PARENT, MYF(0), fk_info->ref_table.str);
           DBUG_RETURN(true);
@@ -6026,11 +6045,24 @@ static bool prepare_foreign_key(THD *thd, HA_CREATE_INFO *create_info,
           FOREIGN_KEY::unique_index_name should be already set to value which
           corresponds to NULL value in FOREIGN_KEYS.UNIQUE_CONSTRAINT_NAME
           column.
+
+          For compatibility reasons we treat difference in parent SE in the same
+          way as missing parent table.
         */
         DBUG_ASSERT(fk_info->unique_index_name == nullptr);
       } else {
-        /* Then check that referenced columns exist and are non-virtual. */
+        /*
+          Check that parent table is not partitioned or storage engine
+          supports foreign keys over partitioned tables.
+        */
+        if (parent_table_def->partition_type() != dd::Table::PT_NONE &&
+            (!parent_hton->partition_flags ||
+             parent_hton->partition_flags() & HA_CANNOT_PARTITION_FK)) {
+          my_error(ER_FOREIGN_KEY_ON_PARTITIONED, MYF(0));
+          DBUG_RETURN(true);
+        }
 
+        /* Then check that referenced columns exist and are non-virtual. */
         for (uint i = 0; i < fk_info->key_parts; i++) {
           const char *ref_column_name = fk_info->fk_key_part[i].str;
 
@@ -6751,8 +6783,9 @@ static bool column_exists_in_create_list(const char *column_name,
 bool mysql_prepare_create_table(
     THD *thd, const char *error_schema_name, const char *error_table_name,
     HA_CREATE_INFO *create_info, Alter_info *alter_info, handler *file,
-    KEY **key_info_buffer, uint *key_count, FOREIGN_KEY **fk_key_info_buffer,
-    uint *fk_key_count, FOREIGN_KEY *existing_fks, uint existing_fks_count,
+    bool is_partitioned, KEY **key_info_buffer, uint *key_count,
+    FOREIGN_KEY **fk_key_info_buffer, uint *fk_key_count,
+    FOREIGN_KEY *existing_fks, uint existing_fks_count,
     const dd::Table *existing_fks_table, uint fk_max_generated_name_number,
     int select_field_count, bool find_parent_keys) {
   DBUG_ENTER("mysql_prepare_create_table");
@@ -7016,6 +7049,18 @@ bool mysql_prepare_create_table(
   uint fk_number = existing_fks_count;
   fk_key_info += existing_fks_count;
 
+  /*
+    Check if we are trying to add partitioning to the table with existing
+    foreign keys and table's storage engine doesn't support foreign keys
+    over partitioned tables.
+  */
+  if (is_partitioned && existing_fks_count > 0 &&
+      (!create_info->db_type->partition_flags ||
+       create_info->db_type->partition_flags() & HA_CANNOT_PARTITION_FK)) {
+    my_error(ER_FOREIGN_KEY_ON_PARTITIONED, MYF(0));
+    DBUG_RETURN(true);
+  }
+
   for (FOREIGN_KEY *fk = *fk_key_info_buffer;
        fk < (*fk_key_info_buffer) + existing_fks_count; fk++) {
     /*
@@ -7069,11 +7114,11 @@ bool mysql_prepare_create_table(
     const Key_spec *key = alter_info->key_list[i];
 
     if (key->type == KEYTYPE_FOREIGN) {
-      if (prepare_foreign_key(thd, create_info, alter_info, error_schema_name,
-                              error_table_name, *key_info_buffer, *key_count,
-                              down_cast<const Foreign_key_spec *>(key),
-                              se_supports_fks, find_parent_keys,
-                              &fk_max_generated_name_number, fk_key_info))
+      if (prepare_foreign_key(
+              thd, create_info, alter_info, error_schema_name, error_table_name,
+              is_partitioned, *key_info_buffer, *key_count,
+              down_cast<const Foreign_key_spec *>(key), se_supports_fks,
+              find_parent_keys, &fk_max_generated_name_number, fk_key_info))
         DBUG_RETURN(true);
 
       if (se_supports_fks) {
@@ -7552,10 +7597,10 @@ static bool create_table_impl(
   if (is_whitelisted_table) thd->push_internal_handler(&error_handler);
 
   bool prepare_error = mysql_prepare_create_table(
-      thd, db, error_table_name, create_info, alter_info, file.get(), key_info,
-      key_count, fk_key_info, fk_key_count, existing_fk_info, existing_fk_count,
-      existing_fk_table, fk_max_generated_name_number, select_field_count,
-      find_parent_keys);
+      thd, db, error_table_name, create_info, alter_info, file.get(),
+      (part_info != nullptr), key_info, key_count, fk_key_info, fk_key_count,
+      existing_fk_info, existing_fk_count, existing_fk_table,
+      fk_max_generated_name_number, select_field_count, find_parent_keys);
 
   if (is_whitelisted_table) thd->pop_internal_handler();
 
@@ -7995,6 +8040,18 @@ static bool adjust_fk_child_after_parent_def_change(
   if (child_table_def == nullptr) {
     // Safety.
     return false;
+  }
+
+  /*
+    Check if we are making parent table in a foreign key (possibly
+    previously orphan) a partitioned table and table's storage engine
+    doesn't support foreign keys over partitioned tables.
+  */
+  if (parent_table_def->partition_type() != dd::Table::PT_NONE &&
+      (!hton->partition_flags ||
+       hton->partition_flags() & HA_CANNOT_PARTITION_FK)) {
+    my_error(ER_FOREIGN_KEY_ON_PARTITIONED, MYF(0));
+    return true;
   }
 
   if (old_parent_table_def != nullptr &&
@@ -10420,6 +10477,7 @@ bool mysql_compare_tables(TABLE *table, Alter_info *alter_info,
                                  "",  // Not used
                                  "",  // Not used
                                  create_info, &tmp_alter_info, table->file,
+                                 false,  // Not used
                                  &key_info_buffer, &key_count,
                                  &fk_key_info_buffer, &fk_key_count, nullptr, 0,
                                  nullptr, 0, 0, false))
@@ -14217,21 +14275,6 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   {
     if (prep_alter_part_table(thd, table, alter_info, create_info, &alter_ctx,
                               &partition_changed, &new_part_info)) {
-      DBUG_RETURN(true);
-    }
-    if (partition_changed &&
-        (!table->file->ht->partition_flags ||
-         (table->file->ht->partition_flags() & HA_CANNOT_PARTITION_FK)) &&
-        !table->file->can_switch_engines()) {
-      /*
-        Partitioning was changed (added/changed/removed) and the current
-        handler does not support partitioning and FK relationship exists
-        for the table.
-
-        Since the current handler does not support native partitioning, it will
-        be altered to use ha_partition which does not support foreign keys.
-      */
-      my_error(ER_FOREIGN_KEY_ON_PARTITIONED, MYF(0));
       DBUG_RETURN(true);
     }
   }

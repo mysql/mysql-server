@@ -827,7 +827,8 @@ bool migrate_table_to_dd(THD *thd,
 
   if (mysql_prepare_create_table(thd, schema_name.c_str(), table_name.c_str(),
                                  &create_info, &alter_info,
-                                 file, &key_info_buffer, &key_count,
+                                 file, true, // NDB tables are auto-partitoned.
+                                 &key_info_buffer, &key_count,
                                  &dummy_fk_key_info, &dummy_fk_key_count,
                                  nullptr, 0, nullptr, 0, 0,
                                  false /* No FKs here. */))
