@@ -39,7 +39,7 @@ re-checked and function stops as soon as the condition returned true.
 Every k-waits (ended on wake-up or timeout), the timeout is multiplied by two
 (but it's limited up to maximum value of 100ms).
 
-@param[in/out]	event			event on which function may wait
+@param[in,out]	event			event on which function may wait
 @param[in]	spins_limit		maximum spin iterations
 @param[in]	timeout			initial timeout value
 @param[in]	timeout_mul2_every	timeout is multiplied by two every

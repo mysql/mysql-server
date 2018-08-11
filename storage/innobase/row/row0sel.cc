@@ -3143,11 +3143,11 @@ class Row_sel_get_clust_rec_for_mysql {
   @param[out]    out_rec     clustered record or an old version of it,
                              NULL if the old version did not exist in the
                              read view, i.e., it was a fresh inserted version
-  @param[in/out] offsets     in: offsets returned by
+  @param[in,out] offsets     in: offsets returned by
                                  rec_get_offsets(rec, sec_index);
                              out: offsets returned by
                                  rec_get_offsets(out_rec, clust_index)
-  @param[in/out] offset_heap memory heap from which the offsets are allocated
+  @param[in,out] offset_heap memory heap from which the offsets are allocated
   @param[out]    vrow        virtual column to fill
   @param[in]     mtr         mtr used to get access to the non-clustered record;
                              the same mtr is used to access the clustered index
