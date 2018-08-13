@@ -76,8 +76,10 @@ IF(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     cmake_push_check_state(RESET)
     SET(CMAKE_REQUIRED_LIBRARIES Fuzzer)
     SET(CMAKE_REQUIRED_FLAGS ${SANITIZE_COVERAGE_FLAGS})
-    check_cxx_source_compiles("extern \"C\" int LLVMFuzzerTestOneInput\
-                              (void *, int) { return 0; }" CLANG_HAS_LIBFUZZER)
+    CHECK_CXX_SOURCE_COMPILES("
+    extern \"C\" int LLVMFuzzerTestOneInput (void *, int)
+    { return 0; }"
+    CLANG_HAS_LIBFUZZER)
     cmake_pop_check_state()
   ENDIF()
 
