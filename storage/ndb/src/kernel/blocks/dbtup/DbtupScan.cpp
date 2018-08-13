@@ -2181,7 +2181,8 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                                   thbits);
               ndbrequire(false);
             }
-	    if (! ((thbits & Tuple_header::FREE) ||
+	    if (! (((thbits & Tuple_header::FREE) ||
+	            (thbits & Tuple_header::DELETE_WAIT)) ||
                    ((bits & ScanOp::SCAN_LCP) &&
                     (thbits & Tuple_header::ALLOC))))
 	    {
@@ -2234,7 +2235,8 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                * is true for even deleted rows as long as the page is still
                * maintained by the fragment.
                */
-	      if (! (thbits & Tuple_header::FREE))
+        if (! ((thbits & Tuple_header::FREE) ||
+               (thbits & Tuple_header::DELETE_WAIT)))
 	      {
 		jam();
 		goto found_tuple;
@@ -2456,7 +2458,8 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
               foundGCI == 0)
           {
             thbits = tuple_header_ptr->m_header_bits;
-            if (! (thbits & Tuple_header::FREE))
+            if (! ((thbits & Tuple_header::FREE) ||
+                   (thbits & Tuple_header::DELETE_WAIT)))
             {
               jam();
               break;
