@@ -8,6 +8,7 @@ CREATE TABLE test_jfg.test (a int unsigned NOT NULL PRIMARY KEY);
 RENAME TABLE test_jfg.test TO test_jfg2.test;
 
 --replace_column 1 #
+--sorted_result
 SELECT * FROM INFORMATION_SCHEMA.INNODB_DATAFILES  WHERE PATH LIKE "%test%";
 
 DROP DATABASE test_jfg;
@@ -24,6 +25,7 @@ CREATE TABLE abc_def.test (a int unsigned NOT NULL PRIMARY KEY);
 RENAME TABLE abc_def.test TO abc_def2.test1;
 
 --replace_column 1 #
+--sorted_result
 SELECT * FROM INFORMATION_SCHEMA.INNODB_DATAFILES WHERE PATH LIKE "%test%";
 
 DROP DATABASE abc_def;
