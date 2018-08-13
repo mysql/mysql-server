@@ -2452,6 +2452,8 @@ mysql_execute_command(THD *thd, bool first_level)
   TABLE_LIST *all_tables;
   /* most outer SELECT_LEX_UNIT of query */
   SELECT_LEX_UNIT *const unit= lex->unit;
+  // keep GTID violation state in order to roll it back on statement failure
+  bool gtid_consistency_violation_state = thd->has_gtid_consistency_violation;
   DBUG_ASSERT(select_lex->master_unit() == unit);
   DBUG_ENTER("mysql_execute_command");
   /* EXPLAIN OTHER isn't explainable command, but can have describe flag. */
@@ -5079,8 +5081,15 @@ finish:
   }
 #endif
 
-  if (!(res || thd->is_error()))
-    binlog_gtid_end_transaction(thd);
+  if (!res && !thd->is_error()) {      // if statement succeeded
+    binlog_gtid_end_transaction(thd);  // finalize GTID life-cycle
+    DEBUG_SYNC(thd, "persist_new_state_after_statement_succeeded");
+  } else if (!gtid_consistency_violation_state &&    // if the consistency state
+             thd->has_gtid_consistency_violation) {  // was set by the failing
+                                                     // statement
+    gtid_state->end_gtid_violating_transaction(thd);  // just roll it back
+    DEBUG_SYNC(thd, "restore_previous_state_after_statement_failed");
+  }
 
   DBUG_RETURN(res || thd->is_error());
 }
