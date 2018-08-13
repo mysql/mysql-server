@@ -1434,6 +1434,8 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
                            diskPagePtr,
                            regFragPtr.p) == 0)
     {
+      // set bit
+      tuple_ptr->m_header_bits = tuple_ptr->m_header_bits | Tuple_header::DELETE_WAIT;
       return; // Data page has not been retrieved yet.
     }
     get_page = true;
@@ -1503,6 +1505,9 @@ skip_disk:
                     regFragPtr.p,
                     regTabPtr.p,
                     diskPagePtr);
+
+      //reset bit
+      tuple_ptr->m_header_bits = tuple_ptr->m_header_bits & (~Tuple_header::DELETE_WAIT);
     }
     else if(regOperPtr.p->op_type != ZREFRESH)
     {
