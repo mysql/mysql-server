@@ -37,7 +37,7 @@
   Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
 
-  @subpage mysql_router
+
 
   @subpage mysql_harness_internal_notes
 
