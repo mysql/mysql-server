@@ -671,8 +671,6 @@ void Gcs_xcom_control::do_remove_node_from_group() {
   m_view_control->start_leave();
 
   int local_port = m_local_node_address->get_member_port();
-  xcom_port port = 0;
-  char *addr = NULL;
   int rm_ret = 0;
   connection_descriptor *con = NULL;
 
