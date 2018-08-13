@@ -1045,7 +1045,9 @@ fi
 %attr(644, root, root) %{_mandir}/man1/mysql_config.1*
 %attr(755, root, root) %{_bindir}/mysql_config
 %{_includedir}/mysql
+%if 0%{?cluster}
 %exclude %{_includedir}/mysql/storage
+%endif #cluster
 %{_datadir}/aclocal/mysql.m4
 %{_libdir}/mysql/libmysqlclient.a
 %{_libdir}/mysql/libmysqlservices.a
