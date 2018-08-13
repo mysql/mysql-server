@@ -27,6 +27,8 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#else
+#include <unistd.h>
 #endif
 
 #include "dim.h"
@@ -667,7 +669,8 @@ TEST_F(MasterKeyReaderWriterTest, CannotLaunchRouterWhenMasterKeyIncorrect) {
                                      metadata_cache_section + routing_section,
                                  &incorrect_master_key_default_section_map));
 
-  EXPECT_EQ(router.wait_for_exit(), 1);
+  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(), 1))
+      << router.get_full_output();
 }
 /*
  * These tests are executed only for STANDALONE layout and are not executed for
@@ -687,7 +690,12 @@ class MasterKeyReaderWriterSystemDeploymentTest : public RouterComponentTest,
     set_mysqlrouter_exec(Path(exec_file_));
   }
 
-  void TearDown() override { purge_dir(tmp_dir_); }
+  void TearDown() override {
+#ifdef __APPLE__
+    unlink(library_link_file_.c_str());
+#endif
+    purge_dir(tmp_dir_);
+  }
 
   void write_to_file(const Path &file_path, const std::string &text) {
     std::ofstream master_key_file(file_path.str());
@@ -712,6 +720,24 @@ class MasterKeyReaderWriterSystemDeploymentTest : public RouterComponentTest,
 #ifndef _WIN32
     chmod(exec_file_.c_str(), 0700);
 #endif
+
+    // on MacOS we need to create symlink to library_output_directory
+    // inside our temp dir as mysqlrouter has @loader_path/../lib
+    // hardcoded by MYSQL_ADD_EXECUTABLE
+#ifdef __APPLE__
+    std::string cur_dir_name = g_origin_path.real_path().dirname().str();
+    const std::string library_output_dir =
+        cur_dir_name + "/library_output_directory";
+
+    library_link_file_ =
+        std::string(Path(tmp_dir_).real_path().str() + "/stage/lib");
+
+    if (symlink(library_output_dir.c_str(), library_link_file_.c_str())) {
+      throw std::runtime_error(
+          "Could not create symbolic link to library_output_directory: " +
+          std::to_string(errno));
+    }
+#endif
     config_file_ = tmp_dir_ + "/stage/mysqlrouter.conf";
   }
 
@@ -732,6 +758,9 @@ class MasterKeyReaderWriterSystemDeploymentTest : public RouterComponentTest,
   std::string tmp_dir_;
   std::string exec_file_;
   std::string config_file_;
+#ifdef __APPLE__
+  std::string library_link_file_;
+#endif
 
   unsigned server_port_;
 };
@@ -761,7 +790,9 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest, BootstrapPass) {
                            "fake-pass\n");
 
   // check if the bootstraping was successful
-  EXPECT_EQ(router.wait_for_exit(), 0);
+  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(), 0))
+      << router.get_full_output();
+
   EXPECT_TRUE(
       router.expect_output("MySQL Router  has now been configured for the "
                            "InnoDB cluster 'mycluster'"))
@@ -799,7 +830,9 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest,
                            "fake-pass\n");
 
   // check if the bootstraping failed
-  EXPECT_EQ(router.wait_for_exit(), 1);
+  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(), 1))
+      << router.get_full_output();
+
   EXPECT_TRUE(router.expect_output(
       "Error: Cannot fetch master key file using master key reader"))
       << router.get_full_output() << std::endl
@@ -832,7 +865,9 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest,
                            "fake-pass\n");
 
   // check if the bootstraping failed
-  EXPECT_EQ(router.wait_for_exit(), 1);
+  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(), 1))
+      << router.get_full_output();
+
   EXPECT_TRUE(router.expect_output(
       "Error: Cannot write master key file using master key writer"))
       << router.get_full_output() << std::endl
@@ -872,7 +907,9 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest,
                            "fake-pass\n");
 
   // check if the bootstraping failed
-  EXPECT_EQ(router.wait_for_exit(), 1);
+  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(), 1))
+      << router.get_full_output();
+
   ASSERT_THAT(keyring_path.str(), FileContentEqual("keyring file content"));
 }
 
@@ -901,7 +938,9 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest,
                            "fake-pass\n");
 
   // check if the bootstraping failed
-  EXPECT_EQ(router.wait_for_exit(), 1);
+  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(), 1))
+      << router.get_full_output();
+
   ASSERT_THAT(master_key_path.str(), FileContentEqual(""));
 }
 

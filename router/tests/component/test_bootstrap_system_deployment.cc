@@ -28,6 +28,10 @@
 #include "tcp_port_pool.h"
 #include "utils.h"
 
+#ifndef _WIN32
+#include <unistd.h>
+#endif
+
 Path g_origin_path;
 
 /*
@@ -48,12 +52,17 @@ class RouterBootstrapSystemDeploymentTest : public RouterComponentTest,
     set_mysqlrouter_exec(Path(exec_file_));
   }
 
-  void TearDown() override { purge_dir(tmp_dir_); }
+  void TearDown() override {
+#ifdef __APPLE__
+    unlink(library_link_file_.c_str());
+#endif
+    purge_dir(tmp_dir_);
+  }
 
   /*
    * Create temporary directory that represents system deployment
    * layout for mysql bootstrap. A mysql executable is copied to
-   * tmp_dir_/stage/bin/ and then an execution permission is assign to it.
+   * tmp_dir_/stage/bin/ and then an execution permission is assigned to it.
    *
    * After the test is completed, the whole temporary directory is deleted.
    */
@@ -66,6 +75,25 @@ class RouterBootstrapSystemDeploymentTest : public RouterComponentTest,
 #ifndef _WIN32
     chmod(exec_file_.c_str(), 0700);
 #endif
+
+    // on MacOS we need to create symlink to library_output_directory
+    // inside our temp dir as mysqlrouter has @loader_path/../lib
+    // hardcoded by MYSQL_ADD_EXECUTABLE
+#ifdef __APPLE__
+    std::string cur_dir_name = g_origin_path.real_path().dirname().str();
+    const std::string library_output_dir =
+        cur_dir_name + "/library_output_directory";
+
+    library_link_file_ =
+        std::string(Path(tmp_dir_).real_path().str() + "/stage/lib");
+
+    if (symlink(library_output_dir.c_str(), library_link_file_.c_str())) {
+      throw std::runtime_error(
+          "Could not create symbolic link to library_output_directory: " +
+          std::to_string(errno));
+    }
+#endif
+
     config_file_ = tmp_dir_ + "/stage/mysqlrouter.conf";
   }
 
@@ -86,7 +114,9 @@ class RouterBootstrapSystemDeploymentTest : public RouterComponentTest,
   std::string tmp_dir_;
   std::string exec_file_;
   std::string config_file_;
-
+#ifdef __APPLE__
+  std::string library_link_file_;
+#endif
   unsigned server_port_;
 };
 
@@ -108,11 +138,13 @@ TEST_F(RouterBootstrapSystemDeploymentTest, BootstrapPass) {
                            "fake-pass\n");
 
   // check if the bootstraping was successful
-  EXPECT_EQ(router.wait_for_exit(), 0);
+  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(), 0))
+      << router.get_full_output();
+
   EXPECT_TRUE(
       router.expect_output("MySQL Router  has now been configured for the "
                            "InnoDB cluster 'mycluster'"))
-      << router.get_full_output() << std::endl
+      << "router: " << router.get_full_output() << std::endl
       << "server: " << server_mock.get_full_output();
 }
 
@@ -139,7 +171,9 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
 
-  EXPECT_EQ(router.wait_for_exit(), 1);
+  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(), 1))
+      << router.get_full_output();
+
   EXPECT_TRUE(router.expect_output(
       "Error: Could not save configuration file to final location", false))
       << router.get_full_output() << std::endl
@@ -173,7 +207,9 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
 
-  EXPECT_EQ(router.wait_for_exit(), 1);
+  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(), 1))
+      << router.get_full_output();
+
   EXPECT_TRUE(router.expect_output(
       "Error: Could not save configuration file to final location", false))
       << router.get_full_output() << std::endl
@@ -218,7 +254,9 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
 
-  EXPECT_EQ(router.wait_for_exit(), 1);
+  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(), 1))
+      << router.get_full_output();
+
   EXPECT_TRUE(router.expect_output(
       "Error: Could not save configuration file to final location", false))
       << router.get_full_output() << std::endl
@@ -259,7 +297,9 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
 
-  EXPECT_EQ(router.wait_for_exit(), 1);
+  EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(), 1))
+      << router.get_full_output();
+
   EXPECT_TRUE(router.expect_output(
       "Error: Could not save configuration file to final location", false))
       << router.get_full_output() << std::endl
