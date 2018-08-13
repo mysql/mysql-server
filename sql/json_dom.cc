@@ -1660,18 +1660,24 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
       const size_t needed = static_cast<size_t>(
           base64_needed_encoded_length(wr.get_data_length()));
 
-      if (single_quote(buffer, json_quoted) || buffer->append("base64:type") ||
-          buffer->append_ulonglong(wr.field_type()) || buffer->append(':'))
+      // base64:typeXX:<binary data>
+      StringBuffer<STRING_BUFFER_USUAL_SIZE> base64_buffer;
+      if (base64_buffer.append("base64:type") ||
+          base64_buffer.append_ulonglong(wr.field_type()) ||
+          base64_buffer.append(':') || base64_buffer.reserve(needed) ||
+          base64_encode(wr.get_data(), wr.get_data_length(),
+                        &base64_buffer[base64_buffer.length()]))
         return true; /* purecov: inspected */
 
-      // "base64:typeXX:<binary data>"
-      size_t pos = buffer->length();
-      if (buffer->reserve(needed) ||
-          base64_encode(wr.get_data(), wr.get_data_length(),
-                        const_cast<char *>(buffer->ptr() + pos)))
-        return true;                     /* purecov: inspected */
-      buffer->length(pos + needed - 1);  // drop zero terminator space
-      if (single_quote(buffer, json_quoted))
+      base64_buffer.length(base64_buffer.length() + needed -
+                           1);  // drop zero terminator space
+
+      // Append the encoded string to the buffer. Quote and escape it
+      // first if json_quoted is true. The encoded string may contain
+      // special characters, specifically newline characters.
+      if (json_quoted ? double_quote(base64_buffer.ptr(),
+                                     base64_buffer.length(), buffer)
+                      : buffer->append(base64_buffer))
         return true; /* purecov: inspected */
       break;
     }
