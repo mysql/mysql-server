@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -747,15 +747,6 @@ op_status_t WorkerStep1::do_math() {
 
 
 /***************** NDB CALLBACKS *********************************************/
-void debug_workitem(workitem *item) {
-  DEBUG_PRINT("%d.%d %s %s %s",
-    item->pipeline->id,
-    item->id,
-    item->plan->table->getName(),
-    workitem_get_operation(item),
-    workitem_get_key_suffix(item));
-}
-
 void callback_main(int, NdbTransaction *tx, void *itemptr) {
   workitem *wqitem = (workitem *) itemptr;
     
@@ -822,7 +813,6 @@ void callback_main(int, NdbTransaction *tx, void *itemptr) {
   */
   else  {
     log_ndb_error(tx->getNdbError());
-    debug_workitem(wqitem);
     wqitem->status = & status_block_misc_error;
   }
 
