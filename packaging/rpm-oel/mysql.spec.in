@@ -1254,6 +1254,7 @@ fi
 %attr(755, root, root) %{_bindir}/mysql_config-%{__isa_bits}
 %endif
 %{_includedir}/mysql
+%exclude %{_includedir}/mysql/storage
 %{_datadir}/aclocal/mysql.m4
 %{_libdir}/mysql/libmysqlclient.a
 %{_libdir}/mysql/libmysqlservices.a
@@ -1420,6 +1421,7 @@ fi
 %doc %{?license_files_server}
 %attr(644, root, root) %{_libdir}/mysql/libndbclient_static.a
 %{_libdir}/mysql/libndbclient.so
+%{_includedir}/mysql/storage
 
 %if 0%{?ndb_nodejs_extras_path:1}
 %files nodejs
