@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1044,6 +1044,8 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
                            regOperPtr,
                            diskPagePtr) == 0)
     {
+      // set bit
+      tuple_ptr->m_header_bits = tuple_ptr->m_header_bits | Tuple_header::DELETE_WAIT;
       return; // Data page has not been retrieved yet.
     }
     get_page = true;
@@ -1113,6 +1115,9 @@ skip_disk:
                     regFragPtr.p,
                     regTabPtr.p,
                     diskPagePtr);
+
+      //reset bit
+      tuple_ptr->m_header_bits = tuple_ptr->m_header_bits & (~Tuple_header::DELETE_WAIT);
     }
     else if(regOperPtr.p->op_type != ZREFRESH)
     {
