@@ -1254,7 +1254,9 @@ fi
 %attr(755, root, root) %{_bindir}/mysql_config-%{__isa_bits}
 %endif
 %{_includedir}/mysql
+%if 0%{?cluster}
 %exclude %{_includedir}/mysql/storage
+%endif #cluster
 %{_datadir}/aclocal/mysql.m4
 %{_libdir}/mysql/libmysqlclient.a
 %{_libdir}/mysql/libmysqlservices.a
