@@ -6,23 +6,30 @@
 # https://github.com/google/sanitizers/wiki/ThreadSanitizerSuppressions
 #
 
-race:pthread_barrier
-
 race:innobase
 
 race:aggregate_thread_stats
 race:copy_events_waits
-race:lf_pinbox_put_pins
-race:pfs_end_statement_v1
-race:PFS_buffer_default_allocator
 race:PFS_buffer_scalable_container
 race:PFS_memory_stat::count_free
-race:PFS_memory_stat::full_aggregate_to
 race:PFS_single_stat::aggregate
 race:PFS_statement_stat::aggregate
 race:PFS_status_stats::aggregate_from
+race:PFS_buffer_default_array
+race:PFS_memory_safe_stat::count_free
+race:PFS_memory_safe_stat::count_alloc
+race:PFS_statement_stat::delayed_reset
 
-race:Protocol_classic::get_rw_status
-race:THD::get_command
+race:thread_state_info
+race:plugin_shutdown
+race:log_builtins_filter_run
+race:MY_LOCALE_ERRMSGS::destroy
+race:get_one_variable_ext
+
+race:ngs::Scheduler_dynamic::wait_if_idle_then_delete_worker
+race:ngs::Socket_events::break_loop
 
 deadlock:plugin_thdvar_init
+deadlock:Persisted_variables_cache::lock
+
+signal:my_print_stacktrace

@@ -827,7 +827,8 @@ bool locked_in_memory;
 bool opt_using_transactions;
 ulong opt_tc_log_size;
 std::atomic<int32> connection_events_loop_aborted_flag;
-static enum_server_operational_state server_operational_state = SERVER_BOOTING;
+static std::atomic<enum_server_operational_state> server_operational_state{
+    SERVER_BOOTING};
 char *opt_log_error_suppression_list;
 char *opt_log_error_services;
 char *opt_keyring_migration_user = NULL;
