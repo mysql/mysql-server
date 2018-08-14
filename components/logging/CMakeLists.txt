@@ -65,4 +65,4 @@ MYSQL_ADD_COMPONENT(log_filter_dragnet
 
 MYSQL_ADD_COMPONENT(log_sink_test
   log_sink_test.cc
-  MODULE)
+  TEST MODULE)
