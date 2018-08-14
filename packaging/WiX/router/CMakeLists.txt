@@ -19,6 +19,10 @@ ENDIF()
 
 INCLUDE(${CMAKE_SOURCE_DIR}/packaging/WiX/wix_setup.cmake)
 
+IF(NOT WIX_DIR)
+  RETURN()
+ENDIF()
+
 SET(CPACK_WIX_CONFIG ${CMAKE_CURRENT_SOURCE_DIR}/CPackWixConfig.cmake)
 SET(CPACK_MSI_SETUP ${CMAKE_SOURCE_DIR}/packaging/WiX/cpack_msi_setup.cmake)
 
