@@ -332,6 +332,7 @@ static void *handle_bootstrap(void *arg) {
     close_connection(thd, ER_OUT_OF_RESOURCES);
     bootstrap_error = true;
     thd->get_protocol_classic()->end_net();
+    thd->release_resources();
   } else {
     thd->store_globals();
     Global_THD_manager *thd_manager = Global_THD_manager::get_instance();
@@ -406,7 +407,8 @@ bool run_bootstrap_thread(MYSQL_FILE *file, bootstrap_functor boot_handler,
   if (error) {
     /* purecov: begin inspected */
     LogErr(WARNING_LEVEL, ER_BOOTSTRAP_CANT_THREAD, errno).os_errno(errno);
-
+    thd->release_resources();
+    delete thd;
     DBUG_RETURN(true);
     /* purecov: end */
   }
