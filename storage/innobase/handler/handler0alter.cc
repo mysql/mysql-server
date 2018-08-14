@@ -6003,6 +6003,9 @@ oom:
         table. Either way, we should be seeing and
         reporting a bogus duplicate key error. */
         dup_key = NULL;
+      } else if (m_prebuilt->trx->error_key_num == 0) {
+        dup_key =
+            &ha_alter_info->key_info_buffer[m_prebuilt->trx->error_key_num];
       } else {
         /* Check if there is generated cluster index column */
         if (ctx->num_to_add_index > ha_alter_info->key_count) {
