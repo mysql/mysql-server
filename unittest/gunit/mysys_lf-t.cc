@@ -44,7 +44,7 @@ namespace mysys_lf_unittest {
 #include "unittest/gunit/thr_template.cc"
 
 std::atomic<int32> inserts{0};
-int32 N;
+std::atomic<int32> N{0};
 LF_ALLOCATOR lf_allocator;
 LF_HASH lf_hash;
 
@@ -77,7 +77,7 @@ extern "C" void *test_lf_pinbox(void *arg) {
   union is required to enforce the minimum required element size (sizeof(ptr))
 */
 typedef union {
-  int32 data;
+  std::atomic<int32> data;
   void *not_used;
 } TLA;
 
