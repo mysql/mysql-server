@@ -30,10 +30,8 @@
 
 #ifdef VM_TRACE
 //#define DEBUG_LCP 1
-//#define DEBUG_LCP_DEL 1
 //#define DEBUG_LCP_DEL2 1
 //#define DEBUG_LCP_DEL_EXTRA 1
-//#define DEBUG_LCP_SKIP 1
 //#define DEBUG_LCP_SKIP_EXTRA 1
 //#define DEBUG_LCP_KEEP 1
 //#define DEBUG_LCP_REL 1
@@ -45,6 +43,8 @@
 //#define DEBUG_LCP_DEL 1
 //#define DEBUG_LCP_DELAY 1
 #endif
+#define DEBUG_LCP_DEL 1
+#define DEBUG_LCP_SKIP 1
 
 #ifdef DEBUG_LCP_DELAY
 #define DEB_LCP_DELAY(arglist) do { g_eventLogger->info arglist ; } while (0)
@@ -1110,7 +1110,6 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
       fix_page->set_change_map(key.m_page_idx);
       jamDebug();
       jamLineDebug((Uint16)key.m_page_idx);
-      ndbassert(!(thbits & Tuple_header::LCP_SKIP));
       DEB_LCP_DEL(("(%u)Reset LCP_DELETE on tab(%u,%u),"
                    " row(%u,%u), header: %x",
                    instance(),
@@ -1119,6 +1118,7 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
                    key.m_page_no,
                    key.m_page_idx,
                    thbits));
+      ndbrequire(!(thbits & Tuple_header::LCP_SKIP));
       scan.m_last_seen = __LINE__;
       return ZSCAN_FOUND_DELETED_ROWID;
     }
@@ -1206,13 +1206,33 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
      * row and set rowGCI > scanGCI. So can't be set if we arrive
      * here. Same goes for LCP_SKIP flag.
      */
-    ndbassert(!(thbits & Tuple_header::LCP_DELETE));
+    if (unlikely(thbits & Tuple_header::LCP_DELETE))
+    {
+      g_eventLogger->info("(%u) tab(%u,%u) row(%u,%u)"
+                          " LCP_DELETE set on rowid not yet used",
+                          instance(),
+                          m_curr_fragptr.p->fragTableId,
+                          m_curr_fragptr.p->fragmentId,
+                          key.m_page_no,
+                          key.m_page_idx);
+      ndbrequire(!(thbits & Tuple_header::LCP_DELETE));
+    }
     if (foundGCI == 0 && scan.m_scanGCI > 0)
     {
       jam();
       /* Coverage tested */
       /* Cannot have LCP_SKIP bit set on rowid's not yet used */
-      ndbrequire(!(thbits & Tuple_header::LCP_SKIP));
+      if (unlikely(thbits & Tuple_header::LCP_SKIP))
+      {
+        g_eventLogger->info("(%u) tab(%u,%u) row(%u,%u)"
+                            " LCP_SKIP set on rowid not yet used",
+                            instance(),
+                            m_curr_fragptr.p->fragTableId,
+                            m_curr_fragptr.p->fragmentId,
+                            key.m_page_no,
+                            key.m_page_idx);
+        ndbrequire(!(thbits & Tuple_header::LCP_SKIP));
+      }
       scan.m_last_seen = __LINE__;
       return ZSCAN_FOUND_DELETED_ROWID;
     }
@@ -1379,10 +1399,9 @@ Dbtup::setup_change_page_for_scan(ScanOp& scan,
                             key.m_page_no,
                             key.m_page_idx,
                             thbits);
-
+        ndbrequire(!(thbits & Tuple_header::LCP_DELETE));
+        ndbrequire(!(thbits & Tuple_header::LCP_SKIP));
       }
-      ndbassert(!(thbits & Tuple_header::LCP_DELETE));
-      ndbassert(!(thbits & Tuple_header::LCP_SKIP));
       debug_idx += size;
     } while ((debug_idx + size) <= Fix_page::DATA_WORDS);
 #endif
@@ -2887,8 +2906,8 @@ Dbtup::handle_lcp_drop_change_page(Fragrecord *fragPtrP,
       Uint32 rowGCI = *th->get_mm_gci(tablePtr.p);
       bool lcp_skip_not_set =
         (thbits & Tuple_header::LCP_SKIP) ? false : true;
-      ndbassert(thbits & Tuple_header::FREE);
-      ndbassert(!(thbits & Tuple_header::LCP_DELETE) || lcp_skip_not_set);
+      ndbrequire(thbits & Tuple_header::FREE);
+      ndbrequire(!(thbits & Tuple_header::LCP_DELETE) || lcp_skip_not_set);
       /**
        * We ignore LCP_DELETE on row here since if it is set then we also
        * know that LCP_SKIP isn't set, also we know rowGCI > scanGCI since the

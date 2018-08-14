@@ -33,9 +33,6 @@ extern EventLogger *g_eventLogger;
 //#define DEBUG_LCP 1
 //#define DEBUG_LCP_SKIP_DELETE_EXTRA 1
 //#define DEBUG_INSERT_EXTRA 1
-//#define DEBUG_LCP_DEL 1
-//#define DEBUG_LCP_SKIP 1
-//#define DEBUG_LCP_SKIP_DELETE 1
 //#define DEBUG_LCP_SCANNED_BIT 1
 //#define DEBUG_PGMAN 1
 //#define DEBUG_ROW_COUNT_DEL 1
@@ -43,6 +40,9 @@ extern EventLogger *g_eventLogger;
 //#define DEBUG_DELETE 1
 //#define DEBUG_DELETE_EXTRA 1
 #endif
+#define DEBUG_LCP_DEL 1
+#define DEBUG_LCP_SKIP 1
+#define DEBUG_LCP_SKIP_DELETE 1
 
 #ifdef DEBUG_LCP
 #define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
