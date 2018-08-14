@@ -2648,3 +2648,38 @@ COUNT(*) = 0
 SELECT COUNT(*) > 0 FROM INFORMATION_SCHEMA.KEYWORDS;
 COUNT(*) > 0
 1
+#
+# Bug#28499603 SHOW INDEXES PRINTS WRONG OUTPUT FOR PREFIX INDEXES
+#
+CREATE TABLE t1 (col1 BLOB(33), INDEX (col1(8)));
+SHOW INDEXES FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	col1	1	col1	A	0	8	NULL	YES	BTREE			YES	NULL
+SELECT SUB_PART FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_NAME = "t1";
+SUB_PART
+8
+DROP TABLE t1;
+CREATE TABLE t1 (col1 TEXT(33) CHARACTER SET utf8mb4, INDEX (col1(2)));
+SHOW INDEXES FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	col1	1	col1	A	0	2	NULL	YES	BTREE			YES	NULL
+SELECT SUB_PART FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_NAME = "t1";
+SUB_PART
+2
+DROP TABLE t1;
+CREATE TABLE t1 (col1 BLOB(33), INDEX (col1(33)));
+SHOW INDEXES FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	col1	1	col1	A	0	33	NULL	YES	BTREE			YES	NULL
+SELECT SUB_PART FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_NAME = "t1";
+SUB_PART
+33
+DROP TABLE t1;
+CREATE TABLE t1 (col1 TEXT(2) CHARACTER SET utf8mb4, INDEX (col1(2)));
+SHOW INDEXES FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	col1	1	col1	A	0	2	NULL	YES	BTREE			YES	NULL
+SELECT SUB_PART FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_NAME = "t1";
+SUB_PART
+2
+DROP TABLE t1;

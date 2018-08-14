@@ -8669,6 +8669,13 @@ longlong Item_func_get_dd_index_sub_part_length::val_int() {
   enum_field_types field_type = dd_get_old_field_type(col_type);
   if (!Field::type_can_have_key_part(field_type)) DBUG_RETURN(0);
 
+  // Calculate the key length for the column. Note that we pass inn dummy values
+  // for "decimals", "is_unsigned" and "elements" since none of those arguments
+  // will affect the key length for any of the data types that can have a prefix
+  // index (see Field::type_can_have_key_part above).
+  uint32 column_key_length =
+      calc_key_length(field_type, column_length, 0, false, 0);
+
   // Read column charset id from args[3]
   const CHARSET_INFO *column_charset = &my_charset_latin1;
   if (csid) {
@@ -8677,7 +8684,7 @@ longlong Item_func_get_dd_index_sub_part_length::val_int() {
   }
 
   if ((idx_type != dd::Index::IT_FULLTEXT) &&
-      (key_part_length != column_length)) {
+      (key_part_length != column_key_length)) {
     longlong sub_part_length = key_part_length / column_charset->mbmaxlen;
     null_value = false;
     DBUG_RETURN(sub_part_length);
