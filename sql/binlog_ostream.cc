@@ -14,11 +14,14 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "sql/binlog_ostream.h"
+#include <algorithm>
+#include "my_aes.h"
 #include "my_inttypes.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysqld_error.h"
 #include "sql/mysqld.h"
+#include "sql/rpl_log_encryption.h"
 #include "sql/sql_class.h"
 
 IO_CACHE_binlog_cache_storage::IO_CACHE_binlog_cache_storage() {}
@@ -136,3 +139,64 @@ void Binlog_cache_storage::close() {
 }
 
 Binlog_cache_storage::~Binlog_cache_storage() { close(); }
+
+Binlog_encryption_ostream::~Binlog_encryption_ostream() { close(); }
+
+bool Binlog_encryption_ostream::open(
+    std::unique_ptr<Truncatable_ostream> down_ostream,
+    std::unique_ptr<Rpl_encryption_header> header) {
+  DBUG_ASSERT(down_ostream != nullptr);
+
+  m_down_ostream = std::move(down_ostream);
+  m_header = std::move(header);
+  m_encryptor.reset(nullptr);
+  m_encryptor = m_header->get_encryptor();
+  m_encryptor->open(m_header->decrypt_file_password(),
+                    m_header->get_header_size());
+
+  return seek(0);
+}
+
+void Binlog_encryption_ostream::close() {
+  m_encryptor.reset(nullptr);
+  m_header.reset(nullptr);
+  m_down_ostream.reset(nullptr);
+}
+
+bool Binlog_encryption_ostream::write(const unsigned char *buffer,
+                                      my_off_t length) {
+  const int ENCRYPT_BUFFER_SIZE = 2048;
+  unsigned char encrypt_buffer[ENCRYPT_BUFFER_SIZE];
+  const unsigned char *ptr = buffer;
+
+  /*
+    Split the data in 'buffer' to ENCRYPT_BUFFER_SIZE bytes chunks and
+    encrypt them one by one.
+  */
+  while (length > 0) {
+    int encrypt_len =
+        std::min(length, static_cast<my_off_t>(ENCRYPT_BUFFER_SIZE));
+
+    if (m_encryptor->encrypt(encrypt_buffer, ptr, encrypt_len)) return true;
+    if (m_down_ostream->write(encrypt_buffer, encrypt_len)) return true;
+
+    ptr += encrypt_len;
+    length -= encrypt_len;
+  }
+  return false;
+}
+
+bool Binlog_encryption_ostream::seek(my_off_t offset) {
+  if (m_down_ostream->seek(m_header->get_header_size() + offset)) return true;
+  return m_encryptor->set_stream_offset(offset);
+}
+
+bool Binlog_encryption_ostream::truncate(my_off_t offset) {
+  if (m_down_ostream->truncate(m_header->get_header_size() + offset))
+    return true;
+  return m_encryptor->set_stream_offset(offset);
+}
+
+bool Binlog_encryption_ostream::flush() { return m_down_ostream->flush(); }
+
+bool Binlog_encryption_ostream::sync() { return m_down_ostream->sync(); }

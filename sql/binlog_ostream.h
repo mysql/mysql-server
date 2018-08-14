@@ -16,7 +16,9 @@
 #ifndef BINLOG_OSTREAM_INCLUDED
 #define BINLOG_OSTREAM_INCLUDED
 
+#include <openssl/evp.h>
 #include "sql/basic_ostream.h"
+#include "sql/rpl_log_encryption.h"
 
 /**
    Copy data from an input stream to an output stream.
@@ -119,6 +121,8 @@ class IO_CACHE_binlog_cache_storage : public Truncatable_ostream {
   */
   bool next(unsigned char **buffer, my_off_t *length);
   my_off_t length() const;
+  bool flush() override { return false; }
+  bool sync() override { return false; }
 
  private:
   IO_CACHE m_io_cache;
@@ -196,4 +200,39 @@ class Binlog_cache_storage : public Basic_ostream {
   IO_CACHE_binlog_cache_storage m_file;
 };
 
+/**
+  It is an Truncatable_ostream which provides encryption feature. It can be
+  setup into an stream pipeline. In the pipeline, it encrypts the data
+  from up stream and then feeds the encrypted data into down stream.
+*/
+class Binlog_encryption_ostream : public Truncatable_ostream {
+ public:
+  ~Binlog_encryption_ostream();
+
+  /**
+    Initialize the context used in the encryption stream based on the
+    header passed as parameter. It shall be used when opening an ostream for
+    a stream that was already encrypted (the cypher password already exists).
+
+    @param[in] down_ostream the stream for storing encrypted data.
+    @param[in] header the encryption header to setup the cypher.
+
+    @retval false Success.
+    @retval true Error.
+  */
+  bool open(std::unique_ptr<Truncatable_ostream> down_ostream,
+            std::unique_ptr<Rpl_encryption_header> header);
+
+  void close();
+  bool write(const unsigned char *buffer, my_off_t length) override;
+  bool truncate(my_off_t offset) override;
+  bool seek(my_off_t offset) override;
+  bool flush() override;
+  bool sync() override;
+
+ private:
+  std::unique_ptr<Truncatable_ostream> m_down_ostream;
+  std::unique_ptr<Rpl_encryption_header> m_header;
+  std::unique_ptr<Rpl_cipher> m_encryptor;
+};
 #endif  // BINLOG_OSTREAM_INCLUDED

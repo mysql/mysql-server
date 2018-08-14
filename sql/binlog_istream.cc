@@ -17,6 +17,7 @@
 #include "sql/log_event.h"
 #include "sql/mysqld.h"
 #ifdef MYSQL_SERVER
+#include "my_aes.h"
 #include "mysql/components/services/log_builtins.h"
 #include "sql/binlog.h"
 #include "sql/mysqld.h"
@@ -50,6 +51,10 @@ const char *Binlog_read_error::get_str() const {
     case BAD_BINLOG_MAGIC:
       return "Binlog has bad magic number;  It's not a binary log file "
              "that can be used by this version of MySQL";
+    case INVALID_ENCRYPTION_HEADER:
+      return "Found invalid binary log encryption header.";
+    case CANNOT_GET_FILE_PASSWORD:
+      return "Cannot get file password.";
     default:
       /* There must be something wrong in the code if it reaches this branch. */
       DBUG_ASSERT(0);
@@ -57,21 +62,105 @@ const char *Binlog_read_error::get_str() const {
   }
 }
 
+bool Binlog_encryption_istream::open(
+    std::unique_ptr<Basic_seekable_istream> down_istream,
+    Binlog_read_error *binlog_read_error) {
+  DBUG_ENTER("Binlog_encryption_istream::open");
+  DBUG_ASSERT(down_istream != nullptr);
+
+  m_down_istream = std::move(down_istream);
+
+  std::unique_ptr<Rpl_encryption_header> encryption_header(
+      Rpl_encryption_header::get_header(m_down_istream.get()));
+
+  if (encryption_header == nullptr)
+    DBUG_RETURN(binlog_read_error->set_type(
+        Binlog_read_error::INVALID_ENCRYPTION_HEADER));
+
+  Key_string password = encryption_header->decrypt_file_password();
+  if (password.empty())
+    DBUG_RETURN(binlog_read_error->set_type(
+        Binlog_read_error::CANNOT_GET_FILE_PASSWORD));
+
+  m_decryptor = encryption_header->get_decryptor();
+  if (m_decryptor->open(password, encryption_header->get_header_size())) {
+    m_decryptor.reset(nullptr);
+    DBUG_RETURN(true);
+  }
+
+  DBUG_RETURN(false);
+}
+
+void Binlog_encryption_istream::close() {
+  DBUG_ENTER("Binlog_encryption_istream::close");
+  m_down_istream.reset(nullptr);
+  m_decryptor.reset(nullptr);
+  DBUG_VOID_RETURN;
+}
+
+ssize_t Binlog_encryption_istream::read(unsigned char *buffer, size_t length) {
+  ssize_t ret = m_down_istream->read(buffer, length);
+  if (ret > 0 && m_decryptor->decrypt(buffer, buffer, ret)) ret = -1;
+  return ret;
+}
+
+bool Binlog_encryption_istream::seek(my_off_t offset) {
+  if (m_down_istream->seek(offset + m_decryptor->get_header_size()))
+    return true;
+  return m_decryptor->set_stream_offset(offset);
+}
+
+my_off_t Binlog_encryption_istream::length() {
+  return m_down_istream->length() - m_decryptor->get_header_size();
+}
+
+Binlog_encryption_istream::~Binlog_encryption_istream() { close(); }
+
 bool Basic_binlog_ifile::read_binlog_magic() {
+  DBUG_ENTER("Basic_binlog_ifile::read_binlog_magic");
   unsigned char magic[BINLOG_MAGIC_SIZE];
 
   if (m_istream->read(magic, BINLOG_MAGIC_SIZE) != BINLOG_MAGIC_SIZE) {
-    return m_error->set_type(Binlog_read_error::HEADER_IO_FAILURE);
+    DBUG_RETURN(m_error->set_type(Binlog_read_error::HEADER_IO_FAILURE));
   }
+
+  /*
+    If this is an encrypted stream, read encryption header and setup up
+    encryption stream pipeline.
+  */
+  if (memcmp(magic, Rpl_encryption_header::ENCRYPTION_MAGIC,
+             Rpl_encryption_header::ENCRYPTION_MAGIC_SIZE) == 0) {
+    std::unique_ptr<Binlog_encryption_istream> encryption_istream{
+        new Binlog_encryption_istream()};
+    if (encryption_istream->open(std::move(m_istream), m_error))
+      DBUG_RETURN(true);
+
+    /* Setup encryption stream pipeline */
+    m_istream = std::move(encryption_istream);
+
+    /* Read binlog magic from encrypted data */
+    if (m_istream->read(magic, BINLOG_MAGIC_SIZE) != BINLOG_MAGIC_SIZE) {
+      DBUG_RETURN(m_error->set_type(Binlog_read_error::BAD_BINLOG_MAGIC));
+    }
+  }
+
   if (memcmp(magic, BINLOG_MAGIC, BINLOG_MAGIC_SIZE))
-    return m_error->set_type(Binlog_read_error::BAD_BINLOG_MAGIC);
+    DBUG_RETURN(m_error->set_type(Binlog_read_error::BAD_BINLOG_MAGIC));
   m_position = BINLOG_MAGIC_SIZE;
-  return m_error->set_type(Binlog_read_error::SUCCESS);
+  DBUG_RETURN(m_error->set_type(Binlog_read_error::SUCCESS));
 }
 
 Basic_binlog_ifile::Basic_binlog_ifile(Binlog_read_error *binlog_read_error)
-    : m_error(binlog_read_error) {}
-Basic_binlog_ifile::~Basic_binlog_ifile() {}
+    : m_error(binlog_read_error) {
+  DBUG_ENTER("Basic_binlog_ifile::Basic_binlog_ifile");
+  DBUG_VOID_RETURN;
+}
+
+Basic_binlog_ifile::~Basic_binlog_ifile() {
+  DBUG_ENTER("Basic_binlog_ifile::~Basic_binlog_ifile");
+  close();
+  DBUG_VOID_RETURN;
+}
 
 bool Basic_binlog_ifile::open(const char *file_name) {
   m_istream = open_file(file_name);
@@ -81,9 +170,10 @@ bool Basic_binlog_ifile::open(const char *file_name) {
 }
 
 void Basic_binlog_ifile::close() {
+  DBUG_ENTER("Basic_binlog_ifile::close");
   m_position = 0;
-  m_istream = nullptr;
-  close_file();
+  m_istream.reset(nullptr);
+  DBUG_VOID_RETURN;
 }
 
 ssize_t Basic_binlog_ifile::read(unsigned char *buffer, size_t length) {
@@ -104,22 +194,25 @@ bool Basic_binlog_ifile::seek(my_off_t position) {
 my_off_t Basic_binlog_ifile::length() { return m_istream->length(); }
 
 #ifdef MYSQL_SERVER
-Basic_seekable_istream *Binlog_ifile::open_file(const char *file_name) {
-  if (m_ifile.open(key_file_binlog, key_file_binlog_cache, file_name,
-                   MYF(MY_WME | MY_DONT_CHECK_FILESIZE), rpl_read_size))
+
+std::unique_ptr<Basic_seekable_istream> Binlog_ifile::open_file(
+    const char *file_name) {
+  IO_CACHE_istream *ifile = new IO_CACHE_istream;
+  if (ifile->open(key_file_binlog, key_file_binlog_cache, file_name,
+                  MYF(MY_WME | MY_DONT_CHECK_FILESIZE), rpl_read_size))
     return nullptr;
-  return &m_ifile;
+  return std::unique_ptr<Basic_seekable_istream>(ifile);
 }
 
-void Binlog_ifile::close_file() { m_ifile.close(); }
-
-Basic_seekable_istream *Relaylog_ifile::open_file(const char *file_name) {
-  if (m_ifile.open(key_file_relaylog, key_file_relaylog_cache, file_name,
-                   MYF(MY_WME | MY_DONT_CHECK_FILESIZE), rpl_read_size))
+std::unique_ptr<Basic_seekable_istream> Relaylog_ifile::open_file(
+    const char *file_name) {
+  IO_CACHE_istream *ifile = new IO_CACHE_istream;
+  if (ifile->open(key_file_relaylog, key_file_relaylog_cache, file_name,
+                  MYF(MY_WME | MY_DONT_CHECK_FILESIZE), rpl_read_size)) {
+    delete ifile;
     return nullptr;
-  return &m_ifile;
+  }
+  return std::unique_ptr<Basic_seekable_istream>(ifile);
 }
-
-void Relaylog_ifile::close_file() { m_ifile.close(); }
 
 #endif  // ifdef MYSQL_SERVER

@@ -8685,6 +8685,18 @@ ER_GR_HOLD_KILLED
 ER_GR_HOLD_MEMBER_STATUS_ERROR
   eng "Held statement was aborted due to member being in error state, while backlog is being applied during Group Replication primary election."
 
+ER_RPL_ENCRYPTION_FAILED_TO_FETCH_KEY
+  eng "Failed to fetch key from keyring, please check if keyring plugin is loaded."
+
+ER_RPL_ENCRYPTION_KEY_NOT_FOUND
+  eng "Can't find key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully."
+
+ER_RPL_ENCRYPTION_KEYRING_INVALID_KEY
+  eng "Fetched an invalid key from keyring."
+
+ER_RPL_ENCRYPTION_HEADER_ERROR
+  eng "Error reading a replication log encryption header: %s."
+
 #
 #  End of 8.0 error messages.
 #
@@ -18550,6 +18562,18 @@ ER_CANT_SET_DATA_DIR
 
 ER_INNODB_INVALID_INNODB_UNDO_DIRECTORY_LOCATION
   eng "The innodb_undo_directory is not allowed to be an ancestor of the datadir."
+
+ER_SERVER_RPL_ENCRYPTION_FAILED_TO_FETCH_KEY
+  eng "Failed to fetch key from keyring, please check if keyring plugin is loaded."
+
+ER_SERVER_RPL_ENCRYPTION_KEY_NOT_FOUND
+  eng "Can't find key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully."
+
+ER_SERVER_RPL_ENCRYPTION_KEYRING_INVALID_KEY
+  eng "Fetched an invalid key from keyring."
+
+ER_SERVER_RPL_ENCRYPTION_HEADER_ERROR
+  eng "Error reading a replication log encryption header: %s."
 
 #
 # End of 8.0 error messages intended to be logged to the server error log.

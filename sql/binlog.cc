@@ -243,7 +243,11 @@ end:
  */
 class MYSQL_BIN_LOG::Binlog_ofile : public Basic_ostream {
  public:
-  ~Binlog_ofile() { close(); }
+  ~Binlog_ofile() {
+    DBUG_ENTER("Binlog_ofile::~Binlog_ofile");
+    close();
+    DBUG_VOID_RETURN;
+  }
 
   /**
      Opens the binlog file. It opens the lower layer storage.
@@ -260,18 +264,82 @@ class MYSQL_BIN_LOG::Binlog_ofile : public Basic_ostream {
       PSI_file_key log_file_key,
 #endif
       const char *binlog_name, myf flags) {
+    DBUG_ENTER("Binlog_ofile::open");
     DBUG_ASSERT(m_pipeline_head == NULL);
 
-    if (m_file_ostream.open(log_file_key, binlog_name, flags)) return true;
+    std::unique_ptr<IO_CACHE_ostream> file_ostream(new IO_CACHE_ostream);
+    if (file_ostream->open(log_file_key, binlog_name, flags)) DBUG_RETURN(true);
 
-    m_pipeline_head = &m_file_ostream;
-    return false;
+    m_pipeline_head = std::move(file_ostream);
+
+    DBUG_RETURN(false);
+  }
+
+  /**
+    Opens an existing binlog file. It opens the lower layer storage reusing the
+    existing file password if needed.
+
+    @param[in] log_file_key The PSI_file_key for this stream
+    @param[in] binlog_name The file to be opened
+    @param[in] flags The flags used by IO_CACHE.
+
+    @retval std::unique_ptr A Binlog_ofile object pointer.
+    @retval nullptr Error.
+  */
+  static std::unique_ptr<Binlog_ofile> open_existing(
+#ifdef HAVE_PSI_INTERFACE
+      PSI_file_key log_file_key,
+#endif
+      const char *binlog_name, myf flags) {
+    DBUG_ENTER("Binlog_ofile::open_existing");
+    std::unique_ptr<Rpl_encryption_header> header;
+    unsigned char magic[BINLOG_MAGIC_SIZE];
+
+    /* Open a simple istream to read the magic from the file */
+    IO_CACHE_istream istream;
+    if (istream.open(key_file_binlog, key_file_binlog_cache, binlog_name,
+                     MYF(MY_WME | MY_DONT_CHECK_FILESIZE), rpl_read_size))
+      DBUG_RETURN(nullptr);
+    if (istream.read(magic, BINLOG_MAGIC_SIZE) != BINLOG_MAGIC_SIZE)
+      DBUG_RETURN(nullptr);
+
+    DBUG_ASSERT(Rpl_encryption_header::ENCRYPTION_MAGIC_SIZE ==
+                BINLOG_MAGIC_SIZE);
+    /* Identify the file type by the magic to get the encryption header */
+    if (memcmp(magic, Rpl_encryption_header::ENCRYPTION_MAGIC,
+               BINLOG_MAGIC_SIZE) == 0) {
+      header = Rpl_encryption_header::get_header(&istream);
+      if (header == nullptr) DBUG_RETURN(nullptr);
+    } else if (memcmp(magic, BINLOG_MAGIC, BINLOG_MAGIC_SIZE) != 0) {
+      DBUG_RETURN(nullptr);
+    }
+
+    /* Open the binlog_ofile */
+    std::unique_ptr<Binlog_ofile> ret_ofile(new Binlog_ofile);
+    if (ret_ofile->open(
+#ifdef HAVE_PSI_INTERFACE
+            log_file_key,
+#endif
+            binlog_name, flags)) {
+      DBUG_RETURN(nullptr);
+    }
+
+    if (header != nullptr) {
+      /* Add the encryption stream on top of IO_CACHE */
+      std::unique_ptr<Binlog_encryption_ostream> encrypted_ostream(
+          new Binlog_encryption_ostream);
+      ret_ofile->m_encrypted_header_size = header->get_header_size();
+      encrypted_ostream->open(std::move(ret_ofile->m_pipeline_head),
+                              std::move(header));
+      ret_ofile->m_pipeline_head = std::move(encrypted_ostream);
+    }
+    DBUG_RETURN(ret_ofile);
   }
 
   void close() {
-    m_file_ostream.close();
-    m_pipeline_head = NULL;
+    m_pipeline_head.reset(nullptr);
     m_position = 0;
+    m_encrypted_header_size = 0;
   }
 
   /**
@@ -283,7 +351,7 @@ class MYSQL_BIN_LOG::Binlog_ofile : public Basic_ostream {
      @retval false  Success
      @retval true  Error
   */
-  bool write(const unsigned char *buffer, my_off_t length) {
+  bool write(const unsigned char *buffer, my_off_t length) override {
     DBUG_ASSERT(m_pipeline_head != NULL);
 
     if (m_pipeline_head->write(buffer, length)) return true;
@@ -305,7 +373,6 @@ class MYSQL_BIN_LOG::Binlog_ofile : public Basic_ostream {
   */
   bool update(const unsigned char *buffer, my_off_t length, my_off_t offset) {
     DBUG_ASSERT(m_pipeline_head != NULL);
-    DBUG_ASSERT(offset + length <= m_position);
     return m_pipeline_head->seek(offset) ||
            m_pipeline_head->write(buffer, length);
   }
@@ -319,24 +386,31 @@ class MYSQL_BIN_LOG::Binlog_ofile : public Basic_ostream {
      @retval true  Error
   */
   bool truncate(my_off_t offset) {
-    DBUG_ASSERT(m_pipeline_head != NULL);
+    DBUG_ASSERT(m_pipeline_head != nullptr);
 
     if (m_pipeline_head->truncate(offset)) return true;
     m_position = offset;
     return false;
   }
 
-  bool flush() { return m_file_ostream.flush(); }
-  bool sync() { return m_file_ostream.sync(); }
+  bool flush() { return m_pipeline_head->flush(); }
+  bool sync() { return m_pipeline_head->sync(); }
   bool flush_and_sync() { return flush() || sync(); }
   my_off_t position() { return m_position; }
   bool is_empty() { return position() == 0; }
-  bool is_open() { return m_pipeline_head != NULL; }
+  bool is_open() { return m_pipeline_head != nullptr; }
+  /**
+    Returns the encrypted header size of the binary log file.
+
+    @retval 0 The file is not encrypted.
+    @retval >0 The encryption header size.
+  */
+  int get_encrypted_header_size() { return m_encrypted_header_size; }
 
  private:
   my_off_t m_position = 0;
-  Truncatable_ostream *m_pipeline_head = NULL;
-  IO_CACHE_ostream m_file_ostream;
+  int m_encrypted_header_size = 0;
+  std::unique_ptr<Truncatable_ostream> m_pipeline_head;
 };
 
 /**
@@ -4942,6 +5016,7 @@ int MYSQL_BIN_LOG::raw_get_current_log(LOG_INFO *linfo) {
   strmake(linfo->log_file_name, log_file_name,
           sizeof(linfo->log_file_name) - 1);
   linfo->pos = m_binlog_file->position();
+  linfo->encrypted_header_size = m_binlog_file->get_encrypted_header_size();
   return 0;
 }
 
@@ -7297,7 +7372,6 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name) {
     char log_name[FN_REFLEN];
     my_off_t valid_pos = 0;
     my_off_t binlog_size;
-    MY_STAT s;
 
     do {
       strmake(log_name, log_info.log_file_name, sizeof(log_name) - 1);
@@ -7308,9 +7382,6 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name) {
       LogErr(ERROR_LEVEL, ER_BINLOG_CANT_FIND_LOG_IN_INDEX, error);
       goto err;
     }
-
-    my_stat(log_name, &s, MYF(0));
-    binlog_size = s.st_size;
 
     Binlog_file_reader binlog_file_reader(opt_master_verify_checksum);
     if (binlog_file_reader.open(log_name)) {
@@ -7340,6 +7411,7 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name) {
              opt_name);
       valid_pos = binlog_file_reader.position();
       error = binlog_recover(&binlog_file_reader, &valid_pos);
+      binlog_size = binlog_file_reader.ifile()->length();
     } else
       error = 0;
 
@@ -7350,37 +7422,32 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name) {
     /* Trim the crashed binlog file to last valid transaction
       or event (non-transaction) base on valid_pos. */
     if (valid_pos > 0) {
-      File file;
-      if ((file = mysql_file_open(key_file_binlog, log_name, O_RDWR,
-                                  MYF(MY_WME))) < 0) {
+      std::unique_ptr<Binlog_ofile> ofile(
+          Binlog_ofile::open_existing(key_file_binlog, log_name, MYF(MY_WME)));
+
+      if (!ofile) {
         LogErr(ERROR_LEVEL, ER_BINLOG_CANT_OPEN_CRASHED_BINLOG);
         return -1;
       }
 
       /* Change binlog file size to valid_pos */
       if (valid_pos < binlog_size) {
-        if (my_chsize(file, valid_pos, 0, MYF(MY_WME))) {
+        if (ofile->truncate(valid_pos)) {
           LogErr(ERROR_LEVEL, ER_BINLOG_CANT_TRIM_CRASHED_BINLOG);
-          mysql_file_close(file, MYF(MY_WME));
           return -1;
-        } else {
-          LogErr(INFORMATION_LEVEL, ER_BINLOG_CRASHED_BINLOG_TRIMMED, log_name,
-                 binlog_size, valid_pos, valid_pos);
         }
+        LogErr(INFORMATION_LEVEL, ER_BINLOG_CRASHED_BINLOG_TRIMMED, log_name,
+               binlog_size, valid_pos, valid_pos);
       }
 
       /* Clear LOG_EVENT_BINLOG_IN_USE_F */
-      my_off_t offset = BIN_LOG_HEADER_SIZE + FLAGS_OFFSET;
       uchar flags = 0;
-      if (mysql_file_pwrite(file, &flags, 1, offset, MYF(0)) != 1) {
+      if (ofile->update(&flags, 1, BIN_LOG_HEADER_SIZE + FLAGS_OFFSET)) {
         LogErr(ERROR_LEVEL,
                ER_BINLOG_CANT_CLEAR_IN_USE_FLAG_FOR_CRASHED_BINLOG);
-        mysql_file_close(file, MYF(MY_WME));
         return -1;
       }
-
-      mysql_file_close(file, MYF(MY_WME));
-    }  // end if
+    }  // end if (valid_pos > 0)
   }
 
 err:

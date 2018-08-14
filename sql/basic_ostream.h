@@ -62,6 +62,22 @@ class Truncatable_ostream : public Basic_ostream {
      @retval true  Error
   */
   virtual bool seek(my_off_t offset) = 0;
+  /**
+     Flush data.
+
+     @retval false Success.
+     @retval true Error.
+  */
+  virtual bool flush() = 0;
+  /**
+     Sync.
+
+     @retval false Success
+     @retval true Error
+  */
+  virtual bool sync() = 0;
+
+  virtual ~Truncatable_ostream() {}
 };
 
 /**
@@ -107,7 +123,7 @@ class IO_CACHE_ostream : public Truncatable_ostream {
      @retval false  Success
      @retval true  Error
   */
-  bool flush();
+  bool flush() override;
 
   /**
      Syncs the file to disk. It doesn't check and flush any remaining data still
@@ -117,7 +133,7 @@ class IO_CACHE_ostream : public Truncatable_ostream {
      @retval false  Success
      @retval true  Error
   */
-  bool sync();
+  bool sync() override;
 
  private:
   IO_CACHE m_io_cache;

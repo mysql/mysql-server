@@ -2420,32 +2420,29 @@ class Mysqlbinlog_ifile : public Basic_binlog_ifile {
   using Basic_binlog_ifile::Basic_binlog_ifile;
 
  private:
-  Stdin_binlog_istream m_stdin;
-  IO_CACHE_istream m_iocache;
-
-  Basic_seekable_istream *open_file(const char *file_name) override {
+  std::unique_ptr<Basic_seekable_istream> open_file(
+      const char *file_name) override {
     if (file_name && strcmp(file_name, "-") != 0) {
-      if (m_iocache.open(
+      IO_CACHE_istream *iocache = new IO_CACHE_istream;
+      if (iocache->open(
 #ifdef HAVE_PSI_INTERFACE
               PSI_NOT_INSTRUMENTED, PSI_NOT_INSTRUMENTED,
 #endif
               file_name, MYF(MY_WME | MY_NABP))) {
+        delete iocache;
         return nullptr;
       }
-      return &m_iocache;
+      return std::unique_ptr<Basic_seekable_istream>(iocache);
     } else {
       std::string errmsg;
-      if (m_stdin.open(&errmsg)) {
+      Stdin_binlog_istream *standard_in = new Stdin_binlog_istream;
+      if (standard_in->open(&errmsg)) {
         error("%s", errmsg.c_str());
+        delete standard_in;
         return nullptr;
       }
-      return &m_stdin;
+      return std::unique_ptr<Basic_seekable_istream>(standard_in);
     }
-  }
-
-  void close_file() override {
-    m_stdin.close();
-    m_iocache.close();
   }
 };
 

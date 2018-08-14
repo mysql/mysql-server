@@ -1280,6 +1280,7 @@ bool show_binlogs(THD *thd) {
   field_list.push_back(new Item_empty_string("Log_name", 255));
   field_list.push_back(
       new Item_return_int("File_size", 20, MYSQL_TYPE_LONGLONG));
+  field_list.push_back(new Item_empty_string("Encrypted", 3));
   if (thd->send_result_metadata(&field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(true);
@@ -1299,6 +1300,7 @@ bool show_binlogs(THD *thd) {
   /* The file ends with EOF or empty line */
   while ((length = my_b_gets(index_file, fname, sizeof(fname))) > 1) {
     size_t dir_len;
+    int encrypted_header_size = 0;
     ulonglong file_length = 0;  // Length if open fails
     fname[--length] = '\0';     // remove the newline
 
@@ -1307,17 +1309,28 @@ bool show_binlogs(THD *thd) {
     length -= dir_len;
     protocol->store(fname + dir_len, length, &my_charset_bin);
 
-    if (!(strncmp(fname + dir_len, cur.log_file_name + cur_dir_len, length)))
+    if (!(strncmp(fname + dir_len, cur.log_file_name + cur_dir_len, length))) {
+      /* Encryption header size shall be accounted in the file_length */
+      encrypted_header_size = cur.encrypted_header_size;
       file_length = cur.pos; /* The active log, use the active position */
-    else {
+      file_length = file_length + encrypted_header_size;
+    } else {
       /* this is an old log, open it and find the size */
       if ((file = mysql_file_open(key_file_binlog, fname, O_RDONLY, MYF(0))) >=
           0) {
+        unsigned char magic[Rpl_encryption_header::ENCRYPTION_MAGIC_SIZE];
+        if (mysql_file_read(file, magic, BINLOG_MAGIC_SIZE, MYF(0)) == 4 &&
+            memcmp(magic, Rpl_encryption_header::ENCRYPTION_MAGIC,
+                   Rpl_encryption_header::ENCRYPTION_MAGIC_SIZE) == 0) {
+          /* Encryption header size is already accounted in the file_length */
+          encrypted_header_size = 1;
+        }
         file_length = (ulonglong)mysql_file_seek(file, 0L, MY_SEEK_END, MYF(0));
         mysql_file_close(file, MYF(0));
       }
     }
     protocol->store(file_length);
+    protocol->store(encrypted_header_size ? "Yes" : "No", &my_charset_bin);
     if (protocol->end_row()) {
       DBUG_PRINT(
           "info",

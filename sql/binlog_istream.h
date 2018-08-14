@@ -17,6 +17,7 @@
 #define BINLOG_ISTREAM_INCLUDED
 #include "my_sys.h"
 #include "sql/basic_istream.h"
+#include "sql/rpl_log_encryption.h"
 
 /**
    It defines the error types which could happen when reading binlog files or
@@ -58,7 +59,9 @@ class Binlog_read_error {
     // System IO error happened while reading the binlog magic
     HEADER_IO_FAILURE,
     // The binlog magic is incorrect
-    BAD_BINLOG_MAGIC
+    BAD_BINLOG_MAGIC,
+    INVALID_ENCRYPTION_HEADER,
+    CANNOT_GET_FILE_PASSWORD
   };
 
   Binlog_read_error() {}
@@ -95,6 +98,45 @@ class Binlog_read_error {
 
  private:
   Error_type m_type = SUCCESS;
+};
+
+/**
+  Seekable_istream with decryption feature. It can be setup into an stream
+  pipeline. In the pipeline, it decrypts the data from down stream and then
+  feeds the decrypted data into up stream.
+*/
+class Binlog_encryption_istream : public Basic_seekable_istream {
+ public:
+  virtual ~Binlog_encryption_istream();
+
+  /**
+    Initialize the context used in the decryption stream.
+
+    @param[in] down_istream The down stream where the encrypted data is stored.
+    @param[in] binlog_read_error Binlog_encryption_istream doesn't own a
+                                 Binlog_read_error. So the caller should provide
+                                 one to it. When error happens, the error type
+                                 will be set into 'binlog_read_error'.
+
+    @retval false Succeed.
+    @retval true Error.
+  */
+  bool open(std::unique_ptr<Basic_seekable_istream> down_istream,
+            Binlog_read_error *binlog_read_error);
+  /**
+    Closes the stream. It also closes the down stream and the decryptor.
+  */
+  void close();
+
+  ssize_t read(unsigned char *buffer, size_t length) override;
+  bool seek(my_off_t offset) override;
+  my_off_t length() override;
+
+ private:
+  /* The decryptor cypher to decrypt the content read from down stream */
+  std::unique_ptr<Rpl_cipher> m_decryptor;
+  /* The down stream containing the encrypted content */
+  std::unique_ptr<Basic_seekable_istream> m_down_istream;
 };
 
 /**
@@ -146,11 +188,8 @@ class Basic_binlog_ifile : public Basic_seekable_istream {
 
      @param[in] file_name  name of the binlog file which will be opened.
   */
-  virtual Basic_seekable_istream *open_file(const char *file_name) = 0;
-  /**
-     close the system layer file.
-  */
-  virtual void close_file() = 0;
+  virtual std::unique_ptr<Basic_seekable_istream> open_file(
+      const char *file_name) = 0;
 
   /**
      It is convenient for caller to share a Binlog_read_error object between
@@ -166,12 +205,16 @@ class Basic_binlog_ifile : public Basic_seekable_istream {
   */
   my_off_t m_position = 0;
   /** It is the entry of the low level stream pipeline. */
-  Basic_seekable_istream *m_istream = nullptr;
+  std::unique_ptr<Basic_seekable_istream> m_istream;
 
   /**
      Read binlog magic from binlog file and check if it is valid binlog magic.
-     @retval false Its binlog magic is valid
-     @retval true Its binlog magic is invalid
+
+     This function also takes care of setting up any other stream layer (i.e.
+     encryption) when needed.
+
+     @retval false The high level stream layer was recognized as a binary log.
+     @retval true Failure identifying the high level stream layer.
   */
   bool read_binlog_magic();
 };
@@ -186,11 +229,8 @@ class Binlog_ifile : public Basic_binlog_ifile {
   using Basic_binlog_ifile::Basic_binlog_ifile;
 
  protected:
-  Basic_seekable_istream *open_file(const char *file_name) override;
-  void close_file() override;
-
- private:
-  IO_CACHE_istream m_ifile;
+  std::unique_ptr<Basic_seekable_istream> open_file(
+      const char *file_name) override;
 };
 
 /**
@@ -201,11 +241,8 @@ class Relaylog_ifile : public Basic_binlog_ifile {
   using Basic_binlog_ifile::Basic_binlog_ifile;
 
  protected:
-  Basic_seekable_istream *open_file(const char *file_name) override;
-  void close_file() override;
-
- private:
-  IO_CACHE_istream m_ifile;
+  std::unique_ptr<Basic_seekable_istream> open_file(
+      const char *file_name) override;
 };
 #endif
 
