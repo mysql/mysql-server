@@ -25,7 +25,7 @@ IO_CACHE_ostream::~IO_CACHE_ostream() { close(); }
 
 bool IO_CACHE_ostream::open(
 #ifdef HAVE_PSI_INTERFACE
-    PSI_file_key log_file_key,
+    PSI_file_key log_file_key MY_ATTRIBUTE((unused)),
 #endif
     const char *file_name, myf flags) {
   File file = -1;

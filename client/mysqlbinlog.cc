@@ -2424,8 +2424,11 @@ class Mysqlbinlog_ifile : public Basic_binlog_ifile {
 
   Basic_seekable_istream *open_file(const char *file_name) override {
     if (file_name && strcmp(file_name, "-") != 0) {
-      if (m_iocache.open(PSI_NOT_INSTRUMENTED, PSI_NOT_INSTRUMENTED, file_name,
-                         MYF(MY_WME | MY_NABP))) {
+      if (m_iocache.open(
+#ifdef HAVE_PSI_INTERFACE
+              PSI_NOT_INSTRUMENTED, PSI_NOT_INSTRUMENTED,
+#endif
+              file_name, MYF(MY_WME | MY_NABP))) {
         return nullptr;
       }
       return &m_iocache;

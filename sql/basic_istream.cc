@@ -24,20 +24,22 @@ IO_CACHE_istream::~IO_CACHE_istream() { close(); }
 
 bool IO_CACHE_istream::open(
 #ifdef HAVE_PSI_INTERFACE
-    PSI_file_key log_file_key, PSI_file_key log_cache_key,
+    PSI_file_key log_file_key MY_ATTRIBUTE((unused)),
+    PSI_file_key log_cache_key,
 #endif
-    const char *file_name, myf flags, size_t cache_size) {
+    const char *file_name, myf flags MY_ATTRIBUTE((unused)),
+    size_t cache_size) {
   File file = -1;
 
   file = mysql_file_open(log_file_key, file_name, O_RDONLY, MYF(MY_WME));
   if (file < 0) return true;
 
 #ifdef HAVE_PSI_INTERFACE
-  if (init_io_cache_ext(&m_io_cache, file, cache_size, READ_CACHE, 0, 0, flags,
-                        log_cache_key))
+  if (init_io_cache_ext(&m_io_cache, file, cache_size, READ_CACHE, 0, false,
+                        flags, log_cache_key))
 #else
-  if (init_io_cache(&m_io_cache, file, IO_SIZE * 2, READ_CACHE, 0,
-                    0 MYF(MY_WME | MY_DONT_CHECK_FILESIZE)))
+  if (init_io_cache(&m_io_cache, file, cache_size, READ_CACHE, 0, false,
+                    MYF(MY_WME | MY_DONT_CHECK_FILESIZE)))
 #endif
   {
     mysql_file_close(file, MYF(0));
