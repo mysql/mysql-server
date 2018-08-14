@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -126,10 +126,6 @@ extern "C" void *test_timer_per_thread(void *arg) {
   int iter = *(int *)arg;
 
   while (iter--) test_timer();
-
-  mysql_mutex_lock(&mutex);
-  if (!--running_threads) mysql_cond_signal(&cond);
-  mysql_mutex_unlock(&mutex);
 
   return NULL;
 }
@@ -265,8 +261,6 @@ TEST(Mysys, TestMultipleTimers) {
 
 /* Test timer in multiple threads */
 TEST(Mysys, TestTimerPerThread) {
-  mysql_mutex_init(0, &mutex, 0);
-  mysql_cond_init(0, &cond);
   my_thread_attr_init(&thr_attr);
   my_thread_attr_setdetachstate(&thr_attr, MY_THREAD_CREATE_DETACHED);
 
@@ -275,8 +269,6 @@ TEST(Mysys, TestTimerPerThread) {
   test_concurrently("per-thread", test_timer_per_thread, THREADS, 5);
 
   my_timer_deinitialize();
-  mysql_mutex_destroy(&mutex);
-  mysql_cond_destroy(&cond);
   my_thread_attr_destroy(&thr_attr);
 }
 

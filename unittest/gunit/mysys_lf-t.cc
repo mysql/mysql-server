@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,7 +43,8 @@ namespace mysys_lf_unittest {
 
 #include "unittest/gunit/thr_template.cc"
 
-int32 inserts = 0, N;
+std::atomic<int32> inserts{0};
+int32 N;
 LF_ALLOCATOR lf_allocator;
 LF_HASH lf_hash;
 
@@ -65,9 +66,6 @@ extern "C" void *test_lf_pinbox(void *arg) {
     pins = lf_pinbox_get_pins(&lf_allocator.pinbox);
   }
   lf_pinbox_put_pins(pins);
-  mysql_mutex_lock(&mutex);
-  if (!--running_threads) mysql_cond_signal(&cond);
-  mysql_mutex_unlock(&mutex);
 
   if (with_my_thread_init) my_thread_end();
 
@@ -109,7 +107,7 @@ extern "C" void *test_lf_alloc(void *arg) {
     lf_pinbox_free(pins, node2);
   }
   lf_pinbox_put_pins(pins);
-  mysql_mutex_lock(&mutex);
+
   bad += y;
 
   if (--N == 0) {
@@ -117,8 +115,6 @@ extern "C" void *test_lf_alloc(void *arg) {
     bad |= lf_allocator.mallocs - lf_alloc_pool_count(&lf_allocator);
 #endif
   }
-  if (!--running_threads) mysql_cond_signal(&cond);
-  mysql_mutex_unlock(&mutex);
 
   if (with_my_thread_init) my_thread_end();
   return 0;
@@ -152,15 +148,14 @@ extern "C" void *test_lf_hash(void *arg) {
     }
   }
   lf_hash_put_pins(pins);
-  mysql_mutex_lock(&mutex);
+
   bad += sum;
   inserts += ins;
 
   if (--N == 0) {
     bad |= lf_hash.count;
   }
-  if (!--running_threads) mysql_cond_signal(&cond);
-  mysql_mutex_unlock(&mutex);
+
   if (with_my_thread_init) my_thread_end();
   return 0;
 }
@@ -191,15 +186,11 @@ void do_tests() {
 }
 
 TEST(Mysys, LockFree) {
-  mysql_mutex_init(0, &mutex, 0);
-  mysql_cond_init(0, &cond);
   my_thread_attr_init(&thr_attr);
   my_thread_attr_setdetachstate(&thr_attr, MY_THREAD_CREATE_DETACHED);
 
   do_tests();
 
-  mysql_mutex_destroy(&mutex);
-  mysql_cond_destroy(&cond);
   my_thread_attr_destroy(&thr_attr);
 }
 
