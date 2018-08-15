@@ -183,7 +183,6 @@
 /* Code tests*/
 #cmakedefine HAVE_CLOCK_GETTIME 1
 #cmakedefine HAVE_CLOCK_REALTIME 1
-#cmakedefine DNS_USE_CPU_CLOCK_FOR_ID 1
 #cmakedefine STACK_DIRECTION @STACK_DIRECTION@
 #cmakedefine TIME_WITH_SYS_TIME 1
 #cmakedefine NO_FCNTL_NONBLOCK 1
@@ -248,23 +247,6 @@
 #cmakedefine PLUGINDIR "@PLUGINDIR@"
 #cmakedefine DEFAULT_SYSCONFDIR "@DEFAULT_SYSCONFDIR@"
 #cmakedefine DEFAULT_TMPDIR @DEFAULT_TMPDIR@
-#cmakedefine INSTALL_SBINDIR "@default_prefix@/@INSTALL_SBINDIR@"
-#cmakedefine INSTALL_BINDIR "@default_prefix@/@INSTALL_BINDIR@"
-#cmakedefine INSTALL_MYSQLSHAREDIR "@default_prefix@/@INSTALL_MYSQLSHAREDIR@"
-#cmakedefine INSTALL_SHAREDIR "@default_prefix@/@INSTALL_SHAREDIR@"
-#cmakedefine INSTALL_PLUGINDIR "@default_prefix@/@INSTALL_PLUGINDIR@"
-#cmakedefine INSTALL_INCLUDEDIR "@default_prefix@/@INSTALL_INCLUDEDIR@"
-#cmakedefine INSTALL_MYSQLDATADIR "@default_prefix@/@INSTALL_MYSQLDATADIR@"
-#cmakedefine INSTALL_MYSQLKEYRINGDIR "@default_prefix@/@INSTALL_MYSQLKEYRINGDIR@"
-#cmakedefine INSTALL_PLUGINTESTDIR "@INSTALL_PLUGINTESTDIR@"
-#cmakedefine INSTALL_INFODIR "@default_prefix@/@INSTALL_INFODIR@"
-#cmakedefine INSTALL_MYSQLTESTDIR "@default_prefix@/@INSTALL_MYSQLTESTDIR@"
-#cmakedefine INSTALL_DOCREADMEDIR "@default_prefix@/@INSTALL_DOCREADMEDIR@"
-#cmakedefine INSTALL_DOCDIR "@default_prefix@/@INSTALL_DOCDIR@"
-#cmakedefine INSTALL_MANDIR "@default_prefix@/@INSTALL_MANDIR@"
-#cmakedefine INSTALL_SUPPORTFILESDIR "@default_prefix@/@INSTALL_SUPPORTFILESDIR@"
-#cmakedefine INSTALL_LIBDIR "@default_prefix@/@INSTALL_LIBDIR@"
-
 /*
  * Readline
  */
@@ -319,11 +301,6 @@
 #define MYSQL_VERSION_MINOR @MINOR_VERSION@
 #define MYSQL_VERSION_PATCH @PATCH_VERSION@
 #define MYSQL_VERSION_EXTRA "@EXTRA_VERSION@"
-#define PACKAGE "mysql"
-#define PACKAGE_BUGREPORT ""
-#define PACKAGE_NAME "MySQL Server"
-#define PACKAGE_STRING "MySQL Server @VERSION@"
-#define PACKAGE_TARNAME "mysql"
 #define PACKAGE_VERSION "@VERSION@"
 #define VERSION "@VERSION@"
 #define PROTOCOL_VERSION 10
