@@ -951,3 +951,12 @@ SELECT truncate(
 
 select cast(pow(2,63) as signed) as pp;
 select 1-cast(pow(2,63) as signed) as qq;
+
+--echo #
+--echo # Bug#17081376 ITEM_FUNC_MUL::INT_OP() MISHANDLES 9223372036854775809*-1
+--echo #
+
+--error ER_DATA_OUT_OF_RANGE
+SELECT 9223372036854775809 * -1;
+--error ER_DATA_OUT_OF_RANGE
+SELECT -1 * 9223372036854775809;

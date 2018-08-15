@@ -1740,7 +1740,7 @@ longlong Item_func_mul::int_op() {
   res = res1 + res0;
 
   if (a_negative != b_negative) {
-    if ((ulonglong)res > (ulonglong)LLONG_MIN + 1) goto err;
+    if ((ulonglong)res > (ulonglong)LLONG_MAX) goto err;
     res = -res;
   } else
     res_unsigned = true;
