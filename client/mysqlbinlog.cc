@@ -318,6 +318,8 @@ static int port = 0;
 static uint my_end_arg;
 static const char *sock = 0;
 static char *opt_plugin_dir = 0, *opt_default_auth = 0;
+static uint opt_enable_cleartext_plugin = 0;
+static bool using_opt_enable_cleartext_plugin = 0;
 
 #if defined(_WIN32)
 static char *shared_memory_base_name = 0;
@@ -1593,6 +1595,10 @@ static struct my_option my_long_options[] = {
     {"print-table-metadata", OPT_PRINT_TABLE_METADATA,
      "Print metadata stored in Table_map_log_event", &opt_print_table_metadata,
      &opt_print_table_metadata, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"enable_cleartext_plugin", OPT_ENABLE_CLEARTEXT_PLUGIN,
+   "Enable/disable the clear text authentication plugin.",
+    &opt_enable_cleartext_plugin, &opt_enable_cleartext_plugin, 0, GET_BOOL,
+    OPT_ARG, 0, 0, 0, 0, 0, 0},
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
 
 /**
@@ -1802,6 +1808,9 @@ extern "C" bool get_one_option(int optid, const struct my_option *opt,
       warning(CLIENT_WARN_DEPRECATED_MSG("--stop-never-slave-server-id",
                                          "--connection-server-id"));
       break;
+    case OPT_ENABLE_CLEARTEXT_PLUGIN:
+      using_opt_enable_cleartext_plugin = true;
+      break;
   }
   if (tty_password) pass = get_tty_password(NullS);
 
@@ -1839,6 +1848,10 @@ static Exit_status safe_connect() {
     error("Failed on mysql_init.");
     return ERROR_STOP;
   }
+
+  if (using_opt_enable_cleartext_plugin)
+     mysql_options(mysql, MYSQL_ENABLE_CLEARTEXT_PLUGIN,
+     (char *)&opt_enable_cleartext_plugin);
 
   SSL_SET_OPTIONS(mysql);
 
