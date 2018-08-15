@@ -158,7 +158,7 @@ static bool check_exchange_partition(TABLE *table, TABLE *part_table) {
   }
 
   /* The table cannot have foreign keys constraints or be referenced */
-  if (!table->file->can_switch_engines()) {
+  if (table->s->foreign_keys || table->s->foreign_key_parents) {
     my_error(ER_PARTITION_EXCHANGE_FOREIGN_KEY, MYF(0),
              table->s->table_name.str);
     DBUG_RETURN(true);

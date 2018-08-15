@@ -483,8 +483,6 @@ class ha_innopart : public ha_innobase,
   @return 0 or error code. */
   int repair(THD *thd, HA_CHECK_OPT *repair_opt);
 
-  bool can_switch_engines();
-
   uint referenced_by_foreign_key();
 
   void get_auto_increment(ulonglong offset, ulonglong increment,

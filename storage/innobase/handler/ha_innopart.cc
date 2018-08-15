@@ -3710,21 +3710,6 @@ int ha_innopart::repair(THD *thd, HA_CHECK_OPT *repair_opt) {
   DBUG_RETURN(error);
 }
 
-/** Check if possible to switch engine (no foreign keys).
-Checks if ALTER TABLE may change the storage engine of the table.
-Changing storage engines is not allowed for tables for which there
-are foreign key constraints (parent or child tables).
-@return	true if can switch engines. */
-bool ha_innopart::can_switch_engines() {
-  bool can_switch;
-
-  DBUG_ENTER("ha_innopart::can_switch_engines");
-  can_switch = ha_innobase::can_switch_engines();
-  ut_ad(can_switch);
-
-  DBUG_RETURN(can_switch);
-}
-
 /** Checks if a table is referenced by a foreign key.
 The MySQL manual states that a REPLACE is either equivalent to an INSERT,
 or DELETE(s) + INSERT. Only a delete is then allowed internally to resolve

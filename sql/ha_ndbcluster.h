@@ -258,10 +258,6 @@ public:
                                  List<FOREIGN_KEY_INFO> *f_key_list) override;
  uint referenced_by_foreign_key() override;
 
-private:
-  uint is_child_or_parent_of_fk();
-public:
-  bool can_switch_engines() override;
   char* get_foreign_key_create_info() override;
   void free_foreign_key_create_info(char* str) override;
 

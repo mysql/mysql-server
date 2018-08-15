@@ -120,7 +120,7 @@ alter table child add foreign key fk1(ref) references parent(id);
 #Now run a alter engine query.
 #m_fk_data of parent should be reloaded now and the query should fail
 alter table parent engine = innodb;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ERROR HY000: Cannot change table's storage engine because the table participates in a foreign key constraint.
 show create table parent;
 Table	Create Table
 parent	CREATE TABLE `parent` (
@@ -130,7 +130,7 @@ parent	CREATE TABLE `parent` (
 #Repeat same with truncate
 truncate table child;
 alter table parent engine = innodb;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ERROR HY000: Cannot change table's storage engine because the table participates in a foreign key constraint.
 show create table parent;
 Table	Create Table
 parent	CREATE TABLE `parent` (

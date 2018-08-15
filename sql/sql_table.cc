@@ -14229,9 +14229,15 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   if (check_engine(thd, alter_ctx.new_db, alter_ctx.new_name, create_info))
     DBUG_RETURN(true);
 
-  if (create_info->db_type != table->s->db_type() &&
-      !table->file->can_switch_engines()) {
-    my_error(ER_ROW_IS_REFERENCED, MYF(0));
+  /*
+    Do not allow change of storage engine if table participates in a foreign
+    key. Even in cases when both source and target storage engines support
+    foreign keys the fine details of what is supported might differ.
+  */
+  if (create_info->db_type != table->s->db_type() && old_table_def != nullptr &&
+      (old_table_def->foreign_keys().size() ||
+       old_table_def->foreign_key_parents().size())) {
+    my_error(ER_FK_CANNOT_CHANGE_ENGINE, MYF(0));
     DBUG_RETURN(true);
   }
 
