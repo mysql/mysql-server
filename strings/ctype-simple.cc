@@ -26,12 +26,13 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <errno.h>
-#include <limits.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+
+#include <limits>
 
 #include "m_ctype.h"
 #include "m_string.h"
@@ -1331,7 +1332,10 @@ exp: /* [ E [ <sign> ] <unsigned integer> ] */
         if (++str == end) goto ret_sign;
       }
       for (exponent = 0; str < end && (ch = (uchar)(*str - '0')) < 10; str++) {
-        exponent = exponent * 10 + ch;
+        if (exponent <= (std::numeric_limits<longlong>::max() - ch) / 10)
+          exponent = exponent * 10 + ch;
+        else
+          goto ret_too_big;
       }
       shift += negative_exp ? -exponent : exponent;
     }
