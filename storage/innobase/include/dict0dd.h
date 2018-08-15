@@ -1145,7 +1145,7 @@ bool dd_tablespace_set_id_and_state(const char *tablespace_name,
 for the named tablespace.
 @param[in]	space_name	space name
 @return value associated with the key 'state' */
-dd_space_states dd_tablespace_get_state_by_name(const char *space_name);
+dd_space_states dd_tablespace_get_state_enum(const dd::Tablespace *dd_space);
 
 /** Get the discarded state from se_private_data of tablespace
 @param[in]	dd_space	dd::Tablespace object */

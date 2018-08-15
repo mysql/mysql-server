@@ -5710,34 +5710,11 @@ bool dd_tablespace_get_state(const dd::Tablespace *dd_space,
 for the named tablespace.
 @param[in]	space_name	space name
 @return value associated with the key 'state' */
-dd_space_states dd_tablespace_get_state_by_name(const char *space_name) {
+dd_space_states dd_tablespace_get_state_enum(const dd::Tablespace *dd_space) {
   dd::String_type dd_state;
 
-  /* If current_thd is not set, then we cannot access the DD */
-  THD *thd = current_thd;
-  if (thd == nullptr) {
-    ut_ad(0);
-    return (DD_SPACE_STATE__LAST);
-  }
-  dd::cache::Dictionary_client *dc = dd::get_dd_client(thd);
-  dd::cache::Dictionary_client::Auto_releaser releaser{dc};
-
-  // Get the existing dd::Tablespace for this tablespace name.
-  dd::String_type tsn{space_name};
-  const dd::Tablespace *dd_space = nullptr;
-
-  bool res = dd_tablespace_get_mdl(space_name);
-  if (res != DD_SUCCESS) {
-    return (DD_SPACE_STATE__LAST);
-  }
-
-  res = dc->acquire(tsn, &dd_space);
-  if (res != DD_SUCCESS) {
-    return (DD_SPACE_STATE__LAST);
-  }
-
-  res = dd_tablespace_get_state(dd_space, dd_state);
-  if (res == DD_FAILURE) {
+  bool result = dd_tablespace_get_state(dd_space, dd_state);
+  if (result == DD_FAILURE) {
     return (DD_SPACE_STATE__LAST);
   }
 
