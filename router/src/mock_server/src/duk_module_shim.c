@@ -22,18 +22,18 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "duktape.h"
+#include "duk_module_shim.h"
 #include "duk_module_duktape.h"
 #include "duk_module_node.h"
-#include "duk_module_shim.h"
 #include "duk_node_fs.h"
+#include "duktape.h"
 
+#include <stdlib.h>  // _fullpath
 #include <string.h>
-#include <stdlib.h> // _fullpath
 #include <sys/stat.h>
 
 #ifdef _WIN32
-#include <direct.h> // getcwd
+#include <direct.h>  // getcwd
 #else
 #include <unistd.h>
 #endif
@@ -57,10 +57,7 @@
 #define STDERR_FILENO 2
 #endif
 
-
-
-static
-duk_ret_t node_path_join(duk_context *ctx) {
+static duk_ret_t node_path_join(duk_context *ctx) {
   duk_idx_t arg_count = duk_get_top(ctx);
   duk_idx_t i;
 
@@ -74,8 +71,7 @@ duk_ret_t node_path_join(duk_context *ctx) {
 }
 
 // normalize path
-static
-duk_ret_t normalize_path(duk_context *ctx, duk_idx_t obj_idx) {
+static duk_ret_t normalize_path(duk_context *ctx, duk_idx_t obj_idx) {
   const char *p = duk_require_string(ctx, obj_idx);
 
 #ifdef _WIN32
@@ -89,8 +85,7 @@ duk_ret_t normalize_path(duk_context *ctx, duk_idx_t obj_idx) {
   return 1;
 }
 
-static
-duk_ret_t node_format_string(duk_context *ctx) {
+static duk_ret_t node_format_string(duk_context *ctx) {
   duk_idx_t arg_count = duk_get_top(ctx);
   duk_idx_t arg_ndx = 1;
   size_t section_count = 0;
@@ -110,24 +105,24 @@ duk_ret_t node_format_string(duk_context *ctx) {
           start = NULL;
         }
         switch (*(s + 1)) {
-        case '%':
-          duk_push_lstring(ctx, "%", 1);
-          section_count++;
-          s++;
-          break;
-        case 's':
-        case 'd':
-        case 'i':
-        case 'j': // TODO: json
-        case 'f':
-          duk_dup(ctx, arg_ndx++);
-          duk_safe_to_string(ctx, -1);
-          section_count++;
-          s++;
-          break;
-        default:
-          s++;
-          fprintf(stderr, "unknown format op: %c", *(s + 1));
+          case '%':
+            duk_push_lstring(ctx, "%", 1);
+            section_count++;
+            s++;
+            break;
+          case 's':
+          case 'd':
+          case 'i':
+          case 'j':  // TODO: json
+          case 'f':
+            duk_dup(ctx, arg_ndx++);
+            duk_safe_to_string(ctx, -1);
+            section_count++;
+            s++;
+            break;
+          default:
+            s++;
+            fprintf(stderr, "unknown format op: %c", *(s + 1));
         }
       } else {
         if (NULL == start) start = s;
@@ -144,26 +139,24 @@ duk_ret_t node_format_string(duk_context *ctx) {
   return 1;
 }
 
-static
-duk_ret_t node_path_resolve(duk_context *ctx) {
+static duk_ret_t node_path_resolve(duk_context *ctx) {
   normalize_path(ctx, 0);
   return 1;
 }
 
-
 static const duk_function_list_entry path_module_funcs[] = {
-  { "join", node_path_join, DUK_VARARGS },
-  { "resolve", node_path_resolve, 1 },
-  { NULL, NULL, 0 }
-};
+    {"join", node_path_join, DUK_VARARGS},
+    {"resolve", node_path_resolve, 1},
+    {NULL, NULL, 0}};
 
-static
-duk_ret_t node_util_inherits(duk_context *ctx) {
-  if (DUK_EXEC_SUCCESS != duk_pcompile_string(ctx, DUK_COMPILE_FUNCTION,
-        "function inherits(ctor, superCtor) {\n"
-        "  ctor.super_ = superCtor\n"
-        "  Object.setPrototypeOf(ctor.prototype, superCtor.prototype);\n"
-        "});\n")) {
+static duk_ret_t node_util_inherits(duk_context *ctx) {
+  if (DUK_EXEC_SUCCESS !=
+      duk_pcompile_string(
+          ctx, DUK_COMPILE_FUNCTION,
+          "function inherits(ctor, superCtor) {\n"
+          "  ctor.super_ = superCtor\n"
+          "  Object.setPrototypeOf(ctor.prototype, superCtor.prototype);\n"
+          "});\n")) {
     return duk_throw(ctx);
   }
   duk_dup(ctx, 0);
@@ -176,14 +169,11 @@ duk_ret_t node_util_inherits(duk_context *ctx) {
 }
 
 static const duk_function_list_entry util_module_funcs[] = {
-  { "inherits", node_util_inherits, 2 },
+    {"inherits", node_util_inherits, 2},
 
-  { NULL, NULL, 0 }
-};
+    {NULL, NULL, 0}};
 
-static const duk_function_list_entry fs_module_funcs[] = {
-  { NULL, NULL, 0 }
-};
+static const duk_function_list_entry fs_module_funcs[] = {{NULL, NULL, 0}};
 
 /*
 static const duk_function_list_entry events_module_funcs[] = {
@@ -191,17 +181,11 @@ static const duk_function_list_entry events_module_funcs[] = {
 };
 */
 
-static const duk_function_list_entry assert_module_funcs[] = {
-  { NULL, NULL, 0 }
-};
+static const duk_function_list_entry assert_module_funcs[] = {{NULL, NULL, 0}};
 
-static const duk_function_list_entry os_module_funcs[] = {
-  { NULL, NULL, 0 }
-};
+static const duk_function_list_entry os_module_funcs[] = {{NULL, NULL, 0}};
 
-static
-duk_ret_t node_console_log(duk_context *ctx) {
-
+static duk_ret_t node_console_log(duk_context *ctx) {
   // duk_push_lstring(ctx, "", 0);
   // duk_push_string(ctx, "WARN: ");
   node_format_string(ctx);
@@ -215,14 +199,12 @@ duk_ret_t node_console_log(duk_context *ctx) {
 }
 
 static const duk_function_list_entry console_module_funcs[] = {
-  { "log", node_console_log, DUK_VARARGS },
-  { "warn", node_console_log, DUK_VARARGS },
+    {"log", node_console_log, DUK_VARARGS},
+    {"warn", node_console_log, DUK_VARARGS},
 
-  { NULL, NULL, 0 }
-};
+    {NULL, NULL, 0}};
 
-static
-duk_ret_t node_tty_isatty(duk_context *ctx) {
+static duk_ret_t node_tty_isatty(duk_context *ctx) {
 #ifndef _WIN32
   duk_push_boolean(ctx, isatty(duk_require_int(ctx, 0)));
 #else
@@ -231,8 +213,7 @@ duk_ret_t node_tty_isatty(duk_context *ctx) {
   return 1;
 }
 
-static
-duk_ret_t node_tty_getwindowsize(duk_context *ctx) {
+static duk_ret_t node_tty_getwindowsize(duk_context *ctx) {
   duk_push_array(ctx);
   duk_push_int(ctx, 25);
   duk_put_prop_index(ctx, -2, 0);
@@ -241,40 +222,33 @@ duk_ret_t node_tty_getwindowsize(duk_context *ctx) {
   return 1;
 }
 
-
 static const duk_function_list_entry tty_module_funcs[] = {
-  { "isatty", node_tty_isatty, 1 },
-  { "getWindowSize", node_tty_getwindowsize, 0 },
-  { NULL, NULL, 0 }
-};
+    {"isatty", node_tty_isatty, 1},
+    {"getWindowSize", node_tty_getwindowsize, 0},
+    {NULL, NULL, 0}};
 
-static
-duk_ret_t node_process_getenv(duk_context *ctx) {
+static duk_ret_t node_process_getenv(duk_context *ctx) {
   duk_push_string(ctx, getenv(duk_require_string(ctx, 0)));
   return 1;
 }
 
-static
-duk_ret_t node_process_cwd(duk_context *ctx) {
+static duk_ret_t node_process_cwd(duk_context *ctx) {
   char current_dir[PATH_MAX];
   duk_push_string(ctx, getcwd(current_dir, sizeof(current_dir)));
   return 1;
 }
 
-static
-duk_ret_t node_process_on(duk_context *ctx) {
+static duk_ret_t node_process_on(duk_context *ctx) {
   (void)ctx;
   return 0;
 }
 
-static
-duk_ret_t node_process_remove_listener(duk_context *ctx) {
+static duk_ret_t node_process_remove_listener(duk_context *ctx) {
   (void)ctx;
   return 0;
 }
 
-static
-duk_ret_t node_process_nexttick(duk_context *ctx) {
+static duk_ret_t node_process_nexttick(duk_context *ctx) {
   duk_require_function(ctx, 0);
 
   duk_dup(ctx, 0);
@@ -282,18 +256,15 @@ duk_ret_t node_process_nexttick(duk_context *ctx) {
   return 0;
 }
 
-
 static const duk_function_list_entry process_module_funcs[] = {
-  { "getenv", node_process_getenv, 1 },
-  { "cwd", node_process_cwd, 0 },
-  { "on", node_process_on, 2 },
-  { "removeListener", node_process_remove_listener, 2 },
-  { "nextTick", node_process_nexttick, 1 },
-  { NULL, NULL, 0 }
-};
+    {"getenv", node_process_getenv, 1},
+    {"cwd", node_process_cwd, 0},
+    {"on", node_process_on, 2},
+    {"removeListener", node_process_remove_listener, 2},
+    {"nextTick", node_process_nexttick, 1},
+    {NULL, NULL, 0}};
 
-static
-duk_ret_t node_write_stderr(duk_context *ctx) {
+static duk_ret_t node_write_stderr(duk_context *ctx) {
   size_t buf_len;
   const char *buf = duk_require_lstring(ctx, 0, &buf_len);
   if (write(STDERR_FILENO, buf, buf_len) < 0) {
@@ -303,8 +274,7 @@ duk_ret_t node_write_stderr(duk_context *ctx) {
   return 0;
 }
 
-static
-duk_ret_t node_write_stdout(duk_context *ctx) {
+static duk_ret_t node_write_stdout(duk_context *ctx) {
   size_t buf_len;
   const char *buf = duk_require_lstring(ctx, 0, &buf_len);
   if (write(STDERR_FILENO, buf, buf_len) < 0) {
@@ -314,16 +284,12 @@ duk_ret_t node_write_stdout(duk_context *ctx) {
   return 0;
 }
 
-static
-duk_ret_t node_clear_timeout(duk_context *ctx) {
+static duk_ret_t node_clear_timeout(duk_context *ctx) {
   (void)ctx;
   return 0;
 }
 
-
-
-static
-duk_ret_t dukopen_process_module(duk_context *ctx) {
+static duk_ret_t dukopen_process_module(duk_context *ctx) {
   duk_push_object(ctx);
 
   duk_put_function_list(ctx, -1, process_module_funcs);
@@ -349,10 +315,13 @@ duk_ret_t dukopen_process_module(duk_context *ctx) {
   return 1;
 }
 
-static
-duk_ret_t dukopen_process_module_init_env(duk_context *ctx) {
+static duk_ret_t dukopen_process_module_init_env(duk_context *ctx) {
   duk_get_global_string(ctx, "process");
-  if (DUK_EXEC_SUCCESS != duk_pcompile_string(ctx, DUK_COMPILE_FUNCTION, "function () { return new Proxy({}, {get: function(targ, key, recv) {return process.getenv(key);}}); }")) {
+  if (DUK_EXEC_SUCCESS != duk_pcompile_string(ctx, DUK_COMPILE_FUNCTION,
+                                              "function () { return new "
+                                              "Proxy({}, {get: function(targ, "
+                                              "key, recv) {return "
+                                              "process.getenv(key);}}); }")) {
     return duk_throw(ctx);
   }
   if (DUK_EXEC_SUCCESS != duk_pcall(ctx, 0)) {
@@ -361,18 +330,15 @@ duk_ret_t dukopen_process_module_init_env(duk_context *ctx) {
 
   duk_put_prop_string(ctx, -2, "env");
 
-
   duk_push_array(ctx);
   duk_put_prop_string(ctx, -2, "argv");
-
 
   duk_pop(ctx);
 
   return 0;
 }
 
-static
-duk_ret_t cb_resolve_module(duk_context *ctx) {
+static duk_ret_t cb_resolve_module(duk_context *ctx) {
   // expect module.paths in the global scope
   // append .js, check if it exits
   // if file is a directory:
@@ -382,13 +348,10 @@ duk_ret_t cb_resolve_module(duk_context *ctx) {
   const char *parent_id = duk_require_string(ctx, 1);
 
   // fprintf(stderr, "%s:%d: %s\n", __PRETTY_FUNCTION__, __LINE__, module_id);
-  if ((0 == strcmp(module_id, "path")) ||
-      (0 == strcmp(module_id, "util")) ||
+  if ((0 == strcmp(module_id, "path")) || (0 == strcmp(module_id, "util")) ||
       (0 == strcmp(module_id, "events")) ||
-      (0 == strcmp(module_id, "assert")) ||
-      (0 == strcmp(module_id, "tty")) ||
-      (0 == strcmp(module_id, "os")) ||
-      (0 == strcmp(module_id, "fs"))) {
+      (0 == strcmp(module_id, "assert")) || (0 == strcmp(module_id, "tty")) ||
+      (0 == strcmp(module_id, "os")) || (0 == strcmp(module_id, "fs"))) {
     duk_push_string(ctx, module_id);
     return 1;
   }
@@ -420,27 +383,28 @@ duk_ret_t cb_resolve_module(duk_context *ctx) {
     } else {
       duk_get_global_string(ctx, "module");
       duk_get_prop_string(ctx, -1, "paths");
-      duk_remove(ctx, -2); // we don't need 'module' anymore
+      duk_remove(ctx, -2);  // we don't need 'module' anymore
     }
     duk_enum(ctx, -1, DUK_ENUM_ARRAY_INDICES_ONLY);
-    duk_remove(ctx, -2); // we don't need 'paths' anymore
+    duk_remove(ctx, -2);  // we don't need 'paths' anymore
 
     while (duk_next(ctx, -1, 1)) {
       // walk the paths
       const char *search_dir = duk_require_string(ctx, -1);
 
       // has <module-id>?
-      duk_push_string(ctx, "/"); // sep
+      duk_push_string(ctx, "/");  // sep
       duk_push_string(ctx, search_dir);
-      duk_push_string(ctx, module_id); // module_id
+      duk_push_string(ctx, module_id);  // module_id
       duk_join(ctx, 2);
 
       struct stat st;
-      if ((0 == stat(duk_get_string(ctx, -1), &st)) && (st.st_mode & S_IFMT) == S_IFREG) {
+      if ((0 == stat(duk_get_string(ctx, -1), &st)) &&
+          (st.st_mode & S_IFMT) == S_IFREG) {
         // file exists, leave it on the stack
-        duk_remove(ctx, -2); // remove value
-        duk_remove(ctx, -2); // remove key
-        duk_remove(ctx, -2); // remove enum
+        duk_remove(ctx, -2);  // remove value
+        duk_remove(ctx, -2);  // remove key
+        duk_remove(ctx, -2);  // remove enum
 
         normalize_path(ctx, -1);
         duk_remove(ctx, -2);
@@ -448,26 +412,27 @@ duk_ret_t cb_resolve_module(duk_context *ctx) {
         return 1;
       }
 
-      duk_pop(ctx); // filename
+      duk_pop(ctx);  // filename
 
       // has <module-id>.js?
-      duk_push_string(ctx, "/"); // sep
+      duk_push_string(ctx, "/");  // sep
       duk_push_string(ctx, search_dir);
 
       {
-        duk_push_string(ctx, ""); // sep
-        duk_push_string(ctx, module_id); // module_id
+        duk_push_string(ctx, "");         // sep
+        duk_push_string(ctx, module_id);  // module_id
         duk_push_string(ctx, ".js");
         duk_join(ctx, 2);
       }
 
       duk_join(ctx, 2);
 
-      if ((0 == stat(duk_get_string(ctx, -1), &st)) && (st.st_mode & S_IFMT) == S_IFREG) {
+      if ((0 == stat(duk_get_string(ctx, -1), &st)) &&
+          (st.st_mode & S_IFMT) == S_IFREG) {
         // file exists, leave it on the stack
-        duk_remove(ctx, -2); // remove value
-        duk_remove(ctx, -2); // remove key
-        duk_remove(ctx, -2); // remove enum
+        duk_remove(ctx, -2);  // remove value
+        duk_remove(ctx, -2);  // remove key
+        duk_remove(ctx, -2);  // remove enum
 
         normalize_path(ctx, -1);
         duk_remove(ctx, -2);
@@ -475,25 +440,26 @@ duk_ret_t cb_resolve_module(duk_context *ctx) {
         return 1;
       }
 
-      duk_pop(ctx); // filename
+      duk_pop(ctx);  // filename
 
       // has <module-id>/package.json?
-      duk_push_string(ctx, "/"); // sep
+      duk_push_string(ctx, "/");  // sep
       duk_push_string(ctx, search_dir);
-      duk_push_string(ctx, module_id); // module_id
+      duk_push_string(ctx, module_id);  // module_id
       duk_push_string(ctx, "package.json");
 
       duk_join(ctx, 3);
 
-      if ((0 == stat(duk_get_string(ctx, -1), &st)) && (st.st_mode & S_IFMT) == S_IFREG) {
+      if ((0 == stat(duk_get_string(ctx, -1), &st)) &&
+          (st.st_mode & S_IFMT) == S_IFREG) {
         // file exists, leave it on the stack
         // eval it and loop for "main"
 
         duk_push_c_function(ctx, duk_node_fs_read_file_sync, 1);
-        duk_dup(ctx, -2); // the path
+        duk_dup(ctx, -2);  // the path
         if (DUK_EXEC_SUCCESS != duk_pcall(ctx, 1)) {
           // file existed, but now we failed to opten it
-          return duk_throw(ctx); // rethrow the error
+          return duk_throw(ctx);  // rethrow the error
         }
         // we get a buffer, but want to return a string
         duk_buffer_to_string(ctx, -1);
@@ -501,78 +467,81 @@ duk_ret_t cb_resolve_module(duk_context *ctx) {
 
         // we should have an object on the stack now
         if (!duk_is_object(ctx, -1)) {
-          return duk_generic_error(ctx, "expected an object in %s", duk_get_string(ctx, -2));
+          return duk_generic_error(ctx, "expected an object in %s",
+                                   duk_get_string(ctx, -2));
         }
 
         duk_get_prop_string(ctx, -1, "main");
-        duk_remove(ctx, -2); // remove json-object
+        duk_remove(ctx, -2);  // remove json-object
         if (duk_is_string(ctx, -1)) {
           const char *main_file = duk_require_string(ctx, -1);
 
-          duk_push_string(ctx, "/"); // sep
+          duk_push_string(ctx, "/");  // sep
           duk_push_string(ctx, search_dir);
-          duk_push_string(ctx, module_id); // module_id
+          duk_push_string(ctx, module_id);  // module_id
           duk_push_string(ctx, main_file);
 
           duk_join(ctx, 3);
 
-          if ((0 == stat(duk_get_string(ctx, -1), &st)) && (st.st_mode & S_IFMT) == S_IFREG) {
-            duk_remove(ctx, -2); // remove old filename
-            duk_remove(ctx, -2); // remove value
-            duk_remove(ctx, -2); // remove key
-            duk_remove(ctx, -2); // remove enum
+          if ((0 == stat(duk_get_string(ctx, -1), &st)) &&
+              (st.st_mode & S_IFMT) == S_IFREG) {
+            duk_remove(ctx, -2);  // remove old filename
+            duk_remove(ctx, -2);  // remove value
+            duk_remove(ctx, -2);  // remove key
+            duk_remove(ctx, -2);  // remove enum
 
             normalize_path(ctx, -1);
             duk_remove(ctx, -2);
 
             return 1;
           }
-          duk_pop(ctx); // new filename
+          duk_pop(ctx);  // new filename
 
-          duk_push_string(ctx, "/"); // sep
+          duk_push_string(ctx, "/");  // sep
           duk_push_string(ctx, search_dir);
-          duk_push_string(ctx, module_id); // module_id
+          duk_push_string(ctx, module_id);  // module_id
           duk_push_string(ctx, main_file);
           duk_push_string(ctx, "index.js");
 
           duk_join(ctx, 4);
 
-          if ((0 == stat(duk_get_string(ctx, -1), &st)) && (st.st_mode & S_IFMT) == S_IFREG) {
-            duk_remove(ctx, -2); // remove old filename
-            duk_remove(ctx, -2); // remove value
-            duk_remove(ctx, -2); // remove key
-            duk_remove(ctx, -2); // remove enum
+          if ((0 == stat(duk_get_string(ctx, -1), &st)) &&
+              (st.st_mode & S_IFMT) == S_IFREG) {
+            duk_remove(ctx, -2);  // remove old filename
+            duk_remove(ctx, -2);  // remove value
+            duk_remove(ctx, -2);  // remove key
+            duk_remove(ctx, -2);  // remove enum
 
             normalize_path(ctx, -1);
             duk_remove(ctx, -2);
 
             return 1;
           }
-          duk_pop(ctx); // new filename
+          duk_pop(ctx);  // new filename
 
-
-          duk_pop(ctx); // main-file
+          duk_pop(ctx);  // main-file
         } else {
           // no main file set
-          duk_pop(ctx); // main-file
+          duk_pop(ctx);  // main-file
         }
       }
 
-      duk_pop(ctx); // filename
+      duk_pop(ctx);  // filename
 
       // has <module-id>/index.js?
-      duk_push_string(ctx, "/"); // sep
-      duk_dup(ctx, -2); // value
-      duk_push_string(ctx, module_id); // module_id
+      duk_push_string(ctx, "/");        // sep
+      duk_dup(ctx, -2);                 // value
+      duk_push_string(ctx, module_id);  // module_id
       duk_push_string(ctx, "index.js");
 
       duk_join(ctx, 3);
 
-      if ((0 == stat(duk_get_string(ctx, -1), &st)) && (st.st_mode & S_IFMT) == S_IFREG) {
+      if ((0 == stat(duk_get_string(ctx, -1), &st)) &&
+          (st.st_mode & S_IFMT) == S_IFREG) {
         // file exists, leave it on the stack
-        duk_remove(ctx, -2); // remove value
-        duk_remove(ctx, -2); // remove key
-        duk_remove(ctx, -2); // remove enum
+        duk_remove(ctx, -2);  // remove value
+        duk_remove(ctx, -2);  // remove key
+        duk_remove(ctx, -2);  // remove enum
 
         normalize_path(ctx, -1);
         duk_remove(ctx, -2);
@@ -580,20 +549,19 @@ duk_ret_t cb_resolve_module(duk_context *ctx) {
         return 1;
       }
 
-      duk_pop(ctx); // filename
+      duk_pop(ctx);  // filename
 
-      duk_pop(ctx); // value
-      duk_pop(ctx); // key
+      duk_pop(ctx);  // value
+      duk_pop(ctx);  // key
     }
 
-    duk_pop(ctx); // enum
+    duk_pop(ctx);  // enum
   }
 
   return duk_generic_error(ctx, "Cannot find module: %s", module_id);
 }
 
-static
-duk_ret_t cb_load_module(duk_context *ctx) {
+static duk_ret_t cb_load_module(duk_context *ctx) {
   // 0 resolved_id
   // 1 exports
   // 2 module
@@ -630,55 +598,56 @@ duk_ret_t cb_load_module(duk_context *ctx) {
     return 1;
   } else if (0 == strcmp(resolved_id, "events")) {
     duk_push_string(ctx, "events.js");
-    if (DUK_EXEC_SUCCESS != duk_pcompile_string_filename(ctx, DUK_COMPILE_EVAL,
-          "function EventEmitter() {\n"
-          "  EventEmitter.init.call(this);\n"
-          "};\n"
-          "EventEmitter.prototype._events = undefined;\n"
-          "EventEmitter.prototype.on = function(name, cb) {\n"
-          "  if (this._events === undefined) {\n"
-          "    this._events = Object.create(null);\n"
-          "  }\n"
-          "  if (!(name in this._events)) {\n"
-          "    this._events[name] = [];\n"
-          "  }\n"
-          "  this._events[name].push(cb);\n"
-          "};\n"
-          "EventEmitter.init = function() {\n"
-          "  if (this._events === undefined || \n"
-          "      this._events == Object.getPropertyOf(this)._events) {\n"
-          "    this._events = Object.create(null);\n"
-          "  }\n"
-          "};\n"
-          "EventEmitter.prototype.once = function(name, cb) {\n"
-          "  if (this._events === undefined) {\n"
-          "    this._events = Object.create(null);\n"
-          "  }\n"
-          "  if (!(name in this._events)) {\n"
-          "    this._events[name] = [];\n"
-          "  }\n"
-          "  this._events[name].push(cb);\n"
-          "};\n"
-          "EventEmitter.prototype.emit = function(typ) {\n"
-          "  var args = Array.prototype.slice.call(arguments, 1);\n"
-          "  if (this._events === undefined) {\n"
-          "    return false;\n"
-          "  }\n"
-          "  if (!(typ in this._events)) {\n"
-          "    return false;\n"
-          "  }\n"
-          "  var handlers = this._events[typ];\n"
-          "  if (handlers === undefined) {\n"
-          "    return false;\n"
-          "  }\n"
-          "  for (var ndx = 0; ndx < handlers.length; ndx++) {\n"
-          "    Reflect.apply(handlers[ndx], this, args);"
-          "  }\n"
-          "  return true;\n"
-          "};\n"
-          // make sure eval returns it
-          "EventEmitter;\n"
-          )) {
+    if (DUK_EXEC_SUCCESS !=
+        duk_pcompile_string_filename(
+            ctx, DUK_COMPILE_EVAL,
+            "function EventEmitter() {\n"
+            "  EventEmitter.init.call(this);\n"
+            "};\n"
+            "EventEmitter.prototype._events = undefined;\n"
+            "EventEmitter.prototype.on = function(name, cb) {\n"
+            "  if (this._events === undefined) {\n"
+            "    this._events = Object.create(null);\n"
+            "  }\n"
+            "  if (!(name in this._events)) {\n"
+            "    this._events[name] = [];\n"
+            "  }\n"
+            "  this._events[name].push(cb);\n"
+            "};\n"
+            "EventEmitter.init = function() {\n"
+            "  if (this._events === undefined || \n"
+            "      this._events == Object.getPropertyOf(this)._events) {\n"
+            "    this._events = Object.create(null);\n"
+            "  }\n"
+            "};\n"
+            "EventEmitter.prototype.once = function(name, cb) {\n"
+            "  if (this._events === undefined) {\n"
+            "    this._events = Object.create(null);\n"
+            "  }\n"
+            "  if (!(name in this._events)) {\n"
+            "    this._events[name] = [];\n"
+            "  }\n"
+            "  this._events[name].push(cb);\n"
+            "};\n"
+            "EventEmitter.prototype.emit = function(typ) {\n"
+            "  var args = Array.prototype.slice.call(arguments, 1);\n"
+            "  if (this._events === undefined) {\n"
+            "    return false;\n"
+            "  }\n"
+            "  if (!(typ in this._events)) {\n"
+            "    return false;\n"
+            "  }\n"
+            "  var handlers = this._events[typ];\n"
+            "  if (handlers === undefined) {\n"
+            "    return false;\n"
+            "  }\n"
+            "  for (var ndx = 0; ndx < handlers.length; ndx++) {\n"
+            "    Reflect.apply(handlers[ndx], this, args);"
+            "  }\n"
+            "  return true;\n"
+            "};\n"
+            // make sure eval returns it
+            "EventEmitter;\n")) {
       duk_throw(ctx);
     }
     if (DUK_EXEC_SUCCESS != duk_pcall(ctx, 0)) {
@@ -709,7 +678,7 @@ duk_ret_t cb_load_module(duk_context *ctx) {
   duk_push_string(ctx, resolved_id);
   if (DUK_EXEC_SUCCESS != duk_pcall(ctx, 1)) {
     // file existed, but now we failed to opten it
-    return duk_throw(ctx); // rethrow the error
+    return duk_throw(ctx);  // rethrow the error
   }
 
   // we get a buffer, but want to return a string
@@ -733,12 +702,11 @@ void duk_module_shim_init(duk_context *ctx, const char *prefix) {
   duk_push_c_function(ctx, node_clear_timeout, 1);
   duk_put_global_string(ctx, "clearTimeout");
 
-
   // var _module = []
-  duk_idx_t module_ndx = duk_push_object(ctx); // module
+  duk_idx_t module_ndx = duk_push_object(ctx);  // module
 
   // var _paths = []
-  duk_idx_t paths_ndx = duk_push_array(ctx); // array
+  duk_idx_t paths_ndx = duk_push_array(ctx);  // array
 
   // var _path = path.join(cwd, "local_modules");
   duk_push_c_function(ctx, node_path_join, DUK_VARARGS);
