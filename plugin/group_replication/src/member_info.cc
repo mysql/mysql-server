@@ -52,7 +52,7 @@ Group_member_info::Group_member_info(
       unreachable(false),
       role(role_arg),
       configuration_flags(0),
-      conflict_detection_enable(false),
+      conflict_detection_enable(!in_single_primary_mode),
       member_weight(member_weight_arg),
       lower_case_table_names(lower_case_table_names_arg),
       group_action_running(false),
