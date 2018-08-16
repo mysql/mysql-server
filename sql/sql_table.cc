@@ -175,7 +175,12 @@ static bool check_if_keyname_exists(const char *name, KEY *start, KEY *end);
 static const char *make_unique_key_name(const char *field_name, KEY *start,
                                         KEY *end);
 
+static const dd::Index *find_fk_supporting_key(handlerton *hton,
+                                               const dd::Table *table_def,
+                                               const dd::Foreign_key *fk);
+
 static const dd::Index *find_fk_parent_key(handlerton *hton,
+                                           const dd::Index *supporting_key,
                                            const dd::Table *parent_table_def,
                                            const dd::Foreign_key *fk);
 static int copy_data_between_tables(
@@ -5059,10 +5064,16 @@ static bool fk_key_is_full_prefix_match(Alter_info *alter_info,
   @note Prefer unique key if possible. If parent key is non-unique
         unique constraint name is set to NULL.
 
+  @note Explicitly skip the supporting index as a candidate parent
+        index to maintain previous behavior for engines that require
+        the two indexes to be different.
+
   @param          hton            Handlerton for table's storage engine.
   @param          alter_info      Alter_info object describing parent table.
   @param          key_info_buffer Array describing keys in parent table.
   @param          key_count       Number of keys in parent table.
+  @param          supporting_key  Pointer to KEY representing the supporting
+                                  index.
   @param          old_fk_table    dd::Table object from which pre-existing
                                   FK comes from. nullptr if this FK is newly
                                   added.
@@ -5074,13 +5085,23 @@ static bool fk_key_is_full_prefix_match(Alter_info *alter_info,
 */
 static bool prepare_self_ref_fk_parent_key(
     handlerton *hton, Alter_info *alter_info, const KEY *key_info_buffer,
-    const uint key_count, const dd::Table *old_fk_table, FOREIGN_KEY *fk) {
+    const uint key_count, const KEY *supporting_key,
+    const dd::Table *old_fk_table, FOREIGN_KEY *fk) {
   auto fk_columns_lambda = [fk](uint i) { return fk->fk_key_part[i].str; };
-
   for (const KEY *key = key_info_buffer; key < key_info_buffer + key_count;
        key++) {
     // We can't use FULLTEXT or SPATIAL indexes.
     if (key->flags & (HA_FULLTEXT | HA_SPATIAL)) continue;
+
+    if (hton->foreign_keys_flags &
+        HTON_FKS_NEED_DIFFERENT_PARENT_AND_SUPPORTING_KEYS) {
+      /*
+        The storage engine does not support using the same index for both the
+        supporting index and the parent index. In this case, the supporting
+        index cannot be a candidate parent index, and must be skipped.
+      */
+      if (key == supporting_key) continue;
+    }
 
     if (hton->foreign_keys_flags & HTON_FKS_WITH_PREFIX_PARENT_KEYS) {
       /*
@@ -5125,8 +5146,9 @@ static bool prepare_self_ref_fk_parent_key(
     my_error(ER_FK_NO_INDEX_PARENT, MYF(0), fk->name, fk->ref_table.str);
   } else {
     /*
-      Old foreign key for which parent key must have been dropped by
-      this ALTER TABLE.
+      Old foreign key for which parent key or supporting key must have
+      been dropped by this ALTER TABLE. Some analysis is needed to determine
+      what has been dropped.
 
       Find old foreign key definition first.
     */
@@ -5140,16 +5162,66 @@ static bool prepare_self_ref_fk_parent_key(
     DBUG_ASSERT(old_fk != old_fk_table->foreign_keys().end());
 
     /*
-      And then try to find original parent key name. Just getting
-      unique constraint name won't work for non-unique parent key.
-      Ideally we should be using handlerton of old table version
-      below, however, in practice, new table version's handlerton
-      works just fine, since we do not allow changing of storage
-      engines for tables with foreign keys.
+      Then, unless the SE supports it, we need to find the old
+      supporting key, to avoid selecting the incorrect parent key, and to
+      make sure we determine whether the supporting or the parent key was
+      dropped. This is done as follows:
+
+      - If the name of the old and new supporting key is the same,
+        then we have either dropped the parent key, or we have dropped
+        the supporting key and renamed another key to the supporting
+        key's name.
+      - If the name of the old and new supporting key is different,
+        then we have either dropped the supporting key, or we have dropped
+        the parent key and renamed the supporting key to a different name.
+
+      When finding the original key name, just getting the unique constraint
+      name won't work for non-unique parent keys. Ideally, we should be
+      using the handlerton of the old table version below, however, in
+      practice, the new table version's handlerton works just fine, since
+      we do not allow changing storage engines for tables with foreign keys.
     */
-    const dd::Index *old_pk = find_fk_parent_key(hton, old_fk_table, *old_fk);
-    my_error(ER_DROP_INDEX_FK, MYF(0),
-             old_pk ? old_pk->name().c_str() : "<unknown key name>");
+    const char *dropped_key = "<unknown key name>";
+    if (hton->foreign_keys_flags &
+        HTON_FKS_NEED_DIFFERENT_PARENT_AND_SUPPORTING_KEYS) {
+      const dd::Index *old_sk =
+          find_fk_supporting_key(hton, old_fk_table, *old_fk);
+      const dd::Index *old_pk =
+          find_fk_parent_key(hton, old_sk, old_fk_table, *old_fk);
+
+      if (old_sk != nullptr && old_pk != nullptr) {
+        if (my_strcasecmp(system_charset_info, supporting_key->name,
+                          old_sk->name().c_str()) == 0) {
+          dropped_key = old_pk->name().c_str();
+          auto renamed_to_sk = [supporting_key](const Alter_rename_key *key) {
+            return (my_strcasecmp(system_charset_info, supporting_key->name,
+                                  key->new_name) == 0);
+          };
+          if (std::any_of(alter_info->alter_rename_key_list.begin(),
+                          alter_info->alter_rename_key_list.end(),
+                          renamed_to_sk)) {
+            dropped_key = old_sk->name().c_str();
+          }
+        } else {
+          dropped_key = old_sk->name().c_str();
+          auto renamed_from_sk = [old_sk](const Alter_rename_key *key) {
+            return (my_strcasecmp(system_charset_info, old_sk->name().c_str(),
+                                  key->old_name) == 0);
+          };
+          if (std::any_of(alter_info->alter_rename_key_list.begin(),
+                          alter_info->alter_rename_key_list.end(),
+                          renamed_from_sk)) {
+            dropped_key = old_pk->name().c_str();
+          }
+        }
+      }
+    } else {
+      const dd::Index *old_pk =
+          find_fk_parent_key(hton, nullptr, old_fk_table, *old_fk);
+      if (old_pk) dropped_key = old_pk->name().c_str();
+    }
+
+    my_error(ER_DROP_INDEX_FK, MYF(0), dropped_key);
   }
   return true;
 }
@@ -5570,6 +5642,9 @@ static bool fk_key_is_full_prefix_match(uint fk_col_count, const F &fk_columns,
   @param  hton              Handlerton for tables' storage engine. Used to
                             figure out what kind of parent keys are supported
                             by the storage engine..
+  @param  supporting_key    Supporting key of the child. Needed to skip
+                            supporting keys as candidate parent keys for
+                            self referencing FKs.
   @param  parent_table_def  dd::Table object describing the parent table.
   @param  fk_col_count      Number of columns in the foreign key.
   @param  fk_columns        Object of F type bound to the specific foreign key
@@ -5580,6 +5655,7 @@ static bool fk_key_is_full_prefix_match(uint fk_col_count, const F &fk_columns,
 */
 template <class F>
 static const dd::Index *find_fk_parent_key(handlerton *hton,
+                                           const dd::Index *supporting_key,
                                            const dd::Table *parent_table_def,
                                            uint fk_col_count,
                                            const F &fk_columns) {
@@ -5588,6 +5664,16 @@ static const dd::Index *find_fk_parent_key(handlerton *hton,
     if (idx->type() == dd::Index::IT_FULLTEXT ||
         idx->type() == dd::Index::IT_SPATIAL)
       continue;
+
+    if (hton->foreign_keys_flags &
+        HTON_FKS_NEED_DIFFERENT_PARENT_AND_SUPPORTING_KEYS) {
+      /*
+        The storage engine does not support using the same index for both the
+        supporting index and the parent index. In this case, the supporting
+        index cannot be a candidate parent index, and must be skipped.
+      */
+      if (idx == supporting_key) continue;
+    }
 
     // We also can't use hidden indexes.
     if (idx->is_hidden()) continue;
@@ -5727,8 +5813,12 @@ static bool prepare_fk_parent_key(handlerton *hton,
                                   FOREIGN_KEY *fk) {
   auto fk_columns_lambda = [fk](uint i) { return fk->fk_key_part[i].str; };
 
+  /*
+    Here, it is safe to pass nullptr as supporting key, since this
+    function is not called for self referencing foreign keys.
+  */
   const dd::Index *parent_key = find_fk_parent_key(
-      hton, parent_table_def, fk->key_parts, fk_columns_lambda);
+      hton, nullptr, parent_table_def, fk->key_parts, fk_columns_lambda);
 
   if (parent_key != nullptr) {
     /*
@@ -5752,6 +5842,9 @@ static bool prepare_fk_parent_key(handlerton *hton,
   Find parent key which matches the foreign key. Prefer unique key if possible.
 
   @param  hton              Handlerton for tables' storage engine.
+  @param  supporting_key    Supporting key of the child. Needed to skip
+                            supporting keys as candidate parent keys for
+                            self referencing FKs.
   @param  parent_table_def  dd::Table object describing the parent table.
   @param  fk                dd::Foreign_key object describing the foreign key.
 
@@ -5759,20 +5852,36 @@ static bool prepare_fk_parent_key(handlerton *hton,
   @retval nullptr     - if no parent key were found.
 */
 static const dd::Index *find_fk_parent_key(handlerton *hton,
+                                           const dd::Index *supporting_key,
                                            const dd::Table *parent_table_def,
                                            const dd::Foreign_key *fk) {
   auto fk_columns_lambda = [fk](uint i) {
     return fk->elements()[i]->referenced_column_name().c_str();
   };
-  return find_fk_parent_key(hton, parent_table_def, fk->elements().size(),
-                            fk_columns_lambda);
+  return find_fk_parent_key(hton, supporting_key, parent_table_def,
+                            fk->elements().size(), fk_columns_lambda);
 }
 
 bool prepare_fk_parent_key(handlerton *hton, const dd::Table *parent_table_def,
                            const dd::Table *old_parent_table_def,
                            const dd::Table *old_child_table_def,
-                           dd::Foreign_key *fk) {
-  const dd::Index *parent_key = find_fk_parent_key(hton, parent_table_def, fk);
+                           bool is_self_referencing_fk, dd::Foreign_key *fk) {
+  const dd::Index *supporting_key = nullptr;
+
+  /*
+    For self referencing foreign keys, we should identify the supporting
+    key to make sure it is not considered as a candidate parent key,
+    unless the SE supports this. This function will be called for self
+    referencing foreign keys only during upgrade from 5.7.
+  */
+  if (is_self_referencing_fk &&
+      (hton->foreign_keys_flags &
+       HTON_FKS_NEED_DIFFERENT_PARENT_AND_SUPPORTING_KEYS)) {
+    supporting_key = find_fk_supporting_key(hton, parent_table_def, fk);
+  }
+
+  const dd::Index *parent_key =
+      find_fk_parent_key(hton, supporting_key, parent_table_def, fk);
 
   if (parent_key == nullptr) {
     // No matching parent key in new table definition.
@@ -5800,6 +5909,15 @@ bool prepare_fk_parent_key(handlerton *hton, const dd::Table *parent_table_def,
       DBUG_ASSERT(old_fk != old_child_table_def->foreign_keys().end());
 
       /*
+        This function is normally called only for non-self referencing foreign
+        keys. The only exception is during upgrade from 5.7, in which case
+        old_parent_table_def == nullptr, which means that a different execution
+        path is taken above. Hence, it is safe to submit nullptr as the
+        supporting key in the call to find_fk_parent_key() below.
+      */
+      DBUG_ASSERT(!is_self_referencing_fk);
+
+      /*
         And then try to find original parent key name. Just getting
         unique constraint name won't work for non-unique parent key.
         Ideally we should be using handlerton of old table version
@@ -5808,7 +5926,7 @@ bool prepare_fk_parent_key(handlerton *hton, const dd::Table *parent_table_def,
         engines for tables with foreign keys.
       */
       const dd::Index *old_pk =
-          find_fk_parent_key(hton, old_parent_table_def, *old_fk);
+          find_fk_parent_key(hton, nullptr, old_parent_table_def, *old_fk);
       my_error(ER_DROP_INDEX_FK, MYF(0),
                old_pk ? old_pk->name().c_str() : "<unknown key name>");
     }
@@ -5970,9 +6088,10 @@ static bool prepare_foreign_key(THD *thd, HA_CREATE_INFO *create_info,
       DBUG_RETURN(true);
     }
 
-    if (find_fk_supporting_key(create_info->db_type, alter_info,
-                               key_info_buffer, key_count,
-                               fk_info) == nullptr) {
+    const KEY *supporting_key = find_fk_supporting_key(
+        create_info->db_type, alter_info, key_info_buffer, key_count, fk_info);
+
+    if (supporting_key == nullptr) {
       /*
         Since we always add generated supporting key when adding new
         foreign key the failure to find key above is likely to mean
@@ -6014,8 +6133,8 @@ static bool prepare_foreign_key(THD *thd, HA_CREATE_INFO *create_info,
       }
 
       if (prepare_self_ref_fk_parent_key(create_info->db_type, alter_info,
-                                         key_info_buffer, key_count, nullptr,
-                                         fk_info))
+                                         key_info_buffer, key_count,
+                                         supporting_key, nullptr, fk_info))
         DBUG_RETURN(true);
     } else {
       /*
@@ -7067,8 +7186,10 @@ bool mysql_prepare_create_table(
       Check that for each pre-existing foreign key we still have supporting
       index on child table.
     */
-    if (find_fk_supporting_key(create_info->db_type, alter_info,
-                               *key_info_buffer, *key_count, fk) == nullptr) {
+    const KEY *supporting_key = find_fk_supporting_key(
+        create_info->db_type, alter_info, *key_info_buffer, *key_count, fk);
+
+    if (supporting_key == nullptr) {
       /*
         If there is no supporting index, it must have been dropped by
         this ALTER TABLE. Find old foreign key definition and supporting
@@ -7100,9 +7221,9 @@ bool mysql_prepare_create_table(
             0 &&
         my_strcasecmp(table_alias_charset, fk->ref_table.str,
                       error_table_name) == 0) {
-      if (prepare_self_ref_fk_parent_key(create_info->db_type, alter_info,
-                                         *key_info_buffer, *key_count,
-                                         existing_fks_table, fk))
+      if (prepare_self_ref_fk_parent_key(
+              create_info->db_type, alter_info, *key_info_buffer, *key_count,
+              supporting_key, existing_fks_table, fk))
         DBUG_RETURN(true);
     }
   }
@@ -8162,8 +8283,20 @@ static bool adjust_fk_child_after_parent_def_change(
         }
       }
 
+      /*
+        This function is never, and should never be, called for self referencing
+        foreign keys. Hence, we can submit 'false' for 'is_self_referenceing_fk'
+        in the call to prepare_fk_parent_key().
+      */
+      DBUG_ASSERT(my_strcasecmp(table_alias_charset,
+                                fk->referenced_table_schema_name().c_str(),
+                                child_table_db) ||
+                  my_strcasecmp(table_alias_charset,
+                                fk->referenced_table_name().c_str(),
+                                child_table_name));
+
       if (prepare_fk_parent_key(hton, parent_table_def, old_parent_table_def,
-                                old_child_table_def, fk))
+                                old_child_table_def, false, fk))
         return true;
     }
   }

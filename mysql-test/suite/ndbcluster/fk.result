@@ -1,0 +1,108 @@
+#
+# This file contains basic tests of the SQL layer handling of
+# foreign keys in the NDB storage engine.
+#
+USE test;
+# A non-unique index cannot serve as parent index.
+CREATE TABLE self_ref(pk INT PRIMARY KEY, i INT, j INT,
+INDEX ix(i),
+FOREIGN KEY (j) REFERENCES self_ref(i)) ENGINE=NDB;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'self_ref_ibfk_1' in the referenced table 'self_ref'
+# But a unique index is fine.
+CREATE TABLE self_ref(pk INT PRIMARY KEY, i INT, j INT,
+UNIQUE INDEX ix(i),
+FOREIGN KEY (j) REFERENCES self_ref(i)) ENGINE=NDB;
+SHOW CREATE TABLE self_ref;
+Table	Create Table
+self_ref	CREATE TABLE `self_ref` (
+  `pk` int(11) NOT NULL,
+  `i` int(11) DEFAULT NULL,
+  `j` int(11) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  UNIQUE KEY `ix` (`i`),
+  KEY `j` (`j`),
+  CONSTRAINT `FK_13_14` FOREIGN KEY (`j`) REFERENCES `self_ref` (`i`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE self_ref;
+# A self referencing FK can use the supporting index as parent index
+# if it is unique.
+CREATE TABLE self_ref(pk INT PRIMARY KEY, i INT,
+UNIQUE INDEX ix(i),
+FOREIGN KEY (i) REFERENCES self_ref(i)) ENGINE=NDB;
+SHOW CREATE TABLE self_ref;
+Table	Create Table
+self_ref	CREATE TABLE `self_ref` (
+  `pk` int(11) NOT NULL,
+  `i` int(11) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  UNIQUE KEY `ix` (`i`),
+  CONSTRAINT `FK_13_13` FOREIGN KEY (`i`) REFERENCES `self_ref` (`i`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE self_ref;
+# But not if it's not unique.
+CREATE TABLE self_ref(pk INT PRIMARY KEY, i INT,
+INDEX ix(i),
+FOREIGN KEY (i) REFERENCES self_ref(i)) ENGINE=NDB;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'self_ref_ibfk_1' in the referenced table 'self_ref'
+# If there is an index with the same columns as the referenced ones,
+# but in different order, the index may be used as parent index. This
+# index may also serve as supporting index.
+CREATE TABLE self_ref(pk INT PRIMARY KEY, i INT, j INT,
+UNIQUE INDEX ijx(i, j),
+FOREIGN KEY (i, j) REFERENCES self_ref(j, i)) ENGINE=NDB;
+SHOW CREATE TABLE self_ref;
+Table	Create Table
+self_ref	CREATE TABLE `self_ref` (
+  `pk` int(11) NOT NULL,
+  `i` int(11) DEFAULT NULL,
+  `j` int(11) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  UNIQUE KEY `ijx` (`i`,`j`),
+  CONSTRAINT `FK_13_13` FOREIGN KEY (`i`,`j`) REFERENCES `self_ref` (`j`,`i`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE self_ref_hash(pk INT PRIMARY KEY, i INT, j INT,
+UNIQUE INDEX ijx(i, j) USING HASH,
+FOREIGN KEY (i, j) REFERENCES self_ref_hash(j, i)) ENGINE=NDB;
+Warnings:
+Warning	1121	Ndb does not support unique index on NULL valued attributes, index access with NULL value will become full table scan
+SHOW CREATE TABLE self_ref_hash;
+Table	Create Table
+self_ref_hash	CREATE TABLE `self_ref_hash` (
+  `pk` int(11) NOT NULL,
+  `i` int(11) DEFAULT NULL,
+  `j` int(11) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  UNIQUE KEY `ijx` (`i`,`j`) USING HASH,
+  CONSTRAINT `FK_17_17` FOREIGN KEY (`i`,`j`) REFERENCES `self_ref_hash` (`j`,`i`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE self_ref_btree(pk INT PRIMARY KEY, i INT, j INT,
+UNIQUE INDEX ijx(i, j) USING BTREE,
+FOREIGN KEY (i, j) REFERENCES self_ref_btree(j, i)) ENGINE=NDB;
+SHOW CREATE TABLE self_ref_btree;
+Table	Create Table
+self_ref_btree	CREATE TABLE `self_ref_btree` (
+  `pk` int(11) NOT NULL,
+  `i` int(11) DEFAULT NULL,
+  `j` int(11) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  UNIQUE KEY `ijx` (`i`,`j`) USING BTREE,
+  CONSTRAINT `FK_22_22` FOREIGN KEY (`i`,`j`) REFERENCES `self_ref_btree` (`j`,`i`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLES self_ref, self_ref_hash, self_ref_btree;
+# If there is an index with the same columns as the FK, but in
+# different order, a supporting key will be created.
+CREATE TABLE self_ref(pk INT PRIMARY KEY, i INT, j INT,
+UNIQUE INDEX ijx(j, i),
+FOREIGN KEY (i, j) REFERENCES self_ref(j, i)) ENGINE=NDB;
+SHOW CREATE TABLE self_ref;
+Table	Create Table
+self_ref	CREATE TABLE `self_ref` (
+  `pk` int(11) NOT NULL,
+  `i` int(11) DEFAULT NULL,
+  `j` int(11) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  UNIQUE KEY `ijx` (`j`,`i`),
+  KEY `i` (`i`,`j`),
+  CONSTRAINT `FK_13_13` FOREIGN KEY (`i`,`j`) REFERENCES `self_ref` (`j`,`i`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE self_ref;

@@ -1356,7 +1356,9 @@ static bool fix_fk_parent_key_names(THD *thd, const String_type &schema_name,
         is upgraded.
       */
     } else {
-      if (prepare_fk_parent_key(hton, parent_table_def, nullptr, nullptr, fk))
+      bool is_self_referencing_fk = (parent_table_def == table_def);
+      if (prepare_fk_parent_key(hton, parent_table_def, nullptr, nullptr,
+                                is_self_referencing_fk, fk))
         return true;
     }
   }
