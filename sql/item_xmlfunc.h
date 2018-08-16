@@ -75,7 +75,7 @@ class Item_func_xml_extractvalue final : public Item_xml_str_func {
 };
 
 class Item_func_xml_update final : public Item_xml_str_func {
-  String tmp_value2, tmp_value3;
+  String tmp_value3;
 
  public:
   Item_func_xml_update(const POS &pos, Item *a, Item *b, Item *c)

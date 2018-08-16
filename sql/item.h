@@ -1491,35 +1491,6 @@ class Item : public Parse_tree_node {
       true value is true (not equal to 0)
   */
   virtual bool val_bool();
-  /**
-    Evaluate an XPath function.
-
-    @details
-    The SQL interface consists of extractvalue() and updatexml().
-    Both of them ensure that none of the arguments are NULL, before
-    invoking parse_xml(). So, we should never see any NULL SQL input
-    and never return NULL from the overridden member functions in
-    item_xmlfunc.cc.
-
-    @see Item_xml_str_func::parse_xpath()
-    @see Item_func_xml_update::val_str()
-
-    @param nodeset   the nodeset
-    @return the extracted nodeset (never NULL in overridden member functions)
-      @retval NULL   always in the base member function
-  */
-  virtual String *val_nodeset(String *nodeset MY_ATTRIBUTE((unused))) {
-    /*
-      If the first argument of updatexml() is not an XML document,
-      this base member function may be called. Because we will return
-      nullptr here, updatexml() will evaluate to NULL.
-
-      Outside Item_func_xml_update::val_str(), only the overridden
-      member functions defined in item_xmlfunc.cc should be invoked,
-      by Item_xml_str_func::parse_xpath().
-    */
-    return nullptr;
-  }
 
   /**
     Get a JSON value from an Item.
