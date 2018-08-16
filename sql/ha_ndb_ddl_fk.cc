@@ -1783,35 +1783,6 @@ ha_ndbcluster::referenced_by_foreign_key()
   DBUG_RETURN(data->cnt_parent != 0);
 }
 
-uint
-ha_ndbcluster::is_child_or_parent_of_fk()
-{
-  DBUG_ENTER("ha_ndbcluster::is_child_or_parent_of_fk");
-
-  Ndb_fk_data *data= m_fk_data;
-  if (data == 0)
-  {
-    DBUG_ASSERT(false);
-    DBUG_RETURN(0);
-  }
-  
-  DBUG_PRINT("info", ("count FKs total %u child %u parent %u",
-                      data->list.elements, data->cnt_child, data->cnt_parent));
-  DBUG_RETURN(data->list.elements != 0);
-}
-
-bool
-ha_ndbcluster::can_switch_engines()
-{
-  DBUG_ENTER("ha_ndbcluster::can_switch_engines");
-
-  if (is_child_or_parent_of_fk())
-    DBUG_RETURN(0);
-
-  DBUG_RETURN(1);
-}
-
-
 struct Ndb_mem_root_guard {
   Ndb_mem_root_guard(MEM_ROOT *new_root) {
     root_ptr= THR_MALLOC;

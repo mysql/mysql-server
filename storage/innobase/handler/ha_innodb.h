@@ -299,8 +299,6 @@ class ha_innobase : public handler {
   int get_cascade_foreign_key_table_list(
       THD *thd, List<st_handler_tablename> *fk_table_list);
 
-  bool can_switch_engines();
-
   uint referenced_by_foreign_key();
 
   void free_foreign_key_create_info(char *str);

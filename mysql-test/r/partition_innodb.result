@@ -491,7 +491,7 @@ ERROR HY000: Foreign keys are not yet supported in conjunction with partitioning
 ALTER TABLE t2 PARTITION BY HASH(c1) PARTITIONS 5;
 ERROR HY000: Foreign keys are not yet supported in conjunction with partitioning
 ALTER TABLE t1 ENGINE=MyISAM;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ERROR HY000: Cannot change table's storage engine because the table participates in a foreign key constraint.
 DROP TABLE t2;
 DROP TABLE t1;
 create table t1 (a int) engine=innodb partition by hash(a) ;

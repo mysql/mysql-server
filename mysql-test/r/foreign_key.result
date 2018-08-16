@@ -3553,9 +3553,9 @@ DROP TABLE child;
 CREATE TABLE parent (pk INT PRIMARY KEY);
 CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
 ALTER TABLE child ENGINE=MyISAM;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ERROR HY000: Cannot change table's storage engine because the table participates in a foreign key constraint.
 ALTER TABLE parent ENGINE=MyISAM;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ERROR HY000: Cannot change table's storage engine because the table participates in a foreign key constraint.
 DROP TABLES child, parent;
 #
 # 5.d) It is possible to add "parent" in wrong SE to orphan foreign key.

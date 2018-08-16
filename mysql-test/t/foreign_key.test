@@ -3487,9 +3487,9 @@ DROP TABLE child;
 --echo #      should lead to error.
 CREATE TABLE parent (pk INT PRIMARY KEY);
 CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
---error ER_ROW_IS_REFERENCED
+--error ER_FK_CANNOT_CHANGE_ENGINE
 ALTER TABLE child ENGINE=MyISAM;
---error ER_ROW_IS_REFERENCED
+--error ER_FK_CANNOT_CHANGE_ENGINE
 ALTER TABLE parent ENGINE=MyISAM;
 DROP TABLES child, parent;
 

@@ -3478,8 +3478,6 @@ class Ft_hints {
   description of how the CREATE TABLE part to define FOREIGN KEY's is done.
   free_foreign_key_create_info is used to free the memory area that provided
   this description.
-  can_switch_engines checks if it is ok to switch to a new engine based on
-  the foreign key info in the table.
 
   Methods:
     get_parent_foreign_key_list()
@@ -3487,7 +3485,6 @@ class Ft_hints {
     free_foreign_key_create_info()
     get_foreign_key_list()
     referenced_by_foreign_key()
-    can_switch_engines()
 
   -------------------------------------------------------------------------
   MODULE fulltext index
@@ -4674,15 +4671,6 @@ class handler {
   virtual char *get_foreign_key_create_info() {
     return (NULL);
   } /* gets foreign key create string from InnoDB */
-  /**
-    Used in ALTER TABLE to check if changing storage engine is allowed.
-
-    @note Called without holding thr_lock.c lock.
-
-    @retval true   Changing storage engine is allowed.
-    @retval false  Changing storage engine not allowed.
-  */
-  virtual bool can_switch_engines() { return true; }
   /**
     Get the list of foreign keys in this table.
 

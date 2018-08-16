@@ -112,14 +112,14 @@ alter table child add foreign key fk1(ref) references parent(id);
 
 --echo #Now run a alter engine query.
 --echo #m_fk_data of parent should be reloaded now and the query should fail
---error ER_ROW_IS_REFERENCED
+--error ER_FK_CANNOT_CHANGE_ENGINE
 alter table parent engine = innodb;
 
 show create table parent;
 
 --echo #Repeat same with truncate
 truncate table child;
---error ER_ROW_IS_REFERENCED
+--error ER_FK_CANNOT_CHANGE_ENGINE
 alter table parent engine = innodb;
 
 show create table parent;

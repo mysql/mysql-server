@@ -312,9 +312,9 @@ primary key using hash (a),
 foreign key fk1 (a) references t1 (a)
 ) engine=ndb;
 alter table t1 engine=innodb;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ERROR HY000: Cannot change table's storage engine because the table participates in a foreign key constraint.
 alter table t2 engine=innodb;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ERROR HY000: Cannot change table's storage engine because the table participates in a foreign key constraint.
 drop table t2, t1;
 create table t1 (
 a int primary key,
@@ -323,7 +323,7 @@ key (b),
 foreign key fk1 (b) references t1 (a)
 ) engine=ndb;
 alter table t1 engine=innodb;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ERROR HY000: Cannot change table's storage engine because the table participates in a foreign key constraint.
 drop table t1;
 # bug#16275509 - case: allow FKs on partitioned
 set new=on;
