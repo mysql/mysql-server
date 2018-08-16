@@ -238,7 +238,6 @@ our $opt_warnings  = 1;
 
 our @opt_cases;
 our @opt_combinations;
-our @opt_experimentals;
 our @opt_extra_bootstrap_opt;
 our @opt_extra_mysqld_opt;
 our @opt_extra_mysqltest_opt;
@@ -268,7 +267,6 @@ our $path_language;
 our $path_testlog;
 our $start_only;
 
-our $experimental_test_cases = [];
 our $glob_debugger           = 0;
 our $group_replication       = 0;
 our $ndbcluster_enabled      = 0;
@@ -1313,8 +1311,7 @@ sub print_global_resfile {
 # Any new options added must be listed in the %options hash table.
 # After parsing, there's a long list of sanity checks, handling of
 # option inter-dependencies and setting of global variables like
-# $basedir and $bindir. It also parses "experimental" files and
-# performs various other setup tasks.
+# $basedir and $bindir.
 sub command_line_setup {
   my $opt_comment;
   my $opt_usage;
@@ -1354,7 +1351,6 @@ sub command_line_setup {
     'combination=s'            => \@opt_combinations,
     'do-suite=s'               => \$opt_do_suite,
     'do-test=s'                => \&collect_option,
-    'experimental=s'           => \@opt_experimentals,
     'force'                    => \$opt_force,
     'ndb|include-ndbcluster'   => \$opt_include_ndbcluster,
     'no-skip'                  => \$opt_no_skip,
@@ -1594,51 +1590,6 @@ sub command_line_setup {
     mtr_print_thick_line('#');
     mtr_report("# $opt_comment");
     mtr_print_thick_line('#');
-  }
-
-  if (@opt_experimentals) {
-    # $^O on Windows considered not generic enough
-    my $plat = (IS_WINDOWS) ? 'windows' : $^O;
-
-    # Read the list of experimental test cases from the files specified
-    # on the command line.
-    $experimental_test_cases = [];
-    foreach my $exp_file (@opt_experimentals) {
-      open(FILE, "<", $exp_file) or
-        mtr_error("Can't read experimental file: $exp_file");
-      mtr_report("Using experimental file: $exp_file");
-
-      while (<FILE>) {
-        chomp;
-        # Remove comments (# foo) at the beginning of the line, or after a
-        # blank at the end of the line.
-        s/(\s+|^)#.*$//;
-
-        # If @ platform specifier given, use this entry only if it contains
-        # @<platform> or @!<xxx> where xxx != platform.
-        if (/\@.*/) {
-          next if (/\@!$plat/);
-          next unless (/\@$plat/ or /\@!/);
-          # Then remove @ and everything after it
-          s/\@.*$//;
-        }
-
-        # Remove whitespace
-        s/^\s+//;
-        s/\s+$//;
-
-        # If nothing left, don't need to remember this line
-        if ($_ eq "") {
-          next;
-        }
-
-        # Remember what is left as the name of another test case that
-        # should be treated as experimental.
-        print " - $_\n";
-        push @$experimental_test_cases, $_;
-      }
-      close FILE;
-    }
   }
 
   foreach my $arg (@ARGV) {
@@ -7021,8 +6972,6 @@ Misc options
                         tests. This is needed after switching default storage
                         engine to InnoDB.
   disk-usage            Show disk usage of vardir after each test.
-  experimental=<file>   Refer to list of tests considered experimental.
-                        Failures will be marked exp-fail instead of fail.
   fast                  Run as fast as possible, dont't wait for servers
                         to shutdown etc.
   force-restart         Always restart servers between tests.

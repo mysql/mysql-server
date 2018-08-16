@@ -5,33 +5,33 @@
 # Run all default suites without specifying any replication mode. This will run
 # rpl tests in all 3 modes row, stmt and mixed
 # Run with --big-test option so that longer tests are also run
-perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90  --parallel=auto --experimental=collections/default.experimental --comment=all-default-big  --vardir=var-all-default-big  --report-features --unit-tests-report --no-skip
+perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90  --parallel=auto  --comment=all-default-big  --vardir=var-all-default-big  --report-features --unit-tests-report --no-skip
 
 # Run all default suites with ps-protocol
-perl mysql-test-run.pl --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=ps --vardir=var-ps --ps-protocol --no-skip
+perl mysql-test-run.pl --force --timer  --parallel=auto  --comment=ps --vardir=var-ps --ps-protocol --no-skip
 
 # Run innodb suites with different pagesizes
-perl mysql-test-run.pl --timer  --force --parallel=auto --comment=innodb_4k --vardir=var-innodb-4k --experimental=collections/default.experimental --suite=innodb_undo,innodb_zip,innodb --mysqld=--innodb-page-size=4k --no-skip --max-test-fail=30
-perl mysql-test-run.pl --timer  --force --parallel=auto --comment=innodb_64k --vardir=var-innodb-64k --experimental=collections/default.experimental --suite=innodb_undo,innodb_zip,innodb --mysqld=--innodb-page-size=64k --no-skip --max-test-fail=30
+perl mysql-test-run.pl --timer  --force --parallel=auto --comment=innodb_4k --vardir=var-innodb-4k  --suite=innodb_undo,innodb_zip,innodb --mysqld=--innodb-page-size=4k --no-skip --max-test-fail=30
+perl mysql-test-run.pl --timer  --force --parallel=auto --comment=innodb_64k --vardir=var-innodb-64k  --suite=innodb_undo,innodb_zip,innodb --mysqld=--innodb-page-size=64k --no-skip --max-test-fail=30
 
 # Additional modes for rpl. Multi-Threaded Slave
-perl mysql-test-run.pl --timer  --force --parallel=auto --comment=rpl_binlog_n_mix_MTS --vardir=var-mts-rpl-binlog-n_mix --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --suite=rpl,rpl_gtid,rpl_nogtid --no-skip --max-test-fail=30
+perl mysql-test-run.pl --timer  --force --parallel=auto --comment=rpl_binlog_n_mix_MTS --vardir=var-mts-rpl-binlog-n_mix --mysqld=--binlog-format=mixed  --mysqld=--slave-parallel-workers=4 --suite=rpl,rpl_gtid,rpl_nogtid --no-skip --max-test-fail=30
 
 # Run the suites that are not part of the default - funcs_2, stress, jp, nist
-perl mysql-test-run.pl --force --timer --testcase-timeout=60   --parallel=auto --experimental=collections/default.experimental --comment=funcs2  --vardir=var-funcs2 --suite=funcs_2 --no-skip --max-test-fail=30
-perl mysql-test-run.pl --force --timer   --parallel=auto --experimental=collections/default.experimental --comment=stress --vardir=var-stress  --suite=stress --no-skip --max-test-fail=30
-perl mysql-test-run.pl --force --timer   --parallel=auto --experimental=collections/default.experimental --comment=jp --vardir=var-jp --suite=jp --no-skip --max-test-fail=30
-perl mysql-test-run.pl --force --timer   --parallel=auto --experimental=collections/default.experimental --comment=nist  --vardir=var-nist --suite=nist --no-skip
+perl mysql-test-run.pl --force --timer --testcase-timeout=60   --parallel=auto  --comment=funcs2  --vardir=var-funcs2 --suite=funcs_2 --no-skip --max-test-fail=30
+perl mysql-test-run.pl --force --timer   --parallel=auto  --comment=stress --vardir=var-stress  --suite=stress --no-skip --max-test-fail=30
+perl mysql-test-run.pl --force --timer   --parallel=auto  --comment=jp --vardir=var-jp --suite=jp --no-skip --max-test-fail=30
+perl mysql-test-run.pl --force --timer   --parallel=auto  --comment=nist  --vardir=var-nist --suite=nist --no-skip
 
 
 # Engine independent tests
 
-perl mysql-test-run.pl --timer --force   --parallel=auto  --comment=eits-tests-myisam-engine --experimental=collections/default.experimental --vardir=var-stmt-eits-tests-myisam-engine --suite=engines/iuds,engines/funcs --mysqld=--default-storage-engine=myisam --mysqld=--default-tmp-storage-engine=myisam --no-skip
-perl mysql-test-run.pl --timer --force  --parallel=auto --comment=eits-tests-innodb-engine --experimental=collections/default.experimental --vardir=var-stmt-eits-tests-innodb-engine --suite=engines/iuds,engines/funcs  --mysqld=--default-storage-engine=innodb --no-skip
+perl mysql-test-run.pl --timer --force   --parallel=auto  --comment=eits-tests-myisam-engine  --vardir=var-stmt-eits-tests-myisam-engine --suite=engines/iuds,engines/funcs --mysqld=--default-storage-engine=myisam --mysqld=--default-tmp-storage-engine=myisam --no-skip
+perl mysql-test-run.pl --timer --force  --parallel=auto --comment=eits-tests-innodb-engine  --vardir=var-stmt-eits-tests-innodb-engine --suite=engines/iuds,engines/funcs  --mysqld=--default-storage-engine=innodb --no-skip
 
 # Memcached tests
-perl mysql-test-run.pl --timer --force  --comment=memcached --vardir=var-memcached --experimental=collections/default.experimental --parallel=auto --suite=memcached --no-skip
+perl mysql-test-run.pl --timer --force  --comment=memcached --vardir=var-memcached  --parallel=auto --suite=memcached --no-skip
 
 # Group Replication
-perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication --vardir=var-group_replication --suite=group_replication --experimental=collections/default.experimental
+perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication --vardir=var-group_replication --suite=group_replication 
 

@@ -4332,21 +4332,6 @@
     </li>
 
     <li>
-      <tt>`--experimental`=<b>file_name</b></tt>
-
-      Specify a file that contains a list of test cases that should be
-      displayed with the <b>[ exp-fail ]</b> code rather than
-      <b>[ fail ]</b> if they fail.
-
-      For an example of a file that might be specified using this
-      option, see <b>mysql-test/collections/default.experimental</b>.
-
-      It is also possible to supply more than one
-      <b>`--experimental`</b>, test cases listed in all the files will
-      be treated as experimental.
-    </li>
-
-    <li>
       <tt>`--explain-protocol`</tt>
 
       Run <b>EXPLAIN EXTENDED</b> on all <b>SELECT</b>, <b>INSERT</b>,
@@ -4536,9 +4521,8 @@
 
       Stop execution after the specified number of tests have failed,
       to avoid using up resources (and time) in case of massive
-      failures. retries are noe counted, nor are failures of tests
-      marked experimental. Defaults to 10, set to 0 for no limit. May
-      also be set with the environment variable
+      failures. retries are noe counted. Defaults to 10, set to 0 for
+      no limit. May also be set with the environment variable
       <b>MTR_MAX_TEST_FAIL</b>.
     </li>
 
