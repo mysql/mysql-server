@@ -3764,8 +3764,15 @@ static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share,
   /*
     If we are here, there was no fatal error (but error may be still
     uninitialized).
+
+    Ignore handling implicit_emptied property (which is only for heap
+    tables) when I_S query is opening this table to read table statistics.
+    The reason for avoiding this is that the
+    mysql_bin_log.write_dml_directly() invokes a commit(). And this commit
+    is not expected to be invoked when fetching I_S table statistics.
   */
-  if (unlikely(entry->file->implicit_emptied)) {
+  if (unlikely(entry->file->implicit_emptied) &&
+      (!thd->lex || !thd->lex->m_IS_table_stats.is_reading_stats_by_open())) {
     entry->file->implicit_emptied = 0;
     if (mysql_bin_log.is_open()) {
       bool error = false;

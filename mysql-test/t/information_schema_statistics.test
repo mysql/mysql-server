@@ -102,3 +102,17 @@ DEALLOCATE PREPARE st2;
 UNLOCK TABLES;
 
 DROP TABLE t1;
+
+#
+# Bug #28165060   MYSQL IS TRYING TO PERFORM A CONSISTENT READ BUT THE READ
+# VIEW IS NOT ASSIGNED!
+#
+#
+CREATE DATABASE abc;
+CREATE TABLE abc.memorytable (id INT NOT NULL) ENGINE=MEMORY;
+--source include/restart_mysqld.inc
+--disable_result_log
+# The following command would cause a assert, without the fix.
+SELECT * FROM information_schema.TABLES WHERE TABLE_SCHEMA = 'abc';
+--enable_result_log
+DROP DATABASE abc;
