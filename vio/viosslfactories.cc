@@ -468,6 +468,13 @@ int set_fips_mode(const uint fips_mode, char err_string[OPENSSL_ERROR_LENGTH]) {
 EXIT:
   return rc;
 }
+
+/**
+  Get fips mode from openssl library,
+
+  @returns openssl current fips mode
+*/
+uint get_fips_mode() { return FIPS_mode(); }
 #endif
 
 long process_tls_version(const char *tls_version) {
