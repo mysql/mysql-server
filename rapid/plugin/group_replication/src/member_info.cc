@@ -41,7 +41,7 @@ Group_member_info(char* hostname_arg,
     gtid_assignment_block_size(gtid_assignment_block_size_arg),
     unreachable(false),
     role(role_arg),
-    configuration_flags(0), conflict_detection_enable(false),
+    configuration_flags(0), conflict_detection_enable(!in_single_primary_mode),
     member_weight(member_weight_arg),
     lower_case_table_names(lower_case_table_names_arg)
 {
