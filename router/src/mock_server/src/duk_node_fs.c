@@ -22,8 +22,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include <stdio.h>
 #include <errno.h>
+#include <stdio.h>
 
 #include "duk_node_fs.h"
 
@@ -38,37 +38,40 @@ duk_ret_t duk_node_fs_read_file_sync(duk_context *ctx) {
 
   f = fopen(fn, "rb");
   if (!f) {
-    return duk_error(ctx, DUK_ERR_TYPE_ERROR, "cannot open file %s for reading, errno %ld: %s",
-        fn, (long) errno, strerror(errno));
+    return duk_error(ctx, DUK_ERR_TYPE_ERROR,
+                     "cannot open file %s for reading, errno %ld: %s", fn,
+                     (long)errno, strerror(errno));
   }
 
   rc = fseek(f, 0, SEEK_END);
   if (rc < 0) {
-    (void) fclose(f);
-    return duk_error(ctx, DUK_ERR_TYPE_ERROR, "fseek() failed for %s, errno %ld: %s",
-              fn, (long) errno, strerror(errno));
+    (void)fclose(f);
+    return duk_error(ctx, DUK_ERR_TYPE_ERROR,
+                     "fseek() failed for %s, errno %ld: %s", fn, (long)errno,
+                     strerror(errno));
   }
-  len = (size_t) ftell(f);
+  len = (size_t)ftell(f);
   rc = fseek(f, 0, SEEK_SET);
   if (rc < 0) {
-    (void) fclose(f);
-    return duk_error(ctx, DUK_ERR_TYPE_ERROR, "fseek() failed for %s, errno %ld: %s",
-              fn, (long) errno, strerror(errno));
+    (void)fclose(f);
+    return duk_error(ctx, DUK_ERR_TYPE_ERROR,
+                     "fseek() failed for %s, errno %ld: %s", fn, (long)errno,
+                     strerror(errno));
   }
 
-  buf = (char *) duk_push_fixed_buffer(ctx, (duk_size_t) len);
+  buf = (char *)duk_push_fixed_buffer(ctx, (duk_size_t)len);
   for (off = 0; off < len;) {
     size_t got;
-    got = fread((void *) (buf + off), 1, len - off, f);
+    got = fread((void *)(buf + off), 1, len - off, f);
     if (ferror(f)) {
-      (void) fclose(f);
+      (void)fclose(f);
       return duk_error(ctx, DUK_ERR_TYPE_ERROR, "error while reading %s", fn);
     }
     if (got == 0) {
       if (feof(f)) {
         break;
       } else {
-        (void) fclose(f);
+        (void)fclose(f);
         return duk_error(ctx, DUK_ERR_TYPE_ERROR, "error while reading %s", fn);
       }
     }
@@ -76,7 +79,7 @@ duk_ret_t duk_node_fs_read_file_sync(duk_context *ctx) {
   }
 
   if (f) {
-    (void) fclose(f);
+    (void)fclose(f);
   }
 
   return 1;
