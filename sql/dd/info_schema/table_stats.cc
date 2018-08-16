@@ -69,7 +69,7 @@ inline bool can_persist_I_S_dynamic_statistics(THD *thd,
 
   return (thd->variables.information_schema_stats_expiry &&
           !thd->variables.transaction_read_only && !super_read_only &&
-          !read_only && !partition_name &&
+          !thd->in_sub_stmt && !read_only && !partition_name &&
           (strcmp(schema_name, "performance_schema") != 0));
 }
 
