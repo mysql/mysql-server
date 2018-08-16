@@ -4118,6 +4118,7 @@ static Sys_var_charptr Sys_tls_version(
 static bool update_fips_mode(sys_var *, THD *, enum_var_type) {
   char ssl_err_string[OPENSSL_ERROR_LENGTH] = {'\0'};
   if (set_fips_mode(opt_ssl_fips_mode, ssl_err_string) != 1) {
+    opt_ssl_fips_mode = get_fips_mode();
     my_error(ER_SSL_FIPS_MODE_ERROR, MYF(0), "Openssl is not fips enabled");
     return true;
   } else {

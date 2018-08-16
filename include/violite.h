@@ -269,6 +269,8 @@ long process_tls_version(const char *tls_version);
 
 int set_fips_mode(const uint fips_mode, char *err_string);
 
+uint get_fips_mode();
+
 struct st_VioSSLFd *new_VioSSLAcceptorFd(
     const char *key_file, const char *cert_file, const char *ca_file,
     const char *ca_path, const char *cipher, enum enum_ssl_init_error *error,
