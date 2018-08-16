@@ -1,7 +1,7 @@
 #ifndef THR_MUTEX_INCLUDED
 #define THR_MUTEX_INCLUDED
 
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -145,14 +145,18 @@ int safe_mutex_lock(safe_mutex_t *mp, bool try_lock, const char *file,
 int safe_mutex_unlock(safe_mutex_t *mp, const char *file, uint line);
 int safe_mutex_destroy(safe_mutex_t *mp, const char *file, uint line);
 
-static inline void safe_mutex_assert_owner(const safe_mutex_t *mp) {
+static inline void safe_mutex_assert_owner(safe_mutex_t *mp) {
   DBUG_ASSERT(mp != NULL);
+  native_mutex_lock(&mp->global);
   DBUG_ASSERT(mp->count > 0 && my_thread_equal(my_thread_self(), mp->thread));
+  native_mutex_unlock(&mp->global);
 }
 
-static inline void safe_mutex_assert_not_owner(const safe_mutex_t *mp) {
+static inline void safe_mutex_assert_not_owner(safe_mutex_t *mp) {
   DBUG_ASSERT(mp != NULL);
+  native_mutex_lock(&mp->global);
   DBUG_ASSERT(!mp->count || !my_thread_equal(my_thread_self(), mp->thread));
+  native_mutex_unlock(&mp->global);
 }
 #endif /* SAFE_MUTEX */
 
