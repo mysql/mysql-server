@@ -467,6 +467,17 @@ class Gcs_xcom_state_exchange : public Gcs_xcom_state_exchange_interface {
   void fill_member_set(std::vector<Gcs_member_identifier *> &in,
                        std::set<Gcs_member_identifier *> &pset);
 
+  /**
+   * Stores the member's state and protocol version.
+   *
+   * @param ms_info state
+   * @param p_id member
+   * @param protocol_version protocol version
+   */
+  void save_member_state(Xcom_member_state *ms_info,
+                         const Gcs_member_identifier &p_id,
+                         const unsigned int protocol_version);
+
   Gcs_communication_interface *m_broadcaster;
 
   std::map<Gcs_member_identifier, uint> m_awaited_vector;

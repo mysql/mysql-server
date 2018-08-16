@@ -573,8 +573,7 @@ bool Gcs_xcom_state_exchange::process_member_state(
   /*
    Save the protocol version in use and state exchange per member.
    */
-  m_member_versions[p_id] = protocol_version;
-  m_member_states[p_id] = ms_info;
+  save_member_state(ms_info, p_id, protocol_version);
 
   /*
     The rule of updating the awaited_vector at receiving is simply to
@@ -633,6 +632,18 @@ void Gcs_xcom_state_exchange::fill_member_set(
     std::vector<Gcs_member_identifier *> &in,
     std::set<Gcs_member_identifier *> &pset) {
   std::copy(in.begin(), in.end(), std::inserter(pset, pset.begin()));
+}
+
+void Gcs_xcom_state_exchange::save_member_state(
+    Xcom_member_state *ms_info, const Gcs_member_identifier &p_id,
+    const unsigned int protocol_version) {
+  m_member_versions[p_id] = protocol_version;
+  /* m_member_states[p_id] may already exist. In that case we delete the
+   * existing pointer, otherwise it leaks. */
+  auto member_state_it = m_member_states.find(p_id);
+  bool const state_already_exists = (member_state_it != m_member_states.end());
+  if (state_already_exists) delete member_state_it->second;
+  m_member_states[p_id] = ms_info;
 }
 
 Gcs_xcom_view_identifier *Gcs_xcom_state_exchange::get_new_view_id() {
