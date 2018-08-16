@@ -880,16 +880,17 @@ Group_member_info_manager::get_string_current_view_active_hosts() const
 {
   std::stringstream hosts_string;
   map<string, Group_member_info*>::iterator all_members_it= members->begin();
+  bool first_entry = true;
 
   while (all_members_it != members->end())
   {
     Group_member_info* member_info= (*all_members_it).second;
-    if (member_info->get_recovery_status() == Group_member_info::MEMBER_ONLINE ||
-        member_info->get_recovery_status() == Group_member_info::MEMBER_IN_RECOVERY)
-      hosts_string << member_info->get_hostname() << ":" << member_info->get_port();
+    if (!first_entry)
+      hosts_string << ", ";
+    else
+      first_entry = false;
+    hosts_string << member_info->get_hostname() << ":" << member_info->get_port();
     all_members_it++;
-    if (all_members_it != members->end())
-      hosts_string<<", ";
   }
 
   return hosts_string.str();
