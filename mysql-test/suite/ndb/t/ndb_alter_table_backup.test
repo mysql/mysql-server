@@ -7,9 +7,6 @@
 --source include/have_ndb.inc
 --source suite/ndb/include/backup_restore_setup.inc
 
-# Directory containing the saved backup files
-let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/backups;
-
 ##############################
 # mix endian restore section #
 ##############################
@@ -19,8 +16,8 @@ let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/backups;
 --echo *********************************
 --echo * restore tables w/ new column from little endian
 --echo *********************************
---exec $NDB_RESTORE -b 1 -n 1 -m -r $backup_data_dir/51_d2_le >> $NDB_TOOLS_OUTPUT 2>&1
---exec $NDB_RESTORE -b 1 -n 2 -r $backup_data_dir/51_d2_le >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b 1 -n 1 -m -r $NDB_SAVED_BACKUPS/51_d2_le >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b 1 -n 2 -r $NDB_SAVED_BACKUPS/51_d2_le >> $NDB_TOOLS_OUTPUT 2>&1
 
 # Restart mysqld to trigger schema synchronization
 let $mysqld_name=mysqld.1.1;
@@ -36,8 +33,8 @@ DROP TABLE t1;
 --echo *********************************
 --echo * restore tables w/ new column from big endian
 --echo *********************************
---exec $NDB_RESTORE -b 1 -n 1 -m -r $backup_data_dir/51_d2_be >> $NDB_TOOLS_OUTPUT 2>&1
---exec $NDB_RESTORE -b 1 -n 2 -r $backup_data_dir/51_d2_be >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b 1 -n 1 -m -r $NDB_SAVED_BACKUPS/51_d2_be >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE -b 1 -n 2 -r $NDB_SAVED_BACKUPS/51_d2_be >> $NDB_TOOLS_OUTPUT 2>&1
 
 # Restart mysqld to trigger schema synchronization
 let $mysqld_name=mysqld.1.1;

@@ -6,9 +6,6 @@
 -- source include/have_case_sensitive_file_system.inc
 -- source suite/ndb/include/backup_restore_setup.inc
 
-# Directory containing the saved backup files
-let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/backups;
-
 # This test currently requires case sensitive file system as the tables
 # are originally stored with uppercase
 
@@ -17,8 +14,8 @@ let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/backups;
 #
 
 CREATE DATABASE BANK default charset=latin1 default collate=latin1_bin;
---exec $NDB_RESTORE -b 1 -n 1 -p 1 -m -r $backup_data_dir/51 >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE -e -b 1 -n 2 -p 1 -r $backup_data_dir/51 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 1 -p 1 -m -r $NDB_SAVED_BACKUPS/51 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -e -b 1 -n 2 -p 1 -r $NDB_SAVED_BACKUPS/51 >> $NDB_TOOLS_OUTPUT
 USE BANK;
 
 # Restart mysqld to trigger schema distribution synchronization
@@ -57,8 +54,8 @@ TRUNCATE ACCOUNT_TYPE;
 --exec $NDB_DESC --no-defaults -d BANK ACCOUNT_TYPE | grep ForceVarPart
 
 # Restore data
---exec $NDB_RESTORE -b 1 -n 1 -p 1 -r $backup_data_dir/50 >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE -e -b 1 -n 2 -p 1 -r $backup_data_dir/50 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 1 -p 1 -r $NDB_SAVED_BACKUPS/50 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -e -b 1 -n 2 -p 1 -r $NDB_SAVED_BACKUPS/50 >> $NDB_TOOLS_OUTPUT
 
 # Check data
 SELECT * FROM GL            ORDER BY TIME,ACCOUNT_TYPE;
@@ -66,8 +63,8 @@ SELECT * FROM ACCOUNT       ORDER BY ACCOUNT_ID;
 SELECT COUNT(*) FROM TRANSACTION;
 SELECT * FROM SYSTEM_VALUES ORDER BY SYSTEM_VALUES_ID;
 SELECT * FROM mysql.ndb_apply_status WHERE server_id=0;
---exec $NDB_RESTORE -b 2 -n 1 -m -p 1 -s -r $backup_data_dir/50 >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE -b 2 -n 2 -p 1 -s -r $backup_data_dir/50 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 2 -n 1 -m -p 1 -s -r $NDB_SAVED_BACKUPS/50 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 2 -n 2 -p 1 -s -r $NDB_SAVED_BACKUPS/50 >> $NDB_TOOLS_OUTPUT
 
 # Restart mysqld to trigger schema distribution synchronization
 let $mysqld_name=mysqld.1.1;
@@ -84,8 +81,8 @@ DROP TABLE TRANSACTION;
 DROP TABLE SYSTEM_VALUES;
 DROP TABLE ACCOUNT_TYPE;
 
---exec $NDB_RESTORE -b 1 -n 2 -m $backup_data_dir/packed >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE -b 1 -n 2 -p 1 -r $backup_data_dir/packed >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 2 -m $NDB_SAVED_BACKUPS/packed >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 2 -p 1 -r $NDB_SAVED_BACKUPS/packed >> $NDB_TOOLS_OUTPUT
 
 # Restart mysqld to trigger schema distribution synchronization
 let $mysqld_name=mysqld.1.1;
@@ -106,9 +103,9 @@ drop table t1;
 # bug#54613
 
 --error 1
---exec $NDB_RESTORE -b 2 -n 2 -m --core-file=0 --include-databases=ham --skip-unknown-objects $backup_data_dir/bug54613 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 2 -n 2 -m --core-file=0 --include-databases=ham --skip-unknown-objects $NDB_SAVED_BACKUPS/bug54613 >> $NDB_TOOLS_OUTPUT
 
 --error 0
---exec $NDB_RESTORE -b 2 -n 2 -m --core-file=0 --include-databases=ham --skip-unknown-objects --skip-broken-objects $backup_data_dir/bug54613 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 2 -n 2 -m --core-file=0 --include-databases=ham --skip-unknown-objects --skip-broken-objects $NDB_SAVED_BACKUPS/bug54613 >> $NDB_TOOLS_OUTPUT
 --source suite/ndb/include/backup_restore_cleanup.inc
 --remove_file $NDB_TOOLS_OUTPUT

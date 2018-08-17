@@ -585,13 +585,7 @@ and (x.c = y.c or (x.c is null and y.c is null));
 --echo # run backup
 --source include/ndb_backup.inc
 
-let $backup_data_dir=`
-  select distinct(v.config_value)
-  from ndbinfo.config_values v, ndbinfo.config_params p
-  where v.config_param = p.param_number
-  and p.param_name = 'BackupDataDir'`;
-
-let BACKUP_SRC=$backup_data_dir/BACKUP/BACKUP-$the_backup_id;
+let BACKUP_SRC=$NDB_BACKUPS-$the_backup_id;
 let BACKUP_DST=$MYSQLTEST_VARDIR/tmp/BACKUP-$the_backup_id;
 
 perl;

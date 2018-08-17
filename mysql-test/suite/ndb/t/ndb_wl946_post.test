@@ -24,11 +24,9 @@ insert into t1 (a) values (0);
 select * from t1;
 delete from t1;
 
-let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/backups;
-
 --echo # restore data from wl946_pre with promote
---exec $NDB_RESTORE -b 1 -n 1 -r --promote-attributes $backup_data_dir/wl946_pre >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE -b 1 -n 2 -r --promote-attributes $backup_data_dir/wl946_pre >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 1 -r --promote-attributes $NDB_SAVED_BACKUPS/wl946_pre >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 2 -r --promote-attributes $NDB_SAVED_BACKUPS/wl946_pre >> $NDB_TOOLS_OUTPUT
 
 --echo # check contents
 select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
@@ -64,7 +62,7 @@ drop table t1;
 
 # restore table with old types
 --echo # restore meta wl946_pre
---exec $NDB_RESTORE -b 1 -n 1 -m --print-meta $backup_data_dir/wl946_pre >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 1 -m --print-meta $NDB_SAVED_BACKUPS/wl946_pre >> $NDB_TOOLS_OUTPUT
 
 # Restart mysqld to trigger schema distribution synchronization
 let $mysqld_name=mysqld.1.1;

@@ -11,7 +11,7 @@ create table t1 (
 ) engine=ndb;
 
 --echo # restore canned backup
---exec $NDB_RESTORE -b 1 -n 21 -r --promote-attributes $backup_data_dir/bug17275798 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 21 -r --promote-attributes $NDB_SAVED_BACKUPS/bug17275798 >> $NDB_TOOLS_OUTPUT
 
 select sum(1),sum(isnull(b)),min(b),max(b) from t1;
 

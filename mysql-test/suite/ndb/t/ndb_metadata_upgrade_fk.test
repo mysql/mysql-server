@@ -2,9 +2,6 @@
 --source suite/ndb/include/have_little_endian.inc
 -- source suite/ndb/include/backup_restore_setup.inc
 
-# Directory containing the saved backup files
-let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/backups;
-
 #
 # The table structures are as follows:
 # CREATE TABLE parent (
@@ -25,9 +22,9 @@ let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/backups;
 # INSERT INTO child VALUES(1,1),(2,2);
 #
 
---exec $NDB_RESTORE -b 1 -n 1 -m -r --disable-indexes $backup_data_dir/metadata_upgrade_fk_backup >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE -b 1 -n 2 -r $backup_data_dir/metadata_upgrade_fk_backup >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE -b 1 -n 1 --rebuild-indexes $backup_data_dir/metadata_upgrade_fk_backup >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 1 -m -r --disable-indexes $NDB_SAVED_BACKUPS/metadata_upgrade_fk_backup >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 2 -r $NDB_SAVED_BACKUPS/metadata_upgrade_fk_backup >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 1 --rebuild-indexes $NDB_SAVED_BACKUPS/metadata_upgrade_fk_backup >> $NDB_TOOLS_OUTPUT
 
 --echo Backup from 7.5 restored
 

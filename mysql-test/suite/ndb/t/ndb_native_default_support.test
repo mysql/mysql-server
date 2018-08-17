@@ -9,9 +9,6 @@
 # Turn off ndb_read_backup to avoid result diffs from ndb_desc
 --source suite/ndb/include/turn_off_ndb_read_backup.inc
 
-# Directory containing the saved backup files
-let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/backups;
-
 # Turn off STRICT mode since test intentionally generate warnings
 # while inserting rows without default values.
 # NOTE! one test at the end turns STRICT back on for a while
@@ -204,8 +201,8 @@ DROP DATABASE mysqltest;
 --echo * Restore the backup from 6.3 or 6.4, which don't support native default value
 --echo ******************************************************************************
 
---exec $NDB_RESTORE -b 1 -n 1 -m -r $backup_data_dir/before_native_default >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE -b 1 -n 2 -r $backup_data_dir/before_native_default >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 1 -m -r $NDB_SAVED_BACKUPS/before_native_default >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 2 -r $NDB_SAVED_BACKUPS/before_native_default >> $NDB_TOOLS_OUTPUT
 
 ####
 # Bug# 53539 Ndb : MySQLD default values in frm embedded in backup not endian-converted
@@ -674,8 +671,8 @@ SHOW CREATE TABLE t1;
 --let $ndb_desc_opts= -d test t1
 --source suite/ndb/include/ndb_desc_print.inc
 
---exec $NDB_RESTORE -b 1 -n 1 -r --promote-attributes --exclude-missing-columns $backup_data_dir/before_native_default >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE -b 1 -n 2 -r --promote-attributes --exclude-missing-columns $backup_data_dir/before_native_default >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 1 -r --promote-attributes --exclude-missing-columns $NDB_SAVED_BACKUPS/before_native_default >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 2 -r --promote-attributes --exclude-missing-columns $NDB_SAVED_BACKUPS/before_native_default >> $NDB_TOOLS_OUTPUT
 
 SELECT i, j, f, d, d2, ch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c, newOne, newTwo from t1 order by i;
 

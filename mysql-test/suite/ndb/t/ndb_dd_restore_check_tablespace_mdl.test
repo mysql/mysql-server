@@ -24,14 +24,11 @@
 
 --enable_connect_log
 
-# Directory containing the saved backup files
-let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/backups;
-
 --echo #################################################################
 --echo # Test DDL statement 1: ALTER TABLE.
 
---exec $NDB_RESTORE -b 1 -n 1 -p 1 -m -r $backup_data_dir/51_dd >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE -e -b 1 -n 2 -p 1 -r $backup_data_dir/51_dd >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 1 -p 1 -m -r $NDB_SAVED_BACKUPS/51_dd >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -e -b 1 -n 2 -p 1 -r $NDB_SAVED_BACKUPS/51_dd >> $NDB_TOOLS_OUTPUT
 
 # Restart mysqld to trigger schema synchronization
 let $mysqld_name=mysqld.1.1;
@@ -75,8 +72,8 @@ DROP LOGFILE GROUP lg ENGINE NDB;
 --echo # Test DDL statement 2: RENAME TABLE.
 --echo # Disabled due to failing assert in ndb.
 
-#--exec $NDB_RESTORE -b 1 -n 1 -p 1 -m -r $backup_data_dir/51_dd >> $NDB_TOOLS_OUTPUT
-#--exec $NDB_RESTORE -e -b 1 -n 2 -p 1 -r $backup_data_dir/51_dd >> $NDB_TOOLS_OUTPUT
+#--exec $NDB_RESTORE -b 1 -n 1 -p 1 -m -r $NDB_SAVED_BACKUPS/51_dd >> $NDB_TOOLS_OUTPUT
+#--exec $NDB_RESTORE -e -b 1 -n 2 -p 1 -r $NDB_SAVED_BACKUPS/51_dd >> $NDB_TOOLS_OUTPUT
 #SHOW CREATE TABLE t1;
 #
 #--connect (con1, localhost, root)
@@ -114,8 +111,8 @@ DROP LOGFILE GROUP lg ENGINE NDB;
 --echo #################################################################
 --echo # Test DDL statement 3: TRUNCATE TABLE.
 
---exec $NDB_RESTORE -b 1 -n 1 -p 1 -m -r $backup_data_dir/51_dd >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE -e -b 1 -n 2 -p 1 -r $backup_data_dir/51_dd >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 1 -p 1 -m -r $NDB_SAVED_BACKUPS/51_dd >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -e -b 1 -n 2 -p 1 -r $NDB_SAVED_BACKUPS/51_dd >> $NDB_TOOLS_OUTPUT
 
 # Restart mysqld to trigger schema synchronization
 let $mysqld_name=mysqld.1.1;
@@ -158,8 +155,8 @@ DROP LOGFILE GROUP lg ENGINE NDB;
 --echo #################################################################
 --echo # Test DDL statement 4: DROP TABLE.
 
---exec $NDB_RESTORE -b 1 -n 1 -p 1 -m -r $backup_data_dir/51_dd >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE -e -b 1 -n 2 -p 1 -r $backup_data_dir/51_dd >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 1 -p 1 -m -r $NDB_SAVED_BACKUPS/51_dd >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -e -b 1 -n 2 -p 1 -r $NDB_SAVED_BACKUPS/51_dd >> $NDB_TOOLS_OUTPUT
 
 # Restart mysqld to trigger schema synchronization
 let $mysqld_name=mysqld.1.1;
@@ -204,8 +201,8 @@ DROP LOGFILE GROUP lg ENGINE NDB;
 --echo # works too. In this case, we skip the verification of MDL lock
 --echo # acquisition, since it has already been tested above.
 
---exec $NDB_RESTORE -b 1 -n 1 -p 1 -m -r $backup_data_dir/51_dd >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE -e -b 1 -n 2 -p 1 -r $backup_data_dir/51_dd >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 1 -p 1 -m -r $NDB_SAVED_BACKUPS/51_dd >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -e -b 1 -n 2 -p 1 -r $NDB_SAVED_BACKUPS/51_dd >> $NDB_TOOLS_OUTPUT
 
 # Restart mysqld to trigger schema synchronization
 let $mysqld_name=mysqld.1.1;

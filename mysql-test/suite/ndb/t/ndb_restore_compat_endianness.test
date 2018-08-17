@@ -5,9 +5,6 @@
 -- source include/have_ndb.inc
 -- source suite/ndb/include/backup_restore_setup.inc
 
-# Directory containing the saved backup files
-let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/backups;
-
 #
 # Bug #27543 restore of backup from different endian does not work for blob column
 # Bug #30024 restore of backup from different endian does not work for datetime column
@@ -147,8 +144,8 @@ let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/backups;
 # Restore backup files (from little endian)
 #
 
---exec $NDB_RESTORE -b 1 -n 1 -m -r $backup_data_dir/51_data_le >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE -b 1 -n 2 -r $backup_data_dir/51_data_le >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 1 -m -r $NDB_SAVED_BACKUPS/51_data_le >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 2 -r $NDB_SAVED_BACKUPS/51_data_le >> $NDB_TOOLS_OUTPUT
 
 # Restart mysqld to trigger schema distribution synchronization
 let $mysqld_name=mysqld.1.1;
@@ -174,8 +171,8 @@ SELECT ST_AsText(t_geometrycollection), ST_AsText(t_geometry) FROM t_gis ORDER b
 #
 
 DROP TABLE t_num,t_datetime,t_string_1,t_string_2,t_gis;
---exec $NDB_RESTORE -b 1 -n 1 -m -r $backup_data_dir/51_data_be >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE -b 1 -n 2 -r $backup_data_dir/51_data_be >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 1 -m -r $NDB_SAVED_BACKUPS/51_data_be >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 2 -r $NDB_SAVED_BACKUPS/51_data_be >> $NDB_TOOLS_OUTPUT
 
 # Restart mysqld to trigger schema distribution synchronization
 let $mysqld_name=mysqld.1.1;

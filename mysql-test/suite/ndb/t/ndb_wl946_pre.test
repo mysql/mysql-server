@@ -71,10 +71,8 @@ select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
 --echo # drop table
 drop table t1;
 
-let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/backups;
-
 --echo # restore meta from wl946_pre
---exec $NDB_RESTORE -b 1 -n 1 -m --print-meta $backup_data_dir/wl946_pre >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 1 -m --print-meta $NDB_SAVED_BACKUPS/wl946_pre >> $NDB_TOOLS_OUTPUT
 
 # Restart mysqld to trigger schema distribution synchronization
 let $mysqld_name=mysqld.1.1;
@@ -87,8 +85,8 @@ let $mysqld_name=mysqld.1.1;
 --source show_indexes.inc
 
 --echo # restore data from wl946_pre
---exec $NDB_RESTORE -b 1 -n 1 -r $backup_data_dir/wl946_pre >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE -b 1 -n 2 -r $backup_data_dir/wl946_pre >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 1 -r $NDB_SAVED_BACKUPS/wl946_pre >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 2 -r $NDB_SAVED_BACKUPS/wl946_pre >> $NDB_TOOLS_OUTPUT
 
 --echo # check contents
 select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;

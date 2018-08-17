@@ -5,11 +5,9 @@
 -- source include/have_case_sensitive_file_system.inc
 -- source suite/ndb/include/backup_restore_setup.inc
 
-# Directory containing the saved backup files
-let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/backups;
 CREATE DATABASE BANK default charset=latin1 default collate=latin1_bin;
---exec $NDB_RESTORE -b 1 -n 1 -p 1 -m -r $backup_data_dir/51 >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE -e -b 1 -n 2 -p 1 -r $backup_data_dir/51 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 1 -p 1 -m -r $NDB_SAVED_BACKUPS/51 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -e -b 1 -n 2 -p 1 -r $NDB_SAVED_BACKUPS/51 >> $NDB_TOOLS_OUTPUT
 USE BANK;
 
 # Restart mysqld to trigger schema synchronization
