@@ -335,7 +335,7 @@ DROP USER mysqltest_1@localhost;
 #
 CREATE USER mysqltest_2@localhost;
 GRANT ALL ON *.* TO mysqltest_2@localhost;
-REVOKE SUPER,SYSTEM_VARIABLES_ADMIN ON *.* FROM mysqltest_2@localhost;
+REVOKE SUPER,SYSTEM_VARIABLES_ADMIN,SESSION_VARIABLES_ADMIN ON *.* FROM mysqltest_2@localhost;
 --echo connection con1, mysqltest_2
 connect (con1,localhost,mysqltest_2,,);
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR

@@ -1043,6 +1043,8 @@ INSERT IGNORE INTO mysql.global_grants VALUES ('mysql.session', 'localhost', 'PE
 
 INSERT IGNORE INTO mysql.global_grants VALUES ('mysql.session', 'localhost', 'SYSTEM_VARIABLES_ADMIN', 'N');
 
+INSERT IGNORE INTO mysql.global_grants VALUES ('mysql.session', 'localhost', 'SESSION_VARIABLES_ADMIN', 'N');
+
 FLUSH PRIVILEGES;
 
 # Move all system tables with InnoDB storage engine to mysql tablespace.

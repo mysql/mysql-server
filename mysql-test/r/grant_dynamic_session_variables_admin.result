@@ -1,0 +1,199 @@
+# Testing FR2
+Must have SESSION_VARIABLES_ADMIN with grant option
+SHOW GRANTS FOR root@localhost;
+Grants for root@localhost
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SESSION_VARIABLES_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
+# Testing FR1
+CREATE USER wl12217@localhost;
+CREATE DATABASE wl12217;
+GRANT ALL PRIVILEGES ON wl12217.* TO wl12217@localhost;
+# Must work
+GRANT SESSION_VARIABLES_ADMIN ON *.* TO wl12217@localhost;
+# Must work again
+GRANT SESSION_VARIABLES_ADMIN ON *.* TO wl12217@localhost;
+# Must fail
+GRANT SESSION_VARIABLES_ADMIN ON mysql.* TO wl12217@localhost;
+ERROR HY000: Illegal privilege level specified for SESSION_VARIABLES_ADMIN
+# Cleanup
+DROP DATABASE wl12217;
+DROP USER wl12217@localhost;
+# Testing FR3, FR4
+CREATE USER wl12217@localhost;
+CREATE DATABASE wl12217;
+GRANT ALL PRIVILEGES ON wl12217.* TO wl12217@localhost;
+# Switch to wl12217@localhost
+# Must fail
+SET SESSION auto_increment_increment = DEFAULT;
+ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
+SET SESSION auto_increment_offset = DEFAULT;
+ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
+SET SESSION binlog_direct_non_transactional_updates = DEFAULT;
+ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
+SET SESSION binlog_format = DEFAULT;
+ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
+SET SESSION binlog_row_image = DEFAULT;
+ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
+SET SESSION binlog_row_value_options = DEFAULT;
+ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
+SET SESSION binlog_rows_query_log_events = DEFAULT;
+ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
+SET SESSION bulk_insert_buffer_size = DEFAULT;
+ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
+SET SESSION character_set_database = DEFAULT;
+ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
+SET SESSION character_set_filesystem = DEFAULT;
+ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
+SET SESSION collation_database = DEFAULT;
+ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
+SET SESSION pseudo_slave_mode = DEFAULT;
+ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
+SET SESSION pseudo_thread_id = DEFAULT;
+ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
+SET SESSION transaction_write_set_extraction = DEFAULT;
+ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
+SET SESSION histogram_generation_max_mem_size = DEFAULT;
+ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
+SET SESSION sql_log_off = DEFAULT;
+ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
+SET SESSION original_commit_timestamp = DEFAULT;
+ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
+SET SESSION default_collation_for_utf8mb4 = DEFAULT;
+ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
+SET SESSION explicit_defaults_for_timestamp = DEFAULT;
+ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
+SET SESSION sql_log_bin = DEFAULT;
+ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
+SET SESSION rbr_exec_mode = DEFAULT;
+ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
+# Back to default connection
+GRANT SESSION_VARIABLES_ADMIN ON *.* TO wl12217@localhost;
+# Back to wl12217@localhost
+# Must pass
+SET SESSION auto_increment_increment = DEFAULT;
+SET SESSION auto_increment_offset = DEFAULT;
+SET SESSION binlog_direct_non_transactional_updates = DEFAULT;
+SET SESSION binlog_format = DEFAULT;
+SET SESSION binlog_row_image = DEFAULT;
+SET SESSION binlog_row_value_options = DEFAULT;
+SET SESSION binlog_rows_query_log_events = DEFAULT;
+SET SESSION bulk_insert_buffer_size = DEFAULT;
+SET SESSION character_set_database = DEFAULT;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SET SESSION character_set_filesystem = DEFAULT;
+SET SESSION collation_database = DEFAULT;
+Warnings:
+Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
+SET SESSION pseudo_slave_mode = DEFAULT;
+Warnings:
+Warning	1231	'pseudo_slave_mode' change was ineffective.
+SET SESSION pseudo_thread_id = DEFAULT;
+SET SESSION transaction_write_set_extraction = DEFAULT;
+SET SESSION histogram_generation_max_mem_size = DEFAULT;
+SET SESSION sql_log_off = DEFAULT;
+SET SESSION original_commit_timestamp = DEFAULT;
+SET SESSION default_collation_for_utf8mb4 = DEFAULT;
+Warnings:
+Warning	1681	Updating 'default_collation_for_utf8mb4' is deprecated. It will be made read-only in a future release.
+SET SESSION explicit_defaults_for_timestamp = DEFAULT;
+SET SESSION sql_log_bin = DEFAULT;
+SET SESSION rbr_exec_mode = DEFAULT;
+# Back to default connection
+# Cleanup
+DROP DATABASE wl12217;
+DROP USER wl12217@localhost;
+#  Testing FR5
+CREATE USER wl12217@localhost;
+CREATE DATABASE wl12217;
+GRANT ALL PRIVILEGES ON wl12217.* TO wl12217@localhost;
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO wl12217@localhost;
+# Switch to wl12217@localhost
+# Must pass
+SET SESSION auto_increment_increment = DEFAULT;
+SET SESSION auto_increment_offset = DEFAULT;
+SET SESSION binlog_direct_non_transactional_updates = DEFAULT;
+SET SESSION binlog_format = DEFAULT;
+SET SESSION binlog_row_image = DEFAULT;
+SET SESSION binlog_row_value_options = DEFAULT;
+SET SESSION binlog_rows_query_log_events = DEFAULT;
+SET SESSION bulk_insert_buffer_size = DEFAULT;
+SET SESSION character_set_database = DEFAULT;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SET SESSION character_set_filesystem = DEFAULT;
+SET SESSION collation_database = DEFAULT;
+Warnings:
+Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
+SET SESSION pseudo_slave_mode = DEFAULT;
+Warnings:
+Warning	1231	'pseudo_slave_mode' change was ineffective.
+SET SESSION pseudo_thread_id = DEFAULT;
+SET SESSION transaction_write_set_extraction = DEFAULT;
+SET SESSION histogram_generation_max_mem_size = DEFAULT;
+SET SESSION sql_log_off = DEFAULT;
+SET SESSION original_commit_timestamp = DEFAULT;
+SET SESSION default_collation_for_utf8mb4 = DEFAULT;
+Warnings:
+Warning	1681	Updating 'default_collation_for_utf8mb4' is deprecated. It will be made read-only in a future release.
+SET SESSION explicit_defaults_for_timestamp = DEFAULT;
+SET SESSION sql_log_bin = DEFAULT;
+SET SESSION rbr_exec_mode = DEFAULT;
+# Back to default connection
+# Cleanup
+DROP DATABASE wl12217;
+DROP USER wl12217@localhost;
+#  Testing FR6
+CREATE USER wl12217@localhost;
+CREATE DATABASE wl12217;
+GRANT ALL PRIVILEGES ON wl12217.* TO wl12217@localhost;
+GRANT SUPER ON *.* TO wl12217@localhost;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
+# Switch to wl12217@localhost
+# Must pass
+SET SESSION auto_increment_increment = DEFAULT;
+SET SESSION auto_increment_offset = DEFAULT;
+SET SESSION binlog_direct_non_transactional_updates = DEFAULT;
+SET SESSION binlog_format = DEFAULT;
+SET SESSION binlog_row_image = DEFAULT;
+SET SESSION binlog_row_value_options = DEFAULT;
+SET SESSION binlog_rows_query_log_events = DEFAULT;
+SET SESSION bulk_insert_buffer_size = DEFAULT;
+SET SESSION character_set_database = DEFAULT;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SET SESSION character_set_filesystem = DEFAULT;
+SET SESSION collation_database = DEFAULT;
+Warnings:
+Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
+SET SESSION pseudo_slave_mode = DEFAULT;
+Warnings:
+Warning	1231	'pseudo_slave_mode' change was ineffective.
+SET SESSION pseudo_thread_id = DEFAULT;
+SET SESSION transaction_write_set_extraction = DEFAULT;
+SET SESSION histogram_generation_max_mem_size = DEFAULT;
+SET SESSION sql_log_off = DEFAULT;
+SET SESSION original_commit_timestamp = DEFAULT;
+SET SESSION default_collation_for_utf8mb4 = DEFAULT;
+Warnings:
+Warning	1681	Updating 'default_collation_for_utf8mb4' is deprecated. It will be made read-only in a future release.
+SET SESSION explicit_defaults_for_timestamp = DEFAULT;
+SET SESSION sql_log_bin = DEFAULT;
+SET SESSION rbr_exec_mode = DEFAULT;
+# Back to default connection
+# Cleanup
+DROP DATABASE wl12217;
+DROP USER wl12217@localhost;
+# Testing FR7
+# Must have SESSION_VARIABLES_ADMIN
+SHOW GRANTS for "mysql.session"@localhost;
+Grants for mysql.session@localhost
+GRANT SUPER ON *.* TO `mysql.session`@`localhost`
+GRANT PERSIST_RO_VARIABLES_ADMIN,SESSION_VARIABLES_ADMIN,SYSTEM_VARIABLES_ADMIN ON *.* TO `mysql.session`@`localhost`
+GRANT SELECT ON `performance_schema`.* TO `mysql.session`@`localhost`
+GRANT SELECT ON `mysql`.`user` TO `mysql.session`@`localhost`
+#
+# End of 8.0 tests
+#

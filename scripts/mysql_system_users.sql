@@ -35,6 +35,7 @@ GRANT SELECT ON mysql.user TO 'mysql.session'@localhost;
 GRANT SELECT ON performance_schema.* TO 'mysql.session'@localhost;
 GRANT SUPER ON *.* TO 'mysql.session'@localhost;
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
+GRANT SESSION_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
 GRANT PERSIST_RO_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
 
 -- Create an user that is definer for information_schema view

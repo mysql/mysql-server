@@ -289,6 +289,7 @@ References	Databases,Tables	To have references on tables
 Reload	Server Admin	To reload or refresh tables, logs and privileges
 Replication client	Server Admin	To ask where the slave or master servers are
 Replication slave	Server Admin	To read binary log events from the master
+SESSION_VARIABLES_ADMIN	Server Admin	
 SET_USER_ID	Server Admin	
 SYSTEM_VARIABLES_ADMIN	Server Admin	
 Select	Tables	To retrieve rows from table

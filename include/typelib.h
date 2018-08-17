@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -73,7 +73,7 @@ extern TYPELIB *copy_typelib(MEM_ROOT *root, TYPELIB *from);
 
 extern TYPELIB sql_protocol_typelib;
 
-my_ulonglong find_set_from_flags(const TYPELIB *lib, unsigned int default_name,
+my_ulonglong find_set_from_flags(const TYPELIB *lib, size_t default_name,
                                  my_ulonglong cur_set, my_ulonglong default_set,
                                  const char *str, unsigned int length,
                                  char **err_pos, unsigned int *err_len);

@@ -1,0 +1,219 @@
+# Tests for WL#12217
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+
+--echo # Testing FR2
+
+--echo Must have SESSION_VARIABLES_ADMIN with grant option
+SHOW GRANTS FOR root@localhost;
+
+--echo # Testing FR1
+
+CREATE USER wl12217@localhost;
+CREATE DATABASE wl12217;
+GRANT ALL PRIVILEGES ON wl12217.* TO wl12217@localhost;
+
+--echo # Must work
+GRANT SESSION_VARIABLES_ADMIN ON *.* TO wl12217@localhost;
+--echo # Must work again
+GRANT SESSION_VARIABLES_ADMIN ON *.* TO wl12217@localhost;
+--echo # Must fail
+--error ER_ILLEGAL_PRIVILEGE_LEVEL
+GRANT SESSION_VARIABLES_ADMIN ON mysql.* TO wl12217@localhost;
+
+--echo # Cleanup
+DROP DATABASE wl12217;
+DROP USER wl12217@localhost;
+
+
+--echo # Testing FR3, FR4
+
+CREATE USER wl12217@localhost;
+CREATE DATABASE wl12217;
+GRANT ALL PRIVILEGES ON wl12217.* TO wl12217@localhost;
+--echo # Switch to wl12217@localhost
+connect(confr3,localhost,wl12217,,wl12217);
+
+--echo # Must fail
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET SESSION auto_increment_increment = DEFAULT;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET SESSION auto_increment_offset = DEFAULT;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET SESSION binlog_direct_non_transactional_updates = DEFAULT;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET SESSION binlog_format = DEFAULT;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET SESSION binlog_row_image = DEFAULT;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET SESSION binlog_row_value_options = DEFAULT;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET SESSION binlog_rows_query_log_events = DEFAULT;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET SESSION bulk_insert_buffer_size = DEFAULT;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET SESSION character_set_database = DEFAULT;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET SESSION character_set_filesystem = DEFAULT;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET SESSION collation_database = DEFAULT;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET SESSION pseudo_slave_mode = DEFAULT;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET SESSION pseudo_thread_id = DEFAULT;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET SESSION transaction_write_set_extraction = DEFAULT;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET SESSION histogram_generation_max_mem_size = DEFAULT;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET SESSION sql_log_off = DEFAULT;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET SESSION original_commit_timestamp = DEFAULT;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET SESSION default_collation_for_utf8mb4 = DEFAULT;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET SESSION explicit_defaults_for_timestamp = DEFAULT;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET SESSION sql_log_bin = DEFAULT;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET SESSION rbr_exec_mode = DEFAULT;
+
+--echo # Back to default connection
+connection default;
+disconnect confr3;
+GRANT SESSION_VARIABLES_ADMIN ON *.* TO wl12217@localhost;
+--echo # Back to wl12217@localhost
+connect(confr3,localhost,wl12217,,wl12217);
+
+--echo # Must pass
+SET SESSION auto_increment_increment = DEFAULT;
+SET SESSION auto_increment_offset = DEFAULT;
+SET SESSION binlog_direct_non_transactional_updates = DEFAULT;
+SET SESSION binlog_format = DEFAULT;
+SET SESSION binlog_row_image = DEFAULT;
+SET SESSION binlog_row_value_options = DEFAULT;
+SET SESSION binlog_rows_query_log_events = DEFAULT;
+SET SESSION bulk_insert_buffer_size = DEFAULT;
+SET SESSION character_set_database = DEFAULT;
+SET SESSION character_set_filesystem = DEFAULT;
+SET SESSION collation_database = DEFAULT;
+SET SESSION pseudo_slave_mode = DEFAULT;
+SET SESSION pseudo_thread_id = DEFAULT;
+SET SESSION transaction_write_set_extraction = DEFAULT;
+SET SESSION histogram_generation_max_mem_size = DEFAULT;
+SET SESSION sql_log_off = DEFAULT;
+SET SESSION original_commit_timestamp = DEFAULT;
+SET SESSION default_collation_for_utf8mb4 = DEFAULT;
+SET SESSION explicit_defaults_for_timestamp = DEFAULT;
+SET SESSION sql_log_bin = DEFAULT;
+SET SESSION rbr_exec_mode = DEFAULT;
+
+--echo # Back to default connection
+connection default;
+disconnect confr3;
+
+--echo # Cleanup
+DROP DATABASE wl12217;
+DROP USER wl12217@localhost;
+
+
+--echo #  Testing FR5
+
+CREATE USER wl12217@localhost;
+CREATE DATABASE wl12217;
+GRANT ALL PRIVILEGES ON wl12217.* TO wl12217@localhost;
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO wl12217@localhost;
+
+--echo # Switch to wl12217@localhost
+connect(confr5,localhost,wl12217,,wl12217);
+
+--echo # Must pass
+SET SESSION auto_increment_increment = DEFAULT;
+SET SESSION auto_increment_offset = DEFAULT;
+SET SESSION binlog_direct_non_transactional_updates = DEFAULT;
+SET SESSION binlog_format = DEFAULT;
+SET SESSION binlog_row_image = DEFAULT;
+SET SESSION binlog_row_value_options = DEFAULT;
+SET SESSION binlog_rows_query_log_events = DEFAULT;
+SET SESSION bulk_insert_buffer_size = DEFAULT;
+SET SESSION character_set_database = DEFAULT;
+SET SESSION character_set_filesystem = DEFAULT;
+SET SESSION collation_database = DEFAULT;
+SET SESSION pseudo_slave_mode = DEFAULT;
+SET SESSION pseudo_thread_id = DEFAULT;
+SET SESSION transaction_write_set_extraction = DEFAULT;
+SET SESSION histogram_generation_max_mem_size = DEFAULT;
+SET SESSION sql_log_off = DEFAULT;
+SET SESSION original_commit_timestamp = DEFAULT;
+SET SESSION default_collation_for_utf8mb4 = DEFAULT;
+SET SESSION explicit_defaults_for_timestamp = DEFAULT;
+SET SESSION sql_log_bin = DEFAULT;
+SET SESSION rbr_exec_mode = DEFAULT;
+
+--echo # Back to default connection
+connection default;
+disconnect confr5;
+
+--echo # Cleanup
+DROP DATABASE wl12217;
+DROP USER wl12217@localhost;
+
+
+--echo #  Testing FR6
+
+CREATE USER wl12217@localhost;
+CREATE DATABASE wl12217;
+GRANT ALL PRIVILEGES ON wl12217.* TO wl12217@localhost;
+GRANT SUPER ON *.* TO wl12217@localhost;
+
+--echo # Switch to wl12217@localhost
+connect(confr5,localhost,wl12217,,wl12217);
+
+--echo # Must pass
+SET SESSION auto_increment_increment = DEFAULT;
+SET SESSION auto_increment_offset = DEFAULT;
+SET SESSION binlog_direct_non_transactional_updates = DEFAULT;
+SET SESSION binlog_format = DEFAULT;
+SET SESSION binlog_row_image = DEFAULT;
+SET SESSION binlog_row_value_options = DEFAULT;
+SET SESSION binlog_rows_query_log_events = DEFAULT;
+SET SESSION bulk_insert_buffer_size = DEFAULT;
+SET SESSION character_set_database = DEFAULT;
+SET SESSION character_set_filesystem = DEFAULT;
+SET SESSION collation_database = DEFAULT;
+SET SESSION pseudo_slave_mode = DEFAULT;
+SET SESSION pseudo_thread_id = DEFAULT;
+SET SESSION transaction_write_set_extraction = DEFAULT;
+SET SESSION histogram_generation_max_mem_size = DEFAULT;
+SET SESSION sql_log_off = DEFAULT;
+SET SESSION original_commit_timestamp = DEFAULT;
+SET SESSION default_collation_for_utf8mb4 = DEFAULT;
+SET SESSION explicit_defaults_for_timestamp = DEFAULT;
+SET SESSION sql_log_bin = DEFAULT;
+SET SESSION rbr_exec_mode = DEFAULT;
+
+--echo # Back to default connection
+connection default;
+disconnect confr5;
+
+--echo # Cleanup
+DROP DATABASE wl12217;
+DROP USER wl12217@localhost;
+
+
+--echo # Testing FR7
+
+--echo # Must have SESSION_VARIABLES_ADMIN
+SHOW GRANTS for "mysql.session"@localhost;
+
+
+--echo #
+--echo # End of 8.0 tests
+--echo #
+
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
+

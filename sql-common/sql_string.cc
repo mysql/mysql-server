@@ -1182,7 +1182,7 @@ size_t bin_to_hex_str(char *to, size_t to_len, char *from, size_t from_len) {
                                   // encoding for some input character
         return true
 */
-bool validate_string(const CHARSET_INFO *cs, const char *str, uint32 length,
+bool validate_string(const CHARSET_INFO *cs, const char *str, size_t length,
                      size_t *valid_length, bool *length_error) {
   if (cs->mbmaxlen > 1) {
     int well_formed_error;

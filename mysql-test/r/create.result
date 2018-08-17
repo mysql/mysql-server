@@ -2202,7 +2202,7 @@ Warnings:
 Warning	1287	The SUPER privilege identifier is deprecated
 # Connect as user subuser@localhost;
 SET SESSION sql_require_primary_key= OFF;
-ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
 SET GLOBAL sql_require_primary_key= OFF;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 DROP USER subuser@localhost;

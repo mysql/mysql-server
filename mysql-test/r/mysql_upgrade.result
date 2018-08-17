@@ -253,5 +253,58 @@ sys.sys_config                                     Table is already up to date
 Upgrade process completed successfully.
 Checking if update is needed.
 DROP USER root_caching_sha2@localhost;
+#
+# Bug #28392985: SESSION USER DOES NOT HAVE PRIV SESSION_VARIABLES_ADMIN IN UPGRADED DATABASE
+#
+SHOW GRANTS FOR "mysql.session"@localhost;
+Grants for mysql.session@localhost
+GRANT SUPER ON *.* TO `mysql.session`@`localhost`
+GRANT PERSIST_RO_VARIABLES_ADMIN,SESSION_VARIABLES_ADMIN,SYSTEM_VARIABLES_ADMIN ON *.* TO `mysql.session`@`localhost`
+GRANT SELECT ON `performance_schema`.* TO `mysql.session`@`localhost`
+GRANT SELECT ON `mysql`.`user` TO `mysql.session`@`localhost`
+REVOKE SESSION_VARIABLES_ADMIN ON *.* FROM "mysql.session"@localhost;
+mysql.columns_priv                                 Table is already up to date
+mysql.component                                    Table is already up to date
+mysql.db                                           Table is already up to date
+mysql.default_roles                                Table is already up to date
+mysql.engine_cost                                  Table is already up to date
+mysql.func                                         Table is already up to date
+mysql.general_log                                  Table is already up to date
+mysql.global_grants                                Table is already up to date
+mysql.gtid_executed                                Table is already up to date
+mysql.help_category                                Table is already up to date
+mysql.help_keyword                                 Table is already up to date
+mysql.help_relation                                Table is already up to date
+mysql.help_topic                                   Table is already up to date
+mysql.innodb_index_stats                           Table is already up to date
+mysql.innodb_table_stats                           Table is already up to date
+mysql.password_history                             Table is already up to date
+mysql.plugin                                       Table is already up to date
+mysql.procs_priv                                   Table is already up to date
+mysql.proxies_priv                                 Table is already up to date
+mysql.role_edges                                   Table is already up to date
+mysql.server_cost                                  Table is already up to date
+mysql.servers                                      Table is already up to date
+mysql.slave_master_info                            Table is already up to date
+mysql.slave_relay_log_info                         Table is already up to date
+mysql.slave_worker_info                            Table is already up to date
+mysql.slow_log                                     Table is already up to date
+mysql.tables_priv                                  Table is already up to date
+mysql.time_zone                                    Table is already up to date
+mysql.time_zone_leap_second                        Table is already up to date
+mysql.time_zone_name                               Table is already up to date
+mysql.time_zone_transition                         Table is already up to date
+mysql.time_zone_transition_type                    Table is already up to date
+mysql.user                                         Table is already up to date
+mtr.global_suppressions                            Table is already up to date
+mtr.test_suppressions                              Table is already up to date
+sys.sys_config                                     Table is already up to date
+# Must have SESSION_VARIABLES_ADMIN;
+SHOW GRANTS FOR "mysql.session"@localhost;
+Grants for mysql.session@localhost
+GRANT SUPER ON *.* TO `mysql.session`@`localhost`
+GRANT PERSIST_RO_VARIABLES_ADMIN,SESSION_VARIABLES_ADMIN,SYSTEM_VARIABLES_ADMIN ON *.* TO `mysql.session`@`localhost`
+GRANT SELECT ON `performance_schema`.* TO `mysql.session`@`localhost`
+GRANT SELECT ON `mysql`.`user` TO `mysql.session`@`localhost`
 
 End of tests

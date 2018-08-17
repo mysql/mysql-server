@@ -22,7 +22,7 @@ CREATE USER damn;
 SET GLOBAL explicit_defaults_for_timestamp=TRUE;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SET SESSION explicit_defaults_for_timestamp=TRUE;
-ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
 DROP USER damn;
 #
 # WL#9687 : Change default for explicit_defaults_for_timestamp to ON

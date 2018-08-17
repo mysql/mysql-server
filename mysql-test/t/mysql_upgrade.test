@@ -91,6 +91,23 @@ GRANT ALL ON *.* TO root_caching_sha2@localhost WITH GRANT OPTION;
 --exec $MYSQL_UPGRADE --force -uroot_caching_sha2 -pabcd --server-public-key-path=$MYSQL_TEST_DIR/std_data/rsa_public_key.pem --protocol=tcp --ssl-mode=disabled 2>&1
 DROP USER root_caching_sha2@localhost;
 
+
+--echo #
+--echo # Bug #28392985: SESSION USER DOES NOT HAVE PRIV SESSION_VARIABLES_ADMIN IN UPGRADED DATABASE
+--echo #
+
+SHOW GRANTS FOR "mysql.session"@localhost;
+REVOKE SESSION_VARIABLES_ADMIN ON *.* FROM "mysql.session"@localhost;
+
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
+--exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+
+--echo # Must have SESSION_VARIABLES_ADMIN;
+SHOW GRANTS FOR "mysql.session"@localhost;
+
+
 --source include/mysql_upgrade_cleanup.inc
 
 --echo

@@ -31,12 +31,12 @@ DROP TABLE t1;
 include/sync_slave_sql_with_master.inc
 SET @save_select_limit=@@session.sql_select_limit;
 SET @@session.sql_select_limit=10, @@session.pseudo_thread_id=100;
-ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
 SELECT @@session.sql_select_limit = @save_select_limit;
 @@session.sql_select_limit = @save_select_limit
 1
 SET @@session.sql_select_limit=10, @@session.sql_log_bin=0;
-ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
 SELECT @@session.sql_select_limit = @save_select_limit;
 @@session.sql_select_limit = @save_select_limit
 1
