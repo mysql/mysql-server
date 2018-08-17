@@ -1340,7 +1340,12 @@ static void dd_upgrade_fts_rename_cleanup(bool failed_upgrade) {
       fts_upgrade_rename(ib_table, failed_upgrade);
 
       mutex_enter(&dict_sys->mutex);
-      dict_table_allow_eviction(ib_table);
+
+      /* Do not mark the table ready for eviction if there is
+      a foreign key relationship on this table */
+      if (ib_table->foreign_set.empty() && ib_table->referenced_set.empty()) {
+        dict_table_allow_eviction(ib_table);
+      }
       dict_table_close(ib_table, true, false);
       mutex_exit(&dict_sys->mutex);
     }
