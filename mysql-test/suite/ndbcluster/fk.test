@@ -5,8 +5,6 @@
 --echo # foreign keys in the NDB storage engine.
 --echo #
 
-USE test;
-
 --echo # A non-unique index cannot serve as parent index.
 --error ER_FK_NO_INDEX_PARENT
 CREATE TABLE self_ref(pk INT PRIMARY KEY, i INT, j INT,
@@ -16,7 +14,8 @@ CREATE TABLE self_ref(pk INT PRIMARY KEY, i INT, j INT,
 --echo # But a unique index is fine.
 CREATE TABLE self_ref(pk INT PRIMARY KEY, i INT, j INT,
                       UNIQUE INDEX ix(i),
-                      FOREIGN KEY (j) REFERENCES self_ref(i)) ENGINE=NDB;
+                      FOREIGN KEY fk_j_unique_i (j) REFERENCES self_ref(i)
+) ENGINE=NDB;
 SHOW CREATE TABLE self_ref;
 DROP TABLE self_ref;
 
@@ -24,7 +23,8 @@ DROP TABLE self_ref;
 --echo # if it is unique.
 CREATE TABLE self_ref(pk INT PRIMARY KEY, i INT,
                       UNIQUE INDEX ix(i),
-                      FOREIGN KEY (i) REFERENCES self_ref(i)) ENGINE=NDB;
+                      FOREIGN KEY fk_i_unique_i (i) REFERENCES self_ref(i)
+) ENGINE=NDB;
 SHOW CREATE TABLE self_ref;
 DROP TABLE self_ref;
 
@@ -39,17 +39,23 @@ CREATE TABLE self_ref(pk INT PRIMARY KEY, i INT,
 --echo # index may also serve as supporting index.
 CREATE TABLE self_ref(pk INT PRIMARY KEY, i INT, j INT,
                       UNIQUE INDEX ijx(i, j),
-                      FOREIGN KEY (i, j) REFERENCES self_ref(j, i)) ENGINE=NDB;
+                      FOREIGN KEY fk_ij_unique_ji (i, j)
+                        REFERENCES self_ref(j, i)
+) ENGINE=NDB;
 SHOW CREATE TABLE self_ref;
 
 CREATE TABLE self_ref_hash(pk INT PRIMARY KEY, i INT, j INT,
                            UNIQUE INDEX ijx(i, j) USING HASH,
-                           FOREIGN KEY (i, j) REFERENCES self_ref_hash(j, i)) ENGINE=NDB;
+                           FOREIGN KEY fk_ij_unique_hash_ji (i, j)
+                             REFERENCES self_ref_hash(j, i)
+) ENGINE=NDB;
 SHOW CREATE TABLE self_ref_hash;
 
 CREATE TABLE self_ref_btree(pk INT PRIMARY KEY, i INT, j INT,
                             UNIQUE INDEX ijx(i, j) USING BTREE,
-                            FOREIGN KEY (i, j) REFERENCES self_ref_btree(j, i)) ENGINE=NDB;
+                            FOREIGN KEY fk_ij_unique_btree_ji (i, j)
+                              REFERENCES self_ref_btree(j, i)
+) ENGINE=NDB;
 SHOW CREATE TABLE self_ref_btree;
 DROP TABLES self_ref, self_ref_hash, self_ref_btree;
 
@@ -57,7 +63,9 @@ DROP TABLES self_ref, self_ref_hash, self_ref_btree;
 --echo # different order, a supporting key will be created.
 CREATE TABLE self_ref(pk INT PRIMARY KEY, i INT, j INT,
                       UNIQUE INDEX ijx(j, i),
-                      FOREIGN KEY (i, j) REFERENCES self_ref(j, i)) ENGINE=NDB;
+                      FOREIGN KEY fk_ij_diff_order_ji (i, j)
+                        REFERENCES self_ref(j, i)
+) ENGINE=NDB;
 SHOW CREATE TABLE self_ref;
 DROP TABLE self_ref;
 
