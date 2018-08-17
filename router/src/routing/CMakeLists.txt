@@ -20,6 +20,10 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+IF (NOT PROTOBUF_LITE_LIBRARY)
+  MESSAGE(FATAL_ERROR "Routing plugin requires protobuf-lite library")
+ENDIF()
+
 SET(ROUTING_SOURCE_FILES_X_PROTOCOL
   ${CMAKE_CURRENT_SOURCE_DIR}/src/protocol/x_protocol.cc
 )
@@ -55,7 +59,7 @@ SET(include_dirs
 
 SET(system_include_dirs
   ${PROTOBUF_INCLUDE_DIR}
-  ${MYSQLX_GENERATE_DIR}/protobuf
+  ${MYSQLX_GENERATE_DIR}/protobuf_lite
 )
 
 # link_directories(${PROJECT_BINARY_DIR}/ext/protobuf/protobuf-3.0.0/cmake/)
@@ -68,7 +72,7 @@ add_harness_plugin(routing
 TARGET_INCLUDE_DIRECTORIES(routing PRIVATE ${include_dirs})
 TARGET_INCLUDE_DIRECTORIES(routing SYSTEM PRIVATE ${system_include_dirs})
 
-TARGET_LINK_LIBRARIES(routing PRIVATE mysqlxmessages ${PROTOBUF_LIBRARY})
+TARGET_LINK_LIBRARIES(routing PRIVATE mysqlxmessages_lite ${PROTOBUF_LITE_LIBRARY})
 
 IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
   TARGET_LINK_LIBRARIES(routing PRIVATE -lnsl PRIVATE -lsocket)

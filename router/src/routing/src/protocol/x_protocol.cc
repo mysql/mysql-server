@@ -36,7 +36,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <algorithm>
 #include <cassert>
 
-using ProtobufMessage = google::protobuf::Message;
+using ProtobufMessage = google::protobuf::MessageLite;
 IMPORT_LOG_FUNCTIONS()
 
 constexpr size_t kMessageHeaderSize = 5;
@@ -75,7 +75,7 @@ static bool send_message(const std::string &log_prefix, int destination,
 
 static bool message_valid(const void *message_buffer, const int8_t message_type,
                           const uint32_t message_size) {
-  std::unique_ptr<google::protobuf::Message> msg;
+  std::unique_ptr<google::protobuf::MessageLite> msg;
 
   assert(message_type == Mysqlx::ClientMessages::SESS_AUTHENTICATE_START ||
          message_type == Mysqlx::ClientMessages::CON_CAPABILITIES_GET ||
