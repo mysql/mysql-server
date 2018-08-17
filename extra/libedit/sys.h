@@ -1,7 +1,7 @@
 /*	$NetBSD: sys.h,v 1.17 2011/09/28 14:08:04 christos Exp $	*/
 
 /*-
- * Copyright (c) 1992, 1993
+ * Copyright (c) 1992, 2018
  *	The Regents of the University of California.  All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
@@ -129,25 +129,6 @@ typedef unsigned int	u_int32_t;
 #define	REGEX		/* Use POSIX.2 regular expression functions */
 #undef	REGEXP		/* Use UNIX V8 regular expression functions */
 
-#if defined(__sun)
-extern int tgetent(char *, const char *);
-extern int tgetflag(char *);
-extern int tgetnum(char *);
-extern int tputs(const char *, int, int (*)(int));
-extern char* tgoto(const char*, int, int);
-extern char* tgetstr(char*, char**);
-#endif
-
-/* XXXMYSQL: Bug#10218 Command line recall rolls into segfault */
-#if !HAVE_DECL_TGOTO
-/*
- 'tgoto' is not declared in the system header files, this causes
- problems on 64-bit systems. The function returns a 64 bit pointer
- but caller see it as "int" and it's thus truncated to 32-bit
-*/
-extern char* tgoto(const char*, int, int);
-#endif
-
 #ifdef notdef
 # undef REGEX
 # undef REGEXP
@@ -156,12 +137,6 @@ extern char* tgoto(const char*, int, int);
 /*
  * Broken hdrs.
  */
-extern int	tgetent(const char *bp, char *name);
-extern int	tgetflag(const char *id);
-extern int	tgetnum(const char *id);
-extern char    *tgetstr(const char *id, char **area);
-extern char    *tgoto(const char *cap, int col, int row);
-extern int	tputs(const char *str, int affcnt, int (*putc)(int));
 extern char    *getenv(const char *);
 extern int	fprintf(FILE *, const char *, ...);
 extern int	sigsetmask(int);
