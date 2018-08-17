@@ -59,5 +59,5 @@ void test_concurrently(const char *test, my_start_routine handler, int n,
   now = my_getsystime() - now;
   EXPECT_FALSE(bad) << "tested " << test << " in " << ((double)now) / 1e7
                     << " secs "
-                    << "(" << bad << ")";
+                    << "(" << bad.load() << ")";
 }
