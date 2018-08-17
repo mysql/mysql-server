@@ -1,0 +1,35 @@
+--source include/no_valgrind_without_big.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+
+--echo #
+--echo # Bug #28380961: CONTRIBUTION BY FACEBOOK: ADD MY_APPEND_EXT FLAG
+--echo #  WHEN DETERMINING FILE NAME ...
+--echo #
+
+--echo # setup
+CREATE TABLE `b28380961.p2` (a INT);
+INSERT INTO `b28380961.p2` VALUES (1),(2),(3),(4);
+
+--echo # test
+--exec $MYSQL_DUMP --skip-comments --tab=$MYSQLTEST_VARDIR/tmp/ test
+--echo # success if files are present
+--echo # Dump the sql file
+--cat_file $MYSQLTEST_VARDIR/tmp/b28380961.p2.sql
+--echo # Dump the txt file
+--cat_file $MYSQLTEST_VARDIR/tmp/b28380961.p2.txt
+--echo # remove the sql file
+--remove_file $MYSQLTEST_VARDIR/tmp/b28380961.p2.sql
+--echo # remove the txt file
+--remove_file $MYSQLTEST_VARDIR/tmp/b28380961.p2.txt
+
+--echo # cleanup
+DROP TABLE `b28380961.p2`;
+
+
+--echo # End of 8.0 tests
+
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc
