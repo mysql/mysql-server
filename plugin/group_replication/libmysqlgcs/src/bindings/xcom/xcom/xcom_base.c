@@ -1598,6 +1598,8 @@ static inline int is_config(cargo_type x) {
          x == force_config_type;
 }
 
+static int wait_for_cache(pax_machine **pm, synode_no synode, double timeout);
+
 /* Send messages by fetching from the input queue and trying to get it accepted
    by a Paxos instance */
 static int proposer_task(task_arg arg) {
@@ -1731,7 +1733,14 @@ static int proposer_task(task_arg arg) {
 
     for (;;) { /* Loop until the client message has been learned */
       /* Get a Paxos instance to send the client message */
-      ep->p = get_cache(ep->msgno);
+
+      TASK_CALL(wait_for_cache(&ep->p, ep->msgno, 60));
+      if (!ep->p) {
+        G_MESSAGE("Could not get a pax_machine for msgno %lu. Retrying",
+                  (unsigned long)ep->msgno.msgno);
+        goto retry_new;
+      }
+
       assert(ep->p);
       if (ep->client_msg->p->force_delivery)
         ep->p->force_delivery = ep->client_msg->p->force_delivery;
@@ -1943,7 +1952,7 @@ int get_xcom_message(pax_machine **p, synode_no msgno, int n) {
 
   ep->wait = 0;
   ep->delay = 0.0;
-  *p = get_cache(msgno);
+  *p = force_get_cache(msgno);
 
   while (!finished(*p)) {
     MAY_DBG(FN; STRLIT("before find_value"); SYCEXP(msgno); PTREXP(*p);
@@ -1971,7 +1980,7 @@ int get_xcom_message(pax_machine **p, synode_no msgno, int n) {
 
   ep->wait = 0;
   ep->delay = 0.0;
-  *p = get_cache(msgno);
+  *p = force_get_cache(msgno);
 
   while (!finished(*p)) {
     site_def const *site = find_site_def(msgno);
@@ -3058,7 +3067,7 @@ static void read_missing_values(int n) {
     return;
 
   while (!synode_gt(find, end) && i < n && !too_far(find)) {
-    pax_machine *p = get_cache(find);
+    pax_machine *p = force_get_cache(find);
     ADD_EVENTS(add_synode_event(find); add_synode_event(end);
                add_event(string_arg("active "));
                add_event(int_arg(recently_active(p)));
@@ -3088,7 +3097,7 @@ static void propose_missing_values(int n) {
   MAY_DBG(FN; SYCEXP(find); SYCEXP(end));
   i = 0;
   while (!synode_gt(find, end) && i < n && !too_far(find)) {
-    pax_machine *p = get_cache(find);
+    pax_machine *p = force_get_cache(find);
     if (wait_forced_config) {
       force_pax_machine(p, 1);
     }
@@ -4221,6 +4230,33 @@ pax_msg *dispatch_op(site_def const *site, pax_msg *p, linkage *reply_queue) {
   }                                                              \
   ep->buf = NULL;
 
+static int wait_for_cache(pax_machine **pm, synode_no synode, double timeout) {
+  DECL_ENV
+  double now;
+  END_ENV;
+
+  TASK_BEGIN
+  ep->now = task_now();
+  while ((*pm = get_cache(synode)) == NULL) {
+    // Wait for executor to make progress
+    TIMED_TASK_WAIT(&exec_wait, 0.5);
+    if (task_now() - ep->now > timeout) break;  // Timeout, return NULL.
+  }
+  FINALLY
+  TASK_END;
+}
+
+/*
+  Verify if we need to poll the cache before calling dispatch_op.
+  Avoid waiting for a machine if it is not going to be used.
+ */
+static bool_t should_poll_cache(pax_op op) {
+  if (op == die_op || op == gcs_snapshot_op || op == snapshot_op ||
+      op == initial_op || op == client_msg)
+    return FALSE;
+  return TRUE;
+}
+
 int acceptor_learner_task(task_arg arg) {
   DECL_ENV
   connection_descriptor rfd;
@@ -4378,6 +4414,13 @@ again:
           ep->p->synode.msgno == 0 || /* Used by i-am-alive and so on */
           is_cached(ep->p->synode) || /* Already in cache */
           (!behind)) { /* Guard against cache pollution from other nodes */
+
+        if (should_poll_cache(ep->p->op)) {
+          pax_machine *pm;
+          TASK_CALL(wait_for_cache(&pm, ep->p->synode, 10));
+          if (!pm) continue;  // Could not get a machine, discarding message.
+        }
+
         dispatch_op(site, ep->p, &ep->reply_queue);
 
         /* Send replies on same fd */
@@ -4710,7 +4753,7 @@ static void server_push_log(server *srv, synode_no push, node_no node) {
       if (is_cached(push)) {
         /* Need to clone message here since pax_machine may be re-used while
          * message is sent */
-        pax_machine *p = get_cache_no_touch(push);
+        pax_machine *p = get_cache_no_touch(push, FALSE);
         if (pm_finished(p)) {
           pax_msg *pm = clone_pax_msg(p->learner.msg);
           ref_msg(pm);

@@ -91,8 +91,9 @@ struct pax_machine {
 
 int is_busy_machine(pax_machine *p);
 int lock_pax_machine(pax_machine *p);
-pax_machine *get_cache_no_touch(synode_no synode);
+pax_machine *get_cache_no_touch(synode_no synode, bool_t force);
 pax_machine *get_cache(synode_no synode);
+pax_machine *force_get_cache(synode_no synode);
 pax_machine *hash_get(synode_no synode);
 char *dbg_machine_nodeset(pax_machine *p, u_int nodes);
 char *dbg_pax_machine(pax_machine *p);
