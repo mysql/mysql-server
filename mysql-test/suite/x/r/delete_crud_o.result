@@ -241,7 +241,7 @@ send Mysqlx.Crud.Delete {
 Mysqlx.Error {
   severity: ERROR
   code: 1175
-  msg: "You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column"
+  msg: "You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column. "
   sql_state: "HY000"
 }
 
@@ -303,7 +303,7 @@ send Mysqlx.Crud.Delete {
 Mysqlx.Error {
   severity: ERROR
   code: 1175
-  msg: "You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column"
+  msg: "You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column. "
   sql_state: "HY000"
 }
 
@@ -338,7 +338,7 @@ send Mysqlx.Crud.Delete {
 Mysqlx.Error {
   severity: ERROR
   code: 1175
-  msg: "You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column"
+  msg: "You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column. "
   sql_state: "HY000"
 }
 

@@ -209,12 +209,6 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
   }
 
   const bool const_cond = (!conds || conds->const_item());
-  if (safe_update && const_cond) {
-    // Safe mode is a runtime check, so apply it in execution and not prepare
-    my_error(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE, MYF(0));
-    DBUG_RETURN(true);
-  }
-
   const bool const_cond_result = const_cond && (!conds || conds->val_int());
   if (thd->is_error())  // Error during val_int()
     DBUG_RETURN(true);  /* purecov: inspected */
@@ -256,6 +250,16 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     if (lex->is_explain()) {
       bool err = explain_single_table_modification(thd, &plan, select_lex);
       DBUG_RETURN(err);
+    }
+
+    /*
+      When binlog is disabled and condition is constant, a different code path
+      is chosen.
+    */
+    if (safe_update) {
+      my_error(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE, MYF(0),
+               thd->get_stmt_da()->get_first_condition_message());
+      DBUG_RETURN(true);
     }
 
     DBUG_PRINT("debug", ("Trying to use delete_all_rows()"));
@@ -363,8 +367,18 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
   /* If running in safe sql mode, don't allow updates without keys */
   if (table->quick_keys.is_clear_all()) {
     thd->server_status |= SERVER_QUERY_NO_INDEX_USED;
-    if (safe_update && !using_limit) {
-      my_error(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE, MYF(0));
+
+    /*
+      Safe update error isn't returned if:
+      1) It is  an EXPLAIN statement OR
+      2) LIMIT is present.
+
+      Append the first warning (if any) to the error message. This allows the
+      user to understand why index access couldn't be chosen.
+    */
+    if (!thd->lex->is_explain() && safe_update && !using_limit) {
+      my_error(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE, MYF(0),
+               thd->get_stmt_da()->get_first_condition_message());
       DBUG_RETURN(true);
     }
   }
