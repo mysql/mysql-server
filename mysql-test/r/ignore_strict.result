@@ -948,6 +948,6 @@ CREATE TABLE t1(a INT);
 SET @org_safe_updates= @@sql_safe_updates;
 SET SESSION sql_safe_updates=ON;
 DELETE IGNORE FROM t1 WHERE a=1;
-ERROR HY000: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column
+ERROR HY000: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column. 
 DROP TABLE t1;
 SET sql_safe_updates= @org_safe_updates;

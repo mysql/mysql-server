@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -483,6 +483,8 @@ public:
 
   Sql_condition_iterator sql_conditions() const
   { return m_conditions_list; }
+
+  const char * get_first_condition_message();
 
   /** Make sure there is room for the given number of conditions. */
   void reserve_number_of_conditions(THD *thd, uint count);
