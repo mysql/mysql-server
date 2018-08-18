@@ -6326,6 +6326,8 @@ ok_exit:
 	/* Read the clustered index of the table and build
 	indexes based on this information using temporary
 	files and merge sort. */
+	DEBUG_SYNC_C("alter_table_update_log");
+
 	DBUG_EXECUTE_IF("innodb_OOM_inplace_alter",
 			error = DB_OUT_OF_MEMORY; goto oom;);
 	error = row_merge_build_indexes(
