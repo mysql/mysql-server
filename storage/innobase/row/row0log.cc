@@ -2245,14 +2245,16 @@ func_exit_committed:
 	dtuple_t*	old_row;
 	row_ext_t*	old_ext;
 
-	if (dict_table_get_next_index(index)) {
+	if (dict_index_t* index_next = dict_table_get_next_index(index)) {
 		/* Construct the row corresponding to the old value of
 		the record. */
 		old_row = row_build(
-			ROW_COPY_DATA, index, btr_pcur_get_rec(&pcur),
-			cur_offsets, NULL, NULL, NULL, &old_ext, heap);
+                        ROW_COPY_DATA, index, btr_pcur_get_rec(&pcur),
+                        cur_offsets, NULL, NULL, NULL, &old_ext, heap);
+		if (dict_index_has_virtual(index_next)) {
+			dtuple_copy_v_fields(old_row, update->old_vrow);
+		}
 		ut_ad(old_row);
-
 		DBUG_PRINT("ib_alter_table",
 			   ("update table " IB_ID_FMT
 			    "(index " IB_ID_FMT "): %s to %s",
