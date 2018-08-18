@@ -5963,6 +5963,7 @@ bool ha_innobase::inplace_alter_table_impl(TABLE *altered_table,
 #ifdef UNIV_DEBUG
 oom:
 #endif /* UNIV_DEBUG */
+  DEBUG_SYNC_C("alter_table_update_log");
   if (error == DB_SUCCESS && ctx->online && ctx->need_rebuild()) {
     DEBUG_SYNC_C("row_log_table_apply1_before");
     error = row_log_table_apply(ctx->thr, m_prebuilt->table, altered_table,
