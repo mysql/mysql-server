@@ -14154,7 +14154,8 @@ static int innodb_alter_undo_tablespace_inactive(handlerton *hton, THD *thd,
                                                  dd::String_type dd_state,
                                                  dd::Tablespace *dd_space) {
   /* If it is already empty, just return. */
-  if (undo_space->is_empty()) {
+  if (undo_space->is_empty() &&
+      dd_state == dd_space_state_values[DD_SPACE_STATE_EMPTY]) {
     return (0);
   }
 
@@ -14183,9 +14184,7 @@ static int innodb_alter_undo_tablespace_inactive(handlerton *hton, THD *thd,
   }
 
   /* Make sure the DD shows inactive if it is active. */
-  if (dd_state == dd_space_state_values[DD_SPACE_STATE_ACTIVE]) {
-    dd_tablespace_set_state(dd_space, DD_SPACE_STATE_INACTIVE);
-  }
+  dd_tablespace_set_state(dd_space, DD_SPACE_STATE_INACTIVE);
 
   /* Apply this to new transactions. */
   undo_space->set_inactive_explicit();

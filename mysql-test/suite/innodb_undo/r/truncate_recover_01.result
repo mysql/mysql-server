@@ -1,11 +1,14 @@
 #
 # WL#6965: Truncate UNDO logs during recovery.
 #
+SET @@global.innodb_fast_shutdown = 0;
+# restart
 SET @@global.innodb_undo_log_truncate = 1;
 SET @@global.innodb_purge_rseg_truncate_frequency = 1;
 SET @@global.innodb_rollback_segments = 3;
 SET @@global.innodb_max_undo_log_size = 11534336;
 SET @@global.log_error_verbosity = 3;
+SET @@global.innodb_fast_shutdown = 0;
 #
 # Create procedure to populate the test-bed for Undo Truncate Recover tests
 #
@@ -30,7 +33,6 @@ update t1 set c1 = 'mysql' where  keyc > 20000;
 update t1 set c2 = 'oracle' where  keyc > 20000;
 set global debug = "+d,ib_undo_trunc_before_buf_remove_all";
 commit;
-set global innodb_fast_shutdown=0;
 Pattern "ib_undo_trunc_before_buf_remove_all" found
 # restart
 drop table t1;
