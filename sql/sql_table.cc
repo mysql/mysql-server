@@ -6063,6 +6063,19 @@ static bool prepare_foreign_key(THD *thd, HA_CREATE_INFO *create_info,
       DBUG_RETURN(true);
     }
 
+    /*
+      Foreign keys with SET NULL as one of referential actions do not
+      make sense if any of referencing columns are non-nullable, so
+      we prohibit them.
+    */
+    if ((fk_info->delete_opt == FK_OPTION_SET_NULL ||
+         fk_info->update_opt == FK_OPTION_SET_NULL) &&
+        find->flags & NOT_NULL_FLAG) {
+      my_error(ER_FK_COLUMN_NOT_NULL, MYF(0), col->get_field_name(),
+               fk_info->name);
+      DBUG_RETURN(true);
+    }
+
     fk_info->key_part[column_nr].str = col->get_field_name();
     fk_info->key_part[column_nr].length = std::strlen(col->get_field_name());
     const Key_part_spec *fk_col = fk_key->ref_columns[column_nr];
@@ -7187,6 +7200,34 @@ bool mysql_prepare_create_table(
 
   for (FOREIGN_KEY *fk = *fk_key_info_buffer;
        fk < (*fk_key_info_buffer) + existing_fks_count; fk++) {
+    /*
+      Check if this foreign key has SET NULL as one of referential actions
+      and one of its referencing columns became non-nullable.
+
+      We do this check here rather than in transfer_preexisting_foreign_keys()
+      in order to avoid complicated handling of case when column becomes
+      non-nullable implicitly because it is part of PRIMARY KEY added.
+    */
+    if (fk->delete_opt == FK_OPTION_SET_NULL ||
+        fk->update_opt == FK_OPTION_SET_NULL) {
+      for (size_t j = 0; j < fk->key_parts; j++) {
+        it.rewind();
+        while ((sql_field = it++)) {
+          if (my_strcasecmp(system_charset_info, fk->key_part[j].str,
+                            sql_field->field_name) == 0)
+            break;
+        }
+        // We already have checked that referencing column exists.
+        DBUG_ASSERT(sql_field != nullptr);
+
+        if (sql_field->flags & NOT_NULL_FLAG) {
+          my_error(ER_FK_COLUMN_NOT_NULL, MYF(0), fk->key_part[j].str,
+                   fk->name);
+          DBUG_RETURN(true);
+        }
+      }
+    }
+
     /*
       Check that for each pre-existing foreign key we still have supporting
       index on child table.

@@ -4471,21 +4471,12 @@ scan_on_conditions:
   for (j = 0; j < foreign->n_fields; j++) {
     if ((foreign->foreign_index->get_col(j)->prtype) & DATA_NOT_NULL) {
       /* It is not sensible to define SET NULL
-      if the column is not allowed to be NULL! */
+      if the column is not allowed to be NULL!
+      SQL-layer already enforces this. */
+      ut_ad(0);
       if (referenced_table) {
         dd_table_close(referenced_table, current_thd, &mdl, true);
       }
-
-      mutex_enter(&dict_foreign_err_mutex);
-      dict_foreign_error_report_low(ef, name);
-      fprintf(ef,
-              "%s:\n"
-              "You have defined a SET NULL condition"
-              " though some of the\n"
-              "columns are defined as NOT NULL.\n",
-              start_of_latest_foreign);
-      mutex_exit(&dict_foreign_err_mutex);
-
       return (DB_CANNOT_ADD_CONSTRAINT);
     }
   }

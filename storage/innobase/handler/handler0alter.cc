@@ -2819,126 +2819,6 @@ inline MY_ATTRIBUTE((warn_unused_result)) bool innobase_dropping_foreign(
   return (false);
 }
 
-/** Determines if an InnoDB FOREIGN KEY constraint depends on a
-column that is being dropped or modified to NOT NULL.
-@param user_table InnoDB table as it is before the ALTER operation
-@param col_name Name of the column being altered
-@param drop_fk constraints being dropped
-@param n_drop_fk number of constraints that are being dropped
-@param drop true=drop column, false=set NOT NULL
-@retval true Not allowed (will call my_error())
-@retval false Allowed
-*/
-static MY_ATTRIBUTE((warn_unused_result)) bool innobase_check_foreigns_low(
-    const dict_table_t *user_table, dict_foreign_t **drop_fk, ulint n_drop_fk,
-    const char *col_name, bool drop) {
-  dict_foreign_t *foreign;
-  ut_ad(mutex_own(&dict_sys->mutex));
-
-  /* Check if any FOREIGN KEY constraints are defined on this
-  column. */
-
-  for (dict_foreign_set::iterator it = user_table->foreign_set.begin();
-       it != user_table->foreign_set.end(); ++it) {
-    foreign = *it;
-
-    if (!drop && !(foreign->type & (DICT_FOREIGN_ON_DELETE_SET_NULL |
-                                    DICT_FOREIGN_ON_UPDATE_SET_NULL))) {
-      continue;
-    }
-
-    if (innobase_dropping_foreign(foreign, drop_fk, n_drop_fk)) {
-      continue;
-    }
-
-    for (unsigned f = 0; f < foreign->n_fields; f++) {
-      if (!strcmp(foreign->foreign_col_names[f], col_name)) {
-        my_error(drop ? ER_FK_COLUMN_CANNOT_DROP : ER_FK_COLUMN_NOT_NULL,
-                 MYF(0), col_name, foreign->id);
-        return (true);
-      }
-    }
-  }
-
-  if (!drop) {
-    /* SET NULL clauses on foreign key constraints of
-    child tables affect the child tables, not the parent table.
-    The column can be NOT NULL in the parent table. */
-    return (false);
-  }
-
-  /* Check if any FOREIGN KEY constraints in other tables are
-  referring to the column that is being dropped. */
-  for (dict_foreign_set::iterator it = user_table->referenced_set.begin();
-       it != user_table->referenced_set.end(); ++it) {
-    foreign = *it;
-
-    if (innobase_dropping_foreign(foreign, drop_fk, n_drop_fk)) {
-      continue;
-    }
-
-    for (unsigned f = 0; f < foreign->n_fields; f++) {
-      char display_name[FN_REFLEN];
-
-      if (strcmp(foreign->referenced_col_names[f], col_name)) {
-        continue;
-      }
-
-      char *buf_end = innobase_convert_name(
-          display_name, (sizeof display_name) - 1, foreign->foreign_table_name,
-          strlen(foreign->foreign_table_name), NULL);
-      *buf_end = '\0';
-      my_error(ER_FK_COLUMN_CANNOT_DROP_CHILD, MYF(0), col_name, foreign->id,
-               display_name);
-
-      return (true);
-    }
-  }
-
-  return (false);
-}
-
-/** Determines if an InnoDB FOREIGN KEY constraint depends on a
-column that is being dropped or modified to NOT NULL.
-@param ha_alter_info Data used during in-place alter
-@param altered_table MySQL table that is being altered
-@param old_table MySQL table as it is before the ALTER operation
-@param user_table InnoDB table as it is before the ALTER operation
-@param drop_fk constraints being dropped
-@param n_drop_fk number of constraints that are being dropped
-@retval true Not allowed (will call my_error())
-@retval false Allowed
-*/
-static MY_ATTRIBUTE((warn_unused_result)) bool innobase_check_foreigns(
-    Alter_inplace_info *ha_alter_info, const TABLE *altered_table,
-    const TABLE *old_table, const dict_table_t *user_table,
-    dict_foreign_t **drop_fk, ulint n_drop_fk) {
-  List_iterator_fast<Create_field> cf_it(
-      ha_alter_info->alter_info->create_list);
-
-  for (Field **fp = old_table->field; *fp; fp++) {
-    cf_it.rewind();
-    const Create_field *new_field;
-
-    ut_ad(!(*fp)->real_maybe_null() == !!((*fp)->flags & NOT_NULL_FLAG));
-
-    while ((new_field = cf_it++)) {
-      if (new_field->field == *fp) {
-        break;
-      }
-    }
-
-    if (!new_field || (new_field->flags & NOT_NULL_FLAG)) {
-      if (innobase_check_foreigns_low(user_table, drop_fk, n_drop_fk,
-                                      (*fp)->field_name, !new_field)) {
-        return (true);
-      }
-    }
-  }
-
-  return (false);
-}
-
 /** Convert a default value for ADD COLUMN.
 
 @param heap Memory heap where allocated
@@ -4309,11 +4189,10 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
     space_id_t space_id = 0;
     ulint z = 0;
 
-    if (innobase_check_foreigns(ha_alter_info, altered_table, old_table,
-                                user_table, ctx->drop_fk,
-                                ctx->num_to_drop_fk)) {
-      goto new_clustered_failed;
-    }
+    /* SQL-layer already has checked that we are not dropping any
+    columns in foreign keys to be kept or making referencing column
+    in a foreign key with SET NULL action non-nullable. So no need to
+    check this here. */
 
     for (uint i = 0; i < altered_table->s->fields; i++) {
       const Field *field = altered_table->field[i];
