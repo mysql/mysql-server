@@ -6331,13 +6331,13 @@ static uint get_semi_join_select_list_index(Item_field *item_field) {
 
 /**
    @brief
-   If EXPLAIN EXTENDED, add warning that an index cannot be used for
-   ref access
+   If EXPLAIN or if the --safe-updates option is enabled, add a warning that an
+   index cannot be used for ref access.
 
    @details
-   If EXPLAIN EXTENDED, add a warning for each index that cannot be
-   used for ref access due to either type conversion or different
-   collations on the field used for comparison
+   If EXPLAIN or if the --safe-updates option is enabled, add a warning for each
+   index that cannot be used for ref access due to either type conversion or
+   different collations on the field used for comparison
 
    Example type conversion (char compared to int):
 
@@ -6355,7 +6355,8 @@ static uint get_semi_join_select_list_index(Item_field *item_field) {
  */
 static void warn_index_not_applicable(THD *thd, const Field *field,
                                       const Key_map cant_use_index) {
-  if (thd->lex->is_explain())
+  if (thd->lex->is_explain() ||
+      thd->variables.option_bits & OPTION_SAFE_UPDATES)
     for (uint j = 0; j < field->table->s->keys; j++)
       if (cant_use_index.is_set(j))
         push_warning_printf(thd, Sql_condition::SL_WARNING,

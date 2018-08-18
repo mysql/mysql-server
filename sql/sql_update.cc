@@ -468,8 +468,18 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
   /* If running in safe sql mode, don't allow updates without keys */
   if (table->quick_keys.is_clear_all()) {
     thd->server_status |= SERVER_QUERY_NO_INDEX_USED;
-    if (safe_update && !using_limit) {
-      my_error(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE, MYF(0));
+
+    /*
+      No safe update error will be returned if:
+      1) Statement is an EXPLAIN OR
+      2) LIMIT is present.
+
+      Append the first warning (if any) to the error message. Allows the user
+      to understand why index access couldn't be chosen.
+    */
+    if (!lex->is_explain() && safe_update && !using_limit) {
+      my_error(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE, MYF(0),
+               thd->get_stmt_da()->get_first_condition_message());
       DBUG_RETURN(true);
     }
   }

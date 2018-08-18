@@ -479,6 +479,8 @@ class Diagnostics_area {
 
   Sql_condition_iterator sql_conditions() const { return m_conditions_list; }
 
+  const char *get_first_condition_message();
+
   /** Make sure there is room for the given number of conditions. */
   void reserve_number_of_conditions(THD *thd, uint count);
 

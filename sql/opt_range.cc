@@ -6165,23 +6165,25 @@ QUICK_SELECT_I *TRP_ROR_UNION::make_quick(PARAM *param, bool, MEM_ROOT *) {
 }
 
 /**
-   If EXPLAIN, add a warning that the index cannot be
-   used for range access due to either type conversion or different
-   collations on the field used for comparison
+   If EXPLAIN or if the --safe-updates option is enabled, add a warning that
+   the index cannot be used for range access due to either type conversion or
+   different collations on the field used for comparison
 
    @param param              PARAM from test_quick_select
    @param key_num            Key number
    @param field              Field in the predicate
 */
-static void if_explain_warn_index_not_applicable(const RANGE_OPT_PARAM *param,
-                                                 const uint key_num,
-                                                 const Field *field) {
-  if (param->using_real_indexes && param->thd->lex->is_explain())
-    push_warning_printf(
-        param->thd, Sql_condition::SL_WARNING, ER_WARN_INDEX_NOT_APPLICABLE,
-        ER_THD(param->thd, ER_WARN_INDEX_NOT_APPLICABLE), "range",
-        field->table->key_info[param->real_keynr[key_num]].name,
-        field->field_name);
+static void warn_index_not_applicable(const RANGE_OPT_PARAM *param,
+                                      const uint key_num, const Field *field) {
+  THD *thd = param->thd;
+  if (param->using_real_indexes &&
+      (thd->lex->is_explain() ||
+       thd->variables.option_bits & OPTION_SAFE_UPDATES))
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_WARN_INDEX_NOT_APPLICABLE,
+                        ER_THD(thd, ER_WARN_INDEX_NOT_APPLICABLE), "range",
+                        field->table->key_info[param->real_keynr[key_num]].name,
+                        field->field_name);
 }
 
 /*
@@ -7060,7 +7062,7 @@ static SEL_TREE *get_mm_parts(RANGE_OPT_PARAM *param, Item_func *cond_func,
         */
         if (!comparable_in_index(cond_func, key_part->field,
                                  key_part->image_type, type, value)) {
-          if_explain_warn_index_not_applicable(param, key_part->key, field);
+          warn_index_not_applicable(param, key_part->key, field);
           DBUG_RETURN(NULL);
         }
 
@@ -7402,7 +7404,7 @@ static SEL_ROOT *get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func,
   */
   if (!comparable_in_index(conf_func, field, key_part->image_type, type,
                            value)) {
-    if_explain_warn_index_not_applicable(param, key_part->key, field);
+    warn_index_not_applicable(param, key_part->key, field);
     goto end;
   }
 

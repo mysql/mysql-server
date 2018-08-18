@@ -185,7 +185,7 @@ create table t2 (n int(10), d int(10));
 insert into t1 values(1,1);
 insert into t2 values(1,10),(2,20);
 UPDATE t1,t2 SET t1.d=t2.d WHERE t1.n=t2.n;
-ERROR HY000: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column
+ERROR HY000: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column. 
 set sql_safe_updates=0;
 drop table t1,t2;
 set timestamp=1038401397;
@@ -617,7 +617,7 @@ INSERT INTO t1 VALUES (1), (2), (3);
 SET SESSION sql_safe_updates = 1;
 # Must not cause failed assertion
 UPDATE IGNORE t1, t1 t1a SET t1.a = 1 WHERE t1a.a = 1;
-ERROR HY000: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column
+ERROR HY000: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column. 
 DROP TABLE t1;
 #
 # Bug#54543: update ignore with incorrect subquery leads to assertion
