@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -221,29 +221,25 @@ bool PT_part_definition::contextualize(Partition_parse_context *pc) {
 
   switch (type) {
     case partition_type::HASH: {
-      if (!pc->is_add_or_reorganize_partition) {
-        if (part_info->part_type == partition_type::RANGE) {
-          errorf(&ppc, pos, ER_THD(thd, ER_PARTITION_REQUIRES_VALUES_ERROR),
-                 "RANGE", "LESS THAN");
-          return true;
-        }
-        if (part_info->part_type == partition_type::LIST) {
-          errorf(&ppc, pos, ER_THD(thd, ER_PARTITION_REQUIRES_VALUES_ERROR),
-                 "LIST", "IN");
-          return true;
-        }
-      } else
+      if (part_info->part_type == partition_type::NONE)
         part_info->part_type = partition_type::HASH;
+      else if (part_info->part_type == partition_type::RANGE) {
+        errorf(&ppc, pos, ER_THD(thd, ER_PARTITION_REQUIRES_VALUES_ERROR),
+               "RANGE", "LESS THAN");
+        return true;
+      } else if (part_info->part_type == partition_type::LIST) {
+        errorf(&ppc, pos, ER_THD(thd, ER_PARTITION_REQUIRES_VALUES_ERROR),
+               "LIST", "IN");
+        return true;
+      }
     } break;
     case partition_type::RANGE: {
-      if (!pc->is_add_or_reorganize_partition) {
-        if (part_info->part_type != partition_type::RANGE) {
-          my_error(ER_PARTITION_WRONG_VALUES_ERROR, MYF(0), "RANGE",
-                   "LESS THAN");
-          return true;
-        }
-      } else
+      if (part_info->part_type == partition_type::NONE)
         part_info->part_type = partition_type::RANGE;
+      else if (part_info->part_type != partition_type::RANGE) {
+        my_error(ER_PARTITION_WRONG_VALUES_ERROR, MYF(0), "RANGE", "LESS THAN");
+        return true;
+      }
 
       if (opt_part_values == NULL)  // MAX_VALUE_SYM
       {
@@ -258,13 +254,12 @@ bool PT_part_definition::contextualize(Partition_parse_context *pc) {
         return true;
     } break;
     case partition_type::LIST: {
-      if (!pc->is_add_or_reorganize_partition) {
-        if (part_info->part_type != partition_type::LIST) {
-          my_error(ER_PARTITION_WRONG_VALUES_ERROR, MYF(0), "LIST", "IN");
-          return true;
-        }
-      } else
+      if (part_info->part_type == partition_type::NONE)
         part_info->part_type = partition_type::LIST;
+      else if (part_info->part_type != partition_type::LIST) {
+        my_error(ER_PARTITION_WRONG_VALUES_ERROR, MYF(0), "LIST", "IN");
+        return true;
+      }
 
       if (opt_part_values->contextualize(&ppc)) return true;
     } break;
