@@ -119,7 +119,6 @@ extern EventLogger * g_eventLogger;
 #define DEBUG(x)
 #endif
   
-#define INTERNAL_TRIGGER_TCKEYREQ_JBA 0
 
 #ifdef VM_TRACE
 NdbOut &
@@ -380,13 +379,9 @@ void Dbtc::execCONTINUEB(Signal* signal)
     apiConnectptr.i = Tdata0;
     ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
     {
-      const Uint32 expectedCondition =
-        (apiConnectptr.p->apiConnectstate == CS_SEND_FIRE_TRIG_REQ ||
-         apiConnectptr.p->apiConnectstate == CS_WAIT_FIRE_TRIG_REQ);
-
       if (unlikely(! (apiConnectptr.p->transid[0] == Tdata1 &&
                       apiConnectptr.p->transid[1] == Tdata2 &&
-                      expectedCondition)))
+                      apiConnectptr.p->isExecutingDeferredTriggers())))
       {
         warningReport(signal, 29);
         return;
@@ -3433,8 +3428,8 @@ void Dbtc::execTCKEYREQ(Signal* signal)
             (regApiPtr->immediateTriggerId == RNIL));
 
   if (TexecFlag){
-    Uint32 currSPId = regApiPtr->currSavePointId;
-    regApiPtr->currSavePointId = ++currSPId;
+    const Uint32 currSPId = regApiPtr->currSavePointId;
+    regApiPtr->currSavePointId = currSPId+1;
   }
 
   regCachePtr->attrlength = TattrLen;
@@ -7266,11 +7261,8 @@ Dbtc::execFIRE_TRIG_CONF(Signal* signal)
   Uint32 TapiConnectstate = regApiPtr.p->apiConnectstate;
   UintR Tdata1 = regApiPtr.p->transid[0] - conf->transId[0];
   UintR Tdata2 = regApiPtr.p->transid[1] - conf->transId[1];
-  Uint32 TcheckCondition =
-    (TapiConnectstate != CS_SEND_FIRE_TRIG_REQ) &&
-    (TapiConnectstate != CS_WAIT_FIRE_TRIG_REQ);
 
-  Tdata1 = Tdata1 | Tdata2 | TcheckCondition;
+  Tdata1 = Tdata1 | Tdata2 | !regApiPtr.p->isExecutingDeferredTriggers();
 
   if (Tdata1 != 0) {
     warningReport(signal, 28);
@@ -7360,8 +7352,7 @@ Dbtc::execFIRE_TRIG_REF(Signal* signal)
     return;
   }//if
 
-  if (regApiPtr.p->apiConnectstate != CS_SEND_FIRE_TRIG_REQ &&
-      regApiPtr.p->apiConnectstate != CS_WAIT_FIRE_TRIG_REQ)
+  if (!regApiPtr.p->isExecutingDeferredTriggers())
   {
     jam();
     warningReport(signal, 28);
@@ -19113,6 +19104,9 @@ void Dbtc::executeIndexOperation(Signal* signal,
     return;
   }
 
+  /*
+   * Restore ApiConnectRecord state
+   */
   regApiPtr->currSavePointId = currSavePointId;
   regApiPtr->immediateTriggerId = RNIL;
 }
@@ -19833,11 +19827,21 @@ Dbtc::fk_readFromChildTable(Signal* signal,
    */
   Uint16 flags = TcConnectRecord::SOF_TRIGGER;
   const Uint32 currSavePointId = regApiPtr->currSavePointId;
-  Uint32 usedSavePointId = currSavePointId;
   Uint32 gsn = GSN_TCKEYREQ;
   if (op == ZREAD)
   {
     jam();
+    /**
+     * Fix savepoint id seen by READ:
+     * - If it is a deferred trigger we will see the tuple content
+     *   at commit time, as already available through
+     *   the 'currSavePointId' set by commit.
+     * - else, an immediate trigger should see the tuple as
+     *   immediate after ('+1') the operation which updated it.
+     */
+    if (!transPtr->p->isExecutingDeferredTriggers())
+      regApiPtr->currSavePointId = opRecord->savePointId+1;
+
     flags |= TcConnectRecord::SOF_FK_READ_COMMITTED;
     TcKeyReq::setSimpleFlag(tcKeyRequestInfo, 1);
   }
@@ -19845,16 +19849,18 @@ Dbtc::fk_readFromChildTable(Signal* signal,
   {
     jam();
     /**
-     * Let any DML be made with same save point
-     *   as original DML...but ZREAD reads latest
+     * Let an update/delete triggers be made with same save point
+     *   as operation it orginated from.
      */
-    usedSavePointId = opRecord->savePointId;
+    regApiPtr->currSavePointId = opRecord->savePointId;
     if (fkData->childTableId != fkData->childIndexId)
     {
       jam();
       gsn = GSN_TCINDXREQ;
     }
   }
+  regApiPtr->m_special_op_flags = flags;
+
   TcKeyReq::setKeyLength(tcKeyRequestInfo, 0);
   TcKeyReq::setAIInTcKeyReq(tcKeyRequestInfo, 0);
   tcKeyReq->attrLen = 0;
@@ -19879,11 +19885,6 @@ Dbtc::fk_readFromChildTable(Signal* signal,
 
   guard.clear(); // now sections will be handled...
 
-  /**
-   * Handle savepoint id - (see above)
-   */
-  regApiPtr->currSavePointId = usedSavePointId;
-  regApiPtr->m_special_op_flags = flags;
   /* Pass trigger Id via ApiConnectRecord (nasty) */
   ndbrequire(regApiPtr->immediateTriggerId == RNIL);
   regApiPtr->immediateTriggerId= firedTriggerData->triggerId;
@@ -20385,7 +20386,7 @@ Dbtc::execKEYINFO20(Signal* signal)
    * Fix savepoint id -
    *   fix so that op has same savepoint id as triggering operation
    */
-  Uint32 currSavePointId = transPtr.p->currSavePointId;
+  const Uint32 currSavePointId = transPtr.p->currSavePointId;
   transPtr.p->currSavePointId = opPtr.p->savePointId;
   transPtr.p->m_special_op_flags = TcConnectRecord::SOF_TRIGGER;
   /* Pass trigger Id via ApiConnectRecord (nasty) */
@@ -20949,9 +20950,17 @@ Dbtc::fk_readFromParentTable(Signal* signal,
   signal->header.m_noOfSections = 1;
 
   /**
-   * Don't fix savepoint id -
-   *   read latest copy??
+   * Fix savepoint id seen by READ:
+   * - If it is a deferred trigger we will see the tuple content
+   *   at commit time, as already available through the
+   *   'currSavePointId' set by commit.
+   * - else, an immediate trigger should see the tuple as
+   *   immediate after ('+1') the operation which updated it.
    */
+  const Uint32 currSavePointId = regApiPtr->currSavePointId;
+  if (!transPtr->p->isExecutingDeferredTriggers())
+    regApiPtr->currSavePointId = opRecord->savePointId+1;
+
   regApiPtr->m_special_op_flags = flags;
   /* Pass trigger Id via ApiConnectRecord (nasty) */
   ndbrequire(regApiPtr->immediateTriggerId == RNIL);
@@ -20963,6 +20972,7 @@ Dbtc::fk_readFromParentTable(Signal* signal,
    * Restore ApiConnectRecord state
    */
   regApiPtr->immediateTriggerId = RNIL;
+  regApiPtr->currSavePointId = currSavePointId;
   regApiPtr->m_executing_trigger_ops++;
 }
 
