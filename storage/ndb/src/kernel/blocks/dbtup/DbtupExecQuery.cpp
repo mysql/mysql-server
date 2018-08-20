@@ -375,11 +375,11 @@ Dbtup::setup_read(KeyReqStruct *req_struct,
 {
   OperationrecPtr currOpPtr;
   currOpPtr.i= req_struct->m_tuple_ptr->m_operation_ptr_i;
-  Uint32 bits = req_struct->m_tuple_ptr->m_header_bits;
+  const Uint32 bits = req_struct->m_tuple_ptr->m_header_bits;
 
   if (unlikely(req_struct->m_reorg != ScanFragReq::REORG_ALL))
   {
-    Uint32 moved = bits & Tuple_header::REORG_MOVE;
+    const Uint32 moved = bits & Tuple_header::REORG_MOVE;
     if (! ((req_struct->m_reorg == ScanFragReq::REORG_NOT_MOVED && moved == 0) ||
            (req_struct->m_reorg == ScanFragReq::REORG_MOVED && moved != 0)))
     {
@@ -393,7 +393,18 @@ Dbtup::setup_read(KeyReqStruct *req_struct,
       return false;
     }
   }
-  if (currOpPtr.i == RNIL)
+
+  if (unlikely(bits & Tuple_header::FREE))
+  {
+    /**
+     * The tuple could be FREE'ed due to an INSERT operation which aborted
+     * while we waited for ACC to grant us access to the tuple.
+     */
+    terrorCode= ZTUPLE_DELETED_ERROR;
+    return false;
+  }
+
+  if (likely(currOpPtr.i == RNIL))
   {
     if (regTabPtr->need_expand(disk))
       prepare_read(req_struct, regTabPtr, disk);
@@ -405,9 +416,9 @@ Dbtup::setup_read(KeyReqStruct *req_struct,
     bool dirty= req_struct->dirty_op;
     
     c_operation_pool.getPtr(currOpPtr);
-    bool sameTrans= c_lqh->is_same_trans(currOpPtr.p->userpointer,
-					 req_struct->trans_id1,
-					 req_struct->trans_id2);
+    const bool sameTrans= c_lqh->is_same_trans(currOpPtr.p->userpointer,
+                                               req_struct->trans_id1,
+                                               req_struct->trans_id2);
     /**
      * Read committed in same trans reads latest copy
      */
@@ -424,14 +435,14 @@ Dbtup::setup_read(KeyReqStruct *req_struct,
     /* found == true indicates that savepoint is some state
      * within tuple's current transaction's uncommitted operations
      */
-    bool found= find_savepoint(currOpPtr, savepointId);
+    const bool found= find_savepoint(currOpPtr, savepointId);
     
-    Uint32 currOp= currOpPtr.p->op_type;
+    const Uint32 currOp= currOpPtr.p->op_type;
     
     /* is_insert==true if tuple did not exist before its current
      * transaction
      */
-    bool is_insert = (bits & Tuple_header::ALLOC);
+    const bool is_insert = (bits & Tuple_header::ALLOC);
 
     /* If savepoint is in transaction, and post-delete-op
      *   OR
@@ -1120,6 +1131,8 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
        return true;
      }
 
+     ndbassert(!(req_struct.m_tuple_ptr->m_header_bits & Tuple_header::FREE));
+
      if (Roptype == ZUPDATE) {
        jamDebug();
        if (unlikely(handleUpdateReq(signal, regOperPtr,
@@ -1210,7 +1223,6 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
 
        returnTUPKEYCONF(signal, &req_struct, regOperPtr, TRANS_STARTED);
        return true;
-
      }
      else
      {
@@ -1227,9 +1239,6 @@ Dbtup::setup_fixed_part(KeyReqStruct* req_struct,
 			Operationrec* regOperPtr,
 			Tablerec* regTabPtr)
 {
-  ndbassert(regOperPtr->op_type == ZINSERT ||
-            (! (req_struct->m_tuple_ptr->m_header_bits & Tuple_header::FREE)));
-  
   req_struct->check_offset[MM]= regTabPtr->get_check_offset(MM);
   req_struct->check_offset[DD]= regTabPtr->get_check_offset(DD);
   
