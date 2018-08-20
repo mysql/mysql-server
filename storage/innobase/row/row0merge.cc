@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -3116,15 +3116,27 @@ row_merge_file_create_low(
 	const char*	path)
 {
 	int	fd;
+    char filename[] = "Innodb Merge Temp File\0";
+    char* filepath = NULL;
+    int path_len;
+    if (path == NULL) {
+        path = innobase_mysql_tmpdir();
+    }
 #ifdef UNIV_PFS_IO
 	/* This temp file open does not go through normal
 	file APIs, add instrumentation to register with
 	performance schema */
+    path_len = strlen(path) + sizeof  "/" + strlen(filename)+1;
+    filepath = static_cast<char*>(mem_alloc(path_len));
+    memcpy(filepath,path,strlen(path));
+    ut_snprintf(filepath + strlen(path),path_len - strlen(path),
+       "%c%s",'/',filename);
 	struct PSI_file_locker*	locker = NULL;
+
 	PSI_file_locker_state	state;
 	locker = PSI_FILE_CALL(get_thread_file_name_locker)(
 			       &state, innodb_file_temp_key, PSI_FILE_OPEN,
-			       "Innodb Merge Temp File", &locker);
+			       filepath, &locker);
 	if (locker != NULL) {
 		PSI_FILE_CALL(start_file_open_wait)(locker,
 						    __FILE__,
@@ -3137,6 +3149,7 @@ row_merge_file_create_low(
 		PSI_FILE_CALL(end_file_open_wait_and_bind_to_descriptor)(
 			      locker, fd);
 	}
+    mem_free(filepath);
 #endif
 
 	if (fd < 0) {
