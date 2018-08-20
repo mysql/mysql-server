@@ -1575,7 +1575,6 @@ fi
 %dir %attr(755, mysqlrouter, mysqlrouter) /var/run/mysqlrouter
 
 %changelog
-<<<<<<< HEAD
 * Mon Aug 20 2018 Georgi Kodinov <georgi.kodinov@oracle.com> - 8.0.13-1
 - Added test_services_host_application_signal test plugin
 - Adapt to numbered share directory for NDB files
