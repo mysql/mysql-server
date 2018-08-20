@@ -2145,6 +2145,8 @@ ulint innobase_get_lower_case_table_names(void) {
   return (lower_case_table_names);
 }
 
+char *innobase_mysql_tmpdir() { return (mysql_tmpdir); }
+
 /** Creates a temporary file in the location specified by the parameter
 path. If the path is NULL, then it will be created in --tmpdir.
 @param[in]	path	location for creating temporary file

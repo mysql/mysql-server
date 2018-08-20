@@ -1850,6 +1850,9 @@ dberr_t os_file_get_status(const char *path, os_file_stat_t *stat_info,
                            bool check_rw_perm, bool read_only);
 
 #ifndef UNIV_HOTBACKUP
+
+/** return any of the tmpdir path */
+char *innobase_mysql_tmpdir();
 /** Creates a temporary file in the location specified by the parameter
 path. If the path is NULL then it will be created on --tmpdir location.
 This function is defined in ha_innodb.cc.
