@@ -2017,7 +2017,16 @@ void Dbtc::printState(Signal* signal, int place, ApiConnectRecordPtr const apiCo
     jam();
     CacheRecordPtr cachePtr;
     cachePtr.i = apiConnectptr.p->cachePtr;
-    if (c_cacheRecordPool.getValidPtr(cachePtr))
+    bool success = true;
+    if (cachePtr.i == Uint32(~0))
+    {
+      cachePtr.p = &m_local_cache_record;
+    }
+    else
+    {
+      success = c_cacheRecordPool.getValidPtr(cachePtr);
+    }
+    if (success)
     {
       jam();
       CacheRecord * const regCachePtr = cachePtr.p;
@@ -2533,6 +2542,7 @@ void Dbtc::execKEYINFO(Signal* signal)
   UintR TtcTimer = ctcTimer;
   CacheRecordPtr cachePtr;
   cachePtr.i = apiConnectptr.p->cachePtr;
+  ndbassert(cachePtr.i != Uint32(~0));
   if (unlikely(!c_cacheRecordPool.getValidPtr(cachePtr) || cachePtr.isNull()))
   {
     TCKEY_abort(signal, 42, apiConnectptr);
@@ -2707,6 +2717,7 @@ void Dbtc::execATTRINFO(Signal* signal)
     UintR TtcTimer = ctcTimer;
     CacheRecordPtr cachePtr;
     cachePtr.i = regApiPtr->cachePtr;
+    ndbassert(cachePtr.i != Uint32(~0));
     if (unlikely(!c_cacheRecordPool.getValidPtr(cachePtr) ||
                  cachePtr.isNull()))
     {
@@ -3090,7 +3101,6 @@ Dbtc::seizeCacheRecord(Signal* signal, CacheRecordPtr& cachePtr, ApiConnectRecor
   CacheRecord * const regCachePtr = cachePtr.p;
 
   regApiPtr->cachePtr = cachePtr.i;
-
   regCachePtr->currReclenAi = 0;
   regCachePtr->keyInfoSectionI = RNIL;
   regCachePtr->attrInfoSectionI = RNIL;
@@ -3104,6 +3114,7 @@ Dbtc::releaseCacheRecord(ApiConnectRecordPtr transPtr, CacheRecord* regCachePtr)
   CacheRecordPtr cachePtr;
   cachePtr.p = regCachePtr;
   cachePtr.i = regApiPtr->cachePtr;
+  ndbassert(cachePtr.i != Uint32(~0));
   c_cacheRecordPool.release(cachePtr);
   regApiPtr->cachePtr = RNIL;
   checkPoolShrinkNeed(DBTC_CACHE_RECORD_TRANSIENT_POOL_INDEX,
@@ -3431,12 +3442,30 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   }//if
   
   CacheRecordPtr cachePtr;
-  if (unlikely(seizeCacheRecord(signal, cachePtr, apiConnectptr.p) != 0))
+  if (likely(handle.m_cnt != 0))
   {
-    releaseSections(handle);
-    TCKEY_abort(signal, 3, apiConnectptr);
-    return;
-  }//if
+    jamDebug();
+    /* If we have any sections at all then this is a long TCKEYREQ */
+    cachePtr.i = Uint32(~0);
+    cachePtr.p = &m_local_cache_record;
+    regApiPtr->cachePtr = cachePtr.i;
+    cachePtr.p->currReclenAi = 0;
+    cachePtr.p->keyInfoSectionI = RNIL;
+    cachePtr.p->attrInfoSectionI = RNIL;
+    cachePtr.p->isLongTcKeyReq= true;
+  }
+  else
+  {
+    jamDebug();
+    if (unlikely(seizeCacheRecord(signal, cachePtr, apiConnectptr.p) != 0))
+    {
+      releaseSections(handle);
+      TCKEY_abort(signal, 3, apiConnectptr);
+      return;
+    }//if
+    /* If we have any sections at all then this is a long TCKEYREQ */
+    cachePtr.p->isLongTcKeyReq= false;
+  }
 
   CRASH_INSERTION(8063);
   
@@ -3454,9 +3483,6 @@ void Dbtc::execTCKEYREQ(Signal* signal)
 
   UintR Tlqhkeyreqrec = regApiPtr->lqhkeyreqrec;
   regApiPtr->lqhkeyreqrec = Tlqhkeyreqrec + 1;
-
-  /* If we have any sections at all then this is a long TCKEYREQ */
-  regCachePtr->isLongTcKeyReq= ( handle.m_cnt != 0 );
 
   UintR TapiConnectptrIndex = apiConnectptr.i;
   UintR TsenderData = tcKeyReq->senderData;
@@ -3549,6 +3575,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
 
   if (isExecutingTrigger)
   {
+    jamDebug();
     // Save the TcOperationPtr for fireing operation
     ndbrequire(TsenderData != RNIL);
     regTcPtr->triggeringOperation = TsenderData;
@@ -4903,10 +4930,13 @@ void Dbtc::releaseAttrinfo(CacheRecordPtr cachePtr, ApiConnectRecord* const regA
   // Now we will release the cache record at the same
   // time as releasing the attrinfo records.
   //---------------------------------------------------
-  c_cacheRecordPool.release(cachePtr);
+  if (unlikely(regApiPtr->cachePtr != Uint32(~0)))
+  {
+    c_cacheRecordPool.release(cachePtr);
+    checkPoolShrinkNeed(DBTC_CACHE_RECORD_TRANSIENT_POOL_INDEX,
+                        c_cacheRecordPool);
+  }
   regApiPtr->cachePtr = RNIL;
-  checkPoolShrinkNeed(DBTC_CACHE_RECORD_TRANSIENT_POOL_INDEX,
-                      c_cacheRecordPool);
   return;
 }//Dbtc::releaseAttrinfo()
 
@@ -5346,7 +5376,8 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
   }//if
   TcConnectRecord* const regTcPtr = tcConnectptr.p;
   OperationState TtcConnectstate = regTcPtr->tcConnectstate;
-  if (TtcConnectstate != OS_OPERATING) {
+  if (unlikely(TtcConnectstate != OS_OPERATING))
+  {
     warningReport(signal, 23);
     return;
   }//if
@@ -5369,7 +5400,8 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
   compare_transid1 = regApiPtr.p->transid[0] ^ Ttrans1;
   compare_transid2 = regApiPtr.p->transid[1] ^ Ttrans2;
   compare_transid1 = compare_transid1 | compare_transid2;
-  if (compare_transid1 != 0) {
+  if (unlikely(compare_transid1 != 0))
+  {
     warningReport(signal, 24);
     return;
   }//if
@@ -5433,13 +5465,14 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
   Uint32 Toperation = regTcPtr->operation;
   ConnectionState TapiConnectstate = regApiPtr.p->apiConnectstate;
 
-  if (TapiConnectstate == CS_ABORTING) {
+  if (unlikely(TapiConnectstate == CS_ABORTING))
+  {
     warningReport(signal, 27);
     return;
   }//if
 
   Uint32 lockingOpI = RNIL;
-  if (Toperation == ZUNLOCK)
+  if (unlikely(Toperation == ZUNLOCK))
   {
     /* For unlock operations readlen in TCKEYCONF carries
      * the locking operation TC reference
@@ -5484,7 +5517,8 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
       }
     }
   }
-  if (regTcPtr->isIndexOp(regTcPtr->m_special_op_flags)) {
+  if (unlikely(regTcPtr->isIndexOp(regTcPtr->m_special_op_flags)))
+  {
     jam();
     // This was an internal TCKEYREQ
     // will be returned unpacked
@@ -5526,7 +5560,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     save_tcConnectptr = tcConnectptr;
     regApiPtr.p->lqhkeyreqrec = Tlqhkeyreqrec - 1;
   }
-  else if (Toperation == ZUNLOCK)
+  else if (unlikely(Toperation == ZUNLOCK))
   {
     jam();
     /* We've unlocked and released a read operation in LQH
@@ -5623,7 +5657,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     }
   }//if
 
-  if (regTcPtr->triggeringOperation != RNIL)
+  if (unlikely(regTcPtr->triggeringOperation != RNIL))
   {
     // A trigger op execution ends.
     jam();
@@ -5660,7 +5694,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     }
     // else wait for more trigger data
   }
-  else if (regTcPtr->isIndexOp(regTcPtr->m_special_op_flags))
+  else if (unlikely(regTcPtr->isIndexOp(regTcPtr->m_special_op_flags)))
   {
     // This is a index-table read
     jam();
@@ -5670,7 +5704,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     setupIndexOpReturn(regApiPtr.p, regTcPtr);
     lqhKeyConf_checkTransactionState(signal, regApiPtr);
   }
-  else if (regTcPtr->triggeringOperation == RNIL)
+  else if (likely(regTcPtr->triggeringOperation == RNIL))
   {
     // This is "normal" path
     jamDebug();
@@ -12980,7 +13014,8 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
 
   ApiConnectRecord * transP = apiConnectptr.p;
 
-  if (transP->apiConnectstate != CS_CONNECTED) {
+  if (transP->apiConnectstate != CS_CONNECTED)
+  {
     jam();
     // could be left over from TCKEYREQ rollback
     if (transP->apiConnectstate == CS_ABORTING &&
@@ -13000,7 +13035,7 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   }
   ndbassert(transP->ndbapiBlockref == apiBlockRef);
 
-  if(tabptr.i >= ctabrecFilesize)
+  if (unlikely(tabptr.i >= ctabrecFilesize))
   {
     errCode = ZUNKNOWN_TABLE_ERROR;
     goto SCAN_TAB_error;
@@ -13036,11 +13071,13 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
     ApiConnectRecordPtr buddyApiPtr;
     buddyApiPtr.i = buddyPtr;
     c_apiConnectRecordPool.getPtr(buddyApiPtr);
-    if ((transid1 == buddyApiPtr.p->transid[0]) &&
-	(transid2 == buddyApiPtr.p->transid[1])) {
+    if (likely((transid1 == buddyApiPtr.p->transid[0]) &&
+	       (transid2 == buddyApiPtr.p->transid[1])))
+    {
       jam();
       
-      if (buddyApiPtr.p->apiConnectstate == CS_ABORTING) {
+      if (unlikely(buddyApiPtr.p->apiConnectstate == CS_ABORTING))
+      {
 	// transaction has been aborted
 	jam();
 	errCode = buddyApiPtr.p->returncode;
@@ -13055,9 +13092,9 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
     }
   }
   
-  if (getNodeState().startLevel == NodeState::SL_SINGLEUSER &&
-      getNodeState().getSingleUserApi() !=
-      refToNode(apiConnectptr.p->ndbapiBlockref))
+  if (unlikely(getNodeState().startLevel == NodeState::SL_SINGLEUSER &&
+               getNodeState().getSingleUserApi() !=
+               refToNode(apiConnectptr.p->ndbapiBlockref)))
   {
     errCode = ZCLUSTER_IN_SINGLEUSER_MODE;
     goto SCAN_TAB_error;
@@ -13142,7 +13179,7 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
     CLEAR_ERROR_INSERT_VALUE;
   }
 
-  if (isLongReq)
+  if (likely(isLongReq))
   {
     /* All AttrInfo (and KeyInfo) has been received, continue
      * processing
@@ -13399,6 +13436,7 @@ void Dbtc::scanAttrinfoLab(Signal* signal, UintR Tlen, ApiConnectRecordPtr const
   scanRecordPool.getPtr(scanptr);
   CacheRecordPtr cachePtr;
   cachePtr.i = apiConnectptr.p->cachePtr;
+  ndbassert(cachePtr.i != Uint32(~0));
   c_cacheRecordPool.getPtr(cachePtr);
   CacheRecord * const regCachePtr = cachePtr.p;
   ndbrequire(scanptr.p->scanState == ScanRecord::WAIT_AI);
@@ -13445,7 +13483,8 @@ void Dbtc::diFcountReqLab(Signal* signal, ScanRecordPtr scanptr, ApiConnectRecor
   TableRecordPtr tabPtr;
   tabPtr.i = scanptr.p->scanTableref;
   tabPtr.p = &tableRecord[tabPtr.i];
-  if (tabPtr.p->checkTable(scanptr.p->scanSchemaVersion)){
+  if (likely(tabPtr.p->checkTable(scanptr.p->scanSchemaVersion)))
+  {
     ;
   } else {
     abortScanLab(signal, scanptr, 
@@ -13475,7 +13514,7 @@ void Dbtc::diFcountReqLab(Signal* signal, ScanRecordPtr scanptr, ApiConnectRecor
                     DihScanTabReq::SignalLength, 0);
 
   DihScanTabConf * conf = (DihScanTabConf*)signal->getDataPtr();
-  if (conf->senderData == 0)
+  if (likely(conf->senderData == 0))
   {
     execDIH_SCAN_TAB_CONF(signal, scanptr, tabPtr, apiConnectptr);
     return;
@@ -13506,19 +13545,20 @@ void Dbtc::execDIH_SCAN_TAB_CONF(Signal* signal,
   scanptr.p->m_scan_cookie = conf->scanCookie;
   ndbrequire(scanptr.p->m_scan_cookie != DihScanTabConf::InvalidCookie);
 
-  if (conf->reorgFlag)
+  if (unlikely(conf->reorgFlag))
   {
     jam();
     ScanFragReq::setReorgFlag(scanptr.p->scanRequestInfo, ScanFragReq::REORG_NOT_MOVED);
   }
-  if (regApiPtr->apiFailState != ApiConnectRecord::AFS_API_OK)
+  if (unlikely(regApiPtr->apiFailState != ApiConnectRecord::AFS_API_OK))
   {
     jam();
     releaseScanResources(signal, scanptr, apiConnectptr, true);
     handleApiFailState(signal, apiConnectptr.i);
     return;
   }//if
-  if (tfragCount == 0) {
+  if (unlikely(tfragCount == 0))
+  {
     jam();
     abortScanLab(signal, scanptr, ZNO_FRAGMENT_ERROR, true, apiConnectptr);
     return;
@@ -13647,7 +13687,7 @@ void Dbtc::sendDihGetNodesLab(Signal* signal, ScanRecordPtr scanptr, ApiConnectR
     }
 
     const bool success = sendDihGetNodeReq(signal, scanptr, scanP->scanNextFragId);
-    if (!success)
+    if (unlikely(!success))
     {
       jam();
       return;  //sendDihGetNodeReq called scanError() upon failure.
@@ -13751,6 +13791,7 @@ void Dbtc::releaseScanResources(Signal* signal,
   {
     CacheRecordPtr cachePtr;
     cachePtr.i = apiConnectptr.p->cachePtr;
+    ndbrequire(cachePtr.i != Uint32(~0));
     c_cacheRecordPool.getPtr(cachePtr);
     releaseKeys(cachePtr.p);
     releaseAttrinfo(cachePtr, apiConnectptr.p);
@@ -14145,7 +14186,7 @@ void Dbtc::sendFragScansLab(Signal* signal,
     ndbassert(scanptr.p->m_booked_fragments_count > 0);
     scanptr.p->m_booked_fragments_count--;
     const bool success = sendScanFragReq(signal, scanptr, scanFragP, apiConnectptr);
-    if (!success)
+    if (unlikely(!success))
     {
       jam();
       return;
@@ -15473,7 +15514,14 @@ void Dbtc::releaseAbortResources(Signal* signal, ApiConnectRecordPtr const apiCo
   {
     CacheRecordPtr cachePtr;
     cachePtr.i = apiConnectptr.p->cachePtr;
-    c_cacheRecordPool.getPtr(cachePtr);
+    if (likely(cachePtr.i == Uint32(~0)))
+    {
+      cachePtr.p = &m_local_cache_record;
+    }
+    else
+    {
+      c_cacheRecordPool.getPtr(cachePtr);
+    }
     releaseKeys(cachePtr.p);
     releaseAttrinfo(cachePtr, apiConnectptr.p);
   }//if

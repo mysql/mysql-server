@@ -1387,6 +1387,7 @@ public:
   typedef Ptr<CacheRecord> CacheRecordPtr;
   typedef TransientPool<CacheRecord> CacheRecord_pool;
   STATIC_CONST(DBTC_CACHE_RECORD_TRANSIENT_POOL_INDEX = 7);
+  CacheRecord m_local_cache_record;
   
   /* ************************ HOST RECORD ********************************** */
   /********************************************************/

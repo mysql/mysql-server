@@ -14569,7 +14569,8 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
 
   const Uint32 scanPrio = ScanFragReq::getScanPrio(reqinfo);
 
-  if (max_rows == 0 || (max_bytes > 0 && max_rows > max_bytes)){
+  if (unlikely(max_rows == 0 || (max_bytes > 0 && max_rows > max_bytes)))
+  {
     jam();
     return ScanFragRef::ZWRONG_BATCH_SIZE;
   }
@@ -14584,7 +14585,8 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
   {
     DEBUG_RES_OWNER_GUARD(refToBlock(reference()) << 16 | 999);
 
-    if (!seize_acc_ptr_list(scanPtr, 0, max_rows)){
+    if (unlikely(!seize_acc_ptr_list(scanPtr, 0, max_rows)))
+    {
       jam();
       return ScanFragRef::ZTOO_MANY_ACTIVE_SCAN_ERROR;
     }
