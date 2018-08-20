@@ -6720,7 +6720,8 @@ void Dbtc::execCOMMITTED(Signal* signal)
     return;
   }
   localApiConnectptr.i = localTcConnectptr.p->apiConnect;
-  if (localTcConnectptr.p->tcConnectstate != OS_COMMITTING) {
+  if (unlikely(localTcConnectptr.p->tcConnectstate != OS_COMMITTING))
+  {
     warningReport(signal, 4);
     return;
   }//if
@@ -6734,13 +6735,15 @@ void Dbtc::execCOMMITTED(Signal* signal)
     (TapiConnectstate != CS_COMMIT_SENT) || (Tcounter != 0);
 
   localTcConnectptr.p->tcConnectstate = OS_COMMITTED;
-  if (Tdata1 != 0) {
+  if (unlikely(Tdata1 != 0))
+  {
     warningReport(signal, 5);
     return;
   }//if
   setApiConTimer(localApiConnectptr, ctcTimer, __LINE__);
   localApiConnectptr.p->counter = Tcounter;
-  if (TcheckCondition) {
+  if (unlikely(TcheckCondition))
+  {
     jam();
     /*-------------------------------------------------------*/
     // We have not sent all COMMIT requests yet. We could be
@@ -7502,7 +7505,8 @@ Dbtc::execTC_COMMIT_ACK(Signal* signal){
 
   CommitAckMarkerPtr removedMarker;
   m_commitAckMarkerHash.remove(removedMarker, key);
-  if (removedMarker.i == RNIL) {
+  if (unlikely(removedMarker.i == RNIL))
+  {
     jam();
     warningHandlerLab(signal, __LINE__);
     return;
@@ -8178,12 +8182,14 @@ void Dbtc::execTC_COMMITREQ(Signal* signal)
   jamEntry();
   ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = signal->theData[0];
-  if (c_apiConnectRecordPool.getValidPtr(apiConnectptr) && !apiConnectptr.isNull())
+  if (likely(c_apiConnectRecordPool.getValidPtr(apiConnectptr) &&
+             !apiConnectptr.isNull()))
   {
     compare_transid1 = apiConnectptr.p->transid[0] ^ signal->theData[1];
     compare_transid2 = apiConnectptr.p->transid[1] ^ signal->theData[2];
     compare_transid1 = compare_transid1 | compare_transid2;
-    if (compare_transid1 != 0) {
+    if (unlikely(compare_transid1 != 0))
+    {
       jam();
       return;
     }//if
@@ -8199,11 +8205,12 @@ void Dbtc::execTC_COMMITREQ(Signal* signal)
     regApiPtr->m_flags |= ApiConnectRecord::TF_EXEC_FLAG;
     switch (regApiPtr->apiConnectstate) {
     case CS_STARTED:
-      if (!regApiPtr->tcConnect.isEmpty())
+      if (likely(!regApiPtr->tcConnect.isEmpty()))
       {
         tcConnectptr.i = regApiPtr->tcConnect.getFirst();
         tcConnectRecord.getPtr(tcConnectptr);
-        if (regApiPtr->lqhkeyconfrec == regApiPtr->lqhkeyreqrec) {
+        if (likely(regApiPtr->lqhkeyconfrec == regApiPtr->lqhkeyreqrec))
+        {
           jam();
           /*******************************************************************/
           // The proper case where the application is waiting for commit or 
@@ -8336,7 +8343,8 @@ void Dbtc::execTCROLLBACKREQ(Signal* signal)
   compare_transid1 = apiConnectptr.p->transid[0] ^ signal->theData[1];
   compare_transid2 = apiConnectptr.p->transid[1] ^ signal->theData[2];
   compare_transid1 = compare_transid1 | compare_transid2;
-  if (compare_transid1 != 0) {
+  if (unlikely(compare_transid1 != 0))
+  {
     jam();
     return;
   }//if
@@ -8429,8 +8437,9 @@ void Dbtc::execTC_HBREP(Signal* signal)
   apiConnectptr.i = tcHbRep->apiConnectPtr;
   c_apiConnectRecordPool.getPtr(apiConnectptr);
 
-  if (apiConnectptr.p->transid[0] == tcHbRep->transId1 &&
-      apiConnectptr.p->transid[1] == tcHbRep->transId2){
+  if (likely(apiConnectptr.p->transid[0] == tcHbRep->transId1 &&
+             apiConnectptr.p->transid[1] == tcHbRep->transId2))
+  {
 
     if (likely(getApiConTimer(apiConnectptr) != 0))
     {
@@ -8819,7 +8828,9 @@ void Dbtc::abortErrorLab(Signal* signal, ApiConnectRecordPtr const apiConnectptr
 void Dbtc::abort010Lab(Signal* signal, ApiConnectRecordPtr const apiConnectptr)
 {
   ApiConnectRecord * transP = apiConnectptr.p;
-  if (transP->apiConnectstate == CS_ABORTING && transP->abortState != AS_IDLE){
+  if (unlikely(transP->apiConnectstate == CS_ABORTING &&
+               transP->abortState != AS_IDLE))
+  {
     jam();
     return;
   }
@@ -14961,6 +14972,8 @@ Dbtc::get_and_step_next_frag_location(ScanFragLocationPtr & fragLocationPtr,
     ndbassert(ptr.i == fragLocationPtr.i);
     m_fragLocationPool.release(fragLocationPtr);  //Consumed it
     list.first(fragLocationPtr);
+    checkPoolShrinkNeed(DBTC_FRAG_LOCATION_TRANSIENT_POOL_INDEX,
+                        m_fragLocationPool);
   }
 }
 
@@ -15036,14 +15049,10 @@ bool Dbtc::sendScanFragReq(Signal* signal,
       jam();
       sections.clear();
       scanError(signal, scanptr, ZGET_DATAREC_ERROR);
-      checkPoolShrinkNeed(DBTC_FRAG_LOCATION_TRANSIENT_POOL_INDEX,
-                          m_fragLocationPool);
       return false;
     }
     sections.m_ptr[sections.m_cnt++].i = fragIdPtr.i;
   } //MultiFrag
-  checkPoolShrinkNeed(DBTC_FRAG_LOCATION_TRANSIENT_POOL_INDEX,
-                      m_fragLocationPool);
 
   /* Determine whether this is the last scanFragReq.
    * Handle normal scan-all-fragments and partition pruned
