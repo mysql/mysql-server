@@ -61,7 +61,7 @@ class XProtocolTest : public ::testing::Test {
 
   void serialize_protobuf_msg_to_buffer(RoutingProtocolBuffer &buffer,
                                         size_t &buffer_offset,
-                                        google::protobuf::Message &msg,
+                                        google::protobuf::MessageLite &msg,
                                         unsigned char type) {
     size_t msg_size = msg.ByteSize();
     google::protobuf::io::CodedOutputStream::WriteLittleEndian32ToArray(

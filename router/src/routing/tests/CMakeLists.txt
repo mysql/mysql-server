@@ -30,14 +30,14 @@ INCLUDE_DIRECTORIES(
 
 INCLUDE_DIRECTORIES(SYSTEM
   ${PROTOBUF_INCLUDE_DIR}
-  ${MYSQLX_GENERATE_DIR}/protobuf
+  ${MYSQLX_GENERATE_DIR}/protobuf_lite
 )
 
 # link_directories(${PROJECT_BINARY_DIR}/ext/protobuf/protobuf-3.0.0/cmake/)
 ADD_LIBRARY(routing_tests STATIC ${ROUTING_SOURCE_FILES})
 TARGET_LINK_LIBRARIES(routing_tests routertest_helpers router_lib
                       metadata_cache_static mysql_protocol_static
-                      mysqlxmessages ${PROTOBUF_LIBRARY})
+                      mysqlxmessages_lite ${PROTOBUF_LITE_LIBRARY})
 TARGET_COMPILE_DEFINITIONS(routing_tests PRIVATE -Dmetadata_cache_DEFINE_STATIC=1)
 TARGET_COMPILE_DEFINITIONS(routing_tests PRIVATE -Dmysql_protocol_DEFINE_STATIC=1)
 TARGET_INCLUDE_DIRECTORIES(routing PRIVATE ${include_dirs})
