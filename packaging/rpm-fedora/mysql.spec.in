@@ -1079,7 +1079,7 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 
 %files -n mysql-router-%{product_suffix}
 %defattr(-, root, root, -)
-%doc %{src_dir}/packaging/router/README.txt  %{src_dir}/packaging/router/License.txt
+%doc %{src_dir}/router/README.router  %{src_dir}/router/LICENSE.router
 %dir %{_sysconfdir}/mysqlrouter
 %config(noreplace) %{_sysconfdir}/mysqlrouter/mysqlrouter.conf
 %{_bindir}/mysqlrouter
@@ -1094,9 +1094,10 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %dir %attr(755, mysqlrouter, mysqlrouter) /var/run/mysqlrouter
 
 %changelog
-* Wed Jul 18 2018 Georgi Kodinov <georgi.kodinov@oracle.com> - 8.0.13-1
+* Mon Aug 20 2018 Georgi Kodinov <georgi.kodinov@oracle.com> - 8.0.13-1
 - Added test_services_host_application_signal test plugin
 - Added component_test_host_application_signal.so test component
+- Add Router
 
 * Mon Mar 12 2018 Bjorn Munch <bjorn.munch@oracle.com> - 8.0.12-0.1
 

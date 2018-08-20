@@ -28,5 +28,5 @@ debian/extra/mysqlrouter.conf /etc/mysqlrouter/
 @DEB_INSTALL_ROUTER_APPARMOR@
 
 # legal
-usr/License-router.txt usr/share/doc/mysql-router-@DEB_PRODUCTNAME@/
-usr/README-router.txt usr/share/doc/mysql-router-@DEB_PRODUCTNAME@/
+usr/LICENSE.router usr/share/doc/mysql-router-@DEB_PRODUCTNAME@/
+usr/README.router usr/share/doc/mysql-router-@DEB_PRODUCTNAME@/

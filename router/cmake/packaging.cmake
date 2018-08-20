@@ -49,8 +49,8 @@ ENDIF()
 #
 # Source Distribution
 #
-SET(CPACK_ROUTER_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/License.txt")
-SET(CPACK_ROUTER_RESOURCE_FILE_README "${CMAKE_CURRENT_SOURCE_DIR}/README.txt")
+SET(CPACK_ROUTER_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE.router")
+SET(CPACK_ROUTER_RESOURCE_FILE_README "${CMAKE_CURRENT_SOURCE_DIR}/README.router")
 SET(CPACK_SOURCE_GENERATOR "ZIP;TGZ")
 SET(CPACK_SOURCE_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}${PROJECT_PACKAGE_EXTRAS}")
 
@@ -69,8 +69,8 @@ SET(source_include
   "${src_dir}/packaging"
   "${src_dir}/CMakeLists.txt"
   "${src_dir}/config.h.in"
-  "${src_dir}/README.txt"
-  "${src_dir}/License.txt")
+  "${src_dir}/README.router"
+  "${src_dir}/LICENSE.router")
 LIST(REMOVE_ITEM cpack_source_ignore_files ${source_include})
 LIST(APPEND cpack_source_ignore_files "${src_dir}/harness/.gitignore")
 

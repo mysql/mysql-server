@@ -139,21 +139,6 @@
       </Directory>
     </Directory>
 
-  <!-- Add documentation files to the installation -->
-  <DirectoryRef Id="DOCDIR">
-    <Component Id="License.txt" Win64="yes" Guid="{9A064A62-989C-4076-B995-E10453CC6BAB}">
-        <File Id="License.txt" Source="@CPACK_ROUTER_RESOURCE_FILE_LICENSE@" KeyPath="yes"/>
-    </Component>
-    <Component Id="README.txt" Win64="yes" Guid="{24109AC5-CF9A-465D-8B07-861654F5475A}">
-        <File Id="README.txt" Source="@CPACK_ROUTER_RESOURCE_FILE_README@" KeyPath="yes"/>
-    </Component>
-  </DirectoryRef>
-
-  <Feature Id="Documentation" Title="MySQL Router Documentation Files" Display="hidden" Level="1">
-     <ComponentRef Id="License.txt" />
-     <ComponentRef Id="README.txt" />
-  </Feature>
-
     <!-- CPACK_WIX_FEATURES -->
     @CPACK_WIX_FEATURES@
 
