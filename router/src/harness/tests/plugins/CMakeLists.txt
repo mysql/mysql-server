@@ -28,7 +28,6 @@ add_harness_plugin(bad_two NO_INSTALL
   SOURCES bad_two.cc)
 add_harness_plugin(magic NO_INSTALL
   DESTINATION harness
-  INTERFACE include
   SOURCES magic.cc)
 add_harness_plugin(harness_example NO_INSTALL
   DESTINATION harness
@@ -37,14 +36,11 @@ add_harness_plugin(harness_example NO_INSTALL
   OUTPUT_NAME example)
 add_harness_plugin(lifecycle NO_INSTALL
   DESTINATION harness
-  INTERFACE include
   SOURCES lifecycle.cc
 )
 add_harness_plugin(lifecycle2 NO_INSTALL
   DESTINATION harness
-  INTERFACE include
   SOURCES lifecycle2.cc)
 add_harness_plugin(lifecycle3 NO_INSTALL
   DESTINATION harness
-  INTERFACE include
   SOURCES lifecycle3.cc)
