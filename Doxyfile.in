@@ -871,7 +871,6 @@ INPUT                  = ./client \
                          ./plugin/test_service_sql_api \
                          ./plugin/version_token \
                          ./plugin/pfs_table_plugin \
-                         ./router/README.txt \
                          ./router/src \
                          ./sql \
                          ./sql-common \
