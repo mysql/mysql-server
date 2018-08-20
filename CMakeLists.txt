@@ -52,6 +52,19 @@ IF(POLICY CMP0026)
   CMAKE_POLICY(SET CMP0026 NEW)
 ENDIF()
 
+# In CMake 3.12 and above, the
+#
+# * ``check_include_file`` macro in the ``CheckIncludeFile`` module, the
+# * ``check_include_file_cxx`` macro in the
+#   ``CheckIncludeFileCXX`` module, and the
+# * ``check_include_files`` macro in the ``CheckIncludeFiles`` module
+#
+# now prefer to link the check executable to the libraries listed in the
+# ``CMAKE_REQUIRED_LIBRARIES`` variable.
+IF(POLICY CMP0075)
+  CMAKE_POLICY(SET CMP0075 OLD)
+ENDIF()
+
 MESSAGE(STATUS "Running cmake version ${CMAKE_VERSION}")
 
 # Will set GIT_EXECUTABLE and GIT_FOUND
@@ -225,7 +238,14 @@ IF(WITH_NDBCLUSTER)
   MESSAGE(STATUS "Building MySQL Cluster")
 ENDIF()
 
-PROJECT(${MYSQL_PROJECT_NAME})
+INCLUDE(mysql_version)
+IF(POLICY CMP0048)
+  CMAKE_POLICY(SET CMP0048 NEW)
+  PROJECT(${MYSQL_PROJECT_NAME}
+    VERSION ${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH_VERSION})
+ELSE()
+  PROJECT(${MYSQL_PROJECT_NAME})
+ENDIF()
 
 MACRO(REPORT_CXX_FLAGS)
   FOREACH(BUILD_TYPE "" _DEBUG _RELWITHDEBINFO _RELEASE _MINSIZEREL)
@@ -348,7 +368,7 @@ INCLUDE(ssl)
 INCLUDE(sasl)
 INCLUDE(readline)
 INCLUDE(protobuf)
-INCLUDE(mysql_version)
+INCLUDE(package_name)
 INCLUDE(libutils)
 INCLUDE(plugin)
 INCLUDE(component)

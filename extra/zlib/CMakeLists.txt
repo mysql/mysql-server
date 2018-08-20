@@ -1,5 +1,5 @@
 
-# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -24,9 +24,18 @@
 cmake_minimum_required(VERSION 2.4.4)
 set(CMAKE_ALLOW_LOOSE_LOOP_CONSTRUCTS ON)
 
-project(zlib C)
-
 set(VERSION "1.2.11")
+
+IF(POLICY CMP0048)
+  CMAKE_POLICY(SET CMP0048 NEW)
+  project(zlib VERSION ${VERSION} LANGUAGES C)
+ELSE()
+  project(zlib C)
+ENDIF()
+
+IF(POLICY CMP0075)
+  CMAKE_POLICY(SET CMP0075 OLD)
+ENDIF()
 
 include(CheckTypeSize)
 include(CheckFunctionExists)

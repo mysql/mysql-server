@@ -21,7 +21,6 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 add_harness_plugin(keepalive
-  INTERFACE include
   SOURCES src/keepalive.cc
   DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
   )
