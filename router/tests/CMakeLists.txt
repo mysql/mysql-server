@@ -45,7 +45,7 @@ ADD_LIBRARY(routertest_helpers STATIC ${helper_sources})
 
 TARGET_LINK_LIBRARIES(routertest_helpers harness-library router_lib)
 
-FOREACH(test_dir legal tools)
+FOREACH(test_dir tools)
     IF(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${test_dir})
         add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}/${test_dir} MODULE project)
     ENDIF()

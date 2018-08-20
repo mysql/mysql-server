@@ -1366,7 +1366,7 @@ fi
 
 %files -n mysql-router-%{product_suffix}
 %defattr(-, root, root, -)
-%doc %{src_dir}/packaging/router/README.txt  %{src_dir}/packaging/router/License.txt
+%doc %{src_dir}/router/README.router  %{src_dir}/router/LICENSE.router
 %dir %{_sysconfdir}/mysqlrouter
 %config(noreplace) %{_sysconfdir}/mysqlrouter/mysqlrouter.conf
 %{_bindir}/mysqlrouter
@@ -1385,9 +1385,10 @@ fi
 %dir %attr(755, mysqlrouter, mysqlrouter) /var/run/mysqlrouter
 
 %changelog
-* Wed Jun 13 2018 Bjorn Munch <bjorn.munch@oracle.com> - 8.0.13-1
+* Mon Aug 20 2018 Bjorn Munch <bjorn.munch@oracle.com> - 8.0.13-1
 - Adapt to numbered share directory for NDB files
 - Add support for SLES 15
+- Add Router
 
 * Mon Mar 12 2018 Erlend Dahl <erlend.dahl@oracle.com> - 8.0.12-0.1
 - Move mysqlx to default plugin

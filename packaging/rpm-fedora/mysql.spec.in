@@ -1075,7 +1075,7 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 
 %files -n mysql-router-%{product_suffix}
 %defattr(-, root, root, -)
-%doc %{src_dir}/packaging/router/README.txt  %{src_dir}/packaging/router/License.txt
+%doc %{src_dir}/router/README.router  %{src_dir}/router/LICENSE.router
 %dir %{_sysconfdir}/mysqlrouter
 %config(noreplace) %{_sysconfdir}/mysqlrouter/mysqlrouter.conf
 %{_bindir}/mysqlrouter
@@ -1090,6 +1090,9 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %dir %attr(755, mysqlrouter, mysqlrouter) /var/run/mysqlrouter
 
 %changelog
+* Mon Aug 20 2018 Bjorn Munch <bjorn.munch@oracle.com> - 8.0.13-1
+- Add Router
+
 * Mon Mar 12 2018 Bjorn Munch <bjorn.munch@oracle.com> - 8.0.12-0.1
 - Move mysqlx to default plugin
 - Add component_mysqlx_global_reset.so
