@@ -139,6 +139,7 @@ Uint64 TransientPagePool::getMemoryNeed(Uint32 pages)
   return map_pages * sizeof(MapPage);
 }
 
+inline
 bool TransientPagePool::getUncheckedPtr(Ptr<Page>& p) const
 {
   if (unlikely(p.i == RNIL))
