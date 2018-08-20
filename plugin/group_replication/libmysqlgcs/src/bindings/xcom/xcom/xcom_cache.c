@@ -181,24 +181,29 @@ protected_lru tracks the machines that are currently in the cache in
 lest recently used order.
 */
 
-static lru_machine *lru_get() {
+static lru_machine *lru_get(bool_t force) {
   lru_machine *retval = NULL;
+  lru_machine *force_retval = NULL;
   if (!link_empty(&probation_lru)) {
     retval = (lru_machine *)link_first(&probation_lru);
   } else {
     /* Find the first non-busy instance in the LRU */
     FWD_ITER(&protected_lru, lru_machine,
-             if (!is_busy_machine(&link_iter->pax) &&
-                 was_machine_executed(&link_iter->pax)) {
-               retval = link_iter;
-               /* Since this machine is in in the cache, we need to update
-               last_removed_cache */
-               last_removed_cache = retval->pax.synode;
-               break;
+             if (!is_busy_machine(&link_iter->pax)) {
+               if (was_machine_executed(&link_iter->pax)) {
+                 retval = link_iter;
+                 break;
+               } else if (force && !force_retval) {
+                 force_retval = link_iter;
+               }
              })
+
+    if (!retval && force) retval = force_retval;
+
+    /* Since this machine is in the cache, we need to update
+       last_removed_cache */
+    if (retval) last_removed_cache = retval->pax.synode;
   }
-  assert(retval && !is_busy_machine(&retval->pax) &&
-         was_machine_executed(&retval->pax));
   return retval;
 }
 
@@ -255,12 +260,14 @@ void deinit_cache() {
 
 /* static synode_no log_tail; */
 
-pax_machine *get_cache_no_touch(synode_no synode) {
+pax_machine *get_cache_no_touch(synode_no synode, bool_t force) {
   pax_machine *retval = hash_get(synode);
   /* DBGOUT(FN; SYCEXP(synode); STREXP(task_name())); */
   MAY_DBG(FN; SYCEXP(synode); PTREXP(retval));
   if (!retval) {
-    lru_machine *l = lru_get(); /* Need to know when it is safe to re-use... */
+    lru_machine *l =
+        lru_get(force); /* Need to know when it is safe to re-use... */
+    if (!l) return NULL;
     MAY_DBG(FN; PTREXP(l); COPY_AND_FREE_GOUT(dbg_pax_machine(&l->pax)););
     /*     assert(l->pax.synode > log_tail); */
 
@@ -272,9 +279,16 @@ pax_machine *get_cache_no_touch(synode_no synode) {
   return retval;
 }
 
-pax_machine *get_cache(synode_no synode) {
-  pax_machine *retval = get_cache_no_touch(synode);
+pax_machine *force_get_cache(synode_no synode) {
+  pax_machine *retval = get_cache_no_touch(synode, TRUE);
   lru_touch_hit(retval); /* Insert in protected_lru */
+  MAY_DBG(FN; SYCEXP(synode); PTREXP(retval));
+  return retval;
+}
+
+pax_machine *get_cache(synode_no synode) {
+  pax_machine *retval = get_cache_no_touch(synode, FALSE);
+  if (retval) lru_touch_hit(retval); /* Insert in protected_lru */
   MAY_DBG(FN; SYCEXP(synode); PTREXP(retval));
   return retval;
 }
