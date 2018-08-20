@@ -1618,6 +1618,7 @@ struct KeyReqStruct {
     m_when = when;
     m_deferred_constraints = true;
     m_disable_fk_checks = false;
+    m_tuple_ptr = NULL;
   }
   KeyReqStruct(Dbtup* tup, When when = KRS_PREPARE) {
 #if defined VM_TRACE || defined ERROR_INSERT
@@ -1627,6 +1628,7 @@ struct KeyReqStruct {
     m_when = when;
     m_deferred_constraints = true;
     m_disable_fk_checks = false;
+    m_tuple_ptr = NULL;
   }
   
 /**
