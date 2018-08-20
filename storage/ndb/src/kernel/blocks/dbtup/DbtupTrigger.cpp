@@ -637,6 +637,7 @@ Dbtup::execFIRE_TRIG_REQ(Signal* signal)
   req_struct.trans_id1 = signal->theData[3];
   req_struct.trans_id2 = signal->theData[4];
   req_struct.m_reorg = regOperPtr.p->op_struct.bit_field.m_reorg;
+  req_struct.m_deferred_constraints = regOperPtr.p->op_struct.bit_field.m_deferred_constraints;
 
   PagePtr page;
   Tuple_header* tuple_ptr = (Tuple_header*)
@@ -655,7 +656,6 @@ Dbtup::execFIRE_TRIG_REQ(Signal* signal)
    *
    * We keep track of this on *last* operation (which btw, implies that
    *   a trigger can't update "own" tuple...i.e first op would be better...)
-   *
    */
   if (!c_lqh->check_fire_trig_pass(lastOperPtr.p->userpointer, pass))
   {
@@ -921,7 +921,8 @@ void Dbtup::checkDeferredTriggers(KeyReqStruct *req_struct,
     break;
   }
 
-  if (deferred_list->isEmpty() && constraint_list->isEmpty())
+  if (deferred_list->isEmpty() &&
+      (!req_struct->m_deferred_constraints || constraint_list->isEmpty()))
   {
     jam();
     goto end;
@@ -931,13 +932,24 @@ void Dbtup::checkDeferredTriggers(KeyReqStruct *req_struct,
    * Compute change-mask
    */
   set_commit_change_mask_info(regTablePtr, req_struct, regOperPtr);
+
+  /**
+   * Note that there are two variants of deferred trigger/constraints:
+   * 1) Triggers created by a 'NO ACTION' foreign key are deferred by
+   *    declaration, and managed by deferred<Op>Triggers list.
+   *    These are always fired at commit time (below)
+   * 2) Any 'immediate' constraints in after<Op>Triggers may be
+   *    deferred by setting 'TupKeyReq::deferred_constraints'.
+   *    These should be conditionally fired here only if not
+   *    already handled 'immediate'.
+   */
   if (!deferred_list->isEmpty())
   {
     jam();
     fireDeferredTriggers(req_struct, * deferred_list, regOperPtr, disk);
   }
 
-  if (!constraint_list->isEmpty())
+  if (req_struct->m_deferred_constraints && !constraint_list->isEmpty())
   {
     jam();
     fireDeferredConstraints(req_struct, * constraint_list, regOperPtr, disk);
@@ -1145,6 +1157,7 @@ Dbtup::fireDeferredConstraints(KeyReqStruct *req_struct,
   triggerList.first(trigPtr);
   while (trigPtr.i != RNIL) {
     jam();
+
     if (trigPtr.p->monitorAllAttributes ||
         trigPtr.p->attributeMask.overlaps(req_struct->changeMask))
     {
@@ -1412,9 +1425,6 @@ void Dbtup::executeTrigger(KeyReqStruct *req_struct,
 {
   Signal* signal= req_struct->signal;
   BlockReference ref = trigPtr->m_receiverRef;
-  Uint32* const keyBuffer = &cinBuffer[0];
-  Uint32* const afterBuffer = &coutBuffer[0];
-  Uint32* const beforeBuffer = &clogMemBuffer[0];
   Uint32 triggerType = trigPtr->triggerType;
 
   if ((triggerType == TriggerType::FK_PARENT ||
@@ -1425,7 +1435,6 @@ void Dbtup::executeTrigger(KeyReqStruct *req_struct,
     return;
   }
 
-  Uint32 noPrimKey, noAfterWords, noBeforeWords;
   FragrecordPtr regFragPtr;
   regFragPtr.i= regOperPtr->fragmentPtr;
   ptrCheckGuard(regFragPtr, cnoOfFragrec, fragrecord);
@@ -1492,6 +1501,10 @@ out:
     jamLine((Uint16)triggerType);
   }
 
+  Uint32 noPrimKey, noAfterWords, noBeforeWords;
+  Uint32* const keyBuffer = &cinBuffer[0];
+  Uint32* const afterBuffer = &coutBuffer[0];
+  Uint32* const beforeBuffer = &clogMemBuffer[0];
   if (!readTriggerInfo(trigPtr,
                        regOperPtr,
                        req_struct,
