@@ -1,5 +1,9 @@
 # Tests for WL#12217
 
+# Because of transaction_write_set_extraction not being settable
+# with other binlog formats.
+--source include/have_binlog_format_row.inc
+
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
