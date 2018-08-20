@@ -3196,7 +3196,8 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     TCKEY_abort(signal, 6, ApiConnectRecordPtr::get(NULL, RNIL));
     return;
   }//if
-  if (TtabIndex >= TtabMaxIndex) {
+  if (unlikely(TtabIndex >= TtabMaxIndex))
+  {
     releaseSections(handle);
     TCKEY_abort(signal, 7, apiConnectptr);
     return;
@@ -3219,9 +3220,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   // Optimised version of ptrAss(tabptr, tableRecord)
   // Optimised version of ptrAss(apiConnectptr, apiConnectRecord)
   //--------------------------------------------------------------------------
-  ApiConnectRecord * const regApiPtr = c_apiConnectRecordPool.getPtr(TapiIndex);
-  apiConnectptr.i = TapiIndex;
-  apiConnectptr.p = regApiPtr;
+  ApiConnectRecord * const regApiPtr = apiConnectptr.p;
 
   Uint32 TstartFlag = TcKeyReq::getStartFlag(Treqinfo);
   Uint32 TexecFlag =
@@ -3238,9 +3237,9 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   localTabptr.p = &tableRecord[TtabIndex];
   switch (regApiPtr->apiConnectstate) {
   case CS_CONNECTED:{
-    if (TstartFlag == 1 &&
-        getAllowStartTransaction(refToNode(sendersBlockRef),
-                                 localTabptr.p->singleUserMode) == true)
+    if (likely(TstartFlag == 1 &&
+               getAllowStartTransaction(refToNode(sendersBlockRef),
+                                 localTabptr.p->singleUserMode) == true))
     {
       //---------------------------------------------------------------------
       // Initialise API connect record if transaction is started.
@@ -3299,7 +3298,8 @@ void Dbtc::execTCKEYREQ(Signal* signal)
       compare_transid2 = regApiPtr->transid[1] ^ tcKeyReq->transId2;
       jam();
       compare_transid1 = compare_transid1 | compare_transid2;
-      if (compare_transid1 != 0) {
+      if (unlikely(compare_transid1 != 0))
+      {
         releaseSections(handle);
         TCKEY_abort(signal, 1, apiConnectptr);
 	return;
@@ -3401,7 +3401,8 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     }
   }
 
-  if (localTabptr.p->checkTable(tcKeyReq->tableSchemaVersion)) {
+  if (likely(localTabptr.p->checkTable(tcKeyReq->tableSchemaVersion)))
+  {
     ;
   } else {
     /*-----------------------------------------------------------------------*/
@@ -3498,7 +3499,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   UintR TattrLen = 0;
   UintR titcLenAiInTckeyreq = 0;
 
-  if (regCachePtr->isLongTcKeyReq)
+  if (likely(regCachePtr->isLongTcKeyReq))
   {
     SegmentedSectionPtr keyInfoSec;
     if (handle.getSection(keyInfoSec, TcKeyReq::KeyInfoSectionNum))
@@ -3527,7 +3528,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     titcLenAiInTckeyreq = TcKeyReq::getAIInTcKeyReq(Treqinfo);
     regCachePtr->m_read_committed_base = 0;
   }
-  if (refToMain(sendersBlockRef) == DBUTIL)
+  if (unlikely(refToMain(sendersBlockRef) == DBUTIL))
   {
     jam();
     Tspecial_op_flags |= TcConnectRecord::SOF_UTIL_FLAG;
@@ -3594,7 +3595,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
 
   Uint8 TexecuteFlag        = TexecFlag;
   Uint8 Treorg              = TcKeyReq::getReorgFlag(Treqinfo);
-  if (Treorg)
+  if (unlikely(Treorg))
   {
     if (TOperationType == ZWRITE)
       regTcPtr->m_special_op_flags = TcConnectRecord::SOF_REORG_COPY;
@@ -3633,7 +3634,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
 
   regCachePtr->m_no_hash = false;
 
-  if (TOperationType == ZUNLOCK)
+  if (unlikely(TOperationType == ZUNLOCK))
   {
     /* Unlock op has distribution key containing
      * LQH nodeid and fragid
@@ -3649,7 +3650,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     (localTabptr.p->noOfDistrKeys > 0) |
     regCachePtr->m_no_hash;
 
-  if (TkeyLength == 0)
+  if (unlikely(TkeyLength == 0))
   {
     releaseSections(handle);
     TCKEY_abort(signal, 4, apiConnectptr);
@@ -3672,7 +3673,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
    * If they arrived in short signals then they are appended into
    * segmented sections
    */
-  if (regCachePtr->isLongTcKeyReq)
+  if (likely(regCachePtr->isLongTcKeyReq))
   {
     ndbassert( titcLenAiInTckeyreq == 0);
     /* Long TcKeyReq - KI and AI already in sections */
@@ -3741,7 +3742,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     }
   }
 
-  if (TOperationType == ZUNLOCK)
+  if (unlikely(TOperationType == ZUNLOCK))
   {
     jam();
     // TODO : Consider adding counter for unlock operations
@@ -3820,7 +3821,8 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     case ZREFRESH:
       jam();
       regApiPtr->m_write_count++;
-      if (regApiPtr->m_flags & ApiConnectRecord::TF_DEFERRED_CONSTRAINTS)
+      if (unlikely(regApiPtr->m_flags &
+                   ApiConnectRecord::TF_DEFERRED_CONSTRAINTS))
       {
         /**
          * Allow slave applier to ignore m_max_writes_per_trans
@@ -3869,7 +3871,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     }//if
   }//if
 
-  if (regCachePtr->isLongTcKeyReq)
+  if (likely(regCachePtr->isLongTcKeyReq))
   {
     jamDebug();
     /* Have all the KeyInfo (and AttrInfo), process now */
@@ -4019,7 +4021,8 @@ void Dbtc::tckeyreq050Lab(Signal* signal, CacheRecordPtr const cachePtr, ApiConn
   localTabptr.i = Ttableref;
   localTabptr.p = &tableRecord[localTabptr.i];
   Uint32 schemaVersion = regCachePtr->schemaVersion;
-  if(localTabptr.p->checkTable(schemaVersion)){
+  if (likely(localTabptr.p->checkTable(schemaVersion)))
+  {
     ;
   } else {
     terrorCode = localTabptr.p->getErrorCode(schemaVersion);
@@ -4091,7 +4094,8 @@ void Dbtc::tckeyreq050Lab(Signal* signal, CacheRecordPtr const cachePtr, ApiConn
   UintR Tdata2 = conf->reqinfo;
   UintR TerrorIndicator = signal->theData[0];
   jamEntry();
-  if (TerrorIndicator != 0) {
+  if (unlikely(TerrorIndicator != 0))
+  {
     execDIGETNODESREF(signal, apiConnectptr);
     return;
   }
@@ -4100,7 +4104,7 @@ void Dbtc::tckeyreq050Lab(Signal* signal, CacheRecordPtr const cachePtr, ApiConn
   /* DIGETNODESCONF >*/
   /* ***************>*/
   Tspecial_op_flags = regTcPtr->m_special_op_flags;
-  if (Tspecial_op_flags & TcConnectRecord::SOF_REORG_TRIGGER)
+  if (unlikely(Tspecial_op_flags & TcConnectRecord::SOF_REORG_TRIGGER))
   {
     if (conf->reqinfo & DiGetNodesConf::REORG_MOVING &&
         (conf->nodes[MAX_REPLICAS] == regApiPtr->firedFragId))
@@ -4127,18 +4131,18 @@ void Dbtc::tckeyreq050Lab(Signal* signal, CacheRecordPtr const cachePtr, ApiConn
      */
     regApiPtr->firedFragId = RNIL;
   }
-  else if (Tspecial_op_flags & TcConnectRecord::SOF_REORG_DELETE)
+  else if (unlikely(Tspecial_op_flags & TcConnectRecord::SOF_REORG_DELETE))
   {
     jam();
     handle_reorg_trigger(conf);
     Tdata2 = conf->reqinfo;
   }
-  else if (Tdata2 & DiGetNodesConf::REORG_MOVING)
+  else if (unlikely(Tdata2 & DiGetNodesConf::REORG_MOVING))
   {
     jam();
     regTcPtr->m_special_op_flags |= TcConnectRecord::SOF_REORG_MOVING;
   }
-  else if (Tspecial_op_flags & TcConnectRecord::SOF_REORG_COPY)
+  else if (unlikely(Tspecial_op_flags & TcConnectRecord::SOF_REORG_COPY))
   {
     jam();
     conf->nodes[0] = 0;
@@ -4253,7 +4257,7 @@ void Dbtc::tckeyreq050Lab(Signal* signal, CacheRecordPtr const cachePtr, ApiConn
     }
 #endif
   }
-  else if (Toperation == ZUNLOCK)
+  else if (unlikely(Toperation == ZUNLOCK))
   {
     regTcPtr->m_special_op_flags &= ~TcConnectRecord::SOF_REORG_MOVING;
    
@@ -4350,8 +4354,8 @@ void Dbtc::tckeyreq050Lab(Signal* signal, CacheRecordPtr const cachePtr, ApiConn
     return;
   }
 
-  if (regCachePtr->isLongTcKeyReq ||
-      (regCachePtr->lenAiInTckeyreq == regCachePtr->attrlength))
+  if (likely(regCachePtr->isLongTcKeyReq ||
+            (regCachePtr->lenAiInTckeyreq == regCachePtr->attrlength)))
   {
     /****************************************************************>*/
     /* HERE WE HAVE FOUND THAT THE LAST SIGNAL BELONGING TO THIS      */
@@ -4412,19 +4416,20 @@ void Dbtc::attrinfoDihReceivedLab(Signal* signal, CacheRecordPtr cachePtr, ApiCo
   localTabptr.i = regCachePtr->tableref;
   localTabptr.p = &tableRecord[localTabptr.i];
 
-  if(localTabptr.p->checkTable(regCachePtr->schemaVersion)){
+  if (likely(localTabptr.p->checkTable(regCachePtr->schemaVersion)))
+  {
     ;
   } else {
     terrorCode = localTabptr.p->getErrorCode(regCachePtr->schemaVersion);
     TCKEY_abort(signal, 58, apiConnectptr);
     return;
   }
-  if (Tnode != 0)
+  if (likely(Tnode != 0))
   {
     jam();
     arrGuard(Tnode, MAX_NDB_NODES);
     BlockReference lqhRef;
-    if(regCachePtr->viaSPJFlag)
+    if (regCachePtr->viaSPJFlag)
     {
       if (Tnode == getOwnNodeId())
       {
@@ -4515,8 +4520,8 @@ void Dbtc::packLqhkeyreq(Signal* signal,
   sendlqhkeyreq(signal, TBRef, regCachePtr, regApiPtr);
 
   /* Do we need to send a KeyInfo signal train? */
-  if ((! regCachePtr->useLongLqhKeyReq) &&
-      (Tkeylen > LqhKeyReq::MaxKeyInfo))
+  if (unlikely((! regCachePtr->useLongLqhKeyReq) &&
+               (Tkeylen > LqhKeyReq::MaxKeyInfo)))
   {
     /* Build KeyInfo train from KeyInfo long signal section */
     sendKeyInfoTrain(signal,
@@ -4580,7 +4585,7 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
                                   ApiConnectRecord::TF_DISABLE_FK_CONSTRAINTS);
   Uint32 reorg = ScanFragReq::REORG_ALL;
   Uint32 Tspecial_op = regTcPtr->m_special_op_flags;
-  if (Tspecial_op == 0)
+  if (likely(Tspecial_op == 0))
   {
   }
   else if (Tspecial_op & (TcConnectRecord::SOF_REORG_TRIGGER |
@@ -4655,7 +4660,7 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
    * ----------------------------------------------------------------------- */
   UintR aiInLqhKeyReq= 0;
 
-  if (regCachePtr->useLongLqhKeyReq)
+  if (likely(regCachePtr->useLongLqhKeyReq))
   {
     LqhKeyReq::setNoTriggersFlag(Tdata10,
       !!(regTcPtr->m_special_op_flags &
@@ -4677,7 +4682,8 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
    * ----------------------------------------------------------------------- */
   LqhKeyReq::setMarkerFlag(Tdata10, regTcPtr->commitAckMarker != RNIL ? 1 : 0);
   
-  if (regTcPtr->m_special_op_flags & TcConnectRecord::SOF_FK_READ_COMMITTED)
+  if (unlikely(regTcPtr->m_special_op_flags &
+               TcConnectRecord::SOF_FK_READ_COMMITTED))
   {
     LqhKeyReq::setNormalProtocolFlag(Tdata10, 1);
     LqhKeyReq::setDirtyFlag(Tdata10, 1);
@@ -4742,7 +4748,7 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
   regTcPtr->triggerExecutionCount = 0;
   regTcPtr->m_start_ticks = getHighResTimer();
 
-  if (regCachePtr->useLongLqhKeyReq)
+  if (likely(regCachePtr->useLongLqhKeyReq))
   {
     /* Build long LQHKeyReq using Key + AttrInfo sections */
     SectionHandle handle(this);
@@ -4753,7 +4759,8 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
     handle.m_ptr[ LqhKeyReq::KeyInfoSectionNum ]= keyInfoSection;
     handle.m_cnt= 1;
 
-    if (regTcPtr->m_special_op_flags & TcConnectRecord::SOF_UTIL_FLAG)
+    if (unlikely(regTcPtr->m_special_op_flags &
+                 TcConnectRecord::SOF_UTIL_FLAG))
     {
       LqhKeyReq::setUtilFlag(lqhKeyReq->requestInfo, 1);
     }
@@ -4841,7 +4848,7 @@ void Dbtc::packLqhkeyreq040Lab(Signal* signal,
 #endif
 
   /* Do we have an ATTRINFO train to send? */
-  if (!regCachePtr->useLongLqhKeyReq)
+  if (unlikely(!regCachePtr->useLongLqhKeyReq))
   {
     /* Short LqhKeyReq */
     if (regCachePtr->attrlength > LqhKeyReq::MaxAttrInfo)
@@ -5004,7 +5011,8 @@ void Dbtc::execPACKED_SIGNAL(Signal* signal)
 
   jamEntry();
   Tlength = signal->length();
-  if (Tlength > 25) {
+  if (unlikely(Tlength > 25))
+  {
     jam();
     systemErrorLab(signal, __LINE__);
     return;
