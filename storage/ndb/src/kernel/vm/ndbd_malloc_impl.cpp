@@ -80,10 +80,29 @@ const Uint32 Ndbd_mem_manager::zone_bound[ZONE_COUNT] =
   ZONE_32_BOUND >> PAGES_PER_REGION_LOG
 };
 
-#ifdef VM_TRACE
 /**
- *
+ * do_virtual_alloc uses debug functions NdbMem_ReserveSpace and
+ * NdbMem_PopulateSpace to be able to use as high page numbers as possible for
+ * each memory region.  Using high page numbers will likely lure bugs due to
+ * storing not all required bits of page numbers.
  */
+
+#ifdef VM_TRACE
+#if defined(_WIN32) || defined(MADV_DONTDUMP)
+/**
+ * For Windows and Linux measures are taken not to dump the whole virtual
+ * memory reserved but only those pages that are populated.
+ * The linux support depends on having MADV_DONTDUMP defined.
+ * For other OS do_virtual_alloc should not be used since it will produce huge
+ * core dumps if crashing.
+ */
+#define USE_DO_VIRTUAL_ALLOC
+#elif defined(USE_DO_VIRTUAL_ALLOC)
+#error do_virtual_alloc is not supported, please undefine USE_DO_VIRTUAL_ALLOC.
+#endif
+#endif
+
+#ifdef USE_DO_VIRTUAL_ALLOC
 
 bool
 Ndbd_mem_manager::do_virtual_alloc(Uint32 pages,
@@ -133,7 +152,7 @@ Ndbd_mem_manager::do_virtual_alloc(Uint32 pages,
   const Uint32 least_region_count = lowest_high - highest_low;
   Uint32 space_regions = max_regions;
   Alloc_page *space;
-  int rc;
+  int rc = -1;
   while (space_regions >= least_region_count)
   {
     if (watchCounter)
@@ -657,7 +676,7 @@ Ndbd_mem_manager::init(Uint32 *watchCounter, Uint32 max_pages , bool alloc_less_
   Uint32 allocated = 0;
   m_base_page = NULL;
 
-#ifdef VM_TRACE
+#ifdef USE_DO_VIRTUAL_ALLOC
   {
     InitChunk chunks[ZONE_COUNT];
     if (do_virtual_alloc(pages, chunks, watchCounter, &m_base_page))
