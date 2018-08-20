@@ -167,24 +167,24 @@ void Dbtc::initRecords()
 
   Pool_context pc;
   pc.m_block = this;
-  c_scan_frag_pool.init(RT_DBTC_SCAN_FRAGMENT, pc, 0, UINT32_MAX);
-  m_fragLocationPool.init(RT_DBTC_FRAG_LOCATION, pc, 0, UINT32_MAX);
-  m_commitAckMarkerPool.init(CommitAckMarker::TYPE_ID, pc, 0, UINT32_MAX);
-  c_theIndexOperationPool.init(TcIndexOperation::TYPE_ID, pc, 0, UINT32_MAX);
-  tcConnectRecord.init(TcConnectRecord::TYPE_ID, pc, 0, UINT32_MAX);
-  c_apiConTimersPool.init(ApiConTimers::TYPE_ID, pc, 0, UINT32_MAX);
+  c_scan_frag_pool.init(RT_DBTC_SCAN_FRAGMENT, pc, 1, UINT32_MAX);
+  m_fragLocationPool.init(RT_DBTC_FRAG_LOCATION, pc, 1, UINT32_MAX);
+  m_commitAckMarkerPool.init(CommitAckMarker::TYPE_ID, pc, 1000, UINT32_MAX);
+  c_theIndexOperationPool.init(TcIndexOperation::TYPE_ID, pc, 10000, UINT32_MAX);
+  tcConnectRecord.init(TcConnectRecord::TYPE_ID, pc, 10000, UINT32_MAX);
+  c_apiConTimersPool.init(ApiConTimers::TYPE_ID, pc, 1000/6, UINT32_MAX);
   c_apiConTimersList.init();
-  c_cacheRecordPool.init(CacheRecord::TYPE_ID, pc, 0, UINT32_MAX);
-  c_gcpRecordPool.init(GcpRecord::TYPE_ID, pc, 0, UINT32_MAX);
+  c_cacheRecordPool.init(CacheRecord::TYPE_ID, pc, 1, UINT32_MAX);
+  c_gcpRecordPool.init(GcpRecord::TYPE_ID, pc, 1, UINT32_MAX);
   c_gcpRecordList.init();
   GcpRecordPtr gcpRecordptr;
   // Make sure that there is at least one page of GcpRecord
   ndbrequire(c_gcpRecordPool.seize(gcpRecordptr));
   c_gcpRecordPool.release(gcpRecordptr);
-  c_theFiredTriggerPool.init(TcFiredTriggerData::TYPE_ID, pc, 0, UINT32_MAX);
-  c_theCommitAckMarkerBufferPool.init(RT_DBTC_COMMIT_ACK_MARKER_BUFFER, pc, 0, UINT32_MAX);
-  c_theAttributeBufferPool.init(RT_DBTC_ATTRIBUTE_BUFFER, pc, 0, UINT32_MAX);
-  c_apiConnectRecordPool.init(ApiConnectRecord::TYPE_ID, pc, 0, UINT32_MAX);
+  c_theFiredTriggerPool.init(TcFiredTriggerData::TYPE_ID, pc, 10000, UINT32_MAX);
+  c_theCommitAckMarkerBufferPool.init(RT_DBTC_COMMIT_ACK_MARKER_BUFFER, pc, 1000, UINT32_MAX);
+  c_theAttributeBufferPool.init(RT_DBTC_ATTRIBUTE_BUFFER, pc, 10000, UINT32_MAX);
+  c_apiConnectRecordPool.init(ApiConnectRecord::TYPE_ID, pc, 1000, UINT32_MAX);
   scanRecordPool.init(ScanRecord::TYPE_ID, pc, 0, UINT32_MAX);
 }//Dbtc::initRecords()
 
