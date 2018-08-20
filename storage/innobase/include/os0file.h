@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -1319,6 +1319,10 @@ os_file_get_status(
 					file can be opened in RW mode */
 
 #if !defined(UNIV_HOTBACKUP)
+
+/** return one of the tmpdir path
+ @return  tmpdir path*/
+char *innobase_mysql_tmpdir(void);
 /** Create a temporary file in the location specified by the parameter
 path. If the path is null, then it will be created in tmpdir.
 @param[in]	path	location for creating temporary file
