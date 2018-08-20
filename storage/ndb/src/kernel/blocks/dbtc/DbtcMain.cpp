@@ -14366,19 +14366,21 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
   transid2 = apiConnectptr.p->transid[1] ^ conf->transId2;
   total_len= conf->total_len;
   transid1 = transid1 | transid2;
-  if (transid1 != 0) {
+  if (unlikely(transid1 != 0))
+  {
     jam();
     systemErrorLab(signal, __LINE__);
   }//if
 
   ndbrequire(scanFragptr.p->scanFragState == ScanFragRec::LQH_ACTIVE);
-  if (refToMain(scanFragptr.p->lqhBlockref) == DBLQH)
+  if (likely(refToMain(scanFragptr.p->lqhBlockref) == DBLQH))
   {
     jamDebug();
     time_track_complete_scan_frag(scanFragptr.p);
   }
 
-  if(scanptr.p->scanState == ScanRecord::CLOSING_SCAN){
+  if (unlikely(scanptr.p->scanState == ScanRecord::CLOSING_SCAN))
+  {
     if(status == 0)
     {
       jam();
@@ -14404,9 +14406,10 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
 
   scanFragptr.p->stopFragTimer();
 
-  if(noCompletedOps == 0 && status != 0 && 
-     !scanptr.p->m_pass_all_confs &&
-     scanptr.p->scanNextFragId+scanptr.p->m_booked_fragments_count < scanptr.p->scanNoFrag)
+  if (noCompletedOps == 0 && status != 0 && 
+      !scanptr.p->m_pass_all_confs &&
+      scanptr.p->scanNextFragId+scanptr.p->m_booked_fragments_count <
+        scanptr.p->scanNoFrag)
   {
     /**
      * Start on next fragment. Don't do this if we scan via the SPJ block. In
@@ -14462,7 +14465,8 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
   scanFragptr.p->m_totalLen = total_len;
   scanFragptr.p->scanFragState = ScanFragRec::QUEUED_FOR_DELIVERY;
 
-  if(scanptr.p->m_queued_count > /** Min */ 0){
+  if (scanptr.p->m_queued_count > /** Min */ 0)
+  {
     jamDebug();
     sendScanTabConf(signal, scanptr, apiConnectptr);
   }
@@ -14500,7 +14504,8 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
    */
   const UintR ctransid1 = apiConnectptr.p->transid[0] ^ transid1;
   const UintR ctransid2 = apiConnectptr.p->transid[1] ^ transid2;
-  if ((ctransid1 | ctransid2) != 0){
+  if (unlikely((ctransid1 | ctransid2) != 0))
+  {
     releaseSections(handle);
     ScanTabRef * ref = (ScanTabRef*)&signal->theData[0];
     ref->apiConnectPtr = apiConnectptr.p->ndbapiConnect;
@@ -14517,7 +14522,8 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
   /**
    * Check state of API connection
    */
-  if (apiConnectptr.p->apiConnectstate != CS_START_SCAN) {
+  if (unlikely(apiConnectptr.p->apiConnectstate != CS_START_SCAN))
+  {
     jam();
     releaseSections(handle);
     if (apiConnectptr.p->apiConnectstate == CS_CONNECTED) {
@@ -14587,7 +14593,8 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
     return;
   }//if
 
-  if (scanP->scanState == ScanRecord::CLOSING_SCAN){
+  if (unlikely(scanP->scanState == ScanRecord::CLOSING_SCAN))
+  {
     jam();
     /**
      * The scan is closing (typically due to error)
@@ -14635,7 +14642,7 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
 
       scanFragptr.p->scanFragState = ScanFragRec::IDLE;
       const bool ok = sendScanFragReq(signal, scanptr, scanFragptr, apiConnectptr);
-      if (!ok)
+      if (unlikely(!ok))
       {
         jam();
         return; //scanError() has already been called
