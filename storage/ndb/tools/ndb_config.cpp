@@ -349,6 +349,7 @@ main(int argc, char** argv){
     }
   }
   printf("\n");
+  ndb_free_defaults(argv);
   return 0;
 }
 
