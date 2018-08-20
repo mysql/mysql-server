@@ -1046,6 +1046,8 @@ struct Trx_monitoring_info {
   /// Copy constructor
   Trx_monitoring_info(const Trx_monitoring_info &info);
 
+  Trx_monitoring_info &operator=(const Trx_monitoring_info &) = default;
+
   /// Clear all fields of the structure.
   void clear();
 

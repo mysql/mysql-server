@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,6 +42,12 @@ class Object_key {
 
  public:
   virtual ~Object_key() {}
+
+  Object_key() = default;
+  Object_key(const Object_key &) = default;
+  Object_key(Object_key &&) = default;
+  Object_key &operator=(const Object_key &) = default;
+  Object_key &operator=(Object_key &&) = default;
 };
 
 ///////////////////////////////////////////////////////////////////////////

@@ -169,7 +169,6 @@ class System_variable {
   System_variable(THD *target_thd, const SHOW_VAR *show_var,
                   enum_var_type query_scope);
   System_variable(THD *target_thd, const SHOW_VAR *show_var);
-  ~System_variable() {}
 
   bool is_null() const { return !m_initialized; };
 
@@ -216,8 +215,6 @@ class Status_variable {
 
   Status_variable(const SHOW_VAR *show_var, System_status_var *status_array,
                   enum_var_type query_scope);
-
-  ~Status_variable() {}
 
   bool is_null() const { return !m_initialized; };
 

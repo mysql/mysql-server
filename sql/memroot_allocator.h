@@ -94,8 +94,6 @@ class Memroot_allocator {
     DBUG_ASSERT(m_memroot == other.memroot());  // Don't swap memroot.
   }
 
-  ~Memroot_allocator() {}
-
   pointer allocate(size_type n, const_pointer hint MY_ATTRIBUTE((unused)) = 0) {
     if (n == 0) return NULL;
     if (n > max_size()) throw std::bad_alloc();

@@ -176,15 +176,6 @@ st_persist_var::st_persist_var(THD *thd) {
   is_null = false;
 }
 
-st_persist_var::st_persist_var(const st_persist_var &var) {
-  this->key = var.key;
-  this->value = var.value;
-  this->timestamp = var.timestamp;
-  this->user = var.user;
-  this->host = var.host;
-  this->is_null = var.is_null;
-}
-
 st_persist_var::st_persist_var(const std::string key, const std::string value,
                                const ulonglong timestamp,
                                const std::string user, const std::string host,

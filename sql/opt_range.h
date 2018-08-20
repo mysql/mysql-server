@@ -261,6 +261,7 @@ class QUICK_SELECT_I {
   bool forced_by_hint;
 
   QUICK_SELECT_I();
+  QUICK_SELECT_I(const QUICK_SELECT_I &) = default;
   virtual ~QUICK_SELECT_I(){};
 
   /*
@@ -542,6 +543,7 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
 
  private:
   /* Default copy ctor used by QUICK_SELECT_DESC */
+  QUICK_RANGE_SELECT(const QUICK_RANGE_SELECT &) = default;
 };
 
 class QUICK_RANGE_SELECT_GEOM : public QUICK_RANGE_SELECT {

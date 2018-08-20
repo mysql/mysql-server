@@ -252,8 +252,8 @@ static void make_valid_column_names(LEX *lex) {
 static bool fill_defined_view_parts(THD *thd, TABLE_LIST *view) {
   const char *cache_key;
   size_t cache_key_length = get_table_def_key(view, &cache_key);
-  TABLE_LIST decoy;
-  decoy = *view;
+
+  TABLE_LIST decoy = *view;
   /*
     It's not clear what the above assignment actually wants to
     accomplish. What we do know is that it does *not* want to copy the MDL

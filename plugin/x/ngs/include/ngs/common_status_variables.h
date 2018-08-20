@@ -78,6 +78,10 @@ class Common_status_variables {
   Variable m_crud_modify_view;
   Variable m_crud_drop_view;
 
+ protected:
+  // Used by Global_status_variables::reset().
+  Common_status_variables &operator=(const Common_status_variables &) = default;
+
  private:
   Common_status_variables(const Common_status_variables &);
 };

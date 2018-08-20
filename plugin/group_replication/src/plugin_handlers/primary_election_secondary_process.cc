@@ -370,8 +370,8 @@ int Primary_election_secondary_process::before_message_handling(
   Plugin_gcs_message::enum_cargo_type message_type = message.get_cargo_type();
 
   if (message_type == Plugin_gcs_message::CT_SINGLE_PRIMARY_MESSAGE) {
-    const Single_primary_message single_primary_message =
-        (const Single_primary_message &)message;
+    const Single_primary_message &single_primary_message =
+        down_cast<const Single_primary_message &>(message);
     Single_primary_message::Single_primary_message_type
         single_primary_msg_type =
             single_primary_message.get_single_primary_message_type();

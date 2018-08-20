@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,8 +49,11 @@ class Table_id {
   unsigned long long id() const { return m_id; }
   bool is_valid() const { return m_id <= TABLE_ID_MAX; }
 
-  void operator=(const Table_id &tid) { m_id = tid.m_id; }
-  void operator=(unsigned long long id) { m_id = id; }
+  Table_id &operator=(const Table_id &tid) = default;
+  Table_id &operator=(unsigned long long id) {
+    m_id = id;
+    return *this;
+  }
 
   bool operator==(const Table_id &tid) const { return m_id == tid.m_id; }
   bool operator!=(const Table_id &tid) const { return m_id != tid.m_id; }

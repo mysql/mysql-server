@@ -72,6 +72,8 @@ class HARNESS_EXPORT SpawnedProcess {
         redirect_stderr{predirect_stderr} {
   }
 
+  SpawnedProcess(const SpawnedProcess &) = default;
+
   virtual ~SpawnedProcess() {}
 
   const std::string &get_cmd_line() { return cmd_line; }

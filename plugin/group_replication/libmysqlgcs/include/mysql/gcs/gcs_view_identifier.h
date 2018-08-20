@@ -41,11 +41,17 @@
 
 class Gcs_view_identifier {
  public:
-  /**
-    Returns a normalized representation of the DTO.
+  Gcs_view_identifier() = default;
+  Gcs_view_identifier(const Gcs_view_identifier &) = default;
+  Gcs_view_identifier(Gcs_view_identifier &&) = default;
+  Gcs_view_identifier &operator=(const Gcs_view_identifier &) = default;
+  Gcs_view_identifier &operator=(Gcs_view_identifier &&) = default;
 
-    @return a const char * containing the normalized representation of the DTO
-  */
+  /**
+     Returns a normalized representation of the DTO.
+
+     @return a const char * containing the normalized representation of the DTO
+   */
 
   virtual const std::string &get_representation() const = 0;
 

@@ -94,8 +94,7 @@ class plist_node_t {
       : m_frame(frame), m_node(node), m_mtr(mtr) {}
 
   /** Copy constructor. */
-  plist_node_t(const plist_node_t &other)
-      : m_frame(other.m_frame), m_node(other.m_node), m_mtr(other.m_mtr) {}
+  plist_node_t(const plist_node_t &other) = default;
 
   /** Check if the current node is before the given node in the
   page (w.r.t the offset).

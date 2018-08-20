@@ -400,11 +400,6 @@ class Pipeline_member_stats {
   Pipeline_member_stats(Pipeline_stats_member_message &msg);
 
   /**
-    Destructor.
-  */
-  virtual ~Pipeline_member_stats();
-
-  /**
     Updates member statistics with a new message from the network
   */
   void update_member_stats(Pipeline_stats_member_message &msg, uint64 stamp);

@@ -3233,13 +3233,9 @@ int mysql_execute_command(THD *thd, bool first_level) {
                          &table->next_local->grant.privilege,
                          &table->next_local->grant.m_internal, 0, 0))
           goto error;
-        TABLE_LIST old_list, new_list;
-        /*
-          we do not need initialize old_list and new_list because we will
-          come table[0] and table->next[0] there
-        */
-        old_list = table[0];
-        new_list = table->next_local[0];
+
+        TABLE_LIST old_list = table[0];
+        TABLE_LIST new_list = table->next_local[0];
         /*
           It's not clear what the above assignments actually want to
           accomplish. What we do know is that they do *not* want to copy the MDL

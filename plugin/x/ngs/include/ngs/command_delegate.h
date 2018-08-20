@@ -51,6 +51,11 @@ class Command_delegate {
   Command_delegate() { reset(); }
   virtual ~Command_delegate() {}
 
+  Command_delegate(const Command_delegate &) = default;
+  Command_delegate(Command_delegate &&) = default;
+  Command_delegate &operator=(const Command_delegate &) = default;
+  Command_delegate &operator=(Command_delegate &&) = default;
+
   ngs::Error_code get_error() const {
     if (m_sql_errno == 0)
       return ngs::Error_code();

@@ -41,8 +41,6 @@ class Gcs_group_identifier {
 
   explicit Gcs_group_identifier(const std::string &group_id);
 
-  ~Gcs_group_identifier() {}
-
   /**
     @return the group identifier
   */

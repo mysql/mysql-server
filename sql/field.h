@@ -693,7 +693,15 @@ class Proto_field {
 
 class Field : public Proto_field {
  public:
-  Field(const Item &) = delete;
+  /*
+    Field(const Item &) = delete;
+    The original intention was seemingly for Field to be non-copyable,
+    but due to a typo, this was never enforced, and now there's lots of
+    code that copies Field objects around. Thus, the default copy
+    constructor needs to stay (assignment is blocked off), but it's probably
+    better not to write code that depends on it.
+   */
+  Field(const Field &) = default;
   void operator=(Field &) = delete;
 
   /**
@@ -3713,8 +3721,6 @@ class Field_blob : public Field_longstr {
   }
 
   explicit Field_blob(uint32 packlength_arg);
-
-  ~Field_blob() { mem_free(); }
 
   /* Note that the default copy constructor is used, in clone() */
   enum_field_types type() const override { return MYSQL_TYPE_BLOB; }

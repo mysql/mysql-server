@@ -763,6 +763,10 @@ class MDL_request {
 
   MDL_request(const MDL_request &rhs)
       : type(rhs.type), duration(rhs.duration), ticket(NULL), key(rhs.key) {}
+
+  MDL_request(MDL_request &&) = default;
+
+  MDL_request &operator=(MDL_request &&) = default;
 };
 
 #define MDL_REQUEST_INIT(R, P1, P2, P3, P4, P5) \

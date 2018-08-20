@@ -253,7 +253,6 @@ class ErrConvString {
   ErrConvString(const my_decimal *nr);
   ErrConvString(const MYSQL_TIME *ltime, uint dec);
 
-  ~ErrConvString(){};
   char *ptr() { return err_buffer; }
   size_t length() const { return buf_length; }
 };

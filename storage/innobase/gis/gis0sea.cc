@@ -1403,8 +1403,8 @@ static void rtr_copy_buf(matched_rec_t *matches, const buf_block_t *block) {
   matches->block.index = block->index;
   matches->block.made_dirty_with_no_latch = block->made_dirty_with_no_latch;
 
-  /* Use copy CTOR rather than assignment operator */
-  ut_d(new (&matches->block.debug_latch) rw_lock_t(block->debug_latch));
+  ut_d(new (&matches->block.debug_latch) rw_lock_t);
+  ut_d(matches->block.debug_latch = block->debug_latch);
 }
 
 /** Generate a shadow copy of the page block header to save the

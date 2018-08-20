@@ -57,6 +57,8 @@ class SQL_I_List {
         first(tmp.first),
         next(elements ? tmp.next : &first) {}
 
+  SQL_I_List(SQL_I_List &&) = default;
+
   inline void empty() {
     elements = 0;
     first = NULL;
@@ -89,6 +91,9 @@ class SQL_I_List {
       elements += save->elements;
     }
   }
+
+  SQL_I_List &operator=(SQL_I_List &) = default;
+  SQL_I_List &operator=(SQL_I_List &&) = default;
 };
 
 /*

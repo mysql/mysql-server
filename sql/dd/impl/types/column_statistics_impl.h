@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -65,7 +65,8 @@ class Column_statistics_impl final : public Entity_object_impl,
 
  private:
   Column_statistics_impl(const Column_statistics_impl &column_statistics)
-      : Entity_object_impl(column_statistics),
+      : Weak_object(column_statistics),
+        Entity_object_impl(column_statistics),
         m_schema_name(column_statistics.m_schema_name),
         m_table_name(column_statistics.m_table_name),
         m_column_name(column_statistics.m_column_name),

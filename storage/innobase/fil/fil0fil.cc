@@ -8729,10 +8729,6 @@ Fil_path::Fil_path(const char *path, size_t len, bool normalize_path)
 Fil_path::Fil_path() : m_path(), m_abs_path() { /* No op */
 }
 
-/** Destructor */
-Fil_path::~Fil_path() { /* No op */
-}
-
 /** @return true if the path exists and is a file . */
 os_file_type_t Fil_path::get_file_type(const std::string &path) {
   const std::string *ptr;

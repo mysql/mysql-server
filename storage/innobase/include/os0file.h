@@ -574,9 +574,6 @@ class IORequest {
     }
   }
 
-  /** Destructor */
-  ~IORequest() {}
-
   /** @return true if ignore missing flag is set */
   static bool ignore_missing(ulint type) MY_ATTRIBUTE((warn_unused_result)) {
     return ((type & IGNORE_MISSING) == IGNORE_MISSING);

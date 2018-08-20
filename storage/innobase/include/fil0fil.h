@@ -387,9 +387,6 @@ class Fil_path {
                               ensure that the path is normalized. */
   explicit Fil_path(const std::string &path, bool normalize_path = false);
 
-  /** Destructor */
-  ~Fil_path();
-
   /** Implicit type conversion
   @return pointer to m_path.c_str() */
   operator const char *() const { return (m_path.c_str()); }

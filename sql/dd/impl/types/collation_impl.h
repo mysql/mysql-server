@@ -50,8 +50,6 @@ class Collation_impl : public Entity_object_impl, public Collation {
         m_sort_length(0),
         m_charset_id(INVALID_OBJECT_ID) {}
 
-  virtual ~Collation_impl() {}
-
  public:
   virtual const Object_table &object_table() const;
 

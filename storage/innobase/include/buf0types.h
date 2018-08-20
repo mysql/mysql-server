@@ -224,7 +224,7 @@ class page_id_t {
   mutable ulint m_fold;
 
   /* Disable implicit copying. */
-  void operator=(const page_id_t &);
+  void operator=(const page_id_t &) = delete;
 
   /** Declare the overloaded global operator<< as a friend of this
   class. Refer to the global declaration for further details.  Print

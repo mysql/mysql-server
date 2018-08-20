@@ -661,8 +661,6 @@ class Log_event_header {
   */
   Log_event_header(Event_reader &reader);
 
-  ~Log_event_header() {}
-
   /**
     The get_is_valid function is related to event specific sanity checks to
     determine that the object was initialized without errors.
@@ -850,6 +848,11 @@ class Binary_log_event {
   virtual void print_long_info(std::ostream &info) = 0;
 #endif
   virtual ~Binary_log_event() = 0;
+
+  Binary_log_event(const Binary_log_event &) = default;
+  Binary_log_event(Binary_log_event &&) = default;
+  Binary_log_event &operator=(const Binary_log_event &) = default;
+  Binary_log_event &operator=(Binary_log_event &&) = default;
 
   /**
    * Helper method

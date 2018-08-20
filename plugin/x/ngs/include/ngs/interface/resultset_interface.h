@@ -31,6 +31,12 @@ namespace ngs {
 
 class Resultset_interface {
  public:
+  Resultset_interface() = default;
+  Resultset_interface(const Resultset_interface &) = default;
+  Resultset_interface(Resultset_interface &&) = default;
+  Resultset_interface &operator=(const Resultset_interface &) = default;
+  Resultset_interface &operator=(Resultset_interface &&) = default;
+
   typedef Command_delegate::Info Info;
   virtual ~Resultset_interface() {}
   virtual Command_delegate &get_callbacks() = 0;

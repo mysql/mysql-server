@@ -57,7 +57,6 @@ struct st_persist_var {
   bool is_null;
   st_persist_var();
   st_persist_var(THD *thd);
-  st_persist_var(const st_persist_var &var);
   st_persist_var(const std::string key, const std::string value,
                  const ulonglong timestamp, const std::string user,
                  const std::string host, const bool is_null);

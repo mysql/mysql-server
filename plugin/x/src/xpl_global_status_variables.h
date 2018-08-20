@@ -37,6 +37,7 @@ class Global_status_variables : public ngs::Common_status_variables {
     return singleton;
   }
 
+  Global_status_variables &operator=(const Global_status_variables &) = default;
   void reset() { *this = Global_status_variables(); }
 
   Variable m_sessions_count;

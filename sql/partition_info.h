@@ -452,7 +452,6 @@ class partition_info {
     part_field_list.empty();
     subpart_field_list.empty();
   }
-  ~partition_info() {}
 
   partition_info *get_clone(THD *thd, bool reset = false);
   partition_info *get_full_clone(THD *thd);

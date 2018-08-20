@@ -1695,6 +1695,13 @@ class cmp_item_row : public cmp_item {
  public:
   cmp_item_row() : comparators(0), n(0) {}
   ~cmp_item_row();
+
+  cmp_item_row(cmp_item_row &&other)
+      : comparators(other.comparators), n(other.n) {
+    other.comparators = nullptr;
+    other.n = 0;
+  }
+
   void store_value(Item *item);
   bool alloc_comparators(Item *item);
   int cmp(Item *arg);

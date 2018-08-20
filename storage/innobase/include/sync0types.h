@@ -957,6 +957,8 @@ struct latch_t {
                                                                  m_rw_lock(),
                                                                  m_temp_fsp() {}
 
+  latch_t &operator=(const latch_t &) = default;
+
   /** Destructor */
   virtual ~latch_t() UNIV_NOTHROW {}
 

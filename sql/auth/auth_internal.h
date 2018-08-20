@@ -59,7 +59,7 @@ typedef std::map<std::string, Grant_table_aggregate> Table_access_map_storage;
 class Table_access_map {
  public:
   Table_access_map() : m_thd(0) {}
-  ~Table_access_map() {}
+
   typedef Table_access_map_storage::iterator iterator;
   typedef Table_access_map_storage::value_type value_type;
   typedef Table_access_map_storage::mapped_type mapped_type;

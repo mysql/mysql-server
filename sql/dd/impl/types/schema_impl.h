@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,8 +64,6 @@ class Schema_impl : public Entity_object_impl, public Schema {
       : m_created(0),
         m_last_altered(0),
         m_default_collation_id(INVALID_OBJECT_ID) {}
-
-  virtual ~Schema_impl() {}
 
  public:
   virtual const Object_table &object_table() const;

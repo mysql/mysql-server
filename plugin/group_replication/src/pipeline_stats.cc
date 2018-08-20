@@ -502,8 +502,6 @@ Pipeline_member_stats::Pipeline_member_stats(Pipeline_stats_member_message &msg)
       m_flow_control_mode(msg.get_flow_control_mode()),
       m_stamp(0) {}
 
-Pipeline_member_stats::~Pipeline_member_stats() {}
-
 void Pipeline_member_stats::update_member_stats(
     Pipeline_stats_member_message &msg, uint64 stamp) {
   m_transactions_waiting_certification =

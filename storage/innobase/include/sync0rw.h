@@ -637,6 +637,8 @@ struct rw_lock_t
   /** Constructor */
   rw_lock_t() { magic_n = RW_LOCK_MAGIC_N; }
 
+  rw_lock_t &operator=(const rw_lock_t &) = default;
+
   /** Destructor */
   virtual ~rw_lock_t() {
     ut_ad(magic_n == RW_LOCK_MAGIC_N);
