@@ -10727,16 +10727,21 @@ create_table_info_t::create_option_tablespace_is_valid()
 			if (THDVAR(m_thd, strict_mode)) {
 				/* Return error if STRICT mode is enabled. */
 				my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
-					"InnoDB: innodb_file_per_table option"
-					" not supported for temporary tables.", MYF(0));
+					"InnoDB: TABLESPACE=%s option"
+					" is disallowed for temporary tables"
+					" with INNODB_STRICT_NODE=ON. This option is"
+					" deprecated and will be removed in a future release",
+					MYF(0), m_create_info->tablespace);
 				return(false);
 			}
 			/* STRICT mode turned off. Proceed with the
 			execution with a warning. */
 			push_warning_printf(m_thd, Sql_condition::SL_WARNING,
 				ER_ILLEGAL_HA_CREATE_OPTION,
-				"InnoDB: innodb_file_per_table option ignored"
-				" while creating temporary table with INNODB_STRICT_MODE=OFF.");
+				"InnoDB: TABLESPACE=%s option is ignored."
+				" This option is deprecated and will be"
+				" removed in a future release.",
+				m_create_info->tablespace);
 		}
 		return(true);
 	}
@@ -11521,6 +11526,13 @@ index_bad:
 			ut_ad(zip_ssize == 0);
 			m_flags2 |= DICT_TF2_INTRINSIC;
 			innodb_row_format = REC_FORMAT_DYNAMIC;
+		}
+		if (m_create_info->tablespace != NULL &&
+		    strcmp(m_create_info->tablespace, reserved_temporary_space_name) == 0) {
+			push_warning_printf(m_thd, Sql_condition::SL_WARNING,
+			    ER_ILLEGAL_HA_CREATE_OPTION,
+			    "InnoDB: TABLESPACE=innodb_temporary option is"
+			    " deprecated and will be removed in a future release.");
 		}
 	}
 
