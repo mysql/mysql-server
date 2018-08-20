@@ -1509,6 +1509,14 @@ public:
    * the specific LQH where the fragId resides, or the SPJ block
    * responsible for scaning this fragment, if 'viaSPJ'.
    */
+  struct ScanFragLocation
+  {
+    Uint32 blockRef;
+    Uint32 fragId;
+  };
+
+#define NUM_FRAG_LOCATIONS_IN_ARRAY 32
+
   struct ScanFragLocationRec
   {
     STATIC_CONST( TYPE_ID = RT_DBTC_FRAG_LOCATION );
@@ -1520,13 +1528,14 @@ public:
 
     Uint32 m_magic;
 
-    Uint32 blockRef;
-    Uint32 fragId;
-
     /**
      * Next ptr (used in pool/list)
      */
     Uint32 nextList;
+
+    Uint32 m_first_index;
+    Uint32 m_next_index;
+    struct ScanFragLocation m_frag_location_array[NUM_FRAG_LOCATIONS_IN_ARRAY];
   };
 
   typedef Ptr<ScanFragLocationRec> ScanFragLocationPtr;
@@ -2046,13 +2055,30 @@ private:
                      const Uint32 apiPtr[],
                      Uint32 apiConnectPtr);
   void initScanfragrec(Signal* signal);
-  void releaseScanResources(Signal*, ScanRecordPtr, ApiConnectRecordPtr apiConnectptr, bool not_started = false);
+  void releaseScanResources(Signal*,
+                            ScanRecordPtr,
+                            ApiConnectRecordPtr apiConnectptr,
+                            bool not_started = false);
   ScanRecordPtr seizeScanrec(Signal* signal);
 
   void sendDihGetNodesLab(Signal*, ScanRecordPtr, ApiConnectRecordPtr);
-  bool sendDihGetNodeReq(Signal*, ScanRecordPtr, Uint32 scanFragId);
+  bool sendDihGetNodeReq(Signal*,
+                         ScanRecordPtr,
+                         ScanFragLocationPtr &fragLocationPtr,
+                         Uint32 scanFragId);
+  void get_next_frag_location(ScanFragLocationPtr fragLocationPtr,
+                              Uint32 & fragId,
+                              Uint32 & blockRef);
+  void get_and_step_next_frag_location(ScanFragLocationPtr & fragLocationPtr,
+                                       ScanRecord *scanPtrP,
+                                       Uint32 & fragId,
+                                       Uint32 & blockRef);
   void sendFragScansLab(Signal*, ScanRecordPtr, ApiConnectRecordPtr);
-  bool sendScanFragReq(Signal*, ScanRecordPtr, ScanFragRecPtr, ApiConnectRecordPtr);
+  bool sendScanFragReq(Signal*,
+                       ScanRecordPtr,
+                       ScanFragRecPtr,
+                       ScanFragLocationPtr & fragLocationPtr,
+                       ApiConnectRecordPtr const apiConnectptr);
   void sendScanTabConf(Signal* signal, ScanRecordPtr, ApiConnectRecordPtr);
   void close_scan_req(Signal*, ScanRecordPtr, bool received_req, ApiConnectRecordPtr apiConnectptr);
   void close_scan_req_send_conf(Signal*, ScanRecordPtr, ApiConnectRecordPtr apiConnectptr);

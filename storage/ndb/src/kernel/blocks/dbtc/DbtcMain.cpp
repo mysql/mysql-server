@@ -10538,14 +10538,19 @@ void Dbtc::checkScanActiveInFailedLqh(Signal* signal,
         ScanFragLocationPtr ptr;
         Local_ScanFragLocation_list frags(m_fragLocationPool,
                                           scanptr.p->m_fragLocations);
-        for (frags.first(ptr); !ptr.isNull(); frags.next(ptr))
+        for (frags.first(ptr); !found && !ptr.isNull(); frags.next(ptr))
         {
-          Uint32 nodeId = refToNode(ptr.p->blockRef);
-          if (nodeId == failedNodeId)
+          for (Uint32 j = ptr.p->m_first_index; j < ptr.p->m_next_index; j++)
           {
-            jam();
-            found = true;
-            break;
+            const BlockReference blockRef =
+              ptr.p->m_frag_location_array[j].blockRef;
+            const NodeId nodeId = refToNode(blockRef);
+            if (nodeId == failedNodeId)
+            {
+              jam();
+              found = true;
+              break;
+            }
           }
         }
       }
@@ -13602,16 +13607,11 @@ void Dbtc::execDIH_SCAN_TAB_CONF(Signal* signal,
 }//Dbtc::execDIH_SCAN_TAB_CONF()
 
 
-struct ScanFragLocation
-{
-  Uint32 blockRef;
-  Uint32 fragId;
-};
-
 static
 int compareFragLocation(const void * a, const void * b)
 {
-  return (((ScanFragLocation*)a)->blockRef - ((ScanFragLocation*)b)->blockRef);
+  return (((Dbtc::ScanFragLocation*)a)->blockRef -
+          ((Dbtc::ScanFragLocation*)b)->blockRef);
 }
 
 /********************************************************************
@@ -13666,6 +13666,20 @@ void Dbtc::sendDihGetNodesLab(Signal* signal, ScanRecordPtr scanptr, ApiConnectR
    * is used, there cant be any other signals processed inbetween
    * which close the scan, or drop the table.
    */
+  ScanFragLocationPtr fragLocationPtr;
+  {
+    Local_ScanFragLocation_list list(m_fragLocationPool,
+                                     scanptr.p->m_fragLocations);
+    if (unlikely(!m_fragLocationPool.seize(fragLocationPtr)))
+    {
+      jam();
+      scanError(signal, scanptr, ZGET_DATAREC_ERROR);
+      return;
+    }
+    list.addLast(fragLocationPtr);
+    fragLocationPtr.p->m_first_index = 0;
+    fragLocationPtr.p->m_next_index = 0;
+  }
   do
   {
     ndbassert(scanP->scanState == ScanRecord::RUNNING);
@@ -13686,7 +13700,10 @@ void Dbtc::sendDihGetNodesLab(Signal* signal, ScanRecordPtr scanptr, ApiConnectR
       return;
     }
 
-    const bool success = sendDihGetNodeReq(signal, scanptr, scanP->scanNextFragId);
+    const bool success = sendDihGetNodeReq(signal,
+                                           scanptr,
+                                           fragLocationPtr,
+                                           scanP->scanNextFragId);
     if (unlikely(!success))
     {
       jam();
@@ -13718,27 +13735,40 @@ void Dbtc::sendDihGetNodesLab(Signal* signal, ScanRecordPtr scanptr, ApiConnectR
     ScanFragLocation fragLocations[MAX_NDB_PARTITIONS];
 
     /* Construct SPJ blockRefs, fill in fragment locations into a temporary array */
-    for (frags.first(ptr),i=0; !ptr.isNull(); frags.next(ptr),i++)
+    i = 0;
+    for (frags.first(ptr); !ptr.isNull(); frags.next(ptr))
     {
-      const BlockReference blockRef = ptr.p->blockRef;
-      const NodeId nodeId = refToNode(blockRef);
-      ndbassert(refToMain(blockRef) == DBSPJ);
+      for (Uint32 j = ptr.p->m_first_index; j < ptr.p->m_next_index; j++)
+      {
+        const BlockReference blockRef =
+          ptr.p->m_frag_location_array[j].blockRef;
+        const NodeId nodeId = refToNode(blockRef);
+        ndbassert(refToMain(blockRef) == DBSPJ);
 
-      ndbassert(i < MAX_NDB_PARTITIONS);
-      fragLocations[i].fragId = ptr.p->fragId;
-      fragLocations[i].blockRef = numberToRef(DBSPJ, spjInstance, nodeId);
+        ndbassert(i < MAX_NDB_PARTITIONS);
+        fragLocations[i].fragId = ptr.p->m_frag_location_array[j].fragId;
+        fragLocations[i].blockRef = numberToRef(DBSPJ, spjInstance, nodeId);
+        i++;
+      }
     }
-
+    ndbassert(i == scanP->scanNoFrag);
     /* Sort fragment locations on 'blockRef' */
     qsort(fragLocations, scanP->scanNoFrag,
           sizeof(ScanFragLocation), compareFragLocation);
 
     /* Write back the blockRef-sorted fragment locations */
-    for (frags.first(ptr),i=0; !ptr.isNull(); frags.next(ptr),i++)
+    i = 0;
+    for (frags.first(ptr); !ptr.isNull(); frags.next(ptr))
     {
-      ptr.p->fragId   = fragLocations[i].fragId;
-      ptr.p->blockRef = fragLocations[i].blockRef;
+      for (Uint32 j = ptr.p->m_first_index; j < ptr.p->m_next_index; j++)
+      {
+        ndbassert(i < MAX_NDB_PARTITIONS);
+        ptr.p->m_frag_location_array[j].fragId   = fragLocations[i].fragId;
+        ptr.p->m_frag_location_array[j].blockRef = fragLocations[i].blockRef;
+        i++;
+      }
     }
+    ndbassert(i == scanP->scanNoFrag);
   }
 
   /* Start sending SCAN_FRAGREQ's, possibly interrupted with CONTINUEB */
@@ -13876,6 +13906,7 @@ void Dbtc::releaseScanResources(Signal* signal,
 
 bool Dbtc::sendDihGetNodeReq(Signal* signal,
                              ScanRecordPtr scanptr,
+                             ScanFragLocationPtr & fragLocationPtr,
                              Uint32 scanFragId)
 {
   jamDebug();
@@ -14039,19 +14070,26 @@ bool Dbtc::sendDihGetNodeReq(Signal* signal,
 
   //Build list of fragId locations.
   {
-    ScanFragLocationPtr fragLocationPtr;
-    Local_ScanFragLocation_list list(m_fragLocationPool,
-                                     scanptr.p->m_fragLocations);
-
-    if (unlikely(!m_fragLocationPool.seize(fragLocationPtr)))
+    jamDebug();
+    Uint32 index = fragLocationPtr.p->m_next_index;
+    if (unlikely((index + 1) == NUM_FRAG_LOCATIONS_IN_ARRAY))
     {
-      jam();
-      scanError(signal, scanptr, ZGET_DATAREC_ERROR);
-      return false;
+      jamDebug();
+      Local_ScanFragLocation_list list(m_fragLocationPool,
+                                       scanptr.p->m_fragLocations);
+      if (unlikely(!m_fragLocationPool.seize(fragLocationPtr)))
+      {
+        jam();
+        scanError(signal, scanptr, ZGET_DATAREC_ERROR);
+        return false;
+      }
+      list.addLast(fragLocationPtr);
+      index = 0;
+      fragLocationPtr.p->m_first_index = 0;
     }
-    fragLocationPtr.p->fragId   = lqhScanFragId;
-    fragLocationPtr.p->blockRef = blockRef;
-    list.addLast(fragLocationPtr);
+    fragLocationPtr.p->m_next_index = index + 1;
+    fragLocationPtr.p->m_frag_location_array[index].fragId = lqhScanFragId;
+    fragLocationPtr.p->m_frag_location_array[index].blockRef = blockRef;
   }
 
   return true;
@@ -14113,7 +14151,13 @@ void Dbtc::sendFragScansLab(Signal* signal,
    * However, that is caught by checking its return value.
    */
   scanFragP.i = RNIL;
-  while (!scanptr.p->m_fragLocations.isEmpty())
+  ScanFragLocationPtr fragLocationPtr;
+  {
+    Local_ScanFragLocation_list list(m_fragLocationPool,
+                                     scanptr.p->m_fragLocations);
+    list.first(fragLocationPtr);
+  }
+  while (fragLocationPtr.p != NULL)
   {
     ndbassert(tabPtr.p->checkTable(schemaVersion) == true);
     ndbassert(scanptr.p->scanState != ScanRecord::CLOSING_SCAN);
@@ -14185,7 +14229,11 @@ void Dbtc::sendFragScansLab(Signal* signal,
 
     ndbassert(scanptr.p->m_booked_fragments_count > 0);
     scanptr.p->m_booked_fragments_count--;
-    const bool success = sendScanFragReq(signal, scanptr, scanFragP, apiConnectptr);
+    const bool success = sendScanFragReq(signal,
+                                         scanptr,
+                                         scanFragP,
+                                         fragLocationPtr,
+                                         apiConnectptr);
     if (unlikely(!success))
     {
       jam();
@@ -14421,7 +14469,18 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
      */
     jam();
     scanFragptr.p->scanFragState = ScanFragRec::IDLE;
-    const bool ok = sendScanFragReq(signal, scanptr, scanFragptr, apiConnectptr);
+    ScanFragLocationPtr fragLocationPtr;
+    {
+      Local_ScanFragLocation_list list(m_fragLocationPool,
+                                       scanptr.p->m_fragLocations);
+      list.first(fragLocationPtr);
+      ndbassert(fragLocationPtr.p != NULL);
+    }
+    const bool ok = sendScanFragReq(signal,
+                                    scanptr,
+                                    scanFragptr,
+                                    fragLocationPtr,
+                                    apiConnectptr);
     if (!ok)
     {
       jam();
@@ -14641,7 +14700,18 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
       scanptr.p->m_booked_fragments_count--;
 
       scanFragptr.p->scanFragState = ScanFragRec::IDLE;
-      const bool ok = sendScanFragReq(signal, scanptr, scanFragptr, apiConnectptr);
+      ScanFragLocationPtr fragLocationPtr;
+      {
+        Local_ScanFragLocation_list list(m_fragLocationPool,
+                                         scanptr.p->m_fragLocations);
+        list.first(fragLocationPtr);
+        ndbassert(fragLocationPtr.p != NULL);
+      }
+      const bool ok = sendScanFragReq(signal,
+                                      scanptr,
+                                      scanFragptr,
+                                      fragLocationPtr,
+                                      apiConnectptr);
       if (unlikely(!ok))
       {
         jam();
@@ -14858,23 +14928,58 @@ Dbtc::seizeScanrec(Signal* signal) {
   return scanptr;
 }//Dbtc::seizeScanrec()
 
+void
+Dbtc::get_next_frag_location(ScanFragLocationPtr fragLocationPtr,
+                             Uint32 & fragId,
+                             Uint32 & blockRef)
+{
+  Uint32 index = fragLocationPtr.p->m_first_index;
+  fragId = fragLocationPtr.p->m_frag_location_array[index].fragId;
+  blockRef = fragLocationPtr.p->m_frag_location_array[index].blockRef;
+}
+                      
+void
+Dbtc::get_and_step_next_frag_location(ScanFragLocationPtr & fragLocationPtr,
+                                      ScanRecord *scanPtrP,
+                                      Uint32 & fragId,
+                                      Uint32 & blockRef)
+{
+  Uint32 index = fragLocationPtr.p->m_first_index;
+  fragId = fragLocationPtr.p->m_frag_location_array[index].fragId;
+  blockRef = fragLocationPtr.p->m_frag_location_array[index].blockRef;
+  index++;
+  if (likely(index < fragLocationPtr.p->m_next_index))
+  {
+    fragLocationPtr.p->m_first_index = index;
+  }
+  else
+  {
+    ScanFragLocationPtr ptr;
+    Local_ScanFragLocation_list list(m_fragLocationPool,
+                                     scanPtrP->m_fragLocations);
+    list.removeFirst(ptr);
+    ndbassert(ptr.i == fragLocationPtr.i);
+    m_fragLocationPool.release(fragLocationPtr);  //Consumed it
+    list.first(fragLocationPtr);
+  }
+}
+
 bool Dbtc::sendScanFragReq(Signal* signal,
                            ScanRecordPtr scanptr,
                            ScanFragRecPtr scanFragP,
+                           ScanFragLocationPtr & fragLocationPtr,
                            ApiConnectRecordPtr const apiConnectptr)
 {
   jam();
   ScanRecord* const scanP = scanptr.p;
 
-  ScanFragLocationPtr ptr;
-  Local_ScanFragLocation_list frags(m_fragLocationPool,
-                                    scanP->m_fragLocations);
-  ndbrequire(frags.removeFirst(ptr));
+  Uint32 fragId, lqhBlockRef;
+  get_and_step_next_frag_location(fragLocationPtr,
+                                  scanptr.p,
+                                  fragId,
+                                  lqhBlockRef);
 
-  const Uint32 fragId = ptr.p->fragId;
-  const Uint32 lqhBlockRef = ptr.p->blockRef;
   scanP->scanNextFragId++;
-  m_fragLocationPool.release(ptr);  //Consumed it
 
   const NodeId nodeId = refToNode(lqhBlockRef);
   Uint32 requestInfo = scanP->scanRequestInfo;
@@ -14906,13 +15011,19 @@ bool Dbtc::sendScanFragReq(Signal* signal,
      * The fragLocations are sorted on blockRef. 
      * Append all fragIds at same block to this SCAN_FRAGREQ.
      */
-    while (frags.first(ptr) && ptr.p->blockRef == scanFragP.p->lqhBlockref)
+
+    while (fragLocationPtr.p != NULL)
     {
+      get_next_frag_location(fragLocationPtr, fragId, lqhBlockRef);
+      if (lqhBlockRef != scanFragP.p->lqhBlockref)
+        break;
       jamDebug();
-      *(fragIds++) = ptr.p->fragId;
+      *(fragIds++) = fragId;
       scanP->scanNextFragId++;
-      frags.removeFirst(ptr);
-      m_fragLocationPool.release(ptr);  //Consumed it
+      get_and_step_next_frag_location(fragLocationPtr,
+                                      scanptr.p,
+                                      fragId,
+                                      lqhBlockRef);
     }
 
     Ptr<SectionSegment> fragIdPtr;
