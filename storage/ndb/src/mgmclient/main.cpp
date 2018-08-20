@@ -194,6 +194,8 @@ int main(int argc, char** argv){
   // Don't allow negative return code
   if (ret < 0)
     ret = 255;
+
+  ndb_free_defaults(argv);
   return ret;
 }
 

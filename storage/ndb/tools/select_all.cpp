@@ -133,10 +133,14 @@ int main(int argc, char** argv){
 #endif
   if ((ho_error=handle_options(&argc, &argv, my_long_options,
 			       ndb_std_get_one_option)))
+  {
+    ndb_free_defaults(argv);
     return NDBT_ProgramExit(NDBT_WRONGARGS);
+  }
   if (argc == 0) {
     ndbout << "Missing table name. Please see the below usage for correct command." << endl;
     usage();
+    ndb_free_defaults(argv);
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
   if (argc > (!_order? 1 : 2))
@@ -144,6 +148,7 @@ int main(int argc, char** argv){
     ndbout << "Error. TOO MANY ARGUMENTS GIVEN." << endl;
     ndbout << "Please see the below usage for correct command." << endl;
     usage();
+    ndb_free_defaults(argv);
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
 
@@ -153,17 +158,20 @@ int main(int argc, char** argv){
   if(con.connect(opt_connect_retries - 1, opt_connect_retry_delay, 1) != 0)
   {
     ndbout << "Unable to connect to management server." << endl;
+    ndb_free_defaults(argv);
     return NDBT_ProgramExit(NDBT_FAILED);
   }
   if (con.wait_until_ready(30,0) < 0)
   {
     ndbout << "Cluster nodes not ready in 30 seconds." << endl;
+    ndb_free_defaults(argv);
     return NDBT_ProgramExit(NDBT_FAILED);
   }
 
   Ndb MyNdb(&con, _dbname );
   if(MyNdb.init() != 0){
     NDB_ERR(MyNdb.getNdbError());
+    ndb_free_defaults(argv);
     return NDBT_ProgramExit(NDBT_FAILED);
   }
 
@@ -173,6 +181,7 @@ int main(int argc, char** argv){
 
   if(pTab == NULL){
     ndbout << " Table " << _tabname << " does not exist!" << endl;
+    ndb_free_defaults(argv);
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
 
@@ -182,17 +191,21 @@ int main(int argc, char** argv){
       if(pIdx == 0)
       {
         ndbout << " Index " << argv[1] << " does not exists" << endl;
+        ndb_free_defaults(argv);
         return NDBT_ProgramExit(NDBT_WRONGARGS);
       }
     }
-    else{
+    else
+    {
       ndbout << " Order flag given without an index" << endl;
+      ndb_free_defaults(argv);
       return NDBT_ProgramExit(NDBT_WRONGARGS);
     }
   }
 
   if (_descending && ! _order) {
     ndbout << " Descending flag given without order flag" << endl;
+    ndb_free_defaults(argv);
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
 
@@ -203,12 +216,14 @@ int main(int argc, char** argv){
 		      _lock,
 		      _header, 
 		      _useHexFormat, 
-		      (char)*_delimiter, _order, _descending) != 0){
+		      (char)*_delimiter, _order, _descending) != 0)
+  {
+    ndb_free_defaults(argv);
     return NDBT_ProgramExit(NDBT_FAILED);
   }
 
+  ndb_free_defaults(argv);
   return NDBT_ProgramExit(NDBT_OK);
-
 }
 
 int scanReadRecords(Ndb* pNdb, 

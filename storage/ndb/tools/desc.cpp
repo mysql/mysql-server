@@ -102,24 +102,30 @@ int main(int argc, char** argv){
 #endif
   if ((ho_error=handle_options(&argc, &argv, my_long_options, 
 			       ndb_std_get_one_option)))
+  {
+    ndb_free_defaults(argv);
     return NDBT_ProgramExit(NDBT_WRONGARGS);
+  }
 
   Ndb_cluster_connection con(opt_ndb_connectstring, opt_ndb_nodeid);
   con.set_name("ndb_desc");
   if(con.connect(opt_connect_retries - 1, opt_connect_retry_delay, 1) != 0)
   {
     ndbout << "Unable to connect to management server." << endl;
+    ndb_free_defaults(argv);
     return NDBT_ProgramExit(NDBT_FAILED);
   }
   if (con.wait_until_ready(30,0) < 0)
   {
     ndbout << "Cluster nodes not ready in 30 seconds." << endl;
+    ndb_free_defaults(argv);
     return NDBT_ProgramExit(NDBT_FAILED);
   }
 
   Ndb MyNdb(&con, _dbname);
   if(MyNdb.init() != 0){
     NDB_ERR(MyNdb.getNdbError());
+    ndb_free_defaults(argv);
     return NDBT_ProgramExit(NDBT_FAILED);
   }
 
@@ -143,6 +149,7 @@ int main(int argc, char** argv){
       ndbout << "No such object: " << argv[i] << endl << endl;
   }
 
+  ndb_free_defaults(argv);
   return NDBT_ProgramExit(NDBT_OK);
 }
 
