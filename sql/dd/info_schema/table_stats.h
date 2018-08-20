@@ -101,7 +101,7 @@ enum class enum_table_stats_type {
 
 class Table_statistics {
  public:
-  Table_statistics() : m_checksum(0) {}
+  Table_statistics() : m_checksum(0), m_read_stats_by_open(false) {}
 
   /**
     Check if the stats are cached for given db.table_name.
