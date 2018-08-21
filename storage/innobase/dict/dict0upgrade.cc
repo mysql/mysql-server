@@ -700,10 +700,10 @@ static bool dd_upgrade_partitions(THD *thd, const char *norm_name,
 
     if (DICT_TF_HAS_SHARED_SPACE(part_table->flags)) {
       ib::error(ER_IB_MSG_1282)
-          << "Share tablespace found in" << part_table->name.m_name
-          << ". A partitioned table is not allowed in a shared"
-             " tablespace. Please move all partitions to"
-             " file-per-table tablespace before upgrade.";
+          << "Partitioned table '" << part_table->name.m_name
+          << "' is not allowed to use shared tablespace '"
+          << part_table->tablespace << "'. Please move all "
+          << "partitions to file-per-table tablespaces before upgrade.";
       return (true);
     }
 

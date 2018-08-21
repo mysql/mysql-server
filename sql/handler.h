@@ -1279,6 +1279,28 @@ typedef int (*finish_upgrade_t)(THD *thd, bool failed_upgrade);
 */
 typedef int (*upgrade_logs_t)(THD *thd);
 
+enum class Tablespace_type {
+  SPACE_TYPE_DICTIONARY,
+  SPACE_TYPE_SYSTEM,
+  SPACE_TYPE_UNDO,
+  SPACE_TYPE_TEMPORARY,
+  SPACE_TYPE_SHARED,
+  SPACE_TYPE_IMPLICIT
+};
+
+/**
+  Get the tablespace type from the SE.
+
+  @param[in]  space          tablespace object
+  @param[out] space_type     type of space
+
+  @return Operation status.
+  @retval == 0  Success.
+  @retval != 0  Error (unknown space type, no error code returned)
+*/
+typedef bool (*get_tablespace_type_t)(const dd::Tablespace &space,
+                                      Tablespace_type *space_type);
+
 typedef int (*fill_is_table_t)(handlerton *hton, THD *thd, TABLE_LIST *tables,
                                class Item *cond, enum enum_schema_tables);
 
@@ -1852,6 +1874,7 @@ struct handlerton {
   alter_tablespace_t alter_tablespace;
   upgrade_tablespace_t upgrade_tablespace;
   upgrade_space_version_t upgrade_space_version;
+  get_tablespace_type_t get_tablespace_type;
   upgrade_logs_t upgrade_logs;
   finish_upgrade_t finish_upgrade;
   fill_is_table_t fill_is_table;

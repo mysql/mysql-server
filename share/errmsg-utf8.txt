@@ -18415,6 +18415,13 @@ ER_PLUGIN_INSTALL_ERROR
 
 ER_PLUGIN_UNINSTALL_ERROR
   eng "Error uninstalling plugin '%s': %s"
+
+ER_SHARED_TABLESPACE_USED_BY_PARTITIONED_TABLE
+  eng "Partitioned table '%s' is not allowed to use shared tablespace '%s'. Please move all partitions to file-per-table tablespaces before upgrade."
+
+ER_UNKNOWN_TABLESPACE_TYPE
+  eng "Cannot determine the type of the tablespace named '%s'."
+
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #
