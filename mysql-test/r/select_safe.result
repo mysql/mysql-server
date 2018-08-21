@@ -180,7 +180,7 @@ DELETE FROM t2 WHERE c2 IN('a','e');
 ERROR HY000: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column. 
 EXPLAIN DELETE FROM t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+1	DELETE	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	#
 Warnings:
 Note	1003	delete from `test`.`t2`
 DELETE FROM t2;
