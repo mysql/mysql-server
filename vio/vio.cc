@@ -367,8 +367,15 @@ bool vio_reset(Vio *vio, enum enum_vio_type type, my_socket sd,
       if (vio->inactive == false) vio->vioshutdown(vio);
     }
 #ifdef HAVE_KQUEUE
-    else
+    else {
+      /*
+      Must set the fd to -1, otherwise the destructor would
+      close it again possibly closing socket or file opened
+      by other threads concurrently.
+      */
       close(vio->kq_fd);
+      vio->kq_fd = -1;
+    }
 #endif
     /*
       Overwrite existing Vio structure
