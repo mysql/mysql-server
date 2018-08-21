@@ -280,16 +280,26 @@ the scope the constructor will set the "being modified" bit in the lob reference
 objects that are either being inserted or updated.  When we exit the scope the
 destructor will clear the "being modified" bit in the lob reference objects. */
 struct Being_modified {
-  /** Constructor.  Set the "being modified" bit in LOB references. */
-  Being_modified(const big_rec_t *big_rec_vec, btr_pcur_t *pcur, ulint *offsets,
-                 opcode op)
-      : m_big_rec_vec(big_rec_vec), m_pcur(pcur), m_offsets(offsets), m_op(op) {
+  /** Constructor.  Set the "being modified" bit in LOB references.
+  @param[in] big_rec_vec  the LOB vector
+  @param[in] pcur  persistent cursor
+  @param[in] offsets the record offsets
+  @param[in] op  the operation code
+  @param[in] mtr the mini-transaction context. */
+  Being_modified(BtrContext &ctx, const big_rec_t *big_rec_vec,
+                 btr_pcur_t *pcur, ulint *offsets, opcode op, mtr_t *mtr)
+      : m_btr_ctx(ctx),
+        m_big_rec_vec(big_rec_vec),
+        m_pcur(pcur),
+        m_offsets(offsets),
+        m_op(op),
+        m_mtr(mtr) {
     /* All pointers to externally stored columns in the record
     must either be zero or they must be pointers to inherited
     columns, owned by this record or an earlier record version. */
     rec_t *rec = btr_pcur_get_rec(m_pcur);
-#ifdef UNIV_DEBUG
     dict_index_t *index = m_pcur->index();
+#ifdef UNIV_DEBUG
     rec_offs_make_valid(rec, index, m_offsets);
 #endif /* UNIV_DEBUG */
     for (uint i = 0; i < m_big_rec_vec->n_fields; i++) {
@@ -297,10 +307,22 @@ struct Being_modified {
       byte *field_ref = btr_rec_get_field_ref(rec, m_offsets, field_no);
       ref_t blobref(field_ref);
 
+      ut_ad(!blobref.is_being_modified());
+
       /* Before we release latches in a subsequent ctx.check_redolog() call,
       mark the blobs as being modified.  This is needed to ensure that READ
       UNCOMMITTED transactions don't read an inconsistent BLOB. */
-      blobref.set_being_modified(true);
+      if (index->is_compressed()) {
+        blobref.set_being_modified(true, nullptr);
+        if (!m_btr_ctx.is_bulk()) {
+          buf_block_t *rec_block = btr_pcur_get_block(m_pcur);
+          page_zip_des_t *page_zip = buf_block_get_page_zip(rec_block);
+          page_zip_write_blob_ptr(page_zip, rec, index, m_offsets, field_no,
+                                  m_mtr);
+        }
+      } else {
+        blobref.set_being_modified(true, m_mtr);
+      }
 
 #if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
 
@@ -323,8 +345,8 @@ struct Being_modified {
   /** Destructor.  Clear the "being modified" bit in LOB references. */
   ~Being_modified() {
     rec_t *rec = btr_pcur_get_rec(m_pcur);
-#ifdef UNIV_DEBUG
     dict_index_t *index = m_pcur->index();
+#ifdef UNIV_DEBUG
     rec_offs_make_valid(rec, index, m_offsets);
 #endif /* UNIV_DEBUG */
     for (uint i = 0; i < m_big_rec_vec->n_fields; i++) {
@@ -332,14 +354,26 @@ struct Being_modified {
       byte *field_ref = btr_rec_get_field_ref(rec, m_offsets, field_no);
       ref_t blobref(field_ref);
 
-      blobref.set_being_modified(false);
+      if (index->is_compressed()) {
+        blobref.set_being_modified(false, nullptr);
+        if (!m_btr_ctx.is_bulk()) {
+          buf_block_t *rec_block = btr_pcur_get_block(m_pcur);
+          page_zip_des_t *page_zip = buf_block_get_page_zip(rec_block);
+          page_zip_write_blob_ptr(page_zip, rec, index, m_offsets, field_no,
+                                  m_mtr);
+        }
+      } else {
+        blobref.set_being_modified(false, m_mtr);
+      }
     }
   }
 
+  BtrContext &m_btr_ctx;
   const big_rec_t *m_big_rec_vec;
   btr_pcur_t *m_pcur;
   ulint *m_offsets;
   opcode m_op;
+  mtr_t *m_mtr;
 };
 
 /** Stores the fields in big_rec_vec to the tablespace and puts pointers to
@@ -396,7 +430,7 @@ dberr_t btr_store_big_rec_extern_fields(trx_t *trx, btr_pcur_t *pcur,
   BtrContext btr_ctx(btr_mtr, pcur, index, rec, offsets, rec_block, op);
   InsertContext ctx(btr_ctx, big_rec_vec);
 
-  Being_modified bm(big_rec_vec, pcur, offsets, op);
+  Being_modified bm(btr_ctx, big_rec_vec, pcur, offsets, op, btr_mtr);
 
   /* The pcur could be re-positioned.  Commit and restart btr_mtr. */
   ctx.check_redolog();
@@ -486,6 +520,7 @@ dberr_t btr_store_big_rec_extern_fields(trx_t *trx, btr_pcur_t *pcur,
             if (dfield_is_ext(new_val)) {
               byte *field_ref = new_val->blobref();
               blobref.copy(field_ref);
+              ref_t::set_being_modified(field_ref, false, nullptr);
             }
           }
         }
@@ -536,6 +571,7 @@ dberr_t btr_store_big_rec_extern_fields(trx_t *trx, btr_pcur_t *pcur,
             if (dfield_is_ext(new_val)) {
               byte *field_ref = new_val->blobref();
               blobref.copy(field_ref);
+              ref_t::set_being_modified(field_ref, false, nullptr);
             }
           }
         }
@@ -887,6 +923,8 @@ byte *btr_copy_externally_stored_field_func(
   if (ref_t::is_being_modified(data + local_len)) {
     /* This is applicable only for READ UNCOMMITTED transactions because they
     don't take transaction locks. */
+    ut_ad(trx == nullptr || trx->is_read_uncommitted());
+
     *len = 0;
     return (buf);
   }

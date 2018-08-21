@@ -95,7 +95,6 @@ void zInserter::update_length_in_blobref(big_rec_field_t &field) {
 
   ref_t blobref(field_ref);
   blobref.set_length(m_stream.total_in, nullptr);
-  blobref.set_being_modified(false);
 
   if (!m_ctx->is_bulk()) {
     m_ctx->zblob_write_blobref(field_no, &m_blob_mtr);

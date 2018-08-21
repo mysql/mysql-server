@@ -1,0 +1,44 @@
+--source include/have_debug.inc
+
+create table t1 (f1 longblob) engine=innodb;
+show create table t1;
+
+insert into t1 values (repeat('x', 1024*16*4));
+select count(*) from t1;
+select left(f1, 40) from t1;
+select right(f1, 40) from t1;
+select length(f1) from t1;
+
+--echo # Connection con1:
+connect (con1,localhost,root,,);
+start transaction;
+set debug_sync = 'blob_write_middle SIGNAL go_flush WAIT_FOR go_insert';
+--send insert into t1 values (repeat('y', 1024*16*4));
+
+--echo # Connection default:
+connection default;
+set debug_sync = 'now WAIT_FOR go_flush';
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+SET GLOBAL innodb_dict_stats_disabled_debug = 1;
+SET GLOBAL innodb_master_thread_disabled_debug = 1;
+SET GLOBAL innodb_checkpoint_disabled = 1;
+set debug_sync = 'now SIGNAL go_insert';
+
+--echo # Connection con1:
+connection con1;
+--reap
+commit;
+
+--echo # Connection default:
+connection default;
+
+--source include/kill_and_restart_mysqld.inc
+
+select count(*) from t1;
+select left(f1, 40) from t1;
+select right(f1, 40) from t1;
+select length(f1) from t1;
+
+drop table t1;
+

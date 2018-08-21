@@ -500,7 +500,6 @@ dberr_t z_insert(InsertContext *ctx, trx_t *trx, ref_t &ref,
 
   ref.update(space_id, first_page_no, 1, 0);
   ref.set_length(len, 0);
-  ref.set_being_modified(false);
 
   ctx->make_nth_extern(field->field_no);
 
