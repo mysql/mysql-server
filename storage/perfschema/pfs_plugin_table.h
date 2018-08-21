@@ -30,8 +30,60 @@
   @file storage/perfschema/pfs_plugin_table.h
   The performance schema implementation of plugin table.
 */
+/** @deprecated */
 extern SERVICE_TYPE(pfs_plugin_table)
     SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_table);
+
+extern SERVICE_TYPE(pfs_plugin_table_v1)
+    SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_table_v1);
+
+extern SERVICE_TYPE(pfs_plugin_column_tiny_v1)
+    SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_column_tiny_v1);
+
+extern SERVICE_TYPE(pfs_plugin_column_small_v1)
+    SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_column_small_v1);
+
+extern SERVICE_TYPE(pfs_plugin_column_medium_v1)
+    SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_column_medium_v1);
+
+extern SERVICE_TYPE(pfs_plugin_column_integer_v1)
+    SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_column_integer_v1);
+
+extern SERVICE_TYPE(pfs_plugin_column_bigint_v1)
+    SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_column_bigint_v1);
+
+extern SERVICE_TYPE(pfs_plugin_column_decimal_v1)
+    SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_column_decimal_v1);
+
+extern SERVICE_TYPE(pfs_plugin_column_float_v1)
+    SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_column_float_v1);
+
+extern SERVICE_TYPE(pfs_plugin_column_double_v1)
+    SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_column_double_v1);
+
+extern SERVICE_TYPE(pfs_plugin_column_string_v1)
+    SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_column_string_v1);
+
+extern SERVICE_TYPE(pfs_plugin_column_blob_v1)
+    SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_column_blob_v1);
+
+extern SERVICE_TYPE(pfs_plugin_column_enum_v1)
+    SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_column_enum_v1);
+
+extern SERVICE_TYPE(pfs_plugin_column_date_v1)
+    SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_column_date_v1);
+
+extern SERVICE_TYPE(pfs_plugin_column_time_v1)
+    SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_column_time_v1);
+
+extern SERVICE_TYPE(pfs_plugin_column_datetime_v1)
+    SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_column_datetime_v1);
+
+extern SERVICE_TYPE(pfs_plugin_column_timestamp_v1)
+    SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_column_timestamp_v1);
+
+extern SERVICE_TYPE(pfs_plugin_column_year_v1)
+    SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_column_year_v1);
 
 void init_pfs_plugin_table();
 void cleanup_pfs_plugin_table();

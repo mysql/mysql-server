@@ -18478,6 +18478,12 @@ ER_CLONE_INFO_CLIENT
 ER_CLONE_INFO_SERVER
   eng "Server: %.512s."
 
+ER_THREAD_POOL_PFS_TABLES_INIT_FAILED
+  eng "Failed to initialize the performance schema tables service."
+
+ER_THREAD_POOL_PFS_TABLES_ADD_FAILED
+  eng "Failed to add thread pool performance schema tables."
+
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #

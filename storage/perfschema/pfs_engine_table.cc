@@ -1219,128 +1219,85 @@ ACL_internal_access_result PFS_unknown_acl::check(ulong want_access,
   return ACL_INTERNAL_ACCESS_CHECK_GRANT;
 }
 
-enum ha_rkey_function PFS_key_reader::read_uchar(
+/*
+  Common body for int key reads
+  DS : data size in bytes
+  KT : key type
+  DT : data type
+  KORR : storage/memory conversion function
+*/
+#define READ_INT_COMMON(DS, KT, DT, KORR)                                \
+  if (m_remaining_key_part_info->store_length <= m_remaining_key_len) {  \
+    size_t data_size = DS;                                               \
+    DBUG_ASSERT(m_remaining_key_part_info->type == KT);                  \
+    DBUG_ASSERT(m_remaining_key_part_info->store_length >= data_size);   \
+    isnull = false;                                                      \
+    if (m_remaining_key_part_info->field->real_maybe_null()) {           \
+      if (m_remaining_key[0]) {                                          \
+        isnull = true;                                                   \
+      }                                                                  \
+      m_remaining_key += HA_KEY_NULL_LENGTH;                             \
+      m_remaining_key_len -= HA_KEY_NULL_LENGTH;                         \
+    }                                                                    \
+    DT data = KORR(m_remaining_key);                                     \
+    m_remaining_key += data_size;                                        \
+    m_remaining_key_len -= (uint)data_size;                              \
+    m_parts_found++;                                                     \
+    m_remaining_key_part_info++;                                         \
+    *value = data;                                                       \
+    return ((m_remaining_key_len == 0) ? find_flag : HA_READ_KEY_EXACT); \
+  }                                                                      \
+  DBUG_ASSERT(m_remaining_key_len == 0);                                 \
+  return HA_READ_INVALID
+
+enum ha_rkey_function PFS_key_reader::read_int8(enum ha_rkey_function find_flag,
+                                                bool &isnull, char *value) {
+  READ_INT_COMMON(1, HA_KEYTYPE_INT8, char, mi_sint1korr);
+}
+
+enum ha_rkey_function PFS_key_reader::read_uint8(
     enum ha_rkey_function find_flag, bool &isnull, uchar *value) {
-  if (m_remaining_key_part_info->store_length <= m_remaining_key_len) {
-    size_t data_size = 1;
-    DBUG_ASSERT(m_remaining_key_part_info->type == HA_KEYTYPE_BINARY);
-    DBUG_ASSERT(m_remaining_key_part_info->store_length >= data_size);
+  READ_INT_COMMON(1, HA_KEYTYPE_BINARY, unsigned char, mi_uint1korr);
+}
 
-    isnull = false;
-    if (m_remaining_key_part_info->field->real_maybe_null()) {
-      if (m_remaining_key[0]) {
-        isnull = true;
-      }
+enum ha_rkey_function PFS_key_reader::read_int16(
+    enum ha_rkey_function find_flag, bool &isnull, short *value) {
+  READ_INT_COMMON(2, HA_KEYTYPE_SHORT_INT, short, sint2korr);
+}
 
-      m_remaining_key += HA_KEY_NULL_LENGTH;
-      m_remaining_key_len -= HA_KEY_NULL_LENGTH;
-    }
+enum ha_rkey_function PFS_key_reader::read_uint16(
+    enum ha_rkey_function find_flag, bool &isnull, ushort *value) {
+  READ_INT_COMMON(2, HA_KEYTYPE_USHORT_INT, unsigned short, sint2korr);
+}
 
-    uchar data = mi_uint1korr(m_remaining_key);
-    m_remaining_key += data_size;
-    m_remaining_key_len -= (uint)data_size;
-    m_parts_found++;
-    m_remaining_key_part_info++;
+enum ha_rkey_function PFS_key_reader::read_int24(
+    enum ha_rkey_function find_flag, bool &isnull, long *value) {
+  READ_INT_COMMON(3, HA_KEYTYPE_INT24, long, sint3korr);
+}
 
-    *value = data;
-    return ((m_remaining_key_len == 0) ? find_flag : HA_READ_KEY_EXACT);
-  }
-
-  DBUG_ASSERT(m_remaining_key_len == 0);
-  return HA_READ_INVALID;
+enum ha_rkey_function PFS_key_reader::read_uint24(
+    enum ha_rkey_function find_flag, bool &isnull, ulong *value) {
+  READ_INT_COMMON(3, HA_KEYTYPE_UINT24, unsigned long, uint3korr);
 }
 
 enum ha_rkey_function PFS_key_reader::read_long(enum ha_rkey_function find_flag,
                                                 bool &isnull, long *value) {
-  if (m_remaining_key_part_info->store_length <= m_remaining_key_len) {
-    size_t data_size = sizeof(int32);
-    DBUG_ASSERT(m_remaining_key_part_info->type == HA_KEYTYPE_LONG_INT);
-    DBUG_ASSERT(m_remaining_key_part_info->store_length >= data_size);
-
-    isnull = false;
-    if (m_remaining_key_part_info->field->real_maybe_null()) {
-      if (m_remaining_key[0]) {
-        isnull = true;
-      }
-
-      m_remaining_key += HA_KEY_NULL_LENGTH;
-      m_remaining_key_len -= HA_KEY_NULL_LENGTH;
-    }
-
-    int32 data = sint4korr(m_remaining_key);
-    m_remaining_key += data_size;
-    m_remaining_key_len -= (uint)data_size;
-    m_parts_found++;
-    m_remaining_key_part_info++;
-
-    *value = data;
-    return ((m_remaining_key_len == 0) ? find_flag : HA_READ_KEY_EXACT);
-  }
-
-  DBUG_ASSERT(m_remaining_key_len == 0);
-  return HA_READ_INVALID;
+  READ_INT_COMMON(4, HA_KEYTYPE_LONG_INT, long, sint4korr);
 }
 
 enum ha_rkey_function PFS_key_reader::read_ulong(
     enum ha_rkey_function find_flag, bool &isnull, ulong *value) {
-  if (m_remaining_key_part_info->store_length <= m_remaining_key_len) {
-    size_t data_size = sizeof(int32);
-    DBUG_ASSERT(m_remaining_key_part_info->type == HA_KEYTYPE_ULONG_INT);
-    DBUG_ASSERT(m_remaining_key_part_info->store_length >= data_size);
+  READ_INT_COMMON(4, HA_KEYTYPE_ULONG_INT, long, uint4korr);
+}
 
-    isnull = false;
-    if (m_remaining_key_part_info->field->real_maybe_null()) {
-      if (m_remaining_key[0]) {
-        isnull = true;
-      }
-
-      m_remaining_key += HA_KEY_NULL_LENGTH;
-      m_remaining_key_len -= HA_KEY_NULL_LENGTH;
-    }
-
-    uint32 data = uint4korr(m_remaining_key);
-    m_remaining_key += data_size;
-    m_remaining_key_len -= (uint)data_size;
-    m_parts_found++;
-    m_remaining_key_part_info++;
-
-    *value = data;
-    return ((m_remaining_key_len == 0) ? find_flag : HA_READ_KEY_EXACT);
-  }
-
-  DBUG_ASSERT(m_remaining_key_len == 0);
-  return HA_READ_INVALID;
+enum ha_rkey_function PFS_key_reader::read_longlong(
+    enum ha_rkey_function find_flag, bool &isnull, longlong *value) {
+  READ_INT_COMMON(8, HA_KEYTYPE_LONGLONG, long long, sint8korr);
 }
 
 enum ha_rkey_function PFS_key_reader::read_ulonglong(
     enum ha_rkey_function find_flag, bool &isnull, ulonglong *value) {
-  if (m_remaining_key_part_info->store_length <= m_remaining_key_len) {
-    size_t data_size = sizeof(ulonglong);
-    DBUG_ASSERT(m_remaining_key_part_info->type == HA_KEYTYPE_ULONGLONG);
-    DBUG_ASSERT(m_remaining_key_part_info->store_length >= data_size);
-
-    isnull = false;
-    if (m_remaining_key_part_info->field->real_maybe_null()) {
-      if (m_remaining_key[0]) {
-        isnull = true;
-      }
-
-      m_remaining_key += HA_KEY_NULL_LENGTH;
-      m_remaining_key_len -= HA_KEY_NULL_LENGTH;
-    }
-
-    ulonglong data = uint8korr(m_remaining_key);
-    m_remaining_key += data_size;
-    m_remaining_key_len -= (uint)data_size;
-    m_parts_found++;
-    m_remaining_key_part_info++;
-
-    *value = data;
-    return ((m_remaining_key_len == 0) ? find_flag : HA_READ_KEY_EXACT);
-  }
-
-  DBUG_ASSERT(m_remaining_key_len == 0);
-  return HA_READ_INVALID;
+  READ_INT_COMMON(8, HA_KEYTYPE_ULONGLONG, unsigned long long, uint8korr);
 }
 
 enum ha_rkey_function PFS_key_reader::read_varchar_utf8(

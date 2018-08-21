@@ -229,14 +229,32 @@ struct PFS_key_reader {
         m_remaining_key_len(key_len),
         m_parts_found(0) {}
 
-  enum ha_rkey_function read_uchar(enum ha_rkey_function find_flag,
+  enum ha_rkey_function read_int8(enum ha_rkey_function find_flag, bool &isnull,
+                                  char *value);
+
+  enum ha_rkey_function read_uint8(enum ha_rkey_function find_flag,
                                    bool &isnull, uchar *value);
+
+  enum ha_rkey_function read_int16(enum ha_rkey_function find_flag,
+                                   bool &isnull, short *value);
+
+  enum ha_rkey_function read_uint16(enum ha_rkey_function find_flag,
+                                    bool &isnull, ushort *value);
+
+  enum ha_rkey_function read_int24(enum ha_rkey_function find_flag,
+                                   bool &isnull, long *value);
+
+  enum ha_rkey_function read_uint24(enum ha_rkey_function find_flag,
+                                    bool &isnull, ulong *value);
 
   enum ha_rkey_function read_long(enum ha_rkey_function find_flag, bool &isnull,
                                   long *value);
 
   enum ha_rkey_function read_ulong(enum ha_rkey_function find_flag,
                                    bool &isnull, ulong *value);
+
+  enum ha_rkey_function read_longlong(enum ha_rkey_function find_flag,
+                                      bool &isnull, longlong *value);
 
   enum ha_rkey_function read_ulonglong(enum ha_rkey_function find_flag,
                                        bool &isnull, ulonglong *value);

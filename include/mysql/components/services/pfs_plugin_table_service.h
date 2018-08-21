@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -29,19 +29,19 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 /**
   @page EXAMPLE_PLUGIN_COMPONENT Example plugin/component to use this service.
 
-  Any plugin/component, which exposes tables in performance schema, has to
-  - provide implementation of interface PFS_engine_table_proxy.
+  Any plugin/component, which exposes tables in performance schema,
+  has to provide an implementation of interface PFS_engine_table_proxy.
 
   As there is no storage engine here to handle table data, plugin/component has
   to:
-  - maintain storage for table being exposed.
+  - maintain storage for table being exposed,
   - take care of handling any duplicate check (Primary/Unique Key, etc.)
 
-  Following table explains datatypes exposed to plugin/component which should be
-  used for respective columns type in table.
+  The following table describes datatypes exposed to plugin/component
+  which should be used to implement columns.
 
   COLUMN TYPE | TO BE USED   | NULL VALUE INDICATION
-  ----------- | ------------ | :---------------------:
+  ----------- | ------------ | ---------------------
    INTEGER    | PSI_int      |     is_null=true
    TINYINT    | PSI_tinyint  |        -do-
    SMALLINT   | PSI_smallint |        -do-
@@ -60,9 +60,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
    VARCHAR    | char array   |        -do-
    BLOB       | char array   |        -do-
 
-   @section STEPS Steps to write a plugin/component exposing tables in
-  Performance Schema
-   - TBD
+   @section STEPS How to write a plugin/component exposing tables in Performance
+  Schema
 
    Following are the example implementations of a plugin and a component which
    uses this pfs_plugin_table service.
@@ -168,6 +167,57 @@ struct PSI_plugin_key_integer {
   long m_value;
 };
 typedef struct PSI_plugin_key_integer PSI_plugin_key_integer;
+typedef PSI_plugin_key_integer PSI_plugin_key_tinyint;
+typedef PSI_plugin_key_integer PSI_plugin_key_smallint;
+typedef PSI_plugin_key_integer PSI_plugin_key_mediumint;
+
+/**
+  A structure to denote a key of type ulong in an index.
+*/
+struct PSI_plugin_key_uinteger {
+  /** Name of the key column */
+  const char *m_name;
+  /** Find flags */
+  int m_find_flags;
+  /** Column is NULL */
+  bool m_is_null;
+  /** Value of the key column */
+  unsigned long m_value;
+};
+typedef struct PSI_plugin_key_uinteger PSI_plugin_key_uinteger;
+typedef PSI_plugin_key_uinteger PSI_plugin_key_utinyint;
+typedef PSI_plugin_key_uinteger PSI_plugin_key_usmallint;
+typedef PSI_plugin_key_uinteger PSI_plugin_key_umediumint;
+
+/**
+  A structure to denote a key of type long long in an index.
+*/
+struct PSI_plugin_key_bigint {
+  /** Name of the key column */
+  const char *m_name;
+  /** Find flags */
+  int m_find_flags;
+  /** Column is NULL */
+  bool m_is_null;
+  /** Value of the key column */
+  long long m_value;
+};
+typedef struct PSI_plugin_key_bigint PSI_plugin_key_bigint;
+
+/**
+  A structure to denote a key of type unsigned long long in an index.
+*/
+struct PSI_plugin_key_ubigint {
+  /** Name of the key column */
+  const char *m_name;
+  /** Find flags */
+  int m_find_flags;
+  /** Column is NULL */
+  bool m_is_null;
+  /** Value of the key column */
+  unsigned long long m_value;
+};
+typedef struct PSI_plugin_key_ubigint PSI_plugin_key_ubigint;
 
 /**
   A structure to denote a key of type string in an index.
@@ -414,6 +464,11 @@ typedef struct PFS_engine_table_share_proxy PFS_engine_table_share_proxy;
 
 /**
   Definition of pfs_plugin_table service and its methods.
+  @deprecated
+  This service is functional but incomplete,
+  as many apis are missing.
+  Please use pfs_plugin_table_v1
+  and pfs_plugin_column_*_v1 instead.
 */
 BEGIN_SERVICE_DEFINITION(pfs_plugin_table)
 /* Methods to add tables in Performance Schema */
@@ -436,7 +491,7 @@ DECLARE_METHOD(void, set_field_smallint, (PSI_field * f, PSI_smallint value));
 DECLARE_METHOD(void, set_field_usmallint, (PSI_field * f, PSI_usmallint value));
 DECLARE_METHOD(void, get_field_smallint, (PSI_field * f, PSI_smallint *value));
 
-/* MIDIUMINT */
+/* MEDIUMINT */
 DECLARE_METHOD(void, set_field_mediumint, (PSI_field * f, PSI_mediumint value));
 DECLARE_METHOD(void, set_field_umediumint,
                (PSI_field * f, PSI_umediumint value));
@@ -537,5 +592,202 @@ DECLARE_METHOD(void, get_field_year, (PSI_field * f, PSI_year *value));
 DECLARE_METHOD(void, set_field_null, (PSI_field * f));
 
 END_SERVICE_DEFINITION(pfs_plugin_table)
+
+/**
+  Definition of pfs_plugin_table_v1 service and its methods.
+*/
+BEGIN_SERVICE_DEFINITION(pfs_plugin_table_v1)
+DECLARE_METHOD(int, add_tables,
+               (PFS_engine_table_share_proxy * *st_share,
+                unsigned int share_count));
+
+DECLARE_METHOD(int, delete_tables,
+               (PFS_engine_table_share_proxy * *st_share,
+                unsigned int share_count));
+DECLARE_METHOD(unsigned int, get_parts_found, (PSI_key_reader * reader));
+END_SERVICE_DEFINITION(pfs_plugin_table_v1)
+
+BEGIN_SERVICE_DEFINITION(pfs_plugin_column_tiny_v1)
+DECLARE_METHOD(void, set, (PSI_field * f, PSI_tinyint value));
+DECLARE_METHOD(void, set_unsigned, (PSI_field * f, PSI_utinyint value));
+DECLARE_METHOD(void, get, (PSI_field * f, PSI_tinyint *value));
+DECLARE_METHOD(void, get_unsigned, (PSI_field * f, PSI_utinyint *value));
+DECLARE_METHOD(void, read_key,
+               (PSI_key_reader * reader, PSI_plugin_key_tinyint *key,
+                int find_flag));
+DECLARE_METHOD(void, read_key_unsigned,
+               (PSI_key_reader * reader, PSI_plugin_key_utinyint *key,
+                int find_flag));
+DECLARE_METHOD(bool, match_key,
+               (bool record_null, long record_value,
+                PSI_plugin_key_tinyint *key));
+DECLARE_METHOD(bool, match_key_unsigned,
+               (bool record_null, unsigned long record_value,
+                PSI_plugin_key_utinyint *key));
+
+END_SERVICE_DEFINITION(pfs_plugin_column_tiny_v1)
+
+BEGIN_SERVICE_DEFINITION(pfs_plugin_column_small_v1)
+DECLARE_METHOD(void, set, (PSI_field * f, PSI_smallint value));
+DECLARE_METHOD(void, set_unsigned, (PSI_field * f, PSI_usmallint value));
+DECLARE_METHOD(void, get, (PSI_field * f, PSI_smallint *value));
+DECLARE_METHOD(void, get_unsigned, (PSI_field * f, PSI_usmallint *value));
+DECLARE_METHOD(void, read_key,
+               (PSI_key_reader * reader, PSI_plugin_key_smallint *key,
+                int find_flag));
+DECLARE_METHOD(void, read_key_unsigned,
+               (PSI_key_reader * reader, PSI_plugin_key_usmallint *key,
+                int find_flag));
+DECLARE_METHOD(bool, match_key,
+               (bool record_null, long record_value,
+                PSI_plugin_key_smallint *key));
+DECLARE_METHOD(bool, match_key_unsigned,
+               (bool record_null, unsigned long record_value,
+                PSI_plugin_key_usmallint *key));
+END_SERVICE_DEFINITION(pfs_plugin_column_small_v1)
+
+BEGIN_SERVICE_DEFINITION(pfs_plugin_column_medium_v1)
+DECLARE_METHOD(void, set, (PSI_field * f, PSI_mediumint value));
+DECLARE_METHOD(void, set_unsigned, (PSI_field * f, PSI_umediumint value));
+DECLARE_METHOD(void, get, (PSI_field * f, PSI_mediumint *value));
+DECLARE_METHOD(void, get_unsigned, (PSI_field * f, PSI_umediumint *value));
+DECLARE_METHOD(void, read_key,
+               (PSI_key_reader * reader, PSI_plugin_key_mediumint *key,
+                int find_flag));
+DECLARE_METHOD(void, read_key_unsigned,
+               (PSI_key_reader * reader, PSI_plugin_key_umediumint *key,
+                int find_flag));
+DECLARE_METHOD(bool, match_key,
+               (bool record_null, long record_value,
+                PSI_plugin_key_mediumint *key));
+DECLARE_METHOD(bool, match_key_unsigned,
+               (bool record_null, unsigned long record_value,
+                PSI_plugin_key_umediumint *key));
+END_SERVICE_DEFINITION(pfs_plugin_column_medium_v1)
+
+BEGIN_SERVICE_DEFINITION(pfs_plugin_column_integer_v1)
+DECLARE_METHOD(void, set, (PSI_field * f, PSI_int value));
+DECLARE_METHOD(void, set_unsigned, (PSI_field * f, PSI_uint value));
+DECLARE_METHOD(void, get, (PSI_field * f, PSI_int *value));
+DECLARE_METHOD(void, get_unsigned, (PSI_field * f, PSI_int *value));
+DECLARE_METHOD(void, read_key,
+               (PSI_key_reader * reader, PSI_plugin_key_integer *key,
+                int find_flag));
+DECLARE_METHOD(void, read_key_unsigned,
+               (PSI_key_reader * reader, PSI_plugin_key_uinteger *key,
+                int find_flag));
+DECLARE_METHOD(bool, match_key,
+               (bool record_null, long record_value,
+                PSI_plugin_key_integer *key));
+DECLARE_METHOD(bool, match_key_unsigned,
+               (bool record_null, unsigned long record_value,
+                PSI_plugin_key_uinteger *key));
+END_SERVICE_DEFINITION(pfs_plugin_column_integer_v1)
+
+BEGIN_SERVICE_DEFINITION(pfs_plugin_column_bigint_v1)
+DECLARE_METHOD(void, set, (PSI_field * f, PSI_bigint value));
+DECLARE_METHOD(void, set_unsigned, (PSI_field * f, PSI_ubigint value));
+DECLARE_METHOD(void, get, (PSI_field * f, PSI_bigint *value));
+DECLARE_METHOD(void, get_unsigned, (PSI_field * f, PSI_ubigint *value));
+DECLARE_METHOD(void, read_key,
+               (PSI_key_reader * reader, PSI_plugin_key_bigint *key,
+                int find_flag));
+DECLARE_METHOD(void, read_key_unsigned,
+               (PSI_key_reader * reader, PSI_plugin_key_ubigint *key,
+                int find_flag));
+DECLARE_METHOD(bool, match_key,
+               (bool record_null, long long record_value,
+                PSI_plugin_key_bigint *key));
+DECLARE_METHOD(bool, match_key_unsigned,
+               (bool record_null, unsigned long long record_value,
+                PSI_plugin_key_ubigint *key));
+END_SERVICE_DEFINITION(pfs_plugin_column_bigint_v1)
+
+BEGIN_SERVICE_DEFINITION(pfs_plugin_column_decimal_v1)
+DECLARE_METHOD(void, set, (PSI_field * f, PSI_decimal value));
+DECLARE_METHOD(void, get, (PSI_field * f, PSI_decimal *value));
+/* No support for indexes. */
+END_SERVICE_DEFINITION(pfs_plugin_column_decimal_v1)
+
+BEGIN_SERVICE_DEFINITION(pfs_plugin_column_float_v1)
+DECLARE_METHOD(void, set, (PSI_field * f, PSI_float value));
+DECLARE_METHOD(void, get, (PSI_field * f, PSI_float *value));
+/* No support for indexes. */
+END_SERVICE_DEFINITION(pfs_plugin_column_float_v1)
+
+BEGIN_SERVICE_DEFINITION(pfs_plugin_column_double_v1)
+DECLARE_METHOD(void, set, (PSI_field * f, PSI_double value));
+DECLARE_METHOD(void, get, (PSI_field * f, PSI_double *value));
+/* No support for indexes. */
+END_SERVICE_DEFINITION(pfs_plugin_column_double_v1)
+
+BEGIN_SERVICE_DEFINITION(pfs_plugin_column_string_v1)
+/* CHAR */
+DECLARE_METHOD(void, set_char_utf8,
+               (PSI_field * f, const char *value, unsigned int length));
+DECLARE_METHOD(void, get_char_utf8,
+               (PSI_field * f, char *str, unsigned int *length));
+DECLARE_METHOD(void, read_key_string,
+               (PSI_key_reader * reader, PSI_plugin_key_string *key,
+                int find_flag));
+DECLARE_METHOD(bool, match_key_string,
+               (bool record_null, const char *record_string_value,
+                unsigned int record_string_length, PSI_plugin_key_string *key));
+/* VARCHAR */
+DECLARE_METHOD(void, set_varchar_utf8, (PSI_field * f, const char *str));
+DECLARE_METHOD(void, set_varchar_utf8_len,
+               (PSI_field * f, const char *str, unsigned int len));
+DECLARE_METHOD(void, get_varchar_utf8,
+               (PSI_field * f, char *str, unsigned int *length));
+DECLARE_METHOD(void, set_varchar_utf8mb4, (PSI_field * f, const char *str));
+DECLARE_METHOD(void, set_varchar_utf8mb4_len,
+               (PSI_field * f, const char *str, unsigned int len));
+END_SERVICE_DEFINITION(pfs_plugin_column_string_v1)
+
+BEGIN_SERVICE_DEFINITION(pfs_plugin_column_blob_v1)
+DECLARE_METHOD(void, set, (PSI_field * f, const char *val, unsigned int len));
+DECLARE_METHOD(void, get, (PSI_field * f, char *val, unsigned int *len));
+/* No support for indexes. */
+END_SERVICE_DEFINITION(pfs_plugin_column_blob_v1)
+
+BEGIN_SERVICE_DEFINITION(pfs_plugin_column_enum_v1)
+DECLARE_METHOD(void, set, (PSI_field * f, PSI_enum value));
+DECLARE_METHOD(void, get, (PSI_field * f, PSI_enum *value));
+/* No support for indexes. */
+END_SERVICE_DEFINITION(pfs_plugin_column_enum_v1)
+
+BEGIN_SERVICE_DEFINITION(pfs_plugin_column_date_v1)
+DECLARE_METHOD(void, set,
+               (PSI_field * f, const char *str, unsigned int length));
+DECLARE_METHOD(void, get, (PSI_field * f, char *val, unsigned int *len));
+/* No support for indexes. */
+END_SERVICE_DEFINITION(pfs_plugin_column_date_v1)
+
+BEGIN_SERVICE_DEFINITION(pfs_plugin_column_time_v1)
+DECLARE_METHOD(void, set,
+               (PSI_field * f, const char *str, unsigned int length));
+DECLARE_METHOD(void, get, (PSI_field * f, char *val, unsigned int *len));
+/* No support for indexes. */
+END_SERVICE_DEFINITION(pfs_plugin_column_time_v1)
+
+BEGIN_SERVICE_DEFINITION(pfs_plugin_column_datetime_v1)
+DECLARE_METHOD(void, set,
+               (PSI_field * f, const char *str, unsigned int length));
+DECLARE_METHOD(void, get, (PSI_field * f, char *val, unsigned int *len));
+/* No support for indexes. */
+END_SERVICE_DEFINITION(pfs_plugin_column_datetime_v1)
+
+BEGIN_SERVICE_DEFINITION(pfs_plugin_column_timestamp_v1)
+DECLARE_METHOD(void, set,
+               (PSI_field * f, const char *str, unsigned int length));
+DECLARE_METHOD(void, get, (PSI_field * f, char *val, unsigned int *len));
+/* No support for indexes. */
+END_SERVICE_DEFINITION(pfs_plugin_column_timestamp_v1)
+
+BEGIN_SERVICE_DEFINITION(pfs_plugin_column_year_v1)
+DECLARE_METHOD(void, set, (PSI_field * f, PSI_year value));
+DECLARE_METHOD(void, get, (PSI_field * f, PSI_year *value));
+/* No support for indexes. */
+END_SERVICE_DEFINITION(pfs_plugin_column_year_v1)
 
 #endif

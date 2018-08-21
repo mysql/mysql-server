@@ -92,6 +92,8 @@ void set_field_utiny(Field *f, ulong value);
 */
 long get_field_tiny(Field *f);
 
+ulong get_field_utiny(Field *f);
+
 /**
   Helper, assign a value to a @c short field.
   @param f the field to set
@@ -112,6 +114,8 @@ void set_field_ushort(Field *f, ulong value);
   @return the field value
 */
 long get_field_short(Field *f);
+
+ulong get_field_ushort(Field *f);
 
 /**
   Helper, assign a value to a @c medium field.
@@ -134,6 +138,8 @@ void set_field_umedium(Field *f, ulong value);
 */
 long get_field_medium(Field *f);
 
+ulong get_field_umedium(Field *f);
+
 /**
   Helper, assign a value to a @c long field.
   @param f the field to set
@@ -155,6 +161,8 @@ void set_field_ulong(Field *f, ulong value);
 */
 long get_field_long(Field *f);
 
+ulong get_field_ulong(Field *f);
+
 /**
   Helper, assign a value to a @c longlong field.
   @param f the field to set
@@ -168,6 +176,8 @@ void set_field_longlong(Field *f, longlong value);
   @param value the value to assign
 */
 void set_field_ulonglong(Field *f, ulonglong value);
+
+longlong get_field_longlong(Field *f);
 
 /**
   Helper, read a value from an @c ulonglong field.
@@ -1167,15 +1177,49 @@ class PFS_key_ulong : public PFS_engine_key {
 
   virtual ~PFS_key_ulong() {}
 
+  static enum ha_rkey_function stateless_read(PFS_key_reader &reader,
+                                              enum ha_rkey_function find_flag,
+                                              bool &is_null, ulong *key_value) {
+    return reader.read_ulong(find_flag, is_null, key_value);
+  }
+
   virtual void read(PFS_key_reader &reader, enum ha_rkey_function find_flag) {
     m_find_flag = reader.read_ulong(find_flag, m_is_null, &m_key_value);
   }
+
+  static bool stateless_match(bool record_null, ulong record_value,
+                              bool m_is_null, ulong m_key_value,
+                              enum ha_rkey_function find_flag);
 
  protected:
   bool do_match(bool record_null, ulong record_value);
 
  private:
   ulong m_key_value;
+};
+
+class PFS_key_longlong : public PFS_engine_key {
+ public:
+  PFS_key_longlong(const char *name) : PFS_engine_key(name), m_key_value(0) {}
+
+  virtual ~PFS_key_longlong() {}
+
+  virtual void read(PFS_key_reader &reader, enum ha_rkey_function find_flag) {
+    m_find_flag = reader.read_longlong(find_flag, m_is_null, &m_key_value);
+  }
+
+  static bool stateless_match(bool record_null, longlong record_value,
+                              bool m_is_null, longlong m_key_value,
+                              enum ha_rkey_function find_flag);
+
+ protected:
+  bool do_match(bool record_null, longlong record_value) {
+    return stateless_match(record_null, record_value, m_is_null, m_key_value,
+                           m_find_flag);
+  }
+
+ private:
+  longlong m_key_value;
 };
 
 class PFS_key_ulonglong : public PFS_engine_key {
@@ -1187,6 +1231,10 @@ class PFS_key_ulonglong : public PFS_engine_key {
   virtual void read(PFS_key_reader &reader, enum ha_rkey_function find_flag) {
     m_find_flag = reader.read_ulonglong(find_flag, m_is_null, &m_key_value);
   }
+
+  static bool stateless_match(bool record_null, ulonglong record_value,
+                              bool m_is_null, ulonglong m_key_value,
+                              enum ha_rkey_function find_flag);
 
  protected:
   bool do_match(bool record_null, ulonglong record_value);

@@ -55,12 +55,20 @@ void set_field_tiny(Field *f, long value) {
   Field_tiny *f2 = (Field_tiny *)f;
   f2->store(value, false);
 }
+
 void set_field_utiny(Field *f, ulong value) {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_TINY);
   Field_tiny *f2 = (Field_tiny *)f;
   f2->store(value, true);
 }
+
 long get_field_tiny(Field *f) {
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_TINY);
+  Field_tiny *f2 = (Field_tiny *)f;
+  return f2->val_int();
+}
+
+ulong get_field_utiny(Field *f) {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_TINY);
   Field_tiny *f2 = (Field_tiny *)f;
   return f2->val_int();
@@ -72,12 +80,20 @@ void set_field_short(Field *f, long value) {
   Field_short *f2 = (Field_short *)f;
   f2->store(value, false);
 }
+
 void set_field_ushort(Field *f, ulong value) {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_SHORT);
   Field_short *f2 = (Field_short *)f;
   f2->store(value, true);
 }
+
 long get_field_short(Field *f) {
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_SHORT);
+  Field_short *f2 = (Field_short *)f;
+  return f2->val_int();
+}
+
+ulong get_field_ushort(Field *f) {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_SHORT);
   Field_short *f2 = (Field_short *)f;
   return f2->val_int();
@@ -89,12 +105,20 @@ void set_field_medium(Field *f, long value) {
   Field_medium *f2 = (Field_medium *)f;
   f2->store(value, false);
 }
+
 void set_field_umedium(Field *f, ulong value) {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_INT24);
   Field_medium *f2 = (Field_medium *)f;
   f2->store(value, true);
 }
+
 long get_field_medium(Field *f) {
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_INT24);
+  Field_medium *f2 = (Field_medium *)f;
+  return f2->val_int();
+}
+
+ulong get_field_umedium(Field *f) {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_INT24);
   Field_medium *f2 = (Field_medium *)f;
   return f2->val_int();
@@ -106,12 +130,20 @@ void set_field_long(Field *f, long value) {
   Field_long *f2 = (Field_long *)f;
   f2->store(value, false);
 }
+
 void set_field_ulong(Field *f, ulong value) {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_LONG);
   Field_long *f2 = (Field_long *)f;
   f2->store(value, true);
 }
+
 long get_field_long(Field *f) {
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_LONG);
+  Field_long *f2 = (Field_long *)f;
+  return f2->val_int();
+}
+
+ulong get_field_ulong(Field *f) {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_LONG);
   Field_long *f2 = (Field_long *)f;
   return f2->val_int();
@@ -123,16 +155,19 @@ void set_field_longlong(Field *f, longlong value) {
   Field_longlong *f2 = (Field_longlong *)f;
   f2->store(value, false);
 }
+
 void set_field_ulonglong(Field *f, ulonglong value) {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_LONGLONG);
   Field_longlong *f2 = (Field_longlong *)f;
   f2->store(value, true);
 }
+
 longlong get_field_longlong(Field *f) {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_LONGLONG);
   Field_longlong *f2 = (Field_longlong *)f;
   return f2->val_int();
 }
+
 ulonglong get_field_ulonglong(Field *f) {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_LONGLONG);
   Field_longlong *f2 = (Field_longlong *)f;
@@ -145,6 +180,7 @@ void set_field_decimal(Field *f, double value) {
   Field_new_decimal *f2 = (Field_new_decimal *)f;
   f2->store(value);
 }
+
 double get_field_decimal(Field *f) {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_NEWDECIMAL);
   Field_new_decimal *f2 = (Field_new_decimal *)f;
@@ -157,6 +193,7 @@ void set_field_float(Field *f, double value) {
   Field_float *f2 = (Field_float *)f;
   f2->store(value);
 }
+
 double get_field_float(Field *f) {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_FLOAT);
   Field_float *f2 = (Field_float *)f;
@@ -169,6 +206,7 @@ void set_field_double(Field *f, double value) {
   Field_double *f2 = (Field_double *)f;
   f2->store(value);
 }
+
 double get_field_double(Field *f) {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_DOUBLE);
   Field_double *f2 = (Field_double *)f;
@@ -181,12 +219,14 @@ void set_field_char_utf8(Field *f, const char *str, uint len) {
   Field_string *f2 = (Field_string *)f;
   f2->store(str, len, &my_charset_utf8mb4_bin);
 }
+
 String *get_field_char_utf8(Field *f, String *val) {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_STRING);
   Field_string *f2 = (Field_string *)f;
   val = f2->val_str(NULL, val);
   return val;
 }
+
 char *get_field_char_utf8(Field *f, char *val, uint *len) {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_STRING);
   String temp;
@@ -210,11 +250,13 @@ void set_field_varchar_utf8(Field *f, const char *str) {
   Field_varstring *f2 = (Field_varstring *)f;
   f2->store(str, strlen(str), &my_charset_utf8mb4_bin);
 }
+
 void set_field_varchar_utf8(Field *f, const char *str, uint len) {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
   Field_varstring *f2 = (Field_varstring *)f;
   f2->store(str, len, &my_charset_utf8mb4_bin);
 }
+
 String *get_field_varchar_utf8(Field *f, String *val) {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
   Field_varstring *f2 = (Field_varstring *)f;
@@ -236,6 +278,7 @@ void set_field_varchar_utf8mb4(Field *f, const char *str) {
   Field_varstring *f2 = (Field_varstring *)f;
   f2->store(str, strlen(str), &my_charset_utf8mb4_bin);
 }
+
 void set_field_varchar_utf8mb4(Field *f, const char *str, uint len) {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
   Field_varstring *f2 = (Field_varstring *)f;
@@ -273,6 +316,7 @@ void set_field_enum(Field *f, ulonglong value) {
   Field_enum *f2 = (Field_enum *)f;
   f2->store_type(value);
 }
+
 ulonglong get_field_enum(Field *f) {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_ENUM);
   Field_enum *f2 = (Field_enum *)f;
@@ -285,6 +329,7 @@ void set_field_set(Field *f, ulonglong value) {
   Field_set *f2 = (Field_set *)f;
   f2->store_type(value);
 }
+
 ulonglong get_field_set(Field *f) {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_SET);
   Field_set *f2 = (Field_set *)f;
@@ -297,6 +342,7 @@ void set_field_date(Field *f, const char *value, uint len) {
   Field_newdate *f2 = (Field_newdate *)f;
   f2->store(value, len, system_charset_info);
 }
+
 char *get_field_date(Field *f, char *val, uint *len) {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_NEWDATE);
   String temp;
@@ -313,6 +359,7 @@ void set_field_time(Field *f, const char *value, uint len) {
   Field_timef *f2 = (Field_timef *)f;
   f2->store(value, len, system_charset_info);
 }
+
 char *get_field_time(Field *f, char *val, uint *len) {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_TIME2);
   String temp;
@@ -329,6 +376,7 @@ void set_field_datetime(Field *f, const char *value, uint len) {
   Field_datetimef *f2 = (Field_datetimef *)f;
   f2->store(value, len, system_charset_info);
 }
+
 char *get_field_datetime(Field *f, char *val, uint *len) {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_DATETIME2);
   String temp;
@@ -345,6 +393,7 @@ void set_field_timestamp(Field *f, const char *value, uint len) {
   Field_timestampf *f2 = (Field_timestampf *)f;
   f2->store(value, len, system_charset_info);
 }
+
 char *get_field_timestamp(Field *f, char *val, uint *len) {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_TIMESTAMP2);
   String temp;
@@ -370,6 +419,7 @@ void set_field_year(Field *f, ulong value) {
   Field_year *f2 = (Field_year *)f;
   f2->store(value, true);
 }
+
 ulong get_field_year(Field *f) {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_YEAR);
   Field_year *f2 = (Field_year *)f;
@@ -1374,40 +1424,69 @@ int PFS_user_variable_value_row::make_row(const char *val, size_t length) {
   return 0;
 }
 
+/*
+  Code is the same for all int types,
+  expects the following parameters:
+  bool record_null
+  <T> record_value,
+  bool m_is_null,
+  <T> m_key_value,
+  enum ha_rkey_function m_find_flag
+*/
+#define COMMON_STATELESS_MATCH               \
+  int cmp = 0;                               \
+  if (m_is_null) {                           \
+    cmp = (record_null ? 0 : 1);             \
+  } else {                                   \
+    if (record_null) {                       \
+      cmp = -1;                              \
+    } else if (record_value < m_key_value) { \
+      cmp = -1;                              \
+    } else if (record_value > m_key_value) { \
+      cmp = +1;                              \
+    } else {                                 \
+      cmp = 0;                               \
+    }                                        \
+  }                                          \
+  switch (m_find_flag) {                     \
+    case HA_READ_KEY_EXACT:                  \
+      return (cmp == 0);                     \
+    case HA_READ_KEY_OR_NEXT:                \
+      return (cmp >= 0);                     \
+    case HA_READ_KEY_OR_PREV:                \
+      return (cmp <= 0);                     \
+    case HA_READ_BEFORE_KEY:                 \
+      return (cmp < 0);                      \
+    case HA_READ_AFTER_KEY:                  \
+      return (cmp > 0);                      \
+    default:                                 \
+      DBUG_ASSERT(false);                    \
+      return false;                          \
+  }
+
 bool PFS_key_long::stateless_match(bool record_null, long record_value,
                                    bool m_is_null, long m_key_value,
                                    enum ha_rkey_function m_find_flag) {
-  int cmp = 0;
+  COMMON_STATELESS_MATCH
+}
 
-  if (m_is_null) {
-    cmp = (record_null ? 0 : 1);
-  } else {
-    if (record_null) {
-      cmp = -1;
-    } else if (record_value < m_key_value) {
-      cmp = -1;
-    } else if (record_value > m_key_value) {
-      cmp = +1;
-    } else {
-      cmp = 0;
-    }
-  }
+bool PFS_key_ulong::stateless_match(bool record_null, ulong record_value,
+                                    bool m_is_null, ulong m_key_value,
+                                    enum ha_rkey_function m_find_flag) {
+  COMMON_STATELESS_MATCH
+}
 
-  switch (m_find_flag) {
-    case HA_READ_KEY_EXACT:
-      return (cmp == 0);
-    case HA_READ_KEY_OR_NEXT:
-      return (cmp >= 0);
-    case HA_READ_KEY_OR_PREV:
-      return (cmp <= 0);
-    case HA_READ_BEFORE_KEY:
-      return (cmp < 0);
-    case HA_READ_AFTER_KEY:
-      return (cmp > 0);
-    default:
-      DBUG_ASSERT(false);
-      return false;
-  }
+bool PFS_key_longlong::stateless_match(bool record_null, longlong record_value,
+                                       bool m_is_null, longlong m_key_value,
+                                       enum ha_rkey_function m_find_flag) {
+  COMMON_STATELESS_MATCH
+}
+
+bool PFS_key_ulonglong::stateless_match(bool record_null,
+                                        ulonglong record_value, bool m_is_null,
+                                        ulonglong m_key_value,
+                                        enum ha_rkey_function m_find_flag) {
+  COMMON_STATELESS_MATCH
 }
 
 bool PFS_key_ulong::do_match(bool record_null, ulong record_value) {
@@ -2039,7 +2118,7 @@ void PFS_key_object_type_enum::read(PFS_key_reader &reader,
                                     enum ha_rkey_function find_flag) {
   uchar object_type = 0;
 
-  m_find_flag = reader.read_uchar(find_flag, m_is_null, &object_type);
+  m_find_flag = reader.read_uint8(find_flag, m_is_null, &object_type);
 
   if (m_is_null) {
     m_object_type = NO_OBJECT_TYPE;
