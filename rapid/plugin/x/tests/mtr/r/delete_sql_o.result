@@ -71,20 +71,20 @@ RUN DELETE FROM ExtraCategoryInfo WHERE ExtraCategoryInfoID = 1
 1 rows affected
 RUN DELETE FROM ExtraCategoryInfo WHERE MainParentCategoryName = 'People'
 While executing DELETE FROM ExtraCategoryInfo WHERE MainParentCategoryName = 'People':
-Got expected error: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column (code 1175)
+Got expected error: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column.  (code 1175)
 RUN DELETE FROM ExtraCategoryInfo WHERE MainParentCategoryName = 'House' AND CategoryID in (4)
 While executing DELETE FROM ExtraCategoryInfo WHERE MainParentCategoryName = 'House' AND CategoryID in (4):
-Got expected error: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column (code 1175)
+Got expected error: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column.  (code 1175)
 RUN DELETE FROM Categories WHERE CategoryIMEI = 1
 While executing DELETE FROM Categories WHERE CategoryIMEI = 1:
-Got expected error: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column (code 1175)
+Got expected error: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column.  (code 1175)
 RUN DELETE FROM ExtraCategoryInfo WHERE EXISTS 
   (SELECT * FROM Categories WHERE Categories.CategoryID = ExtraCategoryInfo.CategoryID 
   AND ExtraCategoryInfo.MainParentCategoryName = 'People' )
 While executing DELETE FROM ExtraCategoryInfo WHERE EXISTS 
   (SELECT * FROM Categories WHERE Categories.CategoryID = ExtraCategoryInfo.CategoryID 
   AND ExtraCategoryInfo.MainParentCategoryName = 'People' ):
-Got expected error: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column (code 1175)
+Got expected error: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column.  (code 1175)
 RUN SELECT * FROM ExtraCategoryInfo
 ExtraCategoryInfoID	CategoryID	MainParentCategoryName
 3	2	House
