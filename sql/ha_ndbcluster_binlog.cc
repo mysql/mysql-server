@@ -1495,7 +1495,7 @@ class Ndb_binlog_setup {
     NDBDICT* dict= ndb->getDictionary();
 
     ndb_log_verbose(1,
-                    "    Synchronizing table '%s.%s'",
+                    "Synchronizing table '%s.%s'",
                     schema_name, table_name);
 
     ndb->setDatabaseName(schema_name);
@@ -1641,7 +1641,7 @@ class Ndb_binlog_setup {
   {
     Ndb_dd_client dd_client(m_thd);
 
-    ndb_log_info("  Synchronizing schema '%s'", schema_name);
+    ndb_log_info("Synchronizing schema '%s'", schema_name);
 
     // Lock the schema in DD
     if (!dd_client.mdl_lock_schema(schema_name))
@@ -1711,7 +1711,7 @@ class Ndb_binlog_setup {
     Ndb_dd_client dd_client(m_thd);
     if (!dd_client.mdl_lock_logfile_group(logfile_group_name))
     {
-      ndb_log_error("MDL lock could not be acquired for logfile_group '%s'",
+      ndb_log_error("MDL lock could not be acquired for logfile group '%s'",
                     logfile_group_name);
       return false;
     }
@@ -1722,7 +1722,7 @@ class Ndb_binlog_setup {
                                          ndb_lfg.getObjectVersion(),
                                          force_overwrite))
     {
-      ndb_log_error("Logfile Group '%s' could not be stored in DD",
+      ndb_log_error("Logfile group '%s' could not be stored in DD",
                     logfile_group_name);
       return false;
     }
@@ -1758,12 +1758,10 @@ class Ndb_binlog_setup {
   synchronize_logfile_group(const char* logfile_group_name,
                             const std::unordered_set<std::string>& lfg_in_DD)
   {
-    ndb_log_verbose(1,
-                    "  Synchronizing logfile group '%s'", logfile_group_name);
+    ndb_log_verbose(1, "Synchronizing logfile group '%s'", logfile_group_name);
 
     Ndb* ndb = get_thd_ndb(m_thd)->ndb;
     NDBDICT* dict = ndb->getDictionary();
-    const auto lfg_position = lfg_in_DD.find(logfile_group_name);
     NdbDictionary::LogfileGroup ndb_lfg =
         dict->getLogfileGroup(logfile_group_name);
     if (ndb_dict_check_NDB_error(dict))
@@ -1775,6 +1773,7 @@ class Ndb_binlog_setup {
       return false;
     }
 
+    const auto lfg_position = lfg_in_DD.find(logfile_group_name);
     if (lfg_position == lfg_in_DD.end())
     {
       // Logfile group exists only in NDB. Install into DD
@@ -1895,6 +1894,7 @@ class Ndb_binlog_setup {
   bool
   synchronize_logfile_groups()
   {
+    ndb_log_info("Synchronizing logfile groups");
 
     // Retrieve list of logfile groups from NDB
     std::unordered_set<std::string> lfg_in_NDB;
@@ -2005,8 +2005,7 @@ class Ndb_binlog_setup {
                          const std::unordered_set<std::string>&
                            tablespaces_in_DD)
   {
-    ndb_log_verbose(1,
-                    "  Synchronizing tablespace '%s'", tablespace_name);
+    ndb_log_verbose(1, "Synchronizing tablespace '%s'", tablespace_name);
 
     Ndb* ndb = get_thd_ndb(m_thd)->ndb;
     NDBDICT* dict = ndb->getDictionary();
@@ -2017,8 +2016,7 @@ class Ndb_binlog_setup {
     {
       // Failed to open tablespace from NDB
       log_NDB_error(dict->getNdbError());
-      ndb_log_error("Failed to get tablespace '%s'from NDB",
-                    tablespace_name);
+      ndb_log_error("Failed to get tablespace '%s' from NDB", tablespace_name);
       return false;
     }
 
@@ -2141,6 +2139,8 @@ class Ndb_binlog_setup {
   bool
   synchronize_tablespaces()
   {
+    ndb_log_info("Synchronizing tablespaces");
+
     // Retrieve list of tablespaces from NDB
     std::unordered_set<std::string> tablespaces_in_NDB;
     if (!fetch_tablespace_names_from_NDB(tablespaces_in_NDB))
@@ -2163,8 +2163,8 @@ class Ndb_binlog_setup {
       if (!synchronize_tablespace(tablespace_name.c_str(),
                                   tablespaces_in_DD))
       {
-         ndb_log_info("Failed to synchronize tablespace '%s'",
-                      tablespace_name.c_str());
+        ndb_log_warning("Failed to synchronize tablespace '%s'",
+                        tablespace_name.c_str());
       }
       tablespaces_in_DD.erase(tablespace_name);
     }
@@ -2177,8 +2177,8 @@ class Ndb_binlog_setup {
                    tablespace_name.c_str());
       if (!dd_client.drop_tablespace(tablespace_name.c_str()))
       {
-        ndb_log_info("Failed to synchronize tablespace '%s'",
-                     tablespace_name.c_str());
+        ndb_log_warning("Failed to synchronize tablespace '%s'",
+                        tablespace_name.c_str());
       }
     }
     dd_client.commit();
@@ -2195,20 +2195,14 @@ class Ndb_binlog_setup {
     // Synchronize logfile groups and tablespaces
     if (!synchronize_logfile_groups())
     {
-      ndb_log_info("Failed to synchronize logfile groups, continuing anyway");
-    }
-    else
-    {
-      ndb_log_info("Completed synchronization of logfile groups");
+      ndb_log_warning("Failed to synchronize logfile groups");
+      return false;
     }
 
     if (!synchronize_tablespaces())
     {
-      ndb_log_info("Failed to synchronize tablespaces, continuing anyway");
-    }
-    else
-    {
-      ndb_log_info("Completed synchronization of tablespaces");
+      ndb_log_warning("Failed to synchronize tablespaces");
+      return false;
     }
 
     Ndb_dd_client dd_client(m_thd);
@@ -5795,8 +5789,6 @@ int ndbcluster_binlog_setup_table(THD *thd, Ndb *ndb,
                build_table_filename(key, sizeof(key) - 1, db, "", "", 0);
     end+= tablename_to_filename(table_name, end,
                                 (uint)(sizeof(key)-(end-key)));
-
-    ndb_log_verbose(1, "Using key '%s'", key);
   }
 
   mysql_mutex_lock(&ndbcluster_mutex);
