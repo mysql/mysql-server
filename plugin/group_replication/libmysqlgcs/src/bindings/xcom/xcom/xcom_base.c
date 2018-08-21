@@ -4268,6 +4268,7 @@ int acceptor_learner_task(task_arg arg) {
   linkage reply_queue;
   int errors;
   server *srv;
+  site_def const *site;
   END_ENV;
 
   TASK_BEGIN
@@ -4335,7 +4336,7 @@ int acceptor_learner_task(task_arg arg) {
 again:
   while (!xcom_shutdown) {
     int64_t n = 0;
-    site_def const *site = 0;
+    ep->site = 0;
     unchecked_replace_pax_msg(&ep->p, pax_msg_new_0(null_synode));
 
     if (use_buffered_read) {
@@ -4353,7 +4354,7 @@ again:
     if (n <= 0) {
       break;
     }
-    site = find_site_def(ep->p->synode);
+    ep->site = find_site_def(ep->p->synode);
     /*
       Getting a pointer to the server needs to be done after we have
       received a message, since without having received a message, we
@@ -4366,7 +4367,7 @@ again:
       common to both the sender_task, reply_handler_task,  and the ac‐
       ceptor_learner_task.
     */
-    ep->srv = get_server(site, ep->p->from);
+    ep->srv = get_server(ep->site, ep->p->from);
     ep->p->refcnt = 1; /* Refcnt from other end is void here */
     MAY_DBG(FN; NDBG(ep->rfd.fd, d); NDBG(task_now(), f);
             COPY_AND_FREE_GOUT(dbg_pax_msg(ep->p)););
@@ -4374,7 +4375,7 @@ again:
     receive_bytes[ep->p->op] += (uint64_t)n + MSG_HDR_SIZE;
     {
       int behind = FALSE;
-      if (get_maxnodes(site) > 0) {
+      if (get_maxnodes(ep->site) > 0) {
         behind = ep->p->synode.msgno < delivered_msg.msgno;
       }
       ADD_EVENTS(add_event(string_arg("before dispatch "));
@@ -4390,14 +4391,14 @@ again:
        * not. */
       if (ep->p->op == read_op || ep->p->op == prepare_op ||
           ep->p->op == accept_op) {
-        if (site) {
+        if (ep->site) {
           ADD_EVENTS(add_event(string_arg("ep->p->synode"));
                      add_synode_event(ep->p->synode);
                      add_event(string_arg("site->start"));
                      add_synode_event(site->start);
                      add_event(string_arg("site->nodes.node_list_len"));
                      add_event(int_arg(site->nodes.node_list_len)););
-          if (ep->p->synode.node >= site->nodes.node_list_len) {
+          if (ep->p->synode.node >= ep->site->nodes.node_list_len) {
             CREATE_REPLY(ep->p);
             ref_msg(reply);
             create_noop(reply);
@@ -4421,7 +4422,7 @@ again:
           if (!pm) continue;  // Could not get a machine, discarding message.
         }
 
-        dispatch_op(site, ep->p, &ep->reply_queue);
+        dispatch_op(ep->site, ep->p, &ep->reply_queue);
 
         /* Send replies on same fd */
         while (!link_empty(&ep->reply_queue)) {
@@ -4453,9 +4454,9 @@ again:
             DBGOUT(FN; STRLIT("send_die "); STRLIT(pax_op_to_str(ep->p->op));
                    NDBG(ep->p->from, d); NDBG(ep->p->to, d);
                    SYCEXP(ep->p->synode); BALCEXP(ep->p->proposal));
-            if (get_maxnodes(site) > 0) {
+            if (get_maxnodes(ep->site) > 0) {
               pax_msg *np = NULL;
-              np = pax_msg_new(ep->p->synode, site);
+              np = pax_msg_new(ep->p->synode, ep->site);
               ref_msg(np);
               np->op = die_op;
               SERIALIZE_REPLY(np);
