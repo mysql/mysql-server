@@ -424,7 +424,7 @@ class Rsegs {
   Drop:         Delete an EMPTY undo tablespace
   Crash:        A crash occurs
   Fixup:        At startup, if an undo space was being truncated with a crash.
-  SaveDDState   At startup, once the DD is available the state saved there
+  SaveDDState:  At startup, once the DD is available the state saved there
                 will be applied.  INACTIVE_IMPLICIT is never saved to the DD.
                 So the DD state INACTIVE means INACTIVE_EXPLICIT.
                 See apply_dd_undo_state()

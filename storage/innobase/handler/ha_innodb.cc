@@ -2946,8 +2946,8 @@ static bool innobase_ddse_dict_init(dict_init_mode_t dict_init_mode,
                                     List<const Plugin_tablespace> *tablespaces);
 
 /** Save the state of undo tablespaces from the dd to the undo::Tablespace
-@param[in]	space_id	tablespace ID
-@param[in]	space_name	tablespace name
+@param[in]  space_id    tablespace ID
+@param[in]  dd_space    dd::Tablespace object
 @return true if success and falso if the undo tablespace state is not saved. */
 bool apply_dd_undo_state(space_id_t space_id, const dd::Tablespace *dd_space) {
   bool success = true;

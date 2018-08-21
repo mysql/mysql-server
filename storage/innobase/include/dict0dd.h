@@ -1143,7 +1143,7 @@ bool dd_tablespace_set_id_and_state(const char *tablespace_name,
 
 /** Get the state attribute from se_private_data of mysql.tablespaces
 for the named tablespace.
-@param[in]	space_name	space name
+@param[in]  dd_space    dd::Tablespace object
 @return value associated with the key 'state' */
 dd_space_states dd_tablespace_get_state_enum(const dd::Tablespace *dd_space);
 
