@@ -6824,6 +6824,11 @@ static bool add_functional_index_to_create_list(THD *thd, Key_spec *key_spec,
       return true;
     }
 
+    if (pre_validate_value_generator_expr(kp->get_expression(),
+                                          key_spec->name.str, true)) {
+      return true;
+    }
+
     Replace_field_processor_arg replace_field_argument(
         thd, &alter_info->create_list, create_info, key_spec->name.str);
     if (expr->walk(&Item::replace_field_processor, Item::WALK_PREFIX,
@@ -12323,8 +12328,8 @@ static bool alter_column_name_or_default(Alter_info *alter_info,
       }
 
       if (alter->m_default_val_expr != nullptr &&
-          pre_validate_value_generator_expr(alter->m_default_val_expr,
-                                            alter->name, false))
+          pre_validate_value_generator_expr(
+              alter->m_default_val_expr->expr_item, alter->name, false))
         DBUG_RETURN(true);
 
       // Default value is not permitted for generated columns

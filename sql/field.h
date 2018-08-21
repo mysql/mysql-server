@@ -4701,8 +4701,8 @@ const char *get_field_name_or_expression(THD *thd, const Field *field);
 
 /*
   Perform per item-type checks to determine if the expression is
-  allowed for a generated column or default value expression.
-  Note that validation of the specific function is done later in
+  allowed for a generated column, default value expression or a functional
+  index. Note that validation of the specific function is done later in
   procedures open_table_from_share and fix_value_generators_fields
 
   @param expr         the expression to check for validity
@@ -4710,7 +4710,7 @@ const char *get_field_name_or_expression(THD *thd, const Field *field);
   @param is_gen_col   weather it is a GCOL or a default value expression
   @return  false if ok, true otherwise
 */
-bool pre_validate_value_generator_expr(Value_generator *expr,
+bool pre_validate_value_generator_expr(const Item *expression,
                                        const char *column_name,
                                        bool is_gen_col);
 
