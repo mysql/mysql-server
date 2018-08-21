@@ -3099,6 +3099,8 @@ sub check_ndbcluster_support ($) {
   # Add MySQL Cluster test suites
   $DEFAULT_SUITES .=
     ",ndb,ndb_binlog,rpl_ndb,ndb_rpl,ndb_memcache,ndbcluster,ndb_ddl,gcol_ndb";
+  # Increase the suite timeout when running with default ndb suites
+  $opt_suite_timeout *= 2;
   return;
 }
 
