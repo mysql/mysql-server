@@ -162,6 +162,7 @@ eval EXPLAIN $query8;
 --error ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE
 eval $query8;
 
+--replace_column 12 #
 eval EXPLAIN $query9;
 --error ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE
 eval $query9;

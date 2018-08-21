@@ -252,10 +252,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
       DBUG_RETURN(err);
     }
 
-    /*
-      When binlog is disabled and condition is constant, a different code path
-      is chosen.
-    */
+    /* Do not allow deletion of all records if safe_update is set. */
     if (safe_update) {
       my_error(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE, MYF(0),
                thd->get_stmt_da()->get_first_condition_message());
