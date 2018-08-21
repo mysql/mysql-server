@@ -30,7 +30,10 @@ IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
           "unused-parameter"
           # Downgrade -Werror to warning for "may be used uninitialized"
           # and "is used uninitialized in this function"
-          "error=maybe-uninitialized")
+          "error=maybe-uninitialized"
+          # Downgrade -Werror=deprecated-copy to warning for gcc 9
+          "error=deprecated-copy"
+          )
     STRING(REPLACE "-" "_" warning_ ${warning})
     STRING(TOUPPER ${warning_} WARNING)
     CHECK_CXX_COMPILER_FLAG("-W${warning}" HAVE_${WARNING})

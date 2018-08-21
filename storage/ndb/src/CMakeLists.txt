@@ -33,7 +33,10 @@ IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
           # Downgrade -Werror to warning for "may be used uninitialized"
           "error=maybe-uninitialized"
           # Downgrade placement-new as part of Bug #24822203
-          "error=placement-new")
+          "error=placement-new"
+          # Downgrade -Werror=deprecated-copy to warning for gcc 9
+          "error=deprecated-copy"
+          )
     STRING(REPLACE "-" "_" warning_ ${warning})
     STRING(TOUPPER ${warning_} WARNING)
     CHECK_CXX_COMPILER_FLAG("-W${warning}" HAVE_${WARNING})
