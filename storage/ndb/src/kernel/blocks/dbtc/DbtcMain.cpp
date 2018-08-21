@@ -15416,6 +15416,19 @@ void Dbtc::gcpTcfinished(Signal* signal, Uint64 gci)
 
 void Dbtc::initApiConnect(Signal* signal) 
 {
+  SLList<ApiConnectRecord_pool, IA_ApiConnect>
+                            fast_record_list(c_apiConnectRecordPool);
+  for (Uint32 i = 0; i < 1000; i++)
+  {
+    refresh_watch_dog();
+    jam();
+    ApiConnectRecordPtr apiConnectptr;
+    ndbrequire(c_apiConnectRecordPool.seize(apiConnectptr));
+    ndbrequire(seizeApiConTimer(apiConnectptr));
+    setApiConTimer(apiConnectptr, 0, __LINE__);
+    fast_record_list.addFirst(apiConnectptr);
+  }
+
   c_apiConnectFailList.init();
   LocalApiConnectRecord_api_list apiConListFail(c_apiConnectRecordPool,
                                                 c_apiConnectFailList);
@@ -15431,6 +15444,15 @@ void Dbtc::initApiConnect(Signal* signal)
   }//for
 
   capiConnectPREPARE_TO_COMMITList.init();
+
+  ApiConnectRecordPtr apiConnectptr;
+  while (fast_record_list.removeFirst(apiConnectptr))
+  {
+    refresh_watch_dog();
+    jam();
+    releaseApiConTimer(apiConnectptr);
+    c_apiConnectRecordPool.release(apiConnectptr);
+  }
 }//Dbtc::initApiConnect()
 
 void Dbtc::inithost(Signal* signal) 
@@ -15564,6 +15586,16 @@ void Dbtc::initTable(Signal* signal)
 void Dbtc::initialiseTcConnect(Signal* signal) 
 {
   jam();
+  SLList<TcConnectRecord_pool> fast_record_list(tcConnectRecord);
+  for (Uint32 i = 0; i < 10000; i++)
+  {
+    refresh_watch_dog();
+    jam();
+    TcConnectRecordPtr tcConnectptr;
+    ndbrequire(tcConnectRecord.seize(tcConnectptr));
+    fast_record_list.addFirst(tcConnectptr);
+  }
+
   LocalTcConnectRecord_fifo tcConList(tcConnectRecord, cfreeTcConnectFail);
   Uint32 tcConnectFailCount = 0;
 #ifdef VM_TRACE
@@ -15583,6 +15615,14 @@ void Dbtc::initialiseTcConnect(Signal* signal)
     tcConList.addLast(tcConnectptr);
   }
   c_counters.cconcurrentOp = 0;
+
+  TcConnectRecordPtr tcConnectptr;
+  while (fast_record_list.removeFirst(tcConnectptr))
+  {
+    refresh_watch_dog();
+    jam();
+    tcConnectRecord.release(tcConnectptr);
+  }
 }//Dbtc::initialiseTcConnect()
 
 /* ------------------------------------------------------------------------- */
