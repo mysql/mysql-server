@@ -1659,6 +1659,45 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
           new (thd->mem_root) MaterializedTableFunctionIterator(
               thd, qep_tab->table_ref->table_function, qep_tab->table(),
               move(qep_tab->read_record.iterator)));
+    } else if (qep_tab->materialize_table == join_materialize_semijoin) {
+      Semijoin_mat_exec *sjm = qep_tab->sj_mat_exec();
+
+      // create_tmp_table() has already filled sjm->table_param.items_to_copy.
+      // However, the structures there are not used by
+      // join_materialize_semijoin, and don't have e.g. result fields set up
+      // correctly, so we just clear it and create our own.
+      sjm->table_param.items_to_copy = nullptr;
+      ConvertItemsToCopy(&sjm->sj_nest->nested_join->sj_inner_exprs,
+                         qep_tab->table()->visible_field_ptr(),
+                         &sjm->table_param);
+
+      int join_start = sjm->inner_table_index;
+      int join_end = join_start + sjm->table_count;
+      unique_ptr_destroy_only<RowIterator> subtree_iterator =
+          ConnectJoins(join_start, join_end, qep_tabs, thd, TOP_LEVEL,
+                       pending_conditions, pending_invalidators);
+
+      bool copy_fields_and_items_in_materialize =
+          true;  // We never have aggregation within semijoins.
+      table_iterator.reset(new (thd->mem_root) MaterializeIterator(
+          thd, move(subtree_iterator), &sjm->table_param, qep_tab->table(),
+          move(qep_tab->read_record.iterator), /*cte=*/nullptr,
+          qep_tab->join()->select_lex, qep_tab->join(),
+          /*ref_slice=*/-1, copy_fields_and_items_in_materialize,
+          qep_tab->rematerialize, sjm->table_param.end_write_records));
+
+#ifndef DBUG_OFF
+      // Make sure we clear this table out when the join is reset,
+      // since its contents may depend on outer expressions.
+      bool found = false;
+      for (TABLE &sj_tmp_tab : qep_tab->join()->sj_tmp_tables) {
+        if (&sj_tmp_tab == qep_tab->table()) {
+          found = true;
+          break;
+        }
+      }
+      DBUG_ASSERT(found);
+#endif
     } else {
       table_iterator = move(qep_tab->read_record.iterator);
     }
@@ -1759,19 +1798,11 @@ void JOIN::create_iterators() {
   };
   vector<MaterializeOperation> final_materializations;
 
-  // The new executor engine can't do materialized tables (except
-  // materialized derived tables in some cases, and materialization
-  // at the very end), recursive CTEs, some forms of semijoins,
+  // The new executor engine can't recursive CTEs, some forms of semijoins,
   // loose scan or BNL/BKA.
   // Revert to the old one if they show up.
   for (unsigned table_idx = const_tables; table_idx < tables; ++table_idx) {
     QEP_TAB *qep_tab = &this->qep_tab[table_idx];
-    if (qep_tab->materialize_table != nullptr &&
-        qep_tab->materialize_table != join_materialize_derived &&
-        qep_tab->materialize_table != join_materialize_table_function) {
-      // Materialized semijoins.
-      return;
-    }
     if (qep_tab->materialize_table == join_materialize_derived) {
       // If we have a derived table that can be processed by
       // the new query engine (and doesn't have UNION et al),

@@ -2121,88 +2121,53 @@ ON table2 .col_int_key = table1 .col_int_key
         "select#": 1,
         "steps": [
           {
-            "subselect_execution": {
-              "select#": 4,
+            "materialize": {
+              "select#": 1,
               "steps": [
+                {
+                  "subselect_execution": {
+                    "select#": 4,
+                    "steps": [
+                    ] /* steps */
+                  } /* subselect_execution */
+                },
+                {
+                  "subselect_execution": {
+                    "select#": 4,
+                    "steps": [
+                    ] /* steps */
+                  } /* subselect_execution */
+                },
+                {
+                  "subselect_execution": {
+                    "select#": 4,
+                    "steps": [
+                    ] /* steps */
+                  } /* subselect_execution */
+                },
+                {
+                  "subselect_execution": {
+                    "select#": 4,
+                    "steps": [
+                    ] /* steps */
+                  } /* subselect_execution */
+                },
+                {
+                  "subselect_execution": {
+                    "select#": 4,
+                    "steps": [
+                    ] /* steps */
+                  } /* subselect_execution */
+                },
+                {
+                  "subselect_execution": {
+                    "select#": 4,
+                    "steps": [
+                    ] /* steps */
+                  } /* subselect_execution */
+                }
               ] /* steps */
-            } /* subselect_execution */
-          },
-          {
-            "subselect_execution": {
-              "select#": 4,
-              "steps": [
-              ] /* steps */
-            } /* subselect_execution */
-          },
-          {
-            "subselect_execution": {
-              "select#": 4,
-              "steps": [
-              ] /* steps */
-            } /* subselect_execution */
-          },
-          {
-            "subselect_execution": {
-              "select#": 4,
-              "steps": [
-              ] /* steps */
-            } /* subselect_execution */
-          },
-          {
-            "subselect_execution": {
-              "select#": 4,
-              "steps": [
-              ] /* steps */
-            } /* subselect_execution */
-          },
-          {
-            "subselect_execution": {
-              "select#": 4,
-              "steps": [
-              ] /* steps */
-            } /* subselect_execution */
-          },
-          {
-            "subselect_execution": {
-              "select#": 4,
-              "steps": [
-              ] /* steps */
-            } /* subselect_execution */
-          },
-          {
-            "subselect_execution": {
-              "select#": 4,
-              "steps": [
-              ] /* steps */
-            } /* subselect_execution */
-          },
-          {
-            "subselect_execution": {
-              "select#": 4,
-              "steps": [
-              ] /* steps */
-            } /* subselect_execution */
-          },
-          {
-            "subselect_execution": {
-              "select#": 4,
-              "steps": [
-              ] /* steps */
-            } /* subselect_execution */
-          },
-          {
-            "subselect_execution": {
-              "select#": 4,
-              "steps": [
-              ] /* steps */
-            } /* subselect_execution */
-          },
-          {
-            "subselect_execution": {
-              "select#": 4,
-              "steps": [
-              ] /* steps */
-            } /* subselect_execution */
+            } /* materialize */
           },
           {
             "subselect_execution": {

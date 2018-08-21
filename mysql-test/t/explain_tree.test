@@ -289,3 +289,24 @@ CREATE TABLE t2 (i INTEGER);
 CREATE TABLE t3 (i INTEGER, j INTEGER);
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE t1.i IN ( SELECT i FROM t2 LEFT JOIN t3 USING (i) WHERE t3.j = 1234 OR t3.j IS NULL );
 DROP TABLE t1, t2, t3;
+
+# Semijoin by materialization; there's a materialization with deduplication,
+# which allows us to run the rest as a normal join.
+set @old_opt_switch=@@optimizer_switch;
+set optimizer_switch='firstmatch=off';
+CREATE TABLE t1 ( a INTEGER, b INTEGER );
+INSERT INTO t1 VALUES (1,1), (2,2), (3,3);
+EXPLAIN FORMAT=tree SELECT a FROM t1 WHERE a = ANY ( SELECT a FROM t1 WHERE b = 2 );
+DROP TABLE t1;
+set @@optimizer_switch=@old_opt_switch;
+
+# Demonstrate that if there's aggregation within the IN, it just becomes
+# an EXISTS clause instead of the strategy above. (If this changes, one would
+# need to modify the setup of MaterializeIterator for semijoin materialization.)
+set @old_opt_switch=@@optimizer_switch;
+set optimizer_switch='firstmatch=off';
+CREATE TABLE t1 ( a INTEGER, b INTEGER );
+INSERT INTO t1 VALUES (1,1), (2,2), (3,3);
+EXPLAIN FORMAT=tree SELECT a FROM t1 WHERE a = ANY ( SELECT MAX(a) FROM t1 WHERE b = 2 );
+DROP TABLE t1;
+set @@optimizer_switch=@old_opt_switch;

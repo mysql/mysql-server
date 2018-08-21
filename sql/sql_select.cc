@@ -1500,7 +1500,9 @@ static void destroy_sj_tmp_tables(JOIN *join) {
       or index lookup, DuplicateWeedout tables are not initialized for read
       (we only write to them), so need to call ha_index_or_rnd_end.
     */
-    table->file->ha_index_or_rnd_end();
+    if (table->file != nullptr) {
+      table->file->ha_index_or_rnd_end();
+    }
     free_tmp_table(join->thd, table);
   }
   join->sj_tmp_tables.empty();
