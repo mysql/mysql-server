@@ -20,8 +20,7 @@ race:PFS_memory_safe_stat::count_free
 race:PFS_memory_safe_stat::count_alloc
 race:PFS_statement_stat::delayed_reset
 
-race:thread_state_info
-race:plugin_shutdown
+race:plugin_vars_free_values
 race:log_builtins_filter_run
 race:MY_LOCALE_ERRMSGS::destroy
 race:get_one_variable_ext
@@ -29,7 +28,7 @@ race:get_one_variable_ext
 race:ngs::Scheduler_dynamic::wait_if_idle_then_delete_worker
 race:ngs::Socket_events::break_loop
 
-deadlock:plugin_thdvar_init
+deadlock:find_sys_var_ex
 deadlock:Persisted_variables_cache::lock
 
 signal:my_print_stacktrace

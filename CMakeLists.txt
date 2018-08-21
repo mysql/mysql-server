@@ -540,6 +540,7 @@ IF(WITH_TSAN)
     MESSAGE(FATAL_ERROR "Do not know how to enable thread sanitizer")
   ELSE()
     MESSAGE(WARNING "Thread sanitizer support is currently experimental.")
+    SET(HAVE_TSAN 1)
   ENDIF()
 ENDIF()
 

@@ -181,12 +181,22 @@ struct my_aligned_storage {
 #if defined(HAVE_UBSAN) && defined(__clang__)
 #define SUPPRESS_UBSAN MY_ATTRIBUTE((no_sanitize("undefined")))
 // gcc -fsanitize=undefined
-#elif __has_attribute(no_sanitize_undefined)
+#elif defined(HAVE_UBSAN) && __has_attribute(no_sanitize_undefined)
 #define SUPPRESS_UBSAN MY_ATTRIBUTE((no_sanitize_undefined))
 #else
 #define SUPPRESS_UBSAN
 #endif
 #endif /* SUPPRESS_UBSAN */
+
+#ifndef SUPPRESS_TSAN
+#if defined(HAVE_TSAN) && defined(__clang__)
+#define SUPPRESS_TSAN MY_ATTRIBUTE((no_sanitize("thread")))
+#elif defined(HAVE_TSAN) && __has_attribute(no_sanitize_thread)
+#define SUPPRESS_TSAN MY_ATTRIBUTE((no_sanitize_thread))
+#else
+#define SUPPRESS_TSAN
+#endif
+#endif /* SUPPRESS_TSAN */
 
 #ifdef _WIN32
 #define STDCALL __stdcall

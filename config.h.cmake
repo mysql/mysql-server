@@ -237,6 +237,7 @@
 #cmakedefine ENABLED_PROFILING 1
 #cmakedefine HAVE_ASAN
 #cmakedefine HAVE_UBSAN
+#cmakedefine HAVE_TSAN
 #cmakedefine ENABLED_LOCAL_INFILE 1
 #cmakedefine DEFAULT_MYSQL_HOME "@DEFAULT_MYSQL_HOME@"
 #cmakedefine SHAREDIR "@SHAREDIR@"

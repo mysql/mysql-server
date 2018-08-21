@@ -1183,9 +1183,10 @@ class THD : public MDL_context_owner,
   unsigned int m_current_stage_key;
 
  public:
+  // See comment in THD::enter_cond about why SUPPRESS_TSAN is needed.
   void enter_stage(const PSI_stage_info *stage, PSI_stage_info *old_stage,
                    const char *calling_func, const char *calling_file,
-                   const unsigned int calling_line);
+                   const unsigned int calling_line) SUPPRESS_TSAN;
   const char *get_proc_info() const { return proc_info; }
 
   /*

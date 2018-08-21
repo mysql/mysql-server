@@ -2812,6 +2812,9 @@ sub environment_setup {
   # Make sure LeakSanitizer exits if leaks are found
   $ENV{'LSAN_OPTIONS'} = "exitcode=42" if $opt_sanitize;
 
+  # The Thread Sanitizer allocator should return NULL instead of crashing on out-of-memory.
+  $ENV{'TSAN_OPTIONS'} = $ENV{'TSAN_OPTIONS'} . ",allocator_may_return_null=1" if $opt_sanitize;
+
   # Add dir of this perl to aid mysqltest in finding perl
   my $perldir = dirname($^X);
   my $pathsep = ":";
