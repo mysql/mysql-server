@@ -35,12 +35,12 @@ if($ok == 2) {
   print $F  "--echo Found Connector/J JAR in MTR_CLASSPATH\n";
 }
 elsif($ok == 1) {
-  print $F  "--remove_file $vardir/tmp/have_connectorj_result.inc\n";
-  print $F  "--skip JAR file not found: \"$notfound\"\n";
+  print $F "--let \$skip_test=1\n";
+  print $F "--let \$skip_reason=JAR file not found: \"$notfound\"\n";
 } 
 else {
-  print $F  "--remove_file $vardir/tmp/have_connectorj_result.inc\n";
-  print $F  "--skip Please specify Connector/J JAR file in MTR_CLASSPATH env variable\n";
+  print $F "--let \$skip_test=1\n";
+  print $F "--let \$skip_reason=Please specify Connector/J JAR file in MTR_CLASSPATH env variable\n";
 }
 
 $F->close();
@@ -48,3 +48,9 @@ $F->close();
 EOF
 
 --source $MYSQLTEST_VARDIR/tmp/have_connectorj_result.inc
+--remove_file $MYSQLTEST_VARDIR/tmp/have_connectorj_result.inc
+
+# skip if connectorj not found
+if ($skip_test) {
+  --skip $skip_reason
+}

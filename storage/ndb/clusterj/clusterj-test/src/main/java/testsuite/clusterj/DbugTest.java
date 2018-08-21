@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,9 @@
 package testsuite.clusterj;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 import com.mysql.clusterj.ClusterJHelper;
 import com.mysql.clusterj.Dbug;
@@ -81,6 +84,14 @@ public class DbugTest extends AbstractClusterJTest{
         // multiple keywords are tested in ndbjtie/test
         errorIfNotEqual("Wrong state created", "d,a:a," + TMP_FILE_NAME + ":t", actualState);
         dbug.pop();
+
+        // remove the dbug file to make MTR happy
+        try {
+            Files.deleteIfExists(Paths.get(TMP_FILE_NAME));
+        } catch (IOException ex) {
+            error("Unable to remove the dbug file : "
+                    + ex.getMessage());
+        }
 
         failOnError();
     }

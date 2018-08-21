@@ -238,9 +238,7 @@ EOF
       AND filename NOT LIKE 'mysqld%.expect'
       AND filename NOT LIKE 'bootstrap.log'
       AND filename NOT LIKE 'run_ndbapitest_result.inc'
-      AND filename NOT LIKE 'test_%.log'
-      AND filename NOT LIKE 'clusterj.properties'
-      AND filename NOT LIKE 'have_clusterj_result.inc';
+      AND filename NOT LIKE 'test_%.log';
 
     DROP TABLE test.file_tbl;
     --remove_file $infile

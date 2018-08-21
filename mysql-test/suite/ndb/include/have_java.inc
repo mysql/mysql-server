@@ -116,3 +116,4 @@ $F->close();
 EOF
 
 --source $MYSQLTEST_VARDIR/tmp/have_java_result.inc
+--remove_file $MYSQLTEST_VARDIR/tmp/have_java_result.inc

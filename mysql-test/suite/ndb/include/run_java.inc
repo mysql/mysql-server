@@ -88,3 +88,4 @@ $F->close();
 
 EOF
 --source $MYSQLTEST_VARDIR/tmp/run_java.result
+--remove_file $MYSQLTEST_VARDIR/tmp/run_java.result

@@ -2,8 +2,8 @@
 # Run the Cluster/J JUnit tests from MTR
 #
 --source include/have_ndb.inc
---source suite/ndb/include/have_clusterj.inc
 --source suite/ndb/include/have_connectorj.inc
+--source suite/ndb/include/have_clusterj.inc
 --source suite/ndb/include/have_java.inc
 
 --let JAVA_CLASSPATH=$CLUSTERJ_TEST_JAR
@@ -16,6 +16,9 @@
 --let JAVA_ARGUMENTS= $CLUSTERJ_TEST_JAR
 
 --source suite/ndb/include/run_java.inc
+
+--echo Clean up the temporary clusterj.properties file.
+--remove_file $MYSQLTEST_VARDIR/tmp/clusterj.properties
 
 --echo Clean up tables used in the JUnit tests.
 DROP TABLE a;
