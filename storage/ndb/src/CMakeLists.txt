@@ -151,6 +151,9 @@ ADD_LIBRARY(ndbclient_so SHARED ndbclient_exports.cpp)
 # Collect all dynamic libraries in the same directory
 SET_TARGET_PROPERTIES(ndbclient_so PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory)
+IF(LINUX_INSTALL_RPATH_ORIGIN)
+  SET_PROPERTY(TARGET ndbclient_so PROPERTY INSTALL_RPATH "\$ORIGIN/")
+ENDIF()
 IF(WIN32_CLANG AND WITH_ASAN)
   TARGET_LINK_LIBRARIES(ndbclient_so "${ASAN_LIB_DIR}/clang_rt.asan_dll_thunk-x86_64.lib")
 ENDIF()

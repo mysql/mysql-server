@@ -111,9 +111,6 @@ ndb.ndb_ddl_open_trans : Need WL#9185 MySQL Cluster support for new DD
 # Schema distribution timeout while altering table
 ndb.ndb_alter_table_online_multi : Need WL#9185 MySQL Cluster support for new DD
 
-# Problem running clusterj* with utf8
-ndb.clusterj_jpa : BUG#26027722 UNKNOWN INITIAL CHARACTER SET
-
 # Problem since DDL on tablespaces are not synchronized between mysqlds
 # this need to be implemented
 ndb.ndb_single_user : Need WL#9185 MySQL Cluster support for new DD
@@ -139,8 +136,8 @@ ndb.ndb_dd_dump : Needs WL#9185 MySQL Cluster support for new DD
 # Problem with table present in DD and not in SE
 ndb.ndb_restore_schema_rewrites : Need WL#9185 MySQL Cluster support for new DD
 
-# Clusterj fails to start since libndbclient.se fails to load
-ndb.clusterj : BUG#26824659 LIBNDBCLIENT.SO FAILS TO LOAD LIBSSL.SO
+# Clusterj fails in windows due to Bug#28532563
+ndb.clusterj @windows: BUG#28532563 CLUSTERJ MTR TEST FAILS IN WINDOWS DUE TO NOT BEING ABLE TO LOAD LIBNDBCLIENT
 
 # Test fails with varying failures in all versions
 ndb.ndb_truncate_nologging : BUG#14845851 MYSQL CLUSTER - AUTO INCREMENT NOT RESET WHEN TRUNCATE NON-BINLOGGING SQL NODES: Could not acquire global schema lock
