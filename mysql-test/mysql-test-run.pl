@@ -1964,6 +1964,13 @@ sub command_line_setup {
     $opt_check_testcases = 0;
   }
 
+  if (defined $mysql_version_extra &&
+      $mysql_version_extra =~ /-tsan/) {
+    # Turn off check testcases to save time
+    mtr_report("Turning off --check-testcases to save time when using thread sanitizer");
+    $opt_check_testcases = 0;
+  }
+
   if ($opt_debug_common) {
     $opt_debug = 1;
     $debug_d   = "d,query,info,error,enter,exit";

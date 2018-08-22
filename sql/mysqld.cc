@@ -9490,6 +9490,11 @@ static void set_server_version(void) {
       static_cast<int>(sizeof("-ubsan")))
     end = my_stpcpy(end, "-ubsan");
 #endif
+#ifdef HAVE_TSAN
+  if (SERVER_VERSION_LENGTH - (end - server_version) >
+      static_cast<int>(sizeof("-tsan")))
+    end = my_stpcpy(end, "-tsan");
+#endif
 }
 
 static char *get_relative_path(const char *path) {

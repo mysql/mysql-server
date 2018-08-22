@@ -8,22 +8,15 @@
 
 race:innobase
 
-race:aggregate_thread_stats
-race:copy_events_waits
-race:PFS_buffer_scalable_container
-race:PFS_memory_stat::count_free
-race:PFS_single_stat::aggregate
-race:PFS_statement_stat::aggregate
-race:PFS_status_stats::aggregate_from
-race:PFS_buffer_default_array
-race:PFS_memory_safe_stat::count_free
-race:PFS_memory_safe_stat::count_alloc
-race:PFS_statement_stat::delayed_reset
+race:client/dump/
+
+race:perfschema
 
 race:plugin_vars_free_values
 race:log_builtins_filter_run
 race:MY_LOCALE_ERRMSGS::destroy
 race:get_one_variable_ext
+race:mysql_set_character_set_with_default_collation
 
 race:ngs::Scheduler_dynamic::wait_if_idle_then_delete_worker
 race:ngs::Socket_events::break_loop

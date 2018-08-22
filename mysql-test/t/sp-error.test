@@ -2,6 +2,9 @@
 # Stored PROCEDURE error tests
 #
 
+# ER_STACK_OVERRUN_NEED_MORE does not currenly work well with TSan
+--source include/not_tsan.inc
+
 --disable_warnings ONCE
 drop table if exists t1, t2;
 
