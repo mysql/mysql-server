@@ -4,6 +4,11 @@
 
 --source include/have_innodb_default_undo_tablespaces.inc
 
+# Do a slow shutdown and restart to clear out the undo logs
+SET GLOBAL innodb_fast_shutdown = 0;
+--let $shutdown_server_timeout = 300
+--source include/restart_mysqld.inc
+
 CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
 CREATE UNDO TABLESPACE undo_004 ADD DATAFILE 'undo_004.ibu';
 CREATE UNDO TABLESPACE undo_005 ADD DATAFILE 'undo_005.ibu';

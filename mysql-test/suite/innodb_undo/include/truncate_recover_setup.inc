@@ -13,20 +13,19 @@ let $rollback_segments_start_value = `SELECT @@global.innodb_rollback_segments`;
 let $max_undo_log_size_start_value = `SELECT @@global.innodb_max_undo_log_size`;
 let $log_error_verbosity_start_value = `SELECT @@global.log_error_verbosity`;
 let $undo_log_truncate_start_value = `SELECT @@global.innodb_undo_log_truncate`;
-let $innodb_fast_shutdown_start_value = `SELECT @@global.innodb_fast_shutdown`;
 --enable_query_log
 
 # Do a slow shutdown and restart to clear out the undo logs
-SET @@global.innodb_fast_shutdown = 0;
+SET GLOBAL innodb_fast_shutdown = 0;
 --let $shutdown_server_timeout = 300
 --source include/restart_mysqld.inc
 
-SET @@global.innodb_undo_log_truncate = 1;
-SET @@global.innodb_purge_rseg_truncate_frequency = 1;
-SET @@global.innodb_rollback_segments = 3;
-SET @@global.innodb_max_undo_log_size = 11534336;
-SET @@global.log_error_verbosity = 3;
-SET @@global.innodb_fast_shutdown = 0;
+SET GLOBAL innodb_undo_log_truncate = 1;
+SET GLOBAL innodb_purge_rseg_truncate_frequency = 1;
+SET GLOBAL innodb_rollback_segments = 3;
+SET GLOBAL innodb_max_undo_log_size = 11534336;
+SET GLOBAL log_error_verbosity = 3;
+SET GLOBAL innodb_fast_shutdown = 0;
 
 --echo #
 --echo # Create procedure to populate the test-bed for Undo Truncate Recover tests

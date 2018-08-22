@@ -1,14 +1,14 @@
 #
 # WL#6965: Truncate UNDO logs during recovery.
 #
-SET @@global.innodb_fast_shutdown = 0;
+SET GLOBAL innodb_fast_shutdown = 0;
 # restart
-SET @@global.innodb_undo_log_truncate = 1;
-SET @@global.innodb_purge_rseg_truncate_frequency = 1;
-SET @@global.innodb_rollback_segments = 3;
-SET @@global.innodb_max_undo_log_size = 11534336;
-SET @@global.log_error_verbosity = 3;
-SET @@global.innodb_fast_shutdown = 0;
+SET GLOBAL innodb_undo_log_truncate = 1;
+SET GLOBAL innodb_purge_rseg_truncate_frequency = 1;
+SET GLOBAL innodb_rollback_segments = 3;
+SET GLOBAL innodb_max_undo_log_size = 11534336;
+SET GLOBAL log_error_verbosity = 3;
+SET GLOBAL innodb_fast_shutdown = 0;
 #
 # Create procedure to populate the test-bed for Undo Truncate Recover tests
 #
