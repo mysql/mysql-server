@@ -2180,7 +2180,7 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
     table->field[1]->store(dl->str, dl->length, files_charset_info);
     error = table->file->ha_write_row(table->record[0]);
     if (error) {
-      char buf[MYSQL_ERRMSG_SIZE];
+      char buf[MYSQL_ERRMSG_SIZE + 30];
       char errbuf[MYSQL_ERRMSG_SIZE];
       my_strerror(errbuf, sizeof(errbuf), error);
       snprintf(buf, sizeof(buf), "got '%s' writing to mysql.plugin", errbuf);
@@ -2447,7 +2447,7 @@ static bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name) {
     error = false;
 
   if (error) {
-    char buf[MYSQL_ERRMSG_SIZE];
+    char buf[MYSQL_ERRMSG_SIZE + 33];
     char errbuf[MYSQL_ERRMSG_SIZE];
     my_strerror(errbuf, sizeof(errbuf), error);
     snprintf(buf, sizeof(buf), "got '%s' deleting from mysql.plugin", errbuf);
