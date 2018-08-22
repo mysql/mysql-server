@@ -228,7 +228,9 @@ ELSE()
 ENDIF()
 OPTION(WITH_NDB_JAVA
   "Include NDB Cluster Java components" ${WITH_NDB_JAVA_DEFAULT})
-IF(WITH_NDB_JAVA)
+IF(WITH_ASAN)
+  MESSAGE(STATUS "Skip building ClusterJ for ASAN builds")
+ELSEIF(WITH_NDB_JAVA)
   #
   # Check for Java and JDK needed by ndbjtie and clusterj
   #
@@ -327,7 +329,7 @@ IF(WITH_NDB_JAVA)
     "Enable the classpath for MySQL Cluster Java Connector")
 ELSE(WITH_NDB_JAVA)
   MESSAGE(STATUS "Excluding Cluster Java components")
-ENDIF(WITH_NDB_JAVA)
+ENDIF(WITH_ASAN)
 
 ADD_SUBDIRECTORY(include)
 ADD_SUBDIRECTORY(src)
