@@ -281,6 +281,7 @@ objects that are either being inserted or updated.  When we exit the scope the
 destructor will clear the "being modified" bit in the lob reference objects. */
 struct Being_modified {
   /** Constructor.  Set the "being modified" bit in LOB references.
+  @param[in] ctx  the B-tree context for LOB operation.
   @param[in] big_rec_vec  the LOB vector
   @param[in] pcur  persistent cursor
   @param[in] offsets the record offsets
