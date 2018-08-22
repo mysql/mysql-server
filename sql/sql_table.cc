@@ -2400,22 +2400,11 @@ static bool adjust_fk_children_for_parent_drop(
 static bool validate_secondary_engine_option(const Alter_info &alter_info,
                                              const HA_CREATE_INFO &create_info,
                                              const TABLE &table) {
-  constexpr uint64_t load_or_unload =
-      Alter_info::ALTER_SECONDARY_LOAD | Alter_info::ALTER_SECONDARY_UNLOAD;
-
-  // SECONDARY_LOAD and SECONDARY_UNLOAD operations require the table to have a
-  // secondary engine defined.
-  if (alter_info.flags & load_or_unload && !table.s->has_secondary()) {
-    my_error(ER_SECONDARY_ENGINE, MYF(0), "No secondary engine defined");
-    return true;
-  }
-
-  // Remaining validation checks apply only to tables with a secondary engine.
+  // Validation necessary only for tables with a secondary engine defined.
   if (!table.s->has_secondary()) return false;
 
-  // These are the only supported ALTER TABLE operations.
-  constexpr uint64_t supported_alter_operations =
-      load_or_unload | Alter_info::ALTER_OPTIONS;
+  // Changing table option is the only valid ALTER TABLE operation.
+  constexpr uint64_t supported_alter_operations = Alter_info::ALTER_OPTIONS;
 
   // The only table option that may be changed is SECONDARY_ENGINE.
   constexpr uint64_t supported_table_options = HA_CREATE_USED_SECONDARY_ENGINE;
@@ -2439,28 +2428,20 @@ static bool validate_secondary_engine_option(const Alter_info &alter_info,
 /**
  * Loads a table from its primary engine into its secondary engine.
  *
- * @note An MDL_SHARED_READ or stronger lock on the table must have been
- * acquired prior to calling this function.
+ * @note An MDL_SHARED_NO_WRITE or stronger lock on the table must have been
+ * acquired prior to calling this function to prevent writes into the table
+ * while it's being loaded.
  *
  * @param thd        Thread handler.
  * @param table      Table in primary storage engine.
- * @param alter_info Alter table operations.
  *
  * @return True if error, false otherwise.
  */
-static bool secondary_engine_load_table(THD *thd, const TABLE &table,
-                                        const Alter_info &alter_info) {
+static bool secondary_engine_load_table(THD *thd, const TABLE &table) {
   DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(
       MDL_key::TABLE, table.s->db.str, table.s->table_name.str,
-      MDL_SHARED_READ));
+      MDL_SHARED_NO_WRITE));
   DBUG_ASSERT(table.s->has_secondary());
-
-  // SECONDARY_LOAD cannot be used in conjunction with other DDLs.
-  if (alter_info.flags & ~Alter_info::ALTER_SECONDARY_LOAD) {
-    my_error(ER_SECONDARY_ENGINE, MYF(0),
-             "SECONDARY_LOAD must be a standalone action");
-    return true;
-  }
 
   // The defined secondary engine must be the name of a valid storage engine.
   plugin_ref plugin =
@@ -2472,7 +2453,7 @@ static bool secondary_engine_load_table(THD *thd, const TABLE &table,
 
   // The engine must support being used as a secondary engine.
   handlerton *hton = plugin_data<handlerton *>(plugin);
-  if (!(hton->flags & HTON_SUPPORTS_SECONDARY)) {
+  if (!(hton->flags & HTON_IS_SECONDARY_ENGINE)) {
     my_error(ER_SECONDARY_ENGINE, MYF(0),
              "Unsupported secondary storage engine");
     return true;
@@ -2491,8 +2472,8 @@ static bool secondary_engine_load_table(THD *thd, const TABLE &table,
  * Unloads a table from its secondary engine.
  *
  * @note An MDL_EXCLUSIVE or stronger lock on the table must have been acquired
- * prior to calling this function to ensure that the table is not being used by
- * other clients.
+ * prior to calling this function to ensure that queries already offloaded to
+ * the secondary engine finished execution before unloading the table.
  *
  * @param thd        Thread handler.
  * @param db_name    Database name.
@@ -2526,7 +2507,7 @@ static bool secondary_engine_unload_table(THD *thd, const char *db_name,
   // The defined secondary engine is a valid storage engine. However, if the
   // engine is not a valid secondary engine, no tables have been loaded and
   // there is nothing to be done.
-  if (!(hton->flags & HTON_SUPPORTS_SECONDARY)) return false;
+  if (!(hton->flags & HTON_IS_SECONDARY_ENGINE)) return false;
 
   // Get handler for table in secondary engine.
   const bool is_partitioned = table_def.partition_type() != dd::Table::PT_NONE;
@@ -6699,7 +6680,7 @@ bool Item_field::replace_field_processor(uchar *arg) {
          is used when checking for duplicate functional index names.
 
   @retval true if the key name exists in the array
-  @retval false if the key name doesn't exist in the array
+  @retval false if the key name doesn't exist in the array
 */
 static bool key_name_exists(const Mem_root_array<Key_spec *> &keys,
                             const std::string &key_name,
@@ -9857,6 +9838,127 @@ bool Sql_cmd_discard_import_tablespace::mysql_discard_or_import_tablespace(
 }
 
 /**
+ * Loads a table into a secondary engine if SECONDARY_LOAD, unloads from
+ * secondary engine if SECONDARY_UNLOAD.
+ *
+ * @param thd        Thread handler.
+ * @param table_list Table to load.
+ *
+ * @return True if error, false otherwise.
+ */
+bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
+    THD *thd, TABLE_LIST *table_list) {
+  Alter_table_prelocking_strategy alter_prelocking_strategy;
+
+  // Because SECONDARY_LOAD and SECONDARY_UNLOAD are standalone alter table
+  // actions, it should be impossible to set ALGORITHM and LOCK.
+  DBUG_ASSERT(m_alter_info->requested_lock ==
+              Alter_info::ALTER_TABLE_LOCK_DEFAULT);
+  DBUG_ASSERT(m_alter_info->requested_algorithm ==
+              Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT);
+
+  // Load if SECONDARY_LOAD, unload if SECONDARY_UNLOAD
+  const bool is_load = m_alter_info->flags & Alter_info::ALTER_SECONDARY_LOAD;
+
+  // If load, open table with MDL_SHARED_NO_WRITE lock to allow concurrent reads
+  // but no concurrent writes while table is being loaded into the secondary
+  // engine. If unload, open with EXCLUSIVE lock to ensure that queries already
+  // offloaded to the secondary engine finish execution before unloading the
+  // table.
+  const enum_mdl_type mdl_lock_type =
+      is_load ? MDL_SHARED_NO_WRITE : MDL_EXCLUSIVE;
+  table_list->mdl_request.set_type(mdl_lock_type);
+
+  // Open base table.
+  table_list->required_type = dd::enum_table_type::BASE_TABLE;
+  if (open_and_lock_tables(thd, table_list, 0, &alter_prelocking_strategy))
+    return true;
+
+  // Allow the secondary engine to load all columns.
+  table_list->table->use_all_columns();
+
+  // SECONDARY_LOAD/SECONDARY_UNLOAD requires a secondary engine.
+  if (!table_list->table->s->has_secondary()) {
+    my_error(ER_SECONDARY_ENGINE, MYF(0), "No secondary engine defined");
+    return true;
+  }
+
+  // It should not have been possible to define a temporary table with a
+  // secondary engine.
+  DBUG_ASSERT(table_list->table->s->tmp_table == NO_TMP_TABLE);
+
+  handlerton *hton = table_list->table->s->db_type();
+  DBUG_ASSERT(hton->flags & HTON_SUPPORTS_ATOMIC_DDL &&
+              hton->flags & HTON_SUPPORTS_SECONDARY_ENGINE &&
+              hton->post_ddl != nullptr);
+
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::Table *table_def = nullptr;
+  if (thd->dd_client()->acquire(table_list->db, table_list->table_name,
+                                &table_def))
+    return true;
+
+  MDL_ticket *mdl_ticket = table_list->table->mdl_ticket;
+
+  // Under LOCK TABLES, upgrade to MDL_EXCLUSIVE, and downgrade back to
+  // MDL_SHARED_NO_READ_WRITE after all operations have completed.
+  const bool upgrade_lock =
+      thd->locked_tables_mode == LTM_LOCK_TABLES ||
+      thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES;
+  auto downgrade_guard = create_scope_guard([mdl_ticket, upgrade_lock] {
+    if (upgrade_lock) mdl_ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
+  });
+  if (upgrade_lock &&
+      thd->mdl_context.upgrade_shared_lock(mdl_ticket, MDL_EXCLUSIVE,
+                                           thd->variables.lock_wait_timeout))
+    return true;
+
+  // Cleanup that must be done regardless of commit or rollback.
+  auto cleanup = [thd, hton]() {
+    hton->post_ddl(thd);
+    return thd->locked_tables_mode &&
+           thd->locked_tables_list.reopen_tables(thd);
+  };
+
+  // This scope guard is responsible for rolling back the transaction in case of
+  // any errors.
+  auto rollback_guard = create_scope_guard([thd, cleanup] {
+    trans_rollback_stmt(thd);
+    trans_rollback_implicit(thd);
+    cleanup();
+  });
+
+  // Initiate loading into or unloading from secondary engine.
+  const bool error =
+      is_load ? secondary_engine_load_table(thd, *table_list->table)
+              : secondary_engine_unload_table(
+                    thd, table_list->db, table_list->table_name, *table_def);
+  if (error) return true;
+
+  // Close base table. This requires an exclusive lock on the table.
+  if (thd->mdl_context.upgrade_shared_lock(mdl_ticket, MDL_EXCLUSIVE,
+                                           thd->variables.lock_wait_timeout))
+    return true;
+  close_all_tables_for_name(thd, table_list->table->s, false, nullptr);
+  table_list->table = nullptr;
+
+  // Write SECONDARY_LOAD/SECONDARY_UNLOAD statement to binlog.
+  if (write_bin_log(thd, false, thd->query().str, thd->query().length, true))
+    return true;
+
+  // Commit transaction if no errors.
+  if (trans_commit_stmt(thd) || trans_commit_implicit(thd)) return true;
+
+  // Transaction committed successfully, no rollback will be necessary.
+  rollback_guard.commit();
+
+  if (cleanup()) return true;
+
+  my_ok(thd);
+  return false;
+}
+
+/**
   Check if key is a candidate key, i.e. a unique index with no index
   fields partial, nullable or virtual generated.
 */
@@ -10156,10 +10258,6 @@ static bool fill_alter_inplace_info(THD *thd, TABLE *table,
     ha_alter_info->handler_flags |= Alter_inplace_info::RECREATE_TABLE;
   if (alter_info->with_validation == Alter_info::ALTER_WITH_VALIDATION)
     ha_alter_info->handler_flags |= Alter_inplace_info::VALIDATE_VIRTUAL_COLUMN;
-  if (alter_info->flags & Alter_info::ALTER_SECONDARY_LOAD)
-    ha_alter_info->handler_flags |= Alter_inplace_info::SECONDARY_LOAD;
-  if (alter_info->flags & Alter_info::ALTER_SECONDARY_UNLOAD)
-    ha_alter_info->handler_flags |= Alter_inplace_info::SECONDARY_UNLOAD;
 
   /*
     Go through fields in old version of table and detect changes to them.
@@ -11290,53 +11388,42 @@ static bool table_is_empty(TABLE *table, bool *is_empty) {
 }
 
 /**
- * Handles table alterations related to secondary engine.
+ * Removes secondary engine definition of a table if SECONDARY_ENGINE = NULL.
  *
- * Loads a table into its secondary engine if SECONDARY_LOAD, or unloads a table
- * from its secondary engine if SECONDARY_UNLOAD or SECONDARY_ENGINE = NULL.
+ * Will also attempt to unload the table from its existing secondary engine.
  *
  * @param thd               Thread handler.
  * @param table             Table opened in primary storage engine.
- * @param alter_info        Alter table information.
  * @param create_info       Information from the parsing phase about new
  *                          table properties.
- * @param table_def         Table definition for the original table.
- * @param altered_table_def Table definition for the new version of the table.
+ * @param altered_table_def Table definition of the table.
  *
  * @return True if error, false otherwise.
  */
-static bool alter_secondary_engine(THD *thd, const TABLE_LIST &table,
-                                   const Alter_info &alter_info,
-                                   const HA_CREATE_INFO &create_info,
-                                   const dd::Table *table_def,
-                                   dd::Table *altered_table_def) {
+static bool remove_secondary_engine(THD *thd, const TABLE_LIST &table,
+                                    const HA_CREATE_INFO &create_info,
+                                    dd::Table *altered_table_def) {
   // Nothing to do if no secondary engine defined for the table.
   if (table.table->s->secondary_engine.str == nullptr) return false;
 
-  // Attempt to load table into secondary engine if SECONDARY_LOAD.
-  if (alter_info.flags & Alter_info::ALTER_SECONDARY_LOAD)
-    return secondary_engine_load_table(thd, *table.table, alter_info);
-
-  // Attempt to unload table if SECONDARY_UNLOAD or SECONDARY_ENGINE = NULL.
-  const bool is_unload = alter_info.flags & Alter_info::ALTER_SECONDARY_UNLOAD;
+  // Check if SECONDARY_ENGINE = NULL has been set in ALTER TABLE.
   const bool is_null =
       create_info.used_fields & HA_CREATE_USED_SECONDARY_ENGINE &&
       create_info.secondary_engine.str == nullptr;
 
-  // Nothing to do if not unloading.
-  if (!is_unload && !is_null) return false;
+  if (!is_null) return false;
 
-  // The metadata lock on the table must be upgraded to at least MDL_EXCLUSIVE
-  // to ensure it's not used by other clients at the time it is unloaded from
-  // the secondary engine.
-  MDL_ticket *mdl_ticket = table.table->mdl_ticket;
-  if (thd->mdl_context.upgrade_shared_lock(mdl_ticket, MDL_EXCLUSIVE,
+  if (thd->mdl_context.upgrade_shared_lock(table.table->mdl_ticket,
+                                           MDL_EXCLUSIVE,
                                            thd->variables.lock_wait_timeout))
     return true;
-  const bool err = secondary_engine_unload_table(thd, table.db,
-                                                 table.table_name, *table_def);
-  if (is_null && !err) altered_table_def->options().remove("secondary_engine");
-  return err;
+
+  if (secondary_engine_unload_table(thd, table.db, table.table_name,
+                                    *altered_table_def))
+    return true;
+
+  altered_table_def->options().remove("secondary_engine");
+  return false;
 }
 
 /**
@@ -14746,8 +14833,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     DBUG_ASSERT(table_def);
   }
 
-  if (alter_secondary_engine(thd, *table_list, *alter_info, *create_info,
-                             old_table_def, table_def))
+  if (remove_secondary_engine(thd, *table_list, *create_info, table_def))
     goto err_new_table_cleanup;
 
   if (  // Tablespace specified in ALTER
@@ -16356,9 +16442,9 @@ static bool check_engine(THD *thd, const char *db_name, const char *table_name,
     DBUG_RETURN(true);
   }
 
-  // InnoDB is the only supported engine for a table with a secondary engine.
+  // The storage engine must support secondary engines.
   if (create_info->used_fields & HA_CREATE_USED_SECONDARY_ENGINE &&
-      (*new_engine)->db_type != DB_TYPE_INNODB) {
+      !((*new_engine)->flags & HTON_SUPPORTS_SECONDARY_ENGINE)) {
     my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "SECONDARY_ENGINE");
     DBUG_RETURN(true);
   }

@@ -272,10 +272,10 @@ class Alter_info {
     /// Means that the visibility of an index is changed.
     ALTER_INDEX_VISIBILITY = 1UL << 29,
 
-    /// Set for SECONDARY LOAD
+    /// Set for SECONDARY_LOAD
     ALTER_SECONDARY_LOAD = 1UL << 30,
 
-    /// Set for SECONDARY UNLOAD
+    /// Set for SECONDARY_UNLOAD
     ALTER_SECONDARY_UNLOAD = 1UL << 31,
   };
 
@@ -553,6 +553,20 @@ class Sql_cmd_discard_import_tablespace : public Sql_cmd_common_alter_table {
 
  private:
   bool mysql_discard_or_import_tablespace(THD *thd, TABLE_LIST *table_list);
+};
+
+/**
+  Represents ALTER TABLE SECONDARY_LOAD/SECONDARY_UNLOAD statements.
+*/
+class Sql_cmd_secondary_load_unload final : public Sql_cmd_common_alter_table {
+ public:
+  // Inherit the constructors from the parent class.
+  using Sql_cmd_common_alter_table::Sql_cmd_common_alter_table;
+
+  bool execute(THD *thd) override;
+
+ private:
+  bool mysql_secondary_load_or_unload(THD *thd, TABLE_LIST *table_list);
 };
 
 #endif

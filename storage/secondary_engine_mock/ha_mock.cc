@@ -147,7 +147,7 @@ static int Init(MYSQL_PLUGIN p) {
   handlerton *hton = static_cast<handlerton *>(p);
   hton->create = Create;
   hton->state = SHOW_OPTION_YES;
-  hton->flags = HTON_SUPPORTS_SECONDARY;
+  hton->flags = HTON_IS_SECONDARY_ENGINE;
   hton->db_type = DB_TYPE_UNKNOWN;
   return 0;
 }

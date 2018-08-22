@@ -2159,8 +2159,11 @@ struct handlerton {
 /* Engine supports packed keys. */
 #define HTON_SUPPORTS_PACKED_KEYS (1 << 13)
 
-/** Engine supports being set as secondary storage engine. */
-#define HTON_SUPPORTS_SECONDARY (1 << 14)
+/** Engine is a secondary storage engine. */
+#define HTON_IS_SECONDARY_ENGINE (1 << 14)
+
+/** Engine supports secondary storage engines. */
+#define HTON_SUPPORTS_SECONDARY_ENGINE (1 << 15)
 
 inline bool ddl_is_atomic(const handlerton *hton) {
   return (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) != 0;
@@ -2517,12 +2520,6 @@ class Alter_inplace_info {
 
   // Rebuild partition
   static const HA_ALTER_FLAGS ALTER_REBUILD_PARTITION = 1ULL << 42;
-
-  // Load into secondary engine.
-  static const HA_ALTER_FLAGS SECONDARY_LOAD = 1ULL << 43;
-
-  // Unload from secondary engine.
-  static const HA_ALTER_FLAGS SECONDARY_UNLOAD = 1ULL << 44;
 
   /**
     Change in index length such that it does not require index rebuild.

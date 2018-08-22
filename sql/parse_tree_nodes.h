@@ -3986,21 +3986,6 @@ class PT_alter_table_remove_partitioning : public PT_alter_table_action {
       : super(Alter_info::ALTER_REMOVE_PARTITIONING) {}
 };
 
-class PT_alter_table_secondary_load : public PT_alter_table_action {
-  using super = PT_alter_table_action;
-
- public:
-  PT_alter_table_secondary_load() : super(Alter_info::ALTER_SECONDARY_LOAD) {}
-};
-
-class PT_alter_table_secondary_unload : public PT_alter_table_action {
-  using super = PT_alter_table_action;
-
- public:
-  PT_alter_table_secondary_unload()
-      : super(Alter_info::ALTER_SECONDARY_UNLOAD) {}
-};
-
 class PT_alter_table_standalone_action : public PT_alter_table_action {
   typedef PT_alter_table_action super;
 
@@ -4401,6 +4386,32 @@ class PT_alter_table_exchange_partition final
   const LEX_STRING m_partition_name;
   Table_ident *m_table_name;
   const Alter_info::enum_with_validation m_validation;
+};
+
+class PT_alter_table_secondary_load final
+    : public PT_alter_table_standalone_action {
+  using super = PT_alter_table_standalone_action;
+
+ public:
+  explicit PT_alter_table_secondary_load()
+      : super(Alter_info::ALTER_SECONDARY_LOAD) {}
+
+  Sql_cmd *make_cmd(Table_ddl_parse_context *pc) override {
+    return new (pc->mem_root) Sql_cmd_secondary_load_unload(pc->alter_info);
+  }
+};
+
+class PT_alter_table_secondary_unload final
+    : public PT_alter_table_standalone_action {
+  using super = PT_alter_table_standalone_action;
+
+ public:
+  explicit PT_alter_table_secondary_unload()
+      : super(Alter_info::ALTER_SECONDARY_UNLOAD) {}
+
+  Sql_cmd *make_cmd(Table_ddl_parse_context *pc) override {
+    return new (pc->mem_root) Sql_cmd_secondary_load_unload(pc->alter_info);
+  }
 };
 
 class PT_alter_table_discard_partition_tablespace final

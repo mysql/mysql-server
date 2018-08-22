@@ -170,8 +170,7 @@ static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_ALTER_NOREBUILD =
     Alter_inplace_info::ADD_VIRTUAL_COLUMN |
     Alter_inplace_info::DROP_VIRTUAL_COLUMN |
     Alter_inplace_info::ALTER_VIRTUAL_COLUMN_ORDER |
-    Alter_inplace_info::ALTER_COLUMN_INDEX_LENGTH |
-    Alter_inplace_info::SECONDARY_LOAD | Alter_inplace_info::SECONDARY_UNLOAD;
+    Alter_inplace_info::ALTER_COLUMN_INDEX_LENGTH;
 /* | Alter_inplace_info::ALTER_VIRTUAL_COLUMN_TYPE; */
 
 struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx {

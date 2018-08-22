@@ -36,7 +36,7 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a INT) SECONDARY_ENGINE MOCK;
 ALTER TABLE t1 SECONDARY_LOAD, FORCE;
-ERROR HY000: DDLs on a table with a secondary engine defined are not allowed.
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ', FORCE' at line 1
 DROP TABLE t1;
 #
 # Perform alterations related to secondary engine using differing
@@ -44,9 +44,13 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a INT) SECONDARY_ENGINE MOCK;
 ALTER TABLE t1 SECONDARY_LOAD, ALGORITHM=INPLACE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ', ALGORITHM=INPLACE' at line 1
 ALTER TABLE t1 SECONDARY_UNLOAD, ALGORITHM=INPLACE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ', ALGORITHM=INPLACE' at line 1
 ALTER TABLE t1 SECONDARY_LOAD, ALGORITHM=COPY;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ', ALGORITHM=COPY' at line 1
 ALTER TABLE t1 SECONDARY_UNLOAD, ALGORITHM=COPY;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ', ALGORITHM=COPY' at line 1
 ALTER TABLE t1 SECONDARY_ENGINE NULL, ALGORITHM=INPLACE;
 ALTER TABLE t1 SECONDARY_ENGINE MOCK, ALGORITHM=INPLACE;
 ALTER TABLE t1 SECONDARY_ENGINE NULL, ALGORITHM=COPY;
@@ -62,4 +66,24 @@ DROP TABLE t1;
 # accesses the table concurrently.
 #
 CREATE TABLE t1 (a INT) SECONDARY_ENGINE MOCK;
+DROP TABLE t1;
+#
+# Attempt to LOCK TABLE before loading a table into secondary engine.
+#
+CREATE TABLE t1 (a INT) SECONDARY_ENGINE MOCK;
+LOCK TABLES t1 WRITE;
+ALTER TABLE t1 SECONDARY_LOAD;
+ALTER TABLE t1 SECONDARY_UNLOAD;
+UNLOCK TABLES;
+LOCK TABLES t1 READ;
+ALTER TABLE t1 SECONDARY_LOAD;
+ERROR HY000: Table 't1' was locked with a READ lock and can't be updated
+ALTER TABLE t1 SECONDARY_UNLOAD;
+ERROR HY000: Table 't1' was locked with a READ lock and can't be updated
+LOCK TABLES t1 WRITE;
+ALTER TABLE t1 SECONDARY_LOAD;
+ALTER TABLE t1 SECONDARY_UNLOAD;
+UNLOCK TABLES;
+ALTER TABLE t1 SECONDARY_LOAD;
+ALTER TABLE t1 SECONDARY_UNLOAD;
 DROP TABLE t1;

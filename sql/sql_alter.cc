@@ -402,3 +402,25 @@ bool Sql_cmd_discard_import_tablespace::execute(THD *thd) {
 
   return mysql_discard_or_import_tablespace(thd, table_list);
 }
+
+bool Sql_cmd_secondary_load_unload::execute(THD *thd) {
+  // One of the SECONDARY_LOAD/SECONDARY_UNLOAD flags must have been set.
+  DBUG_ASSERT(
+      ((m_alter_info->flags & Alter_info::ALTER_SECONDARY_LOAD) == 0) !=
+      ((m_alter_info->flags & Alter_info::ALTER_SECONDARY_UNLOAD) == 0));
+
+  // No other flags should've been set.
+  DBUG_ASSERT(!(m_alter_info->flags & ~(Alter_info::ALTER_SECONDARY_LOAD |
+                                        Alter_info::ALTER_SECONDARY_UNLOAD)));
+
+  TABLE_LIST *table_list = thd->lex->select_lex->get_table_list();
+
+  if (check_access(thd, ALTER_ACL, table_list->db, &table_list->grant.privilege,
+                   &table_list->grant.m_internal, 0, 0))
+    return true;
+
+  if (check_grant(thd, ALTER_ACL, table_list, false, UINT_MAX, false))
+    return true;
+
+  return mysql_secondary_load_or_unload(thd, table_list);
+}

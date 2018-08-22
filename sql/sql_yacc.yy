@@ -7885,6 +7885,14 @@ standalone_alter_commands:
           {
             $$= NEW_PTN PT_alter_table_import_partition_tablespace($3);
           }
+        | SECONDARY_LOAD_SYM
+          {
+            $$= NEW_PTN PT_alter_table_secondary_load;
+          }
+        | SECONDARY_UNLOAD_SYM
+          {
+            $$= NEW_PTN PT_alter_table_secondary_unload;
+          }
         ;
 
 opt_with_validation:
@@ -8044,14 +8052,6 @@ alter_list_item:
         | ORDER_SYM BY alter_order_list
           {
             $$= NEW_PTN PT_alter_table_order($3);
-          }
-        | SECONDARY_LOAD_SYM
-          {
-            $$= NEW_PTN PT_alter_table_secondary_load;
-          }
-        | SECONDARY_UNLOAD_SYM
-          {
-            $$= NEW_PTN PT_alter_table_secondary_unload;
           }
         ;
 

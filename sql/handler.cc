@@ -4732,8 +4732,7 @@ enum_alter_inplace_result handler::check_if_supported_inplace_alter(
       Alter_inplace_info::ALTER_RENAME | Alter_inplace_info::RENAME_INDEX |
       Alter_inplace_info::ALTER_INDEX_COMMENT |
       Alter_inplace_info::CHANGE_INDEX_OPTION |
-      Alter_inplace_info::ALTER_COLUMN_INDEX_LENGTH |
-      Alter_inplace_info::SECONDARY_LOAD | Alter_inplace_info::SECONDARY_UNLOAD;
+      Alter_inplace_info::ALTER_COLUMN_INDEX_LENGTH;
 
   /* Is there at least one operation that requires copy algorithm? */
   if (ha_alter_info->handler_flags & ~inplace_offline_operations)
@@ -8624,7 +8623,7 @@ void ha_post_recover(void) {
 }
 
 void handler::ha_set_primary_handler(handler *primary_handler) {
-  DBUG_ASSERT((ht->flags & HTON_SUPPORTS_SECONDARY) != 0);
+  DBUG_ASSERT((ht->flags & HTON_IS_SECONDARY_ENGINE) != 0);
   DBUG_ASSERT(primary_handler->table->s->has_secondary());
   m_primary_handler = primary_handler;
 }

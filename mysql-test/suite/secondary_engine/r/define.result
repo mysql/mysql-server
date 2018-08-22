@@ -135,8 +135,8 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (i INT);
 ALTER TABLE t1 SECONDARY_LOAD, ADD KEY idx(i);
-ERROR HY000: Secondary engine operation failed. No secondary engine defined.
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ', ADD KEY idx(i)' at line 1
 ALTER TABLE t1 SECONDARY_ENGINE NONEXISTENT;
 ALTER TABLE t1 SECONDARY_LOAD, ADD KEY idx(i);
-ERROR HY000: DDLs on a table with a secondary engine defined are not allowed.
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ', ADD KEY idx(i)' at line 1
 DROP TABLE t1;
