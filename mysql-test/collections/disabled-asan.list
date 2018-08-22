@@ -9,5 +9,3 @@ ndb.ndb_connection_pool_nodeids              : Bug#27737803 2018-03-23 arnray
 ndb.ndb_startup                              : Bug#27737803 2018-03-23 arnray
 ndb.ndb_import0                              : Bug#27130143 2018-03-23 arnray
 ndb.ndb_import1                              : Bug#27130143 2018-03-23 arnray
-ndb.ndb_restore_misc                         : Bug#28525898 NDB_RESTORE MEMORY LEAK WHEN TABLE ALREADY EXIST
-ndb.ndb_restore_compat_compression         : Bug#28525898 NDB_RESTORE MEMORY LEAK WHEN TABLE ALREADY EXIST

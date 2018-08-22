@@ -1213,6 +1213,7 @@ free_include_excludes_vector()
 static void exitHandler(int code)
 {
   free_include_excludes_vector();
+  clearConsumers();
   NDBT_ProgramExit(code);
   if (opt_core)
     abort();
@@ -1467,7 +1468,6 @@ main(int argc, char** argv)
   {
     if (!g_consumers[i]->init(g_tableCompabilityMask))
     {
-      clearConsumers();
       err << "Failed to initialize consumers" << endl;
       exitHandler(NDBT_FAILED);
     }
@@ -1846,7 +1846,6 @@ main(int argc, char** argv)
   {
     if (g_consumers[j]->has_temp_error())
     {
-      clearConsumers();
       ndbout_c("\nRestore successful, but encountered temporary error, "
                "please look at configuration.");
     }               
