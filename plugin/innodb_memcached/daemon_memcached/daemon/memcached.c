@@ -1718,7 +1718,7 @@ static void complete_update_bin(conn *c) {
 }
 
 static void process_bin_get(conn *c) {
-    item *it;
+    item *it = NULL;
 
     protocol_binary_response_get* rsp = (protocol_binary_response_get*)c->wbuf;
     char* key = binary_get_key(c);
@@ -3113,7 +3113,7 @@ static void process_bin_update(conn *c) {
     char *key;
     uint16_t nkey;
     uint32_t vlen;
-    item *it;
+    item *it = NULL;
     protocol_binary_request_set* req = binary_get_request(c);
 
     assert(c != NULL);
@@ -3236,7 +3236,7 @@ static void process_bin_append_prepend(conn *c) {
     char *key;
     int nkey;
     int vlen;
-    item *it;
+    item *it = NULL;
 
     assert(c != NULL);
 
@@ -4052,7 +4052,7 @@ static inline char* process_get_command(conn *c, token_t *tokens, size_t ntokens
     char *key;
     size_t nkey;
     int i = c->ileft;
-    item *it;
+    item *it = NULL;
     token_t *key_token = &tokens[KEY_TOKEN];
     int range = false;
     assert(c != NULL);
@@ -4248,9 +4248,9 @@ static void process_update_command(conn *c, token_t *tokens, const size_t ntoken
     unsigned int flags;
     int32_t exptime_int = 0;
     time_t exptime;
-    int vlen;
+    int vlen = 0;
     uint64_t req_cas_id=0;
-    item *it;
+    item *it = NULL;
 
     assert(c != NULL);
 
@@ -4373,7 +4373,7 @@ static char* process_arithmetic_command(conn *c, token_t *tokens, const size_t n
     ENGINE_ERROR_CODE ret = c->aiostat;
     c->aiostat = ENGINE_SUCCESS;
     uint64_t cas;
-    uint64_t result;
+    uint64_t result = 0;
     if (ret == ENGINE_SUCCESS) {
         ret = settings.engine.v1->arithmetic(settings.engine.v0, c, key, nkey,
                                              incr, false, delta, 0, 0, &cas,
@@ -4689,7 +4689,7 @@ static char* process_command(conn *c, char *command) {
     } else if (settings.extensions.ascii != NULL) {
         EXTENSION_ASCII_PROTOCOL_DESCRIPTOR *cmd;
         size_t nbytes = 0;
-        char *ptr;
+        char *ptr = NULL;
 
         if (ntokens > 0) {
             if (ntokens == MAX_TOKENS) {
