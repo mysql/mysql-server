@@ -2160,6 +2160,11 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
         error = true;
     } else
       error = true;
+
+    if (error) {
+      report_error(REPORT_TO_USER, ER_PLUGIN_INSTALL_ERROR, name->str,
+                   "error acquiring metadata lock");
+    }
   }
 
   /*
@@ -2175,7 +2180,11 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
     table->field[1]->store(dl->str, dl->length, files_charset_info);
     error = table->file->ha_write_row(table->record[0]);
     if (error) {
-      table->file->print_error(error, MYF(0));
+      char buf[MYSQL_ERRMSG_SIZE];
+      char errbuf[MYSQL_ERRMSG_SIZE];
+      my_strerror(errbuf, sizeof(errbuf), error);
+      snprintf(buf, sizeof(buf), "got '%s' writing to mysql.plugin", errbuf);
+      report_error(REPORT_TO_USER, ER_PLUGIN_INSTALL_ERROR, name->str, buf);
     } else {
       mysql_mutex_lock(&LOCK_plugin);
 
@@ -2190,8 +2199,13 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
         tables are closed before the function returns.
        */
       error = error || thd->transaction_rollback_request;
-      if (!error && store_infoschema_metadata)
+      if (!error && store_infoschema_metadata) {
         error = dd::info_schema::store_dynamic_plugin_I_S_metadata(thd, tmp);
+        if (error) {
+          report_error(REPORT_TO_USER, ER_PLUGIN_INSTALL_ERROR, name->str,
+                       "error storing metadata");
+        }
+      }
       mysql_mutex_unlock(&LOCK_plugin);
 
       if (!error && store_infoschema_metadata) {
@@ -2199,6 +2213,10 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
         error = update_referencing_views_metadata(
             thd, INFORMATION_SCHEMA_NAME.str, tmp->name.str, false,
             &uncommitted_tables);
+        if (error) {
+          report_error(REPORT_TO_USER, ER_PLUGIN_INSTALL_ERROR, name->str,
+                       "error updating metadata");
+        }
       }
     }
   }
@@ -2420,15 +2438,21 @@ static bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name) {
     Disable_binlog_guard binlog_guard(thd);
     rc = table->file->ha_delete_row(table->record[0]);
     if (rc) {
-      table->file->print_error(rc, MYF(0));
       DBUG_ASSERT(thd->is_error());
     } else
       error = false;
   } else if (rc != HA_ERR_KEY_NOT_FOUND && rc != HA_ERR_END_OF_FILE) {
-    table->file->print_error(rc, MYF(0));
     DBUG_ASSERT(thd->is_error());
   } else
     error = false;
+
+  if (error) {
+    char buf[MYSQL_ERRMSG_SIZE];
+    char errbuf[MYSQL_ERRMSG_SIZE];
+    my_strerror(errbuf, sizeof(errbuf), error);
+    snprintf(buf, sizeof(buf), "got '%s' deleting from mysql.plugin", errbuf);
+    report_error(REPORT_TO_USER, ER_PLUGIN_UNINSTALL_ERROR, name->str, buf);
+  }
 
   if (!error && !thd->transaction_rollback_request &&
       remove_IS_metadata_from_dd) {
@@ -2442,6 +2466,11 @@ static bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name) {
       error = update_referencing_views_metadata(
           thd, INFORMATION_SCHEMA_NAME.str, orig_plugin_name.c_str(), false,
           &uncommitted_tables);
+    }
+
+    if (error) {
+      report_error(REPORT_TO_USER, ER_PLUGIN_UNINSTALL_ERROR, name->str,
+                   "error updating metadata");
     }
   }
 
