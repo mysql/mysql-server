@@ -476,14 +476,25 @@ struct Name_resolution_context {
   check_function_as_value_generator
 */
 struct Check_function_as_value_generator_parameters {
+  Check_function_as_value_generator_parameters(int default_error_code,
+                                               bool is_generated_column)
+      : err_code(default_error_code), is_gen_col(is_generated_column) {}
   /// the order of the column in table
-  int col_index;
+  int col_index{-1};
   /// the error code found during check(if any)
   int err_code;
   /// if it is a generated column
   bool is_gen_col;
   /// the name of the function which is not allowed
-  const char *banned_function_name;
+  const char *banned_function_name{nullptr};
+
+  /// Return the correct error code, based on whether or not if we are checking
+  /// for disallowed functions in generated column expressions or in default
+  /// value expressions.
+  int get_unnamed_function_error_code() const {
+    return is_gen_col ? ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
+                      : ER_DEFAULT_VAL_GENERATED_FUNCTION_IS_NOT_ALLOWED;
+  }
 };
 /*
   Store and restore the current state of a name resolution context.
@@ -3667,9 +3678,7 @@ class Item_param final : public Item, private Settable_routine_parameter {
   bool check_function_as_value_generator(uchar *args) override {
     Check_function_as_value_generator_parameters *func_arg =
         pointer_cast<Check_function_as_value_generator_parameters *>(args);
-    func_arg->err_code = func_arg->is_gen_col
-                             ? ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
-                             : ER_DEFAULT_VAL_GENERATED_FUNCTION_IS_NOT_ALLOWED;
+    func_arg->err_code = func_arg->get_unnamed_function_error_code();
     return true;
   }
 
@@ -4269,9 +4278,7 @@ class Item_blob final : public Item_partition_func_safe_string {
   bool check_function_as_value_generator(uchar *args) override {
     Check_function_as_value_generator_parameters *func_arg =
         pointer_cast<Check_function_as_value_generator_parameters *>(args);
-    func_arg->err_code = func_arg->is_gen_col
-                             ? ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
-                             : ER_DEFAULT_VAL_GENERATED_FUNCTION_IS_NOT_ALLOWED;
+    func_arg->err_code = func_arg->get_unnamed_function_error_code();
     return true;
   }
 };
@@ -4628,9 +4635,7 @@ class Item_ref : public Item_ident {
   bool check_function_as_value_generator(uchar *args) override {
     Check_function_as_value_generator_parameters *func_arg =
         pointer_cast<Check_function_as_value_generator_parameters *>(args);
-    func_arg->err_code = func_arg->is_gen_col
-                             ? ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
-                             : ER_DEFAULT_VAL_GENERATED_FUNCTION_IS_NOT_ALLOWED;
+    func_arg->err_code = func_arg->get_unnamed_function_error_code();
     return true;
   }
 };
@@ -5406,9 +5411,7 @@ class Item_trigger_field final : public Item_field,
   bool check_function_as_value_generator(uchar *args) override {
     Check_function_as_value_generator_parameters *func_arg =
         pointer_cast<Check_function_as_value_generator_parameters *>(args);
-    func_arg->err_code = func_arg->is_gen_col
-                             ? ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
-                             : ER_DEFAULT_VAL_GENERATED_FUNCTION_IS_NOT_ALLOWED;
+    func_arg->err_code = func_arg->get_unnamed_function_error_code();
     return true;
   }
 
@@ -5868,9 +5871,7 @@ class Item_type_holder final : public Item {
   bool check_function_as_value_generator(uchar *args) override {
     Check_function_as_value_generator_parameters *func_arg =
         pointer_cast<Check_function_as_value_generator_parameters *>(args);
-    func_arg->err_code = func_arg->is_gen_col
-                             ? ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
-                             : ER_DEFAULT_VAL_GENERATED_FUNCTION_IS_NOT_ALLOWED;
+    func_arg->err_code = func_arg->get_unnamed_function_error_code();
     return true;
   }
 };

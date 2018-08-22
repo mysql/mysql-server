@@ -1002,56 +1002,23 @@ static enum_field_types field_types_merge_rules[FIELDTYPE_NUM][FIELDTYPE_NUM] =
          // MYSQL_TYPE_STRING       MYSQL_TYPE_GEOMETRY
          MYSQL_TYPE_STRING, MYSQL_TYPE_GEOMETRY}};
 
-bool pre_validate_value_generator_expr(const Item *expression,
+bool pre_validate_value_generator_expr(Item *expression,
                                        const char *column_name,
                                        bool is_gen_col) {
-  int err_no = is_gen_col
-                   ? ER_GENERATED_COLUMN_NAMED_FUNCTION_IS_NOT_ALLOWED
-                   : ER_DEFAULT_VAL_GENERATED_NAMED_FUNCTION_IS_NOT_ALLOWED;
-  switch (expression->type()) {
-    case Item::FUNC_ITEM: {
-      auto *func_item = down_cast<const Item_func *>(expression);
-      Item_func::Functype functype = func_item->functype();
-      if (functype == Item_func::FUNC_SP || functype == Item_func::UDF_FUNC ||
-          func_item->is_deprecated()) {
-        my_error(err_no, MYF(0), column_name, func_item->func_name());
-        return true;
-      }
+  const int error_code =
+      is_gen_col ? ER_GENERATED_COLUMN_NAMED_FUNCTION_IS_NOT_ALLOWED
+                 : ER_DEFAULT_VAL_GENERATED_NAMED_FUNCTION_IS_NOT_ALLOWED;
+  Check_function_as_value_generator_parameters checker_args(error_code,
+                                                            is_gen_col);
 
-      if (functype == Item_func::SUSERVAR_FUNC ||
-          functype == Item_func::GUSERVAR_FUNC ||
-          functype == Item_func::GSYSVAR_FUNC) {
-        my_error(ER_DEFAULT_VAL_GENERATED_VARIABLES, MYF(0), column_name);
-        return true;
-      }
-
-    } break;
-    case Item::INSERT_VALUE_ITEM:
-      my_error(err_no, MYF(0), column_name, "values");
-      return true;
-    case Item::COPY_STR_ITEM:
-    case Item::FIELD_AVG_ITEM:
-    case Item::FIELD_BIT_ITEM:
-    case Item::PROC_ITEM:
-    case Item::REF_ITEM:
-    case Item::FIELD_STD_ITEM:
-    case Item::FIELD_VARIANCE_ITEM:
-    case Item::SUBSELECT_ITEM:
-    case Item::CACHE_ITEM:
-    case Item::TYPE_HOLDER:
-    case Item::PARAM_ITEM:
-    case Item::TRIGGER_FIELD_ITEM:
-    case Item::XPATH_NODESET:
-    case Item::XPATH_NODESET_CMP:
-    case Item::VIEW_FIXER_ITEM:
-      // This is not an Item_func item so we don't have a function name
-      err_no = is_gen_col ? ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
-                          : ER_DEFAULT_VAL_GENERATED_FUNCTION_IS_NOT_ALLOWED;
-      my_error(err_no, MYF(0), column_name);
-      return true;
-    default:
-      break;
+  if (expression->walk(&Item::check_function_as_value_generator,
+                       Item::WALK_SUBQUERY_POSTFIX,
+                       pointer_cast<uchar *>(&checker_args))) {
+    my_error(checker_args.err_code, MYF(0), column_name,
+             checker_args.banned_function_name);
+    return true;
   }
+
   return false;
 }
 

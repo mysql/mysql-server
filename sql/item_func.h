@@ -606,6 +606,16 @@ class Item_func : public Item_result_field {
     @return true if the function item can have named parameters
   */
   virtual bool may_have_named_parameters() const { return false; }
+
+  bool check_function_as_value_generator(uchar *args) override {
+    if (is_deprecated()) {
+      Check_function_as_value_generator_parameters *func_arg =
+          pointer_cast<Check_function_as_value_generator_parameters *>(args);
+      func_arg->banned_function_name = func_name();
+      return true;
+    }
+    return false;
+  }
 };
 
 class Item_real_func : public Item_func {

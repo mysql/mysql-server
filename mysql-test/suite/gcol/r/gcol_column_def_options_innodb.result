@@ -327,7 +327,7 @@ ERROR HY000: Generated column can refer only to generated columns defined prior 
 CREATE TABLE t1(a int);
 ALTER TABLE t1 ADD COLUMN z int GENERATED ALWAYS AS
 ( 1 NOT IN (SELECT 1 FROM t1 WHERE c0006) ) virtual;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(select 1 from `t1` where `c0006`))))' at line 1
+ERROR HY000: Expression of generated column 'z' contains a disallowed function.
 DROP TABLE t1;
 # Bug#20566243: ERROR WHILE DOING CREATE TABLE T1 SELECT (QUERY ON GC COLUMNS)
 CREATE TABLE t1(a int, b int as (a + 1),
@@ -444,11 +444,11 @@ DROP TABLE t1;
 CREATE TABLE t1(a int);
 ALTER TABLE t1 ADD COLUMN z int GENERATED ALWAYS AS
 ( 1 NOT IN (SELECT 1 FROM t1 WHERE c0006) ) virtual;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(select 1 from `t1` where `c0006`))))' at line 1
+ERROR HY000: Expression of generated column 'z' contains a disallowed function.
 CREATE TABLE t2(a int, b int as (1 NOT IN (SELECT 1 FROM t1 WHERE not_exist_col)));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(select 1 from `t1` where `not_exist_col`))))' at line 1
+ERROR HY000: Expression of generated column 'b' contains a disallowed function.
 CREATE TABLE t2(a int, b int as (1 NOT IN (SELECT 1 FROM dual)));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(select 1))))' at line 1
+ERROR HY000: Expression of generated column 'b' contains a disallowed function.
 DROP TABLE t1;
 # Bug#21142905: PARTITIONED GENERATED COLS -
 #  !TABLE || (!TABLE->WRITE_SET || BITMAP_IS_SET
