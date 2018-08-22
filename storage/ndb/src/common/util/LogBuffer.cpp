@@ -41,7 +41,8 @@ LogBuffer::LogBuffer(size_t size, LostMsgHandler* lost_msg_handler) :
     m_size(0),
     m_lost_bytes(0),
     m_lost_messages(0),
-    m_lost_msg_handler(lost_msg_handler)
+    m_lost_msg_handler(lost_msg_handler),
+    m_stop(false)
 {
   m_log_buf = (char*)malloc(size+1);
   assert(m_log_buf != NULL);
