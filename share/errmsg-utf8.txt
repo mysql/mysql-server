@@ -18404,6 +18404,12 @@ ER_DATA_DIRECTORY_UNUSABLE
 
 ER_LDAP_AUTH_USER_GROUP_SEARCH_ROOT_BIND
   eng "Group search rebinding via root DN: %s "
+
+ER_PLUGIN_INSTALL_ERROR
+  eng "Error installing plugin '%s': %s"
+
+ER_PLUGIN_UNINSTALL_ERROR
+  eng "Error uninstalling plugin '%s': %s"
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #
