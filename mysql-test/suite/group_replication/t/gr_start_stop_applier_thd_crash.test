@@ -85,6 +85,11 @@ SET GLOBAL group_replication_bootstrap_group=ON;
 --echo
 --echo # 5. Restart Group Replication on server1
 
+# Give time for the start thread to be detected as killed on the applier start
+--sleep 3
+
+#Unblock
+SET DEBUG_SYNC= "now SIGNAL signal.gr_applier_init_signal";
 SET @@GLOBAL.DEBUG= @debug_save;
 
 # set group_replication_group_name command is failing as the previous start
