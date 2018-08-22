@@ -1228,8 +1228,7 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
       jam();
       /* Coverage tested */
       /* Cannot have LCP_SKIP bit set on rowid's not yet used */
-      if (unlikely(!(thbits == Fix_page::FREE_RECORD ||
-                     thbits == Tuple_header::ALLOC)))
+      if (unlikely(thbits & Tuple_header::LCP_SKIP))
       {
         g_eventLogger->info("(%u) tab(%u,%u) row(%u,%u), header: %x"
                             " LCP_SKIP set on rowid not yet used",
@@ -1239,8 +1238,7 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
                             key.m_page_no,
                             key.m_page_idx,
                             thbits);
-        ndbrequire(thbits == Fix_page::FREE_RECORD ||
-                   thbits == Tuple_header::ALLOC);
+        ndbrequire(thbits & Tuple_header::LCP_SKIP);
       }
       scan.m_last_seen = __LINE__;
       return ZSCAN_FOUND_DELETED_ROWID;

@@ -2471,7 +2471,7 @@ size_change_error:
   
 undo_buffer_error:
   jam();
-  terrorCode= ZNO_COPY_TUPLE_MEMORY_ERROR;
+  terrorCode= ZNO_UNDO_BUFFER_MEMORY_ERROR;
   regOperPtr.p->m_undo_buffer_space = 0;
   if (mem_insert)
     regOperPtr.p->m_tuple_location.setNull();

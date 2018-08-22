@@ -16,13 +16,15 @@ TimeBetweenEpochs=             100
 NoOfFragmentLogFiles=          16
 FragmentLogFileSize=           128M
 DiskPageBufferMemory=          4M
-SharedGlobalMemory=            800M
-LongMessageBuffer=             8M
-RedoBuffer=                    8M
+SharedGlobalMemory=            1800M
+LongMessageBuffer=             32M
+RedoBuffer=                    32M
 BackupDataBufferSize=          2M
 BackupLogBufferSize=           2M
 BackupMemory=                  4M
 EnableRedoControl=             1
+InitialLogfileGroup=undo_buffer_size=32M;lg1.data:2G
+InitialTablespace=name=ts1;extent_size=16M;ts1.dat:6G
 TwoPassInitialNodeRestartCopy=1
 TransactionDeadlockDetectionTimeout=3000
 Checksum=1
