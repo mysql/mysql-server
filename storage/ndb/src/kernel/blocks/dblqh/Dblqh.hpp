@@ -4005,10 +4005,18 @@ public:
   void increment_committed_mbytes(LogPartRecord*, TcConnectionrec*);
   void decrement_committed_mbytes(LogPartRecord*, TcConnectionrec*);
   bool is_restore_phase_done();
+  bool is_full_local_lcp_running();
 #endif
 };
 
 #ifndef DBLQH_STATE_EXTRACT
+
+inline
+bool
+Dblqh::is_full_local_lcp_running()
+{
+  return c_full_local_lcp_started;
+}
 
 inline
 bool
