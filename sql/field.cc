@@ -1002,15 +1002,15 @@ static enum_field_types field_types_merge_rules[FIELDTYPE_NUM][FIELDTYPE_NUM] =
          // MYSQL_TYPE_STRING       MYSQL_TYPE_GEOMETRY
          MYSQL_TYPE_STRING, MYSQL_TYPE_GEOMETRY}};
 
-bool pre_validate_value_generator_expr(Value_generator *expr,
+bool pre_validate_value_generator_expr(const Item *expression,
                                        const char *column_name,
                                        bool is_gen_col) {
   int err_no = is_gen_col
                    ? ER_GENERATED_COLUMN_NAMED_FUNCTION_IS_NOT_ALLOWED
                    : ER_DEFAULT_VAL_GENERATED_NAMED_FUNCTION_IS_NOT_ALLOWED;
-  switch (expr->expr_item->type()) {
+  switch (expression->type()) {
     case Item::FUNC_ITEM: {
-      auto *func_item = down_cast<Item_func *>(expr->expr_item);
+      auto *func_item = down_cast<const Item_func *>(expression);
       Item_func::Functype functype = func_item->functype();
       if (functype == Item_func::FUNC_SP || functype == Item_func::UDF_FUNC ||
           func_item->is_deprecated()) {
@@ -9349,11 +9349,12 @@ bool Create_field::init(
         gcol_info is updated for fields later in procedure open_binary_frm.
       */
       sql_type = fld_type = gcol_info->get_real_type();
-      if (pre_validate_value_generator_expr(gcol_info, field_name, true))
+      if (pre_validate_value_generator_expr(gcol_info->expr_item, field_name,
+                                            true))
         DBUG_RETURN(true);
     } else {
-      if (pre_validate_value_generator_expr(m_default_val_expr, field_name,
-                                            false))
+      if (pre_validate_value_generator_expr(m_default_val_expr->expr_item,
+                                            field_name, false))
         DBUG_RETURN(true);
     }
   }

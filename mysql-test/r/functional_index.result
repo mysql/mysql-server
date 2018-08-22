@@ -692,3 +692,14 @@ SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE table_name
 CONSTRAINT_NAME
 regular_index
 DROP TABLE t;
+#
+# Bug#28526493 ASSERTION WHEN CREATING A FUNCTIONAL INDEX ON A SUBQUERY
+#
+CREATE TABLE t1 (x INT);
+CREATE TABLE t2 (y INT, KEY (((SELECT * FROM t1))));
+ERROR HY000: Expression of functional index 'functional_index' contains a disallowed function.
+CREATE TABLE t2 (y INT, KEY (((SELECT x FROM t1))));
+ERROR HY000: Expression of functional index 'functional_index' contains a disallowed function.
+CREATE TABLE t2 (y INT, KEY (((SELECT 1 FROM t1))));
+ERROR HY000: Expression of functional index 'functional_index' contains a disallowed function.
+DROP TABLE t1;
