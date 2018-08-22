@@ -40,10 +40,10 @@ extern EventLogger *g_eventLogger;
 //#define DEBUG_DELETE 1
 //#define DEBUG_DELETE_EXTRA 1
 //#define DEBUG_LCP_SKIP_DELETE2 1
-#endif
 //#define DEBUG_LCP_DEL 1
 //#define DEBUG_LCP_SKIP 1
 //#define DEBUG_LCP_SKIP_DELETE 1
+#endif
 
 #ifdef DEBUG_LCP
 #define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
@@ -309,7 +309,7 @@ Dbtup::is_rowid_in_remaining_lcp_set(const Page* page,
       }
       return true;
     }
-    ndbassert(key1.m_page_idx == key2.m_page_idx);
+    ndbrequire(key1.m_page_idx == key2.m_page_idx);
     /* keys are equal */
     jam();
     /* Ignore current row that already have been LCP:ed. */
@@ -353,7 +353,7 @@ Dbtup::dealloc_tuple(Signal* signal,
     if (likely(pagePtr.i != RNIL))
     {
       jam();
-      ndbassert(c_lqh->is_restore_phase_done());
+      ndbrequire(c_lqh->is_restore_phase_done());
       Local_key disk;
       memcpy(&disk, ptr->get_disk_ref_ptr(regTabPtr), sizeof(disk));
       PagePtr tmpptr;
@@ -981,7 +981,7 @@ Dbtup::commit_operation(Signal* signal,
                      regFragPtr->fragmentId,
                      rowid.m_page_no,
                      rowid.m_page_idx));
-        ndbassert(c_backup->is_partial_lcp_enabled());
+        ndbrequire(c_backup->is_partial_lcp_enabled());
         lcp_bits |= Tuple_header::LCP_DELETE;
       }
     }

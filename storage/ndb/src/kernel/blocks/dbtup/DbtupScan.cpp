@@ -39,9 +39,9 @@
 //#define DEBUG_NR_SCAN_EXTRA 1
 //#define DEBUG_LCP_SCANNED_BIT 1
 //#define DEBUG_LCP_FILTER 1
-//#define DEBUG_LCP_SKIP 1
 //#define DEBUG_LCP_DEL 1
 //#define DEBUG_LCP_DELAY 1
+//#define DEBUG_LCP_SKIP 1
 #endif
 //#define DEBUG_LCP_DEL 1
 //#define DEBUG_LCP_SKIP 1
@@ -1210,7 +1210,7 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
     /**
      * When setting LCP_DELETE flag we must also have deleted the
      * row and set rowGCI > scanGCI. So can't be set if we arrive
-     * here. Same goes for LCP_SKIP flag.
+     * here.
      */
     if (unlikely(thbits & Tuple_header::LCP_DELETE))
     {
@@ -1223,23 +1223,79 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
                           key.m_page_idx);
       ndbrequire(!(thbits & Tuple_header::LCP_DELETE));
     }
-    if (foundGCI == 0 && scan.m_scanGCI > 0)
+    if (foundGCI == 0 && thbits & Tuple_header::LCP_SKIP)
     {
       jam();
       /* Coverage tested */
-      /* Cannot have LCP_SKIP bit set on rowid's not yet used */
-      if (unlikely(thbits & Tuple_header::LCP_SKIP))
-      {
-        g_eventLogger->info("(%u) tab(%u,%u) row(%u,%u), header: %x"
-                            " LCP_SKIP set on rowid not yet used",
-                            instance(),
-                            m_curr_fragptr.p->fragTableId,
-                            m_curr_fragptr.p->fragmentId,
-                            key.m_page_no,
-                            key.m_page_idx,
-                            thbits);
-        ndbrequire(thbits & Tuple_header::LCP_SKIP);
-      }
+      /**
+       * BUG28372628:
+       * ------------
+       * LCP_SKIP flag is set when we perform a DELETE of a row
+       * while an LCP is ongoing. During normal traffic operations
+       * this means that the GCI is set to the GCI of the transaction.
+       * The only other case where we can set LCP_SKIP is when a
+       * DELETE operation arrives as part of COPY FRAG from live node
+       * to starting node.
+       *
+       * In this case the GCI is set to the same GCI that the row in
+       * the starting node have. If the GCI on the starting node is
+       * not 0, then the GCI is always bigger than the GCI we are
+       * storing locally, so we won't arrive in this path.
+       *
+       * There is however a case where the GCI is 0 in the live node.
+       * This happens when the row has the state FREE_RECORD. This
+       * means that the row is in a new page and the row hasn't been
+       * used yet.
+       * In this case we need to copy the row over to the starting node
+       * to ensure that the row is deleted if it exists on the starting
+       * node.
+       *
+       * If there is a row in this position AND a local LCP is ongoing,
+       * in this case we could set the LCP_SKIP flag although the GCI
+       * is set to 0.
+       *
+       * This case will only happen under the following condition.
+       * 1) A row must have existed in this rowid before the starting node
+       * stopped and is thus restored in the RESTORE, REBUILD, execute
+       * REDO phase.
+       * 2) The row must have been deleted together with all other rows
+       *    in the same page such that the page of the row is dropped.
+       * 3) At least one row in this page must have been inserted again,
+       *    but the row in question must still be empty in the live node.
+       * 4) A local LCP must be ongoing while COPY FRAGMENT of this
+       *    fragment is ongoing, this can only happen if we start a
+       *    full local LCP during COPY FRAGMENT. This in turn can only
+       *    happen if the UNDO log for disk data parts is filled to the
+       *    extent that we must ensure that an LCP is completed before
+       *    the COPY FRAGMENT is completed.
+       *
+       * If all four conditions are met we could end up here with
+       * LCP_SKIP bit set.
+       */
+      tuple_header_ptr->m_header_bits =
+        thbits & (~Tuple_header::LCP_SKIP);
+      DEB_LCP_SKIP(("(%u) 4 Reset LCP_SKIP on tab(%u,%u), row(%u,%u)"
+                    ", header: %x",
+                    instance(),
+                    m_curr_fragptr.p->fragTableId,
+                    m_curr_fragptr.p->fragmentId,
+                    key.m_page_no,
+                    key.m_page_idx,
+                    thbits));
+      updateChecksum(tuple_header_ptr,
+                     m_curr_tabptr.p,
+                     thbits,
+                     tuple_header_ptr->m_header_bits);
+      fix_page->set_change_map(key.m_page_idx);
+      jamDebug();
+      jamLineDebug((Uint16)key.m_page_idx);
+      ndbrequire(c_lqh->is_full_local_lcp_running());
+      ndbrequire(c_lqh->is_full_local_lcp_running());
+    }
+    else if (foundGCI == 0 && scan.m_scanGCI > 0)
+    {
+      /* Coverage tested */
+      jam();
       scan.m_last_seen = __LINE__;
       return ZSCAN_FOUND_DELETED_ROWID;
     }
@@ -1581,7 +1637,7 @@ Dbtup::move_to_next_change_page_row(ScanOp & scan,
          * ourselves past the next large area check.
          */
         key.m_page_idx = pos.m_next_small_area_check_idx;
-        ndbassert(key.m_page_idx <= pos.m_next_large_area_check_idx);
+        ndbrequire(key.m_page_idx <= pos.m_next_large_area_check_idx);
         continue;
       }
     }
@@ -2156,7 +2212,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
           if (! (bits & ScanOp::SCAN_DD))
           {
             Uint32 realpid = getRealpidCheck(fragPtr.p, key.m_page_no);
-            ndbassert(pos.m_realpid_mm == realpid);
+            ndbrequire(pos.m_realpid_mm == realpid);
           }
 #endif
           tuple_header_ptr = (Tuple_header*)&page->m_data[key.m_page_idx];
@@ -2473,7 +2529,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
 
   record_dropped_change_page:
       {
-        ndbassert(c_backup->is_partial_lcp_enabled());
+        ndbrequire(c_backup->is_partial_lcp_enabled());
         c_backup->update_pause_lcp_counter(loop_count);
         record_delete_by_pageid(signal,
                                 frag.fragTableId,
@@ -2491,7 +2547,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                  (bits & ScanOp::SCAN_LCP));
       if (!(bits & ScanOp::SCAN_LCP && pos.m_is_last_lcp_state_D))
       {
-        ndbassert(bits & ScanOp::SCAN_NR ||
+        ndbrequire(bits & ScanOp::SCAN_NR ||
                   pos.m_lcp_scan_changed_rows_page);
 
         Local_key& key_mm = pos.m_key_mm;
@@ -2714,13 +2770,13 @@ Dbtup::handle_lcp_keep(Signal* signal,
   tablePtr.i = scanPtrP->m_tableId;
   ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
 
-  ndbassert(!fragPtr.p->m_lcp_keep_list_head.isNull());
+  ndbrequire(!fragPtr.p->m_lcp_keep_list_head.isNull());
   Local_key tmp = fragPtr.p->m_lcp_keep_list_head;
   Uint32 * copytuple = get_copy_tuple_raw(&tmp);
   if (copytuple[0] == FREE_PAGE_RNIL)
   {
     jam();
-    ndbassert(c_backup->is_partial_lcp_enabled());
+    ndbrequire(c_backup->is_partial_lcp_enabled());
     /* Handle DELETE by ROWID or DELETE by PAGEID */
     Uint32 num_entries = copytuple[4];
     Uint32 page_id = copytuple[5];
@@ -2846,8 +2902,8 @@ Dbtup::remove_top_from_lcp_keep_list(Fragrecord *fragPtrP,
                   tmp.m_page_idx,
                   fragPtrP->m_lcp_keep_list_tail.m_page_no,
                   fragPtrP->m_lcp_keep_list_tail.m_page_idx));
-    ndbassert(tmp.m_page_no == fragPtrP->m_lcp_keep_list_tail.m_page_no);
-    ndbassert(tmp.m_page_idx == fragPtrP->m_lcp_keep_list_tail.m_page_idx);
+    ndbrequire(tmp.m_page_no == fragPtrP->m_lcp_keep_list_tail.m_page_no);
+    ndbrequire(tmp.m_page_idx == fragPtrP->m_lcp_keep_list_tail.m_page_idx);
     fragPtrP->m_lcp_keep_list_tail.setNull();
   }
   else
@@ -3260,8 +3316,8 @@ Dbtup::start_lcp_scan(Uint32 tableId,
   scanPtr.p->m_endPage = frag.m_max_page_cnt;
   max_page_cnt = frag.m_max_page_cnt;
 
-  ndbassert(frag.m_lcp_keep_list_head.isNull());
-  ndbassert(frag.m_lcp_keep_list_tail.isNull());
+  ndbrequire(frag.m_lcp_keep_list_head.isNull());
+  ndbrequire(frag.m_lcp_keep_list_tail.isNull());
 }
 
 void
