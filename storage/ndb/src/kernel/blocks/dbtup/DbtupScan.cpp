@@ -43,8 +43,8 @@
 //#define DEBUG_LCP_DEL 1
 //#define DEBUG_LCP_DELAY 1
 #endif
-#define DEBUG_LCP_DEL 1
-#define DEBUG_LCP_SKIP 1
+//#define DEBUG_LCP_DEL 1
+//#define DEBUG_LCP_SKIP 1
 
 #ifdef DEBUG_LCP_DELAY
 #define DEB_LCP_DELAY(arglist) do { g_eventLogger->info arglist ; } while (0)
@@ -718,6 +718,12 @@ Dbtup::execACCKEYREF(Signal* signal)
       if (scan.m_bits & ScanOp::SCAN_NR)
       {
 	jam();
+        /**
+         * The tuple was locked and the transaction aborted. We need
+         * to re-read the tuple again to ensure that we don't miss
+         * out on deleting rows in the starting node that no longer
+         * exists in the live node.
+         */
 	scan.m_state = ScanOp::Next;
 	scan.m_scanPos.m_get = ScanPos::Get_tuple;
 	DEB_NR_SCAN(("Ignoring scan.m_state == ScanOp::Blocked, refetch"));
@@ -1181,7 +1187,7 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
     else
     {
       jamDebug();
-      ndbassert(!(thbits & Tuple_header::LCP_SKIP));
+      ndbrequire(!(thbits & Tuple_header::LCP_SKIP));
       DEB_LCP_SKIP_EXTRA(("(%u)Skipped tab(%u,%u), row(%u,%u),"
                     " foundGCI: %u, scanGCI: %u, header: %x",
                     instance(),
@@ -1222,16 +1228,19 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
       jam();
       /* Coverage tested */
       /* Cannot have LCP_SKIP bit set on rowid's not yet used */
-      if (unlikely(thbits & Tuple_header::LCP_SKIP))
+      if (unlikely(!(thbits == Fix_page::FREE_RECORD ||
+                     thbits == Tuple_header::ALLOC)))
       {
-        g_eventLogger->info("(%u) tab(%u,%u) row(%u,%u)"
+        g_eventLogger->info("(%u) tab(%u,%u) row(%u,%u), header: %x"
                             " LCP_SKIP set on rowid not yet used",
                             instance(),
                             m_curr_fragptr.p->fragTableId,
                             m_curr_fragptr.p->fragmentId,
                             key.m_page_no,
-                            key.m_page_idx);
-        ndbrequire(!(thbits & Tuple_header::LCP_SKIP));
+                            key.m_page_idx,
+                            thbits);
+        ndbrequire(thbits == Fix_page::FREE_RECORD ||
+                   thbits == Tuple_header::ALLOC);
       }
       scan.m_last_seen = __LINE__;
       return ZSCAN_FOUND_DELETED_ROWID;
@@ -1240,7 +1249,7 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
     {
       jam();
       /* Coverage tested */
-      ndbassert(!(thbits & Tuple_header::LCP_SKIP));
+      ndbrequire(!(thbits & Tuple_header::LCP_SKIP));
       DEB_LCP_SKIP_EXTRA(("(%u)Skipped tab(%u,%u), row(%u,%u),"
                     " foundGCI: %u, scanGCI: %u, header: %x",
                     instance(),
@@ -1416,7 +1425,6 @@ Dbtup::setup_change_page_for_scan(ScanOp& scan,
     return ZSCAN_FOUND_PAGE_END;
   }
   Uint32 num_changes = fix_page->get_num_changes();
-  num_changes = 16;
   if (num_changes <= 15)
   {
     jam();
@@ -1921,7 +1929,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
             else
             {
               jamDebug();
-              assert(ret_val == ZSCAN_FOUND_DROPPED_CHANGE_PAGE);
+              ndbrequire(ret_val == ZSCAN_FOUND_DROPPED_CHANGE_PAGE);
               goto record_dropped_change_page;
             }
           }
@@ -1944,7 +1952,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
               }
               else
               {
-                ndbassert(ret_val == ZSCAN_FOUND_TUPLE);
+                ndbrequire(ret_val == ZSCAN_FOUND_TUPLE);
               }
             }
           }
@@ -2262,6 +2270,35 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                * rows have the GCI entry set to last GCI it was changed, this
                * is true for even deleted rows as long as the page is still
                * maintained by the fragment.
+               *
+               * When foundGCI == 0 there are two cases.
+               * The first case is that thbits == Fix_page::FREE_RECORD.
+               * In this case the tuple doesn't exist and should be
+               * deleted if existing in the starting node.
+               * As part of Fix_page::FREE_RECORD the Tuple_header::FREE
+               * bit is set. So this is handled below.
+               * The second case is that thbits == Tuple_header::ALLOC.
+               * In this case the tuple is currently being inserted, but the
+               * transaction isn't yet committed. In this case we will follow
+               * the found_tuple path. This means that we will attempt to
+               * lock the tuple, this will be unsuccessful since the row
+               * is currently being inserted and is locked for write.
+               * When the commit happens the row lock is released and the
+               * copy scan will continue on this row. It will send an INSERT
+               * to the starting node. Most likely the INSERT transaction
+               * was started after the copy scan started, in this case the
+               * INSERT will simply be converted to an UPDATE by the starting
+               * node. If the insert was started before the new replica of
+               * the fragment was included, the INSERT will be performed.
+               * This is the reason why we have to go the extra mile here to
+               * ensure that we don't lose records that are being inserted as
+               * part of long transactions.
+               *
+               * The final problem is when the INSERT is aborted. In this case
+               * we return from the lock row in execACCKEYREF. Since the row
+               * is now in the Tuple_header::FREE state we must re-read the
+               * row again. This is handled by changing the pos.m_get state
+               * to Get_tuple instead of Get_next_tuple.
                */
         if (! ((thbits & Tuple_header::FREE) ||
                (thbits & Tuple_header::DELETE_WAIT)))
@@ -2294,8 +2331,8 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
 	  }
           else
           {
-            ndbassert(c_backup->is_partial_lcp_enabled());
-            ndbassert((bits & ScanOp::SCAN_LCP) &&
+            ndbrequire(c_backup->is_partial_lcp_enabled());
+            ndbrequire((bits & ScanOp::SCAN_LCP) &&
                        pos.m_lcp_scan_changed_rows_page);
             Uint32 ret_val;
             if (!pos.m_all_rows)
@@ -2332,7 +2369,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
             }
             else if (ret_val == ZSCAN_FOUND_DELETED_ROWID)
               goto found_deleted_rowid;
-            ndbassert(ret_val == ZSCAN_FOUND_NEXT_ROW);
+            ndbrequire(ret_val == ZSCAN_FOUND_NEXT_ROW);
           }
         }
         else
@@ -2473,7 +2510,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
           /**
            * Currently dead code since NR scans never use Disk data scans.
            */
-          ndbassert(bits & ScanOp::SCAN_NR);
+          ndbrequire(bits & ScanOp::SCAN_NR);
           tuple_header_ptr->get_base_record_ref(key_mm);
           // recompute for each disk tuple
           pos.m_realpid_mm = getRealpid(fragPtr.p, key_mm.m_page_no);

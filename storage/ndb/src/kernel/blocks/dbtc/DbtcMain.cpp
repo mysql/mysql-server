@@ -14672,6 +14672,12 @@ bool Dbtc::sendScanFragReq(Signal* signal,
   ndbassert(ScanFragReq::getCorrFactorFlag(requestInfo) == 0);
 
   const Uint32 version= getNodeInfo(nodeId).m_version;
+
+  HostRecordPtr host_ptr;
+  host_ptr.i = nodeId;
+  ptrCheckGuard(host_ptr, chostFilesize, hostRecord);
+  ndbrequire(host_ptr.p->hostStatus == HS_ALIVE);
+
   const bool longFragReq= ((version >= NDBD_LONG_SCANFRAGREQ) &&
                            (! ERROR_INSERTED(8070) &&
 		            ! ERROR_INSERTED(8088)));
