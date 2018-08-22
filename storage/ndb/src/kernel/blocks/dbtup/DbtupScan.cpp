@@ -1187,7 +1187,6 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
     else
     {
       jamDebug();
-      ndbrequire(!(thbits & Tuple_header::LCP_SKIP));
       DEB_LCP_SKIP_EXTRA(("(%u)Skipped tab(%u,%u), row(%u,%u),"
                     " foundGCI: %u, scanGCI: %u, header: %x",
                     instance(),
@@ -1198,6 +1197,7 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
                     foundGCI,
                     scan.m_scanGCI,
                     thbits));
+      ndbrequire(!(thbits & Tuple_header::LCP_SKIP));
       /* Coverage tested */
     }
     jam();

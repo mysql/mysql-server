@@ -10291,47 +10291,74 @@ Dbtc::checkNodeFailComplete(Signal* signal,
 }
 
 void Dbtc::checkScanActiveInFailedLqh(Signal* signal, 
-				      Uint32 scanPtrI, 
-				      Uint32 failedNodeId){
-
+                                      Uint32 scanPtrI, 
+                                      Uint32 failedNodeId)
+{
   ScanRecordPtr scanptr;
-  for (scanptr.i = scanPtrI; scanptr.i < cscanrecFileSize; scanptr.i++) {
+  for (scanptr.i = scanPtrI; scanptr.i < cscanrecFileSize; scanptr.i++)
+  {
     jam();
     ptrAss(scanptr, scanRecord);
     bool found = false;
-    if (scanptr.p->scanState != ScanRecord::IDLE){
+    if (scanptr.p->scanState != ScanRecord::IDLE)
+    {
       jam();
       ScanFragRecPtr ptr;
-      Local_ScanFragRec_dllist run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
-      
-      for(run.first(ptr); !ptr.isNull(); ){
-	jam();
-	ScanFragRecPtr curr = ptr;
-	run.next(ptr);
-	if (curr.p->scanFragState == ScanFragRec::LQH_ACTIVE && 
-	    refToNode(curr.p->lqhBlockref) == failedNodeId){
-	  jam();
-	  
-	  curr.p->scanFragState = ScanFragRec::COMPLETED;
-	  curr.p->stopFragTimer();
-	  run.release(curr);
-	  found = true;
-	}
-      }
-
-      Local_ScanFragRec_dllist deliv(c_scan_frag_pool, scanptr.p->m_delivered_scan_frags);
-      for(deliv.first(ptr); !ptr.isNull(); deliv.next(ptr))
       {
-	jam();
-	if (refToNode(ptr.p->lqhBlockref) == failedNodeId)
-	{
-	  jam();
-	  found = true;
-	  break;
-	}
+        Local_ScanFragRec_dllist run(c_scan_frag_pool,
+                                     scanptr.p->m_running_scan_frags);
+      
+        for(run.first(ptr); !ptr.isNull(); )
+        {
+          jam();
+          ScanFragRecPtr curr = ptr;
+          run.next(ptr);
+          if (curr.p->scanFragState == ScanFragRec::LQH_ACTIVE && 
+              refToNode(curr.p->lqhBlockref) == failedNodeId)
+          {
+            jam();
+            curr.p->scanFragState = ScanFragRec::COMPLETED;
+            curr.p->stopFragTimer();
+            run.release(curr);
+            found = true;
+            break;
+          }
+        }
+      }
+      if (!found)
+      {
+        Local_ScanFragRec_dllist deliv(c_scan_frag_pool,
+                                       scanptr.p->m_delivered_scan_frags);
+        for(deliv.first(ptr); !ptr.isNull(); deliv.next(ptr))
+        {
+          jam();
+          if (refToNode(ptr.p->lqhBlockref) == failedNodeId)
+          {
+            jam();
+            found = true;
+            break;
+          }
+        }
+      }
+      if (!found)
+      {
+        ScanFragLocationPtr ptr;
+        Local_ScanFragLocation_list frags(m_fragLocationPool,
+                                          scanptr.p->m_fragLocations);
+        for (frags.first(ptr); !ptr.isNull(); frags.next(ptr))
+        {
+          Uint32 nodeId = refToNode(ptr.p->blockRef);
+          if (nodeId == failedNodeId)
+          {
+            jam();
+            found = true;
+            break;
+          }
+        }
       }
     }
-    if(found){
+    if(found)
+    {
       jam();
       scanError(signal, scanptr, ZSCAN_LQH_ERROR);	  
     }
@@ -10343,7 +10370,6 @@ void Dbtc::checkScanActiveInFailedLqh(Signal* signal,
     sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);
     return;
   }//for
-
   checkNodeFailComplete(signal, failedNodeId, HostRecord::NF_CHECK_SCAN);
 }
 
