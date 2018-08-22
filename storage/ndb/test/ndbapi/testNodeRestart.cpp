@@ -624,7 +624,7 @@ int runDeleteInsertUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
       result = NDBT_FAILED;
       break;
     }
-    if (hugoTrans.loadTable(GETNDB(step), records, 1) != 0){
+    if (hugoTrans.loadTable(GETNDB(step), records, 50000) != 0){
       result = NDBT_FAILED;
       break;
     }
@@ -8950,6 +8950,7 @@ int run_PLCP_I1(NDBT_Context *ctx, NDBT_Step *step)
   int result = NDBT_OK;
   int loops = ctx->getNumLoops();
   int records = ctx->getNumRecords();
+  bool initial = (bool)ctx->getProperty("Initial", 1);
   NdbRestarter restarter;
   const Uint32 nodeCount = restarter.getNumDbNodes();
   int nodeId = restarter.getRandomNotMasterNodeId(rand());
@@ -8972,7 +8973,7 @@ int run_PLCP_I1(NDBT_Context *ctx, NDBT_Step *step)
       return NDBT_FAILED;
     }
     if (restarter.restartOneDbNode(nodeId,
-                                   true, /* initial */
+                                   initial, /* initial */
                                    true,  /* nostart  */
                                    false, /* abort */
                                    false  /* force */) != 0)
@@ -8997,7 +8998,7 @@ int run_PLCP_I1(NDBT_Context *ctx, NDBT_Step *step)
 
     Uint32 row_step = 10;
     Uint32 num_deleted_records = records / 10;
-    Uint32 batch = 1;
+    Uint32 batch = 10;
 
     for (Uint32 start = 0; start < 10; start++)
     {
@@ -9011,11 +9012,12 @@ int run_PLCP_I1(NDBT_Context *ctx, NDBT_Step *step)
       if (result == NDBT_FAILED)
         return result;
       NdbSleep_SecSleep(1);
+      ndbout << "Completed Delete records (" << (start+1) << ")" << endl;
     }
-    ndbout << "Wait for initial node restart to complete" << endl;
+    ndbout << "Wait for node restart to complete" << endl;
     if (restarter.waitNodesStarted(&nodeId, 1) != 0)
     {
-      g_err << "Wait node start failed" << endl;
+      g_err << "Wait node restart failed" << endl;
       return NDBT_FAILED;
     }
   }
@@ -9827,9 +9829,16 @@ TESTCASE("LCP_with_many_parts",
 {
   INITIALIZER(run_PLCP_many_parts);
 }
+TESTCASE("PLCP_R1",
+         "Node restart while deleting rows")
+{
+  TC_PROPERTY("Initial", (Uint32)0);
+  INITIALIZER(run_PLCP_I1);
+}
 TESTCASE("PLCP_I1",
          "Initial node restart while deleting rows")
 {
+  TC_PROPERTY("Initial", (Uint32)1);
   INITIALIZER(run_PLCP_I1);
 }
 TESTCASE("PLCP_I2",

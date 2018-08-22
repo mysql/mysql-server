@@ -39,10 +39,11 @@ extern EventLogger *g_eventLogger;
 //#define DEBUG_ROW_COUNT_INS 1
 //#define DEBUG_DELETE 1
 //#define DEBUG_DELETE_EXTRA 1
+//#define DEBUG_LCP_SKIP_DELETE2 1
 #endif
-#define DEBUG_LCP_DEL 1
-#define DEBUG_LCP_SKIP 1
-#define DEBUG_LCP_SKIP_DELETE 1
+//#define DEBUG_LCP_DEL 1
+//#define DEBUG_LCP_SKIP 1
+//#define DEBUG_LCP_SKIP_DELETE 1
 
 #ifdef DEBUG_LCP
 #define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
@@ -78,6 +79,12 @@ extern EventLogger *g_eventLogger;
 #define DEB_LCP_SKIP_DELETE(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP_SKIP_DELETE(arglist) do { } while (0)
+#endif
+
+#ifdef DEBUG_LCP_SKIP_DELETE2
+#define DEB_LCP_SKIP_DELETE2(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LCP_SKIP_DELETE2(arglist) do { } while (0)
 #endif
 
 #ifdef DEBUG_LCP_SCANNED_BIT
@@ -414,7 +421,7 @@ Dbtup::dealloc_tuple(Signal* signal,
     else
     {
       /* Coverage tested */
-      DEB_LCP_SKIP_DELETE(("(%u)tab(%u,%u), row(%u,%u) DELETE"
+      DEB_LCP_SKIP_DELETE2(("(%u)tab(%u,%u), row(%u,%u) DELETE"
                            " already LCP:ed",
                            instance(),
                            regFragPtr->fragTableId,
