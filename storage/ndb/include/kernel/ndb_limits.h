@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -360,6 +360,25 @@
 #define MAX_UNDO_DATA            20 + MAX_TUPLE_SIZE_IN_WORDS
 // Max. number of pending undo records allowed per LDM
 #define MAX_PENDING_UNDO_RECORDS 100
+
+// Maximum handling of DROP_TRIG_REQs in parallel by LocalProxy
+#define NDB_MAX_PROXY_DROP_TRIG_IMPL_REQ 21
+/* Maximum number of DROP_TRIGGER_REQs SUMA can send parallely after the
+ * execution of SUB_STOP_REQ.
+ *
+ * We do not anticipate multiple parallel sub stop reqs from multiple APIs.
+ * So, it should be fair to restrict the number of API nodes sending
+ * sub stop requests parallely to 2. Any further sub stop requests from any
+ * other API nodes will be delayed. We delay the sub stop requests execution
+ * based on outstanding trigger drop requests. Each sub stop request can
+ * send a maximum of 3 drop trigger requests. So now a maximum of 6 is
+ * allowed to execute parallely from all api nodes.*/
+#define NDB_MAX_SUMA_DROP_TRIG_REQ_SUBSTOP 2 * 3
+/* Max DROP_TRIG_REQ allowed from api_fail_subscriber_list
+ * This is greater than the maximum requests allowed from SUB_STOP_REQ
+ * handling so as to give priority to API failure handling over normal start
+ * and stop subscriptions if they both are competing. */
+#define NDB_MAX_SUMA_DROP_TRIG_REQ_APIFAIL 3 * 3
 
 #ifdef NDB_STATIC_ASSERT
 
