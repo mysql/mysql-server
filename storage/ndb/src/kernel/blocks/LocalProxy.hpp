@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -553,7 +553,7 @@ protected:
       m_sendREQ = &LocalProxy::sendDROP_TRIG_IMPL_REQ;
       m_sendCONF = &LocalProxy::sendDROP_TRIG_IMPL_CONF;
     }
-    enum { poolSize = 21 };
+    enum { poolSize = NDB_MAX_PROXY_DROP_TRIG_IMPL_REQ };
     static SsPool<Ss_DROP_TRIG_IMPL_REQ>& pool(LocalProxy* proxy) {
       return proxy->c_ss_DROP_TRIG_IMPL_REQ;
     }
