@@ -107,6 +107,8 @@
 
 #define JAM_FILE_ID 353
 
+#define DO_TRANSIENT_POOL_STAT
+
 #define TC_TIME_SIGNAL_DELAY 50
 
 extern EventLogger * g_eventLogger;
@@ -494,7 +496,7 @@ void Dbtc::execCONTINUEB(Signal* signal)
     break;
   }
 #endif
-#if defined(VM_TRACE) || defined(ERROR_INSERT)
+#if defined(VM_TRACE) || defined(ERROR_INSERT) || defined(DO_TRANSIENT_POOL_STAT)
   case TcContinueB::ZTRANSIENT_POOL_STAT:
   {
     for (Uint32 pool_index = 0; pool_index < c_transient_pool_count; pool_index++)
@@ -1150,7 +1152,7 @@ void Dbtc::execNDB_STTOR(Signal* signal)
     signal->theData[0] = TcContinueB::ZTRANS_EVENT_REP;
     sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 10, len);
 
-#if defined(VM_TRACE) || defined(ERROR_INSERT)
+#if defined(VM_TRACE) || defined(ERROR_INSERT) || defined(DO_TRANSIENT_POOL_STAT)
     /* Start reporting statistics for transient pools */
     signal->theData[0] = TcContinueB::ZTRANSIENT_POOL_STAT;
     sendSignal(reference(), GSN_CONTINUEB, signal, 1, JBB);
