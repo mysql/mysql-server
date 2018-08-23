@@ -28,7 +28,6 @@ SET(PLUGIN_INFO_SOURCES
 
 SET(include_dirs
   ${CMAKE_CURRENT_SOURCE_DIR}/../src/
-  ${CMAKE_SOURCE_DIR}/src/harness/include
 )
 
 IF(NOT WIN32)

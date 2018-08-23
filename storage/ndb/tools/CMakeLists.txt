@@ -49,7 +49,6 @@ INCLUDE(${CMAKE_SOURCE_DIR}/cmake/bison.cmake)
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbapi
   ${CMAKE_SOURCE_DIR}/storage/ndb/include/kernel/signaldata
-  ${CMAKE_SOURCE_DIR}/storage/ndb/include/ndbtools
   ${CMAKE_SOURCE_DIR}/storage/ndb/include/util
   ${CMAKE_BINARY_DIR}/storage/ndb/tools)
 

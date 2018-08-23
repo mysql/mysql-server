@@ -61,7 +61,7 @@ SET(TEST_MODULE "routing")
 add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
   MODULE ${TEST_MODULE}
   LIB_DEPENDS routing_tests test-helpers
-  INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/src/harness/shared/include)
+  INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/src/harness/shared/include)
 
 add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}/plugin
   MODULE "routing"
