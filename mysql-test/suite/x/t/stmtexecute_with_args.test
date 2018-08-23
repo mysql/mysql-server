@@ -203,6 +203,7 @@ Mysqlx.Sql.StmtExecute {
 -->recvuntil Mysqlx.Sql.StmtExecuteOk
 EOF
 
+
 --write_file $MYSQL_TMP_DIR/stmtexecute_invalid.tmp
 -->echo Too many args
 Mysqlx.Sql.StmtExecute {
@@ -241,6 +242,77 @@ Mysqlx.Sql.StmtExecute {
 EOF
 
 
+--write_file $MYSQL_TMP_DIR/stmtexecute_bool_value.tmp
+-->quiet
+
+-->macro Assert_return_value	%EXPECT%	%ARG%	%STMT%
+Mysqlx.Sql.StmtExecute {
+  stmt: %STMT%
+  args {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: %ARG%
+    }
+  }
+  namespace: 'sql'
+}
+-->recvtovar %VARIABLE_VALUE% result
+-->echo Verify [%STMT% for '?=%ARG%' returns '%EXPECT%']
+-->assert_eq %EXPECT%	%VARIABLE_VALUE%
+-->endmacro
+
+
+-->title -Check boolean value as argument for placeholder (document scenario)
+
+-->stmtadmin create_collection	{"schema":"xtest","name":"booleans"}
+-->recvresult
+
+Mysqlx.Crud.Insert {
+  collection {
+    name: "booleans"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: '{"_id":"001", "active":true, "name":"foo"}'
+        }
+      }
+    }
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: '{"_id":"002", "active":false, "name":"bar"}'
+        }
+      }
+    }
+  }
+}
+-->recvresult
+
+-->callmacro Assert_return_value	foo	true	"SELECT doc->>'$.name' as result FROM xtest.booleans WHERE doc->'$.active' = ?"
+-->callmacro Assert_return_value	bar	false	"SELECT doc->>'$.name' as result FROM xtest.booleans WHERE doc->'$.active' = ?"
+
+
+-->title -Check boolean value as argument for placeholder (classic scenario)
+-->sql
+CREATE TABLE xtest.classic(name varchar(32), active BOOLEAN);
+INSERT INTO xtest.classic(name, active) VALUES('foo', true),('bar', false);
+-->endsql
+
+-->callmacro Assert_return_value	foo	true	"SELECT `name` as result FROM xtest.classic WHERE `active` = ?"
+-->callmacro Assert_return_value	bar	false	"SELECT `name` as result FROM xtest.classic WHERE `active` = ?"
+EOF
+
 ## Test starts here
 --exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/stmtexecute_insert.tmp 2>&1
 
@@ -250,9 +322,12 @@ SELECT * FROM `xtest`.`scalar_types`;
 
 --exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/stmtexecute_invalid.tmp 2>&1
 
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/stmtexecute_bool_value.tmp 2>&1
+
 ## Cleanup
 DROP DATABASE xtest;
 --remove_file $MYSQL_TMP_DIR/stmtexecute_insert.tmp
 --remove_file $MYSQL_TMP_DIR/stmtexecute_select.tmp
 --remove_file $MYSQL_TMP_DIR/stmtexecute_invalid.tmp
+--remove_file $MYSQL_TMP_DIR/stmtexecute_bool_value.tmp
 --source include/xplugin_drop_user.inc
