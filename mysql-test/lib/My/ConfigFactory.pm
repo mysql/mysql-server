@@ -321,14 +321,25 @@ sub fix_network_interface {
   return My::SysInfo->network_interface();
 }
 
+sub fix_rapid_load_pool {
+  my ($self) = @_;
+  if ($::opt_change_propagation) {
+    return "TRANSACTIONAL";
+  } else {
+    return "SNAPSHOT";
+  }
+}
+
 # Rules to run for each mysqld server in the config if
 # secondary engine rapid is enabled.
 #  - will be run in order listed here
-my @rapid_mysqld_rules = ({ 'binlog-format'             => "ROW" },
-                          { 'binlog-row-image'          => "FULL" },
-                          { 'binlog-checksum'           => "NONE" },
-                          { 'gtid-mode'                 => "OFF" },
-                          { 'log-bin'                   => "binlog" },
+my @rapid_mysqld_rules = ({ 'binlog-format'         => "ROW" },
+                          { 'binlog-row-image'      => "FULL" },
+                          { 'binlog-checksum'       => "NONE" },
+                          { 'gtid-mode'             => "OFF" },
+                          { 'log-bin'               => "binlog" },
+                          { 'loose-rapid_load_pool' => \&fix_rapid_load_pool },
+                          { 'loose-rapid_use_rowsets'   => "OFF" },
                           { 'innodb_buffer_pool_size'   => 268435456 },
                           { 'innodb_read_io_threads'    => 32 },
                           { 'innodb_thread_concurrency' => 32 },

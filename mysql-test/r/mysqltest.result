@@ -241,7 +241,7 @@ mysqltest: At line 1: Invalid argument to error: '1sssss', the errno may only co
 mysqltest: At line 1: The sqlstate must be exactly 5 chars long.
 mysqltest: At line 1: The sqlstate may only consist of digits[0-9] and _uppercase_ letters.
 mysqltest: At line 1: The sqlstate must be exactly 5 chars long.
-mysqltest: At line 1: Unknown SQL error name 'E9999'
+mysqltest: At line 1: Unknown SQL error name 'E9999'.
 mysqltest: At line 1: Invalid argument to error: '999e9', the errno may only consist of digits[0-9]
 mysqltest: At line 1: Invalid argument to error: '9b', the errno may only consist of digits[0-9]
 mysqltest: At line 1: Too many errorcodes specified.

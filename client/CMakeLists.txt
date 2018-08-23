@@ -46,7 +46,9 @@ IF(NOT WITHOUT_SERVER)
 ENDIF()
 
 SET(MYSQLTEST_SRC
-  mysqltest/mysqltest_expected_error.cc
+  mysqltest/error_names.cc
+  mysqltest/expected_errors.cc
+  mysqltest/secondary_engine.cc
 )
 
 MYSQL_ADD_EXECUTABLE(mysqltest mysqltest.cc ${MYSQLTEST_SRC} COMPONENT Test)

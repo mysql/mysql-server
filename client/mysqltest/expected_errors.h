@@ -1,5 +1,5 @@
-#ifndef MYSQLTEST_ERROR_INCLUDED
-#define MYSQLTEST_ERROR_INCLUDED
+#ifndef EXPECTED_ERRORS_INCLUDED
+#define EXPECTED_ERRORS_INCLUDED
 
 // Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 //
@@ -38,22 +38,17 @@
 
 enum error_type { ERR_ERRNO = 1, ERR_SQLSTATE };
 
-/// Class representing an error code.
+/// Class representing an error.
 ///
 /// Contains following information
-///   - Error code
-///   - Error type
-///   - SQLSTATE
+///   * Error code
+///   * Error type
+///   * SQLSTATE
 ///
 /// If an error type value is
-///   - ERR_ERRNO, then SQLSTATE value is "00000"
-///   - ERR_SQLSTATE, the error code value is 0
+///   * ERR_ERRNO, then SQLSTATE value is "00000"
+///   * ERR_SQLSTATE, then error code value is 0
 class Error {
- private:
-  char m_sqlstate[SQLSTATE_LENGTH + 1];  // '\0' terminated string
-  error_type m_type;
-  std::uint32_t m_error_code;
-
  public:
   Error(std::uint32_t error_code, const char *sqlstate, error_type type) {
     this->m_error_code = error_code;
@@ -61,22 +56,30 @@ class Error {
     std::strcpy(this->m_sqlstate, sqlstate);
   }
 
-  /// Returns the error code
+  /// Return a sqlstate for an error.
+  ///
+  /// @retval SQLSTATE string
+  const char *sqlstate() { return m_sqlstate; }
+
+  /// Return an error code
+  ///
+  /// @retval Error code
   std::uint32_t error_code() { return m_error_code; }
 
-  /// Returns the error type
+  /// Return an error type
+  ///
+  /// @retval Error type (ERR_ERRNO or ERR_SQLSTATE)
   error_type type() { return m_type; }
 
-  /// Returns the sqlstate
-  const char *sqlstate() { return m_sqlstate; }
+ private:
+  char m_sqlstate[SQLSTATE_LENGTH + 1];  // '\0' terminated string
+  error_type m_type;
+  std::uint32_t m_error_code;
 };
 
-/// List of error codes passed to a mysqltest command like '--error'.
+/// Class representing a list of error codes passed as argument to
+/// mysqltest command <code>--error</code>.
 class Expected_errors {
- private:
-  // List containing expected errors
-  std::vector<std::unique_ptr<Error>> m_errors;
-
  public:
   typedef std::vector<std::unique_ptr<Error>>::iterator iterator;
 
@@ -86,17 +89,33 @@ class Expected_errors {
   iterator begin() { return m_errors.begin(); }
   iterator end() { return m_errors.end(); }
 
-  /// Returns length of the list containing errors.
+  /// Return a sqlstate of the first error in the list.
+  ///
+  /// @retval SQLSTATE string
+  const char *sqlstate() { return m_errors[0]->sqlstate(); }
+
+  /// Return an error type of the first error in the list.
+  ///
+  /// @retval Error type (ERR_ERRNO or ERR_SQLSTATE)
+  error_type type() { return m_errors[0]->type(); }
+
+  /// Return length of the list containing errors.
+  ///
+  /// @retval Length value
   std::size_t count() { return m_errors.size(); }
 
   /// Return list of error codes
   std::string error_list();
 
-  /// Returns error code of the first error in the list.
-  std::uint32_t error_code() { return m_errors[0]->error_code(); }
+  /// Return an error code of the first error in the list.
+  ///
+  /// @retval Error code
+  unsigned int error_code() { return m_errors[0]->error_code(); }
 
-  /// Returns error type of the first error in the list.
-  error_type type() { return m_errors[0]->type(); }
+  /// Return list of error codes in the list
+  ///
+  /// @retval List of error codes
+  std::vector<std::uint32_t> errors();
 
   /// Add a new error to the existing list of errors.
   ///
@@ -108,6 +127,10 @@ class Expected_errors {
 
   /// Delete all errors from the vector.
   void clear_error_list() { m_errors.clear(); }
+
+ private:
+  // List containing expected errors
+  std::vector<std::unique_ptr<Error>> m_errors;
 };
 
-#endif  // MYSQLTEST_ERROR_INCLUDED
+#endif  // EXPECTED_ERRORS_INCLUDED

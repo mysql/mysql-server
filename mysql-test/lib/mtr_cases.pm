@@ -770,6 +770,16 @@ sub optimize_cases {
     # Skip processing if already marked as skipped
     next if $tinfo->{skip};
 
+    # Binlog must be enabled for rapid
+    if ($::secondary_engine_rapid) {
+      my $skip_log_bin_pattern = "^--(loose[-_])?skip[-_]log[-_]bin";
+      if (grep(/$skip_log_bin_pattern/, @{ $tinfo->{'master_opt'} }) ||
+          grep(/$skip_log_bin_pattern/, @{ $tinfo->{'slave_opt'} })) {
+        skip_test($tinfo, "Binlog must be enabled for RAPID.");
+        next;
+      }
+    }
+
     # If a binlog format was set with '--mysqld=--binlog-format=x',
     # skip all tests that doesn't support it.
     if (defined $binlog_format) {
@@ -784,6 +794,12 @@ sub optimize_cases {
           $tinfo->{'comment'} =
             "Doesn't support --binlog-format='$binlog_format'";
         }
+      }
+
+      # Tests with binlog_format other than ROW can't be run with rapid.
+      if ($::secondary_engine_rapid and "row" ne lc $binlog_format) {
+        skip_test($tinfo, "Binlog format must be ROW for RAPID.");
+        next;
       }
     } else {
       # =======================================================
@@ -807,6 +823,14 @@ sub optimize_cases {
         if (!$supported) {
           skip_test($tinfo,
                     "Doesn't support --binlog-format = '$test_binlog_format'");
+          next;
+        }
+      }
+
+      # Tests with binlog_format other than ROW can't be run with rapid.
+      if (defined $test_binlog_format and !$tinfo->{skip}) {
+        if ($::secondary_engine_rapid and "row" ne lc $test_binlog_format) {
+          skip_test($tinfo, "Binlog format must be ROW for RAPID.");
           next;
         }
       }

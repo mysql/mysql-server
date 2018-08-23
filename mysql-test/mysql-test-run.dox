@@ -3994,6 +3994,18 @@
     </li>
 
     <li>
+      <tt>`--change-propagation`</tt>
+
+      <b>`--change-propagation`</b> option must be used along with
+      <b>`--secondary-engine`</b> option.
+
+      When enabled, @ref PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl"
+      will automatically change the secondary engine of a table and
+      will load the table contents from primary engine to secondary
+      engine after a DDL statement.
+    </li>
+
+    <li>
       <tt>`--charset-for-testdb`=<b>charset_name</b></tt>
 
       Specify the default character set for the test database. The
