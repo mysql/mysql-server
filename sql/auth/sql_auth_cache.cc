@@ -141,7 +141,7 @@ malloc_unordered_map<std::string, unique_ptr_my_free<acl_entry>> db_cache{
 collation_unordered_map<std::string, ACL_USER *> *acl_check_hosts = nullptr;
 
 /**
-  A hashmap on user part of account name(<user>@<host>) for quick lookup.
+  A hashmap on user part of account name for quick lookup.
 */
 typedef std::unordered_map<
     std::string, Acl_user_ptr_list, std::hash<std::string>,
