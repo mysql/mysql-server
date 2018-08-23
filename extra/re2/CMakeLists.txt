@@ -69,12 +69,21 @@ ADD_LIBRARY(re2_lib STATIC ${RE2_SOURCES})
 #
 
 IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  TARGET_COMPILE_OPTIONS(re2_lib PRIVATE "-Wno-sign-compare")
+
   MY_CHECK_CXX_COMPILER_FLAG("-Wtautological-undefined-compare"
                              HAVE_TAUTOLOGICAL_UNDEFINED_COMPARE)
   IF(HAVE_TAUTOLOGICAL_UNDEFINED_COMPARE)
-    # Boost source has unused local typedefs.
-    ADD_COMPILE_FLAGS(${RE2_SOURCES}
-                      COMPILE_FLAGS "-Wno-tautological-undefined-compare")
+    TARGET_COMPILE_OPTIONS(re2_lib
+      PRIVATE "-Wno-tautological-undefined-compare")
+  ENDIF()
+  MY_CHECK_CXX_COMPILER_FLAG("-Wunused-local-typedefs" HAVE_UNUSED_TYPEDEFS)
+  IF(HAVE_UNUSED_TYPEDEFS)
+    TARGET_COMPILE_OPTIONS(re2_lib PRIVATE "-Wno-unused-local-typedefs")
+  ENDIF()
+  MY_CHECK_CXX_COMPILER_FLAG("-Wnonnull-compare" HAVE_NONNULL_COMPARE)
+  IF(HAVE_NONNULL_COMPARE)
+    TARGET_COMPILE_OPTIONS(re2_lib PRIVATE "-Wno-nonnull-compare")
   ENDIF()
 ENDIF()
 
