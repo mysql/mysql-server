@@ -236,5 +236,21 @@ RESET SLAVE;
 # cleanup
 DROP DATABASE bug27903874;
 
+--echo #
+--echo # Bug #27512616: SET PERSIST COMMAND FAILS TO MAP DEFAULT(NULL) VALUES IN
+--echo #                MYSQLD-AUTO.CNF
+--echo #
+
+SELECT @@global.innodb_tmpdir;
+SET PERSIST innodb_tmpdir = default;
+SELECT @@global.innodb_ft_user_stopword_table;
+SET PERSIST innodb_ft_user_stopword_table = NULL;
+--echo # Restart server and check if server starts
+--source include/restart_mysqld.inc
+SELECT variable_name FROM performance_schema.variables_info WHERE variable_source='PERSISTED';
+SELECT @@global.innodb_tmpdir, @@global.innodb_ft_user_stopword_table;
+# Cleanup
+RESET PERSIST;
+
 --echo # End of the 8.0 tests
 

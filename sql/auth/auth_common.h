@@ -869,6 +869,7 @@ class Security_context_factory {
     @param extend_user_profile        The policy for creating the user profile
     @param priv                       The policy for authorizing the authid to
                                       use the server.
+    @param static_priv                Static privileges for authid.
     @param drop_policy                The policy for deleting the authid and
                                       revoke privileges
   */
@@ -876,12 +877,14 @@ class Security_context_factory {
       THD *thd, const std::string &user, const std::string &host,
       const Security_context_functor &extend_user_profile,
       const Security_context_functor &priv,
+      const Security_context_functor &static_priv,
       const std::function<void(Security_context *)> &drop_policy)
       : m_thd(thd),
         m_user(user),
         m_host(host),
         m_user_profile(extend_user_profile),
         m_privileges(priv),
+        m_static_privileges(static_priv),
         m_drop_policy(drop_policy) {}
 
   Sctx_ptr<Security_context> create();
@@ -892,6 +895,7 @@ class Security_context_factory {
   std::string m_host;
   Security_context_functor m_user_profile;
   Security_context_functor m_privileges;
+  Security_context_functor m_static_privileges;
   const std::function<void(Security_context *)> m_drop_policy;
 };
 
@@ -926,6 +930,18 @@ class Drop_temporary_dynamic_privileges {
 
  private:
   std::vector<std::string> m_privs;
+};
+
+class Grant_temporary_static_privileges
+    : public Grant_privileges<Grant_temporary_static_privileges> {
+ public:
+  Grant_temporary_static_privileges(const THD *thd, const ulong privs);
+  bool precheck(Security_context *sctx);
+  bool grant_privileges(Security_context *sctx);
+
+ private:
+  const THD *m_thd;
+  const ulong m_privs;
 };
 
 bool operator==(const LEX_CSTRING &a, const LEX_CSTRING &b);

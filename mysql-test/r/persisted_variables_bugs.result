@@ -265,4 +265,26 @@ SELECT JSON_OBJECTAGG(id,x) FROM t;
 ERROR 42S22: Unknown column 'id' in 'field list'
 RESET SLAVE;
 DROP DATABASE bug27903874;
+#
+# Bug #27512616: SET PERSIST COMMAND FAILS TO MAP DEFAULT(NULL) VALUES IN
+#                MYSQLD-AUTO.CNF
+#
+SELECT @@global.innodb_tmpdir;
+@@global.innodb_tmpdir
+NULL
+SET PERSIST innodb_tmpdir = default;
+SELECT @@global.innodb_ft_user_stopword_table;
+@@global.innodb_ft_user_stopword_table
+NULL
+SET PERSIST innodb_ft_user_stopword_table = NULL;
+# Restart server and check if server starts
+# restart
+SELECT variable_name FROM performance_schema.variables_info WHERE variable_source='PERSISTED';
+variable_name
+innodb_ft_user_stopword_table
+innodb_tmpdir
+SELECT @@global.innodb_tmpdir, @@global.innodb_ft_user_stopword_table;
+@@global.innodb_tmpdir	@@global.innodb_ft_user_stopword_table
+NULL	NULL
+RESET PERSIST;
 # End of the 8.0 tests

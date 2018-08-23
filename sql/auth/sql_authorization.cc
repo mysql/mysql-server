@@ -6776,6 +6776,21 @@ void Drop_temporary_dynamic_privileges::operator()(Security_context *sctx) {
       Role_id(sctx->priv_user(), sctx->priv_host()), m_privs);
 }
 
+Grant_temporary_static_privileges::Grant_temporary_static_privileges(
+    const THD *thd, ulong privs)
+    : m_thd(thd), m_privs(privs) {}
+
+bool Grant_temporary_static_privileges::precheck(
+    Security_context *sctx MY_ATTRIBUTE((unused))) {
+  return false;
+}
+
+bool Grant_temporary_static_privileges::grant_privileges(
+    Security_context *sctx) {
+  sctx->set_master_access(m_privs);
+  return false;
+}
+
 Sctx_ptr<Security_context> Security_context_factory::create() {
   /* Setup default Security context */
   Security_context *sctx = new Security_context();
@@ -6795,6 +6810,10 @@ Sctx_ptr<Security_context> Security_context_factory::create() {
     if (m_privileges(sctx, Security_context_policy::Precheck)) break;
     // 4. Assign the privileges
     if (m_privileges(sctx, Security_context_policy::Execute)) break;
+    // 5. Check preconditions for assigning privileges under the current policy
+    if (m_static_privileges(sctx, Security_context_policy::Precheck)) break;
+    // 6. Assign static privileges
+    if (m_static_privileges(sctx, Security_context_policy::Execute)) break;
 
     error = false;
   }
