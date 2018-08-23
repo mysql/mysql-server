@@ -1202,6 +1202,14 @@ static bool innobase_get_tablespace_statistics(
     const char *tablespace_name, const char *file_name,
     const dd::Properties &ts_se_private_data, ha_tablespace_statistics *stats);
 
+/** Retrieve the tablespace type.
+
+@param space		Tablespace object.
+@param[out] space_type	Tablespace category.
+@return false on success, true on failure */
+static bool innobase_get_tablespace_type(const dd::Tablespace &space,
+                                         Tablespace_type *space_type);
+
 /** Perform post-commit/rollback cleanup after DDL statement.
 @param[in,out]	thd	connection thread */
 static void innobase_post_ddl(THD *thd);
@@ -4347,6 +4355,7 @@ static int innodb_init(void *p) {
       innobase_get_index_column_cardinality;
 
   innobase_hton->get_tablespace_statistics = innobase_get_tablespace_statistics;
+  innobase_hton->get_tablespace_type = innobase_get_tablespace_type;
 
   innobase_hton->is_dict_readonly = innobase_is_dict_readonly;
 
@@ -15744,6 +15753,40 @@ static bool innobase_get_index_column_cardinality(
 
   dd_table_close(ib_table, thd, &mdl, false);
   return (failure);
+}
+
+static bool innobase_get_tablespace_type(const dd::Tablespace &space,
+                                         Tablespace_type *space_type) {
+  space_id_t id = 0;
+  uint32 flags = 0;
+
+  ut_ad(innobase_strcasecmp(space.engine().c_str(), "InnoDB") == 0);
+
+  if (space.se_private_data().get_uint32(dd_space_key_strings[DD_SPACE_ID],
+                                         &id) ||
+      space.se_private_data().get_uint32(dd_space_key_strings[DD_SPACE_FLAGS],
+                                         &flags)) {
+    return true;
+  }
+
+  if (space.id() == MYSQL_TABLESPACE_DD_ID && id == dict_sys_t::s_space_id) {
+    *space_type = Tablespace_type::SPACE_TYPE_DICTIONARY;
+  } else if (id == TRX_SYS_SPACE) {
+    *space_type = Tablespace_type::SPACE_TYPE_SYSTEM;
+  } else if (fsp_is_undo_tablespace(id)) {
+    *space_type = Tablespace_type::SPACE_TYPE_UNDO;
+  } else if (fsp_is_system_temporary(id)) {
+    *space_type = Tablespace_type::SPACE_TYPE_TEMPORARY;
+  } else if (fsp_is_shared_tablespace(flags) && fsp_is_ibd_tablespace(id)) {
+    *space_type = Tablespace_type::SPACE_TYPE_SHARED;
+  } else if (fsp_is_file_per_table(id, flags)) {
+    *space_type = Tablespace_type::SPACE_TYPE_IMPLICIT;
+  } else {
+    ut_ad(0);
+    return true;
+  }
+
+  return false;
 }
 
 /**  Retrieve ha_tablespace_statistics for the tablespace */

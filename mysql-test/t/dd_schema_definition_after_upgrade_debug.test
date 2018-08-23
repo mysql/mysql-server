@@ -165,6 +165,69 @@ let $file = $actual_table_defs;
 
 
 --echo ########################################################################
+--echo # Unzip a 8.0.12 datadir, start the server against it and prepare a
+--echo # file containing the DD table definitions after upgrade.
+--echo ########################################################################
+
+--echo ########################################################################
+--echo # Copy and unzip the datadir.
+--echo ########################################################################
+# The datadir is created by building the appropriate server version and
+# running 'mtr 1st', then moving data/ to data_80012/, and finally zipping the
+# entire data_80012/ directory (zip -r data_80012.zip data_80012).
+--copy_file $MYSQLTEST_VARDIR/std_data/upgrade/data_80012.zip $MYSQL_TMP_DIR/data_80012.zip
+--file_exists $MYSQL_TMP_DIR/data_80012.zip
+--exec unzip -qo $MYSQL_TMP_DIR/data_80012.zip -d $MYSQL_TMP_DIR
+let $MYSQLD_DATADIR_80012 = $MYSQL_TMP_DIR/data_80012;
+
+--echo ########################################################################
+--echo # Restart the server against the unzipped datadir.
+--echo ########################################################################
+let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_80012.log;
+--exec echo "restart: --datadir=$MYSQLD_DATADIR_80012 --log-error-verbosity=3 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--let $wait_counter= 3000
+--source include/wait_until_connected_again.inc
+
+--echo ########################################################################
+--echo # Execute mysql_upgrade.
+--echo ########################################################################
+--source include/mysql_upgrade_preparation.inc
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
+--exec $MYSQL_UPGRADE --user=root --skip-verbose --force 2>&1
+--source include/mysql_upgrade_cleanup.inc
+
+--echo ########################################################################
+--echo # Target schema ids for an upgrade from 80012 should hold.
+--echo ########################################################################
+--source include/dd_schema_assert_ids.inc
+
+--echo ########################################################################
+--echo # Assert actual schema table names after upgrade.
+--echo ########################################################################
+--source include/dd_schema_assert_and_fill_table_names.inc
+
+--echo ########################################################################
+--echo # Dump actual DD table definitions after upgrade to file and
+--echo # compare to target.
+--echo ########################################################################
+let $actual_table_defs = $MYSQL_TMP_DIR/actual_definitions.txt;
+let $file = $actual_table_defs;
+--source include/dd_schema_dump_table_defs_debug.inc
+--diff_files $target_table_defs $actual_table_defs
+
+--echo ########################################################################
+--echo # Remove copied files and stop the server.
+--echo ########################################################################
+--source include/shutdown_mysqld.inc
+--remove_file $MYSQL_TMP_DIR/data_80012.zip
+--remove_file $actual_table_defs
+--force-rmdir $MYSQL_TMP_DIR/data_80012
+
+
+--echo ########################################################################
 --echo # Cleanup: Remove definition files and restart with default options.
 --echo ########################################################################
 --remove_file $target_table_defs

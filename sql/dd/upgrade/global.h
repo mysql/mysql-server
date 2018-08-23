@@ -41,6 +41,23 @@ class Time_zone;
 using sql_mode_t = ulonglong;
 
 namespace dd {
+/**
+  Class to keep track of upgrade errors during upgrade after 8.0 GA.
+*/
+class Upgrade_error_counter {
+ private:
+  int m_error_count = 0;
+  const int ERROR_LIMIT = 50;
+
+ public:
+  bool has_errors() { return (m_error_count > 0); }
+  bool has_too_many_errors() { return (m_error_count > ERROR_LIMIT); }
+  Upgrade_error_counter operator++(int) {
+    m_error_count++;
+    return *this;
+  }
+};
+
 namespace upgrade_57 {
 
 const String_type ISL_EXT = ".isl";
@@ -175,11 +192,15 @@ class Bootstrap_error_handler {
 */
 class Syntax_error_handler : public Internal_error_handler {
  public:
+  Syntax_error_handler() {}
+  Syntax_error_handler(Upgrade_error_counter *counter)
+      : m_global_counter(counter) {}
   virtual bool handle_condition(THD *, uint sql_errno, const char *,
                                 Sql_condition::enum_severity_level *,
                                 const char *msg) {
     if (sql_errno == ER_PARSE_ERROR) {
       parse_error_count++;
+      if (m_global_counter) (*m_global_counter)++;
       is_parse_error = true;
       reason = msg;
     } else {
@@ -201,6 +222,7 @@ class Syntax_error_handler : public Internal_error_handler {
   static bool is_parse_error;
   static const uint MAX_SERVER_CHECK_FAILS = 50;
   static dd::String_type reason;
+  Upgrade_error_counter *m_global_counter = nullptr;
 };
 
 /**
