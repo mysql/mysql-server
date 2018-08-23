@@ -6,7 +6,7 @@
 
 create table t1 (
   a int unsigned primary key,
-  b char(20),
+  b char(20) character set latin1,
   c int unsigned
 ) engine=ndb;
 
@@ -63,7 +63,7 @@ create table t1 (
   b3 varbinary(1000),
   d varchar(8000),
   a int unsigned primary key
-) engine=ndb;
+) engine=ndb character set latin1;
 
 let $ins =
 insert into t1 values
@@ -93,7 +93,7 @@ create table t1 (
   c3 varbinary(1000),
   d varchar(8000),
   a int unsigned primary key
-) engine=ndb;
+) engine=ndb character set latin1;
 
 --echo # run restore
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r -A $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
@@ -114,7 +114,7 @@ create table t1 (
   b3 varbinary(1000),
   d varchar(8000),
   a int unsigned primary key
-) engine=ndb;
+) engine=ndb character set latin1;
 
 --eval $ins
 --eval $qry
@@ -133,7 +133,7 @@ create table t1 (
   c3 varbinary(1000),
   d text,
   a int unsigned primary key
-) engine=ndb;
+) engine=ndb character set latin1;
 
 --echo # run restore
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r -A $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
@@ -161,7 +161,7 @@ engine=ndb;
 
 create table t1 (
   b text,
-  c varchar(8000),
+  c varchar(8000) character set latin1,
   d text,
   a int unsigned primary key
 ) engine=ndb;
@@ -181,7 +181,7 @@ insert into t1 values (repeat('m',7777),repeat('n',5555),null,5);
 drop table t1;
 
 create table t1 (
-  b varchar(8000),
+  b varchar(8000) character set latin1,
   c text,
   d text,
   a int unsigned primary key
@@ -203,7 +203,7 @@ create table t1 (
   b int,
   c bigint,
   y int,
-  d varchar(8000)
+  d varchar(8000) character set latin1
 ) engine=ndb;
 
 insert into t1 (x,b,c,d) values (1,10,100,repeat('d',30));
@@ -250,7 +250,7 @@ drop table t1;
 create table t1 (
   a char(1) primary key,
   b text,
-  c varchar(10)
+  c varchar(10) character set latin1
 ) engine=ndb;
 
 insert into t1 values ('a',concat('x',repeat('a',1000)),'0123456789');
@@ -269,8 +269,8 @@ drop table t1;
 
 create table t1 (
   a char(1) primary key,
-  b varchar(2001),
-  c varchar(5)
+  b varchar(2001) character set latin1,
+  c varchar(5) character set latin1
 ) engine=ndb;
 
 --echo # run restore
@@ -286,7 +286,7 @@ drop table t1;
 create table t1old (
   a int unsigned primary key auto_increment,
   b text,
-  c varchar(8000),
+  c varchar(8000) character set latin1,
   d text,
   e varchar(20),
   f int
@@ -312,7 +312,7 @@ let $cre1 =
 create table t1 (
   a int unsigned primary key auto_increment,
   b text,
-  c varchar(8000),
+  c varchar(8000) character set latin1,
   d text,
   e varchar(20),
   f int
@@ -323,7 +323,7 @@ create table t1 (
   e varchar(20),
   f int,
   a int unsigned primary key auto_increment,
-  b varchar(8000),
+  b varchar(8000) character set latin1,
   c text,
   d text
 ) engine=ndb;
@@ -367,7 +367,7 @@ create table t1 (
   a int primary key,
   b varchar(5000),
   c varchar(5000)
-) engine=ndb;
+) engine=ndb character set latin1;
 
 insert into t1 values (1,null,null);
 select * from t1;
@@ -380,7 +380,7 @@ drop table t1;
 create table t1 (
   a int primary key,
   b text,
-  c varchar(10000)
+  c varchar(10000) character set latin1
 ) engine=ndb;
 
 --echo # run restore
@@ -397,7 +397,7 @@ drop table t1;
 
 create table t1(
   a int unsigned primary key,
-  b varchar(6144)
+  b varchar(6144) character set latin1
 ) engine=ndb;
 
 --echo # alter causing varchar to become 'dynamic'
@@ -565,7 +565,7 @@ create table text2text (pk mediumint primary key,
 drop table text2text;
 
 --echo # restore with pk built-in conversion and blob staging conversion
-create table text2text(id char(10) primary key, val text)engine=ndb;
+create table text2text(id char(10) character set latin1 primary key, val text)engine=ndb;
 insert into text2text values("1111111111", REPEAT("A", 500));
 insert into text2text values("2222222222", REPEAT("B", 500));
 
@@ -573,7 +573,7 @@ insert into text2text values("2222222222", REPEAT("B", 500));
 --source include/ndb_backup.inc
 
 drop table text2text;
-create table text2text(id varchar(5) primary key, val mediumtext)engine=ndb;
+create table text2text(id varchar(5) character set latin1 primary key, val mediumtext)engine=ndb;
 
 --echo # run restore
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT

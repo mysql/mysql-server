@@ -1,7 +1,7 @@
 # bug#17275798
 create table t1 (
 a int unsigned primary key,
-b char(20),
+b char(20) character set latin1,
 c int unsigned
 ) engine=ndb;
 # restore canned backup
@@ -43,7 +43,7 @@ b2 varbinary(100),
 b3 varbinary(1000),
 d varchar(8000),
 a int unsigned primary key
-) engine=ndb;
+) engine=ndb character set latin1;
 insert into t1 values
 ('aaa1','bbb1','ccc1','ddd1','eee1','fff1',repeat('x',2000),1),
 ('aaa2','bbb2','ccc2','ddd2','eee2','fff2',repeat('y',4000),2),
@@ -67,7 +67,7 @@ c2 varbinary(100),
 c3 varbinary(1000),
 d varchar(8000),
 a int unsigned primary key
-) engine=ndb;
+) engine=ndb character set latin1;
 # run restore
 select a,
 trim(trailing char(0) from c1) as c1,c2,c3,
@@ -88,7 +88,7 @@ b2 varbinary(100),
 b3 varbinary(1000),
 d varchar(8000),
 a int unsigned primary key
-) engine=ndb;
+) engine=ndb character set latin1;
 insert into t1 values
 ('aaa1','bbb1','ccc1','ddd1','eee1','fff1',repeat('x',2000),1),
 ('aaa2','bbb2','ccc2','ddd2','eee2','fff2',repeat('y',4000),2),
@@ -112,7 +112,7 @@ c2 varbinary(100),
 c3 varbinary(1000),
 d text,
 a int unsigned primary key
-) engine=ndb;
+) engine=ndb character set latin1;
 # run restore
 select a,
 trim(trailing char(0) from c1) as c1,c2,c3,
@@ -137,7 +137,7 @@ engine=ndb;
 # bug#17235051 : char<->text
 create table t1 (
 b text,
-c varchar(8000),
+c varchar(8000) character set latin1,
 d text,
 a int unsigned primary key
 ) engine=ndb;
@@ -152,7 +152,7 @@ count(*)	sum(crc32(concat(a,ifnull(b,'x'),ifnull(c,'y'),ifnull(d,'z'))))
 # run backup
 drop table t1;
 create table t1 (
-b varchar(8000),
+b varchar(8000) character set latin1,
 c text,
 d text,
 a int unsigned primary key
@@ -169,7 +169,7 @@ a int primary key auto_increment,
 b int,
 c bigint,
 y int,
-d varchar(8000)
+d varchar(8000) character set latin1
 ) engine=ndb;
 insert into t1 (x,b,c,d) values (1,10,100,repeat('d',30));
 insert into t1 (x,b,c,d) select x*2,b*3,c*4,concat(d,d) from t1;
@@ -207,7 +207,7 @@ drop table t1;
 create table t1 (
 a char(1) primary key,
 b text,
-c varchar(10)
+c varchar(10) character set latin1
 ) engine=ndb;
 insert into t1 values ('a',concat('x',repeat('a',1000)),'0123456789');
 insert into t1 values ('b',concat('y',repeat('b',2000)),'012345');
@@ -222,8 +222,8 @@ c	3001	z	01234
 drop table t1;
 create table t1 (
 a char(1) primary key,
-b varchar(2001),
-c varchar(5)
+b varchar(2001) character set latin1,
+c varchar(5) character set latin1
 ) engine=ndb;
 # run restore
 select a,length(b),trim(trailing a from b),c
@@ -237,7 +237,7 @@ drop table t1;
 create table t1old (
 a int unsigned primary key auto_increment,
 b text,
-c varchar(8000),
+c varchar(8000) character set latin1,
 d text,
 e varchar(20),
 f int
@@ -276,7 +276,7 @@ count(*)	max(length(b))	max(length(c))	max(length(d))	max(length(e))	max(f)
 create table t1 (
 a int unsigned primary key auto_increment,
 b text,
-c varchar(8000),
+c varchar(8000) character set latin1,
 d text,
 e varchar(20),
 f int
@@ -292,7 +292,7 @@ create table t1 (
 e varchar(20),
 f int,
 a int unsigned primary key auto_increment,
-b varchar(8000),
+b varchar(8000) character set latin1,
 c text,
 d text
 ) engine=ndb;
@@ -306,7 +306,7 @@ drop table t1;
 create table t1 (
 a int unsigned primary key auto_increment,
 b text,
-c varchar(8000),
+c varchar(8000) character set latin1,
 d text,
 e varchar(20),
 f int
@@ -322,7 +322,7 @@ create table t1 (
 e varchar(20),
 f int,
 a int unsigned primary key auto_increment,
-b varchar(8000),
+b varchar(8000) character set latin1,
 c text,
 d text
 ) engine=ndb tablespace ts1 storage disk;
@@ -338,7 +338,7 @@ create table t1 (
 a int primary key,
 b varchar(5000),
 c varchar(5000)
-) engine=ndb;
+) engine=ndb character set latin1;
 insert into t1 values (1,null,null);
 select * from t1;
 a	b	c
@@ -348,7 +348,7 @@ drop table t1;
 create table t1 (
 a int primary key,
 b text,
-c varchar(10000)
+c varchar(10000) character set latin1
 ) engine=ndb;
 # run restore
 select * from t1;
@@ -361,7 +361,7 @@ drop table t1;
 # should not care.
 create table t1(
 a int unsigned primary key,
-b varchar(6144)
+b varchar(6144) character set latin1
 ) engine=ndb;
 # alter causing varchar to become 'dynamic'
 alter table t1 add column c int;
@@ -511,6 +511,23 @@ t1 text character set utf8, t2 mediumtext character set utf8, t3 longtext charac
 t5 mediumtext character set utf8, t6 longtext character set utf8, t7 tinytext character set utf8, t8 text character set utf8,
 t9 longtext character set utf8, t10 tinytext character set utf8, t11 text character set utf8, t12 mediumtext character set utf8,
 t13 text character set utf8, t14 mediumtext character set utf8, t15 longtext character set utf8, t16 tinytext character set utf8)engine=NDB;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # run restore
 # ndb_restore fails with error 1
 # ndb_restore fails with error 1
@@ -538,12 +555,12 @@ NDBT_ProgramExit: 0 - OK
 
 drop table text2text;
 # restore with pk built-in conversion and blob staging conversion
-create table text2text(id char(10) primary key, val text)engine=ndb;
+create table text2text(id char(10) character set latin1 primary key, val text)engine=ndb;
 insert into text2text values("1111111111", REPEAT("A", 500));
 insert into text2text values("2222222222", REPEAT("B", 500));
 # run backup
 drop table text2text;
-create table text2text(id varchar(5) primary key, val mediumtext)engine=ndb;
+create table text2text(id varchar(5) character set latin1 primary key, val mediumtext)engine=ndb;
 # run restore
 # run ndb_select_all to print restored table 
 id	val
@@ -557,11 +574,15 @@ NDBT_ProgramExit: 0 - OK
 drop table text2text;
 set character_set_client=utf8;
 create table text2text(id int primary key, val text character set utf8)engine=ndb;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into text2text values(11111, REPEAT(UNHEX("E38182"), 100));
 insert into text2text values(22222, CONCAT("A",REPEAT(UNHEX("E38182"), 100)));
 # run backup
 drop table text2text;
 create table text2text(id int primary key, val tinytext character set utf8)engine=ndb;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # run restore
 # run ndb_select_all to see charset-aware truncation in ndb
 id	val

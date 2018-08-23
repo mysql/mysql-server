@@ -65,9 +65,6 @@ ndb.ndb_wl946_pre                       : Bug#28478897 UPDATE CHECKED IN BACKUPS
 ndb.ndb_wl946_post                      : Bug#28478897 UPDATE CHECKED IN BACKUPS THAT ARE RESTORED IN VARIOUS TESTS
 ndb.ndb_restore_compat_downward         : Bug#28478897 UPDATE CHECKED IN BACKUPS THAT ARE RESTORED IN VARIOUS TESTS
 
-# Problem with row size too large
-ndb.ndb_restore_conv_more : Bug#28479282 NDB_RESTORE_CONV_MORE TEST FAILS WITH 'ROW SIZE TOO LARGE'
-
 # Problem with ndb_index_stat tables missing from DD
 ndb.ndb_statistics0 : Bug#27543602 NDB_INDEX_STAT* TABLES ARE MISSING FROM DD AFTER AN INITIAL SYSTEM RESTART
 
