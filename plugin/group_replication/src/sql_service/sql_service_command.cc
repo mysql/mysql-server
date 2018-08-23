@@ -256,9 +256,9 @@ long Sql_service_command_interface::kill_session(unsigned long session_id) {
     error = sql_service_commands.internal_kill_session(
         m_server_interface, (void *)id_pointer); /* purecov: inspected */
   } else {
+    m_plugin_session_thread->set_return_pointer((void *)id_pointer);
     m_plugin_session_thread->queue_new_method_for_application(
         &Sql_service_commands::internal_kill_session, false);
-    m_plugin_session_thread->set_return_pointer((void *)id_pointer);
     error = m_plugin_session_thread->wait_for_method_execution();
   }
 
