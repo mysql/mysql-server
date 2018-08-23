@@ -24,14 +24,20 @@ INCLUDE_DIRECTORIES(
   ../include
 )
 
+SET(TEST_MODULE mysql_protocol)
 add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
-  MODULE "mysql_protocol"
+  MODULE ${TEST_MODULE}
   LIB_DEPENDS mysql_protocol_static
   SYSTEM_INCLUDE_DIRS ${GTEST_INCLUDE_DIRS} ${GMOCK_INCLUDE_DIRS})
 
-TARGET_COMPILE_DEFINITIONS(test_mysql_protocol_base_packet
+ROUTERTEST_GET_TARGET(test_target "test_base_packet.cc" ${TEST_MODULE})
+TARGET_COMPILE_DEFINITIONS(${test_target}
                            PRIVATE -Dmysql_protocol_DEFINE_STATIC=1)
-TARGET_COMPILE_DEFINITIONS(test_mysql_protocol_error_packet
+
+ROUTERTEST_GET_TARGET(test_target "test_error_packet.cc" ${TEST_MODULE})
+TARGET_COMPILE_DEFINITIONS(${test_target}
                            PRIVATE -Dmysql_protocol_DEFINE_STATIC=1)
-TARGET_COMPILE_DEFINITIONS(test_mysql_protocol_handshake_packet
+
+ROUTERTEST_GET_TARGET(test_target "test_handshake_packet.cc" ${TEST_MODULE})
+TARGET_COMPILE_DEFINITIONS(${test_target}
                            PRIVATE -Dmysql_protocol_DEFINE_STATIC=1)

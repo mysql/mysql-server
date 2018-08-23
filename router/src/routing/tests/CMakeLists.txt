@@ -57,9 +57,9 @@ IF(${CMAKE_SYSTEM_NAME} STREQUAL "SunOS")
   TARGET_LINK_LIBRARIES(routing_plugin_tests -lnsl -lsocket)
 ENDIF()
 
-
+SET(TEST_MODULE "routing")
 add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
-  MODULE "routing"
+  MODULE ${TEST_MODULE}
   LIB_DEPENDS routing_tests test-helpers
   INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/src/harness/shared/include)
 
@@ -86,11 +86,18 @@ add_test_dir(issues MODULE issues
     ${PROJECT_SOURCE_DIR}/src/harness/shared/include
   )
 
-TARGET_COMPILE_DEFINITIONS(test_routing_classic_protocol
-                           PRIVATE -Dmysql_protocol_DEFINE_STATIC=1)
-TARGET_COMPILE_DEFINITIONS(test_routing_metadata_cache_group
-                           PRIVATE -Dmetadata_cache_DEFINE_STATIC=1)
-TARGET_COMPILE_DEFINITIONS(test_routing_routing PRIVATE
-                           -Dmysql_protocol_DEFINE_STATIC=1)
-TARGET_COMPILE_DEFINITIONS(test_routing_x_protocol PRIVATE
-                           -Dmysql_protocol_DEFINE_STATIC=1)
+ROUTERTEST_GET_TARGET(test_target "test_classic_protocol.cc" ${TEST_MODULE})
+TARGET_COMPILE_DEFINITIONS(${test_target}
+  PRIVATE -Dmysql_protocol_DEFINE_STATIC=1)
+
+ROUTERTEST_GET_TARGET(test_target "test_metadata_cache_group.cc" ${TEST_MODULE})
+TARGET_COMPILE_DEFINITIONS(${test_target}
+  PRIVATE -Dmetadata_cache_DEFINE_STATIC=1)
+
+ROUTERTEST_GET_TARGET(test_target "test_routing.cc" ${TEST_MODULE})
+TARGET_COMPILE_DEFINITIONS(${test_target}
+  PRIVATE -Dmysql_protocol_DEFINE_STATIC=1)
+
+ROUTERTEST_GET_TARGET(test_target "test_x_protocol.cc" ${TEST_MODULE})
+TARGET_COMPILE_DEFINITIONS(${test_target}
+  PRIVATE -Dmysql_protocol_DEFINE_STATIC=1)

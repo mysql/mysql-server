@@ -69,8 +69,9 @@ SET_TARGET_PROPERTIES(metadata_cache_tests PROPERTIES
 
 TARGET_INCLUDE_DIRECTORIES(metadata_cache_tests PRIVATE ${include_dirs})
 
+SET(TEST_MODULE metadata_cache)
 add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
-             MODULE "metadata_cache"
+             MODULE ${TEST_MODULE}
              LIB_DEPENDS
                metadata_cache_tests
                test-helpers
@@ -83,23 +84,35 @@ add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 
-TARGET_COMPILE_DEFINITIONS(test_metadata_cache_cache_plugin
+ROUTERTEST_GET_TARGET(test_target "test_cache_plugin.cc" ${TEST_MODULE})
+TARGET_COMPILE_DEFINITIONS(${test_target}
                            PRIVATE -Dmetadata_cache_DEFINE_STATIC=1)
-TARGET_COMPILE_DEFINITIONS(test_metadata_cache_metadata_cache
+
+ROUTERTEST_GET_TARGET(test_target "test_metadata_cache.cc" ${TEST_MODULE})
+TARGET_COMPILE_DEFINITIONS(${test_target}
                            PRIVATE -Dmetadata_cache_DEFINE_STATIC=1)
-TARGET_COMPILE_DEFINITIONS(test_metadata_cache_cache_plugin
+
+ROUTERTEST_GET_TARGET(test_target "test_cache_plugin.cc" ${TEST_MODULE})
+TARGET_COMPILE_DEFINITIONS(${test_target}
                            PRIVATE -Dmetadata_cache_tests_DEFINE_STATIC=1)
-TARGET_COMPILE_DEFINITIONS(test_metadata_cache_metadata_cache
+ROUTERTEST_GET_TARGET(test_target "test_metadata_cache.cc" ${TEST_MODULE})
+TARGET_COMPILE_DEFINITIONS(${test_target}
                            PRIVATE -Dmetadata_cache_tests_DEFINE_STATIC=1)
-TARGET_COMPILE_DEFINITIONS(test_metadata_cache_metadata
+ROUTERTEST_GET_TARGET(test_target "test_metadata.cc" ${TEST_MODULE})
+TARGET_COMPILE_DEFINITIONS(${test_target}
                            PRIVATE -Dmetadata_cache_DEFINE_STATIC=1)
-TARGET_COMPILE_DEFINITIONS(test_metadata_cache_metadata
+ROUTERTEST_GET_TARGET(test_target "test_metadata.cc" ${TEST_MODULE})
+TARGET_COMPILE_DEFINITIONS(${test_target}
                            PRIVATE -Dmetadata_cache_tests_DEFINE_STATIC=1)
-TARGET_COMPILE_DEFINITIONS(test_metadata_cache_failover
+ROUTERTEST_GET_TARGET(test_target "test_failover.cc" ${TEST_MODULE})
+TARGET_COMPILE_DEFINITIONS(${test_target}
                            PRIVATE -Dmetadata_cache_DEFINE_STATIC=1)
-TARGET_COMPILE_DEFINITIONS(test_metadata_cache_failover
+ROUTERTEST_GET_TARGET(test_target "test_failover.cc" ${TEST_MODULE})
+TARGET_COMPILE_DEFINITIONS(${test_target}
                            PRIVATE -Dmetadata_cache_tests_DEFINE_STATIC=1)
-TARGET_COMPILE_DEFINITIONS(test_metadata_cache_plugin_config
+ROUTERTEST_GET_TARGET(test_target "test_plugin_config.cc" ${TEST_MODULE})
+TARGET_COMPILE_DEFINITIONS(${test_target}
                            PRIVATE -Dmetadata_cache_DEFINE_STATIC=1)
-TARGET_COMPILE_DEFINITIONS(test_metadata_cache_plugin_config
+ROUTERTEST_GET_TARGET(test_target "test_plugin_config.cc" ${TEST_MODULE})
+TARGET_COMPILE_DEFINITIONS(${test_target}
                            PRIVATE -Dmetadata_cache_tests_DEFINE_STATIC=1)

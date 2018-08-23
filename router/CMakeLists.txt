@@ -94,6 +94,16 @@ LIST(APPEND MySQL_INCLUDE_DIRS ${CMAKE_BINARY_DIR}/include)
 
 INCLUDE_DIRECTORIES(${PROJECT_BINARY_DIR}/include)
 
+# a meta-target to allow build everything router related, but nothing that
+# it doesn't depend on
+#
+# each target needs to add itself via
+#
+#   ADD_DEPENDENCIES(${MYSQL_ROUTER_BUILD_ALL_TARGET} ...)
+#
+SET(MYSQL_ROUTER_BUILD_ALL_TARGET mysqlrouter_all)
+ADD_CUSTOM_TARGET(${MYSQL_ROUTER_BUILD_ALL_TARGET})
+
 # Load all modules, including plugins
 ADD_SUBDIRECTORY(src)
 

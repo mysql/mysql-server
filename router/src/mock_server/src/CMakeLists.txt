@@ -150,6 +150,10 @@ TARGET_INCLUDE_DIRECTORIES(rest_mock_server PUBLIC
 ADD_EXECUTABLE(mysql_server_mock
   main.cc
   )
+# add all targets to the build-all target
+ADD_DEPENDENCIES(${MYSQL_ROUTER_BUILD_ALL_TARGET}
+	mysql_server_mock)
+
 
 TARGET_LINK_LIBRARIES(mysql_server_mock ${common_libraries} harness-library)
 SET_TARGET_PROPERTIES(mysql_server_mock PROPERTIES

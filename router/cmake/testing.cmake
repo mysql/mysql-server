@@ -22,9 +22,15 @@
 
 SET(_TEST_RUNTIME_DIR ${PROJECT_BINARY_DIR}/tests)
 
+MACRO(ROUTERTEST_GET_TARGET OUTVAR FIL MODUL)
+  GET_FILENAME_COMPONENT(test_target ${FIL} NAME_WE)
+  STRING(REGEX REPLACE "^test_" "" test_target ${test_target})
+  SET(${OUTVAR} "routertest_${MODUL}_${test_target}")
+ENDMACRO()
+
 FUNCTION(add_test_file FILE)
   SET(one_value_args MODULE LABEL ENVIRONMENT)
-  SET(multi_value_args LIB_DEPENDS INCLUDE_DIRS SYSTEM_INCLUDE_DIRS)
+  SET(multi_value_args LIB_DEPENDS INCLUDE_DIRS SYSTEM_INCLUDE_DIRS DEPENDS)
   cmake_parse_arguments(TEST "" "${one_value_args}" "${multi_value_args}" ${ARGN})
 
   IF(NOT TEST_MODULE)
@@ -38,11 +44,14 @@ FUNCTION(add_test_file FILE)
 
   IF(test_ext STREQUAL ".cc")
     # Tests written in C++
-    GET_FILENAME_COMPONENT(test_target ${FILE} NAME_WE)
-    STRING(REGEX REPLACE "^test_" "" test_target ${test_target})
-    SET(test_target "test_${TEST_MODULE}_${test_target}")
-    SET(test_name "tests/${TEST_MODULE}/${test_target}")
-    MYSQL_ADD_EXECUTABLE(${test_target} ${FILE} ADD_TEST ${test_target})
+    ROUTERTEST_GET_TARGET(test_target ${FILE} ${TEST_MODULE})
+
+    SET(test_name "${test_target}")
+    MYSQL_ADD_EXECUTABLE(${test_target} ${FILE} ADD_TEST ${test_name})
+
+    IF(MYSQL_ROUTER_BUILD_ALL_TARGET)
+      ADD_DEPENDENCIES(${MYSQL_ROUTER_BUILD_ALL_TARGET} ${test_target})
+    ENDIF()
     TARGET_LINK_LIBRARIES(${test_target}
       gtest gmock gtest_main gmock_main routertest_helpers
       router_lib harness-library
@@ -51,6 +60,9 @@ FUNCTION(add_test_file FILE)
       #add_dependencies(${test_target} ${libtarget})
       TARGET_LINK_LIBRARIES(${test_target} ${libtarget})
     ENDFOREACH()
+    IF(TEST_DEPENDS)
+      ADD_DEPENDENCIES(${test_target} ${TEST_DEPENDS})
+    ENDIF()
     FOREACH(include_dir ${TEST_SYSTEM_INCLUDE_DIRS})
       TARGET_INCLUDE_DIRECTORIES(${test_target} SYSTEM PUBLIC ${include_dir})
     ENDFOREACH()
@@ -69,11 +81,11 @@ FUNCTION(add_test_file FILE)
     IF(WIN32)
       # PATH's separator ";" needs to be escaped as CMAKE's test-env is also separated by ; ...
       STRING(REPLACE ";" "\\;" ESC_ENV_PATH "$ENV{PATH}")
-      set_tests_properties(${test_target} PROPERTIES
+      set_tests_properties(${test_name} PROPERTIES
         ENVIRONMENT
         "${TEST_ENV_PREFIX};PATH=$<TARGET_FILE_DIR:harness-library>\;$<TARGET_FILE_DIR:http_common>\;$<TARGET_FILE_DIR:duktape>\;${ESC_ENV_PATH};${TEST_ENVIRONMENT}")
     ELSE()
-      set_tests_properties(${test_target} PROPERTIES
+      set_tests_properties(${test_name} PROPERTIES
         ENVIRONMENT
         "${TEST_ENV_PREFIX};LD_LIBRARY_PATH=$ENV{LD_LIBRARY_PATH};DYLD_LIBRARY_PATH=$ENV{DYLD_LIBRARY_PATH};${TEST_ENVIRONMENT}")
     ENDIF()
@@ -85,7 +97,7 @@ ENDFUNCTION(add_test_file)
 
 FUNCTION(add_test_dir DIR_NAME)
   SET(one_value_args MODULE ENVIRONMENT)
-  SET(multi_value_args LIB_DEPENDS INCLUDE_DIRS SYSTEM_INCLUDE_DIRS)
+  SET(multi_value_args LIB_DEPENDS INCLUDE_DIRS SYSTEM_INCLUDE_DIRS DEPENDS)
   cmake_parse_arguments(TEST "" "${one_value_args}" "${multi_value_args}" ${ARGN})
 
   IF(NOT TEST_MODULE)
@@ -103,6 +115,7 @@ FUNCTION(add_test_dir DIR_NAME)
         MODULE ${TEST_MODULE}
         ENVIRONMENT ${TEST_ENVIRONMENT}
         LIB_DEPENDS ${TEST_LIB_DEPENDS}
+        DEPENDS ${TEST_DEPENDS}
         INCLUDE_DIRS ${TEST_INCLUDE_DIRS}
         SYSTEM_INCLUDE_DIRS ${TEST_SYSTEM_INCLUDE_DIRS}
         )

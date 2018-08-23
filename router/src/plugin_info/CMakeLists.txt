@@ -23,6 +23,7 @@
 FILE(GLOB_RECURSE sources ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cc)
 INCLUDE_DIRECTORIES(${CMAKE_BINARY_DIR}/include)
 MYSQL_ADD_EXECUTABLE(mysqlrouter_plugin_info ${sources} COMPONENT Router)
+ADD_DEPENDENCIES(${MYSQL_ROUTER_BUILD_ALL_TARGET} mysqlrouter_plugin_info)
 
 SET(common_libraries)
 IF(WIN32)
