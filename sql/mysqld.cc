@@ -411,6 +411,7 @@
 #include "mysql/plugin_audit.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_memory.h"  // mysql_memory_init
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql/psi/mysql_socket.h"
@@ -4382,17 +4383,43 @@ static int warn_self_signed_ca() {
   return ret_val;
 }
 
+#if !defined(HAVE_WOLFSSL) && defined(HAVE_OPENSSL)
+static PSI_memory_key key_memory_openssl = PSI_NOT_INSTRUMENTED;
+
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#define FILE_LINE_ARGS
+#else
+#define FILE_LINE_ARGS , const char *, int
+#endif
+
+static void *my_openssl_malloc(size_t size FILE_LINE_ARGS) {
+  return my_malloc(key_memory_openssl, size, MYF(MY_WME));
+}
+static void *my_openssl_realloc(void *ptr, size_t size FILE_LINE_ARGS) {
+  return my_realloc(key_memory_openssl, ptr, size, MYF(MY_WME));
+}
+static void my_openssl_free(void *ptr FILE_LINE_ARGS) { return my_free(ptr); }
+#endif /* !defined(HAVE_WOLFSSL) && defined(HAVE_OPENSSL) */
+
 static void init_ssl() {
 #ifdef HAVE_OPENSSL
 #ifndef HAVE_WOLFSSL
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  CRYPTO_malloc_init();
-#else  /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-  OPENSSL_malloc_init();
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+#if defined(HAVE_PSI_MEMORY_INTERFACE)
+  static PSI_memory_info all_openssl_memory[] = {
+      {&key_memory_openssl, "openssl_malloc", 0, 0,
+       "All memory used by openSSL"}};
+  mysql_memory_register("mysqld_openssl", all_openssl_memory,
+                        array_elements(all_openssl_memory));
+#endif /* defined(HAVE_PSI_MEMORY_INTERFACE) */
+#ifndef DBUG_OFF
+  int ret =
 #endif
+      CRYPTO_set_mem_functions(my_openssl_malloc, my_openssl_realloc,
+                               my_openssl_free);
+  DBUG_ASSERT(ret != 0);
+#endif /* HAVE_WOLFSSL */
   ssl_start();
-#endif
+#endif /* HAVE_OPENSSL */
 }
 
 static int init_ssl_communication() {
@@ -5069,6 +5096,9 @@ static int init_server_components() {
   */
   tc_log = &tc_log_dummy;
 
+  /* This limits ability to configure SSL library through config options */
+  init_ssl();
+
   /*Load early plugins */
   if (plugin_register_early_plugins(
           &remaining_argc, remaining_argv,
@@ -5077,8 +5107,6 @@ static int init_server_components() {
     unireg_abort(1);
   }
 
-  /* This limits ability to configure SSL library through config options */
-  init_ssl();
   /* Load builtin plugins, initialize MyISAM, CSV and InnoDB */
   if (plugin_register_builtin_and_init_core_se(&remaining_argc,
                                                remaining_argv)) {
