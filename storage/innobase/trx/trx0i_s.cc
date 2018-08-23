@@ -65,6 +65,18 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0mem.h"
 
 #include "storage/perfschema/pfs_data_lock.h"
+static_assert(sizeof(pk_pos_data_lock::m_engine_lock_id) >
+                  TRX_I_S_LOCK_ID_MAX_LEN,
+              "pk_pos_data_lock::m_engine_lock_id must be able to hold "
+              "engine_lock_id which has TRX_I_S_LOCK_ID_MAX_LEN chars");
+static_assert(sizeof(pk_pos_data_lock_wait::m_requesting_engine_lock_id) >
+                  TRX_I_S_LOCK_ID_MAX_LEN,
+              "pk_pos_data_lock_wait::m_requesting_engine_lock_id must be able "
+              "to hold engine_lock_id which has TRX_I_S_LOCK_ID_MAX_LEN chars");
+static_assert(sizeof(pk_pos_data_lock_wait::m_blocking_engine_lock_id) >
+                  TRX_I_S_LOCK_ID_MAX_LEN,
+              "pk_pos_data_lock_wait::m_blocking_engine_lock_id must be able "
+              "to hold engine_lock_id which has TRX_I_S_LOCK_ID_MAX_LEN chars");
 
 /** Initial number of rows in the table cache */
 #define TABLE_CACHE_INITIAL_ROWSNUM 1024
@@ -384,6 +396,8 @@ static void *table_cache_create_empty_row(
 static ibool i_s_locks_row_validate(
     const i_s_locks_row_t *row) /*!< in: row to validate */
 {
+  ut_ad(row->lock_immutable_id != 0);
+  ut_ad(row->lock_trx_immutable_id != 0);
   ut_ad(row->lock_table_id != 0);
 
   if (row->lock_space == SPACE_UNKNOWN) {
@@ -684,20 +698,9 @@ void p_s_fill_lock_data(const char **lock_data, const lock_t *lock,
   mtr_commit(&mtr);
 }
 
-/** Fills i_s_locks_row_t object. Returns its first argument.
- If memory can not be allocated then FALSE is returned.
- @return false if allocation fails */
-static ibool fill_locks_row(
-    i_s_locks_row_t *row,   /*!< out: result object that's filled */
-    const lock_t *lock,     /*!< in: lock to get data from */
-    ulint heap_no,          /*!< in: lock's record number
-                            or ULINT_UNDEFINED if the lock
-                            is a table lock */
-    trx_i_s_cache_t *cache) /*!< in/out: cache into which to copy
-                            volatile strings */
-{
-  row->lock_trx_id = lock_get_trx_id(lock);
-
+void fill_locks_row(i_s_locks_row_t *row, const lock_t *lock, ulint heap_no) {
+  row->lock_immutable_id = lock_get_immutable_id(lock);
+  row->lock_trx_immutable_id = lock_get_trx_immutable_id(lock);
   switch (lock_get_type(lock)) {
     case LOCK_REC:
 
@@ -720,8 +723,6 @@ static ibool fill_locks_row(
   row->lock_table_id = lock_get_table_id(lock);
 
   ut_ad(i_s_locks_row_validate(row));
-
-  return (TRUE);
 }
 
 /** Adds new element to the locks cache, enlarging it if necessary.
@@ -746,11 +747,7 @@ static i_s_locks_row_t *add_lock_to_cache(
     return (NULL);
   }
 
-  if (!fill_locks_row(dst_row, lock, heap_no, cache)) {
-    /* memory could not be allocated */
-    cache->innodb_locks.rows_used--;
-    return (NULL);
-  }
+  fill_locks_row(dst_row, lock, heap_no);
 
   ut_ad(i_s_locks_row_validate(dst_row));
   return (dst_row);
@@ -1133,7 +1130,9 @@ void *trx_i_s_cache_get_nth_row(trx_i_s_cache_t *cache, /*!< in: cache */
 
   return (row);
 }
-
+constexpr char *LOCK_RECORD_ID_FORMAT =
+    UINT64PF ":" SPACE_ID_PF ":" PAGE_NO_PF ":" ULINTPF ":" UINT64PF;
+constexpr char *LOCK_TABLE_ID_FORMAT = UINT64PF ":" UINT64PF ":" UINT64PF;
 /** Crafts a lock id string from a i_s_locks_row_t object. Returns its
  second argument. This function aborts if there is not enough space in
  lock_id. Be sure to provide at least TRX_I_S_LOCK_ID_MAX_LEN + 1 if you
@@ -1151,14 +1150,14 @@ char *trx_i_s_create_lock_id(
 
   if (row->lock_space != SPACE_UNKNOWN) {
     /* record lock */
-    res_len = snprintf(lock_id, lock_id_size,
-                       TRX_ID_FMT ":" SPACE_ID_PF ":" PAGE_NO_PF ":" ULINTPF,
-                       row->lock_trx_id, row->lock_space, row->lock_page,
-                       row->lock_rec);
+    res_len = snprintf(lock_id, lock_id_size, LOCK_RECORD_ID_FORMAT,
+                       row->lock_trx_immutable_id, row->lock_space,
+                       row->lock_page, row->lock_rec, row->lock_immutable_id);
   } else {
     /* table lock */
-    res_len = snprintf(lock_id, lock_id_size, TRX_ID_FMT ":" UINT64PF,
-                       row->lock_trx_id, row->lock_table_id);
+    res_len = snprintf(lock_id, lock_id_size, LOCK_TABLE_ID_FORMAT,
+                       row->lock_trx_immutable_id, row->lock_table_id,
+                       row->lock_immutable_id);
   }
 
   /* the typecast is safe because snprintf(3) never returns
@@ -1167,4 +1166,18 @@ char *trx_i_s_create_lock_id(
   ut_a((ulint)res_len < lock_id_size);
 
   return (lock_id);
+}
+
+int trx_i_s_parse_lock_id(const char *lock_id, i_s_locks_row_t *row) {
+  if (sscanf(lock_id, LOCK_RECORD_ID_FORMAT, &row->lock_trx_immutable_id,
+             &row->lock_space, &row->lock_page, &row->lock_rec,
+             &row->lock_immutable_id) == 5) {
+    return LOCK_REC;
+  }
+  if (sscanf(lock_id, LOCK_TABLE_ID_FORMAT, &row->lock_trx_immutable_id,
+             &row->lock_table_id, &row->lock_immutable_id) == 3) {
+    return LOCK_TABLE;
+  }
+  ut_ad(LOCK_TABLE != 0 && LOCK_REC != 0);
+  return 0;
 }

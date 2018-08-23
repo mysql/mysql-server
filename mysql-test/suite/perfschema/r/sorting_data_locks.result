@@ -1,0 +1,51 @@
+# Bug #28176910
+# PERFORMANCE_SCHEMA.DATA_LOCKS.OBJECT_INSTANCE_BEGIN
+# CHANGES DEPENDING ON ORDER
+CREATE TABLE t1(
+id INT PRIMARY KEY
+) Engine=InnoDB;
+BEGIN;
+INSERT INTO t1 VALUES (1);
+SELECT * FROM t1 FOR UPDATE;
+id
+1
+SELECT COUNT(DISTINCT engine_lock_id) FROM performance_schema.data_locks;
+COUNT(DISTINCT engine_lock_id)
+4
+SELECT
+lock_type,
+lock_mode,
+lock_status,
+lock_data
+FROM performance_schema.data_locks
+ORDER BY 1,2,3,4;
+lock_type	lock_mode	lock_status	lock_data
+RECORD	X	GRANTED	1
+RECORD	X	GRANTED	supremum pseudo-record
+RECORD	X,REC_NOT_GAP	GRANTED	1
+TABLE	IX	GRANTED	NULL
+BEGIN;
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL C1_will_wait';
+SELECT * FROM t1 FOR UPDATE;;
+SET DEBUG_SYNC = 'now WAIT_FOR C1_will_wait';
+SELECT
+r.object_name,r.lock_type,r.lock_mode,r.lock_status,r.lock_data ,
+b.object_name,b.lock_type,b.lock_mode,b.lock_status,b.lock_data
+FROM performance_schema.data_lock_waits
+JOIN performance_schema.data_locks r
+ON(r.engine_lock_id = requesting_engine_lock_id)
+JOIN performance_schema.data_locks b
+ON(b.engine_lock_id = blocking_engine_lock_id)
+ORDER BY b.lock_mode;
+object_name	lock_type	lock_mode	lock_status	lock_data	object_name	lock_type	lock_mode	lock_status	lock_data
+t1	RECORD	X	WAITING	1	t1	RECORD	X	GRANTED	1
+SELECT r.object_name,r.lock_type,r.lock_mode,r.lock_status,r.lock_data
+FROM information_schema.innodb_trx
+JOIN performance_schema.data_locks r
+ON(r.engine_lock_id = trx_requested_lock_id);
+object_name	lock_type	lock_mode	lock_status	lock_data
+t1	RECORD	X	WAITING	1
+ROLLBACK;
+id
+ROLLBACK;
+DROP TABLE t1;
