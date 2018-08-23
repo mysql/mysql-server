@@ -1407,6 +1407,7 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
 
         if (drop) {
           acl_users->erase(idx);
+          rebuild_cached_acl_users_for_name();
           /*
              - If we are iterating through an array then we just have moved all
              elements after the current element one position closer to its head.
@@ -1419,6 +1420,7 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
           acl_user->user = strdup_root(&global_acl_memory, user_to->user.str);
           acl_user->host.update_hostname(
               strdup_root(&global_acl_memory, user_to->host.str));
+          rebuild_cached_acl_users_for_name();
         } else {
           /* If search is requested, we do not need to search further. */
           break;
@@ -2010,6 +2012,7 @@ bool mysql_drop_user(THD *thd, List<LEX_USER> &list, bool if_exists) {
 
   /* Rebuild 'acl_check_hosts' since 'acl_users' has been modified */
   rebuild_check_host();
+  rebuild_cached_acl_users_for_name();
 
   if (result && !thd->is_error()) {
     String operation_str;
@@ -2156,6 +2159,7 @@ bool mysql_rename_user(THD *thd, List<LEX_USER> &list) {
 
   /* Rebuild 'acl_check_hosts' since 'acl_users' has been modified */
   rebuild_check_host();
+  rebuild_cached_acl_users_for_name();
 
   if (result && !thd->is_error())
     my_error(ER_CANNOT_USER, MYF(0), "RENAME USER", wrong_users.c_ptr_safe());
