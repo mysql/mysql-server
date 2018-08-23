@@ -95,6 +95,9 @@ IF(UNIX)
       SET(SUNPRO_FLAGS     "${SUNPRO_FLAGS} -xbuiltin=%all")
       SET(SUNPRO_FLAGS     "${SUNPRO_FLAGS} -xlibmil")
       SET(SUNPRO_FLAGS     "${SUNPRO_FLAGS} -xatomic=studio")
+
+      # Show tags for warnings, so that they can be added to suppression list
+      SET(SUNPRO_FLAGS     "${SUNPRO_FLAGS} -errtags")
       IF(NOT DISABLE_SHARED)
         SET(SUNPRO_FLAGS   "${SUNPRO_FLAGS} -KPIC")
       ENDIF()
@@ -103,7 +106,138 @@ IF(UNIX)
       ENDIF()
 
       SET(COMMON_C_FLAGS            "${SUNPRO_FLAGS}")
+
+      # Build list of C warning tags to suppress. Comment in/out as needed.
+
+      # warning: useless declaration (E_USELESS_DECLARATION)
+      # Count: 8
+      # LIST(APPEND SUNPRO_C_WARNING_SUPPRESSION_LIST E_USELESS_DECLARATION)
+
+      # warning: empty translation unit (E_EMPTY_TRANSLATION_UNIT)
+      LIST(APPEND SUNPRO_C_WARNING_SUPPRESSION_LIST E_EMPTY_TRANSLATION_UNIT)
+
+      # warning: initialization type mismatch (E_INITIALIZATION_TYPE_MISMATCH)
+      # Count: 114
+      # LIST(APPEND SUNPRO_C_WARNING_SUPPRESSION_LIST
+      # E_INITIALIZATION_TYPE_MISMATCH)
+
+      # warning: statement not reached (E_STATEMENT_NOT_REACHED)
+      # Count: 3
+      # LIST(APPEND SUNPRO_C_WARNING_SUPPRESSION_LIST E_STATEMENT_NOT_REACHED)
+
+      # warning: initializer will be sign-extended: -1 (E_INIT_SIGN_EXTEND)
+      # Count: 1
+      # LIST(APPEND SUNPRO_C_WARNING_SUPPRESSION_LIST E_INIT_SIGN_EXTEND)
+
+      # warning: implicit function declaration: ntohl
+      # (E_NO_IMPLICIT_DECL_ALLOWED)
+      # Count: 2
+      # LIST(APPEND SUNPRO_C_WARNING_SUPPRESSION_LIST E_NO_IMPLICIT_DECL_ALLOWED)
+
+      # Convert CMAKE list to comma-separated string, and append to
+      # COMMON_C_FLAGS
+      STRING(REPLACE ";" "," SUNPRO_C_WARNING_SUPPRESSION_STRING
+	${SUNPRO_C_WARNING_SUPPRESSION_LIST})
+      SET(SUNPRO_C_WARNING_SUPPRESSION_FLAGS
+	"-erroff=${SUNPRO_C_WARNING_SUPPRESSION_STRING}")
+      STRING_APPEND(COMMON_C_FLAGS " ${SUNPRO_C_WARNING_SUPPRESSION_FLAGS}")
+
+
       SET(COMMON_CXX_FLAGS          "-std=c++11 ${SUNPRO_FLAGS}")
+
+      # Build list of C++ warning tags to suppress. Comment in/out as needed.
+
+      # Warning, anonnotype: Types cannot be declared in anonymous union.
+      # Count: 43
+      LIST(APPEND SUNPRO_CXX_WARNING_SUPPRESSION_LIST anonnotype)
+
+      # Warning, fieldsemicolonw: extra ";" ignored.
+      # Count: 5
+      #LIST(APPEND SUNPRO_CXX_WARNING_SUPPRESSION_LIST fieldsemicolonw)
+
+      # Warning, wvarhidemem: key_type hides keyring::Key::key_type.
+      # Count: 2917
+      LIST(APPEND SUNPRO_CXX_WARNING_SUPPRESSION_LIST wvarhidemem)
+
+      # Warning, anonstruct: Anonymous struct is being declared.
+      # Count: 717
+      LIST(APPEND SUNPRO_CXX_WARNING_SUPPRESSION_LIST anonstruct)
+
+      # Warning, wlessrestrictedthrow: Function
+      # xcl::Connection_impl::~Connection_impl() can throw only the
+      # exceptions thrown by the function xcl::XConnection::~XConnection()
+      # it overrides.
+      # Count: 1221
+      LIST(APPEND SUNPRO_CXX_WARNING_SUPPRESSION_LIST wlessrestrictedthrow)
+
+      # Warning, oklambdaretmulti: Deducing non-void lambda return type
+      # 'bool' from lambda without a single return statement.
+      # Count: 84
+      LIST(APPEND SUNPRO_CXX_WARNING_SUPPRESSION_LIST oklambdaretmulti)
+
+      # Warning, nonewline: Last line in file ".../registry_metadata.cc.inc"
+      # is not terminated with a newline.
+      # Count: 58
+      #LIST(APPEND SUNPRO_CXX_WARNING_SUPPRESSION_LIST nonewline)
+
+      # Warning, voidretw: "worker_thread(void*)" is expected to return a
+      # value.
+      # Count: 1
+      #LIST(APPEND SUNPRO_CXX_WARNING_SUPPRESSION_LIST voidretw)
+
+      # Warning, unassigned: The variable ret has not yet been assigned a
+      # value.
+      # Count: 193
+      LIST(APPEND SUNPRO_CXX_WARNING_SUPPRESSION_LIST unassigned)
+
+      # Warning, badinitstr: String literal converted to char* in
+      # initialization.
+      # Count: 6
+      #LIST(APPEND SUNPRO_CXX_WARNING_SUPPRESSION_LIST badinitstr)
+
+      # Warning, hidevf: meb::Process_data_mgr::get_buffer hides the virtual
+      # function meb::Data_mgr::get_buffer(unsigned long long).
+      # Count: 7
+      #LIST(APPEND SUNPRO_CXX_WARNING_SUPPRESSION_LIST hidevf)
+
+      # Warning, attrskipunsup: attribute unused is unsupported and will be
+      # skipped..
+      # Count: 5
+      #LIST(APPEND SUNPRO_CXX_WARNING_SUPPRESSION_LIST attrskipunsup)
+
+      # Warning, nonvarrefww: A reference return value should be an lvalue
+      # (if the value of this function is used, the result is unpredictable).
+      # Count: 4
+      #LIST(APPEND SUNPRO_CXX_WARNING_SUPPRESSION_LIST nonvarrefww)
+
+      # Warning, explctspectypename: "typename" must be used within a template.
+      # Count: 1
+      #LIST(APPEND SUNPRO_CXX_WARNING_SUPPRESSION_LIST explctspectypename)
+
+      # Warning: Likely out-of-bound read: *(rhs+9[1]) in function decLnOp
+      #   (SEC_ARR_OUTSIDE_BOUND_READ)
+      # Count: 10
+      #LIST(APPEND SUNPRO_CXX_WARNING_SUPPRESSION_LIST SEC_ARR_OUTSIDE_BOUND_READ)
+
+      # Warning (Anachronism), incomtypew: debug_sync_C_callback_ptr, of type
+      # void(*)(const char*,unsigned long), was previously declared
+      # extern "C" void(*)(const char*,unsigned long).
+      # Count: 1
+      #LIST(APPEND SUNPRO_CXX_WARNING_SUPPRESSION_LIST, incomtypew)
+
+      # Warning, symdeprecated: 'MD5_Init(MD5state_st*)' is deprecated
+      # (declared at /usr/include/openssl/md5.h, line 124).
+      # Count: 3
+      #LIST(APPEND SUNPRO_CXX_WARNING_SUPPRESSION_LIST symdeprecated)
+
+      # Convert CMAKE list to comma-separated string, and append to
+      # COMMON_CXX_FLAGS
+      STRING(REPLACE ";" "," SUNPRO_CXX_WARNING_SUPPRESSION_STRING
+	"${SUNPRO_CXX_WARNING_SUPPRESSION_LIST}")
+      SET(SUNPRO_CXX_WARNING_SUPPRESSION_FLAGS
+	"-erroff=${SUNPRO_CXX_WARNING_SUPPRESSION_STRING}")
+      STRING_APPEND(COMMON_CXX_FLAGS " ${SUNPRO_CXX_WARNING_SUPPRESSION_FLAGS}")
+
 
       # Reduce size of debug binaries, by omitting function declarations.
       # Note that we cannot set "-xdebuginfo=no%decl" during feature tests.

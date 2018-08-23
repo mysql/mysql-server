@@ -681,6 +681,17 @@ ADD_DEPENDENCIES(sql_gis GenBootstrapPriv)
 ADD_DEPENDENCIES(sql_gis GenSysSchema)
 ADD_DEPENDENCIES(sql_gis GenError)
 
+# A class with a reference member lacks a user-defined constructor,
+# which can lead to errors.
+# Constexpr function return type is not a literal type.
+IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
+  SET_TARGET_PROPERTIES(sql_gis PROPERTIES
+    COMPILE_FLAGS "-erroff=refmemnoconstr,w_constexprnonlitret")
+  ADD_COMPILE_FLAGS(
+    item_geofunc_setops.cc
+    COMPILE_FLAGS "-erroff=refmemnoconstr")
+ENDIF()
+
 ADD_CONVENIENCE_LIBRARY(sql_dd ${DD_SOURCES})
 ADD_DEPENDENCIES(sql_dd GenServerSource)
 ADD_DEPENDENCIES(sql_dd GenDigestServerSource)
