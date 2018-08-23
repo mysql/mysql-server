@@ -27,6 +27,7 @@
 
 #include <stdint.h>
 #include <string.h>
+#include <iostream>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -99,6 +100,14 @@ inline Query_formatter &Query_formatter::operator%
 template <>
 inline Query_formatter &Query_formatter::operator%<float>(const float &value) {
   return put_fp(value);
+}
+
+template <>
+inline Query_formatter &Query_formatter::put<bool>(const bool &value) {
+  validate_next_tag();
+  const std::string string_value = value ? "true" : "false";
+  put_value(string_value.c_str(), string_value.length());
+  return *this;
 }
 
 }  // namespace xpl
