@@ -1707,17 +1707,21 @@ static bool find_mpvio_user(THD *thd, MPVIO_EXT *mpvio) {
   DBUG_PRINT("info", ("entry: %s", mpvio->auth_info.user_name));
   DBUG_ASSERT(mpvio->acl_user == 0);
 
-  if (likely(acl_users)) {
-    Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
-    if (!acl_cache_lock.lock(false)) DBUG_RETURN(true);
+  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
+  if (!acl_cache_lock.lock(false)) DBUG_RETURN(true);
 
-    for (ACL_USER *acl_user_tmp = acl_users->begin();
-         acl_user_tmp != acl_users->end(); ++acl_user_tmp) {
+  Acl_user_ptr_list *list = nullptr;
+  if (likely(acl_users)) {
+    list = cached_acl_users_for_name(mpvio->auth_info.user_name);
+  }
+  if (list) {
+    for (auto it = list->begin(); it != list->end(); ++it) {
+      ACL_USER *acl_user_tmp = (*it);
+
       if ((!acl_user_tmp->user ||
            !strcmp(mpvio->auth_info.user_name, acl_user_tmp->user)) &&
           acl_user_tmp->host.compare_hostname(mpvio->host, mpvio->ip)) {
         mpvio->acl_user = acl_user_tmp->copy(mpvio->mem_root);
-
         /*
           When setting mpvio->acl_user_plugin we can save memory allocation if
           this is a built in plugin.
@@ -1731,8 +1735,8 @@ static bool find_mpvio_user(THD *thd, MPVIO_EXT *mpvio) {
         break;
       }
     }
-    acl_cache_lock.unlock();
   }
+  acl_cache_lock.unlock();
 
   if (!mpvio->acl_user) {
     /*
