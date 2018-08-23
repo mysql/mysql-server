@@ -59,6 +59,7 @@
 #include "mysql_version.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"
+#include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_internal.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"
@@ -163,6 +164,7 @@ st_persist_var::st_persist_var() {
     timestamp = tv.tv_sec * 1000000ULL + tv.tv_usec;
   } else
     timestamp = my_micro_time();
+  is_null = false;
 }
 
 st_persist_var::st_persist_var(THD *thd) {
@@ -170,6 +172,7 @@ st_persist_var::st_persist_var(THD *thd) {
   timestamp = tv.tv_sec * 1000000ULL + tv.tv_usec;
   user = thd->security_context()->user().str;
   host = thd->security_context()->host().str;
+  is_null = false;
 }
 
 st_persist_var::st_persist_var(const st_persist_var &var) {
@@ -178,16 +181,19 @@ st_persist_var::st_persist_var(const st_persist_var &var) {
   this->timestamp = var.timestamp;
   this->user = var.user;
   this->host = var.host;
+  this->is_null = var.is_null;
 }
 
 st_persist_var::st_persist_var(const std::string key, const std::string value,
                                const ulonglong timestamp,
-                               const std::string user, const std::string host) {
+                               const std::string user, const std::string host,
+                               const bool is_null) {
   this->key = key;
   this->value = value;
   this->timestamp = timestamp;
   this->user = user;
   this->host = host;
+  this->is_null = is_null;
 }
 
 /**
@@ -286,6 +292,7 @@ void Persisted_variables_cache::set_variable(THD *thd, set_var *setvar) {
   char val_buf[1024] = {0};
   String str(val_buf, sizeof(val_buf), system_charset_info), *res;
   String utf8_str;
+  bool is_null = false;
 
   struct st_persist_var tmp_var(thd);
   sys_var *system_var = setvar->var;
@@ -315,7 +322,8 @@ void Persisted_variables_cache::set_variable(THD *thd, set_var *setvar) {
       var_value = utf8_str.c_ptr_quick();
     }
   } else {
-    Persisted_variables_cache::get_variable_value(thd, system_var, &utf8_str);
+    Persisted_variables_cache::get_variable_value(thd, system_var, &utf8_str,
+                                                  &is_null);
     var_value = utf8_str.c_ptr_quick();
   }
 
@@ -324,6 +332,7 @@ void Persisted_variables_cache::set_variable(THD *thd, set_var *setvar) {
       (setvar->base.str ? string(setvar->base.str).append(".").append(var_name)
                         : string(var_name));
   tmp_var.value = var_value;
+  tmp_var.is_null = is_null;
 
   /* modification to in-memory must be thread safe */
   lock();
@@ -354,13 +363,15 @@ void Persisted_variables_cache::set_variable(THD *thd, set_var *setvar) {
    @param [in] system_var    Pointer to sys_var which is being SET
    @param [in] str           Pointer to String instance into which value
                              is copied
+   @param [out] is_null      Is value NULL or not.
 
    @return
      Pointer to String instance holding the value
 */
 String *Persisted_variables_cache::get_variable_value(THD *thd,
                                                       sys_var *system_var,
-                                                      String *str) {
+                                                      String *str,
+                                                      bool *is_null) {
   const char *value;
   char val_buf[1024];
   size_t val_length;
@@ -376,7 +387,7 @@ String *Persisted_variables_cache::get_variable_value(THD *thd,
 
   mysql_mutex_lock(&LOCK_global_system_variables);
   value = get_one_variable(thd, show, OPT_GLOBAL, show->type, NULL, &fromcs,
-                           val_buf, &val_length);
+                           val_buf, &val_length, is_null);
   mysql_mutex_unlock(&LOCK_global_system_variables);
 
   /* convert the retrieved value to utf8mb4 */
@@ -414,6 +425,7 @@ const char *Persisted_variables_cache::get_variable_name(sys_var *system_var) {
    @param [in]  timestamp          Timestamp value when this variable was set
    @param [in]  user               User who set this variable
    @param [in]  host               Host on which this variable was set
+   @param [in]  is_null            Is variable value NULL or not.
    @param [out] dest               String object where json formatted string
                                    is stored
 
@@ -423,8 +435,9 @@ const char *Persisted_variables_cache::get_variable_name(sys_var *system_var) {
 */
 String *Persisted_variables_cache::construct_json_string(
     std::string name, std::string value, ulonglong timestamp, std::string user,
-    std::string host, String *dest) {
+    std::string host, bool is_null, String *dest) {
   String str;
+  Json_wrapper vv;
   std::unique_ptr<Json_string> var_name(new (std::nothrow) Json_string(name));
   Json_wrapper vn(var_name.release());
   vn.to_string(&str, true, String().ptr());
@@ -433,8 +446,13 @@ String *Persisted_variables_cache::construct_json_string(
 
   /* reset str */
   str = String();
-  std::unique_ptr<Json_string> var_val(new (std::nothrow) Json_string(value));
-  Json_wrapper vv(var_val.release());
+  if (is_null) {
+    std::unique_ptr<Json_null> var_null_val(new (std::nothrow) Json_null());
+    vv = Json_wrapper(std::move(var_null_val));
+  } else {
+    std::unique_ptr<Json_string> var_val(new (std::nothrow) Json_string(value));
+    vv = Json_wrapper(std::move(var_val));
+  }
   vv.to_string(&str, true, String().ptr());
   dest->append(str);
   dest->append(comma.c_str());
@@ -491,7 +509,7 @@ bool Persisted_variables_cache::flush_to_file() {
     String json_formatted_string;
     Persisted_variables_cache::construct_json_string(
         iter->key, iter->value, iter->timestamp, iter->user, iter->host,
-        &json_formatted_string);
+        iter->is_null, &json_formatted_string);
     dest.append(json_formatted_string.c_ptr_quick());
   }
 
@@ -504,7 +522,8 @@ bool Persisted_variables_cache::flush_to_file() {
     String json_formatted_string;
     Persisted_variables_cache::construct_json_string(
         iter->second.key, iter->second.value, iter->second.timestamp,
-        iter->second.user, iter->second.host, &json_formatted_string);
+        iter->second.user, iter->second.host, iter->second.is_null,
+        &json_formatted_string);
     dest.append(json_formatted_string.c_ptr_quick());
   }
 
@@ -597,10 +616,10 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options) {
   LEX lex_tmp, *sav_lex = NULL;
   List<set_var_base> tmp_var_list;
   vector<st_persist_var> *persist_variables = NULL;
-  ulong access = 0;
   bool result = 0, new_thd = 0;
   const std::vector<std::string> priv_list = {
       "ENCRYPTION_KEY_ADMIN", "ROLE_ADMIN", "SYSTEM_VARIABLES_ADMIN"};
+  const ulong static_priv_list = (SUPER_ACL | FILE_ACL);
   Sctx_ptr<Security_context> ctx;
   /*
     if persisted_globals_load is set to false or --no-defaults is set
@@ -629,13 +648,11 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options) {
     thd->set_new_thread_id();
     thd->store_globals();
     lex_start(thd);
-    /* save access privileges */
-    access = thd->security_context()->master_access();
-    thd->security_context()->set_master_access(~(ulong)0);
     /* create security context for bootstrap auth id */
     Security_context_factory default_factory(
         thd, "bootstrap", "localhost", Default_local_authid(thd),
         Grant_temporary_dynamic_privileges(thd, priv_list),
+        Grant_temporary_static_privileges(thd, static_priv_list),
         Drop_temporary_dynamic_privileges(priv_list));
     ctx = default_factory.create();
     /* attach this auth id to current security_context */
@@ -696,12 +713,19 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options) {
             Item_int(iter->value.c_str(), (uint)iter->value.length());
         break;
       case SHOW_CHAR:
-      case SHOW_CHAR_PTR:
       case SHOW_LEX_STRING:
       case SHOW_BOOL:
       case SHOW_MY_BOOL:
         res = new (thd->mem_root) Item_string(
             iter->value.c_str(), iter->value.length(), &my_charset_utf8mb4_bin);
+        break;
+      case SHOW_CHAR_PTR:
+        if (iter->is_null)
+          res = new (thd->mem_root) Item_null();
+        else
+          res = new (thd->mem_root)
+              Item_string(iter->value.c_str(), iter->value.length(),
+                          &my_charset_utf8mb4_bin);
         break;
       case SHOW_DOUBLE:
         res = new (thd->mem_root)
@@ -757,8 +781,6 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options) {
 
 err:
   if (new_thd) {
-    /* restore access privileges */
-    thd->security_context()->set_master_access(access);
     lex_end(thd->lex);
     thd->release_resources();
     ctx.reset(nullptr);
@@ -811,6 +833,7 @@ bool Persisted_variables_cache::extract_variables_from_json(Json_dom *dom,
   while (!var_iter.empty()) {
     string var_name, var_value, var_user, var_host;
     ulonglong timestamp = 0;
+    bool is_null = false;
     Json_dom *dom_obj;
 
     var_name = var_iter.elt().first;
@@ -851,10 +874,15 @@ bool Persisted_variables_cache::extract_variables_from_json(Json_dom *dom,
       if (dom_obj->depth() != 1 && ((Json_object *)dom_obj)->cardinality() != 1)
         goto err;
 
-      /* if value is not in string form throw error. */
-      if (dom_obj->json_type() != enum_json_type::J_STRING) goto err;
-      Json_string *value = down_cast<Json_string *>(dom_obj);
-      var_value = value->value();
+      /* if value is not in string form or null throw error. */
+      if (dom_obj->json_type() == enum_json_type::J_STRING) {
+        Json_string *value = down_cast<Json_string *>(dom_obj);
+        var_value = value->value();
+      } else if (dom_obj->json_type() == enum_json_type::J_NULL) {
+        var_value = "";
+        is_null = true;
+      } else
+        goto err;
     }
     var_properties_iter.next();
     /* extract metadata */
@@ -890,7 +918,7 @@ bool Persisted_variables_cache::extract_variables_from_json(Json_dom *dom,
         metadata_iter.next();
       }
       st_persist_var persist_var(var_name, var_value, timestamp, var_user,
-                                 var_host);
+                                 var_host, is_null);
       lock();
       assert_lock_owner();
       if (is_read_only)

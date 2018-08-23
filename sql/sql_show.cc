@@ -2435,6 +2435,7 @@ void remove_status_vars(SHOW_VAR *list) {
   @param [out] charset  Character set of the value.
   @param [in,out] buff  Buffer to store the value.
   @param [out] length   Length of the value.
+  @param [out] is_null  Is variable value NULL or not.
 
   @returns              Pointer to the value buffer.
 */
@@ -2443,9 +2444,9 @@ const char *get_one_variable(THD *thd, const SHOW_VAR *variable,
                              enum_var_type value_type, SHOW_TYPE show_type,
                              System_status_var *status_var,
                              const CHARSET_INFO **charset, char *buff,
-                             size_t *length) {
+                             size_t *length, bool *is_null) {
   return get_one_variable_ext(thd, thd, variable, value_type, show_type,
-                              status_var, charset, buff, length);
+                              status_var, charset, buff, length, is_null);
 }
 
 /**
@@ -2460,6 +2461,8 @@ const char *get_one_variable(THD *thd, const SHOW_VAR *variable,
   @param [out] charset   Character set of the value.
   @param [in,out] buff   Buffer to store the value.
   @param [out] length    Length of the value.
+  @param [out] is_null   Is variable value NULL or not. This parameter is set
+                         only for variables of string type.
 
   @returns               Pointer to the value buffer.
 */
@@ -2469,7 +2472,7 @@ const char *get_one_variable_ext(THD *running_thd, THD *target_thd,
                                  enum_var_type value_type, SHOW_TYPE show_type,
                                  System_status_var *status_var,
                                  const CHARSET_INFO **charset, char *buff,
-                                 size_t *length) {
+                                 size_t *length, bool *is_null) {
   const char *value;
   const CHARSET_INFO *value_charset;
 
@@ -2571,8 +2574,12 @@ const char *get_one_variable_ext(THD *running_thd, THD *target_thd,
     }
 
     case SHOW_CHAR_PTR: {
-      if (!(pos = *(char **)value)) pos = "";
-
+      if (!(pos = *(char **)value)) {
+        pos = "";
+        if (is_null) *is_null = true;
+      } else {
+        if (is_null) *is_null = false;
+      }
       end = strend(pos);
       break;
     }
