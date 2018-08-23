@@ -1834,7 +1834,6 @@ static int proposer_task(task_arg arg) {
   MAY_DBG(FN; NDBG(ep->self, d); NDBG(task_now(), f));
 
   while (!xcom_shutdown) { /* Loop until no more work to do */
-    int MY_ATTRIBUTE((unused)) lock = 0;
     /* Wait for client message */
     assert(!ep->client_msg);
     CHANNEL_GET(&prop_input_queue, &ep->client_msg, msg_link);
@@ -1946,8 +1945,10 @@ static int proposer_task(task_arg arg) {
       assert(ep->p);
       if (ep->client_msg->p->force_delivery)
         ep->p->force_delivery = ep->client_msg->p->force_delivery;
-      lock = lock_pax_machine(ep->p);
-      assert(!lock);
+      {
+        int MY_ATTRIBUTE((unused)) lock = lock_pax_machine(ep->p);
+        assert(!lock);
+      }
 
       /* Set the client message as current proposal */
       assert(ep->client_msg->p);
@@ -4471,6 +4472,7 @@ int acceptor_learner_task(task_arg arg) {
   int errors;
   server *srv;
   site_def const *site;
+  int behind;
   END_ENV;
 
   TASK_BEGIN
@@ -4486,6 +4488,7 @@ int acceptor_learner_task(task_arg arg) {
   ep->buf = NULL;
   ep->errors = 0;
   ep->srv = 0;
+  ep->behind = FALSE;
 
   /* We have a connection, make socket non-blocking and wait for request */
   unblock_fd(ep->rfd.fd);
@@ -4537,7 +4540,7 @@ int acceptor_learner_task(task_arg arg) {
 
 again:
   while (!xcom_shutdown) {
-    int64_t n = 0;
+    int64_t n;
     ep->site = 0;
     unchecked_replace_pax_msg(&ep->p, pax_msg_new_0(null_synode));
 
@@ -4574,21 +4577,20 @@ again:
     MAY_DBG(FN; NDBG(ep->rfd.fd, d); NDBG(task_now(), f);
             COPY_AND_FREE_GOUT(dbg_pax_msg(ep->p)););
     receive_count[ep->p->op]++;
-    receive_bytes[ep->p->op] += (uint64_t)n + MSG_HDR_SIZE;
+    receive_bytes[ep->p->op] += n + MSG_HDR_SIZE;
     {
-      int behind = FALSE;
       if (get_maxnodes(ep->site) > 0) {
-        behind = ep->p->synode.msgno < delivered_msg.msgno;
+        ep->behind = ep->p->synode.msgno < delivered_msg.msgno;
       }
-      ADD_EVENTS(add_event(string_arg("before dispatch "));
-                 add_synode_event(ep->p->synode);
-                 add_event(string_arg("ep->p->from"));
-                 add_event(int_arg(ep->p->from));
-                 add_event(string_arg(pax_op_to_str(ep->p->op)));
-                 add_event(string_arg(pax_msg_type_to_str(ep->p->msg_type)));
-                 add_event(string_arg("is_cached(ep->p->synode)"));
-                 add_event(int_arg(is_cached(ep->p->synode)));
-                 add_event(string_arg("behind")); add_event(int_arg(behind)););
+      ADD_EVENTS(
+          add_event(string_arg("before dispatch "));
+          add_synode_event(ep->p->synode); add_event(string_arg("ep->p->from"));
+          add_event(int_arg(ep->p->from));
+          add_event(string_arg(pax_op_to_str(ep->p->op)));
+          add_event(string_arg(pax_msg_type_to_str(ep->p->msg_type)));
+          add_event(string_arg("is_cached(ep->p->synode)"));
+          add_event(int_arg(is_cached(ep->p->synode)));
+          add_event(string_arg("behind")); add_event(int_arg(ep->behind)););
       /* Special treatment to see if synode number is valid. Return no-op if
        * not. */
       if (ep->p->op == read_op || ep->p->op == prepare_op ||
@@ -4601,13 +4603,14 @@ again:
                      add_event(string_arg("site->nodes.node_list_len"));
                      add_event(int_arg(site->nodes.node_list_len)););
           if (ep->p->synode.node >= ep->site->nodes.node_list_len) {
-            CREATE_REPLY(ep->p);
-            ref_msg(reply);
-            create_noop(reply);
-            set_learn_type(reply);
-            SERIALIZE_REPLY(reply);
-            delete_pax_msg(reply); /* Deallocate BEFORE potentially blocking
-                                      call which will lose value of reply */
+            {
+              CREATE_REPLY(ep->p);
+              create_noop(reply);
+              set_learn_type(reply);
+              SERIALIZE_REPLY(reply);
+              delete_pax_msg(reply); /* Deallocate BEFORE potentially blocking
+                                        call which will lose value of reply */
+            }
             WRITE_REPLY;
             goto again;
           }
@@ -4616,7 +4619,7 @@ again:
       if (ep->p->msg_type == normal ||
           ep->p->synode.msgno == 0 || /* Used by i-am-alive and so on */
           is_cached(ep->p->synode) || /* Already in cache */
-          (!behind)) { /* Guard against cache pollution from other nodes */
+          (!ep->behind)) { /* Guard against cache pollution from other nodes */
 
         if (should_poll_cache(ep->p->op)) {
           pax_machine *pm;
@@ -4628,22 +4631,25 @@ again:
 
         /* Send replies on same fd */
         while (!link_empty(&ep->reply_queue)) {
-          msg_link *reply = (msg_link *)(link_extract_first(&ep->reply_queue));
-          MAY_DBG(FN; COPY_AND_FREE_GOUT(dbg_linkage(&ep->reply_queue));
-                  COPY_AND_FREE_GOUT(dbg_msg_link(reply));
-                  COPY_AND_FREE_GOUT(dbg_pax_msg(reply->p)););
-          assert(reply->p);
-          assert(reply->p->refcnt > 0);
-          SERIALIZE_REPLY(reply->p);
-          msg_link_delete(&reply); /* Deallocate BEFORE potentially blocking
-                                      call which will lose value of reply */
+          {
+            msg_link *reply =
+                (msg_link *)(link_extract_first(&ep->reply_queue));
+            MAY_DBG(FN; COPY_AND_FREE_GOUT(dbg_linkage(&ep->reply_queue));
+                    COPY_AND_FREE_GOUT(dbg_msg_link(reply));
+                    COPY_AND_FREE_GOUT(dbg_pax_msg(reply->p)););
+            assert(reply->p);
+            assert(reply->p->refcnt > 0);
+            SERIALIZE_REPLY(reply->p);
+            msg_link_delete(&reply); /* Deallocate BEFORE potentially blocking
+                                        call which will lose value of reply */
+          }
           WRITE_REPLY;
         }
       } else {
         DBGOUT(FN; STRLIT("rejecting "); STRLIT(pax_op_to_str(ep->p->op));
                NDBG(ep->p->from, d); NDBG(ep->p->to, d); SYCEXP(ep->p->synode);
                BALCEXP(ep->p->proposal));
-        if (xcom_booted() && behind) {
+        if (xcom_booted() && ep->behind) {
 #ifdef USE_EXIT_TYPE
           if (ep->p->op == prepare_op) {
             miss_prepare(ep->p, &ep->reply_queue);
@@ -4657,16 +4663,18 @@ again:
                    NDBG(ep->p->from, d); NDBG(ep->p->to, d);
                    SYCEXP(ep->p->synode); BALCEXP(ep->p->proposal));
             if (get_maxnodes(ep->site) > 0) {
-              pax_msg *np = NULL;
-              np = pax_msg_new(ep->p->synode, ep->site);
-              ref_msg(np);
-              np->op = die_op;
-              SERIALIZE_REPLY(np);
-              DBGOUT(FN; STRLIT("sending die_op to node "); NDBG(np->to, d);
-                     SYCEXP(executed_msg); SYCEXP(max_synode);
-                     SYCEXP(np->synode));
-              unref_msg(&np); /* Deallocate BEFORE potentially blocking call
-                                 which will lose value of np */
+              {
+                pax_msg *np = NULL;
+                np = pax_msg_new(ep->p->synode, ep->site);
+                np->op = die_op;
+                SERIALIZE_REPLY(np);
+                DBGOUT(FN; STRLIT("sending die_op to node "); NDBG(np->to, d);
+                       SYCEXP(executed_msg); SYCEXP(max_synode);
+                       SYCEXP(np->synode));
+                delete_pax_msg(
+                    np); /* Deallocate BEFORE potentially blocking call
+                        which will lose value of np */
+              }
               WRITE_REPLY;
             }
           }

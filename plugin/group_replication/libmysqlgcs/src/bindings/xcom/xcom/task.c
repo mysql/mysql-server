@@ -1277,49 +1277,50 @@ int connect_tcp(char *server, xcom_port port, int *ret) {
         TASK_FAIL;
       }
     }
-  /* Wait until connect has finished */
-  retry:
-    timed_wait_io(stack, ep->fd, 'w', 10.0);
-    TASK_YIELD;
-    /* See if we timed out here. If we did, connect may or may not be active.
-           If closing fails with EINPROGRESS, we need to retry the select.
-           If close does not fail, we know that connect has indeed failed, and
-       we
-           exit from here and return -1 as socket fd */
-    if (stack->interrupt) {
-      result shut = {0, 0};
-      stack->interrupt = 0;
+  }
+/* Wait until connect has finished */
+retry:
+  timed_wait_io(stack, ep->fd, 'w', 10.0);
+  TASK_YIELD;
+  /* See if we timed out here. If we did, connect may or may not be active.
+         If closing fails with EINPROGRESS, we need to retry the select.
+         If close does not fail, we know that connect has indeed failed, and
+     we
+         exit from here and return -1 as socket fd */
+  if (stack->interrupt) {
+    result shut = {0, 0};
+    stack->interrupt = 0;
 
-      /* Try to close socket on timeout */
-      shut = shut_close_socket(&ep->fd);
-      DBGOUT(FN; NDBG(ep->fd, d); NDBG(ep->sock_size, d));
-      task_dump_err(shut.funerr);
-      if (from_errno(shut.funerr) == SOCK_EINPROGRESS)
-        goto retry; /* Connect is still active */
-      TASK_FAIL;    /* Connect has failed */
-    }
+    /* Try to close socket on timeout */
+    shut = shut_close_socket(&ep->fd);
+    DBGOUT(FN; NDBG(ep->fd, d); NDBG(ep->sock_size, d));
+    task_dump_err(shut.funerr);
+    if (from_errno(shut.funerr) == SOCK_EINPROGRESS)
+      goto retry; /* Connect is still active */
+    TASK_FAIL;    /* Connect has failed */
+  }
 
-    {
-      int peer = 0;
-      /* Sanity check before return */
-      SET_OS_ERR(0);
-      sock.val = peer = getpeername(ep->fd, &ep->sock_addr, &ep->sock_size);
-      sock.funerr = to_errno(GET_OS_ERR);
-      if (peer >= 0) {
-        TASK_RETURN(ep->fd);
-      } else {
-        /* Something is wrong */
-        socklen_t errlen = sizeof(sock.funerr);
+  {
+    result sock = {0, 0};
+    int peer = 0;
+    /* Sanity check before return */
+    SET_OS_ERR(0);
+    sock.val = peer = getpeername(ep->fd, &ep->sock_addr, &ep->sock_size);
+    sock.funerr = to_errno(GET_OS_ERR);
+    if (peer >= 0) {
+      TASK_RETURN(ep->fd);
+    } else {
+      /* Something is wrong */
+      socklen_t errlen = sizeof(sock.funerr);
 
-        getsockopt(ep->fd, SOL_SOCKET, SO_ERROR, (void *)&sock.funerr, &errlen);
-        if (sock.funerr == 0) {
-          sock.funerr = to_errno(SOCK_ECONNREFUSED);
-        }
-
-        shut_close_socket(&ep->fd);
-        if (sock.funerr == 0) sock.funerr = to_errno(SOCK_ECONNREFUSED);
-        TASK_FAIL;
+      getsockopt(ep->fd, SOL_SOCKET, SO_ERROR, (void *)&sock.funerr, &errlen);
+      if (sock.funerr == 0) {
+        sock.funerr = to_errno(SOCK_ECONNREFUSED);
       }
+
+      shut_close_socket(&ep->fd);
+      if (sock.funerr == 0) sock.funerr = to_errno(SOCK_ECONNREFUSED);
+      TASK_FAIL;
     }
   }
   FINALLY

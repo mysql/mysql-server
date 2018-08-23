@@ -166,8 +166,8 @@ int flush_srv_buf(server *s, int64_t *ret) {
   ep->buflen = s->out_buf.n;
   reset_srv_buf(&s->out_buf);
   if (s->con.fd >= 0) {
-    int64_t sent = 0;
     if (ep->buflen) {
+      int64_t sent;
       /* DBGOUT(FN; PTREXP(stack); NDBG(ep->buflen, u)); */
       /* LOCK_FD(s->con.fd, 'w'); */
       TASK_CALL(task_write(&s->con, s->out_buf.buf, ep->buflen, &sent));
@@ -175,8 +175,9 @@ int flush_srv_buf(server *s, int64_t *ret) {
       if (sent <= 0) {
         shutdown_connection(&s->con);
       }
+      TASK_RETURN(sent);
     }
-    TASK_RETURN(sent);
+    TASK_RETURN(0);
   } else {
     TASK_FAIL;
   }
@@ -203,10 +204,10 @@ static int _send_msg(server *s, pax_msg *p, node_no to, int64_t *ret) {
     TASK_RETURN(sizeof(*p));
   } else {
     if (s->con.fd >= 0) {
-      int64_t sent = 0;
       /* LOCK_FD(s->con.fd, 'w'); */
       serialize_msg(p, s->con.x_proto, &ep->buflen, &ep->buf);
       if (ep->buflen) {
+        int64_t sent;
         /* Not enough space? Flush the buffer */
         if (ep->buflen > srv_buf_free_space(&s->out_buf)) {
           TASK_CALL(flush_srv_buf(s, ret));
@@ -240,8 +241,9 @@ static int _send_msg(server *s, pax_msg *p, node_no to, int64_t *ret) {
         if (sent <= 0) {
           shutdown_connection(&s->con);
         }
+        TASK_RETURN(sent);
       }
-      TASK_RETURN(sent);
+      TASK_RETURN(0);
     } else
       TASK_FAIL;
   }
@@ -853,6 +855,7 @@ int tcp_server(task_arg arg) {
 #ifdef XCOM_HAVE_OPENSSL
 #define SSL_CONNECT(con, hostname)                                   \
   {                                                                  \
+    result ret;                                                      \
     con.ssl_fd = SSL_new(client_ctx);                                \
     SSL_set_fd(con.ssl_fd, con.fd);                                  \
     ERR_clear_error();                                               \
@@ -917,7 +920,6 @@ static int dial(server *s) {
     unblock_fd(s->con.fd);
 #ifdef XCOM_HAVE_OPENSSL
     if (xcom_use_ssl()) {
-      result ret = {0, 0};
       SSL_CONNECT(s->con, s->srv);
     }
 #endif
@@ -1164,10 +1166,9 @@ static int buffered_read_bytes(connection_descriptor const *rfd, srv_buf *buf,
   } else {
     /* Buffered read makes sense */
     while (ep->left > 0) {
-      int64_t nread = 0;
+      int64_t nread;
       /* Buffer is empty, reset and read */
       reset_srv_buf(buf);
-      MAY_DBG(FN; NDBG(rfd->fd, d); NDBG64(nread););
 
       TASK_CALL(task_read(rfd, srv_buf_insert_ptr(buf),
                           (int)srv_buf_free_space(buf), &nread));
@@ -1750,12 +1751,14 @@ int tcp_reaper_task(task_arg arg MY_ATTRIBUTE((unused))) {
   END_ENV;
   TASK_BEGIN
   while (!xcom_shutdown) {
-    int i;
-    double now = task_now();
-    for (i = 0; i < maxservers; i++) {
-      server *s = all_servers[i];
-      if (s && s->con.fd != -1 && (s->active + 10.0) < now) {
-        shutdown_connection(&s->con);
+    {
+      int i;
+      double now = task_now();
+      for (i = 0; i < maxservers; i++) {
+        server *s = all_servers[i];
+        if (s && s->con.fd != -1 && (s->active + 10.0) < now) {
+          shutdown_connection(&s->con);
+        }
       }
     }
     TASK_DELAY(1.0);
@@ -1800,7 +1803,6 @@ static int client_dial(char *srv, xcom_port port, connection_descriptor *con) {
     unblock_fd(con->fd);
 #ifdef XCOM_HAVE_OPENSSL
     if (xcom_use_ssl()) {
-      result ret = {0, 0};
       SSL_CONNECT((*con), srv);
     }
 #endif
@@ -1843,7 +1845,6 @@ int client_task(task_arg arg) {
 
 #ifdef XCOM_HAVE_OPENSSL
   if (xcom_use_ssl()) {
-    result ret = {0, 0};
     SSL_CONNECT(ep->c_descriptor, ep->s->srv);
   }
 #endif

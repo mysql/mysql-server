@@ -121,6 +121,10 @@ IF(WIN32 AND CMAKE_C_COMPILER_ID MATCHES "Clang")
   MY_ADD_CXX_WARNING_FLAG("Wno-disabled-macro-expansion")
 ENDIF()
 
+IF(CMAKE_COMPILER_IS_GNUCC)
+  MY_ADD_C_WARNING_FLAG("Wjump-misses-init")
+ENDIF()
+
 #
 # Extra flags not supported on all versions/compilers
 #
