@@ -313,6 +313,45 @@ if (IS_WINDOWS) {
   push(@mysqld_rules, { 'shared-memory-base-name' => \&fix_socket });
 }
 
+sub fix_memory_heap_size {
+  return 8 * 1024 * 1024 * 1024;
+}
+
+sub fix_network_interface {
+  return My::SysInfo->network_interface();
+}
+
+# Rules to run for each mysqld server in the config if
+# secondary engine rapid is enabled.
+#  - will be run in order listed here
+my @rapid_mysqld_rules = ({ 'binlog-format'             => "ROW" },
+                          { 'binlog-row-image'          => "FULL" },
+                          { 'binlog-checksum'           => "NONE" },
+                          { 'gtid-mode'                 => "OFF" },
+                          { 'log-bin'                   => "binlog" },
+                          { 'innodb_buffer_pool_size'   => 268435456 },
+                          { 'innodb_read_io_threads'    => 32 },
+                          { 'innodb_thread_concurrency' => 32 },
+                          { 'innodb_use_native_aio'     => "ON" },);
+
+# Rules to run for each rapid server in the config
+#  - will be run in order listed here
+my @rapid_rules = (
+  { 'load_multi_buffering'              => 2 },
+  { 'memory_heap_size'                  => \&fix_memory_heap_size },
+  { 'orma_heartbeat_check_interval'     => 60 },
+  { 'orma_rapid_nodes_join_timeout_sec' => 300 },
+  { 'query_network_dump'                => 0 },
+  { 'rapid_enabled'                     => 1 },
+  { 'rapid_settings'                    => 149 },
+  { 'trans_interface'                   => \&fix_network_interface },
+  { 'trans_ipc_enabled'                 => 1 },
+  { 'trans_iplist'                      => "127.0.0.1" },
+  { 'trans_spareiplist'                 => "" },
+
+  { 'trans_ports' => sub { return $::rapid_port }
+  },);
+
 sub fix_ndb_mgmd_port {
   my ($self, $config, $group_name, $group) = @_;
   my $hostname = $group->value('HostName');
@@ -375,6 +414,44 @@ my @mysqlbinlog_rules = (
 # Rules to run for [mysql_upgrade] section
 #  - will be run in order listed here
 my @mysql_upgrade_rules = ();
+
+# Generate a [rapid] group to be used for connecting
+# to a rapid server.
+sub post_check_rapid_group {
+  my ($self, $config) = @_;
+
+  foreach my $hash (@rapid_rules) {
+    while (my ($option, $rule) = each(%{$hash})) {
+      my $value;
+      if (ref $rule eq "CODE") {
+        # Call the rule function
+        $value = &$rule($self, $config);
+      } else {
+        $value = $rule;
+      }
+      $config->insert("rapid", $option, $value);
+    }
+  }
+}
+
+# Insert mysqld server options required when secondary engine
+# rapid is enabled.
+sub post_check_rapid_mysqld_group {
+  my ($self, $config) = @_;
+
+  foreach my $hash (@rapid_mysqld_rules) {
+    while (my ($option, $rule) = each(%{$hash})) {
+      my $value;
+      if (ref $rule eq "CODE") {
+        # Call the rule function
+        $value = &$rule($self, $config);
+      } else {
+        $value = $rule;
+      }
+      $config->insert("mysqld", $option, $value);
+    }
+  }
+}
 
 # Generate a [client.<suffix>] group to be used for
 # connecting to [mysqld.<suffix>].
@@ -632,6 +709,13 @@ sub new_config {
   # Additional rules required for [mysqltest]
   $self->run_rules_for_group($config, $config->insert('mysqltest'),
                              @mysqltest_rules);
+
+  if ($::secondary_engine_rapid) {
+    # Additional rules required for [rapid]
+    push(@post_rules, \&post_check_rapid_group);
+    # Additional rules required for [mysqld] when rapid is enabled
+    push(@post_rules, \&post_check_rapid_mysqld_group);
+  }
 
   # Run post rules
   foreach my $rule (@post_rules) {

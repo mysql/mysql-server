@@ -4840,6 +4840,14 @@
     </li>
 
     <li>
+      <tt>`--secondary-engine`=<b>engine_name</b></tt>
+
+      Enabling this option will cause @ref PAGE_MYSQL_TEST_RUN_PL
+      "mysql-test-run.pl" to carry out necessary setup needed to
+      support the secondary engine <b>engine_name</b>.
+    </li>
+
+    <li>
       <tt>`--shutdown-timeout`=<b>seconds</b></tt>
 
       Max number of seconds to wait for servers to do controlled
