@@ -1,4 +1,4 @@
-# Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@ Next CMVMI 9000
 Next BACKUP 10042
 Next PGMAN 11010
 Next DBTUX 12010
-Next SUMA 13049
+Next SUMA 13052
 Next LGMAN 15002
 Next TSMAN 16002
 Next DBSPJ 17000
@@ -797,6 +797,7 @@ SUMA:
 13040: Crash in SUB_CREATE_REQ if m_restart_server_node_id != RNIL
 13041: Crash in SUB_CREATE_REQ (no matter)
 13042: Crash in SUB_START_REQ (if m_restart_server_node_id != 0)
+13051: Delay the DROP_TRIG_IMPL_REQ
 
 LGMAN:
 -----
