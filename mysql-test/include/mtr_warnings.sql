@@ -284,6 +284,12 @@ INSERT INTO global_suppressions VALUES
  ("Plugin mysqlx reported: 'All I/O interfaces are disabled"),
  ("Plugin mysqlx reported: 'Failed at SSL configuration: \"SSL context is not usable without certificate and private key\"'"),
 
+ /*
+   Missing Private/Public key files
+ */
+ ("RSA private key file not found"),
+ ("RSA public key file not found"),
+
  ("THE_LAST_SUPPRESSION")||
 
 
