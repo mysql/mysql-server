@@ -5,7 +5,7 @@
 
 # Want to skip this test from daily Valgrind execution
 --source include/no_valgrind_without_big.inc
-
+--source include/have_openssl.inc
 --source include/have_ssl.inc
 --source include/have_fips.inc
 
