@@ -985,11 +985,12 @@ ib_err_t ib_cursor_close(ib_crsr_t ib_crsr) /*!< in,own: InnoDB cursor */
     --trx->n_mysql_tables_in_use;
   }
 
+  row_prebuilt_free(prebuilt, FALSE);
+  cursor->prebuilt = NULL;
+
   if (cursor->mdl != nullptr) {
     dd_mdl_release(trx->mysql_thd, &cursor->mdl);
   }
-  row_prebuilt_free(prebuilt, FALSE);
-  cursor->prebuilt = NULL;
 
   mem_heap_free(cursor->query_heap);
   mem_heap_free(cursor->heap);
