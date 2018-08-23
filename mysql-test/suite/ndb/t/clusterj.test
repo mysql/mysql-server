@@ -1,6 +1,9 @@
 #
 # Run the Cluster/J JUnit tests from MTR
 #
+
+# Don't run in asan builds
+--source include/not_asan.inc
 --source include/have_ndb.inc
 --source suite/ndb/include/have_connectorj.inc
 --source suite/ndb/include/have_clusterj.inc
