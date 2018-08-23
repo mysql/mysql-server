@@ -972,7 +972,7 @@ bool Rsa_authentication_keys::read_key_file(RSA **key_ptr, bool is_priv_key,
      Check for existance of private key/public key file.
   */
   if ((key_file = fopen(key_file_path.c_ptr(), "rb")) == NULL) {
-    LogErr(INFORMATION_LEVEL, ER_AUTH_RSA_CANT_FIND, key_type,
+    LogErr(WARNING_LEVEL, ER_AUTH_RSA_CANT_FIND, key_type,
            key_file_path.c_ptr());
   } else {
     *key_ptr = is_priv_key ? PEM_read_RSAPrivateKey(key_file, 0, 0, 0)
