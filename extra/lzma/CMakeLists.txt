@@ -1,4 +1,4 @@
-# Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -26,3 +26,8 @@ SET(LZMA_SOURCES Alloc.c LzFind.c LzmaDec.c LzmaEnc.c LzmaLib.c)
 
 ADD_LIBRARY(lzma_lib STATIC ${LZMA_SOURCES})
 SET_PROPERTY(TARGET lzma_lib PROPERTY COMPILE_DEFINITIONS _7ZIP_ST)
+
+MY_CHECK_CXX_COMPILER_FLAG("-Wunused-but-set-variable" HAVE_UNUSED_BUT_SET_VARIABLE)
+IF(HAVE_UNUSED_BUT_SET_VARIABLE)
+  TARGET_COMPILE_OPTIONS(lzma_lib PRIVATE "-Wno-unused-but-set-variable")
+ENDIF()
