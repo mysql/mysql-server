@@ -484,7 +484,8 @@ Dbtup::dealloc_tuple(Signal* signal,
     regFragPtr->m_lcp_changed_rows++;
   }
   Tup_fixsize_page *fix_page = (Tup_fixsize_page*)page;
-  fix_page->set_change_map(regOperPtr->m_tuple_location.m_page_idx);
+  fix_page->set_change_maps(regOperPtr->m_tuple_location.m_page_idx);
+  ndbassert(fix_page->verify_change_maps(jamBuffer()));
   fix_page->set_max_gci(gci_hi);
   setInvalidChecksum(ptr, regTabPtr);
   if (regOperPtr->op_struct.bit_field.m_tuple_existed_at_start)
@@ -1023,8 +1024,9 @@ Dbtup::commit_operation(Signal* signal,
   tuple_ptr->m_operation_ptr_i= save;
 
   Tup_fixsize_page *fix_page = (Tup_fixsize_page*)pagePtr.p;
-  fix_page->set_change_map(regOperPtr->m_tuple_location.m_page_idx);
+  fix_page->set_change_maps(regOperPtr->m_tuple_location.m_page_idx);
   fix_page->set_max_gci(gci_hi);
+  ndbassert(fix_page->verify_change_maps(jamBuffer()));
 
   if (regTabPtr->m_bits & Tablerec::TR_RowGCI &&
       update_gci_at_commit)

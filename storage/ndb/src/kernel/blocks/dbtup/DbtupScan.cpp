@@ -1113,7 +1113,7 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
                      m_curr_tabptr.p,
                      thbits,
                      tuple_header_ptr->m_header_bits);
-      fix_page->set_change_map(key.m_page_idx);
+      fix_page->set_change_maps(key.m_page_idx);
       jamDebug();
       jamLineDebug((Uint16)key.m_page_idx);
       DEB_LCP_DEL(("(%u)Reset LCP_DELETE on tab(%u,%u),"
@@ -1181,7 +1181,7 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
                      m_curr_tabptr.p,
                      thbits,
                      tuple_header_ptr->m_header_bits);
-      fix_page->set_change_map(key.m_page_idx);
+      fix_page->set_change_maps(key.m_page_idx);
       jamDebug();
       jamLineDebug((Uint16)key.m_page_idx);
       ndbassert(fix_page->verify_change_maps(jamBuffer()));
@@ -1288,7 +1288,7 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
                      m_curr_tabptr.p,
                      thbits,
                      tuple_header_ptr->m_header_bits);
-      fix_page->set_change_map(key.m_page_idx);
+      fix_page->set_change_maps(key.m_page_idx);
       jamDebug();
       jamLineDebug((Uint16)key.m_page_idx);
       ndbrequire(c_lqh->is_full_local_lcp_running());
@@ -1580,7 +1580,7 @@ Dbtup::move_to_next_change_page_row(ScanOp & scan,
       jamLineDebug(Uint16(key.m_page_idx));
       pos.m_next_large_area_check_idx =
         fix_page->get_next_large_idx(key.m_page_idx, size);
-      if (!fix_page->get_and_clear_large_change_map(key.m_page_idx))
+      if (!fix_page->get_large_change_map(key.m_page_idx))
       {
         jamDebug();
         DEB_LCP_FILTER(("(%u) tab(%u,%u) page(%u) large area filtered"
@@ -1595,11 +1595,10 @@ Dbtup::move_to_next_change_page_row(ScanOp & scan,
                       Fix_page::DATA_WORDS))
         {
           jamDebug();
-          ndbassert(fix_page->verify_change_maps(jamBuffer()));
+          ndbassert(!fix_page->get_any_changes());
           return ZSCAN_FOUND_PAGE_END;
         }
         jamDebug();
-        ndbassert(fix_page->verify_change_maps(jamBuffer()));
         /**
          * We have moved forward to a new large area. We assume that all
          * small areas we move past don't have their bits set.
@@ -1619,7 +1618,7 @@ Dbtup::move_to_next_change_page_row(ScanOp & scan,
       jamLineDebug(Uint16(key.m_page_idx));
       pos.m_next_small_area_check_idx =
         fix_page->get_next_small_idx(key.m_page_idx, size);
-      if (!fix_page->get_and_clear_small_change_map(key.m_page_idx))
+      if (!fix_page->get_and_clear_change_maps(key.m_page_idx))
       {
         jamDebug();
         DEB_LCP_FILTER(("(%u) tab(%u,%u) page(%u) small area filtered"
@@ -1634,6 +1633,7 @@ Dbtup::move_to_next_change_page_row(ScanOp & scan,
         {
           jamDebug();
           ndbassert(fix_page->verify_change_maps(jamBuffer()));
+          ndbassert(!fix_page->get_any_changes());
           return ZSCAN_FOUND_PAGE_END;
         }
         jamDebug();
@@ -1652,9 +1652,6 @@ Dbtup::move_to_next_change_page_row(ScanOp & scan,
   (*tuple_header_ptr) = (Tuple_header*)&fix_page->m_data[key.m_page_idx];
   jamDebug();
   jamLineDebug(Uint16(key.m_page_idx));
-  Uint32 map_val = (fix_page->m_change_map[3] >> 16);
-  jamLineDebug(Uint16(map_val));
-  (void)map_val;
   ndbassert(fix_page->verify_change_maps(jamBuffer()));
   return ZSCAN_FOUND_TUPLE;
 }
