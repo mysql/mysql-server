@@ -3505,6 +3505,57 @@ ALTER TABLE bad_parent DROP COLUMN pk, ADD COLUMN i INT;
 DROP TABLE bad_parent;
 DROP TABLE child;
 
+--echo #
+--echo # 6) Check that we prohibit foreign keys with SET NULL action with
+--echo #    non-nullable referencing columns.
+--echo #
+
+--echo #
+--echo # 6.1) Attempt to add foreign key with SET NULL action and
+--echo #      non-nullable column should lead to error.
+CREATE TABLE parent (pk INT PRIMARY KEY);
+--error ER_FK_COLUMN_NOT_NULL
+CREATE TABLE child (fk INT NOT NULL, CONSTRAINT c FOREIGN KEY (fk) REFERENCES parent(pk) ON DELETE SET NULL);
+--error ER_FK_COLUMN_NOT_NULL
+CREATE TABLE child (fk INT NOT NULL, CONSTRAINT c FOREIGN KEY (fk) REFERENCES parent(pk) ON UPDATE SET NULL);
+CREATE TABLE child (fk INT NOT NULL);
+--error ER_FK_COLUMN_NOT_NULL
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent(pk) ON DELETE SET NULL;
+--error ER_FK_COLUMN_NOT_NULL
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent(pk) ON UPDATE SET NULL;
+DROP TABLE child;
+
+--echo # Case of when column is implicitly made non-nullable due to PRIMARY
+--echo # KEY should be handled in the same way.
+--error ER_FK_COLUMN_NOT_NULL
+CREATE TABLE child (fk INT, PRIMARY KEY(fk), CONSTRAINT c FOREIGN KEY (fk) REFERENCES parent(pk) ON DELETE SET NULL);
+--error ER_FK_COLUMN_NOT_NULL
+CREATE TABLE child (fk INT, PRIMARY KEY(fk), CONSTRAINT c FOREIGN KEY (fk) REFERENCES parent(pk) ON UPDATE SET NULL);
+CREATE TABLE child (fk INT);
+--error ER_FK_COLUMN_NOT_NULL
+ALTER TABLE child ADD PRIMARY KEY (fk), ADD FOREIGN KEY (fk) REFERENCES parent(pk) ON DELETE SET NULL;
+--error ER_FK_COLUMN_NOT_NULL
+ALTER TABLE child ADD PRIMARY KEY (fk), ADD FOREIGN KEY (fk) REFERENCES parent(pk) ON UPDATE SET NULL;
+DROP TABLE child;
+
+--echo #
+--echo # 6.2) Attempt to make referencing column non-nullable in existing
+--echo #      foreign key with SET NULL action should lead to error as well.
+CREATE TABLE child_one (fk INT, CONSTRAINT c FOREIGN KEY (fk) REFERENCES parent(pk) ON DELETE SET NULL);
+CREATE TABLE child_two (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk) ON DELETE SET NULL);
+--error ER_FK_COLUMN_NOT_NULL
+ALTER TABLE child_one MODIFY COLUMN fk INT NOT NULL;
+--error ER_FK_COLUMN_NOT_NULL
+ALTER TABLE child_two CHANGE COLUMN fk fk1 INT NOT NULL;
+
+--echo # Case of when column is implicitly made non-nullable due addition
+--echo # of PRIMARY KEY should be handled in the same way.
+--error ER_FK_COLUMN_NOT_NULL
+ALTER TABLE child_one ADD PRIMARY KEY(fk);
+--error ER_FK_COLUMN_NOT_NULL
+ALTER TABLE child_two ADD PRIMARY KEY(fk);
+DROP TABLES child_one, child_two, parent;
+
 
 --echo #
 --echo # WL#8910: Ensure foreign key error does not reveal information about

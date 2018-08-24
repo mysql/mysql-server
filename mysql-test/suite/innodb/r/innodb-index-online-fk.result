@@ -410,7 +410,7 @@ ALTER TABLE child ADD PRIMARY KEY idx (a3), CHANGE a1 a3 INT,
 ADD CONSTRAINT fk_1 FOREIGN KEY (a3) REFERENCES parent(b)
 ON DELETE SET NULL ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
-ERROR HY000: Failed to add the foreign key constraint on table 'child'. Incorrect options in FOREIGN KEY constraint 'test/fk_1'
+ERROR HY000: Column 'a3' cannot be NOT NULL: needed in a foreign key constraint 'fk_1' SET NULL
 DROP TABLE parent;
 DROP TABLE child;
 CREATE TABLE parent (a INT PRIMARY KEY, b INT NOT NULL, c INT) ENGINE = InnoDB;

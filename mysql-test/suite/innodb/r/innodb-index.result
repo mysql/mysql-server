@@ -485,9 +485,9 @@ ERROR HY000: Cannot drop index 'b': needed in a foreign key constraint
 alter table t2 drop index b, drop index c, drop index d;
 ERROR HY000: Cannot drop index 'b': needed in a foreign key constraint
 alter table t2 MODIFY b INT NOT NULL, ALGORITHM=COPY;
-ERROR HY000: Cannot change column 'b': used in a foreign key constraint 't2_ibfk_1'
+ERROR HY000: Column 'b' cannot be NOT NULL: needed in a foreign key constraint 't2_ibfk_1' SET NULL
 alter table t2 MODIFY b INT NOT NULL, ALGORITHM=INPLACE;
-ERROR HY000: Column 'b' cannot be NOT NULL: needed in a foreign key constraint 'test/t2_ibfk_1' SET NULL
+ERROR HY000: Column 'b' cannot be NOT NULL: needed in a foreign key constraint 't2_ibfk_1' SET NULL
 SET FOREIGN_KEY_CHECKS=0;
 alter table t2 DROP COLUMN b, ALGORITHM=COPY;
 ERROR HY000: Cannot drop column 'b': needed in a foreign key constraint 't2_ibfk_1'
@@ -506,10 +506,10 @@ affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 alter table t2 add primary key (alpha), change a alpha int,
 change b beta int not null, change c charlie int not null;
-ERROR HY000: Column 'b' cannot be NOT NULL: needed in a foreign key constraint 'test/t2_ibfk_1' SET NULL
+ERROR HY000: Column 'beta' cannot be NOT NULL: needed in a foreign key constraint 't2_ibfk_1' SET NULL
 alter table t2 add primary key (alpha), change a alpha int,
 change c charlie int not null, change d delta int not null;
-ERROR HY000: Column 'd' cannot be NOT NULL: needed in a foreign key constraint 'test/t2_ibfk_3' SET NULL
+ERROR HY000: Column 'delta' cannot be NOT NULL: needed in a foreign key constraint 't2_ibfk_3' SET NULL
 alter table t2 add primary key (alpha), change a alpha int,
 change b beta int, modify c int not null;
 affected rows: 0

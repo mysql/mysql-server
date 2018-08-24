@@ -3094,7 +3094,7 @@ INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
 ALTER TABLE t2 ADD FOREIGN KEY (a) REFERENCES t1 (a) ON DELETE SET NULL;
 ALTER TABLE t2 MODIFY a INT NOT NULL;
-ERROR HY000: Column 'a' cannot be NOT NULL: needed in a foreign key constraint 'test/t2_ibfk_1' SET NULL
+ERROR HY000: Column 'a' cannot be NOT NULL: needed in a foreign key constraint 't2_ibfk_1' SET NULL
 DELETE FROM t1;
 DROP TABLE t2,t1;
 CREATE TABLE t1 (a VARCHAR(5) COLLATE utf8_unicode_ci PRIMARY KEY)

@@ -165,7 +165,7 @@ alter table t4 drop index d;
 alter table t2 drop index b;
 --error ER_DROP_INDEX_FK
 alter table t2 drop index b, drop index c, drop index d;
---error ER_FK_COLUMN_CANNOT_CHANGE
+--error ER_FK_COLUMN_NOT_NULL
 alter table t2 MODIFY b INT NOT NULL, ALGORITHM=COPY;
 # NULL -> NOT NULL only allowed INPLACE if strict sql_mode is on.
 --error ER_FK_COLUMN_NOT_NULL
