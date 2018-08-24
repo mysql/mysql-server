@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -59,7 +59,7 @@ class Update_statement_builder_test : public ::testing::Test {
   std::unique_ptr<Update_statement_builder_stub> stub;
 
   Update_operation::Update_type operation_id =
-      static_cast<Update_operation::Update_type>(-1);
+      Update_operation::Base::ITEM_REMOVE;
 
   enum { DM_DOCUMENT = 0, DM_TABLE = 1 };
 
