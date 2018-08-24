@@ -1,5 +1,9 @@
 --source include/big_test.inc
 
+--disable_query_log
+CALL mtr.add_suppression("--character-set-server: 'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.");
+--enable_query_log
+
 let BASEDIR=    `select @@basedir`;
 let DDIR=       $MYSQL_TMP_DIR/dd_bootstrap_test;
 let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
@@ -45,3 +49,8 @@ drop table `Ö`;
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
+
+#Cleanup
+--force-rmdir $DDIR
+--remove_file $MYSQLD_LOG
+--remove_file $BOOTSTRAP_SQL

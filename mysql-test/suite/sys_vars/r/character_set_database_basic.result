@@ -19,6 +19,7 @@ SELECT character_set_database;
 ERROR 42S22: Unknown column 'character_set_database' in 'field list'
 SET character_set_database=utf8;
 Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.character_set_database;
 @@session.character_set_database
@@ -27,11 +28,13 @@ SET global.character_set_database=utf8;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.character_set_database=utf8' at line 1
 SET session character_set_database=utf8;
 Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 SELECT session character_set_database;
 ERROR 42S22: Unknown column 'session' in 'field list'
 SET global character_set_database=utf8;
 Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 SELECT global character_set_database;
 ERROR 42S22: Unknown column 'global' in 'field list'
@@ -57,6 +60,7 @@ utf8mb4
 '#--------------------FN_DYNVARS_012_03-------------------------#'
 SET @@session.character_set_database = utf8;
 Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.character_set_database;
 @@session.character_set_database
@@ -228,6 +232,7 @@ SELECT @@session.character_set_database;
 armscii8
 SET @@session.character_set_database = utf8;
 Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.character_set_database;
 @@session.character_set_database
@@ -457,6 +462,7 @@ SELECT @@global.character_set_database;
 armscii8
 SET @@global.character_set_database = utf8;
 Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.character_set_database;
 @@global.character_set_database
@@ -554,18 +560,21 @@ eucjpms
 '#--------------------FN_DYNVARS_012_08-------------------------#'
 SET @@character_set_database = UTF8;
 Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 SELECT @@character_set_database;
 @@character_set_database
 utf8
 SET @@character_set_database = utf8;
 Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 SELECT @@character_set_database;
 @@character_set_database
 utf8
 SET @@global.character_set_database = uTf8;
 Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.character_set_database;
 @@global.character_set_database

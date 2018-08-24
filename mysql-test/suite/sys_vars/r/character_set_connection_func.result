@@ -4,6 +4,8 @@ SET @session_character_set_connection = @@session.character_set_connection;
 SET @session_character_set_client = @@session.character_set_client;
 SET @session_character_set_results = @@session.character_set_results;
 SET @@global.character_set_connection = utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 'connect (con1,localhost,root,,,,)'
 'connection con1'
 SELECT @@global.character_set_connection;
@@ -20,7 +22,11 @@ Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 '--verify that character_set_connection converts character_set_client--'
 SET @@session.character_set_client = utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET @@session.character_set_results = utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET @@session.character_set_connection = latin1;
 SELECT 'ЁЂЃЄ' AS utf_text;
 utf_text
@@ -28,6 +34,8 @@ utf_text
 Warnings:
 Warning	1300	Invalid utf8 character string: '\xD0\x81\xD0\x82\xD0\x83...'
 SET @@session.character_set_connection = utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT 'ЁЂЃЄ' AS utf_text;
 utf_text
 ЁЂЃЄ

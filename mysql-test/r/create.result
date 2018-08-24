@@ -698,6 +698,7 @@ primary key (a)
 ) select 'test' as a ;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -715,6 +716,7 @@ b int not null, primary key (a)
 ) select a, 1 as b from t2 ;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -729,6 +731,7 @@ b int not null, primary key (a)
 ) select a, 1 as c from t2 ;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1364	Field 'b' doesn't have a default value
 show create table t1;
 Table	Create Table
@@ -745,6 +748,7 @@ b int null, primary key (a)
 ) select a, 1 as c from t2 ;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -760,6 +764,7 @@ b int not null, primary key (a)
 ) select 'a' as a , 1 as b from t2 ;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -774,6 +779,7 @@ b int not null, primary key (a)
 ) select 'a' as a , 1 as b from t2 ;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -794,6 +800,7 @@ primary key (a1)
 ) select a1,a2,a3,a4,a5,a6,a7,a8,a9 from t1 ;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 drop table t2;
 create table t2 ( 
 a1 varchar(12) charset utf8 collate utf8_bin,
@@ -801,6 +808,7 @@ a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int
 ) select a1,a2,a3,a4,a5,a6,a7,a8,a9 from t1;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 drop table t1, t2;
 create table t1 ( 
 a1 int, a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int
@@ -813,6 +821,7 @@ primary key (a1)
 ) select a1,a2,a3,a4,a5,a6,a7,a8,a9 from t1 ;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 drop table t2;
 create table t2 ( a int default 3, b int default 3)
 select a1,a2 from t1;
@@ -1201,6 +1210,7 @@ c6 VARCHAR(255))
 COLLATE latin1_bin;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 
 SHOW CREATE TABLE t1;
 Table	Create Table

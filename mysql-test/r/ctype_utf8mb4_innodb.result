@@ -2254,6 +2254,8 @@ CREATE TABLE t2 (
 u_decimal int NOT NULL,
 utf8mb3_encoding VARCHAR(10) NOT NULL
 ) CHARACTER SET utf8mb3 ENGINE InnoDB;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t2 VALUES (42856, x'ea9da8');
 INSERT INTO t2 VALUES (65131, x'efb9ab');
 INSERT IGNORE INTO t2 VALUES (1114111, x'f48fbfbf');
@@ -2361,6 +2363,8 @@ u_decimal	hex(utf8mb3_encoding)
 42856	EA9DA8
 65131	EFB9AB
 ALTER TABLE t2 CONVERT TO CHARACTER SET utf8mb3;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -2459,6 +2463,8 @@ CONCAT(utf8mb4, _utf8 x'ea9da8')
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t2 (utf8mb3 VARCHAR(10) CHARACTER SET utf8mb3 NOT NULL) ENGINE InnoDB;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t2 VALUES (x'ea9da8');
 SELECT HEX(CONCAT(utf8mb4, utf8mb3)) FROM t1,t2 ORDER BY 1;
 HEX(CONCAT(utf8mb4, utf8mb3))

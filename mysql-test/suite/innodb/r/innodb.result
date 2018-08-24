@@ -3099,6 +3099,8 @@ DELETE FROM t1;
 DROP TABLE t2,t1;
 CREATE TABLE t1 (a VARCHAR(5) COLLATE utf8_unicode_ci PRIMARY KEY)
 ENGINE=InnoDB;
+Warnings:
+Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 INSERT INTO t1 VALUES (0xEFBCA4EFBCA4EFBCA4);
 DELETE FROM t1;
 INSERT INTO t1 VALUES ('DDD');

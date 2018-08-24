@@ -92,6 +92,8 @@ include/gtid_step_assert.inc [count=1, only_count=0]
 include/gtid_step_reset.inc
 FLUSH LOGS;
 ALTER DATABASE db_0 DEFAULT COLLATE utf8_general_ci;
+Warnings:
+Warning	3778	'utf8_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 #	#	Rotate	#	#	master-bin.000002;pos=POS

@@ -20,6 +20,8 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 SET CHARACTER_SET_CLIENT=17;
 ERROR 42000: Unknown character set: '17'
 SET CHARACTER_SET_CLIENT=33;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 DROP DATABASE IF EXISTS db21958734;
 CREATE DATABASE db21958734 CHARACTER SET filename;
 ERROR 42000: Unknown character set: 'filename'

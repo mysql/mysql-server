@@ -223,6 +223,8 @@ DROP EVENT event_test;
 #
 SET @orig_character_set_client = @@character_set_client;
 SET character_set_client = utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE EVENT t÷est ON SCHEDULE AT NOW() ON COMPLETION NOT PRESERVE DO SELECT 1;
 ERROR HY000: Invalid utf8 character string: 't\xF7est'
 CREATE EVENT event ON SCHEDULE EVERY 1 SECOND COMMENT 'testÿ' DO SELECT 1;

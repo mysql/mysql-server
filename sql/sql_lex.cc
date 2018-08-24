@@ -38,6 +38,7 @@
 #include "mysqld_error.h"
 #include "prealloced_array.h"  // Prealloced_array
 #include "sql/current_thd.h"
+#include "sql/derror.h"
 #include "sql/item_func.h"
 #include "sql/mysqld.h"  // table_alias_charset
 #include "sql/nested_join.h"
@@ -1163,6 +1164,11 @@ static bool consume_comment(Lex_input_stream *lip,
 
     if (remaining_recursions_permitted > 0) {
       if ((c == '/') && (lip->yyPeek() == '*')) {
+        push_warning(
+            lip->m_thd, Sql_condition::SL_WARNING,
+            ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
+            ER_THD(lip->m_thd, ER_WARN_DEPRECATED_NESTED_COMMENT_SYNTAX));
+
         lip->yySkip(); /* Eat asterisk */
         consume_comment(lip, remaining_recursions_permitted - 1);
         continue;
@@ -1426,12 +1432,10 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd) {
 
         if (yylval->lex_str.str[0] == '_') {
           auto charset_name = yylval->lex_str.str + 1;
-          if (native_strcasecmp(charset_name, "utf8") == 0)
-            push_warning(thd, ER_DEPRECATED_UTF8_ALIAS);
-
-          const CHARSET_INFO *cs = get_charset_by_csname(
-              yylval->lex_str.str + 1, MY_CS_PRIMARY, MYF(0));
+          const CHARSET_INFO *cs =
+              get_charset_by_csname(charset_name, MY_CS_PRIMARY, MYF(0));
           if (cs) {
+            lip->warn_on_deprecated_charset(cs, charset_name);
             if (cs == &my_charset_utf8mb4_0900_ai_ci) {
               /*
                 If cs is utf8mb4, and the collation of cs is the default
@@ -1774,6 +1778,12 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd) {
             break;
           }
         } else {
+          if (lip->in_comment != NO_COMMENT) {
+            push_warning(
+                lip->m_thd, Sql_condition::SL_WARNING,
+                ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
+                ER_THD(lip->m_thd, ER_WARN_DEPRECATED_NESTED_COMMENT_SYNTAX));
+          }
           lip->in_comment = PRESERVE_COMMENT;
           lip->yySkip();  // Accept /
           lip->yySkip();  // Accept *

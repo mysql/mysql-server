@@ -8666,6 +8666,13 @@ ER_FK_CANNOT_CHANGE_ENGINE
 ER_WARN_DEPRECATED_USER_SET_EXPR
   eng "Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead."
 
+ER_WARN_DEPRECATED_UTF8MB3_COLLATION
+  eng "'%-.64s' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead."
+
+# When using this error message, use the ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT error code.
+ER_WARN_DEPRECATED_NESTED_COMMENT_SYNTAX
+  eng "Nested comment syntax is deprecated and will be removed in a future release."
+
 #
 #  End of 8.0 error messages.
 #
@@ -18500,6 +18507,15 @@ ER_SHARED_TABLESPACE_USED_BY_PARTITIONED_TABLE
 
 ER_UNKNOWN_TABLESPACE_TYPE
   eng "Cannot determine the type of the tablespace named '%s'."
+
+ER_WARN_DEPRECATED_UTF8_ALIAS_OPTION
+  eng "%s: 'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous."
+
+ER_WARN_DEPRECATED_UTF8MB3_CHARSET_OPTION
+  eng "%s: The character set UTF8MB3 is deprecated and will be removed in a future release. Please consider using UTF8MB4 instead."
+
+ER_WARN_DEPRECATED_UTF8MB3_COLLATION_OPTION
+  eng "%s: '%-.64s' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead."
 
 #
 # End of 8.0 error messages intended to be logged to the server error log.

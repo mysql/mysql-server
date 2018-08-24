@@ -11500,6 +11500,8 @@ KEY id2 (id2),
 KEY id3 (id3),
 KEY id5 (id5)
 ) ENGINE=InnoDB;
+Warnings:
+Warning	3778	'utf8_spanish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 INSERT INTO t1 VALUES
 (123,1,1,'1',NULL),
 (124,1,1,'2',NULL),

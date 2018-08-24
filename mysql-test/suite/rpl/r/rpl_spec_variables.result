@@ -65,12 +65,18 @@ SET @restore_slave_character_set_database=@@global.character_set_database;
 SET @restore_slave_collation_server=@@global.collation_server;
 SET @@global.character_set_database=utf8;
 Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 SET @@session.character_set_database=utf8;
 Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 SET @@global.collation_server=utf8_bin;
+Warnings:
+Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SET @@session.collation_server=utf8_bin;
+Warnings:
+Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 [On Master]
 CREATE SCHEMA s1;
 SHOW CREATE SCHEMA s1;

@@ -3,9 +3,13 @@
 #
 CREATE TABLE t1 (a VARCHAR(300), b VARCHAR(16383) CHARACTER SET UTF8MB3,
 PRIMARY KEY(a(255), b(255))) ENGINE=INNODB ROW_FORMAT=DYNAMIC;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 DROP TABLE t1;
 CREATE TABLE t1 (a VARCHAR(300), b VARCHAR(16383) CHARACTER SET UTF8MB3,
 PRIMARY KEY(a(255))) ENGINE=INNODB ROW_FORMAT=DYNAMIC;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 DROP TABLE t1;
 CREATE TABLE t1 (a VARCHAR(300), b VARCHAR(16280) CHARACTER SET UTF8MB4,
 PRIMARY KEY(a(255), b(255))) ENGINE=INNODB ROW_FORMAT=DYNAMIC charset latin1;
@@ -16,14 +20,20 @@ ALTER TABLE t1 ADD  PRIMARY KEY(a(100));
 DROP TABLE t1;
 CREATE TABLE t1 (a VARCHAR(16383) CHARACTER SET UTF8MB3,
 PRIMARY KEY(a(255))) ENGINE=INNODB ROW_FORMAT=DYNAMIC;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 DROP TABLE t1;
 CREATE TABLE t1 (a VARCHAR(12383) CHARACTER SET UTF8MB3,
 PRIMARY KEY(a(255)), KEY k1(a(1024))) ENGINE=INNODB ROW_FORMAT=DYNAMIC;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES(REPEAT('A', 500));
 UPDATE t1 SET a = REPEAT('B', 999);
 DROP TABLE t1;
 CREATE TABLE t1 (a VARCHAR(16383) CHARACTER SET UTF8MB3,
 PRIMARY KEY(a(255))) ENGINE=INNODB ROW_FORMAT=DYNAMIC;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 DROP TABLE t1;
 CREATE TABLE t1 (a VARCHAR(16383), b VARCHAR(3000), c TEXT,
 PRIMARY KEY(a(255), c(10)), KEY k1(a(500)), KEY k2(b(72), c(3000)))

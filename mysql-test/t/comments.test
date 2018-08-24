@@ -66,3 +66,10 @@ prepare bar from "DELETE FROM table_28779 WHERE a = 7 OR 1=1/*!98765' AND b = 'b
 
 drop table table_28779;
 
+--echo #
+--echo # WL#12099: Deprecate nested comments in 8.0
+--echo #
+
+SELECT 1 /*!99999 /* */ */;
+SELECT 2 /*!12345 /* */ */;
+SELECT 3 /*! /* */ */;

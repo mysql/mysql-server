@@ -9,6 +9,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 SET SQL_LOG_BIN=0;
 CREATE TABLE t1 (c1 VARCHAR(1) CHARACTER SET 'utf8mb3');
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SET SQL_LOG_BIN=1;
 [connection slave]
 CREATE TABLE t1 (c1 VARCHAR(1) CHARACTER SET 'utf8mb4');
@@ -31,6 +33,8 @@ include/rpl_reset.inc
 [connection master]
 SET SQL_LOG_BIN=0;
 CREATE TABLE t1 (c1 CHAR(1) CHARACTER SET 'utf8mb3');
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SET SQL_LOG_BIN=1;
 [connection slave]
 CREATE TABLE t1 (c1 CHAR(1) CHARACTER SET 'utf8mb4');

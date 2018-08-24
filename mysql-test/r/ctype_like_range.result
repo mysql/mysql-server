@@ -419,6 +419,7 @@ id	name	val
 ALTER TABLE t1 MODIFY a VARCHAR(32) CHARACTER SET utf8 COLLATE utf8_unicode_ci;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT * FROM v1;
 id	name	val
 1	a	
@@ -552,6 +553,7 @@ id	name	val
 ALTER TABLE t1 MODIFY a VARCHAR(32) CHARACTER SET utf8 COLLATE utf8_czech_ci;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_czech_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT * FROM v1;
 id	name	val
 1	a	
@@ -685,6 +687,7 @@ id	name	val
 ALTER TABLE t1 MODIFY a VARCHAR(32) CHARACTER SET utf8 COLLATE utf8_danish_ci;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_danish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT * FROM v1;
 id	name	val
 1	a	

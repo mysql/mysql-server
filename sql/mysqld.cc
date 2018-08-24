@@ -4121,8 +4121,12 @@ int init_common_variables() {
         default_collation_name = 0;  // Ignore collation
       } else
         return 1;  // Eof of the list
-    } else
+    } else {
+      warn_on_deprecated_charset(nullptr, default_charset_info,
+                                 default_character_set_name,
+                                 "--character-set-server");
       break;
+    }
   }
 
   if (default_collation_name) {
@@ -4138,6 +4142,8 @@ int init_common_variables() {
              default_collation_name, default_charset_info->csname);
       return 1;
     }
+    warn_on_deprecated_collation(nullptr, default_collation,
+                                 "--collation-server");
     default_charset_info = default_collation;
   }
   /* Set collactions that depends on the default collation */
@@ -4161,6 +4167,10 @@ int init_common_variables() {
   if (!(character_set_filesystem = get_charset_by_csname(
             character_set_filesystem_name, MY_CS_PRIMARY, MYF(MY_WME))))
     return 1;
+  else
+    warn_on_deprecated_charset(nullptr, character_set_filesystem,
+                               character_set_filesystem_name,
+                               "--character-set-filesystem");
   global_system_variables.character_set_filesystem = character_set_filesystem;
 
   if (lex_init()) {

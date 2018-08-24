@@ -171,6 +171,8 @@ Database	Create Database
 s	CREATE DATABASE `s` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
 USE s;
 ALTER SCHEMA s DEFAULT COLLATE= utf8_general_ci;
+Warnings:
+Warning	3778	'utf8_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SHOW CREATE SCHEMA s;
 Database	Create Database
 s	CREATE DATABASE `s` /*!40100 DEFAULT CHARACTER SET utf8 */

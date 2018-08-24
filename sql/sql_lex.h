@@ -3370,6 +3370,38 @@ class Lex_input_stream {
 
   void reduce_digest_token(uint token_left, uint token_right);
 
+  /**
+    True if this scanner tokenizes a partial query (partition expression,
+    generated column expression etc.)
+
+    @return true if parsing a partial query, otherwise false.
+  */
+  bool is_partial_parser() const { return grammar_selector_token >= 0; }
+
+  /**
+    Outputs warnings on deprecated charsets in complete SQL statements
+
+    @param [in] cs    The character set/collation to check for a deprecation.
+    @param [in] alias The name/alias of @p cs.
+  */
+  void warn_on_deprecated_charset(const CHARSET_INFO *cs,
+                                  const char *alias) const {
+    if (!is_partial_parser()) {
+      ::warn_on_deprecated_charset(m_thd, cs, alias);
+    }
+  }
+
+  /**
+    Outputs warnings on deprecated collations in complete SQL statements
+
+    @param [in] collation     The collation to check for a deprecation.
+  */
+  void warn_on_deprecated_collation(const CHARSET_INFO *collation) const {
+    if (!is_partial_parser()) {
+      ::warn_on_deprecated_collation(m_thd, collation);
+    }
+  }
+
   const CHARSET_INFO *query_charset;
 
  private:
@@ -3492,8 +3524,15 @@ class Lex_input_stream {
     2. GRAMMAR_SELECTOR_GCOL for generated column stuff from DD,
     3. GRAMMAR_SELECTOR_EXPR for generic single expressions from DD/.frm.
     4. GRAMMAR_SELECTOR_CTE for generic subquery expressions from CTEs.
+    5. -1 when parsing with the main grammar (no grammar selector available).
+
+    @note yylex() is expected to return the value of type int:
+          0 is for EOF and everything else for real token numbers.
+          Bison, in its turn, generates positive token numbers.
+          So, the negative grammar_selector_token means "not a token".
+          In other words, -1 is "empty value".
   */
-  const uint grammar_selector_token;
+  const int grammar_selector_token;
 
   bool text_string_is_7bit() const { return !(tok_bitmap & 0x80); }
 };
@@ -4120,7 +4159,7 @@ class Parser_state {
 
     @param grammar_selector_token   See Lex_input_stream::grammar_selector_token
   */
-  explicit Parser_state(uint grammar_selector_token)
+  explicit Parser_state(int grammar_selector_token)
       : m_input(), m_lip(grammar_selector_token), m_yacc(), m_comment(false) {}
 
  public:

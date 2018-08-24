@@ -118,6 +118,8 @@ CREATE TABLE t1 (a INT)
 of multi-line
 comment */
 PARTITIONS 5 */;
+Warnings:
+Warning	1681	Nested comment syntax is deprecated and will be removed in a future release.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
