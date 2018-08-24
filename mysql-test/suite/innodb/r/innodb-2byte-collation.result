@@ -93,6 +93,7 @@ drop table 2byte_collation;
 CREATE TABLE 2byte_collation (s1 char(10) character set utf8 collate utf8_maxuserid_ci) engine = innodb;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_maxuserid_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 INSERT INTO 2byte_collation VALUES ('a'),('b');
 SELECT * FROM 2byte_collation WHERE s1='a' ORDER BY BINARY s1;
 s1
@@ -116,6 +117,7 @@ INDEX(b))
 ENGINE=InnoDB STATS_PERSISTENT=0;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_maxuserid_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 INSERT INTO 2byte_collation VALUES(0,'x',1, 1);
 CREATE UNIQUE INDEX idx3 ON 2byte_collation(c, b);
 INSERT INTO 2byte_collation SELECT 0,b,c+1,z+1 FROM 2byte_collation;

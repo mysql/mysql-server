@@ -1426,12 +1426,10 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd) {
 
         if (yylval->lex_str.str[0] == '_') {
           auto charset_name = yylval->lex_str.str + 1;
-          if (native_strcasecmp(charset_name, "utf8") == 0)
-            push_warning(thd, ER_DEPRECATED_UTF8_ALIAS);
-
           const CHARSET_INFO *cs = get_charset_by_csname(
-              yylval->lex_str.str + 1, MY_CS_PRIMARY, MYF(0));
+              charset_name, MY_CS_PRIMARY, MYF(0));
           if (cs) {
+            lip->warn_on_deprecated_charset(cs, charset_name);
             if (cs == &my_charset_utf8mb4_0900_ai_ci) {
               /*
                 If cs is utf8mb4, and the collation of cs is the default

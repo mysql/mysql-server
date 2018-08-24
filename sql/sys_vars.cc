@@ -1390,7 +1390,7 @@ static bool check_storage_engine(sys_var *self, THD *thd, set_var *var) {
   return false;
 }
 
-static bool check_charset(sys_var *, THD *, set_var *var) {
+static bool check_charset(sys_var *, THD *thd, set_var *var) {
   if (!var->value) return false;
 
   char buff[STRING_BUFFER_USUAL_SIZE];
@@ -1406,6 +1406,9 @@ static bool check_charset(sys_var *, THD *, set_var *var) {
         my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), err.ptr());
         return true;
       }
+      warn_on_deprecated_charset(
+          thd, static_cast<const CHARSET_INFO *>(var->save_result.ptr),
+          res->c_ptr_safe());
     }
   } else  // INT_RESULT
   {
@@ -1414,6 +1417,9 @@ static bool check_charset(sys_var *, THD *, set_var *var) {
       my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), llstr(csno, buff));
       return true;
     }
+    warn_on_deprecated_charset(
+        thd, static_cast<const CHARSET_INFO *>(var->save_result.ptr),
+        static_cast<const CHARSET_INFO *>(var->save_result.ptr)->name);
   }
   return false;
 }
@@ -1545,6 +1551,11 @@ static bool check_collation_not_null(sys_var *self, THD *thd, set_var *var) {
       return true;
     }
   }
+  if (var->save_result.ptr) {
+    warn_on_deprecated_collation(
+        thd, static_cast<const CHARSET_INFO *>(var->save_result.ptr));
+  }
+
   return check_not_null(self, thd, var);
 }
 static Sys_var_struct<CHARSET_INFO, Get_name> Sys_collation_connection(

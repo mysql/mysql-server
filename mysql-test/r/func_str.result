@@ -4873,6 +4873,8 @@ DROP TABLE t;
 # Bug#24376444 USING COLLATE IN WHERE CLAUSE PREVENTS OPTIMIZER FROM
 #              CONSIDERING INDEXES
 CREATE TABLE dd_table (name VARCHAR(64) COLLATE utf8_tolower_ci, UNIQUE KEY(name));
+Warnings:
+Warning	3778	'utf8_tolower_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 INSERT INTO dd_table VALUES('t1'), ('t2');
 CREATE VIEW view1 AS SELECT name AS table_name FROM dd_table;
 CREATE VIEW view2 AS SELECT name COLLATE utf8_tolower_ci AS table_name FROM dd_table;

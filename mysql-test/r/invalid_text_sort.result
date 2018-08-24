@@ -4,6 +4,8 @@ tx TEXT CHARACTER SET utf8mb3 NULL,
 pk INTEGER AUTO_INCREMENT,
 PRIMARY KEY (pk)
 ) ENGINE=myisam;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES
 (
 'valid-string',

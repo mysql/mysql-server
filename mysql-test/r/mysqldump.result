@@ -4285,12 +4285,14 @@ USE `test-database`;
 CREATE TABLE `test` (`c1` VARCHAR(10)) ENGINE=MYISAM DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 CREATE TRIGGER `trig` BEFORE INSERT ON `test` FOR EACH ROW BEGIN
 END |
 ALTER DATABASE `test-database` CHARACTER SET latin1 COLLATE latin1_swedish_ci;
 ALTER DATABASE `test-database` CHARACTER SET utf8 COLLATE utf8_unicode_ci ;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
  SET character_set_client = utf8mb4 ;
 CREATE TABLE `test` (

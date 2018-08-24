@@ -1782,6 +1782,9 @@ CREATE TABLE t1 (f1 CHAR(1),
 f2 CHAR(1) COLLATE UTF8_BIN,
 f3 CHAR(1) CHARSET UTF8MB3,
 f4 CHAR(1) CHARSET UTF8MB4);
+Warnings:
+Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 # The SHOW command should show the utf8mb4 charset for f4 after ALTER.
 SHOW CREATE TABLE t1;
 Table	Create Table

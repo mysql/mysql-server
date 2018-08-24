@@ -820,4 +820,10 @@ inline bool is_sqlstate_exception(const char *s) {
   return s[0] != '0' || s[1] > '2';
 }
 
+void warn_on_deprecated_charset(THD *thd, const CHARSET_INFO *cs,
+                                const char *alias,
+                                const char *option = nullptr);
+void warn_on_deprecated_collation(THD *thd, const CHARSET_INFO *collation,
+                                  const char *option = nullptr);
+
 #endif  // SQL_ERROR_H

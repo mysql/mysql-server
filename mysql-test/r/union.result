@@ -1514,6 +1514,7 @@ SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1(f1 char(1), f2 char(5), f3 binary(1), f4 binary(5), f5 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00', f6 varchar(1) character set utf8 collate utf8_general_ci, f7 text);
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 create table t2 as select *, f6 as f8 from t1 union select *, f7 from t1;
 show create table t2;
 Table	Create Table
@@ -3106,6 +3107,8 @@ DROP TABLE t;
 # Note that this bug can only be seen when running with valgrind.
 PREPARE stmt FROM "SELECT 'foo' UNION ALL SELECT ?";
 SET @param = CONVERT('bar' USING utf8mb3);
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 EXECUTE stmt USING @param;
 foo
 foo
@@ -3122,6 +3125,9 @@ foo
 foo
 DEALLOCATE PREPARE stmt;
 PREPARE stmt FROM 'SELECT "foo", "foo2" UNION SELECT CONVERT("bar" USING utf8mb3), "bar2" UNION SELECT "foobar", CONVERT("foobar2" USING utf8mb3)';
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 EXECUTE stmt;
 foo	foo2
 foo	foo2
@@ -3129,6 +3135,9 @@ bar	bar2
 foobar	foobar2
 DEALLOCATE PREPARE stmt;
 CREATE PROCEDURE p1() SELECT "foo", "foo2" UNION SELECT CONVERT("bar" USING utf8mb3), "bar2" UNION SELECT "foobar", CONVERT("foobar2" USING utf8mb3);
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CALL p1();
 foo	foo2
 foo	foo2

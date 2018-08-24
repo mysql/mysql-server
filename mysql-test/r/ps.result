@@ -587,7 +587,9 @@ primary key  (id), unique key code (code)
 );
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 create table t2 (
 id bigint(20) not null auto_increment,
 email varchar(250) character set utf8 collate utf8_bin default null,
@@ -601,8 +603,11 @@ constraint t2_fk1 foreign key (t1_id) references t1 (id)
 );
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 insert into t1 values
 (1, 'demo', 'demo s', 0, current_date()),
 (2, 'code2', 'name 2', 0, current_date()),
@@ -1720,6 +1725,8 @@ Database	Create Database
 mysqltest_1	CREATE DATABASE `mysqltest_1` /*!40100 DEFAULT CHARACTER SET latin1 */
 drop database mysqltest_1;
 set @@character_set_server= utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 execute stmt;
 show create database mysqltest_1;
 Database	Create Database

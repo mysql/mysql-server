@@ -6647,8 +6647,7 @@ charset_name:
               my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), $1.str);
               MYSQL_YYABORT;
             }
-            if (native_strcasecmp($1.str, "utf8") == 0)
-              push_warning(YYTHD, ER_DEPRECATED_UTF8_ALIAS);
+            YYLIP->warn_on_deprecated_charset($$, $1.str);
           }
         | BINARY_SYM { $$= &my_charset_bin; }
         ;
@@ -6681,6 +6680,7 @@ collation_name:
           {
             if (!($$= mysqld_collation_get_by_name($1.str)))
               MYSQL_YYABORT;
+            YYLIP->warn_on_deprecated_collation($$);
           }
         ;
 

@@ -2,6 +2,8 @@
 SET @global_character_set_results = @@global.character_set_results;
 SET @session_character_set_results = @@session.character_set_results;
 SET @@global.character_set_results = utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 'connect (con1,localhost,root,,,,)'
 'connection con1'
 SELECT @@global.character_set_results;
@@ -50,6 +52,8 @@ b	CHAR_LENGTH(b)
 ЁЂЃЄ	4
 ФХЦЧШ	5
 SET @@session.character_set_results = utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT b, CHAR_LENGTH(b) FROM t1;
 b	CHAR_LENGTH(b)
 ЁЂЃЄ	4

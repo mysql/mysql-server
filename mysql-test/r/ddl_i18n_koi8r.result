@@ -8,6 +8,7 @@ DROP DATABASE IF EXISTS mysqltest1|
 CREATE DATABASE mysqltest1 DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_unicode_ci|
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 use mysqltest1|
 CREATE TABLE t1(кол INT)|
 INSERT INTO t1 VALUES(1)|
@@ -33,10 +34,14 @@ v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VI
 SHOW CREATE VIEW v2|
 View	Create View	character_set_client	collation_connection
 v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select _utf8mb3'я┌п╣я│я┌' AS `c1`	koi8r	koi8r_general_ci
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 
 SHOW CREATE VIEW v3|
 View	Create View	character_set_client	collation_connection
 v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select _utf8mb3'я┌п╣я│я┌' AS `тест`	koi8r	koi8r_general_ci
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 
 
 SELECT * FROM INFORMATION_SCHEMA.VIEWS WHERE table_name = 'v1'|
@@ -59,10 +64,14 @@ koi8r_general_ci	binary
 SELECT COLLATION(c1) FROM v2|
 COLLATION(c1)
 utf8_general_ci
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 
 SELECT * FROM v3|
 тест
 тест
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 
 
 ALTER DATABASE mysqltest1 COLLATE cp866_general_ci|
@@ -85,10 +94,14 @@ v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VI
 SHOW CREATE VIEW v2|
 View	Create View	character_set_client	collation_connection
 v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select _utf8mb3'я┌п╣я│я┌' AS `c1`	koi8r	koi8r_general_ci
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 
 SHOW CREATE VIEW v3|
 View	Create View	character_set_client	collation_connection
 v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select _utf8mb3'я┌п╣я│я┌' AS `тест`	koi8r	koi8r_general_ci
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 
 
 SELECT * FROM INFORMATION_SCHEMA.VIEWS WHERE table_name = 'v1'|
@@ -111,10 +124,14 @@ koi8r_general_ci	binary
 SELECT COLLATION(c1) FROM v2|
 COLLATION(c1)
 utf8_general_ci
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 
 SELECT * FROM v3|
 тест
 тест
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 
 ---> Dumping mysqltest1 to ddl_i18n_koi8r.views.mysqltest1.sql
 
@@ -142,10 +159,14 @@ v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VI
 SHOW CREATE VIEW v2|
 View	Create View	character_set_client	collation_connection
 v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select _utf8mb3'я┌п╣я│я┌' AS `c1`	koi8r	koi8r_general_ci
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 
 SHOW CREATE VIEW v3|
 View	Create View	character_set_client	collation_connection
 v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select _utf8mb3'я┌п╣я│я┌' AS `тест`	koi8r	koi8r_general_ci
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 
 
 SELECT * FROM INFORMATION_SCHEMA.VIEWS WHERE table_name = 'v1'|
@@ -168,10 +189,14 @@ koi8r_general_ci	binary
 SELECT COLLATION(c1) FROM v2|
 COLLATION(c1)
 utf8_general_ci
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 
 SELECT * FROM v3|
 тест
 тест
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 
 ---> connection: default
 use test|
@@ -186,9 +211,11 @@ DROP DATABASE IF EXISTS mysqltest2|
 CREATE DATABASE mysqltest1 DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_unicode_ci|
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 CREATE DATABASE mysqltest2 DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_unicode_ci|
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 use mysqltest1|
 
 CREATE PROCEDURE p1(
@@ -468,7 +495,9 @@ c4	c5	c6	c7	c8
 koi8r_general_ci	koi8r_general_ci	utf8_general_ci	koi8r_general_ci	koi8r
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT COLLATION(@a) AS ca, COLLATION(@b) cb|
 ca	cb
@@ -495,7 +524,9 @@ c4	c5	c6	c7	c8
 koi8r_general_ci	koi8r_general_ci	utf8_general_ci	koi8r_general_ci	koi8r
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT COLLATION(@a) AS ca, COLLATION(@b) cb|
 ca	cb
@@ -530,7 +561,9 @@ c4	c5	c6	c7	c8
 koi8r_general_ci	koi8r_general_ci	utf8_general_ci	koi8r_general_ci	koi8r
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CALL p2(@a, @b)|
 c1	c2	c3
@@ -549,7 +582,9 @@ c4	c5	c6	c7	c8
 koi8r_general_ci	koi8r_general_ci	utf8_general_ci	koi8r_general_ci	koi8r
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CALL mysqltest2.p4(@a, @b)|
 c1	c2	c3
@@ -950,7 +985,9 @@ c4	c5	c6	c7	c8
 koi8r_general_ci	koi8r_general_ci	utf8_general_ci	koi8r_general_ci	koi8r
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CALL p2(@a, @b)|
 c1	c2	c3
@@ -969,7 +1006,9 @@ c4	c5	c6	c7	c8
 koi8r_general_ci	koi8r_general_ci	utf8_general_ci	koi8r_general_ci	koi8r
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CALL mysqltest2.p4(@a, @b)|
 c1	c2	c3
@@ -1213,9 +1252,11 @@ DROP DATABASE IF EXISTS mysqltest2|
 CREATE DATABASE mysqltest1 DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_unicode_ci|
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 CREATE DATABASE mysqltest2 DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_unicode_ci|
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 use mysqltest1|
 CREATE TABLE t1(c INT)|
 CREATE TABLE mysqltest2.t1(c INT)|
@@ -2253,9 +2294,11 @@ DROP DATABASE IF EXISTS mysqltest2|
 CREATE DATABASE mysqltest1 DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_unicode_ci|
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 CREATE DATABASE mysqltest2 DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_unicode_ci|
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 use mysqltest1|
 
 CREATE EVENT ev1 ON SCHEDULE AT '2030-01-01 00:00:00' DO
@@ -2856,9 +2899,11 @@ DROP DATABASE IF EXISTS mysqltest2|
 CREATE DATABASE mysqltest1 DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_unicode_ci|
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 CREATE DATABASE mysqltest2 DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_unicode_ci|
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 use mysqltest1|
 
 CREATE PROCEDURE p1()

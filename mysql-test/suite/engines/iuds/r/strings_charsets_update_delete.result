@@ -943,15 +943,19 @@ ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ
 ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ	255
 drop table t8;
 SET collation_connection = 'utf8_general_ci';
+Warnings:
+Warning	3778	'utf8_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 CREATE TABLE t8 (c1 TEXT character set utf8 collate utf8_general_ci);
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 insert into t8 values (repeat('बांग्लादे',1200));
 insert into t8 values ('রবীন্দ্রনাথ ঠাকুর');
 insert into t8 values (LOAD_FILE('$MYSQLTEST_VARDIR/hindi.txt'));
 ALTER TABLE t8 ADD c2 TEXT CHARACTER SET utf8 collate utf8_general_ci DEFAULT NULL;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 INSERT INTO t8 values (repeat('রবীন্দ্রনাথ ঠাকুর',1300),'');
 ALTER TABLE t8 ADD INDEX(c1(18));
 UPDATE t8 SET c2='यह हिन्दी में एक अलग वाक्य है. यह एक अलग कॉलम में जोड़ा जा रहा है' WHERE c2=NULL;

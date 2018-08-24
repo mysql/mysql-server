@@ -1,3 +1,7 @@
+--disable_query_log
+call mtr.add_suppression('--character-set-server: ''utf8'' is currently an alias for the character set utf8mb3, but will be an alias for utf8mb4 in a future release. please consider using utf8mb4 in order to be unambiguous.');
+--enable_query_log
+
 # Tests for PERFORMANCE_SCHEMA
 # Check server start for short server start options
 

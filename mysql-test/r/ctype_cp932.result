@@ -6,8 +6,14 @@ SET @old_character_set_client= @@character_set_client;
 SET @old_character_set_connection= @@character_set_connection;
 SET @old_character_set_results= @@character_set_results;
 SET character_set_client= 'utf8';
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET character_set_connection= 'utf8';
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET character_set_results= 'utf8';
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t1 (a VARCHAR(10) COLLATE cp932_bin);
 INSERT INTO t1 VALUES('ｶｶ');
 SELECT * FROM t1 WHERE a LIKE '%ｶ';

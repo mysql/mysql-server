@@ -19,6 +19,7 @@ SELECT collation_database;
 ERROR 42S22: Unknown column 'collation_database' in 'field list'
 SET collation_database=utf8_unicode_ci;
 Warnings:
+Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
@@ -27,11 +28,13 @@ SET global.collation_database=utf8_unicode_ci;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.collation_database=utf8_unicode_ci' at line 1
 SET session collation_database=utf8_unicode_ci;
 Warnings:
+Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT session collation_database;
 ERROR 42S22: Unknown column 'session' in 'field list'
 SET global collation_database=utf8_unicode_ci;
 Warnings:
+Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT global collation_database;
 ERROR 42S22: Unknown column 'global' in 'field list'
@@ -60,6 +63,7 @@ utf8mb4_0900_ai_ci
 '#--------------------FN_DYNVARS_016_03-------------------------#'
 SET @@session.collation_database = utf8_polish_ci;
 Warnings:
+Warning	3778	'utf8_polish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
@@ -434,132 +438,154 @@ SELECT @@session.collation_database;
 armscii8_bin
 SET @@session.collation_database = utf8_general_ci;
 Warnings:
+Warning	3778	'utf8_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 utf8_general_ci
 SET @@session.collation_database = utf8_bin;
 Warnings:
+Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 utf8_bin
 SET @@session.collation_database = utf8_unicode_ci;
 Warnings:
+Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 utf8_unicode_ci
 SET @@session.collation_database = utf8_icelandic_ci;
 Warnings:
+Warning	3778	'utf8_icelandic_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 utf8_icelandic_ci
 SET @@session.collation_database = utf8_latvian_ci;
 Warnings:
+Warning	3778	'utf8_latvian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 utf8_latvian_ci
 SET @@session.collation_database = utf8_romanian_ci;
 Warnings:
+Warning	3778	'utf8_romanian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 utf8_romanian_ci
 SET @@session.collation_database = utf8_slovenian_ci;
 Warnings:
+Warning	3778	'utf8_slovenian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 utf8_slovenian_ci
 SET @@session.collation_database = utf8_polish_ci;
 Warnings:
+Warning	3778	'utf8_polish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 utf8_polish_ci
 SET @@session.collation_database = utf8_estonian_ci;
 Warnings:
+Warning	3778	'utf8_estonian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 utf8_estonian_ci
 SET @@session.collation_database = utf8_spanish_ci;
 Warnings:
+Warning	3778	'utf8_spanish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 utf8_spanish_ci
 SET @@session.collation_database = utf8_swedish_ci;
 Warnings:
+Warning	3778	'utf8_swedish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 utf8_swedish_ci
 SET @@session.collation_database = utf8_turkish_ci;
 Warnings:
+Warning	3778	'utf8_turkish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 utf8_turkish_ci
 SET @@session.collation_database = utf8_czech_ci;
 Warnings:
+Warning	3778	'utf8_czech_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 utf8_czech_ci
 SET @@session.collation_database = utf8_danish_ci;
 Warnings:
+Warning	3778	'utf8_danish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 utf8_danish_ci
 SET @@session.collation_database = utf8_lithuanian_ci;
 Warnings:
+Warning	3778	'utf8_lithuanian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 utf8_lithuanian_ci
 SET @@session.collation_database = utf8_slovak_ci;
 Warnings:
+Warning	3778	'utf8_slovak_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 utf8_slovak_ci
 SET @@session.collation_database = utf8_spanish2_ci;
 Warnings:
+Warning	3778	'utf8_spanish2_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 utf8_spanish2_ci
 SET @@session.collation_database = utf8_roman_ci;
 Warnings:
+Warning	3778	'utf8_roman_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 utf8_roman_ci
 SET @@session.collation_database = utf8_persian_ci;
 Warnings:
+Warning	3778	'utf8_persian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 utf8_persian_ci
 SET @@session.collation_database = utf8_esperanto_ci;
 Warnings:
+Warning	3778	'utf8_esperanto_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 utf8_esperanto_ci
 SET @@session.collation_database = utf8_hungarian_ci;
 Warnings:
+Warning	3778	'utf8_hungarian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 utf8_hungarian_ci
 SET @@session.collation_database = utf8_unicode_520_ci;
 Warnings:
+Warning	3778	'utf8_unicode_520_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
@@ -1227,132 +1253,154 @@ SELECT @@global.collation_database;
 armscii8_bin
 SET @@global.collation_database = utf8_general_ci;
 Warnings:
+Warning	3778	'utf8_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 utf8_general_ci
 SET @@global.collation_database = utf8_bin;
 Warnings:
+Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 utf8_bin
 SET @@global.collation_database = utf8_unicode_ci;
 Warnings:
+Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 utf8_unicode_ci
 SET @@global.collation_database = utf8_icelandic_ci;
 Warnings:
+Warning	3778	'utf8_icelandic_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 utf8_icelandic_ci
 SET @@global.collation_database = utf8_latvian_ci;
 Warnings:
+Warning	3778	'utf8_latvian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 utf8_latvian_ci
 SET @@global.collation_database = utf8_romanian_ci;
 Warnings:
+Warning	3778	'utf8_romanian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 utf8_romanian_ci
 SET @@global.collation_database = utf8_slovenian_ci;
 Warnings:
+Warning	3778	'utf8_slovenian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 utf8_slovenian_ci
 SET @@global.collation_database = utf8_polish_ci;
 Warnings:
+Warning	3778	'utf8_polish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 utf8_polish_ci
 SET @@global.collation_database = utf8_estonian_ci;
 Warnings:
+Warning	3778	'utf8_estonian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 utf8_estonian_ci
 SET @@global.collation_database = utf8_spanish_ci;
 Warnings:
+Warning	3778	'utf8_spanish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 utf8_spanish_ci
 SET @@global.collation_database = utf8_swedish_ci;
 Warnings:
+Warning	3778	'utf8_swedish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 utf8_swedish_ci
 SET @@global.collation_database = utf8_turkish_ci;
 Warnings:
+Warning	3778	'utf8_turkish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 utf8_turkish_ci
 SET @@global.collation_database = utf8_czech_ci;
 Warnings:
+Warning	3778	'utf8_czech_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 utf8_czech_ci
 SET @@global.collation_database = utf8_danish_ci;
 Warnings:
+Warning	3778	'utf8_danish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 utf8_danish_ci
 SET @@global.collation_database = utf8_lithuanian_ci;
 Warnings:
+Warning	3778	'utf8_lithuanian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 utf8_lithuanian_ci
 SET @@global.collation_database = utf8_slovak_ci;
 Warnings:
+Warning	3778	'utf8_slovak_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 utf8_slovak_ci
 SET @@global.collation_database = utf8_spanish2_ci;
 Warnings:
+Warning	3778	'utf8_spanish2_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 utf8_spanish2_ci
 SET @@global.collation_database = utf8_roman_ci;
 Warnings:
+Warning	3778	'utf8_roman_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 utf8_roman_ci
 SET @@global.collation_database = utf8_persian_ci;
 Warnings:
+Warning	3778	'utf8_persian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 utf8_persian_ci
 SET @@global.collation_database = utf8_esperanto_ci;
 Warnings:
+Warning	3778	'utf8_esperanto_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 utf8_esperanto_ci
 SET @@global.collation_database = utf8_hungarian_ci;
 Warnings:
+Warning	3778	'utf8_hungarian_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 utf8_hungarian_ci
 SET @@global.collation_database = utf8_unicode_520_ci;
 Warnings:
+Warning	3778	'utf8_unicode_520_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
