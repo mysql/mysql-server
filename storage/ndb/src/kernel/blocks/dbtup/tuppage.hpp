@@ -274,13 +274,22 @@ struct Tup_fixsize_page
       {
         Uint32 small_bit_map = small_map & 0xFFFF;
         if (small_bit_map == 0)
+        {
+          jamDebug();
+          jamLineDebug((Uint16(i)));
           return false;
+        }
       }
       else
       {
         Uint32 small_bit_map = small_map & 0xFFFF;
         if (small_bit_map != 0)
+        {
+          jamDebug();
+          jamLineDebug((Uint16(i)));
+          jamLineDebug((Uint16(small_bit_map)));
           return false;
+        }
       }
       bit_pos = 2 * i + Tup_fixsize_page::FIRST_BIT_CHANGE_MAP + 1;
       bit_val = m_flags & (1 << bit_pos);
@@ -288,13 +297,22 @@ struct Tup_fixsize_page
       {
         Uint32 small_bit_map = small_map >> 16;
         if (small_bit_map == 0)
+        {
+          jamDebug();
+          jamLineDebug((Uint16(i)));
           return false;
+        }
       }
       else
       {
         Uint32 small_bit_map = small_map >> 16;
         if (small_bit_map != 0)
+        {
+          jamDebug();
+          jamLineDebug((Uint16(i)));
+          jamLineDebug((Uint16(small_bit_map)));
           return false;
+        }
       }
     }
     return true;
