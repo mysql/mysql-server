@@ -1863,6 +1863,7 @@ static void row_upd_store_v_row(upd_node_t *node, const upd_t *update, THD *thd,
           } else {
             dfield_t *vfield = dtuple_get_nth_v_field(update->old_vrow, col_no);
             dfield_copy_data(dfield, vfield);
+            dfield_dup(dfield, node->heap);
           }
         } else {
           /* Need to compute, this happens when

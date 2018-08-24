@@ -274,7 +274,7 @@ dtuple_t *row_build_index_entry_low(
     indexed long columns may be stored off-page. */
     ut_ad(col->ord_part);
 
-    if (ext) {
+    if (ext && !col->is_virtual()) {
       /* See if the column is stored externally. */
       const byte *buf = row_ext_lookup(ext, col_no, &len);
       if (UNIV_LIKELY_NULL(buf)) {
