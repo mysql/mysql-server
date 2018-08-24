@@ -228,7 +228,7 @@ class Item_subselect : public Item_result_field {
   bool check_function_as_value_generator(uchar *args) override {
     Check_function_as_value_generator_parameters *func_arg =
         pointer_cast<Check_function_as_value_generator_parameters *>(args);
-    func_arg->banned_function_name = func_name();
+    func_arg->err_code = func_arg->get_unnamed_function_error_code();
     return true;
   }
 

@@ -799,6 +799,8 @@ ERROR HY000: Default value expression of column 'a' contains a disallowed functi
 CREATE TABLE t1 (a VARCHAR(128) DEFAULT (concat("1", metaphon("testval"))));
 ERROR HY000: Default value expression of column 'a' contains a disallowed function: metaphon.
 CREATE TABLE t1 (a VARCHAR(100));
+ALTER TABLE t1 ADD COLUMN b VARCHAR(256) DEFAULT (concat("1", metaphon("testval")));
+ERROR HY000: Default value expression of column 'b' contains a disallowed function: metaphon.
 ALTER TABLE t1 ALTER COLUMN a SET DEFAULT (concat("1", metaphon("testval")));
 ERROR HY000: Default value expression of column 'a' contains a disallowed function: metaphon.
 DROP TABLE t1;

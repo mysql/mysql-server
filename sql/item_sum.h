@@ -1305,9 +1305,7 @@ class Item_variance_field : public Item_sum_num_field {
   bool check_function_as_value_generator(uchar *args) override {
     Check_function_as_value_generator_parameters *func_arg =
         pointer_cast<Check_function_as_value_generator_parameters *>(args);
-    func_arg->err_code = func_arg->is_gen_col
-                             ? ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
-                             : ER_DEFAULT_VAL_GENERATED_FUNCTION_IS_NOT_ALLOWED;
+    func_arg->err_code = func_arg->get_unnamed_function_error_code();
     return true;
   }
 };
@@ -1437,9 +1435,7 @@ class Item_std_field final : public Item_variance_field {
   bool check_function_as_value_generator(uchar *args) override {
     Check_function_as_value_generator_parameters *func_arg =
         pointer_cast<Check_function_as_value_generator_parameters *>(args);
-    func_arg->err_code = func_arg->is_gen_col
-                             ? ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
-                             : ER_DEFAULT_VAL_GENERATED_FUNCTION_IS_NOT_ALLOWED;
+    func_arg->err_code = func_arg->get_unnamed_function_error_code();
     return true;
   }
 };

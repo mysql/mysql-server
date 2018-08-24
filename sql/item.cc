@@ -740,9 +740,7 @@ bool Item::check_function_as_value_generator(uchar *args) {
       ((func_item = down_cast<Item_func *>(this)))) {
     func_arg->banned_function_name = func_item->func_name();
   }
-  func_arg->err_code = func_arg->is_gen_col
-                           ? ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
-                           : ER_DEFAULT_VAL_GENERATED_FUNCTION_IS_NOT_ALLOWED;
+  func_arg->err_code = func_arg->get_unnamed_function_error_code();
   return true;
 }
 
@@ -838,9 +836,17 @@ bool Item_field::find_item_in_field_list_processor(uchar *arg) {
 bool Item_field::check_function_as_value_generator(uchar *args) {
   Check_function_as_value_generator_parameters *func_args =
       pointer_cast<Check_function_as_value_generator_parameters *>(args);
+  // We walk through the Item tree twice to check for disallowed functions;
+  // once before resolving is done and once after resolving is done. Before
+  // resolving is done, we don't have the field object available, and hence
+  // the nullptr check.
+  if (field == nullptr) {
+    return false;
+  }
+
   int fld_idx = func_args->col_index;
   bool is_gen_col = func_args->is_gen_col;
-  DBUG_ASSERT(field);
+  DBUG_ASSERT(fld_idx > -1);
   /*
     Don't allow the GC (or default expression) to refer itself or another GC
     (or default expressions) that is defined after it.

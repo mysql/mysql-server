@@ -2298,12 +2298,10 @@ static bool validate_value_generator_expr(Item *expr, const char *column_name,
     Walk through the Item tree, checking the validity of items
     belonging to the expression.
   */
-  Check_function_as_value_generator_parameters checker_args{};
-  checker_args.banned_function_name = nullptr;
+  Check_function_as_value_generator_parameters checker_args(err_code,
+                                                            is_gen_col);
   checker_args.col_index = column_index;
-  // default error code
-  checker_args.err_code = err_code;
-  checker_args.is_gen_col = is_gen_col;
+
   if (expr->walk(&Item::check_function_as_value_generator, Item::WALK_POSTFIX,
                  pointer_cast<uchar *>(&checker_args))) {
     my_error(checker_args.err_code, MYF(0), column_name,

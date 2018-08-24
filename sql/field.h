@@ -4743,7 +4743,7 @@ const char *get_field_name_or_expression(THD *thd, const Field *field);
   @param is_gen_col   weather it is a GCOL or a default value expression
   @return  false if ok, true otherwise
 */
-bool pre_validate_value_generator_expr(const Item *expression,
+bool pre_validate_value_generator_expr(Item *expression,
                                        const char *column_name,
                                        bool is_gen_col);
 
