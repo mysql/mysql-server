@@ -4501,6 +4501,9 @@ static void end_ssl() {
     ssl_acceptor_fd = 0;
   }
   deinit_rsa_keys();
+#if !defined(HAVE_WOLFSSL) && OPENSSL_VERSION_NUMBER < 0x10100000L
+  SSL_COMP_free_compression_methods();
+#endif
 #endif /* HAVE_OPENSSL */
 }
 
