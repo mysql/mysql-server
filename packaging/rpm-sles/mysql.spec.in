@@ -83,6 +83,11 @@
 %global sles15                1
 %endif
 
+%if 0%{?sle_version} == 150000 && 0%{?is_opensuse}
+%global dist                 .lp150
+%global sles15                1
+%endif
+
 # https://en.opensuse.org/openSUSE:Systemd_packaging_guidelines
 %{?sles12:                %global systemd 1}
 %{?sles15:                %global systemd 1}
