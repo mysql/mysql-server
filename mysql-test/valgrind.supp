@@ -945,6 +945,17 @@
    Memcheck:Leak
    fun:malloc
    fun:CRYPTO_malloc
+   fun:sk_new
+   ...
+   fun:SSL_COMP_get_compression_methods
+   fun:SSL_library_init
+}
+
+{
+   OpenSSL still reachable.
+   Memcheck:Leak
+   fun:malloc
+   fun:CRYPTO_malloc
    fun:engine_cleanup_add_last
    fun:ENGINE_add
 }
@@ -1062,6 +1073,69 @@
    fun:BN_mod_exp_mont_consttime
    ...
    fun:new_VioSSLFd
+}
+
+{
+   OpenSSL PB2 / 1
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:CRYPTO_malloc
+   fun:sk_new
+   fun:SSL_COMP_get_compression_methods
+   fun:SSL_library_init
+   fun:ssl_start
+   fun:_Z8init_sslv
+   fun:_Z11mysqld_mainiPPc
+   fun:main
+}
+
+{
+   OpenSSL PB2 / 2
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:CRYPTO_malloc
+   fun:sk_new
+   fun:SSL_COMP_get_compression_methods
+   fun:SSL_library_init
+   fun:ssl_start
+   fun:_ZL8init_sslv
+   fun:_Z11mysqld_mainiPPc
+   fun:main
+}
+
+
+{
+   OpenSSL libstdc++ version 5 / one
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:CRYPTO_malloc
+   fun:sk_new
+   obj:/lib/x86_64-linux-gnu/libssl.so.1.0.0
+   fun:SSL_COMP_get_compression_methods
+   fun:SSL_library_init
+   fun:ssl_start
+   fun:_ZL8init_sslv
+   fun:_Z11mysqld_mainiPPc
+   fun:main
+}
+
+{
+   OpenSSL libstdc++ version 5 / two
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:CRYPTO_malloc
+   fun:sk_new
+   obj:/lib/x86_64-linux-gnu/libssl.so.1.0.0
+   fun:SSL_COMP_get_compression_methods
+   fun:SSL_library_init
+   fun:ssl_start
+   fun:_ZL8init_sslv
+   fun:_Z11mysqld_mainiPPc
+   fun:main
 }
 
 {
