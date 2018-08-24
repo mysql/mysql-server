@@ -263,3 +263,33 @@ ALTER TABLE t1 ADD Name char(52) AS (doc->>"$.Name"), ADD INDEX n (Name);
 SHOW CREATE TABLE t1;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #27968952  INNODB CRASH/CORRUPTION WITH TEXT PREFIX INDEXES
+SET sql_mode='';
+CREATE TABLE t1(
+  a INT not null,
+  b CHAR(4) not null,
+  c TEXT GENERATED ALWAYS AS ((a <> b)) VIRTUAL,
+  UNIQUE KEY i1 (a),
+  UNIQUE KEY i2 (c(1))
+) ENGINE=INNODB;
+insert into t1 set a=1;
+insert into t1 set a=0;
+replace into t1 set b ='1';
+DROP TABLE t1;
+
+SET names utf8;
+CREATE TABLE t1 (
+  a VARCHAR(1000) GENERATED ALWAYS AS ('1') VIRTUAL,
+  b VARCHAR(1000) NOT NULL,
+  c VARCHAR(1000) GENERATED ALWAYS AS (b) STORED NOT NULL,
+  KEY (b(1)),
+  KEY (a(1))
+) ENGINE=INNODB
+ROW_FORMAT=COMPRESSED
+KEY_BLOCK_SIZE=1;
+INSERT INTO t1(b) VALUES(REPEAT('a',947));
+DELETE FROM t1;
+DROP TABLE t1;
+SET sql_mode = default;
