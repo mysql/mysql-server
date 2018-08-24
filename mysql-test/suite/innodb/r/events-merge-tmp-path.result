@@ -1,10 +1,7 @@
-update performance_schema.setup_instruments set enabled='yes';
-update performance_schema.setup_consumers set enabled='yes';
+update  performance_schema.setup_instruments set enabled='YES' where name like '%innodb_temp%';
+update performance_schema.setup_consumers set enabled='YES';
 use test;
-drop table if exists t1;
-Warnings:
-Note	1051	Unknown table 'test.t1'
-CREATE TABLE `t1`(`id` bigint(20) unsigned NOT NULL AUTO_INCREMENT, `name1` varchar(250) NOT NULL, `name2` varchar(250) DEFAULT NULL, `name3` varchar(250) DEFAULT NULL, `name4` varchar(250) DEFAULT NULL, PRIMARY KEY (`id`,`name1`(10)) ) engine=InnoDB;
+CREATE TABLE `t1`(`id` bigint(20) unsigned NOT NULL AUTO_INCREMENT, `name1` varchar(180) NOT NULL, `name2` varchar(180) DEFAULT NULL, `name3` varchar(180) DEFAULT NULL, `name4` varchar(180) DEFAULT NULL, PRIMARY KEY (`id`,`name1`(10)) ) engine=InnoDB;
 set @id:=0;
 insert into t1 values
 (@id:=@id+1,md5(rand()*1000000),md5(rand()*1000000),md5(rand()*1000000),md5(rand()*1000000))
@@ -13,9 +10,10 @@ insert into t1 values
 , (@id:=@id+1,md5(rand()*1000000),md5(rand()*1000000),md5(rand()*1000000),md5(rand()*1000000));
 insert into `t1`(`id`,`name1`,`name2`,`name3`,`name4`)
 select  @id:=@id+1,md5(rand()*1000000),md5(rand()*1000000),md5(rand()*1000000),md5(rand()*1000000)  from
-`t1` k1, `t1` k2, `t1` k3, `t1` k4,`t1` k5,`t1` k6,`t1` k7,`t1` k8,`t1` k9;
-create index i_dtyp_big on `t1`(name1) algorithm=inplace;;
-select distinct object_name from performance_schema.events_waits_history_long where event_name like '%wait%io%file%innodb%innodb_temp_file%';
+`t1` k1, `t1` k2, `t1` k3, `t1` k4,`t1` k5,`t1` k6;
+create index i_dtyp_big on `t1`(name1) algorithm=inplace;
+select distinct object_name from performance_schema.events_waits_history_long where event_name like '%wait%io%file%innodb%innodb_temp_file%'
+and object_name like '%Innodb Merge Temp File%';
 object_name
 MYSQL_TEST_DIR#Innodb Merge Temp File
 drop table t1;
