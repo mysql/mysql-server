@@ -150,7 +150,8 @@ typedef std::unordered_map<
     Name_to_userlist;
 Name_to_userlist *name_to_userlist = nullptr;
 
-bool initialized = 0;
+bool initialized = false;
+bool skip_grant_tables(void) { return !initialized; }
 bool acl_cache_initialized = false;
 bool allow_all_hosts = 1;
 uint grant_version = 0; /* Version of priv tables */

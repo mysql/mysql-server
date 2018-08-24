@@ -131,11 +131,7 @@ enum enum_acl_lists {
 
 int check_change_password(THD *thd, const char *host, const char *user) {
   Security_context *sctx;
-  if (!initialized) {
-    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
-    return (1);
-  }
-
+  DBUG_ASSERT(initialized);
   sctx = thd->security_context();
   if (!thd->slave_thread &&
       (strcmp(sctx->user().str, user) ||

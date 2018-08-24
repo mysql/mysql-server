@@ -234,6 +234,14 @@ const LEX_STRING command_name[] = {
     {C_STRING_WITH_LEN("Error")}  // Last command number
 };
 
+bool command_satisfy_acl_cache_requirement(unsigned command) {
+  if ((sql_command_flags[command] & CF_REQUIRE_ACL_CACHE) > 0 &&
+      skip_grant_tables() == true)
+    return false;
+  else
+    return true;
+}
+
 /**
   Returns true if all tables should be ignored.
 */
@@ -997,6 +1005,25 @@ void init_sql_command_flags(void) {
       CF_NEEDS_AUTOCOMMIT_OFF | CF_POTENTIAL_ATOMIC_DDL;
   sql_command_flags[SQLCOM_DROP_SRS] |=
       CF_NEEDS_AUTOCOMMIT_OFF | CF_POTENTIAL_ATOMIC_DDL;
+
+  /**
+    Some statements doesn't if the ACL CACHE is disabled using the
+    --skip-grant-tables server option.
+  */
+  sql_command_flags[SQLCOM_SET_ROLE] |= CF_REQUIRE_ACL_CACHE;
+  sql_command_flags[SQLCOM_ALTER_USER_DEFAULT_ROLE] |= CF_REQUIRE_ACL_CACHE;
+  sql_command_flags[SQLCOM_CREATE_ROLE] |= CF_REQUIRE_ACL_CACHE;
+  sql_command_flags[SQLCOM_DROP_ROLE] |= CF_REQUIRE_ACL_CACHE;
+  sql_command_flags[SQLCOM_GRANT_ROLE] |= CF_REQUIRE_ACL_CACHE;
+  sql_command_flags[SQLCOM_ALTER_USER] |= CF_REQUIRE_ACL_CACHE;
+  sql_command_flags[SQLCOM_GRANT] |= CF_REQUIRE_ACL_CACHE;
+  sql_command_flags[SQLCOM_REVOKE] |= CF_REQUIRE_ACL_CACHE;
+  sql_command_flags[SQLCOM_REVOKE_ALL] |= CF_REQUIRE_ACL_CACHE;
+  sql_command_flags[SQLCOM_REVOKE_ROLE] |= CF_REQUIRE_ACL_CACHE;
+  sql_command_flags[SQLCOM_CREATE_USER] |= CF_REQUIRE_ACL_CACHE;
+  sql_command_flags[SQLCOM_DROP_USER] |= CF_REQUIRE_ACL_CACHE;
+  sql_command_flags[SQLCOM_RENAME_USER] |= CF_REQUIRE_ACL_CACHE;
+  sql_command_flags[SQLCOM_SHOW_GRANTS] |= CF_REQUIRE_ACL_CACHE;
 }
 
 bool sqlcom_can_generate_row_events(enum enum_sql_command command) {
@@ -2834,6 +2861,12 @@ int mysql_execute_command(THD *thd, bool first_level) {
   /* Update system variables specified in SET_VAR hints. */
   if (lex->opt_hints_global && lex->opt_hints_global->sys_var_hint)
     lex->opt_hints_global->sys_var_hint->update_vars(thd);
+
+  /* Check if the statement fulfill the requirements on ACL CACHE */
+  if (!command_satisfy_acl_cache_requirement(lex->sql_command)) {
+    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-table");
+    goto error;
+  }
 
   switch (lex->sql_command) {
     case SQLCOM_SHOW_STATUS: {

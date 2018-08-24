@@ -2296,11 +2296,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 
   DBUG_ENTER("mysql_table_grant");
 
-  if (!initialized) {
-    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
-             "--skip-grant-tables"); /* purecov: inspected */
-    DBUG_RETURN(true);               /* purecov: inspected */
-  }
+  DBUG_ASSERT(initialized);
 
   if (rights & ~TABLE_ACLS) {
     my_error(ER_ILLEGAL_GRANT_FOR_TABLE, MYF(0));
@@ -2567,10 +2563,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
 
   DBUG_ENTER("mysql_routine_grant");
 
-  if (!initialized) {
-    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
-    DBUG_RETURN(true);
-  }
+  DBUG_ASSERT(initialized);
 
   if (rights & ~PROC_ACLS) {
     my_error(ER_ILLEGAL_GRANT_FOR_TABLE, MYF(0));
@@ -2931,11 +2924,7 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
   std::set<LEX_USER *> existing_users;
 
   DBUG_ENTER("mysql_grant");
-  if (!initialized) {
-    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
-             "--skip-grant-tables"); /* purecov: tested */
-    DBUG_RETURN(true);               /* purecov: tested */
-  }
+  DBUG_ASSERT(initialized);
 
   if (lower_case_table_names && db) {
     my_stpnmov(tmp_db, db, NAME_LEN);
@@ -4208,10 +4197,7 @@ bool mysql_show_grants(THD *thd, LEX_USER *lex_user,
   char buff[1024];
   DBUG_ENTER("mysql_show_grants");
 
-  if (!initialized) {
-    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
-    DBUG_RETURN(true);
-  }
+  DBUG_ASSERT(initialized);
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
   if (!acl_cache_lock.lock()) DBUG_RETURN(true);
 
@@ -4910,11 +4896,7 @@ bool acl_check_proxy_grant_access(THD *thd, const char *host, const char *user,
   DBUG_ENTER("acl_check_proxy_grant_access");
   DBUG_PRINT("info",
              ("user=%s host=%s with_grant=%d", user, host, (int)with_grant));
-  if (!initialized) {
-    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
-    DBUG_RETURN(1);
-  }
-
+  DBUG_ASSERT(initialized);
   /* replication slave thread can do anything */
   if (thd->slave_thread) {
     DBUG_PRINT("info", ("replication slave"));
