@@ -51,3 +51,21 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 prepare bar from "DELETE FROM table_28779 WHERE a = 7 OR 1=1/*!98765' AND b = 'bar';*";
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '/*!98765' AND b = 'bar';*' at line 1
 drop table table_28779;
+#
+# WL#12099: Deprecate nested comments in 8.0
+#
+SELECT 1 /*!99999 /* */ */;
+1
+1
+Warnings:
+Warning	1681	Nested comment syntax is deprecated and will be removed in a future release.
+SELECT 2 /*!12345 /* */ */;
+2
+2
+Warnings:
+Warning	1681	Nested comment syntax is deprecated and will be removed in a future release.
+SELECT 3 /*! /* */ */;
+3
+3
+Warnings:
+Warning	1681	Nested comment syntax is deprecated and will be removed in a future release.

@@ -8668,6 +8668,10 @@ ER_WARN_DEPRECATED_USER_SET_EXPR
 ER_WARN_DEPRECATED_UTF8MB3_COLLATION
   eng "'%-.64s' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead."
 
+# When using this error message, use the ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT error code.
+ER_WARN_DEPRECATED_NESTED_COMMENT_SYNTAX
+  eng "Nested comment syntax is deprecated and will be removed in a future release."
+
 #
 #  End of 8.0 error messages.
 #
