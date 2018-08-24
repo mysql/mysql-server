@@ -853,4 +853,8 @@ t_set	CREATE TABLE `t_set` (
 # Check that the file exits after unzip
 # Stop DB server which was created by MTR default
 # Start the DB server
+# Stop the server
+# Remove copied files
+# Restart the server with default options.
+# restart
 # end of test

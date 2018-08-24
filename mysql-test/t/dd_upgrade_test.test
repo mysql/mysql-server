@@ -759,4 +759,12 @@ let $MYSQLD_DATADIR2 = $MYSQL_TMP_DIR/data57_upgrade_default_timezone_bug/data;
 call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
 --enable_query_log
 
+--echo # Stop the server
+--source include/shutdown_mysqld.inc
+--echo # Remove copied files
+--remove_file $MYSQL_TMP_DIR/data57_upgrade_default_timezone_bug.zip
+--force-rmdir $MYSQL_TMP_DIR/data57_upgrade_default_timezone_bug
+--echo # Restart the server with default options.
+--source include/start_mysqld.inc
+
 --echo # end of test
