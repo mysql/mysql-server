@@ -1125,6 +1125,7 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
                    key.m_page_idx,
                    thbits));
       ndbrequire(!(thbits & Tuple_header::LCP_SKIP));
+      ndbassert(fix_page->verify_change_maps(jamBuffer()));
       scan.m_last_seen = __LINE__;
       return ZSCAN_FOUND_DELETED_ROWID;
     }
@@ -1183,6 +1184,7 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
       fix_page->set_change_map(key.m_page_idx);
       jamDebug();
       jamLineDebug((Uint16)key.m_page_idx);
+      ndbassert(fix_page->verify_change_maps(jamBuffer()));
     }
     else
     {
@@ -1291,6 +1293,7 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
       jamLineDebug((Uint16)key.m_page_idx);
       ndbrequire(c_lqh->is_full_local_lcp_running());
       ndbrequire(c_lqh->is_full_local_lcp_running());
+      ndbassert(fix_page->verify_change_maps(jamBuffer()));
     }
     else if (foundGCI == 0 && scan.m_scanGCI > 0)
     {
@@ -1551,6 +1554,7 @@ Dbtup::setup_change_page_for_scan(ScanOp& scan,
     fix_page->clear_large_change_map();
     pos.m_next_small_area_check_idx = RNIL;
     pos.m_next_large_area_check_idx = RNIL;
+    ndbassert(fix_page->verify_change_maps(jamBuffer()));
   }
   return ZSCAN_FOUND_TUPLE;
 }
@@ -1591,11 +1595,11 @@ Dbtup::move_to_next_change_page_row(ScanOp & scan,
                       Fix_page::DATA_WORDS))
         {
           jamDebug();
-          ndbassert(fix_page->verify_change_maps());
+          ndbassert(fix_page->verify_change_maps(jamBuffer()));
           return ZSCAN_FOUND_PAGE_END;
         }
         jamDebug();
-        ndbassert(fix_page->verify_change_maps());
+        ndbassert(fix_page->verify_change_maps(jamBuffer()));
         /**
          * We have moved forward to a new large area. We assume that all
          * small areas we move past don't have their bits set.
@@ -1629,11 +1633,11 @@ Dbtup::move_to_next_change_page_row(ScanOp & scan,
                       Fix_page::DATA_WORDS))
         {
           jamDebug();
-          ndbassert(fix_page->verify_change_maps());
+          ndbassert(fix_page->verify_change_maps(jamBuffer()));
           return ZSCAN_FOUND_PAGE_END;
         }
         jamDebug();
-        ndbassert(fix_page->verify_change_maps());
+        ndbassert(fix_page->verify_change_maps(jamBuffer()));
         /**
          * Since 1024 is a multiple of 64 there is no risk that we move
          * ourselves past the next large area check.
@@ -1651,7 +1655,7 @@ Dbtup::move_to_next_change_page_row(ScanOp & scan,
   Uint32 map_val = (fix_page->m_change_map[3] >> 16);
   jamLineDebug(Uint16(map_val));
   (void)map_val;
-  ndbassert(fix_page->verify_change_maps());
+  ndbassert(fix_page->verify_change_maps(jamBuffer()));
   return ZSCAN_FOUND_TUPLE;
 }
 
@@ -2445,7 +2449,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                                false /* Set state to A */);
             if (!pos.m_all_rows)
             {
-              ndbassert(page->verify_change_maps());
+              ndbassert(page->verify_change_maps(jamBuffer()));
             }
             scan.m_last_seen = __LINE__;
           }
