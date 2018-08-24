@@ -155,8 +155,8 @@ bool length_prevents_inplace(const Field &from, const Create_field &to) {
                          from.field_length, from.pack_length(),
                          from.row_pack_length(), from.max_display_length()));
 
-  DBUG_PRINT("inplace", ("to: length:%lu, pack_length:%lu",
-                         static_cast<ulong>(to.length), to.pack_length));
+  DBUG_PRINT("inplace",
+             ("to: length:%zu, pack_length:%zu", to.length, to.pack_length));
 
   return (to.pack_length < from.pack_length() ||
           (to.length >= 256 && from.row_pack_length() < 256));
