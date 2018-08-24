@@ -278,6 +278,12 @@ bool set_default_collation(HA_CREATE_INFO *create_info,
 */
 #define CF_POTENTIAL_ATOMIC_DDL (1U << 19)
 
+/**
+  Statement is depending on the ACL cache, which can be disabled by the
+  --skip-grant-tables server option.
+*/
+#define CF_REQUIRE_ACL_CACHE (1U << 20)
+
 /* Bits in server_command_flags */
 
 /**

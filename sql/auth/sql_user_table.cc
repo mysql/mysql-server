@@ -1312,12 +1312,7 @@ int replace_db_table(THD *thd, TABLE *table, const char *db,
   uchar user_key[MAX_KEY_LENGTH];
   Acl_table_intact table_intact(thd);
   DBUG_ENTER("replace_db_table");
-
-  if (!initialized) {
-    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
-    DBUG_RETURN(-1);
-  }
-
+  DBUG_ASSERT(initialized);
   if (table_intact.check(table, ACL_TABLES::TABLE_DB)) DBUG_RETURN(-1);
 
   /* Check if there is such a user in user table in memory? */
@@ -1454,12 +1449,7 @@ int replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
   Acl_table_intact table_intact(thd);
 
   DBUG_ENTER("replace_proxies_priv_table");
-
-  if (!initialized) {
-    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
-    DBUG_RETURN(-1);
-  }
-
+  DBUG_ASSERT(initialized);
   if (table_intact.check(table, ACL_TABLES::TABLE_PROXIES_PRIV))
     DBUG_RETURN(-1);
 

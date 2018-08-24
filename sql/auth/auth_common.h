@@ -690,6 +690,7 @@ bool check_acl_tables_intact(THD *thd, TABLE_LIST *tables);
 void notify_flush_event(THD *thd);
 
 /* sql_authorization */
+bool skip_grant_tables();
 bool has_grant_role_privilege(THD *thd);
 bool has_revoke_role_privilege(THD *thd);
 int mysql_set_active_role_none(THD *thd);
