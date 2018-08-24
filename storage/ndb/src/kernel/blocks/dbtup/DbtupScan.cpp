@@ -1595,6 +1595,7 @@ Dbtup::move_to_next_change_page_row(ScanOp & scan,
           return ZSCAN_FOUND_PAGE_END;
         }
         jamDebug();
+        ndbassert(fix_page->verify_change_maps());
         /**
          * We have moved forward to a new large area. We assume that all
          * small areas we move past don't have their bits set.
@@ -1632,6 +1633,7 @@ Dbtup::move_to_next_change_page_row(ScanOp & scan,
           return ZSCAN_FOUND_PAGE_END;
         }
         jamDebug();
+        ndbassert(fix_page->verify_change_maps());
         /**
          * Since 1024 is a multiple of 64 there is no risk that we move
          * ourselves past the next large area check.
@@ -1649,6 +1651,7 @@ Dbtup::move_to_next_change_page_row(ScanOp & scan,
   Uint32 map_val = (fix_page->m_change_map[3] >> 16);
   jamLineDebug(Uint16(map_val));
   (void)map_val;
+  ndbassert(fix_page->verify_change_maps());
   return ZSCAN_FOUND_TUPLE;
 }
 
