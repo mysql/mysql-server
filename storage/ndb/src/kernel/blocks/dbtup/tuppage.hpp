@@ -18,6 +18,7 @@
 #ifndef __NDB_TUP_PAGE_HPP
 #define __NDB_TUP_PAGE_HPP
 
+#include <pc.hpp>
 #include <ndb_types.h>
 #include "../diskpage.hpp"
 #include <Bitmask.hpp>
@@ -263,7 +264,7 @@ struct Tup_fixsize_page
 #endif
     return (map_val != 0);
   }
-  bool verify_change_maps()
+  bool verify_change_maps(EmulatedJamBuffer *jamBuf)
   {
     for (Uint32 i = 0; i < 4; i++)
     {
@@ -275,8 +276,8 @@ struct Tup_fixsize_page
         Uint32 small_bit_map = small_map & 0xFFFF;
         if (small_bit_map == 0)
         {
-          jamDebug();
-          jamLineDebug((Uint16(i)));
+          thrjamDebug(jamBuf);
+          thrjamLineDebug(jamBuf, (Uint16(i)));
           return false;
         }
       }
@@ -285,9 +286,9 @@ struct Tup_fixsize_page
         Uint32 small_bit_map = small_map & 0xFFFF;
         if (small_bit_map != 0)
         {
-          jamDebug();
-          jamLineDebug((Uint16(i)));
-          jamLineDebug((Uint16(small_bit_map)));
+          thrjamDebug(jamBuf);
+          thrjamLineDebug(jamBuf, (Uint16(i)));
+          thrjamLineDebug(jamBuf, (Uint16(small_bit_map)));
           return false;
         }
       }
@@ -298,8 +299,8 @@ struct Tup_fixsize_page
         Uint32 small_bit_map = small_map >> 16;
         if (small_bit_map == 0)
         {
-          jamDebug();
-          jamLineDebug((Uint16(i)));
+          thrjamDebug(jamBuf);
+          thrjamLineDebug(jamBuf, (Uint16(i)));
           return false;
         }
       }
@@ -308,9 +309,9 @@ struct Tup_fixsize_page
         Uint32 small_bit_map = small_map >> 16;
         if (small_bit_map != 0)
         {
-          jamDebug();
-          jamLineDebug((Uint16(i)));
-          jamLineDebug((Uint16(small_bit_map)));
+          thrjamDebug(jamBuf);
+          thrjamLineDebug(jamBuf, (Uint16(i)));
+          thrjamLineDebug(jamBuf, (Uint16(small_bit_map)));
           return false;
         }
       }
