@@ -1,0 +1,239 @@
+/*
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ */
+
+/** @page mysqlx_protocol_expectations Expectations
+
+
+Topics in this section:
+
+- @ref expectations_Setting_Expectations
+- @ref expectations_Behavior
+- @ref expectations_Conditions
+
+With the use of pipelining in the X %Protocol (sending messages
+without waiting for successful response) only so many messages can be
+pipelined without causing havoc if one of the pipelined, dependent
+messages fails:
+
+@code{unparsed}
+    Mysqlx.Crud::PrepareFind(stmt_id=1, ...) // may fail
+    Mysqlx.PreparedStmt::Execute(stmt_id=1, ...) // would fail implicitly as stmt_id=1 doesn't exist
+    Mysqlx.PreparedStmt::Close(stmt_id=1) // would fail implicitly as stmt_id=1 doesn't exist
+@endcode
+
+While implicitly failing is one thing, there are situations where it
+isn't that obvious what will happen:
+
+@code{unparsed}
+    Mysqlx.Crud::PrepareInsert(stmt_id=1, ...) // ok
+    Mysqlx.PreparedStmt::Execute(stmt_id=1, ...) // ok
+    Mysqlx.PreparedStmt::Execute(stmt_id=1, ...) // duplicate key error
+    Mysqlx.PreparedStmt::Execute(stmt_id=1, ...) // what now? abort the insert? ignore?
+    Mysqlx.PreparedStmt::Close(stmt_id=1) // close the stmt_id
+@endcode
+
+
+Setting Expectations {#expectations_Setting_Expectations}
+====================
+
+Expectations let statements fail reliably until the end of the block.
+
+Assume the ``PrepareFind`` fails:
+
+-  don't execute the ``Execute``
+
+-  don't try to close the stmt
+
+@code{unparsed}
+    Mysqlx.Expect::Open([+no_error])
+    Mysqlx.Crud::PrepareFind(stmt_id=1, ...) // may fail
+    Mysqlx.PreparedStmt::Execute(stmt_id=1, ...) // expectation(no_error) failed
+    Mysqlx.PreparedStmt::Close(stmt_id=1) // expectation(no_error) failed
+    Mysqlx.Expect::Close()
+@endcode
+
+But this would also skip the close if execute fails. Not what we want.
+Adding another expect-block handles it:
+
+@code{unparsed}
+    Mysqlx.Expect::Open([+no_error])
+    Mysqlx.Crud::PrepareFind(stmt_id=1, ...) // may fail
+    Mysqlx.Expect::Open([+no_error])
+    Mysqlx.PreparedStmt::Execute(stmt_id=1, ...) // expectation(no_error) failed
+    Mysqlx.Expect::Close()
+    Mysqlx.PreparedStmt::Close(stmt_id=1) // expectation(no_error) failed
+    Mysqlx.Expect::Close()
+@endcode
+
+
+With these expectations pipelined, the server will handle errors in a
+consistent, reliable way.
+
+It also allows to express how a streaming insert would behave if one of
+the inserts fails (for example: duplicate key error, disk full, and so
+on):
+
+Either fail at first error:
+
+@code{unparsed}
+    Mysqlx.Expect::Open([+no_error])
+    Mysqlx.Crud::PrepareInsert(stmt_id=1, ...) // ok
+    Mysqlx.Expect::Open([+no_error])
+    Mysqlx.PreparedStmt::Execute(stmt_id=1, ...) // ok
+    Mysqlx.PreparedStmt::Execute(stmt_id=1, ...) // duplicate_key error
+    Mysqlx.PreparedStmt::Execute(stmt_id=1, ...) // expectation(no_error) failed
+    Mysqlx.PreparedStmt::Execute(stmt_id=1, ...) // expectation(no_error) failed
+    Mysqlx.Expect::Close()
+    Mysqlx.PreparedStmt::Close(stmt_id=1) // ok
+    Mysqlx.Expect::Close()
+@endcode
+
+Or ignore error and continue:
+
+@code{unparsed}
+    Mysqlx.Expect::Open([+no_error])
+    Mysqlx.Crud::PrepareInsert(stmt_id=1, ...) // ok
+    Mysqlx.Expect::Open([-no_error])
+    Mysqlx.PreparedStmt::Execute(stmt_id=1, ...) // ok
+    Mysqlx.PreparedStmt::Execute(stmt_id=1, ...) // duplicate_key error
+    Mysqlx.PreparedStmt::Execute(stmt_id=1, ...) // ok
+    Mysqlx.PreparedStmt::Execute(stmt_id=1, ...) // ok
+    Mysqlx.Expect::Close()
+    Mysqlx.PreparedStmt::Close(stmt_id=1) // expectation(no_error) failed
+    Mysqlx.Expect::Close()
+@endcode
+
+
+Behavior {#expectations_Behavior}
+========
+
+An Expectation Block:
+
+-  encloses client messages
+
+-  has a Condition Set
+
+-  has a parent Expectation Block
+
+-  can inherit a Condition Set from the parent Expectation Block or
+   start with a empty Condition Set
+
+-  fails if one of the Conditions fails while the Block is started or
+   active
+
+-  fails if one of the Conditions isn't recognized or not valid
+
+A Condition Set:
+
+-  has a set of Conditions
+
+-  allows to set/unset Conditions
+
+A Condition:
+
+-  has a key and value
+
+-  key is integer
+
+-  value format depends on the key
+
+If a Expectation Block fails, all following messages of the Expectation
+block are failing with:
+
+-  error-msg: ``Expectation failed: %%s``
+
+-  error-code: ...
+
+Conditions {#expectations_Conditions}
+==========
+
+@warning
+    The layout of conditions are subject to change:
+    -  not all may be implemented yet
+    -  more conditions may be added
+
+| Condition                                | Key |
+|------------------------------------------|-----|
+| @ref expectations_no_error               | 1   |
+| @ref expectations_schema_version         | 2   |
+| @ref expectations_gtid_executed_contains | 3   |
+| @ref expectations_gtid_wait_less_than_ms | 4   |
+
+## no_error {#expectations_no_error}
+
+Fail all messages of the block after the first message returning an
+error.
+
+Example:
+
+@code{unparsed}
+    Mysqlx.Expect::Open([+no_error])
+    Mysqlx.Expect::Close()
+@endcode
+
+## schema_version {#expectations_schema_version}
+
+Fail all messages of the block if the schema version for the collection
+doesn't match. (_not implemented_)
+
+@note
+    This is a used by the JSON schema support of the server to ensure
+    client and server are in agreement of what schema version is
+    *current* as it is currently planned to enforce the checks on the
+    client-side.
+
+Example:
+
+@code{unparsed}
+    Mysqlx.Expect::Open([+schema_version::`schema`.`collection` = 1])
+    Mysqlx.Expect::Close()
+@endcode
+
+## gtid_executed_contains {#expectations_gtid_executed_contains}
+
+Fail all messages until the end of the block if the ``@@gtid_executed``
+doesn't contain the set GTID. (_not implemented_)
+
+@note
+    Used by the *read-your-writes* to ensure another node is already up
+    to date.
+
+Example:
+
+@code{unparsed}
+    Mysqlx.Expect::Open([+gtid_executed_contains = "..."])
+    Mysqlx.Expect::Close()
+@endcode
+
+## gtid_wait_less_than_ms {#expectations_gtid_wait_less_than_ms}
+
+Used in combination with @ref expectations_gtid_executed_contains
+to wait that the node caught up. (_not implemented_)
+
+Example:
+
+@code{unparsed}
+    Mysqlx.Expect::Open([+gtid_wait_less_than_ms = 1000])
+    Mysqlx.Expect::Close()
+@endcode
+
+## sql_stateless {#expectations_sql_stateless}
+
+Fail any message that executes stateful statements like:
+
+-  temporary tables
+
+-  user variables
+
+-  session variables
+
+-  stateful functions (``INSERT_ID()``, ``GET_LOCK()``)
+
+-  stateful language features (``SQL_CALC_FOUND_ROWS``)
+
+@note
+    Depending on the implementation stored procedures may be not allowed
+    as they may through levels of indirection use stateful SQL features.
+
+*/

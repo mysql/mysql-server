@@ -1,0 +1,54 @@
+/*
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ */
+
+/** @page mysqlx_protocol_comparison Comparison to MySQL C/S %Protocol
+
+
+| Feature                              | MySQL C/S protocol                                                                      | X %Protocol                                                                  |
+|--------------------------------------|-----------------------------------------------------------------------------------------|-----------------------------------------------------------------------------|
+| plaintext auth                       | ✓                                                                                       | ✓ via SASL                                                                  |
+| extentisible auth                    | ✓ (5.6)                                                                                 | ✓ via SASL                                                                  |
+| TLS extension                        | ✓                                                                                       | ✓                                                                           |
+| max message size >= 1Gb              | ✓                                                                                       | ✓                                                                           |
+| compression extension                | ✓                                                                                       | ✕                                                                           |
+| resettable sessions                  | [COM_RESET_CONNECTION](http://dev.mysql.com/doc/internals/en/com-reset-connection.html) | @ref Mysqlx_Session_Reset "@c Reset "                                       |
+| multiple, sequential sessions        | [COM_CHANGE_USER](http://dev.mysql.com/doc/internals/en/com-change-user.html)           | @ref Mysqlx_Session_AuthenticateStart "@c AuthenticateStart"                |
+| out-of-band notifications            | ✕                                                                                       | @ref Mysqlx_Notice_Frame "@c Frame "                                        |
+| extensible messages                  | ✕                                                                                       | via protobuf                                                                |
+| extensible protocol                  | via capability flags                                                                    | @ref Mysqlx_Connection_CapabilitiesGet "@c CapabilitiesGet "                |
+| prepared SQL                         | ✓                                                                                       | ✕                                                                           |
+| prepared CRUD                        | ✕                                                                                       | ✕                                                                           |
+| multi-statement                      | ✓ (5.0)                                                                                 | ✕                                                                           |
+| multi-resultset                      | ✓ (5.0)                                                                                 | @ref Mysqlx_Resultset_FetchDoneMoreResultsets "@c FetchDoneMoreResultsets " |
+| OUT-paramset                         | ✓ (5.5)                                                                                 | @ref Mysqlx_Resultset_FetchDoneMoreOutParams "@c FetchDoneMoreOutParams "   |
+
+@par Mapping of MySQL C/S @c COM_ to Mysqlx Messages
+
+| Command                                                                                       | X %Protocol                                                        |
+|-----------------------------------------------------------------------------------------------|-------------------------------------------------------------------|
+| [COM_QUIT](http://dev.mysql.com/doc/internals/en/com-quit.html)                               | @ref Mysqlx_Connection_Close "@c Close "                          |
+| [COM_INIT_DB](http://dev.mysql.com/doc/internals/en/com-init-db.html)                         | ✕                                                                 |
+| [COM_QUERY](http://dev.mysql.com/doc/internals/en/com-query.html)                             | @ref Mysqlx_Sql_StmtExecute "@c StmtExecute " namespace="sql"     |
+| [COM_FIELD_LIST](http://dev.mysql.com/doc/internals/en/com-field-list.html)                   | ✕, deprecated                                                     |
+| [COM_CREATE_DB](http://dev.mysql.com/doc/internals/en/com-create-db.html)                     | ✕, deprecated                                                     |
+| [COM_DROP_DB](http://dev.mysql.com/doc/internals/en/com-drop-db.html)                         | ✕, deprecated                                                     |
+| [COM_REFRESH](http://dev.mysql.com/doc/internals/en/com-refresh.html)                         | ✕, deprecated                                                     |
+| [COM_SHUTDOWN](http://dev.mysql.com/doc/internals/en/com-shutdown.html)                       | ✕, use SQL ``SHUTDOWN``                                           |
+| [COM_STATISTICS](http://dev.mysql.com/doc/internals/en/com-statistics.html)                   | ✕, deprecated                                                     |
+| [COM_PROCESS_INFO](http://dev.mysql.com/doc/internals/en/com-process-info.html)               | ✕, deprecated                                                     |
+| [COM_PROCESS_KILL](http://dev.mysql.com/doc/internals/en/com-process-kill.html)               | ✕, deprecated                                                     |
+| [COM_DEBUG](http://dev.mysql.com/doc/internals/en/com-debug.html)                             | ✕, deprecated                                                     |
+| [COM_PING](http://dev.mysql.com/doc/internals/en/com-ping.html)                               | @ref Mysqlx_Sql_StmtExecute "@c StmtExecute " namespace="xplugin" |
+| [COM_CHANGE_USER](http://dev.mysql.com/doc/internals/en/com-change-user.html)                 | @ref Mysqlx_Session_AuthenticateStart "@c AuthenticateStart "     |
+| [COM_RESET_CONNECTION](http://dev.mysql.com/doc/internals/en/com-reset-connection.html)       | @ref Mysqlx_Session_Reset "@c Reset "                             |
+| [COM_STMT_PREPARE](http://dev.mysql.com/doc/internals/en/com-stmt-prepare.html)               | ✕                                                                 |
+| [COM_STMT_SEND_LONG_DATA](http://dev.mysql.com/doc/internals/en/com-stmt-send-long-data.html) | ✕                                                                 |
+| [COM_STMT_EXECUTE](http://dev.mysql.com/doc/internals/en/com-stmt-execute.html)               | ✕                                                                 |
+| [COM_STMT_CLOSE](http://dev.mysql.com/doc/internals/en/com-stmt-close.html)                   | ✕                                                                 |
+| [COM_STMT_RESET](http://dev.mysql.com/doc/internals/en/com-stmt-reset.html)                   | ✕                                                                 |
+| [COM_SET_OPTION](http://dev.mysql.com/doc/internals/en/com-set-option.html)                   | ✕                                                                 |
+| [COM_STMT_FETCH](http://dev.mysql.com/doc/internals/en/com-stmt-fetch.html)                   | ✕                                                                 |
+
+
+*/
