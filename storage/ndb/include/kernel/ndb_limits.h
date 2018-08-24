@@ -347,19 +347,6 @@
 #define MAX_INDEX_STAT_VALUE_CSIZE  512 /* Longvarbinary(2048) */
 #define MAX_INDEX_STAT_VALUE_FORMAT 1
 
-/**
- * When calculating batch size for unique key builds, reorg builds,
- * and foreign key builds we will treat this as the maximum normal
- * row size, if rows are bigger than this we will decrease the
- * parallelism to adjust for this.
- * See Suma.cpp
- */
-#define MAX_NORMAL_ROW_SIZE 2048
-
-#define MAX_UNDO_DATA            20 + MAX_TUPLE_SIZE_IN_WORDS
-// Max. number of pending undo records allowed per LDM
-#define MAX_PENDING_UNDO_RECORDS 100
-
 // Maximum handling of DROP_TRIG_REQs in parallel by LocalProxy
 #define NDB_MAX_PROXY_DROP_TRIG_IMPL_REQ 21
 /* Maximum number of DROP_TRIGGER_REQs SUMA can send parallely after the
