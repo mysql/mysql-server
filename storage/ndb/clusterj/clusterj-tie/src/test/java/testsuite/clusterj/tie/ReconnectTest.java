@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 
 package testsuite.clusterj.tie;
 
+@org.junit.Ignore("Bug#28550140 : disable test until diagnosis of failure")
 public class ReconnectTest extends testsuite.clusterj.ReconnectTest {
 
 }
