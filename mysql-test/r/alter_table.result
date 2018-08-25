@@ -4023,6 +4023,8 @@ ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot change column ty
 DROP TABLE t1;
 # VARCHAR(512): UTF8MB3 -> UTF8MB4
 CREATE TABLE t1(c1 VARCHAR(512) CHARSET UTF8MB3);
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES (CONCAT(0xc3a6, 0xc3b8, 0xc3a5, "text"));
 ALTER TABLE t1 MODIFY COLUMN c1 VARCHAR(512) CHARSET UTF8MB4,
 ALGORITHM = INPLACE;
@@ -4035,6 +4037,8 @@ c1
 DROP TABLE t1;
 # CHAR(1): UTF8MB3 -> UTF8MB4
 CREATE TABLE t1(c1 CHAR(1) CHARSET UTF8MB3);
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES (0xc3a6), (0xc3b8);
 ALTER TABLE t1 MODIFY COLUMN c1 CHAR(1) CHARSET UTF8MB4, ALGORITHM = INPLACE;
 SELECT * FROM t1;
@@ -4055,6 +4059,8 @@ t1	CREATE TABLE `t1` (
 DROP TABLE t1;
 # CHAR(31): UTF8MB3 -> UTF8MB4
 CREATE TABLE t1(c1 CHAR(31) CHARSET UTF8MB3);
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES (CONCAT(0xc3a6, 0xc3b8, 0xc3a5, "text"));
 ALTER TABLE t1 MODIFY COLUMN c1 CHAR(31) CHARSET UTF8MB4, ALGORITHM = INPLACE;
 # Insert chars that only can be represented in utf8mb4
@@ -4067,11 +4073,15 @@ DROP TABLE t1;
 # Crossing the boundary of 256 bytes usage, cannot be INPLACE.
 # 85*3 -> 85*4 and 64*3 -> 64*4
 CREATE TABLE t1(c1 CHAR(85) CHARSET UTF8MB3);
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES (CONCAT(0xc3a6, 0xc3b8, 0xc3a5, "text"));
 ALTER TABLE t1 MODIFY COLUMN c1 CHAR(85) CHARSET UTF8MB4, ALGORITHM = INPLACE;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot change column type INPLACE. Try ALGORITHM=COPY.
 DROP TABLE t1;
 CREATE TABLE t1(c1 CHAR(64) CHARSET UTF8MB3);
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES (CONCAT(0xc3a6, 0xc3b8, 0xc3a5, "text"));
 ALTER TABLE t1 MODIFY COLUMN c1 CHAR(64) CHARSET UTF8MB4, ALGORITHM = INPLACE;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot change column type INPLACE. Try ALGORITHM=COPY.
@@ -4082,12 +4092,16 @@ DROP TABLE t1;
 # Increase in column size above 256 bytes should be inplace.
 # 86*3 -> 86*4
 CREATE TABLE t1(c1 CHAR(86) CHARSET UTF8MB3);
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES (CONCAT(0xc3a6, 0xc3b8, 0xc3a5, "text"));
 ALTER TABLE t1 MODIFY COLUMN c1 CHAR(86) CHARSET UTF8MB4, ALGORITHM = INPLACE;
 DROP TABLE t1;
 # Increase in column size within 256 bytes should be inplace.
 # 63*3 -> 63*4
 CREATE TABLE t1(c1 CHAR(63) CHARSET UTF8MB3);
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES (CONCAT(0xc3a6, 0xc3b8, 0xc3a5, "text"));
 ALTER TABLE t1 MODIFY COLUMN c1 CHAR(63) CHARSET UTF8MB4, ALGORITHM = INPLACE;
 INSERT INTO t1 VALUES (0xf0909080);
@@ -4098,6 +4112,8 @@ c1
 DROP TABLE t1;
 # TINYTEXT: UTF8MB3 -> UTF8MB4
 CREATE TABLE t1(c1 TINYTEXT CHARSET UTF8MB3);
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES (CONCAT(0xc3a6, 0xc3b8, 0xc3a5, "text"));
 ALTER TABLE t1 MODIFY COLUMN c1 TINYTEXT CHARSET UTF8MB4, ALGORITHM = INPLACE;
 # Insert chars that only can be represented in utf8mb4
@@ -4109,6 +4125,8 @@ c1
 DROP TABLE t1;
 # TEXT: UTF8MB3 -> UTF8MB4
 CREATE TABLE t1(c1 TEXT CHARSET UTF8MB3);
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES (CONCAT(0xc3a6, 0xc3b8, 0xc3a5, "text"));
 ALTER TABLE t1 MODIFY COLUMN c1 TEXT CHARSET UTF8MB4, ALGORITHM = INPLACE;
 # Insert chars that only can be represented in utf8mb4
@@ -4120,6 +4138,8 @@ c1
 DROP TABLE t1;
 # MEDIUMTEXT: UTF8MB3 -> UTF8MB4
 CREATE TABLE t1(c1 MEDIUMTEXT CHARSET UTF8MB3);
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES (CONCAT(0xc3a6, 0xc3b8, 0xc3a5, "text"));
 ALTER TABLE t1 MODIFY COLUMN c1 MEDIUMTEXT CHARSET UTF8MB4, ALGORITHM = INPLACE;
 # Insert chars that only can be represented in utf8mb4
@@ -4131,6 +4151,8 @@ c1
 DROP TABLE t1;
 # LONGTEXT: UTF8MB3 -> UTF8MB4
 CREATE TABLE t1(c1 LONGTEXT CHARSET UTF8MB3);
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES (CONCAT(0xc3a6, 0xc3b8, 0xc3a5, "text"));
 ALTER TABLE t1 MODIFY COLUMN c1 LONGTEXT CHARSET UTF8MB4, ALGORITHM = INPLACE;
 # Insert chars that only can be represented in utf8mb4
@@ -4142,6 +4164,8 @@ c1
 DROP TABLE t1;
 # ENUM: UTF8MB3 -> UTF8MB4
 CREATE TABLE t1(c1 ENUM('a','b','c') CHARSET UTF8MB3);
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES ('a');
 ALTER TABLE t1 MODIFY COLUMN c1 ENUM('a','b','c', 0xf0909080) CHARSET UTF8MB4,
 ALGORITHM = INPLACE;
@@ -4154,6 +4178,8 @@ a
 DROP TABLE t1;
 # ENUM: UTF8MB3 -> UTF8MB4: Inplace rejected, new value not at the end
 CREATE TABLE t1(c1 ENUM(0xc3a6,0xc3b8,0xc3a5) CHARSET UTF8MB3);
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 ALTER TABLE t1 MODIFY COLUMN c1 ENUM(0xc3a6,0xf0909080,0xc3b8,0xc3a5)
 CHARSET UTF8MB4, ALGORITHM = INPLACE;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot change column type INPLACE. Try ALGORITHM=COPY.
@@ -4170,6 +4196,8 @@ ALGORITHM = INPLACE;
 DROP TABLE t1;
 # ENUM: UTF8MB3 -> BINARY
 CREATE TABLE t1(c1 ENUM('a','b','c') CHARSET UTF8MB3);
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 ALTER TABLE t1 MODIFY COLUMN c1 ENUM('a','b','c') CHARSET BINARY,
 ALGORITHM = INPLACE;
 DROP TABLE t1;
@@ -4180,6 +4208,8 @@ ALGORITHM = INPLACE;
 DROP TABLE t1;
 # SET: UTF8MB3 -> UTF8MB4
 CREATE TABLE t1(c1 SET('b',0xc3a6,0xc3b8,0xc3a5) CHARSET UTF8MB3);
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES (CONCAT('b,', 0xc3a6));
 ALTER TABLE t1 MODIFY COLUMN c1 SET('b',0xc3a6,0xc3b8,0xc3a5,0xf0909080)
 CHARSET UTF8MB4, ALGORITHM = INPLACE;
@@ -4192,6 +4222,8 @@ b,ø,𐐀
 DROP TABLE t1;
 # SET: UTF8MB3 -> UTF8MB4: Inplace rejected, new value not at the end
 CREATE TABLE t1(c1 SET(0xc3a6,0xc3b8,0xc3a5) CHARSET UTF8MB3);
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 ALTER TABLE t1 MODIFY COLUMN c1 SET(0xc3a6,0xf0909080,0xc3b8,0xc3a5)
 CHARSET UTF8MB4, ALGORITHM = INPLACE;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot change column type INPLACE. Try ALGORITHM=COPY.
@@ -4208,6 +4240,8 @@ ALGORITHM = INPLACE;
 DROP TABLE t1;
 # SET: UTF8MB3 -> BINARY
 CREATE TABLE t1(c1 SET('a','b','c') CHARSET UTF8MB3);
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 ALTER TABLE t1 MODIFY COLUMN c1 SET('a','b','c') CHARSET BINARY,
 ALGORITHM = INPLACE;
 DROP TABLE t1;
@@ -4257,6 +4291,8 @@ DROP TABLE t1;
 CREATE TABLE t1(c1 int, c2 CHAR(1) CHARSET ASCII);
 INSERT INTO t1 VALUES(1,'a');
 ALTER TABLE t1 ADD COLUMN c3 VARCHAR(1) CHARSET UTF8MB3 DEFAULT 'b', ALGORITHM = INSTANT;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT * FROM t1;
 c1	c2	c3
 1	a	b
@@ -4278,6 +4314,9 @@ CREATE TABLE t1(c1 int,
 c2 VARCHAR(1) CHARSET UTF8MB3,
 c3 VARCHAR(1) CHARSET UTF8MB3,
 c4 VARCHAR(2) GENERATED ALWAYS AS (CONCAT(c2,c3)) virtual);
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1(c1,c2,c3) VALUES(1,'a','b');
 SELECT * FROM t1;
 c1	c2	c3	c4
