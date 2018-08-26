@@ -22,8 +22,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 
-import org.junit.Ignore;
-
 import testsuite.clusterj.model.DatetimeAsSqlTimestampTypes;
 import testsuite.clusterj.model.IdBase;
 
@@ -87,7 +85,6 @@ public class DatetimeAsSqlTimestampTypesTest extends AbstractClusterJModelTest {
         return new Timestamp(getMillisFor(1980, 0, i + 1, 0, 0, j));
     }
 
-    @Ignore("Bug#28424366 : test fails with newer Connector/J")
     public void testWriteJDBCReadNDB() {
         writeJDBCreadNDB();
         failOnError();
@@ -103,7 +100,6 @@ public class DatetimeAsSqlTimestampTypesTest extends AbstractClusterJModelTest {
         failOnError();
     }
 
-    @Ignore("Bug#28424366 : test fails with newer Connector/J")
     public void testWriteNDBReadJDBC() {
         writeNDBreadJDBC();
         failOnError();

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,6 +41,8 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.SQLWarning;
 import java.sql.Statement;
+
+import java.text.SimpleDateFormat;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -484,6 +486,10 @@ public abstract class AbstractClusterJTest extends TestCase {
         if (jdbcPassword == null) {
             jdbcPassword = "";
         }
+        // Get the time zone in which the test is running
+        String timezoneInUTCOffset = new SimpleDateFormat("XXX").format(new java.util.Date());
+        // Set the time zone of the current session through sessionVariables
+        props.put("sessionVariables", "time_zone='" + timezoneInUTCOffset + "'");
         props.put("useSSL", "false");
         props.put("user", jdbcUsername);
         props.put("password",jdbcPassword);
