@@ -22,8 +22,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 
-import org.junit.Ignore;
-
 import testsuite.clusterj.model.IdBase;
 import testsuite.clusterj.model.TimestampAsSqlTimestampTypes;
 
@@ -48,7 +46,6 @@ create index idx_timestamp_not_null_btree on timestamptypes(timestamp_not_null_b
 create unique index idx_timestamp_not_null_both on timestamptypes(timestamp_not_null_both);
 
  */
-@Ignore("writeJDBCreadNDB got failure to match column data for row 1 column 3 Expected: Tue Jan 01 01:01:02 CET 1980 actual: Mon Dec 31 23:01:02 CET 1979")
 public class TimestampAsSqlTimestampTypesTest extends AbstractClusterJModelTest {
 
     @Override
@@ -89,13 +86,11 @@ public class TimestampAsSqlTimestampTypesTest extends AbstractClusterJModelTest 
         return new Timestamp(getMillisFor(1980, 0, 1, i, i, j));
     }
 
-    @Ignore("Bug#28424366 : test fails with newer Connector/J")
     public void testWriteJDBCReadNDB() {
         writeJDBCreadNDB();
         failOnError();
     }
 
-    @Ignore("Bug#28424366 : test fails with newer Connector/J")
     public void testWriteNDBReadJDBC() {
         writeNDBreadJDBC();
         failOnError();
