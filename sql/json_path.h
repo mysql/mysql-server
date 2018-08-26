@@ -1,7 +1,7 @@
 #ifndef SQL_JSON_PATH_INCLUDED
 #define SQL_JSON_PATH_INCLUDED
 
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -305,7 +305,7 @@ class Json_seekable_path {
   Json_path_iterator end() const { return m_path_legs.end(); }
 
   /** Get a pointer to the last path leg. The path must not be empty. */
-  const Json_path_leg *last_leg() const { return *(m_path_legs.end() - 1); }
+  const Json_path_leg *last_leg() const { return m_path_legs.back(); }
 };
 
 /**
@@ -360,85 +360,6 @@ class Json_path final : public Json_seekable_path {
     #Json_seekable_path::m_path_legs are allocated.
   */
   MEM_ROOT m_mem_root;
-
-  /**
-     Fills in this Json_path from a path expression.
-
-     The caller must specify
-     whether the path expression begins with a column identifier or whether
-     it just begins with $. Stops parsing on the first error. Returns true if
-     the path is parsed successfully. If parsing fails, then the state of this
-     Json_path is undefined.
-
-     @param[in] begins_with_column_id True if the path begins with a column id.
-
-     @param[in] path_length The length of the path expression.
-
-     @param[in] path_expression The string form of the path expression.
-
-     @param[out] status True if the path parsed successfully. False otherwise.
-
-     @return The pointer advanced to around where the error, if any, occurred.
-  */
-  const char *parse_path(const bool begins_with_column_id,
-                         const size_t path_length, const char *path_expression,
-                         bool *status);
-
-  /**
-     Parse a single path leg and add it to the evolving Json_path.
-
-     @param[in] charptr The current pointer into the path expression.
-
-     @param[in] endptr  The end of the path expression.
-
-     @param[out] status The status variable to be filled in.
-
-     @return The pointer advanced past the consumed leg.
-  */
-  const char *parse_path_leg(const char *charptr, const char *endptr,
-                             bool *status);
-
-  /**
-     Parse a single ellipsis leg and add it to the evolving Json_path.
-
-     @param[in] charptr The current pointer into the path expression.
-
-     @param[in] endptr  The end of the path expression.
-
-     @param[out] status The status variable to be filled in.
-
-     @return The pointer advanced past the consumed leg.
-  */
-  const char *parse_ellipsis_leg(const char *charptr, const char *endptr,
-                                 bool *status);
-
-  /**
-     Parse a single array leg and add it to the evolving Json_path.
-
-     @param[in] charptr The current pointer into the path expression.
-
-     @param[in] endptr  The end of the path expression.
-
-     @param[out] status The status variable to be filled in.
-
-     @return The pointer advanced past the consumed leg.
-  */
-  const char *parse_array_leg(const char *charptr, const char *endptr,
-                              bool *status);
-
-  /**
-     Parse a single member leg and add it to the evolving Json_path.
-
-     @param[in] charptr The current pointer into the path expression.
-
-     @param[in] endptr  The end of the path expression.
-
-     @param[out] status The status variable to be filled in.
-
-     @return The pointer advanced past the consumed leg.
-  */
-  const char *parse_member_leg(const char *charptr, const char *endptr,
-                               bool *status);
 
  public:
   Json_path();
@@ -510,10 +431,6 @@ class Json_path final : public Json_seekable_path {
 
   /** Turn into a human-readable string. */
   bool to_string(String *buf) const;
-
-  friend bool parse_path(const bool begins_with_column_id,
-                         const size_t path_length, const char *path_expression,
-                         Json_path *path, size_t *bad_index);
 };
 
 /**
