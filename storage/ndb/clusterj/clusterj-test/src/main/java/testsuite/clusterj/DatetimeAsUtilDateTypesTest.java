@@ -23,8 +23,6 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.Date;
 
-import org.junit.Ignore;
-
 import testsuite.clusterj.model.DatetimeAsUtilDateTypes;
 import testsuite.clusterj.model.IdBase;
 
@@ -88,7 +86,6 @@ public class DatetimeAsUtilDateTypesTest extends AbstractClusterJModelTest {
         return new Date(getMillisFor(1980, 0, i + 1, 0, 0, j));
     }
 
-    @Ignore("Bug#28424366 : test fails with newer Connector/J")
     public void testWriteJDBCReadNDB() {
         writeJDBCreadNDB();
         failOnError();
@@ -104,7 +101,6 @@ public class DatetimeAsUtilDateTypesTest extends AbstractClusterJModelTest {
         failOnError();
     }
 
-    @Ignore("Bug#28424366 : test fails with newer Connector/J")
     public void testWriteNDBReadJDBC() {
         writeNDBreadJDBC();
         failOnError();
