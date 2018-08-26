@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -314,7 +314,7 @@ bool Json_diff_vector::read_binary(const char **from, const TABLE *table,
     Json_path path;
     size_t bad_index;
     DBUG_PRINT("info", ("path='%.*s'", (int)path_length, p));
-    if (parse_path(false, path_length, pointer_cast<const char *>(p), &path,
+    if (parse_path(path_length, pointer_cast<const char *>(p), &path,
                    &bad_index))
       goto corrupted;
     p += path_length;

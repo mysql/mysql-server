@@ -72,7 +72,7 @@ constexpr char LAST[] = "last";
 static bool is_ecmascript_identifier(const std::string &name);
 static bool is_digit(unsigned codepoint);
 
-static const char *parse_path(bool, size_t, const char *, Json_path *, bool *);
+static const char *parse_path(size_t, const char *, Json_path *, bool *);
 static const char *parse_path_leg(const char *, const char *, Json_path *,
                                   bool *);
 static const char *parse_ellipsis_leg(const char *, const char *, Json_path *,
@@ -173,17 +173,6 @@ Json_seekable_path::Json_seekable_path() : m_path_legs(key_memory_JSON) {}
 Json_path::Json_path() : m_mem_root(key_memory_JSON, 256) {}
 
 bool Json_path::to_string(String *buf) const {
-  /*
-    3-part scope prefixes are not needed by wl7909.
-    There is no way to test them at the SQL level right now
-    since they would raise errors in all possible use-cases.
-    Support for them can be added in some follow-on worklog
-    which actually needs them.
-
-    This is where we would put pretty-printing support
-    for 3-part scope prefixes.
-  */
-
   if (buf->append(SCOPE)) return true;
 
   for (const Json_path_leg *leg : *this) {
@@ -210,13 +199,12 @@ bool Json_path::can_match_many() const {
 // Json_path parsing
 
 /** Top level parsing factory method */
-bool parse_path(const bool begins_with_column_id, const size_t path_length,
-                const char *path_expression, Json_path *path,
-                size_t *bad_index) {
+bool parse_path(size_t path_length, const char *path_expression,
+                Json_path *path, size_t *bad_index) {
   bool status = false;
 
-  const char *end_of_parsed_path = parse_path(
-      begins_with_column_id, path_length, path_expression, path, &status);
+  const char *end_of_parsed_path =
+      parse_path(path_length, path_expression, path, &status);
 
   if (status) {
     *bad_index = 0;
@@ -245,7 +233,6 @@ static inline const char *purge_whitespace(const char *str, const char *end) {
 /**
    Fills in a Json_path from a path expression.
 
-   @param[in] begins_with_column_id True if the path begins with a column id.
    @param[in] path_length The length of the path expression.
    @param[in] path_expression The string form of the path expression.
    @param[in,out] path The Json_path object to fill.
@@ -253,33 +240,16 @@ static inline const char *purge_whitespace(const char *str, const char *end) {
 
    @return The pointer advanced to around where the error, if any, occurred.
 */
-static const char *parse_path(bool begins_with_column_id, size_t path_length,
-                              const char *path_expression, Json_path *path,
-                              bool *status) {
+static const char *parse_path(size_t path_length, const char *path_expression,
+                              Json_path *path, bool *status) {
   path->clear();
 
   const char *charptr = path_expression;
   const char *endptr = path_expression + path_length;
 
-  if (begins_with_column_id) {
-    /*
-      3-part scope prefixes are not needed by wl7909.
-      There is no way to test them at the SQL level right now
-      since they would raise errors in all possible use-cases.
-      Support for them can be added in some follow-on worklog
-      which actually needs them.
-
-      This is where we would add parsing support
-      for 3-part scope prefixes.
-    */
-
-    // not supported yet
-    PARSER_RETURN(false);
-  } else {
-    // the first non-whitespace character must be $
-    charptr = purge_whitespace(charptr, endptr);
-    if ((charptr >= endptr) || (*charptr++ != SCOPE)) PARSER_RETURN(false);
-  }
+  // the first non-whitespace character must be $
+  charptr = purge_whitespace(charptr, endptr);
+  if ((charptr >= endptr) || (*charptr++ != SCOPE)) PARSER_RETURN(false);
 
   // now add the legs
   *status = true;

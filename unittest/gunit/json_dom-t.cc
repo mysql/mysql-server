@@ -102,8 +102,7 @@ static Json_dom_ptr parse_json(const char *json_text) {
 static Json_path parse_path(const char *json_path) {
   Json_path path;
   size_t bad_index;
-  EXPECT_FALSE(
-      parse_path(false, std::strlen(json_path), json_path, &path, &bad_index))
+  EXPECT_FALSE(parse_path(std::strlen(json_path), json_path, &path, &bad_index))
       << "bad index: " << bad_index;
   return path;
 }

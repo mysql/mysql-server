@@ -311,24 +311,13 @@ class Json_seekable_path {
 /**
   A JSON path expression.
 
-  From the user's point of view,
-  a path expression is a string literal with the following structure.
-  We parse this structure into a Json_path object:
+  From the user's point of view, a path expression is a string literal
+  with the following structure. We parse this structure into a
+  Json_path object:
 
       pathExpression ::= scope  pathLeg (pathLeg)*
 
-      scope ::= [ columnReference ] dollarSign
-
-      columnReference ::=
-            [
-              [ databaseIdentifier period  ]
-              tableIdentifier period
-            ]
-            columnIdentifier
-
-      databaseIdentifier ::= sqlIdentifier
-      tableIdentifier ::= sqlIdentifier
-      columnIdentifier ::= sqlIdentifier
+      scope ::= dollarSign
 
       pathLeg ::= member | arrayLocation | doubleAsterisk
 
@@ -458,23 +447,20 @@ class Json_path_clone final : public Json_seekable_path {
 /**
    Initialize a Json_path from a path expression.
 
-   The caller must specify whether the path expression begins with a
-   column identifier or whether it begins with $. Stops parsing on the
-   first error. It initializes the Json_path and returns false if the
-   path is parsed successfully. Otherwise, it returns false. In that
-   case, the output bad_index argument will contain an index into the
-   path expression. The parsing failed near that index.
+   Stops parsing on the first error. It initializes the Json_path and
+   returns false if the path is parsed successfully. Otherwise, it
+   returns false. In that case, the output bad_index argument will
+   contain an index into the path expression. The parsing failed near
+   that index.
 
-   @param[in] begins_with_column_id True if the path begins with a column id.
    @param[in] path_length The length of the path expression.
    @param[in] path_expression The string form of the path expression.
    @param[out] path The Json_path object to be initialized.
    @param[out] bad_index If null is returned, the parsing failed around here.
    @return false on success, true on error
 */
-bool parse_path(const bool begins_with_column_id, const size_t path_length,
-                const char *path_expression, Json_path *path,
-                size_t *bad_index);
+bool parse_path(size_t path_length, const char *path_expression,
+                Json_path *path, size_t *bad_index);
 
 /**
   A helper function that uses the above one as workhorse. Entry point for

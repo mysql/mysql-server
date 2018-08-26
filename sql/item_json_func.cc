@@ -302,7 +302,7 @@ bool parse_path(String *path_value, bool forbid_wildcards,
 
   // OK, we have a string encoded in utf-8. Does it parse?
   size_t bad_idx = 0;
-  if (parse_path(false, path_length, path_chars, json_path, &bad_idx)) {
+  if (parse_path(path_length, path_chars, json_path, &bad_idx)) {
     /*
       Issue an error message. The last argument is no longer used, but kept to
       avoid changing error message format.
