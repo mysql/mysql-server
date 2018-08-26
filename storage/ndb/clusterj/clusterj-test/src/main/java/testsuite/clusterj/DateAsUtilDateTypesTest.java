@@ -29,8 +29,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-import org.junit.Ignore;
-
 import testsuite.clusterj.model.DateAsUtilDateTypes;
 import testsuite.clusterj.model.IdBase;
 
@@ -95,7 +93,6 @@ public class DateAsUtilDateTypesTest extends AbstractClusterJModelTest {
         return new Date(getMillisFor(1980, i, j + 1));
     }
 
-    @Ignore("Bug#28424366 : test fails with newer Connector/J")
     public void testWriteJDBCReadNDB() {
         writeJDBCreadNDB();
         failOnError();
@@ -106,13 +103,11 @@ public class DateAsUtilDateTypesTest extends AbstractClusterJModelTest {
         failOnError();
     }
 
-    @Ignore("Bug#28424366 : test fails with newer Connector/J")
     public void testWriteJDBCReadJDBC() {
         writeJDBCreadJDBC();
         failOnError();
     }
 
-    @Ignore("Bug#28424366 : test fails with newer Connector/J")
     public void testWriteNDBReadJDBC() {
         writeNDBreadJDBC();
         failOnError();

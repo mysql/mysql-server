@@ -29,8 +29,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Time;
 
-import org.junit.Ignore;
-
 import testsuite.clusterj.model.IdBase;
 import testsuite.clusterj.model.TimeAsSqlTimeTypes;
 
@@ -94,7 +92,6 @@ public class TimeAsSqlTimeTypesTest extends AbstractClusterJModelTest {
         return new Time(getMillisFor(0, i, i, j));
     }
 
-    @Ignore("Bug#28424366 : test fails with newer Connector/J")
     public void testWriteJDBCReadNDB() {
         writeJDBCreadNDB();
         failOnError();
@@ -105,13 +102,11 @@ public class TimeAsSqlTimeTypesTest extends AbstractClusterJModelTest {
         failOnError();
     }
 
-    @Ignore("Bug#28424366 : test fails with newer Connector/J")
     public void testWriteJDBCReadJDBC() {
         writeJDBCreadJDBC();
         failOnError();
     }
 
-    @Ignore("Bug#28424366 : test fails with newer Connector/J")
     public void testWriteNDBReadJDBC() {
         writeNDBreadJDBC();
         failOnError();
