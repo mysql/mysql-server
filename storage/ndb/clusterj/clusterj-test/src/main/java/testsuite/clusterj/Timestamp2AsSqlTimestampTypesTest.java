@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,12 +18,7 @@
 package testsuite.clusterj;
 
 import java.lang.reflect.Method;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.sql.Timestamp;
-
-import org.junit.Ignore;
 
 import testsuite.clusterj.model.IdBase;
 import testsuite.clusterj.model.Timestamp2AsSqlTimestampTypes;
@@ -173,7 +168,7 @@ public class Timestamp2AsSqlTimestampTypesTest extends AbstractClusterJModelTest
             throw new RuntimeException(t);
         }
     }
-    protected Method getDeclaredMethod(Class clz, String name) {
+    protected Method getDeclaredMethod(Class<?> clz, String name) {
         try {
             return clz.getDeclaredMethod(name);
         } catch (Throwable t) {
@@ -181,111 +176,11 @@ public class Timestamp2AsSqlTimestampTypesTest extends AbstractClusterJModelTest
         }
     }
 
-    protected Method getDeclaredMethod(Class clz, String name, Class param) {
+    protected Method getDeclaredMethod(Class<?> clz, String name, Class<?> param) {
         try {
             return clz.getDeclaredMethod(name, param);
         } catch (Throwable t) {
             throw new RuntimeException(t);
         }
     }
-
-
-//    public void testWriteJDBCReadNDB() {
-//        writeJDBCreadNDB();
-//        failOnError();
-//    }
-//
-//    public void testWriteNDBReadJDBC() {
-//        writeNDBreadJDBC();
-//        failOnError();
-//   }
-//
-//    public void testWriteJDBCReadJDBC() {
-//        writeJDBCreadJDBC();
-//        failOnError();
-//    }
-//
-//    public void testWriteNDBReadNDB() {
-//        writeNDBreadNDB();
-//        failOnError();
-//   }
-//
-//   static ColumnDescriptor not_null_hash = new ColumnDescriptor
-//            ("timestamp_not_null_hash", new InstanceHandler() {
-//        public void setFieldValue(IdBase instance, Object value) {
-//            ((TimestampAsSqlTimestampTypes)instance).setTimestamp_not_null_hash((Timestamp)value);
-//        }
-//        public Object getFieldValue(IdBase instance) {
-//            return ((TimestampAsSqlTimestampTypes)instance).getTimestamp_not_null_hash();
-//        }
-//        public void setPreparedStatementValue(PreparedStatement preparedStatement, int j, Object value)
-//                throws SQLException {
-//            preparedStatement.setTimestamp(j, (Timestamp)value);
-//        }
-//        public Object getResultSetValue(ResultSet rs, int j) throws SQLException {
-//            return rs.getTimestamp(j);
-//        }
-//    });
-//
-//    static ColumnDescriptor not_null_btree = new ColumnDescriptor
-//            ("timestamp_not_null_btree", new InstanceHandler() {
-//        public void setFieldValue(IdBase instance, Object value) {
-//            ((TimestampAsSqlTimestampTypes)instance).setTimestamp_not_null_btree((Timestamp)value);
-//        }
-//        public Object getFieldValue(IdBase instance) {
-//            return ((TimestampAsSqlTimestampTypes)instance).getTimestamp_not_null_btree();
-//        }
-//        public void setPreparedStatementValue(PreparedStatement preparedStatement, int j, Object value)
-//                throws SQLException {
-//            preparedStatement.setTimestamp(j, (Timestamp)value);
-//        }
-//        public Object getResultSetValue(ResultSet rs, int j) throws SQLException {
-//            return rs.getTimestamp(j);
-//        }
-//    });
-//    static ColumnDescriptor not_null_both = new ColumnDescriptor
-//            ("timestamp_not_null_both", new InstanceHandler() {
-//        public void setFieldValue(IdBase instance, Object value) {
-//            ((TimestampAsSqlTimestampTypes)instance).setTimestamp_not_null_both((Timestamp)value);
-//        }
-//        public Timestamp getFieldValue(IdBase instance) {
-//            return ((TimestampAsSqlTimestampTypes)instance).getTimestamp_not_null_both();
-//        }
-//        public void setPreparedStatementValue(PreparedStatement preparedStatement, int j, Object value)
-//                throws SQLException {
-//            preparedStatement.setTimestamp(j, (Timestamp)value);
-//        }
-//        public Object getResultSetValue(ResultSet rs, int j) throws SQLException {
-//            return rs.getTimestamp(j);
-//        }
-//    });
-//    static ColumnDescriptor not_null_none = new ColumnDescriptor
-//            ("timestamp_not_null_none", new InstanceHandler() {
-//        public void setFieldValue(IdBase instance, Object value) {
-//            ((TimestampAsSqlTimestampTypes)instance).setTimestamp_not_null_none((Timestamp)value);
-//        }
-//        public Timestamp getFieldValue(IdBase instance) {
-//            return ((TimestampAsSqlTimestampTypes)instance).getTimestamp_not_null_none();
-//        }
-//        public void setPreparedStatementValue(PreparedStatement preparedStatement, int j, Object value)
-//                throws SQLException {
-//            preparedStatement.setTimestamp(j, (Timestamp)value);
-//        }
-//        public Object getResultSetValue(ResultSet rs, int j) throws SQLException {
-//            return rs.getTimestamp(j);
-//        }
-//    });
-//
-//    protected static ColumnDescriptor[] columnDescriptors = new ColumnDescriptor[] {
-//            not_null_hash,
-//            not_null_btree,
-//            not_null_both,
-//            not_null_none
-//        };
-//
-//    @Override
-//    protected ColumnDescriptor[] getColumnDescriptors() {
-//        return columnDescriptors;
-//    }
-
 }
