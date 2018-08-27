@@ -133,6 +133,7 @@ BuildRequires:  ncurses-devel
 BuildRequires:  openssl-devel
 BuildRequires:  zlib-devel
 %{?sles11:BuildRequires: gcc48 gcc48-c++}
+%{?sles12:BuildRequires: gcc7 gcc7-c++}
 %if 0%{?systemd}
 BuildRequires:  systemd
 BuildRequires:  pkgconfig(systemd)
