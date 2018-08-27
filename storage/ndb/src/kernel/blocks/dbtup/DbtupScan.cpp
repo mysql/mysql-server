@@ -1113,7 +1113,7 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
                      m_curr_tabptr.p,
                      thbits,
                      tuple_header_ptr->m_header_bits);
-      fix_page->set_change_while_lcp_scan();
+      fix_page->set_change_maps(key.m_page_idx);
       jamDebug();
       jamLineDebug((Uint16)key.m_page_idx);
       DEB_LCP_DEL(("(%u)Reset LCP_DELETE on tab(%u,%u),"
@@ -1125,7 +1125,6 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
                    key.m_page_idx,
                    thbits));
       ndbrequire(!(thbits & Tuple_header::LCP_SKIP));
-      ndbassert(fix_page->get_page_being_lcp_scanned());
       scan.m_last_seen = __LINE__;
       return ZSCAN_FOUND_DELETED_ROWID;
     }
@@ -1181,10 +1180,9 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
                      m_curr_tabptr.p,
                      thbits,
                      tuple_header_ptr->m_header_bits);
-      fix_page->set_change_while_lcp_scan();
+      fix_page->set_change_maps(key.m_page_idx);
       jamDebug();
       jamLineDebug((Uint16)key.m_page_idx);
-      ndbassert(fix_page->get_page_being_lcp_scanned());
     }
     else
     {
@@ -1288,12 +1286,11 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
                      m_curr_tabptr.p,
                      thbits,
                      tuple_header_ptr->m_header_bits);
-      fix_page->set_change_while_lcp_scan();
+      fix_page->set_change_maps(key.m_page_idx);
       jamDebug();
       jamLineDebug((Uint16)key.m_page_idx);
       ndbrequire(c_lqh->is_full_local_lcp_running());
       ndbrequire(c_lqh->is_full_local_lcp_running());
-      ndbassert(fix_page->get_page_being_lcp_scanned());
     }
     else if (foundGCI == 0 && scan.m_scanGCI > 0)
     {
