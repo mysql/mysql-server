@@ -1,0 +1,2 @@
+# Thread Sanitizer is very slow, so only run the main suite for now.
+perl mysql-test-run.pl --timer --debug-server --force --parallel=auto --comment=main-tsan --vardir=var-main-tsan --suite=main

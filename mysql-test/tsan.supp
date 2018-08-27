@@ -9,6 +9,7 @@
 race:innobase
 
 race:client/dump/
+deadlock:client/dump/
 
 race:perfschema
 
