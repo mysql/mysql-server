@@ -1,0 +1,88 @@
+--source include/have_ndb.inc
+--source suite/ndb/include/backup_restore_setup.inc
+
+# This test upgrades metadata of a large number of tables which have the following
+# structure:
+#
+# CREATE TABLE t1 (
+#   col1 int(20) unsigned NOT NULL AUTO_INCREMENT,
+#   col2 varchar(255) DEFAULT NULL,
+#   col3 varchar(255) DEFAULT NULL,
+#   col4 bigint(20) unsigned NOT NULL,
+#   col5 varchar(20) DEFAULT NULL,
+#   col6 tinyint(1) unsigned NOT NULL,
+#   col7 tinyint(1) unsigned DEFAULT NULL,
+#   col8 varchar(255) DEFAULT NULL,
+#   col9 int(11) unsigned DEFAULT NULL,
+#   col10 varchar(255) DEFAULT NULL,
+#   col11 varchar(255) DEFAULT NULL,
+#   col12 varchar(255) DEFAULT NULL,
+#   col13 bigint(20) unsigned DEFAULT NULL,
+#   col14 varchar(255) DEFAULT NULL,
+#   col15 varchar(20) DEFAULT NULL,
+#   col16 bigint(20) unsigned DEFAULT NULL,
+#   col17 decimal(10,5) NOT NULL,
+#   col18 decimal(10,5) NOT NULL,
+#   col19 decimal(10,5) NOT NULL,
+#   col20 float(7,2) NOT NULL,
+#   PRIMARY KEY (col1)
+#   ) CHARACTER SET=latin1 ENGINE=ndbcluster;
+#
+# The number of tables being restored (and upgraded) are configurable and controlled by the db_number variable.
+# By default, db_number=1 which results in 100 tables i.e. `t1` to `t100` created in the `db1` database which
+# are restored and upgraded. The number of tables being upgraded can be increased by multiples of 100 by adjusting
+# the db_number variable. For example, setting db_number to 10 creates databases `db1` to `db10` and a total of
+# 1000 (db_number*100) tables are upgraded. This somewhat convoluted test design is to ensure that this test can
+# be run without issues in PB2 while also providing coverage of a larger upgrade scenario when run manually with a
+# few tweaks in the test and its corresponding .cnf file.
+
+--disable_query_log
+# Set number of databases
+--let $db_number=1
+
+# Restore checked in backup
+CREATE DATABASE db1;
+
+--exec $NDB_RESTORE -b 1 -n 1 -m --disable-indexes $NDB_SAVED_BACKUPS/metadata_upgrade_large_backup >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 1 --rebuild-indexes $NDB_SAVED_BACKUPS/metadata_upgrade_large_backup >> $NDB_TOOLS_OUTPUT
+
+# Create more tables if requested. Number of tables created = db_number*100
+--let $i=1
+while($i < $db_number)
+{
+  --inc $i
+  --let $db_name=db$i
+  --eval CREATE DATABASE $db_name
+  --exec $NDB_RESTORE -b 1 -n 1 -m --disable-indexes --rewrite-database=db1,$db_name $NDB_SAVED_BACKUPS/metadata_upgrade_large_backup >> $NDB_TOOLS_OUTPUT
+  --exec $NDB_RESTORE -b 1 -n 1 --rebuild-indexes --rewrite-database=db1,$db_name $NDB_SAVED_BACKUPS/metadata_upgrade_large_backup >> $NDB_TOOLS_OUTPUT
+}
+--enable_query_log
+
+--echo Backup restored
+
+--echo Restart server 1 to trigger schema synchronization
+let $mysqld_name=mysqld.1.1;
+--source include/restart_mysqld.inc
+--source include/ndb_wait_connected.inc
+
+--echo Check that tables can be used
+SELECT COUNT(*) FROM information_schema.tables
+WHERE table_schema LIKE 'db%';
+
+SHOW CREATE TABLE db1.t1;
+
+ALTER TABLE db1.t50 DROP COLUMN col2;
+
+ALTER TABLE db1.t100 DROP COLUMN col20;
+
+--disable_query_log
+--let $i=0
+while($i < $db_number)
+{
+  --inc $i
+  --eval DROP DATABASE db$i
+}
+
+--remove_file $NDB_TOOLS_OUTPUT
+let NDB_RESTORE=;
+--enable_query_log

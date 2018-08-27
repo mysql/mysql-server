@@ -1,0 +1,35 @@
+Backup restored
+Restart server 1 to trigger schema synchronization
+# restart
+Check that tables can be used
+SELECT COUNT(*) FROM information_schema.tables
+WHERE table_schema LIKE 'db%';
+COUNT(*)
+100
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col1` int(20) unsigned NOT NULL AUTO_INCREMENT,
+  `col2` varchar(255) DEFAULT NULL,
+  `col3` varchar(255) DEFAULT NULL,
+  `col4` bigint(20) unsigned NOT NULL,
+  `col5` varchar(20) DEFAULT NULL,
+  `col6` tinyint(1) unsigned NOT NULL,
+  `col7` tinyint(1) unsigned DEFAULT NULL,
+  `col8` varchar(255) DEFAULT NULL,
+  `col9` int(11) unsigned DEFAULT NULL,
+  `col10` varchar(255) DEFAULT NULL,
+  `col11` varchar(255) DEFAULT NULL,
+  `col12` varchar(255) DEFAULT NULL,
+  `col13` bigint(20) unsigned DEFAULT NULL,
+  `col14` varchar(255) DEFAULT NULL,
+  `col15` varchar(20) DEFAULT NULL,
+  `col16` bigint(20) unsigned DEFAULT NULL,
+  `col17` decimal(10,5) NOT NULL,
+  `col18` decimal(10,5) NOT NULL,
+  `col19` decimal(10,5) NOT NULL,
+  `col20` float(7,2) NOT NULL,
+  PRIMARY KEY (`col1`)
+) ENGINE=ndbcluster AUTO_INCREMENT=18446744073709551615 DEFAULT CHARSET=latin1
+ALTER TABLE db1.t50 DROP COLUMN col2;
+ALTER TABLE db1.t100 DROP COLUMN col20;

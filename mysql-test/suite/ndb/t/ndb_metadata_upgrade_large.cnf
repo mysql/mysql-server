@@ -1,0 +1,8 @@
+!include suite/ndb/my.cnf
+
+[cluster_config]
+
+MaxNoOfOrderedIndexes = 2000
+MaxNoOfAttributes = 22500
+# Uncomment the below parameter when upgrading 1000 tables
+# DataMemory = 500M
