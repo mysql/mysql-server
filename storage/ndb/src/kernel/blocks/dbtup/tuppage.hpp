@@ -141,6 +141,8 @@ struct Tup_fixsize_page
   STATIC_CONST( DATA_WORDS = File_formats::NDB_PAGE_SIZE_WORDS -
                              HEADER_WORDS );
   STATIC_CONST( FIRST_BIT_CHANGE_MAP = 24);
+  STATIC_CONST( PAGE_CHANGED_WHILE_LCP_SCAN_BIT = 23);
+  STATIC_CONST( PAGE_IS_BEING_LCP_SCANNED_BIT = 22);
   
   Uint32 m_data[DATA_WORDS];
   
@@ -164,6 +166,50 @@ struct Tup_fixsize_page
     /* Next move idx forward to size word boundary */
     new_idx = ((new_idx + size - 1) / size) * size;
     return new_idx;
+  }
+  bool get_and_clear_change_while_lcp_scan()
+  {
+    Uint32 flags = m_flags;
+    Uint32 bit_pos = Tup_fixsize_page::PAGE_CHANGED_WHILE_LCP_SCAN_BIT;
+    Uint32 flags_bit = 1 << bit_pos;
+    bool bit_set = ((flags & flags_bit) != 0);
+    Uint32 flags_clear_val = ~flags_bit;
+    Uint32 flags_new_val = flags & flags_clear_val;
+    m_flags = flags_new_val;
+    return bit_set;
+  }
+  void set_change_while_lcp_scan()
+  {
+    Uint32 flags = m_flags;
+    Uint32 bit_pos = Tup_fixsize_page::PAGE_CHANGED_WHILE_LCP_SCAN_BIT;
+    Uint32 flags_bit = 1 << bit_pos;
+    Uint32 new_flags = flags | flags_bit;
+    m_flags = new_flags;
+  }
+  bool get_page_being_lcp_scanned()
+  {
+    Uint32 flags = m_flags;
+    Uint32 bit_pos = Tup_fixsize_page::PAGE_IS_BEING_LCP_SCANNED_BIT;
+    Uint32 flags_bit = 1 << bit_pos;
+    bool bit_set = ((flags & flags_bit) != 0);
+    return bit_set;
+  }
+  void set_page_being_lcp_scanned()
+  {
+    Uint32 flags = m_flags;
+    Uint32 bit_pos = Tup_fixsize_page::PAGE_IS_BEING_LCP_SCANNED_BIT;
+    Uint32 flags_bit = 1 << bit_pos;
+    Uint32 new_flags = flags | flags_bit;
+    m_flags = new_flags;
+  }
+  void clear_page_being_lcp_scanned()
+  {
+    Uint32 flags = m_flags;
+    Uint32 bit_pos = Tup_fixsize_page::PAGE_IS_BEING_LCP_SCANNED_BIT;
+    Uint32 flags_bit = 1 << bit_pos;
+    Uint32 flags_clear_val = ~flags_bit;
+    Uint32 flags_new_val = flags & flags_clear_val;
+    m_flags = flags_new_val;
   }
   void prefetch_change_map()
   {
@@ -234,6 +280,11 @@ struct Tup_fixsize_page
   }
   void set_change_maps(Uint32 page_index)
   {
+    if (unlikely(get_page_being_lcp_scanned()))
+    {
+      set_change_while_lcp_scan();
+      return;
+    }
     assert(page_index < Tup_fixsize_page::DATA_WORDS);
     Uint32 *map_ptr = &m_change_map[0];
     /**
