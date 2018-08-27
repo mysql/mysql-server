@@ -25,6 +25,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <assert.h>
 #include <string.h>
 #include <algorithm>  // std::swap
+#include <atomic>     // std::atomic
 #include <fstream>    // std::ifsteam
 #include <iomanip>
 #include <set>  // std::set
@@ -88,6 +89,11 @@ static char *validate_password_dictionary_file;
 static char *validate_password_dictionary_file_last_parsed = NULL;
 static long long validate_password_dictionary_file_words_count = 0;
 static bool check_user_name;
+/*
+  This variable is used, to make sure the use of component services
+  after the component load/initialization is done.
+*/
+std::atomic<bool> is_initialized(false);
 
 static SHOW_VAR validate_password_status_variables[] = {
     {"validate_password.dictionary_file_last_parsed",
@@ -524,6 +530,14 @@ DEFINE_BOOL_METHOD(validate_password_imp::get_strength,
 
   *strength = 0;
 
+  if (!is_initialized.load()) {
+    LogEvent()
+        .type(LOG_TYPE_ERROR)
+        .prio(WARNING_LEVEL)
+        .message("validate_password component is not yet initialized");
+    return true;
+  }
+
   if (!is_valid_password_by_user_name(thd, password)) return true;
 
   if (mysql_service_mysql_string_iterator->iterator_create(password, &iter)) {
@@ -565,6 +579,14 @@ DEFINE_BOOL_METHOD(validate_password_imp::get_strength,
 */
 DEFINE_BOOL_METHOD(validate_password_imp::validate,
                    (void *thd, my_h_string password)) {
+  if (!is_initialized.load()) {
+    LogEvent()
+        .type(LOG_TYPE_ERROR)
+        .prio(WARNING_LEVEL)
+        .message("validate_password component is not yet initialized");
+    return true;
+  }
+
   return (validate_password_policy_strength(thd, password,
                                             validate_password_policy) == 0);
 }
@@ -848,6 +870,7 @@ static mysql_service_status_t validate_password_init() {
   read_dictionary_file();
   /* Check if validate_password_length needs readjustment */
   readjust_validate_password_length();
+  is_initialized = true;
   return false;
 }
 

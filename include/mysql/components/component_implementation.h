@@ -147,6 +147,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
     simple_example_math_imp.cc are implementations used in example_component1,
     polish_greeting_service_imp.cc and example_math_wrapping_imp.cc are
     implementations for example_component2 and example_component3 respectively.
+  -# Make sure component is loaded/initialized before using its services.
+    Atomic variable is_intialized represents the state of the component.
+    Please check the details about the variable from validate_password_imp.cc
+    file.
   .
 
   @file include/mysql/components/component_implementation.h
