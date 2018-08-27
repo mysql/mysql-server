@@ -32,10 +32,11 @@
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
-#include "sql/json_dom.h"
 #include "sql_string.h"
 
+class Json_dom;
 class THD;
 class set_var;
 class sys_var;

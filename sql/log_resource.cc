@@ -21,6 +21,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/log_resource.h"
+#include "sql/json_dom.h"
 
 int MY_ATTRIBUTE((visibility("default")))
     Log_resource::dummy_function_to_ensure_we_are_linked_into_the_server() {

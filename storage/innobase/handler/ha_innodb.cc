@@ -158,6 +158,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "os0thread-create.h"
 #include "os0thread.h"
 #include "sql/item.h"
+#include "sql/json_dom.h"
 #include "sql_base.h"
 #include "srv0tmp.h"
 #include "trx0roll.h"

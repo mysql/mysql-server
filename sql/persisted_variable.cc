@@ -66,6 +66,7 @@
 #include "sql/debug_sync.h"  // DEBUG_SYNC
 #include "sql/derror.h"      // ER_THD
 #include "sql/item.h"
+#include "sql/json_dom.h"
 #include "sql/log.h"
 #include "sql/mysqld.h"
 #include "sql/set_var.h"

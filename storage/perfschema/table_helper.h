@@ -35,7 +35,6 @@
 #include "lex_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "sql/json_dom.h"
 #include "storage/perfschema/digest.h"
 #include "storage/perfschema/pfs_column_types.h"
 #include "storage/perfschema/pfs_digest.h"
@@ -60,6 +59,7 @@ struct PFS_prepared_stmt;
 struct PFS_metadata_lock;
 struct PFS_setup_actor;
 struct PFS_setup_object;
+class Json_wrapper;
 
 /**
   @file storage/perfschema/table_helper.h

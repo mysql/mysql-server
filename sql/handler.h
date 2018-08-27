@@ -58,7 +58,6 @@
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/object_table.h"  // dd::Object_table
 #include "sql/discrete_interval.h"      // Discrete_interval
-#include "sql/json_dom.h"
 #include "sql/key.h"
 #include "sql/sql_const.h"       // SHOW_COMP_OPTION
 #include "sql/sql_list.h"        // SQL_I_List
@@ -70,6 +69,7 @@ class Alter_info;
 class Create_field;
 class Field;
 class Item;
+class Json_dom;
 class Partition_handler;
 class Plugin_table;
 class Plugin_tablespace;

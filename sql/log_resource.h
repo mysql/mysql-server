@@ -36,9 +36,10 @@
 
 #include "sql/binlog.h"
 #include "sql/handler.h"
-#include "sql/json_dom.h"
 #include "sql/rpl_gtid.h"
 #include "sql/rpl_mi.h"
+
+class Json_dom;
 
 /**
   @class Log_resource
