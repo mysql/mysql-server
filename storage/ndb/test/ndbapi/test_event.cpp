@@ -5598,10 +5598,26 @@ int runCreateDropMultipleEventOperations(NDBT_Context* ctx, NDBT_Step* step)
   Vector<NdbEventOperation*> pOpArr;
   for (int i = 0; i < numOfEvents; i++, eventID++)
   {
-    NdbEventOperation *pOp = createEventOperation(pNdb, *tab, true, eventID);
+    NdbEventOperation *pOp = createEventOperation(pNdb, *tab, false, eventID);
     if (pOp == NULL) {
-      res = NDBT_FAILED;
-      goto dropEvents;
+      if (pNdb->getNdbError().code == 1422)
+      {
+        /*
+         1422 - Out of Subscription Records. Stop creating event operations.
+         */
+        g_warning << "Only '" << i << "' event operations were "
+                  << "created by the step instead of '"
+                  << numOfEvents << "'.\n";
+        break;
+      }
+      else
+      {
+        g_err << "Error in createEventOperation: "
+              << pNdb->getNdbError().code << " "
+              << pNdb->getNdbError().message << endl;
+        res = NDBT_FAILED;
+        goto dropEvents;
+      }
     }
     pOpArr.push_back(pOp);
   }
