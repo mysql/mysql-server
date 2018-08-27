@@ -1113,7 +1113,7 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
                      m_curr_tabptr.p,
                      thbits,
                      tuple_header_ptr->m_header_bits);
-      fix_page->set_change_maps(key.m_page_idx);
+      fix_page->set_change_while_lcp_scan();
       jamDebug();
       jamLineDebug((Uint16)key.m_page_idx);
       DEB_LCP_DEL(("(%u)Reset LCP_DELETE on tab(%u,%u),"
@@ -1125,7 +1125,7 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
                    key.m_page_idx,
                    thbits));
       ndbrequire(!(thbits & Tuple_header::LCP_SKIP));
-      ndbassert(fix_page->verify_change_maps(jamBuffer()));
+      ndbassert(fix_page->get_page_being_lcp_scanned());
       scan.m_last_seen = __LINE__;
       return ZSCAN_FOUND_DELETED_ROWID;
     }
@@ -1181,10 +1181,10 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
                      m_curr_tabptr.p,
                      thbits,
                      tuple_header_ptr->m_header_bits);
-      fix_page->set_change_maps(key.m_page_idx);
+      fix_page->set_change_while_lcp_scan();
       jamDebug();
       jamLineDebug((Uint16)key.m_page_idx);
-      ndbassert(fix_page->verify_change_maps(jamBuffer()));
+      ndbassert(fix_page->get_page_being_lcp_scanned());
     }
     else
     {
@@ -1288,12 +1288,12 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
                      m_curr_tabptr.p,
                      thbits,
                      tuple_header_ptr->m_header_bits);
-      fix_page->set_change_maps(key.m_page_idx);
+      fix_page->set_change_while_lcp_scan();
       jamDebug();
       jamLineDebug((Uint16)key.m_page_idx);
       ndbrequire(c_lqh->is_full_local_lcp_running());
       ndbrequire(c_lqh->is_full_local_lcp_running());
-      ndbassert(fix_page->verify_change_maps(jamBuffer()));
+      ndbassert(fix_page->get_page_being_lcp_scanned());
     }
     else if (foundGCI == 0 && scan.m_scanGCI > 0)
     {
@@ -1526,6 +1526,8 @@ Dbtup::setup_change_page_for_scan(ScanOp& scan,
     pos.m_all_rows = false;
     pos.m_next_small_area_check_idx = 0;
     pos.m_next_large_area_check_idx = 0;
+    ndbrequire(!fix_page->get_and_clear_change_while_lcp_scan());
+    fix_page->set_page_being_lcp_scanned();
   }
   else
   {
@@ -1595,7 +1597,6 @@ Dbtup::move_to_next_change_page_row(ScanOp & scan,
                       Fix_page::DATA_WORDS))
         {
           jamDebug();
-          ndbassert(!fix_page->get_any_changes());
           return ZSCAN_FOUND_PAGE_END;
         }
         jamDebug();
@@ -1633,7 +1634,6 @@ Dbtup::move_to_next_change_page_row(ScanOp & scan,
         {
           jamDebug();
           ndbassert(fix_page->verify_change_maps(jamBuffer()));
-          ndbassert(!fix_page->get_any_changes());
           return ZSCAN_FOUND_PAGE_END;
         }
         jamDebug();
@@ -2402,6 +2402,27 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                                                      size);
               if (ret_val == ZSCAN_FOUND_PAGE_END)
               {
+                /**
+                 * We have finished scanning a CHANGE PAGE row where we
+                 * checked even the parts of a page. In this case we
+                 * perform very detailed analysis that we clear all bits
+                 * while scanning. To handle this we will set a special
+                 * bit if anyone updates any row in the page while
+                 * we are scanning in this mode. This ensures that the
+                 * flag bits are in read-only mode and only updated by
+                 * LCP scanning. We don't track which part of page is
+                 * updated in this case, so if any updates have been
+                 * performed on page in this state, all bits on page
+                 * are set to ensure that we will scan the entire page
+                 * in the next LCP scan.
+                 */
+                ndbassert(!page->get_any_changes());
+                page->clear_page_being_lcp_scanned();
+                if (page->get_and_clear_change_while_lcp_scan())
+                {
+                  jamDebug();
+                  page->set_all_change_map();
+                }
                 /**
                  * We've finished scanning a page that was using filtering using
                  * the bitmaps on the page. We are ready to set the last LCP
