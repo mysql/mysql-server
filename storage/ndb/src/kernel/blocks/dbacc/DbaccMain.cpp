@@ -1131,6 +1131,7 @@ Dbacc::execACCKEY_ORD(Signal* signal, Uint32 opPtrI)
     opbits |= Operationrec::OP_STATE_EXECUTED;
     lastOp.p->m_op_bits = opbits;
     startNext(signal, lastOp);
+    validate_lock_queue(lastOp);
     return;
   } 
   else
@@ -1150,7 +1151,7 @@ Dbacc::startNext(Signal* signal, OperationrecPtr lastOp)
   OperationrecPtr tmp;
   nextOp.i = lastOp.p->nextParallelQue;
   loPtr.i = lastOp.p->m_lock_owner_ptr_i;
-  Uint32 opbits = lastOp.p->m_op_bits;
+  const Uint32 opbits = lastOp.p->m_op_bits;
   
   if ((opbits & Operationrec::OP_STATE_MASK)!= Operationrec::OP_STATE_EXECUTED)
   {
@@ -1203,14 +1204,14 @@ Dbacc::startNext(Signal* signal, OperationrecPtr lastOp)
       jam();
       /**
        * Not same transaction
-       *  and either last had exclusive lock
-       *          or next had exclusive lock
+       *  and either last hold exclusive lock
+       *          or next need exclusive lock
        */
       return;
     }
     
     /**
-     * same trans and X-lock
+     * same trans and X-lock already held -> Ok
      */
     if (same && (opbits & Operationrec::OP_ACC_LOCK_MODE))
     {
@@ -1220,23 +1221,23 @@ Dbacc::startNext(Signal* signal, OperationrecPtr lastOp)
   }
 
   /**
+   * Fall through: No exclusive locks held
+   * (There is a shared parallel queue)
+   */
+  ndbassert((opbits & Operationrec::OP_ACC_LOCK_MODE) == 0);
+
+  /**
    * all shared lock...
    */
-  if ((opbits & Operationrec::OP_ACC_LOCK_MODE) == 0 &&
-      (nextbits & Operationrec::OP_LOCK_MODE) == 0)
+  if ((nextbits & Operationrec::OP_LOCK_MODE) == 0)
   {
     jam();
     goto upgrade;
   }
   
   /**
-   * There is a shared parallell queue & and exclusive op is first in queue
-   */
-  ndbassert((opbits & Operationrec::OP_ACC_LOCK_MODE) == 0 &&
-	    (nextbits & Operationrec::OP_LOCK_MODE));
-  
-  /**
-   * We must check if there are many transactions in parallel queue...
+   * There is a shared parallel queue and exclusive op is requested.
+   * We must check if there are other transactions in parallel queue...
    */
   tmp= loPtr;
   while (tmp.i != RNIL)
@@ -1255,7 +1256,7 @@ Dbacc::startNext(Signal* signal, OperationrecPtr lastOp)
   
 upgrade:
   /**
-   * Move first op in serie queue to end of parallell queue
+   * Move first op in serie queue to end of parallel queue
    */
   
   tmp.i = loPtr.p->nextSerialQue = nextOp.p->nextSerialQue;
@@ -1265,6 +1266,7 @@ upgrade:
   nextOp.p->m_lock_owner_ptr_i = loPtr.i;
   nextOp.p->prevParallelQue = lastOp.i;
   lastOp.p->nextParallelQue = nextOp.i;
+  nextbits |= (opbits & Operationrec::OP_ACC_LOCK_MODE);
   
   if (tmp.i != RNIL)
   {
@@ -1675,9 +1677,9 @@ Dbacc::validate_lock_queue(OperationrecPtr opPtr)const
       
       vlqrequire(lastP.p->prevParallelQue == prev);
 
-      Uint32 opbits = lastP.p->m_op_bits;
+      const Uint32 opbits = lastP.p->m_op_bits;
       many |= loPtr.p->is_same_trans(lastP.p) ? 0 : 1;
-      orlockmode |= !!(opbits & Operationrec::OP_LOCK_MODE);
+      orlockmode |= ((opbits & Operationrec::OP_LOCK_MODE) != 0);
       
       vlqrequire(opbits & Operationrec::OP_RUN_QUEUE);
       vlqrequire((opbits & Operationrec::OP_LOCK_OWNER) == 0);
@@ -1697,15 +1699,25 @@ Dbacc::validate_lock_queue(OperationrecPtr opPtr)const
 	  vlqrequire(opstate == Operationrec::OP_STATE_EXECUTED);
       }
       
-      if (lastP.p->m_op_bits & Operationrec::OP_LOCK_MODE)
+      if (opbits & Operationrec::OP_LOCK_MODE)
       {
-	vlqrequire(lastP.p->m_op_bits & Operationrec::OP_ACC_LOCK_MODE);
+        vlqrequire(opbits & Operationrec::OP_ACC_LOCK_MODE);
       }
       else
       {
-	vlqrequire((lastP.p->m_op_bits && orlockmode) == orlockmode);
-	vlqrequire((lastP.p->m_op_bits & Operationrec::OP_MASK) == ZREAD ||
-		   (lastP.p->m_op_bits & Operationrec::OP_MASK) == ZSCAN_OP);
+        vlqrequire((opbits & Operationrec::OP_MASK) == ZREAD ||
+                   (opbits & Operationrec::OP_MASK) == ZSCAN_OP);
+
+        // OP_ACC_LOCK_MODE has to reflect if any prior OperationrecPtr
+        // in the parallel queue hold an exclusive lock (OP_LOCK_MODE)
+        if (orlockmode)
+        {
+          vlqrequire((opbits & Operationrec::OP_ACC_LOCK_MODE) != 0);
+        }
+        else
+        {
+          vlqrequire((opbits & Operationrec::OP_ACC_LOCK_MODE) == 0);
+        }
       }
       
       if (many)
@@ -1971,7 +1983,7 @@ Dbacc::placeWriteInLockQueue(OperationrecPtr lockOwnerPtr) const
     jam();
     
     /**
-     * Scan parallell queue to see if we are the only one
+     * Scan parallel queue to see if we are the only one
      */
     OperationrecPtr loopPtr = lockOwnerPtr;
     do
@@ -2071,7 +2083,7 @@ Dbacc::placeReadInLockQueue(OperationrecPtr lockOwnerPtr) const
   ndbassert(get_parallel_head(lastOpPtr) == lockOwnerPtr.i);
   
   /**
-   * Last operation in parallell queue of lock owner is same trans
+   * Last operation in parallel queue of lock owner is same trans
    *   and ACC_LOCK_MODE is exlusive, then we can proceed
    */
   Uint32 lastbits = lastOpPtr.p->m_op_bits;
@@ -2099,7 +2111,7 @@ Dbacc::placeReadInLockQueue(OperationrecPtr lockOwnerPtr) const
   }
 
   /**
-   * Scan parallell queue to see if we are already there...
+   * Scan parallel queue to see if we are already there...
    */
   do
   {
@@ -4817,7 +4829,7 @@ void Dbacc::commitOperation(Signal* signal)
     {
       jam();
       /**
-       * Last operation in parallell queue
+       * Last operation in parallel queue
        */
       ndbassert(prev.i != lockOwner.i);
       ptrCheckGuard(lockOwner, coprecsize, operationrec);      
