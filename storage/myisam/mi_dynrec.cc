@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1484,6 +1484,10 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, uchar *buf, my_off_t filepos,
   DBUG_ENTER("_mi_read_rnd_dynamic_record");
 
   info_read = 0;
+
+  DBUG_EXECUTE_IF("catch_file_offset_deviation", {
+    if (filepos) DBUG_RETURN(HA_ERR_RECORD_DELETED);
+  });
 
   if (info->lock_type == F_UNLCK) {
     if (share->tot_locks == 0) {
