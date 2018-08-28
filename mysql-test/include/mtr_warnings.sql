@@ -290,6 +290,11 @@ INSERT INTO global_suppressions VALUES
  ("RSA private key file not found"),
  ("RSA public key file not found"),
 
+ /*
+   SSL Library instrumentation failed
+ */
+ ("The SSL library function CRYPTO_set_mem_functions failed"),
+
  ("THE_LAST_SUPPRESSION")||
 
 
