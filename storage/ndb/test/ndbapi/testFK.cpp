@@ -387,7 +387,8 @@ match(const NdbDictionary::Index * parent,
 
   for (unsigned i = 0; i < parent->getNoOfColumns(); i++)
   {
-    if (parent->getColumn(i)->getType() != childCandidate->getColumn(i)->getType())
+    if (strcmp(parent->getColumn(i)->getName(),
+               childCandidate->getColumn(i)->getName()) != 0)
       return false;
   }
 
