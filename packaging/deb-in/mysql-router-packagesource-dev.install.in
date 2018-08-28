@@ -22,3 +22,7 @@
 usr/lib/*/libmysqlharness.a
 usr/lib/*/libmysqlrouter.so
 usr/lib/*/libmysqlharness.so
+
+# legal
+usr/LICENSE.router usr/share/doc/mysql-router-@DEB_PRODUCTNAME@-dev/
+usr/README.router usr/share/doc/mysql-router-@DEB_PRODUCTNAME@-dev/
