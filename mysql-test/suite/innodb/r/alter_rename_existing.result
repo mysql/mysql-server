@@ -158,7 +158,23 @@ a	b
 2	two
 3	three
 #
+# Rename this file-per-table from test.t1 to test2.t2.
+#
+CREATE DATABASE test2;
+ALTER TABLE test.t1 RENAME TO test2.t2;
+SELECT name, space_type FROM information_schema.innodb_tables WHERE name = 'test%';
+name	space_type
+#
+# Also try the RENAME TABLE syntax.
+#
+CREATE DATABASE test3;
+RENAME TABLE test2.t2 TO test3.t3;
+SELECT name, space_type FROM information_schema.innodb_tables WHERE name = 'test%';
+name	space_type
+#
 # Cleanup
 #
-DROP TABLE t1;
+DROP TABLE test3.t3;
 DROP TABLESPACE s1;
+DROP DATABASE test2;
+DROP DATABASE test3;
