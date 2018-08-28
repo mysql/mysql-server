@@ -58,7 +58,7 @@ class MockProtocol : public BaseProtocol {
   /* MOCK_METHOD8(copy_packets, int(int, int, bool,
      RoutingProtocolBuffer&, int* , bool&, size_t*, bool)); */
   virtual int copy_packets(int, int, bool, RoutingProtocolBuffer &, int *,
-                           bool &, size_t *, bool) override {
+                           bool &, size_t *, bool) {
     return 1;
   }
 };
@@ -175,7 +175,7 @@ TEST_F(TestRoutingConnection, IsCallbackCalledAtThreadExit) {
       destination_connect_timeout_, client_connect_timeout_, bind_address_,
       bind_named_socket_, max_connect_errors_, thread_stack_size_);
 
-  bool is_called = false;
+  std::atomic_bool is_called{false};
 
   MySQLRoutingConnection connection(
       context, client_socket_, client_addr_, server_socket_, server_address_,
@@ -232,7 +232,7 @@ TEST_F(TestRoutingConnection, IsConnectionThreadStopOnDisconnect) {
       destination_connect_timeout_, client_connect_timeout_, bind_address_,
       bind_named_socket_, max_connect_errors_, thread_stack_size_);
 
-  bool is_called = false;
+  std::atomic_bool is_called{false};
 
   MySQLRoutingConnection connection(
       context, client_socket_, client_addr_, server_socket_, server_address_,
