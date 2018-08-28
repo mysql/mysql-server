@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1718,6 +1718,12 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, uchar *buf,
   MI_BLOCK_INFO block_info;
   MYISAM_SHARE *share=info->s;
   DBUG_ENTER("_mi_read_rnd_dynamic_record");
+
+  DBUG_EXECUTE_IF("catch_file_offset_deviation",
+		 {
+                   if (filepos)
+		     DBUG_RETURN(HA_ERR_RECORD_DELETED);
+                 });
 
   info_read=0;
 
