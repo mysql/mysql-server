@@ -1565,6 +1565,16 @@ dberr_t dict_table_rename_in_cache(
 
       new_path = mem_strdup(new_ibd.c_str());
 
+      /* InnoDB adds the db directory to the data directory.
+      If the RENAME changes database, then it is possible that
+      the a directory named for the new db does not exist
+      in this remote location. */
+      err = os_file_create_subdirs_if_needed(new_path);
+      if (err != DB_SUCCESS) {
+        ut_free(old_path);
+        ut_free(new_path);
+        return (err);
+      }
     } else {
       new_path = Fil_path::make_ibd_from_table_name(new_name);
     }
