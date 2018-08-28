@@ -78,7 +78,8 @@ static const char *traditional_extra_tags[ET_total] = {
     "Backward index scan",                // ET_BACKWARD_SCAN
     "Recursive",                          // ET_RECURSIVE
     "Table function:",                    // ET_TABLE_FUNCTION
-    "Index dive skipped due to FORCE"     // ET_SKIP_RECORDS_IN_RANGE
+    "Index dive skipped due to FORCE",    // ET_SKIP_RECORDS_IN_RANGE
+    "Using secondary engine"              // ET_USING_SECONDARY_ENGINE
 };
 
 static const char *mod_type_name[] = {"NONE", "INSERT", "UPDATE", "DELETE",

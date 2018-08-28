@@ -12,17 +12,17 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN SELECT * FROM t1 WHERE x = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using secondary engine MOCK
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x` from `test`.`t1` where (`test`.`t1`.`x` = 1)
 EXPLAIN SELECT * FROM t1 WHERE x = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using secondary engine MOCK
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x` from `test`.`t1` where (`test`.`t1`.`x` = 2)
 EXPLAIN SELECT * FROM t1 WHERE x = 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using secondary engine MOCK
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x` from `test`.`t1` where (`test`.`t1`.`x` = 3)
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON x WITH 10 BUCKETS;
@@ -30,17 +30,17 @@ Table	Op	Msg_type	Msg_text
 test.t1	histogram	status	Histogram statistics created for column 'x'.
 EXPLAIN SELECT * FROM t1 WHERE x = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where; Using secondary engine MOCK
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x` from `test`.`t1` where (`test`.`t1`.`x` = 1)
 EXPLAIN SELECT * FROM t1 WHERE x = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	20.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	20.00	Using where; Using secondary engine MOCK
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x` from `test`.`t1` where (`test`.`t1`.`x` = 2)
 EXPLAIN SELECT * FROM t1 WHERE x = 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using secondary engine MOCK
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x` from `test`.`t1` where (`test`.`t1`.`x` = 3)
 SELECT * FROM t1 WHERE x = 1;
@@ -54,17 +54,17 @@ Table	Op	Msg_type	Msg_text
 test.t1	histogram	status	Histogram statistics removed for column 'x'.
 EXPLAIN SELECT * FROM t1 WHERE x = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using secondary engine MOCK
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x` from `test`.`t1` where (`test`.`t1`.`x` = 1)
 EXPLAIN SELECT * FROM t1 WHERE x = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using secondary engine MOCK
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x` from `test`.`t1` where (`test`.`t1`.`x` = 2)
 EXPLAIN SELECT * FROM t1 WHERE x = 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using secondary engine MOCK
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x` from `test`.`t1` where (`test`.`t1`.`x` = 3)
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON x WITH 10 BUCKETS;
@@ -72,17 +72,17 @@ Table	Op	Msg_type	Msg_text
 test.t1	histogram	status	Histogram statistics created for column 'x'.
 EXPLAIN SELECT * FROM t1 WHERE x = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	80.00	Using where; Using secondary engine MOCK
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x` from `test`.`t1` where (`test`.`t1`.`x` = 1)
 EXPLAIN SELECT * FROM t1 WHERE x = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	20.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	20.00	Using where; Using secondary engine MOCK
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x` from `test`.`t1` where (`test`.`t1`.`x` = 2)
 EXPLAIN SELECT * FROM t1 WHERE x = 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using secondary engine MOCK
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x` from `test`.`t1` where (`test`.`t1`.`x` = 3)
 DROP TABLE t1;

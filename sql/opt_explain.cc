@@ -1608,6 +1608,11 @@ bool Explain_join::explain_extra() {
         fmt->entry()->col_partial_update_columns.push_back(field_description);
     }
   }
+
+  if (table->s->is_secondary() &&
+      push_extra(ET_USING_SECONDARY_ENGINE, table->file->table_type()))
+    return true;
+
   return false;
 }
 

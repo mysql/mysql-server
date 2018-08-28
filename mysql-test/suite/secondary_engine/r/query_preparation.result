@@ -88,7 +88,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN SELECT * FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using secondary engine MOCK
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1`
 FLUSH STATUS;
@@ -706,3 +706,84 @@ SELECT 1;
 1
 1
 DROP TABLE t;
+#
+# Bug#28556942: ADD USING SECONDARY ENGINE TO EXPLAIN
+#
+CREATE TABLE t1 (a INT) SECONDARY_ENGINE MOCK;
+# Before table is loaded, the secondary engine should not be used.
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT * FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
+EXPLAIN FORMAT=JSON SELECT * FROM t1;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "0.35"
+    },
+    "table": {
+      "table_name": "t1",
+      "access_type": "ALL",
+      "rows_examined_per_scan": 1,
+      "rows_produced_per_join": 1,
+      "filtered": "100.00",
+      "cost_info": {
+        "read_cost": "0.25",
+        "eval_cost": "0.10",
+        "prefix_cost": "0.35",
+        "data_read_per_join": "8"
+      },
+      "used_columns": [
+        "a"
+      ]
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
+ALTER TABLE t1 SECONDARY_LOAD;
+# After table is loaded, the secondary engine should be used.
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT * FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
+EXPLAIN FORMAT=JSON SELECT * FROM t1;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "0.60"
+    },
+    "table": {
+      "table_name": "t1",
+      "access_type": "ALL",
+      "rows_examined_per_scan": 1,
+      "rows_produced_per_join": 1,
+      "filtered": "100.00",
+      "using_secondary_engine": "MOCK",
+      "cost_info": {
+        "read_cost": "0.50",
+        "eval_cost": "0.10",
+        "prefix_cost": "0.60",
+        "data_read_per_join": "8"
+      },
+      "used_columns": [
+        "a"
+      ]
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
+DROP TABLE t1;

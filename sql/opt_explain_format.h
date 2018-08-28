@@ -91,6 +91,7 @@ enum Extra_tag {
   ET_RECURSIVE,
   ET_TABLE_FUNCTION,
   ET_SKIP_RECORDS_IN_RANGE,
+  ET_USING_SECONDARY_ENGINE,
   //------------------------------------
   ET_total
 };
