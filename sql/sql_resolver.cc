@@ -2008,6 +2008,17 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
           break;
         }
       }
+
+      /*
+        outer_tbl is replaced by wrap_nest.
+        For subselects, update embedding_join_nest to point to wrap_nest
+        instead of outer_tbl.
+      */
+      for (Item_exists_subselect *subquery : (*sj_candidates)) {
+        if (subquery->embedding_join_nest == outer_tbl)
+          subquery->embedding_join_nest = wrap_nest;
+      }
+
       /*
         Ok now wrap_nest 'contains' outer_tbl and we're ready to add the
         semi-join nest into it
