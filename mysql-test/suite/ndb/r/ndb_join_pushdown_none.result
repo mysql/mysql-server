@@ -426,7 +426,7 @@ left join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 where t1.a = 2 and t1.b = 3
 order by t1.c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	pX	eq_ref	PRIMARY	PRIMARY	8	const,const	1	100.00	Parent of 2 pushed join@1; Using where
+1	SIMPLE	t1	pX	eq_ref	PRIMARY	PRIMARY	8	const,const	1	100.00	Parent of 2 pushed join@1
 1	SIMPLE	t2	pXYZ	eq_ref	PRIMARY	PRIMARY	8	test.t1.c,test.t1.d	1	100.00	Child of 't1' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t1` left join `test`.`t1` `t2` on(((`test`.`t2`.`b` = `test`.`t1`.`d`) and (`test`.`t2`.`a` = `test`.`t1`.`c`))) where ((`test`.`t1`.`b` = 3) and (`test`.`t1`.`a` = 2)) order by `test`.`t1`.`c`
@@ -2222,7 +2222,7 @@ join t1 as t2 on t1.a = t2.c and t1.b = t2.d
 where t2.a = 4 and t2.b=4
 group by t2.c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	pX	eq_ref	PRIMARY	PRIMARY	8	const,const	1	100.00	Parent of 2 pushed join@1; Using where
+1	SIMPLE	t2	pX	eq_ref	PRIMARY	PRIMARY	8	const,const	1	100.00	Parent of 2 pushed join@1
 1	SIMPLE	t1	pXYZ	eq_ref	PRIMARY	PRIMARY	8	test.t2.c,test.t2.d	1	100.00	Child of 't2' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`c` AS `c`,count(distinct `test`.`t2`.`a`) AS `count(distinct t2.a)` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t1`.`b` = `test`.`t2`.`d`) and (`test`.`t1`.`a` = `test`.`t2`.`c`) and (`test`.`t2`.`b` = 4) and (`test`.`t2`.`a` = 4)) group by `test`.`t2`.`c`
@@ -2240,7 +2240,7 @@ join t1 as t2 on t1.a = t2.c and t1.b = t2.d
 where t2.a = 4
 group by t2.c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	const	3	100.00	Using where; Using filesort
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	const	3	100.00	Using filesort
 1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.t2.c,test.t2.d	1	100.00	NULL
 Warnings:
 Note	1003	Table 't2' is not pushable, need filesort before joining child tables
@@ -2260,7 +2260,7 @@ join t1 as t2 on t1.a = t2.c and t1.b = t2.d
 where t2.a = 4 and t2.b=4
 group by t2.c order by t2.c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	pX	eq_ref	PRIMARY	PRIMARY	8	const,const	1	100.00	Parent of 2 pushed join@1; Using where
+1	SIMPLE	t2	pX	eq_ref	PRIMARY	PRIMARY	8	const,const	1	100.00	Parent of 2 pushed join@1
 1	SIMPLE	t1	pXYZ	eq_ref	PRIMARY	PRIMARY	8	test.t2.c,test.t2.d	1	100.00	Child of 't2' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`c` AS `c`,count(distinct `test`.`t2`.`a`) AS `count(distinct t2.a)` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t1`.`b` = `test`.`t2`.`d`) and (`test`.`t1`.`a` = `test`.`t2`.`c`) and (`test`.`t2`.`b` = 4) and (`test`.`t2`.`a` = 4)) group by `test`.`t2`.`c` order by `test`.`t2`.`c`
@@ -6466,7 +6466,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	subq1	p0,p1,p2,p3,p4,p5,p6,p7	index_subquery	c	c	4	func	2	100.00	Using where
 3	DEPENDENT SUBQUERY	subq2	p0,p1,p2,p3,p4,p5,p6,p7	index_subquery	c	c	4	func	2	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`c`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`c`) in t1 on c where (<in_optimizer>(`test`.`subq1`.`c`,<exists>(<index_lookup>(<cache>(`test`.`subq1`.`c`) in t1 on c))) and (<cache>(`test`.`t1`.`c`) = `test`.`subq1`.`c`)))))
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`c`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`c`) in t1 on c where <in_optimizer>(`test`.`subq1`.`c`,<exists>(<index_lookup>(<cache>(`test`.`subq1`.`c`) in t1 on c))))))
 select count(*) from t1 where 
 t1.c in (select c from t1 as subq1 where 
 subq1.c in (select c from t1 as subq2));
@@ -6876,7 +6876,7 @@ FROM ndb_order_test JOIN ndb_user_test USING (user_id)
 WHERE node_id = 68
 ORDER BY sort_number DESC;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	ndb_order_test	p0,p1,p2,p3,p4,p5,p6,p7	ref	node_id	node_id	4	const	2	100.00	Parent of 2 pushed join@1; Using where; Backward index scan
+1	SIMPLE	ndb_order_test	p0,p1,p2,p3,p4,p5,p6,p7	ref	node_id	node_id	4	const	2	100.00	Parent of 2 pushed join@1; Backward index scan
 1	SIMPLE	ndb_user_test	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	4	test.ndb_order_test.user_id	1	100.00	Child of 'ndb_order_test' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`ndb_order_test`.`user_id` AS `user_id`,`test`.`ndb_order_test`.`node_id` AS `node_id`,`test`.`ndb_order_test`.`sort_number` AS `sort_number`,`test`.`ndb_user_test`.`name` AS `name` from `test`.`ndb_order_test` join `test`.`ndb_user_test` where ((`test`.`ndb_user_test`.`user_id` = `test`.`ndb_order_test`.`user_id`) and (`test`.`ndb_order_test`.`node_id` = 68)) order by `test`.`ndb_order_test`.`sort_number` desc
@@ -6893,7 +6893,7 @@ FROM ndb_order_test JOIN ndb_user_test USING (user_id)
 WHERE node_id = 68
 ORDER BY sort_number ASC;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	ndb_order_test	p0,p1,p2,p3,p4,p5,p6,p7	ref	node_id	node_id	4	const	2	100.00	Parent of 2 pushed join@1; Using where
+1	SIMPLE	ndb_order_test	p0,p1,p2,p3,p4,p5,p6,p7	ref	node_id	node_id	4	const	2	100.00	Parent of 2 pushed join@1
 1	SIMPLE	ndb_user_test	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	4	test.ndb_order_test.user_id	1	100.00	Child of 'ndb_order_test' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`ndb_order_test`.`user_id` AS `user_id`,`test`.`ndb_order_test`.`node_id` AS `node_id`,`test`.`ndb_order_test`.`sort_number` AS `sort_number`,`test`.`ndb_user_test`.`name` AS `name` from `test`.`ndb_order_test` join `test`.`ndb_user_test` where ((`test`.`ndb_user_test`.`user_id` = `test`.`ndb_order_test`.`user_id`) and (`test`.`ndb_order_test`.`node_id` = 68)) order by `test`.`ndb_order_test`.`sort_number`

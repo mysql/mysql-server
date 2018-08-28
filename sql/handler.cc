@@ -8349,7 +8349,7 @@ std::string table_definition(const char *table_name, const TABLE *mysql_table) {
 }
 
 #ifndef DBUG_OFF
-/** Covert a binary buffer to a raw string, replacing non-printable characters
+/** Convert a binary buffer to a raw string, replacing non-printable characters
  * with a dot.
  * @param[in] buf buffer to convert
  * @param[in] buf_size_bytes length of the buffer in bytes
@@ -8364,7 +8364,7 @@ static std::string buf_to_raw(const uchar *buf, uint buf_size_bytes) {
   return r;
 }
 
-/** Covert a binary buffer to a hex string, replacing each character with its
+/** Convert a binary buffer to a hex string, replacing each character with its
  * hex number.
  * @param[in] buf buffer to convert
  * @param[in] buf_size_bytes length of the buffer in bytes
@@ -8514,6 +8514,10 @@ std::string indexed_cells_to_string(const uchar *indexed_cells,
     const KEY_PART_INFO &key_part = mysql_index.key_part[i];
     Field *field = key_part.field;
 
+    // Check if this field should be included
+    if (!bitmap_is_set(mysql_index.table->read_set, field->field_index)) {
+      continue;
+    }
     if (key_len_so_far == indexed_cells_len) {
       break;
     }

@@ -126,6 +126,15 @@ EXPLAIN SELECT * FROM t1 WHERE col1 < 4	{
             }
           },
           {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "(`t1`.`col1` < 4)",
+                "final_table_condition   ": "(`t1`.`col1` < 4)"
+              }
+            ]
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
@@ -260,6 +269,15 @@ EXPLAIN SELECT * FROM t1 WHERE col1 > 4	{
                 }
               ]
             }
+          },
+          {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "(`t1`.`col1` > 4)",
+                "final_table_condition   ": "(`t1`.`col1` > 4)"
+              }
+            ]
           },
           {
             "refine_plan": [
@@ -398,6 +416,15 @@ EXPLAIN SELECT * FROM t1 WHERE col1 >= 4	{
             }
           },
           {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "(`t1`.`col1` >= 4)",
+                "final_table_condition   ": "(`t1`.`col1` >= 4)"
+              }
+            ]
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
@@ -532,6 +559,15 @@ EXPLAIN SELECT * FROM t1 WHERE col1 <= 4	{
                 }
               ]
             }
+          },
+          {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "(`t1`.`col1` <= 4)",
+                "final_table_condition   ": "(`t1`.`col1` <= 4)"
+              }
+            ]
           },
           {
             "refine_plan": [
@@ -670,6 +706,15 @@ EXPLAIN SELECT * FROM t1 WHERE col1 = 4	{
             }
           },
           {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "(`t1`.`col1` = 4)",
+                "final_table_condition   ": "(`t1`.`col1` = 4)"
+              }
+            ]
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
@@ -804,6 +849,15 @@ EXPLAIN SELECT * FROM t1 WHERE col1 != 4	{
                 }
               ]
             }
+          },
+          {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "(`t1`.`col1` <> 4)",
+                "final_table_condition   ": "(`t1`.`col1` <> 4)"
+              }
+            ]
           },
           {
             "refine_plan": [
@@ -942,6 +996,15 @@ EXPLAIN SELECT * FROM t1 WHERE col1 <> 4	{
             }
           },
           {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "(`t1`.`col1` <> 4)",
+                "final_table_condition   ": "(`t1`.`col1` <> 4)"
+              }
+            ]
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
@@ -1076,6 +1139,15 @@ EXPLAIN SELECT * FROM t1 WHERE col1 BETWEEN 4 AND 6	{
                 }
               ]
             }
+          },
+          {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "(`t1`.`col1` between 4 and 6)",
+                "final_table_condition   ": "(`t1`.`col1` between 4 and 6)"
+              }
+            ]
           },
           {
             "refine_plan": [
@@ -1214,6 +1286,15 @@ EXPLAIN SELECT * FROM t1 WHERE col1 NOT BETWEEN 4 AND 6	{
             }
           },
           {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "(`t1`.`col1` not between 4 and 6)",
+                "final_table_condition   ": "(`t1`.`col1` not between 4 and 6)"
+              }
+            ]
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
@@ -1350,6 +1431,15 @@ EXPLAIN SELECT * FROM t1 WHERE col1 IS NULL	{
             }
           },
           {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "isnull(`t1`.`col1`)",
+                "final_table_condition   ": "isnull(`t1`.`col1`)"
+              }
+            ]
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
@@ -1484,6 +1574,15 @@ EXPLAIN SELECT * FROM t1 WHERE col1 IS NOT NULL	{
                 }
               ]
             }
+          },
+          {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "(`t1`.`col1` is not null)",
+                "final_table_condition   ": "(`t1`.`col1` is not null)"
+              }
+            ]
           },
           {
             "refine_plan": [
@@ -1709,6 +1808,15 @@ EXPLAIN SELECT * FROM t1 WHERE col1 > 10 AND col2 < 88	{
             }
           },
           {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "((`t1`.`col1` > 10) and (`t1`.`col2` < 88))",
+                "final_table_condition   ": "((`t1`.`col1` > 10) and (`t1`.`col2` < 88))"
+              }
+            ]
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
@@ -1860,6 +1968,15 @@ EXPLAIN SELECT * FROM t1 WHERE col1 > 2 AND col1 <= 7	{
                 }
               ]
             }
+          },
+          {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "((`t1`.`col1` > 2) and (`t1`.`col1` <= 7))",
+                "final_table_condition   ": "((`t1`.`col1` > 2) and (`t1`.`col1` <= 7))"
+              }
+            ]
           },
           {
             "refine_plan": [

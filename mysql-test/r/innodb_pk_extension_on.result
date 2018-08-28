@@ -282,7 +282,7 @@ Handler_read_rnd_next	0
 EXPLAIN SELECT f1, pk_1, pk_2 FROM t1 WHERE pk_1 = 3 AND f1 = '2000-01-03'
 ORDER BY pk_2 DESC LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	PRIMARY,k1	k1	10	const,const	#	100.00	Using where; Backward index scan; Using index
+1	SIMPLE	t1	NULL	ref	PRIMARY,k1	k1	10	const,const	#	100.00	Backward index scan; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`pk_1` AS `pk_1`,`test`.`t1`.`pk_2` AS `pk_2` from `test`.`t1` where ((`test`.`t1`.`f1` = '2000-01-03') and (`test`.`t1`.`pk_1` = 3)) order by `test`.`t1`.`pk_2` desc limit 5
 FLUSH STATUS;

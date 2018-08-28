@@ -256,6 +256,15 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3) */ f1 FROM t1 WHERE f2 = 5 OR f3 = 'c'
             } /* attaching_conditions_to_tables */
           },
           {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "((`t1`.`f2` = 5) or (`t1`.`f3` = 'c') or (`t1`.`f4` = 'f'))",
+                "final_table_condition   ": "((`t1`.`f2` = 5) or (`t1`.`f3` = 'c') or (`t1`.`f4` = 'f'))"
+              }
+            ] /* finalizing_table_conditions */
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
@@ -553,7 +562,7 @@ EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f3) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND 
               "attached_conditions_summary": [
                 {
                   "table": "`t1`",
-                  "attached": "((`t1`.`f3` = 'b') and (`t1`.`f4` = 'h'))"
+                  "attached": "((`t1`.`f3` = 'b') and (`t1`.`f2` = 2) and (`t1`.`f4` = 'h'))"
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
@@ -561,6 +570,15 @@ EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f3) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND 
           {
             "optimizing_distinct_group_by_order_by": {
             } /* optimizing_distinct_group_by_order_by */
+          },
+          {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "((`t1`.`f3` = 'b') and (`t1`.`f2` = 2) and (`t1`.`f4` = 'h'))",
+                "final_table_condition   ": "((`t1`.`f3` = 'b') and (`t1`.`f4` = 'h'))"
+              }
+            ] /* finalizing_table_conditions */
           },
           {
             "refine_plan": [
@@ -920,6 +938,15 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
             } /* attaching_conditions_to_tables */
           },
           {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "(((`t1`.`f2` = 5) or (`t1`.`f3` = 'b')) and ((`t1`.`f2` between 300 and 310) or (`t1`.`f4` = 'b')))",
+                "final_table_condition   ": "(((`t1`.`f2` = 5) or (`t1`.`f3` = 'b')) and ((`t1`.`f2` between 300 and 310) or (`t1`.`f4` = 'b')))"
+              }
+            ] /* finalizing_table_conditions */
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
@@ -1270,6 +1297,15 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
+          },
+          {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "(((`t1`.`f2` = 5) or (`t1`.`f3` = 'b')) and ((`t1`.`f2` between 1 and 10) or (`t1`.`f4` = 'b')))",
+                "final_table_condition   ": "(((`t1`.`f2` = 5) or (`t1`.`f3` = 'b')) and ((`t1`.`f2` between 1 and 10) or (`t1`.`f4` = 'b')))"
+              }
+            ] /* finalizing_table_conditions */
           },
           {
             "refine_plan": [

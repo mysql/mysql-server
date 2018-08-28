@@ -638,6 +638,8 @@ class Item_func_trig_cond final : public Item_bool_func {
   const char *func_name() const override { return "<if>"; };
   /// Get range of inner tables spanned by associated outer join operation
   void get_table_range(TABLE_LIST **first_table, TABLE_LIST **last_table);
+  /// Get table_map of inner tables spanned by associated outer join operation
+  table_map get_inner_tables() const;
   bool fix_fields(THD *thd, Item **ref) override {
     if (Item_bool_func::fix_fields(thd, ref)) return true;
     add_trig_func_tables();
@@ -646,11 +648,8 @@ class Item_func_trig_cond final : public Item_bool_func {
   void add_trig_func_tables() {
     if (trig_type == IS_NOT_NULL_COMPL || trig_type == FOUND_MATCH) {
       DBUG_ASSERT(m_join != nullptr);
-      // Make this function dependent on the range of inner tables
-      TABLE_LIST *first_table, *last_table;
-      get_table_range(&first_table, &last_table);
-      used_tables_cache |= last_table->map() | ((last_table->map() - 1) &
-                                                ~(first_table->map() - 1));
+      // Make this function dependent on the inner tables
+      used_tables_cache |= get_inner_tables();
     } else if (trig_type == OUTER_FIELD_IS_NOT_NULL) {
       used_tables_cache |= OUTER_REF_TABLE_BIT;
     }
@@ -659,6 +658,7 @@ class Item_func_trig_cond final : public Item_bool_func {
     Item_bool_func::update_used_tables();
     add_trig_func_tables();
   }
+  enum enum_trig_type get_trig_type() const { return trig_type; };
   bool *get_trig_var() { return trig_var; }
   void print(String *str, enum_query_type query_type) override;
 };

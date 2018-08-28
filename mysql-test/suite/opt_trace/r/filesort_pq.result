@@ -232,6 +232,10 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 100	{
             }
           },
           {
+            "finalizing_table_conditions": [
+            ]
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
@@ -420,6 +424,10 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
                 "resulting_clause": "`t1`.`f1`,`t1`.`f0`"
               }
             }
+          },
+          {
+            "finalizing_table_conditions": [
+            ]
           },
           {
             "refine_plan": [
@@ -645,6 +653,10 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
                 "resulting_clause": "`t1`.`f2` desc,`t1`.`f0`"
               }
             }
+          },
+          {
+            "finalizing_table_conditions": [
+            ]
           },
           {
             "refine_plan": [
@@ -889,6 +901,15 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
             }
           },
           {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "(`t1`.`f1` > 10)",
+                "final_table_condition   ": "(`t1`.`f1` > 10)"
+              }
+            ]
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
@@ -1121,6 +1142,15 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
             }
           },
           {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "(`t1`.`f1` > 10)",
+                "final_table_condition   ": "(`t1`.`f1` > 10)"
+              }
+            ]
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
@@ -1308,6 +1338,15 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
             }
           },
           {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "(`t1`.`f1` > 10)",
+                "final_table_condition   ": "(`t1`.`f1` > 10)"
+              }
+            ]
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
@@ -1470,6 +1509,10 @@ SELECT CONCAT("hello ", f2) AS foo FROM t1 ORDER BY foo LIMIT 2	{
             }
           },
           {
+            "finalizing_table_conditions": [
+            ]
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
@@ -1621,6 +1664,10 @@ SELECT * from t1 ORDER BY rand(2) LIMIT 2	{
                 "resulting_clause": "rand(2)"
               }
             }
+          },
+          {
+            "finalizing_table_conditions": [
+            ]
           },
           {
             "refine_plan": [
@@ -1831,6 +1878,10 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
             }
           },
           {
+            "finalizing_table_conditions": [
+            ]
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
@@ -2057,6 +2108,10 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
                 "resulting_clause": "`t1`.`f2` desc,`t1`.`f0`"
               }
             }
+          },
+          {
+            "finalizing_table_conditions": [
+            ]
           },
           {
             "refine_plan": [
@@ -2301,6 +2356,15 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
             }
           },
           {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "(`t1`.`f1` > 10)",
+                "final_table_condition   ": "(`t1`.`f1` > 10)"
+              }
+            ]
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
@@ -2533,6 +2597,15 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
             }
           },
           {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "(`t1`.`f1` > 10)",
+                "final_table_condition   ": "(`t1`.`f1` > 10)"
+              }
+            ]
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
@@ -2718,6 +2791,15 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
                 "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
               }
             }
+          },
+          {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "(`t1`.`f1` > 10)",
+                "final_table_condition   ": "(`t1`.`f1` > 10)"
+              }
+            ]
           },
           {
             "refine_plan": [
@@ -2921,6 +3003,10 @@ ORDER BY f1, f0 LIMIT 30	{
             }
           },
           {
+            "finalizing_table_conditions": [
+            ]
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
@@ -3087,6 +3173,10 @@ ORDER BY f1, f0 LIMIT 0	{
                 "resulting_clause": "`t1`.`f1`,`t1`.`f0`"
               }
             }
+          },
+          {
+            "finalizing_table_conditions": [
+            ]
           },
           {
             "refine_plan": [
@@ -3301,6 +3391,15 @@ ORDER BY f2, f0 LIMIT 20	{
             }
           },
           {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "(`t1`.`f1` > 10)",
+                "final_table_condition   ": "(`t1`.`f1` > 10)"
+              }
+            ]
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
@@ -3491,6 +3590,15 @@ ORDER BY f2, f0 LIMIT 0	{
                 "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
               }
             }
+          },
+          {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "(`t1`.`f1` > 10)",
+                "final_table_condition   ": "(`t1`.`f1` > 10)"
+              }
+            ]
           },
           {
             "refine_plan": [
@@ -3695,6 +3803,15 @@ ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
             }
           },
           {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "(`t1`.`f1` > 10)",
+                "final_table_condition   ": "(`t1`.`f1` > 10)"
+              }
+            ]
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
@@ -3885,6 +4002,15 @@ ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
                 "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
               }
             }
+          },
+          {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "(`t1`.`f1` > 10)",
+                "final_table_condition   ": "(`t1`.`f1` > 10)"
+              }
+            ]
           },
           {
             "refine_plan": [
@@ -4189,6 +4315,15 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
                 "resulting_clause": "`tmp`.`f1`,`t1`.`f0`"
               }
             }
+          },
+          {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "(`t1`.`f2` = `tmp`.`f2`)",
+                "final_table_condition   ": "(`t1`.`f2` = `tmp`.`f2`)"
+              }
+            ]
           },
           {
             "refine_plan": [
@@ -4507,6 +4642,15 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                 "resulting_clause": "`tmp`.`f1`,`t1`.`f0`"
               }
             }
+          },
+          {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "(`t1`.`f2` = `tmp`.`f2`)",
+                "final_table_condition   ": "(`t1`.`f2` = `tmp`.`f2`)"
+              }
+            ]
           },
           {
             "refine_plan": [
@@ -4830,6 +4974,15 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                 "resulting_clause": "`tmp`.`f1`,`t1`.`f0`"
               }
             }
+          },
+          {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "(`t1`.`f2` = `tmp`.`f2`)",
+                "final_table_condition   ": "(`t1`.`f2` = `tmp`.`f2`)"
+              }
+            ]
           },
           {
             "refine_plan": [
@@ -5210,6 +5363,20 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
             }
           },
           {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "(`t1`.`f2` > 20)",
+                "final_table_condition   ": "(`t1`.`f2` > 20)"
+              },
+              {
+                "table": "`tmp`",
+                "original_table_condition": "(`t1`.`f2` = `tmp`.`f2`)",
+                "final_table_condition   ": "(`t1`.`f2` = `tmp`.`f2`)"
+              }
+            ]
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
@@ -5478,6 +5645,10 @@ SELECT * FROM v1	{
                   }
                 },
                 {
+                  "finalizing_table_conditions": [
+                  ]
+                },
+                {
                   "refine_plan": [
                     {
                       "table": "`t1`"
@@ -5552,6 +5723,10 @@ SELECT * FROM v1	{
                 }
               ]
             }
+          },
+          {
+            "finalizing_table_conditions": [
+            ]
           },
           {
             "refine_plan": [
@@ -5785,6 +5960,10 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                   }
                 },
                 {
+                  "finalizing_table_conditions": [
+                  ]
+                },
+                {
                   "refine_plan": [
                     {
                       "table": "`t1`"
@@ -5880,6 +6059,10 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                 "resulting_clause": "`v1`.`f2`,`v1`.`f0`"
               }
             }
+          },
+          {
+            "finalizing_table_conditions": [
+            ]
           },
           {
             "refine_plan": [
@@ -6181,6 +6364,10 @@ LIMIT 30	{
                   }
                 },
                 {
+                  "finalizing_table_conditions": [
+                  ]
+                },
+                {
                   "refine_plan": [
                     {
                       "table": "`t1`"
@@ -6280,6 +6467,10 @@ LIMIT 30	{
                       "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
                     }
                   }
+                },
+                {
+                  "finalizing_table_conditions": [
+                  ]
                 },
                 {
                   "refine_plan": [
@@ -6554,7 +6745,7 @@ LIMIT 30	{
                 },
                 {
                   "table": "`v2`",
-                  "attached": null
+                  "attached": "(`v2`.`f1` = `v1`.`f1`)"
                 }
               ]
             }
@@ -6578,6 +6769,20 @@ LIMIT 30	{
                 "resulting_clause": "`v1`.`f2`,`v1`.`f0`,`v2`.`f0`"
               }
             }
+          },
+          {
+            "finalizing_table_conditions": [
+              {
+                "table": "`v1`",
+                "original_table_condition": "(`v1`.`f1` is not null)",
+                "final_table_condition   ": "(`v1`.`f1` is not null)"
+              },
+              {
+                "table": "`v2`",
+                "original_table_condition": "(`v2`.`f1` = `v1`.`f1`)",
+                "final_table_condition   ": null
+              }
+            ]
           },
           {
             "refine_plan": [
@@ -6899,6 +7104,10 @@ GROUP BY 1 ORDER BY 2,1 LIMIT 5	{
             }
           },
           {
+            "finalizing_table_conditions": [
+            ]
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
@@ -7184,6 +7393,15 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 30	{
             }
           },
           {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "(`t1`.`f1` > 10)",
+                "final_table_condition   ": "(`t1`.`f1` > 10)"
+              }
+            ]
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
@@ -7382,6 +7600,15 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
                 "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
               }
             }
+          },
+          {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "(`t1`.`f1` > 10)",
+                "final_table_condition   ": "(`t1`.`f1` > 10)"
+              }
+            ]
           },
           {
             "refine_plan": [
@@ -7583,6 +7810,15 @@ ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
                 "resulting_clause": "`t1`.`f2`,`t1`.`f0`"
               }
             }
+          },
+          {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "(`t1`.`f1` > 10)",
+                "final_table_condition   ": "(`t1`.`f1` > 10)"
+              }
+            ]
           },
           {
             "refine_plan": [
@@ -7799,6 +8035,10 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                   }
                 },
                 {
+                  "finalizing_table_conditions": [
+                  ]
+                },
+                {
                   "refine_plan": [
                     {
                       "table": "`t1`"
@@ -7894,6 +8134,10 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                 "resulting_clause": "`v1`.`f2`,`v1`.`f0`"
               }
             }
+          },
+          {
+            "finalizing_table_conditions": [
+            ]
           },
           {
             "refine_plan": [
@@ -8173,6 +8417,10 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                   }
                 },
                 {
+                  "finalizing_table_conditions": [
+                  ]
+                },
+                {
                   "refine_plan": [
                     {
                       "table": "`t1`"
@@ -8341,7 +8589,7 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                 },
                 {
                   "table": " `d1`",
-                  "attached": null
+                  "attached": "<if>(is_not_null_compl(d1), (`d1`.`f1` = `t1`.`f1`), true)"
                 }
               ]
             }
@@ -8359,6 +8607,15 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                 "resulting_clause": "`d1`.`f2` desc"
               }
             }
+          },
+          {
+            "finalizing_table_conditions": [
+              {
+                "table": " `d1`",
+                "original_table_condition": "<if>(is_not_null_compl(d1), (`d1`.`f1` = `t1`.`f1`), true)",
+                "final_table_condition   ": null
+              }
+            ]
           },
           {
             "refine_plan": [
@@ -8613,6 +8870,15 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
             }
           },
           {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "(`t1`.`f1` = (/* select#2 */ select `t1`.`f1` from `t1` order by `t1`.`f1` limit 1))",
+                "final_table_condition   ": "(`t1`.`f1` = (/* select#2 */ select `t1`.`f1` from `t1` order by `t1`.`f1` limit 1))"
+              }
+            ]
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
@@ -8702,6 +8968,10 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
                 "resulting_clause": "`t1`.`f1`"
               }
             }
+          },
+          {
+            "finalizing_table_conditions": [
+            ]
           },
           {
             "refine_plan": [
@@ -12385,6 +12655,15 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
             }
           },
           {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "(`t1`.`f1` = (/* select#2 */ select `t1`.`f1` from `t1` order by `t1`.`f1` limit 2))",
+                "final_table_condition   ": "(`t1`.`f1` = (/* select#2 */ select `t1`.`f1` from `t1` order by `t1`.`f1` limit 2))"
+              }
+            ]
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
@@ -12474,6 +12753,10 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
                 "resulting_clause": "`t1`.`f1`"
               }
             }
+          },
+          {
+            "finalizing_table_conditions": [
+            ]
           },
           {
             "refine_plan": [
@@ -12765,6 +13048,10 @@ SELECT * FROM t1 ORDER BY f2,f0 LIMIT 100	{
             }
           },
           {
+            "finalizing_table_conditions": [
+            ]
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
@@ -12964,6 +13251,10 @@ SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j, id limit 2 offset 2	{
             }
           },
           {
+            "finalizing_table_conditions": [
+            ]
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t`"
@@ -13141,6 +13432,10 @@ SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j DESC, id limit 2 offset 2	{
                 "resulting_clause": "`t`.`j` desc,`t`.`id`"
               }
             }
+          },
+          {
+            "finalizing_table_conditions": [
+            ]
           },
           {
             "refine_plan": [
@@ -13322,6 +13617,10 @@ limit 2 offset 2	{
                 "resulting_clause": "`je`,`t`.`id`"
               }
             }
+          },
+          {
+            "finalizing_table_conditions": [
+            ]
           },
           {
             "refine_plan": [

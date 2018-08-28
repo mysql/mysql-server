@@ -659,6 +659,10 @@ FROM t1
             } /* attaching_conditions_to_tables */
           },
           {
+            "finalizing_table_conditions": [
+            ] /* finalizing_table_conditions */
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
@@ -968,6 +972,10 @@ ON table2 .col_int_key = table1 .col_int_key
                                   } /* optimizing_distinct_group_by_order_by */
                                 },
                                 {
+                                  "finalizing_table_conditions": [
+                                  ] /* finalizing_table_conditions */
+                                },
+                                {
                                   "refine_plan": [
                                     {
                                       "table": "`t1`"
@@ -1064,6 +1072,10 @@ ON table2 .col_int_key = table1 .col_int_key
                                 {
                                   "optimizing_distinct_group_by_order_by": {
                                   } /* optimizing_distinct_group_by_order_by */
+                                },
+                                {
+                                  "finalizing_table_conditions": [
+                                  ] /* finalizing_table_conditions */
                                 },
                                 {
                                   "refine_plan": [
@@ -2199,7 +2211,7 @@ ON table2 .col_int_key = table1 .col_int_key
                 },
                 {
                   "table": "``.`<subquery3>`",
-                  "attached": null
+                  "attached": "(`<subquery3>`.`field1` = `where_subselect_20070`.`field1`)"
                 },
                 {
                   "table": "`t1` `table1`",
@@ -2207,10 +2219,34 @@ ON table2 .col_int_key = table1 .col_int_key
                 },
                 {
                   "table": "`t1` `table2`",
-                  "attached": null
+                  "attached": "(`table2`.`col_int_key` = `table1`.`col_int_key`)"
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
+          },
+          {
+            "finalizing_table_conditions": [
+              {
+                "table": "`where_subselect_20070`",
+                "original_table_condition": "(`where_subselect_20070`.`field1` is not null)",
+                "final_table_condition   ": "(`where_subselect_20070`.`field1` is not null)"
+              },
+              {
+                "table": "``.`<subquery3>`",
+                "original_table_condition": "(`<subquery3>`.`field1` = `where_subselect_20070`.`field1`)",
+                "final_table_condition   ": null
+              },
+              {
+                "table": "`t1` `table1`",
+                "original_table_condition": "(`table1`.`col_int_key` is not null)",
+                "final_table_condition   ": "(`table1`.`col_int_key` is not null)"
+              },
+              {
+                "table": "`t1` `table2`",
+                "original_table_condition": "(`table2`.`col_int_key` = `table1`.`col_int_key`)",
+                "final_table_condition   ": null
+              }
+            ] /* finalizing_table_conditions */
           },
           {
             "refine_plan": [
@@ -2589,10 +2625,19 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                     "attached_conditions_summary": [
                                       {
                                         "table": "`t1`",
-                                        "attached": null
+                                        "attached": "(`t1`.`a` = 1)"
                                       }
                                     ] /* attached_conditions_summary */
                                   } /* attaching_conditions_to_tables */
+                                },
+                                {
+                                  "finalizing_table_conditions": [
+                                    {
+                                      "table": "`t1`",
+                                      "original_table_condition": "(`t1`.`a` = 1)",
+                                      "final_table_condition   ": null
+                                    }
+                                  ] /* finalizing_table_conditions */
                                 },
                                 {
                                   "refine_plan": [
@@ -2971,6 +3016,10 @@ EXPLAIN SELECT c1, c2 FROM t1 ORDER BY c1 DESC LIMIT 1	{
                 "access_type": "index"
               } /* index_order_summary */
             } /* reconsidering_access_paths_for_index_ordering */
+          },
+          {
+            "finalizing_table_conditions": [
+            ] /* finalizing_table_conditions */
           },
           {
             "refine_plan": [

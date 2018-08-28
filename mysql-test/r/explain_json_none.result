@@ -2726,7 +2726,7 @@ EXPLAIN
       "used_columns": [
         "a"
       ] /* used_columns */,
-      "attached_condition": "<in_optimizer>(`test`.`t2`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on PRIMARY where ((`test`.`t1`.`b` <> 30) and (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`)))))",
+      "attached_condition": "<in_optimizer>(`test`.`t2`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on PRIMARY where (`test`.`t1`.`b` <> 30))))",
       "attached_subqueries": [
         {
           "dependent": true,
@@ -2763,7 +2763,7 @@ EXPLAIN
                 "a",
                 "b"
               ] /* used_columns */,
-              "attached_condition": "((`test`.`t1`.`b` <> 30) and (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`))"
+              "attached_condition": "(`test`.`t1`.`b` <> 30)"
             } /* table */
           } /* query_block */
         }
@@ -2772,7 +2772,7 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on PRIMARY where ((`test`.`t1`.`b` <> 30) and (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`)))))
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on PRIMARY where (`test`.`t1`.`b` <> 30))))
 DROP TABLE t1, t2;
 set default_storage_engine= @save_storage_engine;
 set optimizer_switch=default;

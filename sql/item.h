@@ -2573,8 +2573,6 @@ class Item : public Parse_tree_node {
   enum item_marker    ///< Values for member 'marker'
   { MARKER_NONE = 0,
     MARKER_CONST_PROPAG = 1,
-    MARKER_COND_ATTACH_APPLY = 2,
-    MARKER_COND_ATTACH_OMIT = 3,
     MARKER_BIT = 4,
     MARKER_FUNC_DEP_NOT_NULL = 5,
     MARKER_DISTINCT_GROUP = 6,
@@ -2584,9 +2582,6 @@ class Item : public Parse_tree_node {
     in:
     - when doing constant propagation (e.g. change_cond_ref_to_const(), to
       remember that we have already processed the item).
-    - when attaching conditions to tables: it says whether some condition
-      needs to be attached or can be omitted (for example because it is already
-      implemented by 'ref' access).
     - when creating an internal temporary table: says how to store BIT fields
     - when analyzing functional dependencies for only_full_group_by (says
       whether a nullable column can be treated at not nullable)

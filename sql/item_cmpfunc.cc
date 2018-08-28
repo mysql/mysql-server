@@ -6111,6 +6111,18 @@ void Item_func_trig_cond::get_table_range(TABLE_LIST **first_table,
   }
 }
 
+table_map Item_func_trig_cond::get_inner_tables() const {
+  table_map inner_tables(0);
+  if (m_join != nullptr) {
+    const plan_idx last_idx = m_join->best_ref[m_idx]->last_inner();
+    plan_idx ix = m_idx;
+    do {
+      inner_tables |= m_join->best_ref[ix++]->table_ref->map();
+    } while (ix <= last_idx);
+  }
+  return inner_tables;
+}
+
 void Item_func_trig_cond::print(String *str, enum_query_type query_type) {
   /*
     Print:

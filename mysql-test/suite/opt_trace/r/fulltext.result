@@ -129,6 +129,15 @@ SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("coverage")	{
             }
           },
           {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "(match `t1`.`a`,`t1`.`b` against ('coverage'))",
+                "final_table_condition   ": "(match `t1`.`a`,`t1`.`b` against ('coverage'))"
+              }
+            ]
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"

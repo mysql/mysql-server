@@ -117,6 +117,10 @@ SELECT uniq, col1 FROM t1 GROUP BY col2,uniq LIMIT 3	{
             } /* optimizing_distinct_group_by_order_by */
           },
           {
+            "finalizing_table_conditions": [
+            ] /* finalizing_table_conditions */
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
@@ -265,6 +269,10 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
                 "resulting_clause": "`t1`.`uniq`"
               } /* simplifying_group_by */
             } /* optimizing_distinct_group_by_order_by */
+          },
+          {
+            "finalizing_table_conditions": [
+            ] /* finalizing_table_conditions */
           },
           {
             "refine_plan": [
@@ -432,6 +440,10 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
             } /* optimizing_distinct_group_by_order_by */
           },
           {
+            "finalizing_table_conditions": [
+            ] /* finalizing_table_conditions */
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
@@ -586,6 +598,10 @@ SELECT pool_id FROM information_schema.INNODB_BUFFER_PAGE LIMIT 1	{
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
+          },
+          {
+            "finalizing_table_conditions": [
+            ] /* finalizing_table_conditions */
           },
           {
             "refine_plan": [
@@ -849,6 +865,10 @@ ORDER BY cc	{
                   } /* attaching_conditions_to_tables */
                 },
                 {
+                  "finalizing_table_conditions": [
+                  ] /* finalizing_table_conditions */
+                },
+                {
                   "refine_plan": [
                     {
                       "table": "`t1`"
@@ -922,6 +942,10 @@ ORDER BY cc	{
                   } /* attaching_conditions_to_tables */
                 },
                 {
+                  "finalizing_table_conditions": [
+                  ] /* finalizing_table_conditions */
+                },
+                {
                   "refine_plan": [
                     {
                       "table": "`t1`"
@@ -993,6 +1017,10 @@ ORDER BY cc	{
                       }
                     ] /* attached_conditions_summary */
                   } /* attaching_conditions_to_tables */
+                },
+                {
+                  "finalizing_table_conditions": [
+                  ] /* finalizing_table_conditions */
                 },
                 {
                   "refine_plan": [
@@ -1090,6 +1118,10 @@ ORDER BY cc	{
                 "resulting_clause": "`tt`.`c1`"
               } /* simplifying_group_by */
             } /* optimizing_distinct_group_by_order_by */
+          },
+          {
+            "finalizing_table_conditions": [
+            ] /* finalizing_table_conditions */
           },
           {
             "refine_plan": [

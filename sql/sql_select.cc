@@ -2539,6 +2539,32 @@ bool make_join_readinfo(JOIN *join, uint no_jbuf_after) {
     if (tab->use_join_cache() != JOIN_CACHE::ALG_NONE)
       qep_tab->init_join_cache(tab);
 
+    /*
+      If supported by handler, (parts of) the table condition may
+      by pushed down to the SE-engine for evaluation.
+    */
+    if (qep_tab->condition()) {
+      THD *thd = join->thd;
+      Item *cond = qep_tab->condition();
+      /*
+        Push condition to storage engine if this is enabled
+        and the condition is not guarded.
+      */
+      if (thd->optimizer_switch_flag(
+              OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN) &&
+          !qep_tab->is_inner_table_of_outer_join()) {
+        Item *push_cond =
+            make_cond_for_table(thd, cond, qep_tab->table_ref->map(),
+                                qep_tab->table_ref->map(), false);
+
+        if (push_cond != NULL && !table->file->cond_push(push_cond)) {
+          /* Condition pushed to handler */
+          table->file->pushed_cond = push_cond;
+          trace_refine_table.add("pushed_handler_condition", push_cond);
+        }
+      }
+    }
+
     switch (qep_tab->type()) {
       case JT_EQ_REF:
       case JT_REF_OR_NULL:

@@ -79,6 +79,10 @@ SELECT (SELECT a FROM t1 WHERE t1.a=t2.a), a FROM t2	{
             } /* attaching_conditions_to_tables */
           },
           {
+            "finalizing_table_conditions": [
+            ] /* finalizing_table_conditions */
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t2`"
@@ -268,6 +272,10 @@ SELECT (SELECT a FROM t1 WHERE t1.a=t2.a), a FROM t2	{
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
+          },
+          {
+            "finalizing_table_conditions": [
+            ] /* finalizing_table_conditions */
           },
           {
             "refine_plan": [
@@ -1609,6 +1617,10 @@ table2.`col_int_nokey` <> any ( select 5 from t2 ) ) and table1.`pk` in
                                     } /* optimizing_distinct_group_by_order_by */
                                   },
                                   {
+                                    "finalizing_table_conditions": [
+                                    ] /* finalizing_table_conditions */
+                                  },
+                                  {
                                     "refine_plan": [
                                       {
                                         "table": "`t1` `subquery1_t1`"
@@ -1640,6 +1652,20 @@ table2.`col_int_nokey` <> any ( select 5 from t2 ) ) and table1.`pk` in
                 "resulting_clause": ""
               } /* simplifying_order_by */
             } /* optimizing_distinct_group_by_order_by */
+          },
+          {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1` `table1`",
+                "original_table_condition": "(`table1`.`pk` in (192,18))",
+                "final_table_condition   ": "(`table1`.`pk` in (192,18))"
+              },
+              {
+                "table": "`t1` `table2`",
+                "original_table_condition": "((`table2`.`col_varchar_key` = `table1`.`col_varchar_key`) and <nop>(<in_optimizer>(`table2`.`col_int_nokey`,<exists>(/* select#3 */ select 5 from `t2` where <if>(outer_field_is_not_null, (<cache>(`table2`.`col_int_nokey`) <> 5), true)))))",
+                "final_table_condition   ": "((`table2`.`col_varchar_key` = `table1`.`col_varchar_key`) and <nop>(<in_optimizer>(`table2`.`col_int_nokey`,<exists>(/* select#3 */ select 5 from `t2` where <if>(outer_field_is_not_null, (<cache>(`table2`.`col_int_nokey`) <> 5), true)))))"
+              }
+            ] /* finalizing_table_conditions */
           },
           {
             "refine_plan": [
@@ -3128,14 +3154,28 @@ TRACE
               "attached_conditions_summary": [
                 {
                   "table": "`q`",
-                  "attached": null
+                  "attached": "(`q`.`a` = 1)"
                 },
                 {
                   "table": "`q` `q1`",
-                  "attached": null
+                  "attached": "(`q1`.`a` = 2)"
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
+          },
+          {
+            "finalizing_table_conditions": [
+              {
+                "table": "`q`",
+                "original_table_condition": "(`q`.`a` = 1)",
+                "final_table_condition   ": null
+              },
+              {
+                "table": "`q` `q1`",
+                "original_table_condition": "(`q1`.`a` = 2)",
+                "final_table_condition   ": null
+              }
+            ] /* finalizing_table_conditions */
           },
           {
             "refine_plan": [

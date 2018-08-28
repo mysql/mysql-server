@@ -2846,7 +2846,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1276	Field or reference 'test.parent1.col_datetime_nokey' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.col_int_nokey' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`parent1`.`col_varchar_key` AS `col_varchar_key` from `test`.`t2` `parent1` left join `test`.`t1` on((`test`.`t1`.`col_int_nokey` = `test`.`parent1`.`col_int_nokey`)) where <in_optimizer>(`test`.`parent1`.`col_varchar_key`,<exists>(<index_lookup>(<cache>(`test`.`parent1`.`col_varchar_key`) in t2 on col_varchar_key where ((`test`.`parent1`.`col_datetime_nokey` = '0000-00-00 00:00:00') and isnull(`test`.`t1`.`col_int_nokey`) and (<cache>(`test`.`parent1`.`col_varchar_key`) = `test`.`child1`.`col_varchar_key`)))))
+Note	1003	/* select#1 */ select `test`.`parent1`.`col_varchar_key` AS `col_varchar_key` from `test`.`t2` `parent1` left join `test`.`t1` on((`test`.`t1`.`col_int_nokey` = `test`.`parent1`.`col_int_nokey`)) where <in_optimizer>(`test`.`parent1`.`col_varchar_key`,<exists>(<index_lookup>(<cache>(`test`.`parent1`.`col_varchar_key`) in t2 on col_varchar_key where ((`test`.`parent1`.`col_datetime_nokey` = '0000-00-00 00:00:00') and isnull(`test`.`t1`.`col_int_nokey`)))))
 SELECT parent1.col_varchar_key
 FROM t2 AS parent1 LEFT JOIN t1 USING (col_int_nokey)
 WHERE parent1.col_varchar_key IN

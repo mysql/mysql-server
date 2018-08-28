@@ -776,7 +776,7 @@ class JOIN {
                                       List<Item> &fields);
   bool rollup_send_data(uint idx);
   bool rollup_write_data(uint idx, QEP_TAB *qep_tab);
-  void remove_subq_pushed_predicates();
+  bool finalize_table_conditions();
   /**
     Release memory and, if possible, the open tables held by this execution
     plan (and nested plans). It's used to release some tables before
@@ -806,7 +806,6 @@ class JOIN {
             select_lex->having_value != Item::COND_FALSE);
   }
 
-  bool cache_const_exprs();
   bool generate_derived_keys();
   void finalize_derived_keys();
   bool get_best_combination();

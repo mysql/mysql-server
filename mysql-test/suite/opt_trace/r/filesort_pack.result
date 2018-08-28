@@ -172,6 +172,10 @@ select * from t1 order by c1	{
             }
           },
           {
+            "finalizing_table_conditions": [
+            ]
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
@@ -327,6 +331,10 @@ select * from t1 order by c1	{
                 "resulting_clause": "`t1`.`c1`"
               }
             }
+          },
+          {
+            "finalizing_table_conditions": [
+            ]
           },
           {
             "refine_plan": [
@@ -486,6 +494,10 @@ select * from t1 order by c1	{
             }
           },
           {
+            "finalizing_table_conditions": [
+            ]
+          },
+          {
             "refine_plan": [
               {
                 "table": "`t1`"
@@ -641,6 +653,10 @@ select * from t1 order by c1	{
                 "resulting_clause": "`t1`.`c1`"
               }
             }
+          },
+          {
+            "finalizing_table_conditions": [
+            ]
           },
           {
             "refine_plan": [
@@ -1060,6 +1076,10 @@ SELECT * FROM t1 ORDER BY c1	{
                 "resulting_clause": "`t1`.`c1`"
               }
             }
+          },
+          {
+            "finalizing_table_conditions": [
+            ]
           },
           {
             "refine_plan": [

@@ -7033,7 +7033,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	t1	NULL	range	Population,Country	Population	4	NULL	1	100.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t2.Population' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t2`.`Name` AS `Name` from `test`.`t2` where (<in_optimizer>(`test`.`t2`.`Code`,`test`.`t2`.`Code` in ( <materialize> (/* select#2 */ select `test`.`t1`.`Country` from `test`.`t1` where (`test`.`t1`.`Population` > 5000000) ), <primary_index_lookup>(`test`.`t2`.`Code` in <temporary table> on <auto_key> where ((`test`.`t2`.`Code` = `materialized-subquery`.`Country`))))) and <in_optimizer>(`test`.`t2`.`Code`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`Code`) in t3 on PRIMARY where ((`test`.`t3`.`Language` = 'English') and (`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000) and (<cache>(`test`.`t2`.`Code`) = `test`.`t3`.`Country`))))))
+Note	1003	/* select#1 */ select `test`.`t2`.`Name` AS `Name` from `test`.`t2` where (<in_optimizer>(`test`.`t2`.`Code`,`test`.`t2`.`Code` in ( <materialize> (/* select#2 */ select `test`.`t1`.`Country` from `test`.`t1` where (`test`.`t1`.`Population` > 5000000) ), <primary_index_lookup>(`test`.`t2`.`Code` in <temporary table> on <auto_key> where ((`test`.`t2`.`Code` = `materialized-subquery`.`Country`))))) and <in_optimizer>(`test`.`t2`.`Code`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`Code`) in t3 on PRIMARY where ((`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000))))))
 EXPLAIN FORMAT=JSON SELECT Name FROM t2 
 WHERE t2.Code IN (SELECT Country FROM t1 WHERE Population > 5000000)
 AND
@@ -7064,7 +7064,7 @@ EXPLAIN
         "Name",
         "Population"
       ],
-      "attached_condition": "(<in_optimizer>(`test`.`t2`.`Code`,`test`.`t2`.`Code` in ( <materialize> (/* select#2 */ select `test`.`t1`.`Country` from `test`.`t1` where (`test`.`t1`.`Population` > 5000000) ), <primary_index_lookup>(`test`.`t2`.`Code` in <temporary table> on <auto_key> where ((`test`.`t2`.`Code` = `materialized-subquery`.`Country`))))) and <in_optimizer>(`test`.`t2`.`Code`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`Code`) in t3 on PRIMARY where ((`test`.`t3`.`Language` = 'English') and (`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000) and (<cache>(`test`.`t2`.`Code`) = `test`.`t3`.`Country`))))))",
+      "attached_condition": "(<in_optimizer>(`test`.`t2`.`Code`,`test`.`t2`.`Code` in ( <materialize> (/* select#2 */ select `test`.`t1`.`Country` from `test`.`t1` where (`test`.`t1`.`Population` > 5000000) ), <primary_index_lookup>(`test`.`t2`.`Code` in <temporary table> on <auto_key> where ((`test`.`t2`.`Code` = `materialized-subquery`.`Country`))))) and <in_optimizer>(`test`.`t2`.`Code`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`Code`) in t3 on PRIMARY where ((`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000))))))",
       "attached_subqueries": [
         {
           "dependent": true,
@@ -7105,7 +7105,7 @@ EXPLAIN
                 "Language",
                 "Percentage"
               ],
-              "attached_condition": "((`test`.`t3`.`Language` = 'English') and (`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000) and (<cache>(`test`.`t2`.`Code`) = `test`.`t3`.`Country`))"
+              "attached_condition": "((`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000))"
             }
           }
         },
@@ -7162,7 +7162,7 @@ EXPLAIN
 }
 Warnings:
 Note	1276	Field or reference 'test.t2.Population' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t2`.`Name` AS `Name` from `test`.`t2` where (<in_optimizer>(`test`.`t2`.`Code`,`test`.`t2`.`Code` in ( <materialize> (/* select#2 */ select `test`.`t1`.`Country` from `test`.`t1` where (`test`.`t1`.`Population` > 5000000) ), <primary_index_lookup>(`test`.`t2`.`Code` in <temporary table> on <auto_key> where ((`test`.`t2`.`Code` = `materialized-subquery`.`Country`))))) and <in_optimizer>(`test`.`t2`.`Code`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`Code`) in t3 on PRIMARY where ((`test`.`t3`.`Language` = 'English') and (`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000) and (<cache>(`test`.`t2`.`Code`) = `test`.`t3`.`Country`))))))
+Note	1003	/* select#1 */ select `test`.`t2`.`Name` AS `Name` from `test`.`t2` where (<in_optimizer>(`test`.`t2`.`Code`,`test`.`t2`.`Code` in ( <materialize> (/* select#2 */ select `test`.`t1`.`Country` from `test`.`t1` where (`test`.`t1`.`Population` > 5000000) ), <primary_index_lookup>(`test`.`t2`.`Code` in <temporary table> on <auto_key> where ((`test`.`t2`.`Code` = `materialized-subquery`.`Country`))))) and <in_optimizer>(`test`.`t2`.`Code`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`Code`) in t3 on PRIMARY where ((`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000))))))
 DROP TABLE t1,t2,t3;
 CREATE TABLE t1 (
 Code char(3) NOT NULL DEFAULT '',
@@ -9459,7 +9459,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	it	NULL	index_subquery	col_varchar_key	col_varchar_key	6	func	1	100.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.ot.col_int_nokey' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`ot`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2` `ot` where <in_optimizer>(`test`.`ot`.`col_varchar_nokey`,<exists>(<index_lookup>(<cache>(`test`.`ot`.`col_varchar_nokey`) in t1 on col_varchar_key where ((`test`.`ot`.`col_int_nokey` >= 2) and (<cache>(`test`.`ot`.`col_varchar_nokey`) = `test`.`it`.`col_varchar_key`))))) order by `test`.`ot`.`col_varchar_nokey`
+Note	1003	/* select#1 */ select `test`.`ot`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2` `ot` where <in_optimizer>(`test`.`ot`.`col_varchar_nokey`,<exists>(<index_lookup>(<cache>(`test`.`ot`.`col_varchar_nokey`) in t1 on col_varchar_key where (`test`.`ot`.`col_int_nokey` >= 2)))) order by `test`.`ot`.`col_varchar_nokey`
 SELECT col_varchar_nokey
 FROM t2 AS ot
 WHERE col_varchar_nokey IN (
@@ -9493,7 +9493,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	it	NULL	index_subquery	col_varchar_key	col_varchar_key	6	func	2	100.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.ot.col_int_nokey' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`ot`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2` `ot` where <in_optimizer>(`test`.`ot`.`col_varchar_nokey`,<exists>(<index_lookup>(<cache>(`test`.`ot`.`col_varchar_nokey`) in t1 on col_varchar_key where ((`test`.`ot`.`col_int_nokey` >= 2) and (<cache>(`test`.`ot`.`col_varchar_nokey`) = `test`.`it`.`col_varchar_key`))))) order by `test`.`ot`.`col_varchar_nokey`
+Note	1003	/* select#1 */ select `test`.`ot`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2` `ot` where <in_optimizer>(`test`.`ot`.`col_varchar_nokey`,<exists>(<index_lookup>(<cache>(`test`.`ot`.`col_varchar_nokey`) in t1 on col_varchar_key where (`test`.`ot`.`col_int_nokey` >= 2)))) order by `test`.`ot`.`col_varchar_nokey`
 SELECT col_varchar_nokey
 FROM t2 AS ot
 WHERE col_varchar_nokey IN (
@@ -9527,7 +9527,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	it	NULL	index_subquery	col_varchar_key	col_varchar_key	6	func	2	100.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.ot.col_int_nokey' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`ot`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2` `ot` where <in_optimizer>(`test`.`ot`.`col_varchar_nokey`,<exists>(<index_lookup>(<cache>(`test`.`ot`.`col_varchar_nokey`) in t1 on col_varchar_key where ((`test`.`ot`.`col_int_nokey` >= 2) and (<cache>(`test`.`ot`.`col_varchar_nokey`) = `test`.`it`.`col_varchar_key`))))) order by `test`.`ot`.`col_varchar_nokey`
+Note	1003	/* select#1 */ select `test`.`ot`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2` `ot` where <in_optimizer>(`test`.`ot`.`col_varchar_nokey`,<exists>(<index_lookup>(<cache>(`test`.`ot`.`col_varchar_nokey`) in t1 on col_varchar_key where (`test`.`ot`.`col_int_nokey` >= 2)))) order by `test`.`ot`.`col_varchar_nokey`
 SELECT col_varchar_nokey
 FROM t2 AS ot
 WHERE col_varchar_nokey IN (
@@ -11642,7 +11642,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	outr	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	innr	NULL	index_subquery	PRIMARY,col_varchar_key	col_varchar_key	7	func	1	50.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` `outr` where <in_optimizer>(`test`.`outr`.`col_varchar_nokey`,<exists>(<index_lookup>(<cache>(`test`.`outr`.`col_varchar_nokey`) in t2 on col_varchar_key where ((`test`.`innr`.`pk` <= 7) and (<cache>(`test`.`outr`.`col_varchar_nokey`) = `test`.`innr`.`col_varchar_key`)))))
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` `outr` where <in_optimizer>(`test`.`outr`.`col_varchar_nokey`,<exists>(<index_lookup>(<cache>(`test`.`outr`.`col_varchar_nokey`) in t2 on col_varchar_key where (`test`.`innr`.`pk` <= 7))))
 SELECT 1
 FROM t1 AS outr
 WHERE outr.col_varchar_nokey IN
@@ -11723,7 +11723,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	3	33.33	Range checked for each record (index map: 0x1)
 2	DEPENDENT SUBQUERY	t3	NULL	index_subquery	PRIMARY,c1_key	c1_key	6	func	1	50.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i1` AS `i1`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c1` AS `c1` from `test`.`t1` join `test`.`t2` where (<in_optimizer>(`test`.`t2`.`c1`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`c1`) in t3 on c1_key where ((`test`.`t3`.`pk` < 3) and (<cache>(`test`.`t2`.`c1`) = `test`.`t3`.`c1`))))) and (`test`.`t1`.`i1` >= `test`.`t2`.`pk`))
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i1` AS `i1`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c1` AS `c1` from `test`.`t1` join `test`.`t2` where (<in_optimizer>(`test`.`t2`.`c1`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`c1`) in t3 on c1_key where (`test`.`t3`.`pk` < 3)))) and (`test`.`t1`.`i1` >= `test`.`t2`.`pk`))
 SELECT *
 FROM t1 JOIN t2 ON t1.i1 >= t2.pk
 WHERE t2.c1 IN (

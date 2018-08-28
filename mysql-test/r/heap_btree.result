@@ -130,12 +130,12 @@ a	b
 1	6
 explain select * from tx where a=x order by a,b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-x	SIMPLE	tx	NULL	ref	a	a	x	const	x	xx.xx	Using where
+x	SIMPLE	tx	NULL	ref	a	a	x	const	x	xx.xx	NULL
 Warnings:
 Note	xxx	/* select#x */ select `test`.`tx`.`a` AS `a`,`test`.`tx`.`b` AS `b` from `test`.`tx` where (`test`.`tx`.`a` = x) order by `test`.`tx`.`a`,`test`.`tx`.`b`
 explain select * from tx where a=x order by b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-x	SIMPLE	tx	NULL	ref	a	a	x	const	x	xx.xx	Using where
+x	SIMPLE	tx	NULL	ref	a	a	x	const	x	xx.xx	NULL
 Warnings:
 Note	xxx	/* select#x */ select `test`.`tx`.`a` AS `a`,`test`.`tx`.`b` AS `b` from `test`.`tx` where (`test`.`tx`.`a` = x) order by `test`.`tx`.`b`
 select * from t1 where b=1;

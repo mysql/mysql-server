@@ -3465,7 +3465,7 @@ COUNT(DISTINCT c, a, b)
 EXPLAIN SELECT COUNT(DISTINCT b), SUM(DISTINCT b) FROM t2 WHERE a = 5
 GROUP BY b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ref	a	a	5	const	1	100.00	Using where; Using index
+1	SIMPLE	t2	NULL	ref	a	a	5	const	1	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select count(distinct `test`.`t2`.`b`) AS `COUNT(DISTINCT b)`,sum(distinct `test`.`t2`.`b`) AS `SUM(DISTINCT b)` from `test`.`t2` where (`test`.`t2`.`a` = 5) group by `test`.`t2`.`b`
 SELECT COUNT(DISTINCT b), SUM(DISTINCT b) FROM t2 WHERE a = 5

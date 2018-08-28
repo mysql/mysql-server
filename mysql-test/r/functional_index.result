@@ -455,10 +455,19 @@ TRACE
               "attached_conditions_summary": [
                 {
                   "table": "`t1`",
-                  "attached": null
+                  "attached": "((`t1`.`col1` + `t1`.`col1`) = 10)"
                 }
               ]
             }
+          },
+          {
+            "finalizing_table_conditions": [
+              {
+                "table": "`t1`",
+                "original_table_condition": "((`t1`.`col1` + `t1`.`col1`) = 10)",
+                "final_table_condition   ": null
+              }
+            ]
           },
           {
             "refine_plan": [
