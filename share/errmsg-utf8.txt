@@ -18517,6 +18517,10 @@ ER_WARN_DEPRECATED_UTF8MB3_CHARSET_OPTION
 ER_WARN_DEPRECATED_UTF8MB3_COLLATION_OPTION
   eng "%s: '%-.64s' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead."
 
+ER_SSL_MEMORY_INSTRUMENTATION_INIT_FAILED
+  eng "The SSL library function %s failed. This is typically caused by the SSL library already being used. As a result the SSL memory allocation will not be instrumented."
+  bg "Функцията от SSL библиотеката %s върна грешка. Това обикновено е защото SSL библиотеката вече е била използвана. Заради това SSL паметта няма да се инструментира."
+
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #

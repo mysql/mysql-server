@@ -4491,6 +4491,7 @@ static int warn_self_signed_ca() {
 
 #if !defined(HAVE_WOLFSSL) && defined(HAVE_OPENSSL) && !defined(__sun)
 /* TODO: remove the !defined(__sun) when bug 23285559 is out of the picture */
+
 static PSI_memory_key key_memory_openssl = PSI_NOT_INSTRUMENTED;
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
@@ -4518,12 +4519,11 @@ static void init_ssl() {
   mysql_memory_register("mysqld_openssl", all_openssl_memory,
                         array_elements(all_openssl_memory));
 #endif /* defined(HAVE_PSI_MEMORY_INTERFACE) */
-#ifndef DBUG_OFF
-  int ret =
-#endif
-      CRYPTO_set_mem_functions(my_openssl_malloc, my_openssl_realloc,
-                               my_openssl_free);
-  DBUG_ASSERT(ret != 0);
+  int ret = CRYPTO_set_mem_functions(my_openssl_malloc, my_openssl_realloc,
+                                     my_openssl_free);
+  if (ret == 0)
+    LogErr(WARNING_LEVEL, ER_SSL_MEMORY_INSTRUMENTATION_INIT_FAILED,
+           "CRYPTO_set_mem_functions");
 #endif /* HAVE_WOLFSSL */
   ssl_start();
 #endif /* HAVE_OPENSSL */
