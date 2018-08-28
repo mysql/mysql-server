@@ -4721,6 +4721,18 @@
     </li>
 
     <li>
+      <tt>`--quiet`</tt>
+
+      Reuse the output buffer and maintain a single line for reporting
+      successful tests, skipped tests and disabled tests. Failed tests
+      and the necessary information about the failure will be printed
+      on a separate line.
+
+      When <b>`--quiet`</b> option is enabled, MTR prints only the
+      test name and result of the test run.
+    </li>
+
+    <li>
       <tt>`--record`</tt>
 
       Pass the <b>`--record`</b> option to @ref PAGE_MYSQLTEST
