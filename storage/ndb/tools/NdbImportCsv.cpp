@@ -23,6 +23,7 @@
 */
 
 #include "m_ctype.h"
+#include "my_byteorder.h"
 #include "my_sys.h"
 #include <NdbSqlUtil.hpp>
 #include <decimal_utils.hpp>

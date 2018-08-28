@@ -14,6 +14,7 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "sql/binlog_reader.h"
+#include "my_byteorder.h"
 #include "sql/log_event.h"
 
 unsigned char *Default_binlog_event_allocator::allocate(size_t size) {

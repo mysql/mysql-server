@@ -18,6 +18,7 @@
 #include "mysql/components/service_implementation.h"
 #include "mysql/components/services/log_builtins.h"
 
+#include "my_byteorder.h"
 #include "mysql.h"
 #include "sql/mysqld.h"
 #include "sql/sql_class.h"

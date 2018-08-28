@@ -44,6 +44,7 @@
 
 #include "decimal.h"
 #include "my_alloc.h"
+#include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_double2ulonglong.h"
 #include "my_macros.h"

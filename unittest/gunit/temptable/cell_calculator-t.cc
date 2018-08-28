@@ -25,6 +25,7 @@
 #include <cstring>
 #include <memory>
 
+#include "my_byteorder.h"
 #include "sql/table.h"
 #include "storage/temptable/include/temptable/cell_calculator.h"
 

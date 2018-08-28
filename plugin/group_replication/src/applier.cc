@@ -27,6 +27,7 @@
 #include <time.h>
 
 #include <mysql/components/services/log_builtins.h>
+#include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_systime.h"
 #include "plugin/group_replication/include/applier.h"

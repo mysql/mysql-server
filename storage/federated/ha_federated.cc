@@ -388,6 +388,7 @@
 #include "lex_string.h"
 #include "m_string.h"
 #include "map_helpers.h"
+#include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_macros.h"

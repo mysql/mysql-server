@@ -49,6 +49,7 @@
 
 #include "caching_sha2_passwordopt-vars.h"
 #include "client/client_priv.h"
+#include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_default.h"
 #include "my_dir.h"

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #include <memory>
 
 #include "base64.h"
+#include "my_byteorder.h"
 #include "my_inttypes.h"
 #include "sql/json_binary.h"
 #include "sql/json_diff.h"

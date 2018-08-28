@@ -29,6 +29,7 @@
 #include <vector>
 
 #include "base64.h"
+#include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "plugin/group_replication/include/observer_trans.h"

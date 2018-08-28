@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,9 +26,10 @@
 #include <map>
 #include <set>
 
-#include "extra/regex/my_regex.h"      // my_regex_t
-#include "lex.h"                       // symbols[]
-#include "m_ctype.h"                   // CHARSET_INFO
+#include "extra/regex/my_regex.h"  // my_regex_t
+#include "lex.h"                   // symbols[]
+#include "m_ctype.h"               // CHARSET_INFO
+#include "my_dbug.h"
 #include "welcome_copyright_notice.h"  // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 int main(int argc, const char *argv[]) {

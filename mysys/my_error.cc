@@ -50,6 +50,7 @@
 #include "mysys/mysys_priv.h"
 #include "mysys_err.h"
 #include "strings/mb_wc.h"
+#include "template_utils.h"
 
 /* Max length of a error message. Should be kept in sync with MYSQL_ERRMSG_SIZE.
  */

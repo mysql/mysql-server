@@ -31,6 +31,7 @@
 #include <fcntl.h>
 #include <sys/types.h>
 
+#include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"

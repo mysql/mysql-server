@@ -56,6 +56,7 @@ TODO:
 #include <algorithm>
 
 #include "map_helpers.h"
+#include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_psi_config.h"
 #include "mysql/plugin.h"

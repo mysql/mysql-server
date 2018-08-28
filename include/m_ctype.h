@@ -28,12 +28,12 @@
 #ifndef _m_ctype_h
 #define _m_ctype_h
 
-#include <stdarg.h>
+#ifndef __cplusplus
 #include <stdbool.h>
+#endif
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_loglevel.h"
@@ -58,24 +58,10 @@ typedef ulong my_wc_t;
 
 #define MY_CS_REPLACEMENT_CHARACTER 0xFFFD
 
-/*
-  On i386 we store Unicode->CS conversion tables for
-  some character sets using Big-endian order,
-  to copy two bytes at onces.
-  This gives some performance improvement.
-*/
-#if defined(__i386__) || defined(__x86_64__)
-#define MB2(x) (((x) >> 8) + (((x)&0xFF) << 8))
-static inline void MY_PUT_MB2(unsigned char *s, uint16 code) {
-  int2store(s, code);
-}
-#else
-#define MB2(x) (x)
 static inline void MY_PUT_MB2(unsigned char *s, uint16 code) {
   s[0] = code >> 8;
   s[1] = code & 0xFF;
 }
-#endif
 
 typedef struct MY_UNICASE_CHARACTER {
   uint32 toupper;

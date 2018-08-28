@@ -35,6 +35,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0dict.h"
 #include "ha_prototypes.h"
 
+#include "my_byteorder.h"
 #include "my_dbug.h"
 
 #include "rem0rec.h"

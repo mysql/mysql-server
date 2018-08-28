@@ -27,6 +27,7 @@
 #endif
 #include <m_ctype.h>
 #include <my_bit.h>
+#include "my_byteorder.h"
 #include "myisamdef.h"
 
 #define STANDARD_LENGTH 37

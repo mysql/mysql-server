@@ -38,6 +38,7 @@
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
+#include "template_utils.h"
 
 static const uchar ctype_bin[] = {
     0,  32,  32,  32,  32,  32,  32,  32,  32,  32,  40,  40, 40, 40, 40, 32,

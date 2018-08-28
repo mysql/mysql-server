@@ -63,6 +63,7 @@ Created Nov 22, 2013 Mattias Jonsson */
 #include "key.h"
 #include "lex_string.h"
 #include "lock0lock.h"
+#include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_io.h"
 #include "my_macros.h"

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,6 +34,7 @@
 
 #include "m_ctype.h"
 #include "my_base.h"
+#include "my_byteorder.h"
 #include "my_compare.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
