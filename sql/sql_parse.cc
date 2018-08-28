@@ -1024,6 +1024,7 @@ void init_sql_command_flags(void) {
   sql_command_flags[SQLCOM_DROP_USER] |= CF_REQUIRE_ACL_CACHE;
   sql_command_flags[SQLCOM_RENAME_USER] |= CF_REQUIRE_ACL_CACHE;
   sql_command_flags[SQLCOM_SHOW_GRANTS] |= CF_REQUIRE_ACL_CACHE;
+  sql_command_flags[SQLCOM_SET_PASSWORD] |= CF_REQUIRE_ACL_CACHE;
 }
 
 bool sqlcom_can_generate_row_events(enum enum_sql_command command) {
@@ -2864,7 +2865,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
 
   /* Check if the statement fulfill the requirements on ACL CACHE */
   if (!command_satisfy_acl_cache_requirement(lex->sql_command)) {
-    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-table");
+    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
     goto error;
   }
 
