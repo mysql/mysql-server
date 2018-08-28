@@ -28,6 +28,8 @@
   Table SOCKET_INSTANCES (declarations).
 */
 
+#include "my_config.h"
+
 #ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
 #endif

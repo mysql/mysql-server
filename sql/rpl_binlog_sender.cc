@@ -63,6 +63,7 @@
 #include "sql/system_variables.h"
 #include "sql_string.h"
 #include "typelib.h"
+#include "unsafe_string_append.h"
 
 #ifndef DBUG_OFF
 static uint binlog_dump_count = 0;
@@ -928,8 +929,8 @@ inline int Binlog_sender::reset_transmit_packet(ushort flags,
                       event_len, m_packet.alloced_length()));
   DBUG_ASSERT(m_packet.alloced_length() >= PACKET_MIN_SIZE);
 
-  m_packet.length(0);        // size of the content
-  m_packet.qs_append('\0');  // Set this as an OK packet
+  m_packet.length(0);          // size of the content
+  qs_append('\0', &m_packet);  // Set this as an OK packet
 
   /* reserve and set default header */
   if (m_observe_transmission &&

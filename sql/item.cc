@@ -75,6 +75,7 @@
 #include "sql/sql_time.h"  // Date_time_format
 #include "sql/sql_view.h"  // VIEW_ANY_ACL
 #include "template_utils.h"
+#include "unsafe_string_append.h"
 
 using std::max;
 using std::min;
@@ -1568,7 +1569,7 @@ void Item_splocal::print(String *str, enum_query_type) {
   str->reserve(m_name.length() + 8);
   str->append(m_name);
   str->append('@');
-  str->qs_append(m_var_idx);
+  qs_append(m_var_idx, str);
 }
 
 bool Item_splocal::set_value(THD *thd, sp_rcontext *ctx, Item **it) {
@@ -1605,7 +1606,7 @@ void Item_case_expr::print(String *str, enum_query_type) {
   if (str->reserve(MAX_INT_WIDTH + sizeof("case_expr@")))
     return; /* purecov: inspected */
   (void)str->append(STRING_WITH_LEN("case_expr@"));
-  str->qs_append(m_case_expr_id);
+  qs_append(m_case_expr_id, str);
 }
 
 /*****************************************************************************

@@ -39,7 +39,6 @@
 #include "m_string.h"  // LEX_CSTRING
 #include "memory_debugging.h"
 #include "my_alloc.h"
-#include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -533,41 +532,6 @@ class String {
     return mem_realloc(m_length + space_needed);
   }
   int reserve(size_t space_needed, size_t grow_by);
-  /*
-    The following append operations do NOT check alloced memory
-    q_*** methods writes values of parameters itself
-    qs_*** methods writes string representation of value
-  */
-  void q_append(const char c) { m_ptr[m_length++] = c; }
-  void q_append(const uint32 n) {
-    int4store(m_ptr + m_length, n);
-    m_length += 4;
-  }
-  void q_append(double d) {
-    float8store(m_ptr + m_length, d);
-    m_length += 8;
-  }
-  void q_append(double *d) {
-    float8store(m_ptr + m_length, *d);
-    m_length += 8;
-  }
-  void q_append(const char *data, size_t data_len) {
-    memcpy(m_ptr + m_length, data, data_len);
-    m_length += data_len;
-  }
-
-  void write_at_position(int position, uint32 value) {
-    int4store(m_ptr + position, value);
-  }
-
-  void qs_append(const char *str, size_t len);
-  void qs_append(double d, size_t len);
-  void qs_append(const char c) {
-    m_ptr[m_length] = c;
-    m_length++;
-  }
-  void qs_append(int i);
-  void qs_append(uint i);
 
   /* Inline (general) functions used by the protocol functions */
 

@@ -701,26 +701,27 @@ int String::reserve(size_t space_needed, size_t grow_by) {
   return false;
 }
 
-void String::qs_append(const char *str, size_t len) {
-  memcpy(m_ptr + m_length, str, len + 1);
-  m_length += len;
+void qs_append(const char *str_in, size_t len, String *str) {
+  memcpy(&((*str)[str->length()]), str_in, len + 1);
+  str->length(str->length() + len);
 }
 
-void String::qs_append(double d, size_t len) {
-  char *buff = m_ptr + m_length;
-  m_length += my_gcvt(d, MY_GCVT_ARG_DOUBLE, len, buff, NULL);
+void qs_append(double d, size_t len, String *str) {
+  char *buff = &((*str)[str->length()]);
+  int written = my_gcvt(d, MY_GCVT_ARG_DOUBLE, len, buff, NULL);
+  str->length(str->length() + written);
 }
 
-void String::qs_append(int i) {
-  char *buff = m_ptr + m_length;
+void qs_append(int i, String *str) {
+  char *buff = &((*str)[str->length()]);
   char *end = int10_to_str(i, buff, -10);
-  m_length += (int)(end - buff);
+  str->length(str->length() + (int)(end - buff));
 }
 
-void String::qs_append(uint i) {
-  char *buff = m_ptr + m_length;
+void qs_append(uint i, String *str) {
+  char *buff = &((*str)[str->length()]);
   char *end = int10_to_str(i, buff, 10);
-  m_length += (int)(end - buff);
+  str->length(str->length() + (int)(end - buff));
 }
 
 /*

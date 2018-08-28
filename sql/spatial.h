@@ -40,6 +40,7 @@
 #include "sql/gis/srid.h"
 #include "sql/inplace_vector.h"
 #include "sql_string.h"  // String
+#include "unsafe_string_append.h"
 
 class Gis_read_stream;
 class THD;
@@ -623,7 +624,7 @@ class Geometry {
     if (get_type() == wkb_geometrycollection)
       wkt->append("GEOMETRYCOLLECTION");
     else
-      wkt->qs_append(get_class_info()->m_name.str, len);
+      qs_append(get_class_info()->m_name.str, len, wkt);
     if (get_data_as_wkt(wkt, wkb)) return true;
     return false;
   }
@@ -1142,26 +1143,26 @@ inline char *write_geometry_header(void *p0, gis::srid_t srid,
 }
 
 inline void write_wkb_header(String *str, Geometry::wkbType geotype) {
-  str->q_append(static_cast<char>(Geometry::wkb_ndr));
-  str->q_append(static_cast<uint32>(geotype));
+  q_append(static_cast<char>(Geometry::wkb_ndr), str);
+  q_append(static_cast<uint32>(geotype), str);
 }
 
 inline void write_wkb_header(String *str, Geometry::wkbType geotype,
                              uint32 obj_count) {
   write_wkb_header(str, geotype);
-  str->q_append(obj_count);
+  q_append(obj_count, str);
 }
 
 inline void write_geometry_header(String *str, gis::srid_t srid,
                                   Geometry::wkbType geotype) {
-  str->q_append(srid);
+  q_append(srid, str);
   write_wkb_header(str, geotype);
 }
 
 inline void write_geometry_header(String *str, gis::srid_t srid,
                                   Geometry::wkbType geotype, uint32 obj_count) {
   write_geometry_header(str, srid, geotype);
-  str->q_append(obj_count);
+  q_append(obj_count, str);
 }
 
 /***************************** Point *******************************/

@@ -75,6 +75,7 @@
 #include "sql/system_variables.h"
 #include "sql/thr_malloc.h"
 #include "template_utils.h"
+#include "unsafe_string_append.h"
 
 class PT_item_list;
 struct TABLE;
@@ -537,7 +538,7 @@ String *Item_func_geometry_from_text::val_str(String *str) {
   str->set_charset(&my_charset_bin);
   if (str->reserve(SRID_SIZE + temp.length())) return error_str();
   str->length(0);
-  str->q_append(srid);
+  q_append(srid, str);
   str->append(temp);
 
   return str;
@@ -785,7 +786,7 @@ String *Item_func_geometry_from_wkb::val_str(String *str) {
     return error_str();
   }
   str->length(0);
-  str->q_append(srid);
+  q_append(srid, str);
   str->append(temp);
   return str;
 }
@@ -930,7 +931,7 @@ String *Item_func_geomfromgeojson::val_str(String *buf) {
   }
   buf->set_charset(&my_charset_bin);
   buf->length(0);
-  buf->q_append(static_cast<uint32>(4326));
+  q_append(static_cast<uint32>(4326), buf);
 
   /*
     The rollback variable is used for detecting/accepting NULL objects inside
@@ -962,7 +963,7 @@ String *Item_func_geomfromgeojson::val_str(String *buf) {
 
   // Set the correct SRID for the geometry data.
   if (m_user_provided_srid) {
-    buf->write_at_position(0, m_user_srid);
+    write_at_position(0, m_user_srid, buf);
   } else if (m_srid_found_in_document > -1) {
     Srs_fetcher fetcher(current_thd);
     const dd::Spatial_reference_system *srs = nullptr;
@@ -979,7 +980,7 @@ String *Item_func_geomfromgeojson::val_str(String *buf) {
       return error_str();
     }
 
-    buf->write_at_position(0, static_cast<uint32>(m_srid_found_in_document));
+    write_at_position(0, static_cast<uint32>(m_srid_found_in_document), buf);
   }
 
   bool return_result = result_geometry->as_wkb(buf, false);
@@ -2683,7 +2684,7 @@ String *Item_func_geohash::val_str_ascii(String *str) {
       }
       even_bit = !even_bit;
     }
-    str->q_append(char_to_base32(current_char));
+    q_append(char_to_base32(current_char), str);
 
     /*
       If encoded values of latitude and longitude matches the supplied
@@ -3496,35 +3497,35 @@ String *Item_func_make_envelope::val_str(String *str) {
   if (str->reserve(GEOM_HEADER_SIZE + 4 + 4 + 5 * POINT_DATA_SIZE, 128))
     return error_str();
 
-  str->q_append(srid);
-  str->q_append(static_cast<char>(Geometry::wkb_ndr));
+  q_append(srid, str);
+  q_append(static_cast<char>(Geometry::wkb_ndr), str);
 
   if (dim == 0) {
-    str->q_append(static_cast<uint32>(Geometry::wkb_point));
-    str->q_append(mbr.xmin);
-    str->q_append(mbr.ymin);
+    q_append(static_cast<uint32>(Geometry::wkb_point), str);
+    q_append(mbr.xmin, str);
+    q_append(mbr.ymin, str);
   } else if (dim == 1) {
-    str->q_append(static_cast<uint32>(Geometry::wkb_linestring));
-    str->q_append(static_cast<uint32>(2));
-    str->q_append(mbr.xmin);
-    str->q_append(mbr.ymin);
-    str->q_append(mbr.xmax);
-    str->q_append(mbr.ymax);
+    q_append(static_cast<uint32>(Geometry::wkb_linestring), str);
+    q_append(static_cast<uint32>(2), str);
+    q_append(mbr.xmin, str);
+    q_append(mbr.ymin, str);
+    q_append(mbr.xmax, str);
+    q_append(mbr.ymax, str);
   } else {
     DBUG_ASSERT(dim == 2);
-    str->q_append(static_cast<uint32>(Geometry::wkb_polygon));
-    str->q_append(static_cast<uint32>(1));
-    str->q_append(static_cast<uint32>(5));
-    str->q_append(mbr.xmin);
-    str->q_append(mbr.ymin);
-    str->q_append(mbr.xmax);
-    str->q_append(mbr.ymin);
-    str->q_append(mbr.xmax);
-    str->q_append(mbr.ymax);
-    str->q_append(mbr.xmin);
-    str->q_append(mbr.ymax);
-    str->q_append(mbr.xmin);
-    str->q_append(mbr.ymin);
+    q_append(static_cast<uint32>(Geometry::wkb_polygon), str);
+    q_append(static_cast<uint32>(1), str);
+    q_append(static_cast<uint32>(5), str);
+    q_append(mbr.xmin, str);
+    q_append(mbr.ymin, str);
+    q_append(mbr.xmax, str);
+    q_append(mbr.ymin, str);
+    q_append(mbr.xmax, str);
+    q_append(mbr.ymax, str);
+    q_append(mbr.xmin, str);
+    q_append(mbr.ymax, str);
+    q_append(mbr.xmin, str);
+    q_append(mbr.ymin, str);
   }
 
   return str;
@@ -3558,7 +3559,7 @@ String *Item_func_envelope::val_str(String *str) {
   str->set_charset(&my_charset_bin);
   str->length(0);
   if (str->reserve(SRID_SIZE, 512)) return error_str();
-  str->q_append(srid);
+  q_append(srid, str);
   if ((null_value = geom->envelope(str))) {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_str();
@@ -4097,7 +4098,7 @@ String *Item_func_spatial_decomp::val_str(String *str) {
   str->set_charset(&my_charset_bin);
   if (str->reserve(SRID_SIZE, 512)) goto err;
   str->length(0);
-  str->q_append(srid);
+  q_append(srid, str);
   switch (decomp_func) {
     case SP_STARTPOINT:
       if (geom->start_point(str)) goto err;
@@ -4143,7 +4144,7 @@ String *Item_func_spatial_decomp_n::val_str(String *str) {
   if (str->reserve(SRID_SIZE, 512)) goto err;
   srid = uint4korr(swkb->ptr());
   str->length(0);
-  str->q_append(srid);
+  q_append(srid, str);
   switch (decomp_func_n) {
     case SP_POINTN:
       if (geom->point_n(n, str)) goto err;
@@ -4203,11 +4204,11 @@ String *Item_func_point::val_str(String *str) {
 
   str->set_charset(&my_charset_bin);
   str->length(0);
-  str->q_append(srid);
-  str->q_append((char)Geometry::wkb_ndr);
-  str->q_append((uint32)Geometry::wkb_point);
-  str->q_append(x);
-  str->q_append(y);
+  q_append(srid, str);
+  q_append((char)Geometry::wkb_ndr, str);
+  q_append((uint32)Geometry::wkb_point, str);
+  q_append(x, str);
+  q_append(y, str);
   return str;
 }
 
@@ -4295,8 +4296,8 @@ String *Item_func_pointfromgeohash::val_str(String *str) {
   str->set_charset(&my_charset_bin);
   str->length(0);
   write_geometry_header(str, srid, Geometry::wkb_point);
-  str->q_append(longitude);
-  str->q_append(latitude);
+  q_append(longitude, str);
+  q_append(latitude, str);
   return str;
 }
 
@@ -4350,10 +4351,10 @@ String *Item_func_spatial_collection::val_str(String *str) {
   str->length(0);
   if (str->reserve(4 /*SRID*/ + 1 + 4 + 4, 512)) goto err;
 
-  str->q_append(srid);
-  str->q_append((char)Geometry::wkb_ndr);
-  str->q_append((uint32)coll_type);
-  str->q_append((uint32)arg_count);
+  q_append(srid, str);
+  q_append((char)Geometry::wkb_ndr, str);
+  q_append((uint32)coll_type, str);
+  q_append((uint32)arg_count, str);
 
   // We can construct an empty geometry by calling GeometryCollection().
   if (arg_count == 0) return str;
@@ -4547,7 +4548,7 @@ bool BG_geometry_collection::store_geometry(const Geometry *geo,
       String *pres = m_geosdata.append_object();
       if (pres == NULL || pres->reserve(GEOM_HEADER_SIZE, 512)) return true;
 
-      pres->q_append(geo->get_srid());
+      q_append(geo->get_srid(), pres);
       if (geo->geometry_n(i, pres)) return true;
 
       Geometry_buffer *pgeobuf = m_geobufs.append_object();
@@ -4595,7 +4596,7 @@ Geometry *BG_geometry_collection::store(const Geometry *geo) {
   if (pres == NULL || pres->reserve(GEOM_HEADER_SIZE + geosize, 256))
     return NULL;
   write_geometry_header(pres, geo->get_srid(), geo->get_type());
-  pres->q_append(geo->get_cptr(), geosize);
+  q_append(geo->get_cptr(), geosize, pres);
 
   pgeobuf = m_geobufs.append_object();
   if (pgeobuf == NULL) return NULL;
@@ -5159,7 +5160,7 @@ String *Item_func_st_srid_mutator::val_str(String *str) {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_str();
   }
-  str->write_at_position(0, target_srid);
+  write_at_position(0, target_srid, str);
 
   const dd::Spatial_reference_system *srs = nullptr;
   std::unique_ptr<gis::Geometry> g;

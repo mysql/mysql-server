@@ -73,6 +73,7 @@
 #include "sql/transaction_info.h"
 #include "sql/trigger.h"  // Trigger
 #include "sql/trigger_def.h"
+#include "unsafe_string_append.h"
 
 class Cmp_splocal_locations
     : public std::binary_function<const Item_splocal *, const Item_splocal *,
@@ -905,8 +906,8 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp) {
 void sp_instr_stmt::print(String *str) {
   /* stmt CMD "..." */
   if (str->reserve(SP_STMT_PRINT_MAXLEN + SP_INSTR_UINT_MAXLEN + 8)) return;
-  str->qs_append(STRING_WITH_LEN("stmt"));
-  str->qs_append(STRING_WITH_LEN(" \""));
+  qs_append(STRING_WITH_LEN("stmt"), str);
+  qs_append(STRING_WITH_LEN(" \""), str);
 
   /*
     Print the query string (but not too much of it), just to indicate which
@@ -919,11 +920,11 @@ void sp_instr_stmt::print(String *str) {
   for (size_t i = 0; i < len; i++) {
     char c = m_query.str[i];
     if (c == '\n') c = ' ';
-    str->qs_append(c);
+    qs_append(c, str);
   }
   if (m_query.length > SP_STMT_PRINT_MAXLEN)
-    str->qs_append(STRING_WITH_LEN("...")); /* Indicate truncated string */
-  str->qs_append(STRING_WITH_LEN("\""));
+    qs_append(STRING_WITH_LEN("..."), str); /* Indicate truncated string */
+  qs_append(STRING_WITH_LEN("\""), str);
 }
 
 bool sp_instr_stmt::exec_core(THD *thd, uint *nextp) {
@@ -975,13 +976,13 @@ void sp_instr_set::print(String *str) {
   /* 'var' should always be non-null, but just in case... */
   if (var) rsrv += var->name.length;
   if (str->reserve(rsrv)) return;
-  str->qs_append(STRING_WITH_LEN("set "));
+  qs_append(STRING_WITH_LEN("set "), str);
   if (var) {
-    str->qs_append(var->name.str, var->name.length);
-    str->qs_append('@');
+    qs_append(var->name.str, var->name.length, str);
+    qs_append('@', str);
   }
-  str->qs_append(m_offset);
-  str->qs_append(' ');
+  qs_append(m_offset, str);
+  qs_append(' ', str);
   m_value_item->print(str, QT_TO_ARGUMENT_CHARSET);
 }
 
@@ -1058,8 +1059,8 @@ PSI_statement_info sp_instr_jump::psi_info = {0, "jump", 0, PSI_DOCUMENT_ME};
 void sp_instr_jump::print(String *str) {
   /* jump dest */
   if (str->reserve(SP_INSTR_UINT_MAXLEN + 5)) return;
-  str->qs_append(STRING_WITH_LEN("jump "));
-  str->qs_append(m_dest);
+  qs_append(STRING_WITH_LEN("jump "), str);
+  qs_append(m_dest, str);
 }
 
 uint sp_instr_jump::opt_mark(sp_head *sp, List<sp_instr> *) {
@@ -1119,11 +1120,11 @@ void sp_instr_jump_if_not::print(String *str) {
   if (str->reserve(2 * SP_INSTR_UINT_MAXLEN + 14 +
                    32))  // Add some for the expr. too
     return;
-  str->qs_append(STRING_WITH_LEN("jump_if_not "));
-  str->qs_append(m_dest);
-  str->qs_append('(');
-  str->qs_append(m_cont_dest);
-  str->qs_append(STRING_WITH_LEN(") "));
+  qs_append(STRING_WITH_LEN("jump_if_not "), str);
+  qs_append(m_dest, str);
+  qs_append('(', str);
+  qs_append(m_cont_dest, str);
+  qs_append(STRING_WITH_LEN(") "), str);
   m_expr_item->print(str, QT_ORDINARY);
 }
 
@@ -1201,11 +1202,11 @@ void sp_instr_jump_case_when::print(String *str) {
   if (str->reserve(2 * SP_INSTR_UINT_MAXLEN + 14 +
                    32))  // Add some for the expr. too
     return;
-  str->qs_append(STRING_WITH_LEN("jump_if_not_case_when "));
-  str->qs_append(m_dest);
-  str->qs_append('(');
-  str->qs_append(m_cont_dest);
-  str->qs_append(STRING_WITH_LEN(") "));
+  qs_append(STRING_WITH_LEN("jump_if_not_case_when "), str);
+  qs_append(m_dest, str);
+  qs_append('(', str);
+  qs_append(m_cont_dest, str);
+  qs_append(STRING_WITH_LEN(") "), str);
   m_eq_item->print(str, QT_ORDINARY);
 }
 
@@ -1279,9 +1280,9 @@ void sp_instr_freturn::print(String *str) {
   /* freturn type expr... */
   if (str->reserve(1024 + 8 + 32))  // Add some for the expr. too
     return;
-  str->qs_append(STRING_WITH_LEN("freturn "));
-  str->qs_append((uint)m_return_field_type);
-  str->qs_append(' ');
+  qs_append(STRING_WITH_LEN("freturn "), str);
+  qs_append((uint)m_return_field_type, str);
+  qs_append(' ', str);
   m_expr_item->print(str, QT_ORDINARY);
 }
 
@@ -1322,10 +1323,10 @@ void sp_instr_hpush_jump::print(String *str) {
   /* hpush_jump dest fsize type */
   if (str->reserve(SP_INSTR_UINT_MAXLEN * 2 + 21)) return;
 
-  str->qs_append(STRING_WITH_LEN("hpush_jump "));
-  str->qs_append(m_dest);
-  str->qs_append(' ');
-  str->qs_append(m_frame);
+  qs_append(STRING_WITH_LEN("hpush_jump "), str);
+  qs_append(m_dest, str);
+  qs_append(' ', str);
+  qs_append(m_frame, str);
 
   m_handler->print(str);
 }
@@ -1410,14 +1411,14 @@ bool sp_instr_hreturn::execute(THD *thd, uint *nextp) {
 void sp_instr_hreturn::print(String *str) {
   /* hreturn framesize dest */
   if (str->reserve(SP_INSTR_UINT_MAXLEN * 2 + 9)) return;
-  str->qs_append(STRING_WITH_LEN("hreturn "));
+  qs_append(STRING_WITH_LEN("hreturn "), str);
   if (m_dest) {
     // NOTE: this is legacy: hreturn instruction for EXIT handler
     // should print out 0 as frame index.
-    str->qs_append(STRING_WITH_LEN("0 "));
-    str->qs_append(m_dest);
+    qs_append(STRING_WITH_LEN("0 "), str);
+    qs_append(m_dest, str);
   } else {
-    str->qs_append(m_frame);
+    qs_append(m_frame, str);
   }
 }
 
@@ -1470,15 +1471,15 @@ void sp_instr_cpush::print(String *str) {
 
   if (cursor_name) rsrv += cursor_name->length;
   if (str->reserve(rsrv)) return;
-  str->qs_append(STRING_WITH_LEN("cpush "));
+  qs_append(STRING_WITH_LEN("cpush "), str);
   if (cursor_name) {
-    str->qs_append(cursor_name->str, cursor_name->length);
-    str->qs_append('@');
+    qs_append(cursor_name->str, cursor_name->length, str);
+    qs_append('@', str);
   }
-  str->qs_append(m_cursor_idx);
+  qs_append(m_cursor_idx, str);
 
-  str->qs_append(':');
-  str->qs_append(m_cursor_query.str, m_cursor_query.length);
+  qs_append(':', str);
+  qs_append(m_cursor_query.str, m_cursor_query.length, str);
 }
 
   ///////////////////////////////////////////////////////////////////////////
@@ -1499,8 +1500,8 @@ bool sp_instr_cpop::execute(THD *thd, uint *nextp) {
 void sp_instr_cpop::print(String *str) {
   /* cpop count */
   if (str->reserve(SP_INSTR_UINT_MAXLEN + 5)) return;
-  str->qs_append(STRING_WITH_LEN("cpop "));
-  str->qs_append(m_count);
+  qs_append(STRING_WITH_LEN("cpop "), str);
+  qs_append(m_count, str);
 }
 
   ///////////////////////////////////////////////////////////////////////////
@@ -1560,12 +1561,12 @@ void sp_instr_copen::print(String *str) {
 
   if (cursor_name) rsrv += cursor_name->length;
   if (str->reserve(rsrv)) return;
-  str->qs_append(STRING_WITH_LEN("copen "));
+  qs_append(STRING_WITH_LEN("copen "), str);
   if (cursor_name) {
-    str->qs_append(cursor_name->str, cursor_name->length);
-    str->qs_append('@');
+    qs_append(cursor_name->str, cursor_name->length, str);
+    qs_append('@', str);
   }
-  str->qs_append(m_cursor_idx);
+  qs_append(m_cursor_idx, str);
 }
 
   ///////////////////////////////////////////////////////////////////////////
@@ -1596,12 +1597,12 @@ void sp_instr_cclose::print(String *str) {
 
   if (cursor_name) rsrv += cursor_name->length;
   if (str->reserve(rsrv)) return;
-  str->qs_append(STRING_WITH_LEN("cclose "));
+  qs_append(STRING_WITH_LEN("cclose "), str);
   if (cursor_name) {
-    str->qs_append(cursor_name->str, cursor_name->length);
-    str->qs_append('@');
+    qs_append(cursor_name->str, cursor_name->length, str);
+    qs_append('@', str);
   }
-  str->qs_append(m_cursor_idx);
+  qs_append(m_cursor_idx, str);
 }
 
   ///////////////////////////////////////////////////////////////////////////
@@ -1634,18 +1635,18 @@ void sp_instr_cfetch::print(String *str) {
 
   if (cursor_name) rsrv += cursor_name->length;
   if (str->reserve(rsrv)) return;
-  str->qs_append(STRING_WITH_LEN("cfetch "));
+  qs_append(STRING_WITH_LEN("cfetch "), str);
   if (cursor_name) {
-    str->qs_append(cursor_name->str, cursor_name->length);
-    str->qs_append('@');
+    qs_append(cursor_name->str, cursor_name->length, str);
+    qs_append('@', str);
   }
-  str->qs_append(m_cursor_idx);
+  qs_append(m_cursor_idx, str);
   while ((pv = li++)) {
     if (str->reserve(pv->name.length + SP_INSTR_UINT_MAXLEN + 2)) return;
-    str->qs_append(' ');
-    str->qs_append(pv->name.str, pv->name.length);
-    str->qs_append('@');
-    str->qs_append(pv->offset);
+    qs_append(' ', str);
+    qs_append(pv->name.str, pv->name.length, str);
+    qs_append('@', str);
+    qs_append(pv->offset, str);
   }
 }
 
@@ -1660,8 +1661,8 @@ PSI_statement_info sp_instr_error::psi_info = {0, "error", 0, PSI_DOCUMENT_ME};
 void sp_instr_error::print(String *str) {
   /* error code */
   if (str->reserve(SP_INSTR_UINT_MAXLEN + 6)) return;
-  str->qs_append(STRING_WITH_LEN("error "));
-  str->qs_append(m_errcode);
+  qs_append(STRING_WITH_LEN("error "), str);
+  qs_append(m_errcode, str);
 }
 
   ///////////////////////////////////////////////////////////////////////////
@@ -1700,11 +1701,11 @@ void sp_instr_set_case_expr::print(String *str) {
   /* set_case_expr (cont) id ... */
   str->reserve(2 * SP_INSTR_UINT_MAXLEN + 18 +
                32);  // Add some extra for expr too
-  str->qs_append(STRING_WITH_LEN("set_case_expr ("));
-  str->qs_append(m_cont_dest);
-  str->qs_append(STRING_WITH_LEN(") "));
-  str->qs_append(m_case_expr_id);
-  str->qs_append(' ');
+  qs_append(STRING_WITH_LEN("set_case_expr ("), str);
+  qs_append(m_cont_dest, str);
+  qs_append(STRING_WITH_LEN(") "), str);
+  qs_append(m_case_expr_id, str);
+  qs_append(' ', str);
   m_expr_item->print(str, QT_ORDINARY);
 }
 

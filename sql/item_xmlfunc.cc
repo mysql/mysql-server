@@ -47,6 +47,7 @@
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
+#include "unsafe_string_append.h"
 
 /*
   TODO: future development directions:
@@ -2377,7 +2378,7 @@ static bool append_node(String *str, MY_XML_NODE *node) {
    - At the same time, it avoids excessive memory use.
   */
   if (str->reserve(sizeof(MY_XML_NODE), 2 * str->length() + 512)) return true;
-  str->q_append(reinterpret_cast<const char *>(node), sizeof(MY_XML_NODE));
+  q_append(reinterpret_cast<const char *>(node), sizeof(MY_XML_NODE), str);
   return false;
 }
 

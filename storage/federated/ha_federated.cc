@@ -403,6 +403,7 @@
 #include "sql/sql_lex.h"
 #include "sql/sql_servers.h"  // FOREIGN_SERVER, get_server_by_name
 #include "template_utils.h"
+#include "unsafe_string_append.h"
 
 using std::max;
 using std::min;
@@ -2920,7 +2921,7 @@ int ha_federated::real_connect() {
                        static_cast<ulong>(sql_query.length()))) {
     sql_query.length(0);
     sql_query.append("error: ");
-    sql_query.qs_append(mysql_errno(mysql));
+    qs_append(mysql_errno(mysql), &sql_query);
     sql_query.append("  '");
     sql_query.append(mysql_error(mysql));
     sql_query.append("'");
@@ -2976,7 +2977,7 @@ bool ha_federated::get_error_message(int error, String *buf) {
   DBUG_PRINT("enter", ("error: %d", error));
   if (error == HA_FEDERATED_ERROR_WITH_REMOTE_SYSTEM) {
     buf->append(STRING_WITH_LEN("Error on remote system: "));
-    buf->qs_append(remote_error_number);
+    qs_append(remote_error_number, buf);
     buf->append(STRING_WITH_LEN(": "));
     buf->append(remote_error_buf);
 
