@@ -40,6 +40,7 @@
 #include <stddef.h>
 #endif
 #include "storage/myisam/queues.h"
+#include "template_utils.h"
 
 /* static variables */
 

@@ -26,8 +26,10 @@
 #include <string.h>
 #include <sys/types.h>
 #include <new>
+#include <string>
 
 #include "lex_string.h"
+#include "map_helpers.h"
 #include "memory_debugging.h"
 #include "my_compiler.h"
 #include "my_getopt.h"
@@ -288,5 +290,9 @@ class sys_var_pluginvar : public sys_var {
 struct st_item_value_holder : public st_mysql_value {
   Item *item;
 };
+
+// Defined in sql_plugin.cc, but declared here since sql_plugin.h has so
+// many users and would like not to include "map_helpers.h".
+malloc_unordered_map<std::string, st_bookmark *> *get_bookmark_hash();
 
 #endif

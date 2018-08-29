@@ -67,6 +67,7 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "storage/myisam/ftdefs.h"
+#include "template_utils.h"
 
 /* search with boolean queries */
 
