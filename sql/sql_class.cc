@@ -78,8 +78,9 @@
 #include "sql/sql_parse.h"    // is_update_query
 #include "sql/sql_plugin.h"   // plugin_thdvar_init
 #include "sql/sql_prepare.h"  // Prepared_statement
-#include "sql/sql_time.h"     // my_timeval_trunc
-#include "sql/sql_timer.h"    // thd_timer_destroy
+#include "sql/sql_profile.h"
+#include "sql/sql_time.h"   // my_timeval_trunc
+#include "sql/sql_timer.h"  // thd_timer_destroy
 #include "sql/table.h"
 #include "sql/tc_log.h"
 #include "sql/thr_malloc.h"
@@ -1254,7 +1255,7 @@ void THD::disconnect(bool server_shutdown) {
 
     active_vio is aleady associated to the thread when it is in the kill
     immune mode. THD::awake() closes the active_vio.
- */
+   */
   if (kill_immunizer != nullptr)
     kill_immunizer->save_killed_state(THD::KILL_CONNECTION);
   else {

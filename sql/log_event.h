@@ -40,18 +40,15 @@
 #include <map>
 #include <set>
 #include <string>
-#include <vector>
 
 #include "binlog_event.h"
 #include "control_events.h"
 #include "lex_string.h"
 #include "load_data_events.h"
-#include "m_ctype.h"
 #include "m_string.h"   // native_strncasecmp
 #include "my_bitmap.h"  // MY_BITMAP
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_io.h"
 #include "my_psi_config.h"
 #include "my_sharedlib.h"
 #include "my_sys.h"
@@ -61,20 +58,19 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"  // SERVER_VERSION_LENGTH
 #include "rows_event.h"
-#include "sql/psi_memory_key.h"
 #include "sql/query_options.h"  // OPTION_AUTO_IS_NULL
 #include "sql/rpl_gtid.h"       // enum_gtid_type
 #include "sql/rpl_utility.h"    // Hash_slave_rows
 #include "sql/sql_const.h"
+#include "sql/thr_malloc.h"
 #include "sql_string.h"
 #include "statement_events.h"
 #include "typelib.h"  // TYPELIB
 #include "uuid.h"
 
-class String;
 class THD;
 class Table_id;
-struct mysql_mutex_t;
+struct CHARSET_INFO;
 
 enum class enum_row_image_type;
 class Basic_ostream;
@@ -82,19 +78,9 @@ class Basic_ostream;
 #ifdef MYSQL_SERVER
 #include <stdio.h>
 
-#include "my_byteorder.h"
 #include "my_compiler.h"
-#include "my_psi_config.h"
-#include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/mysql_statement.h"
-#include "mysql/psi/psi_stage.h"
-#include "sql/field.h"
 #include "sql/key.h"
 #include "sql/rpl_filter.h"  // rpl_filter
-#include "sql/rpl_record.h"  // unpack_row
-#include "sql/sql_plugin.h"
-#include "sql/sql_plugin_ref.h"
-#include "sql/sql_profile.h"
 #include "sql/table.h"
 #include "sql/xa.h"
 #endif
@@ -105,7 +91,6 @@ class Basic_ostream;
 
 #include <limits.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
 #include <time.h>
@@ -373,14 +358,10 @@ int ignored_error_code(int err_code);
 const int64 SEQ_MAX_TIMESTAMP = LLONG_MAX;
 
 #ifdef MYSQL_SERVER
-class Format_description_log_event;
 class Item;
-class MYSQL_BIN_LOG;
 class Protocol;
 class Slave_reporting_capability;
 class Slave_worker;
-class String;
-class THD;
 class sql_exchange;
 template <class T>
 class List;
@@ -2343,7 +2324,7 @@ class Table_map_log_event : public binary_log::Table_map_event,
 
     @@param[out] file the place where colume metadata is printed
     @@param[in]  The metadata extracted from optional metadata fields
- */
+   */
   void print_columns(IO_CACHE *file,
                      const Optional_metadata_fields &fields) const;
   /**
@@ -2354,7 +2335,7 @@ class Table_map_log_event : public binary_log::Table_map_event,
 
     @@param[out] file the place where primary key is printed
     @@param[in]  The metadata extracted from optional metadata fields
- */
+   */
   void print_primary_key(IO_CACHE *file,
                          const Optional_metadata_fields &fields) const;
 #endif
@@ -2752,11 +2733,7 @@ class Rows_log_event : public virtual binary_log::Rows_event, public Log_event {
     @return true if there is an autoincrement field on the extra
             columns, false otherwise.
    */
-  inline bool is_auto_inc_in_extra_columns() {
-    DBUG_ASSERT(m_table);
-    return (m_table->next_number_field &&
-            m_table->next_number_field->field_index >= m_width);
-  }
+  bool is_auto_inc_in_extra_columns();
 #endif
 
   bool is_rbr_logging_format() const override { return true; }

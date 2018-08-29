@@ -26,6 +26,7 @@
 #include <mysql/group_replication_priv.h>
 #include "mysql/components/services/log_builtins.h"
 
+#include "mysqld_error.h"
 #include "plugin/group_replication/include/plugin_psi.h"
 #include "plugin/group_replication/include/plugin_server_include.h"
 

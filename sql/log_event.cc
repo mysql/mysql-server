@@ -8067,6 +8067,12 @@ err:
   DBUG_RETURN(error);
 }
 
+bool Rows_log_event::is_auto_inc_in_extra_columns() {
+  DBUG_ASSERT(m_table);
+  return (m_table->next_number_field &&
+          m_table->next_number_field->field_index >= m_width);
+}
+
 /*
   Compares table->record[0] and table->record[1]
 

@@ -98,6 +98,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "sql/sql_partition.h"                    /* mem_alloc_error */
 #include "sql/sql_partition_admin.h"               // Sql_cmd_alter_table_*_part.
 #include "sql/sql_plugin.h"                      // plugin_is_ready
+#include "sql/sql_profile.h"
 #include "sql/sql_select.h"                        // Sql_cmd_select...
 #include "sql/sql_servers.h"
 #include "sql/sql_show_status.h"                 // build_show_session_status, ...
