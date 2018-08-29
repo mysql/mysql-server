@@ -33,6 +33,7 @@
 #include "my_io.h"
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
+#include "sql/field.h"
 #include "storage/myisam/fulltext.h"
 
 #define IS_CHAR ((uint)32768) /* Bit if char (not offset) in tree */

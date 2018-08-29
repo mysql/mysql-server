@@ -34,6 +34,7 @@
 #include "my_io.h"
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
+#include "sql/field.h"
 #include "storage/myisam/ftdefs.h"
 #include "storage/myisam/sp_defs.h"
 

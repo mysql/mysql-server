@@ -42,6 +42,7 @@
 #include "mysql/plugin.h"
 #include "sql/current_thd.h"
 #include "sql/derror.h"
+#include "sql/field.h"
 #include "sql/key.h"  // key_copy
 #include "sql/log.h"
 #include "sql/mysqld.h"

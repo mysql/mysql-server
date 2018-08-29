@@ -42,6 +42,7 @@
 #include "my_io.h"
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
+#include "sql/field.h"
 #include "storage/myisam/myisam_sys.h"
 #include "storage/myisam/myisamdef.h"
 

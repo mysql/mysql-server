@@ -45,6 +45,7 @@
 #include "decimal.h"
 #include "my_alloc.h"
 #include "my_byteorder.h"
+#include "my_compare.h"
 #include "my_dbug.h"
 #include "my_double2ulonglong.h"
 #include "my_macros.h"
@@ -8756,6 +8757,13 @@ Field *Field_bit::new_key_field(MEM_ROOT *root, TABLE *new_table,
 uint Field_bit::is_equal(const Create_field *new_field) {
   return (new_field->sql_type == real_type() &&
           new_field->length == max_display_length());
+}
+
+type_conversion_status Field_bit::reset() {
+  memset(ptr, 0, bytes_in_rec);
+  if (bit_ptr && (bit_len > 0))  // reset odd bits among null bits
+    clr_rec_bits(bit_ptr, bit_ofs, bit_len);
+  return TYPE_OK;
 }
 
 type_conversion_status Field_bit::store(const char *from, size_t length,

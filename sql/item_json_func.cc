@@ -42,6 +42,7 @@
 #include "mysqld_error.h"
 #include "prealloced_array.h"  // Prealloced_array
 #include "sql/current_thd.h"   // current_thd
+#include "sql/field.h"
 #include "sql/item_cmpfunc.h"  // Item_func_like
 #include "sql/item_subselect.h"
 #include "sql/json_diff.h"
@@ -1291,6 +1292,7 @@ static bool val_json_func_field_subselect(
 
     case MYSQL_TYPE_JSON:
       DBUG_ASSERT(false); /* purecov: inspected */
+
       // fall-through
     default:
       my_error(ER_INVALID_CAST_TO_JSON, MYF(0));

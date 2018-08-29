@@ -50,6 +50,7 @@
 #include "my_io.h"
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
+#include "sql/field.h"
 #include "storage/myisam/fulltext.h"
 #include "storage/myisam/myisam_sys.h"
 #include "storage/myisam/rt_index.h"
@@ -633,6 +634,7 @@ err:
     case 5:
       (void)mysql_file_close(info.dfile, MYF(0));
       if (old_share) break; /* Don't remove open table */
+
       /* fall through */
     case 4:
       my_free(share);

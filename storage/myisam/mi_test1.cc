@@ -27,6 +27,7 @@
 #include <my_getopt.h>
 #include "my_byteorder.h"
 #include "myisam.h"
+#include "sql/field.h"
 
 #define MAX_REC_LENGTH 1024
 

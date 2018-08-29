@@ -26,6 +26,7 @@
 #include "my_byteorder.h"
 #include "myisam.h"
 #include "sp_defs.h"
+#include "sql/field.h"
 
 #define MAX_REC_LENGTH 1024
 #define KEYALG HA_KEY_ALG_RTREE

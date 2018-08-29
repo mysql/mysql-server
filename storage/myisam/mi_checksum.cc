@@ -26,6 +26,7 @@
 
 #include "my_byteorder.h"
 #include "my_inttypes.h"
+#include "sql/field.h"
 #include "storage/myisam/myisamdef.h"
 
 ha_checksum mi_checksum(MI_INFO *info, const uchar *buf) {

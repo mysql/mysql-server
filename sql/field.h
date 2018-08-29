@@ -41,7 +41,6 @@
 #include "my_base.h"  // ha_storage_media
 #include "my_bitmap.h"
 #include "my_byteorder.h"
-#include "my_compare.h"  // portable_sizeof_char_ptr
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -111,6 +110,13 @@ struct TYPELIB;
 struct timeval;
 
 using Mysql::Nullable;
+
+/*
+  Inside an in-memory data record, memory pointers to pieces of the
+  record (like BLOBs) are stored in their native byte order and in
+  this amount of bytes.
+*/
+#define portable_sizeof_char_ptr 8
 
 /*
 
@@ -4277,12 +4283,7 @@ class Field_bit : public Field {
   uint32 max_data_length() const override { return (field_length + 7) / 8; }
   uint32 max_display_length() const override { return field_length; }
   Item_result result_type() const override { return INT_RESULT; }
-  type_conversion_status reset() override {
-    memset(ptr, 0, bytes_in_rec);
-    if (bit_ptr && (bit_len > 0))  // reset odd bits among null bits
-      clr_rec_bits(bit_ptr, bit_ofs, bit_len);
-    return TYPE_OK;
-  }
+  type_conversion_status reset() override;
   type_conversion_status store(const char *to, size_t length,
                                const CHARSET_INFO *charset) override;
   type_conversion_status store(double nr) override;
