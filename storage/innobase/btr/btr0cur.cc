@@ -194,6 +194,7 @@ btr_latch_leaves_t btr_cur_latch_leaves(buf_block_t *block,
     case BTR_SEARCH_LEAF:
     case BTR_MODIFY_LEAF:
     case BTR_SEARCH_TREE:
+    case BTR_PARALLEL_READ_INIT:
       if (spatial) {
         cursor->rtr_info->tree_savepoints[RTR_MAX_LEVELS] =
             mtr_set_savepoint(mtr);
@@ -338,8 +339,8 @@ bool btr_cur_optimistic_latch_leaves(buf_block_t *block,
   switch (*latch_mode) {
     case BTR_SEARCH_LEAF:
     case BTR_MODIFY_LEAF:
-      return (buf_page_optimistic_get(*latch_mode, block, modify_clock, file,
-                                      line, mtr));
+      return (buf_page_optimistic_get(*latch_mode, block, modify_clock,
+                                      cursor->m_fetch_mode, file, line, mtr));
     case BTR_SEARCH_PREV:
     case BTR_MODIFY_PREV:
       mode = *latch_mode == BTR_SEARCH_PREV ? RW_S_LATCH : RW_X_LATCH;
@@ -373,7 +374,8 @@ bool btr_cur_optimistic_latch_leaves(buf_block_t *block,
         cursor->left_block = NULL;
       }
 
-      if (buf_page_optimistic_get(mode, block, modify_clock, file, line, mtr)) {
+      if (buf_page_optimistic_get(mode, block, modify_clock,
+                                  cursor->m_fetch_mode, file, line, mtr)) {
         if (btr_page_get_prev(buf_block_get_frame(block), mtr) ==
             left_page_no) {
           /* adjust buf_fix_count */
@@ -440,6 +442,7 @@ static rw_lock_type_t btr_cur_latch_for_root_leaf(ulint latch_mode) {
     case BTR_SEARCH_LEAF:
     case BTR_SEARCH_TREE:
     case BTR_SEARCH_PREV:
+    case BTR_PARALLEL_READ_INIT:
       return (RW_S_LATCH);
     case BTR_MODIFY_LEAF:
     case BTR_MODIFY_TREE:
@@ -640,7 +643,7 @@ void btr_cur_search_to_nth_level(
   ulint rw_latch;
   page_cur_mode_t page_mode;
   page_cur_mode_t search_mode = PAGE_CUR_UNSUPP;
-  ulint buf_mode;
+  Page_fetch fetch;
   ulint estimate;
   ulint node_ptr_max_size = UNIV_PAGE_SIZE / 2;
   page_cur_t *page_cursor;
@@ -695,13 +698,14 @@ void btr_cur_search_to_nth_level(
   cursor->low_match = ULINT_UNDEFINED;
 #endif /* UNIV_DEBUG */
 
-  ibool s_latch_by_caller;
+  bool s_latch_by_caller = latch_mode & BTR_ALREADY_S_LATCHED;
 
-  s_latch_by_caller = latch_mode & BTR_ALREADY_S_LATCHED;
+  bool par_read_init = latch_mode & BTR_PARALLEL_READ_INIT;
 
   ut_ad(!s_latch_by_caller || srv_read_only_mode ||
         mtr_memo_contains_flagged(mtr, dict_index_get_lock(index),
-                                  MTR_MEMO_S_LOCK | MTR_MEMO_SX_LOCK));
+                                  MTR_MEMO_S_LOCK | MTR_MEMO_SX_LOCK) ||
+        (rw_lock_own(dict_index_get_lock(index), RW_LOCK_SX) && par_read_init));
 
   /* These flags are mutually exclusive, they are lumped together
   with the latch mode for historical reasons. It's possible for
@@ -865,7 +869,7 @@ void btr_cur_search_to_nth_level(
           ut_ad(latch_mode != BTR_SEARCH_TREE);
 
           mtr_s_lock(dict_index_get_lock(index), mtr);
-        } else {
+        } else if (!par_read_init) {
           /* BTR_MODIFY_EXTERNAL needs to be excluded */
           mtr_sx_lock(dict_index_get_lock(index), mtr);
         }
@@ -922,7 +926,7 @@ void btr_cur_search_to_nth_level(
   btr_latch_leaves_t latch_leaves = {{NULL, NULL, NULL}, {0, 0, 0}};
 
 search_loop:
-  buf_mode = BUF_GET;
+  fetch = cursor->m_fetch_mode;
   rw_latch = RW_NO_LATCH;
   rtree_parent_modified = false;
 
@@ -949,15 +953,15 @@ search_loop:
       /* Try to buffer the operation if the leaf
       page is not in the buffer pool. */
 
-      buf_mode = btr_op == BTR_DELETE_OP ? BUF_GET_IF_IN_POOL_OR_WATCH
-                                         : BUF_GET_IF_IN_POOL;
+      fetch = btr_op == BTR_DELETE_OP ? Page_fetch::IF_IN_POOL_OR_WATCH
+                                      : Page_fetch::IF_IN_POOL;
     }
   }
 
 retry_page_get:
   ut_ad(n_blocks < BTR_MAX_LEVELS);
   tree_savepoints[n_blocks] = mtr_set_savepoint(mtr);
-  block = buf_page_get_gen(page_id, page_size, rw_latch, guess, buf_mode, file,
+  block = buf_page_get_gen(page_id, page_size, rw_latch, guess, fetch, file,
                            line, mtr);
   tree_blocks[n_blocks] = block;
 
@@ -971,7 +975,7 @@ retry_page_get:
     switch (btr_op) {
       case BTR_INSERT_OP:
       case BTR_INSERT_IGNORE_UNIQUE_OP:
-        ut_ad(buf_mode == BUF_GET_IF_IN_POOL);
+        ut_ad(fetch == Page_fetch::IF_IN_POOL);
         ut_ad(!dict_index_is_spatial(index));
 
         if (ibuf_insert(IBUF_OP_INSERT, tuple, index, page_id, page_size,
@@ -983,7 +987,7 @@ retry_page_get:
         break;
 
       case BTR_DELMARK_OP:
-        ut_ad(buf_mode == BUF_GET_IF_IN_POOL);
+        ut_ad(fetch == Page_fetch::IF_IN_POOL);
         ut_ad(!dict_index_is_spatial(index));
 
         if (ibuf_insert(IBUF_OP_DELETE_MARK, tuple, index, page_id, page_size,
@@ -996,7 +1000,7 @@ retry_page_get:
         break;
 
       case BTR_DELETE_OP:
-        ut_ad(buf_mode == BUF_GET_IF_IN_POOL_OR_WATCH);
+        ut_ad(fetch == Page_fetch::IF_IN_POOL_OR_WATCH);
         ut_ad(!dict_index_is_spatial(index));
 
         if (!row_purge_poss_sec(cursor->purge_node, index, tuple)) {
@@ -1022,7 +1026,7 @@ retry_page_get:
     /* Insert to the insert/delete buffer did not succeed, we
     must read the page from disk. */
 
-    buf_mode = BUF_GET;
+    fetch = cursor->m_fetch_mode;
 
     goto retry_page_get;
   }
@@ -1046,7 +1050,7 @@ retry_page_get:
       prev_tree_savepoints[prev_n_blocks] = mtr_set_savepoint(mtr);
       get_block =
           buf_page_get_gen(page_id_t(page_id.space(), left_page_no), page_size,
-                           rw_latch, NULL, buf_mode, file, line, mtr);
+                           rw_latch, NULL, fetch, file, line, mtr);
       prev_tree_blocks[prev_n_blocks] = get_block;
       prev_n_blocks++;
 
@@ -1060,7 +1064,7 @@ retry_page_get:
                                    tree_blocks[n_blocks]);
 
     tree_savepoints[n_blocks] = mtr_set_savepoint(mtr);
-    block = buf_page_get_gen(page_id, page_size, rw_latch, NULL, buf_mode, file,
+    block = buf_page_get_gen(page_id, page_size, rw_latch, NULL, fetch, file,
                              line, mtr);
     tree_blocks[n_blocks] = block;
   }
@@ -1549,7 +1553,7 @@ retry_page_get:
 
       ut_ad(level == 0);
 
-      buf_mode = BUF_GET;
+      fetch = cursor->m_fetch_mode;
       rw_latch = RW_NO_LATCH;
       goto retry_page_get;
     }
@@ -1734,7 +1738,7 @@ void btr_cur_search_to_nth_level_with_no_latch(dict_index_t *index, ulint level,
   ulint low_match;
   ulint rw_latch;
   page_cur_mode_t page_mode;
-  ulint buf_mode;
+  Page_fetch fetch;
   page_cur_t *page_cursor;
   ulint root_height = 0; /* remove warning */
   ulint n_blocks = 0;
@@ -1791,12 +1795,12 @@ void btr_cur_search_to_nth_level_with_no_latch(dict_index_t *index, ulint level,
   /* Loop and search until we arrive at the desired level */
   bool at_desired_level = false;
   while (!at_desired_level) {
-    buf_mode = BUF_GET;
+    fetch = cursor->m_fetch_mode;
     rw_latch = RW_NO_LATCH;
 
     ut_ad(n_blocks < BTR_MAX_LEVELS);
 
-    block = buf_page_get_gen(page_id, page_size, rw_latch, NULL, buf_mode, file,
+    block = buf_page_get_gen(page_id, page_size, rw_latch, NULL, fetch, file,
                              line, mtr, mark_dirty);
 
     page = buf_block_get_frame(block);
@@ -1970,8 +1974,8 @@ void btr_cur_open_at_index_side_func(
     }
 
     tree_savepoints[n_blocks] = mtr_set_savepoint(mtr);
-    block = buf_page_get_gen(page_id, page_size, rw_latch, NULL, BUF_GET, file,
-                             line, mtr);
+    block = buf_page_get_gen(page_id, page_size, rw_latch, NULL,
+                             cursor->m_fetch_mode, file, line, mtr);
     tree_blocks[n_blocks] = block;
 
     page = buf_block_get_frame(block);
@@ -2206,8 +2210,8 @@ void btr_cur_open_at_index_side_with_no_latch_func(
 
     ut_ad(n_blocks < BTR_MAX_LEVELS);
 
-    block = buf_page_get_gen(page_id, page_size, rw_latch, NULL, BUF_GET, file,
-                             line, mtr);
+    block = buf_page_get_gen(page_id, page_size, rw_latch, NULL,
+                             cursor->m_fetch_mode, file, line, mtr);
 
     page = buf_block_get_frame(block);
 
@@ -2366,8 +2370,8 @@ bool btr_cur_open_at_rnd_pos_func(
     }
 
     tree_savepoints[n_blocks] = mtr_set_savepoint(mtr);
-    block = buf_page_get_gen(page_id, page_size, rw_latch, NULL, BUF_GET, file,
-                             line, mtr);
+    block = buf_page_get_gen(page_id, page_size, rw_latch, NULL,
+                             cursor->m_fetch_mode, file, line, mtr);
     tree_blocks[n_blocks] = block;
 
     page = buf_block_get_frame(block);
@@ -4968,6 +4972,7 @@ static int64_t btr_estimate_n_rows_in_range_on_level(
     performance with this code which is just an estimation. If we read
     this many pages before reaching slot2->page_no then we estimate the
     average from the pages scanned so far. */
+
 #define N_PAGES_READ_LIMIT 10
 
   page_id_t page_id(dict_index_get_space(index), slot1->page_no);
@@ -4987,10 +4992,11 @@ static int64_t btr_estimate_n_rows_in_range_on_level(
     /* Fetch the page. Because we are not holding the
     index->lock, the tree may have changed and we may be
     attempting to read a page that is no longer part of
-    the B-tree. We pass BUF_GET_POSSIBLY_FREED in order to
+    the B-tree. We pass Page_fetch::POSSIBLY_FREED in order to
     silence a debug assertion about this. */
-    block = buf_page_get_gen(page_id, page_size, RW_S_LATCH, NULL,
-                             BUF_GET_POSSIBLY_FREED, __FILE__, __LINE__, &mtr);
+    block =
+        buf_page_get_gen(page_id, page_size, RW_S_LATCH, NULL,
+                         Page_fetch::POSSIBLY_FREED, __FILE__, __LINE__, &mtr);
 
     page = buf_block_get_frame(block);
 

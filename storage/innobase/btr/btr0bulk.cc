@@ -556,11 +556,11 @@ dberr_t PageBulk::storeExt(const big_rec_t *big_rec, ulint *offsets) {
 
   /* Note: not all fields are initialized in btr_pcur. */
   btr_pcur_t btr_pcur;
-  btr_pcur.pos_state = BTR_PCUR_IS_POSITIONED;
-  btr_pcur.latch_mode = BTR_MODIFY_LEAF;
-  btr_pcur.btr_cur.index = m_index;
+  btr_pcur.m_pos_state = BTR_PCUR_IS_POSITIONED;
+  btr_pcur.m_latch_mode = BTR_MODIFY_LEAF;
+  btr_pcur.m_btr_cur.index = m_index;
 
-  page_cur_t *page_cur = &btr_pcur.btr_cur.page_cur;
+  page_cur_t *page_cur = &btr_pcur.m_btr_cur.page_cur;
   page_cur->index = m_index;
   page_cur->rec = m_cur_rec;
   page_cur->offsets = offsets;
@@ -610,15 +610,17 @@ void PageBulk::latch() {
   mtr_set_flush_observer(m_mtr, m_flush_observer);
 
   /* TODO: need a simple and wait version of buf_page_optimistic_get. */
-  auto ret = buf_page_optimistic_get(RW_X_LATCH, m_block, m_modify_clock,
-                                     __FILE__, __LINE__, m_mtr);
+  auto ret =
+      buf_page_optimistic_get(RW_X_LATCH, m_block, m_modify_clock,
+                              Page_fetch::NORMAL, __FILE__, __LINE__, m_mtr);
   /* In case the block is S-latched by page_cleaner. */
   if (!ret) {
     page_id_t page_id(dict_index_get_space(m_index), m_page_no);
     page_size_t page_size(dict_table_page_size(m_index->table));
 
-    m_block = buf_page_get_gen(page_id, page_size, RW_X_LATCH, m_block,
-                               BUF_GET_IF_IN_POOL, __FILE__, __LINE__, m_mtr);
+    m_block =
+        buf_page_get_gen(page_id, page_size, RW_X_LATCH, m_block,
+                         Page_fetch::IF_IN_POOL, __FILE__, __LINE__, m_mtr);
     ut_ad(m_block != nullptr);
   }
 

@@ -2439,8 +2439,8 @@ void recv_recover_page_func(
     rw_lock_x_lock_move_ownership(&block->lock);
   }
 
-  bool success = buf_page_get_known_nowait(RW_X_LATCH, block, BUF_KEEP_OLD,
-                                           __FILE__, __LINE__, &mtr);
+  bool success = buf_page_get_known_nowait(
+      RW_X_LATCH, block, Cache_hint::KEEP_OLD, __FILE__, __LINE__, &mtr);
   ut_a(success);
 
   buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);

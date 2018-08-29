@@ -5063,7 +5063,8 @@ static bool lock_rec_fetch_page(const lock_t *lock) /*!< in: record lock */
     if (space) {
       mtr_start(&mtr);
       buf_page_get_gen(page_id_t(space_id, page_no), page_size, RW_NO_LATCH,
-                       NULL, BUF_GET_POSSIBLY_FREED, __FILE__, __LINE__, &mtr);
+                       NULL, Page_fetch::POSSIBLY_FREED, __FILE__, __LINE__,
+                       &mtr);
       mtr_commit(&mtr);
       fil_space_release(space);
     }
@@ -5571,7 +5572,7 @@ static MY_ATTRIBUTE((warn_unused_result)) const lock_t *lock_rec_validate(
 /** Validate a record lock's block */
 static void lock_rec_block_validate(space_id_t space_id, page_no_t page_no) {
   /* The lock and the block that it is referring to may be freed at
-  this point. We pass BUF_GET_POSSIBLY_FREED to skip a debug check.
+  this point. We pass Page_fetch::POSSIBLY_FREED to skip a debug check.
   If the lock exists in lock_rec_validate_page() we assert
   !block->page.file_page_was_freed. */
 
@@ -5583,9 +5584,9 @@ static void lock_rec_block_validate(space_id_t space_id, page_no_t page_no) {
   if (fil_space_t *space = fil_space_acquire(space_id)) {
     mtr_start(&mtr);
 
-    block = buf_page_get_gen(page_id_t(space_id, page_no),
-                             page_size_t(space->flags), RW_X_LATCH, NULL,
-                             BUF_GET_POSSIBLY_FREED, __FILE__, __LINE__, &mtr);
+    block = buf_page_get_gen(
+        page_id_t(space_id, page_no), page_size_t(space->flags), RW_X_LATCH,
+        NULL, Page_fetch::POSSIBLY_FREED, __FILE__, __LINE__, &mtr);
 
     buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
 

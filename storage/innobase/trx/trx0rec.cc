@@ -2116,7 +2116,7 @@ dberr_t trx_undo_report_row_operation(
   undo_block = buf_page_get_gen(
       page_id_t(undo->space, page_no), undo->page_size, RW_X_LATCH,
       buf_pool_is_obsolete(undo->withdraw_clock) ? NULL : undo->guess_block,
-      BUF_GET, __FILE__, __LINE__, &mtr);
+      Page_fetch::NORMAL, __FILE__, __LINE__, &mtr);
 
   buf_block_dbg_add_level(undo_block, SYNC_TRX_UNDO_PAGE);
 

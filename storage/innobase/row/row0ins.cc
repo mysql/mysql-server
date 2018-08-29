@@ -1246,7 +1246,7 @@ static NO_INLINE MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
   mtr_commit(mtr);
 
-  ut_a(cascade->pcur->rel_pos == BTR_PCUR_ON);
+  ut_a(cascade->pcur->m_rel_pos == BTR_PCUR_ON);
 
   cascade->state = UPD_NODE_UPDATE_CLUSTERED;
 

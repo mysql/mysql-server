@@ -388,7 +388,7 @@ ulint os_event::wait_time_low(ulint time_in_usec,
     abstime.tv_nsec = tv.tv_usec * 1000;
   } else {
     abstime.tv_nsec = 999999999;
-    abstime.tv_sec = (time_t)ULINT_MAX;
+    abstime.tv_sec = std::numeric_limits<time_t>::max();
   }
 
   ut_a(abstime.tv_nsec <= 999999999);

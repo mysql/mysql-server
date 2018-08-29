@@ -194,6 +194,7 @@ enum dberr_t {
   DB_STRONG_FAIL,
   DB_ZIP_OVERFLOW,
   DB_RECORD_NOT_FOUND = 1500,
+  DB_END_OF_BLOCK,
   DB_END_OF_INDEX,
   DB_NOT_FOUND, /*!< Generic error code for "Not found"
                 type of errors */

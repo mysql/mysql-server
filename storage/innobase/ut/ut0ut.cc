@@ -517,6 +517,8 @@ const char *ut_strerr(dberr_t num) {
       return ("Undo record too big");
     case DB_END_OF_INDEX:
       return ("End of index");
+    case DB_END_OF_BLOCK:
+      return ("End of block");
     case DB_IO_ERROR:
       return ("I/O error");
     case DB_TABLE_IN_FK_CHECK:

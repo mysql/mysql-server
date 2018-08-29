@@ -421,19 +421,18 @@ dberr_t row_rename_table_for_mysql(const char *old_name, const char *new_name,
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Scans an index for either COOUNT(*) or CHECK TABLE.
- If CHECK TABLE; Checks that the index contains entries in an ascending order,
- unique constraint is not broken, and calculates the number of index entries
- in the read view of the current transaction.
- @return DB_SUCCESS or other error */
-dberr_t row_scan_index_for_mysql(
-    row_prebuilt_t *prebuilt,  /*!< in: prebuilt struct
-                               in MySQL handle */
-    const dict_index_t *index, /*!< in: index */
-    bool check_keys,           /*!< in: true=check for mis-
-                               ordered or duplicate records,
-                               false=count the rows only */
-    ulint *n_rows)             /*!< out: number of entries
-                               seen in the consistent read */
+If CHECK TABLE; Checks that the index contains entries in an ascending order,
+unique constraint is not broken, and calculates the number of index entries
+in the read view of the current transaction.
+@param[in,out]  prebuilt    Prebuilt struct in MySQL handle.
+@param[in,out]  index       Index to scan.
+@param[in]      n_threads   Number of threads to use for the scan
+@param[in]      check_keys  True if called form check table.
+@param[out]     n_rows      Number of entries seen in the consistent read.
+@return DB_SUCCESS or other error */
+dberr_t row_scan_index_for_mysql(row_prebuilt_t *prebuilt, dict_index_t *index,
+                                 size_t n_threads, bool check_keys,
+                                 ulint *n_rows)
     MY_ATTRIBUTE((warn_unused_result));
 /** Initialize this module */
 void row_mysql_init(void);

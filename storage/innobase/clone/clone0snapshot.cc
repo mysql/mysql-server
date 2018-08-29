@@ -756,8 +756,8 @@ dberr_t Clone_Snapshot::get_page_for_write(const page_id_t &page_id,
   /* Space header page is modified with SX latch while extending. Also,
   we would like to serialize with page flush to disk. */
   auto block =
-      buf_page_get_gen(page_id, page_size, RW_SX_LATCH, nullptr,
-                       BUF_GET_POSSIBLY_FREED, __FILE__, __LINE__, &mtr);
+      buf_page_get_gen(page_id, page_size, RW_S_LATCH, nullptr,
+                       Page_fetch::POSSIBLY_FREED, __FILE__, __LINE__, &mtr);
   auto bpage = &block->page;
 
   byte *src_data;
