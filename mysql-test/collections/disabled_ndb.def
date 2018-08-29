@@ -158,8 +158,3 @@ ndb.ndb_read_location_domain : Bug #27935436 NDB_READ_LOCATION_DOMAIN FAILURE IN
 # Flaky test
 ndb.ndb_import2 : Bug #28239197 NDB_IMPORT2 FAILS SPORADICALLY IN 7.6
 
-# Setting user variables within expressions has been deprecated
-ndb_binlog.ndb_binlog_unique_epoch : Bug #28557056 ADOPT WL#12131 TO CLUSTER TESTS
-ndb_binlog.ndb_binlog_index : Bug #28557056 ADOPT WL#12131 TO CLUSTER TESTS
-ndb_binlog.ndb_binlog_last_commit_epoch : Bug #28557056 ADOPT WL#12131 TO CLUSTER TESTS
-ndb_binlog.ndb_binlog_log_apply_status : Bug #28557056 ADOPT WL#12131 TO CLUSTER TESTS

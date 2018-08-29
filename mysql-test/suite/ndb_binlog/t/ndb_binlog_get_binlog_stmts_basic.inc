@@ -23,16 +23,15 @@ create table raw_binlog_rows (txt varchar(1000));
 
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
-create table binlog_stmt_parts_unassoc (txt varchar(1000), line_count int, stmt_boundary int);
+create table binlog_stmt_parts_unassoc (txt varchar(1000), line_count int AUTO_INCREMENT PRIMARY KEY, stmt_boundary int);
 
 set @line_count=0;
 set @stmt_boundary=0;
 
 # Use replace() here to get rid of any unwanted Windows
 # CRs
-insert into binlog_stmt_parts_unassoc
+insert into binlog_stmt_parts_unassoc (txt,stmt_boundary)
   select replace(txt, '\r', ''),
-         @line_count:= @line_count + 1,  # So we can preserve order later
          (txt like '%INSERT%' or         # Identify statement boundaries
           txt like '%UPDATE%' or
           txt like '%DELETE%')
@@ -47,11 +46,12 @@ create table binlog_stmt_parts_assoc (txt varchar(1000), line_count int, stmt_nu
 set @stmt_count = 0;
 
 insert into binlog_stmt_parts_assoc
-  select txt, 
-         line_count, 
-         @stmt_count:= @stmt_count + stmt_boundary   # All rows from same stmt will
-                                                     # have same stmt_num
-    from binlog_stmt_parts_unassoc order by line_count;
+  select t.txt,
+         t.line_count,
+         (SELECT SUM(x.stmt_boundary)
+            FROM binlog_stmt_parts_unassoc x
+           WHERE x.line_count <= t.line_count)
+    from binlog_stmt_parts_unassoc t order by t.line_count;
 
 
 #select * from binlog_stmt_parts_assoc;
