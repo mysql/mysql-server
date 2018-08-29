@@ -402,6 +402,16 @@ Kill all transactions that are blocking this transaction from acquiring locks.
 
 void trx_kill_blocking(trx_t *trx);
 
+/** Provides an id of the transaction which does not change over time.
+Contrast this with trx->id and trx_get_id_for_print(trx) which change value once
+a transaction can no longer be treated as read-only and becomes read-write.
+@param[in]  trx   The transaction for which you want an immutable id
+@return the transaction's immutable id */
+UNIV_INLINE
+uint64_t trx_immutable_id(const trx_t *trx) {
+  return reinterpret_cast<uint64_t>(trx);
+}
+
 /**
 Check if redo/noredo rseg is modified for insert/update.
 @param[in] trx		Transaction to check */
