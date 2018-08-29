@@ -1919,6 +1919,11 @@ innobase_get_lower_case_table_names(void)
 {
 	return(lower_case_table_names);
 }
+/** return one of the tmpdir path
+@return tmpdir path*/
+UNIV_INTERN
+char*
+innobase_mysql_tmpdir(void) { return (mysql_tmpdir); }
 
 /** Create a temporary file in the location specified by the parameter
 path. If the path is null, then it will be created in tmpdir.

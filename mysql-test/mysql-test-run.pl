@@ -78,6 +78,7 @@ BEGIN {
 use lib "lib";
 
 use Cwd;
+use Cwd "abs_path";
 use Getopt::Long;
 use My::File::Path; # Patched version of File::Path
 use File::Basename;
@@ -2395,14 +2396,14 @@ sub environment_setup {
   if (IS_WINDOWS)
   {
     $ENV{'SECURE_LOAD_PATH'}= $glob_mysql_test_dir."\\std_data";
-    $ENV{'MYSQL_TEST_LOGIN_FILE'}=
-                              $opt_tmpdir . "\\.mylogin.cnf";
+    $ENV{'MYSQL_TEST_LOGIN_FILE'}= $opt_tmpdir . "\\.mylogin.cnf";
+    $ENV{'MYSQLTEST_VARDIR_ABS'}= $opt_vardir;
   }
   else
   {
     $ENV{'SECURE_LOAD_PATH'}= $glob_mysql_test_dir."/std_data";
-    $ENV{'MYSQL_TEST_LOGIN_FILE'}=
-                              $opt_tmpdir . "/.mylogin.cnf";
+    $ENV{'MYSQL_TEST_LOGIN_FILE'}= $opt_tmpdir . "/.mylogin.cnf";
+    $ENV{'MYSQLTEST_VARDIR_ABS'}= abs_path("$opt_vardir");
   }
     
 

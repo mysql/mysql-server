@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5632,56 +5632,47 @@ opt_part_values:
           {
             LEX *lex= Lex;
             partition_info *part_info= lex->part_info;
-            if (! lex->is_partition_management())
-            {
-              if (part_info->part_type == RANGE_PARTITION)
-              {
-                my_error(ER_PARTITION_REQUIRES_VALUES_ERROR, MYF(0),
-                         "RANGE", "LESS THAN");
-                MYSQL_YYABORT;
-              }
-              if (part_info->part_type == LIST_PARTITION)
-              {
-                my_error(ER_PARTITION_REQUIRES_VALUES_ERROR, MYF(0),
-                         "LIST", "IN");
-                MYSQL_YYABORT;
-              }
-            }
-            else
+            if (part_info->part_type == NOT_A_PARTITION)
               part_info->part_type= HASH_PARTITION;
+            else if (part_info->part_type == RANGE_PARTITION)
+            {
+              my_error(ER_PARTITION_REQUIRES_VALUES_ERROR, MYF(0),
+                       "RANGE", "LESS THAN");
+              MYSQL_YYABORT;
+            }
+            else if (part_info->part_type == LIST_PARTITION)
+            {
+              my_error(ER_PARTITION_REQUIRES_VALUES_ERROR, MYF(0),
+                       "LIST", "IN");
+              MYSQL_YYABORT;
+            }
           }
         | VALUES LESS_SYM THAN_SYM
           {
             LEX *lex= Lex;
             partition_info *part_info= lex->part_info;
-            if (! lex->is_partition_management())
-            {
-              if (part_info->part_type != RANGE_PARTITION)
-              {
-                my_error(ER_PARTITION_WRONG_VALUES_ERROR, MYF(0),
-                         "RANGE", "LESS THAN");
-                MYSQL_YYABORT;
-              }
-            }
-            else
+            if (part_info->part_type == NOT_A_PARTITION)
               part_info->part_type= RANGE_PARTITION;
+            else if (part_info->part_type != RANGE_PARTITION)
+            {
+              my_error(ER_PARTITION_WRONG_VALUES_ERROR, MYF(0),
+                       "RANGE", "LESS THAN");
+              MYSQL_YYABORT;
+            }
           }
           part_func_max {}
         | VALUES IN_SYM
           {
             LEX *lex= Lex;
             partition_info *part_info= lex->part_info;
-            if (! lex->is_partition_management())
-            {
-              if (part_info->part_type != LIST_PARTITION)
-              {
-                my_error(ER_PARTITION_WRONG_VALUES_ERROR, MYF(0),
-                               "LIST", "IN");
-                MYSQL_YYABORT;
-              }
-            }
-            else
+            if (part_info->part_type == NOT_A_PARTITION)
               part_info->part_type= LIST_PARTITION;
+            else if (part_info->part_type != LIST_PARTITION)
+            {
+              my_error(ER_PARTITION_WRONG_VALUES_ERROR, MYF(0),
+                       "LIST", "IN");
+              MYSQL_YYABORT;
+            }
           }
           part_values_in {}
         ;

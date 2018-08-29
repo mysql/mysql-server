@@ -5066,6 +5066,9 @@ row_rename_table_for_mysql(
 			"    = TO_BINARY(:old_table_name);\n"
 			"END;\n"
 			, FALSE, trx);
+		if (err != DB_SUCCESS) {
+			goto end;
+		}
 
 	} else if (n_constraints_to_drop > 0) {
 		/* Drop some constraints of tmp tables. */
