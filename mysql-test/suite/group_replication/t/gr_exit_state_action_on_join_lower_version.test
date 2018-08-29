@@ -140,7 +140,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_major_version';
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
 --let $rpl_server_number= 2
 --source include/rpl_reconnect.inc
-# Wait until server 2 is disconnected, so we know it has abort()'ed
+# Wait until server 2 is connected again, so we know it has abort()'ed
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 --source include/wait_until_connected_again.inc

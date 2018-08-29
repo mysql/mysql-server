@@ -702,6 +702,22 @@ int initialize_plugin_and_join(
 
   // we can only start the applier if the log has been initialized
   if (configure_and_start_applier_module()) {
+    /*
+      We must signal listeners of the group_join_waiting signal because an early
+      applier error can be caught here or just before the join (asynchronously).
+
+      This means that tests that need to trigger an early applier error and wait
+      until the applier errored out should wait on group_join_waiting.
+
+      If we didn't duplicate this signal here, these tests would timeout,
+      because the flow from here on goes to error handling and it doesn't signal
+      the original group_join_waiting signal where it was supposed to be
+      signalled.
+    */
+    DBUG_EXECUTE_IF("group_replication_before_joining_the_group", {
+      const char act[] = "now signal signal.group_join_waiting";
+      DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    });
     error = GROUP_REPLICATION_REPLICATION_APPLIER_INIT_ERROR;
     goto err;
   }
@@ -710,7 +726,9 @@ int initialize_plugin_and_join(
   set_auto_increment_handler_values();
 
   DBUG_EXECUTE_IF("group_replication_before_joining_the_group", {
-    const char act[] = "now wait_for signal.continue_group_join";
+    const char act[] =
+        "now signal signal.group_join_waiting "
+        "wait_for signal.continue_group_join";
     DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 

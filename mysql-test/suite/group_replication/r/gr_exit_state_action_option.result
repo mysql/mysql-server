@@ -9,6 +9,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 #########################################################################
 
 [connection server1]
+SET @exit_state_action_saved = @@GLOBAL.group_replication_exit_state_action;
 
 #########################################################################
 # 1) Check the default value. It should be ABORT_SERVER.
@@ -44,5 +45,5 @@ include/assert.inc [The default of group_replication_exit_state_action should be
 # 4) Cleanup.
 #########################################################################
 
-SET GLOBAL group_replication_exit_state_action = READ_ONLY;
+SET GLOBAL group_replication_exit_state_action = @exit_state_action_saved;
 include/group_replication_end.inc

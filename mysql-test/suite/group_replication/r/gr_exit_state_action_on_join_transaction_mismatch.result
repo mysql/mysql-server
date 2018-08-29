@@ -91,4 +91,9 @@ include/rpl_gr_wait_for_number_of_members.inc
 
 [connection server1]
 DROP TABLE t3;
+[connection server2]
+include/stop_group_replication.inc
+SET SESSION sql_log_bin = 0;
+DROP TABLE t2;
+SET SESSION sql_log_bin = 1;
 include/group_replication_end.inc

@@ -62,6 +62,8 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_major_version';
 # Save the super_read_only mode, so we can assert the server reverted to it when
 # it failed to join the group
 SET @super_read_only_saved = @@GLOBAL.super_read_only;
+# Save the group_replication_exit_state_action
+SET @exit_state_action_saved = @@GLOBAL.group_replication_exit_state_action;
 # Save the group SID, so the server gets a member ID
 --disable_query_log
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
@@ -175,6 +177,6 @@ SET @@GLOBAL.DEBUG = @debug_saved;
 --echo
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
-SET @@GLOBAL.group_replication_exit_state_action = READ_ONLY;
+SET @@GLOBAL.group_replication_exit_state_action = @exit_state_action_saved;
 
 --source include/group_replication_end.inc
