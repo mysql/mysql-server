@@ -1718,6 +1718,12 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, uchar *buf,
   MYISAM_SHARE *share=info->s;
   DBUG_ENTER("_mi_read_rnd_dynamic_record");
 
+  DBUG_EXECUTE_IF("catch_file_offset_deviation",
+		 {
+                   if (filepos)
+		     DBUG_RETURN(HA_ERR_RECORD_DELETED);
+                 });
+
   info_read=0;
 
   if (info->lock_type == F_UNLCK)

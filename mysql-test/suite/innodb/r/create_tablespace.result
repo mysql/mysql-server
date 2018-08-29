@@ -1311,7 +1311,69 @@ Level	Code	Message
 Error	1478	InnoDB: Tablespace `innodb_temporary` can only contain TEMPORARY tables.
 Error	1478	Table storage engine 'InnoDB' does not support the create option 'TABLESPACE'
 DROP TABLE t_not_temp;
+#
+# Try to create or move a temporary table in innodb_file_per_table
+# or innodb_temporary tablespaces with STRICT_MODE ON and OFF
+#
 CREATE TEMPORARY TABLE t_my_temp (a int, b text) TABLESPACE=`innodb_temporary`;
+Warnings:
+Warning	1478	InnoDB: TABLESPACE=innodb_temporary option is deprecated and will be removed in a future release.
+SHOW CREATE TABLE t_my_temp;
+Table	Create Table
+t_my_temp	CREATE TEMPORARY TABLE `t_my_temp` (
+  `a` int(11) DEFAULT NULL,
+  `b` text
+) /*!50100 TABLESPACE `innodb_temporary` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+DROP TABLE t_my_temp;
+SET innodb_strict_mode = OFF;
+CREATE TEMPORARY TABLE t_my_temp (a int, b text);
+SHOW CREATE TABLE t_my_temp;
+Table	Create Table
+t_my_temp	CREATE TEMPORARY TABLE `t_my_temp` (
+  `a` int(11) DEFAULT NULL,
+  `b` text
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+ALTER TABLE t_my_temp TABLESPACE innodb_temporary;
+Warnings:
+Warning	1478	InnoDB: TABLESPACE=innodb_temporary option is deprecated and will be removed in a future release.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1478	InnoDB: TABLESPACE=innodb_temporary option is deprecated and will be removed in a future release.
+SHOW CREATE TABLE t_my_temp;
+Table	Create Table
+t_my_temp	CREATE TEMPORARY TABLE `t_my_temp` (
+  `a` int(11) DEFAULT NULL,
+  `b` text
+) /*!50100 TABLESPACE `innodb_temporary` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+ALTER TABLE t_my_temp TABLESPACE innodb_file_per_table;
+Warnings:
+Warning	1478	InnoDB: TABLESPACE=innodb_file_per_table option is ignored. This option is deprecated and will be removed in a future release.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1478	InnoDB: TABLESPACE=innodb_file_per_table option is ignored. This option is deprecated and will be removed in a future release.
+SHOW CREATE TABLE t_my_temp;
+Table	Create Table
+t_my_temp	CREATE TEMPORARY TABLE `t_my_temp` (
+  `a` int(11) DEFAULT NULL,
+  `b` text
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+DROP TABLE t_my_temp;
+SET innodb_strict_mode = ON;
+CREATE TEMPORARY TABLE t_my_temp (a int, b text);
+SHOW CREATE TABLE t_my_temp;
+Table	Create Table
+t_my_temp	CREATE TEMPORARY TABLE `t_my_temp` (
+  `a` int(11) DEFAULT NULL,
+  `b` text
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+ALTER TABLE t_my_temp TABLESPACE=innodb_file_per_table;
+ERROR HY000: InnoDB: TABLESPACE=innodb_file_per_table option is disallowed for temporary tables with INNODB_STRICT_NODE=ON. This option is deprecated and will be removed in a future release
+ALTER TABLE t_my_temp TABLESPACE=innodb_temporary;
+Warnings:
+Warning	1478	InnoDB: TABLESPACE=innodb_temporary option is deprecated and will be removed in a future release.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1478	InnoDB: TABLESPACE=innodb_temporary option is deprecated and will be removed in a future release.
 SHOW CREATE TABLE t_my_temp;
 Table	Create Table
 t_my_temp	CREATE TEMPORARY TABLE `t_my_temp` (

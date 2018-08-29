@@ -2232,6 +2232,8 @@ void sp_parser_data::start_parsing_sp_body(THD *thd, sp_head *sp)
   m_saved_free_list= thd->free_list;
 
   thd->mem_root= sp->get_persistent_mem_root();
+  set_memroot_max_capacity(thd->mem_root, m_saved_memroot->max_capacity);
+  set_memroot_error_reporting(thd->mem_root, m_saved_memroot->error_for_capacity_exceeded);
   thd->free_list= NULL;
 }
 

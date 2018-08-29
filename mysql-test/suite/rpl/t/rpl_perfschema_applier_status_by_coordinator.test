@@ -353,6 +353,7 @@ reset master;
 
 --connection slave
 reset slave;
+reset master;
 
 --echo
 --echo # Restarting servers and setting up MTS now. Since, SQL thread and

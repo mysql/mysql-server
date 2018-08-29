@@ -2667,7 +2667,7 @@ err:
 
 void handler::ha_statistic_increment(ulonglong SSV::*offset) const
 {
-  (table->in_use->status_var.*offset)++;
+  if (table && table->in_use) (table->in_use->status_var.*offset)++;
 }
 
 

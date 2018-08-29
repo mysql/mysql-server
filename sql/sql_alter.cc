@@ -321,8 +321,11 @@ bool Sql_cmd_alter_table::execute(THD *thd)
   if (!thd->lex->is_ignore() && thd->is_strict_mode())
     thd->push_internal_handler(&strict_handler);
 
+  Partition_in_shared_ts_error_handler partition_in_shared_ts_handler;
+  thd->push_internal_handler(&partition_in_shared_ts_handler);
   result= mysql_alter_table(thd, select_lex->db, lex->name.str,
                             &create_info, first_table, &alter_info);
+  thd->pop_internal_handler();
 
   if (!thd->lex->is_ignore() && thd->is_strict_mode())
     thd->pop_internal_handler();

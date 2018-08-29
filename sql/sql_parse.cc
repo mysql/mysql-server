@@ -2452,6 +2452,8 @@ mysql_execute_command(THD *thd, bool first_level)
   TABLE_LIST *all_tables;
   /* most outer SELECT_LEX_UNIT of query */
   SELECT_LEX_UNIT *const unit= lex->unit;
+  // keep GTID violation state in order to roll it back on statement failure
+  bool gtid_consistency_violation_state = thd->has_gtid_consistency_violation;
   DBUG_ASSERT(select_lex->master_unit() == unit);
   DBUG_ENTER("mysql_execute_command");
   /* EXPLAIN OTHER isn't explainable command, but can have describe flag. */
@@ -3257,6 +3259,10 @@ case SQLCOM_PREPARE:
       /* Push Strict_error_handler */
       if (!thd->lex->is_ignore() && thd->is_strict_mode())
         thd->push_internal_handler(&strict_handler);
+
+      Partition_in_shared_ts_error_handler partition_in_shared_ts_handler;
+      thd->push_internal_handler(&partition_in_shared_ts_handler);
+
       /* regular create */
       if (create_info.options & HA_LEX_CREATE_TABLE_LIKE)
       {
@@ -3270,6 +3276,9 @@ case SQLCOM_PREPARE:
         res= mysql_create_table(thd, create_table,
                                 &create_info, &alter_info);
       }
+
+      thd->pop_internal_handler();
+
       /* Pop Strict_error_handler */
       if (!thd->lex->is_ignore() && thd->is_strict_mode())
         thd->pop_internal_handler();
@@ -5072,8 +5081,15 @@ finish:
   }
 #endif
 
-  if (!(res || thd->is_error()))
-    binlog_gtid_end_transaction(thd);
+  if (!res && !thd->is_error()) {      // if statement succeeded
+    binlog_gtid_end_transaction(thd);  // finalize GTID life-cycle
+    DEBUG_SYNC(thd, "persist_new_state_after_statement_succeeded");
+  } else if (!gtid_consistency_violation_state &&    // if the consistency state
+             thd->has_gtid_consistency_violation) {  // was set by the failing
+                                                     // statement
+    gtid_state->end_gtid_violating_transaction(thd);  // just roll it back
+    DEBUG_SYNC(thd, "restore_previous_state_after_statement_failed");
+  }
 
   DBUG_RETURN(res || thd->is_error());
 }

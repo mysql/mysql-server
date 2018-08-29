@@ -3708,6 +3708,7 @@ String *Item_func_rpad::val_str(String *str)
   char *to;
   /* must be longlong to avoid truncation */
   longlong count= args[1]->val_int();
+  /* Avoid modifying this string as it may affect args[0] */
   String *res= args[0]->val_str(str);
   String *rpad= args[2]->val_str(&rpad_str);
 
@@ -3751,10 +3752,15 @@ String *Item_func_rpad::val_str(String *str)
 
   const size_t res_char_length= res->numchars();
 
+  // String to pad is big enough
   if (count <= static_cast<longlong>(res_char_length))
-  {						// String to pad is big enough
-    res->length(res->charpos((int) count));	// Shorten result if longer
-    return (res);
+  {
+    int res_charpos= res->charpos((int)count);
+    if (tmp_value.alloc(res_charpos))
+      return NULL;
+    (void)tmp_value.copy(*res);
+    tmp_value.length(res_charpos); // Shorten result if longer
+    return &tmp_value;
   }
   const size_t pad_char_length= rpad->numchars();
 
@@ -3776,6 +3782,10 @@ String *Item_func_rpad::val_str(String *str)
   }
   /* Must be done before alloc_buffer */
   const size_t res_byte_length= res->length();
+  /*
+    alloc_buffer() doesn't modify 'res' because 'res' is guaranteed too short
+    at this stage.
+  */
   if (!(res= alloc_buffer(res, str, &tmp_value,
                           static_cast<size_t>(byte_count))))
   {
@@ -3836,6 +3846,7 @@ String *Item_func_lpad::val_str(String *str)
   /* must be longlong to avoid truncation */
   longlong count= args[1]->val_int();
   size_t byte_count;
+  /* Avoid modifying this string as it may affect args[0] */
   String *res= args[0]->val_str(&tmp_value);
   String *pad= args[2]->val_str(&lpad_str);
 
@@ -3876,8 +3887,12 @@ String *Item_func_lpad::val_str(String *str)
 
   if (count <= static_cast<longlong>(res_char_length))
   {
-    res->length(res->charpos((int) count));
-    return res;
+    int res_charpos= res->charpos((int)count);
+   if (tmp_value.alloc(res_charpos))
+     return NULL;
+   (void)tmp_value.copy(*res);
+   tmp_value.length(res_charpos); // Shorten result if longer
+   return &tmp_value;
   }
   
   pad_char_length= pad->numchars();

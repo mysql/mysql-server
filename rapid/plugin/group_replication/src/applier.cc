@@ -683,6 +683,11 @@ void Applier_module::leave_group_on_failure()
                                          Group_member_info::MEMBER_ERROR);
 
   bool set_read_mode= false;
+  if (view_change_notifier != NULL &&
+      !view_change_notifier->is_view_modification_ongoing())
+  {
+    view_change_notifier->start_view_modification();
+  }
   Gcs_operations::enum_leave_state state= gcs_module->leave();
 
   int error= channel_stop_all(CHANNEL_APPLIER_THREAD|CHANNEL_RECEIVER_THREAD,
@@ -743,6 +748,30 @@ void Applier_module::kill_pending_transactions(bool set_read_mode,
       enable_server_read_mode(PSESSION_INIT_THREAD);
     else
       enable_server_read_mode(PSESSION_USE_THREAD);
+  }
+
+  if (view_change_notifier != NULL)
+  {
+    log_message(MY_INFORMATION_LEVEL, "Going to wait for view modification");
+    if (view_change_notifier->wait_for_view_modification())
+    {
+      log_message(MY_ERROR_LEVEL, "On shutdown there was a timeout receiving a "
+                                  "view change. This can lead to a possible "
+                                  "inconsistent state. Check the log for more "
+                                  "details");
+    }
+  }
+
+  /*
+    Only abort() if we successfully asked to leave() the group (and we have
+    group_replication_exit_state_action set to ABORT_SERVER).
+    We don't want to abort() during the execution of START GROUP_REPLICATION or
+    STOP GROUP_REPLICATION.
+  */
+  if (set_read_mode &&
+      exit_state_action_var == EXIT_STATE_ACTION_ABORT_SERVER)
+  {
+    abort_plugin_process("Fatal error during execution of Group Replication");
   }
 
   DBUG_VOID_RETURN;

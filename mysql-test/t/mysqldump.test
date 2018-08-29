@@ -2719,3 +2719,21 @@ SET GLOBAL relay_log_info_repository= 'FILE';
 
 SHOW VARIABLES LIKE "master_info_repository";
 SHOW VARIABLES LIKE "relay_log_info_repository";
+
+--echo #
+--echo # Bug#27931181: RESTAURE DUMP CREATED WITH 5.7.22 ON 8.0.11
+--echo #
+
+CREATE DATABASE bug27931181;
+USE bug27931181;
+CREATE TABLE t1 (a INT);
+SET sql_mode='NO_AUTO_CREATE_USER';
+CREATE TRIGGER trig1 BEFORE INSERT ON t1 FOR EACH ROW SET NEW.a = 1;
+SET sql_mode='NO_AUTO_CREATE_USER,ONLY_FULL_GROUP_BY';
+CREATE PROCEDURE p1() SELECT 1;
+SET sql_mode=@@global.sql_mode;
+CREATE FUNCTION f1() RETURNS INT RETURN 1;
+
+--exec $MYSQL_DUMP --skip-comments --databases --events --triggers --routines bug27931181
+#cleanup
+DROP DATABASE bug27931181;

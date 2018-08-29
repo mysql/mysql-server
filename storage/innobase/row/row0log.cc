@@ -842,7 +842,7 @@ row_log_table_low_redundant(
 
 		old_pk_size = rec_get_converted_size_temp(
 			new_index, old_pk->fields, old_pk->n_fields,
-			ventry, &old_pk_extra_size);
+			NULL, &old_pk_extra_size);
 		ut_ad(old_pk_extra_size < 0x100);
 		mrec_size += 1/*old_pk_extra_size*/ + old_pk_size;
 	}
@@ -1664,6 +1664,7 @@ row_log_table_apply_insert_low(
 	}
 
 	do {
+		n_index++;
 		if (!(index = dict_table_get_next_index(index))) {
 			break;
 		}
@@ -2244,14 +2245,16 @@ func_exit_committed:
 	dtuple_t*	old_row;
 	row_ext_t*	old_ext;
 
-	if (dict_table_get_next_index(index)) {
+	if (dict_index_t* index_next = dict_table_get_next_index(index)) {
 		/* Construct the row corresponding to the old value of
 		the record. */
 		old_row = row_build(
-			ROW_COPY_DATA, index, btr_pcur_get_rec(&pcur),
-			cur_offsets, NULL, NULL, NULL, &old_ext, heap);
+                        ROW_COPY_DATA, index, btr_pcur_get_rec(&pcur),
+                        cur_offsets, NULL, NULL, NULL, &old_ext, heap);
+		if (dict_index_has_virtual(index_next)) {
+			dtuple_copy_v_fields(old_row, update->old_vrow);
+		}
 		ut_ad(old_row);
-
 		DBUG_PRINT("ib_alter_table",
 			   ("update table " IB_ID_FMT
 			    "(index " IB_ID_FMT "): %s to %s",
@@ -2284,6 +2287,8 @@ func_exit_committed:
 	}
 
 	while ((index = dict_table_get_next_index(index)) != NULL) {
+
+		n_index++;
 		if (error != DB_SUCCESS) {
 			break;
 		}

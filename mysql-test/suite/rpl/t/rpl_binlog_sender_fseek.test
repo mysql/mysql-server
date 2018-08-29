@@ -9,9 +9,9 @@
 # sometimes, cross the IO_CACHE block size. After running the workload, the test
 # case will verify the P_S counter COUNT_MISC for "wait/io/file/sql/binlog"
 # EVENT_NAME at performance_schema.file_summary_by_event_name. In a single
-# binary log file case, the counter should not be more than 5 (as there are some
+# binary log file case, the counter should not be more than 6 (as there are some
 # real file operations opening the binary log file and pointing it to the first
-# event position) or 8 in the case of GTIDs be enabled with auto positioning.
+# event position) or 9 in the case of GTIDs be enabled with auto positioning.
 #
 # ==== Related Bugs and Worklogs ====
 #
@@ -106,13 +106,13 @@ TRUNCATE performance_schema.file_summary_by_event_name;
 
 # Check the COUNT_MISC counter
 --source include/rpl_connection_master.inc
-# In a first run, the counter tops 5 without GTIDs, and tops 8 when GTIDs are
+# In a first run, the counter tops 6 without GTIDs, and tops 9 when GTIDs are
 # enabled, because of the process of searching the binary log file that
 # contains the first GTID not yet retrieved/executed by the slave.
---let $expected_count_misc= 5
+--let $expected_count_misc= 6
 if ($use_gtids)
 {
-  --let $expected_count_misc= 8
+  --let $expected_count_misc= 9
 }
 
 --let $current_count_misc=`SELECT COUNT_MISC FROM performance_schema.file_summary_by_event_name WHERE EVENT_NAME = "wait/io/file/sql/binlog"`
@@ -120,7 +120,7 @@ if ($use_gtids)
 --let $assert_text= COUNT_MISC for "wait/io/file/sql/binlog" should be minimal
 --let $assert_cond= $current_count_misc = $expected_count_misc
 --let $extra_debug_eval= $current_count_misc AS current_count_misc, $expected_count_misc as expected_count_misc
---let $extra_debug_info= COUNT_MISC should be 5 for non-GTID and 8 for GTID enabled servers
+--let $extra_debug_info= COUNT_MISC should be 6 for non-GTID and 9 for GTID enabled servers
 --source include/assert.inc
 
 # Cleanup

@@ -1653,11 +1653,21 @@ typedef struct st_lex_alter {
   bool account_locked;
 } LEX_ALTER;
 
+/*
+  This structure holds the specifications related to
+  mysql user and the associated auth details.
+*/
 typedef struct	st_lex_user {
   LEX_CSTRING user;
   LEX_CSTRING host;
   LEX_CSTRING plugin;
   LEX_CSTRING auth;
+/*
+  The following flags are indicators for the SQL syntax used while
+  parsing CREATE/ALTER user. While other members are self-explanatory,
+  'uses_authentication_string_clause' signifies if the password is in
+  hash form (if the var was set to true) or not.
+*/
   bool uses_identified_by_clause;
   bool uses_identified_with_clause;
   bool uses_authentication_string_clause;
