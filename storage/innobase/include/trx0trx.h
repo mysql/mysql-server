@@ -415,8 +415,7 @@ wait timeout to 0 instead of the user configured value that comes
 from innodb_lock_wait_timeout via trx_t::mysql_thd.
 @param	t transaction
 @return lock wait timeout in seconds */
-#define trx_lock_wait_timeout_get(t) \
-  ((t)->mysql_thd != NULL ? thd_lock_wait_timeout((t)->mysql_thd) : 0)
+#define trx_lock_wait_timeout_get(t) thd_lock_wait_timeout((t)->mysql_thd)
 
 /**
 Determine if the transaction is a non-locking autocommit select

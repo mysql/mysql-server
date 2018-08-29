@@ -181,6 +181,9 @@ unsigned long long srv_online_max_size;
 is greater than SRV_FORCE_NO_TRX_UNDO. */
 bool high_level_read_only;
 
+/** Number of threads to use for parallel reads. */
+ulong srv_parallel_read_threads;
+
 /* If this flag is TRUE, then we will use the native aio of the
 OS (provided we compiled Innobase with it in), otherwise we will
 use simulated aio we build below with threads.

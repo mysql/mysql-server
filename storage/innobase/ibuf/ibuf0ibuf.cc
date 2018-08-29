@@ -744,7 +744,7 @@ static page_t *ibuf_bitmap_get_map_page_func(const page_id_t &page_id,
 
   block =
       buf_page_get_gen(ibuf_bitmap_page_no_calc(page_id, page_size), page_size,
-                       RW_X_LATCH, NULL, BUF_GET, file, line, mtr);
+                       RW_X_LATCH, NULL, Page_fetch::NORMAL, file, line, mtr);
 
   buf_block_dbg_add_level(block, SYNC_IBUF_BITMAP);
 
@@ -1040,7 +1040,7 @@ ibool ibuf_page_low(const page_id_t &page_id, const page_size_t &page_size,
 
     bitmap_page = buf_block_get_frame(buf_page_get_gen(
         ibuf_bitmap_page_no_calc(page_id, page_size), page_size, RW_NO_LATCH,
-        NULL, BUF_GET_NO_LATCH, file, line, &local_mtr));
+        NULL, Page_fetch::NO_LATCH, file, line, &local_mtr));
 
     ret = ibuf_bitmap_page_get_bits_low(bitmap_page, page_id, page_size,
                                         MTR_MEMO_BUF_FIX, &local_mtr,
@@ -2681,8 +2681,8 @@ static ulint ibuf_get_volume_buffered(
   /* bitmap of buffered recs */
   ulint hash_bitmap[128 / sizeof(ulint)];
 
-  ut_ad((pcur->latch_mode == BTR_MODIFY_PREV) ||
-        (pcur->latch_mode == BTR_MODIFY_TREE));
+  ut_ad((pcur->m_latch_mode == BTR_MODIFY_PREV) ||
+        (pcur->m_latch_mode == BTR_MODIFY_TREE));
 
   /* Count the volume of inserts earlier in the alphabetical order than
   pcur */
@@ -3849,7 +3849,7 @@ static ibool ibuf_restore_pos(
     ib::error(ER_IB_MSG_621) << BUG_REPORT_MSG;
 
     rec_print_old(stderr, btr_pcur_get_rec(pcur));
-    rec_print_old(stderr, pcur->old_rec);
+    rec_print_old(stderr, pcur->m_old_rec);
     dtuple_print(stderr, search_tuple);
 
     rec_print_old(stderr, page_rec_get_next(btr_pcur_get_rec(pcur)));
@@ -4120,9 +4120,9 @@ loop:
                             BTR_MODIFY_LEAF, &pcur, &mtr);
 
   if (block != NULL) {
-    ibool success;
+    bool success;
 
-    success = buf_page_get_known_nowait(RW_X_LATCH, block, BUF_KEEP_OLD,
+    success = buf_page_get_known_nowait(RW_X_LATCH, block, Cache_hint::KEEP_OLD,
                                         __FILE__, __LINE__, &mtr);
 
     ut_a(success);
@@ -4225,8 +4225,9 @@ loop:
 
           ibuf_mtr_start(&mtr);
 
-          success = buf_page_get_known_nowait(RW_X_LATCH, block, BUF_KEEP_OLD,
-                                              __FILE__, __LINE__, &mtr);
+          success =
+              buf_page_get_known_nowait(RW_X_LATCH, block, Cache_hint::KEEP_OLD,
+                                        __FILE__, __LINE__, &mtr);
           ut_a(success);
 
           /* This is a user page (secondary

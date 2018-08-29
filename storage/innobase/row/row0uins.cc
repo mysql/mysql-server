@@ -74,7 +74,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   dberr_t err;
   ulint n_tries = 0;
   mtr_t mtr;
-  dict_index_t *index = node->pcur.btr_cur.index;
+  dict_index_t *index = node->pcur.m_btr_cur.index;
   bool online;
 
   ut_ad(index->is_clustered());

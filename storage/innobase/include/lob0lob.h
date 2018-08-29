@@ -846,7 +846,7 @@ class BtrContext {
     space_id_t space_id = space();
     page_id_t page_id(space_id, m_btr_page_no);
     page_size_t page_size(dict_table_page_size(table()));
-    page_cur_t *page_cur = &m_pcur->btr_cur.page_cur;
+    page_cur_t *page_cur = &m_pcur->m_btr_cur.page_cur;
 
     mtr_x_lock(dict_index_get_lock(index()), m_mtr);
 
@@ -863,7 +863,7 @@ class BtrContext {
 
   /** Restore the position of the persistent cursor. */
   void restore_position() {
-    ut_ad(m_pcur->rel_pos == BTR_PCUR_ON);
+    ut_ad(m_pcur->m_rel_pos == BTR_PCUR_ON);
     bool ret = btr_pcur_restore_position(BTR_MODIFY_LEAF | BTR_MODIFY_EXTERNAL,
                                          m_pcur, m_mtr);
 

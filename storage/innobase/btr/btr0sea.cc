@@ -938,8 +938,8 @@ ibool btr_search_guess_on_hash(dict_index_t *index, btr_search_t *info,
   buf_block_t *block = buf_block_from_ahi(rec);
 
   if (!has_search_latch) {
-    if (!buf_page_get_known_nowait(latch_mode, block, BUF_MAKE_YOUNG, __FILE__,
-                                   __LINE__, mtr)) {
+    if (!buf_page_get_known_nowait(latch_mode, block, Cache_hint::MAKE_YOUNG,
+                                   __FILE__, __LINE__, mtr)) {
       if (!has_search_latch) {
         btr_search_s_unlock(index);
       }
@@ -1257,8 +1257,9 @@ void btr_search_drop_page_hash_when_freed(const page_id_t &page_id,
   are possibly holding, we cannot s-latch the page, but must
   (recursively) x-latch it, even though we are only reading. */
 
-  block = buf_page_get_gen(page_id, page_size, RW_X_LATCH, NULL,
-                           BUF_PEEK_IF_IN_POOL, __FILE__, __LINE__, &mtr);
+  block =
+      buf_page_get_gen(page_id, page_size, RW_X_LATCH, NULL,
+                       Page_fetch::PEEK_IF_IN_POOL, __FILE__, __LINE__, &mtr);
 
   if (block) {
     /* If AHI is still valid, page can't be in free state.

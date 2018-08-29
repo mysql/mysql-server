@@ -7231,7 +7231,7 @@ dberr_t dd_sdi_acquire_exclusive_mdl(THD *thd, space_id_t space_id,
   snprintf(tbl_buf, sizeof(tbl_buf), "SDI_" SPACE_ID_PF, space_id);
 
   /* Submit a higher than default lock wait timeout */
-  unsigned long int lock_wait_timeout = thd_lock_wait_timeout(thd);
+  auto lock_wait_timeout = thd_lock_wait_timeout(thd);
   if (lock_wait_timeout < 100000) {
     lock_wait_timeout += 100000;
   }

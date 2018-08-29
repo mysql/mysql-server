@@ -54,67 +54,78 @@ struct fil_addr_t;
 
 /** @name Modes for buf_page_get_gen */
 /* @{ */
-#define BUF_GET 10            /*!< get always */
-#define BUF_GET_IF_IN_POOL 11 /*!< get if in pool */
-#define BUF_PEEK_IF_IN_POOL           \
-  12 /*!< get if in pool, do not make \
-     the block young in the LRU list */
-#define BUF_GET_NO_LATCH           \
-  14 /*!< get and bufferfix, but   \
-     set no latch; we have         \
-     separated this case, because  \
-     it is error-prone programming \
-     not to set a latch, and it    \
-     should be used with care */
-#define BUF_GET_IF_IN_POOL_OR_WATCH 15
-/*!< Get the page only if it's in the
-buffer pool, if not then set a watch
-on the page. */
-#define BUF_GET_POSSIBLY_FREED 16
-/*!< Like BUF_GET, but do not mind
-if the file page has been freed. */
+enum class Page_fetch {
+  /** Get always */
+  NORMAL,
+
+  /** Same as NORMAL, but hint that the fetch is part of a large scan.
+  Try not to flood the buffer pool with pages that may not be accessed again
+  any time soon. */
+  SCAN,
+
+  /** get if in pool */
+  IF_IN_POOL,
+
+  /** get if in pool, do not make the block young in the LRU list */
+  PEEK_IF_IN_POOL,
+
+  /** get and bufferfix, but set no latch; we have separated this case, because
+  it is error-prone programming not to set a latch, and it  should be used with
+  care */
+  NO_LATCH,
+
+  /** Get the page only if it's in the buffer pool, if not then set a watch on
+  the page. */
+  IF_IN_POOL_OR_WATCH,
+
+  /** Like Page_fetch::NORMAL, but do not mind if the file page has been
+  freed. */
+  POSSIBLY_FREED
+};
 /* @} */
+
 /** @name Modes for buf_page_get_known_nowait */
+
 /* @{ */
-#define BUF_MAKE_YOUNG              \
-  51 /*!< Move the block to the     \
-     start of the LRU list if there \
-     is a danger that the block     \
-     would drift out of the buffer  \
-     pool*/
-#define BUF_KEEP_OLD               \
-  52 /*!< Preserve the current LRU \
-     position of the block. */
+enum class Cache_hint {
+  /** Move the block to the start of the LRU list if there is a danger that the
+  block would drift out of the buffer  pool*/
+  MAKE_YOUNG = 51,
+
+  /** Preserve the current LRU position of the block. */
+  KEEP_OLD = 52
+};
+
 /* @} */
 
-#define MAX_BUFFER_POOLS_BITS           \
-  6 /*!< Number of bits to representing \
-    a buffer pool ID */
+/** Number of bits to representing a buffer pool ID */
+constexpr ulint MAX_BUFFER_POOLS_BITS = 6;
 
-#define MAX_BUFFER_POOLS (1 << MAX_BUFFER_POOLS_BITS)
-/*!< The maximum number of buffer
-pools that can be defined */
+/** The maximum number of buffer pools that can be defined */
+constexpr ulint MAX_BUFFER_POOLS = (1 << MAX_BUFFER_POOLS_BITS);
 
+/** Maximum number of concurrent buffer pool watches */
 #define BUF_POOL_WATCH_SIZE (srv_n_purge_threads + 1)
-/*!< Maximum number of concurrent
-buffer pool watches */
-#define MAX_PAGE_HASH_LOCKS       \
-  1024 /*!< The maximum number of \
-       page_hash locks */
 
-extern buf_pool_t *buf_pool_ptr; /*!< The buffer pools
-                                 of the database */
+/** The maximum number of page_hash locks */
+constexpr ulint MAX_PAGE_HASH_LOCKS = 1024;
 
-extern volatile bool buf_pool_withdrawing; /*!< true when withdrawing buffer
-                                     pool pages might cause page relocation */
+/** The buffer pools of the database */
+extern buf_pool_t *buf_pool_ptr;
 
-extern volatile ulint buf_withdraw_clock; /*!< the clock is incremented
-                                      every time a pointer to a page may
-                                      become obsolete */
+/** true when withdrawing buffer pool pages might cause page relocation */
+extern volatile bool buf_pool_withdrawing;
+
+/** the clock is incremented every time a pointer to a page may become
+obsolete */
+extern volatile ulint buf_withdraw_clock;
+
 #ifdef UNIV_HOTBACKUP
-extern buf_block_t *back_block1; /*!< first block, for --apply-log */
-extern buf_block_t *back_block2; /*!< second block, for page reorganize */
-#endif                           /* UNIV_HOTBACKUP */
+/** first block, for --apply-log */
+extern buf_block_t *back_block1;
+/** second block, for page reorganize */
+extern buf_block_t *back_block2;
+#endif /* UNIV_HOTBACKUP */
 
 /** @brief States of a control block
 @see buf_page_t
@@ -343,36 +354,42 @@ byte *buf_frame_copy(byte *buf, const buf_frame_t *frame);
 /** NOTE! The following macros should be used instead of buf_page_get_gen,
  to improve debugging. Only values RW_S_LATCH and RW_X_LATCH are allowed
  in LA! */
-#define buf_page_get(ID, SIZE, LA, MTR) \
-  buf_page_get_gen(ID, SIZE, LA, NULL, BUF_GET, __FILE__, __LINE__, MTR)
+#define buf_page_get(ID, SIZE, LA, MTR)                                        \
+  buf_page_get_gen(ID, SIZE, LA, NULL, Page_fetch::NORMAL, __FILE__, __LINE__, \
+                   MTR)
 /** Use these macros to bufferfix a page with no latching. Remember not to
  read the contents of the page unless you know it is safe. Do not modify
  the contents of the page! We have separated this case, because it is
  error-prone programming not to set a latch, and it should be used
  with care. */
-#define buf_page_get_with_no_latch(ID, SIZE, MTR)                           \
-  buf_page_get_gen(ID, SIZE, RW_NO_LATCH, NULL, BUF_GET_NO_LATCH, __FILE__, \
-                   __LINE__, MTR)
+#define buf_page_get_with_no_latch(ID, SIZE, MTR)                     \
+  buf_page_get_gen(ID, SIZE, RW_NO_LATCH, NULL, Page_fetch::NO_LATCH, \
+                   __FILE__, __LINE__, MTR)
+
 /** This is the general function used to get optimistic access to a database
- page.
- @return true if success */
-ibool buf_page_optimistic_get(
-    ulint rw_latch,           /*!< in: RW_S_LATCH, RW_X_LATCH */
-    buf_block_t *block,       /*!< in: guessed block */
-    ib_uint64_t modify_clock, /*!< in: modify clock value */
-    const char *file,         /*!< in: file name */
-    ulint line,               /*!< in: line where called */
-    mtr_t *mtr);              /*!< in: mini-transaction */
+page.
+@param[in]      rw_latch        RW_S_LATCH, RW_X_LATCH
+@param[in,ot]   block           guessed block
+@param[in]      modify_clock    modify clock value
+@param[in]      fetch_mode      Fetch mode
+@param[in]      file            file name
+@param[in]      line            line where called
+@param[in,out]  mtr             mini-transaction
+@return true if success */
+bool buf_page_optimistic_get(ulint rw_latch, buf_block_t *block,
+                             uint64_t modify_clock, Page_fetch fetch_mode,
+                             const char *file, ulint line, mtr_t *mtr);
+
 /** This is used to get access to a known database page, when no waiting can be
  done.
  @return true if success */
-ibool buf_page_get_known_nowait(
+bool buf_page_get_known_nowait(
     ulint rw_latch,     /*!< in: RW_S_LATCH, RW_X_LATCH */
     buf_block_t *block, /*!< in: the known page */
-    ulint mode,         /*!< in: BUF_MAKE_YOUNG or BUF_KEEP_OLD */
-    const char *file,   /*!< in: file name */
-    ulint line,         /*!< in: line where called */
-    mtr_t *mtr);        /*!< in: mini-transaction */
+    Cache_hint hint,  /*!< in: Cache_hint::MAKE_YOUNG or Cache_hint::KEEP_OLD */
+    const char *file, /*!< in: file name */
+    ulint line,       /*!< in: line where called */
+    mtr_t *mtr);      /*!< in: mini-transaction */
 
 /** Given a tablespace id and page number tries to get that page. If the
 page is not in the buffer pool it is not loaded and NULL is returned.
@@ -412,20 +429,18 @@ buf_page_t *buf_page_get_zip(const page_id_t &page_id,
 @param[in]	page_id			page id
 @param[in]	page_size		page size
 @param[in]	rw_latch		RW_S_LATCH, RW_X_LATCH, RW_NO_LATCH
-@param[in]	guess			guessed block or NULL
-@param[in]	mode			BUF_GET, BUF_GET_IF_IN_POOL,
-                                        BUF_PEEK_IF_IN_POOL, BUF_GET_NO_LATCH,
-                                        or BUF_GET_IF_IN_POOL_OR_WATCH
-@param[in]	file			file name
-@param[in]	line			line where called
-@param[in]	mtr			mini-transaction
-@param[in]	dirty_with_no_latch	mark page as dirty even if page
-                                        is being pinned without any latch
+@param[in]	guess			  guessed block or NULL
+@param[in]	mode			  Fetch mode.
+@param[in]	file			  file name
+@param[in]	line			  line where called
+@param[in]	mtr			    mini-transaction
+@param[in]	dirty_with_no_latch	mark page as dirty even if page is being
+                        pinned without any latch
 @return pointer to the block or NULL */
 buf_block_t *buf_page_get_gen(const page_id_t &page_id,
                               const page_size_t &page_size, ulint rw_latch,
-                              buf_block_t *guess, ulint mode, const char *file,
-                              ulint line, mtr_t *mtr,
+                              buf_block_t *guess, Page_fetch mode,
+                              const char *file, ulint line, mtr_t *mtr,
                               bool dirty_with_no_latch = false);
 
 /** Initializes a page to the buffer buf_pool. The page is usually not read
@@ -544,7 +559,7 @@ void buf_block_modify_clock_inc(buf_block_t *block);
 @param[in]	block	buffer block
 @return modify_clock value */
 UNIV_INLINE
-ib_uint64_t buf_block_get_modify_clock(const buf_block_t *block);
+uint64_t buf_block_get_modify_clock(const buf_block_t *block);
 
 /** Increments the bufferfix count.
 @param[in]	file	file name
@@ -1145,7 +1160,7 @@ class buf_page_t {
   page_size_t size;
 
   /** Count of how manyfold this block is currently bufferfixed. */
-  ib_uint32_t buf_fix_count;
+  uint32_t buf_fix_count;
 
   /** type of pending I/O operation. */
   buf_io_fix io_fix;
@@ -1153,15 +1168,16 @@ class buf_page_t {
   /** Block state. @see buf_page_in_file */
   buf_page_state state;
 
-  unsigned flush_type : 2;     /*!< if this block is currently being
-                               flushed to disk, this tells the
-                               flush_type.
-                               @see buf_flush_t */
-  unsigned buf_pool_index : 6; /*!< index number of the buffer pool
-                              that this block belongs to */
-#if MAX_BUFFER_POOLS > 64
-#error "MAX_BUFFER_POOLS > 64; redefine buf_pool_index:6"
-#endif
+  /** if this block is currently being flushed to disk, this tells
+  the flush_type.  @see buf_flush_t */
+  unsigned flush_type : 2;
+
+  /** index number of the buffer pool that this block belongs to */
+  unsigned buf_pool_index : 6;
+
+  static_assert(MAX_BUFFER_POOLS <= 64,
+                "MAX_BUFFER_POOLS > 64; redefine buf_pool_index");
+
   /* @} */
   page_zip_des_t zip; /*!< compressed page; zip.data
                       (but not the data it points to) is
@@ -1325,7 +1341,7 @@ struct buf_block_t {
   /** @name Optimistic search field */
   /* @{ */
 
-  ib_uint64_t modify_clock; /*!< this clock is incremented every
+  uint64_t modify_clock; /*!< this clock is incremented every
                             time a pointer to a record on the
                             page may become obsolete; this is
                             used in the optimistic cursor
@@ -1665,9 +1681,9 @@ struct buf_buddy_stat_t {
   /** Number of blocks allocated from the buddy system. */
   ulint used;
   /** Number of blocks relocated by the buddy system. */
-  ib_uint64_t relocated;
+  uint64_t relocated;
   /** Total duration of block relocations, in microseconds. */
-  ib_uint64_t relocated_usec;
+  uint64_t relocated_usec;
 };
 
 /** @brief The buffer pool structure.

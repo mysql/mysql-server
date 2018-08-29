@@ -924,6 +924,13 @@ static MYSQL_THDVAR_STR(tmpdir, PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC,
                         "Directory for temporary non-tablespace files.",
                         innodb_tmpdir_validate, NULL, NULL);
 
+static MYSQL_THDVAR_ULONG(parallel_read_threads, PLUGIN_VAR_RQCMDARG,
+                          "Number of threads to do parallel read.", NULL, NULL,
+                          4,   /* Default. */
+                          1,   /* Minimum. */
+                          256, /* Maxumum. */
+                          0);
+
 static SHOW_VAR innodb_status_variables[] = {
     {"buffer_pool_dump_status",
      (char *)&export_vars.innodb_buffer_pool_dump_status, SHOW_CHAR,
@@ -1712,6 +1719,13 @@ trx_t *&thd_to_trx(THD *thd) {
   ut_ad(innodb_session != NULL);
 
   return (innodb_session->m_trx);
+}
+
+/** Return the number of read threads for this session.
+@param[in]      thd       Session instance, or nullptr to query the global
+                          innodb_parallel_read_threads value. */
+static ulong thd_parallel_read_threads(THD *thd) {
+  return (THDVAR(thd, parallel_read_threads));
 }
 
 /** Check if statement is of type INSERT .... SELECT that involves
@@ -14599,8 +14613,10 @@ int ha_innobase::records(ha_rows *num_rows) /*!< out: number of rows */
   m_prebuilt->read_just_key = 1;
   build_template(false);
 
+  size_t n_threads = thd_parallel_read_threads(m_prebuilt->trx->mysql_thd);
+
   /* Count the records in the clustered index */
-  ret = row_scan_index_for_mysql(m_prebuilt, index, false, &n_rows);
+  ret = row_scan_index_for_mysql(m_prebuilt, index, n_threads, false, &n_rows);
   reset_template();
   switch (ret) {
     case DB_SUCCESS:
@@ -16154,11 +16170,14 @@ int ha_innobase::check(THD *thd,                /*!< in: user thread handle */
 
     m_prebuilt->select_lock_type = LOCK_NONE;
 
+    size_t n_threads = thd_parallel_read_threads(m_prebuilt->trx->mysql_thd);
+
     /* Scan this index. */
     if (dict_index_is_spatial(index)) {
       ret = row_count_rtree_recs(m_prebuilt, &n_rows, &n_dups);
     } else {
-      ret = row_scan_index_for_mysql(m_prebuilt, index, true, &n_rows);
+      ret =
+          row_scan_index_for_mysql(m_prebuilt, index, n_threads, true, &n_rows);
     }
 
     DBUG_EXECUTE_IF("dict_set_clust_index_corrupted",
@@ -21184,6 +21203,7 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(buffer_pool_debug),
     MYSQL_SYSVAR(ddl_log_crash_reset_debug),
 #endif /* UNIV_DEBUG */
+    MYSQL_SYSVAR(parallel_read_threads),
     NULL};
 
 mysql_declare_plugin(innobase){

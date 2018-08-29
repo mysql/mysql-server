@@ -1245,8 +1245,8 @@ static void dict_stats_analyze_index_below_cur(const btr_cur_t *cur,
   /* descend to the leaf level on the B-tree */
   for (;;) {
     block = buf_page_get_gen(page_id, page_size, RW_S_LATCH,
-                             NULL /* no guessed block */, BUF_GET, __FILE__,
-                             __LINE__, &mtr);
+                             NULL /* no guessed block */, Page_fetch::NORMAL,
+                             __FILE__, __LINE__, &mtr);
 
     page = buf_block_get_frame(block);
 

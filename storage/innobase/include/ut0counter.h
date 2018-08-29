@@ -41,6 +41,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "os0thread.h"
 #include "ut0dbg.h"
 
+#include <array>
+#include <atomic>
+
 /** CPU cache line size */
 #ifdef __powerpc__
 #define INNOBASE_CACHE_LINE_SIZE 128
@@ -209,5 +212,56 @@ class ib_counter_t {
   /** Slot 0 is unused. */
   Type m_counter[(N + 1) * (INNOBASE_CACHE_LINE_SIZE / sizeof(Type))];
 };
+
+/** Sharded atomic counter. */
+namespace Counter {
+
+using N = std::atomic<size_t>;
+
+static_assert(INNOBASE_CACHE_LINE_SIZE >= sizeof(N),
+              "Atomic counter size > INNOBASE_CACHE_LINE_SIZE");
+
+using Pad = byte[INNOBASE_CACHE_LINE_SIZE - sizeof(N)];
+
+/** Counter shard. */
+struct Shard {
+  /** Separate on cache line. */
+  Pad m_pad;
+
+  /** Sharded counter. */
+  N m_n{};
+};
+
+using Shards = std::array<Shard, 128>;
+
+/** Increment the counter.
+@param[in,out]  Shards          Sharded counter to increment.
+@param[in] id                   Shard key. */
+inline void inc(Shards &shards, size_t id) {
+  shards[id % shards.size()].m_n.fetch_add(1, std::memory_order_relaxed);
+}
+
+/** Get the total value of all shards.
+@param[in] shards               Shards to sum.
+@return total value. */
+inline size_t total(const Shards &shards) {
+  size_t n = 0;
+
+  for (const auto &shard : shards) {
+    n += shard.m_n;
+  }
+
+  return (n);
+}
+
+/** Clear the counter - reset to 0.
+@param[in,out] shareds          Shards to clear. */
+inline void clear(Shards &shards) {
+  for (auto &shard : shards) {
+    shard.m_n.store(0, std::memory_order_relaxed);
+  }
+}
+
+};  // namespace Counter
 
 #endif /* ut0counter_h */

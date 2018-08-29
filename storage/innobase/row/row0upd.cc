@@ -1897,7 +1897,7 @@ void row_upd_store_row(trx_t *trx, upd_node_t *node, THD *thd,
   const ulint *offsets;
   rec_offs_init(offsets_);
 
-  ut_ad(node->pcur->latch_mode != BTR_NO_LATCHES);
+  ut_ad(node->pcur->m_latch_mode != BTR_NO_LATCHES);
 
   if (node->row != NULL) {
     mem_heap_empty(node->heap);
@@ -2732,7 +2732,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   that case we know that the transaction has at least an
   implicit x-lock on the record. */
 
-  ut_a(pcur->rel_pos == BTR_PCUR_ON);
+  ut_a(pcur->m_rel_pos == BTR_PCUR_ON);
 
   ulint mode;
 

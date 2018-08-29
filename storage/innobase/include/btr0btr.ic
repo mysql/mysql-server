@@ -64,8 +64,8 @@ buf_block_t *btr_block_get_func(const page_id_t &page_id,
                                 mtr_t *mtr) {
   buf_block_t *block;
 
-  block = buf_page_get_gen(page_id, page_size, mode, NULL, BUF_GET, file, line,
-                           mtr);
+  block = buf_page_get_gen(page_id, page_size, mode, NULL, Page_fetch::NORMAL,
+                           file, line, mtr);
 
   if (mode != RW_NO_LATCH) {
     buf_block_dbg_add_level(block, index != NULL && dict_index_is_ibuf(index)

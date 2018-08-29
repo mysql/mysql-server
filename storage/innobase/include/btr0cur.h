@@ -757,6 +757,9 @@ struct btr_cur_t {
                          information of the path through
                          the tree */
   rtr_info_t *rtr_info{nullptr}; /*!< rtree search info */
+
+  /** If cursor is used in a scan or simple page fetch. */
+  Page_fetch m_fetch_mode{Page_fetch::NORMAL};
 };
 
 /** The following function is used to set the deleted bit of a record.

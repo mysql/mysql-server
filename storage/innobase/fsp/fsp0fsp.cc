@@ -4015,7 +4015,7 @@ static void mark_all_page_dirty_in_tablespace(THD *thd, space_id_t space_id,
       Take them into consideration. */
       buf_block_t *block = buf_page_get_gen(
           page_id_t(space_id, current_page), pageSize, RW_X_LATCH, NULL,
-          BUF_GET_POSSIBLY_FREED, __FILE__, __LINE__, &mtr);
+          Page_fetch::POSSIBLY_FREED, __FILE__, __LINE__, &mtr);
 
       if (block == nullptr) {
         continue;

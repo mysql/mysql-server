@@ -980,7 +980,7 @@ dberr_t sel_set_rtr_rec_lock(btr_pcur_t *pcur, const rec_t *first_rec,
                              dict_index_t *index, const ulint *offsets,
                              select_mode sel_mode, ulint mode, ulint type,
                              que_thr_t *thr, mtr_t *mtr) {
-  matched_rec_t *match = pcur->btr_cur.rtr_info->matches;
+  matched_rec_t *match = pcur->m_btr_cur.rtr_info->matches;
   mem_heap_t *heap = NULL;
   dberr_t err = DB_SUCCESS;
   trx_t *trx = thr_get_trx(thr);
@@ -1040,7 +1040,7 @@ retry:
 
         cur_block = buf_page_get_gen(
             page_id, dict_table_page_size(index->table), RW_X_LATCH, NULL,
-            BUF_GET, __FILE__, __LINE__, mtr);
+            Page_fetch::NORMAL, __FILE__, __LINE__, mtr);
       } else {
         mtr_start(mtr);
         goto func_end;
@@ -1059,9 +1059,9 @@ retry:
       match->matched_recs->clear();
 
       rtr_cur_search_with_match(
-          cur_block, index, pcur->btr_cur.rtr_info->search_tuple,
-          pcur->btr_cur.rtr_info->search_mode, &pcur->btr_cur.page_cur,
-          pcur->btr_cur.rtr_info);
+          cur_block, index, pcur->m_btr_cur.rtr_info->search_tuple,
+          pcur->m_btr_cur.rtr_info->search_mode, &pcur->m_btr_cur.page_cur,
+          pcur->m_btr_cur.rtr_info);
 
       if (!page_is_leaf(buf_block_get_frame(cur_block))) {
         /* Page got splitted and promoted (only for
@@ -1446,7 +1446,7 @@ static ulint row_sel_try_search_shortcut(
     goto func_exit;
   }
 
-  ut_ad(plan->pcur.latch_mode == BTR_SEARCH_LEAF);
+  ut_ad(plan->pcur.m_latch_mode == BTR_SEARCH_LEAF);
 
   plan->n_rows_fetched++;
   ret = SEL_FOUND;
@@ -1909,7 +1909,7 @@ skip_lock:
 
   plan->n_rows_fetched++;
 
-  ut_ad(plan->pcur.latch_mode == BTR_SEARCH_LEAF);
+  ut_ad(plan->pcur.m_latch_mode == BTR_SEARCH_LEAF);
 
   if ((plan->n_rows_fetched <= SEL_PREFETCH_LIMIT) || plan->unique_search ||
       plan->no_prefetch || plan->table->big_rows) {
@@ -3190,7 +3190,7 @@ dberr_t Row_sel_get_clust_rec_for_mysql::operator()(
 
   clust_rec = btr_pcur_get_rec(prebuilt->clust_pcur);
 
-  prebuilt->clust_pcur->trx_if_known = trx;
+  prebuilt->clust_pcur->m_trx_if_known = trx;
 
   /* Note: only if the search ends up on a non-infimum record is the
   low_match value the real match to the search tuple */
@@ -3239,9 +3239,9 @@ dberr_t Row_sel_get_clust_rec_for_mysql::operator()(
 
       page_id_t page_id(dict_index_get_space(sec_index), page_no);
 
-      buf_block_t *block =
-          buf_page_get_gen(page_id, dict_table_page_size(sec_index->table),
-                           RW_NO_LATCH, NULL, BUF_GET, __FILE__, __LINE__, mtr);
+      buf_block_t *block = buf_page_get_gen(
+          page_id, dict_table_page_size(sec_index->table), RW_NO_LATCH, NULL,
+          Page_fetch::NORMAL, __FILE__, __LINE__, mtr);
 
       mem_heap_t *heap = mem_heap_create(256);
       dtuple_t *tuple =
@@ -3435,19 +3435,20 @@ static ibool sel_restore_position_for_mysql(
 
   *same_user_rec = success;
 
-  ut_ad(!success || pcur->rel_pos == BTR_PCUR_ON);
+  ut_ad(!success || pcur->m_rel_pos == BTR_PCUR_ON);
 #ifdef UNIV_DEBUG
-  if (pcur->pos_state == BTR_PCUR_IS_POSITIONED_OPTIMISTIC) {
-    ut_ad(pcur->rel_pos == BTR_PCUR_BEFORE || pcur->rel_pos == BTR_PCUR_AFTER);
+  if (pcur->m_pos_state == BTR_PCUR_IS_POSITIONED_OPTIMISTIC) {
+    ut_ad(pcur->m_rel_pos == BTR_PCUR_BEFORE ||
+          pcur->m_rel_pos == BTR_PCUR_AFTER);
   } else {
-    ut_ad(pcur->pos_state == BTR_PCUR_IS_POSITIONED);
-    ut_ad((pcur->rel_pos == BTR_PCUR_ON) == btr_pcur_is_on_user_rec(pcur));
+    ut_ad(pcur->m_pos_state == BTR_PCUR_IS_POSITIONED);
+    ut_ad((pcur->m_rel_pos == BTR_PCUR_ON) == btr_pcur_is_on_user_rec(pcur));
   }
 #endif /* UNIV_DEBUG */
 
   /* The position may need be adjusted for rel_pos and moves_up. */
 
-  switch (pcur->rel_pos) {
+  switch (pcur->m_rel_pos) {
     case BTR_PCUR_UNSET:
       ut_ad(0);
       return (TRUE);
@@ -3463,7 +3464,7 @@ static ibool sel_restore_position_for_mysql(
       return (TRUE);
     case BTR_PCUR_AFTER:
       /* positioned to record after pcur->old_rec. */
-      pcur->pos_state = BTR_PCUR_IS_POSITIONED;
+      pcur->m_pos_state = BTR_PCUR_IS_POSITIONED;
     prev:
       if (btr_pcur_is_on_user_rec(pcur) && !moves_up) {
         btr_pcur_move_to_prev(pcur, mtr);
@@ -3477,10 +3478,10 @@ static ibool sel_restore_position_for_mysql(
       The position also needs to take the previous search_mode into
       consideration. */
 
-      switch (pcur->pos_state) {
+      switch (pcur->m_pos_state) {
         case BTR_PCUR_IS_POSITIONED_OPTIMISTIC:
-          pcur->pos_state = BTR_PCUR_IS_POSITIONED;
-          if (pcur->search_mode == PAGE_CUR_GE) {
+          pcur->m_pos_state = BTR_PCUR_IS_POSITIONED;
+          if (pcur->m_search_mode == PAGE_CUR_GE) {
             /* Positioned during Greater or Equal search
             with BTR_PCUR_BEFORE. Optimistic restore to
             the same record. If scanning for lower then
@@ -4028,7 +4029,7 @@ dberr_t row_search_no_mvcc(byte *buf, page_cur_mode_t mode,
       do not rely on index->last_sel_cur, instead we rely
       on "prebuilt->pcur", which supposes to position on
       last read position for each read session. */
-      ut_ad(pcur->pos_state == BTR_PCUR_IS_POSITIONED);
+      ut_ad(pcur->m_pos_state == BTR_PCUR_IS_POSITIONED);
       err = row_search_traverse(moves_up, match_mode, pcur, mtr);
 
       if (err != DB_SUCCESS) {
@@ -4041,8 +4042,8 @@ dberr_t row_search_no_mvcc(byte *buf, page_cur_mode_t mode,
       index->last_sel_cur->release();
       prebuilt->m_temp_tree_modified = false;
 
-      if (direction == ROW_SEL_NEXT && pcur->search_mode == PAGE_CUR_GE) {
-        pcur->search_mode = PAGE_CUR_G;
+      if (direction == ROW_SEL_NEXT && pcur->m_search_mode == PAGE_CUR_GE) {
+        pcur->m_search_mode = PAGE_CUR_G;
       }
 
       mtr_start(mtr);
@@ -4050,10 +4051,10 @@ dberr_t row_search_no_mvcc(byte *buf, page_cur_mode_t mode,
 
       mem_heap_t *heap = mem_heap_create(256);
 
-      dtuple_t *tuple = dict_index_build_data_tuple(index, pcur->old_rec,
-                                                    pcur->old_n_fields, heap);
+      dtuple_t *tuple = dict_index_build_data_tuple(index, pcur->m_old_rec,
+                                                    pcur->m_old_n_fields, heap);
 
-      btr_pcur_open_with_no_init(index, tuple, pcur->search_mode,
+      btr_pcur_open_with_no_init(index, tuple, pcur->m_search_mode,
                                  BTR_SEARCH_LEAF, pcur, 0, mtr);
 
       mem_heap_free(heap);
@@ -4061,8 +4062,8 @@ dberr_t row_search_no_mvcc(byte *buf, page_cur_mode_t mode,
       /* Restore the cursor for reading next record from cache
       information. */
       ut_ad(index->last_sel_cur->rec != NULL);
-      pcur->btr_cur.page_cur.rec = index->last_sel_cur->rec;
-      pcur->btr_cur.page_cur.block = index->last_sel_cur->block;
+      pcur->m_btr_cur.page_cur.rec = index->last_sel_cur->rec;
+      pcur->m_btr_cur.page_cur.block = index->last_sel_cur->block;
 
       err = row_search_traverse(moves_up, match_mode, pcur, mtr);
       if (err != DB_SUCCESS) {
@@ -4185,8 +4186,9 @@ dberr_t row_search_no_mvcc(byte *buf, page_cur_mode_t mode,
 
     /* This is needed in order to restore the cursor if index
     structure changes while SELECT is still active. */
-    pcur->old_rec = dict_index_copy_rec_order_prefix(
-        index, rec, &pcur->old_n_fields, &pcur->old_rec_buf, &pcur->buf_size);
+    pcur->m_old_rec = dict_index_copy_rec_order_prefix(
+        index, rec, &pcur->m_old_n_fields, &pcur->m_old_rec_buf,
+        &pcur->m_buf_size);
 
     break;
   }
@@ -4434,7 +4436,7 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
       prebuilt->n_rows_fetched = 500000000;
     }
 
-    mode = pcur->search_mode;
+    mode = pcur->m_search_mode;
   }
 
   /* In a search where at most one record in the index may match, we
@@ -4468,7 +4470,7 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
     }
   }
 
-  /* We don't support sequencial scan for Rtree index, because it
+  /* We don't support sequential scan for Rtree index, because it
   is no meaning to do so. */
   if (dict_index_is_spatial(index) && !RTREE_SEARCH_MODE(mode)) {
     err = DB_END_OF_INDEX;
@@ -4711,7 +4713,7 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
     }
 
   } else if (dtuple_get_n_fields(search_tuple) > 0) {
-    pcur->btr_cur.thr = thr;
+    pcur->m_btr_cur.thr = thr;
 
     if (dict_index_is_spatial(index)) {
       bool need_pred_lock = set_also_gap_locks && !trx->skip_gap_locks() &&
@@ -4734,7 +4736,7 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
     btr_pcur_open_with_no_init(index, search_tuple, mode, BTR_SEARCH_LEAF, pcur,
                                0, &mtr);
 
-    pcur->trx_if_known = trx;
+    pcur->m_trx_if_known = trx;
 
     rec = btr_pcur_get_rec(pcur);
 
@@ -4989,9 +4991,9 @@ rec_loop:
       as NEXT record (index_next). Set the relative position
       to BTR_PCUR_BEFORE, to reflect that the position of
       the persistent cursor is before the found/stored row
-      (pcur->old_rec). */
-      ut_ad(pcur->rel_pos == BTR_PCUR_ON);
-      pcur->rel_pos = BTR_PCUR_BEFORE;
+      (pcur->m_old_rec). */
+      ut_ad(pcur->m_rel_pos == BTR_PCUR_ON);
+      pcur->m_rel_pos = BTR_PCUR_BEFORE;
 
       err = DB_RECORD_NOT_FOUND;
       goto normal_return;
@@ -5024,8 +5026,8 @@ rec_loop:
       to BTR_PCUR_BEFORE, to reflect that the position of
       the persistent cursor is before the found/stored row
       (pcur->old_rec). */
-      ut_ad(pcur->rel_pos == BTR_PCUR_ON);
-      pcur->rel_pos = BTR_PCUR_BEFORE;
+      ut_ad(pcur->m_rel_pos == BTR_PCUR_ON);
+      pcur->m_rel_pos = BTR_PCUR_BEFORE;
 
       err = DB_RECORD_NOT_FOUND;
       goto normal_return;
@@ -5765,7 +5767,7 @@ lock_table_wait:
       std::fill_n(prebuilt->new_rec_lock, row_prebuilt_t::LOCK_COUNT, false);
     }
 
-    mode = pcur->search_mode;
+    mode = pcur->m_search_mode;
 
     goto rec_loop;
   }
@@ -5813,7 +5815,7 @@ normal_return:
 #ifdef UNIV_DEBUG
   if (dict_index_is_spatial(index) && err != DB_SUCCESS &&
       err != DB_END_OF_INDEX && err != DB_INTERRUPTED) {
-    rtr_node_path_t *path = pcur->btr_cur.rtr_info->path;
+    rtr_node_path_t *path = pcur->m_btr_cur.rtr_info->path;
 
     ut_ad(path->empty());
   }

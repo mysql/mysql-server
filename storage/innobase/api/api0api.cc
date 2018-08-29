@@ -223,8 +223,7 @@ UNIV_INLINE
 ib_bool_t ib_btr_cursor_is_positioned(
     btr_pcur_t *pcur) /*!< in: InnoDB persistent cursor */
 {
-  return (pcur->old_stored && (pcur->pos_state == BTR_PCUR_IS_POSITIONED ||
-                               pcur->pos_state == BTR_PCUR_WAS_POSITIONED));
+  return (pcur->is_positioned());
 }
 
 /** Find table using table name.
@@ -1364,10 +1363,10 @@ ib_err_t ib_execute_update_query_graph(
 
   node = q_proc->node.upd;
 
-  ut_a(pcur->btr_cur.index->is_clustered());
+  ut_a(pcur->m_btr_cur.index->is_clustered());
   btr_pcur_copy_stored_position(node->pcur, pcur);
 
-  ut_a(node->pcur->rel_pos == BTR_PCUR_ON);
+  ut_a(node->pcur->m_rel_pos == BTR_PCUR_ON);
 
   savept = trx_savept_take(trx);
 
