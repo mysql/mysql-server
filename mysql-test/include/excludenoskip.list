@@ -21,6 +21,7 @@ have_lowercase0.inc
 have_lowercase1.inc
 have_lowercase2.inc
 linux.inc
+linux-version.inc
 windows.inc
 not_windows.inc
 have_open_file_limit_more_than_5000.inc

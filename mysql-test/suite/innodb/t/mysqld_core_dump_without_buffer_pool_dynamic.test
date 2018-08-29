@@ -1,0 +1,38 @@
+################################################################################
+# This test is to test if mysqld can dump a core without large memory buffers.
+# We start the server with --innodb-buffer-pool-in-core-file ON, then
+# we dynamically set it to OFF.
+# Just to play with possible race conditions we switch it to ON and OFF one
+# more time.
+# Finally we cause core dump to happen.
+# See opt file for the config:
+#   (1) --innodb-buffer-pool-in-core-file is set to ON initially
+#   (2) the buffer pool is set to be 1G so that with the large
+#       memory buffers the core size would be much greater than 1GB (the actual
+#       core size observed is ~1.8GB) and without them is less then 1GB (the
+#       actual observed size is ~700MB)
+
+# madvise MADV_DONTDUMP is non-posix extension available in Linux 3.4
+--let $minimum_required_linux_version = 3.4
+--source include/linux-version.inc
+
+--source include/not_valgrind.inc
+
+--echo # Shutdown server
+--source include/shutdown_mysqld.inc
+
+--echo # Restart server with --log-error
+--exec echo "restart:--log-error=$MYSQLTEST_VARDIR/log/core_dump.err" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+SELECT @@global.innodb_buffer_pool_in_core_file;
+SET GLOBAL innodb_buffer_pool_in_core_file = OFF;
+SELECT @@global.innodb_buffer_pool_in_core_file;
+SET GLOBAL innodb_buffer_pool_in_core_file = ON;
+SELECT @@global.innodb_buffer_pool_in_core_file;
+SET GLOBAL innodb_buffer_pool_in_core_file = OFF;
+SELECT @@global.innodb_buffer_pool_in_core_file;
+
+--let $expected_max_core_size = 1024
+--source include/mysqld_core_dump.inc

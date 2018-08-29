@@ -18442,6 +18442,12 @@ ER_SSL_MEMORY_INSTRUMENTATION_INIT_FAILED
   eng "The SSL library function %s failed. This is typically caused by the SSL library already being used. As a result the SSL memory allocation will not be instrumented."
   bg "Функцията от SSL библиотеката %s върна грешка. Това обикновено е защото SSL библиотеката вече е била използвана. Заради това SSL паметта няма да се инструментира."
 
+ER_IB_MSG_MADV_DONTDUMP_UNSUPPORTED
+  eng "Disabling @@core_file because @@innodb_buffer_pool_in_core_file is disabled, yet MADV_DONTDUMP is not supported on this platform"
+
+ER_IB_MSG_MADVISE_FAILED
+  eng "Disabling @@core_file because @@innodb_buffer_pool_in_core_file is disabled, yet madvise(%x,%d,%s) failed with %s"
+
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #

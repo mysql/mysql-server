@@ -1,0 +1,62 @@
+################################################################################
+# This test is to test if mysqld can dump a core without large memory buffers.
+# See opt file for the config:
+#   (1) --skip-innodb-buffer-pool-in-core-file is set
+#   (2) the buffer pool is set to be 1280MB initially, shrink it to 1024MB, then 
+#       expand it back to 2048MB, then back to original 1280MB.
+#       With the large memory buffers the core size will be much greater than 1GB
+#       (the actual observed size is ~2.2.G) and without them it will be smaller
+#       than 1GB (actually ~770MB)
+
+# madvise MADV_DONTDUMP is non-posix extension available in Linux 3.4
+--let $minimum_required_linux_version = 3.4
+--source include/linux-version.inc
+
+--source include/not_valgrind.inc
+
+--echo # Shutdown server
+--source include/shutdown_mysqld.inc
+
+--echo # Restart server with --log-error
+--exec echo "restart:--log-error=$MYSQLTEST_VARDIR/log/core_dump_with_resizing.err" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+let $wait_timeout = 120;
+let $wait_condition =
+  SELECT SUBSTR(variable_value, 1, 34) = 'Completed resizing buffer pool at '
+  FROM performance_schema.global_status
+  WHERE LOWER(variable_name) = 'innodb_buffer_pool_resize_status';
+
+--disable_query_log
+set @old_innodb_buffer_pool_size = @@innodb_buffer_pool_size;
+set @old_innodb_file_per_table = @@innodb_file_per_table;
+set @old_innodb_adaptive_hash_index = @@innodb_adaptive_hash_index;
+--enable_query_log
+
+set global innodb_file_per_table=ON;
+set global innodb_adaptive_hash_index=ON;
+
+
+# Shrink buffer pool to 500MB
+set global innodb_buffer_pool_size = 1024*1024*1024;
+--source include/wait_condition.inc
+
+set global innodb_adaptive_hash_index=OFF;
+
+# Expand buffer pool back to 2GB
+set global innodb_buffer_pool_size = 2048*1024*1024;
+let $wait_timeout = 120;
+--source include/wait_condition.inc
+
+# Resize buffer pool back to original 1280MB
+--disable_query_log
+set global innodb_buffer_pool_size = @old_innodb_buffer_pool_size;
+set global innodb_file_per_table = @old_innodb_file_per_table;
+set global innodb_adaptive_hash_index = @old_innodb_adaptive_hash_index;
+--enable_query_log
+let $wait_timeout = 120;
+--source include/wait_condition.inc
+
+--let $expected_max_core_size = 1024
+--source include/mysqld_core_dump.inc
