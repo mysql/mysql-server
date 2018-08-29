@@ -320,7 +320,15 @@ std::vector<std::string> wrap_string(const std::string &str, size_t width,
 
 bool my_check_access(const std::string &path);
 
-int mkdir(const std::string &dir, perm_mode mode);
+/** @brief Creates a directory
+ * *
+ * @param dir       name (or path) of the directory to create
+ * @param mode      permission mode for the created directory
+ * @param recursive if true then immitated unix `mkdir -p` recursively
+ *                  creating parent directories if needed
+ * @return 0 if succeeded, non-0 otherwise
+ */
+int mkdir(const std::string &dir, perm_mode mode, bool recursive = false);
 
 /** @brief Copy contents of one file to another.
  *

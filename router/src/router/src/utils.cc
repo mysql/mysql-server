@@ -189,12 +189,40 @@ int rename_file(const std::string &from, const std::string &to) {
 #endif
 }
 
-int mkdir(const std::string &dir, perm_mode mode) {
+namespace {
+int mkdir_wrapper(const std::string &dir, perm_mode mode) {
 #ifndef _WIN32
   return ::mkdir(dir.c_str(), mode);
 #else
   return _mkdir(dir.c_str());
 #endif
+}
+
+int mkdir_recursive(const mysql_harness::Path &path, perm_mode mode) {
+  if (path.str().empty() || path.c_str() == mysql_harness::Path::root_directory)
+    return -1;
+
+  // mkdir -p succeeds even if the directory one tries to create exists
+  if (path.exists()) {
+    return path.is_directory() ? 0 : -1;
+  }
+
+  const auto parent = path.dirname();
+  if (!parent.exists()) {
+    auto res = mkdir_recursive(parent, mode);
+    if (res != 0) return res;
+  }
+
+  return mkdir_wrapper(path.str(), mode);
+}
+}  // namespace
+
+int mkdir(const std::string &dir, perm_mode mode, bool recursive /*= false */) {
+  if (!recursive) {
+    return mkdir_wrapper(dir, mode);
+  }
+
+  return mkdir_recursive(mysql_harness::Path(dir), mode);
 }
 
 bool substitute_envvar(std::string &line) noexcept {

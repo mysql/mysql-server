@@ -68,9 +68,9 @@ class RouterBootstrapSystemDeploymentTest : public RouterComponentTest,
    */
   void init_tmp_dir() {
     tmp_dir_ = get_tmp_dir();
-    mysqlrouter::mkdir(tmp_dir_ + "/stage", 0700);
-    mysqlrouter::mkdir(tmp_dir_ + "/stage/bin", 0700);
+    mysqlrouter::mkdir(tmp_dir_ + "/stage/bin", 0700, true);
     exec_file_ = tmp_dir_ + "/stage/bin/mysqlrouter";
+    mysqlrouter::mkdir(tmp_dir_ + "/stage/var/lib", 0700, true);
     mysqlrouter::copy_file(get_mysqlrouter_exec().str(), exec_file_);
 #ifndef _WIN32
     chmod(exec_file_.c_str(), 0700);
