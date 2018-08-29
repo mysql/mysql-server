@@ -696,7 +696,7 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: ""
   schema: ""
   catalog: "def"
-  collation: 33
+  collation: 45
   length: 21
   flags: 16
 }
@@ -721,7 +721,7 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: ""
   schema: ""
   catalog: "def"
-  collation: 33
+  collation: 45
   length: 1536
   flags: 16
 }
@@ -820,7 +820,7 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: "t1"
   schema: "test"
   catalog: "def"
-  collation: 33
+  collation: 45
   length: 30
 }
 
@@ -874,7 +874,7 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: "t1"
   schema: "test"
   catalog: "def"
-  collation: 33
+  collation: 45
   length: 30
 }
 
@@ -2125,7 +2125,7 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: ""
   schema: ""
   catalog: "def"
-  collation: 33
+  collation: 45
   length: 21
   flags: 16
 }
@@ -2150,7 +2150,7 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: ""
   schema: ""
   catalog: "def"
-  collation: 33
+  collation: 45
   length: 1536
   flags: 16
 }
@@ -2185,7 +2185,7 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: ""
   schema: ""
   catalog: "def"
-  collation: 33
+  collation: 45
   length: 21
   flags: 16
 }
@@ -2210,7 +2210,7 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: ""
   schema: ""
   catalog: "def"
-  collation: 33
+  collation: 45
   length: 1536
   flags: 16
 }
@@ -2318,7 +2318,7 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: ""
   schema: ""
   catalog: "def"
-  collation: 33
+  collation: 45
   length: 21
   flags: 16
 }
@@ -2343,7 +2343,7 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: ""
   schema: ""
   catalog: "def"
-  collation: 33
+  collation: 45
   length: 1536
   flags: 16
 }

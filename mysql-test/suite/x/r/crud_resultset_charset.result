@@ -1,0 +1,139 @@
+CREATE SCHEMA xtest;
+CREATE TABLE xtest.city (
+`Name` CHAR(35) NOT NULL DEFAULT '',
+`District` CHAR(20) NOT NULL DEFAULT ''
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO xtest.city VALUES (X'4B6F9A696365', X'56FD63686F646EE920536C6F76656E736B6F'  ),
+(X'476F7468656E62757267205B47F67465626F72675D', X'576573742047F674616E6D61616E206CE46E'  ),
+(X'4D616C6DF6',                                 X'536BE56E65206CE46E'                    ),
+(X'55707073616C61',                             X'55707073616C61206CE46E'                ),
+(X'4C696E6BF670696E67',                         X'456173742047F674616E6D61616E206CE46E'  ),
+(X'56E473746572E573',                           X'56E473746D616E6C616E6473206CE46E'      ),
+(X'D6726562726F',                               X'D6726562726F73206CE46E'                ),
+(X'4E6F72726BF670696E67',                       X'456173742047F674616E6D61616E206CE46E'  ),
+(X'48656C73696E67626F7267',                     X'536BE56E65206CE46E'                    ),
+(X'4AF66E6BF670696E67',                         X'4AF66E6BF670696E6773206CE46E'          ),
+(X'556D65E5',                                   X'56E473746572626F7474656E73206CE46E'    ),
+(X'4C756E64',                                   X'536BE56E65206CE46E'                    ),
+(X'426F72E573',                                 X'576573742047F674616E6D61616E206CE46E'  ),
+(X'53756E647376616C6C',                         X'56E4737465726E6F72726C616E6473206CE46E'),
+(X'47E4766C65',                                 X'47E4766C65626F726773206CE46E'          );
+Classic resultset conversion
+============================
+SELECT * FROM xtest.city;
+Name	District
+Košice	Východné Slovensko
+Gothenburg [Göteborg]	West Götanmaan län
+Malmö	Skåne län
+Uppsala	Uppsala län
+Linköping	East Götanmaan län
+Västerås	Västmanlands län
+Örebro	Örebros län
+Norrköping	East Götanmaan län
+Helsingborg	Skåne län
+Jönköping	Jönköpings län
+Umeå	Västerbottens län
+Lund	Skåne län
+Borås	West Götanmaan län
+Sundsvall	Västernorrlands län
+Gävle	Gävleborgs län
+
+Xproto resultset conversion (sql stmt)
+======================================
+RUN select * from xtest.city
+Name	District
+Košice	Východné Slovensko
+Gothenburg [Göteborg]	West Götanmaan län
+Malmö	Skåne län
+Uppsala	Uppsala län
+Linköping	East Götanmaan län
+Västerås	Västmanlands län
+Örebro	Örebros län
+Norrköping	East Götanmaan län
+Helsingborg	Skåne län
+Jönköping	Jönköpings län
+Umeå	Västerbottens län
+Lund	Skåne län
+Borås	West Götanmaan län
+Sundsvall	Västernorrlands län
+Gävle	Gävleborgs län
+0 rows affected
+
+Xproto resultset conversion (crud/table stmt)
+=============================================
+send Mysqlx.Crud.Find {
+  collection {
+    name: "city"
+    schema: "xtest"
+  }
+  data_model: TABLE
+}
+
+Name	District
+Košice	Východné Slovensko
+Gothenburg [Göteborg]	West Götanmaan län
+Malmö	Skåne län
+Uppsala	Uppsala län
+Linköping	East Götanmaan län
+Västerås	Västmanlands län
+Örebro	Örebros län
+Norrköping	East Götanmaan län
+Helsingborg	Skåne län
+Jönköping	Jönköpings län
+Umeå	Västerbottens län
+Lund	Skåne län
+Borås	West Götanmaan län
+Sundsvall	Västernorrlands län
+Gävle	Gävleborgs län
+command ok
+
+Xproto resultset conversion (crud/doc stmt)
+===========================================
+send Mysqlx.Crud.Find {
+  collection {
+    name: "city"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  projection {
+    source {
+      type: IDENT
+      identifier {
+        name: "Name"
+      }
+    }
+    alias: "Name"
+  }
+  projection {
+    source {
+      type: IDENT
+      identifier {
+        name: "District"
+      }
+    }
+    alias: "District"
+  }
+}
+
+doc
+{"Name": "Košice", "District": "Východné Slovensko"}
+{"Name": "Gothenburg [Göteborg]", "District": "West Götanmaan län"}
+{"Name": "Malmö", "District": "Skåne län"}
+{"Name": "Uppsala", "District": "Uppsala län"}
+{"Name": "Linköping", "District": "East Götanmaan län"}
+{"Name": "Västerås", "District": "Västmanlands län"}
+{"Name": "Örebro", "District": "Örebros län"}
+{"Name": "Norrköping", "District": "East Götanmaan län"}
+{"Name": "Helsingborg", "District": "Skåne län"}
+{"Name": "Jönköping", "District": "Jönköpings län"}
+{"Name": "Umeå", "District": "Västerbottens län"}
+{"Name": "Lund", "District": "Skåne län"}
+{"Name": "Borås", "District": "West Götanmaan län"}
+{"Name": "Sundsvall", "District": "Västernorrlands län"}
+{"Name": "Gävle", "District": "Gävleborgs län"}
+command ok
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+DROP SCHEMA IF EXISTS xtest;

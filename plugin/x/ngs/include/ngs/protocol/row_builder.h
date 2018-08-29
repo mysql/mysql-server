@@ -60,12 +60,9 @@ class Row_builder : public Message_builder {
   void add_date_field(const MYSQL_TIME *value);
   void add_time_field(const MYSQL_TIME *value, uint decimals);
   void add_datetime_field(const MYSQL_TIME *value, uint decimals);
-  void add_string_field(const char *const value, size_t length,
-                        const CHARSET_INFO *const valuecs);
-  void add_set_field(const char *const value, size_t length,
-                     const CHARSET_INFO *const valuecs);
-  void add_bit_field(const char *const value, size_t length,
-                     const CHARSET_INFO *const valuecs);
+  void add_string_field(const char *const value, size_t length);
+  void add_set_field(const char *const value, size_t length);
+  void add_bit_field(const char *const value, size_t length);
 
   inline size_t get_num_fields() const {
     return m_row_processing ? m_num_fields : 0;

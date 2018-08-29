@@ -39,7 +39,59 @@
 #include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
 #include "plugin/x/src/xpl_log.h"
 
-using namespace xpl;
+namespace xpl {
+
+namespace {
+
+inline bool is_value_charset_valid(const CHARSET_INFO *resultset_cs,
+                                   const CHARSET_INFO *value_cs) {
+  return !resultset_cs || !value_cs ||
+         my_charset_same(resultset_cs, value_cs) ||
+         (resultset_cs == &my_charset_bin) || (value_cs == &my_charset_bin);
+}
+
+inline uint get_valid_charset_collation(const CHARSET_INFO *resultset_cs,
+                                        const CHARSET_INFO *value_cs) {
+  const CHARSET_INFO *cs =
+      is_value_charset_valid(resultset_cs, value_cs) ? value_cs : resultset_cs;
+  return cs ? cs->number : 0;
+}
+
+class Convert_if_necessary {
+ public:
+  Convert_if_necessary(const CHARSET_INFO *resultset_cs, const char *value,
+                       const size_t value_length,
+                       const CHARSET_INFO *value_cs) {
+    if (is_value_charset_valid(resultset_cs, value_cs)) {
+      m_ptr = value;
+      m_len = value_length;
+      return;
+    }
+    size_t result_length =
+        resultset_cs->mbmaxlen * value_length / value_cs->mbminlen;
+    m_buff.reset(new char[result_length]());
+    uint errors = 0;
+    result_length = my_convert(m_buff.get(), result_length, resultset_cs, value,
+                               value_length, value_cs, &errors);
+    if (errors) {
+      log_debug("Error conversion data: %s(%s)", value, value_cs->csname);
+      m_ptr = value;
+      m_len = value_length;
+    } else {
+      m_ptr = m_buff.get();
+      m_len = result_length;
+    }
+  }
+  const char *get_ptr() const { return m_ptr; }
+  size_t get_length() const { return m_len; }
+
+ private:
+  const char *m_ptr;
+  size_t m_len;
+  std::unique_ptr<char[]> m_buff;
+};
+
+}  // namespace
 
 Streaming_command_delegate::Streaming_command_delegate(
     ngs::Protocol_encoder_interface *proto,
@@ -141,13 +193,13 @@ int Streaming_command_delegate::field_metadata(struct st_send_field *field,
       column_info.set_type(Mysqlx::Resultset::ColumnMetaData::BYTES);
       column_info.set_length(field->length);
       column_info.set_collation(
-          charset ? charset->number : (m_resultcs ? m_resultcs->number : 0));
+          get_valid_charset_collation(m_resultcs, charset));
       break;
 
     case MYSQL_TYPE_SET:
       column_info.set_type(Mysqlx::Resultset::ColumnMetaData::SET);
       column_info.set_collation(
-          charset ? charset->number : (m_resultcs ? m_resultcs->number : 0));
+          get_valid_charset_collation(m_resultcs, charset));
       break;
 
     case MYSQL_TYPE_TINY_BLOB:
@@ -159,7 +211,7 @@ int Streaming_command_delegate::field_metadata(struct st_send_field *field,
       column_info.set_length(field->length);
       column_info.set_type(Mysqlx::Resultset::ColumnMetaData::BYTES);
       column_info.set_collation(
-          charset ? charset->number : (m_resultcs ? m_resultcs->number : 0));
+          get_valid_charset_collation(m_resultcs, charset));
       break;
 
     case MYSQL_TYPE_JSON:
@@ -167,7 +219,7 @@ int Streaming_command_delegate::field_metadata(struct st_send_field *field,
       column_info.set_content_type(Mysqlx::Resultset::JSON);
       column_info.set_length(field->length);
       column_info.set_collation(
-          charset ? charset->number : (m_resultcs ? m_resultcs->number : 0));
+          get_valid_charset_collation(m_resultcs, charset));
       break;
 
     case MYSQL_TYPE_GEOMETRY:
@@ -211,7 +263,7 @@ int Streaming_command_delegate::field_metadata(struct st_send_field *field,
     case MYSQL_TYPE_ENUM:
       column_info.set_type(Mysqlx::Resultset::ColumnMetaData::ENUM);
       column_info.set_collation(
-          charset ? charset->number : (m_resultcs ? m_resultcs->number : 0));
+          get_valid_charset_collation(m_resultcs, charset));
       break;
 
     case MYSQL_TYPE_NULL:
@@ -357,30 +409,36 @@ int Streaming_command_delegate::get_datetime(const MYSQL_TIME *value,
 int Streaming_command_delegate::get_string(const char *const value,
                                            size_t length,
                                            const CHARSET_INFO *const valuecs) {
-  enum_field_types type =
+  const enum_field_types type =
       m_field_types[m_proto->row_builder().get_num_fields()].type;
-  unsigned int flags =
+  const unsigned int flags =
       m_field_types[m_proto->row_builder().get_num_fields()].flags;
 
   switch (type) {
     case MYSQL_TYPE_NEWDECIMAL:
       m_proto->row_builder().add_decimal_field(value, length);
       break;
-    case MYSQL_TYPE_SET:
-      m_proto->row_builder().add_set_field(value, length, valuecs);
+    case MYSQL_TYPE_SET: {
+      Convert_if_necessary conv(m_resultcs, value, length, valuecs);
+      m_proto->row_builder().add_set_field(conv.get_ptr(), conv.get_length());
       break;
+    }
     case MYSQL_TYPE_BIT:
-      m_proto->row_builder().add_bit_field(value, length, valuecs);
+      m_proto->row_builder().add_bit_field(value, length);
       break;
     case MYSQL_TYPE_STRING:
       if (flags & SET_FLAG) {
-        m_proto->row_builder().add_set_field(value, length, valuecs);
+        Convert_if_necessary conv(m_resultcs, value, length, valuecs);
+        m_proto->row_builder().add_set_field(conv.get_ptr(), conv.get_length());
         break;
       }
       /* fall through */
-    default:
-      m_proto->row_builder().add_string_field(value, length, valuecs);
+    default: {
+      Convert_if_necessary conv(m_resultcs, value, length, valuecs);
+      m_proto->row_builder().add_string_field(conv.get_ptr(),
+                                              conv.get_length());
       break;
+    }
   }
   return false;
 }
@@ -400,3 +458,5 @@ void Streaming_command_delegate::handle_ok(uint server_status,
   Command_delegate::handle_ok(server_status, statement_warn_count,
                               affected_rows, last_insert_id, message);
 }
+
+}  // namespace xpl
