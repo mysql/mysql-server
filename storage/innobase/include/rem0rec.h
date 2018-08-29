@@ -532,7 +532,7 @@ rec_t *rec_copy_prefix_to_buf(
     byte **buf,                /*!< in/out: memory buffer
                                for the copied prefix,
                                or NULL */
-    ulint *buf_size);          /*!< in/out: buffer size */
+    size_t *buf_size);         /*!< in/out: buffer size */
 /** Compute a hash value of a prefix of a leaf page record.
 @param[in]	rec		leaf page record
 @param[in]	offsets		rec_get_offsets(rec)

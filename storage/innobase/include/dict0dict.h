@@ -890,7 +890,7 @@ rec_t *dict_index_copy_rec_order_prefix(
     ulint *n_fields,           /*!< out: number of fields copied */
     byte **buf,                /*!< in/out: memory buffer for the
                                copied prefix, or NULL */
-    ulint *buf_size)           /*!< in/out: buffer size */
+    size_t *buf_size)          /*!< in/out: buffer size */
     MY_ATTRIBUTE((warn_unused_result));
 /** Builds a typed data tuple out of a physical record.
  @return own: data tuple */
