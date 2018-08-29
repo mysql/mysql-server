@@ -30,6 +30,7 @@
 
 #include "mysql/harness/logging/logging.h"
 IMPORT_LOG_FUNCTIONS()
+#include "mysql/harness/mpmc_queue.h"
 
 #include <atomic>
 #include <condition_variable>
@@ -390,44 +391,14 @@ struct Work {
   bool debug_mode;
 };
 
-template <typename Data>
-class concurrent_queue {
- public:
-  Data pop() {
-    std::unique_lock<std::mutex> mlock(mutex_);
-
-    while (queue_.empty()) {
-      cond_.wait(mlock);
-    }
-
-    auto item = queue_.front();
-    queue_.pop();
-    return item;
-  }
-
-  void push(Data &&item) {
-    std::unique_lock<std::mutex> mlock(mutex_);
-
-    queue_.push(std::move(item));
-
-    mlock.unlock();
-    cond_.notify_one();
-  }
-
- private:
-  std::queue<Data> queue_;
-  std::mutex mutex_;
-  std::condition_variable cond_;
-};
-
 void MySQLServerMock::handle_connections(mysql_harness::PluginFuncEnv *env) {
   struct sockaddr_storage client_addr;
   socklen_t addr_size = sizeof(client_addr);
 
   log_info("Starting to handle connections on port: %d", bind_port_);
 
-  concurrent_queue<Work> work_queue;
-  concurrent_queue<socket_t> socket_queue;
+  mysql_harness::WaitingMPMCQueue<Work> work_queue;
+  mysql_harness::WaitingMPMCQueue<socket_t> socket_queue;
 
   auto connection_handler = [&]() -> void {
     mysql_harness::rename_thread("SM Worker");

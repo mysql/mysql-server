@@ -27,6 +27,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <future>
 #include <mutex>
 #include <thread>
 
@@ -40,6 +41,7 @@
 
 // Harness interface include files
 #include "mysql/harness/config_parser.h"
+#include "mysql/harness/loader.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
 
@@ -57,7 +59,8 @@ using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::Plugin;
 using mysql_harness::PluginFuncEnv;
 
-std::atomic<int> g_shutdown_pending{0};
+std::promise<void> stopper;
+std::future<void> stopped = stopper.get_future();
 
 /**
  * request router
@@ -122,7 +125,7 @@ void HttpRequestRouter::route(HttpRequest req) {
 void stop_eventloop(evutil_socket_t, short, void *cb_arg) {
   auto *ev_base = static_cast<event_base *>(cb_arg);
 
-  if (g_shutdown_pending != 0) {
+  if (stopped.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
     event_base_loopexit(ev_base, nullptr);
   }
 }
@@ -147,7 +150,7 @@ void HttpRequestThread::set_request_router(HttpRequestRouter &router) {
 
 void HttpRequestThread::wait_and_dispatch() {
   struct timeval tv {
-    0, 100 * 1000
+    0, 10 * 1000
   };
   event_add(ev_shutdown_timer.get(), &tv);
   event_base_dispatch(ev_base.get());
@@ -332,11 +335,11 @@ static void start(PluginFuncEnv *env) {
 
     srv->start(8);
 
-    // we are supposed to block
-    while (is_running(env)) {
-      std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
-    g_shutdown_pending = 1;
+    // wait until we got asked to shutdown.
+    //
+    // 0 == wait-forever
+    wait_for_stop(env, 0);
+    stopper.set_value();
 
     srv->join_all();
   } catch (const std::invalid_argument &exc) {
