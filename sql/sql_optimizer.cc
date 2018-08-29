@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -6383,7 +6383,14 @@ static bool find_eq_ref_candidate(TABLE_LIST *tl, table_map sj_inner_tables)
           if (!(keyuse->used_tables & sj_inner_tables) &&
               !(keyuse->optimize & KEY_OPTIMIZE_REF_OR_NULL))
           {
-            bound_parts|= (key_part_map)1 << keyuse->keypart;
+            /*
+              Consider only if the resulting condition does not pass a NULL
+              value through. Especially needed for a UNIQUE index on NULLable
+              columns where a duplicate row is possible with NULL values.
+            */
+            if (keyuse->null_rejecting || !keyuse->val->maybe_null ||
+                !keyinfo->key_part[keyuse->keypart].field->maybe_null())
+              bound_parts|= (key_part_map)1 << keyuse->keypart;
           }
           keyuse++;
         } while (keyuse->key == key && keyuse->table_ref == tl);
@@ -6819,14 +6826,14 @@ static uint get_semi_join_select_list_index(Item_field *item_field)
 }
 
 /**
-   @brief 
-   If EXPLAIN EXTENDED, add warning that an index cannot be used for
-   ref access
+   @brief
+   If EXPLAIN EXTENDED  or if the --safe-updates option is enabled, add a
+   warning that an index cannot be used for ref access
 
    @details
-   If EXPLAIN EXTENDED, add a warning for each index that cannot be
-   used for ref access due to either type conversion or different
-   collations on the field used for comparison
+   If EXPLAIN EXTENDED or if the --safe-updates option is enabled, add a
+   warning for each index that cannot be used for ref access due to either type
+   conversion or different collations on the field used for comparison
 
    Example type conversion (char compared to int):
 
@@ -6840,13 +6847,14 @@ static uint get_semi_join_select_list_index(Item_field *item_field)
 
    @param thd                Thread for the connection that submitted the query
    @param field              Field used in comparision
-   @param cant_use_indexes   Indexes that cannot be used for lookup
+   @param cant_use_index   Indexes that cannot be used for lookup
  */
-static void 
-warn_index_not_applicable(THD *thd, const Field *field, 
-                          const key_map cant_use_index) 
+static void
+warn_index_not_applicable(THD *thd, const Field *field,
+                          const key_map cant_use_index)
 {
-  if (thd->lex->describe)
+  if (thd->lex->describe ||
+      thd->variables.option_bits & OPTION_SAFE_UPDATES)
     for (uint j=0 ; j < field->table->s->keys ; j++)
       if (cant_use_index.is_set(j))
         push_warning_printf(thd,

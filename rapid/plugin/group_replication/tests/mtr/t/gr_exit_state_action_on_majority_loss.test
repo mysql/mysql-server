@@ -1,0 +1,228 @@
+###############################################################################
+#
+# group_replication_exit_state_action sysvar specifies which action is taken
+# by a server once it has involuntarily left the group. Currently there are
+# only two actions: either the server continues running but with super_read_only
+# enabled (READ_ONLY) or it aborts (ABORT_SERVER).
+#
+# In order to verify the expected behaviour, this test shall test that the
+# specified exit action is executed correctly after a member can't contact the
+# rest of the group after group_replication_unreachable_timeout ellapsed.
+#
+# Test:
+# 0) Setup group of 3 members (M1, M2 and M3).
+# 1) Force majority loss.
+# 1.1) Verify that member 1 went to ERROR state.
+# 2) Relaunch group with exit state action to ABORT_SERVER.
+# 3) Force another majority loss.
+# 4) Verify that member 1 aborted.
+# 5) Relaunch all members.
+# 6) Cleanup.
+#
+################################################################################
+--source include/big_test.inc
+--source include/have_debug.inc
+--source ../inc/have_group_replication_plugin.inc
+
+--echo
+--echo #########################################################################
+--echo # 0) Setup group of 3 members (M1, M2 and M3).
+--echo #########################################################################
+--echo
+--let $rpl_server_count= 3
+--source ../inc/group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET SESSION sql_log_bin = 0;
+# Supress log errors since they are expected.
+call mtr.add_suppression("read failed");
+call mtr.add_suppression("This member could not reach a majority of the members for more than.*");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("\\[GCS\\] Timeout while waiting for the group communication engine to exit!");
+call mtr.add_suppression("\\[GCS\\] The member has failed to gracefully leave the group.");
+call mtr.add_suppression("\\[GCS\\] read failed");
+call mtr.add_suppression("Fatal error during execution of Group Replication");
+SET SESSION sql_log_bin = 1;
+
+# Get address, seeds and UUID of all servers
+--let $local_address_server1= `SELECT @@GLOBAL.group_replication_local_address`
+--let $group_seeds_server1= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $member1_uuid= `SELECT @@GLOBAL.server_uuid`
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $local_address_server2= `SELECT @@GLOBAL.group_replication_local_address`
+--let $group_seeds_server2= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $member2_uuid= `SELECT @@GLOBAL.server_uuid`
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--let $local_address_server3= `SELECT @@GLOBAL.group_replication_local_address`
+--let $group_seeds_server3= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $member3_uuid= `SELECT @@GLOBAL.server_uuid`
+
+--echo
+--echo #########################################################################
+--echo # 1) Force majority loss.
+--echo #########################################################################
+--echo
+# Crash server 2
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--enable_reconnect
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+--shutdown_server 0
+--source include/wait_until_disconnected.inc
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+# Crash server 3
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--enable_reconnect
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.3.expect
+--shutdown_server 0
+--source include/wait_until_disconnected.inc
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+--echo
+--echo #########################################################################
+--echo # 1.1) Verify that member 1 went to ERROR state.
+--echo #########################################################################
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $group_replication_member_state= ERROR
+--let $group_replication_member_id= $member1_uuid
+--source ../inc/gr_wait_for_member_state.inc
+# Verify that it enabled super_read_only
+--let $assert_text= super_read_only should be enabled
+--let $assert_cond= [SELECT @@GLOBAL.super_read_only] = 1;
+--source include/assert.inc
+
+--echo
+--echo #########################################################################
+--echo # 2) Relaunch group with exit state action to ABORT_SERVER.
+--echo #########################################################################
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+# First we relaunch server 2 and 3
+--let $rpl_server_number= 2
+--source include/rpl_reconnect.inc
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--replace_result $group_seeds_server2 GROUP_SEEDS_SERVER2
+--eval SET @@global.group_replication_group_seeds="$group_seeds_server2"
+--replace_result $local_address_server2 LOCAL_ADDRESS_SERVER2
+--eval SET @@global.group_replication_local_address="$local_address_server2"
+--source include/start_group_replication.inc
+
+--let $rpl_server_number= 3
+--source include/rpl_reconnect.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--replace_result $group_seeds_server3 GROUP_SEEDS_SERVER3
+--eval SET @@global.group_replication_group_seeds="$group_seeds_server3"
+--replace_result $local_address_server3 LOCAL_ADDRESS_SERVER3
+--eval SET @@global.group_replication_local_address="$local_address_server3"
+--source include/start_group_replication.inc
+
+# Wait for everyone to settle down
+--let $group_replication_number_of_members= 3
+--source ../inc/gr_wait_for_number_of_members.inc
+
+# Then we set server 1's exit_state_action to ABORT_SERVER
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+# Set the exit state action sysvar to ABORT_SERVER
+SET @@GLOBAL.group_replication_exit_state_action = ABORT_SERVER;
+
+--echo
+--echo #########################################################################
+--echo # 3) Force another majority loss.
+--echo #########################################################################
+--echo
+# Prevent server 1 from restart after the abort()
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+# Crash server 2
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--enable_reconnect
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+--shutdown_server 0
+--source include/wait_until_disconnected.inc
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+# Crash server 3
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--enable_reconnect
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.3.expect
+--shutdown_server 0
+--source include/wait_until_disconnected.inc
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+--echo
+--echo #########################################################################
+--echo # 4) Verify that member 1 aborted.
+--echo #########################################################################
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+# Wait until the connection is dropped
+--source include/wait_until_disconnected.inc
+
+--echo
+--echo #########################################################################
+--echo # 5) Relaunch all members.
+--echo #########################################################################
+--echo
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--let $rpl_server_number= 1
+--source include/rpl_reconnect.inc
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--replace_result $group_seeds_server1 GROUP_SEEDS_SERVER1
+--eval SET @@global.group_replication_group_seeds="$group_seeds_server1"
+--replace_result $local_address_server1 LOCAL_ADDRESS_SERVER1
+--eval SET @@global.group_replication_local_address="$local_address_server1"
+--source ../inc/start_and_bootstrap_group_replication.inc
+--let $rpl_server_number= 2
+--source include/rpl_reconnect.inc
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--replace_result $group_seeds_server2 GROUP_SEEDS_SERVER2
+--eval SET @@global.group_replication_group_seeds="$group_seeds_server2"
+--replace_result $local_address_server2 LOCAL_ADDRESS_SERVER2
+--eval SET @@global.group_replication_local_address="$local_address_server2"
+--source include/start_group_replication.inc
+--let $rpl_server_number= 3
+--source include/rpl_reconnect.inc
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--replace_result $group_seeds_server3 GROUP_SEEDS_SERVER3
+--eval SET @@global.group_replication_group_seeds="$group_seeds_server3"
+--replace_result $local_address_server3 LOCAL_ADDRESS_SERVER3
+--eval SET @@global.group_replication_local_address="$local_address_server3"
+--source include/start_group_replication.inc
+# Wait for everyone to settle down
+--let $group_replication_number_of_members= 3
+--source ../inc/gr_wait_for_number_of_members.inc
+
+--echo
+--echo #########################################################################
+--echo # 6) Cleanup.
+--echo #########################################################################
+--echo
+--source ../inc/group_replication_end.inc

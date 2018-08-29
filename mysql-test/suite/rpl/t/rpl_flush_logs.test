@@ -1,5 +1,5 @@
 #
-# WL#5124
+# WL#5142
 # This test verifies if the 'flush individual logs' statement 
 # works fine.  
 #
@@ -147,5 +147,44 @@ file_exists $MYSQLTEST_VARDIR/mysqld.1/data/master-bin.000003;
 file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-relay-bin.000007;
 file_exists $MYSQLTEST_VARDIR/mysqld.2/data/slave-relay-bin.000008;
 
+#
+# Bug #24786290: REPLICATION BREAKS AFTER BUG #74145 HAPPENS IN MASTER
+#
+# === Purpose ===
+#
+# This test verifies that failed FLUSH <individual> LOGS statements
+# are not written to binary log.
+
+--connection master
+--let $binlog_file= query_get_value(SHOW MASTER STATUS,File,1)
+--let $binlog_start= query_get_value(SHOW MASTER STATUS,Position,1)
+--let $master_pos_before_flush_logs= $binlog_start
+
+# Make FLUSH <individual> LOGS fail by changing
+# the permissions of the slow log and general log.
+--let $slow_log= `SELECT @@global.slow_query_log_file`
+--chmod 0000 $slow_log
+--replace_regex /.*File .* not found .*/File not found (Errcode: ##)/
+--error 29
+FLUSH SLOW LOGS;
+
+--let $general_log= `SELECT @@global.general_log_file`
+--chmod 0000 $general_log
+--replace_regex /.*File .* not found .*/File not found (Errcode: ##)/
+--error 29
+FLUSH GENERAL LOGS;
+
+# Assert that the above statements are not written to the binlog.
+--let $master_pos_after_flush_logs= query_get_value(SHOW MASTER STATUS,Position,1)
+--let $assert_text= assert that the above events are not written to binlog
+--let $assert_cond= $master_pos_before_flush_logs = $master_pos_after_flush_logs
+--source include/assert.inc
+--source include/show_binlog_events.inc
+
+# Restore permissions
+--chmod 0644 $slow_log
+--chmod 0644 $general_log
+
+--source include/sync_slave_io_with_master.inc
 --source include/start_slave_sql.inc
 --source include/rpl_end.inc

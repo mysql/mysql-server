@@ -3,7 +3,7 @@
 #
 # Test:
 # 0. This test requires one server.
-# 1. Basic check that there are 35 GR variables.
+# 1. Basic check that there are 36 GR variables.
 # 2. Verify that all the group replication variables are GLOBAL variables.
 # 3. Verify values of GLOBAL and SESSION variables using below commands:-
 #  - SHOW GLOBAL VARIABLES LIKE 'group_replication_..'
@@ -29,12 +29,12 @@
 --sleep 30
 
 --echo
---echo # Test#1: Basic check that there are 35 GR variables.
+--echo # Test#1: Basic check that there are 36 GR variables.
 
 # Note: If a new GR variable is added or an old GR variable is removed, then
 # update this testcase for the sanity check.
---let $assert_text= There are 35 GR variables at present.
---let $assert_cond= "[SELECT COUNT(*) FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE \\'group_replication%\']" = 35
+--let $assert_text= There are 36 GR variables at present.
+--let $assert_cond= "[SELECT COUNT(*) FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE \\'group_replication%\']" = 36
 --source include/assert.inc
 
 # Take backup of GR variables
@@ -71,6 +71,7 @@
 --let $saved_gr_transaction_size_limit = `SELECT @@GLOBAL.group_replication_transaction_size_limit;`
 --let $saved_gr_unreachable_majority_timeout = `SELECT @@GLOBAL.group_replication_unreachable_majority_timeout`
 --let $saved_gr_member_weight = `SELECT @@GLOBAL.group_replication_member_weight;`
+--let $saved_gr_exit_state_action = `SELECT @@GLOBAL.group_replication_exit_state_action;`
 --enable_query_log
 
 --echo
@@ -141,6 +142,8 @@ SET @@SESSION.group_replication_transaction_size_limit= 10240;
 SET @@SESSION.group_replication_unreachable_majority_timeout= 10240;
 --error ER_GLOBAL_VARIABLE
 SET @@SESSION.group_replication_member_weight= 80;
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_exit_state_action= "READ_ONLY";
 
 # GR variables should be set at GLOBAL level.
 # Set values to GLOBAL GR variables to test further.
@@ -177,6 +180,7 @@ SET GLOBAL group_replication_start_on_boot= ON;
 SET GLOBAL group_replication_transaction_size_limit= 100000;
 SET GLOBAL group_replication_unreachable_majority_timeout= 100000;
 SET GLOBAL group_replication_member_weight= 70;
+SET GLOBAL group_replication_exit_state_action= "READ_ONLY";
 --enable_query_log
 
 --echo
@@ -729,6 +733,23 @@ SET GLOBAL group_replication_member_weight= 70;
 --let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_member_weight\', VARIABLE_VALUE, 1]" = 70
 --source include/assert.inc
 
+# group_replication_exit_state_action
+--let $assert_text= Verify GLOBAL value of group_replication_exit_state_action
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_exit_state_action\', Value, 1]" = "READ_ONLY"
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_exit_state_action
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_exit_state_action\', VARIABLE_VALUE, 1]" = "READ_ONLY"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_exit_state_action
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_exit_state_action\', Value, 1]" = "READ_ONLY"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_exit_state_action
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_exit_state_action\', VARIABLE_VALUE, 1]" = "READ_ONLY"
+--source include/assert.inc
+
 --echo
 --echo # Clean up
 --source include/stop_group_replication.inc
@@ -767,6 +788,7 @@ SET GLOBAL group_replication_member_weight= 70;
 --eval SET @@GLOBAL.group_replication_transaction_size_limit= $saved_gr_transaction_size_limit
 --eval SET @@GLOBAL.group_replication_unreachable_majority_timeout= $saved_gr_unreachable_majority_timeout
 --eval SET @@GLOBAL.group_replication_member_weight= $saved_gr_member_weight
+--eval SET @@GLOBAL.group_replication_exit_state_action= $saved_gr_exit_state_action
 --enable_query_log
 
 --source ../inc/group_replication_end.inc

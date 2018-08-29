@@ -390,7 +390,7 @@ select * from t1;
 --echo # Test[5] for lock.
 --echo # Test Scenario: As mysqld is running, & then start the innochecksum which must fail.
 
---error 1
+--error 1,42
 --exec $INNOCHECKSUM $MYSQLD_DATADIR/test/t1.ibd 2> $SEARCH_FILE
 let SEARCH_PATTERN=Error: Unable to lock file:: $MYSQLD_DATADIR/test/t1.ibd;
 --source include/search_pattern_in_file.inc

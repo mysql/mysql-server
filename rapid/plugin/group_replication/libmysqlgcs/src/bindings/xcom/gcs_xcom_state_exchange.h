@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -505,6 +505,16 @@ private:
 
   void fill_member_set(std::vector<Gcs_member_identifier *> &in,
                        std::set<Gcs_member_identifier *> &pset);
+
+  /**
+   * Stores the member's state and protocol version.
+   *
+   * @param ms_info state
+   * @param p_id member
+   * @param protocol_version protocol version
+   */
+  void save_member_state(Xcom_member_state *ms_info,
+                         const Gcs_member_identifier &p_id);
 
   Gcs_communication_interface *m_broadcaster;
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -54,8 +54,7 @@ int group_replication_before_server_shutdown(Server_state_param *param)
 int group_replication_after_server_shutdown(Server_state_param *param)
 {
   server_shutdown_status= true;
-  if (plugin_is_group_replication_running())
-    group_replication_stop();
+  plugin_group_replication_stop();
 
   return 0;
 }

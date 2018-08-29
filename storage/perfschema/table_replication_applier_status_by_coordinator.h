@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -65,6 +65,8 @@ struct st_row_coordinator {
 /** Table PERFORMANCE_SCHEMA.replication_applier_status_by_coordinator */
 class table_replication_applier_status_by_coordinator: public PFS_engine_table
 {
+  typedef PFS_simple_index pos_t;
+
 private:
   void make_row(Master_info *mi);
 
@@ -77,9 +79,9 @@ private:
   /** True is the current row exists. */
   bool m_row_exists;
   /** Current position. */
-  PFS_simple_index m_pos;
+  pos_t m_pos;
   /** Next position. */
-  PFS_simple_index m_next_pos;
+  pos_t m_next_pos;
 
 protected:
   /**

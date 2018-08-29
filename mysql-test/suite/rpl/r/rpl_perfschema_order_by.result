@@ -1,0 +1,169 @@
+include/rpl_init.inc [topology=3->2,1->2]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server_2]
+SET @save.slave_parallel_workers= @@global.slave_parallel_workers;
+# Test for Single Threaded Slave
+SET GLOBAL slave_parallel_workers= 0;
+START SLAVE;
+# 1) Create a database on server_1.
+[connection server_1]
+CREATE DATABASE db1;
+# 2) create database on server_3.
+[connection server_3]
+CREATE DATABASE db3;
+# 3)  sync the slave (server_2) with both masters (server_1 and server_3).
+[connection server_1]
+include/sync_slave_sql_with_master.inc
+[connection server_3]
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+include/start_slave.inc
+
+SELECT CHANNEL_NAME FROM performance_schema.replication_applier_configuration;
+CHANNEL_NAME
+channel_3
+channel_1
+SELECT CHANNEL_NAME FROM performance_schema.replication_applier_configuration ORDER BY CHANNEL_NAME;
+CHANNEL_NAME
+channel_1
+channel_3
+
+SELECT CHANNEL_NAME FROM performance_schema.replication_applier_status;
+CHANNEL_NAME
+channel_3
+channel_1
+SELECT CHANNEL_NAME FROM performance_schema.replication_applier_status ORDER BY CHANNEL_NAME;
+CHANNEL_NAME
+channel_1
+channel_3
+
+SELECT CHANNEL_NAME, LAST_ERROR_MESSAGE FROM performance_schema.replication_connection_status;
+CHANNEL_NAME	LAST_ERROR_MESSAGE
+channel_3	
+channel_1	
+SELECT CHANNEL_NAME, LAST_ERROR_MESSAGE FROM performance_schema.replication_connection_status ORDER BY CHANNEL_NAME;
+CHANNEL_NAME	LAST_ERROR_MESSAGE
+channel_1	
+channel_3	
+
+SELECT CHANNEL_NAME, TLS_VERSION FROM performance_schema.replication_connection_configuration;
+CHANNEL_NAME	TLS_VERSION
+channel_3	
+channel_1	
+SELECT CHANNEL_NAME, TLS_VERSION FROM performance_schema.replication_connection_configuration ORDER BY CHANNEL_NAME;
+CHANNEL_NAME	TLS_VERSION
+channel_1	
+channel_3	
+
+SELECT CHANNEL_NAME, LAST_ERROR_MESSAGE FROM performance_schema.replication_applier_status_by_worker;
+CHANNEL_NAME	LAST_ERROR_MESSAGE
+channel_3	
+channel_1	
+SELECT CHANNEL_NAME, LAST_ERROR_MESSAGE FROM performance_schema.replication_applier_status_by_worker ORDER BY CHANNEL_NAME;
+CHANNEL_NAME	LAST_ERROR_MESSAGE
+channel_1	
+channel_3	
+
+[connection server_1]
+DROP DATABASE db1;
+[connection server_3]
+DROP DATABASE db3;
+[connection server_1]
+include/sync_slave_sql_with_master.inc
+[connection server_3]
+include/sync_slave_sql_with_master.inc
+# Test for Multi Threaded Slave
+STOP SLAVE;
+SET GLOBAL slave_parallel_workers = 2;
+START SLAVE;
+# 1) Create a database on server_1.
+[connection server_1]
+CREATE DATABASE db1;
+# 2) create database on server_3.
+[connection server_3]
+CREATE DATABASE db3;
+# 3)  sync the slave (server_2) with both masters (server_1 and server_3).
+[connection server_1]
+include/sync_slave_sql_with_master.inc
+[connection server_3]
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+include/start_slave.inc
+
+SELECT CHANNEL_NAME FROM performance_schema.replication_applier_configuration;
+CHANNEL_NAME
+channel_3
+channel_1
+SELECT CHANNEL_NAME FROM performance_schema.replication_applier_configuration ORDER BY CHANNEL_NAME;
+CHANNEL_NAME
+channel_1
+channel_3
+
+SELECT CHANNEL_NAME FROM performance_schema.replication_applier_status;
+CHANNEL_NAME
+channel_3
+channel_1
+SELECT CHANNEL_NAME FROM performance_schema.replication_applier_status ORDER BY CHANNEL_NAME;
+CHANNEL_NAME
+channel_1
+channel_3
+
+SELECT CHANNEL_NAME, LAST_ERROR_MESSAGE FROM performance_schema.replication_connection_status;
+CHANNEL_NAME	LAST_ERROR_MESSAGE
+channel_3	
+channel_1	
+SELECT CHANNEL_NAME, LAST_ERROR_MESSAGE FROM performance_schema.replication_connection_status ORDER BY CHANNEL_NAME;
+CHANNEL_NAME	LAST_ERROR_MESSAGE
+channel_1	
+channel_3	
+
+SELECT CHANNEL_NAME, TLS_VERSION FROM performance_schema.replication_connection_configuration;
+CHANNEL_NAME	TLS_VERSION
+channel_3	
+channel_1	
+SELECT CHANNEL_NAME, TLS_VERSION FROM performance_schema.replication_connection_configuration ORDER BY CHANNEL_NAME;
+CHANNEL_NAME	TLS_VERSION
+channel_1	
+channel_3	
+
+SELECT CHANNEL_NAME, LAST_ERROR_MESSAGE FROM performance_schema.replication_applier_status_by_coordinator;
+CHANNEL_NAME	LAST_ERROR_MESSAGE
+channel_3	
+channel_1	
+SELECT CHANNEL_NAME, LAST_ERROR_MESSAGE FROM performance_schema.replication_applier_status_by_coordinator ORDER BY CHANNEL_NAME;
+CHANNEL_NAME	LAST_ERROR_MESSAGE
+channel_1	
+channel_3	
+
+SELECT CHANNEL_NAME, LAST_ERROR_MESSAGE FROM performance_schema.replication_applier_status_by_worker;
+CHANNEL_NAME	LAST_ERROR_MESSAGE
+channel_3	
+channel_3	
+channel_1	
+channel_1	
+SELECT CHANNEL_NAME, LAST_ERROR_MESSAGE FROM performance_schema.replication_applier_status_by_worker ORDER BY CHANNEL_NAME;
+CHANNEL_NAME	LAST_ERROR_MESSAGE
+channel_1	
+channel_1	
+channel_3	
+channel_3	
+
+[connection server_1]
+DROP DATABASE db1;
+[connection server_3]
+DROP DATABASE db3;
+[connection server_1]
+include/sync_slave_sql_with_master.inc
+[connection server_3]
+include/sync_slave_sql_with_master.inc
+STOP SLAVE;
+SET @@global.slave_parallel_workers= @save.slave_parallel_workers;
+START SLAVE;
+include/rpl_end.inc
+RESET SLAVE ALL FOR CHANNEL  'channel_3';
+RESET SLAVE ALL FOR CHANNEL  'channel_1';

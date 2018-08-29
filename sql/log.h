@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -902,8 +902,9 @@ void init_error_log();
   have been buffered by calling flush_error_log_messages().
 
   @param filename        Name of error log file
+  @param get_lock        Should we acquire LOCK_error_log?
 */
-bool open_error_log(const char *filename);
+bool open_error_log(const char *filename, bool get_lock);
 
 /**
   Free any error log resources.

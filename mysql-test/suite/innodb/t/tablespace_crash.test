@@ -146,7 +146,7 @@ INSERT INTO t4 VALUES (6);
 --exec echo $MYSQL_TMP_DIR/bad/tablespace1.ibd > $MYSQLD_DATADIR/tablespace1.isl
 
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
---error 3
+--error 3,42
 --exec $MYSQLD_CMD --core-file --console > $SEARCH_FILE 2>&1;
 
 let SEARCH_PATTERN= \[ERROR\] InnoDB: ISL file '.*tablespace1.isl' was found but the linked file '.*tablespace1.ibd' could not be opened or is not correct;
@@ -166,7 +166,7 @@ let SEARCH_PATTERN= \[ERROR\] InnoDB: Cannot continue operation;
 --exec echo $MYSQL_TMP_DIR/tablespace1.ibd > $MYSQLD_DATADIR/tablespace1.isl
 --exec echo $MYSQL_TMP_DIR/bad/t3.ibd > $MYSQLD_DATADIR/test/t3.isl
 
---error 3
+--error 3,42
 --exec $MYSQLD_CMD --core-file --console > $SEARCH_FILE 2>&1;
 
 let SEARCH_PATTERN= \[ERROR\] InnoDB: ISL file '.*t3.isl' was found but the linked file '.*t3.ibd' could not be opened or is not correct;

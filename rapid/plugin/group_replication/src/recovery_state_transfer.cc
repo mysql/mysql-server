@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -390,8 +390,16 @@ int Recovery_state_transfer::establish_donor_connection()
   {
     mysql_mutex_lock(&donor_selection_lock);
 
+    DBUG_EXECUTE_IF("gr_reset_max_connection_attempts_to_donors", {
+      if (donor_connection_retry_count == 3) {
+        const char act[] =
+            "now signal signal.connection_attempt_3 wait_for "
+            "signal.reset_recovery_retry_count_done";
+        DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+      }
+    };);
     // max number of retries reached, abort
-    if (donor_connection_retry_count == max_connection_attempts_to_donors)
+    if (donor_connection_retry_count >= max_connection_attempts_to_donors)
     {
       log_message(MY_ERROR_LEVEL,
                   "Maximum number of retries when trying to "
