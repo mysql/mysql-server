@@ -497,8 +497,19 @@ ulint lock_number_of_tables_locked(
 uint32_t lock_get_type(const lock_t *lock); /*!< in: lock */
 
 /** Gets the id of the transaction owning a lock.
- @return transaction id */
-trx_id_t lock_get_trx_id(const lock_t *lock); /*!< in: lock */
+@param[in]  lock  A lock of the transaction we are interested in
+@return the transaction's id */
+trx_id_t lock_get_trx_id(const lock_t *lock);
+
+/** Gets the immutable id of the transaction owning a lock
+@param[in]  lock   A lock of the transaction we are interested in
+@return the transaction's immutable id */
+uint64_t lock_get_trx_immutable_id(const lock_t *lock);
+
+/** Gets the immutable id of this lock.
+@param[in]  lock   The lock we are interested in
+@return The lock's immutable id */
+uint64_t lock_get_immutable_id(const lock_t *lock);
 
 /** Get the performance schema event (thread_id, event_id)
 that created the lock.

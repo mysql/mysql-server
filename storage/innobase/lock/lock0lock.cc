@@ -6260,11 +6260,16 @@ uint32_t lock_get_type(const lock_t *lock) /*!< in: lock */
   return (lock_get_type_low(lock));
 }
 
-/** Gets the id of the transaction owning a lock.
- @return transaction id */
-trx_id_t lock_get_trx_id(const lock_t *lock) /*!< in: lock */
-{
+uint64_t lock_get_trx_immutable_id(const lock_t *lock) {
+  return (trx_immutable_id(lock->trx));
+}
+
+trx_id_t lock_get_trx_id(const lock_t *lock) {
   return (trx_get_id_for_print(lock->trx));
+}
+
+uint64_t lock_get_immutable_id(const lock_t *lock) {
+  return (reinterpret_cast<uint64_t>(lock));
 }
 
 /** Get the performance schema event (thread_id, event_id)
