@@ -944,6 +944,7 @@
    OpenSSL still reachable.
    Memcheck:Leak
    fun:malloc
+   ...
    fun:CRYPTO_malloc
    fun:sk_new
    ...
