@@ -116,6 +116,7 @@ TODO:
 #include "my_systime.h"
 #include "mysql/service_mysql_alloc.h"
 #include "print_version.h"
+#include "thr_cond.h"
 #include "typelib.h"
 #include "welcome_copyright_notice.h" /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 

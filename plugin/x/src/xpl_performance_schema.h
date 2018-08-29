@@ -25,7 +25,9 @@
 #ifndef PLUGIN_X_SRC_XPL_PERFORMANCE_SCHEMA_H_
 #define PLUGIN_X_SRC_XPL_PERFORMANCE_SCHEMA_H_
 
+#include <mysql/psi/mysql_cond.h>
 #include <mysql/psi/mysql_memory.h>
+#include <mysql/psi/mysql_mutex.h>
 #include <mysql/psi/mysql_rwlock.h>
 #include <mysql/psi/mysql_socket.h>
 #include <mysql/psi/mysql_thread.h>

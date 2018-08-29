@@ -32,6 +32,8 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_sys.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "thr_mutex.h"
 
 /** Event strings. */
 LEX_CSTRING event_names[][6] = {

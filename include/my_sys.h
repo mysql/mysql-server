@@ -51,14 +51,15 @@
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_loglevel.h"
-#include "my_macros.h"
 #include "my_psi_config.h" /* IWYU pragma: keep */
 #include "my_sharedlib.h"
+#include "mysql/components/services/my_io_bits.h"
+#include "mysql/components/services/mysql_cond_bits.h"
+#include "mysql/components/services/mysql_mutex_bits.h"
+#include "mysql/components/services/psi_file_bits.h"
 #include "mysql/components/services/psi_memory_bits.h"
-#include "mysql/psi/mysql_cond.h"  /* mysql_cond_t */
-#include "mysql/psi/mysql_mutex.h" /* mysql_mutex_t */
-#include "mysql/psi/psi_file.h"    /* PSI_file_service_t */
-#include "mysql/psi/psi_stage.h"
+#include "mysql/components/services/psi_stage_bits.h"
+#include "mysql/psi/psi_base.h"
 
 struct CHARSET_INFO;
 struct MY_CHARSET_LOADER;

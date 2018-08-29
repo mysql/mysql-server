@@ -45,6 +45,7 @@
 #include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
+#include "my_thread_local.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysys/my_handler_errors.h"
 #include "mysys/mysys_priv.h"

@@ -32,6 +32,7 @@
 
 #include "m_string.h"  // Needed because debug_sync.h is not self-sufficient.
 #include "my_dbug.h"
+#include "mysql/components/services/my_thread_bits.h"
 #include "mysqld_error.h"
 #include "nullable.h"
 #include "plugin/rewriter/messages.h"

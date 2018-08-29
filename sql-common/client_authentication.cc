@@ -43,6 +43,7 @@
 #include "errmsg.h"
 #include "m_ctype.h"
 #include "mysql/client_authentication.h"
+#include "mysql/psi/mysql_mutex.h"
 #include "mysys_err.h"
 #include "sql_common.h"
 #include "sql_string.h"

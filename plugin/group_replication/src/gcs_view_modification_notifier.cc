@@ -26,6 +26,7 @@
 
 #include "my_dbug.h"
 #include "my_systime.h"
+#include "mysql/psi/mysql_cond.h"
 #include "plugin/group_replication/include/plugin_psi.h"
 
 Plugin_gcs_view_modification_notifier::Plugin_gcs_view_modification_notifier()

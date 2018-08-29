@@ -32,6 +32,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <mysql_com.h>
 
+#include "binary_log_types.h"
+
 /** Compare two data fields.
 @param[in]	dfield1	data field; must have type field set
 @param[in]	dfield2	data field

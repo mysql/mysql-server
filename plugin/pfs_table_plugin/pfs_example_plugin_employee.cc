@@ -29,6 +29,8 @@
 #include <mysql/components/services/log_builtins.h>
 #include <mysqld_error.h>
 
+#include "mysql/psi/mysql_mutex.h"
+
 #include "plugin/pfs_table_plugin/pfs_example_employee_name.h"
 #include "plugin/pfs_table_plugin/pfs_example_employee_salary.h"
 #include "plugin/pfs_table_plugin/pfs_example_machine.h"

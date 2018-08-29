@@ -37,6 +37,7 @@
 #include "my_io.h"
 #include "my_sys.h"     // my_write, my_malloc
 #include "sql_string.h" /* STRING_PSI_MEMORY_KEY */
+#include "thr_cond.h"
 
 #define STRING_BUFFER 1024
 

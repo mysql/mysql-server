@@ -22,8 +22,12 @@
 
 /*
   As this file may be included from inside a namespace, we cannot do
-  #includes here. However, you should #include "my_systime.h" outside
-  that namespace.
+  #includes here. However, you should
+
+    #include "my_systime.h"
+    #include "mysql/components/services/my_thread_bits.h"
+
+  outside that namespace.
 */
 
 #include <atomic>

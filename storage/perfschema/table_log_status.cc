@@ -27,8 +27,10 @@
 
 #include "storage/perfschema/table_log_status.h"
 
+#include "mysql/plugin.h"
 #include "sql/current_thd.h"
 #include "sql/debug_sync.h"
+#include "sql/field.h"
 #include "sql/log_resource.h"
 #include "sql/plugin_table.h"
 #include "sql/rpl_msr.h"  // channel_map

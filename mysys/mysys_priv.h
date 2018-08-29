@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,10 +29,14 @@
 
 #include "my_macros.h"
 #include "my_psi_config.h"
-#include "mysql/psi/mysql_file.h"
-#include "mysql/psi/mysql_stage.h"
-#include "mysql/psi/mysql_thread.h"
-#include "mysql/psi/psi_rwlock.h"
+#include "mysql/components/services/mysql_mutex_bits.h"  // for mysql_mutex_t
+#include "mysql/components/services/psi_cond_bits.h"
+#include "mysql/components/services/psi_file_bits.h"    // for PSI_file_key
+#include "mysql/components/services/psi_memory_bits.h"  // for PSI_memory_key
+#include "mysql/components/services/psi_mutex_bits.h"
+#include "mysql/components/services/psi_rwlock_bits.h"  // for PSI_rwlock_key
+#include "mysql/components/services/psi_stage_bits.h"   // for PSI_stage_info
+#include "mysql/components/services/psi_thread_bits.h"  // for PSI_thread_key
 
 extern PSI_mutex_key key_BITMAP_mutex, key_IO_CACHE_append_buffer_lock,
     key_IO_CACHE_SHARE_mutex, key_KEY_CACHE_cache_lock, key_THR_LOCK_charset,
