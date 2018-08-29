@@ -1,0 +1,47 @@
+create temporary table t1_temp(i int) engine=myisam;
+create procedure p2(i int) begin end;
+create function f2_temp() returns int
+begin
+insert into t1_temp values (1);
+return 0;
+end|
+#
+# If function used as argument updates temporary tables
+# CALL statement should be compatible with FTWRL.
+#
+#
+# Skip last part of compatibility testing as this statement
+# releases metadata locks in non-standard place.
+#
+Success: Was able to run 'call p2(f2_temp())' under FTWRL.
+Success: Was able to run 'call p2(f2_temp())' with FTWRL active in another connection.
+#
+# DO which calls SF updating temporary table should be
+# compatible with FTWRL.
+#
+Success: Was able to run 'do f2_temp()' under FTWRL.
+Success: Was able to run 'do f2_temp()' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'do f2_temp()' was active in another connection.
+#
+# SELECT which calls SF updating temporary table should be
+# compatible with FTWRL.
+#
+Success: Was able to run 'select f2_temp()' under FTWRL.
+Success: Was able to run 'select f2_temp()' with FTWRL active in another connection.
+Success: Was able to run FTWRL while 'select f2_temp()' was active in another connection.
+#
+# Ordinary SET which calls SF updating temporary table
+# should be compatible with FTWRL.
+#
+#
+# Skip last part of compatibility testing as our helper debug
+# sync-point doesn't work for SET statements.
+#
+Success: Was able to run 'set @a:= f2_temp()' under FTWRL.
+Success: Was able to run 'set @a:= f2_temp()' with FTWRL active in another connection.
+#
+# Clean-up.
+#
+drop procedure p2;
+drop function f2_temp;
+drop temporary tables t1_temp;

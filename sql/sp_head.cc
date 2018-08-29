@@ -2497,28 +2497,6 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   }
 
   /*
-    The 'function call' top statement can not distinguish if its sub
-    statements (function) have 'CREATE/DROP TEMPORARY TABLE' or not
-    before executing its sub statements, It is too late to set the
-    binlog format to row in mixed mode when executing the 'CREATE/DROP
-    TEMPORARY TABLE' in sub statement, because the binlog format is not
-    consistent before and after 'CREATE/DROP TEMPORARY TABLE'. Which
-    implies that we have to write the 'function call' top statement
-    into binlog if the function contains 'CREATE/DROP TEMPORARY TABLE'
-    in mixed mode. Because of that constrain we have to write the
-    'function call' top statement into binlog if the function contains
-    the DMLs on temporary table in mixed mode, another reason is that
-    the DMLs on temporary table might be in the same function as
-    'CREATE/DROP TEMPORARY TABLE'. Which requires to set binlog format
-    to statement if the function contains DML statement(s) on temporary
-    table in mixed mode.
-  */
-  if (thd->variables.binlog_format == BINLOG_FORMAT_MIXED &&
-      (thd->lex->stmt_accessed_table(LEX::STMT_READS_TEMP_TRANS_TABLE) ||
-       thd->lex->stmt_accessed_table(LEX::STMT_READS_TEMP_NON_TRANS_TABLE)))
-    thd->clear_current_stmt_binlog_format_row();
-
-  /*
     Prepare arena and memroot for objects which lifetime is whole
     duration of function call (sp_rcontext, it's tables and items,
     sp_cursor and Item_cache holders for case expressions).
