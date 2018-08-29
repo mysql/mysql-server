@@ -20,7 +20,7 @@ from performance_schema.file_summary_by_instance
 where file_name like "%master-%" order by file_name;
 FILE_NAME	EVENT_NAME	COUNT_READ	COUNT_WRITE	SUM_NUMBER_OF_BYTES_READ	SUM_NUMBER_OF_BYTES_WRITE
 master-bin.000001	wait/io/file/sql/binlog	MANY	MANY	MANY	MANY
-master-bin.index	wait/io/file/sql/binlog_index	NONE	MANY	NONE	MANY
+master-bin.index	wait/io/file/sql/binlog_index	MANY	MANY	MANY	MANY
 select * from performance_schema.file_summary_by_instance
 where file_name like "%slave-%" order by file_name;
 FILE_NAME	EVENT_NAME	COUNT_READ	COUNT_WRITE	SUM_NUMBER_OF_BYTES_READ	SUM_NUMBER_OF_BYTES_WRITE
@@ -36,7 +36,7 @@ from performance_schema.file_summary_by_instance
 where event_name like "%binlog%" order by file_name;
 FILE_NAME	EVENT_NAME	COUNT_READ	COUNT_WRITE	SUM_NUMBER_OF_BYTES_READ	SUM_NUMBER_OF_BYTES_WRITE
 master-bin.000001	wait/io/file/sql/binlog	MANY	MANY	MANY	MANY
-master-bin.index	wait/io/file/sql/binlog_index	NONE	MANY	NONE	MANY
+master-bin.index	wait/io/file/sql/binlog_index	MANY	MANY	MANY	MANY
 select
 EVENT_NAME,
 if (count_read > 0, "MANY", "NONE") as COUNT_READ,
@@ -47,7 +47,7 @@ from performance_schema.file_summary_by_event_name
 where event_name like "%binlog%" order by event_name;
 EVENT_NAME	COUNT_READ	COUNT_WRITE	SUM_NUMBER_OF_BYTES_READ	SUM_NUMBER_OF_BYTES_WRITE
 wait/io/file/sql/binlog	MANY	MANY	MANY	MANY
-wait/io/file/sql/binlog_index	NONE	MANY	NONE	MANY
+wait/io/file/sql/binlog_index	MANY	MANY	MANY	MANY
 select
 EVENT_NAME,
 if (count_star > 0, "MANY", "NONE") as COUNT_STAR
@@ -93,7 +93,7 @@ where file_name like "%slave-%"
 order by file_name;
 FILE_NAME	EVENT_NAME	COUNT_READ	COUNT_WRITE	SUM_NUMBER_OF_BYTES_READ	SUM_NUMBER_OF_BYTES_WRITE
 slave-bin.000001	wait/io/file/sql/binlog	MANY	MANY	MANY	MANY
-slave-bin.index	wait/io/file/sql/binlog_index	NONE	MANY	NONE	MANY
+slave-bin.index	wait/io/file/sql/binlog_index	MANY	MANY	MANY	MANY
 slave-relay-bin.000001	wait/io/file/sql/relaylog	MANY	MANY	MANY	MANY
 slave-relay-bin.000002	wait/io/file/sql/relaylog	MANY	MANY	MANY	MANY
 slave-relay-bin.index	wait/io/file/sql/relaylog_index	MANY	MANY	MANY	MANY
@@ -109,7 +109,7 @@ from performance_schema.file_summary_by_instance
 where event_name like "%binlog%" order by file_name;
 FILE_NAME	EVENT_NAME	COUNT_READ	COUNT_WRITE	SUM_NUMBER_OF_BYTES_READ	SUM_NUMBER_OF_BYTES_WRITE
 slave-bin.000001	wait/io/file/sql/binlog	MANY	MANY	MANY	MANY
-slave-bin.index	wait/io/file/sql/binlog_index	NONE	MANY	NONE	MANY
+slave-bin.index	wait/io/file/sql/binlog_index	MANY	MANY	MANY	MANY
 select
 EVENT_NAME,
 if (count_read > 0, "MANY", "NONE") as COUNT_READ,
@@ -120,7 +120,7 @@ from performance_schema.file_summary_by_event_name
 where event_name like "%binlog%" order by event_name;
 EVENT_NAME	COUNT_READ	COUNT_WRITE	SUM_NUMBER_OF_BYTES_READ	SUM_NUMBER_OF_BYTES_WRITE
 wait/io/file/sql/binlog	MANY	MANY	MANY	MANY
-wait/io/file/sql/binlog_index	NONE	MANY	NONE	MANY
+wait/io/file/sql/binlog_index	MANY	MANY	MANY	MANY
 select
 EVENT_NAME,
 if (count_star > 0, "MANY", "NONE") as COUNT_STAR

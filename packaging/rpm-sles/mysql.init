@@ -163,7 +163,7 @@ stop () {
 
     # We use a signal to avoid having to know the root password
     # Send single kill command and then wait
-    if kill $pid >/dev/null 2>&1; then
+    if su - mysql -s /bin/bash -c "kill $pid" >/dev/null 2>&1; then
 	timer=$STOPTIMEOUT
 	while [ $timer -gt 0 ]; do
             kill -0 $pid >/dev/null 2>&1 || break
@@ -196,7 +196,7 @@ reload () {
     ret=0
     if chk_running && mysqladmin --no-defaults --socket="$socket" ping >/dev/null 2>&1 ; then
 	pid=$(cat "$pidfile")
-	kill -HUP $pid >/dev/null 2>&1
+	su - mysql -s /bin/bash -c "kill -HUP $pid" >/dev/null 2>&1
 	echo -n "Reloading service MySQL:"
 	rc_reset
     else
