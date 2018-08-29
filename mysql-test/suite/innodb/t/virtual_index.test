@@ -265,7 +265,7 @@ SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
 #Disable the test case because it's being failed on ASAN.
-TODO : Bug #28556793 INNODB UPDATE_ROW ASAN FAILURE HEAP-USE-AFTER-FREE
+#TODO : Bug #28556793 INNODB UPDATE_ROW ASAN FAILURE HEAP-USE-AFTER-FREE
 if (0)
 {
 --echo #
@@ -297,3 +297,4 @@ if (0)
 	DELETE FROM t1;
 	DROP TABLE t1;
 	SET sql_mode = default;
+}
