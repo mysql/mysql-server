@@ -26,7 +26,6 @@
 #include <stddef.h>
 #include <set>
 
-#include "clone_handler.h"
 #include "lex_string.h"
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
@@ -34,7 +33,9 @@
 #include "sql/memroot_allocator.h"
 #include "sql/sql_cmd.h"            // Sql_cmd
 #include "sql/sql_cmd_ddl_table.h"  // Sql_cmd_ddl_table
+#include "sql/sql_plugin_ref.h"
 
+class Clone_handler;
 class String;
 class THD;
 

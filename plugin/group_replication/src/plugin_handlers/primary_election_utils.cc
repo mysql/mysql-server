@@ -22,6 +22,8 @@
 
 #include "plugin/group_replication/include/plugin_handlers/primary_election_utils.h"
 
+#include "plugin/group_replication/include/plugin.h"
+
 Election_member_info::Election_member_info(const std::string uuid,
                                            const Member_version &version,
                                            bool is_primary)

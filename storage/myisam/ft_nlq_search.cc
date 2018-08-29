@@ -32,6 +32,7 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "storage/myisam/ftdefs.h"
+#include "storage/myisam/myisamdef.h"
 
 /* search with natural language queries */
 

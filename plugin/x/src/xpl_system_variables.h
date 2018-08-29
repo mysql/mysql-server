@@ -29,7 +29,6 @@
 #include <vector>
 
 #include "plugin/x/ngs/include/ngs_common/bind.h"
-#include "plugin/x/src/xpl_log.h"
 
 #ifdef max_allowed_packet
 #undef max_allowed_packet

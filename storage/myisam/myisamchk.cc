@@ -46,6 +46,7 @@
 #include "print_version.h"
 #include "storage/myisam/fulltext.h"
 #include "storage/myisam/myisam_sys.h"
+#include "storage/myisam/myisamdef.h"
 #include "typelib.h"
 #include "welcome_copyright_notice.h"  // ORACLE_WELCOME_COPYRIGHT_NOTICE
 #ifdef HAVE_SYS_MMAN_H

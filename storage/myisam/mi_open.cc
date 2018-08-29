@@ -53,6 +53,7 @@
 #include "sql/field.h"
 #include "storage/myisam/fulltext.h"
 #include "storage/myisam/myisam_sys.h"
+#include "storage/myisam/myisamdef.h"
 #include "storage/myisam/rt_index.h"
 #include "storage/myisam/sp_defs.h"
 

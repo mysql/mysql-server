@@ -57,6 +57,7 @@
 #include "plugin/x/src/udf/registrator.h"
 #include "plugin/x/src/xpl_client.h"
 #include "plugin/x/src/xpl_error.h"
+#include "plugin/x/src/xpl_log.h"
 #include "plugin/x/src/xpl_session.h"
 #include "plugin/x/src/xpl_system_variables.h"
 

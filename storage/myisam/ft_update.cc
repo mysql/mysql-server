@@ -32,6 +32,7 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "storage/myisam/ftdefs.h"
+#include "storage/myisam/myisamdef.h"
 
 void _mi_ft_segiterator_init(MI_INFO *info, uint keynr, const uchar *record,
                              FT_SEG_ITERATOR *ftsi) {

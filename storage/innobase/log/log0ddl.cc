@@ -43,6 +43,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sql_thd_internal_api.h>
 
 #include "btr0sea.h"
+#include "dict0dd.h"
 #include "dict0mem.h"
 #include "dict0stats.h"
 #include "ha_innodb.h"

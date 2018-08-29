@@ -38,6 +38,7 @@
 #include "my_macros.h"
 #include "storage/myisam/ftdefs.h"
 #include "storage/myisam/myisam_sys.h"
+#include "storage/myisam/myisamdef.h"
 
 /* lock table by F_UNLCK, F_RDLCK or F_WRLCK */
 

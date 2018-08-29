@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,8 +43,7 @@ struct MY_BITMAP;
 
 #include "map_helpers.h"
 #include "prealloced_array.h"  // Prealloced_array
-#include "sql/handler.h"
-#include "sql/table.h"  // TABLE_LIST
+#include "sql/table.h"         // TABLE_LIST
 
 class Log_event;
 class Relay_log_info;
@@ -324,7 +323,7 @@ class table_def {
       /*
         This type has not been used since before row-based replication,
         so we can safely assume that it really is MYSQL_TYPE_NEWDATE.
-      */
+       */
       case MYSQL_TYPE_DATE:
         source_type = MYSQL_TYPE_NEWDATE;
         break;

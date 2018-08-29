@@ -21,6 +21,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "plugin/group_replication/include/plugin_handlers/primary_election_validation_handler.h"
+
+#include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/plugin_messages/group_validation_message.h"
 
 int send_validation_message(Group_validation_message *message) {

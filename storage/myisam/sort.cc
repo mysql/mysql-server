@@ -34,6 +34,7 @@
 #include "my_io.h"
 #include "my_macros.h"
 #include "storage/myisam/fulltext.h"
+#include "storage/myisam/myisamdef.h"
 #if defined(_WIN32)
 #include <fcntl.h>
 #else

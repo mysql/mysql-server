@@ -24,6 +24,7 @@
 
 #include "sql/dd/impl/bootstrap_ctx.h"            // DD_bootstrap_ctx
 #include "sql/dd/impl/types/object_table_impl.h"  // Object_table_impl
+#include "sql/table.h"
 
 namespace dd {
 

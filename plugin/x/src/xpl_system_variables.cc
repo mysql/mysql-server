@@ -27,6 +27,9 @@
 #include <stdlib.h>
 
 #include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysql/psi/psi_base.h"
+#include "mysql/service_mysql_alloc.h"
 
 namespace xpl {
 

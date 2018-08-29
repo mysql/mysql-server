@@ -34,6 +34,7 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "storage/myisam/fulltext.h"
+#include "storage/myisam/myisamdef.h"
 
 static bool _mi_get_prev_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page,
                              uchar *key, uchar *keypos,

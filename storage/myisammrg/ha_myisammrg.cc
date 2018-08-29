@@ -113,6 +113,7 @@
 #include "sql/sql_table.h"   // build_table_filename
 #include "sql/thr_malloc.h"  // int_sql_alloc
 #include "storage/myisam/ha_myisam.h"
+#include "storage/myisam/myisamdef.h"
 #include "storage/myisammrg/myrg_def.h"
 #include "typelib.h"
 

@@ -34,7 +34,6 @@
 #include "sql/dd/types/column.h"  // dd::enum_column_types
 #include "sql/handler.h"          // legacy_db_type
 #include "sql/sql_alter.h"        // Alter_info::enum_enable_or_disable
-#include "sql/system_variables.h"
 
 class Create_field;
 class FOREIGN_KEY;

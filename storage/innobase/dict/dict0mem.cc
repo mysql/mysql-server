@@ -38,6 +38,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "data0type.h"
 #endif /* !UNIV_HOTBACKUP */
+#include "dict0dd.h"
 #include "dict0dict.h"
 #include "dict0mem.h"
 #ifndef UNIV_HOTBACKUP

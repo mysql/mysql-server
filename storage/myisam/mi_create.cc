@@ -36,6 +36,7 @@
 #include "my_pointer_arithmetic.h"
 #include "sql/field.h"
 #include "storage/myisam/ftdefs.h"
+#include "storage/myisam/myisamdef.h"
 #include "storage/myisam/sp_defs.h"
 
 #ifdef _WIN32

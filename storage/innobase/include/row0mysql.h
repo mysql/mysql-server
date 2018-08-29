@@ -38,16 +38,51 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ha_prototypes.h"
 #endif /* !UNIV_HOTBACKUP */
 
+#include <stddef.h>
+#include <sys/types.h>
+
 #include "btr0pcur.h"
 #include "data0data.h"
-#include "dict0dd.h"
+#include "data0type.h"
+#include "db0err.h"
 #include "dict0types.h"
+#include "fts0fts.h"
+#include "gis0type.h"
 #include "lob0undo.h"
+#include "lock0types.h"
+#include "mem0mem.h"
+#include "my_compiler.h"
+#include "my_inttypes.h"
 #include "que0types.h"
+#include "rem0types.h"
 #include "row0types.h"
 #include "sess0sess.h"
 #include "sql_cmd.h"
 #include "trx0types.h"
+#include "univ.i"
+
+class THD;
+class ha_innobase;
+class innodb_session_t;
+namespace dd {
+class Table;
+}
+struct TABLE;
+struct btr_pcur_t;
+struct dfield_t;
+struct dict_field_t;
+struct dict_foreign_t;
+struct dict_index_t;
+struct dict_table_t;
+struct dict_v_col_t;
+struct dtuple_t;
+struct ins_node_t;
+struct mtr_t;
+struct que_fork_t;
+struct que_thr_t;
+struct trx_t;
+struct upd_node_t;
+struct upd_t;
 
 #ifndef UNIV_HOTBACKUP
 extern ibool row_rollback_on_timeout;

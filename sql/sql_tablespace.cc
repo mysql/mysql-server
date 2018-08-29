@@ -40,6 +40,7 @@
 #include "sql/dd/cache/dictionary_client.h"  // dd::Dictionary_client
 #include "sql/dd/dd.h"                       // dd::create_object
 #include "sql/dd/impl/sdi_utils.h"           // dd::sdi_utils::make_guard
+#include "sql/dd/properties.h"
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/tablespace.h"       // dd::fetch_tablespace_table_refs
 #include "sql/dd/types/tablespace_file.h"  // dd::Tablespace_file

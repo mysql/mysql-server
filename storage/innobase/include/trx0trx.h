@@ -39,7 +39,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ha_prototypes.h"
 
 #include "dict0types.h"
-#include "sql/handler.h"
 #include "trx0types.h"
 #include "ut0new.h"
 

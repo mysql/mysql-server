@@ -35,7 +35,6 @@
 #include "sql/dd/string_type.h"  // dd::String_type
 #include "sql/dd/types/object_table.h"
 #include "sql/dd/types/system_view.h"
-#include "sql/handler.h"
 #include "sql/plugin_table.h"
 
 namespace dd {

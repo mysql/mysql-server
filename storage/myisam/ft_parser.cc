@@ -29,6 +29,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "storage/myisam/ftdefs.h"
+#include "storage/myisam/myisamdef.h"
 
 struct FT_DOCSTAT {
   FT_WORD *list;

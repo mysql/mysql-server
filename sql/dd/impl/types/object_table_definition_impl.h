@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,17 +24,16 @@
 #define DD__OBJECT_TABLE_DEFINITION_IMPL_INCLUDED
 
 #include <map>
+#include <memory>
 #include <vector>
 
 #include "m_string.h"  // my_stpcpy
 #include "my_dbug.h"
-#include "sql/dd/impl/system_registry.h"           // System_tablespaces
 #include "sql/dd/properties.h"                     // dd::tables::DD_properties
 #include "sql/dd/string_type.h"                    // dd::String_type
 #include "sql/dd/types/object_table_definition.h"  // dd::Object_table_definition
 #include "sql/dd/types/table.h"                    // dd::Table
 #include "sql/mysqld.h"                            // lower_case_table_names
-#include "sql/table.h"                             // MYSQL_TABLESPACE_NAME
 
 namespace dd {
 

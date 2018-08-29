@@ -58,6 +58,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "current_thd.h"
 #include "data0data.h"
 #include "data0type.h"
+#include "dict0dd.h"
 #include "dict0dict.h"
 #include "fil0fil.h"
 #include "fsp0fsp.h"
@@ -731,9 +732,11 @@ static dberr_t srv_undo_tablespace_fixup_num(space_id_t space_num) {
     return (DB_READ_ONLY);
   }
 
-  /* Search for a file that is using any of the space IDs assigned to this
- undo number. The directory scan assured that there are no duplicate files
- with the same space_id or with the same undo space number. */
+  /*
+    Search for a file that is using any of the space IDs assigned to this
+    undo number. The directory scan assured that there are no duplicate files
+    with the same space_id or with the same undo space number.
+   */
   space_id_t space_id = SPACE_UNKNOWN;
   std::string scanned_name;
   for (size_t ndx = 0;

@@ -27,6 +27,9 @@
   @file storage/myisam/myisamdef.h
 */
 
+#ifndef STORAGE_MYISAM_MYISAMDEF_INCLUDED
+#define STORAGE_MYISAM_MYISAMDEF_INCLUDED 1
+
 #include "my_alloc.h"
 #include "my_icp.h"
 #include "my_pointer_arithmetic.h"
@@ -884,3 +887,5 @@ extern PSI_memory_key mi_key_memory_keycache_thread_var;
 extern PSI_memory_key key_memory_QUEUE;
 
 C_MODE_END
+
+#endif  // STORAGE_MYISAM_MYISAMDEF_INCLUDED

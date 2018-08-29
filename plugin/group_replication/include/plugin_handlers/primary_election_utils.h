@@ -23,7 +23,11 @@
 #ifndef PRIMARY_ELECTION_UTILS_INCLUDED
 #define PRIMARY_ELECTION_UTILS_INCLUDED
 
-#include "plugin/group_replication/include/plugin.h"
+#include <string>
+
+#include "plugin/group_replication/include/member_version.h"
+
+class Plugin_gcs_message;
 
 class Election_member_info {
  public:
