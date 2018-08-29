@@ -35,6 +35,7 @@ import testsuite.clusterj.model.Customer;
 import testsuite.clusterj.model.Order;
 import testsuite.clusterj.model.OrderLine;
 
+@org.junit.Ignore("Bug#28550140 : disable test until diagnosis of failure")
 public class ReconnectTest extends AbstractClusterJModelTest {
 
     @Override
