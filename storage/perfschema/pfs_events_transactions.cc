@@ -33,6 +33,7 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_sys.h"
+#include "mysql/plugin.h"
 #include "storage/perfschema/pfs_account.h"
 #include "storage/perfschema/pfs_buffer_container.h"
 #include "storage/perfschema/pfs_builtin_memory.h"
@@ -41,6 +42,9 @@
 #include "storage/perfschema/pfs_instr.h"
 #include "storage/perfschema/pfs_instr_class.h"
 #include "storage/perfschema/pfs_user.h"
+
+static_assert(XIDDATASIZE == MYSQL_XIDDATASIZE,
+              "XIDDATASIZE and MYSQL_XIDDATASIZE must be in sync");
 
 PFS_ALIGNED ulong events_transactions_history_long_size = 0;
 /** Consumer flag for table EVENTS_TRANSACTIONS_CURRENT. */

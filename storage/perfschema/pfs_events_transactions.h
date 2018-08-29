@@ -32,11 +32,16 @@
 #include <atomic>
 
 #include "my_inttypes.h"
-#include "mysql/plugin.h" /* MYSQL_XIDDATASIZE */
 #include "sql/rpl_gtid.h"
 #include "storage/perfschema/pfs_column_types.h"
 #include "storage/perfschema/pfs_events.h"
 #include "storage/perfschema/pfs_global.h"
+
+// Define XIDDATASIZE manually here to avoid pulling in all of mysql/plugin.h
+// (which is big) just for MYSQL_XIDDATASIZE; this file is included from a lot
+// of places. We have a static_assert in the .cc file to check that they are
+// in sync. See sql/xa.h, which does the same thing.
+#define XIDDATASIZE 128
 
 struct PFS_thread;
 struct PFS_account;
@@ -63,7 +68,7 @@ struct PSI_xid {
   /** BQUAL length, value 1-64. */
   long bqual_length;
   /** XID raw data, not \0-terminated */
-  char data[MYSQL_XIDDATASIZE];
+  char data[XIDDATASIZE];
 
   PSI_xid() { null(); }
   bool is_null() { return formatID == -1; }
