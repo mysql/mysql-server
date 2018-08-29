@@ -1130,9 +1130,9 @@ void *trx_i_s_cache_get_nth_row(trx_i_s_cache_t *cache, /*!< in: cache */
 
   return (row);
 }
-constexpr char *LOCK_RECORD_ID_FORMAT =
+constexpr const char *LOCK_RECORD_ID_FORMAT =
     UINT64PF ":" SPACE_ID_PF ":" PAGE_NO_PF ":" ULINTPF ":" UINT64PF;
-constexpr char *LOCK_TABLE_ID_FORMAT = UINT64PF ":" UINT64PF ":" UINT64PF;
+constexpr const char *LOCK_TABLE_ID_FORMAT = UINT64PF ":" UINT64PF ":" UINT64PF;
 /** Crafts a lock id string from a i_s_locks_row_t object. Returns its
  second argument. This function aborts if there is not enough space in
  lock_id. Be sure to provide at least TRX_I_S_LOCK_ID_MAX_LEN + 1 if you
