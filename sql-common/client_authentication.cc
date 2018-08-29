@@ -54,6 +54,7 @@
 #include <wolfssl_fix_namespace_pollution.h>
 #include "mysql/plugin.h"
 #include "sha2.h"
+#include "violite.h"
 
 #define MAX_CIPHER_LENGTH 1024
 

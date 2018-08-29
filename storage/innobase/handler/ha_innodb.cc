@@ -122,6 +122,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "lock0lock.h"
 #include "mem0mem.h"
 #include "mtr0mtr.h"
+#include "my_compare.h"
 #include "my_dbug.h"
 #include "my_double2ulonglong.h"
 #include "my_io.h"

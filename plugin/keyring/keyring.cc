@@ -27,6 +27,8 @@
 
 #include <mysql/components/my_service.h>
 #include <mysql/components/services/log_builtins.h>
+#include <openssl/err.h>
+#include <openssl/ssl.h>
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_io.h"

@@ -43,6 +43,7 @@ Clone handler implementation
 #include "sql/sql_parse.h"
 #include "sql/sql_plugin.h"  // plugin_unlock
 #include "sql_string.h"      // to_lex_cstring
+#include "violite.h"
 
 class THD;
 

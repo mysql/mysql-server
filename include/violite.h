@@ -70,7 +70,7 @@ typedef Vio Vio;
 #define MYSQL_VIO Vio *
 #endif
 
-enum enum_vio_type {
+enum enum_vio_type : int {
   /**
     Type of the connection is unknown.
   */

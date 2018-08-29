@@ -29,6 +29,7 @@ API for clone plugin
 #define MYSQL_PLUGIN_CLONE_INCLUDED
 
 #include "plugin.h"
+#include "violite.h"
 
 /** Clone plugin interface version */
 #define MYSQL_CLONE_INTERFACE_VERSION 0x0100
