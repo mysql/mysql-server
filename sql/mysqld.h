@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -246,7 +246,7 @@ extern ulong open_files_limit;
 extern ulong binlog_cache_size, binlog_stmt_cache_size;
 extern ulonglong max_binlog_cache_size, max_binlog_stmt_cache_size;
 extern int32 opt_binlog_max_flush_queue_time;
-extern ulong opt_binlog_group_commit_sync_delay;
+extern long opt_binlog_group_commit_sync_delay;
 extern ulong opt_binlog_group_commit_sync_no_delay_count;
 extern ulong max_binlog_size, max_relay_log_size;
 extern ulong slave_max_allowed_packet;
@@ -447,7 +447,6 @@ extern PSI_mutex_key key_mts_gaq_LOCK;
 extern PSI_mutex_key key_thd_timer_mutex;
 extern PSI_mutex_key key_LOCK_offline_mode;
 extern PSI_mutex_key key_LOCK_default_password_lifetime;
-extern PSI_mutex_key key_LOCK_group_replication_handler;
 
 #ifdef HAVE_REPLICATION
 extern PSI_mutex_key key_commit_order_manager_mutex;
@@ -838,7 +837,6 @@ extern mysql_rwlock_t LOCK_sys_init_connect, LOCK_sys_init_slave;
 extern mysql_rwlock_t LOCK_system_variables_hash;
 extern mysql_cond_t COND_manager;
 extern int32 thread_running;
-extern mysql_mutex_t LOCK_group_replication_handler;
 extern mysql_mutex_t LOCK_keyring_operations;
 
 extern char *opt_ssl_ca, *opt_ssl_capath, *opt_ssl_cert, *opt_ssl_cipher,

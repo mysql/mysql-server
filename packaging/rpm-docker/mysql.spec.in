@@ -359,6 +359,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/audit_log.so
 %attr(644, root, root) %{_datadir}/mysql/audit_log_filter_linux_install.sql
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_pam.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/data_masking.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_encrypted_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_okv.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/thread_pool.so

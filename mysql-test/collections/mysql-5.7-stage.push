@@ -44,3 +44,5 @@ perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=
 perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=x --vardir=var-x --suite=x --experimental=collections/default.experimental
 # cross_plugin_test
 perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=cross_plugin_test --vardir=var-cross_plugin_test --suite=cross_plugin_test --experimental=collections/default.experimental
+# audit_log
+perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=audit_log --vardir=var-audit_log --suite=audit_log --experimental=collections/default.experimental --force-restart

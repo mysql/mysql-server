@@ -46,6 +46,7 @@ IF (NOT DEFINED DEB_CHANGELOG_TIMESTAMP)
   )
   SET (DEB_CHANGELOG_TIMESTAMP ${DEB_CHANGELOG_TIMESTAMP} CACHE STRING "")
 ENDIF()
+
 # Commercial or community
 IF (DEB_PRODUCT STREQUAL "commercial")
   SET (DEB_COPYRIGHT_UPSTREAMNAME "MySQL Commercial Server ${MYSQL_BASE_VERSION}")
@@ -75,6 +76,7 @@ usr/lib/mysql/plugin/audit_log.so
 usr/lib/mysql/plugin/authentication_pam.so
 usr/lib/mysql/plugin/authentication_ldap_sasl.so
 usr/lib/mysql/plugin/authentication_ldap_simple.so
+usr/lib/mysql/plugin/data_masking.so
 usr/lib/mysql/plugin/keyring_okv.so
 usr/lib/mysql/plugin/keyring_encrypted_file.so
 usr/lib/mysql/plugin/openssl_udf.so
@@ -88,6 +90,7 @@ usr/lib/mysql/plugin/debug/audit_log.so
 usr/lib/mysql/plugin/debug/authentication_pam.so
 usr/lib/mysql/plugin/debug/authentication_ldap_sasl.so
 usr/lib/mysql/plugin/debug/authentication_ldap_simple.so
+usr/lib/mysql/plugin/debug/data_masking.so
 usr/lib/mysql/plugin/debug/keyring_okv.so
 usr/lib/mysql/plugin/debug/keyring_encrypted_file.so
 usr/lib/mysql/plugin/debug/openssl_udf.so
@@ -127,6 +130,46 @@ ELSE()
   SET (DEB_REMOVEPATTERN "com.in")
 ENDIF()
 
+# Generate debug symbol packages (this is done automatically in Debian9+)
+SET (DEB_RULES_STRIP_DEFAULT
+"
+override_dh_strip:
+	dh_strip -pmysql-${DEB_PRODUCTNAME}-server --dbg-package=mysql-${DEB_PRODUCTNAME}-server-dbgsym
+	dh_strip -pmysql-${DEB_PRODUCTNAME}-client --dbg-package=mysql-${DEB_PRODUCTNAME}-client-dbgsym
+	dh_strip -pmysql-${DEB_PRODUCTNAME}-test --dbg-package=mysql-${DEB_PRODUCTNAME}-test-dbgsym
+	dh_strip -pmysql-server
+	dh_strip -pmysql-client
+	dh_strip -pmysql-testsuite
+	dh_strip -plibmysqlclient20 --dbg-package=libmysqlclient20-dbgsym
+	dh_strip -plibmysqlclient-dev
+")
+SET (DEB_CONTROL_DBGSYM_DEFAULT
+"
+Package: libmysqlclient20-dbgsym
+Architecture: any
+Section: debug
+Depends: libmysqlclient20 (=\${binary:Version}), \${misc:Depends}
+Description: Debugging symbols for client library
+
+Package: mysql-${DEB_PRODUCTNAME}-test-dbgsym
+Architecture: any
+Section: debug
+Depends: mysql-${DEB_PRODUCTNAME}-test (= \${binary:Version}), \${misc:Depends}
+Description: Debugging symbols for test suite
+
+Package: mysql-${DEB_PRODUCTNAME}-server-dbgsym
+Architecture: any
+Section: debug
+Depends: mysql-${DEB_PRODUCTNAME}-server (= \${binary:Version}), \${misc:Depends}
+Description: Debugging symbols for server
+
+Package: mysql-${DEB_PRODUCTNAME}-client-dbgsym
+Architecture: any
+Section: debug
+Depends: mysql-${DEB_PRODUCTNAME}-client (= \${binary:Version}), \${misc:Depends}
+Description: Debugging symbols for client
+")
+
 # Platform specifics. The differences are generally only distro version
 # and whether or not systemd and/or apparmor are available
 IF (DEB_CODENAME STREQUAL "wheezy")
@@ -142,6 +185,8 @@ IF (DEB_CODENAME STREQUAL "wheezy")
   SET (DEB_INSTALL_SERVER_APPARMOR "")
   SET (DEB_SERVICE_SERVER_EXECPRE "")
   SET (DEB_INIT_APPARMOR "")
+  SET (DEB_CONTROL_DBGSYM ${DEB_CONTROL_DBGSYM_DEFAULT})
+  SET (DEB_RULES_STRIP ${DEB_RULES_STRIP_DEFAULT})
 ELSEIF(DEB_CODENAME STREQUAL "jessie")
   SET (DEB_PLATFORMRELEASE "debian8")
   SET (DEB_CONTROL_BDEPS "dh-systemd")
@@ -157,6 +202,8 @@ ELSEIF(DEB_CODENAME STREQUAL "jessie")
   SET (DEB_SERVICE_SERVER_EXECPRE
     "ExecStartPre=/usr/share/mysql/mysql-systemd-start pre")
   SET (DEB_INIT_APPARMOR "")
+  SET (DEB_CONTROL_DBGSYM ${DEB_CONTROL_DBGSYM_DEFAULT})
+  SET (DEB_RULES_STRIP ${DEB_RULES_STRIP_DEFAULT})
 ELSEIF(DEB_CODENAME STREQUAL "stretch")
   SET (DEB_PLATFORMRELEASE "debian9")
   SET (DEB_CONTROL_BDEPS "dh-systemd")
@@ -172,6 +219,8 @@ ELSEIF(DEB_CODENAME STREQUAL "stretch")
   SET (DEB_SERVICE_SERVER_EXECPRE
     "ExecStartPre=/usr/share/mysql/mysql-systemd-start pre")
   SET (DEB_INIT_APPARMOR "")
+  SET (DEB_CONTROL_DBGSYM "")
+  SET (DEB_RULES_STRIP "")
 ELSEIF(DEB_CODENAME STREQUAL "sid")
   IF (DEFINED DEB_GCC_SNAPSHOT)
     SET (DEB_CMAKE_EXTRAS "${DEB_CMAKE_EXTRAS} -DCMAKE_C_COMPILER=/usr/lib/gcc-snapshot/bin/gcc -DCMAKE_CXX_COMPILER=/usr/lib/gcc-snapshot/bin/g++ -DMYSQL_MAINTAINER_MODE=0 -DCMAKE_CXX_COMPILER_LAUNCHER=ccache")
@@ -190,6 +239,8 @@ ELSEIF(DEB_CODENAME STREQUAL "sid")
   SET (DEB_SERVICE_SERVER_EXECPRE
     "ExecStartPre=/usr/share/mysql/mysql-systemd-start pre")
   SET (DEB_INIT_APPARMOR "")
+  SET (DEB_CONTROL_DBGSYM "")
+  SET (DEB_RULES_STRIP "")
 ELSEIF(DEB_CODENAME STREQUAL "trusty")
   SET (DEB_PLATFORMRELEASE "ubuntu14.04")
   SET (DEB_CONTROL_BDEPS "dh-apparmor")
@@ -205,6 +256,8 @@ ELSEIF(DEB_CODENAME STREQUAL "trusty")
   SET (DEB_INSTALL_SERVER_APPARMOR "etc/apparmor.d/usr.sbin.mysqld")
   SET (DEB_SERVICE_SERVER_EXECPRE "")
   SET (DEB_INIT_APPARMOR "/lib/init/apparmor-profile-load usr.sbin.mysqld")
+  SET (DEB_CONTROL_DBGSYM ${DEB_CONTROL_DBGSYM_DEFAULT})
+  SET (DEB_RULES_STRIP ${DEB_RULES_STRIP_DEFAULT})
 ELSEIF(DEB_CODENAME STREQUAL "xenial")
   SET (DEB_PLATFORMRELEASE "ubuntu16.04")
   SET (DEB_CONTROL_BDEPS "dh-apparmor, dh-systemd (>=1.5)")
@@ -222,6 +275,8 @@ ELSEIF(DEB_CODENAME STREQUAL "xenial")
   SET (DEB_SERVICE_SERVER_EXECPRE
     "ExecStartPre=/usr/share/mysql/mysql-systemd-start pre")
   SET (DEB_INIT_APPARMOR "/lib/apparmor/profile-load usr.sbin.mysqld")
+  SET (DEB_CONTROL_DBGSYM ${DEB_CONTROL_DBGSYM_DEFAULT})
+  SET (DEB_RULES_STRIP ${DEB_RULES_STRIP_DEFAULT})
 ELSEIF(DEB_CODENAME STREQUAL "zesty")
   SET (DEB_PLATFORMRELEASE "ubuntu17.04")
   SET (DEB_CONTROL_BDEPS "dh-apparmor, dh-systemd (>=1.5)")
@@ -239,6 +294,8 @@ ELSEIF(DEB_CODENAME STREQUAL "zesty")
   SET (DEB_SERVICE_SERVER_EXECPRE
     "ExecStartPre=/usr/share/mysql/mysql-systemd-start pre")
   SET (DEB_INIT_APPARMOR "/lib/apparmor/profile-load usr.sbin.mysqld")
+  SET (DEB_CONTROL_DBGSYM ${DEB_CONTROL_DBGSYM_DEFAULT})
+  SET (DEB_RULES_STRIP ${DEB_RULES_STRIP_DEFAULT})
 ELSEIF(DEB_CODENAME STREQUAL "artful")
   SET (DEB_PLATFORMRELEASE "ubuntu17.10")
   SET (DEB_CONTROL_BDEPS "dh-apparmor, dh-systemd (>=1.5)")
@@ -256,6 +313,8 @@ ELSEIF(DEB_CODENAME STREQUAL "artful")
   SET (DEB_SERVICE_SERVER_EXECPRE
     "ExecStartPre=/usr/share/mysql/mysql-systemd-start pre")
   SET (DEB_INIT_APPARMOR "/lib/apparmor/profile-load usr.sbin.mysqld")
+  SET (DEB_CONTROL_DBGSYM ${DEB_CONTROL_DBGSYM_DEFAULT})
+  SET (DEB_RULES_STRIP ${DEB_RULES_STRIP_DEFAULT})
   IF (DEFINED WITH_NDBCLUSTER_STORAGE_ENGINE)
     # Cluster code triggers a lot of new warnings with GCC 7.2
     SET (DEB_DEBUG_MAINTAINER "-DMYSQL_MAINTAINER_MODE=0")
@@ -277,6 +336,8 @@ ELSEIF(DEB_CODENAME STREQUAL "bionic")
   SET (DEB_SERVICE_SERVER_EXECPRE
     "ExecStartPre=/usr/share/mysql/mysql-systemd-start pre")
   SET (DEB_INIT_APPARMOR "/lib/apparmor/profile-load usr.sbin.mysqld")
+  SET (DEB_CONTROL_DBGSYM "")
+  SET (DEB_RULES_STRIP "")
   IF (DEFINED WITH_NDBCLUSTER_STORAGE_ENGINE)
     # Cluster code triggers a lot of new warnings with GCC 7.2
     SET (DEB_DEBUG_MAINTAINER "-DMYSQL_MAINTAINER_MODE=0")

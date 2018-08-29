@@ -1,0 +1,195 @@
+###############################################################################
+#
+# group_replication_exit_state_action sysvar specifies which action is taken by
+# a server once it has involuntarily left the group. Currently there are only
+# two actions: either the server continues running but with super_read_only
+# enabled (READ_ONLY) or it aborts (ABORT_SERVER).
+#
+# This test shall verify that the correct exit state action is executed when
+# an error occurs upon joining the group (in this case, number of members
+# exceeded).
+#
+# Test:
+# 0) Setup group of 2 members (M1 and M2).
+# 1) Simulate a group of 10 members when member 2 joins. Member 2  will be
+#    unable to join.
+# 2) Verify that member 2 was sent to super_read_only mode and in OFFLINE
+#    state (since it failed to join the group).
+# 3) Set the exit_state_aciton on member 2 to ABORT_SERVER and simulate again
+#    a group of 10 members when member 2 joins. Member 2 will be unable to
+#    join again.
+# 4) Member 2 will have abort()ed.
+# 5) Restart M2 again without group_replication_start_on_boot enabled. The
+#    server should start normally and be able to join the group.
+# 6) Cleanup.
+#
+################################################################################
+# By including have_debug.inc we make sure that we are using the debug version
+# of the server. This is needed because in the debug version (the one without
+# DBUG_OFF defined) the abort_plugin_process() function calls DBUG_SUICIDE()
+# which does not send a SIGABRT to itself but a SIGKILL instead (and in this way
+# MTR won't assume the process crashed).
+--source include/have_debug.inc
+--source include/big_test.inc
+--source include/not_valgrind.inc
+--source ../inc/have_group_replication_plugin.inc
+
+--echo
+--echo #########################################################################
+--echo # 0) Setup group of 1 member (M1).
+--echo #########################################################################
+--echo
+--let $allow_rpl_inited=1
+--let $rpl_skip_group_replication_start = 1
+--source ../inc/group_replication.inc
+--source ../inc/start_and_bootstrap_group_replication.inc
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("\\[GCS\\] Error connecting to all peers. Member join failed.*");
+call mtr.add_suppression("\\[GCS\\] read failed");
+call mtr.add_suppression("\\[GCS\\] The member was unable to join the group.*");
+SET SESSION sql_log_bin = 1;
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("\\[GCS\\] Error connecting to all peers. Member join failed.*");
+call mtr.add_suppression("\\[GCS\\] read failed");
+call mtr.add_suppression("\\[GCS\\] The member was unable to join the group.*");
+call mtr.add_suppression("The plugin encountered a critical error and will abort: Fatal error during execution of Group Replication");
+call mtr.add_suppression("Timeout on wait for view after joining group");
+call mtr.add_suppression("Error, maximum number of retries exceeded when waiting for the internal server session state to be operating");
+call mtr.add_suppression("Failed to establish an internal server connection to execute plugin operations");
+call mtr.add_suppression("Error when extracting information for group change. Operations and checks made to group joiners may be incomplete");
+call mtr.add_suppression("The START GROUP_REPLICATION command failed since the group already has 9 members.");
+SET SESSION sql_log_bin = 1;
+
+--echo
+--echo #########################################################################
+--echo # 1) Simulate a group of 10 members when member 2 joins. Member 2  will
+--echo # be unable to join.
+--echo #########################################################################
+--echo
+# Save all the context we'll need during the test
+--let $error_file = $MYSQLTEST_VARDIR/tmp/gr_exit_state_action_on_join_members_exceeded.2.err
+--let $member2_uuid = `SELECT @@GLOBAL.server_uuid`
+--let $local_address_server2= `SELECT @@GLOBAL.group_replication_local_address`
+--let $group_seeds_server2= `SELECT @@GLOBAL.group_replication_group_seeds`
+# Restart server 2 with group_replication_start_on_boot enabled and with the
+# group_replication_set_number_of_members_on_view_changed_to_10 debug var
+# enabled, so that we simulate this test's scenario
+--let $allow_rpl_inited = 1
+--let $restart_parameters=restart:--group_replication_local_address=$local_address_server2 --group_replication_group_seeds=$group_seeds_server2 --group-replication-group-name=$group_replication_group_name --group_replication_start_on_boot=1 --loose-debug="+d,group_replication_set_number_of_members_on_view_changed_to_10"
+--replace_result $local_address_server2 GROUP_REPLICATION_LOCAL_ADDRESS $group_seeds_server2 GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--source include/restart_mysqld.inc
+# Reestablish the connection to the server
+--let $rpl_server_number= 2
+--source include/rpl_reconnect.inc
+
+--echo
+--echo #########################################################################
+--echo # 2) Verify that member 2 was sent to super_read_only mode and in OFFLINE
+--echo # state (since it failed to join the group).
+--echo #########################################################################
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+# Wait for the member to realize that it couldn't join the group
+--let $member2_uuid = `SELECT @@GLOBAL.server_uuid`
+--let $group_replication_number_of_members = 2
+--source ../inc/gr_wait_for_number_of_members.inc
+--let $group_replication_member_state = OFFLINE
+--let $group_replication_member_id = $member2_uuid
+--source ../inc/gr_wait_for_member_state.inc
+# Verify that it went to super_read_only mode
+--let $assert_text= super_read_only should be enabled
+--let $assert_cond= [SELECT @@GLOBAL.super_read_only] = 1;
+--source include/assert.inc
+# Verify that the expected error occurred
+--let $assert_file = $error_file
+--let $assert_text = GR reported expected excess of members in group
+--let $assert_select = The START GROUP_REPLICATION command failed since the group already has 9 members
+--let $assert_count = 1
+--source include/assert_grep.inc
+# Verify that member 2 didn't join the group
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $group_replication_number_of_members = 1
+--source ../inc/gr_wait_for_number_of_members.inc
+
+--echo
+--echo #########################################################################
+--echo # 3) Set the exit_state_action to ABORT_SERVER and simulate again a
+--echo # group of 10 members when member 2 joins. Member 2 will be unable to
+--echo # join again.
+--echo #########################################################################
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+# Restart the server again with group_replication_start_on_boot enabled and with
+# group_replication_exit_state_action set to ABORT_SERVER
+--let $allow_rpl_inited = 1
+--let $restart_parameters=restart:--group_replication_local_address=$local_address_server2 --group_replication_group_seeds=$group_seeds_server2 --group-replication-group-name=$group_replication_group_name --group_replication_start_on_boot=1 --loose-debug="+d,group_replication_set_number_of_members_on_view_changed_to_10" --group_replication_exit_state_action=ABORT_SERVER
+--replace_result $local_address_server2 GROUP_REPLICATION_LOCAL_ADDRESS $group_seeds_server2 GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--source include/restart_mysqld.inc
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+--source include/wait_until_disconnected.inc
+
+--echo
+--echo #########################################################################
+--echo # 4) Member 2 will have abort()ed.
+--echo #########################################################################
+--echo
+# Wait for server 1 to see that server 2 didn't join
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $group_replication_number_of_members = 1
+--source ../inc/gr_wait_for_number_of_members.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+--let $rpl_server_number= 2
+--source include/rpl_reconnect.inc
+# Wait until server 2 is connected again, so we know it has abort()'ed
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/wait_until_connected_again.inc
+# Search for the expected errors in the error log file
+--let $rpl_server_number= 2
+--source include/rpl_reconnect.inc
+--let $assert_file = $error_file
+--let $assert_text = GR reported expected excess of members in group
+--let $assert_select = The START GROUP_REPLICATION command failed since the group already has 9 members
+--let $assert_count = 2
+--source include/assert_grep.inc
+--let $assert_text = GR reported expected abort
+--let $assert_select = The plugin encountered a critical error and will abort
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--echo
+--echo #########################################################################
+--echo # 5) Restart M2 again without group_replication_start_on_boot enabled.
+--echo # The server should start normally and be able to join the group.
+--echo #########################################################################
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+# Restart server 2 again, now with group_replication_start_on_boot disabled
+--let $allow_rpl_inited=1
+--let $restart_parameters=restart:--group_replication_local_address=$local_address_server2 --group_replication_group_seeds=$group_seeds_server2 --group-replication-group-name=$group_replication_group_name
+--replace_result $local_address_server2 GROUP_REPLICATION_LOCAL_ADDRESS $group_seeds_server2 GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--source include/restart_mysqld.inc
+--let $rpl_server_number= 2
+--source include/rpl_reconnect.inc
+# Start GR on server 2 and verify that the group stabilizes itself
+--source include/start_group_replication.inc
+--let $group_replication_number_of_members = 2
+--source ../inc/gr_wait_for_number_of_members.inc
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $group_replication_number_of_members = 2
+--source ../inc/gr_wait_for_number_of_members.inc
+
+--echo
+--echo #########################################################################
+--echo # 6) Cleanup.
+--echo #########################################################################
+--echo
+--source ../inc/group_replication_end.inc

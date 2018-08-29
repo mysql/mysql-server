@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -531,12 +531,21 @@ bool mysql_update(THD *thd,
   /* If running in safe sql mode, don't allow updates without keys */
   if (table->quick_keys.is_clear_all())
   {
-    thd->server_status|=SERVER_QUERY_NO_INDEX_USED;
-    if (safe_update && !using_limit)
+    thd->server_status|= SERVER_QUERY_NO_INDEX_USED;
+
+    /*
+      No safe update error will be returned if:
+      1) Statement is an EXPLAIN OR
+      2) LIMIT is present.
+
+      Append the first warning (if any) to the error message. Allows the user
+      to understand why index access couldn't be chosen.
+    */
+    if (!thd->lex->is_explain() && safe_update && !using_limit)
     {
-      my_message(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,
-		 ER(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE), MYF(0));
-      goto exit_without_my_ok;
+      my_error(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE, MYF(0),
+               thd->get_stmt_da()->get_first_condition_message());
+      DBUG_RETURN(true);
     }
   }
   if (select_lex->has_ft_funcs() && init_ftfuncs(thd, select_lex))

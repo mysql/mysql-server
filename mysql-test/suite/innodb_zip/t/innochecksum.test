@@ -32,7 +32,7 @@ insert into t1 values(3,"compressed table");
 --echo # Server Default checksum = innodb
 
 --echo [1a]: check the innochecksum when file doesn't exists
---error 1
+--error 1,42
 --exec $INNOCHECKSUM  $MYSQLD_DATADIR/test/aa.ibd 2> $SEARCH_FILE
 let SEARCH_PATTERN= Error: $MYSQLD_DATADIR/test/aa.ibd cannot be found;
 --source include/search_pattern_in_file.inc

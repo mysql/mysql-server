@@ -24,8 +24,7 @@
 class Poll_socket_listener
 {
 public:
-  Poll_socket_listener(const Slave_vector &slaves)
-    :m_slaves(slaves)
+  Poll_socket_listener()
   {
   }
 
@@ -45,8 +44,9 @@ public:
     m_fds[index].events= 0;
   }
 
-  bool init_slave_sockets()
+  bool init_slave_sockets(Slave_vector slaves)
   {
+    m_slaves= slaves;
     m_fds.clear();
     for (uint i= 0; i < m_slaves.size(); i++)
     {
@@ -57,19 +57,29 @@ public:
     }
     return true;
   }
+  uint number_of_slave_sockets()
+  {
+    return m_slaves.size();
+  }
+
+  Slave get_slave_obj(int index)
+  {
+    return m_slaves[index];
+  }
 
 private:
-  const Slave_vector &m_slaves;
+  Slave_vector m_slaves;
   std::vector<pollfd> m_fds;
 };
 
+typedef class Poll_socket_listener Socket_listener;
 #else //NO POLL
 
 class Select_socket_listener
 {
 public:
-  Select_socket_listener(const Slave_vector &slaves)
-    :m_slaves(slaves), m_max_fd(INVALID_SOCKET)
+  Select_socket_listener()
+    :m_max_fd(INVALID_SOCKET)
   {
   }
 
@@ -92,8 +102,9 @@ public:
     FD_CLR(m_slaves[index].sock_fd(), &m_init_fds);
   }
 
-  bool init_slave_sockets()
+  bool init_slave_sockets(Slave_vector slaves)
   {
+    m_slaves= slaves;
     FD_ZERO(&m_init_fds);
     for (uint i= 0; i < m_slaves.size(); i++)
     {
@@ -112,13 +123,23 @@ public:
     }
     return true;
   }
+  uint number_of_slave_sockets()
+  {
+    return m_slaves.size();
+  }
+
+  Slave get_slave_obj(int index)
+  {
+    return m_slaves[index];
+  }
 
 private:
-  const Slave_vector &m_slaves;
+  Slave_vector m_slaves;
   my_socket m_max_fd;
   fd_set m_init_fds;
   fd_set m_fds;
 };
 
+typedef class Select_socket_listener Socket_listener;
 #endif //HAVE_POLL
 #endif //SEMISYNC_MASTER_SOCKET_LISTENER

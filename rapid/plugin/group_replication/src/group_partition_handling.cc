@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -147,6 +147,11 @@ void Group_partition_handling::kill_transactions_and_leave()
 
   if (set_read_mode)
     enable_server_read_mode(PSESSION_INIT_THREAD);
+
+  if (exit_state_action_var == EXIT_STATE_ACTION_ABORT_SERVER)
+  {
+    abort_plugin_process("Fatal error during execution of Group Replication");
+  }
 
   DBUG_VOID_RETURN;
 }

@@ -87,8 +87,14 @@ typedef struct {
   task_env_p *task_env_p_array_val;
 } task_env_p_array;
 
-define_xdr_funcs(pollfd)
-define_xdr_funcs(task_env_p)
+init_xdr_array(pollfd)
+free_xdr_array(pollfd)
+set_xdr_array(pollfd)
+get_xdr_array(pollfd)
+init_xdr_array(task_env_p)
+free_xdr_array(task_env_p)
+set_xdr_array(task_env_p)
+get_xdr_array(task_env_p)
 
 struct iotasks {
   int nwait;

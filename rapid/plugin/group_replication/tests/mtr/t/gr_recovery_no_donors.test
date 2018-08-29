@@ -39,6 +39,7 @@ call mtr.add_suppression("Skipping leave operation: member already left the grou
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
 call mtr.add_suppression("Transaction cannot be executed while Group Replication is stopping.");
 call mtr.add_suppression("Run function 'before_commit' in plugin 'group_replication' failed");
+call mtr.add_suppression("On shutdown there was a timeout receiving a view change. This can lead to a possible inconsistent state. Check the log for more details");
 SET SESSION sql_log_bin= 1;
 
 CREATE TABLE t1 (a INT PRIMARY KEY AUTO_INCREMENT NOT NULL);
@@ -82,6 +83,7 @@ call mtr.add_suppression("All donors left. Aborting group replication recovery."
 call mtr.add_suppression("The member is already leaving or joining a group.");
 call mtr.add_suppression("Skipping leave operation: member already left the group.");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("On shutdown there was a timeout receiving a view change. This can lead to a possible inconsistent state. Check the log for more details");
 SET SESSION sql_log_bin= 1;
 
 --let $rpl_connection_name= server3
@@ -94,6 +96,7 @@ call mtr.add_suppression("All donors left. Aborting group replication recovery."
 call mtr.add_suppression("The member is already leaving or joining a group.");
 call mtr.add_suppression("Skipping leave operation: member already left the group.");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("On shutdown there was a timeout receiving a view change. This can lead to a possible inconsistent state. Check the log for more details");
 SET SESSION sql_log_bin= 1;
 
 

@@ -78,6 +78,7 @@ BEGIN {
 use lib "lib";
 
 use Cwd;
+use Cwd 'abs_path';
 use Getopt::Long;
 use My::File::Path; # Patched version of File::Path
 use File::Basename;
@@ -137,7 +138,6 @@ my $opt_start_exit;
 my $start_only;
 
 our $num_tests_for_report;      # for test-progress option
-our $remaining;
 
 my $auth_plugin;                # the path to the authentication test plugin
 
@@ -284,7 +284,7 @@ my $opt_skip_core;
 
 our $opt_check_testcases= 1;
 my $opt_mark_progress;
-our $opt_test_progress;
+our $opt_test_progress= 1;
 my $opt_max_connections;
 our $opt_report_times= 0;
 
@@ -428,9 +428,7 @@ sub main {
 
   #######################################################################
   my $num_tests= @$tests;
-
   $num_tests_for_report = $num_tests * $opt_repeat;
-  $remaining= $num_tests_for_report;
 
   if ( $opt_parallel eq "auto" ) {
     # Try to find a suitable value for number of workers
@@ -1167,7 +1165,7 @@ sub command_line_setup {
              'record'                   => \$opt_record,
              'check-testcases!'         => \$opt_check_testcases,
              'mark-progress'            => \$opt_mark_progress,
-             'test-progress'            => \$opt_test_progress,
+             'test-progress:1'          => \$opt_test_progress,
 
              # Extra options used when starting mysqld
              'mysqld=s'                 => \@opt_extra_mysqld_opt,
@@ -1445,6 +1443,10 @@ sub command_line_setup {
     {
       push(@opt_cases, $arg);
     }
+  }
+
+  if ($opt_test_progress != 0 and $opt_test_progress != 1) {
+    mtr_error("Invalid value '$opt_test_progress' for option 'test-progress'.");
   }
 
   # disable syslog / EventLog in normal (non-bootstrap) operation.
@@ -2366,6 +2368,7 @@ sub mysql_client_test_arguments(){
   my $exe;
   # mysql_client_test executable may _not_ exist
   $exe= mtr_exe_maybe_exists(vs_config_dirs('testclients', 'mysql_client_test'),
+                             "$path_client_bindir/mysql_client_test",
 			     "$basedir/testclients/mysql_client_test",
 			     "$basedir/bin/mysql_client_test");
   return "" unless $exe;
@@ -2618,14 +2621,14 @@ sub environment_setup {
   if (IS_WINDOWS)
   {
     $ENV{'SECURE_LOAD_PATH'}= $glob_mysql_test_dir."\\std_data";
-    $ENV{'MYSQL_TEST_LOGIN_FILE'}=
-                              $opt_tmpdir . "\\.mylogin.cnf";
+    $ENV{'MYSQL_TEST_LOGIN_FILE'}= $opt_tmpdir . "\\.mylogin.cnf";
+    $ENV{'MYSQLTEST_VARDIR_ABS'}= $opt_vardir;
   }
   else
   {
     $ENV{'SECURE_LOAD_PATH'}= $glob_mysql_test_dir."/std_data";
-    $ENV{'MYSQL_TEST_LOGIN_FILE'}=
-                              $opt_tmpdir . "/.mylogin.cnf";
+    $ENV{'MYSQL_TEST_LOGIN_FILE'}= $opt_tmpdir . "/.mylogin.cnf";
+    $ENV{'MYSQLTEST_VARDIR_ABS'}= abs_path("$opt_vardir");
   }
     
 
@@ -4048,6 +4051,10 @@ sub mysql_install_db {
   mtr_tofile($bootstrap_sql_file,
              sql_to_bootstrap(mtr_grab_file("include/mtr_check.sql")));
 
+  # Create directories mysql and test
+  mkpath("$install_datadir/mysql");
+  mkpath("$install_datadir/test");
+
   if ( $opt_manual_boot_gdb )
   {
     # The configuration has been set up and user has been prompted for
@@ -4062,10 +4069,6 @@ sub mysql_install_db {
   my $path_bootstrap_log= "$opt_vardir/log/bootstrap.log";
   mtr_tofile($path_bootstrap_log,
 	     "$exe_mysqld_bootstrap " . join(" ", @$args) . "\n");
-
-  # Create directories mysql and test
-  mkpath("$install_datadir/mysql");
-  mkpath("$install_datadir/test");
 
   if ( My::SafeProcess->run
        (
@@ -7339,7 +7342,8 @@ Options for test case authoring
   record TESTNAME       (Re)genereate the result file for TESTNAME
   check-testcases       Check testcases for sideeffects
   mark-progress         Log line number and elapsed time to <testname>.progress
-  test-progress         Print the percentage of tests completed
+  test-progress[={0|1}] Print the percentage of tests completed. This setting
+                        is enabled by default.
 
 Options that pass on options (these may be repeated)
 

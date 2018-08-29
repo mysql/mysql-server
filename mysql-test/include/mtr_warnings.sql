@@ -1,4 +1,4 @@
--- Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -292,6 +292,11 @@ INSERT INTO global_suppressions VALUES
  ("Member with address .* is reachable again."),
  ("The member has resumed contact with a majority of the members in the group.*"),
  ("Members removed from the group.*"),
+ /*
+   Missing Private/Public key files
+ */
+ ("RSA private key file not found"),
+ ("RSA public key file not found"),
 
  ("THE_LAST_SUPPRESSION")||
 

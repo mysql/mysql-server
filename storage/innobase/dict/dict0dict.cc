@@ -6728,6 +6728,11 @@ dict_foreign_qualify_index(
 		return(false);
 	}
 
+	if (index->type & DICT_SPATIAL) {
+		/* Spatial index cannot be used as foreign keys */
+		return(false);
+	}
+
 	for (ulint i = 0; i < n_cols; i++) {
 		dict_field_t*	field;
 		const char*	col_name;

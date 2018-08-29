@@ -121,6 +121,12 @@ public:
   */
   enum_gcs_error do_leave();
 
+  /**
+    Sends a leave view message to inform that XCOM has already exited or
+    is about to do so.
+  */
+  void do_leave_view();
+
   bool belongs_to_group();
 
   Gcs_view *get_current_view();
@@ -367,6 +373,17 @@ protected:
     and leave are processed.
   */
   bool m_xcom_running;
+
+  /*
+    Whether it was requested to make the node leave the group or not.
+  */
+  bool m_leave_view_requested;
+
+  /*
+    Whether a view saying that the node has voluntarily left the group
+    was delivered or not.
+  */
+  bool m_leave_view_delivered;
 
   /* Whether this site boots the group or not. */
   bool m_boot;

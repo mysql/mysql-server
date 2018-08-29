@@ -304,8 +304,25 @@ while ($i <= $number_of_channels)
   #############################################################################
 
   --echo ===== Executing SHOW SLAVE FOR CHANNEL on channel '$channel_name'.
+
   --let $status_items=Slave_IO_State,Slave_SQL_Running_State,Last_IO_Errno,Last_IO_Error,Last_SQL_Errno,Last_SQL_Error,Channel_Name
   --let $rpl_channel_name=$channel_name
+
+  if ($channel_name != $rpl_corrupt_channel_name)
+  {
+  --let $slave_timeout= 60
+
+  --let $slave_param= Slave_IO_State
+  --let $slave_param_value= Waiting for master to send event
+  --source include/wait_for_slave_param.inc
+
+  --let $slave_param= Slave_SQL_Running_State
+  --let $slave_param_value= Slave has read all relay log; waiting for more updates
+  --source include/wait_for_slave_param.inc
+
+  --let $status_items=Last_IO_Errno,Last_IO_Error,Last_SQL_Errno,Last_SQL_Error,Channel_Name
+  }
+
   --source include/show_slave_status.inc
 
   #############################################################################

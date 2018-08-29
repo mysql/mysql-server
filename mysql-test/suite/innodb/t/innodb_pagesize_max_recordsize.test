@@ -204,7 +204,7 @@ DROP TABLE tab5;
 let NEW_CMD = $MYSQLD --no-defaults $KEYRING_PLUGIN_OPT --lc_messages_dir=$MYSQL_SHAREDIR --innodb_page_size=64K --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2 --innodb_undo_tablespaces=0</dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
 
 --echo # Check Server startup failure when page size 64K
---error 1
+--error 1,42
 --exec $NEW_CMD
 
 # Search for particular warning during server startup
