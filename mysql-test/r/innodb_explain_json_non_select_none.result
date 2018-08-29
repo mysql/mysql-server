@@ -5598,8 +5598,7 @@ EXPLAIN
           "pk",
           "c1_idx",
           "c2"
-        ] /* used_columns */,
-        "attached_condition": "((`test`.`t1`.`c1_idx` <=> 'y'))"
+        ] /* used_columns */
       } /* table */
     } /* ordering_operation */
   } /* query_block */
@@ -5702,8 +5701,7 @@ EXPLAIN
           "pk",
           "c1_idx",
           "c2"
-        ] /* used_columns */,
-        "attached_condition": "((`test`.`t1`.`c1_idx` <=> 'y'))"
+        ] /* used_columns */
       } /* table */
     } /* ordering_operation */
   } /* query_block */

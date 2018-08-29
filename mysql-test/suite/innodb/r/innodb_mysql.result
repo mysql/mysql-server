@@ -404,7 +404,7 @@ INSERT INTO t1(id, dept, age, name) VALUES
 (4020, 'cs10', 20, 'rs5'),(4027, 'cs11', 10, 'rs6'),(4028, 'cs12', 20, 'rs6');
 EXPLAIN SELECT DISTINCT t1.name, t1.dept FROM t1 WHERE t1.name='rs5';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	name	name	82	const	2	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	ref	name	name	82	const	2	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`name` AS `name`,`test`.`t1`.`dept` AS `dept` from `test`.`t1` where (`test`.`t1`.`name` = 'rs5')
 SELECT DISTINCT t1.name, t1.dept FROM t1 WHERE t1.name='rs5';
@@ -415,7 +415,7 @@ DELETE FROM t1;
 # Masking (#) number in "rows" column of the following EXPLAIN output, as it may vary (bug#47746).
 EXPLAIN SELECT DISTINCT t1.name, t1.dept FROM t1 WHERE t1.name='rs5';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	name	name	82	const	#	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	ref	name	name	82	const	#	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`name` AS `name`,`test`.`t1`.`dept` AS `dept` from `test`.`t1` where (`test`.`t1`.`name` = 'rs5')
 SELECT DISTINCT t1.name, t1.dept FROM t1 WHERE t1.name='rs5';
@@ -898,7 +898,7 @@ key_len	5
 ref	const
 rows	16
 filtered	100.00
-Extra	Using where; Using index
+Extra	Using index
 Warnings:
 Level	Note
 Code	1003
@@ -1040,7 +1040,7 @@ key_len	5
 ref	const
 rows	16
 filtered	100.00
-Extra	Using where; Using index; Using filesort
+Extra	Using index; Using filesort
 Warnings:
 Level	Note
 Code	1003
@@ -1075,7 +1075,7 @@ key_len	10
 ref	const,const
 rows	16
 filtered	100.00
-Extra	Using where; Using index
+Extra	Using index
 Warnings:
 Level	Note
 Code	1003
@@ -1110,7 +1110,7 @@ key_len	10
 ref	const,const
 rows	16
 filtered	100.00
-Extra	Using where; Using index
+Extra	Using index
 Warnings:
 Level	Note
 Code	1003
@@ -1145,7 +1145,7 @@ key_len	10
 ref	const,const
 rows	16
 filtered	100.00
-Extra	Using where; Using index
+Extra	Using index
 Warnings:
 Level	Note
 Code	1003
@@ -1301,7 +1301,7 @@ key_len	5
 ref	const
 rows	2
 filtered	100.00
-Extra	Using where; Using index
+Extra	Using index
 Warnings:
 Level	Note
 Code	1003
@@ -1322,7 +1322,7 @@ key_len	5
 ref	const
 rows	2
 filtered	100.00
-Extra	Using where; Backward index scan; Using index
+Extra	Backward index scan; Using index
 Warnings:
 Level	Note
 Code	1003
@@ -1888,7 +1888,7 @@ SELECT 1 FROM (SELECT COUNT(DISTINCT c1)
 FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-2	DERIVED	t1	NULL	ref	c3,c2	c3	5	const	2	40.00	Using index condition; Using where; Using filesort
+2	DERIVED	t1	NULL	ref	c3,c2	c3	5	const	2	40.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from (/* select#2 */ select count(distinct `test`.`t1`.`c1`) AS `COUNT(DISTINCT c1)` from `test`.`t1` where ((`test`.`t1`.`c3` = 2) and (`test`.`t1`.`c2` in (1,1))) group by `test`.`t1`.`c2`) `x`
 DROP TABLE t1;
@@ -1904,7 +1904,7 @@ SELECT 1 FROM (SELECT COUNT(DISTINCT c1)
 FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-2	DERIVED	t1	NULL	ref	c3,c2	c3	9	const	2	40.00	Using index condition; Using where; Using filesort
+2	DERIVED	t1	NULL	ref	c3,c2	c3	9	const	2	40.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from (/* select#2 */ select count(distinct `test`.`t1`.`c1`) AS `COUNT(DISTINCT c1)` from `test`.`t1` where ((`test`.`t1`.`c2` in (1,1)) and (`test`.`t1`.`c3` = 2)) group by `test`.`t1`.`c2`) `x`
 DROP TABLE t1;
@@ -1921,7 +1921,7 @@ SELECT 1 FROM (SELECT COUNT(DISTINCT c1)
 FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-2	DERIVED	t1	NULL	ref	c3,c2	c3	7	const	2	40.00	Using index condition; Using where; Using filesort
+2	DERIVED	t1	NULL	ref	c3,c2	c3	7	const	2	40.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from (/* select#2 */ select count(distinct `test`.`t1`.`c1`) AS `COUNT(DISTINCT c1)` from `test`.`t1` where ((`test`.`t1`.`c2` in (1,1)) and (`test`.`t1`.`c3` = 2)) group by `test`.`t1`.`c2`) `x`
 DROP TABLE t1;
@@ -2505,7 +2505,7 @@ KEY (c3)
 ) ENGINE=InnoDB;
 explain SELECT * FROM t2 WHERE c1 = 99999999 AND c3 > 1 ORDER BY c3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ref	c1,c3	c1	4	const	1	100.00	Using index condition; Using where; Using filesort
+1	SIMPLE	t2	NULL	ref	c1,c3	c1	4	const	1	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`c1` AS `c1`,`test`.`t2`.`c2` AS `c2`,`test`.`t2`.`c3` AS `c3` from `test`.`t2` where ((`test`.`t2`.`c1` = 99999999) and (`test`.`t2`.`c3` > 1)) order by `test`.`t2`.`c3`
 DROP TABLE t1,t2;
@@ -2530,12 +2530,12 @@ INSERT INTO t1 (b,c,d,e) SELECT RAND()*10000, RAND()*10000, d, e FROM t1;
 ANALYZE TABLE t1;
 EXPLAIN SELECT * FROM t1 WHERE b=1 AND c=1 ORDER BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	i2	i2	8	const,const	1	100.00	Using index condition; Using filesort
+1	SIMPLE	t1	NULL	ref	i2	i2	8	const,const	1	100.00	Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t1`.`e` AS `e` from `test`.`t1` where ((`test`.`t1`.`c` = 1) and (`test`.`t1`.`b` = 1)) order by `test`.`t1`.`a`
 EXPLAIN SELECT * FROM t1 FORCE INDEX(i2) WHERE b=1 and c=1 ORDER BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	i2	i2	8	const,const	1	100.00	Using index condition; Using filesort
+1	SIMPLE	t1	NULL	ref	i2	i2	8	const,const	1	100.00	Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t1`.`e` AS `e` from `test`.`t1` FORCE INDEX (`i2`) where ((`test`.`t1`.`c` = 1) and (`test`.`t1`.`b` = 1)) order by `test`.`t1`.`a`
 EXPLAIN SELECT * FROM t1 FORCE INDEX(PRIMARY) WHERE b=1 AND c=1 ORDER BY a;
