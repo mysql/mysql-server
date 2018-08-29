@@ -1079,7 +1079,7 @@ static rec_t *rec_copy_prefix_to_buf_old(
     ulint area_end,   /*!< in: end of the prefix data */
     byte **buf,       /*!< in/out: memory buffer for
                       the copied prefix, or NULL */
-    ulint *buf_size)  /*!< in/out: buffer size */
+    size_t *buf_size) /*!< in/out: buffer size */
 {
   rec_t *copy_rec;
   ulint area_start;
@@ -1108,19 +1108,8 @@ static rec_t *rec_copy_prefix_to_buf_old(
   return (copy_rec);
 }
 
-/** Copies the first n fields of a physical record to a new physical record in
- a buffer.
- @return own: copied record */
-rec_t *rec_copy_prefix_to_buf(
-    const rec_t *rec,          /*!< in: physical record */
-    const dict_index_t *index, /*!< in: record descriptor */
-    ulint n_fields,            /*!< in: number of fields
-                               to copy */
-    byte **buf,                /*!< in/out: memory buffer
-                               for the copied prefix,
-                               or NULL */
-    ulint *buf_size)           /*!< in/out: buffer size */
-{
+rec_t *rec_copy_prefix_to_buf(const rec_t *rec, const dict_index_t *index,
+                              ulint n_fields, byte **buf, size_t *buf_size) {
   const byte *nulls;
   const byte *lens;
   uint16_t n_null;
