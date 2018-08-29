@@ -92,7 +92,6 @@ class Basic_ostream;
 #include "sql/key.h"
 #include "sql/rpl_filter.h"  // rpl_filter
 #include "sql/rpl_record.h"  // unpack_row
-#include "sql/sql_class.h"   // THD
 #include "sql/sql_plugin.h"
 #include "sql/sql_plugin_ref.h"
 #include "sql/sql_profile.h"
@@ -731,7 +730,7 @@ class Log_event {
   */
   virtual int pack_info(Protocol *protocol);
 
-  virtual const char *get_db() { return thd ? thd->db().str : NULL; }
+  virtual const char *get_db();
 #else   // ifdef MYSQL_SERVER
   /* print*() functions are used by mysqlbinlog */
   virtual void print(FILE *file, PRINT_EVENT_INFO *print_event_info) const = 0;
@@ -3019,9 +3018,7 @@ class Write_rows_log_event : public Rows_log_event,
   static bool binlog_row_logging_function(
       THD *thd, TABLE *table, bool is_transactional,
       const uchar *before_record MY_ATTRIBUTE((unused)),
-      const uchar *after_record) {
-    return thd->binlog_write_row(table, is_transactional, after_record, NULL);
-  }
+      const uchar *after_record);
   bool read_write_bitmaps_cmp(const TABLE *table) const override {
     return bitmap_cmp(get_cols(), table->write_set);
   }
@@ -3116,10 +3113,7 @@ class Update_rows_log_event : public Rows_log_event,
   static bool binlog_row_logging_function(THD *thd, TABLE *table,
                                           bool is_transactional,
                                           const uchar *before_record,
-                                          const uchar *after_record) {
-    return thd->binlog_update_row(table, is_transactional, before_record,
-                                  after_record, NULL);
-  }
+                                          const uchar *after_record);
   bool read_write_bitmaps_cmp(const TABLE *table) const override {
     return (bitmap_cmp(get_cols(), table->read_set) &&
             bitmap_cmp(get_cols_ai(), table->write_set));
@@ -3224,9 +3218,7 @@ class Delete_rows_log_event : public Rows_log_event,
 #ifdef MYSQL_SERVER
   static bool binlog_row_logging_function(
       THD *thd, TABLE *table, bool is_transactional, const uchar *before_record,
-      const uchar *after_record MY_ATTRIBUTE((unused))) {
-    return thd->binlog_delete_row(table, is_transactional, before_record, NULL);
-  }
+      const uchar *after_record MY_ATTRIBUTE((unused)));
   bool read_write_bitmaps_cmp(const TABLE *table) const override {
     return bitmap_cmp(get_cols(), table->read_set);
   }

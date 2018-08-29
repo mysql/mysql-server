@@ -34,6 +34,7 @@
 #include "plugin/group_replication/include/pipeline_factory.h"
 #include "plugin/group_replication/include/pipeline_stats.h"
 #include "plugin/group_replication/include/plugin_utils.h"
+#include "sql/sql_class.h"
 
 // Define the applier packet types
 #define ACTION_PACKET_TYPE 2

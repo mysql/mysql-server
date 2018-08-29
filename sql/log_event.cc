@@ -1070,6 +1070,8 @@ int Log_event::pack_info(Protocol *protocol) {
   return 0;
 }
 
+const char *Log_event::get_db() { return thd ? thd->db().str : NULL; }
+
 /**
   Only called by SHOW BINLOG EVENTS
 */
@@ -11091,6 +11093,13 @@ Write_rows_log_event::Write_rows_log_event(THD *thd_arg, TABLE *tbl_arg,
                      extra_row_info) {
   common_header->type_code = m_type;
 }
+
+bool Write_rows_log_event::binlog_row_logging_function(
+    THD *thd, TABLE *table, bool is_transactional,
+    const uchar *before_record MY_ATTRIBUTE((unused)),
+    const uchar *after_record) {
+  return thd->binlog_write_row(table, is_transactional, after_record, NULL);
+}
 #endif
 
 /*
@@ -11556,6 +11565,13 @@ Delete_rows_log_event::Delete_rows_log_event(THD *thd_arg, TABLE *tbl_arg,
       binary_log::Delete_rows_event() {
   common_header->type_code = m_type;
 }
+
+bool Delete_rows_log_event::binlog_row_logging_function(
+    THD *thd, TABLE *table, bool is_transactional, const uchar *before_record,
+    const uchar *after_record MY_ATTRIBUTE((unused))) {
+  return thd->binlog_delete_row(table, is_transactional, before_record, NULL);
+}
+
 #endif /* #if defined(MYSQL_SERVER) */
 
 /*
@@ -11654,6 +11670,13 @@ Update_rows_log_event::Update_rows_log_event(THD *thd_arg, TABLE *tbl_arg,
   init(tbl_arg->write_set, tbl_arg->fields_for_functional_indexes);
   common_header->set_is_valid(Rows_log_event::is_valid() && m_cols_ai.bitmap);
   DBUG_VOID_RETURN;
+}
+
+bool Update_rows_log_event::binlog_row_logging_function(
+    THD *thd, TABLE *table, bool is_transactional, const uchar *before_record,
+    const uchar *after_record) {
+  return thd->binlog_update_row(table, is_transactional, before_record,
+                                after_record, NULL);
 }
 
 void Update_rows_log_event::init(MY_BITMAP const *cols,
