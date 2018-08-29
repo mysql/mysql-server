@@ -1505,3 +1505,53 @@ SELECT * FROM t1;
 É
 10
 DROP TABLE t1;
+#
+# BUG#27788685: NO WARNING WHEN TRUNCATING A STRING WITH DATA LOSS
+#
+SET GLOBAL max_allowed_packet=17825792;
+CREATE TABLE t1 (t1_fld1 TEXT) ENGINE=InnoDB;
+CREATE TABLE t2 (t2_fld1 MEDIUMTEXT) ENGINE=InnoDB;
+CREATE TABLE t3 (t3_fld1 LONGTEXT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (REPEAT('a',300));
+INSERT INTO t2 VALUES (REPEAT('b',65680));
+INSERT INTO t3 VALUES (REPEAT('c',16777300));
+SELECT LENGTH(t1_fld1) FROM t1;
+LENGTH(t1_fld1)
+300
+SELECT LENGTH(t2_fld1) FROM t2;
+LENGTH(t2_fld1)
+65680
+SELECT LENGTH(t3_fld1) FROM t3;
+LENGTH(t3_fld1)
+16777300
+# With strict mode
+SET SQL_MODE='STRICT_ALL_TABLES';
+ALTER TABLE t1 CHANGE `t1_fld1` `my_t1_fld1` TINYTEXT;
+ERROR 22001: Data too long for column 'my_t1_fld1' at row 1
+ALTER TABLE t2 CHANGE `t2_fld1` `my_t2_fld1` TEXT;
+ERROR 22001: Data too long for column 'my_t2_fld1' at row 1
+ALTER TABLE t3 CHANGE `t3_fld1` `my_t3_fld1` MEDIUMTEXT;
+ERROR 22001: Data too long for column 'my_t3_fld1' at row 1
+# With non-strict mode
+SET SQL_MODE='';
+ALTER TABLE t1 CHANGE `t1_fld1` `my_t1_fld1` TINYTEXT;
+Warnings:
+Warning	1265	Data truncated for column 'my_t1_fld1' at row 1
+ALTER TABLE t2 CHANGE `t2_fld1` `my_t2_fld1` TEXT;
+Warnings:
+Warning	1265	Data truncated for column 'my_t2_fld1' at row 1
+ALTER TABLE t3 CHANGE `t3_fld1` `my_t3_fld1` MEDIUMTEXT;
+Warnings:
+Warning	1265	Data truncated for column 'my_t3_fld1' at row 1
+SELECT LENGTH(my_t1_fld1) FROM t1;
+LENGTH(my_t1_fld1)
+44
+SELECT LENGTH(my_t2_fld1) FROM t2;
+LENGTH(my_t2_fld1)
+144
+SELECT LENGTH(my_t3_fld1) FROM t3;
+LENGTH(my_t3_fld1)
+84
+DROP TABLE t1, t2, t3;
+SET SQL_MODE=default;
+SET GLOBAL max_allowed_packet=default;
