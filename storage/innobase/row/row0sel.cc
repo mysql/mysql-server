@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -4368,7 +4368,7 @@ rec_loop:
 		passed to InnoDB when there is no ICP and number of loops
 		in row_search_for_mysql for rows found but not
 		reporting due to search views etc. */
-		if (prev_rec != NULL
+		if (prev_rec != NULL && !prebuilt->innodb_api
 		    && prebuilt->mysql_handler->end_range != NULL
 		    && prebuilt->idx_cond == NULL
 		    && end_loop >= 100) {

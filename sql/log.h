@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -338,7 +338,7 @@ class MYSQL_QUERY_LOG: public MYSQL_LOG
 {
 public:
   MYSQL_QUERY_LOG() : last_time(0) {}
-  void reopen_file();
+  bool reopen_file();
   bool write(time_t event_time, const char *user_host,
              uint user_host_len, my_thread_id thread_id,
              const char *command_type, uint command_type_len,
