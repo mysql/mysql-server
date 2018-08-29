@@ -1967,8 +1967,22 @@ static bool execute(MYSQL_STMT *stmt, char *packet, ulong length) {
         DBUG_ASSERT(stmt->result.rows == 0);
         prev_ptr = &stmt->result.data;
         if (add_binary_row(net, stmt, pkt_len, &prev_ptr)) DBUG_RETURN(1);
-      } else
+      } else {
         read_ok_ex(mysql, pkt_len);
+        /*
+          If the result set was empty and the server did not open a cursor,
+          then the response from the server would have been <metadata><OK>.
+          This means the OK packet read above was the last OK packet of the
+          sequence. Hence, we set the status to indicate that the client is
+          now ready for next command. The stmt->read_row_func is set so as
+          to ensure that the next call to C API mysql_stmt_fetch() will not
+          read on the network. Instead, it will return NO_MORE_DATA.
+        */
+        if (!(mysql->server_status & SERVER_STATUS_CURSOR_EXISTS)) {
+          mysql->status = MYSQL_STATUS_READY;
+          stmt->read_row_func = stmt_read_row_no_data;
+        }
+      }
     }
   }
 
@@ -2322,8 +2336,13 @@ static void prepare_to_fetch_result(MYSQL_STMT *stmt) {
       cursors framework in the server and writes rows directly to the
       network or b) is more efficient if all (few) result set rows are
       precached on client and server's resources are freed.
+      The below check for mysql->status is required because we could
+      have already read the last packet sent by the server in execute()
+      and set the status to MYSQL_STATUS_READY. In such cases, we need
+      not call mysql_stmt_store_result().
     */
-    mysql_stmt_store_result(stmt);
+    if (stmt->mysql->status != MYSQL_STATUS_READY)
+      mysql_stmt_store_result(stmt);
   } else {
     stmt->mysql->unbuffered_fetch_owner = &stmt->unbuffered_fetch_cancelled;
     stmt->unbuffered_fetch_cancelled = false;

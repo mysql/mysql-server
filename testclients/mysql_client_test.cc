@@ -20154,6 +20154,126 @@ static void test_bug25701141() {
   myquery(mysql_query(mysql, "DROP TABLE t1"));
 }
 
+static void test_bug27443252() {
+  MYSQL_STMT *stmt;
+  MYSQL_BIND my_bind[1];
+  int rc;
+  int32 a;
+  int row_count = 0;
+  int column_count = 0;
+  MYSQL_RES *metadata = NULL;
+
+  myheader("test_bug27443252");
+
+  rc = mysql_query(mysql, "drop procedure if exists p1");
+  myquery(rc);
+  rc = mysql_query(mysql, "drop table if exists p1");
+  myquery(rc);
+  rc = mysql_query(mysql, "create table t1 (id int)");
+  myquery(rc);
+  rc = mysql_query(mysql, "create procedure p1() begin select * from t1; end");
+  myquery(rc);
+
+  /* Case 1 - Procedure call with empty result set */
+  stmt = open_cursor("call p1");
+  /* This should not result in hang */
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  metadata = mysql_stmt_result_metadata(stmt);
+  if (metadata) {
+    column_count = mysql_num_fields(metadata);
+    DIE_UNLESS(column_count == 1);
+  }
+
+  memset(my_bind, 0, sizeof(my_bind));
+  my_bind[0].buffer_type = MYSQL_TYPE_LONG;
+  my_bind[0].buffer = (void *)&a;
+  my_bind[0].buffer_length = (ulong)sizeof(a);
+  rc = mysql_stmt_bind_result(stmt, my_bind);
+  check_execute(stmt, rc);
+
+  while (!mysql_stmt_fetch(stmt)) row_count++;
+  DIE_UNLESS(row_count == 0);
+
+  rc = mysql_stmt_next_result(stmt);
+  check_execute(stmt, rc);
+  rc = mysql_stmt_free_result(stmt);
+  check_execute(stmt, rc);
+  mysql_free_result(metadata);
+  mysql_stmt_close(stmt);
+
+  /* Case 2 - SELECT with empty result set */
+  row_count = 0;
+  stmt = open_cursor("select * from t1");
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  memset(my_bind, 0, sizeof(my_bind));
+  my_bind[0].buffer_type = MYSQL_TYPE_LONG;
+  my_bind[0].buffer = (void *)&a;
+  my_bind[0].buffer_length = (ulong)sizeof(a);
+
+  rc = mysql_stmt_bind_result(stmt, my_bind);
+  check_execute(stmt, rc);
+
+  while (!mysql_stmt_fetch(stmt)) row_count++;
+  DIE_UNLESS(row_count == 0);
+  mysql_stmt_close(stmt);
+
+  /* Case 3 - Procedure call with non-empty result set */
+  rc = mysql_query(mysql,
+                   "insert into t1 (id) values "
+                   " (1), (2), (3)");
+  myquery(rc);
+  row_count = 0;
+  stmt = open_cursor("call p1");
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  memset(my_bind, 0, sizeof(my_bind));
+  my_bind[0].buffer_type = MYSQL_TYPE_LONG;
+  my_bind[0].buffer = (void *)&a;
+  my_bind[0].buffer_length = (ulong)sizeof(a);
+  rc = mysql_stmt_bind_result(stmt, my_bind);
+  check_execute(stmt, rc);
+
+  while (!mysql_stmt_fetch(stmt)) row_count++;
+  DIE_UNLESS(row_count == 3);
+
+  rc = mysql_stmt_next_result(stmt);
+  check_execute(stmt, rc);
+  rc = mysql_stmt_free_result(stmt);
+  check_execute(stmt, rc);
+  mysql_stmt_close(stmt);
+
+  /* Case 4 - SELECT with Non-empty result set */
+  row_count = 0;
+  stmt = open_cursor("select * from t1");
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  memset(my_bind, 0, sizeof(my_bind));
+  my_bind[0].buffer_type = MYSQL_TYPE_LONG;
+  my_bind[0].buffer = (void *)&a;
+  my_bind[0].buffer_length = (ulong)sizeof(a);
+  rc = mysql_stmt_bind_result(stmt, my_bind);
+  check_execute(stmt, rc);
+
+  while (!mysql_stmt_fetch(stmt)) row_count++;
+  DIE_UNLESS(row_count == 3);
+
+  rc = mysql_stmt_free_result(stmt);
+  check_execute(stmt, rc);
+  mysql_stmt_close(stmt);
+
+  /* Cleanup */
+  rc = mysql_query(mysql, "drop table t1");
+  myquery(rc);
+  rc = mysql_query(mysql, "drop procedure p1");
+  myquery(rc);
+}
+
 static struct my_tests_st my_tests[] = {
     {"disable_query_logs", disable_query_logs},
     {"test_view_sp_list_fields", test_view_sp_list_fields},
@@ -20436,6 +20556,7 @@ static struct my_tests_st my_tests[] = {
     {"test_bug22028117", test_bug22028117},
     {"test_skip_metadata", test_skip_metadata},
     {"test_bug25701141", test_bug25701141},
+    {"test_bug27443252", test_bug27443252},
     {0, 0}};
 
 static struct my_tests_st *get_my_tests() { return my_tests; }
