@@ -781,6 +781,7 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options) {
 
 err:
   if (new_thd) {
+    thd->free_items();
     lex_end(thd->lex);
     thd->release_resources();
     ctx.reset(nullptr);
