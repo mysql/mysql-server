@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
 
 #include "sql/dd/dd.h"
 
+#include "sql/dd/cache/object_registry.h"
 #include "sql/dd/impl/cache/shared_dictionary_cache.h"  // dd::cache::Shared_...
 #include "sql/dd/impl/dictionary_impl.h"                // dd::Dictionary_impl
 #include "sql/dd/impl/system_registry.h"                // dd::System_tables
@@ -103,5 +104,35 @@ template Table_stat *create_object<Table_stat>();
 template Tablespace *create_object<Tablespace>();
 template Tablespace_file *create_object<Tablespace_file>();
 template View *create_object<View>();
+
+namespace cache {
+
+template <class T>
+void Object_registry::create_map(std::unique_ptr<T> *map) {
+  map->reset(new T);
+}
+
+template void Object_registry::create_map(
+    std::unique_ptr<Local_multi_map<Abstract_table>> *map);
+template void Object_registry::create_map(
+    std::unique_ptr<Local_multi_map<Charset>> *map);
+template void Object_registry::create_map(
+    std::unique_ptr<Local_multi_map<Collation>> *map);
+template void Object_registry::create_map(
+    std::unique_ptr<Local_multi_map<Column_statistics>> *map);
+template void Object_registry::create_map(
+    std::unique_ptr<Local_multi_map<Event>> *map);
+template void Object_registry::create_map(
+    std::unique_ptr<Local_multi_map<Resource_group>> *map);
+template void Object_registry::create_map(
+    std::unique_ptr<Local_multi_map<Routine>> *map);
+template void Object_registry::create_map(
+    std::unique_ptr<Local_multi_map<Schema>> *map);
+template void Object_registry::create_map(
+    std::unique_ptr<Local_multi_map<Spatial_reference_system>> *map);
+template void Object_registry::create_map(
+    std::unique_ptr<Local_multi_map<Tablespace>> *map);
+
+}  // namespace cache
 
 }  // namespace dd
