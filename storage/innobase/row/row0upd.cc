@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -267,9 +267,10 @@ row_upd_check_references_constraints(
 			if it is interrupted. So if the foreign table is
 			undergoing a truncate, ignore the FK check. */
 
-			if (foreign_table != NULL
-			    && fil_space_is_being_truncated(
-						foreign_table->space)) {
+			if (foreign_table != NULL &&
+			   (dict_table_is_discarded(foreign_table)
+			    || fil_space_is_being_truncated(
+						foreign_table->space))) {
 				continue;
 			}
 
@@ -1999,6 +2000,7 @@ row_upd_store_v_row(
 								update->old_vrow,
 								col_no);
 						dfield_copy_data(dfield, vfield);
+						dfield_dup(dfield, node->heap);
 					}
 				} else {
 					/* Need to compute, this happens when

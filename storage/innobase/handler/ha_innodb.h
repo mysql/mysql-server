@@ -22,6 +22,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 system clustered index when there is no primary key. */
 extern const char innobase_index_reserve_name[];
 
+/* Deprecation warning text */
+extern const char PARTITION_IN_SHARED_TABLESPACE_WARNING[];
+
 /* "innodb_file_per_table" tablespace name  is reserved by InnoDB in order
 to explicitly create a file_per_table tablespace for the table. */
 extern const char reserved_file_per_table_space_name[];
@@ -668,6 +671,18 @@ const HA_CREATE_INFO*	create_info)
 				reserved_temporary_space_name))
 		&& (0 != strcmp(create_info->tablespace,
 				reserved_system_space_name)));
+}
+
+/** Check if tablespace is shared tablespace.
+@param[in]      tablespace_name Name of the tablespace
+@return true if tablespace is a shared tablespace. */
+UNIV_INLINE
+bool is_shared_tablespace(const char *tablespace_name) {
+  if (tablespace_name != NULL && tablespace_name[0] != '\0' &&
+      (strcmp(tablespace_name, reserved_file_per_table_space_name) != 0)) {
+    return true;
+  }
+  return false;
 }
 
 /** Parse hint for table and its indexes, and update the information

@@ -35,7 +35,7 @@ let $mysqld=$MYSQLD_CMD --core-file --console > $SEARCH_FILE 2>&1;
 
 # This could fail to refuse startup, in case there was a log
 # checkpoint after the INSERT. That is what we checked above.
---error 1
+--error 1,42
 --exec $mysqld
 
 let SEARCH_PATTERN= InnoDB: Ignoring data file '.*t2.ibd' with space ID \d+. Another data file called .*t1.ibd exists with the same space ID;
@@ -49,7 +49,7 @@ let SEARCH_PATTERN= InnoDB: Ignoring data file '.*t2.ibd' with space ID \d+. Ano
 --echo # Fault 2: Wrong space_id in a dirty file, and a missing file.
 --move_file $MYSQLD_DATADIR/test/t3.ibd $MYSQLD_DATADIR/test/t1.ibd
 
---error 3
+--error 3,42
 --exec $mysqld
 
 let SEARCH_PATTERN= InnoDB: Ignoring data file '.*t1.ibd' with space ID;
@@ -67,7 +67,7 @@ let SEARCH_PATTERN= InnoDB: Tablespace \d+ was not found at.*t3.ibd;
 --move_file $MYSQLD_DATADIR/test/t2.ibd $MYSQLD_DATADIR/test/t3.ibd
 --move_file $MYSQLD_DATADIR/test/t.ibd $MYSQLD_DATADIR/test/t2.ibd
 
---error 3
+--error 3,42
 --exec $mysqld
 
 let SEARCH_PATTERN= InnoDB: Ignoring data file '.*t[23].ibd' with space ID;
@@ -88,7 +88,7 @@ let SEARCH_PATTERN= InnoDB: Set innodb_force_recovery=1 to ignore this and to pe
 
 --echo # Fault 4: Missing data file
 
---error 3
+--error 3,42
 --exec $mysqld
 
 let SEARCH_PATTERN= InnoDB: Tablespace \d+ was not found at .*t[12].ibd.
@@ -108,7 +108,7 @@ let SEARCH_PATTERN= InnoDB: Tablespace \d+ was not found at .*t[12].ibd.
 # Create a short file.
 --exec echo "" > $MYSQLD_DATADIR/test/t2.ibd
 
---error 3
+--error 3,42
 --exec $mysqld
 
 let SEARCH_PATTERN= \[ERROR\] InnoDB: Datafile .*t2.*\. Cannot determine the space ID from the first 64 pages;
@@ -188,7 +188,7 @@ EOF
 
 --copy_file $MYSQLD_DATADIR/test/u6.ibd $MYSQLD_DATADIR/test/u4.ibd
 
---error 1
+--error 1,42
 --exec $mysqld --innodb-force-recovery=1
 
 let SEARCH_PATTERN= \[ERROR\] InnoDB: Header page consists of zero bytes in datafile: .*u1.ibd;
@@ -213,7 +213,7 @@ let SEARCH_PATTERN= \[ERROR\] InnoDB: Cannot read first page of .*u2.ibd.*;
 
 --echo # Fault 7: Missing or wrong data file and innodb_force_recovery
 
---error 1
+--error 1,42
 --exec $mysqld --innodb-force-recovery=1
 
 let SEARCH_PATTERN= \[ERROR\] InnoDB: Header page consists of zero bytes in datafile: .*u1.ibd;
@@ -227,7 +227,7 @@ let SEARCH_PATTERN= \[ERROR\] InnoDB: Cannot rename '.*u5.ibd' to '.*u6.ibd' for
 
 --remove_file $MYSQLD_DATADIR/test/u6.ibd
 
---error 1
+--error 1,42
 --exec $mysqld --innodb-force-recovery=1 --innodb-nonexistent-option
 let SEARCH_PATTERN= \[ERROR\] unknown option '--innodb-nonexistent-option';
 --source include/search_pattern_in_file.inc

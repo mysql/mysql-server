@@ -2739,6 +2739,12 @@ ha_innopart::create(
 				     tablespace_name);
 
 	DBUG_ENTER("ha_innopart::create");
+
+        if (is_shared_tablespace(create_info->tablespace)) {
+		push_deprecated_warn_no_replacement(
+			ha_thd(), PARTITION_IN_SHARED_TABLESPACE_WARNING);
+        }
+
 	ut_ad(create_info != NULL);
 	ut_ad(m_part_info == form->part_info);
 	ut_ad(table_share != NULL);
@@ -2858,6 +2864,11 @@ ha_innopart::create(
 		set_create_info_dir(part_elem, create_info);
 
 		if (!form->part_info->is_sub_partitioned()) {
+			if (is_shared_tablespace(part_elem->tablespace_name)) {
+				push_deprecated_warn_no_replacement(
+					ha_thd(), PARTITION_IN_SHARED_TABLESPACE_WARNING);
+			}
+
 			error = info.prepare_create_table(partition_name);
 			if (error != 0) {
 				goto cleanup;
@@ -2877,6 +2888,11 @@ ha_innopart::create(
 
 			while ((sub_elem = sub_it++)) {
 				ut_ad(sub_elem->partition_name != NULL);
+
+				if (is_shared_tablespace(sub_elem->tablespace_name)) {
+					push_deprecated_warn_no_replacement(
+						ha_thd(), PARTITION_IN_SHARED_TABLESPACE_WARNING);
+				}
 
 				/* 'table' will be
 				<name>#P#<part_name>#SP#<subpart_name>.
@@ -3002,13 +3018,24 @@ end:
 	DBUG_RETURN(error);
 
 cleanup:
-	trx_rollback_for_mysql(info.trx());
+    trx_rollback_for_mysql(info.trx());
 
-	row_mysql_unlock_data_dictionary(info.trx());
+    row_mysql_unlock_data_dictionary(info.trx());
 
-	trx_free_for_mysql(info.trx());
+    ulint dummy;
+    char norm_name[FN_REFLEN];
 
-	DBUG_RETURN(error);
+    normalize_table_name(norm_name, name);
+
+    uint lent = (uint)strlen(norm_name);
+    ut_a(lent < FN_REFLEN);
+    norm_name[lent] = '#';
+    norm_name[lent + 1] = 0;
+
+    row_drop_database_for_mysql(norm_name, info.trx(), &dummy);
+
+    trx_free_for_mysql(info.trx());
+    DBUG_RETURN(error);
 }
 
 /** Discards or imports an InnoDB tablespace.
@@ -4237,6 +4264,15 @@ ha_innopart::external_lock(
 
 				ut_ad(table->quiesce == QUIESCE_START);
 
+				if (dict_table_is_discarded(table)) {
+					ib_senderrf(m_prebuilt->trx->mysql_thd,
+						    IB_LOG_LEVEL_ERROR,
+						    ER_TABLESPACE_DISCARDED,
+						    table->name.m_name);
+
+					return (HA_ERR_NO_SUCH_TABLE);
+				}
+
 				row_quiesce_table_start(table,
 							m_prebuilt->trx);
 
@@ -4402,6 +4438,11 @@ ha_innopart::create_new_partition(
 			"InnoDB: DATA DIRECTORY cannot be used"
 			" with a TABLESPACE assignment.", MYF(0));
 		DBUG_RETURN(HA_WRONG_CREATE_OPTION);
+	}
+
+	if (tablespace_is_shared_space(create_info)) {
+		push_deprecated_warn_no_replacement(
+			ha_thd(), PARTITION_IN_SHARED_TABLESPACE_WARNING);
 	}
 
 	error = ha_innobase::create(norm_name, table, create_info);

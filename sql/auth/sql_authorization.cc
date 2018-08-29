@@ -228,7 +228,6 @@ bool Sql_cmd_update::multi_update_precheck(THD *thd, TABLE_LIST *tables)
 
 bool multi_delete_precheck(THD *thd, TABLE_LIST *tables)
 {
-  SELECT_LEX *select_lex= thd->lex->select_lex;
   TABLE_LIST *aux_tables= thd->lex->auxiliary_table_list.first;
   TABLE_LIST **save_query_tables_own_last= thd->lex->query_tables_own_last;
   DBUG_ENTER("multi_delete_precheck");
@@ -251,13 +250,6 @@ bool multi_delete_precheck(THD *thd, TABLE_LIST *tables)
   }
   thd->lex->query_tables_own_last= save_query_tables_own_last;
 
-  if ((thd->variables.option_bits & OPTION_SAFE_UPDATES) &&
-      !select_lex->where_cond())
-  {
-    my_message(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,
-               ER(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE), MYF(0));
-    DBUG_RETURN(TRUE);
-  }
   DBUG_RETURN(FALSE);
 }
 

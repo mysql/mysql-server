@@ -1372,6 +1372,37 @@ static void restore_cs_variables(FILE *sql_file,
           (const char *) delimiter);
 }
 
+/*
+ This function will remove specific sql mode.
+
+  @param[in]   sql_mode      Original sql mode from where input mode needs to
+                             be removed.
+  @param[in]   replace_mode  sql mode which needs to be removed from original
+                             sql mode.
+  @param[in]   replace_len   length of sql mode which needs to be removed.
+
+  @retval  1 replace_mode is not present
+           0 replace_mode is removed successfully
+*/
+static int remove_sql_mode(char* sql_mode, const char* replace_mode,
+  size_t replace_len) {
+  char *start = strstr(sql_mode, replace_mode);
+  /* nothing to replace */
+  if (!start)
+    return 1;
+  /* sql mode to replace is the only sql mode present or the last one */
+  if (strlen(start) == replace_len) {
+    if (start == sql_mode)
+      *start = 0;
+    else
+      start[-1] = 0;
+  }
+  else {
+    const char *next = start + replace_len + 1;
+    memmove(start, next, strlen(next) + 1);
+  }
+  return 0;
+}
 
 static void switch_sql_mode(FILE *sql_file,
                             const char *delimiter,
@@ -2417,7 +2448,7 @@ static uint dump_events_for_db(char *db)
                       "The following dump may be incomplete.\n"
                     "--\n");
           }
-
+          remove_sql_mode(row[1], C_STRING_WITH_LEN("NO_AUTO_CREATE_USER"));
           switch_sql_mode(sql_file, delimiter, row[1]);
 
           switch_time_zone(sql_file, delimiter, row[2]);
@@ -2652,7 +2683,7 @@ static uint dump_routines_for_db(char *db)
                       "--\n");
             }
 
-
+            remove_sql_mode(row[1], C_STRING_WITH_LEN("NO_AUTO_CREATE_USER"));
             switch_sql_mode(sql_file, ";", row[1]);
 
             fprintf(sql_file,
@@ -3466,6 +3497,7 @@ static int dump_trigger(FILE *sql_file, MYSQL_RES *show_create_trigger_rs,
                         row[3],   /* character_set_results */
                         row[4]);  /* collation_connection */
 
+    remove_sql_mode(row[1], C_STRING_WITH_LEN("NO_AUTO_CREATE_USER"));
     switch_sql_mode(sql_file, ";", row[1]);
 
     if (opt_drop_trigger)

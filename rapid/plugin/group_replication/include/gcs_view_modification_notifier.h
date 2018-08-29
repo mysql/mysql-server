@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -51,6 +51,15 @@ public:
       @retval false otherwise
    */
   bool is_injected_view_modification();
+
+  /**
+    Checks if there is a view modification ongoing.
+
+    @return
+      @retval true  there is a view modification ongoing
+      @retval false otherwise
+   */
+  bool is_view_modification_ongoing();
 
   /**
     Signals that a view modification has ended

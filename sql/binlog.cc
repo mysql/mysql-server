@@ -2252,9 +2252,9 @@ THD *Stage_manager::Mutex_queue::fetch_and_empty()
   DBUG_RETURN(result);
 }
 
-void Stage_manager::wait_count_or_timeout(ulong count, ulong usec, StageID stage)
+void Stage_manager::wait_count_or_timeout(ulong count, long usec, StageID stage)
 {
-  ulong to_wait=
+  long to_wait=
     DBUG_EVALUATE_IF("bgc_set_infinite_delay", LONG_MAX, usec);
   /*
     For testing purposes while waiting for inifinity
@@ -2262,9 +2262,9 @@ void Stage_manager::wait_count_or_timeout(ulong count, ulong usec, StageID stage
     small intervals. Otherwise, waiting 0.1 * infinite
     is too long.
    */
-  ulong delta=
+  long delta=
     DBUG_EVALUATE_IF("bgc_set_infinite_delay", 100000,
-                     max<ulong>(1, (to_wait * 0.1)));
+                     max<long>(1, (to_wait * 0.1)));
 
   while (to_wait > 0 && (count == 0 || static_cast<ulong>(m_queue[stage].get_size()) < count))
   {

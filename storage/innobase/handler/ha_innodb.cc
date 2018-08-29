@@ -320,6 +320,9 @@ static const char* innobase_change_buffering_values[IBUF_USE_COUNT] = {
 	"all"		/* IBUF_USE_ALL */
 };
 
+/* Deprecation warning text */
+const char PARTITION_IN_SHARED_TABLESPACE_WARNING[] =
+  "InnoDB : A table partition in a shared tablespace";
 
 /* This tablespace name is reserved by InnoDB in order to explicitly
 create a file_per_table tablespace for the table. */
@@ -2212,6 +2215,9 @@ innobase_get_lower_case_table_names(void)
 	return(lower_case_table_names);
 }
 
+/** return one of the temporary dir from tmpdir
+@return temporary directory */
+char *innobase_mysql_tmpdir(void) { return (mysql_tmpdir); }
 
 /** Creates a temporary file in the location specified by the parameter
 path. If the path is NULL, then it will be created in tmpdir.
@@ -3235,6 +3241,7 @@ ha_innobase::reset_template(void)
 	m_prebuilt->keep_other_fields_on_keyread = 0;
 	m_prebuilt->read_just_key = 0;
 	m_prebuilt->in_fts_query = 0;
+        m_prebuilt->m_end_range = false;
 
 	/* Reset index condition pushdown state. */
 	if (m_prebuilt->idx_cond) {
@@ -10720,16 +10727,21 @@ create_table_info_t::create_option_tablespace_is_valid()
 			if (THDVAR(m_thd, strict_mode)) {
 				/* Return error if STRICT mode is enabled. */
 				my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
-					"InnoDB: innodb_file_per_table option"
-					" not supported for temporary tables.", MYF(0));
+					"InnoDB: TABLESPACE=%s option"
+					" is disallowed for temporary tables"
+					" with INNODB_STRICT_NODE=ON. This option is"
+					" deprecated and will be removed in a future release",
+					MYF(0), m_create_info->tablespace);
 				return(false);
 			}
 			/* STRICT mode turned off. Proceed with the
 			execution with a warning. */
 			push_warning_printf(m_thd, Sql_condition::SL_WARNING,
 				ER_ILLEGAL_HA_CREATE_OPTION,
-				"InnoDB: innodb_file_per_table option ignored"
-				" while creating temporary table with INNODB_STRICT_MODE=OFF.");
+				"InnoDB: TABLESPACE=%s option is ignored."
+				" This option is deprecated and will be"
+				" removed in a future release.",
+				m_create_info->tablespace);
 		}
 		return(true);
 	}
@@ -11514,6 +11526,13 @@ index_bad:
 			ut_ad(zip_ssize == 0);
 			m_flags2 |= DICT_TF2_INTRINSIC;
 			innodb_row_format = REC_FORMAT_DYNAMIC;
+		}
+		if (m_create_info->tablespace != NULL &&
+		    strcmp(m_create_info->tablespace, reserved_temporary_space_name) == 0) {
+			push_warning_printf(m_thd, Sql_condition::SL_WARNING,
+			    ER_ILLEGAL_HA_CREATE_OPTION,
+			    "InnoDB: TABLESPACE=innodb_temporary option is"
+			    " deprecated and will be removed in a future release.");
 		}
 	}
 
@@ -15352,11 +15371,15 @@ ha_innobase::end_stmt()
 
 	/* This transaction had called ha_innobase::start_stmt() */
 	trx_t*	trx = m_prebuilt->trx;
-
+	trx_mutex_enter(trx);
 	if (trx->lock.start_stmt) {
-		TrxInInnoDB::end_stmt(trx);
-
 		trx->lock.start_stmt = false;
+		trx_mutex_exit(trx);
+
+		TrxInInnoDB::end_stmt(trx);
+	}
+	else {
+		trx_mutex_exit(trx);
 	}
 
 	return(0);
@@ -15483,12 +15506,16 @@ ha_innobase::start_stmt(
 		++trx->will_lock;
 	}
 
+	trx_mutex_enter(trx);
 	/* Only do it once per transaction. */
 	if (!trx->lock.start_stmt && lock_type != TL_UNLOCK) {
+		trx->lock.start_stmt = true;
+		trx_mutex_exit(trx);
 
 		TrxInInnoDB::begin_stmt(trx);
-
-		trx->lock.start_stmt = true;
+	}
+	else {
+		trx_mutex_exit(trx);
 	}
 
 	DBUG_RETURN(0);

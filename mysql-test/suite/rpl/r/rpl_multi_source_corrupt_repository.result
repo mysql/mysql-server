@@ -147,10 +147,10 @@ FLUSH RELAY LOGS FOR CHANNEL 'channel_2';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel 'channel_2'.
 SHOW RELAYLOG EVENTS FOR CHANNEL 'channel_2';
 ===== Executing SHOW SLAVE FOR CHANNEL on channel 'channel_2'.
+include/wait_for_slave_param.inc [Slave_IO_State channel=channel_2]
+include/wait_for_slave_param.inc [Slave_SQL_Running_State channel=channel_2]
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-Slave_IO_State = 'Waiting for master to send event'
-Slave_SQL_Running_State = 'Slave has read all relay log; waiting for more updates'
 Last_IO_Errno = '0'
 Last_IO_Error = ''
 Last_SQL_Errno = '0'
@@ -194,10 +194,10 @@ FLUSH RELAY LOGS FOR CHANNEL 'channel_3';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel 'channel_3'.
 SHOW RELAYLOG EVENTS FOR CHANNEL 'channel_3';
 ===== Executing SHOW SLAVE FOR CHANNEL on channel 'channel_3'.
+include/wait_for_slave_param.inc [Slave_IO_State channel=channel_3]
+include/wait_for_slave_param.inc [Slave_SQL_Running_State channel=channel_3]
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-Slave_IO_State = 'Waiting for master to send event'
-Slave_SQL_Running_State = 'Slave has read all relay log; waiting for more updates'
 Last_IO_Errno = '0'
 Last_IO_Error = ''
 Last_SQL_Errno = '0'
@@ -325,10 +325,10 @@ FLUSH RELAY LOGS FOR CHANNEL '';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel ''.
 SHOW RELAYLOG EVENTS FOR CHANNEL '';
 ===== Executing SHOW SLAVE FOR CHANNEL on channel ''.
+include/wait_for_slave_param.inc [Slave_IO_State]
+include/wait_for_slave_param.inc [Slave_SQL_Running_State]
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-Slave_IO_State = 'Waiting for master to send event'
-Slave_SQL_Running_State = 'Slave has read all relay log; waiting for more updates'
 Last_IO_Errno = '0'
 Last_IO_Error = ''
 Last_SQL_Errno = '0'
@@ -415,10 +415,10 @@ FLUSH RELAY LOGS FOR CHANNEL 'channel_3';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel 'channel_3'.
 SHOW RELAYLOG EVENTS FOR CHANNEL 'channel_3';
 ===== Executing SHOW SLAVE FOR CHANNEL on channel 'channel_3'.
+include/wait_for_slave_param.inc [Slave_IO_State channel=channel_3]
+include/wait_for_slave_param.inc [Slave_SQL_Running_State channel=channel_3]
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-Slave_IO_State = 'Waiting for master to send event'
-Slave_SQL_Running_State = 'Slave has read all relay log; waiting for more updates'
 Last_IO_Errno = '0'
 Last_IO_Error = ''
 Last_SQL_Errno = '0'
@@ -546,10 +546,10 @@ FLUSH RELAY LOGS FOR CHANNEL '';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel ''.
 SHOW RELAYLOG EVENTS FOR CHANNEL '';
 ===== Executing SHOW SLAVE FOR CHANNEL on channel ''.
+include/wait_for_slave_param.inc [Slave_IO_State]
+include/wait_for_slave_param.inc [Slave_SQL_Running_State]
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-Slave_IO_State = 'Waiting for master to send event'
-Slave_SQL_Running_State = 'Slave has read all relay log; waiting for more updates'
 Last_IO_Errno = '0'
 Last_IO_Error = ''
 Last_SQL_Errno = '0'
@@ -593,10 +593,10 @@ FLUSH RELAY LOGS FOR CHANNEL 'channel_2';
 ===== Executing SHOW RELAYLOG EVENTS FOR CHANNEL on channel 'channel_2'.
 SHOW RELAYLOG EVENTS FOR CHANNEL 'channel_2';
 ===== Executing SHOW SLAVE FOR CHANNEL on channel 'channel_2'.
+include/wait_for_slave_param.inc [Slave_IO_State channel=channel_2]
+include/wait_for_slave_param.inc [Slave_SQL_Running_State channel=channel_2]
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-Slave_IO_State = 'Waiting for master to send event'
-Slave_SQL_Running_State = 'Slave has read all relay log; waiting for more updates'
 Last_IO_Errno = '0'
 Last_IO_Error = ''
 Last_SQL_Errno = '0'

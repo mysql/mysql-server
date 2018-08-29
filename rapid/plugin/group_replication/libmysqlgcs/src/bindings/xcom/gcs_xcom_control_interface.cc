@@ -154,6 +154,8 @@ Gcs_xcom_control(Gcs_xcom_group_member_information *group_member_information,
   m_join_attempts(0),
   m_join_sleep_time(0),
   m_xcom_running(false),
+  m_leave_view_requested(false),
+  m_leave_view_delivered(false),
   m_boot(boot),
   m_initial_peers(),
   m_view_control(view_control),
@@ -464,8 +466,17 @@ enum_gcs_error Gcs_xcom_control::retry_do_join()
     xcom_port port=  0;
     char *addr= NULL;
     std::vector<Gcs_xcom_group_member_information *>::iterator it;
-    std::string *local_node_info_str=
-      m_local_node_info->get_member_representation();
+    std::string local_node_info_str_ip;
+    bool resolve_error = false;
+    resolve_error = resolve_ip_addr_from_hostname(
+                 m_local_node_info->get_member_ip(), local_node_info_str_ip);
+
+    if (resolve_error)
+    {
+      MYSQL_GCS_LOG_ERROR("Error resolving local address name: "
+                          << m_local_node_info->get_member_ip().c_str())
+      goto err;
+    }
 
     while(con == NULL && n < Gcs_xcom_proxy::connection_attempts)
     {
@@ -474,18 +485,27 @@ enum_gcs_error Gcs_xcom_control::retry_do_join()
           it++)
       {
         Gcs_xcom_group_member_information *peer= *(it);
-        std::string *peer_rep= peer->get_member_representation();
+        std::string peer_rep_ip;
 
-        if(peer_rep->compare(*local_node_info_str) == 0)
+        resolve_error =
+            resolve_ip_addr_from_hostname(peer->get_member_ip(), peer_rep_ip);
+        if (resolve_error)
+        {
+          MYSQL_GCS_LOG_WARN("Unable to resolve peer address "
+                             << peer->get_member_ip().c_str()
+                             << ". Skipping...")
+          continue;
+        }
+
+        if (peer_rep_ip.compare(local_node_info_str_ip) == 0 &&
+            peer->get_member_port() == m_local_node_info->get_member_port())
         {
           MYSQL_GCS_LOG_TRACE(
             "::join():: Skipping own address."
           )
           // Skip own address if configured in the peer list
-          delete peer_rep;
           continue;
         }
-        delete peer_rep;
 
         port= peer->get_member_port();
         addr= (char *)peer->get_member_ip().c_str();
@@ -505,10 +525,6 @@ enum_gcs_error Gcs_xcom_control::retry_do_join()
       }
       n++;
     }
-
-    // Not needed anymore since it was only used in the loop
-    // above. As such, claim back memory.
-    delete local_node_info_str;
 
     if (con != NULL)
     {
@@ -670,6 +686,9 @@ enum_gcs_error Gcs_xcom_control::do_leave()
     return GCS_NOK;
   }
 
+  m_leave_view_delivered = false;
+  m_leave_view_requested = true;
+
   m_xcom_proxy->xcom_client_remove_node(&m_node_list_me, m_gid_hash);
 
   /*
@@ -723,43 +742,7 @@ enum_gcs_error Gcs_xcom_control::do_leave()
 
   m_view_control->end_leave();
 
-  /*
-    There is no need to synchronize here and this method can access
-    the current_view member stored in the view controller directly.
-  */
-  Gcs_view *current_view= m_view_control->get_unsafe_current_view();
-
-  if(current_view == NULL)
-  {
-    /*
-      XCOM has stopped but will not proceed with any view install. The
-      current view might be NULL due to the fact that the view with
-      the join still hasn't been delivered.
-    */
-    MYSQL_GCS_LOG_WARN("The member has left the group but the new view" <<
-                       " will not be installed, probably because it has not" <<
-                       " been delivered yet.")
-    /*
-      If the node leaves and joins within a 5 second window, it may not
-      get a global view. See BUG#23718481.
-    */
-    My_xp_util::sleep_seconds(5);
-
-    return GCS_OK;
-  }
-
-  /*
-    Notify that the node has left the group because someone has
-    requested to do so.
-  */
-  install_leave_view(Gcs_view::OK);
-
-  /*
-    Set that the node does not belong to a group anymore. Note there
-    is a small window when the node does not belong to the group
-    anymore but the view is not NULL.
-  */
-  m_view_control->set_belongs_to_group(false);
+  do_leave_view();
 
   /*
     Delete current view and set it to NULL.
@@ -775,6 +758,30 @@ enum_gcs_error Gcs_xcom_control::do_leave()
   return GCS_OK;
 }
 
+void Gcs_xcom_control::do_leave_view() {
+  /*
+    There is no need to synchronize here and this method can access
+    the current_view member stored in the view controller directly.
+  */
+  Gcs_view *current_view = m_view_control->get_unsafe_current_view();
+
+  if (current_view != NULL && !m_leave_view_delivered) {
+    MYSQL_GCS_LOG_DEBUG("Will install leave view: requested " <<
+                        m_leave_view_requested << ", delivered " <<
+                        m_leave_view_delivered);
+    install_leave_view(m_leave_view_requested ? Gcs_view::OK
+                                              : Gcs_view::MEMBER_EXPELLED);
+    if (m_leave_view_requested) {
+      m_view_control->set_belongs_to_group(false);
+    }
+
+    m_leave_view_delivered = m_leave_view_requested;
+
+    MYSQL_GCS_LOG_DEBUG("Installed leave view: requested " <<
+                        m_leave_view_requested << ", delivered " <<
+                        m_leave_view_delivered);
+  }
+}
 
 bool Gcs_xcom_control::belongs_to_group()
 {

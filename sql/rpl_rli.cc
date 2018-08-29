@@ -1249,7 +1249,15 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
   if (!inited)
   {
     DBUG_PRINT("info", ("inited == 0"));
-    if (error_on_rli_init_info)
+    if (error_on_rli_init_info ||
+        /*
+          mi->reset means that the channel was reset but still exists. Channel
+          shall have the index and the first relay log file.
+
+          Those files shall be remove in a following RESET SLAVE ALL (even when
+          channel was not inited again).
+        */
+        (mi->reset && delete_only))
     {
       ln_without_channel_name= relay_log.generate_name(opt_relay_logname,
                                                        "-relay-bin", buffer);
@@ -1321,13 +1329,6 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
     cur_log_fd= -1;
   }
 
-  if (relay_log.reset_logs(thd, delete_only))
-  {
-    *errmsg = "Failed during log reset";
-    error=1;
-    goto err;
-  }
-
   /**
     Clear the retrieved gtid set for this channel.
     global_sid_lock->wrlock() is needed.
@@ -1335,6 +1336,13 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
   global_sid_lock->wrlock();
   (const_cast<Gtid_set *>(get_gtid_set()))->clear();
   global_sid_lock->unlock();
+
+  if (relay_log.reset_logs(thd, delete_only))
+  {
+    *errmsg = "Failed during log reset";
+    error=1;
+    goto err;
+  }
 
   /* Save name of used relay log file */
   set_group_relay_log_name(relay_log.get_log_fname());

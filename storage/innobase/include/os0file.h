@@ -2042,6 +2042,11 @@ os_file_get_status(
 	bool		read_only);
 
 #if !defined(UNIV_HOTBACKUP)
+/** return one of the tmpdir path
+@return tmporary dir*/
+char *innobase_mysql_tmpdir(void);
+
+
 /** Creates a temporary file in the location specified by the parameter
 path. If the path is NULL then it will be created on --tmpdir location.
 This function is defined in ha_innodb.cc.

@@ -186,6 +186,7 @@ typedef void (*xcom_state_change_cb)(int status);
 void set_xcom_run_cb(xcom_state_change_cb x);
 void set_xcom_terminate_cb(xcom_state_change_cb x);
 void set_xcom_exit_cb(xcom_state_change_cb x);
+void set_xcom_expel_cb(xcom_state_change_cb x);
 
 app_data_ptr init_config_with_group(app_data *a, node_list *nl, cargo_type type,
                                     uint32_t group_id);

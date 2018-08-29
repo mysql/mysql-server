@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -60,6 +60,15 @@ Plugin_gcs_view_modification_notifier::is_injected_view_modification()
 {
   mysql_mutex_lock(&wait_for_view_mutex);
   bool result= injected_view_modification;
+  mysql_mutex_unlock(&wait_for_view_mutex);
+  return result;
+}
+
+bool
+Plugin_gcs_view_modification_notifier::is_view_modification_ongoing()
+{
+  mysql_mutex_lock(&wait_for_view_mutex);
+  bool result = view_changing;
   mysql_mutex_unlock(&wait_for_view_mutex);
   return result;
 }

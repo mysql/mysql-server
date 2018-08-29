@@ -167,7 +167,7 @@ COMMIT;
 --echo # 3.13 Check that worker 2 did not *retry* transaction-2
 --echo #      before throwing ER_DUP_ENTRY error (non-temporary error).
 --echo #
---let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/rpl_mts_slave_preserve_commit_order_deadlock_error.2.err
 --let $assert_only_after = CURRENT_TEST: rpl.rpl_mts_slave_preserve_commit_order_deadlock_error
 --let $assert_count = 1
 --let $assert_select = Error 'Duplicate entry '1' for key 'PRIMARY'' on query

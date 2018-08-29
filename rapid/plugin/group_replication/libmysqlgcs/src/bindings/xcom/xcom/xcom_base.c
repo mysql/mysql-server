@@ -506,9 +506,6 @@ static bool_t is_dead_site(uint32_t id)
 	return FALSE;
 }
 
-define_xdr_funcs(node_no)
-
-
 extern node_set *init_node_set(node_set *set, u_int n);
 extern node_set *alloc_node_set(node_set *set, u_int n);
 
@@ -1067,6 +1064,7 @@ static xcom_state_change_cb xcom_run_cb = 0;
 static xcom_state_change_cb xcom_terminate_cb = 0;
 static xcom_state_change_cb xcom_comms_cb = 0;
 static xcom_state_change_cb xcom_exit_cb = 0;
+static xcom_state_change_cb xcom_expel_cb = 0;
 
 void set_xcom_run_cb(xcom_state_change_cb x)
 {
@@ -1086,6 +1084,11 @@ void set_xcom_terminate_cb(xcom_state_change_cb x)
 void set_xcom_exit_cb(xcom_state_change_cb x)
 {
 	xcom_exit_cb = x;
+}
+
+void set_xcom_expel_cb(xcom_state_change_cb x)
+{
+	xcom_expel_cb = x;
 }
 
 int	xcom_taskmain2(xcom_port listen_port)
@@ -2224,6 +2227,7 @@ static void	terminate_and_exit()
 {
 	XCOM_FSM(xa_terminate, int_arg(0));	/* Tell xcom to stop */
 	XCOM_FSM(xa_exit, int_arg(0));		/* Tell xcom to exit */
+	if (xcom_expel_cb) xcom_expel_cb(0);
 }
 
 int	terminator_task(task_arg arg)
@@ -3877,10 +3881,11 @@ learnop:
 		vector), but I am not convinced that it is worth the effort.
 		*/
 		if(!synode_lt(p->synode, executed_msg)){
-			 g_critical("Node %u unable to get message, process will now exit. Please ensure that the process is restarted",
-						get_nodeno(site));
-			 exit(1);
-		 }
+			g_critical("Node %u unable to get messages, since the "
+				   "group is too far ahead. Node will now exit.",
+				get_nodeno(site));
+			terminate_and_exit();
+		}
 	default:
 		break;
 	}

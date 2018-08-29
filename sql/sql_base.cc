@@ -246,6 +246,28 @@ bool Strict_error_handler::handle_condition(THD *thd,
   return false;
 }
 
+/**
+  Implementation of Partition_in_shared_ts error handler.
+  This internal handler is to make sure that deprecation warning is not
+  displayed again if already displayed once.
+*/
+bool Partition_in_shared_ts_error_handler::handle_condition(
+                                   THD *thd,
+                                   uint sql_errno,
+                                   const char *sqlstate,
+                                   Sql_condition::enum_severity_level *level,
+                                   const char *msg)
+{
+  if (sql_errno == ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT &&
+      strstr(msg, "InnoDB : A table partition in a shared tablespace") != NULL) {
+    if (m_is_already_reported == false) {
+      m_is_already_reported= true;
+      thd->get_stmt_da()->push_warning(thd, sql_errno, sqlstate, *level, msg);
+    }
+    return true;
+  }
+  return false;
+}
 
 /**
   This internal handler is used to trap ER_NO_SUCH_TABLE and
