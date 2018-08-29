@@ -42,9 +42,9 @@
 //#define DEBUG_LCP_DEL 1
 //#define DEBUG_LCP_DELAY 1
 //#define DEBUG_LCP_SKIP 1
-#endif
 //#define DEBUG_LCP_DEL 1
 //#define DEBUG_LCP_SKIP 1
+#endif
 
 #ifdef DEBUG_LCP_DELAY
 #define DEB_LCP_DELAY(arglist) do { g_eventLogger->info arglist ; } while (0)
@@ -1479,6 +1479,7 @@ Dbtup::setup_change_page_for_scan(ScanOp& scan,
     return ZSCAN_FOUND_PAGE_END;
   }
   Uint32 num_changes = fix_page->get_num_changes();
+  num_changes = 16;
   if (num_changes <= 15)
   {
     jam();

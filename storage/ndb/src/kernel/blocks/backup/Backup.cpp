@@ -90,9 +90,9 @@ static NDB_TICKS startTime;
 //#define DEBUG_REDO_CONTROL 1
 //#define DEBUG_REDO_CONTROL_DETAIL 1
 //#define DEBUG_LCP_DD 1
+//#define DEBUG_LCP_STAT 1
+//#define DEBUG_EXTENDED_LCP_STAT 1
 #endif
-#define DEBUG_LCP_STAT 1
-#define DEBUG_EXTENDED_LCP_STAT 1
 
 #ifdef DEBUG_REDO_CONTROL
 #define DEB_REDO_CONTROL(arglist) do { g_eventLogger->info arglist ; } while (0)
