@@ -53,6 +53,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "lock0iter.h"
 #include "lock0lock.h"
 #include "mem0mem.h"
+#include "mysql/plugin.h"
 #include "page0page.h"
 #include "rem0rec.h"
 #include "row0row.h"

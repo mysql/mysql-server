@@ -59,6 +59,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fut0fut.h"
 #include "ha_prototypes.h"
 #include "ibuf0ibuf.h"
+#include "mysql/plugin.h"
 #include "page0zip.h"
 #include "pars0pars.h"
 #include "srv0mon.h"

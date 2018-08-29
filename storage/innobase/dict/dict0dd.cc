@@ -64,6 +64,7 @@ Data dictionary interface */
 #include "ha_innodb.h"
 #include "ha_innopart.h"
 #include "ha_prototypes.h"
+#include "mysql/plugin.h"
 #include "query_options.h"
 #include "sql_base.h"
 #include "sql_table.h"

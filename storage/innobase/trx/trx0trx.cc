@@ -63,6 +63,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0vec.h"
 
 #include "my_dbug.h"
+#include "mysql/plugin.h"
 
 static const ulint MAX_DETAILED_ERROR_LEN = 256;
 

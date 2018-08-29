@@ -651,7 +651,7 @@ void innobase_register_trx(handlerton *hton, THD *thd, trx_t *trx);
 /**
 Allocates an InnoDB transaction for a MySQL handler object.
 @return InnoDB transaction handle */
-trx_t *innobase_trx_allocate(MYSQL_THD thd); /*!< in: user thread handle */
+trx_t *innobase_trx_allocate(THD *thd); /*!< in: user thread handle */
 
 /** Match index columns between MySQL and InnoDB.
 This function checks whether the index column information
