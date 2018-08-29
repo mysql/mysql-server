@@ -30,6 +30,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
+#include "my_tree.h"
 #include "storage/myisam/fulltext.h"
 #include "storage/myisam/rt_index.h"
 

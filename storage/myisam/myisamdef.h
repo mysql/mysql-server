@@ -27,18 +27,22 @@
   @file storage/myisam/myisamdef.h
 */
 
+#include "my_alloc.h"
 #include "my_icp.h"
 #include "my_pointer_arithmetic.h"
-#include "my_thread.h"
-#include "my_thread_local.h"
-#include "my_tree.h"
 #include "myisam.h"     /* Structs & some defines */
 #include "myisampack.h" /* packing of keys */
-#include "mysql/plugin_ftparser.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql/psi/mysql_thread.h"
 #include "thr_lock.h"
+
+struct HA_KEYSEG;
+struct KEY_CACHE;
+struct MI_INFO;
+struct MYSQL_FTPARSER_PARAM;
+struct TREE;
+struct st_keycache_thread_var;
 
 /* undef map from my_nosys; We need test-if-disk full */
 #if defined(my_write)
@@ -663,8 +667,6 @@ extern int _mi_ft_update(MI_INFO *info, uint keynr, uchar *keybuf,
 #ifdef __cplusplus
 }
 #endif
-
-struct SORT_INFO;
 
 struct MI_BLOCK_INFO { /* Parameter to _mi_get_block_info */
   uchar header[MI_BLOCK_INFO_HEADER_LENGTH];
