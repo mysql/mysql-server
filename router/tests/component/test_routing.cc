@@ -42,7 +42,7 @@ class RouterRoutingTest : public RouterComponentTest, public ::testing::Test {
  protected:
   virtual void SetUp() {
     set_origin(g_origin_path);
-    RouterComponentTest::SetUp();
+    RouterComponentTest::init();
   }
 
   TcpPortPool port_pool_;
@@ -72,7 +72,10 @@ TEST_F(RouterRoutingTest, RoutingOk) {
       "destinations = 127.0.0.1:" +
       std::to_string(server_port) + "\n";
 
-  std::string conf_file = create_config_file(routing_section);
+  const std::string conf_dir = get_tmp_dir("conf");
+  std::shared_ptr<void> exit_guard1(nullptr,
+                                    [&](void *) { purge_dir(conf_dir); });
+  std::string conf_file = create_config_file(conf_dir, routing_section);
 
   // launch the router with simple static routing configuration
   auto router_static = launch_router("-c " + conf_file);
@@ -86,8 +89,8 @@ TEST_F(RouterRoutingTest, RoutingOk) {
 
   // launch another router to do the bootstrap connecting to the mock server
   // via first router instance
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(bootstrap_dir); });
+  std::shared_ptr<void> exit_guard2(nullptr,
+                                    [&](void *) { purge_dir(bootstrap_dir); });
   auto router_bootstrapping =
       launch_router("--bootstrap=localhost:" + std::to_string(router_port) +
                     " --report-host dont.query.dns" + " -d " + bootstrap_dir);
@@ -132,7 +135,10 @@ TEST_F(RouterRoutingTest, RoutingTooManyConnections) {
       "destinations = 127.0.0.1:" +
       std::to_string(server_port) + "\n";
 
-  std::string conf_file = create_config_file(routing_section);
+  const std::string conf_dir = get_tmp_dir("conf");
+  std::shared_ptr<void> exit_guard(nullptr,
+                                   [&](void *) { purge_dir(conf_dir); });
+  std::string conf_file = create_config_file(conf_dir, routing_section);
 
   // launch the router with the created configuration
   auto router_static = launch_router("-c " + conf_file);
@@ -179,7 +185,10 @@ TEST_F(RouterRoutingTest, RoutingPluginCantSpawnMoreThreads) {
       "destinations = 127.0.0.1:" +
       std::to_string(server_port) + "\n";
 
-  std::string conf_file = create_config_file(routing_section);
+  const std::string conf_dir = get_tmp_dir("conf");
+  std::shared_ptr<void> exit_guard(nullptr,
+                                   [&](void *) { purge_dir(conf_dir); });
+  std::string conf_file = create_config_file(conf_dir, routing_section);
 
   // launch the router with the created configuration
   auto router_static = launch_router("-c " + conf_file);
@@ -229,8 +238,8 @@ TEST_F(RouterRoutingTest, named_socket_has_right_permissions) {
 
   // get config dir (we will also stuff our unix socket file there)
   const std::string bootstrap_dir = get_tmp_dir();
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(bootstrap_dir); });
+  std::shared_ptr<void> exit_guard1(nullptr,
+                                    [&](void *) { purge_dir(bootstrap_dir); });
 
   // launch Router with unix socket
   const std::string socket_file = bootstrap_dir + "/sockfile";
@@ -241,7 +250,10 @@ TEST_F(RouterRoutingTest, named_socket_has_right_permissions) {
       "\n"
       "mode = read-write\n"
       "destinations = 127.0.0.1:1234\n";  // port can be bogus
-  const std::string conf_file = create_config_file(routing_section);
+  const std::string conf_dir = get_tmp_dir("conf");
+  std::shared_ptr<void> exit_guard2(nullptr,
+                                    [&](void *) { purge_dir(conf_dir); });
+  const std::string conf_file = create_config_file(conf_dir, routing_section);
   auto router_static = launch_router("-c " + conf_file);
 
   // loop until socket file appears and has correct permissions
@@ -294,7 +306,10 @@ TEST_F(RouterRoutingTest, RoutingMaxConnectErrors) {
       "\n"
       "max_connect_errors = 1\n";
 
-  std::string conf_file = create_config_file(routing_section);
+  const std::string conf_dir = get_tmp_dir("conf");
+  std::shared_ptr<void> exit_guard(nullptr,
+                                   [&](void *) { purge_dir(conf_dir); });
+  std::string conf_file = create_config_file(conf_dir, routing_section);
 
   // launch the router
   auto router_static = launch_router("-c " + conf_file);

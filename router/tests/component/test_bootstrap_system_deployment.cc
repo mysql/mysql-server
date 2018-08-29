@@ -46,7 +46,7 @@ class RouterBootstrapSystemDeploymentTest : public RouterComponentTest,
  protected:
   void SetUp() override {
     set_origin(g_origin_path);
-    RouterComponentTest::SetUp();
+    RouterComponentTest::init();
     init_tmp_dir();
 
     set_mysqlrouter_exec(Path(exec_file_));

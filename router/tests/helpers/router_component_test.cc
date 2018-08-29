@@ -97,13 +97,33 @@ int close_socket(SOCKET sock) { return closesocket(sock); }
 
 }  // namespace
 
+/*static*/
+void RouterComponentTest::init_keyring(
+    std::map<std::string, std::string> &default_section,
+    const std::string &keyring_dir,
+    const std::string &user /*= "mysql_router1_user"*/,
+    const std::string &password /*= "root"*/) {
+  // init keyring
+  const std::string masterkey_file = Path(keyring_dir).join("master.key").str();
+  const std::string keyring_file = Path(keyring_dir).join("keyring").str();
+  mysql_harness::init_keyring(keyring_file, masterkey_file, true);
+  mysql_harness::Keyring *keyring = mysql_harness::get_keyring();
+  keyring->store(user, "password", password);
+  mysql_harness::flush_keyring();
+  mysql_harness::reset_keyring();
+
+  // add relevant config settings to [DEFAULT] section
+  default_section["keyring_path"] = keyring_file;
+  default_section["master_key_path"] = masterkey_file;
+}
+
 RouterComponentTest::RouterComponentTest()
     : data_dir_(COMPONENT_TEST_DATA_DIR),
       logging_dir_(RouterComponentTest::get_tmp_dir("log")) {}
 
 RouterComponentTest::~RouterComponentTest() { purge_dir(logging_dir_.str()); }
 
-void RouterComponentTest::SetUp() {
+void RouterComponentTest::init() {
   using mysql_harness::Path;
   ;
   if (origin_dir_.str().empty()) {
@@ -575,9 +595,9 @@ std::string RouterComponentTest::make_DEFAULT_section(
 }
 
 std::string RouterComponentTest::create_config_file(
-    const std::string &content,
-    const std::map<std::string, std::string> *params,
-    const std::string &directory, const std::string &name) const {
+    const std::string &directory, const std::string &sections,
+    const std::map<std::string, std::string> *default_section,
+    const std::string &name) const {
   Path file_path = Path(directory).join(name);
   std::ofstream ofs_config(file_path.str());
 
@@ -586,8 +606,8 @@ std::string RouterComponentTest::create_config_file(
         std::runtime_error("Could not create config file " + file_path.str()));
   }
 
-  ofs_config << make_DEFAULT_section(params);
-  ofs_config << content << std::endl;
+  ofs_config << make_DEFAULT_section(default_section);
+  ofs_config << sections << std::endl;
   ofs_config.close();
 
   return file_path.str();

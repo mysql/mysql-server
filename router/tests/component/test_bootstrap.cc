@@ -50,7 +50,7 @@ class CommonBootstrapTest : public RouterComponentTest, public ::testing::Test {
 
   void SetUp() override {
     set_origin(g_origin_path);
-    RouterComponentTest::SetUp();
+    RouterComponentTest::init();
     bootstrap_dir = get_tmp_dir();
     tmp_dir = get_tmp_dir();
   }

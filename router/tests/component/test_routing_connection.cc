@@ -29,7 +29,6 @@
 #endif
 
 #include "dim.h"
-#include "keyring/keyring_manager.h"
 #include "mysql_session.h"
 #include "random_generator.h"
 #include "router_component_test.h"
@@ -184,21 +183,6 @@ class ConfigGenerator {
     return file_path.str();
   }
 
-  void set_keyring(const std::string &temp_test_dir) {
-    const std::string masterkey_file =
-        Path(temp_test_dir).join("master.key").str();
-    const std::string keyring_file = Path(temp_test_dir).join("keyring").str();
-    mysql_harness::init_keyring(keyring_file, masterkey_file, true);
-    mysql_harness::Keyring *keyring = mysql_harness::get_keyring();
-    keyring->store("mysql_router1_user", "password", "root");
-    mysql_harness::flush_keyring();
-    mysql_harness::reset_keyring();
-
-    // launch the router with metadata-cache configuration
-    defaults_["keyring_path"] = keyring_file;
-    defaults_["master_key_path"] = masterkey_file;
-  }
-
   std::string build_config_file(const std::string &temp_test_dir,
                                 bool is_primary_and_secondary = false) {
     add_metadata_cache_section(metadata_refresh_ttl_);
@@ -210,7 +194,7 @@ class ConfigGenerator {
       add_routing_secondary_section();
     }
 
-    set_keyring(temp_test_dir);
+    RouterComponentTest::init_keyring(defaults_, temp_test_dir);
 
     return create_config_file(&defaults_, config_dir_);
   }
@@ -220,7 +204,7 @@ class RouterRoutingConnectionCommonTest : public RouterComponentTest {
  public:
   void init() {
     set_origin(g_origin_path);
-    RouterComponentTest::SetUp();
+    RouterComponentTest::init();
 
     mysql_harness::DIM &dim = mysql_harness::DIM::instance();
     // RandomGenerator

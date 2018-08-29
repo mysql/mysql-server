@@ -67,7 +67,7 @@ class MasterKeyReaderWriterTest : public RouterComponentTest,
  protected:
   void SetUp() override {
     set_origin(g_origin_path);
-    RouterComponentTest::SetUp();
+    RouterComponentTest::init();
     tmp_dir_ = get_tmp_dir();
     bootstrap_dir_ = get_tmp_dir();
     logging_folder = Path(tmp_dir_).join("log").str();
@@ -548,8 +548,12 @@ TEST_F(MasterKeyReaderWriterTest, ConnectToMetadataServerPass) {
 
   auto default_section_map = get_default_section_map();
   // launch the router with metadata-cache configuration
+  const std::string conf_dir = get_tmp_dir("conf");
+  std::shared_ptr<void> exit_guard(nullptr,
+                                   [&](void *) { purge_dir(conf_dir); });
   auto router = RouterComponentTest::launch_router(
-      "-c " + create_config_file("[logger]\nlevel = DEBUG\n" +
+      "-c " + create_config_file(conf_dir,
+                                 "[logger]\nlevel = DEBUG\n" +
                                      metadata_cache_section + routing_section,
                                  &default_section_map));
 
@@ -592,8 +596,12 @@ TEST_F(MasterKeyReaderWriterTest,
 
   auto default_section_map = get_default_section_map();
   // launch the router with metadata-cache configuration
+  const std::string conf_dir = get_tmp_dir("conf");
+  std::shared_ptr<void> exit_guard(nullptr,
+                                   [&](void *) { purge_dir(conf_dir); });
   auto router = RouterComponentTest::launch_router(
-      "-c " + create_config_file("[logger]\nlevel = DEBUG\n" +
+      "-c " + create_config_file(conf_dir,
+                                 "[logger]\nlevel = DEBUG\n" +
                                      metadata_cache_section + routing_section,
                                  &default_section_map));
 
@@ -633,8 +641,12 @@ TEST_F(MasterKeyReaderWriterTest, CannotLaunchRouterWhenNoMasterKeyReader) {
 
   auto default_section_map = get_default_section_map(true, true);
   // launch the router with metadata-cache configuration
+  const std::string conf_dir = get_tmp_dir("conf");
+  std::shared_ptr<void> exit_guard(nullptr,
+                                   [&](void *) { purge_dir(conf_dir); });
   auto router = RouterComponentTest::launch_router(
-      "-c " + create_config_file("[logger]\nlevel = DEBUG\n" +
+      "-c " + create_config_file(conf_dir,
+                                 "[logger]\nlevel = DEBUG\n" +
                                      metadata_cache_section + routing_section,
                                  &default_section_map));
 
@@ -664,8 +676,12 @@ TEST_F(MasterKeyReaderWriterTest, CannotLaunchRouterWhenMasterKeyIncorrect) {
   auto incorrect_master_key_default_section_map =
       get_incorrect_master_key_default_section_map();
   // launch the router with metadata-cache configuration
+  const std::string conf_dir = get_tmp_dir("conf");
+  std::shared_ptr<void> exit_guard(nullptr,
+                                   [&](void *) { purge_dir(conf_dir); });
   auto router = RouterComponentTest::launch_router(
-      "-c " + create_config_file("[logger]\nlevel = DEBUG\n" +
+      "-c " + create_config_file(conf_dir,
+                                 "[logger]\nlevel = DEBUG\n" +
                                      metadata_cache_section + routing_section,
                                  &incorrect_master_key_default_section_map));
 
@@ -684,7 +700,7 @@ class MasterKeyReaderWriterSystemDeploymentTest : public RouterComponentTest,
  protected:
   void SetUp() override {
     set_origin(g_origin_path);
-    RouterComponentTest::SetUp();
+    RouterComponentTest::init();
     init_tmp_dir();
 
     set_mysqlrouter_exec(Path(exec_file_));

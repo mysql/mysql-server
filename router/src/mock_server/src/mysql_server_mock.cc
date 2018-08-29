@@ -23,6 +23,7 @@
 */
 
 #include "mysql_server_mock.h"
+#include "common.h"  // rename_thread()
 #include "duktape_statement_reader.h"
 #include "json_statement_reader.h"
 #include "mysql_protocol_utils.h"
@@ -103,6 +104,8 @@ void MySQLServerMock::close_all_connections() {
 }
 
 void MySQLServerMock::run(mysql_harness::PluginFuncEnv *env) {
+  mysql_harness::rename_thread("SM Main");
+
   setup_service();
   handle_connections(env);
 }
@@ -427,6 +430,8 @@ void MySQLServerMock::handle_connections(mysql_harness::PluginFuncEnv *env) {
   concurrent_queue<socket_t> socket_queue;
 
   auto connection_handler = [&]() -> void {
+    mysql_harness::rename_thread("SM Worker");
+
     while (true) {
       auto work = work_queue.pop();
 

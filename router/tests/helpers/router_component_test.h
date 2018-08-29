@@ -67,6 +67,19 @@ class RouterComponentTest {
   // valgrind we properly pass the tests
   static constexpr unsigned kDefaultWaitForExitTimeout = 10 * 1000;
 
+  /** @brief Initializes keyring and adds keyring-related config items to
+   * [DEFAULT] section
+   *
+   * @param default_section [DEFAULT] section
+   * @param keyring_dir directory inside of which keyring files will be created
+   * @param user Router user
+   * @param password Router user password
+   */
+  static void init_keyring(std::map<std::string, std::string> &default_section,
+                           const std::string &keyring_dir,
+                           const std::string &user = "mysql_router1_user",
+                           const std::string &password = "root");
+
  protected:
   RouterComponentTest();
   virtual ~RouterComponentTest();
@@ -232,9 +245,9 @@ class RouterComponentTest {
     friend class RouterComponentTest;
   };  // class CommandHandle
 
-  /** @brief Gtest class SetUp, prepares the testcase.
+  /** @brief Initializes the test
    */
-  virtual void SetUp();
+  virtual void init();
 
   /** @brief Launches the MySQLRouter process.
    *
@@ -372,10 +385,19 @@ class RouterComponentTest {
    */
   std::map<std::string, std::string> get_DEFAULT_defaults() const;
 
+  /** @brief create config file
+   *
+   * @param directory directory in which the config file will be created
+   * @param sections text to follow [DEFAULT] section (typically all other
+   * sections)
+   * @param default_section [DEFAULT] section parameters
+   * @param name config file name
+   *
+   * @return path to the created file
+   */
   std::string create_config_file(
-      const std::string &content = "",
-      const std::map<std::string, std::string> *params = nullptr,
-      const std::string &directory = get_tmp_dir("conf"),
+      const std::string &directory, const std::string &sections = "",
+      const std::map<std::string, std::string> *default_section = nullptr,
       const std::string &name = "mysqlrouter.conf") const;
 
   void set_origin(const Path &origin) { origin_dir_ = origin; }

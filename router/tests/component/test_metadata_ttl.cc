@@ -49,7 +49,7 @@ class MetadataChacheTTLTest : public RouterComponentTest {
  protected:
   virtual void SetUp() {
     set_origin(g_origin_path);
-    RouterComponentTest::SetUp();
+    RouterComponentTest::init();
   }
 
   std::string get_metadata_cache_section(unsigned metadata_server_port,
@@ -135,30 +135,23 @@ class MetadataChacheTTLTest : public RouterComponentTest {
   }
 
   RouterComponentTest::CommandHandle launch_router(
-      const std::string &temp_test_dir,
+      const std::string &temp_test_dir, const std::string &conf_dir,
       const std::string &metadata_cache_section,
       const std::string &routing_section,
       bool wait_for_md_refresh_started = false) {
-    const std::string masterkey_file =
-        Path(temp_test_dir).join("master.key").str();
-    const std::string keyring_file = Path(temp_test_dir).join("keyring").str();
-    mysql_harness::init_keyring(keyring_file, masterkey_file, true);
-    mysql_harness::Keyring *keyring = mysql_harness::get_keyring();
-    keyring->store("mysql_router1_user", "password", "root");
-    mysql_harness::flush_keyring();
-    mysql_harness::reset_keyring();
+    auto default_section = get_DEFAULT_defaults();
+    init_keyring(default_section, temp_test_dir);
+
     // enable debug logs for better diagnostics in case of failure
     std::string logger_section = "[logger]\nlevel = DEBUG\n";
 
-    // launch the router with metadata-cache configuration
-    auto default_section = get_DEFAULT_defaults();
-    default_section["keyring_path"] = keyring_file;
-    default_section["master_key_path"] = masterkey_file;
     if (!wait_for_md_refresh_started) {
       default_section["logging_folder"] = "";
     }
+
+    // launch the router
     const std::string conf_file = create_config_file(
-        logger_section + metadata_cache_section + routing_section,
+        conf_dir, logger_section + metadata_cache_section + routing_section,
         &default_section);
     auto router =
         RouterComponentTest::launch_router("-c " + conf_file, true, false);
@@ -210,9 +203,13 @@ MATCHER_P2(IsBetween, a, b,
 TEST_P(MetadataChacheTTLTestParam, CheckTTLValid) {
   auto test_params = GetParam();
 
+  // create and RAII-remove tmp dirs
   const std::string temp_test_dir = get_tmp_dir();
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(temp_test_dir); });
+  std::shared_ptr<void> exit_guard1(nullptr,
+                                    [&](void *) { purge_dir(temp_test_dir); });
+  const std::string conf_dir = get_tmp_dir("conf");
+  std::shared_ptr<void> exit_guard2(nullptr,
+                                    [&](void *) { purge_dir(conf_dir); });
 
   // launch the serevr mock (it's our metadata server and single cluster node)
   auto md_server_port = port_pool_.get_next_available();
@@ -232,8 +229,8 @@ TEST_P(MetadataChacheTTLTestParam, CheckTTLValid) {
   const std::string routing_section = get_metadata_cache_routing_section(
       router_port, "PRIMARY", "first-available");
   auto router =
-      launch_router(temp_test_dir, metadata_cache_section, routing_section,
-                    /*wait_for_md_refresh_started=*/true);
+      launch_router(temp_test_dir, conf_dir, metadata_cache_section,
+                    routing_section, /*wait_for_md_refresh_started=*/true);
 
   // keep the router running to see how many times it queries for metadata
   std::this_thread::sleep_for(test_params.router_uptime);
@@ -284,9 +281,13 @@ class MetadataChacheTTLTestParamInvalid
 TEST_P(MetadataChacheTTLTestParamInvalid, CheckTTLInvalid) {
   auto test_params = GetParam();
 
+  // create and RAII-remove tmp dirs
   const std::string temp_test_dir = get_tmp_dir();
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(temp_test_dir); });
+  std::shared_ptr<void> exit_guard1(nullptr,
+                                    [&](void *) { purge_dir(temp_test_dir); });
+  const std::string conf_dir = get_tmp_dir("conf");
+  std::shared_ptr<void> exit_guard2(nullptr,
+                                    [&](void *) { purge_dir(conf_dir); });
 
   // launch the serevr mock (it's our metadata server and single cluster node)
   auto md_server_port = port_pool_.get_next_available();
@@ -306,8 +307,8 @@ TEST_P(MetadataChacheTTLTestParamInvalid, CheckTTLInvalid) {
   const std::string routing_section = get_metadata_cache_routing_section(
       router_port, "PRIMARY", "first-available");
   auto router =
-      launch_router(temp_test_dir, metadata_cache_section, routing_section,
-                    /*wait_for_md_refresh_started=*/false);
+      launch_router(temp_test_dir, conf_dir, metadata_cache_section,
+                    routing_section, /*wait_for_md_refresh_started=*/false);
 
   EXPECT_EQ(router.wait_for_exit(), 1);
   EXPECT_THAT(router.exit_code(), testing::Ne(0));

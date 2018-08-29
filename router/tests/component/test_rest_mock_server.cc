@@ -73,7 +73,7 @@ class RestMockServerTest : public RouterComponentTest, public ::testing::Test {
   RestMockServerTest() {
     set_origin(g_origin_path);
 
-    RouterComponentTest::SetUp();
+    RouterComponentTest::init();
   }
 
   /**

@@ -33,7 +33,7 @@ class RouterConfigTest : public RouterComponentTest, public ::testing::Test {
  protected:
   virtual void SetUp() {
     set_origin(g_origin_path);
-    RouterComponentTest::SetUp();
+    RouterComponentTest::init();
   }
 
   TcpPortPool port_pool_;
@@ -67,22 +67,32 @@ TEST_F(RouterConfigTest, RoutingDirAsExtendedConfigDirectory) {
       "destinations = 127.0.0.1:" +
       std::to_string(server_port) + "\n";
 
-  std::string conf_file = create_config_file(routing_section);
-  const std::string config_dir = get_tmp_dir();
+  const std::string conf_dir = get_tmp_dir("conf");
+  std::shared_ptr<void> exit_guard1(nullptr,
+                                    [&](void *) { purge_dir(conf_dir); });
+  const std::string extra_conf_dir = get_tmp_dir();
+  std::shared_ptr<void> exit_guard2(nullptr,
+                                    [&](void *) { purge_dir(extra_conf_dir); });
+
+  std::string conf_file = create_config_file(conf_dir, routing_section);
 
   // launch the router giving directory instead of an extra config name
-  auto router = launch_router("-c " + conf_file + " -a " + config_dir);
+  auto router = launch_router("-c " + conf_file + " -a " + extra_conf_dir);
 
   EXPECT_EQ(router.wait_for_exit(), 1);
 
   EXPECT_TRUE(router.expect_output(
-      "Expected configuration file, got directory name: " + config_dir))
+      "Expected configuration file, got directory name: " + extra_conf_dir))
       << "router output: " << router.get_full_output() << std::endl;
 }
 
 TEST_F(RouterConfigTest,
        IsExceptionThrownWhenAddTwiceTheSameSectionWithoutKey) {
-  const std::string conf_file = create_config_file("[section1]\n[section1]\n");
+  const std::string conf_dir = get_tmp_dir("conf");
+  std::shared_ptr<void> exit_guard(nullptr,
+                                   [&](void *) { purge_dir(conf_dir); });
+  const std::string conf_file =
+      create_config_file(conf_dir, "[section1]\n[section1]\n");
 
   // run the router and wait for it to exit
   auto router = launch_router("-c " + conf_file);
@@ -95,8 +105,11 @@ TEST_F(RouterConfigTest,
 }
 
 TEST_F(RouterConfigTest, IsExceptionThrownWhenAddTwiceTheSameSectionWithKey) {
+  const std::string conf_dir = get_tmp_dir("conf");
+  std::shared_ptr<void> exit_guard(nullptr,
+                                   [&](void *) { purge_dir(conf_dir); });
   const std::string conf_file =
-      create_config_file("[section1:key1]\n[section1:key1]\n");
+      create_config_file(conf_dir, "[section1:key1]\n[section1:key1]\n");
 
   // run the router and wait for it to exit
   auto router = launch_router("-c " + conf_file);
@@ -131,8 +144,11 @@ TEST_F(RouterConfigTest, IsErrorReturnedWhenServiceDoesNotExist) {
   // system that the test is running on. If it is we can't do much about it and
   // we just skip testing.
   if (!isRouterServiceInstalled()) {
+    const std::string conf_dir = get_tmp_dir("conf");
+    std::shared_ptr<void> exit_guard(nullptr,
+                                     [&](void *) { purge_dir(conf_dir); });
     const std::string conf_file =
-        create_config_file("[keepalive]\ninterval = 60\n");
+        create_config_file(conf_dir, "[keepalive]\ninterval = 60\n");
 
     // run the router and wait for it to exit
     auto router = launch_router("-c " + conf_file + " --service");

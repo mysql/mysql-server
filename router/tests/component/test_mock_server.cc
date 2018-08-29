@@ -39,7 +39,7 @@ class MockServerCLITest : public RouterComponentTest, public ::testing::Test {
  protected:
   void SetUp() override {
     set_origin(g_origin_path);
-    RouterComponentTest::SetUp();
+    RouterComponentTest::init();
   }
 };
 
