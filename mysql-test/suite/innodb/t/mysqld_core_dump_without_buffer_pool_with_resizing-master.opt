@@ -1,0 +1,4 @@
+--core-file
+--skip-innodb-buffer-pool-in-core-file
+--innodb-buffer-pool-size=1280M
+--innodb-buffer-pool-chunk-size=32M

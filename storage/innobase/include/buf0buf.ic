@@ -61,6 +61,16 @@ struct buf_chunk_t {
 
   /** Get the size of 'mem' in bytes. */
   size_t mem_size() const { return (mem_pfx.m_size); }
+
+  /** Advices the OS that this chunk should not be dumped to a core file.
+  Emits a warning to the log if could not succeed.
+  @return true iff succeeded, false if no OS support or failed */
+  bool madvise_dump();
+
+  /** Advices the OS that this chunk should be dumped to a core file.
+  Emits a warning to the log if could not succeed.
+  @return true iff succeeded, false if no OS support or failed */
+  bool madvise_dont_dump();
 };
 
 /** Gets the current size of buffer buf_pool in bytes.

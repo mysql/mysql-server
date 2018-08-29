@@ -409,6 +409,7 @@ LatchDebug::LatchDebug() {
   LEVEL_MAP_INSERT(SYNC_ANY_LATCH);
   LEVEL_MAP_INSERT(SYNC_FIL_SHARD);
   LEVEL_MAP_INSERT(SYNC_DOUBLEWRITE);
+  LEVEL_MAP_INSERT(SYNC_BUF_CHUNKS);
   LEVEL_MAP_INSERT(SYNC_BUF_FLUSH_LIST);
   LEVEL_MAP_INSERT(SYNC_BUF_FLUSH_STATE);
   LEVEL_MAP_INSERT(SYNC_BUF_ZIP_HASH);
@@ -764,6 +765,7 @@ Latches *LatchDebug::check_order(const latch_t *latch,
       break;
 
     case SYNC_FIL_SHARD:
+    case SYNC_BUF_CHUNKS:
     case SYNC_BUF_FLUSH_LIST:
     case SYNC_BUF_LRU_LIST:
     case SYNC_BUF_FREE_LIST:
@@ -1217,6 +1219,7 @@ static void sync_latch_meta_init() UNIV_NOTHROW {
 #else
   LATCH_ADD_MUTEX(BUF_BLOCK_MUTEX, SYNC_BUF_BLOCK, buffer_block_mutex_key);
 #endif /* PFS_SKIP_BUFFER_MUTEX_RWLOCK */
+  LATCH_ADD_MUTEX(BUF_POOL_CHUNKS, SYNC_BUF_CHUNKS, buf_pool_chunks_mutex_key);
 
   LATCH_ADD_MUTEX(BUF_POOL_LRU_LIST, SYNC_BUF_LRU_LIST,
                   buf_pool_LRU_list_mutex_key);

@@ -1,0 +1,24 @@
+# Shutdown server
+# Restart server with --log-error
+SELECT @@global.innodb_buffer_pool_in_core_file;
+@@global.innodb_buffer_pool_in_core_file
+1
+SET GLOBAL innodb_buffer_pool_in_core_file = OFF;
+SELECT @@global.innodb_buffer_pool_in_core_file;
+@@global.innodb_buffer_pool_in_core_file
+0
+SET GLOBAL innodb_buffer_pool_in_core_file = ON;
+SELECT @@global.innodb_buffer_pool_in_core_file;
+@@global.innodb_buffer_pool_in_core_file
+1
+SET GLOBAL innodb_buffer_pool_in_core_file = OFF;
+SELECT @@global.innodb_buffer_pool_in_core_file;
+@@global.innodb_buffer_pool_in_core_file
+0
+# Get the full path name of the PID file
+# Expecting a "crash", but don't restart the server until it is told to
+# Expected max core size is 1024 MB
+# Perl: Sent a SIGABRT to mysqld to dump a core.
+# Perl: OK! Found the core file and it's small!
+# Make server restart
+# Wait for server to be back online

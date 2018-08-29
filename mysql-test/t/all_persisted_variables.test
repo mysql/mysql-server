@@ -24,10 +24,9 @@
 # In future, if a new global variable is added, it will be automatically
 # picked up from performance_schema.global_variables table.
 #
-# Out of all, 358 are global persistent variable. In future, if a new global
-# persistent variable is added, it is the responsibility of the Dev to
-# edit this variable.
-#      -> $total_persistent_var=359
+# Out of all $total_global_vars global vars, only $total_persistent_vars are
+# global persistent variable. In future, if a new global persistent variable is
+# added, it is the responsibility of the Dev to edit $total_persistent_vars.
 ################################################################################
 
 --echo ***********************************************************************
@@ -39,7 +38,7 @@
 --source include/have_binlog_format_row.inc
 
 let $total_global_vars=`SELECT COUNT(*) FROM performance_schema.global_variables where variable_name NOT LIKE 'ndb_%'`;
-let $total_persistent_vars=360;
+let $total_persistent_vars=361;
 
 --echo ***************************************************************
 --echo * 0. Verify that variables present in performance_schema.global
@@ -152,7 +151,9 @@ SET PERSIST innodb_monitor_reset_all="latch";
 --enable_warnings
 --enable_query_log
 --echo
---let $assert_text= 'Expect 358 persisted variables in the table. Due to open Bugs, we are checking for 353'
+--let $buggy_global_vars = 5
+--expr $expected_total_persistent_vars = $total_persistent_vars - $buggy_global_vars
+--let $assert_text= Expect $total_persistent_vars persisted variables in the table. Due to open Bugs, we are checking for $expected_total_persistent_vars
 
 # Below are the persisted variables we are unable to test at the moment due to
 # existing Bugs.
@@ -161,7 +162,7 @@ SET PERSIST innodb_monitor_reset_all="latch";
 # 3. innodb_ft_aux_table             (Bug#27512616)
 # 4. innodb_ft_user_stopword_table   (Bug#27512616)
 # 5. innodb_ft_server_stopword_table (Bug#27512616)
---let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = $total_persistent_vars-5
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = $expected_total_persistent_vars
 --source include/assert.inc
 
 --echo
@@ -174,16 +175,16 @@ SET PERSIST innodb_monitor_reset_all="latch";
 --source include/wait_until_connected_again.inc
 
 --echo
---let $assert_text= 'Expect 353 persisted variables in persisted_variables table.'
---let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = $total_persistent_vars-5
+--let $assert_text= Expect $expected_total_persistent_vars persisted variables in persisted_variables table.
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = $expected_total_persistent_vars
 --source include/assert.inc
 
---let $assert_text= 'Expect 353 persisted variables shown as PERSISTED in variables_info table.'
---let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.variables_info WHERE variable_source="PERSISTED", count, 1] = $total_persistent_vars-5
+--let $assert_text= Expect $expected_total_persistent_vars persisted variables shown as PERSISTED in variables_info table.
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.variables_info WHERE variable_source="PERSISTED", count, 1] = $expected_total_persistent_vars
 --source include/assert.inc
 
- --let $assert_text= 'Expect 353 persisted variables with matching peristed and global values.'
- --let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.variables_info vi JOIN performance_schema.persisted_variables pv JOIN performance_schema.global_variables gv ON vi.variable_name=pv.variable_name AND vi.variable_name=gv.variable_name AND pv.variable_value=gv.variable_value WHERE vi.variable_source="PERSISTED", count, 1] = $total_persistent_vars-5
+ --let $assert_text= Expect $expected_total_persistent_vars persisted variables with matching peristed and global values.
+ --let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.variables_info vi JOIN performance_schema.persisted_variables pv JOIN performance_schema.global_variables gv ON vi.variable_name=pv.variable_name AND vi.variable_name=gv.variable_name AND pv.variable_value=gv.variable_value WHERE vi.variable_source="PERSISTED", count, 1] = $expected_total_persistent_vars
 --source include/assert.inc
 
 --echo

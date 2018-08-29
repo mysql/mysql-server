@@ -155,6 +155,7 @@
 #cmakedefine GWINSZ_IN_SYS_IOCTL 1
 #cmakedefine FIONREAD_IN_SYS_IOCTL 1
 #cmakedefine FIONREAD_IN_SYS_FILIO 1
+#cmakedefine HAVE_MADV_DONTDUMP 1
 
 #cmakedefine HAVE_ISINF 1
 

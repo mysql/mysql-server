@@ -1,0 +1,22 @@
+--source include/load_sysvars.inc
+
+SELECT @@global.innodb_buffer_pool_in_core_file;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.innodb_buffer_pool_in_core_file;
+
+SHOW GLOBAL VARIABLES LIKE 'innodb_buffer_pool_in_core_file';
+SHOW SESSION VARIABLES LIKE 'innodb_buffer_pool_in_core_file';
+
+SELECT * FROM performance_schema.global_variables
+WHERE variable_name='innodb_buffer_pool_in_core_file';
+SELECT * FROM performance_schema.session_variables
+WHERE variable_name='innodb_buffer_pool_in_core_file';
+
+# True is the default, so this should not change anything:
+SET GLOBAL innodb_buffer_pool_in_core_file = default;
+SET GLOBAL innodb_buffer_pool_in_core_file = true;
+# Setting to false would cause warnings etc. on any other
+# platform than Linux 3.4+, so we will not test it in this
+# basic test file, but rather in a separate test.
+# SET GLOBAL innodb_buffer_pool_in_core_file = false;
