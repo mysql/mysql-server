@@ -28,15 +28,18 @@ use warnings;
 
 use base qw(Exporter);
 our @EXPORT = qw(
+  add_secondary_engine_client_options
   check_number_of_servers
   check_plugin_dir
-  get_rapid_server_log
-  install_rapid_plugin
-  rapid_environment_setup
-  start_rapid_server
-  stop_rapid_server
-  $rapid_plugin_dir
-  $rapid_port
+  check_secondary_engine_options
+  get_secondary_engine_server_log
+  install_secondary_engine_plugin
+  save_secondary_engine_logdir
+  secondary_engine_environment_setup
+  start_secondary_engine_server
+  stop_secondary_engine_server
+  $secondary_engine_plugin_dir
+  $secondary_engine_port
 );
 
 use File::Basename;
@@ -50,64 +53,83 @@ use mtr_report;
 
 do "mtr_misc.pl";
 
-our $rapid_plugin_dir;
-our $rapid_port;
+our $secondary_engine_plugin_dir;
+our $secondary_engine_port;
 
-# Find path to rapid server executable.
-sub find_rapid($) {
+## Find path to secondary engine server executable.
+##
+## Arguments:
+##   $bindir Location of bin directory
+##
+## Returns:
+##   Location of secondary engine server executable
+sub find_secondary_engine($) {
   my $bindir = shift;
 
-  my $rapid_bindir = my_find_dir($bindir, ["internal/rapid/"],
-                                 [ "olrapid-debug", "olrapid-perf" ]);
-  return my_find_bin($rapid_bindir, ["bin"], ["rpdserver"]);
+  my $secondary_engine_bindir = my_find_dir($bindir, ["internal/rapid/"],
+                                           [ "olrapid-debug", "olrapid-perf" ]);
+
+  return my_find_bin($secondary_engine_bindir, ["bin"], ["rpdserver"]);
 }
 
-# Find the directory location containing the rapid plugin.
-sub rapid_plugin_dir($$) {
+## Find the directory location containing the secondary engine plugin.
+##
+## Arguments:
+##   $find_plugin Reference to find_plugin() subroutine
+##   $bindir      Location of bin directory
+##
+## Returns:
+##   Location of secondary engine plugin directory
+sub secondary_engine_plugin_dir($$) {
   my $find_plugin = shift;
   my $bindir      = shift;
 
-  my $rapid_plugin = $find_plugin->('ha_rpd', 'plugin_output_directory');
+  my $secondary_engine_plugin =
+    $find_plugin->('ha_rpd', 'plugin_output_directory');
 
-  if ($rapid_plugin) {
-    # return the directory containing the rapid plugin.
-    return dirname($rapid_plugin);
+  if ($secondary_engine_plugin) {
+    return dirname($secondary_engine_plugin);
   }
 
-  # Couldn't find rapid plugin 'ha_rpd'
-  mtr_error("Can't find rapid plugin 'ha_rpd' in " .
+  # Couldn't find secondary_engine plugin
+  mtr_error("Can't find secondary_engine plugin 'ha_rpd' in " .
             "'$bindir/plugin_output_directory' location");
 }
 
-# Setup needed for rapid server
-sub rapid_environment_setup($$) {
+## Setup needed for secondary engine server
+##
+## Arguments:
+##   $find_plugin Reference to find_plugin() subroutine
+##   $bindir      Location of bin directory
+sub secondary_engine_environment_setup($$) {
   my $find_plugin = shift;
   my $bindir      = shift;
 
-  # Search for rapid executable location.
-  $ENV{'RAPID'} = find_rapid($bindir);
+  # Search for secondary engine server executable location.
+  $ENV{'SECONDARY_ENGINE'} = find_secondary_engine($bindir);
 
   # Set 'RPDMASTER_FILEPREFIX' environment variable
-  $ENV{'RPDMASTER_FILEPREFIX'} = "$::opt_vardir/log/rapid/";
+  $ENV{'RPDMASTER_FILEPREFIX'} = "$::opt_vardir/log/secondary_engine/";
 
-  my $rapid_ld_library_path =
+  my $secondary_engine_ld_library_path =
     my_find_dir($bindir, ["internal/rapid/"],
                 [ "rpdmaster-debug", "rpdmaster-perf" ]);
 
   $ENV{'LD_LIBRARY_PATH'} = join(":",
-            $rapid_ld_library_path,
+            $secondary_engine_ld_library_path,
             $ENV{'LD_LIBRARY_PATH'} ? split(':', $ENV{'LD_LIBRARY_PATH'}) : ());
 
-  $rapid_plugin_dir = rapid_plugin_dir($find_plugin, $bindir);
+  $secondary_engine_plugin_dir =
+    secondary_engine_plugin_dir($find_plugin, $bindir);
 }
 
-# Start the rapid server.
-sub start_rapid_server() {
-  my $rapid = $::config->group('rapid');
+## Start the secondary engine server.
+sub start_secondary_engine_server() {
+  my $secondary_engine = $::config->group('rapid');
 
-  # Create rapid specific logdir under '$opt_vardir/log'.
-  $rapid->{'logdir'} = "$::opt_vardir/log/rapid/";
-  mkpath($rapid->{'logdir'});
+  # Create secondary engine specific logdir under '$opt_vardir/log'.
+  $secondary_engine->{'logdir'} = "$::opt_vardir/log/secondary_engine/";
+  mkpath($secondary_engine->{'logdir'});
 
   my $args;
   mtr_init_args(\$args);
@@ -118,52 +140,70 @@ sub start_rapid_server() {
   mtr_add_arg($args, "-c 1");
   mtr_add_arg($args, "-d 0");
   mtr_add_arg($args, "-n 0");
-  mtr_add_arg($args, "-p $rapid_port");
+  mtr_add_arg($args, "-p $secondary_engine_port");
   mtr_add_arg($args, "-i BOO");
   mtr_add_arg($args, "--network=FOO");
   mtr_add_arg($args, "-l 0");
   mtr_add_arg($args, "-r 1");
   mtr_add_arg($args, "-v");
   mtr_add_arg($args, "-j");
-  mtr_add_arg($args, $rapid->{'logdir'});
+  mtr_add_arg($args, $secondary_engine->{'logdir'});
 
-  mtr_verbose(My::Options::toStr("rapid_start", @$args));
+  mtr_verbose(My::Options::toStr("secondary_engine_start", @$args));
 
-  my $errfile = "$rapid->{'logdir'}/rapid.err";
+  my $errfile = "$secondary_engine->{'logdir'}/secondary_engine.err";
 
-  $rapid->{'proc'} =
+  $secondary_engine->{'proc'} =
     My::SafeProcess->new(append  => 1,
                          args    => \$args,
                          error   => $errfile,
-                         name    => "rapid",
+                         name    => "secondary_engine",
                          output  => $errfile,
-                         path    => $ENV{'RAPID'},
+                         path    => $ENV{'SECONDARY_ENGINE'},
                          verbose => $::opt_verbose);
 
-  mtr_verbose("Started $rapid->{'proc'}");
+  mtr_verbose("Started $secondary_engine->{'proc'}");
 }
 
-sub stop_rapid_server () {
+## Stop the secondary engine server
+sub stop_secondary_engine_server () {
   return if not defined $::config;
-  my $rapid = $::config->group('rapid');
-  mtr_verbose("Stopping rapid server $rapid->{'proc'}");
-  My::SafeProcess::shutdown($::opt_shutdown_timeout, $rapid->{proc});
+  my $secondary_engine = $::config->group('rapid');
+  mtr_verbose("Stopping secondary engine server $secondary_engine->{'proc'}");
+  My::SafeProcess::shutdown($::opt_shutdown_timeout,
+                            $secondary_engine->{'proc'});
 }
 
-# Skip tests starting more than one server.
+## Add secondary engine client options
+##
+## Arguments:
+##   $args List containing the arguments to be passed
+sub add_secondary_engine_client_options($) {
+  my $args = shift;
+  mtr_add_arg($args, "--secondary-engine=rapid");
+  mtr_add_arg($args, "--change-propagation=%d", $::opt_change_propagation);
+}
+
+## Skip tests starting more than one server.
+##
+## Arguments:
+##   $mysqlds Reference to mysqlds() subroutine
+##   $tinfo   Test object
 sub check_number_of_servers($$) {
   my $mysqlds = shift;
   my $tinfo   = shift;
 
   if (scalar($mysqlds->()) > 1) {
-    $tinfo->{'skip'} = 1;
-    $tinfo->{'comment'} =
-      "Can't run tests starting more than one server with RAPID.";
+    $tinfo->{'skip'}    = 1;
+    $tinfo->{'comment'} = "Can't run tests starting more than one server.";
   }
 }
 
-# Check if the 'plugin-dir' is set to a path other than rapid
-# plugin directory location.
+## Check if the 'plugin-dir' is set to a path other than secondary
+## engine plugin directory location.
+##
+## Arguments:
+##   $tinfo   Test object
 sub check_plugin_dir($) {
   my $tinfo = shift;
 
@@ -174,8 +214,8 @@ sub check_plugin_dir($) {
   }
 
   if (defined $plugin_dir) {
-    if ($plugin_dir ne $rapid_plugin_dir) {
-      # Different plugin dir, skip the test with rapid.
+    if ($plugin_dir ne $secondary_engine_plugin_dir) {
+      # Different plugin dir, skip the test.
       $tinfo->{'skip'} = 1;
       $tinfo->{'comment'} =
         "Test requires plugin-dir to set to plugin_output_directory.";
@@ -183,8 +223,38 @@ sub check_plugin_dir($) {
   }
 }
 
-# Wait for RAPID server to start.
-sub sleep_until_rapid_cluster_bootstrapped($$$) {
+## Check secondary engine related options
+sub check_secondary_engine_options() {
+  if (defined $::opt_change_propagation) {
+    if (not defined $::opt_secondary_engine) {
+      mtr_error("Can't use '--change-propagation' option without enabling " .
+                "'--secondary-engine' option.");
+    } elsif ($::opt_change_propagation < 0 or $::opt_change_propagation > 1) {
+      # 'change-propagation' option value should be either 0 or 1.
+      mtr_error("Invalid value '$::opt_change_propagation' for option " .
+                "'--change-propagation'.");
+    }
+  }
+}
+
+## Save secondary engine log directory contents
+##
+## Arguments:
+##   $savedir Save directory location
+sub save_secondary_engine_logdir($) {
+  my $savedir          = shift;
+  my $secondary_engine = $::config->group('rapid');
+  my $log_dirname      = basename($secondary_engine->{'logdir'});
+  rename($secondary_engine->{'logdir'}, "$savedir/$log_dirname");
+}
+
+## Wait for secondary engine server to start.
+##
+## Arguments:
+##   $run_query Reference to run_query() subroutine
+##   $mysqld    mysqld object
+##   $tinfo     Test object
+sub sleep_until_secondary_engine_cluster_bootstrapped($$$) {
   my $run_query = shift;
   my $mysqld    = shift;
   my $tinfo     = shift;
@@ -193,22 +263,22 @@ sub sleep_until_rapid_cluster_bootstrapped($$$) {
   my $total_time = 0;                                          # In milliseconds
   my $loops      = ($::opt_start_timeout * 1000) / $sleeptime;
 
-  my $outfile = "$::opt_vardir/tmp/show_rapid_cluster_status.out";
+  my $outfile = "$::opt_vardir/tmp/secondary_engine_cluster_status.out";
   my $query   = "SHOW STATUS LIKE 'rapid_cluster_status'";
 
   for (my $loop = 1 ; $loop <= $loops ; $loop++) {
     if (!$run_query->($mysqld, $query, $outfile, undef)) {
       # Query succeeded, fetch the status value.
-      my $filehandle   = IO::File->new($outfile);
-      my $rapid_status = <$filehandle>;
+      my $filehandle              = IO::File->new($outfile);
+      my $secondary_engine_status = <$filehandle>;
 
       # No need of file handle now, close it.
       $filehandle->close();
 
-      # Check the RAPID cluster status
-      if ($rapid_status =~ /^rapid_cluster_status\s+ON/) {
-        mtr_verbose("Waited $total_time milliseconds for RAPID server to " .
-                    "be started.");
+      # Check the secondary engine cluster status
+      if ($secondary_engine_status =~ /^rapid_cluster_status\s+ON/) {
+        mtr_verbose("Waited $total_time milliseconds for secondary engine " .
+                    "server to be started.");
         unlink($outfile);
         return;
       }
@@ -219,32 +289,38 @@ sub sleep_until_rapid_cluster_bootstrapped($$$) {
       $total_time = $total_time + 100;
     } else {
       unlink($outfile);
-      mtr_error("Can't get RAPID cluster status, query '$query' failed.");
+      mtr_error(
+           "Can't get secondary engine cluster status, query '$query' failed.");
     }
   }
 
   unlink($outfile);
 
-  # Failed to start rapid server.
+  # Failed to start secondary engine server.
   # TODO: Throw an error instead of skipping the test.
   $tinfo->{'skip'} = 1;
   $tinfo->{'comment'} =
-    "Timeout after MTR waited for RAPID cluster to get bootstrapped.";
+    "Timeout after MTR waited for secondary engine to get bootstrapped.";
 }
 
-# Install rapid plugin on all servers. Skipping the test if INSTALL
-# PLUGIN statement fails.
-sub install_rapid_plugin($$$) {
+## Install secondary engine plugin on all servers. Skipping the test
+## if INSTALL PLUGIN statement fails.
+##
+## Arguments:
+##   $mysqlds   Reference to mysqlds() subroutine
+##   $run_query Reference to run_query() subroutine
+##   $tinfo     Test object
+sub install_secondary_engine_plugin($$$) {
   my $mysqlds   = shift;
   my $run_query = shift;
   my $tinfo     = shift;
 
   foreach my $mysqld ($mysqlds->()) {
-    if ($mysqld->{install_rapid_plugin}) {
-      my $errfile = "$::opt_vardir/tmp/rapid_plugin_install.err";
+    if ($mysqld->{install_secondary_engine_plugin}) {
+      my $errfile = "$::opt_vardir/tmp/plugin_install.err";
       my $query   = "INSTALL PLUGIN RAPID SONAME 'ha_rpd.so'";
 
-      # Run the query to install rapid plugin
+      # Run the query to install secondary engine plugin
       if ($run_query->($mysqld, $query, undef, $errfile)) {
         # Install plugin failed
         $tinfo->{'skip'} = 1;
@@ -252,11 +328,13 @@ sub install_rapid_plugin($$$) {
         my $error_msg  = <$filehandle>;
         chomp($error_msg);
         $error_msg =~ s/ at line \d+//g;
-        $tinfo->{'comment'} = "Can't install RAPID plugin, $error_msg";
+        $tinfo->{'comment'} =
+          "Can't install secondary engine plugin, $error_msg";
         $filehandle->close();
       } else {
-        # Wait for RAPID cluster to get bootstrapped.
-        sleep_until_rapid_cluster_bootstrapped($run_query, $mysqld, $tinfo);
+        # Wait for secondary engine cluster to get bootstrapped.
+        sleep_until_secondary_engine_cluster_bootstrapped($run_query, $mysqld,
+                                                          $tinfo);
       }
 
       # Delete the query error output file if exists
@@ -265,36 +343,39 @@ sub install_rapid_plugin($$$) {
   }
 }
 
-# Get log from rapid server error log file and return the content
-# as a single string.
-sub get_rapid_server_log() {
-  my $rapid         = $::config->group('rapid');
-  my $rapid_err_log = "$rapid->{'logdir'}/rapid.err";
+## Get log from secondary engine server error log file and return the
+## contents as a single string.
+##
+## Returns:
+##   String value containing log output
+sub get_secondary_engine_server_log() {
+  my $secondary_engine = $::config->group('rapid');
+  my $secondary_engine_err_log =
+    "$secondary_engine->{'logdir'}/secondary_engine.err";
 
-  my $rapid_fh = IO::File->new($rapid_err_log) or
-    mtr_error("Could not open file '$rapid_err_log' for reading: $!");
+  my $fh = IO::File->new($secondary_engine_err_log) or
+    mtr_error("Could not open file '$secondary_engine_err_log': $!");
 
   my @lines;
-
-  while (<$rapid_fh>) {
+  while (<$fh>) {
     push(@lines, $_);
     if (scalar(@lines) > 1000000) {
-      $rapid_fh = undef;
-      mtr_warning(
-                "Too much log from rapid server, bailing out from extracting.");
+      $fh->close();
+      mtr_warning("Too much log from secondary engine server.");
       return;
     }
   }
 
   # Close error log file
-  $rapid_fh->close();
+  $fh->close();
 
-  my $rapid_server_log =
-    "\nRapid server log from this test\n" .
-    "---------- RAPID SERVER LOG START -----------\n" .
-    join("", @lines) . "---------- RAPID SERVER LOG END -------------\n";
+  my $secondary_engine_server_log =
+    "\nSecondary engine server log from this test\n" .
+    "---------- SECONDARY ENGINE SERVER LOG START -----------\n" .
+    join("", @lines) .
+    "---------- SECONDARY ENGINE SERVER LOG END -------------\n";
 
-  return $rapid_server_log;
+  return $secondary_engine_server_log;
 }
 
 1;

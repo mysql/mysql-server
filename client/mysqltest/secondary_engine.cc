@@ -26,6 +26,7 @@
 #include <iostream>
 #include <map>
 #include <regex>
+#include <sstream>
 #include <string>
 
 #include "client/mysqltest/error_names.h"
@@ -112,10 +113,18 @@ static bool run_secondary_load_statement(MYSQL *mysql, std::string table_name) {
   ignore_errors.push_back(get_errcode_from_name("ER_CHECK_NOT_IMPLEMENTED"));
   ignore_errors.push_back(get_errcode_from_name("ER_RAPID_PLUGIN"));
 
-  // ALTER TABLE statement
-  std::string alter_stmt = "ALTER TABLE " + table_name + " SECONDARY_LOAD;";
+  std::stringstream table_names(table_name);
+  std::string table;
 
-  return run_alter_statement(alter_stmt, mysql, ignore_errors);
+  // DML Statements like DELETE or UPDATE may contain multiple table
+  // names separated by comma.
+  while (std::getline(table_names, table, ',')) {
+    // ALTER TABLE statement to load the data to secondary engine.
+    std::string alter_stmt = "ALTER TABLE " + table + " SECONDARY_LOAD;";
+    if (run_alter_statement(alter_stmt, mysql, ignore_errors)) return true;
+  }
+
+  return false;
 }
 
 /// Run ALTER TABLE table_name SECONDARY_UNLOAD statement to unload
@@ -139,10 +148,18 @@ static bool run_secondary_unload_statement(
   ignore_errors.push_back(get_errcode_from_name("ER_DBACCESS_DENIED_ERROR"));
   ignore_errors.push_back(get_errcode_from_name("ER_SECONDARY_ENGINE"));
 
-  // ALTER TABLE statement
-  std::string alter_stmt = "ALTER TABLE " + table_name + " SECONDARY_UNLOAD;";
+  std::stringstream table_names(table_name);
+  std::string table;
 
-  return run_alter_statement(alter_stmt, mysql, ignore_errors);
+  // DML Statements like DELETE or UPDATE may contain multiple table
+  // names separated by comma.
+  while (std::getline(table_names, table, ',')) {
+    // ALTER TABLE statement to unload the data from secondary engine.
+    std::string alter_stmt = "ALTER TABLE " + table + " SECONDARY_UNLOAD;";
+    if (run_alter_statement(alter_stmt, mysql, ignore_errors)) return true;
+  }
+
+  return false;
 }
 
 /// Match a statement string against the pattern. If match found,
@@ -226,20 +243,72 @@ static bool match_ddl_statement(std::string statement,
   return false;
 }
 
+/// Check if a statement is a DML statement. If yes, parse the statement
+/// to extract the table name and store it in a string object.
+///
+/// @param statement  Original statement
+/// @param table_name String object to store the table name
+///
+/// @retval True if match or table name found, false otherwise.
+static bool match_dml_statement(std::string statement,
+                                std::string *table_name) {
+  std::map<std::string, std::uint16_t> dml_pattern_strings = {
+      {"^\\s*delete\\s+((\\/\\*\\+.*\\*\\/"
+       "\\s+)?)((LOW_PRIORITY\\s+)?)((QUICK\\s+)?)((IGNORE\\s+)?)"
+       "FROM\\s+(.*?)((\\s+.*)?)",
+       9},
+      {"^\\s*insert\\s+((\\/\\*\\+.*\\*\\/"
+       "\\s+)?)((LOW_PRIORITY\\s+|DELAYED\\s+|HIGH_PRIORITY\\s+)?)"
+       "((IGNORE\\s+)?)((INTO\\s+)?)(.*?)(\\s*\\(|\\s+).*",
+       9},
+      {"^\\s*replace\\s+((\\/\\*\\+.*\\*\\/"
+       "\\s+)?)((LOW_PRIORITY\\s+|DELAYED\\s+)?)((INTO\\s+)?)(.*?)"
+       "(\\s*\\(|\\s+).*",
+       7},
+      {"^\\s*update\\s+((\\/\\*\\+.*\\*\\/"
+       "\\s+)?)((LOW_PRIORITY\\s+)?)((IGNORE\\s+)?)(.*?)\\s+set.*",
+       7}};
+
+  for (std::pair<std::string, std::uint16_t> pattern : dml_pattern_strings) {
+    *table_name =
+        regex_match_statement(statement, pattern.first, pattern.second);
+    if (table_name->length()) return true;
+  }
+
+  return false;
+}
+
+/// Check if a statement is a TRUNCATE statement. If yes, parse the
+/// statement to extract the table name and store it in a string object.
+///
+/// @param statement  Original statement
+/// @param table_name String object to store the table name
+///
+/// @retval True if the match or table name found, false otherwise.
+static bool match_truncate_statement(std::string statement,
+                                     std::string *table_name) {
+  std::string pattern_str = "^\\s*truncate\\s+(table\\s+)?(.*?)(\\s+.*|\\s*)";
+  *table_name = regex_match_statement(statement, pattern_str, 2);
+  if (table_name->length()) return true;
+  return false;
+}
+
 /// Check if the statement is a CREATE TABLE statement or a DDL
 /// statement. If yes, run the ALTER TABLE statements needed to change
 /// the secondary engine and to load the data from primary engine to
 /// secondary engine.
 ///
-/// @param secondary_engine Secondary engine name
-/// @param statement        Original statement
-/// @param mysql            mysql handle
-/// @param expected_errors  List of expected errors
+/// @param secondary_engine       Secondary engine name
+/// @param statement              Original statement
+/// @param mysql                  mysql handle
+/// @param expected_errors        List of expected errors
+/// @param opt_change_propagation Boolean flag indicating whether change
+///                               propagation is enabled or not.
 ///
 /// @retval True if load operation fails, false otherwise.
 bool run_secondary_engine_load_statements(
     const char *secondary_engine, char *statement, MYSQL *mysql,
-    std::vector<unsigned int> expected_errors) {
+    std::vector<unsigned int> expected_errors, bool opt_change_propagation) {
   std::string table_name("");
 
   // Check if the statement is a CREATE TABLE statement or a DDL statement
@@ -261,6 +330,23 @@ bool run_secondary_engine_load_statements(
                     "Table already has a secondary engine defined")) {
       // Load the data from primary engine to secondary engine.
       if (run_secondary_load_statement(mysql, table_name)) return true;
+    }
+  } else if (expected_errors.size() == 0) {
+    if (match_truncate_statement(statement, &table_name) ||
+        (!opt_change_propagation &&
+         match_dml_statement(statement, &table_name))) {
+      DBUG_ASSERT(table_name.length());
+
+      // Unload the data from secondary engine.
+      if (run_secondary_unload_statement(mysql, table_name, expected_errors))
+        return true;
+
+      // Skip running ALTER TABLE statement to load the data from primary
+      // engine to secondary engine if the previous ALTER TABLE statement
+      // failed with an error.
+      if (mysql_errno(mysql) == 0)
+        // Load the data from primary engine to secondary engine.
+        if (run_secondary_load_statement(mysql, table_name)) return true;
     }
   }
 

@@ -36,7 +36,6 @@
 #include <functional>
 #include <limits>
 #include <new>
-#include <string>
 #ifdef _WIN32
 #include <thread>  // std::thread
 #endif
@@ -7768,7 +7767,8 @@ end:
     std::vector<unsigned int> ignore_errors = expected_errors->errors();
     // Run secondary engine load statements.
     if (run_secondary_engine_load_statements(opt_secondary_engine, query, mysql,
-                                             ignore_errors))
+                                             ignore_errors,
+                                             opt_change_propagation))
       die("Original query '%s'.", query);
   }
 
@@ -7997,7 +7997,8 @@ end:
     std::vector<unsigned int> ignore_errors = expected_errors->errors();
     // Run secondary engine load statements.
     if (run_secondary_engine_load_statements(opt_secondary_engine, query, mysql,
-                                             ignore_errors))
+                                             ignore_errors,
+                                             opt_change_propagation))
       die("Original query '%s'.", query);
   }
 

@@ -1,4 +1,3 @@
-
 #ifndef SECONDARY_ENGINE_INCLUDED
 #define SECONDARY_ENGINE_INCLUDED
 // Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
@@ -32,15 +31,17 @@
 /// the secondary engine and to load the data from primary engine to
 /// secondary engine.
 ///
-/// @param secondary_engine Secondary engine name
-/// @param statement        Original statement
-/// @param mysql            mysql handle
-/// @param expected_errors  List of expected errors
+/// @param secondary_engine       Secondary engine name
+/// @param statement              Original statement
+/// @param mysql                  mysql handle
+/// @param expected_errors        List of expected errors
+/// @param opt_change_propagation Boolean flag indicating whether change
+///                               propagation is enabled or not.
 ///
 /// @retval True if load operation fails, false otherwise.
 bool run_secondary_engine_load_statements(
     const char *secondary_engine, char *statement, MYSQL *mysql,
-    std::vector<unsigned int> expected_errors);
+    std::vector<unsigned int> expected_errors, bool opt_change_propagation);
 
 /// Check if the statement is a DDL statement. If yes, run the ALTER
 /// TABLE statements needed to change the secondary engine to NULL and

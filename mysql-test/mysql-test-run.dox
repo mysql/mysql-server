@@ -3994,18 +3994,6 @@
     </li>
 
     <li>
-      <tt>`--change-propagation`</tt>
-
-      <b>`--change-propagation`</b> option must be used along with
-      <b>`--secondary-engine`</b> option.
-
-      When enabled, @ref PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl"
-      will automatically change the secondary engine of a table and
-      will load the table contents from primary engine to secondary
-      engine after a DDL statement.
-    </li>
-
-    <li>
       <tt>`--charset-for-testdb`=<b>charset_name</b></tt>
 
       Specify the default character set for the test database. The
@@ -4849,14 +4837,6 @@
       The <b>TSAN_OPTIONS</b> environment variable can be set to
       specify the path name of a file containing ThreadSanitizer
       suppressions.
-    </li>
-
-    <li>
-      <tt>`--secondary-engine`=<b>engine_name</b></tt>
-
-      Enabling this option will cause @ref PAGE_MYSQL_TEST_RUN_PL
-      "mysql-test-run.pl" to carry out necessary setup needed to
-      support the secondary engine <b>engine_name</b>.
     </li>
 
     <li>
