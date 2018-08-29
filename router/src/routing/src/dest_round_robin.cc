@@ -55,7 +55,9 @@ void *DestRoundRobin::run_thread(void *context) {
   return nullptr;
 }
 
-void DestRoundRobin::start() { quarantine_thread_.run(&run_thread, this); }
+void DestRoundRobin::start(const mysql_harness::PluginFuncEnv * /*env*/) {
+  quarantine_thread_.run(&run_thread, this);
+}
 
 int DestRoundRobin::get_server_socket(
     std::chrono::milliseconds connect_timeout, int *error,

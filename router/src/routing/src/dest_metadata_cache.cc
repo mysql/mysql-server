@@ -36,6 +36,7 @@
 #endif
 
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/plugin.h"
 #include "mysqlrouter/utils.h"
 #include "tcp_address.h"
 
@@ -213,11 +214,6 @@ DestMetadataCacheGroup::AvailableDestinations
 DestMetadataCacheGroup::get_available(
     const metadata_cache::LookupResult &managed_servers,
     bool for_new_connections) {
-  // TODO: this is a workaround. We should do it in the init() but currently
-  // there is no way to check if metadata_cache is initialized so we postpone it
-  // to first connection request
-  subscribe_for_metadata_cache_changes();
-
   DestMetadataCacheGroup::AvailableDestinations result;
 
   bool primary_fallback{false};
@@ -359,13 +355,10 @@ void DestMetadataCacheGroup::init() {
 }
 
 void DestMetadataCacheGroup::subscribe_for_metadata_cache_changes() {
-  std::lock_guard<std::mutex> lock(
-      subscribed_for_metadata_cache_changes_mutex_);
-  if (subscribed_for_metadata_cache_changes_) return;
-  subscribed_for_metadata_cache_changes_ = true;
   using namespace std::placeholders;
 
   cache_api_->add_listener(ha_replicaset_, this);
+  subscribed_for_metadata_cache_changes_ = true;
 }
 
 DestMetadataCacheGroup::~DestMetadataCacheGroup() {
@@ -477,4 +470,20 @@ void DestMetadataCacheGroup::notify(
     const metadata_cache::LookupResult &instances,
     const bool md_servers_reachable) noexcept {
   on_instances_change(instances, md_servers_reachable);
+}
+
+void DestMetadataCacheGroup::start(const mysql_harness::PluginFuncEnv *env) {
+  // before using metadata-cache we need to make sure it is initialized
+  unsigned count = 0;
+  while (!cache_api_->is_initialized() && (!env || is_running(env))) {
+    if (count++ > 100) {
+      throw std::runtime_error(
+          "Timed out waiting for metadata-cache to initialize.");
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  }
+
+  if (!env || is_running(env)) {
+    subscribe_for_metadata_cache_changes();
+  }
 }

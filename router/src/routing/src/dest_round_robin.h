@@ -59,7 +59,7 @@ class DestRoundRobin : public RouteDestination {
   /** @brief run Quarantine Manager Thread */
   static void *run_thread(void *context);
 
-  virtual void start() override;
+  virtual void start(const mysql_harness::PluginFuncEnv * /*env*/) override;
 
   int get_server_socket(
       std::chrono::milliseconds connect_timeout, int *error,
