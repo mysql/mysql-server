@@ -4013,11 +4013,23 @@ oom:
 			table. Either way, we should be seeing and
 			reporting a bogus duplicate key error. */
 			dup_key = NULL;
-		} else {
-			DBUG_ASSERT(prebuilt->trx->error_key_num
-				    < ha_alter_info->key_count);
+		} else if (prebuilt->trx->error_key_num == 0) {
 			dup_key = &ha_alter_info->key_info_buffer[
 				prebuilt->trx->error_key_num];
+		} else {
+			/* Check if there is generated cluster index column */
+			if (ctx->num_to_add_index > ha_alter_info->key_count) {
+				DBUG_ASSERT(prebuilt->trx->error_key_num
+					    <= ha_alter_info->key_count);
+				dup_key = &ha_alter_info->key_info_buffer[
+					prebuilt->trx->error_key_num - 1];
+			}
+			else {
+				DBUG_ASSERT(prebuilt->trx->error_key_num
+					    < ha_alter_info->key_count);
+				dup_key = &ha_alter_info->key_info_buffer[
+					prebuilt->trx->error_key_num];
+			}
 		}
 		print_keydup_error(altered_table, dup_key, MYF(0));
 		break;
@@ -4938,11 +4950,20 @@ commit_try_rebuild(
 				FTS_DOC_ID. */
 				dup_key = NULL;
 			} else {
-				DBUG_ASSERT(err_key <
-					    ha_alter_info->key_count);
-				dup_key = &ha_alter_info
-					->key_info_buffer[err_key];
+				if (ctx->num_to_add_index > ha_alter_info->key_count) {
+					DBUG_ASSERT(err_key <=
+						    ha_alter_info->key_count);
+					dup_key = &ha_alter_info
+						->key_info_buffer[err_key - 1];
+				}
+				else {
+					DBUG_ASSERT(err_key <
+						    ha_alter_info->key_count);
+					dup_key = &ha_alter_info
+						->key_info_buffer[err_key];
+				}
 			}
+
 			print_keydup_error(altered_table, dup_key, MYF(0));
 			DBUG_RETURN(true);
 		case DB_ONLINE_LOG_TOO_BIG:

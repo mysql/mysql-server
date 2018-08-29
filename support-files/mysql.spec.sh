@@ -145,8 +145,8 @@
       %if "%elver" == "6" || "%elver" == "7"
         %define distro_description      Oracle Linux %elver
         %define distro_releasetag       el%elver
-        %define distro_buildreq         gcc-c++ ncurses-devel perl time zlib-devel cmake libaio-devel numactl-devel
-        %define distro_requires         chkconfig coreutils grep procps shadow-utils net-tools
+        %define distro_buildreq         gcc-c++ ncurses-devel perl perl(Data::Dumper) time zlib-devel cmake libaio-devel numactl-devel
+        %define distro_requires         chkconfig coreutils grep perl(Data::Dumper) procps shadow-utils net-tools
       %else
         %{error:Oracle Linux %{elver} is unsupported}
       %endif
@@ -168,8 +168,8 @@
             %if "%rhelver" == "6"
               %define distro_description    Red Hat Enterprise Linux 6
               %define distro_releasetag     rhel6
-              %define distro_buildreq       gcc-c++ ncurses-devel perl time zlib-devel cmake libaio-devel numactl-devel
-              %define distro_requires       chkconfig coreutils grep procps shadow-utils net-tools
+              %define distro_buildreq       gcc-c++ ncurses-devel perl perl(Data::Dumper) time zlib-devel cmake libaio-devel numactl-devel
+              %define distro_requires       chkconfig coreutils grep perl(Data::Dumper) procps shadow-utils net-tools
             %else
               %{error:Red Hat Enterprise Linux %{rhelver} is unsupported}
             %endif
@@ -210,8 +210,8 @@
   %define glibc_version %(/lib/libc.so.6 | grep stable | cut -d, -f1 | cut -c38-)
   %define distro_description            Generic Linux (glibc %{glibc_version})
   %define distro_releasetag             linux_glibc%{glibc_version}
-  %define distro_buildreq               gcc-c++ gperf ncurses-devel perl  time zlib-devel
-  %define distro_requires               coreutils grep procps /sbin/chkconfig /usr/sbin/useradd /usr/sbin/groupadd
+  %define distro_buildreq               gcc-c++ gperf ncurses-devel perl perl(Data::Dumper) time zlib-devel
+  %define distro_requires               coreutils grep perl(Data::Dumper) procps /sbin/chkconfig /usr/sbin/useradd /usr/sbin/groupadd
 %endif
 
 # Avoid debuginfo RPMs, leaves binaries unstripped
@@ -360,7 +360,9 @@ Obsoletes:      MySQL-Cluster-test-advanced
 Obsoletes:      mysql-test mysql-test-advanced 
 Obsoletes:      MySQL-test-classic MySQL-test-community MySQL-test-enterprise
 Obsoletes:      MySQL-test-advanced-gpl MySQL-test-enterprise-gpl
-Provides:       mysql-test 
+Provides:       mysql-test = %{version}-%{release}
+Provides:       mysql-test%{?_isa} = %{version}-%{release}
+Requires:       perl(Data::Dumper)
 AutoReqProv:    no
 
 %description -n MySQL-Cluster-test%{product_suffix}

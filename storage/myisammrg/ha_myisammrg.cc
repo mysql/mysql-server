@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -379,6 +379,7 @@ int ha_myisammrg::open(const char *name, int mode MY_ATTRIBUTE((unused)),
   /* retrieve children table list. */
   if (is_cloned)
   {
+    DEBUG_SYNC(current_thd, "before_myrg_open");
     /*
       Open and attaches the MyISAM tables,that are under the MERGE table 
       parent, on the MyISAM storage engine interface directly within the
@@ -396,6 +397,13 @@ int ha_myisammrg::open(const char *name, int mode MY_ATTRIBUTE((unused)),
     file->children_attached= TRUE;
 
     info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
+    /*
+      There may arise a scenario where it might end up with two different
+      MYMERGE_INFO data if any one of the child table is updated in
+      between myrg_open() and the last ha_myisammrg::info(). So we need make
+      sure that the MYMERGE_INFO data are in sync.
+    */
+    table->file->info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
   }
   else if (!(file= myrg_parent_open(name, myisammrg_parent_open_callback, this)))
   {
