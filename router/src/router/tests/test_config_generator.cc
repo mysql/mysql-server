@@ -69,6 +69,11 @@ std::string g_cwd;
 mysql_harness::Path g_origin;
 TmpDir tmp_dir;
 
+const std::string kDefaultConnectTimeout =
+    std::to_string(mysqlrouter::MySQLSession::kDefaultConnectTimeout);
+const std::string kDefaultReadTimeout =
+    std::to_string(mysqlrouter::MySQLSession::kDefaultReadTimeout);
+
 class ReplayerWithMockSSL : public MySQLSessionReplayer {
  public:
   void set_ssl_options(mysql_ssl_mode ssl_mode, const std::string &tls_version,
@@ -746,8 +751,9 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
            "[DEFAULT]\n"
            "name=myrouter\n"
            "user=mysqlrouter\n"
-           "connect_timeout=30\n"
-           "read_timeout=30\n"
+           "connect_timeout=" +
+           kDefaultConnectTimeout + "\n" +
+           "read_timeout=" + kDefaultReadTimeout + "\n" +
            "\n"
            "[logger]\n"
            "level = INFO\n"
@@ -800,8 +806,9 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
         output.str(),
         Eq("# File automatically generated during MySQL Router bootstrap\n"
            "[DEFAULT]\n"
-           "connect_timeout=30\n"
-           "read_timeout=30\n"
+           "connect_timeout=" +
+           kDefaultConnectTimeout + "\n" +
+           "read_timeout=" + kDefaultReadTimeout + "\n" +
            "\n"
            "[logger]\n"
            "level = INFO\n"
@@ -857,8 +864,9 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
         output.str(),
         Eq("# File automatically generated during MySQL Router bootstrap\n"
            "[DEFAULT]\n"
-           "connect_timeout=30\n"
-           "read_timeout=30\n"
+           "connect_timeout=" +
+           kDefaultConnectTimeout + "\n" +
+           "read_timeout=" + kDefaultReadTimeout + "\n" +
            "\n"
            "[logger]\n"
            "level = INFO\n"
@@ -917,8 +925,9 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
         output.str(),
         Eq("# File automatically generated during MySQL Router bootstrap\n"
            "[DEFAULT]\n"
-           "connect_timeout=30\n"
-           "read_timeout=30\n"
+           "connect_timeout=" +
+           kDefaultConnectTimeout + "\n" +
+           "read_timeout=" + kDefaultReadTimeout + "\n" +
            "\n"
            "[logger]\n"
            "level = INFO\n"
@@ -979,8 +988,9 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
         output.str(),
         Eq("# File automatically generated during MySQL Router bootstrap\n"
            "[DEFAULT]\n"
-           "connect_timeout=30\n"
-           "read_timeout=30\n"
+           "connect_timeout=" +
+           kDefaultConnectTimeout + "\n" +
+           "read_timeout=" + kDefaultReadTimeout + "\n" +
            "\n"
            "[logger]\n"
            "level = INFO\n"
@@ -1050,8 +1060,9 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
            "[DEFAULT]\n"
            "name=myrouter\n"
            "user=mysqlrouter\n"
-           "connect_timeout=30\n"
-           "read_timeout=30\n"
+           "connect_timeout=" +
+           kDefaultConnectTimeout + "\n" +
+           "read_timeout=" + kDefaultReadTimeout + "\n" +
            "\n"
            "[logger]\n"
            "level = INFO\n"
@@ -1114,8 +1125,9 @@ TEST_F(ConfigGeneratorTest, create_config_multi_master) {
       Eq("# File automatically generated during MySQL Router bootstrap\n"
          "[DEFAULT]\n"
          "name=myrouter\n"
-         "connect_timeout=30\n"
-         "read_timeout=30\n"
+         "connect_timeout=" +
+         kDefaultConnectTimeout + "\n" + "read_timeout=" + kDefaultReadTimeout +
+         "\n" +
          "\n"
          "[logger]\n"
          "level = INFO\n"
