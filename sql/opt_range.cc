@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights
  * reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -1660,7 +1660,18 @@ int QUICK_ROR_UNION_SELECT::reset()
     List_iterator_fast<QUICK_SELECT_I> it(quick_selects);
     while ((quick= it++))
     {
-      if (quick->init_ror_merged_scan(FALSE))
+      /*
+        Use mem_root of this "QUICK" as using the statement mem_root
+        might result in too many allocations when combined with
+        dynamic range access where range optimizer is invoked many times
+        for a single statement.
+      */
+      THD *thd= quick->head->in_use;
+      MEM_ROOT *saved_root= thd->mem_root;
+      thd->mem_root= &alloc;
+      error= quick->init_ror_merged_scan(false);
+      thd->mem_root= saved_root;
+      if (error)
         DBUG_RETURN(1);
     }
     scans_inited= TRUE;
