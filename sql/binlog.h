@@ -834,7 +834,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
   inline void unlock_index() { mysql_mutex_unlock(&LOCK_index); }
   inline IO_CACHE *get_index_file() { return &index_file; }
   inline uint32 get_open_count() { return open_count; }
-
+  static const int MAX_RETRIES_FOR_DELETE_RENAME_FAILURE = 5;
   /*
     It is called by the threads (e.g. dump thread, applier thread) which want
     to read hot log without LOCK_log protection.

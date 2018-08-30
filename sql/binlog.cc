@@ -4792,6 +4792,9 @@ int MYSQL_BIN_LOG::move_crash_safe_index_file_to_index_file(
   int error = 0;
   File fd = -1;
   DBUG_ENTER("MYSQL_BIN_LOG::move_crash_safe_index_file_to_index_file");
+  int failure_trials = MYSQL_BIN_LOG::MAX_RETRIES_FOR_DELETE_RENAME_FAILURE;
+  bool file_rename_status = false, file_delete_status = false;
+  THD *thd = current_thd;
 
   if (need_lock_index)
     mysql_mutex_lock(&LOCK_index);
@@ -4813,9 +4816,36 @@ int MYSQL_BIN_LOG::move_crash_safe_index_file_to_index_file(
 
       goto recoverable_err;
     }
-    if (DBUG_EVALUATE_IF("force_index_file_delete_failure", 1, 0) ||
-        mysql_file_delete(key_file_binlog_index, index_file_name,
-                          MYF(MY_WME))) {
+
+    /*
+      Sometimes an outsider can lock index files for temporary viewing
+      purpose. For eg: MEB locks binlog.index/relaylog.index to view
+      the content of the file. During that small period of time, deletion
+      of the file is not possible on some platforms(Eg: Windows)
+      Server should retry the delete operation for few times instead of
+      panicking immediately.
+    */
+    while ((file_delete_status == false) && (failure_trials > 0)) {
+      if (DBUG_EVALUATE_IF("force_index_file_delete_failure", 1, 0)) break;
+
+      DBUG_EXECUTE_IF("simulate_index_file_delete_failure", {
+        /* This simulation causes the delete to fail */
+        static char first_char = index_file_name[0];
+        index_file_name[0] = 0;
+        sql_print_information("Retrying delete");
+        if (failure_trials == 1) index_file_name[0] = first_char;
+      };);
+      file_delete_status = !(mysql_file_delete(key_file_binlog_index,
+                                               index_file_name, MYF(MY_WME)));
+      --failure_trials;
+      if (!file_delete_status) {
+        my_sleep(1000);
+        /* Clear the error before retrying. */
+        if (failure_trials > 0) thd->clear_error();
+      }
+    }
+
+    if (!file_delete_status) {
       error = -1;
       LogErr(ERROR_LEVEL,
              ER_BINLOG_FAILED_TO_DELETE_INDEX_FILE_WHILE_REBUILDING,
@@ -4832,7 +4862,33 @@ int MYSQL_BIN_LOG::move_crash_safe_index_file_to_index_file(
   }
 
   DBUG_EXECUTE_IF("crash_create_before_rename_index_file", DBUG_SUICIDE(););
-  if (my_rename(crash_safe_index_file_name, index_file_name, MYF(MY_WME))) {
+  /*
+    Sometimes an outsider can lock index files for temporary viewing
+    purpose. For eg: MEB locks binlog.index/relaylog.index to view
+    the content of the file. During that small period of time, rename
+    of the file is not possible on some platforms(Eg: Windows)
+    Server should retry the rename operation for few times instead of panicking
+    immediately.
+  */
+  failure_trials = MYSQL_BIN_LOG::MAX_RETRIES_FOR_DELETE_RENAME_FAILURE;
+  while ((file_rename_status == false) && (failure_trials > 0)) {
+    DBUG_EXECUTE_IF("simulate_crash_safe_index_file_rename_failure", {
+      /* This simulation causes the rename to fail */
+      static char first_char = index_file_name[0];
+      index_file_name[0] = 0;
+      sql_print_information("Retrying rename");
+      if (failure_trials == 1) index_file_name[0] = first_char;
+    };);
+    file_rename_status =
+        !(my_rename(crash_safe_index_file_name, index_file_name, MYF(MY_WME)));
+    --failure_trials;
+    if (!file_rename_status) {
+      my_sleep(1000);
+      /* Clear the error before retrying. */
+      if (failure_trials > 0) thd->clear_error();
+    }
+  }
+  if (!file_rename_status) {
     error = -1;
     LogErr(ERROR_LEVEL, ER_BINLOG_FAILED_TO_RENAME_INDEX_FILE_WHILE_REBUILDING,
            index_file_name);
