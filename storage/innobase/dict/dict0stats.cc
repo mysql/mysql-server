@@ -780,7 +780,7 @@ static void dict_stats_analyze_index_level(
   const rec_t *prev_rec;
   bool prev_rec_is_copied;
   byte *prev_rec_buf = NULL;
-  ulint prev_rec_buf_size = 0;
+  size_t prev_rec_buf_size = 0;
   ulint *rec_offsets;
   ulint *prev_rec_offsets;
   ulint i;
