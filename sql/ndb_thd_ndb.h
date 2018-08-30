@@ -241,6 +241,15 @@ public:
     @param      ndberr The NDB error to push as warning
   */
   void push_ndb_error_warning(const NdbError &ndberr) const;
+
+  /*
+    @brief Push the NDB error as warning message. Then set an
+    error message(with my_error) that describes the operation
+    that failed.
+
+    @param      message Description of the operation that failed
+  */
+  void set_ndb_error(const NdbError &ndberr, const char *message) const;
 };
 
 #endif

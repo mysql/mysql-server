@@ -931,39 +931,6 @@ int ndb_to_mysql_error(const NdbError *ndberr)
   return error;
 }
 
-/**
-  Report error using my_error() and the values extracted from the NdbError.
-  If a proper mysql_code mapping is not available, the error message
-  from the ndbError is pushed to my_error.
-  If a proper mapping is available, the ndb error message is pushed as a
-  warning and the mapped mysql error code is pushed as the error.
-
-  @param    ndberr            The NdbError object with error information
-*/
-void ndb_my_error(const NdbError *ndberr)
-{
-  if (ndberr->mysql_code == -1)
-  {
-    /* No mysql_code mapping present - print ndb error message */
-    const int error_number = (ndberr->status == NdbError::TemporaryError)
-                         ? ER_GET_TEMPORARY_ERRMSG
-                         : ER_GET_ERRMSG;
-    my_error(error_number, MYF(0), ndberr->code, ndberr->message, "NDB");
-  }
-  else
-  {
-    /* MySQL error code mapping is present.
-     * Now call ndb_to_mysql_error() with the ndberr object.
-     * This will check the validity of the mysql error code
-     * and convert it into a more proper error if required.
-     * It will also push the ndb error message as a warning.
-     */
-    const int error_number = ndb_to_mysql_error(ndberr);
-    /* Now push the relevant mysql error to my_error */
-    my_error(error_number, MYF(0));
-  }
-}
-
 ulong opt_ndb_slave_conflict_role;
 
 static int
@@ -17204,9 +17171,8 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
 
   if (dict->beginSchemaTrans() == -1)
   {
-    DBUG_PRINT("info", ("Failed to start schema transaction"));
-    ERR_PRINT(dict->getNdbError());
-    ndb_my_error(&dict->getNdbError());
+    thd_ndb->set_ndb_error(dict->getNdbError(),
+                           "Failed to start schema transaction");
     goto err;
   }
 
@@ -17356,10 +17322,9 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
       new_tab->setPartitionBalance(NdbDictionary::Object::PartitionBalance_Specific);
     }
     
-    int res= dict->prepareHashMap(*old_tab, *new_tab);
-    if (res == -1)
+    if (dict->prepareHashMap(*old_tab, *new_tab) == -1)
     {
-      ndb_my_error(&dict->getNdbError());
+      thd_ndb->set_ndb_error(dict->getNdbError(), "Failed to prepare hash map");
       goto abort;
     }
   }
@@ -17379,9 +17344,8 @@ abort:
   if (dict->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort)
         == -1)
   {
-    DBUG_PRINT("info", ("Failed to abort schema transaction"));
-    ERR_PRINT(dict->getNdbError());
-    error= ndb_to_mysql_error(&dict->getNdbError());
+    thd_ndb->push_ndb_error_warning(dict->getNdbError());
+    thd_ndb->push_warning("Failed to abort NDB schema transaction");
   }
 
 err:
@@ -18350,19 +18314,24 @@ bool ndbcluster_get_tablespace_statistics(const char *tablespace_name,
   // Find out type of object. The type is stored in se_private_data
   enum object_type type;
 
-  ndb_dd_disk_data_get_object_type(ts_se_private_data, type);
+  if (!ndb_dd_disk_data_get_object_type(ts_se_private_data, type))
+  {
+    my_printf_error(ER_INTERNAL_ERROR, "Could not get object type", MYF(0));
+    DBUG_RETURN(true);
+  }
+
+  THD *thd= current_thd;
+  Ndb *ndb= check_ndb_in_thd(thd);
+  if (!ndb)
+  {
+    // No connection to NDB
+    my_error(HA_ERR_NO_CONNECTION, MYF(0));
+    DBUG_RETURN(true);
+  }
+  Thd_ndb* thd_ndb = get_thd_ndb(thd);
 
   if (type == object_type::LOGFILE_GROUP)
   {
-    THD *thd= current_thd;
-
-    Ndb *ndb= check_ndb_in_thd(thd);
-    if (!ndb)
-    {
-      // No connection to NDB
-      my_error(HA_ERR_NO_CONNECTION, MYF(0));
-      DBUG_RETURN(true);
-    }
 
     NdbDictionary::Dictionary* dict= ndb->getDictionary();
 
@@ -18376,7 +18345,7 @@ bool ndbcluster_get_tablespace_statistics(const char *tablespace_name,
     NdbDictionary::Undofile uf= dict->getUndofile(-1, file_name);
     if (ndb_dict_check_NDB_error(dict))
     {
-      ndb_my_error(&dict->getNdbError());
+      thd_ndb->set_ndb_error(dict->getNdbError(), "Could not get undo file");
       DBUG_RETURN(true);
     }
 
@@ -18384,7 +18353,8 @@ bool ndbcluster_get_tablespace_statistics(const char *tablespace_name,
       dict->getLogfileGroup(uf.getLogfileGroup());
     if (ndb_dict_check_NDB_error(dict))
     {
-      ndb_my_error(&dict->getNdbError());
+      thd_ndb->set_ndb_error(dict->getNdbError(),
+                             "Could not get logfile group");
       DBUG_RETURN(true);
     }
 
@@ -18415,15 +18385,6 @@ bool ndbcluster_get_tablespace_statistics(const char *tablespace_name,
 
   if (type == object_type::TABLESPACE)
   {
-    THD *thd= current_thd;
-
-    Ndb *ndb= check_ndb_in_thd(thd);
-    if (!ndb)
-    {
-      // No connection to NDB
-      my_error(HA_ERR_NO_CONNECTION, MYF(0));
-      DBUG_RETURN(true);
-    }
 
     NdbDictionary::Dictionary* dict= ndb->getDictionary();
 
@@ -18437,7 +18398,7 @@ bool ndbcluster_get_tablespace_statistics(const char *tablespace_name,
     NdbDictionary::Datafile df= dict->getDatafile(-1, file_name);
     if (ndb_dict_check_NDB_error(dict))
     {
-      ndb_my_error(&dict->getNdbError());
+      thd_ndb->set_ndb_error(dict->getNdbError(), "Could not get data file");
       DBUG_RETURN(true);
     }
 
@@ -18445,7 +18406,7 @@ bool ndbcluster_get_tablespace_statistics(const char *tablespace_name,
       dict->getTablespace(df.getTablespace());
     if (ndb_dict_check_NDB_error(dict))
     {
-      ndb_my_error(&dict->getNdbError());
+      thd_ndb->set_ndb_error(dict->getNdbError(), "Could not get tablespace");
       DBUG_RETURN(true);
     }
 
