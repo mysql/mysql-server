@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+//#define DBTC_MAIN
 #define DBTC_C
 
 #include "Dbtc.hpp"
@@ -4861,7 +4862,7 @@ void Dbtc::packLqhkeyreq040Lab(Signal* signal,
   TcConnectRecord * const regTcPtr = tcConnectptr.p;
 #ifdef ERROR_INSERT
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
-
+PrefetchApiConTimer apiConTimer(c_apiConTimersPool, apiConnectptr, true);
   if (ERROR_INSERTED(8009)) {
     if (regApiPtr->apiConnectstate == CS_STARTED) {
       CLEAR_ERROR_INSERT_VALUE;
@@ -4903,7 +4904,8 @@ void Dbtc::packLqhkeyreq040Lab(Signal* signal,
   UintR Tread = (regTcPtr->operation == ZREAD);
   UintR Tdirty = (regTcPtr->dirtyOp == ZTRUE);
   UintR Tboth = Tread & Tdirty;
-  setApiConTimer(apiConnectptr, TtcTimer, __LINE__);
+//  setApiConTimer(apiConnectptr, TtcTimer, __LINE__);
+apiConTimer.set_timer(TtcTimer, __LINE__);
   jamDebug();
   /*--------------------------------------------------------------------
    *   WE HAVE SENT ALL THE SIGNALS OF THIS OPERATION. SET STATE AND EXIT.
@@ -5383,17 +5385,22 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     warningReport(signal, 23);
     return;
   }//if
-  UintR TapiConnectptrIndex = regTcPtr->apiConnect;
+
+  ApiConnectRecordPtr apiConnectptr;
+  CommitAckMarkerPtr commitAckMarker;
+
+  apiConnectptr.i = regTcPtr->apiConnect;
+  commitAckMarker.i = regTcPtr->commitAckMarker;
+
+(void) c_apiConnectRecordPool.getUncheckedPtrRW(apiConnectptr);
+
   UintR Ttrans1 = lqhKeyConf->transId1;
   UintR Ttrans2 = lqhKeyConf->transId2;
   Uint32 numFired = LqhKeyConf::getFiredCount(lqhKeyConf->numFiredTriggers);
   Uint32 deferreduk = LqhKeyConf::getDeferredUKBit(lqhKeyConf->numFiredTriggers);
   Uint32 deferredfk = LqhKeyConf::getDeferredFKBit(lqhKeyConf->numFiredTriggers);
 
-  ApiConnectRecordPtr apiConnectptr;
-  apiConnectptr.i = TapiConnectptrIndex;
-  if (unlikely(!c_apiConnectRecordPool.getValidPtr(apiConnectptr) ||
-               apiConnectptr.isNull()))
+  if (unlikely(!Magic::check_ptr(apiConnectptr.p)))
   {
     TCKEY_abort(signal, 29, ApiConnectRecordPtr::get(NULL, RNIL));
     return;
@@ -5407,6 +5414,8 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     warningReport(signal, 24);
     return;
   }//if
+PrefetchApiConTimer apiConTimer(c_apiConTimersPool, apiConnectptr, true);
+(void) m_commitAckMarkerPool.getUncheckedPtrRW(commitAckMarker);
 
 #ifdef ERROR_INSERT
   if (ERROR_INSERTED(8029)) {
@@ -5473,25 +5482,26 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     return;
   }//if
 
-  Uint32 lockingOpI = RNIL;
+  TcConnectRecordPtr lockingOp;
+  lockingOp.i = RNIL;
   if (unlikely(Toperation == ZUNLOCK))
   {
     /* For unlock operations readlen in TCKEYCONF carries
      * the locking operation TC reference
      */
-    lockingOpI = treadlenAi;
+    lockingOp.i = treadlenAi;
+(void) tcConnectRecord.getUncheckedPtrRW(lockingOp);
     treadlenAi = 0;
   }
 
   /* Handle case where LQHKEYREQ requested an LQH CommitAckMarker */
-  Uint32 commitAckMarker = regTcPtr->commitAckMarker;
-  setApiConTimer(apiConnectptr, TtcTimer, __LINE__);
-  if (commitAckMarker != RNIL)
+//  setApiConTimer(apiConnectptr, TtcTimer, __LINE__);
+apiConTimer.set_timer(TtcTimer, __LINE__);
+  if (commitAckMarker.i != RNIL)
   {
+    jam();
     /* Update TC CommitAckMarker record to track LQH CommitAckMarkers */
     const Uint32 noOfLqhs = regTcPtr->noOfNodes;
-    CommitAckMarker * tmp = m_commitAckMarkerHash.getPtr(commitAckMarker);
-    jam();
     /**
      * Now that we have a marker in all nodes in at least one nodegroup, 
      * don't need to request any more for this transaction
@@ -5501,6 +5511,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     /**
      * Populate LQH array
      */
+    ndbrequire(Magic::check_ptr(commitAckMarker.p));
     for(Uint32 i = 0; i < noOfLqhs; i++)
     {
       jamDebug();
@@ -5510,7 +5521,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
         TCKEY_abort(signal, 67, apiConnectptr);
         return;
       }
-      if (!tmp->insert_in_commit_ack_marker(this,
+      if (!commitAckMarker.p->insert_in_commit_ack_marker(this,
                                             regTcPtr->lqhInstanceKey,
                                             regTcPtr->tcNodedata[i]))
       {
@@ -5519,31 +5530,38 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
       }
     }
   }
+  TcConnectRecordPtr triggeringOp;
+  triggeringOp.i = regTcPtr->triggeringOperation;
   if (unlikely(regTcPtr->isIndexOp(regTcPtr->m_special_op_flags)))
   {
     jam();
     // This was an internal TCKEYREQ
     // will be returned unpacked
     regTcPtr->attrInfoLen = treadlenAi;
-  } else {
-    if (numFired == 0 && regTcPtr->triggeringOperation == RNIL) {
-      jam();
+  }
+  else if (numFired == 0 && triggeringOp.i == RNIL)
+  {
+    jam();
 
-      if (Ttckeyrec > (ZTCOPCONF_SIZE - 2)) {
-        TCKEY_abort(signal, 30, apiConnectptr);
-        return;
-      }
+    if (unlikely(Ttckeyrec > (ZTCOPCONF_SIZE - 2)))
+    {
+      TCKEY_abort(signal, 30, apiConnectptr);
+      return;
+    }
 
-      /*
-       * Skip counting triggering operations the first round
-       * since they will enter execLQHKEYCONF a second time
-       * Skip counting internally generated TcKeyReq
-       */
-      regApiPtr.p->tcSendArray[Ttckeyrec] = TclientData;
-      regApiPtr.p->tcSendArray[Ttckeyrec + 1] = treadlenAi;
-      regApiPtr.p->tckeyrec = Ttckeyrec + 2;
-    }//if
-  }//if
+    /*
+     * Skip counting triggering operations the first round
+     * since they will enter execLQHKEYCONF a second time
+     * Skip counting internally generated TcKeyReq
+     */
+    regApiPtr.p->tcSendArray[Ttckeyrec] = TclientData;
+    regApiPtr.p->tcSendArray[Ttckeyrec + 1] = treadlenAi;
+    regApiPtr.p->tckeyrec = Ttckeyrec + 2;
+  }
+  else if (triggeringOp.i != RNIL)
+  {
+(void) tcConnectRecord.getUncheckedPtrRW(triggeringOp);
+  }
   bool do_releaseTcCon = false;
   TcConnectRecordPtr save_tcConnectptr;
   if (TdirtyOp == ZTRUE) 
@@ -5574,26 +5592,27 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
      * 3) Send TCKEYCONF back to the user
      * 4) Release our own TC op
      */
-    Uint32 unlockOpI = tcConnectptr.i;
+//    Uint32 unlockOpI = tcConnectptr.i;
+    const TcConnectRecordPtr unlockOp = tcConnectptr;
 
     ndbrequire( numFired == 0 );
-    ndbrequire( regTcPtr->triggeringOperation == RNIL );
+    ndbrequire( triggeringOp.i == RNIL );
 
     /* Switch to the original locking operation */
-    if (unlikely(lockingOpI == RNIL))
+    if (unlikely(lockingOp.i == RNIL))
     {
       jam();
       TCKEY_abort(signal, 61, apiConnectptr);
       return;
     }
     
-    tcConnectptr.i = lockingOpI;
-    if (unlikely(!tcConnectRecord.getValidPtr(tcConnectptr)))
+    if (unlikely(!Magic::check_ptr(lockingOp.p)))
     {
       jam();
       TCKEY_abort(signal, 63, apiConnectptr);
       return;
     }
+    tcConnectptr = lockingOp;
 
     const TcConnectRecord * regLockTcPtr = tcConnectptr.p;
     
@@ -5630,8 +5649,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     regApiPtr.p->lqhkeyconfrec -= 1;
 
     /* Switch back to the unlock operation */
-    tcConnectptr.i = unlockOpI;
-    tcConnectRecord.getPtr(tcConnectptr);
+    tcConnectptr = unlockOp;
 
     /* Release the unlock operation */
     unlinkReadyTcCon(apiConnectptr.p);
@@ -5659,7 +5677,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     }
   }//if
 
-  if (unlikely(regTcPtr->triggeringOperation != RNIL))
+  if (unlikely(triggeringOp.i != RNIL))
   {
     // A trigger op execution ends.
     jam();
@@ -5706,7 +5724,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     setupIndexOpReturn(regApiPtr.p, regTcPtr);
     lqhKeyConf_checkTransactionState(signal, regApiPtr);
   }
-  else if (likely(regTcPtr->triggeringOperation == RNIL))
+  else if (likely(triggeringOp.i == RNIL))
   {
     // This is "normal" path
     jamDebug();
@@ -5727,15 +5745,12 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
      * Restart the original operation if we have executed all it's
      * triggers.
      */
-    TcConnectRecordPtr opPtr;
-
     time_track_complete_index_key_operation(regTcPtr,
                                   refToNode(regApiPtr.p->ndbapiBlockref),
                                   regTcPtr->tcNodedata[0]);
-    opPtr.i = regTcPtr->triggeringOperation;
-    tcConnectRecord.getPtr(opPtr);
+    ndbrequire(Magic::check_ptr(triggeringOp.p));
     trigger_op_finished(signal, regApiPtr, regTcPtr->currentTriggerId,
-                        opPtr.p, 0);
+                        triggeringOp.p, 0);
     executeTriggers(signal, &regApiPtr);
   }
   if (do_releaseTcCon)
@@ -7695,7 +7710,12 @@ void Dbtc::execCOMPLETED(Signal* signal)
     warningReport(signal, 6);
     return;
   }//if
-  c_apiConnectRecordPool.getPtr(localApiConnectptr);
+if (unlikely(!c_apiConnectRecordPool.getValidPtr(localApiConnectptr)))
+{
+  warningReport(signal, 7);
+  return;
+}
+PrefetchApiConTimer apiConTimer(c_apiConTimersPool, localApiConnectptr, true);
   UintR Tdata1 = localApiConnectptr.p->transid[0] - signal->theData[1];
   UintR Tdata2 = localApiConnectptr.p->transid[1] - signal->theData[2];
   UintR Tcounter = localApiConnectptr.p->counter - 1;
@@ -7703,14 +7723,16 @@ void Dbtc::execCOMPLETED(Signal* signal)
   Tdata1 = Tdata1 | Tdata2;
   bool TcheckCondition = 
     (TapiConnectstate != CS_COMPLETE_SENT) || (Tcounter != 0);
-  if (Tdata1 != 0) {
+  if (unlikely(Tdata1 != 0))
+  {
     warningReport(signal, 7);
     return;
   }//if
-  setApiConTimer(localApiConnectptr, ctcTimer, __LINE__);
+//  setApiConTimer(localApiConnectptr, ctcTimer, __LINE__);
   localApiConnectptr.p->counter = Tcounter;
   localTcConnectptr.p->tcConnectstate = OS_COMPLETED;
   localTcConnectptr.p->noOfNodes = 0; // == releaseNodes(signal)
+apiConTimer.set_timer(ctcTimer, __LINE__);
   if (TcheckCondition) {
     jam();
     /*-------------------------------------------------------*/

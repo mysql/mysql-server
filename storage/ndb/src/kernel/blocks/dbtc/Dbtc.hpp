@@ -1213,70 +1213,72 @@ public:
       LocalApiConnectRecord_api_list;
   typedef Ptr<ApiConnectRecord> ApiConnectRecordPtr;
 
-  class SetApiConTimer
+  class PrefetchApiConTimer
   {
   public:
-    SetApiConTimer()
-    : m_value(0), m_line(0), m_apiConTimers(NULL), m_timer_index(0)
-    {}
-#ifdef VM_TRACE
-    ~SetApiConTimer()
+    PrefetchApiConTimer(const ApiConTimers_pool& pool, ApiConnectRecordPtr apiConPtr, bool for_write)
+    : m_apiConTimers(NULL), m_timer_index(0), checked(false)
     {
-      require(m_apiConTimers == NULL);
-    }
-#endif
-
-    SetApiConTimer(const ApiConTimers_pool& pool, ApiConnectRecordPtr apiConPtr, Uint32 value, Uint32 line)
-    {
-      prepare(pool, apiConPtr, value, line);
-    }
-
-    void prepare(const ApiConTimers_pool& pool, ApiConnectRecordPtr apiConPtr, Uint32 value, Uint32 line)
-    {
-      m_value = value;
-      m_line = line;
       m_apiConPtr = apiConPtr;
       const Uint32 apiConTimer = m_apiConPtr.p->m_apiConTimer;
       ApiConTimersPtr apiConTimers;
       require(apiConTimer != RNIL);
       apiConTimers.i = apiConTimer >> ApiConTimers::INDEX_BITS;
-      require(pool.getUncheckedPtrRW(apiConTimers));
+      if (for_write)
+      {
+        require(pool.getUncheckedPtrRW(apiConTimers));
+      }
+      else
+      {
+        require(pool.getUncheckedPtrRO(apiConTimers));
+      }
       m_timer_index = apiConTimer & ApiConTimers::INDEX_MASK;
       m_apiConTimers = apiConTimers.p;
     }
 
-    void execute() // TODO(wl9756) line at execution or preparation?
+    bool check_ptr()
     {
-      require(Magic::check_ptr(m_apiConTimers));
+      if (unlikely(!Magic::check_ptr(m_apiConTimers)))
+      {
+        return false;
+      }
       assert(m_timer_index < m_apiConTimers->m_top);
       assert(m_apiConTimers->m_count > 0);
       assert(m_apiConTimers->m_entries[m_timer_index].m_apiConnectRecord ==
              m_apiConPtr.i);
-
-      m_apiConTimers->m_entries[m_timer_index].m_timer = m_value;
-      m_apiConPtr.p->m_apiConTimer_line = m_line;
-
-      clear();
+      checked = true;
+      return true;
     }
 
-    void clear()
+    void set_timer(Uint32 value, Uint32 line)
     {
-#ifdef VM_TRACE
-      m_value = 0;
-      m_line = 0;
-      m_timer_index = 0;
-#endif
-      m_apiConTimers = NULL;
+      if (!checked)
+      {
+        require(check_ptr());
+      }
+      m_apiConTimers->m_entries[m_timer_index].m_timer = value;
+      m_apiConPtr.p->m_apiConTimer_line = line;
+    }
+
+    Uint32 get_timer()
+    {
+      if (!checked)
+      {
+        require(check_ptr());
+      }
+      return m_apiConTimers->m_entries[m_timer_index].m_timer;
     }
   private:
     ApiConnectRecordPtr m_apiConPtr;
     ApiConTimers* m_apiConTimers;
-    Uint32 m_value;
-    Uint32 m_line;
     Uint32 m_timer_index;
+    bool checked;
   };
 
   void setApiConTimer(ApiConnectRecordPtr apiConPtr, Uint32 value, Uint32 line)
+#ifdef DBTC_MAIN
+;
+#else
   {
     const Uint32 apiConTimer = apiConPtr.p->m_apiConTimer;
     ApiConTimersPtr apiConTimers;
@@ -1292,7 +1294,7 @@ public:
     apiConTimers.p->m_entries[timer_index].m_timer = value;
     apiConPtr.p->m_apiConTimer_line = line;
   }
-
+#endif
   Uint32 getApiConTimer(const ApiConnectRecordPtr apiConPtr) const
   {
     const Uint32 apiConTimer = apiConPtr.p->m_apiConTimer;
@@ -2929,6 +2931,26 @@ inline void Dbtc::checkPoolShrinkNeed(const Uint32 pool_index,
     sendPoolShrink(pool_index);
   }
 }
+
+#endif
+
+#ifdef DBTC_MAIN
+void Dbtc::setApiConTimer(ApiConnectRecordPtr apiConPtr, Uint32 value, Uint32 line)
+  {
+    const Uint32 apiConTimer = apiConPtr.p->m_apiConTimer;
+    ApiConTimersPtr apiConTimers;
+    ndbrequire(apiConTimer != RNIL);
+    apiConTimers.i = apiConTimer >> ApiConTimers::INDEX_BITS;
+    c_apiConTimersPool.getPtr(apiConTimers);
+    const Uint32 timer_index = apiConTimer & ApiConTimers::INDEX_MASK;
+    ndbassert(timer_index < apiConTimers.p->m_top);
+    ndbassert(apiConTimers.p->m_count > 0);
+    ndbassert(apiConTimers.p->m_entries[timer_index].m_apiConnectRecord ==
+                apiConPtr.i);
+
+    apiConTimers.p->m_entries[timer_index].m_timer = value;
+    apiConPtr.p->m_apiConTimer_line = line;
+  }
 #endif
 
 #undef JAM_FILE_ID
