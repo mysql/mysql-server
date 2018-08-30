@@ -32,7 +32,6 @@
 #include "my_dbug.h"
 #include "my_macros.h"
 #include "my_sys.h"
-#include "my_xml.h"  // my_xml_node_type
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
@@ -47,7 +46,6 @@
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
-#include "unsafe_string_append.h"
 
 /*
   TODO: future development directions:
@@ -72,16 +70,6 @@
        - preceding-sibling
        - preceding
 */
-
-/* Structure to store a parsed XML tree */
-struct MY_XML_NODE {
-  uint level;                 /* level in XML tree, 0 means root node   */
-  enum my_xml_node_type type; /* node type: node, or attribute, or text */
-  uint parent;                /* link to the parent                     */
-  const char *beg;            /* beginning of the name or text          */
-  const char *end;            /* end of the name or text                */
-  const char *tagend;         /* where this tag ends                    */
-};
 
 /* Lexical analizer token */
 struct MY_XPATH_LEX {
@@ -122,25 +110,34 @@ struct MY_XPATH {
   Item *item;                 /* current expression                        */
   Item_nodeset_func *context; /* last scanned context                      */
   Item_nodeset_func *rootelement; /* The root element */
-  String *pxml;           /* Parsed XML, an array of MY_XML_NODE       */
+  ParsedXML *pxml;        /* Parsed XML, an array of MY_XML_NODE       */
   const CHARSET_INFO *cs; /* character set/collation string comparison */
   int error;
 };
 
 using XPathFilter = std::vector<MY_XPATH_FLT>;
+// Using std::vector<bool> as a dynamic bitset
+using ActiveNodes = std::vector<bool>;
 
 /*
   Common features of the functions returning a node set.
 */
 class Item_nodeset_func : public Item_str_func {
  protected:
-  const String *pxml;
-  explicit Item_nodeset_func(String *pxml_arg)
-      : Item_str_func(), pxml(pxml_arg) {}
-  Item_nodeset_func(Item *a, String *pxml_arg)
-      : Item_str_func(a), pxml(pxml_arg) {}
-  Item_nodeset_func(Item *a, Item *b, String *pxml_arg)
-      : Item_str_func(a, b), pxml(pxml_arg) {}
+  const ParsedXML &pxml;
+  Item_nodeset_func(const ParsedXML &pxml_arg, const CHARSET_INFO *cs)
+      : Item_str_func(), pxml(pxml_arg) {
+    collation.collation = cs;
+  }
+  Item_nodeset_func(Item *a, const ParsedXML &pxml_arg, const CHARSET_INFO *cs)
+      : Item_str_func(a), pxml(pxml_arg) {
+    collation.collation = cs;
+  }
+  Item_nodeset_func(Item *a, Item *b, const ParsedXML &pxml_arg,
+                    const CHARSET_INFO *cs)
+      : Item_str_func(a, b), pxml(pxml_arg) {
+    collation.collation = cs;
+  }
 
  public:
   /**
@@ -161,30 +158,24 @@ class Item_nodeset_func : public Item_str_func {
   virtual void val_nodeset(XPathFilter *nodeset) const = 0;
   enum Type type() const override { return XPATH_NODESET; }
   String *val_str(String *str) override {
-    auto *nodebeg = reinterpret_cast<const MY_XML_NODE *>(pxml->ptr());
-    auto *nodeend =
-        reinterpret_cast<const MY_XML_NODE *>(pxml->ptr() + pxml->length());
-    ulong numnodes = nodeend - nodebeg;
     XPathFilter res;
     val_nodeset(&res);
-    String active;
-    active.alloc(numnodes);
-    memset(const_cast<char *>(active.ptr()), 0, numnodes);
+    ActiveNodes active(pxml.size(), false);
     for (auto &flt : res) {
-      const MY_XML_NODE *node;
-      uint j;
-      for (j = 0, node = nodebeg; j < numnodes; j++, node++) {
+      for (uint j = 0; j < pxml.size(); j++) {
+        const MY_XML_NODE *node = &pxml[j];
         if (node->type == MY_XML_NODE_TEXT && node->parent == flt.num)
-          active[j] = 1;
+          active[j] = true;
       }
     }
 
     str->length(0);
     str->set_charset(collation.collation);
-    for (uint i = 0; i < numnodes; i++) {
+    for (uint i = 0; i < pxml.size(); i++) {
       if (active[i]) {
+        const MY_XML_NODE *node = &pxml[i];
         if (str->length()) str->append(" ", 1, &my_charset_latin1);
-        str->append(nodebeg[i].beg, nodebeg[i].end - nodebeg[i].beg);
+        str->append(node->beg, node->end - node->beg);
       }
     }
     return str;
@@ -192,7 +183,6 @@ class Item_nodeset_func : public Item_str_func {
   enum Item_result result_type() const override { return STRING_RESULT; }
   bool resolve_type(THD *) override {
     max_length = MAX_BLOB_WIDTH;
-    collation.collation = pxml->charset();
     // To avoid premature evaluation, mark all nodeset functions as non-const.
     used_tables_cache = RAND_TABLE_BIT;
     return false;
@@ -209,8 +199,8 @@ class Item_nodeset_func : public Item_str_func {
 /* Returns an XML root */
 class Item_nodeset_func_rootelement : public Item_nodeset_func {
  public:
-  explicit Item_nodeset_func_rootelement(String *pxml)
-      : Item_nodeset_func(pxml) {}
+  Item_nodeset_func_rootelement(const ParsedXML &pxml, const CHARSET_INFO *cs)
+      : Item_nodeset_func(pxml, cs) {}
   const char *func_name() const override { return "xpath_rootelement"; }
   void val_nodeset(XPathFilter *nodeset) const override;
 };
@@ -218,8 +208,9 @@ class Item_nodeset_func_rootelement : public Item_nodeset_func {
 /* Returns a Union of two node sets */
 class Item_nodeset_func_union : public Item_nodeset_func {
  public:
-  Item_nodeset_func_union(Item *a, Item *b, String *pxml)
-      : Item_nodeset_func(a, b, pxml) {}
+  Item_nodeset_func_union(Item *a, Item *b, const ParsedXML &pxml,
+                          const CHARSET_INFO *cs)
+      : Item_nodeset_func(a, b, pxml, cs) {}
   const char *func_name() const override { return "xpath_union"; }
   void val_nodeset(XPathFilter *nodeset) const override;
 };
@@ -231,13 +222,13 @@ class Item_nodeset_func_axisbyname : public Item_nodeset_func {
 
  public:
   Item_nodeset_func_axisbyname(Item *a, const char *n_arg, uint l_arg,
-                               String *pxml)
-      : Item_nodeset_func(a, pxml), node_name(n_arg), node_namelen(l_arg) {}
+                               const ParsedXML &pxml, const CHARSET_INFO *cs)
+      : Item_nodeset_func(a, pxml, cs), node_name(n_arg), node_namelen(l_arg) {}
   const char *func_name() const override { return "xpath_axisbyname"; }
-  bool validname(const MY_XML_NODE *n) const {
+  bool validname(const MY_XML_NODE &n) const {
     if (node_name[0] == '*') return true;
-    return (node_namelen == static_cast<uint>(n->end - n->beg)) &&
-           !memcmp(node_name, n->beg, node_namelen);
+    return (node_namelen == static_cast<uint>(n.end - n.beg)) &&
+           !memcmp(node_name, n.beg, node_namelen);
   }
 };
 
@@ -245,8 +236,8 @@ class Item_nodeset_func_axisbyname : public Item_nodeset_func {
 class Item_nodeset_func_selfbyname : public Item_nodeset_func_axisbyname {
  public:
   Item_nodeset_func_selfbyname(Item *a, const char *n_arg, uint l_arg,
-                               String *pxml)
-      : Item_nodeset_func_axisbyname(a, n_arg, l_arg, pxml) {}
+                               const ParsedXML &pxml, const CHARSET_INFO *cs)
+      : Item_nodeset_func_axisbyname(a, n_arg, l_arg, pxml, cs) {}
   const char *func_name() const override { return "xpath_selfbyname"; }
   void val_nodeset(XPathFilter *nodeset) const override;
 };
@@ -255,8 +246,8 @@ class Item_nodeset_func_selfbyname : public Item_nodeset_func_axisbyname {
 class Item_nodeset_func_childbyname : public Item_nodeset_func_axisbyname {
  public:
   Item_nodeset_func_childbyname(Item *a, const char *n_arg, uint l_arg,
-                                String *pxml)
-      : Item_nodeset_func_axisbyname(a, n_arg, l_arg, pxml) {}
+                                const ParsedXML &pxml, const CHARSET_INFO *cs)
+      : Item_nodeset_func_axisbyname(a, n_arg, l_arg, pxml, cs) {}
   const char *func_name() const override { return "xpath_childbyname"; }
   void val_nodeset(XPathFilter *nodeset) const override;
 };
@@ -267,8 +258,9 @@ class Item_nodeset_func_descendantbyname : public Item_nodeset_func_axisbyname {
 
  public:
   Item_nodeset_func_descendantbyname(Item *a, const char *n_arg, uint l_arg,
-                                     String *pxml, bool need_self_arg)
-      : Item_nodeset_func_axisbyname(a, n_arg, l_arg, pxml),
+                                     const ParsedXML &pxml,
+                                     const CHARSET_INFO *cs, bool need_self_arg)
+      : Item_nodeset_func_axisbyname(a, n_arg, l_arg, pxml, cs),
         need_self(need_self_arg) {}
   const char *func_name() const override { return "xpath_descendantbyname"; }
   void val_nodeset(XPathFilter *nodeset) const override;
@@ -280,8 +272,9 @@ class Item_nodeset_func_ancestorbyname : public Item_nodeset_func_axisbyname {
 
  public:
   Item_nodeset_func_ancestorbyname(Item *a, const char *n_arg, uint l_arg,
-                                   String *pxml, bool need_self_arg)
-      : Item_nodeset_func_axisbyname(a, n_arg, l_arg, pxml),
+                                   const ParsedXML &pxml,
+                                   const CHARSET_INFO *cs, bool need_self_arg)
+      : Item_nodeset_func_axisbyname(a, n_arg, l_arg, pxml, cs),
         need_self(need_self_arg) {}
   const char *func_name() const override { return "xpath_ancestorbyname"; }
   void val_nodeset(XPathFilter *nodeset) const override;
@@ -291,8 +284,8 @@ class Item_nodeset_func_ancestorbyname : public Item_nodeset_func_axisbyname {
 class Item_nodeset_func_parentbyname : public Item_nodeset_func_axisbyname {
  public:
   Item_nodeset_func_parentbyname(Item *a, const char *n_arg, uint l_arg,
-                                 String *pxml)
-      : Item_nodeset_func_axisbyname(a, n_arg, l_arg, pxml) {}
+                                 const ParsedXML &pxml, const CHARSET_INFO *cs)
+      : Item_nodeset_func_axisbyname(a, n_arg, l_arg, pxml, cs) {}
   const char *func_name() const override { return "xpath_parentbyname"; }
   void val_nodeset(XPathFilter *nodeset) const override;
 };
@@ -301,8 +294,9 @@ class Item_nodeset_func_parentbyname : public Item_nodeset_func_axisbyname {
 class Item_nodeset_func_attributebyname : public Item_nodeset_func_axisbyname {
  public:
   Item_nodeset_func_attributebyname(Item *a, const char *n_arg, uint l_arg,
-                                    String *pxml)
-      : Item_nodeset_func_axisbyname(a, n_arg, l_arg, pxml) {}
+                                    const ParsedXML &pxml,
+                                    const CHARSET_INFO *cs)
+      : Item_nodeset_func_axisbyname(a, n_arg, l_arg, pxml, cs) {}
   const char *func_name() const override { return "xpath_attributebyname"; }
   void val_nodeset(XPathFilter *nodeset) const override;
 };
@@ -318,9 +312,10 @@ class Item_nodeset_func_predicate : public Item_nodeset_func {
   Item_nodeset_context_cache *m_context_cache;
 
  public:
-  Item_nodeset_func_predicate(Item *a, Item *b, String *pxml,
+  Item_nodeset_func_predicate(Item *a, Item *b, const ParsedXML &pxml,
+                              const CHARSET_INFO *cs,
                               Item_nodeset_context_cache *context_cache)
-      : Item_nodeset_func(a, b, pxml), m_context_cache(context_cache) {}
+      : Item_nodeset_func(a, b, pxml, cs), m_context_cache(context_cache) {}
   const char *func_name() const override { return "xpath_predicate"; }
   void val_nodeset(XPathFilter *nodeset) const override;
 };
@@ -330,9 +325,10 @@ class Item_nodeset_func_elementbyindex : public Item_nodeset_func {
   Item_nodeset_context_cache *m_context_cache;
 
  public:
-  Item_nodeset_func_elementbyindex(Item *a, Item *b, String *pxml,
+  Item_nodeset_func_elementbyindex(Item *a, Item *b, const ParsedXML &pxml,
+                                   const CHARSET_INFO *cs,
                                    Item_nodeset_context_cache *context_cache)
-      : Item_nodeset_func(a, b, pxml), m_context_cache(context_cache) {}
+      : Item_nodeset_func(a, b, pxml, cs), m_context_cache(context_cache) {}
   const char *func_name() const override { return "xpath_elementbyindex"; }
   void val_nodeset(XPathFilter *nodeset) const override;
 };
@@ -389,8 +385,8 @@ class Item_nodeset_context_cache : public Item_nodeset_func {
   size_t m_size;
 
  public:
-  explicit Item_nodeset_context_cache(String *pxml)
-      : Item_nodeset_func(pxml),
+  Item_nodeset_context_cache(const ParsedXML &pxml, const CHARSET_INFO *cs)
+      : Item_nodeset_func(pxml, cs),
         m_is_empty(true),
         m_num(0),
         m_pos(0),
@@ -449,10 +445,11 @@ class Item_func_xpath_count : public Item_int_func {
 };
 
 class Item_func_xpath_sum : public Item_real_func {
-  const String *pxml;
+  const ParsedXML *pxml;
 
  public:
-  Item_func_xpath_sum(Item *a, String *p) : Item_real_func(a), pxml(p) {}
+  Item_func_xpath_sum(Item *a, const ParsedXML *p)
+      : Item_real_func(a), pxml(p) {}
 
   const char *func_name() const override { return "xpath_sum"; }
   double val_real() override {
@@ -460,13 +457,11 @@ class Item_func_xpath_sum : public Item_real_func {
     auto *nodeset_func = down_cast<const Item_nodeset_func *>(args[0]);
     XPathFilter res;
     nodeset_func->val_nodeset(&res);
-    const size_t numnodes = pxml->length() / sizeof(MY_XML_NODE);
-    auto *nodebeg = reinterpret_cast<const MY_XML_NODE *>(pxml->ptr());
 
     for (auto &flt : res) {
-      const MY_XML_NODE *self = &nodebeg[flt.num];
-      for (uint j = flt.num + 1; j < numnodes; j++) {
-        const MY_XML_NODE *node = &nodebeg[j];
+      const MY_XML_NODE *self = &pxml->at(flt.num);
+      for (uint j = flt.num + 1; j < pxml->size(); j++) {
+        const MY_XML_NODE *node = &pxml->at(j);
         if (node->level <= self->level) break;
         if ((node->parent == flt.num) && (node->type == MY_XML_NODE_TEXT)) {
           char *end;
@@ -483,10 +478,11 @@ class Item_func_xpath_sum : public Item_real_func {
 };
 
 class Item_nodeset_to_const_comparator final : public Item_bool_func {
-  const String *pxml;
+  const ParsedXML *pxml;
 
  public:
-  Item_nodeset_to_const_comparator(Item *nodeset, Item *cmpfunc, String *p)
+  Item_nodeset_to_const_comparator(Item *nodeset, Item *cmpfunc,
+                                   const ParsedXML *p)
       : Item_bool_func(nodeset, cmpfunc), pxml(p) {}
   enum Type type() const override { return XPATH_NODESET_CMP; };
   const char *func_name() const override {
@@ -500,13 +496,11 @@ class Item_nodeset_to_const_comparator final : public Item_bool_func {
     auto *nodeset_func = down_cast<const Item_nodeset_func *>(args[0]);
     XPathFilter res;
     nodeset_func->val_nodeset(&res);
-    auto *nodebeg = reinterpret_cast<const MY_XML_NODE *>(pxml->ptr());
-    const size_t numnodes = pxml->length() / sizeof(MY_XML_NODE);
 
     for (auto &flt : res) {
-      const MY_XML_NODE *self = &nodebeg[flt.num];
-      for (uint j = flt.num + 1; j < numnodes; j++) {
-        const MY_XML_NODE *node = &nodebeg[j];
+      const MY_XML_NODE *self = &pxml->at(flt.num);
+      for (uint j = flt.num + 1; j < pxml->size(); j++) {
+        const MY_XML_NODE *node = &pxml->at(j);
         if (node->level <= self->level) break;
         if ((node->parent == flt.num) && (node->type == MY_XML_NODE_TEXT)) {
           fake->str_value.set(node->beg, node->end - node->beg,
@@ -532,56 +526,46 @@ void Item_nodeset_func_rootelement::val_nodeset(XPathFilter *nodeset) const {
 }
 
 void Item_nodeset_func_union::val_nodeset(XPathFilter *nodeset) const {
-  size_t num_nodes = pxml->length() / sizeof(MY_XML_NODE);
   auto *nodeset_func1 = down_cast<const Item_nodeset_func *>(args[0]);
   XPathFilter set0;
   nodeset_func1->val_nodeset(&set0);
   auto *nodeset_func2 = down_cast<const Item_nodeset_func *>(args[1]);
   XPathFilter set1;
   nodeset_func2->val_nodeset(&set1);
-  String both_str;
-  both_str.alloc(num_nodes);
-  auto *both = const_cast<char *>(both_str.ptr());
-  memset(both, 0, num_nodes);
+  ActiveNodes both(pxml.size(), false);
 
-  for (auto &i : set0) both[i.num] = 1;
+  for (auto &i : set0) both[i.num] = true;
 
-  for (auto &i : set1) both[i.num] = 1;
+  for (auto &i : set1) both[i.num] = true;
 
   nodeset->clear();
-  for (uint i = 0, pos = 0; i < num_nodes; i++) {
+  for (uint i = 0, pos = 0; i < pxml.size(); i++) {
     if (both[i]) nodeset->push_back({i, pos++, 0});
   }
 }
 
 void Item_nodeset_func_selfbyname::val_nodeset(XPathFilter *nodeset) const {
-  auto nodebeg = reinterpret_cast<const MY_XML_NODE *>(pxml->ptr());
   XPathFilter res;
   auto *nodeset_func = down_cast<const Item_nodeset_func *>(args[0]);
   nodeset_func->val_nodeset(&res);
   nodeset->clear();
   for (auto &flt : res) {
-    const MY_XML_NODE *self = &nodebeg[flt.num];
-    if (validname(self)) nodeset->push_back({flt.num, 0, 0});
+    if (validname(pxml[flt.num])) nodeset->push_back({flt.num, 0, 0});
   }
 }
 
 void Item_nodeset_func_childbyname::val_nodeset(XPathFilter *nodeset) const {
-  auto nodebeg = reinterpret_cast<const MY_XML_NODE *>(pxml->ptr());
-  auto nodeend =
-      reinterpret_cast<const MY_XML_NODE *>(pxml->ptr() + pxml->length());
-  ulong numnodes = nodeend - nodebeg;
   auto *nodeset_func = down_cast<const Item_nodeset_func *>(args[0]);
   XPathFilter res;
   nodeset_func->val_nodeset(&res);
   nodeset->clear();
   for (auto &flt : res) {
-    const MY_XML_NODE *self = &nodebeg[flt.num];
-    for (uint pos = 0, j = flt.num + 1; j < numnodes; j++) {
-      const MY_XML_NODE *node = &nodebeg[j];
+    const MY_XML_NODE *self = &pxml[flt.num];
+    for (uint pos = 0, j = flt.num + 1; j < pxml.size(); j++) {
+      const MY_XML_NODE *node = &pxml[j];
       if (node->level <= self->level) break;
       if ((node->parent == flt.num) && (node->type == MY_XML_NODE_TAG) &&
-          validname(node))
+          validname(*node))
         nodeset->push_back({j, pos++, 0});
     }
   }
@@ -589,41 +573,29 @@ void Item_nodeset_func_childbyname::val_nodeset(XPathFilter *nodeset) const {
 
 void Item_nodeset_func_descendantbyname::val_nodeset(
     XPathFilter *nodeset) const {
-  auto nodebeg = reinterpret_cast<const MY_XML_NODE *>(pxml->ptr());
-  auto nodeend =
-      reinterpret_cast<const MY_XML_NODE *>(pxml->ptr() + pxml->length());
-  ulong numnodes = nodeend - nodebeg;
   auto *nodeset_func = down_cast<const Item_nodeset_func *>(args[0]);
   XPathFilter res;
   nodeset_func->val_nodeset(&res);
   nodeset->clear();
   for (auto &flt : res) {
     uint pos = 0;
-    const MY_XML_NODE *self = &nodebeg[flt.num];
-    if (need_self && validname(self)) nodeset->push_back({flt.num, pos++, 0});
-    for (uint j = flt.num + 1; j < numnodes; j++) {
-      const MY_XML_NODE *node = &nodebeg[j];
+    const MY_XML_NODE *self = &pxml[flt.num];
+    if (need_self && validname(*self)) nodeset->push_back({flt.num, pos++, 0});
+    for (uint j = flt.num + 1; j < pxml.size(); j++) {
+      const MY_XML_NODE *node = &pxml[j];
       if (node->level <= self->level) break;
-      if ((node->type == MY_XML_NODE_TAG) && validname(node))
+      if ((node->type == MY_XML_NODE_TAG) && validname(*node))
         nodeset->push_back({j, pos++, 0});
     }
   }
 }
 
 void Item_nodeset_func_ancestorbyname::val_nodeset(XPathFilter *nodeset) const {
-  char *active;
-  String active_str;
-  auto nodebeg = reinterpret_cast<const MY_XML_NODE *>(pxml->ptr());
-  auto nodeend =
-      reinterpret_cast<const MY_XML_NODE *>(pxml->ptr() + pxml->length());
-  ulong numnodes = nodeend - nodebeg;
   auto *nodeset_func = down_cast<const Item_nodeset_func *>(args[0]);
   XPathFilter res;
   nodeset_func->val_nodeset(&res);
   nodeset->clear();
-  active_str.alloc(numnodes);
-  active = const_cast<char *>(active_str.ptr());
-  memset(active, 0, numnodes);
+  ActiveNodes active(pxml.size(), false);
   uint pos = 0;
 
   for (auto &flt : res) {
@@ -631,65 +603,53 @@ void Item_nodeset_func_ancestorbyname::val_nodeset(XPathFilter *nodeset) const {
        Go to the root and add all nodes on the way.
        Don't add the root if context is the root itelf
     */
-    const MY_XML_NODE *self = &nodebeg[flt.num];
-    if (need_self && validname(self)) {
-      active[flt.num] = 1;
+    const MY_XML_NODE *self = &pxml[flt.num];
+    if (need_self && validname(*self)) {
+      active[flt.num] = true;
       pos++;
     }
 
-    for (uint j = self->parent; nodebeg[j].parent != j; j = nodebeg[j].parent) {
-      if (flt.num && validname(&nodebeg[j])) {
-        active[j] = 1;
+    for (uint j = self->parent; pxml[j].parent != j; j = pxml[j].parent) {
+      if (flt.num && validname(pxml[j])) {
+        active[j] = true;
         pos++;
       }
     }
   }
 
-  for (uint j = 0; j < numnodes; j++) {
+  for (uint j = 0; j < pxml.size(); j++) {
     if (active[j]) nodeset->push_back({j, --pos, 0});
   }
 }
 
 void Item_nodeset_func_parentbyname::val_nodeset(XPathFilter *nodeset) const {
-  char *active;
-  String active_str;
-  auto nodebeg = reinterpret_cast<const MY_XML_NODE *>(pxml->ptr());
-  auto nodeend =
-      reinterpret_cast<const MY_XML_NODE *>(pxml->ptr() + pxml->length());
-  ulong numnodes = nodeend - nodebeg;
   auto *nodeset_func = down_cast<const Item_nodeset_func *>(args[0]);
   XPathFilter res;
   nodeset_func->val_nodeset(&res);
   nodeset->clear();
-  active_str.alloc(numnodes);
-  active = const_cast<char *>(active_str.ptr());
-  memset(active, 0, numnodes);
+  ActiveNodes active(pxml.size(), false);
   for (auto &flt : res) {
-    uint j = nodebeg[flt.num].parent;
-    if (flt.num && validname(&nodebeg[j])) active[j] = 1;
+    uint j = pxml[flt.num].parent;
+    if (flt.num && validname(pxml[j])) active[j] = true;
   }
-  for (uint j = 0, pos = 0; j < numnodes; j++) {
+  for (uint j = 0, pos = 0; j < pxml.size(); j++) {
     if (active[j]) nodeset->push_back({j, pos++, 0});
   }
 }
 
 void Item_nodeset_func_attributebyname::val_nodeset(
     XPathFilter *nodeset) const {
-  auto nodebeg = reinterpret_cast<const MY_XML_NODE *>(pxml->ptr());
-  auto nodeend =
-      reinterpret_cast<const MY_XML_NODE *>(pxml->ptr() + pxml->length());
-  ulong numnodes = nodeend - nodebeg;
   auto *nodeset_func = down_cast<const Item_nodeset_func *>(args[0]);
   XPathFilter res;
   nodeset_func->val_nodeset(&res);
   nodeset->clear();
   for (auto &flt : res) {
-    const MY_XML_NODE *self = &nodebeg[flt.num];
-    for (uint pos = 0, j = flt.num + 1; j < numnodes; j++) {
-      const MY_XML_NODE *node = &nodebeg[j];
+    const MY_XML_NODE *self = &pxml[flt.num];
+    for (uint pos = 0, j = flt.num + 1; j < pxml.size(); j++) {
+      const MY_XML_NODE *node = &pxml[j];
       if (node->level <= self->level) break;
       if ((node->parent == flt.num) && (node->type == MY_XML_NODE_ATTR) &&
-          validname(node))
+          validname(*node))
         nodeset->push_back({j, pos++, 0});
     }
   }
@@ -916,30 +876,36 @@ static Item_nodeset_func *nametestfunc(MY_XPATH *xpath, int type, Item *arg,
   Item_nodeset_func *res;
   switch (type) {
     case MY_XPATH_AXIS_ANCESTOR:
-      res = new Item_nodeset_func_ancestorbyname(arg, beg, len, xpath->pxml, 0);
+      res = new Item_nodeset_func_ancestorbyname(arg, beg, len, *xpath->pxml,
+                                                 xpath->cs, false);
       break;
     case MY_XPATH_AXIS_ANCESTOR_OR_SELF:
-      res = new Item_nodeset_func_ancestorbyname(arg, beg, len, xpath->pxml, 1);
+      res = new Item_nodeset_func_ancestorbyname(arg, beg, len, *xpath->pxml,
+                                                 xpath->cs, true);
       break;
     case MY_XPATH_AXIS_PARENT:
-      res = new Item_nodeset_func_parentbyname(arg, beg, len, xpath->pxml);
+      res = new Item_nodeset_func_parentbyname(arg, beg, len, *xpath->pxml,
+                                               xpath->cs);
       break;
     case MY_XPATH_AXIS_DESCENDANT:
-      res =
-          new Item_nodeset_func_descendantbyname(arg, beg, len, xpath->pxml, 0);
+      res = new Item_nodeset_func_descendantbyname(arg, beg, len, *xpath->pxml,
+                                                   xpath->cs, false);
       break;
     case MY_XPATH_AXIS_DESCENDANT_OR_SELF:
-      res =
-          new Item_nodeset_func_descendantbyname(arg, beg, len, xpath->pxml, 1);
+      res = new Item_nodeset_func_descendantbyname(arg, beg, len, *xpath->pxml,
+                                                   xpath->cs, true);
       break;
     case MY_XPATH_AXIS_ATTRIBUTE:
-      res = new Item_nodeset_func_attributebyname(arg, beg, len, xpath->pxml);
+      res = new Item_nodeset_func_attributebyname(arg, beg, len, *xpath->pxml,
+                                                  xpath->cs);
       break;
     case MY_XPATH_AXIS_SELF:
-      res = new Item_nodeset_func_selfbyname(arg, beg, len, xpath->pxml);
+      res = new Item_nodeset_func_selfbyname(arg, beg, len, *xpath->pxml,
+                                             xpath->cs);
       break;
     default:
-      res = new Item_nodeset_func_childbyname(arg, beg, len, xpath->pxml);
+      res = new Item_nodeset_func_childbyname(arg, beg, len, *xpath->pxml,
+                                              xpath->cs);
   }
   return res;
 }
@@ -1431,8 +1397,8 @@ static int my_xpath_parse_AbsoluteLocationPath(MY_XPATH *xpath) {
   xpath->context = xpath->rootelement;
 
   if (my_xpath_parse_term(xpath, MY_XPATH_LEX_SLASH)) {
-    xpath->context = new Item_nodeset_func_descendantbyname(xpath->context, "*",
-                                                            1, xpath->pxml, 1);
+    xpath->context = new Item_nodeset_func_descendantbyname(
+        xpath->context, "*", 1, *xpath->pxml, xpath->cs, true);
     return my_xpath_parse_RelativeLocationPath(xpath);
   }
 
@@ -1468,7 +1434,7 @@ static int my_xpath_parse_RelativeLocationPath(MY_XPATH *xpath) {
   while (my_xpath_parse_term(xpath, MY_XPATH_LEX_SLASH)) {
     if (my_xpath_parse_term(xpath, MY_XPATH_LEX_SLASH))
       xpath->context = new Item_nodeset_func_descendantbyname(
-          xpath->context, "*", 1, xpath->pxml, 1);
+          xpath->context, "*", 1, *xpath->pxml, xpath->cs, true);
     if (!my_xpath_parse_Step(xpath)) {
       xpath->error = 1;
       return 0;
@@ -1504,7 +1470,7 @@ static int my_xpath_parse_AxisSpecifier_NodeTest_opt_Predicate_list(
 
   while (my_xpath_parse_term(xpath, MY_XPATH_LEX_LB)) {
     Item *prev_context = xpath->context;
-    auto *cache = new Item_nodeset_context_cache(xpath->pxml);
+    auto *cache = new Item_nodeset_context_cache(*xpath->pxml, xpath->cs);
     xpath->context = cache;
 
     if (!my_xpath_parse_PredicateExpr(xpath)) {
@@ -1521,10 +1487,10 @@ static int my_xpath_parse_AxisSpecifier_NodeTest_opt_Predicate_list(
 
     if (xpath->item->is_bool_func()) {
       xpath->context = new Item_nodeset_func_predicate(
-          prev_context, xpath->item, xpath->pxml, cache);
+          prev_context, xpath->item, *xpath->pxml, xpath->cs, cache);
     } else {
       xpath->context = new Item_nodeset_func_elementbyindex(
-          prev_context, xpath->item, xpath->pxml, cache);
+          prev_context, xpath->item, *xpath->pxml, xpath->cs, cache);
     }
   }
   return 1;
@@ -1629,8 +1595,8 @@ static int my_xpath_parse_NodeTest(MY_XPATH *xpath) {
 static int my_xpath_parse_AbbreviatedStep(MY_XPATH *xpath) {
   if (!my_xpath_parse_term(xpath, MY_XPATH_LEX_DOT)) return 0;
   if (my_xpath_parse_term(xpath, MY_XPATH_LEX_DOT))
-    xpath->context =
-        new Item_nodeset_func_parentbyname(xpath->context, "*", 1, xpath->pxml);
+    xpath->context = new Item_nodeset_func_parentbyname(
+        xpath->context, "*", 1, *xpath->pxml, xpath->cs);
   return 1;
 }
 
@@ -1744,7 +1710,8 @@ static int my_xpath_parse_UnionExpr(MY_XPATH *xpath) {
       xpath->error = 1;
       return 0;
     }
-    xpath->item = new Item_nodeset_func_union(prev, xpath->item, xpath->pxml);
+    xpath->item =
+        new Item_nodeset_func_union(prev, xpath->item, *xpath->pxml, xpath->cs);
   }
   return 1;
 }
@@ -1785,8 +1752,8 @@ static int my_xpath_parse_FilterExpr_opt_slashes_RelativeLocationPath(
 
   /* treat double slash (//) as /descendant-or-self::node()/ */
   if (my_xpath_parse_term(xpath, MY_XPATH_LEX_SLASH))
-    xpath->context = new Item_nodeset_func_descendantbyname(xpath->context, "*",
-                                                            1, xpath->pxml, 1);
+    xpath->context = new Item_nodeset_func_descendantbyname(
+        xpath->context, "*", 1, *xpath->pxml, xpath->cs, true);
   rc = my_xpath_parse_RelativeLocationPath(xpath);
 
   /* push back the context and restore the item */
@@ -2297,7 +2264,8 @@ static int my_xpath_parse(MY_XPATH *xpath, const char *str,
   my_xpath_lex_init(&xpath->prevtok, str, strend);
   my_xpath_lex_scan(xpath, &xpath->lasttok, str, strend);
 
-  xpath->rootelement = new Item_nodeset_func_rootelement(xpath->pxml);
+  xpath->rootelement =
+      new Item_nodeset_func_rootelement(*xpath->pxml, xpath->cs);
 
   return my_xpath_parse_Expr(xpath) &&
          my_xpath_parse_term(xpath, MY_XPATH_LEX_EOF);
@@ -2339,7 +2307,6 @@ bool Item_xml_str_func::parse_xpath(Item *xpath_expr) {
   xpath.cs = collation.collation;
   xpath.debug = 0;
   xpath.pxml = &pxml;
-  pxml.set_charset(collation.collation);
 
   int rc = my_xpath_parse(&xpath, xp->ptr(), xp->ptr() + xp->length());
 
@@ -2361,26 +2328,10 @@ bool Item_xml_str_func::parse_xpath(Item *xpath_expr) {
 #define MAX_LEVEL 256
 typedef struct {
   uint level;
-  String *pxml;         // parsed XML
+  ParsedXML *pxml;      // parsed XML
   uint pos[MAX_LEVEL];  // Tag position stack
   uint parent;          // Offset of the parent of the current node
 } MY_XML_USER_DATA;
-
-static bool append_node(String *str, MY_XML_NODE *node) {
-  /*
-   If "str" doesn't have space for a new node,
-   it will allocate two times more space that it has had so far.
-   (2*len+512) is a heuristic value,
-   which gave the best performance during tests.
-   The ideas behind this formula are:
-   - It allows to have a very small number of reallocs:
-     about 10 reallocs on a 1Mb-long XML value.
-   - At the same time, it avoids excessive memory use.
-  */
-  if (str->reserve(sizeof(MY_XML_NODE), 2 * str->length() + 512)) return true;
-  q_append(reinterpret_cast<const char *>(node), sizeof(MY_XML_NODE), str);
-  return false;
-}
 
 /*
   Process tag beginning
@@ -2399,13 +2350,12 @@ extern "C" int xml_enter(MY_XML_PARSER *st, const char *attr, size_t len);
 
 int xml_enter(MY_XML_PARSER *st, const char *attr, size_t len) {
   auto *data = reinterpret_cast<MY_XML_USER_DATA *>(st->user_data);
-  size_t numnodes = data->pxml->length() / sizeof(MY_XML_NODE);
   MY_XML_NODE node;
 
   node.parent = data->parent;  // Set parent for the new node to old parent
-  data->parent = numnodes;     // Remember current node as new parent
+  data->parent = data->pxml->size();  // Remember current node as new parent
   DBUG_ASSERT(data->level < MAX_LEVEL);
-  data->pos[data->level] = numnodes;
+  data->pos[data->level] = data->pxml->size();
   if (data->level < MAX_LEVEL - 1)
     node.level = data->level++;
   else
@@ -2413,7 +2363,8 @@ int xml_enter(MY_XML_PARSER *st, const char *attr, size_t len) {
   node.type = st->current_node_type;  // TAG or ATTR
   node.beg = attr;
   node.end = attr + len;
-  return append_node(data->pxml, &node) ? MY_XML_ERROR : MY_XML_OK;
+  data->pxml->push_back(node);
+  return MY_XML_OK;
 }
 
 /*
@@ -2439,7 +2390,8 @@ int xml_value(MY_XML_PARSER *st, const char *attr, size_t len) {
   node.type = MY_XML_NODE_TEXT;
   node.beg = attr;
   node.end = attr + len;
-  return append_node(data->pxml, &node) ? MY_XML_ERROR : MY_XML_OK;
+  data->pxml->push_back(node);
+  return MY_XML_OK;
 }
 
 /*
@@ -2448,7 +2400,7 @@ int xml_value(MY_XML_PARSER *st, const char *attr, size_t len) {
   SYNOPSYS
 
     A call-back function executed when XML parser
-    is leaving a tag or an attribue.
+    is leaving a tag or an attribute.
     Decrements data->level.
 
   RETURN
@@ -2461,11 +2413,8 @@ int xml_leave(MY_XML_PARSER *st, const char *, size_t) {
   DBUG_ASSERT(data->level > 0);
   data->level--;
 
-  auto *nodes = const_cast<MY_XML_NODE *>(
-      reinterpret_cast<const MY_XML_NODE *>(data->pxml->ptr()));
-  data->parent = nodes[data->parent].parent;
-  nodes += data->pos[data->level];
-  nodes->tagend = st->cur;
+  data->parent = data->pxml->at(data->parent).parent;
+  data->pxml->at(data->pos[data->level]).tagend = st->cur;
 
   return MY_XML_OK;
 }
@@ -2480,12 +2429,12 @@ int xml_leave(MY_XML_PARSER *st, const char *, size_t) {
     Currently pointer to parsed XML on success
     0 on parse error
 */
-String *Item_xml_str_func::parse_xml(String *raw_xml, String *parsed_xml_buf) {
+static bool parse_xml(String *raw_xml, ParsedXML *parsed_xml_buf) {
   MY_XML_PARSER p;
   MY_XML_USER_DATA user_data;
   int rc;
 
-  parsed_xml_buf->length(0);
+  parsed_xml_buf->clear();
 
   /* Prepare XML parser */
   my_xml_parser_create(&p);
@@ -2514,7 +2463,7 @@ String *Item_xml_str_func::parse_xml(String *raw_xml, String *parsed_xml_buf) {
   }
   my_xml_parser_free(&p);
 
-  return rc == MY_XML_OK ? parsed_xml_buf : 0;
+  return rc == MY_XML_OK;
 }
 
 String *Item_func_xml_extractvalue::val_str(String *str) {
@@ -2526,7 +2475,7 @@ String *Item_func_xml_extractvalue::val_str(String *str) {
     return NULL;
   }
 
-  tmp_value.set("", 0, pxml.charset());
+  tmp_value.set("", 0, collation.collation);
   if (!nodeset_func || !(res = args[0]->val_str(str)) ||
       !parse_xml(res, &pxml) || !(res = nodeset_func->val_str(&tmp_value))) {
     null_value = 1;
@@ -2546,7 +2495,7 @@ String *Item_func_xml_update::val_str(String *str) {
   }
 
   if (!nodeset_func || !(res = args[0]->val_str(str)) ||
-      !(rep = args[2]->val_str(&tmp_value3)) || !parse_xml(res, &pxml) ||
+      !(rep = args[2]->val_str(&tmp_value)) || !parse_xml(res, &pxml) ||
       (nodeset_func->type() != XPATH_NODESET)) {
     null_value = true;
     return nullptr;
@@ -2561,10 +2510,9 @@ String *Item_func_xml_update::val_str(String *str) {
     return res;
   }
 
-  auto *nodebeg = reinterpret_cast<const MY_XML_NODE *>(pxml.ptr());
-  nodebeg += nodeset.at(0).num;
+  const MY_XML_NODE *node = &pxml.at(nodeset.at(0).num);
 
-  if (!nodebeg->level) {
+  if (!node->level) {
     /*
       Root element, without NameTest:
       UpdateXML(xml, '/', 'replacement');
@@ -2575,10 +2523,10 @@ String *Item_func_xml_update::val_str(String *str) {
 
   tmp_value.length(0);
   tmp_value.set_charset(collation.collation);
-  uint offs = nodebeg->type == MY_XML_NODE_TAG ? 1 : 0;
-  tmp_value.append(res->ptr(), nodebeg->beg - res->ptr() - offs);
+  uint offs = node->type == MY_XML_NODE_TAG ? 1 : 0;
+  tmp_value.append(res->ptr(), node->beg - res->ptr() - offs);
   tmp_value.append(rep->ptr(), rep->length());
-  const char *end = nodebeg->tagend + offs;
+  const char *end = node->tagend + offs;
   tmp_value.append(end, res->ptr() + res->length() - end);
   return &tmp_value;
 }

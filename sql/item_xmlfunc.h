@@ -24,6 +24,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "my_inttypes.h"
+#include "my_xml.h"            // my_xml_node_type
 #include "sql/item_strfunc.h"  // Item_str_func
 #include "sql/parse_tree_node_base.h"
 #include "sql_string.h"
@@ -33,22 +34,33 @@ class THD;
 
 /* This file defines all XML functions */
 
+/* Structure to store a parsed XML tree */
+struct MY_XML_NODE {
+  uint level;                 /* level in XML tree, 0 means root node   */
+  enum my_xml_node_type type; /* node type: node, or attribute, or text */
+  uint parent;                /* link to the parent                     */
+  const char *beg;            /* beginning of the name or text          */
+  const char *end;            /* end of the name or text                */
+  const char *tagend;         /* where this tag ends                    */
+};
+
+using ParsedXML = std::vector<MY_XML_NODE>;
+
 class Item_xml_str_func : public Item_str_func {
  protected:
-  String tmp_value, pxml;
+  ParsedXML pxml;
   Item *nodeset_func;
 
  public:
   Item_xml_str_func(const POS &pos, Item *a, Item *b)
-      : Item_str_func(pos, a, b) {
+      : Item_str_func(pos, a, b), nodeset_func(nullptr) {
     maybe_null = true;
   }
   Item_xml_str_func(const POS &pos, Item *a, Item *b, Item *c)
-      : Item_str_func(pos, a, b, c) {
+      : Item_str_func(pos, a, b, c), nodeset_func(nullptr) {
     maybe_null = true;
   }
   bool resolve_type(THD *thd) override;
-  String *parse_xml(String *raw_xml, String *parsed_xml_buf);
   bool check_function_as_value_generator(uchar *) override { return false; }
 
  protected:
@@ -67,6 +79,8 @@ class Item_xml_str_func : public Item_str_func {
 };
 
 class Item_func_xml_extractvalue final : public Item_xml_str_func {
+  String tmp_value;
+
  public:
   Item_func_xml_extractvalue(const POS &pos, Item *a, Item *b)
       : Item_xml_str_func(pos, a, b) {}
@@ -75,7 +89,7 @@ class Item_func_xml_extractvalue final : public Item_xml_str_func {
 };
 
 class Item_func_xml_update final : public Item_xml_str_func {
-  String tmp_value3;
+  String tmp_value;
 
  public:
   Item_func_xml_update(const POS &pos, Item *a, Item *b, Item *c)
@@ -83,7 +97,7 @@ class Item_func_xml_update final : public Item_xml_str_func {
   const char *func_name() const override { return "updatexml"; }
   String *val_str(String *) override;
   bool check_function_as_value_generator(uchar *args) override {
-    Check_function_as_value_generator_parameters *func_arg =
+    auto *func_arg =
         pointer_cast<Check_function_as_value_generator_parameters *>(args);
     func_arg->banned_function_name = func_name();
     return true;
