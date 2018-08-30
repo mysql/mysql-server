@@ -124,8 +124,8 @@ void PasswordVault::load_passwords() {
                           &buf_decrypted)) {
     DWORD code = GetLastError();
     throw std::runtime_error(mysqlrouter::string_format(
-        "Error when decrypting the vault at '%s' with code '%d'", vault_path,
-        code));
+        "Error when decrypting the vault at '%s' with code '%d'",
+        vault_path.c_str(), code));
   }
 
   std::strstream ss(reinterpret_cast<char *>(buf_decrypted.pbData),

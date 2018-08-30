@@ -66,6 +66,64 @@ IF(CMAKE_COMPILER_IS_GNUCXX)
   MY_ADD_CXX_WARNING_FLAG("Wimplicit-fallthrough=2")
 ENDIF()
 
+# Clang 6.0 and newer on Windows seems to enable -Weverything; turn off some
+# that are way too verbose for us.
+IF(WIN32 AND CMAKE_C_COMPILER_ID MATCHES "Clang")
+  # We don't need C++98 compatibility.
+  MY_ADD_CXX_WARNING_FLAG("Wno-c++98-compat")
+  MY_ADD_CXX_WARNING_FLAG("Wno-c++98-compat-pedantic")
+
+  # Also warns on using NULL.
+  MY_ADD_CXX_WARNING_FLAG("Wno-zero-as-null-pointer-constant")
+
+  # Should be enabled globally, but too noisy right now.
+  MY_ADD_CXX_WARNING_FLAG("Wno-old-style-cast")
+  MY_ADD_CXX_WARNING_FLAG("Wno-extra-semi")
+  MY_ADD_CXX_WARNING_FLAG("Wno-reserved-id-macro")
+  MY_ADD_CXX_WARNING_FLAG("Wno-documentation")
+  MY_ADD_CXX_WARNING_FLAG("Wno-documentation-pedantic")
+  MY_ADD_CXX_WARNING_FLAG("Wno-documentation-unknown-command")
+  MY_ADD_CXX_WARNING_FLAG("Wno-missing-variable-declarations")
+  MY_ADD_CXX_WARNING_FLAG("Wno-cast-qual")
+  MY_ADD_CXX_WARNING_FLAG("Wno-language-extension-token")
+  MY_ADD_CXX_WARNING_FLAG("Wno-shorten-64-to-32")
+  MY_ADD_CXX_WARNING_FLAG("Wno-shadow")
+  MY_ADD_CXX_WARNING_FLAG("Wno-deprecated")  # FIXME
+  MY_ADD_CXX_WARNING_FLAG("Wno-inconsistent-missing-destructor-override")
+  MY_ADD_CXX_WARNING_FLAG("Wno-c++2a-compat")
+  MY_ADD_CXX_WARNING_FLAG("Wno-macro-redefined")
+  MY_ADD_CXX_WARNING_FLAG("Wno-unused-const-variable")
+  MY_ADD_CXX_WARNING_FLAG("Wno-gnu-anonymous-struct")
+
+  # Various things we don't want to warn about.
+  MY_ADD_CXX_WARNING_FLAG("Wno-global-constructors")
+  MY_ADD_CXX_WARNING_FLAG("Wno-exit-time-destructors")
+  MY_ADD_CXX_WARNING_FLAG("Wno-undefined-func-template")
+  MY_ADD_CXX_WARNING_FLAG("Wno-nonportable-system-include-path")
+  MY_ADD_CXX_WARNING_FLAG("Wno-sign-conversion")
+  MY_ADD_CXX_WARNING_FLAG("Wno-unused-exception-parameter")
+  MY_ADD_CXX_WARNING_FLAG("Wno-missing-prototypes")
+  MY_ADD_CXX_WARNING_FLAG("Wno-shadow-field-in-constructor")
+  MY_ADD_CXX_WARNING_FLAG("Wno-float-equal")
+  MY_ADD_CXX_WARNING_FLAG("Wno-float-conversion")
+  MY_ADD_CXX_WARNING_FLAG("Wno-double-promotion")
+  MY_ADD_CXX_WARNING_FLAG("Wno-covered-switch-default")
+  MY_ADD_CXX_WARNING_FLAG("Wno-used-but-marked-unused")
+  MY_ADD_CXX_WARNING_FLAG("Wno-conversion")
+  MY_ADD_CXX_WARNING_FLAG("Wno-sign-conversion")
+  MY_ADD_CXX_WARNING_FLAG("Wno-microsoft-pure-definition")  # False positives.
+  MY_ADD_CXX_WARNING_FLAG("Wno-format-nonliteral")
+  MY_ADD_CXX_WARNING_FLAG("Wno-format-pedantic")
+  MY_ADD_CXX_WARNING_FLAG("Wno-cast-align")
+  MY_ADD_CXX_WARNING_FLAG("Wno-gnu-zero-variadic-macro-arguments")
+  MY_ADD_CXX_WARNING_FLAG("Wno-comma")
+  MY_ADD_CXX_WARNING_FLAG("Wno-sign-compare")
+  MY_ADD_CXX_WARNING_FLAG("Wno-switch-enum")
+  MY_ADD_CXX_WARNING_FLAG("Wno-implicit-fallthrough")  # Does not take the same signals as GCC.
+  MY_ADD_CXX_WARNING_FLAG("Wno-unused-macros")
+  MY_ADD_CXX_WARNING_FLAG("Wno-disabled-macro-expansion")
+ENDIF()
+
 #
 # Extra flags not supported on all versions/compilers
 #

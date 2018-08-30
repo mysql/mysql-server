@@ -630,7 +630,7 @@ IF(WIN32)
 ENDIF()
 
 # Force optimization of (large) MYSQLparse function in MSVC
-IF(WIN32)
+IF(WIN32 AND NOT WIN32_CLANG)
   IF (MSVC_VERSION GREATER_EQUAL 1910)
     ADD_COMPILE_FLAGS(
       ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc

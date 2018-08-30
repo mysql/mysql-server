@@ -75,18 +75,21 @@ see extra/README-wolfssl.txt on how to set this up.
 
 It is possible to compile with Clang on Windows, which compiles faster
 and also yields faster binaries, but this is experimental and not officially
-supported. To compile, use LLVM 5.0.0 or newer from releases.llvm.org
+supported. To compile, use LLVM 6.0.1 or newer from releases.llvm.org
 (Clang/C2, which is Microsoft's own version of Clang, is not supported),
 and put a Windows compile of Ninja in your path. Then execute the following
 in a shell:
 
   "c:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" amd64
-  set PATH=<path to Ninja>;c:\program files\llvm\msbuild-bin;%PATH%
+  set PATH=<path to Ninja>;%PATH%
   "c:\Program Files\CMake 3.8\bin\cmake.exe" -G Ninja -DCMAKE_C_COMPILER="c:/program files/llvm/msbuild-bin/cl.exe" -DCMAKE_CXX_COMPILER="c:/program files/llvm/msbuild-bin/cl.exe" -DCMAKE_LINKER="c:/program files/llvm/bin/lld-link.exe" -DWITH_BOOST=<path to Boost> ..
   ninja
 
 This configuration also supports ASAN (-DWITH_ASAN=1), although currently only
 when linking with MSVC's linker (not with LLD).
+
+For running tests with --parallel, you may need to add --build-thread= (500 is
+a reasonable value to try).
 
 ===
 
