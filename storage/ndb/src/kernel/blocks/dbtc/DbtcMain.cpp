@@ -503,13 +503,14 @@ void Dbtc::execCONTINUEB(Signal* signal)
     for (Uint32 pool_index = 0; pool_index < c_transient_pool_count; pool_index++)
     {
       g_eventLogger->info(
-        "DBTC %u: Transient slot pool %u: Entry size %u: Free %u: Used %u: Used high %u: For shrink %u",
+        "DBTC %u: Transient slot pool %u: Entry size %u: Free %u: Used %u: Used high %u: Size %u: For shrink %u",
         instance(),
         pool_index,
         c_transient_pools[pool_index]->getEntrySize(),
         c_transient_pools[pool_index]->getNoOfFree(),
         c_transient_pools[pool_index]->getUsed(),
         c_transient_pools[pool_index]->getUsedHi(),
+        c_transient_pools[pool_index]->getSize(),
         c_transient_pools_shrinking.get(pool_index));
     }
     sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 5000, 1);
