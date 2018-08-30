@@ -1213,6 +1213,69 @@ public:
       LocalApiConnectRecord_api_list;
   typedef Ptr<ApiConnectRecord> ApiConnectRecordPtr;
 
+  class SetApiConTimer
+  {
+  public:
+    SetApiConTimer()
+    : m_value(0), m_line(0), m_apiConTimers(NULL), m_timer_index(0)
+    {}
+#ifdef VM_TRACE
+    ~SetApiConTimer()
+    {
+      require(m_apiConTimers == NULL);
+    }
+#endif
+
+    SetApiConTimer(const ApiConTimers_pool& pool, ApiConnectRecordPtr apiConPtr, Uint32 value, Uint32 line)
+    {
+      prepare(pool, apiConPtr, value, line);
+    }
+
+    void prepare(const ApiConTimers_pool& pool, ApiConnectRecordPtr apiConPtr, Uint32 value, Uint32 line)
+    {
+      m_value = value;
+      m_line = line;
+      m_apiConPtr = apiConPtr;
+      const Uint32 apiConTimer = m_apiConPtr.p->m_apiConTimer;
+      ApiConTimersPtr apiConTimers;
+      require(apiConTimer != RNIL);
+      apiConTimers.i = apiConTimer >> ApiConTimers::INDEX_BITS;
+      require(pool.getUncheckedPtrRW(apiConTimers));
+      m_timer_index = apiConTimer & ApiConTimers::INDEX_MASK;
+      m_apiConTimers = apiConTimers.p;
+    }
+
+    void execute() // TODO(wl9756) line at execution or preparation?
+    {
+      require(Magic::check_ptr(m_apiConTimers));
+      assert(m_timer_index < m_apiConTimers->m_top);
+      assert(m_apiConTimers->m_count > 0);
+      assert(m_apiConTimers->m_entries[m_timer_index].m_apiConnectRecord ==
+             m_apiConPtr.i);
+
+      m_apiConTimers->m_entries[m_timer_index].m_timer = m_value;
+      m_apiConPtr.p->m_apiConTimer_line = m_line;
+
+      clear();
+    }
+
+    void clear()
+    {
+#ifdef VM_TRACE
+      m_value = 0;
+      m_line = 0;
+      m_timer_index = 0;
+#endif
+      m_apiConTimers = NULL;
+    }
+  private:
+    ApiConnectRecordPtr m_apiConPtr;
+    ApiConTimers* m_apiConTimers;
+    Uint32 m_value;
+    Uint32 m_line;
+    Uint32 m_timer_index;
+  };
+
   void setApiConTimer(ApiConnectRecordPtr apiConPtr, Uint32 value, Uint32 line)
   {
     const Uint32 apiConTimer = apiConPtr.p->m_apiConTimer;
