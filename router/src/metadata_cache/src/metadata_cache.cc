@@ -630,7 +630,13 @@ static const char *str_mode(metadata_cache::ServerMode mode) {
  */
 void MetadataCache::refresh() {
   // fetch metadata
+  bool broke_loop = false;
   for (auto &metadata_server : metadata_servers_) {
+    if (terminate_) {
+      broke_loop = true;
+      break;
+    }
+
     if (!meta_data_->connect(metadata_server)) {
       log_error("Failed to connect to metadata server %s",
                 metadata_server.mysql_server_uuid.c_str());
@@ -641,7 +647,9 @@ void MetadataCache::refresh() {
   }
 
   // we failed to fetch metadata from any of the metadata servers
-  log_error("Failed connecting with any of the metadata servers");
+  if (!broke_loop)
+    log_error("Failed connecting with any of the metadata servers");
+
   // clearing metadata
   {
     bool clearing;
