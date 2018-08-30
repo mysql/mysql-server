@@ -1267,7 +1267,7 @@ void MySQLRouter::bootstrap(const std::string &server_url) {
     mysql_harness::Path keyring_dir(default_keyring_file);
     if (!keyring_dir.exists()) {
       if (mysqlrouter::mkdir(default_keyring_file,
-                             mysqlrouter::kStrictDirectoryPerm) < 0) {
+                             mysqlrouter::kStrictDirectoryPerm, true) < 0) {
         log_error("Cannot create directory '%s': %s",
                   truncate_string(default_keyring_file).c_str(),
                   get_strerror(errno).c_str());

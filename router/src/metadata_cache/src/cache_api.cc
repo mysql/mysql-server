@@ -94,6 +94,8 @@ void MetadataCacheAPI::cache_init(
                                      read_timeout, 1, ttl, ssl_options),
                         ttl, ssl_options, cluster_name, thread_stack_size));
   g_metadata_cache->start();
+
+  is_initialized_ = true;
 }
 
 /**

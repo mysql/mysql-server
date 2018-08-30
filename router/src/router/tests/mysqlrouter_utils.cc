@@ -31,6 +31,7 @@
 
 #include <cstdlib>
 
+#include "mysql/harness/filesystem.h"
 #include "mysqlrouter/utils.h"
 
 using std::string;
@@ -250,4 +251,45 @@ TEST_F(StringFormatTest, Simple) {
             mysqlrouter::string_format("%d + %d = %d", 5, 5, 10));
   EXPECT_EQ(std::string("Spam is 5"),
             mysqlrouter::string_format("%s is %d", "Spam", 5));
+}
+
+/*
+ * Tests mysqlrouter::mkdir()
+ */
+
+class FilesystemUtilsTest : public ::testing::Test {};
+
+TEST_F(FilesystemUtilsTest, Mkdir) {
+  constexpr auto kMode = 0700;
+
+  auto tmp_dir = mysql_harness::get_tmp_dir("test");
+  std::shared_ptr<void> exit_guard(
+      nullptr, [&](void *) { mysql_harness::delete_dir_recursive(tmp_dir); });
+
+  // non-recursive should fail
+  EXPECT_NE(0, mysqlrouter::mkdir(tmp_dir + "/a/b/c/d", kMode));
+
+  // recursive should be fine
+  EXPECT_EQ(0, mysqlrouter::mkdir(tmp_dir + "/a/b/c/d", kMode, true));
+
+  // make sure it really exists
+  mysql_harness::Path my_path(tmp_dir + "/a/b/c/d");
+  EXPECT_TRUE(my_path.exists());
+
+  // we just created one, trying to recursively create it once more
+  // should succeed as 'mkdir -p' does
+  EXPECT_EQ(0, mysqlrouter::mkdir(tmp_dir + "/a/b/c/d", kMode, true));
+
+  // create a regular file and try to create a directory with the same name,
+  // that should fail
+  {
+    mysql_harness::Path file_path(tmp_dir + "/a/b/c/regular_file");
+    std::fstream f;
+    f.open(file_path.str(), std::ios::out);
+  }
+  EXPECT_NE(0,
+            mysqlrouter::mkdir(tmp_dir + "/a/b/c/regular_file", kMode, true));
+
+  // empty path should throw
+  EXPECT_THROW(mysqlrouter::mkdir("", kMode, true), std::invalid_argument);
 }

@@ -137,7 +137,7 @@ TEST_F(RoundRobinDestinationTest, RemoveAll) {
  */
 TEST_F(RoundRobinDestinationTest, SpawnAndJoinQuarantineThread) {
   DestRoundRobin d;
-  d.start();
+  d.start(nullptr);
 }
 
 TEST_F(RoundRobinDestinationTest, get_server_socket) {

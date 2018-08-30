@@ -78,6 +78,7 @@ class MetadataCacheAPIStub : public metadata_cache::MetadataCacheAPIBase {
                     const std::string &, int, int, size_t));
 
   void cache_stop() noexcept override {}  // no easy way to mock noexcept method
+  bool is_initialized() noexcept override { return true; }
 
  public:
   void fill_instance_vector(const InstanceVector &iv) { instance_vector_ = iv; }
@@ -788,10 +789,8 @@ TEST_F(DestMetadataCacheTest, AllowedNodesNoPrimary) {
       {kReplicasetName, "uuid2", "HA", metadata_cache::ServerMode::ReadOnly,
        1.0, 1, "location", "3307", 3307, 33070},
   });
-  // need at least one connection to force dest to register for md changes
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3306);
+
+  dest_mc_group.start(nullptr);
 
   // new metadata - no primary
   fill_instance_vector({
@@ -834,10 +833,8 @@ TEST_F(DestMetadataCacheTest, AllowedNodes2Primaries) {
       {kReplicasetName, "uuid2", "HA", metadata_cache::ServerMode::ReadOnly,
        1.0, 1, "location", "3307", 3307, 33070},
   });
-  // need at least one connection to force dest to register for md changes
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3306);
+
+  dest_mc_group.start(nullptr);
 
   // new metadata - no primary
   fill_instance_vector({
@@ -883,10 +880,8 @@ TEST_F(DestMetadataCacheTest, AllowedNodesNoSecondaries) {
       {kReplicasetName, "uuid2", "HA", metadata_cache::ServerMode::ReadOnly,
        1.0, 1, "location", "3307", 3307, 33070},
   });
-  // need at least one connection to force dest to register for md changes
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3307);
+
+  dest_mc_group.start(nullptr);
 
   // new metadata - no primary
   fill_instance_vector({
@@ -932,10 +927,8 @@ TEST_F(DestMetadataCacheTest, AllowedNodesSecondaryDisconnectToPromoted) {
       {kReplicasetName, "uuid2", "HA", metadata_cache::ServerMode::ReadOnly,
        1.0, 1, "location", "3307", 3307, 33070},
   });
-  // need at least one connection to force dest to register for md changes
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3307);
+
+  dest_mc_group.start(nullptr);
 
   // let's stick to the 'old' md so we have single primary and single secondary
 
@@ -984,10 +977,8 @@ TEST_F(DestMetadataCacheTest, AllowedNodesSecondaryDisconnectToPromotedTwice) {
       {kReplicasetName, "uuid2", "HA", metadata_cache::ServerMode::ReadOnly,
        1.0, 1, "location", "3307", 3307, 33070},
   });
-  // need at least one connection to force dest to register for md changes
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3307);
+
+  dest_mc_group.start(nullptr);
 
   // let's stick to the 'old' md so we have single primary and single secondary
   bool callback_called{false};
@@ -1027,10 +1018,8 @@ TEST_F(DestMetadataCacheTest,
       {kReplicasetName, "uuid2", "HA", metadata_cache::ServerMode::ReadOnly,
        1.0, 1, "location", "3307", 3307, 33070},
   });
-  // need at least one connection to force dest to register for md changes
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3307);
+
+  dest_mc_group.start(nullptr);
 
   // new empty metadata
   fill_instance_vector({});
@@ -1076,10 +1065,8 @@ TEST_F(DestMetadataCacheTest,
       {kReplicasetName, "uuid2", "HA", metadata_cache::ServerMode::ReadOnly,
        1.0, 1, "location", "3307", 3307, 33070},
   });
-  // need at least one connection to force dest to register for md changes
-  ASSERT_EQ(
-      dest_mc_group.get_server_socket(std::chrono::milliseconds(0), &err_),
-      3307);
+
+  dest_mc_group.start(nullptr);
 
   // new empty metadata
   fill_instance_vector({});
@@ -1298,7 +1285,7 @@ TEST_F(DestMetadataCacheTest, MetadataCacheGroupDisconnectOnPromotedToPrimary) {
         Protocol::Type::kClassicProtocol));
   }
 
-  // ivalid option
+  // invalid option
   {
     mysqlrouter::URI uri(
         "metadata-cache://test/"
@@ -1351,7 +1338,7 @@ TEST_F(DestMetadataCacheTest, MetadataCacheDisconnectOnMetadataUnavailable) {
         Protocol::Type::kClassicProtocol));
   }
 
-  // ivalid option
+  // invalid option
   {
     mysqlrouter::URI uri(
         "metadata-cache://test/"

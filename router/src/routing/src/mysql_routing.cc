@@ -238,7 +238,7 @@ void MySQLRouting::start_acceptor(mysql_harness::PluginFuncEnv *env) {
       get_routing_thread_name(context_.get_name(), "RtA")
           .c_str());  // "Rt Acceptor" would be too long :(
 
-  destination_->start();
+  destination_->start(env);
 
   auto allowed_nodes_changed = [&](const AllowedNodes &nodes,
                                    const std::string &reason) {

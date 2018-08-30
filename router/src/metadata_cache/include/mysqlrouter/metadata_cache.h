@@ -25,7 +25,7 @@
 #ifndef MYSQLROUTER_METADATA_CACHE_INCLUDED
 #define MYSQLROUTER_METADATA_CACHE_INCLUDED
 
-#include <chrono>
+#include <atomic>
 #include <exception>
 #include <list>
 #include <map>
@@ -263,6 +263,8 @@ METADATA_API class MetadataCacheAPIBase
       size_t thread_stack_size =
           mysql_harness::kDefaultStackSizeInKiloBytes) = 0;
 
+  virtual bool is_initialized() noexcept = 0;
+
   /**
    * @brief Teardown the metadata cache
    */
@@ -339,6 +341,8 @@ METADATA_API class MetadataCacheAPI : public MetadataCacheAPIBase {
       const std::string &cluster_name, int connect_timeout, int read_timeout,
       size_t thread_stack_size) override;
 
+  bool is_initialized() noexcept override { return is_initialized_; }
+
   void cache_stop() noexcept override;
 
   LookupResult lookup_replicaset(const std::string &replicaset_name) override;
@@ -355,6 +359,7 @@ METADATA_API class MetadataCacheAPI : public MetadataCacheAPIBase {
                        ReplicasetStateListenerInterface *listener) override;
 
  private:
+  std::atomic<bool> is_initialized_{false};
   MetadataCacheAPI() {}
   MetadataCacheAPI(const MetadataCacheAPI &) = delete;
   MetadataCacheAPI &operator=(const MetadataCacheAPI &) = delete;

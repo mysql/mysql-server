@@ -90,7 +90,7 @@ Path Path::dirname() const {
   string::size_type pos = path_.find_last_of(directory_separator);
   if (pos == string::npos)
     return Path(".");
-  else if (pos > 1)
+  else if (pos > 0)
     return string(path_, 0, pos);
   else
     return Path(root_directory);

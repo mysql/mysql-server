@@ -86,13 +86,14 @@ class DestMetadataCacheGroup final
    */
   bool empty() const noexcept override { return false; }
 
-  /** @brief empty implementation
+  /** @brief Start the destination
    *
-   * This method actually does something - it disables the
-   * RouteDestination::start(), which launches Quarantine. For Metadata Cache
-   * routing, we don't need it.
+   * It also overwrites parent class' RouteDestination::start(), which launches
+   * Quarantine. For Metadata Cache routing, we don't need it.
+   *
+   * @param env pointer to the PluginFuncEnv object
    */
-  void start() override {}
+  void start(const mysql_harness::PluginFuncEnv *env) override;
 
  private:
   /** @brief The Metadata Cache to use
@@ -160,7 +161,6 @@ class DestMetadataCacheGroup final
 
   metadata_cache::MetadataCacheAPIBase *cache_api_;
 
-  std::mutex subscribed_for_metadata_cache_changes_mutex_;
   bool subscribed_for_metadata_cache_changes_{false};
 
   bool disconnect_on_promoted_to_primary_{false};
