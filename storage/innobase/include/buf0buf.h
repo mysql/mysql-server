@@ -387,8 +387,14 @@ bool buf_page_optimistic_get(ulint rw_latch, buf_block_t *block,
                              const char *file, ulint line, mtr_t *mtr);
 
 /** This is used to get access to a known database page, when no waiting can be
- done.
- @return true if success */
+done.
+@param[in] rw_latch RW_S_LATCH or RW_X_LATCH.
+@param[in] block The known page.
+@param[in] hint Cache_hint::MAKE_YOUNG or Cache_hint::KEEP_OLD
+@param[in] file File name from where it was called.
+@param[in] line Line from where it was called.
+@param[in,out] mtr Mini-transaction covering the fetch
+@return true if success */
 bool buf_page_get_known_nowait(
     ulint rw_latch,     /*!< in: RW_S_LATCH, RW_X_LATCH */
     buf_block_t *block, /*!< in: the known page */
