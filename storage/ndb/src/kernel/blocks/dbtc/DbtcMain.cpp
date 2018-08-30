@@ -15477,6 +15477,8 @@ void Dbtc::initApiConnect(Signal* signal)
     releaseApiConTimer(apiConnectptr);
     c_apiConnectRecordPool.release(apiConnectptr);
   }
+  c_apiConnectRecordPool.resetUsedHi();
+  c_apiConTimersPool.resetUsedHi();
 }//Dbtc::initApiConnect()
 
 void Dbtc::inithost(Signal* signal) 
@@ -15647,6 +15649,7 @@ void Dbtc::initialiseTcConnect(Signal* signal)
     jam();
     tcConnectRecord.release(tcConnectptr);
   }
+  tcConnectRecord.resetUsedHi();
 }//Dbtc::initialiseTcConnect()
 
 /* ------------------------------------------------------------------------- */
