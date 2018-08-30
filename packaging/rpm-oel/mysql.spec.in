@@ -102,13 +102,8 @@ Source7:        %{compatsrc}
 Source10:       https://downloads.sourceforge.net/boost/@BOOST_PACKAGE_NAME@.tar.bz2
 Source90:       filter-provides.sh
 Source91:       filter-requires.sh
-%if 0%{?ol7} && "%{?_arch}" == "aarch64"
-BuildRequires:  oracle-armtoolset-1-gcc
-BuildRequires:  oracle-armtoolset-1-gcc-c++
-%else
 BuildRequires:  devtoolset-7-gcc
 BuildRequires:  devtoolset-7-gcc-c++
-%endif
 BuildRequires:  cmake >= 2.8.2
 BuildRequires:  perl
 %{?el7:BuildRequires: perl(Env)}
