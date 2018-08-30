@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -24735,7 +24735,7 @@ MY_COLLATION_HANDLER my_collation_utf32_uca_handler =
 
 extern MY_CHARSET_HANDLER my_charset_utf32_handler;
 
-#define MY_CS_UTF32_UCA_FLAGS (MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII)
+#define MY_CS_UTF32_UCA_FLAGS (MY_CS_COMPILED|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_UNICODE_SUPPLEMENT|MY_CS_NONASCII)
 
 CHARSET_INFO my_charset_utf32_unicode_ci=
 {

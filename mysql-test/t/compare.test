@@ -101,3 +101,32 @@ SET sql_mode = default;
 CREATE TABLE t1(a INT ZEROFILL);
 SELECT 1 FROM t1 WHERE t1.a IN (1, t1.a) AND t1.a=2;
 DROP TABLE t1;
+
+#
+# Bug#27897053  ILLEGAL MIX OF COLLATIONS WHEN DATE_FORMAT ON THE RIGHT SIDE
+# OF OPERATION
+#
+
+SET NAMES utf8;
+
+CREATE TABLE t1(id INT, plage TIME, plage2 DATETIME) ENGINE=InnoDB CHARSET=utf8;
+INSERT INTO t1 VALUES(1,'00:00:00', '2018-04-20 00:00:00');
+
+SELECT (date_format(plage2,'%H:%i:%s')) < plage FROM t1;
+SELECT plage > (date_format(plage2,'%H:%i:%s')) FROM t1;
+SELECT (date_format(plage2,'%H:%i:%s')) < plage COLLATE utf8_general_ci FROM t1;
+
+DROP TABLE t1;
+SET NAMES default;
+
+--echo
+--echo Bug #27452148: ASSERTION FAILED: (SLEN % 4) == 0 IN
+--echo                MY_STRNNCOLLSP_UTF32_BIN
+--echo
+SET NAMES latin1;
+CREATE TABLE t1(a CHAR(10) CHARACTER SET utf32 COLLATE utf32_bin);
+INSERT INTO t1 VALUES('a'),('b'),('c');
+SELECT ROW('1', '1') > ROW(a, '1') FROM t1;
+SELECT ROW(a, '1') > ROW('1', '1') FROM t1;
+DROP TABLE t1;
+SET NAMES default;

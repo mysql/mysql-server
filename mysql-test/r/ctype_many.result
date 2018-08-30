@@ -1706,7 +1706,7 @@ Warning	1292	Truncated incorrect BINARY(0) value: '1.'
 #
 #
 # WL#1213 Implement 4-byte UTF8, UTF16 and UTF32
-# Testing that only utf8mb4 is superset for utf8
+# Testing that utf8mb4 and utf32 are superset for all Unicode
 # No other Unicode character set pairs have superset/subset relations
 #
 CREATE TABLE t1 (
@@ -1725,40 +1725,52 @@ ERROR HY000: Illegal mix of collations (utf8_general_ci,IMPLICIT) and (ucs2_gene
 SELECT CHARSET(CONCAT(utf8, utf16)) FROM t1;
 ERROR HY000: Illegal mix of collations (utf8_general_ci,IMPLICIT) and (utf16_general_ci,IMPLICIT) for operation 'concat'
 SELECT CHARSET(CONCAT(utf8, utf32)) FROM t1;
-ERROR HY000: Illegal mix of collations (utf8_general_ci,IMPLICIT) and (utf32_general_ci,IMPLICIT) for operation 'concat'
+CHARSET(CONCAT(utf8, utf32))
+utf32
 SELECT CHARSET(CONCAT(utf8mb4, utf8)) FROM t1;
 CHARSET(CONCAT(utf8mb4, utf8))
 utf8mb4
 SELECT CHARSET(CONCAT(utf8mb4, ucs2)) FROM t1;
-ERROR HY000: Illegal mix of collations (utf8mb4_general_ci,IMPLICIT) and (ucs2_general_ci,IMPLICIT) for operation 'concat'
+CHARSET(CONCAT(utf8mb4, ucs2))
+utf8mb4
 SELECT CHARSET(CONCAT(utf8mb4, utf16)) FROM t1;
-ERROR HY000: Illegal mix of collations (utf8mb4_general_ci,IMPLICIT) and (utf16_general_ci,IMPLICIT) for operation 'concat'
+CHARSET(CONCAT(utf8mb4, utf16))
+utf8mb4
 SELECT CHARSET(CONCAT(utf8mb4, utf32)) FROM t1;
-ERROR HY000: Illegal mix of collations (utf8mb4_general_ci,IMPLICIT) and (utf32_general_ci,IMPLICIT) for operation 'concat'
+CHARSET(CONCAT(utf8mb4, utf32))
+utf8mb4
 SELECT CHARSET(CONCAT(ucs2, utf8)) FROM t1;
 ERROR HY000: Illegal mix of collations (ucs2_general_ci,IMPLICIT) and (utf8_general_ci,IMPLICIT) for operation 'concat'
 SELECT CHARSET(CONCAT(ucs2, utf8mb4)) FROM t1;
-ERROR HY000: Illegal mix of collations (ucs2_general_ci,IMPLICIT) and (utf8mb4_general_ci,IMPLICIT) for operation 'concat'
+CHARSET(CONCAT(ucs2, utf8mb4))
+utf8mb4
 SELECT CHARSET(CONCAT(ucs2, utf16)) FROM t1;
 ERROR HY000: Illegal mix of collations (ucs2_general_ci,IMPLICIT) and (utf16_general_ci,IMPLICIT) for operation 'concat'
 SELECT CHARSET(CONCAT(ucs2, utf32)) FROM t1;
-ERROR HY000: Illegal mix of collations (ucs2_general_ci,IMPLICIT) and (utf32_general_ci,IMPLICIT) for operation 'concat'
+CHARSET(CONCAT(ucs2, utf32))
+utf32
 SELECT CHARSET(CONCAT(utf16, utf8)) FROM t1;
 ERROR HY000: Illegal mix of collations (utf16_general_ci,IMPLICIT) and (utf8_general_ci,IMPLICIT) for operation 'concat'
 SELECT CHARSET(CONCAT(utf16, ucs2)) FROM t1;
 ERROR HY000: Illegal mix of collations (utf16_general_ci,IMPLICIT) and (ucs2_general_ci,IMPLICIT) for operation 'concat'
 SELECT CHARSET(CONCAT(utf16, utf8mb4)) FROM t1;
-ERROR HY000: Illegal mix of collations (utf16_general_ci,IMPLICIT) and (utf8mb4_general_ci,IMPLICIT) for operation 'concat'
+CHARSET(CONCAT(utf16, utf8mb4))
+utf8mb4
 SELECT CHARSET(CONCAT(utf16, utf32)) FROM t1;
-ERROR HY000: Illegal mix of collations (utf16_general_ci,IMPLICIT) and (utf32_general_ci,IMPLICIT) for operation 'concat'
+CHARSET(CONCAT(utf16, utf32))
+utf32
 SELECT CHARSET(CONCAT(utf32, utf8)) FROM t1;
-ERROR HY000: Illegal mix of collations (utf32_general_ci,IMPLICIT) and (utf8_general_ci,IMPLICIT) for operation 'concat'
+CHARSET(CONCAT(utf32, utf8))
+utf32
 SELECT CHARSET(CONCAT(utf32, ucs2)) FROM t1;
-ERROR HY000: Illegal mix of collations (utf32_general_ci,IMPLICIT) and (ucs2_general_ci,IMPLICIT) for operation 'concat'
+CHARSET(CONCAT(utf32, ucs2))
+utf32
 SELECT CHARSET(CONCAT(utf32, utf8mb4)) FROM t1;
-ERROR HY000: Illegal mix of collations (utf32_general_ci,IMPLICIT) and (utf8mb4_general_ci,IMPLICIT) for operation 'concat'
+CHARSET(CONCAT(utf32, utf8mb4))
+utf32
 SELECT CHARSET(CONCAT(utf32, utf16)) FROM t1;
-ERROR HY000: Illegal mix of collations (utf32_general_ci,IMPLICIT) and (utf16_general_ci,IMPLICIT) for operation 'concat'
+CHARSET(CONCAT(utf32, utf16))
+utf32
 DROP TABLE t1;
 #
 # Bug#58321 No warning when characters outside BMP0 is converted to UCS2

@@ -758,7 +758,7 @@ int Arg_comparator::set_compare_func(Item_result_field *item, Item_result type)
       We must set cmp_charset here as we may be called from for an automatic
       generated item, like in natural join
     */
-    if (cmp_collation.set((*a)->collation, (*b)->collation) || 
+    if (cmp_collation.set((*a)->collation, (*b)->collation, MY_COLL_CMP_CONV) ||
 	cmp_collation.derivation == DERIVATION_NONE)
     {
       my_coll_agg_error((*a)->collation, (*b)->collation,
@@ -1207,10 +1207,12 @@ int Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
            (*b)->result_type() == STRING_RESULT)
   {
     DTCollation coll;
-    coll.set((*a)->collation.collation);
-    if (agg_item_set_converter(coll, owner->func_name(),
-                               b, 1, MY_COLL_CMP_CONV, 1))
-      return 1;
+    coll.set((*a)->collation, (*b)->collation, MY_COLL_CMP_CONV);
+    if (agg_item_set_converter(coll, owner->func_name(), a, 1,
+                               MY_COLL_CMP_CONV, 1) ||
+        agg_item_set_converter(coll, owner->func_name(), b, 1,
+                               MY_COLL_CMP_CONV, 1))
+      return true;
   }
   else if (try_year_cmp_func(type))
   {
