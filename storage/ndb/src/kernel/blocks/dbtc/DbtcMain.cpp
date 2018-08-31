@@ -10321,7 +10321,6 @@ void Dbtc::checkScanActiveInFailedLqh(Signal* signal,
             curr.p->stopFragTimer();
             run.release(curr);
             found = true;
-            break;
           }
         }
       }
