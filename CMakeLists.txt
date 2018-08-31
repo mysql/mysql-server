@@ -141,6 +141,7 @@ IF(CMAKE_GENERATOR MATCHES "Visual Studio [1-9][0-9].*" AND
 ENDIF()
 
 # On Linux el6/el7 the default gcc is too old, see if devtoolset is installed.
+# Same with SLES 12, look for gcc 7 there.
 # We need to look for gcc before calling PROJECT below.
 OPTION(FORCE_UNSUPPORTED_COMPILER "Disable compiler version checks" OFF)
 MARK_AS_ADVANCED(WITHOUT_SERVER DISABLE_SHARED FORCE_UNSUPPORTED_COMPILER)
@@ -176,14 +177,33 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
         ELSE()
           MESSAGE(WARNING "Could not find devtoolset gcc")
         ENDIF()
+      ELSEIF(MY_HOST_SYSTEM_NAME MATCHES "Linux" AND
+          EXISTS "/etc/os-release")
+        FILE(READ "/etc/os-release" MY_OS_RELEASE)
+        IF (MY_OS_RELEASE MATCHES "SUSE Linux Enterprise Server 12")
+          MESSAGE(STATUS "We need to look for a newer GCC on SLES 12")
+
+          FIND_PROGRAM(ALTERNATIVE_GCC gcc-7
+            NO_DEFAULT_PATH
+            PATHS "/usr/bin")
+          FIND_PROGRAM(ALTERNATIVE_GPP g++-7
+            NO_DEFAULT_PATH
+            PATHS "/usr/bin")
+          IF (ALTERNATIVE_GCC AND ALTERNATIVE_GPP)
+            SET(CMAKE_C_COMPILER ${ALTERNATIVE_GCC})
+            SET(CMAKE_CXX_COMPILER ${ALTERNATIVE_GPP})
+            MESSAGE(STATUS "Using ${ALTERNATIVE_GCC}")
+            MESSAGE(STATUS "Using ${ALTERNATIVE_GPP}")
+            # Use the new ABI so that std::string can be used with allocators
+            # that are not default-constructible (e.g. Memroot_allocator)
+            ADD_DEFINITIONS(-D_GLIBCXX_USE_CXX11_ABI=1)
+          ELSE()
+            MESSAGE(WARNING "Could not find newer gcc")
+	  ENDIF()
+	ENDIF()
       ENDIF()
     ENDIF()
   ENDIF()
-ENDIF()
-
-IF(ALTERNATIVE_ENABLE)
-  GET_FILENAME_COMPONENT(ALTERNATIVE_ENABLE_DIR ${ALTERNATIVE_ENABLE} PATH)
-  SET(DEVTOOLSET_ROOT "${ALTERNATIVE_ENABLE_DIR}/root")
 ENDIF()
 
 # Optionally set project name, e.g.
@@ -831,12 +851,23 @@ IF(WITH_LTO)
   # to get the right plugins for supporting -flto output from gcc.
   IF(CMAKE_COMPILER_IS_GNUCC AND CMAKE_COMPILER_IS_GNUCXX)
     IF(ALTERNATIVE_ENABLE)
+      GET_FILENAME_COMPONENT(ALTERNATIVE_ENABLE_DIR ${ALTERNATIVE_ENABLE} PATH)
+      SET(DEVTOOLSET_ROOT "${ALTERNATIVE_ENABLE_DIR}/root")
       FIND_PROGRAM(GCC_AR_EXECUTABLE gcc-ar
         NO_DEFAULT_PATH
         PATHS "${DEVTOOLSET_ROOT}/usr/bin")
       FIND_PROGRAM(GCC_RANLIB_EXECUTABLE gcc-ranlib
         NO_DEFAULT_PATH
         PATHS "${DEVTOOLSET_ROOT}/usr/bin")
+    ELSEIF(ALTERNATIVE_GCC)
+      STRING(REGEX MATCH  "^([0-9])" ALTERNATIVE_GCC_MAJ_VER ${CMAKE_C_COMPILER_VERSION})
+      GET_FILENAME_COMPONENT(ALTERNATIVE_GCC_DIR ${ALTERNATIVE_GCC} PATH)
+      FIND_PROGRAM(GCC_AR_EXECUTABLE gcc-ar-${ALTERNATIVE_GCC_MAJ_VER}
+        NO_DEFAULT_PATH
+        PATHS "${ALTERNATIVE_GCC_DIR}")
+      FIND_PROGRAM(GCC_RANLIB_EXECUTABLE gcc-ranlib-${ALTERNATIVE_GCC_MAJ_VER}
+        NO_DEFAULT_PATH
+        PATHS "${ALTERNATIVE_GCC_DIR}")
     ELSE()
       FIND_PROGRAM(GCC_AR_EXECUTABLE gcc-ar)
       FIND_PROGRAM(GCC_RANLIB_EXECUTABLE gcc-ranlib)
