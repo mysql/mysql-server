@@ -137,10 +137,12 @@ class System_variable
 {
 public:
   System_variable();
-  System_variable(THD *target_thd, const SHOW_VAR *show_var, enum_var_type query_scope);
+  System_variable(THD *target_thd, const SHOW_VAR *show_var,
+                  enum_var_type query_scope, bool ignore);
   ~System_variable() {}
 
-  bool is_null() const {return !m_initialized;};
+  bool is_null() const { return !m_initialized; }
+  bool is_ignored() const { return m_ignore; }
 
 public:
   const char *m_name;
@@ -149,6 +151,7 @@ public:
   size_t m_value_length;
   enum_mysql_show_type m_type;
   int m_scope;
+  bool m_ignore;
   const CHARSET_INFO *m_charset;
 
 private:
