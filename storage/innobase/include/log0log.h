@@ -751,11 +751,14 @@ of changed concurrency limit).
 void log_update_limits(log_t &log);
 
 /** Waits until the redo log is written up to a provided lsn.
-@param[in]	log		redo log
-@param[in]	lsn		lsn to wait for
-@param[in]	flush_to_disk	true: wait until it is flushed
+@param[in]  log             redo log
+@param[in]  lsn             lsn to wait for
+@param[in]  flush_to_disk   true: wait until it is flushed
+@param[in]  should_be_fast  if true it means we care about latency and
+we are ready to pay for that with increased CPU usage
 @return statistics about waiting inside */
-Wait_stats log_write_up_to(log_t &log, lsn_t lsn, bool flush_to_disk);
+Wait_stats log_write_up_to(log_t &log, lsn_t lsn, bool flush_to_disk,
+                           bool should_be_fast = false);
 
 /* Read the first log file header to get the encryption
 information if it exist.

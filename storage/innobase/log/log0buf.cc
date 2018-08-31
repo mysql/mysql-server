@@ -1103,7 +1103,7 @@ bool log_advance_ready_for_write_lsn(log_t &log) {
 
     LOG_SYNC_POINT("log_advance_ready_for_write_before_reclaim");
 
-    return (next_lsn - write_lsn >= write_max_size);
+    return (prev_lsn - write_lsn >= write_max_size);
   };
 
   const lsn_t previous_lsn = log_buffer_ready_for_write_lsn(log);

@@ -321,4 +321,11 @@ inline lsn_t log_buffer_flush_order_lag(const log_t &log) {
   return (log.recent_closed.capacity());
 }
 
+inline bool log_is_write_up_to_frequency_low(const log_t &log) {
+  /* From correctness point of view, we could return randomly true/false,
+  and it would still be correct. Therefore we may use relaxed order here. */
+  return (log.write_up_to_requests_interval.load(std::memory_order_relaxed) >=
+          100); /* 100us */
+}
+
 #endif /* !UNIV_HOTBACKUP */

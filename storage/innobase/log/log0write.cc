@@ -823,7 +823,8 @@ static Wait_stats log_wait_for_flush(const log_t &log, lsn_t lsn) {
   return (wait_stats);
 }
 
-Wait_stats log_write_up_to(log_t &log, lsn_t end_lsn, bool flush_to_disk) {
+Wait_stats log_write_up_to(log_t &log, lsn_t end_lsn, bool flush_to_disk,
+                           bool should_be_fast) {
   ut_a(!srv_read_only_mode);
 
   /* If we were updating log.flushed_to_disk_lsn while parsing redo log
@@ -848,6 +849,17 @@ Wait_stats log_write_up_to(log_t &log, lsn_t end_lsn, bool flush_to_disk) {
     allowed yet, which is implicitly deduced from the fact, that
     still ibuf merges are disallowed. */
     return (Wait_stats{0});
+  }
+
+  if (should_be_fast) {
+    /* We do not need to have exact numbers and we do not care if we
+    lost some increments for heavy workload. The value only has usage
+    when it is low workload and we need to discover that we request
+    redo write or flush only from time to time. In such case we prefer
+    to avoid spinning in log threads to save on CPU power usage. */
+    log.write_up_to_requests_total.store(
+        log.write_up_to_requests_total.load(std::memory_order_relaxed) + 1,
+        std::memory_order_relaxed);
   }
 
   ut_a(end_lsn != LSN_MAX);
@@ -890,15 +902,123 @@ Wait_stats log_write_up_to(log_t &log, lsn_t end_lsn, bool flush_to_disk) {
   }
 }
 
-  /* @} */
+/* @} */
 
-  /**************************************************/ /**
+/**************************************************/ /**
 
-   @name Log writer thread
+ @name Log threads waiting strategy
 
-   *******************************************************/
+ *******************************************************/
 
-  /* @{ */
+/* @{ */
+
+/** Small utility which is used inside log threads when they have to
+wait for next interesting event to happen. For performance reasons,
+it might make sense to use spin-delay in front of the wait on event
+in such cases. The strategy is first to spin and then to fallback to
+the wait on event. However, for idle servers or work-loads which do
+not need redo being flushed as often, we prefer to avoid spinning.
+This utility solves such problems and provides waiting mechanism. */
+struct Log_thread_waiting {
+  Log_thread_waiting(const log_t &log, os_event_t event, uint64_t spin_delay,
+                     uint64_t min_timeout)
+      : m_log(log),
+        m_event{event},
+        m_spin_delay{static_cast<uint32_t>(std::min(
+            uint64_t(std::numeric_limits<uint32_t>::max()), spin_delay))},
+        m_min_timeout{static_cast<uint32_t>(
+            /* No more than 1s */
+            std::min(uint64_t{1000 * 1000}, min_timeout))} {}
+
+  template <typename Stop_condition>
+  inline Wait_stats wait(Stop_condition stop_condition) {
+    auto spin_delay = m_spin_delay;
+    auto min_timeout = m_min_timeout;
+
+    /** We might read older value, it just decides on spinning.
+    Correctness does not depend on this. Only local performance
+    might depend on this but it's anyway heuristic and depends
+    on average which by definition has lag. No reason to make
+    extra barriers here. */
+
+    if (srv_cpu_usage.utime_abs < srv_log_spin_cpu_abs_lwm ||
+        log_is_write_up_to_frequency_low(m_log)) {
+      /* Either:
+      1. CPU usage is very low on the server, which means the server
+         is most likely idle or almost idle.
+      2. Request to write/flush redo to disk comes only once per 1ms
+         in average or even less often.
+      In both cases we prefer not to spend on CPU power, because there
+      is no real gain from spinning in log threads then. */
+
+      spin_delay = 0;
+      min_timeout = 10000; /* 10ms */
+    }
+
+    const auto wait_stats =
+        os_event_wait_for(m_event, spin_delay, min_timeout, stop_condition);
+
+    return (wait_stats);
+  }
+
+ private:
+  const log_t &m_log;
+  os_event_t m_event;
+  const uint32_t m_spin_delay;
+  const uint32_t m_min_timeout;
+};
+
+struct Log_write_up_to_monitor {
+  explicit Log_write_up_to_monitor(log_t &log)
+      : m_log(log), m_last_requests_value{0}, m_request_interval{0} {
+    m_last_requests_time = Log_clock::now();
+  }
+
+  void update() {
+    const auto requests_value =
+        m_log.write_up_to_requests_total.load(std::memory_order_relaxed);
+
+    if (requests_value > m_last_requests_value) {
+      const auto current_time = Log_clock::now();
+      if (current_time < m_last_requests_time) {
+        m_last_requests_time = current_time;
+        return;
+      }
+      const auto delta_requests = requests_value - m_last_requests_value;
+      const auto delta_time = current_time - m_last_requests_time;
+      const auto delta_time_us =
+          std::chrono::duration_cast<std::chrono::microseconds>(delta_time)
+              .count();
+      const auto request_interval = delta_time_us / delta_requests;
+      m_request_interval = (m_request_interval * 63 + request_interval) / 64;
+
+      m_log.write_up_to_requests_interval.store(m_request_interval,
+                                                std::memory_order_relaxed);
+
+      MONITOR_SET(MONITOR_LOG_WRITE_UP_TO_REQUESTS_INTERVAL,
+                  m_request_interval);
+
+      m_last_requests_time = current_time;
+      m_last_requests_value = requests_value;
+    }
+  }
+
+ private:
+  log_t &m_log;
+  uint64_t m_last_requests_value;
+  Log_clock_point m_last_requests_time;
+  uint64_t m_request_interval;
+};
+
+/* @} */
+
+/**************************************************/ /**
+
+ @name Log writer thread
+
+ *******************************************************/
+
+/* @{ */
 
 #else /* !UNIV_HOTBACKUP */
 #define log_writer_mutex_own(log) true
@@ -1733,10 +1853,16 @@ void log_writer(log_t *log_ptr) {
 
   log_writer_mutex_enter(log);
 
+  Log_thread_waiting waiting{log, log.writer_event, srv_log_writer_spin_delay,
+                             srv_log_writer_timeout};
+
+  Log_write_up_to_monitor write_up_to_monitor{log};
+
   for (uint64_t step = 0;; ++step) {
     bool released = false;
 
-    auto stop_condition = [&ready_lsn, &log, &released](bool wait) {
+    auto stop_condition = [&ready_lsn, &log, &released,
+                           &write_up_to_monitor](bool wait) {
 
       if (released) {
         log_writer_mutex_enter(log);
@@ -1757,6 +1883,7 @@ void log_writer(log_t *log_ptr) {
       }
 
       if (wait) {
+        write_up_to_monitor.update();
         log_writer_mutex_exit(log);
         released = true;
       }
@@ -1764,14 +1891,7 @@ void log_writer(log_t *log_ptr) {
       return (false);
     };
 
-    auto max_spins = srv_log_writer_spin_delay;
-
-    if (srv_cpu_usage.utime_abs < srv_log_spin_cpu_abs_lwm) {
-      max_spins = 0;
-    }
-
-    const auto wait_stats = os_event_wait_for(
-        log.writer_event, max_spins, srv_log_writer_timeout, stop_condition);
+    const auto wait_stats = waiting.wait(stop_condition);
 
     MONITOR_INC_WAIT_STATS(MONITOR_LOG_WRITER_, wait_stats);
 
@@ -1780,6 +1900,8 @@ void log_writer(log_t *log_ptr) {
       log_writer_write_buffer(log, ready_lsn);
 
       if (step % 1024 == 0) {
+        write_up_to_monitor.update();
+
         log_writer_mutex_exit(log);
 
         os_thread_sleep(0);
@@ -2108,6 +2230,10 @@ void log_write_notifier(log_t *log_ptr) {
 
   log_write_notifier_mutex_enter(log);
 
+  Log_thread_waiting waiting{log, log.write_notifier_event,
+                             srv_log_write_notifier_spin_delay,
+                             srv_log_write_notifier_timeout};
+
   for (uint64_t step = 0;; ++step) {
     if (!log.writer_thread_alive.load()) {
       if (lsn > log.write_lsn.load()) {
@@ -2143,15 +2269,7 @@ void log_write_notifier(log_t *log_ptr) {
       return (false);
     };
 
-    auto max_spins = srv_log_write_notifier_spin_delay;
-
-    if (srv_cpu_usage.utime_abs < srv_log_spin_cpu_abs_lwm) {
-      max_spins = 0;
-    }
-
-    const auto wait_stats =
-        os_event_wait_for(log.write_notifier_event, max_spins,
-                          srv_log_write_notifier_timeout, stop_condition);
+    const auto wait_stats = waiting.wait(stop_condition);
 
     MONITOR_INC_WAIT_STATS(MONITOR_LOG_WRITE_NOTIFIER_, wait_stats);
 
@@ -2208,6 +2326,10 @@ void log_flush_notifier(log_t *log_ptr) {
 
   log_flush_notifier_mutex_enter(log);
 
+  Log_thread_waiting waiting{log, log.flush_notifier_event,
+                             srv_log_flush_notifier_spin_delay,
+                             srv_log_flush_notifier_timeout};
+
   for (uint64_t step = 0;; ++step) {
     if (!log.flusher_thread_alive.load()) {
       if (lsn > log.flushed_to_disk_lsn.load()) {
@@ -2244,15 +2366,7 @@ void log_flush_notifier(log_t *log_ptr) {
       return (false);
     };
 
-    auto max_spins = srv_log_flush_notifier_spin_delay;
-
-    if (srv_cpu_usage.utime_abs < srv_log_spin_cpu_abs_lwm) {
-      max_spins = 0;
-    }
-
-    const auto wait_stats =
-        os_event_wait_for(log.flush_notifier_event, max_spins,
-                          srv_log_flush_notifier_timeout, stop_condition);
+    const auto wait_stats = waiting.wait(stop_condition);
 
     MONITOR_INC_WAIT_STATS(MONITOR_LOG_FLUSH_NOTIFIER_, wait_stats);
 
@@ -2309,6 +2423,9 @@ void log_closer(log_t *log_ptr) {
 
   log_closer_mutex_enter(log);
 
+  Log_thread_waiting waiting{log, log.closer_event, srv_log_closer_spin_delay,
+                             srv_log_closer_timeout};
+
   for (uint64_t step = 0;; ++step) {
     bool released = false;
 
@@ -2342,14 +2459,7 @@ void log_closer(log_t *log_ptr) {
       return (false);
     };
 
-    auto max_spins = srv_log_closer_spin_delay;
-
-    if (srv_cpu_usage.utime_abs < srv_log_spin_cpu_abs_lwm) {
-      max_spins = 0;
-    }
-
-    os_event_wait_for(log.closer_event, max_spins, srv_log_closer_timeout,
-                      stop_condition);
+    waiting.wait(stop_condition);
 
     /* Check if we should close the thread. */
     if (log.should_stop_threads.load() && !log.flusher_thread_alive.load() &&

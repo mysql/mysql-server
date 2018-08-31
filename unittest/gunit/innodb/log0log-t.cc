@@ -512,7 +512,7 @@ static void log_test_run() {
           if (j % log_test->flush_every() == 0) {
             log_test->purge(max_dirty_page_age);
 
-            log_write_up_to(log, end_lsn, true);
+            log_write_up_to(log, end_lsn, true, true);
           }
         }
 

@@ -1600,7 +1600,7 @@ static void trx_flush_log_if_needed_low(
       /* fall through */
     case 1:
       /* Write the log and optionally flush it to disk */
-      wait_stats = log_write_up_to(*log_sys, lsn, flush);
+      wait_stats = log_write_up_to(*log_sys, lsn, flush, true);
 
       MONITOR_INC_WAIT_STATS(MONITOR_TRX_ON_LOG_, wait_stats);
 
