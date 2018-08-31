@@ -202,6 +202,7 @@ log_write_notifier_wait_loops	disabled
 log_flush_notifier_no_waits	disabled
 log_flush_notifier_waits	disabled
 log_flush_notifier_wait_loops	disabled
+log_write_up_to_requests_interval	disabled
 log_on_write_no_waits	disabled
 log_on_write_waits	disabled
 log_on_write_wait_loops	disabled

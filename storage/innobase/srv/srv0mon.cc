@@ -918,6 +918,12 @@ static monitor_info_t innodb_counter_info[] = {
                        "Waits on task in log_flush_notifier_thread",
                        MONITOR_LOG_FLUSH_NOTIFIER_),
 
+    {"log_write_up_to_requests_interval", "log",
+     "Average time between consecutive requests to write/flush redo."
+     " Measured only for requests signaled during commit of transactions.",
+     MONITOR_NONE, MONITOR_DEFAULT_START,
+     MONITOR_LOG_WRITE_UP_TO_REQUESTS_INTERVAL},
+
     MONITOR_WAIT_STATS(
         "log_on_write_", "log",
         "Waits in user threads on log_writer+log_write_notifier",
