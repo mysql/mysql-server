@@ -20,13 +20,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/*
+/**
   @file json_path.cc
 
   This file contains implementation support for the JSON path abstraction.
   The path abstraction is described by the functional spec
   attached to WL#7909.
- */
+*/
 
 #include "sql/json_path.h"
 
