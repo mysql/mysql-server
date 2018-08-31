@@ -79,12 +79,7 @@
 %endif
 
 %if 0%{?suse_version} == 1500
-%global dist                  .sles15
-%global sles15                1
-%endif
-
-%if 0%{?sle_version} == 150000 && 0%{?is_opensuse}
-%global dist                 .lp150
+%global dist                  .sl15
 %global sles15                1
 %endif
 
