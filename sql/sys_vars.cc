@@ -1434,7 +1434,7 @@ static bool check_charset(sys_var *, THD *thd, set_var *var) {
       }
       warn_on_deprecated_charset(
           thd, static_cast<const CHARSET_INFO *>(var->save_result.ptr),
-          res->c_ptr_safe());
+          err.ptr());
     }
   } else  // INT_RESULT
   {
