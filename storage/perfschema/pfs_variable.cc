@@ -159,7 +159,7 @@ int PFS_system_variable_cache::do_materialize_global(void)
     if (match_scope(value->scope()))
     {
       /* Resolve value, convert to text, add to cache. */
-      System_variable system_var(m_current_thd, show_var, m_query_scope);
+      System_variable system_var(m_current_thd, show_var, m_query_scope, false);
       m_cache.push_back(system_var);
     }
   }
@@ -202,6 +202,7 @@ int PFS_system_variable_cache::do_materialize_all(THD *unsafe_thd)
       const char* name= show_var->name;
       sys_var *value= (sys_var *)show_var->value;
       DBUG_ASSERT(value);
+      bool ignore= false;
 
       if (value->scope() == sys_var::SESSION &&
           (!my_strcasecmp(system_charset_info, name, "gtid_executed")))
@@ -226,10 +227,11 @@ int PFS_system_variable_cache::do_materialize_all(THD *unsafe_thd)
          This special case needs be removed once @@SESSION.GTID_EXECUTED is
          deprecated.
         */
-        continue;
+        ignore= true;
+        
       }
       /* Resolve value, convert to text, add to cache. */
-      System_variable system_var(m_safe_thd, show_var, m_query_scope);
+      System_variable system_var(m_safe_thd, show_var, m_query_scope, ignore);
       m_cache.push_back(system_var);
     }
 
@@ -254,7 +256,7 @@ void PFS_system_variable_cache::set_mem_root(void)
     init_sql_alloc(PSI_INSTRUMENT_ME, &m_mem_sysvar, SYSVAR_MEMROOT_BLOCK_SIZE, 0);
     m_mem_sysvar_ptr= &m_mem_sysvar;
   }
-  m_mem_thd= my_thread_get_THR_MALLOC(); /* pointer to current THD mem_root */
+  m_mem_thd= my_thread_get_THR_MALLOC();  /* pointer to current THD mem_root */
   m_mem_thd_save= *m_mem_thd;             /* restore later */
   *m_mem_thd= &m_mem_sysvar;              /* use temporary mem_root */
 }
@@ -328,17 +330,16 @@ int PFS_system_variable_cache::do_materialize_session(PFS_thread *pfs_thread)
       if (match_scope(value->scope()))
       {
         const char* name= show_var->name;
+        bool ignore= false;
+
         if (value->scope() == sys_var::SESSION &&
             (!my_strcasecmp(system_charset_info, name, "gtid_executed")))
         {
-          /*
-            Please check PFS_system_variable_cache::do_materialize_all for
-            details about this special case.
-          */
-          continue;
+          /* Deprecated. See PFS_system_variable_cache::do_materialize_all. */
+          ignore= true;
         }
         /* Resolve value, convert to text, add to cache. */
-        System_variable system_var(m_safe_thd, show_var, m_query_scope);
+        System_variable system_var(m_safe_thd, show_var, m_query_scope, ignore);
         m_cache.push_back(system_var);
       }
     }
@@ -391,18 +392,17 @@ int PFS_system_variable_cache::do_materialize_session(PFS_thread *pfs_thread, ui
       if (match_scope(value->scope()))
       {
         const char* name= show_var->name;
-        /*
-          Please check PFS_system_variable_cache::do_materialize_all for
-          details about this special case.
-        */
-        if ((my_strcasecmp(system_charset_info, name, "gtid_executed") != 0) ||
-            (value->scope() != sys_var::SESSION &&
-             (!my_strcasecmp(system_charset_info, name, "gtid_executed"))))
+        bool ignore= false;
+
+        if (value->scope() == sys_var::SESSION &&
+            (!my_strcasecmp(system_charset_info, name, "gtid_executed")))
         {
-          /* Resolve value, convert to text, add to cache. */
-          System_variable system_var(m_safe_thd, show_var, m_query_scope);
-          m_cache.push_back(system_var);
+          /* Deprecated. See PFS_system_variable_cache::do_materialize_all. */
+          ignore= true;
         }
+        /* Resolve value, convert to text, add to cache. */
+        System_variable system_var(m_safe_thd, show_var, m_query_scope, ignore);
+        m_cache.push_back(system_var);
       }
     }
 
@@ -452,17 +452,17 @@ int PFS_system_variable_cache::do_materialize_session(THD *unsafe_thd)
       if (match_scope(value->scope()))
       {
         const char* name= show_var->name;
+        bool ignore= false;
+
         if (value->scope() == sys_var::SESSION &&
             (!my_strcasecmp(system_charset_info, name, "gtid_executed")))
         {
-          /*
-            Please check PFS_system_variable_cache::do_materialize_all for
-            details about this special case.
-          */
-          continue;
+          /* Deprecated. See PFS_system_variable_cache::do_materialize_all. */
+          ignore= true;
         }
         /* Resolve value, convert to text, add to cache. */
-        System_variable system_var(m_safe_thd, show_var, m_query_scope);
+        System_variable system_var(m_safe_thd, show_var, m_query_scope, ignore);
+
         m_cache.push_back(system_var);
       }
     }
@@ -488,7 +488,7 @@ int PFS_system_variable_cache::do_materialize_session(THD *unsafe_thd)
 */
 System_variable::System_variable()
   : m_name(NULL), m_name_length(0), m_value_length(0), m_type(SHOW_UNDEF), m_scope(0),
-    m_charset(NULL), m_initialized(false)
+    m_ignore(false), m_charset(NULL), m_initialized(false)
 {
   m_value_str[0]= '\0';
 }
@@ -497,9 +497,9 @@ System_variable::System_variable()
   GLOBAL or SESSION system variable.
 */
 System_variable::System_variable(THD *target_thd, const SHOW_VAR *show_var,
-                                 enum_var_type query_scope)
+                                 enum_var_type query_scope, bool ignore)
   : m_name(NULL), m_name_length(0), m_value_length(0), m_type(SHOW_UNDEF), m_scope(0),
-    m_charset(NULL), m_initialized(false)
+    m_ignore(ignore), m_charset(NULL), m_initialized(false)
 {
   init(target_thd, show_var, query_scope);
 }
@@ -515,10 +515,20 @@ void System_variable::init(THD *target_thd, const SHOW_VAR *show_var,
 
   enum_mysql_show_type show_var_type= show_var->type;
   DBUG_ASSERT(show_var_type == SHOW_SYS);
-  THD *current_thread= current_thd;
-
+  
   m_name= show_var->name;
   m_name_length= strlen(m_name);
+
+  /* Deprecated variables are ignored but must still be accounted for. */
+  if (m_ignore)
+  {
+    m_value_str[0]= '\0';
+    m_value_length= 0;
+    m_initialized= true;
+    return;
+  }
+
+  THD *current_thread= current_thd;
 
   /* Block remote target thread from updating this system variable. */
   if (target_thd != current_thread)
@@ -555,7 +565,6 @@ void System_variable::init(THD *target_thd, const SHOW_VAR *show_var,
                          m_name, value, m_value_length))
     return;
 #endif
-
 
   m_initialized= true;
 }
