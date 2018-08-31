@@ -240,7 +240,7 @@ ADD_SUBDIRECTORY(authentication_ldap)
   
 # Merge several convenience libraries into one big mysqlclient
 MERGE_CONVENIENCE_LIBRARIES(mysqlclient ${LIBS_TO_MERGE} COMPONENT Development)
-TARGET_LINK_LIBRARIES(mysqlclient ${LIBS_TO_LINK})
+TARGET_LINK_LIBRARIES(mysqlclient PRIVATE ${LIBS_TO_LINK})
 
 # Visual Studio users need debug  static library for debug projects
 IF(MSVC)
@@ -281,7 +281,7 @@ IF(NOT DISABLE_SHARED)
   MERGE_LIBRARIES_SHARED(libmysql ${LIBS_TO_MERGE}
     EXPORTS ${CLIENT_API_FUNCTIONS} ${CLIENT_API_FUNCTIONS_UNDOCUMENTED}
     COMPONENT SharedLibraries)
-  TARGET_LINK_LIBRARIES(libmysql ${LIBS_TO_LINK})
+  TARGET_LINK_LIBRARIES(libmysql PRIVATE ${LIBS_TO_LINK})
 
   IF(WIN32)
     # So that libmysql_api_test below can find the .dll

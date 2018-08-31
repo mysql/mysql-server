@@ -134,7 +134,7 @@ MESSAGE(STATUS "NDBCLIENT_LIBS ${NDBCLIENT_LIBS}")
 
 MERGE_CONVENIENCE_LIBRARIES(
   ndbclient_static ${LIBS_TO_MERGE} COMPONENT Development)
-TARGET_LINK_LIBRARIES(ndbclient_static ${SSL_LIBRARIES})
+TARGET_LINK_LIBRARIES(ndbclient_static PRIVATE ${SSL_LIBRARIES})
 
 # Build test program to check linking against ndclient_static
 ADD_EXECUTABLE(ndbclient_static_link_test ndbclient_link_test.cpp)

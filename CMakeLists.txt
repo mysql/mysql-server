@@ -506,15 +506,12 @@ ENDMACRO()
 OPTION(WITH_ASAN "Enable address sanitizer" OFF)
 IF(WITH_ASAN)
   IF(WIN32_CLANG)
-    # Feature detection of -faddress=sanitize is problematic with Clang on
-    # Windows, since Clang (at least as of 5.0.0) requires /MT, but CMake
-    # default is /MD, and this code is run before the one in
-    # cmake/os/Windows.cmake, which sets /MT for ASAN on Win32 Clang.
-    # Just enable it unconditionally; we know it's working.
-    STRING_APPEND(CMAKE_C_FLAGS
-      " -fsanitize=address -fsanitize-address-use-after-scope")
-    STRING_APPEND(CMAKE_CXX_FLAGS
-      " -fsanitize=address -fsanitize-address-use-after-scope")
+    # NOTE: We do _not_ modify CMAKE_C_FLAGS / CMAKE_CXX_FLAGS to add
+    # -fsanitize=address here yet; Clang (at least of 5.0.0) requires /MT,
+    # but CMake adds /MDd to all feature checks almost no matter what we do.
+    # For the same reason, we have to enable it unconditionalyl without
+    # doing a feature test; we know it's working. Modifying the flags happens
+    # below, near the end.
     SET(HAVE_ASAN 1)
 
     # Get the path to the ASAN support libraries.
@@ -1171,6 +1168,15 @@ IF(NOT INSTALL_LAYOUT MATCHES "RPM")
     PATTERN "sp-imp-spec.txt" EXCLUDE
     PATTERN "README.build" EXCLUDE
   )
+ENDIF()
+
+# Now that we're done with all ADD_SUBDIRECTORY and thus all feature tests,
+# we can safely enable ASan on Clang/Win32 if needed.
+IF(HAVE_ASAN AND WIN32_CLANG)
+  STRING_APPEND(CMAKE_C_FLAGS
+    " -fsanitize=address -fsanitize-address-use-after-scope")
+  STRING_APPEND(CMAKE_CXX_FLAGS
+    " -fsanitize=address -fsanitize-address-use-after-scope")
 ENDIF()
 
 IF(UNIX)
