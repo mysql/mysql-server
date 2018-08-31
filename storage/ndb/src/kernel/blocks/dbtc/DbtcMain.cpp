@@ -4861,9 +4861,9 @@ void Dbtc::packLqhkeyreq040Lab(Signal* signal,
 {
   CacheRecord * const regCachePtr = cachePtr.p;
   TcConnectRecord * const regTcPtr = tcConnectptr.p;
+PrefetchApiConTimer apiConTimer(c_apiConTimersPool, apiConnectptr, true);
 #ifdef ERROR_INSERT
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
-PrefetchApiConTimer apiConTimer(c_apiConTimersPool, apiConnectptr, true);
   if (ERROR_INSERTED(8009)) {
     if (regApiPtr->apiConnectstate == CS_STARTED) {
       CLEAR_ERROR_INSERT_VALUE;
