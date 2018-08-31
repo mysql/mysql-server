@@ -428,7 +428,7 @@ public:
    */  
   TcDefinedTriggerData_list c_theDefinedTriggers;
 
-  AttributeBuffer_pool c_theAttributeBufferPool;
+  AttributeBuffer_pool MY_ALIGNED(16) c_theAttributeBufferPool;
   RSS_AP_SNAPSHOT(c_theAttributeBufferPool);
 
   typedef DataBufferSegment<5, RT_DBTC_COMMIT_ACK_MARKER_BUFFER>
@@ -443,7 +443,7 @@ public:
                           RT_DBTC_COMMIT_ACK_MARKER_BUFFER>
                               LocalCommitAckMarkerBuffer;
 
-  CommitAckMarkerBuffer_pool c_theCommitAckMarkerBufferPool;
+  CommitAckMarkerBuffer_pool MY_ALIGNED(16) c_theCommitAckMarkerBufferPool;
   RSS_AP_SNAPSHOT(c_theCommitAckMarkerBufferPool);
 
   /* ********** FIRED TRIGGER DATA ********** */
@@ -549,7 +549,7 @@ public:
   /**
    * Pool of trigger data record
    */
-  TcFiredTriggerData_pool c_theFiredTriggerPool;
+  TcFiredTriggerData_pool MY_ALIGNED(16) c_theFiredTriggerPool;
   TcFiredTriggerData_hash c_firedTriggerHash;
   RSS_AP_SNAPSHOT(c_theFiredTriggerPool);
 
@@ -705,7 +705,7 @@ public:
   /**
    * Pool of index data record
    */
-  TcIndexOperation_pool c_theIndexOperationPool;
+  TcIndexOperation_pool MY_ALIGNED(16) c_theIndexOperationPool;
   RSS_AP_SNAPSHOT(c_theIndexOperationPool);
 
   struct TcFKData {
@@ -946,7 +946,7 @@ public:
   STATIC_CONST(DBTC_API_CONNECT_TIMERS_TRANSIENT_POOL_INDEX = 5);
   typedef LocalDLFifoList<ApiConTimers_pool> LocalApiConTimers_list;
 
-  ApiConTimers_pool c_apiConTimersPool;
+  ApiConTimers_pool MY_ALIGNED(16) c_apiConTimersPool;
   RSS_AP_SNAPSHOT(c_apiConTimersPool);
   LocalApiConTimers_list::Head c_apiConTimersList;
   ApiConTimers* c_currentApiConTimers;
@@ -1609,7 +1609,7 @@ public:
   typedef SLFifoList<ScanFragLocation_pool> ScanFragLocation_list;
   typedef LocalSLFifoList<ScanFragLocation_pool> Local_ScanFragLocation_list;
 
-  ScanFragLocation_pool m_fragLocationPool;
+  ScanFragLocation_pool MY_ALIGNED(16) m_fragLocationPool;
   RSS_AP_SNAPSHOT(m_fragLocationPool);
 
   /**
@@ -2489,15 +2489,15 @@ private:
   // Transit signals
 
 
-  ApiConnectRecord_pool c_apiConnectRecordPool;
+  ApiConnectRecord_pool MY_ALIGNED(16) c_apiConnectRecordPool;
   RSS_AP_SNAPSHOT(c_apiConnectRecordPool);
   UintR capiConnectFilesize;
 
-  TcConnectRecord_pool tcConnectRecord;
+  TcConnectRecord_pool MY_ALIGNED(16) tcConnectRecord;
   TcConnectRecordPtr tcConnectptr;
   UintR ctcConnectFailCount;
 
-  CacheRecord_pool c_cacheRecordPool;
+  CacheRecord_pool MY_ALIGNED(16) c_cacheRecordPool;
   RSS_AP_SNAPSHOT(c_cacheRecordPool);
 
   HostRecord *hostRecord;
@@ -2506,7 +2506,7 @@ private:
   NdbNodeBitmask c_alive_nodes;
 
   Uint32 c_ongoing_take_over_cnt;
-  GcpRecord_pool c_gcpRecordPool;
+  GcpRecord_pool MY_ALIGNED(16) c_gcpRecordPool;
   RSS_AP_SNAPSHOT(c_gcpRecordPool);
 
   TableRecord *tableRecord;
@@ -2637,10 +2637,10 @@ private:
 
   ApiConnectRecordPtr timeOutptr;
 
-  ScanRecord_pool scanRecordPool;
+  ScanRecord_pool MY_ALIGNED(16) scanRecordPool;
   UintR cscanrecFileSize;
 
-  ScanFragRec_pool c_scan_frag_pool;
+  ScanFragRec_pool MY_ALIGNED(16) c_scan_frag_pool;
   RSS_AP_SNAPSHOT(c_scan_frag_pool);
   ScanFragRecPtr scanFragptr;
 
