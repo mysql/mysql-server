@@ -12,7 +12,6 @@
 # so the query log is disabled.
 
 --disable_query_log
---error 1296
 CREATE TABLE t_big_metadata(
   i int primary key not null,
   c1 VARCHAR(800) NOT NULL DEFAULT
@@ -143,7 +142,6 @@ CREATE TABLE t_big_metadata(
 	"7a3wmzn8UDE38m8ttJEq2dwlsu401Oftr9gar2vQEjxZpGzPuiPzTQPzElxC"
 	"e0Wzc7xhhBMY9tOcTJFJ"
 ) character set latin1 engine=ndb;
-
-
-drop table if exists t_big_metadata;
 --enable_query_log
+
+drop table t_big_metadata;

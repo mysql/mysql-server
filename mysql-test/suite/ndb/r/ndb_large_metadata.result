@@ -1,3 +1,1 @@
-ERROR HY000: Got error 1229 'Too long frm data supplied' from NDBCLUSTER
-Warnings:
-Note	1051	Unknown table 'test.t_big_metadata'
+drop table t_big_metadata;
