@@ -255,6 +255,7 @@ class MYSQL_BIN_LOG::Binlog_ofile : public Basic_ostream {
      @param[in] log_file_key  The PSI_file_key for this stream
      @param[in] binlog_name  The file to be opened
      @param[in] flags  The flags used by IO_CACHE.
+     @param[in] existing True if opening the file, false if creating a new one.
 
      @retval false  Success
      @retval true  Error
@@ -263,14 +264,37 @@ class MYSQL_BIN_LOG::Binlog_ofile : public Basic_ostream {
 #ifdef HAVE_PSI_INTERFACE
       PSI_file_key log_file_key,
 #endif
-      const char *binlog_name, myf flags) {
+      const char *binlog_name, myf flags, bool existing = false) {
     DBUG_ENTER("Binlog_ofile::open");
     DBUG_ASSERT(m_pipeline_head == NULL);
+
+#ifndef DBUG_OFF
+    {
+#ifndef HAVE_PSI_INTERFACE
+      PSI_file_key log_file_key = PSI_NOT_INSTRUMENTED;
+#endif
+      MY_STAT info;
+      if (!mysql_file_stat(log_file_key, binlog_name, &info, MYF(0))) {
+        DBUG_ASSERT(existing == !(my_errno() == ENOENT));
+        set_my_errno(0);
+      }
+    }
+#endif
 
     std::unique_ptr<IO_CACHE_ostream> file_ostream(new IO_CACHE_ostream);
     if (file_ostream->open(log_file_key, binlog_name, flags)) DBUG_RETURN(true);
 
     m_pipeline_head = std::move(file_ostream);
+
+    /* Setup encryption for new files if needed */
+    if (!existing && rpl_encryption.is_enabled()) {
+      std::unique_ptr<Binlog_encryption_ostream> encrypted_ostream(
+          new Binlog_encryption_ostream());
+      if (encrypted_ostream->open(std::move(m_pipeline_head)))
+        DBUG_RETURN(true);
+      m_encrypted_header_size = encrypted_ostream->get_header_size();
+      m_pipeline_head = std::move(encrypted_ostream);
+    }
 
     DBUG_RETURN(false);
   }
@@ -320,7 +344,7 @@ class MYSQL_BIN_LOG::Binlog_ofile : public Basic_ostream {
 #ifdef HAVE_PSI_INTERFACE
             log_file_key,
 #endif
-            binlog_name, flags)) {
+            binlog_name, flags, true)) {
       DBUG_RETURN(nullptr);
     }
 
@@ -3623,6 +3647,7 @@ static bool read_gtids_and_update_trx_parser_from_relaylog(
 #ifndef DBUG_OFF
   unsigned long event_counter = 0;
 #endif
+  bool error = false;
 
   Relaylog_file_reader relaylog_file_reader(verify_checksum);
   if (relaylog_file_reader.open(filename)) {
@@ -3634,11 +3659,13 @@ static bool read_gtids_and_update_trx_parser_from_relaylog(
       relaylog files, we should do the same here in order to keep the
       current behavior.
     */
-    DBUG_RETURN(false);
+    if (relaylog_file_reader.get_error_type() ==
+        Binlog_read_error::CANNOT_GET_FILE_PASSWORD)
+      error = true;
+    DBUG_RETURN(error);
   }
 
   Log_event *ev = NULL;
-  bool error = false;
   bool seen_prev_gtids = false;
   ulong data_len = 0;
 
@@ -3902,6 +3929,9 @@ static enum_read_gtids_from_binlog_status read_gtids_from_binlog(
       files. Currently, it is called after this routine.
       /Alfranio
     */
+    if (binlog_file_reader.get_error_type() ==
+        Binlog_read_error::CANNOT_GET_FILE_PASSWORD)
+      DBUG_RETURN(ERROR);
     DBUG_RETURN(TRUNCATED);
   }
 

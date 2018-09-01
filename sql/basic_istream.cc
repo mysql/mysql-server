@@ -58,16 +58,19 @@ void IO_CACHE_istream::close() {
 my_off_t IO_CACHE_istream::length() { return my_b_filelength(&m_io_cache); }
 
 ssize_t IO_CACHE_istream::read(unsigned char *buffer, size_t length) {
+  DBUG_ENTER("IO_CACHE_istream::read");
   if (my_b_read(&m_io_cache, buffer, length) ||
       DBUG_EVALUATE_IF("simulate_magic_header_io_failure", 1, 0))
-    return m_io_cache.error;
-  return static_cast<longlong>(length);
+    DBUG_RETURN(m_io_cache.error);
+  DBUG_RETURN(static_cast<longlong>(length));
 }
 
 bool IO_CACHE_istream::seek(my_off_t offset) {
-  DBUG_EXECUTE_IF("simulate_seek_failure", return true;);
+  DBUG_ENTER("IO_CACHE_istream::seek");
+  bool res = false;
   my_b_seek(&m_io_cache, offset);
-  return false;
+  DBUG_EXECUTE_IF("simulate_seek_failure", res = true;);
+  DBUG_RETURN(res);
 }
 
 Stdin_istream::Stdin_istream() {}

@@ -1149,7 +1149,29 @@ class Relay_log_info : public Rpl_info {
 
   int count_relay_log_space();
 
-  int rli_init_info();
+  /**
+    Initialize the relay log info. This function does a set of operations
+    on the rli object like initializing variables, loading information from
+    repository, setting up name for relay log files and index, MTS recovery
+    (if necessary), calculating the received GTID set for the channel and
+    storing the updated rli object configuration into the repository.
+
+    When this function is called in a change master process and the change
+    master procedure will purge all the relay log files later, there is no
+    reason to try to calculate the received GTID set of the channel based on
+    existing relay log files (they will be purged). Allowing reads to existing
+    relay log files at this point may lead to put the server in a state where
+    it will be no possible to configure it if it was reset when encryption of
+    replication log files was ON and the keyring plugin is not available
+    anymore.
+
+    @param skip_received_gtid_set_recovery When true, skips the received GTID
+                                           set recovery.
+
+    @retval 0 Success.
+    @retval 1 Error.
+  */
+  int rli_init_info(bool skip_received_gtid_set_recovery = false);
   void end_info();
   int flush_info(bool force = false);
   int flush_current_log();

@@ -1461,7 +1461,7 @@ err:
   DBUG_RETURN(res);
 }
 
-int Relay_log_info::rli_init_info() {
+int Relay_log_info::rli_init_info(bool skip_received_gtid_set_recovery) {
   int error = 0;
   enum_return_check check_return = ERROR_CHECKING_REPOSITORY;
   const char *msg = NULL;
@@ -1630,6 +1630,7 @@ int Relay_log_info::rli_init_info() {
         init_recovery.
       */
       if (!is_relay_log_recovery && !gtid_retrieved_initialized &&
+          !skip_received_gtid_set_recovery &&
           relay_log.init_gtid_sets(
               gtid_set, NULL, opt_slave_sql_verify_checksum,
               true /*true=need lock*/, &mi->transaction_parser, partial_trx)) {

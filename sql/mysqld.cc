@@ -597,7 +597,8 @@ The documentation is based on the source files such as:
 #include "sql/rpl_info_factory.h"
 #include "sql/rpl_info_handler.h"
 #include "sql/rpl_injector.h"  // injector
-#include "sql/rpl_master.h"    // max_binlog_dump_events
+#include "sql/rpl_log_encryption.h"
+#include "sql/rpl_master.h"  // max_binlog_dump_events
 #include "sql/rpl_mi.h"
 #include "sql/rpl_msr.h"    // Multisource_info
 #include "sql/rpl_rli.h"    // Relay_log_info
@@ -5480,6 +5481,21 @@ static int init_server_components() {
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
+  /*
+    Each server should have one UUID. We will create it automatically, if it
+    does not exist. It should be initialized before opening binlog file. Because
+    server's uuid will be stored into the new binlog file.
+  */
+  if (init_server_auto_options()) {
+    LogErr(ERROR_LEVEL, ER_CANT_CREATE_UUID);
+    unireg_abort(MYSQLD_ABORT_EXIT);
+  }
+
+  if (rpl_encryption.initialize()) {
+    LogErr(ERROR_LEVEL, ER_SERVER_RPL_ENCRYPTION_UNABLE_TO_INITIALIZE);
+    unireg_abort(MYSQLD_ABORT_EXIT);
+  }
+
   if (opt_bin_log) {
     /*
       Configures what object is used by the current log to store processed
@@ -6149,15 +6165,6 @@ int mysqld_main(int argc, char **argv)
 #endif
 
   if (init_server_components()) unireg_abort(MYSQLD_ABORT_EXIT);
-
-  /*
-    Each server should have one UUID. We will create it automatically, if it
-    does not exist.
-   */
-  if (init_server_auto_options()) {
-    LogErr(ERROR_LEVEL, ER_CANT_CREATE_UUID);
-    unireg_abort(MYSQLD_ABORT_EXIT);
-  }
 
   if (!server_id_supplied)
     LogErr(INFORMATION_LEVEL, ER_WARN_NO_SERVERID_SPECIFIED);

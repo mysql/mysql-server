@@ -403,11 +403,15 @@ int init_recovery(Master_info *mi);
   if (thread_mask&SLAVE_IO)!=0, then mi->init_info is called; if
   (thread_mask&SLAVE_SQL)!=0, then mi->rli->init_info is called.
 
+  @param skip_received_gtid_set_recovery When true, skips the received GTID
+                                         set recovery.
+
   @retval 0 Success
   @retval nonzero Error
 */
-int load_mi_and_rli_from_repositories(Master_info *mi, bool ignore_if_no_info,
-                                      int thread_mask);
+int load_mi_and_rli_from_repositories(
+    Master_info *mi, bool ignore_if_no_info, int thread_mask,
+    bool skip_received_gtid_set_recovery = false);
 void end_info(Master_info *mi);
 int remove_info(Master_info *mi);
 int flush_master_info(Master_info *mi, bool force, bool need_lock = true,

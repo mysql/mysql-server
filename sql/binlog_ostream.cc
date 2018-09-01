@@ -143,6 +143,18 @@ Binlog_cache_storage::~Binlog_cache_storage() { close(); }
 Binlog_encryption_ostream::~Binlog_encryption_ostream() { close(); }
 
 bool Binlog_encryption_ostream::open(
+    std::unique_ptr<Truncatable_ostream> down_ostream) {
+  DBUG_ASSERT(down_ostream != nullptr);
+  m_header = Rpl_encryption_header::get_new_default_header();
+  const Key_string password_str = m_header->generate_new_file_password();
+  m_encryptor.reset(nullptr);
+  m_encryptor = m_header->get_encryptor();
+  if (m_encryptor->open(password_str, m_header->get_header_size())) return true;
+  m_down_ostream = std::move(down_ostream);
+  return m_header->serialize(m_down_ostream.get());
+}
+
+bool Binlog_encryption_ostream::open(
     std::unique_ptr<Truncatable_ostream> down_ostream,
     std::unique_ptr<Rpl_encryption_header> header) {
   DBUG_ASSERT(down_ostream != nullptr);
@@ -200,3 +212,7 @@ bool Binlog_encryption_ostream::truncate(my_off_t offset) {
 bool Binlog_encryption_ostream::flush() { return m_down_ostream->flush(); }
 
 bool Binlog_encryption_ostream::sync() { return m_down_ostream->sync(); }
+
+int Binlog_encryption_ostream::get_header_size() {
+  return m_header->get_header_size();
+}

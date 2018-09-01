@@ -1159,7 +1159,8 @@ err:
 }
 
 int load_mi_and_rli_from_repositories(Master_info *mi, bool ignore_if_no_info,
-                                      int thread_mask) {
+                                      int thread_mask,
+                                      bool skip_received_gtid_set_recovery) {
   DBUG_ENTER("init_info");
   DBUG_ASSERT(mi != NULL && mi->rli != NULL);
   int init_error = 0;
@@ -1209,7 +1210,7 @@ int load_mi_and_rli_from_repositories(Master_info *mi, bool ignore_if_no_info,
   }
   if (!(ignore_if_no_info && check_return == REPOSITORY_DOES_NOT_EXIST)) {
     if (((thread_mask & SLAVE_SQL) != 0 || !(mi->rli->inited)) &&
-        mi->rli->rli_init_info())
+        mi->rli->rli_init_info(skip_received_gtid_set_recovery))
       init_error = 1;
     else {
       /*
@@ -4973,10 +4974,11 @@ static int exec_relay_log_event(THD *thd, Relay_log_info *rli,
 Could not parse relay log event entry. The possible reasons are: the master's \
 binary log is corrupted (you can check this by running 'mysqlbinlog' on the \
 binary log), the slave's relay log is corrupted (you can check this by running \
-'mysqlbinlog' on the relay log), a network problem, or a bug in the master's \
-or slave's MySQL code. If you want to check the master's binary log or slave's \
-relay log, you will be able to know their names by issuing 'SHOW SLAVE STATUS' \
-on this slave.\
+'mysqlbinlog' on the relay log), a network problem, the server was unable to \
+fetch a keyring key required to open an encrypted relay log file, or a bug in \
+the master's or slave's MySQL code. If you want to check the master's binary \
+log or slave's relay log, you will be able to know their names by issuing \
+'SHOW SLAVE STATUS' on this slave.\
 ");
   DBUG_RETURN(1);
 }
@@ -9289,8 +9291,8 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
 
   init_thread_mask(&thread_mask_stopped_threads, mi, 1);
 
-  if (load_mi_and_rli_from_repositories(mi, false,
-                                        thread_mask_stopped_threads)) {
+  if (load_mi_and_rli_from_repositories(mi, false, thread_mask_stopped_threads,
+                                        need_relay_log_purge)) {
     error = ER_MASTER_INFO;
     my_error(ER_MASTER_INFO, MYF(0));
     goto err;

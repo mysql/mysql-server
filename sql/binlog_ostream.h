@@ -210,6 +210,17 @@ class Binlog_encryption_ostream : public Truncatable_ostream {
   ~Binlog_encryption_ostream();
 
   /**
+    Initialize the context used in the encryption stream and write encryption
+    header into down stream.
+
+    @param[in] down_ostream The stream for storing encrypted data.
+
+    @retval false Success
+    @retval true Error.
+  */
+  bool open(std::unique_ptr<Truncatable_ostream> down_ostream);
+
+  /**
     Initialize the context used in the encryption stream based on the
     header passed as parameter. It shall be used when opening an ostream for
     a stream that was already encrypted (the cypher password already exists).
@@ -229,6 +240,12 @@ class Binlog_encryption_ostream : public Truncatable_ostream {
   bool seek(my_off_t offset) override;
   bool flush() override;
   bool sync() override;
+  /**
+    Return the encrypted file header size.
+
+    @return the encrypted file header size.
+  */
+  int get_header_size();
 
  private:
   std::unique_ptr<Truncatable_ostream> m_down_ostream;

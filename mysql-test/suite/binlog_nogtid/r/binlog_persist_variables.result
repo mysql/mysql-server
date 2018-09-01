@@ -22,12 +22,13 @@ VARIABLE_NAME LIKE '%slave%') AND
 'innodb_master_thread_disabled_debug'))
 ORDER BY VARIABLE_NAME;
 
-include/assert.inc ['Expect 81 variables in the table.']
+include/assert.inc ['Expect 82 variables in the table.']
 
 # Test SET PERSIST
 SET PERSIST binlog_cache_size = @@GLOBAL.binlog_cache_size;
 SET PERSIST binlog_checksum = @@GLOBAL.binlog_checksum;
 SET PERSIST binlog_direct_non_transactional_updates = @@GLOBAL.binlog_direct_non_transactional_updates;
+SET PERSIST binlog_encryption = @@GLOBAL.binlog_encryption;
 SET PERSIST binlog_error_action = @@GLOBAL.binlog_error_action;
 SET PERSIST binlog_expire_logs_seconds = @@GLOBAL.binlog_expire_logs_seconds;
 SET PERSIST binlog_format = @@GLOBAL.binlog_format;
@@ -127,16 +128,16 @@ SET PERSIST sync_master_info = @@GLOBAL.sync_master_info;
 SET PERSIST sync_relay_log = @@GLOBAL.sync_relay_log;
 SET PERSIST sync_relay_log_info = @@GLOBAL.sync_relay_log_info;
 
-include/assert.inc ['Expect 64 persisted variables in persisted_variables table.']
+include/assert.inc ['Expect 65 persisted variables in persisted_variables table.']
 
 ############################################################
 # 2. Restart server, it must preserve the persisted variable
 #    settings. Verify persisted configuration.
 # restart
 
-include/assert.inc ['Expect 64 persisted variables in persisted_variables table.']
-include/assert.inc ['Expect 64 persisted variables shown as PERSISTED in variables_info table.']
-include/assert.inc ['Expect 64 persisted variables with matching peristed and global values.']
+include/assert.inc ['Expect 65 persisted variables in persisted_variables table.']
+include/assert.inc ['Expect 65 persisted variables shown as PERSISTED in variables_info table.']
+include/assert.inc ['Expect 65 persisted variables with matching persisted and global values.']
 
 ############################################################
 # 3. Test RESET PERSIST IF EXISTS. Verify persisted variable
@@ -144,6 +145,7 @@ include/assert.inc ['Expect 64 persisted variables with matching peristed and gl
 RESET PERSIST IF EXISTS binlog_cache_size;
 RESET PERSIST IF EXISTS binlog_checksum;
 RESET PERSIST IF EXISTS binlog_direct_non_transactional_updates;
+RESET PERSIST IF EXISTS binlog_encryption;
 RESET PERSIST IF EXISTS binlog_error_action;
 RESET PERSIST IF EXISTS binlog_expire_logs_seconds;
 RESET PERSIST IF EXISTS binlog_format;

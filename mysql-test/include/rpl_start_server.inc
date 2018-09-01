@@ -132,3 +132,8 @@ if (!$rpl_server_error)
   --let $include_filename= rpl_start_server.inc [$_rpl_start_server_info]
   --source include/end_include_file.inc
 }
+
+if ($rpl_server_error)
+{
+  --dec $_include_file_depth
+}

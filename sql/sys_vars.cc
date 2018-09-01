@@ -109,6 +109,7 @@
 #include "sql/rpl_group_replication.h"  // is_group_replication_running
 #include "sql/rpl_info_factory.h"       // Rpl_info_factory
 #include "sql/rpl_info_handler.h"       // INFO_REPOSITORY_TABLE
+#include "sql/rpl_log_encryption.h"
 #include "sql/rpl_mi.h"                 // Master_info
 #include "sql/rpl_msr.h"                // channel_map
 #include "sql/rpl_mts_submode.h"        // MTS_PARALLEL_TYPE_DB_NAME
@@ -116,7 +117,8 @@
 #include "sql/rpl_slave.h"              // SLAVE_THD_TYPE
 #include "sql/rpl_write_set_handler.h"  // transaction_write_set_hashing_algorithms
 #include "sql/session_tracker.h"
-#include "sql/sp_head.h"  // SP_PSI_STATEMENT_INFO_COUNT
+#include "sql/sp_head.h"          // SP_PSI_STATEMENT_INFO_COUNT
+#include "sql/sql_backup_lock.h"  // is_instance_backup_locked
 #include "sql/sql_lex.h"
 #include "sql/sql_locale.h"     // my_locale_by_number
 #include "sql/sql_parse.h"      // killall_non_super_threads
@@ -6315,3 +6317,54 @@ static Sys_var_enum Sys_group_replication_consistency(
     group_replication_consistency_names,
     DEFAULT(GROUP_REPLICATION_CONSISTENCY_EVENTUAL), NO_MUTEX_GUARD,
     NOT_IN_BINLOG, ON_CHECK(check_group_replication_consistency), ON_UPDATE(0));
+
+static bool check_binlog_encryption_admin(sys_var *, THD *thd, set_var *) {
+  DBUG_ENTER("check_binlog_encryption_admin");
+  if (!thd->security_context()->check_access(SUPER_ACL) &&
+      !(thd->security_context()
+            ->has_global_grant(STRING_WITH_LEN("BINLOG_ENCRYPTION_ADMIN"))
+            .first)) {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+             "SUPER or BINLOG_ENCRYPTION_ADMIN");
+    DBUG_RETURN(true);
+  }
+  DBUG_RETURN(false);
+}
+
+bool Sys_var_binlog_encryption::global_update(THD *thd, set_var *var) {
+  DBUG_ENTER("Sys_var_binlog_encryption::global_update");
+
+  /* No-op if trying to set to current value */
+  bool new_value = var->save_result.ulonglong_value;
+  if (new_value == rpl_encryption.is_enabled()) DBUG_RETURN(false);
+
+  /* Avoid enabling/disabling under backup mode */
+  const char *errmsg = nullptr;
+  Is_instance_backup_locked_result is_instance_locked =
+      is_instance_backup_locked(thd);
+  if (is_instance_locked == Is_instance_backup_locked_result::OOM)
+    errmsg =
+        "Out of memory happened when checking if instance was locked for "
+        "backup";
+  if (is_instance_locked == Is_instance_backup_locked_result::LOCKED)
+    errmsg = "Server instance is locked for backup";
+
+  if (errmsg) {
+    my_error(ERROR_LEVEL, ER_RPL_ENCRYPTION_UNABLE_TO_CHANGE_OPTION, errmsg);
+    DBUG_RETURN(true);
+  }
+
+  /* Set the option new value */
+  bool res = false;
+  if (new_value)
+    res = rpl_encryption.enable(thd);
+  else
+    rpl_encryption.disable(thd);
+  DBUG_RETURN(res);
+}
+
+static Sys_var_binlog_encryption Sys_binlog_encryption(
+    "binlog_encryption", "Enable/disable binary and relay logs encryption.",
+    GLOBAL_VAR(rpl_encryption.get_enabled_var()), CMD_LINE(OPT_ARG),
+    DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(check_binlog_encryption_admin));

@@ -74,19 +74,20 @@ class Binlog_event_data_istream {
   bool read_event_data(unsigned char **data, unsigned int *length,
                        ALLOCATOR *allocator, bool verify_checksum,
                        enum_binlog_checksum_alg checksum_alg) {
-    if (read_event_header() || check_event_header()) return true;
+    DBUG_ENTER("Binlog_event_data_istream::read_event_data");
+    if (read_event_header() || check_event_header()) DBUG_RETURN(true);
 
     unsigned char *event_data = allocator->allocate(m_event_length);
     if (event_data == nullptr)
-      return m_error->set_type(Binlog_read_error::MEM_ALLOCATE);
+      DBUG_RETURN(m_error->set_type(Binlog_read_error::MEM_ALLOCATE));
 
     if (fill_event_data(event_data, verify_checksum, checksum_alg)) {
       allocator->deallocate(event_data);
-      return true;
+      DBUG_RETURN(true);
     }
     *data = event_data;
     *length = m_event_length;
-    return false;
+    DBUG_RETURN(false);
   }
 
  protected:
@@ -119,17 +120,18 @@ class Binlog_event_data_istream {
   */
   template <Binlog_read_error::Error_type ERROR_TYPE>
   bool read_fixed_length(unsigned char *data, unsigned int length) {
-    if (length == 0) return false;
+    DBUG_ENTER("Binlog_event_data_istream::read_fixed_length");
+    if (length == 0) DBUG_RETURN(false);
 
     longlong ret = m_istream->read(data, length);
-    if (ret == length) return false;
+    if (ret == length) DBUG_RETURN(false);
     switch (ret) {
       case -1:
-        return m_error->set_type(Binlog_read_error::SYSTEM_IO);
+        DBUG_RETURN(m_error->set_type(Binlog_read_error::SYSTEM_IO));
       case 0:
-        return m_error->set_type(ERROR_TYPE);
+        DBUG_RETURN(m_error->set_type(ERROR_TYPE));
       default:
-        return m_error->set_type(Binlog_read_error::TRUNC_EVENT);
+        DBUG_RETURN(m_error->set_type(Binlog_read_error::TRUNC_EVENT));
     }
   }
 
@@ -188,23 +190,24 @@ class Binlog_event_object_istream {
   template <class ALLOCATOR>
   Log_event *read_event_object(const Format_description_event &fde,
                                bool verify_checksum, ALLOCATOR *allocator) {
+    DBUG_ENTER("Binlog_event_object_istream::read_event_object");
     unsigned char *data = nullptr;
     unsigned int length = 0;
 
     if (m_data_istream->read_event_data(&data, &length, allocator, false,
                                         fde.footer()->checksum_alg))
-      return nullptr;
+      DBUG_RETURN(nullptr);
 
     Log_event *event = nullptr;
     if (m_error->set_type(binlog_event_deserialize(data, length, &fde,
                                                    verify_checksum, &event))) {
       allocator->deallocate(data);
-      return nullptr;
+      DBUG_RETURN(nullptr);
     }
 
     event->register_temp_buf(reinterpret_cast<char *>(data),
                              ALLOCATOR::DELEGATE_MEMORY_TO_EVENT_OBJECT);
-    return event;
+    DBUG_RETURN(event);
   }
 
  private:
@@ -265,20 +268,21 @@ class Basic_binlog_file_reader {
   */
   bool open(const char *file_name, my_off_t offset = 0,
             Format_description_log_event **fdle = nullptr) {
-    if (m_ifile.open(file_name)) return true;
+    DBUG_ENTER("Basic_binlog_file_reader::open");
+    if (m_ifile.open(file_name)) DBUG_RETURN(true);
 
     Format_description_log_event *fd = read_fdle(offset);
-    if (!fd) return has_fatal_error();
+    if (!fd) DBUG_RETURN(has_fatal_error());
 
     if (position() < offset && seek(offset)) {
       delete fd;
-      return true;
+      DBUG_RETURN(true);
     }
     if (fdle)
       *fdle = fd;
     else
       delete fd;
-    return false;
+    DBUG_RETURN(false);
   }
   /**
      Close the binlog file.
@@ -353,6 +357,7 @@ class Basic_binlog_file_reader {
      @return A valid Format_description_log_event pointer or nullptr.
   */
   Format_description_log_event *read_fdle(my_off_t offset) {
+    DBUG_ENTER("Basic_binlog_file_reader::read_fdle");
     Default_binlog_event_allocator allocator;
     Format_description_log_event *fdle = nullptr;
     /*
@@ -386,9 +391,9 @@ class Basic_binlog_file_reader {
     }
     if (has_fatal_error()) {
       delete fdle;
-      return nullptr;
+      DBUG_RETURN(nullptr);
     }
-    return fdle;
+    DBUG_RETURN(fdle);
   }
 };
 

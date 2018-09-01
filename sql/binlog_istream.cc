@@ -52,9 +52,10 @@ const char *Binlog_read_error::get_str() const {
       return "Binlog has bad magic number;  It's not a binary log file "
              "that can be used by this version of MySQL";
     case INVALID_ENCRYPTION_HEADER:
-      return "Found invalid binary log encryption header.";
+      return "Found invalid binary log encryption header";
     case CANNOT_GET_FILE_PASSWORD:
-      return "Cannot get file password.";
+      return "Cannot get file password for encrypted replication log file, "
+             "please check if keyring plugin is loaded";
     default:
       /* There must be something wrong in the code if it reaches this branch. */
       DBUG_ASSERT(0);
@@ -99,15 +100,18 @@ void Binlog_encryption_istream::close() {
 }
 
 ssize_t Binlog_encryption_istream::read(unsigned char *buffer, size_t length) {
+  DBUG_ENTER("Binlog_encryption_istream::read");
   ssize_t ret = m_down_istream->read(buffer, length);
   if (ret > 0 && m_decryptor->decrypt(buffer, buffer, ret)) ret = -1;
-  return ret;
+  DBUG_RETURN(ret);
 }
 
 bool Binlog_encryption_istream::seek(my_off_t offset) {
-  if (m_down_istream->seek(offset + m_decryptor->get_header_size()))
-    return true;
-  return m_decryptor->set_stream_offset(offset);
+  DBUG_ENTER("Binlog_encryption_istream::seek");
+  DBUG_PRINT("debug", ("offset= %llu", offset));
+  bool res = m_decryptor->set_stream_offset(offset);
+  if (!res) res = m_down_istream->seek(offset + m_decryptor->get_header_size());
+  DBUG_RETURN(res);
 }
 
 my_off_t Binlog_encryption_istream::length() {
@@ -199,8 +203,10 @@ std::unique_ptr<Basic_seekable_istream> Binlog_ifile::open_file(
     const char *file_name) {
   IO_CACHE_istream *ifile = new IO_CACHE_istream;
   if (ifile->open(key_file_binlog, key_file_binlog_cache, file_name,
-                  MYF(MY_WME | MY_DONT_CHECK_FILESIZE), rpl_read_size))
+                  MYF(MY_WME | MY_DONT_CHECK_FILESIZE), rpl_read_size)) {
+    delete ifile;
     return nullptr;
+  }
   return std::unique_ptr<Basic_seekable_istream>(ifile);
 }
 

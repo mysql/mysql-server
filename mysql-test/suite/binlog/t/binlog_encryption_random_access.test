@@ -1,0 +1,59 @@
+# ==== Purpose ====
+#
+# This test will generate a random workload in the server and will perform
+# many SHOW BINLOG EVENTS pointing to the positions the transactions start
+# in the encrypted binary log file.
+#
+# The server shall be able to display the requested events properly, by doing
+# random access to the encrypted binary log file.
+#
+# ==== Related Bugs and Worklogs ====
+#
+# WL#10957: Binary log encryption at rest
+#
+
+--source include/have_log_bin.inc
+
+# Suppression of error messages
+CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format');
+--let $binlog_file=query_get_value(SHOW MASTER STATUS, File, 1)
+
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 TEXT, pos INT);
+
+--let $max_trx=100
+--echo # Inserting $max_trx random transaction
+--let $trx=$max_trx
+--disable_query_log
+--disable_warnings
+while ($trx)
+{
+  --let $pos=query_get_value(SHOW MASTER STATUS, Position, 1)
+  BEGIN;
+  --eval INSERT INTO t1 (c1, c2, pos) VALUES ($trx, REPEAT('a', RAND() * 8192), $pos)
+  COMMIT;
+  --dec $trx
+}
+--enable_query_log
+--enable_warnings
+
+--let $trx=$max_trx
+--echo # Asserting we can show binlog events from each transaction
+--disable_query_log
+while ($trx)
+{
+  --let $pos=`SELECT pos FROM t1 WHERE c1 = $trx`
+  --let $command=SHOW BINLOG EVENTS IN '$binlog_file' FROM $pos LIMIT 1
+  --let $showed_pos=query_get_value($command, Pos, 1)
+  if ($showed_pos != $pos)
+  {
+    --enable_query_log
+    --echo requested_pos=$pos
+    --eval $command
+    --die requested_pos shall be equal to Pos
+  }
+  --dec $trx
+}
+--enable_query_log
+
+# Cleanup
+DROP TABLE t1;

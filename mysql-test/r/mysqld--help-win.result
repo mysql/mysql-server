@@ -69,6 +69,7 @@ The following options may be given as the first argument:
  --binlog-do-db=name Tells the master it should log updates for the specified
  database, and exclude all others not explicitly
  mentioned.
+ --binlog-encryption Enable/disable binary and relay logs encryption.
  --binlog-error-action=name 
  When statements cannot be written to the binary log due
  to a fatal error, the server can either ignore the error
@@ -1343,6 +1344,7 @@ bind-address *
 binlog-cache-size 32768
 binlog-checksum CRC32
 binlog-direct-non-transactional-updates FALSE
+binlog-encryption FALSE
 binlog-error-action ABORT_SERVER
 binlog-expire-logs-seconds 2592000
 binlog-format ROW

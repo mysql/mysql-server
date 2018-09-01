@@ -8697,6 +8697,27 @@ ER_RPL_ENCRYPTION_KEYRING_INVALID_KEY
 ER_RPL_ENCRYPTION_HEADER_ERROR
   eng "Error reading a replication log encryption header: %s."
 
+ER_RPL_ENCRYPTION_FAILED_TO_ROTATE_LOGS
+  eng "Failed to rotate some logs after changing binlog encryption settings. Please fix the problem and rotate the logs manually."
+
+ER_RPL_ENCRYPTION_KEY_EXISTS_UNEXPECTED
+  eng "Key %s exists unexpected."
+
+ER_RPL_ENCRYPTION_FAILED_TO_GENERATE_KEY
+  eng "Failed to generate key, please check if keyring plugin is loaded."
+
+ER_RPL_ENCRYPTION_FAILED_TO_STORE_KEY
+  eng "Failed to store key, please check if keyring plugin is loaded."
+
+ER_RPL_ENCRYPTION_FAILED_TO_REMOVE_KEY
+  eng "Failed to remove key, please check if keyring plugin is loaded."
+
+ER_RPL_ENCRYPTION_UNABLE_TO_CHANGE_OPTION
+  eng "Failed to change binlog_encryption value. %-.80s."
+
+ER_RPL_ENCRYPTION_MASTER_KEY_RECOVERY_FAILED
+  eng "Unable to recover binlog encryption master key, please check if keyring plugin is loaded."
+
 #
 #  End of 8.0 error messages.
 #
@@ -18574,6 +18595,27 @@ ER_SERVER_RPL_ENCRYPTION_KEYRING_INVALID_KEY
 
 ER_SERVER_RPL_ENCRYPTION_HEADER_ERROR
   eng "Error reading a replication log encryption header: %s."
+
+ER_SERVER_RPL_ENCRYPTION_FAILED_TO_ROTATE_LOGS
+  eng "Failed to rotate some logs after changing replication encryption settings. Please fix the problem and rotate the logs manually."
+
+ER_SERVER_RPL_ENCRYPTION_KEY_EXISTS_UNEXPECTED
+  eng "Key %s exists unexpected."
+
+ER_SERVER_RPL_ENCRYPTION_FAILED_TO_GENERATE_KEY
+  eng "Failed to generate key, please check if keyring plugin is loaded."
+
+ER_SERVER_RPL_ENCRYPTION_FAILED_TO_STORE_KEY
+  eng "Failed to store key, please check if keyring plugin is loaded."
+
+ER_SERVER_RPL_ENCRYPTION_FAILED_TO_REMOVE_KEY
+  eng "Failed to remove key, please check if keyring plugin is loaded."
+
+ER_SERVER_RPL_ENCRYPTION_MASTER_KEY_RECOVERY_FAILED
+  eng "Unable to recover binlog encryption master key, please check if keyring plugin is loaded."
+
+ER_SERVER_RPL_ENCRYPTION_UNABLE_TO_INITIALIZE
+  eng "Failed to initialize binlog encryption, please check if keyring plugin is loaded."
 
 #
 # End of 8.0 error messages intended to be logged to the server error log.

@@ -115,6 +115,10 @@ class sys_var {
     /**
      There can be some variables which needs to be set before plugin is loaded.
      ex: binlog_checksum needs to be set before GR plugin is loaded.
+     Also, there are some variables which needs to be set before some server
+     internal component initialization.
+     ex: binlog_encryption needs to be set before binary and relay log
+     files generation.
     */
 
     PERSIST_AS_READ_ONLY = 0x10000
