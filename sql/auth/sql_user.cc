@@ -790,7 +790,7 @@ bool change_password(THD *thd, const char *host, const char *user,
     goto end;
   }
 
-  ret= replace_user_table(thd, table, combo, 0, false, true, what_to_set);
+  ret= replace_user_table(thd, table, combo, 0, false, false, what_to_set);
   if (ret)
   {
     mysql_mutex_unlock(&acl_cache->lock);
@@ -1934,7 +1934,7 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
     }
 
     /* update the mysql.user table */
-    int ret= replace_user_table(thd, table, user_from, 0, false, true,
+    int ret= replace_user_table(thd, table, user_from, 0, false, false,
                                 what_to_alter);
     if (ret)
     {
