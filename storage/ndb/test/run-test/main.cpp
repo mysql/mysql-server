@@ -491,6 +491,7 @@ int main(int argc, char **argv) {
       }
     }
 
+    if (result != 0) testruns--;
     if (g_report_file != 0) {
       fprintf(g_report_file, "%s ; %d ; %d ; %ld ; %d\n",
               test_case.m_name.c_str(), test_no, result, elapsed, testruns);
