@@ -941,8 +941,16 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo, ulong rights,
     optimize_plugin_compare_by_pointer(&combo->plugin);
     builtin_plugin = auth_plugin_is_built_in(combo->plugin.str);
 
+    /* The user record was neither present nor the intention was to create it */
     if (!can_create_user) {
-      my_error(ER_CANT_CREATE_USER_WITH_GRANT, MYF(0));
+      if (!update_password) {
+        /* Have come here to GRANT privilege to the non-existing user */
+        my_error(ER_CANT_CREATE_USER_WITH_GRANT, MYF(0));
+      } else {
+        /* Have come here to update the password of the non-existing user */
+        my_error(ER_PASSWORD_NO_MATCH, MYF(0), combo->user.str,
+                 combo->host.str);
+      }
       error = 1;
       goto end;
     }

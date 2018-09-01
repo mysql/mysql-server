@@ -1261,7 +1261,7 @@ bool change_password(THD *thd, LEX_USER *lex_user, char *new_password,
   // We must not have user with plain text password at this point
   thd->lex->contains_plaintext_password = false;
   authentication_plugin.assign(combo->plugin.str);
-  ret = replace_user_table(thd, table, combo, 0, false, true, what_to_set);
+  ret = replace_user_table(thd, table, combo, 0, false, false, what_to_set);
   if (ret) {
     result = 1;
     goto end;
@@ -2333,7 +2333,7 @@ bool mysql_alter_user(THD *thd, List<LEX_USER> &list, bool if_exists) {
 
     /* update the mysql.user table */
     ret = replace_user_table(thd, tables[ACL_TABLES::TABLE_USER].table,
-                             user_from, 0, false, true, what_to_alter);
+                             user_from, 0, false, false, what_to_alter);
     if (ret) {
       if (ret < 0) {
         result = 1;
