@@ -887,6 +887,8 @@ Wait_stats log_write_up_to(log_t &log, lsn_t end_lsn, bool flush_to_disk,
       for flusher to continue with. */
       wait_stats += log_wait_for_write(log, end_lsn);
       os_event_set(log.flusher_event);
+    } else if (log_is_write_up_to_frequency_low(log)) {
+      os_event_set(log.writer_event);
     }
 
     /* Wait until log gets flushed up to end_lsn. */
