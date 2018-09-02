@@ -55,6 +55,15 @@ IF(SOLARIS)
   # disable rapidjson optimisation on Solaris as it breaks
   # shared objects that build with -fPIC
   ADD_DEFINITIONS(-DRAPIDJSON_48BITPOINTER_OPTIMIZATION=0)
+
+  # Sun Studio 12.6 creates a bogus code when -x02 is used
+  # that crashes whenever std::condition_variable::wait_for() is used
+  IF(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64"
+      OR CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
+    STRING_APPEND(CMAKE_CXX_FLAGS_RELWITHDEBINFO " -xO1")
+    STRING_APPEND(CMAKE_CXX_FLAGS_RELEASE " -xO1")
+    STRING_APPEND(CMAKE_CXX_FLAGS_MINSIZEREL " -xO1")
+  ENDIF()
 ENDIF()
 
 INCLUDE(${CMAKE_SOURCE_DIR}/cmake/rapidjson.cmake)
