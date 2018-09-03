@@ -39,8 +39,6 @@
 
 
 
-  @subpage mysql_harness_internal_notes
-
   @subpage mysql_protocol_trace_replayer
 
 */
