@@ -287,4 +287,69 @@ SELECT @@global.innodb_tmpdir, @@global.innodb_ft_user_stopword_table;
 @@global.innodb_tmpdir	@@global.innodb_ft_user_stopword_table
 NULL	NULL
 RESET PERSIST;
+#
+# Bug #28564239: RESET PERSIST REQUIRES NO PRIVILEGES
+#
+CREATE USER u1;
+SET PERSIST_ONLY ft_query_expansion_limit=80, innodb_api_enable_mdl=1;
+SET PERSIST sort_buffer_size=156000,max_connections= 52;
+SET PERSIST max_heap_table_size=887808, slave_net_timeout=160;
+SHOW GRANTS;
+Grants for u1@%
+GRANT USAGE ON *.* TO `u1`@`%`
+RESET PERSIST max_heap_table_size;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+RESET PERSIST ft_query_expansion_limit;
+ERROR 42000: Access denied; you need SYSTEM_VARIABLES_ADMIN and PERSIST_RO_VARIABLES_ADMIN privileges for this operation
+RESET PERSIST;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+GRANT SUPER ON *.* TO u1;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
+SHOW GRANTS;
+Grants for u1@%
+GRANT SUPER ON *.* TO `u1`@`%`
+RESET PERSIST max_heap_table_size;
+RESET PERSIST ft_query_expansion_limit;
+ERROR 42000: Access denied; you need SYSTEM_VARIABLES_ADMIN and PERSIST_RO_VARIABLES_ADMIN privileges for this operation
+RESET PERSIST;
+ERROR 42000: Access denied; you need SYSTEM_VARIABLES_ADMIN and PERSIST_RO_VARIABLES_ADMIN privileges for this operation
+REVOKE SUPER ON *.* FROM u1;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO u1;
+SHOW GRANTS;
+Grants for u1@%
+GRANT USAGE ON *.* TO `u1`@`%`
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`%`
+RESET PERSIST max_connections;
+RESET PERSIST ft_query_expansion_limit;
+ERROR 42000: Access denied; you need SYSTEM_VARIABLES_ADMIN and PERSIST_RO_VARIABLES_ADMIN privileges for this operation
+RESET PERSIST;
+ERROR 42000: Access denied; you need SYSTEM_VARIABLES_ADMIN and PERSIST_RO_VARIABLES_ADMIN privileges for this operation
+REVOKE SYSTEM_VARIABLES_ADMIN ON *.* FROM u1;
+GRANT PERSIST_RO_VARIABLES_ADMIN ON *.* TO u1;
+SHOW GRANTS;
+Grants for u1@%
+GRANT USAGE ON *.* TO `u1`@`%`
+GRANT PERSIST_RO_VARIABLES_ADMIN ON *.* TO `u1`@`%`
+RESET PERSIST slave_net_timeout;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+RESET PERSIST ft_query_expansion_limit;
+ERROR 42000: Access denied; you need SYSTEM_VARIABLES_ADMIN and PERSIST_RO_VARIABLES_ADMIN privileges for this operation
+RESET PERSIST;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO u1;
+SHOW GRANTS;
+Grants for u1@%
+GRANT USAGE ON *.* TO `u1`@`%`
+GRANT PERSIST_RO_VARIABLES_ADMIN,SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`%`
+RESET PERSIST slave_net_timeout;
+RESET PERSIST ft_query_expansion_limit;
+RESET PERSIST;
+SELECT * FROM performance_schema.persisted_variables;
+VARIABLE_NAME	VARIABLE_VALUE
+SET GLOBAL sort_buffer_size = default, max_connections = default,
+slave_net_timeout = default, max_heap_table_size = default;
+DROP USER u1;
 # End of the 8.0 tests
