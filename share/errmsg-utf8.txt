@@ -9269,7 +9269,7 @@ ER_RPL_INFINITY_DENIED
 ER_RPL_INFINITY_IGNORED
   eng "using --replicate-same-server-id in conjunction with --log-slave-updates would lead to infinite loops in this server. However this will be ignored as the --log-bin option is not defined."
 
-ER_NDB_TABLES_NOT_READY
+OBSOLETE_ER_NDB_TABLES_NOT_READY
   eng "NDB : Tables not available after %lu seconds. Consider increasing --ndb-wait-setup value"
 
 # could use verbatim, but we want an error-code
@@ -9874,43 +9874,43 @@ ER_NPIPE_FAILED_TO_SET_SECURITY_DESCRIPTOR
 ER_NPIPE_PIPE_ALREADY_IN_USE
   eng "Can't start server : Named Pipe \"%s\" already in use."
 
-ER_NDB_SLAVE_SAW_EPOCH_LOWER_THAN_PREVIOUS_ON_START
+OBSOLETE_ER_NDB_SLAVE_SAW_EPOCH_LOWER_THAN_PREVIOUS_ON_START
   eng "NDB Slave : At SQL thread start applying epoch %llu/%llu (%llu) from Master ServerId %u which is lower than previously applied epoch %llu/%llu (%llu).  Group Master Log : %s  Group Master Log Pos : %llu.  Check slave positioning."
 
-ER_NDB_SLAVE_SAW_EPOCH_LOWER_THAN_PREVIOUS
+OBSOLETE_ER_NDB_SLAVE_SAW_EPOCH_LOWER_THAN_PREVIOUS
   eng "NDB Slave : SQL thread stopped as applying epoch %llu/%llu (%llu) from Master ServerId %u which is lower than previously applied epoch %llu/%llu (%llu).  Group Master Log : %s  Group Master Log Pos : %llu"
 
-ER_NDB_SLAVE_SAW_ALREADY_COMMITTED_EPOCH
+OBSOLETE_ER_NDB_SLAVE_SAW_ALREADY_COMMITTED_EPOCH
   eng "NDB Slave : SQL thread stopped as attempted to reapply already committed epoch %llu/%llu (%llu) from server id %u.  Group Master Log : %s  Group Master Log Pos : %llu."
 
-ER_NDB_SLAVE_PREVIOUS_EPOCH_NOT_COMMITTED
+OBSOLETE_ER_NDB_SLAVE_PREVIOUS_EPOCH_NOT_COMMITTED
   eng "NDB Slave : SQL thread stopped as attempting to apply new epoch %llu/%llu (%llu) while lower received epoch %llu/%llu (%llu) has not been committed.  Master server id : %u.  Group Master Log : %s  Group Master Log Pos : %llu."
 
-ER_NDB_SLAVE_MISSING_DATA_FOR_TIMESTAMP_COLUMN
+OBSOLETE_ER_NDB_SLAVE_MISSING_DATA_FOR_TIMESTAMP_COLUMN
   eng "NDB Slave: missing data for %s timestamp column %u."
 
-ER_NDB_SLAVE_LOGGING_EXCEPTIONS_TO
+OBSOLETE_ER_NDB_SLAVE_LOGGING_EXCEPTIONS_TO
   eng "NDB Slave: Table %s.%s logging exceptions to %s.%s"
 
-ER_NDB_SLAVE_LOW_EPOCH_RESOLUTION
+OBSOLETE_ER_NDB_SLAVE_LOW_EPOCH_RESOLUTION
   eng "NDB Slave: Table %s.%s : %s, low epoch resolution"
 
-ER_NDB_INFO_FOUND_UNEXPECTED_FIELD_TYPE
+OBSOLETE_ER_NDB_INFO_FOUND_UNEXPECTED_FIELD_TYPE
   eng "Found unexpected field type %u"
 
-ER_NDB_INFO_FAILED_TO_CREATE_NDBINFO
+OBSOLETE_ER_NDB_INFO_FAILED_TO_CREATE_NDBINFO
   eng "Failed to create NdbInfo"
 
-ER_NDB_INFO_FAILED_TO_INIT_NDBINFO
+OBSOLETE_ER_NDB_INFO_FAILED_TO_INIT_NDBINFO
   eng "Failed to init NdbInfo"
 
-ER_NDB_CLUSTER_WRONG_NUMBER_OF_FUNCTION_ARGUMENTS
+OBSOLETE_ER_NDB_CLUSTER_WRONG_NUMBER_OF_FUNCTION_ARGUMENTS
   eng "ndb_serialize_cond: Unexpected mismatch of found and expected number of function arguments %u"
 
-ER_NDB_CLUSTER_SCHEMA_INFO
+OBSOLETE_ER_NDB_CLUSTER_SCHEMA_INFO
   eng "%s - %s.%s"
 
-ER_NDB_CLUSTER_GENERIC_MESSAGE
+OBSOLETE_ER_NDB_CLUSTER_GENERIC_MESSAGE
   eng "%s"
 
 ER_RPL_CANT_OPEN_INFO_TABLE
@@ -10051,7 +10051,7 @@ ER_EVENT_ERROR_DURING_COMPILATION
 ER_EVENT_DROPPING
   eng "Event Scheduler: Dropping %s.%s"
 
-ER_NDB_SCHEMA_GENERIC_MESSAGE
+OBSOLETE_ER_NDB_SCHEMA_GENERIC_MESSAGE
   eng "Ndb schema[%s.%s]: %s"
 
 ER_RPL_INCOMPATIBLE_DECIMAL_IN_RBR
@@ -10096,7 +10096,7 @@ ER_RPL_BINLOG_SKIPPING_REMAINING_HEARTBEAT_INFO
 ER_RPL_BINLOG_MASTER_USES_CHECKSUM_AND_SLAVE_CANT
   eng "Master is configured to log replication events with checksum, but will not send such events to slaves that cannot process them"
 
-ER_NDB_QUERY_FAILED
+OBSOLETE_ER_NDB_QUERY_FAILED
   eng "NDB: Query '%s' failed, error: %d: %s"
 
 ER_KILLING_THREAD
@@ -10120,133 +10120,133 @@ ER_PLUGIN_DID_NOT_DEINITIALIZE_THREADS
 ER_KILLED_THREADS_OF_PLUGIN
   eng "Killed %u threads of plugin %s"
 
-ER_NDB_SLAVE_MAX_REPLICATED_EPOCH_UNKNOWN
+OBSOLETE_ER_NDB_SLAVE_MAX_REPLICATED_EPOCH_UNKNOWN
   eng "NDB Slave : Could not determine maximum replicated epoch from %s.%s at Slave start, error %u %s"
 
-ER_NDB_SLAVE_MAX_REPLICATED_EPOCH_SET_TO
+OBSOLETE_ER_NDB_SLAVE_MAX_REPLICATED_EPOCH_SET_TO
   eng "NDB Slave : MaxReplicatedEpoch set to %llu (%u/%u) at Slave start"
 
-ER_NDB_NODE_ID_AND_MANAGEMENT_SERVER_INFO
+OBSOLETE_ER_NDB_NODE_ID_AND_MANAGEMENT_SERVER_INFO
   eng "NDB: NodeID is %lu, management server '%s:%lu'"
 
-ER_NDB_DISCONNECT_INFO
+OBSOLETE_ER_NDB_DISCONNECT_INFO
   eng "tid %u: node[%u] transaction_hint=%u, transaction_no_hint=%u"
 
-ER_NDB_COLUMN_DEFAULTS_DIFFER
+OBSOLETE_ER_NDB_COLUMN_DEFAULTS_DIFFER
   eng "NDB Internal error: Default values differ for column %u, ndb_default: %d"
 
-ER_NDB_COLUMN_SHOULD_NOT_HAVE_NATIVE_DEFAULT
+OBSOLETE_ER_NDB_COLUMN_SHOULD_NOT_HAVE_NATIVE_DEFAULT
   eng "NDB Internal error: Column %u has native default, but shouldn't. Flags=%u, type=%u"
 
-ER_NDB_FIELD_INFO
+OBSOLETE_ER_NDB_FIELD_INFO
   eng "field[ name: '%s', type: %u, real_type: %u, flags: 0x%x, is_null: %d]"
 
-ER_NDB_COLUMN_INFO
+OBSOLETE_ER_NDB_COLUMN_INFO
   eng "ndbCol[name: '%s', type: %u, column_no: %d, nullable: %d]"
 
-ER_NDB_OOM_IN_FIX_UNIQUE_INDEX_ATTR_ORDER
+OBSOLETE_ER_NDB_OOM_IN_FIX_UNIQUE_INDEX_ATTR_ORDER
   eng "fix_unique_index_attr_order: my_malloc(%u) failure"
 
-ER_NDB_SLAVE_MALFORMED_EVENT_RECEIVED_ON_TABLE
+OBSOLETE_ER_NDB_SLAVE_MALFORMED_EVENT_RECEIVED_ON_TABLE
   eng "NDB Slave : Malformed event received on table %s cannot parse.  Stopping Slave."
 
-ER_NDB_SLAVE_CONFLICT_FUNCTION_REQUIRES_ROLE
+OBSOLETE_ER_NDB_SLAVE_CONFLICT_FUNCTION_REQUIRES_ROLE
   eng "NDB Slave : Conflict function %s defined on table %s requires ndb_slave_conflict_role variable to be set.  Stopping slave."
 
-ER_NDB_SLAVE_CONFLICT_DETECTION_REQUIRES_TRANSACTION_IDS
+OBSOLETE_ER_NDB_SLAVE_CONFLICT_TRANSACTION_IDS
   eng "NDB Slave : Transactional conflict detection defined on table %s, but events received without transaction ids.  Check --ndb-log-transaction-id setting on upstream Cluster."
 
-ER_NDB_SLAVE_BINLOG_MISSING_INFO_FOR_CONFLICT_DETECTION
+OBSOLETE_ER_NDB_SLAVE_BINLOG_MISSING_INFO_FOR_CONFLICT_DETECTION
   eng "NDB Slave : Binlog event on table %s missing info necessary for conflict detection.  Check binlog format options on upstream cluster."
 
-ER_NDB_ERROR_IN_READAUTOINCREMENTVALUE
+OBSOLETE_ER_NDB_ERROR_IN_READAUTOINCREMENTVALUE
   eng "Error %lu in readAutoIncrementValue(): %s"
 
-ER_NDB_FOUND_UNCOMMITTED_AUTOCOMMIT
+OBSOLETE_ER_NDB_FOUND_UNCOMMITTED_AUTOCOMMIT
   eng "found uncommitted autocommit+rbwr transaction, commit status: %d"
 
-ER_NDB_SLAVE_TOO_MANY_RETRIES
+OBSOLETE_ER_NDB_SLAVE_TOO_MANY_RETRIES
   eng "Ndb slave retried transaction %u time(s) in vain.  Giving up."
 
-ER_NDB_SLAVE_ERROR_IN_UPDATE_CREATE_INFO
+OBSOLETE_ER_NDB_SLAVE_ERROR_IN_UPDATE_CREATE_INFO
   eng "Error %lu in ::update_create_info(): %s"
 
-ER_NDB_SLAVE_CANT_ALLOCATE_TABLE_SHARE
+OBSOLETE_ER_NDB_SLAVE_CANT_ALLOCATE_TABLE_SHARE
   eng "NDB: allocating table share for %s failed"
 
-ER_NDB_BINLOG_ERROR_INFO_FROM_DA
+OBSOLETE_ER_NDB_BINLOG_ERROR_INFO_FROM_DA
   eng "NDB Binlog: (%d)%s"
 
-ER_NDB_BINLOG_CREATE_TABLE_EVENT
+OBSOLETE_ER_NDB_BINLOG_CREATE_TABLE_EVENT
   eng "NDB Binlog: CREATE TABLE Event: %s"
 
-ER_NDB_BINLOG_FAILED_CREATE_TABLE_EVENT_OPERATIONS
+OBSOLETE_ER_NDB_BINLOG_FAILED_CREATE_TABLE_EVENT_OPERATIONS
   eng "NDB Binlog: FAILED CREATE TABLE event operations. Event: %s"
 
-ER_NDB_BINLOG_RENAME_EVENT
+OBSOLETE_ER_NDB_BINLOG_RENAME_EVENT
   eng "NDB Binlog: RENAME Event: %s"
 
-ER_NDB_BINLOG_FAILED_CREATE_EVENT_OPERATIONS_DURING_RENAME
+OBSOLETE_ER_NDB_BINLOG_FAILED_CREATE_DURING_RENAME
   eng "NDB Binlog: FAILED create event operations during RENAME. Event %s"
 
-ER_NDB_UNEXPECTED_RENAME_TYPE
+OBSOLETE_ER_NDB_UNEXPECTED_RENAME_TYPE
   eng "Unexpected rename case detected, sql_command: %d"
 
-ER_NDB_ERROR_IN_GET_AUTO_INCREMENT
+OBSOLETE_ER_NDB_ERROR_IN_GET_AUTO_INCREMENT
   eng "Error %lu in ::get_auto_increment(): %s"
 
-ER_NDB_CREATING_SHARE_IN_OPEN
+OBSOLETE_ER_NDB_CREATING_SHARE_IN_OPEN
   eng "Calling ndbcluster_create_binlog_setup(%s) in ::open"
 
-ER_NDB_TABLE_OPENED_READ_ONLY
+OBSOLETE_ER_NDB_TABLE_OPENED_READ_ONLY
   eng "table '%s' opened read only"
 
-ER_NDB_INITIALIZE_GIVEN_CLUSTER_PLUGIN_DISABLED
+OBSOLETE_ER_NDB_INITIALIZE_GIVEN_CLUSTER_PLUGIN_DISABLED
   eng "NDB: '--initialize' -> ndbcluster plugin disabled"
 
-ER_NDB_BINLOG_FORMAT_CHANGED_FROM_STMT_TO_MIXED
+OBSOLETE_ER_NDB_BINLOG_FORMAT_CHANGED_FROM_STMT_TO_MIXED
   eng "NDB: Changed global value of binlog_format from STATEMENT to MIXED"
 
-ER_NDB_TRAILING_SHARE_RELEASED_BY_CLOSE_CACHED_TABLES
+OBSOLETE_ER_NDB_TRAILING_SHARE_RELEASED_BY_CLOSE_CACHED_TABLES
   eng "NDB_SHARE: trailing share %s, released by close_cached_tables"
 
-ER_NDB_SHARE_ALREADY_EXISTS
+OBSOLETE_ER_NDB_SHARE_ALREADY_EXISTS
   eng "NDB_SHARE: %s already exists use_count=%d. Moving away for safety, but possible memleak."
 
-ER_NDB_HANDLE_TRAILING_SHARE_INFO
+OBSOLETE_ER_NDB_HANDLE_TRAILING_SHARE_INFO
   eng "handle_trailing_share: %s use_count: %u"
 
-ER_NDB_CLUSTER_GET_SHARE_INFO
+OBSOLETE_ER_NDB_CLUSTER_GET_SHARE_INFO
   eng "ndbcluster_get_share: %s use_count: %u"
 
-ER_NDB_CLUSTER_REAL_FREE_SHARE_INFO
+OBSOLETE_ER_NDB_CLUSTER_REAL_FREE_SHARE_INFO
   eng "ndbcluster_real_free_share: %s use_count: %u"
 
-ER_NDB_CLUSTER_REAL_FREE_SHARE_DROP_FAILED
+OBSOLETE_ER_NDB_CLUSTER_REAL_FREE_SHARE_DROP_FAILED
   eng "ndbcluster_real_free_share: %s, still open - ignored 'free' (leaked?)"
 
-ER_NDB_CLUSTER_FREE_SHARE_INFO
+OBSOLETE_ER_NDB_CLUSTER_FREE_SHARE_INFO
   eng "ndbcluster_free_share: %s use_count: %u"
 
-ER_NDB_CLUSTER_MARK_SHARE_DROPPED_INFO
+OBSOLETE_ER_NDB_CLUSTER_MARK_SHARE_DROPPED_INFO
   eng "ndbcluster_mark_share_dropped: %s use_count: %u"
 
-ER_NDB_CLUSTER_MARK_SHARE_DROPPED_DESTROYING_SHARE
+OBSOLETE_ER_NDB_CLUSTER_MARK_SHARE_DROPPED_DESTROYING_SHARE
   eng "ndbcluster_mark_share_dropped: destroys share %s"
 
-ER_NDB_CLUSTER_OOM_THD_NDB
+OBSOLETE_ER_NDB_CLUSTER_OOM_THD_NDB
   eng "Could not allocate Thd_ndb object"
 
-ER_NDB_BINLOG_NDB_TABLES_INITIALLY_READ_ONLY
+OBSOLETE_ER_NDB_BINLOG_NDB_TABLES_INITIALLY_READ_ONLY
   eng "NDB Binlog: Ndb tables initially read only."
 
-ER_NDB_UTIL_THREAD_OOM
+OBSOLETE_ER_NDB_UTIL_THREAD_OOM
   eng "ndb util thread: malloc failure, query cache not maintained properly"
 
-ER_NDB_ILLEGAL_VALUE_FOR_NDB_RECV_THREAD_CPU_MASK
+OBSOLETE_ER_NDB_ILLEGAL_VALUE_FOR_NDB_RECV_THREAD_CPU_MASK
   eng "Trying to set ndb_recv_thread_cpu_mask to illegal value = %s, ignored"
 
-ER_NDB_TOO_MANY_CPUS_IN_NDB_RECV_THREAD_CPU_MASK
+OBSOLETE_ER_NDB_TOO_MANY_CPUS_IN_NDB_RECV_THREAD_CPU_MASK
   eng "Trying to set too many CPU's in ndb_recv_thread_cpu_mask, ignored this variable, erroneus value = %s"
 
 ER_DBUG_CHECK_SHARES_OPEN
@@ -10438,7 +10438,7 @@ ER_RPL_SLAVE_WORKER_THREAD_CREATION_FAILED_WITH_ERRNO
 ER_RPL_SLAVE_FAILED_TO_INIT_PARTITIONS_HASH
   eng "Failed to init partitions hash"
 
-ER_RPL_SLAVE_NDB_TABLES_NOT_AVAILABLE
+OBSOLETE_ER_RPL_SLAVE_NDB_TABLES_NOT_AVAILABLE
   eng "Slave SQL thread : NDB : Tables not available after %lu seconds. Consider increasing --ndb-wait-setup value"
 
 ER_RPL_SLAVE_SQL_THREAD_STARTING
@@ -10525,304 +10525,304 @@ ER_RPL_CANT_OPEN_LOG_IN_RLI_INIT_INFO
 ER_RPL_ERROR_WRITING_RELAY_LOG_CONFIGURATION
   eng "Error writing relay log configuration."
 
-ER_NDB_OOM_GET_NDB_BLOBS_VALUE
+OBSOLETE_ER_NDB_OOM_GET_NDB_BLOBS_VALUE
   eng "get_ndb_blobs_value: my_malloc(%u) failed"
 
-ER_NDB_THREAD_TIMED_OUT
+OBSOLETE_ER_NDB_THREAD_TIMED_OUT
   eng "NDB: Thread id %u timed out (30s) waiting for epoch %u/%u to be handled.  Progress : %u/%u -> %u/%u."
 
-ER_NDB_TABLE_IS_NOT_DISTRIBUTED
+OBSOLETE_ER_NDB_TABLE_IS_NOT_DISTRIBUTED
   eng "NDB: Inconsistency detected in distributed privilege tables. Table '%s.%s' is not distributed"
 
-ER_NDB_CREATING_TABLE
+OBSOLETE_ER_NDB_CREATING_TABLE
   eng "NDB: Creating %s.%s"
 
-ER_NDB_FLUSHING_TABLE_INFO
+OBSOLETE_ER_NDB_FLUSHING_TABLE_INFO
   eng "NDB: Flushing %s.%s"
 
-ER_NDB_CLEANING_STRAY_TABLES
+OBSOLETE_ER_NDB_CLEANING_STRAY_TABLES
   eng "NDB: Cleaning stray tables from database '%s'"
 
-ER_NDB_DISCOVERED_MISSING_DB
+OBSOLETE_ER_NDB_DISCOVERED_MISSING_DB
   eng "NDB: Discovered missing database '%s'"
 
-ER_NDB_DISCOVERED_REMAINING_DB
+OBSOLETE_ER_NDB_DISCOVERED_REMAINING_DB
   eng "NDB: Discovered remaining database '%s'"
 
-ER_NDB_CLUSTER_FIND_ALL_DBS_RETRY
+OBSOLETE_ER_NDB_CLUSTER_FIND_ALL_DBS_RETRY
   eng "NDB: ndbcluster_find_all_databases retry: %u - %s"
 
-ER_NDB_CLUSTER_FIND_ALL_DBS_FAIL
+OBSOLETE_ER_NDB_CLUSTER_FIND_ALL_DBS_FAIL
   eng "NDB: ndbcluster_find_all_databases fail: %u - %s"
 
-ER_NDB_SKIPPING_SETUP_TABLE
+OBSOLETE_ER_NDB_SKIPPING_SETUP_TABLE
   eng "NDB: skipping setup table %s.%s, in state %d"
 
-ER_NDB_FAILED_TO_SET_UP_TABLE
+OBSOLETE_ER_NDB_FAILED_TO_SET_UP_TABLE
   eng "NDB: failed to setup table %s.%s, error: %d, %s"
 
-ER_NDB_MISSING_FRM_DISCOVERING
+OBSOLETE_ER_NDB_MISSING_FRM_DISCOVERING
   eng "NDB: missing frm for %s.%s, discovering..."
 
-ER_NDB_MISMATCH_IN_FRM_DISCOVERING
+OBSOLETE_ER_NDB_MISMATCH_IN_FRM_DISCOVERING
   eng "NDB: mismatch in frm for %s.%s, discovering..."
 
-ER_NDB_BINLOG_CLEANING_UP_SETUP_LEFTOVERS
+OBSOLETE_ER_NDB_BINLOG_CLEANING_UP_SETUP_LEFTOVERS
   eng "ndb_binlog_setup: Clean up leftovers"
 
-ER_NDB_WAITING_INFO
+OBSOLETE_ER_NDB_WAITING_INFO
   eng "NDB %s: waiting max %u sec for %s %s.  epochs: (%u/%u,%u/%u,%u/%u)  injector proc_info: %s"
 
-ER_NDB_WAITING_INFO_WITH_MAP
+OBSOLETE_ER_NDB_WAITING_INFO_WITH_MAP
   eng "NDB %s: waiting max %u sec for %s %s.  epochs: (%u/%u,%u/%u,%u/%u)  injector proc_info: %s map: %x%08x"
 
-ER_NDB_TIMEOUT_WHILE_DISTRIBUTING
+OBSOLETE_ER_NDB_TIMEOUT_WHILE_DISTRIBUTING
   eng "NDB %s: distributing %s timed out. Ignoring..."
 
-ER_NDB_NOT_WAITING_FOR_DISTRIBUTING
+OBSOLETE_ER_NDB_NOT_WAITING_FOR_DISTRIBUTING
   eng "NDB %s: not waiting for distributing %s"
 
-ER_NDB_DISTRIBUTED_INFO
+OBSOLETE_ER_NDB_DISTRIBUTED_INFO
   eng "NDB: distributed %s.%s(%u/%u) type: %s(%u) query: \'%s\' to %x%08x"
 
-ER_NDB_DISTRIBUTION_COMPLETE
+OBSOLETE_ER_NDB_DISTRIBUTION_COMPLETE
   eng "NDB: distribution of %s.%s(%u/%u) type: %s(%u) query: \'%s\' - complete!"
 
-ER_NDB_SCHEMA_DISTRIBUTION_FAILED
+OBSOLETE_ER_NDB_SCHEMA_DISTRIBUTION_FAILED
   eng "NDB Schema dist: Data node: %d failed, subscriber bitmask %x%08x"
 
-ER_NDB_SCHEMA_DISTRIBUTION_REPORTS_SUBSCRIBE
+OBSOLETE_ER_NDB_SCHEMA_DISTRIBUTION_REPORTS_SUBSCRIBE
   eng "NDB Schema dist: Data node: %d reports subscribe from node %d, subscriber bitmask %x%08x"
 
-ER_NDB_SCHEMA_DISTRIBUTION_REPORTS_UNSUBSCRIBE
+OBSOLETE_ER_NDB_SCHEMA_DISTRIBUTION_REPORTS_UNSUBSCRIBE
   eng "NDB Schema dist: Data node: %d reports unsubscribe from node %d, subscriber bitmask %x%08x"
 
-ER_NDB_BINLOG_CANT_DISCOVER_TABLE_FROM_SCHEMA_EVENT
+OBSOLETE_ER_NDB_BINLOG_CANT_DISCOVER_TABLE_FROM_SCHEMA_EVENT
   eng "NDB Binlog: Could not discover table '%s.%s' from binlog schema event '%s' from node %d. my_errno: %d"
 
-ER_NDB_BINLOG_SIGNALLING_UNKNOWN_VALUE
+OBSOLETE_ER_NDB_BINLOG_SIGNALLING_UNKNOWN_VALUE
   eng "NDB: unknown value for binlog signalling 0x%X, %s not logged"
 
-ER_NDB_BINLOG_REPLY_TO
+OBSOLETE_ER_NDB_BINLOG_REPLY_TO
   eng "NDB: reply to %s.%s(%u/%u) from %s to %x%08x"
 
-ER_NDB_BINLOG_CANT_RELEASE_SLOCK
+OBSOLETE_ER_NDB_BINLOG_CANT_RELEASE_SLOCK
   eng "NDB: Could not release slock on '%s.%s', Error code: %d Message: %s"
 
-ER_NDB_CANT_FIND_TABLE
+OBSOLETE_ER_NDB_CANT_FIND_TABLE
   eng "NDB schema: Could not find table '%s.%s' in NDB"
 
-ER_NDB_DISCARDING_EVENT_NO_OBJ
+OBSOLETE_ER_NDB_DISCARDING_EVENT_NO_OBJ
   eng "NDB: Discarding event...no obj: %s (%u/%u)"
 
-ER_NDB_DISCARDING_EVENT_ID_VERSION_MISMATCH
+OBSOLETE_ER_NDB_DISCARDING_EVENT_ID_VERSION_MISMATCH
   eng "NDB: Discarding event...key: %s non matching id/version [%u/%u] != [%u/%u]"
 
-ER_NDB_CLEAR_SLOCK_INFO
+OBSOLETE_ER_NDB_CLEAR_SLOCK_INFO
   eng "NDB: CLEAR_SLOCK key: %s(%u/%u) %x%08x, from %s to %x%08x"
 
-ER_NDB_BINLOG_SKIPPING_LOCAL_TABLE
+OBSOLETE_ER_NDB_BINLOG_SKIPPING_LOCAL_TABLE
   eng "NDB Binlog: Skipping locally defined table '%s.%s' from binlog schema event '%s' from node %d."
 
-ER_NDB_BINLOG_ONLINE_ALTER_RENAME
+OBSOLETE_ER_NDB_BINLOG_ONLINE_ALTER_RENAME
   eng "NDB Binlog: handling online alter/rename"
 
-ER_NDB_BINLOG_CANT_REOPEN_SHADOW_TABLE
+OBSOLETE_ER_NDB_BINLOG_CANT_REOPEN_SHADOW_TABLE
   eng "NDB Binlog: Failed to re-open shadow table %s.%s"
 
-ER_NDB_BINLOG_ONLINE_ALTER_RENAME_COMPLETE
+OBSOLETE_ER_NDB_BINLOG_ONLINE_ALTER_RENAME_COMPLETE
   eng "NDB Binlog: handling online alter/rename done"
 
-ER_NDB_BINLOG_SKIPPING_DROP_OF_LOCAL_TABLE
+OBSOLETE_ER_NDB_BINLOG_SKIPPING_DROP_OF_LOCAL_TABLE
   eng "NDB Binlog: Skipping drop of locally defined table '%s.%s' from binlog schema event '%s' from node %d. "
 
-ER_NDB_BINLOG_SKIPPING_RENAME_OF_LOCAL_TABLE
+OBSOLETE_ER_NDB_BINLOG_SKIPPING_RENAME_OF_LOCAL_TABLE
   eng "NDB Binlog: Skipping renaming locally defined table '%s.%s' from binlog schema event '%s' from node %d. "
 
-ER_NDB_BINLOG_SKIPPING_DROP_OF_DB_CONTAINING_LOCAL_TABLES
+OBSOLETE_ER_NDB_BINLOG_SKIPPING_DROP_OF_TABLES
   eng "NDB Binlog: Skipping drop database '%s' since it contained local tables binlog schema event '%s' from node %d. "
 
-ER_NDB_BINLOG_GOT_DIST_PRIV_EVENT_FLUSHING_PRIVILEGES
+OBSOLETE_ER_NDB_BINLOG_GOT_DIST_PRIV_EVENT_FLUSHING_PRIVILEGES
   eng "Got dist_priv event: %s, flushing privileges"
 
-ER_NDB_BINLOG_GOT_SCHEMA_EVENT
+OBSOLETE_ER_NDB_BINLOG_GOT_SCHEMA_EVENT
   eng "NDB: got schema event on %s.%s(%u/%u) query: '%s' type: %s(%d) node: %u slock: %x%08x"
 
-ER_NDB_BINLOG_SKIPPING_OLD_SCHEMA_OPERATION
+OBSOLETE_ER_NDB_BINLOG_SKIPPING_OLD_SCHEMA_OPERATION
   eng "NDB schema: Skipping old schema operation(RENAME_TABLE_NEW) on %s.%s"
 
-ER_NDB_CLUSTER_FAILURE
+OBSOLETE_ER_NDB_CLUSTER_FAILURE
   eng "NDB Schema dist: cluster failure at epoch %u/%u."
 
-ER_NDB_TABLES_INITIALLY_READ_ONLY_ON_RECONNECT
+OBSOLETE_ER_NDB_TABLES_INITIALLY_READ_ONLY_ON_RECONNECT
   eng "NDB Binlog: ndb tables initially read only on reconnect."
 
-ER_NDB_IGNORING_UNKNOWN_EVENT
+OBSOLETE_ER_NDB_IGNORING_UNKNOWN_EVENT
   eng "NDB Schema dist: unknown event %u, ignoring..."
 
-ER_NDB_BINLOG_OPENING_INDEX
+OBSOLETE_ER_NDB_BINLOG_OPENING_INDEX
   eng "NDB Binlog: Opening ndb_binlog_index: %d, '%s'"
 
-ER_NDB_BINLOG_CANT_LOCK_NDB_BINLOG_INDEX
+OBSOLETE_ER_NDB_BINLOG_CANT_LOCK_NDB_BINLOG_INDEX
   eng "NDB Binlog: Unable to lock table ndb_binlog_index"
 
-ER_NDB_BINLOG_INJECTING_RANDOM_WRITE_FAILURE
+OBSOLETE_ER_NDB_BINLOG_INJECTING_RANDOM_WRITE_FAILURE
   eng "NDB Binlog: Injecting random write failure"
 
-ER_NDB_BINLOG_CANT_WRITE_TO_NDB_BINLOG_INDEX
+OBSOLETE_ER_NDB_BINLOG_CANT_WRITE_TO_NDB_BINLOG_INDEX
   eng "NDB Binlog: Failed writing to ndb_binlog_index for epoch %u/%u  orig_server_id %u orig_epoch %u/%u with error %d."
 
-ER_NDB_BINLOG_WRITING_TO_NDB_BINLOG_INDEX
+OBSOLETE_ER_NDB_BINLOG_WRITING_TO_NDB_BINLOG_INDEX
   eng "NDB Binlog: Writing row (%s) to ndb_binlog_index - %s"
 
-ER_NDB_BINLOG_CANT_COMMIT_TO_NDB_BINLOG_INDEX
+OBSOLETE_ER_NDB_BINLOG_CANT_COMMIT_TO_NDB_BINLOG_INDEX
   eng "NDB Binlog: Failed committing transaction to ndb_binlog_index with error %d."
 
-ER_NDB_BINLOG_WRITE_TO_NDB_BINLOG_INDEX_FAILED_AFTER_KILL
+OBSOLETE_ER_NDB_BINLOG_WRITE_INDEX_FAILED_AFTER_KILL
   eng "NDB Binlog: Failed writing to ndb_binlog_index table while retrying after kill during shutdown"
 
-ER_NDB_BINLOG_USING_SERVER_ID_0_SLAVES_WILL_NOT
+OBSOLETE_ER_NDB_BINLOG_USING_SERVER_ID_0_SLAVES_WILL_NOT
   eng "NDB: server id set to zero - changes logged to bin log with server id zero will be logged with another server id by slave mysqlds"
 
-ER_NDB_SERVER_ID_RESERVED_OR_TOO_LARGE
+OBSOLETE_ER_NDB_SERVER_ID_RESERVED_OR_TOO_LARGE
   eng "NDB: server id provided is too large to be represented in opt_server_id_bits or is reserved"
 
-ER_NDB_BINLOG_NDB_LOG_TRANSACTION_ID_REQUIRES_V2_ROW_EVENTS
+OBSOLETE_ER_NDB_BINLOG_REQUIRES_V2_ROW_EVENTS
   eng "NDB: --ndb-log-transaction-id requires v2 Binlog row events but server is using v1."
 
-ER_NDB_BINLOG_NDB_LOG_APPLY_STATUS_FORCING_FULL_USE_WRITE
+OBSOLETE_ER_NDB_BINLOG_STATUS_FORCING_FULL_USE_WRITE
   eng "NDB: ndb-log-apply-status forcing %s.%s to FULL USE_WRITE"
 
-ER_NDB_BINLOG_GENERIC_MESSAGE
+OBSOLETE_ER_NDB_BINLOG_GENERIC_MESSAGE
   eng "NDB Binlog: %s"
 
-ER_NDB_CONFLICT_GENERIC_MESSAGE
+OBSOLETE_ER_NDB_CONFLICT_GENERIC_MESSAGE
   eng "%s"
 
-ER_NDB_TRANS_DEPENDENCY_TRACKER_ERROR
+OBSOLETE_ER_NDB_TRANS_DEPENDENCY_TRACKER_ERROR
   eng "%s"
 
-ER_NDB_CONFLICT_FN_PARSE_ERROR
+OBSOLETE_ER_NDB_CONFLICT_FN_PARSE_ERROR
   eng "NDB Slave: Table %s.%s : Parse error on conflict fn : %s"
 
-ER_NDB_CONFLICT_FN_SETUP_ERROR
+OBSOLETE_ER_NDB_CONFLICT_FN_SETUP_ERROR
   eng "NDB Slave: Table %s.%s : %s"
 
-ER_NDB_BINLOG_FAILED_TO_GET_TABLE
+OBSOLETE_ER_NDB_BINLOG_FAILED_TO_GET_TABLE
   eng "NDB Binlog: Failed to get table %s from ndb: %s, %d"
 
-ER_NDB_BINLOG_NOT_LOGGING
+OBSOLETE_ER_NDB_BINLOG_NOT_LOGGING
   eng "NDB Binlog: NOT logging %s"
 
-ER_NDB_BINLOG_CREATE_TABLE_EVENT_FAILED
+OBSOLETE_ER_NDB_BINLOG_CREATE_TABLE_EVENT_FAILED
   eng "NDB Binlog: FAILED CREATE (DISCOVER) TABLE Event: %s"
 
-ER_NDB_BINLOG_CREATE_TABLE_EVENT_INFO
+OBSOLETE_ER_NDB_BINLOG_CREATE_TABLE_EVENT_INFO
   eng "NDB Binlog: CREATE (DISCOVER) TABLE Event: %s"
 
-ER_NDB_BINLOG_DISCOVER_TABLE_EVENT_INFO
+OBSOLETE_ER_NDB_BINLOG_DISCOVER_TABLE_EVENT_INFO
   eng "NDB Binlog: DISCOVER TABLE Event: %s"
 
-ER_NDB_BINLOG_BLOB_REQUIRES_PK
+OBSOLETE_ER_NDB_BINLOG_BLOB_REQUIRES_PK
   eng "NDB Binlog: logging of table %s with BLOB attribute and no PK is not supported"
 
-ER_NDB_BINLOG_CANT_CREATE_EVENT_IN_DB
+OBSOLETE_ER_NDB_BINLOG_CANT_CREATE_EVENT_IN_DB
   eng "NDB Binlog: Unable to create event in database. Event: %s  Error Code: %d  Message: %s"
 
-ER_NDB_BINLOG_CANT_CREATE_EVENT_IN_DB_AND_CANT_DROP
+OBSOLETE_ER_NDB_BINLOG_CANT_CREATE_EVENT_IN_DB_AND_CANT_DROP
   eng "NDB Binlog: Unable to create event in database.  Attempt to correct with drop failed. Event: %s Error Code: %d Message: %s"
 
-ER_NDB_BINLOG_CANT_CREATE_EVENT_IN_DB_DROPPED
+OBSOLETE_ER_NDB_BINLOG_CANT_CREATE_EVENT_IN_DB_DROPPED
   eng "NDB Binlog: Unable to create event in database.  Attempt to correct with drop ok, but create failed. Event: %s Error Code: %d Message: %s"
 
-ER_NDB_BINLOG_DISCOVER_REUSING_OLD_EVENT_OPS
+OBSOLETE_ER_NDB_BINLOG_DISCOVER_REUSING_OLD_EVENT_OPS
   eng "NDB Binlog: discover reusing old ev op"
 
-ER_NDB_BINLOG_CREATING_NDBEVENTOPERATION_FAILED
+OBSOLETE_ER_NDB_BINLOG_CREATING_NDBEVENTOPERATION_FAILED
   eng "NDB Binlog: Creating NdbEventOperation failed for %s"
 
-ER_NDB_BINLOG_CANT_CREATE_BLOB
+OBSOLETE_ER_NDB_BINLOG_CANT_CREATE_BLOB
   eng "NDB Binlog: Creating NdbEventOperation blob field %u handles failed (code=%d) for %s"
 
-ER_NDB_BINLOG_NDBEVENT_EXECUTE_FAILED
+OBSOLETE_ER_NDB_BINLOG_NDBEVENT_EXECUTE_FAILED
   eng "NDB Binlog: ndbevent->execute failed for %s; %d %s"
 
-ER_NDB_CREATE_EVENT_OPS_LOGGING_INFO
+OBSOLETE_ER_NDB_CREATE_EVENT_OPS_LOGGING_INFO
   eng "NDB Binlog: logging %s (%s,%s)"
 
-ER_NDB_BINLOG_CANT_DROP_EVENT_FROM_DB
+OBSOLETE_ER_NDB_BINLOG_CANT_DROP_EVENT_FROM_DB
   eng "NDB Binlog: Unable to drop event in database. Event: %s Error Code: %d Message: %s"
 
-ER_NDB_TIMED_OUT_IN_DROP_TABLE
+OBSOLETE_ER_NDB_TIMED_OUT_IN_DROP_TABLE
   eng "NDB %s: %s timed out. Ignoring..."
 
-ER_NDB_BINLOG_UNHANDLED_ERROR_FOR_TABLE
+OBSOLETE_ER_NDB_BINLOG_UNHANDLED_ERROR_FOR_TABLE
   eng "NDB Binlog: unhandled error %d for table %s"
 
-ER_NDB_BINLOG_CLUSTER_FAILURE
+OBSOLETE_ER_NDB_BINLOG_CLUSTER_FAILURE
   eng "NDB Binlog: cluster failure for %s at epoch %u/%u."
 
-ER_NDB_BINLOG_UNKNOWN_NON_DATA_EVENT
+OBSOLETE_ER_NDB_BINLOG_UNKNOWN_NON_DATA_EVENT
   eng "NDB Binlog: unknown non data event %d for %s. Ignoring..."
 
-ER_NDB_BINLOG_INJECTOR_DISCARDING_ROW_EVENT_METADATA
+OBSOLETE_ER_NDB_BINLOG_INJECTOR_DISCARDING_ROW_EVENT_METADATA
   eng "NDB: Binlog Injector discarding row event meta data as server is using v1 row events. (%u %x)"
 
-ER_NDB_REMAINING_OPEN_TABLES
+OBSOLETE_ER_NDB_REMAINING_OPEN_TABLES
   eng "remove_all_event_operations: Remaining open tables: "
 
-ER_NDB_REMAINING_OPEN_TABLE_INFO
+OBSOLETE_ER_NDB_REMAINING_OPEN_TABLE_INFO
   eng "  %s.%s, use_count: %u"
 
-ER_NDB_COULD_NOT_GET_APPLY_STATUS_SHARE
+OBSOLETE_ER_NDB_COULD_NOT_GET_APPLY_STATUS_SHARE
   eng "NDB: Could not get apply status share"
 
-ER_NDB_BINLOG_SERVER_SHUTDOWN_DURING_NDB_CLUSTER_START
+OBSOLETE_ER_NDB_BINLOG_SERVER_SHUTDOWN_DURING_NDB_CLUSTER_START
   eng "NDB Binlog: Server shutdown detected while waiting for ndbcluster to start..."
 
-ER_NDB_BINLOG_CLUSTER_RESTARTED_RESET_MASTER_SUGGESTED
+OBSOLETE_ER_NDB_BINLOG_CLUSTER_RESTARTED_RESET_MASTER_SUGGESTED
   eng "NDB Binlog: cluster has been restarted --initial or with older filesystem. ndb_latest_handled_binlog_epoch: %u/%u, while current epoch: %u/%u. RESET MASTER should be issued. Resetting ndb_latest_handled_binlog_epoch."
 
-ER_NDB_BINLOG_CLUSTER_HAS_RECONNECTED
+OBSOLETE_ER_NDB_BINLOG_CLUSTER_HAS_RECONNECTED
   eng "NDB Binlog: cluster has reconnected. Changes to the database that occurred while disconnected will not be in the binlog"
 
-ER_NDB_BINLOG_STARTING_LOG_AT_EPOCH
+OBSOLETE_ER_NDB_BINLOG_STARTING_LOG_AT_EPOCH
   eng "NDB Binlog: starting log at epoch %u/%u"
 
-ER_NDB_BINLOG_NDB_TABLES_WRITABLE
+OBSOLETE_ER_NDB_BINLOG_NDB_TABLES_WRITABLE
   eng "NDB Binlog: ndb tables writable"
 
-ER_NDB_BINLOG_SHUTDOWN_DETECTED
+OBSOLETE_ER_NDB_BINLOG_SHUTDOWN_DETECTED
   eng "NDB Binlog: Server shutdown detected..."
 
-ER_NDB_BINLOG_LOST_SCHEMA_CONNECTION_WAITING
+OBSOLETE_ER_NDB_BINLOG_LOST_SCHEMA_CONNECTION_WAITING
   eng "NDB Binlog: Just lost schema connection, hanging around"
 
-ER_NDB_BINLOG_LOST_SCHEMA_CONNECTION_CONTINUING
+OBSOLETE_ER_NDB_BINLOG_LOST_SCHEMA_CONNECTION_CONTINUING
   eng "NDB Binlog: ...and on our way"
 
-ER_NDB_BINLOG_ERROR_HANDLING_SCHEMA_EVENT
+OBSOLETE_ER_NDB_BINLOG_ERROR_HANDLING_SCHEMA_EVENT
   eng "NDB: error %lu (%s) on handling binlog schema event"
 
-ER_NDB_BINLOG_CANT_INJECT_APPLY_STATUS_WRITE_ROW
+OBSOLETE_ER_NDB_BINLOG_CANT_INJECT_APPLY_STATUS_WRITE_ROW
   eng "NDB Binlog: Failed to inject apply status write row"
 
-ER_NDB_BINLOG_ERROR_DURING_GCI_ROLLBACK
+OBSOLETE_ER_NDB_BINLOG_ERROR_DURING_GCI_ROLLBACK
   eng "NDB Binlog: Error during ROLLBACK of GCI %u/%u. Error: %d"
 
-ER_NDB_BINLOG_ERROR_DURING_GCI_COMMIT
+OBSOLETE_ER_NDB_BINLOG_ERROR_DURING_GCI_COMMIT
   eng "NDB Binlog: Error during COMMIT of GCI. Error: %d"
 
-ER_NDB_BINLOG_LATEST_TRX_IN_EPOCH_NOT_IN_BINLOG
+OBSOLETE_ER_NDB_BINLOG_LATEST_TRX_IN_EPOCH_NOT_IN_BINLOG
   eng "NDB Binlog: latest transaction in epoch %u/%u not in binlog as latest handled epoch is %u/%u"
 
-ER_NDB_BINLOG_RELEASING_EXTRA_SHARE_REFERENCES
+OBSOLETE_ER_NDB_BINLOG_RELEASING_EXTRA_SHARE_REFERENCES
   eng "NDB Binlog: Release extra share references"
 
-ER_NDB_BINLOG_REMAINING_OPEN_TABLES
+OBSOLETE_ER_NDB_BINLOG_REMAINING_OPEN_TABLES
   eng "NDB Binlog: remaining open tables: "
 
-ER_NDB_BINLOG_REMAINING_OPEN_TABLE_INFO
+OBSOLETE_ER_NDB_BINLOG_REMAINING_OPEN_TABLE_INFO
   eng "  %s.%s state: %u use_count: %u"
 
 ER_TREE_CORRUPT_PARENT_SHOULD_POINT_AT_PARENT
@@ -11053,52 +11053,52 @@ ER_CANT_SET_PATH_FOR
 ER_CANT_OPEN_DIR
   eng "Failed to open dir %s"
 
-ER_NDB_EMPTY_NODEID_IN_NDB_CLUSTER_CONNECTION_POOL_NODEIDS
+OBSOLETE_ER_NDB_CLUSTER_CONNECTION_POOL_NODEIDS
   eng "NDB: Found empty nodeid specified in --ndb-cluster-connection-pool-nodeids='%s'."
 
-ER_NDB_CANT_PARSE_NDB_CLUSTER_CONNECTION_POOL_NODEIDS
+OBSOLETE_ER_NDB_CANT_PARSE_NDB_CLUSTER_CONNECTION_POOL_NODEIDS
   eng "NDB: Could not parse '%s' in --ndb-cluster-connection-pool-nodeids='%s'."
 
-ER_NDB_INVALID_NODEID_IN_NDB_CLUSTER_CONNECTION_POOL_NODEIDS
+OBSOLETE_ER_NDB_INVALID_CLUSTER_CONNECTION_POOL_NODEIDS
   eng "NDB: Invalid nodeid %d in --ndb-cluster-connection-pool-nodeids='%s'."
 
-ER_NDB_DUPLICATE_NODEID_IN_NDB_CLUSTER_CONNECTION_POOL_NODEIDS
+OBSOLETE_ER_NDB_DUPLICATE_CLUSTER_CONNECTION_POOL_NODEIDS
   eng "NDB: Found duplicate nodeid %d in --ndb-cluster-connection-pool-nodeids='%s'."
 
-ER_NDB_POOL_SIZE_MUST_MATCH_NDB_CLUSTER_CONNECTION_POOL_NODEIDS
+OBSOLETE_ER_NDB_POOL_SIZE_CLUSTER_CONNECTION_POOL_NODEIDS
   eng "NDB: The size of the cluster connection pool must be equal to the number of nodeids in --ndb-cluster-connection-pool-nodeids='%s'."
 
-ER_NDB_NODEID_NOT_FIRST_IN_NDB_CLUSTER_CONNECTION_POOL_NODEIDS
+OBSOLETE_ER_NDB_NODEID_NOT_FIRST_CONNECTION_POOL_NODEIDS
   eng "NDB: The nodeid specified by --ndb-nodeid must be equal to the first nodeid in --ndb-cluster-connection-pool-nodeids='%s'."
 
-ER_NDB_USING_NODEID
+OBSOLETE_ER_NDB_USING_NODEID
   eng "NDB: using nodeid %u"
 
-ER_NDB_CANT_ALLOC_GLOBAL_NDB_CLUSTER_CONNECTION
+OBSOLETE_ER_NDB_CANT_ALLOC_GLOBAL_NDB_CLUSTER_CONNECTION
   eng "NDB: failed to allocate global ndb cluster connection"
 
-ER_NDB_CANT_ALLOC_GLOBAL_NDB_OBJECT
+OBSOLETE_ER_NDB_CANT_ALLOC_GLOBAL_NDB_OBJECT
   eng "NDB: failed to allocate global ndb object"
 
-ER_NDB_USING_NODEID_LIST
+OBSOLETE_ER_NDB_USING_NODEID_LIST
   eng "NDB[%u]: using nodeid %u"
 
-ER_NDB_CANT_ALLOC_NDB_CLUSTER_CONNECTION
+OBSOLETE_ER_NDB_CANT_ALLOC_NDB_CLUSTER_CONNECTION
   eng "NDB[%u]: failed to allocate cluster connect object"
 
-ER_NDB_STARTING_CONNECT_THREAD
+OBSOLETE_ER_NDB_STARTING_CONNECT_THREAD
   eng "NDB[%u]: starting connect thread"
 
-ER_NDB_NODE_INFO
+OBSOLETE_ER_NDB_NODE_INFO
   eng "NDB[%u]: NodeID: %d, %s"
 
-ER_NDB_CANT_START_CONNECT_THREAD
+OBSOLETE_ER_NDB_CANT_START_CONNECT_THREAD
   eng "NDB[%u]: failed to start connect thread"
 
-ER_NDB_GENERIC_ERROR
+OBSOLETE_ER_NDB_GENERIC_ERROR
   eng "NDB: error (%u) %s"
 
-ER_NDB_CPU_MASK_TOO_SHORT
+OBSOLETE_ER_NDB_CPU_MASK_TOO_SHORT
   eng "Ignored receive thread CPU mask, mask too short, %u CPUs needed in mask, only %u CPUs provided"
 
 ER_EVENT_ERROR_CREATING_QUERY_TO_WRITE_TO_BINLOG
@@ -11299,7 +11299,7 @@ ER_NDB_LOG_ENTRY
 ER_NDB_LOG_ENTRY_WITH_PREFIX
   eng "NDB %s: %s"
 
-ER_NDB_BINLOG_CANT_CREATE_PURGE_THD
+OBSOLETE_ER_NDB_BINLOG_CANT_CREATE_PURGE_THD
   eng "NDB: Unable to purge %s.%s File=%s (failed to setup thd)"
 
 ER_INNODB_UNKNOWN_COLLATION
@@ -11380,13 +11380,13 @@ ER_AUDIT_CANT_ABORT_EVENT
 ER_AUDIT_WARNING
   eng "%s. The trigger error was (%d) [%s]: %s"
 
-ER_NDB_NUMBER_OF_CHANNELS
+OBSOLETE_ER_NDB_NUMBER_OF_CHANNELS
   eng "Slave SQL: Configuration with number of replication masters = %u' is not supported when applying to Ndb"
 
-ER_NDB_SLAVE_PARALLEL_WORKERS
+OBSOLETE_ER_NDB_SLAVE_PARALLEL_WORKERS
   eng "Slave SQL: Configuration 'slave_parallel_workers = %lu' is not supported when applying to Ndb"
 
-ER_NDB_DISTRIBUTING_ERR
+OBSOLETE_ER_NDB_DISTRIBUTING_ERR
   eng "NDB %s: distributing %s err: %u"
 
 ER_RPL_SLAVE_INSECURE_CHANGE_MASTER
