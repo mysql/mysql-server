@@ -1439,7 +1439,7 @@ bool Explain_join::explain_rows_and_filtered() {
     fmt->entry()->col_cond_cost.set(0);
     fmt->entry()->col_read_cost.set(0.0);
     fmt->entry()->col_prefix_cost.set(0);
-    fmt->entry()->col_data_size_query.set('0');
+    fmt->entry()->col_data_size_query.set("0");
   } else {
     fmt->entry()->col_rows.set(static_cast<ulonglong>(pos->rows_fetched));
     fmt->entry()->col_filtered.set(

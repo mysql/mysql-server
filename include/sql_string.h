@@ -171,7 +171,7 @@ class String {
         m_charset(&my_charset_bin),
         m_alloced_length(0),
         m_is_alloced(false) {}
-  String(size_t length_arg)
+  explicit String(size_t length_arg)
       : m_ptr(NULL),
         m_length(0),
         m_charset(&my_charset_bin),
