@@ -153,6 +153,44 @@ void sys_var_end() {
 }
 
 /**
+  This function will check for necessary privileges needed to perform RESET
+  PERSIST or SET PERSIST[_ONLY] operation.
+
+  @param [in] thd                     Pointer to connection handle.
+  @param [in] static_variable         describes if variable is static or dynamic
+
+  @return 0 Success
+  @return 1 Failure
+*/
+bool check_priv(THD *thd, bool static_variable) {
+  Security_context *sctx = thd->security_context();
+  /* for dynamic variables user needs SUPER_ACL or SYSTEM_VARIABLES_ADMIN */
+  if (!static_variable) {
+    if (!sctx->check_access(SUPER_ACL) &&
+        !(sctx->has_global_grant(STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN"))
+              .first)) {
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+               "SUPER or SYSTEM_VARIABLES_ADMIN");
+      return 1;
+    }
+  } else {
+    /*
+     for static variables user needs both SYSTEM_VARIABLES_ADMIN and
+     PERSIST_RO_VARIABLES_ADMIN
+    */
+    if (!(sctx->has_global_grant(STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN"))
+              .first &&
+          sctx->has_global_grant(STRING_WITH_LEN("PERSIST_RO_VARIABLES_ADMIN"))
+              .first)) {
+      my_error(ER_PERSIST_ONLY_ACCESS_DENIED_ERROR, MYF(0),
+               "SYSTEM_VARIABLES_ADMIN and PERSIST_RO_VARIABLES_ADMIN");
+      return 1;
+    }
+  }
+  return 0;
+}
+
+/**
   sys_var constructor
 
   @param chain     variables are linked into chain for mysql_add_sys_var_chain()
@@ -872,29 +910,10 @@ int set_var::resolve(THD *thd) {
   }
   if (type == OPT_GLOBAL || type == OPT_PERSIST) {
     /* Either the user has SUPER_ACL or she has SYSTEM_VARIABLES_ADMIN */
-    Security_context *sctx = thd->security_context();
-    if (!sctx->check_access(SUPER_ACL) &&
-        !sctx->has_global_grant(STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN"))
-             .first) {
-      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
-               "SUPER or SYSTEM_VARIABLES_ADMIN");
-      DBUG_RETURN(1);
-    }
+    if (check_priv(thd, false)) DBUG_RETURN(1);
   }
   if (type == OPT_PERSIST_ONLY) {
-    Security_context *sctx = thd->security_context();
-    /*
-     user should have both SYSTEM_VARIABLES_ADMIN and
-     "PERSIST_RO_VARIABLES_ADMIN" privilege to persist read only variables
-    */
-    if (!(sctx->has_global_grant(STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN"))
-              .first &&
-          sctx->has_global_grant(STRING_WITH_LEN("PERSIST_RO_VARIABLES_ADMIN"))
-              .first)) {
-      my_error(ER_PERSIST_ONLY_ACCESS_DENIED_ERROR, MYF(0),
-               "SYSTEM_VARIABLES_ADMIN and PERSIST_RO_VARIABLES_ADMIN");
-      DBUG_RETURN(1);
-    }
+    if (check_priv(thd, true)) DBUG_RETURN(1);
   }
   /* value is a NULL pointer if we are using SET ... = DEFAULT */
   if (!value) DBUG_RETURN(0);

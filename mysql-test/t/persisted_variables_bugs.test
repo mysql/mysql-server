@@ -252,5 +252,86 @@ SELECT @@global.innodb_tmpdir, @@global.innodb_ft_user_stopword_table;
 # Cleanup
 RESET PERSIST;
 
+--echo #
+--echo # Bug #28564239: RESET PERSIST REQUIRES NO PRIVILEGES
+--echo #
+
+CREATE USER u1;
+# persist some static and dynamic variables
+SET PERSIST_ONLY ft_query_expansion_limit=80, innodb_api_enable_mdl=1;
+SET PERSIST sort_buffer_size=156000,max_connections= 52;
+SET PERSIST max_heap_table_size=887808, slave_net_timeout=160;
+
+--connect(con1, localhost, u1)
+SHOW GRANTS;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+RESET PERSIST max_heap_table_size;
+--error ER_PERSIST_ONLY_ACCESS_DENIED_ERROR
+RESET PERSIST ft_query_expansion_limit;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+RESET PERSIST;
+
+connection default;
+GRANT SUPER ON *.* TO u1;
+disconnect con1;
+
+# grant SUPER only
+--connect(con1, localhost, u1)
+SHOW GRANTS;
+RESET PERSIST max_heap_table_size;
+--error ER_PERSIST_ONLY_ACCESS_DENIED_ERROR
+RESET PERSIST ft_query_expansion_limit;
+--error ER_PERSIST_ONLY_ACCESS_DENIED_ERROR
+RESET PERSIST;
+
+connection default;
+REVOKE SUPER ON *.* FROM u1;
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO u1;
+disconnect con1;
+
+# grant SYSTEM_VARIABLES_ADMIN only
+--connect(con1, localhost, u1)
+SHOW GRANTS;
+RESET PERSIST max_connections;
+--error ER_PERSIST_ONLY_ACCESS_DENIED_ERROR
+RESET PERSIST ft_query_expansion_limit;
+--error ER_PERSIST_ONLY_ACCESS_DENIED_ERROR
+RESET PERSIST;
+
+connection default;
+REVOKE SYSTEM_VARIABLES_ADMIN ON *.* FROM u1;
+GRANT PERSIST_RO_VARIABLES_ADMIN ON *.* TO u1;
+disconnect con1;
+
+# grant PERSIST_RO_VARIABLES_ADMIN only
+--connect(con1, localhost, u1)
+SHOW GRANTS;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+RESET PERSIST slave_net_timeout;
+--error ER_PERSIST_ONLY_ACCESS_DENIED_ERROR
+RESET PERSIST ft_query_expansion_limit;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+RESET PERSIST;
+
+connection default;
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO u1;
+disconnect con1;
+
+# grant SYSTEM_VARIABLES_ADMIN and PERSIST_RO_VARIABLES_ADMIN
+--connect(con1, localhost, u1)
+SHOW GRANTS;
+RESET PERSIST slave_net_timeout;
+RESET PERSIST ft_query_expansion_limit;
+RESET PERSIST;
+
+connection default;
+# ensure no persisted variables exists
+SELECT * FROM performance_schema.persisted_variables;
+# set variables to default
+SET GLOBAL sort_buffer_size = default, max_connections = default,
+  slave_net_timeout = default, max_heap_table_size = default;
+DROP USER u1;
+disconnect con1;
+
 --echo # End of the 8.0 tests
 

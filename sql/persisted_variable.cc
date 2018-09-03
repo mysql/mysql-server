@@ -1108,6 +1108,10 @@ bool Persisted_variables_cache::reset_persisted_variables(THD *thd,
   auto it_ro = m_persist_ro_variables.find(var_name);
 
   if (reset_all) {
+    /* check for necessary privileges */
+    if (!m_persist_variables.empty() && check_priv(thd, false)) goto end;
+    if (!m_persist_ro_variables.empty() && check_priv(thd, true)) goto end;
+
     if (!m_persist_variables.empty()) {
       m_persist_variables.clear();
       flush = 1;
@@ -1130,6 +1134,7 @@ bool Persisted_variables_cache::reset_persisted_variables(THD *thd,
                              m_persist_variables.end(), checkvariable);
       if (it != m_persist_variables.end()) {
         /* if variable is present in config file remove it */
+        if (check_priv(thd, false)) goto end;
         m_persist_variables.erase(it);
         flush = 1;
         not_present = 0;
@@ -1139,12 +1144,14 @@ bool Persisted_variables_cache::reset_persisted_variables(THD *thd,
       auto it = std::find_if(m_persist_plugin_variables.begin(),
                              m_persist_plugin_variables.end(), checkvariable);
       if (it != m_persist_plugin_variables.end()) {
+        if (check_priv(thd, false)) goto end;
         m_persist_plugin_variables.erase(it);
         flush = 1;
         not_present = 0;
       }
     }
     if (it_ro != m_persist_ro_variables.end()) {
+      if (check_priv(thd, true)) goto end;
       /* if static variable is present in config file remove it */
       m_persist_ro_variables.erase(it_ro);
       flush = 1;
@@ -1167,6 +1174,10 @@ bool Persisted_variables_cache::reset_persisted_variables(THD *thd,
   if (flush) flush_to_file();
 
   return result;
+
+end:
+  unlock();
+  return 1;
 }
 
 /**

@@ -506,4 +506,7 @@ int sys_var_init();
 int sys_var_add_options(std::vector<my_option> *long_options, int parse_flags);
 void sys_var_end(void);
 
+/* check needed privileges to perform SET PERSIST[_only] or RESET PERSIST */
+bool check_priv(THD *thd, bool static_variable);
+
 #endif
