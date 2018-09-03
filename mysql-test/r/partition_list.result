@@ -492,3 +492,53 @@ INSERT INTO t1 VALUES(12,'abc','2005-01-01');
 INSERT INTO t1 VALUES(13,'abc','2006-01-01');
 ERROR HY000: Table has no partition for value 2006
 DROP TABLE t1;
+#
+# Bug#28387488: DATA DICTINARY CRASH ON DEBUG BUILD 
+# 
+# Create table with partition value which is not legal utf-8. 
+CREATE TABLE t1 (c1 varbinary(64) NOT NULL) PARTITION BY LIST COLUMNS (c1) (PARTITION custom_p1 VALUES IN (0x98000));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` varbinary(64) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50500 PARTITION BY LIST  COLUMNS(c1)
+(PARTITION custom_p1 VALUES IN (_binary 0x098000) ENGINE = InnoDB) */
+SELECT TABLE_NAME, PARTITION_DESCRIPTION FROM information_schema.partitions WHERE table_name = 't1';
+TABLE_NAME	PARTITION_DESCRIPTION
+t1	_binary 0x098000
+# Create table with partition value which IS legal utf-8
+CREATE TABLE t2 (c1 varbinary(64) NOT NULL) PARTITION BY LIST COLUMNS (c1) (PARTITION custom_p1 VALUES IN (0x24212b2b));
+# Verify that the partition value is still shown as a hex string
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` varbinary(64) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50500 PARTITION BY LIST  COLUMNS(c1)
+(PARTITION custom_p1 VALUES IN (_binary 0x24212B2B) ENGINE = InnoDB) */
+SELECT TABLE_NAME, PARTITION_DESCRIPTION FROM information_schema.partitions WHERE table_name = 't2';
+TABLE_NAME	PARTITION_DESCRIPTION
+t2	_binary 0x24212B2B
+# Creating t3 using the SHOW CREATE output for t2
+CREATE TABLE `t3` (
+`c1` varbinary(64) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50500 PARTITION BY LIST  COLUMNS(c1)
+(PARTITION custom_p1 VALUES IN (_binary 0x24212B2B) ENGINE = InnoDB) */;
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `c1` varbinary(64) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50500 PARTITION BY LIST  COLUMNS(c1)
+(PARTITION custom_p1 VALUES IN (_binary 0x24212B2B) ENGINE = InnoDB) */
+# Verify that we can insert into the tables
+INSERT INTO t1 VALUES (0x98000);
+INSERT INTO t2 VALUES (0x24212b2b);
+# also when the table is created from SHOW CREATE output
+INSERT INTO t3 VALUES (0x24212b2b);
+# Cleanup
+DROP TABLE t3;
+DROP TABLE t2;
+DROP TABLE t1;

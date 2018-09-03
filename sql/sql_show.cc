@@ -5437,7 +5437,13 @@ static void get_cs_converted_string_value(THD *thd, String *input_str,
     output_str->append("''");
     return;
   }
-  if (!use_hex) {
+  // Note that since the String charset conversion functions used below, are
+  // created to be used as (potentially unsafe) "casts" for user data, they
+  // perform conversion from binary to UTF-8 by simply copying bytes. By
+  // forcing a hex string when cs is binary, we avoid creating strings that are
+  // invalid. Such invalid strings looks strange and will cause asserts when
+  // they are stored in TEXT columns in the DD.
+  if (!use_hex && cs != &my_charset_bin) {
     String try_val;
     uint try_conv_error = 0;
 
