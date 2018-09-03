@@ -1,7 +1,7 @@
 /*	$NetBSD: terminal.c,v 1.10 2011/10/04 15:27:04 christos Exp $	*/
 
 /*-
- * Copyright (c) 1992, 2015
+ * Copyright (c) 1992, 2018
  *	The Regents of the University of California.  All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
@@ -42,8 +42,6 @@ static char sccsid[] = "@(#)term.c	8.2 (Berkeley) 4/30/95";
 
 /*
  * terminal.c: Editor/termcap-curses interface
- *	       We have to declare a static variable here, since the
- *	       termcap putchar routine does not take an argument!
  */
 #include <stdio.h>
 #include <signal.h>
@@ -51,22 +49,38 @@ static char sccsid[] = "@(#)term.c	8.2 (Berkeley) 4/30/95";
 #include <stdlib.h>
 #include <unistd.h>
 #include <limits.h>
-#if 0 /* TODO: do we need this */
-#ifdef HAVE_TERMCAP_H
-#include <termcap.h>
-#endif
-#endif
 #ifdef HAVE_CURSES_H
 #include <curses.h>
 #elif HAVE_NCURSES_H
 #include <ncurses.h>
 #endif
 
-/* Solaris's term.h does horrid things. */
-#if defined(HAVE_TERM_H) && !defined(__sun)
-#include <term.h>
+#if !HAVE_DECL_TGOTO
+/*
+   Bug#10218 Command line recall rolls into segfault:
+     'tgoto' is not declared in the system header files, this causes
+     problems on 64-bit systems. The function returns a 64 bit pointer
+     but caller see it as "int" and it's thus truncated to 32-bit
+ */
+extern char* tgoto(const char*, int, int);
 #endif
- 
+
+/* Solaris's term.h does horrid things. */
+#if defined(__sun)
+extern int tgetent(char *, const char *);
+extern int tgetflag(char *);
+extern int tgetnum(char *);
+extern int tputs(const char *, int, int (*)(int));
+extern char* tgoto(const char*, int, int);
+extern char* tgetstr(char*, char**);
+#else
+  #if defined(HAVE_TERM_H)
+    #include <term.h>
+  #else
+    #error "missing api definition leads to crash on 64-bit systems"
+  #endif
+#endif
+
 #include <sys/types.h>
 #include <sys/ioctl.h>
 
