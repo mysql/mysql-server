@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,6 +60,9 @@ int NdbMem_PopulateSpace(void* ptr, size_t len);
 int NdbMem_FreeSpace(void* ptr, size_t len);
 
 #endif
+
+void* NdbMem_AlignedAlloc(size_t alignment, size_t size);
+void NdbMem_AlignedFree(void* p);
 
 #ifdef	__cplusplus
 }

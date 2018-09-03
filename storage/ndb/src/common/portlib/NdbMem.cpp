@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,9 +22,12 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+
 #ifdef _WIN32
+#include <malloc.h> // _aligned_alloc
 #include <Windows.h>
 #else
+#include <stdlib.h> // aligned_alloc or posix_memalign
 #include <sys/mman.h>
 #endif
 
@@ -186,3 +189,44 @@ int NdbMem_FreeSpace(void* ptr, size_t len)
 }
 
 #endif
+
+void* NdbMem_AlignedAlloc(size_t alignment, size_t size)
+{
+#if defined(_ISOC11_SOURCE)
+  return aligned_alloc(alignment, size);
+#elif defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200112L
+  void* p = NULL;
+  (void) posix_memalign(&p, alignment, size);
+  return p;
+#elif defined(_WIN32)
+  return _aligned_malloc(alignment, size);
+#else
+  if (alignment < sizeof(void*))
+  {
+    alignment = sizeof(void*);
+  }
+  char*p = (char*) malloc(size + alignment);
+  if (p == NULL)
+  {
+    return NULL;
+  }
+  void* q = (void*)(p + (alignment - ((uintptr_t)p % alignment)));
+  void** qp = (void**)q;
+  qp[-1] = p;
+  return q;
+#endif
+}
+
+void NdbMem_AlignedFree(void* p)
+{
+#if defined(_ISOC11_SOURCE) || \
+    (defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200112L)
+  free(p);
+#elif defined(_WIN32)
+  _aligned_free(p);
+#else
+  void** qp = (void**)p;
+  p = qp[-1];
+  free(p);
+#endif
+}

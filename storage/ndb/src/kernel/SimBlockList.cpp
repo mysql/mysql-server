@@ -61,17 +61,18 @@
 #include <thrman.hpp>
 #include <trpman.hpp>
 #include <mt.hpp>
+#include "portlib/NdbMem.h"
 
 #define JAM_FILE_ID 492
 
 
 #ifndef VM_TRACE
-#define NEW_BLOCK(B) new B
+#define NEW_BLOCK(B) new (NdbMem_AlignedAlloc(64, sizeof(B))) B
 #else
 enum SIMBLOCKLIST_DUMMY { A_VALUE = 0 };
 
 void * operator new (size_t sz, SIMBLOCKLIST_DUMMY dummy){
-  char * tmp = (char *)malloc(sz);
+  char * tmp = (char *)NdbMem_AlignedAlloc(64, sz);
   if (!tmp)
     abort();
 
