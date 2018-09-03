@@ -52,7 +52,6 @@
 #define QRY_BATCH_SIZE_TOO_SMALL 4825
 #define QRY_EMPTY_PROJECTION 4826
 
-#if defined(__cplusplus)
 #include <Vector.hpp>
 #include <Bitmask.hpp>
 #include "NdbQueryBuilder.hpp"
@@ -952,5 +951,4 @@ private:
 }; // class NdbConstOperandImpl
 
 
-#endif /* __cplusplus */
 #endif
