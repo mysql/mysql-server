@@ -26,6 +26,10 @@
 #include <stddef.h>
 #include <sys/types.h>
 
+#if defined(HAVE_OPENSSL)
+#include <openssl/rsa.h>
+#endif
+
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_thread_local.h"    // my_thread_id
