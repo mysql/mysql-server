@@ -8036,15 +8036,15 @@ static bool test_if_ref(Item_field *left_item, Item *right_item) {
   Remove redundant predicates from condition, return the reduced condition.
 
   @details
-  A predicate of the form <table>.<field> '=' <value' may be redundant
-  if the (ref-) access choosen for <table> use an index containing <field>,
-  where <value> is specified as (part of) its ref-key. This method remove
+  A predicate of the form 'field = value' may be redundant if the
+  (ref-) access choosen for the table use an index containing 'field',
+  where 'value' is specified as (part of) its ref-key. This method remove
   such redundant predicates, thus reducing the condition, possibly
   eliminating it entirely.
 
-  If comparing <value>'s against outer-joined tables, these are possibly
+  If comparing 'values' against outer-joined tables, these are possibly
   'null-extended'. Thus the usage of these values in the ref-key, is not
-  sufficient anymore to guarantee that '<field> '=' <value' is 'TRUE'.
+  sufficient anymore to guarantee that 'field = value' is 'TRUE'.
   The 'null_extended' argument hold the table_map of any such possibly
   null-extended tables which are excluded from the above 'reduce' logic.
 
