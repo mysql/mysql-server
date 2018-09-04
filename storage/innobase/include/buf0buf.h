@@ -375,7 +375,7 @@ byte *buf_frame_copy(byte *buf, const buf_frame_t *frame);
 /** This is the general function used to get optimistic access to a database
 page.
 @param[in]      rw_latch        RW_S_LATCH, RW_X_LATCH
-@param[in,ot]   block           guessed block
+@param[in,out]  block           guessed block
 @param[in]      modify_clock    modify clock value
 @param[in]      fetch_mode      Fetch mode
 @param[in]      file            file name
@@ -395,13 +395,9 @@ done.
 @param[in] line Line from where it was called.
 @param[in,out] mtr Mini-transaction covering the fetch
 @return true if success */
-bool buf_page_get_known_nowait(
-    ulint rw_latch,     /*!< in: RW_S_LATCH, RW_X_LATCH */
-    buf_block_t *block, /*!< in: the known page */
-    Cache_hint hint,  /*!< in: Cache_hint::MAKE_YOUNG or Cache_hint::KEEP_OLD */
-    const char *file, /*!< in: file name */
-    ulint line,       /*!< in: line where called */
-    mtr_t *mtr);      /*!< in: mini-transaction */
+bool buf_page_get_known_nowait(ulint rw_latch, buf_block_t *block,
+                               Cache_hint hint, const char *file, ulint line,
+                               mtr_t *mtr);
 
 /** Given a tablespace id and page number tries to get that page. If the
 page is not in the buffer pool it is not loaded and NULL is returned.
