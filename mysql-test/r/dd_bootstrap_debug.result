@@ -81,7 +81,7 @@ SET SESSION debug= '-d,skip_dd_table_access_check';
 # 7.3 Restart the server against DDIR.
 # 7.4 Connect as root.
 CREATE TABLE t1(i INT);
-ERROR HY000: Unable to create a table without PK, when system variable 'sql_require_primary_key' is set. Add a PK to the table or unset this variable to avoid this message. Note that tables without PK can cause performance problems in row-based replication, so please consult your DBA before changing this setting.
+ERROR HY000: Unable to create or change a table without a primary key, when the system variable 'sql_require_primary_key' is set. Add a primary key to the table or unset this variable to avoid this message. Note that tables without a primary key can cause performance problems in row-based replication, so please consult your DBA before changing this setting.
 # 7.5 Shut server down.
 # 7.6 Close the test connection.
 # 7.7 Delete bootstrap file, log file and datadir.
@@ -94,7 +94,7 @@ ERROR HY000: Unable to create a table without PK, when system variable 'sql_requ
 # 8.2 Connect as root.
 # Verify that the system variable is in effect
 CREATE TABLE t1(i INT);
-ERROR HY000: Unable to create a table without PK, when system variable 'sql_require_primary_key' is set. Add a PK to the table or unset this variable to avoid this message. Note that tables without PK can cause performance problems in row-based replication, so please consult your DBA before changing this setting.
+ERROR HY000: Unable to create or change a table without a primary key, when the system variable 'sql_require_primary_key' is set. Add a primary key to the table or unset this variable to avoid this message. Note that tables without a primary key can cause performance problems in row-based replication, so please consult your DBA before changing this setting.
 # 8.3 Shut server down.
 # 8.4 Close the test connection.
 # 8.5 Delete log file.
