@@ -115,7 +115,7 @@ EXPLAIN
         "read_cost": "0.00",
         "eval_cost": "0.00",
         "prefix_cost": "0.00",
-        "data_read_per_join": ""
+        "data_read_per_join": "0"
       },
       "used_columns": [
         "a1"
@@ -218,7 +218,7 @@ EXPLAIN
         "read_cost": "0.00",
         "eval_cost": "0.00",
         "prefix_cost": "0.00",
-        "data_read_per_join": ""
+        "data_read_per_join": "0"
       },
       "used_columns": [
         "a1"
@@ -368,7 +368,7 @@ EXPLAIN
         "read_cost": "0.00",
         "eval_cost": "0.00",
         "prefix_cost": "0.00",
-        "data_read_per_join": ""
+        "data_read_per_join": "0"
       },
       "used_columns": [
         "a1"
@@ -410,7 +410,7 @@ EXPLAIN
         "read_cost": "0.00",
         "eval_cost": "0.00",
         "prefix_cost": "0.00",
-        "data_read_per_join": ""
+        "data_read_per_join": "0"
       },
       "used_columns": [
         "a1",
