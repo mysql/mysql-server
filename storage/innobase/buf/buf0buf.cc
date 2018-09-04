@@ -3519,9 +3519,15 @@ buf_block_t *Buf_fetch<T>::lookup() {
         buf_page_hash_get_low(m_buf_pool, m_page_id));
   }
 
+  if (block == nullptr) {
+    rw_lock_s_unlock(m_hash_lock);
+
+    return (nullptr);
+  }
+
   const auto bpage = &block->page;
 
-  if (block == nullptr || buf_pool_watch_is_sentinel(m_buf_pool, bpage)) {
+  if (buf_pool_watch_is_sentinel(m_buf_pool, bpage)) {
     rw_lock_s_unlock(m_hash_lock);
 
     return (nullptr);
