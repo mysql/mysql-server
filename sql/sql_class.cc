@@ -63,6 +63,7 @@
 #include "sql/mdl_context_backup.h"  // MDL context backup for XA
 #include "sql/mysqld.h"              // global_system_variables ...
 #include "sql/mysqld_thd_manager.h"  // Global_THD_manager
+#include "sql/parse_location.h"
 #include "sql/psi_memory_key.h"
 #include "sql/query_result.h"
 #include "sql/rpl_rli.h"    // Relay_log_info
@@ -2484,6 +2485,11 @@ void THD::syntax_error_at(const YYLTYPE &location, int mysql_errno, ...) {
   va_start(args, mysql_errno);
   vsyntax_error_at(location, ER_THD(this, mysql_errno), args);
   va_end(args);
+}
+
+void THD::vsyntax_error_at(const YYLTYPE &location, const char *format,
+                           va_list args) {
+  vsyntax_error_at(location.raw.start, format, args);
 }
 
 /**

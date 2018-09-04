@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,13 +40,12 @@ struct Symbol_location {
 /**
   Bison "location" class
 */
-typedef struct YYLTYPE {
+struct YYLTYPE {
   Symbol_location cpp;  // token location in the preprocessed buffer
   Symbol_location raw;  // token location in the raw buffer
 
   bool is_empty() const { return cpp.is_empty(); }
-
-} YYLTYPE;
+};
 
 #define YYLTYPE_IS_DECLARED 1  // signal Bison that we have our own YYLTYPE
 

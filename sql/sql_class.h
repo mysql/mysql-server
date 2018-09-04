@@ -92,9 +92,8 @@
 #include "sql/mdl.h"
 #include "sql/opt_costmodel.h"
 #include "sql/opt_trace_context.h"  // Opt_trace_context
-#include "sql/parse_location.h"
-#include "sql/protocol.h"          // Protocol
-#include "sql/protocol_classic.h"  // Protocol_text
+#include "sql/protocol.h"           // Protocol
+#include "sql/protocol_classic.h"   // Protocol_text
 #include "sql/query_options.h"
 #include "sql/rpl_context.h"  // Rpl_thd_context
 #include "sql/rpl_gtid.h"
@@ -131,6 +130,7 @@ struct ORDER;
 struct TABLE;
 struct TABLE_LIST;
 struct User_level_lock;
+struct YYLTYPE;
 
 namespace dd {
 namespace cache {
@@ -3973,11 +3973,6 @@ class THD : public MDL_context_owner,
 
   bool sql_parser();
 };
-
-inline void THD::vsyntax_error_at(const YYLTYPE &location, const char *format,
-                                  va_list args) {
-  vsyntax_error_at(location.raw.start, format, args);
-}
 
 /**
   A simple holder for Internal_error_handler.
