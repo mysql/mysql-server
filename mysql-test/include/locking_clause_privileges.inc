@@ -1,9 +1,11 @@
 CREATE USER mysqltestuser1@localhost;
 
---eval GRANT $locking_clause_privileges ON db1.* TO mysqltestuser1@localhost;
+--eval GRANT $locking_clause_privileges ON db1.* TO mysqltestuser1@localhost
 
 --connect(conn, localhost, mysqltestuser1,,db1)
+--error $locking_clause_privileges_expected_error_no_clause
 SELECT * FROM t1;
+--error $locking_clause_privileges_expected_error_no_clause
 SELECT HIGH_PRIORITY * FROM t1;
 
 --let $locking_clause_subquery_privileges_expected_error=$locking_clause_privileges_expected_error
