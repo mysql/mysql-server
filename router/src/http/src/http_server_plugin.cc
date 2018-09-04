@@ -40,6 +40,7 @@
 #include <event2/util.h>
 
 // Harness interface include files
+#include "common.h"  // rename_thread()
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/logging.h"
@@ -200,6 +201,8 @@ void HttpServer::start(size_t max_threads) {
     auto &thr = thread_contexts[ndx];
 
     sys_threads.emplace_back([&]() {
+      mysql_harness::rename_thread("HttpSrv Worker");
+
       thr.set_request_router(request_router_);
       thr.accept_socket();
       thr.wait_and_dispatch();
@@ -328,6 +331,9 @@ static void start(PluginFuncEnv *env) {
   //   - log group member changes
   // - important log messages
   // - mismatch between group-membership and metadata
+
+  mysql_harness::rename_thread("HttpSrv Main");
+
   try {
     auto srv = http_servers.at(get_config_section(env)->name);
 
