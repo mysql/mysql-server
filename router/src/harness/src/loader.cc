@@ -30,7 +30,6 @@
 // Package include files
 #include "designator.h"
 #include "exception.h"
-#include "harness_assert.h"
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
@@ -89,6 +88,8 @@ using mysql_harness::Path;
 
 using std::ostringstream;
 
+static const int kPluginExitCheckInterval = 100;  // milliseconds
+
 /**
  * @defgroup Loader Plugin loader
  *
@@ -101,18 +102,38 @@ using std::ostringstream;
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-std::mutex we_might_shutdown_cond_mutex;
-std::condition_variable we_might_shutdown_cond;
-
 // when Router receives a signal to shut down, this flag is set
-static std::atomic<int> g_shutdown_pending{0};
+static volatile std::atomic<sig_atomic_t> g_shutdown_pending{0};
+
+// ensure that 'terminate'-flag is thread-safe and signal-safe
+//
+// * sigatomic_t is not thread-safe
+// * std::atomic is not signal-safe by default (only lock-free std::atomics are
+// signal-safe)
+//
+// assume that sig_atomic_t is int-or-long
+// (in C++17 we could use std::atomic<sig_atomic_t>.is_always_lock_free)
+static_assert((std::is_same<sig_atomic_t, int>::value &&
+               (ATOMIC_INT_LOCK_FREE == 2)) ||
+                  (std::is_same<sig_atomic_t, long>::value &&
+                   (ATOMIC_LONG_LOCK_FREE == 2)),
+              "expected sig_atomic_t to lock-free");
 
 // called from sig_handler() on Unix,
 //        from NTService class and Ctrl+C handler on Windows
-void request_application_shutdown() {
-  g_shutdown_pending = 1;
+void request_application_shutdown() { g_shutdown_pending = 1; }
 
-  we_might_shutdown_cond.notify_one();
+static void sig_handler(int signal) {
+#ifdef USE_POSIX_SIGNALS
+  switch (signal) {
+    case SIGINT:
+    case SIGTERM:
+      request_application_shutdown();
+      break;
+    default:
+      break;
+  }
+#endif
 }
 
 static void block_all_signals() {
@@ -126,32 +147,40 @@ static void block_all_signals() {
 #endif
 }
 
-static void start_and_detach_signal_handler_thread() {
+static void set_signal_handlers() {
 #ifdef USE_POSIX_SIGNALS
-  std::promise<void> signal_handler_thread_setup_done;
 
-  std::thread signal_thread([&signal_handler_thread_setup_done] {
+  // set up handlers
+  {
+    struct sigaction sa;
+
+    // It would seem reasonable to set all fields explicity instead. It turns
+    // out that on Ubuntu 14.04 (and maybe others?), sa.sa_sigaction and
+    // sa.sa_handler are a union! (yes, man page about struct sigaction is
+    // incorrect)
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_handler = sig_handler;
+    sigfillset(&sa.sa_mask);  // for good measure, it doesn't really matter
+                              // what we block - the handler is trivial
+
+    if (sigaction(SIGINT, &sa, nullptr) == -1 ||
+        sigaction(SIGTERM, &sa, nullptr) == -1) {
+      throw std::runtime_error("sigaction() failed: " +
+                               std::string(std::strerror(errno)));
+    }
+  }
+
+  // and finally, let's unblock the signals
+  {
     sigset_t ss;
     sigemptyset(&ss);
     sigaddset(&ss, SIGINT);
     sigaddset(&ss, SIGTERM);
-
-    signal_handler_thread_setup_done.set_value();
-    int sig = 0;
-    if (0 == sigwait(&ss, &sig)) {
-      request_application_shutdown();
-    } else {
-      // man sigwait() says, it should only fail if we provided invalid signals,
-      // but SIGTERM and SIGINT should be totally fine.
-      harness_assert_this_should_not_execute();
+    if (0 != pthread_sigmask(SIG_UNBLOCK, &ss, nullptr)) {
+      throw std::runtime_error("pthread_sigmask() failed: " +
+                               std::string(std::strerror(errno)));
     }
-  });
-
-  // wait until the signal handler is setup
-  signal_handler_thread_setup_done.get_future().wait();
-
-  // let the signal handler thread be independent of the rest of the app
-  signal_thread.detach();
+  }
 #endif
 }
 
@@ -602,12 +631,14 @@ std::exception_ptr Loader::init_all() {
 void Loader::start_all() {
   log_info("Starting all plugins.");
 
-  // block signal handling for all threads
-  //
-  // - no other thread than the signal-handler thread should receive signals
-  // - syscalls should not get interrupted by signals either
-  //
-  // on windows, this is a no-op
+  // On Windows, this is a no-op, because we don't use signals on Windows
+  // On Unix systems, this line does two things:
+  // - for main thread, it block all signals until we set up the proper handlers
+  //   later on
+  // - since the signal mask is inherited, it will be passed on to new (plugin)
+  //   threads. However, unlike in case of main thread, we will never unblock
+  //   the signals there. This way, all signals sent to the program are
+  //   guaranteed to be passed on to the main thread.
   block_all_signals();
 
   // start all the plugins (call plugin's start() function)
@@ -631,7 +662,7 @@ void Loader::start_all() {
     std::promise<std::shared_ptr<PluginFuncEnv>> env_promise;
 
     // plugin start() will run in this new thread
-    plugin_threads_.emplace_back([fptr, section, &env_promise, this]() {
+    auto dispatch = [fptr, section, &env_promise]() -> std::exception_ptr {
       log_info("  plugin '%s:%s' starting", section->name.c_str(),
                section->key.c_str());
 
@@ -644,12 +675,15 @@ void Loader::start_all() {
       std::exception_ptr eptr;
       call_plugin_function(this_thread_env.get(), eptr, fptr, "start",
                            section->name.c_str(), section->key.c_str());
+      return eptr;
+    };
 
-      plugin_stopped_events_.push(std::move(eptr));
-      we_might_shutdown_cond.notify_one();
-    });
+    // launch plugin and save the future for exit status retrieval later on
+    std::future<std::exception_ptr> fut =
+        std::async(std::launch::async, dispatch);
+    sessions_.push_back(std::move(fut));
 
-    // block until starter thread is started
+    // block until dispatch() initializes plugin thread to a thread-safe state,
     // then save the env object for later
     assert(plugin_start_env_.count(section) == 0);
     plugin_start_env_[section] =
@@ -661,76 +695,82 @@ void Loader::start_all() {
   // We wait with this until after we launch all plugin threads, to avoid
   // a potential race if a signal was received while plugins were still
   // launching.
-  start_and_detach_signal_handler_thread();
+  set_signal_handlers();
 }
 
-/**
- * wait for shutdown signal or plugins exit.
- *
- * blocks until one of the following happens:
- *
- * - shutdown signal is received
- * - one plugin return an exception
- * - all plugins finished
- *
- * calls Loader::stop_all() and waits until all plugins finished.
- *
- * @returns first exception returned by any of the plugins start() or stop()
- * functions
- * @retval nullptr if no exception was returned
- */
+// returns first exception triggered by start() or stop()
 std::exception_ptr Loader::main_loop() {
   log_info("Running.");
 
+  // This function waits for all threads to finish. First thread that returns
+  // an exception will trigger stop_all().
+
+  // This is the "main" loop, where the Router app spends all its time while
+  // "running" (servicing requests, etc). It stays here until all plugins are
+  // terminated (all futures are settled) or until shutdown signal was received.
   std::exception_ptr first_eptr;
+  bool have_unsettled_futures;
+  bool called_stop_all = false;
+  do {  // while (have_unsettled_futures)
+    have_unsettled_futures = false;
+    std::chrono::steady_clock::time_point timepoint =
+        std::chrono::steady_clock::now() +
+        std::chrono::milliseconds(kPluginExitCheckInterval);
 
-  size_t plugins_running = plugin_threads_.size();
+    // handle received shutdown signal
+    if (g_shutdown_pending && !called_stop_all) {
+      std::exception_ptr tmp = stop_all();
+      if (!first_eptr) {
+        first_eptr = tmp;
+      }
+      called_stop_all = true;
+    }
 
-  // wait for a reason to shutdown
-  {
-    std::unique_lock<std::mutex> lk(we_might_shutdown_cond_mutex);
-
-    we_might_shutdown_cond.wait(lk, [&first_eptr, &plugins_running, this] {
-      // external shutdown
-      if (g_shutdown_pending == 1) return true;
-
-      // wait for the first non-fatal exit
-      for (std::exception_ptr tmp; plugin_stopped_events_.try_pop(tmp);) {
-        plugins_running--;
-
-        if (tmp) {
-          first_eptr = tmp;
-          return true;
-        }
+    // check all plugin instances for termination
+    for (std::future<std::exception_ptr> &fut : sessions_) {
+      // handle this plugin no longer running
+      if (!fut.valid()) {
+        continue;
       }
 
-      // all plugins stop successfully
-      if (plugins_running == 0) return true;
+      // handle terminating plugin
+      //
+      // NOTE: Here we rely on ambiguous behavior of future::wait_until().
+      // What will be returned when you call it when future is ready BUT
+      // timepoint is expired? On Ubuntu 14.04, it returns future_status::ready,
+      // which seems reasonable. However to ensure it works all platforms, we
+      // have a unit test in test_loader_lifecycle.cc to guard against
+      // surprises.
+      if (fut.wait_until(timepoint) == std::future_status::ready) {
+        std::exception_ptr tmp = fut.get();
 
-      return false;
-    });
-  }
+        // if plugin's start() threw, we save its exception and initiate
+        // shutdown
+        if (tmp && !first_eptr) {
+          first_eptr = tmp;
+          if (!called_stop_all) {
+            stop_all();
+            called_stop_all = true;
+          }
+        }
+      } else {  // this plugin is still running
+        have_unsettled_futures = true;
+      }
 
-  // stop all plugins
-  {
+    }  // for (std::future<std::exception_ptr>& fut : sessions_)
+
+  } while (have_unsettled_futures);
+
+  // No (plugin) threads are running at this point, all futures have been
+  // consumed. It's weird to tell all plugins to stop after they already
+  // stopped, however, we guarantee that each plugin that exposes a stop()
+  // function will have this function called during shutdown, thus we must
+  // make sure it happens.
+  if (!called_stop_all) {
     std::exception_ptr tmp = stop_all();
-    if (tmp && !first_eptr) {
+    if (!first_eptr) {
       first_eptr = tmp;
     }
-  }
-
-  // wait until all plugins signaled their return value
-  for (; plugins_running > 0; plugins_running--) {
-    std::exception_ptr tmp = plugin_stopped_events_.pop();
-
-    if (tmp && !first_eptr) {
-      first_eptr = tmp;
-    }
-  }
-
-  // wait for all plugin-threads to join
-  for (auto &thr : plugin_threads_) {
-    thr.join();
   }
 
   // we will no longer need the env objects for start(), might as well

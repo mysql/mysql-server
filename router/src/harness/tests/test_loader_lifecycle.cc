@@ -1563,13 +1563,13 @@ TEST_F(LifecycleTest, send_signals) {
 
   // nothing should happen - all signals but the ones we care about should be
   // ignored (here we only test a few, the rest is assumed to behave the same)
-  kill(getpid(), SIGUSR1);
-  kill(getpid(), SIGALRM);
+  raise(SIGUSR1);
+  raise(SIGALRM);
 
   // signal shutdown after 10ms, main_loop() should block until then
   auto call_SIGINT = []() {
     std::this_thread::sleep_for(ch::milliseconds(kSleepShutdown));
-    kill(getpid(), SIGINT);
+    raise(SIGINT);
   };
   std::thread(call_SIGINT).detach();
   EXPECT_EQ(loader_.main_loop(), nullptr);
@@ -1595,11 +1595,11 @@ TEST_F(LifecycleTest, send_signals2) {
       bus, "lifecycle:instance1 start():EXIT_ON_STOP:sleeping");
 
   // signal shutdown after 10ms, main_loop() should block until then
-  auto call_SIGTERM = []() {
+  auto call_SIGINT = []() {
     std::this_thread::sleep_for(ch::milliseconds(kSleepShutdown));
-    kill(getpid(), SIGTERM);
+    raise(SIGTERM);
   };
-  std::thread(call_SIGTERM).detach();
+  std::thread(call_SIGINT).detach();
   EXPECT_EQ(loader_.main_loop(), nullptr);
 
   refresh_log();

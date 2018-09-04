@@ -115,8 +115,7 @@ int DestRoundRobin::get_server_socket(
 }
 
 DestRoundRobin::~DestRoundRobin() {
-  stopper_.set_value();
-  condvar_quarantine_.notify_one();
+  stopping_ = true;
   quarantine_thread_.join();
 }
 
@@ -148,8 +147,7 @@ void DestRoundRobin::cleanup_quarantine() noexcept {
   mutex_quarantine_.unlock();
 
   for (auto it = cpy_quarantined.begin(); it != cpy_quarantined.end(); ++it) {
-    if (stopped_.wait_for(std::chrono::seconds(0)) ==
-        std::future_status::ready) {
+    if (stopping_) {
       return;
     }
 
@@ -179,22 +177,16 @@ void DestRoundRobin::quarantine_manager_thread() noexcept {
       "RtQ:<unknown>");  // TODO change <unknown> to instance name
 
   std::unique_lock<std::mutex> lock(mutex_quarantine_manager_);
-  while (stopped_.wait_for(std::chrono::seconds(0)) !=
-         std::future_status::ready) {
-    // wait until something got added to quarantie or shutdown
+  while (!stopping_) {
     condvar_quarantine_.wait_for(
-        lock, std::chrono::seconds(kTimeoutQuarantineConditional), [this] {
-          return !quarantined_.empty() ||
-                 (stopped_.wait_for(std::chrono::seconds(0)) ==
-                  std::future_status::ready);
-        });
+        lock, std::chrono::seconds(kTimeoutQuarantineConditional),
+        [this] { return !quarantined_.empty(); });
 
-    // if we aren't shutting down, cleanup and wait
-    if (stopped_.wait_for(std::chrono::seconds(0)) !=
-        std::future_status::ready) {
+    if (!stopping_) {
       cleanup_quarantine();
       // Temporize
-      stopped_.wait_for(std::chrono::seconds(kQuarantineCleanupInterval));
+      std::this_thread::sleep_for(
+          std::chrono::seconds(kQuarantineCleanupInterval));
     }
   }
 }

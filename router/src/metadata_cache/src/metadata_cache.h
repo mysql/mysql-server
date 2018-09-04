@@ -33,7 +33,6 @@
 #include <atomic>
 #include <chrono>
 #include <ctime>
-#include <future>
 #include <memory>
 #include <mutex>
 #include <set>
@@ -205,8 +204,7 @@ class METADATA_API MetadataCache
   std::mutex replicasets_with_unreachable_nodes_mtx_;
 
   // Flag used to terminate the refresh thread.
-  std::promise<void> terminator_;
-  std::future<void> terminated_;
+  std::atomic_bool terminate_;
 
   // map of lists (per each replicaset name) of registered callbacks to be
   // called on selected replicaset instances change event

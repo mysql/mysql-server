@@ -504,7 +504,7 @@ MetadataCache::MetadataCache(
   }
   ttl_ = ttl;
   cluster_name_ = cluster;
-  terminated_ = terminator_.get_future();
+  terminate_ = false;
   meta_data_ = cluster_metadata;
   ssl_options_ = ssl_options;
   refresh();
@@ -525,8 +525,7 @@ void MetadataCache::refresh_thread() {
   const std::chrono::milliseconds kTerminateOrForcedRefreshCheckInterval =
       std::chrono::seconds(1);
 
-  while (terminated_.wait_for(std::chrono::seconds(0)) !=
-         std::future_status::ready) {
+  while (!terminate_) {
     refresh();
 
     auto ttl_left = ttl_;
@@ -534,12 +533,13 @@ void MetadataCache::refresh_thread() {
     // online (primary or secondary) server - in that case, "emergency mode" is
     // enabled and we refresh every 1s until "emergency mode" is called off.
     while (ttl_left > std::chrono::milliseconds(0)) {
+      if (terminate_) return;
+
       auto sleep_for =
           std::min(ttl_left, kTerminateOrForcedRefreshCheckInterval);
-
-      if (terminated_.wait_for(sleep_for) == std::future_status::ready) return;
-
+      std::this_thread::sleep_for(sleep_for);
       ttl_left -= sleep_for;
+
       {
         std::lock_guard<std::mutex> lock(
             replicasets_with_unreachable_nodes_mtx_);
@@ -561,7 +561,7 @@ void MetadataCache::start() { refresh_thread_.run(&run_thread, this); }
  * Stop the refresh thread.
  */
 void MetadataCache::stop() noexcept {
-  terminator_.set_value();
+  terminate_ = true;
   refresh_thread_.join();
 }
 
@@ -632,8 +632,7 @@ void MetadataCache::refresh() {
   // fetch metadata
   bool broke_loop = false;
   for (auto &metadata_server : metadata_servers_) {
-    if (terminated_.wait_for(std::chrono::seconds(0)) ==
-        std::future_status::ready) {
+    if (terminate_) {
       broke_loop = true;
       break;
     }

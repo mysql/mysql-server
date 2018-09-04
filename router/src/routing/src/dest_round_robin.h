@@ -25,8 +25,6 @@
 #ifndef ROUTING_DEST_ROUND_ROBIN_INCLUDED
 #define ROUTING_DEST_ROUND_ROBIN_INCLUDED
 
-#include <future>
-
 #include "destination.h"
 #include "mysqlrouter/routing.h"
 
@@ -53,8 +51,7 @@ class DestRoundRobin : public RouteDestination {
               mysql_harness::SocketOperations::instance()),
       size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes)
       : RouteDestination(protocol, routing_sock_ops),
-        quarantine_thread_(thread_stack_size),
-        stopped_{stopper_.get_future()} {}
+        quarantine_thread_(thread_stack_size) {}
 
   /** @brief Destructor */
   virtual ~DestRoundRobin();
@@ -135,8 +132,7 @@ class DestRoundRobin : public RouteDestination {
   mysql_harness::MySQLRouterThread quarantine_thread_;
 
   /** @brief Whether we are stopping */
-  std::promise<void> stopper_;
-  std::future<void> stopped_;
+  std::atomic_bool stopping_{false};
 };
 
 #endif  // ROUTING_DEST_ROUND_ROBIN_INCLUDED
