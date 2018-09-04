@@ -33,10 +33,11 @@ TempTable custom allocator. */
 #include <cstddef>   /* size_t */
 #include <cstdlib>   /* malloc(), free() */
 #include <limits>    /* std::numeric_limits */
-#include <new>       /* new */
-#include <sstream>   /* std::stringstream */
-#include <utility>   /* std::forward */
-#include <vector>    /* std::vector */
+#include <memory>
+#include <new>     /* new */
+#include <sstream> /* std::stringstream */
+#include <utility> /* std::forward */
+#include <vector>  /* std::vector */
 
 #ifndef DBUG_OFF
 #include <unordered_set>
@@ -120,6 +121,36 @@ extern const size_t pfs_info_num_elements;
 /** Set to true if Linux's numa_available() reports "available" (!= -1). */
 extern bool linux_numa_available;
 #endif /* TEMPTABLE_USE_LINUX_NUMA */
+
+/**
+  Shared state between all instances of a given allocator.
+
+  STL allocators can (since C++11) carry state; however, that state should
+  never be mutable, as the allocator can be copy-constructed and rebound
+  without further notice, so e.g. deallocating memory in one allocator could
+  mean freeing a block that an earlier copy of the allocator still thinks is
+  valid.
+
+  Usually, mutable state will be external to the allocator (e.g.
+  Mem_root_allocator will point to a MEM_ROOT, but it won't own the MEM_ROOT);
+  however, TempTable was never written this way, and doesn't have a natural
+  place to stick the allocator state. Thus, we need a kludge where the
+  allocator's state is held in a shared_ptr, owned by all the instances
+  together. This is suboptimal for performance, and also is against the style
+  guide's recommendation to have clear ownership of objects, but at least it
+  avoids the use-after-free.
+ */
+struct AllocatorState {
+  /** Current not-yet-full block to feed allocations from. */
+  uint8_t *current_block = nullptr;
+
+  /**
+   * Number of created blocks so far (by this Allocator object).
+   * We use this number only as a hint as to how big block to create when a
+   * new block needs to be created.
+   */
+  size_t number_of_blocks = 0;
+};
 
 /** Custom memory allocator. All dynamic memory used by the TempTable engine
  * is allocated through this allocator.
@@ -209,7 +240,7 @@ class Allocator {
   template <class U>
   Allocator(
       /** [in,out] Source Allocator object. */
-      Allocator<U> &&other);
+      Allocator<U> &&other) noexcept;
 
   /** Destructor. */
   ~Allocator();
@@ -272,21 +303,11 @@ class Allocator {
    * thread. Called once per OS thread destruction. */
   static void end_thread();
 
-  /** Current not-yet-full block to feed allocations from. */
-  uint8_t *m_current_block;
-
-  /** Number of created blocks so far (by this Allocator object). This can go
-   * negative because of the way std:: containers use the Allocator:
-   * - start with an Allocator a1
-   * - copy-construct a2 from a1
-   * - allocate a chunk of memory using a2
-   * - destroy a2
-   * - copy-construct a3 from a1
-   * - ask a3 to deallocate the chunk of memory allocated by a2.
-   * We use this number only as a hint as to how big block to create when a new
-   * block needs to be created. If it is negative, then we proceed as if it is
-   * 0. */
-  int64_t m_number_of_blocks;
+  /**
+    Shared state between all the copies and rebinds of this allocator.
+    See AllocatorState for details.
+   */
+  std::shared_ptr<AllocatorState> m_state;
 
  private:
   /** Type of memory allocated. */
@@ -458,22 +479,17 @@ extern std::atomic<size_t> bytes_allocated_in_ram;
 
 template <class T>
 inline Allocator<T>::Allocator()
-    : m_current_block(nullptr), m_number_of_blocks(0) {}
+    : m_state(std::make_shared<AllocatorState>()) {}
 
 template <class T>
 template <class U>
 inline Allocator<T>::Allocator(const Allocator<U> &other)
-    : m_current_block(other.m_current_block),
-      m_number_of_blocks(other.m_number_of_blocks) {}
+    : m_state(other.m_state) {}
 
 template <class T>
 template <class U>
-inline Allocator<T>::Allocator(Allocator<U> &&other)
-    : m_current_block(other.m_current_block),
-      m_number_of_blocks(other.m_number_of_blocks) {
-  other.m_current_block = nullptr;
-  other.m_number_of_blocks = 0;
-}
+inline Allocator<T>::Allocator(Allocator<U> &&other) noexcept
+    : m_state(std::move(other.m_state)) {}
 
 template <class T>
 inline Allocator<T>::~Allocator() {}
@@ -513,12 +529,12 @@ inline T *Allocator<T>::allocate(size_t n_elements) {
     b = shared_block;
   } else if (block_can_accommodate(shared_block, size_bytes)) {
     b = shared_block;
-  } else if (m_current_block == nullptr ||
-             !block_can_accommodate(m_current_block, size_bytes)) {
-    m_current_block = block_create(size_bytes);
-    b = m_current_block;
+  } else if (m_state->current_block == nullptr ||
+             !block_can_accommodate(m_state->current_block, size_bytes)) {
+    m_state->current_block = block_create(size_bytes);
+    b = m_state->current_block;
   } else {
-    b = m_current_block;
+    b = m_state->current_block;
   }
 
   return reinterpret_cast<T *>(block_allocate_from(b, size_bytes));
@@ -561,8 +577,8 @@ inline void Allocator<T>::deallocate(T *ptr, size_t n_elements) {
     } else {
       block_destroy(block);
 
-      if (block == m_current_block) {
-        m_current_block = nullptr;
+      if (block == m_state->current_block) {
+        m_state->current_block = nullptr;
       }
     }
   }
@@ -640,13 +656,14 @@ inline void *Allocator<T>::mem_fetch(size_t bytes) {
       throw Result::OUT_OF_MEM;
     }
   } else {
+    DBUG_ASSERT(t == Mem_type::DISK);
     ptr = mem_fetch_from_disk(bytes);
     if (ptr == nullptr) {
       throw Result::RECORD_FILE_FULL;
     }
   }
 
-  *reinterpret_cast<Mem_type *>(ptr) = t;
+  memcpy(ptr, &t, sizeof(t));
 
 #ifdef TEMPTABLE_PFS_MEMORY
   const PSI_memory_key psi_key =
@@ -681,6 +698,7 @@ inline void Allocator<T>::mem_drop(void *ptr, size_t bytes) {
     bytes_allocated_in_ram.fetch_sub(bytes);
     mem_drop_from_ram(ptr, bytes);
   } else {
+    DBUG_ASSERT(t == Mem_type::DISK);
     mem_drop_from_disk(ptr, bytes);
   }
 
@@ -724,7 +742,7 @@ inline void Allocator<T>::mem_drop_from_ram(void *ptr,
     free(ptr);
   }
 #elif defined(HAVE_WINNUMA)
-  auto ret = VirtualFree(ptr, 0, MEM_RELEASE);
+  BOOL MY_ATTRIBUTE((unused)) ret = VirtualFree(ptr, 0, MEM_RELEASE);
   assert(ret != 0);
 #else
   free(ptr);
@@ -773,7 +791,7 @@ inline void *Allocator<T>::mem_fetch_from_disk(size_t bytes) {
     return nullptr;
   }
 
-  *reinterpret_cast<File *>(ptr) = f;
+  memcpy(ptr, &f, sizeof(f));
 
   return reinterpret_cast<char *>(ptr) + ALIGN_TO;
 }
@@ -852,10 +870,6 @@ inline uint8_t *Allocator<T>::block_create(size_t first_alloc_size) {
    * But if the user has requested bigger size than what we intend to allocate,
    * then of course, we allocate whatever size the user requested. */
 
-  /* Treat negative m_number_of_blocks as 0. */
-  const size_t number_of_blocks =
-      static_cast<size_t>(m_number_of_blocks <= 0 ? 0 : m_number_of_blocks);
-
   /* Our intended size in bytes:
    * 2 ^ 0 MiB,
    * 2 ^ 1 MiB,
@@ -863,8 +877,8 @@ inline uint8_t *Allocator<T>::block_create(size_t first_alloc_size) {
    * ...,
    * 2 ^ ALLOCATOR_MAX_BLOCK_MB_EXP MiB. */
   size_t intended_bytes;
-  if (number_of_blocks < ALLOCATOR_MAX_BLOCK_MB_EXP) {
-    intended_bytes = (1ULL << number_of_blocks) * 1_MiB;
+  if (m_state->number_of_blocks < ALLOCATOR_MAX_BLOCK_MB_EXP) {
+    intended_bytes = (1ULL << m_state->number_of_blocks) * 1_MiB;
   } else {
     intended_bytes = ALLOCATOR_MAX_BLOCK_BYTES;
   }
@@ -894,7 +908,7 @@ inline uint8_t *Allocator<T>::block_create(size_t first_alloc_size) {
    * the OS is "undefined" by default. */
   MEM_NOACCESS(block + BLOCK_HEADER_SIZE, size - BLOCK_HEADER_SIZE);
 
-  ++m_number_of_blocks;
+  ++m_state->number_of_blocks;
 
   DBUG_PRINT("temptable_allocator",
              ("block create: first_alloc_size=%zu, new_block=(%s)",
@@ -907,7 +921,8 @@ template <class T>
 inline void Allocator<T>::block_destroy(uint8_t *block) {
   DBUG_ASSERT(*block_number_of_used_chunks_ptr(block) == 0);
 
-  --m_number_of_blocks;
+  DBUG_ASSERT(m_state->number_of_blocks > 0);
+  --m_state->number_of_blocks;
 
   block_destroy_mem_free(block);
 }
@@ -926,7 +941,7 @@ inline void *Allocator<T>::block_allocate_from(uint8_t *block,
 
   ++*block_number_of_used_chunks_ptr(block);
 
-  auto first_pristine_offset = *block_first_pristine_offset_ptr(block);
+  Block_offset first_pristine_offset = *block_first_pristine_offset_ptr(block);
   DBUG_ASSERT(first_pristine_offset % ALIGN_TO == 0);
 
   uint8_t *p = block + first_pristine_offset;
@@ -935,7 +950,7 @@ inline void *Allocator<T>::block_allocate_from(uint8_t *block,
    * Relax it to report read+depend_on_contents. */
   MEM_UNDEFINED(p, BLOCK_META_BYTES_PER_CHUNK + requested_size);
 
-  *reinterpret_cast<Block_offset *>(p) = first_pristine_offset;
+  memcpy(p, &first_pristine_offset, sizeof(first_pristine_offset));
 
   *block_first_pristine_offset_ptr(block) +=
       BLOCK_META_BYTES_PER_CHUNK + requested_size;

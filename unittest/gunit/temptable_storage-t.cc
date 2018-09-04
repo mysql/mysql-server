@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -32,7 +32,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 namespace temptable_storage_unittest {
 
-TEST(temptable_storage, iterate) {
+TEST(StorageTest, Iterate) {
   {
     temptable::Allocator<uint8_t> allocator;
     temptable::Storage storage(&allocator);
@@ -56,6 +56,25 @@ TEST(temptable_storage, iterate) {
       EXPECT_EQ(i, *static_cast<uint64_t *>(*it));
     }
     EXPECT_EQ(0u, i);
+  }
+  temptable::Allocator<uint8_t>::end_thread();
+}
+
+TEST(StorageTest, AllocatorRebind) {
+  {
+    temptable::Allocator<uint8_t> alloc;
+    uint8_t *shared_eater = alloc.allocate(
+        1048576);  // Make sure to consume the initial shared block.
+    uint8_t *ptr = alloc.allocate(100);
+
+    decltype(alloc)::rebind<uint32_t>::other rebound_alloc(alloc);
+
+    alloc.deallocate(ptr, 100);
+
+    uint32_t *ptr2 = rebound_alloc.allocate(50);
+    rebound_alloc.deallocate(ptr2, 50);
+
+    alloc.deallocate(shared_eater, 1048576);
   }
   temptable::Allocator<uint8_t>::end_thread();
 }
