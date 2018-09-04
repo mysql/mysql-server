@@ -15618,9 +15618,9 @@ void Dbtc::initialiseTcConnect(Signal* signal)
   {
     refresh_watch_dog();
     jam();
-    TcConnectRecordPtr tcConnectptr;
-    ndbrequire(tcConnectRecord.seize(tcConnectptr));
-    fast_record_list.addFirst(tcConnectptr);
+    TcConnectRecordPtr tcConptr;
+    ndbrequire(tcConnectRecord.seize(tcConptr));
+    fast_record_list.addFirst(tcConptr);
   }
 
   LocalTcConnectRecord_fifo tcConList(tcConnectRecord, cfreeTcConnectFail);
@@ -15632,23 +15632,23 @@ void Dbtc::initialiseTcConnect(Signal* signal)
   {
     refresh_watch_dog();
     jam();
-    TcConnectRecordPtr tcConnectptr;
-    ndbrequire(tcConnectRecord.seize(tcConnectptr));
+    TcConnectRecordPtr tcConptr;
+    ndbrequire(tcConnectRecord.seize(tcConptr));
     tcConnectFailCount++;
 #ifdef VM_TRACE
-    ndbassert((prevptr == 0) || (prevptr < tcConnectptr.i));
-    prevptr = tcConnectptr.i;
+    ndbassert((prevptr == 0) || (prevptr < tcConptr.i));
+    prevptr = tcConptr.i;
 #endif
-    tcConList.addLast(tcConnectptr);
+    tcConList.addLast(tcConptr);
   }
   c_counters.cconcurrentOp = 0;
 
-  TcConnectRecordPtr tcConnectptr;
-  while (fast_record_list.removeFirst(tcConnectptr))
+  TcConnectRecordPtr tcConptr;
+  while (fast_record_list.removeFirst(tcConptr))
   {
     refresh_watch_dog();
     jam();
-    tcConnectRecord.release(tcConnectptr);
+    tcConnectRecord.release(tcConptr);
   }
   tcConnectRecord.resetUsedHi();
 }//Dbtc::initialiseTcConnect()
