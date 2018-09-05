@@ -3,7 +3,7 @@
 # Stop the server
 # 2. Checks for --auto_generate_certs
 # Restarting server with --debug option
-Pattern "Could not generate RSA private key required for X509 certificate" found
+Pattern "Could not generate RSA private key required for X.509 certificate" found
 # Restarting server with --debug option
 Pattern "Could not write key file: " found
 # Restarting server with --debug option
@@ -11,7 +11,7 @@ Pattern "Could not read CA key file: " found
 # Restarting server with --debug option
 Pattern "Could not read CA certificate file: " found
 # Restarting server with --debug option
-Pattern "Could not generate X509 certificate" found
+Pattern "Could not generate X.509 certificate" found
 # Restarting server with --debug option
 Pattern "Could not write certificate file: " found
 # 3. Checks for --sha256_password_auto_generate_rsa_keys

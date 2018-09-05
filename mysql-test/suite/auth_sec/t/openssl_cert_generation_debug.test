@@ -39,7 +39,7 @@ let generate_ssl_certs=ON;
 let generate_rsa_keys=OFF;
 
 let debug_pattern= "d,null_rsa_error";
-let error_pattern= Could not generate RSA private key required for X509 certificate;
+let error_pattern= Could not generate RSA private key required for X.509 certificate;
 --source include/openssl_cert_generation_debug_test.inc
 
 let debug_pattern= "d,key_file_write_error";
@@ -63,7 +63,7 @@ let error_pattern= Could not read CA certificate file: ;
 --remove_file $MYSQLTEST_VARDIR/mysqld.1/data/server-key.pem
 
 let debug_pattern= "d,x509_cert_generation_error";
-let error_pattern= Could not generate X509 certificate;
+let error_pattern= Could not generate X.509 certificate;
 --source include/openssl_cert_generation_debug_test.inc
 
 --remove_file $MYSQLTEST_VARDIR/mysqld.1/data/ca-key.pem

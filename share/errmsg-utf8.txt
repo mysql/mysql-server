@@ -9567,19 +9567,19 @@ ER_CONN_ATTR_TRUNCATED
   eng "Connection attributes of length %lu were truncated (%d bytes lost) for connection %llu, user %s@%s (as %s), auth: %s"
 
 ER_X509_CIPHERS_MISMATCH
-  eng "X509 ciphers mismatch: should be '%s' but is '%s'"
+  eng "X.509 ciphers mismatch: should be '%s' but is '%s'"
 
 ER_X509_ISSUER_MISMATCH
-  eng "X509 issuer mismatch: should be '%s' but is '%s'"
+  eng "X.509 issuer mismatch: should be '%s' but is '%s'"
 
 ER_X509_SUBJECT_MISMATCH
-  eng "X509 subject mismatch: should be '%s' but is '%s'"
+  eng "X.509 subject mismatch: should be '%s' but is '%s'"
 
 ER_AUTH_CANT_ACTIVATE_ROLE
   eng "Failed to activate default role %s for %s"
 
 ER_X509_NEEDS_RSA_PRIVKEY
-  eng "Could not generate RSA private key required for X509 certificate."
+  eng "Could not generate RSA private key required for X.509 certificate."
 
 ER_X509_CANT_WRITE_KEY
   eng "Could not write key file: %s"
@@ -9594,7 +9594,7 @@ ER_X509_CANT_READ_CA_CERT
   eng "Could not read CA certificate file: %s"
 
 ER_X509_CANT_CREATE_CERT
-  eng "Could not generate X509 certificate."
+  eng "Could not generate X.509 certificate."
 
 ER_X509_CANT_WRITE_CERT
   eng "Could not write certificate file: %s"
