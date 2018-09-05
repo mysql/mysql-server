@@ -907,15 +907,16 @@ regexp_replace( 'abc', 'b', 'x' ) AS c,
 regexp_substr( 'a', 'a' ) AS d,
 regexp_substr( repeat('a', 512), 'a' ) AS e,
 regexp_substr( repeat('a', 513), 'a' ) AS f;
+# The actual character set that ICU uses depends on the machine.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` bigint(21) NOT NULL DEFAULT '0',
   `b` int(1) NOT NULL DEFAULT '0',
-  `c` longtext CHARACTER SET utf16le,
-  `d` varchar(1) CHARACTER SET utf16le NOT NULL DEFAULT '',
-  `e` varchar(512) CHARACTER SET utf16le DEFAULT NULL,
-  `f` text CHARACTER SET utf16le
+  `c` longtext CHARACTER SET utf16x,
+  `d` varchar(1) CHARACTER SET utf16x NOT NULL DEFAULT '',
+  `e` varchar(512) CHARACTER SET utf16x DEFAULT NULL,
+  `f` text CHARACTER SET utf16x
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1;
 a	b	c	d	e	f

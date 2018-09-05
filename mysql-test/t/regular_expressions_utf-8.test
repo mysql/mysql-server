@@ -777,6 +777,8 @@ CREATE TABLE t1 AS SELECT
   regexp_substr( repeat('a', 512), 'a' ) AS e,
   regexp_substr( repeat('a', 513), 'a' ) AS f;
 
+--echo # The actual character set that ICU uses depends on the machine.
+--replace_regex /(utf16)(le)?/\1x/
 SHOW CREATE TABLE t1;
 SELECT * FROM t1;
 DROP TABLE t1;
