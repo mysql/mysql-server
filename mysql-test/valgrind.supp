@@ -1274,6 +1274,7 @@
    Memcheck:Leak
    match-leak-kinds: reachable
    fun:malloc
+   ...
    fun:CRYPTO_malloc
    fun:lh_insert
    fun:int_thread_set_item
@@ -1296,6 +1297,7 @@
    Memcheck:Leak
    match-leak-kinds: reachable
    fun:malloc
+   ...
    fun:CRYPTO_malloc
    fun:lh_new
    fun:int_thread_get
@@ -1384,6 +1386,7 @@
   Memcheck:Leak
   match-leak-kinds: reachable
   fun:malloc
+  ...
   fun:CRYPTO_malloc
   fun:lh_insert
   fun:int_thread_set_item
@@ -1473,6 +1476,7 @@
   Memcheck:Leak
   match-leak-kinds: reachable
   fun:malloc
+  ...
   fun:CRYPTO_malloc
   fun:lh_new
   fun:int_thread_get
@@ -1528,6 +1532,7 @@
   Memcheck:Leak
   match-leak-kinds: reachable
   fun:malloc
+  ...
   fun:CRYPTO_malloc
   fun:ERR_get_state
   fun:ERR_put_error
@@ -1608,6 +1613,7 @@
   Memcheck:Leak
   match-leak-kinds: reachable
   fun:malloc
+  ...
   fun:CRYPTO_malloc
   fun:lh_insert
   fun:int_thread_set_item
@@ -1648,6 +1654,7 @@
   Memcheck:Leak
   match-leak-kinds: reachable
   fun:malloc
+  ...
   fun:CRYPTO_malloc
   fun:lh_insert
   fun:int_thread_set_item
@@ -1670,6 +1677,7 @@
   Memcheck:Leak
   match-leak-kinds: reachable
   fun:malloc
+  ...
   fun:CRYPTO_malloc
   fun:lh_insert
   fun:int_thread_set_item
@@ -1912,6 +1920,7 @@
    Memcheck:Leak
    match-leak-kinds: reachable
    fun:malloc
+   ...
    fun:CRYPTO_malloc
    fun:ERR_get_state
    fun:ERR_put_error
