@@ -61,7 +61,8 @@ class Binlog_read_error {
     // The binlog magic is incorrect
     BAD_BINLOG_MAGIC,
     INVALID_ENCRYPTION_HEADER,
-    CANNOT_GET_FILE_PASSWORD
+    CANNOT_GET_FILE_PASSWORD,
+    READ_ENCRYPTED_LOG_FILE_IS_NOT_SUPPORTED
   };
 
   Binlog_read_error() {}

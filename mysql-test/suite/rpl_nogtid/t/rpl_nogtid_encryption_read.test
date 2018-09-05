@@ -62,6 +62,11 @@
 # After uninstalling the keyring_file plug-in, the server shall throw an error
 # when requested to access the encrypted binary log file.
 #
+# Part 5: mysqlbinlog is unable to dump encrypted binary logs
+#
+# Request mysqlbinlog to dump the content of the encrypted binary log file
+# and parse the output asserting that the expected error message was thrown.
+#
 #
 # This test case rely in two previously generated files:
 #
@@ -243,6 +248,20 @@ UNINSTALL PLUGIN keyring_file;
 --error ER_RPL_ENCRYPTION_FAILED_TO_FETCH_KEY
 --eval SHOW BINLOG EVENTS IN '$binlog_file'
 
+--echo # Part 5
+--let $output_file= $MYSQLTEST_VARDIR/tmp/mysqlbinlog.log
+--let $error_file= $MYSQLTEST_VARDIR/tmp/mysqlbinlog.err
+--error 1
+--exec $MYSQL_BINLOG -F $binlog_file_path > $output_file 2> $error_file
+--let $assert_text= mysqlbinlog reported it does not support reading encrypted log files
+--let $assert_file= $error_file
+--let $assert_count= 1
+--let $assert_select= Reading encrypted log files directly is not supported
+--source include/assert_grep.inc
+--remove_file $output_file
+--remove_file $error_file
+
+# Cleanup
 --remove_file $keyring_file
 --source include/rpl_connection_slave.inc
 --source include/start_slave.inc

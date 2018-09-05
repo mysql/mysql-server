@@ -98,6 +98,8 @@ ERROR HY000: Can't find key from keyring, please check in the server log if a ke
 UNINSTALL PLUGIN keyring_file;
 SHOW BINLOG EVENTS IN 'master-bin.000002';
 ERROR HY000: Failed to fetch key from keyring, please check if keyring plugin is loaded.
+# Part 5
+include/assert_grep.inc [mysqlbinlog reported it does not support reading encrypted log files]
 [connection slave]
 include/start_slave.inc
 include/rpl_end.inc

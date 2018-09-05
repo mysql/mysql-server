@@ -56,6 +56,8 @@ const char *Binlog_read_error::get_str() const {
     case CANNOT_GET_FILE_PASSWORD:
       return "Cannot get file password for encrypted replication log file, "
              "please check if keyring plugin is loaded";
+    case READ_ENCRYPTED_LOG_FILE_IS_NOT_SUPPORTED:
+      return "Reading encrypted log files directly is not supported.";
     default:
       /* There must be something wrong in the code if it reaches this branch. */
       DBUG_ASSERT(0);
@@ -134,6 +136,7 @@ bool Basic_binlog_ifile::read_binlog_magic() {
   */
   if (memcmp(magic, Rpl_encryption_header::ENCRYPTION_MAGIC,
              Rpl_encryption_header::ENCRYPTION_MAGIC_SIZE) == 0) {
+#ifdef MYSQL_SERVER
     std::unique_ptr<Binlog_encryption_istream> encryption_istream{
         new Binlog_encryption_istream()};
     if (encryption_istream->open(std::move(m_istream), m_error))
@@ -146,6 +149,10 @@ bool Basic_binlog_ifile::read_binlog_magic() {
     if (m_istream->read(magic, BINLOG_MAGIC_SIZE) != BINLOG_MAGIC_SIZE) {
       DBUG_RETURN(m_error->set_type(Binlog_read_error::BAD_BINLOG_MAGIC));
     }
+#else
+    DBUG_RETURN(m_error->set_type(
+        Binlog_read_error::READ_ENCRYPTED_LOG_FILE_IS_NOT_SUPPORTED));
+#endif
   }
 
   if (memcmp(magic, BINLOG_MAGIC, BINLOG_MAGIC_SIZE))
