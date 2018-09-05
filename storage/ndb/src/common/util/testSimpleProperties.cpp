@@ -171,7 +171,7 @@ void testBuffered() {
   /* write key 2 */
   memset(test2, '\0', sizeof(test2));
   sprintf(test2, "In Xanadu did Kubla Khan a stately");
-  printf("Length for key 2: %zu/%lu \n", strlen(test2)+1, sizeof(test2));
+  printf("Length for key 2: %zu/%zu \n", strlen(test2)+1, sizeof(test2));
   w.add(2, test2);
 
   SimplePropertiesLinearReader r(page, w.getWordsUsed());
