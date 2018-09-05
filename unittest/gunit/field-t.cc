@@ -136,7 +136,7 @@ class Mock_protocol : public Protocol {
   virtual bool store(MYSQL_TIME *, uint) { return false; }
   virtual bool store_date(MYSQL_TIME *) { return false; }
   virtual bool store(Proto_field *) { return false; }
-  virtual enum enum_protocol_type type() { return PROTOCOL_LOCAL; };
+  virtual enum enum_protocol_type type() { return PROTOCOL_LOCAL; }
   virtual enum enum_vio_type connection_type() { return NO_VIO_TYPE; }
   virtual int get_command(COM_DATA *, enum_server_command *) { return -1; }
   virtual bool flush() { return true; }

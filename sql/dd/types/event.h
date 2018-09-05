@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -97,7 +97,7 @@ class Event : virtual public Entity_object {
   enum enum_on_completion { OC_DROP = 1, OC_PRESERVE };
 
  public:
-  virtual ~Event(){};
+  virtual ~Event() {}
 
  public:
   /////////////////////////////////////////////////////////////////////////

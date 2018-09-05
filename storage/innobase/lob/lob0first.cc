@@ -413,4 +413,4 @@ void first_page_t::dealloc() {
   m_block = nullptr;
 }
 
-};  // namespace lob
+}  // namespace lob

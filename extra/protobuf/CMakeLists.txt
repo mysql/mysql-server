@@ -77,6 +77,11 @@ IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   IF(HAVE_ENUM_COMPARE_SWITCH)
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-enum-compare-switch")
   ENDIF()
+
+  MY_CHECK_CXX_COMPILER_FLAG("-Wextra-semi" HAVE_EXTRA_SEMI)
+  IF(HAVE_EXTRA_SEMI)
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-extra-semi")
+  ENDIF()
 ENDIF()
 
 # protoc built with clang -fsanitize=undefined dumps core

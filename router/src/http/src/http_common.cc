@@ -208,7 +208,7 @@ void HttpRequest::sync_callback(HttpRequest *req, void *) {
     req->pImpl_->own();
 #endif
   }
-};
+}
 
 HttpRequest::HttpRequest(HttpRequest::RequestHandler cb, void *cb_arg) {
   auto *ev_req = evhttp_request_new(

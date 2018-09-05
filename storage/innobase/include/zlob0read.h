@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -73,6 +73,6 @@ ulint z_read(ReadContext *ctx, trx_t *trx, lob::ref_t ref, ulint offset,
 bool z_validate_strm(dict_index_t *index, z_index_entry_t &entry, mtr_t *mtr);
 #endif /* UNIV_DEBUG */
 
-}; /* namespace lob */
+} /* namespace lob */
 
 #endif /* zlob0read_h */

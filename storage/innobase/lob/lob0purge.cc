@@ -424,4 +424,4 @@ void purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
   DBUG_VOID_RETURN;
 }
 
-}; /* namespace lob */
+} /* namespace lob */

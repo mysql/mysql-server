@@ -4900,7 +4900,7 @@ class handler {
     Calls to rnd_init/rnd_end, index_init/index_end etc do not affect the
     condition stack.
   */
-  virtual const Item *cond_push(const Item *cond) { return cond; };
+  virtual const Item *cond_push(const Item *cond) { return cond; }
   /**
     Pop the top condition from the condition stack of the handler instance.
 
@@ -5352,7 +5352,7 @@ class handler {
            has to use ha_alter_info object to figure it out.
   */
   virtual void notify_table_changed(
-      Alter_inplace_info *ha_alter_info MY_ATTRIBUTE((unused))){};
+      Alter_inplace_info *ha_alter_info MY_ATTRIBUTE((unused))) {}
 
  public:
   /* End of On-line/in-place ALTER TABLE interface. */
@@ -5534,7 +5534,7 @@ class handler {
                             int lock_type MY_ATTRIBUTE((unused))) {
     return 0;
   }
-  virtual void release_auto_increment() { return; };
+  virtual void release_auto_increment() { return; }
   /** admin commands - called from mysql_admin_table */
   virtual int check_for_upgrade(HA_CHECK_OPT *) { return 0; }
   virtual int check(THD *, HA_CHECK_OPT *) { return HA_ADMIN_NOT_IMPLEMENTED; }

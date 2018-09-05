@@ -301,7 +301,7 @@ struct Encryption {
   };
 
   /** Default constructor */
-  Encryption() : m_type(NONE){};
+  Encryption() : m_type(NONE) {}
 
   /** Specific constructor
   @param[in]	type		Algorithm type */
@@ -322,7 +322,7 @@ struct Encryption {
       : m_type(other.m_type),
         m_key(other.m_key),
         m_klen(other.m_klen),
-        m_iv(other.m_iv){};
+        m_iv(other.m_iv) {}
 
   /** Check if page is encrypted page or not
   @param[in]	page	page which need to check

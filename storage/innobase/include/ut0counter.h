@@ -262,6 +262,6 @@ inline void clear(Shards &shards) {
   }
 }
 
-};  // namespace Counter
+}  // namespace Counter
 
 #endif /* ut0counter_h */

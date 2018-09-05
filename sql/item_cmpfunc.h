@@ -633,9 +633,9 @@ class Item_func_trig_cond final : public Item_bool_func {
         m_idx(idx),
         trig_type(trig_type_arg) {}
   longlong val_int() override;
-  enum Functype functype() const override { return TRIG_COND_FUNC; };
+  enum Functype functype() const override { return TRIG_COND_FUNC; }
   /// '@<if@>', to distinguish from the if() SQL function
-  const char *func_name() const override { return "<if>"; };
+  const char *func_name() const override { return "<if>"; }
   /// Get range of inner tables spanned by associated outer join operation
   void get_table_range(TABLE_LIST **first_table, TABLE_LIST **last_table);
   /// Get table_map of inner tables spanned by associated outer join operation
@@ -658,7 +658,7 @@ class Item_func_trig_cond final : public Item_bool_func {
     Item_bool_func::update_used_tables();
     add_trig_func_tables();
   }
-  enum enum_trig_type get_trig_type() const { return trig_type; };
+  enum enum_trig_type get_trig_type() const { return trig_type; }
   bool *get_trig_var() { return trig_var; }
   void print(String *str, enum_query_type query_type) override;
 };
@@ -687,8 +687,8 @@ class Item_func_not_all : public Item_func_not {
   enum Functype functype() const override { return NOT_ALL_FUNC; }
   const char *func_name() const override { return "<not>"; }
   void print(String *str, enum_query_type query_type) override;
-  void set_sum_test(Item_sum_hybrid *item) { test_sum_item = item; };
-  void set_sub_test(Item_maxmin_subselect *item) { test_sub_item = item; };
+  void set_sum_test(Item_sum_hybrid *item) { test_sum_item = item; }
+  void set_sub_test(Item_maxmin_subselect *item) { test_sub_item = item; }
   void set_subselect(Item_subselect *item) { subselect = item; }
   table_map not_null_tables() const override {
     /*
@@ -772,7 +772,7 @@ class Item_func_equal final : public Item_bool_rowready_func2 {
 
 class Item_func_ge final : public Item_bool_rowready_func2 {
  public:
-  Item_func_ge(Item *a, Item *b) : Item_bool_rowready_func2(a, b){};
+  Item_func_ge(Item *a, Item *b) : Item_bool_rowready_func2(a, b) {}
   longlong val_int() override;
   enum Functype functype() const override { return GE_FUNC; }
   enum Functype rev_functype() const override { return LE_FUNC; }
@@ -789,7 +789,7 @@ class Item_func_ge final : public Item_bool_rowready_func2 {
 
 class Item_func_gt final : public Item_bool_rowready_func2 {
  public:
-  Item_func_gt(Item *a, Item *b) : Item_bool_rowready_func2(a, b){};
+  Item_func_gt(Item *a, Item *b) : Item_bool_rowready_func2(a, b) {}
   longlong val_int() override;
   enum Functype functype() const override { return GT_FUNC; }
   enum Functype rev_functype() const override { return LT_FUNC; }
@@ -806,7 +806,7 @@ class Item_func_gt final : public Item_bool_rowready_func2 {
 
 class Item_func_le final : public Item_bool_rowready_func2 {
  public:
-  Item_func_le(Item *a, Item *b) : Item_bool_rowready_func2(a, b){};
+  Item_func_le(Item *a, Item *b) : Item_bool_rowready_func2(a, b) {}
   longlong val_int() override;
   enum Functype functype() const override { return LE_FUNC; }
   enum Functype rev_functype() const override { return GE_FUNC; }
@@ -1253,7 +1253,7 @@ class in_longlong : public in_vector {
 class in_datetime_as_longlong final : public in_longlong {
  public:
   in_datetime_as_longlong(THD *thd, uint elements)
-      : in_longlong(thd, elements){};
+      : in_longlong(thd, elements) {}
   Item *create_item() const override {
     return new Item_temporal(MYSQL_TYPE_DATETIME, 0LL);
   }
@@ -1263,7 +1263,7 @@ class in_datetime_as_longlong final : public in_longlong {
 
 class in_time_as_longlong final : public in_longlong {
  public:
-  in_time_as_longlong(THD *thd, uint elements) : in_longlong(thd, elements){};
+  in_time_as_longlong(THD *thd, uint elements) : in_longlong(thd, elements) {}
   Item *create_item() const override {
     return new Item_temporal(MYSQL_TYPE_TIME, 0LL);
   }
@@ -1287,7 +1287,7 @@ class in_datetime final : public in_longlong {
   in_datetime(THD *thd_arg, Item *warn_item_arg, uint elements)
       : in_longlong(thd_arg, elements),
         warn_item(warn_item_arg),
-        lval_cache(0){};
+        lval_cache(0) {}
   void set(uint pos, Item *item) override;
   uchar *get_value(Item *item) override;
 

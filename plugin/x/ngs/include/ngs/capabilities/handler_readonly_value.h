@@ -42,7 +42,7 @@ class Capability_readonly_value : public Capability_handler {
   virtual bool is_supported() const { return true; }
 
   virtual void get(::Mysqlx::Datatypes::Any &any) { any.CopyFrom(m_value); }
-  virtual bool set(const ::Mysqlx::Datatypes::Any &) { return false; };
+  virtual bool set(const ::Mysqlx::Datatypes::Any &) { return false; }
 
   virtual void commit() {}
 

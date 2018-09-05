@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -69,7 +69,7 @@ class Ename_POS {
   unsigned int m_index;
 
  public:
-  ~Ename_POS(){};
+  ~Ename_POS() {}
   Ename_POS() { m_index = 0; }
 
   bool has_more() {
@@ -91,7 +91,7 @@ class Ename_POS {
 
 class Ename_index {
  public:
-  virtual ~Ename_index(){};
+  virtual ~Ename_index() {}
   virtual bool match(Ename_Record *record) = 0;
 };
 

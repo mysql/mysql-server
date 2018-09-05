@@ -1037,11 +1037,11 @@ class Relay_log_info : public Rpl_info {
   /* The general cleanup that slave applier may need at the end of query. */
   inline void cleanup_after_query() {
     if (deferred_events) deferred_events->rewind();
-  };
+  }
   /* The general cleanup that slave applier may need at the end of session. */
   void cleanup_after_session() {
     if (deferred_events) delete deferred_events;
-  };
+  }
 
   /**
     Helper function to do after statement completion.

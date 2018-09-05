@@ -47,7 +47,7 @@ enum class Consumer_type {
 */
 class Rewrite_params {
  protected:
-  virtual ~Rewrite_params(){};
+  virtual ~Rewrite_params() {}
 };
 /**
   Wrapper object for user related paramaters required by:
@@ -56,7 +56,7 @@ class Rewrite_params {
 class User_params : public Rewrite_params {
  public:
   User_params(std::set<LEX_USER *> *users_set)
-      : Rewrite_params(), users(users_set){};
+      : Rewrite_params(), users(users_set) {}
   std::set<LEX_USER *> *users;
 };
 /**
@@ -65,7 +65,7 @@ class User_params : public Rewrite_params {
 class Show_user_params : public Rewrite_params {
  public:
   Show_user_params(bool hide_password_hash)
-      : Rewrite_params(), hide_password_hash(hide_password_hash){};
+      : Rewrite_params(), hide_password_hash(hide_password_hash) {}
   bool hide_password_hash;
 };
 

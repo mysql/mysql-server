@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4359,7 +4359,7 @@ static void BM_FindTicket(size_t num_iterations) {
   mdl_destroy();
 }
 
-BENCHMARK(BM_FindTicket);
+BENCHMARK(BM_FindTicket)
 
 #endif  // defined(DBUG_OFF)
 

@@ -1634,7 +1634,7 @@ class Xid_apply_log_event : public Log_event {
   Xid_apply_log_event(THD *thd_arg, Log_event_header *header_arg,
                       Log_event_footer *footer_arg)
       : Log_event(thd_arg, 0, Log_event::EVENT_TRANSACTIONAL_CACHE,
-                  Log_event::EVENT_NORMAL_LOGGING, header_arg, footer_arg){};
+                  Log_event::EVENT_NORMAL_LOGGING, header_arg, footer_arg) {}
 #endif
   Xid_apply_log_event(Log_event_header *header_arg,
                       Log_event_footer *footer_arg)
@@ -3954,7 +3954,7 @@ class Transaction_context_log_event
   /**
    Return true if transaction has GTID_NEXT specified, false otherwise.
    */
-  bool is_gtid_specified() { return gtid_specified == true; };
+  bool is_gtid_specified() { return gtid_specified == true; }
 };
 
 /**

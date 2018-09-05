@@ -65,7 +65,7 @@ class Field;
 
 namespace histograms {
 class Histogram;
-};
+}
 
 class ACL_internal_schema_access;
 class ACL_internal_table_access;

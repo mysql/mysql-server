@@ -28,9 +28,9 @@ int MY_ATTRIBUTE((visibility("default")))
   return 1;
 }
 
-void Log_resource_mi_wrapper::lock() { mysql_mutex_lock(&mi->data_lock); };
+void Log_resource_mi_wrapper::lock() { mysql_mutex_lock(&mi->data_lock); }
 
-void Log_resource_mi_wrapper::unlock() { mysql_mutex_unlock(&mi->data_lock); };
+void Log_resource_mi_wrapper::unlock() { mysql_mutex_unlock(&mi->data_lock); }
 
 bool Log_resource_mi_wrapper::collect_info() {
   bool error = false;
@@ -56,15 +56,15 @@ bool Log_resource_mi_wrapper::collect_info() {
   if (!error) json_replication->append_clone(&json_channel);
 
   return error;
-};
+}
 
 void Log_resource_binlog_wrapper::lock() {
   mysql_mutex_lock(binlog->get_log_lock());
-};
+}
 
 void Log_resource_binlog_wrapper::unlock() {
   mysql_mutex_unlock(binlog->get_log_lock());
-};
+}
 
 bool Log_resource_binlog_wrapper::collect_info() {
   bool error = false;
@@ -84,11 +84,11 @@ bool Log_resource_binlog_wrapper::collect_info() {
     if (!error) json_local->add_clone("binary_log_position", &json_log_pos);
   }
   return error;
-};
+}
 
-void Log_resource_gtid_state_wrapper::lock() { global_sid_lock->wrlock(); };
+void Log_resource_gtid_state_wrapper::lock() { global_sid_lock->wrlock(); }
 
-void Log_resource_gtid_state_wrapper::unlock() { global_sid_lock->unlock(); };
+void Log_resource_gtid_state_wrapper::unlock() { global_sid_lock->unlock(); }
 
 bool Log_resource_gtid_state_wrapper::collect_info() {
   bool error = false;
@@ -103,15 +103,15 @@ bool Log_resource_gtid_state_wrapper::collect_info() {
   }
   my_free(gtid_executed_string);
   return error;
-};
+}
 
 void Log_resource_hton_wrapper::lock() {
   if (hton->lock_hton_log) hton->lock_hton_log(hton);
-};
+}
 
 void Log_resource_hton_wrapper::unlock() {
   if (hton->unlock_hton_log) hton->unlock_hton_log(hton);
-};
+}
 
 bool Log_resource_hton_wrapper::collect_info() {
   bool result = false;
@@ -119,7 +119,7 @@ bool Log_resource_hton_wrapper::collect_info() {
     result = hton->collect_hton_log_info(hton, get_json());
   }
   return result;
-};
+}
 
 Log_resource *Log_resource_factory::get_wrapper(Master_info *mi,
                                                 Json_dom *json) {

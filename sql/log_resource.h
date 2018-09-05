@@ -71,7 +71,7 @@ class Log_resource {
                         resource log information.
   */
 
-  Log_resource(Json_dom *json_arg) : json(json_arg){};
+  Log_resource(Json_dom *json_arg) : json(json_arg) {}
 
   /**
     Destructor.
@@ -79,7 +79,7 @@ class Log_resource {
     This function will point the JSON object to nullptr.
   */
 
-  virtual ~Log_resource() { json = nullptr; };
+  virtual ~Log_resource() { json = nullptr; }
 
   /**
     Return the pointer to the JSON object that should be used to fill the
@@ -88,7 +88,7 @@ class Log_resource {
     @return  the Json_object pointer to be filled with the log information.
   */
 
-  Json_dom *get_json() { return json; };
+  Json_dom *get_json() { return json; }
 
   /*
     Next three virtual functions need to be overridden by any more specialized
@@ -136,7 +136,7 @@ class Log_resource_mi_wrapper : public Log_resource {
   */
 
   Log_resource_mi_wrapper(Master_info *mi_arg, Json_dom *json_arg)
-      : Log_resource(json_arg), mi(mi_arg){};
+      : Log_resource(json_arg), mi(mi_arg) {}
 
   void lock() override;
   void unlock() override;
@@ -161,7 +161,7 @@ class Log_resource_binlog_wrapper : public Log_resource {
   */
 
   Log_resource_binlog_wrapper(MYSQL_BIN_LOG *binlog_arg, Json_dom *json_arg)
-      : Log_resource(json_arg), binlog(binlog_arg){};
+      : Log_resource(json_arg), binlog(binlog_arg) {}
 
   void lock() override;
   void unlock() override;
@@ -187,7 +187,7 @@ class Log_resource_gtid_state_wrapper : public Log_resource {
 
   Log_resource_gtid_state_wrapper(Gtid_state *gtid_state_arg,
                                   Json_dom *json_arg)
-      : Log_resource(json_arg), gtid_state(gtid_state_arg){};
+      : Log_resource(json_arg), gtid_state(gtid_state_arg) {}
 
   void lock() override;
   void unlock() override;
@@ -212,7 +212,7 @@ class Log_resource_hton_wrapper : public Log_resource {
   */
 
   Log_resource_hton_wrapper(handlerton *hton_arg, Json_dom *json_arg)
-      : Log_resource(json_arg), hton(hton_arg){};
+      : Log_resource(json_arg), hton(hton_arg) {}
 
   void lock() override;
   void unlock() override;

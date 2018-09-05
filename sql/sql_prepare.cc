@@ -211,7 +211,7 @@ class Protocol_local : public Protocol {
   virtual bool connection_alive();
   virtual void start_row();
   virtual bool end_row();
-  virtual void abort_row(){};
+  virtual void abort_row() {}
   virtual uint get_rw_status();
   virtual bool get_compression();
 

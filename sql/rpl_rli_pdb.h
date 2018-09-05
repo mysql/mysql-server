@@ -646,8 +646,8 @@ class Slave_worker : public Relay_log_info {
   static size_t get_number_worker_fields();
   void slave_worker_ends_group(Log_event *, int);
   const char *get_master_log_name();
-  ulonglong get_master_log_pos() { return master_log_pos; };
-  ulonglong set_master_log_pos(ulong val) { return master_log_pos = val; };
+  ulonglong get_master_log_pos() { return master_log_pos; }
+  ulonglong set_master_log_pos(ulong val) { return master_log_pos = val; }
   bool commit_positions(Log_event *evt, Slave_job_group *ptr_g, bool force);
   /**
     The method is a wrapper to provide uniform interface with STS and is
@@ -659,7 +659,7 @@ class Slave_worker : public Relay_log_info {
     return commit_positions(
         current_event, c_rli->gaq->get_job_group(current_event->mts_group_idx),
         is_transactional());
-  };
+  }
   /**
     See the comments for STS version of this method.
   */
@@ -672,7 +672,7 @@ class Slave_worker : public Relay_log_info {
       commit_positions(current_event,
                        c_rli->gaq->get_job_group(current_event->mts_group_idx),
                        true);
-  };
+  }
   /*
     When commit fails clear bitmap for executed worker group. Revert back the
     positions to the old positions that existed before commit using the
@@ -758,10 +758,10 @@ class Slave_worker : public Relay_log_info {
     DBUG_VOID_RETURN;
   }
 
-  inline void reset_gaq_index() { gaq_index = c_rli->gaq->size; };
+  inline void reset_gaq_index() { gaq_index = c_rli->gaq->size; }
   inline void set_gaq_index(ulong val) {
     if (gaq_index == c_rli->gaq->size) gaq_index = val;
-  };
+  }
 
   int slave_worker_exec_event(Log_event *ev);
   bool retry_transaction(uint start_relay_number, my_off_t start_relay_pos,

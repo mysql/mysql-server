@@ -122,7 +122,7 @@ class Gcs_xcom_proxy {
   /**
     The destructor.
   */
-  virtual ~Gcs_xcom_proxy(){};
+  virtual ~Gcs_xcom_proxy() {}
 
   /**
     This is an utility member function that is used to call into XCom for
@@ -743,7 +743,7 @@ class Gcs_xcom_proxy {
 class Gcs_xcom_proxy_base : public Gcs_xcom_proxy {
  public:
   explicit Gcs_xcom_proxy_base() {}
-  virtual ~Gcs_xcom_proxy_base(){};
+  virtual ~Gcs_xcom_proxy_base() {}
 
   int xcom_boot_node(Gcs_xcom_node_information &node, uint32_t group_id_hash);
   int xcom_remove_nodes(Gcs_xcom_nodes &nodes, uint32_t group_id_hash);

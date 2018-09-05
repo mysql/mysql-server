@@ -107,7 +107,7 @@ class HttpRequestThread {
 class HttpServer {
  public:
   HttpServer(const char *address, uint16_t port)
-      : address_(address), port_(port){};
+      : address_(address), port_(port) {}
 
   HttpServer(const HttpServer &) = delete;
   HttpServer &operator=(const HttpServer &) = delete;

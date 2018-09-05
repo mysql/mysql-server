@@ -153,7 +153,7 @@ class View_metadata_updater_error_handler final
         break;
     }
     return is_view_error_handled();
-  };
+  }
 
   bool is_view_invalid() const { return m_sql_errno == ER_VIEW_INVALID; }
 

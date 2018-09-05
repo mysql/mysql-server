@@ -356,7 +356,7 @@ class Histogram {
   const CHARSET_INFO *get_character_set() const { return m_charset; }
 
   /// @return the sampling rate used to generate this histogram
-  double get_sampling_rate() const { return m_sampling_rate; };
+  double get_sampling_rate() const { return m_sampling_rate; }
 
   /**
     Returns the histogram type as a readable string.

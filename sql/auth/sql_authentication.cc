@@ -4171,7 +4171,7 @@ class File_IO {
   File_IO &operator<<(const Sql_string_t &output_string);
 
  protected:
-  File_IO(){};
+  File_IO() {}
   File_IO(const Sql_string_t filename, bool read)
       : m_file_name(filename), m_read(read), m_error_state(false), m_file(-1) {
     file_open();
@@ -4260,7 +4260,7 @@ File_IO &File_IO::operator<<(const Sql_string_t &output_string) {
 */
 class File_creator {
  public:
-  File_creator(){};
+  File_creator() {}
 
   ~File_creator() {
     for (std::vector<File_IO *>::iterator it = m_file_vector.begin();
@@ -4302,9 +4302,9 @@ class File_creator {
 class RSA_gen {
  public:
   RSA_gen(uint32_t key_size = 2048, uint32_t exponent = RSA_F4)
-      : m_key_size(key_size), m_exponent(exponent){};
+      : m_key_size(key_size), m_exponent(exponent) {}
 
-  ~RSA_gen(){};
+  ~RSA_gen() {}
 
   /**
     Passing key type is a violation against the principle of generic

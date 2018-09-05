@@ -470,7 +470,7 @@ class binlog_cache_data {
     return m_cache.open(cache_size, max_cache_size);
   }
 
-  Binlog_cache_storage *get_cache() { return &m_cache; };
+  Binlog_cache_storage *get_cache() { return &m_cache; }
   int finalize(THD *thd, Log_event *end_event);
   int finalize(THD *thd, Log_event *end_event, XID_STATE *xs);
   int flush(THD *thd, my_off_t *bytes, bool *wrote_xid);

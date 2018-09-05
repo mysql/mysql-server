@@ -217,14 +217,14 @@ class QEP_operation {
   */
   QEP_TAB *qep_tab;
 
-  QEP_operation() : qep_tab(NULL){};
-  QEP_operation(QEP_TAB *qep_tab_arg) : qep_tab(qep_tab_arg){};
-  virtual ~QEP_operation(){};
+  QEP_operation() : qep_tab(NULL) {}
+  QEP_operation(QEP_TAB *qep_tab_arg) : qep_tab(qep_tab_arg) {}
+  virtual ~QEP_operation() {}
   virtual enum_op_type type() = 0;
   /**
     Initialize operation's internal state.  Called once per query execution.
   */
-  virtual int init() { return 0; };
+  virtual int init() { return 0; }
   /**
     Put a new record into the operation's buffer
     @return
@@ -238,7 +238,7 @@ class QEP_operation {
   /**
     Internal state cleanup.
   */
-  virtual void mem_free(){};
+  virtual void mem_free() {}
 };
 
 /**
@@ -265,9 +265,9 @@ class QEP_operation {
 class QEP_tmp_table : public QEP_operation {
  public:
   QEP_tmp_table(QEP_TAB *qep_tab_arg)
-      : QEP_operation(qep_tab_arg), write_func(NULL){};
+      : QEP_operation(qep_tab_arg), write_func(NULL) {}
   enum_op_type type() { return OT_TMP_TABLE; }
-  enum_nested_loop_state put_record() { return put_record(false); };
+  enum_nested_loop_state put_record() { return put_record(false); }
   /*
     Send the result of operation further (to a next operation/client)
     This function is called after all records were put into the buffer

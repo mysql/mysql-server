@@ -47,7 +47,7 @@ class Packet {
   */
   Packet(int type) : packet_type(type) {}
 
-  virtual ~Packet(){};
+  virtual ~Packet() {}
 
   /**
    @return the packet type
@@ -424,7 +424,7 @@ class Pipeline_action {
  public:
   Pipeline_action(int action_type) { type = action_type; }
 
-  virtual ~Pipeline_action(){};
+  virtual ~Pipeline_action() {}
 
   /**
     Returns this action type.

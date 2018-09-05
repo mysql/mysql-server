@@ -141,8 +141,8 @@ class Geometry {
 /// Point is an instantiable type in SQL.
 class Point : public Geometry {
  public:
-  Point() : m_x(std::nan("")), m_y(std::nan("")){};
-  Point(double x, double y) : m_x(x), m_y(y){};
+  Point() : m_x(std::nan("")), m_y(std::nan("")) {}
+  Point(double x, double y) : m_x(x), m_y(y) {}
   Geometry_type type() const override { return Geometry_type::kPoint; }
   bool accept(Geometry_visitor *v) override;
   bool is_empty() const override {

@@ -617,7 +617,7 @@ class Settable_routine_parameter {
   */
   Settable_routine_parameter() {}
   virtual ~Settable_routine_parameter() {}
-  virtual void set_required_privilege(bool rw MY_ATTRIBUTE((unused))){};
+  virtual void set_required_privilege(bool rw MY_ATTRIBUTE((unused))) {}
 
   /*
     Set parameter value.
@@ -900,7 +900,7 @@ class Item : public Parse_tree_node {
   */
   virtual void fix_after_pullout(
       SELECT_LEX *parent_select MY_ATTRIBUTE((unused)),
-      SELECT_LEX *removed_select MY_ATTRIBUTE((unused))){};
+      SELECT_LEX *removed_select MY_ATTRIBUTE((unused))) {}
   /*
     should be used in case where we are sure that we do not need
     complete fix_fields() procedure.
@@ -1923,7 +1923,7 @@ class Item : public Parse_tree_node {
   virtual const CHARSET_INFO *charset_for_protocol() const {
     return result_type() == STRING_RESULT ? collation.collation
                                           : &my_charset_bin;
-  };
+  }
 
   /**
     Traverses a tree of Items in prefix and/or postfix order.
@@ -2368,7 +2368,7 @@ class Item : public Parse_tree_node {
   }
   virtual Field::geometry_type get_geometry_type() const {
     return Field::GEOM_GEOMETRY;
-  };
+  }
   String *check_well_formed_result(String *str, bool send_error, bool truncate);
   bool eq_by_collation(Item *item, bool binary_cmp, const CHARSET_INFO *cs);
 
@@ -2527,7 +2527,7 @@ class Item : public Parse_tree_node {
     return false;
   }
   virtual Field *get_orig_field() { return NULL; }
-  virtual void set_orig_field(Field *){};
+  virtual void set_orig_field(Field *) {}
   void set_has_rollup_field() {
     m_has_rollup_field = true;
     return;
@@ -2690,8 +2690,8 @@ class Item_basic_constant : public Item {
   table_map used_table_map;
 
  public:
-  Item_basic_constant() : Item(), used_table_map(0){};
-  explicit Item_basic_constant(const POS &pos) : Item(pos), used_table_map(0){};
+  Item_basic_constant() : Item(), used_table_map(0) {}
+  explicit Item_basic_constant(const POS &pos) : Item(pos), used_table_map(0) {}
 
   /// @todo add implementation of basic_const_item
   ///       and remove from subclasses as appropriate.
@@ -5495,7 +5495,7 @@ class Item_cache : public Item_basic_constant {
       used_table_map = item->used_tables();
     }
     return 0;
-  };
+  }
   enum Type type() const override { return CACHE_ITEM; }
   static Item_cache *get_cache(const Item *item);
   static Item_cache *get_cache(const Item *item, const Item_result type);
@@ -5667,7 +5667,7 @@ class Item_cache_str final : public Item_cache {
     return get_time_from_string(ltime);
   }
   enum Item_result result_type() const override { return STRING_RESULT; }
-  const CHARSET_INFO *charset() const { return value->charset(); };
+  const CHARSET_INFO *charset() const { return value->charset(); }
   bool cache_value() override;
   void store_value(Item *expr, String &s);
 };
@@ -5692,23 +5692,23 @@ class Item_cache_row final : public Item_cache {
   bool setup(Item *item) override;
   void store(Item *item) override;
   void illegal_method_call(const char *) const MY_ATTRIBUTE((cold));
-  void make_field(Send_field *) override { illegal_method_call("make_field"); };
+  void make_field(Send_field *) override { illegal_method_call("make_field"); }
   double val_real() override {
     illegal_method_call("val_real");
     return 0;
-  };
+  }
   longlong val_int() override {
     illegal_method_call("val_int");
     return 0;
-  };
+  }
   String *val_str(String *) override {
     illegal_method_call("val_str");
     return 0;
-  };
+  }
   my_decimal *val_decimal(my_decimal *) override {
     illegal_method_call("val_decimal");
     return 0;
-  };
+  }
   bool get_date(MYSQL_TIME *, my_time_flags_t) override {
     illegal_method_call("get_date");
     return true;
@@ -5834,7 +5834,7 @@ class Item_type_holder final : public Item {
   static enum_field_types real_data_type(Item *);
   Field::geometry_type get_geometry_type() const override {
     return geometry_type;
-  };
+  }
   void make_field(Send_field *field) override {
     Item::make_field(field);
     // Item_type_holder is used for unions and effectively sends Fields

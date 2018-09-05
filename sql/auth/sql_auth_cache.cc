@@ -3537,7 +3537,7 @@ class Release_acl_cache_locks : public MDL_release_locks_visitor {
 Acl_cache_lock_guard::Acl_cache_lock_guard(THD *thd, Acl_cache_lock_mode mode)
     : m_thd(thd), m_mode(mode), m_locked(false) {
   DBUG_ASSERT(thd);
-};
+}
 
 /**
   Explicitly take lock on Acl_cache_lock_cache object.

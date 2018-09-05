@@ -41,7 +41,7 @@ namespace gcs_parameters_unittest {
 
 class GcsNodeAddressTest : public GcsBaseTest {
  protected:
-  GcsNodeAddressTest(){};
+  GcsNodeAddressTest() {}
 
   static void SetUpTestCase() { My_xp_util::init_time(); }
 };
@@ -125,7 +125,7 @@ TEST_F(GcsNodeAddressTest, TestNodeAddress) {
 
 class GcsUUIDTest : public GcsBaseTest {
  protected:
-  GcsUUIDTest(){};
+  GcsUUIDTest() {}
 
   static void SetUpTestCase() { My_xp_util::init_time(); }
 };
@@ -175,7 +175,7 @@ TEST_F(GcsUUIDTest, TestGcsUUID) {
 
 class GcsNodeInformationTest : public GcsBaseTest {
  protected:
-  GcsNodeInformationTest(){};
+  GcsNodeInformationTest() {}
 
   static void SetUpTestCase() { My_xp_util::init_time(); }
 };
@@ -262,7 +262,7 @@ TEST_F(GcsNodeInformationTest, TestGcsNodeInformation) {
 
 class GcsNodesTest : public GcsBaseTest {
  protected:
-  GcsNodesTest(){};
+  GcsNodesTest() {}
 
   static void SetUpTestCase() { My_xp_util::init_time(); }
 };

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -285,7 +285,7 @@ class Query_result_subquery : public Query_result_interceptor {
   Query_result_subquery(THD *thd, Item_subselect *item_arg)
       : Query_result_interceptor(thd), item(item_arg) {}
   bool send_data(List<Item> &items) override = 0;
-  bool send_eof() override { return false; };
+  bool send_eof() override { return false; }
 };
 
 #endif  // QUERY_RESULT_INCLUDED

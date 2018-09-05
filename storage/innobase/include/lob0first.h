@@ -437,6 +437,6 @@ struct first_page_t : public basic_page_t {
   }
 };
 
-}; /* namespace lob */
+} /* namespace lob */
 
 #endif /* lob0first_h */

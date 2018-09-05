@@ -1077,7 +1077,7 @@ class Item_func_charset final : public Item_str_func {
     set_data_type_string(64U, system_charset_info);
     maybe_null = false;
     return false;
-  };
+  }
 };
 
 class Item_func_collation : public Item_str_func {
@@ -1091,7 +1091,7 @@ class Item_func_collation : public Item_str_func {
     set_data_type_string(64U, system_charset_info);
     maybe_null = false;
     return false;
-  };
+  }
 };
 
 class Item_func_weight_string final : public Item_str_func {

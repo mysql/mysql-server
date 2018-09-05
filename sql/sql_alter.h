@@ -437,12 +437,12 @@ class Alter_table_ctx {
   /**
      @return true if the table is moved to another database, false otherwise.
   */
-  bool is_database_changed() const { return (new_db != db); };
+  bool is_database_changed() const { return (new_db != db); }
 
   /**
      @return true if the table name is changed, false otherwise.
   */
-  bool is_table_name_changed() const { return (new_name != table_name); };
+  bool is_table_name_changed() const { return (new_name != table_name); }
 
   /**
      @return true if the table is renamed (i.e. its name or database changed),
@@ -450,7 +450,7 @@ class Alter_table_ctx {
   */
   bool is_table_renamed() const {
     return is_database_changed() || is_table_name_changed();
-  };
+  }
 
   /**
      @return path to the original table.

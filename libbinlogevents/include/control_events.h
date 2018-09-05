@@ -383,7 +383,7 @@ class Stop_event : public Binary_log_event {
   Stop_event(const char *buf, const Format_description_event *fde);
 
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream &){};
+  void print_event_info(std::ostream &) {}
   void print_long_info(std::ostream &info);
 #endif
 };
@@ -618,8 +618,8 @@ class XA_prepare_event : public Binary_log_event {
     todo: we need to find way how to exploit server's code of
     serialize_xid()
   */
-  void print_event_info(std::ostream &){};
-  void print_long_info(std::ostream &){};
+  void print_event_info(std::ostream &) {}
+  void print_long_info(std::ostream &) {}
 #endif
 };
 

@@ -2,7 +2,7 @@
 #define TZTIME_INCLUDED
 
 #include "my_config.h"
-/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -83,7 +83,7 @@ class Time_zone {
     We need this only for surpressing warnings, objects of this type are
     allocated on MEM_ROOT and should not require destruction.
   */
-  virtual ~Time_zone(){};
+  virtual ~Time_zone() {}
 
  protected:
   static inline void adjust_leap_second(MYSQL_TIME *t);

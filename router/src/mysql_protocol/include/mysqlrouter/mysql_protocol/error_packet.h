@@ -46,7 +46,7 @@ class MYSQL_PROTOCOL_API ErrorPacket final : public Packet {
   ErrorPacket()
       : Packet(0), code_(1105), message_("Unknown error"), sql_state_("HY000") {
     prepare_packet();
-  };
+  }
 
   /** @overload
    *

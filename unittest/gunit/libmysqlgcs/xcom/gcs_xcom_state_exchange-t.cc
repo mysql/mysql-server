@@ -78,7 +78,7 @@ class mock_gcs_xcom_communication_interface
 
 class XComStateExchangeTest : public GcsBaseTest {
  protected:
-  XComStateExchangeTest(){};
+  XComStateExchangeTest() {}
 
   virtual void SetUp() {
     control_mock = new mock_gcs_control_interface();

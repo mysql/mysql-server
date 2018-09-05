@@ -484,7 +484,7 @@ class Item_nodeset_to_const_comparator final : public Item_bool_func {
   Item_nodeset_to_const_comparator(Item *nodeset, Item *cmpfunc,
                                    const ParsedXML *p)
       : Item_bool_func(nodeset, cmpfunc), pxml(p) {}
-  enum Type type() const override { return XPATH_NODESET_CMP; };
+  enum Type type() const override { return XPATH_NODESET_CMP; }
   const char *func_name() const override {
     return "xpath_nodeset_to_const_comparator";
   }

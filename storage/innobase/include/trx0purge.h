@@ -356,7 +356,7 @@ struct Tablespace {
       UT_DELETE(m_rsegs);
       m_rsegs = nullptr;
     }
-  };
+  }
 
   /* Determine if this undo space needs to be truncated.
   @return true if it should be truncated, false if not. */

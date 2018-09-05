@@ -224,7 +224,7 @@ class Disable_slave_info_update_guard {
                  ->has_ddl_committed;
     static_cast<Query_log_event *>(m_rli->current_event)->has_ddl_committed =
         true;
-  };
+  }
 
   ~Disable_slave_info_update_guard() {
     if (m_rli) {

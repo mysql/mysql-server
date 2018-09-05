@@ -45,6 +45,6 @@ inline void Allocator_helper::set_allocator_max_ram(ulonglong max_ram) {
   temptable_max_ram = max_ram;
 }
 
-};  // namespace temptable_test
+}  // namespace temptable_test
 
 #endif /* TEMPTABLE_UNITTEST_ALLOCATOR_HELPER_H */

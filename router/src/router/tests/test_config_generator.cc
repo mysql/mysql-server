@@ -2890,7 +2890,7 @@ class TestConfigGenerator : public ConfigGenerator {
   // we disable this method by overriding - calling it requires sudo access
   void set_script_permissions(
       const std::string &,
-      const std::map<std::string, std::string> &) override{};
+      const std::map<std::string, std::string> &) override {}
 };
 
 // TODO This is very ugly, it should not be a global. It's defined in

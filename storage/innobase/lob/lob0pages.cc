@@ -219,4 +219,4 @@ ulint data_page_t::read(ulint offset, byte *ptr, ulint want) {
   DBUG_RETURN(copy_len);
 }
 
-};  // namespace lob
+}  // namespace lob

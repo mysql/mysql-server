@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,7 @@ class Table;
 
 namespace tables {
 class Foreign_keys;
-};
+}
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -65,7 +65,7 @@ class Foreign_key : virtual public Entity_object {
   };
 
  public:
-  virtual ~Foreign_key(){};
+  virtual ~Foreign_key() {}
 
   /////////////////////////////////////////////////////////////////////////
   // parent table.
@@ -185,7 +185,7 @@ class Foreign_key_parent {
         m_child_table_name(),
         m_fk_name(),
         m_update_rule(Foreign_key::enum_rule::RULE_NO_ACTION),
-        m_delete_rule(Foreign_key::enum_rule::RULE_NO_ACTION){};
+        m_delete_rule(Foreign_key::enum_rule::RULE_NO_ACTION) {}
 
   const String_type &child_schema_name() const { return m_child_schema_name; }
 

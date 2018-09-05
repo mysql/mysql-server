@@ -159,7 +159,7 @@ class Parse_tree_root {
   void operator=(const Parse_tree_root &) = delete;
 
  protected:
-  virtual ~Parse_tree_root(){};
+  virtual ~Parse_tree_root() {}
   Parse_tree_root() {}
 
  public:
@@ -1692,7 +1692,7 @@ class PT_frame : public Parse_tree_node {
       : m_unit(unit),
         m_from(from_to->m_borders[0]),
         m_to(from_to->m_borders[1]),
-        m_exclusion(exclusion){};
+        m_exclusion(exclusion) {}
 };
 
 /**
@@ -3113,7 +3113,7 @@ class PT_create_table_secondary_engine_option : public PT_create_table_option {
   using super = PT_create_table_option;
 
  public:
-  explicit PT_create_table_secondary_engine_option(){};
+  explicit PT_create_table_secondary_engine_option() {}
   explicit PT_create_table_secondary_engine_option(
       const LEX_STRING &secondary_engine)
       : m_secondary_engine(secondary_engine) {}

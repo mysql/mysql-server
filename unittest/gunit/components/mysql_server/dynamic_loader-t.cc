@@ -284,7 +284,7 @@ class dynamic_loader : public ::testing::Test {
   SERVICE_TYPE(dynamic_loader) * loader;
 };
 
-TEST_F(dynamic_loader, bootstrap) { ASSERT_TRUE(loader != NULL); };
+TEST_F(dynamic_loader, bootstrap) { ASSERT_TRUE(loader != NULL); }
 
 TEST_F(dynamic_loader, try_load_component) {
   static const char *urns[] = {"file://component_example_component1"};

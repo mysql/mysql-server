@@ -54,7 +54,7 @@ class Sasl_plain_auth : public ngs::Authentication_interface {
   std::string get_auth_name() const { return "PLAIN"; }
   ngs::Authentication_info get_authentication_info() const override {
     return m_auth_info;
-  };
+  }
 
  private:
   Account_verification_handler_ptr m_verification_handler;

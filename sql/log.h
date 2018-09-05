@@ -537,7 +537,7 @@ class Log_throttle {
     will want to print a summary (if the logging of any lines was suppressed),
     and start a new window.)
   */
-  bool in_window(ulonglong now) const { return (now < window_end); };
+  bool in_window(ulonglong now) const { return (now < window_end); }
 
   /**
     Prepare a summary of suppressed lines for logging.

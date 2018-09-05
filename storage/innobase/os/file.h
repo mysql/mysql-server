@@ -85,7 +85,7 @@ struct Compression {
   };
 
   /** Default constructor */
-  Compression() : m_type(NONE){};
+  Compression() : m_type(NONE) {}
 
   /** Specific constructor
   @param[in]	type		Algorithm type */

@@ -39,7 +39,7 @@ class Mock_Logger : public Logger_interface {
 
 class LoggingInfrastructureTest : public GcsBaseTestNoLogging {
  protected:
-  LoggingInfrastructureTest() : logger(NULL){};
+  LoggingInfrastructureTest() : logger(NULL) {}
 
   virtual void SetUp() { logger = new Mock_Logger(); }
 
@@ -85,7 +85,7 @@ TEST_F(LoggingInfrastructureTest, InjectedMockLoggerTest) {
 class DebuggingInfrastructureTest : public GcsBaseTestNoLogging {
  protected:
   DebuggingInfrastructureTest()
-      : debugger(NULL), sink(NULL), saved_options(GCS_DEBUG_NONE){};
+      : debugger(NULL), sink(NULL), saved_options(GCS_DEBUG_NONE) {}
 
   virtual void SetUp() {
     sink = new Gcs_async_buffer(new Gcs_output_sink());

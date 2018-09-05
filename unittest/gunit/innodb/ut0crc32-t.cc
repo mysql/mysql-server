@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1486,7 +1486,7 @@ static void BM_CRC32(size_t num_iterations) {
   EXPECT_NE(0U, sum);  // To keep the compiler from optimizing it away.
   SetBytesProcessed(num_iterations * sizeof(page));
 }
-BENCHMARK(BM_CRC32);
+BENCHMARK(BM_CRC32)
 
 static void BM_BigEndianCRC32(size_t num_iterations) {
   StopBenchmarkTiming();
@@ -1502,6 +1502,6 @@ static void BM_BigEndianCRC32(size_t num_iterations) {
   EXPECT_NE(0U, sum);  // To keep the compiler from optimizing it away.
   SetBytesProcessed(num_iterations * sizeof(page));
 }
-BENCHMARK(BM_BigEndianCRC32);
+BENCHMARK(BM_BigEndianCRC32)
 
 }  // namespace innodb_ut0crc32_unittest

@@ -2339,7 +2339,7 @@ class Mysqlbinlog_event_data_istream : public Binlog_event_data_istream {
            rewrite_db(buffer, length);
   }
 
-  void set_multi_binlog_magic() { m_multi_binlog_magic = true; };
+  void set_multi_binlog_magic() { m_multi_binlog_magic = true; }
 
  private:
   bool m_multi_binlog_magic = false;
@@ -2404,7 +2404,7 @@ class Stdin_binlog_istream : public Basic_seekable_istream,
   my_off_t length() override {
     DBUG_ASSERT(0);
     return 0;
-  };
+  }
   /* purecov: end */
 
  private:

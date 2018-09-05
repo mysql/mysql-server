@@ -572,7 +572,7 @@ class Item_sum : public Item_result_field {
   inline bool reset_and_add() {
     aggregator_clear();
     return aggregator_add();
-  };
+  }
 
   /*
     Called when new group is started and results are being saved in
@@ -647,7 +647,7 @@ class Item_sum : public Item_result_field {
     Called to initialize the aggregator.
   */
 
-  inline bool aggregator_setup(THD *thd) { return aggr->setup(thd); };
+  inline bool aggregator_setup(THD *thd) { return aggr->setup(thd); }
 
   /**
     Called to cleanup the aggregator.
@@ -659,7 +659,7 @@ class Item_sum : public Item_result_field {
     Called to add value to the aggregator.
   */
 
-  inline bool aggregator_add() { return aggr->add(); };
+  inline bool aggregator_add() { return aggr->add(); }
 
   /* stores the declared DISTINCT flag (from the parser) */
   void set_distinct(bool distinct) {
@@ -884,7 +884,7 @@ class Aggregator_simple : public Aggregator {
   bool setup(THD *thd) override { return item_sum->setup(thd); }
   void clear() override { item_sum->clear(); }
   bool add() override { return item_sum->add(); }
-  void endup() override{};
+  void endup() override {}
   my_decimal *arg_val_decimal(my_decimal *value) override;
   double arg_val_real() override;
   bool arg_is_null(bool use_null_value) override;
@@ -1863,8 +1863,8 @@ class Item_udf_sum : public Item_sum {
 
   void clear() override;
   bool add() override;
-  void reset_field() override{};
-  void update_field() override{};
+  void reset_field() override {}
+  void update_field() override {}
   void cleanup() override;
   void print(String *str, enum_query_type query_type) override;
 };
@@ -2258,7 +2258,7 @@ class Item_cume_dist : public Item_non_framing_wf {
                           Window::Evaluation_requirements *reqs) override;
 
   bool needs_card() const override { return true; }
-  void clear() override{};
+  void clear() override {}
   longlong val_int() override;
   double val_real() override;
   String *val_str(String *) override;

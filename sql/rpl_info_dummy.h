@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,7 @@ class Server_ids;
 class Rpl_info_dummy : public Rpl_info_handler {
  public:
   Rpl_info_dummy(const int nparam);
-  virtual ~Rpl_info_dummy(){};
+  virtual ~Rpl_info_dummy() {}
 
  private:
   int do_init_info();

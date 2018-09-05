@@ -89,26 +89,26 @@ class Item_row : public Item {
 
   bool itemize(Parse_context *pc, Item **res) override;
 
-  enum Type type() const override { return ROW_ITEM; };
+  enum Type type() const override { return ROW_ITEM; }
   void illegal_method_call(const char *) const MY_ATTRIBUTE((cold));
   bool is_null() override { return null_value; }
-  void make_field(Send_field *) override { illegal_method_call("make_field"); };
+  void make_field(Send_field *) override { illegal_method_call("make_field"); }
   double val_real() override {
     illegal_method_call("val_real");
     return 0;
-  };
+  }
   longlong val_int() override {
     illegal_method_call("val_int");
     return 0;
-  };
+  }
   String *val_str(String *) override {
     illegal_method_call("val_str");
     return 0;
-  };
+  }
   my_decimal *val_decimal(my_decimal *) override {
     illegal_method_call("val_decimal");
     return 0;
-  };
+  }
   bool get_date(MYSQL_TIME *, my_time_flags_t) override {
     illegal_method_call("get_date");
     return true;
@@ -124,7 +124,7 @@ class Item_row : public Item {
   void cleanup() override;
   void split_sum_func(THD *thd, Ref_item_array ref_item_array,
                       List<Item> &fields) override;
-  table_map used_tables() const override { return used_tables_cache; };
+  table_map used_tables() const override { return used_tables_cache; }
   enum Item_result result_type() const override { return ROW_RESULT; }
   void update_used_tables() override;
   table_map not_null_tables() const override { return not_null_tables_cache; }
@@ -137,7 +137,7 @@ class Item_row : public Item {
   Item *element_index(uint i) override { return items[i]; }
   Item **addr(uint i) override { return items + i; }
   bool check_cols(uint c) override;
-  bool null_inside() override { return with_null; };
+  bool null_inside() override { return with_null; }
   void bring_value() override;
   bool check_function_as_value_generator(uchar *) override { return false; }
 };

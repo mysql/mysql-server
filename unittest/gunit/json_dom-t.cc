@@ -1281,7 +1281,7 @@ static void benchmark_dom_seek(size_t num_iterations, const Json_path &path,
 static void BM_JsonDomSearchEllipsis(size_t num_iterations) {
   benchmark_dom_seek(num_iterations, parse_path("$**.\"432\""), false, 1);
 }
-BENCHMARK(BM_JsonDomSearchEllipsis);
+BENCHMARK(BM_JsonDomSearchEllipsis)
 
 /**
   Microbenchmark which tests how fast a lookup with an ellipsis is in
@@ -1290,7 +1290,7 @@ BENCHMARK(BM_JsonDomSearchEllipsis);
 static void BM_JsonDomSearchEllipsis_OnlyOne(size_t num_iterations) {
   benchmark_dom_seek(num_iterations, parse_path("$**.\"432\""), true, 1);
 }
-BENCHMARK(BM_JsonDomSearchEllipsis_OnlyOne);
+BENCHMARK(BM_JsonDomSearchEllipsis_OnlyOne)
 
 /**
   Microbenchmark which tests how fast a lookup of a JSON object member
@@ -1299,7 +1299,7 @@ BENCHMARK(BM_JsonDomSearchEllipsis_OnlyOne);
 static void BM_JsonDomSearchKey(size_t num_iterations) {
   benchmark_dom_seek(num_iterations, parse_path("$.\"432\""), false, 1);
 }
-BENCHMARK(BM_JsonDomSearchKey);
+BENCHMARK(BM_JsonDomSearchKey)
 
 /**
   Run a microbenchmarks that tests how fast Json_wrapper::seek() is on
@@ -1347,7 +1347,7 @@ static void benchmark_binary_seek(size_t num_iterations, const Json_path &path,
 static void BM_JsonBinarySearchEllipsis(size_t num_iterations) {
   benchmark_binary_seek(num_iterations, parse_path("$**.\"432\""), false, 1);
 }
-BENCHMARK(BM_JsonBinarySearchEllipsis);
+BENCHMARK(BM_JsonBinarySearchEllipsis)
 
 /**
   Microbenchmark which tests how fast a lookup with an ellipsis is in
@@ -1357,7 +1357,7 @@ BENCHMARK(BM_JsonBinarySearchEllipsis);
 static void BM_JsonBinarySearchEllipsis_OnlyOne(size_t num_iterations) {
   benchmark_binary_seek(num_iterations, parse_path("$**.\"432\""), true, 1);
 }
-BENCHMARK(BM_JsonBinarySearchEllipsis_OnlyOne);
+BENCHMARK(BM_JsonBinarySearchEllipsis_OnlyOne)
 
 /**
   Microbenchmark which tests how fast a lookup of a JSON object member
@@ -1366,7 +1366,7 @@ BENCHMARK(BM_JsonBinarySearchEllipsis_OnlyOne);
 static void BM_JsonBinarySearchKey(size_t num_iterations) {
   benchmark_binary_seek(num_iterations, parse_path("$.\"432\""), false, 1);
 }
-BENCHMARK(BM_JsonBinarySearchKey);
+BENCHMARK(BM_JsonBinarySearchKey)
 
 /**
   Microbenchmark which tests the performance of
@@ -1395,7 +1395,7 @@ static void BM_JsonStringToString_Plain(size_t num_iterations) {
 
   initializer.TearDown();
 }
-BENCHMARK(BM_JsonStringToString_Plain);
+BENCHMARK(BM_JsonStringToString_Plain)
 
 /**
   Microbenchmark which tests the performance of
@@ -1423,7 +1423,7 @@ static void BM_JsonStringToString_SpecialChars(size_t num_iterations) {
 
   initializer.TearDown();
 }
-BENCHMARK(BM_JsonStringToString_SpecialChars);
+BENCHMARK(BM_JsonStringToString_SpecialChars)
 
 /**
   Microbenchmark which tests the performance of
@@ -1453,6 +1453,6 @@ static void BM_JsonObjectToString(size_t num_iterations) {
 
   initializer.TearDown();
 }
-BENCHMARK(BM_JsonObjectToString);
+BENCHMARK(BM_JsonObjectToString)
 
 }  // namespace json_dom_unittest

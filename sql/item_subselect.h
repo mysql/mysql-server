@@ -647,7 +647,7 @@ class subselect_engine {
         res_type(STRING_RESULT),
         res_field_type(MYSQL_TYPE_VAR_STRING),
         maybe_null(false) {}
-  virtual ~subselect_engine(){};  // to satisfy compiler
+  virtual ~subselect_engine() {}  // to satisfy compiler
   /**
     Cleanup engine after complete query execution, free all resources.
   */
@@ -784,7 +784,7 @@ class subselect_indexsubquery_engine : public subselect_engine {
       : subselect_engine(subs, 0),
         tab(tab_arg),
         cond(where),
-        having(having_arg){};
+        having(having_arg) {}
   bool exec() override;
   void print(String *str, enum_query_type query_type) override;
   enum_engine_type engine_type() const override { return INDEXSUBQUERY_ENGINE; }

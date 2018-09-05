@@ -924,7 +924,7 @@ bool Table_function_json::print(String *str, enum_query_type query_type) {
           str->append(')'));
 }
 
-table_map Table_function_json::used_tables() { return source->used_tables(); };
+table_map Table_function_json::used_tables() { return source->used_tables(); }
 
 void Table_function_json::do_cleanup() {
   source->cleanup();

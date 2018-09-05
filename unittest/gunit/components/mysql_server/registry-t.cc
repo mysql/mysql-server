@@ -276,7 +276,7 @@ class registry : public ::testing::Test {
   SERVICE_TYPE(registry) * reg;
 };
 
-TEST_F(registry, bootstrap) { ASSERT_TRUE(reg != NULL); };
+TEST_F(registry, bootstrap) { ASSERT_TRUE(reg != NULL); }
 
 TEST_F(registry, basic_operations) {
   my_h_service hreg, hreg2;

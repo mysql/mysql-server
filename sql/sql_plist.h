@@ -1,6 +1,6 @@
 #ifndef SQL_PLIST_H
 #define SQL_PLIST_H
-/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -80,7 +80,7 @@ class I_P_List : public C, public I {
     is a bad idea.
   */
  public:
-  I_P_List() : I(&m_first), m_first(NULL){};
+  I_P_List() : I(&m_first), m_first(NULL) {}
   inline void empty() {
     m_first = NULL;
     C::reset();
@@ -240,7 +240,7 @@ class I_P_List_counter {
 template <typename T>
 class I_P_List_no_push_back {
  protected:
-  I_P_List_no_push_back(T **){};
+  I_P_List_no_push_back(T **) {}
   void set_last(T **) {}
   /*
     T** get_last() const method is intentionally left unimplemented
@@ -260,7 +260,7 @@ class I_P_List_fast_push_back {
   T **m_last;
 
  protected:
-  I_P_List_fast_push_back(T **a) : m_last(a){};
+  I_P_List_fast_push_back(T **a) : m_last(a) {}
   void set_last(T **a) { m_last = a; }
   T **get_last() const { return m_last; }
   void swap(I_P_List_fast_push_back<T> &rhs) { std::swap(m_last, rhs.m_last); }

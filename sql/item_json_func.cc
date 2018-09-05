@@ -930,7 +930,7 @@ bool Item_func_json_type::resolve_type(THD *) {
   m_value.set_charset(&my_charset_utf8mb4_bin);
   set_data_type_string(typelit_max_length, &my_charset_utf8mb4_bin);
   return false;
-};
+}
 
 /**
    Compute an index into json_type_string_map

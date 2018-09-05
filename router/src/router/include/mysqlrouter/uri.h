@@ -92,7 +92,7 @@ class URI {
     if (!uri.empty()) {
       init_from_uri(uri);
     }
-  };
+  }
 
   bool operator==(const URI &u2) const;
   bool operator!=(const URI &u2) const;
@@ -101,7 +101,7 @@ class URI {
   std::string str() const;
 
   /** @brief overload */
-  URI() : URI(""){};
+  URI() : URI("") {}
 
   /** @brief Sets URI using the given URI string
    *

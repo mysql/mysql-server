@@ -1181,7 +1181,7 @@ static bool fill_dd_foreign_keys_from_create_fields(
   }
 
   DBUG_RETURN(false);
-};
+}
 
 /**
   Set dd::Tablespace object id for dd::Table and dd::Partition

@@ -518,4 +518,4 @@ void z_first_page_t::import(trx_id_t trx_id) {
   }
 }
 
-}; /* namespace lob */
+} /* namespace lob */

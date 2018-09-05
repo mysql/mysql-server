@@ -724,4 +724,4 @@ dberr_t apply_undolog(mtr_t *mtr, trx_t *trx, dict_index_t *index, ref_t ref,
   DBUG_RETURN(DB_SUCCESS);
 }
 
-};  // namespace lob
+}  // namespace lob

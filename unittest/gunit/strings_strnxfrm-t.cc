@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -549,7 +549,7 @@ static void BM_SimpleUTF8(size_t num_iterations) {
   }
   StopBenchmarkTiming();
 }
-BENCHMARK(BM_SimpleUTF8);
+BENCHMARK(BM_SimpleUTF8)
 
 // Verifies using my_charpos to find the length of a string.
 // hp_hash.c does this extensively. Not really a strnxfrm benchmark,
@@ -577,7 +577,7 @@ static void BM_UTF8MB4StringLength(size_t num_iterations) {
   EXPECT_NE(0, tot_len);
   SetBytesProcessed(num_iterations * strlen(content));
 }
-BENCHMARK(BM_UTF8MB4StringLength);
+BENCHMARK(BM_UTF8MB4StringLength)
 
 // Benchmark testing the default recommended collation for 8.0, without
 // stressing padding as much, but still testing only Latin letters.
@@ -649,7 +649,7 @@ static void BM_SimpleUTF8MB4(size_t num_iterations) {
 
   SetBytesProcessed(num_iterations * strlen(content));
 }
-BENCHMARK(BM_SimpleUTF8MB4);
+BENCHMARK(BM_SimpleUTF8MB4)
 
 // Benchmark testing a wider variety of character sets on a more complicated
 // collation (the recommended default collation for 8.0), without stressing
@@ -698,7 +698,7 @@ static void BM_MixedUTF8MB4(size_t num_iterations) {
   expect_arrays_equal(expected, dest, sizeof(dest));
   SetBytesProcessed(num_iterations * strlen(content));
 }
-BENCHMARK(BM_MixedUTF8MB4);
+BENCHMARK(BM_MixedUTF8MB4)
 
 static void BM_MixedUTF8MB4_AS_CI(size_t num_iterations) {
   StopBenchmarkTiming();
@@ -760,7 +760,7 @@ static void BM_MixedUTF8MB4_AS_CI(size_t num_iterations) {
   expect_arrays_equal(expected, dest, sizeof(dest));
   SetBytesProcessed(num_iterations * strlen(content));
 }
-BENCHMARK(BM_MixedUTF8MB4_AS_CI);
+BENCHMARK(BM_MixedUTF8MB4_AS_CI)
 
 // Case-sensitive, accent-sensitive benchmark, using the same string as
 // BM_SimpleUTF8MB4. This will naturally be slower, since many more weights
@@ -1386,7 +1386,7 @@ static void BM_MixedUTF8MB4_AS_CS(size_t num_iterations) {
   expect_arrays_equal(expected, dest, ret);
   SetBytesProcessed(num_iterations * strlen(content));
 }
-BENCHMARK(BM_MixedUTF8MB4_AS_CS);
+BENCHMARK(BM_MixedUTF8MB4_AS_CS)
 
 // Specifically benchmark Japanese text.
 static void BM_JapaneseUTF8MB4(size_t num_iterations) {
@@ -1430,7 +1430,7 @@ static void BM_JapaneseUTF8MB4(size_t num_iterations) {
   expect_arrays_equal(expected, dest, sizeof(dest));
   SetBytesProcessed(num_iterations * strlen(content));
 }
-BENCHMARK(BM_JapaneseUTF8MB4);
+BENCHMARK(BM_JapaneseUTF8MB4)
 
 /*
   A benchmark that illustrates the potential perils of not including the
@@ -1485,7 +1485,7 @@ static void BM_NewlineFilledUTF8MB4(size_t num_iterations) {
   expect_arrays_equal(expected, dest, sizeof(dest));
   SetBytesProcessed(num_iterations * strlen(content));
 }
-BENCHMARK(BM_NewlineFilledUTF8MB4);
+BENCHMARK(BM_NewlineFilledUTF8MB4)
 
 static void BM_HashSimpleUTF8MB4(size_t num_iterations) {
   StopBenchmarkTiming();
@@ -1516,7 +1516,7 @@ static void BM_HashSimpleUTF8MB4(size_t num_iterations) {
   */
   EXPECT_FALSE(nr1 == 0 && nr2 == 0);
 }
-BENCHMARK(BM_HashSimpleUTF8MB4);
+BENCHMARK(BM_HashSimpleUTF8MB4)
 
 /*
   Test a non-trivial collation with contractions, to highlight
@@ -1607,7 +1607,7 @@ static void BM_Hungarian_AS_CS(size_t num_iterations) {
 
   SetBytesProcessed(num_iterations * strlen(content));
 }
-BENCHMARK(BM_Hungarian_AS_CS);
+BENCHMARK(BM_Hungarian_AS_CS)
 
 static void BM_Japanese_AS_CS(size_t num_iterations) {
   StopBenchmarkTiming();
@@ -1695,7 +1695,7 @@ static void BM_Japanese_AS_CS(size_t num_iterations) {
   expect_arrays_equal(expected, dest, sizeof(dest));
   SetBytesProcessed(num_iterations * strlen(content));
 }
-BENCHMARK(BM_Japanese_AS_CS);
+BENCHMARK(BM_Japanese_AS_CS)
 
 static void BM_Japanese_AS_CS_KS(size_t num_iterations) {
   StopBenchmarkTiming();
@@ -1796,7 +1796,7 @@ static void BM_Japanese_AS_CS_KS(size_t num_iterations) {
   expect_arrays_equal(expected, dest, sizeof(dest));
   SetBytesProcessed(num_iterations * strlen(content));
 }
-BENCHMARK(BM_Japanese_AS_CS_KS);
+BENCHMARK(BM_Japanese_AS_CS_KS)
 
 // The classic MySQL latin1 collation, for reference.
 static void BM_Latin1_CI(size_t num_iterations) {
@@ -1847,7 +1847,7 @@ static void BM_Latin1_CI(size_t num_iterations) {
 
   SetBytesProcessed(num_iterations * strlen(content));
 }
-BENCHMARK(BM_Latin1_CI);
+BENCHMARK(BM_Latin1_CI)
 
 // Since the UCA collations are NO PAD, strnncollsp should heed spaces.
 TEST(PadCollationTest, BasicTest) {

@@ -279,7 +279,7 @@ class Opt_hints {
       opt_hints_enum type MY_ATTRIBUTE((unused))) {
     DBUG_ASSERT(0);
     return NULL; /* error C4716: must return a value */
-  };
+  }
 
   /**
     Find hint among lower-level hint objects.

@@ -44,7 +44,7 @@ class Properties;
 
 namespace tables {
 class Columns;
-};
+}
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -101,7 +101,7 @@ class Column : virtual public Entity_object {
     HT_HIDDEN_SQL = 3
   };
 
-  virtual ~Column(){};
+  virtual ~Column() {}
 
   /////////////////////////////////////////////////////////////////////////
   // Table.

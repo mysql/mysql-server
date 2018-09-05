@@ -618,7 +618,7 @@ class Value_generator {
         permanent_changes_completed(false) {
     expr_str.str = NULL;
     expr_str.length = 0;
-  };
+  }
   ~Value_generator() {}
   enum_field_types get_real_type() const { return field_type; }
 
@@ -1126,7 +1126,7 @@ class Field : public Proto_field {
      @return Maximum data length of the field when packed using the
      Field::pack() function.
    */
-  virtual uint32 max_data_length() const { return pack_length(); };
+  virtual uint32 max_data_length() const { return pack_length(); }
 
   virtual type_conversion_status reset() {
     memset(ptr, 0, pack_length());
@@ -1229,7 +1229,7 @@ class Field : public Proto_field {
   virtual int cmp_offset(uint row_offset) { return cmp(ptr, ptr + row_offset); }
   virtual int cmp_binary_offset(uint row_offset) {
     return cmp_binary(ptr, ptr + row_offset);
-  };
+  }
   virtual int key_cmp(const uchar *a, const uchar *b) { return cmp(a, b); }
   virtual int key_cmp(const uchar *str, uint length MY_ATTRIBUTE((unused))) {
     return cmp(ptr, str);
@@ -1572,7 +1572,7 @@ class Field : public Proto_field {
     QQ: shouldn't DATE/TIME types have their own XXX_RESULT types eventually?
   */
 
-  virtual bool match_collation_to_optimize_range() const { return false; };
+  virtual bool match_collation_to_optimize_range() const { return false; }
   virtual enum Derivation derivation() const { return DERIVATION_IMPLICIT; }
   virtual uint repertoire() const { return MY_REPERTOIRE_UNICODE30; }
   virtual void set_derivation(enum Derivation) {}
@@ -3485,11 +3485,11 @@ class Field_string : public Field_longstr {
                uchar null_bit_arg, uchar auto_flags_arg,
                const char *field_name_arg, const CHARSET_INFO *cs)
       : Field_longstr(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
-                      auto_flags_arg, field_name_arg, cs){};
+                      auto_flags_arg, field_name_arg, cs) {}
   Field_string(uint32 len_arg, bool maybe_null_arg, const char *field_name_arg,
                const CHARSET_INFO *cs)
       : Field_longstr((uchar *)0, len_arg, maybe_null_arg ? (uchar *)"" : 0, 0,
-                      NONE, field_name_arg, cs){};
+                      NONE, field_name_arg, cs) {}
 
   enum_field_types type() const override { return MYSQL_TYPE_STRING; }
   bool match_collation_to_optimize_range() const override { return true; }
@@ -3983,7 +3983,7 @@ class Field_geom : public Field_blob {
     return maybe_null() ? TYPE_OK : TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
   }
 
-  geometry_type get_geometry_type() const { return geom_type; };
+  geometry_type get_geometry_type() const { return geom_type; }
   Field_geom *clone(MEM_ROOT *mem_root) const {
     DBUG_ASSERT(type() == MYSQL_TYPE_GEOMETRY);
     return new (mem_root) Field_geom(*this);

@@ -707,7 +707,7 @@ class SELECT_LEX_UNIT {
     else if (saved_fake_select_lex != NULL)
       return saved_fake_select_lex;
     return first_select();
-  };
+  }
   /* LIMIT clause runtime counters */
   ha_rows select_limit_cnt, offset_limit_cnt;
   /// Points to subquery if this query expression is used in one, otherwise NULL

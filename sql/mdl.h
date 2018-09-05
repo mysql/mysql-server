@@ -1184,7 +1184,7 @@ class MDL_ticket_store {
 
 class MDL_savepoint {
  public:
-  MDL_savepoint(){};
+  MDL_savepoint() {}
 
  private:
   MDL_savepoint(MDL_ticket *stmt_ticket, MDL_ticket *trans_ticket)

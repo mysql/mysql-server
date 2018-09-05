@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -68,7 +68,7 @@ class Machine_POS {
   unsigned int m_index;
 
  public:
-  ~Machine_POS(){};
+  ~Machine_POS() {}
   Machine_POS() { m_index = 0; }
 
   bool has_more() {

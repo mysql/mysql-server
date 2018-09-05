@@ -248,7 +248,7 @@ class Xcom_member_state {
 */
 class Gcs_xcom_state_exchange_interface {
  public:
-  virtual ~Gcs_xcom_state_exchange_interface(){};
+  virtual ~Gcs_xcom_state_exchange_interface() {}
 
   /**
     Accomplishes all necessary initialization steps.

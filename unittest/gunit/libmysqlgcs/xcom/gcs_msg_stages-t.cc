@@ -38,7 +38,7 @@ namespace gcs_xcom_stages_unittest {
 
 class XcomStagesTest : public GcsBaseTestNoLogging {
  protected:
-  XcomStagesTest(){};
+  XcomStagesTest() {}
 
   virtual void SetUp() {
     lz4_stage = new Gcs_message_stage_lz4(
@@ -433,7 +433,7 @@ class Gcs_new_stage_3 : public Gcs_new_stage_1 {
 
 class XcomMultipleStagesTest : public GcsBaseTest {
  protected:
-  XcomMultipleStagesTest(){};
+  XcomMultipleStagesTest() {}
 
   virtual void SetUp() {}
 

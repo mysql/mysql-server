@@ -262,7 +262,7 @@ class QUICK_SELECT_I {
 
   QUICK_SELECT_I();
   QUICK_SELECT_I(const QUICK_SELECT_I &) = default;
-  virtual ~QUICK_SELECT_I(){};
+  virtual ~QUICK_SELECT_I() {}
 
   /*
     Do post-constructor initialization.
@@ -364,7 +364,7 @@ class QUICK_SELECT_I {
   /*
     Save ROWID of last retrieved row in file->ref. This used in ROR-merging.
   */
-  virtual void save_last_pos(){};
+  virtual void save_last_pos() {}
 
   /*
     Append comma-separated list of keys this quick select uses to key_names;
@@ -380,7 +380,7 @@ class QUICK_SELECT_I {
     This function is implemented only by quick selects that merge other quick
     selects output and/or can produce output suitable for merging.
   */
-  virtual void add_info_string(String *str MY_ATTRIBUTE((unused))){};
+  virtual void add_info_string(String *str MY_ATTRIBUTE((unused))) {}
   /*
     Return 1 if any index used by this quick select
     uses field which is marked in passed bitmap.
@@ -392,7 +392,7 @@ class QUICK_SELECT_I {
     correctly. Function is overridden by quick selects that merge
     indices.
    */
-  virtual bool is_valid() { return index != MAX_KEY; };
+  virtual bool is_valid() { return index != MAX_KEY; }
 
   /*
     rowid of last row retrieved by this quick select. This is used only when
@@ -551,7 +551,7 @@ class QUICK_RANGE_SELECT_GEOM : public QUICK_RANGE_SELECT {
   QUICK_RANGE_SELECT_GEOM(THD *thd, TABLE *table, uint index_arg, bool no_alloc,
                           MEM_ROOT *parent_alloc, bool *create_error)
       : QUICK_RANGE_SELECT(thd, table, index_arg, no_alloc, parent_alloc,
-                           create_error){};
+                           create_error) {}
   virtual int get_next();
 };
 

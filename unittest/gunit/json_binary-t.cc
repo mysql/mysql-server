@@ -1398,7 +1398,7 @@ static void BM_JsonBinarySerializeIntArray(size_t num_iterations) {
 
   serialize_benchmark(&array, num_iterations);
 }
-BENCHMARK(BM_JsonBinarySerializeIntArray);
+BENCHMARK(BM_JsonBinarySerializeIntArray)
 
 /**
   Microbenchmark which tests the performance of serializing a JSON
@@ -1413,7 +1413,7 @@ static void BM_JsonBinarySerializeDoubleArray(size_t num_iterations) {
 
   serialize_benchmark(&array, num_iterations);
 }
-BENCHMARK(BM_JsonBinarySerializeDoubleArray);
+BENCHMARK(BM_JsonBinarySerializeDoubleArray)
 
 /**
   Microbenchmark which tests the performance of serializing a JSON
@@ -1428,6 +1428,6 @@ static void BM_JsonBinarySerializeStringArray(size_t num_iterations) {
 
   serialize_benchmark(&array, num_iterations);
 }
-BENCHMARK(BM_JsonBinarySerializeStringArray);
+BENCHMARK(BM_JsonBinarySerializeStringArray)
 
 }  // namespace json_binary_unittest

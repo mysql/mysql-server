@@ -36,10 +36,10 @@
 class Replication_thread_api {
  public:
   Replication_thread_api(const char *channel_interface)
-      : stop_wait_timeout(LONG_TIMEOUT), interface_channel(channel_interface){};
+      : stop_wait_timeout(LONG_TIMEOUT), interface_channel(channel_interface) {}
 
   Replication_thread_api()
-      : stop_wait_timeout(LONG_TIMEOUT), interface_channel(NULL){};
+      : stop_wait_timeout(LONG_TIMEOUT), interface_channel(NULL) {}
 
   ~Replication_thread_api() {}
 

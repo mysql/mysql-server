@@ -343,7 +343,7 @@ class Item_func_geometry_type : public Item_str_ascii_func {
     set_data_type_string(15, default_charset());
     maybe_null = true;
     return false;
-  };
+  }
 };
 
 /**
@@ -786,7 +786,7 @@ class Item_func_pointfromgeohash : public Item_geometry_func {
   bool fix_fields(THD *thd, Item **ref) override;
   Field::geometry_type get_geometry_type() const override {
     return Field::GEOM_POINT;
-  };
+  }
 };
 
 class Item_func_spatial_decomp : public Item_geometry_func {

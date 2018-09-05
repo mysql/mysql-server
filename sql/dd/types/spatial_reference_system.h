@@ -74,7 +74,7 @@ class Spatial_reference_system : virtual public Entity_object {
   virtual bool update_aux_key(Aux_key *) const { return true; }
 
  public:
-  virtual ~Spatial_reference_system(){};
+  virtual ~Spatial_reference_system() {}
 
   /////////////////////////////////////////////////////////////////////////
   // created

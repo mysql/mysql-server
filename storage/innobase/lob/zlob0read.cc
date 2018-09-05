@@ -333,4 +333,4 @@ bool z_validate_strm(dict_index_t *index, z_index_entry_t &entry, mtr_t *mtr) {
 }
 #endif /* UNIV_DEBUG */
 
-};  // namespace lob
+}  // namespace lob

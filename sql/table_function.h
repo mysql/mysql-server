@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -100,7 +100,7 @@ class Table_function {
   /**
     Set the default row
   */
-  void default_row(){};
+  void default_row() {}
   /**
     Initialize table function
     @returns
@@ -218,7 +218,7 @@ class JT_data_source {
   bool producing_records;
 
   JT_data_source() : v(key_memory_JSON), producing_records(false) {}
-  ~JT_data_source(){};
+  ~JT_data_source() {}
 
   void cleanup();
 };

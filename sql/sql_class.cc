@@ -2665,7 +2665,7 @@ void THD::rpl_detach_engine_ha_data() {
   DBUG_ASSERT(!rli_slave || !rli_slave->is_engine_ha_data_detached);
 
   if (rli) rli->detach_engine_ha_data(this);
-};
+}
 
 void THD::rpl_reattach_engine_ha_data() {
   Relay_log_info *rli =
@@ -2675,7 +2675,7 @@ void THD::rpl_reattach_engine_ha_data() {
   DBUG_ASSERT(!rli_slave || !rli_slave->is_engine_ha_data_detached);
 
   if (rli) rli->reattach_engine_ha_data(this);
-};
+}
 
 bool THD::rpl_unflag_detached_engine_ha_data() {
   Relay_log_info *rli =

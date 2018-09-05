@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -141,7 +141,7 @@ TEST_F(MemRootTest, MoveMemRoot) {
 
 class DestroyCounter {
  public:
-  DestroyCounter() : p_counter(&MemRootTest::destroy_counter){};
+  DestroyCounter() : p_counter(&MemRootTest::destroy_counter) {}
   DestroyCounter(const DestroyCounter &rhs) : p_counter(rhs.p_counter) {}
   explicit DestroyCounter(size_t *p) : p_counter(p) {}
   ~DestroyCounter() { (*p_counter) += 1; }

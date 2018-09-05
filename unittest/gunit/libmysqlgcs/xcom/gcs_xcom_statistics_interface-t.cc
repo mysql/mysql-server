@@ -30,7 +30,7 @@ namespace gcs_xcom_statistics_unittest {
 
 class XcomStatisticsTest : public GcsBaseTest {
  protected:
-  XcomStatisticsTest(){};
+  XcomStatisticsTest() {}
 
   virtual void SetUp() { xcom_stats_if = new Gcs_xcom_statistics(); }
 

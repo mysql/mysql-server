@@ -170,8 +170,8 @@ class MDL_deadlock_and_lock_abort_error_handler
     return m_need_reopen;
   }
 
-  bool need_reopen() const { return m_need_reopen; };
-  void init() { m_need_reopen = false; };
+  bool need_reopen() const { return m_need_reopen; }
+  void init() { m_need_reopen = false; }
 
  private:
   bool m_need_reopen;

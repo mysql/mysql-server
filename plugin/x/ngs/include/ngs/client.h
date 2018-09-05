@@ -74,7 +74,7 @@ class Client : public Client_interface {
 
   Server_interface &server() const override { return m_server; }
   Protocol_encoder_interface &protocol() const override { return *m_encoder; }
-  Vio_interface &connection() override { return *m_connection; };
+  Vio_interface &connection() override { return *m_connection; }
 
   void on_session_auth_success(Session_interface &s) override;
   void on_session_close(Session_interface &s) override;
@@ -89,7 +89,7 @@ class Client : public Client_interface {
   Client_id client_id_num() const override { return m_client_id; }
   int client_port() const override { return m_client_port; }
 
-  Client_state get_state() const override { return m_state.load(); };
+  Client_state get_state() const override { return m_state.load(); }
   chrono::time_point get_accept_time() const override;
 
   void set_supports_expired_passwords(bool flag) {

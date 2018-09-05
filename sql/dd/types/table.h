@@ -68,7 +68,7 @@ class Table : virtual public Abstract_table {
                              Object_id se_private_id);
 
  public:
-  virtual ~Table(){};
+  virtual ~Table() {}
 
  public:
   enum enum_row_format {

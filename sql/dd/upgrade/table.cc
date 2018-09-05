@@ -242,7 +242,7 @@ class Handle_old_incorrect_sql_modes_hook : public Unknown_key_hook {
   char *m_path;
 
  public:
-  Handle_old_incorrect_sql_modes_hook(char *file_path) : m_path(file_path){};
+  Handle_old_incorrect_sql_modes_hook(char *file_path) : m_path(file_path) {}
   virtual bool process_unknown_string(const char *&unknown_key, uchar *base,
                                       MEM_ROOT *mem_root, const char *end);
 };

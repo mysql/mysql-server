@@ -163,6 +163,6 @@ struct data_page_t : public basic_page_t {
   ulint space_left() const;
 };
 
-}; /* namespace lob */
+} /* namespace lob */
 
 #endif /* lob0pages_h */

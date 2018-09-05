@@ -321,7 +321,7 @@ struct recv_dblwr_t {
 
   struct Page {
     /** Default constructor */
-    Page() : m_no(), m_ptr(), m_page(){};
+    Page() : m_no(), m_ptr(), m_page() {}
 
     /** Constructor
     @param[in]	no	Doublewrite page number

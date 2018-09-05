@@ -486,7 +486,7 @@ class Group_member_info : public Plugin_gcs_message {
  */
 class Group_member_info_manager_interface {
  public:
-  virtual ~Group_member_info_manager_interface(){};
+  virtual ~Group_member_info_manager_interface() {}
 
   virtual size_t get_number_of_members() = 0;
 

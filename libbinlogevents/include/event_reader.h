@@ -490,7 +490,7 @@ class Event_reader {
 
     @return the converted value.
   */
-  uint16_t letoh(uint16_t value) { return le16toh(value); };
+  uint16_t letoh(uint16_t value) { return le16toh(value); }
 
   /**
     Wrapper to le32toh to be used by read_and_letoh function.
@@ -499,7 +499,7 @@ class Event_reader {
 
     @return the converted value.
   */
-  int32_t letoh(int32_t value) { return le32toh(value); };
+  int32_t letoh(int32_t value) { return le32toh(value); }
 
   /**
     Wrapper to le32toh to be used by read_and_letoh function.
@@ -508,7 +508,7 @@ class Event_reader {
 
     @return the converted value.
   */
-  uint32_t letoh(uint32_t value) { return le32toh(value); };
+  uint32_t letoh(uint32_t value) { return le32toh(value); }
 
   /**
     Wrapper to le64toh to be used by read_and_letoh function.
@@ -517,7 +517,7 @@ class Event_reader {
 
     @return the converted value.
   */
-  int64_t letoh(int64_t value) { return le64toh(value); };
+  int64_t letoh(int64_t value) { return le64toh(value); }
 
   /**
     Wrapper to le64toh to be used by read_and_letoh function.
@@ -526,7 +526,7 @@ class Event_reader {
 
     @return the converted value.
   */
-  uint64_t letoh(uint64_t value) { return le64toh(value); };
+  uint64_t letoh(uint64_t value) { return le64toh(value); }
 };
 }  // end namespace binary_log
 /**

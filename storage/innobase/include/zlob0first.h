@@ -498,6 +498,6 @@ inline std::ostream &operator<<(std::ostream &out, const z_first_page_t &obj) {
   return (obj.print(out));
 }
 
-}; /* namespace lob */
+} /* namespace lob */
 
 #endif /* zlob0first_h */

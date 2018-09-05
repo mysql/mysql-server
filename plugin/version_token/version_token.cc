@@ -509,7 +509,7 @@ class vtoken_lock_cleanup {
   atomic_boolean activated;
 
  public:
-  vtoken_lock_cleanup(){};
+  vtoken_lock_cleanup() {}
   ~vtoken_lock_cleanup() {
     if (activated.is_set()) mysql_rwlock_destroy(&LOCK_vtoken_hash);
   }

@@ -78,7 +78,6 @@ IF(WIN32 AND CMAKE_C_COMPILER_ID MATCHES "Clang")
 
   # Should be enabled globally, but too noisy right now.
   MY_ADD_CXX_WARNING_FLAG("Wno-old-style-cast")
-  MY_ADD_CXX_WARNING_FLAG("Wno-extra-semi")
   MY_ADD_CXX_WARNING_FLAG("Wno-reserved-id-macro")
   MY_ADD_CXX_WARNING_FLAG("Wno-documentation")
   MY_ADD_CXX_WARNING_FLAG("Wno-documentation-pedantic")
@@ -152,6 +151,7 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wheader-hygiene")
   STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wnon-virtual-dtor")
   STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wundefined-reinterpret-cast")
+  STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wextra-semi")
 
   # Other possible options that give warnings (Clang 6.0):
   # -Wabstract-vbase-init
@@ -171,7 +171,6 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   # -Wdocumentation-unknown-command
   # -Wdouble-promotion
   # -Wexit-time-destructors
-  # -Wextra-semi
   # -Wfloat-equal
   # -Wformat-nonliteral
   # -Wformat-pedantic

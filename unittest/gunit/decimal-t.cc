@@ -977,7 +977,7 @@ static void BM_Decimal2Bin_10_2(size_t iters) {
 
   ASSERT_NE(0, dummy);  // To keep the optimizer from removing the loop.
 }
-BENCHMARK(BM_Decimal2Bin_10_2);
+BENCHMARK(BM_Decimal2Bin_10_2)
 
 static void BM_Bin2Decimal_10_2(size_t iters) {
   StopBenchmarkTiming();
@@ -1010,5 +1010,5 @@ static void BM_Bin2Decimal_10_2(size_t iters) {
   ASSERT_NE(static_cast<size_t>(-1),
             dummy);  // To keep the optimizer from removing the loop.
 }
-BENCHMARK(BM_Bin2Decimal_10_2);
+BENCHMARK(BM_Bin2Decimal_10_2)
 }

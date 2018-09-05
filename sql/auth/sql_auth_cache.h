@@ -185,7 +185,7 @@ class ACL_PROXY_USER : public ACL_ACCESS {
   } old_acl_proxy_users;
 
  public:
-  ACL_PROXY_USER(){};
+  ACL_PROXY_USER() {}
 
   void init(const char *host_arg, const char *user_arg,
             const char *proxied_host_arg, const char *proxied_user_arg,
@@ -265,7 +265,7 @@ class GRANT_NAME {
   GRANT_NAME(const char *h, const char *d, const char *u, const char *t,
              ulong p, bool is_routine);
   GRANT_NAME(TABLE *form, bool is_routine);
-  virtual ~GRANT_NAME(){};
+  virtual ~GRANT_NAME() {}
   virtual bool ok() { return privs != 0; }
   void set_user_details(const char *h, const char *d, const char *u,
                         const char *t, bool is_routine);

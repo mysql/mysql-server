@@ -218,7 +218,7 @@ class Ha_innopart_share : public Partition_share {
 
  private:
   /** Disable default constructor. */
-  Ha_innopart_share(){};
+  Ha_innopart_share() {}
 
   /** Open one partition
   @param[in,out]	client		Data dictionary client

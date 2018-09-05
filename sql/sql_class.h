@@ -1604,7 +1604,7 @@ class THD : public MDL_context_owner,
     virtual ~Attachable_trx();
     Attachable_trx *get_prev_attachable_trx() const {
       return m_prev_attachable_trx;
-    };
+    }
     virtual bool is_read_only() const { return true; }
 
    protected:

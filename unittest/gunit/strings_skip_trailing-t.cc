@@ -54,43 +54,38 @@ static inline void benchmark_func(size_t iters,
 
 #define INSTANTIATE_TEST(name, func, length)                              \
   static void name(size_t iters) { benchmark_func(iters, func, length); } \
-  BENCHMARK(name);
+  BENCHMARK(name)
 
-INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_Unaligned_0, skip_trailing_unalgn, 0);
+INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_Unaligned_0, skip_trailing_unalgn, 0)
 INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_Unaligned_24, skip_trailing_unalgn,
-                 24);
+                 24)
 INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_Unaligned_100, skip_trailing_unalgn,
-                 100);
+                 100)
 INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_Unaligned_150, skip_trailing_unalgn,
-                 150);
+                 150)
 
-INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_Original_0, skip_trailing_orig, 0);
-INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_Original_24, skip_trailing_orig, 24);
-INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_Original_100, skip_trailing_orig,
-                 100);
-INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_Original_150, skip_trailing_orig,
-                 150);
+INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_Original_0, skip_trailing_orig, 0)
+INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_Original_24, skip_trailing_orig, 24)
+INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_Original_100, skip_trailing_orig, 100)
+INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_Original_150, skip_trailing_orig, 150)
 
-INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_FourByte_0, skip_trailing_4byte, 0);
-INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_FourByte_24, skip_trailing_4byte, 24);
+INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_FourByte_0, skip_trailing_4byte, 0)
+INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_FourByte_24, skip_trailing_4byte, 24)
 INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_FourByte_100, skip_trailing_4byte,
-                 100);
+                 100)
 INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_FourByte_150, skip_trailing_4byte,
-                 150);
+                 150)
 
-INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_EightByte_0, skip_trailing_8byte, 0);
-INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_EightByte_24, skip_trailing_8byte,
-                 24);
+INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_EightByte_0, skip_trailing_8byte, 0)
+INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_EightByte_24, skip_trailing_8byte, 24)
 INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_EightByte_100, skip_trailing_8byte,
-                 100);
+                 100)
 INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_EightByte_150, skip_trailing_8byte,
-                 150);
+                 150)
 
-INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_Current_0, skip_trailing_space, 0);
-INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_Current_24, skip_trailing_space, 24);
-INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_Current_100, skip_trailing_space,
-                 100);
-INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_Current_150, skip_trailing_space,
-                 150);
+INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_Current_0, skip_trailing_space, 0)
+INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_Current_24, skip_trailing_space, 24)
+INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_Current_100, skip_trailing_space, 100)
+INSTANTIATE_TEST(BM_SkipTrailingSpaceTest_Current_150, skip_trailing_space, 150)
 
 }  // namespace skip_trailing_space_unittest

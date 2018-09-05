@@ -117,8 +117,8 @@ class Gcs_ip_whitelist_entry {
       *get_value() = 0;
 
   /** Getters */
-  std::string get_addr() const { return m_addr; };
-  std::string get_mask() const { return m_mask; };
+  std::string get_addr() const { return m_addr; }
+  std::string get_mask() const { return m_mask; }
 
  private:
   std::string m_addr;
