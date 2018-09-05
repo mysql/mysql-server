@@ -822,6 +822,7 @@ TableS::~TableS()
       free(allAttributesDesc[i]->parameter);
     delete allAttributesDesc[i];
   }
+  delete m_stagingTable;
   delete m_dictTable;
 }
 
