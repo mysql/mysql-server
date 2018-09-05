@@ -197,8 +197,6 @@ public:
       VERBOSE("initializing the MySQL Utilities resources ...");
       CharsetMap::init();
       VERBOSE("... initialized the MySQL Utilities resources");
-      m_mutex.unlock();
-      return 0;
       is_init = true;
     }
     m_mutex.unlock();
