@@ -167,14 +167,16 @@ Channel_info *Per_thread_connection_handler::block_until_new_connection() {
       mysql_cond_wait(&COND_thread_cache, &LOCK_thread_cache);
     blocked_pthread_count--;
 
-    if (kill_blocked_pthreads_flag)
-      mysql_cond_signal(&COND_flush_thread_cache);
-    else if (!connection_events_loop_aborted() && wake_pthread) {
+    if (kill_blocked_pthreads_flag) mysql_cond_signal(&COND_flush_thread_cache);
+    if (wake_pthread) {
       wake_pthread--;
-      DBUG_ASSERT(!waiting_channel_info_list->empty());
-      new_conn = waiting_channel_info_list->front();
-      waiting_channel_info_list->pop_front();
-      DBUG_PRINT("info", ("waiting_channel_info_list->pop %p", new_conn));
+      if (!waiting_channel_info_list->empty()) {
+        new_conn = waiting_channel_info_list->front();
+        waiting_channel_info_list->pop_front();
+        DBUG_PRINT("info", ("waiting_channel_info_list->pop %p", new_conn));
+      } else {
+        DBUG_ASSERT(0);  // We should not get here.
+      }
     }
   }
   mysql_mutex_unlock(&LOCK_thread_cache);
@@ -339,6 +341,14 @@ static void *handle_connection(void *arg) {
     channel_info = Per_thread_connection_handler::block_until_new_connection();
     if (channel_info == NULL) break;
     pthread_reused = true;
+    if (connection_events_loop_aborted()) {
+      // Close the channel and exit as server is undergoing shutdown.
+      channel_info->send_error_and_close_channel(ER_SERVER_SHUTDOWN, 0, false);
+      delete channel_info;
+      channel_info = nullptr;
+      Connection_handler_manager::dec_connection_count();
+      break;
+    }
   }
 
   my_thread_end();
@@ -355,15 +365,6 @@ void Per_thread_connection_handler::kill_blocked_pthreads() {
     mysql_cond_wait(&COND_flush_thread_cache, &LOCK_thread_cache);
   }
   kill_blocked_pthreads_flag--;
-
-  // Drain off the channel info list.
-  while (!waiting_channel_info_list->empty()) {
-    Channel_info *channel_info = waiting_channel_info_list->front();
-    waiting_channel_info_list->pop_front();
-    // close the channel.
-    channel_info->send_error_and_close_channel(ER_SERVER_SHUTDOWN, 0, false);
-    delete channel_info;
-  }
   mysql_mutex_unlock(&LOCK_thread_cache);
 }
 
