@@ -24,10 +24,10 @@
 
 #include <cstring>
 #include <iostream>
-#include <map>
 #include <regex>
 #include <sstream>
 #include <string>
+#include <unordered_map>
 
 #include "client/mysqltest/error_names.h"
 #include "my_dbug.h"
@@ -225,7 +225,7 @@ static bool match_create_statement(std::string statement,
 /// @retval True if match or table name found, false otherwise.
 static bool match_ddl_statement(std::string statement,
                                 std::string *table_name) {
-  std::map<std::string, std::uint16_t> ddl_pattern_strings = {
+  std::unordered_map<std::string, std::uint16_t> ddl_pattern_strings = {
       {"^\\s*alter\\s+((\\/\\*\\+.*\\*\\/\\s+)?)table\\s+"
        "((\\/\\*\\+.*\\*\\/\\s+)?)(.*?)\\s+.*",
        5},
@@ -252,11 +252,15 @@ static bool match_ddl_statement(std::string statement,
 /// @retval True if match or table name found, false otherwise.
 static bool match_dml_statement(std::string statement,
                                 std::string *table_name) {
-  std::map<std::string, std::uint16_t> dml_pattern_strings = {
-      {"^\\s*delete\\s+((\\/\\*\\+.*\\*\\/"
-       "\\s+)?)((LOW_PRIORITY\\s+)?)((QUICK\\s+)?)((IGNORE\\s+)?)"
+  std::unordered_map<std::string, std::uint16_t> dml_pattern_strings = {
+      {"^\\s*delete\\s+((\\/\\*\\+.*\\*\\/\\s+)?)"
+       "((LOW_PRIORITY\\s+)?)((QUICK\\s+)?)((IGNORE\\s+)?)"
+       "FROM\\s+(.*)USING\\s+(.*?)((\\s+.*)?)",
+       10},
+      {"^\\s*delete\\s+((\\/\\*\\+.*\\*\\/\\s+)?)((.*)?)"
+       "((LOW_PRIORITY\\s+)?)((QUICK\\s+)?)((IGNORE\\s+)?)"
        "FROM\\s+(.*?)((\\s+.*)?)",
-       9},
+       11},
       {"^\\s*insert\\s+((\\/\\*\\+.*\\*\\/"
        "\\s+)?)((LOW_PRIORITY\\s+|DELAYED\\s+|HIGH_PRIORITY\\s+)?)"
        "((IGNORE\\s+)?)((INTO\\s+)?)(.*?)(\\s*\\(|\\s+).*",

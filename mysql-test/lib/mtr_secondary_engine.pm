@@ -34,8 +34,10 @@ our @EXPORT = qw(
   check_secondary_engine_options
   get_secondary_engine_server_log
   install_secondary_engine_plugin
+  load_table_contents
   save_secondary_engine_logdir
   secondary_engine_environment_setup
+  sleep_until_secondary_engine_cluster_bootstrapped
   start_secondary_engine_server
   stop_secondary_engine_server
   $secondary_engine_plugin_dir
@@ -107,6 +109,9 @@ sub secondary_engine_environment_setup($$) {
 
   # Search for secondary engine server executable location.
   $ENV{'SECONDARY_ENGINE'} = find_secondary_engine($bindir);
+
+  $ENV{'SECONDARY_ENGINE_STATUS_QUERY'} =
+    "SHOW STATUS LIKE 'rapid_cluster_status'";
 
   # Set 'RPDMASTER_FILEPREFIX' environment variable
   $ENV{'RPDMASTER_FILEPREFIX'} = "$::opt_vardir/log/secondary_engine/";
@@ -248,6 +253,77 @@ sub save_secondary_engine_logdir($) {
   rename($secondary_engine->{'logdir'}, "$savedir/$log_dirname");
 }
 
+## Run ALTER TABLE statement to load the table contents to secondary
+## engine.
+##
+## Arguments:
+##   $run_query Reference to run_query() subroutine
+##   $mysqld    mysqld object
+##   $database  Database name
+sub run_secondary_load_statement($$$) {
+  my $run_query = shift;
+  my $mysqld    = shift;
+  my $database  = shift;
+
+  my $outfile = "$::opt_vardir/tmp/show_tables.out";
+  my $query   = "SHOW TABLES FROM $database";
+
+  if ($run_query->($mysqld, $query, $outfile, undef)) {
+    unlink($outfile);
+    mtr_error("Error while running '$query' query.");
+  }
+
+  my $filehandle = IO::File->new($outfile);
+  while (<$filehandle>) {
+    my $table       = $_;
+    my $alter_query = "ALTER TABLE $database.$table SECONDARY_LOAD";
+
+    # Don't check for since all table might not have RAPID as
+    # seconndary engine.
+    $run_query->($mysqld, $alter_query);
+  }
+
+  $filehandle->close();
+  unlink($outfile);
+}
+
+## Load the contents of all tables to secondary engine after server
+## restart within the test.
+##
+## Arguments:
+##   $run_query Reference to run_query() subroutine
+##   $mysqld    mysqld object
+sub load_table_contents($$) {
+  my $run_query = shift;
+  my $mysqld    = shift;
+
+  # The below file is created to signal mysqltest client to wait till
+  # load statements are finished.
+  my $wait_file       = "$::opt_vardir/tmp/wait_until_load";
+  my $wait_filehandle = IO::File->new("> $wait_file");
+
+  my $outfile = "$::opt_vardir/tmp/show_databases.out";
+  my $query   = "SHOW DATABASES";
+
+  if ($run_query->($mysqld, $query, $outfile, undef)) {
+    unlink($outfile);
+    mtr_error("Error while running '$query' query.");
+  }
+
+  my $filehandle = IO::File->new($outfile);
+  while (<$filehandle>) {
+    my $database = $_;
+    run_secondary_load_statement($run_query, $mysqld, $database)
+      if ($database !~ /(information_schema|mtr|mysql|performance_schema|sys)/);
+  }
+
+  $filehandle->close();
+  $wait_filehandle->close();
+
+  unlink($outfile);
+  unlink($wait_file);
+}
+
 ## Wait for secondary engine server to start.
 ##
 ## Arguments:
@@ -264,7 +340,7 @@ sub sleep_until_secondary_engine_cluster_bootstrapped($$$) {
   my $loops      = ($::opt_start_timeout * 1000) / $sleeptime;
 
   my $outfile = "$::opt_vardir/tmp/secondary_engine_cluster_status.out";
-  my $query   = "SHOW STATUS LIKE 'rapid_cluster_status'";
+  my $query   = $ENV{'SECONDARY_ENGINE_STATUS_QUERY'};
 
   for (my $loop = 1 ; $loop <= $loops ; $loop++) {
     if (!$run_query->($mysqld, $query, $outfile, undef)) {
@@ -275,10 +351,16 @@ sub sleep_until_secondary_engine_cluster_bootstrapped($$$) {
       # No need of file handle now, close it.
       $filehandle->close();
 
+      if (not defined $secondary_engine_status) {
+        $mysqld->{'secondary_engine_status'} = 0;
+        return;
+      }
+
       # Check the secondary engine cluster status
       if ($secondary_engine_status =~ /^rapid_cluster_status\s+ON/) {
         mtr_verbose("Waited $total_time milliseconds for secondary engine " .
                     "server to be started.");
+        $mysqld->{'secondary_engine_status'} = 1;
         unlink($outfile);
         return;
       }
