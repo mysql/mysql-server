@@ -192,29 +192,28 @@ int NdbMem_FreeSpace(void* ptr, size_t len)
 
 void* NdbMem_AlignedAlloc(size_t alignment, size_t size)
 {
-#if defined(_ISOC11_SOURCE)
-  return aligned_alloc(alignment, size);
-#elif defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200112L
   void* p = NULL;
+#if defined(_ISOC11_SOURCE)
+  p = aligned_alloc(alignment, size);
+#elif defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200112L
   (void) posix_memalign(&p, alignment, size);
-  return p;
 #elif defined(_WIN32)
-  return _aligned_malloc(alignment, size);
+  p = _aligned_malloc(size, alignment);
 #else
   if (alignment < sizeof(void*))
   {
     alignment = sizeof(void*);
   }
-  char*p = (char*) malloc(size + alignment);
-  if (p == NULL)
+  char*charp = (char*) malloc(size + alignment);
+  if (charp != NULL)
   {
-    return NULL;
+    void* q = (void*)(charp + (alignment - ((uintptr_t)charp % alignment)));
+    void** qp = (void**)q;
+    qp[-1] = p;
+    p = q;
   }
-  void* q = (void*)(p + (alignment - ((uintptr_t)p % alignment)));
-  void** qp = (void**)q;
-  qp[-1] = p;
-  return q;
 #endif
+  return p;
 }
 
 void NdbMem_AlignedFree(void* p)
