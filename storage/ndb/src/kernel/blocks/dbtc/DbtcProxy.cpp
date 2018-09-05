@@ -96,7 +96,8 @@ DbtcProxy::~DbtcProxy()
 SimulatedBlock*
 DbtcProxy::newWorker(Uint32 instanceNo)
 {
-  return new (NdbMem_AlignedAlloc(64, sizeof(Dbtc))) Dbtc(m_ctx, instanceNo);
+//  return new (NdbMem_AlignedAlloc(64, sizeof(Dbtc))) Dbtc(m_ctx, instanceNo);
+  return new Dbtc(m_ctx, instanceNo);
 }
 
 // GSN_NDB_STTOR

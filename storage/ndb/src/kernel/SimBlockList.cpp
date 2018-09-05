@@ -66,38 +66,7 @@
 #define JAM_FILE_ID 492
 
 
-#ifndef VM_TRACE
-#define NEW_BLOCK(B) new (NdbMem_AlignedAlloc(64, sizeof(B))) B
-#else
-enum SIMBLOCKLIST_DUMMY { A_VALUE = 0 };
-
-void * operator new (size_t sz, SIMBLOCKLIST_DUMMY dummy){
-  char * tmp = (char *)NdbMem_AlignedAlloc(64, sz);
-  if (!tmp)
-    abort();
-
-#ifndef NDB_PURIFY
-#ifdef VM_TRACE
-  const int initValue = 0xf3;
-#else
-  const int initValue = 0x0;
-#endif
-  
-  const int p = (sz / 4096);
-  const int r = (sz % 4096);
-  
-  for(int i = 0; i<p; i++)
-    memset(tmp+(i*4096), initValue, 4096);
-  
-  if(r > 0)
-    memset(tmp+p*4096, initValue, r);
-
-#endif
-  
-  return tmp;
-}
-#define NEW_BLOCK(B) new(A_VALUE) B
-#endif
+#define NEW_BLOCK(B) new B
 
 void
 SimBlockList::load(EmulatorData& data){

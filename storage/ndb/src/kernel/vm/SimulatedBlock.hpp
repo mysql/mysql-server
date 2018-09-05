@@ -25,6 +25,8 @@
 #ifndef SIMULATEDBLOCK_H
 #define SIMULATEDBLOCK_H
 
+#include <new>
+
 #include <NdbTick.h>
 #include <kernel_types.h>
 #include <util/version.h>
@@ -65,6 +67,7 @@
 #include <blocks/record_types.hpp>
 
 #include "Ndbinfo.hpp"
+#include "portlib/NdbMem.h"
 
 struct CHARSET_INFO;
 
@@ -434,6 +437,36 @@ class SimulatedBlock :
 public:
   friend class BlockComponent;
   virtual ~SimulatedBlock();
+
+  static void * operator new (size_t sz)
+  {
+    void* ptr = NdbMem_AlignedAlloc(NDB_CL, sz);
+    require(ptr != NULL);
+#ifdef VM_TRACE
+#ifndef NDB_PURIFY
+#ifdef VM_TRACE
+    const int initValue = 0xf3;
+#else
+    const int initValue = 0x0;
+#endif
+
+    char* charptr = (char*)ptr;
+    const int p = (sz / 4096);
+    const int r = (sz % 4096);
+
+    for(int i = 0; i<p; i++)
+      memset(charptr+(i*4096), initValue, 4096);
+
+    if(r > 0)
+      memset(charptr+p*4096, initValue, r);
+#endif
+#endif
+    return ptr;
+  }
+  static void operator delete  ( void* ptr )
+  {
+    NdbMem_AlignedFree(ptr);
+  }
 
   static const Uint32 BOUNDED_DELAY = 0xFFFFFF00;
 protected:
