@@ -39,6 +39,10 @@ class Sql_cmd_do final : public Sql_cmd_select {
   explicit Sql_cmd_do(Query_result *result_arg) : Sql_cmd_select(result_arg) {}
 
   enum_sql_command sql_command_code() const override { return SQLCOM_DO; }
+
+  const MYSQL_LEX_STRING *eligible_secondary_storage_engine() const override {
+    return nullptr;
+  }
 };
 
 class Query_result_do final : public Query_result {

@@ -36,6 +36,7 @@
 #include "my_sys.h"
 #include "mysql/plugin.h"
 #include "mysqld_error.h"
+#include "sql/debug_sync.h"
 #include "sql/handler.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
@@ -165,6 +166,8 @@ static bool OptimizeSecondaryEngine(THD *thd, LEX *lex) {
     my_error(ER_SECONDARY_ENGINE_PLUGIN, MYF(0), "");
     return true;
   });
+
+  DEBUG_SYNC(thd, "before_mock_optimize");
 
   // Set an execution context for this statement. It is not used for
   // anything, but allocating one makes it possible for LeakSanitizer

@@ -267,6 +267,12 @@ DROP PREPARE ps;
 SELECT * FROM t1, t2, t_primary_only tp WHERE t1.id = t2.id AND t2.id = tp.id;
 id	x	y	id	z	id	x
 1	2	3	1	2	1	1
+EXPLAIN SELECT * FROM t1, INFORMATION_SCHEMA.COLUMN_PRIVILEGES t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y`,`t2`.`GRANTEE` AS `GRANTEE`,`t2`.`TABLE_CATALOG` AS `TABLE_CATALOG`,`t2`.`TABLE_SCHEMA` AS `TABLE_SCHEMA`,`t2`.`TABLE_NAME` AS `TABLE_NAME`,`t2`.`COLUMN_NAME` AS `COLUMN_NAME`,`t2`.`PRIVILEGE_TYPE` AS `PRIVILEGE_TYPE`,`t2`.`IS_GRANTABLE` AS `IS_GRANTABLE` from `test`.`t1` join `information_schema`.`COLUMN_PRIVILEGES` `t2`
 CREATE TABLE t_with_autoinc(id INT PRIMARY KEY AUTO_INCREMENT, x INT)
 SECONDARY_ENGINE MOCK;
 INSERT INTO t_with_autoinc(x) VALUES (4), (5), (6);
@@ -384,7 +390,42 @@ COUNT(*)
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	0
+PREPARE ps1 FROM 'SELECT * FROM t1';
+EXECUTE ps1;
+id	x	y
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	1
+CREATE PROCEDURE p2() EXECUTE ps1;
+CREATE PROCEDURE p3() PREPARE ps2 FROM 'SELECT * FROM t1';
+FLUSH STATUS;
+CALL p2();
+id	x	y
+1	2	3
+4	5	6
+7	8	9
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
+CALL p3();
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
+EXECUTE ps1;
+id	x	y
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	1
+EXECUTE ps2;
+id	x	y
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	2
+DROP PREPARE ps1;
+DROP PREPARE ps2;
 DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP PROCEDURE p3;
 FLUSH STATUS;
 CREATE TABLE t_with_trigger(x INT);
 CREATE TRIGGER tr AFTER INSERT ON t_with_trigger

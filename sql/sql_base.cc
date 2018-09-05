@@ -6396,69 +6396,46 @@ err:
   counterparts.
 
   @param thd       thread handler
-  @param tables    the tables used by the query
   @param flags     bitmap of flags to pass to open_table
   @return true if an error is raised, false otherwise
 */
-static bool open_secondary_engine_tables(THD *thd, TABLE_LIST *tables,
-                                         uint flags) {
-  if (thd->variables.use_secondary_engine == SECONDARY_ENGINE_OFF) return false;
-
+static bool open_secondary_engine_tables(THD *thd, uint flags) {
   LEX *const lex = thd->lex;
   Sql_cmd *const sql_cmd = lex->m_sql_cmd;
 
-  // Only attempt to use a secondary engine if all of these conditions
-  // are satisfied:
-  //
-  // 1) It is a SELECT statement
-  // 2) Use of secondary engine has not been disabled for this statement
-  // 3) LOCK TABLES mode is not active
-  // 4) Multi-statement transaction mode is not active
-  // 5) It is a not sub-statement inside a stored procedure
-  // 6) It does not call stored routines
-  if (sql_cmd == nullptr || lex->sql_command != SQLCOM_SELECT ||  // 1
-      sql_cmd->secondary_storage_engine_disabled() ||             // 2
-      thd->locked_tables_mode != LTM_NONE ||                      // 3
-      thd->in_multi_stmt_transaction_mode() ||                    // 4
-      thd->sp_runtime_ctx != nullptr ||                           // 5
-      lex->uses_stored_routines())                                // 6
+  // If use of secondary engines has been disabled for the statement,
+  // there is nothing to do.
+  if (sql_cmd == nullptr || sql_cmd->secondary_storage_engine_disabled())
     return false;
 
-  // Now check if the opened tables are available in a secondary
-  // storage engine. Only use the secondary tables if all the tables
-  // have a secondary tables, and they are all in the same secondary
-  // storage engine.
-  const LEX_STRING *secondary_engine = nullptr;
-  for (const TABLE_LIST *tl = tables; tl != nullptr; tl = tl->next_global) {
-    // We're only interested in base tables.
-    if (tl->is_placeholder()) continue;
+  // Don't open the secondary engine tables for a PREPARE command. Use
+  // of secondary engines is not decided until the optimization phase
+  // of the execution, so only open them when a statement is executed.
+  if (thd->stmt_arena->is_stmt_prepare()) return false;
 
-    DBUG_ASSERT(!tl->table->s->is_secondary());
-
-    if (!tl->table->s->has_secondary()) {
-      // Not in a secondary engine.
-      secondary_engine = nullptr;
-      break;
-    }
-
-    // Compare two engine names.
-    auto equal = [](const LEX_STRING &s1, const LEX_STRING &s2) {
-      return system_charset_info->coll->strnncollsp(
-                 system_charset_info, pointer_cast<unsigned char *>(s1.str),
-                 s1.length, pointer_cast<unsigned char *>(s2.str),
-                 s2.length) == 0;
-    };
-
-    if (secondary_engine != nullptr &&
-        !equal(*secondary_engine, tl->table->s->secondary_engine)) {
-      // In a different secondary engine than one of the other tables.
-      secondary_engine = nullptr;
-      break;
-    }
-
-    secondary_engine = &tl->table->s->secondary_engine;
+  // If the user has requested the use of a secondary storage engine
+  // for this statement, skip past the initial optimization for the
+  // primary storage engine and go straight to the secondary engine.
+  if (thd->secondary_engine_optimization() ==
+          Secondary_engine_optimization::PRIMARY_TENTATIVELY &&
+      thd->variables.use_secondary_engine == SECONDARY_ENGINE_FORCED) {
+    thd->set_secondary_engine_optimization(
+        Secondary_engine_optimization::SECONDARY);
   }
 
+  // Only open secondary engine tables if use of a secondary engine
+  // has been requested.
+  if (thd->secondary_engine_optimization() !=
+      Secondary_engine_optimization::SECONDARY)
+    return false;
+
+  // If the statement cannot be executed in a secondary engine because
+  // of a property of the statement, do not attempt to open the
+  // secondary tables. Also disable use of secondary engines for
+  // future executions of the statement, since these properties will
+  // not change between executions.
+  const LEX_STRING *secondary_engine =
+      sql_cmd->eligible_secondary_storage_engine();
   const plugin_ref secondary_engine_plugin =
       secondary_engine == nullptr
           ? nullptr
@@ -6470,13 +6447,21 @@ static bool open_secondary_engine_tables(THD *thd, TABLE_LIST *tables,
     return false;
   }
 
+  // If the statement cannot be executed in a secondary engine because
+  // of a property of the environment, do not attempt to open the
+  // secondary tables. However, do not disable use of secondary
+  // storage engines for future executions of the statement, since the
+  // environment may change before the next execution.
+  if (!thd->secondary_storage_engine_eligible()) return false;
+
   auto hton = plugin_data<const handlerton *>(secondary_engine_plugin);
-  lex->m_sql_cmd->use_secondary_storage_engine(hton);
+  sql_cmd->use_secondary_storage_engine(hton);
   lex->add_statement_options(OPTION_NO_CONST_TABLES);
 
   // Replace the TABLE objects in the TABLE_LIST with secondary tables.
   Open_table_context ot_ctx(thd, flags | MYSQL_OPEN_SECONDARY_ENGINE);
-  for (TABLE_LIST *tl = tables; tl != nullptr; tl = tl->next_global) {
+  for (TABLE_LIST *tl = lex->query_tables; tl != nullptr;
+       tl = tl->next_global) {
     if (tl->is_placeholder()) continue;
     TABLE *primary_table = tl->table;
     tl->table = nullptr;
@@ -6525,7 +6510,7 @@ bool open_tables_for_query(THD *thd, TABLE_LIST *tables, uint flags) {
                   &prelocking_strategy))
     goto end;
 
-  if (open_secondary_engine_tables(thd, tables, flags)) goto end;
+  if (open_secondary_engine_tables(thd, flags)) goto end;
 
   DBUG_RETURN(0);
 end:

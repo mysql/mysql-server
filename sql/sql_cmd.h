@@ -35,6 +35,7 @@
 class THD;
 class Prepared_statement;
 struct handlerton;
+struct MYSQL_LEX_STRING;
 
 /**
   Representation of an SQL command.
@@ -138,6 +139,18 @@ class Sql_cmd {
   virtual bool accept(THD *thd MY_ATTRIBUTE((unused)),
                       Select_lex_visitor *visitor MY_ATTRIBUTE((unused))) {
     return false;
+  }
+
+  /**
+    Is this statement of a type and on a form that makes it eligible
+    for execution in a secondary storage engine?
+
+    @return the name of the secondary storage engine, or nullptr if
+    the statement is not eligible for execution in a secondary storage
+    engine
+  */
+  virtual const MYSQL_LEX_STRING *eligible_secondary_storage_engine() const {
+    return nullptr;
   }
 
   /**

@@ -637,7 +637,7 @@ sub new_config {
     eval 'use mtr_secondary_engine_config; 1';
     # Additional rules required for secondary engine server
     push(@post_rules, \&post_check_secondary_engine_group);
-    # Additional rules required for [mysqld] when secondary enginge is enabled
+    # Additional rules required for [mysqld] when secondary engine is enabled
     push(@post_rules, \&post_check_secondary_engine_mysqld_group);
   }
 

@@ -398,8 +398,7 @@ class Prepared_statement final {
   bool is_in_use() const { return flags & (uint)IS_IN_USE; }
   bool is_sql_prepare() const { return flags & (uint)IS_SQL_PREPARE; }
   void set_sql_prepare() { flags |= (uint)IS_SQL_PREPARE; }
-  bool prepare(const char *packet, size_t packet_length,
-               bool force_primary_storage_engine);
+  bool prepare(const char *packet, size_t packet_length);
   bool execute_loop(String *expanded_query, bool open_cursor);
   bool execute_server_runnable(Server_runnable *server_runnable);
 #ifdef HAVE_PSI_PS_INTERFACE
@@ -417,7 +416,7 @@ class Prepared_statement final {
   bool set_db(const LEX_CSTRING &db_length);
 
   bool execute(String *expanded_query, bool open_cursor);
-  bool reprepare(bool force_primary_storage_engine);
+  bool reprepare();
   bool validate_metadata(Prepared_statement *copy);
   void swap_prepared_statement(Prepared_statement *copy);
   bool insert_params_from_vars(List<LEX_STRING> &varnames, String *query);

@@ -353,6 +353,14 @@ struct System_variables {
   /** Used for controlling preparation of queries against secondary engine. */
   ulong use_secondary_engine;
 
+  /**
+    Used for controlling which statements to execute in a secondary
+    storage engine. Only queries with an estimated cost higher than
+    this value will be attempted executed in a secondary storage
+    engine.
+  */
+  double secondary_engine_cost_threshold;
+
   /** Used for controlling Group Replication consistency guarantees */
   ulong group_replication_consistency;
 

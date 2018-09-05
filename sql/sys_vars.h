@@ -1136,7 +1136,7 @@ class Sys_var_double : public sys_var {
     option.var_type = GET_DOUBLE;
     option.min_value = (longlong)getopt_double2ulonglong(min_val);
     option.max_value = (longlong)getopt_double2ulonglong(max_val);
-    global_var(double) = (double)option.def_value;
+    global_var(double) = getopt_ulonglong2double(option.def_value);
     DBUG_ASSERT(min_val <= max_val);
     DBUG_ASSERT(min_val <= def_val);
     DBUG_ASSERT(max_val >= def_val);

@@ -275,7 +275,7 @@ static bool handle_bootstrap_impl(THD *thd) {
 
     // Ignore ER_TOO_LONG_KEY for system tables.
     thd->push_internal_handler(&error_handler);
-    mysql_parse(thd, &parser_state, true);
+    mysql_parse(thd, &parser_state);
     thd->pop_internal_handler();
 
     bootstrap_error = thd->is_error();

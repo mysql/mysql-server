@@ -25,6 +25,7 @@ CALL mtr.add_suppression("The slave coordinator and worker threads are stopped")
 # Install plugin on master.
 --replace_regex /\.dll/.so/
 --eval INSTALL PLUGIN mock SONAME '$MOCK_PLUGIN'
+SET @@secondary_engine_cost_threshold = 0;
 
 --connection slave
 --echo [ Connection Slave ]
@@ -32,6 +33,7 @@ CALL mtr.add_suppression("The slave coordinator and worker threads are stopped")
 # Install plugin on slave.
 --replace_regex /\.dll/.so/
 --eval INSTALL PLUGIN mock SONAME '$MOCK_PLUGIN'
+SET @@secondary_engine_cost_threshold = 0;
 
 --connection master
 --echo [ Connection Master ]
@@ -309,11 +311,13 @@ SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 DROP TABLE t1;
 DROP TABLE t2;
 UNINSTALL PLUGIN mock;
+SET @@secondary_engine_cost_threshold = DEFAULT;
 
 --source include/sync_slave_sql_with_master.inc
 
 # Uninstall plugin on slave too.
 --sleep 3
 UNINSTALL PLUGIN mock;
+SET @@secondary_engine_cost_threshold = DEFAULT;
 
 --source include/rpl_end.inc

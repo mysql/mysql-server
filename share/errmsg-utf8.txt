@@ -18848,6 +18848,13 @@ ER_LDAP_MAPPING_NON_DESIRED_STATE
 ER_INVALID_NAMED_PIPE_FULL_ACCESS_GROUP
   eng "Invalid value for named_pipe_full_access_group."
 
+# This error is not supposed to be reported to the users. It is only
+# meant for internal use to signal that a statement should be
+# reprepared for a secondary storage engine. The error should be
+# caught and handled by the server.
+ER_PREPARE_FOR_SECONDARY_ENGINE
+  eng "Retry the statement using a secondary storage engine."
+
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #

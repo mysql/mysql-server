@@ -6351,6 +6351,32 @@ static Sys_var_enum Sys_use_secondary_engine(
     use_secondary_engine_values, DEFAULT(SECONDARY_ENGINE_ON), NO_MUTEX_GUARD,
     NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr));
 
+/**
+  Cost threshold for executing queries in a secondary storage engine. Only
+  queries that have an estimated cost above this value will be attempted
+  executed in a secondary storage engine.
+
+  Secondary storage engines are meant to accelerate queries that would otherwise
+  take a relatively long time to execute. If a secondary storage engine accepts
+  a query, it is assumed that it will be able to accelerate it. However, if the
+  estimated cost of the query is low, the query will execute fast in the primary
+  engine too, so there is little to gain by offloading the query to the
+  secondary engine.
+
+  The default value aims to avoid use of secondary storage engines for queries
+  that could be executed by the primary engine in a few tenths of seconds or
+  less, and attempt to use secondary storage engines for queries would take
+  seconds or more.
+*/
+static Sys_var_double Sys_secondary_engine_cost_threshold(
+    "secondary_engine_cost_threshold",
+    "Controls which statements to consider for execution in a secondary "
+    "storage engine. Only statements that have a cost estimate higher than "
+    "this value will be attempted executed in a secondary storage engine.",
+    HINT_UPDATEABLE SESSION_VAR(secondary_engine_cost_threshold),
+    CMD_LINE(OPT_ARG), VALID_RANGE(0, DBL_MAX), DEFAULT(100000), NO_MUTEX_GUARD,
+    NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr));
+
 static Sys_var_bool Sys_sql_require_primary_key{
     "sql_require_primary_key",
     "When set, tables must be created with a primary key, and an existing "

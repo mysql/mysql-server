@@ -450,6 +450,52 @@ err:
   DBUG_RETURN(true);
 }
 
+const MYSQL_LEX_STRING *Sql_cmd_select::eligible_secondary_storage_engine()
+    const {
+  // Don't use secondary storage engines for statements that call stored
+  // routines.
+  if (lex->uses_stored_routines()) return nullptr;
+
+  // Now check if the opened tables are available in a secondary
+  // storage engine. Only use the secondary tables if all the tables
+  // have a secondary tables, and they are all in the same secondary
+  // storage engine.
+  const LEX_STRING *secondary_engine = nullptr;
+  for (const TABLE_LIST *tl = lex->query_tables; tl != nullptr;
+       tl = tl->next_global) {
+    // Schema tables are not available in secondary engines.
+    if (tl->schema_table != nullptr) return nullptr;
+
+    // We're only interested in base tables.
+    if (tl->is_placeholder()) continue;
+
+    DBUG_ASSERT(!tl->table->s->is_secondary());
+
+    if (!tl->table->s->has_secondary()) {
+      // Not in a secondary engine.
+      return nullptr;
+    }
+
+    // Compare two engine names using the system collation.
+    auto equal = [](const LEX_STRING &s1, const LEX_STRING &s2) {
+      return system_charset_info->coll->strnncollsp(
+                 system_charset_info, pointer_cast<unsigned char *>(s1.str),
+                 s1.length, pointer_cast<unsigned char *>(s2.str),
+                 s2.length) == 0;
+    };
+
+    if (secondary_engine == nullptr) {
+      // First base table. Save its secondary engine name for later.
+      secondary_engine = &tl->table->s->secondary_engine;
+    } else if (!equal(*secondary_engine, tl->table->s->secondary_engine)) {
+      // In a different secondary engine than the previous base tables.
+      return nullptr;
+    }
+  }
+
+  return secondary_engine;
+}
+
 /**
   Prepare a SELECT statement.
 */
@@ -732,19 +778,67 @@ static double accumulate_statement_cost(const LEX *lex) {
 }
 
 /**
+  Checks if a query should be retried using a secondary storage engine.
+
+  @param thd      the current session
+
+  @retval true   if the statement should be retried in a secondary engine
+  @retval false  if the statement should not be retried
+*/
+static bool retry_with_secondary_engine(const THD *thd) {
+  // Only retry if the current statement is being tentatively
+  // optimized for the primary engine.
+  if (thd->secondary_engine_optimization() !=
+      Secondary_engine_optimization::PRIMARY_TENTATIVELY)
+    return false;
+
+  Sql_cmd *const sql_cmd = thd->lex->m_sql_cmd;
+  DBUG_ASSERT(!sql_cmd->using_secondary_storage_engine());
+
+  // Only attempt to use the secondary engine if the estimated cost of the query
+  // is higher than the specified cost threshold.
+  if (thd->m_current_query_cost <=
+      thd->variables.secondary_engine_cost_threshold)
+    return false;
+
+  // Don't retry if it's already determined that the statement should not be
+  // executed by a secondary engine.
+  if (sql_cmd->secondary_storage_engine_disabled()) return false;
+
+  // Don't retry if there is a property of the statement that prevents use of
+  // secondary engines.
+  if (sql_cmd->eligible_secondary_storage_engine() == nullptr) {
+    sql_cmd->disable_secondary_storage_engine();
+    return false;
+  }
+
+  // Don't retry if there is a property of the environment that prevents use of
+  // secondary engines.
+  if (!thd->secondary_storage_engine_eligible()) return false;
+
+  return true;
+}
+
+/**
   Perform query optimizations that are specific to a secondary storage
   engine.
 
-  @param thd  the current session
-  @param lex  the statement to optimize
+  @param thd      the current session
   @return true on error, false on success
 */
-static bool optimize_secondary_engine(THD *thd, LEX *lex) {
-  DBUG_ASSERT(lex->secondary_engine_execution_context() == nullptr);
-  const handlerton *secondary_engine = lex->m_sql_cmd->secondary_engine();
+static bool optimize_secondary_engine(THD *thd) {
+  DBUG_ASSERT(thd->lex->secondary_engine_execution_context() == nullptr);
+
+  if (retry_with_secondary_engine(thd)) {
+    thd->get_stmt_da()->reset_diagnostics_area();
+    thd->get_stmt_da()->set_error_status(thd, ER_PREPARE_FOR_SECONDARY_ENGINE);
+    return true;
+  }
+
+  const handlerton *secondary_engine = thd->lex->m_sql_cmd->secondary_engine();
   return secondary_engine != nullptr &&
          secondary_engine->optimize_secondary_engine != nullptr &&
-         secondary_engine->optimize_secondary_engine(thd, lex);
+         secondary_engine->optimize_secondary_engine(thd, thd->lex);
 }
 
 /**
@@ -774,7 +868,7 @@ bool Sql_cmd_dml::execute_inner(THD *thd) {
   thd->m_current_query_cost = accumulate_statement_cost(lex);
 
   // Perform secondary engine optimizations, if needed.
-  if (optimize_secondary_engine(thd, lex)) return true;
+  if (optimize_secondary_engine(thd)) return true;
 
   if (lex->is_explain()) {
     if (explain_query(thd, thd, unit)) return true; /* purecov: inspected */

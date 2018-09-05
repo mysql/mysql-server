@@ -11,8 +11,10 @@ CALL mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* \\[Server\\] Unsafe statemen
 CALL mtr.add_suppression("The slave coordinator and worker threads are stopped");
 [ Connection Master ]
 INSTALL PLUGIN mock SONAME 'ha_mock.so';
+SET @@secondary_engine_cost_threshold = 0;
 [ Connection Slave ]
 INSTALL PLUGIN mock SONAME 'ha_mock.so';
+SET @@secondary_engine_cost_threshold = 0;
 [ Connection Master ]
 CREATE TABLE t1 (pk INT PRIMARY KEY AUTO_INCREMENT, vc VARCHAR(10), j JSON, b BLOB, vb VARBINARY(32)) SECONDARY_ENGINE=MOCK;
 include/sync_slave_sql_with_master.inc
@@ -311,6 +313,8 @@ Secondary_engine_execution_count	0
 DROP TABLE t1;
 DROP TABLE t2;
 UNINSTALL PLUGIN mock;
+SET @@secondary_engine_cost_threshold = DEFAULT;
 include/sync_slave_sql_with_master.inc
 UNINSTALL PLUGIN mock;
+SET @@secondary_engine_cost_threshold = DEFAULT;
 include/rpl_end.inc

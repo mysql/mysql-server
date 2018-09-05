@@ -572,6 +572,34 @@ class Open_tables_backup : public Open_tables_state {
 };
 
 /**
+  Enum that represents which phase of secondary engine optimization
+  the current statement is in.
+*/
+enum class Secondary_engine_optimization {
+  /**
+    The current statement should only use tables from primary storage
+    engines. Use of secondary storage engines is disabled.
+  */
+  PRIMARY_ONLY,
+
+  /**
+    The current statement should only use tables from the primary
+    storage engine. However, use of secondary storage engines is not
+    disabled, so the optimizer may choose to trigger a repreparation
+    against the secondary storage engine if it believes that use of a
+    secondary storage engine is beneficial.
+  */
+  PRIMARY_TENTATIVELY,
+
+  /**
+    The current statement should use tables from a secondary storage
+    engine if possible. Otherwise, fall back to using tables from
+    primary storage engine only.
+  */
+  SECONDARY,
+};
+
+/**
   @class Sub_statement_state
   @brief Used to save context when executing a function or trigger
 */
@@ -3981,6 +4009,43 @@ class THD : public MDL_context_owner,
   bool is_waiting_for_disk_space() const { return waiting_for_disk_space; }
 
   bool sql_parser();
+
+  /// Enables or disables use of secondary storage engines in this session.
+  void set_secondary_engine_optimization(Secondary_engine_optimization state) {
+    m_secondary_engine_optimization = state;
+  }
+
+  /**
+    Can secondary storage engines be used for query execution in
+    this session?
+  */
+  Secondary_engine_optimization secondary_engine_optimization() const {
+    return m_secondary_engine_optimization;
+  }
+
+  /**
+    Checks if queries in this session can use a secondary storage engine for
+    execution. A secondary engine cannot be used if any of the following
+    conditions is true:
+
+    - Secondary engines are disabled in the session
+    - The user has disabled secondary engines
+    - LOCK TABLES mode is active
+    - Multi-statement transaction mode is active
+    - It is a sub-statement of a stored procedure
+
+    @return true if secondary storage engines can be used in this
+    session, or false otherwise
+  */
+  bool secondary_storage_engine_eligible() const;
+
+ private:
+  /**
+    This flag tells if a secondary storage engine can be used to
+    execute a query in this session.
+  */
+  Secondary_engine_optimization m_secondary_engine_optimization =
+      Secondary_engine_optimization::PRIMARY_ONLY;
 };
 
 /**

@@ -4603,7 +4603,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
           query_start_status = thd->status_var;
         }
 
-        mysql_parse(thd, &parser_state, true);
+        mysql_parse(thd, &parser_state);
 
         enum_sql_command command = thd->lex->sql_command;
 

@@ -89,3 +89,15 @@ NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using tempor
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x` from `test`.`t1` union /* select#2 */ select `test`.`t2`.`y` AS `y` from `test`.`t2`
 DROP TABLE t1, t2;
+CREATE TABLE t(x int) SECONDARY_ENGINE MOCK;
+INSERT INTO t VALUES (1), (2), (3);
+ALTER TABLE t SECONDARY_LOAD;
+SET DEBUG_SYNC = 'before_mock_optimize SIGNAL mock WAIT_FOR continue';
+SELECT * FROM t;
+SET DEBUG_SYNC = 'now WAIT_FOR mock';
+SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST
+WHERE INFO = 'SELECT * FROM t' INTO @thread_id;
+KILL QUERY @thread_id;
+SET DEBUG_SYNC = 'now SIGNAL continue';
+ERROR 70100: Query execution was interrupted
+DROP TABLE t;

@@ -159,6 +159,9 @@ EXECUTE ps;
 DROP PREPARE ps;
 SELECT * FROM t1, t2, t_primary_only tp WHERE t1.id = t2.id AND t2.id = tp.id;
 
+# Queries that access schema tables should not be offloaded.
+EXPLAIN SELECT * FROM t1, INFORMATION_SCHEMA.COLUMN_PRIVILEGES t2;
+
 # It should be possible to have tables with an auto-increment column
 # in a secondary engine.
 CREATE TABLE t_with_autoinc(id INT PRIMARY KEY AUTO_INCREMENT, x INT)
@@ -246,7 +249,25 @@ FLUSH STATUS;
 CREATE PROCEDURE p1() SELECT COUNT(*) FROM t1;
 CALL p1();
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+PREPARE ps1 FROM 'SELECT * FROM t1';
+EXECUTE ps1;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+CREATE PROCEDURE p2() EXECUTE ps1;
+CREATE PROCEDURE p3() PREPARE ps2 FROM 'SELECT * FROM t1';
+FLUSH STATUS;
+CALL p2();
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+CALL p3();
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+EXECUTE ps1;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+EXECUTE ps2;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+DROP PREPARE ps1;
+DROP PREPARE ps2;
 DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP PROCEDURE p3;
 
 # Queries inside a trigger should not be offloaded.
 FLUSH STATUS;

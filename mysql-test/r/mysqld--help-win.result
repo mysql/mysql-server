@@ -1088,6 +1088,11 @@ The following options may be given as the first argument:
  write privileges to the mysql.user table.
  --schema-definition-cache=# 
  The number of cached schema definitions
+ --secondary-engine-cost-threshold[=#] 
+ Controls which statements to consider for execution in a
+ secondary storage engine. Only statements that have a
+ cost estimate higher than this value will be attempted
+ executed in a secondary storage engine.
  --secure-file-priv=name 
  Limit LOAD DATA, SELECT ... OUTFILE, and LOAD_FILE() to
  files within specified directory
@@ -1637,6 +1642,7 @@ rpl-read-size 8192
 rpl-stop-slave-timeout 31536000
 safe-user-create FALSE
 schema-definition-cache 256
+secondary-engine-cost-threshold 100000
 server-id 1
 server-id-bits 32
 session-track-gtids OFF
