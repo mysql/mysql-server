@@ -79,6 +79,7 @@ struct atrt_process {
   } m_type;
 
   SimpleCpcClient::Process m_proc;
+  bool m_atrt_stopped;
 
   NdbMgmHandle m_ndb_mgm_handle;    // if type == ndb_mgm
   atrt_process* m_mysqld;           // if type == client

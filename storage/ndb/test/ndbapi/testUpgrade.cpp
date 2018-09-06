@@ -440,27 +440,23 @@ int runUpgrade_NR1(NDBT_Context* ctx, NDBT_Step* step){
       return NDBT_FAILED;
     
     uint mgmdCount = mgmds.numRows();
+    uint mgmd_start_count = mgmdCount;
     uint restartCount = getNodeCount(mgmdNodeSet, mgmdCount);
-    
-    ndbout << "Restarting "
-             << restartCount << " of " << mgmdCount
-             << " mgmds" << endl;
       
-    while (mgmds.next() && restartCount --)
+    while (mgmds.next() && mgmdCount --)
     {
-      ndbout << "Restart mgmd " << mgmds.columnAsInt("node_id") << endl;
-      if (!atrt.changeVersion(mgmds.columnAsInt("id"), ""))
+      ndbout << "Restart mgmd" << mgmds.columnAsInt("node_id") << endl;
+      if (!atrt.stopProcess(mgmds.columnAsInt("id")) ||
+          !atrt.switchConfig(mgmds.columnAsInt("id"),"--initial"))
         return NDBT_FAILED;
-      
-      if (restarter.waitConnected())
-        return NDBT_FAILED;
-      ndbout << "Connected to mgmd"<< endl;
     }
-    
-    ndbout << "Waiting for started"<< endl;
-    if (restarter.waitClusterStarted())
-      return NDBT_FAILED;
-    ndbout << "Started"<< endl;
+    mgmds.reset();
+    while (mgmds.next() && mgmd_start_count --)
+    {
+      ndbout << "Restart mgmd" << mgmds.columnAsInt("node_id") << endl;
+      if (!atrt.startProcess(mgmds.columnAsInt("id")))
+        return NDBT_FAILED;
+    }
     
     // Restart ndbd(s)
     SqlResultSet ndbds;
