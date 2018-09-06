@@ -1526,9 +1526,10 @@ int end_io_cache(IO_CACHE *info) {
 
 #include "my_dir.h"
 
-void die(const char *fmt, ...) MY_ATTRIBUTE((format(printf, 1, 2)));
+[[noreturn]] void die(const char *fmt, ...)
+    MY_ATTRIBUTE((format(printf, 1, 2)));
 
-void die(const char *fmt, ...) {
+[[noreturn]] void die(const char *fmt, ...) {
   va_list va_args;
   va_start(va_args, fmt);
   fprintf(stderr, "Error:");

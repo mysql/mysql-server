@@ -1,4 +1,4 @@
-// Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -43,9 +43,16 @@ namespace gis {
 Covered_by::Covered_by(double semi_major, double semi_minor)
     : m_semi_major(semi_major), m_semi_minor(semi_minor) {}
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunknown-pragmas"
+#pragma GCC diagnostic ignored "-Wpragmas"
+#pragma GCC diagnostic ignored "-Wunknown-warning-option"
+#pragma GCC diagnostic ignored "-Wmissing-noreturn"
+#pragma GCC diagnostic ignored "-Wsuggest-attribute=noreturn"
 bool Covered_by::operator()(const Geometry *g1, const Geometry *g2) const {
   return apply(*this, g1, g2);
 }
+#pragma GCC diagnostic pop
 
 bool Covered_by::operator()(const Box *b1, const Box *b2) const {
   DBUG_ASSERT(b1->coordinate_system() == b2->coordinate_system());
@@ -62,7 +69,8 @@ bool Covered_by::operator()(const Box *b1, const Box *b2) const {
   return false;
 }
 
-bool Covered_by::eval(const Geometry *g1, const Geometry *g2) const {
+[[noreturn]] bool Covered_by::eval(const Geometry *g1,
+                                   const Geometry *g2) const {
   // Currently only implemented for boxes (MBRs).
   DBUG_ASSERT(false);
   throw not_implemented_exception::for_non_projected(*g1, *g2);

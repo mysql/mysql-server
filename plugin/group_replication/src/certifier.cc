@@ -121,7 +121,7 @@ int Certifier_broadcast_thread::terminate() {
   DBUG_RETURN(0);
 }
 
-void Certifier_broadcast_thread::dispatcher() {
+[[noreturn]] void Certifier_broadcast_thread::dispatcher() {
   DBUG_ENTER("Certifier_broadcast_thread::dispatcher");
 
   // Thread context operations
@@ -178,8 +178,6 @@ void Certifier_broadcast_thread::dispatcher() {
 
   my_thread_end();
   my_thread_exit(0);
-
-  DBUG_VOID_RETURN;
 }
 
 int Certifier_broadcast_thread::broadcast_gtid_executed() {

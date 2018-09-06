@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,10 @@ int srv_session_init_thread(const void *) {
   return 0;
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-noreturn"
 void srv_session_deinit_thread() { DBUG_ASSERT(0); }
+#pragma GCC diagnostic pop
 
 MYSQL_THD srv_session_info_get_thd(MYSQL_SESSION) {
   DBUG_ASSERT(0);

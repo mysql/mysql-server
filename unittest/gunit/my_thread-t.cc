@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,10 +30,7 @@
 
 namespace my_thread_unittest {
 
-extern "C" void *handle_thread(void *) {
-  my_thread_exit(0);
-  return 0;  // Avoid compiler warning
-}
+extern "C"[[noreturn]] void *handle_thread(void *) { my_thread_exit(0); }
 
 class ThreadTest : public ::testing::Test {};
 

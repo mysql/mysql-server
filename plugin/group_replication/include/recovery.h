@@ -88,7 +88,7 @@ class Recovery_module {
     and several safe keeping assurances are guaranteed, such as the applier
     being suspended.
   */
-  int recovery_thread_handle();
+  [[noreturn]] int recovery_thread_handle();
 
   /**
     Set retrieved certification info from a group replication channel extracted

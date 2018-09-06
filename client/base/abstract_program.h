@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,7 @@ class Abstract_program : public Options::Composite_options_provider {
   /**
     Does all initialization and exit work, calls execute().
    */
-  void run(int argc, char **argv);
+  [[noreturn]] void run(int argc, char **argv);
 
   /**
     Returns string describing current version of this program.

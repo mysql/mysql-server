@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -753,6 +753,8 @@ bool Gtid_state::update_gtids_impl_begin(THD *thd) {
   return thd->is_commit_in_middle_of_statement;
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-noreturn"
 void Gtid_state ::update_gtids_impl_own_gtid_set(
     THD *thd MY_ATTRIBUTE((unused)), bool is_commit MY_ATTRIBUTE((unused))) {
 #ifdef HAVE_GTID_NEXT_LIST
@@ -779,6 +781,7 @@ void Gtid_state ::update_gtids_impl_own_gtid_set(
   DBUG_ASSERT(0);
 #endif
 }
+#pragma GCC diagnostic pop
 
 void Gtid_state::update_gtids_impl_lock_sidno(rpl_sidno sidno) {
   DBUG_ASSERT(sidno > 0);

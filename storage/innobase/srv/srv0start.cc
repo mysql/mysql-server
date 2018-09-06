@@ -3372,7 +3372,7 @@ void srv_get_encryption_data_filename(dict_table_t *table, char *filename,
 }
 
 /** Call exit(3) */
-void srv_fatal_error() {
+[[noreturn]] void srv_fatal_error() {
   ib::error(ER_IB_MSG_1156);
 
   fflush(stderr);

@@ -576,10 +576,10 @@ class fatal : public logger {
   }
 
   /** Destructor. */
-  virtual ~fatal();
+  [[noreturn]] virtual ~fatal();
 #else
   /** Destructor. */
-  ~fatal();
+  [[noreturn]] ~fatal();
 #endif /* !UNIV_NO_ERR_MSGS */
 };
 

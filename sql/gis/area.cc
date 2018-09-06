@@ -59,7 +59,7 @@ double Area::eval(const Geographic_multipolygon &g) const {
   return bg::area(g, m_geographic_strategy);
 }
 
-double Area::eval(const Geometry &) const {
+[[noreturn]] double Area::eval(const Geometry &) const {
   /* purecov: begin deadcode */
   // Not implemented
   DBUG_ASSERT(false);

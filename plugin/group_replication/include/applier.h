@@ -268,7 +268,7 @@ class Applier_module : public Applier_module_interface {
       @retval 0      OK
       @retval !=0    Error
   */
-  int applier_thread_handle();
+  [[noreturn]] int applier_thread_handle();
 
   /**
     Queues the packet coming from the reader for future application.

@@ -4597,6 +4597,7 @@ static Item **find_field_in_group_list(Item *find_item, ORDER *group_list) {
     return NULL;
 }
 
+#ifndef DBUG_OFF
 /**
   Check if an Item is fixed or is an Item_outer_ref.
 
@@ -4606,8 +4607,7 @@ static Item **find_field_in_group_list(Item *find_item, ORDER *group_list) {
 
   @note Currently, this function is only used in DBUG_ASSERT
   statements and therefore not included in optimized builds.
-*/
-#ifndef DBUG_OFF
+ */
 bool is_fixed_or_outer_ref(const Item *ref) {
   /*
     The requirements are that the Item pointer
@@ -8923,13 +8923,12 @@ bool Item_cache_row::cache_value() {
   return true;
 }
 
-void Item_cache_row::illegal_method_call(
+[[noreturn]] void Item_cache_row::illegal_method_call(
     const char *method MY_ATTRIBUTE((unused))) const {
-  DBUG_ENTER("Item_cache_row::illegal_method_call");
   DBUG_PRINT("error", ("!!! %s method was called for row item", method));
-  DBUG_ASSERT(0);
+  DBUG_ASSERT(false);
+  MY_ASSERT_UNREACHABLE();
   my_error(ER_OPERAND_COLUMNS, MYF(0), 1);
-  DBUG_VOID_RETURN;
 }
 
 bool Item_cache_row::check_cols(uint c) {

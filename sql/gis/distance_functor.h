@@ -1,7 +1,7 @@
 #ifndef SQL_GIS_DISTANCE_FUNCTOR_H_INCLUDED
 #define SQL_GIS_DISTANCE_FUNCTOR_H_INCLUDED
 
-// Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -55,7 +55,7 @@ class Distance : public Functor<double> {
  public:
   Distance(double major, double minor);
   double operator()(const Geometry *g1, const Geometry *g2) const override;
-  double eval(const Geometry *g1, const Geometry *g2) const;
+  [[noreturn]] double eval(const Geometry *g1, const Geometry *g2) const;
 
   //////////////////////////////////////////////////////////////////////////////
 

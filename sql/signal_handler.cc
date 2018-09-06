@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -77,7 +77,7 @@ extern volatile sig_atomic_t calling_initgroups;
  *
  * @param sig Signal number
  */
-extern "C" void handle_fatal_signal(int sig) {
+extern "C"[[noreturn]] void handle_fatal_signal(int sig) {
   if (segfaulted) {
     my_safe_printf_stderr("Fatal " SIGNAL_FMT " while backtracing\n", sig);
     _exit(MYSQLD_FAILURE_EXIT); /* Quit without running destructors */

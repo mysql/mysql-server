@@ -167,8 +167,8 @@ struct LatchDebug {
                                   invariant to fail
   @param[in]	level		The new level request that breaks
                                   the order */
-  void crash(const Latches *latches, const Latched *latched,
-             latch_level_t level) const UNIV_NOTHROW;
+  [[noreturn]] void crash(const Latches *latches, const Latched *latched,
+                          latch_level_t level) const UNIV_NOTHROW;
 
   /** Do a basic ordering check.
   @param[in]	latches		thread's existing latches
@@ -523,8 +523,9 @@ void LatchDebug::print_latches(const Latches *latches) const UNIV_NOTHROW {
 @param[in]	latches		thread's existing latches
 @param[in]	latched		The existing latch causing the invariant to fail
 @param[in]	level		The new level request that breaks the order */
-void LatchDebug::crash(const Latches *latches, const Latched *latched,
-                       latch_level_t level) const UNIV_NOTHROW {
+[[noreturn]] void LatchDebug::crash(const Latches *latches,
+                                    const Latched *latched,
+                                    latch_level_t level) const UNIV_NOTHROW {
   const latch_t *latch = latched->m_latch;
   const std::string &in_level_name = get_level_name(level);
 

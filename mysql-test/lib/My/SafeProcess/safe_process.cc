@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -91,8 +91,9 @@ static void message(const char *fmt, ...) {
   fflush(stderr);
 }
 
-static void die(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
-static void die(const char *fmt, ...) {
+[[noreturn]] static void die(const char *fmt, ...)
+    __attribute__((format(printf, 1, 2)));
+[[noreturn]] static void die(const char *fmt, ...) {
   va_list args;
   fprintf(stderr, "%s: FATAL ERROR, ", safe_process_name);
   va_start(args, fmt);
@@ -104,7 +105,7 @@ static void die(const char *fmt, ...) {
   exit(1);
 }
 
-static void wait_pid(void) {
+[[noreturn]] static void wait_pid(void) {
   int status = 0;
 
   pid_t ret_pid;
@@ -140,16 +141,15 @@ static void wait_pid(void) {
     print_message("The waitpid returned: %d", static_cast<int>(ret_pid));
     exit(1);
   }
-  return;
 }
 
-static void abort_child(void) {
+[[noreturn]] static void abort_child(void) {
   message("Aborting child: %d", static_cast<int>(child_pid));
   kill(-child_pid, SIGABRT);
   wait_pid();
 }
 
-static void kill_child(void) {
+[[noreturn]] static void kill_child(void) {
   // Terminate whole process group
   message("Killing child: %d", static_cast<int>(child_pid));
   kill(-child_pid, SIGKILL);

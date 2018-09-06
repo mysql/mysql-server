@@ -175,7 +175,7 @@ std::istream &get_input(Driver_command_line_options *opt, std::ifstream &file,
   return std::cin;
 }
 
-void unable_daemonize() {
+[[noreturn]] void unable_daemonize() {
   std::cerr << "ERROR: Unable to put process in background\n";
   exit(2);
 }

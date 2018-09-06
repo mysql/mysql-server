@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -130,7 +130,7 @@ int my_thread_cancel(my_thread_handle *thread) {
 #endif
 }
 
-void my_thread_exit(void *value_ptr) {
+[[noreturn]] void my_thread_exit(void *value_ptr) {
 #ifndef _WIN32
   pthread_exit(value_ptr);
 #else

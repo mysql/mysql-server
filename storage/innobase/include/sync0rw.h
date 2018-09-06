@@ -63,8 +63,6 @@ thread has locked the rw-lock in the specified mode.
 @return true if success */
 UNIV_INLINE
 bool rw_lock_own(rw_lock_t *lock, ulint lock_type) { return (lock != nullptr); }
-
-#define sync_check_iterate(A) true
 #endif /* UNIV_DEBUG */
 
 #define rw_lock_s_lock(L) ((void)0)

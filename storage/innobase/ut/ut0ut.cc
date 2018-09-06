@@ -612,7 +612,7 @@ logger::~logger() {
       .verbatim(s.c_str());
 }
 
-fatal::~fatal() {
+[[noreturn]] fatal::~fatal() {
   auto s = m_oss.str();
 
   LogEvent()

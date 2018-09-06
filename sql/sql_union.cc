@@ -269,8 +269,9 @@ class Query_result_union_direct final : public Query_result_union {
   void abort_result_set() override {
     result->abort_result_set(); /* purecov: inspected */
   }
-  void cleanup() override {}
-  void set_thd(THD *) {
+  void cleanup() override{}
+
+      [[noreturn]] void set_thd(THD *) {
     /*
       Only called for top-level Query_results, usually Query_result_send,
       and for the results of subquery engines

@@ -56,7 +56,7 @@ class Area : public Unary_functor<double> {
   double eval(const Geographic_polygon &g) const;
   double eval(const Geographic_multipolygon &g) const;
 
-  double eval(const Geometry &g) const;
+  [[noreturn]] double eval(const Geometry &g) const;
 };
 
 }  // namespace gis

@@ -141,7 +141,7 @@
 
 extern CHARSET_INFO my_charset_utf16le_bin;
 
-static void signal_handler(int sig);
+[[noreturn]] static void signal_handler(int sig);
 static bool get_one_option(int optid, const struct my_option *, char *argument);
 
 enum {
@@ -597,12 +597,12 @@ REPLACE *glob_replace = 0;
 void replace_strings_append(REPLACE *rep, DYNAMIC_STRING *ds, const char *from,
                             size_t len);
 
-static void cleanup_and_exit(int exit_code) MY_ATTRIBUTE((noreturn));
+[[noreturn]] static void cleanup_and_exit(int exit_code);
 
-void die(const char *fmt, ...) MY_ATTRIBUTE((format(printf, 1, 2)))
-    MY_ATTRIBUTE((noreturn));
-void abort_not_supported_test(const char *fmt, ...)
-    MY_ATTRIBUTE((format(printf, 1, 2))) MY_ATTRIBUTE((noreturn));
+[[noreturn]] void die(const char *fmt, ...)
+    MY_ATTRIBUTE((format(printf, 1, 2)));
+[[noreturn]] void abort_not_supported_test(const char *fmt, ...)
+    MY_ATTRIBUTE((format(printf, 1, 2)));
 void verbose_msg(const char *fmt, ...) MY_ATTRIBUTE((format(printf, 1, 2)));
 void log_msg(const char *fmt, ...) MY_ATTRIBUTE((format(printf, 1, 2)));
 
@@ -8557,7 +8557,7 @@ static void dump_backtrace() { fputs("Backtrace not available.\n", stderr); }
 
 #endif
 
-static void signal_handler(int sig) {
+[[noreturn]] static void signal_handler(int sig) {
   fprintf(stderr, "mysqltest got " SIGNAL_FMT "\n", sig);
   dump_backtrace();
 

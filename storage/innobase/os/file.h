@@ -87,21 +87,6 @@ struct Compression {
   /** Default constructor */
   Compression() : m_type(NONE) {}
 
-  /** Specific constructor
-  @param[in]	type		Algorithm type */
-  explicit Compression(Type type) : m_type(type) {
-#ifdef UNIV_DEBUG
-    switch (m_type) {
-      case NONE:
-      case ZLIB:
-      case LZ4:
-
-      default:
-        ut_error;
-    }
-#endif /* UNIV_DEBUG */
-  }
-
   /** Check the page header type field.
   @param[in]	page		Page contents
   @return true if it is a compressed page */

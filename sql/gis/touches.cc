@@ -1,4 +1,4 @@
-// Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -505,8 +505,8 @@ bool Touches::eval(const Cartesian_point *g1,
       *this, g1, g2);
 }
 
-bool Touches::eval(const Cartesian_point *,
-                   const Cartesian_multipoint *) const {
+[[noreturn]] bool Touches::eval(const Cartesian_point *,
+                                const Cartesian_multipoint *) const {
   // If dim(g1) == 0 and dim(g2) == 0, return NULL (SQL/MM 2015 Part 3,
   // Sect. 5.1.50).
   throw null_value_exception();

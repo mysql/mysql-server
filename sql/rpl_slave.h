@@ -489,8 +489,8 @@ typedef enum {
 QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
                                ulong event_len, bool flush_mi = true);
 
-extern "C" void *handle_slave_io(void *arg);
-extern "C" void *handle_slave_sql(void *arg);
+extern "C"[[noreturn]] void *handle_slave_io(void *arg);
+extern "C"[[noreturn]] void *handle_slave_sql(void *arg);
 bool net_request_file(NET *net, const char *fname);
 
 extern bool replicate_same_server_id;

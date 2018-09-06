@@ -40,7 +40,7 @@
 
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_logging_system.h"
 
-void *consumer_function(void *ptr);
+[[noreturn]] void *consumer_function(void *ptr);
 
 Gcs_async_buffer::Gcs_async_buffer(Sink_interface *sink, int buffer_size)
     : m_buffer(std::vector<Gcs_log_event>(buffer_size)),
@@ -256,13 +256,11 @@ void Gcs_async_buffer::consume_events() {
   } while (!is_terminated || number_entries != 0);
 }
 
-void *consumer_function(void *ptr) {
+[[noreturn]] void *consumer_function(void *ptr) {
   Gcs_async_buffer *l = static_cast<Gcs_async_buffer *>(ptr);
   l->consume_events();
 
   My_xp_thread_util::exit(0);
-
-  return NULL;
 }
 
 const std::string Gcs_async_buffer::get_information() const {

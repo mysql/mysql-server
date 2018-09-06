@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,8 +58,8 @@ class Help_options : public Abstract_options_provider {
   virtual void print_usage();
 
  private:
-  void help_callback(char *argument MY_ATTRIBUTE((unused)));
-  void version_callback(char *argument MY_ATTRIBUTE((unused)));
+  [[noreturn]] void help_callback(char *argument MY_ATTRIBUTE((unused)));
+  [[noreturn]] void version_callback(char *argument MY_ATTRIBUTE((unused)));
 
   void print_version_line();
 

@@ -1,7 +1,7 @@
 #ifndef SQL_GIS_CROSSES_FUNCTOR_H_INCLUDED
 #define SQL_GIS_CROSSES_FUNCTOR_H_INCLUDED
 
-// Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -68,18 +68,20 @@ class Crosses : public Functor<bool> {
   double semi_major() const { return m_semi_major; }
   double semi_minor() const { return m_semi_minor; }
   bool operator()(const Geometry *g1, const Geometry *g2) const override;
-  bool eval(const Geometry *g1, const Geometry *g2) const;
+  [[noreturn]] bool eval(const Geometry *g1, const Geometry *g2) const;
 
   //////////////////////////////////////////////////////////////////////////////
 
   // crosses(Cartesian_point, *)
 
-  bool eval(const Cartesian_point *g1, const Cartesian_point *g2) const;
+  [[noreturn]] bool eval(const Cartesian_point *g1,
+                         const Cartesian_point *g2) const;
   bool eval(const Cartesian_point *g1, const Cartesian_linestring *g2) const;
   bool eval(const Cartesian_point *g1, const Cartesian_polygon *g2) const;
   bool eval(const Cartesian_point *g1,
             const Cartesian_geometrycollection *g2) const;
-  bool eval(const Cartesian_point *g1, const Cartesian_multipoint *g2) const;
+  [[noreturn]] bool eval(const Cartesian_point *g1,
+                         const Cartesian_multipoint *g2) const;
   bool eval(const Cartesian_point *g1,
             const Cartesian_multilinestring *g2) const;
   bool eval(const Cartesian_point *g1, const Cartesian_multipolygon *g2) const;
@@ -88,14 +90,15 @@ class Crosses : public Functor<bool> {
 
   // crosses(Cartesian_linestring, *)
 
-  bool eval(const Cartesian_linestring *g1, const Cartesian_point *g2) const;
+  [[noreturn]] bool eval(const Cartesian_linestring *g1,
+                         const Cartesian_point *g2) const;
   bool eval(const Cartesian_linestring *g1,
             const Cartesian_linestring *g2) const;
   bool eval(const Cartesian_linestring *g1, const Cartesian_polygon *g2) const;
   bool eval(const Cartesian_linestring *g1,
             const Cartesian_geometrycollection *g2) const;
-  bool eval(const Cartesian_linestring *g1,
-            const Cartesian_multipoint *g2) const;
+  [[noreturn]] bool eval(const Cartesian_linestring *g1,
+                         const Cartesian_multipoint *g2) const;
   bool eval(const Cartesian_linestring *g1,
             const Cartesian_multilinestring *g2) const;
   bool eval(const Cartesian_linestring *g1,
@@ -105,7 +108,7 @@ class Crosses : public Functor<bool> {
 
   // crosses(Cartesian_polygon, *)
 
-  bool eval(const Cartesian_polygon *g1, const Geometry *g2) const;
+  [[noreturn]] bool eval(const Cartesian_polygon *g1, const Geometry *g2) const;
 
   //////////////////////////////////////////////////////////////////////////////
 
@@ -117,14 +120,15 @@ class Crosses : public Functor<bool> {
 
   // crosses(Cartesian_multipoint, *)
 
-  bool eval(const Cartesian_multipoint *g1, const Cartesian_point *g2) const;
+  [[noreturn]] bool eval(const Cartesian_multipoint *g1,
+                         const Cartesian_point *g2) const;
   bool eval(const Cartesian_multipoint *g1,
             const Cartesian_linestring *g2) const;
   bool eval(const Cartesian_multipoint *g1, const Cartesian_polygon *g2) const;
   bool eval(const Cartesian_multipoint *g1,
             const Cartesian_geometrycollection *g2) const;
-  bool eval(const Cartesian_multipoint *g1,
-            const Cartesian_multipoint *g2) const;
+  [[noreturn]] bool eval(const Cartesian_multipoint *g1,
+                         const Cartesian_multipoint *g2) const;
   bool eval(const Cartesian_multipoint *g1,
             const Cartesian_multilinestring *g2) const;
   bool eval(const Cartesian_multipoint *g1,
@@ -134,16 +138,16 @@ class Crosses : public Functor<bool> {
 
   // crosses(Cartesian_multilinestring, *)
 
-  bool eval(const Cartesian_multilinestring *g1,
-            const Cartesian_point *g2) const;
+  [[noreturn]] bool eval(const Cartesian_multilinestring *g1,
+                         const Cartesian_point *g2) const;
   bool eval(const Cartesian_multilinestring *g1,
             const Cartesian_linestring *g2) const;
   bool eval(const Cartesian_multilinestring *g1,
             const Cartesian_polygon *g2) const;
   bool eval(const Cartesian_multilinestring *g1,
             const Cartesian_geometrycollection *g2) const;
-  bool eval(const Cartesian_multilinestring *g1,
-            const Cartesian_multipoint *g2) const;
+  [[noreturn]] bool eval(const Cartesian_multilinestring *g1,
+                         const Cartesian_multipoint *g2) const;
   bool eval(const Cartesian_multilinestring *g1,
             const Cartesian_multilinestring *g2) const;
   bool eval(const Cartesian_multilinestring *g1,
@@ -153,18 +157,21 @@ class Crosses : public Functor<bool> {
 
   // crosses(Cartesian_multipolygon, *)
 
-  bool eval(const Cartesian_multipolygon *g1, const Geometry *g2) const;
+  [[noreturn]] bool eval(const Cartesian_multipolygon *g1,
+                         const Geometry *g2) const;
 
   //////////////////////////////////////////////////////////////////////////////
 
   // crosses(Geographic_point, *)
 
-  bool eval(const Geographic_point *g1, const Geographic_point *g2) const;
+  [[noreturn]] bool eval(const Geographic_point *g1,
+                         const Geographic_point *g2) const;
   bool eval(const Geographic_point *g1, const Geographic_linestring *g2) const;
   bool eval(const Geographic_point *g1, const Geographic_polygon *g2) const;
   bool eval(const Geographic_point *g1,
             const Geographic_geometrycollection *g2) const;
-  bool eval(const Geographic_point *g1, const Geographic_multipoint *g2) const;
+  [[noreturn]] bool eval(const Geographic_point *g1,
+                         const Geographic_multipoint *g2) const;
   bool eval(const Geographic_point *g1,
             const Geographic_multilinestring *g2) const;
   bool eval(const Geographic_point *g1,
@@ -174,15 +181,16 @@ class Crosses : public Functor<bool> {
 
   // crosses(Geographic_linestring, *)
 
-  bool eval(const Geographic_linestring *g1, const Geographic_point *g2) const;
+  [[noreturn]] bool eval(const Geographic_linestring *g1,
+                         const Geographic_point *g2) const;
   bool eval(const Geographic_linestring *g1,
             const Geographic_linestring *g2) const;
   bool eval(const Geographic_linestring *g1,
             const Geographic_polygon *g2) const;
   bool eval(const Geographic_linestring *g1,
             const Geographic_geometrycollection *g2) const;
-  bool eval(const Geographic_linestring *g1,
-            const Geographic_multipoint *g2) const;
+  [[noreturn]] bool eval(const Geographic_linestring *g1,
+                         const Geographic_multipoint *g2) const;
   bool eval(const Geographic_linestring *g1,
             const Geographic_multilinestring *g2) const;
   bool eval(const Geographic_linestring *g1,
@@ -192,7 +200,8 @@ class Crosses : public Functor<bool> {
 
   // crosses(Geographic_polygon, *)
 
-  bool eval(const Geographic_polygon *g1, const Geometry *g2) const;
+  [[noreturn]] bool eval(const Geographic_polygon *g1,
+                         const Geometry *g2) const;
 
   //////////////////////////////////////////////////////////////////////////////
 
@@ -204,15 +213,16 @@ class Crosses : public Functor<bool> {
 
   // crosses(Geographic_multipoint, *)
 
-  bool eval(const Geographic_multipoint *g1, const Geographic_point *g2) const;
+  [[noreturn]] bool eval(const Geographic_multipoint *g1,
+                         const Geographic_point *g2) const;
   bool eval(const Geographic_multipoint *g1,
             const Geographic_linestring *g2) const;
   bool eval(const Geographic_multipoint *g1,
             const Geographic_polygon *g2) const;
   bool eval(const Geographic_multipoint *g1,
             const Geographic_geometrycollection *g2) const;
-  bool eval(const Geographic_multipoint *g1,
-            const Geographic_multipoint *g2) const;
+  [[noreturn]] bool eval(const Geographic_multipoint *g1,
+                         const Geographic_multipoint *g2) const;
   bool eval(const Geographic_multipoint *g1,
             const Geographic_multilinestring *g2) const;
   bool eval(const Geographic_multipoint *g1,
@@ -222,16 +232,16 @@ class Crosses : public Functor<bool> {
 
   // crosses(Geographic_multilinestring, *)
 
-  bool eval(const Geographic_multilinestring *g1,
-            const Geographic_point *g2) const;
+  [[noreturn]] bool eval(const Geographic_multilinestring *g1,
+                         const Geographic_point *g2) const;
   bool eval(const Geographic_multilinestring *g1,
             const Geographic_linestring *g2) const;
   bool eval(const Geographic_multilinestring *g1,
             const Geographic_polygon *g2) const;
   bool eval(const Geographic_multilinestring *g1,
             const Geographic_geometrycollection *g2) const;
-  bool eval(const Geographic_multilinestring *g1,
-            const Geographic_multipoint *g2) const;
+  [[noreturn]] bool eval(const Geographic_multilinestring *g1,
+                         const Geographic_multipoint *g2) const;
   bool eval(const Geographic_multilinestring *g1,
             const Geographic_multilinestring *g2) const;
   bool eval(const Geographic_multilinestring *g1,
@@ -241,7 +251,8 @@ class Crosses : public Functor<bool> {
 
   // crosses(Geographic_multipolygon, *)
 
-  bool eval(const Geographic_multipolygon *g1, const Geometry *g2) const;
+  [[noreturn]] bool eval(const Geographic_multipolygon *g1,
+                         const Geometry *g2) const;
 };
 
 }  // namespace gis

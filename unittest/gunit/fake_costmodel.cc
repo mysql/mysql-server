@@ -2,7 +2,7 @@
 #define FAKE_COSTMODEL_CC_INCLUDED
 
 /*
-   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -65,10 +65,13 @@ cost_constant_error SE_cost_constants::set(const LEX_CSTRING &, const double,
 /* purecov: end */
 
 /* purecov: begin inspected */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-noreturn"
 Cost_model_se_info::~Cost_model_se_info() {
   // This is only implemented in order to link the unit tests
   DBUG_ASSERT(false);
 }
+#pragma GCC diagnostic pop
 /* purecov: end */
 
 /* purecov: begin inspected */
