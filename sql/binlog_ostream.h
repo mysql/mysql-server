@@ -57,7 +57,7 @@ class IO_CACHE_binlog_cache_storage : public Truncatable_ostream {
   IO_CACHE_binlog_cache_storage &operator=(
       const IO_CACHE_binlog_cache_storage &) = delete;
   IO_CACHE_binlog_cache_storage(const IO_CACHE_binlog_cache_storage &) = delete;
-  ~IO_CACHE_binlog_cache_storage();
+  ~IO_CACHE_binlog_cache_storage() override;
 
   /**
      Opens the binlog cache. It creates a memory buffer as long as cache_size.
@@ -132,7 +132,7 @@ class IO_CACHE_binlog_cache_storage : public Truncatable_ostream {
 */
 class Binlog_cache_storage : public Basic_ostream {
  public:
-  ~Binlog_cache_storage();
+  ~Binlog_cache_storage() override;
 
   bool open(my_off_t cache_size, my_off_t max_cache_size);
   void close();

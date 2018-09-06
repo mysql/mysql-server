@@ -1,7 +1,7 @@
 #ifndef HISTOGRAMS_VALUE_MAP_INCLUDED
 #define HISTOGRAMS_VALUE_MAP_INCLUDED
 
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -240,8 +240,6 @@ class Value_map final : public Value_map_base {
             double sampling_rate = 0.0)
       : Value_map_base(charset, sampling_rate, data_type),
         m_value_map(typename value_map_type::allocator_type(&m_mem_root)) {}
-
-  virtual ~Value_map() {}
 
   size_t size() const override { return m_value_map.size(); }
 

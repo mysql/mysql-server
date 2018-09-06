@@ -226,8 +226,6 @@ class Item_func_truth : public Item_bool_func {
   Item_func_truth(const POS &pos, Item *a, bool a_value, bool a_affirmative)
       : Item_bool_func(pos, a), value(a_value), affirmative(a_affirmative) {}
 
-  ~Item_func_truth() {}
-
  private:
   /**
     True for <code>X IS [NOT] TRUE</code>,
@@ -248,7 +246,6 @@ class Item_func_istrue final : public Item_func_truth {
  public:
   Item_func_istrue(const POS &pos, Item *a)
       : Item_func_truth(pos, a, true, true) {}
-  ~Item_func_istrue() {}
   const char *func_name() const override { return "istrue"; }
 };
 
@@ -260,7 +257,6 @@ class Item_func_isnottrue final : public Item_func_truth {
  public:
   Item_func_isnottrue(const POS &pos, Item *a)
       : Item_func_truth(pos, a, true, false) {}
-  ~Item_func_isnottrue() {}
   const char *func_name() const override { return "isnottrue"; }
 };
 
@@ -272,7 +268,6 @@ class Item_func_isfalse final : public Item_func_truth {
  public:
   Item_func_isfalse(const POS &pos, Item *a)
       : Item_func_truth(pos, a, false, true) {}
-  ~Item_func_isfalse() {}
   const char *func_name() const override { return "isfalse"; }
 };
 
@@ -284,7 +279,6 @@ class Item_func_isnotfalse final : public Item_func_truth {
  public:
   Item_func_isnotfalse(const POS &pos, Item *a)
       : Item_func_truth(pos, a, false, false) {}
-  ~Item_func_isnotfalse() {}
   const char *func_name() const override { return "isnotfalse"; }
 };
 
@@ -2036,7 +2030,7 @@ class Item_equal final : public Item_bool_func {
   Item_equal(Item_field *f1, Item_field *f2);
   Item_equal(Item *c, Item_field *f);
   Item_equal(Item_equal *item_equal);
-  virtual ~Item_equal() { destroy(eval_item); }
+  ~Item_equal() override { destroy(eval_item); }
 
   inline Item *get_const() { return const_item; }
   bool compare_const(THD *thd, Item *c);

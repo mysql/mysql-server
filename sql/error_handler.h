@@ -318,7 +318,7 @@ class Functional_index_error_handler : public Internal_error_handler {
                         Sql_condition::enum_severity_level *level,
                         const char *message) override;
 
-  ~Functional_index_error_handler();
+  ~Functional_index_error_handler() override;
 
   void force_error_code(int error_code) { m_force_error_code = error_code; }
 

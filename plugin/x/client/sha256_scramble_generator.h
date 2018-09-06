@@ -60,7 +60,7 @@ class Generate_digest {
 class SHA256_digest : public Generate_digest {
  public:
   SHA256_digest();
-  ~SHA256_digest();
+  ~SHA256_digest() override;
 
   bool update_digest(const void *src, std::uint32_t length) override;
   bool retrieve_digest(unsigned char *digest, std::uint32_t length) override;

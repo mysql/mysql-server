@@ -1234,7 +1234,7 @@ class Gis_point : public Geometry {
 
   Gis_point(const self &pt);
 
-  virtual ~Gis_point() {}
+  ~Gis_point() override {}
 
   Gis_point &operator=(const Gis_point &rhs);
 
@@ -2041,7 +2041,7 @@ class Gis_wkb_vector : public Geometry {
 
   Gis_wkb_vector() : Geometry() { m_geo_vect = NULL; }
 
-  ~Gis_wkb_vector() {
+  ~Gis_wkb_vector() override {
   /*
     See ~Geometry() for why we do try-catch like this.
 
@@ -2127,7 +2127,6 @@ class Gis_line_string : public Gis_wkb_vector<Gis_point> {
       POINT_DATA_SIZE;
 
  public:
-  virtual ~Gis_line_string() {} /* Remove gcc warning */
   uint32 get_data_size() const override;
   bool init_from_wkt(Gis_read_stream *trs, String *wkb) override;
   uint init_from_wkb(THD *thd, const char *wkb, uint len, wkbByteOrder bo,
@@ -2275,7 +2274,7 @@ class Gis_polygon : public Geometry {
 
   Gis_polygon(const self &r);
   Gis_polygon &operator=(const Gis_polygon &rhs);
-  ~Gis_polygon();
+  ~Gis_polygon() override;
 
   void to_wkb_unparsed();
   void set_ptr(void *ptr, size_t len);
@@ -2319,7 +2318,6 @@ class Gis_multi_point : public Gis_wkb_vector<Gis_point> {
       (WKB_HEADER_SIZE + POINT_DATA_SIZE);
 
  public:
-  virtual ~Gis_multi_point() {} /* Remove gcc warning */
   uint32 get_data_size() const override;
   bool init_from_wkt(Gis_read_stream *trs, String *wkb) override;
   uint init_from_wkb(THD *thd, const char *wkb, uint len, wkbByteOrder bo,
@@ -2358,7 +2356,6 @@ class Gis_multi_point : public Gis_wkb_vector<Gis_point> {
 
 class Gis_multi_line_string : public Gis_wkb_vector<Gis_line_string> {
  public:
-  virtual ~Gis_multi_line_string() {} /* Remove gcc warning */
   uint32 get_data_size() const override;
   bool init_from_wkt(Gis_read_stream *trs, String *wkb) override;
   uint init_from_wkb(THD *thd, const char *wkb, uint len, wkbByteOrder bo,
@@ -2399,7 +2396,6 @@ class Gis_multi_line_string : public Gis_wkb_vector<Gis_line_string> {
 
 class Gis_multi_polygon : public Gis_wkb_vector<Gis_polygon> {
  public:
-  virtual ~Gis_multi_polygon() {} /* Remove gcc warning */
   uint32 get_data_size() const override;
   bool init_from_wkt(Gis_read_stream *trs, String *wkb) override;
   uint init_from_wkb(THD *thd, const char *wkb, uint len, wkbByteOrder bo,
@@ -2447,7 +2443,6 @@ class Gis_geometry_collection : public Geometry {
   Gis_geometry_collection(Geometry *geo, String *gcbuf);
   Gis_geometry_collection(gis::srid_t srid, wkbType gtype, const String *gbuf,
                           String *gcbuf);
-  virtual ~Gis_geometry_collection() {} /* Remove gcc warning */
   bool append_geometry(const Geometry *geo, String *gcbuf);
   bool append_geometry(gis::srid_t srid, wkbType gtype, const String *gbuf,
                        String *gcbuf);

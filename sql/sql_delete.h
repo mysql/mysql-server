@@ -90,7 +90,6 @@ class Query_result_delete final : public Query_result_interceptor {
         delete_completed(false),
         non_transactional_deleted(false),
         error_handled(false) {}
-  ~Query_result_delete() {}
   bool need_explain_interceptor() const override { return true; }
   bool prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
   bool send_data(List<Item> &items) override;

@@ -61,8 +61,6 @@ class Column_statistics_impl final : public Entity_object_impl,
     init_alloc_root(key_memory_DD_column_statistics, &m_mem_root, 256, 0);
   }
 
-  virtual ~Column_statistics_impl() { free_root(&m_mem_root, MYF(0)); }
-
  private:
   Column_statistics_impl(const Column_statistics_impl &column_statistics)
       : Weak_object(column_statistics),

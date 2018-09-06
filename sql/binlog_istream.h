@@ -113,7 +113,7 @@ class Basic_binlog_ifile : public Basic_seekable_istream {
   Basic_binlog_ifile(Binlog_read_error *binlog_read_error);
   Basic_binlog_ifile(const Basic_binlog_ifile &) = delete;
   Basic_binlog_ifile &operator=(const Basic_binlog_ifile &) = delete;
-  virtual ~Basic_binlog_ifile();
+  ~Basic_binlog_ifile() override;
   /**
      Open a binlog file.
 

@@ -100,7 +100,7 @@ class Aggregator {
 
  public:
   Aggregator(Item_sum *arg) : item_sum(arg) {}
-  virtual ~Aggregator() {} /* Keep gcc happy */
+  virtual ~Aggregator() {}
 
   enum Aggregator_type { SIMPLE_AGGREGATOR, DISTINCT_AGGREGATOR };
   virtual Aggregator_type Aggrtype() = 0;
@@ -856,7 +856,7 @@ class Aggregator_distinct : public Aggregator {
         tree(NULL),
         const_distinct(NOT_CONST),
         use_distinct_values(false) {}
-  virtual ~Aggregator_distinct();
+  ~Aggregator_distinct() override;
   Aggregator_type Aggrtype() override { return DISTINCT_AGGREGATOR; }
 
   bool setup(THD *) override;
@@ -2049,7 +2049,7 @@ class Item_func_group_concat final : public Item_sum {
                          PT_window *w);
 
   Item_func_group_concat(THD *thd, Item_func_group_concat *item);
-  ~Item_func_group_concat();
+  ~Item_func_group_concat() override;
 
   bool itemize(Parse_context *pc, Item **res) override;
   void cleanup() override;

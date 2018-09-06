@@ -62,7 +62,7 @@ class Client : public ngs::Client {
   Client(std::shared_ptr<ngs::Vio_interface> connection,
          ngs::Server_interface &server, Client_id client_id,
          Protocol_monitor *pmon, const Global_timeouts &timeouts);
-  virtual ~Client();
+  ~Client() override;
 
  public:  // impl ngs::Client_interface
   void on_session_close(ngs::Session_interface &s) override;

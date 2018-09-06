@@ -817,7 +817,7 @@ class Item : public Parse_tree_node {
   */
   explicit Item(const POS &);
 
-  virtual ~Item() {
+  virtual ~Item() override {
 #ifdef EXTRA_DEBUG
     item_name.set(0);
 #endif
@@ -4377,7 +4377,7 @@ class Item_result_field : public Item {
   // Constructor used for Item_sum/Item_cond_and/or (see Item comment)
   Item_result_field(THD *thd, Item_result_field *item)
       : Item(thd, item), result_field(item->result_field) {}
-  ~Item_result_field() {} /* Required with gcc 2.95 */
+  ~Item_result_field() override {} /* Required with gcc 2.95 */
   Field *get_tmp_table_field() override { return result_field; }
   Field *tmp_table_field(TABLE *) override { return result_field; }
   table_map used_tables() const override { return 1; }
@@ -4661,7 +4661,7 @@ class Item_view_ref final : public Item_ref {
           "!(inner_map & ~INNER_TABLE_BIT)" to avoid multiple and recursive
           calls to used_tables. This can create a problem when Views are
           created using other views
- */
+*/
   table_map used_tables() const override {
     if (depended_from != NULL) return OUTER_REF_TABLE_BIT;
 
@@ -5067,7 +5067,7 @@ class Item_copy_json final : public Item_copy {
 
  public:
   explicit Item_copy_json(Item *item);
-  virtual ~Item_copy_json();
+  virtual ~Item_copy_json() override;
   bool copy(const THD *thd) override;
   bool val_json(Json_wrapper *) override;
   String *val_str(String *) override;
@@ -5187,7 +5187,7 @@ class Cached_item_str : public Cached_item {
  public:
   Cached_item_str(THD *thd, Item *arg);
   bool cmp() override;
-  ~Cached_item_str();  // Deallocate String:s
+  ~Cached_item_str() override;  // Deallocate String:s
   void copy_to_Item_cache(Item_cache *i_c) override;
 };
 
@@ -5196,7 +5196,7 @@ class Cached_item_json : public Cached_item {
   Json_wrapper *m_value;  ///< The cached JSON value.
  public:
   explicit Cached_item_json(Item *item);
-  ~Cached_item_json();
+  ~Cached_item_json() override;
   bool cmp() override;
   void copy_to_Item_cache(Item_cache *i_c) override;
 };
@@ -5783,7 +5783,7 @@ class Item_cache_json : public Item_cache {
 
  public:
   Item_cache_json();
-  ~Item_cache_json();
+  ~Item_cache_json() override;
   bool cache_value() override;
   void store_value(Item *expr, Json_wrapper *wr);
   bool val_json(Json_wrapper *wr) override;

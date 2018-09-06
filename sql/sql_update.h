@@ -130,7 +130,6 @@ class Query_result_update final : public Query_result_interceptor {
         transactional_tables(false),
         error_handled(false),
         update_operations(NULL) {}
-  ~Query_result_update() {}
   bool need_explain_interceptor() const override { return true; }
   bool prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
   bool optimize() override;

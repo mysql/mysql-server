@@ -31,7 +31,7 @@
 class MySQLSessionReplayer : public mysqlrouter::MySQLSession {
  public:
   MySQLSessionReplayer(bool trace = false);
-  virtual ~MySQLSessionReplayer();
+  ~MySQLSessionReplayer() override;
 
   virtual void connect(const std::string &host, unsigned int port,
                        const std::string &user, const std::string &password,

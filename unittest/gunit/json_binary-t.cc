@@ -741,7 +741,7 @@ class Invalid_binary_handler : public Internal_error_handler {
     thd->push_internal_handler(this);
   }
 
-  ~Invalid_binary_handler() {
+  ~Invalid_binary_handler() override {
     EXPECT_EQ(this, m_thd->pop_internal_handler());
     error_handler_hook = m_orig_handler;
   }

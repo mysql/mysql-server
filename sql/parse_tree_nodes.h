@@ -2807,7 +2807,7 @@ class PT_foreign_key_definition : public PT_table_constraint_def {
 */
 class PT_ddl_table_option : public Table_ddl_node {
  public:
-  virtual ~PT_ddl_table_option() = 0;  // Force abstract class declaration
+  ~PT_ddl_table_option() override = 0;  // Force abstract class declaration
 
   virtual bool is_rename_table() const { return false; }
 };
@@ -2823,7 +2823,7 @@ class PT_create_table_option : public PT_ddl_table_option {
   typedef PT_ddl_table_option super;
 
  public:
-  virtual ~PT_create_table_option() = 0;  // Force abstract class declaration
+  ~PT_create_table_option() override = 0;  // Force abstract class declaration
 
   bool contextualize(Table_ddl_parse_context *pc) override {
     if (super::contextualize(pc)) return true;
@@ -5058,8 +5058,6 @@ class PT_create_resource_group final : public Parse_tree_root {
     thd->lex->sql_command = SQLCOM_CREATE_RESOURCE_GROUP;
     return &sql_cmd;
   }
-
-  virtual ~PT_create_resource_group() {}
 };
 
 /**
@@ -5091,8 +5089,6 @@ class PT_alter_resource_group final : public Parse_tree_root {
     thd->lex->sql_command = SQLCOM_ALTER_RESOURCE_GROUP;
     return &sql_cmd;
   }
-
-  virtual ~PT_alter_resource_group() {}
 };
 
 /**
@@ -5114,8 +5110,6 @@ class PT_drop_resource_group final : public Parse_tree_root {
     thd->lex->sql_command = SQLCOM_DROP_RESOURCE_GROUP;
     return &sql_cmd;
   }
-
-  virtual ~PT_drop_resource_group() {}
 };
 
 /**
@@ -5138,8 +5132,6 @@ class PT_set_resource_group final : public Parse_tree_root {
     thd->lex->sql_command = SQLCOM_SET_RESOURCE_GROUP;
     return &sql_cmd;
   }
-
-  virtual ~PT_set_resource_group() {}
 };
 
 class PT_explain_for_connection final : public Parse_tree_root {

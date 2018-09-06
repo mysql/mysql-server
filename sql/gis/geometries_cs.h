@@ -323,7 +323,7 @@ class Cartesian_geometrycollection : public Geometrycollection {
             Malloc_allocator<Geometry *>(key_memory_Geometry_objects_data)) {
     m_geometries = std::move(gc.m_geometries);
   }
-  ~Cartesian_geometrycollection() {
+  ~Cartesian_geometrycollection() override {
     for (Geometry *g : m_geometries) {
       delete g;
     }
@@ -376,7 +376,7 @@ class Geographic_geometrycollection : public Geometrycollection {
             Malloc_allocator<Geometry *>(key_memory_Geometry_objects_data)) {
     m_geometries = std::move(gc.m_geometries);
   }
-  ~Geographic_geometrycollection() {
+  ~Geographic_geometrycollection() override {
     for (Geometry *g : m_geometries) {
       delete g;
     }

@@ -42,7 +42,7 @@ class Listener_tcp : public ngs::Listener_interface {
   Listener_tcp(Factory_ptr operations_factory, std::string &bind_address,
                const uint16 port, const uint32 port_open_timeout,
                ngs::Socket_events_interface &event, const uint32 backlog);
-  ~Listener_tcp();
+  ~Listener_tcp() override;
 
   Sync_variable_state &get_state() override;
   std::string get_last_error() override;

@@ -64,7 +64,7 @@ class TableScanIterator final : public TableRowIterator {
   // "examined_rows", if not nullptr, is incremented for each successful Read().
   TableScanIterator(THD *thd, TABLE *table, QEP_TAB *qep_tab,
                     Item *pushed_condition, ha_rows *examined_rows);
-  ~TableScanIterator();
+  ~TableScanIterator() override;
 
   bool Init() override;
   int Read() override;
@@ -95,7 +95,7 @@ class IndexScanIterator final : public TableRowIterator {
   IndexScanIterator(THD *thd, TABLE *table, int idx, bool use_order,
                     QEP_TAB *qep_tab, Item *pushed_condition,
                     ha_rows *examined_rows);
-  ~IndexScanIterator();
+  ~IndexScanIterator() override;
 
   bool Init() override;
   int Read() override;
@@ -170,7 +170,7 @@ class SortBufferIterator final : public TableRowIterator {
   // "examined_rows", if not nullptr, is incremented for each successful Read().
   SortBufferIterator(THD *thd, TABLE *table, Filesort_info *sort,
                      Sort_result *sort_result, ha_rows *examined_rows);
-  ~SortBufferIterator();
+  ~SortBufferIterator() override;
 
   bool Init() override;
   int Read() override;
@@ -207,7 +207,7 @@ class SortBufferIndirectIterator final : public TableRowIterator {
   SortBufferIndirectIterator(THD *thd, TABLE *table, Sort_result *sort_result,
                              bool ignore_not_found_rows, Item *pushed_condition,
                              ha_rows *examined_rows);
-  ~SortBufferIndirectIterator();
+  ~SortBufferIndirectIterator() override;
   bool Init() override;
   int Read() override;
 
@@ -235,7 +235,7 @@ class SortFileIterator final : public TableRowIterator {
   // Takes ownership of tempfile.
   SortFileIterator(THD *thd, TABLE *table, IO_CACHE *tempfile,
                    Filesort_info *sort, ha_rows *examined_rows);
-  ~SortFileIterator();
+  ~SortFileIterator() override;
 
   bool Init() override { return false; }
   int Read() override;
@@ -267,7 +267,7 @@ class SortFileIndirectIterator final : public TableRowIterator {
   SortFileIndirectIterator(THD *thd, TABLE *table, IO_CACHE *tempfile,
                            bool request_cache, bool ignore_not_found_rows,
                            Item *pushed_condition, ha_rows *examined_rows);
-  ~SortFileIndirectIterator();
+  ~SortFileIndirectIterator() override;
 
   bool Init() override;
   int Read() override;

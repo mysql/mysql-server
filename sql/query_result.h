@@ -198,7 +198,7 @@ class Query_result_to_file : public Query_result_interceptor {
       : Query_result_interceptor(thd), exchange(ex), file(-1), row_count(0L) {
     path[0] = 0;
   }
-  ~Query_result_to_file() { DBUG_ASSERT(file < 0); }
+  ~Query_result_to_file() override { DBUG_ASSERT(file < 0); }
 
   bool needs_file_privilege() const override { return true; }
 
@@ -241,7 +241,6 @@ class Query_result_export final : public Query_result_to_file {
  public:
   Query_result_export(THD *thd, sql_exchange *ex)
       : Query_result_to_file(thd, ex) {}
-  ~Query_result_export() {}
   bool prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
   bool start_execution() override;
   bool send_data(List<Item> &items) override;
@@ -265,7 +264,6 @@ class Query_dumpvar final : public Query_result_interceptor {
   Query_dumpvar(THD *thd) : Query_result_interceptor(thd), row_count(0) {
     var_list.empty();
   }
-  ~Query_dumpvar() {}
   bool prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
   bool send_data(List<Item> &items) override;
   bool send_eof() override;

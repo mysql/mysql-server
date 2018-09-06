@@ -54,7 +54,7 @@ class DestRoundRobin : public RouteDestination {
         quarantine_thread_(thread_stack_size) {}
 
   /** @brief Destructor */
-  virtual ~DestRoundRobin();
+  ~DestRoundRobin() override;
 
   /** @brief run Quarantine Manager Thread */
   static void *run_thread(void *context);

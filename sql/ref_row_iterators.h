@@ -128,7 +128,7 @@ class FullTextSearchIterator final : public TableRowIterator {
   // "examined_rows", if not nullptr, is incremented for each successful Read().
   FullTextSearchIterator(THD *thd, TABLE *table, TABLE_REF *ref, bool use_order,
                          ha_rows *examined_rows);
-  ~FullTextSearchIterator();
+  ~FullTextSearchIterator() override;
 
   bool Init() override;
   int Read() override;

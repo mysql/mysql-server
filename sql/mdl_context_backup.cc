@@ -30,7 +30,7 @@ class MDL_context_backup_manager::MDL_context_backup
  public:
   MDL_context_backup() { m_context.init(this); }
 
-  ~MDL_context_backup() {
+  ~MDL_context_backup() override {
     DBUG_ASSERT(!m_context.has_locks(MDL_EXPLICIT));
     DBUG_ASSERT(!m_context.has_locks(MDL_STATEMENT));
 

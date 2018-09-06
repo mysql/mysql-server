@@ -62,7 +62,7 @@ class QueriesJsonReader : public StatementReaderBase {
    **/
   std::chrono::microseconds get_default_exec_time() override;
 
-  virtual ~QueriesJsonReader();
+  ~QueriesJsonReader() override;
 
  private:
   // This is to avoid including RapidJSON headers here, which would cause

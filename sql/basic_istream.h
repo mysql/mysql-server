@@ -82,7 +82,7 @@ class IO_CACHE_istream : public Basic_seekable_istream {
   IO_CACHE_istream();
   IO_CACHE_istream(const IO_CACHE_istream &) = delete;
   IO_CACHE_istream &operator=(const IO_CACHE_istream &) = delete;
-  ~IO_CACHE_istream();
+  ~IO_CACHE_istream() override;
 
   /**
      Open the stream. It opens related file and initializes IO_CACHE.
@@ -126,7 +126,7 @@ class Stdin_istream : public Basic_istream {
   Stdin_istream();
   Stdin_istream(const Stdin_istream &) = delete;
   Stdin_istream &operator=(const Stdin_istream &) = delete;
-  ~Stdin_istream();
+  ~Stdin_istream() override;
 
   /**
      Opens the stdin stream. It initializes the IO_CACHE with stdin.

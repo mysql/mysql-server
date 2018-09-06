@@ -54,7 +54,7 @@ class Client : public Client_interface {
   Client(std::shared_ptr<Vio_interface> connection, Server_interface &server,
          Client_id client_id, Protocol_monitor_interface *pmon,
          const Global_timeouts &timeouts);
-  virtual ~Client();
+  ~Client() override;
 
   xpl::Mutex &get_session_exit_mutex() override { return m_session_exit_mutex; }
   Session_interface *session() override { return m_session.get(); }

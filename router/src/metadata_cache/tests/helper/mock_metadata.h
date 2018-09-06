@@ -100,7 +100,7 @@ class METADATA_TESTS_API MockNG : public ClusterMetadata {
    *
    * Disconnect and release the connection to the metadata node.
    */
-  virtual ~MockNG();
+  ~MockNG() override;
 
   /** @brief Mock connect method.
    *

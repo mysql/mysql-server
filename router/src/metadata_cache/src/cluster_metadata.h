@@ -74,7 +74,7 @@ class METADATA_API ClusterMetadata : public MetaData {
    *
    * Disconnect and release the connection to the metadata node.
    */
-  virtual ~ClusterMetadata();
+  ~ClusterMetadata() override;
 
   /** @brief Returns replicasets defined in the metadata server
    *

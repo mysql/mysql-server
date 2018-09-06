@@ -1318,7 +1318,7 @@ class Query_log_event : public virtual binary_log::Query_event,
   Query_log_event(const char *buf,
                   const Format_description_event *description_event,
                   Log_event_type event_type);
-  ~Query_log_event() {
+  ~Query_log_event() override {
     if (data_buf) my_free(data_buf);
   }
 #ifdef MYSQL_SERVER
@@ -1521,7 +1521,7 @@ class Intvar_log_event : public binary_log::Intvar_event, public Log_event {
 
   Intvar_log_event(const char *buf,
                    const Format_description_event *description_event);
-  ~Intvar_log_event() {}
+  ~Intvar_log_event() override {}
   size_t get_data_size() override {
     return 9; /* sizeof(type) + sizeof(val) */
     ;
@@ -1583,7 +1583,7 @@ class Rand_log_event : public binary_log::Rand_event, public Log_event {
 
   Rand_log_event(const char *buf,
                  const Format_description_event *description_event);
-  ~Rand_log_event() {}
+  ~Rand_log_event() override {}
   size_t get_data_size() override { return 16; /* sizeof(ulonglong) * 2*/ }
 #ifdef MYSQL_SERVER
   bool write(Basic_ostream *ostream) override;
@@ -1639,7 +1639,7 @@ class Xid_apply_log_event : public Log_event {
   Xid_apply_log_event(Log_event_header *header_arg,
                       Log_event_footer *footer_arg)
       : Log_event(header_arg, footer_arg) {}
-  ~Xid_apply_log_event() {}
+  ~Xid_apply_log_event() override {}
   virtual bool ends_group() const override { return true; }
 #if defined(MYSQL_SERVER)
   virtual enum_skip_reason do_shall_skip(Relay_log_info *rli) override;
@@ -1664,7 +1664,7 @@ class Xid_log_event : public binary_log::Xid_event, public Xid_apply_log_event {
 
   Xid_log_event(const char *buf,
                 const Format_description_event *description_event);
-  ~Xid_log_event() {}
+  ~Xid_log_event() override {}
   size_t get_data_size() override { return sizeof(xid); }
 #ifdef MYSQL_SERVER
   bool write(Basic_ostream *ostream) override;
@@ -1770,7 +1770,7 @@ class User_var_log_event : public binary_log::User_var_event, public Log_event {
 
   User_var_log_event(const char *buf,
                      const Format_description_event *description_event);
-  ~User_var_log_event() {}
+  ~User_var_log_event() override {}
 #ifdef MYSQL_SERVER
   bool write(Basic_ostream *ostream) override;
   /*
@@ -1826,7 +1826,7 @@ class Stop_log_event : public binary_log::Stop_event, public Log_event {
     DBUG_VOID_RETURN;
   }
 
-  ~Stop_log_event() {}
+  ~Stop_log_event() override {}
   Log_event_type get_type_code() { return binary_log::STOP_EVENT; }
 
  private:
@@ -1881,7 +1881,7 @@ class Rotate_log_event : public binary_log::Rotate_event, public Log_event {
 
   Rotate_log_event(const char *buf,
                    const Format_description_event *description_event);
-  ~Rotate_log_event() {}
+  ~Rotate_log_event() override {}
   size_t get_data_size() override {
     return ident_len + Binary_log_event::ROTATE_HEADER_LEN;
   }
@@ -1935,7 +1935,7 @@ class Append_block_log_event : public virtual binary_log::Append_block_event,
 
   Append_block_log_event(const char *buf,
                          const Format_description_event *description_event);
-  ~Append_block_log_event() {}
+  ~Append_block_log_event() override {}
   size_t get_data_size() override {
     return block_len + Binary_log_event::APPEND_BLOCK_HEADER_LEN;
   }
@@ -1994,7 +1994,7 @@ class Delete_file_log_event : public binary_log::Delete_file_event,
 
   Delete_file_log_event(const char *buf,
                         const Format_description_event *description_event);
-  ~Delete_file_log_event() {}
+  ~Delete_file_log_event() override {}
   size_t get_data_size() override {
     return Binary_log_event::DELETE_FILE_HEADER_LEN;
   }
@@ -2059,7 +2059,7 @@ class Begin_load_query_log_event : public Append_block_log_event,
 #endif
   Begin_load_query_log_event(const char *buf,
                              const Format_description_event *description_event);
-  ~Begin_load_query_log_event() {}
+  ~Begin_load_query_log_event() override {}
 
  private:
 #if defined(MYSQL_SERVER)
@@ -2122,7 +2122,7 @@ class Execute_load_query_log_event
 #endif
   Execute_load_query_log_event(
       const char *buf, const Format_description_event *description_event);
-  ~Execute_load_query_log_event() {}
+  ~Execute_load_query_log_event() override {}
 
   ulong get_post_header_size_for_derived() override;
 #ifdef MYSQL_SERVER
@@ -2186,7 +2186,7 @@ class Unknown_log_event : public binary_log::Unknown_event, public Log_event {
     DBUG_VOID_RETURN;
   }
 
-  ~Unknown_log_event() {}
+  ~Unknown_log_event() override {}
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info) const override;
   Log_event_type get_type_code() { return binary_log::UNKNOWN_EVENT; }
 };
@@ -2257,7 +2257,7 @@ class Table_map_log_event : public binary_log::Table_map_event,
   Table_map_log_event(const char *buf,
                       const Format_description_event *description_event);
 
-  virtual ~Table_map_log_event();
+  ~Table_map_log_event() override;
 
 #ifndef MYSQL_SERVER
   table_def *create_table_def() {
@@ -2522,7 +2522,7 @@ class Rows_log_event : public virtual binary_log::Rows_event, public Log_event {
   /* Special constants representing sets of flags */
   enum { RLE_NO_FLAGS = 0U };
 
-  virtual ~Rows_log_event();
+  ~Rows_log_event() override;
 
   void set_flags(flag_set flags_arg) { m_flags |= flags_arg; }
   void clear_flags(flag_set flags_arg) { m_flags &= ~flags_arg; }
@@ -3081,7 +3081,7 @@ class Update_rows_log_event : public Rows_log_event,
   void init(MY_BITMAP const *cols, const MY_BITMAP &cols_to_subtract);
 #endif
 
-  virtual ~Update_rows_log_event();
+  ~Update_rows_log_event() override;
 
   Update_rows_log_event(const char *buf,
                         const Format_description_event *description_event);
@@ -3295,7 +3295,7 @@ class Incident_log_event : public binary_log::Incident_event, public Log_event {
   Incident_log_event(const char *buf,
                      const Format_description_event *description_event);
 
-  virtual ~Incident_log_event();
+  ~Incident_log_event() override;
 
 #ifndef MYSQL_SERVER
   virtual void print(FILE *file,
@@ -3358,7 +3358,7 @@ class Ignorable_log_event : public virtual binary_log::Ignorable_event,
 
   Ignorable_log_event(const char *buf,
                       const Format_description_event *descr_event);
-  virtual ~Ignorable_log_event();
+  ~Ignorable_log_event() override;
 
 #ifdef MYSQL_SERVER
   int pack_info(Protocol *) override;
@@ -3434,7 +3434,7 @@ class Rows_query_log_event : public Ignorable_log_event,
   Rows_query_log_event(const char *buf,
                        const Format_description_event *descr_event);
 
-  virtual ~Rows_query_log_event() {
+  ~Rows_query_log_event() override {
     if (m_rows_query) my_free(m_rows_query);
     m_rows_query = NULL;
   }
@@ -3538,7 +3538,7 @@ class Gtid_log_event : public binary_log::Gtid_event, public Log_event {
   Gtid_log_event(const char *buffer,
                  const Format_description_event *description_event);
 
-  virtual ~Gtid_log_event() {}
+  ~Gtid_log_event() override {}
 
   size_t get_data_size() override {
     DBUG_EXECUTE_IF("do_not_write_rpl_timestamps", return POST_HEADER_LENGTH;);
@@ -3755,7 +3755,7 @@ class Previous_gtids_log_event : public binary_log::Previous_gtids_event,
 
   Previous_gtids_log_event(const char *buf,
                            const Format_description_event *description_event);
-  virtual ~Previous_gtids_log_event() {}
+  ~Previous_gtids_log_event() override {}
 
   size_t get_data_size() override { return buf_size; }
 
@@ -3886,7 +3886,7 @@ class Transaction_context_log_event
   Transaction_context_log_event(const char *buffer,
                                 const Format_description_event *descr_event);
 
-  virtual ~Transaction_context_log_event();
+  ~Transaction_context_log_event() override;
 
   size_t get_data_size() override;
 
@@ -4004,7 +4004,7 @@ class View_change_log_event : public binary_log::View_change_event,
   View_change_log_event(const char *buffer,
                         const Format_description_event *descr_event);
 
-  virtual ~View_change_log_event();
+  ~View_change_log_event() override;
 
   size_t get_data_size() override;
 

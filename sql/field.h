@@ -923,7 +923,7 @@ class Field : public Proto_field {
   Field(uchar *ptr_arg, uint32 length_arg, uchar *null_ptr_arg,
         uchar null_bit_arg, uchar auto_flags_arg, const char *field_name_arg);
 
-  virtual ~Field() {}
+  ~Field() override {}
 
   void reset_warnings() { m_warnings_pushed = 0; }
 

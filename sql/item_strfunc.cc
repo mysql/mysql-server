@@ -813,7 +813,7 @@ class Parse_error_anonymizer : public Internal_error_handler {
     return true;
   }
 
-  ~Parse_error_anonymizer() { m_thd->pop_internal_handler(); }
+  ~Parse_error_anonymizer() override { m_thd->pop_internal_handler(); }
 
  private:
   THD *m_thd;

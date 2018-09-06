@@ -70,7 +70,7 @@ class DestMetadataCacheGroup final
       std::chrono::milliseconds connect_timeout, int *error,
       mysql_harness::TCPAddress *address = nullptr) noexcept override;
 
-  ~DestMetadataCacheGroup();
+  ~DestMetadataCacheGroup() override;
 
   void add(const std::string &, uint16_t) override {}
   void add(const mysql_harness::TCPAddress) override {}

@@ -88,7 +88,6 @@ IF(WIN32 AND CMAKE_C_COMPILER_ID MATCHES "Clang")
   MY_ADD_CXX_WARNING_FLAG("Wno-shorten-64-to-32")
   MY_ADD_CXX_WARNING_FLAG("Wno-shadow")
   MY_ADD_CXX_WARNING_FLAG("Wno-deprecated")  # FIXME
-  MY_ADD_CXX_WARNING_FLAG("Wno-inconsistent-missing-destructor-override")
   MY_ADD_CXX_WARNING_FLAG("Wno-c++2a-compat")
   MY_ADD_CXX_WARNING_FLAG("Wno-macro-redefined")
   MY_ADD_CXX_WARNING_FLAG("Wno-unused-const-variable")
@@ -152,6 +151,7 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wnon-virtual-dtor")
   STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wundefined-reinterpret-cast")
   STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wextra-semi")
+  STRING_APPEND(MY_CXX_WARNING_FLAGS " -Winconsistent-missing-destructor-override")
 
   # Other possible options that give warnings (Clang 6.0):
   # -Wabstract-vbase-init
@@ -178,7 +178,6 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   # -Wgnu-anonymous-struct
   # -Wgnu-zero-variadic-macro-arguments
   # -Wimplicit-fallthrough
-  # -Winconsistent-missing-destructor-override
   # -Wkeyword-macro
   # -Wmissing-noreturn
   # -Wmissing-prototypes

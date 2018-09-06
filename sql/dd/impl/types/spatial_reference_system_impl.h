@@ -70,8 +70,6 @@ class Spatial_reference_system_impl : public Entity_object_impl,
         m_parsed_definition(),
         m_description() {}
 
-  virtual ~Spatial_reference_system_impl() {}
-
  private:
   Spatial_reference_system_impl(const Spatial_reference_system_impl &srs)
       : Weak_object(srs),

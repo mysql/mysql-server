@@ -61,7 +61,7 @@ class SortingIterator final : public RowIterator {
   SortingIterator(THD *thd, Filesort *filesort,
                   unique_ptr_destroy_only<RowIterator> source,
                   ha_rows *examined_rows);
-  ~SortingIterator();
+  ~SortingIterator() override;
 
   // Calls Init() on the source iterator, then does the actual sort.
   // NOTE: If you call Init() again, SortingIterator will actually

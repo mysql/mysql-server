@@ -58,7 +58,7 @@ class Protocol_encoder : public Protocol_encoder_interface {
   Protocol_encoder(const ngs::shared_ptr<Vio_interface> &socket,
                    Error_handler ehandler, Protocol_monitor_interface &pmon);
 
-  virtual ~Protocol_encoder();
+  ~Protocol_encoder() override;
 
   bool send_result(const Error_code &result) override;
 

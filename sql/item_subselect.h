@@ -169,7 +169,7 @@ class Item_subselect : public Item_result_field {
   */
   void init(SELECT_LEX *select, Query_result_subquery *result);
 
-  ~Item_subselect();
+  ~Item_subselect() override;
   void cleanup() override;
   virtual void reset() { null_value = 1; }
   virtual trans_res select_transformer(SELECT_LEX *select) = 0;
@@ -855,7 +855,7 @@ class subselect_hash_sj_engine final : public subselect_indexsubquery_engine {
         is_materialized(false),
         materialize_engine(old_engine),
         tmp_param(NULL) {}
-  ~subselect_hash_sj_engine();
+  ~subselect_hash_sj_engine() override;
 
   bool setup(List<Item> *tmp_columns);
   void cleanup() override;

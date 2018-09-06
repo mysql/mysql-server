@@ -522,7 +522,7 @@ class Sql_cmd_common_alter_table : public Sql_cmd_ddl_table {
  public:
   using Sql_cmd_ddl_table::Sql_cmd_ddl_table;
 
-  virtual ~Sql_cmd_common_alter_table() = 0;  // force abstract class
+  ~Sql_cmd_common_alter_table() override = 0;  // force abstract class
 
   enum_sql_command sql_command_code() const override final {
     return SQLCOM_ALTER_TABLE;

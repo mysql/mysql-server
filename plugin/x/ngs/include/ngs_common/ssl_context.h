@@ -41,7 +41,7 @@ class Ssl_context : public Ssl_context_interface {
              const char *ssl_capath, const char *ssl_cert,
              const char *ssl_cipher, const char *ssl_crl,
              const char *ssl_crlpath) override;
-  ~Ssl_context();
+  ~Ssl_context() override;
 
   bool activate_tls(Vio_interface *conn, const int handshake_timeout) override;
 

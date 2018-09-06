@@ -80,7 +80,7 @@ class Materialized_cursor final : public Server_side_cursor {
   int open(JOIN *) override;
   bool fetch(ulong num_rows) override;
   void close() override;
-  virtual ~Materialized_cursor();
+  ~Materialized_cursor() override;
 };
 
 /**

@@ -43,7 +43,7 @@ class DuktapeStatementReader : public StatementReaderBase {
 
   std::chrono::microseconds get_default_exec_time() override;
 
-  ~DuktapeStatementReader();
+  ~DuktapeStatementReader() override;
 
  private:
   struct Pimpl;

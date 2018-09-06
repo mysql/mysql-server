@@ -62,8 +62,6 @@ class Truncatable_ostream : public Basic_ostream {
      @retval true  Error
   */
   virtual bool seek(my_off_t offset) = 0;
-
-  virtual ~Truncatable_ostream() {}
 };
 
 /**
@@ -74,7 +72,7 @@ class IO_CACHE_ostream : public Truncatable_ostream {
   IO_CACHE_ostream();
   IO_CACHE_ostream &operator=(const IO_CACHE_ostream &) = delete;
   IO_CACHE_ostream(const IO_CACHE_ostream &) = delete;
-  ~IO_CACHE_ostream();
+  ~IO_CACHE_ostream() override;
 
   /**
      Open the output stream. It opens related file and initialize IO_CACHE.

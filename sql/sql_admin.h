@@ -79,8 +79,6 @@ class Sql_cmd_analyze_table : public Sql_cmd_ddl_table {
                         Histogram_command histogram_command,
                         int histogram_buckets);
 
-  ~Sql_cmd_analyze_table() {}
-
   bool execute(THD *thd) override;
 
   enum_sql_command sql_command_code() const override { return SQLCOM_ANALYZE; }

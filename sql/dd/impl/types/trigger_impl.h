@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,8 +57,6 @@ class Trigger_impl : virtual public Entity_object_impl, virtual public Trigger {
   Trigger_impl(Table_impl *table);
 
   Trigger_impl(const Trigger_impl &src, Table_impl *parent);
-
-  virtual ~Trigger_impl() {}
 
  public:
   virtual const Object_table &object_table() const override;
