@@ -99,7 +99,7 @@ override_dh_installinit:
 	touch $@
 
 override_dh_install:
-	dh_install --list-missing \
+	dh_install --fail-missing \
 		-Xusr/bin/i_mysql_client_test \
 		-Xusr/share/mysql-@MYSQL_BASE_VERSION@/mysql.server \
 		-Xusr/share/mysql-@MYSQL_BASE_VERSION@/LICENSE-test \
