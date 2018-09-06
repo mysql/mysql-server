@@ -5744,7 +5744,7 @@ bool dd_tablespace_set_id_and_state(const char *tablespace_name,
 
   dd::cache::Dictionary_client *dc = dd::get_dd_client(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser{dc};
-  dd::String_type tsn{space_name};
+  dd::String_type tsn{tablespace_name};
 
   bool dd_result = dc->acquire_for_modification(tsn, &dd_space);
   if (dd_space == nullptr) {
