@@ -1186,7 +1186,8 @@ int check_ndb_or_servers_failures(atrt_config &config) {
   const int types = p_ndb | p_servers;
   for (unsigned i = 0; i < config.m_processes.size(); i++) {
     atrt_process &proc = *config.m_processes[i];
-    bool skip = IF_WIN(proc.m_type & atrt_process::AP_MYSQLD, 0);
+    bool skip = proc.m_atrt_stopped ||
+                IF_WIN(proc.m_type & atrt_process::AP_MYSQLD, 0);
     bool isRunning = proc.m_proc.m_status == "running";
     if ((types & proc.m_type) != 0 && !isRunning && !skip) {
       g_logger.critical("%s #%d not running on %s", proc.m_name.c_str(),
