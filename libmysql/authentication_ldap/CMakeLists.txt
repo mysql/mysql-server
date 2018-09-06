@@ -37,6 +37,11 @@ MACRO(CROAK_AND_RETURN)
   ENDIF()
 ENDMACRO()
 
+# Several sasl_() functions are deprecated
+IF(APPLE)
+  STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-deprecated-declarations")
+ENDIF()
+
 IF(NOT WIN32)
   IF(DEFINED WITH_SASL)
     MESSAGE(STATUS ${ARGV} "Currently LDAP SASL client authentication plug-in is build with only system installed cyrus SASL library.")
@@ -126,8 +131,8 @@ IF(WIN32)
   GET_FILENAME_COMPONENT(SASL_DLL_NAME ${SASL_LIBRARY_DLL} NAME)
   GET_FILENAME_COMPONENT(SASL_SCRAM_PLUGIN_NAME "${SASL_SCRAM_PLUGIN}" NAME)
 
-  # Note that "libsasl.dll" and "saslSCRAM.dll" go into the "bin" directory where
-  # "mysql.exe" and other client executables are located.
+  # Note that "libsasl.dll" and "saslSCRAM.dll" go into the "bin" directory
+  # where "mysql.exe" and other client executables are located.
   INSTALL(FILES "${SASL_LIBRARY_DLL}"
           DESTINATION ${INSTALL_BINDIR}
           COMPONENT SharedLibraries)
@@ -136,14 +141,15 @@ IF(WIN32)
           COMPONENT SharedLibraries)
 
   # To run client executables that load the plug-in from the build tree we need
-  # to copy the SASL library DLL and SASL SCRAM library DLL to the same directory as the client executables.
+  # to copy the SASL library DLL and SASL SCRAM library DLL to the same
+  # directory as the client executables.
   ADD_CUSTOM_COMMAND(TARGET authentication_ldap_sasl_client POST_BUILD
-                     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                             "${SASL_LIBRARY_DLL}"
-                             "${CMAKE_BINARY_DIR}/client/${CMAKE_CFG_INTDIR}/${SASL_DLL_NAME}"
-                     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                             "${SASL_SCRAM_PLUGIN}"
-                             "${CMAKE_BINARY_DIR}/client/${CMAKE_CFG_INTDIR}/${SASL_SCRAM_PLUGIN_NAME}"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      "${SASL_LIBRARY_DLL}"
+      "${CMAKE_BINARY_DIR}/client/${CMAKE_CFG_INTDIR}/${SASL_DLL_NAME}"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      "${SASL_SCRAM_PLUGIN}"
+      "${CMAKE_BINARY_DIR}/client/${CMAKE_CFG_INTDIR}/${SASL_SCRAM_PLUGIN_NAME}"
   )
   ADD_DEPENDENCIES(authentication_ldap_sasl_client mysqltest)
 
