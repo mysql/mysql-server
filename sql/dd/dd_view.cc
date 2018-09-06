@@ -349,7 +349,6 @@ static bool fill_dd_view_columns(THD *thd, View *view_obj,
     cr_field->after = nullptr;
     cr_field->offset = 0;
     cr_field->pack_length_override = 0;
-    cr_field->create_length_to_internal_length();
     cr_field->maybe_null = !(tmp_field->flags & NOT_NULL_FLAG);
     cr_field->is_zerofill = (tmp_field->flags & ZEROFILL_FLAG);
     cr_field->is_unsigned = (tmp_field->flags & UNSIGNED_FLAG);

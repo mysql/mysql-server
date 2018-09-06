@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -247,7 +247,6 @@ bool store_in_dd(THD *thd, Update_context *ctx, ST_SCHEMA_TABLE *schema_table,
     uint32 fl = fields_info->field_length;
     if (fields_info->field_type == MYSQL_TYPE_STRING) {
       ft = MYSQL_TYPE_VARCHAR;
-      fl = fields_info->field_length * cs->mbmaxlen;
     }
 
     col_obj->set_type(dd::get_new_field_type(ft));

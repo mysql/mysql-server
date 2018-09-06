@@ -36,6 +36,7 @@
 #include "my_sys.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "sql/create_field.h"
 #include "sql/dd/properties.h"  // dd::Properties
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/column.h"  // dd::Column
@@ -179,7 +180,7 @@ size_t max_pack_length(const List<Create_field> &create_fields) {
       const_cast<List<Create_field> &>(create_fields));
   Create_field *field;
   while ((field = field_it++))
-    max_pack_length = std::max<size_t>(field->pack_length, max_pack_length);
+    max_pack_length = std::max<size_t>(field->pack_length(), max_pack_length);
   return max_pack_length;
 }
 
@@ -226,11 +227,12 @@ bool prepare_default_value(THD *thd, uchar *buf, const TABLE &table,
   col_obj->set_default_value_null(regfield->is_null());
   if (!col_obj->is_default_value_null()) {
     dd::String_type default_value;
-    default_value.assign(reinterpret_cast<char *>(buf + 1), field.pack_length);
+    default_value.assign(reinterpret_cast<char *>(buf + 1),
+                         field.pack_length());
 
     // Append leftover bits as the last byte of the default value.
     if (field.sql_type == MYSQL_TYPE_BIT && !field.treat_bit_as_char &&
-        (field.length & 7)) {
+        (field.max_display_width_in_codepoints() & 7)) {
       // Downcast and get bits.
       Field_bit *bitfield = dynamic_cast<Field_bit *>(regfield);
       // In get_rec_bits(), bitfield->bit_ptr[1] is accessed, so we must be

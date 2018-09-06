@@ -51,8 +51,9 @@
 #include "sql/dd/impl/utils.h"                 // dd::escape
 #include "sql/dd/performance_schema/init.h"    // performance_schema::
                                                //   set_PS_version_for_table
-#include "sql/dd/dd_version.h"                 // DD_VERSION
-#include "sql/dd/properties.h"                 // dd::Properties
+#include "sql/create_field.h"
+#include "sql/dd/dd_version.h"  // DD_VERSION
+#include "sql/dd/properties.h"  // dd::Properties
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/abstract_table.h"
 #include "sql/dd/types/column.h"               // dd::Column
@@ -410,10 +411,10 @@ bool get_field_numeric_precision(const Create_field *field,
     case MYSQL_TYPE_BIT:
     case MYSQL_TYPE_FLOAT:
     case MYSQL_TYPE_DOUBLE:
-      *numeric_precision = field->length;
+      *numeric_precision = field->max_display_width_in_codepoints();
       return false;
     case MYSQL_TYPE_DECIMAL: {
-      uint tmp = field->length;
+      uint tmp = field->max_display_width_in_codepoints();
       if (!field->is_unsigned) tmp--;
       if (field->decimals) tmp--;
       *numeric_precision = tmp;
@@ -421,7 +422,8 @@ bool get_field_numeric_precision(const Create_field *field,
     }
     case MYSQL_TYPE_NEWDECIMAL:
       *numeric_precision = my_decimal_length_to_precision(
-          field->length, field->decimals, field->is_unsigned);
+          field->max_display_width_in_codepoints(), field->decimals,
+          field->is_unsigned);
       return false;
     default:
       return true;
@@ -441,15 +443,18 @@ bool get_field_datetime_precision(const Create_field *field,
     case MYSQL_TYPE_DATETIME2:
     case MYSQL_TYPE_TIMESTAMP:
     case MYSQL_TYPE_TIMESTAMP2:
-      *datetime_precision = field->length > MAX_DATETIME_WIDTH
-                                ? (field->length - 1 - MAX_DATETIME_WIDTH)
-                                : 0;
+      *datetime_precision =
+          field->max_display_width_in_codepoints() > MAX_DATETIME_WIDTH
+              ? (field->max_display_width_in_codepoints() - 1 -
+                 MAX_DATETIME_WIDTH)
+              : 0;
       return false;
     case MYSQL_TYPE_TIME:
     case MYSQL_TYPE_TIME2:
-      *datetime_precision = field->length > MAX_TIME_WIDTH
-                                ? (field->length - 1 - MAX_TIME_WIDTH)
-                                : 0;
+      *datetime_precision =
+          field->max_display_width_in_codepoints() > MAX_TIME_WIDTH
+              ? (field->max_display_width_in_codepoints() - 1 - MAX_TIME_WIDTH)
+              : 0;
       return false;
     default:
       return true;
@@ -541,7 +546,7 @@ bool fill_dd_columns_from_create_fields(THD *thd, dd::Abstract_table *tab_obj,
 
     col_obj->set_type(dd::get_new_field_type(field->sql_type));
 
-    col_obj->set_char_length(field->length);
+    col_obj->set_char_length(field->max_display_width_in_bytes());
 
     // Set result numeric scale.
     uint value = 0;

@@ -90,6 +90,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "row0log.h"
 #include "row0merge.h"
 #include "row0sel.h"
+#include "sql/create_field.h"
 #include "srv0mon.h"
 #include "trx0roll.h"
 #include "trx0trx.h"
@@ -5748,7 +5749,8 @@ static bool alter_templ_needs_rebuild(TABLE *altered_table,
     while (const Create_field *cf = cf_it++) {
       for (ulint j = 0; j < table->n_cols; j++) {
         dict_col_t *cols = table->get_col(j);
-        if (cf->length > cols->len && dict_col_in_v_indexes(table, cols)) {
+        if (cf->max_display_width_in_bytes() > cols->len &&
+            dict_col_in_v_indexes(table, cols)) {
           return (true);
         }
       }
@@ -6239,7 +6241,7 @@ static void innobase_rename_or_enlarge_columns_cache(
         } else {
           col = user_table->get_col(col_n);
         }
-        col->len = cf->length;
+        col->len = cf->max_display_width_in_bytes();
 
         if (cf->sql_type == MYSQL_TYPE_STRING &&
             (*fp)->charset()->number != cf->charset->number) {
