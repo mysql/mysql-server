@@ -135,78 +135,51 @@ ENDIF()
 
 # Extra warning flags for Clang
 IF(CMAKE_C_COMPILER_ID MATCHES "Clang")
-  SET(MY_C_WARNING_FLAGS
-      "${MY_C_WARNING_FLAGS} -Wconditional-uninitialized")
-  SET(MY_C_WARNING_FLAGS
-      "${MY_C_WARNING_FLAGS} -Wextra-semi")
-  SET(MY_C_WARNING_FLAGS
-      "${MY_C_WARNING_FLAGS} -Wmissing-noreturn")
+  STRING_APPEND(MY_C_WARNING_FLAGS " -Wconditional-uninitialized")
+  STRING_APPEND(MY_C_WARNING_FLAGS " -Wextra-semi")
+  STRING_APPEND(MY_C_WARNING_FLAGS " -Wmissing-noreturn")
 
   MY_ADD_C_WARNING_FLAG("Wunreachable-code-break")
   MY_ADD_C_WARNING_FLAG("Wunreachable-code-return")
-  # Other possible options that give warnings (Clang 3.8):
-  # -Wcast-align
-  # -Wcast-qual
-  # -Wconversion
-  # -Wcovered-switch-default
-  # -Wdisabled-macro-expansion
-  # -Wdocumentation-deprecated-sync
-  # -Wdocumentation-pedantic
-  # -Wdocumentation-unknown-command
-  # -Wdouble-promotion
-  # -Wempty-translation-unit
-  # -Wfloat-equal
-  # -Wformat-nonlitera
-  # -Wformat-pedantic
-  # -Wmissing-prototypes
-  # -Wmissing-variable-declarations
-  # -Wpadded
-  # -Wpedantic
-  # -Wreserved-id-macro
-  # -Wshadow
-  # -Wshorten-64-to-32
-  # -Wsign-conversion
-  # -Wswitch-enum
-  # -Wunreachable-code
-  # -Wunused-macros
-  # -Wused-but-marked-unused
-ENDIF()    
+ENDIF()
   
 # Extra warning flags for Clang++
 IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   # Disable a few default Clang++ warnings
-  SET(MY_CXX_WARNING_FLAGS
-      "${MY_CXX_WARNING_FLAGS} -Wno-null-conversion -Wno-unused-private-field")
+  STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wno-null-conversion -Wno-unused-private-field")
 
-  SET(MY_CXX_WARNING_FLAGS
-      "${MY_CXX_WARNING_FLAGS} -Wconditional-uninitialized")
-  SET(MY_CXX_WARNING_FLAGS
-      "${MY_CXX_WARNING_FLAGS} -Wheader-hygiene")
-  SET(MY_CXX_WARNING_FLAGS
-      "${MY_CXX_WARNING_FLAGS} -Wnon-virtual-dtor")
-  SET(MY_CXX_WARNING_FLAGS
-      "${MY_CXX_WARNING_FLAGS} -Wundefined-reinterpret-cast")
-  # Other possible options that give warnings (Clang 3.8):
+  STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wconditional-uninitialized")
+  STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wheader-hygiene")
+  STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wnon-virtual-dtor")
+  STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wundefined-reinterpret-cast")
+
+  # Other possible options that give warnings (Clang 6.0):
   # -Wabstract-vbase-init
+  # -Wc++2a-compat
   # -Wc++98-compat-pedantic
   # -Wcast-align
+  # -Wcast-qual
+  # -Wclass-varargs
+  # -Wcomma
   # -Wconversion
   # -Wcovered-switch-default
   # -Wdeprecated
+  # -Wdeprecated-dynamic-exception-spec
   # -Wdisabled-macro-expansion
   # -Wdocumentation
   # -Wdocumentation-pedantic
   # -Wdocumentation-unknown-command
   # -Wdouble-promotion
   # -Wexit-time-destructors
-  # -Wextended-offsetof
   # -Wextra-semi
   # -Wfloat-equal
   # -Wformat-nonliteral
   # -Wformat-pedantic
   # -Wglobal-constructors
   # -Wgnu-anonymous-struct
+  # -Wgnu-zero-variadic-macro-arguments
   # -Wimplicit-fallthrough
+  # -Winconsistent-missing-destructor-override
   # -Wkeyword-macro
   # -Wmissing-noreturn
   # -Wmissing-prototypes
@@ -216,20 +189,28 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   # -Wold-style-cast
   # -Wpadded
   # -Wpedantic
+  # -Wrange-loop-analysis
+  # -Wredundant-parens
   # -Wreserved-id-macro
   # -Wshadow
+  # -Wshadow-field
   # -Wshift-sign-overflow
   # -Wsign-conversion
   # -Wswitch-enum
+  # -Wtautological-type-limit-compare
+  # -Wtautological-unsigned-enum-zero-compare
+  # -Wundefined-func-template
   # -Wunreachable-code
   # -Wunreachable-code-break
   # -Wunreachable-code-return
   # -Wunused-exception-parameter
   # -Wunused-macros
   # -Wunused-member-function
+  # -Wunused-template
   # -Wused-but-marked-unused
   # -Wweak-template-vtables
   # -Wweak-vtables
+  # -Wzero-as-null-pointer-constant
 ENDIF()
 
 # Turn on Werror (warning => error) when using maintainer mode.
