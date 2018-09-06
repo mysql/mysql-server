@@ -675,23 +675,27 @@ class PTI_odbc_date : public Parse_tree_item {
       SELECT {ts'2001-01-01 10:20:30'};
     */
     if (expr->type() == Item::STRING_ITEM &&
-        expr->collation.repertoire == MY_REPERTOIRE_ASCII &&
-        expr->str_value.length() < MAX_DATE_STRING_REP_LENGTH * 4) {
-      enum_field_types type = MYSQL_TYPE_STRING;
-      ErrConvString str(&expr->str_value);
-      LEX_STRING *ls = &ident;
-      if (ls->length == 1) {
-        if (ls->str[0] == 'd') /* {d'2001-01-01'} */
-          type = MYSQL_TYPE_DATE;
-        else if (ls->str[0] == 't') /* {t'10:20:30'} */
-          type = MYSQL_TYPE_TIME;
-      } else if (ls->length == 2) /* {ts'2001-01-01 10:20:30'} */
-      {
-        if (ls->str[0] == 't' && ls->str[1] == 's') type = MYSQL_TYPE_DATETIME;
+        expr->collation.repertoire == MY_REPERTOIRE_ASCII) {
+      String buf;
+      String *tmp_str = expr->val_str(&buf);
+      if (tmp_str->length() < MAX_DATE_STRING_REP_LENGTH * 4) {
+        enum_field_types type = MYSQL_TYPE_STRING;
+        ErrConvString str(tmp_str);
+        LEX_STRING *ls = &ident;
+        if (ls->length == 1) {
+          if (ls->str[0] == 'd') /* {d'2001-01-01'} */
+            type = MYSQL_TYPE_DATE;
+          else if (ls->str[0] == 't') /* {t'10:20:30'} */
+            type = MYSQL_TYPE_TIME;
+        } else if (ls->length == 2) /* {ts'2001-01-01 10:20:30'} */
+        {
+          if (ls->str[0] == 't' && ls->str[1] == 's')
+            type = MYSQL_TYPE_DATETIME;
+        }
+        if (type != MYSQL_TYPE_STRING)
+          *res = create_temporal_literal(pc->thd, str.ptr(), str.length(),
+                                         system_charset_info, type, false);
       }
-      if (type != MYSQL_TYPE_STRING)
-        *res = create_temporal_literal(pc->thd, str.ptr(), str.length(),
-                                       system_charset_info, type, false);
     }
     if (*res == NULL) *res = expr;
     return false;

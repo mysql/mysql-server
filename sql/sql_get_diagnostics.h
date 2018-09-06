@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -257,7 +257,7 @@ class Condition_information_item : public Diagnostics_information_item {
   Name m_name;
 
   /** Create an string item to represent a condition item string. */
-  Item *make_utf8_string_item(const String *str);
+  Item *make_utf8_string_item(THD *thd, const String *str);
 };
 
 /**

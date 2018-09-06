@@ -1728,7 +1728,7 @@ void Item_func_trim::print(String *str, enum_query_type query_type) {
   str->append(')');
 }
 
-Item *Item_func_sysconst::safe_charset_converter(THD *,
+Item *Item_func_sysconst::safe_charset_converter(THD *thd,
                                                  const CHARSET_INFO *tocs) {
   uint conv_errors;
   String tmp, cstr, *ostr = val_str(&tmp);
@@ -1740,13 +1740,13 @@ Item *Item_func_sysconst::safe_charset_converter(THD *,
   cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), tocs, &conv_errors);
   if (conv_errors != 0) return nullptr;
 
-  auto conv = new Item_static_string_func(fully_qualified_func_name(),
-                                          cstr.ptr(), cstr.length(),
-                                          cstr.charset(), collation.derivation);
+  char *ptr = thd->strmake(cstr.ptr(), cstr.length());
+  if (ptr == nullptr) return nullptr;
+  auto conv = new Item_static_string_func(fully_qualified_func_name(), ptr,
+                                          cstr.length(), cstr.charset(),
+                                          collation.derivation);
   if (conv == nullptr) return nullptr;
-
-  conv->str_value.copy();
-  conv->str_value.mark_as_const();
+  conv->mark_result_as_const();
   return conv;
 }
 
@@ -2962,7 +2962,8 @@ void Item_func_set_collation::print(String *str, enum_query_type query_type) {
   str->append(STRING_WITH_LEN(" collate "));
   DBUG_ASSERT(args[1]->basic_const_item() &&
               args[1]->type() == Item::STRING_ITEM);
-  args[1]->str_value.print(str);
+  String tmp;
+  args[1]->val_str(&tmp)->print(str);
   str->append(')');
 }
 

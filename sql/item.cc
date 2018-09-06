@@ -1023,141 +1023,148 @@ Item *Item_num::safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) {
   */
   if (!(tocs->state & MY_CS_NONASCII)) return this;
 
-  Item_string *conv;
   uint conv_errors;
   char buf[64], buf2[64];
   String tmp(buf, sizeof(buf), &my_charset_bin);
   String cstr(buf2, sizeof(buf2), &my_charset_bin);
   String *ostr = val_str(&tmp);
-  char *ptr;
   cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), tocs, &conv_errors);
-  if (conv_errors ||
-      !(conv = new Item_string(cstr.ptr(), cstr.length(), cstr.charset(),
-                               collation.derivation))) {
+  if (conv_errors > 0) {
     /*
-      Safe conversion is not possible (or EOM).
+      Safe conversion is not possible.
       We could not convert a string into the requested character set
       without data loss. The target charset does not cover all the
       characters from the string. Operation cannot be done correctly.
     */
-    return NULL;
+    return nullptr;
   }
-  if (!(ptr = thd->strmake(cstr.ptr(), cstr.length()))) return NULL;
-  conv->str_value.set(ptr, cstr.length(), cstr.charset());
+
+  char *ptr = thd->strmake(cstr.ptr(), cstr.length());
+  if (ptr == nullptr) return nullptr;
+  auto conv =
+      new Item_string(ptr, cstr.length(), cstr.charset(), collation.derivation);
+  if (conv == nullptr) return nullptr;
+
   /* Ensure that no one is going to change the result string */
-  conv->str_value.mark_as_const();
+  conv->mark_result_as_const();
   conv->fix_char_length(max_char_length());
   return conv;
 }
 
-Item *Item_func_pi::safe_charset_converter(THD *, const CHARSET_INFO *) {
-  Item_string *conv;
+Item *Item_func_pi::safe_charset_converter(THD *thd, const CHARSET_INFO *) {
   char buf[64];
-  String *s, tmp(buf, sizeof(buf), &my_charset_bin);
-  s = val_str(&tmp);
-  if ((conv = new Item_static_string_func(func_name, s->ptr(), s->length(),
-                                          s->charset()))) {
-    conv->str_value.copy();
-    conv->str_value.mark_as_const();
-  }
+  String tmp(buf, sizeof(buf), &my_charset_bin);
+  String *s = val_str(&tmp);
+  char *ptr = thd->strmake(s->ptr(), s->length());
+  if (ptr == nullptr) return nullptr;
+  auto conv =
+      new Item_static_string_func(func_name, ptr, s->length(), s->charset());
+  if (conv == nullptr) return nullptr;
+  conv->mark_result_as_const();
   return conv;
 }
 
-Item *Item_string::safe_charset_converter(THD *, const CHARSET_INFO *tocs) {
-  return charset_converter(tocs, true);
+Item *Item_string::safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) {
+  return charset_converter(thd, tocs, true);
 }
 
 /**
   Convert a string item into the requested character set.
 
+  @param thd        Thread handle.
   @param tocs       Character set to to convert the string to.
   @param lossless   Whether data loss is acceptable.
 
   @return A new item representing the converted string.
 */
-Item *Item_string::charset_converter(const CHARSET_INFO *tocs, bool lossless) {
-  Item_string *conv;
+Item *Item_string::charset_converter(THD *thd, const CHARSET_INFO *tocs,
+                                     bool lossless) {
   uint conv_errors;
-  char *ptr;
   String tmp, cstr, *ostr = val_str(&tmp);
   cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), tocs, &conv_errors);
-  conv_errors = lossless && conv_errors;
-  if (conv_errors ||
-      !(conv = new Item_string(cstr.ptr(), cstr.length(), cstr.charset(),
-                               collation.derivation))) {
+  if (lossless && conv_errors > 0) {
     /*
-      Safe conversion is not possible (or EOM).
+      Safe conversion is not possible.
       We could not convert a string into the requested character set
       without data loss. The target charset does not cover all the
       characters from the string. Operation cannot be done correctly.
     */
-    return NULL;
+    return nullptr;
   }
-  if (!(ptr = current_thd->strmake(cstr.ptr(), cstr.length()))) return NULL;
-  conv->str_value.set(ptr, cstr.length(), cstr.charset());
+
+  char *ptr = thd->strmake(cstr.ptr(), cstr.length());
+  if (ptr == nullptr) return nullptr;
+  auto conv =
+      new Item_string(ptr, cstr.length(), cstr.charset(), collation.derivation);
+  if (conv == nullptr) return nullptr;
   /* Ensure that no one is going to change the result string */
-  conv->str_value.mark_as_const();
+  conv->mark_result_as_const();
   return conv;
 }
 
 Item *Item_param::safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) {
   if (may_evaluate_const(thd)) {
-    Item *cnvitem;
     String tmp, cstr, *ostr = val_str(&tmp);
 
     if (null_value) {
-      cnvitem = new Item_null();
-      if (cnvitem == NULL) return NULL;
-
+      auto cnvitem = new Item_null();
+      if (cnvitem == nullptr) return nullptr;
       cnvitem->collation.set(tocs);
+      return cnvitem;
     } else {
       uint conv_errors;
       cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), tocs,
                 &conv_errors);
 
-      if (conv_errors ||
-          !(cnvitem = new Item_string(cstr.ptr(), cstr.length(), cstr.charset(),
-                                      collation.derivation)))
-        return NULL;
+      if (conv_errors > 0) return nullptr;
 
-      cnvitem->str_value.copy();
-      cnvitem->str_value.mark_as_const();
+      char *ptr = thd->strmake(cstr.ptr(), cstr.length());
+      if (ptr == nullptr) return nullptr;
+      auto cnvitem = new Item_string(ptr, cstr.length(), cstr.charset(),
+                                     collation.derivation);
+      if (cnvitem == nullptr) return nullptr;
+      cnvitem->mark_result_as_const();
+      return cnvitem;
     }
-    return cnvitem;
   }
   return Item::safe_charset_converter(thd, tocs);
 }
 
 Item *Item_static_string_func::safe_charset_converter(
-    THD *, const CHARSET_INFO *tocs) {
-  Item_string *conv;
+    THD *thd, const CHARSET_INFO *tocs) {
   uint conv_errors;
   String tmp, cstr, *ostr = val_str(&tmp);
   cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), tocs, &conv_errors);
-  if (conv_errors || !(conv = new Item_static_string_func(
-                           func_name, cstr.ptr(), cstr.length(), cstr.charset(),
-                           collation.derivation))) {
+  if (conv_errors > 0) {
     /*
-      Safe conversion is not possible (or EOM).
+      Safe conversion is not possible.
       We could not convert a string into the requested character set
       without data loss. The target charset does not cover all the
       characters from the string. Operation cannot be done correctly.
     */
-    return NULL;
+    return nullptr;
   }
-  conv->str_value.copy();
+
+  char *ptr = thd->strmake(cstr.ptr(), cstr.length());
+  if (ptr == nullptr) return nullptr;
+  auto conv = new Item_static_string_func(func_name, ptr, cstr.length(),
+                                          cstr.charset(), collation.derivation);
+  if (conv == nullptr) return nullptr;
   /* Ensure that no one is going to change the result string */
-  conv->str_value.mark_as_const();
+  conv->mark_result_as_const();
   return conv;
 }
 
 bool Item_string::eq(const Item *item, bool binary_cmp) const {
   if (type() == item->type() && item->basic_const_item()) {
-    if (binary_cmp) return !stringcmp(&str_value, &item->str_value);
-    return (collation.collation == item->collation.collation &&
-            !sortcmp(&str_value, &item->str_value, collation.collation));
+    // Should be OK for a basic constant.
+    Item *arg = const_cast<Item *>(item);
+    String str;
+    if (binary_cmp) return !stringcmp(&str_value, arg->val_str(&str));
+    return (collation.collation == arg->collation.collation &&
+            !sortcmp(&str_value, arg->val_str(&str), collation.collation));
   }
-  return 0;
+  return false;
 }
 
 bool Item::get_date_from_string(MYSQL_TIME *ltime, my_time_flags_t flags) {
@@ -2977,7 +2984,7 @@ bool Item_decimal::eq(const Item *item, bool) const {
   return 0;
 }
 
-void Item_decimal::set_decimal_value(my_decimal *value_par) {
+void Item_decimal::set_decimal_value(const my_decimal *value_par) {
   my_decimal2decimal(value_par, &decimal_value);
   decimals = (uint8)decimal_value.frac;
   unsigned_flag = !decimal_value.sign();
@@ -3818,14 +3825,14 @@ Item *Item_param::clone_item() const {
 }
 
 bool Item_param::eq(const Item *arg, bool binary_cmp) const {
-  Item *item;
   if (!basic_const_item() || !arg->basic_const_item() || arg->type() != type())
     return false;
   /*
     We need to cast off const to call val_int(). This should be OK for
     a basic constant.
   */
-  item = (Item *)arg;
+  Item *item = const_cast<Item *>(arg);
+  String str;
 
   switch (state) {
     case NULL_VALUE:
@@ -3837,8 +3844,8 @@ bool Item_param::eq(const Item *arg, bool binary_cmp) const {
       return value.real == item->val_real();
     case STRING_VALUE:
     case LONG_DATA_VALUE:
-      if (binary_cmp) return !stringcmp(&str_value, &item->str_value);
-      return !sortcmp(&str_value, &item->str_value, collation.collation);
+      if (binary_cmp) return !stringcmp(&str_value, item->val_str(&str));
+      return !sortcmp(&str_value, item->val_str(&str), collation.collation);
     default:
       break;
   }
@@ -6369,21 +6376,23 @@ void Item_hex_string::print(String *str, enum_query_type query_type) {
   }
 }
 
-bool Item_hex_string::eq(const Item *arg, bool binary_cmp) const {
-  if (arg->basic_const_item() && arg->type() == type()) {
-    if (binary_cmp) return !stringcmp(&str_value, &arg->str_value);
-    return !sortcmp(&str_value, &arg->str_value, collation.collation);
+bool Item_hex_string::eq(const Item *item, bool binary_cmp) const {
+  if (item->basic_const_item() && item->type() == type()) {
+    // Should be OK for a basic constant.
+    Item *arg = const_cast<Item *>(item);
+    String str;
+    if (binary_cmp) return !stringcmp(&str_value, arg->val_str(&str));
+    return !sortcmp(&str_value, arg->val_str(&str), collation.collation);
   }
   return false;
 }
 
 Item *Item_hex_string::safe_charset_converter(THD *, const CHARSET_INFO *tocs) {
-  Item_string *conv;
   String tmp, *str = val_str(&tmp);
 
-  if (!(conv = new Item_string(str->ptr(), str->length(), tocs))) return NULL;
-  conv->str_value.copy();
-  conv->str_value.mark_as_const();
+  auto conv = new Item_string(str->ptr(), str->length(), tocs);
+  if (conv == nullptr) return nullptr;
+  conv->mark_result_as_const();
   return conv;
 }
 

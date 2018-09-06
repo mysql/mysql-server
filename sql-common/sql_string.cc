@@ -1001,7 +1001,7 @@ size_t well_formed_copy_nchars(const CHARSET_INFO *to_cs, char *to,
   return res;
 }
 
-void String::print(String *str) {
+void String::print(String *str) const {
   char *st = m_ptr;
   char *end = st + m_length;
 

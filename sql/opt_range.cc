@@ -6296,7 +6296,7 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(RANGE_OPT_PARAM *param,
         per-statement mem_root (while thd->mem_root is currently pointing
         to mem_root local to range optimizer).
       */
-      Item *value_item = op->array->create_item();
+      Item_basic_constant *value_item = op->array->create_item();
       param->thd->mem_root = tmp_root;
 
       if (!value_item) return NULL;

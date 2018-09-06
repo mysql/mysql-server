@@ -1757,6 +1757,9 @@ class Item : public Parse_tree_node {
   /*
     Returns true if this is a simple constant item like an integer, not
     a constant expression. Used in the optimizer to propagate basic constants.
+    It is assumed that val_xxx() does not modify the item's state for
+    such items. It is also assumed that val_str() can be called with nullptr
+    as argument as val_str() will return an internally cached const string.
   */
   virtual bool basic_const_item() const { return false; }
   /**
@@ -2550,9 +2553,12 @@ class Item : public Parse_tree_node {
     @see Query_arena::free_list
   */
   Item *next_free;
+
+ protected:
   /// str_values's main purpose is to cache the value in save_in_field
   String str_value;
 
+ public:
   /**
     Character set and collation properties assigned for this Item.
     Used if Item represents a character string expression.
@@ -2709,6 +2715,7 @@ class Item_basic_constant : public Item {
     if (orig_name.is_set()) item_name = orig_name;
   }
   bool basic_const_item() const override { return true; }
+  void set_str_value(String *str) { str_value = *str; }
 };
 
 /*****************************************************************************
@@ -3908,7 +3915,7 @@ class Item_decimal : public Item_num {
   }
   uint decimal_precision() const override { return decimal_value.precision(); }
   bool eq(const Item *, bool binary_cmp) const override;
-  void set_decimal_value(my_decimal *value_par);
+  void set_decimal_value(const my_decimal *value_par);
   bool check_partition_func_processor(uchar *) override { return false; }
 };
 
@@ -4145,7 +4152,7 @@ class Item_string : public Item_basic_constant {
                            str_value.length(), collation.collation);
   }
   Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) override;
-  Item *charset_converter(const CHARSET_INFO *tocs, bool lossless);
+  Item *charset_converter(THD *thd, const CHARSET_INFO *tocs, bool lossless);
   inline void append(char *str, size_t length) {
     str_value.append(str, length);
     max_length = static_cast<uint32>(str_value.numchars() *
@@ -4188,6 +4195,8 @@ class Item_string : public Item_basic_constant {
   inline void set_cs_specified(bool cs_specified) {
     m_cs_specified = cs_specified;
   }
+
+  void mark_result_as_const() { str_value.mark_as_const(); }
 
  private:
   bool m_cs_specified;

@@ -436,8 +436,8 @@ bool Window::resolve_reference(THD *thd, Item_sum *wf, PT_window **m_window) {
   while ((w = wi++)) {
     if (w->name() == nullptr) continue;
 
-    if (my_strcasecmp(system_charset_info, (*m_window)->name()->str_value.ptr(),
-                      w->name()->str_value.ptr()) == 0) {
+    if (my_strcasecmp(system_charset_info, (*m_window)->printable_name(),
+                      w->printable_name()) == 0) {
       (*m_window)->~PT_window();  // destroy the reference, no further need
 
       /* Replace with pointer to the definition */
@@ -1010,8 +1010,8 @@ void Window::remove_unused_windows(THD *thd, List<Window> &windows) {
             // Can't inherit from unnamed window:
             DBUG_ASSERT(w_a->m_name != nullptr);
 
-            if (my_strcasecmp(system_charset_info, w1->m_name->str_value.ptr(),
-                              w_a->m_name->str_value.ptr()) == 0) {
+            if (my_strcasecmp(system_charset_info, w1->printable_name(),
+                              w_a->printable_name()) == 0) {
               window_used = true;
               break;
             }
@@ -1087,10 +1087,10 @@ bool Window::setup_windows(THD *thd, SELECT_LEX *select,
           Window *w2 = wi2++;
           for (uint j = 0; j < windows.elements; j++, (w2 = wi2++)) {
             if (w2->m_name == nullptr) continue;
-
+            String str;
             if (my_strcasecmp(system_charset_info,
-                              w1->m_inherit_from->str_value.ptr(),
-                              w2->m_name->str_value.ptr()) == 0) {
+                              w1->m_inherit_from->val_str(&str)->ptr(),
+                              w2->printable_name()) == 0) {
               w1->set_ancestor(w2);
               resolved = true;
               adj.add(i, j);
@@ -1099,8 +1099,9 @@ bool Window::setup_windows(THD *thd, SELECT_LEX *select,
           }
 
           if (!resolved) {
+            String str;
             my_error(ER_WINDOW_NO_SUCH_WINDOW, MYF(0),
-                     w1->m_inherit_from->str_value.ptr());
+                     w1->m_inherit_from->val_str(&str)->ptr());
             return true;
           }
         }

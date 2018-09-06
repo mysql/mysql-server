@@ -1319,7 +1319,10 @@ class Window {
   };
 
   const char *printable_name() const {
-    return (m_name != nullptr ? m_name->str_value.ptr() : "<unnamed window>");
+    if (m_name == nullptr) return "<unnamed window>";
+    // Since Item_string::val_str() ignores the argument, it is safe
+    // to use nullptr as argument.
+    return m_name->val_str(nullptr)->ptr();
   }
 
   void print(THD *thd, String *str, enum_query_type qt,

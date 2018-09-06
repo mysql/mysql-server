@@ -554,7 +554,7 @@ class String {
     m_length += arg_length;
     return false;
   }
-  void print(String *print);
+  void print(String *print) const;
 
   /* Swap two string objects. Efficient way to exchange data without memcpy. */
   void swap(String &s) noexcept;

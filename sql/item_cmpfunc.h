@@ -1146,7 +1146,7 @@ class in_vector {
    */
   virtual bool find_value(const void *value) const = 0;
 
-  /*
+  /**
     Create an instance of Item_{type} (e.g. Item_decimal) constant object
     which type allows it to hold an element of this vector without any
     conversions.
@@ -1154,20 +1154,18 @@ class in_vector {
     vector in form of Item_xxx constants without creating Item_xxx object
     for every array element you get (i.e. this implements "FlyWeight" pattern)
   */
-  virtual Item *create_item() const { return nullptr; }
+  virtual Item_basic_constant *create_item() const = 0;
 
-  /*
+  /**
     Store the value at position #pos into provided item object
-    SYNOPSIS
-      value_to_item()
-        pos   Index of value to store
-        item  Constant item to store value into. The item must be of the same
-              type that create_item() returns.
-  */
-  virtual void value_to_item(uint pos MY_ATTRIBUTE((unused)),
-                             Item *item MY_ATTRIBUTE((unused))) {}
 
-  /* Compare values number pos1 and pos2 for equality */
+    @param pos   Index of value to store
+    @param item  Constant item to store value into. The item must be of the same
+                 type that create_item() returns.
+  */
+  virtual void value_to_item(uint pos, Item_basic_constant *item) const = 0;
+
+  /** Compare values number pos1 and pos2 for equality */
   virtual bool compare_elems(uint pos1, uint pos2) const = 0;
 
   virtual Item_result result_type() const = 0;
@@ -1188,10 +1186,12 @@ class in_string final : public in_vector {
             const CHARSET_INFO *cs);
   void set(uint pos, Item *item) override;
   uchar *get_value(Item *item) override;
-  Item *create_item() const override { return new Item_string(collation); }
-  void value_to_item(uint pos, Item *item) override {
+  Item_basic_constant *create_item() const override {
+    return new Item_string(collation);
+  }
+  void value_to_item(uint pos, Item_basic_constant *item) const override {
     String *str = base_pointers[pos];
-    item->str_value = *str;
+    item->set_str_value(str);
   }
   Item_result result_type() const override { return STRING_RESULT; }
 
@@ -1224,14 +1224,14 @@ class in_longlong : public in_vector {
   void set(uint pos, Item *item) override;
   uchar *get_value(Item *item) override;
 
-  Item *create_item() const override {
+  Item_basic_constant *create_item() const override {
     /*
       We've created a signed INT, this may not be correct in the
       general case (see BUG#19342).
     */
     return new Item_int((longlong)0);
   }
-  void value_to_item(uint pos, Item *item) override {
+  void value_to_item(uint pos, Item_basic_constant *item) const override {
     ((Item_int *)item)->value = base[pos].val;
     ((Item_int *)item)->unsigned_flag = (bool)base[pos].unsigned_flag;
   }
@@ -1248,7 +1248,7 @@ class in_datetime_as_longlong final : public in_longlong {
  public:
   in_datetime_as_longlong(THD *thd, uint elements)
       : in_longlong(thd, elements) {}
-  Item *create_item() const override {
+  Item_basic_constant *create_item() const override {
     return new Item_temporal(MYSQL_TYPE_DATETIME, 0LL);
   }
   void set(uint pos, Item *item) override;
@@ -1258,7 +1258,7 @@ class in_datetime_as_longlong final : public in_longlong {
 class in_time_as_longlong final : public in_longlong {
  public:
   in_time_as_longlong(THD *thd, uint elements) : in_longlong(thd, elements) {}
-  Item *create_item() const override {
+  Item_basic_constant *create_item() const override {
     return new Item_temporal(MYSQL_TYPE_TIME, 0LL);
   }
   void set(uint pos, Item *item) override;
@@ -1285,7 +1285,7 @@ class in_datetime final : public in_longlong {
   void set(uint pos, Item *item) override;
   uchar *get_value(Item *item) override;
 
-  Item *create_item() const override {
+  Item_basic_constant *create_item() const override {
     return new Item_temporal(MYSQL_TYPE_DATETIME, 0LL);
   }
 };
@@ -1298,8 +1298,10 @@ class in_double final : public in_vector {
   in_double(THD *thd, uint elements);
   void set(uint pos, Item *item) override;
   uchar *get_value(Item *item) override;
-  Item *create_item() const override { return new Item_float(0.0, 0); }
-  void value_to_item(uint pos, Item *item) override {
+  Item_basic_constant *create_item() const override {
+    return new Item_float(0.0, 0);
+  }
+  void value_to_item(uint pos, Item_basic_constant *item) const override {
     ((Item_float *)item)->value = base[pos];
   }
   Item_result result_type() const override { return REAL_RESULT; }
@@ -1319,10 +1321,12 @@ class in_decimal final : public in_vector {
   in_decimal(THD *thd, uint elements);
   void set(uint pos, Item *item) override;
   uchar *get_value(Item *item) override;
-  Item *create_item() const override { return new Item_decimal(0, false); }
-  void value_to_item(uint pos, Item *item) override {
-    my_decimal *dec = &base[pos];
-    Item_decimal *item_dec = (Item_decimal *)item;
+  Item_basic_constant *create_item() const override {
+    return new Item_decimal(0, false);
+  }
+  void value_to_item(uint pos, Item_basic_constant *item) const override {
+    const my_decimal *dec = &base[pos];
+    Item_decimal *item_dec = down_cast<Item_decimal *>(item);
     item_dec->set_decimal_value(dec);
   }
   Item_result result_type() const override { return DECIMAL_RESULT; }
@@ -1723,6 +1727,13 @@ class in_row final : public in_vector {
   void sort() override;
   bool find_value(const void *value) const override;
   bool compare_elems(uint pos1, uint pos2) const override;
+  Item_basic_constant *create_item() const override {
+    DBUG_ASSERT(false);
+    return nullptr;
+  }
+  void value_to_item(uint, Item_basic_constant *) const override {
+    DBUG_ASSERT(false);
+  }
 };
 
 /* Functions used by where clause */

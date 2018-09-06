@@ -481,8 +481,8 @@ class Item_nodeset_to_const_comparator final : public Item_bool_func {
   const ParsedXML *pxml;
 
  public:
-  Item_nodeset_to_const_comparator(Item *nodeset, Item *cmpfunc,
-                                   const ParsedXML *p)
+  Item_nodeset_to_const_comparator(Item_nodeset_func *nodeset,
+                                   Item_bool_func *cmpfunc, const ParsedXML *p)
       : Item_bool_func(nodeset, cmpfunc), pxml(p) {}
   enum Type type() const override { return XPATH_NODESET_CMP; }
   const char *func_name() const override {
@@ -491,8 +491,9 @@ class Item_nodeset_to_const_comparator final : public Item_bool_func {
   bool is_bool_func() const override { return true; }
 
   longlong val_int() override {
-    auto *comp = down_cast<Item_func *>(args[1]);
-    Item *fake = comp->arguments()[0];
+    auto comp = down_cast<Item_bool_func *>(args[1]);
+    auto fake = down_cast<Item_string *>(comp->arguments()[0]);
+    fake->collation.collation = collation.collation;
     auto *nodeset_func = down_cast<const Item_nodeset_func *>(args[0]);
     XPathFilter res;
     nodeset_func->val_nodeset(&res);
@@ -503,8 +504,8 @@ class Item_nodeset_to_const_comparator final : public Item_bool_func {
         const MY_XML_NODE *node = &pxml->at(j);
         if (node->level <= self->level) break;
         if ((node->parent == flt.num) && (node->type == MY_XML_NODE_TEXT)) {
-          fake->str_value.set(node->beg, node->end - node->beg,
-                              collation.collation);
+          fake->set_str_with_copy(node->beg,
+                                  static_cast<uint>(node->end - node->beg));
           if (args[1]->val_int()) return 1;
         }
       }
@@ -759,7 +760,7 @@ static Item *nodeset2bool(Item *item) {
   RETURN
     The newly created item.
 */
-static Item *eq_func(int oper, Item *a, Item *b) {
+static Item_bool_func *eq_func(int oper, Item *a, Item *b) {
   switch (oper) {
     case '=':
       return new Item_func_eq(a, b);
@@ -789,7 +790,7 @@ static Item *eq_func(int oper, Item *a, Item *b) {
   RETURN
     The newly created item.
 */
-static Item *eq_func_reverse(int oper, Item *a, Item *b) {
+static Item_bool_func *eq_func_reverse(int oper, Item *a, Item *b) {
   switch (oper) {
     case '=':
       return new Item_func_eq(a, b);
@@ -843,7 +844,8 @@ static Item *create_comparator(MY_XPATH *xpath, int oper, MY_XPATH_LEX *context,
     /* Don't cache fake because its value will be changed during comparison.*/
     fake->set_used_tables(RAND_TABLE_BIT);
     Item_nodeset_func *nodeset;
-    Item *scalar, *comp;
+    Item *scalar;
+    Item_bool_func *comp;
     if (a->type() == Item::XPATH_NODESET) {
       nodeset = down_cast<Item_nodeset_func *>(a);
       scalar = b;

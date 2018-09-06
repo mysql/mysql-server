@@ -1821,7 +1821,8 @@ bool Item_func_date_format::resolve_type(THD *thd) {
   collation.set(cs, arg1->collation.derivation, repertoire);
   if (arg1->type() == STRING_ITEM) {  // Optimize the normal case
     fixed_length = true;
-    char_length = format_length(&arg1->str_value);
+    String str;
+    char_length = format_length(arg1->val_str(&str));
   } else {
     fixed_length = false;
     char_length = min<uint32>(arg1->max_char_length(), MAX_BLOB_WIDTH) * 10;

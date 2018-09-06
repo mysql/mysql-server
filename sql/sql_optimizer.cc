@@ -9149,7 +9149,8 @@ ORDER *JOIN::remove_const(ORDER *first_order, Item *cond, bool change_list,
       if (order->item[0]->has_subquery()) {
         if (!thd->lex->is_explain()) {
           Opt_trace_array trace_subselect(trace, "subselect_evaluation");
-          order->item[0]->val_str(&order->item[0]->str_value);
+          String str;
+          order->item[0]->val_str(&str);
         }
         order->item[0]->mark_subqueries_optimized_away();
       }
