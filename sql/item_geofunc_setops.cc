@@ -255,7 +255,7 @@ class BG_setop_wrapper {
     ptset2.insert(mpts2.begin(), mpts2.end());
 
     Point_vector respts;
-    TYPENAME Point_vector::iterator endpos;
+    typename Point_vector::iterator endpos;
     size_t ptset1sz = ptset1.size(), ptset2sz = ptset2.size();
     respts.resize(ptset1sz > ptset2sz ? ptset1sz : ptset2sz);
 
@@ -294,7 +294,7 @@ class BG_setop_wrapper {
                 gt2 == Geometry::wkb_multipolygon);
     ptset.insert(mpts.begin(), mpts.end());
 
-    for (TYPENAME Point_set::iterator i = ptset.begin(); i != ptset.end();
+    for (typename Point_set::iterator i = ptset.begin(); i != ptset.end();
          ++i) {
       Point &pt = const_cast<Point &>(*i);
       if (!Ifsr::bg_geo_relation_check(&pt, g2, Ifsr::SP_DISJOINT_FUNC,
@@ -405,7 +405,7 @@ class BG_setop_wrapper {
     Polygon plgn(data_ptr, g1->get_data_size(), g1->get_flags(),
                  g1->get_srid());
 
-    for (TYPENAME Multilinestring::iterator i = mlstr.begin(); i != mlstr.end();
+    for (typename Multilinestring::iterator i = mlstr.begin(); i != mlstr.end();
          ++i) {
       boost::geometry::intersection(plgn, *i, mpts);
       if (mpts.size() > 0) {
@@ -592,7 +592,7 @@ class BG_setop_wrapper {
                        g2->get_srid());
     Point_set ptset;
 
-    for (TYPENAME Multilinestring::iterator i = mlstr.begin(); i != mlstr.end();
+    for (typename Multilinestring::iterator i = mlstr.begin(); i != mlstr.end();
          ++i) {
       boost::geometry::intersection(*i, mplgn, mpts);
       if (mpts.size() > 0) {
@@ -968,7 +968,7 @@ class BG_setop_wrapper {
     std::unique_ptr<Gis_geometry_collection> guard(geocol);
     bool added = false;
 
-    for (TYPENAME Point_set::iterator i = ptset.begin(); i != ptset.end();
+    for (typename Point_set::iterator i = ptset.begin(); i != ptset.end();
          ++i) {
       Point &pt = const_cast<Point &>(*i);
       if (Ifsr::bg_geo_relation_check(&pt, g2, Ifsr::SP_DISJOINT_FUNC,
@@ -1161,7 +1161,7 @@ class BG_setop_wrapper {
                      g1->get_srid());
     Point_set ptset;
 
-    for (TYPENAME Multipoint::iterator i = mpts1.begin(); i != mpts1.end();
+    for (typename Multipoint::iterator i = mpts1.begin(); i != mpts1.end();
          ++i) {
       if (Ifsr::bg_geo_relation_check(&(*i), g2, Ifsr::SP_DISJOINT_FUNC,
                                       &null_value)) {
@@ -2310,7 +2310,7 @@ Geometry *Item_func_spatial_operation::combine_sub_results(
   std::unique_ptr<Gis_geometry_collection> guard3(geocol);
   bool had_error = false;
 
-  for (TYPENAME Multipoint::iterator i = mpts.begin(); i != mpts.end(); ++i) {
+  for (typename Multipoint::iterator i = mpts.begin(); i != mpts.end(); ++i) {
     isin = !Item_func_spatial_rel::bg_geo_relation_check(
         &(*i), geo1, SP_DISJOINT_FUNC, &had_error);
 

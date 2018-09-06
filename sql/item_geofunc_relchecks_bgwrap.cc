@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -143,7 +143,7 @@ int BG_wrap<Geom_types>::multipoint_within_geometry(Geometry *g1, Geometry *g2,
                      g2->get_srid());
     Point_set ptset2(mpts2.begin(), mpts2.end());
     Point_vector respts;
-    TYPENAME Point_vector::iterator endpos;
+    typename Point_vector::iterator endpos;
     respts.resize(std::max(ptset1.size(), ptset2.size()));
     endpos = std::set_intersection(ptset1.begin(), ptset1.end(), ptset2.begin(),
                                    ptset2.end(), respts.begin(), bgpt_lt());
@@ -175,7 +175,7 @@ int BG_wrap<Geom_types>::multipoint_within_geometry_internal(
     const Multipoint &mpts, const GeomType &geom) {
   bool has_inner = false;
 
-  for (TYPENAME Multipoint::iterator i = mpts.begin(); i != mpts.end(); ++i) {
+  for (typename Multipoint::iterator i = mpts.begin(); i != mpts.end(); ++i) {
     /*
       Checking for intersects is faster than within, so if there is at least
       one point within geom, only check that the rest points intersects geom.
@@ -197,7 +197,7 @@ int BG_wrap<Geom_types>::multipoint_within_multipolygon(
   make_rtree_bggeom(mplgn, &rtree);
   BG_box box;
 
-  for (TYPENAME Multipoint::iterator i = mpts.begin(); i != mpts.end(); ++i) {
+  for (typename Multipoint::iterator i = mpts.begin(); i != mpts.end(); ++i) {
     bool already_in = false;
     // Search for polygons that may intersect *i point using the rtree index.
     boost::geometry::envelope(*i, box);
@@ -411,7 +411,7 @@ int BG_wrap<Geom_types>::multipoint_disjoint_geometry(Geometry *g1,
       Point_set ptset1(mpts1.begin(), mpts1.end());
       Point_set ptset2(mpts2.begin(), mpts2.end());
       Point_vector respts;
-      TYPENAME Point_vector::iterator endpos;
+      typename Point_vector::iterator endpos;
       size_t ptset1sz = ptset1.size(), ptset2sz = ptset2.size();
 
       respts.resize(ptset1sz > ptset2sz ? ptset1sz : ptset2sz);
@@ -466,7 +466,7 @@ template <typename Geom_types>
 template <typename Geom_type>
 int BG_wrap<Geom_types>::multipoint_disjoint_geometry_internal(
     const Multipoint &mpts, const Geom_type &geom) {
-  for (TYPENAME Multipoint::iterator i = mpts.begin(); i != mpts.end(); ++i) {
+  for (typename Multipoint::iterator i = mpts.begin(); i != mpts.end(); ++i) {
     if (!boost::geometry::disjoint(*i, geom)) return 0;
   }
 
@@ -483,7 +483,7 @@ int BG_wrap<Geom_types>::multipoint_disjoint_multi_geometry(
   // performance improvement.
   if (mpts.size() > geom.size()) {
     make_rtree_bggeom(mpts, &rtree);
-    for (TYPENAME Geom_type::iterator j = geom.begin(); j != geom.end(); ++j) {
+    for (typename Geom_type::iterator j = geom.begin(); j != geom.end(); ++j) {
       BG_box box;
       boost::geometry::envelope(*j, box);
 
@@ -505,7 +505,7 @@ int BG_wrap<Geom_types>::multipoint_disjoint_multi_geometry(
     }
   } else {
     make_rtree_bggeom(geom, &rtree);
-    for (TYPENAME Multipoint::iterator j = mpts.begin(); j != mpts.end(); ++j) {
+    for (typename Multipoint::iterator j = mpts.begin(); j != mpts.end(); ++j) {
       BG_box box;
       boost::geometry::envelope(*j, box);
 
@@ -1059,7 +1059,7 @@ int BG_wrap<Geom_types>::multipoint_crosses_geometry(Geometry *g1, Geometry *g2,
         According to OGC's definition to crosses, if some Points of
         g1 is in g2 and some are not, g1 crosses g2, otherwise not.
        */
-      for (TYPENAME Multipoint::iterator i = mpts.begin();
+      for (typename Multipoint::iterator i = mpts.begin();
            i != mpts.end() && !(has_in && has_out); ++i) {
         if (!has_out) {
           res = point_disjoint_geometry(&(*i), g2, pnull_value);
@@ -1116,7 +1116,7 @@ int BG_wrap<Geom_types>::multipoint_overlaps_multipoint(Geometry *g1,
   // They overlap if they intersect and also each has some points that the other
   // one doesn't have.
   Point_vector respts;
-  TYPENAME Point_vector::iterator endpos;
+  typename Point_vector::iterator endpos;
   size_t ptset1sz = ptset1.size(), ptset2sz = ptset2.size(), resptssz;
 
   respts.resize(ptset1sz > ptset2sz ? ptset1sz : ptset2sz);
@@ -1218,7 +1218,7 @@ int BG_wrap<Geom_types>::multipoint_touches_geometry(Geometry *g1, Geometry *g2,
 
   Multipoint mpts(g1->get_data_ptr(), g1->get_data_size(), g1->get_flags(),
                   g1->get_srid());
-  for (TYPENAME Multipoint::iterator i = mpts.begin(); i != mpts.end(); ++i) {
+  for (typename Multipoint::iterator i = mpts.begin(); i != mpts.end(); ++i) {
     int ptg = point_touches_geometry(&(*i), g2, pnull_value);
     if (*pnull_value) return 0;
     if (ptg)
