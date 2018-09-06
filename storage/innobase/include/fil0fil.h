@@ -962,7 +962,7 @@ fil_space_t *fil_space_get(space_id_t space_id)
 /** Returns the latch of a file space.
 @param[in]	space_id	Tablespace ID
 @return latch protecting storage allocation */
-rw_lock_t *fil_space_get_latch(space_id_t id)
+rw_lock_t *fil_space_get_latch(space_id_t space_id)
     MY_ATTRIBUTE((warn_unused_result));
 
 #ifdef UNIV_DEBUG

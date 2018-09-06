@@ -225,7 +225,7 @@ class Gcs_internal_message_header {
    the header length. Only the payload information is provided because the
    header length is fixed.
 
-   @param lenght payload length
+   @param length payload length
    */
   void set_payload_length(unsigned long long length) {
     m_total_len = length + m_fixed_header_len;
@@ -234,7 +234,7 @@ class Gcs_internal_message_header {
   /**
    Set the message total length attribute value.
 
-   @param lenght message length
+   @param length message length
    */
   void set_total_length(unsigned long long length) { m_total_len = length; }
 
@@ -349,8 +349,6 @@ class Gcs_packet {
   /**
    This constructor is to be used when sending a message. This builds a packet
    with an internal buffer that is used to prepare the data to be sent.
-
-   @param capacity the capacity that this packet should be set to.
    */
   explicit Gcs_packet(const Gcs_internal_message_header &hd)
       : m_buffer(nullptr), m_capacity(0) {

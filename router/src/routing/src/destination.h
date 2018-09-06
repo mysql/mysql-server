@@ -37,6 +37,7 @@
 #include <thread>
 #include <vector>
 
+#include "my_compiler.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysqlrouter/routing.h"
 #include "protocol/protocol.h"
@@ -211,7 +212,8 @@ class RouteDestination : public DestinationNodesStateNotifier {
    *
    * @param env pointer to the PluginFuncEnv object
    */
-  virtual void start(const mysql_harness::PluginFuncEnv * /*env*/) {}
+  virtual void start(
+      const mysql_harness::PluginFuncEnv *env MY_ATTRIBUTE((unused))) {}
 
   AddrVector::iterator begin() { return destinations_.begin(); }
 

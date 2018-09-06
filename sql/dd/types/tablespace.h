@@ -218,7 +218,7 @@ typedef std::vector<Tablespace_table_ref> Tablespace_table_ref_vec;
   Fetch (by inserting into tblref vector) Tablespace_table_ref objects
   which describe tables in a given tablespace.
 
-  @param thd
+  @param thd thread context
   @param tso dd object
   @param tblrefs [OUT] Tablespace_table_ref objects for tables in tablespace
   @retval true if error occured
@@ -229,7 +229,7 @@ bool fetch_tablespace_table_refs(THD *thd, const Tablespace &tso,
 
 /**
   Create am MDL_request for a the table identified by a Tablespace_table_ref.
-  @param thd
+  @param thd thread context
   @param tref table to create request for
   @retval MDL_request (allocated on thd->memroot)
  */

@@ -4321,7 +4321,6 @@ funct_exit:
 }
 
 /** Read the total number of records in a consistent view.
-@param[in]      thd      Session instance
 @param[in,out]  reader   Index scanner
 @param[out]     n_rows   Number of rows seen.
 @return DB_SUCCESS or error code. */

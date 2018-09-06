@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -92,7 +92,7 @@ inline ib_uint64_t mach_read_from_6(const byte *b) {
 /** The following function is used to store data in 6 consecutive
 bytes. We store the most significant byte to the lowest address.
 @param[in]      b       pointer to 6 bytes where to store
-@param[in]      id      48-bit integer to write */
+@param[in]      n       48-bit integer to write */
 inline void mach_write_to_6(byte *b, ib_uint64_t n) {
   ut_ad(b != nullptr);
 

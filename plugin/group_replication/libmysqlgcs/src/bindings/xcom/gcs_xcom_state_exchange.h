@@ -180,7 +180,7 @@ class Xcom_member_state {
 };
 
 /**
-  @interface gcs_xcom_state_exchange_interface
+  @class gcs_xcom_state_exchange_interface
 
   Interface that defines the operations that state exchange will provide.
   In what follows, we describe how the state exchange algorithm works and

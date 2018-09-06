@@ -1928,7 +1928,7 @@ struct buf_pool_t {
   requested but could not be performed, but still return true as the allocation
   itself succeeded.
   @param[in]	  mem_size  number of bytes to allocate
-  @param[in/out]  chunk     mem and mem_pfx fields of this chunk will be updated
+  @param[in,out]  chunk     mem and mem_pfx fields of this chunk will be updated
                             to contain information about allocated memory region
   @return true iff allocated successfully */
   bool allocate_chunk(ulonglong mem_size, buf_chunk_t *chunk);

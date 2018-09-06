@@ -62,6 +62,10 @@ struct Reader<T, R>::Ctx {
   Range m_range{};
 };
 
+// Doxygen gets confused by the explicit specializations.
+
+//! @cond
+
 template <>
 void Reader<Key_reader, Key_reader_row>::Ctx::destroy(Key_reader_row &row) {
   if (row.m_heap != nullptr) {
@@ -87,6 +91,8 @@ Reader<Phy_reader, page_no_t>::Ctx::~Ctx() {}
 
 template <>
 void Reader<Phy_reader, page_no_t>::Ctx::destroy(page_no_t &) {}
+
+//! @endcond
 
 /** Persistent cursor wrapper around btr_pcur_t */
 class PCursor {

@@ -1125,9 +1125,6 @@ class MDL_ticket_store {
     underlying list is an intrusive linked list there is no guarantee
     that the ticket is actually in the duration list. It will be
     removed from which ever list it is in.
-
-    @param dur
-    @param ticket
    */
   void remove(enum_mdl_duration dur, MDL_ticket *ticket);
 

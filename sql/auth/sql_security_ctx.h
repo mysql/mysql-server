@@ -340,7 +340,6 @@ class Security_context {
   /**
     Cache the schema level effective privileges (apply roles first!) for the
     currently active schema.
-    @param db_access
   */
   void cache_current_db_access(ulong db_access) { m_db_access = db_access; }
 

@@ -464,6 +464,9 @@ class Dictionary_client {
   template <typename T>
   void remove_uncommitted_objects(bool commit_to_shared_cache);
 
+  template <typename T>
+  using Const_ptr_vec = std::vector<const T *>;
+
   /**
     Fetch objects from DD tables that match the supplied key.
 
@@ -475,9 +478,6 @@ class Dictionary_client {
     @return false       Success.
     @return true        Failure (error is reported).
   */
-
-  template <typename T>
-  using Const_ptr_vec = std::vector<const T *>;
 
   template <typename Object_type>
   bool fetch(Const_ptr_vec<Object_type> *coll, const Object_key *object_key)

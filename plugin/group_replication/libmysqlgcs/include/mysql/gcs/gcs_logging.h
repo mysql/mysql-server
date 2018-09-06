@@ -29,7 +29,7 @@
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_types.h"
 
 /**
-  @interface Common_interface
+  @class Common_interface
 
   Common interface that defines the sink, logger and debugger.
 */
@@ -72,7 +72,7 @@ class Common_interface {
 };
 
 /**
-  @interface Sink_interface
+  @class Sink_interface
 
   Common sink that may be shared by the logging and debugging systems.
 
@@ -139,7 +139,7 @@ static const char *const gcs_log_levels[] = {
     "[MYSQL_GCS_INFO] "};
 
 /**
-  @interface Logger_interface
+  @class Logger_interface
 
   Sink that must be implemented and used by any logging systems and inserted
   in the MySQL GCS logging infrastructure. The actual implementation can be

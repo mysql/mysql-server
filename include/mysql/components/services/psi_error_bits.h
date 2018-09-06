@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,7 @@ typedef enum PSI_error_operation PSI_error_operation;
 
 /**
   Log the error seen in Performance Schema buffers.
-  @param num MySQL error number
+  @param error_num MySQL error number
   @param error_operation operation on error (PSI_ERROR_OPERATION_*)
 */
 typedef void (*log_error_v1_t)(unsigned int error_num,

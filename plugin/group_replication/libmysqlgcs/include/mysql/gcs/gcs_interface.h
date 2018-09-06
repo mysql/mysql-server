@@ -33,7 +33,7 @@
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_statistics_interface.h"
 
 /**
-  @interface Gcs_interface
+  @class Gcs_interface
 
   This interface must be implemented by all specific binding implementations
   as its entry point.

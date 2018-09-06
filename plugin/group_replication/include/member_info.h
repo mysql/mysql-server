@@ -286,7 +286,8 @@ class Group_member_info : public Plugin_gcs_message {
 
   /**
     Set the enforces_update_everywhere_checks flag
-    @param enforce_everywhere are the update everywhere checks active or not
+    @param enforce_everywhere_checks are the update everywhere checks active or
+    not
   */
   void set_enforces_update_everywhere_checks_flag(
       bool enforce_everywhere_checks);
@@ -437,7 +438,7 @@ class Group_member_info : public Plugin_gcs_message {
 
   /**
     Sets if the member is currently running a group action
-    @param is_runnning is an action running
+    @param is_running is an action running
   */
   void set_is_group_action_running(bool is_running);
 
@@ -597,7 +598,7 @@ class Group_member_info_manager_interface {
 
   @param[in] uuid        member uuid
   @param[in] member_weight  the new weight
- */
+*/
   virtual void update_member_weight(const std::string &uuid,
                                     uint member_weight) = 0;
 

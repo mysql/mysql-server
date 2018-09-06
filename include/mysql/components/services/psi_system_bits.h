@@ -34,9 +34,6 @@
 
 /**
   System event - plugin unload event
-
-  @param plugin_name
-  @return void
 */
 typedef void (*unload_plugin_v1_t)(const char *plugin_name);
 

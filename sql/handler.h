@@ -1237,7 +1237,7 @@ typedef uint (*partition_flags_t)();
   This function will ask the relevant SE whether the submitted tablespace
   name is valid.
 
-  @param tablespace_ddl     Purpose of usage - is this tablespace DDL?
+  @param ts_cmd             Purpose of usage - is this tablespace DDL?
   @param tablespace_name    Name of the tablespace.
 
   @return Tablespace name validity.
@@ -1550,10 +1550,10 @@ typedef void (*replace_native_transaction_in_thd_t)(THD *thd, void *new_trx_arg,
 
 /** Mode for initializing the data dictionary. */
 enum dict_init_mode_t {
-  DICT_INIT_CREATE_FILES,      //< Create all required SE files
-  DICT_INIT_CHECK_FILES,       //< Verify existence of expected files
-  DICT_INIT_UPGRADE_57_FILES,  //< Used for upgrade from mysql-5.7
-  DICT_INIT_IGNORE_FILES       //< Don't care about files at all
+  DICT_INIT_CREATE_FILES,      ///< Create all required SE files
+  DICT_INIT_CHECK_FILES,       ///< Verify existence of expected files
+  DICT_INIT_UPGRADE_57_FILES,  ///< Used for upgrade from mysql-5.7
+  DICT_INIT_IGNORE_FILES       ///< Don't care about files at all
 };
 
 /**
@@ -1594,8 +1594,6 @@ typedef bool (*ddse_dict_init_t)(
 
 /**
   Initialize the set of hard coded DD table ids.
-
-  @param dd_table_id  SE_private_id of DD table..
 */
 typedef void (*dict_register_dd_table_id_t)(dd::Object_id hard_coded_tables);
 
@@ -1606,7 +1604,7 @@ typedef void (*dict_register_dd_table_id_t)(dd::Object_id hard_coded_tables);
   dictionary cache is in sync with the global DD.
 
   @param   schema_name    Schema name.
-  @param   table name     Table name.
+  @param   table_name     Table name.
  */
 
 typedef void (*dict_cache_reset_t)(const char *schema_name,
@@ -1622,9 +1620,9 @@ typedef void (*dict_cache_reset_tables_and_tablespaces_t)();
 
 /** Mode for data dictionary recovery. */
 enum dict_recovery_mode_t {
-  DICT_RECOVERY_INITIALIZE_SERVER,       //< First start of a new server
-  DICT_RECOVERY_INITIALIZE_TABLESPACES,  //< First start, create tablespaces
-  DICT_RECOVERY_RESTART_SERVER           //< Restart of an existing server
+  DICT_RECOVERY_INITIALIZE_SERVER,       ///< First start of a new server
+  DICT_RECOVERY_INITIALIZE_TABLESPACES,  ///< First start, create tablespaces
+  DICT_RECOVERY_RESTART_SERVER           ///< Restart of an existing server
 };
 
 /**

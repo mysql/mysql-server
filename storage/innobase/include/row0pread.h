@@ -24,7 +24,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/** @file include/row0par-read.h
+/** @file row0pread.h
 Parallel read interface.
 
 Created 2018-01-27 by Sunny Bains. */
@@ -301,7 +301,7 @@ class Key_reader : public Reader<Key_reader, Key_reader_row> {
   @param[in,out]  rec       Current row read from the index. This can be modifie
                             by this method if an older version needs to be
                             built.
-  @param[in,out]  offset    Same as above but pertains to the rec offsets
+  @param[in,out]  offsets   Same as above but pertains to the rec offsets
   @param[in,out]  heap      Heap to use if a previous version needs to be
                             built from the undo log.
   @param[in,out]  mtr       Mini transaction covering the read.

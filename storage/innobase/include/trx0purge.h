@@ -892,8 +892,7 @@ class Truncate {
     return (m_purge_rseg_truncate_frequency);
   }
 
-  /** Set local rseg purge truncate frequency
-  @return rseg purge truncate frequency. */
+  /** Set local rseg purge truncate frequency */
   void set_rseg_truncate_frequency(ulint frequency) {
     m_purge_rseg_truncate_frequency = frequency;
   }

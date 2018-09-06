@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -357,7 +357,7 @@ typedef struct PSI_notification_v1 PSI_notification;
 /**
   Get system attributes for the current thread.
 
-  @param pfs_thread_attr pointer to pfs_thread_attr struct
+  @param thread_attrs pointer to pfs_thread_attr struct
   @return 0 if successful, 1 otherwise
 */
 typedef int (*get_thread_system_attrs_v1_t)(PSI_thread_attrs *thread_attrs);
@@ -368,7 +368,7 @@ typedef int (*get_thread_system_attrs_v1_t)(PSI_thread_attrs *thread_attrs);
 
   @param thread pointer to the thread instrumentation. Ignored if NULL.
   @param thread_id thread id of the target thread. Only used if thread is NULL.
-  @param pfs_thread_attr pointer to pfs_thread_attr struct
+  @param thread_attrs pointer to pfs_thread_attr struct
   @return 0 if successful, 1 otherwise
 */
 typedef int (*get_thread_system_attrs_by_id_v1_t)(
@@ -378,7 +378,7 @@ typedef int (*get_thread_system_attrs_by_id_v1_t)(
   Register callback functions for the Notification service.
   For best performance, set with_ref_count = false.
 
-  @param callback structure of user-defined callback functions
+  @param callbacks structure of user-defined callback functions
   @param with_ref_count true if callbacks can be unregistered
   @sa unregister_notification
   @return registration handle on success, 0 if failure
@@ -399,7 +399,6 @@ typedef int (*unregister_notification_v1_t)(int handle);
   Invoke the callback function registered for a session connect event.
 
   @param thread the thread instrumentation
-  @return 0 if successful, non-zero otherwise
 */
 typedef void (*notify_session_connect_v1_t)(PSI_thread *thread);
 
@@ -407,7 +406,6 @@ typedef void (*notify_session_connect_v1_t)(PSI_thread *thread);
   Invoke the callback function registered for a session disconnect event.
 
   @param thread the thread instrumentation
-  @return 0 if successful, non-zero otherwise
 */
 typedef void (*notify_session_disconnect_v1_t)(PSI_thread *thread);
 
@@ -415,7 +413,6 @@ typedef void (*notify_session_disconnect_v1_t)(PSI_thread *thread);
   Invoke the callback function registered for a changer user event.
 
   @param thread the thread instrumentation
-  @return 0 if successful, non-zero otherwise
 */
 typedef void (*notify_session_change_user_v1_t)(PSI_thread *thread);
 

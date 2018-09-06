@@ -232,8 +232,6 @@ class Plugin_gcs_message {
     @param[out] buffer              the buffer to decode from.
     @param[out] payload_item_data   the data.
     @param[out] payload_item_length the length of the data.
-
-    @return the raw data of the first payload item
   */
   static void get_first_payload_item_raw_data(
       const unsigned char *buffer, const unsigned char **payload_item_data,

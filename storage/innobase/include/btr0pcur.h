@@ -179,7 +179,7 @@ struct btr_pcur_t {
   @param[in]	    index		    Index to position on.
   @param[in]	    latch_mode	BTR_SEARCH_LEAF, ...
   @param[in,out]	mtr		      Mini transaction.
-  @param[in]	    filename	  File name from where called.
+  @param[in]	    file	  File name from where called.
   @param[in]	    line		    Line number within filename
   @return true if the index is available and we have put the cursor, false
           if the index is unavailable */
@@ -221,7 +221,6 @@ struct btr_pcur_t {
                               we maybe do not acquire a latch on the cursor
                               page, but assume that the caller uses his
                               btr search latch to protect the record!
-  @param[in]	    cursor	    memory buffer for persistent cursor.
   @param[in]	    has_search_latch	latch mode the caller
                               currently has on search system: RW_S_LATCH, or 0
   @param[in]	    mtr	        Mtr
@@ -239,7 +238,7 @@ struct btr_pcur_t {
   tree, and in the latter case before first in tree. The latching mode
   must be BTR_SEARCH_LEAF or BTR_MODIFY_LEAF.
   @param[in]	    index		    Index
-  @param[in]	    tuple,		  Tuple on which search done.
+  @param[in]	    tuple		  Tuple on which search done.
   @param[in]	    mode		    PAGE_CUR_L, ...
   @param[in]	    latch_mode	BTR_SEARCH_LEAF or BTR_MODIFY_LEAF
   @param[in]	    mtr		      Mini transaction.
@@ -594,8 +593,6 @@ the search is made using a unique prefix of a record, mode should be
 PAGE_CUR_LE, not PAGE_CUR_GE, as the latter may end up on the previous page from
 the record!
 @param[in]	  latch_mode	    BTR_SEARCH_LEAF, ...
-@param[in]	  cursor		      Memory buffer for persistent
-cursor.
 @param[in]	  mtr		          Mini-transaction.
 @param[in]	  file		        File name
 @param[in]	  line		        Line in file, from where called. */

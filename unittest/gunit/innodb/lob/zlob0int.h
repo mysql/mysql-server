@@ -82,8 +82,7 @@ struct z_index_entry_t {
   @param[in]  node  point to this file list node. */
   void reset(flst_node_t *node) { m_node = node; }
 
-  /** Point to another index entry.
-  @param[in]  node  point to this file list node. */
+  /** Point to another index entry. */
   void reset(const z_index_entry_t &entry) { m_node = entry.m_node; }
 
   /** Initialize an index entry to some sane value. */

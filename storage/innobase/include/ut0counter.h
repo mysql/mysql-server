@@ -235,7 +235,7 @@ struct Shard {
 using Shards = std::array<Shard, 128>;
 
 /** Increment the counter.
-@param[in,out]  Shards          Sharded counter to increment.
+@param[in,out]  shards          Sharded counter to increment.
 @param[in] id                   Shard key. */
 inline void inc(Shards &shards, size_t id) {
   shards[id % shards.size()].m_n.fetch_add(1, std::memory_order_relaxed);
@@ -255,7 +255,7 @@ inline size_t total(const Shards &shards) {
 }
 
 /** Clear the counter - reset to 0.
-@param[in,out] shareds          Shards to clear. */
+@param[in,out] shards          Shards to clear. */
 inline void clear(Shards &shards) {
   for (auto &shard : shards) {
     shard.m_n.store(0, std::memory_order_relaxed);

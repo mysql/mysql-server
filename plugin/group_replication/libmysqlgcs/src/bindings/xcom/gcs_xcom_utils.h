@@ -146,9 +146,6 @@ class Gcs_xcom_proxy {
 
     @param n the length of the list
     @param na the list to delete
-
-    @return false on success, true otherwise. In case of an error, memory may
-    not have been completely freed.
   */
 
   virtual void delete_node_address(unsigned int n, node_address *na) = 0;
@@ -233,7 +230,7 @@ class Gcs_xcom_proxy {
 
     @return true if successful and event_horizon was written to, false otherwise
 
- */
+   */
   virtual bool xcom_client_get_event_horizon(
       uint32_t group_id, xcom_event_horizon &event_horizon) = 0;
 
@@ -251,7 +248,7 @@ class Gcs_xcom_proxy {
            be removed
 
     @return true if successful, false otherwise
- */
+   */
   virtual bool xcom_client_set_event_horizon(
       uint32_t group_id, xcom_event_horizon event_horizon) = 0;
 
@@ -593,8 +590,6 @@ class Gcs_xcom_proxy {
     @param nl The list of nodes that will belong to this new configuration
     @param group_id The identifier of the group from which the nodes will
            belong
-
-    @return
    */
   virtual int xcom_client_force_config(node_list *nl, uint32_t group_id) = 0;
 
@@ -606,8 +601,6 @@ class Gcs_xcom_proxy {
     @param nl The list of nodes that will belong to this new configuration
     @param group_id The identifier of the group from which the nodes will
            belong
-
-    @return
    */
   virtual int xcom_client_force_config(connection_descriptor *fd, node_list *nl,
                                        uint32_t group_id) = 0;

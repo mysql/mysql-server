@@ -307,8 +307,7 @@ class Table : virtual public Abstract_table {
   /**
     Copy all the triggers from another dd::Table object.
 
-    @param tab_obj* - Pointer to Table from which the triggers
-                      are copied.
+    @param tab_obj Pointer to Table from which the triggers are copied.
   */
 
   virtual void copy_triggers(const Table *tab_obj) = 0;

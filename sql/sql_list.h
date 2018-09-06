@@ -125,19 +125,6 @@ struct list_node {
 
 extern MYSQL_PLUGIN_IMPORT list_node end_of_list;
 
-/**
-  Comparison function for list sorting.
-
-  @param n1   Info of 1st node
-  @param n2   Info of 2nd node
-  @param arg  Additional info
-
-  @return
-    -1  n1 < n2
-     0  n1 == n2
-     1  n1 > n2
-*/
-
 class base_list {
  protected:
   list_node *first, **last;

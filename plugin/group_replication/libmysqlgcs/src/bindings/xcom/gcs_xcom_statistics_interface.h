@@ -29,7 +29,7 @@
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_statistics_interface.h"
 
 /**
-  @interface Gcs_xcom_statistics_updater
+  @class Gcs_xcom_statistics_updater
 
   This interface contains the public methods that the implementation
   of the Gcs_statistics_interface will provide to the other interfaces that

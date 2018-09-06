@@ -146,10 +146,7 @@ class Collection {
     Remove elements from m_removed_items.  This is used only in case of
     dropping triggers for now.  See comments in
     Table_impl::store_children() for more details.
-
-    @returns void
   */
-
   void clear_removed_items();
 
   Collection(const Collection &) = delete;
@@ -177,8 +174,6 @@ class Collection {
 
   /**
     Remove all items and move it to m_removed_items items.
-
-    @returns void.
   */
 
   void remove_all() { m_removed_items = std::move(m_items); }

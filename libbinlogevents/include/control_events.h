@@ -729,7 +729,6 @@ struct gtid_info {
     <th>Description</th>
   </tr>
 
-  </tr>
   <tr>
     <td>GTID_FLAGS</td>
     <td>1 byte</td>

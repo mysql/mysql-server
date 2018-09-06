@@ -66,7 +66,8 @@ bool resolve_ip_addr_from_hostname(std::string name, std::string &ip);
 
  @param[in]  addr     IP address in X.X.X.X format
  @param[in]  mask     Network mask associated with the address
- @param[out] out_pair
+ @param[out] out_pair IP address and netmask, in binary format (network byte
+                      order)
 
  @return false on success, true otherwise.
  */

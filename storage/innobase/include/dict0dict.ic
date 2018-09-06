@@ -1404,7 +1404,6 @@ bool dict_table_is_sdi(table_id_t table_id) {
 }
 
 /** Return a SDI Index id for given SDI copy
-@param[in]	copy_num	SDI Index copy number
 @return index_id for SDI copy */
 UNIV_INLINE
 space_index_t dict_sdi_get_index_id() { return (IB_UINT64_MAX); }

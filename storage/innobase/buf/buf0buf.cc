@@ -814,6 +814,10 @@ avoid taking any actions which might trigger a warning or disabling @@core_file.
 */
 static bool buf_pool_should_madvise = false;
 
+// Doxygen gets confused by buf_chunk_t somehow.
+
+//! @cond
+
 /* Implementation of buf_chunk_t's methods */
 
 /** Advices the OS that this chunk should not be dumped to a core file.
@@ -852,6 +856,8 @@ bool buf_chunk_t::madvise_dont_dump() {
 
 /* End of implementation of buf_chunk_t's methods */
 
+//! @endcond
+
 /* Implementation of buf_pool_t's methods */
 
 /** A wrapper for buf_pool_t::allocator.alocate_large which also advices the OS
@@ -860,7 +866,7 @@ Emits a warning to the log and disables @@global.core_file if advising was
 requested but could not be performed, but still return true as the allocation
 itself succeeded.
 @param[in]	mem_size  number of bytes to allocate
-@param[in/out]  chunk     mem and mem_pfx fields of this chunk will be updated
+@param[in,out]  chunk     mem and mem_pfx fields of this chunk will be updated
                           to contain information about allocated memory region
 @return true iff allocated successfully */
 bool buf_pool_t::allocate_chunk(ulonglong mem_size, buf_chunk_t *chunk) {
