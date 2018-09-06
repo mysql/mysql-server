@@ -51,6 +51,7 @@
 #include "my_macros.h"
 #include "my_sqlcommand.h"
 #include "myisampack.h"
+#include "sql/create_field.h"
 #include "sql/current_thd.h"
 #include "sql/dd/cache/dictionary_client.h"
 #include "sql/dd/types/table.h"
@@ -158,11 +159,12 @@ bool length_prevents_inplace(const Field &from, const Create_field &to) {
                          from.field_length, from.pack_length(),
                          from.row_pack_length(), from.max_display_length()));
 
-  DBUG_PRINT("inplace",
-             ("to: length:%zu, pack_length:%zu", to.length, to.pack_length));
+  DBUG_PRINT("inplace", ("to: length:%zu, pack_length:%zu",
+                         to.max_display_width_in_bytes(), to.pack_length()));
 
-  return (to.pack_length < from.pack_length() ||
-          (to.length >= 256 && from.row_pack_length() < 256));
+  return (
+      to.pack_length() < from.pack_length() ||
+      (to.max_display_width_in_bytes() >= 256 && from.row_pack_length() < 256));
 }
 
 /**
@@ -3116,7 +3118,7 @@ uint Field_new_decimal::is_equal(const Create_field *new_field) {
       ((new_field->flags & UNSIGNED_FLAG) == (uint)(flags & UNSIGNED_FLAG)) &&
       ((new_field->flags & AUTO_INCREMENT_FLAG) ==
        (uint)(flags & AUTO_INCREMENT_FLAG)) &&
-      (new_field->length == max_display_length()) &&
+      (new_field->max_display_width_in_bytes() == max_display_length()) &&
       (new_field->decimals == dec));
 }
 
@@ -6222,7 +6224,7 @@ uint Field_str::is_equal(const Create_field *new_field) {
     return IS_EQUAL_NO;
   }
 
-  size_t new_char_len = new_field->length / new_field->charset->mbmaxlen;
+  size_t new_char_len = new_field->max_display_width_in_codepoints();
   if (new_char_len != char_length()  // Changed char len cannot be done
                                      // inplace due to padding
   ) {
@@ -6950,7 +6952,7 @@ uint Field_varstring::is_equal(const Create_field *new_field) {
   }
 
   if (new_field->charset == field_charset &&
-      new_field->pack_length == pack_length()) {
+      new_field->pack_length() == pack_length()) {
     return IS_EQUAL_YES;
   }
 
@@ -7481,7 +7483,7 @@ uint Field_blob::is_equal(const Create_field *new_field) {
   // length_prevents_inplace() is less strict than pack_length
   // equality so would be redundant here.
   if (new_field->sql_type != get_blob_type_from_length(max_data_length()) ||
-      new_field->pack_length != pack_length() ||
+      new_field->pack_length() != pack_length() ||
       charset_prevents_inplace(*this, *new_field) ||
       collation_prevents_inplace(*this, *new_field)) {
     return IS_EQUAL_NO;
@@ -7597,7 +7599,7 @@ uint Field_geom::is_equal(const Create_field *new_field) {
   return new_field->sql_type == real_type() &&
          new_field->geom_type == get_geometry_type() &&
          new_field->charset == field_charset &&
-         new_field->pack_length == pack_length();
+         new_field->pack_length() == pack_length();
 }
 
 /**
@@ -8565,14 +8567,15 @@ uint Field_enum::is_equal(const Create_field *new_field) {
 
   DBUG_PRINT("inplace",
              ("Field_enum::is_equal() -> %s",
-              (new_field->pack_length == pack_length() ? "IS_EQUAL_YES"
-                                                       : "IS_EQUAL_NO")));
+              (new_field->pack_length() == pack_length() ? "IS_EQUAL_YES"
+                                                         : "IS_EQUAL_NO")));
 
   // Can't return IS_EQUAL_PACK_LENGTH here as using inplace leads to
   // assert when trying to insert set elements that use bits outside
   // the original length:
   // Assertion failure: rem0rec.cc:408:len <= fixed_len thread 140301224261376
-  return (new_field->pack_length == pack_length() ? IS_EQUAL_YES : IS_EQUAL_NO);
+  return (new_field->pack_length() == pack_length() ? IS_EQUAL_YES
+                                                    : IS_EQUAL_NO);
 }
 
 uchar *Field_enum::pack(uchar *to, const uchar *from, uint max_length,
@@ -8652,7 +8655,7 @@ uint Field_num::is_equal(const Create_field *new_field) {
       ((new_field->flags & UNSIGNED_FLAG) == (uint)(flags & UNSIGNED_FLAG)) &&
       ((new_field->flags & AUTO_INCREMENT_FLAG) ==
        (uint)(flags & AUTO_INCREMENT_FLAG)) &&
-      (new_field->pack_length == pack_length()));
+      (new_field->pack_length() == pack_length()));
 }
 
 /*
@@ -8757,7 +8760,7 @@ Field *Field_bit::new_key_field(MEM_ROOT *root, TABLE *new_table,
 
 uint Field_bit::is_equal(const Create_field *new_field) {
   return (new_field->sql_type == real_type() &&
-          new_field->length == max_display_length());
+          new_field->max_display_width_in_bytes() == max_display_length());
 }
 
 type_conversion_status Field_bit::reset() {
@@ -9192,70 +9195,14 @@ void Field_bit_as_char::sql_type(String &res) const {
 *****************************************************************************/
 
 /**
-  Convert create_field::length from number of characters to number of bytes.
-*/
-
-void Create_field::create_length_to_internal_length() {
-  uint precision = 0;
-  switch (sql_type) {
-    case MYSQL_TYPE_TINY_BLOB:
-    case MYSQL_TYPE_MEDIUM_BLOB:
-    case MYSQL_TYPE_LONG_BLOB:
-    case MYSQL_TYPE_BLOB:
-    case MYSQL_TYPE_GEOMETRY:
-    case MYSQL_TYPE_JSON:
-    case MYSQL_TYPE_VAR_STRING:
-    case MYSQL_TYPE_STRING:
-    case MYSQL_TYPE_VARCHAR: {
-      const ulonglong ull_length = static_cast<ulonglong>(length) *
-                                   static_cast<ulonglong>(charset->mbmaxlen);
-      length = static_cast<size_t>(
-          std::min<ulonglong>(ull_length, MAX_FIELD_BLOBLENGTH));
-      key_length = length;
-      pack_length = calc_pack_length(sql_type, length);
-    } break;
-    case MYSQL_TYPE_ENUM:
-    case MYSQL_TYPE_SET:
-      /* Pack_length already calculated in sql_parse.cc */
-      length *= charset->mbmaxlen;
-      key_length = pack_length;
-      break;
-    case MYSQL_TYPE_BIT:
-      if (treat_bit_as_char) {
-        key_length = pack_length = ((length + 7) & ~7) / 8;
-      } else {
-        pack_length = length / 8;
-        /* We need one extra byte to store the bits we save among the null bits
-         */
-        key_length = pack_length + (length & 7 ? 1 : 0);
-      }
-      break;
-    case MYSQL_TYPE_NEWDECIMAL:
-      precision = my_decimal_length_to_precision(length, decimals,
-                                                 (flags & UNSIGNED_FLAG));
-      // Adjust precision.
-      set_if_smaller(precision, DECIMAL_MAX_PRECISION);
-      DBUG_ASSERT((precision <= DECIMAL_MAX_PRECISION) &&
-                  (decimals <= DECIMAL_MAX_SCALE));
-      key_length = pack_length =
-          my_decimal_get_binary_size(precision, decimals);
-      break;
-    default:
-      key_length = pack_length = calc_pack_length(sql_type, length);
-      break;
-  }
-}
-
-/**
   Calculate key length for field from its type, length and other attributes.
 
   @note for string fields "length" parameter is assumed to take into account
         character set.
 
   TODO: Get rid of this function as its code is redundant with
-        Field::key_length() and Create_field::create_length_to_internal_length()
-        code. However creation of Field object using make_field() just to call
-        Field::key_length() is probably overkill.
+        Field::key_length() code. However creation of Field object using
+        make_field() just to call Field::key_length() is probably overkill.
 */
 
 uint32 calc_key_length(enum_field_types sql_type, uint32 length,
@@ -9288,481 +9235,7 @@ uint32 calc_key_length(enum_field_types sql_type, uint32 length,
   }
 }
 
-/**
-  Init for a tmp table field. To be extended if need be.
-*/
-void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
-                                      uint32 length_arg, uint32 decimals_arg,
-                                      bool maybe_null_arg, bool is_unsigned_arg,
-                                      uint pack_length_override_arg,
-                                      const char *fld_name) {
-  DBUG_ENTER("Create_field::init_for_tmp_table");
-
-  field_name = fld_name;
-  sql_type = sql_type_arg;
-  char_length = length = length_arg;
-  auto_flags = Field::NONE;
-  interval = 0;
-  charset = &my_charset_bin;
-  geom_type = Field::GEOM_GEOMETRY;
-
-  DBUG_PRINT("enter", ("sql_type: %d, length: %u", sql_type_arg, length_arg));
-
-  /* Init members needed for correct execution of make_field(). */
-#ifndef DBUG_OFF
-  const uint32 FIELDFLAG_MAX_DEC = 31;
-#endif
-
-  switch (sql_type_arg) {
-    case MYSQL_TYPE_BIT:
-      treat_bit_as_char = true;
-      break;
-    case MYSQL_TYPE_DATE:
-      // Old type
-      sql_type = MYSQL_TYPE_NEWDATE;
-      break;
-
-    case MYSQL_TYPE_NEWDECIMAL:
-      DBUG_ASSERT(decimals_arg <= DECIMAL_MAX_SCALE);
-    case MYSQL_TYPE_DECIMAL:
-    case MYSQL_TYPE_FLOAT:
-    case MYSQL_TYPE_DOUBLE:
-      DBUG_ASSERT(decimals_arg <= FIELDFLAG_MAX_DEC);
-      decimals = decimals_arg;
-      break;
-
-    default:
-      break;
-  }
-
-  maybe_null = maybe_null_arg;
-
-  is_zerofill = false;
-  is_unsigned = is_unsigned_arg;
-
-  pack_length_override = pack_length_override_arg;
-
-  gcol_info = nullptr;
-  stored_in_db = true;
-  m_default_val_expr = nullptr;
-
-  DBUG_VOID_RETURN;
-}
-
-/**
-  Initialize a column definition object. Column definition objects can be used
-  to construct Field objects.
-
-  @param thd                   Session/Thread handle.
-  @param fld_name              Column name.
-  @param fld_type              Column type.
-  @param fld_length            Column length.
-  @param fld_decimals          Number of digits to the right of the decimal
-                               point (if any.)
-  @param fld_type_modifier     Additional type information.
-  @param fld_default_value     Column default constant or datetime expression
-                               (if any.)
-  @param fld_on_update_value   The expression in the ON UPDATE clause.
-  @param fld_comment           Column comment.
-  @param fld_change            Column change.
-  @param fld_interval_list     Interval list (if any.)
-  @param fld_charset           Column charset.
-  @param has_explicit_collation Column has an explicit COLLATE attribute.
-  @param fld_geom_type         Column geometry type (if any.)
-  @param fld_gcol_info         Generated column data
-  @param fld_default_val_expr  The expression for generating default values
-  @param srid                  The SRID specification. This might be null
-                               (has_value() may return false).
-  @param hidden                Whether this column should be hidden or not.
-
-  @retval
-    false on success.
-  @retval
-    true  on error.
-*/
-
-bool Create_field::init(
-    THD *thd, const char *fld_name, enum_field_types fld_type,
-    const char *fld_length, const char *fld_decimals, uint fld_type_modifier,
-    Item *fld_default_value, Item *fld_on_update_value, LEX_STRING *fld_comment,
-    const char *fld_change, List<String> *fld_interval_list,
-    const CHARSET_INFO *fld_charset, bool has_explicit_collation,
-    uint fld_geom_type, Value_generator *fld_gcol_info,
-    Value_generator *fld_default_val_expr, Nullable<gis::srid_t> srid,
-    dd::Column::enum_hidden_type hidden) {
-  uint sign_len, allowed_type_modifier = 0;
-  ulong max_field_charlength = MAX_FIELD_CHARLENGTH;
-
-  DBUG_ENTER("Create_field::init()");
-
-  DBUG_ASSERT(!(has_explicit_collation && fld_charset == nullptr));
-
-  field = nullptr;
-  field_name = fld_name;
-  flags = fld_type_modifier;
-  is_explicit_collation = (fld_charset != nullptr);
-
-  if (!has_explicit_collation && fld_charset == &my_charset_utf8mb4_0900_ai_ci)
-    charset = thd->variables.default_collation_for_utf8mb4;
-  else
-    charset = fld_charset;
-
-  auto_flags = Field::NONE;
-  maybe_null = !(fld_type_modifier & NOT_NULL_FLAG);
-  this->hidden = hidden;
-
-  if (fld_default_value != NULL &&
-      fld_default_value->type() == Item::FUNC_ITEM) {
-    // We have a function default for insertions.
-    constant_default = nullptr;
-    auto_flags |= Field::DEFAULT_NOW;
-  } else {
-    // No function default for insertions. Either NULL or a constant.
-    constant_default = fld_default_value;
-  }
-
-  // ON UPDATE CURRENT_TIMESTAMP
-  if (fld_on_update_value != nullptr &&
-      fld_on_update_value->type() == Item::FUNC_ITEM)
-    auto_flags |= Field::ON_UPDATE_NOW;
-
-  // Automatic increment.
-  if (fld_type_modifier & AUTO_INCREMENT_FLAG) auto_flags |= Field::NEXT_NUMBER;
-
-  decimals = fld_decimals ? (uint)atoi(fld_decimals) : 0;
-  if (is_temporal_real_type(fld_type)) {
-    flags |= BINARY_FLAG;
-    charset = &my_charset_numeric;
-    if (decimals > DATETIME_MAX_DECIMALS) {
-      my_error(ER_TOO_BIG_PRECISION, MYF(0), decimals, fld_name,
-               DATETIME_MAX_DECIMALS);
-      DBUG_RETURN(true);
-    }
-  } else if (decimals >= NOT_FIXED_DEC) {
-    my_error(ER_TOO_BIG_SCALE, MYF(0), decimals, fld_name,
-             static_cast<ulong>(NOT_FIXED_DEC - 1));
-    DBUG_RETURN(true);
-  }
-
-  sql_type = fld_type;
-  length = 0;
-  change = fld_change;
-  interval = nullptr;
-  pack_length = key_length = 0;
-  geom_type = (Field::geometry_type)fld_geom_type;
-  interval_list.empty();
-
-  comment = *fld_comment;
-  gcol_info = fld_gcol_info;
-  stored_in_db = true;
-  m_srid = srid;
-
-  if (fld_default_val_expr) {
-    constant_default = nullptr;
-    auto_flags |= Field::GENERATED_FROM_EXPRESSION;
-    m_default_val_expr = fld_default_val_expr;
-  }
-
-  // Initialize data for a virtual field or default value expression
-  if (gcol_info || m_default_val_expr) {
-    if (gcol_info) {
-      DBUG_ASSERT(gcol_info->expr_item);
-      stored_in_db = gcol_info->get_field_stored();
-
-      /*
-        Make a field created for the real type.
-        Note that "real" and generated fields differ from each other
-        only by Field::gcol_info, which is always 0 for normal columns.
-        gcol_info is updated for fields later in procedure open_binary_frm.
-      */
-      sql_type = fld_type = gcol_info->get_real_type();
-      if (pre_validate_value_generator_expr(gcol_info->expr_item, field_name,
-                                            true))
-        DBUG_RETURN(true);
-    } else {
-      if (pre_validate_value_generator_expr(m_default_val_expr->expr_item,
-                                            field_name, false))
-        DBUG_RETURN(true);
-    }
-  }
-
-  /*
-    Set NO_DEFAULT_VALUE_FLAG if this field doesn't have a default value
-    or an expression to generate the default value and
-    it is NOT NULL and not an AUTO_INCREMENT field.
-  */
-  if (!fld_default_value && !fld_default_val_expr &&
-      (fld_type_modifier & NOT_NULL_FLAG) &&
-      !(fld_type_modifier & AUTO_INCREMENT_FLAG)) {
-    /*
-      TIMESTAMP columns get implicit DEFAULT value when
-      explicit_defaults_for_timestamp is not set.
-    */
-    if (thd->variables.explicit_defaults_for_timestamp ||
-        !is_timestamp_type(fld_type)) {
-      flags |= NO_DEFAULT_VALUE_FLAG;
-    }
-  }
-
-  if (fld_length != NULL) {
-    errno = 0;
-    const ulonglong ull_length = my_strtoull(fld_length, NULL, 10);
-    if ((errno != 0) || (ull_length > MAX_FIELD_BLOBLENGTH)) {
-      my_error(ER_TOO_BIG_DISPLAYWIDTH, MYF(0), fld_name, MAX_FIELD_BLOBLENGTH);
-      DBUG_RETURN(true);
-    }
-    length = static_cast<size_t>(ull_length);
-
-    if (length == 0) fld_length = NULL; /* purecov: inspected */
-  }
-
-  sign_len = fld_type_modifier & UNSIGNED_FLAG ? 0 : 1;
-
-  switch (fld_type) {
-    case MYSQL_TYPE_TINY:
-      if (!fld_length) length = MAX_TINYINT_WIDTH + sign_len;
-      allowed_type_modifier = AUTO_INCREMENT_FLAG;
-      break;
-    case MYSQL_TYPE_SHORT:
-      if (!fld_length) length = MAX_SMALLINT_WIDTH + sign_len;
-      allowed_type_modifier = AUTO_INCREMENT_FLAG;
-      break;
-    case MYSQL_TYPE_INT24:
-      if (!fld_length) length = MAX_MEDIUMINT_WIDTH + sign_len;
-      allowed_type_modifier = AUTO_INCREMENT_FLAG;
-      break;
-    case MYSQL_TYPE_LONG:
-      if (!fld_length) length = MAX_INT_WIDTH + sign_len;
-      allowed_type_modifier = AUTO_INCREMENT_FLAG;
-      break;
-    case MYSQL_TYPE_LONGLONG:
-      if (!fld_length) length = MAX_BIGINT_WIDTH;
-      allowed_type_modifier = AUTO_INCREMENT_FLAG;
-      break;
-    case MYSQL_TYPE_NULL:
-      break;
-    case MYSQL_TYPE_NEWDECIMAL: {
-      ulong precision = static_cast<ulong>(length);
-      my_decimal_trim(&precision, &decimals);
-      length = precision;
-    }
-      if (length > DECIMAL_MAX_PRECISION) {
-        my_error(ER_TOO_BIG_PRECISION, MYF(0), static_cast<int>(length),
-                 fld_name, static_cast<ulong>(DECIMAL_MAX_PRECISION));
-        DBUG_RETURN(true);
-      }
-      if (length < decimals) {
-        my_error(ER_M_BIGGER_THAN_D, MYF(0), fld_name);
-        DBUG_RETURN(true);
-      }
-      length = my_decimal_precision_to_length(
-          length, decimals, fld_type_modifier & UNSIGNED_FLAG);
-      pack_length = my_decimal_get_binary_size(length, decimals);
-      break;
-    case MYSQL_TYPE_VARCHAR:
-      /*
-        Long VARCHAR's are automaticly converted to blobs in mysql_prepare_table
-        if they don't have a default value
-      */
-      max_field_charlength = MAX_FIELD_VARCHARLENGTH;
-      break;
-    case MYSQL_TYPE_STRING:
-      break;
-    case MYSQL_TYPE_BLOB:
-    case MYSQL_TYPE_TINY_BLOB:
-    case MYSQL_TYPE_LONG_BLOB:
-    case MYSQL_TYPE_MEDIUM_BLOB:
-    case MYSQL_TYPE_JSON:
-      if (fld_default_value) {
-        /* Allow empty as default value. */
-        String str, *res;
-        res = fld_default_value->val_str(&str);
-        /*
-          A default other than '' is always an error, and any non-NULL
-          specified default is an error in strict mode.
-        */
-        if (res->length() || thd->is_strict_mode()) {
-          my_error(ER_BLOB_CANT_HAVE_DEFAULT, MYF(0),
-                   fld_name); /* purecov: inspected */
-          DBUG_RETURN(true);
-        } else {
-          /*
-            Otherwise a default of '' is just a warning.
-          */
-          push_warning_printf(thd, Sql_condition::SL_WARNING,
-                              ER_BLOB_CANT_HAVE_DEFAULT,
-                              ER_THD(thd, ER_BLOB_CANT_HAVE_DEFAULT), fld_name);
-        }
-        constant_default = nullptr;
-      }
-      flags |= BLOB_FLAG;
-      break;
-    case MYSQL_TYPE_GEOMETRY:
-      if (fld_default_value) {
-        my_error(ER_BLOB_CANT_HAVE_DEFAULT, MYF(0), fld_name);
-        DBUG_RETURN(true);
-      }
-      flags |= BLOB_FLAG;
-      break;
-    case MYSQL_TYPE_YEAR:
-      if (!fld_length || length != 4) length = 4; /* Default length */
-      flags |= ZEROFILL_FLAG | UNSIGNED_FLAG;
-      break;
-    case MYSQL_TYPE_FLOAT:
-      /* change FLOAT(precision) to FLOAT or DOUBLE */
-      allowed_type_modifier = AUTO_INCREMENT_FLAG;
-      if (fld_length && !fld_decimals) {
-        size_t tmp_length = length;
-        if (tmp_length > PRECISION_FOR_DOUBLE) {
-          my_error(ER_WRONG_FIELD_SPEC, MYF(0), fld_name);
-          DBUG_RETURN(true);
-        } else if (tmp_length > PRECISION_FOR_FLOAT) {
-          sql_type = MYSQL_TYPE_DOUBLE;
-          length = MAX_DOUBLE_STR_LENGTH;
-        } else
-          length = MAX_FLOAT_STR_LENGTH;
-        decimals = NOT_FIXED_DEC;
-        break;
-      }
-      if (!fld_length && !fld_decimals) {
-        length = MAX_FLOAT_STR_LENGTH;
-        decimals = NOT_FIXED_DEC;
-      }
-      if (length < decimals && decimals != NOT_FIXED_DEC) {
-        my_error(ER_M_BIGGER_THAN_D, MYF(0), fld_name);
-        DBUG_RETURN(true);
-      }
-      break;
-    case MYSQL_TYPE_DOUBLE:
-      allowed_type_modifier = AUTO_INCREMENT_FLAG;
-      if (!fld_length && !fld_decimals) {
-        length = DBL_DIG + 7;
-        decimals = NOT_FIXED_DEC;
-      }
-      if (length < decimals && decimals != NOT_FIXED_DEC) {
-        my_error(ER_M_BIGGER_THAN_D, MYF(0), fld_name);
-        DBUG_RETURN(true);
-      }
-      break;
-    case MYSQL_TYPE_TIMESTAMP:
-      /* Add flags for TIMESTAMP for 4.0 MYD and 4.0 InnoDB compatibility */
-      flags |= ZEROFILL_FLAG | UNSIGNED_FLAG;
-      /* Fall through */
-    case MYSQL_TYPE_TIMESTAMP2:
-      if (fld_length == NULL) {
-        length = MAX_DATETIME_WIDTH + (decimals ? (1 + decimals) : 0);
-      } else if (length != MAX_DATETIME_WIDTH) {
-        /*
-          We support only even TIMESTAMP lengths less or equal than 14
-          and 19 as length of 4.1 compatible representation.  Silently
-          shrink it to MAX_DATETIME_COMPRESSED_WIDTH.
-        */
-        DBUG_ASSERT(MAX_DATETIME_COMPRESSED_WIDTH < UINT_MAX);
-        if (length != UINT_MAX) /* avoid overflow; is safe because of min() */
-          length = ((length + 1) / 2) * 2;
-        length = min<size_t>(length, MAX_DATETIME_COMPRESSED_WIDTH);
-      }
-
-      /*
-        Since we silently rewrite down to MAX_DATETIME_COMPRESSED_WIDTH bytes,
-        the parser should not raise errors unless bizzarely large.
-       */
-      max_field_charlength = UINT_MAX;
-
-      break;
-    case MYSQL_TYPE_DATE:
-      /* Old date type. */
-      sql_type = MYSQL_TYPE_NEWDATE;
-      /* fall through */
-    case MYSQL_TYPE_NEWDATE:
-      length = MAX_DATE_WIDTH;
-      break;
-    case MYSQL_TYPE_TIME:
-    case MYSQL_TYPE_TIME2:
-      length = MAX_TIME_WIDTH + (decimals ? (1 + decimals) : 0);
-      break;
-    case MYSQL_TYPE_DATETIME:
-    case MYSQL_TYPE_DATETIME2:
-      length = MAX_DATETIME_WIDTH + (decimals ? (1 + decimals) : 0);
-      break;
-    case MYSQL_TYPE_SET: {
-      pack_length = get_set_pack_length(fld_interval_list->elements);
-
-      List_iterator<String> it(*fld_interval_list);
-      String *tmp;
-      while ((tmp = it++)) interval_list.push_back(tmp);
-      /*
-        Set fake length to 1 to pass the below conditions.
-        Real length will be set in mysql_prepare_table()
-        when we know the character set of the column
-      */
-      length = 1;
-      break;
-    }
-    case MYSQL_TYPE_ENUM: {
-      /* Should be safe. */
-      pack_length = get_enum_pack_length(fld_interval_list->elements);
-
-      List_iterator<String> it(*fld_interval_list);
-      String *tmp;
-      while ((tmp = it++)) interval_list.push_back(tmp);
-      length = 1; /* See comment for MYSQL_TYPE_SET above. */
-      break;
-    }
-    case MYSQL_TYPE_VAR_STRING:
-      DBUG_ASSERT(0); /* Impossible. */
-      break;
-    case MYSQL_TYPE_BIT: {
-      if (!fld_length) {
-        my_error(ER_INVALID_FIELD_SIZE, MYF(0), fld_name);
-        DBUG_RETURN(true);
-      }
-      if (length > MAX_BIT_FIELD_LENGTH) {
-        my_error(ER_TOO_BIG_DISPLAYWIDTH, MYF(0), fld_name,
-                 static_cast<ulong>(MAX_BIT_FIELD_LENGTH));
-        DBUG_RETURN(true);
-      }
-      pack_length = (length + 7) / 8;
-      break;
-    }
-    case MYSQL_TYPE_DECIMAL:
-      DBUG_ASSERT(0); /* Was obsolete */
-  }
-  /* Remember the value of length */
-  char_length = length;
-
-  if (!(flags & BLOB_FLAG) &&
-      ((length > max_field_charlength && fld_type != MYSQL_TYPE_SET &&
-        fld_type != MYSQL_TYPE_ENUM &&
-        (fld_type != MYSQL_TYPE_VARCHAR || fld_default_value)) ||
-       ((length == 0) && fld_type != MYSQL_TYPE_STRING &&
-        fld_type != MYSQL_TYPE_VARCHAR && fld_type != MYSQL_TYPE_GEOMETRY))) {
-    my_error((fld_type == MYSQL_TYPE_VAR_STRING ||
-              fld_type == MYSQL_TYPE_VARCHAR || fld_type == MYSQL_TYPE_STRING)
-                 ? ER_TOO_BIG_FIELDLENGTH
-                 : ER_TOO_BIG_DISPLAYWIDTH,
-             MYF(0), fld_name, max_field_charlength); /* purecov: inspected */
-    DBUG_RETURN(true);
-  }
-  fld_type_modifier &= AUTO_INCREMENT_FLAG;
-  if ((~allowed_type_modifier) & fld_type_modifier) {
-    my_error(ER_WRONG_FIELD_SPEC, MYF(0), fld_name);
-    DBUG_RETURN(true);
-  }
-
-  /*
-    After all checks were carried out we should be able guarantee that column
-    can't have AUTO_INCREMENT and DEFAULT/ON UPDATE CURRENT_TIMESTAMP at the
-    same time.
-  */
-  DBUG_ASSERT(!((auto_flags & (Field::DEFAULT_NOW | Field::ON_UPDATE_NOW |
-                               Field::GENERATED_FROM_EXPRESSION)) != 0 &&
-                (auto_flags & Field::NEXT_NUMBER) != 0));
-
-  DBUG_RETURN(false); /* success */
-}
-
-enum_field_types get_blob_type_from_length(ulong length) {
+enum_field_types get_blob_type_from_length(size_t length) {
   enum_field_types type;
   if (length < 256)
     type = MYSQL_TYPE_TINY_BLOB;
@@ -9774,10 +9247,6 @@ enum_field_types get_blob_type_from_length(ulong length) {
     type = MYSQL_TYPE_LONG_BLOB;
   return type;
 }
-
-/*
-  Make a field from the .frm file info
-*/
 
 size_t calc_pack_length(enum_field_types type, size_t length) {
   switch (type) {
@@ -9892,138 +9361,6 @@ size_t calc_pack_length(dd::enum_column_types type, size_t char_length,
       break;
   }
   return pack_length;
-}
-
-/**
-    Constructs a column definition from an object representing an actual
-    column. This is a reverse-engineering procedure that creates a column
-    definition object as produced by the parser (Create_field) from a resolved
-    column object (Field).
-
-    @param old_field  The column object from which the column definition is
-                      constructed.
-    @param orig_field Used for copying default values. This parameter may be
-                      NULL, but if present it is used for copying default
-                      values.
-
-    Default values are copied into an Item_string unless:
-    - The default value is a function.
-    - There is no default value.
-    - old_field is a BLOB column.
-    - old_field has its data pointer improperly initialized.
-*/
-
-Create_field::Create_field(Field *old_field, Field *orig_field)
-    : hidden(old_field->hidden()),
-      field_name(old_field->field_name),
-      change(NULL),
-      comment(old_field->comment),
-      sql_type(old_field->real_type()),
-      length(old_field->field_length),
-      decimals(old_field->decimals()),
-      flags(old_field->flags),
-      pack_length(old_field->pack_length()),
-      key_length(old_field->key_length()),
-      auto_flags(old_field->auto_flags),
-      charset(old_field->charset()),  // May be NULL ptr
-      is_explicit_collation(false),
-      geom_type(Field::GEOM_GEOMETRY),
-      field(old_field),
-      maybe_null(old_field->maybe_null()),
-      is_zerofill(false),  // Init to avoid UBSAN warnings
-      is_unsigned(false),  // Init to avoid UBSAN warnings
-      treat_bit_as_char(
-          false),  // Init to avoid valgrind warnings in opt. build
-      pack_length_override(0),
-      gcol_info(old_field->gcol_info),
-      stored_in_db(old_field->stored_in_db),
-      m_default_val_expr(old_field->m_default_val_expr) {
-  switch (sql_type) {
-    case MYSQL_TYPE_JSON:
-      /*
-        Divide by four here, so we can multiply by four in
-        create_length_to_internal_length()
-       */
-      length /= charset->mbmaxlen;
-      break;
-    case MYSQL_TYPE_BLOB:
-      sql_type =
-          blob_type_from_pack_length(pack_length - portable_sizeof_char_ptr);
-      length /= charset->mbmaxlen;
-      key_length /= charset->mbmaxlen;
-      break;
-    case MYSQL_TYPE_STRING:
-      /* Change CHAR -> VARCHAR if dynamic record length */
-      if (old_field->type() == MYSQL_TYPE_VAR_STRING)
-        sql_type = MYSQL_TYPE_VARCHAR;
-      /* fall through */
-
-    case MYSQL_TYPE_ENUM:
-    case MYSQL_TYPE_SET:
-    case MYSQL_TYPE_VARCHAR:
-    case MYSQL_TYPE_VAR_STRING:
-      /* This is corrected in create_length_to_internal_length */
-      length = (length + charset->mbmaxlen - 1) / charset->mbmaxlen;
-      break;
-    case MYSQL_TYPE_GEOMETRY: {
-      const Field_geom *field_geom = down_cast<const Field_geom *>(old_field);
-      geom_type = field_geom->geom_type;
-      m_srid = field_geom->get_srid();
-      break;
-    }
-    case MYSQL_TYPE_YEAR:
-      length = 4;  // set default value
-      break;
-    default:
-      break;
-  }
-
-  if (flags & (ENUM_FLAG | SET_FLAG))
-    interval = down_cast<Field_enum *>(old_field)->typelib;
-  else
-    interval = nullptr;
-  constant_default = nullptr;
-  char_length = length;
-
-  /*
-    Copy the default (constant/function) from the column object orig_field, if
-    supplied. We do this if all these conditions are met:
-
-    - The column allows a default.
-
-    - The column type is not a BLOB type.
-
-    - The original column (old_field) was properly initialized with a record
-      buffer pointer.
-  */
-  if (!(flags & (NO_DEFAULT_VALUE_FLAG | BLOB_FLAG)) &&
-      old_field->ptr != nullptr && orig_field != nullptr) {
-    bool default_now = false;
-    if (real_type_with_now_as_default(sql_type)) {
-      // The SQL type of the new field allows a function default:
-      default_now = orig_field->has_insert_default_datetime_value_expression();
-      auto_flags = default_now ? Field::DEFAULT_NOW : Field::NONE;
-      if (orig_field->has_update_default_datetime_value_expression())
-        auto_flags |= Field::ON_UPDATE_NOW;
-      if (orig_field->has_insert_default_general_value_expression())
-        auto_flags |= Field::GENERATED_FROM_EXPRESSION;
-    }
-    if (!default_now)  // Give a constant default
-    {
-      StringBuffer<MAX_FIELD_WIDTH> tmp(charset);
-
-      /* Get the value from default_values */
-      my_ptrdiff_t diff = orig_field->table->default_values_offset();
-      orig_field->move_field_offset(diff);  // Points now at default_values
-      if (!orig_field->is_real_null()) {
-        StringBuffer<MAX_FIELD_WIDTH> tmp(charset);
-        String *res = orig_field->val_str(&tmp);
-        char *pos = sql_strmake(res->ptr(), res->length());
-        constant_default = new Item_string(pos, res->length(), charset);
-      }
-      orig_field->move_field_offset(-diff);  // Back to record[0]
-    }
-  }
 }
 
 Field *make_field(TABLE_SHARE *share, uchar *ptr, size_t field_length,
@@ -10235,12 +9572,14 @@ Field *make_field(const Create_field &create_field, TABLE_SHARE *share,
 Field *make_field(const Create_field &create_field, TABLE_SHARE *share,
                   uchar *ptr, uchar *null_pos, size_t null_bit) {
   return make_field(create_field, share, create_field.field_name,
-                    create_field.length, ptr, null_pos, null_bit);
+                    create_field.max_display_width_in_bytes(), ptr, null_pos,
+                    null_bit);
 }
 
 Field *make_field(const Create_field &create_field, TABLE_SHARE *share) {
   return make_field(create_field, share, create_field.field_name,
-                    create_field.length, nullptr, nullptr, 0);
+                    create_field.max_display_width_in_bytes(), nullptr, nullptr,
+                    0);
 }
 
 /**
@@ -10343,7 +9682,8 @@ uint32 Field_blob::max_display_length() const {
 
   @param level            - level of message (Note/Warning/Error)
   @param code             - error code of message to be produced
-  @param truncate_increment  - whether we should increase truncated fields count
+  @param truncate_increment  - whether we should increase truncated fields
+  count
   @param view_db_name     - if set this is the database name for view
                             that causes the warning
   @param view_name        - if set this is the name of view that causes
@@ -10741,7 +10081,8 @@ uint32 Field_blob::get_length(const uchar *ptr_arg) const {
 }
 
 Create_field_wrapper::Create_field_wrapper(const Create_field *fld)
-    : Field(nullptr, fld->length, nullptr, 0, fld->auto_flags, fld->field_name),
+    : Field(nullptr, fld->max_display_width_in_codepoints(), nullptr, 0,
+            fld->auto_flags, fld->field_name),
       m_field(fld) {}
 
 Item_result Create_field_wrapper::result_type() const {
@@ -10762,15 +10103,11 @@ const CHARSET_INFO *Create_field_wrapper::charset() const {
 }
 
 uint32 Create_field_wrapper::pack_length() const {
-  if (m_field->sql_type == MYSQL_TYPE_NEWDECIMAL) {
-    // calc_pack_length() does not handle NEWDECIMAL, so take care of it here.
-    return m_field->length;
-  }
-  return calc_pack_length(m_field->sql_type, m_field->length);
+  return m_field->pack_length();
 }
 
 uint32 Create_field_wrapper::max_display_length() const {
-  return m_field->length;
+  return m_field->max_display_width_in_codepoints();
 }
 
 /**

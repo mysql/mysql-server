@@ -103,8 +103,13 @@ static void fill_dd_function_return_type(THD *thd, sp_head *sp, Function *sf) {
   // Set result is_unsigned flag.
   sf->set_result_unsigned(return_field->is_unsigned);
 
-  // set result char length.
-  sf->set_result_char_length(return_field->length);
+  /*
+    set result char length.
+    Note that setting this only affects information schema views, and not any
+    actual definitions. When initializing functions/routines, length information
+    is read from dd::Parameter and not this field.
+  */
+  sf->set_result_char_length(return_field->max_display_width_in_bytes());
 
   // Set result numeric precision.
   uint numeric_precision = 0;
@@ -167,7 +172,7 @@ static void fill_parameter_info_from_field(THD *thd, Create_field *field,
   param->set_unsigned(field->is_unsigned);
 
   // Set char length.
-  param->set_char_length(field->length);
+  param->set_char_length(field->max_display_width_in_bytes());
 
   // Set result numeric precision.
   uint numeric_precision = 0;

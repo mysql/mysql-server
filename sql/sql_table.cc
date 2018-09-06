@@ -71,8 +71,9 @@
 #include "prealloced_array.h"
 #include "scope_guard.h"
 #include "sql/auth/auth_acls.h"
-#include "sql/auth/auth_common.h"            // check_fk_parent_table_access
-#include "sql/binlog.h"                      // mysql_bin_log
+#include "sql/auth/auth_common.h"  // check_fk_parent_table_access
+#include "sql/binlog.h"            // mysql_bin_log
+#include "sql/create_field.h"
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
 #include "sql/dd/collection.h"
 #include "sql/dd/dd.h"          // dd::get_dictionary
@@ -188,7 +189,8 @@ static int copy_data_between_tables(
     List<Create_field> &create, ha_rows *copied, ha_rows *deleted,
     Alter_info::enum_enable_or_disable keys_onoff, Alter_table_ctx *alter_ctx);
 
-static bool prepare_blob_field(THD *thd, Create_field *sql_field);
+static bool prepare_blob_field(THD *thd, Create_field *sql_field,
+                               bool convert_character_set);
 static bool check_engine(THD *thd, const char *db_name, const char *table_name,
                          HA_CREATE_INFO *create_info);
 
@@ -3732,17 +3734,14 @@ bool prepare_pack_create_field(THD *thd, Create_field *sql_field,
     case MYSQL_TYPE_TINY_BLOB:
     case MYSQL_TYPE_LONG_BLOB:
     case MYSQL_TYPE_JSON:
-      sql_field->length = 8;  // Unireg field length
       DBUG_ASSERT(sql_field->auto_flags == Field::NONE ||
                   sql_field->auto_flags == Field::GENERATED_FROM_EXPRESSION);
       break;
     case MYSQL_TYPE_VARCHAR:
       if (table_flags & HA_NO_VARCHAR) {
-        /* convert VARCHAR to CHAR because handler is not yet up to date */
+        /* Convert VARCHAR to CHAR because handler is not yet up to date */
         sql_field->sql_type = MYSQL_TYPE_VAR_STRING;
-        sql_field->pack_length =
-            calc_pack_length(sql_field->sql_type, (uint)sql_field->length);
-        if ((sql_field->length / sql_field->charset->mbmaxlen) >
+        if (sql_field->max_display_width_in_codepoints() >
             MAX_FIELD_CHARLENGTH) {
           my_error(ER_TOO_BIG_FIELDLENGTH, MYF(0), sql_field->field_name,
                    static_cast<ulong>(MAX_FIELD_CHARLENGTH));
@@ -3868,8 +3867,7 @@ bool prepare_sp_create_field(THD *thd, Create_field *field_def) {
   } else if (field_def->sql_type == MYSQL_TYPE_BIT)
     field_def->treat_bit_as_char = true;
 
-  field_def->create_length_to_internal_length();
-  if (prepare_blob_field(thd, field_def)) return true;
+  if (prepare_blob_field(thd, field_def, false)) return true;
 
   return prepare_pack_create_field(thd, field_def, HA_CAN_GEOMETRY);
 }
@@ -4120,19 +4118,6 @@ static bool prepare_set_field(THD *thd, Create_field *sql_field) {
     }
   }
 
-  sql_field->length = 0;
-  const char **pos;
-  uint *len;
-  for (pos = sql_field->interval->type_names,
-      len = sql_field->interval->type_lengths;
-       *pos; pos++, len++) {
-    // SET uses tot_length
-    sql_field->length += sql_field->charset->cset->numchars(sql_field->charset,
-                                                            *pos, *pos + *len);
-  }
-  sql_field->length += (sql_field->interval->count - 1);
-  sql_field->length = min<size_t>(sql_field->length, MAX_FIELD_WIDTH - 1);
-
   DBUG_RETURN(false);
 }
 
@@ -4178,19 +4163,6 @@ static bool prepare_enum_field(THD *thd, Create_field *sql_field) {
     }
   }
 
-  sql_field->length = 0;
-  const char **pos;
-  uint *len;
-  for (pos = sql_field->interval->type_names,
-      len = sql_field->interval->type_lengths;
-       *pos; pos++, len++) {
-    // ENUM uses max_length
-    sql_field->length =
-        max(sql_field->length, sql_field->charset->cset->numchars(
-                                   sql_field->charset, *pos, *pos + *len));
-  }
-  sql_field->length = min<size_t>(sql_field->length, MAX_FIELD_WIDTH - 1);
-
   DBUG_RETURN(false);
 }
 
@@ -4202,14 +4174,9 @@ bool prepare_create_field(THD *thd, HA_CREATE_INFO *create_info,
   DBUG_ASSERT(create_list);
   const CHARSET_INFO *save_cs;
 
-  /*
-    Initialize length from its original value (number of characters),
-    which was set in the parser. This is necessary if we're
-    executing a prepared statement for the second time.
-  */
-  sql_field->length = sql_field->char_length;
   /* Set field charset. */
   save_cs = sql_field->charset = get_sql_field_charset(sql_field, create_info);
+
   if (sql_field->flags & BINCMP_FLAG) {
     // e.g. CREATE TABLE t1 (a CHAR(1) BINARY);
     if (!(sql_field->charset = get_charset_by_csname(sql_field->charset->csname,
@@ -4263,14 +4230,18 @@ bool prepare_create_field(THD *thd, HA_CREATE_INFO *create_info,
     if (prepare_enum_field(thd, sql_field)) DBUG_RETURN(true);
   } else if (sql_field->sql_type == MYSQL_TYPE_BIT) {
     if (file->ha_table_flags() & HA_CAN_BIT_FIELD) {
-      create_info->null_bits += sql_field->length & 7;
+      create_info->null_bits +=
+          sql_field->max_display_width_in_codepoints() & 7;
       sql_field->treat_bit_as_char = false;
     } else
       sql_field->treat_bit_as_char = true;
   }
 
-  sql_field->create_length_to_internal_length();
-  if (prepare_blob_field(thd, sql_field)) DBUG_RETURN(true);
+  bool convert_to_character_set =
+      (create_info->used_fields & HA_CREATE_USED_CHARSET);
+  if (prepare_blob_field(thd, sql_field, convert_to_character_set)) {
+    DBUG_RETURN(true);
+  }
 
   if (!(sql_field->flags & NOT_NULL_FLAG)) create_info->null_bits++;
 
@@ -4329,8 +4300,10 @@ bool prepare_create_field(THD *thd, HA_CREATE_INFO *create_info,
           of null_bits that was done above.
         */
         if (sql_field->sql_type == MYSQL_TYPE_BIT &&
-            file->ha_table_flags() & HA_CAN_BIT_FIELD)
-          create_info->null_bits -= sql_field->length & 7;
+            file->ha_table_flags() & HA_CAN_BIT_FIELD) {
+          create_info->null_bits -=
+              sql_field->max_display_width_in_codepoints() & 7;
+        }
 
         sql_field->constant_default = dup_field->constant_default;
         sql_field->sql_type = dup_field->sql_type;
@@ -4349,9 +4322,7 @@ bool prepare_create_field(THD *thd, HA_CREATE_INFO *create_info,
         sql_field->charset =
             (dup_field->charset ? dup_field->charset
                                 : create_info->default_table_charset);
-        sql_field->length = dup_field->char_length;
-        sql_field->pack_length = dup_field->pack_length;
-        sql_field->key_length = dup_field->key_length;
+        sql_field->set_max_display_width_from_create_field(*dup_field);
         sql_field->decimals = dup_field->decimals;
         sql_field->auto_flags = dup_field->auto_flags;
         /*
@@ -4360,8 +4331,8 @@ bool prepare_create_field(THD *thd, HA_CREATE_INFO *create_info,
            because of sql_field->flags, decrement it back.
         */
         if (!(sql_field->flags & NOT_NULL_FLAG)) create_info->null_bits--;
+
         sql_field->flags = dup_field->flags;
-        sql_field->create_length_to_internal_length();
         sql_field->interval = dup_field->interval;
         sql_field->gcol_info = dup_field->gcol_info;
         sql_field->m_default_val_expr = dup_field->m_default_val_expr;
@@ -4398,7 +4369,7 @@ static void calculate_field_offsets(List<Create_field> *create_list) {
       (generated fields) and update their offset later (see the next loop).
     */
     if (sql_field->stored_in_db)
-      record_offset += sql_field->pack_length;
+      record_offset += sql_field->pack_length();
     else
       has_vgc = true;
   }
@@ -4408,7 +4379,7 @@ static void calculate_field_offsets(List<Create_field> *create_list) {
     while ((sql_field = it++)) {
       if (!sql_field->stored_in_db) {
         sql_field->offset = record_offset;
-        record_offset += sql_field->pack_length;
+        record_offset += sql_field->pack_length();
       }
     }
   }
@@ -4761,7 +4732,7 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
   key_part_info->offset = static_cast<uint16>(sql_field->offset);
   key_part_info->key_part_flag |= column->is_ascending() ? 0 : HA_REVERSE_SORT;
 
-  size_t key_part_length = sql_field->key_length;
+  size_t key_part_length = sql_field->key_length();
 
   if (column_length) {
     if (is_blob(sql_field->sql_type)) {
@@ -4892,7 +4863,7 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
     accordingly. Note that fulltext indexes ignores prefixes.
   */
   if (key->type != KEYTYPE_FULLTEXT &&
-      key_part_length != sql_field->key_length) {
+      key_part_length != sql_field->key_length()) {
     key_info->flags |= HA_KEY_HAS_PART_KEY_SEG;
     key_part_info->key_part_flag |= HA_PART_KEY_SEG;
   }
@@ -5947,7 +5918,7 @@ bool prepare_fk_parent_key(handlerton *hton, const dd::Table *parent_table_def,
 static void fill_ha_fk_column_type(Ha_fk_column_type *fk_column_type,
                                    const Create_field *field) {
   fk_column_type->type = dd::get_new_field_type(field->sql_type);
-  fk_column_type->char_length = field->length;
+  fk_column_type->char_length = field->max_display_width_in_bytes();
   fk_column_type->field_charset = field->charset;
   fk_column_type->elements_count = field->interval ? field->interval->count : 0;
   fk_column_type->numeric_scale = 0;
@@ -6847,40 +6818,22 @@ bool Item_field::replace_field_processor(uchar *arg) {
       case MYSQL_TYPE_MEDIUM_BLOB:
       case MYSQL_TYPE_LONG_BLOB:
       case MYSQL_TYPE_BLOB: {
-        const CHARSET_INFO *charset =
-            get_sql_field_charset(create_field, targ->create_info());
+        DBUG_ASSERT(create_field->charset != nullptr);
         set_data_type_string(blob_length_by_type(create_field->sql_type),
-                             charset);
-
-        if (create_field->charset == nullptr) {
-          // We have code in a later stage that expects a character set to be
-          // present in the Create_field object, so assign it now if it isn't
-          // already assigned.
-          Create_field *create_field_nonconst =
-              const_cast<Create_field *>(create_field);
-          create_field_nonconst->charset = charset;
-        }
+                             create_field->charset);
         break;
       }
       case MYSQL_TYPE_STRING:
       case MYSQL_TYPE_VARCHAR: {
-        const CHARSET_INFO *charset =
-            get_sql_field_charset(create_field, targ->create_info());
-        set_data_type_string(create_field->char_length, charset);
-        if (create_field->charset == nullptr) {
-          // We have code in a later stage that expects a character set to be
-          // present in the Create_field object, so assign it now if it isn't
-          // already assigned.
-          Create_field *create_field_nonconst =
-              const_cast<Create_field *>(create_field);
-          create_field_nonconst->charset = charset;
-        }
+        DBUG_ASSERT(create_field->charset != nullptr);
+        set_data_type_string(create_field->max_display_width_in_codepoints(),
+                             create_field->charset);
         break;
       }
       case MYSQL_TYPE_NEWDECIMAL: {
         uint precision = my_decimal_length_to_precision(
-            create_field->char_length, create_field->decimals,
-            create_field->is_unsigned);
+            create_field->max_display_width_in_codepoints(),
+            create_field->decimals, create_field->is_unsigned);
         set_data_type_decimal(precision, create_field->decimals);
         break;
       }
@@ -6910,7 +6863,7 @@ bool Item_field::replace_field_processor(uchar *arg) {
       case MYSQL_TYPE_LONG:
       case MYSQL_TYPE_LONGLONG:
       case MYSQL_TYPE_BIT: {
-        fix_char_length(create_field->char_length);
+        fix_char_length(create_field->max_display_width_in_codepoints());
         set_data_type(create_field->sql_type);
         collation.set_numeric();
         break;
@@ -6935,33 +6888,14 @@ bool Item_field::replace_field_processor(uchar *arg) {
       }
       case MYSQL_TYPE_ENUM: {
         set_data_type(create_field->sql_type);
-        const CHARSET_INFO *charset =
-            get_sql_field_charset(create_field, targ->create_info());
-        collation.collation = charset;
-
-        size_t max_length = 0;
-        for (const String &it : create_field->interval_list) {
-          max_length = std::max(max_length, it.length());
-        }
-        fix_char_length(
-            std::min(max_length, static_cast<size_t>(MAX_FIELD_WIDTH)));
+        collation.collation = create_field->charset;
+        fix_char_length(create_field->max_display_width_in_codepoints());
         break;
       }
       case MYSQL_TYPE_SET: {
         set_data_type(create_field->sql_type);
-        const CHARSET_INFO *charset =
-            get_sql_field_charset(create_field, targ->create_info());
-        collation.collation = charset;
-
-        size_t total_length = 0;
-        for (const String &it : create_field->interval_list) {
-          total_length += it.length();
-        }
-
-        // Add space for one comma between each element
-        total_length += (create_field->interval_list.elements - 1);
-        fix_char_length(
-            std::min(total_length, static_cast<size_t>(MAX_FIELD_WIDTH)));
+        collation.collation = create_field->charset;
+        fix_char_length(create_field->max_display_width_in_codepoints());
         break;
       }
       default: { DBUG_ASSERT(false); /* purecov: deadcode */ }
@@ -7282,6 +7216,26 @@ bool mysql_prepare_create_table(
   if (create_info->row_type == ROW_TYPE_DYNAMIC)
     create_info->table_options |= HA_OPTION_PACK_RECORD;
 
+  /*
+    Prepare fields, which must be done before calling
+    add_functional_index_to_create_list(). The reason is that
+    prepare_create_field() sets several properties of all Create_fields, such as
+    character set. We need the character set in order to get the correct
+    display width for each Create_field, which is in turn needed to resolve the
+    correct data type/length for each hidden generated column added by
+    add_functional_index_to_create_list().
+  */
+  int select_field_pos = alter_info->create_list.elements - select_field_count;
+  create_info->null_bits = 0;
+  int field_no = 0;
+  Create_field *sql_field;
+  List_iterator<Create_field> it(alter_info->create_list);
+  for (; (sql_field = it++); field_no++) {
+    if (prepare_create_field(thd, create_info, &alter_info->create_list,
+                             &select_field_pos, file, sql_field, field_no))
+      DBUG_RETURN(true);
+  }
+
   // Go through all functional key parts. For each functional key part, resolve
   // the expression and add a hidden generated column to the create list.
   for (Key_spec *key : alter_info->key_list) {
@@ -7303,21 +7257,23 @@ bool mysql_prepare_create_table(
                                               key_part_spec, j, create_info)) {
         DBUG_RETURN(true);
       }
+
+      // Call prepare_create_field on the Create_field that was added by
+      // add_functional_index_to_create_list().
+      Create_field *new_create_field =
+          alter_info->create_list[alter_info->create_list.elements - 1];
+      DBUG_ASSERT(new_create_field->hidden ==
+                  dd::Column::enum_hidden_type::HT_HIDDEN_SQL);
+      if (prepare_create_field(thd, create_info, &alter_info->create_list,
+                               &select_field_pos, file, new_create_field,
+                               ++field_no)) {
+        DBUG_RETURN(true);
+      }
     }
   }
 
-  /*
-    Prepare fields.
-  */
-  int select_field_pos = alter_info->create_list.elements - select_field_count;
-  create_info->null_bits = 0;
-  Create_field *sql_field;
-  List_iterator<Create_field> it(alter_info->create_list);
-  for (int field_no = 0; (sql_field = it++); field_no++) {
-    if (prepare_create_field(thd, create_info, &alter_info->create_list,
-                             &select_field_pos, file, sql_field, field_no))
-      DBUG_RETURN(true);
-  }
+  // Now that we have all the Create_fields available, calculate the offsets
+  // for each column.
   calculate_field_offsets(&alter_info->create_list);
 
   /*
@@ -7570,7 +7526,7 @@ bool mysql_prepare_create_table(
   size_t reclength = data_offset;
   it.rewind();
   while ((sql_field = it++)) {
-    size_t length = sql_field->pack_length;
+    size_t length = sql_field->pack_length();
     if (sql_field->offset + data_offset + length > reclength)
       reclength = sql_field->offset + data_offset + length;
   }
@@ -7686,10 +7642,11 @@ static bool set_table_default_charset(THD *thd, HA_CREATE_INFO *create_info,
         In this case the error is given
 */
 
-static bool prepare_blob_field(THD *thd, Create_field *sql_field) {
+static bool prepare_blob_field(THD *thd, Create_field *sql_field,
+                               bool convert_character_set) {
   DBUG_ENTER("prepare_blob_field");
 
-  if (sql_field->length > MAX_FIELD_VARCHARLENGTH &&
+  if (sql_field->max_display_width_in_bytes() > MAX_FIELD_VARCHARLENGTH &&
       !(sql_field->flags & BLOB_FLAG)) {
     /* Convert long VARCHAR columns to TEXT or BLOB */
     char warn_buff[MYSQL_ERRMSG_SIZE];
@@ -7700,7 +7657,8 @@ static bool prepare_blob_field(THD *thd, Create_field *sql_field) {
                                   sql_field->charset->mbmaxlen));
       DBUG_RETURN(1);
     }
-    sql_field->sql_type = MYSQL_TYPE_BLOB;
+    sql_field->sql_type =
+        get_blob_type_from_length(sql_field->max_display_width_in_bytes());
     sql_field->flags |= BLOB_FLAG;
     snprintf(warn_buff, sizeof(warn_buff), ER_THD(thd, ER_AUTO_CONVERT),
              sql_field->field_name,
@@ -7709,16 +7667,48 @@ static bool prepare_blob_field(THD *thd, Create_field *sql_field) {
     push_warning(thd, Sql_condition::SL_NOTE, ER_AUTO_CONVERT, warn_buff);
   }
 
-  if ((sql_field->flags & BLOB_FLAG) && sql_field->length) {
+  /*
+    If the user has given a length to the BLOB/TEXT column explicitly, we make
+    sure that we choose the most appropriate data type. For instance, "TEXT(63)
+    CHARACTER SET utf8mb4" is automatically converted to TINYTEXT since TINYTEXT
+    can hold 255 _bytes_ of data (which is enough for 63 _characters_ of
+    utf8mb4).
+
+    Also, if we are changing the character set to a character set that requires
+    more storage per character, we might need to change the column to a bigger
+    type in order to not loose any data. Consider the following example:
+
+      CREATE TABLE t1 (a TINYTEXT CHARACTER SET latin1);
+      ALTER TABLE t1 CONVERT TO CHARACTER SET utf8mb4;
+
+    TINYTEXT can store up to 255 _bytes_ of data, and since "latin1" requires
+    one byte per character the user can store 255 _characters_ into this column.
+    If we are changing the character set to utf8mb4, each character suddenly
+    requires 4 bytes of storage. So an existing string in the column "a" that
+    is 255 characters long now suddenly requires 1020 _bytes_ of storage. This
+    does not fit into TINYTEXT, so we need to switch the data type to TEXT in
+    order not to loose any existing data (TEXT can store up to 65536 _bytes_ of
+    data, which is 16384 _characters_ of utf8mb4 data).
+  */
+  if ((sql_field->flags & BLOB_FLAG) &&
+      (sql_field->explicit_display_width() || convert_character_set)) {
     if (sql_field->sql_type == FIELD_TYPE_BLOB ||
         sql_field->sql_type == FIELD_TYPE_TINY_BLOB ||
         sql_field->sql_type == FIELD_TYPE_MEDIUM_BLOB) {
-      /* The user has given a length to the blob column */
-      sql_field->sql_type = get_blob_type_from_length(sql_field->length);
-      sql_field->pack_length = calc_pack_length(sql_field->sql_type, 0);
+      if (sql_field->explicit_display_width()) {
+        sql_field->sql_type =
+            get_blob_type_from_length(sql_field->max_display_width_in_bytes());
+      } else if (convert_character_set) {
+        const size_t max_codepoints_old_field =
+            sql_field->field->char_length() /
+            sql_field->field->charset()->mbmaxlen;
+        const size_t max_bytes_new_field =
+            max_codepoints_old_field * sql_field->charset->mbmaxlen;
+        sql_field->sql_type = get_blob_type_from_length(max_bytes_new_field);
+      }
     }
-    sql_field->length = 0;
   }
+
   DBUG_RETURN(0);
 }
 
@@ -10447,7 +10437,7 @@ static bool has_index_def_changed(Alter_inplace_info *ha_alter_info,
     if (!(new_field->flags & BLOB_FLAG) &&
         (table_key->algorithm != HA_KEY_ALG_FULLTEXT)) {
       bool old_part_key_seg = (key_part->key_part_flag & HA_PART_KEY_SEG);
-      bool new_part_key_seg = (new_field->key_length != new_part->length);
+      bool new_part_key_seg = (new_field->key_length() != new_part->length);
 
       if (old_part_key_seg ^ new_part_key_seg) return true;
     }
@@ -12963,6 +12953,8 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
     }
     if (def) {  // Field is changed
       def->field = field;
+      def->charset = get_sql_field_charset(def, create_info);
+
       if (field->stored_in_db != def->stored_in_db) {
         my_error(ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN, MYF(0),
                  "Changing the STORED status");
@@ -13209,11 +13201,11 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
             (key_info->flags & HA_SPATIAL) ||
             (cfield->field->field_length == key_part_length &&
              key_part->field->type() != MYSQL_TYPE_BLOB) ||
-            (cfield->length &&
+            (cfield->max_display_width_in_codepoints() &&
              (((cfield->sql_type >= MYSQL_TYPE_TINY_BLOB &&
                 cfield->sql_type <= MYSQL_TYPE_BLOB)
                    ? blob_length_by_type(cfield->sql_type)
-                   : cfield->length) <
+                   : cfield->max_display_width_in_codepoints()) <
               key_part_length / key_part->field->charset()->mbmaxlen)))
           key_part_length = 0;  // Use whole field
       }

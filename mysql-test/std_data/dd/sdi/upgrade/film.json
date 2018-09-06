@@ -99,7 +99,7 @@
                 "is_virtual": false,
                 "hidden": 1,
                 "ordinal_position": 3,
-                "char_length": 8,
+                "char_length": 65535,
                 "numeric_precision": 0,
                 "numeric_scale": 0,
                 "numeric_scale_null": true,

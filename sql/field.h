@@ -1900,7 +1900,6 @@ class Field_num : public Field {
   const CHARSET_INFO *charset() const override { return &my_charset_numeric; }
   void prepend_zeros(String *value);
   void add_zerofill_and_unsigned(String &res) const;
-  friend class Create_field;
   uint decimals() const override { return (uint)dec; }
   bool eq_def(const Field *field) const override;
   type_conversion_status store_decimal(const my_decimal *) override;
@@ -1962,7 +1961,6 @@ class Field_str : public Field {
   }
   bool binary() const override { return field_charset == &my_charset_bin; }
   uint32 max_display_length() const override { return field_length; }
-  friend class Create_field;
   virtual bool str_needs_quotes() const override { return true; }
   uint is_equal(const Create_field *new_field) override;
 
@@ -4407,163 +4405,6 @@ class Field_bit_as_char : public Field_bit {
   }
 };
 
-/*
-  Create field class for CREATE TABLE
-*/
-
-class Create_field {
- public:
-  dd::Column::enum_hidden_type hidden;
-
-  const char *field_name;
-  /**
-    Name of column modified by ALTER TABLE's CHANGE/MODIFY COLUMN clauses,
-    NULL for columns added.
-  */
-  const char *change;
-  const char *after;   // Put column after this one
-  LEX_STRING comment;  // Comment for field
-
-  /**
-     The declared default value, if any, otherwise NULL. Note that this member
-     is NULL if the default is a function. If the column definition has a
-     function declared as the default, the information is found in
-     Create_field::auto_flags.
-
-     @see Create_field::auto_flags
-  */
-  Item *constant_default;
-  enum enum_field_types sql_type;
-  /*
-    At various stages in execution this can be length of field in bytes or
-    max number of characters.
-  */
-  size_t length;
-  /*
-    The value of `length' as set by parser: is the number of characters
-    for most of the types, or of bytes for BLOBs or numeric types.
-  */
-  size_t char_length;
-  uint decimals;
-  uint flags{0};
-  size_t pack_length, key_length;
-  /**
-    Bitmap of flags indicating if field value should be auto-generated
-    by default and/or on update, and in which way.
-
-    @sa Field::enum_auto_flags for possible options.
-  */
-  uchar auto_flags{Field::NONE};
-  TYPELIB *interval;  // Which interval to use
-                      // Used only for UCS2 intervals
-  List<String> interval_list;
-  const CHARSET_INFO *charset;
-  bool is_explicit_collation;  // User exeplicitly provided charset ?
-  Field::geometry_type geom_type;
-  Field *field;  // For alter table
-
-  uint offset;
-
-  /**
-    Indicate whether column is nullable, zerofill or unsigned.
-
-    Initialized based on flags and other members at prepare_create_field()/
-    init_for_tmp_table() stage.
-  */
-  bool maybe_null;
-  bool is_zerofill;
-  bool is_unsigned;
-
-  /**
-    Indicates that storage engine doesn't support optimized BIT field
-    storage.
-
-    @note We also use safe/non-optimized version of BIT field for
-          special cases like virtual temporary tables.
-
-    Initialized at mysql_prepare_create_table()/sp_prepare_create_field()/
-    init_for_tmp_table() stage.
-  */
-  bool treat_bit_as_char;
-
-  /**
-    Row based replication code sometimes needs to create ENUM and SET
-    fields with pack length which doesn't correspond to number of
-    elements in interval TYPELIB.
-
-    When this member is non-zero ENUM/SET field to be created will use
-    its value as pack length instead of one calculated from number
-    elements in its interval.
-
-    Initialized at prepare_create_field()/init_for_tmp_table() stage.
-  */
-  uint pack_length_override{0};
-
-  /* Generated column expression information */
-  Value_generator *gcol_info{nullptr};
-  /*
-    Indication that the field is phycically stored in tables
-    rather than just generated on SQL queries.
-    As of now, false can only be set for virtual generated columns.
-  */
-  bool stored_in_db;
-
-  /// Holds the expression to be used to generate default values.
-  Value_generator *m_default_val_expr{nullptr};
-  Nullable<gis::srid_t> m_srid;
-
-  Create_field()
-      : after(NULL),
-        is_explicit_collation(false),
-        geom_type(Field::GEOM_GEOMETRY),
-        maybe_null(false),
-        is_zerofill(false),
-        is_unsigned(false),
-        /*
-          Initialize treat_bit_as_char for all field types even if
-          it is only used for MYSQL_TYPE_BIT. This avoids bogus
-          valgrind warnings in optimized builds.
-        */
-        treat_bit_as_char(false),
-        pack_length_override(0),
-        stored_in_db(false),
-        m_default_val_expr(nullptr) {}
-  Create_field(Field *field, Field *orig_field);
-
-  /* Used to make a clone of this object for ALTER/CREATE TABLE */
-  Create_field *clone(MEM_ROOT *mem_root) const {
-    return new (mem_root) Create_field(*this);
-  }
-  bool is_gcol() const { return gcol_info; }
-  bool is_virtual_gcol() const {
-    return gcol_info && !gcol_info->get_field_stored();
-  }
-  void create_length_to_internal_length();
-
-  /* Init for a tmp table field. To be extended if need be. */
-  void init_for_tmp_table(enum_field_types sql_type_arg, uint32 max_length,
-                          uint32 decimals, bool maybe_null, bool is_unsigned,
-                          uint pack_length_override,
-                          const char *field_name = "");
-
-  bool init(THD *thd, const char *field_name, enum_field_types type,
-            const char *length, const char *decimals, uint type_modifier,
-            Item *default_value, Item *on_update_value, LEX_STRING *comment,
-            const char *change, List<String> *interval_list,
-            const CHARSET_INFO *cs, bool has_explicit_collation,
-            uint uint_geom_type, Value_generator *gcol_info,
-            Value_generator *default_val_expr, Nullable<gis::srid_t> srid,
-            dd::Column::enum_hidden_type hidden);
-
-  ha_storage_media field_storage_type() const {
-    return (ha_storage_media)((flags >> FIELD_FLAGS_STORAGE_MEDIA) & 3);
-  }
-
-  column_format_type column_format() const {
-    return (column_format_type)((flags >> FIELD_FLAGS_COLUMN_FORMAT) & 3);
-  }
-};
-
 /// This function should only be called from legacy code.
 Field *make_field(TABLE_SHARE *share, uchar *ptr, size_t field_length,
                   uchar *null_pos, uchar null_bit, enum_field_types field_type,
@@ -4718,7 +4559,7 @@ class Copy_field {
   void swap_direction();
 };
 
-enum_field_types get_blob_type_from_length(ulong length);
+enum_field_types get_blob_type_from_length(size_t length);
 size_t calc_pack_length(enum_field_types type, size_t length);
 
 /**
