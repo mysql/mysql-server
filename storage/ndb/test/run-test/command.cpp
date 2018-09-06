@@ -94,63 +94,12 @@ static char* dirname(const char* path) {
 
 Vector<atrt_process> g_saved_procs;
 
-static bool do_change_version(atrt_config& config, SqlResultSet& command,
-                              AtrtClient& atrtdb) {
-  /**
-   * TODO make option to restart "not" initial
-   */
-  uint process_id = command.columnAsInt("process_id");
-  const char* process_args = command.column("process_args");
-
-  g_logger.info("Change version for process: %d, args: %s", process_id,
-                process_args);
-
-  // Get the process
-  if (process_id > config.m_processes.size()) {
-    g_logger.critical("Invalid process id %d", process_id);
-    return false;
-  }
-  atrt_process& proc = *config.m_processes[process_id];
-
+static bool do_change_prefix(atrt_config& config, SqlResultSet& command) {
   const char* new_prefix = g_prefix1 ? g_prefix1 : g_prefix0;
-  const char* old_prefix = g_prefix0;
-  const char* start = strstr(proc.m_proc.m_path.c_str(), old_prefix);
-  if (!start) {
-    /* Process path does not contain old prefix.
-     * Perhaps it contains the new prefix - e.g. is already
-     * upgraded?
-     */
-    if (strstr(proc.m_proc.m_path.c_str(), new_prefix)) {
-      /* Process is already upgraded, *assume* that this
-       * is ok
-       * Alternatives could be - error, or downgrade.
-       */
-      g_logger.info("Process already upgraded");
-      return true;
-    }
-
-    g_logger.critical("Could not find '%s' in '%s'", old_prefix,
-                      proc.m_proc.m_path.c_str());
-    return false;
-  }
-
-  g_logger.info("stopping process...");
-  if (!stop_process(proc)) return false;
-
-  g_logger.info("waiting for process to stop...");
-  if (!wait_for_process_to_stop(config, proc)) {
-    g_logger.critical("Failed to stop process");
-    return false;
-  }
-
-  // Save current proc state
-  if (proc.m_save.m_saved == false) {
-    proc.m_save.m_proc = proc.m_proc;
-    proc.m_save.m_saved = true;
-  }
-
+  const char* process_args = command.column("process_args");
+  atrt_process& proc = *config.m_processes[command.columnAsInt("process_id")];
   BaseString newEnv = set_env_var(
-      proc.m_proc.m_env, BaseString("MYSQL_BASE_DIR"), BaseString(new_prefix));
+    proc.m_proc.m_env, BaseString("MYSQL_BASE_DIR"), BaseString(new_prefix));
   proc.m_proc.m_env.assign(newEnv);
 
   ssize_t pos = proc.m_proc.m_path.lastIndexOf('/') + 1;
@@ -198,11 +147,97 @@ static bool do_change_version(atrt_config& config, SqlResultSet& command,
     free(exe);
     free(dir);
   }
+  return true;
+}
 
-  ndbout << proc << endl;
+static bool do_start_process(atrt_config& config, SqlResultSet& command,
+                             AtrtClient& atrtdb) {
+  uint process_id = command.columnAsInt("process_id");
+  if (process_id > config.m_processes.size()) {
+    g_logger.critical("Invalid process id %d", process_id);
+    return false;
+  }
 
-  g_logger.info("starting process...");
-  if (!start_process(proc)) return false;
+  atrt_process& proc = *config.m_processes[process_id];
+
+  if (proc.m_atrt_stopped != true) {
+    g_logger.info("start process %s failed", proc.m_name.c_str());
+    return false;
+  }
+  proc.m_atrt_stopped = false;
+  g_logger.info("starting process - %s", proc.m_name.c_str());
+  bool status = start_process(proc) == true;
+  return status;
+}
+
+static bool do_stop_process(atrt_config& config, SqlResultSet& command,
+                             AtrtClient& atrtdb) {
+  uint process_id = command.columnAsInt("process_id");
+
+  // Get the process
+  if (process_id > config.m_processes.size()) {
+    g_logger.critical("Invalid process id %d", process_id);
+    return false;
+  }
+
+  atrt_process& proc = *config.m_processes[process_id];
+  proc.m_atrt_stopped = true;
+
+  const char* new_prefix = g_prefix1 ? g_prefix1 : g_prefix0;
+  const char* old_prefix = g_prefix0;
+  const char* start = strstr(proc.m_proc.m_path.c_str(), old_prefix);
+  if (!start) {
+    /* Process path does not contain old prefix.
+     * Perhaps it contains the new prefix - e.g. is already
+     * upgraded?
+     */
+    if (strstr(proc.m_proc.m_path.c_str(), new_prefix)) {
+      /* Process is already upgraded, *assume* that this
+       * is ok
+       * Alternatives could be - error, or downgrade.
+       */
+      g_logger.info("Process already upgraded");
+      return true;
+    }
+
+    g_logger.critical("Could not find '%s' in '%s'", old_prefix,
+                      proc.m_proc.m_path.c_str());
+    return false;
+  }
+
+  g_logger.info("stopping process - %s", proc.m_name.c_str());
+  if (!stop_process(proc)) {
+    return false;
+  }
+
+  g_logger.info("waiting for process to stop...");
+  if (!wait_for_process_to_stop(config, proc)) {
+    g_logger.critical("Failed to stop process");
+    return false;
+  }
+
+  // Save current proc state
+  if (proc.m_save.m_saved == false) {
+    proc.m_save.m_proc = proc.m_proc;
+    proc.m_save.m_saved = true;
+  }
+  return true;
+}
+
+static bool do_change_version(atrt_config& config, SqlResultSet& command,
+                              AtrtClient& atrtdb) {
+  if (!do_stop_process(config, command, atrtdb)) {
+    return false;
+  }
+
+  if (!do_change_prefix(config, command)) {
+    return false;
+  }
+
+  if (!do_start_process(config, command, atrtdb)) {
+    return false;
+  }
+
   return true;
 }
 
@@ -235,8 +270,6 @@ static bool do_reset_proc(atrt_config& config, SqlResultSet& command,
     ndbout << "process has not changed" << endl;
   }
 
-  g_logger.info("starting process...");
-  if (!start_process(proc)) return false;
   return true;
 }
 
@@ -274,6 +307,18 @@ bool do_command(atrt_config& config) {
 
     case AtrtClient::ATCT_RESET_PROC:
       if (!do_reset_proc(config, command, atrtdb)) return false;
+      break;
+
+    case AtrtClient::ATCT_START_PROCESS:
+      if (!do_start_process(config, command, atrtdb)) return false;
+      break;
+
+    case AtrtClient::ATCT_STOP_PROCESS:
+      if (!do_stop_process(config, command, atrtdb)) return false;
+      break;
+
+    case AtrtClient::ATCT_SWITCH_CONFIG:
+      if (!do_change_prefix(config, command)) return false;
       break;
 
     default:
