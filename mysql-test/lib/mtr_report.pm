@@ -49,6 +49,7 @@ our @EXPORT = qw(
   mtr_warning
   mtr_xml_init
   report_option
+  secondary_engine_offload_count_report_init
 );
 
 use File::Spec;
@@ -60,6 +61,9 @@ use mtr_match;
 use mtr_results;
 
 require "mtr_io.pl";
+
+my $offload_count_file;
+my $offload_count_file_path;
 
 my $done_percentage = 0;
 my $tests_completed = 0;
@@ -94,6 +98,21 @@ sub disk_usage() {
     }
   }
   return $du;
+}
+
+## Fetch secondary engine execution count value for the current test.
+##
+## Argument:
+##   $tinfo Test object
+sub get_offload_count_report($) {
+  my $tinfo                   = shift;
+  my $test_offload_count_file = "$::opt_vardir/log/offload_count";
+
+  if (-f $test_offload_count_file) {
+    $tinfo->{'offload_count'} = mtr_fromfile($test_offload_count_file);
+  }
+
+  unlink($test_offload_count_file);
 }
 
 sub report_option {
@@ -192,6 +211,11 @@ sub mtr_report_test ($) {
   if ($::opt_quiet and $result ne 'MTR_RES_FAILED' and length($report) >= 60) {
     # Truncate the report part
     $report = substr($report, 0, 59);
+  }
+
+  if ($::opt_secondary_engine) {
+    # Fetch offload count value
+    get_offload_count_report($tinfo);
   }
 
   if ($result eq 'MTR_RES_FAILED') {
@@ -482,6 +506,31 @@ sub mtr_generate_xml_report($) {
   print $xml_report_file "</testsuites>\n";
 }
 
+## Generate a report containing secondary engine execution count value
+## for each test executed.
+##
+## Arguments:
+##   $tests List of tests
+sub mtr_generate_secondary_engine_offload_count_report($) {
+  my ($tests) = @_;
+
+  # Sort in order to group tests suitewise
+  my @sorted_tests = sort { $a->{'name'} cmp $b->{'name'} } @$tests;
+
+  print $offload_count_file "=" x 70 . "\n";
+  print $offload_count_file " " x 3 . "TEST NAME" . " " x 38;
+  print $offload_count_file "OFFLOAD COUNT\n";
+  print $offload_count_file "-" x 70 . "\n";
+
+  foreach my $tinfo (@sorted_tests) {
+    my $report_str =
+      sprintf(" %-50s %5s", $tinfo->{'name'}, $tinfo->{'offload_count'});
+    print $offload_count_file $report_str . "\n";
+  }
+
+  print $offload_count_file "-" x 70 . "\n";
+}
+
 # Goes through the list of completed tests and accumulates various
 # statistics, then prints them.
 sub mtr_report_stats ($$;$) {
@@ -651,6 +700,12 @@ sub mtr_report_stats ($$;$) {
     $xml_report_file->flush();
   }
 
+  if ($::opt_secondary_engine) {
+    mtr_generate_secondary_engine_offload_count_report($tests);
+    $offload_count_file->flush();
+    $offload_count_file->close();
+  }
+
   print "$tot_skipped tests were skipped, " .
     "$tot_skipdetect by the test itself.\n\n"
     if $tot_skipped;
@@ -699,6 +754,15 @@ sub mtr_print_header ($) {
   }
 
   mtr_print_line();
+}
+
+## Secondary engine offload count report
+sub secondary_engine_offload_count_report_init() {
+  $offload_count_file_path =
+    "$::opt_vardir/log/secondary_engine_offload_count_report";
+
+  $offload_count_file = IO::File->new($offload_count_file_path, '>') or
+    die "Can't open $offload_count_file_path: $!";
 }
 
 # XML Output

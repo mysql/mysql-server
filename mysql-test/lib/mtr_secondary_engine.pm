@@ -28,7 +28,6 @@ use warnings;
 
 use base qw(Exporter);
 our @EXPORT = qw(
-  add_secondary_engine_client_options
   check_number_of_servers
   check_plugin_dir
   check_secondary_engine_options
@@ -177,16 +176,6 @@ sub stop_secondary_engine_server () {
   mtr_verbose("Stopping secondary engine server $secondary_engine->{'proc'}");
   My::SafeProcess::shutdown($::opt_shutdown_timeout,
                             $secondary_engine->{'proc'});
-}
-
-## Add secondary engine client options
-##
-## Arguments:
-##   $args List containing the arguments to be passed
-sub add_secondary_engine_client_options($) {
-  my $args = shift;
-  mtr_add_arg($args, "--secondary-engine=rapid");
-  mtr_add_arg($args, "--change-propagation=%d", $::opt_change_propagation);
 }
 
 ## Skip tests starting more than one server.

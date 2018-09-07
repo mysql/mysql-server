@@ -49,6 +49,7 @@ SET(MYSQLTEST_SRC
   mysqltest/error_names.cc
   mysqltest/expected_errors.cc
   mysqltest/secondary_engine.cc
+  mysqltest/utils.cc
 )
 
 MYSQL_ADD_EXECUTABLE(mysqltest mysqltest.cc ${MYSQLTEST_SRC} COMPONENT Test)

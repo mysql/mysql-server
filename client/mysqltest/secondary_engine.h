@@ -22,37 +22,103 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA.
 
+#include <string>
 #include <vector>
 
 #include "mysql.h"
 
-/// Check if the statement is a CREATE TABLE statement or a DDL
-/// statement. If yes, run the ALTER TABLE statements needed to change
-/// the secondary engine and to load the data from primary engine to
-/// secondary engine.
-///
-/// @param secondary_engine       Secondary engine name
-/// @param statement              Original statement
-/// @param mysql                  mysql handle
-/// @param expected_errors        List of expected errors
-/// @param opt_change_propagation Boolean flag indicating whether change
-///                               propagation is enabled or not.
-///
-/// @retval True if load operation fails, false otherwise.
-bool run_secondary_engine_load_statements(
-    const char *secondary_engine, char *statement, MYSQL *mysql,
-    std::vector<unsigned int> expected_errors, bool opt_change_propagation);
+typedef std::vector<unsigned int> Errors;
 
-/// Check if the statement is a DDL statement. If yes, run the ALTER
-/// TABLE statements needed to change the secondary engine to NULL and
-/// to unload the data from secondary engine.
-///
-/// @param statement       Original statement
-/// @param mysql           mysql handle
-/// @param expected_errors List of expected errors
-///
-/// @retval True if unload operation fails, false otherwise.
-bool run_secondary_engine_unload_statements(
-    char *statement, MYSQL *mysql, std::vector<unsigned int> expected_errors);
+class Secondary_engine {
+ public:
+  Secondary_engine(){};
+  Secondary_engine(bool change_propagation);
+
+  ~Secondary_engine(){};
+
+  /// Get the secondary engine execution count value.
+  ///
+  /// @param mysql mysql handle
+  /// @param mode  Mode value (either "after" or "before")
+  ///
+  /// @retval True if the query fails, false otherwise.
+  bool offload_count(MYSQL *mysql, const char *mode);
+
+  /// Report secondary engine execution count value.
+  ///
+  /// @param filename File to store the count value
+  void report_offload_count(const char *filename);
+
+  /// Check if the statement is a CREATE TABLE statement or a DDL
+  /// statement. If yes, run the ALTER TABLE statements needed to
+  /// change the secondary engine and to load the data from primary
+  /// engine to secondary engine.
+  ///
+  /// @param statement       Original statement
+  /// @param mysql           mysql handle
+  /// @param expected_errors List of expected errors
+  ///
+  /// @retval True if load operation fails, false otherwise.
+  bool run_load_statements(char *statement, MYSQL *mysql,
+                           Errors expected_errors);
+
+  /// Check if the statement is a DDL statement. If yes, run the ALTER
+  /// TABLE statements needed to change the secondary engine to NULL
+  /// and to unload the data from secondary engine.
+  ///
+  /// @param statement       Original statement
+  /// @param mysql           mysql handle
+  /// @param expected_errors List of expected errors
+  ///
+  /// @retval True if unload operation fails, false otherwise.
+  bool run_unload_statements(char *statement, MYSQL *mysql,
+                             Errors expected_errors);
+
+ private:
+  /// Run ALTER TABLE table SECONDARY_ENGINE engine_name statement to
+  /// change the secondary engine of a table. If the statement fails
+  /// with an expected error, it will be ignored and the test run will
+  /// continue.
+  ///
+  /// @param mysql           mysql handle
+  /// @param engine_name     Secondary engine name
+  /// @param expected_errors List of expected errors
+  ///
+  /// @retval True if execution of statement changing secondary engine
+  ///         fails, false otherwise.
+  bool run_secondary_engine_statement(MYSQL *mysql, std::string engine_name,
+                                      Errors expected_errors);
+
+  /// Run ALTER TABLE table_name SECONDARY_LOAD statement to load the
+  /// table contents from primary engine to secondary engine. If the
+  /// statement fails with an expected error, it will be ignored and the
+  /// test run will continue.
+  ///
+  /// @param mysql           mysql handle
+  /// @param expected_errors List of expected errors
+  ///
+  /// @retval True if execution of load statement fails, false otherwise.
+  bool run_secondary_load_statement(MYSQL *mysql, Errors expected_errors);
+
+  /// Run ALTER TABLE table_name SECONDARY_UNLOAD statement to unload
+  /// the table contents from secondary engine. If the statement fails
+  /// with an expected error, it will be ignored and the test run will
+  /// continue.
+  ///
+  /// @param mysql           mysql handle
+  /// @param expected_errors List of expected errors
+  ///
+  /// @retval True if execution of unload statement fails, false otherwise.
+  bool run_secondary_unload_statement(MYSQL *mysql, Errors expected_errors);
+
+  bool m_change_propagation;
+  const char *m_engine_name;
+  int m_offload_count;
+  std::string m_table_name;
+
+  std::vector<int> m_secondary_engine_errors;
+  std::vector<int> m_secondary_load_errors;
+  std::vector<int> m_secondary_unload_errors;
+};
 
 #endif  // SECONDARY_ENGINE_INCLUDED
