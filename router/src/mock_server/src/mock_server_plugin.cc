@@ -113,7 +113,8 @@ static void init(mysql_harness::PluginFuncEnv *env) {
                                config.trace_filename, config.module_prefix,
                                config.srv_port, 0)));
 
-        MockServerComponent::getInstance().init(mock_servers.at(section->name));
+        MockServerComponent::get_instance().init(
+            mock_servers.at(section->name));
       }
     }
   } catch (const std::invalid_argument &exc) {

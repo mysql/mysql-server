@@ -125,12 +125,12 @@ class HttpServer {
   void remove_route(const std::string &url_regex);
 
  private:
-  std::vector<HttpRequestThread> thread_contexts;
+  std::vector<HttpRequestThread> thread_contexts_;
   std::string address_;
   uint16_t port_;
   HttpRequestRouter request_router_;
 
-  std::vector<std::thread> sys_threads;
+  std::vector<std::thread> sys_threads_;
 };
 
 class HttpStaticFolderHandler : public BaseRequestHandler {

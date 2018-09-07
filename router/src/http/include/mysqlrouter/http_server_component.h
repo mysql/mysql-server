@@ -44,7 +44,7 @@ class HTTP_SERVER_EXPORT BaseRequestHandler {
 
 class HTTP_SERVER_EXPORT HttpServerComponent {
  public:
-  static HttpServerComponent &getInstance();
+  static HttpServerComponent &get_instance();
   void init(std::shared_ptr<HttpServer> srv);
   void add_route(const std::string &url_regex,
                  std::unique_ptr<BaseRequestHandler> cb);

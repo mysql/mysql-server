@@ -165,7 +165,8 @@ class RestApiV1MockServerGlobals : public BaseRequestHandler {
           std::string(json_buf.GetString(), json_buf.GetSize());
     }
 
-    auto shared_globals = MockServerComponent::getInstance().getGlobalScope();
+    auto shared_globals =
+        MockServerComponent::get_instance().get_global_scope();
     shared_globals->reset(all_globals);
 
     req.send_reply(HttpStatusCode::NoContent);
@@ -183,7 +184,7 @@ class RestApiV1MockServerGlobals : public BaseRequestHandler {
         json_doc.SetObject();
 
         auto shared_globals =
-            MockServerComponent::getInstance().getGlobalScope();
+            MockServerComponent::get_instance().get_global_scope();
         auto all_globals = shared_globals->get_all();
 
         for (auto &element : all_globals) {
@@ -242,7 +243,7 @@ class RestApiV1MockServerConnections : public BaseRequestHandler {
    */
   void handle_connections_delete_all(HttpRequest &req) {
     // tell the mock_server to close all connections
-    MockServerComponent::getInstance().close_all_connections();
+    MockServerComponent::get_instance().close_all_connections();
 
     req.send_reply(HttpStatusCode::Ok);
   }
@@ -265,7 +266,7 @@ static void init(PluginFuncEnv *env) {
 }
 
 static void start(PluginFuncEnv *) {
-  auto &srv = HttpServerComponent::getInstance();
+  auto &srv = HttpServerComponent::get_instance();
 
   srv.add_route(kRestGlobalsUri, std::unique_ptr<BaseRequestHandler>(
                                      new RestApiV1MockServerGlobals()));
@@ -274,7 +275,7 @@ static void start(PluginFuncEnv *) {
 }
 
 static void stop(PluginFuncEnv *) {
-  auto &srv = HttpServerComponent::getInstance();
+  auto &srv = HttpServerComponent::get_instance();
 
   srv.remove_route(kRestConnectionsUri);
   srv.remove_route(kRestGlobalsUri);

@@ -80,7 +80,7 @@ void HttpServerComponent::init(std::shared_ptr<HttpServer> srv) {
   request_handlers_.clear();
 }
 
-HttpServerComponent &HttpServerComponent::getInstance() {
+HttpServerComponent &HttpServerComponent::get_instance() {
   static HttpServerComponent instance;
 
   return instance;

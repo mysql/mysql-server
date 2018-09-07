@@ -29,7 +29,7 @@
 //
 // HTTP Server's public API
 //
-std::shared_ptr<MockServerGlobalScope> MockServerComponent::getGlobalScope() {
+std::shared_ptr<MockServerGlobalScope> MockServerComponent::get_global_scope() {
   if (auto srv = srv_.lock()) {
     return srv->get_global_scope();
   } else {
@@ -42,7 +42,7 @@ void MockServerComponent::init(
   srv_ = srv;
 }
 
-MockServerComponent &MockServerComponent::getInstance() {
+MockServerComponent &MockServerComponent::get_instance() {
   static MockServerComponent instance;
 
   return instance;
