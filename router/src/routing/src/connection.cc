@@ -35,7 +35,7 @@
 #include "utils.h"
 IMPORT_LOG_FUNCTIONS()
 
-MySQLRoutingConnection ::MySQLRoutingConnection(
+MySQLRoutingConnection::MySQLRoutingConnection(
     MySQLRoutingContext &context, int client_socket,
     const sockaddr_storage &client_addr, int server_socket,
     const mysql_harness::TCPAddress &server_address,
@@ -50,10 +50,12 @@ MySQLRoutingConnection ::MySQLRoutingConnection(
                                           context_.get_socket_operations())) {}
 
 void MySQLRoutingConnection::start(bool detached) {
+  context_.increase_active_thread_counter();
   try {
     // both lines can throw std::runtime_error
     mysql_harness::MySQLRouterThread connect_thread(
         context_.get_thread_stack_size());
+
     connect_thread.run(&run_thread, this, detached);
   } catch (std::runtime_error &err) {
     context_.get_protocol().send_error(
@@ -76,6 +78,8 @@ void MySQLRoutingConnection::start(bool detached) {
           "error=%s",
           client_address_.c_str(), err.what());
     }
+
+    context_.decrease_active_thread_counter();
   }
 }
 
@@ -119,17 +123,18 @@ bool MySQLRoutingConnection::check_sockets() {
 }
 
 void MySQLRoutingConnection::run() {
-  mysql_harness::rename_thread(
-      get_routing_thread_name(context_.get_name(), "RtC")
-          .c_str());  // "Rt client thread" would be too long :(
-
-  context_.increase_active_thread_counter();
+  // adding the decrease-active-thread must be the first step
+  // as it guarentees the active-thread is always decremented
   std::shared_ptr<void> thread_exit_guard(nullptr, [&](void *) {
     context_.decrease_active_thread_counter();
 
     // remove callback has to be executed as a last thing in connection
     remove_callback_(this);
   });
+
+  mysql_harness::rename_thread(
+      get_routing_thread_name(context_.get_name(), "RtC")
+          .c_str());  // "Rt client thread" would be too long :(
 
   std::size_t bytes_down = 0;
   std::size_t bytes_up = 0;
