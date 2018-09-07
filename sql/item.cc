@@ -109,7 +109,7 @@ void item_init(void) {
 }
 
 Item::Item()
-    : next(NULL),
+    : next_free(nullptr),
       str_value(),
       collation(&my_charset_bin, DERIVATION_COERCIBLE),
       item_name(),
@@ -139,7 +139,7 @@ Item::Item()
 }
 
 Item::Item(THD *thd, Item *item)
-    : next(NULL),
+    : next_free(nullptr),
       str_value(item->str_value),
       collation(item->collation),
       item_name(item->item_name),
@@ -170,7 +170,7 @@ Item::Item(THD *thd, Item *item)
 }
 
 Item::Item(const POS &)
-    : next(NULL),
+    : next_free(nullptr),
       str_value(),
       collation(&my_charset_bin, DERIVATION_COERCIBLE),
       item_name(),

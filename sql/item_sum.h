@@ -464,7 +464,7 @@ class Item_sum : public Item_result_field {
     pointer). "ref_by" stands for "referenced by".
   */
   Item **ref_by[2];
-  Item_sum *next;         ///< next in the circular chain of registered objects
+  Item_sum *next_sum;     ///< next in the circular chain of registered objects
   Item_sum *in_sum_func;  ///< the containing set function if any
   SELECT_LEX *base_select;  ///< query block where function is placed
   /**
@@ -498,7 +498,7 @@ class Item_sum : public Item_result_field {
       : super(pos),
         m_window(w),
         m_window_resolved(false),
-        next(NULL),
+        next_sum(nullptr),
         quick_group(true),
         arg_count(0),
         args(nullptr),
@@ -510,7 +510,7 @@ class Item_sum : public Item_result_field {
   Item_sum(Item *a)
       : m_window(NULL),
         m_window_resolved(false),
-        next(NULL),
+        next_sum(nullptr),
         quick_group(true),
         arg_count(1),
         args(tmp_args),
@@ -525,7 +525,7 @@ class Item_sum : public Item_result_field {
       : super(pos),
         m_window(w),
         m_window_resolved(false),
-        next(NULL),
+        next_sum(nullptr),
         quick_group(true),
         arg_count(1),
         args(tmp_args),
@@ -539,7 +539,7 @@ class Item_sum : public Item_result_field {
       : super(pos),
         m_window(w),
         m_window_resolved(false),
-        next(nullptr),
+        next_sum(nullptr),
         quick_group(true),
         arg_count(2),
         args(tmp_args),

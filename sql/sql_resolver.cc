@@ -402,7 +402,7 @@ bool SELECT_LEX::prepare(THD *thd) {
     Item_sum *end = inner_sum_func_list;
     Item_sum *item_sum = end;
     do {
-      item_sum = item_sum->next;
+      item_sum = item_sum->next_sum;
       item_sum->split_sum_func2(thd, base_ref_items, all_fields, nullptr,
                                 false);
     } while (item_sum != end);

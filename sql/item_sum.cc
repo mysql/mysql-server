@@ -311,10 +311,10 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref) {
         for set functions.
     */
     if (!aggr_select->inner_sum_func_list)
-      next = this;
+      next_sum = this;
     else {
-      next = aggr_select->inner_sum_func_list->next;
-      aggr_select->inner_sum_func_list->next = this;
+      next_sum = aggr_select->inner_sum_func_list->next_sum;
+      aggr_select->inner_sum_func_list->next_sum = this;
     }
     aggr_select->inner_sum_func_list = this;
     aggr_select->with_sum_func = true;
@@ -395,7 +395,7 @@ Item_sum::Item_sum(const POS &pos, PT_item_list *opt_list, PT_window *w)
     : super(pos),
       m_window(w),
       m_window_resolved(false),
-      next(NULL),
+      next_sum(nullptr),
       arg_count(opt_list == NULL ? 0 : opt_list->elements()),
       args(nullptr),
       used_tables_cache(0),
@@ -422,7 +422,7 @@ Item_sum::Item_sum(THD *thd, Item_sum *item)
     : Item_result_field(thd, item),
       m_window(item->m_window),
       m_window_resolved(false),
-      next(NULL),
+      next_sum(nullptr),
       base_select(item->base_select),
       aggr_select(item->aggr_select),
       quick_group(item->quick_group),
@@ -527,17 +527,17 @@ bool Item_sum::clean_up_after_removal(uchar *) {
   */
   if (!fixed ||                                                           // 1
       aggr_select == NULL || aggr_select->inner_sum_func_list == NULL ||  // 2
-      next == NULL)                                                       // 3
+      next_sum == NULL)                                                   // 3
     return false;
 
-  if (next == this)
+  if (next_sum == this)
     aggr_select->inner_sum_func_list = NULL;
   else {
     Item_sum *prev;
-    for (prev = this; prev->next != this; prev = prev->next)
+    for (prev = this; prev->next_sum != this; prev = prev->next_sum)
       ;
-    prev->next = next;
-    next = NULL;
+    prev->next_sum = next_sum;
+    next_sum = NULL;
 
     if (aggr_select->inner_sum_func_list == this)
       aggr_select->inner_sum_func_list = prev;

@@ -1042,7 +1042,6 @@ class store_key_item : public store_key {
 
 class store_key_hash_item : public store_key_item {
  protected:
-  Item *item;
   ulonglong *hash;
 
  public:

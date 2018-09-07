@@ -2549,7 +2549,7 @@ class Item : public Parse_tree_node {
 
     @see Query_arena::free_list
   */
-  Item *next;
+  Item *next_free;
   /// str_values's main purpose is to cache the value in save_in_field
   String str_value;
 
@@ -5741,7 +5741,6 @@ class Item_cache_row final : public Item_cache {
 
 class Item_cache_datetime : public Item_cache {
  protected:
-  String str_value;
   longlong int_value;
   bool str_value_cached;
 

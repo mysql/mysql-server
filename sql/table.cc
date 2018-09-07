@@ -4144,8 +4144,8 @@ bool TABLE::refix_inner_value_generator_items(THD *thd, Value_generator *g_expr,
 
       // Append the new items to the original item_free_list.
       Item *item = g_expr->item_list;
-      while (item->next) item = item->next;
-      item->next = gcol_arena.item_list();
+      while (item->next_free) item = item->next_free;
+      item->next_free = gcol_arena.item_list();
 
       // Permanent changes to the item_tree are completed.
       g_expr->permanent_changes_completed = true;

@@ -1691,7 +1691,7 @@ void THD::rollback_item_tree_changes() {
 }
 
 void Query_arena::add_item(Item *item) {
-  item->next = m_item_list;
+  item->next_free = m_item_list;
   m_item_list = item;
 }
 
@@ -1700,7 +1700,7 @@ void Query_arena::free_items() {
   DBUG_ENTER("Query_arena::free_items");
   /* This works because items are allocated with sql_alloc() */
   for (; m_item_list; m_item_list = next) {
-    next = m_item_list->next;
+    next = m_item_list->next_free;
     m_item_list->delete_self();
   }
   /* Postcondition: free_list is 0 */

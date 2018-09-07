@@ -192,7 +192,7 @@ static bool subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str) {
   Prealloced_array<Item_splocal *, 16> sp_vars_uses(PSI_NOT_INSTRUMENTED);
 
   /* Find all instances of Item_splocal used in this statement */
-  for (Item *item = instr->m_arena.item_list(); item; item = item->next) {
+  for (Item *item = instr->m_arena.item_list(); item; item = item->next_free) {
     if (item->is_splocal()) {
       Item_splocal *item_spl = (Item_splocal *)item;
       if (item_spl->pos_in_query) sp_vars_uses.push_back(item_spl);

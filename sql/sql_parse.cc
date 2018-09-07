@@ -1119,7 +1119,7 @@ void free_items(Item *item) {
   Item *next;
   DBUG_ENTER("free_items");
   for (; item; item = next) {
-    next = item->next;
+    next = item->next_free;
     item->delete_self();
   }
   DBUG_VOID_RETURN;
@@ -1131,7 +1131,7 @@ void free_items(Item *item) {
 */
 void cleanup_items(Item *item) {
   DBUG_ENTER("cleanup_items");
-  for (; item; item = item->next) item->cleanup();
+  for (; item; item = item->next_free) item->cleanup();
   DBUG_VOID_RETURN;
 }
 

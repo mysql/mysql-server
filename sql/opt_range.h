@@ -885,7 +885,6 @@ class QUICK_GROUP_MIN_MAX_SELECT : public QUICK_SELECT_I {
  private:
   JOIN *join;          /* Descriptor of the current query */
   KEY *index_info;     /* The index chosen for data access */
-  uchar *record;       /* Buffer where the next record is returned. */
   uchar *tmp_record;   /* Temporary storage for next_min(), next_max(). */
   uchar *group_prefix; /* Key prefix consisting of the GROUP fields. */
   const uint group_prefix_len; /* Length of the group prefix. */
@@ -996,7 +995,7 @@ class QUICK_SELECT_DESC : public QUICK_RANGE_SELECT {
   }
   List<QUICK_RANGE> rev_ranges;
   List_iterator<QUICK_RANGE> rev_it;
-  uint used_key_parts;
+  uint m_used_key_parts;
 };
 
 /*
