@@ -83,7 +83,7 @@ class ha_blackhole : public handler {
   int close(void);
   int rnd_init(bool scan);
   int rnd_next(uchar *buf);
-  [[noreturn]] int rnd_pos(uchar *buf, uchar *pos);
+  int rnd_pos(uchar *buf, uchar *pos);
   int index_read_map(uchar *buf, const uchar *key, key_part_map keypart_map,
                      enum ha_rkey_function find_flag);
   int index_read_idx_map(uchar *buf, uint idx, const uchar *key,
@@ -95,7 +95,7 @@ class ha_blackhole : public handler {
   int index_prev(uchar *buf);
   int index_first(uchar *buf);
   int index_last(uchar *buf);
-  [[noreturn]] void position(const uchar *record);
+  void position(const uchar *record);
   int info(uint flag);
   int external_lock(THD *thd, int lock_type);
   int create(const char *name, TABLE *table_arg, HA_CREATE_INFO *create_info,

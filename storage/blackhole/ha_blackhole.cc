@@ -132,13 +132,13 @@ int ha_blackhole::rnd_next(uchar *) {
 int ha_blackhole::rnd_pos(uchar *, uchar *) {
   DBUG_ENTER("ha_blackhole::rnd_pos");
   DBUG_ASSERT(0);
-  MY_ASSERT_UNREACHABLE();
+  DBUG_RETURN(0);
 }
 
 void ha_blackhole::position(const uchar *) {
   DBUG_ENTER("ha_blackhole::position");
   DBUG_ASSERT(0);
-  MY_ASSERT_UNREACHABLE();
+  DBUG_VOID_RETURN;
 }
 
 int ha_blackhole::info(uint flag) {
