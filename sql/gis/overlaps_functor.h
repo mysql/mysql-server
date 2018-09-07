@@ -67,59 +67,51 @@ class Overlaps : public Functor<bool> {
   double semi_minor() const { return m_semi_minor; }
   bool operator()(const Geometry *g1, const Geometry *g2) const override;
   bool operator()(const Box *b1, const Box *b2) const;
-  [[noreturn]] bool eval(const Geometry *g1, const Geometry *g2) const;
+  bool eval(const Geometry *g1, const Geometry *g2) const;
 
   //////////////////////////////////////////////////////////////////////////////
 
   // overlaps(Cartesian_point, *)
 
   bool eval(const Cartesian_point *g1, const Cartesian_point *g2) const;
-  [[noreturn]] bool eval(const Cartesian_point *g1,
-                         const Cartesian_linestring *g2) const;
-  [[noreturn]] bool eval(const Cartesian_point *g1,
-                         const Cartesian_polygon *g2) const;
+  bool eval(const Cartesian_point *g1, const Cartesian_linestring *g2) const;
+  bool eval(const Cartesian_point *g1, const Cartesian_polygon *g2) const;
   bool eval(const Cartesian_point *g1,
             const Cartesian_geometrycollection *g2) const;
   bool eval(const Cartesian_point *g1, const Cartesian_multipoint *g2) const;
-  [[noreturn]] bool eval(const Cartesian_point *g1,
-                         const Cartesian_multilinestring *g2) const;
-  [[noreturn]] bool eval(const Cartesian_point *g1,
-                         const Cartesian_multipolygon *g2) const;
+  bool eval(const Cartesian_point *g1,
+            const Cartesian_multilinestring *g2) const;
+  bool eval(const Cartesian_point *g1, const Cartesian_multipolygon *g2) const;
 
   //////////////////////////////////////////////////////////////////////////////
 
   // overlaps(Cartesian_linestring, *)
 
-  [[noreturn]] bool eval(const Cartesian_linestring *g1,
-                         const Cartesian_point *g2) const;
+  bool eval(const Cartesian_linestring *g1, const Cartesian_point *g2) const;
   bool eval(const Cartesian_linestring *g1,
             const Cartesian_linestring *g2) const;
-  [[noreturn]] bool eval(const Cartesian_linestring *g1,
-                         const Cartesian_polygon *g2) const;
+  bool eval(const Cartesian_linestring *g1, const Cartesian_polygon *g2) const;
   bool eval(const Cartesian_linestring *g1,
             const Cartesian_geometrycollection *g2) const;
-  [[noreturn]] bool eval(const Cartesian_linestring *g1,
-                         const Cartesian_multipoint *g2) const;
+  bool eval(const Cartesian_linestring *g1,
+            const Cartesian_multipoint *g2) const;
   bool eval(const Cartesian_linestring *g1,
             const Cartesian_multilinestring *g2) const;
-  [[noreturn]] bool eval(const Cartesian_linestring *g1,
-                         const Cartesian_multipolygon *g2) const;
+  bool eval(const Cartesian_linestring *g1,
+            const Cartesian_multipolygon *g2) const;
 
   //////////////////////////////////////////////////////////////////////////////
 
   // overlaps(Cartesian_polygon, *)
 
-  [[noreturn]] bool eval(const Cartesian_polygon *g1,
-                         const Cartesian_point *g2) const;
-  [[noreturn]] bool eval(const Cartesian_polygon *g1,
-                         const Cartesian_linestring *g2) const;
+  bool eval(const Cartesian_polygon *g1, const Cartesian_point *g2) const;
+  bool eval(const Cartesian_polygon *g1, const Cartesian_linestring *g2) const;
   bool eval(const Cartesian_polygon *g1, const Cartesian_polygon *g2) const;
   bool eval(const Cartesian_polygon *g1,
             const Cartesian_geometrycollection *g2) const;
-  [[noreturn]] bool eval(const Cartesian_polygon *g1,
-                         const Cartesian_multipoint *g2) const;
-  [[noreturn]] bool eval(const Cartesian_polygon *g1,
-                         const Cartesian_multilinestring *g2) const;
+  bool eval(const Cartesian_polygon *g1, const Cartesian_multipoint *g2) const;
+  bool eval(const Cartesian_polygon *g1,
+            const Cartesian_multilinestring *g2) const;
   bool eval(const Cartesian_polygon *g1,
             const Cartesian_multipolygon *g2) const;
 
@@ -134,54 +126,52 @@ class Overlaps : public Functor<bool> {
   // overlaps(Cartesian_multipoint, *)
 
   bool eval(const Cartesian_multipoint *g1, const Cartesian_point *g2) const;
-  [[noreturn]] bool eval(const Cartesian_multipoint *g1,
-                         const Cartesian_linestring *g2) const;
-  [[noreturn]] bool eval(const Cartesian_multipoint *g1,
-                         const Cartesian_polygon *g2) const;
+  bool eval(const Cartesian_multipoint *g1,
+            const Cartesian_linestring *g2) const;
+  bool eval(const Cartesian_multipoint *g1, const Cartesian_polygon *g2) const;
   bool eval(const Cartesian_multipoint *g1,
             const Cartesian_geometrycollection *g2) const;
   bool eval(const Cartesian_multipoint *g1,
             const Cartesian_multipoint *g2) const;
-  [[noreturn]] bool eval(const Cartesian_multipoint *g1,
-                         const Cartesian_multilinestring *g2) const;
-  [[noreturn]] bool eval(const Cartesian_multipoint *g1,
-                         const Cartesian_multipolygon *g2) const;
+  bool eval(const Cartesian_multipoint *g1,
+            const Cartesian_multilinestring *g2) const;
+  bool eval(const Cartesian_multipoint *g1,
+            const Cartesian_multipolygon *g2) const;
 
   //////////////////////////////////////////////////////////////////////////////
 
   // overlaps(Cartesian_multilinestring, *)
 
-  [[noreturn]] bool eval(const Cartesian_multilinestring *g1,
-                         const Cartesian_point *g2) const;
+  bool eval(const Cartesian_multilinestring *g1,
+            const Cartesian_point *g2) const;
   bool eval(const Cartesian_multilinestring *g1,
             const Cartesian_linestring *g2) const;
-  [[noreturn]] bool eval(const Cartesian_multilinestring *g1,
-                         const Cartesian_polygon *g2) const;
+  bool eval(const Cartesian_multilinestring *g1,
+            const Cartesian_polygon *g2) const;
   bool eval(const Cartesian_multilinestring *g1,
             const Cartesian_geometrycollection *g2) const;
-  [[noreturn]] bool eval(const Cartesian_multilinestring *g1,
-                         const Cartesian_multipoint *g2) const;
+  bool eval(const Cartesian_multilinestring *g1,
+            const Cartesian_multipoint *g2) const;
   bool eval(const Cartesian_multilinestring *g1,
             const Cartesian_multilinestring *g2) const;
-  [[noreturn]] bool eval(const Cartesian_multilinestring *g1,
-                         const Cartesian_multipolygon *g2) const;
+  bool eval(const Cartesian_multilinestring *g1,
+            const Cartesian_multipolygon *g2) const;
 
   //////////////////////////////////////////////////////////////////////////////
 
   // overlaps(Cartesian_multipolygon, *)
 
-  [[noreturn]] bool eval(const Cartesian_multipolygon *g1,
-                         const Cartesian_point *g2) const;
-  [[noreturn]] bool eval(const Cartesian_multipolygon *g1,
-                         const Cartesian_linestring *g2) const;
+  bool eval(const Cartesian_multipolygon *g1, const Cartesian_point *g2) const;
+  bool eval(const Cartesian_multipolygon *g1,
+            const Cartesian_linestring *g2) const;
   bool eval(const Cartesian_multipolygon *g1,
             const Cartesian_polygon *g2) const;
   bool eval(const Cartesian_multipolygon *g1,
             const Cartesian_geometrycollection *g2) const;
-  [[noreturn]] bool eval(const Cartesian_multipolygon *g1,
-                         const Cartesian_multipoint *g2) const;
-  [[noreturn]] bool eval(const Cartesian_multipolygon *g1,
-                         const Cartesian_multilinestring *g2) const;
+  bool eval(const Cartesian_multipolygon *g1,
+            const Cartesian_multipoint *g2) const;
+  bool eval(const Cartesian_multipolygon *g1,
+            const Cartesian_multilinestring *g2) const;
   bool eval(const Cartesian_multipolygon *g1,
             const Cartesian_multipolygon *g2) const;
 
@@ -190,52 +180,48 @@ class Overlaps : public Functor<bool> {
   // overlaps(Geographic_point, *)
 
   bool eval(const Geographic_point *g1, const Geographic_point *g2) const;
-  [[noreturn]] bool eval(const Geographic_point *g1,
-                         const Geographic_linestring *g2) const;
-  [[noreturn]] bool eval(const Geographic_point *g1,
-                         const Geographic_polygon *g2) const;
+  bool eval(const Geographic_point *g1, const Geographic_linestring *g2) const;
+  bool eval(const Geographic_point *g1, const Geographic_polygon *g2) const;
   bool eval(const Geographic_point *g1,
             const Geographic_geometrycollection *g2) const;
   bool eval(const Geographic_point *g1, const Geographic_multipoint *g2) const;
-  [[noreturn]] bool eval(const Geographic_point *g1,
-                         const Geographic_multilinestring *g2) const;
-  [[noreturn]] bool eval(const Geographic_point *g1,
-                         const Geographic_multipolygon *g2) const;
+  bool eval(const Geographic_point *g1,
+            const Geographic_multilinestring *g2) const;
+  bool eval(const Geographic_point *g1,
+            const Geographic_multipolygon *g2) const;
 
   //////////////////////////////////////////////////////////////////////////////
 
   // overlaps(Geographic_linestring, *)
 
-  [[noreturn]] bool eval(const Geographic_linestring *g1,
-                         const Geographic_point *g2) const;
+  bool eval(const Geographic_linestring *g1, const Geographic_point *g2) const;
   bool eval(const Geographic_linestring *g1,
             const Geographic_linestring *g2) const;
-  [[noreturn]] bool eval(const Geographic_linestring *g1,
-                         const Geographic_polygon *g2) const;
+  bool eval(const Geographic_linestring *g1,
+            const Geographic_polygon *g2) const;
   bool eval(const Geographic_linestring *g1,
             const Geographic_geometrycollection *g2) const;
-  [[noreturn]] bool eval(const Geographic_linestring *g1,
-                         const Geographic_multipoint *g2) const;
+  bool eval(const Geographic_linestring *g1,
+            const Geographic_multipoint *g2) const;
   bool eval(const Geographic_linestring *g1,
             const Geographic_multilinestring *g2) const;
-  [[noreturn]] bool eval(const Geographic_linestring *g1,
-                         const Geographic_multipolygon *g2) const;
+  bool eval(const Geographic_linestring *g1,
+            const Geographic_multipolygon *g2) const;
 
   //////////////////////////////////////////////////////////////////////////////
 
   // overlaps(Geographic_polygon, *)
 
-  [[noreturn]] bool eval(const Geographic_polygon *g1,
-                         const Geographic_point *g2) const;
-  [[noreturn]] bool eval(const Geographic_polygon *g1,
-                         const Geographic_linestring *g2) const;
+  bool eval(const Geographic_polygon *g1, const Geographic_point *g2) const;
+  bool eval(const Geographic_polygon *g1,
+            const Geographic_linestring *g2) const;
   bool eval(const Geographic_polygon *g1, const Geographic_polygon *g2) const;
   bool eval(const Geographic_polygon *g1,
             const Geographic_geometrycollection *g2) const;
-  [[noreturn]] bool eval(const Geographic_polygon *g1,
-                         const Geographic_multipoint *g2) const;
-  [[noreturn]] bool eval(const Geographic_polygon *g1,
-                         const Geographic_multilinestring *g2) const;
+  bool eval(const Geographic_polygon *g1,
+            const Geographic_multipoint *g2) const;
+  bool eval(const Geographic_polygon *g1,
+            const Geographic_multilinestring *g2) const;
   bool eval(const Geographic_polygon *g1,
             const Geographic_multipolygon *g2) const;
 
@@ -250,54 +236,54 @@ class Overlaps : public Functor<bool> {
   // overlaps(Geographic_multipoint, *)
 
   bool eval(const Geographic_multipoint *g1, const Geographic_point *g2) const;
-  [[noreturn]] bool eval(const Geographic_multipoint *g1,
-                         const Geographic_linestring *g2) const;
-  [[noreturn]] bool eval(const Geographic_multipoint *g1,
-                         const Geographic_polygon *g2) const;
+  bool eval(const Geographic_multipoint *g1,
+            const Geographic_linestring *g2) const;
+  bool eval(const Geographic_multipoint *g1,
+            const Geographic_polygon *g2) const;
   bool eval(const Geographic_multipoint *g1,
             const Geographic_geometrycollection *g2) const;
   bool eval(const Geographic_multipoint *g1,
             const Geographic_multipoint *g2) const;
-  [[noreturn]] bool eval(const Geographic_multipoint *g1,
-                         const Geographic_multilinestring *g2) const;
-  [[noreturn]] bool eval(const Geographic_multipoint *g1,
-                         const Geographic_multipolygon *g2) const;
+  bool eval(const Geographic_multipoint *g1,
+            const Geographic_multilinestring *g2) const;
+  bool eval(const Geographic_multipoint *g1,
+            const Geographic_multipolygon *g2) const;
 
   //////////////////////////////////////////////////////////////////////////////
 
   // overlaps(Geographic_multilinestring, *)
 
-  [[noreturn]] bool eval(const Geographic_multilinestring *g1,
-                         const Geographic_point *g2) const;
+  bool eval(const Geographic_multilinestring *g1,
+            const Geographic_point *g2) const;
   bool eval(const Geographic_multilinestring *g1,
             const Geographic_linestring *g2) const;
-  [[noreturn]] bool eval(const Geographic_multilinestring *g1,
-                         const Geographic_polygon *g2) const;
+  bool eval(const Geographic_multilinestring *g1,
+            const Geographic_polygon *g2) const;
   bool eval(const Geographic_multilinestring *g1,
             const Geographic_geometrycollection *g2) const;
-  [[noreturn]] bool eval(const Geographic_multilinestring *g1,
-                         const Geographic_multipoint *g2) const;
+  bool eval(const Geographic_multilinestring *g1,
+            const Geographic_multipoint *g2) const;
   bool eval(const Geographic_multilinestring *g1,
             const Geographic_multilinestring *g2) const;
-  [[noreturn]] bool eval(const Geographic_multilinestring *g1,
-                         const Geographic_multipolygon *g2) const;
+  bool eval(const Geographic_multilinestring *g1,
+            const Geographic_multipolygon *g2) const;
 
   //////////////////////////////////////////////////////////////////////////////
 
   // overlaps(Geographic_multipolygon, *)
 
-  [[noreturn]] bool eval(const Geographic_multipolygon *g1,
-                         const Geographic_point *g2) const;
-  [[noreturn]] bool eval(const Geographic_multipolygon *g1,
-                         const Geographic_linestring *g2) const;
+  bool eval(const Geographic_multipolygon *g1,
+            const Geographic_point *g2) const;
+  bool eval(const Geographic_multipolygon *g1,
+            const Geographic_linestring *g2) const;
   bool eval(const Geographic_multipolygon *g1,
             const Geographic_polygon *g2) const;
   bool eval(const Geographic_multipolygon *g1,
             const Geographic_geometrycollection *g2) const;
-  [[noreturn]] bool eval(const Geographic_multipolygon *g1,
-                         const Geographic_multipoint *g2) const;
-  [[noreturn]] bool eval(const Geographic_multipolygon *g1,
-                         const Geographic_multilinestring *g2) const;
+  bool eval(const Geographic_multipolygon *g1,
+            const Geographic_multipoint *g2) const;
+  bool eval(const Geographic_multipolygon *g1,
+            const Geographic_multilinestring *g2) const;
   bool eval(const Geographic_multipolygon *g1,
             const Geographic_multipolygon *g2) const;
 

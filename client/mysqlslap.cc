@@ -276,7 +276,7 @@ static int create_schema(MYSQL *mysql, const char *db, statement *stmt,
 static void set_sql_mode(MYSQL *mysql);
 static int run_scheduler(stats *sptr, statement *stmts, uint concur,
                          ulonglong limit);
-extern "C"[[noreturn]] void *run_task(void *p);
+extern "C" void *run_task(void *p);
 void statement_cleanup(statement *stmt);
 void option_cleanup(option_string *stmt);
 void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr);
@@ -1632,7 +1632,7 @@ static int run_scheduler(stats *sptr, statement *stmts, uint concur,
   DBUG_RETURN(0);
 }
 
-extern "C"[[noreturn]] void *run_task(void *p) {
+extern "C" void *run_task(void *p) {
   ulonglong counter = 0, queries;
   ulonglong detach_counter;
   unsigned int commit_counter;
@@ -1775,6 +1775,7 @@ end:
 
   DBUG_LEAVE;
   my_thread_exit(0);
+  return 0;
 }
 
 int parse_option(const char *origin, option_string **stmt, char delm) {

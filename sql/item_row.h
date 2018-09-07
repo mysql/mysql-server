@@ -90,8 +90,7 @@ class Item_row : public Item {
   bool itemize(Parse_context *pc, Item **res) override;
 
   enum Type type() const override { return ROW_ITEM; }
-  [[noreturn]] void illegal_method_call(const char *) const
-      MY_ATTRIBUTE((cold));
+  void illegal_method_call(const char *) const MY_ATTRIBUTE((cold));
   bool is_null() override { return null_value; }
   void make_field(Send_field *) override { illegal_method_call("make_field"); }
   double val_real() override {

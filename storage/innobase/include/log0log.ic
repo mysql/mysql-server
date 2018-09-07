@@ -177,8 +177,6 @@ inline bool log_needs_free_check() {
   return (sn > log.sn_limit_for_start.load());
 }
 
-#ifndef UNIV_LIBRARY
-
 /** Call this function before starting a mini-transaction.  It will check
 for space in the redo log. It assures there is at least
 concurrency_safe_free_margin.  If the space is not available, this will
@@ -230,8 +228,6 @@ inline void log_free_check() {
     log_free_check_wait(log, sn);
   }
 }
-
-#endif  // !UNIV_LIBRARY
 
 constexpr inline lsn_t log_translate_sn_to_lsn(lsn_t sn) {
   return (sn / LOG_BLOCK_DATA_SIZE * OS_FILE_LOG_BLOCK_SIZE +

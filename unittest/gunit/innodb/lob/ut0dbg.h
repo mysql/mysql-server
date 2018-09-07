@@ -28,8 +28,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "lot0types.h"
 
-[[noreturn]] void ut_dbg_assertion_failed(const char *expr, const char *file,
-                                          ulint line);
+void ut_dbg_assertion_failed(const char *expr, const char *file, ulint line);
 
 #define ut_a(EXPR)                                               \
   do {                                                           \

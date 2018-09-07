@@ -179,7 +179,7 @@ SRV_SHUTDOWN_CLEANUP and then to SRV_SHUTDOWN_LAST_PHASE, and so on */
 extern enum srv_shutdown_t srv_shutdown_state;
 
 /** Call exit(3) */
-[[noreturn]] void srv_fatal_error();
+void srv_fatal_error() MY_ATTRIBUTE((noreturn));
 /**
 Shutdown all background threads created by InnoDB. */
 void srv_shutdown_all_bg_threads();

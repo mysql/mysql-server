@@ -25,7 +25,6 @@
 
 #ifndef XCOM_STANDALONE
 
-#include "my_compiler.h"
 #include "my_sys.h"
 #include "my_thread.h"
 #include "mysql/psi/psi_thread.h"
@@ -150,7 +149,7 @@ class My_xp_thread_util {
     @param value_ptr thread exit value pointer
   */
 
-  static void exit(void *value_ptr) MY_ATTRIBUTE((noreturn));
+  static void exit(void *value_ptr);
 
   /**
     Initialize thread attributes object.

@@ -252,13 +252,15 @@ CHARSET_INFO *system_charset_info = &my_charset_latin1;
 
 char opt_plugin_dir[FN_REFLEN];
 
-[[noreturn]] bool check_string_char_length(const LEX_CSTRING &, const char *,
-                                           size_t, const CHARSET_INFO *, bool) {
+bool check_string_char_length(const LEX_CSTRING &, const char *, size_t,
+                              const CHARSET_INFO *, bool) {
   MY_ASSERT_UNREACHABLE();
+  return true;
 }
 
-[[noreturn]] bool check_valid_path(const char *, size_t) {
+bool check_valid_path(const char *, size_t) {
   MY_ASSERT_UNREACHABLE();
+  return true;
 }
 
 namespace registry_unittest {

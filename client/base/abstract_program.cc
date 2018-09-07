@@ -56,7 +56,7 @@ Abstract_program::Abstract_program()
   this->add_providers(&this->m_help_options, &this->m_debug_options, NULL);
 }
 
-[[noreturn]] void Abstract_program::run(int argc, char **argv) {
+void Abstract_program::run(int argc, char **argv) {
   this->init_name(argv[0]);
 
   MY_INIT(this->m_name.c_str());

@@ -64,7 +64,7 @@ class Disjoint : public Functor<bool> {
   Disjoint(double semi_major, double semi_minor);
   bool operator()(const Geometry *g1, const Geometry *g2) const override;
   bool operator()(const Box *b1, const Box *b2) const;
-  [[noreturn]] bool eval(const Geometry *g1, const Geometry *g2) const;
+  bool eval(const Geometry *g1, const Geometry *g2) const;
 
   //////////////////////////////////////////////////////////////////////////////
 

@@ -163,7 +163,7 @@ int my_thread_create(my_thread_handle *thread, const my_thread_attr_t *attr,
                      my_start_routine func, void *arg);
 int my_thread_join(my_thread_handle *thread, void **value_ptr);
 int my_thread_cancel(my_thread_handle *thread);
-[[noreturn]] void my_thread_exit(void *value_ptr);
+void my_thread_exit(void *value_ptr) MY_ATTRIBUTE((noreturn));
 
 extern bool my_thread_global_init();
 extern void my_thread_global_reinit();

@@ -131,11 +131,13 @@ void Control_notification::do_execute() {
   static_cast<void>((*m_functor)(m_control_if));
 }
 
-[[noreturn]] void *process_notification_thread(void *ptr_object) {
+void *process_notification_thread(void *ptr_object) {
   Gcs_xcom_engine *engine = static_cast<Gcs_xcom_engine *>(ptr_object);
   engine->process();
 
   My_xp_thread_util::exit(0);
+
+  return NULL;
 }
 
 Gcs_xcom_engine::Gcs_xcom_engine()

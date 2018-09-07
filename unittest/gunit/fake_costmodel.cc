@@ -65,13 +65,10 @@ cost_constant_error SE_cost_constants::set(const LEX_CSTRING &, const double,
 /* purecov: end */
 
 /* purecov: begin inspected */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmissing-noreturn"
 Cost_model_se_info::~Cost_model_se_info() {
   // This is only implemented in order to link the unit tests
   DBUG_ASSERT(false);
 }
-#pragma GCC diagnostic pop
 /* purecov: end */
 
 /* purecov: begin inspected */

@@ -1564,12 +1564,12 @@ static int test_if_case_insensitive(const char *dir_name);
 static void end_ssl();
 static void delete_dictionary_tablespace();
 
-extern "C"[[noreturn]] void *signal_hand(void *arg);
+extern "C" void *signal_hand(void *arg);
 static bool pid_file_created = false;
 static void usage(void);
 static void clean_up_mutexes(void);
 static bool create_pid_file();
-[[noreturn]] static void mysqld_exit(int exit_code);
+static void mysqld_exit(int exit_code) MY_ATTRIBUTE((noreturn));
 static void delete_pid_file(myf flags);
 static void clean_up(bool print_message);
 static int handle_early_options();
@@ -1933,7 +1933,7 @@ void kill_mysql(void) {
   DBUG_VOID_RETURN;
 }
 
-[[noreturn]] static void unireg_abort(int exit_code) {
+static void unireg_abort(int exit_code) {
   DBUG_ENTER("unireg_abort");
 
   if (errno) {
@@ -2702,7 +2702,7 @@ LONG WINAPI my_unhandler_exception_filter(EXCEPTION_POINTERS *ex_pointers) {
    To overcome, one could put a MessageBox, but this will not work in service.
    Better solution is to print error message and sleep some minutes
    until debugger is attached
-*/
+ */
   wait_for_debugger(DEBUGGER_ATTACH_TIMEOUT);
 #endif /* DEBUG_UNHANDLED_EXCEPTION_FILTER */
   __try {
@@ -2864,7 +2864,7 @@ static void start_signal_handler() {
 
 /** This thread handles SIGTERM, SIGQUIT and SIGHUP signals. */
 /* ARGSUSED */
-extern "C"[[noreturn]] void *signal_hand(void *arg MY_ATTRIBUTE((unused))) {
+extern "C" void *signal_hand(void *arg MY_ATTRIBUTE((unused))) {
   my_thread_init();
 
   sigset_t set;
@@ -2903,12 +2903,13 @@ extern "C"[[noreturn]] void *signal_hand(void *arg MY_ATTRIBUTE((unused))) {
     if (cleanup_done) {
       my_thread_end();
       my_thread_exit(0);  // Safety
+      return NULL;        // Avoid compiler warnings
     }
     switch (sig) {
       case SIGUSR2:
         signal_hand_thr_exit_code = MYSQLD_RESTART_EXIT;
 #ifndef __APPLE__  // Mac OS doesn't have sigwaitinfo.
-                   //  Log a note if mysqld is restarted via kill command.
+        //  Log a note if mysqld is restarted via kill command.
         if (sig_info.si_pid != getpid()) {
           sql_print_information(
               "Received signal SIGUSR2."
@@ -2916,7 +2917,7 @@ extern "C"[[noreturn]] void *signal_hand(void *arg MY_ATTRIBUTE((unused))) {
               server_version);
         }
 #endif             // __APPLE__
-                   // fall through
+        // fall through
       case SIGTERM:
       case SIGQUIT:
         // Switch to the file log message processing.
@@ -2953,6 +2954,7 @@ extern "C"[[noreturn]] void *signal_hand(void *arg MY_ATTRIBUTE((unused))) {
         }
         my_thread_end();
         my_thread_exit(nullptr);
+        return NULL;  // Avoid compiler warnings
         break;
       case SIGHUP:
         if (!connection_events_loop_aborted()) {
@@ -2971,6 +2973,7 @@ extern "C"[[noreturn]] void *signal_hand(void *arg MY_ATTRIBUTE((unused))) {
         break; /* purecov: tested */
     }
   }
+  return NULL; /* purecov: deadcode */
 }
 
 #endif  // !_WIN32
@@ -9559,12 +9562,12 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
   We automaticly add suffixes -debug, -valgrind, -asan, -ubsan
   to the version name to make the version more descriptive.
   (MYSQL_SERVER_SUFFIX is set by the compilation environment)
- */
+*/
 
 /*
   The following code is quite ugly as there is no portable way to easily set a
   string to the value of a macro
- */
+*/
 #ifdef MYSQL_SERVER_SUFFIX
 #define MYSQL_SERVER_SUFFIX_STR STRINGIFY_ARG(MYSQL_SERVER_SUFFIX)
 #else

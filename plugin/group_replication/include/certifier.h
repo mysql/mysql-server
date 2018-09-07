@@ -138,7 +138,7 @@ class Certifier_broadcast_thread {
   /**
     Broadcast thread worker method.
   */
-  [[noreturn]] void dispatcher();
+  void dispatcher();
 
   /**
     Period (in seconds) between stable transactions set

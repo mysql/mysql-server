@@ -7733,7 +7733,7 @@ void pfs_register_data_lock_v1(PSI_engine_data_lock_inspector *inspector) {
   g_data_lock_inspector_count++;
 }
 
-[[noreturn]] void pfs_unregister_data_lock_v1(
+void pfs_unregister_data_lock_v1(
     PSI_engine_data_lock_inspector * /* inspector */) {
   /*
     This code is not used yet, because:
@@ -7741,10 +7741,6 @@ void pfs_register_data_lock_v1(PSI_engine_data_lock_inspector *inspector) {
     - the innodb engine is never unloaded.
   */
   DBUG_ASSERT(false);
-#ifdef __GNUC__
-  __builtin_unreachable();  // Silences warning about returning in optimized
-                            // mode.
-#endif
 
 #ifdef LATER
   for (unsigned int i = 0; i < COUNT_DATA_LOCK_ENGINES; i++) {

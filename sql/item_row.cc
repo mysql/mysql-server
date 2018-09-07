@@ -85,12 +85,13 @@ bool Item_row::itemize(Parse_context *pc, Item **res) {
   return false;
 }
 
-[[noreturn]] void Item_row::illegal_method_call(
+void Item_row::illegal_method_call(
     const char *method MY_ATTRIBUTE((unused))) const {
+  DBUG_ENTER("Item_row::illegal_method_call");
   DBUG_PRINT("error", ("!!! %s method was called for row item", method));
   DBUG_ASSERT(0);
-  MY_ASSERT_UNREACHABLE();
   my_error(ER_OPERAND_COLUMNS, MYF(0), 1);
+  DBUG_VOID_RETURN;
 }
 
 bool Item_row::fix_fields(THD *thd, Item **) {

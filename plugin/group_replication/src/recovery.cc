@@ -283,7 +283,7 @@ void Recovery_module::leave_group_on_recovery_failure() {
 
   * Step 7: Terminate the recovery thread.
 */
-[[noreturn]] int Recovery_module::recovery_thread_handle() {
+int Recovery_module::recovery_thread_handle() {
   DBUG_ENTER("Recovery_module::recovery_thread_handle");
 
   /* Step 0 */
@@ -423,6 +423,8 @@ cleanup:
 
   my_thread_end();
   my_thread_exit(0);
+
+  DBUG_RETURN(error); /* purecov: inspected */
 }
 
 int Recovery_module::update_recovery_process(bool did_members_left,

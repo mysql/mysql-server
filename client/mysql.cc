@@ -1164,9 +1164,9 @@ static void end_timer(ulong start_time, char *buff);
 static void mysql_end_timer(ulong start_time, char *buff);
 static void nice_time(double sec, char *buff, bool part_second);
 static void kill_query(const char *reason);
-extern "C"[[noreturn]] void mysql_end(int sig);
+extern "C" void mysql_end(int sig);
 extern "C" void handle_ctrlc_signal(int);
-extern "C"[[noreturn]] void handle_quit_signal(int sig);
+extern "C" void handle_quit_signal(int sig);
 #if defined(HAVE_TERMIOS_H) && defined(GWINSZ_IN_SYS_IOCTL)
 static void window_resize(int);
 #endif
@@ -1423,7 +1423,7 @@ int main(int argc, char *argv[]) {
   DBUG_RETURN(0);  // Keep compiler happy
 }
 
-[[noreturn]] void mysql_end(int sig) {
+void mysql_end(int sig) {
 #ifndef _WIN32
   /*
     Ingnoring SIGQUIT, SIGINT and SIGHUP signals when cleanup process starts.
@@ -1508,7 +1508,7 @@ void handle_ctrlc_signal(int) {
   @param sig              Signal number
 */
 
-[[noreturn]] void handle_quit_signal(int sig) {
+void handle_quit_signal(int sig) {
   const char *reason = "Terminal close";
 
   if (!executing_query) {

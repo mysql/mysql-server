@@ -1139,10 +1139,11 @@ Command::Result Command::cmd_exit(std::istream &input,
   return Result::Stop_with_success;
 }
 
-[[noreturn]] Command::Result Command::cmd_abort(std::istream &input,
-                                                Execution_context *context,
-                                                const std::string &args) {
+Command::Result Command::cmd_abort(std::istream &input,
+                                   Execution_context *context,
+                                   const std::string &args) {
   exit(2);
+  return Result::Stop_with_success;
 }
 
 static bool kill_process(int pid) {

@@ -5691,8 +5691,7 @@ class Item_cache_row final : public Item_cache {
   */
   bool setup(Item *item) override;
   void store(Item *item) override;
-  [[noreturn]] void illegal_method_call(const char *) const
-      MY_ATTRIBUTE((cold));
+  void illegal_method_call(const char *) const MY_ATTRIBUTE((cold));
   void make_field(Send_field *) override { illegal_method_call("make_field"); }
   double val_real() override {
     illegal_method_call("val_real");

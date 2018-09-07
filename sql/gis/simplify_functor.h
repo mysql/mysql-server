@@ -53,7 +53,7 @@ class Simplify : public Unary_functor<std::unique_ptr<Geometry>> {
  public:
   Simplify(double max_distance) : m_max_distance(max_distance) {}
   std::unique_ptr<Geometry> operator()(const Geometry &g) const override;
-  [[noreturn]] std::unique_ptr<Geometry> eval(const Geometry &g) const;
+  std::unique_ptr<Geometry> eval(const Geometry &g) const;
   std::unique_ptr<Geometry> eval(const Cartesian_point &g) const;
   std::unique_ptr<Geometry> eval(const Cartesian_linestring &g) const;
   std::unique_ptr<Geometry> eval(const Cartesian_polygon &g) const;

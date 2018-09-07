@@ -66,14 +66,6 @@ IF(CMAKE_COMPILER_IS_GNUCXX)
   MY_ADD_CXX_WARNING_FLAG("Wimplicit-fallthrough=2")
 ENDIF()
 
-# Clang and GCC currently have different names for this, unfortunately.
-if(CMAKE_COMPILER_IS_GNUCXX)
-  MY_ADD_CXX_WARNING_FLAG("Wsuggest-attribute=noreturn")
-ENDIF()
-IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wmissing-noreturn")
-ENDIF()
-
 # Clang 6.0 and newer on Windows seems to enable -Weverything; turn off some
 # that are way too verbose for us.
 IF(WIN32 AND CMAKE_C_COMPILER_ID MATCHES "Clang")
@@ -187,6 +179,7 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   # -Wgnu-zero-variadic-macro-arguments
   # -Wimplicit-fallthrough
   # -Wkeyword-macro
+  # -Wmissing-noreturn
   # -Wmissing-prototypes
   # -Wmissing-variable-declarations
   # -Wnested-anon-types

@@ -6987,9 +6987,11 @@ void Fil_shard::complete_io(fil_node_t *file, const IORequest &type) {
 @param[in]	len		I/O length
 @param[in]	is_read		I/O type
 @param[in]	line		Line called from */
-[[noreturn]] static void fil_report_invalid_page_access_low(
-    page_no_t block_offset, space_id_t space_id, const char *space_name,
-    ulint byte_offset, ulint len, bool is_read, int line) {
+static void fil_report_invalid_page_access_low(page_no_t block_offset,
+                                               space_id_t space_id,
+                                               const char *space_name,
+                                               ulint byte_offset, ulint len,
+                                               bool is_read, int line) {
   ib::error(ER_IB_MSG_328)
       << "Trying to access page number " << block_offset
       << " in"

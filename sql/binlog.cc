@@ -173,7 +173,7 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all);
 static int binlog_prepare(handlerton *hton, THD *thd, bool all);
 static xa_status_code binlog_xa_commit(handlerton *hton, XID *xid);
 static xa_status_code binlog_xa_rollback(handlerton *hton, XID *xid);
-[[noreturn]] static void exec_binlog_error_action_abort(const char *err_string);
+static void exec_binlog_error_action_abort(const char *err_string);
 static int binlog_recover(Binlog_file_reader *binlog_file_reader,
                           my_off_t *valid_pos);
 
@@ -1891,8 +1891,7 @@ static xa_status_code binlog_xa_rollback(handlerton *, XID *xid) {
   @retval
     none
 */
-[[noreturn]] static void exec_binlog_error_action_abort(
-    const char *err_string) {
+static void exec_binlog_error_action_abort(const char *err_string) {
   THD *thd = current_thd;
   /*
     When the code enters here it means that there was an error at higher layer
@@ -3213,8 +3212,8 @@ static bool is_number(const char *str, ulong *res, bool allow_wildcards) {
 } /* is_number */
 
 /*
-               Number of warnings that will be printed to error log
-               before extension number is exhausted.
+   Number of warnings that will be printed to error log
+   before extension number is exhausted.
 */
 #define LOG_WARN_UNIQUE_FN_EXT_LEFT 1000
 
@@ -9353,7 +9352,7 @@ int THD::decide_logging_format(TABLE_LIST *tables) {
     /*
       Track if statement creates or drops a temporary table
       and log in ROW if it does.
-*/
+   */
     bool is_create_drop_temp_table = false;
     /*
        Identifies if a table is changed.

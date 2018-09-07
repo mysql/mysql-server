@@ -35,7 +35,7 @@
 #include "storage/myisam/myisamdef.h"
 #include "welcome_copyright_notice.h"
 
-[[noreturn]] static void usage();
+static void usage() MY_ATTRIBUTE((noreturn));
 static void complain(int val);
 static bool get_one_option(int, const struct my_option *, char *);
 

@@ -345,7 +345,7 @@ int Applier_module::apply_single_primary_action_packet(
   return error;
 }
 
-[[noreturn]] int Applier_module::applier_thread_handle() {
+int Applier_module::applier_thread_handle() {
   DBUG_ENTER("ApplierModule::applier_thread_handle()");
 
   // set the thread context
@@ -483,6 +483,8 @@ end:
   my_thread_end();
   applier_thread_is_exiting = true;
   my_thread_exit(0);
+
+  DBUG_RETURN(local_applier_error); /* purecov: inspected */
 }
 
 int Applier_module::initialize_applier_thread() {

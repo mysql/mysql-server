@@ -70,20 +70,18 @@ class Touches : public Functor<bool> {
   double semi_minor() const { return m_semi_minor; }
   bool operator()(const Geometry *g1, const Geometry *g2) const override;
   bool operator()(const Box *b1, const Box *b2) const;
-  [[noreturn]] bool eval(const Geometry *g1, const Geometry *g2) const;
+  bool eval(const Geometry *g1, const Geometry *g2) const;
 
   //////////////////////////////////////////////////////////////////////////////
 
   // touches(Cartesian_point, *)
 
-  [[noreturn]] bool eval(const Cartesian_point *g1,
-                         const Cartesian_point *g2) const;
+  bool eval(const Cartesian_point *g1, const Cartesian_point *g2) const;
   bool eval(const Cartesian_point *g1, const Cartesian_linestring *g2) const;
   bool eval(const Cartesian_point *g1, const Cartesian_polygon *g2) const;
   bool eval(const Cartesian_point *g1,
             const Cartesian_geometrycollection *g2) const;
-  [[noreturn]] bool eval(const Cartesian_point *g1,
-                         const Cartesian_multipoint *g2) const;
+  bool eval(const Cartesian_point *g1, const Cartesian_multipoint *g2) const;
   bool eval(const Cartesian_point *g1,
             const Cartesian_multilinestring *g2) const;
   bool eval(const Cartesian_point *g1, const Cartesian_multipolygon *g2) const;
@@ -130,15 +128,14 @@ class Touches : public Functor<bool> {
 
   // touches(Cartesian_multipoint, *)
 
-  [[noreturn]] bool eval(const Cartesian_multipoint *g1,
-                         const Cartesian_point *g2) const;
+  bool eval(const Cartesian_multipoint *g1, const Cartesian_point *g2) const;
   bool eval(const Cartesian_multipoint *g1,
             const Cartesian_linestring *g2) const;
   bool eval(const Cartesian_multipoint *g1, const Cartesian_polygon *g2) const;
   bool eval(const Cartesian_multipoint *g1,
             const Cartesian_geometrycollection *g2) const;
-  [[noreturn]] bool eval(const Cartesian_multipoint *g1,
-                         const Cartesian_multipoint *g2) const;
+  bool eval(const Cartesian_multipoint *g1,
+            const Cartesian_multipoint *g2) const;
   bool eval(const Cartesian_multipoint *g1,
             const Cartesian_multilinestring *g2) const;
   bool eval(const Cartesian_multipoint *g1,
@@ -185,14 +182,12 @@ class Touches : public Functor<bool> {
 
   // touches(Geographic_point, *)
 
-  [[noreturn]] bool eval(const Geographic_point *g1,
-                         const Geographic_point *g2) const;
+  bool eval(const Geographic_point *g1, const Geographic_point *g2) const;
   bool eval(const Geographic_point *g1, const Geographic_linestring *g2) const;
   bool eval(const Geographic_point *g1, const Geographic_polygon *g2) const;
   bool eval(const Geographic_point *g1,
             const Geographic_geometrycollection *g2) const;
-  [[noreturn]] bool eval(const Geographic_point *g1,
-                         const Geographic_multipoint *g2) const;
+  bool eval(const Geographic_point *g1, const Geographic_multipoint *g2) const;
   bool eval(const Geographic_point *g1,
             const Geographic_multilinestring *g2) const;
   bool eval(const Geographic_point *g1,
@@ -243,16 +238,15 @@ class Touches : public Functor<bool> {
 
   // touches(Geographic_multipoint, *)
 
-  [[noreturn]] bool eval(const Geographic_multipoint *g1,
-                         const Geographic_point *g2) const;
+  bool eval(const Geographic_multipoint *g1, const Geographic_point *g2) const;
   bool eval(const Geographic_multipoint *g1,
             const Geographic_linestring *g2) const;
   bool eval(const Geographic_multipoint *g1,
             const Geographic_polygon *g2) const;
   bool eval(const Geographic_multipoint *g1,
             const Geographic_geometrycollection *g2) const;
-  [[noreturn]] bool eval(const Geographic_multipoint *g1,
-                         const Geographic_multipoint *g2) const;
+  bool eval(const Geographic_multipoint *g1,
+            const Geographic_multipoint *g2) const;
   bool eval(const Geographic_multipoint *g1,
             const Geographic_multilinestring *g2) const;
   bool eval(const Geographic_multipoint *g1,

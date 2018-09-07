@@ -67,7 +67,7 @@ class Distance_sphere : public Functor<double> {
   double eval(const Geographic_multipoint *g1,
               const Geographic_multipoint *g2) const;
 
-  [[noreturn]] double eval(const Geometry *g1, const Geometry *g2) const;
+  double eval(const Geometry *g1, const Geometry *g2) const;
 };
 
 }  // namespace gis

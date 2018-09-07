@@ -130,7 +130,7 @@ int my_thread_cancel(my_thread_handle *thread) {
 #endif
 }
 
-[[noreturn]] void my_thread_exit(void *value_ptr) {
+void my_thread_exit(void *value_ptr) {
 #ifndef _WIN32
   pthread_exit(value_ptr);
 #else

@@ -116,8 +116,8 @@ class Command {
                   const std::string &args);
   Result cmd_exit(std::istream &input, Execution_context *context,
                   const std::string &args);
-  [[noreturn]] Result cmd_abort(std::istream &input, Execution_context *context,
-                                const std::string &args);
+  Result cmd_abort(std::istream &input, Execution_context *context,
+                   const std::string &args);
   Result cmd_shutdown_server(std::istream &input, Execution_context *context,
                              const std::string &args);
   Result cmd_reconnect(std::istream &input, Execution_context *context,

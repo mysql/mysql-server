@@ -434,8 +434,7 @@ int ProcessLauncher::write(const char *buf, size_t count) {
   return -1;
 }
 
-[[noreturn]] void ProcessLauncher::report_error(const char *msg,
-                                                const char *prefix) {
+void ProcessLauncher::report_error(const char *msg, const char *prefix) {
   char sys_err[64] = {'\0'};
   int errnum = errno;
   if (msg == NULL) {

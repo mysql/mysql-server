@@ -760,7 +760,7 @@ static void buf_dblwr_check_page_lsn(
 
 /** Asserts when a corrupt block is find during writing out data to the
  disk. */
-[[noreturn]] static void buf_dblwr_assert_on_corrupt_block(
+static void buf_dblwr_assert_on_corrupt_block(
     const buf_block_t *block) /*!< in: block to check */
 {
   buf_page_print(block->frame, univ_page_size, BUF_PAGE_PRINT_NO_CRASH);

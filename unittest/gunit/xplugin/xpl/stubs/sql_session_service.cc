@@ -28,10 +28,7 @@ int srv_session_init_thread(const void *) {
   return 0;
 }
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmissing-noreturn"
 void srv_session_deinit_thread() { DBUG_ASSERT(0); }
-#pragma GCC diagnostic pop
 
 MYSQL_THD srv_session_info_get_thd(MYSQL_SESSION) {
   DBUG_ASSERT(0);

@@ -303,6 +303,20 @@ struct Encryption {
   /** Default constructor */
   Encryption() : m_type(NONE) {}
 
+  /** Specific constructor
+  @param[in]	type		Algorithm type */
+  explicit Encryption(Type type) : m_type(type) {
+#ifdef UNIV_DEBUG
+    switch (m_type) {
+      case NONE:
+      case AES:
+
+      default:
+        ut_error;
+    }
+#endif /* UNIV_DEBUG */
+  }
+
   /** Copy constructor */
   Encryption(const Encryption &other)
       : m_type(other.m_type),

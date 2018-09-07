@@ -4733,11 +4733,11 @@ static int exec_relay_log_event(THD *thd, Relay_log_info *rli,
     }
 
     { /**
-                     The following failure injecion works in cooperation with
-         tests setting @@global.debug= 'd,incomplete_group_in_relay_log'. Xid or
-         Commit events are not executed to force the slave sql read hanging if
-         the realy log does not have any more events.
-                  */
+         The following failure injecion works in cooperation with tests
+         setting @@global.debug= 'd,incomplete_group_in_relay_log'.
+         Xid or Commit events are not executed to force the slave sql
+         read hanging if the realy log does not have any more events.
+      */
       DBUG_EXECUTE_IF(
           "incomplete_group_in_relay_log",
           if ((ev->get_type_code() == binary_log::XID_EVENT) ||
@@ -5067,7 +5067,7 @@ static int try_to_reconnect(THD *thd, MYSQL *mysql, Master_info *mi,
 
   @return Always 0.
 */
-extern "C"[[noreturn]] void *handle_slave_io(void *arg) {
+extern "C" void *handle_slave_io(void *arg) {
   THD *thd = NULL;  // needs to be first for thread_stack
   bool thd_added = false;
   MYSQL *mysql;
@@ -5574,6 +5574,7 @@ err:
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 #endif /* HAVE_WOLFSSL */
   my_thread_exit(0);
+  return (0);  // Avoid compiler warnings
 }
 
 /*
@@ -6537,7 +6538,7 @@ end:
 
   @return Always 0.
 */
-extern "C"[[noreturn]] void *handle_slave_sql(void *arg) {
+extern "C" void *handle_slave_sql(void *arg) {
   THD *thd; /* needs to be first for thread_stack */
   bool thd_added = false;
   char llbuff[22], llbuff1[22];
@@ -6960,6 +6961,7 @@ err:
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 #endif /* HAVE_WOLFSSL */
   my_thread_exit(0);
+  return 0;  // Avoid compiler warnings
 }
 
 /**
@@ -9410,7 +9412,7 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
         to ''/0, then second CHANGE MASTER would set the coords in mi to those
         of rli, i.e. to ''/0: we have lost all copies of the original good
         coordinates. That's why we always save good coords in rli.
-*/
+    */
       mi->rli->set_group_master_log_pos(mi->get_master_log_pos());
       mi->rli->set_group_master_log_name(mi->get_master_log_name());
       DBUG_PRINT("info", ("master_log_pos: %llu", mi->get_master_log_pos()));

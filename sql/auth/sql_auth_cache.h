@@ -448,7 +448,7 @@ using in_edge_itr_t =
 class Acl_map {
  public:
   Acl_map(Security_context *sctx, uint64 ver);
-  Acl_map(const Acl_map &map) = delete;
+  Acl_map(const Acl_map &map);
   Acl_map(const Acl_map &&map);
   ~Acl_map();
 

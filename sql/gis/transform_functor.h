@@ -72,7 +72,7 @@ class Transform : public Unary_functor<std::unique_ptr<Geometry>> {
             const std::string &new_srs_params, Coordinate_system output_cs);
 
   std::unique_ptr<Geometry> operator()(const Geometry &g) const override;
-  [[noreturn]] std::unique_ptr<Geometry> eval(const Geometry &g) const;
+  std::unique_ptr<Geometry> eval(const Geometry &g) const;
   std::unique_ptr<Geometry> eval(const Geographic_point &g) const;
   std::unique_ptr<Geometry> eval(const Geographic_linestring &g) const;
   std::unique_ptr<Geometry> eval(const Geographic_polygon &g) const;

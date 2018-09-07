@@ -314,8 +314,8 @@ class MYSQL_PROTOCOL_API HandshakeResponsePacket final : public Packet {
      *
      * Currently not implemented
      */
-    [[noreturn]] void parse(Capabilities::Flags server_capabilities) override;
-    [[noreturn]] void debug_dump() const override;
+    void parse(Capabilities::Flags server_capabilities) override;
+    void debug_dump() const override;
 
     HandshakeResponsePacket &packet_;
     Capabilities::Flags effective_capability_flags_;

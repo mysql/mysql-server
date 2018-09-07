@@ -58,8 +58,8 @@ class Help_options : public Abstract_options_provider {
   virtual void print_usage();
 
  private:
-  [[noreturn]] void help_callback(char *argument MY_ATTRIBUTE((unused)));
-  [[noreturn]] void version_callback(char *argument MY_ATTRIBUTE((unused)));
+  void help_callback(char *argument MY_ATTRIBUTE((unused)));
+  void version_callback(char *argument MY_ATTRIBUTE((unused)));
 
   void print_version_line();
 

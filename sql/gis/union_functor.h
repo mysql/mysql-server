@@ -62,7 +62,7 @@ class Union : public Functor<Geometry *> {
  public:
   Union(double semi_major, double semi_minor);
   Geometry *operator()(const Geometry *g1, const Geometry *g2) const override;
-  [[noreturn]] Geometry *eval(const Geometry *g1, const Geometry *g2) const;
+  Geometry *eval(const Geometry *g1, const Geometry *g2) const;
 
   //////////////////////////////////////////////////////////////////////////////
 

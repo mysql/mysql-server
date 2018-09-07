@@ -505,8 +505,8 @@ bool Touches::eval(const Cartesian_point *g1,
       *this, g1, g2);
 }
 
-[[noreturn]] bool Touches::eval(const Cartesian_point *,
-                                const Cartesian_multipoint *) const {
+bool Touches::eval(const Cartesian_point *,
+                   const Cartesian_multipoint *) const {
   // If dim(g1) == 0 and dim(g2) == 0, return NULL (SQL/MM 2015 Part 3,
   // Sect. 5.1.50).
   throw null_value_exception();

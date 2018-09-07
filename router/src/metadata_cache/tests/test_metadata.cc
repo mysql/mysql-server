@@ -191,7 +191,7 @@ class MockMySQLSession : public MySQLSession {
     connection_address_ = host + ":" + std::to_string(port);
   }
 
-  [[noreturn]] void connect_fail(const std::string &host, unsigned int port) {
+  void connect_fail(const std::string &host, unsigned int port) {
     flag_fail(host, port);
 
     // emulate real MySQLSession::connect() behaviour on failure

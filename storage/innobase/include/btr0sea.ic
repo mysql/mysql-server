@@ -56,8 +56,6 @@ btr_search_t *btr_search_get_info(dict_index_t *index) /*!< in: index */
   return (index->search_info);
 }
 
-#ifndef UNIV_HOTBACKUP
-
 /** Updates the search info. */
 UNIV_INLINE
 void btr_search_info_update(
@@ -86,8 +84,6 @@ void btr_search_info_update(
 
   btr_search_info_update_slow(info, cursor);
 }
-
-#endif
 
 /** X-Lock the search latch (corresponding to given index)
 @param[in]	index	index handler */

@@ -261,40 +261,6 @@ IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   ENDIF()
 ENDIF()
 
-# Disable certain warnings in generated code that we cannot do anything
-# about.
-IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  MY_CHECK_CXX_COMPILER_FLAG("-Wmissing-noreturn" HAVE_MISSING_NORETURN)
-  IF(HAVE_MISSING_NORETURN)
-    INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
-    ADD_COMPILE_FLAGS(fts/fts0blex.cc
-                      COMPILE_FLAGS "-Wno-missing-noreturn")
-    ADD_COMPILE_FLAGS(fts/fts0tlex.cc
-                      COMPILE_FLAGS "-Wno-missing-noreturn")
-    ADD_COMPILE_FLAGS(fts/lexyy.cc
-                      COMPILE_FLAGS "-Wno-missing-noreturn")
-    ADD_COMPILE_FLAGS(pars/lexyy.cc
-                      COMPILE_FLAGS "-Wno-missing-noreturn")
-    ADD_COMPILE_FLAGS(pars/pars0pars.cc
-                      COMPILE_FLAGS "-Wno-missing-noreturn")
-  ENDIF()
-
-  MY_CHECK_CXX_COMPILER_FLAG("-Wsuggest-attribute=noreturn" HAVE_SUGGEST_ATTRIBUTE_NORETURN)
-  IF(HAVE_SUGGEST_ATTRIBUTE_NORETURN)
-    INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
-    ADD_COMPILE_FLAGS(fts/fts0blex.cc
-                      COMPILE_FLAGS "-Wno-suggest-attribute=noreturn")
-    ADD_COMPILE_FLAGS(fts/fts0tlex.cc
-                      COMPILE_FLAGS "-Wno-suggest-attribute=noreturn")
-    ADD_COMPILE_FLAGS(fts/lexyy.cc
-                      COMPILE_FLAGS "-Wno-suggest-attribute=noreturn")
-    ADD_COMPILE_FLAGS(pars/lexyy.cc
-                      COMPILE_FLAGS "-Wno-suggest-attribute=noreturn")
-    ADD_COMPILE_FLAGS(pars/pars0pars.cc
-                      COMPILE_FLAGS "-Wno-suggest-attribute=noreturn")
-  ENDIF()
-ENDIF()
-
 # A GCC bug causes crash when compiling these files on ARM64 with -O1+
 # Compile them with -O0 as a workaround.
 IF(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")

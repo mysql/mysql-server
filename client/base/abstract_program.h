@@ -61,7 +61,7 @@ class Abstract_program : public Options::Composite_options_provider {
   /**
     Does all initialization and exit work, calls execute().
    */
-  [[noreturn]] void run(int argc, char **argv);
+  void run(int argc, char **argv);
 
   /**
     Returns string describing current version of this program.

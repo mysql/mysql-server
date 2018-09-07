@@ -77,7 +77,7 @@ extern volatile sig_atomic_t calling_initgroups;
  *
  * @param sig Signal number
  */
-extern "C"[[noreturn]] void handle_fatal_signal(int sig) {
+extern "C" void handle_fatal_signal(int sig) {
   if (segfaulted) {
     my_safe_printf_stderr("Fatal " SIGNAL_FMT " while backtracing\n", sig);
     _exit(MYSQLD_FAILURE_EXIT); /* Quit without running destructors */

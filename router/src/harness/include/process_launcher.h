@@ -202,7 +202,7 @@ class HARNESS_EXPORT ProcessLauncher : public SpawnedProcess {
    * exception's message is specific of the platform error. (errno in Linux /
    * GetLastError in Windows).
    */
-  [[noreturn]] void report_error(const char *msg, const char *prefix = "");
+  void report_error(const char *msg, const char *prefix = "");
 
   /**
    * Closes child process and returns process' exit code.

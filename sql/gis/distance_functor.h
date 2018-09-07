@@ -55,7 +55,7 @@ class Distance : public Functor<double> {
  public:
   Distance(double major, double minor);
   double operator()(const Geometry *g1, const Geometry *g2) const override;
-  [[noreturn]] double eval(const Geometry *g1, const Geometry *g2) const;
+  double eval(const Geometry *g1, const Geometry *g2) const;
 
   //////////////////////////////////////////////////////////////////////////////
 
