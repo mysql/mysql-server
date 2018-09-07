@@ -191,10 +191,6 @@ IF(WITH_NDB_CCFLAGS)
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${WITH_NDB_CCFLAGS}")
 ENDIF()
 
-# Remove these from NDB builds for the time being.
-STRING(REPLACE "-Wsuggest-attribute=noreturn " "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
-STRING(REPLACE "-Wmissing-noreturn-attribute " "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
-
 # Set extra compiler switches from environment variable NDB_EXTRA_FLAGS
 SET(ndb_flags_env $ENV{NDB_EXTRA_FLAGS})
 IF(ndb_flags_env)
