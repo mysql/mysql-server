@@ -668,8 +668,6 @@ void Gcs_xcom_control::do_remove_node_from_group() {
   if (m_view_control->is_leaving() || !m_view_control->belongs_to_group())
     return;
 
-  m_view_control->start_leave();
-
   int local_port = m_local_node_address->get_member_port();
   int rm_ret = 0;
   connection_descriptor *con = NULL;
@@ -692,7 +690,6 @@ void Gcs_xcom_control::do_remove_node_from_group() {
     MYSQL_GCS_LOG_ERROR(
         "do_remove_node_from_group: Error resolving local address name: "
         << m_local_node_address->get_member_ip().c_str() << ". Leaving...")
-    m_view_control->end_leave();
     return;
   } else {
     MYSQL_GCS_LOG_DEBUG(
@@ -767,16 +764,13 @@ void Gcs_xcom_control::do_remove_node_from_group() {
   }
 
   /*
-    Destroy this node's stored suspicions and stop thread.
+    Destroy this node's stored suspicions to avoid them from unnecessary
+    processing by the manager.
   */
   m_suspicions_manager->clear_suspicions();
-  set_terminate_suspicion_thread(true);
-  m_suspicions_processing_thread.join(NULL);
-  MYSQL_GCS_LOG_TRACE("The suspicions processing thread has joined.");
 
   MYSQL_GCS_LOG_DEBUG("do_remove_node_from_group finished! Returning %d",
                       rm_ret);
-  m_view_control->end_leave();
 
   return;
 }
