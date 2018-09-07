@@ -151,7 +151,7 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wnon-virtual-dtor")
   STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wundefined-reinterpret-cast")
   STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wextra-semi")
-  STRING_APPEND(MY_CXX_WARNING_FLAGS " -Winconsistent-missing-destructor-override")
+  MY_ADD_CXX_WARNING_FLAG("-Winconsistent-missing-destructor-override")
 
   # Other possible options that give warnings (Clang 6.0):
   # -Wabstract-vbase-init
