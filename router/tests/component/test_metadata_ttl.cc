@@ -119,7 +119,7 @@ class MetadataChacheTTLTest : public RouterComponentTest {
     do {
       const std::string log_content = get_router_log_output();
       const std::string needle = "Starting metadata cache refresh thread";
-      thread_started = log_content.find(needle);
+      thread_started = (log_content.find(needle) != log_content.npos);
       if (!thread_started) {
         unsigned step = std::min(timeout_msec, MSEC_STEP);
         std::this_thread::sleep_for(std::chrono::milliseconds(step));
@@ -187,6 +187,11 @@ struct MetadataTTLTestParams {
         at_least(at_least_) {}
 };
 
+std::ostream &operator<<(std::ostream &os, const MetadataTTLTestParams &param) {
+  return os << "(" << param.ttl << ", " << param.router_uptime.count() << "ms, "
+            << param.expected_md_queries_count << ", " << param.at_least << ")";
+}
+
 class MetadataChacheTTLTestParam
     : public MetadataChacheTTLTest,
       public ::testing::TestWithParam<MetadataTTLTestParams> {
@@ -211,7 +216,9 @@ TEST_P(MetadataChacheTTLTestParam, CheckTTLValid) {
   std::shared_ptr<void> exit_guard2(nullptr,
                                     [&](void *) { purge_dir(conf_dir); });
 
-  // launch the serevr mock (it's our metadata server and single cluster node)
+  SCOPED_TRACE(
+      "// launch the server mock (it's our metadata server and single cluster "
+      "node)");
   auto md_server_port = port_pool_.get_next_available();
   auto md_server_http_port = port_pool_.get_next_available();
   const std::string json_metadata =
@@ -222,7 +229,7 @@ TEST_P(MetadataChacheTTLTestParam, CheckTTLValid) {
   bool ready = wait_for_port_ready(md_server_port, 1000);
   EXPECT_TRUE(ready) << metadata_server.get_full_output();
 
-  // launch the router with metadata-cache configuration
+  SCOPED_TRACE("// launch the router with metadata-cache configuration");
   const auto router_port = port_pool_.get_next_available();
   const std::string metadata_cache_section =
       get_metadata_cache_section(md_server_port, test_params.ttl);
@@ -289,7 +296,7 @@ TEST_P(MetadataChacheTTLTestParamInvalid, CheckTTLInvalid) {
   std::shared_ptr<void> exit_guard2(nullptr,
                                     [&](void *) { purge_dir(conf_dir); });
 
-  // launch the serevr mock (it's our metadata server and single cluster node)
+  // launch the server mock (it's our metadata server and single cluster node)
   auto md_server_port = port_pool_.get_next_available();
   auto md_server_http_port = port_pool_.get_next_available();
   const std::string json_metadata =
