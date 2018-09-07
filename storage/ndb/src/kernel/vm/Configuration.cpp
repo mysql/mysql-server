@@ -727,7 +727,9 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
   struct AttribStorage { int paramId; Uint32 * storage; bool computable; };
   AttribStorage tmp[] = {
     { CFG_DB_NO_SCANS, &noOfScanRecords, false },
+//CFG_DB_RESERVED_SCANS
     { CFG_DB_NO_LOCAL_SCANS, &noOfLocalScanRecords, true },
+//CFG_DB_RESERVED_LOCAL_SCANS
     { CFG_DB_BATCH_SIZE, &noBatchSize, false },
     { CFG_DB_NO_TABLES, &noOfTables, false },
     { CFG_DB_NO_ORDERED_INDEXES, &noOfOrderedIndexes, false },
@@ -736,9 +738,13 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     { CFG_DB_NO_REPLICAS, &noOfReplicas, false },
     { CFG_DB_NO_ATTRIBUTES, &noOfAttributes, false },
     { CFG_DB_NO_OPS, &noOfOperations, false },
+//CFG_DB_RESERVED_OPS
     { CFG_DB_NO_LOCAL_OPS, &noOfLocalOperations, true },
     { CFG_DB_NO_TRANSACTIONS, &noOfTransactions, false },
+//CFG_DB_RESERVED_TRANSACTIONS
     { CFG_DB_MAX_DML_OPERATIONS_PER_TRANSACTION, &maxOpsPerTrans, false }
+//CFG_DB_RESERVED_INDEX_OPS
+//CFG_DB_RESERVED_TRIGGER_OPS
   };
 
   ndb_mgm_configuration_iterator db(*(ndb_mgm_configuration*)ownConfig, 0);
