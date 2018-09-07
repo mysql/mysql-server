@@ -3107,7 +3107,9 @@ Dbtc::sendPoolShrink(const Uint32 pool_index)
   c_transient_pools_shrinking.set(pool_index);
   if (need_send)
   {
-    SignalT<2> signal[1];
+    SignalT<2> signal2[1];
+    Signal* signal = new (&signal2[0]) Signal(0);
+bzero(signal2, sizeof(signal2));
     signal->theData[0] = TcContinueB::ZSHRINK_TRANSIENT_POOLS;
     signal->theData[1] = pool_index;
 ndbrequire(signal->header.m_noOfSections == 0);
