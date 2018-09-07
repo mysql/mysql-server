@@ -254,11 +254,11 @@ int Persisted_variables_cache::init(int *argc, char ***argv) {
   */
   dirs = ((datadir) ? datadir : mysql_real_data_home);
   unpack_dirname(dir, dirs);
-  if (fn_format(datadir_buffer, MYSQL_PERSIST_CONFIG_NAME, dir, ".cnf",
+  my_realpath(datadir_buffer, dir, MYF(0));
+  unpack_dirname(datadir_buffer, datadir_buffer);
+  if (fn_format(dir, MYSQL_PERSIST_CONFIG_NAME, datadir_buffer, ".cnf",
                 MY_UNPACK_FILENAME | MY_SAFE_PATH) == NULL)
     return 1;
-  my_realpath(dir, datadir_buffer, MYF(0));
-  unpack_dirname(datadir_buffer, dir);
   m_persist_filename = string(dir);
 
   mysql_mutex_init(key_persist_variables, &m_LOCK_persist_variables,
