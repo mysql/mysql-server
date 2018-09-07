@@ -50,7 +50,7 @@ if (! defined $gen_branch) {
 }
 chomp ($gen_branch);
 
-$gen_revision = $ENV{BRANCH_REVISION};
+$gen_revision = $ENV{PUSH_REVISION};
 if (! defined $gen_revision) {
   $gen_revision = `git log -1 --format=%H`;
 }
