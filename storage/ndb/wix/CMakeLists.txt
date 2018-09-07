@@ -1,4 +1,4 @@
-# Copyright (c) 2013, 2017 Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2018 Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -108,7 +108,7 @@ ADD_CUSTOM_COMMAND(OUTPUT "${WXS_BASENAME}.wixobj"
 # Run WiX-tool light.exe on "object code" to produce .msi file
 ADD_CUSTOM_COMMAND(OUTPUT "${CPACK_PACKAGE_FILE_NAME}.msi"
 	COMMAND "${LIGHT_EXECUTABLE}" -nologo -sw1076 -ss -ext WixUIExtension -ext WixUtilExtension "${WXS_BASENAME}.wixobj" -out "${CPACK_PACKAGE_FILE_NAME}.msi" "$ENV{EXTRA_LIGHT_ARGS}"
-	DEPENDS "${WXS_BASENAME}.wixobj" wixca
+	DEPENDS "${WXS_BASENAME}.wixobj"
 	COMMENT "light( ${WXS_BASENAME}.wixobj ) -> ${CPACK_PACKAGE_FILE_NAME}.msi"
 	VERBATIM)
 
@@ -149,5 +149,4 @@ ELSE(WIX_DONT_SET_CPACK_MONOLITHIC_INSTALL)
 		COMMENT "Run cmake on cache to turn CPACK_MONOLITHIC_INSTALL back on"
 		VERBATIM)
 ENDIF(WIX_DONT_SET_CPACK_MONOLITHIC_INSTALL)
-ADD_DEPENDENCIES(NDB_MSI wixca)
 ADD_DEPENDENCIES(NDB_MSI configure_mysql_server_extra)
