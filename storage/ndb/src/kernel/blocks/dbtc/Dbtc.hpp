@@ -2491,7 +2491,7 @@ private:
 
   ApiConnectRecord_pool MY_ALIGNED(64) c_apiConnectRecordPool;
   RSS_AP_SNAPSHOT(c_apiConnectRecordPool);
-  UintR capiConnectFilesize;
+//  UintR capiConnectFilesize;
 
   TcConnectRecord_pool MY_ALIGNED(64) tcConnectRecord;
   TcConnectRecordPtr tcConnectptr;

@@ -108,7 +108,7 @@ Uint64 Dbtc::getTransactionMemoryNeed(
 
 void Dbtc::initData() 
 {
-  capiConnectFilesize = ZAPI_CONNECT_FILESIZE;
+//  capiConnectFilesize = ZAPI_CONNECT_FILESIZE;
   chostFilesize = MAX_NODES;
   cscanrecFileSize = ZSCANREC_FILE_SIZE;
   ctabrecFilesize = ZTABREC_FILESIZE;
@@ -169,7 +169,8 @@ void Dbtc::initRecords(const ndb_mgm_configuration_iterator * mgm_cfg)
   }
   while (indexes.releaseFirst());
 
-  m_commitAckMarkerHash.setSize(capiConnectFilesize);
+// todo(wl9756)  m_commitAckMarkerHash.setSize(capiConnectFilesize);
+/* todo(wl9756) */  m_commitAckMarkerHash.setSize(1024);
 
   hostRecord = (HostRecord*)allocRecord("HostRecord",
 					sizeof(HostRecord),
