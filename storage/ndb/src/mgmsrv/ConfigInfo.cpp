@@ -2452,6 +2452,84 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "512"
   },
 
+  {
+    CFG_DB_RESERVED_INDEX_OPS,
+    "ReservedConcurrentIndexOperations",
+    DB_TOKEN,
+    "Number of simultaneous index operations that have dedicated resources on one " DB_TOKEN_PRINT " node",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "2K",
+    "0",
+    STR_VALUE(MAX_INT_RNIL)
+  },
+
+  {
+    CFG_DB_RESERVED_TRIGGER_OPS,
+    "ReservedFiredTriggers",
+    DB_TOKEN,
+    "Number of triggers that have dedicated resources on one " DB_TOKEN_PRINT " node",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "1000",
+    "0",
+    STR_VALUE(MAX_INT_RNIL)
+  },
+
+  {
+    CFG_DB_RESERVED_OPS,
+    "ReservedConcurrentOperations",
+    DB_TOKEN,
+    "Number of simultaneous operation that have dedicated resources in transaction coordinators on one " DB_TOKEN_PRINT " node",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "8k",
+    "32",
+    STR_VALUE(MAX_INT_RNIL)
+  },
+
+  {
+    CFG_DB_RESERVED_LOCAL_SCANS,
+    "ReservedLocalScans",
+    DB_TOKEN,
+    "Number of simultaneous fragment scans that have dedicated resources on one " DB_TOKEN_PRINT " node",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    0,
+    "32",
+    STR_VALUE(MAX_INT_RNIL)
+  },
+
+  {
+    CFG_DB_RESERVED_TRANSACTIONS,
+    "ReservedConcurrentTransactions",
+    DB_TOKEN,
+    "Number of simultaneous transactions that have dedicated resources on one " DB_TOKEN_PRINT " node",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "1024",
+    "32",
+    STR_VALUE(MAX_INT_RNIL)
+  },
+
+  {
+    CFG_DB_RESERVED_SCANS,
+    "ReservedConcurrentScans",
+    DB_TOKEN,
+    "Number of simultaneous scans that have dedicated resources on one " DB_TOKEN_PRINT " node",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "64",
+    "2",
+    "500"
+  },
+
   /***************************************************************************
    * API
    ***************************************************************************/
@@ -5252,30 +5330,75 @@ fixShmKey(InitConfigFileParser::Context & ctx, const char *)
 /**
  * DB Node rule: Check various constraints
  */
-static bool
-checkDbConstraints(InitConfigFileParser::Context & ctx, const char *){
+#define CHECK_RESERVED_LESS_THAN_OR_EQUAL_TO_MAX_NO_OF(name)           \
+  if (Reserved##name > MaxNoOf##name)                                  \
+  {                                                                    \
+    ctx.reportError("Reserved" #name " must be less than or equal to " \
+		    "MaxNoOf" #name " - [%s] starting at line: %d",    \
+		    ctx.fname, ctx.m_sectionLineno);                   \
+    ok = false;                                                        \
+  }
 
-  Uint32 t1 = 0, t2 = 0;
-  ctx.m_currentSection->get("MaxNoOfConcurrentOperations", &t1);
-  ctx.m_currentSection->get("MaxNoOfConcurrentTransactions", &t2);
+static bool
+checkDbConstraints(InitConfigFileParser::Context & ctx, const char *)
+{
+  bool ok = true;
+
+  Uint32 MaxNoOfConcurrentIndexOperations = 0;
+  Uint32 MaxNoOfConcurrentOperations = 0;
+  Uint32 MaxNoOfConcurrentScans = 0;
+  Uint32 MaxNoOfConcurrentTransactions = 0;
+  Uint32 MaxNoOfFiredTriggers = 0;
+  Uint32 MaxNoOfLocalScans = 0;
+  Uint32 ReservedConcurrentIndexOperations = 0;
+  Uint32 ReservedConcurrentOperations = 0;
+  Uint32 ReservedConcurrentScans = 0;
+  Uint32 ReservedConcurrentTransactions = 0;
+  Uint32 ReservedFiredTriggers = 0;
+  Uint32 ReservedLocalScans = 0;
+
+  ctx.m_currentSection->get("MaxNoOfConcurrentIndexOperations", &MaxNoOfConcurrentIndexOperations);
+  ctx.m_currentSection->get("MaxNoOfConcurrentOperations", &MaxNoOfConcurrentOperations);
+  ctx.m_currentSection->get("MaxNoOfConcurrentScans", &MaxNoOfConcurrentScans);
+  ctx.m_currentSection->get("MaxNoOfConcurrentTransactions", &MaxNoOfConcurrentTransactions);
+  ctx.m_currentSection->get("MaxNoOfFiredTriggers", &MaxNoOfFiredTriggers);
+  ctx.m_currentSection->get("MaxNoOfLocalScans", &MaxNoOfLocalScans);
+  ctx.m_currentSection->get("ReservedConcurrentIndexOperations", &ReservedConcurrentIndexOperations);
+  ctx.m_currentSection->get("ReservedConcurrentOperations", &ReservedConcurrentOperations);
+  ctx.m_currentSection->get("ReservedConcurrentScans", &ReservedConcurrentScans);
+  ctx.m_currentSection->get("ReservedConcurrentTransactions", &ReservedConcurrentTransactions);
+  ctx.m_currentSection->get("ReservedFiredTriggers", &ReservedFiredTriggers);
+  ctx.m_currentSection->get("ReservedLocalScans", &ReservedLocalScans);
   
-  if (t1 < t2) {
+  if (MaxNoOfConcurrentOperations < MaxNoOfConcurrentTransactions)
+  {
     ctx.reportError("MaxNoOfConcurrentOperations must be greater than "
 		    "MaxNoOfConcurrentTransactions - [%s] starting at line: %d",
 		    ctx.fname, ctx.m_sectionLineno);
-    return false;
+    ok = false;
   }
+
+  CHECK_RESERVED_LESS_THAN_OR_EQUAL_TO_MAX_NO_OF(ConcurrentIndexOperations);
+  CHECK_RESERVED_LESS_THAN_OR_EQUAL_TO_MAX_NO_OF(ConcurrentOperations);
+  CHECK_RESERVED_LESS_THAN_OR_EQUAL_TO_MAX_NO_OF(ConcurrentScans);
+  CHECK_RESERVED_LESS_THAN_OR_EQUAL_TO_MAX_NO_OF(ConcurrentTransactions);
+  CHECK_RESERVED_LESS_THAN_OR_EQUAL_TO_MAX_NO_OF(FiredTriggers);
+  CHECK_RESERVED_LESS_THAN_OR_EQUAL_TO_MAX_NO_OF(LocalScans);
 
   Uint32 replicas = 0, otherReplicas;
   ctx.m_currentSection->get("NoOfReplicas", &replicas);
-  if(ctx.m_userProperties.get("NoOfReplicas", &otherReplicas)){
-    if(replicas != otherReplicas){
+  if (ctx.m_userProperties.get("NoOfReplicas", &otherReplicas))
+  {
+    if (replicas != otherReplicas)
+    {
       ctx.reportError("NoOfReplicas defined differently on different nodes"
 		      " - [%s] starting at line: %d",
 		      ctx.fname, ctx.m_sectionLineno);
-      return false;
+      ok = false;
     }
-  } else {
+  }
+  else
+  {
     ctx.m_userProperties.put("NoOfReplicas", replicas);
   }
 
@@ -5295,15 +5418,16 @@ checkDbConstraints(InitConfigFileParser::Context & ctx, const char *){
 
   Uint64 sum= (Uint64)noOfTables + noOfOrderedIndexes + noOfUniqueHashIndexes;
   
-  if (sum > ((Uint32)~0 - 2)) {
+  if (sum > ((Uint32)~0 - 2))
+  {
     ctx.reportError("The sum of MaxNoOfTables, MaxNoOfOrderedIndexes and"
 		    " MaxNoOfUniqueHashIndexes must not exceed %u - [%s]"
                     " starting at line: %d",
 		    ((Uint32)~0 - 2), ctx.fname, ctx.m_sectionLineno);
-    return false;
+    ok = false;
   } 
 
-  return true;
+  return ok;
 }
 
 #include <NdbThread.h>

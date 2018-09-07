@@ -2,4 +2,6 @@
 
 [cluster.config]
 MaxNoOfLocalScans=64
+ReservedLocalScans=16
 MaxNoOfConcurrentScans=64
+ReservedConcurrentScans=16

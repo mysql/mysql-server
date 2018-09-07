@@ -500,12 +500,14 @@ void Dbtc::execCONTINUEB(Signal* signal)
 #if defined(VM_TRACE) || defined(ERROR_INSERT) || defined(DO_TRANSIENT_POOL_STAT)
   case TcContinueB::ZTRANSIENT_POOL_STAT:
   {
+g_eventLogger->info("YYY: m_fragLocationPool %p high %u",&m_fragLocationPool, m_fragLocationPool.getUsedHi());
     for (Uint32 pool_index = 0; pool_index < c_transient_pool_count; pool_index++)
     {
       g_eventLogger->info(
-        "DBTC %u: Transient slot pool %u: Entry size %u: Free %u: Used %u: Used high %u: Size %u: For shrink %u",
+        "DBTC %u: Transient slot pool %u %p: Entry size %u: Free %u: Used %u: Used high %u: Size %u: For shrink %u",
         instance(),
         pool_index,
+        c_transient_pools[pool_index],
         c_transient_pools[pool_index]->getEntrySize(),
         c_transient_pools[pool_index]->getNoOfFree(),
         c_transient_pools[pool_index]->getUsed(),
@@ -1050,7 +1052,7 @@ void Dbtc::execREAD_CONFIG_REQ(Signal* signal)
     capiConnectFailCount = 0;
   }
 
-  initRecords();
+  initRecords(p);
   initialiseRecordsLab(signal, 0, ref, senderData);
 
   Uint32 val = 3000;
@@ -13712,6 +13714,7 @@ void Dbtc::sendDihGetNodesLab(Signal* signal, ScanRecordPtr scanptr, ApiConnectR
       scanError(signal, scanptr, ZGET_DATAREC_ERROR);
       return;
     }
+fprintf(stderr,"YYY: %s: %u: %s: DBTC %u: scanptr %u: seize frag loc %u high %u\n",__FILE__,__LINE__,__func__,instance(),scanptr.i,fragLocationPtr.i,m_fragLocationPool.getUsedHi());
     list.addLast(fragLocationPtr);
     fragLocationPtr.p->m_first_index = 0;
     fragLocationPtr.p->m_next_index = 0;
@@ -13887,6 +13890,7 @@ void Dbtc::releaseScanResources(Signal* signal,
                                       scanPtr.p->m_fragLocations);
     while (frags.removeFirst(ptr))
     {
+fprintf(stderr,"YYY: %s: %u: %s: DBTC %u: scanptr %u: release frag loc %u high %u\n",__FILE__,__LINE__,__func__,instance(),scanPtr.i,ptr.i,m_fragLocationPool.getUsedHi());
       m_fragLocationPool.release(ptr);
     }
     checkPoolShrinkNeed(DBTC_FRAG_LOCATION_TRANSIENT_POOL_INDEX,
@@ -14119,6 +14123,7 @@ bool Dbtc::sendDihGetNodeReq(Signal* signal,
         scanError(signal, scanptr, ZGET_DATAREC_ERROR);
         return false;
       }
+fprintf(stderr,"YYY: %s: %u: %s: DBTC %u: scanptr %u: seize frag loc %u high %u\n",__FILE__,__LINE__,__func__,instance(),scanptr.i,fragLocationPtr.i,m_fragLocationPool.getUsedHi());
       list.addLast(fragLocationPtr);
       index = 0;
       fragLocationPtr.p->m_first_index = 0;
@@ -14995,6 +15000,7 @@ Dbtc::get_and_step_next_frag_location(ScanFragLocationPtr & fragLocationPtr,
                                      scanPtrP->m_fragLocations);
     list.removeFirst(ptr);
     ndbassert(ptr.i == fragLocationPtr.i);
+fprintf(stderr,"YYY: %s: %u: %s: DBTC %u: scanptr %u: release frag loc %u high %u\n",__FILE__,__LINE__,__func__,instance(),RNIL/*scanPtr.i*/,ptr.i,m_fragLocationPool.getUsedHi());
     m_fragLocationPool.release(fragLocationPtr);  //Consumed it
     list.first(fragLocationPtr);
     checkPoolShrinkNeed(DBTC_FRAG_LOCATION_TRANSIENT_POOL_INDEX,
@@ -15636,6 +15642,7 @@ void Dbtc::initialiseTcConnect(Signal* signal)
     ndbrequire(tcConnectRecord.seize(tcConptr));
     tcConnectFailCount++;
 #ifdef VM_TRACE
+fprintf(stderr,"YYY: %s: %u: %s: DBTC %u: tcConptr.i %u\n",__FILE__,__LINE__,__func__,instance(),tcConptr.i);
     ndbassert((prevptr == 0) || (prevptr < tcConptr.i));
     prevptr = tcConptr.i;
 #endif

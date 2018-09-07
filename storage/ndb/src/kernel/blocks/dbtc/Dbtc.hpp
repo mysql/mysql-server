@@ -2446,7 +2446,7 @@ private:
   
   // Initialisation
   void initData();
-  void initRecords();
+  void initRecords(const ndb_mgm_configuration_iterator * mgm_cfg);
 
   /**
    * Functions used at completion of activities tracked for timing.

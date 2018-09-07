@@ -10,24 +10,32 @@ MaxNoOfLocalOperations=1024
 [cluster_config.ndbd.1.1]
 NodeId=1
 MaxNoOfConcurrentOperations=32
+ReservedConcurrentOperations=32
 MaxNoOfConcurrentTransactions=32
+ReservedConcurrentTransactions=32
 
 [cluster_config.ndbd.2.1]
 NodeId=2
 MaxNoOfConcurrentOperations=1024
+ReservedConcurrentOperations=256
 MaxNoOfConcurrentTransactions=32
+ReservedConcurrentTransactions=32
 #MaxDMLOperationsPerTransaction=1024
 MaxDMLOperationsPerTransaction=92
 
 [cluster_config.ndbd.3.1]
 NodeId=3
 MaxNoOfConcurrentOperations=32
+ReservedConcurrentOperations=32
 MaxNoOfConcurrentTransactions=32
+ReservedConcurrentTransactions=32
 
 [cluster_config.ndbd.4.1]
 NodeId=4
 MaxNoOfConcurrentOperations=32
+ReservedConcurrentOperations=32
 MaxNoOfConcurrentTransactions=32
+ReservedConcurrentTransactions=32
 
 [mysqld]
 ndb-data-node-neighbour=2

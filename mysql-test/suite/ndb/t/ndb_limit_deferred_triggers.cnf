@@ -3,6 +3,7 @@
 [cluster_config.1]
 MaxNoOfLocalOperations=50K
 MaxNoOfConcurrentOperations=50K
+ReservedConcurrentOperations=12K
 LongMessageBuffer=128M
 DataMemory=128M
 
