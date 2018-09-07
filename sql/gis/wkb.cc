@@ -281,7 +281,7 @@ class Wkb_parser {
     for (std::uint32_t i = 0; i < num_points; i++) {
       ls.push_back(parse_point(bo));
     }
-    return std::move(ls);
+    return ls;
   }
 
   Linestring_t parse_wkb_linestring() {
@@ -306,7 +306,7 @@ class Wkb_parser {
       }
       py.push_back(std::forward<gis::Linearring>(lr));
     }
-    return std::move(py);
+    return py;
   }
 
   Polygon_t parse_wkb_polygon() {
@@ -328,7 +328,7 @@ class Wkb_parser {
     for (std::uint32_t i = 0; i < num_points; i++) {
       mpt.push_back(parse_wkb_point());
     }
-    return std::move(mpt);
+    return mpt;
   }
 
   Multilinestring_t parse_multilinestring(Byte_order bo) {
@@ -341,7 +341,7 @@ class Wkb_parser {
       Linestring_t ls;
       mls.push_back(parse_wkb_linestring());
     }
-    return std::move(mls);
+    return mls;
   }
 
   Multipolygon_t parse_multipolygon(Byte_order bo) {
@@ -353,7 +353,7 @@ class Wkb_parser {
     for (std::uint32_t i = 0; i < num_polygons; i++) {
       mpy.push_back(parse_wkb_polygon());
     }
-    return std::move(mpy);
+    return mpy;
   }
 
   Geometrycollection_t parse_geometrycollection(Byte_order bo) {
@@ -366,7 +366,7 @@ class Wkb_parser {
       gc.push_back(std::move(*g));
       delete g;
     }
-    return std::move(gc);
+    return gc;
   }
 
   Geometry *parse_wkb() {

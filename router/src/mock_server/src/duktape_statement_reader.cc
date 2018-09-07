@@ -297,8 +297,11 @@ struct DuktapeStatementReader::Pimpl {
 
     duk_pop(ctx);  // "rows"
 
-    // gcc-4.8 needs a std::move, other's don't
+#ifdef __SUNPRO_CC
     return std::move(response);
+#else
+    return response;
+#endif
   }
   duk_context *ctx{nullptr};
 };

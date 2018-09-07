@@ -106,7 +106,11 @@ Json_dom_ptr merge_doms(Json_dom_ptr left, Json_dom_ptr right) {
     Json_object_ptr right_object(down_cast<Json_object *>(right.release()));
     if (left_object->consume(std::move(right_object)))
       return nullptr; /* purecov: inspected */
+#ifdef __SUNPRO_CC
     return std::move(left_object);
+#else
+    return left_object;
+#endif
   }
 
   Json_array_ptr left_array = wrap_in_array(std::move(left));
@@ -114,7 +118,12 @@ Json_dom_ptr merge_doms(Json_dom_ptr left, Json_dom_ptr right) {
   if (left_array == nullptr || right_array == nullptr ||
       left_array->consume(std::move(right_array)))
     return nullptr; /* purecov: inspected */
+
+#ifdef __SUNPRO_CC
   return std::move(left_array);
+#else
+  return left_array;
+#endif
 }
 #endif  // ifdef MYSQL_SERVER
 
@@ -186,7 +195,6 @@ static bool add_if_missing(Json_dom *candidate, Json_dom_vector *duplicates,
   }
   return false;
 }
-#endif  // ifdef MYSQL_SERVER
 
 /**
   Check if a seek operation performed by find_child_doms()
@@ -194,12 +202,10 @@ static bool add_if_missing(Json_dom *candidate, Json_dom_vector *duplicates,
 
   @return true if only one result is needed and a result has been found
 */
-#ifdef MYSQL_SERVER
 static inline bool is_seek_done(const Json_dom_vector *hits,
                                 bool only_need_one) {
   return only_need_one && hits->size() > 0;
 }
-#endif  // ifdef MYSQL_SERVER
 
 /**
   Find the child Json_dom objects identified by the given path.
@@ -223,7 +229,6 @@ static inline bool is_seek_done(const Json_dom_vector *hits,
   @param[in,out] result the vector of qualifying children
   @return false on success, true on error
 */
-#ifdef MYSQL_SERVER
 static bool find_child_doms(Json_dom *dom,
                             const Json_path_iterator &current_leg,
                             const Json_path_iterator &last_leg, bool auto_wrap,
@@ -726,6 +731,7 @@ static std::string get_string_data(const json_binary::Value &v) {
   return std::string(v.get_data(), v.get_data_length());
 }
 
+#ifdef MYSQL_SERVER
 /**
   Create a DOM template for the provided json_binary::Value.
 
@@ -740,7 +746,6 @@ static std::string get_string_data(const json_binary::Value &v) {
   @return a DOM template for the top-level the binary value, or NULL
   if an error is detected.
 */
-#ifdef MYSQL_SERVER
 static Json_dom *json_binary_to_dom_template(const json_binary::Value &v) {
   switch (v.type()) {
     case json_binary::Value::OBJECT:
@@ -1001,7 +1006,11 @@ Json_dom_ptr Json_object::clone() const {
       return nullptr; /* purecov: inspected */
   }
 
+#ifdef __SUNPRO_CC
   return std::move(o);
+#else
+  return o;
+#endif
 }
 
 bool Json_object::merge_patch(Json_object_ptr patch) {
@@ -1131,7 +1140,11 @@ Json_dom_ptr Json_array::clone() const {
     if (vv->append_clone(child.get())) return nullptr; /* purecov: inspected */
   }
 
+#ifdef __SUNPRO_CC
   return std::move(vv);
+#else
+  return vv;
+#endif
 }
 
 /**
@@ -1403,12 +1416,12 @@ Json_wrapper::~Json_wrapper() {
   }
 }
 
+#ifdef MYSQL_SERVER
 /**
   Common implementation of move-assignment and copy-assignment for
   Json_wrapper. If @a from is an rvalue, its contents are moved into
   @a to, otherwise the contents are copied over.
 */
-#ifdef MYSQL_SERVER
 template <typename T>
 static Json_wrapper &assign_json_wrapper(T &&from, Json_wrapper *to) {
   if (&from == to) {
@@ -2252,6 +2265,7 @@ static int compare_numbers(T val1, T val2) {
   return (val1 < val2) ? -1 : ((val1 == val2) ? 0 : 1);
 }
 
+#ifdef MYSQL_SERVER
 /**
   Compare a decimal value to a double by converting the double to a
   decimal.
@@ -2261,7 +2275,6 @@ static int compare_numbers(T val1, T val2) {
           0 if a is equal to b,
           1 if a is greater than b
 */
-#ifdef MYSQL_SERVER
 static int compare_json_decimal_double(const my_decimal &a, double b) {
   /*
     First check the sign of the two values. If they differ, the

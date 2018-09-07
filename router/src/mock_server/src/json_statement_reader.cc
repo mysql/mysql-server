@@ -417,7 +417,11 @@ std::unique_ptr<Response> QueriesJsonReader::Pimpl::read_result_info(
     }
   }
 
+#ifdef __SUNPRO_CC
   return std::move(response);
+#else
+  return response;
+#endif
 }
 
 std::unique_ptr<Response> QueriesJsonReader::Pimpl::read_ok_info(
