@@ -67,12 +67,12 @@ IF(CMAKE_COMPILER_IS_GNUCXX)
 ENDIF()
 
 # Clang and GCC currently have different names for this, unfortunately.
-if(CMAKE_COMPILER_IS_GNUCXX)
-  MY_ADD_CXX_WARNING_FLAG("Wsuggest-attribute=noreturn")
-ENDIF()
-IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wmissing-noreturn")
-ENDIF()
+# if(CMAKE_COMPILER_IS_GNUCXX)
+#   MY_ADD_CXX_WARNING_FLAG("Wsuggest-attribute=noreturn")
+# ENDIF()
+# IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+#   STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wmissing-noreturn")
+# ENDIF()
 
 # Clang 6.0 and newer on Windows seems to enable -Weverything; turn off some
 # that are way too verbose for us.
