@@ -179,20 +179,17 @@ RouterComponentTest::CommandHandle RouterComponentTest::launch_command(
 
 static std::vector<std::string> build_exec_args(
     const std::string &mysqlrouter_exec, bool with_sudo) {
-  const std::string sudo_cmd = "sudo";
-  const std::string sudo_args = "--non-interactive";
-  const std::string valgrind_cmd = "valgrind";
-  const std::string valgrind_args = "--error-exitcode=1 --quiet";
   std::vector<std::string> args;
 
   if (with_sudo) {
-    args.emplace_back(sudo_cmd);
-    args.emplace_back(sudo_args);
+    args.emplace_back("sudo");
+    args.emplace_back("--non-interactive");
   }
 
   if (getenv("WITH_VALGRIND")) {
-    args.emplace_back(valgrind_cmd);
-    args.emplace_back(valgrind_args);
+    args.emplace_back("valgrind");
+    args.emplace_back("--error-exitcode=1");
+    args.emplace_back("--quiet");
   }
 
   args.emplace_back(mysqlrouter_exec);
