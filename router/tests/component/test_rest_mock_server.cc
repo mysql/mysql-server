@@ -137,7 +137,7 @@ class RestMockServerScriptTest : public RestMockServerTest {
 
 class RestMockServerScriptsWorkTest
     : public RestMockServerTest,
-      public ::testing::WithParamInterface<std::tuple<const char *>> {};
+      public ::testing::WithParamInterface<std::string> {};
 
 class RestMockServerScriptsThrowsTest
     : public RestMockServerTest,
@@ -855,6 +855,15 @@ TEST_F(RestMockServerRestServerMockTest, select_port) {
   });
 }
 
+// make pretty param-names
+static std::string sanitize_param_name(const std::string &name) {
+  std::string p{name};
+  for (auto &c : p) {
+    if (!isalpha(c) && !isdigit(c)) c = '_';
+  }
+  return p;
+}
+
 /**
  * ensure connect returns error.
  *
@@ -894,8 +903,16 @@ INSTANTIATE_TEST_CASE_P(
                         "expected 'stmts' to be"),  // WL11861 TS-1_4
         std::make_tuple("js_test_empty_file.js",
                         "expected statement handler to return an object, got "
-                        "primitive, undefined")  // WL11861 TS-1_4
-        ));
+                        "primitive, undefined"),  // WL11861 TS-1_4
+        std::make_tuple("js_test_handshake_greeting_exec_time_is_empty.js",
+                        "exec_time must be a number, if set. Is object"),
+        std::make_tuple(
+            "js_test_handshake_is_string.js",
+            "handshake must be a object, if set. Is primitive, string")),
+    [](const ::testing::TestParamInfo<std::tuple<const char *, const char *>>
+           &info) -> std::string {
+      return sanitize_param_name(std::get<0>(info.param));
+    });
 
 /**
  * ensure int fields in 'columns' can't be negative.
@@ -943,7 +960,11 @@ INSTANTIATE_TEST_CASE_P(
                         "repeat is not supported"),  // WL11861 TS-1_5
         std::make_tuple("js_test_stmts_is_empty.js",
                         "executing statement failed: Unsupported command in "
-                        "handle_statement()")));
+                        "handle_statement()")),
+    [](const ::testing::TestParamInfo<std::tuple<const char *, const char *>>
+           &info) -> std::string {
+      return sanitize_param_name(std::get<0>(info.param));
+    });
 
 /**
  * ensure script works.
@@ -956,8 +977,7 @@ TEST_P(RestMockServerScriptsWorkTest, scripts_work) {
 
   const unsigned server_port = port_pool_.get_next_available();
   const unsigned http_port = port_pool_.get_next_available();
-  const std::string json_stmts =
-      get_data_dir().join(std::get<0>(GetParam())).str();
+  const std::string json_stmts = get_data_dir().join(GetParam()).str();
   auto server_mock =
       launch_mysql_server_mock(json_stmts, server_port, false, http_port);
 
@@ -979,11 +999,16 @@ TEST_P(RestMockServerScriptsWorkTest, scripts_work) {
 
 INSTANTIATE_TEST_CASE_P(
     ScriptsWork, RestMockServerScriptsWorkTest,
-    ::testing::Values(std::make_tuple("metadata_3_secondaries.js"),
-                      std::make_tuple("simple-client.js"),
-                      std::make_tuple("js_test_stmts_is_array.js"),
-                      std::make_tuple("js_test_stmts_is_coroutine.js"),
-                      std::make_tuple("js_test_stmts_is_function.js")));
+    ::testing::Values("metadata_3_secondaries.js", "simple-client.js",
+                      "js_test_handshake_is_empty.js",
+                      "js_test_handshake_greeting_is_empty.js",
+                      "js_test_handshake_greeting_exec_time_is_number.js",
+                      "js_test_stmts_is_array.js",
+                      "js_test_stmts_is_coroutine.js",
+                      "js_test_stmts_is_function.js"),
+    [](const ::testing::TestParamInfo<std::string> &info) -> std::string {
+      return sanitize_param_name(info.param);
+    });
 
 static void init_DIM() {
   mysql_harness::DIM &dim = mysql_harness::DIM::instance();
