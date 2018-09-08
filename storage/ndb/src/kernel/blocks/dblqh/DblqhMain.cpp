@@ -173,7 +173,8 @@ extern EventLogger * g_eventLogger;
 
 // Use LQH_DEBUG to print messages that should be
 // seen only when we debug the product
-#ifdef VM_TRACE
+//#define USE_LQH_DEBUG
+#ifdef USE_LQH_DEBUG
 #define LQH_DEBUG(x) ndbout << "DBLQH: "<< x << endl;
 static
 NdbOut &
@@ -388,6 +389,12 @@ void Dblqh::execCONTINUEB(Signal* signal)
   LogPartRecordPtr save;
   TcConnectionrecPtr tcConnectptr;
   switch (tcase) {
+  case ZSTART_QUEUED_SCAN:
+  {
+    jamDebug();
+    restart_queued_scan(signal, data0);
+    return;
+  }
   case ZCHECK_SYSTEM_SCANS:
   {
     handle_check_system_scans(signal);
@@ -607,12 +614,7 @@ void Dblqh::execCONTINUEB(Signal* signal)
   case ZCHECK_LCP_STOP_BLOCKED:
   {
     jam();
-    c_scanRecordPool.getPtr(scanptr, data0);
-    tcConnectptr.i = scanptr.p->scanTcrec;
-    ptrCheckGuard(tcConnectptr, ctcConnectrecFileSize, tcConnectionrec);
-    fragptr.i = tcConnectptr.p->fragmentptr;
-    c_fragment_pool.getPtr(fragptr);
-    checkLcpStopBlockedLab(signal);
+    checkLcpStopBlockedLab(signal, data0);
     return;
   }
   case ZSCAN_MARKERS:
@@ -1174,7 +1176,7 @@ void Dblqh::startphase1Lab(Signal* signal, Uint32 _dummy, Uint32 ownNodeId)
              * initialize one file at a time if using OM_INIT
              */
             jam();
-#ifdef VM_TRACE
+#if defined(USE_INIT_GLOBAL_VARIABLES)
             if (m_use_om_init)
             {
               jam();
@@ -3866,12 +3868,14 @@ void Dblqh::execLQHKEYREF(Signal* signal)
   terrorCode = signal->theData[2];
   Uint32 transid1 = signal->theData[3];
   Uint32 transid2 = signal->theData[4];
-  if (tcConnectptr.i >= ctcConnectrecFileSize) {
+  if (tcConnectptr.i >= ctcConnectrecFileSize)
+  {
     errorReport(signal, 3);
     return;
   }//if
 
   ptrAss(tcConnectptr, tcConnectionrec);
+  m_tc_connect_ptr = tcConnectptr;
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
 
   if (likely(! ((regTcPtr->connectState == TcConnectionrec::LOG_CONNECTED) ||
@@ -3908,21 +3912,18 @@ void Dblqh::execLQHKEYREF(Signal* signal)
     }//if
     abortErrorLab(signal, tcConnectptr);
     return;
-    break;
   case TcConnectionrec::LOG_CONNECTED:
     jam();
     logLqhkeyrefLab(signal, tcConnectptr);
     return;
-    break;
   case TcConnectionrec::COPY_CONNECTED:
     jam();
+    setup_scan_pointers_from_tc_con(tcConnectptr);
     copyLqhKeyRefLab(signal, tcConnectptr);
     return;
-    break;
   default:
     warningReport(signal, 16);
     return;
-    break;
   }//switch
 }//Dblqh::execLQHKEYREF()
 
@@ -4276,43 +4277,38 @@ Dblqh::execREAD_PSEUDO_REQ(Signal* signal){
 /* ************>> */
 void Dblqh::execTUPKEYCONF(Signal* signal) 
 {
-  TcConnectionrecPtr regTcPtr;
-  const TupKeyConf * const tupKeyConf = (TupKeyConf *)signal->getDataPtr();
-  regTcPtr.i = tupKeyConf->userPtr;
-  TcConnectionrec *regTcConnectionrec = tcConnectionrec;
-  Uint32 ttcConnectrecFileSize = ctcConnectrecFileSize;
-  ptrCheckGuard(regTcPtr, ttcConnectrecFileSize, regTcConnectionrec);
-  Uint32 activeCreat = regTcPtr.p->activeCreat;
-
-  FragrecordPtr regFragptr;
-  regFragptr.i = regTcPtr.p->fragmentptr;
-  c_fragment_pool.getPtr(regFragptr);
-
-  fragptr = regFragptr;
-
+  TcConnectionrecPtr regTcPtr = m_tc_connect_ptr;
   switch (regTcPtr.p->transactionState) {
-  case TcConnectionrec::WAIT_TUP:
-    {
-      jamDebug();
-      if (regTcPtr.p->seqNoReplica == 0) // Primary replica
-        regTcPtr.p->numFiredTriggers = tupKeyConf->numFiredTriggers;
-      
-      Fragrecord::UsageStat& useStat = regFragptr.p->m_useStat;
-      useStat.m_keyReqWordsReturned += tupKeyConf->readLength;
-      useStat.m_keyInstructionCount += tupKeyConf->noExecInstructions;
-      
-      tupkeyConfLab(signal, regTcPtr);
-    }
-    break;
-  case TcConnectionrec::COPY_TUPKEY:
-    jam();
-    copyTupkeyConfLab(signal, regTcPtr);
-    break;
   case TcConnectionrec::SCAN_TUPKEY:
+  {
     jam();
     scanTupkeyConfLab(signal, regTcPtr.p);
-    break;
+    return;
+  }
+  case TcConnectionrec::WAIT_TUP:
+  {
+    FragrecordPtr regFragptr = fragptr;
+    const TupKeyConf * const tupKeyConf = (TupKeyConf *)signal->getDataPtr();
+    jamDebug();
+    if (regTcPtr.p->seqNoReplica == 0) // Primary replica
+      regTcPtr.p->numFiredTriggers = tupKeyConf->numFiredTriggers;
+    
+    Fragrecord::UsageStat& useStat = regFragptr.p->m_useStat;
+    useStat.m_keyReqWordsReturned += tupKeyConf->readLength;
+    useStat.m_keyInstructionCount += tupKeyConf->noExecInstructions;
+    
+    tupkeyConfLab(signal, regTcPtr);
+    return;
+  }
+  case TcConnectionrec::COPY_TUPKEY:
+  {
+    jam();
+    copyTupkeyConfLab(signal, regTcPtr);
+    return;
+  }
   case TcConnectionrec::WAIT_TUP_TO_ABORT:
+  {
+    Uint32 activeCreat = regTcPtr.p->activeCreat;
     jam();
 /* ------------------------------------------------------------------------- */
 // Abort was not ready to start until this signal came back. Now we are ready
@@ -4345,16 +4341,22 @@ void Dblqh::execTUPKEYCONF(Signal* signal)
     }
 
     abortCommonLab(signal, regTcPtr);
-    break;
+    return;
+  }
   case TcConnectionrec::WAIT_ACC_ABORT:
   case TcConnectionrec::ABORT_QUEUED:
+  {
     jam();
 /* ------------------------------------------------------------------------- */
 /*      IGNORE SINCE ABORT OF THIS OPERATION IS ONGOING ALREADY.             */
 /* ------------------------------------------------------------------------- */
-    break;
+    return;
+  }
   default:
+  {
+    jamLine(regTcPtr.p->transactionState);
     ndbabort();
+  }
   }//switch
 }//Dblqh::execTUPKEYCONF()
 
@@ -4364,63 +4366,71 @@ void Dblqh::execTUPKEYCONF(Signal* signal)
 void Dblqh::execTUPKEYREF(Signal* signal) 
 {
   const TupKeyRef * const tupKeyRef = (TupKeyRef *)signal->getDataPtr();
-
-  jamEntry();
-  TcConnectionrecPtr tcConnectptr;
-  tcConnectptr.i = tupKeyRef->userRef;
+  jamEntryDebug();
+  TcConnectionrecPtr tcConnectptr = m_tc_connect_ptr;
   terrorCode = tupKeyRef->errorCode;
-  ptrCheckGuard(tcConnectptr, ctcConnectrecFileSize, tcConnectionrec);
-  TcConnectionrec* regTcPtr = tcConnectptr.p;
-  Uint32 activeCreat = regTcPtr->activeCreat;
+  TRACE_OP(tcConnectptr.p, "TUPKEYREF");
 
-  FragrecordPtr regFragptr;
-  regFragptr.i = regTcPtr->fragmentptr;
-  c_fragment_pool.getPtr(regFragptr);
-  fragptr = regFragptr;
-
-  TRACE_OP(regTcPtr, "TUPKEYREF");
-
-  if (unlikely(activeCreat == Fragrecord::AC_NR_COPY))
+#ifdef VM_TRACE
+  if (unlikely(tcConnectptr.p->activeCreat == Fragrecord::AC_NR_COPY))
   {
-    jam();
-    ndbrequire(regTcPtr->m_nr_delete.m_cnt);
-    regTcPtr->m_nr_delete.m_cnt--;
-    ndbassert(regTcPtr->transactionState == TcConnectionrec::WAIT_TUP ||
-	      regTcPtr->transactionState ==TcConnectionrec::WAIT_TUP_TO_ABORT);
+    ndbassert(tcConnectptr.p->transactionState == TcConnectionrec::WAIT_TUP ||
+      tcConnectptr.p->transactionState ==TcConnectionrec::WAIT_TUP_TO_ABORT);
   }
-
+#endif
   switch (tcConnectptr.p->transactionState) {
+  case TcConnectionrec::SCAN_TUPKEY:
+  {
+    jamDebug();
+    scanTupkeyRefLab(signal, tcConnectptr);
+    return;
+  }
   case TcConnectionrec::WAIT_TUP:
+  {
+    const TupKeyRef * const tupKeyRef = (TupKeyRef *)signal->getDataPtr();
+    jamDebug();
+    if (unlikely(tcConnectptr.p->activeCreat == Fragrecord::AC_NR_COPY))
     {
       jam();
-      Fragrecord::UsageStat& useStat = regFragptr.p->m_useStat;
-      useStat.m_keyRefCount++;
-      useStat.m_keyInstructionCount += tupKeyRef->noExecInstructions;
-      abortErrorLab(signal, tcConnectptr);
+      ndbrequire(tcConnectptr.p->m_nr_delete.m_cnt);
+      tcConnectptr.p->m_nr_delete.m_cnt--;
     }
-    break;
+    Fragrecord::UsageStat& useStat = fragptr.p->m_useStat;
+    useStat.m_keyRefCount++;
+    useStat.m_keyInstructionCount += tupKeyRef->noExecInstructions;
+    abortErrorLab(signal, tcConnectptr);
+    return;
+  }
   case TcConnectionrec::COPY_TUPKEY:
+  {
     copyTupkeyRefLab(signal, tcConnectptr);
-    break;
-  case TcConnectionrec::SCAN_TUPKEY:
-    jam();
-    scanTupkeyRefLab(signal, tcConnectptr);
-    break;
+    return;
+  }
   case TcConnectionrec::WAIT_TUP_TO_ABORT:
+  {
     jam();
+    if (unlikely(tcConnectptr.p->activeCreat == Fragrecord::AC_NR_COPY))
+    {
+      jam();
+      ndbrequire(tcConnectptr.p->m_nr_delete.m_cnt);
+      tcConnectptr.p->m_nr_delete.m_cnt--;
+    }
 /* ------------------------------------------------------------------------- */
 // Abort was not ready to start until this signal came back. Now we are ready
 // to start the abort.
 /* ------------------------------------------------------------------------- */
     abortCommonLab(signal, tcConnectptr);
-    break;
+    return;
+  }
   case TcConnectionrec::WAIT_ACC_ABORT:
   case TcConnectionrec::ABORT_QUEUED:
+  {
     jam();
 /* ------------------------------------------------------------------------- */
 /*       IGNORE SINCE ABORT OF THIS OPERATION IS ONGOING ALREADY.            */
 /* ------------------------------------------------------------------------- */
-    break;
+    return;
+  }
   default:
     jamLine(tcConnectptr.p->transactionState);
     ndbabort();
@@ -4751,7 +4761,7 @@ void Dblqh::execKEYINFO(Signal* signal)
     jam();
     return;
   }//if
-
+  setup_key_pointers(tcConnectptr.i);
   Uint32* const data = signal->theData + KeyInfo::HeaderLength;
   const Uint32 len = signal->getLength() - KeyInfo::HeaderLength;
 
@@ -4786,10 +4796,6 @@ void Dblqh::execKEYINFO(Signal* signal)
   }//if
   if(state == TcConnectionrec::WAIT_TUPKEYINFO)
   {
-    FragrecordPtr regFragptr;
-    regFragptr.i = regTcPtr->fragmentptr;
-    c_fragment_pool.getPtr(regFragptr);
-    fragptr = regFragptr;
     endgettupkeyLab(signal, tcConnectptr);
   }
   return;
@@ -4855,6 +4861,7 @@ void Dblqh::execATTRINFO(Signal* signal)
     return;
   }//if
 
+  setup_key_pointers(tcConnectptr.i);
   Uint32* const dataPtr = signal->getDataPtrSend() + AttrInfo::HeaderLength;
   const Uint32 length = signal->getLength() - AttrInfo::HeaderLength;
 
@@ -4867,8 +4874,6 @@ void Dblqh::execATTRINFO(Signal* signal)
     case TcConnectionrec::WAIT_ATTR:
     {
       jam();
-      fragptr.i = regTcPtr->fragmentptr;
-      c_fragment_pool.getPtr(fragptr);
       lqhAttrinfoLab(signal, dataPtr, length, tcConnectptr);
       endgettupkeyLab(signal, tcConnectptr);
       return;
@@ -4943,13 +4948,8 @@ void Dblqh::execATTRINFO(Signal* signal)
 /* ************************************************************************>> */
 void Dblqh::execTUP_ATTRINFO(Signal* signal) 
 {
-  TcConnectionrec *regTcConnectionrec = tcConnectionrec;
-  Uint32 tcIndex = signal->theData[0];
-  Uint32 ttcConnectrecFileSize = ctcConnectrecFileSize;
-  jamEntry();
-  TcConnectionrecPtr tcConnectptr;
-  tcConnectptr.i = tcIndex;
-  ptrCheckGuard(tcConnectptr, ttcConnectrecFileSize, regTcConnectionrec);
+  jamEntryDebug();
+  TcConnectionrecPtr tcConnectptr = m_tc_connect_ptr;
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
 
   ndbrequire(regTcPtr->transactionState == TcConnectionrec::WAIT_TUP);
@@ -4980,7 +4980,6 @@ void Dblqh::execTUP_ATTRINFO(Signal* signal)
   /* Store reference to ATTRINFO from TUP */
   regTcPtr->attrInfoIVal= tupAttrInfoIVal;
   regTcPtr->currTupAiLen= tupAttrInfoWords;
-
 }//Dblqh::execTUP_ATTRINFO()
 
 /* ------------------------------------------------------------------------- */
@@ -5137,6 +5136,8 @@ void Dblqh::seizeTcrec(TcConnectionrecPtr& tcConnectptr)
   locTcConnectptr.p->gci_lo = 0;
 
   tcConnectptr = locTcConnectptr;
+  m_tc_connect_ptr = locTcConnectptr;
+  c_tup->prepare_op_pointer(locTcConnectptr.p->tupConnectrec);
 }//Dblqh::seizeTcrec()
 
 bool
@@ -5442,7 +5443,6 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   regTcPtr->clientConnectrec = sig0;
   regTcPtr->tcOprec = sig0;
   regTcPtr->tcHashKeyHi = 0;
-  regTcPtr->storedProcId = ZNIL;
   regTcPtr->lqhKeyReqId = cTotalLqhKeyReqCount;
   regTcPtr->commitAckMarker = RNIL;
   regTcPtr->m_flags= 0;
@@ -5616,11 +5616,6 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   if (TnextReplicasIndicator > 1) {
     regTcPtr->nodeAfterNext[0] = lqhKeyReq->variableData[nextPos] & 0xFFFF;
     regTcPtr->nodeAfterNext[1] = lqhKeyReq->variableData[nextPos] >> 16;
-    nextPos++;
-  }//if
-  UintR TstoredProcIndicator = LqhKeyReq::getStoredProcFlag(attrLenFlags);
-  if (TstoredProcIndicator == 1) {
-    regTcPtr->storedProcId = lqhKeyReq->variableData[nextPos] & ZNIL;
     nextPos++;
   }//if
   UintR TreadLenAiIndicator = LqhKeyReq::getReturnedReadLenAIFlag(Treqinfo);
@@ -6364,8 +6359,10 @@ Dblqh::exec_acckeyreq(Signal* signal, TcConnectionrecPtr regTcPtr)
   
   EXECUTE_DIRECT(refToMain(blockRef), GSN_ACCKEYREQ, 
 		 signal, AccKeyReq::SignalLength_keyInfo + regTcPtr.p->primKeyLen);
+  jamEntryDebug();
+  m_tc_connect_ptr = regTcPtr;
   if (signal->theData[0] < RNIL) {
-    jamEntryDebug();
+    jamDebug();
     continueACCKEYCONF(signal,
                        signal->theData[3],
                        signal->theData[4],
@@ -7194,26 +7191,22 @@ void Dblqh::execTUP_DEALLOCREQ(Signal* signal)
 /* ************>> */
 void Dblqh::execACCKEYCONF(Signal* signal) 
 {
-  TcConnectionrec *regTcConnectionrec = tcConnectionrec;
-  Uint32 ttcConnectrecFileSize = ctcConnectrecFileSize;
+  jamEntry();
   Uint32 tcIndex = signal->theData[0];
+
+  setup_key_pointers(tcIndex);
   Uint32 localKey1 = signal->theData[3];
   Uint32 localKey2 = signal->theData[4];
-  jamEntry();
+  TcConnectionrec * const regTcPtr = m_tc_connect_ptr.p;
 
-  TcConnectionrecPtr tcConnectptr;
-  tcConnectptr.i = tcIndex;
-  ptrCheckGuard(tcConnectptr, ttcConnectrecFileSize, regTcConnectionrec);
-  TcConnectionrec * const regTcPtr = tcConnectptr.p;
-  if (regTcPtr->transactionState != TcConnectionrec::WAIT_ACC) {
-    LQHKEY_abort(signal, 3, tcConnectptr);
+  if (regTcPtr->transactionState != TcConnectionrec::WAIT_ACC)
+  {
+    jam();
+    LQHKEY_abort(signal, 3, m_tc_connect_ptr);
     return;
   }//if
-
-  FragrecordPtr fragPtr;
-  c_fragment_pool.getPtr(fragPtr, regTcPtr->fragmentptr);
-  c_tup->prepareTUPKEYREQ(localKey1, localKey2, fragPtr.p->tupFragptr);
-  continueACCKEYCONF(signal, localKey1, localKey2, tcConnectptr);
+  c_tup->prepareTUPKEYREQ(localKey1, localKey2, fragptr.p->tupFragptr);
+  continueACCKEYCONF(signal, localKey1, localKey2, m_tc_connect_ptr);
 }
 
 void
@@ -7265,15 +7258,26 @@ Dblqh::continueACCKEYCONF(Signal * signal,
    * IS NEEDED SINCE TWO SCHEMA VERSIONS CAN BE ACTIVE SIMULTANEOUSLY ON A 
    * TABLE.
    * ----------------------------------------------------------------------- */
-  FragrecordPtr regFragptr;
-  regFragptr.i = regTcPtr->fragmentptr;
-  c_fragment_pool.getPtr(regFragptr);
-
-  if(!regTcPtr->m_disk_table)
-    acckeyconf_tupkeyreq(signal, regTcPtr, regFragptr.p, localKey1, localKey2, RNIL);
+  Fragrecord * regFragptr = fragptr.p;
+  if (!regTcPtr->m_disk_table)
+  {
+    jamDebug();
+    acckeyconf_tupkeyreq(signal,
+                         regTcPtr,
+                         regFragptr,
+                         localKey1,
+                         localKey2,
+                         RNIL);
+  }
   else
-    acckeyconf_load_diskpage(signal, tcConnectptr, regFragptr.p,
-                             localKey1, localKey2);
+  {
+    jamDebug();
+    acckeyconf_load_diskpage(signal,
+                             tcConnectptr,
+                             regFragptr,
+                             localKey1,
+                             localKey2);
+  }
 }
 
 void
@@ -7318,49 +7322,44 @@ Dblqh::acckeyconf_tupkeyreq(Signal* signal, TcConnectionrec* regTcPtr,
   /* ************< */
   /*  TUPKEYREQ  < */
   /* ************< */
-  Uint32 sig0, sig1, sig2, sig3;
-  sig0 = regTcPtr->tupConnectrec;
+  Uint32 sig0, sig1, sig2, sig3, sig4;
 
   TupKeyReq * const tupKeyReq = (TupKeyReq *)signal->getDataPtrSend();
-  tupKeyReq->connectPtr = sig0;
   tupKeyReq->request = Ttupreq;
   tupKeyReq->keyRef1 = page_no;
   tupKeyReq->keyRef2 = page_idx;
+  tupKeyReq->disk_page= disk_page;
 
-  sig0 = regTcPtr->totReclenAi;
-  sig1 = regTcPtr->applOprec;
-  sig2 = regTcPtr->applRef;
   
-  tupKeyReq->attrBufLen = sig0;
-  tupKeyReq->opRef = sig1;
-  tupKeyReq->applRef = sig2;
+  sig0 = regTcPtr->transid[0];
+  sig1 = regTcPtr->transid[1];
+  sig2 = regTcPtr->m_row_id.m_page_no;
+  sig3 = regTcPtr->m_row_id.m_page_idx;
+  sig4 = regTcPtr->applOprec;
 
-  sig0 = regTcPtr->storedProcId;
-  sig1 = regTcPtr->transid[0];
-  sig2 = regTcPtr->transid[1];
-  sig3 = regFragptrP->tupFragptr;
+  tupKeyReq->transId1 = sig0;
+  tupKeyReq->transId2 = sig1;
+  tupKeyReq->m_row_id_page_no = sig2;
+  tupKeyReq->m_row_id_page_idx = sig3;
+  tupKeyReq->opRef = sig4;
 
-  tupKeyReq->storedProcedure = sig0;
-  tupKeyReq->transId1 = sig1;
-  tupKeyReq->transId2 = sig2;
-  tupKeyReq->fragPtr = sig3;
+  sig0 = regTcPtr->tcBlockref;
+  sig1 = regTcPtr->tcOprec;
+  sig2 = regTcPtr->savePointId;
+  sig3 = regTcPtr->applRef;
+  sig4 = regTcPtr->totReclenAi;
 
-  sig0 = regTcPtr->m_row_id.m_page_no;
-  sig1 = regTcPtr->m_row_id.m_page_idx;
-  
+  tupKeyReq->coordinatorTC = sig0;
+  tupKeyReq->tcOpIndex = sig1;
+  tupKeyReq->savePointId = sig2;
+  tupKeyReq->applRef = sig3;
+  tupKeyReq->attrBufLen = sig4;
+
   tupKeyReq->triggers =
     (regTcPtr->m_flags & TcConnectionrec::OP_NO_TRIGGERS) ?
     TupKeyReq::OP_NO_TRIGGERS :
     (regTcPtr->seqNoReplica == 0) ?
     TupKeyReq::OP_PRIMARY_REPLICA : TupKeyReq::OP_BACKUP_REPLICA;
-
-  tupKeyReq->coordinatorTC = regTcPtr->tcBlockref;
-  tupKeyReq->tcOpIndex = regTcPtr->tcOprec;
-  tupKeyReq->savePointId = regTcPtr->savePointId;
-  tupKeyReq->disk_page= disk_page;
-
-  tupKeyReq->m_row_id_page_no = sig0;
-  tupKeyReq->m_row_id_page_idx = sig1;
   
   TRACE_OP(regTcPtr, "TUPKEYREQ");
   
@@ -7368,7 +7367,6 @@ Dblqh::acckeyconf_tupkeyreq(Signal* signal, TcConnectionrec* regTcPtr,
   regTcPtr->m_row_id.m_page_no = page_no;
   regTcPtr->m_row_id.m_page_idx = page_idx;
   
-  tupKeyReq->attrInfoIVal= RNIL;
   tupKeyReq->deferred_constraints =
     (flags & TcConnectionrec::OP_DEFERRED_CONSTRAINTS) != 0;
   tupKeyReq->disable_fk_checks =
@@ -7382,16 +7380,21 @@ Dblqh::acckeyconf_tupkeyreq(Signal* signal, TcConnectionrec* regTcPtr,
   if (tupKeyReq->attrBufLen > 0)
   {
     ndbassert( regTcPtr->attrInfoIVal != RNIL );
-    tupKeyReq->attrInfoIVal= regTcPtr->attrInfoIVal;
+    c_tup->copyAttrinfo(regTcPtr->totReclenAi,
+                        regTcPtr->attrInfoIVal);
   }
-
+#ifdef VM_TRACE
+  tupKeyReq->fragPtr = regFragptrP->tupFragptr;
+#endif
   if (c_tup->execTUPKEYREQ(signal))
   {
     execTUPKEYCONF(signal);
+    return;
   }
   else
   {
     execTUPKEYREF(signal);
+    return;
   }
 }
 
@@ -7407,21 +7410,25 @@ Dblqh::acckeyconf_load_diskpage(Signal* signal, TcConnectionrecPtr regTcPtr,
 				lkey1, lkey2,
 				regTcPtr.p->operation)) > 0)
   {
+    jamDebug();
     acckeyconf_tupkeyreq(signal, regTcPtr.p, regFragptrP, lkey1, lkey2, res);
   }
   else if(res == 0)
   {
+    jamDebug();
     regTcPtr.p->transactionState = TcConnectionrec::WAIT_TUP;
     regTcPtr.p->m_row_id.m_page_no = lkey1;
     regTcPtr.p->m_row_id.m_page_idx = lkey2;
   }
   else 
   {
+    jamDebug();
     regTcPtr.p->transactionState = TcConnectionrec::WAIT_TUP;
     TupKeyRef * ref = (TupKeyRef *)signal->getDataPtr();
     ref->userRef= regTcPtr.i;
     ref->errorCode= ~0;
     execTUPKEYREF(signal);
+    return;
   }
 }
 
@@ -7431,17 +7438,19 @@ Dblqh::acckeyconf_load_diskpage_callback(Signal* signal,
 					 Uint32 disk_page)
 {
   jamEntry();
-  TcConnectionrecPtr tcConnectptr;
-  tcConnectptr.i = callbackData;
-  ptrCheckGuard(tcConnectptr, ctcConnectrecFileSize, tcConnectionrec);
+  setup_key_pointers(callbackData);
+  TcConnectionrecPtr tcConnectptr = m_tc_connect_ptr;
+  FragrecordPtr fragPtr = fragptr;
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
-
   TcConnectionrec::TransactionState state = regTcPtr->transactionState;
   if (likely(disk_page > 0 && state == TcConnectionrec::WAIT_TUP))
   {
-    FragrecordPtr fragPtr;
-    c_fragment_pool.getPtr(fragPtr, regTcPtr->fragmentptr);
 
+    /**
+     * We have returned from a real-time break, we need to set
+     * up the proper pointers for a key execution.
+     */
+    jam();
     c_tup->prepareTUPKEYREQ(regTcPtr->m_row_id.m_page_no,
                             regTcPtr->m_row_id.m_page_idx,
                             fragPtr.p->tupFragptr);
@@ -7449,6 +7458,7 @@ Dblqh::acckeyconf_load_diskpage_callback(Signal* signal,
 			 regTcPtr->m_row_id.m_page_no,
 			 regTcPtr->m_row_id.m_page_idx,
 			 disk_page);
+    return;
   }
   else if (state != TcConnectionrec::WAIT_TUP)
   {
@@ -7458,11 +7468,11 @@ Dblqh::acckeyconf_load_diskpage_callback(Signal* signal,
   }
   else
   {
-    regTcPtr->transactionState = TcConnectionrec::WAIT_TUP;
     TupKeyRef * ref = (TupKeyRef *)signal->getDataPtr();
     ref->userRef= callbackData;
     ref->errorCode= disk_page;
     execTUPKEYREF(signal);
+    return;
   }
 }
 
@@ -9291,12 +9301,11 @@ void Dblqh::execLQHKEYCONF(Signal* signal)
     jam();
     completedLab(signal, tcConnectptr);
     return;
-    break;
   case TcConnectionrec::COPY_CONNECTED:
     jam();
+    setup_scan_pointers_from_tc_con(tcConnectptr);
     copyCompletedLab(signal, tcConnectptr);
     return;
-    break;
   default:
     jamLine(tcConnectptr.p->connectState);
     ndbabort();
@@ -10966,7 +10975,7 @@ void Dblqh::lqhTransNextLab(Signal* signal,
 	      jam();
 	      tcConnectptr.p->tcNodeFailrec = tcNodeFailPtr.i;
 	      tcConnectptr.p->abortState = TcConnectionrec::NEW_FROM_TC;
-	      closeScanRequestLab(signal, tcConnectptr);
+	      closeScanRequestLab(signal, tcConnectptr, false);
 	      return;
 	    }//if
 	    break;
@@ -11123,7 +11132,7 @@ Uint32 Dblqh::rt_break_is_scan_prioritised(Uint32 scan_ptr_i)
   ScanRecordPtr scanPtr;
   scanPtr.i = scan_ptr_i;
   c_scanRecordPool.getPtr(scanPtr);
-  scanPtr.p->scan_direct_count = 1; /* Initialise before rt break */
+  m_scan_direct_count = 1; /* Initialise before rt break */
   return is_prioritised_scan(scanPtr.p->scanApiBlockref);
 }
 
@@ -11153,76 +11162,6 @@ void Dblqh::execACC_SCANREF(Signal* signal,
   tupScanCloseConfLab(signal, tcConnectptr);
 }//Dblqh::execACC_SCANREF()
 
-Uint32
-Dblqh::get_scan_api_op_ptr(Uint32 scan_api_ptr_i)
-{
-  ScanRecordPtr scanPtr;
-  scanPtr.i = scan_api_ptr_i;
-  c_scanRecordPool.getPtr(scanPtr);
-  return scanPtr.p->scanApiOpPtr;
-}
-
-/* ***************>> */
-/*  NEXT_SCANCONF  > */
-/* ***************>> */
-void Dblqh::execNEXT_SCANCONF(Signal* signal) 
-{
-  FragrecordPtr loc_fragptr;
-  ScanRecordPtr loc_scanptr;
-  TcConnectionrecPtr loc_tcConnectptr;
-  NextScanConf * const nextScanConf = (NextScanConf *)&signal->theData[0];
-  loc_scanptr.i = nextScanConf->scanPtr;
-  const Uint32 pageNo = nextScanConf->localKey[0];
-  const Uint32 pageIdx = nextScanConf->localKey[1];
-  jamEntryDebug();
-  c_scanRecordPool.getPtr(loc_scanptr);
-  ScanRecord * const scanPtr = loc_scanptr.p;
-  scanptr = loc_scanptr;
-  loc_fragptr.i = scanPtr->fragPtrI;
-  loc_tcConnectptr.i = scanPtr->scanTcrec;
-  scanPtr->m_row_id.m_page_idx = pageIdx;
-  scanPtr->m_row_id.m_page_no = pageNo;
-
-#ifdef VM_TRACE
-  if (signal->getLength() > 2 && nextScanConf->accOperationPtr != RNIL)
-  {
-    Ptr<TcConnectionrec> regTcPtr;
-    regTcPtr.i = scanPtr->scanTcrec;
-    ptrCheckGuard(regTcPtr, ctcConnectrecFileSize, tcConnectionrec);
-    ndbassert(regTcPtr.p->fragmentid == nextScanConf->fragId);
-  }
-#endif
- 
-  ScanRecord::ScanState scanState = scanPtr->scanState;
-  c_fragment_pool.getPtr(loc_fragptr);
-  ptrCheckGuard(loc_tcConnectptr, ctcConnectrecFileSize, tcConnectionrec);
-  fragptr = loc_fragptr;
-  switch (scanState) {
-  case ScanRecord::WAIT_CLOSE_SCAN:
-    jam();
-    accScanCloseConfLab(signal, loc_tcConnectptr);
-    break;
-  case ScanRecord::WAIT_CLOSE_COPY:
-    jam();
-    accCopyCloseConfLab(signal, loc_tcConnectptr);
-    break;
-  case ScanRecord::WAIT_NEXT_SCAN:	      	       
-    nextScanConfScanLab(signal,
-                        scanPtr,
-                        nextScanConf->fragId,
-                        nextScanConf->accOperationPtr,
-                        loc_tcConnectptr);
-    break;
-  case ScanRecord::WAIT_NEXT_SCAN_COPY:
-    jam();
-    nextScanConfCopyLab(signal, loc_tcConnectptr);
-    break;
-  default:
-    ndbout_c("%d", scanptr.p->scanState);
-    ndbabort();
-  }//switch
-}//Dblqh::execNEXT_SCANCONF()
-
 /* ***************> */
 /*  NEXT_SCANREF  > */
 /* ***************> */
@@ -11248,6 +11187,453 @@ void Dblqh::execNEXT_SCANREF(Signal* signal)
   scanptr.p->scanCompletedStatus = ZTRUE;
   accScanCloseConfLab(signal, tcConnectptr);
 }//Dblqh::execNEXT_SCANREF()
+
+/**
+ *  ACC_SCANCONF obsolete by usage of Direct Execute
+ *
+ *  Callee of ACC_SCANREQ will get return value in
+ *  signal[8] and call accScanConf{Scan|Copy}Lab()
+ *  directly if OK.
+ */
+Uint32
+Dblqh::get_scan_api_op_ptr(Uint32 scan_api_ptr_i)
+{
+  ScanRecordPtr scanPtr;
+  scanPtr.i = scan_api_ptr_i;
+  c_scanRecordPool.getPtr(scanPtr);
+  return scanPtr.p->scanApiOpPtr;
+}
+
+/**
+ * Here we have some code to handle real-time breaks during
+ * PREPARE of key operations and scanning operations. All
+ * real-time breaks are handled through signals sent to the
+ * DBLQH block, it isn't allowed to send an asynchronous
+ * signal to any other block as part of processing an
+ * LQHKEYREQ, SCAN_FRAGREQ and SCAN_NEXTREQ.
+ *
+ * There is one exception where DBTUP sends a CONTINUEB signal
+ * to itself when performing a full partition scan,
+ * as part of handling this method the setup_scan_pointers
+ * method is called to initialise all variables.
+ *
+ * At receive of SCAN_FRAGREQ and LQHKEYREQ we build up the
+ * block pointers for key operations and scan operations as
+ * part of setting up the infrastructure to execute the key
+ * and scan operation.
+ *
+ * For key operations there are only two real-time breaks
+ * that can occur.
+ * 1) After a row lock wait we return from DBACC in
+ *    execACCKEYCONF.
+ * 2) After reading the disk page we return in
+ *    acckeyconf_load_diskpage_callback.
+ * 3) It is also used in execATTRINFO and execKEYINFO, these
+ *    are used with short signals, but these have been
+ *    deprecated a long time.
+ *
+ * In a scan we have many more places from where we can return
+ * after a real-time break.
+ *
+ * 1) Normal real-time break when a scan must take a break to
+ *    not overextend its scheduling budget. This returns in
+ *    execACC_CHECK_SCAN from where we send the NEXT_SCANREQ
+ *    signal to the scanning block.
+ * 2) Normal break to communicate with the application.
+ *    The application will return by sending SCAN_NEXTREQ and
+ *    thus this will happen in execSCAN_NEXTREQ.
+ * 3) When we try to access a locked row in DBTUP and DBTUX and
+ *    when we are waiting for too many rows in DBACC we will
+ *    send the signal CHECK_LCP_STOP to DBLQH. This will cause
+ *    1 millisecond sleep and we will return with a CONTINUEB
+ *    signal in DBLQH that will the method checkLcpStopBlockedLab.
+ * 4) When we hit a row lock in the scanning block we will send
+ *    NEXT_SCANCONF with no rows returned. This signal is sent
+ *    as a buffered signal. This gives the scan a chance to
+ *    discover a quick lock release. This real-time break will
+ *    be started in execNEXT_SCANCONF in DBLQH.
+ * 5) In various places when we hit a row lock and similar things
+ *    in DBACC we will send the signal ACC_CHECK_SCAN to DBLQH.
+ *    DBLQH will send this signal back to DBACC after the real-time
+ *    break. This is handled in execACC_CHECK_SCAN in DBLQH.
+ * 6) When performing a long scan in DBTUP (normally an LCP scan),
+ *    we can hit a limit on how many pages we are allowed to scan
+ *    before taking a real-time break. This is handled as a CONTINUEB
+ *    signal in DBTUP that will call setup_scan_pointers in DBLQH.
+ * 7) During a copy fragment scan we will return with a LQHKEYCONF
+ *    or LQHKEYREF to continue scanning. We will setup the
+ *    infrastructure to continue the scan just before calling
+ *    nextRecordCopy from copyCompletedLab. Most of the time we will
+ *    not continue the scan from such a signal, so we postpone it
+ *    as long as we can.
+ * 8) After having our Copy fragment scan halted we return to
+ *    executing the copy fragment scan when executing the
+ *    execRESUME_COPY_FRAG_REQ method.
+ * 9) As part of closing down a scan process we can send a signal
+ *    ACC_ABORTCONF to ensure that all ACCKEYCONF and ACCKEYREF
+ *    have been received before we close the scan. This is received
+ *    in both DBTUP and DBTUX.
+ * 10)We also setup scan pointers when executing LQH_TRANSREQ to
+ *    ensure that we have always setup those pointers properly in
+ *    all paths.
+ * 11)We take a real-time break also when restarting a scan operation
+ *    that have been released from the queue. This ensures that we
+ *    never execute multiple scans in the same real-time break. This
+ *    would complicate the handling of pointers considerably.
+ *    We handle this special case by sending a CONTINUEB to ourselves
+ *    and checking that no one completed the scan while we were
+ *    in the job buffer.
+ * 12) During scan in disk page order we can end up in
+ *     disk_page_tup_scan_callback after retrieving the disk page.
+ */
+void Dblqh::setup_key_pointers(Uint32 tcIndex)
+{
+  /**
+   * We come here after a real-time break for a key operation.
+   * At this point we need to setup the pointers in preparation
+   * for calling TUP and the pointers internally in LQH.
+   */
+  jamDebug();
+  TcConnectionrecPtr tcConnectptr;
+  FragrecordPtr fragPtr;
+  tcConnectptr.i = tcIndex;
+  TcConnectionrec *regTcConnectionrec = tcConnectionrec;
+  Uint32 ttcConnectrecFileSize = ctcConnectrecFileSize;
+  ptrCheckGuard(tcConnectptr, ttcConnectrecFileSize, regTcConnectionrec);
+  c_fragment_pool.getPtr(fragPtr, tcConnectptr.p->fragmentptr);
+  fragptr = fragPtr;
+  m_tc_connect_ptr = tcConnectptr;
+  c_tup->prepare_op_pointer(tcConnectptr.p->tupConnectrec);
+}
+
+/**
+ * After a real-time break it is necessary to setup the scan context
+ * to avoid having to recompute these variables every time we need them.
+ *
+ * At reception of SCAN_FRAGREQ the scan context is setup bit by bit
+ * rather than in one method since we don't have access to all variables
+ * at start of the SCAN_FRAGREQ.
+ *
+ * The following variables are computed:
+ *
+ * scanptr
+ *   This is the pointer and i-value stored in LQH block object for the scan
+ *   record.
+ * fragptr
+ *   This is pointer and i-value stored in LQH block object for the index
+ *   fragment being scanned.
+ * prim_tab_fragptr
+ *   This is pointer and i-value stored in LQH block object for the table
+ *   fragment being scanned.
+ * m_tc_connect_ptr
+ *   This is the pointer and i-value of the TC connect record used by the scan
+ *   record. There is always one TC connect record attached to each active scan
+ *   record.
+ *
+ * TUP variables setup by prepare_op_pointer:
+ * ..........................................
+ *
+ * prepare_op_pointer
+ *   The pointer and i-value of the operation record that is connected to
+ *   TC connect record in LQH.
+ *
+ * TUP variables setup by prepare_tab_pointers:
+ * ............................................
+ *
+ * prepare_fragptr
+ *   The pointer and i-value of the table fragment record used by the scan.
+ * prepare_tabptr
+ *   The pointer and i-value of the table record used by the scan.
+ *
+ * TUP variable setup by copyAttrinfo:
+ * ...................................
+ * The Attrinfo that contains the scan stored procedure is an Attrinfo program.
+ * It is stored in signal segments while being executed. When TUP executes the
+ * scan the Attrinfo program must be moved to a linear array. This linear array
+ * is the cinBuffer variable in TUP. Using a linear array simplifies the code in
+ * TUP greatly. Avoiding to copy this for each row we scan saves a lot of
+ * computations.
+ *
+ * The method prepare_scan_ctx calls a method in ACC, TUP or TUX. This method sets
+ * up the scan context for the block where the scan is performed. ACC is used for
+ * full table scans. TUP is used for LCP scans and Node Restart scans. TUP can also
+ * be called for full table scans from the NDB API (but not from SQL). TUX is used
+ * for all range scans and represents the majority of the scans performed.
+ * These methods describe what context they setup.
+ * TUX scan context setup is described in DbtuxScan.cpp.
+ *
+ * Additional TUP variables to setup before calling execTUPKEYREQ
+ * --------------------------------------------------------------
+ * execTUPKEYREQ is used to read, update, delete, insert and read for scan rows
+ * in TUP.
+ * Before we can call this method we must also setup a few additional variables:
+ *
+ * prepare_pageptr
+ *   This is the pointer and i-value of the page where the fixed part of the row
+ *   resides.
+ * prepare_tuple_ptr
+ *   This is a pointer to the start of the tuple in the fixed part of the row.
+ * prepare_page_no
+ *   This is the physical page number of the fixed size page of the row.
+ *
+ * These are setup differently dependent on from where we come:
+ * prepareTUPKEYREQ
+ * ................
+ *   This method is called after a real-time break for key operations. It also sets
+ *   up prepare_tabptr and prepare_fragptr.
+ * prepare_scanTUPKEYREQ
+ * .....................
+ *   This method is used when preparing to call execTUPKEYREQ from scans in TUP and
+ *   ACC. This method gets a page id that is a logical page id since TUP has the
+ *   logical page id since it scans in row id order and ACC stores the logical page
+ *   id of the row. TUX stores the physical page id of the row instead to speed up
+ *   things since it only requires the physical page id when reading the row.
+ * prepare_scan_tux_TUPKEYREQ
+ * ..........................
+ *   Used when preparing to call execTUPKEYREQ from TUX scans.
+ *
+ * All these methods also try to prefetch the fixed part of the row to avoid cache
+ * miss waits.
+ */
+void Dblqh::setup_scan_pointers_from_tc_con(TcConnectionrecPtr tcConnectptr)
+{
+  /**
+   * We come here after a real-time break, we need to setup
+   * infrastructure in TUP and here in LQH for execution of
+   * direct signals.
+   */
+  jamDebug();
+  FragrecordPtr loc_fragptr;
+  FragrecordPtr loc_prim_tab_fragptr;
+  ScanRecordPtr loc_scanptr;
+  loc_scanptr.i = tcConnectptr.p->tcScanRec;
+  loc_fragptr.i = tcConnectptr.p->fragmentptr;
+  c_scanRecordPool.getPtr(loc_scanptr);
+  loc_prim_tab_fragptr.i = loc_scanptr.p->fragPtrI;
+  c_fragment_pool.getPtr(loc_fragptr);
+  m_scan_direct_count = 1;
+  m_tot_scan_direct_count = 0;
+  SimulatedBlock *block = loc_scanptr.p->scanBlock;
+  scanptr = loc_scanptr;
+  fragptr = loc_fragptr;
+  c_fragment_pool.getPtr(loc_prim_tab_fragptr);
+  m_tc_connect_ptr = tcConnectptr;
+  prim_tab_fragptr = loc_prim_tab_fragptr;
+  c_tup->prepare_op_pointer(tcConnectptr.p->tupConnectrec);
+  c_tup->prepare_tab_pointers(loc_prim_tab_fragptr.p->tupFragptr);
+  if (likely(loc_scanptr.p->scanStoredProcId != RNIL))
+  {
+    jamDebug();
+    Uint32 storedProcLen =
+      c_tup->copyAttrinfo(loc_scanptr.p->scanStoredProcId);
+    (void)storedProcLen;
+    ndbassert(loc_scanptr.p->scanAiLength == storedProcLen);
+  }
+  if (likely(loc_scanptr.p->scanAccPtr != RNIL))
+  {
+    jamDebug();
+    block->prepare_scan_ctx(loc_scanptr.p->scanAccPtr);
+  }
+}
+
+void Dblqh::setup_scan_pointers(Uint32 scanPtrI)
+{
+  /**
+   * We come here after a real-time break, we need to setup
+   * infrastructure in TUP and here in LQH for execution of
+   * direct signals.
+   */
+  jamDebug();
+  FragrecordPtr loc_fragptr;
+  FragrecordPtr loc_prim_tab_fragptr;
+  ScanRecordPtr loc_scanptr;
+  TcConnectionrecPtr loc_tcConnectptr;
+  loc_scanptr.i = scanPtrI;
+  c_scanRecordPool.getPtr(loc_scanptr);
+  loc_tcConnectptr.i = loc_scanptr.p->scanTcrec;
+  loc_prim_tab_fragptr.i = loc_scanptr.p->fragPtrI;
+  ptrCheckGuard(loc_tcConnectptr, ctcConnectrecFileSize, tcConnectionrec);
+  loc_fragptr.i = loc_tcConnectptr.p->fragmentptr;
+  c_fragment_pool.getPtr(loc_prim_tab_fragptr);
+  c_fragment_pool.getPtr(loc_fragptr);
+  m_scan_direct_count = 1;
+  m_tot_scan_direct_count = 0;
+  prim_tab_fragptr = loc_prim_tab_fragptr;
+  scanptr = loc_scanptr;
+  SimulatedBlock *block = loc_scanptr.p->scanBlock;
+  fragptr = loc_fragptr;
+  m_tc_connect_ptr = loc_tcConnectptr;
+  c_tup->prepare_op_pointer(loc_tcConnectptr.p->tupConnectrec);
+  c_tup->prepare_tab_pointers(loc_prim_tab_fragptr.p->tupFragptr);
+  if (likely(loc_scanptr.p->scanStoredProcId != RNIL))
+  {
+    jamDebug();
+    Uint32 storedProcLen =
+      c_tup->copyAttrinfo(loc_scanptr.p->scanStoredProcId);
+    (void)storedProcLen;
+    ndbassert(loc_scanptr.p->scanAiLength == storedProcLen);
+  }
+  if (likely(loc_scanptr.p->scanAccPtr != RNIL))
+  {
+    jamDebug();
+    block->prepare_scan_ctx(loc_scanptr.p->scanAccPtr);
+  }
+}
+
+void Dblqh::checkLcpStopBlockedLab(Signal* signal, Uint32 scanPtrI)
+{
+  /**
+   * We are back from a real-time break, we need to
+   * setup the pointer infrastructure before starting
+   * off the execution.
+   */
+  setup_scan_pointers(scanPtrI);
+  Fragrecord::FragStatus fragstatus = fragptr.p->fragStatus;
+  ScanRecord * const scanPtr = scanptr.p;
+  BlockReference blockRef = scanPtr->scanBlockref;
+  scanPtr->scan_lastSeen = __LINE__;
+  signal->theData[0] = scanPtr->scanAccPtr;
+  signal->theData[1] = AccCheckScan::ZNOT_CHECK_LCP_STOP;
+  ndbrequire(is_scan_ok(scanPtr, fragstatus));
+  EXECUTE_DIRECT(refToMain(blockRef),
+                 GSN_ACC_CHECK_SCAN,
+                 signal,
+                 2);
+}//Dblqh::checkLcpStopBlockedLab()
+
+void Dblqh::execACC_CHECK_SCAN(Signal *signal)
+{
+  /**
+   * A real-time break was invoked in the middle of the scan
+   * processing.
+   *
+   * This could either be invoked by DBACC due to some lock
+   * wait issue or it could be a normal scheduling break
+   * invoked since we have executed too many signals in a
+   * row. In this case it is the NEXT_SCANREQ signal that
+   * is sent.
+   */
+  jamDebug();
+  Uint32 scanPtrI = signal->theData[0];
+  setup_scan_pointers(scanPtrI);
+  Uint32 sig_number = signal->theData[1];
+  ScanRecord *scanPtr = scanptr.p;
+  BlockReference ref = scanPtr->scanBlockref;
+  if (sig_number == GSN_NEXT_SCANREQ)
+  {
+    jamDebug();
+    signal->theData[0] = scanPtr->scanAccPtr;
+    signal->theData[1] = signal->theData[2];
+    signal->theData[2] = signal->theData[3];
+    EXECUTE_DIRECT(refToMain(ref),
+                   GSN_NEXT_SCANREQ,
+                   signal,
+                   3);
+  }
+  else
+  {
+    jamDebug();
+    ndbrequire(sig_number == GSN_ACC_CHECK_SCAN);
+    signal->theData[0] = scanPtr->scanAccPtr;
+    signal->theData[1] = signal->theData[2];
+    EXECUTE_DIRECT(refToMain(ref),
+                   GSN_ACC_CHECK_SCAN,
+                   signal,
+                   2);
+  }
+}
+
+/* ***************>> */
+/*  NEXT_SCANCONF  > */
+/* ***************>> */
+void Dblqh::execNEXT_SCANCONF(Signal* signal) 
+{
+  /**
+   * The scan block sent an asynchronous signal, when this arrives
+   * we have had a real-time break, so we need to setup the scan
+   * execution environment again.
+   */
+  NextScanConf * const nextScanConf = (NextScanConf *)&signal->theData[0];
+  setup_scan_pointers(nextScanConf->scanPtr);
+  const Uint32 pageNo = nextScanConf->localKey[0];
+  const Uint32 pageIdx = nextScanConf->localKey[1];
+  jamEntryDebug();
+
+  ScanRecord * const scanPtr = scanptr.p;
+  scanPtr->m_row_id.m_page_idx = pageIdx;
+  scanPtr->m_row_id.m_page_no = pageNo;
+  continue_next_scan_conf(signal,
+                          scanPtr->scanState,
+                          scanPtr);
+}
+
+void Dblqh::exec_next_scan_conf(Signal *signal)
+{
+  /**
+   * The scan block sent an immediate signal requiring no
+   * real-time break.
+   */
+  jamDebug();
+  NextScanConf * const nextScanConf = (NextScanConf *)&signal->theData[0];
+  ScanRecord * const scanPtr = scanptr.p;
+  const Uint32 pageNo = nextScanConf->localKey[0];
+  const Uint32 pageIdx = nextScanConf->localKey[1];
+  /**
+   * The local key is a row id when scanning ACC and TUP. In TUX we store
+   * the physical row id and we don't need the row id for anything in an
+   * ordered index scan. So in the case of a TUX scan we will return a
+   * physical row id and not the logical row id.
+   */
+  scanPtr->m_row_id.m_page_idx = pageIdx;
+  scanPtr->m_row_id.m_page_no = pageNo;
+  continue_next_scan_conf(signal,
+                          scanPtr->scanState,
+                          scanPtr);
+}
+
+void Dblqh::continue_next_scan_conf(Signal *signal,
+                                    ScanRecord::ScanState scanState,
+                                    ScanRecord * const scanPtr)
+{
+#ifdef VM_TRACE
+  NextScanConf * const nextScanConf = (NextScanConf *)&signal->theData[0];
+  if (signal->getLength() > 2 && nextScanConf->accOperationPtr != RNIL)
+  {
+    Ptr<TcConnectionrec> regTcPtr;
+    regTcPtr.i = scanPtr->scanTcrec;
+    ptrCheckGuard(regTcPtr, ctcConnectrecFileSize, tcConnectionrec);
+    ndbassert(regTcPtr.p->fragmentid == nextScanConf->fragId);
+  }
+#endif
+  switch (scanState) {
+  case ScanRecord::WAIT_NEXT_SCAN:
+  {
+    jamDebug();
+    NextScanConf * const nextScanConf = (NextScanConf *)&signal->theData[0];
+    nextScanConfScanLab(signal,
+                        scanPtr,
+                        nextScanConf->fragId,
+                        nextScanConf->accOperationPtr,
+                        m_tc_connect_ptr);
+    return;
+  }
+  case ScanRecord::WAIT_NEXT_SCAN_COPY:
+    jamDebug();
+    nextScanConfCopyLab(signal, m_tc_connect_ptr);
+    return;
+  case ScanRecord::WAIT_CLOSE_SCAN:
+    jamDebug();
+    accScanCloseConfLab(signal, m_tc_connect_ptr);
+    return;
+  case ScanRecord::WAIT_CLOSE_COPY:
+    jamDebug();
+    accCopyCloseConfLab(signal, m_tc_connect_ptr);
+    return;
+  default:
+    jamLine(scanPtr->scanState);
+    ndbabort();
+  }//switch
+}
 
 /* --------------------------------------------------------------------------
  *       ENTER SCAN_NEXTREQ
@@ -11278,7 +11664,12 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
     hashHi = 0;
 
   TcConnectionrecPtr tcConnectptr;
-  if (findTransaction(transid1, transid2, senderData, hashHi, tcConnectptr) != ZOK){
+  if (unlikely(findTransaction(transid1,
+                               transid2,
+                               senderData,
+                               hashHi,
+                               tcConnectptr) != ZOK))
+  {
     jam();
     LQH_DEBUG(senderData << 
 	  " Received SCAN_NEXTREQ in LQH with close flag when closed");
@@ -11330,17 +11721,14 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
   Uint32 pos = 0;
   if (ScanFragNextReq::getCorrFactorFlag(nextReq->requestInfo))
   {
-    jam();
+    jamDebug();
     Uint32 corrFactorLo = nextReq->variableData[pos++];
     tcConnectptr.p->m_corrFactorLo &= 0xFFFF0000;
     tcConnectptr.p->m_corrFactorLo |= corrFactorLo;
   }
 
-  scanptr.i = tcConnectptr.p->tcScanRec;
-  ndbrequire(scanptr.i != RNIL);
-  c_scanRecordPool.getPtr(scanptr);
+  setup_scan_pointers_from_tc_con(tcConnectptr);
   scanptr.p->scanTcWaiting = cLqhTimeOutCount;
-
   /* ------------------------------------------------------------------
    * If close flag is set this scan should be closed
    * If we are waiting for SCAN_NEXTREQ set flag to stop scanning and 
@@ -11349,24 +11737,20 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
    * ------------------------------------------------------------------ */
   if (ScanFragNextReq::getCloseFlag(nextReq->requestInfo))
   {
-    jam();
+    jamDebug();
     if(ERROR_INSERTED(5034)){
       CLEAR_ERROR_INSERT_VALUE;
     }
-    closeScanRequestLab(signal, tcConnectptr);
+    closeScanRequestLab(signal, tcConnectptr, true);
     return;
   }//if
   scanptr.p->prioAFlag = ScanFragNextReq::getPrioAFlag(nextReq->requestInfo);
   scanptr.p->m_exec_direct_batch_size_words = 0;
 
-  fragptr.i = tcConnectptr.p->fragmentptr;
-  c_fragment_pool.getPtr(fragptr);
-
   ScanRecord * const scanPtr = scanptr.p;
   const Uint32 max_rows = nextReq->batch_size_rows;
   const Uint32 max_bytes = nextReq->batch_size_bytes;
   scanPtr->m_max_batch_size_bytes = max_bytes;
-
   {
     /**
      * To speed up drop table we check for table being dropped here.
@@ -11392,11 +11776,11 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
                  tabPtr.p->tableStatus != Tablerec::TABLE_READ_ONLY))
     {
       tcConnectptr.p->errorCode = get_table_state_error(tabPtr);
-      closeScanRequestLab(signal, tcConnectptr);
+      closeScanRequestLab(signal, tcConnectptr, true);
       return;
     }
   }
-  if (max_rows > scanPtr->m_max_batch_size_rows)
+  if (unlikely(max_rows > scanPtr->m_max_batch_size_rows))
   {
     jam();
     /**
@@ -11404,12 +11788,12 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
      * Will never happen for LCP, Backup and NR.
      */
     ndbrequire(scanPtr->m_reserved == 0);
-    if (!seize_acc_ptr_list(scanPtr, 
-                            scanPtr->m_max_batch_size_rows, max_rows))
+    if (unlikely(!seize_acc_ptr_list(scanPtr, 
+                            scanPtr->m_max_batch_size_rows, max_rows)))
     {
       jam();
       tcConnectptr.p->errorCode = ScanFragRef::ZTOO_MANY_ACTIVE_SCAN_ERROR;
-      closeScanRequestLab(signal, tcConnectptr);
+      closeScanRequestLab(signal, tcConnectptr, true);
       return;
     }
     scanPtr->m_max_batch_size_rows = max_rows;
@@ -11428,8 +11812,9 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
    * continueScanNextReqLab to continue scanning new rows and 
    * acquiring new locks.
    * -------------------------------------------------------------------- */  
-  if ((scanPtr->scanLockHold == ZTRUE) && 
-      (scanPtr->m_curr_batch_size_rows > 0)) {
+  if (unlikely((scanPtr->scanLockHold == ZTRUE) && 
+               (scanPtr->m_curr_batch_size_rows > 0)))
+  {
     jam();
     scanPtr->scanReleaseCounter = 1;
     scanReleaseLocksLab(signal, tcConnectptr.p);
@@ -11448,14 +11833,16 @@ void Dblqh::continueScanNextReqLab(Signal* signal,
                                    TcConnectionrec* const regTcPtr)
 {
   ScanRecord * const scanPtr = scanptr.p;
-  if (scanPtr->scanCompletedStatus == ZTRUE) {
+  if (unlikely(scanPtr->scanCompletedStatus == ZTRUE))
+  {
     jam();
     closeScanLab(signal, regTcPtr);
     return;
   }//if
   
-  if(scanPtr->m_last_row){
-    jam();
+  if(scanPtr->m_last_row)
+  {
+    jamDebug();
     scanPtr->scanCompletedStatus = ZTRUE;
     scanPtr->scanState = ScanRecord::WAIT_SCAN_NEXTREQ;
     scanPtr->scan_lastSeen = __LINE__;
@@ -11467,8 +11854,61 @@ void Dblqh::continueScanNextReqLab(Signal* signal,
   regTcPtr->tcTimer = cLqhTimeOutCount;
   init_acc_ptr_list(scanPtr);
   scanPtr->scanFlag = NextScanReq::ZSCAN_NEXT;
-  scanNextLoopLab(signal, regTcPtr->clientConnectrec);
+  scanNextLoopLab(signal,
+                  regTcPtr->clientConnectrec,
+                  RNIL,
+                  scanPtr,
+                  fragptr.p);
 }//Dblqh::continueScanNextReqLab()
+
+void Dblqh::scanNextLoopLab(Signal* signal,
+                            Uint32 clientPtrI,
+                            Uint32 accOpPtr,
+                            ScanRecord * const scanPtr,
+                            Fragrecord * const fragPtr)
+{
+  Fragrecord::FragStatus fragstatus = fragPtr->fragStatus;
+  Uint32 scanFlag = scanPtr->scanFlag;
+  const Uint32 sig0 = scanPtr->scanAccPtr;
+  SimulatedBlock *block = scanPtr->scanBlock;
+  ExecFunction f = scanPtr->scanFunction_NEXT_SCANREQ;
+  Uint32 in_send_next_scan = m_in_send_next_scan;
+
+  signal->theData[0] = sig0;
+  signal->theData[1] = accOpPtr;
+  signal->theData[2] = scanFlag;
+
+  ndbrequire(is_scan_ok(scanPtr, fragstatus));
+  scanPtr->scanState = ScanRecord::WAIT_NEXT_SCAN;
+  scanPtr->scan_lastSeen = __LINE__;
+  if (unlikely(in_send_next_scan == 0))
+  {
+    send_next_NEXT_SCANREQ(signal,
+                           block,
+                           f,
+                           scanPtr,
+                           clientPtrI);
+    return;
+  }
+  /**
+   * At this point we don't call send_next_NEXT_SCANREQ since we
+   * want to unwind the call stack before entering this function.
+   * m_in_send_next_scan equal to 1 indicates that we are
+   * executing this function already and that we will check the
+   * result of this function when we return to send_next_NEXT_SCANREQ
+   * after unwinding the stack.
+   *
+   * It is imperative that we return immediately in all the call
+   * stack until we return to send_next_NEXT_SCANREQ again. This
+   * secures the signal object that is setup already to send the
+   * NEXT_SCANREQ signal.
+   *
+   * We indicate that we have another signal to process by setting
+   * m_in_send_next_scan to 2.
+   */
+  ndbassert(in_send_next_scan == 1);
+  m_in_send_next_scan = 2;
+}//Dblqh::scanNextLoopLab()
 
 void Dblqh::scanLockReleasedLab(Signal* signal,
                                 TcConnectionrec* const regTcPtr)
@@ -11500,6 +11940,7 @@ void Dblqh::scanLockReleasedLab(Signal* signal,
       scanPtr->m_curr_batch_size_rows = 0;
       scanPtr->m_curr_batch_size_bytes = 0;
       continueScanNextReqLab(signal, regTcPtr);
+      return;
     }//if
   }
   else if (scanPtr->scanCompletedStatus != ZTRUE)
@@ -11640,8 +12081,14 @@ void Dblqh::scanReleaseLocksLab(Signal* signal,
  *       COORDINATOR.
  * ------------------------------------------------------------------------- */
 void Dblqh::closeScanRequestLab(Signal* signal,
-                                const TcConnectionrecPtr tcConnectptr)
+                                const TcConnectionrecPtr tcConnectptr,
+                                bool setup)
 {
+  if (!setup)
+  {
+    jamDebug();
+    setup_scan_pointers_from_tc_con(tcConnectptr);
+  }
   ScanRecord * const scanPtr = scanptr.p;
   LQH_DEBUG("transactionState = " << tcConnectptr.p->transactionState);
   switch (tcConnectptr.p->transactionState) {
@@ -11658,6 +12105,18 @@ void Dblqh::closeScanRequestLab(Signal* signal,
        *  SET COMPLETION STATUS AND WAIT FOR OPPORTUNITY TO STOP THE SCAN.
        * ------------------------------------------------------------------- */
       scanPtr->scanCompletedStatus = ZTRUE;
+      return;
+    case ScanRecord::WAIT_START_QUEUED_SCAN:
+      jam();
+      /**
+       * We are currently starting up a queued scan, need to retain
+       * scan record until this signal arrives back.
+       */
+      tupScanCloseConfLab(signal, tcConnectptr);
+      return;
+    case ScanRecord::QUIT_START_QUEUE_SCAN:
+      jam();
+      ndbrequire(scanPtr->scanState != ScanRecord::QUIT_START_QUEUE_SCAN);
       return;
     case ScanRecord::WAIT_ACC_SCAN:
       jam();
@@ -11681,9 +12140,6 @@ void Dblqh::closeScanRequestLab(Signal* signal,
        * WICH HAVE CRASHED. CLOSE THE SCAN
        * ------------------------------------------------------------------- */
       scanPtr->scanCompletedStatus = ZTRUE;
-
-      fragptr.i = tcConnectptr.p->fragmentptr;
-      c_fragment_pool.getPtr(fragptr);
 
       if (scanPtr->scanLockHold == ZTRUE) {
 	if (scanPtr->m_curr_batch_size_rows > 0) {
@@ -11955,7 +12411,7 @@ Dblqh::set_acc_ptr_in_scan_record(ScanRecord* scanP,
  *    |<-------------------------|
  *    | NEXT_SCANREQ (ZSCAN_NEXT)
  *    |----------------------------------------->|
- *    |                          prepareTUPKEYREQ
+ *    |                          prepare_scanTUPKEYREQ
  *    |                          |<--------------|
  *    |                          |-------------->|
  *    | NEXT_SCANCONF
@@ -11966,7 +12422,7 @@ Dblqh::set_acc_ptr_in_scan_record(ScanRecord* scanP,
  *    |<-------------------------|
  *    | NEXT_SCANREQ (ZSCAN_NEXT_COMMIT)
  *    |----------------------------------------->|
- *    |                          prepareTUPKEYREQ
+ *    |                          prepare_scanTUPKEYREQ
  *    |                          |<--------------|
  *    |                          |-------------->|
  *    | NEXT_SCANCONF
@@ -11987,7 +12443,7 @@ Dblqh::set_acc_ptr_in_scan_record(ScanRecord* scanP,
  *    |<----------------------------------------------------------------|
  *    | NEXT_SCANREQ (ZSCAN_NEXT_COMMIT)
  *    |----------------------------------------->|
- *    |                          prepareTUPKEYREQ
+ *    |                          prepare_scanTUPKEYREQ
  *    |                          |<--------------|
  *    |                          |-------------->|
  *    | NEXT_SCANCONF
@@ -12063,7 +12519,7 @@ Dblqh::set_acc_ptr_in_scan_record(ScanRecord* scanP,
  *  processing.
  *
  *  When executing ACC_CHECK_SCAN one can flag to DBACC/DBTUP/DBTUX that one
- *  should check for a 10 ms delay with the flag ZCHECK_LCP_STOP. In previous
+ *  should check for a 1 ms delay with the flag ZCHECK_LCP_STOP. In previous
  *  versions this was also related to local checkpoints, this is no longer
  *  the case. Now it's only related to situations where it is required to
  *  perform an extra wait such that resources becomes available again.
@@ -12071,10 +12527,10 @@ Dblqh::set_acc_ptr_in_scan_record(ScanRecord* scanP,
  *  DBTUP and DBTUX sends the signal CHECK_LCP_STOP to DBLQH in a number of
  *  situations, among other things when a locked key has been encountered.
  *  When the ACCKEYCONF signal then is received indicating that one acquired
- *  the lock, DBLQH will still wait for CHECK_LCP_STOP from DBQLH to return
- *  after 10ms delay. This is on the TODO-list to fix to ensure that we can
+ *  the lock, DBLQH will still wait for CHECK_LCP_STOP from DBLQH to return
+ *  after a 1 ms delay. This is on the TODO-list to fix to ensure that we can
  *  proceed with these locked rows immediately after delivery. As it is now
- *  we can get up to 10ms delay each time we encounter a locked row.
+ *  we can get up to 1 ms delay each time we encounter a locked row.
  */
 /* -------------------------------------------------------------------------
  * SCAN_FRAGREQ: Request to start scanning the specified fragment of a table.
@@ -12084,7 +12540,8 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
   jamEntry();
 
   /* Reassemble if the request was fragmented */
-  if (!assembleFragments(signal)){
+  if (unlikely(!assembleFragments(signal)))
+  {
     jam();
     return;
   }
@@ -12212,13 +12669,18 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
     ndbrequire(scanLockMode == 0 || keyinfo);
 
     ndbrequire(max_rows > 0 && max_rows <= MAX_PARALLEL_OP_PER_SCAN);
-    if (!getFragmentrec(signal, fragId)) {
+    if (unlikely(!getFragmentrec(signal, fragId)))
+    {
+      jam();
       errorCode = 1231;
       goto error_handler;
     }//if
 
     // Verify scan type vs table type (both sides are boolean)
-    if (rangeScan != DictTabInfo::isOrderedIndex(fragptr.p->tableType)) {
+    if (unlikely(rangeScan !=
+                 DictTabInfo::isOrderedIndex(fragptr.p->tableType)))
+    {
+      jam();
       errorCode = 1232;
       goto error_handler;
     }//if
@@ -12231,7 +12693,7 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
       ndbrequire(m_reserved_scans.first(scanptr));
       m_reserved_scans.remove(scanptr);
     }
-    else if (!c_scanRecordPool.seize(scanptr))
+    else if (unlikely(!c_scanRecordPool.seize(scanptr)))
     {
       jam();
       errorCode = ScanFragRef::ZNO_FREE_SCANREC_ERROR;
@@ -12273,15 +12735,13 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
        */
       if (!ScanFragReq::getLcpScanFlag(reqinfo))
       {
-        jam();
-        Fragrecord::UsageStat& useStat =
-          c_fragment_pool.getPtr(tcConnectptr.p->fragmentptr)->m_useStat;
+        jamDebug();
+        Fragrecord::UsageStat& useStat = fragptr.p->m_useStat;
         useStat.m_scanFragReqCount++;
         useStat.m_scanBoundWords+= keyLen;
         if (!ScanFragReq::getNotInterpretedFlag(reqinfo))
         {
           /* Backup scans do not use interpreted mode. */
-          jam();
           useStat.m_scanProgramWords+= getProgramWordCount(attrInfoPtr);
         }
       }
@@ -12290,33 +12750,34 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
     if (ScanFragReq::getCorrFactorFlag(reqinfo))
     {
       /**
-       * Correlattion factor for SPJ
+       * Correlation factor for SPJ
        */
       const Uint32 corrFactorHi = scanFragReq->variableData[1];
       regTcPtr->m_corrFactorLo = scanFragReq->variableData[0];
       regTcPtr->m_corrFactorHi = corrFactorHi;
     }
-
+    jamLineDebug((Uint16)aiLen);
     errorCode = initScanrec(scanFragReq, aiLen, tcConnectptr);
-    if (errorCode != ZOK) {
+    if (unlikely(errorCode != ZOK))
+    {
       jam();
       goto error_handler2;
     }//if
 
     /* Check that no equal element already exists */
-    ndbassert(findTransaction(regTcPtr->transid[0],
-                              regTcPtr->transid[1],
-                              regTcPtr->tcOprec,
-                              senderHi,
-                              tcConnectptr) == ZNOT_FOUND);
+    ndbrequire(findTransaction(regTcPtr->transid[0],
+                               regTcPtr->transid[1],
+                               regTcPtr->tcOprec,
+                               senderHi,
+                               tcConnectptr) == ZNOT_FOUND);
     hashIndex = (regTcPtr->transid[0] ^ regTcPtr->tcOprec) & 1023;
     nextHashptr.i = ctransidHash[hashIndex];
     ctransidHash[hashIndex] = tcConnectptr.i;
     regTcPtr->prevHashRec = RNIL;
     regTcPtr->nextHashRec = nextHashptr.i;
     regTcPtr->hashIndex = hashIndex;
-    if (nextHashptr.i != RNIL) {
-      jam();
+    if (nextHashptr.i != RNIL)
+    {
       /* ---------------------------------------------------------------------
        *   ENSURE THAT THE NEXT RECORD HAS SET PREVIOUS TO OUR RECORD 
        *   IF IT EXISTS
@@ -12325,8 +12786,9 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
       ndbassert(nextHashptr.p->prevHashRec == RNIL);
       nextHashptr.p->prevHashRec = tcConnectptr.i;
     }//if
-    if ((! isLongReq ) && 
-        ( scanptr.p->scanAiLength > 0 )) {
+    if (unlikely((! isLongReq ) && 
+        ( scanptr.p->scanAiLength > 0 )))
+    {
       jam();
       regTcPtr->transactionState = TcConnectionrec::WAIT_SCAN_AI;
       scanptr.p->scan_lastSeen = __LINE__;
@@ -12374,7 +12836,8 @@ void Dblqh::continueAfterReceivingAllAiLab(
   ScanRecord * const scanPtr = scanptr.p;
   regTcPtr->transactionState = TcConnectionrec::SCAN_STATE_USED;
 
-  if(scanPtr->scanState == ScanRecord::IN_QUEUE){
+  if (unlikely(scanPtr->scanState == ScanRecord::IN_QUEUE))
+  {
     jam();
     scanPtr->scan_lastSeen = __LINE__;
     return;
@@ -12444,16 +12907,213 @@ void Dblqh::continueAfterReceivingAllAiLab(
   if (signal->theData[8] == 0)
   {
     /* ACC_SCANCONF */
-    jamEntry();
+    jamEntryDebug();
     accScanConfScanLab(signal, tcConnectptr);
+    return;
   }
   else
   {
     /* ACC_SCANREF */
     jamEntry();
     execACC_SCANREF(signal, tcConnectptr);
+    return;
   }
 }//Dblqh::continueAfterReceivingAllAiLab()
+
+void Dblqh::accScanConfScanLab(Signal* signal,
+                               const TcConnectionrecPtr tcConnectptr)
+{
+  AccScanConf * const accScanConf = (AccScanConf *)&signal->theData[0];
+  ScanRecord * const scanPtr = scanptr.p;
+
+  /* -----------------------------------------------------------------------
+   *       PRECONDITION: SCAN_STATE = WAIT_ACC_SCAN
+   * ----------------------------------------------------------------------- */
+  if (accScanConf->flag == AccScanConf::ZEMPTY_FRAGMENT)
+  {
+    jam();
+    /* ---------------------------------------------------------------------
+     *       THE FRAGMENT WAS EMPTY.
+     *       REPORT SUCCESSFUL COPYING.
+     * --------------------------------------------------------------------- */
+    /*
+     * MRR scan + delete can hit this when the fragment was not
+     * initially empty, but has become empty after previous range.
+     */
+    if (scanPtr->scanStoredProcId != RNIL)
+    {
+      jam();
+      scanPtr->scanCompletedStatus = ZTRUE;
+      accScanCloseConfLab(signal, tcConnectptr);
+      return;
+    }
+    tupScanCloseConfLab(signal, tcConnectptr);
+    return;
+  }//if
+
+  check_send_scan_hb_rep(signal, scanPtr, tcConnectptr.p);
+
+  scanPtr->scanAccPtr = accScanConf->accPtr;
+  if (scanPtr->rangeScan)
+  {
+    TuxBoundInfo* req = (TuxBoundInfo*)signal->getDataPtrSend();
+    req->errorCode = RNIL;
+    req->tuxScanPtrI = scanPtr->scanAccPtr;
+    Uint32 len = req->boundAiLength = copyNextRange(req->data, tcConnectptr.p);
+    signal->setLength(TuxBoundInfo::SignalLength + len);
+    c_tux->execTUX_BOUND_INFO(signal);
+    jamEntryDebug();
+    if (unlikely(req->errorCode != 0))
+    {
+      jam();
+      /*
+       * Cannot use STORED_PROCREF to abort since even the REF
+       * returns a stored proc id.  So record error and continue.
+       * The scan is already Invalid in TUX and returns empty set.
+       */
+      tcConnectptr.p->errorCode = req->errorCode;
+    }
+  }
+
+  if (scanPtr->scanStoredProcId == RNIL)
+  {
+    TcConnectionrec * const regTcPtr = tcConnectptr.p;
+    jamDebug();
+    /* Send AttrInfo to TUP to store as 'stored procedure'
+     * and get storedProcId back for future reference
+     */
+    const Uint32 sig0 = regTcPtr->tupConnectrec;
+    const Uint32 sig1 = regTcPtr->tableref;
+    const Uint32 sig2 = scanPtr->scanSchemaVersion;
+    const Uint32 sig5 = scanPtr->scanApiBlockref;
+    const Uint32 sig6 = regTcPtr->attrInfoIVal;
+
+    signal->theData[0] = sig0;
+    signal->theData[1] = sig1;
+    signal->theData[2] = sig2;
+    signal->theData[3] = ZSTORED_PROC_SCAN;
+// theData[4] is not used
+    signal->theData[5] = sig5;
+    signal->theData[6] = sig6;
+    
+    /* Pass ATTRINFO as long section, we don't need
+     * it after this
+     */
+    regTcPtr->attrInfoIVal= RNIL;
+
+    c_tup->execSTORED_PROCREQ(signal);
+    if (signal->theData[0] == 0)
+    {
+      /* STORED_PROCCONF */
+      jamEntryDebug();
+      Uint32 storedProcId = signal->theData[1];
+      scanPtr->scanStoredProcId = storedProcId;
+      c_tup->copyAttrinfo(storedProcId);
+      storedProcConfScanLab(signal, tcConnectptr);
+      return;
+    }
+    else
+    {
+      /* STORED_PROCREF */
+      jamEntry();
+      scanPtr->scanCompletedStatus = ZTRUE;
+      tcConnectptr.p->errorCode = signal->theData[1];
+      scanPtr->scanStoredProcId = signal->theData[2];
+      closeScanLab(signal, tcConnectptr.p);
+      return;
+    }
+  } 
+  else 
+  {
+    /* TUP already has the Stored procedure, continue */
+    jam();
+    c_tup->copyAttrinfo(scanPtr->scanStoredProcId);
+    storedProcConfScanLab(signal, tcConnectptr);
+    return;
+  }
+}//Dblqh::accScanConfScanLab()
+
+/* -------------------------------------------------------------------------
+ *       ENTER STORED_PROCCONF WITH
+ *         0 success == CONF, 1 failure == REF
+ *         STORED_PROC_ID
+ * ------------------------------------------------------------------------- */
+void Dblqh::storedProcConfScanLab(Signal* signal,
+                                  const TcConnectionrecPtr tcConnectptr)
+{
+  ScanRecord * const scanPtr = scanptr.p;
+  if (unlikely(scanPtr->scanCompletedStatus == ZTRUE))
+  {
+    jam();
+    // STOP THE SCAN PROCESS IF THIS HAS BEEN REQUESTED.
+    closeScanLab(signal, tcConnectptr.p);
+    return;
+  }//if
+  Fragrecord::FragStatus fragstatus = fragptr.p->fragStatus;
+  if (likely(is_scan_ok(scanPtr, fragstatus)))
+  {
+    /**
+     * At this point we have set up everything in DBLQH, in the
+     * scan block (DBACC for full table scans, DBTUP for LCP scans
+     * and node recovery scans and full table scans ordered by an
+     * NDB API application and DBTUX for ordered index scans
+     * (range scans).
+     *
+     * We will now rely on all operation pointers, scan pointers
+     * fragment pointers and table pointers to be setup on the
+     * block object for quick access. If we get a real-time break
+     * we have to ensure that those are setup properly again.
+     *
+     * Real-time breaks have occurred when we receive the signal
+     * SCAN_NEXTREQ, we could also get a real-time break from
+     * the scan block by sending NEXT_SCANCONF as an asynchronous
+     * signal. It can be ordered by the scan block by sending a
+     * direct signal CHECK_LCP_STOP to DBLQH, this will lead to
+     * a CONTINUEB with delay of 1 millisecond.
+     *
+     * Finally it can happen by sending a CONTINUEB signal from
+     * send_next_NEXT_SCANREQ to ourselves. This signal simply
+     * means we are in the middle of processing a local scan
+     * operation, but we need to take a real-time break to
+     * provide an opportunity for other operations to execute
+     * as well.
+     *
+     * This is not always the first call to send_next_NEXT_SCANREQ.
+     * The reason is that we can execute multiple ranges as part
+     * of one scan. See scanNextLoopLab for more description of
+     * stack unwinding when sending NEXT_SCANREQ.
+     */
+    const Uint32 sig0 = scanPtr->scanAccPtr;
+    SimulatedBlock *block = scanPtr->scanBlock;
+    ExecFunction f = scanPtr->scanFunction_NEXT_SCANREQ;
+    Uint32 in_send_next_scan = m_in_send_next_scan;
+    signal->theData[1] = RNIL;
+    signal->theData[2] = NextScanReq::ZSCAN_NEXT;
+    signal->theData[0] = sig0;
+    scanPtr->scanState = ScanRecord::WAIT_NEXT_SCAN;
+    scanPtr->scan_lastSeen = __LINE__;
+    if (likely(in_send_next_scan == 0))
+    {
+      send_next_NEXT_SCANREQ(signal,
+                             block,
+                             f,
+                             scanPtr,
+                             tcConnectptr.p->clientConnectrec);
+      return;
+    }
+    ndbassert(in_send_next_scan == 1);
+    m_in_send_next_scan = 2;
+    return;
+  }
+  else
+  {
+    jamLine(fragptr.p->fragStatus);
+    ndbout_c("fragptr.p->fragStatus: %u",
+             fragptr.p->fragStatus);
+    // wl4391_todo SR 2-node CRASH_RECOVERING from BACKUP
+    ndbabort();
+  }
+}//Dblqh::storedProcConfScanLab()
 
 void Dblqh::scanAttrinfoLab(Signal* signal,
                             Uint32* dataPtr,
@@ -12557,109 +13217,6 @@ Dblqh::check_send_scan_hb_rep(Signal* signal,
   }
 }
 
-void Dblqh::accScanConfScanLab(Signal* signal,
-                               const TcConnectionrecPtr tcConnectptr)
-{
-  AccScanConf * const accScanConf = (AccScanConf *)&signal->theData[0];
-  ScanRecord * const scanPtr = scanptr.p;
-
-  /* -----------------------------------------------------------------------
-   *       PRECONDITION: SCAN_STATE = WAIT_ACC_SCAN
-   * ----------------------------------------------------------------------- */
-  if (accScanConf->flag == AccScanConf::ZEMPTY_FRAGMENT) {
-    jam();
-    /* ---------------------------------------------------------------------
-     *       THE FRAGMENT WAS EMPTY.
-     *       REPORT SUCCESSFUL COPYING.
-     * --------------------------------------------------------------------- */
-    /*
-     * MRR scan + delete can hit this when the fragment was not
-     * initially empty, but has become empty after previous range.
-     */
-    if (scanPtr->scanStoredProcId != RNIL) {
-      jam();
-      scanPtr->scanCompletedStatus = ZTRUE;
-      accScanCloseConfLab(signal, tcConnectptr);
-      return;
-    }
-    tupScanCloseConfLab(signal, tcConnectptr);
-    return;
-  }//if
-
-  check_send_scan_hb_rep(signal, scanPtr, tcConnectptr.p);
-
-  scanPtr->scanAccPtr = accScanConf->accPtr;
-  if (scanPtr->rangeScan) {
-    TuxBoundInfo* req = (TuxBoundInfo*)signal->getDataPtrSend();
-    req->errorCode = RNIL;
-    req->tuxScanPtrI = scanPtr->scanAccPtr;
-    Uint32 len = req->boundAiLength = copyNextRange(req->data, tcConnectptr.p);
-    signal->setLength(TuxBoundInfo::SignalLength + len);
-    c_tux->execTUX_BOUND_INFO(signal);
-    jamEntry();
-    if (req->errorCode != 0) {
-      jam();
-      /*
-       * Cannot use STORED_PROCREF to abort since even the REF
-       * returns a stored proc id.  So record error and continue.
-       * The scan is already Invalid in TUX and returns empty set.
-       */
-      tcConnectptr.p->errorCode = req->errorCode;
-    }
-  }
-
-  if(scanPtr->scanStoredProcId == RNIL)
-  {
-    TcConnectionrec * const regTcPtr = tcConnectptr.p;
-    jam();
-    /* Send AttrInfo to TUP to store as 'stored procedure'
-     * and get storedProcId back for future reference
-     */
-    const Uint32 sig0 = regTcPtr->tupConnectrec;
-    const Uint32 sig1 = regTcPtr->tableref;
-    const Uint32 sig2 = scanPtr->scanSchemaVersion;
-    const Uint32 sig5 = scanPtr->scanApiBlockref;
-    const Uint32 sig6 = regTcPtr->attrInfoIVal;
-
-    signal->theData[0] = sig0;
-    signal->theData[1] = sig1;
-    signal->theData[2] = sig2;
-    signal->theData[3] = ZSTORED_PROC_SCAN;
-// theData[4] is not used
-    signal->theData[5] = sig5;
-    signal->theData[6] = sig6;
-    
-    /* Pass ATTRINFO as long section, we don't need
-     * it after this
-     */
-    regTcPtr->attrInfoIVal= RNIL;
-
-    c_tup->execSTORED_PROCREQ(signal);
-    if (signal->theData[0] == 0)
-    {
-      /* STORED_PROCCONF */
-      jamEntry();
-      scanPtr->scanStoredProcId = signal->theData[1];
-      storedProcConfScanLab(signal, tcConnectptr);
-    }
-    else
-    {
-      /* STORED_PROCREF */
-      jamEntry();
-      scanPtr->scanCompletedStatus = ZTRUE;
-      tcConnectptr.p->errorCode = signal->theData[1];
-      scanPtr->scanStoredProcId = signal->theData[2];
-      closeScanLab(signal, tcConnectptr.p);
-    }
-  } 
-  else 
-  {
-    /* TUP already has the Stored procedure, continue */
-    jam();
-    storedProcConfScanLab(signal, tcConnectptr);
-  }
-}//Dblqh::accScanConfScanLab()
-
 Uint32
 Dblqh::copyNextRange(Uint32 * dst, TcConnectionrec* tcPtrP)
 {
@@ -12755,53 +13312,6 @@ Dblqh::copyNextRange(Uint32 * dst, TcConnectionrec* tcPtrP)
   return 1;
 }
 
-/* -------------------------------------------------------------------------
- *       ENTER STORED_PROCCONF WITH
- *         0 success == CONF, 1 failure == REF
- *         STORED_PROC_ID
- * ------------------------------------------------------------------------- */
-void Dblqh::storedProcConfScanLab(Signal* signal,
-                                  const TcConnectionrecPtr tcConnectptr)
-{
-  ScanRecord * const scanPtr = scanptr.p;
-  fragptr.i = tcConnectptr.p->fragmentptr;
-
-  c_fragment_pool.getPtr(fragptr);
-  if (scanPtr->scanCompletedStatus == ZTRUE) {
-    jam();
-    // STOP THE SCAN PROCESS IF THIS HAS BEEN REQUESTED.
-    closeScanLab(signal, tcConnectptr.p);
-    return;
-  }//if
-  Fragrecord::FragStatus fragstatus = fragptr.p->fragStatus;
-  if (likely(is_scan_ok(scanPtr, fragstatus)))
-  {
-    const Uint32 sig0 = scanPtr->scanAccPtr;
-    SimulatedBlock *block = scanPtr->scanBlock;
-    ExecFunction f = scanPtr->scanFunction_NEXT_SCANREQ;
-    signal->theData[1] = RNIL;
-    signal->theData[2] = NextScanReq::ZSCAN_NEXT;
-    signal->theData[0] = sig0;
-    scanPtr->scanState = ScanRecord::WAIT_NEXT_SCAN;
-    scanPtr->scan_lastSeen = __LINE__;
-    send_next_NEXT_SCANREQ(signal,
-                           block,
-                           f,
-                           scanPtr,
-                           tcConnectptr.p->clientConnectrec);
-    return;
-  }
-  else
-  {
-    jamLine(fragptr.p->fragStatus);
-    ndbout_c("fragptr.p->fragStatus: %u",
-             fragptr.p->fragStatus);
-    // wl4391_todo SR 2-node CRASH_RECOVERING from BACKUP
-    ndbabort();
-    return;
-  }
-}//Dblqh::storedProcConfScanLab()
-
 /* ------------------------------------------------------------------------- 
  * When executing a scan we must come up to the surface at times to wait
  * for a resource to become available
@@ -12836,7 +13346,7 @@ void Dblqh::execCHECK_LCP_STOP(Signal* signal)
      
     signal->theData[0] = ZCHECK_LCP_STOP_BLOCKED;
     signal->theData[1] = scanPtrI;
-    sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 10, 2);
+    sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 1, 2);
 
     /* Tell caller to take a break */
     signal->theData[0] = CheckLcpStop::ZTAKE_A_BREAK;
@@ -12876,22 +13386,9 @@ void Dblqh::execCHECK_LCP_STOP(Signal* signal)
   default:
     jam();
     jamLine(cls->scanState);
-    ndbrequire(false);
+    ndbabort();
   }
 }//Dblqh::execCHECK_LCP_STOP()
-
-void Dblqh::checkLcpStopBlockedLab(Signal* signal)
-{
-  Fragrecord::FragStatus fragstatus = fragptr.p->fragStatus;
-  ScanRecord * const scanPtr = scanptr.p;
-  BlockReference blockRef = scanPtr->scanBlockref;
-  scanptr.p->scan_lastSeen = __LINE__;
-  signal->theData[0] = scanPtr->scanAccPtr;
-  signal->theData[1] = AccCheckScan::ZNOT_CHECK_LCP_STOP;
-  ndbrequire(is_scan_ok(scanPtr, fragstatus));
-  EXECUTE_DIRECT(refToMain(blockRef), GSN_ACC_CHECK_SCAN,
-      signal, 2);
-}//Dblqh::checkLcpStopBlockedLab()
 
 /* -------------------------------------------------------------------------
  *       ENTER NEXT_SCANCONF
@@ -12905,15 +13402,15 @@ void Dblqh::nextScanConfScanLab(Signal* signal,
                                 const TcConnectionrecPtr tcConnectptr)
 {
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
-  if (fragId != RNIL && accOpPtr != RNIL)
+  if (likely(fragId != RNIL && accOpPtr != RNIL))
   {
-    check_send_scan_hb_rep(signal, scanPtr, regTcPtr);
+    jamDebug();
+    check_send_scan_hb_rep(signal, scanPtr, tcConnectptr.p);
     scanPtr->scan_check_lcp_stop = 0;
     set_acc_ptr_in_scan_record(scanPtr,
                                scanPtr->m_curr_batch_size_rows,
                                accOpPtr);
 
-    Fragrecord* fragPtrP= fragptr.p;
     if (unlikely(signal->getLength() ==
                  NextScanConf::SignalLengthNoKeyInfo))
     {
@@ -12933,6 +13430,10 @@ void Dblqh::nextScanConfScanLab(Signal* signal,
       NextScanConf * const nextScanConf = (NextScanConf *)&signal->theData[0];
       Uint32 gci = nextScanConf->gci;
       Uint32 readLength;
+      /**
+       * Coming here only happens for LCP scans and these always returns
+       * row ids, both in TRANSID_AIs and in return NEXT_SCANCONF.
+       */
       if (scanPtr->m_row_id.m_page_idx == ZNIL)
       {
         jam();
@@ -12958,7 +13459,12 @@ void Dblqh::nextScanConfScanLab(Signal* signal,
       if (!scanPtr->check_scan_batch_completed())
       {
         jam();
-        scanNextLoopLab(signal, regTcPtr->clientConnectrec);
+        scanNextLoopLab(signal,
+                        regTcPtr->clientConnectrec,
+                        RNIL,
+                        scanPtr,
+                        fragptr.p);
+        return;
       }
       else
       {
@@ -12966,16 +13472,18 @@ void Dblqh::nextScanConfScanLab(Signal* signal,
         scanPtr->scanState = ScanRecord::WAIT_SCAN_NEXTREQ;
         scanPtr->scan_lastSeen = __LINE__;
         sendScanFragConf(signal, ZFALSE, regTcPtr);
+        return;
       }
-      return;
     }
 
     /* ----------------------------------------------------------------------
      *       STOP THE SCAN PROCESS IF THIS HAS BEEN REQUESTED.
      * ---------------------------------------------------------------------- */
-    if (scanPtr->scanCompletedStatus == ZTRUE) {
+    if (unlikely(scanPtr->scanCompletedStatus == ZTRUE))
+    {
       if ((scanPtr->scanLockHold == ZTRUE) && 
-          (scanPtr->m_curr_batch_size_rows > 0)) {
+          (scanPtr->m_curr_batch_size_rows > 0))
+      {
         jam();
         scanPtr->scanReleaseCounter = 1;
         scanReleaseLocksLab(signal, regTcPtr);
@@ -12986,25 +13494,21 @@ void Dblqh::nextScanConfScanLab(Signal* signal,
       return;
     }//if
 
-    const Uint32 fragPtrI = fragPtrP->tableFragptr;
-    const Uint32 rangeScan = scanPtr->rangeScan;
+    Fragrecord* fragPtrP = prim_tab_fragptr.p;
     bool disk_table = regTcPtr->m_disk_table;
-    jamDebug();
     regTcPtr->transactionState = TcConnectionrec::SCAN_TUPKEY;
-    if (rangeScan) {
-      // for ordered index use primary table
-      fragPtrP= c_fragment_pool.getPtr(fragPtrI);
-      jam();
-    }
-
-    if (!disk_table)
+    if (likely(!disk_table))
     {
+      jamDebug();
       next_scanconf_tupkeyreq(signal, scanPtr, regTcPtr, fragPtrP, RNIL);
+      return;
     }
     else
     {
+      jamDebug();
       scanPtr->scan_lastSeen = __LINE__;
       next_scanconf_load_diskpage(signal, scanPtr, tcConnectptr,fragPtrP);
+      return;
     }
   }
   else
@@ -13070,7 +13574,10 @@ void Dblqh::nextScanConfScanLab(Signal* signal,
       jam();
       signal->theData[0] = sig0;
       signal->theData[1] = AccCheckScan::ZCHECK_LCP_STOP;
-      sendSignal(blockRef, GSN_ACC_CHECK_SCAN, signal, 2, JBB);
+      EXECUTE_DIRECT(refToMain(blockRef),
+                     GSN_ACC_CHECK_SCAN,
+                     signal,
+                     2);
       return;
     }
   }
@@ -13084,7 +13591,6 @@ Dblqh::next_scanconf_tupkeyreq(Signal* signal,
 			       Uint32 disk_page)
 {
   TupKeyReq * const tupKeyReq = (TupKeyReq *)signal->getDataPtrSend(); 
-  const Uint32 fragPtr = fragPtrP->tupFragptr;
   Uint32 reqinfo = 0;
   TupKeyReq::setDirtyFlag(reqinfo, (scanPtr->scanLockHold == ZFALSE));
   TupKeyReq::setPrioAFlag(reqinfo, scanPtr->prioAFlag);
@@ -13093,58 +13599,64 @@ Dblqh::next_scanconf_tupkeyreq(Signal* signal,
   TupKeyReq::setReorgFlag(reqinfo, regTcPtr->m_reorg);
   TupKeyReq::setNrCopyFlag(reqinfo, ZFALSE);
   tupKeyReq->disk_page= disk_page;
-  tupKeyReq->attrInfoIVal= RNIL;
-  tupKeyReq->attrBufLen = 0;
   jamDebug();
 
-  tupKeyReq->fragPtr = fragPtr;
   tupKeyReq->request = reqinfo;
   /* No AttrInfo sent to TUP, it uses a stored procedure */
-
   {
-    const Uint32 connectPtr = regTcPtr->tupConnectrec;
+    /**
+     * The row id here depends on if we are scanning in TUX
+     * or in TUP or ACC. TUX returns phyiscal row ids and
+     * TUP and ACC returns logical row ids. This is handled
+     * by TUP.
+     */
     const Uint32 keyRef1 = scanPtr->m_row_id.m_page_no;
+    const Uint32 keyRef2 = scanPtr->m_row_id.m_page_idx;
     const Uint32 opRef = scanPtr->scanApiOpPtr; 
     const Uint32 applRef = scanPtr->scanApiBlockref;
-    const Uint32 storedProcedure = scanPtr->scanStoredProcId;
-    const Uint32 keyRef2 = scanPtr->m_row_id.m_page_idx;
-
-    tupKeyReq->connectPtr = connectPtr;
+    const Uint32 aiLen = scanPtr->scanAiLength;
     tupKeyReq->keyRef1 = keyRef1;
     tupKeyReq->keyRef2 = keyRef2;
     tupKeyReq->opRef = opRef; 
     tupKeyReq->applRef = applRef;
-    tupKeyReq->storedProcedure = storedProcedure;
+    tupKeyReq->attrBufLen = aiLen;
   }
   {
-    const Uint32 seqNoReplica = regTcPtr->seqNoReplica;
     const Uint32 coordinatorTC = regTcPtr->tcBlockref;
     const Uint32 tcOpIndex = regTcPtr->tcOprec;
     const Uint32 savePointId = regTcPtr->savePointId;
+    tupKeyReq->coordinatorTC = coordinatorTC;
+    tupKeyReq->tcOpIndex = tcOpIndex;
+    tupKeyReq->savePointId = savePointId;
+  }
+  {
+    const Uint32 seqNoReplica = regTcPtr->seqNoReplica;
     const Uint32 transId1 = regTcPtr->transid[0];
     const Uint32 transId2 = regTcPtr->transid[1];
 
     tupKeyReq->deferred_constraints = 0;
     tupKeyReq->disable_fk_checks = 0;
+    const Uint32 flags = regTcPtr->m_flags;
+    tupKeyReq->transId1 = transId1;
+    tupKeyReq->transId2 = transId2;
     tupKeyReq->triggers =
-      (regTcPtr->m_flags & TcConnectionrec::OP_NO_TRIGGERS) ?
+      (flags & TcConnectionrec::OP_NO_TRIGGERS) ?
       TupKeyReq::OP_NO_TRIGGERS :
       (seqNoReplica == 0) ?
       TupKeyReq::OP_PRIMARY_REPLICA : TupKeyReq::OP_BACKUP_REPLICA;
-
-    tupKeyReq->coordinatorTC = coordinatorTC;
-    tupKeyReq->tcOpIndex = tcOpIndex;
-    tupKeyReq->savePointId = savePointId;
-    tupKeyReq->transId1 = transId1;
-    tupKeyReq->transId2 = transId2;
+#ifdef VM_TRACE
+    tupKeyReq->fragPtr = fragPtrP->tupFragptr;
+#endif
   }
   if (c_tup->execTUPKEYREQ(signal))
   {
     execTUPKEYCONF(signal);
+    return;
   }
   else
   {
     execTUPKEYREF(signal);
+    return;
   }
 }
 
@@ -13158,14 +13670,15 @@ Dblqh::next_scanconf_load_diskpage(Signal* signal,
 
   int res;
 
-  if((res= c_tup->load_diskpage_scan(signal,
-				     regTcPtr.p->tupConnectrec,
-				     fragPtrP->tupFragptr,
-				     scanPtr->m_row_id.m_page_no,
-				     scanPtr->m_row_id.m_page_idx,
-				     0)) > 0)
+  if ((res = c_tup->load_diskpage_scan(signal,
+                                       regTcPtr.p->tupConnectrec,
+                                       fragPtrP->tupFragptr,
+                                       scanPtr->m_row_id.m_page_no,
+                                       scanPtr->m_row_id.m_page_idx,
+                                       scanPtr->rangeScan)) > 0)
   {
     next_scanconf_tupkeyreq(signal, scanPtr, regTcPtr.p, fragPtrP, res);
+    return;
   }
   else if(unlikely(res != 0))
   {
@@ -13174,6 +13687,7 @@ Dblqh::next_scanconf_load_diskpage(Signal* signal,
     ref->userRef= regTcPtr.i;
     ref->errorCode= ~0;
     execTUPKEYREF(signal);
+    return;
   }
 }
 
@@ -13183,29 +13697,33 @@ Dblqh::next_scanconf_load_diskpage_callback(Signal* signal,
 					    Uint32 disk_page)
 {
   jamEntry();
-
   Ptr<TcConnectionrec> regTcPtr;
   regTcPtr.i= callbackData;
   ptrCheckGuard(regTcPtr, ctcConnectrecFileSize, tcConnectionrec);
-  
-  ScanRecordPtr scanPtr;
-  c_scanRecordPool.getPtr(scanPtr, regTcPtr.p->tcScanRec);
-
-  if(disk_page > 0)
+  /**
+   * We have returned from a real-time break, we need to set up
+   * the proper block pointers for scan execution.
+   */
+  setup_scan_pointers_from_tc_con(regTcPtr);
+ 
+  ScanRecord *scanPtr = scanptr.p;
+  Fragrecord *fragPtrP = prim_tab_fragptr.p;
+  if (disk_page > 0)
   {
-    jam();
-    FragrecordPtr fragPtr;
-    c_fragment_pool.getPtr(fragPtr, regTcPtr.p->fragmentptr);
-    if (scanPtr.p->rangeScan) {
-      // for ordered index use primary table
-      fragPtr.i = fragPtr.p->tableFragptr;
-      fragPtr.p = c_fragment_pool.getPtr(fragPtr.i);
+    if (scanPtr->rangeScan)
+    {
       jam();
+      c_tup->prepare_scan_tux_TUPKEYREQ(scanPtr->m_row_id.m_page_no,
+                                        scanPtr->m_row_id.m_page_idx);
     }
-    c_tup->prepareTUPKEYREQ(scanPtr.p->m_row_id.m_page_no,
-                            scanPtr.p->m_row_id.m_page_idx,
-                            fragPtr.p->tupFragptr);
-    next_scanconf_tupkeyreq(signal, scanPtr.p, regTcPtr.p, fragPtr.p, disk_page);
+    else
+    {
+      jam();
+      c_tup->prepare_scanTUPKEYREQ(scanPtr->m_row_id.m_page_no,
+                                   scanPtr->m_row_id.m_page_idx);
+    }
+    next_scanconf_tupkeyreq(signal, scanPtr, regTcPtr.p, fragPtrP, disk_page);
+    return;
   }
   else
   {
@@ -13214,6 +13732,7 @@ Dblqh::next_scanconf_load_diskpage_callback(Signal* signal,
     ref->userRef= callbackData;
     ref->errorCode= disk_page;
     execTUPKEYREF(signal);
+    return;
   }
 }
 
@@ -13241,21 +13760,16 @@ Dblqh::keyinfoLab(const Uint32 * src,
 Uint32
 Dblqh::readPrimaryKeys(ScanRecord *scanP, TcConnectionrec *tcConP, Uint32 *dst)
 {
-  Uint32 tableId = tcConP->tableref;
+  Uint32 tableId = prim_tab_fragptr.p->tabRef;
   Uint32 fragId = tcConP->fragmentid;
   Uint32 fragPageId = scanP->m_row_id.m_page_no;
   Uint32 pageIndex = scanP->m_row_id.m_page_idx;
 
-  if(scanP->rangeScan)
+  if (likely(scanP->rangeScan))
   {
-    jam();
-    // for ordered index use primary table
-    FragrecordPtr tFragPtr;
-    tFragPtr.i = fragptr.p->tableFragptr;
-    c_fragment_pool.getPtr(tFragPtr);
-    tableId = tFragPtr.p->tabRef;
+    jamDebug();
+    fragPageId = c_tup->get_current_frag_page_id();
   }
-
   int ret = c_tup->accReadPk(tableId, fragId, fragPageId, pageIndex, dst, false);
   jamEntry();
   if(0)
@@ -13274,16 +13788,16 @@ Dblqh::readPrimaryKeys(ScanRecord *scanP, TcConnectionrec *tcConP, Uint32 *dst)
 void Dblqh::scanTupkeyConfLab(Signal* signal,
                               TcConnectionrec* regTcPtr)
 {
-  scanptr.i = regTcPtr->tcScanRec;
+  ScanRecord * const scanPtr = scanptr.p;
+  Uint32 scan_direct_count = m_scan_direct_count;
   const TupKeyConf * conf = (TupKeyConf *)signal->getDataPtr();
   UintR tdata4 = conf->readLength;
   UintR tdata5 = conf->lastRow;
-  c_scanRecordPool.getPtr(scanptr);
+  m_scan_direct_count = scan_direct_count + 1;
 
-  if (!scanptr.p->lcpScan)
+  if (!scanPtr->lcpScan)
   {
-    Fragrecord::UsageStat& useStat = 
-      c_fragment_pool.getPtr(regTcPtr->fragmentptr)->m_useStat;
+    Fragrecord::UsageStat& useStat = fragptr.p->m_useStat;
     ndbassert(useStat.m_scanFragReqCount > 0);
 
     useStat.m_scanRowsExamined++;
@@ -13292,7 +13806,6 @@ void Dblqh::scanTupkeyConfLab(Signal* signal,
 
   regTcPtr->transactionState = TcConnectionrec::SCAN_STATE_USED;
 
-  ScanRecord * const scanPtr = scanptr.p;
 
   const Uint32 rows = scanPtr->m_curr_batch_size_rows;
   const Uint32 accOpPtr= get_acc_ptr_from_scan_record(scanPtr, rows, false);
@@ -13306,7 +13819,8 @@ void Dblqh::scanTupkeyConfLab(Signal* signal,
     ndbassert(refToBlock(scanPtr->scanBlockref) != DBACC);
   }
   
-  if (scanPtr->scanCompletedStatus == ZTRUE) {
+  if (unlikely(scanPtr->scanCompletedStatus == ZTRUE))
+  {
     /* ---------------------------------------------------------------------
      *       STOP THE SCAN PROCESS IF THIS HAS BEEN REQUESTED.
      * --------------------------------------------------------------------- */
@@ -13321,7 +13835,8 @@ void Dblqh::scanTupkeyConfLab(Signal* signal,
     closeScanLab(signal, regTcPtr);
     return;
   }//if
-  if (scanPtr->scanKeyinfoFlag) {
+  if (unlikely(scanPtr->scanKeyinfoFlag))
+  {
     jam();
     // Inform API about keyinfo len aswell
     tdata4 += sendKeyinfo20(signal, scanPtr, regTcPtr);
@@ -13347,65 +13862,50 @@ void Dblqh::scanTupkeyConfLab(Signal* signal,
     }
   }
 
-  if (scanPtr->check_scan_batch_completed() | tdata5){
-    if (scanPtr->scanLockHold == ZTRUE) {
+  if (scanPtr->check_scan_batch_completed() | tdata5)
+  {
+    if (scanPtr->scanLockHold == ZTRUE)
+    {
       jam();
       scanPtr->scanState = ScanRecord::WAIT_SCAN_NEXTREQ;
       scanPtr->scan_lastSeen = __LINE__;
       sendScanFragConf(signal, ZFALSE, regTcPtr);
       return;
-    } else {
+    }
+    else
+    {
       jam();
       scanPtr->scanReleaseCounter = rows + 1;
       scanReleaseLocksLab(signal, regTcPtr);
       return;
     }
-  } else {
-    if (scanPtr->scanLockHold == ZTRUE) {
-      jam();
-      scanPtr->scanFlag = NextScanReq::ZSCAN_NEXT;
-    } else {
-      jam();
-      scanPtr->scanFlag = NextScanReq::ZSCAN_NEXT_COMMIT;
-    }
   }
-  scanNextLoopLab(signal, regTcPtr->clientConnectrec);
-}//Dblqh::scanTupkeyConfLab()
-
-void Dblqh::scanNextLoopLab(Signal* signal, Uint32 clientPtrI) 
-{
-  Uint32 accOpPtr;
-  ScanRecord * const scanPtr = scanptr.p;
-  Uint32 scanFlag = scanPtr->scanFlag;
-  if (likely(scanFlag == NextScanReq::ZSCAN_NEXT_COMMIT)) {
-    accOpPtr= get_acc_ptr_from_scan_record(scanPtr,
+  if (unlikely(scanPtr->scanLockHold == ZTRUE))
+  {
+    jamDebug();
+    scanPtr->scanFlag = NextScanReq::ZSCAN_NEXT;
+    scanNextLoopLab(signal,
+                    regTcPtr->clientConnectrec,
+                    RNIL,
+                    scanPtr,
+                    fragptr.p);
+    return;
+  }
+  else
+  {
+    jamDebug();
+    scanPtr->scanFlag = NextScanReq::ZSCAN_NEXT_COMMIT;
+    Uint32 accOpPtr= get_acc_ptr_from_scan_record(scanPtr,
 					   scanPtr->m_curr_batch_size_rows-1,
 					   false);
-  } else if (scanPtr->scanFlag == NextScanReq::ZSCAN_NEXT_ABORT) {
-    jam();
-    scanFlag = scanPtr->scanFlag = NextScanReq::ZSCAN_NEXT_COMMIT;
-    accOpPtr= get_acc_ptr_from_scan_record(scanPtr,
-					   scanPtr->m_curr_batch_size_rows,
-					   false);
-    scanPtr->scan_acc_index--;
-  } else {
-    jam();
-    accOpPtr = RNIL; // The value is not used in ACC
-  }//if
-  Fragrecord::FragStatus fragstatus = fragptr.p->fragStatus;
-  const Uint32 sig0 = scanPtr->scanAccPtr;
-  SimulatedBlock *block = scanPtr->scanBlock;
-  ExecFunction f = scanPtr->scanFunction_NEXT_SCANREQ;
-
-  signal->theData[0] = sig0;
-  signal->theData[1] = accOpPtr;
-  signal->theData[2] = scanFlag;
-
-  ndbrequire(is_scan_ok(scanPtr, fragstatus));
-  scanPtr->scanState = ScanRecord::WAIT_NEXT_SCAN;
-  scanPtr->scan_lastSeen = __LINE__;
-  send_next_NEXT_SCANREQ(signal, block, f, scanPtr, clientPtrI);
-}//Dblqh::scanNextLoopLab()
+    scanNextLoopLab(signal,
+                    regTcPtr->clientConnectrec,
+                    accOpPtr,
+                    scanPtr,
+                    fragptr.p);
+    return;
+  }
+}//Dblqh::scanTupkeyConfLab()
 
 /* -------------------------------------------------------------------------
  *         ENTER TUPKEYREF WITH
@@ -13418,15 +13918,12 @@ void Dblqh::scanTupkeyRefLab(Signal* signal,
                              const TcConnectionrecPtr tcConnectptr)
 {
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
-  scanptr.i = regTcPtr->tcScanRec;
-  c_scanRecordPool.getPtr(scanptr);
   ScanRecord * const scanPtr = scanptr.p;
   regTcPtr->transactionState = TcConnectionrec::SCAN_STATE_USED;
 
-  if (!scanptr.p->lcpScan)
+  if (!scanPtr->lcpScan)
   {
-    Fragrecord::UsageStat& useStat = 
-      c_fragment_pool.getPtr(tcConnectptr.p->fragmentptr)->m_useStat;
+    Fragrecord::UsageStat& useStat = fragptr.p->m_useStat;
     ndbassert(useStat.m_scanFragReqCount > 0);
 
     useStat.m_scanRowsExamined++;
@@ -13441,15 +13938,15 @@ void Dblqh::scanTupkeyRefLab(Signal* signal,
   if (accOpPtr != (Uint32)-1)
   {
     c_acc->execACCKEY_ORD(signal, accOpPtr);
-    jamEntry();
+    jamEntryDebug();
   }
   else
   {
     ndbassert(refToBlock(scanPtr->scanBlockref) != DBACC);
-    jam();
+    jamDebug();
   }
-
-  if (scanPtr->scanCompletedStatus == ZTRUE) {
+  if (unlikely(scanPtr->scanCompletedStatus == ZTRUE))
+  {
     /* ---------------------------------------------------------------------
      *       STOP THE SCAN PROCESS IF THIS HAS BEEN REQUESTED.
      * --------------------------------------------------------------------- */
@@ -13464,19 +13961,24 @@ void Dblqh::scanTupkeyRefLab(Signal* signal,
     closeScanLab(signal, tcConnectptr.p);
     return;
   }//if
-  if ((terrorCode != ZUSER_SEARCH_CONDITION_FALSE_CODE) &&
-      (terrorCode != ZNO_TUPLE_FOUND)) {
+  if (unlikely((terrorCode != ZUSER_SEARCH_CONDITION_FALSE_CODE) &&
+               (terrorCode != ZNO_TUPLE_FOUND)))
+  {
 #ifdef VM_TRACE
     ndbout << "Dblqh::scanTupkeyRefLab() aborting scan terrorCode=" 
            << terrorCode << endl;
 #endif
+    jamDebug();
     scanPtr->scanErrorCounter++;
     tcConnectptr.p->errorCode = terrorCode;
 
-    if (scanPtr->scanLockHold == ZTRUE && rows > 0) {
+    if (scanPtr->scanLockHold == ZTRUE && rows > 0)
+    {
       jam();
       scanPtr->scanReleaseCounter = 1;
-    } else {
+    }
+    else
+    {
       jam();
       scanPtr->m_curr_batch_size_rows = rows + 1;
       scanPtr->scanReleaseCounter = rows + 1;
@@ -13488,25 +13990,26 @@ void Dblqh::scanTupkeyRefLab(Signal* signal,
     scanReleaseLocksLab(signal, tcConnectptr.p);
     return;
   }//if
-  Uint32 time_passed= cLqhTimeOutCount - tcConnectptr.p->tcTimer;
-  if (rows)
+  Uint32 time_passed = cLqhTimeOutCount - tcConnectptr.p->tcTimer;
+  if (unlikely(rows && time_passed > 1))
   {
-    if (time_passed > 1) 
-    {
   /* -----------------------------------------------------------------------
    *  WE NEED TO ENSURE THAT WE DO NOT SEARCH FOR THE NEXT TUPLE FOR A 
    *  LONG TIME WHILE WE KEEP A LOCK ON A FOUND TUPLE. WE RATHER REPORT 
    *  THE FOUND TUPLE IF FOUND TUPLES ARE RARE. If more than 10 ms passed we
    *  send the found tuples to the API.
    * ----------------------------------------------------------------------- */
-      scanPtr->scanReleaseCounter = rows + 1;
-      scanReleaseLocksLab(signal, tcConnectptr.p);
-      return;
-    }
+    scanPtr->scanReleaseCounter = rows + 1;
+    scanReleaseLocksLab(signal, tcConnectptr.p);
+    return;
   }
-
-  scanPtr->scanFlag = NextScanReq::ZSCAN_NEXT_ABORT;
-  scanNextLoopLab(signal, tcConnectptr.p->clientConnectrec);
+  scanPtr->scanFlag = NextScanReq::ZSCAN_NEXT_COMMIT;
+  scanPtr->scan_acc_index--;
+  scanNextLoopLab(signal,
+                  tcConnectptr.p->clientConnectrec,
+                  accOpPtr,
+                  scanPtr,
+                  fragptr.p);
 }//Dblqh::scanTupkeyRefLab()
 
 /* -------------------------------------------------------------------------
@@ -13515,12 +14018,10 @@ void Dblqh::scanTupkeyRefLab(Signal* signal,
  * ------------------------------------------------------------------------- */
 void Dblqh::closeScanLab(Signal* signal, TcConnectionrec* regTcPtr)
 {
-  FragrecordPtr regFragPtr;
+  FragrecordPtr regFragPtr = fragptr;
   ScanRecord * const scanPtr = scanptr.p;
-  regFragPtr.i = regTcPtr->fragmentptr;
   SimulatedBlock *block = scanPtr->scanBlock;
   const Uint32 sig0 = scanPtr->scanAccPtr;
-  c_fragment_pool.getPtr(regFragPtr);
   Fragrecord::FragStatus fragstatus = regFragPtr.p->fragStatus;
   ExecFunction f = scanPtr->scanFunction_NEXT_SCANREQ;
 
@@ -13532,6 +14033,7 @@ void Dblqh::closeScanLab(Signal* signal, TcConnectionrec* regTcPtr)
   signal->theData[2] = NextScanReq::ZSCAN_CLOSE;
   signal->theData[0] = sig0;
   ndbrequire(is_scan_ok(scanPtr, fragstatus));
+  scanPtr->scanAccPtr = RNIL;
   block->EXECUTE_DIRECT_FN(f, signal);
 }//Dblqh::closeScanLab()
 
@@ -13551,7 +14053,7 @@ void Dblqh::accScanCloseConfLab(Signal* signal,
   {
     jam();
     /* Start next range scan...*/
-    scanPtr->scan_direct_count++;
+    m_scan_direct_count++;
     continueAfterReceivingAllAiLab(signal, tcConnectptr);
     return;
   }
@@ -13570,6 +14072,7 @@ void Dblqh::accScanCloseConfLab(Signal* signal,
   signal->theData[4] = sig4;
   signal->theData[5] = sig5;
   c_tup->execSTORED_PROCREQ(signal);
+  scanPtr->scanStoredProcId = RNIL;
   ndbrequire(signal->theData[0] == 0);
 /* -------------------------------------------------------------------------
  *       ENTER STORED_PROCCONF
@@ -13582,13 +14085,12 @@ void Dblqh::tupScanCloseConfLab(Signal* signal,
 {
   if (scanptr.p->copyPtr != RNIL)
   {
+    jamDebug();
     DEB_COPY(("tupScanCloseConfLab from COPY_FRAGREQ"));
     tupCopyCloseConfLab(signal, tcConnectptr);
     return;
   }
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
-  fragptr.i = regTcPtr->fragmentptr;
-  c_fragment_pool.getPtr(fragptr);
   if (regTcPtr->abortState == TcConnectionrec::NEW_FROM_TC) {
     jam();
     TcNodeFailRecordPtr tcNodeFailPtr;
@@ -13611,28 +14113,61 @@ void Dblqh::tupScanCloseConfLab(Signal* signal,
     jam();
     sendScanFragConf(signal, ZSCAN_FRAG_CLOSED, tcConnectptr.p);
   }//if
+  handle_finish_scan(signal, tcConnectptr);
+}//Dblqh::tupScanCloseConfLab()
+
+void Dblqh::handle_finish_scan(Signal* signal,
+                               TcConnectionrecPtr tcConnectptr)
+{
+  ScanRecordPtr restart;
+  bool restart_flag = finishScanrec(signal, restart, tcConnectptr);
+  if (likely(scanptr.p->scanState != ScanRecord::WAIT_START_QUEUED_SCAN))
   {
-    ScanRecordPtr restart;
-    bool restart_flag = finishScanrec(signal, restart, tcConnectptr);
     releaseScanrec(signal);
-    tcConnectptr.p->tcScanRec = RNIL;
-    deleteTransidHash(signal, tcConnectptr);
-    releaseOprec(signal, tcConnectptr.p);
-    releaseTcrec(signal, tcConnectptr);
-    if (restart_flag)
-    {
-      jam();
-      TcConnectionrecPtr tcConnectptr; // Hiding read only version in outer scope
-      tcConnectptr.i = restart.p->scanTcrec;
-      ptrCheckGuard(tcConnectptr, ctcConnectrecFileSize, tcConnectionrec);
-      scanptr = restart;
-      ndbrequire(scanptr.p->copyPtr == RNIL);
-      continueAfterReceivingAllAiLab(signal, tcConnectptr);
-      return;
-    }
+  }
+  else
+  {
+    /**
+     * We are waiting for a START QUEUED SCAN signal (CONTINUEB).
+     * Until this has arrived we cannot release the scan record.
+     */
+    jam();
+    scanptr.p->scanState = ScanRecord::QUIT_START_QUEUE_SCAN;
+  }
+  tcConnectptr.p->tcScanRec = RNIL;
+  deleteTransidHash(signal, tcConnectptr);
+  releaseOprec(signal, tcConnectptr.p);
+  releaseTcrec(signal, tcConnectptr);
+  if (restart_flag)
+  {
+    jam();
+    restart.p->scanState = ScanRecord::WAIT_START_QUEUED_SCAN;
+    signal->theData[0] = ZSTART_QUEUED_SCAN;
+    signal->theData[1] = restart.i;
+    sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+  }
+}
+
+void Dblqh::restart_queued_scan(Signal* signal, Uint32 scanPtrI)
+{
+  ScanRecordPtr loc_scanptr;
+  loc_scanptr.i = scanPtrI;
+  c_scanRecordPool.getPtr(loc_scanptr);
+  if (loc_scanptr.p->scanState == ScanRecord::QUIT_START_QUEUE_SCAN)
+  {
+    jam();
+    scanptr = loc_scanptr;
+    releaseScanrec(signal);
     return;
   }
-}//Dblqh::tupScanCloseConfLab()
+  ndbrequire(loc_scanptr.p->scanState == ScanRecord::WAIT_START_QUEUED_SCAN);
+  ndbrequire(loc_scanptr.p->copyPtr == RNIL);
+  setup_scan_pointers(scanPtrI);
+  m_scan_direct_count = ZMAX_SCAN_DIRECT_COUNT - 8;
+  // Hiding read only version in outer scope
+  continueAfterReceivingAllAiLab(signal, m_tc_connect_ptr);
+  return;
+}
 
 /* ========================================================================= 
  * =======              INITIATE SCAN RECORD                         ======= 
@@ -13653,8 +14188,10 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
   scanPtr->scanAiLength = aiLen;
   scanPtr->copyPtr = RNIL;
   scanPtr->scanStoredProcId = RNIL;
+  scanPtr->scanAccPtr = RNIL;
   scanPtr->scanNumber = ~0;
-  scanPtr->scan_direct_count = ZMAX_SCAN_DIRECT_COUNT - 1;
+  m_scan_direct_count = ZMAX_SCAN_DIRECT_COUNT - 6;
+  m_tot_scan_direct_count = 0;
   scanPtr->scanType = ScanRecord::SCAN;
   scanPtr->scanState = ScanRecord::SCAN_FREE;
   scanPtr->scanCompletedStatus = ZFALSE;
@@ -13728,6 +14265,7 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
   const Uint32 max_rows = scanFragReq->batch_size_rows;
   const Uint32 max_bytes = scanFragReq->batch_size_bytes;
 
+  jamDebug();
   scanPtr->lcpScan = lcpScan;
   scanPtr->statScan = statScan;
   scanPtr->scanTcWaiting = scanTcWaiting;
@@ -13766,6 +14304,8 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
   tFragPtr.i = fragptr.p->tableFragptr;
   c_fragment_pool.getPtr(tFragPtr);
   scanPtr->fragPtrI = fragptr.p->tableFragptr;
+  prim_tab_fragptr = tFragPtr;
+  c_tup->prepare_tab_pointers(prim_tab_fragptr.p->tupFragptr);
   
   /**
    * ACC scan uses 1 - (MAX_PARALLEL_SCANS_PER_FRAG - 1) inclusive  =  0-11
@@ -13998,7 +14538,7 @@ bool Dblqh::finishScanrec(Signal* signal,
                                        fragptr.p->m_queuedAccScans);
     jam();
     ndbrequire(reserved == 0);
-    queue.release(scanptr);
+    queue.remove(scanptr);
     return false;
   }
 
@@ -14031,7 +14571,7 @@ bool Dblqh::finishScanrec(Signal* signal,
     if (reserved == 0)
     {
       jamDebug();
-      scans.release(scanptr);
+      scans.remove(scanptr);
     }
     else
     {
@@ -14054,9 +14594,7 @@ bool Dblqh::finishScanrec(Signal* signal,
     }
   }
   
-  FragrecordPtr tFragPtr;
-  tFragPtr.i = scanptr.p->fragPtrI;
-  c_fragment_pool.getPtr(tFragPtr);
+  FragrecordPtr tFragPtr = prim_tab_fragptr;
 
   const Uint32 scanNumber = scanPtr->scanNumber;
   ndbrequire(!tFragPtr.p->m_scanNumberMask.get(scanNumber));
@@ -14142,11 +14680,16 @@ bool Dblqh::finishScanrec(Signal* signal,
  * ========================================================================= */
 void Dblqh::releaseScanrec(Signal* signal) 
 {
+  jamDebug();
   ScanRecord * const scanPtr = scanptr.p;
   scanPtr->scanState = ScanRecord::SCAN_FREE;
   scanPtr->scanType = ScanRecord::ST_IDLE;
   scanPtr->scanTcWaiting = 0;
   scanPtr->scan_lastSeen = __LINE__;
+  if (scanPtr->m_reserved == 0)
+  {
+    c_scanRecordPool.release(scanptr);
+  }
 }//Dblqh::releaseScanrec()
 
 /* ------------------------------------------------------------------------
@@ -14359,50 +14902,112 @@ void Dblqh::send_next_NEXT_SCANREQ(Signal* signal,
    * those values and when we start allowing more computations due to
    * higher CPU throughput also in signals part of user transactions.
    */
+#define ZABS_MAX_SCAN_DIRECT_COUNT 128
+#define ZMICROS_TO_WAIT_IN_JBB_WITH_MARGIN 500
+#define ZROWS_PER_MICRO 2
+
   Uint32 prioAFlag = scanPtr->prioAFlag;
   Uint32 cnf_max_scan_direct_count = c_max_scan_direct_count;
-  const Uint32 scan_direct_count = scanPtr->scan_direct_count;
   Uint32 max_scan_direct_count = scanPtr->m_reserved == 1 ?
-                                 (prioAFlag ? (ZRESERVED_SCAN_BATCH_SIZE + 1) :
-                                  ZMAX_SCAN_DIRECT_COUNT) :
-                                 cnf_max_scan_direct_count;
-  bool max_words_reached =
-    c_backup->get_max_words_per_scan_batch(prioAFlag,
+                (prioAFlag ? ((2 * ZRESERVED_SCAN_BATCH_SIZE) + 2) :
+                   ZMAX_SCAN_DIRECT_COUNT) :
+                cnf_max_scan_direct_count;
+  do
+  {
+    Uint32 scan_direct_count = m_scan_direct_count;
+    bool max_words_reached =
+      c_backup->get_max_words_per_scan_batch(prioAFlag,
                                  scanPtr->m_exec_direct_batch_size_words,
                                  scanPtr->lcpScan,
                                  clientPtrI);
-
-  if (scan_direct_count >= max_scan_direct_count ||
-      max_words_reached)
-  {
-    BlockReference blockRef = scanPtr->scanBlockref;
-    BlockReference resultRef = scanPtr->scanApiBlockref;
-    scanPtr->scan_direct_count = 1;
-
-    if (!is_prioritised_scan(resultRef))
+    if (scan_direct_count >= max_scan_direct_count ||
+        max_words_reached)
     {
-      /* Normal user scans */
       jamDebug();
-      sendSignal(blockRef, GSN_NEXT_SCANREQ, signal, 3, JBB);
-      return;
-    }
-    if (prioAFlag)
-    {
-      if (scanPtr->lcpScan)
+      /**
+       * We will check whether it is ok to execute for a longer
+       * time. The design rule that we are trying to achieve is
+       * that at most 1 millisecond is what we are allowed to
+       * wait in the job buffer for execution of a primary key
+       * operation in normal load. The rules here strive to
+       * ensure that this is ensured, with some leeway.
+       *
+       * Executing one row scan takes from a few hundred nanoseconds
+       * up to a few microseconds. If the job buffer level is low we
+       * can allow ourselves to run for longer time. We will try to
+       * avoid running for more than 100 microseconds even when there
+       * is an opportunity to do it. This means we set
+       * ZABS_MAX_SCAN_DIRECT_COUNT to 100. Thus we will never execute
+       * more than 100 rows in one real-time break. This would only
+       * occur if there are only few other activities at the same
+       * time as well as that the scans don't send back much data to
+       * the application.
+       *
+       * We will check the number of waiting JBB signals in the job
+       * buffer. If this number is at or below 5 we should be safe to use
+       * up to the maximum amount of direct scans. If it is higher we
+       * will gradually decrease the amount of time we are allowed to
+       * execute. If there are 10 signals in the job buffer we will set
+       * the maximum limit to 50, with 20 we set it to 25 and so forth.
+       * We check this by dividing 500 by the JBB level and multiplying
+       * by number of rows executed per microsecond which we estimate to
+       * 2.
+       */
+      Uint32 jbb_level = getSignalsInJBB();
+      Uint32 tot_scan_direct_count = m_tot_scan_direct_count +
+                                       scan_direct_count;
+      Uint32 tot_scan_limit = ZABS_MAX_SCAN_DIRECT_COUNT;
+      if (jbb_level >= 8)
       {
-        c_backup->pausing_lcp(4,scan_direct_count);
+        jamDebug();
+        tot_scan_limit = (ZMICROS_TO_WAIT_IN_JBB_WITH_MARGIN *
+                          ZROWS_PER_MICRO) / jbb_level;
+      }
+      if (!max_words_reached &&
+          tot_scan_direct_count < tot_scan_limit)
+      {
+        scan_direct_count = 1;
+        m_tot_scan_direct_count = tot_scan_direct_count;
+        /**
+         * We will fall through here down to the code executing the next
+         * NEXT_SCANREQ as a direct signal.
+         */
+      }
+      else
+      {
+        scanPtr->m_exec_direct_batch_size_words = 0;
+        BlockReference resultRef = scanPtr->scanApiBlockref;
+
+        signal->theData[3] = signal->theData[2];
+        signal->theData[2] = signal->theData[1];
+        signal->theData[0] = scanptr.i;
+        signal->theData[1] = GSN_NEXT_SCANREQ;
+        if (!is_prioritised_scan(resultRef))
+        {
+          /* Normal user scans */
+          jamDebug();
+          sendSignal(reference(), GSN_ACC_CHECK_SCAN, signal, 4, JBB);
+          return;
+        }
+        if (prioAFlag)
+        {
+          /* Prioritised scan at high load situation */
+          jamDebug();
+          if (scanPtr->lcpScan)
+          {
+            c_backup->pausing_lcp(4, scan_direct_count);
+          }
+        }
+        /* Prioritised scan operation */
+        jamDebug();
+        sendSignalWithDelay(reference(), GSN_ACC_CHECK_SCAN,
+                            signal, BOUNDED_DELAY, 4);
+        return;
       }
     }
-    scanPtr->m_exec_direct_batch_size_words = 0;
-    /* Prioritised scan operation */
-    jam();
-    sendSignalWithDelay(blockRef, GSN_NEXT_SCANREQ,
-                        signal, BOUNDED_DELAY, 3);
-    return;
-  }
-  else
-  {
-    scanPtr->scan_direct_count = scan_direct_count + 1;
+    jamDebug();
+    m_scan_direct_count = scan_direct_count + 1;
+    m_in_send_next_scan = 1;
     /**
      * To ensure that the scheduler behave differently with more
      * execute direct we report that an extra signal was executed
@@ -14411,8 +15016,19 @@ void Dblqh::send_next_NEXT_SCANREQ(Signal* signal,
     signal->m_extra_signals++;
     jamDebug();
     block->EXECUTE_DIRECT_FN(f, signal);
-    return;
-  }
+    if (m_in_send_next_scan == 1)
+    {
+      /**
+       * No more calls to perform
+       */
+      jamDebug();
+      m_in_send_next_scan = 0;
+      return;
+    }
+    jamDebug();
+    ndbassert(m_in_send_next_scan == 2);
+    m_in_send_next_scan = 0;
+  } while (1);
 }
 
 /* ------------------------------------------------------------------------
@@ -14423,12 +15039,14 @@ void Dblqh::sendScanFragConf(Signal* signal,
                              Uint32 scanCompleted,
                              const TcConnectionrec* const regTcPtr)
 {
+  jamDebug();
   ScanRecord * const scanPtr = scanptr.p;
   const Uint32 completed_ops= scanPtr->m_curr_batch_size_rows;
   const Uint32 total_len= scanPtr->m_curr_batch_size_bytes / sizeof(Uint32);
 
   ndbassert((scanPtr->m_curr_batch_size_bytes % sizeof(Uint32)) == 0);
 
+  ndbassert(scanPtr->scanTcWaiting != 0);
   scanPtr->scanTcWaiting = 0;
 
   if(ERROR_INSERTED(5037)){
@@ -14439,8 +15057,7 @@ void Dblqh::sendScanFragConf(Signal* signal,
   if (!scanPtr->lcpScan)
   {
     jamDebug();
-    Fragrecord::UsageStat& useStat = 
-      c_fragment_pool.getPtr(regTcPtr->fragmentptr)->m_useStat;
+    Fragrecord::UsageStat& useStat = fragptr.p->m_useStat;
     ndbassert(useStat.m_scanFragReqCount > 0);
 
     useStat.m_scanRowsReturned += scanPtr->m_curr_batch_size_rows;
@@ -14454,7 +15071,6 @@ void Dblqh::sendScanFragConf(Signal* signal,
     scanPtr->m_curr_batch_size_rows = 0;
     scanPtr->m_curr_batch_size_bytes= 0;
   }
-  scanPtr->scan_direct_count = 1;
   scanPtr->m_stop_batch = 0;
   ScanFragConf * conf = (ScanFragConf*)&signal->theData[0];
 #ifdef NOT_USED
@@ -14776,9 +15392,10 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
     scanPtr->readCommitted = 0;
     scanPtr->prioAFlag = ZFALSE;
     scanPtr->scanStoredProcId = RNIL;
+    scanPtr->scanAccPtr = RNIL;
     scanPtr->scan_lastSeen = __LINE__;
     scanPtr->scan_check_lcp_stop = 0;
-    scanPtr->scan_direct_count = ZMAX_SCAN_DIRECT_COUNT - 1;
+    m_scan_direct_count = ZMAX_SCAN_DIRECT_COUNT - 6;
     fragptr.p->m_scanNumberMask.clear(NR_ScanNo);
     c_check_scanptr_i[ZCOPY_FRAGREQ_CHECK_INDEX] = scanptr.i;
     c_check_scanptr_save_timer[ZCOPY_FRAGREQ_CHECK_INDEX] =
@@ -14792,7 +15409,12 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
              copyFragReq->nodeId,
              0,
              tcConnectptr);
-
+  /**
+   * Copy fragment always performed on primary table fragment,
+   * never applied on an ordered index.
+   */
+  prim_tab_fragptr = fragptr;
+  c_tup->prepare_tab_pointers(prim_tab_fragptr.p->tupFragptr);
   /* Save TC connect record used */
   c_tc_connect_rec_copy_frag = tcConnectptr.i;
 
@@ -14892,6 +15514,7 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
     /* ACC_SCANCONF */
     jamEntry();
     accScanConfCopyLab(signal);
+    return;
   }
   else
   {
@@ -14899,6 +15522,7 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
     jamEntry();
     scanPtr->scanErrorCounter++;
     execACC_SCANREF(signal, tcConnectptr);
+    return;
   }
 }//Dblqh::execCOPY_FRAGREQ()
 
@@ -14957,8 +15581,11 @@ void Dblqh::accScanConfCopyLab(Signal* signal)
 /*---------------------------------------------------------------------------*/
   ndbrequire(signal->theData[0] == 0);
   scanPtr->scanStoredProcId = signal->theData[1];
+  scanPtr->scanAiLength = signal->theData[2];
+  c_tup->copyAttrinfo(scanPtr->scanStoredProcId);
 
-  if (scanPtr->scanCompletedStatus == ZTRUE) {
+  if (scanPtr->scanCompletedStatus == ZTRUE)
+  {
     jam();
 /*---------------------------------------------------------------------------*/
 /*   THE COPY PROCESS HAVE BEEN COMPLETED, MOST LIKELY DUE TO A NODE FAILURE.*/
@@ -14993,6 +15620,12 @@ void Dblqh::accScanConfCopyLab(Signal* signal)
     return;
   }
   {
+    /**
+     * This is always the first call to send_next_NEXT_SCANREQ.
+     * This is always a full partition scan and can thus not
+     * have multiple ranges and thus cannot be restarted.
+     */
+    ndbassert(m_in_send_next_scan == 0);
     const Uint32 sig0 = scanPtr->scanAccPtr;
     SimulatedBlock *block = scanPtr->scanBlock;
     ExecFunction f = scanPtr->scanFunction_NEXT_SCANREQ;
@@ -15061,6 +15694,11 @@ void Dblqh::nextScanConfCopyLab(Signal* signal,
   TcConnectionrec * tcConP = tcConnectptr.p;
   
   tcConP->m_use_rowid = true;
+  /**
+   * For copy fragment scans we are scanning from TUP, TUP returns
+   * row ids in its scan, so we can safely pass it on here to an
+   * operation record knowing that it is a row id we are passing.
+   */
   tcConP->m_row_id = scanptr.p->m_row_id;
 
   scanptr.p->m_curr_batch_size_rows++;
@@ -15123,8 +15761,10 @@ void Dblqh::nextScanConfCopyLab(Signal* signal,
     packLqhkeyreqLab(signal, tcConnectptr);
     tcConP->copyCountWords += TnoOfWords;
     scanptr.p->scanState = ScanRecord::WAIT_LQHKEY_COPY;
-    if (tcConP->copyCountWords < cmaxWordsAtNodeRec) {
+    if (tcConP->copyCountWords < cmaxWordsAtNodeRec)
+    {
       nextRecordCopy(signal, tcConnectptr);
+      return;
     }
     return;
   }
@@ -15134,9 +15774,10 @@ void Dblqh::nextScanConfCopyLab(Signal* signal,
     if (nextScanConf->accOperationPtr == RNIL) {
       jam();
       scanptr.p->scan_lastSeen = __LINE__;
-      signal->theData[0] = scanptr.p->scanAccPtr;
-      signal->theData[1] = AccCheckScan::ZCHECK_LCP_STOP;
-      sendSignal(scanptr.p->scanBlockref, GSN_ACC_CHECK_SCAN, signal, 2, JBB);
+      signal->theData[0] = scanptr.i;
+      signal->theData[1] = GSN_ACC_CHECK_SCAN;
+      signal->theData[2] = AccCheckScan::ZCHECK_LCP_STOP;
+      sendSignal(reference(), GSN_ACC_CHECK_SCAN, signal, 3, JBB);
       return;      
     }
     
@@ -15151,10 +15792,12 @@ void Dblqh::nextScanConfCopyLab(Signal* signal,
     {
       scanptr.p->scan_lastSeen = __LINE__;
       next_scanconf_load_diskpage(signal, scanptr.p, tcConnectptr,fragPtrP);
+      return;
     }
     else
     {
       next_scanconf_tupkeyreq(signal, scanptr.p, tcConP, fragPtrP, RNIL);
+      return;
     }
   }
 }//Dblqh::nextScanConfCopyLab()
@@ -15202,11 +15845,7 @@ void Dblqh::copyTupkeyRefLab(Signal* signal,
                              const TcConnectionrecPtr tcConnectptr)
 {
   //const TupKeyRef * tupKeyRef = (TupKeyRef *)signal->getDataPtr();
-
-  scanptr.i = tcConnectptr.p->tcScanRec;
-  c_scanRecordPool.getPtr(scanptr);
   ScanRecord* scanP = scanptr.p;
-
   if (scanP->readCommitted == 0)
   {
     jam();
@@ -15247,13 +15886,13 @@ void Dblqh::copyTupkeyRefLab(Signal* signal,
 void Dblqh::copyTupkeyConfLab(Signal* signal,
                               const TcConnectionrecPtr tcConnectptr)
 {
+  ScanRecord* scanP = scanptr.p;
+  Uint32 scan_direct_count = m_scan_direct_count;
   const TupKeyConf * const tupKeyConf = (TupKeyConf *)signal->getDataPtr();
 
   UintR readLength = tupKeyConf->readLength;
   Uint32 tableId = tcConnectptr.p->tableref;
-  scanptr.i = tcConnectptr.p->tcScanRec;
-  c_scanRecordPool.getPtr(scanptr);
-  ScanRecord* scanP = scanptr.p;
+  m_scan_direct_count = scan_direct_count + 1;
 
   if (scanP->readCommitted == 0)
   {
@@ -15305,6 +15944,7 @@ void Dblqh::copyTupkeyConfLab(Signal* signal,
      * This will result in a COPY_FRAGREF being sent to
      * the starting node, which will cause it to fail
      */
+    jamDebug();
     scanptr.p->scanErrorCounter++;
     tcConP->errorCode= ZGET_DATAREC_ERROR;
     scanptr.p->scanCompletedStatus= ZTRUE;
@@ -15351,7 +15991,8 @@ void Dblqh::copyTupkeyConfLab(Signal* signal,
   packLqhkeyreqLab(signal, tcConnectptr);
   tcConnectptr.p->copyCountWords += TnoOfWords;
   scanptr.p->scanState = ScanRecord::WAIT_LQHKEY_COPY;
-  if (tcConnectptr.p->copyCountWords < cmaxWordsAtNodeRec) {
+  if (tcConnectptr.p->copyCountWords < cmaxWordsAtNodeRec)
+  {
     nextRecordCopy(signal, tcConnectptr);
     return;
   }//if
@@ -15369,8 +16010,6 @@ void Dblqh::copyCompletedLab(Signal* signal,
   const LqhKeyConf * const lqhKeyConf = (LqhKeyConf *)signal->getDataPtr();  
 
   ndbrequire(tcConnectptr.p->transid[1] == lqhKeyConf->transId2);
-  scanptr.i = tcConnectptr.p->tcScanRec;
-  c_scanRecordPool.getPtr(scanptr);
   if (tcConnectptr.p->copyCountWords >= cmaxWordsAtNodeRec) {
     tcConnectptr.p->copyCountWords -= lqhKeyConf->transId1; // Data overload, see note!
     if (scanptr.p->scanCompletedStatus == ZTRUE) {
@@ -15381,9 +16020,11 @@ void Dblqh::copyCompletedLab(Signal* signal,
       closeCopyLab(signal, tcConnectptr.p);
       return;
     }//if
-    if (tcConnectptr.p->copyCountWords < cmaxWordsAtNodeRec) {
+    if (tcConnectptr.p->copyCountWords < cmaxWordsAtNodeRec)
+    {
       jam();
       nextRecordCopy(signal, tcConnectptr);
+      return;
     }//if
     return;
   }//if
@@ -15458,16 +16099,12 @@ void Dblqh::nextRecordCopy(Signal* signal,
   c_fragment_pool.getPtr(fragptr);
   scanptr.i = regTcPtr->tcScanRec;
   c_scanRecordPool.getPtr(scanptr);
-  if (scanptr.p->scanState != ScanRecord::WAIT_LQHKEY_COPY) {
-    jam();
+  ndbrequire(scanptr.p->scanState == ScanRecord::WAIT_LQHKEY_COPY);
 /*---------------------------------------------------------------------------*/
 // Make sure that nothing is in progress. Otherwise we will have to simultaneous
 // scans on the same record and this will certainly lead to unexpected
 // behaviour.
 /*---------------------------------------------------------------------------*/
-    systemErrorLab(signal, __LINE__);
-    return;
-  }//if
   ScanRecord * const scanPtr = scanptr.p;
   ndbrequire(fragptr.p->fragStatus == Fragrecord::FSACTIVE);
 
@@ -15495,6 +16132,7 @@ void Dblqh::nextRecordCopy(Signal* signal,
   SimulatedBlock *block = scanPtr->scanBlock;
   ExecFunction f = scanPtr->scanFunction_NEXT_SCANREQ;
   const Uint32 sig0 = scanPtr->scanAccPtr;
+  Uint32 in_send_next_scan = m_in_send_next_scan;
 
   /**
    * Here I can assign theData[1] through acc_op_ptr in the case of
@@ -15511,20 +16149,28 @@ void Dblqh::nextRecordCopy(Signal* signal,
    */
   scanPtr->scanState = ScanRecord::WAIT_NEXT_SCAN_COPY;
   scanPtr->scan_lastSeen = __LINE__;
-  send_next_NEXT_SCANREQ(signal,
-                         block,
-                         f,
-                         scanPtr,
-                         regTcPtr->clientConnectrec);
+  if (unlikely(in_send_next_scan == 0))
+  {
+    send_next_NEXT_SCANREQ(signal,
+                           block,
+                           f,
+                           scanPtr,
+                           regTcPtr->clientConnectrec);
+    return;
+  }
+  ndbassert(in_send_next_scan == 1);
+  m_in_send_next_scan = 2;
+  /**
+   * See explanation in scanNextLoopLab(...)
+   */
 }//Dblqh::nextRecordCopy()
 
 void Dblqh::copyLqhKeyRefLab(Signal* signal,
                              const TcConnectionrecPtr tcConnectptr)
 {
+  jamDebug();
   ndbrequire(tcConnectptr.p->transid[1] == signal->theData[4]);
   Uint32 copyWords = signal->theData[3];
-  scanptr.i = tcConnectptr.p->tcScanRec;
-  c_scanRecordPool.getPtr(scanptr);
   scanptr.p->scanErrorCounter++;
   tcConnectptr.p->errorCode = terrorCode;
   
@@ -15578,6 +16224,7 @@ void Dblqh::closeCopyLab(Signal* signal,
   signal->theData[1] = RNIL;
   signal->theData[2] = NextScanReq::ZSCAN_CLOSE;
   ndbrequire(fragstatus == Fragrecord::FSACTIVE);
+  scanPtr->scanAccPtr = RNIL;
   block->EXECUTE_DIRECT_FN(f, signal);
 }//Dblqh::closeCopyLab()
 
@@ -15614,6 +16261,8 @@ void Dblqh::accCopyCloseConfLab(Signal* signal,
   signal->theData[4] = sig4;
   signal->theData[5] = sig5;
   c_tup->execSTORED_PROCREQ(signal);
+  jamEntryDebug();
+  scanPtr->scanStoredProcId = RNIL;
   tupCopyCloseConfLab(signal, tcConnectptr);
   return;
 }//Dblqh::accCopyCloseConfLab()
@@ -15626,8 +16275,6 @@ void Dblqh::accCopyCloseConfLab(Signal* signal,
 void Dblqh::tupCopyCloseConfLab(Signal* signal,
                                 const TcConnectionrecPtr tcConnectptr)
 {
-  fragptr.i = tcConnectptr.p->fragmentptr;
-  c_fragment_pool.getPtr(fragptr);
   c_tc_connect_rec_copy_frag = RNIL;
 
   if (tcConnectptr.p->abortState == TcConnectionrec::NEW_FROM_TC)
@@ -15695,26 +16342,7 @@ void Dblqh::tupCopyCloseConfLab(Signal* signal,
     }//if
   }//if
   releaseActiveCopy(signal);
-  {
-    ScanRecordPtr restart;
-    bool restart_flag = finishScanrec(signal, restart, tcConnectptr);
-    releaseScanrec(signal);
-    tcConnectptr.p->tcScanRec = RNIL;
-    releaseOprec(signal, tcConnectptr.p);
-    releaseTcrec(signal, tcConnectptr);
-    if (restart_flag)
-    {
-      jam();
-      TcConnectionrecPtr tcConnectptr; // hiding read only tcConnectptr in outer scope
-      tcConnectptr.i = restart.p->scanTcrec;
-      ptrCheckGuard(tcConnectptr, ctcConnectrecFileSize, tcConnectionrec);
-      scanptr = restart;
-      ndbrequire(scanptr.p->copyPtr == RNIL);
-      continueAfterReceivingAllAiLab(signal, tcConnectptr);
-      return;
-    }
-    return;
-  }
+  handle_finish_scan(signal, tcConnectptr);
 }//Dblqh::tupCopyCloseConfLab()
 
 /*---------------------------------------------------------------------------*/
@@ -15725,6 +16353,7 @@ void Dblqh::tupCopyCloseConfLab(Signal* signal,
 void Dblqh::closeCopyRequestLab(Signal* signal,
                                 const TcConnectionrecPtr tcConnectptr)
 {
+  setup_scan_pointers_from_tc_con(tcConnectptr);
   scanptr.p->scanErrorCounter++;
   if (0) ndbout_c("closeCopyRequestLab: scanState: %d", scanptr.p->scanState);
   switch (scanptr.p->scanState) {
@@ -16589,7 +17218,6 @@ void Dblqh::initCopyTc(Signal* signal, Operation_t op, TcConnectionrec* regTcPtr
   regTcPtr->nodeAfterNext[1] = ZNIL;
   regTcPtr->tcBlockref = cownref;
   regTcPtr->readlenAi = 0;
-  regTcPtr->storedProcId = ZNIL;
   regTcPtr->nextSeqNoReplica = 0;
   regTcPtr->dirtyOp = ZFALSE;
   regTcPtr->lastReplicaNo = 0;
@@ -17093,9 +17721,8 @@ Dblqh::execRESUME_COPY_FRAG_REQ(Signal *signal)
   TcConnectionrecPtr tcConnectptr;
   tcConnectptr.i = c_tc_connect_rec_copy_frag;
   ptrCheckGuard(tcConnectptr, ctcConnectrecFileSize, tcConnectionrec);
+  setup_scan_pointers_from_tc_con(tcConnectptr);
   ndbrequire(tcConnectptr.p->copyCountWords == 0);
-  scanptr.i = tcConnectptr.p->tcScanRec;
-  c_scanRecordPool.getPtr(scanptr);
   ndbrequire(scanptr.p->scanState == ScanRecord::COPY_FRAG_HALTED);
   scanptr.p->scanState = ScanRecord::WAIT_LQHKEY_COPY;
   nextRecordCopy(signal, tcConnectptr);
@@ -20251,7 +20878,7 @@ void Dblqh::checkInitCompletedLab(Signal* signal)
     }//if
   }
 
-#ifdef VM_TRACE
+#if defined(USE_INIT_GLOBAL_VARIABLES)
   enable_global_variables();
 #endif
   g_eventLogger->info("LDM(%u): Completed REDO initialisation",
@@ -26011,6 +26638,7 @@ void Dblqh::initialiseRecordsLab(Signal* signal, Uint32 data,
  * ========================================================================= */
 void Dblqh::initialiseScanrec(Signal* signal) 
 {
+  jamDebug();
   ndbrequire(cscanrecFileSize > 1);
   ScanRecord_list tmp(c_scanRecordPool);
   while (tmp.seizeFirst(scanptr)){
@@ -26330,7 +26958,6 @@ void Dblqh::initReqinfoExecSr(Signal* signal,
   regTcPtr->lastReplicaNo = 0;
   regTcPtr->nextSeqNoReplica = 0;
   regTcPtr->opExec = 0;
-  regTcPtr->storedProcId = ZNIL;
   regTcPtr->readlenAi = 0;
   regTcPtr->nodeAfterNext[0] = ZNIL;
   regTcPtr->nodeAfterNext[1] = ZNIL;
@@ -27891,6 +28518,8 @@ Dblqh::match_and_print(Signal* signal, Ptr<TcConnectionrec> tcRec)
     case ScanRecord::WAIT_CLOSE_COPY:
     case ScanRecord::WAIT_TUPKEY_COPY:
     case ScanRecord::WAIT_LQHKEY_COPY:
+    case ScanRecord::WAIT_START_QUEUED_SCAN:
+    case ScanRecord::QUIT_START_QUEUE_SCAN:
       BaseString::snprintf(state, sizeof(state), "%u", sp.p->scanState);
       break;
     }
@@ -28409,7 +29038,6 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
 	   << endl;
     ndbout << " tableref = " << tcRec.p->tableref
 	   << " simpleTcConnect = " << tcRec.p->simpleTcConnect
-	   << " storedProcId = " << tcRec.p->storedProcId
 	   << " schemaVersion = " << tcRec.p->schemaVersion
 	   << endl;
     ndbout << " reqinfo = " << tcRec.p->reqinfo

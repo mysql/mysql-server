@@ -29,10 +29,10 @@
 
 #define JAM_FILE_ID 365
 
-
 Dbtux::Dbtux(Block_context& ctx, Uint32 instanceNumber) :
   SimulatedBlock(DBTUX, ctx, instanceNumber),
   c_tup(0),
+  c_lqh(0),
   c_descPageList(RNIL),
 #ifdef VM_TRACE
   debugFile(0),
@@ -163,6 +163,8 @@ Dbtux::execSTTOR(Signal* signal)
     CLEAR_ERROR_INSERT_VALUE;
     c_tup = (Dbtup*)globalData.getBlock(DBTUP, instance());
     ndbrequire(c_tup != 0);
+    c_lqh = (Dblqh*)globalData.getBlock(DBLQH, instance());
+    ndbrequire(c_lqh != 0);
     c_signal_bug32040 = signal;
     break;
   case 3:
@@ -231,6 +233,36 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
   Uint32 nStatTriggerScale;
   Uint32 nStatUpdateDelay;
 
+#if defined(USE_INIT_GLOBAL_VARIABLES)
+  {
+    void* tmp[] = {
+      &c_ctx.scanPtr,
+      &c_ctx.indexPtr,
+      &c_ctx.fragPtr,
+    }; 
+    init_global_ptrs(tmp, sizeof(tmp)/sizeof(tmp[0]));
+  }
+  {
+    void* tmp[] = {
+      &c_ctx.keyAttrs,
+      &c_ctx.tupIndexFragPtr,
+      &c_ctx.tupIndexTablePtr,
+      &c_ctx.tupRealFragPtr,
+      &c_ctx.tupRealTablePtr,
+    }; 
+    init_global_uint32_ptrs(tmp, sizeof(tmp)/sizeof(tmp[0]));
+  }
+  {
+    void* tmp[] = {
+      &c_ctx.scanBoundCnt,
+      &c_ctx.descending,
+      &c_ctx.attrDataOffset,
+      &c_ctx.tuxFixHeaderSize,
+      &c_ctx.m_current_ent,
+    }; 
+    init_global_uint32(tmp, sizeof(tmp)/sizeof(tmp[0]));
+  }
+#endif
   const ndb_mgm_configuration_iterator * p = 
     m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
@@ -302,10 +334,22 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
   }
   // allocate buffers
   c_ctx.jamBuffer = jamBuffer();
-  c_ctx.c_searchKey = (Uint32*)allocRecord("c_searchKey", sizeof(Uint32), MaxAttrDataSize);
-  c_ctx.c_entryKey = (Uint32*)allocRecord("c_entryKey", sizeof(Uint32), MaxAttrDataSize);
+  c_ctx.c_searchKey = (Uint32*)allocRecord("c_searchKey",
+                                           sizeof(Uint32),
+                                           MaxAttrDataSize);
+  c_ctx.c_nextKey = (Uint32*)allocRecord("c_nextKey",
+                                         sizeof(Uint32),
+                                         MaxAttrDataSize);
+  c_ctx.c_entryKey = (Uint32*)allocRecord("c_entryKey",
+                                          sizeof(Uint32),
+                                          MaxAttrDataSize);
 
-  c_ctx.c_dataBuffer = (Uint32*)allocRecord("c_dataBuffer", sizeof(Uint64), (MaxXfrmDataSize + 1) >> 1);
+  c_ctx.c_dataBuffer = (Uint32*)allocRecord("c_dataBuffer",
+                                            sizeof(Uint64),
+                                            (MaxXfrmDataSize + 1) >> 1);
+  c_ctx.c_boundBuffer = (Uint32*)allocRecord("c_boundBuffer",
+                                             sizeof(Uint64),
+                                             (MaxXfrmDataSize + 1) >> 1);
 
 #ifdef VM_TRACE
   c_ctx.c_debugBuffer = (char*)allocRecord("c_debugBuffer", sizeof(char), DebugBufferBytes);
@@ -321,8 +365,15 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
 
 // utils
 
+/**
+ * This method can be called from MT-build process.
+ */
 void
-Dbtux::readKeyAttrs(TuxCtx& ctx, const Frag& frag, TreeEnt ent, KeyData& keyData, Uint32 count)
+Dbtux::readKeyAttrs(TuxCtx& ctx,
+                    const Frag& frag,
+                    TreeEnt ent,
+                    KeyData& keyData,
+                    Uint32 count)
 {
   const Index& index = *c_indexPool.getPtr(frag.m_indexId);
   const DescHead& descHead = getDescHead(index);
@@ -343,7 +394,15 @@ Dbtux::readKeyAttrs(TuxCtx& ctx, const Frag& frag, TreeEnt ent, KeyData& keyData
   const Uint32* keyAttrs32 = (const Uint32*)&keyAttrs[0];
 
   int ret;
-  ret = c_tup->tuxReadAttrs(ctx.jamBuffer, tableFragPtrI, pageId, pageOffset, tupVersion, keyAttrs32, count, outputBuffer, false);
+  ret = c_tup->tuxReadAttrs(ctx.jamBuffer,
+                            tableFragPtrI,
+                            pageId,
+                            pageOffset,
+                            tupVersion,
+                            keyAttrs32,
+                            count,
+                            outputBuffer,
+                            false);
   thrjamDebug(ctx.jamBuffer);
   ndbrequire(ret > 0);
   keyData.reset();
@@ -364,25 +423,74 @@ Dbtux::readKeyAttrs(TuxCtx& ctx, const Frag& frag, TreeEnt ent, KeyData& keyData
 }
 
 void
-Dbtux::readTablePk(const Frag& frag, TreeEnt ent, Uint32* pkData, unsigned& pkSize)
+Dbtux::readKeyAttrs(TuxCtx& ctx,
+                    const Frag& frag,
+                    TreeEnt ent,
+                    Uint32 count,
+                    Uint32 *outputBuffer)
 {
-  const Uint32 tableFragPtrI = frag.m_tupTableFragPtrI;
+#ifdef VM_TRACE
+  const Index& index = *c_indexPool.getPtr(frag.m_indexId);
+  ndbrequire(count <= index.m_numAttrs);
+#endif
+
   const TupLoc tupLoc = ent.m_tupLoc;
-  int ret = c_tup->tuxReadPk(tableFragPtrI, tupLoc.getPageId(), tupLoc.getPageOffset(), pkData, true);
-  jamEntry();
+  const Uint32 pageId = tupLoc.getPageId();
+  const Uint32 pageOffset = tupLoc.getPageOffset();
+  const Uint32 tupVersion = ent.m_tupVersion;
+  const Uint32* keyAttrs32 = (const Uint32*)ctx.keyAttrs;
+
+  int ret;
+  ret = c_tup->tuxReadAttrsOpt(ctx.jamBuffer,
+                               ctx.tupRealFragPtr,
+                               ctx.tupRealTablePtr,
+                               pageId,
+                               pageOffset,
+                               tupVersion,
+                               keyAttrs32,
+                               count,
+                               outputBuffer,
+                               false);
+  thrjamDebug(ctx.jamBuffer);
   ndbrequire(ret > 0);
+}
+
+void
+Dbtux::readTablePk(TreeEnt ent, Uint32* pkData, unsigned& pkSize)
+{
+  const TupLoc tupLoc = ent.m_tupLoc;
+  int ret = c_tup->tuxReadPk(c_ctx.tupRealFragPtr,
+                             c_ctx.tupRealTablePtr,
+                             tupLoc.getPageId(),
+                             tupLoc.getPageOffset(),
+                             pkData,
+                             true);
+  jamEntry();
+  if (unlikely(ret <= 0))
+  {
+    Frag& frag = *c_ctx.fragPtr.p;
+    Uint32 lkey1, lkey2;
+    getTupAddr(frag, ent, lkey1, lkey2);
+    g_eventLogger->info("(%u) readTablePk error tab(%u,%u) row(%u,%u)",
+                        instance(),
+                        frag.m_tableId,
+                        frag.m_fragId,
+                        lkey1,
+                        lkey2);
+    ndbrequire(ret > 0);
+  }
   pkSize = ret;
 }
 
 void
-Dbtux::unpackBound(TuxCtx& ctx, const ScanBound& scanBound, KeyBoundC& searchBound)
+Dbtux::unpackBound(Uint32* const outputBuffer,
+                   const ScanBound& scanBound,
+                   KeyBoundC& searchBound)
 {
   // there is no const version of LocalDataBuffer
   ScanBoundBuffer::Head head = scanBound.m_head;
   LocalScanBoundBuffer b(c_scanBoundPool, head);
   ScanBoundBuffer::ConstDataBufferIterator iter;
-  // always use searchKey buffer
-  Uint32* const outputBuffer = ctx.c_searchKey;
   b.first(iter);
   const Uint32 n = b.getSize();
   ndbrequire(n <= MaxAttrDataSize);
@@ -392,7 +500,9 @@ Dbtux::unpackBound(TuxCtx& ctx, const ScanBound& scanBound, KeyBoundC& searchBou
   }
   // set bound to the unpacked data buffer
   KeyDataC& searchBoundData = searchBound.get_data();
-  searchBoundData.set_buf(outputBuffer, MaxAttrDataSize << 2, scanBound.m_cnt);
+  searchBoundData.set_buf(outputBuffer,
+                          MaxAttrDataSize << 2,
+                          scanBound.m_cnt);
   int ret = searchBound.finalize(scanBound.m_side);
   ndbrequire(ret == 0);
 }

@@ -224,7 +224,7 @@ Dbtux::printNode(TuxCtx & ctx,
   const Index& index = *c_indexPool.getPtr(frag.m_indexId);
   TreeHead& tree = frag.m_tree;
   NodeHandle node(frag);
-  selectNode(node, loc);
+  selectNode(ctx, node, loc);
   out << par.m_path << " " << node << endl;
   // check children
   PrintPar cpar[2];
@@ -458,7 +458,7 @@ operator<<(NdbOut& out, const Dbtux::ScanOp& scan)
     const Dbtux::Index& index = *tux->c_indexPool.getPtr(scan.m_indexId);
     Dbtux::KeyDataC keyBoundData(index.m_keySpec, true);
     Dbtux::KeyBoundC keyBound(keyBoundData);
-    tux->unpackBound(tux->c_ctx, scanBound, keyBound);
+    tux->unpackBound(tux->c_ctx.c_searchKey, scanBound, keyBound);
     out << " [scanBound " << dec << i;
     out << " " << keyBound.print(tux->c_ctx.c_debugBuffer, Dbtux::DebugBufferBytes);
     out << "]";

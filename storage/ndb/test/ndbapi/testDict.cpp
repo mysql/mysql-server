@@ -3841,11 +3841,11 @@ RandSchemaOp::alter_table(Ndb* ndb, Obj* obj)
       g_err << pDict->getNdbError() << endl;
       return NDBT_FAILED;
     }
-    pDict->invalidateTable(pOld->getName());
     if (strcmp(pOld->getName(), tNew.getName()))
     {
       obj->m_name.assign(tNew.getName());
     }
+    pDict->invalidateTable(pOld->getName());
   }
 
   return NDBT_OK;

@@ -1569,6 +1569,11 @@ Pgman::finish_lcp(Signal *signal,
   m_lcp_fragment_id = 0;
   ndbrequire(m_dirty_list_lcp.isEmpty());
   ndbrequire(m_dirty_list_lcp_out.isEmpty());
+  DEB_PGMAN(("(%u)finish_lcp tab(%u,%u), ref: %x",
+             instance(),
+             m_sync_page_cache_req.tableId,
+             m_sync_page_cache_req.fragmentId,
+             m_sync_page_cache_req.senderRef));
   sendSignal(m_sync_page_cache_req.senderRef,
              GSN_SYNC_PAGE_CACHE_CONF,
              signal,

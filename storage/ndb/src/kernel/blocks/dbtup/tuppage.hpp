@@ -25,6 +25,7 @@
 #ifndef __NDB_TUP_PAGE_HPP
 #define __NDB_TUP_PAGE_HPP
 
+#include <pc.hpp>
 #include <ndb_types.h>
 #include "../diskpage.hpp"
 #include <Bitmask.hpp>
@@ -147,6 +148,8 @@ struct Tup_fixsize_page
   STATIC_CONST( DATA_WORDS = File_formats::NDB_PAGE_SIZE_WORDS -
                              HEADER_WORDS );
   STATIC_CONST( FIRST_BIT_CHANGE_MAP = 24);
+  STATIC_CONST( PAGE_CHANGED_WHILE_LCP_SCAN_BIT = 23);
+  STATIC_CONST( PAGE_IS_BEING_LCP_SCANNED_BIT = 22);
   
   Uint32 m_data[DATA_WORDS];
   
@@ -170,6 +173,50 @@ struct Tup_fixsize_page
     /* Next move idx forward to size word boundary */
     new_idx = ((new_idx + size - 1) / size) * size;
     return new_idx;
+  }
+  bool get_and_clear_change_while_lcp_scan()
+  {
+    Uint32 flags = m_flags;
+    Uint32 bit_pos = Tup_fixsize_page::PAGE_CHANGED_WHILE_LCP_SCAN_BIT;
+    Uint32 flags_bit = 1 << bit_pos;
+    bool bit_set = ((flags & flags_bit) != 0);
+    Uint32 flags_clear_val = ~flags_bit;
+    Uint32 flags_new_val = flags & flags_clear_val;
+    m_flags = flags_new_val;
+    return bit_set;
+  }
+  void set_change_while_lcp_scan()
+  {
+    Uint32 flags = m_flags;
+    Uint32 bit_pos = Tup_fixsize_page::PAGE_CHANGED_WHILE_LCP_SCAN_BIT;
+    Uint32 flags_bit = 1 << bit_pos;
+    Uint32 new_flags = flags | flags_bit;
+    m_flags = new_flags;
+  }
+  bool get_page_being_lcp_scanned()
+  {
+    Uint32 flags = m_flags;
+    Uint32 bit_pos = Tup_fixsize_page::PAGE_IS_BEING_LCP_SCANNED_BIT;
+    Uint32 flags_bit = 1 << bit_pos;
+    bool bit_set = ((flags & flags_bit) != 0);
+    return bit_set;
+  }
+  void set_page_being_lcp_scanned()
+  {
+    Uint32 flags = m_flags;
+    Uint32 bit_pos = Tup_fixsize_page::PAGE_IS_BEING_LCP_SCANNED_BIT;
+    Uint32 flags_bit = 1 << bit_pos;
+    Uint32 new_flags = flags | flags_bit;
+    m_flags = new_flags;
+  }
+  void clear_page_being_lcp_scanned()
+  {
+    Uint32 flags = m_flags;
+    Uint32 bit_pos = Tup_fixsize_page::PAGE_IS_BEING_LCP_SCANNED_BIT;
+    Uint32 flags_bit = 1 << bit_pos;
+    Uint32 flags_clear_val = ~flags_bit;
+    Uint32 flags_new_val = flags & flags_clear_val;
+    m_flags = flags_new_val;
   }
   void prefetch_change_map()
   {
@@ -202,8 +249,49 @@ struct Tup_fixsize_page
     flags |= map_val;
     m_flags = flags;
   }
-  void set_change_map(Uint32 page_index)
+  void verify_small_map_clear(Uint32 bit_pos)
   {
+    /**
+     * Verify that also small change map is zero when the large
+     * map is zero.
+     */
+    Uint32 i = (bit_pos - Tup_fixsize_page::FIRST_BIT_CHANGE_MAP) / 2;
+    Uint32 small_bit_map = m_change_map[i];
+    if ((bit_pos & 1) == 0)
+    {
+      small_bit_map &= 0xFFFF;
+    }
+    else
+    {
+      small_bit_map >>= 16;
+    }
+    require(small_bit_map == 0);
+  }
+  void verify_small_map_not_clear(Uint32 bit_pos)
+  {
+    /**
+     * Verify that also small change map is not zero when the large
+     * map is not zero.
+     */
+    Uint32 i = (bit_pos - Tup_fixsize_page::FIRST_BIT_CHANGE_MAP) / 2;
+    Uint32 small_bit_map = m_change_map[i];
+    if ((bit_pos & 1) == 0)
+    {
+      small_bit_map &= 0xFFFF;
+    }
+    else
+    {
+      small_bit_map >>= 16;
+    }
+    require(small_bit_map != 0);
+  }
+  void set_change_maps(Uint32 page_index)
+  {
+    if (unlikely(get_page_being_lcp_scanned()))
+    {
+      set_change_while_lcp_scan();
+      return;
+    }
     assert(page_index < Tup_fixsize_page::DATA_WORDS);
     Uint32 *map_ptr = &m_change_map[0];
     /**
@@ -227,8 +315,9 @@ struct Tup_fixsize_page
     assert(large_map_idx <= 31);
     map_set_val = 1 << large_map_idx;
     m_flags |= map_set_val;
+    verify_small_map_not_clear(large_map_idx);
   }
-  bool get_and_clear_large_change_map(Uint32 page_index)
+  void clear_large_change_map(Uint32 page_index)
   {
     assert(page_index < Tup_fixsize_page::DATA_WORDS);
     Uint32 map_val = m_flags;
@@ -239,9 +328,35 @@ struct Tup_fixsize_page
     Uint32 map_clear_val = ~map_get_val;
     Uint32 map_new_val = map_val & map_clear_val;
     m_flags = map_new_val;
-    return ((map_val & map_get_val) != 0);
+    verify_small_map_clear(bit_pos);
   }
-  bool get_and_clear_small_change_map(Uint32 page_index)
+  bool get_large_change_map(Uint32 page_index)
+  {
+    /**
+     * Get the large change map bit.
+     * If the bit is set, we will not reset it yet to ensure
+     * that the page bits are always in a consistent state.
+     * Instead we will reset it when the last small change
+     * map bit is reset.
+     */
+    assert(page_index < Tup_fixsize_page::DATA_WORDS);
+    Uint32 map_val = m_flags;
+    Uint32 bit_pos = Tup_fixsize_page::FIRST_BIT_CHANGE_MAP +
+                     (page_index >> 10);
+    assert(bit_pos <= 31);
+    Uint32 map_get_val = 1 << bit_pos;
+    bool bit_set = ((map_get_val & map_val) != 0);
+    if (!bit_set)
+    {
+      verify_small_map_clear(bit_pos);
+    }
+    else
+    {
+      verify_small_map_not_clear(bit_pos);
+    }
+    return bit_set;
+  }
+  bool get_and_clear_change_maps(Uint32 page_index)
   {
     assert(page_index < Tup_fixsize_page::DATA_WORDS);
     Uint32 *map_ptr = &m_change_map[0];
@@ -254,7 +369,33 @@ struct Tup_fixsize_page
     Uint32 map_clear_val = ~map_get_val;
     Uint32 map_new_val = map_val & map_clear_val;
     map_ptr[idx] = map_new_val;
-    return ((map_get_val & map_val) != 0);
+
+    /**
+     * Ensure that large map is cleared when we clear the
+     * last bit in the small change map corresponding to
+     * the large bit.
+     *
+     * Only necessary to perform this check when we actually
+     * changed a bit in the small map.
+     */
+    bool any_change = ((map_get_val & map_val) != 0);
+    if (any_change)
+    {
+      Uint32 small_bit_map = map_new_val;
+      if (bit_pos < 16)
+      {
+        small_bit_map &= 0xFFFF;
+      }
+      else
+      {
+        small_bit_map >>= 16;
+      }
+      if (small_bit_map == 0)
+      {
+        clear_large_change_map(page_index);
+      }
+    }
+    return any_change;
   }
   bool get_any_changes()
   {
@@ -270,7 +411,7 @@ struct Tup_fixsize_page
 #endif
     return (map_val != 0);
   }
-  bool verify_change_maps()
+  bool verify_change_maps(EmulatedJamBuffer *jamBuf)
   {
     for (Uint32 i = 0; i < 4; i++)
     {
@@ -281,13 +422,22 @@ struct Tup_fixsize_page
       {
         Uint32 small_bit_map = small_map & 0xFFFF;
         if (small_bit_map == 0)
+        {
+          thrjamDebug(jamBuf);
+          thrjamLineDebug(jamBuf, (Uint16(i)));
           return false;
+        }
       }
       else
       {
         Uint32 small_bit_map = small_map & 0xFFFF;
         if (small_bit_map != 0)
+        {
+          thrjamDebug(jamBuf);
+          thrjamLineDebug(jamBuf, (Uint16(i)));
+          thrjamLineDebug(jamBuf, (Uint16(small_bit_map)));
           return false;
+        }
       }
       bit_pos = 2 * i + Tup_fixsize_page::FIRST_BIT_CHANGE_MAP + 1;
       bit_val = m_flags & (1 << bit_pos);
@@ -295,13 +445,22 @@ struct Tup_fixsize_page
       {
         Uint32 small_bit_map = small_map >> 16;
         if (small_bit_map == 0)
+        {
+          thrjamDebug(jamBuf);
+          thrjamLineDebug(jamBuf, (Uint16(i)));
           return false;
+        }
       }
       else
       {
         Uint32 small_bit_map = small_map >> 16;
         if (small_bit_map != 0)
+        {
+          thrjamDebug(jamBuf);
+          thrjamLineDebug(jamBuf, (Uint16(i)));
+          thrjamLineDebug(jamBuf, (Uint16(small_bit_map)));
           return false;
+        }
       }
     }
     return true;

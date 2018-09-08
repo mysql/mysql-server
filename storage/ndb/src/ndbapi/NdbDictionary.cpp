@@ -1162,6 +1162,18 @@ NdbDictionary::Table::getFullyReplicated() const
   return m_impl.m_fully_replicated;
 }
 
+void
+NdbDictionary::Table::setRowChecksum(Uint32 val)
+{
+  m_impl.m_row_checksum = val;
+}
+
+Uint32
+NdbDictionary::Table::getRowChecksum()
+{
+  return m_impl.m_row_checksum;
+}
+
 /*****************************************************************
  * Index facade
  */

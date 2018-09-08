@@ -24,6 +24,7 @@
 
 #define DBTUP_C
 #define DBTUP_GEN_CPP
+#include <dblqh/Dblqh.hpp>
 #include "Dbtup.hpp"
 #include <RefConvert.hpp>
 #include <ndb_limits.h>
@@ -48,8 +49,6 @@
 #define JAM_FILE_ID 420
 
 extern EventLogger * g_eventLogger;
-
-#define DEBUG(x) { ndbout << "TUP::" << x << endl; }
 
 void Dbtup::initData() 
 {
@@ -275,6 +274,7 @@ void Dbtup::execCONTINUEB(Signal* signal)
     {
       ScanOpPtr scanPtr;
       c_scanOpPool.getPtr(scanPtr, dataPtr);
+      c_lqh->setup_scan_pointers(scanPtr.p->m_userPtr);
       scanCont(signal, scanPtr);
     }
     return;
@@ -541,6 +541,35 @@ void Dbtup::initRecords()
     m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
 
+#if defined(USE_INIT_GLOBAL_VARIABLES)
+  {
+    void* tmp[] =
+    {
+      &prepare_fragptr,
+      &prepare_tabptr,
+      &prepare_oper_ptr,
+      &prepare_pageptr,
+      &m_curr_tabptr,
+      &m_curr_fragptr,
+    };
+    init_global_ptrs(tmp, sizeof(tmp)/sizeof(tmp[0]));
+  }
+  {
+    void * tmp[] =
+    {
+      &prepare_page_idx,
+      &prepare_page_no,
+    };
+    init_global_uint32(tmp, sizeof(tmp)/sizeof(tmp[0]));
+  }
+  {
+    void * tmp[] =
+    {
+      &prepare_tuple_ptr,
+    };
+    init_global_uint32_ptrs(tmp, sizeof(tmp)/sizeof(tmp[0]));
+  }
+#endif
   // Records with dynamic sizes
   void* ptr = m_ctx.m_mm.get_memroot();
   c_page_pool.set((Page*)ptr, (Uint32)~0);

@@ -38,17 +38,18 @@ extern EventLogger *g_eventLogger;
 
 #ifdef VM_TRACE
 //#define DEBUG_LCP 1
+//#define DEBUG_LCP_SKIP_DELETE_EXTRA 1
+//#define DEBUG_INSERT_EXTRA 1
+//#define DEBUG_LCP_SCANNED_BIT 1
+//#define DEBUG_PGMAN 1
 //#define DEBUG_ROW_COUNT_DEL 1
 //#define DEBUG_ROW_COUNT_INS 1
-//#define DEBUG_LCP_SKIP_DELETE_EXTRA 1
+//#define DEBUG_DELETE 1
 //#define DEBUG_DELETE_EXTRA 1
-//#define DEBUG_INSERT_EXTRA 1
+//#define DEBUG_LCP_SKIP_DELETE2 1
 //#define DEBUG_LCP_DEL 1
 //#define DEBUG_LCP_SKIP 1
 //#define DEBUG_LCP_SKIP_DELETE 1
-//#define DEBUG_LCP_SCANNED_BIT 1
-//#define DEBUG_PGMAN 1
-//#define DEBUG_DELETE 1
 #endif
 
 #ifdef DEBUG_LCP
@@ -85,6 +86,12 @@ extern EventLogger *g_eventLogger;
 #define DEB_LCP_SKIP_DELETE(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP_SKIP_DELETE(arglist) do { } while (0)
+#endif
+
+#ifdef DEBUG_LCP_SKIP_DELETE2
+#define DEB_LCP_SKIP_DELETE2(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LCP_SKIP_DELETE2(arglist) do { } while (0)
 #endif
 
 #ifdef DEBUG_LCP_SCANNED_BIT
@@ -148,6 +155,10 @@ void Dbtup::execTUP_DEALLOCREQ(Signal* signal)
     } else {
       free_fix_rec(regFragPtr.p, regTabPtr.p, &tmp, (Fix_page*)pagePtr.p);
     }
+  }
+  else
+  {
+    jam();
   }
 }
 
@@ -305,7 +316,7 @@ Dbtup::is_rowid_in_remaining_lcp_set(const Page* page,
       }
       return true;
     }
-    ndbassert(key1.m_page_idx == key2.m_page_idx);
+    ndbrequire(key1.m_page_idx == key2.m_page_idx);
     /* keys are equal */
     jam();
     /* Ignore current row that already have been LCP:ed. */
@@ -349,7 +360,7 @@ Dbtup::dealloc_tuple(Signal* signal,
     if (likely(pagePtr.i != RNIL))
     {
       jam();
-      ndbassert(c_lqh->is_restore_phase_done());
+      ndbrequire(c_lqh->is_restore_phase_done());
       Local_key disk;
       memcpy(&disk, ptr->get_disk_ref_ptr(regTabPtr), sizeof(disk));
       PagePtr tmpptr;
@@ -417,7 +428,7 @@ Dbtup::dealloc_tuple(Signal* signal,
     else
     {
       /* Coverage tested */
-      DEB_LCP_SKIP_DELETE(("(%u)tab(%u,%u), row(%u,%u) DELETE"
+      DEB_LCP_SKIP_DELETE2(("(%u)tab(%u,%u), row(%u,%u) DELETE"
                            " already LCP:ed",
                            instance(),
                            regFragPtr->fragTableId,
@@ -480,7 +491,8 @@ Dbtup::dealloc_tuple(Signal* signal,
     regFragPtr->m_lcp_changed_rows++;
   }
   Tup_fixsize_page *fix_page = (Tup_fixsize_page*)page;
-  fix_page->set_change_map(regOperPtr->m_tuple_location.m_page_idx);
+  fix_page->set_change_maps(regOperPtr->m_tuple_location.m_page_idx);
+  ndbassert(fix_page->verify_change_maps(jamBuffer()));
   fix_page->set_max_gci(gci_hi);
   setInvalidChecksum(ptr, regTabPtr);
   if (regOperPtr->op_struct.bit_field.m_tuple_existed_at_start)
@@ -977,7 +989,7 @@ Dbtup::commit_operation(Signal* signal,
                      regFragPtr->fragmentId,
                      rowid.m_page_no,
                      rowid.m_page_idx));
-        ndbassert(c_backup->is_partial_lcp_enabled());
+        ndbrequire(c_backup->is_partial_lcp_enabled());
         lcp_bits |= Tuple_header::LCP_DELETE;
       }
     }
@@ -1019,8 +1031,9 @@ Dbtup::commit_operation(Signal* signal,
   tuple_ptr->m_operation_ptr_i= save;
 
   Tup_fixsize_page *fix_page = (Tup_fixsize_page*)pagePtr.p;
-  fix_page->set_change_map(regOperPtr->m_tuple_location.m_page_idx);
+  fix_page->set_change_maps(regOperPtr->m_tuple_location.m_page_idx);
   fix_page->set_max_gci(gci_hi);
+  ndbassert(fix_page->verify_change_maps(jamBuffer()));
 
   if (regTabPtr->m_bits & Tablerec::TR_RowGCI &&
       update_gci_at_commit)
@@ -1057,14 +1070,15 @@ Dbtup::commit_operation(Signal* signal,
     Local_key rowid = regOperPtr->m_tuple_location;
     rowid.m_page_no = pagePtr.p->frag_page_id;
     g_eventLogger->info("(%u) tab(%u,%u) Inserted row(%u,%u)"
-                        ", bits: %x, row_count = %llu",
+                        ", bits: %x, row_count = %llu, tuple_ptr: %p",
                         instance(),
                         regFragPtr->fragTableId,
                         regFragPtr->fragmentId,
                         rowid.m_page_no,
                         rowid.m_page_idx,
                         tuple_ptr->m_header_bits,
-                        regFragPtr->m_row_count);
+                        regFragPtr->m_row_count,
+                        tuple_ptr);
 #endif
   }
   else
@@ -1329,6 +1343,11 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
     m_global_page_pool.getPtr(diskPagePtr, diskPagePtr.i);
   }
   
+  ptrCheckGuard(regTabPtr, no_of_tablerec, tablerec);
+
+  prepare_fragptr = regFragPtr;
+  prepare_tabptr = regTabPtr;
+
   /**
    * NOTE: This has to be run before potential time-slice when
    *       waiting for disk, as otherwise the "other-ops" in a multi-op

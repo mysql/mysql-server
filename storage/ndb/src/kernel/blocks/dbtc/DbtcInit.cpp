@@ -70,6 +70,18 @@ void Dbtc::initData()
 void Dbtc::initRecords() 
 {
   void *p;
+#if defined(USE_INIT_GLOBAL_VARIABLES)
+  {
+    void* tmp[] = { &apiConnectptr, 
+		    &tcConnectptr,
+		    &cachePtr,
+		    &hostptr,
+		    &timeOutptr,
+		    &scanFragptr, 
+                    &tcNodeFailptr }; 
+    init_global_ptrs(tmp, sizeof(tmp)/sizeof(tmp[0]));
+  }
+#endif
   // Records with dynamic sizes
   cacheRecord = (CacheRecord*)allocRecord("CacheRecord",
 					  sizeof(CacheRecord), 
@@ -350,18 +362,6 @@ Dbtc::Dbtc(Block_context& ctx, Uint32 instanceNo):
   cpackedListIndex = 0;
   c_ongoing_take_over_cnt = 0;
 
-#ifdef VM_TRACE
-  {
-    void* tmp[] = { &apiConnectptr, 
-		    &tcConnectptr,
-		    &cachePtr,
-		    &hostptr,
-		    &timeOutptr,
-		    &scanFragptr, 
-                    &tcNodeFailptr }; 
-    init_globals_list(tmp, sizeof(tmp)/sizeof(tmp[0]));
-  }
-#endif
   cacheRecord = 0;
   apiConnectRecord = 0;
   tcConnectRecord = 0;

@@ -64,11 +64,145 @@
 // primary key is stored in TUP
 #include "../dbtup/Dbtup.hpp"
 #include "../dblqh/Dblqh.hpp"
+/**
+ * DBACC interface description
+ * ---------------------------
+ * DBACC is a block that performs a mapping between a key and a local key.
+ * DBACC stands for DataBase ACCess Manager.
+ * DBACC also handles row locks, each element in DBACC is referring to a
+ * row through a local key. This row can be locked in DBACC.
+ *
+ * It has the following services it provides:
+ * 1) ACCKEYREQ
+ *    This is the by far most important interface. The user normally sends
+ *    in a key, this key is a concatenation of a number of primary key
+ *    columns in the table. Each column will be rounded up to the nearest
+ *    4 bytes and the columns will be concatenated.
+ *
+ *    The ACCKEYREQ interface can be used to insert a key element, to delete
+ *    a key element and to get the local key given a key.
+ *
+ *    The actual insert happens immediately in the prepare phase. But the
+ *    insert must be followed by a later call to the signal ACCMINUPDATE
+ *    that provides the local key for the inserted element.
+ *
+ *    The actual delete happens when the delete is committed through the
+ *    ACC_COMMITREQ interface. The ACC_COMMITREQ signal also removes any
+ *    row locks owned by the operation started by ACCKEYREQ.
+ *
+ *    Normally ACCKEYREQ responds immediate, in this case the return
+ *    signal is passed in the signal object when returning from the
+ *    execACCKEYREQ method. The return could come later if the row
+ *    was locked, in this case a specific ACCKEYCONF signal is sent
+ *    later where we have also locked the row.
+ *
+ *    So the basic ACCKEYREQ service works like this:
+ *    1) Receive ACCKEYREQ, handle it and respond with ACCKEYCONF either
+ *       immediate or at a later time. The message can also be immediately
+ *       refused with an ACCKEYREF signal passed back immediately.
+ *    2) For inserts the local key is provided later with a ACCMINUPDATE
+ *       signal.
+ *    3) The locks can be taken over by another operation, this operation
+ *       can be initiated both through the ACCKEYREQ service or through
+ *       the scan service. The takeover is initiated by a ACCKEYREQ call
+ *       that has the take over flag set and that calls ACC_TO_REQ.
+ *    4) Operations can be committed through ACC_COMMITREQ and they can
+ *       aborted through ACC_ABORTREQ.
+ *
+ * 2) ACC_LOCKREQ
+ *    The ACC_LOCKREQ service provides an interface to lock a row through
+ *    a local key. It also provides a service to unlock a row through the
+ *    same interface. This service is mainly used by blocks performing
+ *    various types of scan services where the scan requires a lock to be
+ *    taken on the row.
+ *    The ACC_LOCKREQ interface is an interface built on top of the
+ *    ACCKEYREQ service.
+ *
+ * 3) Scan service
+ *    ACC can handle up to 12 concurrent full partition scans. The partition
+ *    is scanned in hash table order.
+ *    The ACC_LOCKREQ interface is an interface built on top of the
+ *    ACCKEYREQ service.
+ *
+ * 3) Scan service
+ *    ACC can handle up to 12 concurrent full partition scans. The partition
+ *    is scanned in hash table order.
+ *
+ *    A scan is started up through the ACC_SCANREQ signal.
+ *    After that the NEXT_SCANREQ provides a service to get the next row,
+ *    to commit the previous row, to commit the previous and get the next
+ *    row, to close the scan and to abort the scan.
+ *
+ *    For each row the row is represented by its local key. This is returned
+ *    in the NEXT_SCANCONF signal. Actually this signal is often returned
+ *    through a call to the LQH object through the method exec_next_scan_conf.
+ *
+ * 4) ACCFRAGREQ service
+ *    The ACCFRAG service is used to add a new partition to handle in DBACC.
+ * 5) DROP_TAB_REQ and DROP_FRAG_REQ service
+ *    These services assist in dropping a partition and a table from DBACC.
+ *
+ * DBACC uses the following services:
+ * ----------------------------------
+ *
+ * 1) prepareTUPKEYREQ
+ *    This prepares DBTUP to read a row and to prefetch the row such that we
+ *    can avoid lengthy cache misses. It provides a local key and a reference
+ *    to the fragment information in DBTUP.
+ *
+ * 2) prepare_scanTUPKEYREQ
+ *    This prepares DBTUP to read a row that we are scanning. It provides
+ *    the local key to DBTUP for this service.
+ *
+ * 3) accReadPk
+ *    This reads the primary key in DBACC format from DBTUP provided the
+ *    local key.
+ *
+ * 4) readPrimaryKeys
+ *    This reads the primary key in DBACC format from DBLQH using the
+ *    operation record as key.
+ *
+ * Reading the primary key is performed as a last step in ensuring that
+ * the hash entry refers to the primary key we are looking for.
+ *
+ * Overview description
+ * ....................
+ * On a very high level DBACC maps keys to local keys and it performs a row
+ * locking service for rows. It implements this using the LH^3 data structure.
+ *
+ * Local keys
+ * ----------
+ * ACC stores local keys that are row ids. The ACC implementation is agnostic
+ * to whether it is a logical row id or a physical row id. It only matters in
+ * communication to other services.
+ *
+ * Internal complexity
+ * -------------------
+ * The services provided by DBACC are fairly simple, much of the complexity
+ * comes from handling scans while the data structure is constantly changing.
+ * A lock service is inherently complex and never simple to implement.
+ *
+ * The hash data structure stores each row as one element of 8 bytes that
+ * resides in a container, the container has an 8 byte header and there can
+ * be upto 144 containers in a 8 kByte page. The pages are filled to around
+ * 70% in the normal case. Thus each row requires about 15 bytes of memory
+ * in DBACC.
+ *
+ * On a higher level each table fragment replica in NDB have one DBACC
+ * partition. This can be either a normal table, a unique index table,
+ * or a BLOB table.
+ */
 
 #define JAM_FILE_ID 345
 
 // Index pages used by ACC instances, used by CMVMI to report index memory usage
 extern Uint32 g_acc_pages_used[MAX_NDBMT_LQH_WORKERS];
+
+void
+Dbacc::prepare_scan_ctx(Uint32 scanPtrI)
+{
+  (void)scanPtrI;
+}
 
 // Signal entries and statement blocks
 /* --------------------------------------------------------------------------------- */
@@ -6889,7 +7023,7 @@ void Dbacc::execACC_SCANREQ(Signal* signal) //Direct Executed
 void Dbacc::execNEXT_SCANREQ(Signal* signal) 
 {
   Uint32 tscanNextFlag;
-  jamEntry();
+  jamEntryDebug();
   scanPtr.i = signal->theData[0];
   operationRecPtr.i = signal->theData[1];
   tscanNextFlag = signal->theData[2];
@@ -7052,9 +7186,11 @@ void Dbacc::checkNextBucketLab(Signal* signal)
       releaseScanBucket(gnsPageidptr, conidx, scanPtr.p->scanMask);
     }//if
     scanPtr.p->scan_lastSeen = __LINE__;
-    signal->theData[0] = scanPtr.i;
-    signal->theData[1] = AccCheckScan::ZCHECK_LCP_STOP;
-    sendSignal(reference(), GSN_ACC_CHECK_SCAN, signal, 2, JBB);
+    BlockReference ref = scanPtr.p->scanUserblockref;
+    signal->theData[0] = scanPtr.p->scanUserptr;
+    signal->theData[1] = GSN_ACC_CHECK_SCAN;
+    signal->theData[2] = AccCheckScan::ZCHECK_LCP_STOP;
+    sendSignal(ref, GSN_ACC_CHECK_SCAN, signal, 3, JBB);
     return;
   }//if
   /* ----------------------------------------------------------------------- */
@@ -7103,9 +7239,11 @@ void Dbacc::checkNextBucketLab(Signal* signal)
       releaseOpRec();
       scanPtr.p->scanOpsAllocated--;
       scanPtr.p->scan_lastSeen = __LINE__;
-      signal->theData[0] = scanPtr.i;
-      signal->theData[1] = AccCheckScan::ZCHECK_LCP_STOP;
-      sendSignal(reference(), GSN_ACC_CHECK_SCAN, signal, 2, JBB);
+      BlockReference ref = scanPtr.p->scanUserblockref;
+      signal->theData[0] = scanPtr.p->scanUserptr;
+      signal->theData[1] = GSN_ACC_CHECK_SCAN;
+      signal->theData[2] = AccCheckScan::ZCHECK_LCP_STOP;
+      sendSignal(ref, GSN_ACC_CHECK_SCAN, signal, 3, JBB);
       return;
     }//if
     if (!scanPtr.p->scanReadCommittedFlag) {
@@ -7128,9 +7266,11 @@ void Dbacc::checkNextBucketLab(Signal* signal)
                                 getHighResTimer());
         putOpScanLockQue();	/* PUT THE OP IN A QUE IN THE SCAN REC */
         scanPtr.p->scan_lastSeen = __LINE__;
-        signal->theData[0] = scanPtr.i;
-        signal->theData[1] = AccCheckScan::ZCHECK_LCP_STOP;
-        sendSignal(reference(), GSN_ACC_CHECK_SCAN, signal, 2, JBB);
+        BlockReference ref = scanPtr.p->scanUserblockref;
+        signal->theData[0] = scanPtr.p->scanUserptr;
+        signal->theData[1] = GSN_ACC_CHECK_SCAN;
+        signal->theData[2] = AccCheckScan::ZCHECK_LCP_STOP;
+        sendSignal(ref, GSN_ACC_CHECK_SCAN, signal, 3, JBB);
         return;
       } else if (return_result != ZPARALLEL_QUEUE) {
         jam();
@@ -7143,9 +7283,11 @@ void Dbacc::checkNextBucketLab(Signal* signal)
         releaseOpRec();
 	scanPtr.p->scanOpsAllocated--;
         scanPtr.p->scan_lastSeen = __LINE__;
-        signal->theData[0] = scanPtr.i;
-        signal->theData[1] = AccCheckScan::ZCHECK_LCP_STOP;
-        sendSignal(reference(), GSN_ACC_CHECK_SCAN, signal, 2, JBB);
+        BlockReference ref = scanPtr.p->scanUserblockref;
+        signal->theData[0] = scanPtr.p->scanUserptr;
+        signal->theData[1] = GSN_ACC_CHECK_SCAN;
+        signal->theData[2] = AccCheckScan::ZCHECK_LCP_STOP;
+        sendSignal(ref, GSN_ACC_CHECK_SCAN, signal, 3, JBB);
         return;
       }//if
       ndbassert(return_result == ZPARALLEL_QUEUE);
@@ -7268,19 +7410,15 @@ void Dbacc::releaseScanLab(Signal* signal)
     }//if
   }//for
   // Stops the heartbeat
-  Uint32 blockNo = refToMain(scanPtr.p->scanUserblockref);
   NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
-
   conf->scanPtr = scanPtr.p->scanUserptr;
   conf->accOperationPtr = RNIL;
   conf->fragId = RNIL;
   fragrecptr.p->activeScanMask &= ~scanPtr.p->scanMask;
   scanPtr.p->activeLocalFrag = RNIL;
   releaseScanRec();
-  EXECUTE_DIRECT(blockNo,
-                 GSN_NEXT_SCANCONF,
-                 signal,
-                 NextScanConf::SignalLengthNoTuple);
+  signal->setLength(NextScanConf::SignalLengthNoTuple);
+  c_lqh->exec_next_scan_conf(signal);
   return;
 }//Dbacc::releaseScanLab()
 
@@ -7436,10 +7574,8 @@ void Dbacc::execACC_CHECK_SCAN(Signal* signal)
     conf->scanPtr = scanPtr.p->scanUserptr;
     conf->accOperationPtr = RNIL;
     conf->fragId = RNIL;
-    EXECUTE_DIRECT(refToMain(scanPtr.p->scanUserblockref),
-                   GSN_NEXT_SCANCONF,
-                   signal,
-                   NextScanConf::SignalLengthNoTuple);
+    signal->setLength(NextScanConf::SignalLengthNoTuple);
+    c_lqh->exec_next_scan_conf(signal);
     return;
   }//if
   if (TcheckLcpStop == AccCheckScan::ZCHECK_LCP_STOP) {
@@ -8077,14 +8213,11 @@ void Dbacc::sendNextScanConf(Signal* signal)
 {
   const Local_key localKey = operationRecPtr.p->localdata;
 
-  c_tup->prepareTUPKEYREQ(localKey.m_page_no, localKey.m_page_idx, fragrecptr.p->tupFragptr);
+  c_tup->prepare_scanTUPKEYREQ(localKey.m_page_no, localKey.m_page_idx);
 
   const Uint32 scanUserPtr = scanPtr.p->scanUserptr;
   const Uint32 opPtrI = operationRecPtr.i;
   const Uint32 fid = operationRecPtr.p->fid;
-  BlockReference blockRef = scanPtr.p->scanUserblockref;
-
-  jam();
   /** ---------------------------------------------------------------------
    * LQH WILL NOT HAVE ANY USE OF THE TUPLE KEY LENGTH IN THIS CASE AND 
    * SO WE DO NOT PROVIDE IT. IN THIS CASE THESE VALUES ARE UNDEFINED. 
@@ -8095,11 +8228,8 @@ void Dbacc::sendNextScanConf(Signal* signal)
   conf->fragId = fid;
   conf->localKey[0] = localKey.m_page_no;
   conf->localKey[1] = localKey.m_page_idx;
-  EXECUTE_DIRECT(refToMain(blockRef),
-                 GSN_NEXT_SCANCONF,
-                 signal,
-                 NextScanConf::SignalLengthNoGCI);
-  return;
+  signal->setLength(NextScanConf::SignalLengthNoGCI);
+  c_lqh->exec_next_scan_conf(signal);
 }//Dbacc::sendNextScanConf()
 
 /** ---------------------------------------------------------------------------

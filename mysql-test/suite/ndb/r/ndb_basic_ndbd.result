@@ -153,6 +153,7 @@ ndb_recv_thread_activation_threshold	#
 ndb_recv_thread_cpu_mask	#
 ndb_report_thresh_binlog_epoch_slip	#
 ndb_report_thresh_binlog_mem_usage	#
+ndb_row_checksum	#
 ndb_show_foreign_key_mock_tables	#
 ndb_slave_conflict_role	#
 ndb_table_no_logging	#

@@ -5732,7 +5732,8 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
   TableRecordPtr tablePtr;
   Uint32 schemaFileId;
   switch (parseP->requestType) {
-  case DictTabInfo::CreateTableFromAPI: {
+  case DictTabInfo::CreateTableFromAPI:
+  {
     jam();
   }
   // Fall through
@@ -7538,7 +7539,8 @@ Dbdict::createTab_local(Signal* signal,
   req->forceVarPartFlag = !!(tabPtr.p->m_bits& TableRecord::TR_ForceVarPart);
   req->noOfNullAttributes = tabPtr.p->noOfNullBits;
   req->noOfKeyAttr = tabPtr.p->noOfPrimkey;
-  req->checksumIndicator = 1;
+  req->checksumIndicator =
+    ((tabPtr.p->m_bits & TableRecord::TR_RowChecksum) == 0) ? 0 : 1;
   req->GCPIndicator = 1 + tabPtr.p->m_extra_row_gci_bits;
   req->noOfAttributes = tabPtr.p->noOfAttributes;
   req->extraRowAuthorBits = tabPtr.p->m_extra_row_author_bits;
@@ -13295,7 +13297,7 @@ Dbdict::createIndex_parse(Signal* signal, bool master,
 
   // save name and some index table properties
   Uint32& bits = createIndexPtr.p->m_bits;
-  bits = TableRecord::TR_RowChecksum;
+  bits = 0;
   {
     SegmentedSectionPtr ss_ptr;
     handle.getSection(ss_ptr, CreateIndxReq::INDEX_NAME_SECTION);
@@ -13315,6 +13317,11 @@ Dbdict::createIndex_parse(Signal* signal, bool master,
     }
     const Uint32 bytesize = sizeof(createIndexPtr.p->m_indexName);
     memcpy(createIndexPtr.p->m_indexName, tableDesc.TableName, bytesize);
+    if (tableDesc.RowChecksumFlag)
+    {
+      jam();
+      bits |= TableRecord::TR_RowChecksum;
+    }
     if (tableDesc.TableLoggedFlag) {
       jam();
       bits |= TableRecord::TR_Logged;

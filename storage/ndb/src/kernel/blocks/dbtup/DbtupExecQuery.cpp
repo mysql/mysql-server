@@ -51,6 +51,7 @@
 //#define DEBUG_LCP_LGMAN 1
 //#define DEBUG_LCP_SKIP_DELETE 1
 #endif
+//#define DEBUG_LCP_SKIP_DELETE 1
 
 #ifdef DEBUG_LCP
 #define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
@@ -116,36 +117,29 @@ dump_hex(const Uint32 *p, Uint32 len)
  * AttrInfo section
  * Initialise the AttrInfo length in the request
  */
-int Dbtup::getStoredProcAttrInfo(Uint32 storedId,
+void Dbtup::getStoredProcAttrInfo(Uint32 storedId,
                                  KeyReqStruct* req_struct,
                                  Uint32& attrInfoIVal) 
 {
   jamDebug();
   StoredProcPtr storedPtr;
   c_storedProcPool.getPtr(storedPtr, storedId);
-  if (storedPtr.i != RNIL) {
-    if ((storedPtr.p->storedCode == ZSCAN_PROCEDURE) ||
-        (storedPtr.p->storedCode == ZCOPY_PROCEDURE)) {
-      /* Setup OperationRec with stored procedure AttrInfo section */
-      SegmentedSectionPtr sectionPtr;
-      getSection(sectionPtr, storedPtr.p->storedProcIVal);
-      Uint32 storedProcLen= sectionPtr.sz;
+  ndbrequire(storedPtr.i != RNIL);
+  ndbrequire(((storedPtr.p->storedCode == ZSCAN_PROCEDURE) ||
+               (storedPtr.p->storedCode == ZCOPY_PROCEDURE)));
+  /* Setup OperationRec with stored procedure AttrInfo section */
+  SegmentedSectionPtr sectionPtr;
+  getSection(sectionPtr, storedPtr.p->storedProcIVal);
+  Uint32 storedProcLen= sectionPtr.sz;
 
-      ndbassert( attrInfoIVal == RNIL );
-      attrInfoIVal= storedPtr.p->storedProcIVal;
-      req_struct->attrinfo_len= storedProcLen;
-      return ZOK;
-    }
-  }
-  terrorCode= ZSTORED_PROC_ID_ERROR;
-  return terrorCode;
+  attrInfoIVal= storedPtr.p->storedProcIVal;
+  req_struct->attrinfo_len= storedProcLen;
 }
 
-void Dbtup::copyAttrinfo(Operationrec * regOperPtr,
-                         Uint32* inBuffer,
-                         Uint32 expectedLen,
+void Dbtup::copyAttrinfo(Uint32 expectedLen,
                          Uint32 attrInfoIVal)
 {
+  Uint32 *inBuffer = &cinBuffer[0];
   ndbassert( expectedLen > 0 || attrInfoIVal == RNIL );
 
   if (expectedLen > 0)
@@ -164,10 +158,15 @@ void Dbtup::copyAttrinfo(Operationrec * regOperPtr,
     // appropriate
     copy(inBuffer, attrInfoIVal);
   }
+}
 
-  regOperPtr->m_any_value= 0;
-  
-  return;
+Uint32 Dbtup::copyAttrinfo(Uint32 storedProcId)
+{
+  Uint32 attrinfoVal;
+  KeyReqStruct req_struct(this);
+  getStoredProcAttrInfo(storedProcId, &req_struct, attrinfoVal);
+  copyAttrinfo(req_struct.attrinfo_len, attrinfoVal);
+  return req_struct.attrinfo_len;
 }
 
 void
@@ -265,7 +264,7 @@ Dbtup::corruptedTupleDetected(KeyReqStruct *req_struct, Tablerec *regTabPtr)
   Uint32 header_bits = req_struct->m_tuple_ptr->m_header_bits;
   Uint32 tableId = req_struct->fragPtrP->fragTableId;
   Uint32 fragId = req_struct->fragPtrP->fragmentId;
-  Uint32 page_id = prepare_frag_page_id;
+  Uint32 page_id = req_struct->frag_page_id;
   Uint32 page_idx = prepare_page_idx;
 
   ndbout_c("Tuple corruption detected, checksum: 0x%x, header_bits: 0x%x"
@@ -376,7 +375,6 @@ Dbtup::insertActiveOpList(OperationrecPtr regOperPtr,
 bool
 Dbtup::setup_read(KeyReqStruct *req_struct,
 		  Operationrec* regOperPtr,
-		  Fragrecord* regFragPtr,
 		  Tablerec* regTabPtr,
 		  bool disk)
 {
@@ -400,7 +398,6 @@ Dbtup::setup_read(KeyReqStruct *req_struct,
       return false;
     }
   }
-
   if (unlikely(bits & Tuple_header::FREE))
   {
     /**
@@ -410,11 +407,14 @@ Dbtup::setup_read(KeyReqStruct *req_struct,
     terrorCode= ZTUPLE_DELETED_ERROR;
     return false;
   }
-
   if (likely(currOpPtr.i == RNIL))
   {
+    jamDebug();
     if (regTabPtr->need_expand(disk))
+    {
+      jamDebug();
       prepare_read(req_struct, regTabPtr, disk);
+    }
     return true;
   }
 
@@ -480,7 +480,9 @@ Dbtup::setup_read(KeyReqStruct *req_struct,
     }
 
     if (regTabPtr->need_expand(disk))
+    {
       prepare_read(req_struct, regTabPtr, disk);
+    }
     
 #if 0
     ndbout_c("reading copy");
@@ -606,7 +608,7 @@ Dbtup::disk_page_load_callback(Signal* signal, Uint32 opRec, Uint32 page_id)
 int
 Dbtup::load_diskpage_scan(Signal* signal,
 			  Uint32 opRec, Uint32 fragPtrI,
-			  Uint32 lkey1, Uint32 lkey2, Uint32 flags)
+			  Uint32 lkey1, Uint32 lkey2, Uint32 tux_flag)
 {
   Ptr<Operationrec> operPtr;
 
@@ -618,9 +620,18 @@ Dbtup::load_diskpage_scan(Signal* signal,
 
   jam();
   Uint32 page_idx= lkey2;
-  Uint32 frag_page_id= lkey1;
-  regOperPtr->m_tuple_location.m_page_no= getRealpid(regFragPtr,
+  if (likely(tux_flag))
+  {
+    jamDebug();
+    regOperPtr->m_tuple_location.m_page_no = lkey1;
+  }
+  else
+  {
+    jamDebug();
+    Uint32 frag_page_id= lkey1;
+    regOperPtr->m_tuple_location.m_page_no= getRealpid(regFragPtr,
 						     frag_page_id);
+  }
   regOperPtr->m_tuple_location.m_page_idx= page_idx;
   regOperPtr->op_struct.bit_field.m_load_diskpage_on_commit= 0;
   
@@ -641,7 +652,7 @@ Dbtup::load_diskpage_scan(Signal* signal,
       safe_cast(&Dbtup::disk_page_load_scan_callback);
     
     Page_cache_client pgman(this, c_pgman);
-    res= pgman.get_page(signal, req, flags);
+    res= pgman.get_page(signal, req, 0);
   }
   return res;
 }
@@ -676,15 +687,41 @@ Dbtup::disk_page_load_scan_callback(Signal* signal,
   CPU cache miss and so performing this as early as possible will
   decrease the time for cache misses later in the process. Tests using
   Sysbench indicates that this prefetch gains about 5% in performance.
+
+  See DblqhMain.cpp for more documentation of prepare_* methods.
 */
+
+void Dbtup::prepare_tab_pointers(Uint32 frag_id)
+{
+  /**
+   * A real-time break occurred in scanning, we setup the
+   * fragment and table pointers in preparation for calls to
+   * execTUPKEYREQ.
+   */
+  jamDebug();
+  FragrecordPtr fragptr;
+  TablerecPtr tabptr;
+
+  fragptr.i = frag_id;
+  const Uint32 RnoOfFragrec= cnoOfFragrec;
+  const Uint32 RnoOfTablerec= cnoOfTablerec;
+  Fragrecord * Rfragrecord = fragrecord;
+  Tablerec * Rtablerec = tablerec;
+  ndbrequire(fragptr.i < RnoOfFragrec);
+  ptrAss(fragptr, Rfragrecord);
+  tabptr.i = fragptr.p->fragTableId;
+  ndbrequire(tabptr.i < RnoOfTablerec);
+  prepare_fragptr = fragptr;
+  ptrAss(tabptr, Rtablerec);
+  prepare_tabptr = tabptr;
+}
+
 void Dbtup::prepareTUPKEYREQ(Uint32 page_id,
                              Uint32 page_idx,
                              Uint32 frag_id)
 {
   FragrecordPtr fragptr;
   TablerecPtr tabptr;
-  PagePtr pagePtr;
-  Local_key key;
 
   fragptr.i = frag_id;
   const Uint32 RnoOfFragrec= cnoOfFragrec;
@@ -696,25 +733,33 @@ void Dbtup::prepareTUPKEYREQ(Uint32 page_id,
   ndbrequire(fragptr.i < RnoOfFragrec);
   ptrAss(fragptr, Rfragrecord);
   tabptr.i = fragptr.p->fragTableId;
+  ptrCheckGuard(tabptr, RnoOfTablerec, Rtablerec);
+  prepare_tabptr = tabptr;
+  prepare_fragptr = fragptr;
+  prepare_scanTUPKEYREQ(page_id, page_idx);
+}
+
+void Dbtup::prepare_scanTUPKEYREQ(Uint32 page_id, Uint32 page_idx)
+{
+  Local_key key;
+  PagePtr pagePtr;
 #ifdef VM_TRACE
   prepare_orig_local_key.m_page_no = page_id;
   prepare_orig_local_key.m_page_idx = page_idx;
 #endif
   bool is_page_key = (!(Local_key::isInvalid(page_id, page_idx) ||
                         isCopyTuple(page_id, page_idx)));
-  ptrCheckGuard(tabptr, RnoOfTablerec, Rtablerec);
 
   if (is_page_key)
   {
     Uint32 fixed_part_size_in_words =
-      tabptr.p->m_offsets[MM].m_fix_header_size;
-    prepare_frag_page_id = page_id;
-    page_id = getRealpid(fragptr.p, page_id);
+      prepare_tabptr.p->m_offsets[MM].m_fix_header_size;
+    page_id = getRealpid(prepare_fragptr.p, page_id);
     key.m_page_no = page_id;
     key.m_page_idx = page_idx;
     Uint32 *tuple_ptr = get_ptr(&pagePtr,
                                          &key,
-                                         tabptr.p);
+                                         prepare_tabptr.p);
     jamDebug();
     prepare_pageptr = pagePtr;
     prepare_page_idx = page_idx;
@@ -725,21 +770,57 @@ void Dbtup::prepareTUPKEYREQ(Uint32 page_id,
       NDB_PREFETCH_WRITE(tuple_ptr + i);
     }
   }
-  prepare_tabptr = tabptr;
-  prepare_fragptr = fragptr;
+}
+
+void Dbtup::prepare_scan_tux_TUPKEYREQ(Uint32 page_id, Uint32 page_idx)
+{
+  Local_key key;
+  PagePtr pagePtr;
+#ifdef VM_TRACE
+  prepare_orig_local_key.m_page_no = page_id;
+  prepare_orig_local_key.m_page_idx = page_idx;
+#endif
+  bool is_page_key = (!(Local_key::isInvalid(page_id, page_idx) ||
+                        isCopyTuple(page_id, page_idx)));
+
+  ndbrequire(is_page_key);
+  {
+    register Uint32 fixed_part_size_in_words =
+      prepare_tabptr.p->m_offsets[MM].m_fix_header_size;
+    key.m_page_no = page_id;
+    key.m_page_idx = page_idx;
+    register Uint32 *tuple_ptr = get_ptr(&pagePtr,
+                                         &key,
+                                         prepare_tabptr.p);
+    jamDebug();
+    prepare_pageptr = pagePtr;
+    prepare_tuple_ptr = tuple_ptr;
+    prepare_page_no = page_id;
+    for (Uint32 i = 0; i < fixed_part_size_in_words; i+= 16)
+    {
+      NDB_PREFETCH_WRITE(tuple_ptr + i);
+    }
+  }
+}
+
+void Dbtup::prepare_op_pointer(Uint32 opPtrI)
+{
+  jamDebug();
+  Ptr<Operationrec> operPtr;
+  c_operation_pool.getPtr(operPtr, opPtrI);
+  Uint32 *op_ptr = (Uint32*)operPtr.p;
+  NDB_PREFETCH_WRITE(op_ptr);
+  NDB_PREFETCH_WRITE(op_ptr + 14);
+  prepare_oper_ptr = operPtr;
 }
 
 bool Dbtup::execTUPKEYREQ(Signal* signal) 
 {
    TupKeyReq * tupKeyReq= (TupKeyReq *)signal->getDataPtr();
-   Ptr<Operationrec> operPtr;
+   Ptr<Operationrec> operPtr = prepare_oper_ptr;
    KeyReqStruct req_struct(this);
 
-   Uint32 RoperPtr= tupKeyReq->connectPtr;
-
    jamEntryDebug();
-
-   c_operation_pool.getPtr(operPtr, RoperPtr);
 
 #ifdef VM_TRACE
    {
@@ -759,12 +840,6 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
        ndbout << " keyRef2 = " << key.m_page_idx << endl;
        error_found = true;
      }
-     if (prepare_fragptr.i != tupKeyReq->fragPtr)
-     {
-       ndbout << "fragptr.i = " << prepare_fragptr.i;
-       ndbout << " keyRef1 = " << tupKeyReq->fragPtr << endl;
-       error_found = true;
-     }
      if (error_found)
      {
        ndbout << flush;
@@ -772,10 +847,12 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
      ndbassert(prepare_orig_local_key.m_page_no == key.m_page_no);
      ndbassert(prepare_orig_local_key.m_page_idx == key.m_page_idx);
      ndbassert(prepare_fragptr.i == tupKeyReq->fragPtr);
+     FragrecordPtr fragPtr = prepare_fragptr;
+     ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
+     ndbassert(prepare_fragptr.p == fragPtr.p);
    }
 #endif
 
-   const Uint32 fragPtrI = prepare_fragptr.i;
    /**
     * DESIGN PATTERN DESCRIPTION
     * --------------------------
@@ -816,14 +893,13 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
    Dbtup::TransState trans_state = get_trans_state(regOperPtr);
 
    req_struct.signal= signal;
+   req_struct.operPtrP = regOperPtr;
+   regOperPtr->fragmentPtr = prepare_fragptr.i;
    req_struct.num_fired_triggers= 0;
    req_struct.no_exec_instructions = 0;
    req_struct.read_length= 0;
    req_struct.last_row= false;
-   req_struct.changeMask.clear();
    req_struct.m_is_lcp = false;
-   req_struct.operPtrP = regOperPtr;
-   regOperPtr->fragmentPtr= fragPtrI;
 
    if (unlikely(trans_state != TRANS_IDLE))
    {
@@ -864,7 +940,6 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
      req_struct.interpreted_exec= TupKeyReq::getInterpretedFlag(TrequestInfo);
      req_struct.dirty_op= TupKeyReq::getDirtyFlag(TrequestInfo);
    }
-
    {
      /**
       * DESIGN PATTERN DESCRIPTION
@@ -958,48 +1033,87 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
    req_struct.m_row_id.m_page_no = row_id_page_no;
    req_struct.m_row_id.m_page_idx = row_id_page_idx;
    req_struct.m_deferred_constraints = deferred_constraints;
+   /**
+    * The pageid here is a page id of a row id except when we are
+    * reading from an ordered index scan, in this case it is a
+    * physical page id. We will only use this variable for LCP
+    * scan reads and for inserts and refreshs. So it is not used
+    * for TUX scans.
+    */
    Uint32 pageid = req_struct.frag_page_id= keyRef1;
    Uint32 pageidx = regOperPtr->m_tuple_location.m_page_idx= keyRef2;
 
    const Uint32 transId1 = tupKeyReq->transId1;
    const Uint32 transId2 = tupKeyReq->transId2;
    Tablerec * const regTabPtr = prepare_tabptr.p;
-   Fragrecord * const regFragPtr = prepare_fragptr.p;
 
    /* Get AttrInfo section if this is a long TUPKEYREQ */
-   Uint32 attrInfoIVal= tupKeyReq->attrInfoIVal;
-   const Uint32 Rstoredid= tupKeyReq->storedProcedure;
+   Fragrecord *regFragPtr = prepare_fragptr.p;
    
    req_struct.trans_id1= transId1;
    req_struct.trans_id2= transId2;
    req_struct.tablePtrP = regTabPtr;
    req_struct.fragPtrP = regFragPtr;
 
-   /* If we have AttrInfo, check we expected it, and
-    * that we don't have AttrInfo by another means
-    */
-   ndbassert( (attrInfoIVal == RNIL) ||  
-              (tupKeyReq->attrBufLen > 0));
-   
    const Uint32 Roptype = regOperPtr->op_type;
 
-   if (Rstoredid != ZNIL) {
-     /* This is part of a scan, get attrInfoIVal for 
-      * given stored procedure
-      */
-     ndbrequire(getStoredProcAttrInfo(Rstoredid,
-                                      &req_struct,
-                                      attrInfoIVal) == ZOK);
-   }
-
-   /* Copy AttrInfo from section into linear in-buffer */
-   copyAttrinfo(regOperPtr, 
-                &cinBuffer[0], 
-                req_struct.attrinfo_len,
-                attrInfoIVal);
-   
+   regOperPtr->m_any_value= 0;
 
    const Uint32 loc_prepare_page_id = prepare_page_no;
+   /**
+    * Check operation
+    */
+   if (likely(Roptype == ZREAD))
+   {
+     jamDebug();
+     regOperPtr->op_struct.bit_field.m_tuple_existed_at_start = 0;
+     ndbassert(!Local_key::isInvalid(pageid, pageidx));
+
+     if (unlikely(isCopyTuple(pageid, pageidx)))
+     {
+       jamDebug();
+       /**
+        * Only LCP reads a copy-tuple "directly"
+        */
+       ndbassert(disk_page == RNIL);
+       setup_lcp_read_copy_tuple(&req_struct, regOperPtr, regTabPtr);
+     }
+     else
+     {
+       /**
+        * Get pointer to tuple
+        */
+       jamDebug();
+       regOperPtr->m_tuple_location.m_page_no = loc_prepare_page_id;
+       setup_fixed_tuple_ref_opt(&req_struct);
+       setup_fixed_part(&req_struct, regOperPtr, regTabPtr);
+       if (unlikely(setup_read(&req_struct, regOperPtr, regTabPtr, 
+		               disk_page != RNIL) == false))
+       {
+         jam();
+         tupkeyErrorLab(&req_struct);
+         return false;
+       }
+     }
+     if (handleReadReq(signal, regOperPtr, regTabPtr, &req_struct) != -1)
+     {
+       req_struct.log_size= 0;
+       /* ---------------------------------------------------------------- */
+       // Read Operations need not to be taken out of any lists. 
+       // We also do not need to wait for commit since there is no changes 
+       // to commit. Thus we
+       // prepare the operation record already now for the next operation.
+       // Write operations set the state to STARTED indicating that they
+       // are waiting for the Commit or Abort decision.
+       /* ---------------------------------------------------------------- */
+       returnTUPKEYCONF(signal, &req_struct, regOperPtr, TRANS_IDLE);
+       return true;
+     }
+     jamDebug();
+     return false;
+   }
+   req_struct.changeMask.clear();
+
    if (!Local_key::isInvalid(pageid, pageidx))
    {
      regOperPtr->op_struct.bit_field.m_tuple_existed_at_start = 1;
@@ -1018,55 +1132,14 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
        goto do_refresh;
      }
    }
-
-   if (unlikely(isCopyTuple(pageid, pageidx)))
-   {
-     /**
-      * Only LCP reads a copy-tuple "directly"
-      */
-     ndbassert(Roptype == ZREAD);
-     ndbassert(disk_page == RNIL);
-     setup_lcp_read_copy_tuple(&req_struct, regOperPtr, regFragPtr, regTabPtr);
-     goto do_read;
-   }
-
+   ndbassert(!isCopyTuple(pageid, pageidx));
    /**
     * Get pointer to tuple
     */
    regOperPtr->m_tuple_location.m_page_no = loc_prepare_page_id;
    setup_fixed_tuple_ref_opt(&req_struct);
    setup_fixed_part(&req_struct, regOperPtr, regTabPtr);
-   
-   /**
-    * Check operation
-    */
-   if (Roptype == ZREAD) {
-     jamDebug();
-     
-     if (setup_read(&req_struct, regOperPtr, regFragPtr, regTabPtr, 
-		    disk_page != RNIL))
-     {
-   do_read:
-       if(handleReadReq(signal, regOperPtr, regTabPtr, &req_struct) != -1) 
-       {
-	 req_struct.log_size= 0;
-	 /* ---------------------------------------------------------------- */
-	 // Read Operations need not to be taken out of any lists. 
-	 // We also do not need to wait for commit since there is no changes 
-	 // to commit. Thus we
-	 // prepare the operation record already now for the next operation.
-	 // Write operations set the state to STARTED indicating that they
-	 // are waiting for the Commit or Abort decision.
-	 /* ---------------------------------------------------------------- */
-         returnTUPKEYCONF(signal, &req_struct, regOperPtr, TRANS_IDLE);
-         return true;
-       }
-       return false;
-     }
-     tupkeyErrorLab(&req_struct);
-     return false;
-   }
-   
+
    if(insertActiveOpList(operPtr, &req_struct))
    {
      if(Roptype == ZINSERT)
@@ -1246,20 +1319,26 @@ Dbtup::setup_fixed_part(KeyReqStruct* req_struct,
 			Operationrec* regOperPtr,
 			Tablerec* regTabPtr)
 {
-  req_struct->check_offset[MM]= regTabPtr->get_check_offset(MM);
-  req_struct->check_offset[DD]= regTabPtr->get_check_offset(DD);
-  
+  ndbassert(regOperPtr->op_type == ZINSERT ||
+            (! (req_struct->m_tuple_ptr->m_header_bits & Tuple_header::FREE)));
+  Uint32 descr_start = regTabPtr->tabDescriptor;
+  TableDescriptor *loc_tab_descriptor = tableDescriptor;
   Uint32 num_attr= regTabPtr->m_no_of_attributes;
-  Uint32 descr_start= regTabPtr->tabDescriptor;
-  TableDescriptor *tab_descr= &tableDescriptor[descr_start];
-  ndbrequire(descr_start + (num_attr << ZAD_LOG_SIZE) <= cnoOfTabDescrRec);
-  req_struct->attr_descr= tab_descr; 
+  Uint32 TnoOfTabDescrRec = cnoOfTabDescrRec;
+  Uint32 mm_check_offset = regTabPtr->get_check_offset(MM);
+  Uint32 dd_check_offset = regTabPtr->get_check_offset(DD);
+  TableDescriptor *tab_descr= &loc_tab_descriptor[descr_start];
+  
+  ndbrequire(descr_start + (num_attr << ZAD_LOG_SIZE) <= TnoOfTabDescrRec);
+  req_struct->check_offset[MM] = mm_check_offset;
+  req_struct->check_offset[DD] = dd_check_offset;
+  req_struct->attr_descr= tab_descr;
+  NDB_PREFETCH_READ((char*)tab_descr);
 }
 
 void
 Dbtup::setup_lcp_read_copy_tuple(KeyReqStruct* req_struct,
                                  Operationrec* regOperPtr,
-                                 Fragrecord* regFragPtr,
                                  Tablerec* regTabPtr)
 {
   Local_key tmp;
@@ -1346,9 +1425,9 @@ int Dbtup::handleReadReq(Signal* signal,
   Uint32 *dst;
   Uint32 dstLen, start_index;
   const BlockReference sendBref= req_struct->rec_blockref;
-  if (((regTabPtr->m_bits & Tablerec::TR_Checksum) &&
+  if (unlikely(((regTabPtr->m_bits & Tablerec::TR_Checksum) &&
        (calculateChecksum(req_struct->m_tuple_ptr, regTabPtr) != 0)) ||
-      ERROR_INSERTED(4036)) {
+      ERROR_INSERTED(4036))) {
     jam();
     return corruptedTupleDetected(req_struct, regTabPtr);
   }
@@ -1365,7 +1444,8 @@ int Dbtup::handleReadReq(Signal* signal,
   }
   dst= &signal->theData[start_index];
   dstLen= (MAX_READ / 4) - start_index;
-  if (!req_struct->interpreted_exec) {
+  if (!req_struct->interpreted_exec)
+  {
     jamDebug();
     int ret = readAttributes(req_struct,
 			     &cinBuffer[0],
@@ -1386,7 +1466,9 @@ int Dbtup::handleReadReq(Signal* signal,
     {
       terrorCode = Uint32(-ret);
     }
-  } else {
+  }
+  else
+  {
     return interpreterStartLab(signal, req_struct);
   }
 
@@ -1522,7 +1604,8 @@ int Dbtup::handleUpdateReq(Signal* signal,
 
   req_struct->optimize_options = 0;
   
-  if (!req_struct->interpreted_exec) {
+  if (!req_struct->interpreted_exec)
+  {
     jamDebug();
 
     if (regTabPtr->m_bits & Tablerec::TR_ExtraRowAuthorBits)
@@ -1541,7 +1624,9 @@ int Dbtup::handleUpdateReq(Signal* signal,
       terrorCode = Uint32(-retValue);
       goto error;
     }
-  } else {
+  }
+  else
+  {
     if (unlikely(interpreterStartLab(signal, req_struct) == -1))
       return -1;
   }
@@ -2393,7 +2478,7 @@ size_change_error:
   
 undo_buffer_error:
   jam();
-  terrorCode= ZNO_COPY_TUPLE_MEMORY_ERROR;
+  terrorCode= ZNO_UNDO_BUFFER_MEMORY_ERROR;
   regOperPtr.p->m_undo_buffer_space = 0;
   if (mem_insert)
     regOperPtr.p->m_tuple_location.setNull();
@@ -2798,7 +2883,7 @@ Dbtup::checkNullAttributes(KeyReqStruct * req_struct,
 /* TO THE CLIENT APPLICATION.                                       */
 /* THERE IS A FIFTH REGION WHICH CONTAINS SUBROUTINES CALLABLE FROM */
 /* THE INTERPRETER EXECUTION REGION.                                */
-/* THE FIRST FIVE WORDS WILL GIVE THE LENGTH OF THE FIVEE REGIONS   */
+/* THE FIRST FIVE WORDS WILL GIVE THE LENGTH OF THE FIVE REGIONS    */
 /*                                                                  */
 /* THIS MEANS THAT FROM THE APPLICATIONS POINT OF VIEW THE DATABASE */
 /* CAN HANDLE SUBROUTINE CALLS WHERE THE CODE IS SENT IN THE REQUEST*/
@@ -2822,6 +2907,21 @@ Dbtup::checkNullAttributes(KeyReqStruct * req_struct,
 /*       -----------------------------------------                  */
 /*       +   SUBROUTINE REGION                   +                  */
 /*       -----------------------------------------                  */
+/*                                                                  */
+/* For read operations it only makes sense to first perform the     */
+/* interpreted execution (this will perform condition pushdown      */
+/* where we evaluate the conditions that are not evaluated by       */
+/* ranges implied by the scan operation. These conditions pushed    */
+/* down can essentially check any type of condition.                */
+/*                                                                  */
+/* Since it only makes sense to interpret before reading we delay   */
+/* the initial read to after interpreted execution for read         */
+/* operations. This is safe from a protocol point of view since the */
+/* interpreted execution cannot generate Attrinfo data.             */
+/*                                                                  */
+/* For updates it still makes sense to handle initial read and      */
+/* final read separately since we might want to read values before  */
+/* and after changes, the interpreter can write column values.      */
 /* ---------------------------------------------------------------- */
 /* ---------------------------------------------------------------- */
 /* ----------------- INTERPRETED EXECUTION  ----------------------- */
@@ -2849,7 +2949,7 @@ int Dbtup::interpreterStartLab(Signal* signal,
   if(node != 0 && node != getOwnNodeId()) {
     start_index= 25;
   } else {
-    jam();
+    jamDebug();
     /**
      * execute direct
      */
@@ -2871,9 +2971,10 @@ int Dbtup::interpreterStartLab(Signal* signal,
    * is generated from here on so reset the log word count
    */
   Uint32 RlogSize= req_struct->log_size= 0;
-  if (((RtotalLen + 5) == RattrinbufLen) &&
-      (RattrinbufLen >= 5) &&
-      (RattrinbufLen < ZATTR_BUFFER_SIZE)) {
+  if (likely(((RtotalLen + 5) == RattrinbufLen) &&
+             (RattrinbufLen >= 5) &&
+             (RattrinbufLen < ZATTR_BUFFER_SIZE)))
+  {
     /* ---------------------------------------------------------------- */
     // We start by checking consistency. We must have the first five
     // words of the ATTRINFO to give us the length of the regions. The
@@ -2881,29 +2982,44 @@ int Dbtup::interpreterStartLab(Signal* signal,
     // length and finally the total length must be within the limits.
     /* ---------------------------------------------------------------- */
 
-    if (RinitReadLen > 0) {
-      jam();
-      /* ---------------------------------------------------------------- */
-      // The first step that can be taken in the interpreter is to read
-      // data of the tuple before any updates have been applied.
-      /* ---------------------------------------------------------------- */
-      TnoDataRW= readAttributes(req_struct,
-				 &cinBuffer[5],
-				 RinitReadLen,
-				 &dst[0],
-				 dstLen,
-                                 false);
-      if (TnoDataRW >= 0) {
-	RattroutCounter= TnoDataRW;
-	RinstructionCounter += RinitReadLen;
-      } else {
-	jam();
-        terrorCode = Uint32(-TnoDataRW);
-	tupkeyErrorLab(req_struct);
-	return -1;
+    if (likely(RinitReadLen > 0))
+    {
+      if (likely(regOperPtr->op_type == ZREAD))
+      {
+        jamDebug();
+        RinstructionCounter += RinitReadLen;
+      }
+      else
+      {
+        jamDebug();
+        /* ---------------------------------------------------------------- */
+        // The first step that can be taken in the interpreter is to read
+        // data of the tuple before any updates have been applied.
+        /* ---------------------------------------------------------------- */
+        TnoDataRW= readAttributes(req_struct,
+                                  &cinBuffer[5],
+                                  RinitReadLen,
+                                  &dst[0],
+                                  dstLen,
+                                  false);
+        if (TnoDataRW >= 0)
+        {
+          jamDebug();
+          RattroutCounter= TnoDataRW;
+          RinstructionCounter += RinitReadLen;
+          RinitReadLen = 0;
+        }
+        else
+        {
+          jam();
+          terrorCode = Uint32(-TnoDataRW);
+          tupkeyErrorLab(req_struct);
+          return -1;
+        }
       }
     }
-    if (RexecRegionLen > 0) {
+    if (RexecRegionLen > 0)
+    {
       jamDebug();
       /* ---------------------------------------------------------------- */
       // The next step is the actual interpreted execution. This executes
@@ -2914,28 +3030,33 @@ int Dbtup::interpreterStartLab(Signal* signal,
         + RfinalUpdateLen + RfinalRLen;     
       TnoDataRW= interpreterNextLab(signal,
                                      req_struct,
-				     &clogMemBuffer[0],
-				     &cinBuffer[RinstructionCounter],
-				     RexecRegionLen,
-				     &cinBuffer[RsubPC],
-				     RsubLen,
-				     &coutBuffer[0],
-				     sizeof(coutBuffer) / 4);
-      if (TnoDataRW != -1) {
-	RinstructionCounter += RexecRegionLen;
-	RlogSize= TnoDataRW;
-      } else {
-	jam();
-	/**
-	 * TUPKEY REF is sent from within interpreter
-	 */
-	return -1;
+                                     &clogMemBuffer[0],
+                                     &cinBuffer[RinstructionCounter],
+                                     RexecRegionLen,
+                                     &cinBuffer[RsubPC],
+                                     RsubLen,
+                                     &coutBuffer[0],
+                                     sizeof(coutBuffer) / 4);
+      if (TnoDataRW != -1)
+      {
+        jamDebug();
+        RinstructionCounter += RexecRegionLen;
+        RlogSize= TnoDataRW;
+      }
+      else
+      {
+        jamDebug();
+        /**
+         * TUPKEY REF is sent from within interpreter
+         */
+        return -1;
       }
     }
 
     if ((RlogSize > 0) ||
         (RfinalUpdateLen > 0))
     {
+      jamDebug();
       /* Operation updates row,
        * reset author pseudo-col before update takes effect
        * This should probably occur only if the interpreted program
@@ -2954,51 +3075,87 @@ int Dbtup::interpreterStartLab(Signal* signal,
       }
     }
 
-    if (RfinalUpdateLen > 0) {
-      jam();
+    if (unlikely(RfinalUpdateLen > 0))
+    {
       /* ---------------------------------------------------------------- */
       // We can also apply a set of updates without any conditions as part
       // of the interpreted execution.
       /* ---------------------------------------------------------------- */
-      if (regOperPtr->op_type == ZUPDATE) {
-	TnoDataRW= updateAttributes(req_struct,
-				     &cinBuffer[RinstructionCounter],
-				     RfinalUpdateLen);
-	if (TnoDataRW >= 0) {
-	  MEMCOPY_NO_WORDS(&clogMemBuffer[RlogSize],
-			   &cinBuffer[RinstructionCounter],
-			   RfinalUpdateLen);
-	  RinstructionCounter += RfinalUpdateLen;
-	  RlogSize += RfinalUpdateLen;
-	} else {
-	  jam();
+      if (regOperPtr->op_type == ZUPDATE)
+      {
+        jamDebug();
+        TnoDataRW= updateAttributes(req_struct,
+                                    &cinBuffer[RinstructionCounter],
+                                    RfinalUpdateLen);
+        if (TnoDataRW >= 0)
+        {
+          jamDebug();
+          MEMCOPY_NO_WORDS(&clogMemBuffer[RlogSize],
+                           &cinBuffer[RinstructionCounter],
+                           RfinalUpdateLen);
+          RinstructionCounter += RfinalUpdateLen;
+          RlogSize += RfinalUpdateLen;
+        }
+        else
+        {
+          jam();
           terrorCode = Uint32(-TnoDataRW);
-	  tupkeyErrorLab(req_struct);
-	  return -1;
-	}
-      } else {
-	return TUPKEY_abort(req_struct, 19);
+          tupkeyErrorLab(req_struct);
+          return -1;
+        }
+      }
+      else
+      {
+        jamDebug();
+        return TUPKEY_abort(req_struct, 19);
       }
     }
-    if (RfinalRLen > 0) {
-      jam();
+    if (likely(RinitReadLen > 0))
+    {
+      jamDebug();
+      TnoDataRW= readAttributes(req_struct,
+                                &cinBuffer[5],
+                                RinitReadLen,
+                                &dst[0],
+                                dstLen,
+                                false);
+      if (TnoDataRW >= 0)
+      {
+        jamDebug();
+        RattroutCounter = TnoDataRW;
+      }
+      else
+      {
+        jam();
+        terrorCode = Uint32(-TnoDataRW);
+        tupkeyErrorLab(req_struct);
+        return -1;
+      }
+    }
+    if (RfinalRLen > 0)
+    {
+      jamDebug();
       /* ---------------------------------------------------------------- */
       // The final action is that we can also read the tuple after it has
       // been updated.
       /* ---------------------------------------------------------------- */
       TnoDataRW= readAttributes(req_struct,
-				 &cinBuffer[RinstructionCounter],
-				 RfinalRLen,
-				 &dst[RattroutCounter],
-				 (dstLen - RattroutCounter),
+                                &cinBuffer[RinstructionCounter],
+                                RfinalRLen,
+                                &dst[RattroutCounter],
+                                (dstLen - RattroutCounter),
                                  false);
-      if (TnoDataRW >= 0) {
-	RattroutCounter += TnoDataRW;
-      } else {
-	jam();
+      if (TnoDataRW >= 0)
+      {
+        jamDebug();
+        RattroutCounter += TnoDataRW;
+      }
+      else
+      {
+        jam();
         terrorCode = Uint32(-TnoDataRW);
-	tupkeyErrorLab(req_struct);
-	return -1;
+        tupkeyErrorLab(req_struct);
+        return -1;
       }
     }
     /* Add log words explicitly generated here to existing log size
@@ -3008,11 +3165,14 @@ int Dbtup::interpreterStartLab(Signal* signal,
      */
     req_struct->log_size+= RlogSize;
     sendReadAttrinfo(signal, req_struct, RattroutCounter);
-    if (RlogSize > 0) {
+    if (RlogSize > 0)
+    {
       return sendLogAttrinfo(signal, req_struct, RlogSize, regOperPtr);
     }
     return 0;
-  } else {
+  }
+  else
+  {
     return TUPKEY_abort(req_struct, 22);
   }
 }
@@ -3070,14 +3230,17 @@ Dbtup::brancher(Uint32 TheInstruction, Uint32 TprogramCounter)
   Uint32 TbranchDirection= TheInstruction >> 31;
   Uint32 TbranchLength= (TheInstruction >> 16) & 0x7fff;
   TprogramCounter--;
-  if (TbranchDirection == 1) {
-    jam();
+  if (TbranchDirection == 1)
+  {
+    jamDebug();
     /* ---------------------------------------------------------------- */
     /*       WE JUMP BACKWARDS.                                         */
     /* ---------------------------------------------------------------- */
     return (TprogramCounter - TbranchLength);
-  } else {
-    jam();
+  }
+  else
+  {
+    jamDebug();
     /* ---------------------------------------------------------------- */
     /*       WE JUMP FORWARD.                                           */
     /* ---------------------------------------------------------------- */
@@ -3171,7 +3334,8 @@ int Dbtup::interpreterNextLab(Signal* signal,
     ndbout_c("Interpreter : RnoOfInstructions : %u.  TprogramCounter : %u.  Opcode : %u",
              RnoOfInstructions, TprogramCounter, Interpreter::getOpCode(theInstruction));
 #endif
-    if (TprogramCounter < TcurrentSize) {
+    if (TprogramCounter < TcurrentSize)
+    {
       TprogramCounter++;
       switch (Interpreter::getOpCode(theInstruction)) {
       case Interpreter::READ_ATTR_INTO_REG:
@@ -3189,7 +3353,8 @@ int Dbtup::interpreterNextLab(Signal* signal,
 				     &TregMemBuffer[theRegister],
 				     (Uint32)3,
                                      false);
-	  if (TnoDataRW == 2) {
+	  if (TnoDataRW == 2)
+          {
 	    /* ------------------------------------------------------------- */
 	    // Two words read means that we get the instruction plus one 32 
 	    // word read. Thus we set the register to be a 32 bit register.
@@ -3197,7 +3362,9 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	    TregMemBuffer[theRegister]= 0x50;
             // arithmetic conversion if big-endian
             * (Int64*)(TregMemBuffer+theRegister+2)= TregMemBuffer[theRegister+1];
-	  } else if (TnoDataRW == 3) {
+	  }
+          else if (TnoDataRW == 3)
+          {
 	    /* ------------------------------------------------------------- */
 	    // Three words read means that we get the instruction plus two 
 	    // 32 words read. Thus we set the register to be a 64 bit register.
@@ -3205,7 +3372,9 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	    TregMemBuffer[theRegister]= 0x60;
             TregMemBuffer[theRegister+3]= TregMemBuffer[theRegister+2];
             TregMemBuffer[theRegister+2]= TregMemBuffer[theRegister+1];
-	  } else if (TnoDataRW == 1) {
+	  }
+          else if (TnoDataRW == 1)
+          {
 	    /* ------------------------------------------------------------- */
 	    // One word read means that we must have read a NULL value. We set
 	    // the register to indicate a NULL value.
@@ -3213,12 +3382,16 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	    TregMemBuffer[theRegister]= 0;
 	    TregMemBuffer[theRegister + 2]= 0;
 	    TregMemBuffer[theRegister + 3]= 0;
-	  } else if (TnoDataRW < 0) {
+	  }
+          else if (TnoDataRW < 0)
+          {
 	    jamDebug();
             terrorCode = Uint32(-TnoDataRW);
 	    tupkeyErrorLab(req_struct);
 	    return -1;
-	  } else {
+	  }
+          else
+          {
 	    /* ------------------------------------------------------------- */
 	    // Any other return value from the read attribute here is not 
 	    // allowed and will lead to a system crash.
@@ -3229,8 +3402,8 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	}
 
       case Interpreter::WRITE_ATTR_FROM_REG:
-	jamDebug();
 	{
+	  jamDebug();
 	  Uint32 TattrId= theInstruction >> 16;
 	  Uint32 TattrDescrIndex= req_struct->tablePtrP->tabDescriptor +
 	    (TattrId << ZAD_LOG_SIZE);
@@ -3252,15 +3425,19 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  TdataForUpdate[1]= TregMemBuffer[theRegister + 2];
 	  TdataForUpdate[2]= TregMemBuffer[theRegister + 3];
 	  Tlen= TattrNoOfWords + 1;
-	  if (Toptype == ZUPDATE) {
-	    if (TattrNoOfWords <= 2) {
-              if (TattrNoOfWords == 1) {
+	  if (Toptype == ZUPDATE)
+          {
+	    if (TattrNoOfWords <= 2)
+            {
+              if (TattrNoOfWords == 1)
+              {
                 // arithmetic conversion if big-endian
                 Int64 * tmp = new (&TregMemBuffer[theRegister + 2]) Int64;
                 TdataForUpdate[1] = Uint32(* tmp);
                 TdataForUpdate[2] = 0;
               }
-	      if (TregType == 0) {
+	      if (TregType == 0)
+              {
 		/* --------------------------------------------------------- */
 		// Write a NULL value into the attribute
 		/* --------------------------------------------------------- */
@@ -3271,7 +3448,8 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	      int TnoDataRW= updateAttributes(req_struct,
 					   &TdataForUpdate[0],
 					   Tlen);
-	      if (TnoDataRW >= 0) {
+	      if (TnoDataRW >= 0)
+              {
 		/* --------------------------------------------------------- */
 		// Write the written data also into the log buffer so that it 
 		// will be logged.
@@ -3280,15 +3458,21 @@ int Dbtup::interpreterNextLab(Signal* signal,
 		logMemory[TdataWritten + 1]= TdataForUpdate[1];
 		logMemory[TdataWritten + 2]= TdataForUpdate[2];
 		TdataWritten += Tlen;
-	      } else {
+	      }
+              else
+              {
                 terrorCode = Uint32(-TnoDataRW);
 		tupkeyErrorLab(req_struct);
 		return -1;
 	      }
-	    } else {
+	    }
+            else
+            {
 	      return TUPKEY_abort(req_struct, 15);
 	    }
-	  } else {
+	  }
+          else
+          {
 	    return TUPKEY_abort(req_struct, 16);
 	  }
 	  break;
@@ -3323,7 +3507,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	break;
 
       case Interpreter::ADD_REG_REG:
-	jam();
+	jamDebug();
 	{
 	  Uint32 TrightRegister= Interpreter::getReg2(theInstruction) << 2;
 	  Uint32 TdestRegister= Interpreter::getReg3(theInstruction) << 2;
@@ -3335,18 +3519,21 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  Uint32 TleftType= TregMemBuffer[theRegister];
 	  Int64 Tleft0= * (Int64*)(TregMemBuffer + theRegister + 2);
          
-	  if ((TleftType | TrightType) != 0) {
+	  if ((TleftType | TrightType) != 0)
+          {
 	    Uint64 Tdest0= Tleft0 + Tright0;
 	    * (Int64*)(TregMemBuffer+TdestRegister+2)= Tdest0;
 	    TregMemBuffer[TdestRegister]= 0x60;
-	  } else {
+	  }
+          else
+          {
 	    return TUPKEY_abort(req_struct, 20);
 	  }
 	  break;
 	}
 
       case Interpreter::SUB_REG_REG:
-	jam();
+	jamDebug();
 	{
 	  Uint32 TrightRegister= Interpreter::getReg2(theInstruction) << 2;
 	  Uint32 TdestRegister= Interpreter::getReg3(theInstruction) << 2;
@@ -3357,11 +3544,14 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  Uint32 TleftType= TregMemBuffer[theRegister];
 	  Int64 Tleft0= * (Int64*)(TregMemBuffer + theRegister + 2);
          
-	  if ((TleftType | TrightType) != 0) {
+	  if ((TleftType | TrightType) != 0)
+          {
 	    Int64 Tdest0= Tleft0 - Tright0;
 	    * (Int64*)(TregMemBuffer+TdestRegister+2)= Tdest0;
 	    TregMemBuffer[TdestRegister]= 0x60;
-	  } else {
+	  }
+          else
+          {
 	    return TUPKEY_abort(req_struct, 20);
 	  }
 	  break;
@@ -3372,20 +3562,26 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	break;
 
       case Interpreter::BRANCH_REG_EQ_NULL:
-	if (TregMemBuffer[theRegister] != 0) {
+	if (TregMemBuffer[theRegister] != 0)
+        {
 	  jamDebug();
 	  continue;
-	} else {
+	}
+        else
+        {
 	  jamDebug();
 	  TprogramCounter= brancher(theInstruction, TprogramCounter);
 	}
 	break;
 
       case Interpreter::BRANCH_REG_NE_NULL:
-	if (TregMemBuffer[theRegister] == 0) {
+	if (TregMemBuffer[theRegister] == 0)
+        {
 	  jamDebug();
 	  continue;
-	} else {
+	}
+        else
+        {
 	  jamDebug();
 	  TprogramCounter= brancher(theInstruction, TprogramCounter);
 	}
@@ -3394,6 +3590,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 
       case Interpreter::BRANCH_EQ_REG_REG:
 	{
+	  jamDebug();
 	  Uint32 TrightRegister= Interpreter::getReg2(theInstruction) << 2;
 
 	  Uint32 TleftType= TregMemBuffer[theRegister];
@@ -3403,12 +3600,16 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  Uint32 TrightType= TregMemBuffer[TrightRegister];
 	  Uint32 Tright0= TregMemBuffer[TrightRegister + 2];
 	  Uint32 Tright1= TregMemBuffer[TrightRegister + 3];
-	  if ((TrightType | TleftType) != 0) {
+	  if ((TrightType | TleftType) != 0)
+          {
 	    jamDebug();
-	    if ((Tleft0 == Tright0) && (Tleft1 == Tright1)) {
+	    if ((Tleft0 == Tright0) && (Tleft1 == Tright1))
+            {
 	      TprogramCounter= brancher(theInstruction, TprogramCounter);
 	    }
-	  } else {
+	  }
+          else
+          {
 	    return TUPKEY_abort(req_struct, 23);
 	  }
 	  break;
@@ -3425,12 +3626,16 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  Uint32 TrightType= TregMemBuffer[TrightRegister];
 	  Uint32 Tright0= TregMemBuffer[TrightRegister + 2];
 	  Uint32 Tright1= TregMemBuffer[TrightRegister + 3];
-	  if ((TrightType | TleftType) != 0) {
+	  if ((TrightType | TleftType) != 0)
+          {
 	    jamDebug();
-	    if ((Tleft0 != Tright0) || (Tleft1 != Tright1)) {
+	    if ((Tleft0 != Tright0) || (Tleft1 != Tright1))
+            {
 	      TprogramCounter= brancher(theInstruction, TprogramCounter);
 	    }
-	  } else {
+	  }
+          else
+          {
 	    return TUPKEY_abort(req_struct, 24);
 	  }
 	  break;
@@ -3447,12 +3652,16 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  Int64 Tleft0= * (Int64*)(TregMemBuffer + theRegister + 2);
          
 
-	  if ((TrightType | TleftType) != 0) {
+	  if ((TrightType | TleftType) != 0)
+          {
 	    jamDebug();
-	    if (Tleft0 < Tright0) {
+	    if (Tleft0 < Tright0)
+            {
 	      TprogramCounter= brancher(theInstruction, TprogramCounter);
 	    }
-	  } else {
+	  }
+          else
+          {
 	    return TUPKEY_abort(req_struct, 24);
 	  }
 	  break;
@@ -3469,12 +3678,16 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  Int64 Tleft0= * (Int64*)(TregMemBuffer + theRegister + 2);
 	  
 
-	  if ((TrightType | TleftType) != 0) {
+	  if ((TrightType | TleftType) != 0)
+          {
 	    jamDebug();
-	    if (Tleft0 <= Tright0) {
+	    if (Tleft0 <= Tright0)
+            {
 	      TprogramCounter= brancher(theInstruction, TprogramCounter);
 	    }
-	  } else {
+	  }
+          else
+          {
 	    return TUPKEY_abort(req_struct, 26);
 	  }
 	  break;
@@ -3491,12 +3704,16 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  Int64 Tleft0= * (Int64*)(TregMemBuffer + theRegister + 2);
 	  
 
-	  if ((TrightType | TleftType) != 0) {
+	  if ((TrightType | TleftType) != 0)
+          {
 	    jamDebug();
-	    if (Tleft0 > Tright0){
+	    if (Tleft0 > Tright0)
+            {
 	      TprogramCounter= brancher(theInstruction, TprogramCounter);
 	    }
-	  } else {
+	  }
+          else
+          {
 	    return TUPKEY_abort(req_struct, 27);
 	  }
 	  break;
@@ -3513,12 +3730,16 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  Int64 Tleft0= * (Int64*)(TregMemBuffer + theRegister + 2);
 	  
 
-	  if ((TrightType | TleftType) != 0) {
+	  if ((TrightType | TleftType) != 0)
+          {
 	    jamDebug();
-	    if (Tleft0 >= Tright0){
+	    if (Tleft0 >= Tright0)
+            {
 	      TprogramCounter= brancher(theInstruction, TprogramCounter);
 	    }
-	  } else {
+	  }
+          else
+          {
 	    return TUPKEY_abort(req_struct, 28);
 	  }
 	  break;
@@ -3533,13 +3754,15 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	Uint32 argLen = Interpreter::getBranchCol_Len(ins2);
         Uint32 step = argLen;
 
-	if(tmpHabitant != attrId){
+	if (tmpHabitant != attrId)
+        {
 	  Int32 TnoDataR = readAttributes(req_struct,
 					  &attrId, 1,
 					  tmpArea, tmpAreaSz,
                                           false);
 	  
-	  if (TnoDataR < 0) {
+	  if (unlikely(TnoDataR < 0))
+          {
 	    jam();
             terrorCode = Uint32(-TnoDataR);
 	    tupkeyErrorLab(req_struct);
@@ -3556,7 +3779,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	Uint32 TattrDesc2 = tableDescriptor[TattrDescrIndex+1].tabDescr;
 	Uint32 typeId = AttributeDescriptor::getType(TattrDesc1);
 	void * cs = 0;
-	if(AttributeOffset::getCharsetFlag(TattrDesc2))
+	if (AttributeOffset::getCharsetFlag(TattrDesc2))
 	{
 	  Uint32 pos = AttributeOffset::getCharsetPos(TattrDesc2);
 	  cs = req_struct->tablePtrP->charsetArray[pos];
@@ -3607,10 +3830,13 @@ int Dbtup::interpreterNextLab(Signal* signal,
         if (cond <= Interpreter::GE)
         {
           /* Inequality - EQ, NE, LT, LE, GT, GE */
-          if (r1_null || r2_null) {
+          if (r1_null || r2_null)
+          {
             // NULL==NULL and NULL<not-NULL
             res1 = r1_null && r2_null ? 0 : r1_null ? -1 : 1;
-          } else {
+          }
+          else
+          {
 	    jamDebug();
 	    if (unlikely(sqlType.m_cmp == 0))
 	    {
@@ -3618,14 +3844,19 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	    }
             res1 = (*sqlType.m_cmp)(cs, s1, attrLen, s2, argLen);
           }
-	} else {
+	}
+        else
+        {
           if ((cond == Interpreter::LIKE) ||
               (cond == Interpreter::NOT_LIKE))
           {
-            if (r1_null || r2_null) {
+            if (r1_null || r2_null)
+            {
               // NULL like NULL is true (has no practical use)
               res1 =  r1_null && r2_null ? 0 : -1;
-            } else {
+            }
+            else
+            {
               jam();
               if (unlikely(sqlType.m_like == 0))
               {
@@ -3645,9 +3876,12 @@ int Dbtup::interpreterNextLab(Signal* signal,
             /* If either arg is NULL, we say COL AND MASK
              * NE_ZERO and NE_MASK.
              */
-            if (r1_null || r2_null) {
+            if (r1_null || r2_null)
+            {
               res1= 1;
-            } else {
+            }
+            else
+            {
               
               bool cmpZero= 
                 (cond == Interpreter::AND_EQ_ZERO) ||
@@ -3719,13 +3953,15 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	Uint32 ins2= TcurrentProgram[TprogramCounter];
 	Uint32 attrId= Interpreter::getBranchCol_AttrId(ins2) << 16;
 	
-	if (tmpHabitant != attrId){
+	if (tmpHabitant != attrId)
+        {
 	  Int32 TnoDataR= readAttributes(req_struct,
 					  &attrId, 1,
 					  tmpArea, tmpAreaSz,
                                           false);
 	  
-	  if (TnoDataR < 0) {
+	  if (unlikely(TnoDataR < 0))
+          {
 	    jam();
             terrorCode = Uint32(-TnoDataR);
 	    tupkeyErrorLab(req_struct);
@@ -3735,26 +3971,32 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	}
 	
 	AttributeHeader ah(tmpArea[0]);
-	if (ah.isNULL()){
+	if (ah.isNULL())
+        {
 	  TprogramCounter= brancher(theInstruction, TprogramCounter);
-	} else {
+	}
+        else
+        {
 	  TprogramCounter ++;
 	}
 	break;
       }
 
-      case Interpreter::BRANCH_ATTR_NE_NULL:{
+      case Interpreter::BRANCH_ATTR_NE_NULL:
+      {
 	jamDebug();
 	Uint32 ins2= TcurrentProgram[TprogramCounter];
 	Uint32 attrId= Interpreter::getBranchCol_AttrId(ins2) << 16;
 	
-	if (tmpHabitant != attrId){
+	if (tmpHabitant != attrId)
+        {
 	  Int32 TnoDataR= readAttributes(req_struct,
 					  &attrId, 1,
 					  tmpArea, tmpAreaSz,
                                           false);
 	  
-	  if (TnoDataR < 0) {
+	  if (unlikely(TnoDataR < 0))
+          {
 	    jam();
             terrorCode = Uint32(-TnoDataR);
 	    tupkeyErrorLab(req_struct);
@@ -3764,9 +4006,12 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	}
 	
 	AttributeHeader ah(tmpArea[0]);
-	if (ah.isNULL()){
+	if (ah.isNULL())
+        {
 	  TprogramCounter ++;
-	} else {
+	}
+        else
+        {
 	  TprogramCounter= brancher(theInstruction, TprogramCounter);
 	}
 	break;
@@ -3788,13 +4033,20 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	return TdataWritten;
 	
       case Interpreter::EXIT_REFUSE:
-	jam();
+      {
+        /**
+         * This is a very common exit path, particularly
+         * for scans. It simply means that the row didn't
+         * fulfil the search condition.
+         */
+	jamDebug();
 #ifdef TRACE_INTERPRETER
 	ndbout_c(" - exit_nok");
 #endif
-	terrorCode= theInstruction >> 16;
-	return TUPKEY_abort(req_struct, 29);
-
+	terrorCode = theInstruction >> 16;
+        tupkeyErrorLab(req_struct);
+        return -1;
+      }
       case Interpreter::CALL:
 	jamDebug();
 #ifdef TRACE_INTERPRETER
@@ -3802,16 +4054,22 @@ int Dbtup::interpreterNextLab(Signal* signal,
                  theInstruction >> 16, TsubroutineLen, TprogramCounter);
 #endif
 	RstackPtr++;
-	if (RstackPtr < 32) {
+	if (RstackPtr < 32)
+        {
           TstackMemBuffer[RstackPtr]= TprogramCounter;
           TprogramCounter= theInstruction >> 16;
-	  if (TprogramCounter < TsubroutineLen) {
+	  if (TprogramCounter < TsubroutineLen)
+          {
 	    TcurrentProgram= subroutineProg;
 	    TcurrentSize= TsubroutineLen;
-	  } else {
+	  }
+          else
+          {
 	    return TUPKEY_abort(req_struct, 30);
 	  }
-	} else {
+	}
+        else
+        {
 	  return TUPKEY_abort(req_struct, 31);
 	}
 	break;
@@ -3823,18 +4081,22 @@ int Dbtup::interpreterNextLab(Signal* signal,
                  TstackMemBuffer[RstackPtr],
                  RstackPtr);
 #endif
-	if (RstackPtr > 0) {
+	if (RstackPtr > 0)
+        {
 	  TprogramCounter= TstackMemBuffer[RstackPtr];
 	  RstackPtr--;
-	  if (RstackPtr == 0) {
-	    jam();
+	  if (RstackPtr == 0)
+          {
+	    jamDebug();
 	    /* ------------------------------------------------------------- */
 	    // We are back to the main program.
 	    /* ------------------------------------------------------------- */
 	    TcurrentProgram= mainProgram;
 	    TcurrentSize= TmainProgLen;
 	  }
-	} else {
+	}
+        else
+        {
 	  return TUPKEY_abort(req_struct, 32);
 	}
 	break;
@@ -3842,7 +4104,9 @@ int Dbtup::interpreterNextLab(Signal* signal,
       default:
 	return TUPKEY_abort(req_struct, 33);
       }
-    } else {
+    }
+    else
+    {
       return TUPKEY_abort(req_struct, 34);
     }
   }
@@ -4260,7 +4524,7 @@ Dbtup::prepare_read(KeyReqStruct* req_struct,
     
     // disk part start after dynamic part.
     src_ptr+= src_len;
-  } 
+  }
   
   if(disk && dd_tot)
   {
@@ -4858,7 +5122,7 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
                                       *scanOp.p,
                                       0))
     {
-      KeyReqStruct req_struct(jamBuffer());
+      KeyReqStruct req_struct(jamBuffer(), KRS_PREPARE);
       Operationrec oprec;
       Tuple_header *copy;
       if ((copy = alloc_copy_tuple(tablePtr.p,

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -63,6 +63,17 @@ void Dbacc::initData()
 void Dbacc::initRecords() 
 {
   jam();
+#if defined(USE_INIT_GLOBAL_VARIABLES)
+  {
+    void* tmp[] = { &fragrecptr,
+                    &operationRecPtr,
+                    &queOperPtr,
+                    &scanPtr,
+                    &tabptr
+    };
+    init_global_ptrs(tmp, sizeof(tmp)/sizeof(tmp[0]));
+  }
+#endif
   cfreepages.init();
   ndbassert(pages.getCount() - cfreepages.getCount() + cnoOfAllocatedPages ==
             cpageCount);
@@ -120,17 +131,6 @@ Dbacc::Dbacc(Block_context& ctx, Uint32 instanceNumber):
 
   initData();
 
-#ifdef VM_TRACE
-  {
-    void* tmp[] = { &fragrecptr,
-                    &operationRecPtr,
-                    &queOperPtr,
-                    &scanPtr,
-                    &tabptr
-    };
-    init_globals_list(tmp, sizeof(tmp)/sizeof(tmp[0]));
-  }
-#endif
 }//Dbacc::Dbacc()
 
 Dbacc::~Dbacc() 

@@ -51,8 +51,19 @@ extern thread_local Uint32 NDB_THREAD_TLS_RES_OWNER;
 /**
  * To enable jamDebug and its siblings in a production simply
  * remove the comment and get EXTRA_JAM defined.
+ * It is enabled in builds using ERROR_INSERT to simplify tracing
+ * of bugs from autotest.
+ *
+ * Similarly enable initialisation of global variables in a block
+ * thread before executing each asynchronous signal by enabling
+ * USE_INIT_GLOBAL_VARIABLES. This is also enabled in all builds
+ * using ERROR_INSERT to ensure that we quickly discover failures
+ * in using global variables.
  */
-//#define EXTRA_JAM 1
+#if defined(ERROR_INSERT)
+#define EXTRA_JAM 1
+#define USE_INIT_GLOBAL_VARIABLES 1
+#endif
 
 #ifdef NO_EMULATED_JAM
 

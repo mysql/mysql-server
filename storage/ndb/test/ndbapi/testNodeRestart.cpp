@@ -96,6 +96,7 @@ changeStartPartitionedTimeout(NDBT_Context *ctx, NDBT_Step *step)
       break;
     }
     g_err << "Restarting nodes to apply config change" << endl;
+    sleep(3); //Give MGM server time to restart
     if (restarter.restartAll())
     {
       g_err << "Failed to restart nodes." << endl;
@@ -632,7 +633,7 @@ int runDeleteInsertUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
       result = NDBT_FAILED;
       break;
     }
-    if (hugoTrans.loadTable(GETNDB(step), records, 1) != 0){
+    if (hugoTrans.loadTable(GETNDB(step), records, 50000) != 0){
       result = NDBT_FAILED;
       break;
     }
@@ -6717,6 +6718,7 @@ setConfigValueAndRestartNode(NdbMgmd *mgmd, Uint32 key, Uint32 value, int nodeId
       return NDBT_FAILED;
     }
     g_err << "Restarting node to apply config change..." << endl;
+    sleep(3); //Give MGM server time to restart
     if (restarter->restartOneDbNode(nodeId, false, false, true))
     {
       g_err << "Failed to restart node." << endl;
@@ -8957,6 +8959,8 @@ int run_PLCP_I1(NDBT_Context *ctx, NDBT_Step *step)
   int result = NDBT_OK;
   int loops = ctx->getNumLoops();
   int records = ctx->getNumRecords();
+  bool initial = (bool)ctx->getProperty("Initial", 1);
+  bool wait_start = (bool)ctx->getProperty("WaitStart", 1);
   NdbRestarter restarter;
   const Uint32 nodeCount = restarter.getNumDbNodes();
   int nodeId = restarter.getRandomNotMasterNodeId(rand());
@@ -8969,7 +8973,7 @@ int run_PLCP_I1(NDBT_Context *ctx, NDBT_Step *step)
     return NDBT_OK; /* Requires at least 2 nodes to run */
   }
   g_err << "Executing " << loops << " loops" << endl;
-  while(++i <= loops && result != NDBT_FAILED)
+  while (++i <= loops && result != NDBT_FAILED)
   {
     g_err << "Start loop " << i << endl;
     g_err << "Loading " << records << " records..." << endl;
@@ -8979,7 +8983,7 @@ int run_PLCP_I1(NDBT_Context *ctx, NDBT_Step *step)
       return NDBT_FAILED;
     }
     if (restarter.restartOneDbNode(nodeId,
-                                   true, /* initial */
+                                   initial, /* initial */
                                    true,  /* nostart  */
                                    false, /* abort */
                                    false  /* force */) != 0)
@@ -8994,17 +8998,20 @@ int run_PLCP_I1(NDBT_Context *ctx, NDBT_Step *step)
       g_err << "Failed to insert error 1011" << endl;
       return NDBT_FAILED;
     }
-    ndbout << "Start node" << endl;
-    if (restarter.startNodes(&nodeId, 1) != 0)
+    if (!wait_start)
     {
-      g_err << "Start failed" << endl;
-      return NDBT_FAILED;
+      ndbout << "Start node" << endl;
+      if (restarter.startNodes(&nodeId, 1) != 0)
+      {
+        g_err << "Start failed" << endl;
+        return NDBT_FAILED;
+      }
     }
     ndbout << "Delete records" << endl;
 
     Uint32 row_step = 10;
     Uint32 num_deleted_records = records / 10;
-    Uint32 batch = 1;
+    Uint32 batch = 10;
 
     for (Uint32 start = 0; start < 10; start++)
     {
@@ -9018,11 +9025,22 @@ int run_PLCP_I1(NDBT_Context *ctx, NDBT_Step *step)
       if (result == NDBT_FAILED)
         return result;
       NdbSleep_SecSleep(1);
+      ndbout << "Completed Delete records (" << (start+1) << ")" << endl;
     }
-    ndbout << "Wait for initial node restart to complete" << endl;
+    if (wait_start)
+    {
+      ndbout << "Start node" << endl;
+      if (restarter.startNodes(&nodeId, 1) != 0)
+      {
+        g_err << "Start failed" << endl;
+        return NDBT_FAILED;
+      }
+    }
+    ndbout << "Delete records" << endl;
+    ndbout << "Wait for node restart to complete" << endl;
     if (restarter.waitNodesStarted(&nodeId, 1) != 0)
     {
-      g_err << "Wait node start failed" << endl;
+      g_err << "Wait node restart failed" << endl;
       return NDBT_FAILED;
     }
   }
@@ -9834,9 +9852,32 @@ TESTCASE("LCP_with_many_parts",
 {
   INITIALIZER(run_PLCP_many_parts);
 }
+TESTCASE("PLCP_R1",
+         "Node restart while deleting rows")
+{
+  TC_PROPERTY("Initial", (Uint32)0);
+  TC_PROPERTY("WaitStart", (Uint32)0);
+  INITIALIZER(run_PLCP_I1);
+}
+TESTCASE("PLCP_RW1",
+         "Node restart while deleting rows")
+{
+  TC_PROPERTY("Initial", (Uint32)0);
+  TC_PROPERTY("WaitStart", (Uint32)1);
+  INITIALIZER(run_PLCP_I1);
+}
+TESTCASE("PLCP_IW1",
+         "Node restart while deleting rows")
+{
+  TC_PROPERTY("Initial", (Uint32)1);
+  TC_PROPERTY("WaitStart", (Uint32)1);
+  INITIALIZER(run_PLCP_I1);
+}
 TESTCASE("PLCP_I1",
          "Initial node restart while deleting rows")
 {
+  TC_PROPERTY("Initial", (Uint32)1);
+  TC_PROPERTY("WaitStart", (Uint32)0);
   INITIALIZER(run_PLCP_I1);
 }
 TESTCASE("PLCP_I2",

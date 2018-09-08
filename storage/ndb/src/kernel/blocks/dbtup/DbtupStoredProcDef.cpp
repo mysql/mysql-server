@@ -329,6 +329,9 @@ void Dbtup::copyProcedure(Signal* signal,
                 regOperPtr,
                 &handle,
                 true); // isCopy
+  Ptr<SectionSegment> first;
+  g_sectionSegmentPool.getPtr(first, cCopyProcedure);
+  signal->theData[2] = first.p->m_sz;
 }//Dbtup::copyProcedure()
 
 void Dbtup::storedProcBufferSeizeErrorLab(Signal* signal,

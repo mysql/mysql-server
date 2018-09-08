@@ -253,6 +253,7 @@ Dbtup::init_page(Fragrecord* regFragPtr, PagePtr pagePtr, Uint32 pageId)
    */
   fix_page->set_all_change_map();
   fix_page->clear_max_gci();
+  ndbassert(fix_page->verify_change_maps(jamBuffer()));
 }
 
 #ifdef VM_TRACE

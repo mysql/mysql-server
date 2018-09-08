@@ -43,6 +43,7 @@
 #include <NdbGetRUsage.h>
 #include <portlib/ndb_prefetch.h>
 #include <blocks/pgman.hpp>
+#include <Pool.hpp>
 
 #include "mt-asm.h"
 #include "mt-lock.hpp"
@@ -933,7 +934,14 @@ struct MY_ALIGNED(NDB_CL) thr_data
                m_signal_id_counter(0),
                m_send_buffer_pool(0,
                                   THR_SEND_BUFFER_MAX_FREE,
-                                  THR_SEND_BUFFER_ALLOC_SIZE) {
+                                  THR_SEND_BUFFER_ALLOC_SIZE)
+#if defined(USE_INIT_GLOBAL_VARIABLES)
+               ,m_global_variables_ptr_instances(0)
+               ,m_global_variables_uint32_ptr_instances(0)
+               ,m_global_variables_uint32_instances(0)
+               ,m_global_variables_enabled(true)
+#endif
+  {
 
     // Check cacheline allignment
     assert((((UintPtr)this) % NDB_CL) == 0);
@@ -1165,6 +1173,16 @@ struct MY_ALIGNED(NDB_CL) thr_data
 
 #ifdef ERROR_INSERT
   bool m_delayed_prepare;
+#endif
+
+#if defined (USE_INIT_GLOBAL_VARIABLES)
+  Uint32 m_global_variables_ptr_instances;
+  Uint32 m_global_variables_uint32_ptr_instances;
+  Uint32 m_global_variables_uint32_instances;
+  bool m_global_variables_enabled;
+  void* m_global_variables_ptrs[1024];
+  void* m_global_variables_uint32_ptrs[1024];
+  void* m_global_variables_uint32[1024];
 #endif
 };
 
@@ -5463,6 +5481,9 @@ void handle_scheduling_decisions(thr_data *selfptr,
   }
 }
 
+#if defined(USE_INIT_GLOBAL_VARIABLES)
+  void mt_clear_global_variables(thr_data*);
+#endif
 /*
  * Execute at most MAX_SIGNALS signals from one job queue, updating local read
  * state as appropriate.
@@ -5598,6 +5619,9 @@ execute_signals(thr_data *selfptr,
      */
     block->jamBuffer()->markEndOfSigExec();
     sig->m_extra_signals = 0;
+#if defined(USE_INIT_GLOBAL_VARIABLES)
+    mt_clear_global_variables(selfptr);
+#endif
     block->executeFunction_async(gsn, sig);
     extra_signals += sig->m_extra_signals;
   }
@@ -8498,6 +8522,93 @@ mt_get_trp_receive_handle(unsigned instance)
   }
   return 0;
 }
+
+#if defined(USE_INIT_GLOBAL_VARIABLES)
+void
+mt_clear_global_variables(thr_data *selfptr)
+{
+  if (selfptr->m_global_variables_enabled)
+  {
+    for (Uint32 i = 0; i < selfptr->m_global_variables_ptr_instances; i++)
+    {
+      Ptr<void> *tmp = (Ptr<void>*)selfptr->m_global_variables_ptrs[i];
+      tmp->i = RNIL;
+      tmp->p = 0;
+    }
+    for (Uint32 i = 0; i < selfptr->m_global_variables_uint32_ptr_instances; i++)
+    {
+      void **tmp = (void**)selfptr->m_global_variables_uint32_ptrs[i];
+      (*tmp) = 0;
+    }
+    for (Uint32 i = 0; i < selfptr->m_global_variables_uint32_instances; i++)
+    {
+      Uint32 *tmp = (Uint32*)selfptr->m_global_variables_uint32[i];
+      (*tmp) = Uint32(~0);
+    }
+  }
+}
+
+void
+mt_enable_global_variables(Uint32 self)
+{
+  struct thr_repository* rep = g_thr_repository;
+  struct thr_data *selfptr = &rep->m_thread[self];
+  selfptr->m_global_variables_enabled = true;
+}
+
+void
+mt_disable_global_variables(Uint32 self)
+{
+  struct thr_repository* rep = g_thr_repository;
+  struct thr_data *selfptr = &rep->m_thread[self];
+  selfptr->m_global_variables_enabled = false;
+}
+
+void
+mt_init_global_variables_ptr_instances(Uint32 self,
+                                       void ** tmp,
+                                       size_t cnt)
+{
+  struct thr_repository* rep = g_thr_repository;
+  struct thr_data *selfptr = &rep->m_thread[self];
+  for (size_t i = 0; i < cnt; i++)
+  {
+    Uint32 inx = selfptr->m_global_variables_ptr_instances;
+    selfptr->m_global_variables_ptrs[inx] = tmp[i];
+    selfptr->m_global_variables_ptr_instances = inx + 1;
+  }
+}
+
+void
+mt_init_global_variables_uint32_ptr_instances(Uint32 self,
+                                              void **tmp,
+                                              size_t cnt)
+{
+  struct thr_repository* rep = g_thr_repository;
+  struct thr_data *selfptr = &rep->m_thread[self];
+  for (size_t i = 0; i < cnt; i++)
+  {
+    Uint32 inx = selfptr->m_global_variables_uint32_ptr_instances;
+    selfptr->m_global_variables_uint32_ptrs[inx] = tmp[i];
+    selfptr->m_global_variables_uint32_ptr_instances = inx + 1;
+  }
+}
+
+void
+mt_init_global_variables_uint32_instances(Uint32 self,
+                                          void **tmp,
+                                          size_t cnt)
+{
+  struct thr_repository* rep = g_thr_repository;
+  struct thr_data *selfptr = &rep->m_thread[self];
+  for (size_t i = 0; i < cnt; i++)
+  {
+    Uint32 inx = selfptr->m_global_variables_uint32_instances;
+    selfptr->m_global_variables_uint32[inx] = tmp[i];
+    selfptr->m_global_variables_uint32_instances = inx + 1;
+  }
+}
+#endif
 
 /**
  * Global data

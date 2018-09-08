@@ -65,6 +65,8 @@ public:
   class Data;
   class BoundC;
   class Bound;
+  class DataArray;
+  class BoundArray;
 
   /*
    * Get SQL type.
@@ -164,6 +166,7 @@ public:
     friend class Iter;
     friend class DataC;
     friend class Data;
+    friend class DataArray;
     // verify and complete when added to specification
     int complete();
     Uint16 m_typeId;
@@ -213,6 +216,7 @@ public:
     friend class DataC;
     friend class Data;
     friend class BoundC;
+    friend class DataArray;
     // undefined
     Spec(const Spec&);
     Spec& operator=(const Spec&);
@@ -240,6 +244,7 @@ public:
     friend class DataC;
     friend class Data;
     friend class BoundC;
+    friend class DataArray;
     // undefined
     Iter(const Iter&);
     Iter& operator=(const Iter&);
@@ -291,6 +296,7 @@ public:
     friend class Iter;
     friend class Data;
     friend class BoundC;
+    friend class DataArray;
     // undefined
     DataC(const Data&);
     DataC& operator=(const DataC&);
@@ -391,6 +397,7 @@ public:
 
   private:
     friend class Bound;
+    friend class DataArray;
     // undefined
     BoundC(const BoundC&);
     BoundC& operator=(const BoundC&);
@@ -424,6 +431,69 @@ public:
     Bound(const Bound&);
     Bound& operator=(const Bound&);
     Data& m_data;
+  };
+
+  /**
+   * These are classes that are optimised for quick
+   * comparisons, in particular when the same
+   * object is used over and over again. Typical
+   * cases for this is scans where multiple rows
+   * can be compared in a single time slot. Even more
+   * so index builds that execute a very long time
+   * using the same objects.
+   *
+   * The idea is that we build an array of objects with
+   * length and a pointer to the data. This means that
+   * we can build this array from Attribute information
+   * retrieved from TUP, we can build it from a
+   * Bound supplied for a scan and we can build it for
+   * searches to update the index.
+   */
+  class DataEntry
+  {
+  public:
+    DataEntry() {}
+    ~DataEntry() {}
+  private:
+    friend class DataArray;
+    Uint8* m_data_ptr;
+    Uint32 m_data_len;
+  };
+
+  class DataArray
+  {
+  public:
+    DataArray() {}
+    ~DataArray() {}
+    void init_poai(const Uint32* buf, const Uint32 cnt);
+    void init_bound(const BoundC&, const Uint32 cnt);
+    int cmp(const Spec* spec,
+            const DataArray* d2,
+            const Uint32 cnt) const;
+    Uint32 cnt() const;
+    Uint32 get_null_cnt() const;
+    Uint32 get_data_len() const;
+  private:
+    friend class BoundArray;
+    Uint32 m_cnt;
+    Uint32 m_null_cnt;
+    DataEntry m_entries[MAX_ATTRIBUTES_IN_INDEX];
+  };
+
+  class BoundArray
+  {
+    public:
+      BoundArray();
+      BoundArray(const Spec*,
+                 const DataArray*,
+                 const int side);
+      ~BoundArray() {}
+      int cmp(const DataArray* d2, const Uint32 cnt, bool ok_to_ret_eq) const;
+      Uint32 cnt() const;
+    private:
+      const Spec* m_spec;
+      const DataArray* m_data_array;
+      const int m_side;
   };
 
   /*
@@ -716,8 +786,8 @@ NdbPack::Data::reset()
 inline int
 NdbPack::Data::finalize()
 {
-  if (m_varBytes == 0 ||
-      finalize_impl() == 0)
+  if (likely(m_varBytes == 0 ||
+             finalize_impl() == 0))
     return 0;
   return -1;
 }
@@ -840,12 +910,12 @@ NdbPack::Bound::reset()
 inline int
 NdbPack::Bound::finalize(int side)
 {
-  if (m_data.finalize() == -1)
+  if (unlikely(m_data.finalize() == -1))
   {
     set_error(m_data);
     return -1;
   }
-  if (BoundC::finalize(side) == -1)
+  if (unlikely(BoundC::finalize(side) == -1))
     return -1;
   return 0;
 }
@@ -856,4 +926,61 @@ NdbPack::Bound::get_data() const
   return m_data;
 }
 
+inline Uint32
+NdbPack::DataArray::cnt() const
+{
+  return m_cnt;
+}
+
+inline Uint32
+NdbPack::DataArray::get_null_cnt() const
+{
+  return m_null_cnt;
+}
+
+inline Uint32
+NdbPack::DataArray::get_data_len() const
+{
+  Uint32 cnt = m_cnt;
+  Uint32 len = 0;
+  for (Uint32 i = 0; i < cnt; i++)
+  {
+    len += m_entries[i].m_data_len;
+  }
+  return len;
+}
+
+inline NdbPack::BoundArray::BoundArray() :
+  m_spec(NULL),
+  m_data_array(NULL),
+  m_side(0)
+{
+}
+
+inline NdbPack::BoundArray::BoundArray(
+                   const Spec* spec,
+                   const DataArray* data_array,
+                   const int side) :
+  m_spec(spec),
+  m_data_array(data_array),
+  m_side(side)
+{
+}
+
+inline int
+NdbPack::BoundArray::cmp(const DataArray* d2,
+                         const Uint32 cnt,
+                         const bool ok_to_ret_eq) const
+{
+  int res = m_data_array->cmp(m_spec, d2, cnt);
+  if (res == 0 && !ok_to_ret_eq && m_data_array->m_cnt <= d2->cnt())
+    res = m_side;
+  return res;
+}
+
+inline Uint32
+NdbPack::BoundArray::cnt() const
+{
+  return m_data_array->cnt();
+}
 #endif // NDB_PACK_HPP
