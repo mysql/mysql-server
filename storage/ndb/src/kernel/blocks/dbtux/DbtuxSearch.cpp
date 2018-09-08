@@ -366,11 +366,7 @@ Dbtux::findNodeToScan(Frag& frag,
       break;
     }
     // ret == 0 never
-<<<<<<< HEAD
     ndbabort();
-=======
-    ndbrequire(ret != 0);
->>>>>>> 2678b7d74ed3cfb5018f6c3b61f2f42bcfb36e3c
   }
 }
 
@@ -420,11 +416,7 @@ Dbtux::findPosToScan(Frag& frag,
     else
     {
       // ret == 0 never
-<<<<<<< HEAD
       ndbabort();
-=======
-      ndbrequire(ret != 0);
->>>>>>> 2678b7d74ed3cfb5018f6c3b61f2f42bcfb36e3c
     }
   }
   // return hi pos, caller handles ascending vs descending
