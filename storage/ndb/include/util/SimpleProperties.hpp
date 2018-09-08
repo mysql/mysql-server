@@ -147,12 +147,6 @@ public:
     Uint16 getValueLen() const;
 
     /**
-     * Get value length including any padding that may be returned
-     * from getString()
-     */
-    size_t getPaddedLength() const;
-
-    /**
      * Get value type
      *  Note only valid is valid() == true
      */

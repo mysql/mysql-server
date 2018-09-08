@@ -143,11 +143,6 @@ SimpleProperties::Reader::getValueLen() const {
   return 0;
 }
 
-size_t
-SimpleProperties::Reader::getPaddedLength() const {
-  return m_itemLen * 4;
-}
-
 SimpleProperties::ValueType
 SimpleProperties::Reader::getValueType() const {
   return m_type;
