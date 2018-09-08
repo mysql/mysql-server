@@ -4522,7 +4522,7 @@ MgmtSrvr::setDbParameter(int node, int param, const char * value,
 
   int p_type;
   unsigned val_32;
-  Uint64 val_64;
+  Uint64 val_64 = 0;
   const char * val_char;
   do {
     p_type = 0;

@@ -96,7 +96,7 @@ public:
       m_error.code = codeError.code;
 
     return -1;
-  };
+  }
 
   /* This method performs any steps required once the
    * filter definition is complete

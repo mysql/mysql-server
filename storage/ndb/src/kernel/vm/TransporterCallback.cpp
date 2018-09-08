@@ -100,7 +100,7 @@ class TransporterCallbackKernelNonMT :
 public:
   TransporterCallbackKernelNonMT()
   : m_send_buffers(NULL), m_page_freelist(NULL), m_send_buffer_memory(NULL)
-  {};
+  {}
 
   ~TransporterCallbackKernelNonMT();
 

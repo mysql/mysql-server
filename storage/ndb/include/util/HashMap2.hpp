@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,17 +64,17 @@ public:
   static Uint32 hashValue(const KV* obj)
   {
     return obj->hashValue();
-  };
+  }
 
   static bool equal(const KV* objA, const KV* objB)
   {
     return objA->equal(objB);
-  };
+  }
 
   static void setNext(KV* from, KV* to)
   {
     return from->setNext(to);
-  };
+  }
 
   static KV* getNext(const KV* from)
   {
@@ -186,7 +186,7 @@ public:
       allocatorContext(_allocatorContext),
       table(NULL)
   {
-  };
+  }
 
   ~HashMap2()
   {
@@ -236,7 +236,7 @@ public:
       table[i] = NULL;
 
     return true;
-  };
+  }
 
   /**
    * add
@@ -372,7 +372,7 @@ public:
     }
 
     return chainElement;
-  };
+  }
 
   /**
    * reset

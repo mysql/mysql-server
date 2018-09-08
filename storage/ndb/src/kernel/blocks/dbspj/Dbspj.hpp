@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -123,11 +123,11 @@ public:
   struct TableRecord {
     TableRecord() 
     : m_currentSchemaVersion(0), m_flags(0)
-    {};
+    {}
 
     TableRecord(Uint32 schemaVersion)
     : m_currentSchemaVersion(schemaVersion), m_flags(TR_PREPARED)
-    {};
+    {}
 
     Uint32 m_currentSchemaVersion;
     Uint16 m_flags;

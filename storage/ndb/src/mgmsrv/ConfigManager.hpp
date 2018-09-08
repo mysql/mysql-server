@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -224,7 +224,7 @@ class ConfigManager : public MgmtThread {
     struct NodePair {
       int node1;
       int node2;
-      NodePair(int n1, int n2) : node1(n1), node2(n2) {};
+      NodePair(int n1, int n2) : node1(n1), node2(n2) {}
     };
     HashMap<NodePair, int> m_ports;
     bool check(int& node1, int& node2) const;

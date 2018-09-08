@@ -4648,7 +4648,7 @@ void Dblqh::sendLqhkeyconfTc(Signal* signal,
                              const TcConnectionrecPtr tcConnectptr)
 {
   LqhKeyConf* lqhKeyConf;
-  struct PackedWordsContainer * container;
+  struct PackedWordsContainer * container = nullptr;
   bool send_packed = true;
   HostRecordPtr Thostptr;
   Thostptr.i = refToNode(atcBlockref);
@@ -23503,7 +23503,7 @@ void Dblqh::srGciLimits(Signal* signal)
  *-------------------------------------------------------------------------- */
 void Dblqh::srLogLimits(Signal* signal) 
 {
-  Uint32 tlastPrepRef;
+  Uint32 tlastPrepRef = 0;
   Uint32 tmbyte;
 
   jamEntry();

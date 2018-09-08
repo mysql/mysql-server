@@ -350,7 +350,7 @@ int main(int argc, char **argv) {
     g_logger.info("#%d - %s", test_no, test_case.m_name.c_str());
 
     int result = 0;
-    time_t elapsed;
+    time_t elapsed = 0;
     int testruns;
     int total_runs = 1 + test_case.m_max_retries;
     for (testruns = 1; testruns <= total_runs; testruns++) {

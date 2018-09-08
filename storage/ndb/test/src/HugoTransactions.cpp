@@ -2059,7 +2059,7 @@ HugoTransactions::indexReadRecords(Ndb* pNdb,
   int                  retryAttempt = 0;
   int                  check, a;
   NdbOperation *pOp;
-  NdbIndexScanOperation *sOp;
+  NdbIndexScanOperation *sOp = nullptr;
 
   const NdbDictionary::Index* pIndex
     = pNdb->getDictionary()->getIndex(idxName, tab.getName());
@@ -2219,8 +2219,8 @@ HugoTransactions::indexUpdateRecords(Ndb* pNdb,
   int                  r = 0;
   int                  retryAttempt = 0;
   int                  check, a, b;
-  NdbOperation *pOp;
-  NdbScanOperation * sOp;
+  NdbOperation *pOp = nullptr;
+  NdbScanOperation * sOp = nullptr;
 
   const NdbDictionary::Index* pIndex
     = pNdb->getDictionary()->getIndex(idxName, tab.getName());

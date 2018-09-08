@@ -149,7 +149,7 @@ public:
     void print(FILE* out) {
       fprintf(out, "[DataBufferIterator curr.i=%d, data=%p, ind=%d, pos=%d]\n",
 	      curr.i, (void*) data, ind, pos);
-    };
+    }
 
     inline void assign(const ConstDataBufferIterator& src);
     inline bool isNull() const { return curr.isNull();}

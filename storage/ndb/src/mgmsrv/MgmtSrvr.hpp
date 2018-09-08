@@ -110,7 +110,7 @@ public:
     int print_full_config;
     const char* configdir;
     int verbose;
-    MgmtOpts() : configdir(MYSQLCLUSTERDIR) {};
+    MgmtOpts() : configdir(MYSQLCLUSTERDIR) {}
     int reload;
     int initial;
     NodeBitmask nowait_nodes;
@@ -145,7 +145,7 @@ private:
 
 public:
 
-  NodeId getOwnNodeId() const {return _ownNodeId;};
+  NodeId getOwnNodeId() const {return _ownNodeId;}
 
   /**
    * Get status on a node.
@@ -335,7 +335,7 @@ public:
    * Returns the port number where MgmApiService is started
    * @return port number.
    */
-  int getPort() const { return m_port; };
+  int getPort() const { return m_port; }
 
   int setDbParameter(int node, int parameter, const char * value, BaseString&);
   int setConnectionDbParameter(int node1, int node2, int param, int value,

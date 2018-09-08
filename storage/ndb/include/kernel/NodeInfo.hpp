@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,7 +75,7 @@ NodeInfo::getType() const {
 class NdbVersion {
   Uint32 m_ver;
 public:
-  NdbVersion(Uint32 ver) : m_ver(ver) {};
+  NdbVersion(Uint32 ver) : m_ver(ver) {}
 
   friend NdbOut& operator<<(NdbOut&, const NdbVersion&);
 };

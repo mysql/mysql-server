@@ -509,7 +509,8 @@ testRanges(Uint32 bitmask_size)
       // 2) Check data
       // 3) free it
       unsigned j;
-      Uint32 min, max;
+      Uint32 min = 0;
+      Uint32 max = Uint32(~0);
       for(j = 0; j<alloc_list.size(); j++)
       {
 	min = alloc_list[j].pos;

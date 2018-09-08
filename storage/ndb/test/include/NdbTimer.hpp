@@ -1,6 +1,4 @@
-/*
-   Copyright (C) 2003-2006 MySQL AB
-    Use is subject to license terms.
+/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +38,7 @@ class NdbTimer
 public:
 
   NdbTimer();
-  ~NdbTimer() {};
+  ~NdbTimer() {}
 
   void doStart();
   void doStop();

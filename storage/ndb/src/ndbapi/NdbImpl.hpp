@@ -196,19 +196,19 @@ public:
     assert(stat < Ndb::NumClientStatistics);
     if (likely(stat < Ndb::NumClientStatistics))
       clientStats[ stat ] += inc;
-  };
+  }
 
   inline void decClientStat(const Ndb::ClientStatistics stat, const Uint64 dec) {
     assert(stat < Ndb::NumClientStatistics);
     if (likely(stat < Ndb::NumClientStatistics))
       clientStats[ stat ] -= dec;
-  };
+  }
   
   inline void setClientStat(const Ndb::ClientStatistics stat, const Uint64 val) {
     assert(stat < Ndb::NumClientStatistics);
     if (likely(stat < Ndb::NumClientStatistics))
       clientStats[ stat ] = val;
-  };
+  }
 
   /* We don't record the sent/received bytes of some GSNs as they are 
    * generated constantly and are not targetted to specific

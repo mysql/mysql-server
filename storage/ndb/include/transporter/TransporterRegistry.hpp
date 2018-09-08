@@ -198,7 +198,7 @@ public:
    * (if set) is destroyed, and this is destroyed by the destructor
    */
   void set_mgm_handle(NdbMgmHandle h);
-  NdbMgmHandle get_mgm_handle(void) { return m_mgm_handle; };
+  NdbMgmHandle get_mgm_handle(void) { return m_mgm_handle; }
 
   bool init(NodeId localNodeId);
 
@@ -307,7 +307,7 @@ public:
     DISCONNECTING     = 3
   };
   const char *getPerformStateString(NodeId nodeId) const
-  { return performStateString[(unsigned)performStates[nodeId]]; };
+  { return performStateString[(unsigned)performStates[nodeId]]; }
 
   PerformState getPerformState(NodeId nodeId) const { return performStates[nodeId]; }
 
@@ -318,7 +318,7 @@ public:
   void do_disconnect(NodeId node_id, int errnum = 0);
   bool is_connected(NodeId node_id) const {
     return performStates[node_id] == CONNECTED;
-  };
+  }
 private:
   void report_connect(TransporterReceiveHandle&, NodeId node_id);
   void report_disconnect(TransporterReceiveHandle&, NodeId node_id, int errnum);

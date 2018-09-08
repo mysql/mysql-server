@@ -15976,7 +15976,7 @@ Backup::openFilesReplyLCP(Signal* signal,
   }
   TablePtr tabPtr;
   bool prepare_phase;
-  Uint32 index;
+  Uint32 index = 0;
   if (filePtr.i == ptr.p->prepareDataFilePtr[0])
   {
     jam();

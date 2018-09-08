@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -624,7 +624,7 @@ SectionSegmentPool::handleOutOfSegments(SectionSegment_basepool& pool)
 class TestSegmentUtils : public SegmentUtils
 {
 public:
-  TestSegmentUtils() {};
+  TestSegmentUtils() {}
 
   SectionSegment*
   getSegmentPtr(Uint32 iVal)
@@ -641,13 +641,13 @@ public:
   seizeSegment(Ptr<SectionSegment>& p)
   {
     return g_sectionSegmentPool.seize(p);
-  };
+  }
 
   void
   releaseSegment(Uint32 iVal)
   {
     return g_sectionSegmentPool.release(iVal);
-  };
+  }
 
   void
   releaseSegmentList(Uint32 firstSegmentIVal)

@@ -2568,7 +2568,7 @@ errorInjectStalling(NDBT_Context* ctx, NDBT_Step* step)
   const NdbDictionary::Table* pTab = ctx->getTab();
   NdbEventOperation *pOp= createEventOperation(ndb, *pTab);
   int result = NDBT_OK;
-  int res;
+  int res = 0;
   bool connected = true;
   uint retries = 100;
 
@@ -2578,13 +2578,13 @@ errorInjectStalling(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_FAILED;
   }
 
+  Uint64 curr_gci = 0;
   if (restarter.insertErrorInAllNodes(13037) != 0)
   {
     result = NDBT_FAILED;
     goto cleanup;
   }
 
-  Uint64 curr_gci;
   for (int i=0; (i<10) && (curr_gci != NDB_FAILURE_GCI); i++)
   {
     res = ndb->pollEvents(5000, &curr_gci) > 0;

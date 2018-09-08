@@ -785,13 +785,13 @@ void Dbtup::prepare_scan_tux_TUPKEYREQ(Uint32 page_id, Uint32 page_idx)
 
   ndbrequire(is_page_key);
   {
-    register Uint32 fixed_part_size_in_words =
+    Uint32 fixed_part_size_in_words =
       prepare_tabptr.p->m_offsets[MM].m_fix_header_size;
     key.m_page_no = page_id;
     key.m_page_idx = page_idx;
-    register Uint32 *tuple_ptr = get_ptr(&pagePtr,
-                                         &key,
-                                         prepare_tabptr.p);
+    Uint32 *tuple_ptr = get_ptr(&pagePtr,
+                                &key,
+                                prepare_tabptr.p);
     jamDebug();
     prepare_pageptr = pagePtr;
     prepare_tuple_ptr = tuple_ptr;

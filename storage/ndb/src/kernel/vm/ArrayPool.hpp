@@ -76,7 +76,7 @@ public:
 
   class ErrorHandler {
   public:
-    virtual ~ErrorHandler() {};
+    virtual ~ErrorHandler() {}
     virtual void failure() const = 0;
   };
 
@@ -84,8 +84,8 @@ public:
   public:
     ErrorHandlerImpl(CallBack* f, ArrayPool<T>& p) :
       func(f), pool(p)
-    {};
-    virtual ~ErrorHandlerImpl() {};
+    {}
+    virtual ~ErrorHandlerImpl() {}
 
     virtual void failure() const {
       if (func != nullptr) {
@@ -1236,8 +1236,8 @@ public:
   public:
     ErrorHandlerImpl(CallBack* f, CachedArrayPool<T>& p) :
       func(f), pool(p)
-    {};
-    virtual ~ErrorHandlerImpl() {};
+    {}
+    virtual ~ErrorHandlerImpl() {}
 
     virtual void failure() const {
       if (func != nullptr) {

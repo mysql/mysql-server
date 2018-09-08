@@ -457,7 +457,7 @@ public:
     ndbout_c("NdbEventImpl: id=%d, key=%d",
 	     m_eventId,
 	     m_eventKey);
-  };
+  }
 
   Uint32 m_eventId;
   Uint32 m_eventKey;

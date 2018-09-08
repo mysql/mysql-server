@@ -6736,7 +6736,7 @@ loop:
   ptr.p->m_size = count;
   ptr.p->m_free = count;
 
-  Buffer_page* page;
+  Buffer_page* page = nullptr;
   for(Uint32 i = 0; i<count; i++)
   {
     page = c_page_pool.getPtr(ref);

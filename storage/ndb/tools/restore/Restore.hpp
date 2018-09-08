@@ -147,12 +147,12 @@ public:
   TupleS() {
     m_currentTable= 0;
     allAttrData= 0;
-  };
+  }
   ~TupleS()
   {
     if (allAttrData)
       delete [] allAttrData;
-  };
+  }
   TupleS(const TupleS& tuple); // disable copy constructor
   TupleS & operator=(const TupleS& tuple);
   int getNoOfAttributes() const;
@@ -242,19 +242,19 @@ public:
   
   int getNoOfAttributes() const { 
     return allAttributesDesc.size();
-  };
+  }
   
   bool have_auto_inc() const {
     return m_auto_val_attrib != 0;
-  };
+  }
 
   bool have_auto_inc(Uint32 id) const {
     return (m_auto_val_attrib ? m_auto_val_attrib->attrId == id : false);
-  };
+  }
 
   Uint64 get_max_auto_val() const {
     return m_max_auto_val;
-  };
+  }
 
   void update_max_auto_val(const char *data, int size) {
     union {
@@ -287,7 +287,7 @@ public:
     };
     if(v > m_max_auto_val)
       m_max_auto_val= v;
-  };
+  }
 
   bool get_auto_data(const TupleS & tuple, Uint32 * syskey, Uint64 * nextid) const;
 
@@ -451,7 +451,7 @@ public:
   void* getObjPtr(Uint32 i) const { return m_objects[i].m_objPtr; }
   
   Uint32 getStopGCP() const;
-  Uint32 getNdbVersion() const { return m_fileHeader.NdbVersion; };
+  Uint32 getNdbVersion() const { return m_fileHeader.NdbVersion; }
 }; // RestoreMetaData
 
 
@@ -551,7 +551,7 @@ private:
   LogEntry m_logEntry;
 public:
   RestoreLogIterator(const RestoreMetaData &);
-  virtual ~RestoreLogIterator() {};
+  virtual ~RestoreLogIterator() {}
 
   const LogEntry * getNextLogEntry(int & res);
 };

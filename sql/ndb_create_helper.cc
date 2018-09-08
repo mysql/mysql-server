@@ -57,7 +57,7 @@ Ndb_create_helper::Ndb_create_helper(THD *thd, const char *table_name)
 void Ndb_create_helper::check_warnings_and_error() const {
   bool have_error = false;
   bool have_warning = false;
-  uint error_code;
+  uint error_code = 0;
   const Sql_condition *cond;
   const Diagnostics_area *da = m_thd->get_stmt_da();
   Diagnostics_area::Sql_condition_iterator it(da->sql_conditions());

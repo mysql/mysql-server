@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@
  */
 class Scheduler_stockholm : public Scheduler {
 public:
-  Scheduler_stockholm() {};
+  Scheduler_stockholm() {}
   ~Scheduler_stockholm();
   void init(int threadnum, const scheduler_options *options);
   void attach_thread(thread_identifier *);
@@ -58,7 +58,7 @@ public:
   void add_stats(const char *, ADD_STAT, const void *);
   void shutdown();
   void * run_ndb_commit_thread(int cluster_id);
-  bool global_reconfigure(Configuration *) { return false; } ;
+  bool global_reconfigure(Configuration *) { return false; }
 
 private:  
   ndb_pipeline *pipeline;

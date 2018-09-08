@@ -4788,7 +4788,7 @@ struct ST_Trg : public ST_Obj {
     ST_Obj(a_db, a_name) {
     ind = 0;
   }
-  virtual ~ST_Trg() {};
+  virtual ~ST_Trg() {}
 };
 
 template class Vector<ST_Trg*>;
@@ -4820,7 +4820,7 @@ struct ST_Ind : public ST_Obj {
     ind_r = 0;
     trglist = new ST_Trglist;
     trgcount = 0;
-  };
+  }
   virtual ~ST_Ind() {
     delete ind;
     delete trglist;

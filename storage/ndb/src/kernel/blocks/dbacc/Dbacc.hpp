@@ -576,7 +576,7 @@ struct Fragmentrec {
 
       m_wait_ok_millis     = 0;
       m_wait_fail_millis   = 0;
-    };
+    }
 
     // req_start_imm_ok
     // A request was immediately granted (No contention)

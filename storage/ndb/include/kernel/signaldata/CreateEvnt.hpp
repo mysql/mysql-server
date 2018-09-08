@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -239,11 +239,11 @@ struct CreateEvntReq {
   }
   Uint32 getRequestFlag() const {
     return BitmaskImpl::getField(1, &m_requestInfo, 16, 16);
-  };
+  }
   void addRequestFlag(Uint32 val) {
     val |= BitmaskImpl::getField(1, &m_requestInfo, 16, 16);
     BitmaskImpl::setField(1, &m_requestInfo, 16, 16, val);
-  };
+  }
   Uint32 getTableId() const {
     return m_tableId;
   }

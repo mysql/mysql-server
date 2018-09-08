@@ -1239,7 +1239,7 @@ public:
   NdbHistory::Version* m_version;
   
   DbVersion(): m_version(NULL)
-  {};
+  {}
 
   ~DbVersion()
   {

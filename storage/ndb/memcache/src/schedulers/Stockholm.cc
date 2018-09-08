@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -42,7 +42,7 @@ extern EXTENSION_LOGGER_DESCRIPTOR *logger;
 
 class commit_thread_spec {
 public:
-  commit_thread_spec(Scheduler_stockholm *s, int i): sched(s), cluster_id(i) {};
+  commit_thread_spec(Scheduler_stockholm *s, int i): sched(s), cluster_id(i) {}
   Scheduler_stockholm *sched;
   int cluster_id;
 };

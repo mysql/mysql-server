@@ -1,6 +1,4 @@
-/*
-   Copyright (C) 2007, 2008 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
-    Use is subject to license terms.
+/* Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -123,15 +121,15 @@ public:
                       const char * sockIn,
                       bool transactional);
 
-  const char * getDbName()  {return m_dbname.c_str();};
-  const char * getUser()    {return m_user.c_str();};
-  const char * getPassword(){return m_pass.c_str();};
-  const char * getHost()    {return m_host.c_str();};
-  const char * getSocket()  {return m_socket.c_str();};
-  const char * getServerType(){return mysql_get_server_info(m_mysql);};
+  const char * getDbName()  {return m_dbname.c_str();}
+  const char * getUser()    {return m_user.c_str();}
+  const char * getPassword(){return m_pass.c_str();}
+  const char * getHost()    {return m_host.c_str();}
+  const char * getSocket()  {return m_socket.c_str();}
+  const char * getServerType(){return mysql_get_server_info(m_mysql);}
   const char * getError();
 
-  MYSQL * getMysql(){return m_mysql;};
+  MYSQL * getMysql(){return m_mysql;}
   MYSQL_STMT * STDCALL mysqlSimplePrepare(const char *query);
 
   void databaseLogout();
@@ -148,7 +146,7 @@ public:
 
   unsigned long long selectCountTable(const char * table);
 
-  void silent() { m_silent= true; };
+  void silent() { m_silent= true; }
 
 protected:
 
@@ -183,12 +181,12 @@ private:
   void report_error(const char* message, MYSQL* mysql);
   void clear_error(void) { m_last_errno= 0; m_last_error.clear(); }
 
-  void setDbName(const char * name){m_dbname.assign(name);};
-  void setUser(const char * user_name){m_user.assign(user_name);};
-  void setPassword(const char * password){m_pass.assign(password);};
-  void setHost(const char * system){m_host.assign(system);};
-  void setPort(unsigned int portIn){m_port=portIn;};
-  void setSocket(const char * sockIn){m_socket.assign(sockIn);};
+  void setDbName(const char * name){m_dbname.assign(name);}
+  void setUser(const char * user_name){m_user.assign(user_name);}
+  void setPassword(const char * password){m_pass.assign(password);}
+  void setHost(const char * system){m_host.assign(system);}
+  void setPort(unsigned int portIn){m_port=portIn;}
+  void setSocket(const char * sockIn){m_socket.assign(sockIn);}
   void printError(const char *msg);
   void printStError(MYSQL_STMT *stmt, const char *msg);
   void die(const char *file, int line, const char *expr); // stop program

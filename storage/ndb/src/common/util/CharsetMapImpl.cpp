@@ -91,7 +91,7 @@ void CharsetMapImpl::build_map()
     for(unsigned int i = 0 ; i < NDB_ARRAY_SIZE(mysql_charset_name) ; i++)
     {
         CHARSET_INFO *cs = get_charset(i, MYF(0));
-        register const char *mysql_name = 0;
+        const char *mysql_name = 0;
         const char *mapped_name = 0;
         
         if(cs) 

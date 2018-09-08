@@ -1470,7 +1470,7 @@ public:
 public:
   FileOutputStream debugOutFile;
   NdbOut debugOut;
-  NdbOut& debugOutStream() { return debugOut; };
+  NdbOut& debugOutStream() { return debugOut; }
   bool debugOutOn();
   void debugOutLock() { globalSignalLoggers.lock(); }
   void debugOutUnlock() { globalSignalLoggers.unlock(); }

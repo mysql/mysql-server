@@ -2109,7 +2109,8 @@ int runBug25468(NDBT_Context* ctx, NDBT_Step* step)
   for (int i = 0; i<loops; i++)
   {
     int master = restarter.getMasterNodeId();
-    int node1, node2;
+    int node1 = 0;
+    int node2 = 0;
     switch(i % 5){
     case 0:
       node1 = master;
@@ -7407,7 +7408,7 @@ struct Bug16895311 {
     pTab = 0;
     records = 0;
     rows = 0;
-  };
+  }
 };
 
 static Bug16895311 bug16895311;

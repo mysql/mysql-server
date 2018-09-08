@@ -58,7 +58,7 @@ public:
   DirIteratorImpl():
     m_dirp(NULL) {
      m_buf = new char[PATH_MAX];
-  };
+  }
 
   ~DirIteratorImpl() {
     close();

@@ -134,7 +134,7 @@ struct EpochRangeSet
   Vector<EpochRange> m_ranges;
 
   EpochRangeSet()
-    {};
+    {}
   
   EpochRangeSet(const EpochRangeSet& other)
   {
@@ -225,7 +225,7 @@ struct RecordRange
   RecordRange(const Uint32 start,
               const Uint32 len) :
     m_start(start),
-    m_len(len) {};
+    m_len(len) {}
 };
 
 

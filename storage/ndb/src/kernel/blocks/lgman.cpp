@@ -5203,7 +5203,7 @@ Lgman::get_next_undo_record(Uint64 * this_lsn)
 
   Uint32 page_position = pageP->m_words_used;
   bool ignore_page = false;
-  bool new_page;
+  bool new_page = false;
 
   if (page_position == pos)
   {

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,8 +40,8 @@ public:
   virtual int println(const char * fmt, ...)
     ATTRIBUTE_FORMAT(printf, 2, 3) = 0;
   virtual int write(const void * buf, size_t len) = 0;
-  virtual void flush() {};
-  virtual void reset_timeout() {};
+  virtual void flush() {}
+  virtual void reset_timeout() {}
 };
 
 /**
@@ -60,7 +60,7 @@ public:
   int println(const char * fmt, ...)
     ATTRIBUTE_FORMAT(printf, 2, 3);
   int write(const void * buf, size_t len);
-  void flush() {};
+  void flush() {}
 
 private:
   class LogBuffer* logBuf;

@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -191,7 +191,7 @@ const KeyPrefix * Configuration::getPrefixForKey(const char *key, int nkey) cons
   int low = 1;    // The first actual prefix is prefixes[1]
   int high = nprefixes - 1;
   int mid;
-  register int cmp;
+  int cmp;
   
   while ( low <= high ) {
     mid = (low + high) / 2;

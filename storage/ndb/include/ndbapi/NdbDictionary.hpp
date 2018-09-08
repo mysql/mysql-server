@@ -480,7 +480,7 @@ public:
      */
     bool getPartitionKey() const;
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
-    inline bool getDistributionKey() const { return getPartitionKey(); };
+    inline bool getDistributionKey() const { return getPartitionKey(); }
 #endif
 
     ArrayType getArrayType() const;
@@ -619,7 +619,7 @@ public:
     void setPartitionKey(bool enable);
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
     inline void setDistributionKey(bool enable)
-    { setPartitionKey(enable); };
+    { setPartitionKey(enable); }
 #endif
 
     void setArrayType(ArrayType type);

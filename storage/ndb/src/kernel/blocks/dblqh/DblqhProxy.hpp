@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -369,7 +369,7 @@ protected:
       m_sendREQ = (SsFUNCREQ)&DblqhProxy::sendEXEC_SR_1;
       m_sendCONF = (SsFUNCREP)0;
       m_gsn = 0;
-    };
+    }
     enum { poolSize = 1 };
     static SsPool<Ss_EXEC_SR_1>& pool(LocalProxy* proxy) {
       return ((DblqhProxy*)proxy)->c_ss_EXEC_SR_1;
@@ -378,7 +378,7 @@ protected:
   SsPool<Ss_EXEC_SR_1> c_ss_EXEC_SR_1;
   Uint32 getSsId(const Ss_EXEC_SR_1::Sig* sig) {
     return SsIdBase | refToNode(sig->nodeId);
-  };
+  }
   void execEXEC_SRREQ(Signal*);
   void execEXEC_SRCONF(Signal*);
   void execEXEC_SR_1(Signal*, GlobalSignalNumber gsn);
@@ -401,7 +401,7 @@ protected:
       m_sendCONF = (SsFUNCREP)&DblqhProxy::sendEXEC_SR_2;
       m_gsn = 0;
       m_sigcount = 0;
-    };
+    }
     enum { poolSize = 1 };
     static SsPool<Ss_EXEC_SR_2>& pool(LocalProxy* proxy) {
       return ((DblqhProxy*)proxy)->c_ss_EXEC_SR_2;
@@ -410,7 +410,7 @@ protected:
   SsPool<Ss_EXEC_SR_2> c_ss_EXEC_SR_2;
   Uint32 getSsId(const Ss_EXEC_SR_2::Sig* sig) {
     return SsIdBase | refToNode(sig->nodeId);
-  };
+  }
   void execEXEC_SR_2(Signal*, GlobalSignalNumber gsn);
   void sendEXEC_SR_2(Signal*, Uint32 ssId);
 
@@ -490,7 +490,7 @@ protected:
       m_lcp_frag_ord_cnt = 0;
       m_lcp_frag_rep_cnt = 0;
       m_lastFragmentFlag = false;
-    };
+    }
   };
   LcpRecord c_lcpRecord;
   Uint32 getNoOfOutstanding(const LcpRecord&) const;

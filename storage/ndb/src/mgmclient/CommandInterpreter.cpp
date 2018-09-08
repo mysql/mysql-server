@@ -1135,7 +1135,7 @@ class ClusterInfo {
 
 public:
   ClusterInfo() :
-    m_status(NULL) {};
+    m_status(NULL) {}
 
   ~ClusterInfo() {
     if (m_status)

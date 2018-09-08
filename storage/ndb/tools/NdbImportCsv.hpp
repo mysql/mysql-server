@@ -147,7 +147,7 @@ public:
       m_pack_pos = 0;
       m_pack_end = 0;
       m_null = false;
-    };
+    }
     Field* next() {
       return static_cast<Field*>(m_next);
     }
@@ -184,7 +184,7 @@ public:
       m_pos = 0;
       m_end = 0;
       m_reject = false;
-    };
+    }
     Line* next() {
       return static_cast<Line*>(m_next);
     }

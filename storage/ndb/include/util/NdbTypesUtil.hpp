@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -109,10 +109,10 @@ struct NumTypeTraits {
   typedef typename NumTypeMap< T >::UnsignedT UnsignedT;
 
   // whether the domain type is an integer type
-  static bool isIntegral() { return NumTypeMap< T >::isIntegral(); };
+  static bool isIntegral() { return NumTypeMap< T >::isIntegral(); }
 
   // whether the domain type is signed or unsigned
-  static bool isSigned() { return NumTypeMap< T >::isSigned(); };
+  static bool isSigned() { return NumTypeMap< T >::isSigned(); }
 
   // the width of the type in bytes
   static Uint32 size();
@@ -300,8 +300,8 @@ NDB_SPECIALIZE_ARRAY_TYPE_TRAITS(Tlongvarbinary, true, false, 2)
     typedef DT DomainT;                                                 \
     typedef ST SignedT;                                                 \
     typedef UT UnsignedT;                                               \
-    static bool isIntegral() { return S; };                             \
-    static bool isSigned() { return S; };                               \
+    static bool isIntegral() { return S; }                              \
+    static bool isSigned() { return S; }                                \
   };
 
 NDB_SPECIALIZE_NUM_TYPE_MAP(Int8, Int8, Uint8, true, true)

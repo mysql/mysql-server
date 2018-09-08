@@ -116,7 +116,7 @@ public:
   
   struct LocalSysfile
   {
-    LocalSysfile() {};
+    LocalSysfile() {}
     Uint32 m_data[128];
     Uint32 m_file_pointer;
     Uint32 m_sender_data;
@@ -198,7 +198,7 @@ public:
   Uint32 c_schemaTransKey;
   // intersignal transient store of: hash_map, logfilegroup, tablesspace
   Uint32 c_objectId; 
-  Uint32 c_objectVersion;;
+  Uint32 c_objectVersion;
 
 public:
   Ndbcntr(Block_context&);

@@ -150,8 +150,8 @@ struct Ptr
     use of uninitialized values by causing an error. To maximize performance,
     this is done in debug mode only (when asserts are enabled).
    */
-  Ptr(){assert(memset(this, 0xff, sizeof(*this)));};
-  Ptr(T* pVal, Uint32 iVal):p(pVal), i(iVal){};
+  Ptr(){assert(memset(this, 0xff, sizeof(*this)));}
+  Ptr(T* pVal, Uint32 iVal):p(pVal), i(iVal){}
 
 
   bool isNull() const 
@@ -179,8 +179,8 @@ struct ConstPtr
     use of uninitialized values by causing an error. To maximize performance,
     this is done in debug mode only (when asserts are enabled).
    */
-  ConstPtr(){assert(memset(this, 0xff, sizeof(*this)));};
-  ConstPtr(T* pVal, Uint32 iVal):p(pVal), i(iVal){};
+  ConstPtr(){assert(memset(this, 0xff, sizeof(*this)));}
+  ConstPtr(T* pVal, Uint32 iVal):p(pVal), i(iVal){}
 
   bool isNull() const 
   { 

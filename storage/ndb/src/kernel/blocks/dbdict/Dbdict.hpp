@@ -716,7 +716,7 @@ public:
     DictObject() {
       m_trans_key = 0;
       m_op_ref_count = 0;
-    };
+    }
     Uint32 m_id;
     Uint32 m_type;
     Uint32 m_object_ptr_i;
@@ -1339,7 +1339,7 @@ private:
       m_externalQueue(m_externalQueueHead,
                       m_externalSegmentPool),
       m_jamBuffer(0)
-      {};
+      {}
 
     bool init(EmulatedJamBuffer* jamBuff)
     {
@@ -1357,7 +1357,7 @@ private:
     {
       return (m_internalQueue.isEmpty() &&
               m_externalQueue.isEmpty());
-    };
+    }
 
     /**
      * tryEnqReq
@@ -1518,7 +1518,7 @@ private:
       Uint32 qWordLen = queue.getLen();
       assert((qWordLen % ElementLen) == 0);
       return qWordLen / ElementLen;
-    };
+    }
 
     /* Length of GetTabInfoReq queue elements */
     static const Uint32 ElementLen = GetTabInfoReq::SignalLength + 1 + 3 + 2;

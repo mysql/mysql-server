@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -109,7 +109,7 @@ private:
                                         config_group(_g), // between 0 and 200
                                         adjusted_group(_g),
                                         id(_id),
-                                        hint_count(0) {};
+                                        hint_count(0) {}
     Uint32 this_group_idx; // First index of node with same group
     Uint32 next_group_idx; // Next index of node not with same node, or 0.
     Uint32 config_group; // Proximity group from cluster connection config

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -368,7 +368,7 @@ wl1822_tx2_scanXY(Thr& thr)
   // tx2 scan X, Y with exclusive lock
   NdbConnection* con = thr.m_con;
   require(con != 0);
-  NdbScanOperation* scanop;
+  NdbScanOperation* scanop = nullptr;
   NdbIndexScanOperation* indexscanop;
 
   if (wl1822_scantx == 't') {

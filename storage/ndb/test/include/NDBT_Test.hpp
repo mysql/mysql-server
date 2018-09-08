@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -223,7 +223,7 @@ public:
   virtual ~NDBT_TestCase() {}
 
   static const char* getStepThreadStackSizePropName()
-    { return "StepThreadStackSize"; };
+    { return "StepThreadStackSize"; }
 
   // This is the default executor of a test case
   // When a test case is executed it will need to be suplied with a number of 
@@ -235,13 +235,13 @@ public:
   virtual void print() = 0;
   virtual void printHTML() = 0;
 
-  const char* getName() const { return _name.c_str(); };
+  const char* getName() const { return _name.c_str(); }
   virtual bool tableExists(NdbDictionary::Table* aTable) = 0;
   virtual bool isVerify(const NdbDictionary::Table* aTable) = 0;
 
   virtual void saveTestResult(const char*, int result) = 0;
   virtual void printTestResult() = 0;
-  void initBeforeTest(){ timer.doReset();};
+  void initBeforeTest(){ timer.doReset();}
 
   void setDriverType(NDBT_DriverType type) { m_driverType= type; }
   NDBT_DriverType getDriverType() const { return m_driverType; }
@@ -286,9 +286,9 @@ public:
     m_name.assign(name); 
     m_elapsed = _elapsed;
     
-  };
-  const char* getName(){return m_name.c_str(); };
-  int getResult(){return m_result; };
+  }
+  const char* getName(){return m_name.c_str(); }
+  int getResult(){return m_result; }
   const char* getTimeStr(){
     // Convert to Uint32 in order to be able to print it to screen
     Uint32 lapTime = (Uint32)m_elapsed;

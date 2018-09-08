@@ -128,7 +128,7 @@ public:
     Name(const char* s, uint t);
     operator const char*() const {
       return m_str.c_str();
-    };
+    }
     const char* str() const {
       return m_str.c_str();
     }
@@ -299,7 +299,7 @@ public:
       m_dowait = (timeout != 0);
       m_cnt_out = 0;
       m_bytes_out = 0;
-    };
+    }
     uint m_timeout;
     uint m_retries;
     bool m_dosignal;

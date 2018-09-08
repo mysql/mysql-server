@@ -4076,7 +4076,7 @@ SimulatedBlock::xfrm_attr_hash(
   if (cs == NULL)
   {
     jam();
-    Uint32 len;
+    Uint32 len = 0;
     switch(array){
     case NDB_ARRAYTYPE_SHORT_VAR:
       len = 1 + srcPtr[0];

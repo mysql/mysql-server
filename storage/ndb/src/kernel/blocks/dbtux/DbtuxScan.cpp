@@ -1272,7 +1272,7 @@ Dbtux::scanNext(ScanOpPtr scanPtr, bool fromMaintReq, Frag& frag)
     Uint32 dir = pos.m_dir;
     {
       /* Search in node we are currently scanning. */
-      const register Uint32 node_occup = node.getOccup();
+      const Uint32 node_occup = node.getOccup();
       const Uint32 node_pos = pos.m_pos;
       // advance position - becomes large (> occup) if 0 and descending
       const Uint32 new_node_pos = node_pos + jdir;

@@ -38,7 +38,7 @@ public:
   /* Write lost message summary into the buffer for the lost message summary */
   virtual bool writeLostMsg(char* buf, size_t buf_size, size_t lost_bytes, size_t lost_msgs) = 0;
 
-  virtual ~LostMsgHandler() {};
+  virtual ~LostMsgHandler() {}
 };
 
 class ByteStreamLostMsgHandler : public LostMsgHandler

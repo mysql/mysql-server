@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -112,7 +112,7 @@ int HugoOperations::pkReadRecord(Ndb* pNdb,
   int a;  
   allocRows(numRecords);
   indexScans.clear();  
-  int check;
+  int check = -1;
 
   NdbOperation* pOp = 0;
   pIndexScanOp = 0;

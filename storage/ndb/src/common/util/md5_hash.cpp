@@ -1,6 +1,4 @@
-/*
-   Copyright (C) 2003-2006 MySQL AB, 2009 Sun Microsystems, Inc.
-    Use is subject to license terms.
+/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -86,7 +84,7 @@ void byteReverse(unsigned char *buf, unsigned longs)
  */
 static void MD5Transform(Uint32 buf[4], Uint32 const in[16])
 {
-    register Uint32 a, b, c, d;
+    Uint32 a, b, c, d;
 
     a = buf[0];
     b = buf[1];

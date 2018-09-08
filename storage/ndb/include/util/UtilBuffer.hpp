@@ -34,8 +34,8 @@
  */
 class UtilBuffer {
 public:
-  UtilBuffer() { data = NULL; len = 0; alloc_size = 0; };
-  ~UtilBuffer() { if(data) free(data); data = NULL; len = 0; alloc_size = 0; };
+  UtilBuffer() { data = NULL; len = 0; alloc_size = 0; }
+  ~UtilBuffer() { if(data) free(data); data = NULL; len = 0; alloc_size = 0; }
 
 
   int reallocate(size_t newsize) {
@@ -51,13 +51,13 @@ public:
     alloc_size = newsize;
     data = newdata;
     return 0;
-  };
+  }
 
   int grow(size_t l) {
     if(l > alloc_size)
       return reallocate(l);
     return 0;
-  };
+  }
 
   int append(const void *d, size_t l) {
     if (likely(l > 0))
@@ -75,7 +75,7 @@ public:
       len += l;
     }
     return 0;
-  };
+  }
 
   void * append(size_t l){
     if(grow(len+l) != 0)

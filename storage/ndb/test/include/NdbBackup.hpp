@@ -1,6 +1,4 @@
-/*
-   Copyright (C) 2003-2006 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
-    Use is subject to license terms.
+/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +32,7 @@
 class NdbBackup : public NdbConfig {
 public:
   NdbBackup(const char* _addr = 0)
-    : NdbConfig(_addr) {};
+    : NdbConfig(_addr) {}
 
   int start(unsigned & _backup_id,
 	    int flags = 2,

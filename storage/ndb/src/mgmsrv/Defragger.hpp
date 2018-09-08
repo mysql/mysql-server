@@ -1,5 +1,4 @@
-/* Copyright (C) 2009 Sun Microsystems, Inc.
-     Use is subject to license terms.
+/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -67,7 +66,7 @@ class Defragger {
   }
 
 public:
-  Defragger() {};
+  Defragger() {}
   ~Defragger()
   {
     for (unsigned i = m_buffers.size(); i > 0; --i)
@@ -75,7 +74,7 @@ public:
       delete m_buffers[i-1]; // free the memory of the fragment
     }
     // m_buffers will be freed by ~Vector
-  };
+  }
 
   /*
     return true when complete signal received

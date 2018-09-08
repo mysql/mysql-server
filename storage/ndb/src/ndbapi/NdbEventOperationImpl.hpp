@@ -376,8 +376,8 @@ public:
       m_gci_op_list(gci_op_list),
       m_data(data),
       m_next(NULL)
-    {};
-  ~EpochData() {};
+    {}
+  ~EpochData() {}
 
   // get number of EventBufData in EpochDataList (For debug)
   Uint32 count_event_data() const;
@@ -622,7 +622,7 @@ private:
 class EventBufferManager {
 public:
   EventBufferManager(const Ndb* const m_ndb);
-  ~EventBufferManager() {};
+  ~EventBufferManager() {}
 
 private:
 

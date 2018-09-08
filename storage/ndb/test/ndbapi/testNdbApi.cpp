@@ -5313,7 +5313,7 @@ int runNdbClusterConnectionConnect(NDBT_Context* ctx, NDBT_Step* step)
 class SectionStore
 {
 public:
-  virtual ~SectionStore() {};
+  virtual ~SectionStore() {}
   virtual int appendToSection(Uint32 secId, LinearSectionPtr ptr) = 0;
 };
 
@@ -5328,12 +5328,12 @@ public:
   BasicSectionStore()
   {
     init();
-  };
+  }
 
   ~BasicSectionStore()
   {
     freeStorage();
-  };
+  }
 
   void init()
   {

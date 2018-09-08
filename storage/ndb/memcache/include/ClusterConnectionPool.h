@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -63,8 +63,8 @@ public:
   ClusterConnectionPool(const char *s = 0);
   ~ClusterConnectionPool();  
   void setMainConnection(Ndb_cluster_connection *);                  // inlined
-  Ndb_cluster_connection *getMainConnection() const      { return main_conn; };
-  unsigned int getPoolSize() const                       { return pool_size; }; 
+  Ndb_cluster_connection *getMainConnection() const      { return main_conn; }
+  unsigned int getPoolSize() const                       { return pool_size; } 
 
   /** After startup time, create an additional connection in the pool.
       Returns the new connection

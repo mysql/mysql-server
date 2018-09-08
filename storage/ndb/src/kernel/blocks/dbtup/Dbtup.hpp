@@ -348,7 +348,7 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
 
   /* Operation record used during alter table. */
   struct AlterTabOperation {
-    AlterTabOperation() { memset(this, 0, sizeof(AlterTabOperation)); };
+    AlterTabOperation() { memset(this, 0, sizeof(AlterTabOperation)); }
     Uint32 nextAlterTabOp;
     Uint32 newNoOfAttrs;
     Uint32 newNoOfCharsets;
@@ -993,7 +993,7 @@ struct TupTriggerData {
    */
   Uint32 prevList;
 
-  inline void print(NdbOut & s) const { s << "[TriggerData = " << triggerId << "]"; };
+  inline void print(NdbOut & s) const { s << "[TriggerData = " << triggerId << "]"; }
 };
 
 typedef Ptr<TupTriggerData> TriggerPtr;

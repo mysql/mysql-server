@@ -5502,7 +5502,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
   THD *thd= table->in_use;
   Thd_ndb *thd_ndb= m_thd_ndb;
   NdbTransaction *trans;
-  uint32 part_id;
+  uint32 part_id = 0;
   int error= 0;
   Uint64 auto_value;
   longlong func_value= 0;
@@ -6348,8 +6348,8 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
   NdbScanOperation* cursor= m_active_cursor;
   const NdbOperation *op;
   uint32 old_part_id= ~uint32(0), new_part_id= ~uint32(0);
-  int error;
-  longlong func_value;
+  int error = 0;
+  longlong func_value = 0;
   Uint32 func_value_uint32;
   bool have_pk= (table_share->primary_key != MAX_KEY);
   bool pk_update= (!m_read_before_write_removal_possible &&
@@ -6759,7 +6759,7 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
   NdbScanOperation* cursor= m_active_cursor;
   const NdbOperation *op;
   uint32 part_id= ~uint32(0);
-  int error;
+  int error = 0;
   bool allow_batch= !m_delete_cannot_batch &&
     (m_is_bulk_delete || thd_allow_batch(thd));
 

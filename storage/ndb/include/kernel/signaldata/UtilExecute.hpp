@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,10 +59,10 @@ public:
 
   GET_SET_SENDERREF
   GET_SET_SENDERDATA
-  void setPrepareId(Uint32 pId) { prepareId = pId; }; // !! unsets release flag
-  Uint32 getPrepareId() const { return prepareId & 0xFF; };
-  void setReleaseFlag() { prepareId |= 0x100; };
-  bool getReleaseFlag() const { return (prepareId & 0x100) != 0; };
+  void setPrepareId(Uint32 pId) { prepareId = pId; } // !! unsets release flag
+  Uint32 getPrepareId() const { return prepareId & 0xFF; }
+  void setReleaseFlag() { prepareId |= 0x100; }
+  bool getReleaseFlag() const { return (prepareId & 0x100) != 0; }
 
   Uint32 senderData; // MUST be no 1!
   Uint32 senderRef;

@@ -882,7 +882,7 @@ struct LogMax {
   LogMax(int nodes) {
     m_nodes = nodes;
     m_logused = new LogUsed [nodes];
-  };
+  }
   ~LogMax() {
     m_nodes = 0;
     delete [] m_logused;

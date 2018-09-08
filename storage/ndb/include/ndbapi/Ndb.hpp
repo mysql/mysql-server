@@ -1915,7 +1915,7 @@ public:
       m_first_tuple_id = ~(Uint64)0;
       m_last_tuple_id = ~(Uint64)0;
       m_highest_seen = 0;
-    };
+    }
   };
 
   int initAutoIncrement();

@@ -440,7 +440,8 @@ print_diff(const Iter& iter)
       {
         char parse_str[300] = {0};
         bool convert_bytes = false;
-        uint64 memory_convert,def_value = 0;
+        uint64 memory_convert = 0;
+        uint64 def_value = 0;
         uint len = strlen(ConfigInfo::m_ParamInfo[p]._default) - 1;
         strncpy(parse_str, ConfigInfo::m_ParamInfo[p]._default,299);
         if (parse_str[len] == 'M' || parse_str[len] == 'm')

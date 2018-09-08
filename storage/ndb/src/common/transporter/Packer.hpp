@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,7 +64,7 @@ public:
   {
   public:
     friend class Packer;
-    LinearSectionArg(const LinearSectionPtr ptr[3]) : m_ptr(ptr) {};
+    LinearSectionArg(const LinearSectionPtr ptr[3]) : m_ptr(ptr) {}
     const LinearSectionPtr *m_ptr;
   };
 
@@ -72,7 +72,7 @@ public:
   {
   public:
     friend class Packer;
-    GenericSectionArg(const GenericSectionPtr ptr[3]) : m_ptr(ptr) {};
+    GenericSectionArg(const GenericSectionPtr ptr[3]) : m_ptr(ptr) {}
     const GenericSectionPtr *m_ptr;
   };
 
@@ -81,7 +81,7 @@ public:
   public:
     friend class Packer;
     SegmentedSectionArg(class SectionSegmentPool &pool,
-                        const SegmentedSectionPtr ptr[3]) : m_pool(pool), m_ptr(ptr) {};
+                        const SegmentedSectionPtr ptr[3]) : m_pool(pool), m_ptr(ptr) {}
 
     class SectionSegmentPool &m_pool;
     const SegmentedSectionPtr *m_ptr;

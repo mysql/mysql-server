@@ -4265,7 +4265,7 @@ public:
   ConfigPrinter(FILE* out = stdout) :
     m_out(out)
     {}
-  virtual ~ConfigPrinter() {};
+  virtual ~ConfigPrinter() {}
 
   virtual void start() {}
   virtual void end() {}

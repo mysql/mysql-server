@@ -1265,7 +1265,7 @@ public:
        m_opsExecuted(0),
        m_bytesExecuted(0),
        m_gcisExecuted(0)
-      {};
+      {}
   };
 
   /**

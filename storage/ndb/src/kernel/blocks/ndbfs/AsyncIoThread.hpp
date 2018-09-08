@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -153,7 +153,7 @@ class AsyncIoThread
   friend class AsyncFile;
 public:
   AsyncIoThread(class Ndbfs&, bool bound);
-  virtual ~AsyncIoThread() {};
+  virtual ~AsyncIoThread() {}
 
   struct NdbThread* doStart();
   void set_real_time(bool real_time)

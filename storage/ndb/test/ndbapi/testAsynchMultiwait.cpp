@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,7 @@
 class NdbPool : private NdbLockable {
   public:
     NdbPool(Ndb_cluster_connection *_conn) : conn(_conn), list(0), size(0), 
-                                             created(0) {};
+                                             created(0) {}
     Ndb * getNdb();
     void recycleNdb(Ndb *n);
     void closeAll();

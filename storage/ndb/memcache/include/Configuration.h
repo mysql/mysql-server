@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -82,7 +82,7 @@ class Configuration {
   public:
   /* public methods */
   Configuration() : nclusters(0), nprefixes(0), 
-                    config_version(CONFIG_VER_UNKNOWN) {}; 
+                    config_version(CONFIG_VER_UNKNOWN) {}
   Configuration(Configuration *);
   
   bool connectToPrimary();
@@ -143,7 +143,7 @@ class Configuration {
 class config_v0 {
 public:
   /* Methods */
-  config_v0(Configuration * cf) : conf(*cf) {};
+  config_v0(Configuration * cf) : conf(*cf) {}
   bool read_configuration();
   
   /* Instance variables */

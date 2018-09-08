@@ -822,7 +822,7 @@ void Dbacc::releaseDirResources(Signal* signal)
   directory = &regFragPtr.p->directory;
 
   DynArr256 dir(directoryPool, *directory);
-  Uint32 ret;
+  Uint32 ret = 0;
   Uint32 pagei;
   fragrecptr = regFragPtr;
   int count = 32;
@@ -3632,10 +3632,10 @@ Dbacc::getElement(const AccKeyReq* signal,
                   Uint32& elemptr)
 {
   Uint32 tgeElementHeader;
-  Uint32 tgeElemStep;
+  Uint32 tgeElemStep = 0;
   Uint32 tgePageindex;
   Uint32 tgeNextptrtype;
-  Uint32 tgeRemLen;
+  Uint32 tgeRemLen = 0;
   const Uint32 TelemLen = fragrecptr.p->elementLength;
   const Uint32* Tkeydata = signal->keyInfo; /* or localKey if keyLen == 0 */
   const Uint32 localkeylen = fragrecptr.p->localkeylen;
