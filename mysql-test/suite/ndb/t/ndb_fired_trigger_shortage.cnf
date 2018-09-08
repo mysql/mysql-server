@@ -1,4 +1,3 @@
 !include ../my.cnf 
 [cluster_config]
 MaxNoOfFiredTriggers=5
-ReservedFiredTriggers=1

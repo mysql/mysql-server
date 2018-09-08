@@ -13,9 +13,7 @@ ThreadConfig=ldm={count=4}
 # expected to really strain the system.
 ######
 MaxNoOfConcurrentOperations=250000
-ReservedConcurrentOperations=62500
 MaxNoOfConcurrentScans=256
-ReservedConcurrentScans=64
 LongMessageBuffer=64M
 TransactionDeadlockDetectionTimeout=30000
 TimeBetweenEpochs=1000

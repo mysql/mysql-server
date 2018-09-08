@@ -119,10 +119,10 @@ ndb.ndb_bushy_joins: BUG#28247833 NDB_BUSHY_JOINS FAILS IN VALGRIND RUNS
 ndb_ddl.metadata_change_detection: WL#11914 Trigger Schema Distribution Synchronization on metadata change in NDB
 
 # Disabled during WL#9756 development
-#ndb.ndb_load : WL#9756 'INSERT INTO t2 SELECT * FROM t1' failed with wrong errno 1296
-#ndb.ndb_bushy_joins : WL#9756 'Query aborted due to out of row memory'
-#ndb.ndb_fired_trigger_shortage : WL#9756 should have failed with errno 1297...
-#ndb.transmem : WL#9756 ndb_mgmd: [ERROR] unknown variable 'TransactionMemory=20M'
-#ndb.ndb_dd_initial_lg : WL#9756 different result on windows
-#ndb.ndb_memory : WL#9756
-#ndb.ndb_storage : WL#9756
+ndb.ndb_load : WL#9756 'INSERT INTO t2 SELECT * FROM t1' failed with wrong errno 1296
+ndb.ndb_bushy_joins : WL#9756 'Query aborted due to out of row memory'
+ndb.ndb_fired_trigger_shortage : WL#9756 should have failed with errno 1297...
+ndb.transmem : WL#9756 ndb_mgmd: [ERROR] unknown variable 'TransactionMemory=20M'
+ndb.ndb_dd_initial_lg : WL#9756 different result on windows
+ndb.ndb_memory : WL#9756
+ndb.ndb_storage : WL#9756
