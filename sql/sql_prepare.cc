@@ -194,6 +194,22 @@ class Execute_sql_statement : public Server_runnable {
 /**
   Protocol_local: a helper class to intercept the result
   of the data written to the network.
+
+  At the start of every result set, start_result_metadata allocates m_rset to
+  prepare for the results. The metadata is stored on m_current_row which will
+  be transfered to m_fields in end_result_metadata. The memory for the
+  metadata is allocated on m_rset_root.
+
+  Then, for every row of the result recieved, each of the fields is stored in
+  m_current_row. Then the row is moved to m_rset and m_current_row is cleared
+  to recieve the next row. The memory for all the results are also stored in
+  m_rset_root.
+
+  Finally, at the end of the result set, a new instance of Ed_result_set is
+  created on m_rset_root and the result set (m_rset and m_fields) is moved into
+  this instance. The ownership of MEM_ROOT m_rset_root is also transfered to
+  this instance. So, at the end we have a fresh MEM_ROOT, cleared m_rset and
+  m_fields to accept the next result set.
 */
 
 class Protocol_local : public Protocol {
@@ -225,7 +241,6 @@ class Protocol_local : public Protocol {
   bool store_ps_status(ulong, uint, uint, ulong) { return false; }
 
  protected:
-  String *convert;
   virtual bool store_null();
   virtual bool store_tiny(longlong from);
   virtual bool store_short(longlong from);
@@ -267,6 +282,7 @@ class Protocol_local : public Protocol {
   size_t m_column_count;
   Ed_column *m_current_row;
   Ed_column *m_current_column;
+  Ed_row *m_fields;
   bool m_send_metadata;
   THD *m_thd;
 };
@@ -3216,39 +3232,22 @@ void Prepared_statement::deallocate() {
  * Ed_result_set
  ***************************************************************************/
 /**
-  Use operator delete to free memory of Ed_result_set.
-  Accessing members of a class after the class has been destroyed
-  is a violation of the C++ standard but is commonly used in the
-  server code.
-*/
-
-void Ed_result_set::operator delete(void *ptr, size_t) throw() {
-  if (ptr) {
-    /*
-      Move into the stack, otherwise free_root() will attempt to
-      write to freed memory.
-    */
-    MEM_ROOT own_root = std::move(((Ed_result_set *)ptr)->m_mem_root);
-    free_root(&own_root, MYF(0));
-  }
-}
-
-/**
   Initialize an instance of Ed_result_set.
 
   Instances of the class, as well as all result set rows, are
-  always allocated in the memory root passed over as the second
+  always allocated in the memory root passed over as the third
   argument. In the constructor, we take over ownership of the
   memory root. It will be freed when the class is destroyed.
 
   sic: Ed_result_est is not designed to be allocated on stack.
 */
 
-Ed_result_set::Ed_result_set(List<Ed_row> *rows_arg, size_t column_count_arg,
-                             MEM_ROOT *mem_root_arg)
+Ed_result_set::Ed_result_set(List<Ed_row> *rows_arg, Ed_row *fields,
+                             size_t column_count_arg, MEM_ROOT *mem_root_arg)
     : m_mem_root(std::move(*mem_root_arg)),
       m_column_count(column_count_arg),
       m_rows(rows_arg),
+      m_fields(fields),
       m_next_rset(NULL) {}
 
 /***************************************************************************
@@ -3420,13 +3419,14 @@ bool Protocol_local::store_string(const char *str, size_t length,
                                   const CHARSET_INFO *src_cs,
                                   const CHARSET_INFO *dst_cs) {
   /* Store with conversion */
+  String convert;
   uint error_unused;
 
   if (dst_cs && !my_charset_same(src_cs, dst_cs) && src_cs != &my_charset_bin &&
       dst_cs != &my_charset_bin) {
-    if (convert->copy(str, length, src_cs, dst_cs, &error_unused)) return true;
-    str = convert->ptr();
-    length = convert->length();
+    if (convert.copy(str, length, src_cs, dst_cs, &error_unused)) return true;
+    str = convert.ptr();
+    length = convert.length();
   }
   return store_column(str, length);
 }
@@ -3537,6 +3537,7 @@ bool Protocol_local::send_ok(uint, uint, ulonglong, ulonglong, const char *) {
     Just make sure nothing is sent to the client, we have grabbed
     the status information in the connection Diagnostics Area.
   */
+  m_column_count = 0;
   return false;
 }
 
@@ -3552,25 +3553,22 @@ bool Protocol_local::send_eof(uint, uint) {
   Ed_result_set *ed_result_set;
 
   DBUG_ASSERT(m_rset);
+  m_current_row = NULL;
 
-  opt_add_row_to_rset();
-  m_current_row = 0;
-
-  ed_result_set =
-      new (&m_rset_root) Ed_result_set(m_rset, m_column_count, &m_rset_root);
+  ed_result_set = new (&m_rset_root)
+      Ed_result_set(m_rset, m_fields, m_column_count, &m_rset_root);
 
   m_rset = NULL;
+  m_fields = NULL;
 
   if (!ed_result_set) return true;
-
-  /* In case of successful allocation memory ownership was transferred. */
-  DBUG_ASSERT(!alloc_root_inited(&m_rset_root));
 
   /*
     Link the created Ed_result_set instance into the list of connection
     result sets. Never fails.
   */
   m_connection->add_result_set(ed_result_set);
+  m_column_count = 0;
   return false;
 }
 
@@ -3581,6 +3579,7 @@ bool Protocol_local::send_error(uint, const char *, const char *) {
     Just make sure that nothing is sent to the client (default
     implementation).
   */
+  m_column_count = 0;
   return false;
 }
 
@@ -3606,9 +3605,10 @@ int Protocol_local::shutdown(bool) { return 0; }
 */
 void Protocol_local::start_row() {
   DBUG_ENTER("Protocol_local::start_row");
+
+  if (m_send_metadata) DBUG_VOID_RETURN;
   DBUG_ASSERT(alloc_root_inited(&m_rset_root));
 
-  opt_add_row_to_rset();
   /* Start a new row. */
   m_current_row =
       (Ed_column *)alloc_root(&m_rset_root, sizeof(Ed_column) * m_column_count);
@@ -3617,23 +3617,40 @@ void Protocol_local::start_row() {
 }
 
 /**
-In "real" protocols this is called to finish a result set row.
-Unused in the local implementation.
+  Add the current row to the result set
 */
 bool Protocol_local::end_row() {
   DBUG_ENTER("Protocol_local::end_row");
+  if (m_send_metadata) DBUG_RETURN(false);
+
+  DBUG_ASSERT(m_rset);
+  opt_add_row_to_rset();
+  m_current_row = NULL;
+
   DBUG_RETURN(false);
 }
 
 uint Protocol_local::get_rw_status() { return 0; }
 
-bool Protocol_local::start_result_metadata(uint, uint, const CHARSET_INFO *) {
+bool Protocol_local::start_result_metadata(uint elements, uint,
+                                           const CHARSET_INFO *) {
+  m_column_count = elements;
+  start_row();
+  m_send_metadata = true;
+  m_rset = new (&m_rset_root) List<Ed_row>;
   return 0;
 }
 
-bool Protocol_local::end_result_metadata() { return false; }
+bool Protocol_local::end_result_metadata() {
+  m_send_metadata = false;
+  m_fields = new (&m_rset_root) Ed_row(m_current_row, m_column_count);
+  m_current_row = NULL;
+  return false;
+}
 
-bool Protocol_local::send_field_metadata(Send_field *, const CHARSET_INFO *) {
+bool Protocol_local::send_field_metadata(Send_field *field,
+                                         const CHARSET_INFO *cs) {
+  store(field->col_name, strlen(field->col_name), cs);
   return false;
 }
 

@@ -144,8 +144,9 @@ class Ed_result_set final {
  public:
   operator List<Ed_row> &() { return *m_rows; }
   unsigned int size() const { return m_rows->elements; }
+  Ed_row *get_fields() { return m_fields; }
 
-  Ed_result_set(List<Ed_row> *rows_arg, size_t column_count,
+  Ed_result_set(List<Ed_row> *rows_arg, Ed_row *fields, size_t column_count,
                 MEM_ROOT *mem_root_arg);
 
   /** We don't call member destructors, they all are POD types. */
@@ -153,7 +154,10 @@ class Ed_result_set final {
 
   size_t get_field_count() const { return m_column_count; }
 
-  static void operator delete(void *ptr, size_t size) throw();
+  static void operator delete(void *, size_t) throw() {
+    // Does nothing because m_mem_root is deallocated in the destructor
+  }
+
   static void operator delete(
       void *, MEM_ROOT *, const std::nothrow_t &)throw() { /* never called */
   }
@@ -165,6 +169,7 @@ class Ed_result_set final {
   MEM_ROOT m_mem_root;
   size_t m_column_count;
   List<Ed_row> *m_rows;
+  Ed_row *m_fields;
   Ed_result_set *m_next_rset;
   friend class Ed_connection;
 };
@@ -253,6 +258,8 @@ class Ed_connection final {
   unsigned int get_last_errno() const {
     return m_diagnostics_area.mysql_errno();
   }
+
+  Ed_result_set *get_result_sets() { return m_rsets; }
 
   ~Ed_connection() { free_old_result(); }
 
