@@ -1840,14 +1840,14 @@ class Ndb_binlog_setup {
     if (object_id_in_NDB != object_id_in_DD ||
         object_version_in_NDB != object_version_in_DD ||
         // The object version is not updated after an ALTER, so there
-	 // exists a possibility that the object ids and versions match
-	 // but there's a mismatch in the list of undo files assigned to
-	 // the logfile group. Thus, the list of files assigned to the
-	 // logfile group in NDB Dictionary and DD are compared as an
-	 // additional check. This also protects us from the corner case
-	 // that's possible after an initial cluster restart. In such
-	 // cases, it's possible the ids and versions match even though
-	 // they are entirely different objects
+        // exists a possibility that the object ids and versions match
+        // but there's a mismatch in the list of undo files assigned to
+        // the logfile group. Thus, the list of files assigned to the
+        // logfile group in NDB Dictionary and DD are compared as an
+        // additional check. This also protects us from the corner case
+        // that's possible after an initial cluster restart. In such
+        // cases, it's possible the ids and versions match even though
+        // they are entirely different objects
         !compare_file_list(undo_file_names_in_NDB,
                            undo_file_names_in_DD))
     {
