@@ -1839,17 +1839,15 @@ class Ndb_binlog_setup {
     ndb_dd_disk_data_get_file_names(existing, undo_file_names_in_DD);
     if (object_id_in_NDB != object_id_in_DD ||
         object_version_in_NDB != object_version_in_DD ||
-        // Below is a workaround for Bug#28387169: OBJECT VERSION IS
-        // NOT UPDATED AFTER ALTER TABLESPACE/LOGFILE GROUP. Since the
-        // object version is not updated after an ALTER, there exists
-        // a possibility that the object ids and versions match but
-        // there's a mismatch in the list of undo files assigned to the
-        // logfile group. Workaround is to compare the list of files
-        // assigned to the logfile group in NDB Dictionary and DD. This
-        // also protects us from the corner case that's possible after
-        // an initial cluster restart. In such cases, it's possible
-        // the ids and versions match even though they are entirely
-        // different objects
+        // The object version is not updated after an ALTER, so there
+	 // exists a possibility that the object ids and versions match
+	 // but there's a mismatch in the list of undo files assigned to
+	 // the logfile group. Thus, the list of files assigned to the
+	 // logfile group in NDB Dictionary and DD are compared as an
+	 // additional check. This also protects us from the corner case
+	 // that's possible after an initial cluster restart. In such
+	 // cases, it's possible the ids and versions match even though
+	 // they are entirely different objects
         !compare_file_list(undo_file_names_in_NDB,
                            undo_file_names_in_DD))
     {
@@ -2084,17 +2082,15 @@ class Ndb_binlog_setup {
     ndb_dd_disk_data_get_file_names(existing, data_file_names_in_DD);
     if (object_id_in_NDB != object_id_in_DD ||
         object_version_in_NDB != object_version_in_DD ||
-        // Below is a workaround for Bug#28387169: OBJECT VERSION IS
-        // NOT UPDATED AFTER ALTER TABLESPACE/LOGFILE GROUP. Since the
-        // object version is not updated after an ALTER, there exists
-        // a possibility that the object ids and versions match but
-        // there's a mismatch in the list of data files assigned to the
-        // tablespace. Workaround is to compare the list of files
-        // assigned to the tablespace in NDB Dictionary and DD. This
-        // also protects us from the corner case that's possible after
-        // an initial cluster restart. In such cases, it's possible
-        // the ids and versions match even though they are entirely
-        // different objects
+        // The object version is not updated after an ALTER, so there
+        // exists a possibility that the object ids and versions match
+        // but there's a mismatch in the list of data files assigned to
+        // the tablespace. Thus, the list of files assigned to the
+        // tablespace in NDB Dictionary and DD are compared as an
+        // additional check. This also protects us from the corner case
+        // that's possible after an initial cluster restart. In such
+        // cases, it's possible the ids and versions match even though
+        // they are entirely different objects
         !compare_file_list(data_file_names_in_NDB,
                            data_file_names_in_DD))
     {
