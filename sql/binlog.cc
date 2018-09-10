@@ -2735,7 +2735,7 @@ class Log_in_use : public Do_THD_Impl {
     LOG_INFO *linfo;
     mysql_mutex_lock(&thd->LOCK_thd_data);
     if ((linfo = thd->current_linfo)) {
-      if (!memcmp(m_log_name, linfo->log_file_name, m_log_name_len)) {
+      if (!strncmp(m_log_name, linfo->log_file_name, m_log_name_len)) {
         LogErr(WARNING_LEVEL, ER_BINLOG_FILE_BEING_READ_NOT_PURGED, m_log_name,
                thd->thread_id());
         m_count++;
@@ -5125,7 +5125,7 @@ int MYSQL_BIN_LOG::find_log_pos(LOG_INFO *linfo, const char *log_name,
 
     // if the log entry matches, null string matching anything
     if (!log_name || (log_name_len == fname_len &&
-                      !memcmp(full_fname, full_log_name, log_name_len))) {
+                      !strncmp(full_fname, full_log_name, log_name_len))) {
       DBUG_PRINT("info", ("Found log file entry"));
       linfo->index_file_start_offset = offset;
       linfo->index_file_offset = my_b_tell(&index_file);
