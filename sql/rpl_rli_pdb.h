@@ -539,7 +539,6 @@ class Slave_worker : public Relay_log_info {
   Prealloced_array<db_worker_hash_entry *, SLAVE_INIT_DBS_IN_GROUP>
       curr_group_exec_parts;  // Current Group Executed Partitions
 
-  bool curr_group_seen_begin;  // is set to true with explicit B-event
 #ifndef DBUG_OFF
   bool curr_group_seen_sequence_number;  // is set to true about starts_group()
 #endif

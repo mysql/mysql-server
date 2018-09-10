@@ -340,7 +340,7 @@ int Slave_worker::init_worker(Relay_log_info *rli, ulong i) {
   jobs.waited_overfill = 0;
   jobs.entry = jobs.size = c_rli->mts_slave_worker_queue_len_max;
   jobs.inited_queue = true;
-  curr_group_seen_begin = curr_group_seen_gtid = false;
+  curr_group_seen_gtid = false;
 #ifndef DBUG_OFF
   curr_group_seen_sequence_number = false;
 #endif
@@ -1248,7 +1248,7 @@ void Slave_worker::slave_worker_ends_group(Log_event *ev, int error) {
     curr_group_seen_sequence_number = false;
 #endif
   }
-  curr_group_seen_gtid = curr_group_seen_begin = false;
+  curr_group_seen_gtid = false;
 
   DBUG_VOID_RETURN;
 }

@@ -46,9 +46,8 @@ namespace xpl {
 Client::Client(std::shared_ptr<ngs::Vio_interface> connection,
                ngs::Server_interface &server, Client_id client_id,
                Protocol_monitor *pmon, const Global_timeouts &timeouts)
-    : ngs::Client(connection, server, client_id, pmon, timeouts),
-      m_protocol_monitor(pmon) {
-  if (m_protocol_monitor) m_protocol_monitor->init(this);
+    : ngs::Client(connection, server, client_id, pmon, timeouts) {
+  if (pmon) pmon->init(this);
 }
 
 Client::~Client() { ngs::free_object(m_protocol_monitor); }

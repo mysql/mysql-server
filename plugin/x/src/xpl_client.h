@@ -87,8 +87,6 @@ class Client : public ngs::Client {
 
  private:
   bool is_localhost(const char *hostname);
-
-  Protocol_monitor *m_protocol_monitor;
 };
 
 typedef ngs::shared_ptr<Client> Client_ptr;

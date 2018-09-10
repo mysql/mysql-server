@@ -277,7 +277,6 @@ class Split_sasl_message_test
       public WithParamInterface<Test_param_sasl_message> {
  public:
   StrictMock<ngs::test::Mock_authentication_interface> mock_authentication;
-  ngs::Authentication_info m_auth_info;
 };
 
 TEST_P(Split_sasl_message_test, Split_sasl_message_on_given_param) {

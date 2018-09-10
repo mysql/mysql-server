@@ -41,7 +41,7 @@ struct Key_metadata {
 
 class IKeys_container : public Keyring_alloc {
  public:
-  IKeys_container() : keyring_io(NULL) {}
+  IKeys_container() {}
 
   virtual bool init(IKeyring_io *keyring_io,
                     std::string keyring_storage_url) = 0;
@@ -53,9 +53,6 @@ class IKeys_container : public Keyring_alloc {
   virtual std::vector<Key_metadata> get_keys_metadata() = 0;
 
   virtual ~IKeys_container() {}
-
- protected:
-  IKeyring_io *keyring_io;
 };
 
 }  // namespace keyring
