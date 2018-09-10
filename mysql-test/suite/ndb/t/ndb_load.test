@@ -1,8 +1,9 @@
 -- source include/have_ndb.inc
 
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
+connect (con1,localhost,root,,test);
+connect (con2,localhost,root,,test);
+connect (con3,localhost,root,,test);
+connect (con4,localhost,root,,test);
 
 #
 # Basic test for different types of loading data
@@ -61,8 +62,40 @@ SET ndb_use_transactions= 1;
 CREATE TABLE t2 (a int) engine=Ndb;
 
 --echo Will fail with too many concurrent operations error
+connection con1;
+begin;
+send INSERT INTO t2 SELECT * FROM t1 limit 5000 offset 0;
+
+connection con2;
+begin;
+send INSERT INTO t2 SELECT * FROM t1 limit 5000 offset 5000;
+
+connection con3;
+begin;
+send INSERT INTO t2 SELECT * FROM t1 limit 5000 offset 10000;
+
+connection con4;
+begin;
+send INSERT INTO t2 SELECT * FROM t1 limit 5000 offset 15000;
+
+connection con1;
 --error 1297
-INSERT INTO t2 SELECT * FROM t1;
+reap;
+rollback;
+
+connection con2;
+--error 0,1297
+reap;
+rollback;
+
+connection con3;
+--error 0,1297
+reap;
+rollback;
+
+connection con4;
+reap;
+rollback;
 
 SELECT COUNT(*) FROM t2;
 
