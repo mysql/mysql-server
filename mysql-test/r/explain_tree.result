@@ -524,3 +524,37 @@ EXPLAIN
 
 DROP TABLE t1;
 set @@optimizer_switch=@old_opt_switch;
+set @old_opt_switch=@@optimizer_switch;
+set optimizer_switch='firstmatch=off,materialization=off,loosescan=off';
+CREATE TABLE t1 ( i INTEGER );
+CREATE TABLE t2 ( i INTEGER );
+INSERT INTO t1 VALUES (1), (2), (3);
+INSERT INTO t2 VALUES (2);
+EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE (t1.i) IN (SELECT t2.i FROM t2);
+EXPLAIN
+-> Remove duplicate t1 rows using temporary table (weedout)
+    -> Nested loop inner join
+        -> Table scan on t2
+        -> Filter: (t1.i = t2.i)
+            -> Table scan on t1
+
+DROP TABLE t1;
+DROP TABLE t2;
+set @@optimizer_switch=@old_opt_switch;
+set @old_opt_switch=@@optimizer_switch;
+set optimizer_switch='firstmatch=off,materialization=off,loosescan=off';
+CREATE TABLE t1 ( i INTEGER );
+CREATE TABLE t2 ( i INTEGER );
+INSERT INTO t1 VALUES (1), (2), (3);
+INSERT INTO t2 VALUES (1), (2), (3), (4);
+EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE (t1.i) IN (SELECT t2.i FROM t2);
+EXPLAIN
+-> Nested loop inner join
+    -> Table scan on t1
+    -> Limit: 1 row(s)
+        -> Filter: (t2.i = t1.i)
+            -> Table scan on t2
+
+DROP TABLE t1;
+DROP TABLE t2;
+set @@optimizer_switch=@old_opt_switch;

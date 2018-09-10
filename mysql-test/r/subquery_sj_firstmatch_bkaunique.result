@@ -5500,6 +5500,25 @@ a	a
 5	NULL
 6	6
 7	NULL
+EXPLAIN FORMAT=tree SELECT *
+FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it3)
+LEFT JOIN ot3 ON ot2.a=ot3.a AND ot3.a IN (SELECT a FROM it3);
+EXPLAIN
+-> Nested loop left join
+    -> Nested loop left join
+        -> Table scan on ot1
+        -> Nested loop inner join
+            -> Limit: 1 row(s)
+                -> Filter: (it3.a = ot1.a)
+                    -> Table scan on it3
+            -> Filter: (ot2.a = ot1.a)
+                -> Table scan on ot2
+    -> Nested loop semijoin
+        -> Filter: (ot3.a = ot2.a)
+            -> Table scan on ot3
+        -> Filter: (it3.a = ot2.a)
+            -> Table scan on it3
+
 SELECT *
 FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it3)
 LEFT JOIN ot3 ON ot2.a=ot3.a AND ot3.a IN (SELECT a FROM it3);

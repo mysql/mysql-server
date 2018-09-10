@@ -41,6 +41,7 @@
 #include "sql/sql_base.h"
 #include "sql/sql_class.h"
 #include "sql/sql_executor.h"
+#include "sql/sql_join_buffer.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_optimizer.h"
 #include "sql/sql_tmp_table.h"
@@ -995,4 +996,69 @@ bool MaterializedTableFunctionIterator::Init() {
     return true;
   }
   return m_table_iterator->Init();
+}
+
+WeedoutIterator::WeedoutIterator(THD *thd,
+                                 unique_ptr_destroy_only<RowIterator> source,
+                                 SJ_TMP_TABLE *sj)
+    : RowIterator(thd), m_source(move(source)), m_sj(sj) {
+  // Confluent weedouts should have been rewritten to LIMIT 1 earlier.
+  DBUG_ASSERT(!m_sj->is_confluent);
+  DBUG_ASSERT(m_sj->tmp_table != nullptr);
+}
+
+bool WeedoutIterator::Init() {
+  if (m_sj->tmp_table->file->ha_delete_all_rows()) {
+    return true;
+  }
+  return m_source->Init();
+}
+
+int WeedoutIterator::Read() {
+  for (;;) {
+    int ret = m_source->Read();
+    if (ret != 0) {
+      // Error, or EOF.
+      return ret;
+    }
+
+    for (SJ_TMP_TABLE::TAB *tab = m_sj->tabs; tab != m_sj->tabs_end; ++tab) {
+      TABLE *table = tab->qep_tab->table();
+      if (!(table->is_nullable() && table->has_null_row()) &&
+          !table->const_table) {
+        table->file->position(table->record[0]);
+      }
+    }
+
+    ret = do_sj_dups_weedout(thd(), m_sj);
+    if (ret == -1) {
+      // Error.
+      return 1;
+    }
+
+    if (ret == 0) {
+      // Not a duplicate, so return the row.
+      return 0;
+    }
+
+    // Duplicate, so read the next row instead.
+  }
+}
+
+vector<string> WeedoutIterator::DebugString() const {
+  string ret = "Remove duplicate ";
+  if (m_sj->tabs_end == m_sj->tabs + 1) {  // Only one table.
+    ret += m_sj->tabs->qep_tab->table()->alias;
+  } else {
+    ret += "(";
+    for (SJ_TMP_TABLE::TAB *tab = m_sj->tabs; tab != m_sj->tabs_end; ++tab) {
+      if (tab != m_sj->tabs) {
+        ret += ", ";
+      }
+      ret += tab->qep_tab->table()->alias;
+    }
+    ret += ")";
+  }
+  ret += " rows using temporary table (weedout)";
+  return {ret};
 }

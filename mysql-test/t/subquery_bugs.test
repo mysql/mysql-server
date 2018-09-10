@@ -422,3 +422,66 @@ eval EXPLAIN $query;
 eval $query;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #29193761: WL#12470: SIG 11 IN MARKUNHANDLEDDUPLICATES() AT SQL/SQL_EXECUTOR.CC
+--echo #
+
+#
+# Tests the case where the iterator executor has to move a weedout
+# to the top because it conflicts with an outer join; the common case
+# is already tested in subquery_sj.inc, but this tests a confluent weedout,
+# which is a special case.
+#
+
+CREATE TABLE t1 (
+  pk integer NOT NULL PRIMARY KEY,
+  f1 varchar(1),
+  KEY k1 (f1)
+);
+
+CREATE TABLE t2 ( pk integer NOT NULL PRIMARY KEY );
+CREATE VIEW v2 AS select * FROM t2;
+
+INSERT INTO t1 VALUES (1, 'G');
+INSERT INTO t1 VALUES (2, 'j');
+INSERT INTO t1 VALUES (3, 'K');
+INSERT INTO t1 VALUES (4, 'v');
+INSERT INTO t1 VALUES (5, 'E');
+
+EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE pk IN ( SELECT pk FROM t1 LEFT JOIN v2 USING (pk) WHERE f1 >= 'o' );
+
+DROP TABLE t1, t2;
+DROP VIEW v2;
+
+--echo #
+--echo # Bug #29236241: WL#12470: SIG 6 IN TEMPTABLE::HANDLER::POSITION AT SRC/HANDLER.CC
+--echo #
+
+#
+# Sets up weedout involving a const table, which is a special case
+# (and a nonsensical one; how would it ever return more than one row?).
+# Note that we can't even EXPLAIN this query, as it errors out
+# with “subquery more than one row” during optimization (but nevertheless,
+# it should not crash MySQL).
+#
+# If it suddenly spits out a plan (and that plan doesn't involve weedout
+# of a ConstIterator), probably it changed enough that it's not worth
+# keeping the test around.
+#
+
+CREATE TABLE t1 (
+  f1 varchar(1),
+  KEY k1 (f1)
+);
+
+INSERT INTO t1 VALUES ('6'),('6');
+
+--error ER_SUBQUERY_NO_1_ROW
+EXPLAIN FORMAT=tree SELECT 1 WHERE (
+  SELECT 1
+  FROM t1 LEFT JOIN t1 AS t2 ON 'f' IN ( SELECT f1 FROM t1 )
+  WHERE EXISTS ( SELECT * FROM t1 LEFT JOIN t1 AS t3 ON t3.f1='a' )
+);
+
+DROP TABLE t1;

@@ -5504,6 +5504,26 @@ a	a
 5	NULL
 6	6
 7	NULL
+EXPLAIN FORMAT=tree SELECT *
+FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it3)
+LEFT JOIN ot3 ON ot2.a=ot3.a AND ot3.a IN (SELECT a FROM it3);
+EXPLAIN
+-> Nested loop left join
+    -> Nested loop left join
+        -> Table scan on ot1
+        -> Filter: ((ot2.a = ot1.a) and <in_optimizer>(ot1.a,<exists>(select #2)))
+            -> Table scan on ot2
+            -> Select #2 (subquery in condition; dependent)
+                -> Limit: 1 row(s)
+                    -> Filter: (<cache>(ot1.a) = it3.a)
+                        -> Table scan on it3
+    -> Filter: ((ot3.a = ot2.a) and <in_optimizer>(ot2.a,<exists>(select #3)))
+        -> Table scan on ot3
+        -> Select #3 (subquery in condition; dependent)
+            -> Limit: 1 row(s)
+                -> Filter: (<cache>(ot3.a) = it3.a)
+                    -> Table scan on it3
+
 SELECT *
 FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it3)
 LEFT JOIN ot3 ON ot2.a=ot3.a AND ot3.a IN (SELECT a FROM it3);

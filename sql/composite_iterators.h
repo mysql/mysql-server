@@ -54,6 +54,7 @@
 
 class JOIN;
 class SELECT_LEX;
+class SJ_TMP_TABLE;
 class THD;
 class Temp_table_param;
 template <class T>
@@ -607,6 +608,49 @@ class MaterializedTableFunctionIterator final : public TableRowIterator {
   unique_ptr_destroy_only<RowIterator> m_table_iterator;
 
   Table_function *m_table_function;
+};
+
+/**
+  Like semijoin materialization, weedout works on the basic idea that a semijoin
+  is just like an inner join as we long as we can get rid of the duplicates
+  somehow. (This is advantageous, because inner joins can be reordered, whereas
+  semijoins generally can't.) However, unlike semijoin materialization, weedout
+  removes duplicates after the join, not before it. Consider something like
+
+    SELECT * FROM t1 WHERE a IN ( SELECT b FROM t2 );
+
+  Semijoin materialization solves this by materializing t2, with deduplication,
+  and then joining. Weedout joins t1 to t2 and then leaves only one output row
+  per t1 row. The disadvantage is that this potentially needs to discard more
+  rows; the (potential) advantage is that we deduplicate on t1 instead of t2.
+
+  Weedout, unlike materialization, works in a streaming fashion; rows are output
+  (or discarded) as they come in, with a temporary table used for recording the
+  row IDs we've seen before. (We need to deduplicate on t1's row IDs, not its
+  contents.) See SJ_TMP_TABLE for details about the table format.
+ */
+class WeedoutIterator final : public RowIterator {
+ public:
+  WeedoutIterator(THD *thd, unique_ptr_destroy_only<RowIterator> source,
+                  SJ_TMP_TABLE *sj);
+
+  bool Init() override;
+  int Read() override;
+  std::vector<std::string> DebugString() const override;
+
+  std::vector<Child> children() const override {
+    return std::vector<Child>{{m_source.get(), ""}};
+  }
+
+  void SetNullRowFlag(bool is_null_row) override {
+    m_source->SetNullRowFlag(is_null_row);
+  }
+
+  void UnlockRow() override { m_source->UnlockRow(); }
+
+ private:
+  unique_ptr_destroy_only<RowIterator> m_source;
+  SJ_TMP_TABLE *m_sj;
 };
 
 #endif  // SQL_COMPOSITE_ITERATORS_INCLUDED

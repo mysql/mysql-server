@@ -562,3 +562,45 @@ WHERE col_varchar_key = RAND()
 );
 col_varchar_key
 DROP TABLE t1;
+#
+# Bug #29193761: WL#12470: SIG 11 IN MARKUNHANDLEDDUPLICATES() AT SQL/SQL_EXECUTOR.CC
+#
+CREATE TABLE t1 (
+pk integer NOT NULL PRIMARY KEY,
+f1 varchar(1),
+KEY k1 (f1)
+);
+CREATE TABLE t2 ( pk integer NOT NULL PRIMARY KEY );
+CREATE VIEW v2 AS select * FROM t2;
+INSERT INTO t1 VALUES (1, 'G');
+INSERT INTO t1 VALUES (2, 'j');
+INSERT INTO t1 VALUES (3, 'K');
+INSERT INTO t1 VALUES (4, 'v');
+INSERT INTO t1 VALUES (5, 'E');
+EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE pk IN ( SELECT pk FROM t1 LEFT JOIN v2 USING (pk) WHERE f1 >= 'o' );
+EXPLAIN
+-> Remove duplicate t1 rows using temporary table (weedout)
+    -> Nested loop inner join
+        -> Nested loop left join
+            -> Filter: (t1.f1 >= 'o')
+                -> Index range scan on t1 using k1
+            -> Single-row index lookup on t2 using PRIMARY (pk=t1.pk)
+        -> Single-row index lookup on t1 using PRIMARY (pk=t1.pk)
+
+DROP TABLE t1, t2;
+DROP VIEW v2;
+#
+# Bug #29236241: WL#12470: SIG 6 IN TEMPTABLE::HANDLER::POSITION AT SRC/HANDLER.CC
+#
+CREATE TABLE t1 (
+f1 varchar(1),
+KEY k1 (f1)
+);
+INSERT INTO t1 VALUES ('6'),('6');
+EXPLAIN FORMAT=tree SELECT 1 WHERE (
+SELECT 1
+FROM t1 LEFT JOIN t1 AS t2 ON 'f' IN ( SELECT f1 FROM t1 )
+WHERE EXISTS ( SELECT * FROM t1 LEFT JOIN t1 AS t3 ON t3.f1='a' )
+);
+ERROR 21000: Subquery returns more than 1 row
+DROP TABLE t1;

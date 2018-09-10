@@ -1239,7 +1239,8 @@ static Item_func_trig_cond *GetTriggerCondOrNull(Item *item) {
 enum CallingContext {
   TOP_LEVEL,
   DIRECTLY_UNDER_SEMIJOIN,
-  DIRECTLY_UNDER_OUTER_JOIN
+  DIRECTLY_UNDER_OUTER_JOIN,
+  DIRECTLY_UNDER_WEEDOUT
 };
 
 /**
@@ -1370,6 +1371,83 @@ void SplitConditions(Item *condition, vector<Item *> *predicates_below_join,
 }
 
 /**
+  For a given duplicate weedout operation, figure out which tables are supposed
+  to be deduplicated by it, and add those to unhandled_duplicates. (SJ_TMP_TABLE
+  contains the deduplication key, which is exactly the complement of the tables
+  to be deduplicated.)
+ */
+static void MarkUnhandledDuplicates(QEP_TAB *qep_tabs, SJ_TMP_TABLE *weedout,
+                                    plan_idx weedout_start,
+                                    plan_idx weedout_end,
+                                    vector<QEP_TAB *> *unhandled_duplicates) {
+  if (weedout->is_confluent) {
+    // Confluent weedout doesn't have tabs or tabs_end set; it just implicitly
+    // says none of the tables are allowed to produce duplicates.
+    for (plan_idx i = weedout_start; i < weedout_end; ++i) {
+      unhandled_duplicates->push_back(&qep_tabs[i]);
+    }
+  } else {
+    bool part_of_key[MAX_TABLES] = {false};
+    for (SJ_TMP_TABLE::TAB *tab = weedout->tabs; tab != weedout->tabs_end;
+         ++tab) {
+      plan_idx i = tab->qep_tab - qep_tabs;
+      DBUG_ASSERT(i >= weedout_start);
+      DBUG_ASSERT(i < weedout_end);
+      DBUG_ASSERT(i < plan_idx{MAX_TABLES});
+      part_of_key[i] = true;
+    }
+    for (plan_idx i = weedout_start; i < weedout_end; ++i) {
+      if (!part_of_key[i]) {
+        unhandled_duplicates->push_back(&qep_tabs[i]);
+      }
+    }
+  }
+}
+
+static unique_ptr_destroy_only<RowIterator> CreateWeedoutIterator(
+    THD *thd, unique_ptr_destroy_only<RowIterator> iterator,
+    SJ_TMP_TABLE *weedout_table) {
+  if (weedout_table->is_confluent) {
+    // A “confluent” weedout is one that deduplicates on all the
+    // fields. If so, we can drop the complexity of the WeedoutIterator
+    // and simply insert a LIMIT 1.
+    return unique_ptr_destroy_only<RowIterator>(
+        new (thd->mem_root) LimitOffsetIterator(
+            thd, move(iterator), /*limit=*/1, /*offset=*/0,
+            /*count_all_rows=*/false, /*skipped_rows=*/nullptr));
+  } else {
+    return unique_ptr_destroy_only<RowIterator>(new (
+        thd->mem_root) WeedoutIterator(thd, move(iterator), weedout_table));
+  }
+}
+
+static unique_ptr_destroy_only<RowIterator> CreateWeedoutIteratorForTables(
+    THD *thd, const vector<QEP_TAB *> &tables_to_deduplicate, QEP_TAB *qep_tabs,
+    uint primary_tables, unique_ptr_destroy_only<RowIterator> iterator) {
+  bool need_dup_removal[MAX_TABLES] = {false};
+  for (QEP_TAB *qep_tab : tables_to_deduplicate) {
+    plan_idx i = qep_tab - qep_tabs;
+    DBUG_ASSERT(i >= 0);
+    DBUG_ASSERT(static_cast<uint>(i) < primary_tables);
+    need_dup_removal[i] = true;
+  }
+
+  Prealloced_array<SJ_TMP_TABLE::TAB, MAX_TABLES> sj_tabs(PSI_NOT_INSTRUMENTED);
+  for (uint i = 0; i < primary_tables; ++i) {
+    if (!need_dup_removal[i]) {
+      SJ_TMP_TABLE::TAB sj_tab;
+      sj_tab.qep_tab = &qep_tabs[i];
+      sj_tabs.push_back(sj_tab);
+    }
+  }
+
+  JOIN *join = tables_to_deduplicate[0]->join();
+  SJ_TMP_TABLE *sjtbl =
+      create_sj_tmp_table(thd, join, &sj_tabs[0], &sj_tabs[0] + sj_tabs.size());
+  return CreateWeedoutIterator(thd, move(iterator), sjtbl);
+}
+
+/**
   For a given slice of the table list, build up the iterator tree corresponding
   to the tables in that slice. It handles inner and outer joins, as well as
   semijoins (“first match”).
@@ -1418,12 +1496,16 @@ void SplitConditions(Item *condition, vector<Item *> *predicates_below_join,
     that should have a CacheInvalidatorIterator synthesized for them;
     NULL-complemented rows must also invalidate materialized lateral derived
   tables.
+  @param[out] unhandled_duplicates list of tables we should have deduplicated
+    using duplicate weedout, but could not; append-only.
+weedout]
  */
 static unique_ptr_destroy_only<RowIterator> ConnectJoins(
     plan_idx first_idx, plan_idx last_idx, QEP_TAB *qep_tabs, THD *thd,
     CallingContext calling_context,
     vector<PendingCondition> *pending_conditions,
-    vector<PendingInvalidator> *pending_invalidators) {
+    vector<PendingInvalidator> *pending_invalidators,
+    vector<QEP_TAB *> *unhandled_duplicates) {
   DBUG_ASSERT(last_idx > first_idx);
   DBUG_ASSERT((pending_conditions == nullptr) ==
               (pending_invalidators == nullptr));
@@ -1468,6 +1550,74 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
         is_semijoin = true;
         semijoin_end = j + 1;
         break;
+      }
+    }
+
+    // Outer joins (or semijoins) wrapping a weedout is tricky,
+    // especially in edge cases. If we have an outer join wrapping
+    // a weedout, the outer join needs to be processed first.
+    // But the weedout wins if it's strictly larger than the outer join.
+    // However, a problem occurs if the weedout wraps two consecutive
+    // outer joins (which can happen if the join optimizer interleaves
+    // tables from different weedouts and needs to combine them into
+    // one larger weedout). E.g., consider a join order such as
+    //
+    //   a LEFT JOIN (b,c) LEFT JOIN (d,e)
+    //
+    // where there is _also_ a weedout wrapping all four tables [b,e].
+    // (Presumably, there were originally two weedouts b+e and c+d,
+    // but due to reordering, they were combined into one.)
+    // In this case, we have a non-hierarchical situation since the
+    // (a,(b,c)) join only partially overlaps with the [b,e] weedout.
+    //
+    // We solve these non-hierarchical cases by punting them upwards;
+    // we signal that they are simply not done by adding them to
+    // unhandled_duplicates, and then drop the weedout. The top level
+    // will then add a final weedout after all joins. In some cases,
+    // it is possible to push the weedout further down than this,
+    // but these cases are so marginal that it's not worth it.
+
+    // See if this table starts a weedout operation.
+    bool is_weedout = false;
+    plan_idx weedout_end = NO_PLAN_IDX;
+    if (qep_tab->starts_weedout() &&
+        !(calling_context == DIRECTLY_UNDER_WEEDOUT && i == first_idx)) {
+      for (plan_idx j = i; j < last_idx; ++j) {
+        if (qep_tabs[j].check_weed_out_table == qep_tab->flush_weedout_table) {
+          weedout_end = j + 1;
+          break;
+        }
+      }
+      if (weedout_end != NO_PLAN_IDX) {
+        is_weedout = true;
+      }
+    }
+
+    if (weedout_end > last_idx) {
+      // See comment above.
+      MarkUnhandledDuplicates(qep_tabs, qep_tab->flush_weedout_table, i,
+                              weedout_end, unhandled_duplicates);
+      is_weedout = false;
+    }
+
+    if (is_outer_join && is_weedout) {
+      if (outer_join_end >= weedout_end) {
+        // Weedout will be handled at a lower recursion level.
+        is_weedout = false;
+      } else {
+        // See comment above.
+        MarkUnhandledDuplicates(qep_tabs, qep_tab->flush_weedout_table, i,
+                                weedout_end, unhandled_duplicates);
+      }
+    }
+    if (is_semijoin && is_weedout) {
+      if (semijoin_end >= weedout_end) {
+        // Weedout will be handled at a lower recursion level.
+        is_weedout = false;
+      } else {
+        // See comment above.
+        MarkUnhandledDuplicates(qep_tabs, qep_tab->flush_weedout_table, i,
+                                weedout_end, unhandled_duplicates);
       }
     }
 
@@ -1518,15 +1668,15 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       vector<PendingInvalidator> subtree_pending_invalidators;
       if (is_semijoin) {
         // Semijoins don't have special handling of WHERE, so simply recurse.
-        subtree_iterator =
-            ConnectJoins(i, join_end, qep_tabs, thd, DIRECTLY_UNDER_SEMIJOIN,
-                         pending_conditions, pending_invalidators);
+        subtree_iterator = ConnectJoins(
+            i, join_end, qep_tabs, thd, DIRECTLY_UNDER_SEMIJOIN,
+            pending_conditions, pending_invalidators, unhandled_duplicates);
       } else if (pending_conditions != nullptr) {
         // We are already on the right (inner) side of an outer join,
         // so we need to keep deferring WHERE predicates.
-        subtree_iterator =
-            ConnectJoins(i, join_end, qep_tabs, thd, DIRECTLY_UNDER_OUTER_JOIN,
-                         pending_conditions, pending_invalidators);
+        subtree_iterator = ConnectJoins(
+            i, join_end, qep_tabs, thd, DIRECTLY_UNDER_OUTER_JOIN,
+            pending_conditions, pending_invalidators, unhandled_duplicates);
 
         // Pick out any conditions that should be directly above this join
         // (ie., the ON conditions for this specific join).
@@ -1553,9 +1703,10 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       } else {
         // We can check the WHERE predicates on this table right away
         // after the join (and similarly, set up invalidators).
-        subtree_iterator = ConnectJoins(
-            i, join_end, qep_tabs, thd, DIRECTLY_UNDER_OUTER_JOIN,
-            &subtree_pending_conditions, &subtree_pending_invalidators);
+        subtree_iterator =
+            ConnectJoins(i, join_end, qep_tabs, thd, DIRECTLY_UNDER_OUTER_JOIN,
+                         &subtree_pending_conditions,
+                         &subtree_pending_invalidators, unhandled_duplicates);
       }
 
       JoinType join_type;
@@ -1609,6 +1760,23 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       }
 
       i = join_end;
+      continue;
+    } else if (is_weedout) {
+      unique_ptr_destroy_only<RowIterator> subtree_iterator = ConnectJoins(
+          i, weedout_end, qep_tabs, thd, DIRECTLY_UNDER_WEEDOUT,
+          pending_conditions, pending_invalidators, unhandled_duplicates);
+      subtree_iterator = CreateWeedoutIterator(thd, move(subtree_iterator),
+                                               qep_tab->flush_weedout_table);
+
+      if (iterator == nullptr) {
+        iterator = move(subtree_iterator);
+      } else {
+        iterator.reset(new (thd->mem_root) NestedLoopIterator(
+            thd, move(iterator), move(subtree_iterator), JoinType::INNER,
+            /*pfs_batch_mode=*/false));
+      }
+
+      i = weedout_end;
       continue;
     }
 
@@ -1673,9 +1841,9 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
 
       int join_start = sjm->inner_table_index;
       int join_end = join_start + sjm->table_count;
-      unique_ptr_destroy_only<RowIterator> subtree_iterator =
-          ConnectJoins(join_start, join_end, qep_tabs, thd, TOP_LEVEL,
-                       pending_conditions, pending_invalidators);
+      unique_ptr_destroy_only<RowIterator> subtree_iterator = ConnectJoins(
+          join_start, join_end, qep_tabs, thd, TOP_LEVEL, pending_conditions,
+          pending_invalidators, unhandled_duplicates);
 
       bool copy_fields_and_items_in_materialize =
           true;  // We never have aggregation within semijoins.
@@ -1798,7 +1966,7 @@ void JOIN::create_iterators() {
   };
   vector<MaterializeOperation> final_materializations;
 
-  // The new executor engine can't recursive CTEs, some forms of semijoins,
+  // The new executor engine can't do recursive CTEs,
   // loose scan or BNL/BKA.
   // Revert to the old one if they show up.
   for (unsigned table_idx = const_tables; table_idx < tables; ++table_idx) {
@@ -1843,8 +2011,7 @@ void JOIN::create_iterators() {
       // Recursive CTE.
       return;
     }
-    if (qep_tab->do_loosescan() || qep_tab->starts_weedout() ||
-        qep_tab->finishes_weedout() || qep_tab->needs_duplicate_removal) {
+    if (qep_tab->do_loosescan() || qep_tab->needs_duplicate_removal) {
       return;
     }
   }
@@ -1883,8 +2050,17 @@ void JOIN::create_iterators() {
                                               vector<Item *>{where_cond}, thd);
     }
   } else {
+    vector<QEP_TAB *> unhandled_duplicates;
     iterator = ConnectJoins(const_tables, primary_tables, qep_tab, thd,
-                            TOP_LEVEL, nullptr, nullptr);
+                            TOP_LEVEL, nullptr, nullptr, &unhandled_duplicates);
+
+    // If there were any weedouts that we had to drop during ConnectJoins()
+    // (ie., the join left some tables that were supposed to be deduplicated
+    // but were not), handle them now at the very end.
+    if (!unhandled_duplicates.empty()) {
+      iterator = CreateWeedoutIteratorForTables(
+          thd, unhandled_duplicates, qep_tab, primary_tables, move(iterator));
+    }
   }
 
   // Deal with any materialization happening at the end (typically for sorting,
@@ -3257,6 +3433,7 @@ int ConstIterator::Read() {
   if (err == 0 && m_examined_rows != nullptr) {
     ++*m_examined_rows;
   }
+  table()->const_table = true;
   return err;
 }
 

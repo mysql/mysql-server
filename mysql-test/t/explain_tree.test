@@ -310,3 +310,32 @@ INSERT INTO t1 VALUES (1,1), (2,2), (3,3);
 EXPLAIN FORMAT=tree SELECT a FROM t1 WHERE a = ANY ( SELECT MAX(a) FROM t1 WHERE b = 2 );
 DROP TABLE t1;
 set @@optimizer_switch=@old_opt_switch;
+
+# Semijoin by duplicate weedout.
+set @old_opt_switch=@@optimizer_switch;
+set optimizer_switch='firstmatch=off,materialization=off,loosescan=off';
+CREATE TABLE t1 ( i INTEGER );
+CREATE TABLE t2 ( i INTEGER );
+INSERT INTO t1 VALUES (1), (2), (3);
+INSERT INTO t2 VALUES (2);
+EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE (t1.i) IN (SELECT t2.i FROM t2);
+DROP TABLE t1;
+DROP TABLE t2;
+set @@optimizer_switch=@old_opt_switch;
+
+# Confluent weedout becomes LIMIT 1.
+#
+# The only difference between this and the previous query is that t2 has
+# somewhat more data, which flips the join order. This means that the
+# weedout can go over t2 only instead of both tables, which makes it a
+# confluent weedout, which we rewrite to LIMIT 1.
+set @old_opt_switch=@@optimizer_switch;
+set optimizer_switch='firstmatch=off,materialization=off,loosescan=off';
+CREATE TABLE t1 ( i INTEGER );
+CREATE TABLE t2 ( i INTEGER );
+INSERT INTO t1 VALUES (1), (2), (3);
+INSERT INTO t2 VALUES (1), (2), (3), (4);
+EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE (t1.i) IN (SELECT t2.i FROM t2);
+DROP TABLE t1;
+DROP TABLE t2;
+set @@optimizer_switch=@old_opt_switch;

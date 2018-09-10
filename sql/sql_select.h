@@ -47,6 +47,7 @@
 #include "sql/sql_class.h"    // THD
 #include "sql/sql_cmd_dml.h"  // Sql_cmd_dml
 #include "sql/sql_const.h"
+#include "sql/sql_executor.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_opt_exec_shared.h"  // join_type
 #include "sql/system_variables.h"
@@ -1174,5 +1175,19 @@ void calc_length_and_keyparts(Key_use *keyuse, JOIN_TAB *tab, const uint key,
                               table_map used_tables, Key_use **chosen_keyuses,
                               uint *length_out, uint *keyparts_out,
                               table_map *dep_map, bool *maybe_null);
+
+/**
+  Set up the support structures (NULL bits, row offsets, etc.) for a semijoin
+  duplicate weedout table. The object is allocated on the given THD's MEM_ROOT.
+
+  @param thd the THD to allocate the object on
+  @param join the JOIN that will own the temporary table (ie., has the
+    responsibility to destroy it after use)
+  @param first_tab first table in row key (inclusive)
+  @param last_tab last table in row key (exclusive)
+ */
+SJ_TMP_TABLE *create_sj_tmp_table(THD *thd, JOIN *join,
+                                  SJ_TMP_TABLE::TAB *first_tab,
+                                  SJ_TMP_TABLE::TAB *last_tab);
 
 #endif /* SQL_SELECT_INCLUDED */

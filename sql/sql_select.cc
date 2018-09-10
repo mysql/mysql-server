@@ -1086,6 +1086,58 @@ static bool sj_table_is_included(JOIN *join, JOIN_TAB *join_tab) {
   return true;
 }
 
+SJ_TMP_TABLE *create_sj_tmp_table(THD *thd, JOIN *join,
+                                  SJ_TMP_TABLE::TAB *first_tab,
+                                  SJ_TMP_TABLE::TAB *last_tab) {
+  uint jt_rowid_offset =
+      0;                  // # tuple bytes are already occupied (w/o NULL bytes)
+  uint jt_null_bits = 0;  // # null bits in tuple bytes
+  for (SJ_TMP_TABLE::TAB *tab = first_tab; tab != last_tab; ++tab) {
+    QEP_TAB *qep_tab = tab->qep_tab;
+    tab->rowid_offset = jt_rowid_offset;
+    jt_rowid_offset += qep_tab->table()->file->ref_length;
+    if (qep_tab->table()->is_nullable()) {
+      tab->null_byte = jt_null_bits / 8;
+      tab->null_bit = jt_null_bits++;
+    }
+    qep_tab->table()->prepare_for_position();
+    qep_tab->keep_current_rowid = true;
+  }
+
+  SJ_TMP_TABLE *sjtbl;
+  if (jt_rowid_offset) /* Temptable has at least one rowid */
+  {
+    size_t tabs_size = (last_tab - first_tab) * sizeof(SJ_TMP_TABLE::TAB);
+    if (!(sjtbl = new (thd->mem_root) SJ_TMP_TABLE) ||
+        !(sjtbl->tabs = (SJ_TMP_TABLE::TAB *)thd->alloc(tabs_size)))
+      return nullptr; /* purecov: inspected */
+    memcpy(sjtbl->tabs, first_tab, tabs_size);
+    sjtbl->is_confluent = false;
+    sjtbl->tabs_end = sjtbl->tabs + (last_tab - first_tab);
+    sjtbl->rowid_len = jt_rowid_offset;
+    sjtbl->null_bits = jt_null_bits;
+    sjtbl->null_bytes = (jt_null_bits + 7) / 8;
+    sjtbl->tmp_table = create_duplicate_weedout_tmp_table(
+        thd, sjtbl->rowid_len + sjtbl->null_bytes, sjtbl);
+    if (sjtbl->tmp_table == nullptr) return nullptr;
+    if (sjtbl->tmp_table->hash_field)
+      sjtbl->tmp_table->file->ha_index_init(0, 0);
+    join->sj_tmp_tables.push_back(sjtbl->tmp_table);
+  } else {
+    /*
+      This is confluent case where the entire subquery predicate does
+      not depend on anything at all, ie this is
+        WHERE const IN (uncorrelated select)
+    */
+    if (!(sjtbl = new (thd->mem_root) SJ_TMP_TABLE))
+      return nullptr; /* purecov: inspected */
+    sjtbl->tmp_table = NULL;
+    sjtbl->is_confluent = true;
+    sjtbl->have_confluent_row = false;
+  }
+  return sjtbl;
+}
+
 /**
   Setup the strategies to eliminate semi-join duplicates.
 
@@ -1386,9 +1438,6 @@ static bool setup_semijoin_dups_elimination(JOIN *join, uint no_jbuf_after) {
 
         SJ_TMP_TABLE::TAB sjtabs[MAX_TABLES];
         SJ_TMP_TABLE::TAB *last_tab = sjtabs;
-        uint jt_rowid_offset =
-            0;  // # tuple bytes are already occupied (w/o NULL bytes)
-        uint jt_null_bits = 0;  // # null bits in tuple bytes
         /*
           Walk through the range and remember
            - tables that need their rowids to be put into temptable
@@ -1398,49 +1447,15 @@ static bool setup_semijoin_dups_elimination(JOIN *join, uint no_jbuf_after) {
              tab_in_range <= last_sj_tab; tab_in_range++) {
           if (sj_table_is_included(join, join->best_ref[tab_in_range->idx()])) {
             last_tab->qep_tab = tab_in_range;
-            last_tab->rowid_offset = jt_rowid_offset;
-            jt_rowid_offset += tab_in_range->table()->file->ref_length;
-            if (tab_in_range->table()->is_nullable()) {
-              last_tab->null_byte = jt_null_bits / 8;
-              last_tab->null_bit = jt_null_bits++;
-            }
-            last_tab++;
-            tab_in_range->table()->prepare_for_position();
-            tab_in_range->keep_current_rowid = true;
+            ++last_tab;
           }
         }
 
-        SJ_TMP_TABLE *sjtbl;
-        if (jt_rowid_offset) /* Temptable has at least one rowid */
-        {
-          size_t tabs_size = (last_tab - sjtabs) * sizeof(SJ_TMP_TABLE::TAB);
-          if (!(sjtbl = new (thd->mem_root) SJ_TMP_TABLE) ||
-              !(sjtbl->tabs = (SJ_TMP_TABLE::TAB *)thd->alloc(tabs_size)))
-            DBUG_RETURN(true); /* purecov: inspected */
-          memcpy(sjtbl->tabs, sjtabs, tabs_size);
-          sjtbl->is_confluent = false;
-          sjtbl->tabs_end = sjtbl->tabs + (last_tab - sjtabs);
-          sjtbl->rowid_len = jt_rowid_offset;
-          sjtbl->null_bits = jt_null_bits;
-          sjtbl->null_bytes = (jt_null_bits + 7) / 8;
-          sjtbl->tmp_table = create_duplicate_weedout_tmp_table(
-              thd, sjtbl->rowid_len + sjtbl->null_bytes, sjtbl);
-          if (sjtbl->tmp_table == nullptr) DBUG_RETURN(true);
-          if (sjtbl->tmp_table->hash_field)
-            sjtbl->tmp_table->file->ha_index_init(0, 0);
-          join->sj_tmp_tables.push_back(sjtbl->tmp_table);
-        } else {
-          /*
-            This is confluent case where the entire subquery predicate does
-            not depend on anything at all, ie this is
-              WHERE const IN (uncorrelated select)
-          */
-          if (!(sjtbl = new (thd->mem_root) SJ_TMP_TABLE))
-            DBUG_RETURN(true); /* purecov: inspected */
-          sjtbl->tmp_table = NULL;
-          sjtbl->is_confluent = true;
-          sjtbl->have_confluent_row = false;
+        SJ_TMP_TABLE *sjtbl = create_sj_tmp_table(thd, join, sjtabs, last_tab);
+        if (sjtbl == nullptr) {
+          DBUG_RETURN(true);
         }
+
         qep_array[first_table].flush_weedout_table = sjtbl;
         last_sj_tab->check_weed_out_table = sjtbl;
 
