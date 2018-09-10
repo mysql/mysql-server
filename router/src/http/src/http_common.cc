@@ -25,8 +25,11 @@
 /**
  * API Facade around libevent's http interface
  */
+#include "mysqlrouter/http_common.h"
 
 #include <iostream>
+#include <sstream>
+#include <stack>
 #include <stdexcept>
 
 #include <event2/buffer.h>
@@ -37,7 +40,7 @@
 #include <event2/util.h>
 
 #include "http_request_impl.h"
-#include "mysqlrouter/http_common.h"
+#include "mysql/harness/utility/string.h"
 
 // wrap evhttp_uri
 
@@ -61,6 +64,31 @@ HttpUri HttpUri::parse(const std::string &uri_str) {
 
 std::string HttpUri::get_path() const {
   return evhttp_uri_get_path(pImpl_->uri.get());
+}
+
+std::string http_uri_path_canonicalize(const std::string &uri_path) {
+  if (uri_path.empty()) return "/";
+
+  std::deque<std::string> sections;
+
+  std::istringstream ss(uri_path);
+  for (std::string section; std::getline(ss, section, '/');) {
+    if (section == "..") {
+      // remove last item on the stack
+      if (!sections.empty()) {
+        sections.pop_back();
+      }
+    } else if (section != "." && !section.empty()) {
+      sections.emplace_back(section);
+    }
+  }
+
+  bool has_trailing_slash = uri_path.back() == '/';
+  if (has_trailing_slash) sections.emplace_back("");
+
+  auto out = "/" + mysql_harness::join(sections, "/");
+
+  return out;
 }
 
 // wrap evbuffer

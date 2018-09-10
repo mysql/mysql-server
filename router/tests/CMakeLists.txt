@@ -29,12 +29,13 @@ INCLUDE_DIRECTORIES(helpers
   )
 
 SET(helper_sources
-  helpers/router_test_helpers.cc
+  helpers/gtest_testname.cc
   helpers/mysql_session_replayer.cc
   helpers/router_component_test.cc
   helpers/router_component_system_layout.cc
-  helpers/tcp_port_pool.cc
+  helpers/router_test_helpers.cc
   helpers/script_generator.cc
+  helpers/tcp_port_pool.cc
 )
 
 IF(WIN32)

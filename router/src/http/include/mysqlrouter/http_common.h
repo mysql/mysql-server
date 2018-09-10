@@ -251,6 +251,22 @@ inline name_type get_default_status_text(key_type key) {
 }  // namespace HttpStatusCode
 
 /**
+ * canonicalize a URI path.
+ *
+ * input  | output
+ * -------|-------
+ * /      | /
+ * /./    | /
+ * //     | /
+ * /../   | /
+ * /a/../ | /
+ * /../a/ | /a/
+ * /../a  | /a
+ */
+HTTP_COMMON_EXPORT std::string http_uri_path_canonicalize(
+    const std::string &uri_path);
+
+/**
  * representation of HTTP URI.
  *
  * wraps evhttp_uri and exposes a subset of the libevent function-set

@@ -31,3 +31,8 @@ add_test_file(test_time.cc
 add_test_file(test_posix_re.cc
   MODULE http
   )
+
+add_test_file(test_http_uri.cc
+  MODULE http
+  LIB_DEPENDS http_common
+  )

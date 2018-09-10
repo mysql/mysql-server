@@ -45,6 +45,7 @@ ADD_SUBDIRECTORY(plugins)
 SET(TEST_MODULE harness)
 
 SET(TESTS
+  test_utility_string.cc
   test_loader.cc
   test_loader_lifecycle.cc
   test_logging.cc

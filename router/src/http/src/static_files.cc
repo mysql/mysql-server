@@ -36,6 +36,7 @@
 #include <sys/types.h>
 
 #include "http_server_plugin.h"
+#include "mysql/harness/utility/string.h"
 #include "mysqlrouter/http_server_component.h"
 
 void HttpStaticFolderHandler::handle_request(HttpRequest &req) {
@@ -46,33 +47,14 @@ void HttpStaticFolderHandler::handle_request(HttpRequest &req) {
   std::string file_path{static_basedir_};
 
   file_path += "/";
-  // normalize the path
-  file_path += parsed_uri.get_path();
+  file_path += http_uri_path_canonicalize(parsed_uri.get_path());
 
   auto out_hdrs = req.get_output_headers();
-
-  auto n = file_path.rfind('.');
-  if (n != std::string::npos) {
-    const std::map<std::string, std::string> mimetypes{
-        {"css", "text/css"},          {"js", "text/javascript"},
-        {"json", "application/json"}, {"html", "text/html"},
-        {"png", "image/png"},         {"svg", "image/svg+xml"},
-    };
-    std::string extension = file_path.substr(n + 1);
-    auto it = mimetypes.find(extension);
-
-    if (it != mimetypes.end()) {
-      // found
-      out_hdrs.add("Content-Type", it->second.c_str());
-    } else {
-      out_hdrs.add("Content-Type", "application/octet-stream");
-    }
-  }
 
   struct stat st;
   if (-1 == stat(file_path.c_str(), &st)) {
     if (errno == ENOENT) {
-      // if it was a directory
+      // file doesn't exist
       req.send_error(HttpStatusCode::NotFound);
 
       return;
@@ -89,8 +71,8 @@ void HttpStaticFolderHandler::handle_request(HttpRequest &req) {
 
     if (-1 == stat(file_path.c_str(), &st)) {
       if (errno == ENOENT) {
-        // if it was a directory
-        req.send_error(HttpStatusCode::NotFound);
+        // it was a directory, but there is no index-file
+        req.send_error(HttpStatusCode::Forbidden);
 
         return;
       } else {
@@ -101,23 +83,25 @@ void HttpStaticFolderHandler::handle_request(HttpRequest &req) {
     }
   }
 
-  // file exists
-
   int file_fd = open(file_path.c_str(), O_RDONLY);
 
   if (file_fd < 0) {
     if (errno == ENOENT) {
-      // if it was a directory
+      // stat() succeeded, but open() failed.
+      //
+      // either a race or apparmor
       req.send_error(HttpStatusCode::NotFound);
 
       return;
     } else {
+      // if it was a directory
       req.send_error(HttpStatusCode::InternalError);
 
       return;
     }
   } else {
     if (!req.is_modified_since(st.st_mtime)) {
+      close(file_fd);
       req.send_error(HttpStatusCode::NotModified);
       return;
     }
@@ -139,6 +123,25 @@ void HttpStaticFolderHandler::handle_request(HttpRequest &req) {
       // file_fd is owned by evbuffer_add_file(), don't close it
     } else {
       close(file_fd);
+    }
+
+    // file exists
+    auto n = file_path.rfind('.');
+    if (n != std::string::npos) {
+      const std::map<std::string, std::string> mimetypes{
+          {"css", "text/css"},          {"js", "text/javascript"},
+          {"json", "application/json"}, {"html", "text/html"},
+          {"png", "image/png"},         {"svg", "image/svg+xml"},
+      };
+      std::string extension = file_path.substr(n + 1);
+      auto it = mimetypes.find(extension);
+
+      if (it != mimetypes.end()) {
+        // found
+        out_hdrs.add("Content-Type", it->second.c_str());
+      } else {
+        out_hdrs.add("Content-Type", "application/octet-stream");
+      }
     }
 
     req.send_reply(HttpStatusCode::Ok,
