@@ -782,7 +782,7 @@ void warn_about_deprecated_national(THD *thd)
 %token<keyword> LIST_SYM
 %token  LOAD
 %token<keyword> LOCAL_SYM             /* SQL-2003-R */
-%token  LOCATOR_SYM                   /* SQL-2003-N */
+%token  OBSOLETE_TOKEN_538            /* was: LOCATOR_SYM */
 %token<keyword> LOCKS_SYM
 %token  LOCK_SYM
 %token<keyword> LOGFILE_SYM
@@ -999,7 +999,7 @@ void warn_about_deprecated_national(THD *thd)
 %token<keyword> SERIAL_SYM
 %token<keyword> SESSION_SYM           /* SQL-2003-N */
 %token<keyword> SERVER_SYM
-%token  SERVER_OPTIONS
+%token  OBSOLETE_TOKEN_755            /* was: SERVER_OPTIONS */
 %token  SET_SYM                       /* SQL-2003-R */
 %token  SET_VAR
 %token<keyword> SHARE_SYM
@@ -1092,7 +1092,7 @@ void warn_about_deprecated_national(THD *thd)
 %token<keyword> TRUNCATE_SYM
 %token<keyword> TYPES_SYM
 %token<keyword> TYPE_SYM              /* SQL-2003-N */
-%token<keyword> UDF_RETURNS_SYM
+%token  OBSOLETE_TOKEN_848            /* was:  UDF_RETURNS_SYM */
 %token  ULONGLONG_NUM
 %token<keyword> UNCOMMITTED_SYM       /* SQL-2003-N */
 %token<keyword> UNDEFINED_SYM
@@ -14342,7 +14342,6 @@ ident_keywords_unambiguous:
         | TRIGGERS_SYM
         | TYPES_SYM
         | TYPE_SYM
-        | UDF_RETURNS_SYM
         | UNBOUNDED_SYM
         | UNCOMMITTED_SYM
         | UNDEFINED_SYM
