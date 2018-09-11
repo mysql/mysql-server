@@ -3156,9 +3156,11 @@ bool meb_scan_log_recs(
     }
 
     if (!log_block_checksum_is_ok(log_block)) {
+      uint32_t checksum1 = log_block_get_checksum(log_block);
+      uint32_t checksum2 = log_block_calc_checksum(log_block);
       ib::error(ER_IB_MSG_720, no, scanned_lsn,
-                log_block_get_checksum(log_block),
-                log_block_calc_checksum(log_block));
+                static_cast<unsigned long>(checksum1),
+                static_cast<unsigned long>(checksum2));
 
       /* Garbage or an incompletely written log block.
 
