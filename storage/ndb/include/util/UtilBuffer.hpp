@@ -37,22 +37,6 @@ public:
   UtilBuffer() { data = NULL; len = 0; alloc_size = 0; }
   ~UtilBuffer() { if(data) free(data); data = NULL; len = 0; alloc_size = 0; }
 
-
-  int reallocate(size_t newsize) {
-    if(newsize < len) {
-      errno = EINVAL;
-      return -1;
-    }
-    void *newdata;
-    if((newdata = realloc(data, newsize)) == NULL) {
-      errno = ENOMEM;
-      return -1;
-    }
-    alloc_size = newsize;
-    data = newdata;
-    return 0;
-  }
-
   /* Grow buffer to specified length.
      On success, returns 0. On failure, returns -1 and sets errno.
   */
@@ -138,7 +122,24 @@ public:
     }
     return ret;
   }
+
 private:
+
+  int reallocate(size_t newsize) {
+    if(newsize < len) {
+      errno = EINVAL;
+      return -1;
+    }
+    void *newdata;
+    if((newdata = realloc(data, newsize)) == NULL) {
+      errno = ENOMEM;
+      return -1;
+    }
+    alloc_size = newsize;
+    data = newdata;
+    return 0;
+  }
+
   void *data;          /* Pointer to data storage */
   size_t len;          /* Size of the stored data */
   size_t alloc_size;   /* Size of the allocated space,
