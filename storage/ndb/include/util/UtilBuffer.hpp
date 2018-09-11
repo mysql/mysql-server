@@ -34,8 +34,8 @@
  */
 class UtilBuffer {
 public:
-  UtilBuffer() { data = NULL; len = 0; alloc_size = 0; }
-  ~UtilBuffer() { if(data) free(data); data = NULL; len = 0; alloc_size = 0; }
+  UtilBuffer() : data(nullptr), len(0), alloc_size(0) { }
+  ~UtilBuffer() { free(data); }
 
   /* Grow buffer to specified length.
      On success, returns 0. On failure, returns -1 and sets errno.
@@ -52,17 +52,19 @@ public:
   int append(const void *d, size_t l) {
     if (likely(l > 0))
     {
-      if (unlikely(d == NULL))
+      if (unlikely(d == nullptr))
       {
         errno = EINVAL;
         return -1;
       }
-      const int ret = grow(len+l);
-      if (unlikely(ret != 0))
-        return ret;
-      
-      memcpy((char *)data+len, d, l);
-      len += l;
+
+      void * pos = append(l);
+      if(pos == nullptr)
+      {
+        return -1;
+      }
+
+      memcpy(pos, d, l);
     }
     return 0;
   }
@@ -73,7 +75,7 @@ public:
   */
   void * append(size_t l){
     if(grow(len+l) != 0)
-      return 0;
+      return nullptr;
 
     void * ret = (char*)data+len;
     len += l;
@@ -86,7 +88,7 @@ public:
   int assign(const void * d, size_t l) {
     /* Free the old data only after copying, in case d==data. */
     void *old_data= data;
-    data = NULL;
+    data = nullptr;
     len = 0;
     alloc_size = 0;
     int ret= append(d, l);
