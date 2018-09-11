@@ -373,17 +373,19 @@ SELECT * from t1 WHERE col1 BETWEEN '2000-01-01 01:02:00' AND '2000-01-01 01:03:
 
 DROP TABLE t1;
 
-# WL6378_ALTER_PARTITION_TABLESPACE
-# Reason for disabling the test is that, the following fix does
-# not completely fix the behaviour of ALTER TABLE on a table with
-# partitions using separate tablespace. A new bug Bug#21914047
-# is filed on trunk/5.7, which with slight modification to below test
-# case causes server to dump. After talking to Deb (InnoDB) it
-# seem that the behavior of such a ALTER is not documented yet.
-# So, we are disabling this case until the above bug is fixed.
-#--echo #
-#--echo # Bug#21755994 ALTER INPLACE CRASHES ON A INNODB TABLE WITH PARTITION ON SEPARATE TABLESPACE
-#--echo #
+--echo #
+--echo # Bug#21755994 ALTER INPLACE CRASHES ON A INNODB TABLE WITH PARTITION ON SEPARATE TABLESPACE
+--echo #
+--echo # Note that we do not support partitions in shared tablespaces
+--echo # (at least not until WL12034).
+
+# This test case was disabled during WL#6378 due to Bug#21914047.
+# The bug has been fixed, but InnoDB now does not support partitions
+# in shared tablespaces. Hence, the test case is temporarily rewritten
+# and the original test case may be restored when partitinos are again
+# allowed to be in shared tablespaces.
+#
+# TODO WL#12034: Enable the test case below.
 #
 #CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
 #
@@ -399,6 +401,25 @@ DROP TABLE t1;
 #DROP TABLE t1;
 #DROP TABLESPACE ts1;
 
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TABLE t1 ( a INT NOT NULL, PRIMARY KEY (a))
+ENGINE=InnoDB
+PARTITION BY RANGE (a) PARTITIONS 3
+( PARTITION P1 VALUES LESS THAN (2),
+  PARTITION P2 VALUES LESS THAN (4) TABLESPACE `innodb_system`,
+  PARTITION P3 VALUES LESS THAN (6));
+
+CREATE TABLE t1 ( a INT NOT NULL, PRIMARY KEY (a))
+ENGINE=InnoDB
+PARTITION BY RANGE (a) PARTITIONS 3
+( PARTITION P1 VALUES LESS THAN (2),
+  PARTITION P2 VALUES LESS THAN (4) TABLESPACE `innodb_file_per_table`,
+  PARTITION P3 VALUES LESS THAN (6));
+
+ALTER TABLE t1 ADD COLUMN f int;
+
+DROP TABLE t1;
+ 
 # TODO : Enable following once shared tablespace are allowed in Partitioned
 #	 Table (wl#12034).
 # --echo #

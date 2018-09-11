@@ -374,6 +374,11 @@ page_no_t fsp_get_extent_size_in_pages(const page_size_t &page_size) {
 space_id_t fsp_header_get_space_id(
     const page_t *page); /*!< in: first page of a tablespace */
 
+/** Read the server version number from the DD tablespace header.
+@param[out]	version	server version from tablespace header
+@return false if success. */
+bool fsp_header_dict_get_server_version(uint *version);
+
 /** Read a tablespace header field.
 @param[in]	page	first page of a tablespace
 @param[in]	field	the header field

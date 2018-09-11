@@ -409,7 +409,7 @@ bool Table_impl::restore_attributes(const Raw_record &r) {
   m_engine = r.read_str(Tables::FIELD_ENGINE);
 
   // m_last_checked_for_upgrade_version added in 80012
-  if (bootstrap::DD_bootstrap_ctx::instance().is_upgrade_from_before(
+  if (bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade_from_before(
           bootstrap::DD_VERSION_80013)) {
     m_last_checked_for_upgrade_version_id = 0;
   } else {
@@ -454,7 +454,7 @@ bool Table_impl::store_attributes(Raw_record *r) {
   DBUG_ASSERT(!m_is_temporary);
 
   // Store last_checked_for_upgrade_version_id only if we're not upgrading
-  if (!bootstrap::DD_bootstrap_ctx::instance().is_upgrade_from_before(
+  if (!bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade_from_before(
           bootstrap::DD_VERSION_80013) &&
       r->store(Tables::FIELD_LAST_CHECKED_FOR_UPGRADE_VERSION_ID,
                m_last_checked_for_upgrade_version_id)) {

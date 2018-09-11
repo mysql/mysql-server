@@ -1,4 +1,4 @@
-if (`select convert(@@version_compile_os using latin1) LIKE ("%osx%") = 0`)
+if (`select convert(@@version_compile_os using latin1) RLIKE '^(osx|macos)' = 0`)
 {
-  skip Needs MacOSX;
+  skip Needs OSX or MacOS;
 }

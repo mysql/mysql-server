@@ -3646,6 +3646,30 @@ static void innobase_post_recover() {
   srv_start_purge_threads();
 }
 
+/**
+  Get the server version id stored in the header of the
+  dictionary tablespace.
+
+  @param [out] version  Version number from the DD
+                        tablespace header.
+
+  @retval Operation outcome, false if no error, otherwise true.
+*/
+static bool innobase_dict_get_server_version(uint *version) {
+  return (fsp_header_dict_get_server_version(version));
+}
+
+/**
+  Store the current server version number into the
+  header of the dictionary tablespace.
+
+  @retval Operation outcome, false if no error, otherwise true.
+*/
+static bool innobase_dict_set_server_version() {
+  /* Update the server version number, but leave the space version unchanged */
+  return (upgrade_space_version(dict_sys_t::s_space_id, true));
+}
+
 /** Check if InnoDB is in a mode where the data dictionary is read-only.
 @return true if srv_read_only_mode is true or if srv_force_recovery > 0 */
 static bool innobase_is_dict_readonly() {
@@ -4485,6 +4509,8 @@ static int innodb_init(void *p) {
       innobase_dict_cache_reset_tables_and_tablespaces;
 
   innobase_hton->dict_recover = innobase_dict_recover;
+  innobase_hton->dict_get_server_version = innobase_dict_get_server_version;
+  innobase_hton->dict_set_server_version = innobase_dict_set_server_version;
 
   innobase_hton->post_recover = innobase_post_recover;
 

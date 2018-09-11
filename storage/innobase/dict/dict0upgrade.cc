@@ -1210,8 +1210,9 @@ int dd_upgrade_tablespace(THD *thd) {
 
 /** Add server version number to tablespace while upgrading.
 @param[in]      space_id              space id of tablespace
+@param[in]      server_version_only   leave space version unchanged
 @return false on success, true on failure. */
-bool upgrade_space_version(const uint32 space_id) {
+bool upgrade_space_version(const uint32 space_id, bool server_version_only) {
   buf_block_t *block;
   page_t *page;
   mtr_t mtr;
@@ -1232,9 +1233,10 @@ bool upgrade_space_version(const uint32 space_id) {
 
   mlog_write_ulint(page + FIL_PAGE_SRV_VERSION, DD_SPACE_CURRENT_SRV_VERSION,
                    MLOG_4BYTES, &mtr);
-
-  mlog_write_ulint(page + FIL_PAGE_SPACE_VERSION,
-                   DD_SPACE_CURRENT_SPACE_VERSION, MLOG_4BYTES, &mtr);
+  if (!server_version_only) {
+    mlog_write_ulint(page + FIL_PAGE_SPACE_VERSION,
+                     DD_SPACE_CURRENT_SPACE_VERSION, MLOG_4BYTES, &mtr);
+  }
 
   mtr_commit(&mtr);
   fil_space_release(space);
@@ -1252,7 +1254,8 @@ bool upgrade_space_version(dd::Tablespace *tablespace) {
     ut_ad(0);
     return (true);
   }
-  return (upgrade_space_version(space_id));
+  /* Upgrade both server and space version */
+  return (upgrade_space_version(space_id, false));
 }
 
 /** Upgrade innodb undo logs after upgrade. Also increment the table_id
