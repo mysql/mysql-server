@@ -151,8 +151,6 @@ class DestMetadataCacheGroup final
   size_t get_next_server(
       const DestMetadataCacheGroup::AvailableDestinations &available);
 
-  size_t current_pos_;
-
   routing::RoutingStrategy routing_strategy_;
 
   routing::AccessMode access_mode_;

@@ -605,7 +605,8 @@ class Slave_worker : public Relay_log_info {
   ulonglong checkpoint_master_log_pos;
   MY_BITMAP group_executed;  // bitmap describes groups executed after last CP
   MY_BITMAP group_shifted;   // temporary bitmap to compute group_executed
-  ulong checkpoint_seqno;    // the most significant ON bit in group_executed
+  ulong
+      worker_checkpoint_seqno;  // the most significant ON bit in group_executed
   /* Initial value of FD-for-execution version until it's gets known. */
   ulong server_version;
   enum en_running_state {

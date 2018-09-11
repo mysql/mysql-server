@@ -710,7 +710,6 @@ class MetadataCacheLoggingTest : public RouterLoggingTest {
         &default_section);
   }
 
-  TcpPortPool port_pool_;
   std::string json_primary_node_template_;
   std::string json_primary_node_;
   std::string temp_test_dir;

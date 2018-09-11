@@ -23,7 +23,7 @@
 MACRO(MY_ADD_C_WARNING_FLAG WARNING_FLAG)
   MY_CHECK_C_COMPILER_FLAG("-${WARNING_FLAG}" HAVE_${WARNING_FLAG})
   IF(HAVE_${WARNING_FLAG})
-    SET(MY_C_WARNING_FLAGS "${MY_C_WARNING_FLAGS} -${WARNING_FLAG}")
+    STRING_APPEND(MY_C_WARNING_FLAGS " -${WARNING_FLAG}")
   ENDIF()
 ENDMACRO()
 
@@ -31,7 +31,7 @@ MACRO(MY_ADD_CXX_WARNING_FLAG WARNING_FLAG)
   STRING(REPLACE "c++" "cpp" WARNING_VAR ${WARNING_FLAG})
   MY_CHECK_CXX_COMPILER_FLAG("-${WARNING_FLAG}" HAVE_${WARNING_VAR})
   IF(HAVE_${WARNING_VAR})
-    SET(MY_CXX_WARNING_FLAGS "${MY_CXX_WARNING_FLAGS} -${WARNING_FLAG}")
+    STRING_APPEND(MY_CXX_WARNING_FLAGS " -${WARNING_FLAG}")
   ENDIF()
 ENDMACRO()
 
@@ -45,12 +45,11 @@ SET(MY_WARNING_FLAGS
 
 # Gives spurious warnings on 32-bit; see GCC bug 81890.
 IF(SIZEOF_VOIDP EQUAL 8)
-  SET(MY_WARNING_FLAGS "${MY_WARNING_FLAGS} -Wmissing-format-attribute")
+  STRING_APPEND(MY_WARNING_FLAGS " -Wmissing-format-attribute")
 ENDIF()
 
 # Common warning flags for GCC and Clang
-SET(MY_C_WARNING_FLAGS
-    "${MY_WARNING_FLAGS} -Wwrite-strings")
+SET(MY_C_WARNING_FLAGS "${MY_WARNING_FLAGS} -Wwrite-strings")
 
 # Common warning flags for G++ and Clang++
 SET(MY_CXX_WARNING_FLAGS "${MY_WARNING_FLAGS} -Woverloaded-virtual")
@@ -127,7 +126,7 @@ ENDIF()
 #
 
 # Only for C++ as C code has some macro usage that is difficult to avoid
-IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+IF(CMAKE_COMPILER_IS_GNUCXX)
   MY_ADD_CXX_WARNING_FLAG("Wlogical-op")
 ENDIF()
 
@@ -151,7 +150,9 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wnon-virtual-dtor")
   STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wundefined-reinterpret-cast")
   STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wextra-semi")
-  MY_ADD_CXX_WARNING_FLAG("-Winconsistent-missing-destructor-override")
+
+  MY_ADD_CXX_WARNING_FLAG("Winconsistent-missing-destructor-override")
+  MY_ADD_CXX_WARNING_FLAG("Wshadow-field")
 
   # Other possible options that give warnings (Clang 6.0):
   # -Wabstract-vbase-init
@@ -191,7 +192,6 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   # -Wredundant-parens
   # -Wreserved-id-macro
   # -Wshadow
-  # -Wshadow-field
   # -Wshift-sign-overflow
   # -Wsign-conversion
   # -Wswitch-enum

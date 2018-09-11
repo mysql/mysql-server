@@ -262,7 +262,7 @@ Slave_worker::Slave_worker(Relay_log_info *rli
       id(param_id),
       checkpoint_relay_log_pos(0),
       checkpoint_master_log_pos(0),
-      checkpoint_seqno(0),
+      worker_checkpoint_seqno(0),
       running_status(NOT_RUNNING),
       exit_incremented(false) {
   /*
@@ -514,7 +514,7 @@ bool Slave_worker::read_info(Rpl_info_handler *from) {
   group_master_log_pos = temp_group_master_log_pos;
   checkpoint_relay_log_pos = temp_checkpoint_relay_log_pos;
   checkpoint_master_log_pos = temp_checkpoint_master_log_pos;
-  checkpoint_seqno = temp_checkpoint_seqno;
+  worker_checkpoint_seqno = temp_checkpoint_seqno;
 
   DBUG_RETURN(false);
 }
@@ -563,7 +563,7 @@ bool Slave_worker::write_info(Rpl_info_handler *to) {
       to->set_info((ulong)checkpoint_relay_log_pos) ||
       to->set_info(checkpoint_master_log_name) ||
       to->set_info((ulong)checkpoint_master_log_pos) ||
-      to->set_info((ulong)checkpoint_seqno) || to->set_info(nbytes) ||
+      to->set_info(worker_checkpoint_seqno) || to->set_info(nbytes) ||
       to->set_info(buffer, (size_t)nbytes) || to->set_info(channel))
     DBUG_RETURN(true);
 
@@ -651,7 +651,7 @@ bool Slave_worker::commit_positions(Log_event *ev, Slave_job_group *ptr_g,
   DBUG_ASSERT(ptr_g->checkpoint_seqno <= (c_rli->checkpoint_group - 1));
 
   bitmap_set_bit(&group_executed, ptr_g->checkpoint_seqno);
-  checkpoint_seqno = ptr_g->checkpoint_seqno;
+  worker_checkpoint_seqno = ptr_g->checkpoint_seqno;
   group_relay_log_pos = ev->future_event_relay_log_pos;
   group_master_log_pos = ev->common_header->log_pos;
 
@@ -666,7 +666,7 @@ bool Slave_worker::commit_positions(Log_event *ev, Slave_job_group *ptr_g,
   DBUG_PRINT("mts", ("Committing worker-id %lu group master log pos %llu "
                      "group master log name %s checkpoint sequence number %lu.",
                      id, group_master_log_pos, group_master_log_name,
-                     checkpoint_seqno));
+                     worker_checkpoint_seqno));
 
   DBUG_EXECUTE_IF("mts_debug_concurrent_access",
                   { mts_debug_concurrent_access++; };);

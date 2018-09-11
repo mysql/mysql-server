@@ -2940,10 +2940,10 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli) {
       ret_worker->bitmap_shifted = 0;
       ret_worker->checkpoint_notified = true;
     }
-    ptr_group->checkpoint_seqno = rli->checkpoint_seqno;
+    ptr_group->checkpoint_seqno = rli->rli_checkpoint_seqno;
     ptr_group->ts = common_header->when.tv_sec +
                     (time_t)exec_time;  // Seconds_behind_master related
-    rli->checkpoint_seqno++;
+    rli->rli_checkpoint_seqno++;
     /*
       Coordinator should not use the main memroot however its not
       reset elsewhere either, so let's do it safe way.

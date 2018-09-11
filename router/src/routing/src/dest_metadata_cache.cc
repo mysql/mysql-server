@@ -197,7 +197,6 @@ DestMetadataCacheGroup::DestMetadataCacheGroup(
       cache_name_(metadata_cache),
       ha_replicaset_(replicaset),
       uri_query_(query),
-      current_pos_(0),
       routing_strategy_(routing_strategy),
       access_mode_(access_mode),
       server_role_(get_server_role_from_uri(query)),

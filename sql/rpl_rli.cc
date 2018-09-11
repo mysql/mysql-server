@@ -152,7 +152,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
       exit_counter(0),
       max_updated_index(0),
       recovery_parallel_workers(0),
-      checkpoint_seqno(0),
+      rli_checkpoint_seqno(0),
       checkpoint_group(opt_mts_checkpoint_group),
       recovery_groups_inited(false),
       mts_recovery_group_cnt(0),
@@ -325,7 +325,7 @@ void Relay_log_info::reset_notified_relay_log_change() {
 
    Worker notices the new checkpoint value at the group commit to reset
    the current bitmap and starts using the clean bitmap indexed from zero
-   of being reset checkpoint_seqno.
+   of being reset rli_checkpoint_seqno.
 
     New seconds_behind_master timestamp is installed.
 
@@ -370,16 +370,16 @@ void Relay_log_info::reset_notified_checkpoint(ulong shift, time_t new_ts,
                        static_cast<unsigned>(it - workers.begin())));
   }
   /*
-    There should not be a call where (shift == 0 && checkpoint_seqno != 0).
+    There should not be a call where (shift == 0 && rli_checkpoint_seqno != 0).
     Then the new checkpoint sequence is updated by subtracting the number
     of consecutive jobs that were successfully processed.
   */
   DBUG_ASSERT(current_mts_submode->get_type() != MTS_PARALLEL_TYPE_DB_NAME ||
-              !(shift == 0 && checkpoint_seqno != 0));
-  checkpoint_seqno = checkpoint_seqno - shift;
+              !(shift == 0 && rli_checkpoint_seqno != 0));
+  rli_checkpoint_seqno = rli_checkpoint_seqno - shift;
   DBUG_PRINT("mts", ("reset_notified_checkpoint shift --> %lu, "
-                     "checkpoint_seqno --> %u.",
-                     shift, checkpoint_seqno));
+                     "rli_checkpoint_seqno --> %u.",
+                     shift, rli_checkpoint_seqno));
 
   if (update_timestamp) {
     mysql_mutex_lock(&data_lock);

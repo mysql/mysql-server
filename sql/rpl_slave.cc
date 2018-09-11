@@ -4669,7 +4669,7 @@ static int exec_relay_log_event(THD *thd, Relay_log_info *rli,
       To avoid assigned event groups exceeding rli->checkpoint_group, it
       need force to compute checkpoint.
     */
-    bool force = rli->checkpoint_seqno >= rli->checkpoint_group;
+    bool force = rli->rli_checkpoint_seqno >= rli->checkpoint_group;
     if (force || rli->is_time_for_mts_checkpoint()) {
       mysql_mutex_unlock(&rli->data_lock);
       if (mts_checkpoint_routine(rli, force)) {
@@ -6021,19 +6021,21 @@ bool mts_recovery_groups(Relay_log_info *rli) {
                  rli->get_group_master_log_name(), ev->common_header->log_pos);
           if ((ret = mts_event_coord_cmp(&ev_coord, &w_last)) == 0) {
 #ifndef DBUG_OFF
-            for (uint i = 0; i <= w->checkpoint_seqno; i++) {
+            for (uint i = 0; i <= w->worker_checkpoint_seqno; i++) {
               if (bitmap_is_set(&w->group_executed, i))
                 DBUG_PRINT("mts", ("Bit %u is set.", i));
               else
                 DBUG_PRINT("mts", ("Bit %u is not set.", i));
             }
 #endif
-            DBUG_PRINT("mts", ("Doing a shift ini(%lu) end(%lu).",
-                               (w->checkpoint_seqno + 1) - recovery_group_cnt,
-                               w->checkpoint_seqno));
+            DBUG_PRINT("mts",
+                       ("Doing a shift ini(%lu) end(%lu).",
+                        (w->worker_checkpoint_seqno + 1) - recovery_group_cnt,
+                        w->worker_checkpoint_seqno));
 
-            for (uint i = (w->checkpoint_seqno + 1) - recovery_group_cnt, j = 0;
-                 i <= w->checkpoint_seqno; i++, j++) {
+            for (uint i = (w->worker_checkpoint_seqno + 1) - recovery_group_cnt,
+                      j = 0;
+                 i <= w->worker_checkpoint_seqno; i++, j++) {
               if (bitmap_is_set(&w->group_executed, i)) {
                 DBUG_PRINT("mts", ("Setting bit %u.", j));
                 bitmap_fast_test_and_set(groups, j);
@@ -6102,10 +6104,10 @@ bool mts_checkpoint_routine(Relay_log_info *rli, bool force) {
     two possible status of the last (being scheduled) group.
   */
   DBUG_ASSERT(!rli->gaq->full() ||
-              ((rli->checkpoint_seqno == rli->checkpoint_group - 1 &&
+              ((rli->rli_checkpoint_seqno == rli->checkpoint_group - 1 &&
                 (rli->mts_group_status == Relay_log_info::MTS_IN_GROUP ||
                  rli->mts_group_status == Relay_log_info::MTS_KILLED_GROUP)) ||
-               rli->checkpoint_seqno == rli->checkpoint_group));
+               rli->rli_checkpoint_seqno == rli->checkpoint_group));
 
   do {
     if (!is_mts_db_partitioned(rli)) mysql_mutex_lock(&rli->mts_gaq_LOCK);
@@ -6351,7 +6353,7 @@ static int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited) {
   rli->mts_worker_underrun_level = mts_worker_underrun_level;
   rli->curr_group_seen_begin = rli->curr_group_seen_gtid = false;
   rli->curr_group_isolated = false;
-  rli->checkpoint_seqno = 0;
+  rli->rli_checkpoint_seqno = 0;
   rli->mts_last_online_stat = my_time(0);
   rli->mts_group_status = Relay_log_info::MTS_NOT_IN_GROUP;
   clear_gtid_monitoring_info = true;

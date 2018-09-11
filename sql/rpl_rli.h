@@ -843,9 +843,10 @@ class Relay_log_info : public Rpl_info {
       exit_counter;  // Number of workers contributed to max updated group index
   ulonglong max_updated_index;
   ulong recovery_parallel_workers;  // number of workers while recovering
-  uint checkpoint_seqno;  // counter of groups executed after the most recent CP
-  uint checkpoint_group;  // cache for ::opt_mts_checkpoint_group
-  MY_BITMAP recovery_groups;  // bitmap used during recovery
+  uint rli_checkpoint_seqno;        // counter of groups executed after the most
+                                    // recent CP
+  uint checkpoint_group;            // cache for ::opt_mts_checkpoint_group
+  MY_BITMAP recovery_groups;        // bitmap used during recovery
   bool recovery_groups_inited;
   ulong mts_recovery_group_cnt;  // number of groups to execute at recovery
   ulong mts_recovery_index;      // running index of recoverable groups
