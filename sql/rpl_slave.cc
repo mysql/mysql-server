@@ -5679,6 +5679,17 @@ static void *handle_slave_worker(void *arg) {
   thd->rli_slave = w;
   thd->init_query_mem_roots();
 
+  if (channel_map.is_group_replication_channel_name(rli->get_channel())) {
+    if (channel_map.is_group_replication_channel_name(rli->get_channel(),
+                                                      true)) {
+      thd->rpl_thd_ctx.set_rpl_channel_type(GR_APPLIER_CHANNEL);
+    } else {
+      thd->rpl_thd_ctx.set_rpl_channel_type(GR_RECOVERY_CHANNEL);
+    }
+  } else {
+    thd->rpl_thd_ctx.set_rpl_channel_type(RPL_STANDARD_CHANNEL);
+  }
+
   w->set_filter(rli->rpl_filter);
 
   if ((w->deferred_events_collecting = w->rpl_filter->is_on()))
@@ -6590,6 +6601,17 @@ extern "C" void *handle_slave_sql(void *arg) {
         new Commit_order_manager(rli->opt_slave_parallel_workers);
 
   rli->set_commit_order_manager(commit_order_mngr);
+
+  if (channel_map.is_group_replication_channel_name(rli->get_channel())) {
+    if (channel_map.is_group_replication_channel_name(rli->get_channel(),
+                                                      true)) {
+      thd->rpl_thd_ctx.set_rpl_channel_type(GR_APPLIER_CHANNEL);
+    } else {
+      thd->rpl_thd_ctx.set_rpl_channel_type(GR_RECOVERY_CHANNEL);
+    }
+  } else {
+    thd->rpl_thd_ctx.set_rpl_channel_type(RPL_STANDARD_CHANNEL);
+  }
 
   mysql_mutex_unlock(&rli->info_thd_lock);
 

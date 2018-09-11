@@ -25,7 +25,8 @@
 
 #include "my_thread_local.h"         // my_thread_id
 #include "mysql/psi/mysql_thread.h"  // mysql_mutex_t
-#include "sql/handler.h"             // enum_tx_isolation
+#include "rpl_context.h"
+#include "sql/handler.h"  // enum_tx_isolation
 
 struct MYSQL;
 
@@ -169,6 +170,9 @@ typedef struct Trans_param {
 
   /// pointer to the status var original_commit_timestamp
   uint64 *original_commit_timestamp;
+
+  /** Replication channel info associated to this transaction/THD */
+  enum_rpl_channel_type rpl_channel_type;
 
 } Trans_param;
 
