@@ -47,13 +47,13 @@ static const char* create_sql[] = {
     "   name varchar(255),"
     "   port int unsigned,"
     "   unique(name, port)"
-    ") engine = myisam;",
+    ") engine = innodb;",
 
     "create table cluster ("
     "   id int primary key,"
     "   name varchar(255),"
     "   unique(name)"
-    "   ) engine = myisam;",
+    "   ) engine = innodb;",
 
     "create table process ("
     "  id int primary key,"
@@ -65,20 +65,20 @@ static const char* create_sql[] = {
     "    not null,"
     "  name varchar(255),"
     "  state enum ('starting', 'started', 'stopping', 'stopped') not null"
-    "  ) engine = myisam;",
+    "  ) engine = innodb;",
 
     "create table options ("
     "  id int primary key,"
     "  process_id int not null,"
     "  name varchar(255) not null,"
     "  value varchar(255) not null"
-    "  ) engine = myisam;",
+    "  ) engine = innodb;",
 
     "create table repl ("
     "  id int auto_increment primary key,"
     "  master_id int not null,"
     "  slave_id int not null"
-    "  ) engine = myisam;",
+    "  ) engine = innodb;",
 
     "create table command ("
     "  id int auto_increment primary key,"
@@ -86,7 +86,7 @@ static const char* create_sql[] = {
     "  cmd int not null,"
     "  process_id int not null,"
     "  process_args varchar(255) default NULL"
-    "  ) engine = myisam;",
+    "  ) engine = innodb;",
 
     0};
 
