@@ -1,9 +1,10 @@
-select reserved, (used>reserved) from ndbinfo.resources
+set @undo_buffer_pages = 20 * 32;
+select (reserved > @undo_buffer_pages), (used>reserved) from ndbinfo.resources
 where resource_name = 'TRANSACTION_MEMORY'
     order by node_id;
-reserved	(used>reserved)
-640	1
-640	1
+(reserved > @undo_buffer_pages)	(used>reserved)
+1	0
+1	0
 create tablespace ts1
 add datafile 'data1.dat'
   use logfile group initial_lg1
