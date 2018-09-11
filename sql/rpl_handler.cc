@@ -325,6 +325,7 @@ int Trans_delegate::before_commit(THD *thd, bool all,
   param.cache_log_max_size = cache_log_max_size;
   param.original_commit_timestamp = &thd->variables.original_commit_timestamp;
   param.is_atomic_ddl = is_atomic_ddl_arg;
+  param.rpl_channel_type = thd->rpl_thd_ctx.get_rpl_channel_type();
 
   bool is_real_trans =
       (all || !thd->get_transaction()->is_active(Transaction_ctx::SESSION));
@@ -491,6 +492,7 @@ int Trans_delegate::before_rollback(THD *thd, bool all) {
   param.server_id = thd->server_id;
   param.server_uuid = server_uuid;
   param.thread_id = thd->thread_id();
+  param.rpl_channel_type = thd->rpl_thd_ctx.get_rpl_channel_type();
 
   bool is_real_trans =
       (all || !thd->get_transaction()->is_active(Transaction_ctx::SESSION));
@@ -514,6 +516,7 @@ int Trans_delegate::after_commit(THD *thd, bool all) {
 
   thd->get_trans_fixed_pos(&param.log_file, &param.log_pos);
   param.server_id = thd->server_id;
+  param.rpl_channel_type = thd->rpl_thd_ctx.get_rpl_channel_type();
 
   DBUG_PRINT("enter",
              ("log_file: %s, log_pos: %llu", param.log_file, param.log_pos));
@@ -536,6 +539,7 @@ int Trans_delegate::after_rollback(THD *thd, bool all) {
   if (is_real_trans) param.flags |= TRANS_IS_REAL_TRANS;
   thd->get_trans_fixed_pos(&param.log_file, &param.log_pos);
   param.server_id = thd->server_id;
+  param.rpl_channel_type = thd->rpl_thd_ctx.get_rpl_channel_type();
 
   int ret = 0;
   FOREACH_OBSERVER(ret, after_rollback, (&param));

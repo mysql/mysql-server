@@ -186,8 +186,7 @@ int group_replication_trans_before_commit(Trans_param *param) {
     lock below.
   */
   Replication_thread_api channel_interface;
-  if (channel_interface.is_own_event_applier(param->thread_id,
-                                             "group_replication_applier")) {
+  if (GR_APPLIER_CHANNEL == param->rpl_channel_type) {
     // If plugin is stopping, there is no point in update the statistics.
     bool fail_to_lock = shared_plugin_stop_lock->try_grab_read_lock();
     if (!fail_to_lock) {
@@ -207,8 +206,8 @@ int group_replication_trans_before_commit(Trans_param *param) {
 
     DBUG_RETURN(0);
   }
-  if (channel_interface.is_own_event_applier(param->thread_id,
-                                             "group_replication_recovery")) {
+
+  if (GR_RECOVERY_CHANNEL == param->rpl_channel_type) {
     DBUG_RETURN(0);
   }
 

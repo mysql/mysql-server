@@ -466,8 +466,6 @@ int channel_stop(Master_info *mi, int threads_to_stop, long timeout) {
     DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
   }
 
-  mi->channel_rdlock();
-
   int thread_mask = 0;
   int server_thd_mask = 0;
   int error = 0;
@@ -495,7 +493,6 @@ int channel_stop(Master_info *mi, int threads_to_stop, long timeout) {
 
 end:
   unlock_slave_threads(mi);
-  mi->channel_unlock();
 
   if (thd_init) {
     clean_thread_context();
@@ -634,11 +631,8 @@ bool channel_is_active(const char *channel,
     DBUG_RETURN(false);
   }
 
-  mi->channel_rdlock();
-
   init_thread_mask(&thread_mask, mi, 0 /* not inverse*/);
 
-  mi->channel_unlock();
   channel_map.unlock();
 
   switch (thd_type) {
@@ -669,8 +663,6 @@ int channel_get_thread_id(const char *channel,
     channel_map.unlock();
     DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
   }
-
-  mi->channel_rdlock();
 
   switch (thd_type) {
     case CHANNEL_RECEIVER_THREAD:
@@ -740,10 +732,9 @@ int channel_get_thread_id(const char *channel,
       }
       break;
     default:
-      DBUG_RETURN(number_threads);
+      break;
   }
 
-  mi->channel_unlock();
   channel_map.unlock();
 
   DBUG_RETURN(number_threads);
@@ -761,7 +752,6 @@ long long channel_get_last_delivered_gno(const char *channel, int sidno) {
     DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
   }
 
-  mi->channel_rdlock();
   rpl_gno last_gno = 0;
 
   Checkable_rwlock *sid_lock = mi->rli->get_sid_lock();
@@ -780,7 +770,6 @@ long long channel_get_last_delivered_gno(const char *channel, int sidno) {
   my_free(retrieved_gtid_set_string);
 #endif
 
-  mi->channel_unlock();
   channel_map.unlock();
 
   DBUG_RETURN(last_gno);
@@ -796,15 +785,13 @@ int channel_add_executed_gtids_to_received_gtids(const char *channel) {
     DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
   }
 
-  mi->channel_rdlock();
-  channel_map.unlock();
   global_sid_lock->wrlock();
 
   enum_return_status return_status =
       mi->rli->add_gtid_set(gtid_state->get_executed_gtids());
 
   global_sid_lock->unlock();
-  mi->channel_unlock();
+  channel_map.unlock();
 
   DBUG_RETURN(return_status != RETURN_STATUS_OK);
 }
@@ -1026,8 +1013,6 @@ bool channel_is_stopping(const char *channel,
     DBUG_RETURN(false);
   }
 
-  mi->channel_rdlock();
-
   switch (thd_type) {
     case CHANNEL_NO_THD:
       break;
@@ -1041,7 +1026,6 @@ bool channel_is_stopping(const char *channel,
       DBUG_ASSERT(0);
   }
 
-  mi->channel_unlock();
   channel_map.unlock();
 
   DBUG_RETURN(is_stopping);
@@ -1055,9 +1039,7 @@ bool is_partial_transaction_on_channel_relay_log(const char *channel) {
     channel_map.unlock();
     DBUG_RETURN(false);
   }
-  mi->channel_rdlock();
   bool ret = mi->transaction_parser.is_inside_transaction();
-  mi->channel_unlock();
   channel_map.unlock();
   DBUG_RETURN(ret);
 }
