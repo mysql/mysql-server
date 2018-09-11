@@ -3495,6 +3495,8 @@ void Dbdih::stop_pause(Signal *signal)
   c_dequeue_lcp_rep_ongoing = true;
   ndbassert(check_pause_state_sanity());
   dequeue_lcp_rep(signal);
+
+  checkLcpCompletedLab(signal);
 }
 
 /**
@@ -21641,6 +21643,12 @@ Dbdih::sendLCP_FRAG_ORD(Signal* signal,
 
 void Dbdih::checkLcpCompletedLab(Signal* signal) 
 {
+  if (c_lcp_id_paused != RNIL)
+  {
+    jam();
+    return;
+  }
+
   if(c_lcpState.lcpStatus < LCP_TAB_COMPLETED)
   {
     jam();
