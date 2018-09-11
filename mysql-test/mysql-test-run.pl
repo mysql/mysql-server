@@ -6823,6 +6823,10 @@ sub run_ctest() {
   # Special override: also ignore in Pushbuild, some platforms may
   # not have it. Now, run ctest and collect output.
   $ENV{CTEST_OUTPUT_ON_FAILURE} = 1;
+  # Run unit tests in parallel with the same number of threads as
+  # the MTR tests.
+  mtr_report("Running ctest parallel=$opt_parallel");
+  $ENV{CTEST_PARALLEL_LEVEL} = $opt_parallel;
   my $ctest_out = `ctest --test-timeout $opt_ctest_timeout $ctest_vs 2>&1`;
   if ($? == $no_ctest && ($opt_ctest == -1 || defined $ENV{PB2WORKDIR})) {
     chdir($olddir);
