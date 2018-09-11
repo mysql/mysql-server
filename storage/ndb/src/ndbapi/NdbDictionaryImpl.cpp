@@ -3405,6 +3405,7 @@ void NdbTableImpl::IndirectReader(SimpleProperties::Reader & it,
 
   if(key == DictTabInfo::FrmData) {
     /* Expand the UtilBuffer to the required length, then copy data in */
+    impl->m_frm.grow(it.getPaddedLength());
     it.getString(static_cast<char *>(impl->m_frm.append(it.getValueLen())));
   }
 }
