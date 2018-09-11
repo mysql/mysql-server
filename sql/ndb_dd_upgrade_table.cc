@@ -589,6 +589,7 @@ static bool fix_fk_parent_key_names(THD *thd,
     tables being referenced by this one.
   */
   if (adjust_fk_children_after_parent_def_change(thd,
+                                                 true,     // Check charsets.
                                                  schema_name.c_str(),
                                                  table_name.c_str(),
                                                  hton,

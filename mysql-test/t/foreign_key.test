@@ -542,7 +542,7 @@ CREATE TABLE t2 (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(100), fname VAR
 SHOW CREATE TABLE t1;
 SHOW CREATE TABLE t2;
 
---error ER_FK_COLUMN_CANNOT_CHANGE
+--error ER_FK_INCOMPATIBLE_COLUMNS
 ALTER TABLE t2 CONVERT TO CHARACTER SET latin1;
 
 SET foreign_key_checks= OFF;
@@ -3555,6 +3555,510 @@ ALTER TABLE child_one ADD PRIMARY KEY(fk);
 --error ER_FK_COLUMN_NOT_NULL
 ALTER TABLE child_two ADD PRIMARY KEY(fk);
 DROP TABLES child_one, child_two, parent;
+
+--echo #
+--echo # 7) Test that we check that referencing and referenced column types are
+--echo #    compatible. Such check should be performed for newly created foreign
+--echo #    keys and when we change types of columns in existing foreign keys.
+--echo #
+
+--echo #
+--echo # 7.a) Attempt to create new foreign key between columns of incompatible
+--echo #      types should lead to error. This should happen even in
+--echo #      FOREIGN_KEY_CHECKS=0 mode.
+CREATE TABLE parent (pk INT PRIMARY KEY);
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk CHAR(10), FOREIGN KEY (fk) REFERENCES parent(pk));
+SET FOREIGN_KEY_CHECKS=0;
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk CHAR(10), FOREIGN KEY (fk) REFERENCES parent(pk));
+SET FOREIGN_KEY_CHECKS=1;
+
+CREATE TABLE child (fk CHAR(10));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent(pk);
+SET FOREIGN_KEY_CHECKS=0;
+--error ER_FK_INCOMPATIBLE_COLUMNS
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent(pk);
+
+SET FOREIGN_KEY_CHECKS=1;
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE self (pk INT PRIMARY KEY, fk CHAR(10), FOREIGN KEY (fk) REFERENCES self(pk));
+SET FOREIGN_KEY_CHECKS=0;
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE self (pk INT PRIMARY KEY, fk CHAR(10), FOREIGN KEY (fk) REFERENCES self(pk));
+SET FOREIGN_KEY_CHECKS=1;
+
+CREATE TABLE self (pk INT PRIMARY KEY, fk CHAR(10));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+ALTER TABLE self ADD FOREIGN KEY (fk) REFERENCES self(pk);
+SET FOREIGN_KEY_CHECKS=0;
+--error ER_FK_INCOMPATIBLE_COLUMNS
+ALTER TABLE self ADD FOREIGN KEY (fk) REFERENCES self(pk);
+SET FOREIGN_KEY_CHECKS=1;
+DROP TABLES self, child;
+
+--echo #
+--echo # 7.b) Attempt to change referencing or referenced column in existing
+--echo #      foreign key to incompatible type should lead to error. This
+--echo #      should also happen in FOREIGN_KEY_CHECKS=0 mode in general case
+--echo #      (there is exception for charset changes which we test below).
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+ALTER TABLE child MODIFY fk CHAR(10);
+--error ER_FK_INCOMPATIBLE_COLUMNS
+ALTER TABLE parent MODIFY pk CHAR(10);
+SET FOREIGN_KEY_CHECKS=0;
+--error ER_FK_INCOMPATIBLE_COLUMNS
+ALTER TABLE child MODIFY fk CHAR(10);
+--error ER_FK_INCOMPATIBLE_COLUMNS
+ALTER TABLE parent MODIFY pk CHAR(10);
+SET FOREIGN_KEY_CHECKS=1;
+
+CREATE TABLE self (pk INT PRIMARY KEY, fk INT, FOREIGN KEY (fk) REFERENCES self(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+ALTER TABLE self MODIFY fk CHAR(10);
+--error ER_FK_INCOMPATIBLE_COLUMNS
+ALTER TABLE self MODIFY pk CHAR(10);
+SET FOREIGN_KEY_CHECKS=0;
+--error ER_FK_INCOMPATIBLE_COLUMNS
+ALTER TABLE self MODIFY fk CHAR(10);
+--error ER_FK_INCOMPATIBLE_COLUMNS
+ALTER TABLE self MODIFY pk CHAR(10);
+SET FOREIGN_KEY_CHECKS=1;
+
+--echo # Modifying types of both referencing and referenced columns to
+--echo # to compatible types is OK. However FOREIGN_KEY_CHECKS=0 is needed
+--echo # to avoid error about possible FK violation due to data conversion.
+SET FOREIGN_KEY_CHECKS=0;
+ALTER TABLE self MODIFY pk CHAR(10), MODIFY fk CHAR(10);
+SET FOREIGN_KEY_CHECKS=1;
+DROP TABLES child, parent, self;
+
+--echo #
+--echo # 7.c) Test compatibility checks for multi-column foreign keys.
+CREATE TABLE parent (pk1 INT, pk2 INT, PRIMARY KEY (pk1, pk2));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk1 INT, fk2 CHAR(10), FOREIGN KEY (fk1, fk2) REFERENCES parent(pk1, pk2));
+CREATE TABLE child (fk1 INT, fk2 CHAR(10));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+ALTER TABLE child ADD FOREIGN KEY (fk1, fk2) REFERENCES parent(pk1, pk2);
+DROP TABLE child;
+
+CREATE TABLE child (fk1 INT, fk2 INT, FOREIGN KEY (fk1, fk2) REFERENCES parent(pk1, pk2));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+ALTER TABLE child MODIFY fk2 CHAR(10);
+--error ER_FK_INCOMPATIBLE_COLUMNS
+ALTER TABLE parent MODIFY pk2 CHAR(10);
+DROP TABLE child, parent;
+
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE self (pk1 INT, pk2 INT, fk1 INT, fk2 CHAR(10), PRIMARY KEY (pk1, pk2),
+                   FOREIGN KEY (fk1, fk2) REFERENCES self(pk1, pk2));
+CREATE TABLE self (pk1 INT, pk2 INT, fk1 INT, fk2 CHAR(10), PRIMARY KEY (pk1, pk2));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+ALTER TABLE self ADD FOREIGN KEY (fk1, fk2) REFERENCES self(pk1, pk2);
+DROP TABLE self;
+
+CREATE TABLE self (pk1 INT, pk2 INT, fk1 INT, fk2 INT, PRIMARY KEY (pk1, pk2),
+                   FOREIGN KEY (fk1, fk2) REFERENCES self(pk1, pk2));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+ALTER TABLE self MODIFY fk2 CHAR(10);
+--error ER_FK_INCOMPATIBLE_COLUMNS
+ALTER TABLE self MODIFY pk2 CHAR(10);
+DROP TABLE self;
+
+--echo #
+--echo # 7.d) It should be impossible to create foreign keys with incompatible
+--echo #      column types by adding parent to previously orphan foreign key.
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk CHAR(10), FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE parent0 (pk INT PRIMARY KEY);
+--error ER_FK_INCOMPATIBLE_COLUMNS
+ALTER TABLE parent0 RENAME TO parent;
+--error ER_FK_INCOMPATIBLE_COLUMNS
+ALTER TABLE parent0 RENAME TO parent, ADD COLUMN j INT;
+--error ER_FK_INCOMPATIBLE_COLUMNS
+RENAME TABLE parent0 TO parent;
+--disable_testcase Bug#28608460
+CREATE TABLE parent (pk INT PRIMARY KEY) ENGINE=MyISAM;
+ALTER TABLE parent ENGINE=InnoDB;
+--enable_testcase
+DROP TABLES child, parent0;
+SET FOREIGN_KEY_CHECKS=1;
+
+--echo #
+--echo # 7.e) Test how compatibility rules work for various types.
+--echo #      Different engines have different rules, so the below
+--echo #      part of test is specific to InnoDB.
+--echo #
+--echo # We don't check compatibility for BLOB based types as they only
+--echo # support prefix indexes which are not usable for foreign keys.
+--echo # Also we don't provide coverage for legacy types.
+
+--echo #
+--echo # 7.e.I) For integer types both type size and signedness should match.
+CREATE TABLE parent (pk INT PRIMARY KEY);
+--echo # Foreign keys over integer types are supported.
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+DROP TABLE child;
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk TINYINT, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk BIGINT, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk INT UNSIGNED, FOREIGN KEY (fk) REFERENCES parent(pk));
+ALTER TABLE parent MODIFY pk INT UNSIGNED;
+CREATE TABLE child (fk INT UNSIGNED, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+ALTER TABLE child MODIFY fk INT;
+DROP TABLE child, parent;
+--echo # Integer types are not compatible with most of other types
+--echo # (we check types with same storage requirements as INT below).
+CREATE TABLE parent (pk INT PRIMARY KEY);
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk BINARY(4), FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk VARBINARY(3), FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk FLOAT, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk DECIMAL(8,0), FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk TIMESTAMP, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk BIT(32), FOREIGN KEY (fk) REFERENCES parent(pk));
+--echo # Oddly enough, some integer types are compatible with some temporal
+--echo # types, enums and sets. However, this is probably a bug and not a
+--echo # feature, so we don't test it here.
+DROP TABLE parent;
+
+--echo #
+--echo # 7.e.II) For floating point types only the exact type matters.
+CREATE TABLE parent (pk DOUBLE PRIMARY KEY);
+--echo # Though using such types in foreign key is EXTREMELY bad idea they
+--echo # are supported.
+CREATE TABLE child (fk DOUBLE, FOREIGN KEY (fk) REFERENCES parent(pk));
+DROP TABLE child;
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk FLOAT, FOREIGN KEY (fk) REFERENCES parent(pk));
+--echo # Signedness doesn't matter.
+CREATE TABLE child (fk DOUBLE UNSIGNED, FOREIGN KEY (fk) REFERENCES parent(pk));
+DROP TABLES child, parent;
+--echo # Floating point types are not compatible with other types.
+--echo # (we check types with same storage requirements as FLOAT below).
+CREATE TABLE parent (pk FLOAT PRIMARY KEY);
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk BINARY(4), FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk VARBINARY(3), FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk DECIMAL(8,0), FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk TIMESTAMP, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk TIME(2), FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk BIT(32), FOREIGN KEY (fk) REFERENCES parent(pk));
+DROP TABLE parent;
+
+--echo #
+--echo # 7.e.III) Compatibility rules for DECIMAL type are broken.
+--echo #
+--echo #          InnoDB considers this type to be binary string type.
+--echo #          So it doesn't take into account precision and scale.
+--echo #          And it is hard to imagine that comparing binary strings
+--echo #          representing DECIMAL(10,9) and DECIMAL(10,1) can work
+--echo #          correctly. Making this type compatible with other binary
+--echo #          string types, some temporals and BIT type is probably a
+--echo #          bad idea too.
+CREATE TABLE parent (pk DECIMAL(6,2) PRIMARY KEY);
+--echo # Foreign keys over DECIMAL columns are supported.
+CREATE TABLE child (fk DECIMAL(6,2), FOREIGN KEY (fk) REFERENCES parent(pk));
+DROP TABLE child;
+--echo # Signedness doesn't matter.
+CREATE TABLE child (fk DECIMAL(6,2) UNSIGNED, FOREIGN KEY (fk) REFERENCES parent(pk));
+DROP TABLE child;
+--echo # DECIMAL type is not compatible with many other types.
+--echo # (we check types with same storage requirements as DECIMAL(6,2) below).
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk CHAR(4) CHARACTER SET latin1, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk VARCHAR(3) CHARACTER SET latin1, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk FLOAT, FOREIGN KEY (fk) REFERENCES parent(pk));
+DROP TABLE parent;
+
+--echo #
+--echo # 7.e.IV) All string types are compatible with each other provided
+--echo #         that charset matches (there are exceptions to the latter
+--echo #         rule, see below).
+CREATE TABLE parent (pk CHAR(10) PRIMARY KEY);
+--echo # Difference in size doesn't matter.
+CREATE TABLE child (fk CHAR(100), FOREIGN KEY (fk) REFERENCES parent(pk));
+--echo # Difference in type doesn't matter
+DROP TABLE child;
+CREATE TABLE child (fk VARCHAR(100), FOREIGN KEY (fk) REFERENCES parent(pk));
+DROP TABLES child, parent;
+--echo # Even VARCHARs which use different number of bytes to store length
+--echo # are compatible.
+CREATE TABLE parent (pk VARCHAR(10) PRIMARY KEY);
+CREATE TABLE child (fk VARCHAR(100), FOREIGN KEY (fk) REFERENCES parent(pk));
+DROP TABLE child, parent;
+--echo # However both columns must use the same collation.
+CREATE TABLE parent (pk VARCHAR(10) CHARACTER SET utf8mb4 PRIMARY KEY);
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk VARCHAR(100) CHARACTER SET latin1, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk VARCHAR(100) COLLATE utf8mb4_bin, FOREIGN KEY (fk) REFERENCES parent(pk));
+--echo # Binary strings are not compatible with non-binary strings.
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk VARBINARY(40), FOREIGN KEY (fk) REFERENCES parent(pk));
+DROP TABLE parent;
+--echo # But all binary string types are compatible.
+CREATE TABLE parent (pk VARBINARY(10) PRIMARY KEY);
+CREATE TABLE child (fk BINARY(100), FOREIGN KEY (fk) REFERENCES parent(pk));
+DROP TABLES child, parent;
+--echo # Non-binary string types are incompatible with non-string types.
+CREATE TABLE parent (pk CHAR(4) CHARACTER SET latin1 PRIMARY KEY);
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk FLOAT, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk DECIMAL(8,0), FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk TIMESTAMP, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk TIME(2), FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk BIT(32), FOREIGN KEY (fk) REFERENCES parent(pk));
+ALTER TABLE parent MODIFY pk CHAR(1) CHARACTER SET latin1;
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk YEAR, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk ENUM('a') CHARACTER SET latin1, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk SET('a') CHARACTER SET latin1, FOREIGN KEY (fk) REFERENCES parent(pk));
+DROP TABLE parent;
+--echo # Binary string types are incompatible with many non-string types.
+CREATE TABLE parent (pk BINARY(4) PRIMARY KEY);
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk FLOAT, FOREIGN KEY (fk) REFERENCES parent(pk));
+ALTER TABLE parent MODIFY pk BINARY(1);
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk YEAR, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk ENUM('a') CHARACTER SET binary, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk SET('a') CHARACTER SET binary, FOREIGN KEY (fk) REFERENCES parent(pk));
+--echo # Since we think that binary string compatibility with DECIMAL and some temporal types
+--echo # is probably a bug, we don't cover it here.
+DROP TABLE parent;
+
+--echo #
+--echo # 7.e.V) Compatibility rules for some of temporal types are broken.
+--echo #
+--echo #        InnoDB considers TIME, TIMESTAMP and DATETIME types to be
+--echo #        binary strings. As result they are compatible with each other
+--echo #        (no matter what scale is used), binary string, DECIMAL and BIT
+--echo #        types, which makes little sense.
+--echo #        YEAR and DATE types are considered to be integer types which
+--echo #        makes them compatible with some other integer types, enums and
+--echo #        sets, which is probably bad idea too.
+--echo #
+--echo #        YEAR and DATE are only compatible with itself (and integer types,
+--echo #        enums and sets with the same storage size which is probably a bug);
+CREATE TABLE parent(pk DATE PRIMARY KEY);
+CREATE TABLE child (fk DATE, FOREIGN KEY (fk) REFERENCES parent(pk));
+DROP TABLE child;
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk YEAR, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk BINARY(3), FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk VARBINARY(2), FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk FLOAT, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk DECIMAL(6,0), FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk TIME(0), FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk TIMESTAMP, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk BIT(24), FOREIGN KEY (fk) REFERENCES parent(pk));
+DROP TABLE parent;
+--echo #        TIME, TIMESTAMP and DATETIME types are compatible only
+--echo #        with other types which InnoDB considers binary strings.
+--echo #        Their scale doesn't matter (which is probably a bug).
+CREATE TABLE parent (pk TIMESTAMP PRIMARY KEY);
+CREATE TABLE child (fk TIMESTAMP, FOREIGN KEY (fk) REFERENCES parent(pk));
+DROP TABLE child;
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk CHAR(4) CHARACTER SET latin1, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk VARCHAR(3) CHARACTER SET latin1, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk FLOAT, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk DATE, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk ENUM('a'), FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk SET('a'), FOREIGN KEY (fk) REFERENCES parent(pk));
+DROP TABLE parent;
+
+--echo #
+--echo # 7.e.VI) Columns of ENUM type are compatible if storage size is
+--echo #         the same.
+--echo #
+--echo # They are also compatible with some integer types, but it is not
+--echo # clear if it is a bug or feature.
+--echo #
+CREATE TABLE parent(pk ENUM('a') PRIMARY KEY);
+--echo # Foreign key over ENUMs are supported, element names and count do
+--echo # not matter provided that storage size is the same.
+CREATE TABLE child (fk ENUM('b','c'), FOREIGN KEY (fk) REFERENCES parent(pk));
+DROP TABLE child;
+--echo # Storage size should match.
+--let $x100enum =`WITH RECURSIVE gen (num, el) AS (SELECT 1, CAST('\'a1\'' AS CHAR(2048)) UNION SELECT num+1, CONCAT(el,',\'a',num+1,'\'') FROM gen WHERE num <= 256) SELECT el FROM gen WHERE num = 256`
+--error ER_FK_INCOMPATIBLE_COLUMNS
+--eval CREATE TABLE child (fk ENUM($x100enum), FOREIGN KEY (fk) REFERENCES parent(pk))
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk DATE, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk BINARY(1), FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk VARBINARY(1), FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk FLOAT, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk DECIMAL(2,0), FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk TIME, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk TIMESTAMP, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk BIT(8), FOREIGN KEY (fk) REFERENCES parent(pk));
+DROP TABLE parent;
+
+--echo #
+--echo # 7.e.VII) Columns of SET type are compatible if storage size is
+--echo #          the same.
+--echo #
+--echo # They are also compatible with some integer types, but it is not
+--echo # clear if it is a bug or feature.
+--echo #
+CREATE TABLE parent(pk SET('a') PRIMARY KEY);
+--echo # Foreign key over SETs are supported, element names and count do
+--echo # not matter provided that storage size is the same.
+CREATE TABLE child (fk SET('b','c'), FOREIGN KEY (fk) REFERENCES parent(pk));
+DROP TABLE child;
+--echo # Storage size should match.
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk SET('a1','a2','a3','a4','a5','a6','a7','a8','a9'), FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk DATE, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk BINARY(1), FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk VARBINARY(1), FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk FLOAT, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk DECIMAL(2,0), FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk TIME, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk TIMESTAMP, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk BIT(8), FOREIGN KEY (fk) REFERENCES parent(pk));
+DROP TABLE parent;
+
+--echo #
+--echo # 7.e.VIII) Columns of BIT type are compatible with each other
+--echo #           independently of size.
+--echo #
+--echo # They are considered binary strings so compatible with other
+--echo # binary string types (which might make sense). They are also
+--echo # compatible with some temporals and DECIMAL type, which makes
+--echo # little sense.
+CREATE TABLE parent(pk BIT(32) PRIMARY KEY);
+--echo # Column size doesn't matter.
+CREATE TABLE child (fk BIT(10), FOREIGN KEY (fk) REFERENCES parent(pk));
+DROP TABLE child;
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk DATE, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk CHAR(4) CHARACTER SET latin1, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk VARCHAR(3) CHARACTER SET latin1, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk FLOAT, FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk ENUM('a'), FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk SET('a'), FOREIGN KEY (fk) REFERENCES parent(pk));
+DROP TABLE parent;
+
+--echo #
+--echo # 7.e.IX) In FOREIGN_KEY_CHECKS=0 mode InnoDB allows to change charsets
+--echo #         of string columns in existing foreign keys. Allowing such
+--echo #         temporary discrepancies is necessary as in general case there
+--echo #         is no way to change charset of both child and parent columns
+--echo #         simultaneously. Such discrepancies are still prohibited
+--echo #         in newly created foreign keys.
+CREATE TABLE parent (pk VARCHAR(10) CHARACTER SET latin1 PRIMARY KEY);
+CREATE TABLE child (fk VARCHAR(20) CHARACTER SET latin1,
+                    FOREIGN KEY (fk) REFERENCES parent(pk));
+SET FOREIGN_KEY_CHECKS=0;
+ALTER TABLE parent MODIFY pk VARCHAR(10) CHARACTER SET utf8mb4;
+ALTER TABLE child MODIFY fk VARCHAR(20) CHARACTER SET utf8mb4;
+ALTER TABLE child MODIFY fk VARCHAR(20) CHARACTER SET latin1;
+ALTER TABLE parent MODIFY pk VARCHAR(10) CHARACTER SET latin1;
+DROP TABLE child;
+--echo # Adding new foreign key with discrepancies is not allowed
+--echo # even in FOREIGN_KEY_CHECKS=0 mode.
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE child (fk VARCHAR(20) CHARACTER SET utf8mb4,
+                    FOREIGN KEY (fk) REFERENCES parent(pk));
+CREATE TABLE child (fk VARCHAR(20) CHARACTER SET utf8mb4);
+--error ER_FK_INCOMPATIBLE_COLUMNS
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent(pk);
+DROP TABLE child, parent;
+--echo # One cannot create such discrepancy when adding parent to
+--echo # orphan foreign key.
+CREATE TABLE child (fk VARCHAR(20) CHARACTER SET latin1,
+                    FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+CREATE TABLE parent (pk VARCHAR(10) CHARACTER SET utf8mb4 PRIMARY KEY);
+CREATE TABLE parent0 (pk VARCHAR(10) CHARACTER SET utf8mb4 PRIMARY KEY);
+--error ER_FK_INCOMPATIBLE_COLUMNS
+RENAME TABLE parent0 TO parent;
+DROP TABLES child, parent0;
+--echo # This exception doesn't apply to binary strings though.
+CREATE TABLE parent (pk VARCHAR(10) CHARACTER SET binary PRIMARY KEY);
+CREATE TABLE child (fk VARCHAR(20) CHARACTER SET binary,
+                    FOREIGN KEY (fk) REFERENCES parent(pk));
+--error ER_FK_INCOMPATIBLE_COLUMNS
+ALTER TABLE parent MODIFY pk VARCHAR(10) CHARACTER SET utf8mb4;
+--error ER_FK_INCOMPATIBLE_COLUMNS
+ALTER TABLE child MODIFY fk VARCHAR(20) CHARACTER SET utf8mb4;
+SET FOREIGN_KEY_CHECKS=1;
+DROP TABLES child, parent;
 
 
 --echo #

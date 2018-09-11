@@ -9648,6 +9648,252 @@ create_ndb_column(THD *thd,
   DBUG_RETURN(0);
 }
 
+/**
+  Define NDB column based on Ha_fk_column_type.
+
+  @note This is simplified version of create_ndb_column() (with some
+  added knowledge about how Field classes work) which produces NDB
+  column objects which are only suitable for foreign key type
+  compatibility checks. It only cares about type, length, precision,
+  scale and charset and nothing else.
+*/
+static void
+create_ndb_fk_fake_column(NDBCOL &col,
+                          const Ha_fk_column_type &fk_col_type) {
+  // Get character set.
+  CHARSET_INFO *cs= const_cast<CHARSET_INFO*>(fk_col_type.field_charset);
+
+  switch (fk_col_type.type) {
+  // Numeric types
+  case dd::enum_column_types::TINY:
+    if (fk_col_type.is_unsigned)
+      col.setType(NDBCOL::Tinyunsigned);
+    else
+      col.setType(NDBCOL::Tinyint);
+    col.setLength(1);
+    break;
+  case dd::enum_column_types::SHORT:
+    if (fk_col_type.is_unsigned)
+      col.setType(NDBCOL::Smallunsigned);
+    else
+      col.setType(NDBCOL::Smallint);
+    col.setLength(1);
+    break;
+  case dd::enum_column_types::LONG:
+    if (fk_col_type.is_unsigned)
+      col.setType(NDBCOL::Unsigned);
+    else
+      col.setType(NDBCOL::Int);
+    col.setLength(1);
+    break;
+  case dd::enum_column_types::INT24:
+    if (fk_col_type.is_unsigned)
+      col.setType(NDBCOL::Mediumunsigned);
+    else
+      col.setType(NDBCOL::Mediumint);
+    col.setLength(1);
+    break;
+  case dd::enum_column_types::LONGLONG:
+    if (fk_col_type.is_unsigned)
+      col.setType(NDBCOL::Bigunsigned);
+    else
+      col.setType(NDBCOL::Bigint);
+    col.setLength(1);
+    break;
+  case dd::enum_column_types::FLOAT:
+    col.setType(NDBCOL::Float);
+    col.setLength(1);
+    break;
+  case dd::enum_column_types::DOUBLE:
+    col.setType(NDBCOL::Double);
+    col.setLength(1);
+    break;
+  case dd::enum_column_types::DECIMAL:
+    {
+      uint precision= fk_col_type.char_length;
+      uint scale= fk_col_type.numeric_scale;
+      if (fk_col_type.is_unsigned)
+      {
+        col.setType(NDBCOL::Olddecimalunsigned);
+        precision-= (scale > 0);
+      }
+      else
+      {
+        col.setType(NDBCOL::Olddecimal);
+        precision-= 1 + (scale > 0);
+      }
+      col.setPrecision(precision);
+      col.setScale(scale);
+      col.setLength(1);
+    }
+    break;
+  case dd::enum_column_types::NEWDECIMAL:
+    {
+      uint precision= my_decimal_length_to_precision(fk_col_type.char_length,
+                                                     fk_col_type.numeric_scale,
+                                                     fk_col_type.is_unsigned);
+      uint scale= fk_col_type.numeric_scale;
+      if (fk_col_type.is_unsigned)
+      {
+        col.setType(NDBCOL::Decimalunsigned);
+      }
+      else
+      {
+        col.setType(NDBCOL::Decimal);
+      }
+      col.setPrecision(precision);
+      col.setScale(scale);
+      col.setLength(1);
+    }
+    break;
+  // Date types
+  case dd::enum_column_types::DATETIME:
+    col.setType(NDBCOL::Datetime);
+    col.setLength(1);
+    break;
+  case dd::enum_column_types::DATETIME2:
+    {
+      uint prec= (fk_col_type.char_length > MAX_DATETIME_WIDTH) ?
+                 fk_col_type.char_length - 1 - MAX_DATETIME_WIDTH : 0;
+      col.setType(NDBCOL::Datetime2);
+      col.setLength(1);
+      col.setPrecision(prec);
+    }
+    break;
+  case dd::enum_column_types::NEWDATE:
+    col.setType(NDBCOL::Date);
+    col.setLength(1);
+    break;
+  case dd::enum_column_types::TIME:
+    col.setType(NDBCOL::Time);
+    col.setLength(1);
+    break;
+  case dd::enum_column_types::TIME2:
+    {
+      uint prec= (fk_col_type.char_length > MAX_TIME_WIDTH) ?
+                 fk_col_type.char_length - 1 - MAX_TIME_WIDTH : 0;
+      col.setType(NDBCOL::Time2);
+      col.setLength(1);
+      col.setPrecision(prec);
+    }
+    break;
+  case dd::enum_column_types::YEAR:
+    col.setType(NDBCOL::Year);
+    col.setLength(1);
+    break;
+  case dd::enum_column_types::TIMESTAMP:
+    col.setType(NDBCOL::Timestamp);
+    col.setLength(1);
+    break;
+  case dd::enum_column_types::TIMESTAMP2:
+    {
+      uint prec= (fk_col_type.char_length > MAX_DATETIME_WIDTH) ?
+                 fk_col_type.char_length - 1 - MAX_DATETIME_WIDTH : 0;
+      col.setType(NDBCOL::Timestamp2);
+      col.setLength(1);
+      col.setPrecision(prec);
+    }
+    break;
+  // Char types
+  case dd::enum_column_types::STRING:
+    if (fk_col_type.char_length == 0)
+    {
+      col.setType(NDBCOL::Bit);
+      col.setLength(1);
+    }
+    else if (cs == &my_charset_bin)
+    {
+      col.setType(NDBCOL::Binary);
+      col.setLength(fk_col_type.char_length);
+    }
+    else
+    {
+      col.setType(NDBCOL::Char);
+      col.setCharset(cs);
+      col.setLength(fk_col_type.char_length);
+    }
+    break;
+  case dd::enum_column_types::VARCHAR:
+    {
+      uint length_bytes = HA_VARCHAR_PACKLENGTH(fk_col_type.char_length);
+      if (length_bytes == 1)
+      {
+        if (cs == &my_charset_bin)
+          col.setType(NDBCOL::Varbinary);
+        else {
+          col.setType(NDBCOL::Varchar);
+          col.setCharset(cs);
+        }
+      }
+      else if (length_bytes == 2)
+      {
+        if (cs == &my_charset_bin)
+          col.setType(NDBCOL::Longvarbinary);
+        else {
+          col.setType(NDBCOL::Longvarchar);
+          col.setCharset(cs);
+        }
+      }
+      else
+      {
+        /*
+          This branch is dead at the moment and has been left for consistency
+          with create_ndb_column(). Instead of returning an error we cheat and
+          use Blob type which is not supported in foreign keys.
+        */
+        col.setType(NDBCOL::Blob);
+      }
+      col.setLength(fk_col_type.char_length);
+    }
+    break;
+  // Blob types
+  case dd::enum_column_types::TINY_BLOB:
+  case dd::enum_column_types::BLOB:
+  case dd::enum_column_types::MEDIUM_BLOB:
+  case dd::enum_column_types::LONG_BLOB:
+  case dd::enum_column_types::GEOMETRY:
+  case dd::enum_column_types::JSON:
+    /*
+      Since NDB doesn't support foreign keys over Blob and Text columns
+      anyway, we cheat and always use Blob type in this case without
+      calculating exact type and other attributes.
+    */
+    col.setType(NDBCOL::Blob);
+    break;
+  // Other types
+  case dd::enum_column_types::ENUM:
+    col.setType(NDBCOL::Char);
+    col.setLength(get_enum_pack_length(fk_col_type.elements_count));
+    break;
+  case dd::enum_column_types::SET:
+    col.setType(NDBCOL::Char);
+    col.setLength(get_set_pack_length(fk_col_type.elements_count));
+    break;
+  case dd::enum_column_types::BIT:
+  {
+    int no_of_bits= fk_col_type.char_length;
+    col.setType(NDBCOL::Bit);
+    if (!no_of_bits)
+      col.setLength(1);
+      else
+        col.setLength(no_of_bits);
+    break;
+  }
+  // Legacy types. Modern server is not supposed to use them.
+  case dd::enum_column_types::DATE:
+  case dd::enum_column_types::VAR_STRING:
+  // Unsupported types.
+  case dd::enum_column_types::TYPE_NULL:
+  default:
+    /*
+      Instead of returning an error we cheat and use Blob type
+      which is not supported in foreign keys.
+    */
+    col.setType(NDBCOL::Blob);
+    break;
+  }
+}
+
 static const NdbDictionary::Object::PartitionBalance g_default_partition_balance =
   NdbDictionary::Object::PartitionBalance_ForRPByLDM;
 
@@ -13575,6 +13821,28 @@ ndb_wait_setup_replication_applier(void*)
 static Ndb_server_hooks ndb_server_hooks;
 
 
+/**
+  Check if types of child and parent columns in foreign key are compatible.
+
+  @param child_column_type  Child column type description.
+  @param parent_column_type Parent column type description.
+
+  @return True if types are compatible, False if not.
+*/
+
+static bool
+ndbcluster_check_fk_column_compat(const Ha_fk_column_type *child_column_type,
+                                  const Ha_fk_column_type *parent_column_type,
+                                  bool /* check_charsets */) {
+  NDBCOL child_col, parent_col;
+
+  create_ndb_fk_fake_column(child_col, *child_column_type);
+  create_ndb_fk_fake_column(parent_col, *parent_column_type);
+
+  return child_col.isBindable(parent_col) != -1;
+}
+
+
 /* Version in composite numerical format */
 static Uint32 ndb_version = NDB_VERSION_D;
 static MYSQL_SYSVAR_UINT(
@@ -13726,6 +13994,8 @@ int ndbcluster_init(void* handlerton_ptr)
 
   hton->foreign_keys_flags = HTON_FKS_WITH_SUPPORTING_HASH_KEYS |
                              HTON_FKS_WITH_ANY_PREFIX_SUPPORTING_KEYS;
+
+  hton->check_fk_column_compat = ndbcluster_check_fk_column_compat;
 
   // Initialize NdbApi
   ndb_init_internal(1);

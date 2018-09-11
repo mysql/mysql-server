@@ -1213,6 +1213,17 @@ static bool innobase_get_tablespace_type(const dd::Tablespace &space,
 @param[in,out]	thd	connection thread */
 static void innobase_post_ddl(THD *thd);
 
+/** Check if types of child and parent columns in foreign key are compatible.
+@param[in]	child_column_type	Child column type description.
+@param[in]	parent_column_type	Parent column type description.
+@param[in]	check_charsets		Indicates whether we need to check
+                                        that charsets of string columns
+                                        match. Which is true in most cases.
+@return True if types are compatible, False if not. */
+static bool innodb_check_fk_column_compat(
+    const Ha_fk_column_type *child_column_type,
+    const Ha_fk_column_type *parent_column_type, bool check_charsets);
+
 /** @brief Initialize the default value of innodb_commit_concurrency.
 
 Once InnoDB is running, the innodb_commit_concurrency must not change
@@ -4315,6 +4326,8 @@ static int innodb_init(void *p) {
       HTON_FKS_WITH_PREFIX_PARENT_KEYS |
       HTON_FKS_NEED_DIFFERENT_PARENT_AND_SUPPORTING_KEYS;
 
+  innobase_hton->check_fk_column_compat = innodb_check_fk_column_compat;
+
   ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
 
   os_file_set_umask(my_umask);
@@ -7074,6 +7087,150 @@ ulint get_innobase_type_from_mysql_type(ulint *unsigned_flag, const void *f) {
       /* MySQL currently accepts "NULL" datatype, but will
       reject such datatype in the next release. We will cope
       with it and not trigger assertion failure in 5.1 */
+      break;
+    default:
+      ut_error;
+  }
+
+  return (0);
+}
+
+/** Converts a MySQL data-dictionary type to an InnoDB type. Also returns
+a few attributes which are useful for precise type calculation.
+
+@note This function is version of get_innobase_type_from_mysql_type() with
+added knowledge about how additional attributes calculated (e.g. in
+create_table_info_t::create_table_def()) and about behavior of Field
+class and its descendats.
+
+@note It allows to get InnoDB generic and precise types directly from MySQL
+data-dictionary info, bypassing expensive construction of Field objects.
+
+@param[out] unsigned_flag   DATA_UNSIGNED if an 'unsigned type'.
+@param[out] binary_type	    DATA_BINARY_TYPE if a 'binary type'.
+@param[out] charset_no      Collation id for string types.
+@param[in]  dd_type         MySQL data-dictionary type.
+@param[in]  field_charset   Charset.
+@param[in]  is_unsigned     MySQL data-dictionary unsigned flag.
+
+@return DATA_BINARY, DATA_VARCHAR, ... */
+ulint get_innobase_type_from_mysql_dd_type(ulint *unsigned_flag,
+                                           ulint *binary_type,
+                                           ulint *charset_no,
+                                           dd::enum_column_types dd_type,
+                                           const CHARSET_INFO *field_charset,
+                                           bool is_unsigned) {
+  /* InnoDB's unsigned flag is based on UNSIGNED_FLAG bit in Field::flags.
+  This bit is unset for Field objects by default. */
+  *unsigned_flag = 0;
+  /* InnoDB's binary type flag is based on result of Field::binary() call.
+  The latter returns true by default. */
+  *binary_type = DATA_BINARY_TYPE;
+  /* InnoDB takes into account charset numbers only for columns which it
+  considers of string type. */
+  *charset_no = 0;
+
+  switch (dd_type) {
+    case dd::enum_column_types::ENUM:
+    case dd::enum_column_types::SET:
+      /* SQL-layer has its own unsigned flag set to zero, even though
+      internally this is an unsigned integer type. */
+      *unsigned_flag = DATA_UNSIGNED;
+      /* ENUM and SET are handled as string types by SQL-layer,
+      hence the charset check. */
+      if (field_charset != &my_charset_bin) *binary_type = 0;
+      return (DATA_INT);
+    case dd::enum_column_types::VAR_STRING: /* old <= 4.1 VARCHAR. */
+    case dd::enum_column_types::VARCHAR:    /* new >= 5.0.3 true VARCHAR. */
+      *charset_no = field_charset->number;
+      if (field_charset == &my_charset_bin) {
+        return (DATA_BINARY);
+      } else {
+        *binary_type = 0;
+        if (field_charset == &my_charset_latin1) {
+          return (DATA_VARCHAR);
+        } else {
+          return (DATA_VARMYSQL);
+        }
+      }
+    case dd::enum_column_types::BIT:
+      /* MySQL always sets unsigned flag for both its BIT types. */
+      *unsigned_flag = DATA_UNSIGNED;
+      *charset_no = my_charset_bin.number;
+      return (DATA_FIXBINARY);
+    case dd::enum_column_types::STRING:
+      *charset_no = field_charset->number;
+      if (field_charset == &my_charset_bin) {
+        return (DATA_FIXBINARY);
+      } else {
+        *binary_type = 0;
+        if (field_charset == &my_charset_latin1) {
+          return (DATA_CHAR);
+        } else {
+          return (DATA_MYSQL);
+        }
+      }
+    case dd::enum_column_types::DECIMAL:
+    case dd::enum_column_types::FLOAT:
+    case dd::enum_column_types::DOUBLE:
+    case dd::enum_column_types::NEWDECIMAL:
+    case dd::enum_column_types::LONG:
+    case dd::enum_column_types::LONGLONG:
+    case dd::enum_column_types::TINY:
+    case dd::enum_column_types::SHORT:
+    case dd::enum_column_types::INT24:
+      /* Types based on Field_num set unsigned flag from value stored
+      in the data-dictionary (YEAR being the exception). */
+      if (is_unsigned) *unsigned_flag = DATA_UNSIGNED;
+      switch (dd_type) {
+        case dd::enum_column_types::DECIMAL:
+          return (DATA_DECIMAL);
+        case dd::enum_column_types::FLOAT:
+          return (DATA_FLOAT);
+        case dd::enum_column_types::DOUBLE:
+          return (DATA_DOUBLE);
+        case dd::enum_column_types::NEWDECIMAL:
+          *charset_no = my_charset_bin.number;
+          return (DATA_FIXBINARY);
+        default:
+          break;
+      }
+      return (DATA_INT);
+    case dd::enum_column_types::DATE:
+    case dd::enum_column_types::NEWDATE:
+    case dd::enum_column_types::TIME:
+    case dd::enum_column_types::DATETIME:
+      return (DATA_INT);
+    case dd::enum_column_types::YEAR:
+    case dd::enum_column_types::TIMESTAMP:
+      /* MySQL always sets unsigned flag for YEAR and old TIMESTAMP type. */
+      *unsigned_flag = DATA_UNSIGNED;
+      return (DATA_INT);
+    case dd::enum_column_types::TIME2:
+    case dd::enum_column_types::DATETIME2:
+    case dd::enum_column_types::TIMESTAMP2:
+      *charset_no = my_charset_bin.number;
+      return (DATA_FIXBINARY);
+    case dd::enum_column_types::GEOMETRY:
+      /* Field_geom::binary() is always true. */
+      return (DATA_GEOMETRY);
+    case dd::enum_column_types::TINY_BLOB:
+    case dd::enum_column_types::MEDIUM_BLOB:
+    case dd::enum_column_types::BLOB:
+    case dd::enum_column_types::LONG_BLOB:
+      *charset_no = field_charset->number;
+      if (field_charset != &my_charset_bin) *binary_type = 0;
+      return (DATA_BLOB);
+    case dd::enum_column_types::JSON:
+      /* JSON fields are stored as BLOBs.
+      Field_json::binary() always returns true even though data in
+      such columns are stored in UTF8. */
+      *charset_no = my_charset_utf8mb4_bin.number;
+      return (DATA_BLOB);
+    case dd::enum_column_types::TYPE_NULL:
+      /* Compatibility with get_innobase_type_from_mysql_type(). */
+      *charset_no = field_charset->number;
+      if (field_charset != &my_charset_bin) *binary_type = 0;
       break;
     default:
       ut_error;
@@ -21481,4 +21638,58 @@ debug_set:
 
   return (0);
 }
+
+/** Constructs fake dict_col_t describing column for foreign key type
+compatibility check from column description in Ha_fk_column_type form.
+
+@note dict_col_t which is produced by this call is not valid for general
+purposes.
+@param[out]	col		dict_col_t filled by this function
+@param[in]	fk_col_type	foreign key type information */
+static void innodb_fill_fake_column_struct(
+    dict_col_t *col, const Ha_fk_column_type *fk_col_type) {
+  ulint unsigned_type;
+  ulint binary_type;
+  ulint charset_no;
+
+  ulint mtype = get_innobase_type_from_mysql_dd_type(
+      &unsigned_type, &binary_type, &charset_no, fk_col_type->type,
+      fk_col_type->field_charset, fk_col_type->is_unsigned);
+
+  /* Fake prtype only contains info which is relevant for foreign key
+  type compatibility check, especially the info used in cmp_cols_are_equal. */
+  ulint fake_prtype =
+      dtype_form_prtype(unsigned_type | binary_type, charset_no);
+
+  ulint col_len = calc_pack_length(
+      fk_col_type->type, fk_col_type->char_length, fk_col_type->elements_count,
+      /* InnoDB always treats BIT as char. */
+      true, fk_col_type->numeric_scale, fk_col_type->is_unsigned);
+
+  memset(col, 0, sizeof(dict_col_t));
+  dict_mem_fill_column_struct(col, 0 /* fake col_pos */, mtype, fake_prtype,
+                              col_len);
+}
+
+/** Check if types of child and parent columns in foreign key are compatible.
+
+@param[in]	child_column_type	Child column type description.
+@param[in]	parent_column_type	Parent column type description.
+@param[in]	check_charsets		Indicates whether we need to check
+                                        that charsets of string columns
+                                        match. Which is true in most cases.
+
+@return True if types are compatible, False if not. */
+static bool innodb_check_fk_column_compat(
+    const Ha_fk_column_type *child_column_type,
+    const Ha_fk_column_type *parent_column_type, bool check_charsets) {
+  dict_col_t dict_child_col, dict_parent_col;
+
+  innodb_fill_fake_column_struct(&dict_child_col, child_column_type);
+  innodb_fill_fake_column_struct(&dict_parent_col, parent_column_type);
+
+  return (
+      cmp_cols_are_equal(&dict_child_col, &dict_parent_col, check_charsets));
+}
+
 #endif /* !UNIV_HOTBACKUP */

@@ -68,7 +68,7 @@ let $expect_alter_failure= 0;
 --source ndb_fk_schema_dist_test_parent.inc
 --echo #altering column in parent2 should fail with error
 flush tables parent2;
---error ER_FK_COLUMN_CANNOT_CHANGE_CHILD
+--error ER_FK_INCOMPATIBLE_COLUMNS
 alter table parent2
   change column a a varchar(64) not null;
 

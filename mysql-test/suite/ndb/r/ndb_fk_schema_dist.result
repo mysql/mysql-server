@@ -21,7 +21,7 @@ algorithm = copy;
 #altering column should fail with error
 alter table parent
 change column a a varchar(64) not null;
-ERROR HY000: Cannot change column 'a': used in a foreign key constraint 'fk1' of table 'test.child'
+ERROR HY000: Referencing column 'ref' and referenced column 'a' in foreign key constraint 'fk1' are incompatible.
 #Testing drop FK, using inplace algorithm
 #cache parent table in server1
 select * from parent order by a;
@@ -85,7 +85,7 @@ foreign key fk1(ref) references parent(a)
 #altering column should fail with error
 alter table parent
 change column a a varchar(64) not null;
-ERROR HY000: Cannot change column 'a': used in a foreign key constraint 'fk1' of table 'test.child'
+ERROR HY000: Referencing column 'ref' and referenced column 'a' in foreign key constraint 'fk1' are incompatible.
 #Testing multiple alter FK create/drops : I
 #cache parent table in server1
 select * from parent order by a;
@@ -158,7 +158,7 @@ alter table parent change column a a int;
 flush tables parent2;
 alter table parent2
 change column a a varchar(64) not null;
-ERROR HY000: Cannot change column 'a': used in a foreign key constraint 'fk2' of table 'test.child'
+ERROR HY000: Referencing column 'ref' and referenced column 'a' in foreign key constraint 'fk2' are incompatible.
 #setup to test drop database
 drop table child;
 create database test1;

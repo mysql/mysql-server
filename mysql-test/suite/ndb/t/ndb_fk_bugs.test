@@ -119,7 +119,7 @@ create table t1 (
   unique key using hash (b)
 ) engine ndb;
 
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_INCOMPATIBLE_COLUMNS
 create table t2 (
   a int not null,
   b char(20) not null,
@@ -127,7 +127,6 @@ create table t2 (
   key (b),
   constraint fk1 foreign key (b) references t1 (b)
 ) engine ndb;
-show warnings;
 
 create table t2 (
   a int not null,
@@ -136,10 +135,9 @@ create table t2 (
   key (b)
 ) engine ndb;
 
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_INCOMPATIBLE_COLUMNS
 alter table t2 algorithm=inplace,
   add constraint fk1 foreign key (b) references t1 (b);
-show warnings;
 
 drop table t2, t1;
 
@@ -476,24 +474,24 @@ drop table t2, t1;
 
 create table t1 (
   a int primary key,
-  b int not null,
+  b enum('a','b','c') not null,
   unique key (b)
 ) engine=ndb;
 
 create table t2 (
   a int primary key,
-  b int not null,
+  b enum('a','b','c') not null,
   key (b),
   foreign key fk1 (b) references t1 (b)
 ) engine=ndb;
 
-insert into t1 values (1,10),(2,20);
-insert into t2 values (1,10),(2,10),(3,20);
+insert into t1 values (1,'a'),(2,'b');
+insert into t2 values (1,'a'),(2,'a'),(3,'b');
 
 --error ER_FK_COLUMN_CANNOT_CHANGE_CHILD
-alter table t1 modify column b char(20) not null;
+alter table t1 modify column b enum('a','b') not null;
 alter table t2 drop foreign key fk1;
-alter table t1 modify column b char(20) not null;
+alter table t1 modify column b enum('a','b') not null;
 --disable_warnings
 show create table t1;
 --enable_warnings

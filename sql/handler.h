@@ -99,6 +99,7 @@ typedef struct st_xarecover_txn XA_recover_txn;
 struct MDL_key;
 
 namespace dd {
+enum class enum_column_types;
 class Table;
 class Tablespace;
 struct sdi_key;
@@ -1026,6 +1027,27 @@ class Ha_clone_cbk {
   const int HA_CLONE_FILE_CACHE = 0x02;
 };
 
+/**
+  Column type description for foreign key columns compatibility check.
+
+  Contains subset of information from dd::Column class. It is inconvenient
+  to use dd::Column class directly for such checks because it requires valid
+  dd::Table object and in some cases we want to produce Ha_fk_column_type
+  right from column description in Create_field format.
+*/
+struct Ha_fk_column_type {
+  dd::enum_column_types type;
+  /*
+    Note that both dd::Column::char_length() and length here are really
+    in bytes.
+  */
+  size_t char_length;
+  const CHARSET_INFO *field_charset;
+  size_t elements_count;
+  uint numeric_scale;
+  bool is_unsigned;
+};
+
 /* handlerton methods */
 
 /**
@@ -1806,6 +1828,23 @@ typedef bool (*unlock_hton_log_t)(handlerton *hton);
 typedef bool (*collect_hton_log_info_t)(handlerton *hton, Json_dom *json);
 
 /**
+  Check SE considers types of child and parent columns in foreign key
+  to be compatible.
+
+  @param  child_column_type   Child column type description.
+  @param  parent_column_type  Parent column type description.
+  @param  check_charsets      Indicates whether we need to check
+                              that charsets of string columns
+                              match. Which is true in most cases.
+
+  @returns True if types are compatible, False if not.
+*/
+
+typedef bool (*check_fk_column_compat_t)(
+    const Ha_fk_column_type *child_column_type,
+    const Ha_fk_column_type *parent_column_type, bool check_charsets);
+
+/**
   handlerton is a singleton structure - one instance per storage engine -
   to provide access to storage engine functionality that works on the
   "global" level (unlike handler class that works on a per-table basis).
@@ -1968,6 +2007,8 @@ struct handlerton {
 
   /** Flags describing details of foreign key support by storage engine. */
   uint32 foreign_keys_flags;
+
+  check_fk_column_compat_t check_fk_column_compat;
 };
 
 /* Possible flags of a handlerton (there can be 32 of them) */

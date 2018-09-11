@@ -51,15 +51,13 @@
 #include "sql/table.h"
 
 /**
-  Calculate the length of the in-memory representation of the column.
+  Calculate the length of the in-memory representation of the column from
+  its dd::Column object.
 
   This function calculates the amount of memory necessary to store values
   of the submitted column. The function is used when preparing the default
   values for the columns of a table, and for determining the size of an
   empty record for the table which the column is a part of.
-
-  @note The implementation is based on Create_field::init() and
-        Create_field::create_length_to_internal_length().
 
   @param  col_obj   The column object for which we calculate the
                     in-memory length.
@@ -68,53 +66,15 @@
 */
 
 static size_t column_pack_length(const dd::Column &col_obj) {
-  size_t pack_length = 0;
+  bool treat_bit_as_char = false;
 
-  switch (col_obj.type()) {
-    case dd::enum_column_types::TINY_BLOB:
-    case dd::enum_column_types::MEDIUM_BLOB:
-    case dd::enum_column_types::LONG_BLOB:
-    case dd::enum_column_types::BLOB:
-    case dd::enum_column_types::GEOMETRY:
-    case dd::enum_column_types::VAR_STRING:
-    case dd::enum_column_types::STRING:
-    case dd::enum_column_types::VARCHAR:
-      // The length is already calculated in number of bytes, no need
-      // to multiply by number of bytes per symbol.
-      pack_length = calc_pack_length(dd_get_old_field_type(col_obj.type()),
-                                     col_obj.char_length());
-      break;
-    case dd::enum_column_types::ENUM:
-      pack_length = get_enum_pack_length(col_obj.elements_count());
-      break;
-    case dd::enum_column_types::SET:
-      pack_length = get_set_pack_length(col_obj.elements_count());
-      break;
-    case dd::enum_column_types::BIT: {
-      bool treat_bit_as_char;
-      if (col_obj.options().get_bool("treat_bit_as_char", &treat_bit_as_char))
-        DBUG_ASSERT(false); /* purecov: deadcode */
-
-      if (treat_bit_as_char)
-        pack_length = ((col_obj.char_length() + 7) & ~7) / 8;
-      else
-        pack_length = col_obj.char_length() / 8;
-    } break;
-    case dd::enum_column_types::NEWDECIMAL: {
-      uint decimals = col_obj.numeric_scale();
-      ulong precision = my_decimal_length_to_precision(
-          col_obj.char_length(), decimals, col_obj.is_unsigned());
-      set_if_smaller(precision, DECIMAL_MAX_PRECISION);
-      DBUG_ASSERT((precision <= DECIMAL_MAX_PRECISION) &&
-                  (decimals <= DECIMAL_MAX_SCALE));
-      pack_length = my_decimal_get_binary_size(precision, decimals);
-    } break;
-    default:
-      pack_length = calc_pack_length(dd_get_old_field_type(col_obj.type()),
-                                     col_obj.char_length());
-      break;
+  if (col_obj.type() == dd::enum_column_types::BIT) {
+    if (col_obj.options().get_bool("treat_bit_as_char", &treat_bit_as_char))
+      DBUG_ASSERT(false); /* purecov: deadcode */
   }
-  return pack_length;
+  return calc_pack_length(col_obj.type(), col_obj.char_length(),
+                          col_obj.elements_count(), treat_bit_as_char,
+                          col_obj.numeric_scale(), col_obj.is_unsigned());
 }
 
 /**

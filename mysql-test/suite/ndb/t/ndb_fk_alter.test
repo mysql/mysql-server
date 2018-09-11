@@ -134,7 +134,7 @@ while ($i)
 	ALTER TABLE t1 DROP COLUMN col1;
 
 	--echo # Attempt to modify col1, should give error
-	--error 1833
+	--error ER_FK_INCOMPATIBLE_COLUMNS
 	ALTER TABLE t1 MODIFY COLUMN col1 bigint;
 
 	--echo # Drop the column t1.col3
