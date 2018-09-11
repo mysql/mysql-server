@@ -110,6 +110,7 @@ CPCD::defineProcess(RequestStatus * rs, Process * arg){
   m_processes.push_back(arg, false);
 
   notifyChanges();
+  logger.debug("Process %s with pid %d defined", arg->m_name.c_str(), arg->readPid());
 
   return true;
 }
@@ -153,7 +154,8 @@ CPCD::undefineProcess(CPCD::RequestStatus *rs, int id) {
   }
   
   notifyChanges();
-  
+  logger.debug("Process %s with pid %d undefined", proc->m_name.c_str(), proc->readPid());
+
   return true;
 }
 
@@ -203,6 +205,7 @@ CPCD::startProcess(CPCD::RequestStatus *rs, int id) {
     }
     
     notifyChanges();
+    logger.debug("Process %s with pid %d started", proc->m_name.c_str(), proc->readPid());
   }
 
   return true;
@@ -241,6 +244,7 @@ CPCD::stopProcess(CPCD::RequestStatus *rs, int id) {
   }
   
   notifyChanges();
+  logger.debug("Process %s with pid %d stopped", proc->m_name.c_str(), proc->readPid());
 
   return true;
 }
