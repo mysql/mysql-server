@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -103,6 +103,7 @@ CPCD::defineProcess(RequestStatus * rs, Process * arg){
   m_processes.push_back(arg, false);
 
   notifyChanges();
+  logger.debug("Process %s with pid %d defined", arg->m_name.c_str(), arg->readPid());
 
   return true;
 }
@@ -146,7 +147,8 @@ CPCD::undefineProcess(CPCD::RequestStatus *rs, int id) {
   }
   
   notifyChanges();
-  
+  logger.debug("Process %s with pid %d undefined", proc->m_name.c_str(), proc->readPid());
+
   return true;
 }
 
@@ -196,6 +198,7 @@ CPCD::startProcess(CPCD::RequestStatus *rs, int id) {
     }
     
     notifyChanges();
+    logger.debug("Process %s with pid %d started", proc->m_name.c_str(), proc->readPid());
   }
 
   return true;
@@ -234,6 +237,7 @@ CPCD::stopProcess(CPCD::RequestStatus *rs, int id) {
   }
   
   notifyChanges();
+  logger.debug("Process %s with pid %d stopped", proc->m_name.c_str(), proc->readPid());
 
   return true;
 }
