@@ -79,16 +79,16 @@ struct {
   @code{shell}
   $ protoc --cpp_out=protodir mysqlx*.proto
   @endcode
--  [``mysqlx.proto``](https://github.com/mysql/mysql-server/tree/5.7/rapid/plugin/x/protocol/mysqlx.proto)
--  [``mysqlx_connection.proto``](https://github.com/mysql/mysql-server/tree/5.7/rapid/plugin/x/protocol/mysqlx_connection.proto)
--  [``mysqlx_session.proto``](https://github.com/mysql/mysql-server/tree/5.7/rapid/plugin/x/protocol/mysqlx_session.proto>)
--  [``mysqlx_crud.proto``](https://github.com/mysql/mysql-server/tree/5.7/rapid/plugin/x/protocol/mysqlx_crud.proto>)
--  [``mysqlx_sql.proto``](https://github.com/mysql/mysql-server/tree/5.7/rapid/plugin/x/protocol/mysqlx_sql.proto>)
--  [``mysqlx_resultset.proto``](https://github.com/mysql/mysql-server/tree/5.7/rapid/plugin/x/protocol/mysqlx_resultset.proto>)
--  [``mysqlx_expr.proto``](https://github.com/mysql/mysql-server/tree/5.7/rapid/plugin/x/protocol/mysqlx_expr.proto>)
--  [``mysqlx_datatypes.proto``](https://github.com/mysql/mysql-server/tree/5.7/rapid/plugin/x/protocol/mysqlx_datatypes.proto>)
--  [``mysqlx_expect.proto``](https://github.com/mysql/mysql-server/tree/5.7/rapid/plugin/x/protocol/mysqlx_expect.proto>)
--  [``mysqlx_notice.proto``](https://github.com/mysql/mysql-server/tree/5.7/rapid/plugin/x/protocol/mysqlx_notice.proto>)
+-  [``mysqlx.proto``]
+-  [``mysqlx_connection.proto``]
+-  [``mysqlx_session.proto``]
+-  [``mysqlx_crud.proto``]
+-  [``mysqlx_sql.proto``]
+-  [``mysqlx_resultset.proto``]
+-  [``mysqlx_expr.proto``]
+-  [``mysqlx_datatypes.proto``]
+-  [``mysqlx_expect.proto``]
+-  [``mysqlx_notice.proto``]
 
 @par
 
