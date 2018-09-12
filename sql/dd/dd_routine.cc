@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,6 +35,7 @@
 #include "my_time.h"
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
 #include "sql/dd/dd_table.h"                 // dd::get_new_field_type
+#include "sql/dd/impl/utils.h"               // dd::my_time_t_to_ull_datetime
 #include "sql/dd/properties.h"               // dd::Properties
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/function.h"                // dd::Function
@@ -439,11 +440,8 @@ bool alter_routine(THD *thd, Routine *routine, st_sp_chistics *chistics) {
   DBUG_ENTER("dd::alter_routine");
 
   // Set last altered time.
-  MYSQL_TIME curtime;
-  thd->variables.time_zone->gmt_sec_to_TIME(&curtime,
-                                            thd->query_start_in_secs());
-  ulonglong ull_curtime = TIME_to_ulonglong_datetime(&curtime);
-  routine->set_last_altered(ull_curtime);
+  routine->set_last_altered(
+      dd::my_time_t_to_ull_datetime(thd->query_start_in_secs()));
 
   // Set security type.
   if (chistics->suid != SP_IS_DEFAULT_SUID) {

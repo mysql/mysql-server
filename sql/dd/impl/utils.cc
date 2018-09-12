@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 
 #include <string>
 
+#include "my_time.h"            // TIME_to_ulonglong_datetime
 #include "sql/dd/properties.h"  // dd::Properties
 #include "sql/stateless_allocator.h"
 
@@ -132,4 +133,9 @@ bool eat_pairs(String_type::const_iterator &it, String_type::const_iterator end,
 
 ///////////////////////////////////////////////////////////////////////////
 
+ulonglong my_time_t_to_ull_datetime(my_time_t seconds_since_epoch) {
+  MYSQL_TIME curtime;
+  my_tz_OFFSET0->gmt_sec_to_TIME(&curtime, seconds_since_epoch);
+  return TIME_to_ulonglong_datetime(&curtime);
+}
 }  // namespace dd

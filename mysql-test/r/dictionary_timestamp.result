@@ -43,5 +43,45 @@ DROP TABLE t2;
 ALTER FUNCTION hello comment 'abcd';
 SELECT * FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_NAME='hello';
 SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
-hello	def	test	hello	FUNCTION	char	50	200	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(50)	SQL	RETURN CONCAT('Hello, ',s,'!')	NULL	SQL	SQL	YES	CONTAINS SQL	NULL	DEFINER	1970-01-01 05:46:40	1970-01-01 11:16:40	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	abcd	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+hello	def	test	hello	FUNCTION	char	50	200	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(50)	SQL	RETURN CONCAT('Hello, ',s,'!')	NULL	SQL	SQL	YES	CONTAINS SQL	NULL	DEFINER	1970-01-01 05:46:40	1970-01-01 05:46:40	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	abcd	root@localhost	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+DROP FUNCTION hello;
+#
+# Bug#28492272: Cases where combination of timestamp and time zone
+# would result in conversion error when storing timestamp column in DD.
+#
+# Test case 1: Create table referenced in view when
+# time_zone=-6:00 and timestamp=1235;
+CREATE TABLE t1(i INT);
+CREATE VIEW v1 AS SELECT * FROM t1;
+DROP TABLE t1;
+SET TIME_ZONE='-6:00';
+SET TIMESTAMP=1235;
+# Creating a table referenced in an existing view when
+# timstamp+time zone is before beginning of epoch must not trigger
+# assert.
+CREATE TABLE t1(i INT);
+SET TIMESTAMP=default;
+SET TIME_ZONE=default;
+DROP TABLE t1;
+DROP VIEW v1;
+# Test case 2: Altering view when timestamp=1235 and time_zone=-6:00
+CREATE VIEW v1 AS SELECT 5;
+SET TIME_ZONE='-6:00';
+SET TIMESTAMP=1235;
+# Altering a view when timstamp+time zone is before beginning of epoch
+# must not trigger assert.
+ALTER VIEW v1 AS SELECT 6;
+SET TIMESTAMP=default;
+SET TIME_ZONE=default;
+DROP VIEW v1;
+# Test case 3: Altering function when timestamp=1 and time_zone=-12:00
+CREATE FUNCTION hello (s CHAR(20)) RETURNS CHAR(50) DETERMINISTIC
+RETURN CONCAT('Hello, ',s,'!');
+SET TIME_ZONE='-12:00';
+SET TIMESTAMP=1;
+# Altering a function when timstamp+time zone is before beginning of
+# epoch must not trigger assert.
+ALTER FUNCTION hello COMMENT 'This is a test';
+SET TIME_ZONE= default;
+SET TIMESTAMP= default;
 DROP FUNCTION hello;

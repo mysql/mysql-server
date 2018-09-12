@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 #define DD__UTILS_INCLUDED
 
 #include "sql/dd/string_type.h"  // dd::String_type
+#include "sql/tztime.h"          // my_time_t
 
 namespace dd {
 
@@ -117,6 +118,15 @@ bool eat_pairs(String_type::const_iterator &it, String_type::const_iterator end,
                dd::Properties *props);
 
 ///////////////////////////////////////////////////////////////////////////
+
+/**
+   Convert seconds since epoch, to a datetime ulonglong using my_tz_OFFSET0
+   suitable for timestamp fields in the DD.
+
+   @param seconds_since_epoch value to convert
+   @return time value converted to datetime ulonglong
+ */
+ulonglong my_time_t_to_ull_datetime(my_time_t seconds_since_epoch);
 
 }  // namespace dd
 

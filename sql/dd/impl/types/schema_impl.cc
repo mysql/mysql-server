@@ -43,6 +43,7 @@
 #include "sql/dd/impl/tables/schemata.h"   // Schemata
 #include "sql/dd/impl/transaction_impl.h"  // Open_dictionary_tables_ctx
 #include "sql/dd/impl/types/object_table_definition_impl.h"
+#include "sql/dd/impl/utils.h"       // dd::my_time_t_to_ull_datetime()
 #include "sql/dd/types/event.h"      // Event
 #include "sql/dd/types/function.h"   // Function
 #include "sql/dd/types/procedure.h"  // Procedure
@@ -132,9 +133,8 @@ Event *Schema_impl::create_event(THD *thd) const {
   f->set_schema_id(this->id());
 
   // Get statement start time.
-  MYSQL_TIME curtime;
-  my_tz_OFFSET0->gmt_sec_to_TIME(&curtime, thd->query_start_in_secs());
-  ulonglong ull_curtime = TIME_to_ulonglong_datetime(&curtime);
+  ulonglong ull_curtime =
+      dd::my_time_t_to_ull_datetime(thd->query_start_in_secs());
 
   f->set_created(ull_curtime);
   f->set_last_altered(ull_curtime);
@@ -149,9 +149,8 @@ Function *Schema_impl::create_function(THD *thd) const {
   f->set_schema_id(this->id());
 
   // Get statement start time.
-  MYSQL_TIME curtime;
-  my_tz_OFFSET0->gmt_sec_to_TIME(&curtime, thd->query_start_in_secs());
-  ulonglong ull_curtime = TIME_to_ulonglong_datetime(&curtime);
+  ulonglong ull_curtime =
+      dd::my_time_t_to_ull_datetime(thd->query_start_in_secs());
 
   f->set_created(ull_curtime);
   f->set_last_altered(ull_curtime);
@@ -166,9 +165,8 @@ Procedure *Schema_impl::create_procedure(THD *thd) const {
   p->set_schema_id(this->id());
 
   // Get statement start time.
-  MYSQL_TIME curtime;
-  my_tz_OFFSET0->gmt_sec_to_TIME(&curtime, thd->query_start_in_secs());
-  ulonglong ull_curtime = TIME_to_ulonglong_datetime(&curtime);
+  ulonglong ull_curtime =
+      dd::my_time_t_to_ull_datetime(thd->query_start_in_secs());
 
   p->set_created(ull_curtime);
   p->set_last_altered(ull_curtime);
@@ -193,9 +191,8 @@ Table *Schema_impl::create_table(THD *thd) const {
   t->set_collation_id(default_collation_id());
 
   // Get statement start time.
-  MYSQL_TIME curtime;
-  my_tz_OFFSET0->gmt_sec_to_TIME(&curtime, thd->query_start_in_secs());
-  ulonglong ull_curtime = TIME_to_ulonglong_datetime(&curtime);
+  ulonglong ull_curtime =
+      dd::my_time_t_to_ull_datetime(thd->query_start_in_secs());
 
   // Set new table start time.
   t->set_created(ull_curtime);
@@ -220,9 +217,8 @@ View *Schema_impl::create_view(THD *thd) const {
   v->set_schema_id(this->id());
 
   // Get statement start time.
-  MYSQL_TIME curtime;
-  my_tz_OFFSET0->gmt_sec_to_TIME(&curtime, thd->query_start_in_secs());
-  ulonglong ull_curtime = TIME_to_ulonglong_datetime(&curtime);
+  ulonglong ull_curtime =
+      dd::my_time_t_to_ull_datetime(thd->query_start_in_secs());
 
   v->set_created(ull_curtime);
   v->set_last_altered(ull_curtime);
@@ -247,9 +243,8 @@ View *Schema_impl::create_system_view(THD *thd MY_ATTRIBUTE((unused))) const {
   v->set_schema_id(this->id());
 
   // Get statement start time.
-  MYSQL_TIME curtime;
-  my_tz_OFFSET0->gmt_sec_to_TIME(&curtime, thd->query_start_in_secs());
-  ulonglong ull_curtime = TIME_to_ulonglong_datetime(&curtime);
+  ulonglong ull_curtime =
+      dd::my_time_t_to_ull_datetime(thd->query_start_in_secs());
 
   v->set_created(ull_curtime);
   v->set_last_altered(ull_curtime);

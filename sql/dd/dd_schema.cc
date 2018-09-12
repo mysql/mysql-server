@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,7 @@
 #include "mysql_com.h"
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
 #include "sql/dd/dd.h"                       // dd::get_dictionary
+#include "sql/dd/impl/utils.h"               // dd::my_time_t_to_ull_datetime()
 #include "sql/dd/types/schema.h"             // dd::Schema
 #include "sql/item_create.h"
 #include "sql/mdl.h"
@@ -68,9 +69,7 @@ bool create_schema(THD *thd, const char *schema_name,
   schema->set_default_collation_id(charset_info->number);
 
   // Get statement start time.
-  MYSQL_TIME curtime;
-  my_tz_OFFSET0->gmt_sec_to_TIME(&curtime, thd->query_start_in_secs());
-  ulonglong ull_curtime = TIME_to_ulonglong_datetime(&curtime);
+  ulonglong ull_curtime = my_time_t_to_ull_datetime(thd->query_start_in_secs());
 
   schema->set_created(ull_curtime);
   schema->set_last_altered(ull_curtime);

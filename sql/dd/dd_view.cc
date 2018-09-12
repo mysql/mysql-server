@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,6 +48,7 @@
 #include "sql/dd/dd_table.h"                 // fill_dd_columns_from_create_*
 #include "sql/dd/dictionary.h"               // dd::Dictionary
 #include "sql/dd/impl/dictionary_impl.h"     // default_catalog_name
+#include "sql/dd/impl/utils.h"               // dd::my_time_t_to_ull_datetime()
 #include "sql/dd/properties.h"               // dd::Properties
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/abstract_table.h"  // dd::enum_table_type
@@ -587,12 +588,9 @@ bool update_view(THD *thd, dd::View *new_view, TABLE_LIST *view) {
   new_view->remove_children();
 
   // Get statement start time.
-  MYSQL_TIME curtime;
-  thd->variables.time_zone->gmt_sec_to_TIME(&curtime,
-                                            thd->query_start_in_secs());
-  ulonglong ull_curtime = TIME_to_ulonglong_datetime(&curtime);
   // Set last altered time.
-  new_view->set_last_altered(ull_curtime);
+  new_view->set_last_altered(
+      dd::my_time_t_to_ull_datetime(thd->query_start_in_secs()));
 
   if (fill_dd_view_definition(thd, new_view, view)) return true;
 
