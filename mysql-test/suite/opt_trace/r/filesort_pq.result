@@ -3042,23 +3042,22 @@ ORDER BY f1, f0 LIMIT 30	{
               }
             ],
             "filesort_priority_queue_optimization": {
-              "limit": 30,
-              "chosen": true
+              "usable": false,
+              "cause": "not applicable (no LIMIT)"
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
               "memory_available": 32768,
               "key_size": 9,
-              "row_size": 219,
-              "max_rows_per_buffer": 31,
+              "row_size": 221,
+              "max_rows_per_buffer": 110,
               "num_rows_estimate": 110,
               "num_rows_found": 100,
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": "NNN",
               "sort_algorithm": "std::sort",
-              "unpacked_addon_fields": "using_priority_queue",
-              "sort_mode": "<fixed_sort_key, additional_fields>"
+              "sort_mode": "<fixed_sort_key, packed_additional_fields>"
             }
           }
         ]
@@ -3214,23 +3213,22 @@ ORDER BY f1, f0 LIMIT 0	{
               }
             ],
             "filesort_priority_queue_optimization": {
-              "limit": 0,
-              "chosen": true
+              "usable": false,
+              "cause": "not applicable (no LIMIT)"
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
               "memory_available": 32768,
               "key_size": 9,
-              "row_size": 219,
-              "max_rows_per_buffer": 1,
+              "row_size": 221,
+              "max_rows_per_buffer": 110,
               "num_rows_estimate": 110,
               "num_rows_found": 100,
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": "NNN",
-              "sort_algorithm": "none",
-              "unpacked_addon_fields": "using_priority_queue",
-              "sort_mode": "<fixed_sort_key, additional_fields>"
+              "sort_algorithm": "std::sort",
+              "sort_mode": "<fixed_sort_key, packed_additional_fields>"
             }
           }
         ]
@@ -3435,23 +3433,22 @@ ORDER BY f2, f0 LIMIT 20	{
               }
             ],
             "filesort_priority_queue_optimization": {
-              "limit": 20,
-              "chosen": true
+              "usable": false,
+              "cause": "not applicable (no LIMIT)"
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
               "memory_available": 32768,
               "key_size": 205,
-              "row_size": 415,
-              "max_rows_per_buffer": 21,
+              "row_size": 417,
+              "max_rows_per_buffer": 77,
               "num_rows_estimate": 110,
               "num_rows_found": 89,
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": "NNN",
               "sort_algorithm": "std::sort",
-              "unpacked_addon_fields": "using_priority_queue",
-              "sort_mode": "<fixed_sort_key, additional_fields>"
+              "sort_mode": "<fixed_sort_key, packed_additional_fields>"
             }
           }
         ]
@@ -3636,23 +3633,22 @@ ORDER BY f2, f0 LIMIT 0	{
               }
             ],
             "filesort_priority_queue_optimization": {
-              "limit": 0,
-              "chosen": true
+              "usable": false,
+              "cause": "not applicable (no LIMIT)"
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
               "memory_available": 32768,
               "key_size": 205,
-              "row_size": 415,
-              "max_rows_per_buffer": 1,
+              "row_size": 417,
+              "max_rows_per_buffer": 77,
               "num_rows_estimate": 110,
               "num_rows_found": 89,
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": "NNN",
-              "sort_algorithm": "none",
-              "unpacked_addon_fields": "using_priority_queue",
-              "sort_mode": "<fixed_sort_key, additional_fields>"
+              "sort_algorithm": "std::sort",
+              "sort_mode": "<fixed_sort_key, packed_additional_fields>"
             }
           }
         ]
@@ -3847,23 +3843,22 @@ ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
               }
             ],
             "filesort_priority_queue_optimization": {
-              "limit": 20,
-              "chosen": true
+              "usable": false,
+              "cause": "not applicable (no LIMIT)"
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
               "memory_available": 32768,
               "key_size": 205,
-              "row_size": 415,
-              "max_rows_per_buffer": 21,
+              "row_size": 417,
+              "max_rows_per_buffer": 77,
               "num_rows_estimate": 110,
               "num_rows_found": 89,
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": "NNN",
               "sort_algorithm": "std::sort",
-              "unpacked_addon_fields": "using_priority_queue",
-              "sort_mode": "<fixed_sort_key, additional_fields>"
+              "sort_mode": "<fixed_sort_key, packed_additional_fields>"
             }
           }
         ]
@@ -4048,23 +4043,22 @@ ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
               }
             ],
             "filesort_priority_queue_optimization": {
-              "limit": 10,
-              "chosen": true
+              "usable": false,
+              "cause": "not applicable (no LIMIT)"
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
               "memory_available": 32768,
               "key_size": 205,
-              "row_size": 415,
-              "max_rows_per_buffer": 11,
+              "row_size": 417,
+              "max_rows_per_buffer": 77,
               "num_rows_estimate": 110,
               "num_rows_found": 89,
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": "NNN",
               "sort_algorithm": "std::sort",
-              "unpacked_addon_fields": "using_priority_queue",
-              "sort_mode": "<fixed_sort_key, additional_fields>"
+              "sort_mode": "<fixed_sort_key, packed_additional_fields>"
             }
           }
         ]
@@ -5042,8 +5036,8 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
               }
             ],
             "filesort_priority_queue_optimization": {
-              "limit": 60,
-              "chosen": true
+              "usable": false,
+              "cause": "not applicable (no LIMIT)"
             },
             "filesort_execution": [
             ],
@@ -5051,13 +5045,13 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
               "memory_available": 327680,
               "key_size": 17,
               "row_size": 17,
-              "max_rows_per_buffer": 61,
+              "max_rows_per_buffer": 1510,
               "num_rows_estimate": 1510,
               "num_rows_found": 1500,
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": "NNN",
-              "sort_algorithm": "std::sort",
-              "unpacked_addon_fields": "using_priority_queue",
+              "sort_algorithm": "std::stable_sort",
+              "unpacked_addon_fields": "using_heap_table",
               "sort_mode": "<fixed_sort_key, rowid>"
             }
           }
@@ -5434,8 +5428,8 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
               }
             ],
             "filesort_priority_queue_optimization": {
-              "limit": 60,
-              "chosen": true
+              "usable": false,
+              "cause": "not applicable (no LIMIT)"
             },
             "filesort_execution": [
             ],
@@ -5443,13 +5437,13 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
               "memory_available": 327680,
               "key_size": 17,
               "row_size": 17,
-              "max_rows_per_buffer": 61,
+              "max_rows_per_buffer": 1195,
               "num_rows_estimate": 1195,
               "num_rows_found": 1185,
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": "NNN",
-              "sort_algorithm": "std::sort",
-              "unpacked_addon_fields": "using_priority_queue",
+              "sort_algorithm": "std::stable_sort",
+              "unpacked_addon_fields": "using_heap_table",
               "sort_mode": "<fixed_sort_key, rowid>"
             }
           }
@@ -7856,23 +7850,22 @@ ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
               }
             ],
             "filesort_priority_queue_optimization": {
-              "limit": 30,
-              "chosen": true
+              "usable": false,
+              "cause": "not applicable (no LIMIT)"
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
               "memory_available": 327680,
               "key_size": 205,
-              "row_size": 415,
-              "max_rows_per_buffer": 31,
+              "row_size": 417,
+              "max_rows_per_buffer": 510,
               "num_rows_estimate": 510,
               "num_rows_found": 445,
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": "NNN",
-              "sort_algorithm": "std::sort",
-              "unpacked_addon_fields": "using_priority_queue",
-              "sort_mode": "<fixed_sort_key, additional_fields>"
+              "sort_algorithm": "std::stable_sort",
+              "sort_mode": "<fixed_sort_key, packed_additional_fields>"
             }
           }
         ]

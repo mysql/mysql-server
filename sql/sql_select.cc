@@ -4450,13 +4450,14 @@ bool JOIN::make_tmp_tables_info() {
         filesort_limit:	 Return only this many rows from filesort().
         We can use select_limit_cnt only if we have no group_by and 1 table.
         This allows us to use Bounded_queue for queries like:
-          "select SQL_CALC_FOUND_ROWS * from t1 order by b desc limit 1;"
+          "select * from t1 order by b desc limit 1;"
         m_select_limit == HA_POS_ERROR (we need a full table scan)
         unit->select_limit_cnt == 1 (we only need one row in the result set)
       */
       if (sort_tab->filesort)
         sort_tab->filesort->limit =
-            (has_group_by || (primary_tables > curr_tmp_table + 1))
+            (has_group_by || (primary_tables > curr_tmp_table + 1) ||
+             calc_found_rows)
                 ? m_select_limit
                 : unit->select_limit_cnt;
     }
