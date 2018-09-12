@@ -5,5 +5,5 @@ Pattern "\[ERROR\] \[[^]]*\] \[[^]]*\] unknown variable 'performance-schema-max_
 # Server start with ambigous startup option 'performance-schema-max_=12' : pass
 Pattern "\[ERROR\] \[[^]]*\] \[[^]]*\] unknown option '--performance-schema-unknown_99'" found
 # Server start with invalid startup option '--performance-schema-unknown_99' : pass
-Pattern "\[ERROR\] \[[^]]*\] \[[^]]*\] failed to set datadir to .*bad_option_h_param" found
+Pattern "\[ERROR\] \[[^]]*\] \[[^]]*\] Failed to set datadir to \'.*bad_option_h_param" found
 # Server start with invalid startup option value '--datadir=bad_option_h_param' : pass

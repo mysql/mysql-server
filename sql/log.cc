@@ -1740,36 +1740,36 @@ static mysql_mutex_t LOCK_error_log;
 // This variable is different from log_error_dest.
 // E.g. log_error_dest is "stderr" if we are not logging to file.
 static const char *error_log_file = NULL;
-static bool error_log_buffering = true;
-static std::string *buffered_messages = NULL;
 
 void discard_error_log_messages() {
-  if (buffered_messages) {
-    delete buffered_messages;
-    buffered_messages = NULL;
-  }
-  error_log_buffering = false;
+  log_sink_buffer_flush(LOG_BUFFER_DISCARD_ONLY);
 }
 
 void flush_error_log_messages() {
-  if (buffered_messages && !buffered_messages->empty()) {
-    fprintf(stderr, "%s", buffered_messages->c_str());
-    fflush(stderr);
-    delete buffered_messages;
-    buffered_messages = NULL;
-  }
-  error_log_buffering = false;
+  log_sink_buffer_flush(LOG_BUFFER_PROCESS_AND_DISCARD);
 }
 
-void init_error_log() {
+/**
+  Set up basic error logging.
+
+  @retval true   an error occurred
+  @retval false  basic error logging is now available in multi-threaded mode
+*/
+bool init_error_log() {
   DBUG_ASSERT(!error_log_initialized);
   mysql_mutex_init(key_LOCK_error_log, &LOCK_error_log, MY_MUTEX_INIT_FAST);
   /*
     ready the default filter/sink so they'll be available before/without
     the component system
   */
-  log_builtins_init();
   error_log_initialized = true;
+
+  if (log_builtins_init() < 0) {
+    log_write_errstream(
+        C_STRING_WITH_LEN("failed to initialized basic error logging"));
+    return true;
+  } else
+    return false;
 }
 
 bool open_error_log(const char *filename, bool get_lock) {
@@ -1806,8 +1806,6 @@ bool open_error_log(const char *filename, bool get_lock) {
 
   error_log_file = filename;  // Remember name for later reopen
 
-  // Write any messages buffered while we were figuring out the filename
-  flush_error_log_messages();
   return false;
 
 fail : {
@@ -1826,7 +1824,6 @@ fail : {
 
 void destroy_error_log() {
   // We should have flushed before this...
-  DBUG_ASSERT(!error_log_buffering);
   // ... but play it safe on release builds
   flush_error_log_messages();
   if (error_log_initialized) {
@@ -1878,18 +1875,8 @@ void log_write_errstream(const char *buffer, size_t length) {
   */
   if (error_log_initialized) mysql_mutex_lock(&LOCK_error_log);
 
-  if (error_log_buffering) {
-    // Logfile not open yet, buffer messages for now.
-    if (buffered_messages == nullptr)
-      buffered_messages = new (std::nothrow) std::string();
-    std::ostringstream s;
-    s.write(buffer, length);
-    s << std::endl;
-    buffered_messages->append(s.str());
-  } else {
-    fprintf(stderr, "%.*s\n", (int)length, buffer);
-    fflush(stderr);
-  }
+  fprintf(stderr, "%.*s\n", (int)length, buffer);
+  fflush(stderr);
 
   if (error_log_initialized) mysql_mutex_unlock(&LOCK_error_log);
 

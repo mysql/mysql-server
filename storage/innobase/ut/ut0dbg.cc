@@ -53,6 +53,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
       << ((expr != nullptr) ? ":" : "") << ((expr != nullptr) ? expr : "")
       << " thread " << os_thread_handle();
 
+  flush_error_log_messages();
+
 #else  /* !UNIV_HOTBACKUP && !defined(UNIV_NO_ERR_MSGS) */
   auto filename = base_name(file);
 

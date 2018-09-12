@@ -190,7 +190,7 @@ const char *my_get_err_msg(int nr) {
 
   /*
     If we found the range this error number is in, get the format string.
-    If the string is empty, or a NULL pointer, or if we're out of return,
+    If the string is empty, or a NULL pointer, or if we're out of ranges,
     we return NULL.
   */
   if (!(format = (meh_p && (nr >= meh_p->meh_first)) ? meh_p->get_errmsg(nr)

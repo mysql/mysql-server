@@ -53,6 +53,7 @@ struct dict_table_t;
 #define RECOVERY_CRASH(x)                                  \
   do {                                                     \
     if (srv_force_recovery_crash == x) {                   \
+      flush_error_log_messages();                          \
       fprintf(stderr, "innodb_force_recovery_crash=%lu\n", \
               srv_force_recovery_crash);                   \
       fflush(stderr);                                      \

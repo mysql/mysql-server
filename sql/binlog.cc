@@ -1917,10 +1917,12 @@ static void exec_binlog_error_action_abort(const char *err_string) {
       Send error to both client and to the server error log.
     */
     my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(ME_FATALERROR), err_string);
-    LogErr(ERROR_LEVEL, ER_BINLOG_LOGGING_NOT_POSSIBLE, err_string);
-    thd->send_statement_status();
-  } else
-    LogErr(ERROR_LEVEL, ER_BINLOG_LOGGING_NOT_POSSIBLE, err_string);
+  }
+
+  LogErr(ERROR_LEVEL, ER_BINLOG_LOGGING_NOT_POSSIBLE, err_string);
+  flush_error_log_messages();
+
+  if (thd) thd->send_statement_status();
   abort();
 }
 

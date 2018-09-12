@@ -124,34 +124,35 @@ enum enum_log_type {
   substitutions must already have taken place).
 */
 typedef enum enum_log_item_type {
-  LOG_ITEM_END = 0,                   /**< end of list, see above */
-  LOG_ITEM_LOG_TYPE = 1,              /**< error log, etc. */
-  LOG_ITEM_SQL_ERRCODE = 2,           /**< mysql error code (numeric) */
-  LOG_ITEM_SQL_ERRSYMBOL = 4,         /**< mysql error code (symbolic) */
-  LOG_ITEM_SQL_STATE = 8,             /**< SQL state */
-  LOG_ITEM_SYS_ERRNO = 16,            /**< OS errno */
-  LOG_ITEM_SYS_STRERROR = 32,         /**< OS strerror() */
-  LOG_ITEM_SRC_FILE = 64,             /**< log called from file ... */
-  LOG_ITEM_SRC_LINE = 128,            /**< log called from line ... */
-  LOG_ITEM_SRC_FUNC = 256,            /**< log called from function ... */
-  LOG_ITEM_SRV_SUBSYS = 512,          /**< log called from subsystem ... */
-  LOG_ITEM_SRV_COMPONENT = 1024,      /**< log called from component ... */
-  LOG_ITEM_MSC_USER = 2048,           /**< offending thread owned by ... */
-  LOG_ITEM_MSC_HOST = 4096,           /**< responsible user on host ... */
-  LOG_ITEM_SRV_THREAD = 8192,         /**< connection ID */
-  LOG_ITEM_SQL_QUERY_ID = 16384,      /**< query ID */
-  LOG_ITEM_SQL_TABLE_NAME = 32768,    /**< table name */
-  LOG_ITEM_LOG_PRIO = 65536,          /**< log priority (error, warn, ...) */
-  LOG_ITEM_LOG_LABEL = 131072,        /**< label, unless auto-derived */
-  LOG_ITEM_LOG_VERBATIM = 262144,     /**< the message, no % substitutions */
-  LOG_ITEM_LOG_MESSAGE = 524288,      /**< the message, format string */
-  LOG_ITEM_LOG_LOOKUP = 1048576,      /**< insert message by error-code */
-  LOG_ITEM_LOG_TIMESTAMP = 2097152,   /**< ISO8601 timestamp */
-  LOG_ITEM_LOG_SUPPRESSED = 4194304,  /**< "and ... more" throttled */
-  LOG_ITEM_GEN_FLOAT = 8388608,       /**< float not otherwise specified */
-  LOG_ITEM_GEN_INTEGER = 16777216,    /**< integer not otherwise specified */
-  LOG_ITEM_GEN_LEX_STRING = 33554432, /**< lex string not otherwise specified */
-  LOG_ITEM_GEN_CSTRING = 67108864     /**< C-string not otherwise specified */
+  LOG_ITEM_END = 0,                  /**< end of list, see above */
+  LOG_ITEM_LOG_TYPE = 1 << 0,        /**< error log, etc. */
+  LOG_ITEM_SQL_ERRCODE = 1 << 1,     /**< mysql error code (numeric) */
+  LOG_ITEM_SQL_ERRSYMBOL = 1 << 2,   /**< mysql error code (symbolic) */
+  LOG_ITEM_SQL_STATE = 1 << 3,       /**< SQL state */
+  LOG_ITEM_SYS_ERRNO = 1 << 4,       /**< OS errno */
+  LOG_ITEM_SYS_STRERROR = 1 << 5,    /**< OS strerror() */
+  LOG_ITEM_SRC_FILE = 1 << 6,        /**< log called from file ... */
+  LOG_ITEM_SRC_LINE = 1 << 7,        /**< log called from line ... */
+  LOG_ITEM_SRC_FUNC = 1 << 8,        /**< log called from function ... */
+  LOG_ITEM_SRV_SUBSYS = 1 << 9,      /**< log called from subsystem ... */
+  LOG_ITEM_SRV_COMPONENT = 1 << 10,  /**< log called from component ... */
+  LOG_ITEM_MSC_USER = 1 << 11,       /**< offending thread owned by ... */
+  LOG_ITEM_MSC_HOST = 1 << 12,       /**< responsible user on host ... */
+  LOG_ITEM_SRV_THREAD = 1 << 13,     /**< connection ID */
+  LOG_ITEM_SQL_QUERY_ID = 1 << 14,   /**< query ID */
+  LOG_ITEM_SQL_TABLE_NAME = 1 << 15, /**< table name */
+  LOG_ITEM_LOG_PRIO = 1 << 16,       /**< log priority (error, warn, ...) */
+  LOG_ITEM_LOG_LABEL = 1 << 17,      /**< label, unless auto-derived */
+  LOG_ITEM_LOG_VERBATIM = 1 << 18,   /**< the message, no % substitutions */
+  LOG_ITEM_LOG_MESSAGE = 1 << 19,    /**< the message, format string */
+  LOG_ITEM_LOG_LOOKUP = 1 << 20,     /**< insert message by error-code */
+  LOG_ITEM_LOG_TIMESTAMP = 1 << 21,  /**< ISO8601 timestamp */
+  LOG_ITEM_LOG_BUFFERED = 1 << 22,   /**< integer timestamp if/when buffered */
+  LOG_ITEM_LOG_SUPPRESSED = 1 << 23, /**< "and ... more" throttled */
+  LOG_ITEM_GEN_FLOAT = 1 << 24,      /**< float not otherwise specified */
+  LOG_ITEM_GEN_INTEGER = 1 << 25,    /**< integer not otherwise specified */
+  LOG_ITEM_GEN_LEX_STRING = 1 << 26, /**< lex string not otherwise specified */
+  LOG_ITEM_GEN_CSTRING = 1 << 27     /**< C-string not otherwise specified */
 } log_item_type;
 
 /* some suggested keys for generic items */

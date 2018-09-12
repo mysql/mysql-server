@@ -55,18 +55,26 @@ typedef enum enum_log_service_chistics {
   /** Service is built-in (and can not be INSTALLed/UNINSTALLed */
   LOG_SERVICE_BUILTIN = 4,
 
+  // values from 8..64 are reserved for extensions
+
   /** Service is a source. It adds key/value pairs beyond those in the
       statement that first created the log-event. Log-sources are not
       normally READ_ONLY. */
-  LOG_SERVICE_SOURCE = 32,
+  LOG_SERVICE_SOURCE = 128,
 
   /** Service is a filter. A filter should not be the last service in
       the log service pipeline. */
-  LOG_SERVICE_FILTER = 64,
+  LOG_SERVICE_FILTER = 256,
 
   /** Service is a sink (usually a log-writer). Sinks will normally
       not modify the log-event, but be READ_ONLY. */
-  LOG_SERVICE_SINK = 128
+  LOG_SERVICE_SINK = 512,
+
+  /** Service is a special sink used during start-up that buffers log-events
+      until the log service pipeline is fully set up, at which point we'll
+      flush (that is, filter and prints) the buffered events.
+      Services flagged this must also be flagged LOG_SERVICE_SINK! */
+  LOG_SERVICE_BUFFER = 1024
 
 } log_service_chistics;
 

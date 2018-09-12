@@ -4888,8 +4888,6 @@ static void setup_error_log() {
   } else {
     // We are logging to stderr and SHOW VARIABLES should reflect that.
     log_error_dest = "stderr";
-    // Flush messages buffered so far.
-    flush_error_log_messages();
   }
 }
 
@@ -5726,7 +5724,7 @@ int mysqld_main(int argc, char **argv)
   init_sql_statement_names();
   sys_var_init();
   ulong requested_open_files;
-  init_error_log();
+  if (init_error_log()) unireg_abort(MYSQLD_ABORT_EXIT);
   adjust_related_options(&requested_open_files);
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
@@ -6120,8 +6118,12 @@ int mysqld_main(int argc, char **argv)
   /*
    We have enough space for fiddling with the argv, continue
   */
-  if (!opt_help && my_setwd(mysql_real_data_home, MYF(MY_WME))) {
-    LogErr(ERROR_LEVEL, ER_CANT_SET_DATADIR, mysql_real_data_home);
+  if (!opt_help && my_setwd(mysql_real_data_home, MYF(0))) {
+    char errbuf[MYSYS_STRERROR_SIZE];
+
+    LogErr(ERROR_LEVEL, ER_CANT_SET_DATA_DIR, mysql_real_data_home, errno,
+           my_strerror(errbuf, sizeof(errbuf), errno));
+
     unireg_abort(MYSQLD_ABORT_EXIT); /* purecov: inspected */
   }
 
@@ -6370,71 +6372,6 @@ int mysqld_main(int argc, char **argv)
   }
 
   /*
-    Activate loadable error logging components, if any.
-  */
-  if (log_builtins_error_stack(opt_log_error_services, true, nullptr) == 0) {
-    // Syntax is OK and services exist; let's try to initialize them:
-    size_t pos;
-
-    if (log_builtins_error_stack(opt_log_error_services, false, &pos) < 0) {
-      char *problem = opt_log_error_services; /* purecov: begin inspected */
-      const char *var_name = "log_error_services";
-
-      if (pos < strlen(opt_log_error_services))
-        problem = &((char *)opt_log_error_services)[pos];
-
-      /*
-        Try to fall back to default error logging stack.
-        If that's possible, print diagnostics there, then exit.
-      */
-      sys_var *var = intern_find_sys_var(var_name, strlen(var_name));
-
-      if (var != nullptr) {
-        opt_log_error_services = (char *)var->get_default();
-        if (log_builtins_error_stack(opt_log_error_services, false, nullptr) >=
-            0) {
-          // We found the sys_var, but somehow couldn't set the default!?
-          LogErr(ERROR_LEVEL, ER_CANT_START_ERROR_LOG_SERVICE, var_name,
-                 problem);
-          unireg_abort(MYSQLD_ABORT_EXIT);
-        }
-      }
-
-      /*
-        We failed to set the default error logging stack. At this point,
-        we don't know whether ANY of the requested sinks work,
-        so our best bet is to write directly to the error stream.
-        Then, we abort.
-      */
-      {
-        char buff[512];
-        size_t len;
-
-        len = snprintf(buff, sizeof(buff),
-                       ER_DEFAULT(ER_CANT_START_ERROR_LOG_SERVICE), var_name,
-                       problem);
-        len = std::min(len, sizeof(buff) - 1);
-
-        log_write_errstream(buff, len);
-
-        unireg_abort(MYSQLD_ABORT_EXIT);
-      } /* purecov: end */
-    }
-  } else {
-    LogErr(INFORMATION_LEVEL, ER_CANNOT_SET_LOG_ERROR_SERVICES,
-           opt_log_error_services);
-    /*
-      We were given an illegal value at start-up, so the default was
-      used instead. We have reported the problem (and the dodgy value);
-      let's now point our variable back at the default (i.e. the value
-      actually used) so SELECT @@GLOBAL.log_error_services will render
-      correct results.
-    */
-    sys_var *var = intern_find_sys_var(STRING_WITH_LEN("log_error_services"));
-    if (var != nullptr) opt_log_error_services = (char *)var->get_default();
-  }
-
-  /*
     Bootstrap the dynamic privilege service implementation
   */
   if (dynamic_privilege_init()) {
@@ -6507,8 +6444,89 @@ int mysqld_main(int argc, char **argv)
   /* set all persistent options */
   if (persisted_variables_cache.set_persist_options()) {
     LogErr(ERROR_LEVEL, ER_CANT_SET_UP_PERSISTED_VALUES);
+    flush_error_log_messages();
     return 1;
   }
+
+  /*
+    Activate loadable error logging components, if any.
+  */
+  if (log_builtins_error_stack(opt_log_error_services, true, nullptr) == 0) {
+    // Syntax is OK and services exist; let's try to initialize them:
+    size_t pos;
+
+    if (log_builtins_error_stack(opt_log_error_services, false, &pos) < 0) {
+      char *problem = opt_log_error_services; /* purecov: begin inspected */
+      const char *var_name = "log_error_services";
+
+      if (pos < strlen(opt_log_error_services))
+        problem = &((char *)opt_log_error_services)[pos];
+
+      flush_error_log_messages();
+
+      /*
+        Try to fall back to default error logging stack.
+        If that's possible, print diagnostics there, then exit.
+      */
+      sys_var *var = intern_find_sys_var(var_name, strlen(var_name));
+
+      if (var != nullptr) {
+        opt_log_error_services = (char *)var->get_default();
+        if (log_builtins_error_stack(opt_log_error_services, false, nullptr) >=
+            0) {
+          // We found the sys_var, but somehow couldn't set the default!?
+          LogErr(ERROR_LEVEL, ER_CANT_START_ERROR_LOG_SERVICE, var_name,
+                 problem);
+          unireg_abort(MYSQLD_ABORT_EXIT);
+        }
+      }
+
+      /*
+        We failed to set the default error logging stack. At this point,
+        we don't know whether ANY of the requested sinks work,
+        so our best bet is to write directly to the error stream.
+        Then, we abort.
+      */
+      {
+        char buff[512];
+        size_t len;
+
+        len = snprintf(buff, sizeof(buff),
+                       ER_DEFAULT(ER_CANT_START_ERROR_LOG_SERVICE), var_name,
+                       problem);
+        len = std::min(len, sizeof(buff) - 1);
+
+        log_write_errstream(buff, len);
+
+        unireg_abort(MYSQLD_ABORT_EXIT);
+      } /* purecov: end */
+    }
+  } else {
+    /*
+      We were given an illegal value at start-up, so the default was
+      used instead. We have reported the problem (and the dodgy value);
+      let's now point our variable back at the default (i.e. the value
+      actually used) so SELECT @@GLOBAL.log_error_services will render
+      correct results.
+    */
+    sys_var *var = intern_find_sys_var(STRING_WITH_LEN("log_error_services"));
+    char *default_services = nullptr;
+
+    if ((var != nullptr) &&
+        ((default_services = (char *)var->get_default()) != nullptr))
+      log_builtins_error_stack(default_services, false, nullptr);
+
+    LogErr(WARNING_LEVEL, ER_CANNOT_SET_LOG_ERROR_SERVICES,
+           opt_log_error_services);
+
+    if (default_services != nullptr) opt_log_error_services = default_services;
+  }
+
+  /*
+    Now that the error-logging stack is fully set up, loadable components
+    and all, flush any buffered log-events!
+  */
+  flush_error_log_messages();
 
   if (opt_initialize) {
     // Make sure we can process SIGHUP during bootstrap.

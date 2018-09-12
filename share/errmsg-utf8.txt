@@ -9213,7 +9213,7 @@ ER_PERFSCHEMA_INIT_FAILED
 ER_STACKSIZE_UNEXPECTED
   eng "Asked for %lu thread stack, but got %ld"
 
-ER_CANT_SET_DATADIR
+OBSOLETE_ER_CANT_SET_DATADIR
   eng "failed to set datadir to %s"
 
 ER_CANT_STAT_DATADIR
@@ -18526,6 +18526,9 @@ ER_IB_MSG_MADV_DONTDUMP_UNSUPPORTED
 
 ER_IB_MSG_MADVISE_FAILED
   eng "Disabling @@core_file because @@innodb_buffer_pool_in_core_file is disabled, yet madvise(%x,%d,%s) failed with %s"
+
+ER_CANT_SET_DATA_DIR
+  eng "Failed to set datadir to \'%-.200s\' (OS errno: %d - %s)"
 
 #
 # End of 8.0 error messages intended to be logged to the server error log.

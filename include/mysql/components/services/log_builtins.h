@@ -158,7 +158,7 @@ DECLARE_METHOD(bool, item_numeric_class, (log_item_class c));
 
 /**
   Set an integer value on a log_item.
-  Fails gracefully if not log_item_data is supplied, so it can safely
+  Fails gracefully if no log_item_data is supplied, so it can safely
   wrap log_line_item_set[_with_key]().
 
   @param  lid    log_item_data struct to set the value on
@@ -170,7 +170,7 @@ DECLARE_METHOD(bool, item_numeric_class, (log_item_class c));
 DECLARE_METHOD(bool, item_set_int, (log_item_data * lid, longlong i));
 /**
   Set a floating point value on a log_item.
-  Fails gracefully if not log_item_data is supplied, so it can safely
+  Fails gracefully if no log_item_data is supplied, so it can safely
   wrap log_line_item_set[_with_key]().
 
   @param  lid    log_item_data struct to set the value on
@@ -183,7 +183,7 @@ DECLARE_METHOD(bool, item_set_float, (log_item_data * lid, double f));
 
 /**
   Set a string value on a log_item.
-  Fails gracefully if not log_item_data is supplied, so it can safely
+  Fails gracefully if no log_item_data is supplied, so it can safely
   wrap log_line_item_set[_with_key]().
 
   @param  lid    log_item_data struct to set the value on
@@ -198,7 +198,7 @@ DECLARE_METHOD(bool, item_set_lexstring,
 
 /**
   Set a string value on a log_item.
-  Fails gracefully if not log_item_data is supplied, so it can safely
+  Fails gracefully if no log_item_data is supplied, so it can safely
   wrap log_line_item_set[_with_key]().
 
   @param  lid    log_item_data struct to set the value on

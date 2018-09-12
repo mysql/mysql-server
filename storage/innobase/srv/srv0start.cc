@@ -3381,5 +3381,7 @@ void srv_fatal_error() {
 
   srv_shutdown_all_bg_threads();
 
+  flush_error_log_messages();
+
   exit(3);
 }

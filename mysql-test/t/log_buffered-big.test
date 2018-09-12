@@ -1,0 +1,43 @@
+# WL#11875
+
+# 11875 completely rewrites the "buffered logging" subsystem, wherein we
+# collect error log events until we receive command-line options telling
+# us where to actually send them.
+# Previously, info was formatted when the event was created, and appended
+# to a string containing all buffered lines which would eventually be
+# flushed.
+# Now, we keep all key/value pairs around, and flush them only once
+# a) we know where to (as before)
+# b) external components are available (as the user may wish to use
+#    a loadable log-writer or log-filter).
+#    This requires the availability of the component framework
+#    as well as InnoDB (wherein the framework stores its setup).
+# This allows us to flush the data in one or several log formats
+# of the user's choice, and lets us apply filtering of the user's
+# choice. (It also handles local<->UTC timestamps correctly).
+# All of the above is tested in log_components*.test and
+# log_options_cmdline.test.
+
+# As a final new feature, if InnoDB initialization takes very long
+# (e.g. when another instance of the server has already claimed
+# the database file), we start giving updates using the built-in
+# log-writer (which is already available), which deferring the
+# writing of any other formats (the writers for which haven't been,
+# and can't be, loaded yet). As this mechanism only kicks in once
+# a certain time-out has been reached, this test must needs take a
+# bit of time (in the ballpark of 2 minutes), so we don't run it by
+# default:
+
+# This test takes rather long time so let us run it only in --big-test mode
+--source include/big_test.inc
+--source include/not_asan.inc
+--source include/not_windows.inc
+
+
+--let $MYSQLD_DATADIR= `SELECT @@datadir`
+--let $MYSQLD_LOG= $MYSQL_TMP_DIR/buffered.log
+
+--error 1
+--exec $MYSQLD --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR --no-defaults --secure-file-priv="" --port=$MASTER_MYPORT
+
+--remove_file $MYSQLD_LOG

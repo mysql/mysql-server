@@ -808,8 +808,11 @@ void error_log_print(enum loglevel level, uint ecode, va_list args);
 
   @note The error log can still be used before this function is called,
   but that should only be done single-threaded.
+
+  @retval true   an error occurred
+  @retval false  basic error logging is now available in multi-threaded mode
 */
-void init_error_log();
+bool init_error_log();
 
 /**
   Open the error log and redirect stderr and optionally stdout
@@ -1447,9 +1450,11 @@ int log_builtins_error_stack_flush();
   Initialize the structured logging subsystem.
 
   @retval  0  no errors
-  @retval -1  couldn't initialize lock
+  @retval -1  couldn't initialize stack lock
   @retval -2  couldn't initialize built-in default filter
   @retval -3  couldn't set up service hash
+  @retval -4  couldn't initialize syseventlog lock
+  @retval -5  couldn't set service pipeline
 */
 int log_builtins_init();
 
@@ -1457,6 +1462,7 @@ int log_builtins_init();
   De-initialize the structured logging subsystem.
 
   @retval  0  no errors
+  @retval -1  not stopping, never started
 */
 int log_builtins_exit();
 
