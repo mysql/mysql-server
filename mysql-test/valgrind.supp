@@ -1752,3 +1752,52 @@
    fun:ldap_int_tls_start
    fun:ldap_start_tls_s
 }
+
+#
+# Bug28597417: NDB: Supress memory_leak at bitmap_init in binlog/Ndb_share
+# in pre-trunk releases. The problem seems to occur during a "discover"
+# and those should be rare so not much memory should leak over time.
+# In trunk, this is not a problem due to code rewrites.
+#
+{
+   <bitmap_init1>
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   fun:my_raw_malloc
+   fun:my_malloc
+   fun:bitmap_init
+   fun:_ZN9NDB_SHARE26set_binlog_flags_for_tableEP5TABLE
+   fun:_ZL28ndb_binlog_open_shadow_tableP3THDP9NDB_SHARE
+   fun:_Z28ndbcluster_binlog_init_shareP3THDP9NDB_SHAREP5TABLE
+   fun:_ZN9NDB_SHARE6createEPKcP5TABLE
+   fun:_ZL20ndbcluster_get_sharePKcP5TABLEb
+   fun:_Z20ndbcluster_get_sharePKcP5TABLEbb
+   fun:_Z9get_sharePKcP5TABLEbb
+   fun:_ZN13ha_ndbcluster6createEPKcP5TABLEP24st_ha_create_information
+   fun:_ZN7handler9ha_createEPKcP5TABLEP24st_ha_create_information
+   fun:_Z15ha_create_tableP3THDPKcS2_S2_P24st_ha_create_informationbb
+   fun:_Z16rea_create_tableP3THDPKcS2_S2_P24st_ha_create_informationR4ListI12Create_fieldEjP6st_keyP7handlerb
+   fun:_ZL17create_table_implP3THDPKcS2_S2_S2_P24st_ha_create_informationP10Alter_infobjbPbPP6st_keyPj
+}
+{
+   <bitmap_init2>
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   fun:my_raw_malloc
+   fun:my_malloc
+   fun:bitmap_init
+   fun:_ZN9NDB_SHARE26set_binlog_flags_for_tableEP5TABLE
+   fun:_ZL28ndb_binlog_open_shadow_tableP3THDP9NDB_SHARE
+   fun:_Z28ndbcluster_binlog_init_shareP3THDP9NDB_SHAREP5TABLE
+   fun:_ZN9NDB_SHARE6createEPKcP5TABLE
+   fun:_ZL20ndbcluster_get_sharePKcP5TABLEb
+   fun:_Z20ndbcluster_get_sharePKcP5TABLEbb
+   fun:_Z9get_sharePKcP5TABLEbb
+   fun:_Z30ndbcluster_create_binlog_setupP3THDP3NdbPKcS4_S4_P5TABLE
+   fun:_ZN13ha_ndbcluster6createEPKcP5TABLEP24st_ha_create_information
+   fun:_ZN7handler9ha_createEPKcP5TABLEP24st_ha_create_information
+   fun:_Z27ha_create_table_from_engineP3THDPKcS2_
+   fun:_Z28ndb_create_table_from_engineP3THDPKcS2_
+}
