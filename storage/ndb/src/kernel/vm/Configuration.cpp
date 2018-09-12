@@ -716,6 +716,16 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
   unsigned int noOfScanRecords = 0;
   unsigned int noOfLocalScanRecords = 0;
   unsigned int noBatchSize = 0;
+  unsigned int noOfIndexOperations = 0;
+  unsigned int noOfTriggerOperations = 0;
+  unsigned int reservedScanRecords = 0;
+  unsigned int reservedLocalScanRecords = 0;
+  unsigned int reservedOperations = 0;
+  unsigned int reservedTransactions = 0;
+  unsigned int reservedIndexOperations = 0;
+  unsigned int reservedTriggerOperations = 0;
+  unsigned int transactionBufferBytes = 0;
+  unsigned int reservedTransactionBufferBytes = 0;
   unsigned int maxOpsPerTrans = ~(Uint32)0;
 
   m_logLevel = new LogLevel();
@@ -727,9 +737,9 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
   struct AttribStorage { int paramId; Uint32 * storage; bool computable; };
   AttribStorage tmp[] = {
     { CFG_DB_NO_SCANS, &noOfScanRecords, false },
-//CFG_DB_RESERVED_SCANS
+    { CFG_DB_RESERVED_SCANS, &reservedScanRecords, true },
     { CFG_DB_NO_LOCAL_SCANS, &noOfLocalScanRecords, true },
-//CFG_DB_RESERVED_LOCAL_SCANS
+    { CFG_DB_RESERVED_LOCAL_SCANS, &reservedLocalScanRecords, true },
     { CFG_DB_BATCH_SIZE, &noBatchSize, false },
     { CFG_DB_NO_TABLES, &noOfTables, false },
     { CFG_DB_NO_ORDERED_INDEXES, &noOfOrderedIndexes, false },
@@ -738,13 +748,17 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     { CFG_DB_NO_REPLICAS, &noOfReplicas, false },
     { CFG_DB_NO_ATTRIBUTES, &noOfAttributes, false },
     { CFG_DB_NO_OPS, &noOfOperations, false },
-//CFG_DB_RESERVED_OPS
+    { CFG_DB_RESERVED_OPS, &reservedOperations, true },
     { CFG_DB_NO_LOCAL_OPS, &noOfLocalOperations, true },
     { CFG_DB_NO_TRANSACTIONS, &noOfTransactions, false },
-//CFG_DB_RESERVED_TRANSACTIONS
-    { CFG_DB_MAX_DML_OPERATIONS_PER_TRANSACTION, &maxOpsPerTrans, false }
-//CFG_DB_RESERVED_INDEX_OPS
-//CFG_DB_RESERVED_TRIGGER_OPS
+    { CFG_DB_RESERVED_TRANSACTIONS, &reservedTransactions, true },
+    { CFG_DB_MAX_DML_OPERATIONS_PER_TRANSACTION, &maxOpsPerTrans, false },
+    { CFG_DB_NO_INDEX_OPS, &noOfIndexOperations, true },
+    { CFG_DB_RESERVED_INDEX_OPS, &reservedIndexOperations, true },
+    { CFG_DB_NO_TRIGGER_OPS, &noOfTriggerOperations, true },
+    { CFG_DB_RESERVED_TRIGGER_OPS, &reservedTriggerOperations, true },
+    { CFG_DB_TRANS_BUFFER_MEM, &transactionBufferBytes, false },
+    { CFG_DB_RESERVED_TRANS_BUFFER_MEM, &reservedTransactionBufferBytes, false },
   };
 
   ndb_mgm_configuration_iterator db(*(ndb_mgm_configuration*)ownConfig, 0);
@@ -914,8 +928,35 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
       noOfLocalOperations= (11 * noOfOperations) / 10;
   }
 
-  Uint32 noOfTCScanRecords = noOfScanRecords;
-  Uint32 noOfTCLocalScanRecords = noOfLocalScanRecords;
+  // ReservedXXX defaults to 25% of MaxNoOfXXX
+  if (reservedScanRecords == 0)
+  {
+    reservedScanRecords = noOfScanRecords / 4;
+  }
+  if (reservedLocalScanRecords == 0)
+  {
+    reservedLocalScanRecords = noOfLocalScanRecords / 4;
+  }
+  if (reservedOperations == 0)
+  {
+    reservedOperations = noOfOperations / 4;
+  }
+  if (reservedTransactions == 0)
+  {
+    reservedTransactions = noOfTransactions / 4;
+  }
+  if (reservedIndexOperations == 0)
+  {
+    reservedIndexOperations = noOfIndexOperations / 4;
+  }
+  if (reservedTriggerOperations == 0)
+  {
+    reservedTriggerOperations = noOfTriggerOperations / 4;
+  }
+  if (reservedTransactionBufferBytes == 0)
+  {
+    reservedTransactionBufferBytes = transactionBufferBytes / 4;
+  }
 
   noOfLocalOperations = DO_DIV(noOfLocalOperations, lqhInstances);
   noOfLocalScanRecords = DO_DIV(noOfLocalScanRecords, lqhInstances);
@@ -1018,26 +1059,21 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
       ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, msg, buf);
     }
 
-    cfg.put(CFG_TC_API_CONNECT, 
-	    2 * noOfTransactions);
-    
-    cfg.put(CFG_TC_API_CONNECT_FAIL,
-           noOfTransactions);
+    cfg.put(CFG_TC_API_CONNECT, reservedTransactions / tcInstances);
+    cfg.put(CFG_TC_API_CONNECT_FAIL, reservedTransactions / tcInstances);
 
-    cfg.put(CFG_TC_TC_CONNECT,
-	    noOfOperations + 8 + (noOfTransactions + 1) / 2);
-
-    cfg.put(CFG_TC_TC_CONNECT_FAIL,
-	    noOfOperations + 8 + (noOfTransactions + 1) / 2);
+    cfg.put(CFG_TC_TC_CONNECT, reservedOperations / tcInstances);
+    cfg.put(CFG_TC_TC_CONNECT_FAIL, maxOpsPerTrans);
     
     cfg.put(CFG_TC_TABLE, 
 	    noOfMetaTables);
     
-    cfg.put(CFG_TC_LOCAL_SCAN, 
-	    noOfTCLocalScanRecords);
+    cfg.put(CFG_TC_LOCAL_SCAN, reservedLocalScanRecords / tcInstances);
     
-    cfg.put(CFG_TC_SCAN, 
-	    noOfTCScanRecords);
+    cfg.put(CFG_TC_SCAN, reservedScanRecords / tcInstances);
+
+    cfg.put(CFG_TC_TRANS_BUFFER,
+            (reservedTransactionBufferBytes / tcInstances));
   }
   
   {

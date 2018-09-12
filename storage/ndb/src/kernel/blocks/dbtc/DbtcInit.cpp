@@ -24,6 +24,7 @@
 
 #define DBTC_C
 #include "Dbtc.hpp"
+#include "ndb_global.h"
 #include <pc.hpp>
 #include <ndb_limits.h>
 #include <Properties.hpp>
@@ -133,19 +134,30 @@ void Dbtc::initData()
 
 void Dbtc::initRecords(const ndb_mgm_configuration_iterator * mgm_cfg) 
 {
-  Uint32 ReservedConcurrentIndexOperations = 0;
-  Uint32 ReservedConcurrentOperations = 0;
-  Uint32 ReservedConcurrentScans = 0;
-  Uint32 ReservedConcurrentTransactions = 0;
-  Uint32 ReservedFiredTriggers = 0;
-  Uint32 ReservedLocalScans = 0;
+  Uint32 noOfIndexOperations = 0;
+  Uint32 noOfOperations = 0;
+  Uint32 noOfFailOperations = 0;
+  Uint32 noOfScans = 0;
+  Uint32 noOfTransactions = 0;
+  Uint32 noOfFailTransactions = 0;
+  Uint32 noOfFiredTriggers = 0;
+  Uint32 noOfLocalScans = 0;
+  Uint32 transactionBufferBytes = 0;
 
-  ndb_mgm_get_int_parameter(mgm_cfg, CFG_DB_RESERVED_INDEX_OPS, &ReservedConcurrentIndexOperations);
-  ndb_mgm_get_int_parameter(mgm_cfg, CFG_DB_RESERVED_OPS, &ReservedConcurrentOperations);
-  ndb_mgm_get_int_parameter(mgm_cfg, CFG_DB_RESERVED_SCANS, &ReservedConcurrentScans);
-  ndb_mgm_get_int_parameter(mgm_cfg, CFG_DB_RESERVED_TRANSACTIONS, &ReservedConcurrentTransactions);
-  ndb_mgm_get_int_parameter(mgm_cfg, CFG_DB_RESERVED_TRIGGER_OPS, &ReservedFiredTriggers);
-  ndb_mgm_get_int_parameter(mgm_cfg, CFG_DB_RESERVED_SCANS, &ReservedLocalScans);
+  ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_INDEX_OPS, &noOfIndexOperations);
+  ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TC_CONNECT, &noOfOperations);
+  ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_SCAN, &noOfScans);
+  ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_API_CONNECT, &noOfTransactions);
+  ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TRIGGER_OPS, &noOfFiredTriggers);
+  ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_LOCAL_SCAN, &noOfLocalScans);
+  ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TRANS_BUFFER, &transactionBufferBytes);
+
+  if (instance() < 2)
+  {
+    // Only first DBTC do take over
+    ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TC_CONNECT_FAIL, &noOfFailOperations);
+    ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_API_CONNECT_FAIL, &noOfFailTransactions);
+  }
 
   void *p;
 #if defined(USE_INIT_GLOBAL_VARIABLES)
@@ -169,8 +181,8 @@ void Dbtc::initRecords(const ndb_mgm_configuration_iterator * mgm_cfg)
   }
   while (indexes.releaseFirst());
 
-// todo(wl9756)  m_commitAckMarkerHash.setSize(capiConnectFilesize);
-/* todo(wl9756) */  m_commitAckMarkerHash.setSize(1024);
+  m_commitAckMarkerHash.setSize(noOfTransactions);
+  m_commitAckMarkerHash.setSize(MAX(1024, noOfTransactions / 10));
 
   hostRecord = (HostRecord*)allocRecord("HostRecord",
 					sizeof(HostRecord),
@@ -186,7 +198,7 @@ void Dbtc::initRecords(const ndb_mgm_configuration_iterator * mgm_cfg)
   c_apiConnectRecordPool.init(
       ApiConnectRecord::TYPE_ID,
       pc,
-      ReservedConcurrentTransactions + capiConnectFailCount,
+      noOfTransactions + noOfFailTransactions,
       UINT32_MAX);
   while(c_apiConnectRecordPool.startup())
   {
@@ -196,7 +208,7 @@ void Dbtc::initRecords(const ndb_mgm_configuration_iterator * mgm_cfg)
   c_apiConTimersPool.init(
       ApiConTimers::TYPE_ID,
       pc,
-      (ReservedConcurrentTransactions + capiConnectFailCount + 5) /6,
+      (noOfTransactions + noOfFailTransactions + 5) /6,
       UINT32_MAX);
   while(c_apiConTimersPool.startup())
   {
@@ -204,7 +216,11 @@ void Dbtc::initRecords(const ndb_mgm_configuration_iterator * mgm_cfg)
   }
   c_apiConTimersList.init();
 
-  c_theAttributeBufferPool.init(RT_DBTC_ATTRIBUTE_BUFFER, pc, 0, UINT32_MAX);
+  c_theAttributeBufferPool.init(
+    RT_DBTC_ATTRIBUTE_BUFFER,
+    pc,
+    transactionBufferBytes / AttributeBuffer::getSegmentSize(),
+      UINT32_MAX);
   while(c_theAttributeBufferPool.startup())
   {
     refresh_watch_dog();
@@ -219,7 +235,7 @@ void Dbtc::initRecords(const ndb_mgm_configuration_iterator * mgm_cfg)
   m_commitAckMarkerPool.init(
       CommitAckMarker::TYPE_ID,
       pc,
-      ReservedConcurrentTransactions,
+      noOfTransactions,
       UINT32_MAX);
   while(m_commitAckMarkerPool.startup())
   {
@@ -229,7 +245,7 @@ void Dbtc::initRecords(const ndb_mgm_configuration_iterator * mgm_cfg)
   c_theCommitAckMarkerBufferPool.init(
       RT_DBTC_COMMIT_ACK_MARKER_BUFFER,
       pc,
-      2 * ReservedConcurrentTransactions,
+      2 * noOfTransactions,
       UINT32_MAX);
   while(c_theCommitAckMarkerBufferPool.startup())
   {
@@ -239,7 +255,7 @@ void Dbtc::initRecords(const ndb_mgm_configuration_iterator * mgm_cfg)
   tcConnectRecord.init(
       TcConnectRecord::TYPE_ID,
       pc,
-      ReservedConcurrentOperations + ctcConnectFailCount,
+      noOfOperations + noOfFailOperations,
       UINT32_MAX);
   while(tcConnectRecord.startup())
   {
@@ -249,7 +265,7 @@ void Dbtc::initRecords(const ndb_mgm_configuration_iterator * mgm_cfg)
   c_theFiredTriggerPool.init(
       TcFiredTriggerData::TYPE_ID,
       pc,
-      ReservedFiredTriggers,
+      noOfFiredTriggers,
       UINT32_MAX);
   while(c_theFiredTriggerPool.startup())
   {
@@ -259,7 +275,7 @@ void Dbtc::initRecords(const ndb_mgm_configuration_iterator * mgm_cfg)
   c_theIndexOperationPool.init(
       TcIndexOperation::TYPE_ID,
       pc,
-      ReservedConcurrentIndexOperations,
+      noOfIndexOperations,
       UINT32_MAX);
   while(c_theIndexOperationPool.startup())
   {
@@ -269,20 +285,20 @@ void Dbtc::initRecords(const ndb_mgm_configuration_iterator * mgm_cfg)
   m_fragLocationPool.init(
       RT_DBTC_FRAG_LOCATION,
       pc,
-      ReservedConcurrentScans,
-      UINT32_MAX); // ceil(X / NUM_FRAG_LOCATIONS_IN_ARRAY) TODO(wl9756) YYY
+      MAX(noOfScans, noOfLocalScans / NUM_FRAG_LOCATIONS_IN_ARRAY),
+      UINT32_MAX);
   while(m_fragLocationPool.startup())
   {
     refresh_watch_dog();
   }
 
-  c_scan_frag_pool.init(RT_DBTC_SCAN_FRAGMENT, pc, ReservedLocalScans, UINT32_MAX);
+  c_scan_frag_pool.init(RT_DBTC_SCAN_FRAGMENT, pc, noOfLocalScans, UINT32_MAX);
   while(c_scan_frag_pool.startup())
   {
     refresh_watch_dog();
   }
 
-  scanRecordPool.init(ScanRecord::TYPE_ID, pc, ReservedConcurrentScans, UINT32_MAX);
+  scanRecordPool.init(ScanRecord::TYPE_ID, pc, noOfScans, UINT32_MAX);
   while(scanRecordPool.startup())
   {
     refresh_watch_dog();

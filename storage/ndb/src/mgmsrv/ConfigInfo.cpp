@@ -2530,6 +2530,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "500"
   },
 
+  {
+    CFG_DB_RESERVED_TRANS_BUFFER_MEM,
+    "ReservedTransactionBufferMemory",
+    DB_TOKEN,
+    "Dynamic buffer space (in bytes) for key and attribute data allocated for each " DB_TOKEN_PRINT " node",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "256K",
+    "256",
+    STR_VALUE(MAX_INT_RNIL)
+  },
+
   /***************************************************************************
    * API
    ***************************************************************************/
