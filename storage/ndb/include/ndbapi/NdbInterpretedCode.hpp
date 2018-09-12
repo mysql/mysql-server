@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -202,7 +202,7 @@ public:
    * @param RegLValue register to use as left hand side of condition
    * @param RegRValue register to use as right hand side of condition
    * @param Label Program label to jump to if condition is true
-   * @return 0 if successfull, -1 otherwise.
+   * @return 0 if successful, -1 otherwise.
    */
   int branch_ge(Uint32 RegLvalue, Uint32 RegRvalue, Uint32 Label);
   int branch_gt(Uint32 RegLvalue, Uint32 RegRvalue, Uint32 Label);

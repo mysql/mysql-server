@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3985,7 +3985,7 @@ TEST_F(MDLHtonNotifyTest, NotifyAcquireFail) {
   EXPECT_FALSE(m_mdl_context.try_acquire_lock(&request));
   EXPECT_EQ(m_null_ticket, request.ticket);
   /*
-    We treat failure to acquire X lock after successfull pre-acquire
+    We treat failure to acquire X lock after successful pre-acquire
     notification in the same way as lock release.
   */
   EXPECT_EQ(1U, pre_acquire_count());
@@ -4002,7 +4002,7 @@ TEST_F(MDLHtonNotifyTest, NotifyAcquireFail) {
 
   EXPECT_TRUE(m_mdl_context.acquire_lock(&request, zero_timeout));
   /*
-    Again we treat failure to acquire X lock after successfull pre-acquire
+    Again we treat failure to acquire X lock after successful pre-acquire
     notification in the same way as lock release.
   */
   EXPECT_EQ(1U, pre_acquire_count());
@@ -4071,7 +4071,7 @@ TEST_F(MDLHtonNotifyTest, NotifyUpgrade) {
   reset_counts_and_keys();
 
   /*
-    Now case when notification is successfull but we fail to upgrade for some
+    Now case when notification is successful but we fail to upgrade for some
     other reason.
   */
 

@@ -174,7 +174,7 @@ class MDL_map {
   void lock_object_unused(MDL_context *ctx, LF_PINS *pins) {
     /*
       Use thread local copy of unused locks counter for performance/
-      scalability reasons. It is updated on both successfull and failed
+      scalability reasons. It is updated on both successful and failed
       attempts to delete unused MDL_lock objects in order to avoid infinite
       loops,
     */

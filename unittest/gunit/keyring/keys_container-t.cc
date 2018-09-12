@@ -881,7 +881,7 @@ void Keys_container_with_mocked_io_test::expect_calls_on_init() {
   Mock_serialized_object *mock_serialized_object = new Mock_serialized_object;
 
   EXPECT_CALL(*keyring_io, init(Pointee(StrEq(file_name))))
-      .WillOnce(Return(0));  // init successfull
+      .WillOnce(Return(0));  // init successful
   EXPECT_CALL(*keyring_io, get_serialized_object(_))
       .WillOnce(DoAll(SetArgPointee<0>(mock_serialized_object), Return(false)));
   EXPECT_CALL(*mock_serialized_object, has_next_key())
@@ -897,7 +897,7 @@ TEST_F(Keys_container_with_mocked_io_test,
   keys_container = new Keys_container(logger);
 
   EXPECT_CALL(*keyring_io, init(Pointee(StrEq(file_name))))
-      .WillOnce(Return(0));  // init successfull
+      .WillOnce(Return(0));  // init successful
   EXPECT_CALL(*keyring_io, get_serialized_object(_)).WillOnce(Return(true));
   EXPECT_CALL(*logger,
               log(ERROR_LEVEL, StrEq("Error while loading keyring content. The "
@@ -922,7 +922,7 @@ TEST_F(Keys_container_with_mocked_io_test,
   Mock_serialized_object *mock_serialized_object = new Mock_serialized_object;
 
   EXPECT_CALL(*keyring_io, init(Pointee(StrEq(file_name))))
-      .WillOnce(Return(0));  // init successfull
+      .WillOnce(Return(0));  // init successful
   {
     InSequence dummy;
     EXPECT_CALL(*keyring_io, get_serialized_object(_))
@@ -961,7 +961,7 @@ TEST_F(Keys_container_with_mocked_io_test, ErrorFromIODuringInitInvalidKey) {
   buffer->position = 0;  // rewind buffer
 
   EXPECT_CALL(*keyring_io, init(Pointee(StrEq(file_name))))
-      .WillOnce(Return(0));  // init successfull
+      .WillOnce(Return(0));  // init successful
   {
     InSequence dummy;
     EXPECT_CALL(*keyring_io, get_serialized_object(_))

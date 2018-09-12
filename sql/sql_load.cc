@@ -561,7 +561,7 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
           the destructor of read_info will call end_io_cache() which will flush
           read_info, so we will finally have this in the binlog:
 
-          Append_block # The last successfull block
+          Append_block # The last successful block
           Delete_file
           Append_block # The failing block
           which is nonsense.
