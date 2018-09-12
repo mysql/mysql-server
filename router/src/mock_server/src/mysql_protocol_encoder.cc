@@ -65,6 +65,19 @@ MySQLProtocolEncoder::MsgBuffer MySQLProtocolEncoder::encode_error_message(
   return out_buffer;
 }
 
+MySQLProtocolEncoder::MsgBuffer MySQLProtocolEncoder::encode_auth_fast_message(
+    uint8_t seq_no) {
+  MsgBuffer out_buffer;
+
+  encode_msg_begin(out_buffer);
+
+  append_byte(out_buffer, 0x03);
+
+  encode_msg_end(out_buffer, seq_no);
+
+  return out_buffer;
+}
+
 MySQLProtocolEncoder::MsgBuffer MySQLProtocolEncoder::encode_greetings_message(
     uint8_t seq_no, const std::string &mysql_version, uint32_t connection_id,
     std::string auth_plugin_data /*= 20-byte str*/,

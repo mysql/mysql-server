@@ -211,6 +211,105 @@ TEST_F(RestMockServerRestServerMockTest, get_globals_empty) {
   EXPECT_TRUE(!json_doc.HasParseError()) << json_payload;
 }
 
+template <typename T>
+std::string unit();
+
+template <>
+std::string unit<std::chrono::seconds>() {
+  return "s";
+};
+
+template <>
+std::string unit<std::chrono::milliseconds>() {
+  return "ms";
+};
+
+template <>
+std::string unit<std::chrono::microseconds>() {
+  return "us";
+};
+
+template <>
+std::string unit<std::chrono::nanoseconds>() {
+  return "ns";
+};
+
+// must be defined in the same namespace as the type we want to convert
+namespace std {
+
+// add to-stream method for all durations for pretty printing
+template <class Rep, class Per>
+void PrintTo(const chrono::duration<Rep, Per> &span, std::ostream *os) {
+  *os << span.count() << unit<typename std::decay<decltype(span)>::type>();
+}
+
+};  // namespace std
+
+/**
+ * test handshake's exec_time can be set via globals.
+ *
+ * - start the mock-server
+ * - make a client connect to the mock-server
+ */
+TEST_F(RestMockServerRestServerMockTest, handshake_exec_time_via_global) {
+  std::string http_hostname = "127.0.0.1";
+  std::string http_uri = kMockServerGlobalsRestUri;
+
+  // handshake exec_time to test
+  const auto kDelay = std::chrono::milliseconds{100};
+
+  IOContext io_ctx;
+  RestClient rest_client(io_ctx, http_hostname, http_port_);
+
+  SCOPED_TRACE("// wait for REST endpoint");
+  ASSERT_TRUE(wait_for_rest_endpoint_ready(rest_client, http_uri,
+                                           kMockServerMaxRestEndpointWaitTime))
+      << server_mock_.get_full_output();
+
+  SCOPED_TRACE("// make a http connections");
+  auto req = rest_client.request_sync(
+      HttpMethod::Put, http_uri,
+      "{\"connect_exec_time\": " + std::to_string(kDelay.count()) + "}");
+
+  SCOPED_TRACE("// checking HTTP response");
+  ASSERT_TRUE(req) << "HTTP Request to " << http_hostname << ":"
+                   << std::to_string(http_port_)
+                   << " failed (early): " << req.error_msg() << std::endl
+                   << server_mock_.get_full_output() << std::endl;
+
+  ASSERT_GT(req.get_response_code(), 0u)
+      << "HTTP Request to " << http_hostname << ":"
+      << std::to_string(http_port_) << " failed: " << req.error_msg()
+      << std::endl
+      << server_mock_.get_full_output() << std::endl;
+
+  EXPECT_EQ(req.get_response_code(), 204u);
+
+  auto resp_body = req.get_input_buffer();
+  EXPECT_EQ(resp_body.length(), 0u);
+
+  SCOPED_TRACE("// slow connect");
+  auto start_tp = std::chrono::steady_clock::now();
+  {
+    mysqlrouter::MySQLSession client;
+
+    SCOPED_TRACE("// connecting via mysql protocol");
+    ASSERT_NO_THROW(client.connect("127.0.0.1", server_port_, "username",
+                                   "password", "", ""))
+        << server_mock_.get_full_output();
+  }
+
+  // this test is very vague on how to write a stable test:
+  //
+  // on a slow box creating the TCP connection itself may be slow
+  // which may make the test positive even though exec_time was not honoured.
+  //
+  // On the other side we can't compare the timespan against
+  // a non-delayed connect as the external connect time depends
+  // on what else happens on the system while the tests are running
+  EXPECT_GT(std::chrono::steady_clock::now() - start_tp, kDelay);
+}
+
 /**
  * test mock-server's REST bridge denies unknown URLs.
  *

@@ -71,8 +71,6 @@ using namespace std::placeholders;
 
 namespace server_mock {
 
-constexpr char kAuthCachingSha2Password[] = "caching_sha2_password";
-constexpr char kAuthNativePassword[] = "mysql_native_password";
 constexpr size_t kReadBufSize =
     16 * 1024;  // size big enough to contain any packet we're likely to read
 
@@ -155,17 +153,6 @@ void MySQLServerMock::setup_service() {
   }
 }
 
-void MySQLServerMockSession::send_handshake(
-    socket_t client_socket,
-    mysql_protocol::Capabilities::Flags our_capabilities) {
-  constexpr const char *plugin_name = kAuthNativePassword;
-  constexpr const char *plugin_data = "123456789|ABCDEFGHI|";  // 20 bytes
-
-  std::vector<uint8_t> buf = protocol_encoder_.encode_greetings_message(
-      0, "8.0.5", 1, plugin_data, our_capabilities, plugin_name);
-  send_packet(client_socket, buf);
-}
-
 mysql_protocol::HandshakeResponsePacket
 MySQLServerMockSession::handle_handshake_response(
     socket_t client_socket,
@@ -220,60 +207,6 @@ MySQLServerMockSession::handle_handshake_response(
   }
 }
 
-void MySQLServerMockSession::handle_auth_switch(socket_t client_socket) {
-  constexpr uint8_t seq_nr = 2;
-
-  // send switch-auth request packet
-  {
-    constexpr const char *plugin_data = "123456789|ABCDEFGHI|";
-
-    auto buf = protocol_encoder_.encode_auth_switch_message(
-        seq_nr, kAuthCachingSha2Password, plugin_data);
-    send_packet(client_socket, buf);
-  }
-
-  // receive auth-data packet
-  {
-    using namespace mysql_protocol;
-    constexpr size_t header_len = HandshakeResponsePacket::get_header_length();
-
-    uint8_t buf[kReadBufSize];
-
-    // reads all bytes or throws
-    read_packet(client_socket, buf, header_len);
-
-    if (HandshakeResponsePacket::read_sequence_id(buf) != seq_nr + 1)
-      throw std::runtime_error(
-          "Auth-change response packet with incorrect sequence number: " +
-          std::to_string(HandshakeResponsePacket::read_sequence_id(buf)));
-
-    size_t payload_size = HandshakeResponsePacket::read_payload_size(buf);
-    assert(header_len + payload_size <= sizeof(buf));
-
-    // reads all bytes or throws
-    read_packet(client_socket, buf + header_len, payload_size);
-
-    // for now, we ignore the contents we just read, because we always
-    // positively authenticate the client
-  }
-}
-
-void MySQLServerMockSession::send_fast_auth(socket_t client_socket) {
-  // a mysql-8 client will send us a cache-256-password-scramble
-  // and expects a \x03 back (fast-auth) + a OK packet
-  // Here we send the 1st of the two.
-
-  // pretend we do cached_sha256 fast-auth
-  constexpr uint8_t seq_nr = 4;
-  constexpr uint8_t fast_auth_cmd = 3;
-  constexpr uint8_t payload_size_bytes[] = {1, 0, 0};
-  constexpr uint8_t switch_auth[] = {
-      payload_size_bytes[0], payload_size_bytes[1], payload_size_bytes[2],
-      seq_nr, fast_auth_cmd};
-
-  send_packet(client_socket, switch_auth, sizeof(switch_auth));
-}
-
 void non_blocking(socket_t handle_, bool mode) {
 #ifdef _WIN32
   u_long arg = mode ? 1 : 0;
@@ -320,61 +253,13 @@ MySQLServerMockSession::~MySQLServerMockSession() {}
 
 void MySQLServerMockSession::run() {
   try {
-    ////////////////////////////////////////////////////////////////////////////////
-    //
-    // This is the handshake packet that my server v8.0.5 emits:
-    //
-    //        <header >   v10  <--- server version
-    //  0000: 6c00 0000   0a   38 2e30 2e35 2d65 6e74 6572 7072 6973 652d 636f
-    //  6d6d 6572 6369 616c            l....8.0.5-enterprise-commercial
-    //
-    //                         server version -> <conn id> <-- auth data 1 -->
-    //                         zero cap.low char status
-    //  0020: 2d61 6476 616e 6365 642d 6c6f 6700 0800 0000 5b09 4e78 3d48 0a11
-    //  00   ff ff   ff   0200       -advanced-log.....[.Nx=H........
-    //
-    //      cap.hi  auth-len  <- reserved 10 0-bytes ->   <SECURE_CONN &&
-    //      auth-data 2    >   <PLUGIN_AUTH && auth-plugin name
-    //  0040: ffc3     15     00 0000 0000 0000 0000 00   64 1242 070c 5263 2d01
-    //  710c 4100   6361 6368 696e   .............d.B..Rc-.q.A.cachin
-    //
-    //        auth-plugin name --------------------->
-    //  0060: 675f 7368 6132 5f70 6173 7377 6f72 6400 g_sha2_password.
-    //
-    //
-    //  client v8.0.5 reponds with capability flags: 05ae ff01
-    //
-    ////////////////////////////////////////////////////////////////////////////////
-
-    using namespace mysql_protocol;
-
-    constexpr Capabilities::Flags our_capabilities =
-        Capabilities::PROTOCOL_41 | Capabilities::PLUGIN_AUTH |
-        Capabilities::SECURE_CONNECTION;
-
-    send_handshake(client_socket_, our_capabilities);
-    HandshakeResponsePacket handshake_response =
-        handle_handshake_response(client_socket_, our_capabilities);
-
-    uint8_t packet_seq = 2u;
-    if (handshake_response.get_auth_plugin() == kAuthCachingSha2Password) {
-      // typically, client >= 8.0.4 will trigger this branch
-
-      handle_auth_switch(client_socket_);
-      send_fast_auth(client_socket_);
-      packet_seq += 3;  // 2 from auth-switch + 1 from fast-auth
-
-    } else if (handshake_response.get_auth_plugin() == kAuthNativePassword) {
-      // typically, client <= 5.7 will trigger this branch; do nothing, we're
-      // good
-    } else {
-      // unexpected auth-plugin name
-      assert(0);
+    bool res = process_handshake(client_socket_);
+    if (!res) {
+      std::cout << "Error processing handshake with client: " << client_socket_
+                << std::endl;
     }
 
-    send_ok(client_socket_, packet_seq);
-
-    bool res = process_statements(client_socket_);
+    res = process_statements(client_socket_);
     if (!res) {
       std::cout << "Error processing statements with client: " << client_socket_
                 << std::endl;
@@ -537,6 +422,29 @@ void MySQLServerMock::handle_connections(mysql_harness::PluginFuncEnv *env) {
   // std::cerr << "done" << std::endl;
 }
 
+bool MySQLServerMockSession::process_handshake(socket_t client_socket) {
+  using namespace mysql_protocol;
+
+  bool is_first = true;
+
+  while (!killed_) {
+    std::vector<uint8_t> payload;
+    if (!is_first) {
+      protocol_decoder_.read_message(client_socket);
+      payload = protocol_decoder_.get_payload();
+    }
+    is_first = false;
+
+    if (true == handle_handshake(client_socket, protocol_decoder_.packet_seq(),
+                                 json_reader_->handle_handshake(payload))) {
+      // handshake is done
+      return true;
+    }
+  }
+
+  return false;
+}
+
 bool MySQLServerMockSession::process_statements(socket_t client_socket) {
   using mysql_protocol::Command;
 
@@ -591,21 +499,24 @@ static void debug_trace_result(const ResultsetResponse *resultset) {
 
 void MySQLServerMockSession::handle_statement(
     socket_t client_socket, uint8_t seq_no,
-    const StatementAndResponse &statement) {
-  using StatementResponseType = StatementAndResponse::StatementResponseType;
+    const StatementResponse &statement) {
+  using ResponseType = StatementResponse::ResponseType;
 
   switch (statement.response_type) {
-    case StatementResponseType::STMT_RES_OK: {
+    case ResponseType::OK: {
       if (debug_mode_) std::cout << std::endl;  // visual separator
       OkResponse *response =
           dynamic_cast<OkResponse *>(statement.response.get());
+
+      harness_assert(response);
       std::this_thread::sleep_for(statement.exec_time);
       send_ok(client_socket, static_cast<uint8_t>(seq_no + 1), 0,
               response->last_insert_id, 0, response->warning_count);
     } break;
-    case StatementResponseType::STMT_RES_RESULT: {
+    case ResponseType::RESULT: {
       ResultsetResponse *response =
           dynamic_cast<ResultsetResponse *>(statement.response.get());
+      harness_assert(response);
       if (debug_mode_) {
         debug_trace_result(response);
       }
@@ -630,10 +541,11 @@ void MySQLServerMockSession::handle_statement(
       buf = protocol_encoder_.encode_eof_message(seq_no++);
       send_packet(client_socket, buf);
     } break;
-    case StatementResponseType::STMT_RES_ERROR: {
+    case ResponseType::ERROR: {
       if (debug_mode_) std::cout << std::endl;  // visual separator
       ErrorResponse *response =
           dynamic_cast<ErrorResponse *>(statement.response.get());
+      harness_assert(response);
       send_error(client_socket, static_cast<uint8_t>(seq_no + 1),
                  response->code, response->msg);
     } break;
@@ -641,6 +553,72 @@ void MySQLServerMockSession::handle_statement(
       throw std::runtime_error("Unsupported command in handle_statement(): " +
                                std::to_string((int)statement.response_type));
   }
+}
+
+bool MySQLServerMockSession::handle_handshake(
+    socket_t client_socket, uint8_t seq_no, const HandshakeResponse &response) {
+  using ResponseType = HandshakeResponse::ResponseType;
+
+  std::this_thread::sleep_for(response.exec_time);
+
+  switch (response.response_type) {
+    case ResponseType::GREETING: {
+      Greeting *greeting_resp =
+          dynamic_cast<Greeting *>(response.response.get());
+      harness_assert(greeting_resp);
+
+      send_packet(
+          client_socket,
+          protocol_encoder_.encode_greetings_message(
+              0, greeting_resp->server_version(),
+              greeting_resp->connection_id(), greeting_resp->auth_method(),
+              greeting_resp->capabilities(), greeting_resp->auth_data(),
+              greeting_resp->character_set(), greeting_resp->status_flags()));
+    } break;
+    case ResponseType::AUTH_SWITCH: {
+      AuthSwitch *auth_switch_resp =
+          dynamic_cast<AuthSwitch *>(response.response.get());
+      harness_assert(auth_switch_resp);
+
+      send_packet(client_socket, protocol_encoder_.encode_auth_switch_message(
+                                     ++seq_no, auth_switch_resp->method(),
+                                     auth_switch_resp->data()));
+    } break;
+    case ResponseType::AUTH_FAST: {
+      // sha256-fast-auth is
+      // - 0x03
+      // - ok
+      send_packet(client_socket,
+                  protocol_encoder_.encode_auth_fast_message(++seq_no));
+
+      send_ok(client_socket, ++seq_no, 0, 0, 0, 0);
+
+      return true;
+    } break;
+    case ResponseType::OK: {
+      OkResponse *ok_resp = dynamic_cast<OkResponse *>(response.response.get());
+      harness_assert(ok_resp);
+
+      send_ok(client_socket, static_cast<uint8_t>(seq_no + 1), 0,
+              ok_resp->last_insert_id, 0, ok_resp->warning_count);
+
+      return true;
+    } break;
+    case ResponseType::ERROR: {
+      ErrorResponse *err_resp =
+          dynamic_cast<ErrorResponse *>(response.response.get());
+      harness_assert(err_resp);
+      send_error(client_socket, static_cast<uint8_t>(seq_no + 1),
+                 err_resp->code, err_resp->msg);
+
+      return true;
+    } break;
+    default:
+      throw std::runtime_error("Unsupported command in handle_handshake(): " +
+                               std::to_string((int)response.response_type));
+  }
+
+  return false;
 }
 
 void MySQLServerMockSession::send_error(socket_t client_socket, uint8_t seq_no,

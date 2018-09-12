@@ -158,6 +158,16 @@ class MySQLProtocolEncoder {
   MsgBuffer encode_eof_message(uint8_t seq_no, uint16_t status = 0,
                                uint16_t warnings = 0);
 
+  /**
+   * encode a AuthFast message.
+   *
+   * used by cached_sha256_password
+   *
+   * @param seq_no    protocol packet sequence number to use
+   * @returns buffer with the encoded message
+   */
+  MsgBuffer encode_auth_fast_message(uint8_t seq_no);
+
  protected:
   void encode_msg_begin(MsgBuffer &out_buffer);
   void encode_msg_end(MsgBuffer &out_buffer, uint8_t seq_no);

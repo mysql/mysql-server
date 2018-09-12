@@ -138,6 +138,8 @@ INT_TYPE get_json_integer_field(const JsonValue &parent,
 namespace server_mock {
 
 struct QueriesJsonReader::Pimpl {
+  mysql_protocol::Capabilities::Flags server_capabilities_;
+
   JsonDocument json_document_;
   size_t current_stmt_{0u};
 
@@ -270,14 +272,142 @@ bool pattern_matching(const std::string &s, const std::string &pattern) {
 
 }  // unnamed namespace
 
-StatementAndResponse QueriesJsonReader::handle_statement(
+constexpr char kAuthCachingSha2Password[] = "caching_sha2_password";
+constexpr char kAuthNativePassword[] = "mysql_native_password";
+
+HandshakeResponse QueriesJsonReader::handle_handshake_init(
+    const std::vector<uint8_t> &, HandshakeState &next_state) {
+  HandshakeResponse response;
+
+  response.exec_time = get_default_exec_time();
+
+  // defaults
+  std::string server_version = "8.0.5-mock";
+  uint32_t connection_id = 0;
+  mysql_protocol::Capabilities::Flags server_capabilities =
+      mysql_protocol::Capabilities::PROTOCOL_41 |
+      mysql_protocol::Capabilities::PLUGIN_AUTH |
+      mysql_protocol::Capabilities::SECURE_CONNECTION;
+  uint16_t status_flags = 0;
+  uint8_t character_set = 0;
+  std::string auth_method = kAuthNativePassword;
+  std::string auth_data = "01234567890123456789";
+
+  if (pimpl_->json_document_.HasMember("handshake")) {
+    const JsonValue &handshake_json = pimpl_->json_document_["handshake"];
+
+    if (handshake_json.HasMember("greeting")) {
+      const JsonValue &greeting_json = handshake_json["greeting"];
+      double exec_time = get_json_double_field(greeting_json, "exec_time", 0.0);
+      response.exec_time =
+          std::chrono::microseconds(static_cast<long>(exec_time * 1000));
+    }
+  }
+
+  // remember the server side capabilties
+  pimpl_->server_capabilities_ = server_capabilities;
+
+  response.response_type = HandshakeResponse::ResponseType::GREETING;
+  response.response = std::unique_ptr<Greeting>{
+      new Greeting(server_version, connection_id, server_capabilities,
+                   status_flags, character_set, auth_method, auth_data)};
+
+  next_state = HandshakeState::GREETED;
+
+  return response;
+}
+
+HandshakeResponse QueriesJsonReader::handle_handshake_greeted(
+    const std::vector<uint8_t> &payload, HandshakeState &next_state) {
+  HandshakeResponse response;
+
+  response.exec_time = get_default_exec_time();
+
+  // decode the payload
+
+  // prepend length of packet again as HandshakeResponsePacket parser
+  // expects a full frame, not the payload
+  std::vector<uint8_t> frame{0, 0, 0, 1};
+  frame.insert(frame.end(), payload.begin(), payload.end());
+  for (unsigned int i = 0, sz = payload.size(); i < 3; i++, sz >>= 8) {
+    frame[i] = sz % 0xff;
+  }
+
+  mysql_protocol::HandshakeResponsePacket pkt(frame);
+
+  pkt.parse_payload(pimpl_->server_capabilities_);
+
+  // default: OK the auth or switch to sha256
+
+  if (pkt.get_auth_plugin() == kAuthCachingSha2Password) {
+    response.response_type = HandshakeResponse::ResponseType::AUTH_SWITCH;
+    response.response = std::unique_ptr<AuthSwitch>{
+        new AuthSwitch(kAuthCachingSha2Password, "123456789|ABCDEFGHI|")};
+
+    next_state = HandshakeState::AUTH_SWITCHED;
+  } else if (pkt.get_auth_plugin() == kAuthNativePassword) {
+    response.response_type = HandshakeResponse::ResponseType::OK;
+    response.response = std::unique_ptr<OkResponse>{new OkResponse()};
+
+    next_state = HandshakeState::DONE;
+  } else {
+    response.response_type = HandshakeResponse::ResponseType::ERROR;
+    response.response = std::unique_ptr<ErrorResponse>{
+        new ErrorResponse(0, "unknown auth-method")};
+
+    next_state = HandshakeState::DONE;
+  }
+
+  return response;
+}
+
+HandshakeResponse QueriesJsonReader::handle_handshake_auth_switched(
+    const std::vector<uint8_t> &, HandshakeState &next_state) {
+  HandshakeResponse response;
+
+  response.exec_time = get_default_exec_time();
+
+  // switched to sha256
+  //
+  // for now, ignore the payload and send the fast-auth ticket
+
+  response.response_type = HandshakeResponse::ResponseType::AUTH_FAST;
+  response.response = std::unique_ptr<AuthFast>{new AuthFast()};
+
+  next_state = HandshakeState::DONE;
+
+  return response;
+}
+
+HandshakeResponse QueriesJsonReader::handle_handshake(
+    const std::vector<uint8_t> &payload) {
+  switch (handshake_state_) {
+    case HandshakeState::INIT:
+      return handle_handshake_init(payload, handshake_state_);
+    case HandshakeState::GREETED:
+      return handle_handshake_greeted(payload, handshake_state_);
+    case HandshakeState::AUTH_SWITCHED:
+      return handle_handshake_auth_switched(payload, handshake_state_);
+    default: {
+      HandshakeResponse response;
+
+      response.response_type = HandshakeResponse::ResponseType::ERROR;
+      response.response = std::unique_ptr<ErrorResponse>{
+          new ErrorResponse(0, "wrong handshake state")};
+
+      handshake_state_ = HandshakeState::DONE;
+      return response;
+    }
+  }
+}
+
+StatementResponse QueriesJsonReader::handle_statement(
     const std::string &statement_received) {
-  StatementAndResponse response;
+  StatementResponse response;
 
   const JsonValue &stmts = pimpl_->json_document_["stmts"];
   if (pimpl_->current_stmt_ >= stmts.Size()) {
-    response.response_type =
-        StatementAndResponse::StatementResponseType::STMT_RES_ERROR;
+    response.response_type = StatementResponse::ResponseType::ERROR;
     response.response.reset(new ErrorResponse(
         MYSQL_PARSE_ERROR, std::string("Unexpected stmt, got: \"") +
                                statement_received + "\"; expected nothing"));
@@ -318,26 +448,23 @@ StatementAndResponse QueriesJsonReader::handle_statement(
   }
 
   if (!statement_matching) {
-    response.response_type =
-        StatementAndResponse::StatementResponseType::STMT_RES_ERROR;
+    response.response_type = StatementResponse::ResponseType::ERROR;
     response.response.reset(new ErrorResponse(
         MYSQL_PARSE_ERROR, std::string("Unexpected stmt, got: \"") +
                                statement_received + "\"; expected: \"" +
                                statement + "\""));
   } else if (stmt.HasMember("ok")) {
-    response.response_type =
-        StatementAndResponse::StatementResponseType::STMT_RES_OK;
+    response.response_type = StatementResponse::ResponseType::OK;
     response.response = pimpl_->read_ok_info(stmt);
   } else if (stmt.HasMember("error")) {
-    response.response_type =
-        StatementAndResponse::StatementResponseType::STMT_RES_ERROR;
+    response.response_type = StatementResponse::ResponseType::ERROR;
     response.response = pimpl_->read_error_info(stmt);
   } else if (stmt.HasMember("result")) {
-    response.response_type =
-        StatementAndResponse::StatementResponseType::STMT_RES_RESULT;
+    response.response_type = StatementResponse::ResponseType::RESULT;
     response.response = pimpl_->read_result_info(stmt);
   } else {
-    harness_assert_this_should_not_execute();  // schema should have caught this
+    harness_assert_this_should_not_execute();  // schema should have caught
+                                               // this
   }
 
   return response;

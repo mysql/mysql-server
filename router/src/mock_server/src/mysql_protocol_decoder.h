@@ -88,6 +88,13 @@ class MySQLProtocolDecoder {
    **/
   std::string get_statement() const;
 
+  /**
+   * get payload of the mysql protocol frame
+   *
+   * @pre read_message() returned successfully
+   */
+  std::vector<byte> get_payload() const { return packet_.packet_buffer; }
+
  private:
   /** @brief Single protocol packet data.
    **/

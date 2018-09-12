@@ -64,24 +64,90 @@ struct ErrorResponse : public Response {
   std::string sql_state;
 };
 
-/** @class StatementAndResponse
+class Greeting : public Response {
+ public:
+  Greeting(const std::string &server_version, uint32_t connection_id,
+           mysql_protocol::Capabilities::Flags capabilities,
+           uint16_t status_flags, uint8_t character_set,
+           const std::string &auth_method, const std::string &auth_data)
+      : server_version_{server_version},
+        connection_id_{connection_id},
+        capabilities_{capabilities},
+        status_flags_{status_flags},
+        character_set_{character_set},
+        auth_method_{auth_method},
+        auth_data_{auth_data} {}
+
+  mysql_protocol::Capabilities::Flags capabilities() const {
+    return capabilities_;
+  }
+
+  std::string server_version() const { return server_version_; }
+
+  uint32_t connection_id() const { return connection_id_; }
+  uint8_t character_set() const { return character_set_; }
+  uint16_t status_flags() const { return status_flags_; }
+
+  std::string auth_method() const { return auth_method_; }
+  std::string auth_data() const { return auth_data_; }
+
+ private:
+  std::string server_version_;
+  uint32_t connection_id_;
+  mysql_protocol::Capabilities::Flags capabilities_;
+  uint16_t status_flags_;
+  uint8_t character_set_;
+  std::string auth_method_;
+  std::string auth_data_;
+};
+
+class AuthSwitch : public Response {
+ public:
+  AuthSwitch(const std::string &method, const std::string &data)
+      : method_{method}, data_{data} {}
+
+  std::string method() const { return method_; }
+  std::string data() const { return data_; }
+
+ private:
+  std::string method_;
+  std::string data_;
+};
+
+class AuthFast : public Response {};
+
+struct HandshakeResponse {
+  enum class ResponseType {
+    UNKNOWN,
+    OK,
+    ERROR,
+    GREETING,
+    AUTH_SWITCH,
+    AUTH_FAST
+  };
+
+  // expected response type
+  ResponseType response_type{ResponseType::UNKNOWN};
+
+  std::unique_ptr<Response> response;
+
+  // execution time in microseconds
+  std::chrono::microseconds exec_time{0};
+};
+
+/** @class StatementResponse
  *
  * @brief Keeps single SQL statement data.
  **/
-struct StatementAndResponse {
-  /** @enum StatementResponseType
+struct StatementResponse {
+  /** @enum ResponseType
    *
    * Response expected for given SQL statement.
    **/
-  enum class StatementResponseType {
-    STMT_RES_UNKNOWN,
-    STMT_RES_OK,
-    STMT_RES_ERROR,
-    STMT_RES_RESULT
-  };
+  enum class ResponseType { UNKNOWN, OK, ERROR, RESULT };
 
-  // exected response type for the statement
-  StatementResponseType response_type;
+  // expected response type for the statement
+  ResponseType response_type{ResponseType::UNKNOWN};
 
   std::unique_ptr<Response> response;
 
@@ -95,8 +161,13 @@ class StatementReaderBase {
    *         json file. If there is no more statements it returns
    *         empty statement.
    **/
-  virtual StatementAndResponse handle_statement(
-      const std::string &statement) = 0;
+  virtual StatementResponse handle_statement(const std::string &statement) = 0;
+
+  /**
+   * process the handshake packet and return a client response
+   */
+  virtual HandshakeResponse handle_handshake(
+      const std::vector<uint8_t> &payload) = 0;
 
   /** @brief Returns the default execution time in microseconds. If
    *         no default execution time is provided in json file, then
