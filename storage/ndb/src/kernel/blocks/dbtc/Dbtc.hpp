@@ -64,7 +64,6 @@
  * -----------------
  */
 #define Z8NIL 255
-#define ZAPI_CONNECT_FILESIZE 20
 #define ZCLOSED 2
 #define ZCOMMITING 0			 /* VALUE FOR TRANSTATUS        */
 #define ZCOMMIT_SETUP 2
@@ -309,7 +308,6 @@ public:
    * LOCAL SYMBOLS PER 'SYMBOL-VALUED' VARIABLE
    *
    *
-   *            NSYMB ZAPI_CONNECT_FILESIZE = 20
    *            NSYMB ZTC_CONNECT_FILESIZE  = 200
    *            NSYMB ZHOST_FILESIZE        = 16  
    *            NSYMB ZDATABUF_FILESIZE     = 4000
@@ -554,7 +552,6 @@ public:
   RSS_AP_SNAPSHOT(c_theFiredTriggerPool);
 
   Uint32 c_maxNumberOfDefinedTriggers;
-  Uint32 c_maxNumberOfFiredTriggers;
 
   // Max number of outstanding FireTrigRequests per transaction
   static const Uint32 MaxOutstandingFireTrigReqPerTrans = 32;
@@ -2491,7 +2488,6 @@ private:
 
   ApiConnectRecord_pool MY_ALIGNED(64) c_apiConnectRecordPool;
   RSS_AP_SNAPSHOT(c_apiConnectRecordPool);
-//  UintR capiConnectFilesize;
 
   TcConnectRecord_pool MY_ALIGNED(64) tcConnectRecord;
   TcConnectRecordPtr tcConnectptr;

@@ -302,7 +302,6 @@ void Dbtc::execCONTINUEB(Signal* signal)
     /* Send transaction counters report */
     {
       const Uint32 len = c_counters.build_event_rep(signal);
-ndbrequire(signal->header.m_noOfSections == 0);
       sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, len, JBB);
     }
 
@@ -310,7 +309,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
       const Uint32 report_interval = 5000;
       const Uint32 len = c_counters.build_continueB(signal);
       signal->theData[0] = TcContinueB::ZTRANS_EVENT_REP;
-ndbrequire(signal->header.m_noOfSections == 0);
       sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, report_interval, len);
     }
     return;
@@ -480,7 +478,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
     if (ERROR_INSERTED(8101))
     {
       jam();
-ndbrequire(signal->header.m_noOfSections == 0);
       sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 6);
     }
     else
@@ -494,7 +491,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
       tcRollbackRep->transId[1] = Tdata2;
       tcRollbackRep->returnCode = Tdata3;
       tcRollbackRep->errorData = Tdata4;
-ndbrequire(signal->header.m_noOfSections == 0);
       sendSignal(blockRef, GSN_TCROLLBACKREP, signal, 
                  TcRollbackRep::SignalLength, JBB);
     }
@@ -504,7 +500,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
 #if defined(VM_TRACE) || defined(ERROR_INSERT) || defined(DO_TRANSIENT_POOL_STAT)
   case TcContinueB::ZTRANSIENT_POOL_STAT:
   {
-g_eventLogger->info("YYY: m_fragLocationPool %p high %u",&m_fragLocationPool, m_fragLocationPool.getUsedHi());
     for (Uint32 pool_index = 0; pool_index < c_transient_pool_count; pool_index++)
     {
       g_eventLogger->info(
@@ -519,7 +514,6 @@ g_eventLogger->info("YYY: m_fragLocationPool %p high %u",&m_fragLocationPool, m_
         c_transient_pools[pool_index]->getSize(),
         c_transient_pools_shrinking.get(pool_index));
     }
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 5000, 1);
     break;
   }
@@ -554,7 +548,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
     else
     {
       signal->theData[1] = pool_index;
-ndbrequire(signal->header.m_noOfSections == 0);
       sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
     }
     break;
@@ -588,18 +581,15 @@ void Dbtc::execINCL_NODEREQ(Signal* signal)
     CLEAR_ERROR_INSERT_VALUE;
     Uint32 save = signal->theData[0];
     signal->theData[0] = 9999;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(numberToRef(CMVMI, hostptr.i), 
 	       GSN_NDB_TAMPER, signal, 1, JBB);
     signal->theData[0] = save;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignalWithDelay(tblockref, GSN_INCL_NODECONF, signal, 5000, 2);
     return;
   }
 
   Uint32 Tnode = hostptr.i;
 
-ndbrequire(signal->header.m_noOfSections == 0);
   sendSignal(tblockref, GSN_INCL_NODECONF, signal, 2, JBB);
 
   if (m_deferred_enabled)
@@ -675,7 +665,6 @@ void Dbtc::execTC_SCHVERREQ(Signal* signal)
   TcSchVerConf * conf = (TcSchVerConf*)signal->getDataPtr();
   conf->senderRef = reference();
   conf->senderData = retPtr;
-ndbrequire(signal->header.m_noOfSections == 0);
   sendSignal(retRef, GSN_TC_SCHVERCONF, signal,
              TcSchVerConf::SignalLength, JBB);
 }//Dbtc::execTC_SCHVERREQ()
@@ -698,7 +687,6 @@ void Dbtc::execTAB_COMMITREQ(Signal* signal)
   signal->theData[0] = senderData;
   signal->theData[1] = reference();
   signal->theData[2] = tabptr.i;
-ndbrequire(signal->header.m_noOfSections == 0);
   sendSignal(senderRef, GSN_TAB_COMMITCONF, signal, 3, JBB);
 }
 
@@ -724,7 +712,6 @@ Dbtc::execPREP_DROP_TAB_REQ(Signal* signal)
     ref->senderData = senderData;
     ref->tableId = tabPtr.i;
     ref->errorCode = PrepDropTabRef::NoSuchTable;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(senderRef, GSN_PREP_DROP_TAB_REF, signal,
 	       PrepDropTabRef::SignalLength, JBB);
     return;
@@ -738,7 +725,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
     ref->senderData = senderData;
     ref->tableId = tabPtr.i;
     ref->errorCode = PrepDropTabRef::DropInProgress;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(senderRef, GSN_PREP_DROP_TAB_REF, signal,
 	       PrepDropTabRef::SignalLength, JBB);
     return;
@@ -751,7 +737,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
   conf->tableId = tabPtr.i;
   conf->senderRef = reference();
   conf->senderData = senderData;
-ndbrequire(signal->header.m_noOfSections == 0);
   sendSignal(senderRef, GSN_PREP_DROP_TAB_CONF, signal,
              PrepDropTabConf::SignalLength, JBB);
 }
@@ -778,7 +763,6 @@ Dbtc::execDROP_TAB_REQ(Signal* signal)
     ref->senderData = senderData;
     ref->tableId = tabPtr.i;
     ref->errorCode = DropTabRef::NoSuchTable;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(senderRef, GSN_DROP_TAB_REF, signal,
 	       DropTabRef::SignalLength, JBB);
     return;
@@ -791,7 +775,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
     ref->senderData = senderData;
     ref->tableId = tabPtr.i;
     ref->errorCode = DropTabRef::DropWoPrep;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(senderRef, GSN_DROP_TAB_REF, signal,
 	       DropTabRef::SignalLength, JBB);
     return;
@@ -805,7 +788,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
   conf->tableId = tabPtr.i;
   conf->senderRef = reference();
   conf->senderData = senderData;
-ndbrequire(signal->header.m_noOfSections == 0);
   sendSignal(senderRef, GSN_DROP_TAB_CONF, signal,
 	     PrepDropTabConf::SignalLength, JBB);
 }
@@ -895,7 +877,6 @@ void Dbtc::scan_for_read_backup(Signal *signal,
     conf->senderRef = cownref;
     conf->senderData = senderData;
     conf->connectPtr = RNIL;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(senderRef, GSN_ALTER_TAB_CONF, signal,
                AlterTabConf::SignalLength, JBB);
     return;
@@ -904,7 +885,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
   signal->theData[1] = api_ptr;
   signal->theData[2] = senderData;
   signal->theData[3] = senderRef;
-ndbrequire(signal->header.m_noOfSections == 0);
   sendSignal(cownref, GSN_CONTINUEB, signal, 4, JBB);
 }
 
@@ -1020,7 +1000,6 @@ void Dbtc::execALTER_TAB_REQ(Signal * signal)
   conf->senderRef = reference();
   conf->senderData = senderData;
   conf->connectPtr = RNIL;
-ndbrequire(signal->header.m_noOfSections == 0);
   sendSignal(senderRef, GSN_ALTER_TAB_CONF, signal, 
 	     AlterTabConf::SignalLength, JBB);
 }
@@ -1043,22 +1022,16 @@ void Dbtc::execREAD_CONFIG_REQ(Signal* signal)
  
   initData();
   
-//  UintR apiConnect;
   UintR apiConnectFail;
   UintR tcConnectFail;
   UintR tables;
-//  UintR tcScan;
 
-//  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TC_API_CONNECT, &apiConnect));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TC_API_CONNECT_FAIL, &apiConnectFail));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TC_TC_CONNECT_FAIL, &tcConnectFail));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TC_TABLE, &tables));
-//  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TC_SCAN, &tcScan));
 
-//  capiConnectFilesize = apiConnect;
   ctcConnectFailCount = tcConnectFail;
   ctabrecFilesize     = tables;
-//  cscanrecFileSize = tcScan;
 
   if (instance() < 2)
   {
@@ -1141,7 +1114,6 @@ void Dbtc::sttorryLab(Signal* signal)
   signal->theData[2] = 2;    /* SIGNAL VERSION NUMBER */
   signal->theData[3] = ZSPH1;
   signal->theData[4] = 255;
-ndbrequire(signal->header.m_noOfSections == 0);
   sendSignal(c_sttor_ref, GSN_STTORRY, signal, 5, JBB);
 }//Dbtc::sttorryLab()
 
@@ -1175,13 +1147,11 @@ void Dbtc::execNDB_STTOR(Signal* signal)
     /* Start transaction counters event reporting. */
     const Uint32 len = c_counters.build_continueB(signal);
     signal->theData[0] = TcContinueB::ZTRANS_EVENT_REP;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 10, len);
 
 #if defined(VM_TRACE) || defined(ERROR_INSERT) || defined(DO_TRANSIENT_POOL_STAT)
     /* Start reporting statistics for transient pools */
     signal->theData[0] = TcContinueB::ZTRANSIENT_POOL_STAT;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(reference(), GSN_CONTINUEB, signal, 1, JBB);
 #endif
 
@@ -1205,7 +1175,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
 void Dbtc::ndbsttorry010Lab(Signal* signal) 
 {
   signal->theData[0] = cownref;
-ndbrequire(signal->header.m_noOfSections == 0);
   sendSignal(c_sttor_ref, GSN_NDB_STTORRY, signal, 1, JBB);
 }//Dbtc::ndbsttorry010Lab()
 
@@ -1287,7 +1256,6 @@ void Dbtc::intstartphase1x010Lab(Signal* signal, NodeId nodeId)
 void Dbtc::intstartphase3x010Lab(Signal* signal) 
 {
   signal->theData[0] = cownref;
-ndbrequire(signal->header.m_noOfSections == 0);
   sendSignal(cndbcntrblockref, GSN_READ_NODESREQ, signal, 1, JBB);
 }//Dbtc::intstartphase3x010Lab()
 
@@ -1623,7 +1591,6 @@ Dbtc::handleFailedApiNode(Signal* signal,
           jam();
         }  // if
       }
-// TODO ALLOW break out from for loop when loop count is high, need to set api_ptr to next ptrs not checked yet!! also in ::scan...read_backup
     }
   }
   if (api_ptr == RNIL)
@@ -1640,7 +1607,6 @@ Dbtc::handleFailedApiNode(Signal* signal,
   signal->theData[0] = TcContinueB::ZHANDLE_FAILED_API_NODE;
   signal->theData[1] = TapiFailedNode;
   signal->theData[2] = api_ptr;
-ndbrequire(signal->header.m_noOfSections == 0);
   sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);
 }//Dbtc::handleFailedApiNode()
 
@@ -1663,7 +1629,6 @@ Dbtc::removeMarkerForFailedAPI(Signal* signal,
     signal->theData[0] = TcContinueB::ZHANDLE_FAILED_API_NODE_REMOVE_MARKERS;
     signal->theData[1] = nodeId;
     signal->theData[2] = 0;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 500, 3);
     return;
   }
@@ -1727,7 +1692,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
         signal->theData[0] = TcContinueB::ZHANDLE_FAILED_API_NODE_REMOVE_MARKERS;
         signal->theData[1] = nodeId;
         signal->theData[2] = iter.bucket;
-ndbrequire(signal->header.m_noOfSections == 0);
         sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 1, 3);
         return;
       }
@@ -1756,7 +1720,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
   signal->theData[0] = TcContinueB::ZHANDLE_FAILED_API_NODE_REMOVE_MARKERS;
   signal->theData[1] = nodeId;
   signal->theData[2] = iter.bucket;
-ndbrequire(signal->header.m_noOfSections == 0);
   sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);
 }
 
@@ -1852,7 +1815,6 @@ void Dbtc::execTCSEIZEREQ(Signal* signal)
               ndbout << "error: " << errCode << " on " << tapiPointer << endl;
               signal->theData[0] = tapiPointer;
               signal->theData[1] = errCode;
-ndbrequire(signal->header.m_noOfSections == 0);
               sendSignal(tapiBlockref, GSN_TCSEIZEREF, signal, 2, JBB);
               return;
             }
@@ -1876,7 +1838,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
     signal->theData[0] = apiConnectptr.p->ndbapiConnect;
     signal->theData[1] = apiConnectptr.i;
     signal->theData[2] = reference();
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(tapiBlockref, GSN_TCSEIZECONF, signal, 3, JBB);
     return;
   }
@@ -1885,7 +1846,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
   ndbout << "4006 on " << tapiPointer << endl;
   signal->theData[0] = tapiPointer;
   signal->theData[1] = terrorCode;
-ndbrequire(signal->header.m_noOfSections == 0);
   sendSignal(tapiBlockref, GSN_TCSEIZEREF, signal, 2, JBB);
 }//Dbtc::execTCSEIZEREQ()
 
@@ -1912,7 +1872,6 @@ void Dbtc::execTCRELEASEREQ(Signal* signal)
     signal->theData[0] = tuserpointer;
     signal->theData[1] = ZINVALID_CONNECTION;
     signal->theData[2] = __LINE__;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(tapiBlockref, GSN_TCRELEASEREF, signal, 3, JBB);
     return;
   }
@@ -1921,7 +1880,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
   {
     jam();
     signal->theData[0] = tuserpointer;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(tapiBlockref, GSN_TCRELEASECONF, signal, 1, JBB);
   }
   else
@@ -1958,7 +1916,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
        */
       jam();
       signal->theData[0] = tuserpointer;
-ndbrequire(signal->header.m_noOfSections == 0);
       sendSignal(tapiBlockref,
                  GSN_TCRELEASECONF, signal, 1, JBB);
     }
@@ -1971,7 +1928,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
       signal->theData[2] = __LINE__;
       signal->theData[3] = tapiBlockref;      
       signal->theData[4] = apiConnectptr.p->ndbapiBlockref;      
-ndbrequire(signal->header.m_noOfSections == 0);
       sendSignal(tapiBlockref, GSN_TCRELEASEREF, signal, 5, JBB);
     }//if
   }//if
@@ -1989,7 +1945,6 @@ void Dbtc::signalErrorRefuseLab(Signal* signal, ApiConnectRecordPtr const apiCon
     apiConnectptr.p->abortState = AS_IDLE;
     apiConnectptr.p->apiConnectstate = CS_ABORTING;
   }//if
-ndbrequire(signal->header.m_noOfSections == 0);
   sendSignalErrorRefuseLab(signal, apiConnectptr);
 }//Dbtc::signalErrorRefuseLab()
 
@@ -2006,7 +1961,6 @@ void Dbtc::sendSignalErrorRefuseLab(Signal* signal, ApiConnectRecordPtr const ap
     signal->theData[1] = signal->theData[ttransid_ptr];
     signal->theData[2] = signal->theData[ttransid_ptr + 1];
     signal->theData[3] = ZSIGNAL_ERROR;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(apiConnectptr.p->ndbapiBlockref, GSN_TCROLLBACKREP, 
 	       signal, 4, JBB);
   }
@@ -2100,7 +2054,6 @@ Dbtc::TCKEY_abort(Signal* signal, int place, ApiConnectRecordPtr const apiConnec
   case 1:
     jam();
     printState(signal, 3, apiConnectptr);
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignalErrorRefuseLab(signal, apiConnectptr);
     return;
   case 2:{
@@ -2113,7 +2066,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
     signal->theData[2] = t2;
     signal->theData[3] = ZABORT_ERROR;
     ndbabort();
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(apiConnectptr.p->ndbapiBlockref, GSN_TCROLLBACKREP, 
 	       signal, 4, JBB);
     return;
@@ -2392,7 +2344,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
   case 55:
     jam();
     printState(signal, 5, apiConnectptr);
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignalErrorRefuseLab(signal, apiConnectptr);
     return;
     
@@ -2658,7 +2609,6 @@ void Dbtc::sendKeyInfoTrain(Signal* signal,
     keyInfoReader.getWords(dst, dataInSignal);
     totalLen-= dataInSignal;
 
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(TBRef, GSN_KEYINFO, signal,
                KeyInfo::HeaderLength + dataInSignal, JBB);
   }
@@ -3109,10 +3059,9 @@ Dbtc::sendPoolShrink(const Uint32 pool_index)
   {
     SignalT<2> signal2[1];
     Signal* signal = new (&signal2[0]) Signal(0);
-bzero(signal2, sizeof(signal2));
+    bzero(signal2, sizeof(signal2));
     signal->theData[0] = TcContinueB::ZSHRINK_TRANSIENT_POOLS;
     signal->theData[1] = pool_index;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(cownref, GSN_CONTINUEB, (Signal*)signal, 2, JBB);
   }
 }
@@ -4852,12 +4801,10 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
       handle.m_ptr[ LqhKeyReq::AttrInfoSectionNum ]= attrInfoSection;
       handle.m_cnt= 2;
     }
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(TBRef, GSN_LQHKEYREQ, signal, 
                nextPos + LqhKeyReq::FixedSignalLength, JBB, 
                &handle);
 
-ndbrequire(signal->header.m_noOfSections == 0);
     /* Long sections were freed as part of sendSignal */
     ndbassert( handle.m_cnt == 0 );
     regCachePtr->keyInfoSectionI= RNIL;
@@ -4898,7 +4845,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
       nextPos+= aiInLqhKeyReq;
     }
 
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(TBRef, GSN_LQHKEYREQ, signal,
                nextPos + LqhKeyReq::FixedSignalLength, JBB);
   }
@@ -4911,7 +4857,7 @@ void Dbtc::packLqhkeyreq040Lab(Signal* signal,
 {
   CacheRecord * const regCachePtr = cachePtr.p;
   TcConnectRecord * const regTcPtr = tcConnectptr.p;
-PrefetchApiConTimer apiConTimer(c_apiConTimersPool, apiConnectptr, true);
+  PrefetchApiConTimer apiConTimer(c_apiConTimersPool, apiConnectptr, true);
 #ifdef ERROR_INSERT
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
   if (ERROR_INSERTED(8009)) {
@@ -4955,8 +4901,7 @@ PrefetchApiConTimer apiConTimer(c_apiConTimersPool, apiConnectptr, true);
   UintR Tread = (regTcPtr->operation == ZREAD);
   UintR Tdirty = (regTcPtr->dirtyOp == ZTRUE);
   UintR Tboth = Tread & Tdirty;
-//  setApiConTimer(apiConnectptr, TtcTimer, __LINE__);
-apiConTimer.set_timer(TtcTimer, __LINE__);
+  apiConTimer.set_timer(TtcTimer, __LINE__);
   jamDebug();
   /*--------------------------------------------------------------------
    *   WE HAVE SENT ALL THE SIGNALS OF THIS OPERATION. SET STATE AND EXIT.
@@ -5174,8 +5119,6 @@ void Dbtc::execPACKED_SIGNAL(Signal* signal)
       Tstep += 4;
       break;
     default:
-jam();
-fprintf(stderr,"YYY: %s: %u: %s: DBTC %u: Tdata1 >> 28 = %u\n",__FILE__,__LINE__,__func__,instance(),(Tdata1 >> 28));
       systemErrorLab(signal, __LINE__);
       return;
     }//switch
@@ -5294,7 +5237,6 @@ void Dbtc::execSIGNAL_DROPPED_REP(Signal* signal)
     ref->errorCode= ZGET_ATTRBUF_ERROR;
     ref->closeNeeded= 0;
 
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(transP->ndbapiBlockref, GSN_SCAN_TABREF,
                signal, ScanTabRef::SignalLength, JBB);
     break;
@@ -5468,8 +5410,8 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     warningReport(signal, 24);
     return;
   }//if
-PrefetchApiConTimer apiConTimer(c_apiConTimersPool, apiConnectptr, true);
-(void) m_commitAckMarkerPool.getUncheckedPtrRW(commitAckMarker);
+  PrefetchApiConTimer apiConTimer(c_apiConTimersPool, apiConnectptr, true);
+  (void) m_commitAckMarkerPool.getUncheckedPtrRW(commitAckMarker);
 
 #ifdef ERROR_INSERT
   if (ERROR_INSERTED(8029)) {
@@ -5544,13 +5486,12 @@ PrefetchApiConTimer apiConTimer(c_apiConTimersPool, apiConnectptr, true);
      * the locking operation TC reference
      */
     lockingOp.i = treadlenAi;
-(void) tcConnectRecord.getUncheckedPtrRW(lockingOp);
+    (void) tcConnectRecord.getUncheckedPtrRW(lockingOp);
     treadlenAi = 0;
   }
 
   /* Handle case where LQHKEYREQ requested an LQH CommitAckMarker */
-//  setApiConTimer(apiConnectptr, TtcTimer, __LINE__);
-apiConTimer.set_timer(TtcTimer, __LINE__);
+  apiConTimer.set_timer(TtcTimer, __LINE__);
   if (commitAckMarker.i != RNIL)
   {
     jam();
@@ -5614,7 +5555,7 @@ apiConTimer.set_timer(TtcTimer, __LINE__);
   }
   else if (triggeringOp.i != RNIL)
   {
-(void) tcConnectRecord.getUncheckedPtrRW(triggeringOp);
+    (void) tcConnectRecord.getUncheckedPtrRW(triggeringOp);
   }
   bool do_releaseTcCon = false;
   TcConnectRecordPtr save_tcConnectptr;
@@ -5646,7 +5587,6 @@ apiConTimer.set_timer(TtcTimer, __LINE__);
      * 3) Send TCKEYCONF back to the user
      * 4) Release our own TC op
      */
-//    Uint32 unlockOpI = tcConnectptr.i;
     const TcConnectRecordPtr unlockOp = tcConnectptr;
 
     ndbrequire( numFired == 0 );
@@ -5974,7 +5914,6 @@ void Dbtc::sendtckeyconf(Signal* signal, UintR TcommitFlag, ApiConnectRecordPtr 
     signal->theData[0] = TcContinueB::DelayTCKEYCONF;
     signal->theData[1] = apiConnectptr.i;
     signal->theData[2] = TcommitFlag;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 3000, 3);
     return;
   }
@@ -6044,7 +5983,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
 		  (UintR*)&tcKeyConf->operations,
 		  (UintR)ZTCOPCONF_SIZE);
     * gci_lo = Uint32(regApiPtr->globalcheckpointid);
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(regApiPtr->ndbapiBlockref,
 	       GSN_TCKEYCONF, signal, (TpacketLen - 1) + 1 /** gci_lo */, JBB);
     return;
@@ -6174,7 +6112,6 @@ void Dbtc::sendPackedSignal(Signal* signal,
                                     LQH_RECEIVE_TYPES,
                                     5)); /* Commit signal length */
   }
-ndbrequire(signal->header.m_noOfSections == 0);
   sendSignal(container->hostBlockRef,
              GSN_PACKED_SIGNAL,
              signal,
@@ -6192,7 +6129,6 @@ void Dbtc::sendPackedTCKEYCONF(Signal* signal,
   container->noOfPackedWords = 0;
   BlockReference TBref = numberToRef(API_PACKED, hostId);
   memcpy(&signal->theData[0], &container->packedWords[0], 4 * TnoOfWords);
-ndbrequire(signal->header.m_noOfSections == 0);
   sendSignal(TBref, GSN_TCKEYCONF, signal, TnoOfWords, JBB);
 }//Dbtc::sendPackedTCKEYCONF()
 
@@ -6475,7 +6411,6 @@ void Dbtc::execDIVERIFYCONF(Signal* signal)
     {
       ndbout_c("Error insert 8110, disconnecting API during COMMIT");
       signal->theData[0] = apiNodeId;
-ndbrequire(signal->header.m_noOfSections == 0);
       sendSignal(QMGR_REF, GSN_API_FAILREQ, signal, 1, JBA);
 
       SET_ERROR_INSERT_VALUE(8089); /* Slow committing... */
@@ -6640,7 +6575,6 @@ void Dbtc::commit020Lab(Signal* signal, ApiConnectRecordPtr const apiConnectptr)
         {
           execSEND_PACKED(signal);
           signal->theData[0] = 9999;
-ndbrequire(signal->header.m_noOfSections == 0);
           sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 100, 1);
           return;
         }
@@ -6649,11 +6583,9 @@ ndbrequire(signal->header.m_noOfSections == 0);
         signal->theData[2] = localTcConnectptr.i;
         if (ERROR_INSERTED(8089))
         {
-ndbrequire(signal->header.m_noOfSections == 0);
           sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 100, 3);
           return;
         }
-ndbrequire(signal->header.m_noOfSections == 0);
         sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);
         return;
       }//if
@@ -6711,7 +6643,6 @@ Dbtc::sendCommitLqh(Signal* signal,
   if (instanceKey > MAX_NDBMT_LQH_THREADS) {
     memcpy(&signal->theData[0], &Tdata[0], len << 2);
     BlockReference lqhRef = numberToRef(DBLQH, instanceKey, Tnode);
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(lqhRef, GSN_COMMIT, signal, len, JBB);
     return ret;
   }
@@ -6782,13 +6713,11 @@ void Dbtc::execCOMMITTED(Signal* signal)
   }//if
   if (ERROR_INSERTED(8041)) {
     CLEAR_ERROR_INSERT_VALUE;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignalWithDelay(cownref, GSN_COMMITTED, signal, 2000, 3);
     return;
   }//if
   if (ERROR_INSERTED(8042)) {
     SET_ERROR_INSERT_VALUE(8046);
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignalWithDelay(cownref, GSN_COMMITTED, signal, 2000, 4);
     return;
   }//if
@@ -6863,7 +6792,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
     {
       ndbout_c("Error insert 8111, disconnecting API during COMPLETE");
       signal->theData[0] = apiNodeId;
-ndbrequire(signal->header.m_noOfSections == 0);
       sendSignal(QMGR_REF, GSN_API_FAILREQ, signal, 1, JBA);
 
       SET_ERROR_INSERT_VALUE(8112); /* Slow completing... */
@@ -6894,7 +6822,6 @@ Dbtc::sendApiCommitSignal(Signal *signal, ApiConnectRecordPtr const apiConnectpt
     if (ERROR_INSERTED(8054))
     {
       signal->theData[0] = 9999;
-ndbrequire(signal->header.m_noOfSections == 0);
       sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 5000, 1);
     }
     else
@@ -6923,7 +6850,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
 
     if (!ERROR_INSERTED(8054) && !ERROR_INSERTED(8108))
     {
-ndbrequire(signal->header.m_noOfSections == 0);
       sendSignal(apiConnectptr.p->ndbapiBlockref, GSN_TC_COMMITCONF, signal,
                  TcCommitConf::SignalLength, JBB);
     }
@@ -6957,11 +6883,9 @@ Dbtc::sendApiCommitAndCopy(Signal* signal, ApiConnectRecordPtr const apiConnectp
      * 3) Prevent execAPI_FAILREQ from handling trans...
      */
     signal->theData[0] = 9999;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 1000, 1);
     Uint32 node = refToNode(apiConnectptr.p->ndbapiBlockref);
     signal->theData[0] = node;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(QMGR_REF, GSN_API_FAILREQ, signal, 1, JBB);
 
     SET_ERROR_INSERT_VALUE(8056);
@@ -7126,11 +7050,9 @@ void Dbtc::complete010Lab(Signal* signal, ApiConnectRecordPtr const apiConnectpt
         signal->theData[2] = localTcConnectptr.i;
         if (ERROR_INSERTED(8112))
         {
-ndbrequire(signal->header.m_noOfSections == 0);
           sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 100, 3);
           return;
         }
-ndbrequire(signal->header.m_noOfSections == 0);
         sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);
         return;
       }//if
@@ -7179,7 +7101,6 @@ Dbtc::sendCompleteLqh(Signal* signal,
   if (instanceKey > MAX_NDBMT_LQH_THREADS) {
     memcpy(&signal->theData[0], &Tdata[0], len << 2);
     BlockReference lqhRef = numberToRef(DBLQH, instanceKey, Tnode);
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(lqhRef, GSN_COMPLETE, signal, 3, JBB);
     return ret;
   }
@@ -7366,12 +7287,10 @@ Dbtc::sendFireTrigReq(Signal* signal,
 
     if (ERROR_INSERTED_CLEAR(8090))
     {
-ndbrequire(signal->header.m_noOfSections == 0);
       sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 5000, 4);
     }
     else
     {
-ndbrequire(signal->header.m_noOfSections == 0);
       sendSignal(cownref, GSN_CONTINUEB, signal, 4, JBB);
     }
   }
@@ -7406,7 +7325,6 @@ Dbtc::sendFireTrigReqLqh(Signal* signal,
   if (instanceKey > MAX_NDBMT_LQH_THREADS) {
     memcpy(signal->theData, Tdata, len << 2);
     BlockReference lqhRef = numberToRef(DBLQH, instanceKey, Tnode);
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(lqhRef, GSN_FIRE_TRIG_REQ, signal, len, JBB);
     return ret;
   }
@@ -7670,7 +7588,6 @@ Dbtc::sendRemoveMarker(Signal* signal,
     memcpy(&signal->theData[0], &Tdata[1], (len - 1) << 2);
     Uint32 Tnode = hostPtr.i;
     BlockReference ref = numberToRef(DBLQH, instanceKey, Tnode);
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(ref, GSN_REMOVE_MARKER_ORD, signal, len - 1, JBB);
     return;
   }
@@ -7769,13 +7686,11 @@ void Dbtc::execCOMPLETED(Signal* signal)
   }//if
   if (ERROR_INSERTED(8043)) {
     CLEAR_ERROR_INSERT_VALUE;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignalWithDelay(cownref, GSN_COMPLETED, signal, 2000, 3);
     return;
   }//if
   if (ERROR_INSERTED(8044)) {
     SET_ERROR_INSERT_VALUE(8047);
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignalWithDelay(cownref, GSN_COMPLETED, signal, 2000, 3);
     return;
   }//if
@@ -7789,12 +7704,12 @@ ndbrequire(signal->header.m_noOfSections == 0);
     warningReport(signal, 6);
     return;
   }//if
-if (unlikely(!c_apiConnectRecordPool.getValidPtr(localApiConnectptr)))
-{
-  warningReport(signal, 7);
-  return;
-}
-PrefetchApiConTimer apiConTimer(c_apiConTimersPool, localApiConnectptr, true);
+  if (unlikely(!c_apiConnectRecordPool.getValidPtr(localApiConnectptr)))
+  {
+    warningReport(signal, 7);
+    return;
+  }
+  PrefetchApiConTimer apiConTimer(c_apiConTimersPool, localApiConnectptr, true);
   UintR Tdata1 = localApiConnectptr.p->transid[0] - signal->theData[1];
   UintR Tdata2 = localApiConnectptr.p->transid[1] - signal->theData[2];
   UintR Tcounter = localApiConnectptr.p->counter - 1;
@@ -7807,11 +7722,10 @@ PrefetchApiConTimer apiConTimer(c_apiConTimersPool, localApiConnectptr, true);
     warningReport(signal, 7);
     return;
   }//if
-//  setApiConTimer(localApiConnectptr, ctcTimer, __LINE__);
   localApiConnectptr.p->counter = Tcounter;
   localTcConnectptr.p->tcConnectstate = OS_COMPLETED;
   localTcConnectptr.p->noOfNodes = 0; // == releaseNodes(signal)
-apiConTimer.set_timer(ctcTimer, __LINE__);
+  apiConTimer.set_timer(ctcTimer, __LINE__);
   if (TcheckCondition) {
     jam();
     /*-------------------------------------------------------*/
@@ -8353,7 +8267,6 @@ void Dbtc::execTC_COMMITREQ(Signal* signal)
         commitConf->transId2 = transId2;
         commitConf->gci_hi = 0;
         commitConf->gci_lo = 0;
-ndbrequire(signal->header.m_noOfSections == 0);
         sendSignal(apiBlockRef, GSN_TC_COMMITCONF, signal, 
 		   TcCommitConf::SignalLength, JBB);
         
@@ -8408,11 +8321,12 @@ ndbrequire(signal->header.m_noOfSections == 0);
     commitRef->transId1 = transId1;
     commitRef->transId2 = transId2;
     commitRef->errorCode = errorCode;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(apiBlockRef, GSN_TC_COMMITREF, signal, 
 	       TcCommitRef::SignalLength, JBB);
     return;
-  } else /** apiConnectptr.i < capiConnectFilesize */ {
+  }
+  else
+  {
     jam();
     warningHandlerLab(signal, __LINE__);
     return;
@@ -8474,7 +8388,6 @@ void Dbtc::execTCROLLBACKREQ(Signal* signal)
     signal->theData[0] = apiConnectptr.p->ndbapiConnect;
     signal->theData[1] = apiConnectptr.p->transid[0];
     signal->theData[2] = apiConnectptr.p->transid[1];
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(apiConnectptr.p->ndbapiBlockref, GSN_TCROLLBACKCONF, 
 	       signal, 3, JBB);
     break;
@@ -8499,7 +8412,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
     signal->theData[2] = apiConnectptr.p->transid[1];
     signal->theData[3] = ZROLLBACKNOTALLOWED;
     signal->theData[4] = apiConnectptr.p->apiConnectstate;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(apiConnectptr.p->ndbapiBlockref, GSN_TCROLLBACKREF, 
 	       signal, 5, JBB);
     break;
@@ -8511,7 +8423,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
       signal->theData[0] = apiConnectptr.p->ndbapiConnect;
       signal->theData[1] = apiConnectptr.p->transid[0];
       signal->theData[2] = apiConnectptr.p->transid[1];
-ndbrequire(signal->header.m_noOfSections == 0);
       sendSignal(apiConnectptr.p->ndbapiBlockref, GSN_TCROLLBACKCONF, 
 		 signal, 3, JBB);
     } else {
@@ -8813,7 +8724,6 @@ void Dbtc::execABORTED(Signal* signal)
 
   if (ERROR_INSERTED(8040)) {
     CLEAR_ERROR_INSERT_VALUE;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignalWithDelay(cownref, GSN_ABORTED, signal, 2000, 5);
     return;
   }//if
@@ -9068,11 +8978,9 @@ ABORT020:
       signal->theData[4] = apiConnectptr.p->transid[1];
       if (ERROR_INSERTED(8089))
       {
-ndbrequire(signal->header.m_noOfSections == 0);
         sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 100, 3);
         return;
       }
-ndbrequire(signal->header.m_noOfSections == 0);
       sendSignal(cownref, GSN_CONTINUEB, signal, 5, JBB);
       return;
     }//if
@@ -9125,7 +9033,6 @@ int Dbtc::releaseAndAbort(Signal* signal, ApiConnectRecord* const regApiPtr)
       signal->theData[1] = cownref;
       signal->theData[2] = regApiPtr->transid[0];
       signal->theData[3] = regApiPtr->transid[1];
-ndbrequire(signal->header.m_noOfSections == 0);
       sendSignal(tblockref, GSN_ABORT, signal, 4, JBB);
       prevAlive = true;
     } else {
@@ -9135,7 +9042,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
       signal->theData[2] = regApiPtr->transid[1];
       signal->theData[3] = localHostptr.i;
       signal->theData[4] = ZFALSE;
-ndbrequire(signal->header.m_noOfSections == 0);
       sendSignal(cownref, GSN_ABORTED, signal, 5, JBB);
       prevAlive = false;
     }//if
@@ -9875,7 +9781,6 @@ void Dbtc::sendAbortedAfterTimeout(Signal* signal, int Tcheck, ApiConnectRecordP
             signal->theData[1] = cownref;
             signal->theData[2] = apiConnectptr.p->transid[0];
             signal->theData[3] = apiConnectptr.p->transid[1];
-ndbrequire(signal->header.m_noOfSections == 0);
             sendSignal(TBRef, GSN_ABORT, signal, 4, JBB);
             setApiConTimer(apiConnectptr, ctcTimer, __LINE__);
             break;
@@ -9891,7 +9796,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
             signal->theData[2] = apiConnectptr.p->transid[1];
             signal->theData[3] = hostptr.i;
             signal->theData[4] = ZFALSE;
-ndbrequire(signal->header.m_noOfSections == 0);
             sendSignal(cownref, GSN_ABORTED, signal, 5, JBB);
           }//if
         }//if
@@ -9906,7 +9810,6 @@ void Dbtc::reportNodeFailed(Signal* signal, NodeId nodeId)
   DisconnectRep * const rep = (DisconnectRep *)&signal->theData[0];
   rep->nodeId = nodeId;
   rep->err = DisconnectRep::TcReportNodeFailed;
-ndbrequire(signal->header.m_noOfSections == 0);
   sendSignal(QMGR_REF, GSN_DISCONNECT_REP, signal, 
 	     DisconnectRep::SignalLength, JBB);
 }//Dbtc::reportNodeFailed()
@@ -9975,7 +9878,6 @@ void Dbtc::timeOutLoopStartFragLab(Signal* signal, Uint32 TscanConPtr)
       jam();
       signal->theData[0] = TcContinueB::ZCONTINUE_TIME_OUT_FRAG_CONTROL;
       signal->theData[1] = TscanConPtr;
-ndbrequire(signal->header.m_noOfSections == 0);
       sendSignal(cownref, GSN_CONTINUEB, signal, 2, JBB);
       return;
     }//if
@@ -10029,7 +9931,6 @@ void Dbtc::execSCAN_HBREP(Signal* signal)
     signal->theData[1] = RNIL;
     signal->theData[2] = RNIL;
     
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(signal->senderBlockRef(), GSN_SCAN_HBREP, signal, 5, JBA);
     DEBUG("SCAN_HBREP with wrong transid("
 	  <<signal->theData[3]<<", "<<signal->theData[4]<<")");
@@ -10180,7 +10081,6 @@ void Dbtc::timeOutFoundFragLab(Signal* signal, UintR TscanConPtr)
 next:  
   signal->theData[0] = TcContinueB::ZCONTINUE_TIME_OUT_FRAG_CONTROL;
   signal->theData[1] = TscanConPtr + 1;
-ndbrequire(signal->header.m_noOfSections == 0);
   sendSignal(cownref, GSN_CONTINUEB, signal, 2, JBB);
   return;  
 }//timeOutFoundFragLab()
@@ -10572,10 +10472,8 @@ Dbtc::checkNodeFailComplete(Signal* signal,
     if (instance() == 0)
     {
       jam();
-ndbrequire(signal->header.m_noOfSections == 0);
       sendSignal(cdihblockref, GSN_NF_COMPLETEREP, signal,
                  NFCompleteRep::SignalLength, JBB);
-ndbrequire(signal->header.m_noOfSections == 0);
       sendSignal(QMGR_REF, GSN_NF_COMPLETEREP, signal,
                  NFCompleteRep::SignalLength, JBB);
     }
@@ -10584,7 +10482,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
       /**
        * Send to proxy
        */
-ndbrequire(signal->header.m_noOfSections == 0);
       sendSignal(DBTC_REF, GSN_NF_COMPLETEREP, signal,
                  NFCompleteRep::SignalLength, JBB);
     }
@@ -10608,7 +10505,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
   if (ERROR_INSERTED(8059))
   {
     signal->theData[0] = 9999;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignalWithDelay(numberToRef(CMVMI, hostptr.i), 
                         GSN_NDB_TAMPER, signal, 100, 1);
   }
@@ -10706,7 +10602,6 @@ void Dbtc::checkScanActiveInFailedLqh(Signal* signal,
     signal->theData[0] = TcContinueB::ZCHECK_SCAN_ACTIVE_FAILED_LQH;
     signal->theData[1] = scanPtrI; // Check next scanptr
     signal->theData[2] = failedNodeId;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);
     return;
   }//for
@@ -10775,7 +10670,6 @@ Dbtc::nodeFailCheckTransactions(Signal* signal,
     signal->theData[0] = TcContinueB::ZNF_CHECK_TRANSACTIONS;
     signal->theData[1] = api_ptr;
     signal->theData[2] = failedNodeId;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);
   }
 }
@@ -10800,7 +10694,6 @@ Dbtc::apiFailBlockCleanupCallback(Signal* signal,
   
   signal->theData[0] = failedNodeId;
   signal->theData[1] = reference();
-ndbrequire(signal->header.m_noOfSections == 0);
   sendSignal(capiFailRef, GSN_API_FAILCONF, signal, 2, JBB);
 }
 
@@ -11052,13 +10945,11 @@ void Dbtc::startTakeOverLab(Signal* signal,
       if (ERROR_INSERTED(8064) && hostptr.i == getOwnNodeId())
       {
         ndbout_c("sending delayed GSN_LQH_TRANSREQ to self");
-ndbrequire(signal->header.m_noOfSections == 0);
         sendSignalWithDelay(tblockref, GSN_LQH_TRANSREQ, signal, 100, sig_len);
         CLEAR_ERROR_INSERT_VALUE;
       }
       else
       {
-ndbrequire(signal->header.m_noOfSections == 0);
         sendSignal(tblockref, GSN_LQH_TRANSREQ, signal, sig_len, JBB);
       }
     }//if
@@ -11289,7 +11180,6 @@ void Dbtc::execLQH_TRANSCONF(Signal* signal)
                refToNode(signal->getSendersBlockRef()));
       // Force multi-tc takeover
       ((LqhTransConf*)lqhTransConf)->maxInstanceId = 4;
-ndbrequire(signal->header.m_noOfSections == 0);
       sendSignalWithDelay(reference(),
                           GSN_LQH_TRANSCONF,
                           signal,
@@ -11580,7 +11470,6 @@ void Dbtc::nodeTakeOverCompletedLab(Signal* signal,
     signal->theData[0] = TcContinueB::ZCOMPLETE_TRANS_AT_TAKE_OVER;
     signal->theData[1] = tcNodeFailptr.i;
     signal->theData[2] = tindex;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);
   }//for
 }//Dbtc::nodeTakeOverCompletedLab()
@@ -11717,7 +11606,6 @@ void Dbtc::completeTransAtTakeOverDoLast(Signal* signal, UintR TtakeOverInd)
     NodeReceiverGroup rg(DBTC, c_alive_nodes);
     signal->theData[0] = tcNodeFailptr.p->takeOverNode;
     signal->theData[1] = reference();
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(rg, GSN_TAKE_OVERTCCONF, signal, 2, JBB);
     
     if (tcNodeFailptr.p->queueIndex > 0) {
@@ -11816,7 +11704,6 @@ void Dbtc::completeTransAtTakeOverDoOne(Signal* signal, UintR TtakeOverInd, ApiC
     signal->theData[0] = TcContinueB::ZCOMPLETE_TRANS_AT_TAKE_OVER;
     signal->theData[1] = (UintR)apiConnectptr.p->takeOverRec;
     signal->theData[2] = apiConnectptr.p->takeOverInd;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);
     releaseTakeOver(signal, apiConnectptr);
     break;
@@ -11827,7 +11714,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
     signal->theData[0] = TcContinueB::ZCOMPLETE_TRANS_AT_TAKE_OVER;
     signal->theData[1] = (UintR)apiConnectptr.p->takeOverRec;
     signal->theData[2] = apiConnectptr.p->takeOverInd;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);
     releaseApiConnectFail(signal, apiConnectptr);
     break;
@@ -11855,7 +11741,6 @@ Dbtc::sendTCKEY_FAILREF(Signal* signal, ApiConnectRecord * regApiPtr){
     if (likely(connectedToNode))
     {
       jam();
-ndbrequire(signal->header.m_noOfSections == 0);
       sendSignal(ref, GSN_TCKEY_FAILREF, signal, 3, JBB);
     }
     else
@@ -11885,7 +11770,6 @@ Dbtc::sendTCKEY_FAILCONF(Signal* signal, ApiConnectRecord * regApiPtr){
     if (likely(connectedToNode))
     {
       jam();
-ndbrequire(signal->header.m_noOfSections == 0);
       sendSignal(ref, GSN_TCKEY_FAILCONF, signal, 
 		 TcKeyFailConf::SignalLength, JBB);
     }
@@ -11950,7 +11834,6 @@ Dbtc::routeTCKEY_FAILREFCONF(Signal* signal, const ApiConnectRecord* regApiPtr,
       jam();
       signal->theData[len] = gsn;
       signal->theData[len+1] = ref;
-ndbrequire(signal->header.m_noOfSections == 0);
       sendSignal(calcTcBlockRef(i), GSN_TCKEY_FAILREFCONF_R, 
 		 signal, len+2, JBB);
       return;
@@ -11975,7 +11858,6 @@ Dbtc::execTCKEY_FAILREFCONF_R(Signal* signal)
   Uint32 len = signal->getLength();
   Uint32 gsn = signal->theData[len-2];
   Uint32 ref = signal->theData[len-1];
-ndbrequire(signal->header.m_noOfSections == 0);
   sendSignal(ref, gsn, signal, len-2, JBB);
 }
 
@@ -11994,7 +11876,6 @@ void Dbtc::execABORTCONF(Signal* signal)
   NodeId nodeId = signal->theData[2];
   if (ERROR_INSERTED(8045)) {
     CLEAR_ERROR_INSERT_VALUE;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignalWithDelay(cownref, GSN_ABORTCONF, signal, 2000, 5);
     return;
   }//if
@@ -12062,7 +11943,6 @@ void Dbtc::toAbortHandlingLab(Signal* signal, ApiConnectRecordPtr const apiConne
           signal->theData[3] = apiConnectptr.p->transid[1];
           signal->theData[4] = apiConnectptr.p->tcBlockref;
           signal->theData[5] = tcConnectptr.p->tcOprec;
-ndbrequire(signal->header.m_noOfSections == 0);
           sendSignal(tblockref, GSN_ABORTREQ, signal, 6, JBB);
           return;
         }//if
@@ -12103,7 +11983,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
           signal->theData[0] = TcContinueB::ZCOMPLETE_TRANS_AT_TAKE_OVER;
           signal->theData[1] = (UintR)apiConnectptr.p->takeOverRec;
           signal->theData[2] = apiConnectptr.p->takeOverInd;
-ndbrequire(signal->header.m_noOfSections == 0);
           sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);
           releaseTakeOver(signal, apiConnectptr);
         } else {
@@ -12135,7 +12014,6 @@ void Dbtc::execCOMMITCONF(Signal* signal)
   NodeId nodeId = signal->theData[1];
   if (ERROR_INSERTED(8046)) {
     CLEAR_ERROR_INSERT_VALUE;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignalWithDelay(cownref, GSN_COMMITCONF, signal, 2000, 4);
     return;
   }//if
@@ -12214,7 +12092,6 @@ void Dbtc::toCommitHandlingLab(Signal* signal, ApiConnectRecordPtr apiConnectptr
           signal->theData[5] = apiConnectptr.p->tcBlockref;
           signal->theData[6] = tcConnectptr.p->tcOprec;
           signal->theData[7] = Uint32(gci);
-ndbrequire(signal->header.m_noOfSections == 0);
           sendSignal(tblockref, GSN_COMMITREQ, signal, 8, JBB);
           return;
         }//if
@@ -12283,7 +12160,6 @@ void Dbtc::execCOMPLETECONF(Signal* signal)
   NodeId nodeId = signal->theData[1];
   if (ERROR_INSERTED(8047)) {
     CLEAR_ERROR_INSERT_VALUE;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignalWithDelay(cownref, GSN_COMPLETECONF, signal, 2000, 4);
     return;
   }//if
@@ -12359,7 +12235,6 @@ void Dbtc::toCompleteHandlingLab(Signal* signal, ApiConnectRecordPtr const apiCo
           signal->theData[3] = apiConnectptr.p->transid[1];
           signal->theData[4] = apiConnectptr.p->tcBlockref;
           signal->theData[5] = tcConnectptr.p->tcOprec;
-ndbrequire(signal->header.m_noOfSections == 0);
           sendSignal(tblockref, GSN_COMPLETEREQ, signal, 6, JBB);
           return;
         }//if
@@ -12386,7 +12261,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
           signal->theData[0] = TcContinueB::ZCOMPLETE_TRANS_AT_TAKE_OVER;
           signal->theData[1] = (UintR)apiConnectptr.p->takeOverRec;
           signal->theData[2] = apiConnectptr.p->takeOverInd;
-ndbrequire(signal->header.m_noOfSections == 0);
           sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);
           handleGcp(signal, apiConnectptr);
           releaseTakeOver(signal, apiConnectptr);
@@ -12857,7 +12731,6 @@ void Dbtc::execTCGETOPSIZEREQ(Signal* signal)
      * The message goes to the DBTC proxy before being processed by
      * DBDIH.
      */
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(Tusersblkref, GSN_TCGETOPSIZECONF, signal, 2, JBB);
   }
   else
@@ -12869,7 +12742,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
      * start.
      */
     signal->theData[2] = Tusersblkref;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(DBDIH_REF, GSN_CHECK_LCP_IDLE_ORD, signal, 3, JBB);
   }
 }//Dbtc::execTCGETOPSIZEREQ()
@@ -12884,7 +12756,6 @@ void Dbtc::execTC_CLOPSIZEREQ(Signal* signal)
                                             /* DBDIH BLOCK REFERENCE         */
   coperationsize = 0;
   signal->theData[0] = tuserpointer;
-ndbrequire(signal->header.m_noOfSections == 0);
   sendSignal(tusersblkref, GSN_TC_CLOPSIZECONF, signal, 1, JBB);
 }//Dbtc::execTC_CLOPSIZEREQ()
 
@@ -13347,7 +13218,6 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
      * Force API_FAILREQ
      */
     signal->theData[0] = refToNode(apiConnectptr.p->ndbapiBlockref);
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(QMGR_REF, GSN_API_FAILREQ, signal, 1, JBA);
     CLEAR_ERROR_INSERT_VALUE;
   }
@@ -13403,7 +13273,6 @@ SCAN_TAB_error_no_state_change:
   ref->transId2 = transid2;
   ref->errorCode  = errCode;
   ref->closeNeeded = 0;
-ndbrequire(signal->header.m_noOfSections == 0);
   sendSignal(apiBlockRef, GSN_SCAN_TABREF, 
 	     signal, ScanTabRef::SignalLength, JBB);
 
@@ -13530,7 +13399,6 @@ void Dbtc::scanTabRefLab(Signal* signal, Uint32 errCode, ApiConnectRecord* const
   ref->transId2 = regApiPtr->transid[1];
   ref->errorCode  = errCode;
   ref->closeNeeded = 0;
-ndbrequire(signal->header.m_noOfSections == 0);
   sendSignal(regApiPtr->ndbapiBlockref, GSN_SCAN_TABREF,
              signal, ScanTabRef::SignalLength, JBB);
 }//Dbtc::scanTabRefLab()
@@ -13846,7 +13714,6 @@ void Dbtc::sendDihGetNodesLab(Signal* signal, ScanRecordPtr scanptr, ApiConnectR
       scanError(signal, scanptr, ZGET_DATAREC_ERROR);
       return;
     }
-fprintf(stderr,"YYY: %s: %u: %s: DBTC %u: scanptr %u: seize frag loc %u high %u\n",__FILE__,__LINE__,__func__,instance(),scanptr.i,fragLocationPtr.i,m_fragLocationPool.getUsedHi());
     list.addLast(fragLocationPtr);
     fragLocationPtr.p->m_first_index = 0;
     fragLocationPtr.p->m_next_index = 0;
@@ -13867,7 +13734,6 @@ fprintf(stderr,"YYY: %s: %u: %s: DBTC %u: scanptr %u: seize frag loc %u high %u\
       jam();
       signal->theData[0] = TcContinueB::ZSTART_FRAG_SCANS;
       signal->theData[1] = scanptr.i;
-ndbrequire(signal->header.m_noOfSections == 0);
       sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
       return;
     }
@@ -14023,7 +13889,6 @@ void Dbtc::releaseScanResources(Signal* signal,
                                       scanPtr.p->m_fragLocations);
     while (frags.removeFirst(ptr))
     {
-fprintf(stderr,"YYY: %s: %u: %s: DBTC %u: scanptr %u: release frag loc %u high %u\n",__FILE__,__LINE__,__func__,instance(),scanPtr.i,ptr.i,m_fragLocationPool.getUsedHi());
       m_fragLocationPool.release(ptr);
     }
     checkPoolShrinkNeed(DBTC_FRAG_LOCATION_TRANSIENT_POOL_INDEX,
@@ -14256,7 +14121,6 @@ bool Dbtc::sendDihGetNodeReq(Signal* signal,
         scanError(signal, scanptr, ZGET_DATAREC_ERROR);
         return false;
       }
-fprintf(stderr,"YYY: %s: %u: %s: DBTC %u: scanptr %u: seize frag loc %u high %u\n",__FILE__,__LINE__,__func__,instance(),scanptr.i,fragLocationPtr.i,m_fragLocationPool.getUsedHi());
       list.addLast(fragLocationPtr);
       index = 0;
       fragLocationPtr.p->m_first_index = 0;
@@ -14368,7 +14232,6 @@ void Dbtc::sendFragScansLab(Signal* signal,
             jam();
             signal->theData[0] = TcContinueB::ZSEND_FRAG_SCANS;
             signal->theData[1] = scanptr.i;
-ndbrequire(signal->header.m_noOfSections == 0);
             sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
             return;
           }
@@ -14379,7 +14242,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
             jam();
             signal->theData[0] = TcContinueB::ZSEND_FRAG_SCANS;
             signal->theData[1] = scanptr.i;
-ndbrequire(signal->header.m_noOfSections == 0);
             sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 2, 10);
             return;
           }
@@ -14556,7 +14418,6 @@ void Dbtc::scanError(Signal* signal, ScanRecordPtr scanptr, Uint32 errorCode)
   ref->transId2 = apiConnectptr.p->transid[1];
   ref->errorCode  = errorCode;
   ref->closeNeeded = 1;
-ndbrequire(signal->header.m_noOfSections == 0);
   sendSignal(apiConnectptr.p->ndbapiBlockref, GSN_SCAN_TABREF, 
 	     signal, ScanTabRef::SignalLength, JBB);
 }//Dbtc::scanError()
@@ -14749,7 +14610,6 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
     ref->transId2 = transid2;
     ref->errorCode  = ZSTATE_ERROR;
     ref->closeNeeded = 0;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(signal->senderBlockRef(), GSN_SCAN_TABREF, 
 	       signal, ScanTabRef::SignalLength, JBB);
     DEBUG("Wrong transid");
@@ -14904,7 +14764,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
       ScanFragNextReq * req = (ScanFragNextReq*)signal->getDataPtrSend();
       * req = tmp;
       req->senderData = scanFragptr.i;
-ndbrequire(signal->header.m_noOfSections == 0);
       sendSignal(scanFragptr.p->lqhBlockref, GSN_SCAN_NEXTREQ, signal, 
 		 ScanFragNextReq::SignalLength, JBB);
     }
@@ -14979,7 +14838,6 @@ Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr, bool req_received, A
       curr.p->m_start_ticks = getHighResTimer();
       curr.p->scanFragState = ScanFragRec::LQH_ACTIVE;
       nextReq->senderData = curr.i;
-ndbrequire(signal->header.m_noOfSections == 0);
       sendSignal(curr.p->lqhBlockref, GSN_SCAN_NEXTREQ, signal, 
 		 ScanFragNextReq::SignalLength, JBB);
     }
@@ -15083,7 +14941,6 @@ Dbtc::close_scan_req_send_conf(Signal* signal, ScanRecordPtr scanPtr, ApiConnect
     conf->requestInfo = ScanTabConf::EndOfData;
     conf->transId1 = apiConnectptr.p->transid[0];
     conf->transId2 = apiConnectptr.p->transid[1];
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(ref, GSN_SCAN_TABCONF, signal, ScanTabConf::SignalLength, JBB);
     time_track_complete_scan(scanPtr.p, refToNode(ref));
   }
@@ -15140,7 +14997,6 @@ Dbtc::get_and_step_next_frag_location(ScanFragLocationPtr & fragLocationPtr,
                                      scanPtrP->m_fragLocations);
     list.removeFirst(ptr);
     ndbassert(ptr.i == fragLocationPtr.i);
-fprintf(stderr,"YYY: %s: %u: %s: DBTC %u: scanptr %u: release frag loc %u high %u\n",__FILE__,__LINE__,__func__,instance(),RNIL/*scanPtr.i*/,ptr.i,m_fragLocationPool.getUsedHi());
     m_fragLocationPool.release(fragLocationPtr);  //Consumed it
     list.first(fragLocationPtr);
     checkPoolShrinkNeed(DBTC_FRAG_LOCATION_TRANSIENT_POOL_INDEX,
@@ -15340,7 +15196,6 @@ bool Dbtc::sendScanFragReq(Signal* signal,
        */
       req->fragmentNoKeyLen |= (sections.m_ptr[1].sz << 16);
     }
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(scanFragP.p->lqhBlockref, GSN_SCAN_FRAGREQ, signal,
                ScanFragReq::SignalLength, JBB);
     if (sections.m_cnt > 1)
@@ -15385,7 +15240,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
   if (ERROR_INSERTED(8088))
   {
     signal->theData[0] = 9999;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 100, 1);
   }
 
@@ -15497,14 +15351,12 @@ void Dbtc::sendScanTabConf(Signal* signal,
     LinearSectionPtr ptr[3];
     ptr[0].p = signal->getDataPtrSend()+25;
     ptr[0].sz = words_per_op * op_count;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(ref, GSN_SCAN_TABCONF, signal,
                ScanTabConf::SignalLength, JBB, ptr, 1);
   }
   else
   {
     jamDebug();
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(ref, GSN_SCAN_TABCONF, signal,
 	       ScanTabConf::SignalLength + words_per_op * op_count, JBB);
   }
@@ -15546,7 +15398,6 @@ void Dbtc::gcpTcfinished(Signal* signal, Uint64 gci)
           {
             ndbout_c("TC : Killing node %u", pos);
             signal->theData[0] = 9999;
-ndbrequire(signal->header.m_noOfSections == 0);
             sendSignal(numberToRef(CMVMI, pos), GSN_DUMP_STATE_ORD, signal,
                        1, JBA);
             if (!multi)
@@ -15581,13 +15432,11 @@ ndbrequire(signal->header.m_noOfSections == 0);
     /* Slow it down */
     ndbout_c("TC : Sending delayed GCP_TCFINISHED (%u/%u), failNo %u to local DIH(%x)",
              conf->gci_hi, conf->gci_lo, cfailure_nr, cdihblockref);
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignalWithDelay(c_gcp_ref, GSN_GCP_TCFINISHED, signal,
                         2000, GCPTCFinished::SignalLength);
     return;
   }
 
-ndbrequire(signal->header.m_noOfSections == 0);
   sendSignal(c_gcp_ref, GSN_GCP_TCFINISHED, signal,
              GCPTCFinished::SignalLength, JBB);
 }//Dbtc::gcpTcfinished()
@@ -15713,7 +15562,6 @@ void Dbtc::initialiseRecordsLab(Signal* signal, UintR Tdata0,
       ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
       conf->senderRef = reference();
       conf->senderData = retData;
-ndbrequire(signal->header.m_noOfSections == 0);
       sendSignal(retRef, GSN_READ_CONFIG_CONF, signal, 
 		 ReadConfigConf::SignalLength, JBB);
     }
@@ -15731,7 +15579,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
   signal->theData[2] = 0;
   signal->theData[3] = retRef;
   signal->theData[4] = retData;
-ndbrequire(signal->header.m_noOfSections == 0);
   sendSignal(reference(), GSN_CONTINUEB, signal, 5, JBB);
 }
 
@@ -15791,7 +15638,6 @@ void Dbtc::initialiseTcConnect(Signal* signal)
     ndbrequire(tcConnectRecord.seize(tcConptr));
     tcConnectFailCount++;
 #ifdef VM_TRACE
-fprintf(stderr,"YYY: %s: %u: %s: DBTC %u: tcConptr.i %u\n",__FILE__,__LINE__,__func__,instance(),tcConptr.i);
     ndbassert((prevptr == 0) || (prevptr < tcConptr.i));
     prevptr = tcConptr.i;
 #endif
@@ -15920,7 +15766,6 @@ void Dbtc::releaseAbortResources(Signal* signal, ApiConnectRecordPtr const apiCo
       signal->theData[0] = apiConnectptr.p->ndbapiConnect;
       signal->theData[1] = apiConnectptr.p->transid[0];
       signal->theData[2] = apiConnectptr.p->transid[1];
-ndbrequire(signal->header.m_noOfSections == 0);
       sendSignal(blockRef, GSN_TCROLLBACKCONF, signal, 3, JBB);
       break;
     case RS_TCROLLBACKREP:{
@@ -15942,7 +15787,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
         signal->theData[5] = apiConnectptr.p->errorData;
         signal->theData[6] = blockRef;
         
-ndbrequire(signal->header.m_noOfSections == 0);
         sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 7);
         break;
       }
@@ -15955,7 +15799,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
       tcRollbackRep->transId[1] = apiConnectptr.p->transid[1];
       tcRollbackRep->returnCode = apiConnectptr.p->returncode;
       tcRollbackRep->errorData = apiConnectptr.p->errorData;
-ndbrequire(signal->header.m_noOfSections == 0);
       sendSignal(blockRef, GSN_TCROLLBACKREP, signal, 
 		 TcRollbackRep::SignalLength, JBB);
     }
@@ -16134,7 +15977,6 @@ bool Dbtc::sendAttrInfoTrain(Signal* signal,
                                            dataInSignal)))
       return false;
 
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(TBRef, GSN_ATTRINFO, signal,
                AttrInfo::HeaderLength + dataInSignal, JBB);
 
@@ -16147,7 +15989,6 @@ void Dbtc::sendContinueTimeOutControl(Signal* signal, Uint32 TapiConPtr)
 {
   signal->theData[0] = TcContinueB::ZCONTINUE_TIME_OUT_CONTROL;
   signal->theData[1] = TapiConPtr;
-ndbrequire(signal->header.m_noOfSections == 0);
   sendSignal(cownref, GSN_CONTINUEB, signal, 2, JBB);
 }//Dbtc::sendContinueTimeOutControl()
 
@@ -16245,7 +16086,6 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
       dumpState->args[2] = numRecords;
       dumpState->args[3] = instance();
       dumpState->args[4] = includeOnlyActive;
-ndbrequire(signal->header.m_noOfSections == 0);
       sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, 5, JBB);
     }
     return;
@@ -16367,7 +16207,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
       dumpState->args[2] = numRecords;
       dumpState->args[3] = instance();
       dumpState->args[4] = includeOnlyActive;
-ndbrequire(signal->header.m_noOfSections == 0);
       sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, 5, JBB);
     }
     return;
@@ -16533,7 +16372,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
         dumpState->args[2] = numRecords;
         dumpState->args[3] = instanceId;
         dumpState->args[4] = includeOnlyActive;
-ndbrequire(signal->header.m_noOfSections == 0);
         sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, 5, JBB);
       }
     }
@@ -16669,7 +16507,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
       dumpState->args[2] = numRecords;
       dumpState->args[3] = instanceId;
       dumpState->args[4] = includeOnlyActive;
-ndbrequire(signal->header.m_noOfSections == 0);
       sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, 5, JBB);
     }
     return;
@@ -16760,7 +16597,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
     Uint32 stateless_count = 0;   /* Number 'started' with no ops */
     Uint32 stateful_count = 0;    /* Number running */
     Uint32 scan_count = 0;        /* Number used for scans */
-// todo(wl9756)   const Uint32 userVisibleConnectFilesize = capiConnectFilesize;
     
     if (signal->getLength() == 2)
     {
@@ -16769,7 +16605,7 @@ ndbrequire(signal->header.m_noOfSections == 0);
         return;
       }
       ndbout_c("Start of ApiConnectRec summary (%u total allocated)",
-               RNIL /*userVisibleConnectFilesize todo(wl9756) */);
+               c_apiConnectRecordPool.getSize());
       /*
        * total allocated = MaxNoOfConcurrentTransactions
        * total allocated = unseized + SUM_over_Api_nodes(seized)
@@ -16890,7 +16726,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
     signal->theData[5] = stateful_count;
     signal->theData[6] = scan_count;
 
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, 7, JBB);
     return;
   }
@@ -16936,7 +16771,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
       dumpState->args[0] = DumpStateOrd::TcStartDumpIndexOpCount;
       
       Uint32 delay = 1000 * (frequency > 25 ? 25 : frequency);
-ndbrequire(signal->header.m_noOfSections == 0);
       sendSignalWithDelay(cownref, GSN_DUMP_STATE_ORD, signal, delay, 1);
     }
   }
@@ -16966,7 +16800,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
       memmove(signal->theData + 2, signal->theData + 1, 4 * len);
       signal->theData[0] = 2551;
       signal->theData[1] = 0;    // record
-ndbrequire(signal->header.m_noOfSections == 0);
       sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, len + 2, JBB);
       
       infoEvent("Starting dump of transactions");
@@ -17013,13 +16846,11 @@ ndbrequire(signal->header.m_noOfSections == 0);
     if (print)
     {
       jam();
-ndbrequire(signal->header.m_noOfSections == 0);
       sendSignalWithDelay(reference(), GSN_DUMP_STATE_ORD, signal, 200, len);
     }
     else
     {
       jam();
-ndbrequire(signal->header.m_noOfSections == 0);
       sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, len, JBB);
     }
     return;
@@ -17059,15 +16890,13 @@ ndbrequire(signal->header.m_noOfSections == 0);
 #ifdef ERROR_INSERT
     rss_cconcurrentOp = c_counters.cconcurrentOp;
 #endif
-// Below not tested in 7.6.6 and earlier
-// ApiConnectRecord and ApiConTimers excluded since API never releases those while connected
+    // Below not tested in 7.6.6 and earlier
+    // ApiConnectRecord and ApiConTimers excluded since API never releases
+    // those while connected
     RSS_AP_SNAPSHOT_SAVE(c_theAttributeBufferPool);
     RSS_AP_SNAPSHOT_SAVE(c_theCommitAckMarkerBufferPool);
-//    RSS_AP_SNAPSHOT_SAVE(c_apiConTimersPool);
     RSS_AP_SNAPSHOT_SAVE(m_fragLocationPool);
-//    RSS_AP_SNAPSHOT_SAVE(c_apiConnectRecordPool);
     RSS_AP_SNAPSHOT_SAVE(c_cacheRecordPool);
-//    RSS_AP_SNAPSHOT_SAVE(c_gcpRecordPool);
   }
   if (arg == DumpStateOrd::TcResourceCheckLeak)
   {
@@ -17083,11 +16912,8 @@ ndbrequire(signal->header.m_noOfSections == 0);
 #endif
     RSS_AP_SNAPSHOT_CHECK(c_theAttributeBufferPool);
     RSS_AP_SNAPSHOT_CHECK(c_theCommitAckMarkerBufferPool);
-//    RSS_AP_SNAPSHOT_CHECK(c_apiConTimersPool);
     RSS_AP_SNAPSHOT_CHECK(m_fragLocationPool);
-//    RSS_AP_SNAPSHOT_CHECK(c_apiConnectRecordPool);
     RSS_AP_SNAPSHOT_CHECK(c_cacheRecordPool);
-//    RSS_AP_SNAPSHOT_CHECK(c_gcpRecordPool);
   }
 
   if (arg == DumpStateOrd::TcDumpPoolLevels)
@@ -17107,7 +16933,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
       signal->theData[1] = 1;
       signal->theData[2] = 0;
       signal->theData[3] = 0;
-ndbrequire(signal->header.m_noOfSections == 0);
       sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, 5, JBB);
       return;
     }
@@ -17165,7 +16990,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
     signal->theData[2] = position;
     signal->theData[3] = sum;
     signal->theData[4] = instance();
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, 5, JBB);
     return;
   }
@@ -17714,7 +17538,6 @@ void Dbtc::execABORT_ALL_REQ(Signal* signal)
 
     ref->senderData = senderData;
     ref->errorCode = AbortAllRef::InvalidState;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(senderRef, GSN_ABORT_ALL_REF, signal, 
 	       AbortAllRef::SignalLength, JBB);
     return;
@@ -17725,7 +17548,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
     
     ref->senderData = senderData;
     ref->errorCode = AbortAllRef::AbortAlreadyInProgress;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(senderRef, GSN_ABORT_ALL_REF, signal, 
 	       AbortAllRef::SignalLength, JBB);
     return;
@@ -17736,7 +17558,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
     
     ref->senderData = senderData;
     ref->errorCode = AbortAllRef::FunctionNotImplemented;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(senderRef, GSN_ABORT_ALL_REF, signal, 
 	       AbortAllRef::SignalLength, JBB);
     return;
@@ -17763,14 +17584,12 @@ void Dbtc::checkAbortAllTimeout(Signal* signal, Uint32 sleepTime)
     sleepTime -= 1;
     signal->theData[0] = TcContinueB::ZWAIT_ABORT_ALL;
     signal->theData[1] = sleepTime;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 200, 2);
     return;
   }
 
   AbortAllConf * conf = (AbortAllConf*)&signal->theData[0];
   conf->senderData = c_abortRec.clientData;
-ndbrequire(signal->header.m_noOfSections == 0);
   sendSignal(c_abortRec.clientRef, GSN_ABORT_ALL_CONF, signal, 
 	     AbortAllConf::SignalLength, JBB);
   
@@ -17816,7 +17635,6 @@ ref:
     ref->senderData = senderData;
     ref->errorCode = CreateTrigImplRef::InconsistentTC;
     ref->errorLine = __LINE__;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(senderRef, GSN_CREATE_TRIG_IMPL_REF, 
                signal, CreateTrigImplRef::SignalLength, JBB);
     return;
@@ -17901,7 +17719,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
   CreateTrigImplConf* conf = (CreateTrigImplConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
   conf->senderData = senderData;
-ndbrequire(signal->header.m_noOfSections == 0);
   sendSignal(senderRef, GSN_CREATE_TRIG_IMPL_CONF, 
              signal, CreateTrigImplConf::SignalLength, JBB);
 }
@@ -17932,7 +17749,6 @@ void Dbtc::execDROP_TRIG_IMPL_REQ(Signal* signal)
     ref->senderData = senderData;
     ref->errorCode = DropTrigImplRef::InconsistentTC;
     ref->errorLine = __LINE__;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(senderRef, GSN_DROP_TRIG_IMPL_REF, 
                signal, DropTrigImplRef::SignalLength, JBB);
     return;
@@ -17941,7 +17757,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
   if (triggerPtr.p->refCount > 0)
   {
     jam();
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignalWithDelay(reference(), GSN_DROP_TRIG_IMPL_REQ,
                         signal, 100, signal->getLength());
     return;
@@ -17956,7 +17771,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
         c_theDefinedTriggers.getPtr(oldId[1])->refCount > 0)
     {
       jam();
-ndbrequire(signal->header.m_noOfSections == 0);
       sendSignalWithDelay(reference(), GSN_DROP_TRIG_IMPL_REQ,
                           signal, 100, signal->getLength());
       return;
@@ -17975,7 +17789,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
   conf->senderRef = reference();
   conf->senderData = senderData;
   
-ndbrequire(signal->header.m_noOfSections == 0);
   sendSignal(senderRef, GSN_DROP_TRIG_IMPL_CONF, 
              signal, DropTrigImplConf::SignalLength, JBB);
 }
@@ -18004,7 +17817,6 @@ void Dbtc::execCREATE_INDX_IMPL_REQ(Signal* signal)
      ref->errorCode = CreateIndxImplRef::InconsistentTC;
      ref->errorLine = __LINE__;
      releaseSections(handle);
-ndbrequire(signal->header.m_noOfSections == 0);
      sendSignal(senderRef, GSN_CREATE_INDX_IMPL_REF, 
                 signal, CreateIndxImplRef::SignalLength, JBB);
      return;
@@ -18035,7 +17847,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
 
   conf->senderRef = reference();
   conf->senderData = senderData;
-ndbrequire(signal->header.m_noOfSections == 0);
   sendSignal(senderRef, GSN_CREATE_INDX_IMPL_CONF, 
              signal, CreateIndxImplConf::SignalLength, JBB);
 }
@@ -18062,7 +17873,6 @@ void Dbtc::execALTER_INDX_IMPL_REQ(Signal* signal)
     ref->errorCode = AlterIndxImplRef::InconsistentTC;
     ref->errorLine = __LINE__;
 
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(senderRef, GSN_ALTER_INDX_IMPL_REF, 
 	       signal, AlterIndxImplRef::SignalLength, JBB);
     return;
@@ -18085,7 +17895,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
   
   conf->senderRef = reference();
   conf->senderData = senderData;
-ndbrequire(signal->header.m_noOfSections == 0);
   sendSignal(senderRef, GSN_ALTER_INDX_IMPL_CONF, 
 	     signal, AlterIndxImplConf::SignalLength, JBB);
 }
@@ -18187,7 +17996,6 @@ Dbtc::execCREATE_FK_IMPL_REQ(Signal* signal)
                                        signal->getDataPtrSend());
     conf->senderRef = reference();
     conf->senderData = req->senderData;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(req->senderRef, GSN_CREATE_FK_IMPL_CONF,
                signal, CreateFKImplConf::SignalLength, JBB);
   }
@@ -18199,7 +18007,6 @@ error:
   ref->senderRef = reference();
   ref->senderData = req->senderData;
   ref->errorCode = errCode;
-ndbrequire(signal->header.m_noOfSections == 0);
   sendSignal(req->senderRef, GSN_CREATE_FK_IMPL_REF,
              signal, CreateFKImplRef::SignalLength, JBB);
 }
@@ -18226,7 +18033,6 @@ Dbtc::execDROP_FK_IMPL_REQ(Signal* signal)
                                      signal->getDataPtrSend());
     conf->senderRef = reference();
     conf->senderData = req->senderData;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(req->senderRef, GSN_DROP_FK_IMPL_CONF,
                signal, DropFKImplConf::SignalLength, JBB);
   }
@@ -18238,7 +18044,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
     ref->senderRef = reference();
     ref->senderData = req->senderData;
     ref->errorCode = DropFKImplRef::NoSuchObject;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(req->senderRef, GSN_DROP_FK_IMPL_REF,
                signal, DropFKImplRef::SignalLength, JBB);
   }
@@ -18542,7 +18347,6 @@ void Dbtc::execDROP_INDX_IMPL_REQ(Signal* signal)
     ref->senderData = senderData;
     ref->errorCode = DropIndxImplRef::InconsistentTC;
     ref->errorLine = __LINE__;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(senderRef, GSN_DROP_INDX_IMPL_REF, 
                signal, DropIndxImplRef::SignalLength, JBB);
     return;
@@ -18556,7 +18360,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
 
   conf->senderRef = reference();
   conf->senderData = senderData;
-ndbrequire(signal->header.m_noOfSections == 0);
   sendSignal(senderRef, GSN_DROP_INDX_IMPL_CONF, 
              signal, DropIndxImplConf::SignalLength, JBB);
 }
@@ -18610,7 +18413,6 @@ void Dbtc::execTCINDXREQ(Signal* signal)
       signal->theData[4] = ZNODEFAIL_BEFORE_COMMIT;
       signal->theData[5] = RS_TCROLLBACKREP;
       signal->theData[6] = 8101;
-ndbrequire(signal->header.m_noOfSections == 0);
       sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 6);
       *signal = s;
     }
@@ -18637,7 +18439,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
         the transaction state we want to test. Try again.
       */
       jam();
-ndbrequire(signal->header.m_noOfSections == 0);
       sendSignalWithDelay(reference(), GSN_TCINDXREQ, signal, 100,
                           TcKeyReq::StaticLength, &handle);
       return;
@@ -19213,7 +19014,6 @@ void Dbtc::execTCKEYCONF(Signal* signal)
     tcIndxRef->transId[1] = regApiPtr->transid[1];
     tcIndxRef->errorCode = ZINCONSISTENT_INDEX_USE;    
     tcIndxRef->errorData = 0;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(regApiPtr->ndbapiBlockref, GSN_TCINDXREF, signal, 
 	       TcKeyRef::SignalLength, JBB);
     return;
@@ -19234,7 +19034,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
     tcIndxRef->transId[1] = regApiPtr->transid[1];
     tcIndxRef->errorCode = ZINCONSISTENT_INDEX_USE;    
     tcIndxRef->errorData = 0;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(regApiPtr->ndbapiBlockref, GSN_TCINDXREF, signal, 
 	       TcKeyRef::SignalLength, JBB);
     return;
@@ -19288,7 +19087,6 @@ void Dbtc::execTCKEYREF(Signal* signal)
 
     releaseIndexOperation(regApiPtr, indexOp);
 
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(regApiPtr->ndbapiBlockref, 
                GSN_TCINDXREF, signal, TcKeyRef::SignalLength, JBB);
     return;
@@ -19310,7 +19108,6 @@ void Dbtc::execTRANSID_AI_R(Signal* signal){
    * Forward signal to final destination
    * Truncate last word since that was used to hold the final dest.
    */
-ndbrequire(signal->header.m_noOfSections == 0);
   sendSignal(recBlockref, GSN_TRANSID_AI,
 	     signal, sigLen - 1, JBB,
 	     &handle);
@@ -19330,7 +19127,6 @@ void Dbtc::execKEYINFO20_R(Signal* signal){
    * Forward signal to final destination
    * Truncate last word since that was used to hold the final dest.
    */
-ndbrequire(signal->header.m_noOfSections == 0);
   sendSignal(recBlockref, GSN_KEYINFO20,
 	     signal, sigLen - 1, JBB,
 	     &handle);
@@ -19419,7 +19215,6 @@ void Dbtc::execTRANSID_AI(Signal* signal)
       tcIndxRef->transId[1] = regApiPtr->transid[1];
       tcIndxRef->errorCode = errorCode;
       tcIndxRef->errorData = 0;
-ndbrequire(signal->header.m_noOfSections == 0);
       sendSignal(regApiPtr->ndbapiBlockref, GSN_TCINDXREF, signal,
                  TcKeyRef::SignalLength, JBB);
       return;
@@ -19437,7 +19232,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
     tcIndxRef->transId[1] = regApiPtr->transid[1];
     tcIndxRef->errorCode = ZINCONSISTENT_INDEX_USE;
     tcIndxRef->errorData = 0;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(regApiPtr->ndbapiBlockref, GSN_TCINDXREF, signal, 
 	       TcKeyRef::SignalLength, JBB);
     return;
@@ -19468,7 +19262,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
     tcIndxRef->transId[1] = regApiPtr->transid[1];
     tcIndxRef->errorCode = 4349;
     tcIndxRef->errorData = 0;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(regApiPtr->ndbapiBlockref, GSN_TCINDXREF, signal, 
                TcKeyRef::SignalLength, JBB);
     */
@@ -19501,7 +19294,6 @@ void Dbtc::execTCROLLBACKREP(Signal* signal)
   ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = indexOp->tcIndxReq.apiConnectPtr;
   c_apiConnectRecordPool.getPtr(apiConnectptr);
-ndbrequire(signal->header.m_noOfSections == 0);
   sendSignal(apiConnectptr.p->ndbapiBlockref, 
 	     GSN_TCROLLBACKREP, signal, TcRollbackRep::SignalLength, JBB);
 }
@@ -19669,7 +19461,6 @@ void Dbtc::executeIndexOperation(Signal* signal,
     tcIndxRef->transId[1] = regApiPtr->transid[1];
     tcIndxRef->errorCode = ZINCONSISTENT_INDEX_USE;    
     tcIndxRef->errorData = 0;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(regApiPtr->ndbapiBlockref, GSN_TCINDXREF, signal, 
 	       TcKeyRef::SignalLength, JBB);
     return;
@@ -20050,7 +19841,6 @@ void Dbtc::continueTriggeringOp(Signal* signal,
   {
     jam();
     c_lqhkeyconf_direct_sent = 0;
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(reference(),
                GSN_LQHKEYCONF,
                signal,
@@ -20189,7 +19979,6 @@ Dbtc::waitToExecutePendingTrigger(Signal* signal, ApiConnectRecordPtr transPtr)
     signal->theData[1] = transPtr.i;
     signal->theData[2] = transPtr.p->transid[0];
     signal->theData[3] = transPtr.p->transid[1];
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(reference(), GSN_CONTINUEB, signal, 4, JBB);
   }
   else
@@ -20790,8 +20579,6 @@ Dbtc::fk_scanFromChildTable(Signal* signal,
     abortTransFromTrigger(signal, *transPtr, ZNO_SCANREC_ERROR);
     return;
   }
-// TODO the above condition is not enough to ensure scanrec later, something else may take trans.mem
-// TODO seizeScanrec, if fail fail
 
   // TODO check against MaxDMLOperationsPerTransaction (not for failover?)
   if (unlikely(!tcConnectRecord.seize(tcConnectptr)))
@@ -20935,6 +20722,10 @@ Dbtc::fk_scanFromChildTable(Signal* signal,
 
   signal->header.theSendersBlockRef = reference();
   execSCAN_TABREQ(signal);
+  if (scanApiConnectPtr.p->apiConnectstate == CS_ABORTING)
+  {
+    goto abort_trans;
+  }
 
   transPtr->p->lqhkeyreqrec++; // Make sure that execution is stalled
   D("trans: cascading scans++ " << transPtr->p->cascading_scans_count);
@@ -20952,6 +20743,7 @@ oom:
       release(ptr[i]);
     }
   }
+abort_trans:
   tcConnectptr = tcPtr;
   releaseTcCon();
   checkPoolShrinkNeed(DBTC_CONNECT_RECORD_TRANSIENT_POOL_INDEX,
@@ -21146,7 +20938,6 @@ Dbtc::execSCAN_TABCONF(Signal* signal)
   {
     jam();
     /* Hang around */
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignalWithDelay(cownref, GSN_SCAN_TABCONF, signal, 100, signal->getLength());
     return;
   }
@@ -21303,7 +21094,6 @@ ndbrequire(signal->header.m_noOfSections == 0);
       req->transId2 = scanApiConnectPtr.p->transid[1];
       memcpy(signal->getDataPtrSend() + ScanNextReq::SignalLength,
              operations, 4 * cnt);
-ndbrequire(signal->header.m_noOfSections == 0);
       sendSignal(reference(), GSN_SCAN_NEXTREQ, signal,
                  ScanNextReq::SignalLength + cnt, JBB);
     }
@@ -21441,7 +21231,6 @@ Dbtc::execSCAN_TABREF(Signal* signal)
   {
     jam();
     /* Hang around */
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignalWithDelay(cownref, GSN_SCAN_TABREF, signal, 100, signal->getLength());
     return;
   }
@@ -22559,7 +22348,6 @@ Dbtc::execROUTE_ORD(Signal* signal)
       handle.m_ptr[i] = handle.m_ptr[i+1];
     handle.m_cnt--;
 
-ndbrequire(signal->header.m_noOfSections == 0);
     sendSignal(dstRef, gsn, signal, sigLen, JBB, &handle);
 
     handle.m_cnt = 1;

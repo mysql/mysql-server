@@ -109,7 +109,6 @@ Uint64 Dbtc::getTransactionMemoryNeed(
 
 void Dbtc::initData() 
 {
-//  capiConnectFilesize = ZAPI_CONNECT_FILESIZE;
   chostFilesize = MAX_NODES;
   cscanrecFileSize = ZSCANREC_FILE_SIZE;
   ctabrecFilesize = ZTABREC_FILESIZE;
@@ -129,7 +128,6 @@ void Dbtc::initData()
   // Trigger and index pools
   c_theDefinedTriggerPool.setSize(c_maxNumberOfDefinedTriggers);
   c_theIndexPool.setSize(c_maxNumberOfIndexes);
-  c_firedTriggerHash.setSize(c_maxNumberOfFiredTriggers);
 }//Dbtc::initData()
 
 void Dbtc::initRecords(const ndb_mgm_configuration_iterator * mgm_cfg) 
@@ -180,9 +178,6 @@ void Dbtc::initRecords(const ndb_mgm_configuration_iterator * mgm_cfg)
     new (p) TcIndexData();
   }
   while (indexes.releaseFirst());
-
-  m_commitAckMarkerHash.setSize(noOfTransactions);
-  m_commitAckMarkerHash.setSize(MAX(1024, noOfTransactions / 10));
 
   hostRecord = (HostRecord*)allocRecord("HostRecord",
 					sizeof(HostRecord),
@@ -242,6 +237,7 @@ void Dbtc::initRecords(const ndb_mgm_configuration_iterator * mgm_cfg)
     refresh_watch_dog();
   }
 
+  m_commitAckMarkerHash.setSize(noOfTransactions);
   c_theCommitAckMarkerBufferPool.init(
       RT_DBTC_COMMIT_ACK_MARKER_BUFFER,
       pc,
@@ -262,6 +258,7 @@ void Dbtc::initRecords(const ndb_mgm_configuration_iterator * mgm_cfg)
     refresh_watch_dog();
   }
 
+  c_firedTriggerHash.setSize(noOfFiredTriggers);
   c_theFiredTriggerPool.init(
       TcFiredTriggerData::TYPE_ID,
       pc,
@@ -342,7 +339,6 @@ Dbtc::Dbtc(Block_context& ctx, Uint32 instanceNo):
   c_theDefinedTriggers(c_theDefinedTriggerPool),
   c_firedTriggerHash(c_theFiredTriggerPool),
   c_maxNumberOfDefinedTriggers(0),
-  c_maxNumberOfFiredTriggers(0),
   c_theIndexes(c_theIndexPool),
   c_maxNumberOfIndexes(0),
   c_fk_hash(c_fk_pool),
@@ -358,18 +354,15 @@ Dbtc::Dbtc(Block_context& ctx, Uint32 instanceNo):
   ndbrequire(p != 0);
 
   Uint32 maxNoOfIndexes = 0;
-  Uint32 maxNoOfTriggers = 0, maxNoOfFiredTriggers = 0;
+  Uint32 maxNoOfTriggers = 0;
 
   ndb_mgm_get_int_parameter(p, CFG_DICT_TABLE,
 			    &maxNoOfIndexes);
   ndb_mgm_get_int_parameter(p, CFG_DB_NO_TRIGGERS, 
 			    &maxNoOfTriggers);
-  ndb_mgm_get_int_parameter(p, CFG_DB_NO_TRIGGER_OPS, 
-			    &maxNoOfFiredTriggers);
   
   c_maxNumberOfIndexes = maxNoOfIndexes;
   c_maxNumberOfDefinedTriggers = maxNoOfTriggers;
-  c_maxNumberOfFiredTriggers = maxNoOfFiredTriggers;
 
   // Transit signals
   addRecSignal(GSN_PACKED_SIGNAL, &Dbtc::execPACKED_SIGNAL); 
