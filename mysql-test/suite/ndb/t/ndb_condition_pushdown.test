@@ -2520,3 +2520,54 @@ insert into t1 values(1,''), (2, NULL);
 explain select * from t1 where b = '';
 select * from t1 where b = '';
 drop table t1;
+
+
+--echo #
+--echo # Bug#28610217 RESULT ROWS ARE MISSING WHEN ENUM COMPARISON PREDICATES ARE PUSHED
+--echo #
+--echo # Enum values should be compared by their textual values,
+--echo # not by their internal 'index' value.
+--echo # As the storage engine only know the index value of the
+--echo # enum values, we cant compare them by '>' and '<' in the SE.
+--echo #
+
+create table t1 (
+  options enum('one','two','three','four','five') not null
+) engine=ndb;
+insert into t1(options) values ('one'),('two'),('three'),('four'),('five');
+
+--echo Enum comparison by '<' / '>' should not be pushed
+--replace_column 10 # 11 # 
+explain select * from t1 where options between 'one' and 'three' order by options;
+--replace_column 10 # 11 # 
+explain select * from t1 where options >= 'one' order by options;
+--replace_column 10 # 11 # 
+explain select * from t1 where options <= 'three' order by options;
+--replace_column 10 # 11 # 
+explain select * from t1 where options > 'one' order by options;
+--replace_column 10 # 11 # 
+explain select * from t1 where options < 'three' order by options;
+
+select * from t1 where options between 'one' and 'three' order by options;
+select * from t1 where options >= 'one' order by options;
+select * from t1 where options <= 'three' order by options;
+select * from t1 where options > 'one' order by options;
+select * from t1 where options < 'three' order by options;
+
+
+--echo Equalities and IN-lists should be pushed
+--replace_column 10 # 11 # 
+explain select * from t1 where options = 'one' order by options;
+--replace_column 10 # 11 # 
+explain select * from t1 where options <> 'one' order by options;
+--replace_column 10 # 11 # 
+explain select * from t1 where options IN ('one','four','two','zero') order by options;
+--replace_column 10 # 11 # 
+explain select * from t1 where options NOT IN ('one','four','two','zero') order by options;
+
+select * from t1 where options = 'one' order by options;
+select * from t1 where options <> 'one' order by options;
+select * from t1 where options IN ('one','four','two','zero') order by options;
+select * from t1 where options NOT IN ('one','four','two','zero') order by options;
+
+drop table t1;
