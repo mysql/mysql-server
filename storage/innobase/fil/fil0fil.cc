@@ -1851,10 +1851,10 @@ bool Fil_path::is_undo_tablespace_name(const std::string &name) {
 
   std::string basename(name);
 
-  auto pos = basename.find_last_of(SEPARATOR);
+  auto sep = basename.find_last_of(SEPARATOR);
 
-  if (pos != std::string::npos) {
-    basename.erase(basename.begin(), basename.begin() + pos);
+  if (sep != std::string::npos) {
+    basename.erase(basename.begin(), basename.begin() + sep + 1);
   }
 
   const auto end = basename.end();

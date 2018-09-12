@@ -3931,6 +3931,11 @@ static int innodb_init_params() {
     srv_undo_dir = default_path;
   }
   Fil_path::normalize(srv_undo_dir);
+  Fil_path undo_dir(srv_undo_dir);
+  if (undo_dir.is_ancestor(default_path)) {
+    log_errlog(ERROR_LEVEL, ER_INNODB_INVALID_INNODB_UNDO_DIRECTORY_LOCATION);
+    DBUG_RETURN(HA_ERR_INITIALIZATION);
+  }
 
   if (ibt::srv_temp_dir == nullptr) {
     ibt::srv_temp_dir = default_path;

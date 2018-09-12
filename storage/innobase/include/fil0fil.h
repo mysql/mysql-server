@@ -438,7 +438,7 @@ class Fil_path {
       return (false);
     }
 
-    return (is_ancestor(m_abs_path, name));
+    return (is_ancestor(m_abs_path, get_real_path(name)));
   }
 
   /** Check if m_path is the parent of other.m_path.

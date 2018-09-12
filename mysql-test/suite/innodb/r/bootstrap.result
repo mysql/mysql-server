@@ -33,5 +33,7 @@ Pattern "\[ERROR\] \[[^]]*\] \[[^]]*\] Aborting" found
 Pattern "Resizing redo log from \d+\*\d+ to \d+\*\d+ bytes, LSN=\d+" found
 # 11. Add new datafile at the end
 Pattern "\[Note\] .*MY-\d+.* File.*ibdata3. size is now 20 MB" found
+# 12. Show that --innodb-undo-directory cannot be an ancestor of the datadir
+Pattern "The innodb_undo_directory is not allowed to be an ancestor of the datadir" found
 # Cleanup
 # restart
