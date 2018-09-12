@@ -275,7 +275,15 @@ StatementAndResponse QueriesJsonReader::handle_statement(
   StatementAndResponse response;
 
   const JsonValue &stmts = pimpl_->json_document_["stmts"];
-  if (pimpl_->current_stmt_ >= stmts.Size()) return response;
+  if (pimpl_->current_stmt_ >= stmts.Size()) {
+    response.response_type =
+        StatementAndResponse::StatementResponseType::STMT_RES_ERROR;
+    response.response.reset(new ErrorResponse(
+        MYSQL_PARSE_ERROR, std::string("Unexpected stmt, got: \"") +
+                               statement_received + "\"; expected nothing"));
+
+    return response;
+  }
 
   auto &stmt = stmts[pimpl_->current_stmt_++];
   harness_assert(
