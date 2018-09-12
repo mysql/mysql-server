@@ -18530,6 +18530,9 @@ ER_IB_MSG_MADVISE_FAILED
 ER_CANT_SET_DATA_DIR
   eng "Failed to set datadir to \'%-.200s\' (OS errno: %d - %s)"
 
+ER_COLUMN_CHANGE_SIZE
+  eng "Could not change column '%s' of table '%s'. The resulting size of index '%s' would exceed the max key length of %d bytes."
+
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #

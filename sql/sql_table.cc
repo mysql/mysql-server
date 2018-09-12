@@ -4833,6 +4833,7 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
     }
     DBUG_RETURN(true);
   }
+
   if (key_part_length > file->max_key_part_length(create_info) &&
       key->type != KEYTYPE_FULLTEXT) {
     key_part_length = file->max_key_part_length(create_info);
@@ -4847,6 +4848,12 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
         and continue execution.
       */
       if (thd->is_error()) DBUG_RETURN(true);
+    } else if ((thd->lex->alter_info->flags & Alter_info::ALTER_OPTIONS) &&
+               (create_info->used_fields & HA_CREATE_USED_CHARSET)) {
+      my_error(ER_COLUMN_CHANGE_SIZE, MYF(0), sql_field->field_name,
+               sql_field->field->table->s->table_name.str, key->name.str,
+               key_part_length);
+      DBUG_RETURN(true);
     } else {
       my_error(ER_TOO_LONG_KEY, MYF(0), key_part_length);
       DBUG_RETURN(true);

@@ -847,6 +847,19 @@ alter table t1 drop key k, add index using btree (k), algorithm=copy;
 show create table t1;
 drop table t1;
 
+
+--echo #
+--echo # Bug #27546306 MISSING VITAL ERROR INFORMATION IN ERROR MESSAGE WHEN FAILING TO CONVERT CHARSET
+--echo #
+--echo #
+CREATE TABLE `mytable` (   `id` INT(10) UNSIGNED NOT NULL DEFAULT '0',   `somefield` VARCHAR(1000) NOT NULL DEFAULT '',
+PRIMARY KEY (`id`,`somefield`) )
+DEFAULT CHARSET=UTF8MB3;
+--error ER_COLUMN_CHANGE_SIZE
+ALTER TABLE mytable CONVERT TO CHARACTER SET UTF8MB4;
+DROP TABLE mytable;
+
+
 --echo #
 --echo # Bug 25647413 "ASSERTION FAILURE: HA_INNODB.CC:NNN:(TABLE->INDEXES).
 --echo #               COUNT == DD_TABLE.INDEXES()".
