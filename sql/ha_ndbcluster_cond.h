@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -367,7 +367,7 @@ class Ndb_expect_stack : public Sql_alloc
   static const uint MAX_EXPECT_FIELD_TYPES = MYSQL_TYPE_GEOMETRY + 1;
   static const uint MAX_EXPECT_FIELD_RESULTS = DECIMAL_RESULT + 1;
  public:
-Ndb_expect_stack(): collation(NULL), length(0), max_length(0), next(NULL) 
+  Ndb_expect_stack(): collation(NULL), length(0), max_length(0), next(NULL)
   {
     // Allocate type checking bitmaps using fixed size buffers
     // since max size is known at compile time
@@ -440,6 +440,10 @@ Ndb_expect_stack(): collation(NULL), length(0), max_length(0), next(NULL)
   void expect_field_type(enum_field_types type)
   {
     bitmap_set_bit(&expect_field_type_mask, (uint) type);
+  }
+  void dont_expect_field_type(enum_field_types type)
+  {
+    bitmap_clear_bit(&expect_field_type_mask, (uint) type);
   }
   void expect_all_field_types()
   {
@@ -611,6 +615,10 @@ class Ndb_cond_traverse_context : public Sql_alloc
   inline void expect_field_type(enum_field_types type)
   {
     expect_stack.expect_field_type(type);
+  }
+  inline void dont_expect_field_type(enum_field_types type)
+  {
+    expect_stack.dont_expect_field_type(type);
   }
   inline void expect_all_field_types()
   {

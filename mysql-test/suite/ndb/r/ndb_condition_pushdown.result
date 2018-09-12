@@ -1289,7 +1289,7 @@ select auto from t1 where
 (date_time between '1901-01-01 01:01:01' and '1903-03-03 03:03:03') 
 order by auto;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	medium_index	PRIMARY	4	NULL	#	#	Using where with pushed condition ((`test`.`t1`.`string` between 'aaaa' and 'cccc') and (`test`.`t1`.`vstring` between 'aaaa' and 'cccc') and (`test`.`t1`.`bin` between 0xaaaa and 0xcccc) and (`test`.`t1`.`vbin` between 0xaaaa and 0xcccc) and (`test`.`t1`.`tiny` between <cache>(-(3)) and <cache>(-(1))) and (`test`.`t1`.`short` between <cache>(-(3)) and <cache>(-(1))) and (`test`.`t1`.`medium` between <cache>(-(3)) and <cache>(-(1))) and (`test`.`t1`.`long_int` between <cache>(-(3)) and <cache>(-(1))) and (`test`.`t1`.`longlong` between -3 and -1) and (`test`.`t1`.`utiny` between 1 and 3) and (`test`.`t1`.`ushort` between 1 and 3) and (`test`.`t1`.`umedium` between 1 and 3) and (`test`.`t1`.`ulong` between 1 and 3) and (`test`.`t1`.`ulonglong` between 1 and 3) and (`test`.`t1`.`options` between 'one' and 'three') and (`test`.`t1`.`flags` between 'one' and 'one,two,three') and (`test`.`t1`.`date_field` between '1901-01-01' and '1903-03-03') and (`test`.`t1`.`year_field` between 1901 and 1903) and (`test`.`t1`.`time_field` between '01:01:01' and '03:03:03') and (`test`.`t1`.`date_time` between '1901-01-01 01:01:01' and '1903-03-03 03:03:03'))
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	medium_index	PRIMARY	4	NULL	#	#	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`auto` AS `auto` from `test`.`t1` where ((`test`.`t1`.`string` between 'aaaa' and 'cccc') and (`test`.`t1`.`vstring` between 'aaaa' and 'cccc') and (`test`.`t1`.`bin` between 0xaaaa and 0xcccc) and (`test`.`t1`.`vbin` between 0xaaaa and 0xcccc) and (`test`.`t1`.`tiny` between <cache>(-(3)) and <cache>(-(1))) and (`test`.`t1`.`short` between <cache>(-(3)) and <cache>(-(1))) and (`test`.`t1`.`medium` between <cache>(-(3)) and <cache>(-(1))) and (`test`.`t1`.`long_int` between <cache>(-(3)) and <cache>(-(1))) and (`test`.`t1`.`longlong` between -3 and -1) and (`test`.`t1`.`utiny` between 1 and 3) and (`test`.`t1`.`ushort` between 1 and 3) and (`test`.`t1`.`umedium` between 1 and 3) and (`test`.`t1`.`ulong` between 1 and 3) and (`test`.`t1`.`ulonglong` between 1 and 3) and (`test`.`t1`.`options` between 'one' and 'three') and (`test`.`t1`.`flags` between 'one' and 'one,two,three') and (`test`.`t1`.`date_field` between '1901-01-01' and '1903-03-03') and (`test`.`t1`.`year_field` between 1901 and 1903) and (`test`.`t1`.`time_field` between '01:01:01' and '03:03:03') and (`test`.`t1`.`date_time` between '1901-01-01 01:01:01' and '1903-03-03 03:03:03')) order by `test`.`t1`.`auto`
 select auto from t1 where
@@ -1396,7 +1396,7 @@ select auto from t1 where
 (date_time not between '1901-01-01 01:01:01' and '1903-03-03 03:03:03') 
 order by auto;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	medium_index	PRIMARY	4	NULL	#	#	Using where with pushed condition ((`test`.`t1`.`string` not between 'aaaa' and 'cccc') and (`test`.`t1`.`vstring` not between 'aaaa' and 'cccc') and (`test`.`t1`.`bin` not between 0xaaaa and 0xcccc) and (`test`.`t1`.`vbin` not between 0xaaaa and 0xcccc) and (`test`.`t1`.`tiny` not between <cache>(-(3)) and <cache>(-(1))) and (`test`.`t1`.`short` not between <cache>(-(3)) and <cache>(-(1))) and (`test`.`t1`.`medium` not between <cache>(-(3)) and <cache>(-(1))) and (`test`.`t1`.`long_int` not between <cache>(-(3)) and <cache>(-(1))) and (`test`.`t1`.`longlong` not between -3 and -1) and (`test`.`t1`.`utiny` not between 1 and 3) and (`test`.`t1`.`ushort` not between 1 and 3) and (`test`.`t1`.`umedium` not between 1 and 3) and (`test`.`t1`.`ulong` not between 1 and 3) and (`test`.`t1`.`ulonglong` not between 1 and 3) and (`test`.`t1`.`options` not between 'one' and 'three') and (`test`.`t1`.`flags` not between 'one' and 'one,two,three') and (`test`.`t1`.`date_field` not between '1901-01-01' and '1903-03-03') and (`test`.`t1`.`year_field` not between 1901 and 1903) and (`test`.`t1`.`time_field` not between '01:01:01' and '03:03:03') and (`test`.`t1`.`date_time` not between '1901-01-01 01:01:01' and '1903-03-03 03:03:03'))
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	medium_index	PRIMARY	4	NULL	#	#	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`auto` AS `auto` from `test`.`t1` where ((`test`.`t1`.`string` not between 'aaaa' and 'cccc') and (`test`.`t1`.`vstring` not between 'aaaa' and 'cccc') and (`test`.`t1`.`bin` not between 0xaaaa and 0xcccc) and (`test`.`t1`.`vbin` not between 0xaaaa and 0xcccc) and (`test`.`t1`.`tiny` not between <cache>(-(3)) and <cache>(-(1))) and (`test`.`t1`.`short` not between <cache>(-(3)) and <cache>(-(1))) and (`test`.`t1`.`medium` not between <cache>(-(3)) and <cache>(-(1))) and (`test`.`t1`.`long_int` not between <cache>(-(3)) and <cache>(-(1))) and (`test`.`t1`.`longlong` not between -3 and -1) and (`test`.`t1`.`utiny` not between 1 and 3) and (`test`.`t1`.`ushort` not between 1 and 3) and (`test`.`t1`.`umedium` not between 1 and 3) and (`test`.`t1`.`ulong` not between 1 and 3) and (`test`.`t1`.`ulonglong` not between 1 and 3) and (`test`.`t1`.`options` not between 'one' and 'three') and (`test`.`t1`.`flags` not between 'one' and 'one,two,three') and (`test`.`t1`.`date_field` not between '1901-01-01' and '1903-03-03') and (`test`.`t1`.`year_field` not between 1901 and 1903) and (`test`.`t1`.`time_field` not between '01:01:01' and '03:03:03') and (`test`.`t1`.`date_time` not between '1901-01-01 01:01:01' and '1903-03-03 03:03:03')) order by `test`.`t1`.`auto`
 select auto from t1 where
@@ -2589,4 +2589,106 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` fr
 select * from t1 where b = '';
 a	b
 1	
+drop table t1;
+#
+# Bug#28610217 RESULT ROWS ARE MISSING WHEN ENUM COMPARISON PREDICATES ARE PUSHED
+#
+# Enum values should be compared by their textual values,
+# not by their internal 'index' value.
+# As the storage engine only know the index value of the
+# enum values, we cant compare them by '>' and '<' in the SE.
+#
+create table t1 (
+options enum('one','two','three','four','five') not null
+) engine=ndb;
+insert into t1(options) values ('one'),('two'),('three'),('four'),('five');
+Enum comparison by '<' / '>' should not be pushed
+explain select * from t1 where options between 'one' and 'three' order by options;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`options` AS `options` from `test`.`t1` where (`test`.`t1`.`options` between 'one' and 'three') order by `test`.`t1`.`options`
+explain select * from t1 where options >= 'one' order by options;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`options` AS `options` from `test`.`t1` where (`test`.`t1`.`options` >= 'one') order by `test`.`t1`.`options`
+explain select * from t1 where options <= 'three' order by options;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`options` AS `options` from `test`.`t1` where (`test`.`t1`.`options` <= 'three') order by `test`.`t1`.`options`
+explain select * from t1 where options > 'one' order by options;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`options` AS `options` from `test`.`t1` where (`test`.`t1`.`options` > 'one') order by `test`.`t1`.`options`
+explain select * from t1 where options < 'three' order by options;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`options` AS `options` from `test`.`t1` where (`test`.`t1`.`options` < 'three') order by `test`.`t1`.`options`
+select * from t1 where options between 'one' and 'three' order by options;
+options
+one
+three
+select * from t1 where options >= 'one' order by options;
+options
+one
+two
+three
+select * from t1 where options <= 'three' order by options;
+options
+one
+three
+four
+five
+select * from t1 where options > 'one' order by options;
+options
+two
+three
+select * from t1 where options < 'three' order by options;
+options
+one
+four
+five
+Equalities and IN-lists should be pushed
+explain select * from t1 where options = 'one' order by options;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using where with pushed condition (`test`.`t1`.`options` = 'one')
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`options` AS `options` from `test`.`t1` where (`test`.`t1`.`options` = 'one') order by `test`.`t1`.`options`
+explain select * from t1 where options <> 'one' order by options;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using where with pushed condition (`test`.`t1`.`options` <> 'one'); Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`options` AS `options` from `test`.`t1` where (`test`.`t1`.`options` <> 'one') order by `test`.`t1`.`options`
+explain select * from t1 where options IN ('one','four','two','zero') order by options;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using where with pushed condition (`test`.`t1`.`options` in ('one','four','two','zero')); Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`options` AS `options` from `test`.`t1` where (`test`.`t1`.`options` in ('one','four','two','zero')) order by `test`.`t1`.`options`
+explain select * from t1 where options NOT IN ('one','four','two','zero') order by options;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using where with pushed condition (`test`.`t1`.`options` not in ('one','four','two','zero')); Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`options` AS `options` from `test`.`t1` where (`test`.`t1`.`options` not in ('one','four','two','zero')) order by `test`.`t1`.`options`
+select * from t1 where options = 'one' order by options;
+options
+one
+select * from t1 where options <> 'one' order by options;
+options
+two
+three
+four
+five
+select * from t1 where options IN ('one','four','two','zero') order by options;
+options
+one
+two
+four
+select * from t1 where options NOT IN ('one','four','two','zero') order by options;
+options
+three
+five
 drop table t1;

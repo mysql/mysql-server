@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -126,7 +126,6 @@ ndb_serialize_cond(const Item *item, void *arg)
               DBUG_PRINT("info", ("Found unsupported functional expression in BETWEEN|IN"));
               context->supported= FALSE;
               DBUG_VOID_RETURN;
-              
             }
           }
         }
@@ -160,6 +159,16 @@ ndb_serialize_cond(const Item *item, void *arg)
       {
         Ndb_rewrite_context *rewrite_context= context->rewrite_stack;
         const Item_func *func_item= rewrite_context->func_item;
+        context->expect_only(Item::FIELD_ITEM);
+        context->expect_field_result(STRING_RESULT);
+        context->expect_field_result(REAL_RESULT);
+        context->expect_field_result(INT_RESULT);
+        context->expect_field_result(DECIMAL_RESULT);
+        context->expect(Item::INT_ITEM);
+        context->expect(Item::STRING_ITEM);
+        context->expect(Item::VARBIN_ITEM);
+        context->expect(Item::FUNC_ITEM);
+        context->expect(Item::CACHE_ITEM);
         switch (func_item->functype()) {
         case Item_func::BETWEEN:
         {
@@ -191,6 +200,8 @@ ndb_serialize_cond(const Item *item, void *arg)
             context->supported= FALSE;
             DBUG_VOID_RETURN;
           }
+          // Enum comparison can not be pushed
+          context->dont_expect_field_type(MYSQL_TYPE_ENUM);
           break;
         }
         case Item_func::IN_FUNC:
@@ -215,17 +226,7 @@ ndb_serialize_cond(const Item *item, void *arg)
         }
         // Handle left hand <field>|<const>
         context->rewrite_stack= NULL; // Disable rewrite mode
-        context->expect_only(Item::FIELD_ITEM);
-        context->expect_field_result(STRING_RESULT);
-        context->expect_field_result(REAL_RESULT);
-        context->expect_field_result(INT_RESULT);
-        context->expect_field_result(DECIMAL_RESULT);
-        context->expect(Item::INT_ITEM);
-        context->expect(Item::STRING_ITEM);
-        context->expect(Item::VARBIN_ITEM);
-        context->expect(Item::FUNC_ITEM);
-        context->expect(Item::CACHE_ITEM);
-        ndb_serialize_cond(rewrite_context->left_hand_item, arg);
+        ndb_serialize_cond(rewrite_context->left_hand_item, context);
         context->skip= 0; // Any FUNC_ITEM expression has already been parsed
         context->rewrite_stack= rewrite_context; // Enable rewrite mode
         if (!context->supported)
@@ -455,6 +456,8 @@ ndb_serialize_cond(const Item *item, void *arg)
             context->expect_field_result(REAL_RESULT);
             context->expect_field_result(INT_RESULT);
             context->expect_field_result(DECIMAL_RESULT);
+            // Enum can only be compared by equality.
+            context->dont_expect_field_type(MYSQL_TYPE_ENUM);
             break;
           }
           case Item_func::LE_FUNC:
@@ -472,6 +475,8 @@ ndb_serialize_cond(const Item *item, void *arg)
             context->expect_field_result(REAL_RESULT);
             context->expect_field_result(INT_RESULT);
             context->expect_field_result(DECIMAL_RESULT);
+            // Enum can only be compared by equality.
+            context->dont_expect_field_type(MYSQL_TYPE_ENUM);
             break;
           }
           case Item_func::GE_FUNC:
@@ -489,6 +494,8 @@ ndb_serialize_cond(const Item *item, void *arg)
             context->expect_field_result(REAL_RESULT);
             context->expect_field_result(INT_RESULT);
             context->expect_field_result(DECIMAL_RESULT);
+            // Enum can only be compared by equality.
+            context->dont_expect_field_type(MYSQL_TYPE_ENUM);
             break;
           }
           case Item_func::GT_FUNC:
@@ -506,6 +513,8 @@ ndb_serialize_cond(const Item *item, void *arg)
             context->expect_field_result(REAL_RESULT);
             context->expect_field_result(INT_RESULT);
             context->expect_field_result(DECIMAL_RESULT);
+            // Enum can only be compared by equality.
+            context->dont_expect_field_type(MYSQL_TYPE_ENUM);
             break;
           }
           case Item_func::LIKE_FUNC:
@@ -1098,7 +1107,7 @@ ndb_serialize_cond(const Item *item, void *arg)
         if (rewrite_context->count == 
             rewrite_context->func_item->argument_count())
         {
-          // Rewrite is done, wrap an END() at the en
+          // Rewrite is done, wrap an END() at the end
           DBUG_PRINT("info", ("End of condition group"));
           prev_cond= curr_cond;
           curr_cond= context->cond_ptr= new Ndb_cond();
