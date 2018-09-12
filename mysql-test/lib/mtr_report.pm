@@ -30,12 +30,26 @@ package mtr_report;
 use strict;
 
 use base qw(Exporter);
-our @EXPORT = qw(report_option mtr_print_line mtr_print_thick_line
-  mtr_print_header mtr_report mtr_report_stats mtr_warning
-  mtr_error mtr_verbose mtr_verbose_restart
-  mtr_report_test_passed mtr_report_test_skipped mtr_print
-  mtr_report_test isotime mtr_summary_file_init mtr_xml_init
-  disk_usage);
+our @EXPORT = qw(
+  disk_usage
+  isotime
+  mtr_error
+  mtr_print
+  mtr_print_header
+  mtr_print_line
+  mtr_print_thick_line
+  mtr_report
+  mtr_report_stats
+  mtr_report_test
+  mtr_report_test_passed
+  mtr_report_test_skipped
+  mtr_summary_file_init
+  mtr_verbose
+  mtr_verbose_restart
+  mtr_warning
+  mtr_xml_init
+  report_option
+);
 
 use File::Spec;
 use IO::Handle qw[ flush ];
@@ -56,11 +70,12 @@ our $summary_report_file;
 our $verbose;
 our $xml_report_file;
 
-our $disk_usage      = 0;
-our $timediff        = 0;
-our $timer           = 1;
-our $timestamp       = 0;
-our $verbose_restart = 0;
+our $disk_usage         = 0;
+our $prev_report_length = 0;
+our $timediff           = 0;
+our $timer              = 1;
+our $timestamp          = 0;
+our $verbose_restart    = 0;
 
 sub disk_usage() {
   my $du = "";
@@ -101,23 +116,29 @@ sub _mtr_report_test_name ($$) {
   my $tinfo           = shift;
   my $done_percentage = shift;
 
-  my $tname = $tinfo->{name};
-
   return unless defined $verbose;
+
+  my $tname = $tinfo->{name};
 
   # Add combination name if any
   $tname .= " '$tinfo->{combination}'" if defined $tinfo->{combination};
-  print _name() . _timestamp();
+
+  # Report string '$report'
+  my $report;
+  $report = _name() . _timestamp() if !$::opt_quiet;
 
   if ($::opt_test_progress) {
-    printf "[%3s%] %-40s ", $done_percentage, $tname;
+    $report = $report . sprintf("[%3s%] %-40s ", $done_percentage, $tname);
   } else {
-    printf "%-40s ", $tname;
+    $report = $report . sprintf("%-40s ", $tname);
   }
 
-  my $worker = $tinfo->{worker};
-  print "w$worker " if defined $worker;
-  return $tname;
+  if (!$::opt_quiet) {
+    my $worker = $tinfo->{worker};
+    $report = $report . "w$worker " if defined $worker;
+  }
+
+  return ($report, $tname);
 }
 
 sub mtr_report_test_skipped ($) {
@@ -166,53 +187,70 @@ sub mtr_report_test ($) {
       floor(($tests_completed / $::num_tests_for_report) * 100);
   }
 
-  my $test_name = _mtr_report_test_name($tinfo, $done_percentage);
+  my ($report, $test_name) = _mtr_report_test_name($tinfo, $done_percentage);
+
+  if ($::opt_quiet and $result ne 'MTR_RES_FAILED' and length($report) >= 60) {
+    # Truncate the report part
+    $report = substr($report, 0, 59);
+  }
 
   if ($result eq 'MTR_RES_FAILED') {
     my $fail   = "fail";
     my $timest = format_time();
 
     if ($warnings) {
-      mtr_report("[ $retry$fail ]  Found warnings/errors in server log file!");
+      mtr_report($report,
+                 "[ $retry$fail ]  Found warnings/errors in server log file!");
       mtr_report("        Test ended at $timest");
       mtr_report($warnings);
-      return;
-    }
-
-    my $timeout = $tinfo->{'timeout'};
-    if ($timeout) {
-      mtr_report("[ $retry$fail ]  timeout after $timeout seconds");
-      mtr_report("        Test ended at $timest");
-      mtr_report("\n$tinfo->{'comment'}");
-      return;
     } else {
-      mtr_report("[ $retry$fail ]\n        Test ended at $timest");
-    }
+      my $timeout = $tinfo->{'timeout'};
+      if ($timeout) {
+        mtr_report($report, "[ $retry$fail ]  timeout after $timeout seconds");
+        mtr_report("        Test ended at $timest");
+        mtr_report("\n$tinfo->{'comment'}");
+        return;
+      } else {
+        mtr_report($report, "[ $retry$fail ]\n        Test ended at $timest");
+      }
 
-    if ($logfile) {
-      # Test failure was detected by test tool and its report about
-      # what failed has been saved to file. Display the report.
-      mtr_report("\n$logfile\n");
-    }
-    if ($comment) {
-      # The test failure has been detected by mysql-test-run.pl when
-      # starting the servers or due to other error, the reason for
-      # failing the test is saved in "comment".
-      mtr_report("\n$comment\n");
-    }
+      if ($logfile) {
+        # Test failure was detected by test tool and its report about
+        # what failed has been saved to file. Display the report.
+        mtr_report("\n$logfile\n");
+      }
+      if ($comment) {
+        # The test failure has been detected by mysql-test-run.pl when
+        # starting the servers or due to other error, the reason for
+        # failing the test is saved in "comment".
+        mtr_report("\n$comment\n");
+      }
 
-    if (!$logfile and !$comment) {
-      # Neither this script or the test tool has recorded info about
-      # why the test has failed. Should be debugged.
-      mtr_report("\nUnknown result, neither 'comment' or 'logfile' set");
+      if (!$logfile and !$comment) {
+        # Neither this script or the test tool has recorded info about
+        # why the test has failed. Should be debugged.
+        mtr_report("\nUnknown result, neither 'comment' or 'logfile' set");
+      }
     }
   } elsif ($result eq 'MTR_RES_SKIPPED') {
     if ($tinfo->{'disable'}) {
-      mtr_report("[ disabled ]  $comment");
+      if ($::opt_quiet) {
+        mtr_buffered_report(sprintf("%-60s%-s", $report, "[ disabled ]"));
+      } else {
+        mtr_report($report, "[ disabled ]  $comment");
+      }
     } elsif ($comment) {
-      mtr_report("[ skipped ]  $comment");
+      if ($::opt_quiet) {
+        mtr_buffered_report(sprintf("%-60s%-s", $report, "[ skipped ]"));
+      } else {
+        mtr_report($report, "[ skipped ]  $comment");
+      }
     } else {
-      mtr_report("[ skipped ]");
+      if ($::opt_quiet) {
+        mtr_buffered_report(sprintf("%-60s%-s", $report, "[ skipped ]"));
+      } else {
+        mtr_report($report, "[ skipped ]");
+      }
     }
   } elsif ($result eq 'MTR_RES_PASSED') {
     my $timer_str = $tinfo->{timer} || "";
@@ -220,7 +258,13 @@ sub mtr_report_test ($) {
     # Please note, that disk_usage() will print a space to separate
     # its information from the preceding string, if the disk usage report
     # is enabled. Otherwise an empty string is returned.
-    mtr_report("[ ${retry}pass ] ", sprintf("%5s%s", $timer_str, disk_usage()));
+    if ($::opt_quiet) {
+      mtr_buffered_report(sprintf("%-60s%-s", $report, "[ ${retry}pass ]"));
+    } else {
+      mtr_report($report,
+                 "[ ${retry}pass ] ",
+                 sprintf("%5s%s", $timer_str, disk_usage()));
+    }
 
     # Show any problems check-testcase found
     if (defined $tinfo->{'check'}) {
@@ -624,7 +668,7 @@ sub mtr_report_stats ($$;$) {
 
 # Text formatting
 sub mtr_print_line () {
-  print '-' x 74 . "\n";
+  print '-' x 78 . "\n";
 }
 
 sub mtr_print_thick_line {
@@ -633,19 +677,28 @@ sub mtr_print_thick_line {
 }
 
 sub mtr_print_header ($) {
-  my ($wid) = @_;
-  print "\n";
-  printf "TEST";
-  if ($wid) {
-    print " " x 34 . "WORKER ";
+  my $wid = shift;
+  mtr_report();
+  mtr_print_thick_line();
+
+  if ($::opt_quiet) {
+    printf " " x 24 . "TEST NAME" . " " x 27;
+    print " RESULT" . " " x 5;
+    print "\n";
   } else {
-    print " " x 38;
+    printf " " x 18 . "TEST NAME";
+    if ($wid) {
+      print " " x 19 . "WORKER ";
+    } else {
+      print " " x 23;
+    }
+
+    print "RESULT  ";
+    print "TIME (ms) " if $timer;
+    print "COMMENT\n";
   }
-  print "RESULT   ";
-  print "TIME (ms) or " if $timer;
-  print "COMMENT\n";
+
   mtr_print_line();
-  print "\n";
 }
 
 # XML Output
@@ -736,7 +789,34 @@ sub mtr_print (@) {
 # Print message to screen if verbose is defined
 sub mtr_report (@) {
   if (defined $verbose) {
+    if ($prev_report_length) {
+      # Clear the previous report contents
+      print "\r";
+      print " " x $prev_report_length;
+      print "\r";
+    }
+
     print _name() . join(" ", @_) . "\n";
+  }
+}
+
+# Print the message to screen reusing output buffer i.e use
+# the same line print the message.
+sub mtr_buffered_report (@) {
+  if (defined $verbose) {
+    my $report = join(" ", @_);
+
+    if ($prev_report_length) {
+      # Clear the previous report contents
+      print "\r";
+      print " " x $prev_report_length;
+    }
+
+    # Print the test report
+    print "\r$report";
+
+    # Save the current report length
+    $prev_report_length = length($report);
   }
 }
 

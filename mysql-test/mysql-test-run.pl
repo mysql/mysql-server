@@ -221,6 +221,7 @@ our $opt_gcov_msg         = "mysql-test-gcov.msg";
 our $opt_mem              = $ENV{'MTR_MEM'} ? 1 : 0;
 our $opt_only_big_test    = 0;
 our $opt_parallel         = $ENV{MTR_PARALLEL};
+our $opt_quiet            = $ENV{'MTR_QUIET'} || 0;
 our $opt_repeat           = 1;
 our $opt_report_times     = 0;
 our $opt_resfile          = $ENV{'MTR_RESULT_FILE'} || 0;
@@ -511,7 +512,7 @@ sub main {
 
   init_timers();
 
-  mtr_report("Collecting tests...");
+  mtr_report("Collecting tests");
   my $tests = collect_test_cases($opt_reorder, $opt_suites,
                                  \@opt_cases,  $opt_skip_test_list);
   mark_time_used('collect');
@@ -637,8 +638,6 @@ sub main {
     $children{$child_pid} = 1;
   }
 
-  mtr_report();
-  mtr_print_thick_line();
   mtr_print_header($opt_parallel > 1);
 
   mark_time_used('init');
@@ -702,6 +701,7 @@ sub main {
     push @$completed, $tinfo;
   }
 
+  mtr_report() if $opt_quiet;
   mtr_print_line();
 
   if ($opt_gcov) {
@@ -788,6 +788,7 @@ sub run_test_server ($$$) {
           mtr_verbose("Child closed socket");
           $s->remove($sock);
           if (--$childs == 0) {
+            report_option('prev_report_length', 0);
             return $completed;
           }
           next;
@@ -816,18 +817,20 @@ sub run_test_server ($$$) {
               # Look for the test log file and put that in savedir location
               my $logfile     = "$result->{shortname}" . ".log";
               my $logfilepath = dirname($worker_savedir) . "/" . $logfile;
+
               move($logfilepath, $savedir);
+              $logfilepath = $savedir . "/" . $logfile;
 
               if ($opt_check_testcases &&
                   !defined $result->{'result_file'} &&
                   !$result->{timeout}) {
                 mtr_report("Mysqltest client output from logfile");
                 mtr_report("----------- MYSQLTEST OUTPUT START -----------\n");
-                mtr_printfile($savedir . "/" . $logfile);
+                mtr_printfile($logfilepath);
                 mtr_report("\n------------ MYSQLTEST OUTPUT END -----------\n");
               }
 
-              mtr_report(" - the logfile can be found in '$savedir/$logfile'");
+              mtr_report(" - the logfile can be found in '$logfilepath'\n");
 
               # Move any core files from e.g. mysqltest
               foreach my $coref (glob("core*"), glob("*.dmp")) {
@@ -910,11 +913,11 @@ sub run_test_server ($$$) {
             my $failures = $result->{failures};
 
             if ($opt_retry > 1 and $failures >= $opt_retry_failure) {
-              mtr_report("\nTest $tname has failed $failures times,",
-                         "no more retries!\n");
+              mtr_report("Test $tname has failed $failures times,",
+                         "no more retries.\n");
             } else {
-              mtr_report("\nRetrying test $tname, " .
-                         "attempt($retries/$opt_retry)...\n");
+              mtr_report(
+                  "Retrying test $tname, " . "attempt($retries/$opt_retry).\n");
               delete($result->{result});
               $result->{retries} = $retries + 1;
               $result->write_test($sock, 'TESTCASE');
@@ -1483,6 +1486,7 @@ sub command_line_setup {
     'help|h'                => \$opt_usage,
     'max-connections=i'     => \$opt_max_connections,
     'print-testcases'       => \&collect_option,
+    'quiet'                 => \$opt_quiet,
     'reorder!'              => \$opt_reorder,
     'repeat=i'              => \$opt_repeat,
     'report-features'       => \$opt_report_features,
@@ -1776,7 +1780,7 @@ sub command_line_setup {
 
     if ($res) {
       mtr_report("Too long tmpdir path '$opt_tmpdir'",
-                 " creating a shorter one...");
+                 " creating a shorter one");
 
       # Create temporary directory in standard location for temporary files
       $opt_tmpdir = tempdir(TMPDIR => 1, CLEANUP => 0);
@@ -2008,7 +2012,7 @@ sub command_line_setup {
 
   check_secondary_engine_options();
 
-  mtr_report("Checking supported features...");
+  mtr_report("Checking supported features");
 
   check_debug_support(\%mysqld_variables);
   check_ndbcluster_support(\%mysqld_variables);
@@ -2123,7 +2127,7 @@ sub set_build_thread_ports($) {
               "($baseport - $baseport + $ports_per_thread - 1)");
   }
 
-  mtr_report("Using MTR_BUILD_THREAD $build_thread,",
+  mtr_verbose("Using MTR_BUILD_THREAD $build_thread,",
        "with reserved ports $baseport.." . ($baseport + $ports_per_thread - 1));
 }
 
@@ -2882,7 +2886,7 @@ sub remove_vardir_subs() {
 
 # Remove var and any directories in var/ created by previous tests
 sub remove_stale_vardir () {
-  mtr_report("Removing old var directory...");
+  mtr_report("Removing old var directory");
 
   mtr_error("No, don't remove the vardir when running with --extern")
     if using_extern();
@@ -2943,7 +2947,7 @@ sub remove_stale_vardir () {
 
 # Create var and the directories needed in var
 sub setup_vardir() {
-  mtr_report("Creating var directory '$opt_vardir'...");
+  mtr_report("Creating var directory '$opt_vardir'");
 
   if ($opt_vardir eq $default_vardir) {
     # Running with "var" in mysql-test dir
@@ -3571,7 +3575,7 @@ sub kill_leftovers ($) {
   my $rundir = shift;
   return unless (-d $rundir);
 
-  mtr_report("Checking leftover processes...");
+  mtr_report("Checking leftover processes");
 
   # Scan the "run" directory for process id's to kill
   opendir(RUNDIR, $rundir) or
@@ -3727,7 +3731,7 @@ sub mysql_install_db {
   my $install_chsdir  = $mysqld->value('character-sets-dir');
   my $install_datadir = $datadir || $mysqld->value('datadir');
 
-  mtr_report("Installing system database...");
+  mtr_report("Installing system database");
 
   my $args;
   mtr_init_args(\$args);
@@ -7128,6 +7132,10 @@ Misc options
                         and if not running named tests/suites.
   parallel=N            Run tests in N parallel threads. The default value is 1.
                         Use parallel=auto for auto-setting of N.
+  quiet                 Reuse the output buffer and maintain a single line for
+                        reporting successful tests, skipped tests and disabled
+                        tests. Failed tests and the necessary information about
+                        the failure will be printed on a separate line.
   reorder               Reorder tests to get fewer server restarts.
   repeat=N              Run each test N number of times, in parallel if
                         --parallel option value is > 1.
