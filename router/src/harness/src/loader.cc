@@ -184,6 +184,26 @@ static void set_signal_handlers() {
 #endif
 }
 
+#ifdef _WIN32
+static BOOL ctrl_c_handler(DWORD ctrl_type) {
+  if (ctrl_type == CTRL_C_EVENT || ctrl_type == CTRL_BREAK_EVENT) {
+    // user presed Ctrl+C or we got Ctrl+Break request
+    request_application_shutdown();
+    return TRUE;  // don't pass this event to further handlers
+  } else {
+    // some other event
+    return FALSE;  // let the default Windows handler deal with it
+  }
+}
+
+void register_ctrl_c_handler() {
+  if (!SetConsoleCtrlHandler((PHANDLER_ROUTINE)ctrl_c_handler, TRUE)) {
+    std::cerr << "Could not install Ctrl+C handler, exiting.\n";
+    exit(1);
+  }
+}
+#endif
+
 namespace mysql_harness {
 
 ////////////////////////////////////////////////////////////////////////////////
