@@ -52,18 +52,9 @@ typedef NdbImport::Error Error;
 #endif
 
 #define logN(x, n) \
-  do { \
-    if (unlikely(m_util.c_opt.m_log_level >= n)) \
-    { \
-      NdbMutex_Lock(m_util.c_logmutex); \
-      m_util.c_logtimer.stop(); \
-      *(m_util.c_log) << *this \
-                      << " " <<__LINE__ \
-                      << " " << m_util.c_logtimer \
-                      << ": " << x << endl; \
-      NdbMutex_Unlock(m_util.c_logmutex); \
-    } \
-  } while (0)
+  if (unlikely(m_util.c_opt.m_log_level >= n)) \
+    (*m_util.c_log.out) << m_util.c_log.start << *this <<__LINE__ \
+                        << " " << x << m_util.c_log.stop
 
 #define log1(x) logN(x, 1)
 #define log2(x) logN(x, 2)
@@ -848,10 +839,28 @@ public:
 
   // log
 
-  FileOutputStream* c_logfile;
-  NdbOut* c_log;
-  NdbMutex* c_logmutex;
-  Timer c_logtimer;
+  struct DebugLogger {
+    DebugLogger();
+    ~DebugLogger();
+
+    struct MessageStart {
+      Timer *timer;
+      NdbMutex *mutex;
+    };
+
+    struct MessageStop {
+      NdbMutex *mutex;
+    };
+
+    Timer timer;
+    MessageStart start;
+    MessageStop stop;
+    FileOutputStream* logfile;
+    NdbOut* out;
+    NdbMutex* mutex;
+  };
+
+  DebugLogger c_log;
 
   // error
 
@@ -905,6 +914,7 @@ NdbOut& operator<<(NdbOut& out, const NdbImportUtil::RowMap& rowmap);
 NdbOut& operator<<(NdbOut& out, const NdbImportUtil::Range& range);
 NdbOut& operator<<(NdbOut& out, const NdbImportUtil::Buf& buf);
 NdbOut& operator<<(NdbOut& out, const NdbImportUtil::Stats& stats);
-NdbOut& operator<<(NdbOut& out, const NdbImportUtil::Timer& timer);
+NdbOut& operator<<(NdbOut& out, const NdbImportUtil::DebugLogger::MessageStart &);
+NdbOut& operator<<(NdbOut& out, const NdbImportUtil::DebugLogger::MessageStop &);
 
 #endif

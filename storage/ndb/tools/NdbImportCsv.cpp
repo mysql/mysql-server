@@ -3011,7 +3011,7 @@ static int
 testinput1()
 {
   NdbImportUtil util;
-  NdbOut& out = *util.c_log;
+  NdbOut& out = *util.c_log.out;
   util.c_opt.m_log_level = 4;
   out << "testinput1" << endl;
   NdbImportCsv csv(util);
@@ -3100,7 +3100,7 @@ static int
 testinput2()
 {
   NdbImportUtil util;
-  NdbOut& out = *util.c_log;
+  NdbOut& out = *util.c_log.out;
   util.c_opt.m_log_level = 2;
   util.c_opt.m_abort_on_error = 1;
   out << "testinput2" << endl;
