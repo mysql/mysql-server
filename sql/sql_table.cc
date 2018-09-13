@@ -6083,16 +6083,26 @@ static bool prepare_foreign_key(THD *thd, HA_CREATE_INFO *create_info,
       DBUG_RETURN(true);
     }
 
+    /*
+      Unlike for referenced columns, for referencing columns it doesn't matter
+      which version of column name (i.e. coming from FOREIGN KEY clause or
+      coming from table definition, they can differ in case) is stored in
+      FOREIGN_KEY structure. Information about referencing columns is stored
+      as their IDs in the data dictionary and as pointer to dd::Column object
+      in in-memory representation.
+    */
     fk_info->key_part[column_nr].str = col->get_field_name();
     fk_info->key_part[column_nr].length = std::strlen(col->get_field_name());
-    const Key_part_spec *fk_col = fk_key->ref_columns[column_nr];
 
-    // Always store column names in lower case.
-    char buff[NAME_LEN + 1];
-    my_stpncpy(buff, fk_col->get_field_name(), NAME_LEN);
-    my_casedn_str(system_charset_info, buff);
-    fk_info->fk_key_part[column_nr].str = sql_strdup(buff);
-    fk_info->fk_key_part[column_nr].length = strlen(buff);
+    /*
+      Save version of referenced column name coming from FOREIGN KEY clause.
+      Later we will replace it with version of name coming from parent table
+      definition if possible (these versions can differ in case).
+    */
+    const Key_part_spec *fk_col = fk_key->ref_columns[column_nr];
+    fk_info->fk_key_part[column_nr].str = fk_col->get_field_name();
+    fk_info->fk_key_part[column_nr].length =
+        std::strlen(fk_col->get_field_name());
   }
 
   if (find_parent_key) {
@@ -6150,6 +6160,13 @@ static bool prepare_foreign_key(THD *thd, HA_CREATE_INFO *create_info,
                    fk_info->fk_key_part[i].str);
           DBUG_RETURN(true);
         }
+        /*
+          Be compatible with 5.7. Use version of referenced column name
+          coming from parent table definition and not the one that was
+          used in FOREIGN KEY clause.
+        */
+        fk_info->fk_key_part[i].str = field->field_name;
+        fk_info->fk_key_part[i].length = std::strlen(field->field_name);
       }
 
       if (prepare_self_ref_fk_parent_key(create_info->db_type, alter_info,
@@ -6225,6 +6242,14 @@ static bool prepare_foreign_key(THD *thd, HA_CREATE_INFO *create_info,
                      ref_column_name);
             DBUG_RETURN(true);
           }
+
+          /*
+            Be compatible with 5.7. Use version of referenced column name
+            coming from parent table definition and not the one that was
+            used in FOREIGN KEY clause.
+          */
+          fk_info->fk_key_part[i].str = (*ref_column)->name().c_str();
+          fk_info->fk_key_part[i].length = (*ref_column)->name().length();
         }
 
         if (prepare_fk_parent_key(create_info->db_type, parent_table_def,

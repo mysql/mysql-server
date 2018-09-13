@@ -3804,3 +3804,112 @@ TABLE_NAME IN ('t1', 't2', 't3', 't4');
 
 DROP TABLE t1, t2, t3, t4;
 --remove_file $MYSQLTEST_VARDIR/tmp/testing.sql
+
+
+--echo #
+--echo # Bug #27353767 "FOREIGN KEY IS ALWAYS IN LOWER CASE".
+--echo #
+--echo # Check that the way in which referencing and referenced column names in
+--echo # foreign key definition are stored and shown in SHOW CREATE TABLE output
+--echo # and I_S tables is with 5.7 and earlier versions.
+
+--echo #
+--echo # We always use version of name of referencing column which comes from
+--echo # the definition of referencing table and not version from FOREIGN KEY
+--echo # clause.
+--echo # If referenced table exists than we use version of referenced column
+--echo # name which comes from its definition, and not version from FOREIGN KEY
+--echo # clause.
+CREATE TABLE parent (Pk VARCHAR(10) PRIMARY KEY);
+CREATE TABLE child (Fk VARCHAR(10), FOREIGN KEY (fK) REFERENCES parent(pK));
+SHOW CREATE TABLE child;
+SELECT column_name, referenced_column_name FROM information_schema.key_column_usage
+  WHERE referenced_table_schema='test' AND referenced_table_name='parent';
+DROP TABLE child;
+CREATE TABLE child (Fk VARCHAR(10));
+ALTER TABLE child ADD FOREIGN KEY (fK) REFERENCES parent(pK);
+SHOW CREATE TABLE child;
+SELECT column_name, referenced_column_name FROM information_schema.key_column_usage
+  WHERE referenced_table_schema='test' AND referenced_table_name='parent';
+
+--echo # Ditto for self-referencing tables.
+CREATE TABLE self (Pk VARCHAR(10) PRIMARY KEY, Fk VARCHAR(10),
+                   FOREIGN KEY (fK) REFERENCES self(pK));
+SHOW CREATE TABLE self;
+SELECT column_name, referenced_column_name FROM information_schema.key_column_usage
+  WHERE referenced_table_schema='test' AND referenced_table_name='self';
+DROP TABLE self;
+CREATE TABLE self (Pk VARCHAR(10) PRIMARY KEY, Fk VARCHAR(10));
+ALTER TABLE self ADD FOREIGN KEY (fK) REFERENCES self(pK);
+SHOW CREATE TABLE self;
+SELECT column_name, referenced_column_name FROM information_schema.key_column_usage
+  WHERE referenced_table_schema='test' AND referenced_table_name='self';
+
+--echo #
+--echo # If column name is changed (even to equivalent one) then the name shown
+--echo # in foreign key definition is updated too.
+ALTER TABLE parent CHANGE COLUMN Pk PK VARCHAR(20);
+SHOW CREATE TABLE child;
+SELECT column_name, referenced_column_name FROM information_schema.key_column_usage
+  WHERE referenced_table_schema='test' AND referenced_table_name='parent';
+ALTER TABLE child CHANGE COLUMN Fk FK VARCHAR(20);
+SHOW CREATE TABLE child;
+SELECT column_name, referenced_column_name FROM information_schema.key_column_usage
+  WHERE referenced_table_schema='test' AND referenced_table_name='parent';
+
+--echo # Ditto for self-referencing tables.
+ALTER TABLE self CHANGE COLUMN Pk PK VARCHAR(20);
+SHOW CREATE TABLE self;
+SELECT column_name, referenced_column_name FROM information_schema.key_column_usage
+  WHERE referenced_table_schema='test' AND referenced_table_name='self';
+ALTER TABLE self CHANGE COLUMN Fk FK VARCHAR(20);
+SHOW CREATE TABLE self;
+SELECT column_name, referenced_column_name FROM information_schema.key_column_usage
+  WHERE referenced_table_schema='test' AND referenced_table_name='self';
+DROP TABLE self;
+
+--echo #
+--echo # Referenced column names are preserved when referenced table is dropped
+--echo # (which is possible in FOREIGN_KEY_CHECKS = 0 mode).
+SET FOREIGN_KEY_CHECKS=0;
+DROP TABLE parent;
+SHOW CREATE TABLE child;
+SELECT column_name, referenced_column_name FROM information_schema.key_column_usage
+  WHERE referenced_table_schema='test' AND referenced_table_name='parent';
+
+--echo #
+--echo # Addition of parent doesn't change the referenced column names.
+CREATE TABLE parent (pk VARCHAR(10) PRIMARY KEY);
+SHOW CREATE TABLE child;
+SELECT column_name, referenced_column_name FROM information_schema.key_column_usage
+  WHERE referenced_table_schema='test' AND referenced_table_name='parent';
+DROP TABLES child, parent;
+
+--echo #
+--echo # We use version of referenced column name coming from FOREIGN KEY clause
+--echo # when orphan foreign key is created (as referenced table doesn't exist).
+--echo #
+--echo # Oddly, 5.7 uses version of referencing column name coming from FOREIGN
+--echo # KEY clause when orphan FK is added via ALTER TABLE (but not CREATE
+--echo # TABLE). This means that in 5.7 there is discrepancy between CREATE and
+--echo # ALTER TABLE behavior in this case.
+--echo # In 8.0 we are consistent and stick to CREATE TABLE behavior in such
+--echo # cases.
+CREATE TABLE child (Fk VARCHAR(10), FOREIGN KEY (fK) REFERENCES parent(pK));
+SHOW CREATE TABLE child;
+SELECT column_name, referenced_column_name FROM information_schema.key_column_usage
+  WHERE referenced_table_schema='test' AND referenced_table_name='parent';
+DROP TABLE child;
+CREATE TABLE child (Fk VARCHAR(10));
+ALTER TABLE child ADD FOREIGN KEY (fK) REFERENCES parent(pK);
+SHOW CREATE TABLE child;
+SELECT column_name, referenced_column_name FROM information_schema.key_column_usage
+  WHERE referenced_table_schema='test' AND referenced_table_name='parent';
+
+--echo #
+--echo # Addition of parent doesn't change the referenced column names.
+CREATE TABLE parent (pk VARCHAR(10) PRIMARY KEY);
+SHOW CREATE TABLE child;
+SELECT column_name, referenced_column_name FROM information_schema.key_column_usage
+  WHERE referenced_table_schema='test' AND referenced_table_name='parent';
+DROP TABLES child, parent;
