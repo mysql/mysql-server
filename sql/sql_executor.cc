@@ -1739,16 +1739,55 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
             /*count_all_rows=*/false, /*skipped_rows=*/nullptr));
       }
 
-      if (iterator == nullptr) {
+      const bool pfs_batch_mode = qep_tab->pfs_batch_update(qep_tab->join()) &&
+                                  join_type != JoinType::ANTI &&
+                                  join_type != JoinType::SEMI;
+      bool remove_duplicates_loose_scan = false;
+      if (i != first_idx && qep_tabs[i - 1].do_loosescan() &&
+          qep_tabs[i - 1].match_tab != i - 1) {
+        QEP_TAB *prev_qep_tab = &qep_tabs[i - 1];
+        DBUG_ASSERT(iterator != nullptr);
+
+        KEY *key = prev_qep_tab->table()->key_info + prev_qep_tab->index();
+        if (is_semijoin) {
+          iterator.reset(new (thd->mem_root)
+                             NestedLoopSemiJoinWithDuplicateRemovalIterator(
+                                 thd, move(iterator), move(subtree_iterator),
+                                 prev_qep_tab->table(), key,
+                                 prev_qep_tab->loosescan_key_len));
+        } else {
+          // Even if is_semijoin is false now, it was originally true
+          // (LooseScan against multiple tables always puts the non-first
+          // tables in FirstMatch), it was just overridden by is_outer_join.
+          // In this case, we put duplicate removal after the join (and any
+          // associated filtering), which is the safe option -- and in this
+          // case, it's no slower, since we'll be having a LIMIT 1 inserted
+          // anyway.
+          remove_duplicates_loose_scan = true;
+
+          iterator.reset(new (thd->mem_root) NestedLoopIterator(
+              thd, move(iterator), move(subtree_iterator), join_type,
+              pfs_batch_mode));
+        }
+      } else if (iterator == nullptr) {
+        DBUG_ASSERT(is_semijoin);
         iterator = move(subtree_iterator);
       } else {
-        iterator = CreateNestedLoopIterator(
+        iterator.reset(new (thd->mem_root) NestedLoopIterator(
             thd, move(iterator), move(subtree_iterator), join_type,
-            qep_tab->pfs_batch_update(qep_tab->join()));
+            pfs_batch_mode));
       }
 
       iterator = PossiblyAttachFilterIterator(move(iterator),
                                               subtree_pending_conditions, thd);
+
+      if (remove_duplicates_loose_scan) {
+        QEP_TAB *prev_qep_tab = &qep_tabs[i - 1];
+        KEY *key = prev_qep_tab->table()->key_info + prev_qep_tab->index();
+        iterator.reset(new (thd->mem_root) RemoveDuplicatesIterator(
+            thd, move(iterator), prev_qep_tab->table(), key,
+            prev_qep_tab->loosescan_key_len));
+      }
 
       // It's highly unlikely that we have more than one pending QEP_TAB here
       // (the most common case will be zero), so don't bother combining them
@@ -1880,6 +1919,18 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
                                                     predicates_below_join, thd);
     }
 
+    // Handle LooseScan that hits this specific table only.
+    // Multi-table LooseScans will be handled by
+    // NestedLoopSemiJoinWithDuplicateRemovalIterator
+    // (which is essentially a semijoin NestedLoopIterator and
+    // RemoveDuplicatesIterator in one).
+    if (qep_tab->do_loosescan() && qep_tab->match_tab == i) {
+      KEY *key = qep_tab->table()->key_info + qep_tab->index();
+      table_iterator.reset(new (thd->mem_root) RemoveDuplicatesIterator(
+          thd, move(table_iterator), qep_tab->table(), key,
+          qep_tab->loosescan_key_len));
+    }
+
     if (qep_tab->lateral_derived_tables_depend_on_me) {
       if (pending_invalidators != nullptr) {
         pending_invalidators->push_back(PendingInvalidator{
@@ -1966,8 +2017,7 @@ void JOIN::create_iterators() {
   };
   vector<MaterializeOperation> final_materializations;
 
-  // The new executor engine can't do recursive CTEs,
-  // loose scan or BNL/BKA.
+  // The new executor engine can't do recursive CTEs or BNL/BKA.
   // Revert to the old one if they show up.
   for (unsigned table_idx = const_tables; table_idx < tables; ++table_idx) {
     QEP_TAB *qep_tab = &this->qep_tab[table_idx];
@@ -2011,7 +2061,7 @@ void JOIN::create_iterators() {
       // Recursive CTE.
       return;
     }
-    if (qep_tab->do_loosescan() || qep_tab->needs_duplicate_removal) {
+    if (qep_tab->needs_duplicate_removal) {
       return;
     }
   }

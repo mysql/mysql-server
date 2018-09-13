@@ -339,3 +339,15 @@ EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE (t1.i) IN (SELECT t2.i FROM t2);
 DROP TABLE t1;
 DROP TABLE t2;
 set @@optimizer_switch=@old_opt_switch;
+
+# A simple single-table loose scan.
+set @old_opt_switch=@@optimizer_switch;
+set optimizer_switch='firstmatch=off,materialization=off,duplicateweedout=off,loosescan=on';
+CREATE TABLE t1 ( i INTEGER, PRIMARY KEY (i) );
+CREATE TABLE t2 ( i INTEGER, INDEX i1 (i) );
+INSERT INTO t1 VALUES (2), (3), (4), (5);
+INSERT INTO t2 VALUES (1), (2), (3), (4);
+EXPLAIN format=tree SELECT * FROM t1 WHERE t1.i IN (SELECT t2.i FROM t2);
+DROP TABLE t1;
+DROP TABLE t2;
+set @@optimizer_switch=@old_opt_switch;

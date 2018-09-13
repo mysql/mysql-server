@@ -653,4 +653,112 @@ class WeedoutIterator final : public RowIterator {
   SJ_TMP_TABLE *m_sj;
 };
 
+/**
+  An iterator that removes consecutive rows that are the same according to
+  a given index (or more accurately, its keypart), so-called “loose scan”
+  (not to be confused with “loose index scan”, which is a QUICK_SELECT_I).
+  This is similar in spirit to WeedoutIterator above (removing duplicates
+  allows us to treat the semijoin as a normal join), but is much cheaper
+  if the data is already ordered/grouped correctly, as the removal can
+  happen before the join, and it does not need a temporary table.
+ */
+class RemoveDuplicatesIterator final : public RowIterator {
+ public:
+  RemoveDuplicatesIterator(THD *thd,
+                           unique_ptr_destroy_only<RowIterator> source,
+                           const TABLE *table, KEY *key, size_t key_len);
+
+  bool Init() override;
+  int Read() override;
+  std::vector<std::string> DebugString() const override;
+
+  std::vector<Child> children() const override {
+    return std::vector<Child>{{m_source.get(), ""}};
+  }
+
+  void SetNullRowFlag(bool is_null_row) override {
+    m_source->SetNullRowFlag(is_null_row);
+  }
+
+  void UnlockRow() override { m_source->UnlockRow(); }
+
+ private:
+  unique_ptr_destroy_only<RowIterator> m_source;
+  const TABLE *m_table;
+  KEY *m_key;
+  uchar *m_key_buf;  // Owned by the THD's MEM_ROOT.
+  const size_t m_key_len;
+  bool m_first_row;
+};
+
+/**
+  An iterator that is semantically equivalent to a semijoin NestedLoopIterator
+  immediately followed by a RemoveDuplicatesIterator. It is used to implement
+  the “loose scan” strategy in queries with multiple tables on the inside of a
+  semijoin, like
+
+    ... FROM t1 WHERE ... IN ( SELECT ... FROM t2 JOIN t3 ... )
+
+  In this case, the query tree without this iterator would ostensibly look like
+
+    -> Table scan on t1
+       -> Remove duplicates on t2_idx
+          -> Nested loop semijoin
+             -> Index scan on t2 using t2_idx
+             -> Filter (e.g. t3.a = t2.a)
+                -> Table scan on t3
+
+  (t3 will be marked as “first match” on t2 when implementing loose scan,
+  thus the semijoin.)
+
+  First note that we can't put the duplicate removal directly on t2 in this
+  case, as the first t2 row doesn't necessarily match anything in t3, so it
+  needs to be above. However, this is wasteful, because once we find a matching
+  t2/t3 pair, we should stop scanning t3 until we have a new t2.
+
+  NestedLoopSemiJoinWithDuplicateRemovalIterator solves the problem by doing
+  exactly this; it gets a row from the outer side, gets exactly one row from the
+  inner side, and then skips over rows from the outer side (_without_ scanning
+  the inner side) until its keypart changes.
+ */
+class NestedLoopSemiJoinWithDuplicateRemovalIterator final
+    : public RowIterator {
+ public:
+  NestedLoopSemiJoinWithDuplicateRemovalIterator(
+      THD *thd, unique_ptr_destroy_only<RowIterator> source_outer,
+      unique_ptr_destroy_only<RowIterator> source_inner, const TABLE *table,
+      KEY *key, size_t key_len);
+
+  bool Init() override;
+
+  int Read() override;
+
+  void SetNullRowFlag(bool is_null_row) override {
+    m_source_outer->SetNullRowFlag(is_null_row);
+    m_source_inner->SetNullRowFlag(is_null_row);
+  }
+
+  void UnlockRow() override {
+    m_source_outer->UnlockRow();
+    m_source_inner->UnlockRow();
+  }
+
+  std::vector<std::string> DebugString() const override;
+
+  std::vector<Child> children() const override {
+    return std::vector<Child>{{m_source_outer.get(), ""},
+                              {m_source_inner.get(), ""}};
+  }
+
+ private:
+  unique_ptr_destroy_only<RowIterator> const m_source_outer;
+  unique_ptr_destroy_only<RowIterator> const m_source_inner;
+
+  const TABLE *m_table_outer;
+  KEY *m_key;
+  uchar *m_key_buf;  // Owned by the THD's MEM_ROOT.
+  const size_t m_key_len;
+  bool m_deduplicate_against_previous_row;
+};
+
 #endif  // SQL_COMPOSITE_ITERATORS_INCLUDED

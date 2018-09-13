@@ -558,3 +558,20 @@ EXPLAIN
 DROP TABLE t1;
 DROP TABLE t2;
 set @@optimizer_switch=@old_opt_switch;
+set @old_opt_switch=@@optimizer_switch;
+set optimizer_switch='firstmatch=off,materialization=off,duplicateweedout=off,loosescan=on';
+CREATE TABLE t1 ( i INTEGER, PRIMARY KEY (i) );
+CREATE TABLE t2 ( i INTEGER, INDEX i1 (i) );
+INSERT INTO t1 VALUES (2), (3), (4), (5);
+INSERT INTO t2 VALUES (1), (2), (3), (4);
+EXPLAIN format=tree SELECT * FROM t1 WHERE t1.i IN (SELECT t2.i FROM t2);
+EXPLAIN
+-> Nested loop inner join
+    -> Remove duplicates from input sorted on i1
+        -> Filter: (t2.i is not null)
+            -> Index scan on t2 using i1
+    -> Single-row index lookup on t1 using PRIMARY (i=t2.i)
+
+DROP TABLE t1;
+DROP TABLE t2;
+set @@optimizer_switch=@old_opt_switch;

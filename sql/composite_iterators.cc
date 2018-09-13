@@ -1062,3 +1062,130 @@ vector<string> WeedoutIterator::DebugString() const {
   ret += " rows using temporary table (weedout)";
   return {ret};
 }
+
+RemoveDuplicatesIterator::RemoveDuplicatesIterator(
+    THD *thd, unique_ptr_destroy_only<RowIterator> source, const TABLE *table,
+    KEY *key, size_t key_len)
+    : RowIterator(thd),
+      m_source(move(source)),
+      m_table(table),
+      m_key(key),
+      m_key_buf(new (thd->mem_root) uchar[key_len]),
+      m_key_len(key_len) {}
+
+bool RemoveDuplicatesIterator::Init() {
+  m_first_row = true;
+  return m_source->Init();
+}
+
+int RemoveDuplicatesIterator::Read() {
+  for (;;) {
+    int err = m_source->Read();
+    if (err != 0) {
+      return err;
+    }
+
+    if (thd()->killed) {  // Aborted by user.
+      thd()->send_kill_message();
+      return 1;
+    }
+
+    if (!m_first_row && key_cmp(m_key->key_part, m_key_buf, m_key_len) == 0) {
+      // Same as previous row, so keep scanning.
+      continue;
+    }
+
+    m_first_row = false;
+    key_copy(m_key_buf, m_table->record[0], m_key, m_key_len);
+    return 0;
+  }
+}
+
+vector<string> RemoveDuplicatesIterator::DebugString() const {
+  return {string("Remove duplicates from input sorted on ") + m_key->name};
+}
+
+NestedLoopSemiJoinWithDuplicateRemovalIterator::
+    NestedLoopSemiJoinWithDuplicateRemovalIterator(
+        THD *thd, unique_ptr_destroy_only<RowIterator> source_outer,
+        unique_ptr_destroy_only<RowIterator> source_inner, const TABLE *table,
+        KEY *key, size_t key_len)
+    : RowIterator(thd),
+      m_source_outer(move(source_outer)),
+      m_source_inner(move(source_inner)),
+      m_table_outer(table),
+      m_key(key),
+      m_key_buf(new (thd->mem_root) uchar[key_len]),
+      m_key_len(key_len) {
+  DBUG_ASSERT(m_source_outer != nullptr);
+  DBUG_ASSERT(m_source_inner != nullptr);
+}
+
+bool NestedLoopSemiJoinWithDuplicateRemovalIterator::Init() {
+  if (m_source_outer->Init()) {
+    return true;
+  }
+  m_deduplicate_against_previous_row = false;
+  return false;
+}
+
+int NestedLoopSemiJoinWithDuplicateRemovalIterator::Read() {
+  m_source_inner->SetNullRowFlag(false);
+
+  for (;;) {  // Termination condition within loop.
+    // Find an outer row that is different (key-wise) from the previous one
+    // we returned.
+    for (;;) {
+      int err = m_source_outer->Read();
+      if (err != 0) {
+        return err;
+      }
+      if (thd()->killed) {  // Aborted by user.
+        thd()->send_kill_message();
+        return 1;
+      }
+
+      if (m_deduplicate_against_previous_row &&
+          key_cmp(m_key->key_part, m_key_buf, m_key_len) == 0) {
+        // Same as previous row, so keep scanning.
+        continue;
+      }
+
+      break;
+    }
+
+    if (thd()->killed) {  // Aborted by user.
+      thd()->send_kill_message();
+      return 1;
+    }
+
+    // Now find a single (matching) inner row.
+    if (m_source_inner->Init()) {
+      return 1;
+    }
+
+    int err = m_source_inner->Read();
+    if (err == 1) {
+      return 1;  // Error.
+    }
+    if (err == -1) {
+      // No inner row found for this outer row, so search for a new outer row,
+      // potentially with the same key.
+      m_deduplicate_against_previous_row = false;
+      continue;
+    }
+
+    // We found an inner row for this outer row, so we do not want more with
+    // the same key.
+    m_deduplicate_against_previous_row = true;
+    key_copy(m_key_buf, m_table_outer->record[0], m_key, m_key_len);
+
+    return 0;
+  }
+}
+
+vector<string> NestedLoopSemiJoinWithDuplicateRemovalIterator::DebugString()
+    const {
+  return {string("Nested loop semijoin with duplicate removal on ") +
+          m_key->name};
+}
