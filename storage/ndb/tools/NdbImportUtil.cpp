@@ -29,11 +29,6 @@ NdbImportUtil::NdbImportUtil() :
   m_util(*this),
   c_stats(*this)
 {
-  c_logfile = new FileOutputStream(stderr);
-  c_log = new NdbOut(*c_logfile);
-  c_logmutex = NdbMutex_Create();
-  require(c_logmutex != 0);
-  c_logtimer.start();
   log1("ctor");
   c_rows_free = new RowList;
   c_rows_free->set_stats(m_util.c_stats, "rows-free");
@@ -46,9 +41,6 @@ NdbImportUtil::~NdbImportUtil()
   log1("dtor");
   delete c_blobs_free;
   delete c_rows_free;
-  delete c_logfile;
-  delete c_log;
-  NdbMutex_Destroy(c_logmutex);
 }
 
 NdbOut&
@@ -56,6 +48,50 @@ operator<<(NdbOut& out, const NdbImportUtil& util)
 {
   out << "util";
   return out;
+}
+
+// DebugLogger
+NdbImportUtil::DebugLogger::DebugLogger()
+{
+  logfile = new FileOutputStream(stderr);
+  out     = new NdbOut(* logfile);
+  mutex   = NdbMutex_Create();
+
+  require(mutex != 0);
+  timer.start();
+
+  start.timer = & timer;
+  start.mutex = mutex;
+  stop.mutex  = mutex;
+}
+
+NdbImportUtil::DebugLogger::~DebugLogger()
+{
+  delete logfile;
+  delete out;
+  NdbMutex_Destroy(mutex);
+}
+
+NdbOut&
+operator<<(NdbOut& out, const NdbImportUtil::DebugLogger::MessageStart & start)
+{
+  /* Lock the logger mutex, obtain a timestamp, and print it. */
+  char buf[32];
+  NdbMutex_Lock(start.mutex);
+  start.timer->stop();
+  double t = (double) start.timer->elapsed_msec() / (double)1000.0;
+  sprintf(buf, "%8.3f: ", t);
+  out << buf;
+  return out;
+}
+
+NdbOut&
+operator<<(NdbOut& out, const NdbImportUtil::DebugLogger::MessageStop & stop)
+{
+  /* Print a final newline, then unlock the logger mutex. */
+ out << "\n";
+ NdbMutex_Unlock(stop.mutex);
+ return out;
 }
 
 // name
@@ -2927,16 +2963,6 @@ uint64
 NdbImportUtil::Timer::elapsed_usec() const
 {
   return NdbTick_Elapsed(m_start, m_stop).microSec();
-}
-
-NdbOut&
-operator<<(NdbOut& out, const NdbImportUtil::Timer& timer)
-{
-  double t = (double)timer.elapsed_msec() / (double)1000.0;
-  char buf[100];
-  sprintf(buf, "%.3f", t);
-  out << buf;
-  return out;
 }
 
 // error
