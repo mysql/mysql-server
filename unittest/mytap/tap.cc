@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -494,7 +494,7 @@ int exit_status() {
 
    At the end, a complete test report should be written, with some
    statistics. If the test returns EXIT_SUCCESS, all tests were
-   successfull, otherwise at least one test failed.
+   successful, otherwise at least one test failed.
 
    To get a TAP complient output and exit status, report the exit
    status in the following manner:

@@ -1808,7 +1808,7 @@ static int proposer_task(task_arg arg) {
       }
       /* When we get here, we know the value for this message number,
          but it may not be the value we tried to push,
-         so loop until we have a successfull push. */
+         so loop until we have a successful push. */
       unlock_pax_machine(ep->p);
       MAY_DBG(FN; STRLIT(" found finished message "); SYCEXP(ep->msgno);
               STRLIT("seconds since last push ");

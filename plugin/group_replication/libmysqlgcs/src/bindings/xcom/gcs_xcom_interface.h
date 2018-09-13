@@ -389,7 +389,7 @@ class Gcs_xcom_interface : public Gcs_interface {
 
   /**
     Indicates whether SSL has been initialized and if that initialization was
-    successfull.
+    successful.
   */
   int m_ssl_init_state;
 
