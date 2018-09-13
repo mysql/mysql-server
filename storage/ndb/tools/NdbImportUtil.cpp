@@ -46,7 +46,7 @@ NdbImportUtil::~NdbImportUtil()
 NdbOut&
 operator<<(NdbOut& out, const NdbImportUtil& util)
 {
-  out << "util";
+  out << "util ";
   return out;
 }
 
@@ -2911,7 +2911,7 @@ NdbImportUtil::Stats::validate(Validate& v) const
 NdbOut&
 operator<<(NdbOut& out, const NdbImportUtil::Stats& stats)
 {
-  out << "stats";
+  out << "stats ";
   return out;
 }
 

@@ -35,7 +35,7 @@ NdbImportImpl::~NdbImportImpl()
 NdbOut&
 operator<<(NdbOut& out, const NdbImportImpl& impl)
 {
-  out << "impl";
+  out << "impl ";
   return out;
 }
 
@@ -61,7 +61,7 @@ NdbImportImpl::Mgm::~Mgm()
 NdbOut&
 operator<<(NdbOut& out, const NdbImportImpl::Mgm& mgm)
 {
-  out << "mgm";
+  out << "mgm ";
   return out;
 }
 
@@ -1380,12 +1380,12 @@ operator<<(NdbOut& out, const NdbImportImpl::Job& job)
 {
   char str[100];
   job.str_state(str);
-  out << "J-" << job.m_jobno << " [" << str << "]";
+  out << "J-" << job.m_jobno << " [" << str << "] ";
   if (job.has_error())
   {
     const Error& error = job.m_error;
     const char* typetext = error.gettypetext();
-    out << " error[" << typetext << "-" << error.code << "]";
+    out << "error[" << typetext << "-" << error.code << "] ";
   }
   return out;
 }
@@ -1395,12 +1395,12 @@ operator<<(NdbOut& out, const NdbImportImpl::Team& team)
 {
   char str[100];
   team.str_state(str);
-  out << "T-" << team.m_teamno << " " << team.m_name << " [" << str << "]";
+  out << "T-" << team.m_teamno << " " << team.m_name << " [" << str << "] ";
   if (team.has_error())
   {
     const Error& error = team.m_error;
     const char* typetext = error.gettypetext();
-    out << " error[" << typetext << "-" << error.code << "]";
+    out << "error[" << typetext << "-" << error.code << "] ";
   }
   return out;
 }
@@ -1410,7 +1410,7 @@ operator<<(NdbOut& out, const NdbImportImpl::Worker& w)
 {
   char str[100];
   w.str_state(str);
-  out << "W " << w.m_name << " [" << str << "]";
+  out << "W " << w.m_name << " [" << str << "] ";
   return out;
 }
 

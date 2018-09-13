@@ -592,7 +592,7 @@ operator<<(NdbOut& out, const NdbImportCsv::Input& input)
 {
   out << input.m_name;
   out << " len=" << input.m_buf.m_len;
-  out << " linecnt=" << input.m_line_list.cnt();
+  out << " linecnt=" << input.m_line_list.cnt() << " ";
   return out;
 }
 
@@ -963,7 +963,8 @@ operator<<(NdbOut& out, const NdbImportCsv::Parse& parse)
       sprintf(chr, "%s", "\\n");
     else
       sprintf(chr, "0x%02x", c);
-    out << " len=" << buf.m_len << " pos=" << buf.m_pos << " chr=" << chr;
+    out << " len=" << buf.m_len << " pos=" << buf.m_pos;
+    out << " chr=" << chr << " ";
   }
   return out;
 }
@@ -2672,7 +2673,7 @@ NdbImportCsv::Eval::eval_null(Row* row, Line* line, Field* field)
 NdbOut&
 operator<<(NdbOut& out, const NdbImportCsv::Eval& eval)
 {
-  out << "eval";
+  out << "eval ";
   return out;
 }
 
@@ -2681,7 +2682,7 @@ operator<<(NdbOut& out, const NdbImportCsv::Regex& regex)
 {
   out << "regex";
   out << " pattern=" << regex.m_pattern;
-  out << " nsub=" << regex.m_nsub;
+  out << " nsub=" << regex.m_nsub << " ";
   return out;
 }
 
@@ -2914,7 +2915,7 @@ NdbOut&
 operator<<(NdbOut& out, const NdbImportCsv::Output& output)
 {
   out << "output";
-  out << " len=" << output.m_buf.m_len;
+  out << " len=" << output.m_buf.m_len << " ";
   return out;
 }
 
