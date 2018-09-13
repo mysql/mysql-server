@@ -252,6 +252,8 @@ int main(int argc, char *argv[]) {
   MysqlServerMockFrontend frontend;
 
 #ifdef _WIN32
+  register_ctrl_c_handler();
+
   WSADATA wsaData;
   int result;
   result = WSAStartup(MAKEWORD(2, 2), &wsaData);
