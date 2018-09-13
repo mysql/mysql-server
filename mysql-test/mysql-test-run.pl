@@ -554,6 +554,12 @@ sub main {
     $num_tests_for_report = $num_tests;
   }
 
+  # When either --valgrind or --sanitize option is enabled, a dummy
+  # test is created.
+  if ($opt_valgrind_mysqld or $opt_sanitize) {
+    $num_tests_for_report = $num_tests_for_report + 1;
+  }
+
   # Please note, that disk_usage() will print a space to separate its
   # information from the preceding string, if the disk usage report is
   # enabled. Otherwise an empty string is returned.
@@ -689,10 +695,15 @@ sub main {
       $tinfo->{result} = 'MTR_RES_PASSED';
     }
     mtr_report_test($tinfo);
+    report_option('prev_report_length', 0);
     push @$completed, $tinfo;
   }
 
-  mtr_report() if $opt_quiet;
+  if ($opt_quiet) {
+    my $last_test = $completed->[-1];
+    mtr_report() if !$last_test->is_failed();
+  }
+
   mtr_print_line();
 
   if ($opt_gcov) {
@@ -1617,6 +1628,12 @@ sub command_line_setup {
       collect_option('binlog-format', $1);
       mtr_report("Using binlog format '$1'");
     }
+  }
+
+  # Disable --quiet option when verbose output is enabled.
+  if ($opt_verbose and $opt_quiet) {
+    $opt_quiet = 0;
+    mtr_report("Turning off '--quiet' since verbose output is enabled.");
   }
 
   if ($opt_test_progress != 0 and $opt_test_progress != 1) {
