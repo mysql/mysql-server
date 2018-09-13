@@ -22,13 +22,13 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef PLUGIN_X_NGS_INCLUDE_NGS_COMMON_TO_STRING_H_
-#define PLUGIN_X_NGS_INCLUDE_NGS_COMMON_TO_STRING_H_
+#ifndef PLUGIN_X_SRC_HELPER_TO_STRING_H_
+#define PLUGIN_X_SRC_HELPER_TO_STRING_H_
 
 #include <string>
 #include "m_string.h"
 
-namespace ngs {
+namespace xpl {
 namespace detail {
 
 template <typename T>
@@ -55,8 +55,6 @@ inline std::string to_string<float>(float value) {
   return detail::to_string(MY_GCVT_ARG_FLOAT, value);
 }
 
-using std::stod;
-using std::stoi;
-}  // namespace ngs
+}  // namespace xpl
 
-#endif  // PLUGIN_X_NGS_INCLUDE_NGS_COMMON_TO_STRING_H_
+#endif  // PLUGIN_X_SRC_HELPER_TO_STRING_H_

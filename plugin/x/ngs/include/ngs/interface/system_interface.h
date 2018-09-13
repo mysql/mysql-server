@@ -22,35 +22,39 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef PLUGIN_X_NGS_INCLUDE_NGS_COMMON_OPERATIONS_FACTORY_INTERFACE_H_
-#define PLUGIN_X_NGS_INCLUDE_NGS_COMMON_OPERATIONS_FACTORY_INTERFACE_H_
+#ifndef PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_SYSTEM_INTERFACE_H_
+#define PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_SYSTEM_INTERFACE_H_
 
 #include "plugin/x/ngs/include/ngs/memory.h"
-#include "plugin/x/ngs/include/ngs_common/file_interface.h"
-#include "plugin/x/ngs/include/ngs_common/socket_interface.h"
-#include "plugin/x/ngs/include/ngs_common/system_interface.h"
+
+struct addrinfo;
 
 namespace ngs {
 
-class Operations_factory_interface {
+class System_interface {
  public:
-  typedef ngs::shared_ptr<Operations_factory_interface> Shared_ptr;
+  typedef std::shared_ptr<System_interface> Shared_ptr;
 
-  virtual ~Operations_factory_interface() {}
+  virtual ~System_interface() {}
 
-  virtual ngs::shared_ptr<Socket_interface> create_socket(PSI_socket_key key,
-                                                          int domain, int type,
-                                                          int protocol) = 0;
-  virtual ngs::shared_ptr<Socket_interface> create_socket(
-      MYSQL_SOCKET socket) = 0;
+  virtual int unlink(const char *name) = 0;
+  virtual int kill(int pid, int signal) = 0;
 
-  virtual ngs::shared_ptr<File_interface> open_file(const char *name,
-                                                    int access,
-                                                    int permission) = 0;
+  virtual int get_ppid() = 0;
+  virtual int get_errno() = 0;
+  virtual int get_pid() = 0;
 
-  virtual ngs::shared_ptr<System_interface> create_system_interface() = 0;
+  virtual int get_socket_errno() = 0;
+  virtual void set_socket_errno(const int err) = 0;
+  virtual void get_socket_error_and_message(int &out_err,
+                                            std::string &out_strerr) = 0;
+
+  virtual void freeaddrinfo(addrinfo *ai) = 0;
+  virtual int getaddrinfo(const char *node, const char *service,
+                          const addrinfo *hints, addrinfo **res) = 0;
+  virtual void sleep(uint32 seconds) = 0;
 };
 
 }  // namespace ngs
 
-#endif  // PLUGIN_X_NGS_INCLUDE_NGS_COMMON_OPERATIONS_FACTORY_INTERFACE_H_
+#endif  // PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_SYSTEM_INTERFACE_H_

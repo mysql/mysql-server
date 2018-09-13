@@ -25,11 +25,11 @@
 #ifndef PLUGIN_X_SRC_INSERT_STATEMENT_BUILDER_H_
 #define PLUGIN_X_SRC_INSERT_STATEMENT_BUILDER_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "plugin/x/ngs/include/ngs/interface/document_id_aggregator_interface.h"
-#include "plugin/x/ngs/include/ngs_common/smart_ptr.h"
 #include "plugin/x/src/statement_builder.h"
 
 namespace xpl {

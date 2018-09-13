@@ -24,12 +24,16 @@
 
 #include "plugin/x/src/delete_statement_builder.h"
 
-#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 
-void xpl::Delete_statement_builder::build(const Delete &msg) const {
+namespace xpl {
+
+void Delete_statement_builder::build(const Delete &msg) const {
   m_builder.put("DELETE FROM ");
   add_collection(msg.collection());
   add_filter(msg.criteria());
   add_order(msg.order());
   add_limit(msg, true);
 }
+
+}  // namespace xpl

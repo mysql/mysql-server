@@ -49,16 +49,15 @@
 #include "plugin/x/ngs/include/ngs/log.h"
 #include "plugin/x/ngs/include/ngs/ngs_error.h"
 #include "plugin/x/ngs/include/ngs/protocol/protocol_config.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/ngs/include/ngs/protocol_encoder.h"
 #include "plugin/x/ngs/include/ngs/scheduler.h"
-#include "plugin/x/ngs/include/ngs_common/operations_factory.h"
-#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/src/operations_factory.h"
 #include "plugin/x/src/xpl_global_status_variables.h"
 
 namespace ngs {
 
-using Waiting_for_io_interface =
-    ngs::Protocol_decoder::Waiting_for_io_interface;
+using Waiting_for_io_interface = Protocol_decoder::Waiting_for_io_interface;
 
 namespace details {
 
@@ -99,15 +98,15 @@ Client::~Client() {
   log_debug("%s: Delete client", m_id);
   if (m_connection) m_connection->shutdown();
 
-  if (m_msg_buffer) ngs::free_array(m_msg_buffer);
+  if (m_msg_buffer) free_array(m_msg_buffer);
 }
 
-ngs::chrono::time_point Client::get_accept_time() const {
+xpl::chrono::Time_point Client::get_accept_time() const {
   return m_accept_time;
 }
 
 void Client::reset_accept_time() {
-  m_accept_time = chrono::now();
+  m_accept_time = xpl::chrono::now();
   m_server.restart_client_supervision_timer();
 }
 
@@ -115,7 +114,7 @@ void Client::activate_tls() {
   log_debug("%s: enabling TLS for client", client_id());
 
   const auto connect_timeout =
-      chrono::to_seconds(m_server.get_config()->connect_timeout);
+      xpl::chrono::to_seconds(m_server.get_config()->connect_timeout);
 
   const auto real_connect_timeout =
       std::min<uint32_t>(connect_timeout, m_read_timeout);
@@ -139,23 +138,22 @@ void Client::on_auth_timeout() {
 Capabilities_configurator *Client::capabilities_configurator() {
   std::vector<Capability_handler_ptr> handlers;
 
-  handlers.push_back(ngs::allocate_shared<Capability_tls>(ngs::ref(*this)));
-  handlers.push_back(
-      ngs::allocate_shared<Capability_auth_mech>(ngs::ref(*this)));
+  handlers.push_back(allocate_shared<Capability_tls>(std::ref(*this)));
+  handlers.push_back(allocate_shared<Capability_auth_mech>(std::ref(*this)));
 
   handlers.push_back(
-      ngs::allocate_shared<Capability_readonly_value>("doc.formats", "text"));
+      allocate_shared<Capability_readonly_value>("doc.formats", "text"));
 
   handlers.push_back(
-      ngs::allocate_shared<Capability_client_interactive>(ngs::ref(*this)));
+      allocate_shared<Capability_client_interactive>(std::ref(*this)));
 
-  return ngs::allocate_object<Capabilities_configurator>(handlers);
+  return allocate_object<Capabilities_configurator>(handlers);
 }
 
 void Client::get_capabilities(const Mysqlx::Connection::CapabilitiesGet &) {
-  ngs::Memory_instrumented<Capabilities_configurator>::Unique_ptr configurator(
+  Memory_instrumented<Capabilities_configurator>::Unique_ptr configurator(
       capabilities_configurator());
-  ngs::Memory_instrumented<Mysqlx::Connection::Capabilities>::Unique_ptr caps(
+  Memory_instrumented<Mysqlx::Connection::Capabilities>::Unique_ptr caps(
       configurator->get());
 
   m_encoder->send_message(Mysqlx::ServerMessages::CONN_CAPABILITIES, *caps);
@@ -163,7 +161,7 @@ void Client::get_capabilities(const Mysqlx::Connection::CapabilitiesGet &) {
 
 void Client::set_capabilities(
     const Mysqlx::Connection::CapabilitiesSet &setcap) {
-  ngs::Memory_instrumented<Capabilities_configurator>::Unique_ptr configurator(
+  Memory_instrumented<Capabilities_configurator>::Unique_ptr configurator(
       capabilities_configurator());
   Error_code error_code = configurator->prepare_set(setcap.capabilities());
   m_encoder->send_result(error_code);
@@ -188,7 +186,7 @@ void Client::handle_message(Message_request &request) {
   // there is no session before authentication, so we handle the messages
   // ourselves
   log_debug("%s: Client got message %i", client_id(),
-            (int)request.get_message_type());
+            static_cast<int>(request.get_message_type()));
 
   switch (request.get_message_type()) {
     case Mysqlx::ClientMessages::CON_CLOSE:
@@ -233,7 +231,7 @@ void Client::handle_message(Message_request &request) {
       m_protocol_monitor->on_error_unknown_msg_type();
       log_debug("%s: Invalid message %i received during client initialization",
                 client_id(), request.get_message_type());
-      m_encoder->send_result(ngs::Fatal(ER_X_BAD_MESSAGE, "Invalid message"));
+      m_encoder->send_result(Fatal(ER_X_BAD_MESSAGE, "Invalid message"));
       set_close_reason_if_non_fatal(Close_reason::k_error);
       disconnect_and_trigger_close();
       break;
@@ -327,12 +325,12 @@ void Client::on_client_addr(const bool skip_resolve) {
   m_client_addr.resize(INET6_ADDRSTRLEN);
 
   switch (m_connection->get_type()) {
-    case Connection_tcpip: {
+    case xpl::Connection_tcpip: {
       m_connection->peer_addr(m_client_addr, m_client_port);
     } break;
 
-    case Connection_namedpipe:
-    case Connection_unixsocket:  // fall through
+    case xpl::Connection_namedpipe:
+    case xpl::Connection_unixsocket:  // fall through
       m_client_host = "localhost";
       return;
 
@@ -373,15 +371,15 @@ void Client::on_accept() {
   // it can be accessed directly (no other thread access thus object)
   m_state = Client_accepted;
 
-  set_encoder(ngs::allocate_object<Protocol_encoder>(
+  set_encoder(allocate_object<Protocol_encoder>(
       m_connection,
-      ngs::bind(&Client::on_network_error, this, ngs::placeholders::_1),
+      std::bind(&Client::on_network_error, this, std::placeholders::_1),
       m_protocol_monitor));
 
   // pre-allocate the initial session
   // this is also needed for the srv_session to correctly report us to the
   // audit.log as in the Pre-authenticate state
-  ngs::shared_ptr<Session_interface> session(
+  std::shared_ptr<Session_interface> session(
       m_server.create_session(*this, *m_encoder, 1));
   if (!session) {
     log_warning(ER_XPLUGIN_FAILED_TO_CREATE_SESSION_FOR_CONN, client_id(),
@@ -427,7 +425,7 @@ void Client::on_session_reset(Session_interface &s MY_ATTRIBUTE((unused))) {
   log_debug("%s: Resetting session %i", client_id(), s.session_id());
 
   m_state = Client_accepted_with_session;
-  ngs::shared_ptr<Session_interface> session(
+  std::shared_ptr<Session_interface> session(
       m_server.create_session(*this, *m_encoder, 1));
   if (!session) {
     log_warning(ER_XPLUGIN_FAILED_TO_CREATE_SESSION_FOR_CONN, client_id(),
@@ -456,7 +454,7 @@ void Client::on_session_reset(Session_interface &s MY_ATTRIBUTE((unused))) {
 void Client::on_server_shutdown() {
   log_debug("%s: closing client because of shutdown (state: %i)", client_id(),
             m_state.load());
-  ngs::shared_ptr<ngs::Session_interface> local_copy = m_session;
+  std::shared_ptr<ngs::Session_interface> local_copy = m_session;
 
   if (local_copy) local_copy->on_kill();
 
@@ -468,9 +466,8 @@ Protocol_monitor_interface &Client::get_protocol_monitor() {
   return *m_protocol_monitor;
 }
 
-void Client::set_encoder(ngs::Protocol_encoder_interface *enc) {
-  m_encoder =
-      ngs::Memory_instrumented<Protocol_encoder_interface>::Unique_ptr(enc);
+void Client::set_encoder(Protocol_encoder_interface *enc) {
+  m_encoder = Memory_instrumented<Protocol_encoder_interface>::Unique_ptr(enc);
   m_encoder->get_flusher()->set_write_timeout(m_write_timeout);
 }
 
@@ -512,7 +509,7 @@ void Client::run(const bool skip_name_resolve) {
 
       if (error) {
         // !message and !error = EOF
-        if (error) m_encoder->send_result(ngs::Fatal(error));
+        if (error) m_encoder->send_result(Fatal(error));
         disconnect_and_trigger_close();
         break;
       }

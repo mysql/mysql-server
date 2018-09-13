@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -24,7 +24,7 @@
 #include <sys/types.h>
 
 #include "plugin/x/ngs/include/ngs/error_code.h"
-#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/src/expect/expect.h"
 #include "plugin/x/src/expect/expect_stack.h"
 #include "plugin/x/src/xpl_error.h"
@@ -444,10 +444,10 @@ TEST(expect, invalid) {
   }
 }
 
-class Expect_surprise : public xpl::Expect_condition {
+class Expect_surprise : public Expect_condition {
  public:
   Expect_surprise(const uint32_t k, const std::string &v)
-      : xpl::Expect_condition(k, ""), m_surprise_value(v) {}
+      : Expect_condition(k, ""), m_surprise_value(v) {}
 
   Expect_condition_ptr clone() override {
     return Expect_condition_ptr{new Expect_surprise(key(), m_surprise_value)};

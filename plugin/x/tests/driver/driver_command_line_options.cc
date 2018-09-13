@@ -32,7 +32,7 @@
 #include "welcome_copyright_notice.h"
 
 #include "plugin/x/generated/mysqlx_version.h"
-#include "plugin/x/ngs/include/ngs_common/to_string.h"
+#include "plugin/x/src/helper/to_string.h"
 #include "plugin/x/tests/driver/processor/commands/command.h"
 #include "plugin/x/tests/driver/processor/commands/mysqlxtest_error_names.h"
 
@@ -196,16 +196,16 @@ Driver_command_line_options::Driver_command_line_options(const int argc,
     } else if (check_arg_with_value(argv, i, "--schema", NULL, value)) {
       m_connection_options.schema = value;
     } else if (check_arg_with_value(argv, i, "--port", "-P", value)) {
-      m_connection_options.port = ngs::stoi(value);
+      m_connection_options.port = std::stoi(value);
     } else if (check_arg_with_value(argv, i, "--ipv", NULL, value)) {
-      m_connection_options.ip_mode = set_protocol(ngs::stoi(value));
+      m_connection_options.ip_mode = set_protocol(std::stoi(value));
     } else if (check_arg_with_value(argv, i, "--timeout", "-t", value)) {
       m_connection_options.session_connect_timeout =
-          m_connection_options.io_timeout = ngs::stoi(value);
+          m_connection_options.io_timeout = std::stoi(value);
     } else if (check_arg_with_value(argv, i, "--expect-error", NULL, value)) {
       m_expected_error_code = mysqlxtest::get_error_code_by_text(value);
     } else if (check_arg_with_value(argv, i, "--fatal-errors", NULL, value)) {
-      m_context_options.m_fatal_errors = ngs::stoi(value);
+      m_context_options.m_fatal_errors = std::stoi(value);
     } else if (check_arg_with_value(argv, i, "--password", "-p", value)) {
       m_connection_options.password = value;
     } else if (check_arg_with_value(argv, i, "--socket", "-S", value)) {

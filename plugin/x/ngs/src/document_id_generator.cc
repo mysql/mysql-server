@@ -27,14 +27,14 @@
 #include <cinttypes>
 #include <limits>
 
-#include "plugin/x/ngs/include/ngs_common/chrono.h"
+#include "plugin/x/src/helper/chrono.h"
 #include "plugin/x/src/xpl_performance_schema.h"
 
 namespace ngs {
 
 Document_id_generator::Document_id_generator()
-    : m_timestamp{static_cast<uint64_t>(
-          chrono::to_seconds(chrono::system_clock::now().time_since_epoch()))},
+    : m_timestamp{static_cast<uint64_t>(xpl::chrono::to_seconds(
+          xpl::chrono::System_clock::now().time_since_epoch()))},
       m_serial{0},
       m_generate_mutex{KEY_mutex_x_document_id_generate} {}
 

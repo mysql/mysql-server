@@ -26,11 +26,11 @@
 #define UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_NGS_GENERAL_H_
 
 #include "plugin/x/ngs/include/ngs/interface/listener_factory_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/operations_factory_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/socket_events_interface.h"
-#include "plugin/x/ngs/include/ngs_common/operations_factory_interface.h"
-#include "plugin/x/ngs/include/ngs_common/socket_interface.h"
-#include "plugin/x/ngs/include/ngs_common/ssl_context_options_interface.h"
-#include "plugin/x/ngs/include/ngs_common/ssl_session_options.h"
+#include "plugin/x/ngs/include/ngs/interface/socket_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/ssl_context_options_interface.h"
+#include "plugin/x/src/ssl_session_options.h"
 
 namespace ngs {
 
@@ -136,8 +136,8 @@ class Mock_socket_events : public Socket_events_interface {
  public:
   MOCK_METHOD2(listen,
                bool(Socket_interface::Shared_ptr,
-                    ngs::function<void(Connection_acceptor_interface &)>));
-  MOCK_METHOD2(add_timer, void(const std::size_t, ngs::function<bool()>));
+                    std::function<void(Connection_acceptor_interface &)>));
+  MOCK_METHOD2(add_timer, void(const std::size_t, std::function<bool()>));
   MOCK_METHOD0(loop, void());
   MOCK_METHOD0(break_loop, void());
 };

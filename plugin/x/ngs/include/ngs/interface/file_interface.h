@@ -22,42 +22,26 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef PLUGIN_X_NGS_INCLUDE_NGS_COMMON_SSL_CONTEXT_OPTIONS_H_
-#define PLUGIN_X_NGS_INCLUDE_NGS_COMMON_SSL_CONTEXT_OPTIONS_H_
+#ifndef PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_FILE_INTERFACE_H_
+#define PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_FILE_INTERFACE_H_
 
-#include "violite.h"
-
-#include "plugin/x/ngs/include/ngs_common/ssl_context_options_interface.h"
+#include "plugin/x/ngs/include/ngs/memory.h"
 
 namespace ngs {
 
-class Ssl_context_options : public Ssl_context_options_interface {
+class File_interface {
  public:
-  Ssl_context_options(st_VioSSLFd *vio_ssl = nullptr) : m_vio_ssl(vio_ssl) {}
+  typedef std::shared_ptr<File_interface> Shared_ptr;
 
-  long ssl_ctx_verify_depth() override;
-  long ssl_ctx_verify_mode() override;
+  virtual ~File_interface() {}
 
-  std::string ssl_server_not_after() override;
-  std::string ssl_server_not_before() override;
-
-  long ssl_sess_accept_good() override;
-  long ssl_sess_accept() override;
-  long ssl_accept_renegotiates() override;
-
-  std::string ssl_session_cache_mode() override;
-
-  long ssl_session_cache_hits() override;
-  long ssl_session_cache_misses() override;
-  long ssl_session_cache_overflows() override;
-  long ssl_session_cache_size() override;
-  long ssl_session_cache_timeouts() override;
-  long ssl_used_session_cache_entries() override;
-
- private:
-  st_VioSSLFd *m_vio_ssl;
+  virtual bool is_valid() = 0;
+  virtual int close() = 0;
+  virtual int read(void *buffer, int nbyte) = 0;
+  virtual int write(void *buffer, int nbyte) = 0;
+  virtual int fsync() = 0;
 };
 
 }  // namespace ngs
 
-#endif  // PLUGIN_X_NGS_INCLUDE_NGS_COMMON_SSL_CONTEXT_OPTIONS_H_
+#endif  // PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_FILE_INTERFACE_H_

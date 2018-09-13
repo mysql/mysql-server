@@ -81,7 +81,7 @@ class Client : public ngs::Client {
   bool is_localhost(const char *hostname);
 };
 
-typedef ngs::shared_ptr<Client> Client_ptr;
+typedef std::shared_ptr<Client> Client_ptr;
 
 }  // namespace xpl
 

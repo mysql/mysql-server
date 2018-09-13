@@ -26,9 +26,8 @@
 #define PLUGIN_X_SRC_XPL_SYSTEM_VARIABLES_H_
 
 #include <algorithm>
+#include <functional>
 #include <vector>
-
-#include "plugin/x/ngs/include/ngs_common/bind.h"
 
 #ifdef max_allowed_packet
 #undef max_allowed_packet
@@ -75,7 +74,7 @@ class Plugin_system_variables {
   static Ssl_config ssl_config;
 
  public:
-  typedef ngs::function<void(THD *)> Value_changed_callback;
+  typedef std::function<void(THD *)> Value_changed_callback;
 
   static void clean_callbacks();
   static void registry_callback(Value_changed_callback callcback);

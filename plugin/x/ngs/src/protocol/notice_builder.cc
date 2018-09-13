@@ -24,9 +24,9 @@
 
 #include "plugin/x/ngs/include/ngs/protocol/notice_builder.h"
 
-#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 
-using namespace ngs;
+namespace ngs {
 
 void Notice_builder::encode_frame(Page_output_stream *out_buffer, uint32 type,
                                   const std::string &data, int scope) {
@@ -88,3 +88,5 @@ void Notice_builder::encode_rows_affected(Page_output_stream *out_buffer,
 
   end_message();
 }
+
+}  // namespace ngs

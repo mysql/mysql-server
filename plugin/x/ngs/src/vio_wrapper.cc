@@ -26,7 +26,7 @@
 #include "mysql/psi/mysql_socket.h"
 
 #include "plugin/x/ngs/include/ngs/vio_wrapper.h"
-#include "plugin/x/ngs/include/ngs_common/connection_type.h"
+#include "plugin/x/src/io/connection_type.h"
 
 namespace ngs {
 
@@ -78,8 +78,8 @@ void Vio_wrapper::set_thread_owner() {
 
 my_socket Vio_wrapper::get_fd() { return vio_fd(m_vio); }
 
-Connection_type Vio_wrapper::get_type() {
-  return Connection_type_helper::convert_type(vio_type(m_vio));
+xpl::Connection_type Vio_wrapper::get_type() {
+  return xpl::Connection_type_helper::convert_type(vio_type(m_vio));
 }
 
 sockaddr_storage *Vio_wrapper::peer_addr(std::string &address, uint16 &port) {

@@ -30,7 +30,7 @@
 #include <string>
 #include <utility>
 
-#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/src/expect/expect_condition.h"
 
 namespace xpl {

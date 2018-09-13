@@ -35,7 +35,7 @@
 
 namespace ngs {
 
-typedef ngs::shared_ptr<Client_interface> Client_ptr;
+typedef std::shared_ptr<Client_interface> Client_ptr;
 
 class Client_list {
  public:

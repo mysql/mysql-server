@@ -44,12 +44,12 @@ using namespace ::testing;
 
 class CapabilitiesConfiguratorTestSuite : public Test {
  public:
-  typedef ngs::shared_ptr<StrictMock<Mock_capability_handler>> Mock_ptr;
+  typedef std::shared_ptr<StrictMock<Mock_capability_handler>> Mock_ptr;
 
   void SetUp() {
     for (int i = 0; i < NUMBER_OF_HANDLERS; ++i) {
       mock_handlers.push_back(
-          ngs::make_shared<StrictMock<Mock_capability_handler>>());
+          std::make_shared<StrictMock<Mock_capability_handler>>());
     }
 
     std::vector<Capability_handler_ptr> handlers(mock_handlers.begin(),
@@ -87,7 +87,7 @@ class CapabilitiesConfiguratorTestSuite : public Test {
     std::for_each(supported_handlers.begin(), supported_handlers.end(),
                   expect_get_capability);
 
-    ngs::Memory_instrumented<Capabilities>::Unique_ptr cap(sut->get());
+    Memory_instrumented<Capabilities>::Unique_ptr cap(sut->get());
 
     ASSERT_TRUE(NULL != cap.get());
     ASSERT_EQ(static_cast<int>(supported_handlers.size()),
@@ -151,7 +151,7 @@ class CapabilitiesConfiguratorTestSuite : public Test {
 
   std::vector<Mock_ptr> mock_handlers;
 
-  ngs::unique_ptr<Capabilities_configurator> sut;
+  std::unique_ptr<Capabilities_configurator> sut;
 };
 
 TEST_F(CapabilitiesConfiguratorTestSuite, get_doesNothing_whenEmpty) {
@@ -175,7 +175,7 @@ TEST_F(CapabilitiesConfiguratorTestSuite, get_returnsOnlySupportedCaps) {
 
 TEST_F(CapabilitiesConfiguratorTestSuite,
        prepareSet_errorErrorAndCommitDoesNothing_whenOneUnknownCapability) {
-  ngs::unique_ptr<Capabilities> caps(new Capabilities());
+  std::unique_ptr<Capabilities> caps(new Capabilities());
 
   Capability *cap = caps->add_capabilities();
 
@@ -191,7 +191,7 @@ TEST_F(CapabilitiesConfiguratorTestSuite,
 
 TEST_F(CapabilitiesConfiguratorTestSuite,
        prepareSet_success_whenAllRequestedCapsSucceded) {
-  ngs::unique_ptr<Capabilities> caps(new Capabilities());
+  std::unique_ptr<Capabilities> caps(new Capabilities());
   std::vector<Mock_ptr> supported_handlers;
 
   std::for_each(mock_handlers.begin(), mock_handlers.end(),
@@ -212,7 +212,7 @@ TEST_F(CapabilitiesConfiguratorTestSuite,
 
 TEST_F(CapabilitiesConfiguratorTestSuite,
        prepareSet_FailsAndCommitDoesNothing_whenAnyCapsFailsLast) {
-  ngs::unique_ptr<Capabilities> caps(new Capabilities());
+  std::unique_ptr<Capabilities> caps(new Capabilities());
   std::vector<Mock_ptr> supported_handlers;
 
   std::for_each(mock_handlers.begin(), mock_handlers.end(),
@@ -231,7 +231,7 @@ TEST_F(CapabilitiesConfiguratorTestSuite,
 
 TEST_F(CapabilitiesConfiguratorTestSuite,
        prepareSet_FailsAndCommitDoesNothing_whenAnyCapsFailsFirst) {
-  ngs::unique_ptr<Capabilities> caps(new Capabilities());
+  std::unique_ptr<Capabilities> caps(new Capabilities());
   std::vector<Mock_ptr> supported_handlers;
 
   std::for_each(mock_handlers.begin(), mock_handlers.end(),

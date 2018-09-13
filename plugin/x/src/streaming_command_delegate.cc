@@ -34,9 +34,9 @@
 #include "plugin/x/ngs/include/ngs/interface/notice_output_queue_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
 #include "plugin/x/ngs/include/ngs/protocol/column_info_builder.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_const.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/ngs/include/ngs/protocol/row_builder.h"
-#include "plugin/x/ngs/include/ngs_common/protocol_const.h"
-#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
 #include "plugin/x/src/xpl_log.h"
 
 namespace xpl {

@@ -32,8 +32,8 @@
 
 #include "my_io.h"
 #include "plugin/x/generated/mysqlx_version.h"
-#include "plugin/x/ngs/include/ngs_common/operations_factory.h"
-#include "plugin/x/ngs/include/ngs_common/string_formatter.h"
+#include "plugin/x/src/helper/string_formatter.h"
+#include "plugin/x/src/operations_factory.h"
 #include "plugin/x/src/xpl_log.h"
 
 #ifdef HAVE_SYS_UN_H
@@ -84,7 +84,7 @@ class Unixsocket_creator {
 
     // Check path length, probably move to set unix port?
     if (unix_socket_file.length() > (sizeof(addr.sun_path) - 1)) {
-      error_message = ngs::String_formatter()
+      error_message = String_formatter()
                           .append("the socket file path is too long (> ")
                           .append(sizeof(addr.sun_path) - 1)
                           .append(")")
@@ -102,7 +102,7 @@ class Unixsocket_creator {
 
     if (INVALID_SOCKET == listener_socket->get_socket_fd()) {
       m_system_interface->get_socket_error_and_message(err, errstr);
-      error_message = ngs::String_formatter()
+      error_message = String_formatter()
                           .append("can't create UNIX Socket: ")
                           .append(errstr)
                           .append(" (")
@@ -124,7 +124,7 @@ class Unixsocket_creator {
                               sizeof(addr)) < 0) {
       umask(old_mask);
       m_system_interface->get_socket_error_and_message(err, errstr);
-      error_message = ngs::String_formatter()
+      error_message = String_formatter()
                           .append("`bind()` on UNIX socket failed with error: ")
                           .append(errstr)
                           .append(" (")
@@ -146,7 +146,7 @@ class Unixsocket_creator {
       m_system_interface->get_socket_error_and_message(err, errstr);
 
       error_message =
-          ngs::String_formatter()
+          String_formatter()
               .append("`listen()` on UNIX socket failed with error: ")
               .append(errstr)
               .append("(")
@@ -185,7 +185,7 @@ class Unixsocket_creator {
     int retries = 3;
     while (true) {
       if (!retries--) {
-        error_message = ngs::String_formatter()
+        error_message = String_formatter()
                             .append("unable to create UNIX socket lock file ")
                             .append(lock_filename)
                             .append(" after ")
@@ -260,7 +260,7 @@ class Unixsocket_creator {
 
       if (read_pid != cur_pid && read_pid != parent_pid) {
         if (m_system_interface->kill(read_pid, 0) == 0) {
-          error_message = ngs::String_formatter()
+          error_message = String_formatter()
                               .append("another process with PID ")
                               .append(read_pid)
                               .append(" is using UNIX socket file")
@@ -286,7 +286,7 @@ class Unixsocket_creator {
              static_cast<int>(cur_pid));
     if (lockfile_fd->write(buffer, strlen(buffer)) !=
         static_cast<signed>(strlen(buffer))) {
-      error_message = ngs::String_formatter()
+      error_message = String_formatter()
                           .append("can't write UNIX socket lock file ")
                           .append(lock_filename)
                           .append(", errno: ")
@@ -297,7 +297,7 @@ class Unixsocket_creator {
     }
 
     if (lockfile_fd->fsync() != 0) {
-      error_message = ngs::String_formatter()
+      error_message = String_formatter()
                           .append("can't sync UNIX socket lock file ")
                           .append(lock_filename)
                           .append(", errno: ")
@@ -308,7 +308,7 @@ class Unixsocket_creator {
     }
 
     if (lockfile_fd->close() != 0) {
-      error_message = ngs::String_formatter()
+      error_message = String_formatter()
                           .append("can't close UNIX socket lock file ")
                           .append(lock_filename)
                           .append(", errno: ")

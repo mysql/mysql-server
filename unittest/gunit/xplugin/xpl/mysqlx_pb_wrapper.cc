@@ -24,7 +24,7 @@
 
 #include <utility>
 
-#include "plugin/x/ngs/include/ngs_common/to_string.h"
+#include "plugin/x/src/helper/to_string.h"
 
 namespace xpl {
 namespace test {

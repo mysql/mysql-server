@@ -46,9 +46,9 @@ class Socket_events : public Socket_events_interface {
   ~Socket_events();
 
   bool listen(Socket_interface::Shared_ptr s,
-              ngs::function<void(Connection_acceptor_interface &)> callback);
+              std::function<void(Connection_acceptor_interface &)> callback);
 
-  void add_timer(const std::size_t delay_ms, ngs::function<bool()> callback);
+  void add_timer(const std::size_t delay_ms, std::function<bool()> callback);
   void loop();
   void break_loop();
 

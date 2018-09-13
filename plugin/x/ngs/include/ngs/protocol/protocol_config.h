@@ -28,7 +28,7 @@
 #include <stdint.h>
 #include <list>
 
-#include "plugin/x/ngs/include/ngs_common/chrono.h"
+#include "plugin/x/src/helper/chrono.h"
 
 #include "plugin/x/src/global_timeouts.h"
 #include "plugin/x/src/xpl_system_variables.h"
@@ -40,8 +40,8 @@ class Protocol_config {
   uint32_t default_max_frame_size;
   uint32_t max_message_size;
 
-  chrono::seconds connect_timeout;
-  chrono::milliseconds connect_timeout_hysteresis;
+  xpl::chrono::Seconds connect_timeout;
+  xpl::chrono::Milliseconds connect_timeout_hysteresis;
   uint32_t m_wait_timeout = Global_timeouts::Default::k_wait_timeout;
   uint32_t m_interactive_timeout =
       Global_timeouts::Default::k_interactive_timeout;

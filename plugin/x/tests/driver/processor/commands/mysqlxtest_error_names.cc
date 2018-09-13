@@ -30,7 +30,7 @@
 
 #include "errmsg.h"
 #include "plugin/x/client/mysqlxclient/mysqlxclient_error.h"
-#include "plugin/x/ngs/include/ngs_common/to_string.h"
+#include "plugin/x/src/helper/to_string.h"
 
 namespace mysqlxtest {
 
@@ -66,7 +66,7 @@ int try_to_interpret_text_as_error_code(
     }
   }
 
-  const int error_code = ngs::stoi(error_code_in_text_format.c_str());
+  const int error_code = std::stoi(error_code_in_text_format.c_str());
 
   if (0 == error_code && 1 == error_code_in_text_format.length()) return 0;
 
@@ -80,7 +80,7 @@ int try_to_interpret_text_as_error_code(
 
   if (NULL == get_error_entry_by_id(error_code)) {
     throw std::logic_error("Error code is unknown, got " +
-                           ngs::to_string(error_code));
+                           xpl::to_string(error_code));
   }
 
   return error_code;

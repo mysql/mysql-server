@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,9 +25,9 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <sys/types.h>
+#include <memory>
 
 #include "my_inttypes.h"
-#include "plugin/x/ngs/include/ngs_common/smart_ptr.h"
 #include "plugin/x/src/callback_command_delegate.h"
 
 namespace ngs {
@@ -61,8 +61,8 @@ using namespace ::testing;
 
 class Mock_callback_commands {
  public:
-  MOCK_METHOD0(start_row, xpl::Callback_command_delegate::Row_data *());
-  MOCK_METHOD1(end_row, bool(xpl::Callback_command_delegate::Row_data *));
+  MOCK_METHOD0(start_row, Callback_command_delegate::Row_data *());
+  MOCK_METHOD1(end_row, bool(Callback_command_delegate::Row_data *));
 };
 
 MATCHER_P(Eq_mysql_time, n, "") {
@@ -93,16 +93,16 @@ MATCHER_P(Eq_info, param, "") {
 
 class Callback_command_delegate_testsuite : public Test {
  public:
-  void SetUp() { m_sut.reset(new xpl::Callback_command_delegate()); }
+  void SetUp() { m_sut.reset(new Callback_command_delegate()); }
 
   void create_sut_with_callback_mock() {
-    xpl::Callback_command_delegate::Start_row_callback start_row =
-        ngs::bind(&Mock_callback_commands::start_row, &m_mock_callbacks);
-    xpl::Callback_command_delegate::End_row_callback end_row =
-        ngs::bind(&Mock_callback_commands::end_row, &m_mock_callbacks,
-                  ngs::placeholders::_1);
+    Callback_command_delegate::Start_row_callback start_row =
+        std::bind(&Mock_callback_commands::start_row, &m_mock_callbacks);
+    Callback_command_delegate::End_row_callback end_row =
+        std::bind(&Mock_callback_commands::end_row, &m_mock_callbacks,
+                  std::placeholders::_1);
 
-    m_sut.reset(new xpl::Callback_command_delegate(start_row, end_row));
+    m_sut.reset(new Callback_command_delegate(start_row, end_row));
   }
 
   void assert_row_and_data_functions(const bool expected_result) {
@@ -153,8 +153,7 @@ class Callback_command_delegate_testsuite : public Test {
     ASSERT_THAT(m_sut->get_info(), Eq_info(expect));
   }
 
-  void assert_row_container(
-      xpl::Callback_command_delegate::Row_data &row_data) {
+  void assert_row_container(Callback_command_delegate::Row_data &row_data) {
     // assert_row_and_data_functions
     const std::size_t expected_size_inserted_by_testsuite = 9;
 
@@ -202,7 +201,7 @@ class Callback_command_delegate_testsuite : public Test {
   }
 
   StrictMock<Mock_callback_commands> m_mock_callbacks;
-  ngs::unique_ptr<ngs::Command_delegate> m_sut;
+  std::unique_ptr<ngs::Command_delegate> m_sut;
 };
 
 TEST_F(Callback_command_delegate_testsuite,
@@ -221,7 +220,7 @@ TEST_F(Callback_command_delegate_testsuite,
 TEST_F(Callback_command_delegate_testsuite,
        process_data_verify_that_callbacks_are_called_but_container_is_missing) {
   const bool expect_failure = true;
-  xpl::Callback_command_delegate::Row_data *expected_container = NULL;
+  Callback_command_delegate::Row_data *expected_container = NULL;
 
   create_sut_with_callback_mock();
 
@@ -240,7 +239,7 @@ TEST_F(Callback_command_delegate_testsuite,
 TEST_F(Callback_command_delegate_testsuite,
        process_data_verify_that_callbacks_are_called_and_data_in_container) {
   const bool expect_success = false;
-  xpl::Callback_command_delegate::Row_data expected_container;
+  Callback_command_delegate::Row_data expected_container;
 
   create_sut_with_callback_mock();
 

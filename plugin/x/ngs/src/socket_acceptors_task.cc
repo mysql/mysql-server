@@ -31,7 +31,7 @@
 #include <iterator>
 
 #include "plugin/x/ngs/include/ngs/log.h"
-#include "plugin/x/ngs/include/ngs_common/string_formatter.h"
+#include "plugin/x/src/helper/string_formatter.h"
 
 namespace ngs {
 
@@ -101,7 +101,7 @@ bool Socket_acceptors_task::prepare(
           properties[id] = value;
         });
   }
-  properties[ngs::Server_property_ids::k_number_of_interfaces] =
+  properties[Server_property_ids::k_number_of_interfaces] =
       std::to_string(listeners.size());
 
   if (context && context->m_properties) context->m_properties->swap(properties);
@@ -173,7 +173,7 @@ void Socket_acceptors_task::log_listener_state(Listener_interface *listener) {
               listener->get_last_error().c_str());
 
     std::string listener_configuration_variable =
-        ngs::join(listener->get_configuration_variables(), "','");
+        xpl::join(listener->get_configuration_variables(), "','");
 
     if (!listener_configuration_variable.empty()) {
       log_info(ER_XPLUGIN_LISTENER_SYS_VARIABLE_ERROR,

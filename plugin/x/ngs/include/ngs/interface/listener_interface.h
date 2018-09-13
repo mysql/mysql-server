@@ -25,11 +25,11 @@
 #ifndef PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_LISTENER_INTERFACE_H_
 #define PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_LISTENER_INTERFACE_H_
 
+#include <functional>
 #include <vector>
 
 #include "plugin/x/ngs/include/ngs/server_properties.h"
 #include "plugin/x/ngs/include/ngs/thread.h"
-#include "plugin/x/ngs/include/ngs_common/bind.h"
 #include "plugin/x/src/helper/multithread/sync_variable.h"
 #include "violite.h"
 
@@ -47,8 +47,8 @@ enum State_listener {
 class Listener_interface {
  public:
   using Sync_variable_state = xpl::Sync_variable<State_listener>;
-  using On_connection = ngs::function<void(Connection_acceptor_interface &)>;
-  using On_report_properties = ngs::function<void(
+  using On_connection = std::function<void(Connection_acceptor_interface &)>;
+  using On_report_properties = std::function<void(
       const Server_property_ids status_id, const std::string &status_value)>;
 
   virtual ~Listener_interface() = default;

@@ -35,7 +35,7 @@
 #include "mysql_com.h"
 #include "mysql_time.h"
 #include "plugin/x/ngs/include/ngs/protocol/message_builder.h"
-#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 
 namespace ngs {
 class Output_buffer;

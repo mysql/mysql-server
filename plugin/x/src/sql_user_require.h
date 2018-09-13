@@ -27,7 +27,7 @@
 
 #include <string>
 
-#include "plugin/x/ngs/include/ngs_common/ssl_session_options_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/ssl_session_options_interface.h"
 #include "plugin/x/src/sql_data_context.h"
 
 namespace xpl {

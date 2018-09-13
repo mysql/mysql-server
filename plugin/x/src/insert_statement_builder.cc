@@ -24,7 +24,7 @@
 
 #include "plugin/x/src/insert_statement_builder.h"
 
-#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/src/json_utils.h"
 #include "plugin/x/src/xpl_error.h"
 #include "plugin/x/src/xpl_log.h"
@@ -48,9 +48,9 @@ void Insert_statement_builder::add_projection(const Projection_list &projection,
   if (is_relational) {
     if (projection.size() != 0)
       m_builder.put(" (")
-          .put_list(projection, ngs::bind(&Generator::put_identifier, m_builder,
-                                          ngs::bind(&Mysqlx::Crud::Column::name,
-                                                    ngs::placeholders::_1)))
+          .put_list(projection, std::bind(&Generator::put_identifier, m_builder,
+                                          std::bind(&Mysqlx::Crud::Column::name,
+                                                    std::placeholders::_1)))
           .put(")");
   } else {
     if (projection.size() != 0)

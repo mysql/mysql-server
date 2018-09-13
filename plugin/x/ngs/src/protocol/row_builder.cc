@@ -37,9 +37,9 @@
 #include "plugin/x/client/mysqlxclient/xdatetime.h"
 #include "plugin/x/client/mysqlxclient/xdecimal.h"
 #include "plugin/x/ngs/include/ngs/protocol/page_output_stream.h"
-#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 
-using namespace ngs;
+namespace ngs {
 
 #define ADD_FIELD_HEADER()                                                   \
   DBUG_ASSERT(m_row_processing);                                             \
@@ -458,3 +458,5 @@ void Row_builder::add_bit_field(const char *const value, size_t length) {
   m_out_stream->WriteVarint32(CodedOutputStream::VarintSize64(binary_value));
   m_out_stream->WriteVarint64(binary_value);
 }
+
+}  // namespace ngs

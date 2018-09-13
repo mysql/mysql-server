@@ -27,7 +27,7 @@
 
 #include <string>
 
-#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 
 namespace xpl {
 class Query_string_builder;

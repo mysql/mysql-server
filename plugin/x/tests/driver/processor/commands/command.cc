@@ -35,7 +35,7 @@
 
 #include "mysqld_error.h"
 
-#include "plugin/x/ngs/include/ngs_common/to_string.h"
+#include "plugin/x/src/helper/to_string.h"
 #include "plugin/x/tests/driver/common/message_matcher.h"
 #include "plugin/x/tests/driver/connector/mysqlx_all_msgs.h"
 #include "plugin/x/tests/driver/connector/warning.h"
@@ -108,7 +108,7 @@ class Backup_and_restore {
 
 }  // namespace
 
-ngs::chrono::time_point Command::m_start_measure;
+xpl::chrono::Time_point Command::m_start_measure;
 
 Command::Command() {
   m_commands["title"] = &Command::cmd_title;
@@ -244,8 +244,10 @@ Command::Result Command::cmd_title(std::istream &input,
                                    Execution_context *context,
                                    const std::string &args) {
   if (!args.empty()) {
-    context->print("\n", args.substr(1), "\n");
-    std::string sep(args.length() - 1, args[0]);
+    std::string s = args.substr(1);
+    context->m_variables->replace(&s);
+    context->print("\n", s, "\n");
+    std::string sep(s.length(), args[0]);
     context->print(sep, "\n");
   } else {
     context->print("\n\n");
@@ -795,7 +797,7 @@ Command::Result Command::cmd_sleep(std::istream &input,
 
   std::string tmp = args;
   context->m_variables->replace(&tmp);
-  const double delay_in_seconds = ngs::stod(tmp);
+  const double delay_in_seconds = std::stod(tmp);
 #ifdef _WIN32
   const int delay_in_milliseconds = static_cast<int>(delay_in_seconds * 1000);
   Sleep(delay_in_milliseconds);
@@ -889,12 +891,12 @@ Command::Result Command::cmd_repeat(std::istream &input,
   // Allow use of variables as a source of number of iterations
   context->m_variables->replace(&argl[0]);
 
-  Loop_do loop = {input.tellg(), ngs::stoi(argl[0]), 0, variable_name};
+  Loop_do loop = {input.tellg(), std::stoi(argl[0]), 0, variable_name};
 
   m_loop_stack.push_back(loop);
 
   if (variable_name.length())
-    context->m_variables->set(variable_name, ngs::to_string(loop.value));
+    context->m_variables->set(variable_name, xpl::to_string(loop.value));
 
   return Result::Continue;
 }
@@ -909,7 +911,7 @@ Command::Result Command::cmd_endrepeat(std::istream &input,
     ++ld.value;
 
     if (ld.variable_name.length())
-      context->m_variables->set(ld.variable_name, ngs::to_string(ld.value));
+      context->m_variables->set(ld.variable_name, xpl::to_string(ld.value));
 
     if (1 > ld.iterations) {
       m_loop_stack.pop_back();
@@ -1075,7 +1077,7 @@ Command::Result Command::cmd_peerdisc(std::istream &input,
     tolerance = 10 * expected_delta_time / 100;
   }
 
-  ngs::chrono::time_point start_time = ngs::chrono::now();
+  xpl::chrono::Time_point start_time = xpl::chrono::now();
   try {
     xcl::XProtocol::Server_message_type_id msgid;
     context->m_connection->active_xconnection()->set_read_timeout(
@@ -1106,7 +1108,7 @@ Command::Result Command::cmd_peerdisc(std::istream &input,
   }
 
   int execution_delta_time = static_cast<int>(
-      ngs::chrono::to_milliseconds(ngs::chrono::now() - start_time));
+      xpl::chrono::to_milliseconds(xpl::chrono::now() - start_time));
 
   if (abs(execution_delta_time - expected_delta_time) > tolerance) {
     context->print_error(
@@ -1203,7 +1205,7 @@ Command::Result Command::cmd_shutdown_server(std::istream &input,
                                              const std::string &args) {
   int timeout_seconds = 0;
 
-  if (args.size() > 0) timeout_seconds = ngs::stoi(args);
+  if (args.size() > 0) timeout_seconds = std::stoi(args);
 
   if (0 != timeout_seconds) {
     context->m_console.print_error(
@@ -1231,7 +1233,7 @@ Command::Result Command::cmd_shutdown_server(std::istream &input,
                               }));
     try_result(cmd_varfile(input, context, "__%VAR% " + pid_file));
 
-    const auto pid = ngs::stoi(context->m_variables->get("__%VAR%"));
+    const auto pid = std::stoi(context->m_variables->get("__%VAR%"));
 
     if (0 == pid) {
       context->m_console.print_error("Pid-file doesn't contain valid PID.\n");
@@ -1486,14 +1488,14 @@ Command::Result Command::cmd_expecterror(std::istream &input,
 Command::Result Command::cmd_measure(std::istream &input,
                                      Execution_context *context,
                                      const std::string &args) {
-  m_start_measure = ngs::chrono::now();
+  m_start_measure = xpl::chrono::now();
   return Result::Continue;
 }
 
 Command::Result Command::cmd_endmeasure(std::istream &input,
                                         Execution_context *context,
                                         const std::string &args) {
-  if (!ngs::chrono::is_valid(m_start_measure)) {
+  if (!xpl::chrono::is_valid(m_start_measure)) {
     context->print_error("Time measurement, wasn't initialized", '\n');
     return Result::Stop_with_failure;
   }
@@ -1506,13 +1508,13 @@ Command::Result Command::cmd_endmeasure(std::istream &input,
     return Result::Stop_with_failure;
   }
 
-  const int64_t expected_msec = ngs::stoi(argl[0]);
+  const int64_t expected_msec = std::stoi(argl[0]);
   const int64_t msec =
-      ngs::chrono::to_milliseconds(ngs::chrono::now() - m_start_measure);
+      xpl::chrono::to_milliseconds(xpl::chrono::now() - m_start_measure);
 
   int64_t tolerance = expected_msec * 10 / 100;
 
-  if (2 == argl.size()) tolerance = ngs::stoi(argl[1]);
+  if (2 == argl.size()) tolerance = std::stoi(argl[1]);
 
   if (abs(static_cast<int>(expected_msec - msec)) > tolerance) {
     context->print_error("Timeout should occur after ", expected_msec,
@@ -1520,7 +1522,7 @@ Command::Result Command::cmd_endmeasure(std::istream &input,
     return Result::Stop_with_failure;
   }
 
-  m_start_measure = ngs::chrono::time_point();
+  m_start_measure = xpl::chrono::Time_point();
   return Result::Continue;
 }
 
@@ -1625,7 +1627,7 @@ Command::Result Command::cmd_varinc(std::istream &input,
   int64_t int_val = strtol(val.c_str(), &c, 10);
   int64_t int_n = strtol(inc_by.c_str(), &c, 10);
   int_val += int_n;
-  val = ngs::to_string(int_val);
+  val = xpl::to_string(int_val);
   context->m_variables->set(argl[0], val);
 
   return Result::Continue;
@@ -1640,7 +1642,7 @@ Command::Result Command::cmd_vargen(std::istream &input,
     context->print_error("Invalid number of arguments for command vargen\n");
     return Result::Stop_with_failure;
   }
-  std::string data(ngs::stoi(argl[2]), *argl[1].c_str());
+  std::string data(std::stoi(argl[2]), *argl[1].c_str());
   context->m_variables->set(argl[0], data);
   return Result::Continue;
 }
@@ -1757,12 +1759,12 @@ Command::Result Command::cmd_hexsend(std::istream &input,
 size_t Command::value_to_offset(const std::string &data,
                                 const size_t maximum_value) {
   if ('%' == *data.rbegin()) {
-    size_t percent = ngs::stoi(data);
+    size_t percent = std::stoi(data);
 
     return maximum_value * percent / 100;
   }
 
-  return ngs::stoi(data);
+  return std::stoi(data);
 }
 
 Command::Result Command::cmd_binsendoffset(std::istream &input,
@@ -1923,7 +1925,7 @@ Command::Result Command::cmd_assert_gt(std::istream &input,
   context->m_variables->replace(&vargs[0]);
   context->m_variables->replace(&vargs[1]);
 
-  if (ngs::stoi(vargs[0]) <= ngs::stoi(vargs[1])) {
+  if (std::stoi(vargs[0]) <= std::stoi(vargs[1])) {
     context->print_error("Expecting '", vargs[0], "' to be greater than '",
                          vargs[1], "'\n");
     return Result::Stop_with_failure;
@@ -2066,7 +2068,7 @@ Command::Result Command::cmd_received(std::istream &input,
 
   context->m_variables->set(
       vargs[1],
-      ngs::to_string(
+      xpl::to_string(
           context->m_connection->active_session_messages_received(vargs[0])));
 
   return Result::Continue;

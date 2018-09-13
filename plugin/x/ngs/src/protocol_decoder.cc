@@ -26,7 +26,7 @@
 #include <new>
 
 #include "plugin/x/ngs/include/ngs/ngs_error.h"
-#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 
 const uint32_t ON_IDLE_TIMEOUT_VALUE = 500;
 

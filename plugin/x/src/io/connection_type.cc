@@ -22,37 +22,47 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef PLUGIN_X_NGS_INCLUDE_NGS_COMMON_SSL_SESSION_OPTIONS_H_
-#define PLUGIN_X_NGS_INCLUDE_NGS_COMMON_SSL_SESSION_OPTIONS_H_
+#include "plugin/x/src/io/connection_type.h"
 
-#include "plugin/x/ngs/include/ngs/interface/vio_interface.h"
-#include "plugin/x/ngs/include/ngs_common/ssl_session_options_interface.h"
+namespace xpl {
 
-namespace ngs {
+Connection_type Connection_type_helper::convert_type(const enum_vio_type type) {
+  switch (type) {
+    case VIO_TYPE_SOCKET:
+      return Connection_unixsocket;
 
-class Ssl_session_options : public Ssl_session_options_interface {
- public:
-  Ssl_session_options(Vio_interface *vio) : m_vio(vio) {}
+    case VIO_TYPE_SSL:
+      return Connection_tls;
 
-  bool active_tls() const override;
-  std::string ssl_cipher() const override;
-  std::string ssl_version() const override;
-  std::vector<std::string> ssl_cipher_list() const override;
+    case VIO_TYPE_TCPIP:
+      return Connection_tcpip;
 
-  long ssl_verify_depth() const override;
-  long ssl_verify_mode() const override;
+    case VIO_TYPE_NAMEDPIPE:
+      return Connection_namedpipe;
 
-  long ssl_sessions_reused() const override;
-  long ssl_get_verify_result_and_cert() const override;
+    default:
+      return Connection_notset;
+  }
+}
 
-  std::string ssl_get_peer_certificate_issuer() const override;
+enum_vio_type Connection_type_helper::convert_type(const Connection_type type) {
+  for (int e = FIRST_VIO_TYPE; e <= LAST_VIO_TYPE; ++e) {
+    if (type == convert_type(static_cast<enum_vio_type>(e)))
+      return static_cast<enum_vio_type>(e);
+  }
 
-  std::string ssl_get_peer_certificate_subject() const override;
+  return NO_VIO_TYPE;
+}
 
- private:
-  Vio_interface *m_vio;
-};
+bool Connection_type_helper::is_secure_type(const Connection_type type) {
+  switch (type) {
+    case Connection_tls:
+    case Connection_unixsocket:  // fallthrough
+      return true;
 
-}  // namespace ngs
+    default:
+      return false;
+  }
+}
 
-#endif  // PLUGIN_X_NGS_INCLUDE_NGS_COMMON_SSL_SESSION_OPTIONS_H_
+}  // namespace xpl

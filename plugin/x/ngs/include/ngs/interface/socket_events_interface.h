@@ -25,12 +25,12 @@
 #ifndef PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_SOCKET_EVENTS_INTERFACE_H_
 #define PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_SOCKET_EVENTS_INTERFACE_H_
 
+#include <functional>
 #include <list>
 #include <vector>
 
+#include "plugin/x/ngs/include/ngs/interface/socket_interface.h"
 #include "plugin/x/ngs/include/ngs/thread.h"
-#include "plugin/x/ngs/include/ngs_common/bind.h"
-#include "plugin/x/ngs/include/ngs_common/socket_interface.h"
 
 namespace ngs {
 
@@ -42,10 +42,10 @@ class Socket_events_interface {
 
   virtual bool listen(
       Socket_interface::Shared_ptr s,
-      ngs::function<void(Connection_acceptor_interface &)> callback) = 0;
+      std::function<void(Connection_acceptor_interface &)> callback) = 0;
 
   virtual void add_timer(const std::size_t delay_ms,
-                         ngs::function<bool()> callback) = 0;
+                         std::function<bool()> callback) = 0;
   virtual void loop() = 0;
   virtual void break_loop() = 0;
 };

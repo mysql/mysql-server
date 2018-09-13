@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -22,23 +22,28 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-/* Version numbers for X Plugin */
+#ifndef PLUGIN_X_SRC_IO_CONNECTION_TYPE_H_
+#define PLUGIN_X_SRC_IO_CONNECTION_TYPE_H_
 
-#ifndef _MYSQLX_VERSION_H_
-#define _MYSQLX_VERSION_H_
+#include "violite.h"
 
-#define MYSQLX_PLUGIN_VERSION_MAJOR @MYSQLX_PLUGIN_VERSION_MAJOR@
-#define MYSQLX_PLUGIN_VERSION_MINOR @MYSQLX_PLUGIN_VERSION_MINOR@
-#define MYSQLX_PLUGIN_VERSION_PATCH @MYSQLX_PLUGIN_VERSION_PATCH@
+namespace xpl {
 
-#define MYSQLX_PLUGIN_NAME "@MYSQLX_PLUGIN_NAME@"
-#define MYSQLX_STATUS_VARIABLE_PREFIX(NAME) "@MYSQLX_STATUS_VARIABLE_NAME@_" NAME
-#define MYSQLX_SYSTEM_VARIABLE_PREFIX(NAME) "@MYSQLX_SYSTEM_VARIABLE_NAME@_" NAME
+enum Connection_type {
+  Connection_notset,
+  Connection_tcpip,
+  Connection_unixsocket,
+  Connection_tls,
+  Connection_namedpipe
+};
 
-#define MYSQLX_TCP_PORT             @MYSQLX_TCP_PORT@U
-#define MYSQLX_UNIX_ADDR            "@MYSQLX_UNIX_ADDR@"
+class Connection_type_helper {
+ public:
+  static Connection_type convert_type(const enum_vio_type type);
+  static enum_vio_type convert_type(const Connection_type type);
+  static bool is_secure_type(const Connection_type type);
+};
 
-#define MYSQLX_PLUGIN_VERSION ( (MYSQLX_PLUGIN_VERSION_MAJOR << 8) | MYSQLX_PLUGIN_VERSION_MINOR )
-#define MYSQLX_PLUGIN_VERSION_STRING "@MYSQLX_PLUGIN_VERSION_MAJOR@.@MYSQLX_PLUGIN_VERSION_MINOR@.@MYSQLX_PLUGIN_VERSION_PATCH@"
+}  // namespace xpl
 
-#endif // _MYSQLX_VERSION_H_
+#endif  // PLUGIN_X_SRC_IO_CONNECTION_TYPE_H_

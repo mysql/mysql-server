@@ -24,6 +24,7 @@
 
 #include <cstring>
 #include <iostream>
+#include <stdexcept>
 
 /// Run a query and return one field in the result set from the first
 /// row and column.

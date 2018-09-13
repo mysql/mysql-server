@@ -22,14 +22,12 @@
 
 FILE(GLOB ngs_HDRS
   "${MYSQLX_PROJECT_DIR}/ngs/include/ngs/*.h"
-  "${MYSQLX_PROJECT_DIR}/ngs/include/ngs_common/*.h"
   "${MYSQLX_PROJECT_DIR}/ngs/include/ngs/protocol/*.h"
   "${MYSQLX_PROJECT_DIR}/ngs/include/ngs/capabilities/*.h"
 )
 
 FILE(GLOB ngs_SRC
   "${MYSQLX_PROJECT_DIR}/ngs/src/*.cc"
-  "${MYSQLX_PROJECT_DIR}/ngs/ngs_common/*.cc"
   "${MYSQLX_PROJECT_DIR}/ngs/src/protocol/*.cc"
   "${MYSQLX_PROJECT_DIR}/ngs/src/capabilities/*.cc"
 )
@@ -40,6 +38,10 @@ SET(xplugin_HDRS
   "${MYSQLX_PROJECT_DIR}/src/helper/multithread/mutex.h"
   "${MYSQLX_PROJECT_DIR}/src/helper/multithread/rw_lock.h"
   "${MYSQLX_PROJECT_DIR}/src/helper/multithread/sync_variable.h"
+  "${MYSQLX_PROJECT_DIR}/src/helper/chrono.h"
+  "${MYSQLX_PROJECT_DIR}/src/helper/string_formatter.h"
+  "${MYSQLX_PROJECT_DIR}/src/helper/to_string.h"
+  "${MYSQLX_PROJECT_DIR}/src/io/connection_type.h"
   "${MYSQLX_PROJECT_DIR}/src/io/xpl_listener_tcp.h"
   "${MYSQLX_PROJECT_DIR}/src/io/xpl_listener_unix_socket.h"
   "${MYSQLX_PROJECT_DIR}/src/io/vio_input_stream.h"
@@ -105,6 +107,9 @@ SET(xplugin_HDRS
   "${MYSQLX_PROJECT_DIR}/src/global_timeouts.h"
   "${MYSQLX_PROJECT_DIR}/src/sql_statement_builder.h"
   "${MYSQLX_PROJECT_DIR}/src/document_id_aggregator.h"
+  "${MYSQLX_PROJECT_DIR}/src/ssl_context.h"
+  "${MYSQLX_PROJECT_DIR}/src/ssl_context_options.h"
+  "${MYSQLX_PROJECT_DIR}/src/ssl_session_options.h"
   ${ngs_HDRS}
 )
 
@@ -119,6 +124,7 @@ SET(xplugin_SRC
   "${MYSQLX_PROJECT_DIR}/src/io/xpl_listener_tcp.cc"
   "${MYSQLX_PROJECT_DIR}/src/io/xpl_listener_unix_socket.cc"
   "${MYSQLX_PROJECT_DIR}/src/io/vio_input_stream.cc"
+  "${MYSQLX_PROJECT_DIR}/src/io/connection_type.cc"
   "${MYSQLX_PROJECT_DIR}/src/mq/broker_task.cc"
   "${MYSQLX_PROJECT_DIR}/src/mq/notice_input_queue.cc"
   "${MYSQLX_PROJECT_DIR}/src/mq/notice_output_queue.cc"
@@ -179,6 +185,10 @@ SET(xplugin_SRC
   "${MYSQLX_PROJECT_DIR}/src/xpl_performance_schema.cc"
   "${MYSQLX_PROJECT_DIR}/src/sql_statement_builder.cc"
   "${MYSQLX_PROJECT_DIR}/src/document_id_aggregator.cc"
+  "${MYSQLX_PROJECT_DIR}/src/operations_factory.cc"
+  "${MYSQLX_PROJECT_DIR}/src/ssl_context.cc"
+  "${MYSQLX_PROJECT_DIR}/src/ssl_context_options.cc"
+  "${MYSQLX_PROJECT_DIR}/src/ssl_session_options.cc"
   ${ngs_SRC}
 )
 

@@ -24,14 +24,14 @@
 
 #include "plugin/x/src/notices.h"
 
+#include <functional>
 #include <string>
 #include <vector>
 
 #include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/protocol_monitor_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/sql_session_interface.h"
-#include "plugin/x/ngs/include/ngs_common/bind.h"
-#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/src/xpl_resultset.h"
 
 namespace xpl {
@@ -40,7 +40,7 @@ namespace notices {
 
 namespace {
 
-class Warning_resultset : public xpl::Process_resultset {
+class Warning_resultset : public Process_resultset {
  public:
   Warning_resultset(ngs::Protocol_encoder_interface *proto,
                     const bool skip_single_error)

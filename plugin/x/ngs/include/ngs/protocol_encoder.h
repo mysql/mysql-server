@@ -26,6 +26,7 @@
 #define PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_ENCODER_H_
 
 #include <map>
+#include <memory>
 #include <vector>
 #include "my_inttypes.h"
 
@@ -41,8 +42,7 @@
 #include "plugin/x/ngs/include/ngs/protocol/page_pool.h"
 #include "plugin/x/ngs/include/ngs/protocol/row_builder.h"
 #include "plugin/x/ngs/include/ngs/protocol_fwd.h"
-#include "plugin/x/ngs/include/ngs_common/chrono.h"
-#include "plugin/x/ngs/include/ngs_common/smart_ptr.h"
+#include "plugin/x/src/helper/chrono.h"
 #include "plugin/x/src/xpl_system_variables.h"
 #include "protocol/page_output_stream.h"
 
@@ -52,7 +52,7 @@ class Output_buffer;
 
 class Protocol_encoder : public Protocol_encoder_interface {
  public:
-  Protocol_encoder(const ngs::shared_ptr<Vio_interface> &socket,
+  Protocol_encoder(const std::shared_ptr<Vio_interface> &socket,
                    Error_handler ehandler, Protocol_monitor_interface *pmon);
 
   Page_output_stream *get_buffer() override { return &m_page_output_stream; }
@@ -109,7 +109,7 @@ class Protocol_encoder : public Protocol_encoder_interface {
 
   // Temporary solution for all io
   static const Pool_config m_default_pool_config;
-  ngs::Page_pool m_pool;
+  Page_pool m_pool;
   Error_handler m_error_handler;
   Protocol_monitor_interface *m_protocol_monitor;
 

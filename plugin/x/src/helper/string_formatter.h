@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef PLUGIN_X_NGS_INCLUDE_NGS_COMMON_STRING_FORMATTER_H_
-#define PLUGIN_X_NGS_INCLUDE_NGS_COMMON_STRING_FORMATTER_H_
+#ifndef PLUGIN_X_SRC_HELPER_STRING_FORMATTER_H_
+#define PLUGIN_X_SRC_HELPER_STRING_FORMATTER_H_
 
 #include <sstream>
 #include <string>
@@ -32,7 +32,7 @@
 #include "plugin/x/ngs/include/ngs/memory.h"
 #include "violite.h"
 
-namespace ngs {
+namespace xpl {
 
 class String_formatter {
  public:
@@ -74,6 +74,6 @@ std::string join(const std::vector<Element_type> &elements_array,
   return String_formatter().join(elements_array, separator).get_result();
 }
 
-}  // namespace ngs
+}  // namespace xpl
 
-#endif  // PLUGIN_X_NGS_INCLUDE_NGS_COMMON_STRING_FORMATTER_H_
+#endif  // PLUGIN_X_SRC_HELPER_STRING_FORMATTER_H_

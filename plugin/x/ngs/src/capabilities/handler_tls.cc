@@ -33,27 +33,26 @@
 namespace ngs {
 
 using ::Mysqlx::Datatypes::Any;
-using ::Mysqlx::Datatypes::Any;
 using ::Mysqlx::Datatypes::Scalar;
 
 bool Capability_tls::is_supported() const {
-  const Connection_type type = m_client.connection().get_type();
-  const bool is_supported_connection_type = Connection_tcpip == type ||
-                                            Connection_tls == type ||
-                                            Connection_unixsocket == type;
+  const xpl::Connection_type type = m_client.connection().get_type();
+  const bool is_supported_connection_type = xpl::Connection_tcpip == type ||
+                                            xpl::Connection_tls == type ||
+                                            xpl::Connection_unixsocket == type;
 
   return m_client.server().ssl_context()->has_ssl() &&
          is_supported_connection_type;
 }
 
 void Capability_tls::get(Any &any) {
-  bool is_tls_active = m_client.connection().get_type() == ngs::Connection_tls;
+  bool is_tls_active = m_client.connection().get_type() == xpl::Connection_tls;
 
   Setter_any::set_scalar(any, is_tls_active);
 }
 
 bool Capability_tls::set(const Any &any) {
-  bool is_tls_active = m_client.connection().get_type() == ngs::Connection_tls;
+  bool is_tls_active = m_client.connection().get_type() == xpl::Connection_tls;
 
   tls_should_be_enabled =
       Getter_any::get_numeric_value_or_default<int>(any, false) &&

@@ -131,4 +131,7 @@ ngs::Error_code Dispatcher::on_expect_close() {
   return error;
 }
 
+void Dispatcher::reset() {
+  m_prepare_handler = Prepare_command_handler{m_session};
+}
 }  // namespace xpl

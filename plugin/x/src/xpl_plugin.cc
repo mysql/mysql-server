@@ -73,7 +73,7 @@ int session_status_variable(THD *thd, SHOW_VAR *var, char *buff) {
   auto server(xpl::Server::get_instance());
   if (server) {
     MUTEX_LOCK(lock, (*server)->server().get_client_exit_mutex());
-    auto client = ngs::dynamic_pointer_cast<xpl::Client>(
+    auto client = std::dynamic_pointer_cast<xpl::Client>(
         (*server)->server().get_client(thd));
 
     if (client) ((*client).*method)(var);
@@ -90,12 +90,12 @@ int session_status_variable(THD *thd, SHOW_VAR *var, char *buff) {
   auto server(xpl::Server::get_instance());
   if (server) {
     MUTEX_LOCK(lock, (*server)->server().get_client_exit_mutex());
-    auto client = ngs::dynamic_pointer_cast<xpl::Client>(
+    auto client = std::dynamic_pointer_cast<xpl::Client>(
         (*server)->server().get_client(thd));
 
     if (client) {
       ReturnType result =
-          (ngs::Ssl_session_options(&client->connection()).*method)();
+          (xpl::Ssl_session_options(&client->connection()).*method)();
       mysqld::xpl_show_var(var).assign(result);
     }
   }
@@ -152,7 +152,7 @@ int common_status_variable(THD *thd, SHOW_VAR *var, char *buff) {
   auto server(xpl::Server::get_instance());
   if (server) {
     MUTEX_LOCK(lock, (*server)->server().get_client_exit_mutex());
-    auto client = ngs::dynamic_pointer_cast<xpl::Client>(
+    auto client = std::dynamic_pointer_cast<xpl::Client>(
         (*server)->server().get_client(thd));
 
     if (client) {
@@ -208,7 +208,7 @@ void thd_variable(THD *thd, SYS_VAR *sys_var, void *tgt, const void *save) {
   if (server) {
     MUTEX_LOCK(lock, (*server)->server().get_client_exit_mutex());
 
-    xpl::Client_ptr client = ngs::dynamic_pointer_cast<xpl::Client>(
+    xpl::Client_ptr client = std::dynamic_pointer_cast<xpl::Client>(
         (*server)->server().get_client(thd));
     if (client) ((*client).*method)(*static_cast<Copy_type *>(tgt));
 

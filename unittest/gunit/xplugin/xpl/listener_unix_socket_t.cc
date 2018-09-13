@@ -70,13 +70,13 @@ MATCHER_P(EqCastToCStr, expected, "") {
 class Listener_unix_socket_testsuite : public Test {
  public:
   void SetUp() {
-    m_mock_factory = ngs::make_shared<StrictMock<ngs::test::Mock_factory>>();
-    m_mock_socket = ngs::make_shared<StrictMock<ngs::test::Mock_socket>>();
-    m_mock_system = ngs::make_shared<StrictMock<ngs::test::Mock_system>>();
-    m_mock_file = ngs::make_shared<StrictMock<ngs::test::Mock_file>>();
+    m_mock_factory = std::make_shared<StrictMock<ngs::test::Mock_factory>>();
+    m_mock_socket = std::make_shared<StrictMock<ngs::test::Mock_socket>>();
+    m_mock_system = std::make_shared<StrictMock<ngs::test::Mock_system>>();
+    m_mock_file = std::make_shared<StrictMock<ngs::test::Mock_file>>();
     m_mock_socket_invalid =
-        ngs::make_shared<StrictMock<ngs::test::Mock_socket>>();
-    m_mock_file_invalid = ngs::make_shared<StrictMock<ngs::test::Mock_file>>();
+        std::make_shared<StrictMock<ngs::test::Mock_socket>>();
+    m_mock_file_invalid = std::make_shared<StrictMock<ngs::test::Mock_file>>();
 
     EXPECT_CALL(*m_mock_factory, create_system_interface())
         .WillRepeatedly(Return(m_mock_system));
@@ -89,8 +89,8 @@ class Listener_unix_socket_testsuite : public Test {
         .WillRepeatedly(Return(SOCKET_OK));
     EXPECT_CALL(*m_mock_file, is_valid()).WillRepeatedly(Return(true));
 
-    sut = ngs::make_shared<Listener_unix_socket>(
-        m_mock_factory, UNIX_SOCKET_FILE, ngs::ref(m_mock_socket_events),
+    sut = std::make_shared<Listener_unix_socket>(
+        m_mock_factory, UNIX_SOCKET_FILE, std::ref(m_mock_socket_events),
         BACKLOG);
   }
 
@@ -135,15 +135,15 @@ class Listener_unix_socket_testsuite : public Test {
     ASSERT_TRUE(Mock::VerifyAndClearExpectations(m_mock_factory.get()));
   }
 
-  ngs::shared_ptr<ngs::test::Mock_socket> m_mock_socket;
-  ngs::shared_ptr<ngs::test::Mock_socket> m_mock_socket_invalid;
-  ngs::shared_ptr<ngs::test::Mock_system> m_mock_system;
-  ngs::shared_ptr<ngs::test::Mock_file> m_mock_file_invalid;
-  ngs::shared_ptr<ngs::test::Mock_file> m_mock_file;
+  std::shared_ptr<ngs::test::Mock_socket> m_mock_socket;
+  std::shared_ptr<ngs::test::Mock_socket> m_mock_socket_invalid;
+  std::shared_ptr<ngs::test::Mock_system> m_mock_system;
+  std::shared_ptr<ngs::test::Mock_file> m_mock_file_invalid;
+  std::shared_ptr<ngs::test::Mock_file> m_mock_file;
   StrictMock<ngs::test::Mock_socket_events> m_mock_socket_events;
-  ngs::shared_ptr<ngs::test::Mock_factory> m_mock_factory;
+  std::shared_ptr<ngs::test::Mock_factory> m_mock_factory;
 
-  ngs::shared_ptr<Listener_unix_socket> sut;
+  std::shared_ptr<Listener_unix_socket> sut;
 };
 
 ACTION_P(SetArg0ToChar, value) { *static_cast<char *>(arg0) = value; }
@@ -152,8 +152,8 @@ ACTION_P(SetArg0ToChar2, value) { (static_cast<char *>(arg0)[1]) = value; }
 TEST_F(Listener_unix_socket_testsuite,
        unixsocket_try_to_create_empty_unixsocket_filename) {
 #if defined(HAVE_SYS_UN_H)
-  sut = ngs::make_shared<Listener_unix_socket>(
-      m_mock_factory, "", ngs::ref(m_mock_socket_events), BACKLOG);
+  sut = std::make_shared<Listener_unix_socket>(
+      m_mock_factory, "", std::ref(m_mock_socket_events), BACKLOG);
 
   EXPECT_CALL(*m_mock_socket_invalid, close());
 
@@ -166,8 +166,8 @@ TEST_F(Listener_unix_socket_testsuite,
        unixsocket_try_to_create_unixsocket_with_too_long_filename) {
 #if defined(HAVE_SYS_UN_H)
   std::string long_filename(2000, 'a');
-  sut = ngs::make_shared<Listener_unix_socket>(
-      m_mock_factory, long_filename, ngs::ref(m_mock_socket_events), BACKLOG);
+  sut = std::make_shared<Listener_unix_socket>(
+      m_mock_factory, long_filename, std::ref(m_mock_socket_events), BACKLOG);
 
   EXPECT_CALL(*m_mock_socket_invalid, close());
 
@@ -178,8 +178,8 @@ TEST_F(Listener_unix_socket_testsuite,
 
 TEST_F(Listener_unix_socket_testsuite, unixsocket_cant_create_a_lockfile) {
 #if defined(HAVE_SYS_UN_H)
-  sut = ngs::make_shared<Listener_unix_socket>(m_mock_factory, UNIX_SOCKET_FILE,
-                                               ngs::ref(m_mock_socket_events),
+  sut = std::make_shared<Listener_unix_socket>(m_mock_factory, UNIX_SOCKET_FILE,
+                                               std::ref(m_mock_socket_events),
                                                BACKLOG);
 
   EXPECT_CALL(*m_mock_factory, open_file(StrEq(UNIX_SOCKET_LOCK_FILE), _, _))
@@ -195,8 +195,8 @@ TEST_F(Listener_unix_socket_testsuite, unixsocket_cant_create_a_lockfile) {
 
 TEST_F(Listener_unix_socket_testsuite, unixsocket_cant_open_existing_lockfile) {
 #if defined(HAVE_SYS_UN_H)
-  sut = ngs::make_shared<Listener_unix_socket>(m_mock_factory, UNIX_SOCKET_FILE,
-                                               ngs::ref(m_mock_socket_events),
+  sut = std::make_shared<Listener_unix_socket>(m_mock_factory, UNIX_SOCKET_FILE,
+                                               std::ref(m_mock_socket_events),
                                                BACKLOG);
 
   EXPECT_CALL(*m_mock_system, get_pid()).WillOnce(Return(CURRENT_PID));
@@ -213,8 +213,8 @@ TEST_F(Listener_unix_socket_testsuite, unixsocket_cant_open_existing_lockfile) {
 
 TEST_F(Listener_unix_socket_testsuite, unixsocket_cant_read_existing_lockfile) {
 #if defined(HAVE_SYS_UN_H)
-  sut = ngs::make_shared<Listener_unix_socket>(m_mock_factory, UNIX_SOCKET_FILE,
-                                               ngs::ref(m_mock_socket_events),
+  sut = std::make_shared<Listener_unix_socket>(m_mock_factory, UNIX_SOCKET_FILE,
+                                               std::ref(m_mock_socket_events),
                                                BACKLOG);
 
   EXPECT_CALL(*m_mock_system, get_pid()).WillOnce(Return(CURRENT_PID));
@@ -232,8 +232,8 @@ TEST_F(Listener_unix_socket_testsuite, unixsocket_cant_read_existing_lockfile) {
 
 TEST_F(Listener_unix_socket_testsuite, unixsocket_read_empty_lockfile) {
 #if defined(HAVE_SYS_UN_H)
-  sut = ngs::make_shared<Listener_unix_socket>(m_mock_factory, UNIX_SOCKET_FILE,
-                                               ngs::ref(m_mock_socket_events),
+  sut = std::make_shared<Listener_unix_socket>(m_mock_factory, UNIX_SOCKET_FILE,
+                                               std::ref(m_mock_socket_events),
                                                BACKLOG);
 
   EXPECT_CALL(*m_mock_system, get_pid()).WillOnce(Return(CURRENT_PID));
@@ -252,8 +252,8 @@ TEST_F(Listener_unix_socket_testsuite, unixsocket_read_empty_lockfile) {
 
 TEST_F(Listener_unix_socket_testsuite, unixsocket_read_not_x_plugin_lockfile) {
 #if defined(HAVE_SYS_UN_H)
-  sut = ngs::make_shared<Listener_unix_socket>(m_mock_factory, UNIX_SOCKET_FILE,
-                                               ngs::ref(m_mock_socket_events),
+  sut = std::make_shared<Listener_unix_socket>(m_mock_factory, UNIX_SOCKET_FILE,
+                                               std::ref(m_mock_socket_events),
                                                BACKLOG);
 
   EXPECT_CALL(*m_mock_system, get_pid()).WillOnce(Return(CURRENT_PID));
@@ -277,8 +277,8 @@ TEST_F(Listener_unix_socket_testsuite,
 #if defined(HAVE_SYS_UN_H)
   const int expected_pid = 5;
   const char char_pid = '0' + expected_pid;
-  sut = ngs::make_shared<Listener_unix_socket>(m_mock_factory, UNIX_SOCKET_FILE,
-                                               ngs::ref(m_mock_socket_events),
+  sut = std::make_shared<Listener_unix_socket>(m_mock_factory, UNIX_SOCKET_FILE,
+                                               std::ref(m_mock_socket_events),
                                                BACKLOG);
 
   EXPECT_CALL(*m_mock_system, get_pid()).WillOnce(Return(CURRENT_PID));
@@ -304,8 +304,8 @@ TEST_F(Listener_unix_socket_testsuite,
 #if defined(HAVE_SYS_UN_H)
   const int expected_pid = 6;
   const char char_pid = '0' + expected_pid;
-  sut = ngs::make_shared<Listener_unix_socket>(m_mock_factory, UNIX_SOCKET_FILE,
-                                               ngs::ref(m_mock_socket_events),
+  sut = std::make_shared<Listener_unix_socket>(m_mock_factory, UNIX_SOCKET_FILE,
+                                               std::ref(m_mock_socket_events),
                                                BACKLOG);
 
   EXPECT_CALL(*m_mock_system, get_pid()).WillOnce(Return(CURRENT_PID));
@@ -330,8 +330,8 @@ TEST_F(Listener_unix_socket_testsuite,
 TEST_F(Listener_unix_socket_testsuite,
        unixsocket_write_x_plugin_lockfile_failed) {
 #if defined(HAVE_SYS_UN_H)
-  sut = ngs::make_shared<Listener_unix_socket>(m_mock_factory, UNIX_SOCKET_FILE,
-                                               ngs::ref(m_mock_socket_events),
+  sut = std::make_shared<Listener_unix_socket>(m_mock_factory, UNIX_SOCKET_FILE,
+                                               std::ref(m_mock_socket_events),
                                                BACKLOG);
 
   EXPECT_CALL(*m_mock_system, get_pid()).WillOnce(Return(CURRENT_PID));
@@ -348,8 +348,8 @@ TEST_F(Listener_unix_socket_testsuite,
 TEST_F(Listener_unix_socket_testsuite,
        unixsocket_fsync_x_plugin_lockfile_failed) {
 #if defined(HAVE_SYS_UN_H)
-  sut = ngs::make_shared<Listener_unix_socket>(m_mock_factory, UNIX_SOCKET_FILE,
-                                               ngs::ref(m_mock_socket_events),
+  sut = std::make_shared<Listener_unix_socket>(m_mock_factory, UNIX_SOCKET_FILE,
+                                               std::ref(m_mock_socket_events),
                                                BACKLOG);
 
   EXPECT_CALL(*m_mock_system, get_pid()).WillOnce(Return(CURRENT_PID));
@@ -370,8 +370,8 @@ TEST_F(Listener_unix_socket_testsuite,
 TEST_F(Listener_unix_socket_testsuite,
        unixsocket_close_x_plugin_lockfile_failed) {
 #if defined(HAVE_SYS_UN_H)
-  sut = ngs::make_shared<Listener_unix_socket>(m_mock_factory, UNIX_SOCKET_FILE,
-                                               ngs::ref(m_mock_socket_events),
+  sut = std::make_shared<Listener_unix_socket>(m_mock_factory, UNIX_SOCKET_FILE,
+                                               std::ref(m_mock_socket_events),
                                                BACKLOG);
 
   EXPECT_CALL(*m_mock_system, get_pid()).WillOnce(Return(CURRENT_PID));
@@ -477,8 +477,8 @@ TEST_F(Listener_unix_socket_testsuite, unixsocket_event_successful) {
 
 TEST_F(Listener_unix_socket_testsuite, unix_socket_unsupported) {
 #if !defined(HAVE_SYS_UN_H)
-  sut = ngs::make_shared<Listener_unix_socket>(m_mock_factory, UNIX_SOCKET_FILE,
-                                               ngs::ref(m_mock_socket_events),
+  sut = std::make_shared<Listener_unix_socket>(m_mock_factory, UNIX_SOCKET_FILE,
+                                               std::ref(m_mock_socket_events),
                                                BACKLOG);
 
   EXPECT_CALL(*m_mock_socket_invalid, close());
@@ -490,8 +490,8 @@ TEST_F(Listener_unix_socket_testsuite, unix_socket_unsupported) {
 
 TEST_F(Listener_unix_socket_testsuite,
        close_listener_does_nothing_when_not_started) {
-  sut = ngs::make_shared<Listener_unix_socket>(m_mock_factory, UNIX_SOCKET_FILE,
-                                               ngs::ref(m_mock_socket_events),
+  sut = std::make_shared<Listener_unix_socket>(m_mock_factory, UNIX_SOCKET_FILE,
+                                               std::ref(m_mock_socket_events),
                                                BACKLOG);
 
   sut->close_listener();

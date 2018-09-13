@@ -32,7 +32,7 @@
 #include "mysql/com_data.h"
 #include "plugin/x/ngs/include/ngs/error_code.h"
 #include "plugin/x/ngs/include/ngs/interface/sql_session_interface.h"
-#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/src/query_string_builder.h"
 #include "plugin/x/src/xpl_resultset.h"
 

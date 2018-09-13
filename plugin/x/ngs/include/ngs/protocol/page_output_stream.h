@@ -27,14 +27,14 @@
 
 #include <stdint.h>
 
-#include "page_buffer.h"
-#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/ngs/include/ngs/protocol/page_buffer.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 
 namespace ngs {
 
 class Page_output_stream : public google::protobuf::io::ZeroCopyOutputStream {
  public:
-  Page_output_stream(ngs::Page_pool &pool);
+  Page_output_stream(Page_pool &pool);
 
   bool Next(void **data, int *size) override;
   void BackUp(int count) override;

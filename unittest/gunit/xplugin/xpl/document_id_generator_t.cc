@@ -24,10 +24,9 @@
 
 #include <gtest/gtest.h>
 #include <limits>
+#include <memory>
 
 #include "plugin/x/ngs/include/ngs/document_id_generator.h"
-
-#include "plugin/x/ngs/include/ngs_common/smart_ptr.h"
 
 namespace ngs {
 namespace test {
@@ -40,7 +39,7 @@ class Document_id_generator_test : public ::testing::Test {
     return *gen;
   }
 
-  ngs::unique_ptr<Document_id_generator> gen;
+  std::unique_ptr<Document_id_generator> gen;
 };
 
 TEST_F(Document_id_generator_test, generate_id_sequence_1) {
@@ -133,7 +132,7 @@ class Document_id_generator_param_test
       public ::testing::WithParamInterface<Param_document_id> {};
 
 TEST_P(Document_id_generator_param_test, generate_id) {
-  using Variables = ngs::Document_id_generator_interface::Variables;
+  using Variables = Document_id_generator_interface::Variables;
   const Param_document_id &param = GetParam();
   std::string result;
   ASSERT_NO_THROW(result = generator(param.timestamp, param.serial)

@@ -28,7 +28,7 @@ namespace xcl {
 namespace test {
 
 TEST_F(Xcl_protocol_impl_tests, execute_close) {
-  using Send_desc = Client_message<::Mysqlx::Session::Close>;
+  using Send_desc = Client_message<::Mysqlx::Connection::Close>;
   using Recv_desc = Server_message<::Mysqlx::Ok>;
 
   auto msg_send = Send_desc::make_required();
@@ -67,7 +67,7 @@ TEST_F(Xcl_protocol_impl_tests, execute_close_fail_at_read) {
 }
 
 TEST_F(Xcl_protocol_impl_tests, execute_close_failed_because_of_error_msg) {
-  using Send_desc = Client_message<::Mysqlx::Session::Close>;
+  using Send_desc = Client_message<::Mysqlx::Connection::Close>;
   using Recv_desc = Server_message<::Mysqlx::Error>;
 
   auto msg_send = Send_desc::make_required();
@@ -85,7 +85,7 @@ TEST_F(Xcl_protocol_impl_tests, execute_close_failed_because_of_error_msg) {
 }
 
 TEST_F(Xcl_protocol_impl_tests, execute_close_failed_because_recv_wrong_msg) {
-  using Send_desc = Client_message<::Mysqlx::Session::Close>;
+  using Send_desc = Client_message<::Mysqlx::Connection::Close>;
   using Recv_desc = Server_message<::Mysqlx::Session::AuthenticateContinue>;
 
   auto msg_send = Send_desc::make_required();

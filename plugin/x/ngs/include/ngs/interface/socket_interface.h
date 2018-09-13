@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,24 +22,36 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef PLUGIN_X_NGS_INCLUDE_NGS_COMMON_SMART_PTR_H_
-#define PLUGIN_X_NGS_INCLUDE_NGS_COMMON_SMART_PTR_H_
+#ifndef PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_SOCKET_INTERFACE_H_
+#define PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_SOCKET_INTERFACE_H_
 
-#include <memory>
+#include "mysql/psi/mysql_socket.h"
+#include "mysql/psi/psi_socket.h"
+#include "plugin/x/ngs/include/ngs/memory.h"
+#include "violite.h"
 
 namespace ngs {
-using std::dynamic_pointer_cast;
-using std::enable_shared_from_this;
-using std::make_shared;
-using std::move;
-using std::shared_ptr;
-using std::static_pointer_cast;
-using std::unique_ptr;
-using std::weak_ptr;
 
-namespace detail {
-using std::allocate_shared;
-}  // namespace detail
+class Socket_interface {
+ public:
+  typedef std::shared_ptr<Socket_interface> Shared_ptr;
+
+  virtual ~Socket_interface() {}
+
+  virtual int bind(const struct sockaddr *addr, socklen_t len) = 0;
+  virtual int listen(int backlog) = 0;
+  virtual MYSQL_SOCKET accept(PSI_socket_key key, struct sockaddr *addr,
+                              socklen_t *addr_len) = 0;
+  virtual void close() = 0;
+
+  virtual MYSQL_SOCKET get_socket_mysql() = 0;
+  virtual my_socket get_socket_fd() = 0;
+
+  virtual int set_socket_opt(int level, int optname, const SOCKBUF_T *optval,
+                             socklen_t optlen) = 0;
+  virtual void set_socket_thread_owner() = 0;
+};
+
 }  // namespace ngs
 
-#endif  // PLUGIN_X_NGS_INCLUDE_NGS_COMMON_SMART_PTR_H_
+#endif  // PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_SOCKET_INTERFACE_H_

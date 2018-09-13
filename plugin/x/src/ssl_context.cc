@@ -25,10 +25,10 @@
 #include "violite.h"
 
 #include "plugin/x/ngs/include/ngs/log.h"
-#include "plugin/x/ngs/include/ngs_common/ssl_context.h"
-#include "plugin/x/ngs/include/ngs_common/ssl_context_options.h"
+#include "plugin/x/src/ssl_context.h"
+#include "plugin/x/src/ssl_context_options.h"
 
-namespace ngs {
+namespace xpl {
 
 struct Ssl_context::Config {
   class Value {
@@ -89,7 +89,7 @@ Ssl_context::~Ssl_context() {
 
 /** Start a TLS session in the connection.
  */
-bool Ssl_context::activate_tls(Vio_interface *conn,
+bool Ssl_context::activate_tls(ngs::Vio_interface *conn,
                                const int handshake_timeout) {
   unsigned long error;
   auto vio = conn->get_vio();
@@ -108,4 +108,4 @@ void Ssl_context::reset() {
   setup(*m_config);
 }
 
-}  // namespace ngs
+}  // namespace xpl

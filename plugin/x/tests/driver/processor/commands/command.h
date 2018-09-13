@@ -31,7 +31,7 @@
 #include <string>
 #include <vector>
 
-#include "plugin/x/ngs/include/ngs_common/chrono.h"
+#include "plugin/x/src/helper/chrono.h"
 #include "plugin/x/tests/driver/connector/result_fetcher.h"
 #include "plugin/x/tests/driver/processor/execution_context.h"
 
@@ -68,7 +68,7 @@ class Command {
 
   Command_map m_commands;
   std::list<Loop_do> m_loop_stack;
-  static ngs::chrono::time_point m_start_measure;
+  static xpl::chrono::Time_point m_start_measure;
 
   Result cmd_echo(std::istream &input, Execution_context *context,
                   const std::string &args);

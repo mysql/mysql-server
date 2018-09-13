@@ -23,6 +23,7 @@
  */
 
 #include <stddef.h>
+#include <functional>
 
 #include "my_inttypes.h"
 #include "my_psi_config.h"
@@ -30,9 +31,8 @@
 #include "plugin/x/ngs/include/ngs/log.h"
 #include "plugin/x/ngs/include/ngs/memory.h"
 #include "plugin/x/ngs/include/ngs/scheduler.h"
-#include "plugin/x/ngs/include/ngs_common/bind.h"
 
-using namespace ngs;
+namespace ngs {
 
 const uint64_t MILLI_TO_NANO = 1000000;
 const ulonglong TIME_VALUE_NOT_VALID = 0;
@@ -101,7 +101,7 @@ void Scheduler_dynamic::stop() {
     while (m_tasks.empty() == false) {
       Task *task = NULL;
 
-      if (m_tasks.pop(task)) ngs::free_object(task);
+      if (m_tasks.pop(task)) free_object(task);
     }
 
     m_worker_pending_cond.broadcast(m_worker_pending_mutex);
@@ -114,7 +114,7 @@ void Scheduler_dynamic::stop() {
 
     Thread_t thread;
     while (m_threads.pop(thread)) {
-      ngs::thread_join(&thread, NULL);
+      thread_join(&thread, NULL);
     }
 
     log_debug("Scheduler \"%s\" stopped.", m_name.c_str());
@@ -150,11 +150,11 @@ bool Scheduler_dynamic::post(Task *task) {
 }
 
 bool Scheduler_dynamic::post(const Task &task) {
-  Task *copy_task = ngs::allocate_object<Task>(task);
+  Task *copy_task = allocate_object<Task>(task);
 
   if (post(copy_task)) return true;
 
-  ngs::free_object(copy_task);
+  free_object(copy_task);
 
   return false;
 }
@@ -228,7 +228,7 @@ void *Scheduler_dynamic::worker() {
         }
 
         if (task_available && task) {
-          ngs::Memory_instrumented<Task>::Unique_ptr task_ptr(task);
+          Memory_instrumented<Task>::Unique_ptr task_ptr(task);
           thread_waiting_time = TIME_VALUE_NOT_VALID;
 
           (*task_ptr)();
@@ -267,9 +267,9 @@ void Scheduler_dynamic::join_terminating_workers() {
   while (m_terminating_workers.pop(tid)) {
     Thread_t thread;
     if (m_threads.remove_if(thread,
-                            ngs::bind(Scheduler_dynamic::thread_id_matches,
-                                      ngs::placeholders::_1, tid))) {
-      ngs::thread_join(&thread, NULL);
+                            std::bind(Scheduler_dynamic::thread_id_matches,
+                                      std::placeholders::_1, tid))) {
+      thread_join(&thread, NULL);
     }
   }
 }
@@ -279,7 +279,7 @@ void Scheduler_dynamic::create_thread() {
     Thread_t thread;
     log_debug("Scheduler '%s', create threads", m_name.c_str());
 
-    ngs::thread_create(m_thread_key, &thread, worker_proxy, this);
+    thread_create(m_thread_key, &thread, worker_proxy, this);
     increase_workers_count();
     m_threads.push(thread);
   }
@@ -310,3 +310,5 @@ int32 Scheduler_dynamic::decrease_tasks_count() {
 
   return --m_tasks_count;
 }
+
+}  // namespace ngs

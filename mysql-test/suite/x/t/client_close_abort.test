@@ -27,16 +27,14 @@ Mysqlx.Sql.StmtExecute {
 }
 Mysqlx.Session.Close {
 }
--->expecterror 0,2007
 Mysqlx.Sql.StmtExecute {
     stmt: "select 'fail'"
 }
 
 -->recvresult
 -->recvresult
--->recv
--->expecterror 2006,2007
--->recv
+-->recvok
+-->recverror ER_X_BAD_MESSAGE
 
 -->closesession abort
 

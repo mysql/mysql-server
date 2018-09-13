@@ -159,13 +159,13 @@ Mysqlx.Sql.StmtExecute {
 Mysqlx.Sql.StmtExecute {
     stmt: "select 3"
 }
-Mysqlx.Session.Close {
+Mysqlx.Connection.Close {
 }
 # ALL results up to the Close must be readable by client
 -->recvresult
 -->recvresult
--->recv
--->expecterror 2006,2007
+-->recvok
+-->expecterror CR_SERVER_GONE_ERROR
 -->sleep 1
 -->sql
 select 4;
@@ -429,7 +429,7 @@ stmt:"SELECT %VALUE% as `Column`;"
 namespace: "sql"
 }
 -->endrepeat
-Mysqlx.Session.Close {
+Mysqlx.Connection.Close {
 }
 #-->abort
 -->repeat 200 %VALUE%

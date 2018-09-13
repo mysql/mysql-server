@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,16 +22,25 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef PLUGIN_X_NGS_INCLUDE_NGS_COMMON_BIND_H_
-#define PLUGIN_X_NGS_INCLUDE_NGS_COMMON_BIND_H_
+#ifndef PLUGIN_X_SRC_CONFIG_CONFIG_H_
+#define PLUGIN_X_SRC_CONFIG_CONFIG_H_
 
-#include <functional>
+#ifdef HAVE_WOLFSSL
+#define IS_WOLFSSL_OR_OPENSSL(Y, O) Y
+#else  // HAVE_WOLFSSL
+#define IS_WOLFSSL_OR_OPENSSL(Y, O) O
+#endif  // HAVE_WOLFSSL
 
-namespace ngs {
-namespace placeholders = std::placeholders;
-using std::bind;
-using std::function;
-using std::ref;
-}  // namespace ngs
+#if defined(HAVE_SYS_UN_H)
+#define HAVE_UNIX_SOCKET(YES, NO) YES
+#else
+#define HAVE_UNIX_SOCKET(YES, NO) NO
+#endif  // defined(HAVE_SYS_UN_H)
 
-#endif  // PLUGIN_X_NGS_INCLUDE_NGS_COMMON_BIND_H_
+#if defined(HAVE_PSI_INTERFACE)
+#define IS_PSI_AVAILABLE(YES, NO) YES
+#else
+#define IS_PSI_AVAILABLE(YES, NO) NO
+#endif  // defined(HAVE_PSI_INTERFACE)
+
+#endif  // PLUGIN_X_SRC_CONFIG_CONFIG_H_

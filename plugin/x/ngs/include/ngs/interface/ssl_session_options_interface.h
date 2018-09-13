@@ -22,38 +22,33 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef PLUGIN_X_NGS_INCLUDE_NGS_COMMON_SSL_CONTEXT_OPTIONS_INTERFACE_H_
-#define PLUGIN_X_NGS_INCLUDE_NGS_COMMON_SSL_CONTEXT_OPTIONS_INTERFACE_H_
+#ifndef PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_SSL_SESSION_OPTIONS_INTERFACE_H_
+#define PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_SSL_SESSION_OPTIONS_INTERFACE_H_
 
 #include <string>
 #include <vector>
 
 namespace ngs {
 
-class Ssl_context_options_interface {
+class Ssl_session_options_interface {
  public:
-  virtual ~Ssl_context_options_interface() = default;
+  virtual ~Ssl_session_options_interface() = default;
 
-  virtual long ssl_ctx_verify_depth() = 0;
-  virtual long ssl_ctx_verify_mode() = 0;
+  virtual bool active_tls() const = 0;
 
-  virtual std::string ssl_server_not_after() = 0;
-  virtual std::string ssl_server_not_before() = 0;
+  virtual std::string ssl_cipher() const = 0;
+  virtual std::string ssl_version() const = 0;
+  virtual std::vector<std::string> ssl_cipher_list() const = 0;
 
-  virtual long ssl_sess_accept_good() = 0;
-  virtual long ssl_sess_accept() = 0;
-  virtual long ssl_accept_renegotiates() = 0;
+  virtual long ssl_verify_depth() const = 0;
+  virtual long ssl_verify_mode() const = 0;
+  virtual long ssl_sessions_reused() const = 0;
 
-  virtual std::string ssl_session_cache_mode() = 0;
-
-  virtual long ssl_session_cache_hits() = 0;
-  virtual long ssl_session_cache_misses() = 0;
-  virtual long ssl_session_cache_overflows() = 0;
-  virtual long ssl_session_cache_size() = 0;
-  virtual long ssl_session_cache_timeouts() = 0;
-  virtual long ssl_used_session_cache_entries() = 0;
+  virtual long ssl_get_verify_result_and_cert() const = 0;
+  virtual std::string ssl_get_peer_certificate_issuer() const = 0;
+  virtual std::string ssl_get_peer_certificate_subject() const = 0;
 };
 
 }  // namespace ngs
 
-#endif  // PLUGIN_X_NGS_INCLUDE_NGS_COMMON_SSL_CONTEXT_OPTIONS_INTERFACE_H_
+#endif  // PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_SSL_SESSION_OPTIONS_INTERFACE_H_

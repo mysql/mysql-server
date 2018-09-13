@@ -58,6 +58,16 @@ send Mysqlx.Expect.Open {
 
 ok
 
+[Verification of Mysqlx.Session.Reset::keep_open (6.1)]
+send Mysqlx.Expect.Open {
+  cond {
+    condition_key: 2
+    condition_value: "6.1"
+  }
+}
+
+ok
+
 [Verification of all features in single request]
 send Mysqlx.Expect.Open {
   cond {
@@ -83,6 +93,10 @@ send Mysqlx.Expect.Open {
   cond {
     condition_key: 2
     condition_value: "17.14"
+  }
+  cond {
+    condition_key: 2
+    condition_value: "6.1"
   }
 }
 

@@ -141,7 +141,7 @@ Protocol_impl::execute_fetch_capabilities(XError *out_error) {
 }
 
 XError Protocol_impl::execute_close() {
-  XError error = send(Mysqlx::Session::Close());
+  XError error = send(Mysqlx::Connection::Close());
 
   if (error) return error;
 

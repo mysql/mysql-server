@@ -26,6 +26,7 @@
 #define PLUGIN_X_NGS_INCLUDE_NGS_SERVER_H_
 
 #include <stdint.h>
+#include <functional>
 #include <list>
 #include <memory>
 #include <vector>
@@ -45,8 +46,7 @@
 #include "plugin/x/ngs/include/ngs/server_properties.h"
 #include "plugin/x/ngs/include/ngs/socket_events.h"
 #include "plugin/x/ngs/include/ngs/thread.h"
-#include "plugin/x/ngs/include/ngs_common/bind.h"
-#include "plugin/x/ngs/include/ngs_common/chrono.h"
+#include "plugin/x/src/helper/chrono.h"
 #include "plugin/x/src/helper/multithread/mutex.h"
 #include "plugin/x/src/helper/multithread/sync_variable.h"
 
@@ -75,11 +75,11 @@ class Server : public Server_interface {
   };
 
  public:
-  Server(ngs::shared_ptr<Scheduler_dynamic> accept_scheduler,
-         ngs::shared_ptr<Scheduler_dynamic> work_scheduler,
-         Server_delegate *delegate, ngs::shared_ptr<Protocol_config> config,
+  Server(std::shared_ptr<Scheduler_dynamic> accept_scheduler,
+         std::shared_ptr<Scheduler_dynamic> work_scheduler,
+         Server_delegate *delegate, std::shared_ptr<Protocol_config> config,
          Server_properties *properties, const Server_task_vector &tasks,
-         ngs::shared_ptr<Timeout_callback_interface> timeout_callback);
+         std::shared_ptr<Timeout_callback_interface> timeout_callback);
 
   virtual Ssl_context_interface *ssl_context() const override {
     return m_ssl_context.get();
@@ -97,17 +97,17 @@ class Server : public Server_interface {
   bool is_terminating();
   bool is_running() override;
 
-  virtual ngs::shared_ptr<Protocol_config> get_config() const override {
+  virtual std::shared_ptr<Protocol_config> get_config() const override {
     return m_config;
   }
-  ngs::shared_ptr<Scheduler_dynamic> get_worker_scheduler() const override {
+  std::shared_ptr<Scheduler_dynamic> get_worker_scheduler() const override {
     return m_worker_scheduler;
   }
   Client_list &get_client_list() { return m_client_list; }
   xpl::Mutex &get_client_exit_mutex() override { return m_client_exit_mutex; }
   Client_ptr get_client(const THD *thd);
 
-  virtual ngs::shared_ptr<Session_interface> create_session(
+  virtual std::shared_ptr<Session_interface> create_session(
       Client_interface &client, Protocol_encoder_interface &proto,
       const int session_id) override;
 
@@ -122,7 +122,7 @@ class Server : public Server_interface {
       const bool allowed_only_with_secure_connection);
   void add_sha256_password_cache(SHA256_password_cache_interface *cache);
 
-  void add_callback(const std::size_t delay_ms, ngs::function<bool()> callback);
+  void add_callback(const std::size_t delay_ms, std::function<bool()> callback);
   bool reset_globals();
   Document_id_generator_interface &get_document_id_generator() const override {
     return *m_id_generator;
@@ -132,9 +132,9 @@ class Server : public Server_interface {
   Server(const Server &);
   Server &operator=(const Server &);
 
-  void run_task(ngs::shared_ptr<Server_task_interface> handler);
+  void run_task(std::shared_ptr<Server_task_interface> handler);
   void wait_for_clients_closure();
-  void go_through_all_clients(ngs::function<void(Client_ptr)> callback);
+  void go_through_all_clients(std::function<void(Client_ptr)> callback);
   bool timeout_for_clients_validation();
   void wait_for_next_client();
 
@@ -142,7 +142,7 @@ class Server : public Server_interface {
   // it to start reading input
   void on_accept(Connection_acceptor_interface &acceptor);
   void start_client_supervision_timer(
-      const chrono::duration &oldest_object_time_ms);
+      const xpl::chrono::Duration &oldest_object_time_ms);
   void restart_client_supervision_timer() override;
 
   bool on_check_terminated_workers();
@@ -176,11 +176,11 @@ class Server : public Server_interface {
   uint32 m_errors_while_accepting;
   SHA256_password_cache_interface *m_sha256_password_cache;
 
-  ngs::shared_ptr<Socket_acceptors_task> m_acceptors;
-  ngs::shared_ptr<Scheduler_dynamic> m_accept_scheduler;
-  ngs::shared_ptr<Scheduler_dynamic> m_worker_scheduler;
-  ngs::shared_ptr<Protocol_config> m_config;
-  ngs::unique_ptr<Document_id_generator_interface> m_id_generator;
+  std::shared_ptr<Socket_acceptors_task> m_acceptors;
+  std::shared_ptr<Scheduler_dynamic> m_accept_scheduler;
+  std::shared_ptr<Scheduler_dynamic> m_worker_scheduler;
+  std::shared_ptr<Protocol_config> m_config;
+  std::unique_ptr<Document_id_generator_interface> m_id_generator;
 
   std::unique_ptr<Ssl_context_interface> m_ssl_context;
   xpl::Sync_variable<State> m_state;

@@ -37,8 +37,8 @@
 #include "plugin/x/ngs/include/ngs/protocol/message.h"
 #include "plugin/x/ngs/include/ngs/protocol_decoder.h"
 #include "plugin/x/ngs/include/ngs/protocol_encoder.h"
-#include "plugin/x/ngs/include/ngs_common/chrono.h"
 #include "plugin/x/src/global_timeouts.h"
+#include "plugin/x/src/helper/chrono.h"
 #include "plugin/x/src/helper/multithread/mutex.h"
 #include "plugin/x/src/xpl_system_variables.h"
 
@@ -58,7 +58,7 @@ class Client : public Client_interface {
 
   xpl::Mutex &get_session_exit_mutex() override { return m_session_exit_mutex; }
   Session_interface *session() override { return m_session.get(); }
-  ngs::shared_ptr<Session_interface> session_smart_ptr() const override {
+  std::shared_ptr<Session_interface> session_smart_ptr() const override {
     return m_session;
   }
 
@@ -91,7 +91,7 @@ class Client : public Client_interface {
   int client_port() const override { return m_client_port; }
 
   Client_state get_state() const override { return m_state.load(); }
-  chrono::time_point get_accept_time() const override;
+  xpl::chrono::Time_point get_accept_time() const override;
 
   void set_supports_expired_passwords(bool flag) {
     m_supports_expired_passwords = flag;
@@ -115,16 +115,16 @@ class Client : public Client_interface {
   std::shared_ptr<Vio_interface> m_connection;
   Protocol_decoder m_decoder;
 
-  ngs::chrono::time_point m_accept_time;
+  xpl::chrono::Time_point m_accept_time;
 
-  ngs::Memory_instrumented<Protocol_encoder_interface>::Unique_ptr m_encoder;
+  Memory_instrumented<Protocol_encoder_interface>::Unique_ptr m_encoder;
   std::string m_client_addr;
   std::string m_client_host;
   uint16 m_client_port;
   std::atomic<Client_state> m_state;
   std::atomic<bool> m_removed;
 
-  ngs::shared_ptr<Session_interface> m_session;
+  std::shared_ptr<Session_interface> m_session;
 
   Protocol_monitor_interface *m_protocol_monitor;
 
@@ -153,7 +153,7 @@ class Client : public Client_interface {
 
   Error_code read_one_message(Message_request *out_message);
 
-  virtual ngs::Capabilities_configurator *capabilities_configurator();
+  virtual Capabilities_configurator *capabilities_configurator();
   void get_capabilities(const Mysqlx::Connection::CapabilitiesGet &msg);
   void set_capabilities(const Mysqlx::Connection::CapabilitiesSet &msg);
 
@@ -166,11 +166,10 @@ class Client : public Client_interface {
 
   Protocol_monitor_interface &get_protocol_monitor();
 
-  void set_encoder(ngs::Protocol_encoder_interface *enc);
+  void set_encoder(Protocol_encoder_interface *enc);
 
  private:
-  using Waiting_for_io_interface =
-      ngs::Protocol_decoder::Waiting_for_io_interface;
+  using Waiting_for_io_interface = Protocol_decoder::Waiting_for_io_interface;
 
   Client(const Client &) = delete;
   Client &operator=(const Client &) = delete;
@@ -182,6 +181,7 @@ class Client : public Client_interface {
 
   void on_client_addr(const bool skip_resolve_name);
   void on_accept();
+  bool create_session();
 };
 
 }  // namespace ngs

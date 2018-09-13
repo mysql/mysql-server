@@ -45,7 +45,7 @@ class Admin_command_arguments_object_test : public ::testing::Test {
   }
 
   Admin_command_arguments_object::List args;
-  ngs::unique_ptr<Admin_command_arguments_object> extractor;
+  std::unique_ptr<Admin_command_arguments_object> extractor;
 };
 
 TEST_F(Admin_command_arguments_object_test, is_end_empty_args) {

@@ -22,9 +22,9 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include "plugin/x/src/statement_builder.h"
+#include <functional>
 
-#include "plugin/x/ngs/include/ngs_common/bind.h"
+#include "plugin/x/src/statement_builder.h"
 
 namespace xpl {
 
@@ -85,8 +85,8 @@ void Crud_statement_builder::add_order(const Order_list &order) const {
   if (order.size() == 0) return;
 
   m_builder.put(" ORDER BY ")
-      .put_list(order, ngs::bind(&Crud_statement_builder::add_order_item, this,
-                                 ngs::placeholders::_1));
+      .put_list(order, std::bind(&Crud_statement_builder::add_order_item, this,
+                                 std::placeholders::_1));
 }
 
 void Crud_statement_builder::add_limit_expr_field(

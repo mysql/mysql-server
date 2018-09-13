@@ -31,7 +31,7 @@
 #include "plugin/x/ngs/include/ngs/capabilities/handler.h"
 #include "plugin/x/ngs/include/ngs/error_code.h"
 #include "plugin/x/ngs/include/ngs/memory.h"
-#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 
 namespace ngs {
 
@@ -45,7 +45,7 @@ class Capabilities_configurator {
 
   virtual ::Mysqlx::Connection::Capabilities *get();
 
-  virtual ngs::Error_code prepare_set(
+  virtual Error_code prepare_set(
       const ::Mysqlx::Connection::Capabilities &capabilities);
   virtual void commit();
 

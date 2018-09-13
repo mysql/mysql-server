@@ -22,42 +22,35 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef PLUGIN_X_NGS_INCLUDE_NGS_COMMON_SSL_CONTEXT_H_
-#define PLUGIN_X_NGS_INCLUDE_NGS_COMMON_SSL_CONTEXT_H_
+#ifndef PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_OPERATIONS_FACTORY_INTERFACE_H_
+#define PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_OPERATIONS_FACTORY_INTERFACE_H_
 
-#include <violite.h>
-#include <memory>
-
-#include "plugin/x/ngs/include/ngs/interface/ssl_context_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/vio_interface.h"
-#include "plugin/x/ngs/include/ngs_common/ssl_context_options_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/file_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/socket_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/system_interface.h"
+#include "plugin/x/ngs/include/ngs/memory.h"
 
 namespace ngs {
 
-class Ssl_context : public Ssl_context_interface {
+class Operations_factory_interface {
  public:
-  Ssl_context();
-  bool setup(const char *tls_version, const char *ssl_key, const char *ssl_ca,
-             const char *ssl_capath, const char *ssl_cert,
-             const char *ssl_cipher, const char *ssl_crl,
-             const char *ssl_crlpath) override;
-  ~Ssl_context() override;
+  typedef std::shared_ptr<Operations_factory_interface> Shared_ptr;
 
-  bool activate_tls(Vio_interface *conn, const int handshake_timeout) override;
+  virtual ~Operations_factory_interface() {}
 
-  Ssl_context_options_interface &options() override { return *m_options; }
-  bool has_ssl() override { return nullptr != m_ssl_acceptor; }
-  void reset() override;
+  virtual std::shared_ptr<Socket_interface> create_socket(PSI_socket_key key,
+                                                          int domain, int type,
+                                                          int protocol) = 0;
+  virtual std::shared_ptr<Socket_interface> create_socket(
+      MYSQL_SOCKET socket) = 0;
 
- private:
-  struct Config;
-  bool setup(const Config &config);
+  virtual std::shared_ptr<File_interface> open_file(const char *name,
+                                                    int access,
+                                                    int permission) = 0;
 
-  st_VioSSLFd *m_ssl_acceptor;
-  std::unique_ptr<Ssl_context_options_interface> m_options;
-  std::unique_ptr<Config> m_config;
+  virtual std::shared_ptr<System_interface> create_system_interface() = 0;
 };
 
 }  // namespace ngs
 
-#endif  // PLUGIN_X_NGS_INCLUDE_NGS_COMMON_SSL_CONTEXT_H_
+#endif  // PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_OPERATIONS_FACTORY_INTERFACE_H_

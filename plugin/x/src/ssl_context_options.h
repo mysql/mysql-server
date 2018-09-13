@@ -22,36 +22,42 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef PLUGIN_X_NGS_INCLUDE_NGS_COMMON_CHRONO_H_
-#define PLUGIN_X_NGS_INCLUDE_NGS_COMMON_CHRONO_H_
+#ifndef PLUGIN_X_SRC_SSL_CONTEXT_OPTIONS_H_
+#define PLUGIN_X_SRC_SSL_CONTEXT_OPTIONS_H_
 
-#include <chrono>  // NOLINT(build/c++11)
+#include "violite.h"
 
-namespace ngs {
-namespace chrono {
+#include "plugin/x/ngs/include/ngs/interface/ssl_context_options_interface.h"
 
-using std::chrono::milliseconds;
-using std::chrono::seconds;
-using std::chrono::system_clock;
-using clock = std::chrono::steady_clock;
-using time_point = clock::time_point;
-using duration = clock::duration;
+namespace xpl {
 
-inline time_point now() { return clock::now(); }
+class Ssl_context_options : public ngs::Ssl_context_options_interface {
+ public:
+  Ssl_context_options(st_VioSSLFd *vio_ssl = nullptr) : m_vio_ssl(vio_ssl) {}
 
-inline milliseconds::rep to_milliseconds(const duration &d) {
-  return std::chrono::duration_cast<milliseconds>(d).count();
-}
+  long ssl_ctx_verify_depth() override;
+  long ssl_ctx_verify_mode() override;
 
-inline seconds::rep to_seconds(const duration &d) {
-  return std::chrono::duration_cast<seconds>(d).count();
-}
+  std::string ssl_server_not_after() override;
+  std::string ssl_server_not_before() override;
 
-inline bool is_valid(const time_point &p) {
-  return p.time_since_epoch().count() > 0;
-}
+  long ssl_sess_accept_good() override;
+  long ssl_sess_accept() override;
+  long ssl_accept_renegotiates() override;
 
-}  // namespace chrono
-}  // namespace ngs
+  std::string ssl_session_cache_mode() override;
 
-#endif  // PLUGIN_X_NGS_INCLUDE_NGS_COMMON_CHRONO_H_
+  long ssl_session_cache_hits() override;
+  long ssl_session_cache_misses() override;
+  long ssl_session_cache_overflows() override;
+  long ssl_session_cache_size() override;
+  long ssl_session_cache_timeouts() override;
+  long ssl_used_session_cache_entries() override;
+
+ private:
+  st_VioSSLFd *m_vio_ssl;
+};
+
+}  // namespace xpl
+
+#endif  // PLUGIN_X_SRC_SSL_CONTEXT_OPTIONS_H_

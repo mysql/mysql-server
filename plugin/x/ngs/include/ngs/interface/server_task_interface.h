@@ -26,10 +26,10 @@
 #define PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_SERVER_TASK_INTERFACE_H_
 
 #include <functional>
+#include <memory>
 
 #include "plugin/x/ngs/include/ngs/client_list.h"
 #include "plugin/x/ngs/include/ngs/server_properties.h"
-#include "plugin/x/ngs/include/ngs_common/smart_ptr.h"
 
 namespace ngs {
 
@@ -77,7 +77,7 @@ class Server_task_interface {
   virtual void loop() = 0;
 };
 
-using Server_tasks_interface_ptr = ngs::shared_ptr<Server_task_interface>;
+using Server_tasks_interface_ptr = std::shared_ptr<Server_task_interface>;
 
 }  // namespace ngs
 

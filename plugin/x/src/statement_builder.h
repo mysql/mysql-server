@@ -26,13 +26,13 @@
 #define PLUGIN_X_SRC_STATEMENT_BUILDER_H_
 
 #include <algorithm>
+#include <functional>
 #include <string>
 
 #include "plugin/x/generated/mysqlx_error.h"
 #include "plugin/x/ngs/include/ngs/error_code.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/ngs/include/ngs/protocol_fwd.h"
-#include "plugin/x/ngs/include/ngs_common/bind.h"
-#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
 #include "plugin/x/src/expr_generator.h"
 
 namespace xpl {
@@ -103,7 +103,7 @@ class Statement_builder {
                                   const,
                               const std::string &separator = ",") const {
       return put_list(list.begin(), list.end(),
-                      ngs::bind(put_fun, this, ngs::placeholders::_1),
+                      std::bind(put_fun, this, std::placeholders::_1),
                       separator);
     }
 

@@ -33,7 +33,7 @@
 #include <string>
 
 #include "plugin/x/ngs/include/ngs/memory.h"
-#include "plugin/x/ngs/include/ngs_common/to_string.h"
+#include "plugin/x/src/helper/to_string.h"
 
 struct CHARSET_INFO;
 
@@ -67,7 +67,7 @@ class Query_formatter {
   template <typename Value_type>
   Query_formatter &put(const Value_type &value) {
     validate_next_tag();
-    std::string string_value = ngs::to_string(value);
+    std::string string_value = to_string(value);
     put_value(string_value.c_str(), string_value.length());
 
     return *this;

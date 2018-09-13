@@ -22,7 +22,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include "plugin/x/ngs/include/ngs_common/operations_factory.h"
+#include "plugin/x/src/operations_factory.h"
 
 #include "my_config.h"
 #include "my_psi_config.h"
@@ -42,13 +42,13 @@
 #include <sys/types.h>
 #include <sys/un.h>
 #endif
-#include "plugin/x/ngs/include/ngs_common/config.h"
+#include "plugin/x/src/config/config.h"
 
-namespace ngs {
+namespace xpl {
 
 namespace details {
 
-class Socket : public Socket_interface {
+class Socket : public ngs::Socket_interface {
  public:
   Socket(MYSQL_SOCKET mysql_socket) : m_mysql_socket(mysql_socket) {}
 
@@ -98,7 +98,7 @@ class Socket : public Socket_interface {
   MYSQL_SOCKET m_mysql_socket;
 };
 
-class File : public File_interface {
+class File : public ngs::File_interface {
  public:
   File(const char *name, int access, int permission)
       : m_file_descriptor(::open(name, access, permission)) {}
@@ -144,7 +144,7 @@ class File : public File_interface {
 
 const int File::INVALID_FILE_DESCRIPTOR = -1;
 
-class System : public System_interface {
+class System : public ngs::System_interface {
   int unlink(const char *name) override {
     return HAVE_UNIX_SOCKET(::unlink(name), 0);
   }
@@ -204,25 +204,24 @@ class System : public System_interface {
 
 }  // namespace details
 
-ngs::shared_ptr<Socket_interface> Operations_factory::create_socket(
+std::shared_ptr<ngs::Socket_interface> Operations_factory::create_socket(
     PSI_socket_key key, int domain, int type, int protocol) {
   return ngs::allocate_shared<details::Socket>(key, domain, type, protocol);
 }
 
-ngs::shared_ptr<Socket_interface> Operations_factory::create_socket(
+std::shared_ptr<ngs::Socket_interface> Operations_factory::create_socket(
     MYSQL_SOCKET mysql_socket) {
   return ngs::allocate_shared<details::Socket>(mysql_socket);
 }
 
-ngs::shared_ptr<File_interface> Operations_factory::open_file(const char *name,
-                                                              int access,
-                                                              int permission) {
+std::shared_ptr<ngs::File_interface> Operations_factory::open_file(
+    const char *name, int access, int permission) {
   return ngs::allocate_shared<details::File>(name, access, permission);
 }
 
-ngs::shared_ptr<System_interface>
+std::shared_ptr<ngs::System_interface>
 Operations_factory::create_system_interface() {
   return ngs::allocate_shared<details::System>();
 }
 
-}  // namespace ngs
+}  // namespace xpl

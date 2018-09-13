@@ -42,7 +42,6 @@
 namespace xpl {
 
 class Sql_data_context;
-class Dispatcher;
 class Cursor_manager;
 class Client;
 
@@ -58,6 +57,7 @@ class Session : public ngs::Session {
       const ngs::Authentication_interface::Response &response) override;
   void on_auth_failure(
       const ngs::Authentication_interface::Response &response) override;
+  void on_reset() override;
 
   void mark_as_tls_session() override;
   THD *get_thd() const override;

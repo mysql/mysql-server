@@ -27,7 +27,7 @@
 #include "plugin/x/ngs/include/ngs/interface/client_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/document_id_generator_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/server_interface.h"
-#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/src/delete_statement_builder.h"
 #include "plugin/x/src/expr_generator.h"
 #include "plugin/x/src/find_statement_builder.h"

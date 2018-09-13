@@ -28,7 +28,7 @@
 #include <stdexcept>
 #include <string>
 
-#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/src/query_string_builder.h"
 
 namespace xpl {

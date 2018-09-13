@@ -28,7 +28,7 @@
 
 #include "plugin/x/ngs/include/ngs/error_code.h"
 #include "plugin/x/ngs/include/ngs/protocol/message.h"
-#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 
 namespace ngs {
 

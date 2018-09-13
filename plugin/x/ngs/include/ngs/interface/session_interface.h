@@ -74,6 +74,7 @@ class Session_interface {
       const Authentication_interface::Response &response) = 0;
   virtual void on_auth_failure(
       const Authentication_interface::Response &response) = 0;
+  virtual void on_reset() = 0;
 
   // handle a single message, returns true if message was handled false if not
   virtual bool handle_message(Message_request &command) = 0;

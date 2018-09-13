@@ -22,28 +22,43 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef PLUGIN_X_NGS_INCLUDE_NGS_SERVER_CLIENT_TIMEOUT_H_
-#define PLUGIN_X_NGS_INCLUDE_NGS_SERVER_CLIENT_TIMEOUT_H_
+#ifndef PLUGIN_X_SRC_SSL_CONTEXT_H_
+#define PLUGIN_X_SRC_SSL_CONTEXT_H_
 
-#include <functional>
+#include <violite.h>
+#include <memory>
 
-#include "plugin/x/ngs/include/ngs/interface/client_interface.h"
-#include "plugin/x/src/helper/chrono.h"
+#include "plugin/x/ngs/include/ngs/interface/ssl_context_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/ssl_context_options_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/vio_interface.h"
 
-namespace ngs {
+namespace xpl {
 
-class Server_client_timeout {
+class Ssl_context : public ngs::Ssl_context_interface {
  public:
-  Server_client_timeout(const xpl::chrono::Time_point &release_all_before_time);
-  void validate_client_state(std::shared_ptr<Client_interface> client);
+  Ssl_context();
+  bool setup(const char *tls_version, const char *ssl_key, const char *ssl_ca,
+             const char *ssl_capath, const char *ssl_cert,
+             const char *ssl_cipher, const char *ssl_crl,
+             const char *ssl_crlpath) override;
+  ~Ssl_context() override;
 
-  xpl::chrono::Time_point get_oldest_client_accept_time();
+  bool activate_tls(ngs::Vio_interface *conn,
+                    const int handshake_timeout) override;
+
+  ngs::Ssl_context_options_interface &options() override { return *m_options; }
+  bool has_ssl() override { return nullptr != m_ssl_acceptor; }
+  void reset() override;
 
  private:
-  xpl::chrono::Time_point m_oldest_client_accept_time;
-  const xpl::chrono::Time_point &m_release_all_before_time;
+  struct Config;
+  bool setup(const Config &config);
+
+  st_VioSSLFd *m_ssl_acceptor;
+  std::unique_ptr<ngs::Ssl_context_options_interface> m_options;
+  std::unique_ptr<Config> m_config;
 };
 
-}  // namespace ngs
+}  // namespace xpl
 
-#endif  // PLUGIN_X_NGS_INCLUDE_NGS_SERVER_CLIENT_TIMEOUT_H_
+#endif  // PLUGIN_X_SRC_SSL_CONTEXT_H_

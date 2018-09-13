@@ -22,36 +22,29 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef PLUGIN_X_NGS_INCLUDE_NGS_COMMON_SOCKET_INTERFACE_H_
-#define PLUGIN_X_NGS_INCLUDE_NGS_COMMON_SOCKET_INTERFACE_H_
+#ifndef PLUGIN_X_SRC_OPERATIONS_FACTORY_H_
+#define PLUGIN_X_SRC_OPERATIONS_FACTORY_H_
 
-#include "mysql/psi/mysql_socket.h"
-#include "mysql/psi/psi_socket.h"
-#include "plugin/x/ngs/include/ngs/memory.h"
-#include "violite.h"
+#include <memory>
 
-namespace ngs {
+#include "plugin/x/ngs/include/ngs/interface/operations_factory_interface.h"
 
-class Socket_interface {
+namespace xpl {
+
+class Operations_factory : public ngs::Operations_factory_interface {
  public:
-  typedef ngs::shared_ptr<Socket_interface> Shared_ptr;
+  std::shared_ptr<ngs::Socket_interface> create_socket(PSI_socket_key key,
+                                                       int domain, int type,
+                                                       int protocol);
+  std::shared_ptr<ngs::Socket_interface> create_socket(
+      MYSQL_SOCKET mysql_socket);
 
-  virtual ~Socket_interface() {}
+  std::shared_ptr<ngs::File_interface> open_file(const char *name, int access,
+                                                 int permission);
 
-  virtual int bind(const struct sockaddr *addr, socklen_t len) = 0;
-  virtual int listen(int backlog) = 0;
-  virtual MYSQL_SOCKET accept(PSI_socket_key key, struct sockaddr *addr,
-                              socklen_t *addr_len) = 0;
-  virtual void close() = 0;
-
-  virtual MYSQL_SOCKET get_socket_mysql() = 0;
-  virtual my_socket get_socket_fd() = 0;
-
-  virtual int set_socket_opt(int level, int optname, const SOCKBUF_T *optval,
-                             socklen_t optlen) = 0;
-  virtual void set_socket_thread_owner() = 0;
+  std::shared_ptr<ngs::System_interface> create_system_interface();
 };
 
-}  // namespace ngs
+}  // namespace xpl
 
-#endif  // PLUGIN_X_NGS_INCLUDE_NGS_COMMON_SOCKET_INTERFACE_H_
+#endif  // PLUGIN_X_SRC_OPERATIONS_FACTORY_H_

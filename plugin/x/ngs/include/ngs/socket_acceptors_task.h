@@ -25,6 +25,7 @@
 #ifndef PLUGIN_X_NGS_INCLUDE_NGS_SERVER_ACCEPTORS_TASK_H_
 #define PLUGIN_X_NGS_INCLUDE_NGS_SERVER_ACCEPTORS_TASK_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -33,7 +34,6 @@
 #include "plugin/x/ngs/include/ngs/interface/listener_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/server_task_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/socket_events_interface.h"
-#include "plugin/x/ngs/include/ngs_common/smart_ptr.h"
 
 namespace ngs {
 

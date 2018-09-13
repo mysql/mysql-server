@@ -40,7 +40,7 @@
 namespace xpl {
 
 ngs::Error_code Sql_data_context::init(const int client_port,
-                                       const ngs::Connection_type type) {
+                                       const Connection_type type) {
   ngs::Error_code error = init();
   if (error) return error;
 
@@ -138,8 +138,8 @@ bool Sql_data_context::kill() {
 }
 
 ngs::Error_code Sql_data_context::set_connection_type(
-    const ngs::Connection_type type) {
-  enum_vio_type vio_type = ngs::Connection_type_helper::convert_type(type);
+    const Connection_type type) {
+  enum_vio_type vio_type = Connection_type_helper::convert_type(type);
 
   if (NO_VIO_TYPE == vio_type)
     return ngs::Error(ER_X_SESSION, "Connection type not known. type=%i",
@@ -152,7 +152,7 @@ ngs::Error_code Sql_data_context::set_connection_type(
   return ngs::Error_code();
 }
 
-bool Sql_data_context::wait_api_ready(ngs::function<bool()> exiting) {
+bool Sql_data_context::wait_api_ready(std::function<bool()> exiting) {
   bool result = is_api_ready();
 
   while (!result && !exiting()) {
@@ -507,6 +507,23 @@ ngs::Error_code Sql_data_context::execute_server_command(
   const ngs::Error_code error = deleg.get_error();
   if (error)
     log_debug("Error running server command: (%i %s)", error.error,
+              error.message.c_str());
+  return error;
+}
+
+ngs::Error_code Sql_data_context::reset() {
+  COM_DATA data;
+  Callback_command_delegate deleg;
+  if (command_service_run_command(m_mysql_session, COM_RESET_CONNECTION, &data,
+                                  mysqld::get_charset_utf8mb4_general_ci(),
+                                  deleg.callbacks(), deleg.representation(),
+                                  &deleg)) {
+    return ngs::Error_code(ER_X_SERVICE_ERROR,
+                           "Internal error executing command");
+  }
+  const ngs::Error_code &error = deleg.get_error();
+  if (error)
+    log_debug("Error reseting sql session: (%i %s)", error.error,
               error.message.c_str());
   return error;
 }

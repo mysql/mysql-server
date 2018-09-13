@@ -42,7 +42,7 @@ class Protocol_flusher {
  public:
   Protocol_flusher(Page_output_stream *page_output_stream,
                    Protocol_monitor_interface *protocol_monitor,
-                   const ngs::shared_ptr<Vio_interface> &socket,
+                   const std::shared_ptr<Vio_interface> &socket,
                    const Error_handler &error_handler)
       : m_page_output_stream(page_output_stream),
         m_protocol_monitor(protocol_monitor),
@@ -74,7 +74,7 @@ class Protocol_flusher {
 
   Page_output_stream *m_page_output_stream;
   Protocol_monitor_interface *m_protocol_monitor;
-  ngs::shared_ptr<Vio_interface> m_socket;
+  std::shared_ptr<Vio_interface> m_socket;
   uint32_t m_write_timeout =
       static_cast<uint32_t>(Global_timeouts::Default::k_write_timeout);
 

@@ -34,7 +34,7 @@
 
 #include "plugin/x/ngs/include/ngs/protocol/page_buffer.h"
 #include "plugin/x/ngs/include/ngs/protocol/page_output_stream.h"
-#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 
 #include "plugin/x/src/xpl_server.h"
 
@@ -47,7 +47,7 @@ namespace ngs {
 const Pool_config Protocol_encoder::m_default_pool_config = {0, 5,
                                                              BUFFER_PAGE_SIZE};
 
-Protocol_encoder::Protocol_encoder(const ngs::shared_ptr<Vio_interface> &socket,
+Protocol_encoder::Protocol_encoder(const std::shared_ptr<Vio_interface> &socket,
                                    Error_handler ehandler,
                                    Protocol_monitor_interface *pmon)
     : m_pool(m_default_pool_config),
@@ -73,7 +73,7 @@ bool Protocol_encoder::send_result(const Error_code &result) {
     if (!result.message.empty()) ok.set_msg(result.message);
     return send_message(Mysqlx::ServerMessages::OK, ok);
   } else {
-    if (result.severity == ngs::Error_code::FATAL)
+    if (result.severity == Error_code::FATAL)
       get_protocol_monitor().on_fatal_error_send();
     else
       get_protocol_monitor().on_error_send();

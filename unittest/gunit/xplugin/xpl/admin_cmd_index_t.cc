@@ -74,7 +74,7 @@ class Admin_command_index_test : public ::testing::Test {
   StrictMock<ngs::test::Mock_session> session;
   std::unique_ptr<Admin_command_index_stub> command;
   Admin_command_arguments_object::List list;
-  ngs::unique_ptr<Admin_command_arguments_object> args;
+  std::unique_ptr<Admin_command_arguments_object> args;
 };
 
 namespace {

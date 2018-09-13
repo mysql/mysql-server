@@ -26,9 +26,9 @@
 #include <iterator>
 
 #include "mysql/service_ssl_wrapper.h"
-#include "plugin/x/ngs/include/ngs_common/ssl_session_options.h"
+#include "plugin/x/src/ssl_session_options.h"
 
-namespace ngs {
+namespace xpl {
 
 bool Ssl_session_options::active_tls() const {
   return m_vio->get_type() == Connection_type::Connection_tls;
@@ -111,4 +111,4 @@ std::string Ssl_session_options::ssl_get_peer_certificate_subject() const {
   return subject;
 }
 
-}  // namespace ngs
+}  // namespace xpl

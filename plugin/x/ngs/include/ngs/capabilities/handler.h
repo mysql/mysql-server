@@ -25,10 +25,10 @@
 #ifndef PLUGIN_X_NGS_INCLUDE_NGS_CAPABILITIES_HANDLER_H_
 #define PLUGIN_X_NGS_INCLUDE_NGS_CAPABILITIES_HANDLER_H_
 
+#include <memory>
 #include <string>
 
-#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
-#include "plugin/x/ngs/include/ngs_common/smart_ptr.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 
 namespace ngs {
 class Client_interface;
@@ -47,7 +47,7 @@ class Capability_handler {
   virtual void commit() = 0;
 };
 
-typedef ngs::shared_ptr<Capability_handler> Capability_handler_ptr;
+typedef std::shared_ptr<Capability_handler> Capability_handler_ptr;
 
 }  // namespace ngs
 

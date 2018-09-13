@@ -40,6 +40,7 @@ class Dispatcher {
  public:
   explicit Dispatcher(ngs::Session_interface *session) : m_session{session} {}
   bool execute(const ngs::Message_request &command);
+  void reset();
 
   const Prepare_command_handler::Prepared_stmt_info_list &
   get_prepared_stmt_info() const {

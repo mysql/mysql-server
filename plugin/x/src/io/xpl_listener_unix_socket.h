@@ -27,9 +27,9 @@
 
 #include "my_inttypes.h"
 #include "plugin/x/ngs/include/ngs/interface/listener_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/operations_factory_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/socket_events_interface.h"
-#include "plugin/x/ngs/include/ngs_common/operations_factory_interface.h"
-#include "plugin/x/ngs/include/ngs_common/socket_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/socket_interface.h"
 
 namespace xpl {
 

@@ -54,6 +54,7 @@ Mysqlx.Expect.Close {
 -->callmacro Verify_feature_existence	Mysqlx.Crud.Find::locking	17.12
 -->callmacro Verify_feature_existence	Mysqlx.Crud.Find::locking_options	17.13
 -->callmacro Verify_feature_existence	Mysqlx.Crud.Find::limit_expr	17.14
+-->callmacro Verify_feature_existence	Mysqlx.Session.Reset::keep_open	6.1
 -->callmacro Verify_expect_open	all features in single request	%ALL_COND%
 EOF
 

@@ -23,8 +23,8 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "plugin/x/ngs/include/ngs_common/operations_factory.h"
 #include "plugin/x/src/global_timeouts.h"
+#include "plugin/x/src/operations_factory.h"
 #include "plugin/x/src/xpl_client.h"
 #include "plugin/x/src/xpl_server.h"
 #include "unittest/gunit/xplugin/xpl/mock/session.h"
@@ -64,11 +64,11 @@ class Timers_test_suite : public ::testing::Test {
                            Global_timeouts::Default::k_read_timeout,
                            Global_timeouts::Default::k_write_timeout};
 
-  ngs::shared_ptr<Protocol_config> config{new Protocol_config()};
+  std::shared_ptr<Protocol_config> config{new Protocol_config()};
   const std::vector<unsigned char> k_msg{
       1, 0, 0, 0, 1};  // 1 = size, 0, 0, 0, 1 = Msg_CapGet
 
-  ngs::shared_ptr<xpl::test::Mock_ngs_client> sut;
+  std::shared_ptr<xpl::test::Mock_ngs_client> sut;
   Page_pool m_pool{{1000, 1000, 1000}};
   Page_output_stream m_page_stream{m_pool};
   MYSQL_SOCKET m_socket{INVALID_SOCKET, nullptr};
@@ -77,7 +77,7 @@ class Timers_test_suite : public ::testing::Test {
 };
 
 ACTION_P2(SetSocketErrnoAndReturn, err, result) {
-  ngs::Operations_factory operations_factory;
+  xpl::Operations_factory operations_factory;
 
   operations_factory.create_system_interface()->set_socket_errno(err);
 
@@ -242,7 +242,7 @@ TEST_F(Timers_test_suite, read_one_message_failed_read) {
 
   EXPECT_CALL(mock_protocol_monitor, on_receive(_)).Times(0);
 
-  auto encoder = ngs::allocate_object<Mock_protocol_encoder>();
+  auto encoder = allocate_object<Mock_protocol_encoder>();
 
   EXPECT_CALL(*encoder, get_flusher()).WillRepeatedly(Return(&flusher));
   sut->set_encoder(encoder);
@@ -264,8 +264,8 @@ TEST_F(Timers_test_suite, send_message_default_write_timeout) {
   EXPECT_CALL(*mock_vio, write(_, _)).After(set_timeout_exp);
 
   auto stub_error_handler = [](int) {};
-  auto encoder = ngs::allocate_object<Protocol_encoder>(
-      mock_vio, stub_error_handler, &mock_protocol_monitor);
+  auto encoder = allocate_object<Protocol_encoder>(mock_vio, stub_error_handler,
+                                                   &mock_protocol_monitor);
   sut->set_encoder(encoder);
   encoder->send_message(Mysqlx::ServerMessages::OK, Mysqlx::Ok(), false);
 }
@@ -284,8 +284,8 @@ TEST_F(Timers_test_suite, send_message_custom_write_timeout) {
   EXPECT_CALL(*temp_vio, write(_, _)).After(set_timeout_exp);
 
   auto stub_error_handler = [](int) {};
-  auto encoder = ngs::allocate_object<Protocol_encoder>(
-      temp_vio, stub_error_handler, &mock_protocol_monitor);
+  auto encoder = allocate_object<Protocol_encoder>(temp_vio, stub_error_handler,
+                                                   &mock_protocol_monitor);
   client.set_encoder(encoder);
   encoder->send_message(Mysqlx::ServerMessages::OK, Mysqlx::Ok(), false);
 
@@ -303,8 +303,8 @@ TEST_F(Timers_test_suite, send_message_failed_write) {
 
   struct CustomExpection {};
   auto stub_error_handler = [](int) { throw CustomExpection(); };
-  auto encoder = ngs::allocate_object<Protocol_encoder>(
-      mock_vio, stub_error_handler, &mock_protocol_monitor);
+  auto encoder = allocate_object<Protocol_encoder>(mock_vio, stub_error_handler,
+                                                   &mock_protocol_monitor);
   sut->set_encoder(encoder);
 
   // write failed so error_handler should be used

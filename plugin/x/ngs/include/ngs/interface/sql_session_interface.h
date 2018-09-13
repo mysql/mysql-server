@@ -31,7 +31,7 @@
 #include "plugin/x/ngs/include/ngs/interface/authentication_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/resultset_interface.h"
 #include "plugin/x/ngs/include/ngs/protocol_encoder.h"
-#include "plugin/x/ngs/include/ngs_common/connection_type.h"
+#include "plugin/x/src/io/connection_type.h"
 
 struct PS_PARAM;
 
@@ -43,7 +43,7 @@ class Sql_session_interface {
  public:
   virtual ~Sql_session_interface() {}
 
-  virtual Error_code set_connection_type(const Connection_type type) = 0;
+  virtual Error_code set_connection_type(const xpl::Connection_type type) = 0;
   virtual Error_code execute_kill_sql_session(uint64_t mysql_session_id) = 0;
   virtual bool is_killed() const = 0;
   virtual bool password_expired() const = 0;
@@ -60,7 +60,7 @@ class Sql_session_interface {
                              Resultset_interface *rset) = 0;
   virtual Error_code fetch_cursor(const std::uint32_t id,
                                   const std::uint32_t row_count,
-                                  ngs::Resultset_interface *rset) = 0;
+                                  Resultset_interface *rset) = 0;
   virtual Error_code prepare_prep_stmt(const char *sql, std::size_t sql_len,
                                        Resultset_interface *rset) = 0;
   virtual Error_code deallocate_prep_stmt(const uint32_t id,
@@ -69,9 +69,10 @@ class Sql_session_interface {
                                        const bool has_cursor,
                                        PS_PARAM *parameters,
                                        const std::size_t parameter_count,
-                                       ngs::Resultset_interface *rset) = 0;
+                                       Resultset_interface *rset) = 0;
   virtual Error_code attach() = 0;
   virtual Error_code detach() = 0;
+  virtual Error_code reset() = 0;
 };
 
 }  // namespace ngs

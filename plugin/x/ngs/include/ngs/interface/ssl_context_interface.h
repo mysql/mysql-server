@@ -25,8 +25,8 @@
 #ifndef PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_SSL_CONTEXT_INTERFACE_H_
 #define PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_SSL_CONTEXT_INTERFACE_H_
 
+#include "plugin/x/ngs/include/ngs/interface/ssl_context_options_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/vio_interface.h"
-#include "plugin/x/ngs/include/ngs_common/ssl_context_options_interface.h"
 
 namespace ngs {
 

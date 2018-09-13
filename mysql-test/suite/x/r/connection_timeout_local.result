@@ -157,6 +157,7 @@ Afert the Session_reset connection isn't considered a target for release
 command ok
 # 2. Trigger reset
 send Mysqlx.Session.Reset {
+  keep_open: false
 }
 
 RUN recvok

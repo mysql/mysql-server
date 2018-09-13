@@ -26,8 +26,8 @@
 
 #include "plugin/x/ngs/include/ngs/interface/client_interface.h"
 #include "plugin/x/ngs/include/ngs/ngs_error.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/ngs/include/ngs/scheduler.h"
-#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
 #include "plugin/x/src/document_id_aggregator.h"
 #include "plugin/x/src/notices.h"
 #include "plugin/x/src/sql_data_context.h"
@@ -89,7 +89,7 @@ bool Session::handle_ready_message(ngs::Message_request &command) {
 
 ngs::Error_code Session::init() {
   const unsigned short port = m_client->client_port();
-  const ngs::Connection_type type = m_client->connection().get_type();
+  const Connection_type type = m_client->connection().get_type();
 
   return m_sql.init(port, type);
 }
@@ -123,12 +123,23 @@ void Session::on_auth_failure(
         response.status, response.error_code,
         "Password for " MYSQLXSYS_ACCOUNT " account has been expired"};
     ngs::Session::on_auth_failure(r);
-  } else
+  } else {
     ngs::Session::on_auth_failure(response);
+  }
+}
+
+void Session::on_reset() {
+  ngs::Error_code error = m_sql.reset();
+  if (error) {
+    m_encoder->send_result(error);
+    return;
+  }
+  m_dispatcher.reset();
+  m_encoder->send_ok();
 }
 
 void Session::mark_as_tls_session() {
-  data_context().set_connection_type(ngs::Connection_tls);
+  data_context().set_connection_type(Connection_tls);
 }
 
 THD *Session::get_thd() const { return m_sql.get_thd(); }

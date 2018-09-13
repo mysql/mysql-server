@@ -27,9 +27,9 @@
 #include "my_sys.h"
 
 #include "plugin/x/ngs/include/ngs/interface/sql_session_interface.h"
-#include "plugin/x/ngs/include/ngs_common/ssl_session_options.h"
 #include "plugin/x/src/query_string_builder.h"
 #include "plugin/x/src/sql_data_result.h"
+#include "plugin/x/src/ssl_session_options.h"
 #include "plugin/x/src/xpl_client.h"
 #include "plugin/x/src/xpl_log.h"
 
@@ -164,18 +164,18 @@ ngs::Error_code Account_verification_handler::verify_account(
   }
 
   if (record.require_secure_transport &&
-      !ngs::Connection_type_helper::is_secure_type(
+      !Connection_type_helper::is_secure_type(
           m_session->client().connection().get_type()))
     return ngs::SQLError(ER_SECURE_TRANSPORT_REQUIRED);
 
   return record.user_required.validate(
-      ngs::Ssl_session_options(&m_session->client().connection()));
+      Ssl_session_options(&m_session->client().connection()));
 }
 
 ngs::Error_code Account_verification_handler::get_account_record(
     const std::string &user, const std::string &host,
     Account_record &record) const try {
-  xpl::Sql_data_result result(m_session->data_context());
+  Sql_data_result result(m_session->data_context());
   result.query(get_sql(user, host));
   // The query asks for primary key, thus here we should get only one row
   if (result.size() != 1)

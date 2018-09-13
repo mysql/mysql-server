@@ -46,7 +46,7 @@ struct Result_collector {
 
   ngs::Scheduler_dynamic::Task *new_task(const T &value) {
     return new ngs::Scheduler_dynamic::Task(
-        ngs::bind(&Result_collector::task, this, value));
+        std::bind(&Result_collector::task, this, value));
   }
 
   void wait(size_t task_count) {
@@ -56,9 +56,9 @@ struct Result_collector {
       m_check_task_count_cond.wait(m_check_task_count_mutex);
   }
 
-  xpl::Mutex m_check_task_count_mutex;
-  xpl::Cond m_check_task_count_cond;
-  xpl::Mutex m_result_mutex;
+  Mutex m_check_task_count_mutex;
+  Cond m_check_task_count_cond;
+  Mutex m_result_mutex;
   std::vector<T> m_result;
 };
 

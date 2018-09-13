@@ -22,10 +22,10 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include "plugin/x/ngs/include/ngs_common/ssl_context_options.h"
+#include "plugin/x/src/ssl_context_options.h"
 #include "mysql/service_ssl_wrapper.h"
 
-namespace ngs {
+namespace xpl {
 
 long Ssl_context_options::ssl_ctx_verify_depth() {
   if (nullptr == m_vio_ssl) return 0;
@@ -87,4 +87,4 @@ long Ssl_context_options::ssl_session_cache_timeouts() { return 0; }
 
 long Ssl_context_options::ssl_used_session_cache_entries() { return 0; }
 
-}  // namespace ngs
+}  // namespace xpl

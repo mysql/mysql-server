@@ -23,7 +23,7 @@
  */
 
 #include "plugin/x/src/sql_user_require.h"
-#include "plugin/x/ngs/include/ngs_common/ssl_session_options_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/ssl_session_options_interface.h"
 
 namespace xpl {
 

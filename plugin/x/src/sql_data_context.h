@@ -30,8 +30,8 @@
 #include "mysql/service_command.h"
 #include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/sql_session_interface.h"
-#include "plugin/x/ngs/include/ngs_common/connection_type.h"
 #include "plugin/x/src/buffering_command_delegate.h"
+#include "plugin/x/src/io/connection_type.h"
 #include "plugin/x/src/streaming_command_delegate.h"
 
 // Use an internal MySQL server user
@@ -41,7 +41,7 @@
 
 namespace xpl {
 
-typedef ngs::function<bool(const std::string &password_hash)>
+typedef std::function<bool(const std::string &password_hash)>
     On_user_password_hash;
 typedef Buffering_command_delegate::Field_value Field_value;
 typedef Buffering_command_delegate::Row_data Row_data;
@@ -68,7 +68,7 @@ class Sql_data_context : public ngs::Sql_session_interface {
 
   uint64_t mysql_session_id() const override;
 
-  ngs::Error_code set_connection_type(const ngs::Connection_type type) override;
+  ngs::Error_code set_connection_type(const Connection_type type) override;
   bool is_killed() const override;
   bool password_expired() const override { return m_password_expired; }
 
@@ -98,9 +98,10 @@ class Sql_data_context : public ngs::Sql_session_interface {
 
   ngs::Error_code attach() override;
   ngs::Error_code detach() override;
+  ngs::Error_code reset() override;
 
   ngs::Error_code init();
-  ngs::Error_code init(const int client_port, const ngs::Connection_type type);
+  ngs::Error_code init(const int client_port, const Connection_type type);
   void deinit();
 
   MYSQL_THD get_thd() const;
@@ -108,7 +109,7 @@ class Sql_data_context : public ngs::Sql_session_interface {
   bool kill();
   bool is_acl_disabled();
   void switch_to_local_user(const std::string &username);
-  bool wait_api_ready(ngs::function<bool()> exiting);
+  bool wait_api_ready(std::function<bool()> exiting);
 
  private:
   Sql_data_context(const Sql_data_context &) = delete;

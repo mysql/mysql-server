@@ -26,13 +26,13 @@
 #define PLUGIN_X_NGS_INCLUDE_NGS_SCHEDULER_H_
 
 #include <atomic>
+#include <functional>
 #include <list>
 #include <string>
 #include <vector>
 
 #include "plugin/x/ngs/include/ngs/memory.h"
 #include "plugin/x/ngs/include/ngs/thread.h"
-#include "plugin/x/ngs/include/ngs_common/bind.h"
 #include "plugin/x/src/helper/multithread/cond.h"
 #include "plugin/x/src/helper/multithread/mutex.h"
 
@@ -50,7 +50,7 @@ class Scheduler_dynamic {
     virtual void on_task_end() = 0;
   };
 
-  typedef ngs::function<void()> Task;
+  typedef std::function<void()> Task;
 
   Scheduler_dynamic(const char *name,
                     PSI_thread_key thread_key = PSI_NOT_INSTRUMENTED);
@@ -101,7 +101,7 @@ class Scheduler_dynamic {
     }
 
     bool remove_if(Element_type &result,
-                   ngs::function<bool(Element_type &)> matches) {
+                   std::function<bool(Element_type &)> matches) {
       MUTEX_LOCK(guard, m_access_mutex);
       for (typename std::list<Element_type>::iterator it = m_list.begin();
            it != m_list.end(); ++it) {
@@ -153,7 +153,7 @@ class Scheduler_dynamic {
   lock_list<Task *> m_tasks;
   lock_list<Thread_t> m_threads;
   lock_list<my_thread_t> m_terminating_workers;
-  ngs::Memory_instrumented<Monitor_interface>::Unique_ptr m_monitor;
+  Memory_instrumented<Monitor_interface>::Unique_ptr m_monitor;
   PSI_thread_key m_thread_key;
 };
 }  // namespace ngs

@@ -35,8 +35,8 @@
 #include "plugin/x/ngs/include/ngs/capabilities/configurator.h"
 #include "plugin/x/ngs/include/ngs/capabilities/handler_readonly_value.h"
 #include "plugin/x/ngs/include/ngs/thread.h"
-#include "plugin/x/ngs/include/ngs_common/string_formatter.h"
 #include "plugin/x/src/cap_handles_expired_passwords.h"
+#include "plugin/x/src/helper/string_formatter.h"
 #include "plugin/x/src/mysql_show_variable_wrapper.h"
 #include "plugin/x/src/mysql_variables.h"
 #include "plugin/x/src/xpl_server.h"
@@ -62,7 +62,7 @@ ngs::Capabilities_configurator *Client::capabilities_configurator() {
   caps->add_handler(ngs::allocate_shared<ngs::Capability_readonly_value>(
       "node_type", "mysql"));
   caps->add_handler(
-      ngs::allocate_shared<Cap_handles_expired_passwords>(ngs::ref(*this)));
+      ngs::allocate_shared<Cap_handles_expired_passwords>(std::ref(*this)));
 
   return caps;
 }
@@ -120,9 +120,9 @@ bool Client::is_handler_thd(const THD *thd) const {
 
 void Client::get_status_ssl_cipher_list(SHOW_VAR *var) {
   std::vector<std::string> ciphers =
-      ngs::Ssl_session_options(&connection()).ssl_cipher_list();
+      Ssl_session_options(&connection()).ssl_cipher_list();
 
-  mysqld::xpl_show_var(var).assign(ngs::join(ciphers, ":"));
+  mysqld::xpl_show_var(var).assign(join(ciphers, ":"));
 }
 
 std::string Client::resolve_hostname() {
