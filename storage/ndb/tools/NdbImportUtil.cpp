@@ -29,7 +29,7 @@ NdbImportUtil::NdbImportUtil() :
   m_util(*this),
   c_stats(*this)
 {
-  log1("ctor");
+  log_debug(1, "ctor");
   c_rows_free = new RowList;
   c_rows_free->set_stats(m_util.c_stats, "rows-free");
   c_blobs_free = new BlobList;
@@ -38,7 +38,7 @@ NdbImportUtil::NdbImportUtil() :
 
 NdbImportUtil::~NdbImportUtil()
 {
-  log1("dtor");
+  log_debug(1, "dtor");
   delete c_blobs_free;
   delete c_rows_free;
 }
@@ -870,7 +870,7 @@ NdbImportUtil::add_table(NdbDictionary::Dictionary* dic,
 {
   require(tab != 0);
   require(tab->getObjectStatus() == NdbDictionary::Object::Retrieved);
-  log1("add_table: " << tab->getName());
+  log_debug(1, "add_table: " << tab->getName());
   tabid = tab->getObjectId();
   // check if mapped already
   {
@@ -2774,7 +2774,7 @@ NdbImportUtil::Stats::create(const char* name, uint parent, uint flags)
     Stat* stat = find(name);
     if (stat != 0)
     {
-      log2("use existing " << stat->m_name << " id=" << stat->m_id);
+      log_debug(2, "use existing " << stat->m_name << " id=" << stat->m_id);
       unlock();
       return stat;
     }
@@ -2784,7 +2784,7 @@ NdbImportUtil::Stats::create(const char* name, uint parent, uint flags)
   uint id = m_stats.size();
   Stat* stat = new Stat(*this, id, name, parent, parentlevel + 1, flags);
   m_stats.push_back(stat);
-  log2("created stat id=" << stat->m_id << " name=" << stat->m_name);
+  log_debug(2, "created stat id=" << stat->m_id << " name=" << stat->m_name);
   validate();
   unlock();
   return stat;
@@ -2982,7 +2982,7 @@ NdbImportUtil::set_error_gen(Error& error, int line,
     vsnprintf(error.text, sizeof(error.text), fmt, ap);
     va_end(ap);
   }
-  log1("E " << error);
+  log_debug(1, "E " << error);
   if (c_opt.m_abort_on_error)
     abort();
   c_error_lock.unlock();
@@ -3003,7 +3003,7 @@ NdbImportUtil::set_error_usage(Error& error, int line,
     vsnprintf(error.text, sizeof(error.text), fmt, ap);
     va_end(ap);
   }
-  log1("E " << error);
+  log_debug(1, "E " << error);
   if (c_opt.m_abort_on_error)
     abort();
   c_error_lock.unlock();
@@ -3016,7 +3016,7 @@ NdbImportUtil::set_error_alloc(Error& error, int line)
   new (&error) Error;
   error.line = line;
   error.type = Error::Type_alloc;
-  log1("E " << error);
+  log_debug(1, "E " << error);
   if (c_opt.m_abort_on_error)
     abort();
   c_error_lock.unlock();
@@ -3033,7 +3033,7 @@ NdbImportUtil::set_error_mgm(Error& error, int line,
   error.code = ndb_mgm_get_latest_error(handle);
   snprintf(error.text, sizeof(error.text),
            "%s", ndb_mgm_get_latest_error_msg(handle));
-  log1("E " << error);
+  log_debug(1, "E " << error);
   if (c_opt.m_abort_on_error)
     abort();
   c_error_lock.unlock();
@@ -3049,7 +3049,7 @@ NdbImportUtil::set_error_con(Error& error, int line,
   error.type = Error::Type_con;
   error.code = con->get_latest_error();
   snprintf(error.text, sizeof(error.text), "%s", con->get_latest_error_msg());
-  log1("E " << error);
+  log_debug(1, "E " << error);
   if (c_opt.m_abort_on_error)
     abort();
   c_error_lock.unlock();
@@ -3065,7 +3065,7 @@ NdbImportUtil::set_error_ndb(Error& error, int line,
   error.type = Error::Type_ndb;
   error.code = ndberror.code;
   snprintf(error.text, sizeof(error.text), "%s", ndberror.message);
-  log1("E " << error);
+  log_debug(1, "E " << error);
   if (c_opt.m_abort_on_error)
     abort();
   c_error_lock.unlock();
@@ -3096,7 +3096,7 @@ NdbImportUtil::set_error_os(Error& error, int line,
                errno, strerror(errno));
     }
   }
-  log1("E " << error);
+  log_debug(1, "E " << error);
   if (c_opt.m_abort_on_error)
     abort();
   c_error_lock.unlock();
@@ -3118,7 +3118,7 @@ NdbImportUtil::set_error_data(Error& error, int line,
     vsnprintf(error.text, sizeof(error.text), fmt, ap);
     va_end(ap);
   }
-  log1("E " << error);
+  log_debug(1, "E " << error);
   if (c_opt.m_abort_on_error)
     abort();
   c_error_lock.unlock();

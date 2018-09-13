@@ -51,20 +51,15 @@ typedef NdbImport::Error Error;
 #define TEST_NDBIMPORT
 #endif
 
-#define logN(x, n) \
+#define log_debug(n, x) \
   if (unlikely(m_util.c_opt.m_log_level >= n)) \
     (*m_util.c_log.out) << m_util.c_log.start << *this <<__LINE__ \
                         << " " << x << m_util.c_log.stop
 
-#define log1(x) logN(x, 1)
-#define log2(x) logN(x, 2)
-
 #if defined(VM_TRACE) || defined(TEST_NDBIMPORT)
-#define log3(x) logN(x, 3)
-#define log4(x) logN(x, 4)
+#define log_debug_3(x) log_debug(3, x)
 #else
-#define log3(x)
-#define log4(x)
+#define log_debug_3(x)
 #endif
 
 #define Inval_uint (~(uint)0)
