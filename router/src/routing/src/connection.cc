@@ -158,6 +158,7 @@ void MySQLRoutingConnection::run() {
   int pktnr = 0;
 
   bool connection_is_ok = true;
+  bool error_counter_already_cleared = false;
   while (connection_is_ok && !disconnect_) {
     const size_t kClientEventIndex = 0;
     const size_t kServerEventIndex = 1;
@@ -236,6 +237,15 @@ void MySQLRoutingConnection::run() {
       bytes_up += bytes_read;
     }
 
+    // after a successful handshake, we reset client-side connection error
+    // counter, just like the Server
+    if (!error_counter_already_cleared && handshake_done) {
+      harness_assert(connection_is_ok);
+      context_.clear_error_counter(in_addr_to_array(client_addr_),
+                                   client_address_.c_str());
+      error_counter_already_cleared = true;
+    }
+
     // Handle traffic from Client to Server
     if (context_.get_protocol().copy_packets(
             client_socket_, server_socket_, client_is_readable, buffer, &pktnr,
@@ -258,6 +268,8 @@ void MySQLRoutingConnection::run() {
   }  // while (connection_is_ok && !disconnect_.load())
 
   if (!handshake_done) {
+    harness_assert(!error_counter_already_cleared);
+
     log_info("[%s] fd=%d Pre-auth socket failure %s: %s",
              context_.get_name().c_str(), client_socket_,
              client_address_.c_str(), extra_msg.c_str());

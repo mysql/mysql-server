@@ -30,10 +30,29 @@
 #include "mysql_session.h"
 #include "router_component_test.h"
 #include "router_test_helpers.h"
+#include "socket_operations.h"
 #include "tcp_port_pool.h"
+
+#ifndef _WIN32
+#include <arpa/inet.h>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <sys/file.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <unistd.h>
+#else
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#endif
+#include <string.h>
 
 #include <chrono>
 #include <thread>
+
+using mysql_harness::SocketOperations;
 
 Path g_origin_path;
 using mysqlrouter::MySQLSession;
@@ -340,6 +359,136 @@ TEST_F(RouterRoutingTest, RoutingMaxConnectErrors) {
   EXPECT_THROW_LIKE(
       client.connect("127.0.0.1", router_port, "username", "password", "", ""),
       std::exception, "Too many connection errors");
+}
+
+// in following functions we use SocketOperations for convenience: it provides
+// Win and Unix implemenatations where needed, thus saving us some #ifdefs
+
+static bool connect_to_host(int &sock, uint16_t port) {
+  SocketOperations *so = SocketOperations::instance();
+
+  struct addrinfo hints, *ainfo;
+  memset(&hints, 0, sizeof hints);
+  hints.ai_family = AF_UNSPEC;
+  hints.ai_socktype = SOCK_STREAM;
+  hints.ai_flags = AI_PASSIVE;
+
+  int status =
+      getaddrinfo("127.0.0.1", std::to_string(port).c_str(), &hints, &ainfo);
+  if (status != 0)
+    throw std::runtime_error(std::string("getaddrinfo() failed: ") +
+                             gai_strerror(status));
+
+  std::shared_ptr<void> exit_freeaddrinfo(nullptr,
+                                          [&](void *) { freeaddrinfo(ainfo); });
+
+  sock = socket(ainfo->ai_family, ainfo->ai_socktype, ainfo->ai_protocol);
+  if (sock < 0)
+    throw std::runtime_error("socket() failed: " +
+                             std::to_string(so->get_errno()));
+
+  // return connection success
+  return (connect(sock, ainfo->ai_addr, ainfo->ai_addrlen) == 0);
+}
+
+static void read_until_error(int sock) {
+  SocketOperations *so = SocketOperations::instance();
+
+  char buf[1024];
+  while (true) {
+    int bytes_read = so->read(sock, buf, sizeof(buf));
+    if (bytes_read <= 0) return;
+  }
+}
+
+static void make_bad_connection(uint16_t port) {
+  SocketOperations *so = SocketOperations::instance();
+
+  // TCP-level connection phase
+  int sock;
+  if (!connect_to_host(sock, port)) return;
+
+  // MySQL protocol handshake phase
+  // To simplify code, instead of alternating between reading and writing
+  // protocol packets, we write a lot of garbage upfront, and then read whatever
+  // Router sends back. Router will read what we wrote in chunks, inbetween its
+  // writes, thinking they're replies to its handshake packets. Eventually it
+  // will finish the handshake with error and disconnect.
+  std::vector<char> bogus_data(1024, 0);  // '=' is arbitrary bad value
+  if (so->write(sock, bogus_data.data(), bogus_data.size()) == -1)
+    throw std::runtime_error("write() failed: " + std::to_string(errno));
+  read_until_error(sock);  // error triggered by Router disconnecting
+}
+
+/**
+ * @test
+ * This test Verifies that:
+ *   1. Router will block a misbehaving client after consecutive
+ *      <max_connect_errors> connection errors
+ *   2. Router will reset its connection error counter if client establishes a
+ *      successful connection before <max_connect_errors> threshold is hit
+ */
+TEST_F(RouterRoutingTest, test1) {
+  const uint16_t server_port = port_pool_.get_next_available();
+  const uint16_t router_port = port_pool_.get_next_available();
+
+  // doesn't really matter which file we use here, we are not going to do any
+  // queries
+  const std::string json_stmts =
+      get_data_dir().join("bootstrap_big_data.js").str();
+
+  // launch the server mock
+  auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
+
+  // create a config with max_connect_errors == 3
+  const std::string routing_section =
+      "[routing:basic]\n"
+      "bind_port = " +
+      std::to_string(router_port) +
+      "\n"
+      "mode = read-write\n"
+      "max_connect_errors = 3\n"
+      "destinations = 127.0.0.1:" +
+      std::to_string(server_port) + "\n";
+  const std::string conf_dir = get_tmp_dir("conf");
+  std::shared_ptr<void> exit_guard(nullptr,
+                                   [&](void *) { purge_dir(conf_dir); });
+  std::string conf_file = create_config_file(conf_dir, routing_section);
+
+  // launch the router with the created configuration
+  auto router_static = launch_router("-c " + conf_file);
+
+  // wait for server and router to begin accepting the connections
+  ASSERT_TRUE(wait_for_port_ready(server_port, 5000))
+      << server_mock.get_full_output();
+  ASSERT_TRUE(wait_for_port_ready(router_port, 5000))
+      << get_router_log_output();
+
+  // we loop just for good measure, to additionally test that this behaviour is
+  // repeatable
+  for (int i = 0; i < 5; i++) {
+    // good connection, followed by 2 bad ones. Good one should reset the error
+    // counter
+    mysqlrouter::MySQLSession client;
+    EXPECT_NO_THROW(client.connect("127.0.0.1", router_port, "username",
+                                   "password", "", ""));
+    make_bad_connection(router_port);
+    make_bad_connection(router_port);
+  }
+
+  // make a 3rd consecutive bad connection - it should cause Router to start
+  // blocking us
+  make_bad_connection(router_port);
+
+  // we loop just for good measure, to additionally test that this behaviour is
+  // repeatable
+  for (int i = 0; i < 5; i++) {
+    // now trying to make a good connection should fail due to blockage
+    mysqlrouter::MySQLSession client;
+    EXPECT_THROW_LIKE(client.connect("127.0.0.1", router_port, "username",
+                                     "password", "", ""),
+                      std::exception, "Too many connection errors");
+  }
 }
 
 int main(int argc, char *argv[]) {

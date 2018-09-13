@@ -362,6 +362,7 @@ void MySQLRouting::start_acceptor(mysql_harness::PluginFuncEnv *env) {
                     context_.get_bind_named_socket().str().c_str());
       }
 
+      // TODO: creation of new element by [] is most-likely unneccessary
       if (context_.conn_error_counters_[in_addr_to_array(client_addr)] >=
           context_.max_connect_errors_) {
         std::string client_name, msg;
