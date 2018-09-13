@@ -2998,6 +2998,14 @@ static void do_exec(struct st_command *command, bool run_in_background) {
 #endif
   }
 
+  if (error != 0 && command->abort_on_error) {
+    log_msg("exec of '%s' failed, error: %d, status: %d, errno: %d.",
+            ds_cmd.str, error, status, errno);
+    dynstr_free(&ds_cmd);
+    die("Command \"%s\" failed.\n\nOutput from before failure:\n%s",
+        command->first_argument, ds_res.str);
+  }
+
   dynstr_free(&ds_cmd);
   handle_command_error(command, status);
 
