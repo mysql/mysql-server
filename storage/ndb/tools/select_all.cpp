@@ -234,6 +234,7 @@ int scanReadRecords(Ndb* pNdb,
     if (retryAttempt >= retryMax){
       ndbout << "ERROR: has retried this operation " << retryAttempt 
 	     << " times, failing!" << endl;
+      delete row;
       return -1;
     }
 
@@ -247,6 +248,7 @@ int scanReadRecords(Ndb* pNdb,
 	continue;
       }
       NDB_ERR(err);
+      delete row;
       return -1;
     }
 
@@ -257,6 +259,7 @@ int scanReadRecords(Ndb* pNdb,
     if (pOp == NULL) {
       NDB_ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
+      delete row;
       return -1;
     }
 
@@ -288,6 +291,7 @@ int scanReadRecords(Ndb* pNdb,
     if( rs != 0 ){
       NDB_ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
+      delete row;
       return -1;
     }
     
@@ -347,6 +351,7 @@ int scanReadRecords(Ndb* pNdb,
 	{
 	  NDB_ERR(pTrans->getNdbError());
 	  pNdb->closeTransaction(pTrans);
+          delete row;
 	  return -1;
 	}
     }
@@ -389,6 +394,7 @@ int scanReadRecords(Ndb* pNdb,
       }
       NDB_ERR(err);
       pNdb->closeTransaction(pTrans);
+      delete row;
       return -1;
     }
 
@@ -513,6 +519,7 @@ int scanReadRecords(Ndb* pNdb,
       }
       NDB_ERR(err);
       pNdb->closeTransaction(pTrans);
+      delete row;
       return -1;
     }
     
@@ -520,7 +527,9 @@ int scanReadRecords(Ndb* pNdb,
     
     ndbout << rows << " rows returned" << endl;
     
+    delete row;
     return 0;
   }
+  delete row;
   return -1;
 }
