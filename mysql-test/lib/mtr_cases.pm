@@ -1016,6 +1016,14 @@ sub collect_one_test_case {
     }
   }
 
+  # Disable quiet output when a test file doesn't contain a result file
+  # and --record option is disabled.
+  if ($::opt_quiet and defined $tinfo->{record_file} and !$::opt_record) {
+    $::opt_quiet = 0;
+    mtr_report("Turning off '--quiet' option since the MTR run contains " .
+               "a test without a result file.");
+  }
+
   # Skip some tests but include in list, just mark them as skipped
   if ($skip_test_reg and $tname =~ /$skip_test_reg/o) {
     $tinfo->{'skip'} = 1;
