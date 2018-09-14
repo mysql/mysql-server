@@ -31,10 +31,10 @@ typedef std::vector<unsigned int> Errors;
 
 class Secondary_engine {
  public:
-  Secondary_engine(){};
+  Secondary_engine() {}
   Secondary_engine(bool change_propagation);
 
-  ~Secondary_engine(){};
+  ~Secondary_engine() {}
 
   /// Get the secondary engine execution count value.
   ///
