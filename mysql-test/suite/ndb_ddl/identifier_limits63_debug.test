@@ -1,0 +1,50 @@
+--source include/have_ndb.inc
+--source include/have_debug.inc
+
+# ############################################################
+# WL#10162 Schema dist operation error code return
+# - fixes problem with too short columns for db and table
+#   name in the ndb_schema table. When using long identifiers
+#   with multibyte characters there wasn't enough room
+#   for them to be distributed.
+# - when upgrading the cluster without modifying the ndb_schema
+#   table this limit will still be in effect, this test
+#   ensures that limit is properly enforced in such case
+# ############################################################
+set @save_debug = @@global.debug;
+
+--echo # Testing schema identifier with length 64
+--echo # NOTE! ndb_schema identifier length limit used to be 63 bytes,
+--echo # use dbug keyword to emulate old limit
+--echo #
+set global debug='+d,ndb_schema_dist_63byte_limit';
+
+let $name64 = abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
+--disable_query_log ONCE
+eval SELECT LENGTH('$name64') as should_be_64_bytes,
+            CHAR_LENGTH('$name64') as should_be_64_characters;
+
+# Suppress error log messages triggered by failure to distribute in
+# the below tests
+-- disable_query_log ONCE
+call mtr.add_suppression("Failed to distribute");
+
+--echo # Create database suceeds but generates a warning as well as
+--echo # prints a message to log.
+eval CREATE DATABASE $name64;
+--echo # Verify database existence
+eval USE $name64;
+--echo # Create non NDB table
+CREATE TABLE t1 (
+  a int
+);
+--echo # Create NDB table should fail
+--error ER_TOO_LONG_IDENT
+CREATE TABLE t2 (
+  a int
+) ENGINE=NDB;
+show warnings;
+
+eval DROP DATABASE $name64;
+
+set @@global.debug = @save_debug;

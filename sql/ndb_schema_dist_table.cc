@@ -124,7 +124,9 @@ bool Ndb_schema_dist_table::check_column_identifier_limit(
     DBUG_RETURN(false);
   }
 
-  const int max_length = get_column_max_length(column_name);
+  const int max_length = DBUG_EVALUATE_IF("ndb_schema_dist_63byte_limit", 63,
+                                          get_column_max_length(column_name));
+
   if (identifier.length() > static_cast<size_t>(max_length)) {
     push_warning("Identifier length exceeds the %d byte limit", max_length);
     DBUG_RETURN(false);
