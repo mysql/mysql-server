@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -121,10 +121,6 @@ max-time: 1440
 cmd: testNodeRestart
 args: -n Bug43888 T1
 max-time: 720
-
-cmd: testSystemRestart
-args: -n SR_DD_2_LCP D2
-max-time: 900
 
 cmd: testNodeRestart
 args: -n Bug16895311 T1
