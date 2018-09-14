@@ -250,14 +250,12 @@ ngs::Error_code Admin_command_handler::list_clients(
     if (it->user.empty())
       proto.row_builder().add_null_field();
     else
-      proto.row_builder().add_string_field(it->user.c_str(), it->user.length(),
-                                           nullptr);
+      proto.row_builder().add_string_field(it->user.c_str(), it->user.length());
 
     if (it->host.empty())
       proto.row_builder().add_null_field();
     else
-      proto.row_builder().add_string_field(it->host.c_str(), it->host.length(),
-                                           nullptr);
+      proto.row_builder().add_string_field(it->host.c_str(), it->host.length());
 
     if (!it->has_session)
       proto.row_builder().add_null_field();
@@ -444,8 +442,7 @@ inline bool is_fixed_notice_name(const std::string &notice) {
 inline void add_notice_row(ngs::Protocol_encoder_interface *proto,
                            const std::string &notice, longlong status) {
   proto->start_row();
-  proto->row_builder().add_string_field(notice.c_str(), notice.length(),
-                                        nullptr);
+  proto->row_builder().add_string_field(notice.c_str(), notice.length());
   proto->row_builder().add_longlong_field(status, 0);
   proto->send_row();
 }

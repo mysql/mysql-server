@@ -337,8 +337,8 @@ TEST(row_builder, string_field) {
 
   rb.start_row(obuffer.get());
 
-  rb.add_string_field("", 0, NULL);
-  rb.add_string_field(STR1, strlen(STR1), NULL);
+  rb.add_string_field("", 0);
+  rb.add_string_field(STR1, strlen(STR1));
 
   rb.end_row();
   ngs::unique_ptr<Mysqlx::Resultset::Row> row(
@@ -550,9 +550,9 @@ TEST(row_builder, set_field) {
 
   rb.start_row(obuffer.get());
 
-  rb.add_set_field("A,B,C,D", strlen("A,B,C,D"), NULL);
-  rb.add_set_field("", strlen(""), NULL);  // empty SET case
-  rb.add_set_field("A", strlen("A"), NULL);
+  rb.add_set_field("A,B,C,D", strlen("A,B,C,D"));
+  rb.add_set_field("", strlen(""));  // empty SET case
+  rb.add_set_field("A", strlen("A"));
 
   rb.end_row();
   ngs::unique_ptr<Mysqlx::Resultset::Row> row(
@@ -593,11 +593,11 @@ TEST(row_builder, bit_field) {
 
   rb.start_row(obuffer.get());
 
-  rb.add_bit_field("\x00", 1, NULL);
-  rb.add_bit_field("\x01", 1, NULL);
-  rb.add_bit_field("\xff\x00", 2, NULL);
-  rb.add_bit_field("\x00\x00\x00\x00\x00\x00\x00\x00", 8, NULL);
-  rb.add_bit_field("\xff\xff\xff\xff\xff\xff\xff\xff", 8, NULL);
+  rb.add_bit_field("\x00", 1);
+  rb.add_bit_field("\x01", 1);
+  rb.add_bit_field("\xff\x00", 2);
+  rb.add_bit_field("\x00\x00\x00\x00\x00\x00\x00\x00", 8);
+  rb.add_bit_field("\xff\xff\xff\xff\xff\xff\xff\xff", 8);
 
   rb.end_row();
   ngs::unique_ptr<Mysqlx::Resultset::Row> row{

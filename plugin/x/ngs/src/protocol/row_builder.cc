@@ -389,8 +389,7 @@ void Row_builder::add_datetime_field(const MYSQL_TIME *value, uint) {
   append_time_values(value, m_out_stream);
 }
 
-void Row_builder::add_string_field(const char *const value, size_t length,
-                                   const CHARSET_INFO *const) {
+void Row_builder::add_string_field(const char *const value, size_t length) {
   ADD_FIELD_HEADER();
 
   m_out_stream->WriteVarint32(static_cast<google::protobuf::uint32>(
@@ -401,8 +400,7 @@ void Row_builder::add_string_field(const char *const value, size_t length,
   m_out_stream->WriteRaw(&zero, 1);
 }
 
-void Row_builder::add_set_field(const char *const value, size_t length,
-                                const CHARSET_INFO *const) {
+void Row_builder::add_set_field(const char *const value, size_t length) {
   ADD_FIELD_HEADER();
 
   // special case: empty SET
@@ -448,8 +446,7 @@ void Row_builder::add_set_field(const char *const value, size_t length,
   }
 }
 
-void Row_builder::add_bit_field(const char *const value, size_t length,
-                                const CHARSET_INFO *const) {
+void Row_builder::add_bit_field(const char *const value, size_t length) {
   ADD_FIELD_HEADER();
   DBUG_ASSERT(length <= 8);
 
