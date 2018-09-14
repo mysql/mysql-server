@@ -14,6 +14,7 @@
 --disable_query_log
 CREATE TABLE t_big_metadata(
   i int primary key not null,
+  j int,
   c1 VARCHAR(800) NOT NULL DEFAULT
 	"8uA4CsAQmqiX5W3bmYyQY8KREPeBDEiZfMpCmxkD2eYnhVlrs2UEKn3KwPRG"
 	"iIOq7otFdFiYlcAkAIQcvg8cxEc0xb86bTUcxhuhbvPFBxNjvEv5lH3Ji7wo"
@@ -144,4 +145,30 @@ CREATE TABLE t_big_metadata(
 ) character set latin1 engine=ndb;
 --enable_query_log
 
+## Insert some rows
+#
+insert into t_big_metadata(i,j) values (1,101) , (2,102) , (3,103) ;
+
+## Delete a row
+#
+delete from t_big_metadata where i = 2;
+
+## Query against the table
+#
+select i,j from t_big_metadata where i = 1;
+
+## INPLACE ALTER TABLE
+#
+alter table t_big_metadata add index(j), algorithm=inplace;
+
+## COPYING ALTER TABLE
+#
+alter table t_big_metadata drop column c8, add column k int, algorithm=copy;
+
+## Index scan query
+#
+select i,j,k from t_big_metadata where j < 103;
+
+## DROP the table to clean up
+#
 drop table t_big_metadata;
