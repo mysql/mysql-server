@@ -1914,3 +1914,25 @@ t3	CREATE TABLE `t3` (
   `a` varchar(10) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1, t2, t3;
+#
+# Bug#28643862 JSON_TABLE'S "COLUMNS" CLAUSE USES
+#              GLOBAL.CHARACTER_SET_RESULTS DEFAULT CHARSET
+#
+SET @@SESSION.character_set_connection = ascii;
+CREATE TABLE t1 SELECT a.col
+FROM JSON_TABLE('"test"', '$' COLUMNS(col VARCHAR(10) PATH '$')) AS a;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col` varchar(10) CHARACTER SET ascii DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET @@SESSION.collation_connection = latin1_bin;
+CREATE TABLE t2 SELECT a.col
+FROM JSON_TABLE('"test"', '$' COLUMNS(col VARCHAR(10) PATH '$')) AS a;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `col` varchar(10) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1, t2;
+SET @@SESSION.character_set_connection = DEFAULT;

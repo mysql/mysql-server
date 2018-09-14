@@ -1255,3 +1255,26 @@ CREATE TABLE t3 AS SELECT *
 SHOW CREATE TABLE t3;
 
 DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug#28643862 JSON_TABLE'S "COLUMNS" CLAUSE USES
+--echo #              GLOBAL.CHARACTER_SET_RESULTS DEFAULT CHARSET
+--echo #
+
+SET @@SESSION.character_set_connection = ascii;
+
+CREATE TABLE t1 SELECT a.col
+  FROM JSON_TABLE('"test"', '$' COLUMNS(col VARCHAR(10) PATH '$')) AS a;
+
+SHOW CREATE TABLE t1;
+
+SET @@SESSION.collation_connection = latin1_bin;
+
+CREATE TABLE t2 SELECT a.col
+  FROM JSON_TABLE('"test"', '$' COLUMNS(col VARCHAR(10) PATH '$')) AS a;
+
+SHOW CREATE TABLE t2;
+
+DROP TABLE t1, t2;
+
+SET @@SESSION.character_set_connection = DEFAULT;

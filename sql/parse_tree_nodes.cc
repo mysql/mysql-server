@@ -2297,7 +2297,7 @@ bool PT_json_table_column_with_path::contextualize(Parse_context *pc) {
     if (m_collation != nullptr)
       cs = m_collation;
     else
-      cs = global_system_variables.character_set_results;
+      cs = pc->thd->variables.collation_connection;
   } else {
     cs = merge_charset_and_collation(cs, m_collation);
     if (cs == nullptr) {
