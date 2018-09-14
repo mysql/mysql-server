@@ -6450,7 +6450,8 @@ static bool open_secondary_engine_tables(THD *thd, TABLE_LIST *tables,
     secondary_engine = &tl->table->s->secondary_engine;
   }
 
-  if (secondary_engine == nullptr) {
+  if (secondary_engine == nullptr ||
+      ha_resolve_by_name(thd, secondary_engine, false) == nullptr) {
     // Didn't find a secondary storage engine to use for the query.
     sql_cmd->disable_secondary_storage_engine();
     return false;
