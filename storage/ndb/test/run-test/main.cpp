@@ -63,6 +63,7 @@ int g_default_ports = 0;
 int g_mt = 0;
 int g_mt_rr = 0;
 int g_restart = 0;
+int g_default_max_retries = 0;
 
 const char *g_cwd = 0;
 const char *g_basedir = 0;
@@ -167,6 +168,11 @@ static struct my_option g_options[] = {
     {"mt", 256, "Use ndbmtd (0 = never, 1 = round-robin, 2 = only)",
      (uchar **)&g_mt, (uchar **)&g_mt, 0, GET_INT, REQUIRED_ARG, g_mt, 0, 0, 0,
      0, 0},
+    {"default-max-retries", 256,
+     "default number of retries after a test case fails (can be overwritten in "
+     "the test suite file)",
+     (uchar **)&g_default_max_retries, (uchar **)&g_default_max_retries, 0,
+     GET_INT, REQUIRED_ARG, g_default_max_retries, 0, 0, 0, 0, 0},
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
 
 const int p_ndb = atrt_process::AP_NDB_MGMD | atrt_process::AP_NDBD;
@@ -492,9 +498,9 @@ int main(int argc, char **argv) {
           retry_test = true;
         }
       }
-    } while (retry_test)
+    } while (retry_test);
 
-        if (g_report_file != 0) {
+    if (g_report_file != 0) {
       fprintf(g_report_file, "%s ; %d ; %d ; %ld ; %d\n",
               test_case.m_name.c_str(), test_no, result, elapsed, testruns);
       fflush(g_report_file);
@@ -1393,7 +1399,7 @@ int read_test_case(FILE *file, atrt_testcase &tc, int &line) {
     used_elements++;
   }
 
-  tc.m_max_retries = 0;
+  tc.m_max_retries = g_default_max_retries;
   if (p.get("max-retries", &mt)) {
     tc.m_max_retries = atoi(mt);
     used_elements++;
