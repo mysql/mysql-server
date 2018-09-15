@@ -342,15 +342,11 @@ int main(int argc, char **argv) {
 
     int result = 0;
     time_t elapsed;
-    int testruns;
-    int total_runs = 1 + test_case.m_max_retries;
-    for (testruns = 1; testruns <= total_runs; testruns++) {
-      if (testruns > 1) {
-        g_logger.info("Retrying test #%d - '%s', attempt (%d/%d)", test_no,
-                      test_case.m_name.c_str(), testruns - 1,
-                      test_case.m_max_retries);
-      }
+    int testruns = 0;
+    bool retry_test = false;
 
+    do {
+      testruns++;
       /**
       * Do we need to restart ndb
       */
@@ -484,15 +480,21 @@ int main(int argc, char **argv) {
 
       g_logger.info("#%d %s(%d)", test_no, (result == 0 ? "OK" : "FAILED"),
                     result);
-      if (result == 0) {
-        break;
-      } else {
+      if (result != 0) {
         restart = true;
-      }
-    }
 
-    if (result != 0) testruns--;
-    if (g_report_file != 0) {
+        if (testruns > test_case.m_max_retries) {
+          retry_test = false;
+        } else {
+          g_logger.info("Retrying test #%d - '%s', attempt (%d/%d)", test_no,
+                        test_case.m_name.c_str(), testruns,
+                        test_case.m_max_retries);
+          retry_test = true;
+        }
+      }
+    } while (retry_test)
+
+        if (g_report_file != 0) {
       fprintf(g_report_file, "%s ; %d ; %d ; %ld ; %d\n",
               test_case.m_name.c_str(), test_no, result, elapsed, testruns);
       fflush(g_report_file);
@@ -1186,8 +1188,8 @@ int check_ndb_or_servers_failures(atrt_config &config) {
   const int types = p_ndb | p_servers;
   for (unsigned i = 0; i < config.m_processes.size(); i++) {
     atrt_process &proc = *config.m_processes[i];
-    bool skip = proc.m_atrt_stopped ||
-                IF_WIN(proc.m_type & atrt_process::AP_MYSQLD, 0);
+    bool skip =
+        proc.m_atrt_stopped || IF_WIN(proc.m_type & atrt_process::AP_MYSQLD, 0);
     bool isRunning = proc.m_proc.m_status == "running";
     if ((types & proc.m_type) != 0 && !isRunning && !skip) {
       g_logger.critical("%s #%d not running on %s", proc.m_name.c_str(),
