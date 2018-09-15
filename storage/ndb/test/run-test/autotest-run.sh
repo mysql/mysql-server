@@ -92,6 +92,7 @@ do
                     atrt_defaults_group_suffix_arg="${1/#--atrt-/--}"
                     ;;
                 --site=*) site_arg="$1";;
+                --default-max-retries=*) default_max_retries_arg="$1";;
         esac
         shift
 done
@@ -420,6 +421,7 @@ else
     args="$args ${site_arg} ${clusters_arg}"
     args="$args $prefix"
     args="$args ${verbose_arg}"
+    args="$args ${default_max_retries_arg}"
     $atrt $args my.cnf | tee -a log.txt
 
     atrt_test_status=${PIPESTATUS[0]}
