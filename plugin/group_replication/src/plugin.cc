@@ -107,7 +107,6 @@ static mysql_mutex_t force_members_running_mutex;
 bool bootstrap_group_var = false;
 ulong poll_spin_loops_var = 0;
 ulong ssl_mode_var = 0;
-ulong member_expel_timeout_var = 0;
 
 const char *ssl_mode_values[] = {"DISABLED", "REQUIRED", "VERIFY_CA",
                                  "VERIFY_IDENTITY", (char *)0};
@@ -251,6 +250,12 @@ ulong transaction_size_limit_var = DEFAULT_TRANSACTION_SIZE_LIMIT;
 #define MAX_MEMBER_WEIGHT 100
 #define MIN_MEMBER_WEIGHT 0
 uint member_weight_var = DEFAULT_MEMBER_WEIGHT;
+
+/* Member Expel Timeout limits */
+#define DEFAULT_MEMBER_EXPEL_TIMEOUT 0
+#define MAX_MEMBER_EXPEL_TIMEOUT 3600
+#define MIN_MEMBER_EXPEL_TIMEOUT 0
+ulong member_expel_timeout_var = DEFAULT_MEMBER_EXPEL_TIMEOUT;
 
 /* Downgrade options */
 bool allow_local_lower_version_join_var = 0;
@@ -2748,6 +2753,27 @@ static void update_member_weight(MYSQL_THD, SYS_VAR *, void *var_ptr,
   DBUG_VOID_RETURN;
 }
 
+static int check_member_expel_timeout(MYSQL_THD, SYS_VAR *, void *save,
+                                      struct st_mysql_value *value) {
+  DBUG_ENTER("check_member_expel_timeout");
+
+  if (plugin_running_mutex_trylock()) DBUG_RETURN(1);
+
+  longlong in_val;
+  value->val_int(value, &in_val);
+
+  if ((in_val < MIN_MEMBER_EXPEL_TIMEOUT) ||
+      (in_val > MAX_MEMBER_EXPEL_TIMEOUT)) {
+    mysql_mutex_unlock(&plugin_running_mutex);
+    DBUG_RETURN(1);
+  }
+
+  *(longlong *)save = in_val;
+
+  mysql_mutex_unlock(&plugin_running_mutex);
+  DBUG_RETURN(0);
+}
+
 static void update_member_expel_timeout(MYSQL_THD, SYS_VAR *, void *var_ptr,
                                         const void *save) {
   DBUG_ENTER("update_member_expel_timeout");
@@ -2868,12 +2894,12 @@ static MYSQL_SYSVAR_ULONG(
     PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var */
     "The period of time, in seconds, that a member waits before "
     "expelling any member suspected of failing from the group.",
-    check_sysvar_ulong_timeout,  /* check func. */
-    update_member_expel_timeout, /* update func. */
-    0,                           /* default */
-    0,                           /* min */
-    LONG_TIMEOUT,                /* max */
-    0                            /* block */
+    check_member_expel_timeout,   /* check func. */
+    update_member_expel_timeout,  /* update func. */
+    DEFAULT_MEMBER_EXPEL_TIMEOUT, /* default */
+    MIN_MEMBER_EXPEL_TIMEOUT,     /* min */
+    MAX_MEMBER_EXPEL_TIMEOUT,     /* max */
+    0                             /* block */
 );
 
 // Recovery module variables

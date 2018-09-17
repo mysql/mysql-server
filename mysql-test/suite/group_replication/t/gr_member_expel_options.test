@@ -1,0 +1,67 @@
+################################################################################
+# BUG#28656750 - CHANGE MAXIMUM VALUE OF DELAYED EXPEL TIMEOUT
+#
+# This test checks the setting of value of the
+# group_replication_member_expel_timeout parameter.
+#
+# Test:
+# 0. The test requires one server with GR started.
+# 1. Set group_replication_member_expel_timeout=<INVALID_VALUE>. Expect error.
+# 2. Set group_replication_member_expel_timeout=<INVALID_TYPE>. Expect error.
+# 3. Set group_replication_member_expel_timeout=<INVALID_VALUE>. Expect error.
+# 4. Set group_replication_member_expel_timeout=<VALID_VALUE>. Assert check the value.
+# 5. Stop GR.
+# 6. Set group_replication_member_expel_timeout=<INVALID_VALUE>. Expect error.
+# 7. Set group_replication_member_expel_timeout=<INVALID_TYPE>. Expect error.
+# 8. Set group_replication_member_expel_timeout=<INVALID_VALUE>. Expect error.
+# 9. Set group_replication_member_expel_timeout=<VALID_VALUE>. Assert check the value.
+#10. Clean up.
+################################################################################
+
+--let $group_replication_group_name= aaaaaaaa-cccc-bbbb-cccc-aaaaaaaaaaaa
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_member_expel_timeout= -1;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL group_replication_member_expel_timeout= 0.5;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_member_expel_timeout= 3601;
+
+# This is a valid value for the parameter
+--eval SET GLOBAL group_replication_member_expel_timeout= 3600
+
+--let $assert_text= The value of member_expel_timeout should be 3600
+--let $assert_cond= "[SELECT @@group_replication_member_expel_timeout]" = 3600
+--source include/assert.inc
+
+--source include/stop_group_replication.inc
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_member_expel_timeout= -200;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL group_replication_member_expel_timeout= 5.5;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_member_expel_timeout= 10000;
+
+# This is a valid value for the parameter
+--eval SET GLOBAL group_replication_member_expel_timeout= 30
+
+--let $assert_text= The value of member_expel_timeout should be 30
+--let $assert_cond= "[SELECT @@group_replication_member_expel_timeout]" = 30
+--source include/assert.inc
+
+# Reset parameter value to default
+SET GLOBAL group_replication_member_expel_timeout= 0;
+
+--source include/group_replication_end.inc
