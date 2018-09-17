@@ -64,6 +64,7 @@ int g_mt = 0;
 int g_mt_rr = 0;
 int g_restart = 0;
 int g_default_max_retries = 0;
+static int g_default_force_cluster_restart = 0;
 
 const char *g_cwd = 0;
 const char *g_basedir = 0;
@@ -173,6 +174,12 @@ static struct my_option g_options[] = {
      "the test suite file)",
      (uchar **)&g_default_max_retries, (uchar **)&g_default_max_retries, 0,
      GET_INT, REQUIRED_ARG, g_default_max_retries, 0, 0, 0, 0, 0},
+    {"default-force-cluster-restart", 0,
+     "Force cluster to restart for each testrun (can be overwritten in test "
+     "suite file)",
+     (uchar **)&g_default_force_cluster_restart,
+     (uchar **)&g_default_force_cluster_restart, 0, GET_BOOL, NO_ARG,
+     g_default_force_cluster_restart, 0, 0, 0, 0, 0},
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
 
 const int p_ndb = atrt_process::AP_NDB_MGMD | atrt_process::AP_NDBD;
@@ -356,7 +363,14 @@ int main(int argc, char **argv) {
       /**
       * Do we need to restart ndb
       */
-      if (restart) {
+      if (restart || test_case.m_force_cluster_restart) {
+        if (test_case.m_force_cluster_restart) {
+          g_logger.info(
+              "(Re)starting all NDB Cluster processes as required by "
+              "testcase %s",
+              test_case.m_name.c_str());
+        }
+
         restart = false;
         g_logger.info("(Re)starting server processes...");
 
@@ -1396,6 +1410,12 @@ int read_test_case(FILE *file, atrt_testcase &tc, int &line) {
     tc.m_name.assfmt("%s %s", tc.m_cmd.m_exe.c_str(), tc.m_cmd.m_args.c_str());
   } else {
     tc.m_name.assign(mt);
+    used_elements++;
+  }
+
+  tc.m_force_cluster_restart = g_default_force_cluster_restart;
+  if (p.get("force-cluster-restart", &str)) {
+    tc.m_force_cluster_restart = (strcmp(str, "yes") == 0);
     used_elements++;
   }
 
