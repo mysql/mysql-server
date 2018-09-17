@@ -54,6 +54,7 @@ enum class Stage {
 static constexpr uint DD_VERSION_80011 = 80011;
 static constexpr uint DD_VERSION_80012 = 80012;
 static constexpr uint DD_VERSION_80013 = 80013;
+static constexpr uint DD_VERSION_80014 = 80014;
 
 // Individual server version labels that we can refer to.
 static constexpr uint SERVER_VERSION_80013 = 80013;
@@ -67,7 +68,7 @@ static constexpr uint SERVER_VERSION_80013 = 80013;
   stored in the 'dd_properties' table by the server from which we downgrade.
 */
 static std::set<uint> supported_dd_versions = {
-    DD_VERSION_80011, DD_VERSION_80012, DD_VERSION_80013};
+    DD_VERSION_80011, DD_VERSION_80012, DD_VERSION_80013, DD_VERSION_80014};
 
 class DD_bootstrap_ctx {
  private:

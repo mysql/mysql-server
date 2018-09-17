@@ -491,6 +491,8 @@ bool fix_delay_key_write(sys_var *self, THD *thd, enum_var_type type);
 sql_mode_t expand_sql_mode(sql_mode_t sql_mode, THD *thd);
 bool sql_mode_string_representation(THD *thd, sql_mode_t sql_mode,
                                     LEX_STRING *ls);
+bool sql_mode_quoted_string_representation(THD *thd, sql_mode_t sql_mode,
+                                           LEX_STRING *ls);
 void update_parser_max_mem_size();
 
 extern sys_var *Sys_autocommit_ptr;
