@@ -267,8 +267,8 @@ sub run_secondary_load_statement($$$) {
     my $table       = $_;
     my $alter_query = "ALTER TABLE $database.$table SECONDARY_LOAD";
 
-    # Don't check for errors since all table might not have secondary
-    # engine defined.
+    # Don't check for since all table might not have RAPID as
+    # seconndary engine.
     $run_query->($mysqld, $alter_query);
   }
 
