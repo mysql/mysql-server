@@ -399,7 +399,10 @@ void Client::on_session_reset(Session_interface &s MY_ATTRIBUTE((unused))) {
       session.reset();
       m_state = Client_closing;
     } else {
-      m_session = session;
+      {
+        MUTEX_LOCK(lock_session_exit, get_session_exit_mutex());
+        m_session = session;
+      }
       m_encoder->send_ok();
     }
   }
