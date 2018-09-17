@@ -187,7 +187,8 @@ public:
     switch(type) {
     case(NDB_VALUE):
       if(qualification.value_type == Item::STRING_ITEM)
-        return value.item->str_value.length();
+        // const_cast is safe for Item_string.
+        return const_cast<Item*>(value.item)->val_str(nullptr)->length();
       break;
     case(NDB_FIELD):
       return value.field_value->field->pack_length();
@@ -212,13 +213,15 @@ public:
     switch(type) {
     case(NDB_VALUE):
       if(qualification.value_type == Item::STRING_ITEM)
-        return value.item->str_value.ptr();
+        // const_cast is safe for Item_string.
+        return const_cast<Item*>(value.item)->val_str(nullptr)->ptr();
       break;
     case(NDB_FIELD):
       return (char*) value.field_value->field->ptr;
     case(NDB_FUNCTION):
       if(qualification.value_type == Item::STRING_ITEM)
-        return value.item->str_value.ptr();
+        // const_cast is safe for Item_string.
+        return const_cast<Item*>(value.item)->val_str(nullptr)->ptr();
     default:
       break;
     }
