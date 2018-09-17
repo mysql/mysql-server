@@ -66,7 +66,6 @@ while ($point < 4)
     --echo Try to restart the master enabling the option with debug instrumentation
     --error 0,1
     --exec $MYSQLD --defaults-file=$MYSQLTEST_VARDIR/my.cnf --defaults-group-suffix=.$rpl_server_number $rpl_server_parameters
-    # TODO: Assert error message in error log
     --let $assert_file= $master_error_log
     --let $assert_text= Server reported: $error_message
     --let $assert_select= $error_message

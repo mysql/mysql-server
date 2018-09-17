@@ -3,10 +3,17 @@
 # This script aims at testing read and truncate operations on encrypted binary
 # log files, as well as related error conditions.
 #
-# Part 1: Truncate incomplete binary log file
+# Part 1: At server startup, truncate incomplete binary log file
 #
 # The test case will make an encrypted binary log file the last one, forcing
 # recovery checks to evaluate it (see file details below).
+#
+# Before allowing a successful recover, failures to access the encrypted file
+# will be simulated playing with the keyring file and using debug
+# instrumentation. The simulations are the same as sections 4.1 and 4.2.
+#
+# After the attempts with simulated failures, the server will be restarted and
+# become operational again.
 #
 # This will ensure that the server is able to read from the encrypted binary
 # log file on binary log recovery and also is able to open the encrypted file
@@ -51,6 +58,7 @@
 # 4.1.8 Header is missing the key ID.
 # 4.1.9 Header is missing the encrypted password.
 # 4.1.10 Header is missing the IV.
+# 4.1.11 Incomplete encryption header.
 #
 # Part 4.2: Use a keyring file without the encryption key
 #
@@ -124,18 +132,129 @@ FLUSH LOCAL LOGS;
 # Stop the master server
 --let $rpl_server_number= 1
 --source include/rpl_stop_server.inc
-
---echo # Part 1
+--connection slave
 # Replace the binary log file
 --remove_file $binlog_file_path
 --copy_file $encrypted_binlog_file $binlog_file_path
-# Copy the keyring file
---copy_file $keyring_original_file $keyring_file
+
+--echo # Part 1
+--let $point= 0
+--let $master_error_log=$MYSQL_TMP_DIR/master.err
+--let $keyring_parameters=$KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_LOAD --keyring_file_data=$keyring_file
+while ($point < 13)
+{
+  --inc $point
+  --let $rpl_server_parameters= $keyring_parameters --log-error=$master_error_log
+  if ($point == 1)
+  {
+    # Using a keyring key without the key to access the file
+    --let $rpl_server_parameters= --log-error=$master_error_log
+    --let $debug=
+    --let $error_message=Cannot get file password for encrypted replication log file
+  }
+  if ($point == 2)
+  {
+    # Using a keyring key without the key to access the file
+    --let $debug=
+    --let $error_message=Cannot get file password for encrypted replication log file
+  }
+  if ($point == 3)
+  {
+    # Corrupting the encryption key (plain binlog stream magic is not recognized)
+    --let $debug=--debug=d,corrupt_replication_encryption_key
+    --let $error_message=Binlog has bad magic number
+  }
+  if ($point == 4)
+  {
+    # Corrupting the encryption key type
+    --let $debug=--debug=d,corrupt_replication_encryption_key_type
+    --let $error_message=Fetched an invalid key from keyring
+  }
+  if ($point == 5)
+  {
+    # Corrupting the encryption key size
+    --let $debug=--debug=d,corrupt_replication_encryption_key_size
+    --let $error_message=Fetched an invalid key from keyring
+  }
+  if ($point == 6)
+  {
+    # Corrupt the encrypted header version
+    --let $debug=--debug=d,corrupt_encrypted_header_version
+    --let $error_message=Unable to determine encryption header version
+  }
+  if ($point == 7)
+  {
+    # Force an unsupported encryption header version
+    --let $debug=--debug=d,force_encrypted_header_version_2
+    --let $error_message=Unsupported encryption header version
+  }
+  if ($point == 8)
+  {
+    # Force a header with fields over the header size
+    --let $debug=--debug=d,corrupt_encryption_header_read_above_header_size
+    --let $error_message=Header is corrupted
+  }
+  if ($point == 9)
+  {
+    # Force a header with an unknown field type
+    --let $debug=--debug=d,corrupt_encryption_header_unknown_field_type
+    --let $error_message=Unknown field type
+  }
+  if ($point == 10)
+  {
+    # Force a header without a key ID
+    --let $debug=--debug=d,corrupt_encryption_header_missing_key_id
+    --let $error_message=Header is missing the replication encryption key ID
+  }
+  if ($point == 11)
+  {
+    # Force a header without password
+    --let $debug=--debug=d,corrupt_encryption_header_missing_password
+    --let $error_message=Header is missing the encrypted password
+  }
+  if ($point == 12)
+  {
+    # Force a header without IV
+    --let $debug=--debug=d,corrupt_encryption_header_missing_iv
+    --let $error_message=Header is missing the IV
+  }
+  if ($point == 13)
+  {
+    # Force an incomplete (< 512 bytes) encryption header
+    --let $debug=--debug=d,force_incomplete_encryption_header
+    --let $error_message=Header is incomplete
+  }
+  --echo Try to restart the master with debug instrumentation
+  --error 0,1
+  --exec $MYSQLD --defaults-file=$MYSQLTEST_VARDIR/my.cnf --defaults-group-suffix=.1 $rpl_server_parameters $debug
+  --let $assert_file= $master_error_log
+  --let $assert_text= Server reported: $error_message
+  --let $assert_select= $error_message
+  --let $assert_count= 1
+  --source include/assert_grep.inc
+  --let $assert_text= Server failed to initialize binary log for recovery
+  --let $assert_select= Can.t init tc log
+  --let $assert_count= 1
+  --source include/assert_grep.inc
+  --let $assert_text= Server aborted to start
+  --let $assert_select= Server.*Aborting
+  --let $assert_count= 1
+  --source include/assert_grep.inc
+  --remove_file $master_error_log
+  if ($point == 2)
+  {
+    # Copy the keyring file
+    --remove_file $keyring_file
+    --copy_file $keyring_original_file $keyring_file
+  }
+}
+
 # Restart the server
 --let $rpl_server_number= 1
---let $rpl_server_parameters= $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_LOAD --keyring_file_data=$keyring_file
+--let $rpl_server_parameters= $keyring_parameters
 --let $rpl_omit_print_server_parameters= 1
 --source include/rpl_start_server.inc
+--connection master
 
 --echo # Part 2
 --let $assert_text= 1st binary log is not encrypted
@@ -224,6 +343,12 @@ DROP TABLE t1;
 --source include/remove_debug_point.inc
 --echo # Part 4.1.10
 --let $debug_point= corrupt_encryption_header_missing_iv
+--source include/add_debug_point.inc
+--error ER_RPL_ENCRYPTION_HEADER_ERROR
+--eval SHOW BINLOG EVENTS IN '$binlog_file'
+--source include/remove_debug_point.inc
+--echo # Part 4.1.11
+--let $debug_point= force_incomplete_encryption_header
 --source include/add_debug_point.inc
 --error ER_RPL_ENCRYPTION_HEADER_ERROR
 --eval SHOW BINLOG EVENTS IN '$binlog_file'

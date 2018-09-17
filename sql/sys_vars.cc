@@ -6338,22 +6338,6 @@ bool Sys_var_binlog_encryption::global_update(THD *thd, set_var *var) {
   bool new_value = var->save_result.ulonglong_value;
   if (new_value == rpl_encryption.is_enabled()) DBUG_RETURN(false);
 
-  /* Avoid enabling/disabling under backup mode */
-  const char *errmsg = nullptr;
-  Is_instance_backup_locked_result is_instance_locked =
-      is_instance_backup_locked(thd);
-  if (is_instance_locked == Is_instance_backup_locked_result::OOM)
-    errmsg =
-        "Out of memory happened when checking if instance was locked for "
-        "backup";
-  if (is_instance_locked == Is_instance_backup_locked_result::LOCKED)
-    errmsg = "Server instance is locked for backup";
-
-  if (errmsg) {
-    my_error(ERROR_LEVEL, ER_RPL_ENCRYPTION_UNABLE_TO_CHANGE_OPTION, errmsg);
-    DBUG_RETURN(true);
-  }
-
   /* Set the option new value */
   bool res = false;
   if (new_value)
@@ -6368,3 +6352,10 @@ static Sys_var_binlog_encryption Sys_binlog_encryption(
     GLOBAL_VAR(rpl_encryption.get_enabled_var()), CMD_LINE(OPT_ARG),
     DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(check_binlog_encryption_admin));
+
+static Sys_var_bool Sys_binlog_rotate_encryption_master_key_at_startup(
+    "binlog_rotate_encryption_master_key_at_startup",
+    "Force binlog encryption master key rotation at startup",
+    READ_ONLY GLOBAL_VAR(
+        rpl_encryption.get_master_key_rotation_at_startup_var()),
+    CMD_LINE(OPT_ARG), DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG);

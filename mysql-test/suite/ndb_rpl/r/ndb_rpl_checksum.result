@@ -29,14 +29,14 @@ must be one because of default
 select @@session.slave_sql_verify_checksum  as 'no session var';
 ERROR HY000: Variable 'slave_sql_verify_checksum' is a GLOBAL variable
 show binary logs;
-Log_name	File_size
-master-bin.000001	#
+Log_name	File_size	Encrypted
+master-bin.000001	#	#
 set @@global.binlog_checksum = NONE;
 *** must be rotations seen ***
 show binary logs;
-Log_name	File_size
-master-bin.000001	#
-master-bin.000002	#
+Log_name	File_size	Encrypted
+master-bin.000001	#	#
+master-bin.000002	#	#
 set @@global.binlog_checksum = default;
 set @@global.binlog_checksum = CRC32;
 set @@global.binlog_checksum = CRC32;

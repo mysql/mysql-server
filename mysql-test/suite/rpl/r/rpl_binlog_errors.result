@@ -14,9 +14,9 @@ RESET MASTER;
 FLUSH LOGS;
 # assert: must show two binlogs
 show binary logs;
-Log_name	File_size
-master-bin.000001	#
-master-bin.000002	#
+Log_name	File_size	Encrypted
+master-bin.000001	#	#
+master-bin.000002	#	#
 ###################### TEST #2
 RESET MASTER;
 SET GLOBAL binlog_error_action= IGNORE_ERROR;
@@ -36,9 +36,9 @@ RESET MASTER;
 LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/bug_46166.data' INTO TABLE t2;
 # assert: must show three binlog
 show binary logs;
-Log_name	File_size
-master-bin.000001	#
-master-bin.000002	#
+Log_name	File_size	Encrypted
+master-bin.000001	#	#
+master-bin.000002	#	#
 DELETE FROM t2;
 RESET MASTER;
 ###################### TEST #4

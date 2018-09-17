@@ -95,16 +95,58 @@ bool Rpl_encryption::initialize() {
 #ifndef DBUG_OFF
   m_initialized = true;
   DBUG_PRINT("debug", ("m_enabled= %s", m_enabled ? "true" : "false"));
+  DBUG_PRINT("debug", ("m_rotate_at_startup= %s",
+                       m_rotate_at_startup ? "true" : "false"));
 #endif
+
+  if (m_rotate_at_startup && !m_enabled) {
+    LogErr(WARNING_LEVEL,
+           ER_SERVER_RPL_ENCRYPTION_IGNORE_ROTATE_MASTER_KEY_AT_STARTUP);
+  }
 
   /* Only recover master key if option is enabled */
   if (m_enabled) {
+    if (m_rotate_at_startup && remove_seqnos_from_keyring()) DBUG_RETURN(true);
     if (recover_master_key()) DBUG_RETURN(true);
     if (m_master_key_seqno == 0 && first_time_enable(Key_rotation_step::START))
       DBUG_RETURN(true);
   }
 
   DBUG_RETURN(false);
+}
+
+bool Rpl_encryption::remove_seqnos_from_keyring() {
+  DBUG_ENTER("Rpl_encryption::remove_seqnos_from_keyring");
+  DBUG_ASSERT(m_initialized);
+  DBUG_ASSERT(m_enabled);
+
+  auto master_key_seqno = get_master_key_seqno_from_keyring();
+  auto new_master_key_seqno = get_new_master_key_seqno_from_keyring();
+
+  /* Remove master key seqno from keyring */
+  if (master_key_seqno.first == Keyring_status::KEYRING_ERROR_FETCHING) {
+    goto error;
+  }
+  if (master_key_seqno.first != Keyring_status::KEY_NOT_FOUND &&
+      remove_master_key_seqno_from_keyring()) {
+    goto error;
+  }
+
+  /* Remove new master key seqno from keyring */
+  if (new_master_key_seqno.first == Keyring_status::KEYRING_ERROR_FETCHING) {
+    goto error;
+  }
+  if (new_master_key_seqno.first != Keyring_status::KEY_NOT_FOUND &&
+      remove_new_master_key_seqno_from_keyring()) {
+    goto error;
+  }
+
+  DBUG_RETURN(false);
+
+error:
+  LogErr(ERROR_LEVEL,
+         ER_SERVER_RPL_ENCRYPTION_UNABLE_TO_ROTATE_MASTER_KEY_AT_STARTUP);
+  DBUG_RETURN(true);
 }
 
 bool Rpl_encryption::recover_master_key() {
@@ -277,6 +319,10 @@ bool Rpl_encryption::is_enabled() {
 
 const bool &Rpl_encryption::get_enabled_var() { return m_enabled; }
 
+const bool &Rpl_encryption::get_master_key_rotation_at_startup_var() {
+  return m_rotate_at_startup;
+}
+
 const char *Rpl_encryption::SEQNO_KEY_TYPE = "AES";
 
 std::tuple<Rpl_encryption::Keyring_status, void *, size_t>
@@ -322,10 +368,28 @@ bool Rpl_encryption::first_time_enable(Key_rotation_step step,
 
   switch (step) {
     case Key_rotation_step::START:
-    case Key_rotation_step::DETERMINE_NEXT_SEQNO:
-      new_master_key_seqno = m_master_key_seqno + 1;
+    case Key_rotation_step::DETERMINE_NEXT_SEQNO: {
+      DBUG_ASSERT(new_master_key_seqno == 0);
+      Keyring_status candidate_key_fetch_status;
+      new_master_key_seqno = m_master_key_seqno;
+      do {
+        ++new_master_key_seqno;
+        /* Check if the key already exists */
+        std::string candidate_key_id =
+            Rpl_encryption_header::seqno_to_key_id(new_master_key_seqno);
+        auto pair =
+            get_key(candidate_key_id, Rpl_encryption_header::get_key_type());
+        /* If unable to check if the key already exists */
+        if (pair.first == Keyring_status::KEYRING_ERROR_FETCHING) {
+          Rpl_encryption::report_keyring_error(pair.first);
+          DBUG_RETURN(true);
+        }
+        /* If the key already exists on keyring */
+        candidate_key_fetch_status = pair.first;
+      } while (candidate_key_fetch_status != Keyring_status::KEY_NOT_FOUND);
       if (set_new_master_key_seqno_on_keyring(new_master_key_seqno))
         DBUG_RETURN(true);
+    }
       /* FALLTHROUGH */
     case Key_rotation_step::GENERATE_NEW_MASTER_KEY:
       if (generate_master_key_on_keyring(new_master_key_seqno))
@@ -357,11 +421,11 @@ bool Rpl_encryption::rotate_master_key(Key_rotation_step step,
   bool res = false;
 
   if (m_master_key_seqno == 0 ||
-      (new_master_key_seqno == 1 && step != Key_rotation_step::START)) {
+      (new_master_key_seqno > 0 && step != Key_rotation_step::START)) {
     /* Special case: first time enabling */
     res = first_time_enable(step, new_master_key_seqno);
   } else {
-    /* This server does not support master key rotation */
+    /* This server only support master key rotation at startup */
     DBUG_ASSERT(false);
     res = true;
   }
@@ -435,8 +499,14 @@ bool Rpl_encryption::set_master_key_seqno_on_keyring(uint32_t seqno) {
   DBUG_RETURN(set_seqno_on_keyring(key_id, seqno));
 }
 
+bool Rpl_encryption::remove_master_key_seqno_from_keyring() {
+  DBUG_ENTER("Rpl_encryption::remove_master_key_seqno_from_keyring");
+  std::string key_id = get_master_key_seqno_key_id();
+  DBUG_RETURN(remove_key_from_keyring(key_id));
+}
+
 std::string Rpl_encryption::get_new_master_key_seqno_key_id() {
-  return Rpl_encryption_header_v1::key_id_with_suffix("new");
+  return Rpl_encryption_header::key_id_with_suffix("new");
 }
 
 std::pair<Rpl_encryption::Keyring_status, uint32_t>
@@ -586,16 +656,6 @@ const char *Rpl_encryption_header::get_key_type() {
 const char *Rpl_encryption_header_v1::KEY_TYPE = "AES";
 const char *Rpl_encryption_header_v1::KEY_ID_PREFIX = "MySQLReplicationKey";
 
-Rpl_encryption_header_v1::Rpl_encryption_header_v1(
-    const std::string &key_id, const Key_string &encrypted_password,
-    const Key_string &iv)
-    : m_key_id(key_id), m_encrypted_password(encrypted_password), m_iv(iv) {
-  DBUG_ENTER(
-      "Rpl_encryption_header_v1::Rpl_encryption_header_v1(std::string, "
-      "Key_string, Key_string)");
-  DBUG_VOID_RETURN;
-}
-
 Rpl_encryption_header_v1::~Rpl_encryption_header_v1() {
   DBUG_ENTER("Rpl_encryption_header_v1::~Rpl_encryption_header_v1");
   DBUG_VOID_RETURN;
@@ -620,9 +680,13 @@ bool Rpl_encryption_header_v1::serialize(Basic_ostream *ostream) {
   memcpy(ptr, m_encrypted_password.data(), m_encrypted_password.length());
   ptr += PASSWORD_FIELD_SIZE;
 
+  DBUG_ASSERT(m_iv.length() == IV_FIELD_SIZE);
   *ptr++ = IV_FOR_FILE_PASSWORD;
   memcpy(ptr, m_iv.data(), m_iv.length());
-  return ostream->write(header, HEADER_SIZE);
+
+  bool res = DBUG_EVALUATE_IF("fail_to_serialize_encryption_header", true,
+                              ostream->write(header, HEADER_SIZE));
+  return res;
 }
 
 bool Rpl_encryption_header_v1::deserialize(Basic_istream *istream) {

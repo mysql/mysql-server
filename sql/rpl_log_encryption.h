@@ -155,6 +155,19 @@ class Rpl_encryption {
   */
   bool initialize();
   /**
+    Remove the information about the master key index from keyring. This would
+    allow a key rotation at server startup when binlog_encryption is ON.
+
+    It shall also remove new master key index in order to cleanup any previous
+    master key rotation.
+
+    Only index keys shall be removed!!!
+
+    @retval false Success.
+    @retval true Error.
+  */
+  bool remove_seqnos_from_keyring();
+  /**
     Recover the replication encryption master key from keyring.
 
     The recovery of the master key process starts by trying to read the
@@ -234,6 +247,7 @@ class Rpl_encryption {
   */
   bool is_enabled();
   const bool &get_enabled_var();
+  const bool &get_master_key_rotation_at_startup_var();
 
  private:
   /* Define the keyring key type for keys storing sequence numbers */
@@ -241,10 +255,16 @@ class Rpl_encryption {
   /* Define the keyring key length for keys storing sequence numbers */
   static const int SEQNO_KEY_LENGTH = 16;
   /*
-    Sys_var_binlog_encryption uses m_enabled as the storage of global var
+    Sys_binlog_encryption uses m_enabled as the storage of global var
     binlog_encryption.
   */
   bool m_enabled = false;
+  /*
+    Sys_binlog_rotate_encryption_master_key_at_startup uses
+    m_rotate_at_startup as the storage of global var
+    binlog_rotate_encryption_master_key_at_startup.
+  */
+  bool m_rotate_at_startup = false;
 #ifndef DBUG_OFF
   /*
     This variable is only used to assert that enable(), disable() and
@@ -369,6 +389,13 @@ class Rpl_encryption {
     @retval true Error.
   */
   bool set_master_key_seqno_on_keyring(uint32 seqno);
+  /**
+    Remove the master key sequence number key from the keyring.
+
+    @retval false Success.
+    @retval true Error.
+  */
+  bool remove_master_key_seqno_from_keyring();
   /**
     Returns the key ID of the keyring key that stores the "new" master key
     sequence number.
@@ -779,17 +806,6 @@ class Rpl_encryption_header_v1 : public Rpl_encryption_header {
   Rpl_encryption_header_v1() = default;
 
   virtual ~Rpl_encryption_header_v1();
-  /**
-    Initialize the class with given encryption metadata. It is called for
-    deserialization.
-
-    @param[in] key_id ID of the master key used to encrypt the file password.
-    @param[in] encrypted_password The encrypted file password.
-    @param[in] iv The initialization vector (IV) used to encrypt file password.
-  */
-  Rpl_encryption_header_v1(const std::string &key_id,
-                           const Key_string &encrypted_password,
-                           const Key_string &iv);
 
   bool serialize(Basic_ostream *ostream) override;
   bool deserialize(Basic_istream *istream) override;

@@ -175,6 +175,14 @@ SET PERSIST binlog_encryption = ON;
 --let $assert_cond= "[SHOW BINARY LOGS, Encrypted, 1]" = "No"
 --source include/assert.inc
 
+--let $relay_log_base=`SELECT @@GLOBAL.relay_log`
+--let $relay_log_suffix=.000001
+--let $rpl_log_file=$SLAVE_DATADIR$relay_log_base$relay_log_suffix
+--source include/rpl_get_log_encryption_key_id.inc
+--let $assert_text=Relay log is not encrypted for $relay_log_base$relay_log_suffix
+--let $assert_cond= "$rpl_encryption_key_id" = "None"
+--source include/assert.inc
+
 --echo Restart the slave with keyring installed
 --let $rpl_server_number= 2
 --let $rpl_server_parameters= $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_LOAD --keyring_file_data=$keyring_slave --skip-slave-start
@@ -189,6 +197,13 @@ SET PERSIST binlog_encryption = ON;
 
 --let $assert_text= 2nd binary log is not encrypted on slave
 --let $assert_cond= "[SHOW BINARY LOGS, Encrypted, 2]" = "No"
+--source include/assert.inc
+
+--let $relay_log_suffix=.000002
+--let $rpl_log_file=$SLAVE_DATADIR$relay_log_base$relay_log_suffix
+--source include/rpl_get_log_encryption_key_id.inc
+--let $assert_text=Relay log is not encrypted for $relay_log_base$relay_log_suffix
+--let $assert_cond= "$rpl_encryption_key_id" = "None"
 --source include/assert.inc
 
 SET GLOBAL binlog_encryption = ON;
@@ -209,6 +224,18 @@ SET GLOBAL binlog_encryption = ON;
 --let $rpl_log_file=$SLAVE_DATADIR$after_master_file
 --source include/rpl_get_log_encryption_key_id.inc
 --let $assert_text=New binary log is encrypted using 1st master key
+--let $assert_cond= RIGHT("$rpl_encryption_key_id", 2) = "_1"
+--source include/assert.inc
+--let $relay_log_suffix=.000004
+--let $rpl_log_file=$SLAVE_DATADIR$relay_log_base$relay_log_suffix
+--source include/rpl_get_log_encryption_key_id.inc
+--let $assert_text=Relay log rotated as expected at server startup
+--let $assert_cond= "$rpl_encryption_key_id" = "Error: unable to open the file"
+--source include/assert.inc
+--let $relay_log_suffix=.000003
+--let $rpl_log_file=$SLAVE_DATADIR$relay_log_base$relay_log_suffix
+--source include/rpl_get_log_encryption_key_id.inc
+--let $assert_text=Relay log is encrypted for $relay_log_base$relay_log_suffix
 --let $assert_cond= RIGHT("$rpl_encryption_key_id", 2) = "_1"
 --source include/assert.inc
 
@@ -265,7 +292,6 @@ RESET SLAVE ALL;
 --let $assert_text=New relay log is still encrypted
 --let $assert_cond=RIGHT("$rpl_encryption_key_id", 2) = "_1"
 --source include/assert.inc
-
 
 # The server is still able to encrypt new relay log files
 --replace_result $MASTER_MYPORT MASTER_MYPORT

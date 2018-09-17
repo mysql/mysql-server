@@ -188,3 +188,12 @@ Matching lines are:
 Occurrences of 'An error occurred during' in the input file: 1
 DROP table t1, t2;
 # restart
+Test case17
+# restart: KEYRING_PLUGIN_OPT KEYRING_PLUGIN_LOAD --keyring_file_data=keyring_data --binlog_encryption=ON
+# Adding debug point 'fail_to_serialize_encryption_header' to @@GLOBAL.debug
+FLUSH LOGS;
+ERROR HY000: Binary logging not possible. Message: Either disk is full or file system is read only while opening the binlog. Aborting the server.
+SET @@GLOBAL.binlog_encryption=OFF;
+RESET MASTER;
+UNINSTALL PLUGIN keyring_file;
+# restart

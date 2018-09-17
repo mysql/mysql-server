@@ -18597,7 +18597,7 @@ ER_SERVER_RPL_ENCRYPTION_HEADER_ERROR
   eng "Error reading a replication log encryption header: %s."
 
 ER_SERVER_RPL_ENCRYPTION_FAILED_TO_ROTATE_LOGS
-  eng "Failed to rotate some logs after changing replication encryption settings. Please fix the problem and rotate the logs manually."
+  eng "Failed to rotate some logs after changing binlog encryption settings. Please fix the problem and rotate the logs manually."
 
 ER_SERVER_RPL_ENCRYPTION_KEY_EXISTS_UNEXPECTED
   eng "Key %s exists unexpected."
@@ -18616,6 +18616,12 @@ ER_SERVER_RPL_ENCRYPTION_MASTER_KEY_RECOVERY_FAILED
 
 ER_SERVER_RPL_ENCRYPTION_UNABLE_TO_INITIALIZE
   eng "Failed to initialize binlog encryption, please check if keyring plugin is loaded."
+
+ER_SERVER_RPL_ENCRYPTION_UNABLE_TO_ROTATE_MASTER_KEY_AT_STARTUP
+  eng "Failed to rotate binlog encryption master key at startup, please check if keyring plugin is loaded."
+
+ER_SERVER_RPL_ENCRYPTION_IGNORE_ROTATE_MASTER_KEY_AT_STARTUP
+  eng "Ignoring binlog_rotate_encryption_master_key_at_startup because binlog_encryption option is disabled."
 
 #
 # End of 8.0 error messages intended to be logged to the server error log.

@@ -39,15 +39,19 @@ include/assert.inc [Binary log is encrypted using 1st master key]
 include/assert.inc [Binary log rotated as expected at master startup]
 [connection slave]
 include/assert.inc [1st binary log is not encrypted on slave]
+include/assert.inc [Relay log is not encrypted for slave-relay-bin.000001]
 Restart the slave with keyring installed
 include/rpl_restart_server.inc [server_number=2]
 include/assert.inc [binlog_encryption option shall be OFF]
 include/assert.inc [2nd binary log is not encrypted on slave]
+include/assert.inc [Relay log is not encrypted for slave-relay-bin.000002]
 SET GLOBAL binlog_encryption = ON;
 include/assert.inc [binlog_encryption option shall be ON]
 include/assert.inc [3rd binary log is encrypted on slave]
 include/assert.inc [Binary log rotated as expected at server startup]
 include/assert.inc [New binary log is encrypted using 1st master key]
+include/assert.inc [Relay log rotated as expected at server startup]
+include/assert.inc [Relay log is encrypted for slave-relay-bin.000003]
 # Part 3
 [connection master]
 CREATE TABLE t1 (c1 INT PRIMARY KEY);
