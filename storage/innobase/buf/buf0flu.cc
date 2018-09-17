@@ -1125,11 +1125,20 @@ static void buf_flush_write_block_low(buf_page_t *bpage, buf_flush_t flush_type,
 
   /* Force the log to the disk before writing the modified block */
   if (!srv_read_only_mode) {
-    Wait_stats wait_stats;
+    const lsn_t flush_to_lsn = bpage->newest_modification;
 
-    wait_stats = log_write_up_to(*log_sys, bpage->newest_modification, true);
+    /* Do the check before calling log_write_up_to() because in most
+    cases it would allow to avoid call, and because of that we don't
+    want those calls because they would have bad impact on the counter
+    of calls, which is monitored to save CPU on spinning in log threads. */
 
-    MONITOR_INC_WAIT_STATS_EX(MONITOR_ON_LOG_, _PAGE_WRITTEN, wait_stats);
+    if (log_sys->flushed_to_disk_lsn.load() < flush_to_lsn) {
+      Wait_stats wait_stats;
+
+      wait_stats = log_write_up_to(*log_sys, flush_to_lsn, true);
+
+      MONITOR_INC_WAIT_STATS_EX(MONITOR_ON_LOG_, _PAGE_WRITTEN, wait_stats);
+    }
   }
 
   switch (buf_page_get_state(bpage)) {

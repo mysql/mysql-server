@@ -237,13 +237,13 @@ struct alignas(INNOBASE_CACHE_LINE_SIZE) log_t {
 
   /** Approx. number of requests to write/flush redo since startup. */
   alignas(INNOBASE_CACHE_LINE_SIZE)
-      std::atomic<uint64_t> write_up_to_requests_total;
+      std::atomic<uint64_t> write_to_file_requests_total;
 
   /** How often redo write/flush is requested in average.
   Measures in microseconds. Log threads do not spin when
   the write/flush requests are not frequent. */
   alignas(INNOBASE_CACHE_LINE_SIZE)
-      std::atomic<uint64_t> write_up_to_requests_interval;
+      std::atomic<uint64_t> write_to_file_requests_interval;
 
   /** This padding is probably not needed, left for convenience. */
   alignas(INNOBASE_CACHE_LINE_SIZE)
