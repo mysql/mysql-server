@@ -6248,7 +6248,7 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(RANGE_OPT_PARAM *param,
 
     Field *field = static_cast<Item_field *>(predicand)->field;
 
-    if (op->array && op->array->result_type() != ROW_RESULT) {
+    if (op->array && !op->array->is_row_result()) {
       /*
         We get here for conditions on the form "t.key NOT IN (c1, c2, ...)",
         where c{i} are constants. Our goal is to produce a SEL_TREE that
@@ -6286,18 +6286,15 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(RANGE_OPT_PARAM *param,
           op->array->used_count > NOT_IN_IGNORE_THRESHOLD)
         return NULL;
 
-      MEM_ROOT *tmp_root = param->mem_root;
-      param->thd->mem_root = param->old_root;
       /*
         Create one Item_type constant object. We'll need it as
         get_mm_parts only accepts constant values wrapped in Item_Type
         objects.
-        We create the Item on param->mem_root which points to
+        We create the Item on param->old_root which points to
         per-statement mem_root (while thd->mem_root is currently pointing
         to mem_root local to range optimizer).
       */
-      Item_basic_constant *value_item = op->array->create_item();
-      param->thd->mem_root = tmp_root;
+      Item_basic_constant *value_item = op->array->create_item(param->old_root);
 
       if (!value_item) return NULL;
 

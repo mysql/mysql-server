@@ -3660,6 +3660,23 @@ bool Item_func_coalesce::resolve_type(THD *) {
  Classes and function for the IN operator
 ****************************************************************************/
 
+bool in_vector::fill(Item **items, uint item_count) {
+  used_count = 0;
+  for (uint i = 0; i < item_count; i++) {
+    set(used_count, items[i]);
+    /*
+      We don't put NULL values in array, to avoid erroneous matches in
+      bisection.
+    */
+    if (!items[i]->null_value) used_count++;  // include this cell in the array.
+  }
+  DBUG_ASSERT(used_count <= count);
+
+  resize_and_sort();
+
+  return used_count < item_count;  // True = at least one null value found.
+}
+
 /*
   Determine which of the signed longlong arguments is bigger
 
@@ -3758,15 +3775,17 @@ class Cmp_longlong
   }
 };
 
-void in_longlong::sort() {
+void in_longlong::resize_and_sort() {
+  base.resize(used_count);
   std::sort(base.begin(), base.end(), Cmp_longlong());
 }
 
-bool in_longlong::find_value(const void *value) const {
-  const in_longlong::packed_longlong *val =
-      static_cast<const in_longlong::packed_longlong *>(value);
-
-  return std::binary_search(base.begin(), base.end(), *val, Cmp_longlong());
+bool in_longlong::find_item(Item *item) {
+  if (used_count == 0) return false;
+  packed_longlong result;
+  val_item(item, &result);
+  if (item->null_value) return false;
+  return std::binary_search(base.begin(), base.end(), result, Cmp_longlong());
 }
 
 bool in_longlong::compare_elems(uint pos1, uint pos2) const {
@@ -3781,13 +3800,16 @@ class Cmp_row : public std::binary_function<const cmp_item_row *,
   }
 };
 
-void in_row::sort() {
+void in_row::resize_and_sort() {
+  base_pointers.resize(used_count);
   std::sort(base_pointers.begin(), base_pointers.end(), Cmp_row());
 }
 
-bool in_row::find_value(const void *value) const {
-  const cmp_item_row *row = static_cast<const cmp_item_row *>(value);
-  return std::binary_search(base_pointers.begin(), base_pointers.end(), row,
+bool in_row::find_item(Item *item) {
+  if (used_count == 0) return false;
+  tmp->store_value(item);
+  if (item->is_null()) return false;
+  return std::binary_search(base_pointers.begin(), base_pointers.end(), tmp,
                             Cmp_row());
 }
 
@@ -3795,19 +3817,11 @@ bool in_row::compare_elems(uint pos1, uint pos2) const {
   return base_pointers[pos1]->compare(base_pointers[pos2]) != 0;
 }
 
-bool in_vector::find_item(Item *item) {
-  uchar *result = get_value(item);
-  if (!result || !used_count) return false;  // Null value
-  return find_value(result);
-}
-
-in_string::in_string(THD *thd, uint elements, qsort2_cmp cmp_func,
-                     const CHARSET_INFO *cs)
+in_string::in_string(MEM_ROOT *mem_root, uint elements, const CHARSET_INFO *cs)
     : in_vector(elements),
       tmp(buff, sizeof(buff), &my_charset_bin),
-      base_objects(thd->mem_root, elements),
-      base_pointers(thd->mem_root, elements),
-      compare(cmp_func),
+      base_objects(mem_root, elements),
+      base_pointers(mem_root, elements),
       collation(cs) {
   for (uint ix = 0; ix < elements; ++ix) {
     base_pointers[ix] = &base_objects[ix];
@@ -3832,101 +3846,73 @@ void in_string::set(uint pos, Item *item) {
   }
 }
 
-uchar *in_string::get_value(Item *item) { return (uchar *)item->val_str(&tmp); }
+static int srtcmp_in(const CHARSET_INFO *cs, const String *x, const String *y) {
+  return cs->coll->strnncollsp(
+      cs, pointer_cast<const uchar *>(x->ptr()), x->length(),
+      pointer_cast<const uchar *>(y->ptr()), y->length());
+}
 
-class Cmp_string
-    : public std::binary_function<const String *, const String *, bool> {
+namespace {
+class Cmp_string {
  public:
-  Cmp_string(qsort2_cmp cmp_func, const CHARSET_INFO *cs)
-      : compare(cmp_func), collation(cs) {}
-  bool operator()(const String *a, const String *b) {
-    return compare(collation, a, b) < 0;
+  explicit Cmp_string(const CHARSET_INFO *cs) : collation(cs) {}
+  bool operator()(const String *a, const String *b) const {
+    return srtcmp_in(collation, a, b) < 0;
   }
 
  private:
-  qsort2_cmp compare;
   const CHARSET_INFO *collation;
 };
+}  // namespace
 
 // Our String objects have strange copy semantics, sort pointers instead.
-void in_string::sort() {
-  std::sort(base_pointers.begin(), base_pointers.end(),
-            Cmp_string(compare, collation));
+void in_string::resize_and_sort() {
+  base_pointers.resize(used_count);
+  std::sort(base_pointers.begin(), base_pointers.end(), Cmp_string(collation));
 }
 
-bool in_string::find_value(const void *value) const {
-  const String *str = static_cast<const String *>(value);
+bool in_string::find_item(Item *item) {
+  if (used_count == 0) return false;
+  const String *str = item->val_str(&tmp);
+  if (str == nullptr) return false;
   return std::binary_search(base_pointers.begin(), base_pointers.end(), str,
-                            Cmp_string(compare, collation));
+                            Cmp_string(collation));
 }
 
 bool in_string::compare_elems(uint pos1, uint pos2) const {
-  return compare(collation, base_pointers[pos1], base_pointers[pos2]) != 0;
+  return srtcmp_in(collation, base_pointers[pos1], base_pointers[pos2]) != 0;
 }
 
-in_row::in_row(THD *thd, uint elements)
+in_row::in_row(MEM_ROOT *mem_root, uint elements, cmp_item_row *cmp)
     : in_vector(elements),
-      base_objects(thd->mem_root, elements),
-      base_pointers(thd->mem_root, elements) {
+      tmp(cmp),
+      base_objects(mem_root, elements),
+      base_pointers(mem_root, elements) {
   for (uint ix = 0; ix < elements; ++ix) {
     base_pointers[ix] = &base_objects[ix];
   }
 }
 
-uchar *in_row::get_value(Item *item) {
-  tmp.store_value(item);
-  if (item->is_null()) return 0;
-  return (uchar *)&tmp;
-}
-
 void in_row::set(uint pos, Item *item) {
   DBUG_ENTER("in_row::set");
   DBUG_PRINT("enter", ("pos: %u  item: %p", pos, item));
-  base_pointers[pos]->store_value_by_template(&tmp, item);
+  base_pointers[pos]->store_value_by_template(tmp, item);
   DBUG_VOID_RETURN;
 }
 
-in_longlong::in_longlong(THD *thd, uint elements)
-    : in_vector(elements), base(thd->mem_root, elements) {}
-
-void in_longlong::set(uint pos, Item *item) {
-  struct packed_longlong *buff = &base[pos];
-
-  buff->val = item->val_int();
-  buff->unsigned_flag = item->unsigned_flag;
+void in_longlong::val_item(Item *item, packed_longlong *result) {
+  result->val = item->val_int();
+  result->unsigned_flag = item->unsigned_flag;
 }
 
-uchar *in_longlong::get_value(Item *item) {
-  tmp.val = item->val_int();
-  if (item->null_value) return 0;
-  tmp.unsigned_flag = item->unsigned_flag;
-  return (uchar *)&tmp;
+void in_time_as_longlong::val_item(Item *item, packed_longlong *result) {
+  result->val = item->val_time_temporal();
+  result->unsigned_flag = item->unsigned_flag;
 }
 
-void in_time_as_longlong::set(uint pos, Item *item) {
-  struct packed_longlong *buff = &base[pos];
-  buff->val = item->val_time_temporal();
-  buff->unsigned_flag = item->unsigned_flag;
-}
-
-uchar *in_time_as_longlong::get_value(Item *item) {
-  tmp.val = item->val_time_temporal();
-  if (item->null_value) return 0;
-  tmp.unsigned_flag = item->unsigned_flag;
-  return (uchar *)&tmp;
-}
-
-void in_datetime_as_longlong::set(uint pos, Item *item) {
-  struct packed_longlong *buff = &base[pos];
-  buff->val = item->val_date_temporal();
-  buff->unsigned_flag = item->unsigned_flag;
-}
-
-uchar *in_datetime_as_longlong::get_value(Item *item) {
-  tmp.val = item->val_date_temporal();
-  if (item->null_value) return 0;
-  tmp.unsigned_flag = item->unsigned_flag;
-  return (uchar *)&tmp;
+void in_datetime_as_longlong::val_item(Item *item, packed_longlong *result) {
+  result->val = item->val_date_temporal();
+  result->unsigned_flag = item->unsigned_flag;
 }
 
 void in_datetime::set(uint pos, Item *item) {
@@ -3936,43 +3922,34 @@ void in_datetime::set(uint pos, Item *item) {
 
   buff->val =
       get_datetime_value(current_thd, &tmp_item, 0, warn_item, &is_null);
-  buff->unsigned_flag = 1L;
+  buff->unsigned_flag = true;
 }
 
-uchar *in_datetime::get_value(Item *item) {
+void in_datetime::val_item(Item *item, packed_longlong *result) {
   bool is_null;
   Item **tmp_item = lval_cache ? &lval_cache : &item;
-  tmp.val = get_datetime_value(current_thd, &tmp_item, &lval_cache, warn_item,
-                               &is_null);
-  if (item->null_value) return 0;
-  tmp.unsigned_flag = 1L;
-  return (uchar *)&tmp;
+  result->val = get_datetime_value(current_thd, &tmp_item, &lval_cache,
+                                   warn_item, &is_null);
+  result->unsigned_flag = true;
 }
-
-in_double::in_double(THD *thd, uint elements)
-    : in_vector(elements), base(thd->mem_root, elements) {}
 
 void in_double::set(uint pos, Item *item) { base[pos] = item->val_real(); }
 
-uchar *in_double::get_value(Item *item) {
-  tmp = item->val_real();
-  if (item->null_value) return 0; /* purecov: inspected */
-  return (uchar *)&tmp;
+void in_double::resize_and_sort() {
+  base.resize(used_count);
+  std::sort(base.begin(), base.end());
 }
 
-void in_double::sort() { std::sort(base.begin(), base.end()); }
-
-bool in_double::find_value(const void *value) const {
-  const double *dbl = static_cast<const double *>(value);
-  return std::binary_search(base.begin(), base.end(), *dbl);
+bool in_double::find_item(Item *item) {
+  if (used_count == 0) return false;
+  double dbl = item->val_real();
+  if (item->null_value) return false;
+  return std::binary_search(base.begin(), base.end(), dbl);
 }
 
 bool in_double::compare_elems(uint pos1, uint pos2) const {
   return base[pos1] != base[pos2];
 }
-
-in_decimal::in_decimal(THD *thd, uint elements)
-    : in_vector(elements), base(thd->mem_root, elements) {}
 
 void in_decimal::set(uint pos, Item *item) {
   /* as far as 'item' is constant, we can store reference on my_decimal */
@@ -3982,16 +3959,16 @@ void in_decimal::set(uint pos, Item *item) {
   if (!item->null_value && res != dec) my_decimal2decimal(res, dec);
 }
 
-uchar *in_decimal::get_value(Item *item) {
-  my_decimal *result = item->val_decimal(&val);
-  if (item->null_value) return 0;
-  return (uchar *)result;
+void in_decimal::resize_and_sort() {
+  base.resize(used_count);
+  std::sort(base.begin(), base.end());
 }
 
-void in_decimal::sort() { std::sort(base.begin(), base.end()); }
-
-bool in_decimal::find_value(const void *value) const {
-  const my_decimal *dec = static_cast<const my_decimal *>(value);
+bool in_decimal::find_item(Item *item) {
+  if (used_count == 0) return false;
+  my_decimal val;
+  const my_decimal *dec = item->val_decimal(&val);
+  if (item->null_value) return false;
   return std::binary_search(base.begin(), base.end(), *dec);
 }
 
@@ -4052,16 +4029,17 @@ cmp_item_row::~cmp_item_row() {
 /**
   Allocate comparator objects
 
+  @param  thd  Thread descriptor
   @param  item Item to allocate comparator objects for
 
   @retval false on success, true on error (OOM)
 */
 
-bool cmp_item_row::alloc_comparators(Item *item) {
+bool cmp_item_row::alloc_comparators(THD *thd, Item *item) {
   n = item->cols();
   DBUG_ASSERT(comparators == NULL);
   comparators =
-      static_cast<cmp_item **>(current_thd->mem_calloc(sizeof(cmp_item *) * n));
+      static_cast<cmp_item **>(thd->mem_calloc(sizeof(cmp_item *) * n));
   if (comparators == NULL) return true;
 
   for (uint i = 0; i < n; i++) {
@@ -4071,7 +4049,8 @@ bool cmp_item_row::alloc_comparators(Item *item) {
               item_i->result_type(), item_i, item_i->collation.collation)))
       return true;  // Allocation failed
     if (item_i->result_type() == ROW_RESULT &&
-        static_cast<cmp_item_row *>(comparators[i])->alloc_comparators(item_i))
+        static_cast<cmp_item_row *>(comparators[i])
+            ->alloc_comparators(thd, item_i))
       return true;
   }
   return false;
@@ -4411,15 +4390,6 @@ void Item_func_in::fix_after_pullout(SELECT_LEX *parent_select,
   not_null_tables_cache |= (*args)->not_null_tables();
 }
 
-static int srtcmp_in(const void *cmp_arg, const void *a, const void *b) {
-  CHARSET_INFO *cs =
-      const_cast<CHARSET_INFO *>(pointer_cast<const CHARSET_INFO *>(cmp_arg));
-  const String *x = pointer_cast<const String *>(a);
-  const String *y = pointer_cast<const String *>(b);
-  return cs->coll->strnncollsp(cs, (uchar *)x->ptr(), x->length(),
-                               (uchar *)y->ptr(), y->length());
-}
-
 bool Item_func_in::resolve_type(THD *thd) {
   Item **arg, **arg_end;
   bool const_itm = true;
@@ -4491,17 +4461,14 @@ bool Item_func_in::resolve_type(THD *thd) {
       the DATETIME comparison detection procedure.
     */
     if (cmp_type == ROW_RESULT) {
-      cmp_item_row *cmp = 0;
+      auto cmp = new (thd->mem_root) cmp_item_row(thd, args[0]);
+      if (cmp == nullptr) return true;
       if (bisection_possible) {
-        if (!(array = new (thd->mem_root) in_row(thd, arg_count - 1)))
-          return true;
-        cmp = &((in_row *)array)->tmp;
+        array = new (thd->mem_root) in_row(thd->mem_root, arg_count - 1, cmp);
+        if (array == nullptr) return true;
       } else {
-        if (!(cmp = new (thd->mem_root) cmp_item_row)) return true;
         cmp_items[ROW_RESULT] = cmp;
       }
-      cmp->n = args[0]->cols();
-      cmp->alloc_comparators(args[0]);
     }
     /* All DATE/DATETIME fields/functions has the STRING result type. */
     if (cmp_type == STRING_RESULT || cmp_type == ROW_RESULT) {
@@ -4538,13 +4505,14 @@ bool Item_func_in::resolve_type(THD *thd) {
         if (skip_column) continue;
         if (datetime_found) {
           if (cmp_type == ROW_RESULT) {
-            cmp_item **cmp = 0;
-            if (array)
-              cmp = ((in_row *)array)->tmp.comparators + col;
-            else
-              cmp = ((cmp_item_row *)cmp_items[ROW_RESULT])->comparators + col;
-            if (!(*cmp = new (thd->mem_root) cmp_item_datetime(date_arg)))
-              return true;
+            cmp_item *cmp = new (thd->mem_root) cmp_item_datetime(date_arg);
+            if (cmp == nullptr) return true;
+            if (array) {
+              down_cast<in_row *>(array)->set_comparator(col, cmp);
+            } else {
+              down_cast<cmp_item_row *>(cmp_items[ROW_RESULT])
+                  ->set_comparator(col, cmp);
+            }
 
             /* Reset variables for the next column. */
             date_arg = 0;
@@ -4558,8 +4526,8 @@ bool Item_func_in::resolve_type(THD *thd) {
 
   if (bisection_possible) {
     if (compare_as_datetime) {
-      if (!(array =
-                new (thd->mem_root) in_datetime(thd, date_arg, arg_count - 1)))
+      if (!(array = new (thd->mem_root)
+                in_datetime(thd->mem_root, date_arg, arg_count - 1)))
         return true;
     } else {
       /*
@@ -4593,23 +4561,23 @@ bool Item_func_in::resolve_type(THD *thd) {
       switch (cmp_type) {
         case STRING_RESULT:
           array = new (thd->mem_root)
-              in_string(thd, arg_count - 1, srtcmp_in, cmp_collation.collation);
+              in_string(thd->mem_root, arg_count - 1, cmp_collation.collation);
           break;
         case INT_RESULT:
           array =
               datetime_as_longlong
                   ? args[0]->data_type() == MYSQL_TYPE_TIME
                         ? static_cast<in_vector *>(
-                              new (thd->mem_root)
-                                  in_time_as_longlong(thd, arg_count - 1))
+                              new (thd->mem_root) in_time_as_longlong(
+                                  thd->mem_root, arg_count - 1))
                         : static_cast<in_vector *>(
-                              new (thd->mem_root)
-                                  in_datetime_as_longlong(thd, arg_count - 1))
-                  : static_cast<in_vector *>(
-                        new (thd->mem_root) in_longlong(thd, arg_count - 1));
+                              new (thd->mem_root) in_datetime_as_longlong(
+                                  thd->mem_root, arg_count - 1))
+                  : static_cast<in_vector *>(new (thd->mem_root) in_longlong(
+                        thd->mem_root, arg_count - 1));
           break;
         case REAL_RESULT:
-          array = new (thd->mem_root) in_double(thd, arg_count - 1);
+          array = new (thd->mem_root) in_double(thd->mem_root, arg_count - 1);
           break;
         case ROW_RESULT:
           /*
@@ -4617,7 +4585,7 @@ bool Item_func_in::resolve_type(THD *thd) {
           */
           break;
         case DECIMAL_RESULT:
-          array = new (thd->mem_root) in_decimal(thd, arg_count - 1);
+          array = new (thd->mem_root) in_decimal(thd->mem_root, arg_count - 1);
           break;
         default:
           DBUG_ASSERT(0);
@@ -4631,24 +4599,8 @@ bool Item_func_in::resolve_type(THD *thd) {
     */
     if (thd->is_error()) return true;
 
-    uint j = 0;
-    for (uint i = 1; i < arg_count; i++) {
-      array->set(j, args[i]);
-      if (!args[i]->null_value)
-        j++;  // include this cell in the array.
-      else {
-        /*
-          We don't put NULL values in array, to avoid erronous matches in
-          bisection.
-        */
-        have_null = 1;
-      }
-    }
-    array->used_count = j;
-    DBUG_ASSERT(array->used_count <= array->count);
-    if (array->used_count < array->count) array->shrink_array(j);
+    have_null = array->fill(args + 1, arg_count - 1);
 
-    if (array->used_count) array->sort();
   } else {
     if (compare_as_datetime) {
       if (!(cmp_items[STRING_RESULT] =
