@@ -217,22 +217,22 @@ std::string unit();
 template <>
 std::string unit<std::chrono::seconds>() {
   return "s";
-};
+}
 
 template <>
 std::string unit<std::chrono::milliseconds>() {
   return "ms";
-};
+}
 
 template <>
 std::string unit<std::chrono::microseconds>() {
   return "us";
-};
+}
 
 template <>
 std::string unit<std::chrono::nanoseconds>() {
   return "ns";
-};
+}
 
 // must be defined in the same namespace as the type we want to convert
 namespace std {
@@ -243,7 +243,7 @@ void PrintTo(const chrono::duration<Rep, Per> &span, std::ostream *os) {
   *os << span.count() << unit<typename std::decay<decltype(span)>::type>();
 }
 
-};  // namespace std
+}  // namespace std
 
 /**
  * test handshake's exec_time can be set via globals.
