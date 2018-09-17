@@ -477,13 +477,15 @@
 #endif
 
 #include "metadata_cache.h"
-#include "common.h"
-#include "mysql/harness/logging/logging.h"
 
 #include <cassert>
 #include <cmath>  // fabs()
 #include <memory>
 #include <vector>
+
+#include "common.h"
+#include "mysql/harness/logging/logging.h"
+#include "mysqlrouter/mysql_client_thread_token.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -511,8 +513,11 @@ MetadataCache::MetadataCache(
 }
 
 void *MetadataCache::run_thread(void *context) {
+  mysqlrouter::MySQLClientThreadToken api_token;
   MetadataCache *metadata_cache = static_cast<MetadataCache *>(context);
+
   metadata_cache->refresh_thread();
+
   return nullptr;
 }
 

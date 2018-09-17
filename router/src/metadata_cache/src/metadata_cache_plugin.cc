@@ -22,23 +22,23 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "dim.h"
-#include "metadata_cache.h"
-#include "mysql/harness/loader_config.h"
-#include "mysqlrouter/mysql_session.h"  // kSslModePreferred
-#include "plugin_config.h"
-
-#include <string>
-#include <thread>
 #ifndef _WIN32
 #include <termios.h>
 #include <unistd.h>
 #endif
+#include <string>
+#include <thread>
 
+#include "dim.h"
 #include "keyring/keyring_manager.h"
+#include "metadata_cache.h"
 #include "mysql/harness/config_parser.h"
+#include "mysql/harness/loader_config.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysqlrouter/mysql_client_thread_token.h"
+#include "mysqlrouter/mysql_session.h"  // kSslModePreferred
 #include "mysqlrouter/utils.h"
+#include "plugin_config.h"
 #include "tcp_address.h"
 
 using metadata_cache::LookupResult;
@@ -95,6 +95,8 @@ static mysqlrouter::SSLOptions make_ssl_options(
  * @param env plugin's environment
  */
 static void start(mysql_harness::PluginFuncEnv *env) {
+  mysqlrouter::MySQLClientThreadToken api_token;
+
   const mysql_harness::ConfigSection *section = get_config_section(env);
 
   // launch metadata cache
