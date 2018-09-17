@@ -66,7 +66,6 @@ use mtr_cases_from_list;
 use mtr_match;
 use mtr_report;
 use mtr_results;
-use mtr_secondary_engine;
 use mtr_unique;
 
 require "lib/mtr_gcov.pl";
@@ -96,7 +95,6 @@ my $opt_mark_progress;
 my $opt_max_connections;
 my $opt_ps_protocol;
 my $opt_report_features;
-my $opt_secondary_engine;
 my $opt_skip_core;
 my $opt_skip_test_list;
 my $opt_sleep;
@@ -131,8 +129,10 @@ my $opt_port_base          = $ENV{'MTR_PORT_BASE'} || "auto";
 my $opt_reorder            = 1;
 my $opt_retry              = 3;
 my $opt_retry_failure      = env_or_val(MTR_RETRY_FAILURE => 2);
+my $opt_shutdown_timeout   = $ENV{MTR_SHUTDOWN_TIMEOUT} || 10;         # seconds
 my $opt_skip_ndbcluster    = 0;
 my $opt_skip_sys_schema    = 0;
+my $opt_start_timeout      = $ENV{MTR_START_TIMEOUT} || 180;           # seconds
 my $opt_suite_timeout      = $ENV{MTR_SUITE_TIMEOUT} || 300;           # minutes
 my $opt_testcase_timeout   = $ENV{MTR_TESTCASE_TIMEOUT} || 15;         # minutes
 my $opt_valgrind_clients   = 0;
@@ -144,6 +144,7 @@ my %opts_extern;
 
 my $auth_plugin;            # The path to the authentication test plugin
 my $baseport;
+my $config;                 # The currently running config
 my $ctest_report;           # Unit test report stored here for delayed printing
 my $current_config_name;    # The currently running config file template
 my $exe_ndb_mgm;
@@ -249,7 +250,6 @@ our $basedir;
 our $bindir;
 our $build_thread_id_dir;
 our $build_thread_id_file;
-our $config;    # The currently running config
 our $debug_compiled_binaries;
 our $default_vardir;
 our $excluded_string;
@@ -268,13 +268,12 @@ our $path_client_libdir;
 our $path_current_testlog;
 our $path_language;
 our $path_testlog;
-our $secondary_engine_rapid;
 our $start_only;
 
-our $glob_debugger      = 0;
-our $group_replication  = 0;
-our $ndbcluster_enabled = 0;
-our $ssl_supported      = 1;
+our $glob_debugger           = 0;
+our $group_replication       = 0;
+our $ndbcluster_enabled      = 0;
+our $ssl_supported           = 1;
 
 our @share_locations;
 
@@ -586,7 +585,6 @@ sub main {
   if ($opt_summary_report) {
     mtr_summary_file_init($opt_summary_report);
   }
-
   if ($opt_xml_report) {
     mtr_xml_init($opt_xml_report);
   }
@@ -614,12 +612,6 @@ sub main {
   }
 
   if ($group_replication) {
-    $ports_per_thread = $ports_per_thread + 10;
-  }
-
-  # Reserve 10 extra ports per worker process if a secondary
-  # engine rapid is enabled.
-  if ($secondary_engine_rapid) {
     $ports_per_thread = $ports_per_thread + 10;
   }
 
@@ -762,6 +754,9 @@ sub run_test_server ($$$) {
   my $num_saved_cores   = 0; # Number of core files saved in vardir/log/ so far.
   my $num_saved_datadir = 0; # Number of datadirs saved in vardir/log/ so far.
 
+  # Used as hint to CoreDump
+  my $exe_mysqld = find_mysqld($basedir) || "";
+
   # Scheduler variables
   my $max_ndb = $ENV{MTR_MAX_NDB} || $childs / 2;
   $max_ndb = $childs if $max_ndb > $childs;
@@ -865,14 +860,8 @@ sub run_test_server ($$$) {
                         mtr_report(" - found '$core_name'",
                                    "($num_saved_cores/$opt_max_save_core)");
 
-                        my $exe;
-                        if (defined $result->{'rapid_server_crash'}) {
-                          $exe = $ENV{'RAPID'};
-                        } else {
-                          $exe = find_mysqld($basedir) || "";
-                        }
-
-                        My::CoreDump->show($core_file, $exe, $opt_parallel);
+                        My::CoreDump->show($core_file, $exe_mysqld,
+                                           $opt_parallel);
 
                         if ($num_saved_cores >= $opt_max_save_core) {
                           mtr_report(" - deleting it, already saved",
@@ -1172,7 +1161,6 @@ sub run_worker ($) {
     } elsif ($line eq 'BYE') {
       mtr_report("Server said BYE");
       stop_all_servers($opt_shutdown_timeout);
-      stop_rapid_server() if $secondary_engine_rapid;
       mark_time_used('restart');
 
       my $valgrind_reports = 0;
@@ -1194,8 +1182,6 @@ sub run_worker ($) {
   }
 
   stop_all_servers();
-  stop_rapid_server() if $secondary_engine_rapid;
-
   exit(1);
 }
 
@@ -1418,9 +1404,6 @@ sub command_line_setup {
 
     # Extra options used when running test clients
     'mysqltest=s' => \@opt_extra_mysqltest_opt,
-
-    # Secondary engine options
-    'secondary-engine=s' => \$opt_secondary_engine,
 
     # Debugging
     'boot-dbx'           => \$opt_boot_dbx,
@@ -1653,13 +1636,6 @@ sub command_line_setup {
   if ($opt_verbose and $opt_quiet) {
     $opt_quiet = 0;
     mtr_report("Turning off '--quiet' since verbose output is enabled.");
-  }
-  if ($opt_secondary_engine) {
-    if (lc $opt_secondary_engine ne "rapid") {
-      mtr_error("Unsupported secondary engine '$opt_secondary_engine'.");
-    } else {
-      $secondary_engine_rapid = 1;
-    }
   }
 
   if ($opt_test_progress != 0 and $opt_test_progress != 1) {
@@ -2014,8 +1990,7 @@ sub command_line_setup {
   if (defined $mysql_version_extra &&
       $mysql_version_extra =~ /-tsan/) {
     # Turn off check testcases to save time
-    mtr_report(
-      "Turning off --check-testcases to save time when using thread sanitizer");
+    mtr_report("Turning off --check-testcases to save time when using thread sanitizer");
     $opt_check_testcases = 0;
   }
 
@@ -2124,23 +2099,6 @@ sub set_build_thread_ports($) {
     }
   } else {
     $mysqlx_baseport = $opt_mysqlx_baseport;
-  }
-
-  # Reserve a port for rapid server
-  if ($secondary_engine_rapid) {
-    if ($group_replication and $ports_per_thread == 40) {
-      # When both group replication and rapid are enabled,
-      # ports_per_thread value should be 40.
-      # - First set of 10 ports are reserved for mysqld servers
-      # - Second set of 10 ports are reserver for Group replication
-      # - Third set of 10 ports are reserved for rapid server
-      # - Fourth and last set of 10 porst are reserved for X plugin
-      $::rapid_port = $baseport + 20;
-    } else {
-      # ports_per_thread value should be 30, reserve second set of
-      # 10 ports for rapid server.
-      $::rapid_port = $baseport + 10;
-    }
   }
 
   if ($baseport < 5001 or $baseport + $ports_per_thread - 1 >= 32767) {
@@ -2791,10 +2749,6 @@ sub environment_setup {
   # Get the bin dir
   $ENV{'MYSQL_BIN_PATH'} = native_path($bindir);
 
-  if ($secondary_engine_rapid) {
-    rapid_environment_setup(\&find_plugin, $bindir);
-  }
-
   # mysql_fix_privilege_tables.sql
   my $file_mysql_fix_privilege_tables =
     mtr_file_exists("$basedir/scripts/mysql_fix_privilege_tables.sql",
@@ -2888,9 +2842,8 @@ sub environment_setup {
   # Make sure LeakSanitizer exits if leaks are found
   $ENV{'LSAN_OPTIONS'} = "exitcode=42" if $opt_sanitize;
 
-# The Thread Sanitizer allocator should return NULL instead of crashing on out-of-memory.
-  $ENV{'TSAN_OPTIONS'} = $ENV{'TSAN_OPTIONS'} . ",allocator_may_return_null=1"
-    if $opt_sanitize;
+  # The Thread Sanitizer allocator should return NULL instead of crashing on out-of-memory.
+  $ENV{'TSAN_OPTIONS'} = $ENV{'TSAN_OPTIONS'} . ",allocator_may_return_null=1" if $opt_sanitize;
 
   # Add dir of this perl to aid mysqltest in finding perl
   my $perldir = dirname($^X);
@@ -3407,7 +3360,7 @@ sub memcached_start {
   my $found_so = my_find_file(
     $bindir,
     [ "storage/ndb/memcache",    # source or build
-      "lib",       "lib64",
+      "lib", "lib64",
       "lib/mysql", "lib64/mysql"
     ],                           # install
     "ndb_engine.so",
@@ -3514,10 +3467,10 @@ sub memcached_load_metadata($) {
 
   my $sql_script = my_find_file(
     $bindir,
-    [ "share/mysql/memcache-api",        # RPM install
-      "share/mysql-8.0/memcache-api",    # RPM (8.0)
-      "share/memcache-api",              # Other installs
-      "scripts"                          # Build tree
+    [ "share/mysql/memcache-api",    # RPM install
+      "share/mysql-8.0/memcache-api",# RPM (8.0)
+      "share/memcache-api",          # Other installs
+      "scripts"                      # Build tree
     ],
     "ndb_memcache_metadata.sql",
     NOT_REQUIRED);
@@ -3972,23 +3925,20 @@ sub run_testcase_check_skip_test($) {
 }
 
 sub run_query {
-  my ($mysqld, $query, $outfile, $errfile) = @_;
+  my ($tinfo, $mysqld, $query) = @_;
 
   my $args;
   mtr_init_args(\$args);
   mtr_add_arg($args, "--defaults-file=%s",         $path_config_file);
   mtr_add_arg($args, "--defaults-group-suffix=%s", $mysqld->after('mysqld'));
-  mtr_add_arg($args, "-e %s",                      $query);
-  mtr_add_arg($args, "--skip-column-names");
 
-  $outfile = "/dev/null" if not defined $outfile;
-  $errfile = "/dev/null" if not defined $errfile;
+  mtr_add_arg($args, "-e %s", $query);
 
   my $res = My::SafeProcess->run(name   => "run_query -> " . $mysqld->name(),
                                  path   => $exe_mysql,
                                  args   => \$args,
-                                 output => $outfile,
-                                 error  => $errfile);
+                                 output => '/dev/null',
+                                 error  => '/dev/null');
 
   return $res;
 }
@@ -4381,7 +4331,6 @@ sub run_testcase ($) {
     my @restart = servers_need_restart($tinfo);
     if (@restart != 0) {
       stop_servers($tinfo, @restart);
-      stop_rapid_server() if $secondary_engine_rapid;
     }
 
     if (started(all_servers()) == 0) {
@@ -4440,12 +4389,6 @@ sub run_testcase ($) {
     if (start_servers($tinfo)) {
       report_failure_and_restart($tinfo);
       return 1;
-    }
-
-    if ($secondary_engine_rapid and $tinfo->{'skip'}) {
-      # Skip flag is set, don't run it.
-      mtr_report_test_skipped($tinfo);
-      return 0;
     }
   }
   mark_time_used('restart');
@@ -4572,10 +4515,10 @@ sub run_testcase ($) {
     if ($proc eq $test) {
       my $res = $test->exit_status();
 
-      if ($res == 0 and
-          $opt_warnings and
-          not defined $tinfo->{'skip_check_warnings'} and
-          check_warnings($tinfo)) {
+        if ($res == 0 and
+            $opt_warnings and
+            not defined $tinfo->{'skip_check_warnings'} and
+            check_warnings($tinfo)) {
         # Test case succeeded, but it has produced unexpected warnings,
         # continue in $res == 1
         $res = 1;
@@ -4718,22 +4661,6 @@ sub run_testcase ($) {
   SRVDIED:
     # Stop the test case timer
     $test_timeout = 0;
-
-    # Check if it was rapid server that died
-    if ($proc->{'SAFE_NAME'} eq "rapid") {
-      # Rapid server crashed or died
-      $tinfo->{'rapid_server_crash'} = 1;
-      $tinfo->{'comment'} =
-        "Rapid server $proc crashed or failed during test run." .
-        get_rapid_server_log();
-
-      # Kill the test process
-      $test->kill();
-
-      # Report the failure and restart the server(s).
-      report_failure_and_restart($tinfo);
-      return 1;
-    }
 
     # Check if it was a server that died
     if (grep($proc eq $_, started(all_servers()))) {
@@ -5292,9 +5219,6 @@ sub check_expected_crash_and_restart {
 
         unlink($expect_file);
 
-        # Stop rapid server if enabled
-        stop_rapid_server() if $secondary_engine_rapid;
-
         # Start server with same settings as last time
         mysqld_start($mysqld, $mysqld->{'started_opts'});
 
@@ -5421,13 +5345,6 @@ sub after_failure ($) {
     foreach my $mysqld (mysqlds()) {
       my $data_dir = $mysqld->value('datadir');
       save_datadir_after_failure(dirname($data_dir), $save_dir);
-
-      if ($secondary_engine_rapid) {
-        # Save rapid server log directory
-        my $rapid             = $config->group('rapid');
-        my $rapid_log_dirname = basename($rapid->{'logdir'});
-        rename($rapid->{'logdir'}, "$save_dir/$rapid_log_dirname");
-      }
     }
   }
 }
@@ -5556,10 +5473,6 @@ sub mysqld_arguments ($$$) {
                  "--print-defaults");
   arrange_option_files_options($args, $mysqld, $extra_opts, @options);
 
-  # Set the plugin-dir location to rapid plugin directory location.
-  mtr_add_arg($args, "--plugin-dir=" . $::rapid_plugin_dir)
-    if $secondary_engine_rapid;
-
   # When mysqld is run by a root user(euid is 0), it will fail
   # to start unless we specify what user to run as, see BUG#30630
   my $euid = $>;
@@ -5657,9 +5570,6 @@ sub mysqld_arguments ($$$) {
 sub mysqld_start ($$) {
   my $mysqld     = shift;
   my $extra_opts = shift;
-
-  # Start rapid server.
-  start_rapid_server() if $secondary_engine_rapid;
 
   mtr_verbose(My::Options::toStr("mysqld_start", @$extra_opts));
 
@@ -5869,7 +5779,7 @@ sub server_need_restart {
 
       my $query = My::Options::toSQL(@diff_opts);
       mtr_verbose("Attempting dynamic switch '$query'");
-      if (run_query($server, $query)) {
+      if (run_query($tinfo, $server, $query)) {
         mtr_verbose("Restart: running with different options '" .
                     join(" ", @{$extra_opts}) . "' != '" .
                     join(" ", @{$started_opts}) . "'");
@@ -6075,12 +5985,7 @@ sub start_servers($) {
     if ($mysqld->{proc}) {
       # Already started, write start of testcase to log file
       mark_log($mysqld->value('#log-error'), $tinfo);
-      # No need to install rapid plugin
-      $mysqld->{install_rapid_plugin} = 0 if $secondary_engine_rapid;
       next;
-    } else {
-      # Need to install rapid plugin since mysqld server will be restarted.
-      $mysqld->{install_rapid_plugin} = 1 if $secondary_engine_rapid;
     }
 
     my $datadir = $mysqld->value('datadir');
@@ -6217,18 +6122,6 @@ sub start_servers($) {
       next if started($memcached);
       memcached_start($cluster, $memcached);
     }
-  }
-
-  if ($secondary_engine_rapid) {
-    check_plugin_dir($tinfo);
-
-    # Skip tests starting more than one server.
-    check_number_of_servers(\&mysqlds, $tinfo) if !$tinfo->{'skip'};
-
-    return 0 if $tinfo->{'skip'};
-
-    # Install rapid plugin on all running mysqld servers.
-    install_rapid_plugin(\&mysqlds, \&run_query, $tinfo);
   }
 
   return 0;
