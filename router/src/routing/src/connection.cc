@@ -240,7 +240,6 @@ void MySQLRoutingConnection::run() {
     // after a successful handshake, we reset client-side connection error
     // counter, just like the Server
     if (!error_counter_already_cleared && handshake_done) {
-      harness_assert(connection_is_ok);
       context_.clear_error_counter(in_addr_to_array(client_addr_),
                                    client_address_.c_str());
       error_counter_already_cleared = true;
