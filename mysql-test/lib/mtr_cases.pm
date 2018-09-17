@@ -770,12 +770,12 @@ sub optimize_cases {
     # Skip processing if already marked as skipped
     next if $tinfo->{skip};
 
-    # Binlog must be enabled for secondary engine
-    if ($::opt_secondary_engine) {
+    # Binlog must be enabled for rapid
+    if ($::secondary_engine_rapid) {
       my $skip_log_bin_pattern = "^--(loose[-_])?skip[-_]log[-_]bin";
       if (grep(/$skip_log_bin_pattern/, @{ $tinfo->{'master_opt'} }) ||
           grep(/$skip_log_bin_pattern/, @{ $tinfo->{'slave_opt'} })) {
-        skip_test($tinfo, "Binlog must be enabled.");
+        skip_test($tinfo, "Binlog must be enabled for RAPID.");
         next;
       }
     }
@@ -796,10 +796,9 @@ sub optimize_cases {
         }
       }
 
-      # Tests with binlog_format other than ROW can't be run with
-      # secondary engine.
-      if ($::opt_secondary_engine and "row" ne lc $binlog_format) {
-        skip_test($tinfo, "Binlog format must be ROW.");
+      # Tests with binlog_format other than ROW can't be run with rapid.
+      if ($::secondary_engine_rapid and "row" ne lc $binlog_format) {
+        skip_test($tinfo, "Binlog format must be ROW for RAPID.");
         next;
       }
     } else {
@@ -828,11 +827,10 @@ sub optimize_cases {
         }
       }
 
-      # Tests with binlog_format other than ROW can't be run with
-      # secondary engine.
+      # Tests with binlog_format other than ROW can't be run with rapid.
       if (defined $test_binlog_format and !$tinfo->{skip}) {
-        if ($::opt_secondary_engine and "row" ne lc $test_binlog_format) {
-          skip_test($tinfo, "Binlog format must be ROW.");
+        if ($::secondary_engine_rapid and "row" ne lc $test_binlog_format) {
+          skip_test($tinfo, "Binlog format must be ROW for RAPID.");
           next;
         }
       }

@@ -331,24 +331,23 @@ sub fix_rapid_load_pool {
 }
 
 # Rules to run for each mysqld server in the config if
-# secondary engine is enabled.
+# secondary engine rapid is enabled.
 #  - will be run in order listed here
-my @secondary_engine_mysqld_rules = (
-                           { 'binlog-format'         => "ROW" },
-                           { 'binlog-row-image'      => "FULL" },
-                           { 'binlog-checksum'       => "NONE" },
-                           { 'gtid-mode'             => "OFF" },
-                           { 'log-bin'               => "binlog" },
-                           { 'loose-rapid_load_pool' => \&fix_rapid_load_pool },
-                           { 'loose-rapid_use_rowsets'   => "OFF" },
-                           { 'innodb_buffer_pool_size'   => 268435456 },
-                           { 'innodb_read_io_threads'    => 32 },
-                           { 'innodb_thread_concurrency' => 32 },
-                           { 'innodb_use_native_aio'     => "ON" },);
+my @rapid_mysqld_rules = ({ 'binlog-format'         => "ROW" },
+                          { 'binlog-row-image'      => "FULL" },
+                          { 'binlog-checksum'       => "NONE" },
+                          { 'gtid-mode'             => "OFF" },
+                          { 'log-bin'               => "binlog" },
+                          { 'loose-rapid_load_pool' => \&fix_rapid_load_pool },
+                          { 'loose-rapid_use_rowsets'   => "OFF" },
+                          { 'innodb_buffer_pool_size'   => 268435456 },
+                          { 'innodb_read_io_threads'    => 32 },
+                          { 'innodb_thread_concurrency' => 32 },
+                          { 'innodb_use_native_aio'     => "ON" },);
 
-# Rules to run for each secondary engine server in the config
+# Rules to run for each rapid server in the config
 #  - will be run in order listed here
-my @secondary_engine_rules = (
+my @rapid_rules = (
   { 'load_multi_buffering'              => 2 },
   { 'memory_heap_size'                  => \&fix_memory_heap_size },
   { 'orma_heartbeat_check_interval'     => 60 },
@@ -361,7 +360,7 @@ my @secondary_engine_rules = (
   { 'trans_iplist'                      => "127.0.0.1" },
   { 'trans_spareiplist'                 => "" },
 
-  { 'trans_ports' => sub { return $::secondary_engine_port }
+  { 'trans_ports' => sub { return $::rapid_port }
   },);
 
 sub fix_ndb_mgmd_port {
@@ -427,11 +426,12 @@ my @mysqlbinlog_rules = (
 #  - will be run in order listed here
 my @mysql_upgrade_rules = ();
 
-# Generate a group to be used for connecting to a secondary engine server.
-sub post_check_secondary_engine_group {
+# Generate a [rapid] group to be used for connecting
+# to a rapid server.
+sub post_check_rapid_group {
   my ($self, $config) = @_;
 
-  foreach my $hash (@secondary_engine_rules) {
+  foreach my $hash (@rapid_rules) {
     while (my ($option, $rule) = each(%{$hash})) {
       my $value;
       if (ref $rule eq "CODE") {
@@ -445,11 +445,12 @@ sub post_check_secondary_engine_group {
   }
 }
 
-# Insert mysqld server options required when secondary engine is enabled.
-sub post_check_secondary_engine_mysqld_group {
+# Insert mysqld server options required when secondary engine
+# rapid is enabled.
+sub post_check_rapid_mysqld_group {
   my ($self, $config) = @_;
 
-  foreach my $hash (@secondary_engine_mysqld_rules) {
+  foreach my $hash (@rapid_mysqld_rules) {
     while (my ($option, $rule) = each(%{$hash})) {
       my $value;
       if (ref $rule eq "CODE") {
@@ -720,11 +721,11 @@ sub new_config {
   $self->run_rules_for_group($config, $config->insert('mysqltest'),
                              @mysqltest_rules);
 
-  if ($::opt_secondary_engine) {
-    # Additional rules required for secondary engine
-    push(@post_rules, \&post_check_secondary_engine_group);
-    # Additional rules required for [mysqld] when secondary engine is enabled
-    push(@post_rules, \&post_check_secondary_engine_mysqld_group);
+  if ($::secondary_engine_rapid) {
+    # Additional rules required for [rapid]
+    push(@post_rules, \&post_check_rapid_group);
+    # Additional rules required for [mysqld] when rapid is enabled
+    push(@post_rules, \&post_check_rapid_mysqld_group);
   }
 
   # Run post rules

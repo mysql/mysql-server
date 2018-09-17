@@ -96,6 +96,7 @@ my $opt_mark_progress;
 my $opt_max_connections;
 my $opt_ps_protocol;
 my $opt_report_features;
+my $opt_secondary_engine;
 my $opt_skip_core;
 my $opt_skip_test_list;
 my $opt_sleep;
@@ -203,7 +204,6 @@ our $opt_no_skip;
 our $opt_non_parallel_test;
 our $opt_record;
 our $opt_report_unstable_tests;
-our $opt_secondary_engine;
 our $opt_ssl;
 our $opt_suite_opt;
 our $opt_summary_report;
@@ -269,6 +269,7 @@ our $path_client_libdir;
 our $path_current_testlog;
 our $path_language;
 our $path_testlog;
+our $secondary_engine_rapid;
 our $start_only;
 
 our $glob_debugger      = 0;
@@ -617,8 +618,9 @@ sub main {
     $ports_per_thread = $ports_per_thread + 10;
   }
 
-  # Reserve 10 extra ports per worker process if secondary engine is enabled.
-  if ($opt_secondary_engine) {
+  # Reserve 10 extra ports per worker process if a secondary
+  # engine rapid is enabled.
+  if ($secondary_engine_rapid) {
     $ports_per_thread = $ports_per_thread + 10;
   }
 
@@ -865,8 +867,8 @@ sub run_test_server ($$$) {
                                    "($num_saved_cores/$opt_max_save_core)");
 
                         my $exe;
-                        if (defined $result->{'secondary_engine_srv_crash'}) {
-                          $exe = $ENV{'SECONDARY_ENGINE'};
+                        if (defined $result->{'rapid_server_crash'}) {
+                          $exe = $ENV{'RAPID'};
                         } else {
                           $exe = find_mysqld($basedir) || "";
                         }
@@ -1171,7 +1173,7 @@ sub run_worker ($) {
     } elsif ($line eq 'BYE') {
       mtr_report("Server said BYE");
       stop_all_servers($opt_shutdown_timeout);
-      stop_secondary_engine_server() if $opt_secondary_engine;
+      stop_rapid_server() if $secondary_engine_rapid;
       mark_time_used('restart');
 
       my $valgrind_reports = 0;
@@ -1193,7 +1195,7 @@ sub run_worker ($) {
   }
 
   stop_all_servers();
-  stop_secondary_engine_server() if $opt_secondary_engine;
+  stop_rapid_server() if $secondary_engine_rapid;
 
   exit(1);
 }
@@ -1419,8 +1421,8 @@ sub command_line_setup {
     'mysqltest=s' => \@opt_extra_mysqltest_opt,
 
     # Secondary engine options
-    'change-propagation:1' => \$opt_change_propagation,
-    'secondary-engine'     => \$opt_secondary_engine,
+    'change-propagation'   => \$opt_change_propagation,
+    'secondary-engine=s'   => \$opt_secondary_engine,
 
     # Debugging
     'boot-dbx'           => \$opt_boot_dbx,
@@ -1653,6 +1655,25 @@ sub command_line_setup {
   if ($opt_verbose and $opt_quiet) {
     $opt_quiet = 0;
     mtr_report("Turning off '--quiet' since verbose output is enabled.");
+  }
+  if ($opt_secondary_engine) {
+    if (lc $opt_secondary_engine ne "rapid") {
+      mtr_error("Unsupported secondary engine '$opt_secondary_engine'.");
+    } else {
+      $secondary_engine_rapid = 1;
+    }
+  }
+
+  if (defined $opt_change_propagation) {
+    if (not defined $opt_secondary_engine) {
+      # Can't use 'rapid-change-propagation' without any secondary engine.
+      mtr_error("Can't use '--change-propagation' without enabling " .
+                "a secondary engine.");
+    } elsif ($opt_change_propagation < 0 or $opt_change_propagation > 1) {
+      # '--change-propagation' option value should be either 0 or 1
+      mtr_error("Invalid value '$opt_change_propagation' for option " .
+                "'--change-propagation'.");
+    }
   }
 
   if ($opt_test_progress != 0 and $opt_test_progress != 1) {
@@ -2027,8 +2048,6 @@ sub command_line_setup {
     mtr_warning("Strace only supported in Linux ");
   }
 
-  check_secondary_engine_options();
-
   mtr_report("Checking supported features");
 
   check_debug_support(\%mysqld_variables);
@@ -2121,20 +2140,20 @@ sub set_build_thread_ports($) {
     $mysqlx_baseport = $opt_mysqlx_baseport;
   }
 
-  # Reserve a port for secondary engine server
-  if ($opt_secondary_engine) {
+  # Reserve a port for rapid server
+  if ($secondary_engine_rapid) {
     if ($group_replication and $ports_per_thread == 40) {
-      # When both group replication and secondary engine are enabled,
+      # When both group replication and rapid are enabled,
       # ports_per_thread value should be 40.
       # - First set of 10 ports are reserved for mysqld servers
       # - Second set of 10 ports are reserver for Group replication
-      # - Third set of 10 ports are reserved for secondary engine server
+      # - Third set of 10 ports are reserved for rapid server
       # - Fourth and last set of 10 porst are reserved for X plugin
-      $::secondary_engine_port = $baseport + 20;
+      $::rapid_port = $baseport + 20;
     } else {
       # ports_per_thread value should be 30, reserve second set of
-      # 10 ports for secondary engine server.
-      $::secondary_engine_port = $baseport + 10;
+      # 10 ports for rapid server.
+      $::rapid_port = $baseport + 10;
     }
   }
 
@@ -2786,8 +2805,8 @@ sub environment_setup {
   # Get the bin dir
   $ENV{'MYSQL_BIN_PATH'} = native_path($bindir);
 
-  if ($opt_secondary_engine) {
-    secondary_engine_environment_setup(\&find_plugin, $bindir);
+  if ($secondary_engine_rapid) {
+    rapid_environment_setup(\&find_plugin, $bindir);
   }
 
   # mysql_fix_privilege_tables.sql
@@ -4376,7 +4395,7 @@ sub run_testcase ($) {
     my @restart = servers_need_restart($tinfo);
     if (@restart != 0) {
       stop_servers($tinfo, @restart);
-      stop_secondary_engine_server() if $opt_secondary_engine;
+      stop_rapid_server() if $secondary_engine_rapid;
     }
 
     if (started(all_servers()) == 0) {
@@ -4437,7 +4456,7 @@ sub run_testcase ($) {
       return 1;
     }
 
-    if ($opt_secondary_engine and $tinfo->{'skip'}) {
+    if ($secondary_engine_rapid and $tinfo->{'skip'}) {
       # Skip flag is set, don't run it.
       mtr_report_test_skipped($tinfo);
       return 0;
@@ -4714,13 +4733,13 @@ sub run_testcase ($) {
     # Stop the test case timer
     $test_timeout = 0;
 
-    # Check if it was secondary engine server that died
-    if ($proc->{'SAFE_NAME'} eq "secondary_engine") {
-      # Secondary engine server crashed or died
-      $tinfo->{'secondary_engine_srv_crash'} = 1;
+    # Check if it was rapid server that died
+    if ($proc->{'SAFE_NAME'} eq "rapid") {
+      # Rapid server crashed or died
+      $tinfo->{'rapid_server_crash'} = 1;
       $tinfo->{'comment'} =
-        "Secondary engine server $proc crashed or failed during test run." .
-        get_secondary_engine_server_log();
+        "Rapid server $proc crashed or failed during test run." .
+        get_rapid_server_log();
 
       # Kill the test process
       $test->kill();
@@ -5287,8 +5306,8 @@ sub check_expected_crash_and_restart {
 
         unlink($expect_file);
 
-        # Stop secondary engine server if enabled
-        stop_secondary_engine_server() if $opt_secondary_engine;
+        # Stop rapid server if enabled
+        stop_rapid_server() if $secondary_engine_rapid;
 
         # Start server with same settings as last time
         mysqld_start($mysqld, $mysqld->{'started_opts'});
@@ -5416,7 +5435,13 @@ sub after_failure ($) {
     foreach my $mysqld (mysqlds()) {
       my $data_dir = $mysqld->value('datadir');
       save_datadir_after_failure(dirname($data_dir), $save_dir);
-      save_secondary_engine_logdir($save_dir) if $opt_secondary_engine;
+
+      if ($secondary_engine_rapid) {
+        # Save rapid server log directory
+        my $rapid             = $config->group('rapid');
+        my $rapid_log_dirname = basename($rapid->{'logdir'});
+        rename($rapid->{'logdir'}, "$save_dir/$rapid_log_dirname");
+      }
     }
   }
 }
@@ -5545,9 +5570,9 @@ sub mysqld_arguments ($$$) {
                  "--print-defaults");
   arrange_option_files_options($args, $mysqld, $extra_opts, @options);
 
-  # Set the plugin-dir location to secondary engine plugin directory location.
-  mtr_add_arg($args, "--plugin-dir=" . $::secondary_engine_plugin_dir)
-    if $opt_secondary_engine;
+  # Set the plugin-dir location to rapid plugin directory location.
+  mtr_add_arg($args, "--plugin-dir=" . $::rapid_plugin_dir)
+    if $secondary_engine_rapid;
 
   # When mysqld is run by a root user(euid is 0), it will fail
   # to start unless we specify what user to run as, see BUG#30630
@@ -5647,8 +5672,8 @@ sub mysqld_start ($$) {
   my $mysqld     = shift;
   my $extra_opts = shift;
 
-  # Start secondary engine server.
-  start_secondary_engine_server() if $opt_secondary_engine;
+  # Start rapid server.
+  start_rapid_server() if $secondary_engine_rapid;
 
   mtr_verbose(My::Options::toStr("mysqld_start", @$extra_opts));
 
@@ -6064,13 +6089,12 @@ sub start_servers($) {
     if ($mysqld->{proc}) {
       # Already started, write start of testcase to log file
       mark_log($mysqld->value('#log-error'), $tinfo);
-      # No need to install secondary engine plugin
-      $mysqld->{install_secondary_engine_plugin} = 0 if $opt_secondary_engine;
+      # No need to install rapid plugin
+      $mysqld->{install_rapid_plugin} = 0 if $secondary_engine_rapid;
       next;
     } else {
-      # Need to install secondary engine plugin since mysqld server
-      # will be restarted.
-      $mysqld->{install_secondary_engine_plugin} = 1 if $opt_secondary_engine;
+      # Need to install rapid plugin since mysqld server will be restarted.
+      $mysqld->{install_rapid_plugin} = 1 if $secondary_engine_rapid;
     }
 
     my $datadir = $mysqld->value('datadir');
@@ -6209,7 +6233,7 @@ sub start_servers($) {
     }
   }
 
-  if ($opt_secondary_engine) {
+  if ($secondary_engine_rapid) {
     check_plugin_dir($tinfo);
 
     # Skip tests starting more than one server.
@@ -6217,8 +6241,8 @@ sub start_servers($) {
 
     return 0 if $tinfo->{'skip'};
 
-    # Install secondary engine plugin on all running mysqld servers.
-    install_secondary_engine_plugin(\&mysqlds, \&run_query, $tinfo);
+    # Install rapid plugin on all running mysqld servers.
+    install_rapid_plugin(\&mysqlds, \&run_query, $tinfo);
   }
 
   return 0;
@@ -6365,8 +6389,10 @@ sub start_mysqltest ($) {
     mtr_add_arg($args, "--colored-diff", $opt_colored_diff);
   }
 
+  # Pass rapid options if enabled.
   if ($opt_secondary_engine and defined $opt_change_propagation) {
-    add_secondary_engine_client_options($args);
+    mtr_add_arg($args, "--secondary-engine=%s",   $opt_secondary_engine);
+    mtr_add_arg($args, "--change-propagation=%d", $opt_change_propagation);
   }
 
   foreach my $arg (@opt_extra_mysqltest_opt) {
