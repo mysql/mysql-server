@@ -1,6 +1,6 @@
-# MySQL %Protocol Trace Replayer {#mysql_protocol_trace_replayer}
+# MySQL Server Mock {#PAGE_MYSQL_SERVER_MOCK}
 
-The MySQL %Protocol Trace Replayer
+The MySQL Server Mock
 
 * speaks (a subset of) the MySQL Client/Server protocol
 * knows how to
@@ -139,7 +139,7 @@ are hard to create in real setups:
 
 ## Less options for failure
 
-By using the %Protocol Trace Replayer in the Router tests, the tests don't need
+By using the MySQL Server Mock in the Router tests, the tests don't need
 the rely on installing
 
 * MySQL Shell
@@ -150,14 +150,6 @@ which involves:
 * ensure the right version
 * check they actually work on the target
 * using the right paths
-
-## Not a Replacement for Integration tests
-
-the %Protocol Trace Replayer is **NOT** a replacement for Integration tests where
-
-* a real Shell is used with
-* a real MySQL Server with
-* a real MySQL Router.
 
 # MySQL Router Demo
 
@@ -252,14 +244,27 @@ The ``group-replication`` mock outputs:
     2017-01-24 12:28:30,795 MAIN DEBUG: sending Result
     2017-01-24 12:28:30,835 MAIN INFO: closed connection to ('127.0.0.1', 41520)
 
-## Trace files
+## Mock Configuration
 
-The ``mysql_server_mock`` is driven by trace-files.
+The behaviour of the ``mysql_server_mock`` is driven by
 
-It describes what the mock shall respond with when it receives:
+* JSON Tracefiles
+* Javascript files
 
-* statements (``stmts``)
+They describe what the mock shall respond with when it receives:
 
-### Format
+* a handshake
+* a sequence of statements
 
-\include src/mock_server/src/mysql_server_mock_schema.js
+### JSON Tracefiles
+
+The structure of the JSON Tracefiles is defined in JSON-schema
+and can be seen in the source at src/mock_server/src/mysql_server_mock_schema.js
+
+### Javascript
+
+The Javascript backed files for the mock are more powerful then the
+static JSON Tracefiles as it:
+
+* allows to interface with the REST API of the ``mysql_server_mock``
+* allows "stmts" to be handled at runtime via javascript functions

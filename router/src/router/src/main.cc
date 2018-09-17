@@ -23,24 +23,49 @@
 */
 
 /**
-  @page mysql_router_mainpage MySQL Router 8.0
+  @page PAGE_MYSQL_ROUTER MySQL Router
 
-  MySQL Router 8.0
-  ================
+  MySQL Router
 
-  This is a release of MySQL Router.
+  @section SEC_MYSQL_ROUTER_BUILD Building
 
-  For the avoidance of doubt, this particular copy of the software
-  is released under the version 2 of the GNU General Public License.
-  MySQL Router is brought to you by Oracle.
+  MySQL Router is built in like the [MySQL Server](@ref start_source).
 
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  In case MySQL Router shall be built without building the whole
+  server from the same source
 
+  - run cmake as before
+  - build the "mysqlrouter_all" target
 
+  like in:
 
+  @code
+  $ cmake --build . --target mysqlrouter_all
+  @endcode
 
-  @subpage mysql_protocol_trace_replayer
+  It builds:
 
+  - mysqlrouter
+  - libraries
+  - plugins
+  - all tests
+
+  @section SEC_MYSQL_ROUTER_TESTING Testing
+
+  Testing MySQL Router is based on:
+
+  - unit-tests via googletest
+  - component level tests using [mysql_server_mock](@ref PAGE_MYSQL_SERVER_MOCK)
+
+  To run only the Router related tests without running all other tests
+  contained in the source tree, tell ctest to only run the tests prefixed
+  with "routertest_"
+
+  @code
+  $ ctest -R routertest_
+  @endcode
+
+  @subpage PAGE_MYSQL_SERVER_MOCK
 */
 
 #define MYSQL_ROUTER_LOG_DOMAIN \
