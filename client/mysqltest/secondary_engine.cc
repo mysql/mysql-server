@@ -50,7 +50,6 @@ Secondary_engine::Secondary_engine(bool change_propagation)
           get_errcode_from_name("ER_CHECK_NOT_IMPLEMENTED"),
           get_errcode_from_name("ER_DBACCESS_DENIED_ERROR"),
           get_errcode_from_name("ER_SECONDARY_ENGINE"),
-          get_errcode_from_name("ER_TABLE_NOT_LOCKED_FOR_WRITE"),
           get_errcode_from_name("ER_TABLEACCESS_DENIED_ERROR")},
       m_secondary_load_errors{get_errcode_from_name("ER_CHECK_NOT_IMPLEMENTED"),
                               get_errcode_from_name("ER_RAPID_PLUGIN")},
