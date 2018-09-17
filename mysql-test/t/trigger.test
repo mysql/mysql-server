@@ -4209,3 +4209,35 @@ SELECT @t1_var;
 --echo # Expected result : _AI_0_AI_1_AI_2_AI_3
 
 DROP TABLE t1;
+
+
+--echo #
+--echo # Testing bug#28492272
+--echo #
+--echo # Test case 1: SET sql_mode='time_truncate_fractional';
+CREATE TABLE t1 (i INT, j VARCHAR(32));
+SET sql_mode='time_truncate_fractional';
+
+--echo # CREATE TRIGGER when sql_mode is set to time_truncate_fractional must
+--echo # not assert
+CREATE TRIGGER t1_before_insert BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO
+t3 VALUES (1, NEW.i, NULL, CONCAT("BI: ", NEW.j));
+
+SET sql_mode=default;
+DROP TRIGGER t1_before_insert;
+DROP TABLE t1;
+
+--echo # Test case 2 sql_mode=2147483648*2;
+--echo # (This is actually equivalent to 'time_truncate_fractional', somehow)
+CREATE TABLE t1 (i INT, j VARCHAR(32));
+SET sql_mode=2147483648*2;
+
+--echo # CREATE TRIGGER when sql_mode is set to 2147483648*2 must not trigger
+--echo # assert
+CREATE TRIGGER t1_before_insert BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO
+t3 VALUES (1, NEW.i, NULL, CONCAT("BI: ", NEW.j));
+
+SET sql_mode=default;
+DROP TRIGGER t1_before_insert;
+DROP TABLE t1;
+

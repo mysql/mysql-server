@@ -7962,9 +7962,6 @@ select @@sql_mode into @full_mode;
 create procedure p() begin end;
 call p();
 set @@sql_mode= @old_mode;
-# Rename SQL modes that differ in name between the server and the table definition.
-select replace(@full_mode, ',,,', ',NOT_USED,') into @full_mode;
-select replace(@full_mode, 'ALLOW_INVALID_DATES', 'INVALID_DATES') into @full_mode;
 select routine_name from information_schema.routines where routine_name = 'p' and sql_mode = @full_mode;
 drop procedure p;
 
